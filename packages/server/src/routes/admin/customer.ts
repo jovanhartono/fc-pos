@@ -2,17 +2,15 @@ import { eq } from 'drizzle-orm';
 import { createInsertSchema, createUpdateSchema } from 'drizzle-zod';
 import { Hono } from 'hono';
 import { StatusCodes } from 'http-status-codes';
-import { db } from '@/server/db';
-import { customersTable } from '@/server/db/schema';
-import { failure, success } from '@/server/utils/http';
-import { idParamSchema } from '@/server/utils/schema';
-import { zodValidator } from '@/server/utils/zod-validator-wrapper';
+import { db } from '@/db';
+import { customersTable } from '@/db/schema';
+import { failure, success } from '@/utils/http';
+import { idParamSchema } from '@/utils/schema';
+import { zodValidator } from '@/utils/zod-validator-wrapper';
 
 const POSTCustomerSchema = createInsertSchema(customersTable);
 const PUTCustomerSchema = createUpdateSchema(customersTable);
-const app = new Hono();
-
-app
+const app = new Hono()
   .post('/', zodValidator('json', POSTCustomerSchema), async (c) => {
     const customer = c.req.valid('json');
 

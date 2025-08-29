@@ -8,7 +8,7 @@ interface Metadata {
 interface SuccessResponse<T> {
   success: true;
   message?: string;
-  data?: T;
+  data: T;
   meta?: Metadata;
 }
 
@@ -18,7 +18,7 @@ interface ErrorResponse {
   errors?: unknown;
 }
 
-export function success<T>(data?: T, message?: string): SuccessResponse<T> {
+export function success<T>(data: T, message?: string): SuccessResponse<T> {
   return {
     data,
     message,

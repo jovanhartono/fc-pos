@@ -1,20 +1,21 @@
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { createInsertSchema, createUpdateSchema } from 'drizzle-zod';
 import { Hono } from 'hono';
 import { StatusCodes } from 'http-status-codes';
-import { db } from '@/server/db';
-import { storesTable } from '@/server/db/schema';
-import { failure, success } from '@/server/utils/http';
-import { idParamSchema } from '@/server/utils/schema';
-import { zodValidator } from '@/server/utils/zod-validator-wrapper';
+import { db } from '@/db';
+import { storesTable } from '@/db/schema';
+import { failure, success } from '@/utils/http';
+import { idParamSchema } from '@/utils/schema';
+import { zodValidator } from '@/utils/zod-validator-wrapper';
 
-const app = new Hono();
 const POSTStoreSchema = createInsertSchema(storesTable);
 const PUTStoreSchema = createUpdateSchema(storesTable);
 
-app
+const app = new Hono()
   .get('/', async (c) => {
-    const stores = await db.query.storesTable.findMany();
+    const stores = await db.query.storesTable.findMany({
+      orderBy: [asc(storesTable.id)],
+    });
 
     return c.json(success(stores));
   })

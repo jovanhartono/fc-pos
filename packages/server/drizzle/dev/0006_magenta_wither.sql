@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD CONSTRAINT "username_len-check" CHECK (LENGTH(TRIM("users"."username")) >= 5);

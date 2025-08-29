@@ -17,25 +17,31 @@ import {
 export const userRoleEnum = pgEnum('user_role', [
   'admin',
   'cashier',
-  'cleaner',
+  'worker',
 ]);
 export type UserRole = (typeof userRoleEnum.enumValues)[number];
 
-export const usersTable = pgTable('users', {
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  is_active: boolean().default(true).notNull(),
-  name: varchar('name', { length: 255 }).notNull(),
-  password: varchar('password', {
-    length: 255,
-  }).notNull(),
-  role: userRoleEnum('role').notNull(),
-  updated_at: timestamp('updated_at')
-    .defaultNow()
-    .notNull()
-    .$onUpdate(() => new Date()),
-  username: varchar('username', { length: 255 }).notNull().unique(),
-});
+export const usersTable = pgTable(
+  'users',
+  {
+    created_at: timestamp('created_at').defaultNow().notNull(),
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    is_active: boolean().default(true).notNull(),
+    name: varchar('name', { length: 255 }).notNull(),
+    password: varchar('password', {
+      length: 255,
+    }).notNull(),
+    role: userRoleEnum('role').notNull(),
+    updated_at: timestamp('updated_at')
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+    username: varchar('username', { length: 255 }).notNull().unique(),
+  },
+  (table) => [
+    check('username_len-check', sql`LENGTH(TRIM(${table.username})) >= 5`),
+  ]
+);
 export const usersRelations = relations(usersTable, ({ many }) => ({
   orderServices: many(ordersServicesTable),
   orders: many(ordersTable),

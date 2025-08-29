@@ -1,0 +1,12 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.1.4/schema.json",
+  "root": true,
+  "files": {
+    "ignoreUnknown": true,
+    "includes": ["**"]
+  },
+  "javascript": {
+    "globals": ["Bun"]
+  },
+  "extends": ["ultracite"]
+}

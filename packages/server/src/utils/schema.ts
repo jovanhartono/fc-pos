@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zodValidator } from '@/server/utils/zod-validator-wrapper';
+import { zodValidator } from '@/utils/zod-validator-wrapper';
 
 export const idParamSchema = zodValidator(
   'param',
