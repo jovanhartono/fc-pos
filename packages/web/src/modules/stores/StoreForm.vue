@@ -2,19 +2,24 @@
 import { Button } from '@/shared/components/ui/button'
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
+import { Switch } from '@/shared/components/ui/switch'
 import { Textarea } from '@/shared/components/ui/textarea'
 import { POSTStoreSchema } from '@/shared/validation'
 import { useForm, type FormOptions } from 'vee-validate'
 import type z from 'zod'
 
 type StoreForm = z.infer<typeof POSTStoreSchema>
-const props = defineProps<FormOptions<StoreForm>>()
+type StoreFormProps = FormOptions<StoreForm> & {
+  type: 'post' | 'put'
+}
+const props = defineProps<StoreFormProps>()
 const emit = defineEmits<{
   submit: [data: StoreForm]
 }>()
@@ -33,8 +38,14 @@ const onSubmit = handleSubmit((data) => emit('submit', data))
       <FormItem>
         <FormLabel asterisk> Code </FormLabel>
         <FormControl>
-          <Input maxlength="3" placeholder="Store Code" v-bind="componentField" />
+          <Input
+            :disabled="type === 'put'"
+            maxlength="3"
+            placeholder="Store Code"
+            v-bind="componentField"
+          />
         </FormControl>
+        <FormDescription v-if="type === 'put'"> Code can't be edited </FormDescription>
         <FormMessage />
       </FormItem>
     </FormField>
@@ -89,6 +100,18 @@ const onSubmit = handleSubmit((data) => emit('submit', data))
           <Input placeholder="Longitude" v-bind="componentField" />
         </FormControl>
         <FormMessage />
+      </FormItem>
+    </FormField>
+
+    <FormField v-slot="{ value, handleChange }" name="is_active">
+      <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
+        <div class="space-y-0.5">
+          <FormLabel class="text-base"> Activation Status </FormLabel>
+          <FormDescription> Activate store to create orders. </FormDescription>
+        </div>
+        <FormControl>
+          <Switch :model-value="value" @update:model-value="handleChange" />
+        </FormControl>
       </FormItem>
     </FormField>
 

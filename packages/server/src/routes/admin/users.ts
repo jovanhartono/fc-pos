@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { StatusCodes } from 'http-status-codes';
 import { db } from '@/db';
 import { usersTable } from '@/db/schema';
+import { notFoundOrFirst } from '@/utils/helper';
 import { failure, success } from '@/utils/http';
 import { idParamSchema } from '@/utils/schema';
 import { zodValidator } from '@/utils/zod-validator-wrapper';
@@ -53,13 +54,22 @@ const app = new Hono()
     zodValidator('json', PUTUserSchema),
     async (c) => {
       const { id } = c.req.valid('param');
-      const body = c.req.valid('json');
+      const {
+        created_at: _created_at,
+        updated_at: _updated_at,
+        ...body
+      } = c.req.valid('json');
 
-      const [user] = await db
+      const updatedUser = await db
         .update(usersTable)
         .set(body)
         .where(eq(usersTable.id, id))
         .returning();
+
+      const user = notFoundOrFirst(updatedUser, c, 'User does not exist');
+      if (user instanceof Response) {
+        return user;
+      }
 
       return c.json(success(user, `Update user ${user.name} success`));
     }

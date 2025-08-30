@@ -4,12 +4,16 @@ import { Hono } from 'hono';
 import { StatusCodes } from 'http-status-codes';
 import { db } from '@/db';
 import { storesTable } from '@/db/schema';
+import { notFoundOrFirst } from '@/utils/helper';
 import { failure, success } from '@/utils/http';
 import { idParamSchema } from '@/utils/schema';
 import { zodValidator } from '@/utils/zod-validator-wrapper';
 
 const POSTStoreSchema = createInsertSchema(storesTable);
 const PUTStoreSchema = createUpdateSchema(storesTable);
+const PATCHStoreSchema = createUpdateSchema(storesTable).pick({
+  is_active: true,
+});
 
 const app = new Hono()
   .get('/', async (c) => {
@@ -48,15 +52,43 @@ const app = new Hono()
     zodValidator('json', PUTStoreSchema),
     async (c) => {
       const { id } = c.req.valid('param');
-      const storeData = c.req.valid('json');
+      const { code: _, ...storeData } = c.req.valid('json');
 
-      const [store] = await db
+      const updatedStores = await db
         .update(storesTable)
         .set(storeData)
         .where(eq(storesTable.id, id))
         .returning();
 
+      const store = notFoundOrFirst(updatedStores, c, 'Store does not exist');
+      if (store instanceof Response) {
+        return store;
+      }
+
       return c.json(success(store, `Successfully updated ${store.name}`));
+    }
+  )
+  .patch(
+    '/:id',
+    idParamSchema,
+    zodValidator('json', PATCHStoreSchema),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const data = c.req.valid('json');
+
+      const updatedStores = await db
+        .update(storesTable)
+        .set({ is_active: data.is_active })
+        .where(eq(storesTable.id, id))
+        .returning();
+
+      const store = notFoundOrFirst(updatedStores, c, 'Store does not exist');
+      if (store instanceof Response) {
+        return store;
+      }
+
+      const statusText = data.is_active ? 'Activated' : 'Deactivated';
+      return c.json(success(store, `${store.name} is ${statusText}`));
     }
   );
 

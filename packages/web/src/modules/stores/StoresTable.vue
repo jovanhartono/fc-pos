@@ -23,15 +23,6 @@ const columns = [
     accessorKey: 'address',
     header: 'Address',
   },
-  // {
-  //   id: 'geolocation',
-  //   header: 'Latitude/Longitude',
-  //   cell: ({
-  //     row: {
-  //       original: { latitude, longitude },
-  //     },
-  //   }) => h('span', `${latitude}/${longitude}`),
-  // },
   {
     accessorKey: 'is_active',
     header: 'Status',

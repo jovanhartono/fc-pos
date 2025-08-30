@@ -8,6 +8,7 @@ export const POSTUserSchema = z
     password: z.string('Minimum 8 characters').min(8, 'Minimum 8 characters'),
     confirm_password: z.string('Minimum 8 characters').min(8, 'Minimum 8 characters'),
     role: z.literal(['admin', 'cashier', 'worker'], 'Role is required'),
+    is_active: z.boolean(),
   })
   .refine((data) => data.password === data.confirm_password, {
     error: 'Password does not match',
@@ -42,4 +43,5 @@ export const POSTStoreSchema = z.object({
       .max(180, 'Invalid longitude')
       .transform(String),
   ),
+  is_active: z.boolean(),
 })

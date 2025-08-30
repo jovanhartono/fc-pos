@@ -54,15 +54,17 @@ const { mutateAsync } = useMutation({
 function handleEditStore() {
   openDialog({
     title: `Edit ${row.original.name}`,
-    content: h(EditStore, { initialValues: { ...row.original }, onSubmit: mutateAsync }),
+    content: h(EditStore, {
+      initialValues: { ...row.original },
+      onSubmit: mutateAsync,
+      type: 'put',
+    }),
   })
 }
 </script>
 
 <template>
   <div class="flex gap-x-1 items-center">
-    <Button size="icon" variant="ghost" @click="handleEditStore">
-      <EditIcon />
-    </Button>
+    <Button size="icon" variant="ghost" @click="handleEditStore"> <EditIcon /> </Button>
   </div>
 </template>

@@ -1,15 +1,20 @@
 <script setup lang="ts">
+import { rpc } from '@/core/rpc'
 import { useDialogStore } from '@/core/stores/dialog-store'
 import { Button } from '@/shared/components/ui/button'
-import { LoaderIcon, PlusIcon } from 'lucide-vue-next'
-import UsersTable from '@/modules/users/UsersTable.vue'
-import { defineAsyncComponent, h } from 'vue'
-import { useMutation } from '@tanstack/vue-query'
-import { rpc } from '@/core/rpc'
 import type { POSTUserSchema } from '@/shared/validation'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import type { Row } from '@tanstack/vue-table'
 import { parseResponse } from 'hono/client'
+import { EditIcon, LoaderIcon } from 'lucide-vue-next'
+import { defineAsyncComponent, h } from 'vue'
 import { toast } from 'vue-sonner'
 import type z from 'zod'
+import type { User } from './UsersTable.vue'
+
+const { row } = defineProps<{
+  row: Row<User>
+}>()
 
 const UserForm = defineAsyncComponent({
   loader: () => import('./UserForm.vue'),
@@ -23,11 +28,15 @@ const UserForm = defineAsyncComponent({
 
 const { openDialog, closeDialog } = useDialogStore()
 
+const queryClient = useQueryClient()
 const { mutateAsync } = useMutation({
-  mutationKey: ['create-user'],
+  mutationKey: ['edit-user'],
   mutationFn: async (data: z.infer<typeof POSTUserSchema>) =>
     await parseResponse(
-      rpc.api.admin.users.$post({
+      rpc.api.admin.users[':id'].$put({
+        param: {
+          id: row.original.id.toString(),
+        },
         json: data,
       }),
     ),
@@ -35,27 +44,27 @@ const { mutateAsync } = useMutation({
     if (data.message) {
       toast.success(data.message)
     }
+    queryClient.invalidateQueries({
+      queryKey: ['users'],
+    })
     closeDialog()
   },
 })
-function handleNewUserClick() {
+
+function handleEditUser() {
   openDialog({
-    title: 'Add New User',
-    description: 'Make sure user has not been registered yet on the system.',
-    content: h(UserForm, { onSubmit: mutateAsync }),
+    title: `Edit ${row.original.name}`,
+    content: h(UserForm, {
+      initialValues: { ...row.original },
+      onSubmit: mutateAsync,
+      type: 'put',
+    }),
   })
 }
 </script>
 
 <template>
-  <div class="flex flex-col gap-y-6">
-    <div class="flex items-center justify-between">
-      <h1 class="font-medium text-lg">Users</h1>
-      <Button size="sm" variant="outline" @click="handleNewUserClick">
-        <PlusIcon /> New User
-      </Button>
-    </div>
-
-    <UsersTable />
+  <div class="flex gap-x-1 items-center">
+    <Button size="icon" variant="ghost" @click="handleEditUser"> <EditIcon /> </Button>
   </div>
 </template>

@@ -1,21 +1,18 @@
 <script setup lang="ts">
-import { rpc } from '@/core/rpc'
-import { useDialogStore } from '@/core/stores/dialog-store'
 import { Button } from '@/shared/components/ui/button'
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
+import { Switch } from '@/shared/components/ui/switch'
 import { POSTUserSchema } from '@/shared/validation'
-import { useMutation } from '@tanstack/vue-query'
-import { parseResponse } from 'hono/client'
 import { RadioGroupItem, RadioGroupRoot } from 'reka-ui'
-import { useForm } from 'vee-validate'
-import { toast } from 'vue-sonner'
+import { type FormOptions, useForm } from 'vee-validate'
 import type z from 'zod'
 
 const radioItems = [
@@ -30,37 +27,18 @@ const radioItems = [
     value: 'worker',
   },
 ]
-
-const { closeDialog } = useDialogStore()
+type UserForm = z.infer<typeof POSTUserSchema>
+const props = defineProps<FormOptions<UserForm>>()
+const emit = defineEmits<{
+  submit: [data: UserForm]
+}>()
 
 const { handleSubmit, isSubmitting } = useForm({
+  ...props,
   validationSchema: POSTUserSchema,
-  initialValues: {
-    name: '',
-    username: '',
-    password: '',
-    confirm_password: '',
-    role: 'cashier',
-  },
 })
 
-const { mutateAsync } = useMutation({
-  mutationKey: ['create-user'],
-  mutationFn: async (data: z.infer<typeof POSTUserSchema>) =>
-    await parseResponse(
-      rpc.api.admin.users.$post({
-        json: data,
-      }),
-    ),
-  onSuccess: (data) => {
-    if (data.message) {
-      toast.success(data.message)
-    }
-    closeDialog()
-  },
-})
-
-const onSubmit = handleSubmit((data) => mutateAsync(data))
+const onSubmit = handleSubmit((data) => emit('submit', data))
 </script>
 
 <template>
@@ -125,6 +103,18 @@ const onSubmit = handleSubmit((data) => mutateAsync(data))
           </RadioGroupRoot>
         </FormControl>
         <FormMessage />
+      </FormItem>
+    </FormField>
+
+    <FormField v-slot="{ value, handleChange }" name="is_active">
+      <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
+        <div class="space-y-0.5">
+          <FormLabel class="text-base"> Activation Status </FormLabel>
+          <FormDescription> Activate store to create orders. </FormDescription>
+        </div>
+        <FormControl>
+          <Switch :model-value="value" @update:model-value="handleChange" />
+        </FormControl>
       </FormItem>
     </FormField>
 

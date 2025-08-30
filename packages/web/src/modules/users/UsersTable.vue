@@ -3,36 +3,41 @@ import { rpc } from '@/core/rpc'
 import { Badge } from '@/shared/components/ui/badge'
 import DataTable from '@/shared/components/ui/table/DataTable.vue'
 import { keepPreviousData, useQuery } from '@tanstack/vue-query'
-import { createColumnHelper } from '@tanstack/vue-table'
+import { type ColumnDef } from '@tanstack/vue-table'
 import { parseResponse, type InferResponseType } from 'hono/client'
 import { h } from 'vue'
+import UsersTableActions from './UsersTableActions.vue'
 
 const $get = rpc.api.admin.users.$get
-type User = InferResponseType<typeof $get>['data'][number]
-const columnHelper = createColumnHelper<User>()
+export type User = InferResponseType<typeof $get>['data'][number]
 const columns = [
-  columnHelper.accessor('username', {
+  {
+    accessorKey: 'username',
     header: 'Username',
-    cell: ({ getValue }) => getValue(),
-  }),
-  columnHelper.accessor('name', {
+  },
+  {
+    accessorKey: 'name',
     header: 'Name',
-    cell: ({ getValue }) => getValue(),
-  }),
-  columnHelper.accessor('role', {
+  },
+  {
+    accessorKey: 'role',
     header: 'Role',
-    cell: ({ getValue }) => getValue(),
-  }),
-  columnHelper.accessor('is_active', {
+  },
+  {
+    accessorKey: 'is_active',
     header: 'Status',
     cell: ({ getValue }) =>
       h(
         Badge,
-        { variant: 'outline', color: 'emerald' },
+        { variant: 'outline', color: getValue() ? 'emerald' : 'red' },
         getValue() ? () => 'Active' : () => 'Inactive',
       ),
-  }),
-]
+  },
+  {
+    id: 'actions',
+    cell: ({ row }) => h(UsersTableActions, { row }),
+  },
+] satisfies ColumnDef<User>[]
 
 const { data, isPending } = useQuery({
   queryKey: ['users'],
