@@ -17,7 +17,7 @@ const columns = [
   },
   {
     accessorKey: 'name',
-    header: 'Name',
+    header: 'Store',
   },
   {
     accessorKey: 'address',

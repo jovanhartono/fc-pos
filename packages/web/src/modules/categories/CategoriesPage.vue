@@ -1,22 +1,22 @@
 <script setup lang="ts">
 import { rpc } from '@/core/rpc'
 import { useDialogStore } from '@/core/stores/dialog-store'
-import StoresTable from '@/modules/stores/StoresTable.vue'
 import { Button } from '@/shared/components/ui/button'
-import type { POSTStoreSchema } from '@/shared/validation'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { parseResponse } from 'hono/client'
 import { LoaderIcon, PlusIcon } from 'lucide-vue-next'
 import { defineAsyncComponent, h } from 'vue'
 import { toast } from 'vue-sonner'
 import type z from 'zod'
+import CategoriesTable from './CategoriesTable.vue'
+import type { POSTCategorySchema } from '@/shared/validation'
 
-const StoreForm = defineAsyncComponent({
-  loader: () => import('./StoreForm.vue'),
+const CategoryForm = defineAsyncComponent({
+  loader: () => import('./CategoryForm.vue'),
   delay: 0,
   loadingComponent: h(
     'div',
-    { class: 'w-full h-[500px] flex items-center justify-center' },
+    { class: 'w-full h-[313px] flex items-center justify-center' },
     h(LoaderIcon, { class: 'animate-spin' }),
   ),
 })
@@ -25,10 +25,10 @@ const queryClient = useQueryClient()
 const { closeDialog } = useDialogStore()
 
 const { mutateAsync } = useMutation({
-  mutationKey: ['create-store'],
-  mutationFn: async (data: z.infer<typeof POSTStoreSchema>) =>
+  mutationKey: ['create-category'],
+  mutationFn: async (data: z.infer<typeof POSTCategorySchema>) =>
     await parseResponse(
-      rpc.api.admin.stores.$post({
+      rpc.api.admin.categories.$post({
         json: data,
       }),
     ),
@@ -37,20 +37,19 @@ const { mutateAsync } = useMutation({
       toast.success(data.message)
     }
     queryClient.invalidateQueries({
-      queryKey: ['stores'],
+      queryKey: ['categories'],
     })
     closeDialog()
   },
 })
 
 const { openDialog } = useDialogStore()
-function handleAddStore() {
+function handleAddCategory() {
   openDialog({
-    title: 'Add New Store',
-    description: 'Make sure store has not been registered yet on the system.',
-    content: h(StoreForm, {
+    title: 'Add New Category',
+    description: 'Make sure category has not been registered yet on the system.',
+    content: h(CategoryForm, {
       onSubmit: mutateAsync,
-      type: 'post',
       initialValues: { is_active: true },
     }),
   })
@@ -60,10 +59,12 @@ function handleAddStore() {
 <template>
   <div class="flex flex-col gap-y-6">
     <div class="flex items-center justify-between">
-      <h1 class="font-medium text-lg">Stores</h1>
-      <Button size="sm" variant="outline" @click="handleAddStore"> <PlusIcon /> New Store </Button>
+      <h1 class="font-medium text-lg">Categories</h1>
+      <Button size="sm" variant="outline" @click="handleAddCategory">
+        <PlusIcon /> New Category
+      </Button>
     </div>
 
-    <StoresTable />
+    <CategoriesTable />
   </div>
 </template>

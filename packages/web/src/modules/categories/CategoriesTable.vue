@@ -6,30 +6,19 @@ import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 import { type ColumnDef } from '@tanstack/vue-table'
 import { parseResponse, type InferResponseType } from 'hono/client'
 import { h } from 'vue'
-import UsersTableActions from './UsersTableActions.vue'
+import ServicesTableActions from './CategoriesTableActions.vue'
 
-const $get = rpc.api.admin.users.$get
-export type User = InferResponseType<typeof $get>['data'][number]
+const $get = rpc.api.admin.categories.$get
+export type Category = InferResponseType<typeof $get>['data'][number]
 const columns = [
   {
-    accessorKey: 'username',
-    header: 'Username',
-  },
-  {
     accessorKey: 'name',
-    header: 'Name',
+    header: 'Category',
   },
   {
-    accessorKey: 'role',
-    header: 'Role',
-    cell: ({ getValue }) =>
-      h(
-        'span',
-        {
-          class: 'font-mono',
-        },
-        getValue(),
-      ),
+    accessorKey: 'description',
+    header: 'Description',
+    cell: ({ renderValue }) => h('span', renderValue() as string | undefined),
   },
   {
     accessorKey: 'is_active',
@@ -43,12 +32,12 @@ const columns = [
   },
   {
     id: 'actions',
-    cell: ({ row }) => h(UsersTableActions, { row }),
+    cell: ({ row }) => h(ServicesTableActions, { row }),
   },
-] satisfies ColumnDef<User>[]
+] satisfies ColumnDef<Category>[]
 
 const { data, isPending } = useQuery({
-  queryKey: ['users'],
+  queryKey: ['categories'],
   queryFn: async () => await parseResponse($get()),
   select: (data) => data.data,
   placeholderData: keepPreviousData,
@@ -56,5 +45,5 @@ const { data, isPending } = useQuery({
 </script>
 
 <template>
-  <DataTable :data="data ?? []" :columns="columns" :loading="isPending" />
+  <DataTable :loading="isPending" :data="data ?? []" :columns="columns" />
 </template>

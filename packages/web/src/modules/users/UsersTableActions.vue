@@ -2,7 +2,7 @@
 import { rpc } from '@/core/rpc'
 import { useDialogStore } from '@/core/stores/dialog-store'
 import { Button } from '@/shared/components/ui/button'
-import type { POSTUserSchema } from '@/shared/validation'
+import type { PUTUserSchema } from '@/shared/validation'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { Row } from '@tanstack/vue-table'
 import { parseResponse } from 'hono/client'
@@ -31,7 +31,7 @@ const { openDialog, closeDialog } = useDialogStore()
 const queryClient = useQueryClient()
 const { mutateAsync } = useMutation({
   mutationKey: ['edit-user'],
-  mutationFn: async (data: z.infer<typeof POSTUserSchema>) =>
+  mutationFn: async (data: z.infer<typeof PUTUserSchema>) =>
     await parseResponse(
       rpc.api.admin.users[':id'].$put({
         param: {

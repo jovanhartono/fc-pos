@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { rpc } from '@/core/rpc'
 import { useDialogStore } from '@/core/stores/dialog-store'
-import StoresTable from '@/modules/stores/StoresTable.vue'
 import { Button } from '@/shared/components/ui/button'
-import type { POSTStoreSchema } from '@/shared/validation'
+import type { POSTServiceSchema } from '@/shared/validation'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { parseResponse } from 'hono/client'
 import { LoaderIcon, PlusIcon } from 'lucide-vue-next'
 import { defineAsyncComponent, h } from 'vue'
 import { toast } from 'vue-sonner'
 import type z from 'zod'
+import ServicesTable from './ServicesTable.vue'
 
-const StoreForm = defineAsyncComponent({
-  loader: () => import('./StoreForm.vue'),
+const ServiceForm = defineAsyncComponent({
+  loader: () => import('./ServiceForm.vue'),
   delay: 0,
   loadingComponent: h(
     'div',
@@ -25,10 +25,10 @@ const queryClient = useQueryClient()
 const { closeDialog } = useDialogStore()
 
 const { mutateAsync } = useMutation({
-  mutationKey: ['create-store'],
-  mutationFn: async (data: z.infer<typeof POSTStoreSchema>) =>
+  mutationKey: ['create-service'],
+  mutationFn: async (data: z.infer<typeof POSTServiceSchema>) =>
     await parseResponse(
-      rpc.api.admin.stores.$post({
+      rpc.api.admin.services.$post({
         json: data,
       }),
     ),
@@ -37,18 +37,18 @@ const { mutateAsync } = useMutation({
       toast.success(data.message)
     }
     queryClient.invalidateQueries({
-      queryKey: ['stores'],
+      queryKey: ['services'],
     })
     closeDialog()
   },
 })
 
 const { openDialog } = useDialogStore()
-function handleAddStore() {
+function handleAddService() {
   openDialog({
-    title: 'Add New Store',
-    description: 'Make sure store has not been registered yet on the system.',
-    content: h(StoreForm, {
+    title: 'Add New Service',
+    description: 'Make sure service has not been registered yet on the system.',
+    content: h(ServiceForm, {
       onSubmit: mutateAsync,
       type: 'post',
       initialValues: { is_active: true },
@@ -60,10 +60,12 @@ function handleAddStore() {
 <template>
   <div class="flex flex-col gap-y-6">
     <div class="flex items-center justify-between">
-      <h1 class="font-medium text-lg">Stores</h1>
-      <Button size="sm" variant="outline" @click="handleAddStore"> <PlusIcon /> New Store </Button>
+      <h1 class="font-medium text-lg">Services</h1>
+      <Button size="sm" variant="outline" @click="handleAddService">
+        <PlusIcon /> New Service
+      </Button>
     </div>
 
-    <StoresTable />
+    <ServicesTable />
   </div>
 </template>

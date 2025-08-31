@@ -8,7 +8,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/shared/components/ui/sidebar'
-import { CogIcon, PackageIcon, StoreIcon, UsersIcon } from 'lucide-vue-next'
+import { CogIcon, PackageIcon, StoreIcon, TagsIcon, UsersIcon } from 'lucide-vue-next'
 
 const menus = [
   {
@@ -20,6 +20,11 @@ const menus = [
     label: 'Stores',
     icon: StoreIcon,
     routeName: 'stores',
+  },
+  {
+    label: 'Categories',
+    icon: TagsIcon,
+    routeName: 'categories',
   },
   {
     label: 'Services',

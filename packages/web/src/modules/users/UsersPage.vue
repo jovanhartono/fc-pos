@@ -25,10 +25,10 @@ const { openDialog, closeDialog } = useDialogStore()
 
 const { mutateAsync } = useMutation({
   mutationKey: ['create-user'],
-  mutationFn: async (data: z.infer<typeof POSTUserSchema>) =>
+  mutationFn: async (data: unknown) =>
     await parseResponse(
       rpc.api.admin.users.$post({
-        json: data,
+        json: data as z.infer<typeof POSTUserSchema>,
       }),
     ),
   onSuccess: (data) => {
@@ -42,7 +42,7 @@ function handleNewUserClick() {
   openDialog({
     title: 'Add New User',
     description: 'Make sure user has not been registered yet on the system.',
-    content: h(UserForm, { onSubmit: mutateAsync }),
+    content: h(UserForm, { onSubmit: mutateAsync, type: 'post' }),
   })
 }
 </script>

@@ -6,7 +6,7 @@ export function notFoundOrFirst<T>(
   rows: T[],
   c: Context,
   notFoundMessage = 'Record does not exist'
-): T | Response {
+) {
   if (rows.length === 0) {
     return c.json(failure(notFoundMessage), StatusCodes.NOT_FOUND);
   }

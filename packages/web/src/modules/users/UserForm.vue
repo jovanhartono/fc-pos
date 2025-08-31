@@ -10,9 +10,10 @@ import {
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
 import { Switch } from '@/shared/components/ui/switch'
-import { POSTUserSchema } from '@/shared/validation'
+import { POSTUserSchema, PUTUserSchema } from '@/shared/validation'
 import { RadioGroupItem, RadioGroupRoot } from 'reka-ui'
 import { type FormOptions, useForm } from 'vee-validate'
+import { computed } from 'vue'
 import type z from 'zod'
 
 const radioItems = [
@@ -27,15 +28,26 @@ const radioItems = [
     value: 'worker',
   },
 ]
-type UserForm = z.infer<typeof POSTUserSchema>
-const props = defineProps<FormOptions<UserForm>>()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const props = defineProps<FormOptions<any> & { type: 'post' | 'put' }>()
+
+type SchemaType<T extends 'post' | 'put'> = T extends 'post'
+  ? z.infer<typeof POSTUserSchema>
+  : z.infer<typeof PUTUserSchema>
+type UserForm = SchemaType<NonNullable<typeof props.type>>
+
+// Pick schema dynamically
+const schema = computed(() => {
+  return props.type === 'put' ? PUTUserSchema : POSTUserSchema
+})
+
 const emit = defineEmits<{
   submit: [data: UserForm]
 }>()
 
-const { handleSubmit, isSubmitting } = useForm({
+const { handleSubmit, isSubmitting } = useForm<UserForm>({
   ...props,
-  validationSchema: POSTUserSchema,
+  validationSchema: schema,
 })
 
 const onSubmit = handleSubmit((data) => emit('submit', data))
@@ -47,8 +59,9 @@ const onSubmit = handleSubmit((data) => emit('submit', data))
       <FormItem>
         <FormLabel asterisk> Username </FormLabel>
         <FormControl>
-          <Input placeholder="Username" v-bind="componentField" />
+          <Input :disabled="type === 'put'" placeholder="Username" v-bind="componentField" />
         </FormControl>
+        <FormDescription v-if="type === 'put'"> Username can't be edited </FormDescription>
         <FormMessage />
       </FormItem>
     </FormField>
@@ -63,7 +76,7 @@ const onSubmit = handleSubmit((data) => emit('submit', data))
       </FormItem>
     </FormField>
 
-    <FormField v-slot="{ componentField }" name="password">
+    <FormField v-slot="{ componentField }" name="password" v-if="type === 'post'">
       <FormItem>
         <FormLabel asterisk> Password </FormLabel>
         <FormControl>
@@ -73,7 +86,7 @@ const onSubmit = handleSubmit((data) => emit('submit', data))
       </FormItem>
     </FormField>
 
-    <FormField v-slot="{ componentField }" name="confirm_password">
+    <FormField v-slot="{ componentField }" name="confirm_password" v-if="type === 'post'">
       <FormItem>
         <FormLabel asterisk> Confirm Password </FormLabel>
         <FormControl>

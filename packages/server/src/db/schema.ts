@@ -14,11 +14,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
-export const userRoleEnum = pgEnum('user_role', [
-  'admin',
-  'cashier',
-  'worker',
-]);
+export const userRoleEnum = pgEnum('user_role', ['admin', 'cashier', 'worker']);
 export type UserRole = (typeof userRoleEnum.enumValues)[number];
 
 export const usersTable = pgTable(
@@ -66,7 +62,6 @@ export const storesTable = pgTable(
 export const storesRelations = relations(storesTable, ({ many }) => ({
   customers: many(customersTable),
   orders: many(ordersTable),
-  servicePrices: many(storeServicePricesTable),
 }));
 
 // customer
@@ -118,10 +113,10 @@ export const customersRelations = relations(
 );
 
 export const categoriesTable = pgTable('categories', {
-  description: text('description'),
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  is_active: boolean('is_active').notNull().default(false),
   name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  is_active: boolean('is_active').notNull().default(false),
 });
 
 export const productsTable = pgTable(
@@ -130,7 +125,8 @@ export const productsTable = pgTable(
     category_id: integer('category_id')
       .references(() => categoriesTable.id)
       .notNull(),
-    cogs: decimal('cogs', { precision: 12, scale: 2 }).default('0').notNull(),
+    cogs: decimal('cogs', { precision: 12 }).default('0').notNull(),
+    price: decimal('price', { precision: 12 }).notNull(),
     description: text('description'),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     is_active: boolean('is_active').default(false).notNull(),
@@ -159,11 +155,17 @@ export const servicesTable = pgTable(
       .references(() => categoriesTable.id)
       .notNull(),
     code: varchar('code', { length: 4 }).unique().notNull(),
-    cogs: decimal('cogs', { precision: 12, scale: 2 }).default('0').notNull(),
+    cogs: decimal('cogs', { precision: 12 }).default('0').notNull(),
+    price: decimal('price', { precision: 12 }).notNull(),
     description: text('description'),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     is_active: boolean('is_active').default(false).notNull(),
     name: varchar('name', { length: 255 }).notNull(),
+    created_at: timestamp('created_at').defaultNow().notNull(),
+    updated_at: timestamp('updated_at')
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
   },
   (table) => [
     index('service_name_idx').on(table.name),
@@ -180,39 +182,7 @@ export const servicesRelations = relations(servicesTable, ({ one, many }) => ({
     references: [categoriesTable.id],
   }),
   orders: many(ordersServicesTable),
-  servicePrices: many(storeServicePricesTable),
 }));
-
-export const storeServicePricesTable = pgTable(
-  'store_service_prices',
-  {
-    id: integer().primaryKey().generatedAlwaysAsIdentity(),
-    price: decimal('price', { precision: 12, scale: 2 }).notNull(),
-    service_id: integer('service_id').references(() => servicesTable.id, {
-      onDelete: 'cascade',
-    }),
-    store_id: integer('store_id').references(() => storesTable.id, {
-      onDelete: 'cascade',
-    }),
-  },
-  (table) => [
-    uniqueIndex('store_service_idx').on(table.store_id, table.service_id),
-    check('price_non_negative_check', sql`${table.price} >= 0`),
-  ]
-);
-export const storeServicePricesRelations = relations(
-  storeServicePricesTable,
-  ({ one }) => ({
-    service: one(servicesTable, {
-      fields: [storeServicePricesTable.service_id],
-      references: [servicesTable.id],
-    }),
-    store: one(storesTable, {
-      fields: [storeServicePricesTable.store_id],
-      references: [storesTable.id],
-    }),
-  })
-);
 
 // order
 export const paymentMethodsTable = pgTable('payment_methods', {
@@ -257,9 +227,7 @@ export const ordersTable = pgTable(
     customer_id: integer('customer_id')
       .references(() => customersTable.id)
       .notNull(),
-    discount: decimal('discount', { precision: 12, scale: 2 })
-      .default('0')
-      .notNull(),
+    discount: decimal('discount', { precision: 12 }).default('0').notNull(),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
 
     notes: text('notes'),
@@ -278,7 +246,7 @@ export const ordersTable = pgTable(
       .notNull(),
 
     // snapshot
-    total: decimal('total', { precision: 12, scale: 2 }).default('0'),
+    total: decimal('total', { precision: 12 }).default('0'),
     updated_at: timestamp('updated_at')
       .notNull()
       .defaultNow()
@@ -325,9 +293,7 @@ export const ordersRelations = relations(ordersTable, ({ one, many }) => ({
 export const ordersServicesTable = pgTable(
   'orders_services',
   {
-    discount: decimal('discount', { precision: 12, scale: 2 })
-      .default('0')
-      .notNull(),
+    discount: decimal('discount', { precision: 12 }).default('0').notNull(),
 
     handler_id: integer('handler_id').references(() => usersTable.id),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -337,7 +303,7 @@ export const ordersServicesTable = pgTable(
     }),
 
     // snapshot
-    price: decimal('price', { precision: 12, scale: 2 }).default('0'),
+    price: decimal('price', { precision: 12 }).default('0'),
 
     qty: smallint('qty').notNull().default(1),
     service_id: integer('service_id').references(() => servicesTable.id, {
@@ -346,7 +312,6 @@ export const ordersServicesTable = pgTable(
 
     subtotal: decimal('subtotal', {
       precision: 12,
-      scale: 2,
     }).generatedAlwaysAs(
       (): SQL =>
         sql`(${ordersServicesTable.price} * ${ordersServicesTable.qty}) - ${ordersServicesTable.discount}`
@@ -412,9 +377,7 @@ export const orderServicesImagesRelations = relations(
 export const ordersProductsTable = pgTable(
   'orders_products',
   {
-    discount: decimal('discount', { precision: 12, scale: 2 })
-      .default('0')
-      .notNull(),
+    discount: decimal('discount', { precision: 12 }).default('0').notNull(),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     notes: text('notes'),
     order_id: integer('order_id').references(() => ordersTable.id, {
@@ -422,7 +385,7 @@ export const ordersProductsTable = pgTable(
     }),
 
     // snapshot
-    price: decimal('price', { precision: 12, scale: 2 }).default('0'),
+    price: decimal('price', { precision: 12 }).default('0'),
     product_id: integer('product_id').references(() => productsTable.id, {
       onDelete: 'cascade',
     }),
@@ -431,7 +394,6 @@ export const ordersProductsTable = pgTable(
 
     subtotal: decimal('subtotal', {
       precision: 12,
-      scale: 2,
     }).generatedAlwaysAs(
       (): SQL =>
         sql`(${ordersProductsTable.price} * ${ordersProductsTable.qty}) - ${ordersProductsTable.discount}`

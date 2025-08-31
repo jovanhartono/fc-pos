@@ -54,11 +54,7 @@ const app = new Hono()
     zodValidator('json', PUTUserSchema),
     async (c) => {
       const { id } = c.req.valid('param');
-      const {
-        created_at: _created_at,
-        updated_at: _updated_at,
-        ...body
-      } = c.req.valid('json');
+      const { password: _, ...body } = c.req.valid('json');
 
       const updatedUser = await db
         .update(usersTable)

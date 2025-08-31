@@ -6,6 +6,7 @@ import DialogHeader from './DialogHeader.vue'
 import DialogTitle from './DialogTitle.vue'
 import DialogDescription from './DialogDescription.vue'
 import { storeToRefs } from 'pinia'
+import { cn } from '@/shared/utils'
 
 const dialogStore = useDialogStore()
 const { dialogState } = storeToRefs(dialogStore)
@@ -22,11 +23,17 @@ function handleOpenChange(open: boolean) {
   <Dialog :open="dialogState.open" @update:open="handleOpenChange">
     <DialogContent class="max-h-[90dvh] overflow-y-auto">
       <DialogHeader v-if="dialogState.title || dialogState.description">
-        <DialogTitle v-if="dialogState.title">
+        <DialogTitle>
           {{ dialogState.title }}
         </DialogTitle>
-        <DialogDescription v-if="dialogState.description">
-          {{ dialogState.description }}
+        <DialogDescription
+          :class="
+            cn({
+              'sr-only': !dialogState.description,
+            })
+          "
+        >
+          {{ dialogState.description || dialogState.title }}
         </DialogDescription>
       </DialogHeader>
 
