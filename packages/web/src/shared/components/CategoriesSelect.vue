@@ -17,7 +17,14 @@ const props = defineProps<ComponentFieldBindingObject>()
 
 const { data: categories } = useQuery({
   queryKey: ['categories'],
-  queryFn: () => parseResponse(rpc.api.admin.categories.$get()),
+  queryFn: () =>
+    parseResponse(
+      rpc.api.admin.categories.$get({
+        query: {
+          is_active: 'true',
+        },
+      }),
+    ),
   select: (res) => res.data,
 })
 </script>

@@ -20,6 +20,10 @@ const columns = [
     header: 'Store',
   },
   {
+    accessorKey: 'phone_number',
+    header: 'Phone Number',
+  },
+  {
     accessorKey: 'address',
     header: 'Address',
   },

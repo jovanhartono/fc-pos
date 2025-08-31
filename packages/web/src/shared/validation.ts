@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import parsePhoneNumberFromString, { isValidPhoneNumber } from 'libphonenumber-js'
-import { descriptionSchema, isActiveSchema, nameSchema } from '@/shared/zod'
-import { getNumericValue } from '@/shared/utils'
+import { currencySchema, textSchema, isActiveSchema, varcharSchema } from '@/shared/zod'
 
 export const POSTUserSchema = z
   .object({
@@ -55,8 +54,8 @@ export const POSTStoreSchema = z.object({
 })
 
 export const POSTCategorySchema = z.object({
-  name: nameSchema,
-  description: descriptionSchema,
+  name: varcharSchema('name'),
+  description: textSchema('Description').nullish(),
   is_active: isActiveSchema,
 })
 
@@ -72,27 +71,38 @@ export const POSTServiceSchema = z.object({
     .string({
       error: (issue) => (issue.input === undefined ? 'Code is required' : 'Code must be a string'),
     })
-    .min(1, 'Code cannot be empty')
+    .min(1, 'Code is required')
     .max(4, 'Code must be at most 4 characters')
     .regex(/^[A-Z0-9]+$/, 'Code must contain only uppercase letters and numbers'),
 
-  cogs: z
-    .string('COGS is required!')
-    .min(1, 'COGS is required!')
-    .transform(getNumericValue)
-    .transform(Number)
-    .pipe(z.number().positive('COGS must be positive'))
-    .pipe(z.coerce.string()),
+  cogs: currencySchema('COGS'),
+  price: currencySchema('Price'),
 
-  price: z
-    .string('Price is required!')
-    .min(1, 'Price is required!')
-    .transform(getNumericValue)
-    .transform(Number)
-    .pipe(z.number().positive('Price must be positive'))
-    .pipe(z.coerce.string()),
-
-  name: nameSchema,
-  description: descriptionSchema,
+  name: varcharSchema('Name'),
+  description: textSchema('Description').nullish(),
   is_active: isActiveSchema,
+})
+
+export const POSTProductSchema = z.object({
+  name: varcharSchema('Name'),
+  description: textSchema('Description').nullish(),
+  is_active: isActiveSchema,
+  sku: z
+    .string({
+      error: (issue) => (issue.input === undefined ? 'SKU is required' : 'SKU must be a string'),
+    })
+    .min(1, 'SKU is required')
+    .regex(/^[A-Z0-9]+$/, 'SKU must contain only uppercase letters and numbers'),
+  uom: varcharSchema('UOM'),
+  stock: z.int('Stock is required'),
+
+  category_id: z
+    .int({
+      error: (issue) =>
+        issue.input === undefined ? 'Category is required' : 'Category must be a number',
+    })
+    .positive('Category must be a valid category ID'),
+
+  cogs: currencySchema('COGS'),
+  price: currencySchema('Price'),
 })

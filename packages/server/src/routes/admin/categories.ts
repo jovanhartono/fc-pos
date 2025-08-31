@@ -1,21 +1,32 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { createInsertSchema, createUpdateSchema } from 'drizzle-zod';
 import { Hono } from 'hono';
 import { StatusCodes } from 'http-status-codes';
+import { z } from 'zod';
 import { db } from '@/db';
 import { categoriesTable } from '@/db/schema';
 import { notFoundOrFirst } from '@/utils/helper';
 import { failure, success } from '@/utils/http';
 import { idParamSchema } from '@/utils/schema';
+import { CategoryWhereBuilder } from '@/utils/where-clause-utils';
 import { zodValidator } from '@/utils/zod-validator-wrapper';
 
 const POSTCategorySchema = createInsertSchema(categoriesTable);
 const PUTCategorySchema = createUpdateSchema(categoriesTable);
 
+const categoriesQuerySchema = z
+  .object({ is_active: z.coerce.boolean().optional() })
+  .optional();
+
 const app = new Hono()
-  .get('/', async (c) => {
+  .get('/', zodValidator('query', categoriesQuerySchema), async (c) => {
+    const query = c.req.valid('query') || {};
+    const { is_active } = query;
+    const whereClause = new CategoryWhereBuilder().isActive(is_active).build();
+
     const categories = await db.query.categoriesTable.findMany({
       orderBy: [asc(categoriesTable.id)],
+      where: whereClause,
     });
 
     return c.json(success(categories));

@@ -3,72 +3,72 @@ import { createInsertSchema, createUpdateSchema } from 'drizzle-zod';
 import { Hono } from 'hono';
 import { StatusCodes } from 'http-status-codes';
 import { db } from '@/db';
-import { servicesTable } from '@/db/schema';
+import { productsTable } from '@/db/schema';
 import { notFoundOrFirst } from '@/utils/helper';
 import { failure, success } from '@/utils/http';
 import { idParamSchema } from '@/utils/schema';
 import { zodValidator } from '@/utils/zod-validator-wrapper';
 
-const POSTServiceSchema = createInsertSchema(servicesTable);
-const PUTServiceSchema = createUpdateSchema(servicesTable);
+const POSTProductSchema = createInsertSchema(productsTable);
+const PUTProductSchema = createUpdateSchema(productsTable);
 const app = new Hono()
   .get('/', async (c) => {
-    const services = await db.query.servicesTable.findMany({
-      orderBy: [asc(servicesTable.id)],
+    const users = await db.query.productsTable.findMany({
+      orderBy: [asc(productsTable.id)],
       with: {
         category: true,
       },
     });
 
-    return c.json(success(services));
+    return c.json(success(users));
   })
   .get('/:id', idParamSchema, async (c) => {
     const { id } = c.req.valid('param');
 
-    const service = await db.query.servicesTable.findFirst({
-      where: eq(servicesTable.id, id),
+    const product = await db.query.productsTable.findFirst({
+      where: eq(productsTable.id, id),
     });
 
-    if (!service) {
-      return c.json(failure('Service not found', StatusCodes.NOT_FOUND));
+    if (!product) {
+      return c.json(failure('Product not found', StatusCodes.NOT_FOUND));
     }
 
-    return c.json(success(service, 'Service retrieved successfully'));
+    return c.json(success(product, 'Product retrieved successfully'));
   })
-  .post('/', zodValidator('json', POSTServiceSchema), async (c) => {
+  .post('/', zodValidator('json', POSTProductSchema), async (c) => {
     const body = c.req.valid('json');
 
-    const [service] = await db.insert(servicesTable).values(body).returning();
+    const [product] = await db.insert(productsTable).values(body).returning();
 
     return c.json(
-      success(service, 'Create service success'),
+      success(product, 'Create product success'),
       StatusCodes.CREATED
     );
   })
   .put(
     '/:id',
     idParamSchema,
-    zodValidator('json', PUTServiceSchema),
+    zodValidator('json', PUTProductSchema),
     async (c) => {
       const { id } = c.req.valid('param');
       const body = c.req.valid('json');
 
       const updatedService = await db
-        .update(servicesTable)
+        .update(productsTable)
         .set(body)
-        .where(eq(servicesTable.id, id))
+        .where(eq(productsTable.id, id))
         .returning();
 
-      const service = notFoundOrFirst(
+      const product = notFoundOrFirst(
         updatedService,
         c,
         'Service does not exist'
       );
-      if (service instanceof Response) {
-        return service;
+      if (product instanceof Response) {
+        return product;
       }
 
-      return c.json(success(service, `Update service ${service.code} success`));
+      return c.json(success(product, `Update service ${product.sku} success`));
     }
   );
 

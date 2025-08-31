@@ -126,7 +126,7 @@ export const productsTable = pgTable(
       .references(() => categoriesTable.id)
       .notNull(),
     cogs: decimal('cogs', { precision: 12 }).default('0').notNull(),
-    price: decimal('price', { precision: 12 }).notNull(),
+    price: decimal('price', { precision: 12 }).default('0').notNull(),
     description: text('description'),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     is_active: boolean('is_active').default(false).notNull(),
@@ -156,7 +156,7 @@ export const servicesTable = pgTable(
       .notNull(),
     code: varchar('code', { length: 4 }).unique().notNull(),
     cogs: decimal('cogs', { precision: 12 }).default('0').notNull(),
-    price: decimal('price', { precision: 12 }).notNull(),
+    price: decimal('price', { precision: 12 }).default('0').notNull(),
     description: text('description'),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     is_active: boolean('is_active').default(false).notNull(),

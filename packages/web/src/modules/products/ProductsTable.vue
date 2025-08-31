@@ -6,22 +6,22 @@ import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 import { getFilteredRowModel, type ColumnDef, type TableOptions } from '@tanstack/vue-table'
 import { parseResponse, type InferResponseType } from 'hono/client'
 import { h, ref } from 'vue'
-import ServicesTableActions from './ServicesTableActions.vue'
+import ProductsTableActions from './ProductsTableActions.vue'
 import { formatIDRCurrency } from '@/shared/utils'
 import { Input } from '@/shared/components/ui/input'
 import { valueUpdater } from '@/shared/components/ui/table/utils'
 
-const $get = rpc.api.admin.services.$get
-export type Service = InferResponseType<typeof $get>['data'][number]
+const $get = rpc.api.admin.products.$get
+export type Product = InferResponseType<typeof $get>['data'][number]
 const columns = [
   {
-    accessorKey: 'code',
-    header: 'Code',
+    accessorKey: 'sku',
+    header: 'SKU',
     cell: ({ getValue }) => h('span', { class: 'font-mono' }, getValue<string>()),
   },
   {
     accessorKey: 'name',
-    header: 'Service',
+    header: 'Product',
     cell: ({ getValue }) => h('span', { class: 'font-medium' }, getValue<string>()),
   },
   {
@@ -54,19 +54,19 @@ const columns = [
   },
   {
     id: 'actions',
-    cell: ({ row }) => h(ServicesTableActions, { row }),
+    cell: ({ row }) => h(ProductsTableActions, { row }),
   },
-] satisfies ColumnDef<Service>[]
+] satisfies ColumnDef<Product>[]
 
 const { data, isPending } = useQuery({
-  queryKey: ['services'],
+  queryKey: ['products'],
   queryFn: async () => await parseResponse($get()),
   select: (data) => data.data,
   placeholderData: keepPreviousData,
 })
 
 const searchFilter = ref<string>('')
-const tableProps: Partial<TableOptions<Service>> = {
+const tableProps: Partial<TableOptions<Product>> = {
   getFilteredRowModel: getFilteredRowModel(),
   state: {
     get globalFilter() {
@@ -78,6 +78,6 @@ const tableProps: Partial<TableOptions<Service>> = {
 </script>
 
 <template>
-  <Input type="search" v-model="searchFilter" placeholder="Search" class="max-w-md" />
+  <Input v-model="searchFilter" placeholder="Search" class="max-w-md" />
   <DataTable :loading="isPending" :data="data ?? []" :columns="columns" :table-props="tableProps" />
 </template>
