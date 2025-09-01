@@ -1,18 +1,18 @@
-import { asc, eq } from 'drizzle-orm';
-import { createInsertSchema, createUpdateSchema } from 'drizzle-zod';
-import { Hono } from 'hono';
-import { StatusCodes } from 'http-status-codes';
-import { db } from '@/db';
-import { servicesTable } from '@/db/schema';
-import { notFoundOrFirst } from '@/utils/helper';
-import { failure, success } from '@/utils/http';
-import { idParamSchema } from '@/utils/schema';
-import { zodValidator } from '@/utils/zod-validator-wrapper';
+import { asc, eq } from "drizzle-orm";
+import { createInsertSchema, createUpdateSchema } from "drizzle-zod";
+import { Hono } from "hono";
+import { StatusCodes } from "http-status-codes";
+import { db } from "@/db";
+import { servicesTable } from "@/db/schema";
+import { notFoundOrFirst } from "@/utils/helper";
+import { failure, success } from "@/utils/http";
+import { idParamSchema } from "@/utils/schema";
+import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const POSTServiceSchema = createInsertSchema(servicesTable);
 const PUTServiceSchema = createUpdateSchema(servicesTable);
 const app = new Hono()
-  .get('/', async (c) => {
+  .get("/", async (c) => {
     const services = await db.query.servicesTable.findMany({
       orderBy: [asc(servicesTable.id)],
       with: {
@@ -22,36 +22,36 @@ const app = new Hono()
 
     return c.json(success(services));
   })
-  .get('/:id', idParamSchema, async (c) => {
-    const { id } = c.req.valid('param');
+  .get("/:id", idParamSchema, async (c) => {
+    const { id } = c.req.valid("param");
 
     const service = await db.query.servicesTable.findFirst({
       where: eq(servicesTable.id, id),
     });
 
     if (!service) {
-      return c.json(failure('Service not found', StatusCodes.NOT_FOUND));
+      return c.json(failure("Service not found", StatusCodes.NOT_FOUND));
     }
 
-    return c.json(success(service, 'Service retrieved successfully'));
+    return c.json(success(service, "Service retrieved successfully"));
   })
-  .post('/', zodValidator('json', POSTServiceSchema), async (c) => {
-    const body = c.req.valid('json');
+  .post("/", zodValidator("json", POSTServiceSchema), async (c) => {
+    const body = c.req.valid("json");
 
     const [service] = await db.insert(servicesTable).values(body).returning();
 
     return c.json(
-      success(service, 'Create service success'),
+      success(service, "Create service success"),
       StatusCodes.CREATED
     );
   })
   .put(
-    '/:id',
+    "/:id",
     idParamSchema,
-    zodValidator('json', PUTServiceSchema),
+    zodValidator("json", PUTServiceSchema),
     async (c) => {
-      const { id } = c.req.valid('param');
-      const body = c.req.valid('json');
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
 
       const updatedService = await db
         .update(servicesTable)
@@ -62,7 +62,7 @@ const app = new Hono()
       const service = notFoundOrFirst(
         updatedService,
         c,
-        'Service does not exist'
+        "Service does not exist"
       );
       if (service instanceof Response) {
         return service;

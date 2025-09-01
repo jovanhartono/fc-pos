@@ -1,9 +1,9 @@
 await Bun.build({
-  entrypoints: ['./src/index.ts'],
-  env: 'disable',
-  outdir: './dist',
+  entrypoints: ["./src/index.ts"],
+  env: "disable",
+  outdir: "./dist",
   minify: true,
-  target: 'bun',
+  target: "bun",
   bytecode: true,
 });
 

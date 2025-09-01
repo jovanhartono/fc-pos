@@ -1,22 +1,22 @@
-interface Metadata {
+type Metadata = {
   total?: number;
   page?: number;
   pageSize?: number;
   [key: string]: unknown;
-}
+};
 
-interface SuccessResponse<T> {
+type SuccessResponse<T> = {
   success: true;
   message?: string;
   data: T;
   meta?: Metadata;
-}
+};
 
-interface ErrorResponse {
+type ErrorResponse = {
   success: false;
   message: string;
   errors?: unknown;
-}
+};
 
 export function success<T>(data: T, message?: string): SuccessResponse<T> {
   return {

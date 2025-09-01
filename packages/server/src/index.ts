@@ -1,14 +1,14 @@
-import { HTTPException } from 'hono/http-exception';
-import { StatusCodes } from 'http-status-codes';
-import app from '@/app';
-import { adminMiddleware } from '@/middlewares/admin';
-import adminRoutes from '@/routes/admin';
-import authRoutes from '@/routes/auth';
-import { failure } from '@/utils/http';
+import { HTTPException } from "hono/http-exception";
+import { StatusCodes } from "http-status-codes";
+import app from "@/app";
+import { adminMiddleware } from "@/middlewares/admin";
+import adminRoutes from "@/routes/admin";
+import authRoutes from "@/routes/auth";
+import { failure } from "@/utils/http";
 
-app.use('/admin/*', adminMiddleware);
+app.use("/admin/*", adminMiddleware);
 
-const router = app.route('/auth', authRoutes).route('/admin', adminRoutes);
+const router = app.route("/auth", authRoutes).route("/admin", adminRoutes);
 
 // error handling
 app.onError((err, c) => {
@@ -16,11 +16,11 @@ app.onError((err, c) => {
     return c.json(failure(err.message, err.cause), err.status);
   }
 
-  if (typeof err.cause === 'object' && err.cause && 'detail' in err.cause) {
+  if (typeof err.cause === "object" && err.cause && "detail" in err.cause) {
     let statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR;
-    if ('code' in err.cause) {
+    if ("code" in err.cause) {
       switch (err.cause.code) {
-        case '23505': {
+        case "23505": {
           statusCode = StatusCodes.CONFLICT;
           break;
         }
@@ -41,5 +41,5 @@ app.onError((err, c) => {
 export type AppType = typeof router;
 export default {
   fetch: app.fetch,
-  port: '8000',
+  port: "8000",
 };

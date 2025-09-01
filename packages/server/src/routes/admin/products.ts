@@ -1,18 +1,18 @@
-import { asc, eq } from 'drizzle-orm';
-import { createInsertSchema, createUpdateSchema } from 'drizzle-zod';
-import { Hono } from 'hono';
-import { StatusCodes } from 'http-status-codes';
-import { db } from '@/db';
-import { productsTable } from '@/db/schema';
-import { notFoundOrFirst } from '@/utils/helper';
-import { failure, success } from '@/utils/http';
-import { idParamSchema } from '@/utils/schema';
-import { zodValidator } from '@/utils/zod-validator-wrapper';
+import { asc, eq } from "drizzle-orm";
+import { createInsertSchema, createUpdateSchema } from "drizzle-zod";
+import { Hono } from "hono";
+import { StatusCodes } from "http-status-codes";
+import { db } from "@/db";
+import { productsTable } from "@/db/schema";
+import { notFoundOrFirst } from "@/utils/helper";
+import { failure, success } from "@/utils/http";
+import { idParamSchema } from "@/utils/schema";
+import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const POSTProductSchema = createInsertSchema(productsTable);
 const PUTProductSchema = createUpdateSchema(productsTable);
 const app = new Hono()
-  .get('/', async (c) => {
+  .get("/", async (c) => {
     const users = await db.query.productsTable.findMany({
       orderBy: [asc(productsTable.id)],
       with: {
@@ -22,36 +22,36 @@ const app = new Hono()
 
     return c.json(success(users));
   })
-  .get('/:id', idParamSchema, async (c) => {
-    const { id } = c.req.valid('param');
+  .get("/:id", idParamSchema, async (c) => {
+    const { id } = c.req.valid("param");
 
     const product = await db.query.productsTable.findFirst({
       where: eq(productsTable.id, id),
     });
 
     if (!product) {
-      return c.json(failure('Product not found', StatusCodes.NOT_FOUND));
+      return c.json(failure("Product not found", StatusCodes.NOT_FOUND));
     }
 
-    return c.json(success(product, 'Product retrieved successfully'));
+    return c.json(success(product, "Product retrieved successfully"));
   })
-  .post('/', zodValidator('json', POSTProductSchema), async (c) => {
-    const body = c.req.valid('json');
+  .post("/", zodValidator("json", POSTProductSchema), async (c) => {
+    const body = c.req.valid("json");
 
     const [product] = await db.insert(productsTable).values(body).returning();
 
     return c.json(
-      success(product, 'Create product success'),
+      success(product, "Create product success"),
       StatusCodes.CREATED
     );
   })
   .put(
-    '/:id',
+    "/:id",
     idParamSchema,
-    zodValidator('json', PUTProductSchema),
+    zodValidator("json", PUTProductSchema),
     async (c) => {
-      const { id } = c.req.valid('param');
-      const body = c.req.valid('json');
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
 
       const updatedService = await db
         .update(productsTable)
@@ -62,7 +62,7 @@ const app = new Hono()
       const product = notFoundOrFirst(
         updatedService,
         c,
-        'Service does not exist'
+        "Service does not exist"
       );
       if (product instanceof Response) {
         return product;

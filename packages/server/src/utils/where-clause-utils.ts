@@ -16,24 +16,24 @@ import {
   notInArray,
   or,
   type SQL,
-} from 'drizzle-orm';
-import { categoriesTable } from '@/db/schema';
+} from "drizzle-orm";
+import { categoriesTable } from "@/db/schema";
 
 // Types for filter operations
 export type FilterOperator =
-  | 'eq'
-  | 'ne'
-  | 'gt'
-  | 'gte'
-  | 'lt'
-  | 'lte'
-  | 'like'
-  | 'ilike'
-  | 'in'
-  | 'notIn'
-  | 'between'
-  | 'isNull'
-  | 'isNotNull';
+  | "eq"
+  | "ne"
+  | "gt"
+  | "gte"
+  | "lt"
+  | "lte"
+  | "like"
+  | "ilike"
+  | "in"
+  | "notIn"
+  | "between"
+  | "isNull"
+  | "isNotNull";
 
 export type FilterCondition<T = unknown> = {
   column: AnyColumn;
@@ -43,16 +43,16 @@ export type FilterCondition<T = unknown> = {
 };
 
 export type WhereClauseOptions = {
-  combineWith?: 'and' | 'or';
+  combineWith?: "and" | "or";
   conditions?: FilterCondition[];
 };
 
 // Base utility class for building where clauses
 export class WhereClauseBuilder {
   private conditions: SQL[] = [];
-  private combineOperator: 'and' | 'or' = 'and';
+  private readonly combineOperator: "and" | "or" = "and";
 
-  constructor(combineWith: 'and' | 'or' = 'and') {
+  constructor(combineWith: "and" | "or" = "and") {
     this.combineOperator = combineWith;
   }
 
@@ -95,7 +95,7 @@ export class WhereClauseBuilder {
       return this.conditions[0];
     }
 
-    return this.combineOperator === 'and'
+    return this.combineOperator === "and"
       ? and(...this.conditions)
       : or(...this.conditions);
   }
@@ -115,49 +115,49 @@ export class WhereClauseBuilder {
     const { column, operator, value } = condition;
 
     switch (operator) {
-      case 'eq':
+      case "eq":
         return value !== undefined ? eq(column, value) : null;
 
-      case 'ne':
+      case "ne":
         return value !== undefined ? ne(column, value) : null;
 
-      case 'gt':
+      case "gt":
         return value !== undefined ? gt(column, value) : null;
 
-      case 'gte':
+      case "gte":
         return value !== undefined ? gte(column, value) : null;
 
-      case 'lt':
+      case "lt":
         return value !== undefined ? lt(column, value) : null;
 
-      case 'lte':
+      case "lte":
         return value !== undefined ? lte(column, value) : null;
 
-      case 'like':
+      case "like":
         return value !== undefined ? like(column, `%${value}%`) : null;
 
-      case 'ilike':
+      case "ilike":
         return value !== undefined ? ilike(column, `%${value}%`) : null;
 
-      case 'in':
+      case "in":
         return Array.isArray(value) && value.length > 0
           ? inArray(column, value)
           : null;
 
-      case 'notIn':
+      case "notIn":
         return Array.isArray(value) && value.length > 0
           ? notInArray(column, value)
           : null;
 
-      case 'between':
+      case "between":
         return Array.isArray(value) && value.length === 2
           ? between(column, value[0], value[1])
           : null;
 
-      case 'isNull':
+      case "isNull":
         return isNull(column);
 
-      case 'isNotNull':
+      case "isNotNull":
         return isNotNull(column);
 
       default:
@@ -168,22 +168,22 @@ export class WhereClauseBuilder {
 
 // Specialized builders for common use cases
 export class CategoryWhereBuilder extends WhereClauseBuilder {
-  constructor(combineWith?: 'and' | 'or') {
-    super(combineWith ?? 'and');
+  constructor(combineWith?: "and" | "or") {
+    super(combineWith ?? "and");
   }
 
-  private table = categoriesTable;
+  private readonly table = categoriesTable;
 
   isActive(value?: boolean): this {
     if (value !== undefined) {
-      this.addCondition(this.table.is_active, 'eq', value);
+      this.addCondition(this.table.is_active, "eq", value);
     }
     return this;
   }
 
   withIds(ids?: number[]): this {
-    if (ids && ids.length > 0) {
-      this.addCondition(this.table.id, 'in', ids);
+    if (ids !== undefined && ids.length > 0) {
+      this.addCondition(this.table.id, "in", ids);
     }
     return this;
   }
