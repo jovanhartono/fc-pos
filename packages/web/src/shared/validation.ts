@@ -106,3 +106,9 @@ export const POSTProductSchema = z.object({
   cogs: currencySchema('COGS'),
   price: currencySchema('Price'),
 })
+
+export const POSTPaymentMethodSchema = z.object({
+  name: varcharSchema('name'),
+  code: varcharSchema('Code'),
+  is_active: isActiveSchema,
+})

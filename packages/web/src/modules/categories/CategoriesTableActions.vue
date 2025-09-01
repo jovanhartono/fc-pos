@@ -30,7 +30,7 @@ const { openDialog, closeDialog } = useDialogStore()
 
 const queryClient = useQueryClient()
 const { mutateAsync } = useMutation({
-  mutationKey: ['edit-user'],
+  mutationKey: ['edit-category'],
   mutationFn: async (data: z.infer<typeof POSTCategorySchema>) =>
     await parseResponse(
       rpc.api.admin.categories[':id'].$put({
