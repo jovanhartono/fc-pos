@@ -3,7 +3,16 @@
   "type": "module",
   "sideEffects": false,
   "private": true,
+  "scripts": {
+    "dev": "bun run --workspaces dev"
+  },
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "catalog": {
+    "zod": "^4",
+    "typescript": "^5",
+    "drizzle-zod": "^0.8.3",
+    "libphonenumber-js": "^1.12.25"
+  }
 }
