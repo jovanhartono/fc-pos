@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { servicesTable } from "@/db/schema";
 import { notFoundOrFirst } from "@/utils/helper";
 import { failure, success } from "@/utils/http";
-import { idParamSchema } from "@/utils/schema";
+import { idParamSchema } from "@/schema/param";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const POSTServiceSchema = createInsertSchema(servicesTable);

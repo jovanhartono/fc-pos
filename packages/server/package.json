@@ -10,17 +10,23 @@
         "types": "./dist/src/rpc.d.ts"
       }
     },
-    "./types/*": {
+    "./types": {
       "import": {
-        "default": "./dist/src/types/*.js",
-        "types": "./dist/src/types/*.d.ts"
+        "default": "./dist/src/types/index.js",
+        "types": "./dist/src/types/index.d.ts"
+      }
+    },
+    "./schema": {
+      "import": {
+        "default": "./dist/src/schema/index.js",
+        "types": "./dist/src/schema/index.d.ts"
       }
     }
   },
   "scripts": {
     "dev": "bun run --hot src/index.ts",
     "pull:dev": "bun drizzle-kit pull --config=drizzle-dev.config.ts",
-    "dev:tsc": "tsc -p tsconfig.build.json --watch",
+    "tsdown": "tsdown --watch",
     "pull:prod": "bun drizzle-kit pull --config=drizzle-prod.config.ts",
     "push:dev": "bun drizzle-kit push --config=drizzle-dev.config.ts",
     "push:prod": "bun drizzle-kit push --config=drizzle-prod.config.ts",
@@ -30,18 +36,21 @@
     "migrate:prod": "bun drizzle-kit migrate --config=drizzle-prod.config.ts"
   },
   "dependencies": {
-    "@hono/zod-validator": "^0.7.2",
-    "@neondatabase/serverless": "^1.0.1",
-    "drizzle-orm": "^0.44.5",
-    "drizzle-zod": "^0.8.3",
-    "hono": "^4.9.5",
+    "@hono/zod-validator": "^0.7.4",
+    "@neondatabase/serverless": "^1.0.2",
+    "drizzle-orm": "^0.44.7",
+    "drizzle-zod": "catalog:",
+    "hono": "^4.10.3",
     "http-status-codes": "^2.3.0",
-    "zod": "^4.1.5"
+    "zod": "catalog:",
+    "libphonenumber-js": "catalog:"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.2.2",
+    "@biomejs/biome": "^2.3.1",
     "@types/bun": "latest",
-    "drizzle-kit": "^0.31.4",
-    "ultracite": "^5.3.0"
+    "drizzle-kit": "^0.31.5",
+    "tsdown": "^0.15.11",
+    "typescript": "^5.9.3",
+    "ultracite": "^5.6.4"
   }
 }

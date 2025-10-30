@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { rpc } from '@/core/rpc'
 import { useDialogStore } from '@/core/stores/dialog-store'
-import type { POSTPaymentMethodSchema } from '@/shared/validation'
+import type { POSTPaymentMethodSchema } from '@fresclean/api/schema'
 import { useQueryClient, useMutation } from '@tanstack/vue-query'
 import { parseResponse } from 'hono/client'
 import { defineAsyncComponent, h } from 'vue'

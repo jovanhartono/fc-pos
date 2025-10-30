@@ -2,7 +2,7 @@
 import { rpc } from '@/core/rpc'
 import { useDialogStore } from '@/core/stores/dialog-store'
 import { Button } from '@/shared/components/ui/button'
-import type { POSTServiceSchema } from '@/shared/validation'
+import { POSTServiceSchema } from '@fresclean/api/schema'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { parseResponse } from 'hono/client'
 import { LoaderIcon, PlusIcon } from 'lucide-vue-next'

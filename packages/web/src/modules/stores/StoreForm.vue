@@ -11,7 +11,7 @@ import {
 import { Input } from '@/shared/components/ui/input'
 import { Switch } from '@/shared/components/ui/switch'
 import { Textarea } from '@/shared/components/ui/textarea'
-import { POSTStoreSchema } from '@/shared/validation'
+import { POSTStoreSchema } from '@fresclean/api/schema'
 import { useForm, type FormOptions } from 'vee-validate'
 import type z from 'zod'
 

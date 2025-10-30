@@ -10,7 +10,7 @@ import {
 import { Input } from '@/shared/components/ui/input'
 import { Switch } from '@/shared/components/ui/switch'
 import { Textarea } from '@/shared/components/ui/textarea'
-import { POSTCategorySchema } from '@/shared/validation'
+import { POSTCategorySchema } from '@fresclean/api/schema'
 import { useForm, type FormOptions } from 'vee-validate'
 import type z from 'zod'
 

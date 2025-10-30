@@ -9,7 +9,7 @@ import {
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
 import { Switch } from '@/shared/components/ui/switch'
-import { POSTPaymentMethodSchema } from '@/shared/validation'
+import { POSTPaymentMethodSchema } from '@fresclean/api/schema'
 import { useForm, type FormOptions } from 'vee-validate'
 import type z from 'zod'
 

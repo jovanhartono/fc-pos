@@ -20,7 +20,7 @@ const { data, isPending } = useQuery({
   <LoaderIcon v-if="isPending" class="mx-auto animate-spin" />
 
   <template v-else>
-    <ul class="flex flex-col gap-y-3" v-if="data?.length">
+    <ul class="grid grid-cols-3 gap-3" v-if="data?.length">
       <PaymentMethodItem v-for="item in data" :key="item.id" :payment-method="item" />
     </ul>
 

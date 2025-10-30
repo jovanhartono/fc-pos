@@ -12,12 +12,13 @@ import {
   CogIcon,
   CreditCardIcon,
   PackageIcon,
+  ScrollTextIcon,
   StoreIcon,
   TagsIcon,
   UsersIcon,
 } from 'lucide-vue-next'
 
-const menus = [
+const masterDataMenus = [
   {
     label: 'Users',
     icon: UsersIcon,
@@ -49,6 +50,14 @@ const menus = [
     routeName: 'payment-methods',
   },
 ]
+
+const salesMenus = [
+  {
+    label: 'Orders',
+    icon: ScrollTextIcon,
+    routeName: 'orders',
+  },
+]
 </script>
 
 <template>
@@ -56,7 +65,7 @@ const menus = [
     <SidebarGroupLabel>Master Data</SidebarGroupLabel>
     <SidebarGroupContent>
       <SidebarMenu>
-        <SidebarMenuItem v-for="(menu, index) in menus" :key="index">
+        <SidebarMenuItem v-for="(menu, index) in masterDataMenus" :key="index">
           <SidebarMenuButton as-child>
             <RouterLink
               :to="{
@@ -72,5 +81,24 @@ const menus = [
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroupContent>
+  </SidebarGroup>
+  <SidebarGroup>
+    <SidebarGroupLabel> Sales </SidebarGroupLabel>
+    <SidebarMenu>
+      <SidebarMenuItem v-for="(menu, index) in salesMenus" :key="index">
+        <SidebarMenuButton as-child>
+          <RouterLink
+            :to="{
+              name: menu.routeName,
+            }"
+          >
+            <span>{{ menu.label }}</span>
+            <SidebarMenuAction>
+              <component :is="menu.icon" />
+            </SidebarMenuAction>
+          </RouterLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
   </SidebarGroup>
 </template>

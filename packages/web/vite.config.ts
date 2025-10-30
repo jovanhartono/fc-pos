@@ -8,8 +8,14 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue(), vueDevTools(), tailwindcss()],
+  build: {
+    rolldownOptions: {
+      // external: ['@fresclean/api/rpc', '@fresclean/api/schema', '@fresclean/api/types'],
+    },
+  },
   resolve: {
     alias: {
+      '@fresclean/api': fileURLToPath(new URL('../server/dist', import.meta.url)),
       '@': fileURLToPath(new URL('src', import.meta.url)),
     },
   },

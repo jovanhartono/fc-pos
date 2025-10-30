@@ -9,7 +9,7 @@ import { defineAsyncComponent, h } from 'vue'
 import { toast } from 'vue-sonner'
 import type z from 'zod'
 import CategoriesTable from './PaymentMethodsList.vue'
-import type { POSTPaymentMethodSchema } from '@/shared/validation'
+import type { POSTPaymentMethodSchema } from '@fresclean/api/schema'
 
 const PaymentMethodForm = defineAsyncComponent({
   loader: () => import('./PaymentMethodForm.vue'),

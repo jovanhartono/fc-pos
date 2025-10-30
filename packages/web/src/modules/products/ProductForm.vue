@@ -12,9 +12,9 @@ import {
 import { Input } from '@/shared/components/ui/input'
 import { Switch } from '@/shared/components/ui/switch'
 import { Textarea } from '@/shared/components/ui/textarea'
-import { POSTProductSchema } from '@/shared/validation'
 import { useForm, type FormOptions } from 'vee-validate'
 import type z from 'zod'
+import { POSTProductSchema } from '@fresclean/api/schema'
 
 type ServiceForm = z.input<typeof POSTProductSchema>
 type ServiceFormProps = FormOptions<ServiceForm> & {

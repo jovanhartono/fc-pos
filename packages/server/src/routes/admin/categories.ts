@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { categoriesTable } from "@/db/schema";
 import { notFoundOrFirst } from "@/utils/helper";
 import { failure, success } from "@/utils/http";
-import { idParamSchema } from "@/utils/schema";
+import { idParamSchema } from "@/schema/param";
 import { CategoryWhereBuilder } from "@/utils/where-clause-utils";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 

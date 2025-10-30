@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { readonly, ref, markRaw, type Component } from 'vue'
+import { readonly, ref, markRaw, type Component, type Ref, type DeepReadonly } from 'vue'
 
 interface DialogState {
   open: boolean
@@ -15,7 +15,14 @@ const defaultState: Readonly<DialogState> = {
   content: null,
 }
 
-export const useDialogStore = defineStore('dialog', () => {
+interface DialogStore {
+  dialogState: DeepReadonly<Ref<DialogState>>
+  setOpen(open: boolean): void
+  openDialog(state: Omit<DialogState, 'open'>): void
+  closeDialog(): void
+}
+
+export const useDialogStore = defineStore('dialog', (): DialogStore => {
   const dialogState = ref<DialogState>(defaultState)
 
   function setOpen(open: boolean) {
@@ -25,7 +32,6 @@ export const useDialogStore = defineStore('dialog', () => {
   function openDialog(state: Omit<DialogState, 'open'>) {
     dialogState.value = {
       ...state,
-      // Mark the component as raw to prevent reactivity
       content: state.content ? markRaw(state.content) : null,
       open: true,
     }
@@ -35,7 +41,6 @@ export const useDialogStore = defineStore('dialog', () => {
     setOpen(false)
     setTimeout(() => {
       dialogState.value = defaultState
-      // 200 is the animation duration
     }, 200)
   }
 

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { computed } from 'vue'
 import { jwtDecode } from 'jwt-decode'
 import { useLocalStorage } from '@vueuse/core'
-import type { JWTPayload } from '@fresclean/api/types/jwt'
+import type { JWTPayload } from '@fresclean/api/types'
 import router from '@/router'
 
 export const useAuth = defineStore('auth', () => {

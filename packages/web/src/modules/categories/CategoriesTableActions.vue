@@ -2,7 +2,7 @@
 import { rpc } from '@/core/rpc'
 import { useDialogStore } from '@/core/stores/dialog-store'
 import { Button } from '@/shared/components/ui/button'
-import type { POSTCategorySchema } from '@/shared/validation'
+import { POSTCategorySchema } from '@fresclean/api/schema'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { Row } from '@tanstack/vue-table'
 import { parseResponse } from 'hono/client'

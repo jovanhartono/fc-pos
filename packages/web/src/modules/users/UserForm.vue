@@ -10,11 +10,11 @@ import {
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
 import { Switch } from '@/shared/components/ui/switch'
-import { POSTUserSchema, PUTUserSchema } from '@/shared/validation'
+import { POSTUserSchema, PUTUserSchema } from '@fresclean/api/schema'
 import { RadioGroupItem, RadioGroupRoot } from 'reka-ui'
-import { type FormOptions, useForm } from 'vee-validate'
+import { useForm, type FormOptions } from 'vee-validate'
 import { computed } from 'vue'
-import type z from 'zod'
+import { z } from 'zod'
 
 const radioItems = [
   {

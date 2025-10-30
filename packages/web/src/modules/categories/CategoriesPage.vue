@@ -9,7 +9,7 @@ import { defineAsyncComponent, h } from 'vue'
 import { toast } from 'vue-sonner'
 import type z from 'zod'
 import CategoriesTable from './CategoriesTable.vue'
-import type { POSTCategorySchema } from '@/shared/validation'
+import { POSTCategorySchema } from '@fresclean/api/schema'
 
 const CategoryForm = defineAsyncComponent({
   loader: () => import('./CategoryForm.vue'),

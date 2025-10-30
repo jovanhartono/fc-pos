@@ -5,7 +5,7 @@ import { StatusCodes } from "http-status-codes";
 import { db } from "@/db";
 import { customersTable } from "@/db/schema";
 import { failure, success } from "@/utils/http";
-import { idParamSchema } from "@/utils/schema";
+import { idParamSchema } from "@/schema/param";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const POSTCustomerSchema = createInsertSchema(customersTable);

@@ -10,18 +10,14 @@ import {
 } from '../dropdown-menu'
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, EyeClosedIcon } from 'lucide-vue-next'
 
-interface DataTableColumnHeaderProps {
+defineProps<{
   column: Column<TData, TValue>
   title: string
-}
+}>()
 
-defineProps<DataTableColumnHeaderProps>()
-</script>
-
-<script lang="ts">
-export default {
+defineOptions({
   inheritAttrs: false,
-}
+})
 </script>
 
 <template>

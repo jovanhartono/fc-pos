@@ -11,7 +11,11 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "strictNullChecks": true,
+    "outDir": "dist",
+    "declaration": true,
+    "sourceMap": true,
+
+    // composite true is only needed when it's being referenced in another tsconfig workspace
     "composite": true
   },
   "exclude": ["node_modules", "drizzle", "dist", "bun.lock"]

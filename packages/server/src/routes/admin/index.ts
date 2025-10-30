@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import categoriesRoutes from "@/routes/admin/categories";
 import customerRoutes from "@/routes/admin/customer";
+import ordersRoutes from "@/routes/admin/orders";
 import paymentMethodsRoutes from "@/routes/admin/payment-methods";
 import productsRoutes from "@/routes/admin/products";
 import servicesRoutes from "@/routes/admin/services";
@@ -15,6 +16,7 @@ const app = new Hono()
   .route("/products", productsRoutes)
   .route("/categories", categoriesRoutes)
   .route("/payment-methods", paymentMethodsRoutes)
+  .route("/orders", ordersRoutes)
   .get("/test", (c) => {
     const _jwtPayload = c.get("jwtPayload");
 
