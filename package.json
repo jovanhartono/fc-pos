@@ -10,6 +10,7 @@
     "packages/*"
   ],
   "catalog": {
+    "dayjs": "^1.11.19",
     "zod": "^4",
     "typescript": "^5",
     "drizzle-zod": "^0.8.3",

@@ -1,16 +1,19 @@
 {
+  "typescript.tsdk": "node_modules/typescript/lib",
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.patterns": {
     "tsconfig.json": "tsconfig.*.json, bun.d.ts",
     "package.json": "bun.lock"
   },
   "editor.codeActionsOnSave": {
-    "source.fixAll": "explicit"
+    "source.fixAll.biome": "explicit",
+    "source.organizeImports.biome": "explicit"
   },
   "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
   "biome.enabled": true,
   "editor.defaultFormatter": "biomejs.biome",
-  "[typescript]": {
+   "[typescript]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
   "[json]": {

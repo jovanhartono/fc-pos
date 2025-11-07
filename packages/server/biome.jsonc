@@ -1,12 +1,19 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.2.6/schema.json",
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "root": true,
   "files": {
     "ignoreUnknown": true,
     "includes": ["**"]
   },
+  "linter": {
+    "rules": {
+      "style": {
+        "noMagicNumbers": "off"
+      }
+    }
+  },
   "javascript": {
     "globals": ["Bun"]
   },
-  "extends": ["ultracite"]
+  "extends": ["ultracite/core"]
 }
