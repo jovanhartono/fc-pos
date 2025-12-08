@@ -1,20 +1,41 @@
-import { eq } from "drizzle-orm";
-import { createInsertSchema, createUpdateSchema } from "drizzle-zod";
+import { asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import { db } from "@/db";
 import { customersTable } from "@/db/schema";
-import { failure, success } from "@/utils/http";
+import { POSTCustomerSchema, PUTCustomerSchema } from "@/schema";
 import { idParamSchema } from "@/schema/param";
+import type { JWTPayload } from "@/types";
+import { failure, success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-const POSTCustomerSchema = createInsertSchema(customersTable);
-const PUTCustomerSchema = createUpdateSchema(customersTable);
 const app = new Hono()
+  .get("/", async (c) => {
+    const customers = await db.query.customersTable.findMany({
+      orderBy: [asc(customersTable.id)],
+      with: {
+        originStore: {
+          columns: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    return c.json(success(customers));
+  })
   .post("/", zodValidator("json", POSTCustomerSchema), async (c) => {
+    const { id: user_id } = c.get("jwtPayload") as JWTPayload;
     const customer = c.req.valid("json");
 
-    const data = await db.insert(customersTable).values(customer).returning();
+    const data = await db
+      .insert(customersTable)
+      .values({
+        ...customer,
+        created_by: user_id,
+        updated_by: user_id,
+      })
+      .returning();
 
     return c.json(
       success(data, "Create customer success"),
@@ -42,12 +63,16 @@ const app = new Hono()
     idParamSchema,
     zodValidator("json", PUTCustomerSchema),
     async (c) => {
+      const { id: user_id } = c.get("jwtPayload") as JWTPayload;
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
       const [customer] = await db
         .update(customersTable)
-        .set(body)
+        .set({
+          ...body,
+          updated_by: user_id,
+        })
         .where(eq(customersTable.id, id))
         .returning();
 

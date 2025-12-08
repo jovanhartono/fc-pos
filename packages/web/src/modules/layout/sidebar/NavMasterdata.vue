@@ -25,6 +25,11 @@ const masterDataMenus = [
     routeName: 'users',
   },
   {
+    label: 'Customers',
+    icon: UsersIcon,
+    routeName: 'customers',
+  },
+  {
     label: 'Stores',
     icon: StoreIcon,
     routeName: 'stores',

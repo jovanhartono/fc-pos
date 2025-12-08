@@ -23,6 +23,11 @@ const router = createRouter({
           component: () => import('@/modules/dashboard/HomePage.vue'),
         },
         {
+          path: '/customers',
+          name: 'customers',
+          component: () => import('@/modules/customers/CustomersPage.vue'),
+        },
+        {
           path: '/users',
           name: 'users',
           component: () => import('@/modules/users/UsersPage.vue'),
@@ -53,7 +58,7 @@ const router = createRouter({
           component: () => import('@/modules/payments/PaymentMethodsPage.vue'),
         },
         {
-          path: '/oredrs',
+          path: '/orders',
           name: 'orders',
           component: () => import('@/modules/orders/OrdersPage.vue'),
         },
