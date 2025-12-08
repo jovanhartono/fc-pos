@@ -4,8 +4,13 @@ import { StatusCodes } from "http-status-codes";
 import { z } from "zod";
 import { db } from "@/db";
 import { ordersTable } from "@/db/schema";
-import { success } from "@/utils/http";
+import { ForbiddenException, NotFoundException } from "@/errors";
+import { createOrder } from "@/modules/orders/order.service";
+import { findStoreById } from "@/modules/stores/store.repository";
+import { findUserById } from "@/modules/users/user.repository";
 import { POSTOrderSchema } from "@/schema";
+import type { JWTPayload } from "@/types";
+import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 export const DEFAULT_LIMIT = 25;
@@ -32,18 +37,28 @@ const app = new Hono()
     return c.json(success(orders));
   })
   .post("/", zodValidator("json", POSTOrderSchema), async (c) => {
+    const { id: user_id } = c.get("jwtPayload") as JWTPayload;
+
+    const user = await findUserById(user_id);
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    if (!user.is_active) {
+      throw new ForbiddenException("User is not active");
+    }
+
     const body = c.req.valid("json");
+    const store = await findStoreById(body.store_id);
 
-    // auto-generate code based on store
+    if (!store) {
+      throw new NotFoundException("Store not found");
+    }
 
-    const order = await db
-      .insert(ordersTable)
-      .values({
-        ...body,
-      })
-      .returning();
+    await createOrder(user, store, body);
 
-    return c.json(success(order, "Order Created"), StatusCodes.CREATED);
+    return c.json(success("Order Created"), StatusCodes.CREATED);
   });
 
 export default app;

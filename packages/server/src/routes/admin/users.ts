@@ -4,9 +4,10 @@ import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import { db } from "@/db";
 import { usersTable } from "@/db/schema";
+import { findUserById } from "@/modules/users/user.repository";
+import { idParamSchema } from "@/schema/param";
 import { notFoundOrFirst } from "@/utils/helper";
 import { failure, success } from "@/utils/http";
-import { idParamSchema } from "@/schema/param";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const POSTUserSchema = createInsertSchema(usersTable);
@@ -38,9 +39,7 @@ const app = new Hono()
   .get("/:id", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
 
-    const user = await db.query.usersTable.findFirst({
-      where: eq(usersTable.id, id),
-    });
+    const user = await findUserById(id);
 
     if (!user) {
       return c.json(failure("User not found", StatusCodes.NOT_FOUND));
