@@ -49,7 +49,7 @@ const props = withDefaults(defineProps<SidebarProps>(), {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton as-child>
-                <RouterLink to="/" >
+                <RouterLink to="/">
                   <span>Dashboard</span>
                   <SidebarMenuAction>
                     <LayoutDashboardIcon />
