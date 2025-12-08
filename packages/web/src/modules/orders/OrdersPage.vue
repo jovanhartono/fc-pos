@@ -11,15 +11,15 @@ import z from 'zod'
 
 import { POSTOrderSchema } from '@fresclean/api/schema'
 
-// const PaymentMethodForm = defineAsyncComponent({
-//   loader: () => import('./PaymentMethodForm.vue'),
-//   delay: 0,
-//   loadingComponent: h(
-//     'div',
-//     { class: 'w-full h-[290px] flex items-center justify-center' },
-//     h(LoaderIcon, { class: 'animate-spin' }),
-//   ),
-// })
+const OrderForm = defineAsyncComponent({
+  loader: () => import('./OrderForm.vue'),
+  delay: 0,
+  loadingComponent: h(
+    'div',
+    { class: 'w-full h-[500px] flex items-center justify-center' },
+    h(LoaderIcon, { class: 'animate-spin' }),
+  ),
+})
 
 const queryClient = useQueryClient()
 const { closeDialog } = useDialogStore()
@@ -49,15 +49,18 @@ const { mutateAsync } = useMutation({
 })
 
 const { openDialog } = useDialogStore()
-function handleAddPaymentMethod() {
-  // openDialog({
-  //   title: 'Add New Payment Method',
-  //   description: 'Make sure payment method has not been registered yet on the system.',
-  //   content: h(PaymentMethodForm, {
-  //     onSubmit: mutateAsync,
-  //     initialValues: { is_active: true },
-  //   }),
-  // })
+function handleAddOrder() {
+  openDialog({
+    title: 'Add New Order',
+    description: 'Create a new order for a customer',
+    content: h(OrderForm, {
+      onSubmit: mutateAsync,
+      initialValues: {
+        discount: '0',
+        customer_phone: '+62',
+      },
+    }),
+  })
 }
 </script>
 
@@ -65,9 +68,7 @@ function handleAddPaymentMethod() {
   <div class="flex flex-col gap-y-6">
     <div class="flex items-center justify-between">
       <h1 class="font-medium text-lg">Orders</h1>
-      <Button size="sm" variant="outline" @click="handleAddPaymentMethod">
-        <PlusIcon /> New Order
-      </Button>
+      <Button size="sm" variant="outline" @click="handleAddOrder"> <PlusIcon /> New Order </Button>
     </div>
 
     <pre class="whitespace-pre"

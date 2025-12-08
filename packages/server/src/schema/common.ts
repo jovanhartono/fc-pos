@@ -1,5 +1,9 @@
-import { getNumericValue } from "@/utils/helper";
+import {
+  isValidPhoneNumber,
+  parsePhoneNumberFromString,
+} from "libphonenumber-js";
 import { z } from "zod";
+import { getNumericValue } from "@/utils/helper";
 
 export const varcharSchema = (field: string) =>
   z
@@ -30,3 +34,11 @@ export const currencySchema = (field: string) =>
     .transform(Number)
     .pipe(z.number().positive(`${field} must be positive`))
     .pipe(z.coerce.string());
+
+export const phoneSchema = z
+  .string("Phone number is required!")
+  .min(1, "Phone number is required!")
+  .transform((val) => parsePhoneNumberFromString(val)?.number ?? val)
+  .pipe(
+    z.string().refine(isValidPhoneNumber, { error: "Invalid phone number" })
+  );

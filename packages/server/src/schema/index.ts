@@ -1,15 +1,16 @@
-import { ordersTable } from "@/db/schema";
-import {
-  varcharSchema,
-  textSchema,
-  isActiveSchema,
-  currencySchema,
-} from "@/schema/common";
-import { createInsertSchema } from "drizzle-zod";
+import { createUpdateSchema } from "drizzle-zod";
 import parsePhoneNumberFromString, {
   isValidPhoneNumber,
 } from "libphonenumber-js";
 import z from "zod";
+import { customersTable, orderPaymentStatusEnum } from "@/db/schema";
+import {
+  currencySchema,
+  isActiveSchema,
+  phoneSchema,
+  textSchema,
+  varcharSchema,
+} from "@/schema/common";
 
 export const POSTUserSchema = z
   .object({
@@ -41,6 +42,22 @@ export const POSTUserSchema = z
 export const PUTUserSchema = POSTUserSchema.omit({
   password: true,
   confirm_password: true,
+});
+
+export const POSTCustomerSchema = z.object({
+  name: varcharSchema("Name"),
+  phone_number: phoneSchema,
+  email: z.email("Invalid email address").nullish(),
+  address: textSchema("Address").nullish(),
+  origin_store_id: z.int({
+    error: (issue) =>
+      issue.input === undefined
+        ? "Origin store is required"
+        : "Origin store must be a number",
+  }),
+});
+export const PUTCustomerSchema = createUpdateSchema(customersTable).omit({
+  origin_store_id: true,
 });
 
 export const POSTStoreSchema = z.object({
@@ -148,4 +165,55 @@ export const POSTProductSchema = z.object({
   price: currencySchema("Price"),
 });
 
-export const POSTOrderSchema = createInsertSchema(ordersTable);
+export const POSTOrderSchema = z
+  .object({
+    customer_name: varcharSchema("Customer Name"),
+    customer_phone: phoneSchema,
+    customer_id: z.number("Customer is required"),
+    store_id: z.number("Store ID is required"),
+    products: z
+      .array(
+        z.object(
+          {
+            id: z.number("Product is required"),
+            qty: z.int().positive("Quantity must be positive"),
+            notes: z.string().optional(),
+          },
+          "Product is required"
+        )
+      )
+      .optional(),
+    services: z
+      .array(
+        z.object(
+          {
+            id: z.number("Service is required"),
+            qty: z.int().positive("Quantity must be positive"),
+            notes: z.string().optional(),
+            //TODO: add discount later
+          },
+          "Service is required"
+        )
+      )
+      .optional(),
+    discount: currencySchema("Discount").default("0"),
+    payment_method_id: z.number().optional(),
+    payment_status: z.enum(
+      orderPaymentStatusEnum.enumValues,
+      "Payment status is required"
+    ),
+    notes: z.string().trim().optional(),
+  })
+  .refine(
+    (val) => {
+      const emptyServiceOrProduct = !(
+        val.products?.length || val.services?.length
+      );
+
+      return emptyServiceOrProduct;
+    },
+    {
+      error: "Product or Service is required",
+      path: ["products_ids", "services_ids"],
+    }
+  );
