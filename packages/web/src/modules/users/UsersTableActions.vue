@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { rpc } from '@/core/rpc'
-import { useDialogStore } from '@/core/stores/dialog-store'
-import { Button } from '@/shared/components/ui/button'
 import { PUTUserSchema } from '@fresclean/api/schema'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { Row } from '@tanstack/vue-table'
@@ -10,6 +7,9 @@ import { EditIcon, LoaderIcon } from 'lucide-vue-next'
 import { defineAsyncComponent, h } from 'vue'
 import { toast } from 'vue-sonner'
 import type z from 'zod'
+import { rpc } from '@/core/rpc'
+import { useDialogStore } from '@/core/stores/dialog-store'
+import { Button } from '@/shared/components/ui/button'
 import type { User } from './UsersTable.vue'
 
 const { row } = defineProps<{

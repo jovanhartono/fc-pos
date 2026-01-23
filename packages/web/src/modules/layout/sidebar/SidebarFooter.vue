@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ChevronsUpDown, LogOut } from 'lucide-vue-next'
-
-import { SidebarFooter, useSidebar, SidebarMenuButton } from '@/shared/components/ui/sidebar'
+import { storeToRefs } from 'pinia'
 import { useAuth } from '@/core/stores/auth-store'
 import {
   DropdownMenu,
@@ -9,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/shared/components/ui/dropdown-menu'
-import { storeToRefs } from 'pinia'
+import { SidebarFooter, SidebarMenuButton, useSidebar } from '@/shared/components/ui/sidebar'
 
 const authStore = useAuth()
 const { user } = storeToRefs(authStore)

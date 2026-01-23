@@ -1,31 +1,31 @@
-import { defineStore } from 'pinia'
-import { computed } from 'vue'
-import { jwtDecode } from 'jwt-decode'
-import { useLocalStorage } from '@vueuse/core'
-import type { JWTPayload } from '@fresclean/api/types'
-import router from '@/router'
+import type { JWTPayload } from "@fresclean/api/types";
+import { useLocalStorage } from "@vueuse/core";
+import { jwtDecode } from "jwt-decode";
+import { defineStore } from "pinia";
+import { computed } from "vue";
+import router from "@/router";
 
-export const useAuth = defineStore('auth', () => {
-  const token = useLocalStorage<string | null>('jwt', null)
+export const useAuth = defineStore("auth", () => {
+	const token = useLocalStorage<string | null>("jwt", null);
 
-  const user = computed(() => {
-    if (!token.value) {
-      return
-    }
+	const user = computed(() => {
+		if (!token.value) {
+			return;
+		}
 
-    return jwtDecode<JWTPayload>(token.value)
-  })
+		return jwtDecode<JWTPayload>(token.value);
+	});
 
-  function setToken(tokenArgument: string) {
-    token.value = tokenArgument
-  }
+	function setToken(tokenArgument: string) {
+		token.value = tokenArgument;
+	}
 
-  function logout() {
-    token.value = null
-    router.push({
-      name: 'login',
-    })
-  }
+	function logout() {
+		token.value = null;
+		router.push({
+			name: "login",
+		});
+	}
 
-  return { token: token, setToken, logout, user }
-})
+	return { token, setToken, logout, user };
+});

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { cn, formatIDRCurrency, getNumericValue } from '@/shared/utils'
 import type { ClassValue } from 'clsx'
 import { AsYouType } from 'libphonenumber-js'
 import { SearchIcon } from 'lucide-vue-next'
 import { computed, readonly, useAttrs } from 'vue'
+import { cn, formatIDRCurrency, getNumericValue } from '@/shared/utils'
 
 defineOptions({
   inheritAttrs: false,

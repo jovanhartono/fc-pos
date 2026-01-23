@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { POSTProductSchema } from '@fresclean/api/schema'
+import { type FormOptions, useForm } from 'vee-validate'
+import type z from 'zod'
 import CategoriesSelect from '@/shared/components/CategoriesSelect.vue'
 import { Button } from '@/shared/components/ui/button'
 import {
@@ -12,9 +15,6 @@ import {
 import { Input } from '@/shared/components/ui/input'
 import { Switch } from '@/shared/components/ui/switch'
 import { Textarea } from '@/shared/components/ui/textarea'
-import { useForm, type FormOptions } from 'vee-validate'
-import type z from 'zod'
-import { POSTProductSchema } from '@fresclean/api/schema'
 
 type ServiceForm = z.input<typeof POSTProductSchema>
 type ServiceFormProps = FormOptions<ServiceForm> & {

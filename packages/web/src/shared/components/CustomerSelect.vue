@@ -1,17 +1,17 @@
 <script setup lang="ts">
+import { useQuery } from '@tanstack/vue-query'
+import { parseResponse } from 'hono/client'
 import type { ComponentFieldBindingObject } from 'vee-validate'
+import { rpc } from '@/core/rpc'
 import { FormControl, FormItem, FormLabel, FormMessage } from './ui/form'
 import {
   Select,
   SelectContent,
   SelectGroup,
-  SelectTrigger,
   SelectItem,
+  SelectTrigger,
   SelectValue,
 } from './ui/select'
-import { useQuery } from '@tanstack/vue-query'
-import { rpc } from '@/core/rpc'
-import { parseResponse } from 'hono/client'
 
 const props = defineProps<ComponentFieldBindingObject>()
 

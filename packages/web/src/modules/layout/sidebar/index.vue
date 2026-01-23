@@ -12,8 +12,8 @@ import {
   SidebarMenuItem,
   type SidebarProps,
 } from '@/shared/components/ui/sidebar'
-import SidebarFooter from './SidebarFooter.vue'
 import NavMasterdata from './NavMasterdata.vue'
+import SidebarFooter from './SidebarFooter.vue'
 
 const props = withDefaults(defineProps<SidebarProps>(), {
   variant: 'inset',

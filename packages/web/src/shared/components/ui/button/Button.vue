@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { PrimitiveProps } from 'reka-ui'
-import { useAttrs, type HTMLAttributes } from 'vue'
-import type { ButtonVariants } from '.'
-import { Primitive } from 'reka-ui'
-import { cn } from '@/shared/utils'
-import { buttonVariants } from '.'
 import { LoaderIcon } from 'lucide-vue-next'
+import type { PrimitiveProps } from 'reka-ui'
+import { Primitive } from 'reka-ui'
+import { type HTMLAttributes, useAttrs } from 'vue'
+import { cn } from '@/shared/utils'
+import type { ButtonVariants } from '.'
+import { buttonVariants } from '.'
 
 interface Props extends PrimitiveProps {
   variant?: ButtonVariants['variant']

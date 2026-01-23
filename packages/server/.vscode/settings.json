@@ -13,7 +13,7 @@
   "editor.formatOnPaste": true,
   "biome.enabled": true,
   "editor.defaultFormatter": "biomejs.biome",
-   "[typescript]": {
+  "[typescript]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
   "[json]": {

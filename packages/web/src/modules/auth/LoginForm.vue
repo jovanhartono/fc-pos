@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { type HTMLAttributes } from 'vue'
-import { Button } from '@/shared/components/ui/button'
-import { Input } from '@/shared/components/ui/input'
-import { cn } from '@/shared/utils'
+import { useMutation } from '@tanstack/vue-query'
+import { parseResponse } from 'hono/client'
 import { useForm } from 'vee-validate'
+import { type HTMLAttributes } from 'vue'
+import { useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 import { z } from 'zod'
+import { rpc } from '@/core/rpc'
+import { useAuth } from '@/core/stores/auth-store'
+import { Button } from '@/shared/components/ui/button'
 import {
   FormControl,
   FormField,
@@ -12,12 +16,8 @@ import {
   FormLabel,
   FormMessage,
 } from '@/shared/components/ui/form'
-import { rpc } from '@/core/rpc'
-import { parseResponse } from 'hono/client'
-import { useMutation } from '@tanstack/vue-query'
-import { toast } from 'vue-sonner'
-import { useAuth } from '@/core/stores/auth-store'
-import { useRouter } from 'vue-router'
+import { Input } from '@/shared/components/ui/input'
+import { cn } from '@/shared/utils'
 
 const props = defineProps<{
   class?: HTMLAttributes['class']

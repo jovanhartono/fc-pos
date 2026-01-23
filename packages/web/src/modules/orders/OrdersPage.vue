@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { rpc } from '@/core/rpc'
-import { useDialogStore } from '@/core/stores/dialog-store'
-import { Button } from '@/shared/components/ui/button'
+
+import { POSTOrderSchema } from '@fresclean/api/schema'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { parseResponse } from 'hono/client'
 import { LoaderIcon, PlusIcon } from 'lucide-vue-next'
 import { defineAsyncComponent, h } from 'vue'
 import { toast } from 'vue-sonner'
 import z from 'zod'
-
-import { POSTOrderSchema } from '@fresclean/api/schema'
+import { rpc } from '@/core/rpc'
+import { useDialogStore } from '@/core/stores/dialog-store'
+import { Button } from '@/shared/components/ui/button'
 
 const OrderForm = defineAsyncComponent({
   loader: () => import('./OrderForm.vue'),
@@ -26,14 +26,14 @@ const { closeDialog } = useDialogStore()
 
 const { data } = useQuery({
   queryKey: ['orders'],
-  queryFn: () => parseResponse(rpc.api.admin['orders'].$get()),
+  queryFn: () => parseResponse(rpc.api.admin.orders.$get()),
 })
 
 const { mutateAsync } = useMutation({
   mutationKey: ['create-orders'],
   mutationFn: async (data: z.infer<typeof POSTOrderSchema>) =>
     await parseResponse(
-      rpc.api.admin['orders'].$post({
+      rpc.api.admin.orders.$post({
         json: data,
       }),
     ),

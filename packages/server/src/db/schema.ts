@@ -290,6 +290,13 @@ export const ordersRelations = relations(ordersTable, ({ one, many }) => ({
   }),
 }));
 
+export const orderCountersTable = pgTable("order_counters", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  store_code: varchar("store_code", { length: 10 }).notNull(),
+  date_str: varchar("date_str", { length: 6 }).notNull(), // e.g. 202510
+  last_number: integer("last_number").notNull().default(1),
+});
+
 export const ordersServicesTable = pgTable(
   "orders_services",
   {
@@ -309,6 +316,8 @@ export const ordersServicesTable = pgTable(
     service_id: integer("service_id").references(() => servicesTable.id, {
       onDelete: "cascade",
     }),
+
+    // todo: status
 
     subtotal: decimal("subtotal", {
       precision: 12,

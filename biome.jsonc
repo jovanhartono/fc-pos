@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "files": {
+    "ignoreUnknown": true,
+    "includes": ["**"]
+  },
+  "linter": {
+    "rules": {
+      "style": {
+        "noMagicNumbers": "off"
+      }
+    }
+  },
+  "extends": ["ultracite/biome/core"]
+}

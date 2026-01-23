@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { POSTPaymentMethodSchema } from '@fresclean/api/schema'
+import { type FormOptions, useForm } from 'vee-validate'
+import type z from 'zod'
 import { Button } from '@/shared/components/ui/button'
 import {
   FormControl,
@@ -9,9 +12,6 @@ import {
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
 import { Switch } from '@/shared/components/ui/switch'
-import { POSTPaymentMethodSchema } from '@fresclean/api/schema'
-import { useForm, type FormOptions } from 'vee-validate'
-import type z from 'zod'
 
 type ServiceForm = z.input<typeof POSTPaymentMethodSchema>
 type ServiceFormProps = FormOptions<ServiceForm>

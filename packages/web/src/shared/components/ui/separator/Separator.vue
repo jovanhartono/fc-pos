@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SeparatorProps } from 'reka-ui'
-import type { HTMLAttributes } from 'vue'
 import { Separator } from 'reka-ui'
+import type { HTMLAttributes } from 'vue'
 import { cn } from '@/shared/utils'
 
 const {

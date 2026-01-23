@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from "vue"
-import { cn } from '@/shared/utils'
 import { Input } from '@/shared/components/ui/input'
+import { cn } from '@/shared/utils'
 
 const props = defineProps<{
   class?: HTMLAttributes["class"]
@@ -16,7 +16,6 @@ const props = defineProps<{
       'bg-background h-8 w-full shadow-none',
       props.class,
     )"
-  >
-    <slot />
-  </Input>
+  />
+  <slot />
 </template>

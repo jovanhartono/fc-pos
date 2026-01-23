@@ -1,14 +1,5 @@
 <script setup lang="ts">
 import {
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuAction,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from '@/shared/components/ui/sidebar'
-import {
   CogIcon,
   CreditCardIcon,
   PackageIcon,
@@ -17,6 +8,15 @@ import {
   TagsIcon,
   UsersIcon,
 } from 'lucide-vue-next'
+import {
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuAction,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/shared/components/ui/sidebar'
 
 const masterDataMenus = [
   {

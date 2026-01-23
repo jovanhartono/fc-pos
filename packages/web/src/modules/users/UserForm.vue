@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { POSTUserSchema, PUTUserSchema } from '@fresclean/api/schema'
+import { RadioGroupItem, RadioGroupRoot } from 'reka-ui'
+import { type FormOptions, useForm } from 'vee-validate'
+import { computed } from 'vue'
+import { z } from 'zod'
 import { Button } from '@/shared/components/ui/button'
 import {
   FormControl,
@@ -10,11 +15,6 @@ import {
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
 import { Switch } from '@/shared/components/ui/switch'
-import { POSTUserSchema, PUTUserSchema } from '@fresclean/api/schema'
-import { RadioGroupItem, RadioGroupRoot } from 'reka-ui'
-import { useForm, type FormOptions } from 'vee-validate'
-import { computed } from 'vue'
-import { z } from 'zod'
 
 const radioItems = [
   {
@@ -28,7 +28,6 @@ const radioItems = [
     value: 'worker',
   },
 ]
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const props = defineProps<FormOptions<any> & { type: 'post' | 'put' }>()
 
 type SchemaType<T extends 'post' | 'put'> = T extends 'post'

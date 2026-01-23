@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { SidebarProps } from "."
-import { cn } from '@/shared/utils'
 import { Sheet, SheetContent } from '@/shared/components/ui/sheet'
 import SheetDescription from '@/shared/components/ui/sheet/SheetDescription.vue'
 import SheetHeader from '@/shared/components/ui/sheet/SheetHeader.vue'
 import SheetTitle from '@/shared/components/ui/sheet/SheetTitle.vue'
+import { cn } from '@/shared/utils'
+import type { SidebarProps } from "."
 import { SIDEBAR_WIDTH_MOBILE, useSidebar } from "./utils"
 
 defineOptions({

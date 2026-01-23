@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { rpc } from '@/core/rpc'
 import { keepPreviousData, useQuery } from '@tanstack/vue-query'
-import { parseResponse, type InferResponseType } from 'hono/client'
+import { type InferResponseType, parseResponse } from 'hono/client'
 import { LoaderIcon, XCircleIcon } from 'lucide-vue-next'
+import { rpc } from '@/core/rpc'
 import PaymentMethodItem from './PaymentMethodItem.vue'
 
 const $get = rpc.api.admin['payment-methods'].$get

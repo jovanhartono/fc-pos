@@ -1,15 +1,15 @@
 <script setup lang="ts">
+import { keepPreviousData, useQuery } from '@tanstack/vue-query'
+import { type ColumnDef, getFilteredRowModel, type TableOptions } from '@tanstack/vue-table'
+import { type InferResponseType, parseResponse } from 'hono/client'
+import { h, ref } from 'vue'
 import { rpc } from '@/core/rpc'
 import { Badge } from '@/shared/components/ui/badge'
-import DataTable from '@/shared/components/ui/table/DataTable.vue'
-import { keepPreviousData, useQuery } from '@tanstack/vue-query'
-import { getFilteredRowModel, type ColumnDef, type TableOptions } from '@tanstack/vue-table'
-import { parseResponse, type InferResponseType } from 'hono/client'
-import { h, ref } from 'vue'
-import ProductsTableActions from './ProductsTableActions.vue'
-import { formatIDRCurrency } from '@/shared/utils'
 import { Input } from '@/shared/components/ui/input'
+import DataTable from '@/shared/components/ui/table/DataTable.vue'
 import { valueUpdater } from '@/shared/components/ui/table/utils'
+import { formatIDRCurrency } from '@/shared/utils'
+import ProductsTableActions from './ProductsTableActions.vue'
 
 const $get = rpc.api.admin.products.$get
 export type Product = InferResponseType<typeof $get>['data'][number]

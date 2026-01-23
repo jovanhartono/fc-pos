@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { Button } from '@/shared/components/ui/button'
-import { PlusIcon } from 'lucide-vue-next'
-import CustomersTable from './CustomersTable.vue'
-import { useDialogStore } from '@/core/stores/dialog-store'
-import { parseResponse } from 'hono/client'
+import { POSTCustomerSchema } from '@fresclean/api/schema'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import { parseResponse } from 'hono/client'
+import { PlusIcon } from 'lucide-vue-next'
+import { h } from 'vue'
+import { toast } from 'vue-sonner'
 import { z } from 'zod'
 import { rpc } from '@/core/rpc'
-import { toast } from 'vue-sonner'
-import { POSTCustomerSchema } from '@fresclean/api/schema'
-import { h } from 'vue'
+import { useDialogStore } from '@/core/stores/dialog-store'
+import { Button } from '@/shared/components/ui/button'
+import CustomersTable from './CustomersTable.vue'
 
 const queryClient = useQueryClient()
 const { closeDialog } = useDialogStore()

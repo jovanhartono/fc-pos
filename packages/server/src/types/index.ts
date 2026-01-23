@@ -1,1 +1,1 @@
-export * from "./jwt";
+export type { JWTPayload } from "./jwt";

@@ -1,6 +1,7 @@
 <script setup lang="ts" generic="TData, TValue">
-import { cn } from '@/shared/utils'
 import type { Column } from '@tanstack/vue-table'
+import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, EyeClosedIcon } from 'lucide-vue-next'
+import { cn } from '@/shared/utils'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,7 +9,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../dropdown-menu'
-import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, EyeClosedIcon } from 'lucide-vue-next'
 
 defineProps<{
   column: Column<TData, TValue>

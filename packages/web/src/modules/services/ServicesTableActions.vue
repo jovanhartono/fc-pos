@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { rpc } from '@/core/rpc'
-import { useDialogStore } from '@/core/stores/dialog-store'
-import { Button } from '@/shared/components/ui/button'
 import { POSTServiceSchema } from '@fresclean/api/schema'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { Row } from '@tanstack/vue-table'
@@ -10,8 +7,11 @@ import { EditIcon, LoaderIcon } from 'lucide-vue-next'
 import { defineAsyncComponent, h } from 'vue'
 import { toast } from 'vue-sonner'
 import type z from 'zod'
-import type { Service } from './ServicesTable.vue'
+import { rpc } from '@/core/rpc'
+import { useDialogStore } from '@/core/stores/dialog-store'
+import { Button } from '@/shared/components/ui/button'
 import { formatIDRCurrency } from '@/shared/utils'
+import type { Service } from './ServicesTable.vue'
 
 const { row } = defineProps<{
   row: Row<Service>

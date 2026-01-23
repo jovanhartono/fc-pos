@@ -1,10 +1,10 @@
 <script lang="ts" setup>
+import { AsteriskIcon } from 'lucide-vue-next'
 import type { LabelProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
-import { cn } from '@/shared/utils'
 import { Label } from '@/shared/components/ui/label'
+import { cn } from '@/shared/utils'
 import { useFormField } from './useFormField'
-import { AsteriskIcon } from 'lucide-vue-next'
 
 const props = defineProps<LabelProps & { class?: HTMLAttributes['class']; asterisk?: boolean }>()
 

@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { rpc } from '@/core/rpc'
-import { useDialogStore } from '@/core/stores/dialog-store'
-import { Button } from '@/shared/components/ui/button'
+import type { POSTPaymentMethodSchema } from '@fresclean/api/schema'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { parseResponse } from 'hono/client'
 import { LoaderIcon, PlusIcon } from 'lucide-vue-next'
 import { defineAsyncComponent, h } from 'vue'
 import { toast } from 'vue-sonner'
 import type z from 'zod'
+import { rpc } from '@/core/rpc'
+import { useDialogStore } from '@/core/stores/dialog-store'
+import { Button } from '@/shared/components/ui/button'
 import CategoriesTable from './PaymentMethodsList.vue'
-import type { POSTPaymentMethodSchema } from '@fresclean/api/schema'
 
 const PaymentMethodForm = defineAsyncComponent({
   loader: () => import('./PaymentMethodForm.vue'),

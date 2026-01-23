@@ -35,17 +35,17 @@ export type FilterOperator =
   | "isNull"
   | "isNotNull";
 
-export type FilterCondition<T = unknown> = {
+export interface FilterCondition<T = unknown> {
   column: AnyColumn;
   operator: FilterOperator;
   value?: T | T[];
   caseSensitive?: boolean;
-};
+}
 
-export type WhereClauseOptions = {
+export interface WhereClauseOptions {
   combineWith?: "and" | "or";
   conditions?: FilterCondition[];
-};
+}
 
 // Base utility class for building where clauses
 export class WhereClauseBuilder {

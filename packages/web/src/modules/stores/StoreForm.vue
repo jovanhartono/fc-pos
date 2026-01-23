@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { POSTStoreSchema } from '@fresclean/api/schema'
+import { type FormOptions, useForm } from 'vee-validate'
+import type z from 'zod'
 import { Button } from '@/shared/components/ui/button'
 import {
   FormControl,
@@ -11,9 +14,6 @@ import {
 import { Input } from '@/shared/components/ui/input'
 import { Switch } from '@/shared/components/ui/switch'
 import { Textarea } from '@/shared/components/ui/textarea'
-import { POSTStoreSchema } from '@fresclean/api/schema'
-import { useForm, type FormOptions } from 'vee-validate'
-import type z from 'zod'
 
 type StoreForm = z.infer<typeof POSTStoreSchema>
 type StoreFormProps = FormOptions<StoreForm> & {

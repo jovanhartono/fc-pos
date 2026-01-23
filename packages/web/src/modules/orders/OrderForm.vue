@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import { POSTOrderSchema } from '@fresclean/api/schema'
+import { PlusIcon, XIcon } from 'lucide-vue-next'
+import { type FormOptions, useFieldArray, useForm } from 'vee-validate'
+import type z from 'zod'
+import CustomerSelect from '@/shared/components/CustomerSelect.vue'
+import ProductSelect from '@/shared/components/ProductSelect.vue'
+import ServiceSelect from '@/shared/components/ServiceSelect.vue'
 import { Button } from '@/shared/components/ui/button'
 import {
   FormControl,
@@ -9,13 +16,6 @@ import {
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
 import { Textarea } from '@/shared/components/ui/textarea'
-import { POSTOrderSchema } from '@fresclean/api/schema'
-import { useForm, useFieldArray, type FormOptions } from 'vee-validate'
-import type z from 'zod'
-import CustomerSelect from '@/shared/components/CustomerSelect.vue'
-import ProductSelect from '@/shared/components/ProductSelect.vue'
-import ServiceSelect from '@/shared/components/ServiceSelect.vue'
-import { PlusIcon, XIcon } from 'lucide-vue-next'
 
 type OrderForm = z.input<typeof POSTOrderSchema>
 type OrderFormProps = FormOptions<OrderForm>

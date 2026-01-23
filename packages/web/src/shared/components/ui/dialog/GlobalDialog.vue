@@ -1,12 +1,12 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { useDialogStore } from '@/core/stores/dialog-store'
+import { cn } from '@/shared/utils'
 import Dialog from './Dialog.vue'
 import DialogContent from './DialogContent.vue'
+import DialogDescription from './DialogDescription.vue'
 import DialogHeader from './DialogHeader.vue'
 import DialogTitle from './DialogTitle.vue'
-import DialogDescription from './DialogDescription.vue'
-import { storeToRefs } from 'pinia'
-import { cn } from '@/shared/utils'
 
 const dialogStore = useDialogStore()
 const { dialogState } = storeToRefs(dialogStore)

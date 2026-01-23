@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/shared/components/ui/sidebar'
-import Sidebar from './sidebar/index.vue'
-import { Separator } from '@/shared/components/ui/separator'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -10,6 +7,9 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/shared/components/ui/breadcrumb'
+import { Separator } from '@/shared/components/ui/separator'
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/shared/components/ui/sidebar'
+import Sidebar from './sidebar/index.vue'
 </script>
 
 <template>
