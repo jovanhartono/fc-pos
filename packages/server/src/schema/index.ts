@@ -1,9 +1,8 @@
-import { createUpdateSchema } from "drizzle-zod";
 import parsePhoneNumberFromString, {
   isValidPhoneNumber,
 } from "libphonenumber-js";
 import z from "zod";
-import { customersTable, orderPaymentStatusEnum } from "@/db/schema";
+import { orderPaymentStatusEnum } from "@/db/schema";
 import {
   currencySchema,
   isActiveSchema,
@@ -12,39 +11,42 @@ import {
   varcharSchema,
 } from "@/schema/common";
 
-export const POSTUserSchema = z
-  .object({
-    username: z
-      .string("Minimum 5 characters")
-      .trim()
-      .min(5, "Minimum 5 characters"),
-    name: z.string("Name is required").trim().min(1, "Name is required"),
-    password: z
-      .string("Minimum 8 characters")
-      .trim()
-      .min(8, "Minimum 8 characters"),
-    confirm_password: z
-      .string("Minimum 8 characters")
-      .trim()
-      .min(8, "Minimum 8 characters"),
-    role: z.literal(["admin", "cashier", "worker"], "Role is required"),
-    is_active: isActiveSchema,
-  })
-  .refine((data) => data.password === data.confirm_password, {
+const userSchema = z.object({
+  username: z
+    .string("Minimum 5 characters")
+    .trim()
+    .min(5, "Minimum 5 characters"),
+  name: z.string("Name is required").trim().min(1, "Name is required"),
+  password: z
+    .string("Minimum 8 characters")
+    .trim()
+    .min(8, "Minimum 8 characters"),
+  confirm_password: z
+    .string("Minimum 8 characters")
+    .trim()
+    .min(8, "Minimum 8 characters"),
+  role: z.literal(["admin", "cashier", "worker"], "Role is required"),
+  is_active: isActiveSchema,
+});
+
+export const POSTUserSchema = userSchema.refine(
+  (data) => data.password === data.confirm_password,
+  {
     error: "Password does not match",
     path: ["confirm_password"],
     when: (payload) =>
-      POSTUserSchema.pick({ password: true, confirm_password: true }).safeParse(
-        payload.value
-      ).success,
-  });
+      userSchema
+        .pick({ password: true, confirm_password: true })
+        .safeParse(payload.value).success,
+  }
+);
 
-export const PUTUserSchema = POSTUserSchema.omit({
+export const PUTUserSchema = userSchema.omit({
   password: true,
   confirm_password: true,
 });
 
-export const POSTCustomerSchema = z.object({
+const customerSchema = z.object({
   name: varcharSchema("Name"),
   phone_number: phoneSchema,
   email: z.email("Invalid email address").nullish(),
@@ -56,7 +58,8 @@ export const POSTCustomerSchema = z.object({
         : "Origin store must be a number",
   }),
 });
-export const PUTCustomerSchema = createUpdateSchema(customersTable).omit({
+export const POSTCustomerSchema = customerSchema;
+export const PUTCustomerSchema = customerSchema.omit({
   origin_store_id: true,
 });
 
