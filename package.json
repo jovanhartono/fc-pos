@@ -4,7 +4,7 @@
   "sideEffects": false,
   "private": true,
   "scripts": {
-    "dev": "bun run --workspaces dev"
+    "dev": "bun run --workspaces --parallel --no-exit-on-error dev"
   },
   "workspaces": [
     "packages/*"

@@ -14,9 +14,6 @@ export default defineConfig({
 	},
 	resolve: {
 		alias: {
-			"@fresclean/api": fileURLToPath(
-				new URL("../server/dist", import.meta.url),
-			),
 			"@": fileURLToPath(new URL("src", import.meta.url)),
 		},
 	},

@@ -6,25 +6,25 @@
   "exports": {
     "./rpc": {
       "import": {
-        "default": "./dist/src/rpc.js",
-        "types": "./dist/src/rpc.d.ts"
+        "default": "./dist/rpc.js",
+        "types": "./dist/rpc.d.ts"
       }
     },
     "./types": {
       "import": {
-        "default": "./dist/src/types/index.js",
-        "types": "./dist/src/types/index.d.ts"
+        "default": "./dist/types/index.js",
+        "types": "./dist/types/index.d.ts"
       }
     },
     "./schema": {
       "import": {
-        "default": "./dist/src/schema/index.js",
-        "types": "./dist/src/schema/index.d.ts"
+        "default": "./dist/schema/index.js",
+        "types": "./dist/schema/index.d.ts"
       }
     }
   },
   "scripts": {
-    "dev": "bun run --hot src/index.ts",
+    "dev": "bun run --hot src/index.ts & tsdown --watch",
     "pull:dev": "bun drizzle-kit pull --config=drizzle-dev.config.ts",
     "tsdown": "tsdown --watch",
     "pull:prod": "bun drizzle-kit pull --config=drizzle-prod.config.ts",
