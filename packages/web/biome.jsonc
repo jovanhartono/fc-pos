@@ -1,7 +1,17 @@
 {
 	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
 	"root": false,
-	"extends": ["ultracite/biome/vue"],
+	"files": {
+		"includes": ["**", "!**/*.css", "!**/*.gen.ts"]
+	},
+	"extends": ["ultracite/biome/react"],
+	"linter": {
+		"rules": {
+			"suspicious": {
+				"noArrayIndexKey": "off"
+			}
+		}
+	},
 	"css": {
 		"parser": {
 			"tailwindDirectives": true

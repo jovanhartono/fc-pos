@@ -1,0 +1,63 @@
+import { createFileRoute, Outlet, useLocation } from "@tanstack/react-router";
+import { AppShell } from "@/components/app-shell";
+import { requireAuth } from "@/lib/auth";
+
+export const Route = createFileRoute("/_admin")({
+	beforeLoad: requireAuth,
+	component: AdminLayout,
+});
+
+const pageMeta: Record<string, { title: string; description?: string }> = {
+	"/": {
+		title: "Dashboard",
+		description:
+			"React + TanStack migration baseline with shared API contracts.",
+	},
+	"/categories": {
+		title: "Categories",
+		description: "Insert and edit category master data.",
+	},
+	"/customers": {
+		title: "Customers",
+		description: "Insert and edit customer master data.",
+	},
+	"/orders": {
+		title: "Orders",
+		description:
+			"Insert orders. Edit is not available from current backend API.",
+	},
+	"/payment-methods": {
+		title: "Payment Methods",
+		description: "Insert and edit payment method master data.",
+	},
+	"/products": {
+		title: "Products",
+		description: "Insert and edit product master data.",
+	},
+	"/services": {
+		title: "Services",
+		description: "Insert and edit service master data.",
+	},
+	"/stores": {
+		title: "Stores",
+		description: "Insert and edit store master data.",
+	},
+	"/users": {
+		title: "Users",
+		description: "Insert and edit users with role management.",
+	},
+};
+
+function AdminLayout() {
+	const { pathname } = useLocation();
+	const meta = pageMeta[pathname] ?? {
+		title: "Admin",
+		description: "Admin panel",
+	};
+
+	return (
+		<AppShell title={meta.title} description={meta.description}>
+			<Outlet />
+		</AppShell>
+	);
+}

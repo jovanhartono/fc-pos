@@ -1,0 +1,118 @@
+import { Button as ButtonPrimitive } from "@base-ui/react/button";
+import { CircleNotch } from "@phosphor-icons/react";
+import { cva, type VariantProps } from "class-variance-authority";
+import type * as React from "react";
+import { useWebHaptics } from "web-haptics/react";
+
+import { cn } from "@/lib/utils";
+
+const buttonVariants = cva(
+	"group/button inline-flex shrink-0 items-center justify-center rounded-none border border-transparent bg-clip-padding text-xs font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [@media(any-pointer:coarse)]:min-h-10 [@media(any-pointer:coarse)]:text-sm [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+	{
+		variants: {
+			variant: {
+				default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+				outline:
+					"border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+				secondary:
+					"bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+				ghost:
+					"hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+				destructive:
+					"bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+				link: "text-primary underline-offset-4 hover:underline",
+			},
+			size: {
+				default:
+					"h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+				xs: "h-6 gap-1 rounded-none px-2 text-xs has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
+				sm: "h-7 gap-1 rounded-none px-2.5 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+				lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
+				icon: "size-8",
+				"icon-xs": "size-6 rounded-none [&_svg:not([class*='size-'])]:size-3",
+				"icon-sm": "size-7 rounded-none",
+				"icon-lg": "size-9",
+			},
+		},
+		defaultVariants: {
+			variant: "default",
+			size: "default",
+		},
+	},
+);
+
+function Button({
+	className,
+	variant = "default",
+	size = "default",
+	icon,
+	iconLocation = "left",
+	loading = false,
+	loadingText,
+	spinner,
+	haptic = "nudge",
+	hapticMode = "touch",
+	children,
+	disabled,
+	onClick,
+	...props
+}: ButtonPrimitive.Props &
+	VariantProps<typeof buttonVariants> & {
+		icon?: React.ReactNode;
+		iconLocation?: "left" | "right";
+		loading?: boolean;
+		loadingText?: string;
+		spinner?: React.ReactNode;
+		haptic?: "success" | "nudge" | "error" | "buzz" | false;
+		hapticMode?: "touch" | "always";
+	}) {
+	const { trigger } = useWebHaptics();
+	const isDisabled = disabled || loading;
+	const resolvedIcon = !loading ? icon : null;
+	const dataIcon = resolvedIcon
+		? iconLocation === "right"
+			? "inline-end"
+			: "inline-start"
+		: undefined;
+
+	const handleClick: NonNullable<ButtonPrimitive.Props["onClick"]> = (
+		event,
+	) => {
+		if (!isDisabled && haptic) {
+			const coarsePointer =
+				typeof window !== "undefined" &&
+				window.matchMedia("(any-pointer: coarse)").matches;
+			if (hapticMode === "always" || coarsePointer) {
+				void trigger(haptic);
+			}
+		}
+		onClick?.(event);
+	};
+
+	return (
+		<ButtonPrimitive
+			data-slot="button"
+			data-icon={dataIcon}
+			aria-busy={loading || undefined}
+			disabled={isDisabled}
+			className={cn(buttonVariants({ variant, size, className }))}
+			onClick={handleClick}
+			{...props}
+		>
+			{loading ? (
+				<>
+					{spinner ?? <CircleNotch className="size-4 animate-spin" />}
+					{loadingText ?? children}
+				</>
+			) : (
+				<>
+					{resolvedIcon && iconLocation === "left" ? resolvedIcon : null}
+					{children}
+					{resolvedIcon && iconLocation === "right" ? resolvedIcon : null}
+				</>
+			)}
+		</ButtonPrimitive>
+	);
+}
+
+export { Button, buttonVariants };
