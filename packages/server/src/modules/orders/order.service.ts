@@ -19,7 +19,9 @@ import {
 import { findProducts } from "@/modules/products/product.repository";
 import { findServices } from "@/modules/services/service.repository";
 import type { POSTOrderSchema } from "@/schema";
+import type { JWTPayload } from "@/types";
 import type { Store, User } from "@/types/entity";
+import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
 import { buildPaginationMeta } from "@/utils/pagination";
 
 function formatOrderCode(storeCode: string, dateStr: string, sequence: number) {
@@ -160,9 +162,19 @@ async function resolveDiscount({
   };
 }
 
-export async function listOrders(query?: GetOrdersQuery) {
+export async function listOrders(query?: GetOrdersQuery, user?: JWTPayload) {
   const normalized = normalizeOrderListQuery(query);
-  const { items, total } = await findOrders(normalized);
+  let scopedStoreIds: number[] | undefined;
+
+  if (user && user.role !== "admin") {
+    if (normalized.store_id !== undefined) {
+      await assertStoreAccess(user, normalized.store_id);
+    } else {
+      scopedStoreIds = await getUserStoreIds(user.id);
+    }
+  }
+
+  const { items, total } = await findOrders(normalized, scopedStoreIds);
 
   return {
     items,

@@ -33,6 +33,67 @@ const ORDER_TERMINAL_SERVICE_STATUSES = new Set([
   "cancelled",
 ]);
 
+function roundCurrencyUnit(value: number) {
+  return Math.round(value);
+}
+
+function buildRefundItems({
+  capsByServiceId,
+  items,
+}: {
+  capsByServiceId: Map<number, number>;
+  items: PostOrderRefundInput["items"];
+}) {
+  const refundItems = items.map((item) => {
+    const maxRefundable = capsByServiceId.get(item.order_service_id) ?? 0;
+    if (maxRefundable <= 0) {
+      throw new BadRequestException(
+        `Order service ${item.order_service_id} has no refundable amount remaining`
+      );
+    }
+
+    return {
+      ...item,
+      amount: Math.floor(maxRefundable),
+      preciseAmount: maxRefundable,
+    };
+  });
+
+  const roundedTotalRefundAmount = roundCurrencyUnit(
+    refundItems.reduce((sum, item) => sum + item.preciseAmount, 0)
+  );
+
+  let remainingWholeUnits =
+    roundedTotalRefundAmount -
+    refundItems.reduce((sum, item) => sum + item.amount, 0);
+
+  const itemsByLargestRemainder = [...refundItems].sort((left, right) => {
+    const remainderDiff =
+      right.preciseAmount - right.amount - (left.preciseAmount - left.amount);
+
+    return remainderDiff !== 0
+      ? remainderDiff
+      : left.order_service_id - right.order_service_id;
+  });
+
+  for (const item of itemsByLargestRemainder) {
+    if (remainingWholeUnits <= 0) {
+      break;
+    }
+
+    item.amount += 1;
+    remainingWholeUnits -= 1;
+  }
+
+  if (remainingWholeUnits > 0) {
+    throw new BadRequestException(
+      "Refund amount could not be allocated across the selected services"
+    );
+  }
+
+  return refundItems.map(({ preciseAmount, ...item }) => item);
+}
+
 function assertIsAdmin(user: JWTPayload) {
   if (user.role !== "admin") {
     throw new ForbiddenException("Only admin can perform this action");
@@ -621,18 +682,9 @@ export async function createOrderRefund({
     refundCaps.map((item) => [item.order_service_id, item.maxRefundable])
   );
 
-  const refundItems = body.items.map((item) => {
-    const maxRefundable = capsByServiceId.get(item.order_service_id) ?? 0;
-    if (maxRefundable <= 0) {
-      throw new BadRequestException(
-        `Order service ${item.order_service_id} has no refundable amount remaining`
-      );
-    }
-
-    return {
-      ...item,
-      amount: Number(maxRefundable.toFixed(2)),
-    };
+  const refundItems = buildRefundItems({
+    capsByServiceId,
+    items: body.items,
   });
 
   const totalRefundAmount = refundItems.reduce(

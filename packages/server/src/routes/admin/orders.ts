@@ -40,18 +40,7 @@ const app = new Hono()
     const query = c.req.valid("query");
     const user = c.get("jwtPayload") as JWTPayload;
 
-    if (user.role !== "admin") {
-      if (query?.store_id === undefined) {
-        return c.json(
-          failure("store_id is required for non-admin users"),
-          StatusCodes.BAD_REQUEST
-        );
-      }
-
-      await assertStoreAccess(user, query.store_id);
-    }
-
-    const { items, meta } = await getOrdersController(query);
+    const { items, meta } = await getOrdersController({ query, user });
 
     return c.json(success(items, undefined, meta));
   })

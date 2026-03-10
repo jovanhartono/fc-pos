@@ -5,9 +5,16 @@ import { createOrder, listOrders } from "@/modules/orders/order.service";
 import { findStoreById } from "@/modules/stores/store.repository";
 import { findUserById } from "@/modules/users/user.repository";
 import type { POSTOrderSchema } from "@/schema";
+import type { JWTPayload } from "@/types";
 
-export function getOrdersController(query?: GetOrdersQuery) {
-  return listOrders(query);
+export function getOrdersController({
+  query,
+  user,
+}: {
+  query?: GetOrdersQuery;
+  user: JWTPayload;
+}) {
+  return listOrders(query, user);
 }
 
 interface CreateOrderControllerInput {

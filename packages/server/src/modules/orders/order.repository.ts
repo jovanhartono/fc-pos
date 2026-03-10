@@ -1,6 +1,17 @@
 import dayjs from "dayjs";
 import type { InferInsertModel } from "drizzle-orm";
-import { and, asc, desc, eq, gte, lte, or, type SQL, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  lte,
+  or,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 import { db } from "@/db";
 import {
   customersTable,
@@ -55,8 +66,19 @@ function resolveOrderByColumn(sortBy: NormalizedOrderListQuery["sort_by"]) {
   }
 }
 
-function buildWhereClause(filters: NormalizedOrderListQuery): SQL | undefined {
+function buildWhereClause(
+  filters: NormalizedOrderListQuery,
+  scopedStoreIds?: number[]
+): SQL | undefined {
   const conditions: SQL[] = [];
+
+  if (scopedStoreIds !== undefined) {
+    if (scopedStoreIds.length === 0) {
+      conditions.push(eq(ordersTable.id, -1));
+    } else {
+      conditions.push(inArray(ordersTable.store_id, scopedStoreIds));
+    }
+  }
 
   if (filters.status) {
     conditions.push(eq(ordersTable.status, filters.status));
@@ -137,9 +159,10 @@ function buildWhereClause(filters: NormalizedOrderListQuery): SQL | undefined {
 }
 
 export async function findOrders(
-  filters: NormalizedOrderListQuery
+  filters: NormalizedOrderListQuery,
+  scopedStoreIds?: number[]
 ): Promise<FindOrdersResult> {
-  const whereClause = buildWhereClause(filters);
+  const whereClause = buildWhereClause(filters, scopedStoreIds);
 
   const orderByColumn = resolveOrderByColumn(filters.sort_by);
 

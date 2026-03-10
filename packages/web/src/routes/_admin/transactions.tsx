@@ -6,7 +6,6 @@ import {
 	campaignsQueryOptions,
 	categoriesQueryOptions,
 	currentUserDetailQueryOptions,
-	customersQueryOptions,
 	paymentMethodsQueryOptions,
 	productsQueryOptions,
 	servicesQueryOptions,
