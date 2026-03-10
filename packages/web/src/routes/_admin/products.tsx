@@ -4,35 +4,35 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useMemo } from "react";
 import { DataTable } from "@/components/data-table";
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	ProductForm,
 	type ProductFormState,
 } from "@/features/products/components/product-form";
 import {
 	createProduct,
-	fetchProducts,
 	type Product,
 	queryKeys,
 	updateProduct,
 } from "@/lib/api";
+import { productsQueryOptions } from "@/lib/query-options";
 import { formatIDRCurrency } from "@/shared/utils";
-import { useGlobalSheet } from "@/stores/sheet-store";
+import { useSheet } from "@/stores/sheet-store";
 
 export const Route = createFileRoute("/_admin/products")({
+	loader: ({ context }) =>
+		context.queryClient.ensureQueryData(productsQueryOptions()),
 	component: ProductsPage,
 });
 
 function ProductsPage() {
 	const queryClient = useQueryClient();
-	const { openSheet, closeSheet } = useGlobalSheet();
+	const { openSheet, closeSheet } = useSheet();
 
-	const { data: products = [], isPending } = useQuery({
-		queryKey: queryKeys.products,
-		queryFn: fetchProducts,
-	});
+	const { data: products = [], isPending } = useQuery(productsQueryOptions());
 	const productCount = products.length;
 
 	const createMutation = useMutation({
@@ -163,11 +163,12 @@ function ProductsPage() {
 	);
 
 	return (
-		<div className="grid gap-4">
-			<Card>
-				<CardHeader className="flex flex-row items-center justify-between space-y-0">
-					<CardTitle>Product List</CardTitle>
-					<div className="flex items-center gap-2">
+		<>
+			<PageHeader
+				title="Products"
+				description="Insert and edit product master data."
+				actions={
+					<>
 						<Badge
 							variant={isPending ? "secondary" : "outline"}
 						>{`${productCount} items`}</Badge>
@@ -177,12 +178,20 @@ function ProductsPage() {
 						>
 							Add Product
 						</Button>
-					</div>
-				</CardHeader>
-				<CardContent>
-					<DataTable columns={columns} data={products} isLoading={isPending} />
-				</CardContent>
-			</Card>
-		</div>
+					</>
+				}
+			/>
+			<div className="grid gap-4">
+				<Card>
+					<CardContent className="pt-6">
+						<DataTable
+							columns={columns}
+							data={products}
+							isLoading={isPending}
+						/>
+					</CardContent>
+				</Card>
+			</div>
+		</>
 	);
 }

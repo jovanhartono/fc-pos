@@ -7,8 +7,14 @@ import {
 } from "react-hook-form";
 import { PhoneNumberField } from "@/components/form/phone-number-field";
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import {
+	Field,
+	FieldError,
+	FieldGroup,
+	FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 
 export type CustomerFormState = {
@@ -16,7 +22,7 @@ export type CustomerFormState = {
 	phone_number: string;
 	email: string;
 	address: string;
-	origin_store_id: string;
+	origin_store_id?: number;
 };
 
 type CustomerFormProps = {
@@ -37,124 +43,124 @@ export function CustomerForm({
 	onReset,
 }: CustomerFormProps) {
 	return (
-		<form
-			className="grid gap-4 p-4 md:grid-cols-2"
-			onSubmit={handleSubmit(onSubmit)}
-		>
-			<Controller
-				name="name"
-				control={control}
-				render={({ field, fieldState }) => (
-					<Field data-invalid={fieldState.invalid}>
-						<FieldLabel htmlFor="customer-name">Name</FieldLabel>
-						<Input
-							{...field}
-							id="customer-name"
-							placeholder="e.g. John Doe"
-							aria-invalid={fieldState.invalid}
+		<form onSubmit={handleSubmit(onSubmit)}>
+			<FieldGroup>
+				<Controller
+					name="name"
+					control={control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor="customer-name" asterisk>
+								Name
+							</FieldLabel>
+							<Input
+								{...field}
+								id="customer-name"
+								placeholder="e.g. John Doe"
+								aria-invalid={fieldState.invalid}
+								disabled={isSubmitting}
+								className="h-10"
+							/>
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
+				/>
+
+				<Controller
+					name="phone_number"
+					control={control}
+					render={({ field, fieldState }) => (
+						<PhoneNumberField
+							id="customer-phone"
+							label="Phone"
+							value={field.value}
+							onValueChange={field.onChange}
+							placeholder="e.g. +628123456789"
 							disabled={isSubmitting}
 							required
-							className="h-10"
+							error={fieldState.error}
 						/>
-						<FieldError errors={[fieldState.error]} />
-					</Field>
-				)}
-			/>
+					)}
+				/>
 
-			<Controller
-				name="phone_number"
-				control={control}
-				render={({ field, fieldState }) => (
-					<PhoneNumberField
-						id="customer-phone"
-						label="Phone"
-						value={field.value}
-						onValueChange={field.onChange}
-						placeholder="e.g. +628123456789"
-						disabled={isSubmitting}
-						required
-						error={fieldState.error}
-					/>
-				)}
-			/>
+				<Controller
+					name="email"
+					control={control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor="customer-email">Email</FieldLabel>
+							<Input
+								{...field}
+								id="customer-email"
+								type="email"
+								placeholder="e.g. john@example.com"
+								aria-invalid={fieldState.invalid}
+								disabled={isSubmitting}
+								className="h-10"
+							/>
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
+				/>
 
-			<Controller
-				name="email"
-				control={control}
-				render={({ field, fieldState }) => (
-					<Field data-invalid={fieldState.invalid}>
-						<FieldLabel htmlFor="customer-email">Email</FieldLabel>
-						<Input
-							{...field}
-							id="customer-email"
-							type="email"
-							placeholder="e.g. john@example.com"
-							aria-invalid={fieldState.invalid}
+				<Controller
+					name="address"
+					control={control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid} className="md:col-span-2">
+							<FieldLabel htmlFor="customer-address">Address</FieldLabel>
+							<Textarea
+								{...field}
+								id="customer-address"
+								placeholder="e.g. Jl. Sudirman No. 1"
+								aria-invalid={fieldState.invalid}
+								disabled={isSubmitting}
+							/>
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
+				/>
+
+				<Controller
+					name="origin_store_id"
+					control={control}
+					render={({ field, fieldState }) => (
+						<StoreAutocomplete
+							id="customer-origin-store"
+							label="Origin Store"
+							value={field.value ? String(field.value) : ""}
+							onValueChange={(value) =>
+								field.onChange(value ? Number(value) : undefined)
+							}
+							disabled={isSubmitting || isEditing}
+							error={fieldState.error}
+						/>
+					)}
+				/>
+
+				<div className="flex flex-wrap items-center gap-2 md:col-span-2 md:justify-end">
+					{isEditing ? (
+						<Button
+							type="button"
+							variant="outline"
+							onClick={onReset}
 							disabled={isSubmitting}
-							className="h-10"
-						/>
-						<FieldError errors={[fieldState.error]} />
-					</Field>
-				)}
-			/>
-
-			<Controller
-				name="address"
-				control={control}
-				render={({ field, fieldState }) => (
-					<Field data-invalid={fieldState.invalid} className="md:col-span-2">
-						<FieldLabel htmlFor="customer-address">Address</FieldLabel>
-						<Input
-							{...field}
-							id="customer-address"
-							placeholder="e.g. Jl. Sudirman No. 1"
-							aria-invalid={fieldState.invalid}
-							disabled={isSubmitting}
-							className="h-10"
-						/>
-						<FieldError errors={[fieldState.error]} />
-					</Field>
-				)}
-			/>
-
-			<Controller
-				name="origin_store_id"
-				control={control}
-				render={({ field, fieldState }) => (
-					<StoreAutocomplete
-						id="customer-origin-store"
-						label="Origin Store"
-						required={!isEditing}
-						value={field.value}
-						onValueChange={field.onChange}
-						disabled={isSubmitting || isEditing}
-						error={fieldState.error}
-					/>
-				)}
-			/>
-
-			<div className="flex flex-wrap items-center gap-2 md:col-span-2 md:justify-end">
-				{isEditing ? (
+						>
+							Cancel edit
+						</Button>
+					) : null}
 					<Button
-						type="button"
-						variant="outline"
-						onClick={onReset}
-						disabled={isSubmitting}
+						type="submit"
+						loading={isSubmitting}
+						loadingText={
+							isEditing ? "Updating customer..." : "Creating customer..."
+						}
 					>
-						Cancel edit
+						<Plus className="size-4" weight="duotone" />
+						{isEditing ? "Update Customer" : "Create Customer"}
 					</Button>
-				) : null}
-				<Button
-					type="submit"
-					loading={isSubmitting}
-					loadingText={
-						isEditing ? "Updating customer..." : "Creating customer..."
-					}
-				>
-					<Plus className="size-4" weight="duotone" />
-					{isEditing ? "Update Customer" : "Create Customer"}
-				</Button>
-			</div>
+				</div>
+			</FieldGroup>
 		</form>
 	);
 }

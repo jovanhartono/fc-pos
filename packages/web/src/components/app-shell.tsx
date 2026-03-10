@@ -41,20 +41,73 @@ import {
 import { cn } from "@/lib/utils";
 import { getCurrentUser, useAuthStore } from "@/stores/auth-store";
 
-const mainNavigation = [{ to: "/", label: "Dashboard", icon: House }] as const;
+type Role = "admin" | "cashier" | "worker";
+type NavItem = {
+	to: string;
+	label: string;
+	icon: ComponentType<{ className?: string; weight?: "duotone" }>;
+	roles: Role[];
+	search?: Record<string, number>;
+};
 
-const masterDataNavigation = [
-	{ to: "/customers", label: "Customers", icon: IdentificationCard },
-	{ to: "/users", label: "Users", icon: UserGear },
-	{ to: "/stores", label: "Stores", icon: Storefront },
-	{ to: "/categories", label: "Categories", icon: List },
-	{ to: "/services", label: "Services", icon: Scissors },
-	{ to: "/products", label: "Products", icon: Package },
-	{ to: "/payment-methods", label: "Payment Methods", icon: CreditCard },
+const mainNavigation: NavItem[] = [
+	{ to: "/", label: "Dashboard", icon: House, roles: ["admin", "cashier"] },
+	{
+		to: "/worker",
+		label: "Worker Ops",
+		icon: Scissors,
+		roles: ["admin", "cashier", "worker"],
+	},
+];
+
+const masterDataNavigation: NavItem[] = [
+	{
+		to: "/orders",
+		label: "Orders",
+		icon: ShoppingCart,
+		roles: ["admin", "cashier"],
+		search: { page: 1 },
+	},
+	{
+		to: "/campaigns",
+		label: "Campaigns",
+		icon: CreditCard,
+		roles: ["admin", "cashier"],
+		search: { page: 1 },
+	},
+	{
+		to: "/customers",
+		label: "Customers",
+		icon: IdentificationCard,
+		roles: ["admin", "cashier"],
+		search: { page: 1 },
+	},
+	{
+		to: "/users",
+		label: "Users",
+		icon: UserGear,
+		roles: ["admin"],
+		search: { page: 1 },
+	},
+	{ to: "/stores", label: "Stores", icon: Storefront, roles: ["admin"] },
+	{ to: "/categories", label: "Categories", icon: List, roles: ["admin"] },
+	{ to: "/services", label: "Services", icon: Scissors, roles: ["admin"] },
+	{ to: "/products", label: "Products", icon: Package, roles: ["admin"] },
+	{
+		to: "/payment-methods",
+		label: "Payment Methods",
+		icon: CreditCard,
+		roles: ["admin"],
+	},
 ] as const;
 
-const transactionNavigation = [
-	{ to: "/orders", label: "Orders", icon: ShoppingCart },
+const transactionNavigation: NavItem[] = [
+	{
+		to: "/transactions",
+		label: "Transactions",
+		icon: ShoppingCart,
+		roles: ["admin", "cashier"],
+	},
 ] as const;
 
 interface AppShellProps extends PropsWithChildren {
@@ -62,15 +115,7 @@ interface AppShellProps extends PropsWithChildren {
 	description?: string;
 }
 
-function SidebarNavLinks({
-	items,
-}: {
-	items: readonly {
-		to: string;
-		label: string;
-		icon: ComponentType<{ className?: string; weight?: "duotone" }>;
-	}[];
-}) {
+function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
 	return (
 		<SidebarMenu>
 			{items.map((item) => {
@@ -82,6 +127,7 @@ function SidebarNavLinks({
 							render={
 								<Link
 									to={item.to}
+									search={item.search}
 									className={cn("text-foreground")}
 									activeProps={{
 										"data-active": "true",
@@ -101,10 +147,11 @@ function SidebarNavLinks({
 	);
 }
 
-export function AppShell({ title, description, children }: AppShellProps) {
+export function AppShell({ title, children }: AppShellProps) {
 	const navigate = useNavigate();
 	const clearToken = useAuthStore((state) => state.clearToken);
 	const user = getCurrentUser();
+	const role = user?.role as Role | undefined;
 	const { theme } = useTheme();
 	const [isSystemDark, setIsSystemDark] = useState(false);
 
@@ -127,14 +174,25 @@ export function AppShell({ title, description, children }: AppShellProps) {
 		void navigate({ to: "/auth/login" });
 	};
 
+	const allowedMainNavigation = mainNavigation.filter((item) =>
+		role ? item.roles.includes(role) : false,
+	);
+	const allowedMasterNavigation = masterDataNavigation.filter((item) =>
+		role ? item.roles.includes(role) : false,
+	);
+	const allowedTransactionNavigation = transactionNavigation.filter((item) =>
+		role ? item.roles.includes(role) : false,
+	);
+
 	return (
 		<SidebarProvider>
 			<Sidebar collapsible="offcanvas" variant="inset">
-				<SidebarHeader>
+				<SidebarHeader className="flex-row items-center justify-between">
 					<div className="flex items-center gap-2 px-2 text-sm font-semibold uppercase tracking-[0.2em] text-sidebar-foreground/80">
 						<Buildings className="size-4" weight="duotone" />
 						Fresclean POS
 					</div>
+					<SidebarTrigger className="size-6 shrink-0" />
 				</SidebarHeader>
 
 				<SidebarSeparator />
@@ -142,23 +200,27 @@ export function AppShell({ title, description, children }: AppShellProps) {
 				<SidebarContent>
 					<SidebarGroup>
 						<SidebarGroupContent>
-							<SidebarNavLinks items={mainNavigation} />
+							<SidebarNavLinks items={allowedMainNavigation} />
 						</SidebarGroupContent>
 					</SidebarGroup>
 
-					<SidebarGroup>
-						<SidebarGroupLabel>Master Data</SidebarGroupLabel>
-						<SidebarGroupContent>
-							<SidebarNavLinks items={masterDataNavigation} />
-						</SidebarGroupContent>
-					</SidebarGroup>
+					{allowedMasterNavigation.length > 0 ? (
+						<SidebarGroup>
+							<SidebarGroupLabel>Master Data</SidebarGroupLabel>
+							<SidebarGroupContent>
+								<SidebarNavLinks items={allowedMasterNavigation} />
+							</SidebarGroupContent>
+						</SidebarGroup>
+					) : null}
 
-					<SidebarGroup>
-						<SidebarGroupLabel>Transactions</SidebarGroupLabel>
-						<SidebarGroupContent>
-							<SidebarNavLinks items={transactionNavigation} />
-						</SidebarGroupContent>
-					</SidebarGroup>
+					{allowedTransactionNavigation.length > 0 ? (
+						<SidebarGroup>
+							<SidebarGroupLabel>Transactions</SidebarGroupLabel>
+							<SidebarGroupContent>
+								<SidebarNavLinks items={allowedTransactionNavigation} />
+							</SidebarGroupContent>
+						</SidebarGroup>
+					) : null}
 				</SidebarContent>
 
 				<SidebarFooter>
@@ -200,19 +262,6 @@ export function AppShell({ title, description, children }: AppShellProps) {
 
 			<SidebarInset>
 				<section className="px-3 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10">
-					<header className="sticky top-0 z-20 -mx-3 mb-5 flex items-start justify-between gap-3 border-b border-border/70 bg-background/95 px-3 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/75 sm:-mx-6 sm:px-6 md:-mx-8 md:mb-6 md:px-8 lg:-mx-10 lg:px-10">
-						<div>
-							<h1 className="text-lg font-semibold tracking-tight sm:text-xl md:text-2xl">
-								{title}
-							</h1>
-							{description ? (
-								<p className="mt-1 text-sm text-muted-foreground">
-									{description}
-								</p>
-							) : null}
-						</div>
-						<SidebarTrigger className="h-10 w-10 shrink-0" />
-					</header>
 					{children}
 				</section>
 			</SidebarInset>

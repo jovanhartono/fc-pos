@@ -65,14 +65,15 @@ export function ProductForm({
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="product-name">Name</FieldLabel>
+							<FieldLabel htmlFor="product-name" asterisk>
+								Name
+							</FieldLabel>
 							<Input
 								{...field}
 								id="product-name"
 								placeholder="e.g. Liquid Detergent"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
-								required
 								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
@@ -85,14 +86,15 @@ export function ProductForm({
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="product-sku">SKU</FieldLabel>
+							<FieldLabel htmlFor="product-sku" asterisk>
+								SKU
+							</FieldLabel>
 							<Input
 								{...field}
 								id="product-sku"
 								placeholder="e.g. PRD-001"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
-								required
 								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
@@ -119,14 +121,15 @@ export function ProductForm({
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="product-uom">UOM</FieldLabel>
+							<FieldLabel htmlFor="product-uom" asterisk>
+								UOM
+							</FieldLabel>
 							<Input
 								{...field}
 								id="product-uom"
 								placeholder="e.g. pcs"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
-								required
 								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
@@ -139,7 +142,9 @@ export function ProductForm({
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="product-stock">Stock</FieldLabel>
+							<FieldLabel htmlFor="product-stock" asterisk>
+								Stock
+							</FieldLabel>
 							<Input
 								id="product-stock"
 								type="number"
@@ -148,7 +153,6 @@ export function ProductForm({
 								value={String(field.value)}
 								onChange={(event) => field.onChange(Number(event.target.value))}
 								disabled={isSubmitting}
-								required
 								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
@@ -181,7 +185,9 @@ export function ProductForm({
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="product-cogs">COGS</FieldLabel>
+							<FieldLabel htmlFor="product-cogs" asterisk>
+								COGS
+							</FieldLabel>
 							<CurrencyInput
 								id="product-cogs"
 								placeholder="Rp0"
@@ -200,7 +206,9 @@ export function ProductForm({
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="product-price">Price</FieldLabel>
+							<FieldLabel htmlFor="product-price" asterisk>
+								Price
+							</FieldLabel>
 							<CurrencyInput
 								id="product-price"
 								placeholder="Rp0"

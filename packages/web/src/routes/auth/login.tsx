@@ -9,7 +9,7 @@ import {
 	type LoginFormValues,
 } from "@/features/auth/components/login-form";
 import { login } from "@/lib/api";
-import { useAuthStore } from "@/stores/auth-store";
+import { getCurrentUser, useAuthStore } from "@/stores/auth-store";
 
 const loginSchema = z.object({
 	username: z.string().trim().min(1, "Username is required"),
@@ -19,7 +19,8 @@ const loginSchema = z.object({
 export const Route = createFileRoute("/auth/login")({
 	beforeLoad: () => {
 		if (useAuthStore.getState().token) {
-			throw redirect({ to: "/" });
+			const user = getCurrentUser();
+			throw redirect({ to: user?.role === "worker" ? "/worker" : "/" });
 		}
 	},
 	component: LoginPage,
@@ -50,7 +51,8 @@ function LoginPage() {
 		mutationFn: login,
 		onSuccess: (response) => {
 			setToken(response.token);
-			void navigate({ to: "/" });
+			const user = getCurrentUser();
+			void navigate({ to: user?.role === "worker" ? "/worker" : "/" });
 		},
 	});
 

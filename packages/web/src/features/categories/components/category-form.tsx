@@ -51,7 +51,9 @@ export function CategoryForm({
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="category-name">Name</FieldLabel>
+							<FieldLabel htmlFor="category-name" asterisk>
+								Name
+							</FieldLabel>
 							<Input
 								{...field}
 								id="category-name"

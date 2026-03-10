@@ -23,7 +23,21 @@ const app = new Hono().post(
       where: eq(usersTable.username, username),
     });
 
-    if (!(user && (await Bun.password.verify(password, user.password)))) {
+    if (!user) {
+      return c.json(
+        failure("Invalid username or password"),
+        StatusCodes.UNAUTHORIZED
+      );
+    }
+
+    let isPasswordValid = false;
+    try {
+      isPasswordValid = await Bun.password.verify(password, user.password);
+    } catch {
+      isPasswordValid = false;
+    }
+
+    if (!isPasswordValid) {
       return c.json(
         failure("Invalid username or password"),
         StatusCodes.UNAUTHORIZED

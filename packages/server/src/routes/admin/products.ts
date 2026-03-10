@@ -1,44 +1,39 @@
-import { asc, eq } from "drizzle-orm";
-import { createInsertSchema, createUpdateSchema } from "drizzle-zod";
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
-import { db } from "@/db";
-import { productsTable } from "@/db/schema";
+import {
+  createProductController,
+  getProductByIdController,
+  getProductsController,
+  updateProductController,
+} from "@/modules/products/product.controller";
+import {
+  POSTProductSchema,
+  PUTProductSchema,
+} from "@/modules/products/product.schema";
 import { idParamSchema } from "@/schema/param";
-import { notFoundOrFirst } from "@/utils/helper";
 import { failure, success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-const POSTProductSchema = createInsertSchema(productsTable);
-const PUTProductSchema = createUpdateSchema(productsTable);
 const app = new Hono()
   .get("/", async (c) => {
-    const users = await db.query.productsTable.findMany({
-      orderBy: [asc(productsTable.id)],
-      with: {
-        category: true,
-      },
-    });
+    const products = await getProductsController();
 
-    return c.json(success(users));
+    return c.json(success(products));
   })
   .get("/:id", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
 
-    const product = await db.query.productsTable.findFirst({
-      where: eq(productsTable.id, id),
-    });
+    const product = await getProductByIdController(id);
 
     if (!product) {
-      return c.json(failure("Product not found", StatusCodes.NOT_FOUND));
+      return c.json(failure("Product not found"), StatusCodes.NOT_FOUND);
     }
 
     return c.json(success(product, "Product retrieved successfully"));
   })
   .post("/", zodValidator("json", POSTProductSchema), async (c) => {
     const body = c.req.valid("json");
-
-    const [product] = await db.insert(productsTable).values(body).returning();
+    const product = await createProductController(body);
 
     return c.json(
       success(product, "Create product success"),
@@ -53,22 +48,13 @@ const app = new Hono()
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      const updatedService = await db
-        .update(productsTable)
-        .set(body)
-        .where(eq(productsTable.id, id))
-        .returning();
+      const product = await updateProductController(id, body);
 
-      const product = notFoundOrFirst(
-        updatedService,
-        c,
-        "Service does not exist"
-      );
-      if (product instanceof Response) {
-        return product;
+      if (!product) {
+        return c.json(failure("Product does not exist"), StatusCodes.NOT_FOUND);
       }
 
-      return c.json(success(product, `Update service ${product.sku} success`));
+      return c.json(success(product, `Update product ${product.sku} success`));
     }
   );
 

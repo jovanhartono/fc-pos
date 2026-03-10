@@ -14,6 +14,7 @@ type ComboboxProps = {
 	options: ComboboxOption[];
 	value: string;
 	onValueChange: (value: string) => void;
+	onInputChange?: (value: string) => void;
 	placeholder?: string;
 	searchPlaceholder?: string;
 	emptyText?: string;
@@ -36,6 +37,7 @@ export function Combobox({
 	disabled,
 	className,
 	triggerClassName,
+	onInputChange,
 }: ComboboxProps) {
 	const selectedOption = React.useMemo(
 		() => options.find((option) => option.value === value) ?? null,
@@ -59,6 +61,7 @@ export function Combobox({
 			items={items}
 			value={selectedOption}
 			onValueChange={(nextValue) => onValueChange(nextValue?.value ?? "")}
+			onInputValueChange={onInputChange}
 			itemToStringLabel={(item) => item.label}
 			itemToStringValue={(item) => item.value}
 			isItemEqualToValue={(item, selected) => item.value === selected.value}

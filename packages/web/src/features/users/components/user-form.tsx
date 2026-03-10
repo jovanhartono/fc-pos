@@ -24,6 +24,7 @@ export type UserFormState = {
 	confirm_password: string;
 	role: "admin" | "cashier" | "worker";
 	is_active: boolean;
+	store_ids: number[];
 };
 
 type UserFormProps = {
@@ -32,6 +33,7 @@ type UserFormProps = {
 	onSubmit: SubmitHandler<UserFormState>;
 	isSubmitting: boolean;
 	isEditing: boolean;
+	stores: Array<{ id: number; code: string; name: string }>;
 	onReset: () => void;
 };
 
@@ -41,6 +43,7 @@ export function UserForm({
 	onSubmit,
 	isSubmitting,
 	isEditing,
+	stores,
 	onReset,
 }: UserFormProps) {
 	return (
@@ -53,14 +56,15 @@ export function UserForm({
 				control={control}
 				render={({ field, fieldState }) => (
 					<Field data-invalid={fieldState.invalid}>
-						<FieldLabel htmlFor="user-username">Username</FieldLabel>
+						<FieldLabel htmlFor="user-username" asterisk>
+							Username
+						</FieldLabel>
 						<Input
 							{...field}
 							id="user-username"
 							placeholder="e.g. cashier01"
 							aria-invalid={fieldState.invalid}
 							disabled={isSubmitting || isEditing}
-							required
 							className="h-10"
 						/>
 						<FieldError errors={[fieldState.error]} />
@@ -73,14 +77,15 @@ export function UserForm({
 				control={control}
 				render={({ field, fieldState }) => (
 					<Field data-invalid={fieldState.invalid}>
-						<FieldLabel htmlFor="user-name">Name</FieldLabel>
+						<FieldLabel htmlFor="user-name" asterisk>
+							Name
+						</FieldLabel>
 						<Input
 							{...field}
 							id="user-name"
 							placeholder="e.g. Budi Santoso"
 							aria-invalid={fieldState.invalid}
 							disabled={isSubmitting}
-							required
 							className="h-10"
 						/>
 						<FieldError errors={[fieldState.error]} />
@@ -95,7 +100,9 @@ export function UserForm({
 						control={control}
 						render={({ field, fieldState }) => (
 							<Field data-invalid={fieldState.invalid}>
-								<FieldLabel htmlFor="user-password">Password</FieldLabel>
+								<FieldLabel htmlFor="user-password" asterisk>
+									Password
+								</FieldLabel>
 								<Input
 									{...field}
 									id="user-password"
@@ -103,7 +110,6 @@ export function UserForm({
 									placeholder="Enter password"
 									aria-invalid={fieldState.invalid}
 									disabled={isSubmitting}
-									required
 									className="h-10"
 								/>
 								<FieldError errors={[fieldState.error]} />
@@ -116,7 +122,7 @@ export function UserForm({
 						control={control}
 						render={({ field, fieldState }) => (
 							<Field data-invalid={fieldState.invalid}>
-								<FieldLabel htmlFor="user-confirm-password">
+								<FieldLabel htmlFor="user-confirm-password" asterisk>
 									Confirm Password
 								</FieldLabel>
 								<Input
@@ -126,7 +132,6 @@ export function UserForm({
 									placeholder="Confirm password"
 									aria-invalid={fieldState.invalid}
 									disabled={isSubmitting}
-									required
 									className="h-10"
 								/>
 								<FieldError errors={[fieldState.error]} />
@@ -175,6 +180,40 @@ export function UserForm({
 							onCheckedChange={(checked) => field.onChange(!!checked)}
 							disabled={isSubmitting}
 						/>
+					</Field>
+				)}
+			/>
+
+			<Controller
+				name="store_ids"
+				control={control}
+				render={({ field }) => (
+					<Field className="md:col-span-2">
+						<FieldLabel>Assigned Stores</FieldLabel>
+						<div className="grid gap-2 rounded-none border p-3 md:grid-cols-2">
+							{stores.map((store) => (
+								<label
+									key={store.id}
+									className="flex items-center gap-2 text-sm"
+								>
+									<input
+										type="checkbox"
+										checked={field.value.includes(store.id)}
+										onChange={(event) => {
+											if (event.target.checked) {
+												field.onChange([...field.value, store.id]);
+												return;
+											}
+											field.onChange(
+												field.value.filter((value) => value !== store.id),
+											);
+										}}
+										disabled={isSubmitting}
+									/>
+									<span>{`${store.code} - ${store.name}`}</span>
+								</label>
+							))}
+						</div>
 					</Field>
 				)}
 			/>

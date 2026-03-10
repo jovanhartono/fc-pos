@@ -4,35 +4,35 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useMemo } from "react";
 import { DataTable } from "@/components/data-table";
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	ServiceForm,
 	type ServiceFormState,
 } from "@/features/services/components/service-form";
 import {
 	createService,
-	fetchServices,
 	queryKeys,
 	type Service,
 	updateService,
 } from "@/lib/api";
+import { servicesQueryOptions } from "@/lib/query-options";
 import { formatIDRCurrency } from "@/shared/utils";
-import { useGlobalSheet } from "@/stores/sheet-store";
+import { useSheet } from "@/stores/sheet-store";
 
 export const Route = createFileRoute("/_admin/services")({
+	loader: ({ context }) =>
+		context.queryClient.ensureQueryData(servicesQueryOptions()),
 	component: ServicesPage,
 });
 
 function ServicesPage() {
 	const queryClient = useQueryClient();
-	const { openSheet, closeSheet } = useGlobalSheet();
+	const { openSheet, closeSheet } = useSheet();
 
-	const { data: services = [], isPending } = useQuery({
-		queryKey: queryKeys.services,
-		queryFn: fetchServices,
-	});
+	const { data: services = [], isPending } = useQuery(servicesQueryOptions());
 	const serviceCount = services.length;
 
 	const createMutation = useMutation({
@@ -160,11 +160,12 @@ function ServicesPage() {
 	);
 
 	return (
-		<div className="grid gap-4">
-			<Card>
-				<CardHeader className="flex flex-row items-center justify-between space-y-0">
-					<CardTitle>Service List</CardTitle>
-					<div className="flex items-center gap-2">
+		<>
+			<PageHeader
+				title="Services"
+				description="Insert and edit service master data."
+				actions={
+					<>
 						<Badge
 							variant={isPending ? "secondary" : "outline"}
 						>{`${serviceCount} items`}</Badge>
@@ -174,12 +175,20 @@ function ServicesPage() {
 						>
 							Add Service
 						</Button>
-					</div>
-				</CardHeader>
-				<CardContent>
-					<DataTable columns={columns} data={services} isLoading={isPending} />
-				</CardContent>
-			</Card>
-		</div>
+					</>
+				}
+			/>
+			<div className="grid gap-4">
+				<Card>
+					<CardContent className="pt-6">
+						<DataTable
+							columns={columns}
+							data={services}
+							isLoading={isPending}
+						/>
+					</CardContent>
+				</Card>
+			</div>
+		</>
 	);
 }

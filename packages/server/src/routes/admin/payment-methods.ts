@@ -1,47 +1,34 @@
-import { asc, eq } from "drizzle-orm";
-import { createInsertSchema, createUpdateSchema } from "drizzle-zod";
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
-import { z } from "zod";
-import { db } from "@/db";
-import { paymentMethodsTable } from "@/db/schema";
+import {
+  createPaymentMethodController,
+  getPaymentMethodByIdController,
+  getPaymentMethodsController,
+  updatePaymentMethodController,
+} from "@/modules/payment-methods/payment-method.controller";
+import {
+  GETPaymentMethodsQuerySchema,
+  POSTPaymentMethodSchema,
+  PUTPaymentMethodSchema,
+} from "@/modules/payment-methods/payment-method.schema";
 import { idParamSchema } from "@/schema/param";
-import { notFoundOrFirst } from "@/utils/helper";
 import { failure, success } from "@/utils/http";
-import { WhereClauseBuilder } from "@/utils/where-clause-utils";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-const POSTPaymentMethodSchema = createInsertSchema(paymentMethodsTable);
-const PUTPaymentMethodSchema = createUpdateSchema(paymentMethodsTable);
-
-const paymentMethodsQuerySchema = z
-  .object({ is_active: z.coerce.boolean().optional() })
-  .optional();
-
 const app = new Hono()
-  .get("/", zodValidator("query", paymentMethodsQuerySchema), async (c) => {
-    const query = c.req.valid("query") || {};
-    const { is_active } = query;
-    const whereClause = new WhereClauseBuilder()
-      .addCondition(paymentMethodsTable.is_active, "eq", is_active)
-      .build();
-
-    const paymentMethods = await db.query.paymentMethodsTable.findMany({
-      orderBy: [asc(paymentMethodsTable.id)],
-      where: whereClause,
-    });
+  .get("/", zodValidator("query", GETPaymentMethodsQuerySchema), async (c) => {
+    const query = c.req.valid("query");
+    const paymentMethods = await getPaymentMethodsController(query);
 
     return c.json(success(paymentMethods));
   })
   .get("/:id", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
 
-    const paymentMethod = await db.query.paymentMethodsTable.findFirst({
-      where: eq(paymentMethodsTable.id, id),
-    });
+    const paymentMethod = await getPaymentMethodByIdController(id);
 
     if (!paymentMethod) {
-      return c.json(failure("Payment Method not found", StatusCodes.NOT_FOUND));
+      return c.json(failure("Payment Method not found"), StatusCodes.NOT_FOUND);
     }
 
     return c.json(
@@ -51,10 +38,7 @@ const app = new Hono()
   .post("/", zodValidator("json", POSTPaymentMethodSchema), async (c) => {
     const body = c.req.valid("json");
 
-    const [paymentMethod] = await db
-      .insert(paymentMethodsTable)
-      .values(body)
-      .returning();
+    const paymentMethod = await createPaymentMethodController(body);
 
     return c.json(
       success(paymentMethod, "Create payment method success"),
@@ -69,19 +53,13 @@ const app = new Hono()
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      const updatedPaymentMethod = await db
-        .update(paymentMethodsTable)
-        .set(body)
-        .where(eq(paymentMethodsTable.id, id))
-        .returning();
+      const paymentMethod = await updatePaymentMethodController(id, body);
 
-      const paymentMethod = notFoundOrFirst(
-        updatedPaymentMethod,
-        c,
-        "Payment method does not exist"
-      );
-      if (paymentMethod instanceof Response) {
-        return paymentMethod;
+      if (!paymentMethod) {
+        return c.json(
+          failure("Payment method does not exist"),
+          StatusCodes.NOT_FOUND
+        );
       }
 
       return c.json(

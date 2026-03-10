@@ -59,14 +59,15 @@ export function StoreForm({
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="store-code">Code</FieldLabel>
+							<FieldLabel htmlFor="store-code" asterisk>
+								Code
+							</FieldLabel>
 							<Input
 								{...field}
 								id="store-code"
 								placeholder="e.g. STR-JKT-01"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
-								required
 								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
@@ -78,14 +79,15 @@ export function StoreForm({
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="store-name">Name</FieldLabel>
+							<FieldLabel htmlFor="store-name" asterisk>
+								Name
+							</FieldLabel>
 							<Input
 								{...field}
 								id="store-name"
 								placeholder="e.g. Fresclean Sudirman"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
-								required
 								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
@@ -113,14 +115,15 @@ export function StoreForm({
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid} className="md:col-span-2">
-							<FieldLabel htmlFor="store-address">Address</FieldLabel>
+							<FieldLabel htmlFor="store-address" asterisk>
+								Address
+							</FieldLabel>
 							<Textarea
 								{...field}
 								id="store-address"
 								placeholder="e.g. Jl. Sudirman No. 10"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
-								required
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>
@@ -131,7 +134,9 @@ export function StoreForm({
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="store-latitude">Latitude</FieldLabel>
+							<FieldLabel htmlFor="store-latitude" asterisk>
+								Latitude
+							</FieldLabel>
 							<Input
 								name={field.name}
 								ref={field.ref}
@@ -142,7 +147,6 @@ export function StoreForm({
 								aria-invalid={fieldState.invalid}
 								value={String(field.value ?? "")}
 								disabled={isSubmitting}
-								required
 								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
@@ -154,7 +158,9 @@ export function StoreForm({
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="store-longitude">Longitude</FieldLabel>
+							<FieldLabel htmlFor="store-longitude" asterisk>
+								Longitude
+							</FieldLabel>
 							<Input
 								name={field.name}
 								ref={field.ref}
@@ -165,7 +171,6 @@ export function StoreForm({
 								aria-invalid={fieldState.invalid}
 								value={String(field.value ?? "")}
 								disabled={isSubmitting}
-								required
 								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />

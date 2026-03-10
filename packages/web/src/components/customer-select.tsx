@@ -21,7 +21,7 @@ export function CustomerSelect({
 	required,
 }: CustomerSelectProps) {
 	const { data: customers = [], isPending } = useQuery({
-		queryKey: queryKeys.customers,
+		queryKey: queryKeys.customers(),
 		queryFn: fetchCustomers,
 	});
 

@@ -1,3 +1,4 @@
+import { AsteriskIcon } from "@phosphor-icons/react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { useMemo } from "react";
 import { Label } from "@/components/ui/label";
@@ -73,7 +74,6 @@ function Field({
 }: React.ComponentProps<"div"> & VariantProps<typeof fieldVariants>) {
 	return (
 		<div
-			role="group"
 			data-slot="field"
 			data-orientation={orientation}
 			className={cn(fieldVariants({ orientation }), className)}
@@ -96,9 +96,11 @@ function FieldContent({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 function FieldLabel({
+	asterisk = false,
+	children,
 	className,
 	...props
-}: React.ComponentProps<typeof Label>) {
+}: React.ComponentProps<typeof Label> & { asterisk?: boolean }) {
 	return (
 		<Label
 			data-slot="field-label"
@@ -108,7 +110,16 @@ function FieldLabel({
 				className,
 			)}
 			{...props}
-		/>
+		>
+			{children}
+			{asterisk ? (
+				<AsteriskIcon
+					aria-hidden="true"
+					className="size-2 text-destructive"
+					weight="bold"
+				/>
+			) : null}
+		</Label>
 	);
 }
 
@@ -191,7 +202,7 @@ function FieldError({
 			...new Map(errors.map((error) => [error?.message, error])).values(),
 		];
 
-		if (uniqueErrors?.length == 1) {
+		if (uniqueErrors?.length === 1) {
 			return uniqueErrors[0]?.message;
 		}
 

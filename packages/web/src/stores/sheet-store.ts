@@ -59,11 +59,3 @@ export const useSheet = create<SheetStore>((set) => ({
 		}, 200);
 	},
 }));
-
-export function useGlobalSheet() {
-	const openSheet = useSheet((state) => state.openSheet);
-	const closeSheet = useSheet((state) => state.closeSheet);
-	const setOpen = useSheet((state) => state.setOpen);
-
-	return { openSheet, closeSheet, setOpen };
-}

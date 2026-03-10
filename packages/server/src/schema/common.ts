@@ -17,6 +17,19 @@ export const varcharSchema = (field: string) =>
     .min(1, `${field} cannot be empty`)
     .max(255, `${field} must be at most 255 characters`);
 
+export const optionalVarcharSchema = (field: string, maxLength = 255) =>
+  z
+    .string({
+      error: (issue) =>
+        issue.input === undefined
+          ? `${field} must be a string`
+          : `${field} must be a string`,
+    })
+    .trim()
+    .max(maxLength, `${field} must be at most ${maxLength} characters`)
+    .transform((value) => (value.length === 0 ? undefined : value))
+    .optional();
+
 export const textSchema = (field: string) =>
   z
     .string()
@@ -32,7 +45,7 @@ export const currencySchema = (field: string) =>
     .min(1, `${field} is required!`)
     .transform(getNumericValue)
     .transform(Number)
-    .pipe(z.number().positive(`${field} must be positive`))
+    .pipe(z.number().nonnegative(`${field} cannot be negative`))
     .pipe(z.coerce.string());
 
 export const phoneSchema = z

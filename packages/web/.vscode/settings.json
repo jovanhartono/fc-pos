@@ -1,5 +1,6 @@
 {
 	"biome.enabled": true,
+  "prettier.enable": false,
 	"explorer.fileNesting.enabled": true,
 	"explorer.fileNesting.patterns": {
 		"tsconfig.json": "tsconfig.*.json, env.d.ts",

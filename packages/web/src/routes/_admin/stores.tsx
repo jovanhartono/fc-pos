@@ -4,34 +4,29 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useMemo } from "react";
 import { DataTable } from "@/components/data-table";
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	StoreForm,
 	type StoreFormState,
 } from "@/features/stores/components/store-form";
-import {
-	createStore,
-	fetchStores,
-	queryKeys,
-	type Store,
-	updateStore,
-} from "@/lib/api";
-import { useGlobalSheet } from "@/stores/sheet-store";
+import { createStore, queryKeys, type Store, updateStore } from "@/lib/api";
+import { storesQueryOptions } from "@/lib/query-options";
+import { useSheet } from "@/stores/sheet-store";
 
 export const Route = createFileRoute("/_admin/stores")({
+	loader: ({ context }) =>
+		context.queryClient.ensureQueryData(storesQueryOptions()),
 	component: StoresPage,
 });
 
 function StoresPage() {
 	const queryClient = useQueryClient();
-	const { openSheet, closeSheet } = useGlobalSheet();
+	const { openSheet, closeSheet } = useSheet();
 
-	const { data: stores = [], isPending } = useQuery({
-		queryKey: queryKeys.stores,
-		queryFn: fetchStores,
-	});
+	const { data: stores = [], isPending } = useQuery(storesQueryOptions());
 	const storeCount = stores.length;
 
 	const createMutation = useMutation({
@@ -145,11 +140,12 @@ function StoresPage() {
 	);
 
 	return (
-		<div className="grid gap-4">
-			<Card>
-				<CardHeader className="flex flex-row items-center justify-between space-y-0">
-					<CardTitle>Store List</CardTitle>
-					<div className="flex items-center gap-2">
+		<>
+			<PageHeader
+				title="Stores"
+				description="Insert and edit store master data."
+				actions={
+					<>
 						<Badge
 							variant={isPending ? "secondary" : "outline"}
 						>{`${storeCount} items`}</Badge>
@@ -159,12 +155,16 @@ function StoresPage() {
 						>
 							Add Store
 						</Button>
-					</div>
-				</CardHeader>
-				<CardContent>
-					<DataTable columns={columns} data={stores} isLoading={isPending} />
-				</CardContent>
-			</Card>
-		</div>
+					</>
+				}
+			/>
+			<div className="grid gap-4">
+				<Card>
+					<CardContent className="pt-6">
+						<DataTable columns={columns} data={stores} isLoading={isPending} />
+					</CardContent>
+				</Card>
+			</div>
+		</>
 	);
 }

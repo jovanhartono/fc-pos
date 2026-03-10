@@ -1,36 +1,32 @@
-import { asc, eq } from "drizzle-orm";
-import { createInsertSchema, createUpdateSchema } from "drizzle-zod";
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
-import { db } from "@/db";
-import { servicesTable } from "@/db/schema";
+import {
+  createServiceController,
+  getServiceByIdController,
+  getServicesController,
+  updateServiceController,
+} from "@/modules/services/service.controller";
+import {
+  POSTServiceSchema,
+  PUTServiceSchema,
+} from "@/modules/services/service.schema";
 import { idParamSchema } from "@/schema/param";
-import { notFoundOrFirst } from "@/utils/helper";
 import { failure, success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-const POSTServiceSchema = createInsertSchema(servicesTable);
-const PUTServiceSchema = createUpdateSchema(servicesTable);
 const app = new Hono()
   .get("/", async (c) => {
-    const services = await db.query.servicesTable.findMany({
-      orderBy: [asc(servicesTable.id)],
-      with: {
-        category: true,
-      },
-    });
+    const services = await getServicesController();
 
     return c.json(success(services));
   })
   .get("/:id", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
 
-    const service = await db.query.servicesTable.findFirst({
-      where: eq(servicesTable.id, id),
-    });
+    const service = await getServiceByIdController(id);
 
     if (!service) {
-      return c.json(failure("Service not found", StatusCodes.NOT_FOUND));
+      return c.json(failure("Service not found"), StatusCodes.NOT_FOUND);
     }
 
     return c.json(success(service, "Service retrieved successfully"));
@@ -38,7 +34,7 @@ const app = new Hono()
   .post("/", zodValidator("json", POSTServiceSchema), async (c) => {
     const body = c.req.valid("json");
 
-    const [service] = await db.insert(servicesTable).values(body).returning();
+    const service = await createServiceController(body);
 
     return c.json(
       success(service, "Create service success"),
@@ -53,19 +49,10 @@ const app = new Hono()
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      const updatedService = await db
-        .update(servicesTable)
-        .set(body)
-        .where(eq(servicesTable.id, id))
-        .returning();
+      const service = await updateServiceController(id, body);
 
-      const service = notFoundOrFirst(
-        updatedService,
-        c,
-        "Service does not exist"
-      );
-      if (service instanceof Response) {
-        return service;
+      if (!service) {
+        return c.json(failure("Service does not exist"), StatusCodes.NOT_FOUND);
       }
 
       return c.json(success(service, `Update service ${service.code} success`));

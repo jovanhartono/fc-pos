@@ -25,6 +25,7 @@
   },
   "scripts": {
     "dev": "sh -c 'trap \"kill 0\" INT TERM EXIT; bun run --hot src/index.ts & tsdown --watch & wait'",
+    "seed:dev": "bun run src/db/seed.ts",
     "pull:dev": "bun drizzle-kit pull --config=drizzle-dev.config.ts",
     "tsdown": "tsdown --watch",
     "pull:prod": "bun drizzle-kit pull --config=drizzle-prod.config.ts",
@@ -36,15 +37,18 @@
     "migrate:prod": "bun drizzle-kit migrate --config=drizzle-prod.config.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.924.0",
+    "@aws-sdk/s3-request-presigner": "^3.924.0",
+    "@faker-js/faker": "^10.3.0",
     "@hono/zod-validator": "^0.7.4",
     "@neondatabase/serverless": "^1.0.2",
+    "dayjs": "catalog:",
     "drizzle-orm": "^0.44.7",
     "drizzle-zod": "catalog:",
     "hono": "^4.11.4",
     "http-status-codes": "^2.3.0",
     "libphonenumber-js": "catalog:",
-    "zod": "catalog:",
-    "dayjs": "catalog:"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",

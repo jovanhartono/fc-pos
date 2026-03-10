@@ -28,7 +28,9 @@ export function PhoneNumberField({
 }: PhoneNumberFieldProps) {
 	return (
 		<Field data-invalid={!!error}>
-			<FieldLabel htmlFor={id}>{label}</FieldLabel>
+			<FieldLabel htmlFor={id} asterisk={required}>
+				{label}
+			</FieldLabel>
 			<Input
 				id={id}
 				type="tel"
@@ -45,7 +47,6 @@ export function PhoneNumberField({
 				}}
 				aria-invalid={!!error}
 				disabled={disabled}
-				required={required}
 				className="h-10"
 			/>
 			<FieldError errors={[error]} />

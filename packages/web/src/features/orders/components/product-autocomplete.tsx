@@ -4,6 +4,8 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { fetchProducts, queryKeys } from "@/lib/api";
 
 type ProductAutocompleteProps = {
+	id?: string;
+	label?: string;
 	value: string;
 	onValueChange: (value: string) => void;
 	disabled?: boolean;
@@ -11,6 +13,8 @@ type ProductAutocompleteProps = {
 };
 
 export function ProductAutocomplete({
+	id = "order-product",
+	label = "Product (optional)",
 	value,
 	onValueChange,
 	disabled,
@@ -23,9 +27,9 @@ export function ProductAutocomplete({
 
 	return (
 		<Field data-invalid={!!error}>
-			<FieldLabel htmlFor="order-product">Product (optional)</FieldLabel>
+			<FieldLabel htmlFor={id}>{label}</FieldLabel>
 			<Combobox
-				id="order-product"
+				id={id}
 				triggerClassName="h-10 w-full text-sm"
 				options={[
 					{ value: "none", label: "No product" },

@@ -17,6 +17,10 @@ const pageMeta: Record<string, { title: string; description?: string }> = {
 		title: "Categories",
 		description: "Insert and edit category master data.",
 	},
+	"/campaigns": {
+		title: "Campaigns",
+		description: "Create and manage discount campaigns per store.",
+	},
 	"/customers": {
 		title: "Customers",
 		description: "Insert and edit customer master data.",
@@ -24,7 +28,16 @@ const pageMeta: Record<string, { title: string; description?: string }> = {
 	"/orders": {
 		title: "Orders",
 		description:
-			"Insert orders. Edit is not available from current backend API.",
+			"Review historical orders, payment status, and order detail records.",
+	},
+	"/orders/new": {
+		title: "Create Order",
+		description: "Create a new order from products and services.",
+	},
+	"/transactions": {
+		title: "Transactions",
+		description:
+			"Run the POS workspace with catalog tabs, cart, customer selection, and payment setup.",
 	},
 	"/payment-methods": {
 		title: "Payment Methods",
@@ -45,6 +58,11 @@ const pageMeta: Record<string, { title: string; description?: string }> = {
 	"/users": {
 		title: "Users",
 		description: "Insert and edit users with role management.",
+	},
+	"/worker": {
+		title: "Worker Ops",
+		description:
+			"Lookup item tags, claim work, update status, and upload photos.",
 	},
 };
 

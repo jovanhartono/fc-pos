@@ -1,0 +1,1 @@
+ALTER TABLE "orders_services" DROP COLUMN "qty";

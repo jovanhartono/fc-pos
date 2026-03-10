@@ -1,0 +1,131 @@
+import { eq } from "drizzle-orm";
+import { Hono } from "hono";
+import { StatusCodes } from "http-status-codes";
+import { z } from "zod";
+import { db } from "@/db";
+import { ordersTable } from "@/db/schema";
+import { failure, success } from "@/utils/http";
+import { zodValidator } from "@/utils/zod-validator-wrapper";
+
+const POSTPublicTrackOrderSchema = z.object({
+  code: z.string().trim().min(1).max(32),
+  phone_number: z.string().trim().min(6).max(20),
+});
+
+function normalizePhoneNumber(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function maskPhoneNumber(phone: string) {
+  const suffix = phone.slice(-4);
+  return `******${suffix}`;
+}
+
+const app = new Hono().post(
+  "/track",
+  zodValidator("json", POSTPublicTrackOrderSchema),
+  async (c) => {
+    const { code, phone_number } = c.req.valid("json");
+
+    const order = await db.query.ordersTable.findFirst({
+      where: eq(ordersTable.code, code),
+      columns: {
+        id: true,
+        code: true,
+        status: true,
+        payment_status: true,
+        discount: true,
+        total: true,
+        notes: true,
+        created_at: true,
+        completed_at: true,
+        cancelled_at: true,
+        updated_at: true,
+      },
+      with: {
+        customer: {
+          columns: {
+            id: true,
+            name: true,
+            phone_number: true,
+          },
+        },
+        services: {
+          columns: {
+            color: true,
+            id: true,
+            item_code: true,
+            shoe_brand: true,
+            shoe_size: true,
+            status: true,
+          },
+          with: {
+            images: {
+              columns: {
+                id: true,
+                created_at: true,
+                image_url: true,
+                photo_type: true,
+              },
+            },
+            service: {
+              columns: {
+                id: true,
+                code: true,
+                name: true,
+              },
+            },
+            statusLogs: {
+              columns: {
+                id: true,
+                from_status: true,
+                to_status: true,
+                note: true,
+                created_at: true,
+              },
+            },
+          },
+        },
+        store: {
+          columns: {
+            id: true,
+            code: true,
+            name: true,
+            address: true,
+            phone_number: true,
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      return c.json(failure("Order not found"), StatusCodes.NOT_FOUND);
+    }
+
+    const incomingPhone = normalizePhoneNumber(phone_number);
+    const customerPhone = normalizePhoneNumber(order.customer.phone_number);
+
+    if (incomingPhone !== customerPhone) {
+      return c.json(
+        failure("Order code or phone number is invalid"),
+        StatusCodes.UNAUTHORIZED
+      );
+    }
+
+    return c.json(
+      success(
+        {
+          ...order,
+          customer: {
+            id: order.customer.id,
+            name: order.customer.name,
+            phone_number_masked: maskPhoneNumber(order.customer.phone_number),
+          },
+        },
+        "Order status retrieved successfully"
+      )
+    );
+  }
+);
+
+export default app;

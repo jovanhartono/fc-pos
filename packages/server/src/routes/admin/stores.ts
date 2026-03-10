@@ -1,32 +1,43 @@
-import { asc, eq } from "drizzle-orm";
-import { createInsertSchema, createUpdateSchema } from "drizzle-zod";
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
-import { db } from "@/db";
-import { storesTable } from "@/db/schema";
+import {
+  createStoreController,
+  getNearestStoresController,
+  getStoreByIdController,
+  getStoresController,
+  updateStoreController,
+  updateStoreStatusController,
+} from "@/modules/stores/store.controller";
+import {
+  GETNearestStoreQuerySchema,
+  PATCHStoreSchema,
+  POSTStoreSchema,
+  PUTStoreSchema,
+} from "@/modules/stores/store.schema";
 import { idParamSchema } from "@/schema/param";
-import { notFoundOrFirst } from "@/utils/helper";
 import { failure, success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-const POSTStoreSchema = createInsertSchema(storesTable);
-const PUTStoreSchema = createUpdateSchema(storesTable);
-const PATCHStoreSchema = createUpdateSchema(storesTable).pick({
-  is_active: true,
-});
-
 const app = new Hono()
   .get("/", async (c) => {
-    const stores = await db.query.storesTable.findMany({
-      orderBy: [asc(storesTable.id)],
-    });
+    const stores = await getStoresController();
 
     return c.json(success(stores));
   })
+  .get(
+    "/nearest",
+    zodValidator("query", GETNearestStoreQuerySchema),
+    async (c) => {
+      const query = c.req.valid("query");
+      const stores = await getNearestStoresController(query);
+
+      return c.json(success(stores, "Nearest store retrieved successfully"));
+    }
+  )
   .post("/", zodValidator("json", POSTStoreSchema), async (c) => {
     const storeData = c.req.valid("json");
 
-    const [store] = await db.insert(storesTable).values(storeData).returning();
+    const store = await createStoreController(storeData);
 
     return c.json(
       success(store, "Successfully adding new store"),
@@ -36,9 +47,7 @@ const app = new Hono()
   .get("/:id", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
 
-    const store = await db.query.storesTable.findFirst({
-      where: eq(storesTable.id, id),
-    });
+    const store = await getStoreByIdController(id);
 
     if (!store) {
       return c.json(failure("Store does not exist"), StatusCodes.NOT_FOUND);
@@ -54,15 +63,13 @@ const app = new Hono()
       const { id } = c.req.valid("param");
       const { code: _, ...storeData } = c.req.valid("json");
 
-      const updatedStores = await db
-        .update(storesTable)
-        .set(storeData)
-        .where(eq(storesTable.id, id))
-        .returning();
+      const store = await updateStoreController({
+        id,
+        payload: storeData,
+      });
 
-      const store = notFoundOrFirst(updatedStores, c, "Store does not exist");
-      if (store instanceof Response) {
-        return store;
+      if (!store) {
+        return c.json(failure("Store does not exist"), StatusCodes.NOT_FOUND);
       }
 
       return c.json(success(store, `Successfully updated ${store.name}`));
@@ -76,15 +83,13 @@ const app = new Hono()
       const { id } = c.req.valid("param");
       const data = c.req.valid("json");
 
-      const updatedStores = await db
-        .update(storesTable)
-        .set({ is_active: data.is_active })
-        .where(eq(storesTable.id, id))
-        .returning();
+      const store = await updateStoreStatusController({
+        id,
+        is_active: !!data.is_active,
+      });
 
-      const store = notFoundOrFirst(updatedStores, c, "Store does not exist");
-      if (store instanceof Response) {
-        return store;
+      if (!store) {
+        return c.json(failure("Store does not exist"), StatusCodes.NOT_FOUND);
       }
 
       const statusText = data.is_active ? "Activated" : "Deactivated";

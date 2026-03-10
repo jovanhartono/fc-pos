@@ -76,7 +76,9 @@ export function ServiceForm({
 					name="code"
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="service-code">Code</FieldLabel>
+							<FieldLabel htmlFor="service-code" asterisk>
+								Code
+							</FieldLabel>
 							<Input
 								{...field}
 								aria-invalid={fieldState.invalid}
@@ -84,7 +86,6 @@ export function ServiceForm({
 								disabled={isSubmitting}
 								id="service-code"
 								placeholder="e.g. SVC-001"
-								required
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>
@@ -96,7 +97,9 @@ export function ServiceForm({
 					name="name"
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="service-name">Name</FieldLabel>
+							<FieldLabel htmlFor="service-name" asterisk>
+								Name
+							</FieldLabel>
 							<Input
 								{...field}
 								aria-invalid={fieldState.invalid}
@@ -104,7 +107,6 @@ export function ServiceForm({
 								disabled={isSubmitting}
 								id="service-name"
 								placeholder="e.g. Dry Clean Premium"
-								required
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>
@@ -136,7 +138,9 @@ export function ServiceForm({
 					name="cogs"
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="service-cogs">COGS</FieldLabel>
+							<FieldLabel htmlFor="service-cogs" asterisk>
+								COGS
+							</FieldLabel>
 							<CurrencyInput
 								disabled={isSubmitting}
 								id="service-cogs"
@@ -155,7 +159,9 @@ export function ServiceForm({
 					name="price"
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="service-price">Price</FieldLabel>
+							<FieldLabel htmlFor="service-price" asterisk>
+								Price
+							</FieldLabel>
 							<CurrencyInput
 								disabled={isSubmitting}
 								id="service-price"

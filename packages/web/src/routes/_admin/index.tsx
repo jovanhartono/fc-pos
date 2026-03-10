@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import {
 	Card,
@@ -8,9 +9,11 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { fetchDashboardCounts, queryKeys } from "@/lib/api";
+import { dashboardQueryOptions } from "@/lib/query-options";
 
 export const Route = createFileRoute("/_admin/")({
+	loader: ({ context }) =>
+		context.queryClient.ensureQueryData(dashboardQueryOptions()),
 	component: DashboardPage,
 });
 
@@ -22,25 +25,24 @@ const cards = [
 	{ key: "services", label: "Services" },
 	{ key: "products", label: "Products" },
 	{ key: "paymentMethods", label: "Payment Methods" },
+	{ key: "campaigns", label: "Campaigns" },
 	{ key: "orders", label: "Orders" },
 ] as const;
 
 function DashboardPage() {
-	const { data, isPending, isFetching } = useQuery({
-		queryKey: queryKeys.dashboard,
-		queryFn: fetchDashboardCounts,
-	});
+	const { data, isPending, isFetching } = useQuery(dashboardQueryOptions());
 
 	return (
 		<>
-			<div className="mb-4 flex items-center justify-between">
-				<p className="text-sm text-muted-foreground">
-					Overview count from live admin endpoints.
-				</p>
-				<Badge variant={isFetching ? "secondary" : "outline"}>
-					{isFetching ? "Refreshing" : "Live"}
-				</Badge>
-			</div>
+			<PageHeader
+				title="Dashboard"
+				description="Overview count from live admin endpoints."
+				actions={
+					<Badge variant={isFetching ? "secondary" : "outline"}>
+						{isFetching ? "Refreshing" : "Live"}
+					</Badge>
+				}
+			/>
 
 			<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 				{cards.map((card) => (

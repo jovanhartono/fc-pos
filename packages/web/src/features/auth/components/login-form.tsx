@@ -46,7 +46,9 @@ export function LoginForm({
 				<CardContent>
 					<form className="grid gap-4" onSubmit={handleSubmit(onSubmit)}>
 						<Field data-invalid={!!errors.username}>
-							<FieldLabel htmlFor="username">Username</FieldLabel>
+							<FieldLabel htmlFor="username" asterisk>
+								Username
+							</FieldLabel>
 							<Input
 								id="username"
 								autoComplete="username"
@@ -58,7 +60,9 @@ export function LoginForm({
 						</Field>
 
 						<Field data-invalid={!!errors.password}>
-							<FieldLabel htmlFor="password">Password</FieldLabel>
+							<FieldLabel htmlFor="password" asterisk>
+								Password
+							</FieldLabel>
 							<Input
 								id="password"
 								type="password"

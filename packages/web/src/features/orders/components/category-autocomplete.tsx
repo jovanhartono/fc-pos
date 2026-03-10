@@ -25,7 +25,9 @@ export function CategoryAutocomplete({
 
 	return (
 		<Field data-invalid={!!error}>
-			<FieldLabel htmlFor="entity-category">Category</FieldLabel>
+			<FieldLabel htmlFor="entity-category" asterisk={required}>
+				Category
+			</FieldLabel>
 			<Combobox
 				id="entity-category"
 				required={required}

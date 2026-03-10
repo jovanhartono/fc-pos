@@ -4,6 +4,8 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { fetchServices, queryKeys } from "@/lib/api";
 
 type ServiceAutocompleteProps = {
+	id?: string;
+	label?: string;
 	value: string;
 	onValueChange: (value: string) => void;
 	disabled?: boolean;
@@ -11,6 +13,8 @@ type ServiceAutocompleteProps = {
 };
 
 export function ServiceAutocomplete({
+	id = "order-service",
+	label = "Service (optional)",
 	value,
 	onValueChange,
 	disabled,
@@ -23,9 +27,9 @@ export function ServiceAutocomplete({
 
 	return (
 		<Field data-invalid={!!error}>
-			<FieldLabel htmlFor="order-service">Service (optional)</FieldLabel>
+			<FieldLabel htmlFor={id}>{label}</FieldLabel>
 			<Combobox
-				id="order-service"
+				id={id}
 				triggerClassName="h-10 w-full text-sm"
 				options={[
 					{ value: "none", label: "No service" },

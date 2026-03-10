@@ -1,15 +1,14 @@
 interface Metadata {
   total?: number;
-  page?: number;
-  pageSize?: number;
-  [key: string]: unknown;
+  limit?: number;
+  offset?: number;
 }
 
-interface SuccessResponse<T> {
+interface SuccessResponse<T, M extends object = Metadata> {
   success: true;
   message?: string;
   data: T;
-  meta?: Metadata;
+  meta?: M;
 }
 
 interface ErrorResponse {
@@ -18,10 +17,15 @@ interface ErrorResponse {
   errors?: unknown;
 }
 
-export function success<T>(data: T, message?: string): SuccessResponse<T> {
+export function success<T, M extends object = Metadata>(
+  data: T,
+  message?: string,
+  meta?: M
+): SuccessResponse<T, M> {
   return {
     data,
     message,
+    meta,
     success: true,
   };
 }

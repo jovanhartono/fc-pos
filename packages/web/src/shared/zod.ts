@@ -28,5 +28,5 @@ export const currencySchema = (field: string) =>
 		.min(1, `${field} is required!`)
 		.transform(getNumericValue)
 		.transform(Number)
-		.pipe(z.number().positive(`${field} must be positive`))
+		.pipe(z.number().nonnegative(`${field} cannot be negative`))
 		.pipe(z.coerce.string());

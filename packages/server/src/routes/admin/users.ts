@@ -1,48 +1,43 @@
-import { asc, eq } from "drizzle-orm";
-import { createInsertSchema, createUpdateSchema } from "drizzle-zod";
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
-import { db } from "@/db";
-import { usersTable } from "@/db/schema";
-import { findUserById } from "@/modules/users/user.repository";
+import {
+  createUserController,
+  getUserByIdController,
+  getUsersController,
+  updateUserController,
+  updateUserStoresController,
+} from "@/modules/users/user.controller";
+import {
+  GETUsersQuerySchema,
+  POSTUserSchema,
+  PUTUserSchema,
+  PUTUserStoresSchema,
+} from "@/modules/users/user.schema";
 import { idParamSchema } from "@/schema/param";
-import { notFoundOrFirst } from "@/utils/helper";
+import type { JWTPayload } from "@/types";
 import { failure, success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-const POSTUserSchema = createInsertSchema(usersTable);
-const PUTUserSchema = createUpdateSchema(usersTable);
 const app = new Hono()
   .post("/", zodValidator("json", POSTUserSchema), async (c) => {
     const user = c.req.valid("json");
+    const created = await createUserController(user);
 
-    const data = await db.insert(usersTable).values(user).returning({
-      id: usersTable.id,
-      username: usersTable.username,
-      is_active: usersTable.is_active,
-      role: usersTable.role,
-    });
-
-    return c.json(success(data, "Create user success"), StatusCodes.CREATED);
+    return c.json(success(created, "Create user success"), StatusCodes.CREATED);
   })
-  // TODO: pagination, limit and offset
-  .get("/", async (c) => {
-    const users = await db.query.usersTable.findMany({
-      columns: {
-        password: false,
-      },
-      orderBy: [asc(usersTable.id)],
-    });
+  .get("/", zodValidator("query", GETUsersQuerySchema), async (c) => {
+    const query = c.req.valid("query");
+    const { items, meta } = await getUsersController(query);
 
-    return c.json(success(users));
+    return c.json(success(items, undefined, meta));
   })
   .get("/:id", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
 
-    const user = await findUserById(id);
+    const user = await getUserByIdController(id);
 
     if (!user) {
-      return c.json(failure("User not found", StatusCodes.NOT_FOUND));
+      return c.json(failure("User not found"), StatusCodes.NOT_FOUND);
     }
 
     return c.json(success(user, "User retrieved successfully"));
@@ -53,20 +48,37 @@ const app = new Hono()
     zodValidator("json", PUTUserSchema),
     async (c) => {
       const { id } = c.req.valid("param");
-      const { password: _, ...body } = c.req.valid("json");
+      const body = c.req.valid("json");
 
-      const updatedUser = await db
-        .update(usersTable)
-        .set(body)
-        .where(eq(usersTable.id, id))
-        .returning();
+      const user = await updateUserController({ id, payload: body });
 
-      const user = notFoundOrFirst(updatedUser, c, "User does not exist");
-      if (user instanceof Response) {
-        return user;
+      if (!user) {
+        return c.json(failure("User does not exist"), StatusCodes.NOT_FOUND);
       }
 
       return c.json(success(user, `Update user ${user.name} success`));
+    }
+  )
+  .put(
+    "/:id/stores",
+    idParamSchema,
+    zodValidator("json", PUTUserStoresSchema),
+    async (c) => {
+      const actor = c.get("jwtPayload") as JWTPayload;
+      const { id } = c.req.valid("param");
+      const { store_ids } = c.req.valid("json");
+
+      const result = await updateUserStoresController({
+        actor,
+        id,
+        store_ids,
+      });
+
+      if (!result) {
+        return c.json(failure("User not found"), StatusCodes.NOT_FOUND);
+      }
+
+      return c.json(success(result, "User stores updated"));
     }
   );
 

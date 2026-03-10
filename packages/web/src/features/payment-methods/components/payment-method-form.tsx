@@ -45,14 +45,15 @@ export function PaymentMethodForm({
 				control={form.control}
 				render={({ field, fieldState }) => (
 					<Field data-invalid={fieldState.invalid}>
-						<FieldLabel htmlFor="payment-method-name">Name</FieldLabel>
+						<FieldLabel htmlFor="payment-method-name" asterisk>
+							Name
+						</FieldLabel>
 						<Input
 							{...field}
 							id="payment-method-name"
 							placeholder="e.g. Cash"
 							aria-invalid={fieldState.invalid}
 							disabled={isSubmitting}
-							required
 							className="h-10"
 						/>
 						<FieldError errors={[fieldState.error]} />
@@ -65,14 +66,15 @@ export function PaymentMethodForm({
 				control={form.control}
 				render={({ field, fieldState }) => (
 					<Field data-invalid={fieldState.invalid}>
-						<FieldLabel htmlFor="payment-method-code">Code</FieldLabel>
+						<FieldLabel htmlFor="payment-method-code" asterisk>
+							Code
+						</FieldLabel>
 						<Input
 							{...field}
 							id="payment-method-code"
 							placeholder="e.g. CASH"
 							aria-invalid={fieldState.invalid}
 							disabled={isSubmitting}
-							required
 							className="h-10"
 						/>
 						<FieldError errors={[fieldState.error]} />

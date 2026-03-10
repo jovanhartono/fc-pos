@@ -4,9 +4,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef, Row } from "@tanstack/react-table";
 import { useCallback } from "react";
 import { DataTable } from "@/components/data-table";
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	CategoryForm,
 	type CategoryFormState,
@@ -14,13 +15,15 @@ import {
 import {
 	type Category,
 	createCategory,
-	fetchCategories,
 	queryKeys,
 	updateCategory,
 } from "@/lib/api";
-import { useGlobalSheet, useSheet } from "@/stores/sheet-store";
+import { categoriesQueryOptions } from "@/lib/query-options";
+import { useSheet } from "@/stores/sheet-store";
 
 export const Route = createFileRoute("/_admin/categories")({
+	loader: ({ context }) =>
+		context.queryClient.ensureQueryData(categoriesQueryOptions()),
 	component: CategoriesPage,
 });
 
@@ -107,12 +110,9 @@ const columns: ColumnDef<Category>[] = [
 
 function CategoriesPage() {
 	const queryClient = useQueryClient();
-	const { openSheet, closeSheet } = useGlobalSheet();
+	const { openSheet, closeSheet } = useSheet();
 
-	const { data = [], isPending } = useQuery({
-		queryKey: queryKeys.categories,
-		queryFn: fetchCategories,
-	});
+	const { data = [], isPending } = useQuery(categoriesQueryOptions());
 	const categoryCount = data.length;
 
 	const createMutation = useMutation({
@@ -142,11 +142,12 @@ function CategoriesPage() {
 	}, [closeSheet, createMutation, openSheet]);
 
 	return (
-		<div className="grid gap-4">
-			<Card>
-				<CardHeader className="flex flex-row items-center justify-between space-y-0">
-					<CardTitle>Category List</CardTitle>
-					<div className="flex items-center gap-2">
+		<>
+			<PageHeader
+				title="Categories"
+				description="Insert and edit category master data."
+				actions={
+					<>
 						<Badge
 							variant={isPending ? "secondary" : "outline"}
 						>{`${categoryCount} items`}</Badge>
@@ -156,12 +157,16 @@ function CategoriesPage() {
 						>
 							Add Category
 						</Button>
-					</div>
-				</CardHeader>
-				<CardContent>
-					<DataTable columns={columns} data={data} isLoading={isPending} />
-				</CardContent>
-			</Card>
-		</div>
+					</>
+				}
+			/>
+			<div className="grid gap-4">
+				<Card>
+					<CardContent className="pt-6">
+						<DataTable columns={columns} data={data} isLoading={isPending} />
+					</CardContent>
+				</Card>
+			</div>
+		</>
 	);
 }

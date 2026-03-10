@@ -1,126 +1,71 @@
-import { POSTCustomerSchema } from "@fresclean/api/schema";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { PencilSimpleLine, Plus } from "@phosphor-icons/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useMemo, useState } from "react";
-import { type SubmitHandler, useForm } from "react-hook-form";
+import { useCallback, useMemo } from "react";
 import { z } from "zod";
-import { CustomerSelect } from "@/components/customer-select";
 import { DataTable } from "@/components/data-table";
-import { ProductSelect } from "@/components/product-select";
+import { PageHeader } from "@/components/page-header";
+import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetHeader,
-	SheetTitle,
-	SheetTrigger,
-} from "@/components/ui/sheet";
-import {
-	CustomerForm,
-	type CustomerFormState,
-} from "@/features/customers/components/customer-form";
-import {
-	type Customer,
-	createCustomer,
-	fetchCustomers,
-	queryKeys,
-	updateCustomer,
-} from "@/lib/api";
-import { normalizePhoneNumber } from "@/lib/phone-number";
+import { Card, CardContent } from "@/components/ui/card";
+import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
+import type { Customer } from "@/lib/api";
+import { customersPageQueryOptions } from "@/lib/query-options";
+import { useSheet } from "@/stores/sheet-store";
+
+const PAGE_SIZE = 25;
+
+const customersSearchSchema = z.object({
+	page: z.coerce.number().int().positive().catch(1),
+});
 
 export const Route = createFileRoute("/_admin/customers")({
+	validateSearch: (search) => customersSearchSchema.parse(search),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps }) =>
+		context.queryClient.ensureQueryData(
+			customersPageQueryOptions({
+				limit: PAGE_SIZE,
+				offset: (deps.page - 1) * PAGE_SIZE,
+			}),
+		),
 	component: CustomersPage,
 });
 
-const defaultForm: CustomerFormState = {
-	name: "",
-	phone_number: "",
-	email: "",
-	address: "",
-	origin_store_id: "",
-};
-
-const customerFormResolverSchema = z.object({
-	...POSTCustomerSchema.shape,
-	origin_store_id: z.preprocess(
-		(value) => Number(value),
-		POSTCustomerSchema.shape.origin_store_id,
-	),
-});
-
 function CustomersPage() {
-	const queryClient = useQueryClient();
-	const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-	const [isSheetOpen, setSheetOpen] = useState(false);
-	const [selectedCustomerId, setSelectedCustomerId] = useState("");
-	const [selectedProductId, setSelectedProductId] = useState("");
+	const navigate = useNavigate({ from: Route.fullPath });
+	const search = Route.useSearch();
+	const { openSheet } = useSheet();
 
-	const form = useForm<CustomerFormState>({
-		resolver: zodResolver(customerFormResolverSchema, undefined, {
-			raw: true,
-		}) as any,
-		defaultValues: defaultForm,
-	});
-
-	const { data: customers = [], isPending } = useQuery({
-		queryKey: queryKeys.customers,
-		queryFn: fetchCustomers,
-	});
-	const customerCount = customers.length;
-
-	const resetForm = useCallback(() => {
-		form.reset(defaultForm);
-		setEditingCustomer(null);
-		setSheetOpen(false);
-	}, [form]);
-
-	const createMutation = useMutation({
-		mutationKey: ["create-customer"],
-		mutationFn: createCustomer,
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: queryKeys.customers });
-			await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
-			resetForm();
-		},
-	});
-
-	const updateMutation = useMutation({
-		mutationKey: ["update-customer"],
-		mutationFn: ({
-			id,
-			payload,
-		}: {
-			id: number;
-			payload: Parameters<typeof updateCustomer>[1];
-		}) => updateCustomer(id, payload),
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: queryKeys.customers });
-			resetForm();
-		},
-	});
-
-	const isSubmitting = createMutation.isPending || updateMutation.isPending;
-
-	const handleEdit = useCallback(
-		(customer: Customer) => {
-			setEditingCustomer(customer);
-			form.reset({
-				name: customer.name,
-				phone_number: customer.phone_number,
-				email: customer.email ?? "",
-				address: customer.address ?? "",
-				origin_store_id: String(customer.origin_store_id),
-			});
-			setSheetOpen(true);
-		},
-		[form],
+	const customersQuery = useQuery(
+		customersPageQueryOptions({
+			limit: PAGE_SIZE,
+			offset: (search.page - 1) * PAGE_SIZE,
+		}),
 	);
+	const customers = customersQuery.data?.items ?? [];
+	const customerCount = customersQuery.data?.meta.total ?? 0;
+
+	const handleOpenEditSheet = useCallback(
+		(customer: Customer) => {
+			openSheet({
+				title: "Edit Customer",
+				description: `Editing ID ${customer.id}`,
+				content: <CustomerSheetContent editingCustomer={customer} />,
+			});
+		},
+		[openSheet],
+	);
+
+	const handleOpenCreateSheet = useCallback(() => {
+		openSheet({
+			title: "Add Customer",
+			description: "Create a new customer record",
+			content: <CustomerSheetContent />,
+		});
+	}, [openSheet]);
 
 	const columns = useMemo<ColumnDef<Customer>[]>(
 		() => [
@@ -149,7 +94,7 @@ function CustomersPage() {
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={() => handleEdit(row.original)}
+						onClick={() => handleOpenEditSheet(row.original)}
 						icon={<PencilSimpleLine className="size-4" weight="duotone" />}
 					>
 						Edit
@@ -157,114 +102,53 @@ function CustomersPage() {
 				),
 			},
 		],
-		[handleEdit],
+		[handleOpenEditSheet],
 	);
 
-	const handleSubmit: SubmitHandler<CustomerFormState> = async (values) => {
-		const normalizedPhoneNumber = normalizePhoneNumber(values.phone_number);
-
-		if (editingCustomer) {
-			const payload: Parameters<typeof updateCustomer>[1] = {
-				name: values.name,
-				phone_number: normalizedPhoneNumber,
-				email: values.email?.length ? values.email : undefined,
-				address: values.address ?? "",
-			};
-
-			await updateMutation.mutateAsync({
-				id: editingCustomer.id,
-				payload,
-			});
-			return;
-		}
-
-		const payload: Parameters<typeof createCustomer>[0] = {
-			name: values.name,
-			phone_number: normalizedPhoneNumber,
-			email: values.email?.length ? values.email : undefined,
-			address: values.address ?? "",
-			origin_store_id: Number(values.origin_store_id),
-		};
-
-		await createMutation.mutateAsync(payload);
-	};
-
 	return (
-		<div className="grid gap-4">
-			<Card>
-				<CardHeader className="flex flex-row items-center justify-between space-y-0">
-					<CardTitle>Quick Select</CardTitle>
-					<Badge variant="outline">Customer & Product</Badge>
-				</CardHeader>
-				<CardContent className="grid gap-4 md:grid-cols-2">
-					<CustomerSelect
-						id="quick-customer-select"
-						label="Customer Select"
-						value={selectedCustomerId}
-						onValueChange={setSelectedCustomerId}
-					/>
-					<ProductSelect
-						id="quick-product-select"
-						label="Product Select"
-						value={selectedProductId}
-						onValueChange={setSelectedProductId}
-					/>
-				</CardContent>
-			</Card>
-
-			<Sheet open={isSheetOpen} onOpenChange={setSheetOpen}>
-				<SheetContent side="right" className="w-full max-w-xl overflow-y-auto">
-					<SheetHeader>
-						<SheetTitle>
-							{editingCustomer ? "Edit Customer" : "Add Customer"}
-						</SheetTitle>
-						<SheetDescription>
-							{editingCustomer
-								? `Editing ID ${editingCustomer.id}`
-								: "Create a new customer record"}
-						</SheetDescription>
-					</SheetHeader>
-					<CustomerForm
-						control={form.control}
-						handleSubmit={form.handleSubmit}
-						onSubmit={handleSubmit}
-						isSubmitting={isSubmitting}
-						isEditing={!!editingCustomer}
-						onReset={resetForm}
-					/>
-				</SheetContent>
-
+		<>
+			<PageHeader
+				title="Customers"
+				description="Insert and edit customer master data."
+				actions={
+					<>
+						<Badge
+							variant={customersQuery.isPending ? "secondary" : "outline"}
+						>{`${customerCount} items`}</Badge>
+						<Button
+							onClick={handleOpenCreateSheet}
+							icon={<Plus className="size-4" weight="duotone" />}
+						>
+							Add Customer
+						</Button>
+					</>
+				}
+			/>
+			<div className="grid gap-4">
 				<Card>
-					<CardHeader className="flex flex-row items-center justify-between space-y-0">
-						<CardTitle>Customer List</CardTitle>
-						<div className="flex items-center gap-2">
-							<Badge
-								variant={isPending ? "secondary" : "outline"}
-							>{`${customerCount} items`}</Badge>
-							<SheetTrigger
-								render={
-									<Button
-										icon={<Plus className="size-4" weight="duotone" />}
-										onClick={() => {
-											setEditingCustomer(null);
-											form.reset(defaultForm);
-										}}
-									/>
-								}
-							>
-								Add Customer
-							</SheetTrigger>
+					<CardContent className="pt-6">
+						<div className="grid gap-4">
+							<DataTable
+								columns={columns}
+								data={customers}
+								isLoading={customersQuery.isPending}
+							/>
+							<TablePagination
+								meta={customersQuery.data?.meta}
+								isLoading={customersQuery.isPending}
+								onPageChange={(page) => {
+									void navigate({
+										search: (prev) => ({
+											...prev,
+											page,
+										}),
+									});
+								}}
+							/>
 						</div>
-					</CardHeader>
-					<CardContent>
-						<DataTable
-							columns={columns}
-							data={customers}
-							isLoading={isPending}
-						/>
 					</CardContent>
 				</Card>
-			</Sheet>
-		</div>
+			</div>
+		</>
 	);
 }
