@@ -4,7 +4,14 @@ import { Plus } from "@phosphor-icons/react";
 import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import {
+	Field,
+	FieldContent,
+	FieldDescription,
+	FieldError,
+	FieldLabel,
+	FieldTitle,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
@@ -86,15 +93,22 @@ export function PaymentMethodForm({
 				name="is_active"
 				control={form.control}
 				render={({ field }) => (
-					<Field className="flex-row items-center justify-between md:col-span-2">
-						<FieldLabel htmlFor="payment-method-active">Active</FieldLabel>
-						<Switch
-							id="payment-method-active"
-							checked={field.value}
-							onCheckedChange={(checked) => field.onChange(!!checked)}
-							disabled={isSubmitting}
-						/>
-					</Field>
+					<FieldLabel htmlFor="payment-method-active" className="md:col-span-2">
+						<Field orientation="horizontal">
+							<FieldContent>
+								<FieldTitle>Active</FieldTitle>
+								<FieldDescription>
+									Active payment methods can be used at checkout.
+								</FieldDescription>
+							</FieldContent>
+							<Switch
+								id="payment-method-active"
+								checked={field.value}
+								onCheckedChange={(checked) => field.onChange(!!checked)}
+								disabled={isSubmitting}
+							/>
+						</Field>
+					</FieldLabel>
 				)}
 			/>
 

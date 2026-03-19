@@ -7,9 +7,12 @@ import { CurrencyInput } from "@/components/form/currency-input";
 import { Button } from "@/components/ui/button";
 import {
 	Field,
+	FieldContent,
+	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
+	FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -179,15 +182,22 @@ export function ServiceForm({
 					control={form.control}
 					name="is_active"
 					render={({ field }) => (
-						<Field className="flex-row items-center justify-between md:col-span-2">
-							<FieldLabel htmlFor="service-active">Active</FieldLabel>
-							<Switch
-								checked={field.value}
-								disabled={isSubmitting}
-								id="service-active"
-								onCheckedChange={(checked) => field.onChange(!!checked)}
-							/>
-						</Field>
+						<FieldLabel htmlFor="service-active" className="md:col-span-2">
+							<Field orientation="horizontal">
+								<FieldContent>
+									<FieldTitle>Active</FieldTitle>
+									<FieldDescription>
+										Active services can be selected when creating orders.
+									</FieldDescription>
+								</FieldContent>
+								<Switch
+									checked={field.value}
+									disabled={isSubmitting}
+									id="service-active"
+									onCheckedChange={(checked) => field.onChange(!!checked)}
+								/>
+							</Field>
+						</FieldLabel>
 					)}
 				/>
 

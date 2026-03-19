@@ -6,7 +6,14 @@ import {
 	type UseFormHandleSubmit,
 } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import {
+	Field,
+	FieldContent,
+	FieldDescription,
+	FieldError,
+	FieldLabel,
+	FieldTitle,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -172,15 +179,22 @@ export function UserForm({
 				name="is_active"
 				control={control}
 				render={({ field }) => (
-					<Field className="flex-row items-center justify-between md:col-span-2">
-						<FieldLabel htmlFor="user-active">Active</FieldLabel>
-						<Switch
-							id="user-active"
-							checked={field.value}
-							onCheckedChange={(checked) => field.onChange(!!checked)}
-							disabled={isSubmitting}
-						/>
-					</Field>
+					<FieldLabel htmlFor="user-active" className="md:col-span-2">
+						<Field orientation="horizontal">
+							<FieldContent>
+								<FieldTitle>Active</FieldTitle>
+								<FieldDescription>
+									Active users can sign in and access their assigned areas.
+								</FieldDescription>
+							</FieldContent>
+							<Switch
+								id="user-active"
+								checked={field.value}
+								onCheckedChange={(checked) => field.onChange(!!checked)}
+								disabled={isSubmitting}
+							/>
+						</Field>
+					</FieldLabel>
 				)}
 			/>
 

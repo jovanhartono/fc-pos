@@ -7,9 +7,12 @@ import { CurrencyInput } from "@/components/form/currency-input";
 import { Button } from "@/components/ui/button";
 import {
 	Field,
+	FieldContent,
+	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
+	FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -226,15 +229,22 @@ export function ProductForm({
 					name="is_active"
 					control={form.control}
 					render={({ field }) => (
-						<Field className="flex-row items-center justify-between md:col-span-2">
-							<FieldLabel htmlFor="product-active">Active</FieldLabel>
-							<Switch
-								id="product-active"
-								checked={field.value}
-								onCheckedChange={(checked) => field.onChange(!!checked)}
-								disabled={isSubmitting}
-							/>
-						</Field>
+						<FieldLabel htmlFor="product-active" className="md:col-span-2">
+							<Field orientation="horizontal">
+								<FieldContent>
+									<FieldTitle>Active</FieldTitle>
+									<FieldDescription>
+										Active products will be available throughout the app.
+									</FieldDescription>
+								</FieldContent>
+								<Switch
+									id="product-active"
+									checked={field.value}
+									onCheckedChange={(checked) => field.onChange(!!checked)}
+									disabled={isSubmitting}
+								/>
+							</Field>
+						</FieldLabel>
 					)}
 				/>
 

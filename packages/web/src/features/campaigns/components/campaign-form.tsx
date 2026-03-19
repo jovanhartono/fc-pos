@@ -6,9 +6,12 @@ import { CurrencyInput } from "@/components/form/currency-input";
 import { Button } from "@/components/ui/button";
 import {
 	Field,
+	FieldContent,
+	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
+	FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -305,15 +308,22 @@ export function CampaignForm({
 					name="is_active"
 					control={form.control}
 					render={({ field }) => (
-						<Field className="flex-row items-center justify-between md:col-span-2">
-							<FieldLabel htmlFor="campaign-active">Active</FieldLabel>
-							<Switch
-								id="campaign-active"
-								checked={field.value}
-								onCheckedChange={(checked) => field.onChange(!!checked)}
-								disabled={isSubmitting}
-							/>
-						</Field>
+						<FieldLabel htmlFor="campaign-active" className="md:col-span-2">
+							<Field orientation="horizontal">
+								<FieldContent>
+									<FieldTitle>Active</FieldTitle>
+									<FieldDescription>
+										Active campaigns can be applied during checkout.
+									</FieldDescription>
+								</FieldContent>
+								<Switch
+									id="campaign-active"
+									checked={field.value}
+									onCheckedChange={(checked) => field.onChange(!!checked)}
+									disabled={isSubmitting}
+								/>
+							</Field>
+						</FieldLabel>
 					)}
 				/>
 
