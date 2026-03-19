@@ -1,13 +1,13 @@
 import {
-	CreditCard,
-	Receipt,
-	ShoppingCart,
-	Storefront,
-	Trash,
-	X,
+	CreditCardIcon,
+	ReceiptIcon,
+	ShoppingCartIcon,
+	StorefrontIcon,
+	TrashIcon,
+	XIcon,
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
-import { Controller, type UseFormReturn } from "react-hook-form";
+import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,59 +25,27 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { CustomerAutocomplete } from "@/features/orders/components/customer-autocomplete";
-import type {
-	ProductCartDisplayLine,
-	ServiceCartDisplayLine,
-	TransactionDraftValues,
+import {
+	getCampaignDiscount,
+	getEntityCategoryName,
+	type ProductCartDisplayLine,
+	type ServiceCartDisplayLine,
+	type TransactionDraftValues,
 } from "@/features/transactions/lib/transactions";
-import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
-import type { Campaign, Category, Store } from "@/lib/api";
 import { formatIDRCurrency } from "@/shared/utils";
+import { useTransactionsPageStore } from "@/stores/transactions-store";
 
-type TransactionsCheckoutProps = {
-	form: UseFormReturn<TransactionDraftValues>;
-	selectedStore?: Store;
-	selectedStoreNumber?: number;
-	selectedPaymentMethodLabel?: string;
-	selectedCampaign?: Campaign;
-	paymentStatus: "paid" | "unpaid";
-	cartCount: number;
-	submitError: string;
-	campaignOptions: ComboboxOption[];
-	paymentMethodOptions: ComboboxOption[];
-	campaignsLoading: boolean;
-	paymentMethodsLoading: boolean;
-	cartProductRows: ProductCartDisplayLine[];
-	cartServiceRows: ServiceCartDisplayLine[];
-	categoryMap: Map<number, Category>;
-	campaignDiscount: number;
-	discountValue: number;
-	subtotal: number;
-	total: number;
-	isSubmitting: boolean;
-	onResetCart: () => void;
-	onRemoveProduct: (productId: number) => void;
-	onUpdateProductQty: (
-		productId: number,
-		nextQty: number,
-		maxStock: number,
-	) => void;
-	onRemoveService: (lineId: string) => void;
-	onUpdateServiceColor: (lineId: string, value: string) => void;
-	onUpdateServiceBrand: (lineId: string, value: string) => void;
-	onUpdateServiceSize: (lineId: string, value: string) => void;
-	onSubmit: () => void;
+type OrderMetaBadgeProps = {
+	label: string;
+	value: string;
+	variant?: "outline" | "secondary" | "success" | "warning";
 };
 
 function OrderMetaBadge({
 	label,
 	value,
 	variant = "outline",
-}: {
-	label: string;
-	value: string;
-	variant?: "outline" | "secondary" | "success" | "warning";
-}) {
+}: OrderMetaBadgeProps) {
 	return (
 		<div className="border border-border/70 bg-muted/20 px-3 py-2">
 			<p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -90,39 +58,178 @@ function OrderMetaBadge({
 	);
 }
 
-export function TransactionsCheckout({
-	form,
-	selectedStore,
-	selectedStoreNumber,
-	selectedPaymentMethodLabel,
-	selectedCampaign,
-	paymentStatus,
-	cartCount,
-	submitError,
-	campaignOptions,
-	paymentMethodOptions,
-	campaignsLoading,
-	paymentMethodsLoading,
-	cartProductRows,
-	cartServiceRows,
-	categoryMap,
-	campaignDiscount,
-	discountValue,
-	subtotal,
-	total,
-	isSubmitting,
-	onResetCart,
-	onRemoveProduct,
-	onUpdateProductQty,
-	onRemoveService,
-	onUpdateServiceColor,
-	onUpdateServiceBrand,
-	onUpdateServiceSize,
-	onSubmit,
-}: TransactionsCheckoutProps) {
+export function TransactionsCheckout() {
 	const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
-	const selectedCustomerId = form.watch("selectedCustomerId");
-	const selectedCampaignId = form.watch("selectedCampaignId");
+	const {
+		campaigns,
+		campaignsLoading,
+		categories,
+		handleSubmit,
+		isSubmitting,
+		paymentMethods,
+		paymentMethodsLoading,
+		products,
+		resetCart,
+		services,
+		submitError,
+		visibleStores,
+		removeProductFromCart,
+		updateProductQty,
+		removeServiceFromCart,
+		updateServiceColor,
+		updateServiceBrand,
+		updateServiceSize,
+	} = useTransactionsPageStore();
+
+	const form = useFormContext<TransactionDraftValues>();
+	const selectedCustomerId =
+		useWatch({
+			control: form.control,
+			name: "selectedCustomerId",
+		}) ?? "";
+	const selectedCampaignId =
+		useWatch({
+			control: form.control,
+			name: "selectedCampaignId",
+		}) ?? "";
+	const selectedPaymentMethodId =
+		useWatch({
+			control: form.control,
+			name: "selectedPaymentMethodId",
+		}) ?? "";
+	const paymentStatus =
+		useWatch({
+			control: form.control,
+			name: "paymentStatus",
+		}) ?? "unpaid";
+	const manualDiscount =
+		useWatch({
+			control: form.control,
+			name: "manualDiscount",
+		}) ?? "";
+	const selectedStoreId =
+		useWatch({
+			control: form.control,
+			name: "selectedStoreId",
+		}) ?? "";
+	const productCart =
+		useWatch({
+			control: form.control,
+			name: "productCart",
+		}) ?? [];
+	const serviceCart =
+		useWatch({
+			control: form.control,
+			name: "serviceCart",
+		}) ?? [];
+
+	const categoryMap = useMemo(
+		() => new Map(categories.map((category) => [category.id, category])),
+		[categories],
+	);
+	const productMap = useMemo(
+		() => new Map(products.map((product) => [product.id, product])),
+		[products],
+	);
+	const serviceMap = useMemo(
+		() => new Map(services.map((service) => [service.id, service])),
+		[services],
+	);
+
+	const campaignOptions = useMemo<ComboboxOption[]>(
+		() => [
+			{ value: "none", label: "No campaign" },
+			...campaigns.map((campaign) => ({
+				value: String(campaign.id),
+				label: `${campaign.code} - ${campaign.name}`,
+			})),
+		],
+		[campaigns],
+	);
+	const paymentMethodOptions = useMemo<ComboboxOption[]>(
+		() => [
+			{ value: "none", label: "No payment method" },
+			...paymentMethods.map((paymentMethod) => ({
+				value: String(paymentMethod.id),
+				label: paymentMethod.name,
+			})),
+		],
+		[paymentMethods],
+	);
+
+	const selectedStoreNumber =
+		selectedStoreId && Number.isFinite(Number(selectedStoreId))
+			? Number(selectedStoreId)
+			: undefined;
+	const selectedStore = useMemo(
+		() =>
+			selectedStoreNumber
+				? visibleStores.find((store) => store.id === selectedStoreNumber)
+				: undefined,
+		[selectedStoreNumber, visibleStores],
+	);
+	const selectedCampaign = useMemo(
+		() =>
+			selectedCampaignId
+				? campaigns.find(
+						(campaign) => campaign.id === Number(selectedCampaignId),
+					)
+				: undefined,
+		[campaigns, selectedCampaignId],
+	);
+	const selectedPaymentMethodLabel = useMemo(
+		() =>
+			selectedPaymentMethodId
+				? paymentMethodOptions.find(
+						(option) => option.value === selectedPaymentMethodId,
+					)?.label
+				: undefined,
+		[paymentMethodOptions, selectedPaymentMethodId],
+	);
+
+	const cartProductRows = useMemo(
+		() =>
+			productCart
+				.map((line) => ({
+					...line,
+					product: productMap.get(line.id),
+				}))
+				.filter(
+					(line): line is ProductCartDisplayLine => line.product !== undefined,
+				),
+		[productCart, productMap],
+	);
+	const cartServiceRows = useMemo(
+		() =>
+			serviceCart
+				.map((line) => ({
+					...line,
+					service: serviceMap.get(line.id),
+				}))
+				.filter(
+					(line): line is ServiceCartDisplayLine => line.service !== undefined,
+				),
+		[serviceCart, serviceMap],
+	);
+
+	const subtotal = useMemo(
+		() =>
+			cartProductRows.reduce(
+				(total, line) => total + Number(line.product.price) * line.qty,
+				0,
+			) +
+			cartServiceRows.reduce(
+				(total, line) => total + Number(line.service.price),
+				0,
+			),
+		[cartProductRows, cartServiceRows],
+	);
+	const campaignDiscount = getCampaignDiscount(subtotal, selectedCampaign);
+	const discountValue = Number(manualDiscount || 0);
+	const totalDiscount = Math.min(subtotal, discountValue + campaignDiscount);
+	const total = Math.max(0, subtotal - totalDiscount);
+	const cartCount =
+		productCart.reduce((sum, item) => sum + item.qty, 0) + serviceCart.length;
 
 	const orderMeta = useMemo(
 		() => [
@@ -155,29 +262,24 @@ export function TransactionsCheckout({
 
 	return (
 		<>
-			<div className="grid gap-5 xl:sticky xl:top-24 xl:self-start">
+			<div className="grid gap-5 xl:sticky xl:top-0 xl:self-start">
 				<Card className="border-border/70">
 					<CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
 						<div>
 							<CardTitle className="flex items-center gap-2">
-								<ShoppingCart className="size-4" weight="duotone" />
+								<ShoppingCartIcon className="size-4" />
 								Cart Summary
 							</CardTitle>
-							<p className="mt-1 text-sm text-muted-foreground">
-								{selectedStore ? selectedStore.name : "Select store"} |{" "}
-								{cartCount} item
-								{cartCount === 1 ? "" : "s"}
-							</p>
 						</div>
 						<Button
 							type="button"
 							variant="outline"
 							size="sm"
-							onClick={onResetCart}
+							onClick={resetCart}
 							disabled={
 								cartCount === 0 && !selectedCustomerId && !selectedCampaignId
 							}
-							icon={<Trash className="size-4" weight="duotone" />}
+							icon={<TrashIcon className="size-4" />}
 						>
 							Reset
 						</Button>
@@ -219,8 +321,8 @@ export function TransactionsCheckout({
 											type="button"
 											variant="outline"
 											size="icon-xs"
-											onClick={() => onRemoveProduct(line.id)}
-											icon={<X className="size-4" weight="duotone" />}
+											onClick={() => removeProductFromCart(line.id)}
+											icon={<XIcon className="size-4" />}
 										/>
 									</div>
 									<div className="flex items-center justify-between gap-3">
@@ -230,7 +332,7 @@ export function TransactionsCheckout({
 												variant="outline"
 												size="icon-xs"
 												onClick={() =>
-													onUpdateProductQty(
+													updateProductQty(
 														line.id,
 														line.qty - 1,
 														Number(line.product.stock ?? line.qty),
@@ -247,7 +349,7 @@ export function TransactionsCheckout({
 												variant="outline"
 												size="icon-xs"
 												onClick={() =>
-													onUpdateProductQty(
+													updateProductQty(
 														line.id,
 														line.qty + 1,
 														Number(line.product.stock ?? line.qty),
@@ -286,8 +388,8 @@ export function TransactionsCheckout({
 											type="button"
 											variant="outline"
 											size="icon-xs"
-											onClick={() => onRemoveService(line.line_id)}
-											icon={<X className="size-4" weight="duotone" />}
+											onClick={() => removeServiceFromCart(line.line_id)}
+											icon={<XIcon className="size-4" />}
 										/>
 									</div>
 									<div className="grid gap-3 sm:grid-cols-3">
@@ -299,7 +401,7 @@ export function TransactionsCheckout({
 												id={`service-color-${line.line_id}`}
 												value={line.color}
 												onChange={(event) =>
-													onUpdateServiceColor(line.line_id, event.target.value)
+													updateServiceColor(line.line_id, event.target.value)
 												}
 												placeholder="e.g. Black"
 											/>
@@ -316,7 +418,7 @@ export function TransactionsCheckout({
 												id={`service-brand-${line.line_id}`}
 												value={line.shoe_brand}
 												onChange={(event) =>
-													onUpdateServiceBrand(line.line_id, event.target.value)
+													updateServiceBrand(line.line_id, event.target.value)
 												}
 												placeholder="e.g. Nike"
 											/>
@@ -339,7 +441,7 @@ export function TransactionsCheckout({
 												id={`service-size-${line.line_id}`}
 												value={line.shoe_size}
 												onChange={(event) =>
-													onUpdateServiceSize(line.line_id, event.target.value)
+													updateServiceSize(line.line_id, event.target.value)
 												}
 												placeholder="e.g. 42"
 											/>
@@ -363,10 +465,7 @@ export function TransactionsCheckout({
 							<div className="grid gap-3 border border-border/70 p-4">
 								<div className="flex items-center justify-between gap-3 text-sm">
 									<div className="flex items-center gap-2">
-										<Storefront
-											className="size-4 text-muted-foreground"
-											weight="duotone"
-										/>
+										<StorefrontIcon className="size-4 text-muted-foreground" />
 										<span className="text-muted-foreground">Store</span>
 									</div>
 									<span className="font-medium">
@@ -375,10 +474,7 @@ export function TransactionsCheckout({
 								</div>
 								<div className="flex items-center justify-between gap-3 text-sm">
 									<div className="flex items-center gap-2">
-										<Receipt
-											className="size-4 text-muted-foreground"
-											weight="duotone"
-										/>
+										<ReceiptIcon className="size-4 text-muted-foreground" />
 										<span className="text-muted-foreground">Subtotal</span>
 									</div>
 									<span className="font-medium">
@@ -423,7 +519,7 @@ export function TransactionsCheckout({
 								size="lg"
 								onClick={() => setPaymentSheetOpen(true)}
 								disabled={cartCount === 0}
-								icon={<CreditCard className="size-4" weight="duotone" />}
+								icon={<CreditCardIcon className="size-4" />}
 							>
 								Review Checkout
 							</Button>
@@ -433,7 +529,7 @@ export function TransactionsCheckout({
 			</div>
 
 			<Sheet open={paymentSheetOpen} onOpenChange={setPaymentSheetOpen}>
-				<SheetContent className="w-full sm:max-w-xl">
+				<SheetContent className="w-full sm:max-w-xl!">
 					<SheetHeader className="border-b border-border/70">
 						<SheetTitle>Payment & Customer</SheetTitle>
 						<SheetDescription>
@@ -622,7 +718,7 @@ export function TransactionsCheckout({
 						</Button>
 						<Button
 							type="button"
-							onClick={onSubmit}
+							onClick={handleSubmit}
 							loading={isSubmitting}
 							loadingText="Creating order..."
 							disabled={cartCount === 0}

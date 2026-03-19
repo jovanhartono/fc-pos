@@ -1,28 +1,17 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { handleCreatedOrderSuccess } from "@/features/orders/lib/create-order-workflow";
 import {
-	buildCategoryTabs,
-	getCampaignDiscount,
-	getEntityCategoryName,
 	isCampaignAvailable,
-	type ProductCartDisplayLine,
-	type ServiceCartDisplayLine,
 	type TransactionDraftValues,
 	toTransactionPayload,
 } from "@/features/transactions/lib/transactions";
-import {
-	createOrder,
-	type PaymentMethod,
-	type Product,
-	type Service,
-	type Store,
-} from "@/lib/api";
+import { createOrder } from "@/lib/api";
 import {
 	campaignsQueryOptions,
 	categoriesQueryOptions,
@@ -34,6 +23,12 @@ import {
 } from "@/lib/query-options";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useTransactionPreferencesStore } from "@/stores/transaction-preferences-store";
+import {
+	bindTransactionsPageController,
+	clearTransactionsPageController,
+	transactionsPageDataInitialState,
+	useTransactionsPageStore,
+} from "@/stores/transactions-store";
 
 const defaultDraftValues: TransactionDraftValues = {
 	selectedStoreId: "",
@@ -46,13 +41,6 @@ const defaultDraftValues: TransactionDraftValues = {
 	productCart: [],
 	serviceCart: [],
 };
-
-function createServiceCartLineId() {
-	return (
-		globalThis.crypto?.randomUUID?.() ??
-		`service-${Date.now()}-${Math.random()}`
-	);
-}
 
 const transactionDraftSchema = z
 	.object({
@@ -118,14 +106,7 @@ const transactionDraftSchema = z
 		}
 	});
 
-function findOptionLabel(
-	options: Array<{ value: string; label: string }>,
-	value: string,
-) {
-	return options.find((option) => option.value === value)?.label;
-}
-
-export function useTransactionsPage() {
+export function useTransactionsPageBootstrap() {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const currentUser = getCurrentUser();
@@ -139,16 +120,6 @@ export function useTransactionsPage() {
 	const clearPersistedSelectedStoreId = useTransactionPreferencesStore(
 		(state) => state.clearSelectedStoreId,
 	);
-	const [mode, setMode] = useState<"products" | "services">("services");
-	const [searchTerm, setSearchTerm] = useState("");
-	const [activeProductCategory, setActiveProductCategory] = useState<
-		"all" | number
-	>("all");
-	const [activeServiceCategory, setActiveServiceCategory] = useState<
-		"all" | number
-	>("all");
-	const [submitError, setSubmitError] = useState("");
-	const deferredSearchTerm = useDeferredValue(searchTerm);
 
 	const form = useForm<TransactionDraftValues>({
 		resolver: zodResolver(transactionDraftSchema),
@@ -160,46 +131,11 @@ export function useTransactionsPage() {
 			control: form.control,
 			name: "selectedStoreId",
 		}) ?? "";
-	const selectedCustomerId =
-		useWatch({
-			control: form.control,
-			name: "selectedCustomerId",
-		}) ?? "";
 	const selectedCampaignId =
 		useWatch({
 			control: form.control,
 			name: "selectedCampaignId",
 		}) ?? "";
-	const selectedPaymentMethodId =
-		useWatch({
-			control: form.control,
-			name: "selectedPaymentMethodId",
-		}) ?? "";
-	const paymentStatus =
-		useWatch({
-			control: form.control,
-			name: "paymentStatus",
-		}) ?? "unpaid";
-	const manualDiscount =
-		useWatch({
-			control: form.control,
-			name: "manualDiscount",
-		}) ?? "";
-	const notes =
-		useWatch({
-			control: form.control,
-			name: "notes",
-		}) ?? "";
-	const productCart =
-		useWatch({
-			control: form.control,
-			name: "productCart",
-		}) ?? [];
-	const serviceCart =
-		useWatch({
-			control: form.control,
-			name: "serviceCart",
-		}) ?? [];
 
 	const storesQuery = useQuery(storesQueryOptions());
 	const categoriesQuery = useQuery(categoriesQueryOptions());
@@ -286,137 +222,12 @@ export function useTransactionsPage() {
 		enabled: selectedStoreNumber !== undefined,
 	});
 
-	const isBootstrapping =
-		storesQuery.isPending ||
-		categoriesQuery.isPending ||
-		productsQuery.isPending ||
-		servicesQuery.isPending ||
-		paymentMethodsQuery.isPending ||
-		currentUserDetailQuery.isPending;
-
-	const categoryMap = useMemo(
-		() =>
-			new Map(
-				(categoriesQuery.data ?? []).map((category) => [category.id, category]),
-			),
-		[categoriesQuery.data],
-	);
-
-	const products = useMemo(
-		() => (productsQuery.data ?? []).filter((product) => product.is_active),
-		[productsQuery.data],
-	);
-	const services = useMemo(
-		() => (servicesQuery.data ?? []).filter((service) => service.is_active),
-		[servicesQuery.data],
-	);
-	const productMap = useMemo(
-		() => new Map(products.map((product) => [product.id, product])),
-		[products],
-	);
-	const serviceMap = useMemo(
-		() => new Map(services.map((service) => [service.id, service])),
-		[services],
-	);
-
-	const searchValue = deferredSearchTerm.trim().toLowerCase();
-	const productTabs = useMemo(
-		() => buildCategoryTabs({ items: products, categoryMap }),
-		[categoryMap, products],
-	);
-	const serviceTabs = useMemo(
-		() => buildCategoryTabs({ items: services, categoryMap }),
-		[categoryMap, services],
-	);
-
-	const filteredProducts = useMemo(
-		() =>
-			products.filter((product) => {
-				const categoryName = getEntityCategoryName(
-					product,
-					categoryMap,
-				).toLowerCase();
-				const matchesCategory =
-					activeProductCategory === "all" ||
-					product.category_id === activeProductCategory;
-				const matchesSearch =
-					searchValue.length === 0 ||
-					product.name.toLowerCase().includes(searchValue) ||
-					(product.description ?? "").toLowerCase().includes(searchValue) ||
-					categoryName.includes(searchValue);
-
-				return matchesCategory && matchesSearch;
-			}),
-		[activeProductCategory, categoryMap, products, searchValue],
-	);
-	const filteredServices = useMemo(
-		() =>
-			services.filter((service) => {
-				const categoryName = getEntityCategoryName(
-					service,
-					categoryMap,
-				).toLowerCase();
-				const matchesCategory =
-					activeServiceCategory === "all" ||
-					service.category_id === activeServiceCategory;
-				const matchesSearch =
-					searchValue.length === 0 ||
-					service.name.toLowerCase().includes(searchValue) ||
-					(service.description ?? "").toLowerCase().includes(searchValue) ||
-					categoryName.includes(searchValue);
-
-				return matchesCategory && matchesSearch;
-			}),
-		[activeServiceCategory, categoryMap, searchValue, services],
-	);
-
-	const activeItems = mode === "products" ? filteredProducts : filteredServices;
-
-	const paymentMethodOptions = useMemo(
-		() => [
-			{ value: "none", label: "No payment method" },
-			...(paymentMethodsQuery.data ?? []).map(
-				(paymentMethod: PaymentMethod) => ({
-					value: String(paymentMethod.id),
-					label: paymentMethod.name,
-				}),
-			),
-		],
-		[paymentMethodsQuery.data],
-	);
 	const availableCampaigns = useMemo(() => {
 		const now = new Date();
 		return (campaignsQuery.data ?? []).filter((campaign) =>
 			isCampaignAvailable(campaign, now),
 		);
 	}, [campaignsQuery.data]);
-	const campaignOptions = useMemo(
-		() => [
-			{ value: "none", label: "No campaign" },
-			...availableCampaigns.map((campaign) => ({
-				value: String(campaign.id),
-				label: `${campaign.code} - ${campaign.name}`,
-			})),
-		],
-		[availableCampaigns],
-	);
-
-	const selectedCampaign = useMemo(
-		() =>
-			selectedCampaignId
-				? availableCampaigns.find(
-						(campaign) => campaign.id === Number(selectedCampaignId),
-					)
-				: undefined,
-		[availableCampaigns, selectedCampaignId],
-	);
-	const selectedStore = useMemo(
-		() =>
-			selectedStoreNumber
-				? visibleStores.find((store: Store) => store.id === selectedStoreNumber)
-				: undefined,
-		[selectedStoreNumber, visibleStores],
-	);
 
 	useEffect(() => {
 		if (!selectedCampaignId) {
@@ -432,156 +243,40 @@ export function useTransactionsPage() {
 		}
 	}, [availableCampaigns, form, selectedCampaignId]);
 
-	const cartProductRows = useMemo(
-		() =>
-			productCart
-				.map((line) => ({
-					...line,
-					product: productMap.get(line.id),
-				}))
-				.filter(
-					(line): line is ProductCartDisplayLine => line.product !== undefined,
-				),
-		[productCart, productMap],
-	);
-	const cartServiceRows = useMemo(
-		() =>
-			serviceCart
-				.map((line) => ({
-					...line,
-					service: serviceMap.get(line.id),
-				}))
-				.filter(
-					(line): line is ServiceCartDisplayLine => line.service !== undefined,
-				),
-		[serviceCart, serviceMap],
-	);
+	const isBootstrapping =
+		storesQuery.isPending ||
+		categoriesQuery.isPending ||
+		productsQuery.isPending ||
+		servicesQuery.isPending ||
+		paymentMethodsQuery.isPending ||
+		currentUserDetailQuery.isPending;
 
-	const productCartQtyById = useMemo(
-		() => new Map(productCart.map((line) => [line.id, line.qty])),
-		[productCart],
+	const products = useMemo(
+		() => (productsQuery.data ?? []).filter((product) => product.is_active),
+		[productsQuery.data],
 	);
-	const serviceCartQtyById = useMemo(
-		() =>
-			serviceCart.reduce((bucket, line) => {
-				bucket.set(line.id, (bucket.get(line.id) ?? 0) + 1);
-				return bucket;
-			}, new Map<number, number>()),
-		[serviceCart],
+	const services = useMemo(
+		() => (servicesQuery.data ?? []).filter((service) => service.is_active),
+		[servicesQuery.data],
 	);
-
-	const productSubtotal = cartProductRows.reduce(
-		(total, line) => total + Number(line.product.price) * line.qty,
-		0,
-	);
-	const serviceSubtotal = cartServiceRows.reduce(
-		(total, line) => total + Number(line.service.price),
-		0,
-	);
-	const subtotal = productSubtotal + serviceSubtotal;
-	const campaignDiscount = getCampaignDiscount(subtotal, selectedCampaign);
-	const discountValue = Number(manualDiscount || 0);
-	const totalDiscount = Math.min(subtotal, discountValue + campaignDiscount);
-	const total = Math.max(0, subtotal - totalDiscount);
-	const cartCount =
-		productCart.reduce((sum, item) => sum + item.qty, 0) + serviceCart.length;
-
-	const selectedPaymentMethodLabel = selectedPaymentMethodId
-		? findOptionLabel(paymentMethodOptions, selectedPaymentMethodId)
-		: undefined;
 
 	const createMutation = useMutation({
 		mutationKey: ["create-pos-order"],
 		mutationFn: createOrder,
 	});
 
-	const updateProductCart = (
-		nextCart: TransactionDraftValues["productCart"],
-	) => {
-		setSubmitError("");
-		form.setValue("productCart", nextCart, {
-			shouldDirty: true,
-			shouldValidate: true,
-		});
-	};
-
-	const updateServiceCart = (
-		nextCart: TransactionDraftValues["serviceCart"],
-	) => {
-		setSubmitError("");
-		form.setValue("serviceCart", nextCart, {
-			shouldDirty: true,
-			shouldValidate: true,
-		});
-	};
-
-	const handleAddProduct = (product: Product) => {
-		const currentCart = form.getValues("productCart");
-		const nextCart = [...currentCart];
-		const lineIndex = nextCart.findIndex((line) => line.id === product.id);
-		const maxStock = Number(product.stock ?? 0);
-
-		if (lineIndex >= 0) {
-			const line = nextCart[lineIndex];
-
-			if (maxStock > 0 && line.qty >= maxStock) {
-				return;
-			}
-
-			nextCart[lineIndex] = { ...line, qty: line.qty + 1 };
-			updateProductCart(nextCart);
-			return;
-		}
-
-		if (maxStock <= 0) {
-			return;
-		}
-
-		updateProductCart([
-			...nextCart,
-			{ kind: "product", id: product.id, qty: 1 },
-		]);
-	};
-
-	const handleAddService = (service: Service) => {
-		updateServiceCart([
-			...form.getValues("serviceCart"),
-			{
-				kind: "service",
-				line_id: createServiceCartLineId(),
-				id: service.id,
-				color: "",
-				shoe_brand: "",
-				shoe_size: "",
-			},
-		]);
-	};
-
-	const handleStoreChange = (value: string) => {
-		setSubmitError("");
-		form.setValue("selectedStoreId", value, {
-			shouldDirty: true,
-			shouldValidate: true,
-		});
-		if (currentUserKey) {
-			setPersistedSelectedStoreId(currentUserKey, value);
-		}
-		form.setValue("selectedCampaignId", "", {
-			shouldDirty: true,
-			shouldValidate: true,
-		});
-	};
-
 	const resetCart = () => {
-		setSubmitError("");
+		const selectedStore = form.getValues("selectedStoreId");
+
+		useTransactionsPageStore.getState().setSubmitError("");
 		form.reset({
 			...defaultDraftValues,
-			selectedStoreId: form.getValues("selectedStoreId"),
+			selectedStoreId: selectedStore,
 		});
 	};
 
-	const handleSubmit = form.handleSubmit(async (values) => {
-		setSubmitError("");
+	const submit = form.handleSubmit(async (values) => {
+		useTransactionsPageStore.getState().setSubmitError("");
 
 		try {
 			const created = await createMutation.mutateAsync(
@@ -606,111 +301,67 @@ export function useTransactionsPage() {
 		} catch (error) {
 			const message =
 				error instanceof Error ? error.message : "Failed to create transaction";
-			setSubmitError(message);
+			useTransactionsPageStore.getState().setSubmitError(message);
 			toast.error("Unable to create transaction", {
 				description: message,
 			});
 		}
 	});
 
-	return {
-		form,
-		isAdmin: currentUser?.role === "admin",
-		isBootstrapping,
-		mode,
-		searchTerm,
-		activeProductCategory,
-		activeServiceCategory,
-		selectedStoreId,
-		selectedCustomerId,
-		selectedCampaignId,
-		selectedPaymentMethodId,
-		selectedPaymentMethodLabel,
-		paymentStatus,
-		manualDiscount,
-		notes,
-		submitError,
-		products,
-		services,
-		visibleStores,
-		selectedStoreNumber,
-		selectedStore,
-		selectedCampaign,
-		categoryMap,
-		productTabs,
-		serviceTabs,
-		activeItems,
-		campaignOptions,
-		paymentMethodOptions,
-		campaignsLoading: campaignsQuery.isFetching,
-		paymentMethodsLoading: paymentMethodsQuery.isFetching,
-		cartProductRows,
-		cartServiceRows,
-		productCartQtyById,
-		serviceCartQtyById,
-		campaignDiscount,
-		discountValue,
-		subtotal,
-		total,
-		cartCount,
-		isSubmitting: createMutation.isPending,
-		setMode,
-		setSearchTerm,
-		setActiveProductCategory,
-		setActiveServiceCategory,
-		handleStoreChange,
-		resetCart,
-		removeProductFromCart: (productId: number) =>
-			updateProductCart(productCart.filter((line) => line.id !== productId)),
-		removeServiceFromCart: (lineId: string) =>
-			updateServiceCart(serviceCart.filter((line) => line.line_id !== lineId)),
-		updateProductQty: (
-			productId: number,
-			nextQty: number,
-			maxStock: number,
-		) => {
-			updateProductCart(
-				productCart.flatMap((line) => {
-					if (line.id !== productId) {
-						return [line];
-					}
+	useEffect(() => {
+		bindTransactionsPageController({
+			form,
+			currentUserKey,
+			submit,
+		});
 
-					if (nextQty <= 0) {
-						return [];
-					}
+		return () => {
+			clearTransactionsPageController();
+		};
+	}, [currentUserKey, form, submit]);
 
-					return [
-						{
-							...line,
-							qty: maxStock > 0 ? Math.min(nextQty, maxStock) : nextQty,
-						},
-					];
-				}),
-			);
+	const pageState = useMemo(
+		() => ({
+			isBootstrapping,
+			isAdmin: currentUser?.role === "admin",
+			visibleStores,
+			categories: categoriesQuery.data ?? [],
+			products,
+			services,
+			campaigns: availableCampaigns,
+			paymentMethods: paymentMethodsQuery.data ?? [],
+			campaignsLoading: campaignsQuery.isFetching,
+			paymentMethodsLoading: paymentMethodsQuery.isFetching,
+			isSubmitting: createMutation.isPending,
+		}),
+		[
+			availableCampaigns,
+			campaignsQuery.isFetching,
+			categoriesQuery.data,
+			createMutation.isPending,
+			currentUser?.role,
+			isBootstrapping,
+			paymentMethodsQuery.data,
+			paymentMethodsQuery.isFetching,
+			products,
+			services,
+			visibleStores,
+		],
+	);
+
+	useEffect(() => {
+		useTransactionsPageStore.setState(pageState);
+	}, [pageState]);
+
+	useEffect(
+		() => () => {
+			clearTransactionsPageController();
+			useTransactionsPageStore.setState(transactionsPageDataInitialState);
 		},
-		updateServiceBrand: (lineId: string, value: string) => {
-			updateServiceCart(
-				serviceCart.map((line) =>
-					line.line_id === lineId ? { ...line, shoe_brand: value } : line,
-				),
-			);
-		},
-		updateServiceColor: (lineId: string, value: string) => {
-			updateServiceCart(
-				serviceCart.map((line) =>
-					line.line_id === lineId ? { ...line, color: value } : line,
-				),
-			);
-		},
-		updateServiceSize: (lineId: string, value: string) => {
-			updateServiceCart(
-				serviceCart.map((line) =>
-					line.line_id === lineId ? { ...line, shoe_size: value } : line,
-				),
-			);
-		},
-		handleAddProduct,
-		handleAddService,
-		handleSubmit,
-	};
+		[],
+	);
+
+	return form;
 }
+
+export const useTransactionsPage = useTransactionsPageBootstrap;

@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { FormProvider } from "react-hook-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { TransactionsWorkspace } from "@/features/transactions/components/transactions-workspace";
-import { useTransactionsPage } from "@/features/transactions/hooks/use-transactions-page";
+import { useTransactionsPageBootstrap } from "@/features/transactions/hooks/use-transactions-page";
 import {
 	campaignsQueryOptions,
 	categoriesQueryOptions,
@@ -12,6 +13,7 @@ import {
 	storesQueryOptions,
 } from "@/lib/query-options";
 import { getCurrentUser } from "@/stores/auth-store";
+import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 export const Route = createFileRoute("/_admin/transactions")({
 	loader: async ({ context }) => {
@@ -50,9 +52,12 @@ export const Route = createFileRoute("/_admin/transactions")({
 });
 
 function TransactionsPage() {
-	const viewModel = useTransactionsPage();
+	const form = useTransactionsPageBootstrap();
+	const isBootstrapping = useTransactionsPageStore(
+		(state) => state.isBootstrapping,
+	);
 
-	if (viewModel.isBootstrapping) {
+	if (isBootstrapping) {
 		return (
 			<div className="grid gap-4">
 				<Card>
@@ -64,5 +69,9 @@ function TransactionsPage() {
 		);
 	}
 
-	return <TransactionsWorkspace viewModel={viewModel} />;
+	return (
+		<FormProvider {...form}>
+			<TransactionsWorkspace />
+		</FormProvider>
+	);
 }
