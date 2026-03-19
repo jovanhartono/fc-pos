@@ -1,4 +1,4 @@
-import { Plus } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -92,7 +92,7 @@ export function CustomerAutocomplete({
 					className="h-10 w-10 shrink-0"
 					onClick={handleOpenCreateCustomer}
 					disabled={disabled}
-					icon={<Plus className="size-4" weight="duotone" />}
+					icon={<PlusIcon className="size-4" />}
 				/>
 			</div>
 			<FieldError errors={[error]} />

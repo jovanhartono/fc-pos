@@ -1,6 +1,6 @@
 import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox";
 import { CaretDownIcon, CheckIcon, CircleNotch } from "@phosphor-icons/react";
-import * as React from "react";
+import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 
 export type ComboboxOption = {
@@ -39,12 +39,12 @@ export function Combobox({
 	triggerClassName,
 	onInputChange,
 }: ComboboxProps) {
-	const selectedOption = React.useMemo(
+	const selectedOption = useMemo(
 		() => options.find((option) => option.value === value) ?? null,
 		[options, value],
 	);
 
-	const items = React.useMemo(() => {
+	const items = useMemo(() => {
 		if (!selectedOption) {
 			return options;
 		}
