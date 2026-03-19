@@ -132,6 +132,7 @@ function SidebarProvider({
 		}),
 		[state, open, setOpen, isMobile, openMobile, toggleSidebar],
 	);
+	const showFloatingTrigger = isMobile ? !openMobile : state === "collapsed";
 
 	return (
 		<SidebarContext.Provider value={contextValue}>
@@ -152,6 +153,11 @@ function SidebarProvider({
 			>
 				{children}
 			</div>
+			{showFloatingTrigger ? (
+				<div className="fixed left-3 top-3 z-40 md:left-4 md:top-4">
+					<SidebarTrigger variant="outline" />
+				</div>
+			) : null}
 		</SidebarContext.Provider>
 	);
 }
