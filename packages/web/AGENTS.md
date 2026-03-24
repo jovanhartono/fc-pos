@@ -1,13 +1,17 @@
 # Web Package Standards
 
+Applies to **`packages/web`** (`@fresclean/web`) only. Repo-wide TypeScript and Ultracite rules: **`../../AGENTS.md`**.
+
 ## Stack
 
-- React 19, Vite 7, TypeScript, Tailwind v4
+- React 19 (use **ref as a prop** instead of `React.forwardRef` where applicable), Vite 7, TypeScript, Tailwind v4
 - TanStack Router (file-based), TanStack Query, TanStack Table
 - react-hook-form + `@hookform/resolvers` (zodResolver) + Zod
 - Zustand for global UI state (dialog, sheet, auth, preferences)
 - shadcn (base-lyra style) + `@base-ui/react` primitives, Phosphor Icons, Sonner toasts
 - Hono RPC client (`rpc` / `rpcWithAuth`) for typed API calls via `@fresclean/api`
+
+This app is **Vite**, not Next.js: use plain `<img>` (or project image patterns) with lazy loading and sensible dimensions — there is no `next/image`.
 
 ## Project Structure
 
@@ -190,3 +194,10 @@ const storesQuery = useQuery(storesQueryOptions());
 ## Toasts
 
 Use `sonner` via `toast.success()` / `toast.error()`. The global mutation handler in `main.tsx` auto-toasts `response.message` on success and error messages on failure -- only call `toast` manually for non-mutation feedback.
+
+---
+
+## Security (browser)
+
+- Add `rel="noopener"` when using `target="_blank"` on links
+- Avoid `dangerouslySetInnerHTML` unless absolutely necessary

@@ -12,6 +12,9 @@ logs
 coverage
 *.local
 
+# Cursor hook machine state (e.g. continual-learning transcript index paths)
+.cursor/hooks/state/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -2,6 +2,21 @@
 
 This project uses **Ultracite**, a zero-config preset that enforces strict code quality standards through automated formatting and linting.
 
+## Workspace scope
+
+**Fresclean** is a Bun monorepo (`workspaces: packages/*`):
+
+| Package | Name | Role |
+| --- | --- | --- |
+| `packages/web` | `@fresclean/web` | Vite + React admin app |
+| `packages/server` | `@fresclean/api` | Hono API, Drizzle, shared Zod schemas and RPC types for the client |
+
+**Where to look for rules**
+
+- **This file** — formatting, shared TypeScript habits, testing, security basics.
+- **`packages/web/AGENTS.md`** — React, TanStack, forms, shadcn, RPC client usage.
+- **`packages/server/AGENTS.md`** — Hono routes, modules, DB, API patterns.
+
 ## Quick Reference
 
 - **Format code**: `bun x ultracite fix`
@@ -40,20 +55,10 @@ Write code that is **accessible, performant, type-safe, and maintainable**. Focu
 - Handle errors appropriately in async code with try-catch blocks
 - Don't use async functions as Promise executors
 
-### React & JSX
+### Package-specific UI and API rules
 
-- Use function components over class components
-- Call hooks at the top level only, never conditionally
-- Specify all dependencies in hook dependency arrays correctly
-- Use the `key` prop for elements in iterables (prefer unique IDs over array indices)
-- Nest children between opening and closing tags instead of passing as props
-- Don't define components inside other components
-- Use semantic HTML and ARIA attributes for accessibility:
-  - Provide meaningful alt text for images
-  - Use proper heading hierarchy
-  - Add labels for form inputs
-  - Include keyboard event handlers alongside mouse events
-  - Use semantic elements (`<button>`, `<nav>`, etc.) instead of divs with roles
+- **React, routing, forms, and browser APIs:** `packages/web/AGENTS.md`
+- **HTTP API, persistence, and shared schemas:** `packages/server/AGENTS.md`
 
 ### Error Handling & Debugging
 
@@ -72,10 +77,9 @@ Write code that is **accessible, performant, type-safe, and maintainable**. Focu
 
 ### Security
 
-- Add `rel="noopener"` when using `target="_blank"` on links
-- Avoid `dangerouslySetInnerHTML` unless absolutely necessary
-- Don't use `eval()` or assign directly to `document.cookie`
-- Validate and sanitize user input
+- Validate and sanitize user input at trust boundaries (API and forms)
+- Don't use `eval()` or store secrets in client-visible code
+- Web-only hardening (links, DOM, cookies): see `packages/web/AGENTS.md`
 
 ### Performance
 
@@ -83,20 +87,7 @@ Write code that is **accessible, performant, type-safe, and maintainable**. Focu
 - Use top-level regex literals instead of creating them in loops
 - Prefer specific imports over namespace imports
 - Avoid barrel files (index files that re-export everything)
-- Use proper image components (e.g., Next.js `<Image>`) over `<img>` tags
-
-### Framework-Specific Guidance
-
-**Next.js:**
-- Use Next.js `<Image>` component for images
-- Use `next/head` or App Router metadata API for head elements
-- Use Server Components for async data fetching instead of async Client Components
-
-**React 19+:**
-- Use ref as a prop instead of `React.forwardRef`
-
-**Solid/Svelte/Vue/Qwik:**
-- Use `class` and `for` attributes (not `className` or `htmlFor`)
+- Web assets and lazy-loading patterns: `packages/web/AGENTS.md`
 
 ---
 
@@ -113,9 +104,9 @@ Biome's linter will catch most issues automatically. Focus your attention on:
 
 1. **Business logic correctness** - Biome can't validate your algorithms
 2. **Meaningful naming** - Use descriptive names for functions, variables, and types
-3. **Architecture decisions** - Component structure, data flow, and API design
+3. **Architecture decisions** - Boundaries between web features, API modules, and shared types
 4. **Edge cases** - Handle boundary conditions and error states
-5. **User experience** - Accessibility, performance, and usability considerations
+5. **User experience** (web) - Accessibility, performance, and usability considerations
 6. **Documentation** - Add comments for complex logic, but prefer self-documenting code
 
 ---
