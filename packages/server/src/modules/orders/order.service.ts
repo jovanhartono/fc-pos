@@ -30,6 +30,7 @@ function formatOrderCode(storeCode: string, dateStr: string, sequence: number) {
 
 interface ExpandedServiceItem {
   id: number;
+  is_priority?: boolean;
   notes?: string;
   color?: string;
   shoe_brand?: string;
@@ -46,6 +47,7 @@ function expandServices(
 ): ExpandedServiceItem[] {
   return payloadServices.map((item) => ({
     id: item.id,
+    is_priority: item.is_priority,
     notes: item.notes,
     color: item.color,
     shoe_brand: item.shoe_brand,
@@ -74,6 +76,7 @@ function buildOrderServiceRows({
 
     return {
       item_code: `${code}-S${String(index + 1).padStart(3, "0")}`,
+      is_priority: item.is_priority ?? service.is_priority,
       order_id: orderId,
       service_id: service.id,
       price: service.price,
@@ -81,7 +84,7 @@ function buildOrderServiceRows({
       color: item.color,
       shoe_brand: item.shoe_brand,
       shoe_size: item.shoe_size,
-      status: "received" as const,
+      status: "queued" as const,
     };
   });
 }

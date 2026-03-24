@@ -60,18 +60,30 @@ const pageMeta: Record<string, { title: string; description?: string }> = {
 		description: "Insert and edit users with role management.",
 	},
 	"/worker": {
-		title: "Worker Ops",
+		title: "Queue",
 		description:
-			"Lookup item tags, claim work, update status, and upload photos.",
+			"Priority-first worker queue with item detail and photo upload.",
 	},
 };
 
 function AdminLayout() {
 	const { pathname } = useLocation();
-	const meta = pageMeta[pathname] ?? {
-		title: "Admin",
-		description: "Admin panel",
-	};
+	const meta =
+		pageMeta[pathname] ??
+		(pathname.startsWith("/worker/")
+			? {
+					title: "Queue Detail",
+					description: "Update one queue item and upload progress photos.",
+				}
+			: pathname.startsWith("/orders/")
+				? {
+						title: "Order Detail",
+						description: "Review one order and its service timeline.",
+					}
+				: {
+						title: "Admin",
+						description: "Admin panel",
+					});
 
 	return (
 		<AppShell title={meta.title} description={meta.description}>

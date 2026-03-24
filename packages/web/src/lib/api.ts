@@ -54,6 +54,7 @@ const campaignsRoute = rpc.api.admin.campaigns.$get;
 const campaignDetailRoute = rpc.api.admin.campaigns[":id"].$get;
 const orderServiceByItemCodeRoute =
 	rpc.api.admin.orders.services["by-item-code"].$get;
+const orderServiceQueueRoute = rpc.api.admin.orders.services.queue.$get;
 const myOrderServicesRoute = rpc.api.admin.orders.services.me.$get;
 const publicTrackOrderRoute = rpc.api.public.orders.track.$post;
 
@@ -94,6 +95,10 @@ export type OrderServiceLookup = Extract<
 	InferResponseType<typeof orderServiceByItemCodeRoute>,
 	{ success: true }
 >["data"];
+export type QueueOrderServiceItem = Extract<
+	InferResponseType<typeof orderServiceQueueRoute>,
+	{ success: true }
+>["data"][number];
 export type MyOrderServiceItem = Extract<
 	InferResponseType<typeof myOrderServicesRoute>,
 	{ success: true }
@@ -144,6 +149,25 @@ export type FetchOrdersQuery = {
 	store_id?: number;
 	status?: "created" | "processing" | "completed" | "cancelled";
 	payment_status?: "paid" | "unpaid";
+	date_from?: string;
+	date_to?: string;
+};
+
+export type FetchOrderServiceQueueQuery = {
+	limit?: number;
+	offset?: number;
+	store_id?: number;
+	status?:
+		| "received"
+		| "queued"
+		| "processing"
+		| "quality_check"
+		| "ready_for_pickup"
+		| "picked_up"
+		| "refunded"
+		| "cancelled";
+	date_from?: string;
+	date_to?: string;
 };
 
 export type FetchCustomersQuery = {
@@ -218,6 +242,14 @@ export type SaveOrderServicePhotoPayload = {
 	s3_key: string;
 };
 
+export type PresignOrderIntakePhotoPayload = {
+	content_type: "image/jpeg" | "image/png" | "image/webp" | "image/heic";
+};
+
+export type SaveOrderIntakePhotoPayload = {
+	s3_key: string;
+};
+
 export type OrderRefundReason = "damaged" | "cannot_process" | "lost" | "other";
 
 export type CreateOrderRefundPayload = {
@@ -250,6 +282,12 @@ export const queryKeys = {
 	campaignDetail: (id: number) => ["campaign-detail", id] as const,
 	orderServiceLookup: (itemCode: string) =>
 		["order-service-lookup", itemCode] as const,
+	orderServiceQueue: (
+		query?: Pick<
+			FetchOrderServiceQueueQuery,
+			"store_id" | "status" | "date_from" | "date_to"
+		>,
+	) => ["order-service-queue", query ?? {}] as const,
 	myOrderServices: (storeId?: number) =>
 		["my-order-services", storeId ?? "all"] as const,
 	dashboard: ["dashboard"] as const,
@@ -391,6 +429,12 @@ export async function fetchOrders(query?: FetchOrdersQuery) {
 							...(query.payment_status
 								? { payment_status: query.payment_status }
 								: {}),
+							...(query.date_from !== undefined
+								? { date_from: query.date_from }
+								: {}),
+							...(query.date_to !== undefined
+								? { date_to: query.date_to }
+								: {}),
 						}
 					: undefined,
 		}),
@@ -418,6 +462,12 @@ export async function fetchOrdersPage(
 							...(query.status ? { status: query.status } : {}),
 							...(query.payment_status
 								? { payment_status: query.payment_status }
+								: {}),
+							...(query.date_from !== undefined
+								? { date_from: query.date_from }
+								: {}),
+							...(query.date_to !== undefined
+								? { date_to: query.date_to }
 								: {}),
 						}
 					: undefined,
@@ -658,10 +708,56 @@ export async function lookupOrderServiceByItemCode(itemCode: string) {
 	);
 }
 
+export async function fetchOrderServiceQueuePage(
+	query?: FetchOrderServiceQueueQuery,
+): Promise<PaginatedData<QueueOrderServiceItem>> {
+	const response = await parseResponse(
+		rpcWithAuth().api.admin.orders.services.queue.$get({
+			query:
+				query && Object.keys(query).length > 0
+					? {
+							...(query.limit !== undefined
+								? { limit: String(query.limit) }
+								: {}),
+							...(query.offset !== undefined
+								? { offset: String(query.offset) }
+								: {}),
+							...(query.store_id !== undefined
+								? { store_id: String(query.store_id) }
+								: {}),
+							...(query.status !== undefined ? { status: query.status } : {}),
+							...(query.date_from !== undefined
+								? { date_from: query.date_from }
+								: {}),
+							...(query.date_to !== undefined
+								? { date_to: query.date_to }
+								: {}),
+						}
+					: {},
+		}),
+	);
+
+	return {
+		items: response.data,
+		meta: response.meta as PaginationMeta,
+	};
+}
+
 export async function fetchMyOrderServices(storeId?: number) {
 	return parseSuccessData<MyOrderServiceItem[]>(
 		rpcWithAuth().api.admin.orders.services.me.$get({
 			query: storeId !== undefined ? { store_id: String(storeId) } : {},
+		}),
+	);
+}
+
+export async function startOrderServiceWork(
+	orderId: number,
+	serviceId: number,
+) {
+	return parseResponse(
+		rpcWithAuth().api.admin.orders[":id"].services[":serviceId"].start.$post({
+			param: { id: String(orderId), serviceId: String(serviceId) },
 		}),
 	);
 }
@@ -742,6 +838,42 @@ export async function saveOrderServicePhoto(
 		rpcWithAuth().api.admin.orders[":id"].services[":serviceId"].photos.$post({
 			param: { id: String(orderId), serviceId: String(serviceId) },
 			json: payload,
+		}),
+	);
+}
+
+export async function presignOrderIntakePhoto(
+	orderId: number,
+	payload: PresignOrderIntakePhotoPayload,
+) {
+	return parseSuccessData<{
+		upload_url: string;
+		key: string;
+		expires_in_seconds: number;
+	}>(
+		rpcWithAuth().api.admin.orders[":id"]["intake-photo"].presign.$post({
+			param: { id: String(orderId) },
+			json: payload,
+		}),
+	);
+}
+
+export async function saveOrderIntakePhoto(
+	orderId: number,
+	payload: SaveOrderIntakePhotoPayload,
+) {
+	return parseResponse(
+		rpcWithAuth().api.admin.orders[":id"]["intake-photo"].$put({
+			param: { id: String(orderId) },
+			json: payload,
+		}),
+	);
+}
+
+export async function completeOrderPickup(orderId: number) {
+	return parseResponse(
+		rpcWithAuth().api.admin.orders[":id"].complete.$post({
+			param: { id: String(orderId) },
 		}),
 	);
 }

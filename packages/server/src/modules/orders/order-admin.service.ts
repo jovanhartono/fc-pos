@@ -1,4 +1,5 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import dayjs from "dayjs";
+import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   orderRefundItemsTable,
@@ -11,27 +12,33 @@ import {
   ordersTable,
   servicesTable,
   storesTable,
+  usersTable,
 } from "@/db/schema";
 import { BadRequestException, ForbiddenException } from "@/errors";
 import type {
   GetMyOrderServicesQuery,
+  GetOrderServiceQueueQuery,
   PatchOrderPaymentInput,
   PatchOrderServiceHandlerInput,
   PatchOrderServiceStatusInput,
+  PostOrderIntakePhotoPresignInput,
   PostOrderRefundInput,
   PostOrderServicePhotoInput,
   PostOrderServicePhotoPresignInput,
+  PutOrderIntakePhotoInput,
 } from "@/modules/orders/order-admin.schema";
-import { ORDER_STATUS_TRANSITIONS } from "@/modules/orders/order-admin.schema";
+import {
+  normalizeOrderServiceQueueQuery,
+  ORDER_STATUS_TRANSITIONS,
+} from "@/modules/orders/order-admin.schema";
+import {
+  isTerminalOrderServiceStatus,
+  summarizeOrderFulfillment,
+} from "@/modules/orders/order-fulfillment";
 import type { JWTPayload } from "@/types";
 import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
+import { buildPaginationMeta } from "@/utils/pagination";
 import { buildS3ObjectUrl, createPresignedUploadUrl } from "@/utils/s3";
-
-const ORDER_TERMINAL_SERVICE_STATUSES = new Set([
-  "picked_up",
-  "refunded",
-  "cancelled",
-]);
 
 function roundCurrencyUnit(value: number) {
   return Math.round(value);
@@ -123,6 +130,22 @@ async function getOrderServiceOrThrow(orderId: number, serviceId: number) {
   return orderService;
 }
 
+async function ensurePickupPhotoExists(serviceId: number) {
+  const hasPickupPhoto = await db.query.orderServicesImagesTable.findFirst({
+    where: and(
+      eq(orderServicesImagesTable.order_service_id, serviceId),
+      eq(orderServicesImagesTable.photo_type, "pickup")
+    ),
+    columns: { id: true },
+  });
+
+  if (!hasPickupPhoto) {
+    throw new BadRequestException(
+      "At least one pickup photo is required before marking picked up"
+    );
+  }
+}
+
 async function recalculateOrderStatus(orderId: number, updatedBy: number) {
   const [services, products] = await Promise.all([
     db.query.ordersServicesTable.findMany({
@@ -138,10 +161,10 @@ async function recalculateOrderStatus(orderId: number, updatedBy: number) {
   if (services.length === 0) {
     nextStatus = products > 0 ? "completed" : "created";
   } else if (
-    services.every((item) => ORDER_TERMINAL_SERVICE_STATUSES.has(item.status))
+    services.every((item) => isTerminalOrderServiceStatus(item.status))
   ) {
     nextStatus = "completed";
-  } else if (services.some((item) => item.status !== "received")) {
+  } else if (services.some((item) => item.status !== "queued")) {
     nextStatus = "processing";
   }
 
@@ -276,6 +299,7 @@ export async function getMyOrderServices(
       color: ordersServicesTable.color,
       handler_id: ordersServicesTable.handler_id,
       id: ordersServicesTable.id,
+      is_priority: ordersServicesTable.is_priority,
       item_code: ordersServicesTable.item_code,
       order_code: ordersTable.code,
       order_created_at: ordersTable.created_at,
@@ -300,8 +324,113 @@ export async function getMyOrderServices(
     .orderBy(asc(ordersServicesTable.id));
 }
 
-export function getOrderDetailById(id: number) {
-  return db.query.ordersTable.findFirst({
+export async function getOrderServiceQueue(
+  user: JWTPayload,
+  query?: GetOrderServiceQueueQuery
+) {
+  const normalized = normalizeOrderServiceQueueQuery(query);
+  const conditions = [
+    sql`${ordersServicesTable.status} NOT IN ('picked_up', 'refunded', 'cancelled')`,
+  ];
+
+  if (user.role === "admin") {
+    if (normalized.store_id === undefined) {
+      throw new BadRequestException("Store is required for admin queue access");
+    }
+
+    conditions.push(eq(ordersTable.store_id, normalized.store_id));
+  } else if (normalized.store_id !== undefined) {
+    await assertStoreAccess(user, normalized.store_id);
+    conditions.push(eq(ordersTable.store_id, normalized.store_id));
+  } else {
+    const storeIds = await getUserStoreIds(user.id);
+    if (storeIds.length === 0) {
+      return {
+        items: [],
+        meta: buildPaginationMeta(0, normalized),
+      };
+    }
+
+    conditions.push(inArray(ordersTable.store_id, storeIds));
+  }
+
+  if (normalized.status !== undefined) {
+    conditions.push(eq(ordersServicesTable.status, normalized.status));
+  }
+
+  if (normalized.date_from) {
+    conditions.push(
+      gte(
+        ordersTable.created_at,
+        dayjs(normalized.date_from).startOf("day").toDate()
+      )
+    );
+  }
+
+  if (normalized.date_to) {
+    conditions.push(
+      lte(
+        ordersTable.created_at,
+        dayjs(normalized.date_to).endOf("day").toDate()
+      )
+    );
+  }
+
+  const whereClause = and(...conditions);
+
+  const [items, countRows] = await Promise.all([
+    db
+      .select({
+        color: ordersServicesTable.color,
+        handler_id: ordersServicesTable.handler_id,
+        handler_name: usersTable.name,
+        id: ordersServicesTable.id,
+        is_priority: ordersServicesTable.is_priority,
+        item_code: ordersServicesTable.item_code,
+        order_code: ordersTable.code,
+        order_created_at: ordersTable.created_at,
+        order_id: ordersTable.id,
+        service_name: servicesTable.name,
+        shoe_brand: ordersServicesTable.shoe_brand,
+        shoe_size: ordersServicesTable.shoe_size,
+        status: ordersServicesTable.status,
+        store_code: storesTable.code,
+        store_id: storesTable.id,
+        store_name: storesTable.name,
+      })
+      .from(ordersServicesTable)
+      .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+      .innerJoin(storesTable, eq(ordersTable.store_id, storesTable.id))
+      .innerJoin(
+        servicesTable,
+        eq(ordersServicesTable.service_id, servicesTable.id)
+      )
+      .leftJoin(usersTable, eq(ordersServicesTable.handler_id, usersTable.id))
+      .where(whereClause)
+      .orderBy(
+        desc(ordersServicesTable.is_priority),
+        asc(ordersTable.created_at),
+        asc(ordersServicesTable.id)
+      )
+      .limit(normalized.limit)
+      .offset(normalized.offset),
+    db
+      .select({
+        total: sql<number>`count(*)`,
+      })
+      .from(ordersServicesTable)
+      .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+      .where(whereClause),
+  ]);
+
+  return {
+    items,
+    meta: buildPaginationMeta(Number(countRows[0]?.total ?? 0), normalized),
+  };
+}
+
+export async function getOrderDetailById(id: number) {
+  const detail = await db.query.ordersTable.findFirst({
     where: eq(ordersTable.id, id),
     with: {
       campaign: true,
@@ -377,6 +506,17 @@ export function getOrderDetailById(id: number) {
       store: true,
     },
   });
+
+  if (!detail) {
+    return null;
+  }
+
+  return {
+    ...detail,
+    fulfillment: summarizeOrderFulfillment(
+      detail.services.map((service) => service.status)
+    ),
+  };
 }
 
 export async function updateOrderPayment({
@@ -457,6 +597,73 @@ export async function claimOrderService({
   return { order_service_id: serviceId, handler_id: user.id };
 }
 
+export async function startOrderServiceWork({
+  orderId,
+  serviceId,
+  user,
+}: {
+  orderId: number;
+  serviceId: number;
+  user: JWTPayload;
+}) {
+  const orderService = await getOrderServiceOrThrow(orderId, serviceId);
+
+  if (!["received", "queued"].includes(orderService.status)) {
+    throw new BadRequestException(
+      `Service ${serviceId} cannot be started from status ${orderService.status}`
+    );
+  }
+
+  if (
+    orderService.handler_id !== null &&
+    orderService.handler_id !== undefined &&
+    orderService.handler_id !== user.id
+  ) {
+    throw new ForbiddenException(
+      "This item is already assigned to another worker"
+    );
+  }
+
+  await db.transaction(async (tx) => {
+    if (orderService.handler_id !== user.id) {
+      await tx
+        .update(ordersServicesTable)
+        .set({ handler_id: user.id, status: "processing" })
+        .where(eq(ordersServicesTable.id, serviceId));
+
+      await tx.insert(orderServiceHandlerLogsTable).values({
+        order_service_id: serviceId,
+        from_handler_id: orderService.handler_id,
+        to_handler_id: user.id,
+        changed_by: user.id,
+        note: "Started from queue",
+      });
+    } else {
+      await tx
+        .update(ordersServicesTable)
+        .set({ status: "processing" })
+        .where(eq(ordersServicesTable.id, serviceId));
+    }
+
+    await tx.insert(orderServiceStatusLogsTable).values({
+      order_service_id: serviceId,
+      from_status: orderService.status,
+      to_status: "processing",
+      changed_by: user.id,
+      note: "Started from queue",
+    });
+  });
+
+  await recalculateOrderStatus(orderId, user.id);
+
+  return {
+    from_status: orderService.status,
+    handler_id: user.id,
+    order_service_id: serviceId,
+    to_status: "processing" as const,
+  };
+}
+
 export async function updateOrderServiceHandler({
   orderId,
   serviceId,
@@ -504,6 +711,15 @@ export async function updateOrderServiceStatus({
   body: PatchOrderServiceStatusInput;
   user: JWTPayload;
 }) {
+  if (
+    user.role === "worker" &&
+    (body.status === "cancelled" || body.status === "refunded")
+  ) {
+    throw new ForbiddenException(
+      "Workers cannot cancel or refund items from the Queue"
+    );
+  }
+
   const orderService = await getOrderServiceOrThrow(orderId, serviceId);
 
   const allowedStatuses = ORDER_STATUS_TRANSITIONS[orderService.status];
@@ -513,36 +729,8 @@ export async function updateOrderServiceStatus({
     );
   }
 
-  if (orderService.status === "received" && body.status !== "received") {
-    const hasDropoffPhoto = await db.query.orderServicesImagesTable.findFirst({
-      where: and(
-        eq(orderServicesImagesTable.order_service_id, serviceId),
-        eq(orderServicesImagesTable.photo_type, "dropoff")
-      ),
-      columns: { id: true },
-    });
-
-    if (!hasDropoffPhoto) {
-      throw new BadRequestException(
-        "At least one dropoff photo is required before processing"
-      );
-    }
-  }
-
   if (body.status === "picked_up") {
-    const hasPickupPhoto = await db.query.orderServicesImagesTable.findFirst({
-      where: and(
-        eq(orderServicesImagesTable.order_service_id, serviceId),
-        eq(orderServicesImagesTable.photo_type, "pickup")
-      ),
-      columns: { id: true },
-    });
-
-    if (!hasPickupPhoto) {
-      throw new BadRequestException(
-        "At least one pickup photo is required before marking picked up"
-      );
-    }
+    await ensurePickupPhotoExists(serviceId);
   }
 
   await db.transaction(async (tx) => {
@@ -587,6 +775,29 @@ export async function createOrderServicePhotoPresign({
   });
 }
 
+export async function createOrderIntakePhotoPresign({
+  orderId,
+  body,
+}: {
+  orderId: number;
+  body: PostOrderIntakePhotoPresignInput;
+}) {
+  const order = await db.query.ordersTable.findFirst({
+    where: eq(ordersTable.id, orderId),
+    columns: { id: true },
+  });
+
+  if (!order) {
+    throw new BadRequestException("Order not found");
+  }
+
+  const key = `orders/${orderId}/intake/${crypto.randomUUID()}`;
+  return createPresignedUploadUrl({
+    contentType: body.content_type,
+    key,
+  });
+}
+
 export async function saveOrderServicePhoto({
   orderId,
   serviceId,
@@ -612,6 +823,126 @@ export async function saveOrderServicePhoto({
     .returning();
 
   return photo;
+}
+
+export async function saveOrderIntakePhoto({
+  orderId,
+  body,
+  user,
+}: {
+  orderId: number;
+  body: PutOrderIntakePhotoInput;
+  user: JWTPayload;
+}) {
+  const [order] = await db
+    .update(ordersTable)
+    .set({
+      intake_photo_s3_key: body.s3_key,
+      intake_photo_uploaded_at: new Date(),
+      intake_photo_url: buildS3ObjectUrl(body.s3_key),
+      updated_by: user.id,
+    })
+    .where(eq(ordersTable.id, orderId))
+    .returning({
+      id: ordersTable.id,
+      intake_photo_uploaded_at: ordersTable.intake_photo_uploaded_at,
+      intake_photo_url: ordersTable.intake_photo_url,
+    });
+
+  if (!order) {
+    throw new BadRequestException("Order not found");
+  }
+
+  return order;
+}
+
+export async function completeOrderPickup({
+  orderId,
+  user,
+}: {
+  orderId: number;
+  user: JWTPayload;
+}) {
+  assertCanProcessPaymentOrRefund(user);
+
+  const order = await db.query.ordersTable.findFirst({
+    where: eq(ordersTable.id, orderId),
+    columns: {
+      id: true,
+    },
+    with: {
+      services: {
+        columns: {
+          id: true,
+          item_code: true,
+          status: true,
+        },
+        with: {
+          images: {
+            columns: {
+              id: true,
+              photo_type: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!order) {
+    throw new BadRequestException("Order not found");
+  }
+
+  const activeServices = order.services.filter(
+    (service) => !isTerminalOrderServiceStatus(service.status)
+  );
+
+  if (activeServices.length === 0) {
+    throw new BadRequestException("This order has no remaining pickup items");
+  }
+
+  if (activeServices.some((service) => service.status !== "ready_for_pickup")) {
+    throw new BadRequestException(
+      "All remaining order lines must already be ready for pickup"
+    );
+  }
+
+  const missingPickupPhotoServices = activeServices.filter(
+    (service) => !service.images.some((image) => image.photo_type === "pickup")
+  );
+
+  if (missingPickupPhotoServices.length > 0) {
+    throw new BadRequestException(
+      `Pickup photo is still required for ${missingPickupPhotoServices
+        .map((service) => service.item_code ?? String(service.id))
+        .join(", ")}`
+    );
+  }
+
+  await db.transaction(async (tx) => {
+    for (const service of activeServices) {
+      await tx
+        .update(ordersServicesTable)
+        .set({ status: "picked_up" })
+        .where(eq(ordersServicesTable.id, service.id));
+
+      await tx.insert(orderServiceStatusLogsTable).values({
+        order_service_id: service.id,
+        from_status: service.status,
+        to_status: "picked_up",
+        changed_by: user.id,
+        note: "Completed from order pickup desk",
+      });
+    }
+  });
+
+  await recalculateOrderStatus(orderId, user.id);
+
+  return {
+    completed_line_count: activeServices.length,
+    order_id: orderId,
+    status: "completed" as const,
+  };
 }
 
 export async function createOrderRefund({

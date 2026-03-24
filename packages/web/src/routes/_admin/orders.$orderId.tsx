@@ -7,6 +7,7 @@ import {
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,8 +21,12 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { OrderFulfillmentOverview } from "@/features/orders/components/order-fulfillment-overview";
+import { OrderIntakePhotoCard } from "@/features/orders/components/order-intake-photo-card";
+import { QueueServiceDetail } from "@/features/orders/components/queue-service-detail";
 import {
 	claimOrderService,
+	completeOrderPickup,
 	createOrderRefund,
 	presignOrderServicePhoto,
 	queryKeys,
@@ -37,9 +42,11 @@ import {
 	paymentMethodsQueryOptions,
 } from "@/lib/query-options";
 import {
+	formatOrderPickupState,
 	formatOrderServiceStatus,
 	formatOrderStatus,
 	formatPaymentStatus,
+	getOrderPickupStateBadgeVariant,
 	getOrderServiceStatusBadgeVariant,
 	getOrderStatusBadgeVariant,
 	getPaymentStatusBadgeVariant,
@@ -48,7 +55,13 @@ import { formatIDRCurrency } from "@/shared/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useDialog } from "@/stores/dialog-store";
 
+const orderDetailSearchSchema = z.object({
+	queueStoreId: z.coerce.number().int().positive().optional(),
+	workerServiceId: z.coerce.number().int().positive().optional(),
+});
+
 export const Route = createFileRoute("/_admin/orders/$orderId")({
+	validateSearch: (search) => orderDetailSearchSchema.parse(search),
 	loader: async ({ context, params }) => {
 		const id = Number(params.orderId);
 
@@ -199,6 +212,24 @@ function DialogForm({
 }
 
 function OrderDetailPage() {
+	const search = Route.useSearch();
+	const { orderId } = Route.useParams();
+	const parsedOrderId = Number(orderId);
+
+	if (search.workerServiceId) {
+		return (
+			<QueueServiceDetail
+				orderId={parsedOrderId}
+				serviceId={search.workerServiceId}
+				queueStoreId={search.queueStoreId}
+			/>
+		);
+	}
+
+	return <AdminOrderDetailPage />;
+}
+
+function AdminOrderDetailPage() {
 	const user = getCurrentUser();
 	const isPaymentAllowed = user?.role === "admin" || user?.role === "cashier";
 	const isRefundAllowed = isPaymentAllowed;
@@ -271,6 +302,17 @@ function OrderDetailPage() {
 		},
 		onError: (error: Error) => {
 			toast.error(error.message || "Failed to update payment");
+		},
+	});
+
+	const completePickupMutation = useMutation({
+		mutationFn: () => completeOrderPickup(id),
+		onSuccess: async () => {
+			toast.success("Order marked as completed");
+			await refreshOrderData();
+		},
+		onError: (error: Error) => {
+			toast.error(error.message || "Failed to complete pickup");
 		},
 	});
 
@@ -390,6 +432,11 @@ function OrderDetailPage() {
 							{formatOrderStatus(detail.status)}
 						</Badge>
 						<Badge
+							variant={getOrderPickupStateBadgeVariant(detail.fulfillment)}
+						>
+							{formatOrderPickupState(detail.fulfillment)}
+						</Badge>
+						<Badge
 							variant={getPaymentStatusBadgeVariant(detail.payment_status)}
 						>
 							{formatPaymentStatus(detail.payment_status)}
@@ -397,6 +444,17 @@ function OrderDetailPage() {
 					</>
 				}
 			/>
+
+			<div className="mb-6 grid gap-4">
+				<OrderFulfillmentOverview
+					order={detail}
+					canCompletePickup={detail.fulfillment.is_ready_for_pickup}
+					isCompleting={completePickupMutation.isPending}
+					onCompletePickup={async () => {
+						await completePickupMutation.mutateAsync();
+					}}
+				/>
+			</div>
 
 			<div className="mb-6 grid gap-4 md:grid-cols-3">
 				<Card>
@@ -472,6 +530,12 @@ function OrderDetailPage() {
 
 			<div className="grid items-start gap-4 lg:grid-cols-12">
 				<div className="grid gap-4 lg:col-span-4">
+					<OrderIntakePhotoCard
+						order={detail}
+						canManage={user?.role === "admin" || user?.role === "cashier"}
+						onUploaded={refreshOrderData}
+					/>
+
 					{isPaymentAllowed && detail.payment_status !== "paid" ? (
 						<Card>
 							<CardHeader>
@@ -660,11 +724,18 @@ function OrderDetailPage() {
 									<CardTitle className="text-base">
 										{service.item_code ?? `Service #${service.id}`}
 									</CardTitle>
-									<Badge
-										variant={getOrderServiceStatusBadgeVariant(service.status)}
-									>
-										{formatOrderServiceStatus(service.status)}
-									</Badge>
+									<div className="flex flex-wrap items-center justify-end gap-2">
+										{service.is_priority ? (
+											<Badge variant="warning">Priority</Badge>
+										) : null}
+										<Badge
+											variant={getOrderServiceStatusBadgeVariant(
+												service.status,
+											)}
+										>
+											{formatOrderServiceStatus(service.status)}
+										</Badge>
+									</div>
 								</CardHeader>
 								<CardContent className="grid gap-3 text-sm">
 									<p>{`Service: ${service.service?.name ?? "Service"}`}</p>
@@ -772,6 +843,8 @@ function OrderDetailPage() {
 														<img
 															src={image.image_url}
 															alt={`${image.photo_type} for ${service.item_code ?? `service-${service.id}`}`}
+															width={960}
+															height={768}
 															className="aspect-4/3 w-full object-cover"
 															loading="lazy"
 														/>

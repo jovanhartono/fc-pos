@@ -36,6 +36,7 @@ const defaultForm: ServiceFormState = {
 	name: "",
 	description: "",
 	is_active: true,
+	is_priority: false,
 };
 
 interface ServiceFormProps {
@@ -175,6 +176,30 @@ export function ServiceForm({
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>
+					)}
+				/>
+
+				<Controller
+					control={form.control}
+					name="is_priority"
+					render={({ field }) => (
+						<FieldLabel htmlFor="service-priority" className="md:col-span-2">
+							<Field orientation="horizontal">
+								<FieldContent>
+									<FieldTitle>Priority by default</FieldTitle>
+									<FieldDescription>
+										New shoe-service items created from this service will enter
+										the Queue as priority by default.
+									</FieldDescription>
+								</FieldContent>
+								<Switch
+									checked={field.value}
+									disabled={isSubmitting}
+									id="service-priority"
+									onCheckedChange={(checked) => field.onChange(!!checked)}
+								/>
+							</Field>
+						</FieldLabel>
 					)}
 				/>
 

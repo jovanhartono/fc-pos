@@ -88,3 +88,56 @@ export function formatOrderServiceStatus(
 ) {
 	return orderServiceStatusLabels[status];
 }
+
+type OrderFulfillmentLike = {
+	active_count: number;
+	is_partially_picked_up: boolean;
+	is_ready_for_pickup: boolean;
+	picked_up_count: number;
+	ready_for_pickup_count: number;
+	service_total_count: number;
+};
+
+export function formatOrderPickupState(
+	fulfillment: OrderFulfillmentLike,
+): string {
+	if (fulfillment.service_total_count === 0) {
+		return "No Service Lines";
+	}
+
+	if (fulfillment.is_ready_for_pickup) {
+		return "Ready for Pickup";
+	}
+
+	if (fulfillment.is_partially_picked_up) {
+		return "Partially Picked Up";
+	}
+
+	if (fulfillment.picked_up_count === fulfillment.service_total_count) {
+		return "Fully Picked Up";
+	}
+
+	if (fulfillment.active_count === 0) {
+		return "Closed";
+	}
+
+	return "In Service";
+}
+
+export function getOrderPickupStateBadgeVariant(
+	fulfillment: OrderFulfillmentLike,
+): BadgeVariant {
+	if (fulfillment.is_ready_for_pickup) {
+		return "success";
+	}
+
+	if (fulfillment.is_partially_picked_up) {
+		return "warning";
+	}
+
+	if (fulfillment.active_count === 0) {
+		return "secondary";
+	}
+
+	return "info";
+}

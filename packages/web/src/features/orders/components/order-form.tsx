@@ -1,18 +1,23 @@
 import { POSTOrderSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus } from "@phosphor-icons/react";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import {
 	Field,
+	FieldContent,
+	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
+	FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { CampaignAutocomplete } from "@/features/orders/components/campaign-autocomplete";
 import { CustomerAutocomplete } from "@/features/orders/components/customer-autocomplete";
@@ -21,6 +26,7 @@ import { ProductAutocomplete } from "@/features/orders/components/product-autoco
 import { ServiceAutocomplete } from "@/features/orders/components/service-autocomplete";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import type { CreateOrderPayload } from "@/lib/api";
+import { servicesQueryOptions } from "@/lib/query-options";
 
 export type OrderFormState = {
 	customer_id: string;
@@ -36,6 +42,7 @@ export type OrderFormState = {
 	}>;
 	services: Array<{
 		id: string;
+		is_priority: boolean;
 		color: string;
 		shoe_brand: string;
 		shoe_size: string;
@@ -51,7 +58,9 @@ const defaultForm: OrderFormState = {
 	discount: "",
 	notes: "",
 	products: [{ id: "", qty: "1" }],
-	services: [{ id: "", color: "", shoe_brand: "", shoe_size: "" }],
+	services: [
+		{ id: "", is_priority: false, color: "", shoe_brand: "", shoe_size: "" },
+	],
 };
 
 function toOrderPayload(values: OrderFormState): CreateOrderPayload {
@@ -70,6 +79,7 @@ function toOrderPayload(values: OrderFormState): CreateOrderPayload {
 			.filter((service) => !!service.id)
 			.map((service) => ({
 				id: Number(service.id),
+				is_priority: service.is_priority,
 				color: service.color.trim() || undefined,
 				shoe_brand: service.shoe_brand.trim() || undefined,
 				shoe_size: service.shoe_size.trim() || undefined,
@@ -108,6 +118,7 @@ const orderFormResolverSchema = z
 		services: z.array(
 			z.object({
 				id: z.string(),
+				is_priority: z.boolean(),
 				color: z.string(),
 				shoe_brand: z.string(),
 				shoe_size: z.string(),
@@ -150,6 +161,7 @@ export function OrderForm({
 	handleOnSubmit,
 	allowedStoreIds,
 }: OrderFormProps) {
+	const servicesQuery = useQuery(servicesQueryOptions());
 	const form = useForm({
 		resolver: zodResolver(orderFormResolverSchema),
 		defaultValues: defaultValues ?? defaultForm,
@@ -161,6 +173,15 @@ export function OrderForm({
 		name: "products",
 	});
 	const serviceFields = useFieldArray({
+		control: form.control,
+		name: "services",
+	});
+	const services = servicesQuery.data ?? [];
+	const selectedStoreId = useWatch({
+		control: form.control,
+		name: "store_id",
+	});
+	const watchedServices = useWatch({
 		control: form.control,
 		name: "services",
 	});
@@ -207,7 +228,7 @@ export function OrderForm({
 					render={({ field, fieldState }) => (
 						<CampaignAutocomplete
 							value={field.value}
-							storeId={form.watch("store_id")}
+							storeId={selectedStoreId}
 							onValueChange={field.onChange}
 							disabled={isSubmitting}
 							error={fieldState.error}
@@ -349,6 +370,7 @@ export function OrderForm({
 							onClick={() =>
 								serviceFields.append({
 									id: "",
+									is_priority: false,
 									color: "",
 									shoe_brand: "",
 									shoe_size: "",
@@ -359,8 +381,9 @@ export function OrderForm({
 						</Button>
 					</div>
 					<p className="text-xs text-muted-foreground">
-						Dropoff photo is required before processing starts. You can upload
-						it after order creation from order detail or worker screen.
+						The cashier can upload one intake photo for the whole order after
+						creation. Each service line can still collect progress and pickup
+						photos later from order detail or the worker screen.
 					</p>
 					<FieldError
 						errors={[form.formState.errors.services as { message?: string }]}
@@ -375,10 +398,45 @@ export function OrderForm({
 										id={`order-service-${index}`}
 										label={`Service ${index + 1} (optional)`}
 										value={field.value}
-										onValueChange={field.onChange}
+										onValueChange={(value) => {
+											field.onChange(value);
+											const selectedService = services.find(
+												(service) => String(service.id) === value,
+											);
+											form.setValue(
+												`services.${index}.is_priority`,
+												selectedService?.is_priority ?? false,
+											);
+										}}
 										disabled={isSubmitting}
 										error={fieldState.error}
 									/>
+								)}
+							/>
+
+							<Controller
+								name={`services.${index}.is_priority`}
+								control={form.control}
+								render={({ field }) => (
+									<FieldLabel
+										htmlFor={`order-service-priority-${index}`}
+										className="md:col-span-2"
+									>
+										<Field orientation="horizontal">
+											<FieldContent>
+												<FieldTitle>Priority in Queue</FieldTitle>
+												<FieldDescription>
+													Priority items stay at the top of the worker Queue.
+												</FieldDescription>
+											</FieldContent>
+											<Switch
+												id={`order-service-priority-${index}`}
+												checked={field.value}
+												onCheckedChange={(checked) => field.onChange(!!checked)}
+												disabled={isSubmitting || !watchedServices?.[index]?.id}
+											/>
+										</Field>
+									</FieldLabel>
 								)}
 							/>
 

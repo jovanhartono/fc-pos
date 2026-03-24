@@ -17,6 +17,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { DateRangeFilter } from "@/features/orders/components/date-range-filter";
+import { PickupRadar } from "@/features/orders/components/pickup-radar";
 import type { Order } from "@/lib/api";
 import {
 	currentUserDetailQueryOptions,
@@ -24,8 +26,10 @@ import {
 	storesQueryOptions,
 } from "@/lib/query-options";
 import {
+	formatOrderPickupState,
 	formatOrderStatus,
 	formatPaymentStatus,
+	getOrderPickupStateBadgeVariant,
 	getOrderStatusBadgeVariant,
 	getPaymentStatusBadgeVariant,
 } from "@/lib/status";
@@ -34,6 +38,14 @@ import { getCurrentUser } from "@/stores/auth-store";
 const ordersSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
 	storeId: z.coerce.number().int().positive().optional(),
+	dateFrom: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/)
+		.optional(),
+	dateTo: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/)
+		.optional(),
 });
 
 const PAGE_SIZE = 25;
@@ -59,10 +71,14 @@ export const Route = createFileRoute("/_admin/orders/")({
 								limit: PAGE_SIZE,
 								offset: (deps.page - 1) * PAGE_SIZE,
 								store_id: deps.storeId,
+								...(deps.dateFrom ? { date_from: deps.dateFrom } : {}),
+								...(deps.dateTo ? { date_to: deps.dateTo } : {}),
 							}
 						: {
 								limit: PAGE_SIZE,
 								offset: (deps.page - 1) * PAGE_SIZE,
+								...(deps.dateFrom ? { date_from: deps.dateFrom } : {}),
+								...(deps.dateTo ? { date_to: deps.dateTo } : {}),
 							},
 				),
 			);
@@ -114,13 +130,22 @@ function OrdersPage() {
 						limit: PAGE_SIZE,
 						offset: (search.page - 1) * PAGE_SIZE,
 						store_id: parsedStoreId,
+						...(search.dateFrom ? { date_from: search.dateFrom } : {}),
+						...(search.dateTo ? { date_to: search.dateTo } : {}),
 					}
-				: { limit: PAGE_SIZE, offset: (search.page - 1) * PAGE_SIZE }
+				: {
+						limit: PAGE_SIZE,
+						offset: (search.page - 1) * PAGE_SIZE,
+						...(search.dateFrom ? { date_from: search.dateFrom } : {}),
+						...(search.dateTo ? { date_to: search.dateTo } : {}),
+					}
 			: parsedStoreId
 				? {
 						limit: PAGE_SIZE,
 						offset: (search.page - 1) * PAGE_SIZE,
 						store_id: parsedStoreId,
+						...(search.dateFrom ? { date_from: search.dateFrom } : {}),
+						...(search.dateTo ? { date_to: search.dateTo } : {}),
 					}
 				: undefined;
 
@@ -163,6 +188,17 @@ function OrdersPage() {
 				),
 			},
 			{
+				id: "pickup_state",
+				header: "Pickup",
+				cell: ({ row }) => (
+					<Badge
+						variant={getOrderPickupStateBadgeVariant(row.original.fulfillment)}
+					>
+						{formatOrderPickupState(row.original.fulfillment)}
+					</Badge>
+				),
+			},
+			{
 				accessorKey: "payment_status",
 				header: "Payment",
 				cell: ({ row }) => (
@@ -189,6 +225,18 @@ function OrdersPage() {
 			: (storesQuery.data ?? []).filter((store) =>
 					userStoreIds.includes(store.id),
 				);
+	const storeFilterItems = useMemo(
+		() => [
+			...(currentUser?.role === "admin"
+				? [{ value: "all", label: "All stores" }]
+				: []),
+			...visibleStores.map((store) => ({
+				value: String(store.id),
+				label: `${store.code} - ${store.name}`,
+			})),
+		],
+		[currentUser?.role, visibleStores],
+	);
 
 	return (
 		<>
@@ -214,6 +262,7 @@ function OrdersPage() {
 					<CardContent className="pt-6">
 						<div className="mb-4 flex flex-wrap items-center gap-2">
 							<Select
+								items={storeFilterItems}
 								value={
 									currentUser?.role === "admin"
 										? (search.storeId?.toString() ?? "all")
@@ -245,6 +294,33 @@ function OrdersPage() {
 								</SelectContent>
 							</Select>
 						</div>
+						<div className="mb-4">
+							<DateRangeFilter
+								dateFrom={search.dateFrom}
+								dateTo={search.dateTo}
+								onRangeChange={({ dateFrom, dateTo }) => {
+									void navigate({
+										search: (prev) => ({
+											...prev,
+											page: 1,
+											dateFrom,
+											dateTo,
+										}),
+									});
+								}}
+								onClear={() => {
+									void navigate({
+										search: (prev) => ({
+											...prev,
+											page: 1,
+											dateFrom: undefined,
+											dateTo: undefined,
+										}),
+									});
+								}}
+							/>
+						</div>
+						<PickupRadar orders={orders} />
 						<div className="grid gap-4">
 							<DataTable
 								columns={columns}

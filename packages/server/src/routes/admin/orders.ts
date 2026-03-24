@@ -8,22 +8,30 @@ import { GETOrdersQuerySchema } from "@/modules/orders/order.schema";
 import {
   GETMyOrderServicesQuerySchema,
   GETOrderByItemCodeQuerySchema,
+  GETOrderServiceQueueQuerySchema,
   orderServiceParamSchema,
   PATCHOrderPaymentSchema,
   PATCHOrderServiceHandlerSchema,
   PATCHOrderServiceStatusSchema,
+  POSTOrderIntakePhotoPresignSchema,
   POSTOrderRefundSchema,
   POSTOrderServicePhotoPresignSchema,
   POSTOrderServicePhotoSchema,
+  PUTOrderIntakePhotoSchema,
 } from "@/modules/orders/order-admin.schema";
 import {
   claimOrderService,
+  completeOrderPickup,
+  createOrderIntakePhotoPresign,
   createOrderRefund,
   createOrderServicePhotoPresign,
   getMyOrderServices,
   getOrderDetailById,
   getOrderServiceByItemCode,
+  getOrderServiceQueue,
+  saveOrderIntakePhoto,
   saveOrderServicePhoto,
+  startOrderServiceWork,
   updateOrderPayment,
   updateOrderServiceHandler,
   updateOrderServiceStatus,
@@ -44,6 +52,18 @@ const app = new Hono()
 
     return c.json(success(items, undefined, meta));
   })
+  .get(
+    "/services/queue",
+    zodValidator("query", GETOrderServiceQueueQuerySchema),
+    async (c) => {
+      const user = c.get("jwtPayload") as JWTPayload;
+      const query = c.req.valid("query");
+
+      const { items, meta } = await getOrderServiceQueue(user, query);
+
+      return c.json(success(items, "Queue retrieved successfully", meta));
+    }
+  )
   .get(
     "/services/by-item-code",
     zodValidator("query", GETOrderByItemCodeQuerySchema),
@@ -130,6 +150,37 @@ const app = new Hono()
       return c.json(success(payment, "Payment updated successfully"));
     }
   )
+  .post("/:id/complete", idParamSchema, async (c) => {
+    const user = c.get("jwtPayload") as JWTPayload;
+    const { id } = c.req.valid("param");
+
+    await assertOrderAccess(user, id);
+
+    const result = await completeOrderPickup({
+      orderId: id,
+      user,
+    });
+
+    return c.json(success(result, "Order pickup completed"));
+  })
+  .post(
+    "/:id/services/:serviceId/start",
+    orderServiceParamSchema,
+    async (c) => {
+      const user = c.get("jwtPayload") as JWTPayload;
+      const { id, serviceId } = c.req.valid("param");
+
+      await assertOrderAccess(user, id);
+
+      const result = await startOrderServiceWork({
+        orderId: id,
+        serviceId,
+        user,
+      });
+
+      return c.json(success(result, "Order service started"));
+    }
+  )
   .post(
     "/:id/services/:serviceId/claim",
     orderServiceParamSchema,
@@ -208,6 +259,47 @@ const app = new Hono()
       });
 
       return c.json(success(signed, "Upload URL generated successfully"));
+    }
+  )
+  .post(
+    "/:id/intake-photo/presign",
+    idParamSchema,
+    zodValidator("json", POSTOrderIntakePhotoPresignSchema),
+    async (c) => {
+      const user = c.get("jwtPayload") as JWTPayload;
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
+
+      await assertOrderAccess(user, id);
+
+      const signed = await createOrderIntakePhotoPresign({
+        orderId: id,
+        body,
+      });
+
+      return c.json(
+        success(signed, "Intake upload URL generated successfully")
+      );
+    }
+  )
+  .put(
+    "/:id/intake-photo",
+    idParamSchema,
+    zodValidator("json", PUTOrderIntakePhotoSchema),
+    async (c) => {
+      const user = c.get("jwtPayload") as JWTPayload;
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
+
+      await assertOrderAccess(user, id);
+
+      const photo = await saveOrderIntakePhoto({
+        orderId: id,
+        body,
+        user,
+      });
+
+      return c.json(success(photo, "Order intake photo saved"));
     }
   )
   .post(

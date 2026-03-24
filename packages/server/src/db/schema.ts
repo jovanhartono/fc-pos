@@ -181,6 +181,7 @@ export const servicesTable = pgTable(
     description: text("description"),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     is_active: boolean("is_active").default(false).notNull(),
+    is_priority: boolean("is_priority").default(false).notNull(),
     name: varchar("name", { length: 255 }).notNull(),
     created_at: timestamp("created_at").defaultNow().notNull(),
     updated_at: timestamp("updated_at")
@@ -191,6 +192,7 @@ export const servicesTable = pgTable(
   (table) => [
     index("service_name_idx").on(table.name),
     index("service_code_idx").on(table.code),
+    index("service_priority_idx").on(table.is_priority),
     check(
       "code_len_check",
       sql`LENGTH(TRIM(${table.code})) >= 1 AND LENGTH(TRIM(${table.code})) <= 4`
@@ -417,6 +419,9 @@ export const ordersTable = pgTable(
     customer_id: integer("customer_id")
       .references(() => customersTable.id)
       .notNull(),
+    intake_photo_s3_key: varchar("intake_photo_s3_key", { length: 512 }),
+    intake_photo_uploaded_at: timestamp("intake_photo_uploaded_at"),
+    intake_photo_url: varchar("intake_photo_url", { length: 255 }),
     discount_source: discountSourceEnum("discount_source")
       .default("none")
       .notNull(),
@@ -535,6 +540,7 @@ export const ordersServicesTable = pgTable(
 
     handler_id: integer("handler_id").references(() => usersTable.id),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    is_priority: boolean("is_priority").default(false).notNull(),
     item_code: varchar("item_code", { length: 64 }),
     notes: text("notes"),
     order_id: integer("order_id").references(() => ordersTable.id, {
@@ -551,7 +557,7 @@ export const ordersServicesTable = pgTable(
       onDelete: "cascade",
     }),
 
-    status: orderServiceStatusEnum("status").default("received").notNull(),
+    status: orderServiceStatusEnum("status").default("queued").notNull(),
 
     subtotal: decimal("subtotal", {
       precision: 12,
@@ -571,6 +577,7 @@ export const ordersServicesTable = pgTable(
       table.handler_id,
       table.status
     ),
+    index("order_services_priority_idx").on(table.is_priority),
     index("order_services_item_code_idx").on(table.item_code),
     uniqueIndex("order_services_item_code_uidx").on(table.item_code),
     check("price_non_negative_check", sql`${table.price} >= 0`),

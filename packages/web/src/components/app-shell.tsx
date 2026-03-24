@@ -54,7 +54,7 @@ const mainNavigation: NavItem[] = [
 	{ to: "/", label: "Dashboard", icon: House, roles: ["admin", "cashier"] },
 	{
 		to: "/worker",
-		label: "Worker Ops",
+		label: "Queue",
 		icon: Scissors,
 		roles: ["admin", "cashier", "worker"],
 	},

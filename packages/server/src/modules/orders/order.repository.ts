@@ -21,6 +21,7 @@ import {
   ordersTable,
 } from "@/db/schema";
 import type { NormalizedOrderListQuery } from "@/modules/orders/order.schema";
+import { summarizeOrderFulfillment } from "@/modules/orders/order-fulfillment";
 
 export type OrderTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -44,6 +45,7 @@ export interface OrderListItem {
   payment_method_name: string | null;
   created_by: number;
   updated_by: number;
+  fulfillment: ReturnType<typeof summarizeOrderFulfillment>;
 }
 
 interface FindOrdersResult {
@@ -214,6 +216,33 @@ export async function findOrders(
     db.$count(ordersTable, whereClause),
   ]);
 
+  const orderIds = rows.map((row) => row.id);
+  const serviceRows =
+    orderIds.length === 0
+      ? []
+      : await db.query.ordersServicesTable.findMany({
+          where: inArray(ordersServicesTable.order_id, orderIds),
+          columns: {
+            order_id: true,
+            status: true,
+          },
+        });
+
+  const groupedStatuses = new Map<
+    number,
+    (typeof serviceRows)[number]["status"][]
+  >();
+
+  for (const row of serviceRows) {
+    if (row.order_id === null) {
+      continue;
+    }
+
+    const current = groupedStatuses.get(row.order_id) ?? [];
+    current.push(row.status);
+    groupedStatuses.set(row.order_id, current);
+  }
+
   const items: OrderListItem[] = rows.map((row) => ({
     id: row.id,
     code: row.code,
@@ -234,6 +263,7 @@ export async function findOrders(
     payment_method_name: row.paymentMethod?.name ?? null,
     created_by: row.created_by,
     updated_by: row.updated_by,
+    fulfillment: summarizeOrderFulfillment(groupedStatuses.get(row.id) ?? []),
   }));
 
   return {

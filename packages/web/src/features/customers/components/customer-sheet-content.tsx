@@ -34,7 +34,7 @@ const customerFormResolverSchema = POSTCustomerSchema.omit({
 
 export type CustomerSheetContentProps = {
 	editingCustomer?: Customer;
-	onSuccess?: (customer: Customer) => void;
+	onSuccess?: (customer: { id: number }) => void;
 };
 
 export function CustomerSheetContent({
@@ -64,7 +64,7 @@ export function CustomerSheetContent({
 			await queryClient.invalidateQueries({ queryKey: ["customers"] });
 			await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
 			if (onSuccess) {
-				onSuccess(data);
+				onSuccess(data.data);
 			}
 			closeSheet();
 		},
@@ -82,7 +82,7 @@ export function CustomerSheetContent({
 		onSuccess: async (data) => {
 			await queryClient.invalidateQueries({ queryKey: ["customers"] });
 			if (onSuccess) {
-				onSuccess(data);
+				onSuccess(data.data);
 			}
 			closeSheet();
 		},

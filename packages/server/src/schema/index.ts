@@ -131,6 +131,7 @@ export const POSTServiceSchema = z.object({
   name: varcharSchema("Name"),
   description: textSchema("Description").nullish(),
   is_active: isActiveSchema,
+  is_priority: z.boolean().default(false),
 });
 
 export const POSTPaymentMethodSchema = z.object({
@@ -191,6 +192,7 @@ export const POSTOrderSchema = z
         z.object(
           {
             id: z.number("Service is required"),
+            is_priority: z.boolean().optional(),
             notes: z.string().optional(),
             shoe_brand: optionalVarcharSchema("Item Brand"),
             shoe_size: optionalVarcharSchema("Item Size", 64),

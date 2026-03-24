@@ -13,7 +13,6 @@ import { Route as TrackRouteImport } from "./routes/track";
 import { Route as AdminRouteRouteImport } from "./routes/_admin/route";
 import { Route as AdminIndexRouteImport } from "./routes/_admin/index";
 import { Route as AuthLoginRouteImport } from "./routes/auth/login";
-import { Route as AdminWorkerRouteImport } from "./routes/_admin/worker";
 import { Route as AdminUsersRouteImport } from "./routes/_admin/users";
 import { Route as AdminTransactionsRouteImport } from "./routes/_admin/transactions";
 import { Route as AdminStoresRouteImport } from "./routes/_admin/stores";
@@ -23,6 +22,7 @@ import { Route as AdminPaymentMethodsRouteImport } from "./routes/_admin/payment
 import { Route as AdminCustomersRouteImport } from "./routes/_admin/customers";
 import { Route as AdminCategoriesRouteImport } from "./routes/_admin/categories";
 import { Route as AdminCampaignsRouteImport } from "./routes/_admin/campaigns";
+import { Route as AdminWorkerIndexRouteImport } from "./routes/_admin/worker.index";
 import { Route as AdminOrdersIndexRouteImport } from "./routes/_admin/orders.index";
 import { Route as AdminOrdersNewRouteImport } from "./routes/_admin/orders.new";
 import { Route as AdminOrdersOrderIdRouteImport } from "./routes/_admin/orders.$orderId";
@@ -45,11 +45,6 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
   id: "/auth/login",
   path: "/auth/login",
   getParentRoute: () => rootRouteImport,
-} as any);
-const AdminWorkerRoute = AdminWorkerRouteImport.update({
-  id: "/worker",
-  path: "/worker",
-  getParentRoute: () => AdminRouteRoute,
 } as any);
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: "/users",
@@ -96,6 +91,11 @@ const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
   path: "/campaigns",
   getParentRoute: () => AdminRouteRoute,
 } as any);
+const AdminWorkerIndexRoute = AdminWorkerIndexRouteImport.update({
+  id: "/worker/",
+  path: "/worker/",
+  getParentRoute: () => AdminRouteRoute,
+} as any);
 const AdminOrdersIndexRoute = AdminOrdersIndexRouteImport.update({
   id: "/orders/",
   path: "/orders/",
@@ -124,11 +124,11 @@ export interface FileRoutesByFullPath {
   "/stores": typeof AdminStoresRoute;
   "/transactions": typeof AdminTransactionsRoute;
   "/users": typeof AdminUsersRoute;
-  "/worker": typeof AdminWorkerRoute;
   "/auth/login": typeof AuthLoginRoute;
   "/orders/$orderId": typeof AdminOrdersOrderIdRoute;
   "/orders/new": typeof AdminOrdersNewRoute;
   "/orders/": typeof AdminOrdersIndexRoute;
+  "/worker/": typeof AdminWorkerIndexRoute;
 }
 export interface FileRoutesByTo {
   "/track": typeof TrackRoute;
@@ -141,12 +141,12 @@ export interface FileRoutesByTo {
   "/stores": typeof AdminStoresRoute;
   "/transactions": typeof AdminTransactionsRoute;
   "/users": typeof AdminUsersRoute;
-  "/worker": typeof AdminWorkerRoute;
   "/auth/login": typeof AuthLoginRoute;
   "/": typeof AdminIndexRoute;
   "/orders/$orderId": typeof AdminOrdersOrderIdRoute;
   "/orders/new": typeof AdminOrdersNewRoute;
   "/orders": typeof AdminOrdersIndexRoute;
+  "/worker": typeof AdminWorkerIndexRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
@@ -161,12 +161,12 @@ export interface FileRoutesById {
   "/_admin/stores": typeof AdminStoresRoute;
   "/_admin/transactions": typeof AdminTransactionsRoute;
   "/_admin/users": typeof AdminUsersRoute;
-  "/_admin/worker": typeof AdminWorkerRoute;
   "/auth/login": typeof AuthLoginRoute;
   "/_admin/": typeof AdminIndexRoute;
   "/_admin/orders/$orderId": typeof AdminOrdersOrderIdRoute;
   "/_admin/orders/new": typeof AdminOrdersNewRoute;
   "/_admin/orders/": typeof AdminOrdersIndexRoute;
+  "/_admin/worker/": typeof AdminWorkerIndexRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -182,11 +182,11 @@ export interface FileRouteTypes {
     | "/stores"
     | "/transactions"
     | "/users"
-    | "/worker"
     | "/auth/login"
     | "/orders/$orderId"
     | "/orders/new"
-    | "/orders/";
+    | "/orders/"
+    | "/worker/";
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/track"
@@ -199,12 +199,12 @@ export interface FileRouteTypes {
     | "/stores"
     | "/transactions"
     | "/users"
-    | "/worker"
     | "/auth/login"
     | "/"
     | "/orders/$orderId"
     | "/orders/new"
-    | "/orders";
+    | "/orders"
+    | "/worker";
   id:
     | "__root__"
     | "/_admin"
@@ -218,12 +218,12 @@ export interface FileRouteTypes {
     | "/_admin/stores"
     | "/_admin/transactions"
     | "/_admin/users"
-    | "/_admin/worker"
     | "/auth/login"
     | "/_admin/"
     | "/_admin/orders/$orderId"
     | "/_admin/orders/new"
-    | "/_admin/orders/";
+    | "/_admin/orders/"
+    | "/_admin/worker/";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -261,13 +261,6 @@ declare module "@tanstack/react-router" {
       fullPath: "/auth/login";
       preLoaderRoute: typeof AuthLoginRouteImport;
       parentRoute: typeof rootRouteImport;
-    };
-    "/_admin/worker": {
-      id: "/_admin/worker";
-      path: "/worker";
-      fullPath: "/worker";
-      preLoaderRoute: typeof AdminWorkerRouteImport;
-      parentRoute: typeof AdminRouteRoute;
     };
     "/_admin/users": {
       id: "/_admin/users";
@@ -332,6 +325,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AdminCampaignsRouteImport;
       parentRoute: typeof AdminRouteRoute;
     };
+    "/_admin/worker/": {
+      id: "/_admin/worker/";
+      path: "/worker";
+      fullPath: "/worker/";
+      preLoaderRoute: typeof AdminWorkerIndexRouteImport;
+      parentRoute: typeof AdminRouteRoute;
+    };
     "/_admin/orders/": {
       id: "/_admin/orders/";
       path: "/orders";
@@ -366,11 +366,11 @@ interface AdminRouteRouteChildren {
   AdminStoresRoute: typeof AdminStoresRoute;
   AdminTransactionsRoute: typeof AdminTransactionsRoute;
   AdminUsersRoute: typeof AdminUsersRoute;
-  AdminWorkerRoute: typeof AdminWorkerRoute;
   AdminIndexRoute: typeof AdminIndexRoute;
   AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute;
   AdminOrdersNewRoute: typeof AdminOrdersNewRoute;
   AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute;
+  AdminWorkerIndexRoute: typeof AdminWorkerIndexRoute;
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
@@ -383,11 +383,11 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminStoresRoute: AdminStoresRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,
   AdminUsersRoute: AdminUsersRoute,
-  AdminWorkerRoute: AdminWorkerRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,
   AdminOrdersNewRoute: AdminOrdersNewRoute,
   AdminOrdersIndexRoute: AdminOrdersIndexRoute,
+  AdminWorkerIndexRoute: AdminWorkerIndexRoute,
 };
 
 const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(

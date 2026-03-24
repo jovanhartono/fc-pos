@@ -75,6 +75,7 @@ function ServicesPage() {
 							name: service.name,
 							description: service.description ?? "",
 							is_active: service.is_active,
+							is_priority: service.is_priority,
 						}}
 						handleOnSubmit={async (values) => {
 							await updateMutation.mutateAsync({
@@ -131,6 +132,15 @@ function ServicesPage() {
 				accessorKey: "price",
 				header: "Price",
 				cell: ({ row }) => formatIDRCurrency(String(row.original.price)),
+			},
+			{
+				id: "priority",
+				header: "Queue",
+				cell: ({ row }) => (
+					<Badge variant={row.original.is_priority ? "warning" : "outline"}>
+						{row.original.is_priority ? "Priority" : "Standard"}
+					</Badge>
+				),
 			},
 			{
 				id: "status",
