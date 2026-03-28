@@ -3,7 +3,7 @@ import { TransactionsCheckout } from "@/features/transactions/components/transac
 
 export function TransactionsWorkspace() {
 	return (
-		<div className="grid gap-6 xl:grid-cols-[minmax(0,1.9fr)_minmax(360px,0.82fr)]">
+		<div className="grid gap-6 md:grid-cols-[minmax(0,1.9fr)_minmax(360px,0.82fr)]">
 			<TransactionsCatalog />
 			<TransactionsCheckout />
 		</div>

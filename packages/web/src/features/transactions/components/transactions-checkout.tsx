@@ -262,7 +262,7 @@ export function TransactionsCheckout() {
 
 	return (
 		<>
-			<div className="grid gap-5 xl:sticky xl:top-0 xl:self-start">
+			<div className="grid gap-5 md:sticky md:top-0 md:self-start">
 				<Card className="border-border/70">
 					<CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
 						<div>
