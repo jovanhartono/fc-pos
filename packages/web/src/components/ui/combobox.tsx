@@ -1,6 +1,11 @@
 import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox";
-import { CaretDownIcon, CheckIcon, CircleNotch } from "@phosphor-icons/react";
+import {
+	CaretDownIcon,
+	CheckIcon,
+	CircleNotchIcon,
+} from "@phosphor-icons/react";
 import { useMemo } from "react";
+
 import { cn } from "@/lib/utils";
 
 export type ComboboxOption = {
@@ -80,7 +85,7 @@ export function Combobox({
 					<ComboboxPrimitive.Value placeholder={placeholder} />
 				</span>
 				{loading ? (
-					<CircleNotch className="size-4 animate-spin text-muted-foreground" />
+					<CircleNotchIcon className="size-4 animate-spin text-muted-foreground" />
 				) : (
 					<CaretDownIcon className="size-4 text-muted-foreground" />
 				)}
@@ -101,7 +106,7 @@ export function Combobox({
 								className="h-10 w-full border-0 bg-transparent px-2.5 pr-8 text-xs outline-none placeholder:text-muted-foreground"
 							/>
 							{loading ? (
-								<CircleNotch className="absolute top-1/2 right-2 size-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
+								<CircleNotchIcon className="absolute top-1/2 right-2 size-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
 							) : null}
 						</div>
 

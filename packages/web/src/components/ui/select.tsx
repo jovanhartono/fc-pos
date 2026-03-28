@@ -1,9 +1,28 @@
+"use client";
+
 import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { CaretDownIcon, CaretUpIcon, CheckIcon } from "@phosphor-icons/react";
 import type * as React from "react";
+
 import { cn } from "@/lib/utils";
 
-const Select = SelectPrimitive.Root;
+type SelectRootProps = React.ComponentProps<typeof SelectPrimitive.Root>;
+
+function Select({
+	onValueChange,
+	...props
+}: Omit<SelectRootProps, "onValueChange"> & {
+	onValueChange?: (value: string) => void;
+}) {
+	return (
+		<SelectPrimitive.Root
+			{...props}
+			onValueChange={(value: unknown) => {
+				onValueChange?.(typeof value === "string" ? value : "");
+			}}
+		/>
+	);
+}
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
 	return (

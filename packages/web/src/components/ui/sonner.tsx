@@ -1,9 +1,9 @@
 import {
-	CheckCircle,
-	Info,
-	SpinnerGap,
-	WarningCircle,
-	XCircle,
+	CheckCircleIcon,
+	InfoIcon,
+	SpinnerGapIcon,
+	WarningCircleIcon,
+	XCircleIcon,
 } from "@phosphor-icons/react";
 import type { CSSProperties } from "react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
@@ -14,11 +14,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
 			theme="system"
 			className="toaster group"
 			icons={{
-				success: <CheckCircle className="size-4" weight="duotone" />,
-				info: <Info className="size-4" weight="duotone" />,
-				warning: <WarningCircle className="size-4" weight="duotone" />,
-				error: <XCircle className="size-4" weight="duotone" />,
-				loading: <SpinnerGap className="size-4 animate-spin" />,
+				success: <CheckCircleIcon className="size-4" weight="duotone" />,
+				info: <InfoIcon className="size-4" weight="duotone" />,
+				warning: <WarningCircleIcon className="size-4" weight="duotone" />,
+				error: <XCircleIcon className="size-4" weight="duotone" />,
+				loading: <SpinnerGapIcon className="size-4 animate-spin" />,
 			}}
 			style={
 				{

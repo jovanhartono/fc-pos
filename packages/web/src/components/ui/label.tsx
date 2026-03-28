@@ -1,9 +1,15 @@
 /** biome-ignore-all lint/a11y/noLabelWithoutControl: <reusable component> */
+import { AsteriskIcon } from "@phosphor-icons/react";
 import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-function Label({ className, ...props }: React.ComponentProps<"label">) {
+function Label({
+	className,
+	asterisk,
+	children,
+	...props
+}: React.ComponentProps<"label"> & { asterisk?: boolean }) {
 	return (
 		<label
 			data-slot="label"
@@ -12,7 +18,12 @@ function Label({ className, ...props }: React.ComponentProps<"label">) {
 				className,
 			)}
 			{...props}
-		/>
+		>
+			{children}
+			{asterisk ? (
+				<AsteriskIcon aria-hidden="true" className="size-2 text-destructive" />
+			) : null}
+		</label>
 	);
 }
 

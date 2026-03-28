@@ -1,16 +1,17 @@
 "use client";
 
-import { CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 import type * as React from "react";
 import { DayPicker } from "react-day-picker";
+
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
-type CalendarChevronProps = React.ComponentProps<
-	NonNullable<React.ComponentProps<typeof DayPicker>["components"]>["Chevron"]
->;
+type CalendarChevronProps = React.ComponentProps<"svg"> & {
+	orientation?: "left" | "right" | "up" | "down";
+};
 
 function CalendarChevron({
 	orientation,
@@ -18,9 +19,17 @@ function CalendarChevron({
 	...props
 }: CalendarChevronProps) {
 	return orientation === "left" ? (
-		<CaretLeft className={cn("size-4", className)} weight="bold" {...props} />
+		<CaretLeftIcon
+			className={cn("size-4", className)}
+			weight="bold"
+			{...props}
+		/>
 	) : (
-		<CaretRight className={cn("size-4", className)} weight="bold" {...props} />
+		<CaretRightIcon
+			className={cn("size-4", className)}
+			weight="bold"
+			{...props}
+		/>
 	);
 }
 
