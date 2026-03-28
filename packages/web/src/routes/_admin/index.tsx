@@ -36,7 +36,6 @@ function DashboardPage() {
 		<>
 			<PageHeader
 				title="Dashboard"
-				description="Overview count from live admin endpoints."
 				actions={
 					<Badge variant={isFetching ? "secondary" : "outline"}>
 						{isFetching ? "Refreshing" : "Live"}
@@ -54,9 +53,7 @@ function DashboardPage() {
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<p className="text-xs text-muted-foreground">
-								Total records currently available.
-							</p>
+							<p className="text-xs text-muted-foreground">Total records.</p>
 						</CardContent>
 					</Card>
 				))}

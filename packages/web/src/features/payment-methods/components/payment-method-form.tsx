@@ -1,6 +1,6 @@
 import { POSTPaymentMethodSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -126,7 +126,7 @@ export function PaymentMethodForm({
 				<Button
 					type="submit"
 					loading={isSubmitting}
-					icon={<Plus className="size-4" weight="duotone" />}
+					icon={<PlusIcon className="size-4" weight="duotone" />}
 				>
 					{isEditing ? "Update Method" : "Create Method"}
 				</Button>

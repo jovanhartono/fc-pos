@@ -1,4 +1,4 @@
-import { CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import type { PaginationMeta } from "@/lib/api";
 
@@ -33,7 +33,7 @@ export function TablePagination({
 					variant="outline"
 					size="sm"
 					disabled={isLoading || currentPage <= 1}
-					icon={<CaretLeft className="size-4" weight="duotone" />}
+					icon={<CaretLeftIcon className="size-4" weight="duotone" />}
 					onClick={() => onPageChange(currentPage - 1)}
 				>
 					Prev
@@ -46,7 +46,7 @@ export function TablePagination({
 					variant="outline"
 					size="sm"
 					disabled={isLoading || currentPage >= totalPages}
-					icon={<CaretRight className="size-4" weight="duotone" />}
+					icon={<CaretRightIcon className="size-4" weight="duotone" />}
 					iconLocation="right"
 					onClick={() => onPageChange(currentPage + 1)}
 				>

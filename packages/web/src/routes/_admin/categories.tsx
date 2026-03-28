@@ -145,7 +145,6 @@ function CategoriesPage() {
 		<>
 			<PageHeader
 				title="Categories"
-				description="Insert and edit category master data."
 				actions={
 					<>
 						<Badge

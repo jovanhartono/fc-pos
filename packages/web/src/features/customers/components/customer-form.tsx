@@ -1,4 +1,4 @@
-import { Plus } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import {
 	type Control,
 	Controller,
@@ -156,7 +156,7 @@ export function CustomerForm({
 							isEditing ? "Updating customer..." : "Creating customer..."
 						}
 					>
-						<Plus className="size-4" weight="duotone" />
+						<PlusIcon className="size-4" weight="duotone" />
 						{isEditing ? "Update Customer" : "Create Customer"}
 					</Button>
 				</div>

@@ -1,8 +1,8 @@
 import {
-	CaretRight,
-	MagnifyingGlass,
-	Scan,
-	WarningCircle,
+	CaretRightIcon,
+	MagnifyingGlassIcon,
+	ScanIcon,
+	WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -12,6 +12,13 @@ import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -93,6 +100,7 @@ function WorkerQueuePage() {
 	const [itemCode, setItemCode] = useState("");
 	const [isScanning, setIsScanning] = useState(false);
 	const [scanError, setScanError] = useState<string | null>(null);
+	const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
 	const videoRef = useRef<HTMLVideoElement | null>(null);
 	const streamRef = useRef<MediaStream | null>(null);
@@ -336,7 +344,7 @@ function WorkerQueuePage() {
 			})),
 		[visibleStores],
 	);
-	const statusSelectItems = useMemo(
+	const statusTabItems = useMemo(
 		() => [
 			{ value: "all", label: "All active statuses" },
 			...QUEUE_STATUS_OPTIONS.map((status) => ({
@@ -365,11 +373,75 @@ function WorkerQueuePage() {
 		});
 	};
 
+	const updateStoreFilter = (value: string) => {
+		void navigate({
+			search: (prev: {
+				storeId?: number;
+				status?: (typeof QUEUE_STATUS_OPTIONS)[number];
+			}) => ({
+				...prev,
+				storeId: value ? Number(value) : undefined,
+			}),
+		});
+	};
+
+	const updateStatusFilter = (value: string) => {
+		void navigate({
+			search: (prev: {
+				storeId?: number;
+				status?: (typeof QUEUE_STATUS_OPTIONS)[number];
+				dateFrom?: string;
+				dateTo?: string;
+			}) => ({
+				...prev,
+				status:
+					value && value !== "all"
+						? (value as (typeof QUEUE_STATUS_OPTIONS)[number])
+						: undefined,
+			}),
+		});
+	};
+
+	const updateDateRangeFilter = ({
+		dateFrom,
+		dateTo,
+	}: {
+		dateFrom?: string;
+		dateTo?: string;
+	}) => {
+		void navigate({
+			search: (prev: {
+				storeId?: number;
+				status?: (typeof QUEUE_STATUS_OPTIONS)[number];
+				dateFrom?: string;
+				dateTo?: string;
+			}) => ({
+				...prev,
+				dateFrom,
+				dateTo,
+			}),
+		});
+	};
+
+	const clearDateRangeFilter = () => {
+		void navigate({
+			search: (prev: {
+				storeId?: number;
+				status?: (typeof QUEUE_STATUS_OPTIONS)[number];
+				dateFrom?: string;
+				dateTo?: string;
+			}) => ({
+				...prev,
+				dateFrom: undefined,
+				dateTo: undefined,
+			}),
+		});
+	};
+
 	return (
 		<>
 			<PageHeader
 				title="Queue"
-				description="Priority-first shoe queue for workers, scoped to the assigned store."
 				actions={
 					<Badge variant={queueQuery.isPending ? "secondary" : "outline"}>
 						{`${totalItems} items`}
@@ -379,83 +451,129 @@ function WorkerQueuePage() {
 
 			<div className="grid gap-5">
 				<section className="grid gap-4 border border-border bg-background/70 p-4">
-					<div className="grid gap-1">
-						<p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
-							Queue Engine
-						</p>
-						<h2 className="text-lg font-semibold">
-							Priority first. Oldest next.
-						</h2>
-						<p className="text-sm text-muted-foreground">
-							Workers only see active items from their assigned stores.
-						</p>
+					<div className="flex justify-end md:hidden">
+						<Dialog
+							open={isMobileFilterOpen}
+							onOpenChange={setIsMobileFilterOpen}
+						>
+							<DialogTrigger
+								render={
+									<Button
+										type="button"
+										variant="outline"
+										className="h-11 px-4"
+									/>
+								}
+							>
+								Filters
+							</DialogTrigger>
+							<DialogContent className="max-w-[calc(100%-1.5rem)] gap-5 p-4">
+								<DialogHeader>
+									<DialogTitle>Filters</DialogTitle>
+								</DialogHeader>
+								<div className="grid gap-4">
+									<Field>
+										<FieldLabel htmlFor="queue-store-mobile">Store</FieldLabel>
+										<Select
+											items={storeSelectItems}
+											value={parsedStoreId?.toString() ?? ""}
+											onValueChange={updateStoreFilter}
+										>
+											<SelectTrigger
+												id="queue-store-mobile"
+												className="h-11 w-full"
+											>
+												<SelectValue placeholder="Select store" />
+											</SelectTrigger>
+											<SelectContent>
+												{visibleStores.map((store) => (
+													<SelectItem key={store.id} value={String(store.id)}>
+														{`${store.code} - ${store.name}`}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</Field>
+
+									<div className="grid gap-2">
+										<p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
+											Status
+										</p>
+										<div className="-mx-1 overflow-x-auto pb-1">
+											<div
+												role="tablist"
+												aria-label="Queue status"
+												className="flex min-w-max gap-2 px-1"
+											>
+												{statusTabItems.map((status) => {
+													const isActive =
+														(selectedStatus ?? "all") === status.value;
+
+													return (
+														<Button
+															key={status.value}
+															type="button"
+															variant={isActive ? "default" : "outline"}
+															size="lg"
+															role="tab"
+															aria-selected={isActive}
+															className={cn(
+																"h-11 px-4 text-sm",
+																isActive
+																	? "border-primary bg-primary text-primary-foreground shadow-sm"
+																	: "border-border/80 bg-background text-foreground/70 hover:border-foreground/20 hover:bg-muted/70 hover:text-foreground",
+															)}
+															onClick={() => updateStatusFilter(status.value)}
+														>
+															{status.label}
+														</Button>
+													);
+												})}
+											</div>
+										</div>
+									</div>
+
+									<DateRangeFilter
+										dateFrom={selectedDateFrom}
+										dateTo={selectedDateTo}
+										onRangeChange={updateDateRangeFilter}
+										onClear={clearDateRangeFilter}
+									/>
+
+									<Button
+										type="button"
+										className="h-11"
+										onClick={() => setIsMobileFilterOpen(false)}
+									>
+										Done
+									</Button>
+								</div>
+							</DialogContent>
+						</Dialog>
 					</div>
 
-					<div className="grid gap-3 xl:grid-cols-[minmax(0,220px)_minmax(0,220px)_1fr]">
-						<Field>
-							<FieldLabel htmlFor="queue-store">Store</FieldLabel>
-							<Select
-								items={storeSelectItems}
-								value={parsedStoreId?.toString() ?? ""}
-								onValueChange={(value) => {
-									void navigate({
-										search: (prev: {
-											storeId?: number;
-											status?: (typeof QUEUE_STATUS_OPTIONS)[number];
-										}) => ({
-											...prev,
-											storeId: value ? Number(value) : undefined,
-										}),
-									});
-								}}
-							>
-								<SelectTrigger id="queue-store" className="h-11 w-full">
-									<SelectValue placeholder="Select store" />
-								</SelectTrigger>
-								<SelectContent>
-									{visibleStores.map((store) => (
-										<SelectItem key={store.id} value={String(store.id)}>
-											{`${store.code} - ${store.name}`}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</Field>
-
-						<Field>
-							<FieldLabel htmlFor="queue-status">Status</FieldLabel>
-							<Select
-								items={statusSelectItems}
-								value={selectedStatus ?? "all"}
-								onValueChange={(value) => {
-									void navigate({
-										search: (prev: {
-											storeId?: number;
-											status?: (typeof QUEUE_STATUS_OPTIONS)[number];
-										}) => ({
-											...prev,
-											status:
-												value && value !== "all"
-													? (value as (typeof QUEUE_STATUS_OPTIONS)[number])
-													: undefined,
-										}),
-									});
-								}}
-							>
-								<SelectTrigger id="queue-status" className="h-11 w-full">
-									<SelectValue placeholder="All active statuses" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All active statuses</SelectItem>
-									{QUEUE_STATUS_OPTIONS.map((status) => (
-										<SelectItem key={status} value={status}>
-											{formatOrderServiceStatus(status)}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</Field>
-
+					<div className="grid gap-3 md:grid-cols-[minmax(0,220px)_1fr]">
+						<div className="hidden md:block">
+							<Field>
+								<FieldLabel htmlFor="queue-store">Store</FieldLabel>
+								<Select
+									items={storeSelectItems}
+									value={parsedStoreId?.toString() ?? ""}
+									onValueChange={updateStoreFilter}
+								>
+									<SelectTrigger id="queue-store" className="h-11 w-full">
+										<SelectValue placeholder="Select store" />
+									</SelectTrigger>
+									<SelectContent>
+										{visibleStores.map((store) => (
+											<SelectItem key={store.id} value={String(store.id)}>
+												{`${store.code} - ${store.name}`}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</Field>
+						</div>
 						<div className="grid gap-2">
 							<Field>
 								<FieldLabel htmlFor="queue-item-code">
@@ -474,7 +592,10 @@ function WorkerQueuePage() {
 										variant="outline"
 										className="sm:min-w-28"
 										icon={
-											<MagnifyingGlass className="size-4" weight="duotone" />
+											<MagnifyingGlassIcon
+												className="size-4"
+												weight="duotone"
+											/>
 										}
 										disabled={!itemCode.trim() || lookupMutation.isPending}
 										onClick={async () => {
@@ -487,7 +608,7 @@ function WorkerQueuePage() {
 										type="button"
 										variant="outline"
 										className="sm:min-w-28"
-										icon={<Scan className="size-4" weight="duotone" />}
+										icon={<ScanIcon className="size-4" weight="duotone" />}
 										onClick={async () => {
 											if (isScanning) {
 												stopScanner();
@@ -503,45 +624,59 @@ function WorkerQueuePage() {
 							</Field>
 							{scanError ? (
 								<div className="flex items-center gap-2 text-sm text-destructive">
-									<WarningCircle className="size-4" weight="fill" />
+									<WarningCircleIcon className="size-4" weight="fill" />
 									<span>{scanError}</span>
 								</div>
 							) : null}
 						</div>
 					</div>
 
-					<DateRangeFilter
-						dateFrom={selectedDateFrom}
-						dateTo={selectedDateTo}
-						onRangeChange={({ dateFrom, dateTo }) => {
-							void navigate({
-								search: (prev: {
-									storeId?: number;
-									status?: (typeof QUEUE_STATUS_OPTIONS)[number];
-									dateFrom?: string;
-									dateTo?: string;
-								}) => ({
-									...prev,
-									dateFrom,
-									dateTo,
-								}),
-							});
-						}}
-						onClear={() => {
-							void navigate({
-								search: (prev: {
-									storeId?: number;
-									status?: (typeof QUEUE_STATUS_OPTIONS)[number];
-									dateFrom?: string;
-									dateTo?: string;
-								}) => ({
-									...prev,
-									dateFrom: undefined,
-									dateTo: undefined,
-								}),
-							});
-						}}
-					/>
+					<div className="hidden gap-2 md:grid">
+						<p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
+							Status
+						</p>
+						<div className="-mx-1 overflow-x-auto pb-1">
+							<div
+								id="queue-status-tabs"
+								role="tablist"
+								aria-label="Queue status"
+								className="flex min-w-max gap-2 px-1"
+							>
+								{statusTabItems.map((status) => {
+									const isActive = (selectedStatus ?? "all") === status.value;
+
+									return (
+										<Button
+											key={status.value}
+											type="button"
+											variant={isActive ? "default" : "outline"}
+											size="lg"
+											role="tab"
+											aria-selected={isActive}
+											className={cn(
+												"h-11 px-4 text-sm",
+												isActive
+													? "border-primary bg-primary text-primary-foreground shadow-sm"
+													: "border-border/80 bg-background text-foreground/70 hover:border-foreground/20 hover:bg-muted/70 hover:text-foreground",
+											)}
+											onClick={() => updateStatusFilter(status.value)}
+										>
+											{status.label}
+										</Button>
+									);
+								})}
+							</div>
+						</div>
+					</div>
+
+					<div className="hidden md:block">
+						<DateRangeFilter
+							dateFrom={selectedDateFrom}
+							dateTo={selectedDateTo}
+							onRangeChange={updateDateRangeFilter}
+							onClear={clearDateRangeFilter}
+						/>
+					</div>
 
 					{isScanning ? (
 						<video
@@ -557,7 +692,7 @@ function WorkerQueuePage() {
 				<section className="grid gap-2">
 					{currentUser?.role === "admin" && parsedStoreId === undefined ? (
 						<div className="border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-							Select a store to view its queue.
+							Select a store.
 						</div>
 					) : null}
 
@@ -594,7 +729,7 @@ function WorkerQueuePage() {
 					queueItems.length === 0 &&
 					parsedStoreId !== undefined ? (
 						<div className="border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-							No active items in this queue.
+							No items.
 						</div>
 					) : null}
 
@@ -602,7 +737,7 @@ function WorkerQueuePage() {
 
 					{queueQuery.isFetchingNextPage ? (
 						<p className="text-center text-sm text-muted-foreground">
-							Loading more items...
+							Loading...
 						</p>
 					) : null}
 				</section>
@@ -662,7 +797,7 @@ function QueueRow({
 						<p className="text-sm text-muted-foreground">{item.service_name}</p>
 					</div>
 				</div>
-				<CaretRight
+				<CaretRightIcon
 					className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5"
 					weight="bold"
 				/>

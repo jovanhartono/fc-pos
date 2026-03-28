@@ -673,7 +673,7 @@ export function TransactionsCheckout() {
 										id="transaction-notes"
 										value={field.value}
 										onChange={field.onChange}
-										placeholder="Add cashier notes or customer preferences"
+										placeholder="Add notes"
 									/>
 									<FieldError errors={[fieldState.error]} />
 								</Field>

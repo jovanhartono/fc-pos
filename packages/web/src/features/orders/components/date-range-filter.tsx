@@ -1,6 +1,6 @@
-import { CalendarBlank, X } from "@phosphor-icons/react";
+import { CalendarBlankIcon, XIcon } from "@phosphor-icons/react";
 import { format, parseISO } from "date-fns";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -17,6 +17,7 @@ type DateRangeFilterProps = {
 	dateTo?: string;
 	onRangeChange: (value: { dateFrom?: string; dateTo?: string }) => void;
 	onClear: () => void;
+	resetOnSelect?: boolean;
 };
 
 export function DateRangeFilter({
@@ -24,14 +25,19 @@ export function DateRangeFilter({
 	dateTo,
 	onRangeChange,
 	onClear,
+	resetOnSelect = false,
 }: DateRangeFilterProps) {
 	const hasRange = Boolean(dateFrom || dateTo);
-	const selectedRangeFromProps: DateRange | undefined = hasRange
-		? {
-				from: dateFrom ? parseISO(dateFrom) : undefined,
-				to: dateTo ? parseISO(dateTo) : undefined,
-			}
-		: undefined;
+	const selectedRangeFromProps: DateRange | undefined = useMemo(
+		() =>
+			hasRange
+				? {
+						from: dateFrom ? parseISO(dateFrom) : undefined,
+						to: dateTo ? parseISO(dateTo) : undefined,
+					}
+				: undefined,
+		[dateFrom, dateTo, hasRange],
+	);
 	const [draftRange, setDraftRange] = useState<DateRange | undefined>(
 		selectedRangeFromProps,
 	);
@@ -48,7 +54,7 @@ export function DateRangeFilter({
 		: "Pick a date range";
 
 	return (
-		<div className="grid gap-3 rounded-none border border-border/70 bg-muted/20 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+		<div className="grid gap-3 border border-border/70 bg-muted/20 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
 			<Field>
 				<FieldLabel htmlFor="date-range-trigger">Date range</FieldLabel>
 				<Popover>
@@ -65,13 +71,13 @@ export function DateRangeFilter({
 							/>
 						}
 					>
-						<CalendarBlank className="size-4" weight="duotone" />
+						<CalendarBlankIcon className="size-4" weight="duotone" />
 						<span className="truncate">{label}</span>
 					</PopoverTrigger>
 					<PopoverContent className="w-auto p-0" align="start">
 						<Calendar
-							resetOnSelect
 							mode="range"
+							resetOnSelect={resetOnSelect}
 							defaultMonth={displayRange?.from}
 							selected={displayRange}
 							numberOfMonths={2}
@@ -94,7 +100,7 @@ export function DateRangeFilter({
 				type="button"
 				variant="outline"
 				className="h-11"
-				icon={<X className="size-4" weight="duotone" />}
+				icon={<XIcon className="size-4" weight="duotone" />}
 				disabled={!hasRange}
 				onClick={onClear}
 			>

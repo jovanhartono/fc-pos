@@ -1,8 +1,8 @@
 import {
-	ArrowLeft,
-	Camera,
-	ImageSquare,
-	WarningCircle,
+	ArrowLeftIcon,
+	CameraIcon,
+	ImageSquareIcon,
+	WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -336,12 +336,11 @@ export function QueueServiceDetail({
 		<>
 			<PageHeader
 				title={selectedService.item_code ?? `Queue Item #${selectedService.id}`}
-				description={`${detail.code} • ${detail.store?.name ?? "-"}`}
 				actions={
 					<Button
 						type="button"
 						variant="outline"
-						icon={<ArrowLeft className="size-4" weight="duotone" />}
+						icon={<ArrowLeftIcon className="size-4" weight="duotone" />}
 						onClick={() => {
 							void navigate({
 								to: "/worker",
@@ -406,7 +405,10 @@ export function QueueServiceDetail({
 
 					{selectedService.status === "ready_for_pickup" && !hasPickupPhoto ? (
 						<div className="flex items-start gap-2 border border-warning/40 bg-warning/10 px-3 py-3 text-sm text-foreground">
-							<WarningCircle className="mt-0.5 size-4 shrink-0" weight="fill" />
+							<WarningCircleIcon
+								className="mt-0.5 size-4 shrink-0"
+								weight="fill"
+							/>
 							<p>Add a pickup photo before marking this item as picked up.</p>
 						</div>
 					) : null}
@@ -450,7 +452,7 @@ export function QueueServiceDetail({
 									type="button"
 									variant="outline"
 									className="h-12 justify-start"
-									icon={<Camera className="size-4" weight="duotone" />}
+									icon={<CameraIcon className="size-4" weight="duotone" />}
 									onClick={async () => {
 										if (isCameraOpen) {
 											stopCameraStream();
@@ -466,7 +468,7 @@ export function QueueServiceDetail({
 									type="button"
 									variant="outline"
 									className="h-12 justify-start"
-									icon={<ImageSquare className="size-4" weight="duotone" />}
+									icon={<ImageSquareIcon className="size-4" weight="duotone" />}
 									onClick={() => openGalleryInput(galleryInputRef.current)}
 								>
 									Gallery
@@ -475,7 +477,7 @@ export function QueueServiceDetail({
 
 							{cameraError ? (
 								<div className="flex items-center gap-2 text-sm text-destructive">
-									<WarningCircle className="size-4" weight="fill" />
+									<WarningCircleIcon className="size-4" weight="fill" />
 									<span>{cameraError}</span>
 								</div>
 							) : null}

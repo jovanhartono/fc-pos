@@ -110,7 +110,7 @@ function TrackOrderPage() {
 						<div className="grid gap-2">
 							<p className="font-medium">Items</p>
 							{sortedServices.map((item) => (
-								<div key={item.id} className="rounded-none border p-3 text-sm">
+								<div key={item.id} className="border p-3 text-sm">
 									<div className="flex flex-wrap items-center justify-between gap-2">
 										<p className="font-medium">{`${item.item_code ?? `#${item.id}`} - ${item.service?.name ?? "Service"}`}</p>
 										<Badge

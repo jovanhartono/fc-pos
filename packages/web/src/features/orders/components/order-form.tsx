@@ -1,6 +1,6 @@
 import { POSTOrderSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
@@ -547,7 +547,7 @@ export function OrderForm({
 							<Textarea
 								{...field}
 								id="order-notes"
-								placeholder="e.g. Customer prefers express service"
+								placeholder="e.g. Express service"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
 							/>
@@ -561,7 +561,7 @@ export function OrderForm({
 						type="submit"
 						loading={isSubmitting}
 						loadingText="Creating order..."
-						icon={<Plus className="size-4" weight="duotone" />}
+						icon={<PlusIcon className="size-4" weight="duotone" />}
 					>
 						Create Order
 					</Button>

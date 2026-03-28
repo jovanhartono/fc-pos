@@ -1,4 +1,8 @@
-import { MagnifyingGlass, Package, Scissors } from "@phosphor-icons/react";
+import {
+	MagnifyingGlassIcon,
+	PackageIcon,
+	ScissorsIcon,
+} from "@phosphor-icons/react";
 import { useDeferredValue, useMemo } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Card, CardContent } from "@/components/ui/card";
@@ -126,11 +130,11 @@ export function TransactionsCatalog() {
 							/>
 						</Field>
 
-						<div className="grid grid-cols-2 gap-2 rounded-none border border-border/70 bg-background/80 p-1">
+						<div className="grid grid-cols-2 gap-2 border border-border/70 bg-background/80 p-1">
 							<button
 								type="button"
 								className={cn(
-									"flex items-center justify-between gap-2 rounded-none border px-3 py-2 text-left transition-colors",
+									"flex items-center justify-between gap-2 border px-3 py-2 text-left transition-colors",
 									mode === "services"
 										? "border-foreground bg-foreground text-background"
 										: "border-transparent text-foreground/70 hover:border-border/70 hover:bg-muted/40",
@@ -138,14 +142,14 @@ export function TransactionsCatalog() {
 								onClick={() => onModeChange("services")}
 							>
 								<span className="flex items-center gap-2 text-sm font-medium">
-									<Scissors className="size-4" weight="duotone" />
+									<ScissorsIcon className="size-4" weight="duotone" />
 									Services
 								</span>
 							</button>
 							<button
 								type="button"
 								className={cn(
-									"flex items-center justify-between gap-2 rounded-none border px-3 py-2 text-left transition-colors",
+									"flex items-center justify-between gap-2 border px-3 py-2 text-left transition-colors",
 									mode === "products"
 										? "border-border bg-card text-foreground"
 										: "border-transparent text-foreground/55 hover:border-border/70 hover:bg-muted/40",
@@ -153,16 +157,16 @@ export function TransactionsCatalog() {
 								onClick={() => onModeChange("products")}
 							>
 								<span className="flex items-center gap-2 text-sm font-medium">
-									<Package className="size-4" weight="duotone" />
+									<PackageIcon className="size-4" weight="duotone" />
 									Add-ons
 								</span>
 							</button>
 						</div>
 
 						<Field>
-							<FieldLabel htmlFor="transaction-search">Search Menu</FieldLabel>
+							<FieldLabel htmlFor="transaction-search">Search</FieldLabel>
 							<div className="relative">
-								<MagnifyingGlass
+								<MagnifyingGlassIcon
 									className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
 									weight="duotone"
 								/>
@@ -170,7 +174,7 @@ export function TransactionsCatalog() {
 									id="transaction-search"
 									value={searchTerm}
 									onChange={(event) => onSearchTermChange(event.target.value)}
-									placeholder="Search laundry services, treatments, or add-ons"
+									placeholder="Search services or add-ons"
 									className="h-11 border-border/70 bg-background pl-9"
 								/>
 							</div>
@@ -235,7 +239,7 @@ export function TransactionsCatalog() {
 			{activeItems.length === 0 ? (
 				<Card>
 					<CardContent className="py-12 text-center text-sm text-muted-foreground">
-						No catalog items match the current filters.
+						No items.
 					</CardContent>
 				</Card>
 			) : null}

@@ -1,4 +1,4 @@
-import { ArrowRight, Sparkle, Tote } from "@phosphor-icons/react";
+import { ArrowRightIcon, SparkleIcon, ToteIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -40,20 +40,18 @@ export function PickupRadar({ orders }: PickupRadarProps) {
 			<div className="grid gap-4 xl:grid-cols-2">
 				<RadarColumn
 					orders={readyOrders}
-					eyebrow="Ready Rail"
+					eyebrow="Ready"
 					title="Ready for pickup"
-					description="Every remaining active line is already staged for collection."
-					icon={<Sparkle className="size-4" weight="duotone" />}
-					emptyLabel="No orders are fully staged for pickup in this view."
+					icon={<SparkleIcon className="size-4" weight="duotone" />}
+					emptyLabel="None."
 					tone="ready"
 				/>
 				<RadarColumn
 					orders={partialOrders}
-					eyebrow="Mixed Exit"
+					eyebrow="Partial"
 					title="Partially picked up"
-					description="Some lines already left the store while longer jobs are still active."
-					icon={<Tote className="size-4" weight="duotone" />}
-					emptyLabel="No partial pickups in this view."
+					icon={<ToteIcon className="size-4" weight="duotone" />}
+					emptyLabel="None."
 					tone="partial"
 				/>
 			</div>
@@ -62,7 +60,6 @@ export function PickupRadar({ orders }: PickupRadarProps) {
 }
 
 function RadarColumn({
-	description,
 	emptyLabel,
 	eyebrow,
 	icon,
@@ -70,7 +67,6 @@ function RadarColumn({
 	title,
 	tone,
 }: {
-	description: string;
 	emptyLabel: string;
 	eyebrow: string;
 	icon: ReactNode;
@@ -93,7 +89,6 @@ function RadarColumn({
 					</p>
 				</div>
 				<h3 className="font-mono text-lg text-slate-950">{title}</h3>
-				<p className="text-sm text-slate-600">{description}</p>
 			</div>
 			<div className="grid gap-3">
 				{orders.length === 0 ? (
@@ -136,7 +131,7 @@ function RadarColumn({
 										className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-700 transition-colors hover:text-slate-950"
 									>
 										Inspect
-										<ArrowRight className="size-3.5" />
+										<ArrowRightIcon className="size-3.5" />
 									</Link>
 								</div>
 							</CardContent>

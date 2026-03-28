@@ -13,6 +13,18 @@ Applies to **`packages/web`** (`@fresclean/web`) only. Repo-wide TypeScript and 
 
 This app is **Vite**, not Next.js: use plain `<img>` (or project image patterns) with lazy loading and sensible dimensions — there is no `next/image`.
 
+## Project Preferences
+
+- Keep copy terse and operational. Prefer labels and state text over explanatory, guiding, or marketing-style helper copy.
+- Shorten long prose aggressively. If text does not change behavior or clarify a state, remove it.
+- Keep labels short where possible. Favor one- or two-word control labels and short empty states.
+- Prefer rigid, squared-off UI. Avoid rounded corners unless an existing component already depends on them.
+- In route and feature code, avoid `rounded-*` utilities on normal surfaces; keep corner treatment rigid unless the shape itself must be circular.
+- Import Phosphor icons with the `Icon` suffix in local code, e.g. `Star` becomes `StarIcon`.
+- On small screens, move dense filters and related controls into dialogs or sheets instead of stacking cramped inline layouts.
+- Use tabs or segmented controls for high-frequency filters when they improve mobile/tablet navigation.
+- Match the existing visual language of the page first; do not introduce decorative styling that changes the tone.
+
 ## Project Structure
 
 ```

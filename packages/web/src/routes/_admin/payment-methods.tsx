@@ -1,4 +1,4 @@
-import { PencilSimpleLine, Plus } from "@phosphor-icons/react";
+import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -69,7 +69,6 @@ function PaymentMethodsPage() {
 		(paymentMethod: PaymentMethod) => {
 			openSheet({
 				title: "Edit Payment Method",
-				description: `Editing ID ${paymentMethod.id}`,
 				content: (
 					<PaymentMethodForm
 						defaultValues={{
@@ -95,7 +94,6 @@ function PaymentMethodsPage() {
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
 			title: "Add Payment Method",
-			description: "Create a new payment method",
 			content: (
 				<PaymentMethodForm
 					handleOnSubmit={async (values: PaymentMethodFormState) => {
@@ -135,7 +133,7 @@ function PaymentMethodsPage() {
 						variant="outline"
 						size="sm"
 						onClick={() => handleOpenEditSheet(row.original)}
-						icon={<PencilSimpleLine className="size-4" weight="duotone" />}
+						icon={<PencilSimpleLineIcon className="size-4" weight="duotone" />}
 					>
 						Edit
 					</Button>
@@ -149,7 +147,6 @@ function PaymentMethodsPage() {
 		<>
 			<PageHeader
 				title="Payment Methods"
-				description="Insert and edit payment method master data."
 				actions={
 					<>
 						<Badge
@@ -157,7 +154,7 @@ function PaymentMethodsPage() {
 						>{`${paymentMethodCount} items`}</Badge>
 						<Button
 							onClick={handleOpenCreateSheet}
-							icon={<Plus className="size-4" weight="duotone" />}
+							icon={<PlusIcon className="size-4" weight="duotone" />}
 						>
 							Add Payment Method
 						</Button>

@@ -1,4 +1,4 @@
-import { PencilSimpleLine, Plus } from "@phosphor-icons/react";
+import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -64,7 +64,6 @@ function ProductsPage() {
 		(product: Product) => {
 			openSheet({
 				title: "Edit Product",
-				description: `Editing ID ${product.id}`,
 				content: (
 					<ProductForm
 						defaultValues={{
@@ -96,7 +95,6 @@ function ProductsPage() {
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
 			title: "Add Product",
-			description: "Create a new product",
 			content: (
 				<ProductForm
 					handleOnSubmit={async (values: ProductFormState) => {
@@ -152,7 +150,7 @@ function ProductsPage() {
 						variant="outline"
 						size="sm"
 						onClick={() => handleOpenEditSheet(row.original)}
-						icon={<PencilSimpleLine className="size-4" weight="duotone" />}
+						icon={<PencilSimpleLineIcon className="size-4" weight="duotone" />}
 					>
 						Edit
 					</Button>
@@ -166,7 +164,6 @@ function ProductsPage() {
 		<>
 			<PageHeader
 				title="Products"
-				description="Insert and edit product master data."
 				actions={
 					<>
 						<Badge
@@ -174,7 +171,7 @@ function ProductsPage() {
 						>{`${productCount} items`}</Badge>
 						<Button
 							onClick={handleOpenCreateSheet}
-							icon={<Plus className="size-4" weight="duotone" />}
+							icon={<PlusIcon className="size-4" weight="duotone" />}
 						>
 							Add Product
 						</Button>

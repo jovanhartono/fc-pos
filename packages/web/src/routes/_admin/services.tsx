@@ -64,7 +64,6 @@ function ServicesPage() {
 		(service: Service) => {
 			openSheet({
 				title: "Edit Service",
-				description: `Editing ID ${service.id}`,
 				content: (
 					<ServiceForm
 						defaultValues={{
@@ -95,7 +94,6 @@ function ServicesPage() {
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
 			title: "Add Service",
-			description: "Create a new service",
 			content: (
 				<ServiceForm
 					handleOnSubmit={async (values: ServiceFormState) => {
@@ -173,7 +171,6 @@ function ServicesPage() {
 		<>
 			<PageHeader
 				title="Services"
-				description="Insert and edit service master data."
 				actions={
 					<>
 						<Badge

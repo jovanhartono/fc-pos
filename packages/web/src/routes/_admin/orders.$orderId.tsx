@@ -1,3 +1,4 @@
+import { CaretRightIcon } from "@phosphor-icons/react";
 import {
 	type UseMutationResult,
 	useMutation,
@@ -20,6 +21,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { OrderFulfillmentOverview } from "@/features/orders/components/order-fulfillment-overview";
 import { OrderIntakePhotoCard } from "@/features/orders/components/order-intake-photo-card";
@@ -383,7 +385,7 @@ function AdminOrderDetailPage() {
 	}
 
 	if (detailQuery.isPending) {
-		return <p>Loading order...</p>;
+		return <p>Loading order…</p>;
 	}
 
 	if (detailQuery.isError) {
@@ -423,27 +425,37 @@ function AdminOrderDetailPage() {
 
 	return (
 		<>
-			<PageHeader
-				title={`Order ${detail.code}`}
-				description={`Customer: ${detail.customer?.name ?? "-"} • Store: ${detail.store?.name ?? "-"}`}
-				actions={
-					<>
-						<Badge variant={getOrderStatusBadgeVariant(detail.status)}>
-							{formatOrderStatus(detail.status)}
-						</Badge>
-						<Badge
-							variant={getOrderPickupStateBadgeVariant(detail.fulfillment)}
-						>
-							{formatOrderPickupState(detail.fulfillment)}
-						</Badge>
-						<Badge
-							variant={getPaymentStatusBadgeVariant(detail.payment_status)}
-						>
-							{formatPaymentStatus(detail.payment_status)}
-						</Badge>
-					</>
-				}
-			/>
+			<div className="text-balance mb-6 space-y-1">
+				<PageHeader
+					className="mb-0"
+					title={`Order ${detail.code}`}
+					description={detail.customer?.name ?? "Unknown customer"}
+					actions={
+						<div className="flex max-w-full flex-wrap justify-end gap-1.5">
+							<Badge variant={getOrderStatusBadgeVariant(detail.status)}>
+								{formatOrderStatus(detail.status)}
+							</Badge>
+							<Badge
+								variant={getOrderPickupStateBadgeVariant(detail.fulfillment)}
+							>
+								{formatOrderPickupState(detail.fulfillment)}
+							</Badge>
+							<Badge
+								variant={getPaymentStatusBadgeVariant(detail.payment_status)}
+							>
+								{formatPaymentStatus(detail.payment_status)}
+							</Badge>
+						</div>
+					}
+				/>
+				<p className="text-muted-foreground text-sm">
+					{detail.store?.name ?? "—"} ·{" "}
+					{new Date(detail.created_at).toLocaleString("en-ID", {
+						dateStyle: "medium",
+						timeStyle: "short",
+					})}
+				</p>
+			</div>
 
 			<div className="mb-6 grid gap-4">
 				<OrderFulfillmentOverview
@@ -456,77 +468,65 @@ function AdminOrderDetailPage() {
 				/>
 			</div>
 
-			<div className="mb-6 grid gap-4 md:grid-cols-3">
-				<Card>
-					<CardHeader className="pb-2">
-						<CardTitle className="text-sm font-medium text-muted-foreground">
-							Customer Details
-						</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<p className="font-medium">{detail.customer?.name ?? "-"}</p>
-						<p className="text-sm text-muted-foreground">
-							{detail.customer?.phone_number ?? "-"}
+			<Card className="mb-6">
+				<CardContent className="grid gap-6 pt-6 sm:grid-cols-3">
+					<div className="space-y-2">
+						<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+							Customer
 						</p>
-					</CardContent>
-				</Card>
-				<Card>
-					<CardHeader className="pb-2">
-						<CardTitle className="text-sm font-medium text-muted-foreground">
-							Order Details
-						</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<p className="font-medium">{detail.store?.name ?? "-"}</p>
-						<p className="text-sm text-muted-foreground">
-							{new Date(detail.created_at).toLocaleString("en-ID", {
-								dateStyle: "medium",
-								timeStyle: "short",
-							})}
+						<p className="font-medium leading-snug">
+							{detail.customer?.name ?? "—"}
 						</p>
-						{detail.notes ? (
-							<p className="mt-2 border-t pt-2 text-sm text-muted-foreground">
-								{detail.notes}
-							</p>
-						) : null}
-					</CardContent>
-				</Card>
-				<Card>
-					<CardHeader className="pb-2">
-						<CardTitle className="text-sm font-medium text-muted-foreground">
-							Financial Summary
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="grid gap-2 text-sm">
-						<div className="flex justify-between">
-							<span className="text-muted-foreground">Total</span>
-							<span>{formatIDRCurrency(String(detail.total ?? 0))}</span>
-						</div>
-						<div className="flex justify-between">
-							<span className="text-muted-foreground">Discount</span>
-							<span>-{formatIDRCurrency(String(detail.discount ?? 0))}</span>
-						</div>
-						<div className="flex justify-between border-t pt-2 font-medium">
-							<span>Net Total</span>
-							<span>
-								{formatIDRCurrency(
-									String(
-										Number(detail.total ?? 0) - Number(detail.discount ?? 0),
-									),
-								)}
-							</span>
-						</div>
-						{Number(detail.refunded_amount) > 0 ? (
-							<div className="flex justify-between text-destructive">
-								<span>Refunded</span>
-								<span>
-									-{formatIDRCurrency(String(detail.refunded_amount ?? 0))}
-								</span>
+						<p className="text-muted-foreground text-sm">
+							{detail.customer?.phone_number ?? "—"}
+						</p>
+					</div>
+					<div className="space-y-2">
+						<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+							Notes
+						</p>
+						<p className="text-sm leading-relaxed">
+							{detail.notes?.trim() ? detail.notes : "—"}
+						</p>
+					</div>
+					<div className="space-y-3">
+						<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+							Totals
+						</p>
+						<dl className="space-y-2 text-sm tabular-nums">
+							<div className="flex justify-between gap-4">
+								<dt className="text-muted-foreground">Subtotal</dt>
+								<dd>{formatIDRCurrency(String(detail.total ?? 0))}</dd>
 							</div>
-						) : null}
-					</CardContent>
-				</Card>
-			</div>
+							<div className="flex justify-between gap-4">
+								<dt className="text-muted-foreground">Discount</dt>
+								<dd>-{formatIDRCurrency(String(detail.discount ?? 0))}</dd>
+							</div>
+						</dl>
+						<Separator />
+						<dl className="space-y-2 text-sm tabular-nums">
+							<div className="flex justify-between gap-4 font-medium">
+								<dt>Net</dt>
+								<dd>
+									{formatIDRCurrency(
+										String(
+											Number(detail.total ?? 0) - Number(detail.discount ?? 0),
+										),
+									)}
+								</dd>
+							</div>
+							{Number(detail.refunded_amount) > 0 ? (
+								<div className="text-destructive flex justify-between gap-4">
+									<dt>Refunded</dt>
+									<dd>
+										-{formatIDRCurrency(String(detail.refunded_amount ?? 0))}
+									</dd>
+								</div>
+							) : null}
+						</dl>
+					</div>
+				</CardContent>
+			</Card>
 
 			<div className="grid items-start gap-4 lg:grid-cols-12">
 				<div className="grid gap-4 lg:col-span-4">
@@ -605,10 +605,7 @@ function AdminOrderDetailPage() {
 									const reason =
 										refundReasonByServiceId[service.id] ?? "damaged";
 									return (
-										<div
-											key={service.id}
-											className="grid gap-2 rounded-none border p-3"
-										>
+										<div key={service.id} className="grid gap-2 border p-3">
 											<label className="flex items-center gap-2 text-sm">
 												<input
 													type="checkbox"
@@ -656,7 +653,7 @@ function AdminOrderDetailPage() {
 											</Select>
 
 											<Textarea
-												placeholder="Reason note (required when reason is other)"
+												placeholder="Reason note"
 												value={refundItemNoteByServiceId[service.id] ?? ""}
 												onChange={(event) =>
 													setRefundItemNoteByServiceId((prev) => ({
@@ -720,11 +717,16 @@ function AdminOrderDetailPage() {
 
 						return (
 							<Card key={service.id}>
-								<CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-									<CardTitle className="text-base">
-										{service.item_code ?? `Service #${service.id}`}
-									</CardTitle>
-									<div className="flex flex-wrap items-center justify-end gap-2">
+								<CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-3">
+									<div className="min-w-0 space-y-1">
+										<CardTitle className="text-base leading-snug">
+											{service.item_code ?? `Service #${service.id}`}
+										</CardTitle>
+										<p className="text-muted-foreground text-sm">
+											{service.service?.name ?? "Service"}
+										</p>
+									</div>
+									<div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
 										{service.is_priority ? (
 											<Badge variant="warning">Priority</Badge>
 										) : null}
@@ -737,12 +739,24 @@ function AdminOrderDetailPage() {
 										</Badge>
 									</div>
 								</CardHeader>
-								<CardContent className="grid gap-3 text-sm">
-									<p>{`Service: ${service.service?.name ?? "Service"}`}</p>
-									<p>{`Item: ${service.color ?? "-"} / ${service.shoe_brand ?? "-"} / ${service.shoe_size ?? "-"}`}</p>
-									<p>{`Handler: ${service.handler?.name ?? "Not assigned"}`}</p>
+								<CardContent className="space-y-5 text-sm">
+									<dl className="grid gap-3 sm:grid-cols-2">
+										<div>
+											<dt className="text-muted-foreground text-xs">Item</dt>
+											<dd className="mt-0.5 font-medium">
+												{service.color ?? "—"} · {service.shoe_brand ?? "—"} ·{" "}
+												{service.shoe_size ?? "—"}
+											</dd>
+										</div>
+										<div>
+											<dt className="text-muted-foreground text-xs">Handler</dt>
+											<dd className="mt-0.5 font-medium">
+												{service.handler?.name ?? "Unassigned"}
+											</dd>
+										</div>
+									</dl>
 
-									<div className="flex flex-wrap gap-2">
+									<div className="flex flex-wrap gap-2 border-t pt-4">
 										<Button
 											size="sm"
 											variant="outline"
@@ -753,92 +767,102 @@ function AdminOrderDetailPage() {
 												});
 											}}
 										>
-											Handled by me
+											Assign to me
 										</Button>
+										{(ORDER_STATUS_TRANSITIONS[service.status] || []).map(
+											(nextStatus) => {
+												const isCancel = nextStatus === "cancelled";
+
+												return (
+													<ServiceStatusUpdateButton
+														key={nextStatus}
+														serviceId={service.id}
+														nextStatus={nextStatus}
+														isCancel={isCancel}
+														updateStatusMutation={updateStatusMutation}
+													/>
+												);
+											},
+										)}
 									</div>
 
-									<div className="flex flex-col gap-2">
-										<div className="flex flex-wrap gap-2">
-											{(ORDER_STATUS_TRANSITIONS[service.status] || []).map(
-												(nextStatus) => {
-													const isCancel = nextStatus === "cancelled";
-
-													return (
-														<ServiceStatusUpdateButton
-															key={nextStatus}
-															serviceId={service.id}
-															nextStatus={nextStatus}
-															isCancel={isCancel}
-															updateStatusMutation={updateStatusMutation}
-														/>
-													);
-												},
-											)}
+									<div className="border-t pt-4">
+										<p className="text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wide">
+											Add photo
+										</p>
+										<div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+											<div className="min-w-0 flex-1 space-y-1">
+												<Select
+													value={selectedPhotoType}
+													onValueChange={(value) =>
+														setPhotoTypeByServiceId((prev) => ({
+															...prev,
+															[service.id]: (value ??
+																"progress") as SaveOrderServicePhotoPayload["photo_type"],
+														}))
+													}
+												>
+													<SelectTrigger
+														className="h-10 w-full"
+														aria-label={`Photo type for ${service.item_code ?? `Service #${service.id}`}`}
+													>
+														<SelectValue placeholder="Photo type" />
+													</SelectTrigger>
+													<SelectContent>
+														<SelectItem value="dropoff">Drop-off</SelectItem>
+														<SelectItem value="progress">Progress</SelectItem>
+														<SelectItem value="pickup">Pickup</SelectItem>
+														<SelectItem value="refund">Refund</SelectItem>
+													</SelectContent>
+												</Select>
+											</div>
+											<input
+												type="file"
+												aria-label={`Choose photo file for ${service.item_code ?? `Service #${service.id}`}`}
+												accept="image/jpeg,image/png,image/webp,image/heic"
+												className="text-muted-foreground max-sm:w-full sm:max-w-[200px] sm:text-sm"
+												onChange={(event) =>
+													setPhotoFileByServiceId((prev) => ({
+														...prev,
+														[service.id]: event.target.files?.[0] ?? null,
+													}))
+												}
+											/>
+											<Button
+												variant="secondary"
+												className="sm:shrink-0"
+												disabled={
+													!selectedPhotoFile || uploadPhotoMutation.isPending
+												}
+												onClick={async () => {
+													if (!selectedPhotoFile) {
+														return;
+													}
+													await uploadPhotoMutation.mutateAsync({
+														serviceId: service.id,
+														photoType: selectedPhotoType,
+														file: selectedPhotoFile,
+													});
+												}}
+											>
+												Upload
+											</Button>
 										</div>
 									</div>
 
-									<div className="grid gap-2 md:grid-cols-[180px_1fr_auto]">
-										<Select
-											value={selectedPhotoType}
-											onValueChange={(value) =>
-												setPhotoTypeByServiceId((prev) => ({
-													...prev,
-													[service.id]: (value ??
-														"progress") as SaveOrderServicePhotoPayload["photo_type"],
-												}))
-											}
-										>
-											<SelectTrigger className="h-10 w-full">
-												<SelectValue placeholder="Photo type" />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value="dropoff">dropoff</SelectItem>
-												<SelectItem value="progress">progress</SelectItem>
-												<SelectItem value="pickup">pickup</SelectItem>
-												<SelectItem value="refund">refund</SelectItem>
-											</SelectContent>
-										</Select>
-										<input
-											type="file"
-											accept="image/jpeg,image/png,image/webp,image/heic"
-											onChange={(event) =>
-												setPhotoFileByServiceId((prev) => ({
-													...prev,
-													[service.id]: event.target.files?.[0] ?? null,
-												}))
-											}
-										/>
-										<Button
-											variant="outline"
-											disabled={
-												!selectedPhotoFile || uploadPhotoMutation.isPending
-											}
-											onClick={async () => {
-												if (!selectedPhotoFile) {
-													return;
-												}
-												await uploadPhotoMutation.mutateAsync({
-													serviceId: service.id,
-													photoType: selectedPhotoType,
-													file: selectedPhotoFile,
-												});
-											}}
-										>
-											Upload
-										</Button>
-									</div>
-
-									<div className="grid gap-1 rounded-none border p-2">
-										<p className="font-medium">Photos</p>
+									<div className="space-y-2">
+										<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+											Photos ({service.images.length})
+										</p>
 										{service.images.length > 0 ? (
-											<div className="grid gap-2 sm:grid-cols-2">
+											<div className="grid gap-3 sm:grid-cols-2">
 												{service.images.map((image) => (
 													<a
 														key={image.id}
 														href={image.image_url}
 														target="_blank"
-														rel="noopener"
-														className="grid gap-2 border p-2"
+														rel="noopener noreferrer"
+														className="bg-muted/30 group overflow-hidden border transition-opacity hover:opacity-95"
 													>
 														<img
 															src={image.image_url}
@@ -848,43 +872,64 @@ function AdminOrderDetailPage() {
 															className="aspect-4/3 w-full object-cover"
 															loading="lazy"
 														/>
-														<p className="text-xs text-muted-foreground">
-															{`${image.photo_type} - ${new Date(image.created_at).toLocaleString()}`}
+														<p className="text-muted-foreground p-2 text-xs">
+															{image.photo_type} ·{" "}
+															{new Date(image.created_at).toLocaleString(
+																"en-ID",
+																{
+																	dateStyle: "short",
+																	timeStyle: "short",
+																},
+															)}
 														</p>
 													</a>
 												))}
 											</div>
 										) : (
-											<p className="text-xs text-muted-foreground">No photos</p>
+											<p className="text-muted-foreground text-sm">None yet</p>
 										)}
 									</div>
 
-									<div className="grid gap-1 rounded-none border p-2">
-										<p className="font-medium">Timeline</p>
-										{service.statusLogs.length > 0 ? (
-											service.statusLogs.map((log) => (
-												<div
-													key={log.id}
-													className="grid gap-1 border-b pb-2 last:border-b-0 last:pb-0"
-												>
-													<p className="text-xs">
-														{`${log.to_status} by ${log.changedBy?.name ?? "-"} at ${new Date(
-															log.created_at,
-														).toLocaleString()}`}
-													</p>
-													{log.note ? (
-														<p className="text-xs text-muted-foreground">
-															{log.note}
+									<details className="group border-t pt-4">
+										<summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden [&::marker]:hidden">
+											<CaretRightIcon
+												className="size-4 shrink-0 transition-transform group-open:rotate-90"
+												aria-hidden="true"
+											/>
+											Status history ({service.statusLogs.length})
+										</summary>
+										<div className="mt-3 space-y-3 border-l-2 border-muted pl-3">
+											{service.statusLogs.length > 0 ? (
+												service.statusLogs.map((log) => (
+													<div key={log.id} className="space-y-0.5">
+														<p className="text-xs leading-relaxed">
+															<span className="font-medium">
+																{log.to_status}
+															</span>
+															{" · "}
+															{log.changedBy?.name ?? "—"} ·{" "}
+															{new Date(log.created_at).toLocaleString(
+																"en-ID",
+																{
+																	dateStyle: "short",
+																	timeStyle: "short",
+																},
+															)}
 														</p>
-													) : null}
-												</div>
-											))
-										) : (
-											<p className="text-xs text-muted-foreground">
-												No status logs
-											</p>
-										)}
-									</div>
+														{log.note ? (
+															<p className="text-muted-foreground text-xs">
+																{log.note}
+															</p>
+														) : null}
+													</div>
+												))
+											) : (
+												<p className="text-muted-foreground text-xs">
+													No entries yet
+												</p>
+											)}
+										</div>
+									</details>
 								</CardContent>
 							</Card>
 						);

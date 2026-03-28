@@ -1,15 +1,15 @@
 import {
-	Buildings,
-	CreditCard,
-	House,
-	IdentificationCard,
-	List,
-	Package,
-	Scissors,
-	ShoppingCart,
-	SignOut,
-	Storefront,
-	UserGear,
+	BuildingsIcon,
+	CreditCardIcon,
+	HouseIcon,
+	IdentificationCardIcon,
+	ListIcon,
+	PackageIcon,
+	ScissorsIcon,
+	ShoppingCartIcon,
+	SignOutIcon,
+	StorefrontIcon,
+	UserGearIcon,
 } from "@phosphor-icons/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -51,11 +51,11 @@ type NavItem = {
 };
 
 const mainNavigation: NavItem[] = [
-	{ to: "/", label: "Dashboard", icon: House, roles: ["admin", "cashier"] },
+	{ to: "/", label: "Dashboard", icon: HouseIcon, roles: ["admin", "cashier"] },
 	{
 		to: "/worker",
 		label: "Queue",
-		icon: Scissors,
+		icon: ScissorsIcon,
 		roles: ["admin", "cashier", "worker"],
 	},
 ];
@@ -64,39 +64,39 @@ const masterDataNavigation: NavItem[] = [
 	{
 		to: "/orders",
 		label: "Orders",
-		icon: ShoppingCart,
+		icon: ShoppingCartIcon,
 		roles: ["admin", "cashier"],
 		search: { page: 1 },
 	},
 	{
 		to: "/campaigns",
 		label: "Campaigns",
-		icon: CreditCard,
+		icon: CreditCardIcon,
 		roles: ["admin", "cashier"],
 		search: { page: 1 },
 	},
 	{
 		to: "/customers",
 		label: "Customers",
-		icon: IdentificationCard,
+		icon: IdentificationCardIcon,
 		roles: ["admin", "cashier"],
 		search: { page: 1 },
 	},
 	{
 		to: "/users",
 		label: "Users",
-		icon: UserGear,
+		icon: UserGearIcon,
 		roles: ["admin"],
 		search: { page: 1 },
 	},
-	{ to: "/stores", label: "Stores", icon: Storefront, roles: ["admin"] },
-	{ to: "/categories", label: "Categories", icon: List, roles: ["admin"] },
-	{ to: "/services", label: "Services", icon: Scissors, roles: ["admin"] },
-	{ to: "/products", label: "Products", icon: Package, roles: ["admin"] },
+	{ to: "/stores", label: "Stores", icon: StorefrontIcon, roles: ["admin"] },
+	{ to: "/categories", label: "Categories", icon: ListIcon, roles: ["admin"] },
+	{ to: "/services", label: "Services", icon: ScissorsIcon, roles: ["admin"] },
+	{ to: "/products", label: "Products", icon: PackageIcon, roles: ["admin"] },
 	{
 		to: "/payment-methods",
 		label: "Payment Methods",
-		icon: CreditCard,
+		icon: CreditCardIcon,
 		roles: ["admin"],
 	},
 ] as const;
@@ -105,7 +105,7 @@ const transactionNavigation: NavItem[] = [
 	{
 		to: "/transactions",
 		label: "Transactions",
-		icon: ShoppingCart,
+		icon: ShoppingCartIcon,
 		roles: ["admin", "cashier"],
 	},
 ] as const;
@@ -189,7 +189,7 @@ export function AppShell({ title, children }: AppShellProps) {
 			<Sidebar collapsible="offcanvas" variant="inset">
 				<SidebarHeader className="flex-row items-center justify-between">
 					<div className="flex items-center gap-2 px-2 text-sm font-semibold uppercase tracking-[0.2em] text-sidebar-foreground/80">
-						<Buildings className="size-4" weight="duotone" />
+						<BuildingsIcon className="size-4" weight="duotone" />
 						Fresclean POS
 					</div>
 					<SidebarTrigger className="size-6 shrink-0" />
@@ -224,7 +224,7 @@ export function AppShell({ title, children }: AppShellProps) {
 				</SidebarContent>
 
 				<SidebarFooter>
-					<div className="rounded-none border border-sidebar-border/70 bg-background px-3 py-3">
+					<div className="border border-sidebar-border/70 bg-background px-3 py-3">
 						<div className="mb-3 flex items-center justify-between">
 							<p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
 								Theme
@@ -252,7 +252,7 @@ export function AppShell({ title, children }: AppShellProps) {
 							variant="outline"
 							className="mt-3 w-full justify-start"
 							onClick={handleLogout}
-							icon={<SignOut className="size-4" weight="duotone" />}
+							icon={<SignOutIcon className="size-4" weight="duotone" />}
 						>
 							Logout
 						</Button>

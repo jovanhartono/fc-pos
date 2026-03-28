@@ -172,7 +172,6 @@ function UsersPage() {
 			});
 			openSheet({
 				title: "Edit User",
-				description: `Editing ID ${user.id}`,
 				content: (
 					<UserForm
 						control={form.control}
@@ -194,7 +193,6 @@ function UsersPage() {
 		form.reset(defaultForm);
 		openSheet({
 			title: "Add User",
-			description: "Create a new user",
 			content: (
 				<UserForm
 					control={form.control}
@@ -271,7 +269,6 @@ function UsersPage() {
 		<>
 			<PageHeader
 				title="Users"
-				description="Insert and edit users with role management."
 				actions={
 					<>
 						<Badge

@@ -272,7 +272,7 @@ export function CampaignForm({
 					render={({ field }) => (
 						<Field className="md:col-span-2">
 							<FieldLabel>Stores (empty = all stores)</FieldLabel>
-							<div className="grid gap-2 rounded-none border p-3 md:grid-cols-2">
+							<div className="grid gap-2 border p-3 md:grid-cols-2">
 								{stores.map((store) => {
 									const checked = field.value.includes(store.id);
 									return (

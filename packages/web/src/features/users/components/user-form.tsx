@@ -1,4 +1,4 @@
-import { Plus } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import {
 	type Control,
 	Controller,
@@ -204,7 +204,7 @@ export function UserForm({
 				render={({ field }) => (
 					<Field className="md:col-span-2">
 						<FieldLabel>Assigned Stores</FieldLabel>
-						<div className="grid gap-2 rounded-none border p-3 md:grid-cols-2">
+						<div className="grid gap-2 border p-3 md:grid-cols-2">
 							{stores.map((store) => (
 								<label
 									key={store.id}
@@ -246,7 +246,7 @@ export function UserForm({
 				<Button
 					type="submit"
 					loading={isSubmitting}
-					icon={<Plus className="size-4" weight="duotone" />}
+					icon={<PlusIcon className="size-4" weight="duotone" />}
 				>
 					{isEditing ? "Update User" : "Create User"}
 				</Button>
