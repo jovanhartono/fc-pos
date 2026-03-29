@@ -40,6 +40,8 @@ import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
 import { buildPaginationMeta } from "@/utils/pagination";
 import { buildS3ObjectUrl, createPresignedUploadUrl } from "@/utils/s3";
 
+const numericSearchRegex = /^\d+$/;
+
 function roundCurrencyUnit(value: number) {
   return Math.round(value);
 }
@@ -266,6 +268,35 @@ export function getOrderServiceByItemCode(item_code: string) {
   });
 }
 
+export function getOrderServiceById(serviceId: number) {
+  return db.query.ordersServicesTable.findFirst({
+    where: eq(ordersServicesTable.id, serviceId),
+    with: {
+      order: {
+        columns: {
+          id: true,
+          code: true,
+          store_id: true,
+          status: true,
+        },
+      },
+      service: {
+        columns: {
+          id: true,
+          code: true,
+          name: true,
+        },
+      },
+      handler: {
+        columns: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  });
+}
+
 export async function getMyOrderServices(
   user: JWTPayload,
   query: GetMyOrderServicesQuery
@@ -296,18 +327,19 @@ export async function getMyOrderServices(
 
   return db
     .select({
+      brand: ordersServicesTable.brand,
       color: ordersServicesTable.color,
       handler_id: ordersServicesTable.handler_id,
       id: ordersServicesTable.id,
       is_priority: ordersServicesTable.is_priority,
       item_code: ordersServicesTable.item_code,
+      model: ordersServicesTable.model,
       order_code: ordersTable.code,
       order_created_at: ordersTable.created_at,
       order_id: ordersTable.id,
       service_code: servicesTable.code,
       service_name: servicesTable.name,
-      shoe_brand: ordersServicesTable.shoe_brand,
-      shoe_size: ordersServicesTable.shoe_size,
+      size: ordersServicesTable.size,
       status: ordersServicesTable.status,
       store_code: storesTable.code,
       store_id: storesTable.id,
@@ -358,6 +390,24 @@ export async function getOrderServiceQueue(
     conditions.push(eq(ordersServicesTable.status, normalized.status));
   }
 
+  if (normalized.search) {
+    const search = normalized.search.trim();
+    const loweredSearchPrefix = `${search.toLowerCase()}%`;
+    const searchConditions = [
+      sql`LOWER(${ordersTable.code}) LIKE ${loweredSearchPrefix}`,
+      sql`LOWER(${ordersServicesTable.item_code}) LIKE ${loweredSearchPrefix}`,
+    ];
+
+    if (numericSearchRegex.test(search)) {
+      const numericSearch = Number(search);
+
+      searchConditions.push(eq(ordersTable.id, numericSearch));
+      searchConditions.push(eq(ordersServicesTable.id, numericSearch));
+    }
+
+    conditions.push(sql`(${sql.join(searchConditions, sql` OR `)})`);
+  }
+
   if (normalized.date_from) {
     conditions.push(
       gte(
@@ -381,18 +431,19 @@ export async function getOrderServiceQueue(
   const [items, countRows] = await Promise.all([
     db
       .select({
+        brand: ordersServicesTable.brand,
         color: ordersServicesTable.color,
         handler_id: ordersServicesTable.handler_id,
         handler_name: usersTable.name,
         id: ordersServicesTable.id,
         is_priority: ordersServicesTable.is_priority,
         item_code: ordersServicesTable.item_code,
+        model: ordersServicesTable.model,
         order_code: ordersTable.code,
         order_created_at: ordersTable.created_at,
         order_id: ordersTable.id,
         service_name: servicesTable.name,
-        shoe_brand: ordersServicesTable.shoe_brand,
-        shoe_size: ordersServicesTable.shoe_size,
+        size: ordersServicesTable.size,
         status: ordersServicesTable.status,
         store_code: storesTable.code,
         store_id: storesTable.id,
@@ -511,10 +562,21 @@ export async function getOrderDetailById(id: number) {
     return null;
   }
 
+  const services = detail.services.map((service) => {
+    const {
+      shoe_brand: _shoeBrand,
+      shoe_size: _shoeSize,
+      ...nextService
+    } = service;
+
+    return nextService;
+  });
+
   return {
     ...detail,
+    services,
     fulfillment: summarizeOrderFulfillment(
-      detail.services.map((service) => service.status)
+      services.map((service) => service.status)
     ),
   };
 }

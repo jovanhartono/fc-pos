@@ -8,6 +8,7 @@ import { GETOrdersQuerySchema } from "@/modules/orders/order.schema";
 import {
   GETMyOrderServicesQuerySchema,
   GETOrderByItemCodeQuerySchema,
+  GETOrderServiceByIdQuerySchema,
   GETOrderServiceQueueQuerySchema,
   orderServiceParamSchema,
   PATCHOrderPaymentSchema,
@@ -27,6 +28,7 @@ import {
   createOrderServicePhotoPresign,
   getMyOrderServices,
   getOrderDetailById,
+  getOrderServiceById,
   getOrderServiceByItemCode,
   getOrderServiceQueue,
   saveOrderIntakePhoto,
@@ -62,6 +64,29 @@ const app = new Hono()
       const { items, meta } = await getOrderServiceQueue(user, query);
 
       return c.json(success(items, "Queue retrieved successfully", meta));
+    }
+  )
+  .get(
+    "/services/by-id",
+    zodValidator("query", GETOrderServiceByIdQuerySchema),
+    async (c) => {
+      const user = c.get("jwtPayload") as JWTPayload;
+      const { service_id } = c.req.valid("query");
+
+      const orderService = await getOrderServiceById(service_id);
+
+      if (!orderService?.order) {
+        return c.json(
+          failure("Order service not found"),
+          StatusCodes.NOT_FOUND
+        );
+      }
+
+      await assertStoreAccess(user, orderService.order.store_id);
+
+      return c.json(
+        success(orderService, "Order service retrieved successfully")
+      );
     }
   )
   .get(

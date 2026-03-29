@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { HoldToConfirmButton } from "@/features/orders/components/hold-to-confirm-button";
+import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
 import {
 	type OrderDetail,
 	presignOrderServicePhoto,
@@ -32,6 +33,7 @@ import {
 	updateOrderServiceStatus,
 	uploadFileToPresignedUrl,
 } from "@/lib/api";
+import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { orderDetailQueryOptions } from "@/lib/query-options";
 import {
 	formatOrderServiceStatus,
@@ -386,7 +388,7 @@ export function QueueServiceDetail({
 								{selectedService.service?.name ?? "Service"}
 							</p>
 							<p className="text-sm text-muted-foreground">
-								{`Item ${selectedService.color ?? "-"} / ${selectedService.shoe_brand ?? "-"} / ${selectedService.shoe_size ?? "-"}`}
+								{`Item ${formatOrderServiceItemDetails(selectedService)}`}
 							</p>
 						</div>
 
@@ -568,34 +570,20 @@ export function QueueServiceDetail({
 						</div>
 					</div>
 
-					<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-						{selectedService.images.map((image) => (
-							<a
-								key={image.id}
-								href={image.image_url}
-								target="_blank"
-								rel="noopener"
-								className="grid gap-2 border border-border p-2"
-							>
-								<img
-									src={image.image_url}
-									alt={`${image.photo_type} for ${selectedService.item_code ?? `service-${selectedService.id}`}`}
-									width={960}
-									height={768}
-									className="aspect-[5/4] w-full object-cover"
-									loading="lazy"
-								/>
-								<p className="text-xs text-muted-foreground">
-									{`${image.photo_type} - ${new Date(image.created_at).toLocaleString()}`}
-								</p>
-							</a>
-						))}
-						{selectedService.images.length === 0 ? (
+					<OrderPhotoGallery
+						items={selectedService.images.map((image) => ({
+							...image,
+							alt: `${image.photo_type} for ${selectedService.item_code ?? `service-${selectedService.id}`}`,
+						}))}
+						gridClassName="sm:grid-cols-2 xl:grid-cols-3"
+						thumbnailImageClassName="aspect-[5/4]"
+						title={`Photos for ${selectedService.item_code ?? `service-${selectedService.id}`}`}
+						emptyState={
 							<p className="border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground sm:col-span-2">
 								No photos uploaded yet.
 							</p>
-						) : null}
-					</div>
+						}
+					/>
 				</section>
 
 				<section className="grid gap-4 border border-border p-4">

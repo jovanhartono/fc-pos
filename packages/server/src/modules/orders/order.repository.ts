@@ -147,7 +147,17 @@ function buildWhereClause(
     ];
 
     if (numericSearchRegex.test(search)) {
-      searchConditions.push(eq(ordersTable.id, Number(search)));
+      const numericSearch = Number(search);
+
+      searchConditions.push(eq(ordersTable.id, numericSearch));
+      searchConditions.push(sql`
+        EXISTS (
+          SELECT 1
+          FROM ${ordersServicesTable}
+          WHERE ${ordersServicesTable.order_id} = ${ordersTable.id}
+            AND ${ordersServicesTable.id} = ${numericSearch}
+        )
+      `);
     }
 
     conditions.push(or(...searchConditions) as SQL);

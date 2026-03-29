@@ -52,6 +52,7 @@ const ordersRoute = rpc.api.admin.orders.$get;
 const orderDetailRoute = rpc.api.admin.orders[":id"].$get;
 const campaignsRoute = rpc.api.admin.campaigns.$get;
 const campaignDetailRoute = rpc.api.admin.campaigns[":id"].$get;
+const orderServiceByIdRoute = rpc.api.admin.orders.services["by-id"].$get;
 const orderServiceByItemCodeRoute =
 	rpc.api.admin.orders.services["by-item-code"].$get;
 const orderServiceQueueRoute = rpc.api.admin.orders.services.queue.$get;
@@ -93,6 +94,10 @@ export type CampaignDetail = Extract<
 >["data"];
 export type OrderServiceLookup = Extract<
 	InferResponseType<typeof orderServiceByItemCodeRoute>,
+	{ success: true }
+>["data"];
+export type OrderServiceLookupById = Extract<
+	InferResponseType<typeof orderServiceByIdRoute>,
 	{ success: true }
 >["data"];
 export type QueueOrderServiceItem = Extract<
@@ -146,6 +151,7 @@ export type TrackPublicOrderPayload = {
 export type FetchOrdersQuery = {
 	limit?: number;
 	offset?: number;
+	search?: string;
 	store_id?: number;
 	status?: "created" | "processing" | "completed" | "cancelled";
 	payment_status?: "paid" | "unpaid";
@@ -156,6 +162,7 @@ export type FetchOrdersQuery = {
 export type FetchOrderServiceQueueQuery = {
 	limit?: number;
 	offset?: number;
+	search?: string;
 	store_id?: number;
 	status?:
 		| "received"
@@ -285,7 +292,7 @@ export const queryKeys = {
 	orderServiceQueue: (
 		query?: Pick<
 			FetchOrderServiceQueueQuery,
-			"store_id" | "status" | "date_from" | "date_to"
+			"store_id" | "search" | "status" | "date_from" | "date_to"
 		>,
 	) => ["order-service-queue", query ?? {}] as const,
 	myOrderServices: (storeId?: number) =>
@@ -425,6 +432,7 @@ export async function fetchOrders(query?: FetchOrdersQuery) {
 							...(query.store_id !== undefined
 								? { store_id: String(query.store_id) }
 								: {}),
+							...(query.search ? { search: query.search } : {}),
 							...(query.status ? { status: query.status } : {}),
 							...(query.payment_status
 								? { payment_status: query.payment_status }
@@ -459,6 +467,7 @@ export async function fetchOrdersPage(
 							...(query.store_id !== undefined
 								? { store_id: String(query.store_id) }
 								: {}),
+							...(query.search ? { search: query.search } : {}),
 							...(query.status ? { status: query.status } : {}),
 							...(query.payment_status
 								? { payment_status: query.payment_status }
@@ -708,6 +717,14 @@ export async function lookupOrderServiceByItemCode(itemCode: string) {
 	);
 }
 
+export async function lookupOrderServiceById(serviceId: number) {
+	return parseSuccessData<OrderServiceLookupById>(
+		rpcWithAuth().api.admin.orders.services["by-id"].$get({
+			query: { service_id: String(serviceId) },
+		}),
+	);
+}
+
 export async function fetchOrderServiceQueuePage(
 	query?: FetchOrderServiceQueueQuery,
 ): Promise<PaginatedData<QueueOrderServiceItem>> {
@@ -725,6 +742,7 @@ export async function fetchOrderServiceQueuePage(
 							...(query.store_id !== undefined
 								? { store_id: String(query.store_id) }
 								: {}),
+							...(query.search ? { search: query.search } : {}),
 							...(query.status !== undefined ? { status: query.status } : {}),
 							...(query.date_from !== undefined
 								? { date_from: query.date_from }

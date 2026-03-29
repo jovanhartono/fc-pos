@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { OrderDetail } from "@/lib/api";
+import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	formatOrderPickupState,
 	getOrderPickupStateBadgeVariant,
@@ -163,8 +164,8 @@ function LaneList({
 								{service.item_code ?? `Service #${service.id}`}
 							</p>
 							<p className="text-muted-foreground mt-0.5 text-xs">
-								{service.service?.name ?? "Service"} · {service.color ?? "-"} /{" "}
-								{service.shoe_brand ?? "-"} / {service.shoe_size ?? "-"}
+								{service.service?.name ?? "Service"} ·{" "}
+								{formatOrderServiceItemDetails(service)}
 							</p>
 						</li>
 					))}

@@ -550,9 +550,12 @@ export const ordersServicesTable = pgTable(
     // snapshot
     price: decimal("price", { precision: 12 }).default("0"),
 
+    brand: varchar("brand", { length: 255 }),
     color: varchar("color", { length: 255 }),
+    model: varchar("model", { length: 255 }),
     shoe_brand: varchar("shoe_brand", { length: 255 }),
     shoe_size: varchar("shoe_size", { length: 64 }),
+    size: varchar("size", { length: 64 }),
     service_id: integer("service_id").references(() => servicesTable.id, {
       onDelete: "cascade",
     }),

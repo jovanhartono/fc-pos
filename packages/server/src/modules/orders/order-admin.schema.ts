@@ -101,6 +101,10 @@ export const GETOrderByItemCodeQuerySchema = z.object({
   item_code: z.string().trim().min(1).max(64),
 });
 
+export const GETOrderServiceByIdQuerySchema = z.object({
+  service_id: z.coerce.number().int().positive(),
+});
+
 export const GETMyOrderServicesQuerySchema = z.object({
   store_id: z.coerce.number().int().positive().optional(),
   include_terminal: z.coerce.boolean().optional().default(false),
@@ -111,6 +115,7 @@ export const GETOrderServiceQueueQuerySchema = z
     limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).optional(),
     offset: z.coerce.number().int().min(0).optional(),
     store_id: z.coerce.number().int().positive().optional(),
+    search: z.string().trim().min(1).max(100).optional(),
     status: z.enum(orderServiceStatusEnum.enumValues).optional(),
     date_from: z
       .string()
@@ -168,6 +173,7 @@ export function normalizeOrderServiceQueueQuery(
     limit: pagination.limit,
     offset: pagination.offset,
     store_id: query?.store_id,
+    search: query?.search,
     status: query?.status,
     date_from: query?.date_from,
     date_to: query?.date_to,

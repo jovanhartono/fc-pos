@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { trackPublicOrder } from "@/lib/api";
+import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	formatOrderServiceStatus,
 	formatOrderStatus,
@@ -52,7 +53,7 @@ function TrackOrderPage() {
 		<div className="container mx-auto grid max-w-3xl gap-4 px-4 py-8">
 			<Card>
 				<CardHeader>
-					<CardTitle>Track Shoe Laundry Order</CardTitle>
+					<CardTitle>Track Order</CardTitle>
 				</CardHeader>
 				<CardContent className="grid gap-3">
 					<Field data-invalid={!!formError}>
@@ -107,6 +108,27 @@ function TrackOrderPage() {
 						<p>{`Store: ${trackMutation.data.store.name}`}</p>
 						<p>{`Store Contact: ${trackMutation.data.store.phone_number}`}</p>
 
+						{trackMutation.data.intake_photo_url ? (
+							<div className="grid gap-3 border p-3">
+								<div className="grid gap-1">
+									<p className="text-sm font-medium">Pickup attachment</p>
+									{trackMutation.data.intake_photo_uploaded_at ? (
+										<p className="text-muted-foreground text-xs">
+											{`Uploaded ${new Date(trackMutation.data.intake_photo_uploaded_at).toLocaleString()}`}
+										</p>
+									) : null}
+								</div>
+								<img
+									src={trackMutation.data.intake_photo_url}
+									alt={`Pickup attachment for ${trackMutation.data.code}`}
+									width={1280}
+									height={800}
+									className="aspect-16/10 w-full border object-cover"
+									loading="lazy"
+								/>
+							</div>
+						) : null}
+
 						<div className="grid gap-2">
 							<p className="font-medium">Items</p>
 							{sortedServices.map((item) => (
@@ -119,30 +141,7 @@ function TrackOrderPage() {
 											{formatOrderServiceStatus(item.status)}
 										</Badge>
 									</div>
-									<p>{`Color/Brand/Size: ${item.color ?? "-"} / ${item.shoe_brand ?? "-"} / ${item.shoe_size ?? "-"}`}</p>
-									{item.images.length > 0 ? (
-										<div className="mt-2 grid gap-2 sm:grid-cols-2">
-											{item.images.map((image) => (
-												<a
-													key={image.id}
-													href={image.image_url}
-													target="_blank"
-													rel="noopener"
-													className="grid gap-2 border p-2"
-												>
-													<img
-														src={image.image_url}
-														alt={`${image.photo_type} for ${item.item_code ?? `service-${item.id}`}`}
-														className="aspect-[4/3] w-full object-cover"
-														loading="lazy"
-													/>
-													<p className="text-xs text-muted-foreground">
-														{`${image.photo_type} - ${new Date(image.created_at).toLocaleString()}`}
-													</p>
-												</a>
-											))}
-										</div>
-									) : null}
+									<p>{formatOrderServiceItemDetails(item)}</p>
 									<div className="mt-2 grid gap-1 border-t pt-2">
 										{item.statusLogs.length > 0 ? (
 											item.statusLogs

@@ -78,6 +78,7 @@ export function TransactionsCheckout() {
 		removeServiceFromCart,
 		updateServiceColor,
 		updateServiceBrand,
+		updateServiceModel,
 		updateServiceSize,
 	} = useTransactionsPageStore();
 
@@ -392,7 +393,7 @@ export function TransactionsCheckout() {
 											icon={<XIcon className="size-4" />}
 										/>
 									</div>
-									<div className="grid gap-3 sm:grid-cols-3">
+									<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 										<Field>
 											<FieldLabel htmlFor={`service-color-${line.line_id}`}>
 												Color
@@ -408,38 +409,59 @@ export function TransactionsCheckout() {
 										</Field>
 										<Field
 											data-invalid={
-												!!form.formState.errors.serviceCart?.[index]?.shoe_brand
+												!!form.formState.errors.serviceCart?.[index]?.brand
 											}
 										>
 											<FieldLabel htmlFor={`service-brand-${line.line_id}`}>
-												Item Brand
+												Brand
 											</FieldLabel>
 											<Input
 												id={`service-brand-${line.line_id}`}
-												value={line.shoe_brand}
+												value={line.brand}
 												onChange={(event) =>
 													updateServiceBrand(line.line_id, event.target.value)
 												}
-												placeholder="e.g. Nike"
+												placeholder="e.g. Adidas"
 											/>
 											<FieldError
 												errors={[
-													form.formState.errors.serviceCart?.[index]
-														?.shoe_brand,
+													form.formState.errors.serviceCart?.[index]?.brand,
 												]}
 											/>
 										</Field>
 										<Field
 											data-invalid={
-												!!form.formState.errors.serviceCart?.[index]?.shoe_size
+												!!form.formState.errors.serviceCart?.[index]?.model
+											}
+										>
+											<FieldLabel htmlFor={`service-model-${line.line_id}`}>
+												Model
+											</FieldLabel>
+											<Input
+												id={`service-model-${line.line_id}`}
+												value={line.model}
+												onChange={(event) =>
+													updateServiceModel(line.line_id, event.target.value)
+												}
+												placeholder="e.g. Yeezy"
+											/>
+											<FieldError
+												errors={[
+													form.formState.errors.serviceCart?.[index]?.model,
+												]}
+											/>
+										</Field>
+										<Field
+											data-invalid={
+												!!form.formState.errors.serviceCart?.[index]?.size
 											}
 										>
 											<FieldLabel htmlFor={`service-size-${line.line_id}`}>
-												Item Size
+												Size
 											</FieldLabel>
 											<Input
 												id={`service-size-${line.line_id}`}
-												value={line.shoe_size}
+												value={line.size}
 												onChange={(event) =>
 													updateServiceSize(line.line_id, event.target.value)
 												}
@@ -447,7 +469,7 @@ export function TransactionsCheckout() {
 											/>
 											<FieldError
 												errors={[
-													form.formState.errors.serviceCart?.[index]?.shoe_size,
+													form.formState.errors.serviceCart?.[index]?.size,
 												]}
 											/>
 										</Field>

@@ -194,9 +194,10 @@ export const POSTOrderSchema = z
             id: z.number("Service is required"),
             is_priority: z.boolean().optional(),
             notes: z.string().optional(),
-            shoe_brand: optionalVarcharSchema("Item Brand"),
-            shoe_size: optionalVarcharSchema("Item Size", 64),
+            brand: optionalVarcharSchema("Brand"),
             color: optionalVarcharSchema("Item Color"),
+            model: optionalVarcharSchema("Model"),
+            size: optionalVarcharSchema("Size", 64),
           },
           "Service is required"
         )

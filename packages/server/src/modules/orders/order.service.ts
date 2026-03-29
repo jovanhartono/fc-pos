@@ -29,12 +29,13 @@ function formatOrderCode(storeCode: string, dateStr: string, sequence: number) {
 }
 
 interface ExpandedServiceItem {
+  brand?: string;
+  model?: string;
   id: number;
   is_priority?: boolean;
   notes?: string;
   color?: string;
-  shoe_brand?: string;
-  shoe_size?: string;
+  size?: string;
 }
 
 interface ResolvedDiscount {
@@ -46,12 +47,13 @@ function expandServices(
   payloadServices: z.infer<typeof POSTOrderSchema>["services"] = []
 ): ExpandedServiceItem[] {
   return payloadServices.map((item) => ({
+    brand: item.brand,
+    model: item.model,
     id: item.id,
     is_priority: item.is_priority,
     notes: item.notes,
     color: item.color,
-    shoe_brand: item.shoe_brand,
-    shoe_size: item.shoe_size,
+    size: item.size,
   }));
 }
 
@@ -75,15 +77,16 @@ function buildOrderServiceRows({
     }
 
     return {
+      brand: item.brand,
       item_code: `${code}-S${String(index + 1).padStart(3, "0")}`,
       is_priority: item.is_priority ?? service.is_priority,
+      model: item.model,
       order_id: orderId,
       service_id: service.id,
       price: service.price,
       notes: item.notes,
       color: item.color,
-      shoe_brand: item.shoe_brand,
-      shoe_size: item.shoe_size,
+      size: item.size,
       status: "queued" as const,
     };
   });

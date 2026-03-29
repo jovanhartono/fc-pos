@@ -38,6 +38,7 @@ type TransactionsPageActions = {
 	) => void;
 	updateServiceColor: (lineId: string, value: string) => void;
 	updateServiceBrand: (lineId: string, value: string) => void;
+	updateServiceModel: (lineId: string, value: string) => void;
 	updateServiceSize: (lineId: string, value: string) => void;
 	handleAddProduct: (product: Product) => void;
 	handleAddService: (service: Service) => void;
@@ -254,7 +255,17 @@ export const useTransactionsPageStore = create<TransactionsPageStore>()(
 			set({ submitError: "" });
 			getNextServiceCart(form, (currentCart) =>
 				currentCart.map((line) =>
-					line.line_id === lineId ? { ...line, shoe_brand: value } : line,
+					line.line_id === lineId ? { ...line, brand: value } : line,
+				),
+			);
+		},
+		updateServiceModel: (lineId, value) => {
+			const { form } = getTransactionsPageController();
+
+			set({ submitError: "" });
+			getNextServiceCart(form, (currentCart) =>
+				currentCart.map((line) =>
+					line.line_id === lineId ? { ...line, model: value } : line,
 				),
 			);
 		},
@@ -264,7 +275,7 @@ export const useTransactionsPageStore = create<TransactionsPageStore>()(
 			set({ submitError: "" });
 			getNextServiceCart(form, (currentCart) =>
 				currentCart.map((line) =>
-					line.line_id === lineId ? { ...line, shoe_size: value } : line,
+					line.line_id === lineId ? { ...line, size: value } : line,
 				),
 			);
 		},
@@ -308,9 +319,10 @@ export const useTransactionsPageStore = create<TransactionsPageStore>()(
 					kind: "service",
 					line_id: createServiceCartLineId(),
 					id: service.id,
+					brand: "",
 					color: "",
-					shoe_brand: "",
-					shoe_size: "",
+					model: "",
+					size: "",
 				},
 			]);
 		},

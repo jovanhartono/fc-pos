@@ -32,6 +32,8 @@ const app = new Hono().post(
       columns: {
         id: true,
         code: true,
+        intake_photo_uploaded_at: true,
+        intake_photo_url: true,
         status: true,
         payment_status: true,
         discount: true,
@@ -52,22 +54,15 @@ const app = new Hono().post(
         },
         services: {
           columns: {
+            brand: true,
             color: true,
             id: true,
             item_code: true,
-            shoe_brand: true,
-            shoe_size: true,
+            model: true,
+            size: true,
             status: true,
           },
           with: {
-            images: {
-              columns: {
-                id: true,
-                created_at: true,
-                image_url: true,
-                photo_type: true,
-              },
-            },
             service: {
               columns: {
                 id: true,
@@ -116,6 +111,7 @@ const app = new Hono().post(
       success(
         {
           ...order,
+          services: order.services,
           customer: {
             id: order.customer.id,
             name: order.customer.name,

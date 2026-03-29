@@ -25,6 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { OrderFulfillmentOverview } from "@/features/orders/components/order-fulfillment-overview";
 import { OrderIntakePhotoCard } from "@/features/orders/components/order-intake-photo-card";
+import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
 import { QueueServiceDetail } from "@/features/orders/components/queue-service-detail";
 import {
 	claimOrderService,
@@ -39,6 +40,7 @@ import {
 	updateOrderServiceStatus,
 	uploadFileToPresignedUrl,
 } from "@/lib/api";
+import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	orderDetailQueryOptions,
 	paymentMethodsQueryOptions,
@@ -744,8 +746,7 @@ function AdminOrderDetailPage() {
 										<div>
 											<dt className="text-muted-foreground text-xs">Item</dt>
 											<dd className="mt-0.5 font-medium">
-												{service.color ?? "—"} · {service.shoe_brand ?? "—"} ·{" "}
-												{service.shoe_size ?? "—"}
+												{formatOrderServiceItemDetails(service)}
 											</dd>
 										</div>
 										<div>
@@ -855,36 +856,15 @@ function AdminOrderDetailPage() {
 											Photos ({service.images.length})
 										</p>
 										{service.images.length > 0 ? (
-											<div className="grid gap-3 sm:grid-cols-2">
-												{service.images.map((image) => (
-													<a
-														key={image.id}
-														href={image.image_url}
-														target="_blank"
-														rel="noopener noreferrer"
-														className="bg-muted/30 group overflow-hidden border transition-opacity hover:opacity-95"
-													>
-														<img
-															src={image.image_url}
-															alt={`${image.photo_type} for ${service.item_code ?? `service-${service.id}`}`}
-															width={960}
-															height={768}
-															className="aspect-4/3 w-full object-cover"
-															loading="lazy"
-														/>
-														<p className="text-muted-foreground p-2 text-xs">
-															{image.photo_type} ·{" "}
-															{new Date(image.created_at).toLocaleString(
-																"en-ID",
-																{
-																	dateStyle: "short",
-																	timeStyle: "short",
-																},
-															)}
-														</p>
-													</a>
-												))}
-											</div>
+											<OrderPhotoGallery
+												items={service.images.map((image) => ({
+													...image,
+													alt: `${image.photo_type} for ${service.item_code ?? `service-${service.id}`}`,
+												}))}
+												gridClassName="sm:grid-cols-2"
+												thumbnailClassName="bg-muted/30"
+												title={`Photos for ${service.item_code ?? `service-${service.id}`}`}
+											/>
 										) : (
 											<p className="text-muted-foreground text-sm">None yet</p>
 										)}

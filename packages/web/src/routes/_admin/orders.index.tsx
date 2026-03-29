@@ -1,8 +1,8 @@
-import { PlusIcon } from "@phosphor-icons/react";
+import { MagnifyingGlassIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import { PageHeader } from "@/components/page-header";
@@ -10,6 +10,8 @@ import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -37,6 +39,7 @@ import { getCurrentUser } from "@/stores/auth-store";
 
 const ordersSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
+	search: z.string().trim().min(1).max(100).optional(),
 	storeId: z.coerce.number().int().positive().optional(),
 	dateFrom: z
 		.string()
@@ -70,6 +73,7 @@ export const Route = createFileRoute("/_admin/orders/")({
 						? {
 								limit: PAGE_SIZE,
 								offset: (deps.page - 1) * PAGE_SIZE,
+								...(deps.search ? { search: deps.search } : {}),
 								store_id: deps.storeId,
 								...(deps.dateFrom ? { date_from: deps.dateFrom } : {}),
 								...(deps.dateTo ? { date_to: deps.dateTo } : {}),
@@ -77,6 +81,7 @@ export const Route = createFileRoute("/_admin/orders/")({
 						: {
 								limit: PAGE_SIZE,
 								offset: (deps.page - 1) * PAGE_SIZE,
+								...(deps.search ? { search: deps.search } : {}),
 								...(deps.dateFrom ? { date_from: deps.dateFrom } : {}),
 								...(deps.dateTo ? { date_to: deps.dateTo } : {}),
 							},
@@ -91,6 +96,7 @@ function OrdersPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const currentUser = getCurrentUser();
 	const search = Route.useSearch();
+	const [searchInput, setSearchInput] = useState(search.search ?? "");
 
 	const storesQuery = useQuery(storesQueryOptions());
 	const currentUserDetailQuery = useQuery({
@@ -122,6 +128,10 @@ function OrdersPage() {
 		}
 	}, [currentUser, navigate, search.storeId, userStoreIds]);
 
+	useEffect(() => {
+		setSearchInput(search.search ?? "");
+	}, [search.search]);
+
 	const parsedStoreId = search.storeId;
 	const orderQuery =
 		currentUser?.role === "admin"
@@ -129,6 +139,7 @@ function OrdersPage() {
 				? {
 						limit: PAGE_SIZE,
 						offset: (search.page - 1) * PAGE_SIZE,
+						...(search.search ? { search: search.search } : {}),
 						store_id: parsedStoreId,
 						...(search.dateFrom ? { date_from: search.dateFrom } : {}),
 						...(search.dateTo ? { date_to: search.dateTo } : {}),
@@ -136,6 +147,7 @@ function OrdersPage() {
 				: {
 						limit: PAGE_SIZE,
 						offset: (search.page - 1) * PAGE_SIZE,
+						...(search.search ? { search: search.search } : {}),
 						...(search.dateFrom ? { date_from: search.dateFrom } : {}),
 						...(search.dateTo ? { date_to: search.dateTo } : {}),
 					}
@@ -143,6 +155,7 @@ function OrdersPage() {
 				? {
 						limit: PAGE_SIZE,
 						offset: (search.page - 1) * PAGE_SIZE,
+						...(search.search ? { search: search.search } : {}),
 						store_id: parsedStoreId,
 						...(search.dateFrom ? { date_from: search.dateFrom } : {}),
 						...(search.dateTo ? { date_to: search.dateTo } : {}),
@@ -260,6 +273,60 @@ function OrdersPage() {
 				<Card>
 					<CardContent className="pt-6">
 						<div className="mb-4 flex flex-wrap items-center gap-2">
+							<form
+								className="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(16rem,20rem)_auto_auto] sm:items-end"
+								onSubmit={(event) => {
+									event.preventDefault();
+									const nextSearch = searchInput.trim();
+
+									void navigate({
+										search: (prev) => ({
+											...prev,
+											page: 1,
+											search: nextSearch || undefined,
+										}),
+									});
+								}}
+							>
+								<Field>
+									<FieldLabel htmlFor="orders-search">Search</FieldLabel>
+									<Input
+										id="orders-search"
+										value={searchInput}
+										onChange={(event) => setSearchInput(event.target.value)}
+										placeholder="Order ID or line ID"
+										className="h-10"
+									/>
+								</Field>
+								<Button
+									type="submit"
+									variant="outline"
+									icon={
+										<MagnifyingGlassIcon className="size-4" weight="duotone" />
+									}
+								>
+									Search
+								</Button>
+								{search.search ? (
+									<Button
+										type="button"
+										variant="outline"
+										icon={<XIcon className="size-4" weight="duotone" />}
+										onClick={() => {
+											setSearchInput("");
+											void navigate({
+												search: (prev) => ({
+													...prev,
+													page: 1,
+													search: undefined,
+												}),
+											});
+										}}
+									>
+										Clear
+									</Button>
+								) : null}
+							</form>
 							<Select
 								items={storeFilterItems}
 								value={

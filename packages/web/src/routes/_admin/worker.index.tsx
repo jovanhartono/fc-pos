@@ -31,11 +31,14 @@ import {
 import { DateRangeFilter } from "@/features/orders/components/date-range-filter";
 import {
 	type FetchOrderServiceQueueQuery,
+	fetchOrderDetail,
 	fetchOrderServiceQueuePage,
+	lookupOrderServiceById,
 	lookupOrderServiceByItemCode,
 	type QueueOrderServiceItem,
 	queryKeys,
 } from "@/lib/api";
+import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	currentUserDetailQueryOptions,
 	storesQueryOptions,
@@ -67,6 +70,8 @@ const workerSearchSchema = z.object({
 		.regex(/^\d{4}-\d{2}-\d{2}$/)
 		.optional(),
 });
+
+const numericLookupRegex = /^\d+$/;
 
 type BarcodeDetectorLike = {
 	detect: (input: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
@@ -216,26 +221,76 @@ function WorkerQueuePage() {
 	]);
 
 	const lookupMutation = useMutation({
-		mutationFn: lookupOrderServiceByItemCode,
-		onSuccess: (data) => {
-			if (!data.order) {
-				toast.error("Order service not found");
-				return;
+		mutationFn: async ({
+			mode,
+			value,
+		}: {
+			mode: "manual" | "scan";
+			value: string;
+		}) => {
+			const query = value.trim();
+			if (!query) {
+				throw new Error("Enter an item code, order ID, or line ID");
 			}
 
+			if (mode === "manual" && numericLookupRegex.test(query)) {
+				const numericId = Number(query);
+
+				try {
+					const order = await fetchOrderDetail(numericId);
+					return {
+						orderId: order.id,
+						storeId: order.store_id,
+					};
+				} catch {
+					// Fall through to line-id lookup.
+				}
+
+				try {
+					const orderService = await lookupOrderServiceById(numericId);
+					if (orderService.order) {
+						return {
+							orderId: orderService.order.id,
+							storeId: orderService.order.store_id,
+							workerServiceId: orderService.id,
+						};
+					}
+				} catch {
+					// Fall through to item-code lookup.
+				}
+			}
+
+			const orderService = await lookupOrderServiceByItemCode(query);
+			if (!orderService.order) {
+				throw new Error(
+					mode === "scan"
+						? "Shoe item not found"
+						: "No item, order, or line matched",
+				);
+			}
+
+			return {
+				orderId: orderService.order.id,
+				storeId: orderService.order.store_id,
+				workerServiceId: orderService.id,
+			};
+		},
+		onSuccess: (result) => {
 			void navigate({
 				to: "/orders/$orderId",
 				params: {
-					orderId: String(data.order.id),
+					orderId: String(result.orderId),
 				},
 				search: {
-					queueStoreId: data.order.store_id,
-					workerServiceId: data.id,
+					queueStoreId: result.storeId,
+					...(result.workerServiceId !== undefined
+						? { workerServiceId: result.workerServiceId }
+						: {}),
 				},
 			});
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to find item code");
+			toast.error(error.message || "Failed to find item, order, or line");
 		},
 	});
 
@@ -309,7 +364,10 @@ function WorkerQueuePage() {
 					if (rawValue) {
 						stopScanner();
 						setItemCode(rawValue);
-						await lookupMutation.mutateAsync(rawValue);
+						await lookupMutation.mutateAsync({
+							mode: "scan",
+							value: rawValue,
+						});
 						return;
 					}
 				} catch {
@@ -577,12 +635,12 @@ function WorkerQueuePage() {
 						<div className="grid gap-2">
 							<Field>
 								<FieldLabel htmlFor="queue-item-code">
-									Find shoe item
+									Find order item
 								</FieldLabel>
-								<div className="flex flex-col gap-2 sm:flex-row">
+								<div className="grid gap-2 sm:flex sm:flex-row">
 									<Input
 										id="queue-item-code"
-										placeholder="Scan or type item code"
+										placeholder="Type item code, order ID, or line ID"
 										value={itemCode}
 										onChange={(event) => setItemCode(event.target.value)}
 										className="h-11"
@@ -590,7 +648,7 @@ function WorkerQueuePage() {
 									<Button
 										type="button"
 										variant="outline"
-										className="sm:min-w-28"
+										className="w-full sm:min-w-28 sm:w-auto"
 										icon={
 											<MagnifyingGlassIcon
 												className="size-4"
@@ -599,7 +657,10 @@ function WorkerQueuePage() {
 										}
 										disabled={!itemCode.trim() || lookupMutation.isPending}
 										onClick={async () => {
-											await lookupMutation.mutateAsync(itemCode.trim());
+											await lookupMutation.mutateAsync({
+												mode: "manual",
+												value: itemCode.trim(),
+											});
 										}}
 									>
 										Find
@@ -607,7 +668,7 @@ function WorkerQueuePage() {
 									<Button
 										type="button"
 										variant="outline"
-										className="sm:min-w-28"
+										className="w-full sm:min-w-28 sm:w-auto"
 										icon={<ScanIcon className="size-4" weight="duotone" />}
 										onClick={async () => {
 											if (isScanning) {
@@ -812,7 +873,7 @@ function QueueRow({
 					})}
 				</p>
 				<p>{`Store ${item.store_code} - ${item.store_name}`}</p>
-				<p>{`Item ${item.color ?? "-"} / ${item.shoe_brand ?? "-"} / ${item.shoe_size ?? "-"}`}</p>
+				<p>{`Item ${formatOrderServiceItemDetails(item)}`}</p>
 			</div>
 		</button>
 	);

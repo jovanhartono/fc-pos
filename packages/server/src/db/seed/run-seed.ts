@@ -184,9 +184,10 @@ interface DraftServiceLine {
   price: number;
   status: OrderServiceStatus;
   handler_id: number | null;
+  brand: string;
   color: string;
-  shoe_brand: string;
-  shoe_size: string;
+  model: string;
+  size: string;
   notes: string | null;
   status_logs: DraftStatusLog[];
   handler_logs: DraftHandlerLog[];
@@ -1025,9 +1026,16 @@ async function seedOrders(params: {
         price: Number(service.price),
         status: finalStatus,
         handler_id: handlerId,
+        brand: faker.helpers.arrayElement(SHOE_BRANDS),
         color: faker.color.human(),
-        shoe_brand: faker.helpers.arrayElement(SHOE_BRANDS),
-        shoe_size: faker.helpers.arrayElement(SHOE_SIZES),
+        model: faker.helpers.arrayElement([
+          "Classic",
+          "Sport",
+          "Premium",
+          "Traveler",
+          "Urban",
+        ]),
+        size: faker.helpers.arrayElement(SHOE_SIZES),
         notes: chance(0.35)
           ? faker.helpers.arrayElement(SERVICE_NOTE_POOL)
           : null,
@@ -1159,9 +1167,10 @@ async function seedOrders(params: {
               price: asMoney(line.price),
               discount: "0",
               notes: line.notes,
+              brand: line.brand,
               color: line.color,
-              shoe_brand: line.shoe_brand,
-              shoe_size: line.shoe_size,
+              model: line.model,
+              size: line.size,
               status: line.status,
               handler_id: line.handler_id,
             }))

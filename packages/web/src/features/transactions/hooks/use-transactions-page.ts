@@ -74,9 +74,10 @@ const transactionDraftSchema = z
 				kind: z.literal("service"),
 				line_id: z.string(),
 				id: z.number(),
+				brand: z.string(),
 				color: z.string(),
-				shoe_brand: z.string(),
-				shoe_size: z.string(),
+				model: z.string(),
+				size: z.string(),
 			}),
 		),
 	})

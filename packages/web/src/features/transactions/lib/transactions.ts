@@ -19,9 +19,10 @@ export type ServiceCartLine = {
 	kind: "service";
 	line_id: string;
 	id: number;
+	brand: string;
 	color: string;
-	shoe_brand: string;
-	shoe_size: string;
+	model: string;
+	size: string;
 };
 
 export type ProductCartDisplayLine = ProductCartLine & {
@@ -159,9 +160,10 @@ export function toTransactionPayload({
 		})),
 		services: serviceCart.map((line) => ({
 			id: line.id,
+			brand: line.brand.trim() || undefined,
 			color: line.color.trim() || undefined,
-			shoe_brand: line.shoe_brand.trim() || undefined,
-			shoe_size: line.shoe_size.trim() || undefined,
+			model: line.model.trim() || undefined,
+			size: line.size.trim() || undefined,
 			notes: undefined,
 		})),
 	};
