@@ -496,7 +496,7 @@ export function QueueServiceDetail({
 									await openCamera();
 								}}
 							>
-								<CameraIcon className="size-4" weight="duotone" />
+								<CameraIcon className="size-4" />
 							</Button>
 							<Button
 								type="button"
@@ -504,7 +504,7 @@ export function QueueServiceDetail({
 								size="icon"
 								onClick={() => openGalleryInput(galleryInputRef.current)}
 							>
-								<ImageSquareIcon className="size-4" weight="duotone" />
+								<ImageSquareIcon className="size-4" />
 							</Button>
 							<Select
 								value={selectedPhotoType}

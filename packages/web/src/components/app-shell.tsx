@@ -137,7 +137,7 @@ function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
 							}
 							tooltip={item.label}
 						>
-							<Icon className="size-4" weight="duotone" />
+							<Icon className="size-4" />
 							<span>{item.label}</span>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
@@ -189,7 +189,7 @@ export function AppShell({ title, children }: AppShellProps) {
 			<Sidebar collapsible="offcanvas" variant="inset">
 				<SidebarHeader className="flex-row items-center justify-between">
 					<div className="flex items-center gap-2 px-2 text-sm font-semibold uppercase tracking-[0.2em] text-sidebar-foreground/80">
-						<BuildingsIcon className="size-4" weight="duotone" />
+						<BuildingsIcon className="size-4" />
 						Fresclean POS
 					</div>
 					<SidebarTrigger className="size-6 shrink-0" />
@@ -252,7 +252,7 @@ export function AppShell({ title, children }: AppShellProps) {
 							variant="outline"
 							className="mt-3 w-full justify-start"
 							onClick={handleLogout}
-							icon={<SignOutIcon className="size-4" weight="duotone" />}
+							icon={<SignOutIcon className="size-4" />}
 						>
 							Logout
 						</Button>

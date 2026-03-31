@@ -593,7 +593,7 @@ export function OrderForm({
 						type="submit"
 						loading={isSubmitting}
 						loadingText="Creating order..."
-						icon={<PlusIcon className="size-4" weight="duotone" />}
+						icon={<PlusIcon className="size-4" />}
 					>
 						Create Order
 					</Button>

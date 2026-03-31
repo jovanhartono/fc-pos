@@ -1,22 +1,50 @@
-import type { InferInsertModel, SQL } from "drizzle-orm";
-import { asc, eq } from "drizzle-orm";
+import type { InferInsertModel } from "drizzle-orm";
+import { eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
 import { customersTable } from "@/db/schema";
+
+interface CustomerFilters {
+  search?: string;
+}
+
+function buildRelationalWhere(filters: CustomerFilters) {
+  if (filters.search) {
+    const searchPattern = `%${filters.search}%`;
+    return {
+      OR: [
+        { name: { ilike: searchPattern } },
+        { phone_number: { ilike: searchPattern } },
+      ],
+    };
+  }
+  return undefined;
+}
+
+function buildCountWhere(filters: CustomerFilters) {
+  if (filters.search) {
+    const searchPattern = `%${filters.search}%`;
+    return or(
+      ilike(customersTable.name, searchPattern),
+      ilike(customersTable.phone_number, searchPattern)
+    );
+  }
+  return undefined;
+}
 
 export function listCustomers({
   limit,
   offset,
-  whereClause,
+  filters,
 }: {
   limit: number;
   offset: number;
-  whereClause?: SQL<unknown>;
+  filters: CustomerFilters;
 }) {
   return db.query.customersTable.findMany({
-    orderBy: [asc(customersTable.id)],
+    orderBy: { id: "asc" },
     limit,
     offset,
-    where: whereClause,
+    where: buildRelationalWhere(filters),
     with: {
       originStore: {
         columns: {
@@ -27,13 +55,13 @@ export function listCustomers({
   });
 }
 
-export function countCustomers(whereClause?: SQL<unknown>) {
-  return db.$count(customersTable, whereClause);
+export function countCustomers(filters: CustomerFilters) {
+  return db.$count(customersTable, buildCountWhere(filters));
 }
 
 export function findCustomerById(id: number) {
   return db.query.customersTable.findFirst({
-    where: eq(customersTable.id, id),
+    where: { id },
     with: {
       originStore: true,
     },

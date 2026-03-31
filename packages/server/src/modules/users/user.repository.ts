@@ -1,19 +1,51 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { and, asc, eq, like, or, type SQL } from "drizzle-orm";
+import { and, eq, like, or, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { userStoresTable, usersTable } from "@/db/schema";
 
 export function findUserById(userId: number) {
   return db.query.usersTable.findFirst({
-    where: eq(usersTable.id, userId),
+    where: { id: userId },
   });
 }
 
-export function buildUsersWhereClause(filters: {
+interface UserFilters {
   is_active?: boolean;
   role?: "admin" | "cashier" | "worker";
   search?: string;
-}) {
+}
+
+function buildRelationalWhere(filters: UserFilters) {
+  const conditions: Record<string, unknown>[] = [];
+
+  if (filters.is_active !== undefined) {
+    conditions.push({ is_active: filters.is_active });
+  }
+
+  if (filters.role) {
+    conditions.push({ role: filters.role });
+  }
+
+  if (filters.search) {
+    const searchPrefix = `${filters.search}%`;
+    conditions.push({
+      OR: [
+        { username: { like: searchPrefix } },
+        { name: { like: searchPrefix } },
+      ],
+    });
+  }
+
+  if (conditions.length === 0) {
+    return undefined;
+  }
+  if (conditions.length === 1) {
+    return conditions[0];
+  }
+  return { AND: conditions };
+}
+
+function buildCountWhere(filters: UserFilters) {
   const conditions: SQL[] = [];
 
   if (filters.is_active !== undefined) {
@@ -38,11 +70,11 @@ export function buildUsersWhereClause(filters: {
 }
 
 export function listUsers({
-  whereClause,
+  filters,
   limit,
   offset,
 }: {
-  whereClause?: SQL;
+  filters: UserFilters;
   limit: number;
   offset: number;
 }) {
@@ -53,20 +85,20 @@ export function listUsers({
         columns: { store_id: true },
       },
     },
-    orderBy: [asc(usersTable.id)],
-    where: whereClause,
+    orderBy: { id: "asc" },
+    where: buildRelationalWhere(filters),
     limit,
     offset,
   });
 }
 
-export function countUsers(whereClause?: SQL) {
-  return db.$count(usersTable, whereClause);
+export function countUsers(filters: UserFilters) {
+  return db.$count(usersTable, buildCountWhere(filters));
 }
 
 export function findUserDetailById(id: number) {
   return db.query.usersTable.findFirst({
-    where: eq(usersTable.id, id),
+    where: { id },
     with: {
       userStores: {
         columns: { store_id: true },

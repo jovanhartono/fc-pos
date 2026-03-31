@@ -156,7 +156,7 @@ export function CustomerForm({
 							isEditing ? "Updating customer..." : "Creating customer..."
 						}
 					>
-						<PlusIcon className="size-4" weight="duotone" />
+						<PlusIcon className="size-4" />
 						{isEditing ? "Update Customer" : "Create Customer"}
 					</Button>
 				</div>

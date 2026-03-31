@@ -7,14 +7,9 @@ import {
   updateCategory,
 } from "@/modules/categories/category.repository";
 import type { GetCategoriesQuery } from "@/modules/categories/category.schema";
-import { CategoryWhereBuilder } from "@/utils/where-clause-utils";
 
 export function getCategories(query?: GetCategoriesQuery) {
-  const whereClause = new CategoryWhereBuilder()
-    .isActive(query?.is_active)
-    .build();
-
-  return listCategories(whereClause);
+  return listCategories({ is_active: query?.is_active });
 }
 
 export function getCategoryById(id: number) {

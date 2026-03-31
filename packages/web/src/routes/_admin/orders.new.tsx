@@ -70,7 +70,7 @@ function CreateOrderPage() {
 					<Button
 						type="button"
 						variant="outline"
-						icon={<ArrowLeftIcon className="size-4" weight="duotone" />}
+						icon={<ArrowLeftIcon className="size-4" />}
 						onClick={() => {
 							void navigate({ to: "/orders", search: { page: 1 } });
 						}}
@@ -82,7 +82,7 @@ function CreateOrderPage() {
 			<div className="grid gap-4">
 				<div className="border p-4">
 					<div className="mb-4 flex items-center gap-2 border-b pb-3">
-						<ShoppingCartIcon className="size-4" weight="duotone" />
+						<ShoppingCartIcon className="size-4" />
 						<p className="text-sm font-medium">Order Details</p>
 					</div>
 					<OrderForm

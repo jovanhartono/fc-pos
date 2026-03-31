@@ -5,13 +5,13 @@ import { storesTable } from "@/db/schema";
 
 export function findStoreById(id: number) {
   return db.query.storesTable.findFirst({
-    where: eq(storesTable.id, id),
+    where: { id },
   });
 }
 
 export function listStores() {
   return db.query.storesTable.findMany({
-    orderBy: [asc(storesTable.id)],
+    orderBy: { id: "asc" },
   });
 }
 

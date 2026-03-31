@@ -42,7 +42,7 @@ export function PickupRadar({ orders }: PickupRadarProps) {
 					orders={readyOrders}
 					eyebrow="Ready"
 					title="Ready for pickup"
-					icon={<SparkleIcon className="size-4" weight="duotone" />}
+					icon={<SparkleIcon className="size-4" />}
 					emptyLabel="None."
 					tone="ready"
 				/>
@@ -50,7 +50,7 @@ export function PickupRadar({ orders }: PickupRadarProps) {
 					orders={partialOrders}
 					eyebrow="Partial"
 					title="Partially picked up"
-					icon={<ToteIcon className="size-4" weight="duotone" />}
+					icon={<ToteIcon className="size-4" />}
 					emptyLabel="None."
 					tone="partial"
 				/>

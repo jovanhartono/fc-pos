@@ -262,7 +262,7 @@ function OrdersPage() {
 						>{`${orderCount} items`}</Badge>
 						<Button
 							onClick={handleAddOrder}
-							icon={<PlusIcon className="size-4" weight="duotone" />}
+							icon={<PlusIcon className="size-4" />}
 						>
 							Add Order
 						</Button>
@@ -301,9 +301,7 @@ function OrdersPage() {
 								<Button
 									type="submit"
 									variant="outline"
-									icon={
-										<MagnifyingGlassIcon className="size-4" weight="duotone" />
-									}
+									icon={<MagnifyingGlassIcon className="size-4" />}
 								>
 									Search
 								</Button>
@@ -311,7 +309,7 @@ function OrdersPage() {
 									<Button
 										type="button"
 										variant="outline"
-										icon={<XIcon className="size-4" weight="duotone" />}
+										icon={<XIcon className="size-4" />}
 										onClick={() => {
 											setSearchInput("");
 											void navigate({

@@ -42,7 +42,7 @@ function GlobalErrorPage({ error, reset }: ErrorComponentProps) {
 
 			<div className="relative w-full max-w-3xl">
 				<div className="mb-3 inline-flex items-center gap-2 border border-destructive/25 bg-destructive/10 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.24em] text-destructive">
-					<WarningCircleIcon className="size-3.5" weight="duotone" />
+					<WarningCircleIcon className="size-3.5" />
 					Global error
 				</div>
 
@@ -69,12 +69,12 @@ function GlobalErrorPage({ error, reset }: ErrorComponentProps) {
 
 						<div className="flex flex-wrap gap-2">
 							<Button onClick={reset}>
-								<ArrowClockwiseIcon className="size-4" weight="duotone" />
+								<ArrowClockwiseIcon className="size-4" />
 								Retry
 							</Button>
 
 							<Button variant="outline" render={<Link to="/" />}>
-								<HouseIcon className="size-4" weight="duotone" />
+								<HouseIcon className="size-4" />
 								Dashboard
 							</Button>
 						</div>

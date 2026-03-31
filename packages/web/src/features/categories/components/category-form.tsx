@@ -126,7 +126,7 @@ export function CategoryForm({
 					<Button
 						type="submit"
 						loading={isSubmitting}
-						icon={<PlusIcon className="size-4" weight="duotone" />}
+						icon={<PlusIcon className="size-4" />}
 					>
 						{isEditing ? "Update Category" : "Create Category"}
 					</Button>

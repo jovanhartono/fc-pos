@@ -1,18 +1,21 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { asc, eq, type SQL } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { paymentMethodsTable } from "@/db/schema";
 
-export function listPaymentMethods(whereClause?: SQL) {
+export function listPaymentMethods(where?: { is_active?: boolean }) {
   return db.query.paymentMethodsTable.findMany({
-    orderBy: [asc(paymentMethodsTable.id)],
-    where: whereClause,
+    orderBy: { id: "asc" },
+    where:
+      where?.is_active !== undefined
+        ? { is_active: where.is_active }
+        : undefined,
   });
 }
 
 export function findPaymentMethodById(id: number) {
   return db.query.paymentMethodsTable.findFirst({
-    where: eq(paymentMethodsTable.id, id),
+    where: { id },
   });
 }
 

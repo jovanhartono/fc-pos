@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
 	Select,
@@ -608,12 +609,12 @@ function AdminOrderDetailPage() {
 										refundReasonByServiceId[service.id] ?? "damaged";
 									return (
 										<div key={service.id} className="grid gap-2 border p-3">
-											<label className="flex items-center gap-2 text-sm">
-												<input
-													type="checkbox"
+											<Field orientation="horizontal">
+												<Checkbox
+													id={`refund-service-${service.id}`}
 													checked={selected}
-													onChange={(event) => {
-														if (event.target.checked) {
+													onCheckedChange={(value) => {
+														if (value) {
 															setRefundServiceIds((prev) =>
 																prev.includes(service.id)
 																	? prev
@@ -626,10 +627,10 @@ function AdminOrderDetailPage() {
 														);
 													}}
 												/>
-												<span>
+												<FieldLabel htmlFor={`refund-service-${service.id}`}>
 													{service.item_code ?? `Service #${service.id}`}
-												</span>
-											</label>
+												</FieldLabel>
+											</Field>
 
 											<Select
 												value={reason}

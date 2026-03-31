@@ -1,6 +1,5 @@
 import { BadRequestException, ForbiddenException } from "@/errors";
 import {
-  buildCampaignsWhereClause,
   countCampaigns,
   createCampaignWithStores,
   deleteCampaign,
@@ -36,18 +35,18 @@ async function ensureStoresExist(storeIds: number[]) {
 
 export async function getCampaigns(query?: GetCampaignsQuery) {
   const pagination = normalizePagination(query, { maxPageSize: 100 });
-  const whereClause = buildCampaignsWhereClause({
+  const filters = {
     is_active: query?.is_active,
     store_id: query?.store_id,
-  });
+  };
 
   const [items, total] = await Promise.all([
     listCampaigns({
-      whereClause,
+      filters,
       limit: pagination.limit,
       offset: pagination.offset,
     }),
-    countCampaigns(whereClause),
+    countCampaigns(filters),
   ]);
 
   return {

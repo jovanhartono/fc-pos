@@ -1,34 +1,26 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { and, asc, count, eq, type SQL } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { orderServicesImagesTable } from "@/db/schema";
 
-export function buildOrderServiceImagesWhereClause(filters: {
+interface OrderServiceImageFilters {
   order_service_id?: number;
-}) {
-  const conditions: SQL[] = [];
-
-  if (filters.order_service_id !== undefined) {
-    conditions.push(
-      eq(orderServicesImagesTable.order_service_id, filters.order_service_id)
-    );
-  }
-
-  return conditions.length > 0 ? and(...conditions) : undefined;
 }
 
 export function listOrderServiceImages({
-  whereClause,
+  filters,
   limit,
   offset,
 }: {
-  whereClause?: SQL;
+  filters: OrderServiceImageFilters;
   limit: number;
   offset: number;
 }) {
   return db.query.orderServicesImagesTable.findMany({
-    orderBy: [asc(orderServicesImagesTable.id)],
-    where: whereClause,
+    orderBy: { id: "asc" },
+    where: filters.order_service_id
+      ? { order_service_id: filters.order_service_id }
+      : undefined,
     limit,
     offset,
     with: {
@@ -43,7 +35,13 @@ export function listOrderServiceImages({
   });
 }
 
-export async function countOrderServiceImages(whereClause?: SQL) {
+export async function countOrderServiceImages(
+  filters: OrderServiceImageFilters
+) {
+  const whereClause = filters.order_service_id
+    ? eq(orderServicesImagesTable.order_service_id, filters.order_service_id)
+    : undefined;
+
   const rows = await db
     .select({ total: count() })
     .from(orderServicesImagesTable)
@@ -54,7 +52,7 @@ export async function countOrderServiceImages(whereClause?: SQL) {
 
 export function findOrderServiceImageById(id: number) {
   return db.query.orderServicesImagesTable.findFirst({
-    where: eq(orderServicesImagesTable.id, id),
+    where: { id },
     with: {
       orderService: true,
     },

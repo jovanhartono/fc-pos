@@ -142,7 +142,7 @@ export function TransactionsCatalog() {
 								onClick={() => onModeChange("services")}
 							>
 								<span className="flex items-center gap-2 text-sm font-medium">
-									<ScissorsIcon className="size-4" weight="duotone" />
+									<ScissorsIcon className="size-4" />
 									Services
 								</span>
 							</button>
@@ -157,7 +157,7 @@ export function TransactionsCatalog() {
 								onClick={() => onModeChange("products")}
 							>
 								<span className="flex items-center gap-2 text-sm font-medium">
-									<PackageIcon className="size-4" weight="duotone" />
+									<PackageIcon className="size-4" />
 									Add-ons
 								</span>
 							</button>
@@ -166,10 +166,7 @@ export function TransactionsCatalog() {
 						<Field>
 							<FieldLabel htmlFor="transaction-search">Search</FieldLabel>
 							<div className="relative">
-								<MagnifyingGlassIcon
-									className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-									weight="duotone"
-								/>
+								<MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
 								<Input
 									id="transaction-search"
 									value={searchTerm}

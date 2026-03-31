@@ -238,7 +238,7 @@ export function ServiceForm({
 						</Button>
 					) : null}
 					<Button
-						icon={<PlusIcon className="size-4" weight="duotone" />}
+						icon={<PlusIcon className="size-4" />}
 						loading={isSubmitting}
 						type="submit"
 					>

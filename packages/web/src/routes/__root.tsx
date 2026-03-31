@@ -13,7 +13,7 @@ export interface RouterContext {
 
 export const Route = createRootRouteWithContext<RouterContext>()({
 	component: RootComponent,
-	// errorComponent: GlobalErrorPage,
+	errorComponent: GlobalErrorPage,
 	notFoundComponent: NotFoundPage,
 });
 

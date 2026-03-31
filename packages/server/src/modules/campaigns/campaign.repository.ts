@@ -1,11 +1,13 @@
-import { and, asc, eq, type SQL, sql } from "drizzle-orm";
+import { and, eq, type SQL, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { campaignStoresTable, campaignsTable } from "@/db/schema";
 
-export function buildCampaignsWhereClause(filters: {
+interface CampaignFilters {
   is_active?: boolean;
   store_id?: number;
-}) {
+}
+
+function buildCountWhere(filters: CampaignFilters) {
   const conditions: SQL[] = [];
 
   if (filters.is_active !== undefined) {
@@ -32,17 +34,24 @@ export function buildCampaignsWhereClause(filters: {
 }
 
 export function listCampaigns({
-  whereClause,
+  filters,
   limit,
   offset,
 }: {
-  whereClause?: SQL;
+  filters: CampaignFilters;
   limit: number;
   offset: number;
 }) {
   return db.query.campaignsTable.findMany({
-    where: whereClause,
-    orderBy: [asc(campaignsTable.id)],
+    where: {
+      is_active: filters.is_active,
+      stores: filters.store_id
+        ? {
+            OR: [{ store_id: filters.store_id }, { NOT: { store: true } }],
+          }
+        : undefined,
+    },
+    orderBy: { id: "asc" },
     limit,
     offset,
     with: {
@@ -62,13 +71,13 @@ export function listCampaigns({
   });
 }
 
-export function countCampaigns(whereClause?: SQL) {
-  return db.$count(campaignsTable, whereClause);
+export function countCampaigns(filters: CampaignFilters) {
+  return db.$count(campaignsTable, buildCountWhere(filters));
 }
 
 export function findCampaignById(id: number) {
   return db.query.campaignsTable.findFirst({
-    where: eq(campaignsTable.id, id),
+    where: { id },
     with: {
       stores: {
         columns: { id: true, store_id: true },
@@ -88,7 +97,7 @@ export function findCampaignById(id: number) {
 
 export function findStoresByIds(storeIds: number[]) {
   return db.query.storesTable.findMany({
-    where: (store, { inArray }) => inArray(store.id, storeIds),
+    where: { id: { in: storeIds } },
     columns: { id: true },
   });
 }

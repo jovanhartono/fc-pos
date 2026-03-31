@@ -33,7 +33,7 @@ export function TablePagination({
 					variant="outline"
 					size="sm"
 					disabled={isLoading || currentPage <= 1}
-					icon={<CaretLeftIcon className="size-4" weight="duotone" />}
+					icon={<CaretLeftIcon className="size-4" />}
 					onClick={() => onPageChange(currentPage - 1)}
 				>
 					Prev
@@ -46,7 +46,7 @@ export function TablePagination({
 					variant="outline"
 					size="sm"
 					disabled={isLoading || currentPage >= totalPages}
-					icon={<CaretRightIcon className="size-4" weight="duotone" />}
+					icon={<CaretRightIcon className="size-4" />}
 					iconLocation="right"
 					onClick={() => onPageChange(currentPage + 1)}
 				>

@@ -213,7 +213,7 @@ export function StoreForm({
 					<Button
 						type="submit"
 						loading={isSubmitting}
-						icon={<PlusIcon className="size-4" weight="duotone" />}
+						icon={<PlusIcon className="size-4" />}
 					>
 						{isEditing ? "Update Store" : "Create Store"}
 					</Button>

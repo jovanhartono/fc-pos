@@ -71,7 +71,7 @@ export function DateRangeFilter({
 							/>
 						}
 					>
-						<CalendarBlankIcon className="size-4" weight="duotone" />
+						<CalendarBlankIcon className="size-4" />
 						<span className="truncate">{label}</span>
 					</PopoverTrigger>
 					<PopoverContent className="w-auto p-0" align="start">
@@ -100,7 +100,7 @@ export function DateRangeFilter({
 				type="button"
 				variant="outline"
 				className="h-11"
-				icon={<XIcon className="size-4" weight="duotone" />}
+				icon={<XIcon className="size-4" />}
 				disabled={!hasRange}
 				onClick={onClear}
 			>

@@ -1,17 +1,6 @@
 import dayjs from "dayjs";
 import type { InferInsertModel } from "drizzle-orm";
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  gte,
-  inArray,
-  lte,
-  or,
-  type SQL,
-  sql,
-} from "drizzle-orm";
+import { and, eq, gte, inArray, lte, or, type SQL, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   customersTable,
@@ -54,19 +43,6 @@ interface FindOrdersResult {
 }
 
 const numericSearchRegex = /^\d+$/;
-
-function resolveOrderByColumn(sortBy: NormalizedOrderListQuery["sort_by"]) {
-  switch (sortBy) {
-    case "created_at":
-      return ordersTable.created_at;
-    case "code":
-      return ordersTable.code;
-    case "total":
-      return ordersTable.total;
-    default:
-      return ordersTable.id;
-  }
-}
 
 function buildWhereClause(
   filters: NormalizedOrderListQuery,
@@ -170,17 +146,97 @@ function buildWhereClause(
   return and(...conditions);
 }
 
+function buildRelationalWhere(
+  filters: NormalizedOrderListQuery,
+  scopedStoreIds?: number[]
+) {
+  const conditions: Record<string, unknown>[] = [];
+
+  if (scopedStoreIds !== undefined) {
+    if (scopedStoreIds.length === 0) {
+      conditions.push({ id: -1 });
+    } else {
+      conditions.push({ store_id: { in: scopedStoreIds } });
+    }
+  }
+
+  if (filters.status) {
+    conditions.push({ status: filters.status });
+  }
+
+  if (filters.payment_status) {
+    conditions.push({ payment_status: filters.payment_status });
+  }
+
+  if (filters.store_id) {
+    conditions.push({ store_id: filters.store_id });
+  }
+
+  if (filters.customer_id) {
+    conditions.push({ customer_id: filters.customer_id });
+  }
+
+  if (filters.created_by) {
+    conditions.push({ created_by: filters.created_by });
+  }
+
+  if (filters.payment_method_id) {
+    conditions.push({ payment_method_id: filters.payment_method_id });
+  }
+
+  if (filters.date_from) {
+    conditions.push({
+      created_at: { gte: dayjs(filters.date_from).startOf("day").toDate() },
+    });
+  }
+
+  if (filters.date_to) {
+    conditions.push({
+      created_at: { lte: dayjs(filters.date_to).endOf("day").toDate() },
+    });
+  }
+
+  if (filters.search) {
+    const search = filters.search.trim();
+    const loweredSearchPrefix = `${search.toLowerCase()}%`;
+    const searchPrefix = `${search}%`;
+
+    const searchOr: Record<string, unknown>[] = [
+      { code: { ilike: searchPrefix } },
+      {
+        customer: {
+          OR: [
+            { name: { ilike: loweredSearchPrefix } },
+            { phone_number: { like: searchPrefix } },
+          ],
+        },
+      },
+    ];
+
+    if (numericSearchRegex.test(search)) {
+      const numericSearch = Number(search);
+      searchOr.push({ id: numericSearch });
+      searchOr.push({
+        services: { id: numericSearch },
+      });
+    }
+
+    conditions.push({ OR: searchOr });
+  }
+
+  if (conditions.length === 0) {
+    return undefined;
+  }
+  if (conditions.length === 1) {
+    return conditions[0];
+  }
+  return { AND: conditions };
+}
+
 export async function findOrders(
   filters: NormalizedOrderListQuery,
   scopedStoreIds?: number[]
 ): Promise<FindOrdersResult> {
-  const whereClause = buildWhereClause(filters, scopedStoreIds);
-
-  const orderByColumn = resolveOrderByColumn(filters.sort_by);
-
-  const orderBy =
-    filters.sort_order === "desc" ? desc(orderByColumn) : asc(orderByColumn);
-
   const [rows, total] = await Promise.all([
     db.query.ordersTable.findMany({
       columns: {
@@ -218,12 +274,15 @@ export async function findOrders(
           },
         },
       },
-      where: whereClause,
-      orderBy: [orderBy, asc(ordersTable.id)],
+      where: buildRelationalWhere(filters, scopedStoreIds),
+      orderBy: {
+        [filters.sort_by ?? "id"]: filters.sort_order ?? "desc",
+        id: "asc",
+      },
       limit: filters.limit,
       offset: filters.offset,
     }),
-    db.$count(ordersTable, whereClause),
+    db.$count(ordersTable, buildWhereClause(filters, scopedStoreIds)),
   ]);
 
   const orderIds = rows.map((row) => row.id);
@@ -231,7 +290,7 @@ export async function findOrders(
     orderIds.length === 0
       ? []
       : await db.query.ordersServicesTable.findMany({
-          where: inArray(ordersServicesTable.order_id, orderIds),
+          where: { order_id: { in: orderIds } },
           columns: {
             order_id: true,
             status: true,

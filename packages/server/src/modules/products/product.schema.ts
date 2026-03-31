@@ -1,4 +1,4 @@
-import { createInsertSchema, createUpdateSchema } from "drizzle-zod";
+import { createInsertSchema, createUpdateSchema } from "drizzle-orm/zod";
 import { productsTable } from "@/db/schema";
 
 export const POSTProductSchema = createInsertSchema(productsTable);

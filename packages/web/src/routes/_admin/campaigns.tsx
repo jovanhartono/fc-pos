@@ -118,7 +118,7 @@ function DeleteCampaignButton({
 			variant="outline"
 			size="sm"
 			disabled={disabled || isPending}
-			icon={<TrashIcon className="size-4" weight="duotone" />}
+			icon={<TrashIcon className="size-4" />}
 			onClick={() => {
 				openDialog({
 					title: "Delete campaign?",
@@ -313,7 +313,7 @@ function CampaignsPage() {
 						size="sm"
 						disabled={!isAdmin}
 						onClick={() => handleOpenEditSheet(row.original)}
-						icon={<PencilSimpleLineIcon className="size-4" weight="duotone" />}
+						icon={<PencilSimpleLineIcon className="size-4" />}
 					>
 						Edit
 					</Button>
@@ -342,7 +342,7 @@ function CampaignsPage() {
 						<Button
 							onClick={handleOpenCreateSheet}
 							disabled={!isAdmin}
-							icon={<PlusIcon className="size-4" weight="duotone" />}
+							icon={<PlusIcon className="size-4" />}
 						>
 							Add Campaign
 						</Button>

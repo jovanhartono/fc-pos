@@ -1,215 +1,55 @@
 # Web Package Standards
 
-Applies to **`packages/web`** (`@fresclean/web`) only. Repo-wide TypeScript and Ultracite rules: **`../../AGENTS.md`**.
+`@fresclean/web` — React 19, Vite, TanStack (Router/Query/Table), shadcn, Zustand. Repo-wide rules: `../../AGENTS.md`
 
-## Stack
+## UI Preferences
 
-- React 19 (use **ref as a prop** instead of `React.forwardRef` where applicable), Vite 7, TypeScript, Tailwind v4
-- TanStack Router (file-based), TanStack Query, TanStack Table
-- react-hook-form + `@hookform/resolvers` (zodResolver) + Zod
-- Zustand for global UI state (dialog, sheet, auth, preferences)
-- shadcn (base-lyra style) + `@base-ui/react` primitives, Phosphor Icons, Sonner toasts
-- Hono RPC client (`rpc` / `rpcWithAuth`) for typed API calls via `@fresclean/api`
+- Terse, operational copy. No marketing/guiding prose. Short labels and empty states.
+- Rigid, squared-off UI — avoid `rounded-*` unless component requires it.
+- Phosphor icons with `Icon` suffix (e.g. `StarIcon`).
+- Dense filters → dialogs/sheets on small screens; tabs for high-frequency filters.
+- Match existing visual language; no decorative styling changes.
 
-This app is **Vite**, not Next.js: use plain `<img>` (or project image patterns) with lazy loading and sensible dimensions — there is no `next/image`.
+## Structure
 
-## Project Preferences
-
-- Keep copy terse and operational. Prefer labels and state text over explanatory, guiding, or marketing-style helper copy.
-- Shorten long prose aggressively. If text does not change behavior or clarify a state, remove it.
-- Keep labels short where possible. Favor one- or two-word control labels and short empty states.
-- Prefer rigid, squared-off UI. Avoid rounded corners unless an existing component already depends on them.
-- In route and feature code, avoid `rounded-*` utilities on normal surfaces; keep corner treatment rigid unless the shape itself must be circular.
-- Import Phosphor icons with the `Icon` suffix in local code, e.g. `Star` becomes `StarIcon`.
-- On small screens, move dense filters and related controls into dialogs or sheets instead of stacking cramped inline layouts.
-- Use tabs or segmented controls for high-frequency filters when they improve mobile/tablet navigation.
-- Match the existing visual language of the page first; do not introduce decorative styling that changes the tone.
-
-## Project Structure
-
-```
-src/
-├── components/ui/       # shadcn components (do not hand-roll primitives)
-├── components/form/     # Shared form field components (CurrencyInput, PhoneNumberField)
-├── features/<domain>/   # Feature modules (components/, hooks/)
-├── lib/                 # api.ts, rpc.ts, query-options.ts, form-errors.ts, utils.ts
-├── routes/              # TanStack Router file-based routes
-├── shared/              # Shared Zod schemas
-└── stores/              # Zustand stores
-```
-
----
+- `components/ui/` — shadcn only, add via `bunx shadcn@latest add <component>`
+- `components/form/` — shared form fields (CurrencyInput, PhoneNumberField)
+- `features/<domain>/components/`, `features/<domain>/hooks/` — feature modules
+- `lib/` — `api.ts`, `rpc.ts`, `query-options.ts`, `utils.ts`
+- `routes/` — TanStack Router file-based; thin orchestrators only
+- `stores/` — Zustand stores
 
 ## Forms
 
-Use **react-hook-form** + **zodResolver** + **useMutation** for every form.
+react-hook-form + zodResolver + useMutation for every form.
 
-### FormProvider / useFormContext (no prop drilling)
-
-Wrap forms with `FormProvider` so nested field components access form state via `useFormContext()`. Never pass `control`, `handleSubmit`, `register`, `errors`, or `isSubmitting` as individual props.
-
-```tsx
-// Parent: wrap with FormProvider
-const form = useForm<MyFormValues>({
-  resolver: zodResolver(mySchema),
-  defaultValues,
-});
-
-return (
-  <FormProvider {...form}>
-    <form onSubmit={form.handleSubmit(onSubmit)}>
-      <MyFieldGroup />
-      <Button type="submit" disabled={form.formState.isSubmitting}>Save</Button>
-    </form>
-  </FormProvider>
-);
-
-// Child: read via useFormContext
-const MyFieldGroup = () => {
-  const { control, formState: { isSubmitting } } = useFormContext<MyFormValues>();
-
-  return (
-    <Controller
-      name="name"
-      control={control}
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.invalid}>
-          <FieldLabel htmlFor="name" asterisk>Name</FieldLabel>
-          <Input {...field} id="name" disabled={isSubmitting} />
-          <FieldError errors={[fieldState.error]} />
-        </Field>
-      )}
-    />
-  );
-};
-```
-
-### Mutation integration
-
-Pair every form with `useMutation`. The global `QueryClient` in `main.tsx` handles success toasts (from `response.message`) and error toasts automatically -- only add per-mutation `onSuccess`/`onError` when extra behavior is needed (invalidation, close sheet, navigate).
-
-```tsx
-const createMutation = useMutation({
-  mutationFn: createEntity,
-  onSuccess: async () => {
-    await queryClient.invalidateQueries({ queryKey: queryKeys.entities });
-    closeSheet();
-  },
-});
-
-const onSubmit: SubmitHandler<FormValues> = async (values) => {
-  await createMutation.mutateAsync(values);
-};
-```
-
-### Field components
-
-Use `Field`, `FieldLabel`, `FieldError`, `FieldGroup` from `@/components/ui/field` for form layout. Use `Controller` for non-native inputs (Select, Combobox, Switch). Use `useFieldArray` for dynamic lists. Use `useWatch` for reactive derived values.
-
-### Zod schemas
-
-Schemas can come from `@fresclean/api/schema` or be defined locally. Extend with `.extend()` / `.superRefine()` as needed. Place shared frontend-only schemas in `src/shared/zod.ts`.
-
----
+- Wrap with `FormProvider`; children use `useFormContext()`. Never prop-drill `control`/`errors`/`isSubmitting`.
+- Pair every form with `useMutation`. Global `QueryClient` handles success/error toasts — only add `onSuccess`/`onError` for invalidation, close sheet, or navigate.
+- Use `Field`, `FieldLabel`, `FieldError` from `@/components/ui/field`. `Controller` for non-native inputs. `useFieldArray` for lists. `useWatch` for derived values.
+- Schemas from `@fresclean/api/schema` or local; shared frontend-only in `src/shared/zod.ts`.
 
 ## No Props Drilling
 
-- Use `useFormContext()` for form state in nested components
-- Use Zustand selectors for global UI state (`useDialog`, `useSheet`, `useAuthStore`)
-- Use React context when a subtree needs shared non-global state (e.g. a view-model pattern for complex pages)
-- If a component needs more than 5-6 props, extract a context provider or Zustand store
-
-### Zustand selector pattern
-
-Always use selectors -- never destructure the whole store:
-
-```tsx
-// Correct
-const closeDialog = useDialog((state) => state.closeDialog);
-const { open, title } = useDialog((state) => state.dialogState);
-
-// Wrong -- subscribes to all state changes
-const store = useDialog();
-```
-
----
-
-## Lean Components
-
-- **Route files** are thin orchestrators: define loaders, search param validation, wire up queries/mutations, render feature components. Do not put large form/table/dialog logic inline.
-- **Feature components** live in `src/features/<domain>/components/` -- one responsibility per file.
-- **Custom hooks** (`use-*.ts`) in the feature folder for complex stateful logic.
-- Extract inline subcomponents from route files into their own files under the feature directory.
-
----
-
-## UI Components (shadcn)
-
-- Use existing components from `src/components/ui/` -- never hand-roll primitives that shadcn provides.
-- Add new shadcn components via `bunx shadcn@latest add <component>`.
-- shadcn config: `base-lyra` style, `@base-ui/react` primitives, Phosphor icons, neutral base color.
-- Use `GlobalDialog` / `GlobalSheet` via Zustand (`openDialog` / `openSheet`) for CRUD modals -- pass content as `ReactNode`.
-
----
+- `useFormContext()` for form state
+- Zustand selectors (never destructure whole store): `useDialog(s => s.closeDialog)`
+- React context for scoped subtree state
+- Extract context/store if >5-6 props
 
 ## Data Fetching
 
-### API layer
+- API functions and `queryKeys` in `src/lib/api.ts`; query options in `src/lib/query-options.ts`
+- RPC: `rpc` (public) and `rpcWithAuth()` (JWT) from `src/lib/rpc.ts`
+- Loaders prefetch into cache via `ensureQueryData`; components read via `useQuery`
+- Mutations: `useMutation` + invalidate keys in `onSuccess`
 
-- API functions (`fetch*`, `create*`, `update*`, `delete*`) live in `src/lib/api.ts`.
-- Query keys are defined as `queryKeys` in `src/lib/api.ts`.
-- Query options are defined in `src/lib/query-options.ts` using `queryOptions()`.
-- RPC client setup in `src/lib/rpc.ts`: `rpc` (unauthenticated) and `rpcWithAuth()` (reads JWT from Zustand).
+## State
 
-### Route loaders
-
-Loaders prefetch data into the query cache -- they do not return data directly. Components then read from cache via `useQuery`.
-
-```tsx
-export const Route = createFileRoute("/_admin/stores")({
-  loader: ({ context }) =>
-    context.queryClient.ensureQueryData(storesQueryOptions()),
-  component: StoresPage,
-});
-
-// In the component
-const storesQuery = useQuery(storesQueryOptions());
-```
-
-### Mutations
-
-- Use `useMutation` with `mutationFn` from `api.ts`.
-- Invalidate relevant query keys in `onSuccess`.
-- Global error/success handlers in `main.tsx` cover most cases.
-
----
-
-## State Management
-
-- **Zustand** for global UI state: `useDialog`, `useSheet`, `useAuthStore`, `useTransactionPreferencesStore`.
-- **Zustand `persist`** middleware for data that survives page reloads (JWT token, user preferences).
-- **React context** for theme (`ThemeProvider`), sidebar (`SidebarProvider`), and scoped subtree state.
-- No Redux, no MobX.
-
----
+- Zustand for global UI (`useDialog`, `useSheet`, `useAuthStore`); `persist` for reload-surviving data
+- React context for theme, sidebar, scoped state
+- `GlobalDialog`/`GlobalSheet` via Zustand for CRUD modals
 
 ## Routing
 
-- TanStack Router with file-based routes under `src/routes/`.
-- `_admin` layout route with `beforeLoad: requireAuth`.
-- Search params validated with Zod via `validateSearch`.
-- Use `Route.useSearch()` and `Route.useParams()` in components.
-- Pass `queryClient` in router context for loader access.
-
----
-
-## Toasts
-
-Use `sonner` via `toast.success()` / `toast.error()`. The global mutation handler in `main.tsx` auto-toasts `response.message` on success and error messages on failure -- only call `toast` manually for non-mutation feedback.
-
----
-
-## Security (browser)
-
-- Add `rel="noopener"` when using `target="_blank"` on links
-- Avoid `dangerouslySetInnerHTML` unless absolutely necessary
+- File-based under `src/routes/`; `_admin` layout with `beforeLoad: requireAuth`
+- Search params validated with Zod via `validateSearch`
+- `Route.useSearch()` / `Route.useParams()` in components

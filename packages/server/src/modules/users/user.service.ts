@@ -2,7 +2,6 @@ import type { InferInsertModel } from "drizzle-orm";
 import type { usersTable } from "@/db/schema";
 import { ForbiddenException } from "@/errors";
 import {
-  buildUsersWhereClause,
   countUsers,
   createUser,
   findUserDetailById,
@@ -29,19 +28,19 @@ export async function createUserService(
 
 export async function getUsersService(query?: GetUsersQuery) {
   const pagination = normalizePagination(query, { maxPageSize: 100 });
-  const whereClause = buildUsersWhereClause({
+  const filters = {
     is_active: query?.is_active,
     role: query?.role,
     search: query?.search,
-  });
+  };
 
   const [users, totalRows] = await Promise.all([
     listUsers({
-      whereClause,
+      filters,
       limit: pagination.limit,
       offset: pagination.offset,
     }),
-    countUsers(whereClause),
+    countUsers(filters),
   ]);
 
   return {

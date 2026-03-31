@@ -75,7 +75,7 @@ const CategoriesActions = ({ row }: { row: Row<Category> }) => {
 			variant="outline"
 			size="sm"
 			onClick={() => handleOpenEditSheet(row.original)}
-			icon={<PencilSimpleLineIcon className="size-4" weight="duotone" />}
+			icon={<PencilSimpleLineIcon className="size-4" />}
 		>
 			Edit
 		</Button>
@@ -152,7 +152,7 @@ function CategoriesPage() {
 						>{`${categoryCount} items`}</Badge>
 						<Button
 							onClick={handleOpenCreateSheet}
-							icon={<PlusIcon className="size-4" weight="duotone" />}
+							icon={<PlusIcon className="size-4" />}
 						>
 							Add Category
 						</Button>

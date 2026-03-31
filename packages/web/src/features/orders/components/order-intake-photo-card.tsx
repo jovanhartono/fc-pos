@@ -105,7 +105,7 @@ export function OrderIntakePhotoCard({
 						/>
 					) : (
 						<div className="text-muted-foreground flex aspect-16/10 flex-col items-center justify-center gap-2 px-6 text-center">
-							<CameraIcon className="size-8 opacity-50" weight="duotone" />
+							<CameraIcon className="size-8 opacity-50" />
 							<p className="text-sm">No intake photo yet</p>
 						</div>
 					)}
@@ -142,7 +142,7 @@ export function OrderIntakePhotoCard({
 						type="button"
 						variant="outline"
 						className="flex-1"
-						icon={<CameraIcon className="size-4" weight="duotone" />}
+						icon={<CameraIcon className="size-4" />}
 						disabled={!canManage}
 						onClick={() => inputRef.current?.click()}
 					>
@@ -151,7 +151,7 @@ export function OrderIntakePhotoCard({
 					<Button
 						type="button"
 						className="flex-1"
-						icon={<UploadSimpleIcon className="size-4" weight="duotone" />}
+						icon={<UploadSimpleIcon className="size-4" />}
 						loading={uploadMutation.isPending}
 						loadingText="Uploading…"
 						disabled={!selectedFile || !canManage}

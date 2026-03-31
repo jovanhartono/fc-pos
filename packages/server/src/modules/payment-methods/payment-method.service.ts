@@ -1,5 +1,5 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { paymentMethodsTable } from "@/db/schema";
+import type { paymentMethodsTable } from "@/db/schema";
 import {
   createPaymentMethod,
   findPaymentMethodById,
@@ -7,14 +7,9 @@ import {
   updatePaymentMethod,
 } from "@/modules/payment-methods/payment-method.repository";
 import type { GetPaymentMethodsQuery } from "@/modules/payment-methods/payment-method.schema";
-import { WhereClauseBuilder } from "@/utils/where-clause-utils";
 
 export function getPaymentMethods(query?: GetPaymentMethodsQuery) {
-  const whereClause = new WhereClauseBuilder()
-    .addCondition(paymentMethodsTable.is_active, "eq", query?.is_active)
-    .build();
-
-  return listPaymentMethods(whereClause);
+  return listPaymentMethods({ is_active: query?.is_active });
 }
 
 export function getPaymentMethodById(id: number) {

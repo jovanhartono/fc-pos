@@ -90,7 +90,7 @@ const PAYMENT_METHODS = [
   { code: "OVO", name: "OVO" },
 ] as const;
 
-const SHOE_BRANDS = [
+const BRANDS = [
   "Nike",
   "Adidas",
   "Puma",
@@ -102,7 +102,7 @@ const SHOE_BRANDS = [
   "Compass",
 ] as const;
 
-const SHOE_SIZES = [
+const SIZES = [
   "36",
   "37",
   "38",
@@ -1026,7 +1026,7 @@ async function seedOrders(params: {
         price: Number(service.price),
         status: finalStatus,
         handler_id: handlerId,
-        brand: faker.helpers.arrayElement(SHOE_BRANDS),
+        brand: faker.helpers.arrayElement(BRANDS),
         color: faker.color.human(),
         model: faker.helpers.arrayElement([
           "Classic",
@@ -1035,7 +1035,7 @@ async function seedOrders(params: {
           "Traveler",
           "Urban",
         ]),
-        size: faker.helpers.arrayElement(SHOE_SIZES),
+        size: faker.helpers.arrayElement(SIZES),
         notes: chance(0.35)
           ? faker.helpers.arrayElement(SERVICE_NOTE_POOL)
           : null,

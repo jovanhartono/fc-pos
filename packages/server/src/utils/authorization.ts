@@ -1,12 +1,12 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { ordersTable, userStoresTable } from "@/db/schema";
+import { ordersTable } from "@/db/schema";
 import { ForbiddenException, NotFoundException } from "@/errors";
 import type { JWTPayload } from "@/types";
 
 export async function getUserStoreIds(userId: number): Promise<number[]> {
   const rows = await db.query.userStoresTable.findMany({
-    where: eq(userStoresTable.user_id, userId),
+    where: { user_id: userId },
     columns: { store_id: true },
   });
 
@@ -19,10 +19,7 @@ export async function assertStoreAccess(user: JWTPayload, storeId: number) {
   }
 
   const access = await db.query.userStoresTable.findFirst({
-    where: and(
-      eq(userStoresTable.user_id, user.id),
-      eq(userStoresTable.store_id, storeId)
-    ),
+    where: { user_id: user.id, store_id: storeId },
     columns: { id: true },
   });
 
@@ -33,7 +30,7 @@ export async function assertStoreAccess(user: JWTPayload, storeId: number) {
 
 export async function assertOrderAccess(user: JWTPayload, orderId: number) {
   const order = await db.query.ordersTable.findFirst({
-    where: eq(ordersTable.id, orderId),
+    where: { id: orderId },
     columns: { id: true, store_id: true },
   });
 

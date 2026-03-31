@@ -1,4 +1,4 @@
-import { relations, type SQL, sql } from "drizzle-orm";
+import { type SQL, sql } from "drizzle-orm";
 import {
   boolean,
   check,
@@ -38,29 +38,6 @@ export const usersTable = pgTable(
     check("username_len-check", sql`LENGTH(TRIM(${table.username})) >= 5`),
   ]
 );
-export const usersRelations = relations(usersTable, ({ many }) => ({
-  campaignCreatedBy: many(campaignsTable, {
-    relationName: "campaign_created_by",
-  }),
-  campaignUpdatedBy: many(campaignsTable, {
-    relationName: "campaign_updated_by",
-  }),
-  orderRefunds: many(orderRefundsTable),
-  orderServiceHandlerLogsChangedBy: many(orderServiceHandlerLogsTable, {
-    relationName: "order_service_handler_changed_by",
-  }),
-  orderServiceHandlerLogsFrom: many(orderServiceHandlerLogsTable, {
-    relationName: "order_service_handler_from",
-  }),
-  orderServiceHandlerLogsTo: many(orderServiceHandlerLogsTable, {
-    relationName: "order_service_handler_to",
-  }),
-  orderServiceStatusLogs: many(orderServiceStatusLogsTable),
-  orderServices: many(ordersServicesTable),
-  orderServiceUploadedPhotos: many(orderServicesImagesTable),
-  orders: many(ordersTable),
-  userStores: many(userStoresTable),
-}));
 
 // store
 export const storesTable = pgTable(
@@ -78,12 +55,6 @@ export const storesTable = pgTable(
   },
   (table) => [check("code_len_check", sql`LENGTH(TRIM(${table.code})) = 3`)]
 );
-export const storesRelations = relations(storesTable, ({ many }) => ({
-  campaignStores: many(campaignStoresTable),
-  customers: many(customersTable),
-  orders: many(ordersTable),
-  userStores: many(userStoresTable),
-}));
 
 // customer
 export const customersTable = pgTable(
@@ -114,24 +85,6 @@ export const customersTable = pgTable(
     index("customer_phone_idx").on(table.phone_number),
   ]
 );
-export const customersRelations = relations(
-  customersTable,
-  ({ one, many }) => ({
-    createdBy: one(usersTable, {
-      fields: [customersTable.created_by],
-      references: [usersTable.id],
-    }),
-    orders: many(ordersTable),
-    originStore: one(storesTable, {
-      fields: [customersTable.origin_store_id],
-      references: [storesTable.id],
-    }),
-    updatedBy: one(usersTable, {
-      fields: [customersTable.updated_by],
-      references: [usersTable.id],
-    }),
-  })
-);
 
 export const categoriesTable = pgTable("categories", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -161,13 +114,6 @@ export const productsTable = pgTable(
     check("stock_non_negative_check", sql`${table.stock} >= 0`),
   ]
 );
-export const productsRelations = relations(productsTable, ({ one, many }) => ({
-  category: one(categoriesTable, {
-    fields: [productsTable.category_id],
-    references: [categoriesTable.id],
-  }),
-  orderProducts: many(ordersProductsTable),
-}));
 
 export const servicesTable = pgTable(
   "services",
@@ -199,13 +145,6 @@ export const servicesTable = pgTable(
     ),
   ]
 );
-export const servicesRelations = relations(servicesTable, ({ one, many }) => ({
-  category: one(categoriesTable, {
-    fields: [servicesTable.category_id],
-    references: [categoriesTable.id],
-  }),
-  orders: many(ordersServicesTable),
-}));
 
 // order
 export const paymentMethodsTable = pgTable("payment_methods", {
@@ -215,12 +154,6 @@ export const paymentMethodsTable = pgTable("payment_methods", {
   is_active: boolean("is_active").default(false).notNull(),
   name: varchar("name", { length: 255 }).notNull(),
 });
-export const paymentMethodsRelations = relations(
-  paymentMethodsTable,
-  ({ many }) => ({
-    orders: many(ordersTable),
-  })
-);
 
 export const orderPaymentStatusEnum = pgEnum("order_payment_status", [
   "paid",
@@ -317,23 +250,6 @@ export const campaignsTable = pgTable(
     ),
   ]
 );
-export const campaignsRelations = relations(
-  campaignsTable,
-  ({ one, many }) => ({
-    createdBy: one(usersTable, {
-      fields: [campaignsTable.created_by],
-      references: [usersTable.id],
-      relationName: "campaign_created_by",
-    }),
-    orders: many(ordersTable),
-    stores: many(campaignStoresTable),
-    updatedBy: one(usersTable, {
-      fields: [campaignsTable.updated_by],
-      references: [usersTable.id],
-      relationName: "campaign_updated_by",
-    }),
-  })
-);
 
 export const campaignStoresTable = pgTable(
   "campaign_stores",
@@ -355,19 +271,6 @@ export const campaignStoresTable = pgTable(
       table.store_id
     ),
   ]
-);
-export const campaignStoresRelations = relations(
-  campaignStoresTable,
-  ({ one }) => ({
-    campaign: one(campaignsTable, {
-      fields: [campaignStoresTable.campaign_id],
-      references: [campaignsTable.id],
-    }),
-    store: one(storesTable, {
-      fields: [campaignStoresTable.store_id],
-      references: [storesTable.id],
-    }),
-  })
 );
 
 export const userStoresTable = pgTable(
@@ -391,16 +294,7 @@ export const userStoresTable = pgTable(
     ),
   ]
 );
-export const userStoresRelations = relations(userStoresTable, ({ one }) => ({
-  store: one(storesTable, {
-    fields: [userStoresTable.store_id],
-    references: [storesTable.id],
-  }),
-  user: one(usersTable, {
-    fields: [userStoresTable.user_id],
-    references: [usersTable.id],
-  }),
-}));
+
 export const ordersTable = pgTable(
   "orders",
   {
@@ -487,35 +381,6 @@ export const ordersTable = pgTable(
     ),
   ]
 );
-export const ordersRelations = relations(ordersTable, ({ one, many }) => ({
-  campaign: one(campaignsTable, {
-    fields: [ordersTable.campaign_id],
-    references: [campaignsTable.id],
-  }),
-  createdBy: one(usersTable, {
-    fields: [ordersTable.created_by],
-    references: [usersTable.id],
-  }),
-  customer: one(customersTable, {
-    fields: [ordersTable.customer_id],
-    references: [customersTable.id],
-  }),
-  paymentMethod: one(paymentMethodsTable, {
-    fields: [ordersTable.payment_method_id],
-    references: [paymentMethodsTable.id],
-  }),
-  refunds: many(orderRefundsTable),
-  products: many(ordersProductsTable),
-  services: many(ordersServicesTable),
-  store: one(storesTable, {
-    fields: [ordersTable.store_id],
-    references: [storesTable.id],
-  }),
-  updatedBy: one(usersTable, {
-    fields: [ordersTable.updated_by],
-    references: [usersTable.id],
-  }),
-}));
 
 export const orderCountersTable = pgTable(
   "order_counters",
@@ -553,8 +418,6 @@ export const ordersServicesTable = pgTable(
     brand: varchar("brand", { length: 255 }),
     color: varchar("color", { length: 255 }),
     model: varchar("model", { length: 255 }),
-    shoe_brand: varchar("shoe_brand", { length: 255 }),
-    shoe_size: varchar("shoe_size", { length: 64 }),
     size: varchar("size", { length: 64 }),
     service_id: integer("service_id").references(() => servicesTable.id, {
       onDelete: "cascade",
@@ -587,27 +450,6 @@ export const ordersServicesTable = pgTable(
     check("discount_valid_check", sql`${table.price} >= ${table.discount}`),
   ]
 );
-export const ordersServicesRelations = relations(
-  ordersServicesTable,
-  ({ one, many }) => ({
-    handlerLogs: many(orderServiceHandlerLogsTable),
-    handler: one(usersTable, {
-      fields: [ordersServicesTable.handler_id],
-      references: [usersTable.id],
-    }),
-    images: many(orderServicesImagesTable),
-    order: one(ordersTable, {
-      fields: [ordersServicesTable.order_id],
-      references: [ordersTable.id],
-    }),
-    service: one(servicesTable, {
-      fields: [ordersServicesTable.service_id],
-      references: [servicesTable.id],
-    }),
-    statusLogs: many(orderServiceStatusLogsTable),
-    refundItems: many(orderRefundItemsTable),
-  })
-);
 
 export const orderServicesImagesTable = pgTable("order_services_images", {
   created_at: timestamp("created_at").defaultNow().notNull(),
@@ -627,19 +469,6 @@ export const orderServicesImagesTable = pgTable("order_services_images", {
     .notNull()
     .$onUpdate(() => new Date()),
 });
-export const orderServicesImagesRelations = relations(
-  orderServicesImagesTable,
-  ({ one }) => ({
-    orderService: one(ordersServicesTable, {
-      fields: [orderServicesImagesTable.order_service_id],
-      references: [ordersServicesTable.id],
-    }),
-    uploadedBy: one(usersTable, {
-      fields: [orderServicesImagesTable.uploaded_by],
-      references: [usersTable.id],
-    }),
-  })
-);
 
 export const orderServiceStatusLogsTable = pgTable(
   "order_service_status_logs",
@@ -661,19 +490,6 @@ export const orderServiceStatusLogsTable = pgTable(
     index("order_service_status_logs_changed_by_idx").on(table.changed_by),
   ]
 );
-export const orderServiceStatusLogsRelations = relations(
-  orderServiceStatusLogsTable,
-  ({ one }) => ({
-    changedBy: one(usersTable, {
-      fields: [orderServiceStatusLogsTable.changed_by],
-      references: [usersTable.id],
-    }),
-    orderService: one(ordersServicesTable, {
-      fields: [orderServiceStatusLogsTable.order_service_id],
-      references: [ordersServicesTable.id],
-    }),
-  })
-);
 
 export const orderServiceHandlerLogsTable = pgTable(
   "order_service_handler_logs",
@@ -694,30 +510,6 @@ export const orderServiceHandlerLogsTable = pgTable(
     index("order_service_handler_logs_service_idx").on(table.order_service_id),
     index("order_service_handler_logs_changed_by_idx").on(table.changed_by),
   ]
-);
-export const orderServiceHandlerLogsRelations = relations(
-  orderServiceHandlerLogsTable,
-  ({ one }) => ({
-    changedBy: one(usersTable, {
-      fields: [orderServiceHandlerLogsTable.changed_by],
-      references: [usersTable.id],
-      relationName: "order_service_handler_changed_by",
-    }),
-    fromHandler: one(usersTable, {
-      fields: [orderServiceHandlerLogsTable.from_handler_id],
-      references: [usersTable.id],
-      relationName: "order_service_handler_from",
-    }),
-    orderService: one(ordersServicesTable, {
-      fields: [orderServiceHandlerLogsTable.order_service_id],
-      references: [ordersServicesTable.id],
-    }),
-    toHandler: one(usersTable, {
-      fields: [orderServiceHandlerLogsTable.to_handler_id],
-      references: [usersTable.id],
-      relationName: "order_service_handler_to",
-    }),
-  })
 );
 
 export const orderRefundsTable = pgTable(
@@ -744,20 +536,6 @@ export const orderRefundsTable = pgTable(
       sql`${table.total_amount} >= 0`
     ),
   ]
-);
-export const orderRefundsRelations = relations(
-  orderRefundsTable,
-  ({ one, many }) => ({
-    items: many(orderRefundItemsTable),
-    order: one(ordersTable, {
-      fields: [orderRefundsTable.order_id],
-      references: [ordersTable.id],
-    }),
-    refundedBy: one(usersTable, {
-      fields: [orderRefundsTable.refunded_by],
-      references: [usersTable.id],
-    }),
-  })
 );
 
 export const orderRefundItemsTable = pgTable(
@@ -786,19 +564,6 @@ export const orderRefundItemsTable = pgTable(
       sql`${table.reason} != 'other' OR (${table.note} IS NOT NULL AND LENGTH(TRIM(${table.note})) > 0)`
     ),
   ]
-);
-export const orderRefundItemsRelations = relations(
-  orderRefundItemsTable,
-  ({ one }) => ({
-    orderRefund: one(orderRefundsTable, {
-      fields: [orderRefundItemsTable.order_refund_id],
-      references: [orderRefundsTable.id],
-    }),
-    orderService: one(ordersServicesTable, {
-      fields: [orderRefundItemsTable.order_service_id],
-      references: [ordersServicesTable.id],
-    }),
-  })
 );
 
 export const ordersProductsTable = pgTable(
@@ -840,17 +605,4 @@ export const ordersProductsTable = pgTable(
       sql`(${table.price} * ${table.qty}) >= ${table.discount}`
     ),
   ]
-);
-export const ordersProductsRelations = relations(
-  ordersProductsTable,
-  ({ one }) => ({
-    order: one(ordersTable, {
-      fields: [ordersProductsTable.order_id],
-      references: [ordersTable.id],
-    }),
-    product: one(productsTable, {
-      fields: [ordersProductsTable.product_id],
-      references: [productsTable.id],
-    }),
-  })
 );

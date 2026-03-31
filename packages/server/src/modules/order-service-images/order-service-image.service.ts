@@ -1,7 +1,6 @@
 import type { InferInsertModel } from "drizzle-orm";
 import type { orderServicesImagesTable } from "@/db/schema";
 import {
-  buildOrderServiceImagesWhereClause,
   countOrderServiceImages,
   createOrderServiceImage,
   deleteOrderServiceImage,
@@ -16,17 +15,15 @@ export async function getOrderServiceImages(
   query?: GetOrderServiceImagesQuery
 ) {
   const pagination = normalizePagination(query, { maxPageSize: 100 });
-  const whereClause = buildOrderServiceImagesWhereClause({
-    order_service_id: query?.order_service_id,
-  });
+  const filters = { order_service_id: query?.order_service_id };
 
   const [items, total] = await Promise.all([
     listOrderServiceImages({
-      whereClause,
+      filters,
       limit: pagination.limit,
       offset: pagination.offset,
     }),
-    countOrderServiceImages(whereClause),
+    countOrderServiceImages(filters),
   ]);
 
   return {

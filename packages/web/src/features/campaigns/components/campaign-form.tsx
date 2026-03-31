@@ -4,6 +4,7 @@ import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Field,
 	FieldContent,
@@ -11,6 +12,8 @@ import {
 	FieldError,
 	FieldGroup,
 	FieldLabel,
+	FieldLegend,
+	FieldSet,
 	FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -270,21 +273,24 @@ export function CampaignForm({
 					name="store_ids"
 					control={form.control}
 					render={({ field }) => (
-						<Field className="md:col-span-2">
-							<FieldLabel>Stores (empty = all stores)</FieldLabel>
-							<div className="grid gap-2 border p-3 md:grid-cols-2">
+						<FieldSet className="border p-2">
+							<FieldLegend variant="label">
+								Stores (empty = all stores)
+							</FieldLegend>
+							<FieldGroup>
 								{stores.map((store) => {
 									const checked = field.value.includes(store.id);
 									return (
-										<label
+										<Field
+											orientation="horizontal"
 											key={store.id}
 											className="flex items-center gap-2 text-sm"
 										>
-											<input
-												type="checkbox"
+											<Checkbox
+												id={`campaign-store-${store.id}`}
 												checked={checked}
-												onChange={(event) => {
-													if (event.target.checked) {
+												onCheckedChange={(value) => {
+													if (value) {
 														field.onChange([...field.value, store.id]);
 														return;
 													}
@@ -295,12 +301,14 @@ export function CampaignForm({
 												}}
 												disabled={isSubmitting}
 											/>
-											<span>{`${store.code} - ${store.name}`}</span>
-										</label>
+											<FieldLabel htmlFor={`campaign-store-${store.id}`}>
+												{store.name}
+											</FieldLabel>
+										</Field>
 									);
 								})}
-							</div>
-						</Field>
+							</FieldGroup>
+						</FieldSet>
 					)}
 				/>
 
@@ -341,7 +349,7 @@ export function CampaignForm({
 					<Button
 						type="submit"
 						loading={isSubmitting}
-						icon={<PlusIcon className="size-4" weight="duotone" />}
+						icon={<PlusIcon className="size-4" />}
 					>
 						{isEditing ? "Update Campaign" : "Create Campaign"}
 					</Button>

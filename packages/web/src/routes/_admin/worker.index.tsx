@@ -649,12 +649,7 @@ function WorkerQueuePage() {
 										type="button"
 										variant="outline"
 										className="w-full sm:min-w-28 sm:w-auto"
-										icon={
-											<MagnifyingGlassIcon
-												className="size-4"
-												weight="duotone"
-											/>
-										}
+										icon={<MagnifyingGlassIcon className="size-4" />}
 										disabled={!itemCode.trim() || lookupMutation.isPending}
 										onClick={async () => {
 											await lookupMutation.mutateAsync({
@@ -669,7 +664,7 @@ function WorkerQueuePage() {
 										type="button"
 										variant="outline"
 										className="w-full sm:min-w-28 sm:w-auto"
-										icon={<ScanIcon className="size-4" weight="duotone" />}
+										icon={<ScanIcon className="size-4" />}
 										onClick={async () => {
 											if (isScanning) {
 												stopScanner();

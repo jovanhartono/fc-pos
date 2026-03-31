@@ -262,7 +262,7 @@ export function ProductForm({
 					<Button
 						type="submit"
 						loading={isSubmitting}
-						icon={<PlusIcon className="size-4" weight="duotone" />}
+						icon={<PlusIcon className="size-4" />}
 					>
 						{isEditing ? "Update Product" : "Create Product"}
 					</Button>

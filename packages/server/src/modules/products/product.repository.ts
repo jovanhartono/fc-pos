@@ -1,17 +1,17 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { productsTable } from "@/db/schema";
 
 export function findProducts(ids: number[]) {
   return db.query.productsTable.findMany({
-    where: (product, { inArray }) => inArray(product.id, ids),
+    where: { id: { in: ids } },
   });
 }
 
 export function listProducts() {
   return db.query.productsTable.findMany({
-    orderBy: [asc(productsTable.id)],
+    orderBy: { id: "asc" },
     with: {
       category: true,
     },
@@ -20,7 +20,7 @@ export function listProducts() {
 
 export function findProductById(id: number) {
   return db.query.productsTable.findFirst({
-    where: eq(productsTable.id, id),
+    where: { id },
   });
 }
 

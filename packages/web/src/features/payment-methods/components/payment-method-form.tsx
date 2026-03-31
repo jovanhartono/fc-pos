@@ -126,7 +126,7 @@ export function PaymentMethodForm({
 				<Button
 					type="submit"
 					loading={isSubmitting}
-					icon={<PlusIcon className="size-4" weight="duotone" />}
+					icon={<PlusIcon className="size-4" />}
 				>
 					{isEditing ? "Update Method" : "Create Method"}
 				</Button>

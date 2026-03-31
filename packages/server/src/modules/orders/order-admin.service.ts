@@ -119,10 +119,7 @@ export function assertCanProcessPaymentOrRefund(user: JWTPayload) {
 
 async function getOrderServiceOrThrow(orderId: number, serviceId: number) {
   const orderService = await db.query.ordersServicesTable.findFirst({
-    where: and(
-      eq(ordersServicesTable.order_id, orderId),
-      eq(ordersServicesTable.id, serviceId)
-    ),
+    where: { order_id: orderId, id: serviceId },
   });
 
   if (!orderService) {
@@ -134,10 +131,7 @@ async function getOrderServiceOrThrow(orderId: number, serviceId: number) {
 
 async function ensurePickupPhotoExists(serviceId: number) {
   const hasPickupPhoto = await db.query.orderServicesImagesTable.findFirst({
-    where: and(
-      eq(orderServicesImagesTable.order_service_id, serviceId),
-      eq(orderServicesImagesTable.photo_type, "pickup")
-    ),
+    where: { order_service_id: serviceId, photo_type: "pickup" },
     columns: { id: true },
   });
 
@@ -151,7 +145,7 @@ async function ensurePickupPhotoExists(serviceId: number) {
 async function recalculateOrderStatus(orderId: number, updatedBy: number) {
   const [services, products] = await Promise.all([
     db.query.ordersServicesTable.findMany({
-      where: eq(ordersServicesTable.order_id, orderId),
+      where: { order_id: orderId },
       columns: { status: true },
     }),
     db.$count(ordersProductsTable, eq(ordersProductsTable.order_id, orderId)),
@@ -183,7 +177,7 @@ async function recalculateOrderStatus(orderId: number, updatedBy: number) {
 async function getOrderLineRefundCaps(orderId: number) {
   const [order, serviceRows, refundedRows] = await Promise.all([
     db.query.ordersTable.findFirst({
-      where: eq(ordersTable.id, orderId),
+      where: { id: orderId },
       columns: {
         id: true,
         total: true,
@@ -191,7 +185,7 @@ async function getOrderLineRefundCaps(orderId: number) {
       },
     }),
     db.query.ordersServicesTable.findMany({
-      where: eq(ordersServicesTable.order_id, orderId),
+      where: { order_id: orderId },
       columns: {
         id: true,
         subtotal: true,
@@ -241,7 +235,7 @@ async function getOrderLineRefundCaps(orderId: number) {
 
 export function getOrderServiceByItemCode(item_code: string) {
   return db.query.ordersServicesTable.findFirst({
-    where: eq(ordersServicesTable.item_code, item_code),
+    where: { item_code },
     with: {
       order: {
         columns: {
@@ -270,7 +264,7 @@ export function getOrderServiceByItemCode(item_code: string) {
 
 export function getOrderServiceById(serviceId: number) {
   return db.query.ordersServicesTable.findFirst({
-    where: eq(ordersServicesTable.id, serviceId),
+    where: { id: serviceId },
     with: {
       order: {
         columns: {
@@ -482,7 +476,7 @@ export async function getOrderServiceQueue(
 
 export async function getOrderDetailById(id: number) {
   const detail = await db.query.ordersTable.findFirst({
-    where: eq(ordersTable.id, id),
+    where: { id },
     with: {
       campaign: true,
       customer: true,
@@ -502,7 +496,7 @@ export async function getOrderDetailById(id: number) {
             },
           },
         },
-        orderBy: [asc(orderRefundsTable.id)],
+        orderBy: { id: "asc" },
       },
       services: {
         with: {
@@ -533,10 +527,10 @@ export async function getOrderDetailById(id: number) {
                 },
               },
             },
-            orderBy: [asc(orderServiceHandlerLogsTable.id)],
+            orderBy: { id: "asc" },
           },
           images: {
-            orderBy: [asc(orderServicesImagesTable.id)],
+            orderBy: { id: "asc" },
           },
           refundItems: true,
           service: true,
@@ -549,10 +543,10 @@ export async function getOrderDetailById(id: number) {
                 },
               },
             },
-            orderBy: [asc(orderServiceStatusLogsTable.id)],
+            orderBy: { id: "asc" },
           },
         },
-        orderBy: [asc(ordersServicesTable.id)],
+        orderBy: { id: "asc" },
       },
       store: true,
     },
@@ -562,21 +556,10 @@ export async function getOrderDetailById(id: number) {
     return null;
   }
 
-  const services = detail.services.map((service) => {
-    const {
-      shoe_brand: _shoeBrand,
-      shoe_size: _shoeSize,
-      ...nextService
-    } = service;
-
-    return nextService;
-  });
-
   return {
     ...detail,
-    services,
     fulfillment: summarizeOrderFulfillment(
-      services.map((service) => service.status)
+      detail.services.map((service) => service.status)
     ),
   };
 }
@@ -593,7 +576,7 @@ export async function updateOrderPayment({
   assertCanProcessPaymentOrRefund(user);
 
   const order = await db.query.ordersTable.findFirst({
-    where: eq(ordersTable.id, orderId),
+    where: { id: orderId },
     columns: {
       id: true,
       total: true,
@@ -845,7 +828,7 @@ export async function createOrderIntakePhotoPresign({
   body: PostOrderIntakePhotoPresignInput;
 }) {
   const order = await db.query.ordersTable.findFirst({
-    where: eq(ordersTable.id, orderId),
+    where: { id: orderId },
     columns: { id: true },
   });
 
@@ -928,7 +911,7 @@ export async function completeOrderPickup({
   assertCanProcessPaymentOrRefund(user);
 
   const order = await db.query.ordersTable.findFirst({
-    where: eq(ordersTable.id, orderId),
+    where: { id: orderId },
     columns: {
       id: true,
     },
@@ -1028,7 +1011,7 @@ export async function createOrderRefund({
   }
 
   const order = await db.query.ordersTable.findFirst({
-    where: eq(ordersTable.id, orderId),
+    where: { id: orderId },
     columns: {
       id: true,
       payment_status: true,
@@ -1048,10 +1031,7 @@ export async function createOrderRefund({
   }
 
   const services = await db.query.ordersServicesTable.findMany({
-    where: and(
-      eq(ordersServicesTable.order_id, orderId),
-      inArray(ordersServicesTable.id, uniqueServiceIds)
-    ),
+    where: { order_id: orderId, id: { in: uniqueServiceIds } },
     columns: {
       id: true,
       status: true,

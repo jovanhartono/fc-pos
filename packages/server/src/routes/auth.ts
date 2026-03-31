@@ -1,6 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import { eq } from "drizzle-orm";
-import { createInsertSchema } from "drizzle-zod";
+import { createInsertSchema } from "drizzle-orm/zod";
 import { Hono } from "hono";
 import { sign } from "hono/jwt";
 import { StatusCodes } from "http-status-codes";
@@ -20,7 +19,7 @@ const app = new Hono().post(
     const { username, password } = c.req.valid("json");
 
     const user = await db.query.usersTable.findFirst({
-      where: eq(usersTable.username, username),
+      where: { username },
     });
 
     if (!user) {

@@ -14,10 +14,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
 			theme="system"
 			className="toaster group"
 			icons={{
-				success: <CheckCircleIcon className="size-4" weight="duotone" />,
-				info: <InfoIcon className="size-4" weight="duotone" />,
-				warning: <WarningCircleIcon className="size-4" weight="duotone" />,
-				error: <XCircleIcon className="size-4" weight="duotone" />,
+				success: <CheckCircleIcon className="size-4" />,
+				info: <InfoIcon className="size-4" />,
+				warning: <WarningCircleIcon className="size-4" />,
+				error: <XCircleIcon className="size-4" />,
 				loading: <SpinnerGapIcon className="size-4 animate-spin" />,
 			}}
 			style={

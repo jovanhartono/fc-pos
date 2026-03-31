@@ -1,9 +1,7 @@
-import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import { z } from "zod";
 import { db } from "@/db";
-import { ordersTable } from "@/db/schema";
 import { failure, success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
@@ -28,7 +26,7 @@ const app = new Hono().post(
     const { code, phone_number } = c.req.valid("json");
 
     const order = await db.query.ordersTable.findFirst({
-      where: eq(ordersTable.code, code),
+      where: { code },
       columns: {
         id: true,
         code: true,
@@ -107,15 +105,17 @@ const app = new Hono().post(
       );
     }
 
+    const customer = order.customer;
+
     return c.json(
       success(
         {
           ...order,
           services: order.services,
           customer: {
-            id: order.customer.id,
-            name: order.customer.name,
-            phone_number_masked: maskPhoneNumber(order.customer.phone_number),
+            id: customer.id,
+            name: customer.name,
+            phone_number_masked: maskPhoneNumber(customer.phone_number),
           },
         },
         "Order status retrieved successfully"

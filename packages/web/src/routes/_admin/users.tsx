@@ -255,7 +255,7 @@ function UsersPage() {
 						variant="outline"
 						size="sm"
 						onClick={() => handleEdit(row.original)}
-						icon={<PencilSimpleLineIcon className="size-4" weight="duotone" />}
+						icon={<PencilSimpleLineIcon className="size-4" />}
 					>
 						Edit
 					</Button>
@@ -275,7 +275,7 @@ function UsersPage() {
 							variant={usersQuery.isPending ? "secondary" : "outline"}
 						>{`${userCount} items`}</Badge>
 						<Button
-							icon={<PlusIcon className="size-4" weight="duotone" />}
+							icon={<PlusIcon className="size-4" />}
 							onClick={handleCreate}
 						>
 							Add User

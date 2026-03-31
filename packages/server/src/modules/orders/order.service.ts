@@ -115,7 +115,7 @@ async function resolveDiscount({
   }
 
   const campaign = await tx.query.campaignsTable.findFirst({
-    where: (campaign, { eq }) => eq(campaign.id, campaignId),
+    where: { id: campaignId },
     with: {
       stores: {
         columns: {

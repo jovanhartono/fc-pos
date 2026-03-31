@@ -1,18 +1,21 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { asc, eq, type SQL } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { categoriesTable } from "@/db/schema";
 
-export function listCategories(whereClause?: SQL) {
+export function listCategories(where?: { is_active?: boolean }) {
   return db.query.categoriesTable.findMany({
-    orderBy: [asc(categoriesTable.id)],
-    where: whereClause,
+    orderBy: { id: "asc" },
+    where:
+      where?.is_active !== undefined
+        ? { is_active: where.is_active }
+        : undefined,
   });
 }
 
 export function findCategoryById(id: number) {
   return db.query.categoriesTable.findFirst({
-    where: eq(categoriesTable.id, id),
+    where: { id },
   });
 }
 
