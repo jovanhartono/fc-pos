@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## Overview
 
 **Fresclean** is a Bun monorepo for a laundry/cleaning service business. It consists of an API server and an admin web dashboard.
@@ -21,13 +23,16 @@ bun run dev            # Start both server (port 8000) and web (port 5173) concu
 ### Server only
 ```bash
 cd packages/server
-bun run --hot src/index.ts   # API with hot reload at http://localhost:8000/api
+bun run dev                  # API with hot reload (port 8000) + tsdown --watch for type exports
 ```
 
 ### Web only
 ```bash
 cd packages/web
 bun run dev                  # Vite dev server at http://localhost:5173
+bun run build               # TypeScript check + Vite production build
+bun run type-check          # TypeScript check only (also regenerates routes)
+bun run generate-routes     # Regenerate TanStack Router route tree
 ```
 
 ## Environment Variables

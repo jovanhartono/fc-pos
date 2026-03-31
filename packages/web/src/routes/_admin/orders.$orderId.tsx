@@ -1,4 +1,3 @@
-import { CaretRightIcon } from "@phosphor-icons/react";
 import {
 	type UseMutationResult,
 	useMutation,
@@ -27,6 +26,7 @@ import { OrderFulfillmentOverview } from "@/features/orders/components/order-ful
 import { OrderIntakePhotoCard } from "@/features/orders/components/order-intake-photo-card";
 import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
 import { QueueServiceDetail } from "@/features/orders/components/queue-service-detail";
+import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import {
 	claimOrderService,
 	completeOrderPickup,
@@ -870,46 +870,7 @@ function AdminOrderDetailPage() {
 										)}
 									</div>
 
-									<details className="group border-t pt-4">
-										<summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden [&::marker]:hidden">
-											<CaretRightIcon
-												className="size-4 shrink-0 transition-transform group-open:rotate-90"
-												aria-hidden="true"
-											/>
-											Status history ({service.statusLogs.length})
-										</summary>
-										<div className="mt-3 space-y-3 border-l-2 border-muted pl-3">
-											{service.statusLogs.length > 0 ? (
-												service.statusLogs.map((log) => (
-													<div key={log.id} className="space-y-0.5">
-														<p className="text-xs leading-relaxed">
-															<span className="font-medium">
-																{log.to_status}
-															</span>
-															{" · "}
-															{log.changedBy?.name ?? "—"} ·{" "}
-															{new Date(log.created_at).toLocaleString(
-																"en-ID",
-																{
-																	dateStyle: "short",
-																	timeStyle: "short",
-																},
-															)}
-														</p>
-														{log.note ? (
-															<p className="text-muted-foreground text-xs">
-																{log.note}
-															</p>
-														) : null}
-													</div>
-												))
-											) : (
-												<p className="text-muted-foreground text-xs">
-													No entries yet
-												</p>
-											)}
-										</div>
-									</details>
+									<StatusTimeline logs={service.statusLogs} />
 								</CardContent>
 							</Card>
 						);

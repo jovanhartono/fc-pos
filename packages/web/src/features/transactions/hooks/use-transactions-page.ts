@@ -48,10 +48,7 @@ const transactionDraftSchema = z
 			.string()
 			.trim()
 			.min(1, "Store is required before creating a transaction."),
-		selectedCustomerId: z
-			.string()
-			.trim()
-			.min(1, "Customer reference is required."),
+		selectedCustomerId: z.string().trim().min(1, "Customer is required."),
 		selectedCampaignId: z.string(),
 		selectedPaymentMethodId: z.string(),
 		paymentStatus: z.enum(["paid", "unpaid"]),

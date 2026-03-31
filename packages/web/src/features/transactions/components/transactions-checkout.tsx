@@ -301,7 +301,7 @@ export function TransactionsCheckout() {
 						<div className="grid max-h-[52vh] gap-3 overflow-y-auto pr-2">
 							{cartProductRows.length === 0 && cartServiceRows.length === 0 ? (
 								<div className="border border-dashed border-border p-4 text-sm text-muted-foreground">
-									Cart is empty. Add products or services from the catalog.
+									Cart is empty.
 								</div>
 							) : null}
 

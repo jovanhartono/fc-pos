@@ -261,7 +261,9 @@ export function AppShell({ title, children }: AppShellProps) {
 			</Sidebar>
 
 			<SidebarInset>
-				<section className="px-3 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10">
+				<SidebarTrigger className="fixed left-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-20 size-8 md:hidden" />
+				<SidebarTrigger className="fixed left-2 top-1/2 z-20 hidden size-8 -translate-y-1/2 border border-sidebar-border/70 bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80 md:flex md:peer-data-[state=expanded]:hidden" />
+				<section className="overflow-x-hidden px-3 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10">
 					{children}
 				</section>
 			</SidebarInset>

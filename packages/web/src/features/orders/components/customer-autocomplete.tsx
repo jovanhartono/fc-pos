@@ -63,7 +63,7 @@ export function CustomerAutocomplete({
 	return (
 		<Field data-invalid={!!error}>
 			<FieldLabel htmlFor="order-customer" asterisk={required}>
-				Customer Reference
+				Customer
 			</FieldLabel>
 			<div className="flex items-center gap-2">
 				<div className="flex-1">

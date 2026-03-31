@@ -5,12 +5,18 @@ import {
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
 	Select,
@@ -22,6 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { HoldToConfirmButton } from "@/features/orders/components/hold-to-confirm-button";
 import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
+import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import {
 	type OrderDetail,
 	presignOrderServicePhoto,
@@ -71,7 +78,6 @@ export function QueueServiceDetail({
 	serviceId,
 	queueStoreId,
 }: QueueServiceDetailProps) {
-	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const currentUser = getCurrentUser();
 	const galleryInputRef = useRef<HTMLInputElement | null>(null);
@@ -336,26 +342,46 @@ export function QueueServiceDetail({
 
 	return (
 		<>
-			<PageHeader
-				title={selectedService.item_code ?? `Queue Item #${selectedService.id}`}
-				actions={
-					<Button
-						type="button"
-						variant="outline"
-						icon={<ArrowLeftIcon className="size-4" weight="duotone" />}
-						onClick={() => {
-							void navigate({
-								to: "/worker",
-								search: { storeId: queueStoreId ?? detail.store?.id },
-							});
-						}}
-					>
-						Back to Queue
-					</Button>
-				}
-			/>
+			<div className="mb-6 flex items-center gap-3">
+				<Link
+					to="/worker"
+					search={{ storeId: queueStoreId ?? detail.store?.id }}
+					className="flex size-9 shrink-0 items-center justify-center border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+				>
+					<ArrowLeftIcon className="size-4" weight="bold" />
+				</Link>
+				<h1 className="text-2xl font-bold tracking-tight">
+					{selectedService.item_code ?? `Queue Item #${selectedService.id}`}
+				</h1>
+			</div>
 
 			<div className="grid gap-5">
+				<div className="flex flex-wrap items-center gap-x-4 gap-y-1 border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+					<Link
+						to="/orders/$orderId"
+						params={{ orderId: String(orderId) }}
+						className="underline underline-offset-2 hover:text-foreground"
+					>
+						{detail.code}
+					</Link>
+					<span>{detail.store?.code ?? "-"}</span>
+					<span>{detail.customer?.name ?? "-"}</span>
+					{detail.customer?.phone_number ? (
+						<a
+							href={`tel:${detail.customer.phone_number}`}
+							className="underline underline-offset-2 hover:text-foreground"
+						>
+							{detail.customer.phone_number}
+						</a>
+					) : null}
+					<span>
+						{new Date(detail.created_at).toLocaleString("en-ID", {
+							dateStyle: "medium",
+							timeStyle: "short",
+						})}
+					</span>
+				</div>
+
 				<section className="grid gap-4 border border-border bg-background/70 p-4">
 					<div className="flex flex-wrap items-center gap-2">
 						{selectedService.is_priority ? (
@@ -379,30 +405,13 @@ export function QueueServiceDetail({
 						</Badge>
 					</div>
 
-					<div className="grid gap-4 md:grid-cols-2">
-						<div className="grid gap-2">
-							<p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
-								Service
-							</p>
-							<p className="text-2xl font-semibold tracking-tight">
-								{selectedService.service?.name ?? "Service"}
-							</p>
-							<p className="text-sm text-muted-foreground">
-								{`Item ${formatOrderServiceItemDetails(selectedService)}`}
-							</p>
-						</div>
-
-						<div className="grid gap-2 text-sm text-muted-foreground">
-							<p>{`Order ${detail.code}`}</p>
-							<p>{`Store ${detail.store?.code ?? "-"} - ${detail.store?.name ?? "-"}`}</p>
-							<p>
-								{new Date(detail.created_at).toLocaleString("en-ID", {
-									dateStyle: "medium",
-									timeStyle: "short",
-								})}
-							</p>
-							<p>{`Customer ${detail.customer?.name ?? "-"}`}</p>
-						</div>
+					<div className="grid gap-1">
+						<p className="text-2xl font-semibold tracking-tight">
+							{selectedService.service?.name ?? "Service"}
+						</p>
+						<p className="text-sm text-muted-foreground">
+							{`Item ${formatOrderServiceItemDetails(selectedService)}`}
+						</p>
 					</div>
 
 					{selectedService.status === "ready_for_pickup" && !hasPickupPhoto ? (
@@ -411,191 +420,195 @@ export function QueueServiceDetail({
 								className="mt-0.5 size-4 shrink-0"
 								weight="fill"
 							/>
-							<p>Add a pickup photo before marking this item as picked up.</p>
+							<p>Add pickup photo!</p>
 						</div>
 					) : null}
 				</section>
 
-				<section className="grid gap-4 border border-border p-4">
-					<div className="flex items-center justify-between gap-3">
+				<Dialog
+					open={isCameraOpen}
+					onOpenChange={(open) => {
+						if (!open) {
+							stopCameraStream();
+						}
+					}}
+				>
+					<DialogContent className="sm:max-w-md">
+						<DialogHeader>
+							<DialogTitle className="flex items-center justify-between">
+								<span>Camera</span>
+								<Badge variant="outline">Live</Badge>
+							</DialogTitle>
+						</DialogHeader>
+
+						<video
+							ref={cameraPreviewRef}
+							autoPlay
+							muted
+							playsInline
+							className="aspect-[4/3] w-full border border-border bg-black object-cover"
+						/>
+
+						{cameraError ? (
+							<div className="flex items-start gap-2 border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+								<WarningCircleIcon
+									className="mt-0.5 size-4 shrink-0"
+									weight="fill"
+								/>
+								<span>{cameraError}</span>
+							</div>
+						) : null}
+
+						<DialogFooter>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={stopCameraStream}
+							>
+								Cancel
+							</Button>
+							<Button
+								type="button"
+								onClick={async () => {
+									await captureCameraPhoto();
+								}}
+							>
+								Capture
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+
+				<section className="grid gap-4 border border-border bg-background">
+					<div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4 lg:px-5">
 						<div className="grid gap-1">
-							<p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
+							<p className="text-xs font-medium uppercase tracking-[0.28em] text-muted-foreground">
 								Photos
 							</p>
-							<p className="text-sm text-muted-foreground">
-								Camera and gallery are equally available for fast upload.
-							</p>
-						</div>
-						<Select
-							value={selectedPhotoType}
-							onValueChange={(value) =>
-								setSelectedPhotoType(
-									(value ??
-										"progress") as SaveOrderServicePhotoPayload["photo_type"],
-								)
-							}
-						>
-							<SelectTrigger className="h-11 w-40">
-								<SelectValue placeholder="Photo type" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="dropoff">dropoff</SelectItem>
-								<SelectItem value="progress">progress</SelectItem>
-								<SelectItem value="pickup">pickup</SelectItem>
-								<SelectItem value="refund">refund</SelectItem>
-							</SelectContent>
-						</Select>
-					</div>
-
-					<div className="grid gap-4 lg:grid-cols-[minmax(0,240px)_minmax(0,420px)] lg:items-start">
-						<div className="grid gap-3">
-							<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-								<Button
-									type="button"
-									variant="outline"
-									className="h-12 justify-start"
-									icon={<CameraIcon className="size-4" weight="duotone" />}
-									onClick={async () => {
-										if (isCameraOpen) {
-											stopCameraStream();
-											return;
-										}
-
-										await openCamera();
-									}}
-								>
-									{isCameraOpen ? "Close Camera" : "Camera"}
-								</Button>
-								<Button
-									type="button"
-									variant="outline"
-									className="h-12 justify-start"
-									icon={<ImageSquareIcon className="size-4" weight="duotone" />}
-									onClick={() => openGalleryInput(galleryInputRef.current)}
-								>
-									Gallery
-								</Button>
-							</div>
-
-							{cameraError ? (
-								<div className="flex items-center gap-2 text-sm text-destructive">
-									<WarningCircleIcon className="size-4" weight="fill" />
-									<span>{cameraError}</span>
-								</div>
-							) : null}
 						</div>
 
-						<div className="grid gap-4 lg:max-w-md">
-							{isCameraOpen ? (
-								<div className="grid gap-3 border border-border p-3">
-									<video
-										ref={cameraPreviewRef}
-										autoPlay
-										muted
-										playsInline
-										className="aspect-4/3 w-full max-w-md border border-border object-cover"
-									/>
-									<div className="flex flex-col gap-2 sm:flex-row">
-										<Button
-											type="button"
-											className="sm:flex-1"
-											onClick={async () => {
-												await captureCameraPhoto();
-											}}
-										>
-											Capture photo
-										</Button>
-										<Button
-											type="button"
-											variant="outline"
-											className="sm:flex-1"
-											onClick={stopCameraStream}
-										>
-											Cancel camera
-										</Button>
-									</div>
-								</div>
-							) : null}
-
-							<input
-								ref={galleryInputRef}
-								type="file"
-								accept="image/*"
-								className="sr-only"
-								onChange={(event) =>
-									setSelectedPhotoFile(event.target.files?.[0] ?? null)
+						<div className="flex items-center gap-2">
+							<Button
+								type="button"
+								variant="outline"
+								size="icon"
+								onClick={async () => {
+									await openCamera();
+								}}
+							>
+								<CameraIcon className="size-4" weight="duotone" />
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								size="icon"
+								onClick={() => openGalleryInput(galleryInputRef.current)}
+							>
+								<ImageSquareIcon className="size-4" weight="duotone" />
+							</Button>
+							<Select
+								value={selectedPhotoType}
+								onValueChange={(value) =>
+									setSelectedPhotoType(
+										(value ??
+											"progress") as SaveOrderServicePhotoPayload["photo_type"],
+									)
 								}
-							/>
-
-							{selectedPhotoPreviewUrl ? (
-								<div className="grid gap-2 border border-border p-3">
-									<img
-										src={selectedPhotoPreviewUrl}
-										alt="Selected upload preview"
-										width={960}
-										height={768}
-										className="aspect-4/3 w-full max-w-md object-cover"
-									/>
-									<div className="flex flex-col gap-2 sm:flex-row">
-										<Button
-											type="button"
-											className="sm:flex-1"
-											loading={uploadMutation.isPending}
-											loadingText="Uploading…"
-											onClick={async () => {
-												if (!selectedPhotoFile) {
-													return;
-												}
-
-												await uploadMutation.mutateAsync({
-													file: selectedPhotoFile,
-													photoType: selectedPhotoType,
-												});
-											}}
-										>
-											Upload photo
-										</Button>
-										<Button
-											type="button"
-											variant="outline"
-											className="sm:flex-1"
-											disabled={uploadMutation.isPending}
-											onClick={() => setSelectedPhotoFile(null)}
-										>
-											Clear
-										</Button>
-									</div>
-								</div>
-							) : null}
+							>
+								<SelectTrigger className="h-8 w-28 bg-background">
+									<SelectValue placeholder="Photo type" />
+								</SelectTrigger>
+								<SelectContent align="end">
+									<SelectItem value="dropoff">dropoff</SelectItem>
+									<SelectItem value="progress">progress</SelectItem>
+									<SelectItem value="pickup">pickup</SelectItem>
+								</SelectContent>
+							</Select>
 						</div>
 					</div>
 
-					<OrderPhotoGallery
-						items={selectedService.images.map((image) => ({
-							...image,
-							alt: `${image.photo_type} for ${selectedService.item_code ?? `service-${selectedService.id}`}`,
-						}))}
-						gridClassName="sm:grid-cols-2 xl:grid-cols-3"
-						thumbnailImageClassName="aspect-[5/4]"
-						title={`Photos for ${selectedService.item_code ?? `service-${selectedService.id}`}`}
-						emptyState={
-							<p className="border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground sm:col-span-2">
-								No photos uploaded yet.
-							</p>
-						}
-					/>
+					<div className="grid gap-4 px-4 pb-4 lg:px-5 lg:pb-5">
+						<input
+							ref={galleryInputRef}
+							type="file"
+							accept="image/*"
+							className="sr-only"
+							onChange={(event) =>
+								setSelectedPhotoFile(event.target.files?.[0] ?? null)
+							}
+						/>
+
+						{selectedPhotoPreviewUrl ? (
+							<div className="grid gap-3">
+								<div className="flex items-center justify-between gap-3">
+									<p className="text-sm font-semibold uppercase tracking-[0.16em]">
+										Upload preview
+									</p>
+									<Badge variant="secondary">
+										{formatPhotoTypeLabel(selectedPhotoType)}
+									</Badge>
+								</div>
+
+								<img
+									src={selectedPhotoPreviewUrl}
+									alt="Selected upload preview"
+									width={960}
+									height={768}
+									className="aspect-[4/3] w-full border border-border object-cover"
+									loading="lazy"
+								/>
+
+								<div className="flex gap-2">
+									<Button
+										type="button"
+										className="flex-1"
+										loading={uploadMutation.isPending}
+										loadingText="Uploading…"
+										onClick={async () => {
+											if (!selectedPhotoFile) {
+												return;
+											}
+
+											await uploadMutation.mutateAsync({
+												file: selectedPhotoFile,
+												photoType: selectedPhotoType,
+											});
+										}}
+									>
+										Upload
+									</Button>
+									<Button
+										type="button"
+										variant="outline"
+										disabled={uploadMutation.isPending}
+										onClick={() => setSelectedPhotoFile(null)}
+									>
+										Clear
+									</Button>
+								</div>
+							</div>
+						) : null}
+
+						<OrderPhotoGallery
+							items={selectedService.images.map((image) => ({
+								...image,
+								alt: `${image.photo_type} for ${selectedService.item_code ?? `service-${selectedService.id}`}`,
+							}))}
+							gridClassName="grid-cols-2 xl:grid-cols-3"
+							thumbnailClassName="bg-background"
+							thumbnailImageClassName="aspect-[5/4]"
+							title={`Photos for ${selectedService.item_code ?? `service-${selectedService.id}`}`}
+							emptyState={
+								<p className="col-span-full border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+									No photos.
+								</p>
+							}
+						/>
+					</div>
 				</section>
 
 				<section className="grid gap-4 border border-border p-4">
-					<div className="grid gap-1">
-						<p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
-							Updates
-						</p>
-						<p className="text-sm text-muted-foreground">
-							Add an optional note before pushing the next status.
-						</p>
-					</div>
-
+					<StatusTimeline logs={selectedService.statusLogs} />
 					<Field>
 						<FieldLabel htmlFor="queue-status-note">Status note</FieldLabel>
 						<Textarea
@@ -605,39 +618,15 @@ export function QueueServiceDetail({
 							onChange={(event) => setStatusNote(event.target.value)}
 						/>
 					</Field>
-
-					<div className="grid gap-2">
-						{selectedService.statusLogs.length > 0 ? (
-							selectedService.statusLogs.map((log) => (
-								<div
-									key={log.id}
-									className="grid gap-1 border-l border-border pl-3 text-sm"
-								>
-									<p className="font-medium">
-										{formatOrderServiceStatus(log.to_status)}
-									</p>
-									<p className="text-muted-foreground">
-										{`${log.changedBy?.name ?? "-"} • ${new Date(log.created_at).toLocaleString()}`}
-									</p>
-									{log.note ? (
-										<p className="text-muted-foreground">{log.note}</p>
-									) : null}
-								</div>
-							))
-						) : (
-							<p className="text-sm text-muted-foreground">
-								No status updates yet.
-							</p>
-						)}
-					</div>
 				</section>
 			</div>
 
-			<div className="sticky bottom-0 z-10 mt-6 border-t border-border bg-background/95 px-0 py-3 backdrop-blur">
+			<div className="h-20 sm:hidden" />
+			<div className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-background/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur sm:sticky sm:bottom-0 sm:mt-6 sm:px-0 sm:pb-3">
 				<div className="flex flex-col gap-2 sm:flex-row">
 					{canStartWork ? (
 						<HoldToConfirmButton
-							className="h-12 flex-1"
+							className="h-12 sm:flex-1"
 							disabled={isHandledByAnotherWorker}
 							loading={startWorkMutation.isPending}
 							onComplete={async () => {
@@ -653,7 +642,8 @@ export function QueueServiceDetail({
 							key={nextStatus}
 							type="button"
 							variant="secondary"
-							className={cn("h-12 flex-1", canStartWork && "sm:flex-none")}
+							size="lg"
+							className={cn("h-12 sm:flex-1", canStartWork && "sm:flex-none")}
 							disabled={statusMutation.isPending}
 							onClick={async () => {
 								await statusMutation.mutateAsync({
@@ -683,4 +673,10 @@ function getRecommendedPhotoType(
 	}
 
 	return "progress";
+}
+
+function formatPhotoTypeLabel(
+	photoType: SaveOrderServicePhotoPayload["photo_type"],
+) {
+	return photoType.charAt(0).toUpperCase() + photoType.slice(1);
 }
