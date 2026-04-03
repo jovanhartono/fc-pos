@@ -2,11 +2,11 @@ import type { InferInsertModel } from "drizzle-orm";
 import type { orderServicesImagesTable } from "@/db/schema";
 import {
   countOrderServiceImages,
-  createOrderServiceImage,
-  deleteOrderServiceImage,
+  deleteOrderServiceImageById,
   findOrderServiceImageById,
+  insertOrderServiceImage,
   listOrderServiceImages,
-  updateOrderServiceImage,
+  updateOrderServiceImageById,
 } from "@/modules/order-service-images/order-service-image.repository";
 import type { GetOrderServiceImagesQuery } from "@/modules/order-service-images/order-service-image.schema";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
@@ -36,21 +36,21 @@ export function getOrderServiceImageById(id: number) {
   return findOrderServiceImageById(id);
 }
 
-export async function createOrderServiceImageService(
+export async function createOrderServiceImage(
   payload: InferInsertModel<typeof orderServicesImagesTable>
 ) {
-  const [image] = await createOrderServiceImage(payload);
+  const [image] = await insertOrderServiceImage(payload);
   return image;
 }
 
-export async function updateOrderServiceImageService(
+export async function updateOrderServiceImage(
   id: number,
   payload: Partial<InferInsertModel<typeof orderServicesImagesTable>>
 ) {
-  const [image] = await updateOrderServiceImage(id, payload);
+  const [image] = await updateOrderServiceImageById(id, payload);
   return image ?? null;
 }
 
-export function deleteOrderServiceImageService(id: number) {
-  return deleteOrderServiceImage(id);
+export function deleteOrderServiceImage(id: number) {
+  return deleteOrderServiceImageById(id);
 }

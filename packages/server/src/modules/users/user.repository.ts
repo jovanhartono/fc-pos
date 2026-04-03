@@ -1,12 +1,16 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { and, eq, like, or, type SQL } from "drizzle-orm";
+import { and, eq, like, or, type SQL, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { userStoresTable, usersTable } from "@/db/schema";
 
+const findUserByIdPrepared = db.query.usersTable
+  .findFirst({
+    where: { id: { eq: sql.placeholder("id") } },
+  })
+  .prepare("find_user_by_id");
+
 export function findUserById(userId: number) {
-  return db.query.usersTable.findFirst({
-    where: { id: userId },
-  });
+  return findUserByIdPrepared.execute({ id: userId });
 }
 
 interface UserFilters {
@@ -107,7 +111,7 @@ export function findUserDetailById(id: number) {
   });
 }
 
-export function createUser(values: InferInsertModel<typeof usersTable>) {
+export function insertUser(values: InferInsertModel<typeof usersTable>) {
   return db.insert(usersTable).values(values).returning({
     id: usersTable.id,
     name: usersTable.name,
@@ -120,7 +124,7 @@ export function createUser(values: InferInsertModel<typeof usersTable>) {
   });
 }
 
-export function updateUser(
+export function updateUserById(
   id: number,
   values: Partial<InferInsertModel<typeof usersTable>>
 ) {

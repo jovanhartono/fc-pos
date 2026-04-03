@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-orm/zod";
 import { Hono } from "hono";
 import { sign } from "hono/jwt";
@@ -12,15 +13,20 @@ const loginSchema = createInsertSchema(usersTable).pick({
   username: true,
   password: true,
 });
+
+const findUserByUsernamePrepared = db.query.usersTable
+  .findFirst({
+    where: { username: { eq: sql.placeholder("username") } },
+  })
+  .prepare("find_user_by_username");
+
 const app = new Hono().post(
   "/login",
   zValidator("json", loginSchema),
   async (c) => {
     const { username, password } = c.req.valid("json");
 
-    const user = await db.query.usersTable.findFirst({
-      where: { username },
-    });
+    const user = await findUserByUsernamePrepared.execute({ username });
 
     if (!user) {
       return c.json(

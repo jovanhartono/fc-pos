@@ -1,5 +1,5 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { servicesTable } from "@/db/schema";
 
@@ -18,17 +18,21 @@ export function listServices() {
   });
 }
 
+const findServiceByIdPrepared = db.query.servicesTable
+  .findFirst({
+    where: { id: { eq: sql.placeholder("id") } },
+  })
+  .prepare("find_service_by_id");
+
 export function findServiceById(id: number) {
-  return db.query.servicesTable.findFirst({
-    where: { id },
-  });
+  return findServiceByIdPrepared.execute({ id });
 }
 
-export function createService(values: InferInsertModel<typeof servicesTable>) {
+export function insertService(values: InferInsertModel<typeof servicesTable>) {
   return db.insert(servicesTable).values(values).returning();
 }
 
-export function updateService(
+export function updateServiceById(
   id: number,
   values: Partial<InferInsertModel<typeof servicesTable>>
 ) {

@@ -68,13 +68,13 @@ export function findCustomerById(id: number) {
   });
 }
 
-export function createCustomer(
+export function insertCustomer(
   values: InferInsertModel<typeof customersTable>
 ) {
   return db.insert(customersTable).values(values).returning();
 }
 
-export function updateCustomer(
+export function updateCustomerById(
   id: number,
   values: Partial<InferInsertModel<typeof customersTable>>
 ) {

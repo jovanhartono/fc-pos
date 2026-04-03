@@ -2,10 +2,10 @@ import type { InferInsertModel } from "drizzle-orm";
 import type { customersTable } from "@/db/schema";
 import {
   countCustomers,
-  createCustomer,
   findCustomerById,
+  insertCustomer,
   listCustomers,
-  updateCustomer,
+  updateCustomerById,
 } from "@/modules/customers/customer.repository";
 import type { GetCustomersQuery } from "@/modules/customers/customer.schema";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
@@ -33,7 +33,7 @@ export function getCustomerById(id: number) {
   return findCustomerById(id);
 }
 
-export async function createCustomerService({
+export async function createCustomer({
   actorId,
   payload,
 }: {
@@ -43,7 +43,7 @@ export async function createCustomerService({
     "created_by" | "updated_by"
   >;
 }) {
-  const [customer] = await createCustomer({
+  const [customer] = await insertCustomer({
     ...payload,
     created_by: actorId,
     updated_by: actorId,
@@ -52,7 +52,7 @@ export async function createCustomerService({
   return customer;
 }
 
-export async function updateCustomerService({
+export async function updateCustomer({
   id,
   actorId,
   payload,
@@ -61,7 +61,7 @@ export async function updateCustomerService({
   actorId: number;
   payload: Partial<InferInsertModel<typeof customersTable>>;
 }) {
-  const [customer] = await updateCustomer(id, {
+  const [customer] = await updateCustomerById(id, {
     ...payload,
     updated_by: actorId,
   });

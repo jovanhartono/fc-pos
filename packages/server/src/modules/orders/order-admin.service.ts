@@ -15,6 +15,7 @@ import {
   usersTable,
 } from "@/db/schema";
 import { BadRequestException, ForbiddenException } from "@/errors";
+import type { OrderTx } from "@/modules/orders/order.repository";
 import type {
   GetMyOrderServicesQuery,
   GetOrderServiceQueueQuery,
@@ -117,9 +118,19 @@ export function assertCanProcessPaymentOrRefund(user: JWTPayload) {
   }
 }
 
+const getOrderServicePrepared = db.query.ordersServicesTable
+  .findFirst({
+    where: {
+      order_id: { eq: sql.placeholder("order_id") },
+      id: { eq: sql.placeholder("id") },
+    },
+  })
+  .prepare("get_order_service");
+
 async function getOrderServiceOrThrow(orderId: number, serviceId: number) {
-  const orderService = await db.query.ordersServicesTable.findFirst({
-    where: { order_id: orderId, id: serviceId },
+  const orderService = await getOrderServicePrepared.execute({
+    order_id: orderId,
+    id: serviceId,
   });
 
   if (!orderService) {
@@ -142,13 +153,17 @@ async function ensurePickupPhotoExists(serviceId: number) {
   }
 }
 
-async function recalculateOrderStatus(orderId: number, updatedBy: number) {
+async function recalculateOrderStatus(
+  tx: OrderTx,
+  orderId: number,
+  updatedBy: number
+) {
   const [services, products] = await Promise.all([
-    db.query.ordersServicesTable.findMany({
+    tx.query.ordersServicesTable.findMany({
       where: { order_id: orderId },
       columns: { status: true },
     }),
-    db.$count(ordersProductsTable, eq(ordersProductsTable.order_id, orderId)),
+    tx.$count(ordersProductsTable, eq(ordersProductsTable.order_id, orderId)),
   ]);
 
   let nextStatus: "created" | "processing" | "completed" | "cancelled" =
@@ -164,7 +179,7 @@ async function recalculateOrderStatus(orderId: number, updatedBy: number) {
     nextStatus = "processing";
   }
 
-  await db
+  await tx
     .update(ordersTable)
     .set({
       status: nextStatus,
@@ -697,9 +712,9 @@ export async function startOrderServiceWork({
       changed_by: user.id,
       note: "Started from queue",
     });
-  });
 
-  await recalculateOrderStatus(orderId, user.id);
+    await recalculateOrderStatus(tx, orderId, user.id);
+  });
 
   return {
     from_status: orderService.status,
@@ -791,9 +806,9 @@ export async function updateOrderServiceStatus({
       changed_by: user.id,
       note: body.note,
     });
-  });
 
-  await recalculateOrderStatus(orderId, user.id);
+    await recalculateOrderStatus(tx, orderId, user.id);
+  });
 
   return {
     from_status: orderService.status,
@@ -965,23 +980,25 @@ export async function completeOrderPickup({
   }
 
   await db.transaction(async (tx) => {
-    for (const service of activeServices) {
-      await tx
-        .update(ordersServicesTable)
-        .set({ status: "picked_up" })
-        .where(eq(ordersServicesTable.id, service.id));
+    const serviceIds = activeServices.map((s) => s.id);
 
-      await tx.insert(orderServiceStatusLogsTable).values({
+    await tx
+      .update(ordersServicesTable)
+      .set({ status: "picked_up" })
+      .where(inArray(ordersServicesTable.id, serviceIds));
+
+    await tx.insert(orderServiceStatusLogsTable).values(
+      activeServices.map((service) => ({
         order_service_id: service.id,
         from_status: service.status,
-        to_status: "picked_up",
+        to_status: "picked_up" as const,
         changed_by: user.id,
         note: "Completed from order pickup desk",
-      });
-    }
-  });
+      }))
+    );
 
-  await recalculateOrderStatus(orderId, user.id);
+    await recalculateOrderStatus(tx, orderId, user.id);
+  });
 
   return {
     completed_line_count: activeServices.length,
@@ -1124,10 +1141,10 @@ export async function createOrderRefund({
       }))
     );
 
+    await recalculateOrderStatus(tx, orderId, user.id);
+
     return [createdRefund] as const;
   });
-
-  await recalculateOrderStatus(orderId, user.id);
 
   return {
     refund,

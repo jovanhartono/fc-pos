@@ -3,7 +3,11 @@ import { eq } from "drizzle-orm";
 import type z from "zod";
 import { db } from "@/db";
 import { ordersTable } from "@/db/schema";
-import { BadRequestException, NotFoundException } from "@/errors";
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from "@/errors";
 import {
   findOrders,
   insertOrder,
@@ -18,9 +22,10 @@ import {
 } from "@/modules/orders/order.schema";
 import { findProducts } from "@/modules/products/product.repository";
 import { findServices } from "@/modules/services/service.repository";
+import { findUserById } from "@/modules/users/user.repository";
 import type { POSTOrderSchema } from "@/schema";
 import type { JWTPayload } from "@/types";
-import type { Store, User } from "@/types/entity";
+import type { Store } from "@/types/entity";
 import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
 import { buildPaginationMeta } from "@/utils/pagination";
 
@@ -189,10 +194,18 @@ export async function listOrders(query?: GetOrdersQuery, user?: JWTPayload) {
 }
 
 export async function createOrder(
-  user: User,
+  userId: number,
   store: Store,
   payload: z.infer<typeof POSTOrderSchema>
 ) {
+  const user = await findUserById(userId);
+  if (!user) {
+    throw new NotFoundException("User not found");
+  }
+  if (!user.is_active) {
+    throw new ForbiddenException("User is not active");
+  }
+
   const {
     products = [],
     services = [],
@@ -249,8 +262,8 @@ export async function createOrder(
       completed_at: expandedServices.length > 0 ? null : new Date(),
       paid_at: null,
       store_id: store.id,
-      created_by: user.id,
-      updated_by: user.id,
+      created_by: userId,
+      updated_by: userId,
     });
 
     const [serviceSubtotal, productSubtotal] = await Promise.all([

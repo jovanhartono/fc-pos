@@ -1,11 +1,11 @@
 import type { InferInsertModel } from "drizzle-orm";
 import type { storesTable } from "@/db/schema";
 import {
-  createStore,
   findNearestStores,
   findStoreById,
+  insertStore,
   listStores,
-  updateStore,
+  updateStoreById,
   updateStoreIsActive,
 } from "@/modules/stores/store.repository";
 import type { GetNearestStoreQuery } from "@/modules/stores/store.schema";
@@ -28,25 +28,25 @@ export function getNearestStores(query: GetNearestStoreQuery) {
   });
 }
 
-export async function createStoreService(
+export async function createStore(
   payload: InferInsertModel<typeof storesTable>
 ) {
-  const [store] = await createStore(payload);
+  const [store] = await insertStore(payload);
   return store;
 }
 
-export async function updateStoreService({
+export async function updateStore({
   id,
   payload,
 }: {
   id: number;
   payload: Partial<InferInsertModel<typeof storesTable>>;
 }) {
-  const [store] = await updateStore(id, payload);
+  const [store] = await updateStoreById(id, payload);
   return store ?? null;
 }
 
-export async function updateStoreStatusService({
+export async function updateStoreStatus({
   id,
   is_active,
 }: {

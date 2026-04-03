@@ -102,7 +102,7 @@ export function findStoresByIds(storeIds: number[]) {
   });
 }
 
-export function createCampaignWithStores({
+export function insertCampaignWithStores({
   payload,
   actorId,
   storeIds,
@@ -194,7 +194,7 @@ export function updateCampaignWithStores({
   });
 }
 
-export function deleteCampaign(id: number) {
+export function deleteCampaignById(id: number) {
   return db
     .delete(campaignsTable)
     .where(eq(campaignsTable.id, id))

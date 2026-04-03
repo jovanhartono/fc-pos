@@ -1,10 +1,10 @@
 import type { InferInsertModel } from "drizzle-orm";
 import type { productsTable } from "@/db/schema";
 import {
-  createProduct,
   findProductById,
+  insertProduct,
   listProducts,
-  updateProduct,
+  updateProductById,
 } from "@/modules/products/product.repository";
 
 export function getProducts() {
@@ -15,17 +15,17 @@ export function getProductById(id: number) {
   return findProductById(id);
 }
 
-export async function createProductService(
+export async function createProduct(
   payload: InferInsertModel<typeof productsTable>
 ) {
-  const [product] = await createProduct(payload);
+  const [product] = await insertProduct(payload);
   return product;
 }
 
-export async function updateProductService(
+export async function updateProduct(
   id: number,
   payload: Partial<InferInsertModel<typeof productsTable>>
 ) {
-  const [product] = await updateProduct(id, payload);
+  const [product] = await updateProductById(id, payload);
   return product ?? null;
 }

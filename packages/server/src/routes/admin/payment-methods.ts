@@ -1,16 +1,16 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import {
-  createPaymentMethodController,
-  getPaymentMethodByIdController,
-  getPaymentMethodsController,
-  updatePaymentMethodController,
-} from "@/modules/payment-methods/payment-method.controller";
-import {
   GETPaymentMethodsQuerySchema,
   POSTPaymentMethodSchema,
   PUTPaymentMethodSchema,
 } from "@/modules/payment-methods/payment-method.schema";
+import {
+  createPaymentMethod,
+  getPaymentMethodById,
+  getPaymentMethods,
+  updatePaymentMethod,
+} from "@/modules/payment-methods/payment-method.service";
 import { idParamSchema } from "@/schema/param";
 import { failure, success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
@@ -18,14 +18,14 @@ import { zodValidator } from "@/utils/zod-validator-wrapper";
 const app = new Hono()
   .get("/", zodValidator("query", GETPaymentMethodsQuerySchema), async (c) => {
     const query = c.req.valid("query");
-    const paymentMethods = await getPaymentMethodsController(query);
+    const paymentMethods = await getPaymentMethods(query);
 
     return c.json(success(paymentMethods));
   })
   .get("/:id", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
 
-    const paymentMethod = await getPaymentMethodByIdController(id);
+    const paymentMethod = await getPaymentMethodById(id);
 
     if (!paymentMethod) {
       return c.json(failure("Payment Method not found"), StatusCodes.NOT_FOUND);
@@ -38,7 +38,7 @@ const app = new Hono()
   .post("/", zodValidator("json", POSTPaymentMethodSchema), async (c) => {
     const body = c.req.valid("json");
 
-    const paymentMethod = await createPaymentMethodController(body);
+    const paymentMethod = await createPaymentMethod(body);
 
     return c.json(
       success(paymentMethod, "Create payment method success"),
@@ -53,7 +53,7 @@ const app = new Hono()
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      const paymentMethod = await updatePaymentMethodController(id, body);
+      const paymentMethod = await updatePaymentMethod(id, body);
 
       if (!paymentMethod) {
         return c.json(

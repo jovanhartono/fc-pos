@@ -1,16 +1,16 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import {
-  createCampaignController,
-  deleteCampaignController,
-  getCampaignByIdController,
-  getCampaignsController,
-  updateCampaignController,
-} from "@/modules/campaigns/campaign.controller";
-import {
   CampaignPayloadSchema,
   GETCampaignsQuerySchema,
 } from "@/modules/campaigns/campaign.schema";
+import {
+  createCampaign,
+  deleteCampaign,
+  getCampaignById,
+  getCampaigns,
+  updateCampaign,
+} from "@/modules/campaigns/campaign.service";
 import { idParamSchema } from "@/schema/param";
 import type { JWTPayload } from "@/types";
 import { failure, success } from "@/utils/http";
@@ -20,14 +20,14 @@ const app = new Hono()
   .get("/", zodValidator("query", GETCampaignsQuerySchema), async (c) => {
     const query = c.req.valid("query");
 
-    const { items, meta } = await getCampaignsController(query);
+    const { items, meta } = await getCampaigns(query);
 
     return c.json(success(items, undefined, meta));
   })
   .get("/:id", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
 
-    const campaign = await getCampaignByIdController(id);
+    const campaign = await getCampaignById(id);
 
     if (!campaign) {
       return c.json(failure("Campaign not found"), StatusCodes.NOT_FOUND);
@@ -39,7 +39,7 @@ const app = new Hono()
     const user = c.get("jwtPayload") as JWTPayload;
     const body = c.req.valid("json");
 
-    const campaign = await createCampaignController({
+    const campaign = await createCampaign({
       user,
       payload: body,
     });
@@ -58,7 +58,7 @@ const app = new Hono()
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      const campaign = await updateCampaignController({
+      const campaign = await updateCampaign({
         user,
         id,
         payload: body,
@@ -78,7 +78,7 @@ const app = new Hono()
     const user = c.get("jwtPayload") as JWTPayload;
     const { id } = c.req.valid("param");
 
-    const deleted = await deleteCampaignController({ user, id });
+    const deleted = await deleteCampaign({ user, id });
 
     if (!deleted) {
       return c.json(failure("Campaign not found"), StatusCodes.NOT_FOUND);

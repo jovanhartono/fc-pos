@@ -59,13 +59,13 @@ export function findOrderServiceImageById(id: number) {
   });
 }
 
-export function createOrderServiceImage(
+export function insertOrderServiceImage(
   values: InferInsertModel<typeof orderServicesImagesTable>
 ) {
   return db.insert(orderServicesImagesTable).values(values).returning();
 }
 
-export function updateOrderServiceImage(
+export function updateOrderServiceImageById(
   id: number,
   values: Partial<InferInsertModel<typeof orderServicesImagesTable>>
 ) {
@@ -76,7 +76,7 @@ export function updateOrderServiceImage(
     .returning();
 }
 
-export function deleteOrderServiceImage(id: number) {
+export function deleteOrderServiceImageById(id: number) {
   return db
     .delete(orderServicesImagesTable)
     .where(eq(orderServicesImagesTable.id, id))

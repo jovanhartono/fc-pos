@@ -1,5 +1,5 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { paymentMethodsTable } from "@/db/schema";
 
@@ -13,19 +13,23 @@ export function listPaymentMethods(where?: { is_active?: boolean }) {
   });
 }
 
+const findPaymentMethodByIdPrepared = db.query.paymentMethodsTable
+  .findFirst({
+    where: { id: { eq: sql.placeholder("id") } },
+  })
+  .prepare("find_payment_method_by_id");
+
 export function findPaymentMethodById(id: number) {
-  return db.query.paymentMethodsTable.findFirst({
-    where: { id },
-  });
+  return findPaymentMethodByIdPrepared.execute({ id });
 }
 
-export function createPaymentMethod(
+export function insertPaymentMethod(
   values: InferInsertModel<typeof paymentMethodsTable>
 ) {
   return db.insert(paymentMethodsTable).values(values).returning();
 }
 
-export function updatePaymentMethod(
+export function updatePaymentMethodById(
   id: number,
   values: Partial<InferInsertModel<typeof paymentMethodsTable>>
 ) {

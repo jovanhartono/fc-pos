@@ -1,5 +1,5 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { productsTable } from "@/db/schema";
 
@@ -18,17 +18,21 @@ export function listProducts() {
   });
 }
 
+const findProductByIdPrepared = db.query.productsTable
+  .findFirst({
+    where: { id: { eq: sql.placeholder("id") } },
+  })
+  .prepare("find_product_by_id");
+
 export function findProductById(id: number) {
-  return db.query.productsTable.findFirst({
-    where: { id },
-  });
+  return findProductByIdPrepared.execute({ id });
 }
 
-export function createProduct(values: InferInsertModel<typeof productsTable>) {
+export function insertProduct(values: InferInsertModel<typeof productsTable>) {
   return db.insert(productsTable).values(values).returning();
 }
 
-export function updateProduct(
+export function updateProductById(
   id: number,
   values: Partial<InferInsertModel<typeof productsTable>>
 ) {

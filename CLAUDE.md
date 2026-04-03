@@ -65,15 +65,16 @@ The server reads from `process.env`:
 
 ### Server Module Pattern
 
-Domain logic follows: **Schema -> Repository -> Service -> Controller**
+Domain logic follows a 3-layer pattern: **Route -> Service -> Repository**
 
 ```
 packages/server/src/modules/<domain>/
   *.schema.ts       # Zod schemas for request validation
-  *.repository.ts   # Database queries (Drizzle)
-  *.service.ts      # Business logic
-  *.controller.ts   # Hono route handlers
+  *.repository.ts   # Database queries (Drizzle) — insertX, findX, updateXById, listX, deleteXById
+  *.service.ts      # Business logic + orchestration — createX, getX, updateX, deleteX
 ```
+
+Routes (`src/routes/`) are thin HTTP handlers that call services directly.
 
 Modules: `campaigns`, `categories`, `customers`, `orders`, `order-service-images`, `payment-methods`, `products`, `services`, `stores`, `users`
 
@@ -172,8 +173,8 @@ Husky runs `bunx biome check --write --staged` before every commit.
 
 ### Adding a New Admin Endpoint
 
-1. Create module files in `src/modules/<domain>/` (schema, repository, service, controller)
-2. Create route file in `src/routes/admin/<domain>.ts`
+1. Create module files in `src/modules/<domain>/` (schema, repository, service)
+2. Create route file in `src/routes/admin/<domain>.ts` — routes call services directly
 3. Mount the route in `src/routes/admin/index.ts`
 4. Admin middleware is already applied to `/admin/*`
 

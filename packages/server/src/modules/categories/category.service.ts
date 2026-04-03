@@ -1,10 +1,10 @@
 import type { InferInsertModel } from "drizzle-orm";
 import type { categoriesTable } from "@/db/schema";
 import {
-  createCategory,
   findCategoryById,
+  insertCategory,
   listCategories,
-  updateCategory,
+  updateCategoryById,
 } from "@/modules/categories/category.repository";
 import type { GetCategoriesQuery } from "@/modules/categories/category.schema";
 
@@ -16,17 +16,17 @@ export function getCategoryById(id: number) {
   return findCategoryById(id);
 }
 
-export async function createCategoryService(
+export async function createCategory(
   values: InferInsertModel<typeof categoriesTable>
 ) {
-  const [category] = await createCategory(values);
+  const [category] = await insertCategory(values);
   return category;
 }
 
-export async function updateCategoryService(
+export async function updateCategory(
   id: number,
   values: Partial<InferInsertModel<typeof categoriesTable>>
 ) {
-  const [category] = await updateCategory(id, values);
+  const [category] = await updateCategoryById(id, values);
   return category ?? null;
 }

@@ -1,10 +1,8 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
-import {
-  createOrderController,
-  getOrdersController,
-} from "@/modules/orders/order.controller";
+import { NotFoundException } from "@/errors";
 import { GETOrdersQuerySchema } from "@/modules/orders/order.schema";
+import { createOrder, listOrders } from "@/modules/orders/order.service";
 import {
   GETMyOrderServicesQuerySchema,
   GETOrderByItemCodeQuerySchema,
@@ -38,6 +36,7 @@ import {
   updateOrderServiceHandler,
   updateOrderServiceStatus,
 } from "@/modules/orders/order-admin.service";
+import { getStoreById } from "@/modules/stores/store.service";
 import { POSTOrderSchema } from "@/schema";
 import { idParamSchema } from "@/schema/param";
 import type { JWTPayload } from "@/types";
@@ -50,7 +49,7 @@ const app = new Hono()
     const query = c.req.valid("query");
     const user = c.get("jwtPayload") as JWTPayload;
 
-    const { items, meta } = await getOrdersController({ query, user });
+    const { items, meta } = await listOrders(query, user);
 
     return c.json(success(items, undefined, meta));
   })
@@ -130,10 +129,12 @@ const app = new Hono()
 
     await assertStoreAccess(user, body.store_id);
 
-    const created = await createOrderController({
-      userId: user.id,
-      body,
-    });
+    const store = await getStoreById(body.store_id);
+    if (!store) {
+      throw new NotFoundException("Store not found");
+    }
+
+    const created = await createOrder(user.id, store, body);
 
     return c.json(success(created, "Order created"), StatusCodes.CREATED);
   })

@@ -1,16 +1,16 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import {
-  createCategoryController,
-  getCategoriesController,
-  getCategoryByIdController,
-  updateCategoryController,
-} from "@/modules/categories/category.controller";
-import {
   GETCategoriesQuerySchema,
   POSTCategorySchema,
   PUTCategorySchema,
 } from "@/modules/categories/category.schema";
+import {
+  createCategory,
+  getCategories,
+  getCategoryById,
+  updateCategory,
+} from "@/modules/categories/category.service";
 import { idParamSchema } from "@/schema/param";
 import { failure, success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
@@ -18,14 +18,14 @@ import { zodValidator } from "@/utils/zod-validator-wrapper";
 const app = new Hono()
   .get("/", zodValidator("query", GETCategoriesQuerySchema), async (c) => {
     const query = c.req.valid("query");
-    const categories = await getCategoriesController(query);
+    const categories = await getCategories(query);
 
     return c.json(success(categories));
   })
   .get("/:id", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
 
-    const category = await getCategoryByIdController(id);
+    const category = await getCategoryById(id);
 
     if (!category) {
       return c.json(failure("Category not found"), StatusCodes.NOT_FOUND);
@@ -36,7 +36,7 @@ const app = new Hono()
   .post("/", zodValidator("json", POSTCategorySchema), async (c) => {
     const body = c.req.valid("json");
 
-    const category = await createCategoryController(body);
+    const category = await createCategory(body);
 
     return c.json(
       success(category, "Create category success"),
@@ -51,7 +51,7 @@ const app = new Hono()
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      const category = await updateCategoryController(id, body);
+      const category = await updateCategory(id, body);
 
       if (!category) {
         return c.json(

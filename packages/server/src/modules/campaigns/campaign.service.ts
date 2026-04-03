@@ -1,10 +1,10 @@
 import { BadRequestException, ForbiddenException } from "@/errors";
 import {
   countCampaigns,
-  createCampaignWithStores,
-  deleteCampaign,
+  deleteCampaignById,
   findCampaignById,
   findStoresByIds,
+  insertCampaignWithStores,
   listCampaigns,
   updateCampaignWithStores,
 } from "@/modules/campaigns/campaign.repository";
@@ -59,7 +59,7 @@ export function getCampaignById(id: number) {
   return findCampaignById(id);
 }
 
-export async function createCampaignService({
+export async function createCampaign({
   user,
   payload,
 }: {
@@ -71,7 +71,7 @@ export async function createCampaignService({
   const storeIds = [...new Set(payload.store_ids)];
   await ensureStoresExist(storeIds);
 
-  return createCampaignWithStores({
+  return insertCampaignWithStores({
     payload: {
       code: payload.code,
       name: payload.name,
@@ -88,7 +88,7 @@ export async function createCampaignService({
   });
 }
 
-export async function updateCampaignService({
+export async function updateCampaign({
   user,
   id,
   payload,
@@ -124,13 +124,7 @@ export async function updateCampaignService({
   });
 }
 
-export function deleteCampaignService({
-  user,
-  id,
-}: {
-  user: JWTPayload;
-  id: number;
-}) {
+export function deleteCampaign({ user, id }: { user: JWTPayload; id: number }) {
   assertIsAdmin(user);
-  return deleteCampaign(id);
+  return deleteCampaignById(id);
 }

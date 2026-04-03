@@ -1,10 +1,10 @@
 import type { InferInsertModel } from "drizzle-orm";
 import type { servicesTable } from "@/db/schema";
 import {
-  createService,
   findServiceById,
+  insertService,
   listServices,
-  updateService,
+  updateServiceById,
 } from "@/modules/services/service.repository";
 
 export function getServices() {
@@ -15,17 +15,17 @@ export function getServiceById(id: number) {
   return findServiceById(id);
 }
 
-export async function createServiceService(
+export async function createService(
   payload: InferInsertModel<typeof servicesTable>
 ) {
-  const [service] = await createService(payload);
+  const [service] = await insertService(payload);
   return service;
 }
 
-export async function updateServiceService(
+export async function updateService(
   id: number,
   payload: Partial<InferInsertModel<typeof servicesTable>>
 ) {
-  const [service] = await updateService(id, payload);
+  const [service] = await updateServiceById(id, payload);
   return service ?? null;
 }

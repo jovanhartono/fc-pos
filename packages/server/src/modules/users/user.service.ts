@@ -3,21 +3,19 @@ import type { usersTable } from "@/db/schema";
 import { ForbiddenException } from "@/errors";
 import {
   countUsers,
-  createUser,
   findUserDetailById,
+  insertUser,
   listUsers,
   replaceUserStores,
-  updateUser,
+  updateUserById,
 } from "@/modules/users/user.repository";
 import type { GetUsersQuery } from "@/modules/users/user.schema";
 import type { JWTPayload } from "@/types";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 
-export async function createUserService(
-  payload: InferInsertModel<typeof usersTable>
-) {
+export async function createUser(payload: InferInsertModel<typeof usersTable>) {
   const passwordHash = await Bun.password.hash(payload.password ?? "");
-  const [created] = await createUser({
+  const [created] = await insertUser({
     ...payload,
     password: passwordHash,
   });
@@ -26,7 +24,7 @@ export async function createUserService(
   return safeUser;
 }
 
-export async function getUsersService(query?: GetUsersQuery) {
+export async function getUsers(query?: GetUsersQuery) {
   const pagination = normalizePagination(query, { maxPageSize: 100 });
   const filters = {
     is_active: query?.is_active,
@@ -49,7 +47,7 @@ export async function getUsersService(query?: GetUsersQuery) {
   };
 }
 
-export async function getUserByIdService(id: number) {
+export async function getUserById(id: number) {
   const user = await findUserDetailById(id);
   if (!user) {
     return null;
@@ -59,7 +57,7 @@ export async function getUserByIdService(id: number) {
   return safeUser;
 }
 
-export async function updateUserService({
+export async function updateUser({
   id,
   payload,
 }: {
@@ -67,7 +65,7 @@ export async function updateUserService({
   payload: Partial<InferInsertModel<typeof usersTable>>;
 }) {
   const { password: _payloadPassword, ...values } = payload;
-  const [user] = await updateUser(id, values);
+  const [user] = await updateUserById(id, values);
 
   if (!user) {
     return null;
@@ -77,7 +75,7 @@ export async function updateUserService({
   return safeUser;
 }
 
-export async function updateUserStoresService({
+export async function updateUserStores({
   actor,
   id,
   store_ids,

@@ -1,17 +1,17 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import {
-  createOrderServiceImageController,
-  deleteOrderServiceImageController,
-  getOrderServiceImageByIdController,
-  getOrderServiceImagesController,
-  updateOrderServiceImageController,
-} from "@/modules/order-service-images/order-service-image.controller";
-import {
   GETOrderServiceImagesQuerySchema,
   POSTOrderServiceImageSchema,
   PUTOrderServiceImageSchema,
 } from "@/modules/order-service-images/order-service-image.schema";
+import {
+  createOrderServiceImage,
+  deleteOrderServiceImage,
+  getOrderServiceImageById,
+  getOrderServiceImages,
+  updateOrderServiceImage,
+} from "@/modules/order-service-images/order-service-image.service";
 import { idParamSchema } from "@/schema/param";
 import { failure, success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
@@ -22,7 +22,7 @@ const app = new Hono()
     zodValidator("query", GETOrderServiceImagesQuerySchema),
     async (c) => {
       const query = c.req.valid("query");
-      const { items, meta } = await getOrderServiceImagesController(query);
+      const { items, meta } = await getOrderServiceImages(query);
 
       return c.json(success(items, undefined, meta));
     }
@@ -30,7 +30,7 @@ const app = new Hono()
   .get("/:id", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
 
-    const image = await getOrderServiceImageByIdController(id);
+    const image = await getOrderServiceImageById(id);
 
     if (!image) {
       return c.json(
@@ -44,7 +44,7 @@ const app = new Hono()
   .post("/", zodValidator("json", POSTOrderServiceImageSchema), async (c) => {
     const body = c.req.valid("json");
 
-    const image = await createOrderServiceImageController(body);
+    const image = await createOrderServiceImage(body);
 
     return c.json(
       success(image, "Create order service image success"),
@@ -59,7 +59,7 @@ const app = new Hono()
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      const image = await updateOrderServiceImageController(id, body);
+      const image = await updateOrderServiceImage(id, body);
 
       if (!image) {
         return c.json(
@@ -74,7 +74,7 @@ const app = new Hono()
   .delete("/:id", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
 
-    const rows = await deleteOrderServiceImageController(id);
+    const rows = await deleteOrderServiceImage(id);
 
     if (rows.length === 0) {
       return c.json(

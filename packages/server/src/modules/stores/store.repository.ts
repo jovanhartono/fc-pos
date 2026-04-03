@@ -3,10 +3,14 @@ import { and, asc, eq, type SQL, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { storesTable } from "@/db/schema";
 
+const findStoreByIdPrepared = db.query.storesTable
+  .findFirst({
+    where: { id: { eq: sql.placeholder("id") } },
+  })
+  .prepare("find_store_by_id");
+
 export function findStoreById(id: number) {
-  return db.query.storesTable.findFirst({
-    where: { id },
-  });
+  return findStoreByIdPrepared.execute({ id });
 }
 
 export function listStores() {
@@ -15,11 +19,11 @@ export function listStores() {
   });
 }
 
-export function createStore(values: InferInsertModel<typeof storesTable>) {
+export function insertStore(values: InferInsertModel<typeof storesTable>) {
   return db.insert(storesTable).values(values).returning();
 }
 
-export function updateStore(
+export function updateStoreById(
   id: number,
   values: Partial<InferInsertModel<typeof storesTable>>
 ) {
