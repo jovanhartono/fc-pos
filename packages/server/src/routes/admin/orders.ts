@@ -19,7 +19,6 @@ import {
   PUTOrderIntakePhotoSchema,
 } from "@/modules/orders/order-admin.schema";
 import {
-  claimOrderService,
   completeOrderPickup,
   createOrderIntakePhotoPresign,
   createOrderRefund,
@@ -205,24 +204,6 @@ const app = new Hono()
       });
 
       return c.json(success(result, "Order service started"));
-    }
-  )
-  .post(
-    "/:id/services/:serviceId/claim",
-    orderServiceParamSchema,
-    async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
-      const { id, serviceId } = c.req.valid("param");
-
-      await assertOrderAccess(user, id);
-
-      const result = await claimOrderService({
-        orderId: id,
-        serviceId,
-        user,
-      });
-
-      return c.json(success(result, "Order service claimed"));
     }
   )
   .patch(

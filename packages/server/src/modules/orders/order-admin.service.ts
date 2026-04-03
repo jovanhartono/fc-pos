@@ -628,35 +628,6 @@ export async function updateOrderPayment({
   return rows[0] ?? null;
 }
 
-export async function claimOrderService({
-  orderId,
-  serviceId,
-  user,
-}: {
-  orderId: number;
-  serviceId: number;
-  user: JWTPayload;
-}) {
-  const orderService = await getOrderServiceOrThrow(orderId, serviceId);
-
-  await db.transaction(async (tx) => {
-    await tx
-      .update(ordersServicesTable)
-      .set({ handler_id: user.id })
-      .where(eq(ordersServicesTable.id, serviceId));
-
-    await tx.insert(orderServiceHandlerLogsTable).values({
-      order_service_id: serviceId,
-      from_handler_id: orderService.handler_id,
-      to_handler_id: user.id,
-      changed_by: user.id,
-      note: "Claimed by handler",
-    });
-  });
-
-  return { order_service_id: serviceId, handler_id: user.id };
-}
-
 export async function startOrderServiceWork({
   orderId,
   serviceId,
@@ -668,7 +639,7 @@ export async function startOrderServiceWork({
 }) {
   const orderService = await getOrderServiceOrThrow(orderId, serviceId);
 
-  if (!["received", "queued"].includes(orderService.status)) {
+  if (orderService.status !== "queued") {
     throw new BadRequestException(
       `Service ${serviceId} cannot be started from status ${orderService.status}`
     );
@@ -793,11 +764,31 @@ export async function updateOrderServiceStatus({
     await ensurePickupPhotoExists(serviceId);
   }
 
+  const isClaimTransition =
+    orderService.status === "queued" && body.status === "processing";
+  const needsHandlerAssign =
+    isClaimTransition && orderService.handler_id !== user.id;
+
   await db.transaction(async (tx) => {
-    await tx
-      .update(ordersServicesTable)
-      .set({ status: body.status })
-      .where(eq(ordersServicesTable.id, serviceId));
+    if (needsHandlerAssign) {
+      await tx
+        .update(ordersServicesTable)
+        .set({ handler_id: user.id, status: body.status })
+        .where(eq(ordersServicesTable.id, serviceId));
+
+      await tx.insert(orderServiceHandlerLogsTable).values({
+        order_service_id: serviceId,
+        from_handler_id: orderService.handler_id,
+        to_handler_id: user.id,
+        changed_by: user.id,
+        note: "Auto-assigned on status update",
+      });
+    } else {
+      await tx
+        .update(ordersServicesTable)
+        .set({ status: body.status })
+        .where(eq(ordersServicesTable.id, serviceId));
+    }
 
     await tx.insert(orderServiceStatusLogsTable).values({
       order_service_id: serviceId,

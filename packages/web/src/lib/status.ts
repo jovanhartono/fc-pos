@@ -25,7 +25,6 @@ const orderServiceStatusLabels = {
 	quality_check: "Quality Check",
 	queued: "Queued",
 	ready_for_pickup: "Ready for Pickup",
-	received: "Received",
 	refunded: "Refunded",
 } as const;
 
@@ -59,11 +58,9 @@ export function formatOrderStatus(status: keyof typeof orderStatusLabels) {
 }
 
 export function getOrderServiceStatusBadgeVariant(
-	status: keyof typeof orderServiceStatusLabels,
+	status: string,
 ): BadgeVariant {
 	switch (status) {
-		case "received":
-			return "secondary";
 		case "queued":
 			return "warning";
 		case "processing":
@@ -83,10 +80,11 @@ export function getOrderServiceStatusBadgeVariant(
 	}
 }
 
-export function formatOrderServiceStatus(
-	status: keyof typeof orderServiceStatusLabels,
-) {
-	return orderServiceStatusLabels[status];
+export function formatOrderServiceStatus(status: string) {
+	return (
+		orderServiceStatusLabels[status as keyof typeof orderServiceStatusLabels] ??
+		status
+	);
 }
 
 type OrderFulfillmentLike = {

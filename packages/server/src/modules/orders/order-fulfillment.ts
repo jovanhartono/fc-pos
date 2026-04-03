@@ -16,7 +16,6 @@ export interface OrderFulfillmentSummary {
 }
 
 type OrderServiceStatus =
-  | "received"
   | "queued"
   | "processing"
   | "quality_check"

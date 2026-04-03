@@ -165,7 +165,6 @@ export type FetchOrderServiceQueueQuery = {
 	search?: string;
 	store_id?: number;
 	status?:
-		| "received"
 		| "queued"
 		| "processing"
 		| "quality_check"
@@ -214,7 +213,6 @@ export type CampaignPayload = {
 export type UpdateOrderServiceStatusPayload = {
 	note?: string;
 	status:
-		| "received"
 		| "queued"
 		| "processing"
 		| "quality_check"
@@ -233,11 +231,7 @@ export type UpdateOrderPaymentPayload = {
 	payment_method_id: number;
 };
 
-export type OrderServicePhotoType =
-	| "dropoff"
-	| "progress"
-	| "pickup"
-	| "refund";
+export type OrderServicePhotoType = "dropoff" | "progress" | "pickup";
 
 export type PresignOrderServicePhotoPayload = {
 	content_type: "image/jpeg" | "image/png" | "image/webp" | "image/heic";
@@ -765,25 +759,6 @@ export async function fetchMyOrderServices(storeId?: number) {
 	return parseSuccessData<MyOrderServiceItem[]>(
 		rpcWithAuth().api.admin.orders.services.me.$get({
 			query: storeId !== undefined ? { store_id: String(storeId) } : {},
-		}),
-	);
-}
-
-export async function startOrderServiceWork(
-	orderId: number,
-	serviceId: number,
-) {
-	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].services[":serviceId"].start.$post({
-			param: { id: String(orderId), serviceId: String(serviceId) },
-		}),
-	);
-}
-
-export async function claimOrderService(orderId: number, serviceId: number) {
-	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].services[":serviceId"].claim.$post({
-			param: { id: String(orderId), serviceId: String(serviceId) },
 		}),
 	);
 }

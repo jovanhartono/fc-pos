@@ -10,7 +10,6 @@ export const ORDER_STATUS_TRANSITIONS: Record<
   (typeof orderServiceStatusEnum.enumValues)[number],
   (typeof orderServiceStatusEnum.enumValues)[number][]
 > = {
-  received: ["queued", "cancelled"],
   queued: ["processing", "cancelled"],
   processing: ["quality_check", "cancelled"],
   quality_check: ["processing", "ready_for_pickup", "cancelled"],

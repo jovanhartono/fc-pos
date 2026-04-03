@@ -29,7 +29,6 @@ import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gall
 import { QueueServiceDetail } from "@/features/orders/components/queue-service-detail";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import {
-	claimOrderService,
 	completeOrderPickup,
 	createOrderRefund,
 	presignOrderServicePhoto,
@@ -86,7 +85,6 @@ const ORDER_STATUS_TRANSITIONS: Record<
 	UpdateOrderServiceStatusPayload["status"],
 	UpdateOrderServiceStatusPayload["status"][]
 > = {
-	received: ["queued", "cancelled"],
 	queued: ["processing", "cancelled"],
 	processing: ["quality_check", "cancelled"],
 	quality_check: ["processing", "ready_for_pickup", "cancelled"],
@@ -100,7 +98,6 @@ const STATUS_ACTION_LABELS: Record<
 	UpdateOrderServiceStatusPayload["status"],
 	string
 > = {
-	received: "Receive",
 	queued: "Queue",
 	processing: "Process",
 	quality_check: "Quality Check",
@@ -274,15 +271,6 @@ function AdminOrderDetailPage() {
 		});
 		await queryClient.invalidateQueries({ queryKey: ["orders"] });
 	};
-
-	const claimMutation = useMutation({
-		mutationFn: ({ serviceId }: { serviceId: number }) =>
-			claimOrderService(id, serviceId),
-		onSuccess: async () => {
-			toast.success("Service claimed");
-			await refreshOrderData();
-		},
-	});
 
 	const updateStatusMutation = useMutation({
 		mutationFn: ({
@@ -759,18 +747,6 @@ function AdminOrderDetailPage() {
 									</dl>
 
 									<div className="flex flex-wrap gap-2 border-t pt-4">
-										<Button
-											size="sm"
-											variant="outline"
-											disabled={claimMutation.isPending}
-											onClick={async () => {
-												await claimMutation.mutateAsync({
-													serviceId: service.id,
-												});
-											}}
-										>
-											Assign to me
-										</Button>
 										{(ORDER_STATUS_TRANSITIONS[service.status] || []).map(
 											(nextStatus) => {
 												const isCancel = nextStatus === "cancelled";
@@ -814,7 +790,6 @@ function AdminOrderDetailPage() {
 														<SelectItem value="dropoff">Drop-off</SelectItem>
 														<SelectItem value="progress">Progress</SelectItem>
 														<SelectItem value="pickup">Pickup</SelectItem>
-														<SelectItem value="refund">Refund</SelectItem>
 													</SelectContent>
 												</Select>
 											</div>

@@ -126,7 +126,6 @@ const SERVICE_NOTE_POOL = [
 ] as const;
 
 type OrderServiceStatus =
-  | "received"
   | "queued"
   | "processing"
   | "quality_check"
@@ -192,7 +191,7 @@ interface DraftServiceLine {
   status_logs: DraftStatusLog[];
   handler_logs: DraftHandlerLog[];
   photos: Array<{
-    photo_type: "dropoff" | "progress" | "pickup" | "refund";
+    photo_type: "dropoff" | "progress" | "pickup";
     created_at: Date;
     uploaded_by: number | null;
   }>;
@@ -292,7 +291,7 @@ function createStatusNote(nextStatus: OrderServiceStatus): string {
 
 function createDummyPhotoUrl(
   itemCode: string,
-  photoType: "dropoff" | "progress" | "pickup" | "refund",
+  photoType: "dropoff" | "progress" | "pickup",
   photoIndex: number
 ): string {
   const seed = sanitizeForS3(`${itemCode}-${photoType}-${photoIndex + 1}`);
@@ -318,54 +317,28 @@ function pickWeighted<T>(items: Array<{ item: T; weight: number }>): T {
   return fallback.item;
 }
 
+const STATUS_PATHS: Partial<Record<OrderServiceStatus, OrderServiceStatus[]>> =
+  {
+    queued: [],
+    processing: ["processing"],
+    quality_check: ["processing", "quality_check"],
+    ready_for_pickup: ["processing", "quality_check", "ready_for_pickup"],
+    picked_up: ["processing", "quality_check", "ready_for_pickup", "picked_up"],
+    refunded: ["processing", "quality_check", "ready_for_pickup", "refunded"],
+  };
+
 function buildStatusPath(
   finalStatus: OrderServiceStatus
 ): OrderServiceStatus[] {
-  if (finalStatus === "received") {
-    return [];
-  }
-
-  if (finalStatus === "queued") {
-    return ["queued"];
-  }
-
-  if (finalStatus === "processing") {
-    return ["queued", "processing"];
-  }
-
-  if (finalStatus === "quality_check") {
-    return ["queued", "processing", "quality_check"];
-  }
-
-  if (finalStatus === "ready_for_pickup") {
-    return ["queued", "processing", "quality_check", "ready_for_pickup"];
-  }
-
-  if (finalStatus === "picked_up") {
-    return [
-      "queued",
-      "processing",
-      "quality_check",
-      "ready_for_pickup",
-      "picked_up",
-    ];
-  }
-
-  if (finalStatus === "refunded") {
-    return [
-      "queued",
-      "processing",
-      "quality_check",
-      "ready_for_pickup",
-      "refunded",
-    ];
+  const fixed = STATUS_PATHS[finalStatus];
+  if (fixed) {
+    return fixed;
   }
 
   return faker.helpers.arrayElement([
     ["cancelled"],
-    ["queued", "cancelled"],
-    ["queued", "processing", "cancelled"],
-    ["queued", "processing", "quality_check", "cancelled"],
+    ["processing", "cancelled"],
+    ["processing", "quality_check", "cancelled"],
   ]);
 }
 
@@ -388,13 +361,12 @@ function pickFinalServiceStatuses(
   }
 
   if (scenario === "created") {
-    return Array.from({ length: count }, () => "received");
+    return Array.from({ length: count }, () => "queued");
   }
 
   if (scenario === "processing") {
     return Array.from({ length: count }, () =>
       faker.helpers.arrayElement([
-        "received",
         "queued",
         "processing",
         "quality_check",
@@ -428,8 +400,8 @@ function resolveOrderStatus(
     return productCount > 0 ? "completed" : "created";
   }
 
-  const allReceived = serviceStatuses.every((status) => status === "received");
-  if (allReceived) {
+  const allQueued = serviceStatuses.every((status) => status === "queued");
+  if (allQueued) {
     return "created";
   }
 
@@ -945,7 +917,7 @@ async function seedOrders(params: {
 
     for (let serviceIndex = 0; serviceIndex < serviceCount; serviceIndex++) {
       const service = faker.helpers.arrayElement(activeServices);
-      const finalStatus = serviceStatuses[serviceIndex] ?? "received";
+      const finalStatus = serviceStatuses[serviceIndex] ?? "queued";
       const path = buildStatusPath(finalStatus);
       const itemCode = `${orderCode}-S${String(serviceIndex + 1).padStart(3, "0")}`;
       const handlerId =
@@ -957,7 +929,7 @@ async function seedOrders(params: {
       const handlerLogs: DraftHandlerLog[] = [];
       const photos: DraftServiceLine["photos"] = [];
 
-      let currentStatus: OrderServiceStatus = "received";
+      let currentStatus: OrderServiceStatus = "queued";
       let eventAt = dayjs(createdAt).add(randInt(10, 45), "minute").toDate();
 
       if (handlerId !== null) {
@@ -1007,16 +979,6 @@ async function seedOrders(params: {
             .add(randInt(2, 12), "minute")
             .toDate(),
           uploaded_by: handlerId ?? createdBy,
-        });
-      }
-
-      if (latestStatusLog && finalStatus === "refunded") {
-        photos.push({
-          photo_type: "refund",
-          created_at: dayjs(latestStatusLog.created_at)
-            .add(randInt(2, 8), "minute")
-            .toDate(),
-          uploaded_by: createdBy,
         });
       }
 

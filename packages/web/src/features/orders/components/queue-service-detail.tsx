@@ -35,7 +35,6 @@ import {
 	queryKeys,
 	type SaveOrderServicePhotoPayload,
 	saveOrderServicePhoto,
-	startOrderServiceWork,
 	type UpdateOrderServiceStatusPayload,
 	updateOrderServiceStatus,
 	uploadFileToPresignedUrl,
@@ -53,7 +52,6 @@ const ORDER_STATUS_TRANSITIONS: Record<
 	UpdateOrderServiceStatusPayload["status"],
 	UpdateOrderServiceStatusPayload["status"][]
 > = {
-	received: ["queued", "cancelled"],
 	queued: ["processing", "cancelled"],
 	processing: ["quality_check", "cancelled"],
 	quality_check: ["processing", "ready_for_pickup", "cancelled"],
@@ -240,7 +238,8 @@ export function QueueServiceDetail({
 	};
 
 	const startWorkMutation = useMutation({
-		mutationFn: () => startOrderServiceWork(orderId, serviceId),
+		mutationFn: () =>
+			updateOrderServiceStatus(orderId, serviceId, { status: "processing" }),
 		onSuccess: async () => {
 			toast.success("Work started");
 			await refreshData(detail?.store?.id);
@@ -333,7 +332,7 @@ export function QueueServiceDetail({
 		(image) => image.photo_type === "pickup",
 	);
 	const nextStatuses = ORDER_STATUS_TRANSITIONS[selectedService.status] ?? [];
-	const canStartWork = ["received", "queued"].includes(selectedService.status);
+	const canStartWork = selectedService.status === "queued";
 	const actionStatuses = nextStatuses.filter(
 		(status) =>
 			!WORKER_BLOCKED_QUEUE_STATUSES.has(status) &&

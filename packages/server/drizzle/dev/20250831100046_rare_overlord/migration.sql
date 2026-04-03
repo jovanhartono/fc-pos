@@ -1,1 +1,0 @@
-ALTER TABLE "services" ALTER COLUMN "price" SET NOT NULL;

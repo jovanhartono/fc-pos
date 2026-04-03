@@ -175,7 +175,6 @@ export const campaignDiscountTypeEnum = pgEnum("campaign_discount_type_enum", [
   "percentage",
 ]);
 export const orderServiceStatusEnum = pgEnum("order_service_status_enum", [
-  "received",
   "queued",
   "processing",
   "quality_check",
@@ -186,7 +185,7 @@ export const orderServiceStatusEnum = pgEnum("order_service_status_enum", [
 ]);
 export const orderServicePhotoTypeEnum = pgEnum(
   "order_service_photo_type_enum",
-  ["dropoff", "progress", "pickup", "refund"]
+  ["dropoff", "progress", "pickup"]
 );
 export const refundReasonEnum = pgEnum("refund_reason_enum", [
   "damaged",
