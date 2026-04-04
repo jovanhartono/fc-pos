@@ -16,6 +16,7 @@ const orderStatusLabels = {
 	completed: "Completed",
 	created: "Created",
 	processing: "Processing",
+	ready_for_pickup: "Ready for Pickup",
 } as const;
 
 const orderServiceStatusLabels = {
@@ -43,6 +44,8 @@ export function getOrderStatusBadgeVariant(
 ): BadgeVariant {
 	switch (status) {
 		case "completed":
+			return "success";
+		case "ready_for_pickup":
 			return "success";
 		case "processing":
 			return "info";

@@ -47,7 +47,7 @@ The server reads from `process.env`:
 - **Runtime:** Bun
 - **HTTP:** Hono 4 (base path `/api`, CORS for localhost:5173 and :4173)
 - **Database:** Drizzle ORM + `@neondatabase/serverless` (PostgreSQL)
-- **Validation:** Zod 4, `@hono/zod-validator`, `drizzle-zod`
+- **Validation:** Zod 4, `@hono/zod-validator`
 - **Auth:** JWT (`hono/jwt`) with admin middleware on `/admin/*`
 - **Storage:** AWS S3 (`@aws-sdk/client-s3`, presigned URLs)
 - **Build:** `tsdown` bundles types/schemas/RPC for the web package
@@ -57,7 +57,7 @@ The server reads from `process.env`:
 - **Routing:** TanStack Router (file-based routes)
 - **Data:** TanStack Query, TanStack Table
 - **Forms:** react-hook-form + `@hookform/resolvers` (zodResolver)
-- **State:** Zustand (persisted auth, UI dialogs/sheets)
+- **State:** Zustand (persisted auth, UI dialogs/sheets, transaction preferences)
 - **UI:** shadcn (base-lyra style), `@base-ui/react`, Phosphor Icons, Tailwind CSS v4
 - **Toasts:** Sonner (auto-handled by global mutation callbacks)
 
@@ -121,10 +121,11 @@ packages/web/src/
   components/ui/       # shadcn components
   components/form/     # Shared form fields (CurrencyInput, PhoneNumberField)
   features/<domain>/   # Feature modules (components/, hooks/)
-  lib/                 # api.ts, rpc.ts, query-options.ts, utils.ts
+  hooks/               # Shared hooks (use-mobile.ts)
+  lib/                 # api.ts, rpc.ts, query-options.ts, status.ts, utils.ts
   routes/              # TanStack Router file-based routes
-  shared/              # Shared Zod schemas
-  stores/              # Zustand stores (auth, dialog, sheet, preferences)
+  shared/              # Shared Zod schemas, utils
+  stores/              # Zustand stores (auth, dialog, sheet, transaction-preferences)
 ```
 
 ## Database
@@ -158,7 +159,7 @@ bun x ultracite check    # Check without fixing
 
 ### Pre-commit Hook
 
-Husky runs `bunx biome check --write --staged` before every commit.
+Husky runs `bunx biome check --write --staged --no-errors-on-unmatched` before every commit.
 
 ### Key Rules
 

@@ -2,6 +2,15 @@
 
 `@fresclean/api` — Hono + Drizzle + Zod on Bun. Repo-wide rules: `../../AGENTS.md`
 
+## Commands
+
+```bash
+bun run dev          # API (port 8000) + tsdown --watch
+bun run push:dev     # Push schema directly to dev DB
+bun run seed:dev     # Seed dev DB
+bunx tsdown          # One-off type export build
+```
+
 ## Conventions
 
 - New admin endpoints: `src/routes/admin/` → mount in `src/routes/admin/index.ts`. `adminMiddleware` covers `/admin/*`.

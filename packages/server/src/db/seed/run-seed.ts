@@ -137,6 +137,7 @@ type OrderServiceStatus =
 type ServiceScenario =
   | "created"
   | "processing"
+  | "ready_for_pickup"
   | "completed"
   | "refunded"
   | "product_only";
@@ -344,9 +345,10 @@ function buildStatusPath(
 
 function pickScenario(): ServiceScenario {
   return pickWeighted<ServiceScenario>([
-    { item: "created", weight: 15 },
-    { item: "processing", weight: 35 },
-    { item: "completed", weight: 37 },
+    { item: "created", weight: 12 },
+    { item: "processing", weight: 25 },
+    { item: "ready_for_pickup", weight: 15 },
+    { item: "completed", weight: 35 },
     { item: "refunded", weight: 8 },
     { item: "product_only", weight: 5 },
   ]);
@@ -375,6 +377,12 @@ function pickFinalServiceStatuses(
     );
   }
 
+  if (scenario === "ready_for_pickup") {
+    return Array.from({ length: count }, () =>
+      chance(0.15) ? "picked_up" : "ready_for_pickup"
+    );
+  }
+
   if (scenario === "completed") {
     return Array.from({ length: count }, () =>
       chance(0.12) ? "cancelled" : "picked_up"
@@ -395,7 +403,7 @@ function pickFinalServiceStatuses(
 function resolveOrderStatus(
   serviceStatuses: OrderServiceStatus[],
   productCount: number
-): "created" | "processing" | "completed" | "cancelled" {
+): "created" | "processing" | "ready_for_pickup" | "completed" | "cancelled" {
   if (serviceStatuses.length === 0) {
     return productCount > 0 ? "completed" : "created";
   }
@@ -408,8 +416,18 @@ function resolveOrderStatus(
   const allTerminal = serviceStatuses.every((status) =>
     TERMINAL_SERVICE_STATUSES.has(status)
   );
+  if (allTerminal) {
+    return "completed";
+  }
 
-  return allTerminal ? "completed" : "processing";
+  const activeStatuses = serviceStatuses.filter(
+    (status) => !TERMINAL_SERVICE_STATUSES.has(status)
+  );
+  if (activeStatuses.every((status) => status === "ready_for_pickup")) {
+    return "ready_for_pickup";
+  }
+
+  return "processing";
 }
 
 function createOrderCode(

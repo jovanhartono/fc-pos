@@ -166,8 +166,12 @@ async function recalculateOrderStatus(
     tx.$count(ordersProductsTable, eq(ordersProductsTable.order_id, orderId)),
   ]);
 
-  let nextStatus: "created" | "processing" | "completed" | "cancelled" =
-    "created";
+  let nextStatus:
+    | "created"
+    | "processing"
+    | "ready_for_pickup"
+    | "completed"
+    | "cancelled" = "created";
 
   if (services.length === 0) {
     nextStatus = products > 0 ? "completed" : "created";
@@ -175,6 +179,12 @@ async function recalculateOrderStatus(
     services.every((item) => isTerminalOrderServiceStatus(item.status))
   ) {
     nextStatus = "completed";
+  } else if (
+    services
+      .filter((item) => !isTerminalOrderServiceStatus(item.status))
+      .every((item) => item.status === "ready_for_pickup")
+  ) {
+    nextStatus = "ready_for_pickup";
   } else if (services.some((item) => item.status !== "queued")) {
     nextStatus = "processing";
   }

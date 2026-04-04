@@ -17,7 +17,12 @@ export type OrderTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export interface OrderListItem {
   id: number;
   code: string;
-  status: "created" | "processing" | "completed" | "cancelled";
+  status:
+    | "created"
+    | "processing"
+    | "ready_for_pickup"
+    | "completed"
+    | "cancelled";
   payment_status: "paid" | "unpaid";
   discount: string;
   total: string | null;

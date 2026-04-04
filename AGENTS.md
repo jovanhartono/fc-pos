@@ -22,9 +22,4 @@ Package-specific rules: `packages/web/AGENTS.md` · `packages/server/AGENTS.md`
 - No `console.log`, `debugger`, `alert` in production
 - Throw `Error` objects, not strings
 - No spread in loop accumulators; top-level regex literals
-- Specific imports over namespace imports; no barrel files
-
-## Testing
-
-- Assertions inside `it()`/`test()` blocks; async/await, no done callbacks
-- No `.only` or `.skip` in committed code
+- Specific imports over namespace imports; no re-export barrel files

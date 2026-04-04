@@ -162,6 +162,7 @@ export const orderPaymentStatusEnum = pgEnum("order_payment_status", [
 export const orderStatusEnum = pgEnum("order_status_enum", [
   "created",
   "processing",
+  "ready_for_pickup",
   "completed",
   "cancelled",
 ]);

@@ -2,6 +2,15 @@
 
 `@fresclean/web` — React 19, Vite, TanStack (Router/Query/Table), shadcn, Zustand. Repo-wide rules: `../../AGENTS.md`
 
+## Commands
+
+```bash
+bun run dev             # Vite dev server (port 5173)
+bun run build           # TypeScript check + production build
+bun run type-check      # TypeScript check + route regeneration
+bun run generate-routes # Regenerate TanStack Router route tree
+```
+
 ## UI Preferences
 
 - Terse, operational copy. No marketing/guiding prose. Short labels and empty states.
@@ -15,9 +24,11 @@
 - `components/ui/` — shadcn only, add via `bunx shadcn@latest add <component>`
 - `components/form/` — shared form fields (CurrencyInput, PhoneNumberField)
 - `features/<domain>/components/`, `features/<domain>/hooks/` — feature modules
-- `lib/` — `api.ts`, `rpc.ts`, `query-options.ts`, `utils.ts`
+- `hooks/` — shared hooks (`use-mobile.ts`)
+- `lib/` — `api.ts`, `rpc.ts`, `query-options.ts`, `status.ts`, `utils.ts`
 - `routes/` — TanStack Router file-based; thin orchestrators only
-- `stores/` — Zustand stores
+- `shared/` — shared Zod schemas (`zod.ts`) and utils (`utils.ts`)
+- `stores/` — Zustand stores (auth, dialog, sheet, transaction-preferences)
 
 ## Forms
 

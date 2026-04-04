@@ -46,11 +46,9 @@ import {
 	paymentMethodsQueryOptions,
 } from "@/lib/query-options";
 import {
-	formatOrderPickupState,
 	formatOrderServiceStatus,
 	formatOrderStatus,
 	formatPaymentStatus,
-	getOrderPickupStateBadgeVariant,
 	getOrderServiceStatusBadgeVariant,
 	getOrderStatusBadgeVariant,
 	getPaymentStatusBadgeVariant,
@@ -110,11 +108,13 @@ const STATUS_ACTION_LABELS: Record<
 const REFUND_REASONS = ["damaged", "cannot_process", "lost", "other"] as const;
 
 function ServiceStatusUpdateButton({
+	orderId,
 	serviceId,
 	nextStatus,
 	isCancel,
 	updateStatusMutation,
 }: {
+	orderId: number;
 	serviceId: number;
 	nextStatus: UpdateOrderServiceStatusPayload["status"];
 	isCancel: boolean;
@@ -137,6 +137,7 @@ function ServiceStatusUpdateButton({
 				: `Are you sure you want to change the status to ${STATUS_ACTION_LABELS[nextStatus]}?`,
 			content: (
 				<DialogForm
+					orderId={orderId}
 					isCancel={isCancel}
 					serviceId={serviceId}
 					nextStatus={nextStatus}
@@ -158,13 +159,24 @@ function ServiceStatusUpdateButton({
 	);
 }
 
+const ACCEPTED_IMAGE_TYPES = [
+	"image/jpeg",
+	"image/png",
+	"image/webp",
+	"image/heic",
+] as const;
+
+type AcceptedImageType = (typeof ACCEPTED_IMAGE_TYPES)[number];
+
 function DialogForm({
+	orderId,
 	isCancel,
 	serviceId,
 	nextStatus,
 	updateStatusMutation,
 	closeDialog,
 }: {
+	orderId: number;
 	isCancel: boolean;
 	serviceId: number;
 	nextStatus: UpdateOrderServiceStatusPayload["status"];
@@ -177,8 +189,79 @@ function DialogForm({
 	closeDialog: () => void;
 }) {
 	const [note, setNote] = useState("");
+	const [pickupPhotos, setPickupPhotos] = useState<File[]>([]);
+	const [isUploading, setIsUploading] = useState(false);
+	const isPickup = nextStatus === "picked_up";
+	const isPending = updateStatusMutation.isPending || isUploading;
+
+	const handleConfirm = async () => {
+		if (isPickup && pickupPhotos.length > 0) {
+			setIsUploading(true);
+			try {
+				for (const file of pickupPhotos) {
+					const contentType = file.type as AcceptedImageType;
+					const presigned = await presignOrderServicePhoto(orderId, serviceId, {
+						content_type: contentType,
+						photo_type: "pickup",
+					});
+					await uploadFileToPresignedUrl(
+						presigned.upload_url,
+						file,
+						contentType,
+					);
+					await saveOrderServicePhoto(orderId, serviceId, {
+						photo_type: "pickup",
+						s3_key: presigned.key,
+					});
+				}
+			} catch {
+				toast.error("Failed to upload pickup photo");
+				setIsUploading(false);
+				return;
+			}
+			setIsUploading(false);
+		}
+
+		await updateStatusMutation.mutateAsync({
+			serviceId,
+			payload: {
+				status: nextStatus,
+				note: note.trim() || undefined,
+			},
+		});
+		closeDialog();
+	};
+
 	return (
 		<div className="flex flex-col gap-4">
+			{isPickup ? (
+				<div className="space-y-2">
+					<p className="text-sm font-medium">
+						Pickup photo{" "}
+						<span className="text-muted-foreground">(required)</span>
+					</p>
+					<input
+						type="file"
+						accept={ACCEPTED_IMAGE_TYPES.join(",")}
+						multiple
+						className="text-muted-foreground w-full text-sm"
+						onChange={(e) => {
+							const files = e.target.files;
+							if (!files) return;
+							const valid = Array.from(files).filter((f) =>
+								(ACCEPTED_IMAGE_TYPES as readonly string[]).includes(f.type),
+							);
+							setPickupPhotos(valid);
+						}}
+					/>
+					{pickupPhotos.length > 0 ? (
+						<p className="text-muted-foreground text-xs">
+							{pickupPhotos.length} file{pickupPhotos.length > 1 ? "s" : ""}{" "}
+							selected
+						</p>
+					) : null}
+				</div>
+			) : null}
 			<Textarea
 				placeholder={
 					isCancel ? "Cancel reason (required)" : "Optional status note"
@@ -193,20 +276,17 @@ function DialogForm({
 				<Button
 					variant={isCancel ? "destructive" : "default"}
 					disabled={
-						updateStatusMutation.isPending || (isCancel && !note.trim())
+						isPending ||
+						(isCancel && !note.trim()) ||
+						(isPickup && pickupPhotos.length === 0)
 					}
-					onClick={async () => {
-						await updateStatusMutation.mutateAsync({
-							serviceId,
-							payload: {
-								status: nextStatus,
-								note: note.trim() || undefined,
-							},
-						});
-						closeDialog();
-					}}
+					onClick={handleConfirm}
 				>
-					{isCancel ? "Confirm Cancel" : "Confirm Update"}
+					{isPending
+						? "Uploading…"
+						: isCancel
+							? "Confirm Cancel"
+							: "Confirm Update"}
 				</Button>
 			</div>
 		</div>
@@ -425,11 +505,6 @@ function AdminOrderDetailPage() {
 						<div className="flex max-w-full flex-wrap justify-end gap-1.5">
 							<Badge variant={getOrderStatusBadgeVariant(detail.status)}>
 								{formatOrderStatus(detail.status)}
-							</Badge>
-							<Badge
-								variant={getOrderPickupStateBadgeVariant(detail.fulfillment)}
-							>
-								{formatOrderPickupState(detail.fulfillment)}
 							</Badge>
 							<Badge
 								variant={getPaymentStatusBadgeVariant(detail.payment_status)}
@@ -701,6 +776,37 @@ function AdminOrderDetailPage() {
 				</div>
 
 				<div className="grid gap-4 lg:col-span-8">
+					{detail.products.length > 0 ? (
+						<Card>
+							<CardHeader>
+								<CardTitle>Products</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className="grid gap-2">
+									{detail.products.map((item) => (
+										<div
+											key={item.id}
+											className="flex items-center justify-between gap-4 border px-3 py-2.5 text-sm"
+										>
+											<div className="min-w-0">
+												<p className="font-medium leading-snug">
+													{item.product?.name ?? `Product #${item.product_id}`}
+												</p>
+												<p className="text-muted-foreground text-xs">
+													{formatIDRCurrency(String(item.price ?? 0))} x{" "}
+													{item.qty}
+													{item.notes ? ` · ${item.notes}` : ""}
+												</p>
+											</div>
+											<p className="shrink-0 font-mono text-sm tabular-nums">
+												{formatIDRCurrency(String(item.subtotal ?? 0))}
+											</p>
+										</div>
+									))}
+								</div>
+							</CardContent>
+						</Card>
+					) : null}
 					{orderServices.map((service) => {
 						const selectedPhotoType =
 							photoTypeByServiceId[service.id] ?? "progress";
@@ -754,6 +860,7 @@ function AdminOrderDetailPage() {
 												return (
 													<ServiceStatusUpdateButton
 														key={nextStatus}
+														orderId={id}
 														serviceId={service.id}
 														nextStatus={nextStatus}
 														isCancel={isCancel}

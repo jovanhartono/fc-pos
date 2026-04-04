@@ -1,8 +1,13 @@
-import { MagnifyingGlassIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
+import {
+	CrosshairSimpleIcon,
+	MagnifyingGlassIcon,
+	PlusIcon,
+	XIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import { PageHeader } from "@/components/page-header";
@@ -28,14 +33,13 @@ import {
 	storesQueryOptions,
 } from "@/lib/query-options";
 import {
-	formatOrderPickupState,
 	formatOrderStatus,
 	formatPaymentStatus,
-	getOrderPickupStateBadgeVariant,
 	getOrderStatusBadgeVariant,
 	getPaymentStatusBadgeVariant,
 } from "@/lib/status";
 import { getCurrentUser } from "@/stores/auth-store";
+import { useSheet } from "@/stores/sheet-store";
 
 const ordersSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
@@ -167,8 +171,18 @@ function OrdersPage() {
 		enabled: currentUser?.role === "admin" ? true : parsedStoreId !== undefined,
 	});
 
+	const openSheet = useSheet((state) => state.openSheet);
+
 	const orders = ordersQuery.data?.items ?? [];
 	const orderCount = ordersQuery.data?.meta.total ?? 0;
+
+	const handleOpenPickupRadar = useCallback(() => {
+		openSheet({
+			title: "Pickup Radar",
+			description: "Orders that can leave the store now.",
+			content: <PickupRadar orders={orders} />,
+		});
+	}, [openSheet, orders]);
 
 	const columns = useMemo<ColumnDef<Order>[]>(
 		() => [
@@ -197,17 +211,6 @@ function OrdersPage() {
 				cell: ({ row }) => (
 					<Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
 						{formatOrderStatus(row.original.status)}
-					</Badge>
-				),
-			},
-			{
-				id: "pickup_state",
-				header: "Pickup",
-				cell: ({ row }) => (
-					<Badge
-						variant={getOrderPickupStateBadgeVariant(row.original.fulfillment)}
-					>
-						{formatOrderPickupState(row.original.fulfillment)}
 					</Badge>
 				),
 			},
@@ -260,6 +263,13 @@ function OrdersPage() {
 						<Badge
 							variant={ordersQuery.isPending ? "secondary" : "outline"}
 						>{`${orderCount} items`}</Badge>
+						<Button
+							variant="outline"
+							onClick={handleOpenPickupRadar}
+							icon={<CrosshairSimpleIcon className="size-4" />}
+						>
+							Pickup Radar
+						</Button>
 						<Button
 							onClick={handleAddOrder}
 							icon={<PlusIcon className="size-4" />}
@@ -385,7 +395,6 @@ function OrdersPage() {
 								}}
 							/>
 						</div>
-						<PickupRadar orders={orders} />
 						<div className="grid gap-4">
 							<DataTable
 								columns={columns}
