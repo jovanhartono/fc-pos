@@ -1,9 +1,8 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
+import { ForbiddenException } from "@/errors";
 import {
   GETUsersQuerySchema,
-  POSTUserSchema,
-  PUTUserSchema,
   PUTUserStoresSchema,
 } from "@/modules/users/user.schema";
 import {
@@ -13,25 +12,37 @@ import {
   updateUser,
   updateUserStores,
 } from "@/modules/users/user.service";
+import { POSTUserSchema, PUTUserSchema } from "@/schema";
 import { idParamSchema } from "@/schema/param";
 import type { JWTPayload } from "@/types";
 import { failure, success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
+function assertIsAdmin(c: { get: (key: string) => unknown }) {
+  const user = c.get("jwtPayload") as JWTPayload;
+  if (user.role !== "admin") {
+    throw new ForbiddenException("Only admin can manage users");
+  }
+  return user;
+}
+
 const app = new Hono()
   .post("/", zodValidator("json", POSTUserSchema), async (c) => {
-    const user = c.req.valid("json");
+    assertIsAdmin(c);
+    const { confirm_password: _, ...user } = c.req.valid("json");
     const created = await createUser(user);
 
     return c.json(success(created, "Create user success"), StatusCodes.CREATED);
   })
   .get("/", zodValidator("query", GETUsersQuerySchema), async (c) => {
+    assertIsAdmin(c);
     const query = c.req.valid("query");
     const { items, meta } = await getUsers(query);
 
     return c.json(success(items, undefined, meta));
   })
   .get("/:id", idParamSchema, async (c) => {
+    assertIsAdmin(c);
     const { id } = c.req.valid("param");
 
     const user = await getUserById(id);
@@ -47,6 +58,7 @@ const app = new Hono()
     idParamSchema,
     zodValidator("json", PUTUserSchema),
     async (c) => {
+      assertIsAdmin(c);
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 

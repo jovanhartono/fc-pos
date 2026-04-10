@@ -120,7 +120,6 @@ export function insertUser(values: InferInsertModel<typeof usersTable>) {
     role: usersTable.role,
     created_at: usersTable.created_at,
     updated_at: usersTable.updated_at,
-    password: usersTable.password,
   });
 }
 

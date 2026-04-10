@@ -1,9 +1,5 @@
-import { createInsertSchema, createUpdateSchema } from "drizzle-orm/zod";
 import { z } from "zod";
-import { userRoleEnum, usersTable } from "@/db/schema";
-
-export const POSTUserSchema = createInsertSchema(usersTable);
-export const PUTUserSchema = createUpdateSchema(usersTable);
+import { userRoleEnum } from "@/db/schema";
 
 export const PUTUserStoresSchema = z.object({
   store_ids: z.array(z.coerce.number().int().positive()),

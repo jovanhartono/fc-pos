@@ -7,6 +7,10 @@ import authRoutes from "@/routes/auth";
 import publicRoutes from "@/routes/public";
 import { failure } from "@/utils/http";
 
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
+
 app.use("/admin/*", adminMiddleware);
 
 const router = app

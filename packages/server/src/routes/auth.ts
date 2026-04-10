@@ -56,14 +56,15 @@ const app = new Hono().post(
       );
     }
 
-    const jwtPayload: JWTPayload = {
+    const jwtPayload: JWTPayload & { exp: number } = {
       id: user.id,
       name: user.name,
       username: user.username,
       role: user.role,
       is_active: user.is_active,
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 1 week
     };
-    const token = await sign(jwtPayload, process.env.JWT_SECRET);
+    const token = await sign(jwtPayload, process.env.JWT_SECRET as string);
 
     return c.json(success({ token }, "Login Sucessfull!"), StatusCodes.OK);
   }

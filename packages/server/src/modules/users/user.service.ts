@@ -20,8 +20,7 @@ export async function createUser(payload: InferInsertModel<typeof usersTable>) {
     password: passwordHash,
   });
 
-  const { password: _password, ...safeUser } = created;
-  return safeUser;
+  return created;
 }
 
 export async function getUsers(query?: GetUsersQuery) {
