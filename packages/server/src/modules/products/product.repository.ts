@@ -1,7 +1,20 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { productsTable } from "@/db/schema";
+import type { OrderTx } from "@/modules/orders/order.repository";
+
+export function decrementProductStock(
+  tx: OrderTx,
+  productId: number,
+  qty: number
+) {
+  return tx
+    .update(productsTable)
+    .set({ stock: sql`${productsTable.stock} - ${qty}` })
+    .where(and(eq(productsTable.id, productId), gte(productsTable.stock, qty)))
+    .returning({ id: productsTable.id });
+}
 
 export function findProducts(ids: number[]) {
   return db.query.productsTable.findMany({

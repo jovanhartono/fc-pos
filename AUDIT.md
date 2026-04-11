@@ -34,15 +34,15 @@
 
 | # | Issue | File | Detail |
 |---|-------|------|--------|
-| L1 | **TOCTOU race on service status transitions** | `order-admin.service.ts` (lines 650-698, 764-818) | Status is checked outside the transaction, then written inside. Two workers can claim the same item simultaneously. Fix: `UPDATE ... WHERE status = 'queued' RETURNING *`. |
-| L2 | **Re-paying a paid order is allowed** | `order-admin.service.ts:592-638` | `updateOrderPayment` doesn't guard against double-pay or paying a cancelled order. |
-| L3 | **All-cancelled orders become "completed"** | `order-admin.service.ts:156-200` | `recalculateOrderStatus` treats all-terminal as "completed" even when every service was cancelled. The `cancelled` order status is never set. |
+| L1 ✅ | **TOCTOU race on service status transitions** | `order-admin.service.ts` (lines 650-698, 764-818) | Status is checked outside the transaction, then written inside. Two workers can claim the same item simultaneously. Fix: `UPDATE ... WHERE status = 'queued' RETURNING *`. |
+| L2 ✅ | **Re-paying a paid order is allowed** | `order-admin.service.ts:592-638` | `updateOrderPayment` doesn't guard against double-pay or paying a cancelled order. |
+| L3 ✅ | **All-cancelled orders become "completed"** | `order-admin.service.ts:156-200` | `recalculateOrderStatus` treats all-terminal as "completed" even when every service was cancelled. The `cancelled` order status is never set. |
 
 ### MEDIUM
 
 | # | Issue | File | Detail |
 |---|-------|------|--------|
-| L4 | **Products have stock constraints but no decrement on order** | `schema.ts` (stock check constraint) vs `order.service.ts` | The schema enforces `stock >= 0` but `insertOrderProducts` never decrements stock. |
+| L4 ✅ | **Products have stock constraints but no decrement on order** | `schema.ts` (stock check constraint) vs `order.service.ts` | The schema enforces `stock >= 0` but `insertOrderProducts` never decrements stock. |
 | L5 | **Public tracking fetches full data before validating phone** | `routes/public/orders.ts:28-103` | Unauthenticated users can probe order existence. Phone check should be in the DB query. |
 | L6 | **`buildWhereClause` and `buildRelationalWhere` can diverge** | `order.repository.ts:52-238` | Two parallel filter implementations that must stay in sync. Search already uses slightly different patterns. |
 | L7 | **Default sort order is oldest-first** | `order.schema.ts:33-34` | `sort_by: "id"`, `sort_order: "asc"` — most admin UIs expect newest-first. |

@@ -20,7 +20,10 @@ import {
   type GetOrdersQuery,
   normalizeOrderListQuery,
 } from "@/modules/orders/order.schema";
-import { findProducts } from "@/modules/products/product.repository";
+import {
+  decrementProductStock,
+  findProducts,
+} from "@/modules/products/product.repository";
 import { findServices } from "@/modules/services/service.repository";
 import { findUserById } from "@/modules/users/user.repository";
 import type { POSTOrderSchema } from "@/schema";
@@ -265,6 +268,16 @@ export async function createOrder(
       created_by: userId,
       updated_by: userId,
     });
+
+    for (const item of products) {
+      const [decremented] = await decrementProductStock(tx, item.id, item.qty);
+      if (!decremented) {
+        const product = productMap.get(item.id);
+        throw new BadRequestException(
+          `Insufficient stock for product ${product?.name ?? item.id}`
+        );
+      }
+    }
 
     const [serviceSubtotal, productSubtotal] = await Promise.all([
       insertOrderServices(

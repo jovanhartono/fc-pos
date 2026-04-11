@@ -178,7 +178,9 @@ async function recalculateOrderStatus(
   } else if (
     services.every((item) => isTerminalOrderServiceStatus(item.status))
   ) {
-    nextStatus = "completed";
+    nextStatus = services.every((item) => item.status === "cancelled")
+      ? "cancelled"
+      : "completed";
   } else if (
     services
       .filter((item) => !isTerminalOrderServiceStatus(item.status))
@@ -607,11 +609,23 @@ export async function updateOrderPayment({
       total: true,
       discount: true,
       refunded_amount: true,
+      payment_status: true,
+      status: true,
     },
   });
 
   if (!order) {
     return null;
+  }
+
+  if (order.payment_status === "paid") {
+    throw new BadRequestException("Order has already been paid");
+  }
+
+  if (order.status === "cancelled") {
+    throw new BadRequestException(
+      "Cannot collect payment on a cancelled order"
+    );
   }
 
   const netDue =
@@ -647,26 +661,39 @@ export async function startOrderServiceWork({
   serviceId: number;
   user: JWTPayload;
 }) {
-  const orderService = await getOrderServiceOrThrow(orderId, serviceId);
+  const orderService = await db.transaction(async (tx) => {
+    const [locked] = await tx
+      .select()
+      .from(ordersServicesTable)
+      .where(
+        and(
+          eq(ordersServicesTable.id, serviceId),
+          eq(ordersServicesTable.order_id, orderId)
+        )
+      )
+      .for("update");
 
-  if (orderService.status !== "queued") {
-    throw new BadRequestException(
-      `Service ${serviceId} cannot be started from status ${orderService.status}`
-    );
-  }
+    if (!locked) {
+      throw new BadRequestException("Order service not found for this order");
+    }
 
-  if (
-    orderService.handler_id !== null &&
-    orderService.handler_id !== undefined &&
-    orderService.handler_id !== user.id
-  ) {
-    throw new ForbiddenException(
-      "This item is already assigned to another worker"
-    );
-  }
+    if (locked.status !== "queued") {
+      throw new BadRequestException(
+        `Service ${serviceId} cannot be started from status ${locked.status}`
+      );
+    }
 
-  await db.transaction(async (tx) => {
-    if (orderService.handler_id !== user.id) {
+    if (
+      locked.handler_id !== null &&
+      locked.handler_id !== undefined &&
+      locked.handler_id !== user.id
+    ) {
+      throw new ForbiddenException(
+        "This item is already assigned to another worker"
+      );
+    }
+
+    if (locked.handler_id !== user.id) {
       await tx
         .update(ordersServicesTable)
         .set({ handler_id: user.id, status: "processing" })
@@ -674,7 +701,7 @@ export async function startOrderServiceWork({
 
       await tx.insert(orderServiceHandlerLogsTable).values({
         order_service_id: serviceId,
-        from_handler_id: orderService.handler_id,
+        from_handler_id: locked.handler_id,
         to_handler_id: user.id,
         changed_by: user.id,
         note: "Started from queue",
@@ -688,13 +715,15 @@ export async function startOrderServiceWork({
 
     await tx.insert(orderServiceStatusLogsTable).values({
       order_service_id: serviceId,
-      from_status: orderService.status,
+      from_status: locked.status,
       to_status: "processing",
       changed_by: user.id,
       note: "Started from queue",
     });
 
     await recalculateOrderStatus(tx, orderId, user.id);
+
+    return locked;
   });
 
   return {
@@ -761,25 +790,38 @@ export async function updateOrderServiceStatus({
     );
   }
 
-  const orderService = await getOrderServiceOrThrow(orderId, serviceId);
-
-  const allowedStatuses = ORDER_STATUS_TRANSITIONS[orderService.status];
-  if (!allowedStatuses.includes(body.status)) {
-    throw new BadRequestException(
-      `Invalid status transition from ${orderService.status} to ${body.status}`
-    );
-  }
-
   if (body.status === "picked_up") {
     await ensurePickupPhotoExists(serviceId);
   }
 
-  const isClaimTransition =
-    orderService.status === "queued" && body.status === "processing";
-  const needsHandlerAssign =
-    isClaimTransition && orderService.handler_id !== user.id;
+  const fromStatus = await db.transaction(async (tx) => {
+    const [locked] = await tx
+      .select()
+      .from(ordersServicesTable)
+      .where(
+        and(
+          eq(ordersServicesTable.id, serviceId),
+          eq(ordersServicesTable.order_id, orderId)
+        )
+      )
+      .for("update");
 
-  await db.transaction(async (tx) => {
+    if (!locked) {
+      throw new BadRequestException("Order service not found for this order");
+    }
+
+    const allowedStatuses = ORDER_STATUS_TRANSITIONS[locked.status];
+    if (!allowedStatuses.includes(body.status)) {
+      throw new BadRequestException(
+        `Invalid status transition from ${locked.status} to ${body.status}`
+      );
+    }
+
+    const isClaimTransition =
+      locked.status === "queued" && body.status === "processing";
+    const needsHandlerAssign =
+      isClaimTransition && locked.handler_id !== user.id;
+
     if (needsHandlerAssign) {
       await tx
         .update(ordersServicesTable)
@@ -788,7 +830,7 @@ export async function updateOrderServiceStatus({
 
       await tx.insert(orderServiceHandlerLogsTable).values({
         order_service_id: serviceId,
-        from_handler_id: orderService.handler_id,
+        from_handler_id: locked.handler_id,
         to_handler_id: user.id,
         changed_by: user.id,
         note: "Auto-assigned on status update",
@@ -802,17 +844,19 @@ export async function updateOrderServiceStatus({
 
     await tx.insert(orderServiceStatusLogsTable).values({
       order_service_id: serviceId,
-      from_status: orderService.status,
+      from_status: locked.status,
       to_status: body.status,
       changed_by: user.id,
       note: body.note,
     });
 
     await recalculateOrderStatus(tx, orderId, user.id);
+
+    return locked.status;
   });
 
   return {
-    from_status: orderService.status,
+    from_status: fromStatus,
     order_service_id: serviceId,
     to_status: body.status,
   };
