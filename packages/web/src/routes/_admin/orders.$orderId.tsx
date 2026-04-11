@@ -168,7 +168,7 @@ function ServiceStatusUpdateButton({
 			description: isCancel
 				? "Please provide a reason for cancelling this service."
 				: `Are you sure you want to change the status to ${STATUS_ACTION_LABELS[nextStatus]}?`,
-			content: (
+			content: () => (
 				<DialogForm
 					orderId={orderId}
 					isCancel={isCancel}

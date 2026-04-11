@@ -6,7 +6,8 @@ import {
 	TrashIcon,
 	XIcon,
 } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { Badge } from "@/components/ui/badge";
@@ -25,13 +26,23 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { CustomerAutocomplete } from "@/features/orders/components/customer-autocomplete";
+import { useTransactionsCart } from "@/features/transactions/hooks/use-transactions-cart";
 import {
 	getCampaignDiscount,
 	getEntityCategoryName,
+	isCampaignAvailable,
 	type ProductCartDisplayLine,
 	type ServiceCartDisplayLine,
 	type TransactionDraftValues,
 } from "@/features/transactions/lib/transactions";
+import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
+import {
+	campaignsQueryOptions,
+	categoriesQueryOptions,
+	paymentMethodsQueryOptions,
+	productsQueryOptions,
+	servicesQueryOptions,
+} from "@/lib/query-options";
 import { formatIDRCurrency } from "@/shared/utils";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
@@ -60,27 +71,15 @@ function OrderMetaBadge({
 
 export function TransactionsCheckout() {
 	const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
+	const { visibleStores, submit } = useTransactionsPageContext();
 	const {
-		campaigns,
-		campaignsLoading,
-		categories,
-		handleSubmit,
-		isSubmitting,
-		paymentMethods,
-		paymentMethodsLoading,
-		products,
 		resetCart,
-		services,
-		submitError,
-		visibleStores,
 		removeProductFromCart,
-		updateProductQty,
 		removeServiceFromCart,
-		updateServiceColor,
-		updateServiceBrand,
-		updateServiceModel,
-		updateServiceSize,
-	} = useTransactionsPageStore();
+		updateProductQty,
+		updateServiceField,
+	} = useTransactionsCart();
+	const submitError = useTransactionsPageStore((state) => state.submitError);
 
 	const form = useFormContext<TransactionDraftValues>();
 	const [
@@ -106,6 +105,52 @@ export function TransactionsCheckout() {
 		],
 	});
 
+	const selectedStoreNumber =
+		selectedStoreId && Number.isFinite(Number(selectedStoreId))
+			? Number(selectedStoreId)
+			: undefined;
+
+	const categoriesQuery = useQuery(categoriesQueryOptions());
+	const productsQuery = useQuery(productsQueryOptions());
+	const servicesQuery = useQuery(servicesQueryOptions());
+	const paymentMethodsQuery = useQuery(paymentMethodsQueryOptions());
+	const campaignsQuery = useQuery({
+		...campaignsQueryOptions({
+			store_id: selectedStoreNumber,
+			is_active: true,
+		}),
+		enabled: selectedStoreNumber !== undefined,
+	});
+
+	const categories = categoriesQuery.data ?? [];
+	const products = useMemo(
+		() => (productsQuery.data ?? []).filter((product) => product.is_active),
+		[productsQuery.data],
+	);
+	const services = useMemo(
+		() => (servicesQuery.data ?? []).filter((service) => service.is_active),
+		[servicesQuery.data],
+	);
+	const paymentMethods = paymentMethodsQuery.data ?? [];
+	const availableCampaigns = useMemo(() => {
+		const now = new Date();
+		return (campaignsQuery.data ?? []).filter((campaign) =>
+			isCampaignAvailable(campaign, now),
+		);
+	}, [campaignsQuery.data]);
+
+	useEffect(() => {
+		if (!selectedCampaignId) {
+			return;
+		}
+		const hasCampaign = availableCampaigns.some(
+			(campaign) => campaign.id === Number(selectedCampaignId),
+		);
+		if (!hasCampaign) {
+			form.setValue("selectedCampaignId", "", { shouldValidate: true });
+		}
+	}, [availableCampaigns, form, selectedCampaignId]);
+
 	const categoryMap = useMemo(
 		() => new Map(categories.map((category) => [category.id, category])),
 		[categories],
@@ -122,12 +167,12 @@ export function TransactionsCheckout() {
 	const campaignOptions = useMemo<ComboboxOption[]>(
 		() => [
 			{ value: "none", label: "No campaign" },
-			...campaigns.map((campaign) => ({
+			...availableCampaigns.map((campaign) => ({
 				value: String(campaign.id),
 				label: `${campaign.code} - ${campaign.name}`,
 			})),
 		],
-		[campaigns],
+		[availableCampaigns],
 	);
 	const paymentMethodOptions = useMemo<ComboboxOption[]>(
 		() => [
@@ -140,10 +185,6 @@ export function TransactionsCheckout() {
 		[paymentMethods],
 	);
 
-	const selectedStoreNumber =
-		selectedStoreId && Number.isFinite(Number(selectedStoreId))
-			? Number(selectedStoreId)
-			: undefined;
 	const selectedStore = useMemo(
 		() =>
 			selectedStoreNumber
@@ -154,11 +195,11 @@ export function TransactionsCheckout() {
 	const selectedCampaign = useMemo(
 		() =>
 			selectedCampaignId
-				? campaigns.find(
+				? availableCampaigns.find(
 						(campaign) => campaign.id === Number(selectedCampaignId),
 					)
 				: undefined,
-		[campaigns, selectedCampaignId],
+		[availableCampaigns, selectedCampaignId],
 	);
 	const selectedPaymentMethodLabel = useMemo(
 		() =>
@@ -213,6 +254,8 @@ export function TransactionsCheckout() {
 	const total = Math.max(0, subtotal - totalDiscount);
 	const cartCount =
 		productCart.reduce((sum, item) => sum + item.qty, 0) + serviceCart.length;
+
+	const isSubmitting = form.formState.isSubmitting;
 
 	const orderMeta = useMemo(
 		() => [
@@ -384,7 +427,11 @@ export function TransactionsCheckout() {
 												id={`service-color-${line.line_id}`}
 												value={line.color}
 												onChange={(event) =>
-													updateServiceColor(line.line_id, event.target.value)
+													updateServiceField(
+														line.line_id,
+														"color",
+														event.target.value,
+													)
 												}
 												placeholder="e.g. Black"
 											/>
@@ -401,7 +448,11 @@ export function TransactionsCheckout() {
 												id={`service-brand-${line.line_id}`}
 												value={line.brand}
 												onChange={(event) =>
-													updateServiceBrand(line.line_id, event.target.value)
+													updateServiceField(
+														line.line_id,
+														"brand",
+														event.target.value,
+													)
 												}
 												placeholder="e.g. Adidas"
 											/>
@@ -423,7 +474,11 @@ export function TransactionsCheckout() {
 												id={`service-model-${line.line_id}`}
 												value={line.model}
 												onChange={(event) =>
-													updateServiceModel(line.line_id, event.target.value)
+													updateServiceField(
+														line.line_id,
+														"model",
+														event.target.value,
+													)
 												}
 												placeholder="e.g. Yeezy"
 											/>
@@ -445,7 +500,11 @@ export function TransactionsCheckout() {
 												id={`service-size-${line.line_id}`}
 												value={line.size}
 												onChange={(event) =>
-													updateServiceSize(line.line_id, event.target.value)
+													updateServiceField(
+														line.line_id,
+														"size",
+														event.target.value,
+													)
 												}
 												placeholder="e.g. 42"
 											/>
@@ -559,7 +618,7 @@ export function TransactionsCheckout() {
 										onValueChange={(value) =>
 											field.onChange(value === "none" ? "" : value)
 										}
-										loading={campaignsLoading}
+										loading={campaignsQuery.isFetching}
 										placeholder={
 											selectedStoreNumber
 												? "No campaign"
@@ -594,7 +653,7 @@ export function TransactionsCheckout() {
 										onValueChange={(value) =>
 											field.onChange(value === "none" ? "" : value)
 										}
-										loading={paymentMethodsLoading}
+										loading={paymentMethodsQuery.isFetching}
 										placeholder="No payment method"
 										searchPlaceholder="Search payment method..."
 										emptyText="No payment method found"
@@ -722,7 +781,7 @@ export function TransactionsCheckout() {
 						</Button>
 						<Button
 							type="button"
-							onClick={handleSubmit}
+							onClick={submit}
 							loading={isSubmitting}
 							loadingText="Creating order..."
 							disabled={cartCount === 0}

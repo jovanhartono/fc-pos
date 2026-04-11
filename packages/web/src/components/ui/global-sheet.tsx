@@ -36,7 +36,7 @@ export function GlobalSheet() {
 						</SheetDescription>
 					</SheetHeader>
 				) : null}
-				<div className="p-4">{content}</div>
+				<div className="p-4">{content ? content() : null}</div>
 			</SheetContent>
 		</Sheet>
 	);

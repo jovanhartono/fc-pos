@@ -64,7 +64,7 @@ function ServicesPage() {
 		(service: Service) => {
 			openSheet({
 				title: "Edit Service",
-				content: (
+				content: () => (
 					<ServiceForm
 						defaultValues={{
 							category_id: service.category_id,
@@ -94,7 +94,7 @@ function ServicesPage() {
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
 			title: "Add Service",
-			content: (
+			content: () => (
 				<ServiceForm
 					handleOnSubmit={async (values: ServiceFormState) => {
 						await createMutation.mutateAsync(values);

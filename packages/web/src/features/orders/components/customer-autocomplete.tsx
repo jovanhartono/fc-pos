@@ -50,7 +50,7 @@ export function CustomerAutocomplete({
 		openSheet({
 			title: "Add Customer",
 			description: "Create a new customer record",
-			content: (
+			content: () => (
 				<CustomerSheetContent
 					onSuccess={(newCustomer) => {
 						onValueChange(String(newCustomer.id));

@@ -7,28 +7,18 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { handleCreatedOrderSuccess } from "@/features/orders/lib/create-order-workflow";
 import {
-	isCampaignAvailable,
 	type TransactionDraftValues,
 	toTransactionPayload,
 } from "@/features/transactions/lib/transactions";
+import type { TransactionsPageContextValue } from "@/features/transactions/lib/transactions-context";
 import { createOrder } from "@/lib/api";
 import {
-	campaignsQueryOptions,
-	categoriesQueryOptions,
 	currentUserDetailQueryOptions,
-	paymentMethodsQueryOptions,
-	productsQueryOptions,
-	servicesQueryOptions,
 	storesQueryOptions,
 } from "@/lib/query-options";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useTransactionPreferencesStore } from "@/stores/transaction-preferences-store";
-import {
-	bindTransactionsPageController,
-	clearTransactionsPageController,
-	transactionsPageDataInitialState,
-	useTransactionsPageStore,
-} from "@/stores/transactions-store";
+import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 const defaultDraftValues: TransactionDraftValues = {
 	selectedStoreId: "",
@@ -104,7 +94,13 @@ const transactionDraftSchema = z
 		}
 	});
 
-export function useTransactionsPageBootstrap() {
+export type TransactionsPageBootstrap = {
+	form: ReturnType<typeof useForm<TransactionDraftValues>>;
+	isBootstrapping: boolean;
+	pageContext: TransactionsPageContextValue;
+};
+
+export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const currentUser = getCurrentUser();
@@ -129,17 +125,7 @@ export function useTransactionsPageBootstrap() {
 			control: form.control,
 			name: "selectedStoreId",
 		}) ?? "";
-	const selectedCampaignId =
-		useWatch({
-			control: form.control,
-			name: "selectedCampaignId",
-		}) ?? "";
-
 	const storesQuery = useQuery(storesQueryOptions());
-	const categoriesQuery = useQuery(categoriesQueryOptions());
-	const productsQuery = useQuery(productsQueryOptions());
-	const servicesQuery = useQuery(servicesQueryOptions());
-	const paymentMethodsQuery = useQuery(paymentMethodsQueryOptions());
 	const currentUserDetailQuery = useQuery({
 		...currentUserDetailQueryOptions(currentUser?.id ?? -1),
 		enabled: !!currentUser,
@@ -148,20 +134,19 @@ export function useTransactionsPageBootstrap() {
 	const userStoreIds =
 		currentUserDetailQuery.data?.userStores?.map((item) => item.store_id) ?? [];
 
+	const isAdmin = currentUser?.role === "admin";
+
 	const visibleStores = useMemo(() => {
 		const stores = storesQuery.data ?? [];
-
-		if (currentUser?.role === "admin") {
+		if (isAdmin) {
 			return stores;
 		}
-
 		return stores.filter((store) => userStoreIds.includes(store.id));
-	}, [currentUser?.role, storesQuery.data, userStoreIds]);
+	}, [isAdmin, storesQuery.data, userStoreIds]);
 
 	useEffect(() => {
 		const canResolveStoreSelection =
-			storesQuery.isSuccess &&
-			(currentUser?.role === "admin" || currentUserDetailQuery.isSuccess);
+			storesQuery.isSuccess && (isAdmin || currentUserDetailQuery.isSuccess);
 
 		if (!canResolveStoreSelection || !currentUserKey) {
 			return;
@@ -172,8 +157,7 @@ export function useTransactionsPageBootstrap() {
 			visibleStores.some(
 				(store) => String(store.id) === persistedSelectedStoreId,
 			);
-		const fallbackStoreId =
-			currentUser?.role === "admin" ? "" : String(visibleStores[0]?.id ?? "");
+		const fallbackStoreId = isAdmin ? "" : String(visibleStores[0]?.id ?? "");
 		const nextStoreId = hasPersistedVisibleStore
 			? persistedSelectedStoreId
 			: fallbackStoreId;
@@ -196,10 +180,10 @@ export function useTransactionsPageBootstrap() {
 		}
 	}, [
 		clearPersistedSelectedStoreId,
-		currentUser?.role,
 		currentUserDetailQuery.isSuccess,
 		currentUserKey,
 		form,
+		isAdmin,
 		persistedSelectedStoreId,
 		selectedStoreId,
 		setPersistedSelectedStoreId,
@@ -207,56 +191,8 @@ export function useTransactionsPageBootstrap() {
 		visibleStores,
 	]);
 
-	const selectedStoreNumber =
-		selectedStoreId && Number.isFinite(Number(selectedStoreId))
-			? Number(selectedStoreId)
-			: undefined;
-
-	const campaignsQuery = useQuery({
-		...campaignsQueryOptions({
-			store_id: selectedStoreNumber,
-			is_active: true,
-		}),
-		enabled: selectedStoreNumber !== undefined,
-	});
-
-	const availableCampaigns = useMemo(() => {
-		const now = new Date();
-		return (campaignsQuery.data ?? []).filter((campaign) =>
-			isCampaignAvailable(campaign, now),
-		);
-	}, [campaignsQuery.data]);
-
-	useEffect(() => {
-		if (!selectedCampaignId) {
-			return;
-		}
-
-		const hasCampaign = availableCampaigns.some(
-			(campaign) => campaign.id === Number(selectedCampaignId),
-		);
-
-		if (!hasCampaign) {
-			form.setValue("selectedCampaignId", "", { shouldValidate: true });
-		}
-	}, [availableCampaigns, form, selectedCampaignId]);
-
 	const isBootstrapping =
-		storesQuery.isPending ||
-		categoriesQuery.isPending ||
-		productsQuery.isPending ||
-		servicesQuery.isPending ||
-		paymentMethodsQuery.isPending ||
-		currentUserDetailQuery.isPending;
-
-	const products = useMemo(
-		() => (productsQuery.data ?? []).filter((product) => product.is_active),
-		[productsQuery.data],
-	);
-	const services = useMemo(
-		() => (servicesQuery.data ?? []).filter((service) => service.is_active),
-		[servicesQuery.data],
-	);
+		storesQuery.isPending || currentUserDetailQuery.isPending;
 
 	const createMutation = useMutation({
 		mutationKey: ["create-pos-order"],
@@ -265,7 +201,6 @@ export function useTransactionsPageBootstrap() {
 
 	const resetCart = useCallback(() => {
 		const selectedStore = form.getValues("selectedStoreId");
-
 		useTransactionsPageStore.getState().setSubmitError("");
 		form.reset({
 			...defaultDraftValues,
@@ -316,60 +251,42 @@ export function useTransactionsPageBootstrap() {
 		[form, onValidSubmit],
 	);
 
-	useEffect(() => {
-		bindTransactionsPageController({
-			form,
-			currentUserKey,
-			submit,
-		});
-
-		return () => {
-			clearTransactionsPageController();
-		};
-	}, [currentUserKey, form, submit]);
-
-	const pageState = useMemo(
-		() => ({
-			isBootstrapping,
-			isAdmin: currentUser?.role === "admin",
-			visibleStores,
-			categories: categoriesQuery.data ?? [],
-			products,
-			services,
-			campaigns: availableCampaigns,
-			paymentMethods: paymentMethodsQuery.data ?? [],
-			campaignsLoading: campaignsQuery.isFetching,
-			paymentMethodsLoading: paymentMethodsQuery.isFetching,
-			isSubmitting: createMutation.isPending,
-		}),
-		[
-			availableCampaigns,
-			campaignsQuery.isFetching,
-			categoriesQuery.data,
-			createMutation.isPending,
-			currentUser?.role,
-			isBootstrapping,
-			paymentMethodsQuery.data,
-			paymentMethodsQuery.isFetching,
-			products,
-			services,
-			visibleStores,
-		],
+	const handleStoreChange = useCallback(
+		(value: string) => {
+			useTransactionsPageStore.getState().setSubmitError("");
+			form.setValue("selectedStoreId", value, {
+				shouldDirty: true,
+				shouldValidate: true,
+			});
+			if (currentUserKey) {
+				useTransactionPreferencesStore
+					.getState()
+					.setSelectedStoreId(currentUserKey, value);
+			}
+			form.setValue("selectedCampaignId", "", {
+				shouldDirty: true,
+				shouldValidate: true,
+			});
+		},
+		[currentUserKey, form],
 	);
-
-	useEffect(() => {
-		useTransactionsPageStore.setState(pageState);
-	}, [pageState]);
 
 	useEffect(
 		() => () => {
-			clearTransactionsPageController();
-			useTransactionsPageStore.setState(transactionsPageDataInitialState);
+			useTransactionsPageStore.getState().resetUi();
 		},
 		[],
 	);
 
-	return form;
-}
+	const pageContext = useMemo<TransactionsPageContextValue>(
+		() => ({
+			isAdmin,
+			visibleStores,
+			submit,
+			handleStoreChange,
+		}),
+		[handleStoreChange, isAdmin, submit, visibleStores],
+	);
 
-export const useTransactionsPage = useTransactionsPageBootstrap;
+	return { form, isBootstrapping, pageContext };
+}

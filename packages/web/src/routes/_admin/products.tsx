@@ -64,7 +64,7 @@ function ProductsPage() {
 		(product: Product) => {
 			openSheet({
 				title: "Edit Product",
-				content: (
+				content: () => (
 					<ProductForm
 						defaultValues={{
 							name: product.name,
@@ -95,7 +95,7 @@ function ProductsPage() {
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
 			title: "Add Product",
-			content: (
+			content: () => (
 				<ProductForm
 					handleOnSubmit={async (values: ProductFormState) => {
 						await createMutation.mutateAsync(values);

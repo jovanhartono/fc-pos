@@ -3,52 +3,63 @@ import {
 	PackageIcon,
 	ScissorsIcon,
 } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useMemo } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { Combobox } from "@/components/ui/combobox";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useTransactionsCart } from "@/features/transactions/hooks/use-transactions-cart";
 import {
 	getEntityCategoryName,
 	type TransactionDraftValues,
 } from "@/features/transactions/lib/transactions";
+import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
 import type { Product, Service } from "@/lib/api";
+import {
+	categoriesQueryOptions,
+	productsQueryOptions,
+	servicesQueryOptions,
+} from "@/lib/query-options";
 import { cn } from "@/lib/utils";
 import { formatIDRCurrency } from "@/shared/utils";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 export function TransactionsCatalog() {
-	const {
-		activeProductCategory,
-		activeServiceCategory,
-		categories,
-		handleAddProduct,
-		handleAddService,
-		handleStoreChange,
-		isAdmin,
-		mode,
-		products,
-		searchTerm,
-		services,
-		setMode,
-		setSearchTerm,
-		visibleStores,
-	} = useTransactionsPageStore();
-	const onAddProduct = handleAddProduct;
-	const onAddService = handleAddService;
+	const { isAdmin, visibleStores, handleStoreChange } =
+		useTransactionsPageContext();
+	const { handleAddProduct, handleAddService } = useTransactionsCart();
+	const mode = useTransactionsPageStore((state) => state.mode);
+	const setMode = useTransactionsPageStore((state) => state.setMode);
+	const searchTerm = useTransactionsPageStore((state) => state.searchTerm);
+	const setSearchTerm = useTransactionsPageStore(
+		(state) => state.setSearchTerm,
+	);
+	const activeProductCategory = useTransactionsPageStore(
+		(state) => state.activeProductCategory,
+	);
+	const activeServiceCategory = useTransactionsPageStore(
+		(state) => state.activeServiceCategory,
+	);
 
-	const form = useFormContext<TransactionDraftValues>();
-	const selectedStoreId =
-		useWatch({
-			control: form.control,
-			name: "selectedStoreId",
-		}) ?? "";
-	const productCart =
-		useWatch({
-			control: form.control,
-			name: "productCart",
-		}) ?? [];
+	const categoriesQuery = useQuery(categoriesQueryOptions());
+	const productsQuery = useQuery(productsQueryOptions());
+	const servicesQuery = useQuery(servicesQueryOptions());
+
+	const categories = categoriesQuery.data ?? [];
+	const products = useMemo(
+		() => (productsQuery.data ?? []).filter((product) => product.is_active),
+		[productsQuery.data],
+	);
+	const services = useMemo(
+		() => (servicesQuery.data ?? []).filter((service) => service.is_active),
+		[servicesQuery.data],
+	);
+
+	const { control } = useFormContext<TransactionDraftValues>();
+	const selectedStoreId = useWatch({ control, name: "selectedStoreId" }) ?? "";
+	const productCart = useWatch({ control, name: "productCart" }) ?? [];
 
 	const categoryMap = useMemo(
 		() => new Map(categories.map((category) => [category.id, category])),
@@ -105,8 +116,6 @@ export function TransactionsCatalog() {
 		[productCart],
 	);
 
-	const onSearchTermChange = setSearchTerm;
-	const onModeChange = setMode;
 	return (
 		<div className="grid gap-5 self-start xl:sticky xl:top-0">
 			<Card className="border-border/70 bg-linear-to-br from-background via-background to-card shadow-sm">
@@ -139,7 +148,7 @@ export function TransactionsCatalog() {
 										? "border-foreground bg-foreground text-background"
 										: "border-transparent text-foreground/70 hover:border-border/70 hover:bg-muted/40",
 								)}
-								onClick={() => onModeChange("services")}
+								onClick={() => setMode("services")}
 							>
 								<span className="flex items-center gap-2 text-sm font-medium">
 									<ScissorsIcon className="size-4" />
@@ -154,7 +163,7 @@ export function TransactionsCatalog() {
 										? "border-border bg-card text-foreground"
 										: "border-transparent text-foreground/55 hover:border-border/70 hover:bg-muted/40",
 								)}
-								onClick={() => onModeChange("products")}
+								onClick={() => setMode("products")}
 							>
 								<span className="flex items-center gap-2 text-sm font-medium">
 									<PackageIcon className="size-4" />
@@ -170,7 +179,7 @@ export function TransactionsCatalog() {
 								<Input
 									id="transaction-search"
 									value={searchTerm}
-									onChange={(event) => onSearchTermChange(event.target.value)}
+									onChange={(event) => setSearchTerm(event.target.value)}
 									placeholder="Search services or add-ons"
 									className="h-11 border-border/70 bg-background pl-9"
 								/>
@@ -203,14 +212,14 @@ export function TransactionsCatalog() {
 									className={cn(
 										"grid h-full w-full gap-4 p-4 text-left transition-colors",
 										isProduct ? "hover:bg-muted/30" : "hover:bg-background/80",
-										Boolean(isOutOfStock) && "cursor-not-allowed opacity-50",
+										isOutOfStock && "cursor-not-allowed opacity-50",
 									)}
 									onClick={() =>
 										isProduct
-											? onAddProduct(item as Product)
-											: onAddService(item as Service)
+											? handleAddProduct(item as Product)
+											: handleAddService(item as Service)
 									}
-									disabled={Boolean(isOutOfStock)}
+									disabled={isOutOfStock}
 									aria-label={`Add ${item.name}`}
 								>
 									<div className="grid gap-2">

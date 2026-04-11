@@ -69,7 +69,7 @@ function PaymentMethodsPage() {
 		(paymentMethod: PaymentMethod) => {
 			openSheet({
 				title: "Edit Payment Method",
-				content: (
+				content: () => (
 					<PaymentMethodForm
 						defaultValues={{
 							name: paymentMethod.name,
@@ -94,7 +94,7 @@ function PaymentMethodsPage() {
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
 			title: "Add Payment Method",
-			content: (
+			content: () => (
 				<PaymentMethodForm
 					handleOnSubmit={async (values: PaymentMethodFormState) => {
 						await createMutation.mutateAsync(values);

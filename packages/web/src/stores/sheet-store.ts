@@ -1,17 +1,19 @@
 import type { ReactNode } from "react";
 import { create } from "zustand";
 
+type RenderNode = () => ReactNode;
+
 type SheetState = {
 	open: boolean;
 	title: string | null;
 	description: string | null;
-	content: ReactNode | null;
+	content: RenderNode | null;
 };
 
 type OpenSheetPayload = {
 	title?: string | null;
 	description?: string | null;
-	content: ReactNode;
+	content: RenderNode;
 };
 
 type SheetStore = {

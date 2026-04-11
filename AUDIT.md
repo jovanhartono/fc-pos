@@ -110,15 +110,15 @@
 
 | # | Issue | File | Detail |
 |---|-------|------|--------|
-| SM1 | **`transactionsPageController` is a module-level mutable singleton** | `transactions-store.ts:89-107` | Not React-owned. Breaks on Strict Mode double-mount, fast refresh, or multiple instances. |
-| SM2 | **Server-fetched data duplicated into Zustand via effects** | `transactions-store.ts:48-66`, `use-transactions-page.ts:321-352` | TanStack Query manages cache, but Zustand holds a derived snapshot. Components should read from Query directly. |
+| SM1 ✅ | **`transactionsPageController` is a module-level mutable singleton** | `transactions-store.ts:89-107` | Not React-owned. Breaks on Strict Mode double-mount, fast refresh, or multiple instances. |
+| SM2 ✅ | **Server-fetched data duplicated into Zustand via effects** | `transactions-store.ts:48-66`, `use-transactions-page.ts:321-352` | TanStack Query manages cache, but Zustand holds a derived snapshot. Components should read from Query directly. |
 | SM3 ✅ | **`updateUserStores` called outside `useMutation`** | `users.tsx:129-132, 148-151` | Errors silently swallowed. No toast on failure. Cache invalidated even on error. |
 
 ### MEDIUM
 
 | # | Issue | File | Detail |
 |---|-------|------|--------|
-| SM4 | **`useSheet`/`useDialog` stores `ReactNode`, content can't re-render** | `dialog-store.ts:8`, `sheet-store.ts:7` | Data fetched after open won't update the sheet content. |
+| SM4 ✅ | **`useSheet`/`useDialog` stores `ReactNode`, content can't re-render** | `dialog-store.ts:8`, `sheet-store.ts:7` | Data fetched after open won't update the sheet content. |
 | SM5 ✅ | **`UsersPage` prop-drills form internals** | `users.tsx:73-76, 161-188` | Violates the `FormProvider`/`useFormContext` pattern documented in AGENTS.md. |
 
 ---

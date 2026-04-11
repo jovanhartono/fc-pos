@@ -50,7 +50,7 @@ const CategoriesActions = ({ row }: { row: Row<Category> }) => {
 		openSheet({
 			title: "Edit Category",
 			description: `Editing ID ${category.id}`,
-			content: (
+			content: () => (
 				<CategoryForm
 					defaultValues={{
 						name: category.name,
@@ -129,7 +129,7 @@ function CategoriesPage() {
 		openSheet({
 			title: "Add Category",
 			description: "Create a new category",
-			content: (
+			content: () => (
 				<CategoryForm
 					handleOnSubmit={async (values: CategoryFormState) => {
 						await createMutation.mutateAsync(values);

@@ -58,7 +58,7 @@ function StoresPage() {
 		(store: Store) => {
 			openSheet({
 				title: "Edit Store",
-				content: (
+				content: () => (
 					<StoreForm
 						defaultValues={{
 							code: store.code,
@@ -87,7 +87,7 @@ function StoresPage() {
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
 			title: "Add Store",
-			content: (
+			content: () => (
 				<StoreForm
 					handleOnSubmit={async (values: StoreFormState) => {
 						await createMutation.mutateAsync(values);

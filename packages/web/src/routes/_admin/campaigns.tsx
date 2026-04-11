@@ -124,7 +124,7 @@ function DeleteCampaignButton({
 				openDialog({
 					title: "Delete campaign?",
 					description: `Delete ${campaign.code} (${campaign.name})? This cannot be undone.`,
-					footer: (
+					footer: () => (
 						<>
 							<Button variant="outline" onClick={closeDialog}>
 								Cancel
@@ -213,7 +213,7 @@ function CampaignsPage() {
 	const handleOpenCreateSheet = () => {
 		openSheet({
 			title: "Add Campaign",
-			content: (
+			content: () => (
 				<CampaignForm
 					defaultValues={defaultCampaignForm}
 					isEditing={false}
@@ -231,7 +231,7 @@ function CampaignsPage() {
 		(campaign: Campaign) => {
 			openSheet({
 				title: "Edit Campaign",
-				content: (
+				content: () => (
 					<CampaignForm
 						defaultValues={{
 							code: campaign.code,

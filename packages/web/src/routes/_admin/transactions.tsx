@@ -3,6 +3,7 @@ import { FormProvider } from "react-hook-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { TransactionsWorkspace } from "@/features/transactions/components/transactions-workspace";
 import { useTransactionsPageBootstrap } from "@/features/transactions/hooks/use-transactions-page";
+import { TransactionsPageProvider } from "@/features/transactions/lib/transactions-context";
 import {
 	campaignsQueryOptions,
 	categoriesQueryOptions,
@@ -13,7 +14,6 @@ import {
 	storesQueryOptions,
 } from "@/lib/query-options";
 import { getCurrentUser } from "@/stores/auth-store";
-import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 export const Route = createFileRoute("/_admin/transactions")({
 	loader: async ({ context }) => {
@@ -52,10 +52,7 @@ export const Route = createFileRoute("/_admin/transactions")({
 });
 
 function TransactionsPage() {
-	const form = useTransactionsPageBootstrap();
-	const isBootstrapping = useTransactionsPageStore(
-		(state) => state.isBootstrapping,
-	);
+	const { form, isBootstrapping, pageContext } = useTransactionsPageBootstrap();
 
 	if (isBootstrapping) {
 		return (
@@ -71,7 +68,9 @@ function TransactionsPage() {
 
 	return (
 		<FormProvider {...form}>
-			<TransactionsWorkspace />
+			<TransactionsPageProvider value={pageContext}>
+				<TransactionsWorkspace />
+			</TransactionsPageProvider>
 		</FormProvider>
 	);
 }

@@ -185,7 +185,7 @@ function OrdersPage() {
 		openSheet({
 			title: "Pickup Radar",
 			description: "Orders that can leave the store now.",
-			content: <PickupRadar orders={orders} />,
+			content: () => <PickupRadar orders={orders} />,
 		});
 	}, [openSheet, orders]);
 

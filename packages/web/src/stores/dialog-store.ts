@@ -1,19 +1,21 @@
 import type { ReactNode } from "react";
 import { create } from "zustand";
 
+type RenderNode = () => ReactNode;
+
 type DialogState = {
 	open: boolean;
 	title: string | null;
 	description: string | null;
-	content: ReactNode | null;
-	footer: ReactNode | null;
+	content: RenderNode | null;
+	footer: RenderNode | null;
 };
 
 type OpenDialogPayload = {
 	title?: string | null;
 	description?: string | null;
-	content?: ReactNode | null;
-	footer?: ReactNode | null;
+	content?: RenderNode | null;
+	footer?: RenderNode | null;
 };
 
 type DialogStore = {

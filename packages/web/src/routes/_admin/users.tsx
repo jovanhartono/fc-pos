@@ -208,7 +208,7 @@ function UsersPage() {
 			});
 			openSheet({
 				title: "Edit User",
-				content: (
+				content: () => (
 					<FormProvider {...form}>
 						<UserForm
 							onSubmit={handleSubmit}
@@ -228,7 +228,7 @@ function UsersPage() {
 		form.reset(defaultForm);
 		openSheet({
 			title: "Add User",
-			content: (
+			content: () => (
 				<FormProvider {...form}>
 					<UserForm
 						onSubmit={handleSubmit}

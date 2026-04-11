@@ -52,7 +52,7 @@ function CustomersPage() {
 		(customer: Customer) => {
 			openSheet({
 				title: "Edit Customer",
-				content: <CustomerSheetContent editingCustomer={customer} />,
+				content: () => <CustomerSheetContent editingCustomer={customer} />,
 			});
 		},
 		[openSheet],
@@ -61,7 +61,7 @@ function CustomersPage() {
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
 			title: "Add Customer",
-			content: <CustomerSheetContent />,
+			content: () => <CustomerSheetContent />,
 		});
 	}, [openSheet]);
 
