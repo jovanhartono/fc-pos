@@ -3,6 +3,11 @@ import parsePhoneNumberFromString, {
 } from "libphonenumber-js";
 import z from "zod";
 import { orderPaymentStatusEnum } from "@/db/schema";
+
+import { ORDER_STATUS_TRANSITIONS as _ORDER_STATUS_TRANSITIONS } from "@/modules/orders/order-admin.schema";
+
+export const ORDER_STATUS_TRANSITIONS = _ORDER_STATUS_TRANSITIONS;
+
 import {
   currencySchema,
   isActiveSchema,

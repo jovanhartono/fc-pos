@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -263,7 +263,7 @@ export function useTransactionsPageBootstrap() {
 		mutationFn: createOrder,
 	});
 
-	const resetCart = () => {
+	const resetCart = useCallback(() => {
 		const selectedStore = form.getValues("selectedStoreId");
 
 		useTransactionsPageStore.getState().setSubmitError("");
@@ -271,40 +271,50 @@ export function useTransactionsPageBootstrap() {
 			...defaultDraftValues,
 			selectedStoreId: selectedStore,
 		});
-	};
+	}, [form]);
 
-	const submit = form.handleSubmit(async (values) => {
-		useTransactionsPageStore.getState().setSubmitError("");
+	const onValidSubmit = useCallback(
+		async (values: TransactionDraftValues) => {
+			useTransactionsPageStore.getState().setSubmitError("");
 
-		try {
-			const created = await createMutation.mutateAsync(
-				toTransactionPayload(values),
-			);
+			try {
+				const created = await createMutation.mutateAsync(
+					toTransactionPayload(values),
+				);
 
-			await handleCreatedOrderSuccess({
-				created,
-				queryClient,
-				onFallbackNavigate: () => {
-					resetCart();
-					void navigate({ to: "/orders", search: { page: 1 } });
-				},
-				onOrderDetailNavigate: (orderId) => {
-					resetCart();
-					void navigate({
-						to: "/orders/$orderId",
-						params: { orderId: String(orderId) },
-					});
-				},
-			});
-		} catch (error) {
-			const message =
-				error instanceof Error ? error.message : "Failed to create transaction";
-			useTransactionsPageStore.getState().setSubmitError(message);
-			toast.error("Unable to create transaction", {
-				description: message,
-			});
-		}
-	});
+				await handleCreatedOrderSuccess({
+					created,
+					queryClient,
+					onFallbackNavigate: () => {
+						resetCart();
+						void navigate({ to: "/orders", search: { page: 1 } });
+					},
+					onOrderDetailNavigate: (orderId) => {
+						resetCart();
+						void navigate({
+							to: "/orders/$orderId",
+							params: { orderId: String(orderId) },
+						});
+					},
+				});
+			} catch (error) {
+				const message =
+					error instanceof Error
+						? error.message
+						: "Failed to create transaction";
+				useTransactionsPageStore.getState().setSubmitError(message);
+				toast.error("Unable to create transaction", {
+					description: message,
+				});
+			}
+		},
+		[createMutation, navigate, queryClient, resetCart],
+	);
+
+	const submit = useMemo(
+		() => form.handleSubmit(onValidSubmit),
+		[form, onValidSubmit],
+	);
 
 	useEffect(() => {
 		bindTransactionsPageController({

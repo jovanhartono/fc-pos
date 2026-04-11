@@ -280,6 +280,8 @@ export const queryKeys = {
 	orderDetail: (id: number) => ["order-detail", id] as const,
 	campaigns: (query?: FetchCampaignsQuery) =>
 		["campaigns", query ?? {}] as const,
+	campaignsList: (query?: FetchCampaignsQuery) =>
+		["campaigns-list", query ?? {}] as const,
 	campaignDetail: (id: number) => ["campaign-detail", id] as const,
 	orderServiceLookup: (itemCode: string) =>
 		["order-service-lookup", itemCode] as const,

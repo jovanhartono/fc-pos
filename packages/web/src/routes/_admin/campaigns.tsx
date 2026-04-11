@@ -6,6 +6,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import { PageHeader } from "@/components/page-header";
@@ -226,109 +227,115 @@ function CampaignsPage() {
 		});
 	};
 
-	const handleOpenEditSheet = (campaign: Campaign) => {
-		openSheet({
-			title: "Edit Campaign",
-			content: (
-				<CampaignForm
-					defaultValues={{
-						code: campaign.code,
-						name: campaign.name,
-						discount_type: campaign.discount_type,
-						discount_value: String(campaign.discount_value),
-						min_order_total: String(campaign.min_order_total),
-						max_discount: campaign.max_discount
-							? String(campaign.max_discount)
-							: "",
-						starts_at: toDateTimeLocal(campaign.starts_at),
-						ends_at: toDateTimeLocal(campaign.ends_at),
-						is_active: campaign.is_active,
-						store_ids: campaign.stores.map((item) => item.store_id),
-					}}
-					isEditing
-					onReset={closeSheet}
-					stores={stores}
-					handleOnSubmit={async (payload) => {
-						await updateMutation.mutateAsync({
-							id: campaign.id,
-							payload,
-						});
-					}}
-				/>
-			),
-		});
-	};
-
-	const columns: ColumnDef<Campaign>[] = [
-		{ accessorKey: "code", header: "Code" },
-		{ accessorKey: "name", header: "Name" },
-		{
-			id: "discount",
-			header: "Discount",
-			cell: ({ row }) => formatCampaignDiscount(row.original),
-		},
-		{
-			accessorKey: "min_order_total",
-			header: "Min Order",
-			cell: ({ row }) =>
-				formatIDRCurrency(String(row.original.min_order_total)),
-		},
-		{
-			accessorKey: "max_discount",
-			header: "Max Discount",
-			cell: ({ row }) =>
-				row.original.max_discount
-					? formatIDRCurrency(String(row.original.max_discount))
-					: "-",
-		},
-		{
-			id: "stores",
-			header: "Stores",
-			cell: ({ row }) => {
-				if (row.original.stores.length === 0) {
-					return "All Stores";
-				}
-
-				return row.original.stores
-					.map((item) => item.store?.code ?? String(item.store_id))
-					.join(", ");
-			},
-		},
-		{
-			id: "status",
-			header: "Status",
-			cell: ({ row }) => (
-				<Badge variant={row.original.is_active ? "success" : "danger"}>
-					{row.original.is_active ? "Active" : "Inactive"}
-				</Badge>
-			),
-		},
-		{
-			id: "actions",
-			header: "Actions",
-			cell: ({ row }) => (
-				<div className="flex gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={!isAdmin}
-						onClick={() => handleOpenEditSheet(row.original)}
-						icon={<PencilSimpleLineIcon className="size-4" />}
-					>
-						Edit
-					</Button>
-					<DeleteCampaignButton
-						campaign={row.original}
-						disabled={!isAdmin}
-						isPending={deleteMutation.isPending}
-						onConfirm={async (campaignId) => {
-							await deleteMutation.mutateAsync(campaignId);
+	const handleOpenEditSheet = useCallback(
+		(campaign: Campaign) => {
+			openSheet({
+				title: "Edit Campaign",
+				content: (
+					<CampaignForm
+						defaultValues={{
+							code: campaign.code,
+							name: campaign.name,
+							discount_type: campaign.discount_type,
+							discount_value: String(campaign.discount_value),
+							min_order_total: String(campaign.min_order_total),
+							max_discount: campaign.max_discount
+								? String(campaign.max_discount)
+								: "",
+							starts_at: toDateTimeLocal(campaign.starts_at),
+							ends_at: toDateTimeLocal(campaign.ends_at),
+							is_active: campaign.is_active,
+							store_ids: campaign.stores.map((item) => item.store_id),
+						}}
+						isEditing
+						onReset={closeSheet}
+						stores={stores}
+						handleOnSubmit={async (payload) => {
+							await updateMutation.mutateAsync({
+								id: campaign.id,
+								payload,
+							});
 						}}
 					/>
-				</div>
-			),
+				),
+			});
 		},
-	];
+		[closeSheet, openSheet, stores, updateMutation],
+	);
+
+	const columns = useMemo<ColumnDef<Campaign>[]>(
+		() => [
+			{ accessorKey: "code", header: "Code" },
+			{ accessorKey: "name", header: "Name" },
+			{
+				id: "discount",
+				header: "Discount",
+				cell: ({ row }) => formatCampaignDiscount(row.original),
+			},
+			{
+				accessorKey: "min_order_total",
+				header: "Min Order",
+				cell: ({ row }) =>
+					formatIDRCurrency(String(row.original.min_order_total)),
+			},
+			{
+				accessorKey: "max_discount",
+				header: "Max Discount",
+				cell: ({ row }) =>
+					row.original.max_discount
+						? formatIDRCurrency(String(row.original.max_discount))
+						: "-",
+			},
+			{
+				id: "stores",
+				header: "Stores",
+				cell: ({ row }) => {
+					if (row.original.stores.length === 0) {
+						return "All Stores";
+					}
+
+					return row.original.stores
+						.map((item) => item.store?.code ?? String(item.store_id))
+						.join(", ");
+				},
+			},
+			{
+				id: "status",
+				header: "Status",
+				cell: ({ row }) => (
+					<Badge variant={row.original.is_active ? "success" : "danger"}>
+						{row.original.is_active ? "Active" : "Inactive"}
+					</Badge>
+				),
+			},
+			{
+				id: "actions",
+				header: "Actions",
+				cell: ({ row }) => (
+					<div className="flex gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+							disabled={!isAdmin}
+							onClick={() => handleOpenEditSheet(row.original)}
+							icon={<PencilSimpleLineIcon className="size-4" />}
+						>
+							Edit
+						</Button>
+						<DeleteCampaignButton
+							campaign={row.original}
+							disabled={!isAdmin}
+							isPending={deleteMutation.isPending}
+							onConfirm={async (campaignId) => {
+								await deleteMutation.mutateAsync(campaignId);
+							}}
+						/>
+					</div>
+				),
+			},
+		],
+		[deleteMutation, handleOpenEditSheet, isAdmin],
+	);
 
 	return (
 		<>

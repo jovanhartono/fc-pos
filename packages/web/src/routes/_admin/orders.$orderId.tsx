@@ -1,3 +1,4 @@
+import { ORDER_STATUS_TRANSITIONS } from "@fresclean/api/schema";
 import {
 	type UseMutationResult,
 	useMutation,
@@ -22,6 +23,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { OrderFulfillmentOverview } from "@/features/orders/components/order-fulfillment-overview";
 import { OrderIntakePhotoCard } from "@/features/orders/components/order-intake-photo-card";
@@ -79,19 +81,6 @@ export const Route = createFileRoute("/_admin/orders/$orderId")({
 	component: OrderDetailPage,
 });
 
-const ORDER_STATUS_TRANSITIONS: Record<
-	UpdateOrderServiceStatusPayload["status"],
-	UpdateOrderServiceStatusPayload["status"][]
-> = {
-	queued: ["processing", "cancelled"],
-	processing: ["quality_check", "cancelled"],
-	quality_check: ["processing", "ready_for_pickup", "cancelled"],
-	ready_for_pickup: ["picked_up", "refunded", "cancelled"],
-	picked_up: [],
-	refunded: [],
-	cancelled: [],
-};
-
 const STATUS_ACTION_LABELS: Record<
 	UpdateOrderServiceStatusPayload["status"],
 	string
@@ -106,6 +95,50 @@ const STATUS_ACTION_LABELS: Record<
 };
 
 const REFUND_REASONS = ["damaged", "cannot_process", "lost", "other"] as const;
+
+function OrderDetailSkeleton() {
+	return (
+		<div className="grid gap-6">
+			<div className="flex items-center justify-between gap-3">
+				<Skeleton className="h-8 w-64" />
+				<Skeleton className="h-9 w-32" />
+			</div>
+			<div className="grid gap-4 md:grid-cols-[2fr_1fr]">
+				<div className="grid gap-4">
+					<Skeleton className="h-40 w-full" />
+					<Skeleton className="h-64 w-full" />
+				</div>
+				<div className="grid gap-4">
+					<Skeleton className="h-32 w-full" />
+					<Skeleton className="h-48 w-full" />
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function OrderDetailMessage({
+	description,
+	title,
+	tone,
+}: {
+	description: string;
+	title: string;
+	tone: "error" | "muted";
+}) {
+	return (
+		<div
+			className={
+				tone === "error"
+					? "grid gap-1 border border-destructive/40 bg-destructive/5 p-6 text-sm"
+					: "grid gap-1 border border-border/70 bg-muted/30 p-6 text-sm"
+			}
+		>
+			<p className="font-medium">{title}</p>
+			<p className="text-muted-foreground">{description}</p>
+		</div>
+	);
+}
 
 function ServiceStatusUpdateButton({
 	orderId,
@@ -452,25 +485,41 @@ function AdminOrderDetailPage() {
 	});
 
 	if (!isValidOrderId) {
-		return <p>Invalid order ID.</p>;
+		return (
+			<OrderDetailMessage
+				tone="error"
+				title="Invalid order ID"
+				description="The URL does not point to a valid order."
+			/>
+		);
 	}
 
 	if (detailQuery.isPending) {
-		return <p>Loading order…</p>;
+		return <OrderDetailSkeleton />;
 	}
 
 	if (detailQuery.isError) {
 		return (
-			<p>
-				{detailQuery.error instanceof Error
-					? detailQuery.error.message
-					: "Failed to load order."}
-			</p>
+			<OrderDetailMessage
+				tone="error"
+				title="Failed to load order"
+				description={
+					detailQuery.error instanceof Error
+						? detailQuery.error.message
+						: "Please try again in a moment."
+				}
+			/>
 		);
 	}
 
 	if (!detailQuery.data) {
-		return <p>Order not found.</p>;
+		return (
+			<OrderDetailMessage
+				tone="muted"
+				title="Order not found"
+				description="It may have been deleted or you may not have access."
+			/>
+		);
 	}
 
 	const detail = detailQuery.data;

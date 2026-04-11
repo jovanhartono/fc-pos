@@ -83,46 +83,28 @@ export function TransactionsCheckout() {
 	} = useTransactionsPageStore();
 
 	const form = useFormContext<TransactionDraftValues>();
-	const selectedCustomerId =
-		useWatch({
-			control: form.control,
-			name: "selectedCustomerId",
-		}) ?? "";
-	const selectedCampaignId =
-		useWatch({
-			control: form.control,
-			name: "selectedCampaignId",
-		}) ?? "";
-	const selectedPaymentMethodId =
-		useWatch({
-			control: form.control,
-			name: "selectedPaymentMethodId",
-		}) ?? "";
-	const paymentStatus =
-		useWatch({
-			control: form.control,
-			name: "paymentStatus",
-		}) ?? "unpaid";
-	const manualDiscount =
-		useWatch({
-			control: form.control,
-			name: "manualDiscount",
-		}) ?? "";
-	const selectedStoreId =
-		useWatch({
-			control: form.control,
-			name: "selectedStoreId",
-		}) ?? "";
-	const productCart =
-		useWatch({
-			control: form.control,
-			name: "productCart",
-		}) ?? [];
-	const serviceCart =
-		useWatch({
-			control: form.control,
-			name: "serviceCart",
-		}) ?? [];
+	const [
+		selectedCustomerId = "",
+		selectedCampaignId = "",
+		selectedPaymentMethodId = "",
+		paymentStatus = "unpaid",
+		manualDiscount = "",
+		selectedStoreId = "",
+		productCart = [],
+		serviceCart = [],
+	] = useWatch({
+		control: form.control,
+		name: [
+			"selectedCustomerId",
+			"selectedCampaignId",
+			"selectedPaymentMethodId",
+			"paymentStatus",
+			"manualDiscount",
+			"selectedStoreId",
+			"productCart",
+			"serviceCart",
+		],
+	});
 
 	const categoryMap = useMemo(
 		() => new Map(categories.map((category) => [category.id, category])),

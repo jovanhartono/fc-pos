@@ -8,21 +8,20 @@ import {
 	fetchCampaignsPage,
 	fetchCategories,
 	fetchCurrentUserDetail,
-	fetchCustomers,
 	fetchCustomersPage,
 	fetchDashboardCounts,
 	fetchMyOrderServices,
 	fetchOrderDetail,
-	fetchOrders,
 	fetchOrdersPage,
 	fetchPaymentMethods,
 	fetchProducts,
 	fetchServices,
 	fetchStores,
-	fetchUsers,
 	fetchUsersPage,
 	queryKeys,
 } from "@/lib/api";
+
+const REFERENCE_DATA_STALE_TIME = 5 * 60 * 1000;
 
 export const dashboardQueryOptions = () =>
 	queryOptions({
@@ -30,22 +29,10 @@ export const dashboardQueryOptions = () =>
 		queryFn: fetchDashboardCounts,
 	});
 
-export const customersQueryOptions = () =>
-	queryOptions({
-		queryKey: queryKeys.customers(),
-		queryFn: fetchCustomers,
-	});
-
 export const customersPageQueryOptions = (query?: FetchCustomersQuery) =>
 	queryOptions({
 		queryKey: queryKeys.customers(query),
 		queryFn: () => fetchCustomersPage(query),
-	});
-
-export const usersQueryOptions = () =>
-	queryOptions({
-		queryKey: queryKeys.users(),
-		queryFn: fetchUsers,
 	});
 
 export const usersPageQueryOptions = (query?: FetchUsersQuery) =>
@@ -64,36 +51,35 @@ export const storesQueryOptions = () =>
 	queryOptions({
 		queryKey: queryKeys.stores,
 		queryFn: fetchStores,
+		staleTime: REFERENCE_DATA_STALE_TIME,
 	});
 
 export const categoriesQueryOptions = () =>
 	queryOptions({
 		queryKey: queryKeys.categories,
 		queryFn: fetchCategories,
+		staleTime: REFERENCE_DATA_STALE_TIME,
 	});
 
 export const servicesQueryOptions = () =>
 	queryOptions({
 		queryKey: queryKeys.services,
 		queryFn: fetchServices,
+		staleTime: REFERENCE_DATA_STALE_TIME,
 	});
 
 export const productsQueryOptions = () =>
 	queryOptions({
 		queryKey: queryKeys.products,
 		queryFn: fetchProducts,
+		staleTime: REFERENCE_DATA_STALE_TIME,
 	});
 
 export const paymentMethodsQueryOptions = () =>
 	queryOptions({
 		queryKey: queryKeys.paymentMethods,
 		queryFn: fetchPaymentMethods,
-	});
-
-export const ordersQueryOptions = (query?: FetchOrdersQuery) =>
-	queryOptions({
-		queryKey: queryKeys.orders(query),
-		queryFn: () => fetchOrders(query),
+		staleTime: REFERENCE_DATA_STALE_TIME,
 	});
 
 export const ordersPageQueryOptions = (query?: FetchOrdersQuery) =>
@@ -110,7 +96,7 @@ export const orderDetailQueryOptions = (id: number) =>
 
 export const campaignsQueryOptions = (query?: FetchCampaignsQuery) =>
 	queryOptions({
-		queryKey: queryKeys.campaigns(query),
+		queryKey: queryKeys.campaignsList(query),
 		queryFn: () => fetchCampaigns(query),
 	});
 

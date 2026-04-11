@@ -1,3 +1,4 @@
+import { ORDER_STATUS_TRANSITIONS } from "@fresclean/api/schema";
 import {
 	ArrowLeftIcon,
 	CameraIcon,
@@ -25,6 +26,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { HoldToConfirmButton } from "@/features/orders/components/hold-to-confirm-button";
 import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
@@ -48,22 +50,48 @@ import {
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 
-const ORDER_STATUS_TRANSITIONS: Record<
-	UpdateOrderServiceStatusPayload["status"],
-	UpdateOrderServiceStatusPayload["status"][]
-> = {
-	queued: ["processing", "cancelled"],
-	processing: ["quality_check", "cancelled"],
-	quality_check: ["processing", "ready_for_pickup", "cancelled"],
-	ready_for_pickup: ["picked_up", "refunded", "cancelled"],
-	picked_up: [],
-	refunded: [],
-	cancelled: [],
-};
-
 const WORKER_BLOCKED_QUEUE_STATUSES = new Set<
 	UpdateOrderServiceStatusPayload["status"]
 >(["cancelled", "refunded"]);
+
+function QueueServiceDetailSkeleton() {
+	return (
+		<div className="grid gap-5">
+			<div className="flex items-center gap-3">
+				<Skeleton className="size-9" />
+				<Skeleton className="h-8 w-48" />
+			</div>
+			<Skeleton className="h-12 w-full" />
+			<div className="grid gap-3">
+				<Skeleton className="h-5 w-40" />
+				<Skeleton className="h-24 w-full" />
+				<Skeleton className="h-24 w-full" />
+			</div>
+		</div>
+	);
+}
+
+function QueueServiceDetailMessage({
+	description,
+	title,
+	tone,
+}: {
+	description: string;
+	title: string;
+	tone: "error" | "muted";
+}) {
+	return (
+		<div
+			className={cn(
+				"grid gap-1 border border-border/70 bg-muted/30 p-6 text-sm",
+				tone === "error" && "border-destructive/40 bg-destructive/5",
+			)}
+		>
+			<p className="font-medium">{title}</p>
+			<p className="text-muted-foreground">{description}</p>
+		</div>
+	);
+}
 
 type QueueServiceDetailProps = {
 	orderId: number;
@@ -306,21 +334,31 @@ export function QueueServiceDetail({
 	});
 
 	if (detailQuery.isPending) {
-		return <p>Loading queue item...</p>;
+		return <QueueServiceDetailSkeleton />;
 	}
 
 	if (detailQuery.isError) {
 		return (
-			<p>
-				{detailQuery.error instanceof Error
-					? detailQuery.error.message
-					: "Failed to load queue item."}
-			</p>
+			<QueueServiceDetailMessage
+				tone="error"
+				title="Failed to load queue item"
+				description={
+					detailQuery.error instanceof Error
+						? detailQuery.error.message
+						: "Please try again in a moment."
+				}
+			/>
 		);
 	}
 
 	if (!(detail && selectedService)) {
-		return <p>Queue item not found.</p>;
+		return (
+			<QueueServiceDetailMessage
+				tone="muted"
+				title="Queue item not found"
+				description="It may have been removed or reassigned."
+			/>
+		);
 	}
 
 	const isHandledByCurrentUser = selectedService.handler_id === currentUser?.id;

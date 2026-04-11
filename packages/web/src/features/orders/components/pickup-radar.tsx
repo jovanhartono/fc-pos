@@ -16,7 +16,7 @@ export function PickupRadar({ orders }: PickupRadarProps) {
 
 	if (readyOrders.length === 0) {
 		return (
-			<p className="py-12 text-center text-sm text-slate-400">
+			<p className="py-12 text-center text-sm text-muted-foreground">
 				No pickups right now.
 			</p>
 		);
@@ -44,11 +44,11 @@ function RadarSection({
 }) {
 	return (
 		<div className="grid gap-2">
-			<div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-				<p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-400">
+			<div className="flex items-center gap-2 border-b border-border pb-2">
+				<p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
 					{label}
 				</p>
-				<span className="inline-flex h-4 min-w-4 items-center justify-center bg-slate-900 px-1 text-[10px] font-semibold tabular-nums text-white">
+				<span className="inline-flex h-4 min-w-4 items-center justify-center bg-foreground px-1 text-[10px] font-semibold tabular-nums text-background">
 					{count}
 				</span>
 			</div>
@@ -66,28 +66,28 @@ function RadarRow({ order }: { order: Order }) {
 		<Link
 			to="/orders/$orderId"
 			params={{ orderId: String(order.id) }}
-			className="group grid grid-cols-[1fr_auto] items-center gap-3 border border-transparent px-2 py-2.5 transition-colors hover:border-slate-200 hover:bg-slate-50"
+			className="group grid grid-cols-[1fr_auto] items-center gap-3 border border-transparent px-2 py-2.5 transition-colors hover:border-border hover:bg-muted/50"
 		>
 			<div className="grid gap-1 overflow-hidden">
 				<div className="flex items-center gap-2">
-					<p className="truncate font-mono text-sm font-medium text-slate-950">
+					<p className="truncate font-mono text-sm font-medium text-foreground">
 						{order.code}
 					</p>
 					<Badge variant={getOrderStatusBadgeVariant(order.status)}>
 						{formatOrderStatus(order.status)}
 					</Badge>
 				</div>
-				<div className="flex items-center gap-3 text-xs text-slate-500">
+				<div className="flex items-center gap-3 text-xs text-muted-foreground">
 					<span>{order.customer_name}</span>
-					<span className="text-slate-300">/</span>
+					<span className="text-border">/</span>
 					<span>{order.store_name}</span>
 				</div>
 			</div>
 			<div className="flex items-center gap-3">
-				<p className="font-mono text-xs text-slate-600">
+				<p className="font-mono text-xs text-muted-foreground">
 					{formatIDRCurrency(String(order.total ?? 0))}
 				</p>
-				<ArrowRightIcon className="size-3.5 text-slate-300 transition-colors group-hover:text-slate-700" />
+				<ArrowRightIcon className="size-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
 			</div>
 		</Link>
 	);

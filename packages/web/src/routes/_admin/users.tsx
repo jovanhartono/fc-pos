@@ -1,4 +1,4 @@
-import { POSTUserSchema } from "@fresclean/api/schema";
+import { PUTUserSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -49,8 +49,25 @@ export const Route = createFileRoute("/_admin/users")({
 	component: UsersPage,
 });
 
-const userFormSchema = POSTUserSchema.extend({
+const userFormSchema = PUTUserSchema.extend({
+	password: z.string().trim(),
+	confirm_password: z.string().trim(),
 	store_ids: z.array(z.number().int()),
+}).superRefine((data, ctx) => {
+	if (data.password.length > 0 && data.password.length < 8) {
+		ctx.addIssue({
+			code: "custom",
+			message: "Minimum 8 characters",
+			path: ["password"],
+		});
+	}
+	if (data.password !== data.confirm_password) {
+		ctx.addIssue({
+			code: "custom",
+			message: "Password does not match",
+			path: ["confirm_password"],
+		});
+	}
 });
 
 const defaultForm: UserFormState = {
@@ -111,7 +128,16 @@ function UsersPage() {
 		}) => updateUser(id, payload),
 	});
 
-	const isSubmitting = createMutation.isPending || updateMutation.isPending;
+	const updateStoresMutation = useMutation({
+		mutationKey: ["update-user-stores"],
+		mutationFn: ({ id, store_ids }: { id: number; store_ids: number[] }) =>
+			updateUserStores(id, { store_ids }),
+	});
+
+	const isSubmitting =
+		createMutation.isPending ||
+		updateMutation.isPending ||
+		updateStoresMutation.isPending;
 
 	const handleSubmit: SubmitHandler<UserFormState> = useCallback(
 		async (values) => {
@@ -126,11 +152,17 @@ function UsersPage() {
 					id: editingUser.id,
 					payload,
 				});
-				await updateUserStores(editingUser.id, {
+				await updateStoresMutation.mutateAsync({
+					id: editingUser.id,
 					store_ids: values.store_ids,
 				});
 				await queryClient.invalidateQueries({ queryKey: ["users"] });
 				resetForm();
+				return;
+			}
+
+			if (values.password.length < 8) {
+				form.setError("password", { message: "Minimum 8 characters" });
 				return;
 			}
 
@@ -147,7 +179,8 @@ function UsersPage() {
 			const createdUserId = (createdUser as { data?: { id?: number } }).data
 				?.id;
 			if (createdUserId && values.store_ids.length > 0) {
-				await updateUserStores(createdUserId, {
+				await updateStoresMutation.mutateAsync({
+					id: createdUserId,
 					store_ids: values.store_ids,
 				});
 			}
@@ -155,7 +188,15 @@ function UsersPage() {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
 			resetForm();
 		},
-		[createMutation, editingUser, queryClient, resetForm, updateMutation],
+		[
+			createMutation,
+			editingUser,
+			form,
+			queryClient,
+			resetForm,
+			updateMutation,
+			updateStoresMutation,
+		],
 	);
 
 	const handleEdit = useCallback(
@@ -164,8 +205,8 @@ function UsersPage() {
 			form.reset({
 				username: user.username,
 				name: user.name,
-				password: "placeholder1",
-				confirm_password: "placeholder1",
+				password: "",
+				confirm_password: "",
 				role: user.role,
 				is_active: user.is_active,
 				store_ids: user.userStores.map((item) => item.store_id),
