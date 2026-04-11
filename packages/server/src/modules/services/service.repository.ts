@@ -9,9 +9,12 @@ export function findServices(ids: number[]) {
   });
 }
 
+export const LIST_SERVICES_MAX = 500;
+
 export function listServices() {
   return db.query.servicesTable.findMany({
     orderBy: { id: "asc" },
+    limit: LIST_SERVICES_MAX,
     with: {
       category: true,
     },

@@ -17,10 +17,16 @@ function getS3Config() {
   return { bucket, region };
 }
 
+let cachedClient: S3Client | null = null;
+
 function getS3Client() {
+  if (cachedClient) {
+    return cachedClient;
+  }
+
   const { region } = getS3Config();
 
-  return new S3Client({
+  cachedClient = new S3Client({
     region,
     credentials:
       process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
@@ -30,6 +36,8 @@ function getS3Client() {
           }
         : undefined,
   });
+
+  return cachedClient;
 }
 
 export function buildS3ObjectUrl(key: string) {

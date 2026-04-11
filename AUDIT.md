@@ -43,9 +43,9 @@
 | # | Issue | File | Detail |
 |---|-------|------|--------|
 | L4 ✅ | **Products have stock constraints but no decrement on order** | `schema.ts` (stock check constraint) vs `order.service.ts` | The schema enforces `stock >= 0` but `insertOrderProducts` never decrements stock. |
-| L5 | **Public tracking fetches full data before validating phone** | `routes/public/orders.ts:28-103` | Unauthenticated users can probe order existence. Phone check should be in the DB query. |
-| L6 | **`buildWhereClause` and `buildRelationalWhere` can diverge** | `order.repository.ts:52-238` | Two parallel filter implementations that must stay in sync. Search already uses slightly different patterns. |
-| L7 | **Default sort order is oldest-first** | `order.schema.ts:33-34` | `sort_by: "id"`, `sort_order: "asc"` — most admin UIs expect newest-first. |
+| L5 ✅ | **Public tracking fetches full data before validating phone** | `routes/public/orders.ts:28-103` | Unauthenticated users can probe order existence. Phone check should be in the DB query. |
+| L6 ✅ | **`buildWhereClause` and `buildRelationalWhere` can diverge** | `order.repository.ts:52-238` | Two parallel filter implementations that must stay in sync. Search already uses slightly different patterns. |
+| L7 ✅ | **Default sort order is oldest-first** | `order.schema.ts:33-34` | `sort_by: "id"`, `sort_order: "asc"` — most admin UIs expect newest-first. |
 
 ---
 
@@ -55,10 +55,10 @@
 
 | # | Issue | File | Detail |
 |---|-------|------|--------|
-| P1 | **`getOrderServiceByItemCode` / `getOrderServiceById` not prepared** | `order-admin.service.ts:261-317` | Hot-path queue queries. The adjacent `getOrderServicePrepared` is correctly prepared. |
-| P2 | **`getS3Client()` creates a new client per request** | `utils/s3.ts:21-33` | Should be a module-level singleton. |
-| P3 | **`listProducts()` / `listServices()` have no pagination** | `product.repository.ts`, `service.repository.ts` | Unbounded table scans with no limit. |
-| P4 | **`DATABASE_URL_DEV` hardcoded in runtime** | `db/index.ts:5` | Production would silently use the dev database. |
+| P1 ✅ | **`getOrderServiceByItemCode` / `getOrderServiceById` not prepared** | `order-admin.service.ts:261-317` | Hot-path queue queries. The adjacent `getOrderServicePrepared` is correctly prepared. |
+| P2 ✅ | **`getS3Client()` creates a new client per request** | `utils/s3.ts:21-33` | Should be a module-level singleton. |
+| P3 ✅ | **`listProducts()` / `listServices()` have no pagination** | `product.repository.ts`, `service.repository.ts` | Unbounded table scans with no limit. |
+| P4 ✅ | **`DATABASE_URL_DEV` hardcoded in runtime** | `db/index.ts:5` | Production would silently use the dev database. |
 
 ---
 

@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import { z } from "zod";
@@ -10,8 +11,10 @@ const POSTPublicTrackOrderSchema = z.object({
   phone_number: z.string().trim().min(6).max(20),
 });
 
+const nonDigitRegex = /\D/g;
+
 function normalizePhoneNumber(value: string) {
-  return value.replace(/\D/g, "");
+  return value.replace(nonDigitRegex, "");
 }
 
 function maskPhoneNumber(phone: string) {
@@ -24,9 +27,16 @@ const app = new Hono().post(
   zodValidator("json", POSTPublicTrackOrderSchema),
   async (c) => {
     const { code, phone_number } = c.req.valid("json");
+    const normalizedPhone = normalizePhoneNumber(phone_number);
 
     const order = await db.query.ordersTable.findFirst({
-      where: { code },
+      where: {
+        code,
+        customer: {
+          RAW: (customer) =>
+            sql`REGEXP_REPLACE(${customer.phone_number}, '\D', '', 'g') = ${normalizedPhone}`,
+        },
+      },
       columns: {
         id: true,
         code: true,
@@ -92,16 +102,9 @@ const app = new Hono().post(
     });
 
     if (!order) {
-      return c.json(failure("Order not found"), StatusCodes.NOT_FOUND);
-    }
-
-    const incomingPhone = normalizePhoneNumber(phone_number);
-    const customerPhone = normalizePhoneNumber(order.customer.phone_number);
-
-    if (incomingPhone !== customerPhone) {
       return c.json(
         failure("Order code or phone number is invalid"),
-        StatusCodes.UNAUTHORIZED
+        StatusCodes.NOT_FOUND
       );
     }
 

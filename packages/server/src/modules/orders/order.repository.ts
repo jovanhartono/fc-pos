@@ -1,9 +1,8 @@
 import dayjs from "dayjs";
 import type { InferInsertModel } from "drizzle-orm";
-import { and, eq, gte, inArray, lte, or, type SQL, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  customersTable,
   orderCountersTable,
   ordersProductsTable,
   ordersServicesTable,
@@ -49,109 +48,7 @@ interface FindOrdersResult {
 
 const numericSearchRegex = /^\d+$/;
 
-function buildWhereClause(
-  filters: NormalizedOrderListQuery,
-  scopedStoreIds?: number[]
-): SQL | undefined {
-  const conditions: SQL[] = [];
-
-  if (scopedStoreIds !== undefined) {
-    if (scopedStoreIds.length === 0) {
-      conditions.push(eq(ordersTable.id, -1));
-    } else {
-      conditions.push(inArray(ordersTable.store_id, scopedStoreIds));
-    }
-  }
-
-  if (filters.status) {
-    conditions.push(eq(ordersTable.status, filters.status));
-  }
-
-  if (filters.payment_status) {
-    conditions.push(eq(ordersTable.payment_status, filters.payment_status));
-  }
-
-  if (filters.store_id) {
-    conditions.push(eq(ordersTable.store_id, filters.store_id));
-  }
-
-  if (filters.customer_id) {
-    conditions.push(eq(ordersTable.customer_id, filters.customer_id));
-  }
-
-  if (filters.created_by) {
-    conditions.push(eq(ordersTable.created_by, filters.created_by));
-  }
-
-  if (filters.payment_method_id) {
-    conditions.push(
-      eq(ordersTable.payment_method_id, filters.payment_method_id)
-    );
-  }
-
-  if (filters.date_from) {
-    conditions.push(
-      gte(
-        ordersTable.created_at,
-        dayjs(filters.date_from).startOf("day").toDate()
-      )
-    );
-  }
-
-  if (filters.date_to) {
-    conditions.push(
-      lte(ordersTable.created_at, dayjs(filters.date_to).endOf("day").toDate())
-    );
-  }
-
-  if (filters.search) {
-    const search = filters.search.trim();
-    const loweredSearch = search.toLowerCase();
-    const searchPrefix = `${search}%`;
-    const loweredSearchPrefix = `${loweredSearch}%`;
-
-    const customerMatchesSearch = sql`
-      EXISTS (
-        SELECT 1
-        FROM ${customersTable}
-        WHERE ${customersTable.id} = ${ordersTable.customer_id}
-          AND (
-            LOWER(${customersTable.name}) LIKE ${loweredSearchPrefix}
-            OR ${customersTable.phone_number} LIKE ${searchPrefix}
-          )
-      )
-    `;
-
-    const searchConditions: SQL[] = [
-      sql`LOWER(${ordersTable.code}) LIKE ${loweredSearchPrefix}`,
-      customerMatchesSearch,
-    ];
-
-    if (numericSearchRegex.test(search)) {
-      const numericSearch = Number(search);
-
-      searchConditions.push(eq(ordersTable.id, numericSearch));
-      searchConditions.push(sql`
-        EXISTS (
-          SELECT 1
-          FROM ${ordersServicesTable}
-          WHERE ${ordersServicesTable.order_id} = ${ordersTable.id}
-            AND ${ordersServicesTable.id} = ${numericSearch}
-        )
-      `);
-    }
-
-    conditions.push(or(...searchConditions) as SQL);
-  }
-
-  if (conditions.length === 0) {
-    return undefined;
-  }
-
-  return and(...conditions);
-}
-
-function buildRelationalWhere(
+function buildOrderWhere(
   filters: NormalizedOrderListQuery,
   scopedStoreIds?: number[]
 ) {
@@ -279,15 +176,23 @@ export async function findOrders(
           },
         },
       },
-      where: buildRelationalWhere(filters, scopedStoreIds),
-      orderBy: {
-        [filters.sort_by ?? "id"]: filters.sort_order ?? "desc",
-        id: "asc",
-      },
+      where: buildOrderWhere(filters, scopedStoreIds),
+      orderBy:
+        filters.sort_by === "id"
+          ? { id: filters.sort_order }
+          : {
+              [filters.sort_by]: filters.sort_order,
+              id: filters.sort_order,
+            },
       limit: filters.limit,
       offset: filters.offset,
     }),
-    db.$count(ordersTable, buildWhereClause(filters, scopedStoreIds)),
+    db.query.ordersTable
+      .findMany({
+        where: buildOrderWhere(filters, scopedStoreIds),
+        columns: { id: true },
+      })
+      .then((rows) => rows.length),
   ]);
 
   const orderIds = rows.map((row) => row.id);

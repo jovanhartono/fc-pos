@@ -31,7 +31,7 @@ export const GETOrdersQuerySchema = z
       .optional(),
 
     sort_by: z.enum(["created_at", "code", "id", "total"]).default("id"),
-    sort_order: z.enum(["asc", "desc"]).default("asc"),
+    sort_order: z.enum(["asc", "desc"]).default("desc"),
   })
   .refine(
     (query) =>
@@ -83,6 +83,6 @@ export function normalizeOrderListQuery(
     date_from: query?.date_from,
     date_to: query?.date_to,
     sort_by: query?.sort_by ?? "id",
-    sort_order: query?.sort_order ?? "asc",
+    sort_order: query?.sort_order ?? "desc",
   };
 }

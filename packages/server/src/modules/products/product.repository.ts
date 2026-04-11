@@ -22,9 +22,12 @@ export function findProducts(ids: number[]) {
   });
 }
 
+export const LIST_PRODUCTS_MAX = 500;
+
 export function listProducts() {
   return db.query.productsTable.findMany({
     orderBy: { id: "asc" },
+    limit: LIST_PRODUCTS_MAX,
     with: {
       category: true,
     },

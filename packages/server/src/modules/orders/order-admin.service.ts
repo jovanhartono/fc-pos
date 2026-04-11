@@ -260,62 +260,50 @@ async function getOrderLineRefundCaps(orderId: number) {
   });
 }
 
-export function getOrderServiceByItemCode(item_code: string) {
-  return db.query.ordersServicesTable.findFirst({
-    where: { item_code },
-    with: {
-      order: {
-        columns: {
-          id: true,
-          code: true,
-          store_id: true,
-          status: true,
-        },
-      },
-      service: {
-        columns: {
-          id: true,
-          code: true,
-          name: true,
-        },
-      },
-      handler: {
-        columns: {
-          id: true,
-          name: true,
-        },
-      },
+const queueRelationColumns = {
+  order: {
+    columns: {
+      id: true,
+      code: true,
+      store_id: true,
+      status: true,
     },
-  });
+  },
+  service: {
+    columns: {
+      id: true,
+      code: true,
+      name: true,
+    },
+  },
+  handler: {
+    columns: {
+      id: true,
+      name: true,
+    },
+  },
+} as const;
+
+const getOrderServiceByItemCodePrepared = db.query.ordersServicesTable
+  .findFirst({
+    where: { item_code: { eq: sql.placeholder("item_code") } },
+    with: queueRelationColumns,
+  })
+  .prepare("get_order_service_by_item_code");
+
+const getOrderServiceByIdPrepared = db.query.ordersServicesTable
+  .findFirst({
+    where: { id: { eq: sql.placeholder("id") } },
+    with: queueRelationColumns,
+  })
+  .prepare("get_order_service_by_id");
+
+export function getOrderServiceByItemCode(item_code: string) {
+  return getOrderServiceByItemCodePrepared.execute({ item_code });
 }
 
 export function getOrderServiceById(serviceId: number) {
-  return db.query.ordersServicesTable.findFirst({
-    where: { id: serviceId },
-    with: {
-      order: {
-        columns: {
-          id: true,
-          code: true,
-          store_id: true,
-          status: true,
-        },
-      },
-      service: {
-        columns: {
-          id: true,
-          code: true,
-          name: true,
-        },
-      },
-      handler: {
-        columns: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-  });
+  return getOrderServiceByIdPrepared.execute({ id: serviceId });
 }
 
 export async function getMyOrderServices(
