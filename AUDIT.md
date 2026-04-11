@@ -68,7 +68,7 @@
 
 | # | Issue | File | Detail |
 |---|-------|------|--------|
-| W1 | **Dashboard fetches ALL entity records just to count them** | `lib/api.ts:910-944` | 9 concurrent full-table fetches, discarded after `.length`. Need a server-side counts endpoint. |
+| W1 ✅ | **Dashboard fetches ALL entity records just to count them** | `lib/api.ts:910-944` | 9 concurrent full-table fetches, discarded after `.length`. Need a server-side counts endpoint. |
 
 ### HIGH
 
@@ -76,7 +76,7 @@
 |---|-------|------|--------|
 | W2 ✅ | **`ordersQueryOptions` and `ordersPageQueryOptions` share the same queryKey** | `query-options.ts:93-103` | Different response shapes with same cache key — whichever runs first poisons the cache. |
 | W3 ✅ | **8 individual `useWatch` calls** in `TransactionsCheckout` | `transactions-checkout.tsx:87-125` | Consolidate into one `useWatch({ name: [...] })` to reduce re-renders. |
-| W4 | **Infinite scroll observer torn down on every fetch** | `worker.index.tsx:198-221` | Observer recreated on `isFetchingNextPage` change. Should be stable. |
+| W4 ✅ | **Infinite scroll observer torn down on every fetch** | `worker.index.tsx:198-221` | Observer recreated on `isFetchingNextPage` change. Should be stable. |
 | W5 ✅ | **`submit` handler recreated every render, re-binds controller** | `use-transactions-page.ts:276-319` | Needs `useCallback`. |
 | W6 ✅ | **No `staleTime` on any query** | `query-options.ts` (all entries) | Reference data (stores, categories, services) refetched on every mount. |
 
@@ -89,17 +89,17 @@
 | # | Issue | File | Detail |
 |---|-------|------|--------|
 | U1 ✅ | **Loading/error states are bare `<p>` text** | `orders.$orderId.tsx:458-469`, `queue-service-detail.tsx:308-324` | No skeleton, no layout wrapper. `<Skeleton>` component exists but isn't used. |
-| U2 | **Hooks called before early returns in `AdminOrderDetailPage`** | `orders.$orderId.tsx:324-453` | All mutations registered with `id = NaN` before guard checks. |
+| U2 ✅ | **Hooks called before early returns in `AdminOrderDetailPage`** | `orders.$orderId.tsx:324-453` | All mutations registered with `id = NaN` before guard checks. |
 | U3 ✅ | **`PickupRadar` uses hardcoded `slate-*` colors** | `pickup-radar.tsx` (entire file) | Won't respond to dark mode. Rest of app uses semantic tokens. |
 | U4 ✅ | **User edit form pre-fills password with `"placeholder1"`** | `users.tsx:165-166` | Security smell and misleading UX. Server will receive this string if user doesn't change it. |
-| U5 | **No 401 interceptor — expired/invalid tokens aren't cleared** | `lib/auth.ts`, `auth-store.ts` | User with stale token passes `requireAuth` then every API call silently fails. |
+| U5 ✅ | **No 401 interceptor — expired/invalid tokens aren't cleared** | `lib/auth.ts`, `auth-store.ts` | User with stale token passes `requireAuth` then every API call silently fails. |
 
 ### MEDIUM
 
 | # | Issue | File | Detail |
 |---|-------|------|--------|
 | U6 ✅ | **`ORDER_STATUS_TRANSITIONS` duplicated in two files** | `orders.$orderId.tsx:82-106`, `queue-service-detail.tsx:51-67` | Must be changed in two places. Should import from server package or shared constant. |
-| U7 | **No empty state explaining missing store assignment** | `orders.index.tsx:169-172` | Non-admin with no store sees "No data found" with no explanation. |
+| U7 ✅ | **No empty state explaining missing store assignment** | `orders.index.tsx:169-172` | Non-admin with no store sees "No data found" with no explanation. |
 | U8 ✅ | **`campaigns.tsx` columns not in `useMemo`** | `campaigns.tsx:262-331` | Recreated on every render, triggering full table reconciliation. |
 
 ---
@@ -119,7 +119,7 @@
 | # | Issue | File | Detail |
 |---|-------|------|--------|
 | SM4 | **`useSheet`/`useDialog` stores `ReactNode`, content can't re-render** | `dialog-store.ts:8`, `sheet-store.ts:7` | Data fetched after open won't update the sheet content. |
-| SM5 | **`UsersPage` prop-drills form internals** | `users.tsx:73-76, 161-188` | Violates the `FormProvider`/`useFormContext` pattern documented in AGENTS.md. |
+| SM5 ✅ | **`UsersPage` prop-drills form internals** | `users.tsx:73-76, 161-188` | Violates the `FormProvider`/`useFormContext` pattern documented in AGENTS.md. |
 
 ---
 

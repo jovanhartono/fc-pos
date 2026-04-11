@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useMemo, useState } from "react";
-import { type SubmitHandler, useForm } from "react-hook-form";
+import { FormProvider, type SubmitHandler, useForm } from "react-hook-form";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import { PageHeader } from "@/components/page-header";
@@ -134,11 +134,6 @@ function UsersPage() {
 			updateUserStores(id, { store_ids }),
 	});
 
-	const isSubmitting =
-		createMutation.isPending ||
-		updateMutation.isPending ||
-		updateStoresMutation.isPending;
-
 	const handleSubmit: SubmitHandler<UserFormState> = useCallback(
 		async (values) => {
 			if (editingUser) {
@@ -214,19 +209,18 @@ function UsersPage() {
 			openSheet({
 				title: "Edit User",
 				content: (
-					<UserForm
-						control={form.control}
-						handleSubmit={form.handleSubmit}
-						onSubmit={handleSubmit}
-						isSubmitting={isSubmitting}
-						isEditing={true}
-						stores={storesQuery.data ?? []}
-						onReset={resetForm}
-					/>
+					<FormProvider {...form}>
+						<UserForm
+							onSubmit={handleSubmit}
+							isEditing={true}
+							stores={storesQuery.data ?? []}
+							onReset={resetForm}
+						/>
+					</FormProvider>
 				),
 			});
 		},
-		[form, openSheet, isSubmitting, storesQuery.data, resetForm, handleSubmit],
+		[form, openSheet, storesQuery.data, resetForm, handleSubmit],
 	);
 
 	const handleCreate = useCallback(() => {
@@ -235,25 +229,17 @@ function UsersPage() {
 		openSheet({
 			title: "Add User",
 			content: (
-				<UserForm
-					control={form.control}
-					handleSubmit={form.handleSubmit}
-					onSubmit={handleSubmit}
-					isSubmitting={isSubmitting}
-					isEditing={false}
-					stores={storesQuery.data ?? []}
-					onReset={resetForm}
-				/>
+				<FormProvider {...form}>
+					<UserForm
+						onSubmit={handleSubmit}
+						isEditing={false}
+						stores={storesQuery.data ?? []}
+						onReset={resetForm}
+					/>
+				</FormProvider>
 			),
 		});
-	}, [
-		form,
-		openSheet,
-		isSubmitting,
-		storesQuery.data,
-		resetForm,
-		handleSubmit,
-	]);
+	}, [form, openSheet, storesQuery.data, resetForm, handleSubmit]);
 
 	const columns = useMemo<ColumnDef<User>[]>(
 		() => [

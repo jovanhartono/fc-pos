@@ -171,6 +171,11 @@ function OrdersPage() {
 		enabled: currentUser?.role === "admin" ? true : parsedStoreId !== undefined,
 	});
 
+	const hasNoStoreAssignment =
+		currentUser?.role !== "admin" &&
+		currentUserDetailQuery.isSuccess &&
+		userStoreIds.length === 0;
+
 	const openSheet = useSheet((state) => state.openSheet);
 
 	const orders = ordersQuery.data?.items ?? [];
@@ -395,25 +400,36 @@ function OrdersPage() {
 								}}
 							/>
 						</div>
-						<div className="grid gap-4">
-							<DataTable
-								columns={columns}
-								data={orders}
-								isLoading={ordersQuery.isPending || storesQuery.isPending}
-							/>
-							<TablePagination
-								meta={ordersQuery.data?.meta}
-								isLoading={ordersQuery.isPending}
-								onPageChange={(page) => {
-									void navigate({
-										search: (prev) => ({
-											...prev,
-											page,
-										}),
-									});
-								}}
-							/>
-						</div>
+						{hasNoStoreAssignment ? (
+							<div className="rounded border border-dashed border-border bg-muted/30 p-8 text-center">
+								<p className="font-medium text-foreground text-sm">
+									No store assigned
+								</p>
+								<p className="mt-1 text-muted-foreground text-sm">
+									Ask an admin to assign you to a store before viewing orders.
+								</p>
+							</div>
+						) : (
+							<div className="grid gap-4">
+								<DataTable
+									columns={columns}
+									data={orders}
+									isLoading={ordersQuery.isPending || storesQuery.isPending}
+								/>
+								<TablePagination
+									meta={ordersQuery.data?.meta}
+									isLoading={ordersQuery.isPending}
+									onPageChange={(page) => {
+										void navigate({
+											search: (prev) => ({
+												...prev,
+												page,
+											}),
+										});
+									}}
+								/>
+							</div>
+						)}
 					</CardContent>
 				</Card>
 			</div>

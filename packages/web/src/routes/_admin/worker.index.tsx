@@ -195,17 +195,24 @@ function WorkerQueuePage() {
 		enabled: parsedStoreId !== undefined,
 	});
 
+	const queueQueryRef = useRef(queueQuery);
+	queueQueryRef.current = queueQuery;
+
 	useEffect(() => {
 		const node = loadMoreRef.current;
-		if (!node || !queueQuery.hasNextPage || queueQuery.isFetchingNextPage) {
+		if (!node) {
 			return;
 		}
 
 		const observer = new IntersectionObserver(
 			(entries) => {
 				const [entry] = entries;
-				if (entry?.isIntersecting) {
-					void queueQuery.fetchNextPage();
+				if (!entry?.isIntersecting) {
+					return;
+				}
+				const current = queueQueryRef.current;
+				if (current.hasNextPage && !current.isFetchingNextPage) {
+					void current.fetchNextPage();
 				}
 			},
 			{ rootMargin: "240px 0px" },
@@ -214,11 +221,7 @@ function WorkerQueuePage() {
 		observer.observe(node);
 
 		return () => observer.disconnect();
-	}, [
-		queueQuery.fetchNextPage,
-		queueQuery.hasNextPage,
-		queueQuery.isFetchingNextPage,
-	]);
+	}, []);
 
 	const lookupMutation = useMutation({
 		mutationFn: async ({

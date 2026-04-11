@@ -1,9 +1,8 @@
 import { PlusIcon } from "@phosphor-icons/react";
 import {
-	type Control,
 	Controller,
 	type SubmitHandler,
-	type UseFormHandleSubmit,
+	useFormContext,
 } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,24 +38,21 @@ export type UserFormState = {
 };
 
 type UserFormProps = {
-	control: Control<UserFormState>;
-	handleSubmit: UseFormHandleSubmit<UserFormState>;
 	onSubmit: SubmitHandler<UserFormState>;
-	isSubmitting: boolean;
 	isEditing: boolean;
 	stores: Array<{ id: number; code: string; name: string }>;
 	onReset: () => void;
 };
 
 export function UserForm({
-	control,
-	handleSubmit,
 	onSubmit,
-	isSubmitting,
 	isEditing,
 	stores,
 	onReset,
 }: UserFormProps) {
+	const { control, handleSubmit, formState } = useFormContext<UserFormState>();
+	const isSubmitting = formState.isSubmitting;
+
 	return (
 		<form onSubmit={handleSubmit(onSubmit)}>
 			<FieldGroup>

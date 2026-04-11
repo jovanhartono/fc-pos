@@ -57,6 +57,7 @@ const orderServiceByItemCodeRoute =
 	rpc.api.admin.orders.services["by-item-code"].$get;
 const orderServiceQueueRoute = rpc.api.admin.orders.services.queue.$get;
 const myOrderServicesRoute = rpc.api.admin.orders.services.me.$get;
+const dashboardCountsRoute = rpc.api.admin.dashboard.counts.$get;
 const publicTrackOrderRoute = rpc.api.public.orders.track.$post;
 
 type LoginSuccessResponse = Extract<
@@ -909,38 +910,12 @@ export async function trackPublicOrder(payload: TrackPublicOrderPayload) {
 	);
 }
 
-export async function fetchDashboardCounts() {
-	const [
-		customers,
-		users,
-		stores,
-		categories,
-		services,
-		products,
-		paymentMethods,
-		orders,
-		campaigns,
-	] = await Promise.all([
-		fetchCustomers(),
-		fetchUsers(),
-		fetchStores(),
-		fetchCategories(),
-		fetchServices(),
-		fetchProducts(),
-		fetchPaymentMethods(),
-		fetchOrders(),
-		fetchCampaigns(),
-	]);
+export type DashboardCounts = InferResponseType<
+	typeof dashboardCountsRoute
+>["data"];
 
-	return {
-		customers: customers.length,
-		users: users.length,
-		stores: stores.length,
-		categories: categories.length,
-		services: services.length,
-		products: products.length,
-		paymentMethods: paymentMethods.length,
-		orders: orders.length,
-		campaigns: campaigns.length,
-	};
+export async function fetchDashboardCounts() {
+	return parseSuccessData<DashboardCounts>(
+		rpcWithAuth().api.admin.dashboard.counts.$get(),
+	);
 }

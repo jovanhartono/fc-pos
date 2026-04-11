@@ -330,6 +330,17 @@ function OrderDetailPage() {
 	const search = Route.useSearch();
 	const { orderId } = Route.useParams();
 	const parsedOrderId = Number(orderId);
+	const isValidOrderId = Number.isInteger(parsedOrderId) && parsedOrderId > 0;
+
+	if (!isValidOrderId) {
+		return (
+			<OrderDetailMessage
+				tone="error"
+				title="Invalid order ID"
+				description="The URL does not point to a valid order."
+			/>
+		);
+	}
 
 	if (search.workerServiceId) {
 		return (
@@ -341,17 +352,14 @@ function OrderDetailPage() {
 		);
 	}
 
-	return <AdminOrderDetailPage />;
+	return <AdminOrderDetailPage orderId={parsedOrderId} />;
 }
 
-function AdminOrderDetailPage() {
+function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 	const user = getCurrentUser();
 	const isPaymentAllowed = user?.role === "admin" || user?.role === "cashier";
 	const isRefundAllowed = isPaymentAllowed;
 
-	const { orderId } = Route.useParams();
-	const id = Number(orderId);
-	const isValidOrderId = Number.isInteger(id) && id > 0;
 	const queryClient = useQueryClient();
 
 	const [photoTypeByServiceId, setPhotoTypeByServiceId] = useState<
@@ -371,10 +379,7 @@ function AdminOrderDetailPage() {
 	>({});
 	const [refundNote, setRefundNote] = useState("");
 
-	const detailQuery = useQuery({
-		...orderDetailQueryOptions(id),
-		enabled: isValidOrderId,
-	});
+	const detailQuery = useQuery(orderDetailQueryOptions(id));
 
 	const paymentMethodsQuery = useQuery(paymentMethodsQueryOptions());
 
@@ -483,16 +488,6 @@ function AdminOrderDetailPage() {
 			await refreshOrderData();
 		},
 	});
-
-	if (!isValidOrderId) {
-		return (
-			<OrderDetailMessage
-				tone="error"
-				title="Invalid order ID"
-				description="The URL does not point to a valid order."
-			/>
-		);
-	}
 
 	if (detailQuery.isPending) {
 		return <OrderDetailSkeleton />;
