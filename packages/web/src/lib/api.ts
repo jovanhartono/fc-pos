@@ -241,7 +241,7 @@ export type PresignOrderServicePhotoPayload = {
 
 export type SaveOrderServicePhotoPayload = {
 	photo_type: OrderServicePhotoType;
-	s3_key: string;
+	image_path: string;
 };
 
 export type PresignOrderIntakePhotoPayload = {
@@ -249,7 +249,7 @@ export type PresignOrderIntakePhotoPayload = {
 };
 
 export type SaveOrderIntakePhotoPayload = {
-	s3_key: string;
+	image_path: string;
 };
 
 export type OrderRefundReason = "damaged" | "cannot_process" | "lost" | "other";

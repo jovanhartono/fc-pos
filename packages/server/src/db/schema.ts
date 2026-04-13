@@ -313,9 +313,8 @@ export const ordersTable = pgTable(
     customer_id: integer("customer_id")
       .references(() => customersTable.id)
       .notNull(),
-    intake_photo_s3_key: varchar("intake_photo_s3_key", { length: 512 }),
+    intake_photo_path: varchar("intake_photo_path", { length: 512 }),
     intake_photo_uploaded_at: timestamp("intake_photo_uploaded_at"),
-    intake_photo_url: varchar("intake_photo_url", { length: 255 }),
     discount_source: discountSourceEnum("discount_source")
       .default("none")
       .notNull(),
@@ -454,7 +453,7 @@ export const ordersServicesTable = pgTable(
 export const orderServicesImagesTable = pgTable("order_services_images", {
   created_at: timestamp("created_at").defaultNow().notNull(),
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  image_url: varchar("image_url", { length: 255 }).notNull(),
+  image_path: varchar("image_path", { length: 512 }).notNull(),
   photo_type: orderServicePhotoTypeEnum("photo_type")
     .default("progress")
     .notNull(),
@@ -462,7 +461,6 @@ export const orderServicesImagesTable = pgTable("order_services_images", {
     () => ordersServicesTable.id,
     { onDelete: "cascade" }
   ),
-  s3_key: varchar("s3_key", { length: 512 }).default("").notNull(),
   uploaded_by: integer("uploaded_by").references(() => usersTable.id),
   updated_at: timestamp("updated_at")
     .defaultNow()

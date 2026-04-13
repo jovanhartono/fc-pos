@@ -39,7 +39,7 @@ import {
 import type { JWTPayload } from "@/types";
 import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
 import { buildPaginationMeta } from "@/utils/pagination";
-import { buildS3ObjectUrl, createPresignedUploadUrl } from "@/utils/s3";
+import { buildMediaUrl, createPresignedUploadUrl } from "@/utils/s3";
 
 const numericSearchRegex = /^\d+$/;
 
@@ -573,6 +573,14 @@ export async function getOrderDetailById(id: number) {
 
   return {
     ...detail,
+    intake_photo_url: buildMediaUrl(detail.intake_photo_path),
+    services: detail.services.map((service) => ({
+      ...service,
+      images: service.images.map((image) => ({
+        ...image,
+        image_url: buildMediaUrl(image.image_path),
+      })),
+    })),
     fulfillment: summarizeOrderFulfillment(
       detail.services.map((service) => service.status)
     ),
@@ -909,13 +917,15 @@ export async function saveOrderServicePhoto({
     .values({
       order_service_id: serviceId,
       photo_type: body.photo_type,
-      s3_key: body.s3_key,
-      image_url: buildS3ObjectUrl(body.s3_key),
+      image_path: body.image_path,
       uploaded_by: user.id,
     })
     .returning();
 
-  return photo;
+  return {
+    ...photo,
+    image_url: buildMediaUrl(photo.image_path),
+  };
 }
 
 export async function saveOrderIntakePhoto({
@@ -930,23 +940,26 @@ export async function saveOrderIntakePhoto({
   const [order] = await db
     .update(ordersTable)
     .set({
-      intake_photo_s3_key: body.s3_key,
+      intake_photo_path: body.image_path,
       intake_photo_uploaded_at: new Date(),
-      intake_photo_url: buildS3ObjectUrl(body.s3_key),
       updated_by: user.id,
     })
     .where(eq(ordersTable.id, orderId))
     .returning({
       id: ordersTable.id,
       intake_photo_uploaded_at: ordersTable.intake_photo_uploaded_at,
-      intake_photo_url: ordersTable.intake_photo_url,
+      intake_photo_path: ordersTable.intake_photo_path,
     });
 
   if (!order) {
     throw new BadRequestException("Order not found");
   }
 
-  return order;
+  return {
+    id: order.id,
+    intake_photo_uploaded_at: order.intake_photo_uploaded_at,
+    intake_photo_url: buildMediaUrl(order.intake_photo_path),
+  };
 }
 
 export async function completeOrderPickup({

@@ -52,11 +52,11 @@ export const POSTOrderIntakePhotoPresignSchema = z.object({
 
 export const POSTOrderServicePhotoSchema = z.object({
   photo_type: z.enum(orderServicePhotoTypeEnum.enumValues),
-  s3_key: z.string().trim().min(1).max(512),
+  image_path: z.string().trim().min(1).max(512),
 });
 
 export const PUTOrderIntakePhotoSchema = z.object({
-  s3_key: z.string().trim().min(1).max(512),
+  image_path: z.string().trim().min(1).max(512),
 });
 
 export const PATCHOrderServiceStatusSchema = z.object({

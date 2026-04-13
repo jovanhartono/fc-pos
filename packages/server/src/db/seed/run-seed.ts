@@ -29,7 +29,6 @@ const ADMIN_PASSWORD = "rojpyp-2cuzdo-rozmoP";
 const CUSTOMER_COUNT = 120;
 const ORDER_COUNT = 180;
 const ORDER_LOOKBACK_DAYS = 45;
-const PHOTO_BASE_URL = "https://picsum.photos/seed";
 
 const STORE_PRESETS = [
   {
@@ -288,15 +287,6 @@ function createStatusNote(nextStatus: OrderServiceStatus): string {
     "Service cancelled and removed from active work queue",
     "Cancellation recorded in the service timeline",
   ]);
-}
-
-function createDummyPhotoUrl(
-  itemCode: string,
-  photoType: "dropoff" | "progress" | "pickup",
-  photoIndex: number
-): string {
-  const seed = sanitizeForS3(`${itemCode}-${photoType}-${photoIndex + 1}`);
-  return `${PHOTO_BASE_URL}/${seed}/960/720`;
 }
 
 function pickWeighted<T>(items: Array<{ item: T; weight: number }>): T {
@@ -1206,16 +1196,11 @@ async function seedOrders(params: {
     const photoRows = draftServices.flatMap((line) =>
       line.photos.map((photo, photoIndex) => {
         const safeItem = sanitizeForS3(line.item_code);
-        const s3Key = `seed/orders/${safeOrderCode}/${safeItem}/${photo.photo_type}-${photoIndex + 1}.jpg`;
+        const imagePath = `seed/orders/${safeOrderCode}/${safeItem}/${photo.photo_type}-${photoIndex + 1}.jpg`;
         return {
           order_service_id: serviceIdByItemCode.get(line.item_code) ?? 0,
           photo_type: photo.photo_type,
-          image_url: createDummyPhotoUrl(
-            line.item_code,
-            photo.photo_type,
-            photoIndex
-          ),
-          s3_key: s3Key,
+          image_path: imagePath,
           uploaded_by: photo.uploaded_by,
           created_at: photo.created_at,
           updated_at: photo.created_at,

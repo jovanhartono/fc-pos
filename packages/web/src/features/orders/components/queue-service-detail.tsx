@@ -320,7 +320,7 @@ export function QueueServiceDetail({
 			await uploadFileToPresignedUrl(presigned.upload_url, file, contentType);
 			await saveOrderServicePhoto(orderId, serviceId, {
 				photo_type: photoType,
-				s3_key: presigned.key,
+				image_path: presigned.key,
 			});
 		},
 		onSuccess: async () => {

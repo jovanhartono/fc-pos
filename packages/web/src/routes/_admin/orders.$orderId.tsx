@@ -244,7 +244,7 @@ function DialogForm({
 					);
 					await saveOrderServicePhoto(orderId, serviceId, {
 						photo_type: "pickup",
-						s3_key: presigned.key,
+						image_path: presigned.key,
 					});
 				}
 			} catch {
@@ -458,7 +458,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 			await uploadFileToPresignedUrl(presigned.upload_url, file, contentType);
 			await saveOrderServicePhoto(id, serviceId, {
 				photo_type: photoType,
-				s3_key: presigned.key,
+				image_path: presigned.key,
 			});
 		},
 		onSuccess: async (_, variables) => {

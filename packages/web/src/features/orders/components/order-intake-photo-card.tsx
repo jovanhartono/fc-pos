@@ -51,7 +51,7 @@ export function OrderIntakePhotoCard({
 			});
 			await uploadFileToPresignedUrl(presigned.upload_url, file, contentType);
 			await saveOrderIntakePhoto(order.id, {
-				s3_key: presigned.key,
+				image_path: presigned.key,
 			});
 		},
 		onSuccess: async () => {

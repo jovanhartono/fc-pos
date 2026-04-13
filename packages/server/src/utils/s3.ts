@@ -1,6 +1,5 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { BadRequestException } from "@/errors";
 
 const DEFAULT_PRESIGNED_EXPIRES_SECONDS = 300;
 
@@ -9,7 +8,7 @@ function getS3Config() {
   const bucket = process.env.AWS_S3_BUCKET;
 
   if (!(region && bucket)) {
-    throw new BadRequestException(
+    throw new Error(
       "Missing AWS S3 configuration: AWS_S3_REGION and AWS_S3_BUCKET"
     );
   }
@@ -40,9 +39,23 @@ function getS3Client() {
   return cachedClient;
 }
 
-export function buildS3ObjectUrl(key: string) {
-  const { bucket, region } = getS3Config();
-  return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+export function buildMediaUrl(path: string): string;
+export function buildMediaUrl(path: null | undefined): null;
+export function buildMediaUrl(path: string | null | undefined): string | null;
+export function buildMediaUrl(path: string | null | undefined): string | null {
+  if (!path) {
+    return null;
+  }
+
+  const base = process.env.CDN_BASE_URL;
+  if (!base) {
+    throw new Error("Missing CDN_BASE_URL configuration");
+  }
+
+  const normalizedBase = base.endsWith("/") ? base : `${base}/`;
+  // biome-ignore lint/performance/useTopLevelRegex: <i dont care>
+  const normalizedPath = path.replace(/^\/+/, "");
+  return new URL(normalizedPath, normalizedBase).toString();
 }
 
 interface CreatePresignedUploadInput {
