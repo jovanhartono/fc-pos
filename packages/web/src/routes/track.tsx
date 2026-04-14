@@ -108,27 +108,6 @@ function TrackOrderPage() {
 						<p>{`Store: ${trackMutation.data.store.name}`}</p>
 						<p>{`Store Contact: ${trackMutation.data.store.phone_number}`}</p>
 
-						{trackMutation.data.intake_photo_url ? (
-							<div className="grid gap-3 border p-3">
-								<div className="grid gap-1">
-									<p className="text-sm font-medium">Pickup attachment</p>
-									{trackMutation.data.intake_photo_uploaded_at ? (
-										<p className="text-muted-foreground text-xs">
-											{`Uploaded ${new Date(trackMutation.data.intake_photo_uploaded_at).toLocaleString()}`}
-										</p>
-									) : null}
-								</div>
-								<img
-									src={trackMutation.data.intake_photo_url}
-									alt={`Pickup attachment for ${trackMutation.data.code}`}
-									width={1280}
-									height={800}
-									className="aspect-16/10 w-full border object-cover"
-									loading="lazy"
-								/>
-							</div>
-						) : null}
-
 						<div className="grid gap-2">
 							<p className="font-medium">Items</p>
 							{sortedServices.map((item) => (

@@ -34,6 +34,7 @@ export type UserFormState = {
 	confirm_password: string;
 	role: "admin" | "cashier" | "worker";
 	is_active: boolean;
+	can_process_pickup: boolean;
 	store_ids: number[];
 };
 
@@ -187,6 +188,30 @@ export function UserForm({
 								</FieldContent>
 								<Switch
 									id="user-active"
+									checked={field.value}
+									onCheckedChange={(checked) => field.onChange(!!checked)}
+									disabled={isSubmitting}
+								/>
+							</Field>
+						</FieldLabel>
+					)}
+				/>
+
+				<Controller
+					name="can_process_pickup"
+					control={control}
+					render={({ field }) => (
+						<FieldLabel htmlFor="user-pickup" className="md:col-span-2">
+							<Field orientation="horizontal">
+								<FieldContent>
+									<FieldTitle>Can process pickup</FieldTitle>
+									<FieldDescription>
+										Grant a non-cashier (e.g. a backup worker) permission to
+										complete customer pickups.
+									</FieldDescription>
+								</FieldContent>
+								<Switch
+									id="user-pickup"
 									checked={field.value}
 									onCheckedChange={(checked) => field.onChange(!!checked)}
 									disabled={isSubmitting}

@@ -27,7 +27,7 @@ export type OrderPhotoGalleryItem = {
 	created_at: string;
 	id: number;
 	image_url: string;
-	photo_type: string;
+	note?: string | null;
 };
 
 type OrderPhotoGalleryProps = {
@@ -39,11 +39,8 @@ type OrderPhotoGalleryProps = {
 	title?: string;
 };
 
-function formatPhotoTypeLabel(photoType: string) {
-	return photoType
-		.split("_")
-		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-		.join(" ");
+function getPhotoPrimaryLabel(item: OrderPhotoGalleryItem) {
+	return item.note?.trim() ? item.note : `Photo #${item.id}`;
 }
 
 function formatPhotoTimestamp(createdAt: string) {
@@ -61,7 +58,7 @@ function getPhotoDownloadName(item: OrderPhotoGalleryItem) {
 	const resolvedExtension =
 		extension && extension.length <= 5 ? extension : "jpg";
 
-	return `${item.photo_type}-${item.id}.${resolvedExtension}`;
+	return `photo-${item.id}.${resolvedExtension}`;
 }
 
 export function OrderPhotoGallery({
@@ -207,7 +204,7 @@ export function OrderPhotoGallery({
 
 		return {
 			indexLabel: `${activeIndex + 1} / ${imageCount}`,
-			primary: formatPhotoTypeLabel(activeItem.photo_type),
+			primary: getPhotoPrimaryLabel(activeItem),
 			secondary: formatPhotoTimestamp(activeItem.created_at),
 		};
 	}, [activeIndex, activeItem, imageCount]);
@@ -228,7 +225,7 @@ export function OrderPhotoGallery({
 								thumbnailClassName,
 							)}
 							onClick={() => openAtIndex(index)}
-							aria-label={`Open ${formatPhotoTypeLabel(item.photo_type)} image ${index + 1} of ${imageCount}`}
+							aria-label={`Open ${getPhotoPrimaryLabel(item)} image ${index + 1} of ${imageCount}`}
 						>
 							<img
 								src={item.image_url}
@@ -243,7 +240,7 @@ export function OrderPhotoGallery({
 							/>
 							<div className="grid gap-1 pr-10">
 								<p className="text-xs font-medium">
-									{formatPhotoTypeLabel(item.photo_type)}
+									{getPhotoPrimaryLabel(item)}
 								</p>
 								<p className="text-xs text-muted-foreground">
 									{formatPhotoTimestamp(item.created_at)}
@@ -255,7 +252,7 @@ export function OrderPhotoGallery({
 							href={item.image_url}
 							download={getPhotoDownloadName(item)}
 							className="absolute top-3 right-3 inline-flex size-8 items-center justify-center border border-black/10 bg-background/92 text-foreground shadow-sm backdrop-blur-xs transition-[background-color,border-color,transform] hover:border-border hover:bg-background focus-visible:ring-1 focus-visible:ring-ring/50"
-							aria-label={`Save ${formatPhotoTypeLabel(item.photo_type)} image`}
+							aria-label={`Save ${getPhotoPrimaryLabel(item)} image`}
 							title="Save image"
 						>
 							<DownloadSimpleIcon className="size-4" aria-hidden="true" />

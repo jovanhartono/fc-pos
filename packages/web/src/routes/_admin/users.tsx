@@ -53,6 +53,7 @@ const userFormSchema = PUTUserSchema.extend({
 	password: z.string().trim(),
 	confirm_password: z.string().trim(),
 	store_ids: z.array(z.number().int()),
+	can_process_pickup: z.boolean(),
 }).superRefine((data, ctx) => {
 	if (data.password.length > 0 && data.password.length < 8) {
 		ctx.addIssue({
@@ -77,6 +78,7 @@ const defaultForm: UserFormState = {
 	confirm_password: "",
 	role: "cashier",
 	is_active: true,
+	can_process_pickup: false,
 	store_ids: [],
 };
 
@@ -142,6 +144,7 @@ function UsersPage() {
 					name: values.name,
 					role: values.role,
 					is_active: values.is_active,
+					can_process_pickup: values.can_process_pickup,
 				};
 				await updateMutation.mutateAsync({
 					id: editingUser.id,
@@ -168,6 +171,7 @@ function UsersPage() {
 				confirm_password: values.confirm_password,
 				role: values.role,
 				is_active: values.is_active,
+				can_process_pickup: values.can_process_pickup,
 			};
 
 			const createdUser = await createMutation.mutateAsync(payload);
@@ -204,6 +208,7 @@ function UsersPage() {
 				confirm_password: "",
 				role: user.role,
 				is_active: user.is_active,
+				can_process_pickup: user.can_process_pickup ?? false,
 				store_ids: user.userStores.map((item) => item.store_id),
 			});
 			openSheet({

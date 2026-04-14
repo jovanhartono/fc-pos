@@ -4,6 +4,7 @@
   "sideEffects": false,
   "private": true,
   "scripts": {
+    "predev": "bun run --filter @fresclean/api build:types",
     "dev": "bun run --workspaces --parallel --no-exit-on-error dev"
   },
   "workspaces": [

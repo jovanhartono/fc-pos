@@ -33,6 +33,7 @@ const userSchema = z.object({
     .min(8, "Minimum 8 characters"),
   role: z.literal(["admin", "cashier", "worker"], "Role is required"),
   is_active: isActiveSchema,
+  can_process_pickup: z.boolean().default(false),
 });
 
 export const POSTUserSchema = userSchema.refine(

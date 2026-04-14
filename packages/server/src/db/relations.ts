@@ -37,6 +37,7 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.usersTable.id,
       to: r.ordersTable.created_by,
     }),
+    pickupEventsPickedUp: r.many.orderPickupEventsTable(),
     userStores: r.many.userStoresTable(),
   },
 
@@ -150,6 +151,7 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.ordersTable.payment_method_id,
       to: r.paymentMethodsTable.id,
     }),
+    pickupEvents: r.many.orderPickupEventsTable(),
     refunds: r.many.orderRefundsTable(),
     products: r.many.ordersProductsTable(),
     services: r.many.ordersServicesTable(),
@@ -176,12 +178,30 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.ordersServicesTable.order_id,
       to: r.ordersTable.id,
     }),
+    pickupEvent: r.one.orderPickupEventsTable({
+      from: r.ordersServicesTable.pickup_event_id,
+      to: r.orderPickupEventsTable.id,
+    }),
     service: r.one.servicesTable({
       from: r.ordersServicesTable.service_id,
       to: r.servicesTable.id,
     }),
     statusLogs: r.many.orderServiceStatusLogsTable(),
     refundItems: r.many.orderRefundItemsTable(),
+  },
+
+  orderPickupEventsTable: {
+    order: r.one.ordersTable({
+      from: r.orderPickupEventsTable.order_id,
+      to: r.ordersTable.id,
+      optional: false,
+    }),
+    pickedUpBy: r.one.usersTable({
+      from: r.orderPickupEventsTable.picked_up_by,
+      to: r.usersTable.id,
+      optional: false,
+    }),
+    services: r.many.ordersServicesTable(),
   },
 
   orderServicesImagesTable: {

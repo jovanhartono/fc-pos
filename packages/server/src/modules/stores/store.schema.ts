@@ -19,7 +19,7 @@ export const GETNearestStoreQuerySchema = z.object({
     .max(180, "Invalid longitude"),
   limit: z.coerce.number().int().min(1).max(20).default(1).optional(),
   radius_km: z.coerce.number().positive().max(20_000).optional(),
-  include_inactive: z.coerce.boolean().default(false).optional(),
+  include_inactive: z.stringbool().default(false).optional(),
 });
 
 export type GetNearestStoreQuery = z.infer<typeof GETNearestStoreQuerySchema>;

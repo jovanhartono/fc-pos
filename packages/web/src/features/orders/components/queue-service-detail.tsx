@@ -19,23 +19,14 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { HoldToConfirmButton } from "@/features/orders/components/hold-to-confirm-button";
 import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import {
-	type OrderDetail,
 	presignOrderServicePhoto,
 	queryKeys,
-	type SaveOrderServicePhotoPayload,
 	saveOrderServicePhoto,
 	type UpdateOrderServiceStatusPayload,
 	updateOrderServiceStatus,
@@ -111,8 +102,7 @@ export function QueueServiceDetail({
 	const cameraStreamRef = useRef<MediaStream | null>(null);
 
 	const [statusNote, setStatusNote] = useState("");
-	const [selectedPhotoType, setSelectedPhotoType] =
-		useState<SaveOrderServicePhotoPayload["photo_type"]>("progress");
+	const [photoNote, setPhotoNote] = useState("");
 	const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
 	const [selectedPhotoPreviewUrl, setSelectedPhotoPreviewUrl] = useState<
 		string | null
@@ -221,14 +211,6 @@ export function QueueServiceDetail({
 	}, [selectedPhotoFile]);
 
 	useEffect(() => {
-		if (!selectedService) {
-			return;
-		}
-
-		setSelectedPhotoType(getRecommendedPhotoType(selectedService));
-	}, [selectedService]);
-
-	useEffect(() => {
 		const stream = cameraStreamRef.current;
 		const preview = cameraPreviewRef.current;
 
@@ -291,13 +273,7 @@ export function QueueServiceDetail({
 	});
 
 	const uploadMutation = useMutation({
-		mutationFn: async ({
-			file,
-			photoType,
-		}: {
-			file: File;
-			photoType: SaveOrderServicePhotoPayload["photo_type"];
-		}) => {
+		mutationFn: async ({ file, note }: { file: File; note?: string }) => {
 			const contentType = file.type as
 				| "image/jpeg"
 				| "image/png"
@@ -314,18 +290,18 @@ export function QueueServiceDetail({
 
 			const presigned = await presignOrderServicePhoto(orderId, serviceId, {
 				content_type: contentType,
-				photo_type: photoType,
 			});
 
 			await uploadFileToPresignedUrl(presigned.upload_url, file, contentType);
 			await saveOrderServicePhoto(orderId, serviceId, {
-				photo_type: photoType,
 				image_path: presigned.key,
+				note,
 			});
 		},
 		onSuccess: async () => {
 			toast.success("Photo uploaded");
 			setSelectedPhotoFile(null);
+			setPhotoNote("");
 			await refreshData(detail?.store?.id);
 		},
 		onError: (error: Error) => {
@@ -366,9 +342,6 @@ export function QueueServiceDetail({
 		selectedService.handler_id !== null &&
 		selectedService.handler_id !== undefined &&
 		!isHandledByCurrentUser;
-	const hasPickupPhoto = selectedService.images.some(
-		(image) => image.photo_type === "pickup",
-	);
 	const nextStatuses = ORDER_STATUS_TRANSITIONS[selectedService.status] ?? [];
 	const canStartWork = selectedService.status === "queued";
 	const actionStatuses = nextStatuses.filter(
@@ -451,13 +424,13 @@ export function QueueServiceDetail({
 						</p>
 					</div>
 
-					{selectedService.status === "ready_for_pickup" && !hasPickupPhoto ? (
-						<div className="flex items-start gap-2 border border-warning/40 bg-warning/10 px-3 py-3 text-sm text-foreground">
+					{selectedService.status === "ready_for_pickup" ? (
+						<div className="flex items-start gap-2 border border-muted bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
 							<WarningCircleIcon
 								className="mt-0.5 size-4 shrink-0"
 								weight="fill"
 							/>
-							<p>Add pickup photo!</p>
+							<p>Waiting for cashier to complete pickup at the counter.</p>
 						</div>
 					) : null}
 				</section>
@@ -543,24 +516,6 @@ export function QueueServiceDetail({
 							>
 								<ImageSquareIcon className="size-4" />
 							</Button>
-							<Select
-								value={selectedPhotoType}
-								onValueChange={(value) =>
-									setSelectedPhotoType(
-										(value ??
-											"progress") as SaveOrderServicePhotoPayload["photo_type"],
-									)
-								}
-							>
-								<SelectTrigger className="h-8 w-28 bg-background">
-									<SelectValue placeholder="Photo type" />
-								</SelectTrigger>
-								<SelectContent align="end">
-									<SelectItem value="dropoff">dropoff</SelectItem>
-									<SelectItem value="progress">progress</SelectItem>
-									<SelectItem value="pickup">pickup</SelectItem>
-								</SelectContent>
-							</Select>
 						</div>
 					</div>
 
@@ -577,14 +532,9 @@ export function QueueServiceDetail({
 
 						{selectedPhotoPreviewUrl ? (
 							<div className="grid gap-3">
-								<div className="flex items-center justify-between gap-3">
-									<p className="text-sm font-semibold uppercase tracking-[0.16em]">
-										Upload preview
-									</p>
-									<Badge variant="secondary">
-										{formatPhotoTypeLabel(selectedPhotoType)}
-									</Badge>
-								</div>
+								<p className="text-sm font-semibold uppercase tracking-[0.16em]">
+									Upload preview
+								</p>
 
 								<img
 									src={selectedPhotoPreviewUrl}
@@ -593,6 +543,15 @@ export function QueueServiceDetail({
 									height={768}
 									className="aspect-[4/3] w-full border border-border object-cover"
 									loading="lazy"
+								/>
+
+								<input
+									type="text"
+									value={photoNote}
+									onChange={(event) => setPhotoNote(event.target.value)}
+									placeholder="Optional note (e.g. outsole cracked)"
+									className="h-10 w-full border border-border bg-background px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring/50"
+									aria-label="Photo note"
 								/>
 
 								<div className="flex gap-2">
@@ -608,7 +567,7 @@ export function QueueServiceDetail({
 
 											await uploadMutation.mutateAsync({
 												file: selectedPhotoFile,
-												photoType: selectedPhotoType,
+												note: photoNote.trim() || undefined,
 											});
 										}}
 									>
@@ -618,7 +577,10 @@ export function QueueServiceDetail({
 										type="button"
 										variant="outline"
 										disabled={uploadMutation.isPending}
-										onClick={() => setSelectedPhotoFile(null)}
+										onClick={() => {
+											setSelectedPhotoFile(null);
+											setPhotoNote("");
+										}}
 									>
 										Clear
 									</Button>
@@ -629,7 +591,9 @@ export function QueueServiceDetail({
 						<OrderPhotoGallery
 							items={selectedService.images.map((image) => ({
 								...image,
-								alt: `${image.photo_type} for ${selectedService.item_code ?? `service-${selectedService.id}`}`,
+								alt:
+									image.note ??
+									`Photo for ${selectedService.item_code ?? `service-${selectedService.id}`}`,
 							}))}
 							gridClassName="grid-cols-2 xl:grid-cols-3"
 							thumbnailClassName="bg-background"
@@ -696,24 +660,4 @@ export function QueueServiceDetail({
 			</div>
 		</>
 	);
-}
-
-function getRecommendedPhotoType(
-	service: NonNullable<OrderDetail["services"]>[number],
-): SaveOrderServicePhotoPayload["photo_type"] {
-	const hasPickupPhoto = service.images.some(
-		(image) => image.photo_type === "pickup",
-	);
-
-	if (service.status === "ready_for_pickup" && !hasPickupPhoto) {
-		return "pickup";
-	}
-
-	return "progress";
-}
-
-function formatPhotoTypeLabel(
-	photoType: SaveOrderServicePhotoPayload["photo_type"],
-) {
-	return photoType.charAt(0).toUpperCase() + photoType.slice(1);
 }

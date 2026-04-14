@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -25,17 +26,17 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { OrderDropoffPhotoCard } from "@/features/orders/components/order-dropoff-photo-card";
 import { OrderFulfillmentOverview } from "@/features/orders/components/order-fulfillment-overview";
-import { OrderIntakePhotoCard } from "@/features/orders/components/order-intake-photo-card";
 import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
+import { OrderPickupEventDialog } from "@/features/orders/components/order-pickup-event-dialog";
 import { QueueServiceDetail } from "@/features/orders/components/queue-service-detail";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import {
-	completeOrderPickup,
 	createOrderRefund,
+	type OrderDetail,
 	presignOrderServicePhoto,
 	queryKeys,
-	type SaveOrderServicePhotoPayload,
 	saveOrderServicePhoto,
 	type UpdateOrderServiceStatusPayload,
 	updateOrderPayment,
@@ -94,6 +95,12 @@ const STATUS_ACTION_LABELS: Record<
 	cancelled: "Cancel",
 };
 
+const IN_PROGRESS_SERVICE_STATUSES = new Set([
+	"queued",
+	"processing",
+	"quality_check",
+]);
+
 const REFUND_REASONS = ["damaged", "cannot_process", "lost", "other"] as const;
 
 function OrderDetailSkeleton() {
@@ -141,13 +148,11 @@ function OrderDetailMessage({
 }
 
 function ServiceStatusUpdateButton({
-	orderId,
 	serviceId,
 	nextStatus,
 	isCancel,
 	updateStatusMutation,
 }: {
-	orderId: number;
 	serviceId: number;
 	nextStatus: UpdateOrderServiceStatusPayload["status"];
 	isCancel: boolean;
@@ -158,7 +163,8 @@ function ServiceStatusUpdateButton({
 		unknown
 	>;
 }) {
-	const { openDialog, closeDialog } = useDialog();
+	const openDialog = useDialog((s) => s.openDialog);
+	const closeDialog = useDialog((s) => s.closeDialog);
 
 	const handleClick = () => {
 		openDialog({
@@ -170,7 +176,6 @@ function ServiceStatusUpdateButton({
 				: `Are you sure you want to change the status to ${STATUS_ACTION_LABELS[nextStatus]}?`,
 			content: () => (
 				<DialogForm
-					orderId={orderId}
 					isCancel={isCancel}
 					serviceId={serviceId}
 					nextStatus={nextStatus}
@@ -192,24 +197,13 @@ function ServiceStatusUpdateButton({
 	);
 }
 
-const ACCEPTED_IMAGE_TYPES = [
-	"image/jpeg",
-	"image/png",
-	"image/webp",
-	"image/heic",
-] as const;
-
-type AcceptedImageType = (typeof ACCEPTED_IMAGE_TYPES)[number];
-
 function DialogForm({
-	orderId,
 	isCancel,
 	serviceId,
 	nextStatus,
 	updateStatusMutation,
 	closeDialog,
 }: {
-	orderId: number;
 	isCancel: boolean;
 	serviceId: number;
 	nextStatus: UpdateOrderServiceStatusPayload["status"];
@@ -222,39 +216,9 @@ function DialogForm({
 	closeDialog: () => void;
 }) {
 	const [note, setNote] = useState("");
-	const [pickupPhotos, setPickupPhotos] = useState<File[]>([]);
-	const [isUploading, setIsUploading] = useState(false);
-	const isPickup = nextStatus === "picked_up";
-	const isPending = updateStatusMutation.isPending || isUploading;
+	const isPending = updateStatusMutation.isPending;
 
 	const handleConfirm = async () => {
-		if (isPickup && pickupPhotos.length > 0) {
-			setIsUploading(true);
-			try {
-				for (const file of pickupPhotos) {
-					const contentType = file.type as AcceptedImageType;
-					const presigned = await presignOrderServicePhoto(orderId, serviceId, {
-						content_type: contentType,
-						photo_type: "pickup",
-					});
-					await uploadFileToPresignedUrl(
-						presigned.upload_url,
-						file,
-						contentType,
-					);
-					await saveOrderServicePhoto(orderId, serviceId, {
-						photo_type: "pickup",
-						image_path: presigned.key,
-					});
-				}
-			} catch {
-				toast.error("Failed to upload pickup photo");
-				setIsUploading(false);
-				return;
-			}
-			setIsUploading(false);
-		}
-
 		await updateStatusMutation.mutateAsync({
 			serviceId,
 			payload: {
@@ -267,34 +231,6 @@ function DialogForm({
 
 	return (
 		<div className="flex flex-col gap-4">
-			{isPickup ? (
-				<div className="space-y-2">
-					<p className="text-sm font-medium">
-						Pickup photo{" "}
-						<span className="text-muted-foreground">(required)</span>
-					</p>
-					<input
-						type="file"
-						accept={ACCEPTED_IMAGE_TYPES.join(",")}
-						multiple
-						className="text-muted-foreground w-full text-sm"
-						onChange={(e) => {
-							const files = e.target.files;
-							if (!files) return;
-							const valid = Array.from(files).filter((f) =>
-								(ACCEPTED_IMAGE_TYPES as readonly string[]).includes(f.type),
-							);
-							setPickupPhotos(valid);
-						}}
-					/>
-					{pickupPhotos.length > 0 ? (
-						<p className="text-muted-foreground text-xs">
-							{pickupPhotos.length} file{pickupPhotos.length > 1 ? "s" : ""}{" "}
-							selected
-						</p>
-					) : null}
-				</div>
-			) : null}
 			<Textarea
 				placeholder={
 					isCancel ? "Cancel reason (required)" : "Optional status note"
@@ -308,15 +244,11 @@ function DialogForm({
 				</Button>
 				<Button
 					variant={isCancel ? "destructive" : "default"}
-					disabled={
-						isPending ||
-						(isCancel && !note.trim()) ||
-						(isPickup && pickupPhotos.length === 0)
-					}
+					disabled={isPending || (isCancel && !note.trim())}
 					onClick={handleConfirm}
 				>
 					{isPending
-						? "Uploading…"
+						? "Saving…"
 						: isCancel
 							? "Confirm Cancel"
 							: "Confirm Update"}
@@ -355,18 +287,67 @@ function OrderDetailPage() {
 	return <AdminOrderDetailPage orderId={parsedOrderId} />;
 }
 
+type PickupEvent = OrderDetail["pickup_events"][number];
+
+function OrderPickupHistoryCard({
+	pickupEvents,
+}: {
+	pickupEvents: PickupEvent[];
+}) {
+	return (
+		<Card>
+			<CardHeader className="pb-2">
+				<CardTitle className="text-base">Pickup history</CardTitle>
+			</CardHeader>
+			<CardContent className="grid gap-3">
+				{pickupEvents.map((event) => (
+					<div key={event.id} className="grid gap-2 border p-2 text-sm">
+						{event.image_url ? (
+							<img
+								src={event.image_url}
+								alt={`Pickup event ${event.id}`}
+								width={640}
+								height={400}
+								className="aspect-16/10 w-full border object-cover"
+								loading="lazy"
+							/>
+						) : null}
+						<div className="grid gap-0.5">
+							<p className="font-medium">
+								{new Date(event.picked_up_at).toLocaleString("en-ID", {
+									dateStyle: "medium",
+									timeStyle: "short",
+								})}
+							</p>
+							<p className="text-muted-foreground text-xs">
+								by {event.picked_up_by?.name ?? "—"}
+							</p>
+						</div>
+					</div>
+				))}
+			</CardContent>
+		</Card>
+	);
+}
+
 function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 	const user = getCurrentUser();
 	const isPaymentAllowed = user?.role === "admin" || user?.role === "cashier";
+	const isPickupAllowed =
+		user?.role === "admin" ||
+		user?.role === "cashier" ||
+		user?.can_process_pickup === true;
 	const isRefundAllowed = isPaymentAllowed;
+	const openDialog = useDialog((s) => s.openDialog);
+	const closeDialog = useDialog((s) => s.closeDialog);
 
 	const queryClient = useQueryClient();
 
-	const [photoTypeByServiceId, setPhotoTypeByServiceId] = useState<
-		Record<number, SaveOrderServicePhotoPayload["photo_type"]>
-	>({});
 	const [photoFileByServiceId, setPhotoFileByServiceId] = useState<
 		Record<number, File | null>
+	>({});
+	const [photoNoteByServiceId, setPhotoNoteByServiceId] = useState<
+		Record<number, string>
 	>({});
 	const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState("");
 
@@ -416,26 +397,15 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 		},
 	});
 
-	const completePickupMutation = useMutation({
-		mutationFn: () => completeOrderPickup(id),
-		onSuccess: async () => {
-			toast.success("Order marked as completed");
-			await refreshOrderData();
-		},
-		onError: (error: Error) => {
-			toast.error(error.message || "Failed to complete pickup");
-		},
-	});
-
 	const uploadPhotoMutation = useMutation({
 		mutationFn: async ({
 			serviceId,
-			photoType,
 			file,
+			note,
 		}: {
 			serviceId: number;
-			photoType: SaveOrderServicePhotoPayload["photo_type"];
 			file: File;
+			note?: string;
 		}) => {
 			const contentType = file.type as
 				| "image/jpeg"
@@ -453,12 +423,11 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 
 			const presigned = await presignOrderServicePhoto(id, serviceId, {
 				content_type: contentType,
-				photo_type: photoType,
 			});
 			await uploadFileToPresignedUrl(presigned.upload_url, file, contentType);
 			await saveOrderServicePhoto(id, serviceId, {
-				photo_type: photoType,
 				image_path: presigned.key,
+				note,
 			});
 		},
 		onSuccess: async (_, variables) => {
@@ -466,6 +435,10 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 			setPhotoFileByServiceId((prev) => ({
 				...prev,
 				[variables.serviceId]: null,
+			}));
+			setPhotoNoteByServiceId((prev) => ({
+				...prev,
+				[variables.serviceId]: "",
 			}));
 			await refreshOrderData();
 		},
@@ -522,6 +495,32 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 		? paymentMethodsQuery.data
 		: [];
 	const orderServices = Array.isArray(detail.services) ? detail.services : [];
+	const readyForPickupServices = orderServices.filter(
+		(service) => service.status === "ready_for_pickup",
+	);
+	const pickupEvents = Array.isArray(detail.pickup_events)
+		? detail.pickup_events
+		: [];
+	const hasAnyOpenPickup = readyForPickupServices.length > 0;
+	const hasInProgressWork = orderServices.some((service) =>
+		IN_PROGRESS_SERVICE_STATUSES.has(service.status),
+	);
+	const canOpenPickupDialog =
+		isPickupAllowed && hasAnyOpenPickup && !hasInProgressWork;
+
+	const openPickupDialog = () => {
+		openDialog({
+			title: "Record pickup",
+			description: "Select the items being collected and attach a photo.",
+			content: () => (
+				<OrderPickupEventDialog
+					closeDialog={closeDialog}
+					orderId={id}
+					readyServices={readyForPickupServices}
+				/>
+			),
+		});
+	};
 
 	const refundableServices = orderServices.filter(
 		(service) =>
@@ -570,10 +569,10 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 			<div className="mb-6 grid gap-4">
 				<OrderFulfillmentOverview
 					order={detail}
-					canCompletePickup={detail.fulfillment.is_ready_for_pickup}
-					isCompleting={completePickupMutation.isPending}
+					canCompletePickup={canOpenPickupDialog}
+					isCompleting={false}
 					onCompletePickup={async () => {
-						await completePickupMutation.mutateAsync();
+						openPickupDialog();
 					}}
 				/>
 			</div>
@@ -640,11 +639,19 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 
 			<div className="grid items-start gap-4 lg:grid-cols-12">
 				<div className="grid gap-4 lg:col-span-4">
-					<OrderIntakePhotoCard
+					<OrderDropoffPhotoCard
 						order={detail}
-						canManage={user?.role === "admin" || user?.role === "cashier"}
+						canManage={
+							user?.role === "admin" ||
+							user?.role === "cashier" ||
+							user?.role === "worker"
+						}
 						onUploaded={refreshOrderData}
 					/>
+
+					{pickupEvents.length > 0 ? (
+						<OrderPickupHistoryCard pickupEvents={pickupEvents} />
+					) : null}
 
 					{isPaymentAllowed && detail.payment_status !== "paid" ? (
 						<Card>
@@ -852,9 +859,8 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 						</Card>
 					) : null}
 					{orderServices.map((service) => {
-						const selectedPhotoType =
-							photoTypeByServiceId[service.id] ?? "progress";
 						const selectedPhotoFile = photoFileByServiceId[service.id] ?? null;
+						const selectedPhotoNote = photoNoteByServiceId[service.id] ?? "";
 
 						return (
 							<Card key={service.id}>
@@ -904,7 +910,6 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 												return (
 													<ServiceStatusUpdateButton
 														key={nextStatus}
-														orderId={id}
 														serviceId={service.id}
 														nextStatus={nextStatus}
 														isCancel={isCancel}
@@ -917,38 +922,14 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 
 									<div className="border-t pt-4">
 										<p className="text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wide">
-											Add photo
+											Add item photo
 										</p>
-										<div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-											<div className="min-w-0 flex-1 space-y-1">
-												<Select
-													value={selectedPhotoType}
-													onValueChange={(value) =>
-														setPhotoTypeByServiceId((prev) => ({
-															...prev,
-															[service.id]: (value ??
-																"progress") as SaveOrderServicePhotoPayload["photo_type"],
-														}))
-													}
-												>
-													<SelectTrigger
-														className="h-10 w-full"
-														aria-label={`Photo type for ${service.item_code ?? `Service #${service.id}`}`}
-													>
-														<SelectValue placeholder="Photo type" />
-													</SelectTrigger>
-													<SelectContent>
-														<SelectItem value="dropoff">Drop-off</SelectItem>
-														<SelectItem value="progress">Progress</SelectItem>
-														<SelectItem value="pickup">Pickup</SelectItem>
-													</SelectContent>
-												</Select>
-											</div>
+										<div className="grid gap-2">
 											<input
 												type="file"
 												aria-label={`Choose photo file for ${service.item_code ?? `Service #${service.id}`}`}
 												accept="image/jpeg,image/png,image/webp,image/heic"
-												className="text-muted-foreground max-sm:w-full sm:max-w-[200px] sm:text-sm"
+												className="text-muted-foreground w-full text-sm"
 												onChange={(event) =>
 													setPhotoFileByServiceId((prev) => ({
 														...prev,
@@ -956,9 +937,20 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 													}))
 												}
 											/>
+											<Input
+												placeholder="Optional note (e.g. outsole cracked)"
+												value={selectedPhotoNote}
+												onChange={(event) =>
+													setPhotoNoteByServiceId((prev) => ({
+														...prev,
+														[service.id]: event.target.value,
+													}))
+												}
+												aria-label={`Photo note for ${service.item_code ?? `Service #${service.id}`}`}
+											/>
 											<Button
 												variant="secondary"
-												className="sm:shrink-0"
+												className="sm:self-end"
 												disabled={
 													!selectedPhotoFile || uploadPhotoMutation.isPending
 												}
@@ -968,8 +960,8 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 													}
 													await uploadPhotoMutation.mutateAsync({
 														serviceId: service.id,
-														photoType: selectedPhotoType,
 														file: selectedPhotoFile,
+														note: selectedPhotoNote.trim() || undefined,
 													});
 												}}
 											>
@@ -986,7 +978,9 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 											<OrderPhotoGallery
 												items={service.images.map((image) => ({
 													...image,
-													alt: `${image.photo_type} for ${service.item_code ?? `service-${service.id}`}`,
+													alt:
+														image.note ??
+														`Photo for ${service.item_code ?? `service-${service.id}`}`,
 												}))}
 												gridClassName="sm:grid-cols-2"
 												thumbnailClassName="bg-muted/30"

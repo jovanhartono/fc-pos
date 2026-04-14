@@ -10,7 +10,7 @@ export const GETUsersQuerySchema = z
     limit: z.coerce.number().int().min(1).max(100).optional(),
     offset: z.coerce.number().int().min(0).optional(),
     search: z.string().trim().min(1).max(100).optional(),
-    is_active: z.coerce.boolean().optional(),
+    is_active: z.stringbool().optional(),
     role: z.enum(userRoleEnum.enumValues).optional(),
   })
   .optional();

@@ -2,9 +2,11 @@ import dayjs from "dayjs";
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  orderPickupEventsTable,
   orderRefundItemsTable,
   orderRefundsTable,
   orderServiceHandlerLogsTable,
+  type orderServiceStatusEnum,
   orderServiceStatusLogsTable,
   orderServicesImagesTable,
   ordersProductsTable,
@@ -22,11 +24,13 @@ import type {
   PatchOrderPaymentInput,
   PatchOrderServiceHandlerInput,
   PatchOrderServiceStatusInput,
-  PostOrderIntakePhotoPresignInput,
+  PostOrderDropoffPhotoPresignInput,
+  PostOrderPickupEventInput,
+  PostOrderPickupEventPresignInput,
   PostOrderRefundInput,
   PostOrderServicePhotoInput,
   PostOrderServicePhotoPresignInput,
-  PutOrderIntakePhotoInput,
+  PutOrderDropoffPhotoInput,
 } from "@/modules/orders/order-admin.schema";
 import {
   normalizeOrderServiceQueueQuery,
@@ -140,17 +144,52 @@ async function getOrderServiceOrThrow(orderId: number, serviceId: number) {
   return orderService;
 }
 
-async function ensurePickupPhotoExists(serviceId: number) {
-  const hasPickupPhoto = await db.query.orderServicesImagesTable.findFirst({
-    where: { order_service_id: serviceId, photo_type: "pickup" },
-    columns: { id: true },
-  });
+function assertCanProcessPickup(user: JWTPayload) {
+  const allowed =
+    user.role === "admin" ||
+    user.role === "cashier" ||
+    user.can_process_pickup === true;
 
-  if (!hasPickupPhoto) {
-    throw new BadRequestException(
-      "At least one pickup photo is required before marking picked up"
+  if (!allowed) {
+    throw new ForbiddenException(
+      "Only admin, cashier, or authorized pickup handlers can complete pickups"
     );
   }
+}
+
+type DerivedOrderStatus =
+  | "created"
+  | "processing"
+  | "ready_for_pickup"
+  | "completed"
+  | "cancelled";
+
+function deriveOrderStatus(
+  services: { status: (typeof orderServiceStatusEnum.enumValues)[number] }[],
+  productCount: number
+): DerivedOrderStatus {
+  if (services.length === 0) {
+    return productCount > 0 ? "completed" : "created";
+  }
+
+  if (services.every((item) => isTerminalOrderServiceStatus(item.status))) {
+    return services.every((item) => item.status === "cancelled")
+      ? "cancelled"
+      : "completed";
+  }
+
+  const activeServices = services.filter(
+    (item) => !isTerminalOrderServiceStatus(item.status)
+  );
+  if (activeServices.every((item) => item.status === "ready_for_pickup")) {
+    return "ready_for_pickup";
+  }
+
+  if (services.some((item) => item.status !== "queued")) {
+    return "processing";
+  }
+
+  return "created";
 }
 
 async function recalculateOrderStatus(
@@ -158,7 +197,7 @@ async function recalculateOrderStatus(
   orderId: number,
   updatedBy: number
 ) {
-  const [services, products] = await Promise.all([
+  const [services, productCount] = await Promise.all([
     tx.query.ordersServicesTable.findMany({
       where: { order_id: orderId },
       columns: { status: true },
@@ -166,30 +205,7 @@ async function recalculateOrderStatus(
     tx.$count(ordersProductsTable, eq(ordersProductsTable.order_id, orderId)),
   ]);
 
-  let nextStatus:
-    | "created"
-    | "processing"
-    | "ready_for_pickup"
-    | "completed"
-    | "cancelled" = "created";
-
-  if (services.length === 0) {
-    nextStatus = products > 0 ? "completed" : "created";
-  } else if (
-    services.every((item) => isTerminalOrderServiceStatus(item.status))
-  ) {
-    nextStatus = services.every((item) => item.status === "cancelled")
-      ? "cancelled"
-      : "completed";
-  } else if (
-    services
-      .filter((item) => !isTerminalOrderServiceStatus(item.status))
-      .every((item) => item.status === "ready_for_pickup")
-  ) {
-    nextStatus = "ready_for_pickup";
-  } else if (services.some((item) => item.status !== "queued")) {
-    nextStatus = "processing";
-  }
+  const nextStatus = deriveOrderStatus(services, productCount);
 
   await tx
     .update(ordersTable)
@@ -496,6 +512,17 @@ export async function getOrderDetailById(id: number) {
       campaign: true,
       customer: true,
       paymentMethod: true,
+      pickupEvents: {
+        with: {
+          pickedUpBy: {
+            columns: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: { picked_up_at: "asc" },
+      },
       products: {
         with: {
           product: true,
@@ -573,7 +600,14 @@ export async function getOrderDetailById(id: number) {
 
   return {
     ...detail,
-    intake_photo_url: buildMediaUrl(detail.intake_photo_path),
+    dropoff_photo_url: buildMediaUrl(detail.dropoff_photo_path),
+    pickup_events: detail.pickupEvents.map((event) => ({
+      created_at: event.created_at,
+      id: event.id,
+      image_url: buildMediaUrl(event.image_path),
+      picked_up_at: event.picked_up_at,
+      picked_up_by: event.pickedUpBy,
+    })),
     services: detail.services.map((service) => ({
       ...service,
       images: service.images.map((image) => ({
@@ -787,7 +821,9 @@ export async function updateOrderServiceStatus({
   }
 
   if (body.status === "picked_up") {
-    await ensurePickupPhotoExists(serviceId);
+    throw new BadRequestException(
+      "Items must be picked up through the pickup desk, not the status dropdown"
+    );
   }
 
   const fromStatus = await db.transaction(async (tx) => {
@@ -869,19 +905,19 @@ export async function createOrderServicePhotoPresign({
 }) {
   await getOrderServiceOrThrow(orderId, serviceId);
 
-  const key = `orders/${orderId}/services/${serviceId}/${body.photo_type}/${crypto.randomUUID()}`;
+  const key = `orders/${orderId}/services/${serviceId}/${crypto.randomUUID()}`;
   return createPresignedUploadUrl({
     contentType: body.content_type,
     key,
   });
 }
 
-export async function createOrderIntakePhotoPresign({
+export async function createOrderDropoffPhotoPresign({
   orderId,
   body,
 }: {
   orderId: number;
-  body: PostOrderIntakePhotoPresignInput;
+  body: PostOrderDropoffPhotoPresignInput;
 }) {
   const order = await db.query.ordersTable.findFirst({
     where: { id: orderId },
@@ -892,7 +928,34 @@ export async function createOrderIntakePhotoPresign({
     throw new BadRequestException("Order not found");
   }
 
-  const key = `orders/${orderId}/intake/${crypto.randomUUID()}`;
+  const key = `orders/${orderId}/dropoff/${crypto.randomUUID()}`;
+  return createPresignedUploadUrl({
+    contentType: body.content_type,
+    key,
+  });
+}
+
+export async function createOrderPickupEventPresign({
+  orderId,
+  body,
+  user,
+}: {
+  orderId: number;
+  body: PostOrderPickupEventPresignInput;
+  user: JWTPayload;
+}) {
+  assertCanProcessPickup(user);
+
+  const order = await db.query.ordersTable.findFirst({
+    where: { id: orderId },
+    columns: { id: true },
+  });
+
+  if (!order) {
+    throw new BadRequestException("Order not found");
+  }
+
+  const key = `orders/${orderId}/pickup/${crypto.randomUUID()}`;
   return createPresignedUploadUrl({
     contentType: body.content_type,
     key,
@@ -916,8 +979,8 @@ export async function saveOrderServicePhoto({
     .insert(orderServicesImagesTable)
     .values({
       order_service_id: serviceId,
-      photo_type: body.photo_type,
       image_path: body.image_path,
+      note: body.note ?? null,
       uploaded_by: user.id,
     })
     .returning();
@@ -928,27 +991,28 @@ export async function saveOrderServicePhoto({
   };
 }
 
-export async function saveOrderIntakePhoto({
+export async function saveOrderDropoffPhoto({
   orderId,
   body,
   user,
 }: {
   orderId: number;
-  body: PutOrderIntakePhotoInput;
+  body: PutOrderDropoffPhotoInput;
   user: JWTPayload;
 }) {
   const [order] = await db
     .update(ordersTable)
     .set({
-      intake_photo_path: body.image_path,
-      intake_photo_uploaded_at: new Date(),
+      dropoff_photo_path: body.image_path,
+      dropoff_photo_uploaded_at: new Date(),
+      dropoff_photo_uploaded_by: user.id,
       updated_by: user.id,
     })
     .where(eq(ordersTable.id, orderId))
     .returning({
       id: ordersTable.id,
-      intake_photo_uploaded_at: ordersTable.intake_photo_uploaded_at,
-      intake_photo_path: ordersTable.intake_photo_path,
+      dropoff_photo_uploaded_at: ordersTable.dropoff_photo_uploaded_at,
+      dropoff_photo_path: ordersTable.dropoff_photo_path,
     });
 
   if (!order) {
@@ -957,100 +1021,164 @@ export async function saveOrderIntakePhoto({
 
   return {
     id: order.id,
-    intake_photo_uploaded_at: order.intake_photo_uploaded_at,
-    intake_photo_url: buildMediaUrl(order.intake_photo_path),
+    dropoff_photo_uploaded_at: order.dropoff_photo_uploaded_at,
+    dropoff_photo_url: buildMediaUrl(order.dropoff_photo_path),
   };
 }
 
-export async function completeOrderPickup({
+export async function createOrderPickupEvent({
   orderId,
+  body,
   user,
 }: {
   orderId: number;
+  body: PostOrderPickupEventInput;
   user: JWTPayload;
 }) {
-  assertCanProcessPaymentOrRefund(user);
+  assertCanProcessPickup(user);
+
+  const uniqueServiceIds = Array.from(new Set(body.service_ids));
+  if (uniqueServiceIds.length === 0) {
+    throw new BadRequestException("At least one service must be picked up");
+  }
 
   const order = await db.query.ordersTable.findFirst({
     where: { id: orderId },
-    columns: {
-      id: true,
-    },
-    with: {
-      services: {
-        columns: {
-          id: true,
-          item_code: true,
-          status: true,
-        },
-        with: {
-          images: {
-            columns: {
-              id: true,
-              photo_type: true,
-            },
-          },
-        },
-      },
-    },
+    columns: { id: true },
   });
 
   if (!order) {
     throw new BadRequestException("Order not found");
   }
 
-  const activeServices = order.services.filter(
-    (service) => !isTerminalOrderServiceStatus(service.status)
-  );
+  const candidateServices = await db.query.ordersServicesTable.findMany({
+    where: {
+      order_id: orderId,
+      id: { in: uniqueServiceIds },
+    },
+    columns: {
+      id: true,
+      item_code: true,
+      status: true,
+    },
+  });
 
-  if (activeServices.length === 0) {
-    throw new BadRequestException("This order has no remaining pickup items");
-  }
-
-  if (activeServices.some((service) => service.status !== "ready_for_pickup")) {
+  if (candidateServices.length !== uniqueServiceIds.length) {
     throw new BadRequestException(
-      "All remaining order lines must already be ready for pickup"
+      "One or more services do not belong to this order"
     );
   }
 
-  const missingPickupPhotoServices = activeServices.filter(
-    (service) => !service.images.some((image) => image.photo_type === "pickup")
+  const notReady = candidateServices.filter(
+    (service) => service.status !== "ready_for_pickup"
   );
-
-  if (missingPickupPhotoServices.length > 0) {
+  if (notReady.length > 0) {
     throw new BadRequestException(
-      `Pickup photo is still required for ${missingPickupPhotoServices
+      `Services not ready for pickup: ${notReady
         .map((service) => service.item_code ?? String(service.id))
         .join(", ")}`
     );
   }
 
-  await db.transaction(async (tx) => {
-    const serviceIds = activeServices.map((s) => s.id);
+  const [pickupEvent] = await db
+    .insert(orderPickupEventsTable)
+    .values({
+      order_id: orderId,
+      image_path: body.image_path,
+      picked_up_by: user.id,
+    })
+    .returning({
+      id: orderPickupEventsTable.id,
+      picked_up_at: orderPickupEventsTable.picked_up_at,
+    });
 
-    await tx
-      .update(ordersServicesTable)
-      .set({ status: "picked_up" })
-      .where(inArray(ordersServicesTable.id, serviceIds));
+  // Race guard: only flip rows still in ready_for_pickup. If the count
+  // drops, another cashier already claimed a service — compensate by
+  // rolling back the pickup event we just inserted.
+  const flipped = await db
+    .update(ordersServicesTable)
+    .set({ status: "picked_up", pickup_event_id: pickupEvent.id })
+    .where(
+      and(
+        eq(ordersServicesTable.order_id, orderId),
+        inArray(ordersServicesTable.id, uniqueServiceIds),
+        eq(ordersServicesTable.status, "ready_for_pickup")
+      )
+    )
+    .returning({ id: ordersServicesTable.id });
 
-    await tx.insert(orderServiceStatusLogsTable).values(
-      activeServices.map((service) => ({
-        order_service_id: service.id,
-        from_status: service.status,
-        to_status: "picked_up" as const,
-        changed_by: user.id,
-        note: "Completed from order pickup desk",
-      }))
+  if (flipped.length !== uniqueServiceIds.length) {
+    // Compensating rollback (neon-http has no transactions). The CHECK
+    // constraint pairs status<->pickup_event_id, so we flip rows back
+    // before deleting the event. If rollback itself fails we surface a
+    // 500 so the orphaned state is visible instead of masked by the 400.
+    try {
+      if (flipped.length > 0) {
+        await db
+          .update(ordersServicesTable)
+          .set({ status: "ready_for_pickup", pickup_event_id: null })
+          .where(eq(ordersServicesTable.pickup_event_id, pickupEvent.id));
+      }
+      await db
+        .delete(orderPickupEventsTable)
+        .where(eq(orderPickupEventsTable.id, pickupEvent.id));
+    } catch (rollbackError) {
+      throw new Error(
+        `Pickup rollback failed for event ${pickupEvent.id}: ${
+          rollbackError instanceof Error
+            ? rollbackError.message
+            : String(rollbackError)
+        }`
+      );
+    }
+    throw new BadRequestException(
+      "Another cashier already processed one of the selected items. Refresh and try again."
     );
+  }
 
-    await recalculateOrderStatus(tx, orderId, user.id);
-  });
+  await db.insert(orderServiceStatusLogsTable).values(
+    candidateServices.map((service) => ({
+      order_service_id: service.id,
+      from_status: "ready_for_pickup" as const,
+      to_status: "picked_up" as const,
+      changed_by: user.id,
+      note: "Completed from order pickup desk",
+    }))
+  );
+
+  await recalculateOrderStatusDirect(orderId, user.id);
 
   return {
-    completed_line_count: activeServices.length,
+    id: pickupEvent.id,
+    image_url: buildMediaUrl(body.image_path),
     order_id: orderId,
-    status: "completed" as const,
+    picked_up_at: pickupEvent.picked_up_at,
+    service_ids: uniqueServiceIds,
   };
+}
+
+async function recalculateOrderStatusDirect(
+  orderId: number,
+  updatedBy: number
+) {
+  const [services, productCount] = await Promise.all([
+    db.query.ordersServicesTable.findMany({
+      where: { order_id: orderId },
+      columns: { status: true },
+    }),
+    db.$count(ordersProductsTable, eq(ordersProductsTable.order_id, orderId)),
+  ]);
+
+  const nextStatus = deriveOrderStatus(services, productCount);
+
+  await db
+    .update(ordersTable)
+    .set({
+      status: nextStatus,
+      completed_at: nextStatus === "completed" ? new Date() : null,
+      updated_by: updatedBy,
+    })
+    .where(eq(ordersTable.id, orderId));
 }
 
 export async function createOrderRefund({

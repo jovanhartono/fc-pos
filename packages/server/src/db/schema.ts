@@ -20,6 +20,7 @@ export type UserRole = (typeof userRoleEnum.enumValues)[number];
 export const usersTable = pgTable(
   "users",
   {
+    can_process_pickup: boolean("can_process_pickup").default(false).notNull(),
     created_at: timestamp("created_at").defaultNow().notNull(),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     is_active: boolean().default(true).notNull(),
@@ -184,10 +185,6 @@ export const orderServiceStatusEnum = pgEnum("order_service_status_enum", [
   "refunded",
   "cancelled",
 ]);
-export const orderServicePhotoTypeEnum = pgEnum(
-  "order_service_photo_type_enum",
-  ["dropoff", "progress", "pickup"]
-);
 export const refundReasonEnum = pgEnum("refund_reason_enum", [
   "damaged",
   "cannot_process",
@@ -313,8 +310,11 @@ export const ordersTable = pgTable(
     customer_id: integer("customer_id")
       .references(() => customersTable.id)
       .notNull(),
-    intake_photo_path: varchar("intake_photo_path", { length: 512 }),
-    intake_photo_uploaded_at: timestamp("intake_photo_uploaded_at"),
+    dropoff_photo_path: varchar("dropoff_photo_path", { length: 512 }),
+    dropoff_photo_uploaded_at: timestamp("dropoff_photo_uploaded_at"),
+    dropoff_photo_uploaded_by: integer("dropoff_photo_uploaded_by").references(
+      () => usersTable.id
+    ),
     discount_source: discountSourceEnum("discount_source")
       .default("none")
       .notNull(),
@@ -411,6 +411,11 @@ export const ordersServicesTable = pgTable(
       onDelete: "cascade",
     }),
 
+    pickup_event_id: integer("pickup_event_id").references(
+      () => orderPickupEventsTable.id,
+      { onDelete: "set null" }
+    ),
+
     // snapshot
     price: decimal("price", { precision: 12 }).default("0"),
 
@@ -444,9 +449,34 @@ export const ordersServicesTable = pgTable(
     ),
     index("order_services_priority_idx").on(table.is_priority),
     index("order_services_item_code_idx").on(table.item_code),
+    index("order_services_pickup_event_idx").on(table.pickup_event_id),
     uniqueIndex("order_services_item_code_uidx").on(table.item_code),
     check("price_non_negative_check", sql`${table.price} >= 0`),
     check("discount_valid_check", sql`${table.price} >= ${table.discount}`),
+    check(
+      "order_services_pickup_event_matches_status_check",
+      sql`(${table.status} = 'picked_up') = (${table.pickup_event_id} IS NOT NULL)`
+    ),
+  ]
+);
+
+export const orderPickupEventsTable = pgTable(
+  "order_pickup_events",
+  {
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    image_path: varchar("image_path", { length: 512 }).notNull(),
+    order_id: integer("order_id")
+      .references(() => ordersTable.id, { onDelete: "cascade" })
+      .notNull(),
+    picked_up_at: timestamp("picked_up_at").defaultNow().notNull(),
+    picked_up_by: integer("picked_up_by")
+      .references(() => usersTable.id)
+      .notNull(),
+  },
+  (table) => [
+    index("order_pickup_events_order_idx").on(table.order_id),
+    index("order_pickup_events_picked_up_by_idx").on(table.picked_up_by),
   ]
 );
 
@@ -454,9 +484,7 @@ export const orderServicesImagesTable = pgTable("order_services_images", {
   created_at: timestamp("created_at").defaultNow().notNull(),
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   image_path: varchar("image_path", { length: 512 }).notNull(),
-  photo_type: orderServicePhotoTypeEnum("photo_type")
-    .default("progress")
-    .notNull(),
+  note: text("note"),
   order_service_id: integer("order_service_id").references(
     () => ordersServicesTable.id,
     { onDelete: "cascade" }

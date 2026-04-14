@@ -4,7 +4,6 @@ import { z } from "zod";
 import { db } from "@/db";
 import { phoneSchema } from "@/schema/common";
 import { failure, success } from "@/utils/http";
-import { buildMediaUrl } from "@/utils/s3";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const POSTPublicTrackOrderSchema = z.object({
@@ -43,8 +42,6 @@ const app = new Hono().post(
       columns: {
         id: true,
         code: true,
-        intake_photo_uploaded_at: true,
-        intake_photo_path: true,
         status: true,
         payment_status: true,
         discount: true,
@@ -111,14 +108,12 @@ const app = new Hono().post(
       );
     }
 
-    const { intake_photo_path, ...rest } = order;
     const orderCustomer = order.customer;
 
     return c.json(
       success(
         {
-          ...rest,
-          intake_photo_url: buildMediaUrl(intake_photo_path),
+          ...order,
           services: order.services,
           customer: {
             id: orderCustomer.id,

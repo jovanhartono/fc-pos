@@ -25,6 +25,7 @@
   },
   "scripts": {
     "dev": "sh -c 'trap \"kill 0\" INT TERM EXIT; bun run --hot src/index.ts & tsdown --watch & wait'",
+    "build:types": "tsdown",
     "seed:dev": "bun run src/db/seed.ts",
     "pull:dev": "bun drizzle-kit pull --config=drizzle-dev.config.ts",
     "tsdown": "tsdown --watch",

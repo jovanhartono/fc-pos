@@ -12,15 +12,18 @@ import {
   PATCHOrderPaymentSchema,
   PATCHOrderServiceHandlerSchema,
   PATCHOrderServiceStatusSchema,
-  POSTOrderIntakePhotoPresignSchema,
+  POSTOrderDropoffPhotoPresignSchema,
+  POSTOrderPickupEventPresignSchema,
+  POSTOrderPickupEventSchema,
   POSTOrderRefundSchema,
   POSTOrderServicePhotoPresignSchema,
   POSTOrderServicePhotoSchema,
-  PUTOrderIntakePhotoSchema,
+  PUTOrderDropoffPhotoSchema,
 } from "@/modules/orders/order-admin.schema";
 import {
-  completeOrderPickup,
-  createOrderIntakePhotoPresign,
+  createOrderDropoffPhotoPresign,
+  createOrderPickupEvent,
+  createOrderPickupEventPresign,
   createOrderRefund,
   createOrderServicePhotoPresign,
   getMyOrderServices,
@@ -28,7 +31,7 @@ import {
   getOrderServiceById,
   getOrderServiceByItemCode,
   getOrderServiceQueue,
-  saveOrderIntakePhoto,
+  saveOrderDropoffPhoto,
   saveOrderServicePhoto,
   startOrderServiceWork,
   updateOrderPayment,
@@ -175,19 +178,51 @@ const app = new Hono()
       return c.json(success(payment, "Payment updated successfully"));
     }
   )
-  .post("/:id/complete", idParamSchema, async (c) => {
-    const user = c.get("jwtPayload") as JWTPayload;
-    const { id } = c.req.valid("param");
+  .post(
+    "/:id/pickup-events/presign",
+    idParamSchema,
+    zodValidator("json", POSTOrderPickupEventPresignSchema),
+    async (c) => {
+      const user = c.get("jwtPayload") as JWTPayload;
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
 
-    await assertOrderAccess(user, id);
+      await assertOrderAccess(user, id);
 
-    const result = await completeOrderPickup({
-      orderId: id,
-      user,
-    });
+      const signed = await createOrderPickupEventPresign({
+        orderId: id,
+        body,
+        user,
+      });
 
-    return c.json(success(result, "Order pickup completed"));
-  })
+      return c.json(
+        success(signed, "Pickup upload URL generated successfully")
+      );
+    }
+  )
+  .post(
+    "/:id/pickup-events",
+    idParamSchema,
+    zodValidator("json", POSTOrderPickupEventSchema),
+    async (c) => {
+      const user = c.get("jwtPayload") as JWTPayload;
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
+
+      await assertOrderAccess(user, id);
+
+      const result = await createOrderPickupEvent({
+        orderId: id,
+        body,
+        user,
+      });
+
+      return c.json(
+        success(result, "Order pickup recorded"),
+        StatusCodes.CREATED
+      );
+    }
+  )
   .post(
     "/:id/services/:serviceId/start",
     orderServiceParamSchema,
@@ -269,9 +304,9 @@ const app = new Hono()
     }
   )
   .post(
-    "/:id/intake-photo/presign",
+    "/:id/dropoff-photo/presign",
     idParamSchema,
-    zodValidator("json", POSTOrderIntakePhotoPresignSchema),
+    zodValidator("json", POSTOrderDropoffPhotoPresignSchema),
     async (c) => {
       const user = c.get("jwtPayload") as JWTPayload;
       const { id } = c.req.valid("param");
@@ -279,20 +314,20 @@ const app = new Hono()
 
       await assertOrderAccess(user, id);
 
-      const signed = await createOrderIntakePhotoPresign({
+      const signed = await createOrderDropoffPhotoPresign({
         orderId: id,
         body,
       });
 
       return c.json(
-        success(signed, "Intake upload URL generated successfully")
+        success(signed, "Drop-off upload URL generated successfully")
       );
     }
   )
   .put(
-    "/:id/intake-photo",
+    "/:id/dropoff-photo",
     idParamSchema,
-    zodValidator("json", PUTOrderIntakePhotoSchema),
+    zodValidator("json", PUTOrderDropoffPhotoSchema),
     async (c) => {
       const user = c.get("jwtPayload") as JWTPayload;
       const { id } = c.req.valid("param");
@@ -300,13 +335,13 @@ const app = new Hono()
 
       await assertOrderAccess(user, id);
 
-      const photo = await saveOrderIntakePhoto({
+      const photo = await saveOrderDropoffPhoto({
         orderId: id,
         body,
         user,
       });
 
-      return c.json(success(photo, "Order intake photo saved"));
+      return c.json(success(photo, "Order drop-off photo saved"));
     }
   )
   .post(

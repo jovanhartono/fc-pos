@@ -232,24 +232,36 @@ export type UpdateOrderPaymentPayload = {
 	payment_method_id: number;
 };
 
-export type OrderServicePhotoType = "dropoff" | "progress" | "pickup";
+export type PhotoContentType =
+	| "image/jpeg"
+	| "image/png"
+	| "image/webp"
+	| "image/heic";
 
 export type PresignOrderServicePhotoPayload = {
-	content_type: "image/jpeg" | "image/png" | "image/webp" | "image/heic";
-	photo_type: OrderServicePhotoType;
+	content_type: PhotoContentType;
 };
 
 export type SaveOrderServicePhotoPayload = {
-	photo_type: OrderServicePhotoType;
+	image_path: string;
+	note?: string;
+};
+
+export type PresignOrderDropoffPhotoPayload = {
+	content_type: PhotoContentType;
+};
+
+export type SaveOrderDropoffPhotoPayload = {
 	image_path: string;
 };
 
-export type PresignOrderIntakePhotoPayload = {
-	content_type: "image/jpeg" | "image/png" | "image/webp" | "image/heic";
+export type PresignOrderPickupEventPayload = {
+	content_type: PhotoContentType;
 };
 
-export type SaveOrderIntakePhotoPayload = {
+export type CreateOrderPickupEventPayload = {
 	image_path: string;
+	service_ids: number[];
 };
 
 export type OrderRefundReason = "damaged" | "cannot_process" | "lost" | "other";
@@ -838,38 +850,58 @@ export async function saveOrderServicePhoto(
 	);
 }
 
-export async function presignOrderIntakePhoto(
+export async function presignOrderDropoffPhoto(
 	orderId: number,
-	payload: PresignOrderIntakePhotoPayload,
+	payload: PresignOrderDropoffPhotoPayload,
 ) {
 	return parseSuccessData<{
 		upload_url: string;
 		key: string;
 		expires_in_seconds: number;
 	}>(
-		rpcWithAuth().api.admin.orders[":id"]["intake-photo"].presign.$post({
+		rpcWithAuth().api.admin.orders[":id"]["dropoff-photo"].presign.$post({
 			param: { id: String(orderId) },
 			json: payload,
 		}),
 	);
 }
 
-export async function saveOrderIntakePhoto(
+export async function saveOrderDropoffPhoto(
 	orderId: number,
-	payload: SaveOrderIntakePhotoPayload,
+	payload: SaveOrderDropoffPhotoPayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"]["intake-photo"].$put({
+		rpcWithAuth().api.admin.orders[":id"]["dropoff-photo"].$put({
 			param: { id: String(orderId) },
 			json: payload,
 		}),
 	);
 }
 
-export async function completeOrderPickup(orderId: number) {
-	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].complete.$post({
+export async function presignOrderPickupEvent(
+	orderId: number,
+	payload: PresignOrderPickupEventPayload,
+) {
+	return parseSuccessData<{
+		upload_url: string;
+		key: string;
+		expires_in_seconds: number;
+	}>(
+		rpcWithAuth().api.admin.orders[":id"]["pickup-events"].presign.$post({
 			param: { id: String(orderId) },
+			json: payload,
+		}),
+	);
+}
+
+export async function createOrderPickupEvent(
+	orderId: number,
+	payload: CreateOrderPickupEventPayload,
+) {
+	return parseResponse(
+		rpcWithAuth().api.admin.orders[":id"]["pickup-events"].$post({
+			param: { id: String(orderId) },
+			json: payload,
 		}),
 	);
 }
@@ -889,7 +921,7 @@ export async function createOrderRefund(
 export async function uploadFileToPresignedUrl(
 	uploadUrl: string,
 	file: File,
-	contentType: PresignOrderServicePhotoPayload["content_type"],
+	contentType: PhotoContentType,
 ) {
 	const response = await fetch(uploadUrl, {
 		method: "PUT",

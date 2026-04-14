@@ -7,7 +7,7 @@ export const PUTPaymentMethodSchema = createUpdateSchema(paymentMethodsTable);
 
 export const GETPaymentMethodsQuerySchema = z
   .object({
-    is_active: z.coerce.boolean().optional(),
+    is_active: z.stringbool().optional(),
   })
   .optional();
 

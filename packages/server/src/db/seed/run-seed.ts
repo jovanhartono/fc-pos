@@ -8,6 +8,7 @@ import {
   categoriesTable,
   customersTable,
   orderCountersTable,
+  orderPickupEventsTable,
   orderRefundItemsTable,
   orderRefundsTable,
   orderServiceHandlerLogsTable,
@@ -191,8 +192,8 @@ interface DraftServiceLine {
   status_logs: DraftStatusLog[];
   handler_logs: DraftHandlerLog[];
   photos: Array<{
-    photo_type: "dropoff" | "progress" | "pickup";
     created_at: Date;
+    note: string | null;
     uploaded_by: number | null;
   }>;
 }
@@ -505,6 +506,7 @@ async function resetDatabase() {
       "order_service_handler_logs",
       "order_service_status_logs",
       "order_services_images",
+      "order_pickup_events",
       "orders_products",
       "orders_services",
       "orders",
@@ -552,6 +554,7 @@ async function seedUsers(stores: StoreRow[]) {
     name: string;
     role: "admin" | "cashier" | "worker";
     is_active: boolean;
+    can_process_pickup: boolean;
     password: string;
   }> = [
     {
@@ -559,6 +562,7 @@ async function seedUsers(stores: StoreRow[]) {
       name: "Fresclean Admin",
       role: "admin",
       is_active: true,
+      can_process_pickup: false,
       password: passwordHash,
     },
   ];
@@ -571,13 +575,17 @@ async function seedUsers(stores: StoreRow[]) {
         name: faker.person.fullName(),
         role: "cashier",
         is_active: true,
+        can_process_pickup: false,
         password: passwordHash,
       },
       {
+        // Designated backup cashier — may process pickups while the cashier
+        // is on holiday, even though their day-job is on the production line.
         username: `worker.${lowerCode}.1`,
         name: faker.person.fullName(),
         role: "worker",
         is_active: true,
+        can_process_pickup: true,
         password: passwordHash,
       },
       {
@@ -585,6 +593,7 @@ async function seedUsers(stores: StoreRow[]) {
         name: faker.person.fullName(),
         role: "worker",
         is_active: true,
+        can_process_pickup: false,
         password: passwordHash,
       }
     );
@@ -963,29 +972,25 @@ async function seedOrders(params: {
       }
 
       photos.push({
-        photo_type: "dropoff",
         created_at: dayjs(createdAt).add(randInt(1, 12), "minute").toDate(),
+        note: chance(0.3)
+          ? faker.helpers.arrayElement([
+              "Outsole cracked, inform customer",
+              "Heel shows mild yellowing",
+              "Tongue discolored — cleaning requested",
+              null,
+            ])
+          : null,
         uploaded_by: createdBy,
       });
 
       if (statusLogs.length >= 2) {
         const midLog = statusLogs[Math.floor((statusLogs.length - 1) / 2)];
         photos.push({
-          photo_type: "progress",
           created_at: dayjs(midLog.created_at)
             .add(randInt(1, 7), "minute")
             .toDate(),
-          uploaded_by: handlerId ?? createdBy,
-        });
-      }
-
-      const latestStatusLog = statusLogs.at(-1);
-      if (latestStatusLog && finalStatus === "picked_up") {
-        photos.push({
-          photo_type: "pickup",
-          created_at: dayjs(latestStatusLog.created_at)
-            .add(randInt(2, 12), "minute")
-            .toDate(),
+          note: null,
           uploaded_by: handlerId ?? createdBy,
         });
       }
@@ -1100,6 +1105,14 @@ async function seedOrders(params: {
       createdAt
     );
 
+    const hasDropoffPhoto = draftServices.length > 0 && chance(0.7);
+    const dropoffPhotoPath = hasDropoffPhoto
+      ? `seed/orders/${sanitizeForS3(orderCode)}/dropoff/handover.jpg`
+      : null;
+    const dropoffPhotoUploadedAt = hasDropoffPhoto
+      ? dayjs(createdAt).add(randInt(1, 10), "minute").toDate()
+      : null;
+
     const [order] = await db
       .insert(ordersTable)
       .values({
@@ -1109,6 +1122,9 @@ async function seedOrders(params: {
         campaign_id: discountRes.campaign_id,
         discount_source: discountRes.discount_source,
         discount: asMoney(discount),
+        dropoff_photo_path: dropoffPhotoPath,
+        dropoff_photo_uploaded_at: dropoffPhotoUploadedAt,
+        dropoff_photo_uploaded_by: hasDropoffPhoto ? createdBy : null,
         payment_status: paidAmount > 0 ? "paid" : "unpaid",
         payment_method_id: paidAmount > 0 ? (paymentMethod?.id ?? null) : null,
         paid_amount: asMoney(paidAmount),
@@ -1141,7 +1157,10 @@ async function seedOrders(params: {
               color: line.color,
               model: line.model,
               size: line.size,
-              status: line.status,
+              // seed picked_up as ready_for_pickup; the pickup event insert
+              // below flips it in place so the CHECK constraint holds.
+              status:
+                line.status === "picked_up" ? "ready_for_pickup" : line.status,
               handler_id: line.handler_id,
             }))
           )
@@ -1150,6 +1169,58 @@ async function seedOrders(params: {
             item_code: ordersServicesTable.item_code,
           })
       : [];
+
+    const pickedUpDraftLines = draftServices.filter(
+      (line) => line.status === "picked_up"
+    );
+
+    if (pickedUpDraftLines.length > 0) {
+      const pickupCashier =
+        params.cashiersByStore.get(store.id)?.[0] ??
+        params.workersByStore.get(store.id)?.[0] ??
+        createdBy;
+
+      const pickupCreatedAt =
+        pickedUpDraftLines
+          .flatMap((line) => line.status_logs.map((log) => log.created_at))
+          .reduce<Date | null>(
+            (max, at) => (max && at < max ? max : at),
+            null
+          ) ?? dayjs(createdAt).add(randInt(60, 240), "minute").toDate();
+
+      const [pickupEvent] = await db
+        .insert(orderPickupEventsTable)
+        .values({
+          order_id: order.id,
+          image_path: `seed/orders/${sanitizeForS3(orderCode)}/pickup/event-1.jpg`,
+          picked_up_by: pickupCashier,
+          picked_up_at: pickupCreatedAt,
+          created_at: pickupCreatedAt,
+        })
+        .returning({ id: orderPickupEventsTable.id });
+
+      const pickedUpItemCodes = new Set(
+        pickedUpDraftLines.map((line) => line.item_code)
+      );
+      const pickedUpServiceIds = insertedServices
+        .filter((row) => row.item_code && pickedUpItemCodes.has(row.item_code))
+        .map((row) => row.id);
+
+      if (pickedUpServiceIds.length > 0) {
+        await db
+          .update(ordersServicesTable)
+          .set({
+            status: "picked_up",
+            pickup_event_id: pickupEvent.id,
+          })
+          .where(
+            sql`${ordersServicesTable.id} IN (${sql.join(
+              pickedUpServiceIds.map((id) => sql`${id}`),
+              sql`, `
+            )})`
+          );
+      }
+    }
 
     if (draftProducts.length > 0) {
       await db.insert(ordersProductsTable).values(
@@ -1196,11 +1267,11 @@ async function seedOrders(params: {
     const photoRows = draftServices.flatMap((line) =>
       line.photos.map((photo, photoIndex) => {
         const safeItem = sanitizeForS3(line.item_code);
-        const imagePath = `seed/orders/${safeOrderCode}/${safeItem}/${photo.photo_type}-${photoIndex + 1}.jpg`;
+        const imagePath = `seed/orders/${safeOrderCode}/${safeItem}/item-${photoIndex + 1}.jpg`;
         return {
           order_service_id: serviceIdByItemCode.get(line.item_code) ?? 0,
-          photo_type: photo.photo_type,
           image_path: imagePath,
+          note: photo.note,
           uploaded_by: photo.uploaded_by,
           created_at: photo.created_at,
           updated_at: photo.created_at,

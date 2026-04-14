@@ -392,9 +392,9 @@ export function OrderForm({
 						</Button>
 					</div>
 					<p className="text-xs text-muted-foreground">
-						The cashier can upload one intake photo for the whole order after
-						creation. Each service line can still collect progress and pickup
-						photos later from order detail or the worker screen.
+						Drop-off proof is one photo for the whole order, captured at the
+						counter. Each service line can collect extra condition photos from
+						order detail or the worker screen.
 					</p>
 					<FieldError
 						errors={[form.formState.errors.services as { message?: string }]}

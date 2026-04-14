@@ -58,11 +58,7 @@ const GlobalErrorPage = ({ error, reset }: ErrorComponentProps) => {
 					</div>
 
 					<div className="flex flex-wrap gap-2">
-						<Button
-							size="sm"
-							onClick={reset}
-							icon={<ArrowClockwiseIcon />}
-						>
+						<Button size="sm" onClick={reset} icon={<ArrowClockwiseIcon />}>
 							Retry
 						</Button>
 						<Button

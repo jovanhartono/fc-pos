@@ -4,5 +4,5 @@ import type { usersTable } from "../db/schema";
 type User = typeof usersTable.$inferSelect;
 export type JWTPayload = Pick<
   User,
-  "id" | "name" | "username" | "role" | "is_active"
+  "id" | "name" | "username" | "role" | "is_active" | "can_process_pickup"
 >;

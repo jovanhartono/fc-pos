@@ -7,7 +7,7 @@ export const PUTCategorySchema = createUpdateSchema(categoriesTable);
 
 export const GETCategoriesQuerySchema = z
   .object({
-    is_active: z.coerce.boolean().optional(),
+    is_active: z.stringbool().optional(),
   })
   .optional();
 
