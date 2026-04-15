@@ -143,7 +143,7 @@ export function CampaignForm({
 								}
 								disabled={isSubmitting}
 							>
-								<SelectTrigger id="campaign-discount-type" className="h-10">
+								<SelectTrigger id="campaign-discount-type" size="md">
 									<SelectValue placeholder="Select discount type" />
 								</SelectTrigger>
 								<SelectContent>

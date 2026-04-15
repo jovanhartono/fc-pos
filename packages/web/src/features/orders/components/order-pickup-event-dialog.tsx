@@ -13,7 +13,6 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldLabel } from "@/components/ui/field";
 import {
 	ACCEPTED_IMAGE_TYPES,
 	isAcceptedImage,
@@ -254,23 +253,26 @@ const PickupServiceRow = memo(
 	({ isSelected, onToggle, service }: PickupServiceRowProps) => {
 		const id = `pickup-service-${service.id}`;
 		return (
-			<li className="bg-card border px-3 py-2.5 text-sm">
-				<Field orientation="horizontal">
+			<li>
+				<label
+					htmlFor={id}
+					className="flex min-h-11 cursor-pointer items-center gap-3 border bg-card px-3 py-2.5 text-sm"
+				>
 					<Checkbox
 						id={id}
 						checked={isSelected}
 						onCheckedChange={() => onToggle(service.id)}
 					/>
 					<div className="min-w-0 flex-1">
-						<FieldLabel htmlFor={id} className="block font-medium leading-snug">
+						<span className="block font-medium leading-snug">
 							{service.item_code ?? `Service #${service.id}`}
-						</FieldLabel>
+						</span>
 						<p className="text-muted-foreground text-xs">
 							{service.service?.name ?? "Service"} ·{" "}
 							{formatOrderServiceItemDetails(service)}
 						</p>
 					</div>
-				</Field>
+				</label>
 			</li>
 		);
 	},
@@ -294,7 +296,7 @@ const PickupPhotoField = memo(() => {
 			<p className="text-sm font-medium">
 				Pickup photo <span className="text-muted-foreground">(required)</span>
 			</p>
-			<div className="bg-muted aspect-16/10 w-full overflow-hidden border">
+			<div className="aspect-4/3 w-full overflow-hidden border bg-muted sm:aspect-16/10">
 				{previewUrl ? (
 					<img
 						src={previewUrl}
@@ -302,11 +304,9 @@ const PickupPhotoField = memo(() => {
 						className="h-full w-full object-cover"
 					/>
 				) : (
-					<div className="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+					<div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-muted-foreground">
 						<CameraIcon className="size-8 opacity-50" />
-						<p className="text-sm">
-							One photo of the customer collecting items
-						</p>
+						<p className="text-sm">Photo of the customer collecting items</p>
 					</div>
 				)}
 			</div>
@@ -315,6 +315,7 @@ const PickupPhotoField = memo(() => {
 				type="file"
 				aria-label="Choose pickup photo"
 				accept={ACCEPTED_IMAGE_TYPES.join(",")}
+				capture="environment"
 				className="sr-only"
 				onChange={handleFileChange}
 			/>

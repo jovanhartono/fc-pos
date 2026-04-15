@@ -15,7 +15,6 @@ import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -289,7 +288,7 @@ function OrdersPage() {
 					<CardContent className="pt-6">
 						<div className="mb-4 flex flex-wrap items-center gap-2">
 							<form
-								className="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(16rem,20rem)_auto_auto] sm:items-end"
+								className="flex w-full items-center gap-2 sm:w-auto"
 								onSubmit={(event) => {
 									event.preventDefault();
 									const nextSearch = searchInput.trim();
@@ -303,19 +302,18 @@ function OrdersPage() {
 									});
 								}}
 							>
-								<Field>
-									<FieldLabel htmlFor="orders-search">Search</FieldLabel>
-									<Input
-										id="orders-search"
-										value={searchInput}
-										onChange={(event) => setSearchInput(event.target.value)}
-										placeholder="Order ID or line ID"
-										className="h-10"
-									/>
-								</Field>
+								<Input
+									id="orders-search"
+									value={searchInput}
+									onChange={(event) => setSearchInput(event.target.value)}
+									placeholder="Order ID or line ID"
+									aria-label="Search orders"
+									className="h-10 w-full min-w-0 sm:w-64"
+								/>
 								<Button
 									type="submit"
 									variant="outline"
+									className="h-10"
 									icon={<MagnifyingGlassIcon className="size-4" />}
 								>
 									Search
@@ -324,6 +322,7 @@ function OrdersPage() {
 									<Button
 										type="button"
 										variant="outline"
+										className="h-10"
 										icon={<XIcon className="size-4" />}
 										onClick={() => {
 											setSearchInput("");
@@ -358,7 +357,11 @@ function OrdersPage() {
 									});
 								}}
 							>
-								<SelectTrigger className="h-10 min-w-48 w-max">
+								<SelectTrigger
+									size="md"
+									aria-label="Filter by store"
+									className="min-w-48 w-max"
+								>
 									<SelectValue placeholder="Filter by store" />
 								</SelectTrigger>
 								<SelectContent>
@@ -372,8 +375,6 @@ function OrdersPage() {
 									))}
 								</SelectContent>
 							</Select>
-						</div>
-						<div className="mb-4">
 							<DateRangeFilter
 								resetOnSelect
 								dateFrom={search.dateFrom}

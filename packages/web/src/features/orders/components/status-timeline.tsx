@@ -11,7 +11,7 @@ type StatusLog = {
 
 export function StatusTimeline({ logs }: { logs: StatusLog[] }) {
 	return (
-		<details className="group border-t pt-4">
+		<details className="group">
 			<summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden [&::marker]:hidden">
 				<CaretRightIcon
 					className="size-4 shrink-0 transition-transform group-open:rotate-90"

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Field, FieldLabel } from "@/components/ui/field";
 import {
 	Popover,
 	PopoverContent,
@@ -54,58 +53,55 @@ export function DateRangeFilter({
 		: "Pick a date range";
 
 	return (
-		<div className="grid gap-3 border border-border/70 bg-muted/20 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-			<Field>
-				<FieldLabel htmlFor="date-range-trigger">Date range</FieldLabel>
-				<Popover>
-					<PopoverTrigger
-						render={
-							<Button
-								id="date-range-trigger"
-								type="button"
-								variant="outline"
-								className={cn(
-									"h-11 w-full justify-start border-border bg-background text-left font-normal",
-									!hasRange && "text-muted-foreground",
-								)}
-							/>
-						}
-					>
-						<CalendarBlankIcon className="size-4" />
-						<span className="truncate">{label}</span>
-					</PopoverTrigger>
-					<PopoverContent className="w-auto p-0" align="start">
-						<Calendar
-							mode="range"
-							resetOnSelect={resetOnSelect}
-							defaultMonth={displayRange?.from}
-							selected={displayRange}
-							numberOfMonths={2}
-							onSelect={(range) => {
-								setDraftRange(range);
-
-								if (range?.from && range?.to) {
-									onRangeChange({
-										dateFrom: format(range.from, "yyyy-MM-dd"),
-										dateTo: format(range.to, "yyyy-MM-dd"),
-									});
-								}
-							}}
+		<div className="flex flex-wrap items-center gap-2">
+			<Popover>
+				<PopoverTrigger
+					render={
+						<Button
+							type="button"
+							variant="outline"
+							className={cn(
+								"h-10 justify-start font-normal",
+								!hasRange && "text-muted-foreground",
+							)}
+							icon={<CalendarBlankIcon className="size-4" />}
 						/>
-					</PopoverContent>
-				</Popover>
-			</Field>
+					}
+				>
+					<span className="truncate">{label}</span>
+				</PopoverTrigger>
+				<PopoverContent className="w-auto p-0" align="start">
+					<Calendar
+						mode="range"
+						resetOnSelect={resetOnSelect}
+						defaultMonth={displayRange?.from}
+						selected={displayRange}
+						numberOfMonths={2}
+						onSelect={(range) => {
+							setDraftRange(range);
 
-			<Button
-				type="button"
-				variant="outline"
-				className="h-11"
-				icon={<XIcon className="size-4" />}
-				disabled={!hasRange}
-				onClick={onClear}
-			>
-				Clear dates
-			</Button>
+							if (range?.from && range?.to) {
+								onRangeChange({
+									dateFrom: format(range.from, "yyyy-MM-dd"),
+									dateTo: format(range.to, "yyyy-MM-dd"),
+								});
+							}
+						}}
+					/>
+				</PopoverContent>
+			</Popover>
+
+			{hasRange ? (
+				<Button
+					type="button"
+					variant="outline"
+					className="h-10"
+					icon={<XIcon className="size-4" />}
+					onClick={onClear}
+				>
+					Clear
+				</Button>
+			) : null}
 		</div>
 	);
 }

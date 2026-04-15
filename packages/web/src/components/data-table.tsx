@@ -36,7 +36,7 @@ export function DataTable<TData extends RowData>({
 	const colSpan = Math.max(columns.length, 1);
 
 	return (
-		<Table className="min-w-[720px] md:min-w-full">
+		<Table className="min-w-[720px]">
 			<TableHeader>
 				{table.getHeaderGroups().map((headerGroup) => (
 					<TableRow key={headerGroup.id}>

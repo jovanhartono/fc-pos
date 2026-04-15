@@ -391,11 +391,6 @@ export function OrderForm({
 							Add Service
 						</Button>
 					</div>
-					<p className="text-xs text-muted-foreground">
-						Drop-off proof is one photo for the whole order, captured at the
-						counter. Each service line can collect extra condition photos from
-						order detail or the worker screen.
-					</p>
 					<FieldError
 						errors={[form.formState.errors.services as { message?: string }]}
 					/>

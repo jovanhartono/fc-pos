@@ -1,8 +1,13 @@
-import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
+import {
+	MagnifyingGlassIcon,
+	PencilSimpleLineIcon,
+	PlusIcon,
+	XIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import { PageHeader } from "@/components/page-header";
@@ -10,6 +15,7 @@ import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
 import type { Customer } from "@/lib/api";
 import { customersPageQueryOptions } from "@/lib/query-options";
@@ -19,6 +25,7 @@ const PAGE_SIZE = 25;
 
 const customersSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
+	search: z.string().trim().min(1).max(100).optional(),
 });
 
 export const Route = createFileRoute("/_admin/customers")({
@@ -29,6 +36,7 @@ export const Route = createFileRoute("/_admin/customers")({
 			customersPageQueryOptions({
 				limit: PAGE_SIZE,
 				offset: (deps.page - 1) * PAGE_SIZE,
+				...(deps.search ? { search: deps.search } : {}),
 			}),
 		),
 	component: CustomersPage,
@@ -38,11 +46,17 @@ function CustomersPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 	const { openSheet } = useSheet();
+	const [searchInput, setSearchInput] = useState(search.search ?? "");
+
+	useEffect(() => {
+		setSearchInput(search.search ?? "");
+	}, [search.search]);
 
 	const customersQuery = useQuery(
 		customersPageQueryOptions({
 			limit: PAGE_SIZE,
 			offset: (search.page - 1) * PAGE_SIZE,
+			...(search.search ? { search: search.search } : {}),
 		}),
 	);
 	const customers = customersQuery.data?.items ?? [];
@@ -78,7 +92,11 @@ function CustomersPage() {
 			{
 				accessorKey: "email",
 				header: "Email",
-				cell: ({ row }) => row.original.email ?? "-",
+				cell: ({ row }) => (
+					<span title={row.original.email ?? undefined} className="truncate">
+						{row.original.email ?? "-"}
+					</span>
+				),
 			},
 			{
 				id: "origin_store",
@@ -124,6 +142,58 @@ function CustomersPage() {
 			<div className="grid gap-4">
 				<Card>
 					<CardContent className="pt-6">
+						<form
+							className="mb-4 flex w-full items-center gap-2 sm:w-auto"
+							onSubmit={(event) => {
+								event.preventDefault();
+								const nextSearch = searchInput.trim();
+
+								void navigate({
+									search: (prev) => ({
+										...prev,
+										page: 1,
+										search: nextSearch || undefined,
+									}),
+								});
+							}}
+						>
+							<Input
+								id="customers-search"
+								value={searchInput}
+								onChange={(event) => setSearchInput(event.target.value)}
+								placeholder="Search by name or phone"
+								aria-label="Search customers"
+								className="h-10 w-full min-w-0 sm:w-72"
+							/>
+							<Button
+								type="submit"
+								variant="outline"
+								className="h-10"
+								icon={<MagnifyingGlassIcon className="size-4" />}
+							>
+								Search
+							</Button>
+							{search.search ? (
+								<Button
+									type="button"
+									variant="outline"
+									className="h-10"
+									icon={<XIcon className="size-4" />}
+									onClick={() => {
+										setSearchInput("");
+										void navigate({
+											search: (prev) => ({
+												...prev,
+												page: 1,
+												search: undefined,
+											}),
+										});
+									}}
+								>
+									Clear
+								</Button>
+							) : null}
+						</form>
 						<div className="grid gap-4">
 							<DataTable
 								columns={columns}

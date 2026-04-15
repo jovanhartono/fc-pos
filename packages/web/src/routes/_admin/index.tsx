@@ -1,10 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
 import {
 	Card,
-	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
@@ -30,31 +28,23 @@ const cards = [
 ] as const;
 
 function DashboardPage() {
-	const { data, isPending, isFetching } = useQuery(dashboardQueryOptions());
+	const { data, isPending } = useQuery(dashboardQueryOptions());
 
 	return (
 		<>
-			<PageHeader
-				title="Dashboard"
-				actions={
-					<Badge variant={isFetching ? "secondary" : "outline"}>
-						{isFetching ? "Refreshing" : "Live"}
-					</Badge>
-				}
-			/>
+			<PageHeader title="Dashboard" />
 
-			<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+			<div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
 				{cards.map((card) => (
-					<Card key={card.key}>
-						<CardHeader className="pb-3">
-							<CardDescription>{card.label}</CardDescription>
-							<CardTitle className="text-2xl">
-								{isPending ? "..." : (data?.[card.key] ?? 0)}
+					<Card key={card.key} size="sm">
+						<CardHeader className="gap-1">
+							<CardDescription className="text-xs uppercase tracking-wider">
+								{card.label}
+							</CardDescription>
+							<CardTitle className="text-2xl tabular-nums">
+								{isPending ? "…" : (data?.[card.key] ?? 0)}
 							</CardTitle>
 						</CardHeader>
-						<CardContent>
-							<p className="text-xs text-muted-foreground">Total records.</p>
-						</CardContent>
 					</Card>
 				))}
 			</div>

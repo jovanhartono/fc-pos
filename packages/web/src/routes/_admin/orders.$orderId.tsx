@@ -300,31 +300,35 @@ function OrderPickupHistoryCard({
 				<CardTitle className="text-base">Pickup history</CardTitle>
 			</CardHeader>
 			<CardContent className="grid gap-3">
-				{pickupEvents.map((event) => (
-					<div key={event.id} className="grid gap-2 border p-2 text-sm">
-						{event.image_url ? (
-							<img
-								src={event.image_url}
-								alt={`Pickup event ${event.id}`}
-								width={640}
-								height={400}
-								className="aspect-16/10 w-full border object-cover"
-								loading="lazy"
-							/>
-						) : null}
-						<div className="grid gap-0.5">
-							<p className="font-medium">
-								{new Date(event.picked_up_at).toLocaleString("en-ID", {
-									dateStyle: "medium",
-									timeStyle: "short",
-								})}
-							</p>
-							<p className="text-muted-foreground text-xs">
-								by {event.picked_up_by?.name ?? "—"}
-							</p>
+				{pickupEvents.map((event) => {
+					const pickedUpAt = new Date(event.picked_up_at).toLocaleString(
+						"en-ID",
+						{
+							dateStyle: "medium",
+							timeStyle: "short",
+						},
+					);
+					const pickedUpBy = event.picked_up_by?.name ?? "unknown operator";
+
+					return (
+						<div key={event.id} className="grid gap-2 border p-2 text-sm">
+							{event.image_url ? (
+								<img
+									src={event.image_url}
+									alt={`Pickup on ${pickedUpAt} by ${pickedUpBy}`}
+									width={640}
+									height={400}
+									className="aspect-16/10 w-full border object-cover"
+									loading="lazy"
+								/>
+							) : null}
+							<div className="grid gap-0.5">
+								<p className="font-medium">{pickedUpAt}</p>
+								<p className="text-muted-foreground text-xs">by {pickedUpBy}</p>
+							</div>
 						</div>
-					</div>
-				))}
+					);
+				})}
 			</CardContent>
 		</Card>
 	);
@@ -539,7 +543,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 
 	return (
 		<>
-			<div className="text-balance mb-6 space-y-1">
+			<div className="text-balance mb-4 space-y-1 sm:mb-6">
 				<PageHeader
 					className="mb-0"
 					title={`Order ${detail.code}`}
@@ -566,7 +570,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 				</p>
 			</div>
 
-			<div className="mb-6 grid gap-4">
+			<div className="mb-4 grid gap-3 sm:mb-6 sm:gap-4">
 				<OrderFulfillmentOverview
 					order={detail}
 					canCompletePickup={canOpenPickupDialog}
@@ -577,9 +581,9 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 				/>
 			</div>
 
-			<Card className="mb-6">
-				<CardContent className="grid gap-6 pt-6 sm:grid-cols-3">
-					<div className="space-y-2">
+			<Card className="mb-4 sm:mb-6">
+				<CardContent className="grid gap-4 pt-5 sm:grid-cols-3 sm:gap-6 sm:pt-6">
+					<div className="space-y-1.5">
 						<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
 							Customer
 						</p>
@@ -590,7 +594,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 							{detail.customer?.phone_number ?? "—"}
 						</p>
 					</div>
-					<div className="space-y-2">
+					<div className="space-y-1.5">
 						<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
 							Notes
 						</p>
@@ -598,11 +602,11 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 							{detail.notes?.trim() ? detail.notes : "—"}
 						</p>
 					</div>
-					<div className="space-y-3">
+					<div className="space-y-2">
 						<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
 							Totals
 						</p>
-						<dl className="space-y-2 text-sm tabular-nums">
+						<dl className="space-y-1.5 text-sm tabular-nums">
 							<div className="flex justify-between gap-4">
 								<dt className="text-muted-foreground">Subtotal</dt>
 								<dd>{formatIDRCurrency(String(detail.total ?? 0))}</dd>
@@ -613,7 +617,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 							</div>
 						</dl>
 						<Separator />
-						<dl className="space-y-2 text-sm tabular-nums">
+						<dl className="space-y-1.5 text-sm tabular-nums">
 							<div className="flex justify-between gap-4 font-medium">
 								<dt>Net</dt>
 								<dd>
@@ -637,8 +641,8 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 				</CardContent>
 			</Card>
 
-			<div className="grid items-start gap-4 lg:grid-cols-12">
-				<div className="grid gap-4 lg:col-span-4">
+			<div className="grid items-start gap-3 sm:gap-4 lg:grid-cols-12">
+				<div className="grid gap-3 sm:gap-4 lg:col-span-4">
 					<OrderDropoffPhotoCard
 						order={detail}
 						canManage={
@@ -665,7 +669,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 										setSelectedPaymentMethodId(value ?? "")
 									}
 								>
-									<SelectTrigger className="h-10 w-full">
+									<SelectTrigger size="md" className="w-full">
 										<SelectValue placeholder="Select payment method" />
 									</SelectTrigger>
 									<SelectContent>
@@ -757,7 +761,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 												}
 												disabled={!selected}
 											>
-												<SelectTrigger className="h-10 w-full">
+												<SelectTrigger size="md" className="w-full">
 													<SelectValue placeholder="Select reason" />
 												</SelectTrigger>
 												<SelectContent>
@@ -826,7 +830,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 					) : null}
 				</div>
 
-				<div className="grid gap-4 lg:col-span-8">
+				<div className="grid gap-3 sm:gap-4 lg:col-span-8">
 					{detail.products.length > 0 ? (
 						<Card>
 							<CardHeader>

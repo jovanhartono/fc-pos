@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from "./routes/__root";
 import { Route as TrackRouteImport } from "./routes/track";
+import { Route as LoginRouteImport } from "./routes/login";
 import { Route as AdminRouteRouteImport } from "./routes/_admin/route";
 import { Route as AdminIndexRouteImport } from "./routes/_admin/index";
 import { Route as AuthLoginRouteImport } from "./routes/auth/login";
@@ -30,6 +31,11 @@ import { Route as AdminOrdersOrderIdRouteImport } from "./routes/_admin/orders.$
 const TrackRoute = TrackRouteImport.update({
   id: "/track",
   path: "/track",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const LoginRoute = LoginRouteImport.update({
+  id: "/login",
+  path: "/login",
   getParentRoute: () => rootRouteImport,
 } as any);
 const AdminRouteRoute = AdminRouteRouteImport.update({
@@ -114,6 +120,7 @@ const AdminOrdersOrderIdRoute = AdminOrdersOrderIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   "/": typeof AdminIndexRoute;
+  "/login": typeof LoginRoute;
   "/track": typeof TrackRoute;
   "/campaigns": typeof AdminCampaignsRoute;
   "/categories": typeof AdminCategoriesRoute;
@@ -131,6 +138,7 @@ export interface FileRoutesByFullPath {
   "/worker/": typeof AdminWorkerIndexRoute;
 }
 export interface FileRoutesByTo {
+  "/login": typeof LoginRoute;
   "/track": typeof TrackRoute;
   "/campaigns": typeof AdminCampaignsRoute;
   "/categories": typeof AdminCategoriesRoute;
@@ -151,6 +159,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   "/_admin": typeof AdminRouteRouteWithChildren;
+  "/login": typeof LoginRoute;
   "/track": typeof TrackRoute;
   "/_admin/campaigns": typeof AdminCampaignsRoute;
   "/_admin/categories": typeof AdminCategoriesRoute;
@@ -172,6 +181,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
     | "/"
+    | "/login"
     | "/track"
     | "/campaigns"
     | "/categories"
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | "/worker/";
   fileRoutesByTo: FileRoutesByTo;
   to:
+    | "/login"
     | "/track"
     | "/campaigns"
     | "/categories"
@@ -208,6 +219,7 @@ export interface FileRouteTypes {
   id:
     | "__root__"
     | "/_admin"
+    | "/login"
     | "/track"
     | "/_admin/campaigns"
     | "/_admin/categories"
@@ -228,6 +240,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AdminRouteRoute: typeof AdminRouteRouteWithChildren;
+  LoginRoute: typeof LoginRoute;
   TrackRoute: typeof TrackRoute;
   AuthLoginRoute: typeof AuthLoginRoute;
 }
@@ -239,6 +252,13 @@ declare module "@tanstack/react-router" {
       path: "/track";
       fullPath: "/track";
       preLoaderRoute: typeof TrackRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/login": {
+      id: "/login";
+      path: "/login";
+      fullPath: "/login";
+      preLoaderRoute: typeof LoginRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/_admin": {
@@ -396,6 +416,7 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   AdminRouteRoute: AdminRouteRouteWithChildren,
+  LoginRoute: LoginRoute,
   TrackRoute: TrackRoute,
   AuthLoginRoute: AuthLoginRoute,
 };

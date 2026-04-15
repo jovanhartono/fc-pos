@@ -79,20 +79,21 @@ export function OrderFulfillmentOverview({
 					<div className="flex w-full flex-col gap-2 sm:max-w-xs sm:shrink-0">
 						<Button
 							type="button"
+							className="h-11"
 							loading={isCompleting}
 							loadingText="Completing…"
 							disabled={!canCompletePickup}
 							onClick={onCompletePickup}
 						>
 							{fulfillment.is_partially_picked_up
-								? "Complete remaining pickup"
-								: "Mark order completed"}
+								? `Complete remaining pickup (${fulfillment.ready_for_pickup_count})`
+								: `Mark order completed (${fulfillment.ready_for_pickup_count})`}
 						</Button>
-						<p className="text-muted-foreground text-xs leading-relaxed">
-							{canCompletePickup
-								? "Marks all ready lines as picked up once nothing is still in queue, processing, or quality check."
-								: "Available when every active line is ready for pickup."}
-						</p>
+						{canCompletePickup ? null : (
+							<p className="text-muted-foreground text-xs leading-relaxed">
+								Available when every active line is ready for pickup.
+							</p>
+						)}
 					</div>
 				</div>
 

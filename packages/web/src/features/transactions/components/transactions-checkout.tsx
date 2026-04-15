@@ -26,13 +26,12 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { CustomerAutocomplete } from "@/features/orders/components/customer-autocomplete";
+import { useCartTotals } from "@/features/transactions/hooks/use-cart-totals";
 import { useTransactionsCart } from "@/features/transactions/hooks/use-transactions-cart";
 import {
 	getCampaignDiscount,
 	getEntityCategoryName,
 	isCampaignAvailable,
-	type ProductCartDisplayLine,
-	type ServiceCartDisplayLine,
 	type TransactionDraftValues,
 } from "@/features/transactions/lib/transactions";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
@@ -40,11 +39,14 @@ import {
 	campaignsQueryOptions,
 	categoriesQueryOptions,
 	paymentMethodsQueryOptions,
-	productsQueryOptions,
-	servicesQueryOptions,
 } from "@/lib/query-options";
+import { cn } from "@/lib/utils";
 import { formatIDRCurrency } from "@/shared/utils";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
+
+interface TransactionsCheckoutProps {
+	isInSheet?: boolean;
+}
 
 type OrderMetaBadgeProps = {
 	label: string;
@@ -69,7 +71,9 @@ function OrderMetaBadge({
 	);
 }
 
-export function TransactionsCheckout() {
+export function TransactionsCheckout({
+	isInSheet = false,
+}: TransactionsCheckoutProps) {
 	const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
 	const { visibleStores, submit } = useTransactionsPageContext();
 	const {
@@ -89,8 +93,6 @@ export function TransactionsCheckout() {
 		paymentStatus = "unpaid",
 		manualDiscount = "",
 		selectedStoreId = "",
-		productCart = [],
-		serviceCart = [],
 	] = useWatch({
 		control: form.control,
 		name: [
@@ -100,10 +102,11 @@ export function TransactionsCheckout() {
 			"paymentStatus",
 			"manualDiscount",
 			"selectedStoreId",
-			"productCart",
-			"serviceCart",
 		],
 	});
+
+	const { cartProductRows, cartServiceRows, subtotal, cartCount } =
+		useCartTotals();
 
 	const selectedStoreNumber =
 		selectedStoreId && Number.isFinite(Number(selectedStoreId))
@@ -111,8 +114,6 @@ export function TransactionsCheckout() {
 			: undefined;
 
 	const categoriesQuery = useQuery(categoriesQueryOptions());
-	const productsQuery = useQuery(productsQueryOptions());
-	const servicesQuery = useQuery(servicesQueryOptions());
 	const paymentMethodsQuery = useQuery(paymentMethodsQueryOptions());
 	const campaignsQuery = useQuery({
 		...campaignsQueryOptions({
@@ -123,14 +124,6 @@ export function TransactionsCheckout() {
 	});
 
 	const categories = categoriesQuery.data ?? [];
-	const products = useMemo(
-		() => (productsQuery.data ?? []).filter((product) => product.is_active),
-		[productsQuery.data],
-	);
-	const services = useMemo(
-		() => (servicesQuery.data ?? []).filter((service) => service.is_active),
-		[servicesQuery.data],
-	);
 	const paymentMethods = paymentMethodsQuery.data ?? [];
 	const availableCampaigns = useMemo(() => {
 		const now = new Date();
@@ -154,14 +147,6 @@ export function TransactionsCheckout() {
 	const categoryMap = useMemo(
 		() => new Map(categories.map((category) => [category.id, category])),
 		[categories],
-	);
-	const productMap = useMemo(
-		() => new Map(products.map((product) => [product.id, product])),
-		[products],
-	);
-	const serviceMap = useMemo(
-		() => new Map(services.map((service) => [service.id, service])),
-		[services],
 	);
 
 	const campaignOptions = useMemo<ComboboxOption[]>(
@@ -211,49 +196,10 @@ export function TransactionsCheckout() {
 		[paymentMethodOptions, selectedPaymentMethodId],
 	);
 
-	const cartProductRows = useMemo(
-		() =>
-			productCart
-				.map((line) => ({
-					...line,
-					product: productMap.get(line.id),
-				}))
-				.filter(
-					(line): line is ProductCartDisplayLine => line.product !== undefined,
-				),
-		[productCart, productMap],
-	);
-	const cartServiceRows = useMemo(
-		() =>
-			serviceCart
-				.map((line) => ({
-					...line,
-					service: serviceMap.get(line.id),
-				}))
-				.filter(
-					(line): line is ServiceCartDisplayLine => line.service !== undefined,
-				),
-		[serviceCart, serviceMap],
-	);
-
-	const subtotal = useMemo(
-		() =>
-			cartProductRows.reduce(
-				(total, line) => total + Number(line.product.price) * line.qty,
-				0,
-			) +
-			cartServiceRows.reduce(
-				(total, line) => total + Number(line.service.price),
-				0,
-			),
-		[cartProductRows, cartServiceRows],
-	);
 	const campaignDiscount = getCampaignDiscount(subtotal, selectedCampaign);
 	const discountValue = Number(manualDiscount || 0);
 	const totalDiscount = Math.min(subtotal, discountValue + campaignDiscount);
 	const total = Math.max(0, subtotal - totalDiscount);
-	const cartCount =
-		productCart.reduce((sum, item) => sum + item.qty, 0) + serviceCart.length;
 
 	const isSubmitting = form.formState.isSubmitting;
 
@@ -288,8 +234,18 @@ export function TransactionsCheckout() {
 
 	return (
 		<>
-			<div className="grid gap-5 md:sticky md:top-0 md:self-start">
-				<Card className="border-border/70">
+			<div
+				className={cn(
+					"grid gap-5",
+					!isInSheet && "xl:sticky xl:top-0 xl:self-start",
+				)}
+			>
+				<Card
+					className={cn(
+						"border-border/70",
+						isInSheet && "rounded-none border-0 bg-transparent shadow-none",
+					)}
+				>
 					<CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
 						<div>
 							<CardTitle className="flex items-center gap-2">
@@ -418,7 +374,7 @@ export function TransactionsCheckout() {
 											icon={<XIcon className="size-4" />}
 										/>
 									</div>
-									<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+									<div className="grid gap-3 sm:grid-cols-2">
 										<Field>
 											<FieldLabel htmlFor={`service-color-${line.line_id}`}>
 												Color

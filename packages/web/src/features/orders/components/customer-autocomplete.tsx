@@ -65,36 +65,34 @@ export function CustomerAutocomplete({
 			<FieldLabel htmlFor="order-customer" asterisk={required}>
 				Customer
 			</FieldLabel>
-			<div className="flex items-center gap-2">
-				<div className="flex-1">
-					<Combobox
-						id="order-customer"
-						required={required}
-						triggerClassName="h-10 w-full text-sm"
-						options={customers.map((customer) => ({
-							value: String(customer.id),
-							label: `${customer.name} ${customer.phone_number}`,
-						}))}
-						value={value}
-						onValueChange={onValueChange}
-						onInputChange={setSearchValue}
-						loading={isPending}
-						placeholder="Select customer"
-						searchPlaceholder="Search customer..."
-						emptyText="No customer found"
-						disabled={disabled}
-					/>
-				</div>
-				<Button
-					type="button"
-					variant="outline"
-					size="icon"
-					className="h-10 w-10 shrink-0"
-					onClick={handleOpenCreateCustomer}
-					disabled={disabled}
-					icon={<PlusIcon className="size-4" />}
-				/>
-			</div>
+			<Combobox
+				id="order-customer"
+				required={required}
+				triggerClassName="h-10 w-full text-sm"
+				options={customers.map((customer) => ({
+					value: String(customer.id),
+					label: `${customer.name} ${customer.phone_number}`,
+				}))}
+				value={value}
+				onValueChange={onValueChange}
+				onInputChange={setSearchValue}
+				loading={isPending}
+				placeholder="Select customer"
+				searchPlaceholder="Search customer..."
+				emptyText="No customer found"
+				disabled={disabled}
+			/>
+			<Button
+				type="button"
+				variant="link"
+				size="xs"
+				className="self-start px-0"
+				onClick={handleOpenCreateCustomer}
+				disabled={disabled}
+				icon={<PlusIcon className="size-3" />}
+			>
+				Add new customer
+			</Button>
 			<FieldError errors={[error]} />
 		</Field>
 	);

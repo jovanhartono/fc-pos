@@ -524,6 +524,7 @@ export function QueueServiceDetail({
 							ref={galleryInputRef}
 							type="file"
 							accept="image/*"
+							capture="environment"
 							className="sr-only"
 							onChange={(event) =>
 								setSelectedPhotoFile(event.target.files?.[0] ?? null)
@@ -545,12 +546,13 @@ export function QueueServiceDetail({
 									loading="lazy"
 								/>
 
-								<input
-									type="text"
+								<textarea
 									value={photoNote}
 									onChange={(event) => setPhotoNote(event.target.value)}
-									placeholder="Optional note (e.g. outsole cracked)"
-									className="h-10 w-full border border-border bg-background px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring/50"
+									placeholder="Optional note (e.g. outsole cracked, midsole separated at heel)"
+									rows={2}
+									maxLength={200}
+									className="w-full resize-none border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring/50"
 									aria-label="Photo note"
 								/>
 

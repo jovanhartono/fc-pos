@@ -375,7 +375,7 @@ function CampaignsPage() {
 									});
 								}}
 							>
-								<SelectTrigger className="h-10 min-w-40 w-max">
+								<SelectTrigger size="md" className="min-w-40 w-max">
 									<SelectValue placeholder="Filter status" />
 								</SelectTrigger>
 								<SelectContent>

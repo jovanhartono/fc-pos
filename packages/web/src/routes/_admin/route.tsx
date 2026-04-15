@@ -1,11 +1,28 @@
-import { createFileRoute, Outlet, useLocation } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	type ErrorComponentProps,
+	Outlet,
+	useLocation,
+} from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
+import { ErrorCard } from "@/components/global-error-page";
 import { requireAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_admin")({
 	beforeLoad: requireAuth,
 	component: AdminLayout,
+	errorComponent: AdminErrorComponent,
 });
+
+function AdminErrorComponent(props: ErrorComponentProps) {
+	return (
+		<AppShell title="Application Error">
+			<div className="grid place-items-center py-10">
+				<ErrorCard {...props} />
+			</div>
+		</AppShell>
+	);
+}
 
 const pageMeta: Record<string, { title: string; description?: string }> = {
 	"/": {

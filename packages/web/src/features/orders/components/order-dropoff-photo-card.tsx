@@ -1,6 +1,6 @@
-import { CameraIcon, UploadSimpleIcon } from "@phosphor-icons/react";
+import { CameraIcon } from "@phosphor-icons/react";
 import { useMutation } from "@tanstack/react-query";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,8 +28,6 @@ type OrderDropoffPhotoCardProps = {
 export const OrderDropoffPhotoCard = memo(
 	({ canManage, onUploaded, order }: OrderDropoffPhotoCardProps) => {
 		const inputRef = useRef<HTMLInputElement | null>(null);
-		const [selectedFile, setSelectedFile] = useState<File | null>(null);
-		const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
 		const uploadMutation = useMutation({
 			mutationFn: async (file: File) => {
@@ -47,8 +45,6 @@ export const OrderDropoffPhotoCard = memo(
 			},
 			onSuccess: async () => {
 				toast.success("Drop-off photo saved");
-				setSelectedFile(null);
-				setPreviewUrl(null);
 				if (inputRef.current) {
 					inputRef.current.value = "";
 				}
@@ -59,36 +55,17 @@ export const OrderDropoffPhotoCard = memo(
 			},
 		});
 
-		useEffect(() => {
-			return () => {
-				if (previewUrl) {
-					URL.revokeObjectURL(previewUrl);
-				}
-			};
-		}, [previewUrl]);
-
 		const handleFileChange = useCallback(
-			(event: React.ChangeEvent<HTMLInputElement>) => {
-				const file = event.target.files?.[0] ?? null;
-				setSelectedFile(file);
-				setPreviewUrl((previous) => {
-					if (previous) {
-						URL.revokeObjectURL(previous);
-					}
-					return file ? URL.createObjectURL(file) : null;
-				});
+			async (event: React.ChangeEvent<HTMLInputElement>) => {
+				const file = event.target.files?.[0];
+				if (!file) {
+					return;
+				}
+				await uploadMutation.mutateAsync(file);
 			},
-			[],
+			[uploadMutation],
 		);
 
-		const handleSave = useCallback(async () => {
-			if (!selectedFile) {
-				return;
-			}
-			await uploadMutation.mutateAsync(selectedFile);
-		}, [selectedFile, uploadMutation]);
-
-		const activePreviewUrl = previewUrl ?? order.dropoff_photo_url ?? null;
 		const isSaved = Boolean(order.dropoff_photo_url);
 
 		return (
@@ -106,10 +83,10 @@ export const OrderDropoffPhotoCard = memo(
 					</Badge>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					<div className="bg-muted relative overflow-hidden border">
-						{activePreviewUrl ? (
+					<div className="relative overflow-hidden border bg-muted">
+						{order.dropoff_photo_url ? (
 							<img
-								src={activePreviewUrl}
+								src={order.dropoff_photo_url}
 								alt="Order drop-off"
 								width={1280}
 								height={800}
@@ -117,7 +94,7 @@ export const OrderDropoffPhotoCard = memo(
 								loading="lazy"
 							/>
 						) : (
-							<div className="text-muted-foreground flex aspect-16/10 flex-col items-center justify-center gap-2 px-6 text-center">
+							<div className="flex aspect-4/3 flex-col items-center justify-center gap-2 px-6 text-center text-muted-foreground sm:aspect-16/10">
 								<CameraIcon className="size-8 opacity-50" />
 								<p className="text-sm">No drop-off photo yet</p>
 							</div>
@@ -140,32 +117,22 @@ export const OrderDropoffPhotoCard = memo(
 						type="file"
 						aria-label="Choose drop-off photo"
 						accept={ACCEPTED_IMAGE_TYPES.join(",")}
+						capture="environment"
 						className="sr-only"
 						onChange={handleFileChange}
 					/>
-					<div className="flex flex-col gap-2 sm:flex-row">
-						<Button
-							type="button"
-							variant="outline"
-							className="flex-1"
-							icon={<CameraIcon className="size-4" />}
-							disabled={!canManage}
-							onClick={() => inputRef.current?.click()}
-						>
-							{isSaved ? "Replace photo" : "Choose photo"}
-						</Button>
-						<Button
-							type="button"
-							className="flex-1"
-							icon={<UploadSimpleIcon className="size-4" />}
-							loading={uploadMutation.isPending}
-							loadingText="Uploading…"
-							disabled={!selectedFile || !canManage}
-							onClick={handleSave}
-						>
-							Save
-						</Button>
-					</div>
+					<Button
+						type="button"
+						variant="outline"
+						className="h-11 w-full"
+						icon={<CameraIcon className="size-4" />}
+						loading={uploadMutation.isPending}
+						loadingText="Uploading…"
+						disabled={!canManage}
+						onClick={() => inputRef.current?.click()}
+					>
+						{isSaved ? "Replace photo" : "Upload photo"}
+					</Button>
 					{canManage ? null : (
 						<p className="text-muted-foreground text-xs">
 							Cashiers and workers can update the drop-off photo.

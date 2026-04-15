@@ -160,7 +160,11 @@ export function UserForm({
 								}
 								disabled={isSubmitting}
 							>
-								<SelectTrigger id="user-role" className="h-10 w-full text-sm">
+								<SelectTrigger
+									id="user-role"
+									size="md"
+									className="w-full text-sm"
+								>
 									<SelectValue placeholder="Select role" />
 								</SelectTrigger>
 								<SelectContent>

@@ -1,14 +1,21 @@
 import "@/index.css";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { DetailedError } from "hono/client";
-import { StrictMode } from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { routeTree } from "@/routeTree.gen";
+
+const ReactQueryDevtools = import.meta.env.DEV
+	? lazy(() =>
+			import("@tanstack/react-query-devtools").then((module) => ({
+				default: module.ReactQueryDevtools,
+			})),
+		)
+	: null;
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -66,10 +73,14 @@ createRoot(rootElement).render(
 		<ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
 			<QueryClientProvider client={queryClient}>
 				<RouterProvider router={router} />
-				<ReactQueryDevtools
-					initialIsOpen={false}
-					buttonPosition="bottom-left"
-				/>
+				{ReactQueryDevtools ? (
+					<Suspense fallback={null}>
+						<ReactQueryDevtools
+							initialIsOpen={false}
+							buttonPosition="bottom-right"
+						/>
+					</Suspense>
+				) : null}
 			</QueryClientProvider>
 		</ThemeProvider>
 	</StrictMode>,
