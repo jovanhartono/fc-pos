@@ -6,10 +6,10 @@ Uses **Ultracite** (Biome). Run `bun x ultracite fix` before committing.
 
 | Package | Path | Role |
 | --- | --- | --- |
-| `@fresclean/web` | `packages/web` | Vite + React admin app |
+| `@fresclean/web` | `apps/web` | Vite + React admin app |
 | `@fresclean/api` | `packages/server` | Hono API, Drizzle, Zod schemas, RPC types |
 
-Package-specific rules: `packages/web/AGENTS.md` · `packages/server/AGENTS.md`
+Package-specific rules: `apps/web/AGENTS.md` · `packages/server/AGENTS.md`
 
 ## TypeScript Rules
 

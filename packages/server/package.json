@@ -24,8 +24,11 @@
     }
   },
   "scripts": {
-    "dev": "sh -c 'trap \"kill 0\" INT TERM EXIT; bun run --hot src/index.ts & tsdown --watch & wait'",
+    "dev": "concurrently -k -n server,types -c blue,magenta \"bun run --hot src/index.ts\" \"tsdown --watch\"",
+    "build": "tsdown",
     "build:types": "tsdown",
+    "lint": "biome check .",
+    "type-check": "tsc -b",
     "seed:dev": "bun run src/db/seed.ts",
     "pull:dev": "bun drizzle-kit pull --config=drizzle-dev.config.ts",
     "tsdown": "tsdown --watch",
@@ -53,6 +56,7 @@
   "devDependencies": {
     "@biomejs/biome": "catalog:",
     "@types/bun": "latest",
+    "concurrently": "^9.2.1",
     "drizzle-kit": "beta",
     "tsdown": "^0.21.7",
     "typescript": "^5.9.3",

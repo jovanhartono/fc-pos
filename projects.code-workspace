@@ -7,7 +7,7 @@
       "path": "packages/server"
     },
     {
-      "path": "packages/web"
+      "path": "apps/web"
     }
   ]
 }
