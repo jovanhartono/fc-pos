@@ -1,4 +1,4 @@
-import { and, eq, type SQL, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { campaignStoresTable, campaignsTable } from "@/db/schema";
 
@@ -7,53 +7,20 @@ interface CampaignFilters {
   store_id?: number;
 }
 
-function buildCountWhere(filters: CampaignFilters) {
-  const conditions: SQL[] = [];
-
-  if (filters.is_active !== undefined) {
-    conditions.push(eq(campaignsTable.is_active, filters.is_active));
-  }
-
-  if (filters.store_id !== undefined) {
-    conditions.push(sql`(
-      EXISTS (
-        SELECT 1
-        FROM ${campaignStoresTable} scoped_store
-        WHERE scoped_store.campaign_id = ${campaignsTable.id}
-        AND scoped_store.store_id = ${filters.store_id}
-      )
-      OR NOT EXISTS (
-        SELECT 1
-        FROM ${campaignStoresTable} any_store
-        WHERE any_store.campaign_id = ${campaignsTable.id}
-      )
-    )`);
-  }
-
-  return conditions.length > 0 ? and(...conditions) : undefined;
-}
-
-export function listCampaigns({
-  filters,
-  limit,
-  offset,
-}: {
-  filters: CampaignFilters;
-  limit: number;
-  offset: number;
-}) {
+export function listCampaigns(filters: CampaignFilters) {
   return db.query.campaignsTable.findMany({
     where: {
       is_active: filters.is_active,
-      stores: filters.store_id
+      ...(filters.store_id !== undefined
         ? {
-            OR: [{ store_id: filters.store_id }, { NOT: { store: true } }],
+            OR: [
+              { stores: { store_id: filters.store_id } },
+              { NOT: { stores: true } },
+            ],
           }
-        : undefined,
+        : {}),
     },
     orderBy: { id: "asc" },
-    limit,
-    offset,
     with: {
       stores: {
         columns: { store_id: true },
@@ -69,10 +36,6 @@ export function listCampaigns({
       },
     },
   });
-}
-
-export function countCampaigns(filters: CampaignFilters) {
-  return db.$count(campaignsTable, buildCountWhere(filters));
 }
 
 export function findCampaignById(id: number) {

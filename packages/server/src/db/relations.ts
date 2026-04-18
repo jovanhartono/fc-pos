@@ -38,6 +38,7 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.ordersTable.created_by,
     }),
     pickupEventsPickedUp: r.many.orderPickupEventsTable(),
+    shifts: r.many.shiftsTable(),
     userStores: r.many.userStoresTable(),
   },
 
@@ -45,6 +46,7 @@ export const relations = defineRelations(schema, (r) => ({
     campaignStores: r.many.campaignStoresTable(),
     customers: r.many.customersTable(),
     orders: r.many.ordersTable(),
+    shifts: r.many.shiftsTable(),
     userStores: r.many.userStoresTable(),
   },
 
@@ -96,7 +98,7 @@ export const relations = defineRelations(schema, (r) => ({
       alias: "campaign_created_by",
       optional: false,
     }),
-    orders: r.many.ordersTable(),
+    orderCampaigns: r.many.orderCampaignsTable(),
     stores: r.many.campaignStoresTable(),
     updatedBy: r.one.usersTable({
       from: r.campaignsTable.updated_by,
@@ -133,10 +135,7 @@ export const relations = defineRelations(schema, (r) => ({
   },
 
   ordersTable: {
-    campaign: r.one.campaignsTable({
-      from: r.ordersTable.campaign_id,
-      to: r.campaignsTable.id,
-    }),
+    campaigns: r.many.orderCampaignsTable(),
     createdBy: r.one.usersTable({
       from: r.ordersTable.created_by,
       to: r.usersTable.id,
@@ -287,6 +286,32 @@ export const relations = defineRelations(schema, (r) => ({
     product: r.one.productsTable({
       from: r.ordersProductsTable.product_id,
       to: r.productsTable.id,
+    }),
+  },
+
+  orderCampaignsTable: {
+    campaign: r.one.campaignsTable({
+      from: r.orderCampaignsTable.campaign_id,
+      to: r.campaignsTable.id,
+      optional: false,
+    }),
+    order: r.one.ordersTable({
+      from: r.orderCampaignsTable.order_id,
+      to: r.ordersTable.id,
+      optional: false,
+    }),
+  },
+
+  shiftsTable: {
+    store: r.one.storesTable({
+      from: r.shiftsTable.store_id,
+      to: r.storesTable.id,
+      optional: false,
+    }),
+    user: r.one.usersTable({
+      from: r.shiftsTable.user_id,
+      to: r.usersTable.id,
+      optional: false,
     }),
   },
 }));

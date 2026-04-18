@@ -58,6 +58,9 @@ const orderServiceByItemCodeRoute =
 const orderServiceQueueRoute = rpc.api.admin.orders.services.queue.$get;
 const myOrderServicesRoute = rpc.api.admin.orders.services.me.$get;
 const dashboardCountsRoute = rpc.api.admin.dashboard.counts.$get;
+const shiftsRoute = rpc.api.admin.shifts.$get;
+const shiftCurrentRoute = rpc.api.admin.shifts.current.$get;
+const dailyReportRoute = rpc.api.admin.reports.daily.$get;
 const publicTrackOrderRoute = rpc.api.public.orders.track.$post;
 
 type LoginSuccessResponse = Extract<
@@ -113,6 +116,31 @@ export type PublicTrackedOrder = Extract<
 	InferResponseType<typeof publicTrackOrderRoute>,
 	{ success: true }
 >["data"];
+export type Shift = Extract<
+	InferResponseType<typeof shiftsRoute>,
+	{ success: true }
+>["data"][number];
+export type CurrentShift = Extract<
+	InferResponseType<typeof shiftCurrentRoute>,
+	{ success: true }
+>["data"];
+
+export type FetchShiftsQuery = {
+	user_id?: number;
+	store_id?: number;
+	from?: string;
+	to?: string;
+};
+
+export type DailyReport = Extract<
+	InferResponseType<typeof dailyReportRoute>,
+	{ success: true }
+>["data"];
+
+export type FetchDailyReportQuery = {
+	date: string;
+	store_id?: number;
+};
 
 export type LoginPayload = {
 	username: string;
@@ -192,8 +220,6 @@ export type FetchUsersQuery = {
 };
 
 export type FetchCampaignsQuery = {
-	limit?: number;
-	offset?: number;
 	store_id?: number;
 	is_active?: boolean;
 };
@@ -212,6 +238,7 @@ export type CampaignPayload = {
 };
 
 export type UpdateOrderServiceStatusPayload = {
+	cancel_reason?: string;
 	note?: string;
 	status:
 		| "queued"
@@ -293,8 +320,6 @@ export const queryKeys = {
 	orderDetail: (id: number) => ["order-detail", id] as const,
 	campaigns: (query?: FetchCampaignsQuery) =>
 		["campaigns", query ?? {}] as const,
-	campaignsList: (query?: FetchCampaignsQuery) =>
-		["campaigns-list", query ?? {}] as const,
 	campaignDetail: (id: number) => ["campaign-detail", id] as const,
 	orderServiceLookup: (itemCode: string) =>
 		["order-service-lookup", itemCode] as const,
@@ -307,6 +332,10 @@ export const queryKeys = {
 	myOrderServices: (storeId?: number) =>
 		["my-order-services", storeId ?? "all"] as const,
 	dashboard: ["dashboard"] as const,
+	shifts: (query?: FetchShiftsQuery) => ["shifts", query ?? {}] as const,
+	shiftCurrent: ["shift-current"] as const,
+	dailyReport: (query: FetchDailyReportQuery) =>
+		["daily-report", query] as const,
 };
 
 export async function login(payload: LoginPayload) {
@@ -515,37 +544,6 @@ export async function fetchCampaigns(query?: FetchCampaignsQuery) {
 		}),
 	);
 	return response.data;
-}
-
-export async function fetchCampaignsPage(
-	query?: FetchCampaignsQuery,
-): Promise<PaginatedData<Campaign>> {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.campaigns.$get({
-			query:
-				query && Object.keys(query).length > 0
-					? {
-							...(query.limit !== undefined
-								? { limit: String(query.limit) }
-								: {}),
-							...(query.offset !== undefined
-								? { offset: String(query.offset) }
-								: {}),
-							...(query.store_id !== undefined
-								? { store_id: String(query.store_id) }
-								: {}),
-							...(query.is_active !== undefined
-								? { is_active: String(query.is_active) }
-								: {}),
-						}
-					: undefined,
-		}),
-	);
-
-	return {
-		items: response.data,
-		meta: response.meta as PaginationMeta,
-	};
 }
 
 export async function fetchCampaignById(id: number) {
@@ -949,5 +947,55 @@ export type DashboardCounts = InferResponseType<
 export async function fetchDashboardCounts() {
 	return parseSuccessData<DashboardCounts>(
 		rpcWithAuth().api.admin.dashboard.counts.$get(),
+	);
+}
+
+export async function fetchCurrentShift() {
+	return parseSuccessData<CurrentShift>(
+		rpcWithAuth().api.admin.shifts.current.$get(),
+	);
+}
+
+export async function fetchShifts(query?: FetchShiftsQuery) {
+	const response = await parseResponse(
+		rpcWithAuth().api.admin.shifts.$get({
+			query:
+				query && Object.keys(query).length > 0
+					? {
+							...(query.user_id !== undefined
+								? { user_id: String(query.user_id) }
+								: {}),
+							...(query.store_id !== undefined
+								? { store_id: String(query.store_id) }
+								: {}),
+							...(query.from ? { from: query.from } : {}),
+							...(query.to ? { to: query.to } : {}),
+						}
+					: undefined,
+		}),
+	);
+	return response.data;
+}
+
+export async function clockInShift(payload: { store_id: number }) {
+	return parseResponse(
+		rpcWithAuth().api.admin.shifts["clock-in"].$post({ json: payload }),
+	);
+}
+
+export async function clockOutShift() {
+	return parseResponse(rpcWithAuth().api.admin.shifts["clock-out"].$post());
+}
+
+export async function fetchDailyReport(query: FetchDailyReportQuery) {
+	return parseSuccessData<DailyReport>(
+		rpcWithAuth().api.admin.reports.daily.$get({
+			query: {
+				date: query.date,
+				...(query.store_id !== undefined
+					? { store_id: String(query.store_id) }
+					: {}),
+			},
+		}),
 	);
 }

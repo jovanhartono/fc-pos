@@ -1,11 +1,10 @@
 import { z } from "zod";
 import { orderPaymentStatusEnum, orderStatusEnum } from "@/db/schema";
+import { dateStringSchema } from "@/schema/common";
 import { normalizePagination } from "@/utils/pagination";
 
 export const DEFAULT_PAGE_SIZE = 25;
 export const MAX_PAGE_SIZE = 100;
-
-const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 export const GETOrdersQuerySchema = z
   .object({
@@ -21,14 +20,8 @@ export const GETOrdersQuerySchema = z
     created_by: z.coerce.number().int().positive().optional(),
     payment_method_id: z.coerce.number().int().positive().optional(),
 
-    date_from: z
-      .string()
-      .regex(dateRegex, "date_from must use YYYY-MM-DD format")
-      .optional(),
-    date_to: z
-      .string()
-      .regex(dateRegex, "date_to must use YYYY-MM-DD format")
-      .optional(),
+    date_from: dateStringSchema("date_from").optional(),
+    date_to: dateStringSchema("date_to").optional(),
 
     sort_by: z.enum(["created_at", "code", "id", "total"]).default("id"),
     sort_order: z.enum(["asc", "desc"]).default("desc"),

@@ -10,7 +10,6 @@ import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import { PageHeader } from "@/components/page-header";
-import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,21 +32,15 @@ import {
 	queryKeys,
 	updateCampaign,
 } from "@/lib/api";
-import {
-	campaignsPageQueryOptions,
-	storesQueryOptions,
-} from "@/lib/query-options";
+import { campaignsQueryOptions, storesQueryOptions } from "@/lib/query-options";
 import { formatIDRCurrency } from "@/shared/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useDialog } from "@/stores/dialog-store";
 import { useSheet } from "@/stores/sheet-store";
 
 const campaignsSearchSchema = z.object({
-	page: z.coerce.number().int().positive().catch(1),
 	status: z.enum(["all", "active", "inactive"]).catch("all"),
 });
-
-const PAGE_SIZE = 25;
 
 export const Route = createFileRoute("/_admin/campaigns")({
 	validateSearch: (search) => campaignsSearchSchema.parse(search),
@@ -55,14 +48,10 @@ export const Route = createFileRoute("/_admin/campaigns")({
 	loader: ({ context, deps }) =>
 		Promise.all([
 			context.queryClient.ensureQueryData(
-				campaignsPageQueryOptions(
+				campaignsQueryOptions(
 					deps.status === "all"
-						? { limit: PAGE_SIZE, offset: (deps.page - 1) * PAGE_SIZE }
-						: {
-								is_active: deps.status === "active",
-								limit: PAGE_SIZE,
-								offset: (deps.page - 1) * PAGE_SIZE,
-							},
+						? undefined
+						: { is_active: deps.status === "active" },
 				),
 			),
 			context.queryClient.ensureQueryData(storesQueryOptions()),
@@ -159,22 +148,15 @@ function CampaignsPage() {
 
 	const campaignQueryFilters =
 		search.status === "all"
-			? { limit: PAGE_SIZE, offset: (search.page - 1) * PAGE_SIZE }
-			: {
-					is_active: search.status === "active",
-					limit: PAGE_SIZE,
-					offset: (search.page - 1) * PAGE_SIZE,
-				};
+			? undefined
+			: { is_active: search.status === "active" };
 
-	const campaignsQuery = useQuery(
-		campaignsPageQueryOptions(campaignQueryFilters),
-	);
+	const campaignsQuery = useQuery(campaignsQueryOptions(campaignQueryFilters));
 
 	const storesQuery = useQuery(storesQueryOptions());
 
 	const stores = storesQuery.data ?? [];
-	const campaigns = campaignsQuery.data?.items ?? [];
-	const campaignsMeta = campaignsQuery.data?.meta;
+	const campaigns = campaignsQuery.data ?? [];
 
 	const createMutation = useMutation({
 		mutationKey: ["create-campaign"],
@@ -344,7 +326,7 @@ function CampaignsPage() {
 				actions={
 					<>
 						<Badge variant={campaignsQuery.isPending ? "secondary" : "outline"}>
-							{`${campaignsMeta?.total ?? 0} items`}
+							{`${campaigns.length} items`}
 						</Badge>
 						<Button
 							onClick={handleOpenCreateSheet}
@@ -364,9 +346,7 @@ function CampaignsPage() {
 								value={search.status}
 								onValueChange={(value) => {
 									void navigate({
-										search: (prev) => ({
-											...prev,
-											page: 1,
+										search: () => ({
 											status:
 												(value as z.infer<
 													typeof campaignsSearchSchema
@@ -385,25 +365,11 @@ function CampaignsPage() {
 								</SelectContent>
 							</Select>
 						</div>
-						<div className="grid gap-4">
-							<DataTable
-								columns={columns}
-								data={campaigns}
-								isLoading={campaignsQuery.isPending || storesQuery.isPending}
-							/>
-							<TablePagination
-								meta={campaignsMeta}
-								isLoading={campaignsQuery.isPending}
-								onPageChange={(page) => {
-									void navigate({
-										search: (prev) => ({
-											...prev,
-											page,
-										}),
-									});
-								}}
-							/>
-						</div>
+						<DataTable
+							columns={columns}
+							data={campaigns}
+							isLoading={campaignsQuery.isPending || storesQuery.isPending}
+						/>
 					</CardContent>
 				</Card>
 			</div>

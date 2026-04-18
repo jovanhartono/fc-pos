@@ -9,6 +9,22 @@ import { ORDER_STATUS_TRANSITIONS as _ORDER_STATUS_TRANSITIONS } from "@/modules
 export const ORDER_STATUS_TRANSITIONS = _ORDER_STATUS_TRANSITIONS;
 
 import {
+  type CampaignContribution as _CampaignContribution,
+  type CampaignDiscountInput as _CampaignDiscountInput,
+  computeCampaignContribution as _computeCampaignContribution,
+  type StackedDiscount as _StackedDiscount,
+  stackCampaignDiscounts as _stackCampaignDiscounts,
+} from "@/schema/discount";
+
+export type CampaignContribution<T extends _CampaignDiscountInput> =
+  _CampaignContribution<T>;
+export type CampaignDiscountInput = _CampaignDiscountInput;
+export type StackedDiscount<T extends _CampaignDiscountInput> =
+  _StackedDiscount<T>;
+export const computeCampaignContribution = _computeCampaignContribution;
+export const stackCampaignDiscounts = _stackCampaignDiscounts;
+
+import {
   currencySchema,
   isActiveSchema,
   optionalVarcharSchema,
@@ -180,7 +196,13 @@ export const POSTOrderSchema = z
   .object({
     customer_id: z.number("Customer is required"),
     store_id: z.number("Store ID is required"),
-    campaign_id: z.number().int().positive().optional(),
+    campaign_ids: z
+      .array(z.number().int().positive())
+      .default([])
+      .refine(
+        (ids) => new Set(ids).size === ids.length,
+        "Duplicate campaign IDs are not allowed"
+      ),
     products: z
       .array(
         z.object(
@@ -227,13 +249,6 @@ export const POSTOrderSchema = z
     {
       error: "Product or Service is required",
       path: ["products_ids", "services_ids"],
-    }
-  )
-  .refine(
-    (val) => !(Number(val.discount) > 0 && val.campaign_id !== undefined),
-    {
-      error: "Campaign discount cannot be combined with manual discount",
-      path: ["campaign_id"],
     }
   )
   .refine(

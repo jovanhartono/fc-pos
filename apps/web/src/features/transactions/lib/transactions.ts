@@ -1,3 +1,7 @@
+import {
+	type CampaignContribution,
+	stackCampaignDiscounts,
+} from "@fresclean/api/schema";
 import type {
 	Campaign,
 	Category,
@@ -36,7 +40,7 @@ export type ServiceCartDisplayLine = ServiceCartLine & {
 export type TransactionDraftValues = {
 	selectedStoreId: string;
 	selectedCustomerId: string;
-	selectedCampaignId: string;
+	selectedCampaignIds: string[];
 	selectedPaymentMethodId: string;
 	paymentStatus: CreateOrderPayload["payment_status"];
 	manualDiscount: string;
@@ -107,35 +111,16 @@ export function isCampaignAvailable(campaign: Campaign, now: Date) {
 	return true;
 }
 
-export function getCampaignDiscount(subtotal: number, campaign?: Campaign) {
-	if (!campaign) {
-		return 0;
-	}
+export type CampaignBreakdown = CampaignContribution<Campaign>;
 
-	const minimumOrderTotal = Number(campaign.min_order_total ?? 0);
-
-	if (subtotal < minimumOrderTotal) {
-		return 0;
-	}
-
-	if (campaign.discount_type === "percentage") {
-		const rawDiscount = (subtotal * Number(campaign.discount_value ?? 0)) / 100;
-		const maxDiscount = Number(campaign.max_discount ?? 0);
-
-		if (maxDiscount > 0) {
-			return Math.min(rawDiscount, maxDiscount);
-		}
-
-		return rawDiscount;
-	}
-
-	return Number(campaign.discount_value ?? 0);
+export function getStackedDiscount(subtotal: number, campaigns: Campaign[]) {
+	return stackCampaignDiscounts(subtotal, campaigns);
 }
 
 export function toTransactionPayload({
 	selectedCustomerId,
 	selectedStoreId,
-	selectedCampaignId,
+	selectedCampaignIds,
 	selectedPaymentMethodId,
 	paymentStatus,
 	manualDiscount,
@@ -146,7 +131,7 @@ export function toTransactionPayload({
 	return {
 		customer_id: Number(selectedCustomerId),
 		store_id: Number(selectedStoreId),
-		campaign_id: selectedCampaignId ? Number(selectedCampaignId) : undefined,
+		campaign_ids: selectedCampaignIds.map((id) => Number(id)),
 		discount: manualDiscount || "0",
 		payment_method_id: selectedPaymentMethodId
 			? Number(selectedPaymentMethodId)

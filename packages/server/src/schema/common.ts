@@ -48,6 +48,13 @@ export const currencySchema = (field: string) =>
     .pipe(z.number().nonnegative(`${field} cannot be negative`))
     .pipe(z.coerce.string());
 
+const DATE_YYYY_MM_DD_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+export const dateStringSchema = (field: string) =>
+  z
+    .string()
+    .regex(DATE_YYYY_MM_DD_REGEX, `${field} must use YYYY-MM-DD format`);
+
 export const phoneSchema = z
   .string("Phone number is required!")
   .min(1, "Phone number is required!")

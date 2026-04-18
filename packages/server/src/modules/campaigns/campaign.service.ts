@@ -1,6 +1,5 @@
 import { BadRequestException, ForbiddenException } from "@/errors";
 import {
-  countCampaigns,
   deleteCampaignById,
   findCampaignById,
   findStoresByIds,
@@ -13,7 +12,6 @@ import type {
   GetCampaignsQuery,
 } from "@/modules/campaigns/campaign.schema";
 import type { JWTPayload } from "@/types";
-import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 
 function assertIsAdmin(user: JWTPayload) {
   if (user.role !== "admin") {
@@ -33,26 +31,11 @@ async function ensureStoresExist(storeIds: number[]) {
   }
 }
 
-export async function getCampaigns(query?: GetCampaignsQuery) {
-  const pagination = normalizePagination(query, { maxPageSize: 100 });
-  const filters = {
+export function getCampaigns(query?: GetCampaignsQuery) {
+  return listCampaigns({
     is_active: query?.is_active,
     store_id: query?.store_id,
-  };
-
-  const [items, total] = await Promise.all([
-    listCampaigns({
-      filters,
-      limit: pagination.limit,
-      offset: pagination.offset,
-    }),
-    countCampaigns(filters),
-  ]);
-
-  return {
-    items,
-    meta: buildPaginationMeta(total, pagination),
-  };
+  });
 }
 
 export function getCampaignById(id: number) {

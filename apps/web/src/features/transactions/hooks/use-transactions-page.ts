@@ -23,7 +23,7 @@ import { useTransactionsPageStore } from "@/stores/transactions-store";
 const defaultDraftValues: TransactionDraftValues = {
 	selectedStoreId: "",
 	selectedCustomerId: "",
-	selectedCampaignId: "",
+	selectedCampaignIds: [],
 	selectedPaymentMethodId: "",
 	paymentStatus: "unpaid",
 	manualDiscount: "",
@@ -39,7 +39,7 @@ const transactionDraftSchema = z
 			.trim()
 			.min(1, "Store is required before creating a transaction."),
 		selectedCustomerId: z.string().trim().min(1, "Customer is required."),
-		selectedCampaignId: z.string(),
+		selectedCampaignIds: z.array(z.string()),
 		selectedPaymentMethodId: z.string(),
 		paymentStatus: z.enum(["paid", "unpaid"]),
 		manualDiscount: z
@@ -82,14 +82,6 @@ const transactionDraftSchema = z
 				code: "custom",
 				path: ["selectedPaymentMethodId"],
 				message: "Payment method is required for paid orders.",
-			});
-		}
-
-		if (Number(values.manualDiscount || 0) > 0 && values.selectedCampaignId) {
-			ctx.addIssue({
-				code: "custom",
-				path: ["selectedCampaignId"],
-				message: "Campaign discount cannot be combined with manual discount.",
 			});
 		}
 	});
@@ -263,7 +255,7 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 					.getState()
 					.setSelectedStoreId(currentUserKey, value);
 			}
-			form.setValue("selectedCampaignId", "", {
+			form.setValue("selectedCampaignIds", [], {
 				shouldDirty: true,
 				shouldValidate: true,
 			});

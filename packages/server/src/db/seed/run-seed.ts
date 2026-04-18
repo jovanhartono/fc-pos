@@ -7,6 +7,7 @@ import {
   campaignsTable,
   categoriesTable,
   customersTable,
+  orderCampaignsTable,
   orderCountersTable,
   orderPickupEventsTable,
   orderRefundItemsTable,
@@ -509,6 +510,7 @@ async function resetDatabase() {
       "order_pickup_events",
       "orders_products",
       "orders_services",
+      "order_campaigns",
       "orders",
       "order_counters",
       "campaign_stores",
@@ -717,7 +719,20 @@ async function seedCatalog(adminId: number) {
 
   const campaignSeed = [
     {
+      code: "GOOGLE_REVIEW",
+      name: "Google review",
+      discount_type: "percentage" as const,
+      discount_value: 10,
+      min_order_total: 0,
+      max_discount: null,
+      starts_at: null,
+      ends_at: null,
+      is_active: true,
+      scope_codes: [],
+    },
+    {
       code: "WEEKEND10",
+      name: faker.company.buzzPhrase(),
       discount_type: "percentage" as const,
       discount_value: 10,
       min_order_total: 120_000,
@@ -729,6 +744,7 @@ async function seedCatalog(adminId: number) {
     },
     {
       code: "NEWCUST15",
+      name: faker.company.buzzPhrase(),
       discount_type: "fixed" as const,
       discount_value: 15_000,
       min_order_total: 75_000,
@@ -740,6 +756,7 @@ async function seedCatalog(adminId: number) {
     },
     {
       code: "PAYDAY20",
+      name: faker.company.buzzPhrase(),
       discount_type: "percentage" as const,
       discount_value: 20,
       min_order_total: 150_000,
@@ -751,6 +768,7 @@ async function seedCatalog(adminId: number) {
     },
     {
       code: "BKSOPEN25",
+      name: faker.company.buzzPhrase(),
       discount_type: "fixed" as const,
       discount_value: 25_000,
       min_order_total: 100_000,
@@ -767,7 +785,7 @@ async function seedCatalog(adminId: number) {
     .values(
       campaignSeed.map((campaign) => ({
         code: campaign.code,
-        name: faker.company.buzzPhrase(),
+        name: campaign.name,
         discount_type: campaign.discount_type,
         discount_value: asMoney(campaign.discount_value),
         min_order_total: asMoney(campaign.min_order_total),
@@ -1119,7 +1137,6 @@ async function seedOrders(params: {
         code: orderCode,
         customer_id: customerId,
         store_id: store.id,
-        campaign_id: discountRes.campaign_id,
         discount_source: discountRes.discount_source,
         discount: asMoney(discount),
         dropoff_photo_path: dropoffPhotoPath,
@@ -1141,6 +1158,26 @@ async function seedOrders(params: {
         updated_at: updatedAt,
       })
       .returning({ id: ordersTable.id });
+
+    if (discountRes.campaign_id !== null && discount > 0) {
+      const campaign = params.campaigns.find(
+        (item) => item.id === discountRes.campaign_id
+      );
+      if (campaign) {
+        await db.insert(orderCampaignsTable).values({
+          order_id: order.id,
+          campaign_id: campaign.id,
+          discount_type: campaign.discount_type,
+          discount_value: asMoney(campaign.discount_value),
+          max_discount:
+            campaign.max_discount === null
+              ? null
+              : asMoney(campaign.max_discount),
+          applied_amount: asMoney(discount),
+          created_at: createdAt,
+        });
+      }
+    }
 
     const insertedServices = draftServices.length
       ? await db

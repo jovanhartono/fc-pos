@@ -21,8 +21,6 @@ export const CampaignPayloadSchema = z.object({
 export const GETCampaignsQuerySchema = z
   .object({
     is_active: z.stringbool().optional(),
-    limit: z.coerce.number().int().min(1).max(100).optional(),
-    offset: z.coerce.number().int().min(0).optional(),
     store_id: z.coerce.number().int().positive().optional(),
   })
   .optional();

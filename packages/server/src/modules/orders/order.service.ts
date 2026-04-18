@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import { eq } from "drizzle-orm";
 import type z from "zod";
 import { db } from "@/db";
-import { ordersTable } from "@/db/schema";
+import { orderCampaignsTable, ordersTable } from "@/db/schema";
 import {
   BadRequestException,
   ForbiddenException,
@@ -27,6 +27,7 @@ import {
 import { findServices } from "@/modules/services/service.repository";
 import { findUserById } from "@/modules/users/user.repository";
 import type { POSTOrderSchema } from "@/schema";
+import { stackCampaignDiscounts } from "@/schema/discount";
 import type { JWTPayload } from "@/types";
 import type { Store } from "@/types/entity";
 import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
@@ -46,9 +47,18 @@ interface ExpandedServiceItem {
   size?: string;
 }
 
+interface ResolvedCampaignRow {
+  applied_amount: string;
+  campaign_id: number;
+  discount_type: "fixed" | "percentage";
+  discount_value: string;
+  max_discount: string | null;
+}
+
 interface ResolvedDiscount {
   discountAmount: number;
   discountSource: "none" | "manual" | "campaign";
+  campaignRows: ResolvedCampaignRow[];
 }
 
 function expandServices(
@@ -100,79 +110,147 @@ function buildOrderServiceRows({
   });
 }
 
+type ValidatedCampaign = Awaited<
+  ReturnType<OrderTx["query"]["campaignsTable"]["findFirst"]>
+>;
+
+async function loadAndValidateCampaigns({
+  tx,
+  campaignIds,
+  grossTotal,
+  storeId,
+  storeCode,
+}: {
+  tx: OrderTx;
+  campaignIds: number[];
+  grossTotal: number;
+  storeId: number;
+  storeCode: string;
+}) {
+  const campaigns = await tx.query.campaignsTable.findMany({
+    where: { id: { in: campaignIds } },
+    with: {
+      stores: { columns: { store_id: true } },
+    },
+  });
+
+  const campaignsById = new Map(campaigns.map((item) => [item.id, item]));
+  const missing = campaignIds.filter((id) => !campaignsById.has(id));
+  if (missing.length > 0) {
+    throw new NotFoundException(`Campaign not found: ${missing.join(", ")}`);
+  }
+
+  const now = new Date();
+  for (const campaign of campaigns) {
+    assertCampaignUsable(campaign, {
+      now,
+      grossTotal,
+      storeId,
+      storeCode,
+    });
+  }
+
+  return campaigns;
+}
+
+function assertCampaignUsable(
+  campaign: NonNullable<ValidatedCampaign> & { stores: { store_id: number }[] },
+  {
+    now,
+    grossTotal,
+    storeId,
+    storeCode,
+  }: { now: Date; grossTotal: number; storeId: number; storeCode: string }
+) {
+  if (!campaign.is_active) {
+    throw new BadRequestException(`Campaign ${campaign.code} is not active`);
+  }
+  if (campaign.starts_at && now < campaign.starts_at) {
+    throw new BadRequestException(
+      `Campaign ${campaign.code} has not started yet`
+    );
+  }
+  if (campaign.ends_at && now > campaign.ends_at) {
+    throw new BadRequestException(`Campaign ${campaign.code} has ended`);
+  }
+
+  const storeScopes = campaign.stores.map((item) => item.store_id);
+  if (storeScopes.length > 0 && !storeScopes.includes(storeId)) {
+    throw new BadRequestException(
+      `Campaign ${campaign.code} is not available for store ${storeCode}`
+    );
+  }
+
+  if (grossTotal < Number(campaign.min_order_total)) {
+    throw new BadRequestException(
+      `Order total does not meet minimum for campaign ${campaign.code}`
+    );
+  }
+}
+
 async function resolveDiscount({
   tx,
-  campaignId,
+  campaignIds,
   grossTotal,
   manualDiscount,
   storeId,
   storeCode,
 }: {
   tx: OrderTx;
-  campaignId?: number;
+  campaignIds: number[];
   grossTotal: number;
   manualDiscount: number;
   storeId: number;
   storeCode: string;
 }): Promise<ResolvedDiscount> {
-  if (campaignId === undefined) {
+  const manual = Math.max(0, manualDiscount);
+
+  if (campaignIds.length === 0) {
     return {
-      discountAmount: manualDiscount,
-      discountSource: manualDiscount > 0 ? "manual" : "none",
+      discountAmount: manual,
+      discountSource: manual > 0 ? "manual" : "none",
+      campaignRows: [],
     };
   }
 
-  const campaign = await tx.query.campaignsTable.findFirst({
-    where: { id: campaignId },
-    with: {
-      stores: {
-        columns: {
-          store_id: true,
-        },
-      },
-    },
+  const campaigns = await loadAndValidateCampaigns({
+    tx,
+    campaignIds,
+    grossTotal,
+    storeId,
+    storeCode,
   });
 
-  if (!campaign) {
-    throw new NotFoundException(`Campaign not found: ${campaignId}`);
-  }
-  if (!campaign.is_active) {
-    throw new BadRequestException("Campaign is not active");
-  }
+  const { total: campaignDiscount, breakdown } = stackCampaignDiscounts(
+    grossTotal,
+    campaigns
+  );
 
-  const now = new Date();
-  if (campaign.starts_at && now < campaign.starts_at) {
-    throw new BadRequestException("Campaign has not started yet");
-  }
-  if (campaign.ends_at && now > campaign.ends_at) {
-    throw new BadRequestException("Campaign has ended");
-  }
+  const campaignRows: ResolvedCampaignRow[] = breakdown.map(
+    ({ campaign, amount }) => ({
+      applied_amount: amount.toString(),
+      campaign_id: campaign.id,
+      discount_type: campaign.discount_type,
+      discount_value: campaign.discount_value,
+      max_discount: campaign.max_discount,
+    })
+  );
 
-  const storeScopes = campaign.stores.map((item) => item.store_id);
-  if (storeScopes.length > 0 && !storeScopes.includes(storeId)) {
-    throw new BadRequestException(
-      `Campaign is not available for store ${storeCode}`
-    );
-  }
+  const afterCampaign = Math.max(0, grossTotal - campaignDiscount);
+  const appliedManual = Math.min(manual, afterCampaign);
+  const totalDiscount = campaignDiscount + appliedManual;
 
-  if (grossTotal < Number(campaign.min_order_total)) {
-    throw new BadRequestException(
-      "Order total does not meet campaign minimum order value"
-    );
-  }
-
-  let discountAmount =
-    campaign.discount_type === "fixed"
-      ? Number(campaign.discount_value)
-      : (grossTotal * Number(campaign.discount_value)) / 100;
-
-  if (campaign.max_discount !== null) {
-    discountAmount = Math.min(discountAmount, Number(campaign.max_discount));
+  let discountSource: ResolvedDiscount["discountSource"] = "none";
+  if (campaignDiscount > 0) {
+    discountSource = "campaign";
+  } else if (manual > 0) {
+    discountSource = "manual";
   }
 
   return {
-    discountAmount,
-    discountSource: discountAmount > 0 ? "campaign" : "none",
+    discountAmount: totalDiscount,
+    discountSource,
+    campaignRows,
   };
 }
 
@@ -212,7 +290,7 @@ export async function createOrder(
   const {
     products = [],
     services = [],
-    campaign_id,
+    campaign_ids = [],
     ...orderPayload
   } = payload;
 
@@ -258,7 +336,6 @@ export async function createOrder(
       payment_status: orderPayload.payment_status,
       discount: "0",
       discount_source: "none",
-      campaign_id,
       paid_amount: "0",
       notes: orderPayload.notes,
       status: expandedServices.length > 0 ? "created" : "completed",
@@ -309,17 +386,31 @@ export async function createOrder(
     ]);
 
     const grossTotal = serviceSubtotal + productSubtotal;
-    const { discountAmount, discountSource } = await resolveDiscount({
-      tx,
-      campaignId: campaign_id,
-      grossTotal,
-      manualDiscount: Number(orderPayload.discount),
-      storeId: store.id,
-      storeCode: store.code,
-    });
+    const { discountAmount, discountSource, campaignRows } =
+      await resolveDiscount({
+        tx,
+        campaignIds: [...new Set(campaign_ids)],
+        grossTotal,
+        manualDiscount: Number(orderPayload.discount),
+        storeId: store.id,
+        storeCode: store.code,
+      });
 
     if (discountAmount > grossTotal) {
       throw new BadRequestException("Order discount cannot exceed order total");
+    }
+
+    if (campaignRows.length > 0) {
+      await tx.insert(orderCampaignsTable).values(
+        campaignRows.map((row) => ({
+          order_id: orderId,
+          campaign_id: row.campaign_id,
+          discount_type: row.discount_type,
+          discount_value: row.discount_value,
+          max_discount: row.max_discount,
+          applied_amount: row.applied_amount,
+        }))
+      );
     }
 
     const netTotal = grossTotal - discountAmount;
@@ -327,7 +418,6 @@ export async function createOrder(
     await tx
       .update(ordersTable)
       .set({
-        campaign_id,
         total: grossTotal.toString(),
         discount: discountAmount.toString(),
         discount_source: discountSource,

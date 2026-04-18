@@ -7,7 +7,7 @@ import {
 	XIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { Badge } from "@/components/ui/badge";
@@ -25,12 +25,13 @@ import {
 	SheetTitle,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { CampaignAutocomplete } from "@/features/orders/components/campaign-autocomplete";
 import { CustomerAutocomplete } from "@/features/orders/components/customer-autocomplete";
 import { useCartTotals } from "@/features/transactions/hooks/use-cart-totals";
 import { useTransactionsCart } from "@/features/transactions/hooks/use-transactions-cart";
 import {
-	getCampaignDiscount,
 	getEntityCategoryName,
+	getStackedDiscount,
 	isCampaignAvailable,
 	type TransactionDraftValues,
 } from "@/features/transactions/lib/transactions";
@@ -88,7 +89,7 @@ export function TransactionsCheckout({
 	const form = useFormContext<TransactionDraftValues>();
 	const [
 		selectedCustomerId = "",
-		selectedCampaignId = "",
+		selectedCampaignIds = [],
 		selectedPaymentMethodId = "",
 		paymentStatus = "unpaid",
 		manualDiscount = "",
@@ -97,7 +98,7 @@ export function TransactionsCheckout({
 		control: form.control,
 		name: [
 			"selectedCustomerId",
-			"selectedCampaignId",
+			"selectedCampaignIds",
 			"selectedPaymentMethodId",
 			"paymentStatus",
 			"manualDiscount",
@@ -132,33 +133,11 @@ export function TransactionsCheckout({
 		);
 	}, [campaignsQuery.data]);
 
-	useEffect(() => {
-		if (!selectedCampaignId) {
-			return;
-		}
-		const hasCampaign = availableCampaigns.some(
-			(campaign) => campaign.id === Number(selectedCampaignId),
-		);
-		if (!hasCampaign) {
-			form.setValue("selectedCampaignId", "", { shouldValidate: true });
-		}
-	}, [availableCampaigns, form, selectedCampaignId]);
-
 	const categoryMap = useMemo(
 		() => new Map(categories.map((category) => [category.id, category])),
 		[categories],
 	);
 
-	const campaignOptions = useMemo<ComboboxOption[]>(
-		() => [
-			{ value: "none", label: "No campaign" },
-			...availableCampaigns.map((campaign) => ({
-				value: String(campaign.id),
-				label: `${campaign.code} - ${campaign.name}`,
-			})),
-		],
-		[availableCampaigns],
-	);
 	const paymentMethodOptions = useMemo<ComboboxOption[]>(
 		() => [
 			{ value: "none", label: "No payment method" },
@@ -177,15 +156,12 @@ export function TransactionsCheckout({
 				: undefined,
 		[selectedStoreNumber, visibleStores],
 	);
-	const selectedCampaign = useMemo(
-		() =>
-			selectedCampaignId
-				? availableCampaigns.find(
-						(campaign) => campaign.id === Number(selectedCampaignId),
-					)
-				: undefined,
-		[availableCampaigns, selectedCampaignId],
-	);
+	const selectedCampaigns = useMemo(() => {
+		const selectedIdSet = new Set(selectedCampaignIds);
+		return availableCampaigns.filter((campaign) =>
+			selectedIdSet.has(String(campaign.id)),
+		);
+	}, [availableCampaigns, selectedCampaignIds]);
 	const selectedPaymentMethodLabel = useMemo(
 		() =>
 			selectedPaymentMethodId
@@ -196,41 +172,30 @@ export function TransactionsCheckout({
 		[paymentMethodOptions, selectedPaymentMethodId],
 	);
 
-	const campaignDiscount = getCampaignDiscount(subtotal, selectedCampaign);
+	const stackedDiscount = useMemo(
+		() => getStackedDiscount(subtotal, selectedCampaigns),
+		[subtotal, selectedCampaigns],
+	);
+	const campaignDiscount = stackedDiscount.total;
 	const discountValue = Number(manualDiscount || 0);
 	const totalDiscount = Math.min(subtotal, discountValue + campaignDiscount);
 	const total = Math.max(0, subtotal - totalDiscount);
 
 	const isSubmitting = form.formState.isSubmitting;
 
-	const orderMeta = useMemo(
-		() => [
-			{
-				label: "Campaign",
-				value: selectedCampaign?.code ?? "None",
-				variant: selectedCampaignId
-					? ("success" as const)
-					: ("outline" as const),
-			},
-			{
-				label: "Payment",
-				value:
-					paymentStatus === "paid"
-						? (selectedPaymentMethodLabel ?? "Method required")
-						: "Unpaid",
-				variant:
-					paymentStatus === "paid"
-						? ("warning" as const)
-						: ("outline" as const),
-			},
-		],
-		[
-			paymentStatus,
-			selectedCampaign?.code,
-			selectedCampaignId,
-			selectedPaymentMethodLabel,
-		],
-	);
+	const campaignSummary =
+		selectedCampaigns.length === 0
+			? "None"
+			: selectedCampaigns.length === 1
+				? (selectedCampaigns[0]?.code ?? "1 applied")
+				: `${selectedCampaigns.length} applied`;
+
+	const paymentValue =
+		paymentStatus === "paid"
+			? (selectedPaymentMethodLabel ?? "Method required")
+			: "Unpaid";
+	const campaignVariant = selectedCampaigns.length > 0 ? "success" : "outline";
+	const paymentVariant = paymentStatus === "paid" ? "warning" : "outline";
 
 	return (
 		<>
@@ -259,7 +224,9 @@ export function TransactionsCheckout({
 							size="sm"
 							onClick={resetCart}
 							disabled={
-								cartCount === 0 && !selectedCustomerId && !selectedCampaignId
+								cartCount === 0 &&
+								!selectedCustomerId &&
+								selectedCampaignIds.length === 0
 							}
 							icon={<TrashIcon className="size-4" />}
 						>
@@ -500,14 +467,19 @@ export function TransactionsCheckout({
 										{formatIDRCurrency(String(subtotal))}
 									</span>
 								</div>
-								<div className="flex items-center justify-between gap-3 text-sm">
-									<span className="text-muted-foreground">
-										Campaign Discount
-									</span>
-									<span className="font-medium">
-										-{formatIDRCurrency(String(Math.round(campaignDiscount)))}
-									</span>
-								</div>
+								{stackedDiscount.breakdown.map(({ campaign, amount }) => (
+									<div
+										key={campaign.id}
+										className="flex items-center justify-between gap-3 text-sm"
+									>
+										<span className="text-muted-foreground">
+											{campaign.code} ({campaign.name})
+										</span>
+										<span className="font-medium">
+											-{formatIDRCurrency(String(amount))}
+										</span>
+									</div>
+								))}
 								<div className="flex items-center justify-between gap-3 text-sm">
 									<span className="text-muted-foreground">Manual Discount</span>
 									<span className="font-medium">
@@ -521,14 +493,16 @@ export function TransactionsCheckout({
 							</div>
 
 							<div className="grid gap-2 sm:grid-cols-3">
-								{orderMeta.map((item) => (
-									<OrderMetaBadge
-										key={item.label}
-										label={item.label}
-										value={item.value}
-										variant={item.variant}
-									/>
-								))}
+								<OrderMetaBadge
+									label="Campaign"
+									value={campaignSummary}
+									variant={campaignVariant}
+								/>
+								<OrderMetaBadge
+									label="Payment"
+									value={paymentValue}
+									variant={paymentVariant}
+								/>
 							</div>
 
 							{submitError ? <FieldError>{submitError}</FieldError> : null}
@@ -559,37 +533,17 @@ export function TransactionsCheckout({
 
 					<div className="grid gap-5 overflow-y-auto p-4">
 						<Controller
-							name="selectedCampaignId"
+							name="selectedCampaignIds"
 							control={form.control}
 							render={({ field, fieldState }) => (
-								<Field data-invalid={fieldState.invalid}>
-									<FieldLabel htmlFor="transaction-campaign">
-										Campaign
-									</FieldLabel>
-									<Combobox
-										id="transaction-campaign"
-										triggerClassName="h-10 w-full text-sm"
-										options={campaignOptions}
-										value={field.value || "none"}
-										onValueChange={(value) =>
-											field.onChange(value === "none" ? "" : value)
-										}
-										loading={campaignsQuery.isFetching}
-										placeholder={
-											selectedStoreNumber
-												? "No campaign"
-												: "Select store first to unlock campaigns"
-										}
-										searchPlaceholder="Search campaign..."
-										emptyText={
-											selectedStoreNumber
-												? "No campaign found"
-												: "Select store first"
-										}
-										disabled={selectedStoreNumber === undefined}
-									/>
-									<FieldError errors={[fieldState.error]} />
-								</Field>
+								<CampaignAutocomplete
+									id="transaction-campaign"
+									label="Campaigns"
+									storeId={selectedStoreId}
+									values={field.value}
+									onValuesChange={field.onChange}
+									error={fieldState.error}
+								/>
 							)}
 						/>
 
@@ -646,21 +600,26 @@ export function TransactionsCheckout({
 							)}
 						/>
 
-						{selectedCampaign ? (
-							<div className="flex items-center justify-between gap-3 border border-emerald-300/60 bg-emerald-50/70 p-3 text-sm dark:border-emerald-800 dark:bg-emerald-950/30">
-								<div>
-									<p className="font-medium">{selectedCampaign.name}</p>
-									<p className="text-xs text-muted-foreground">
-										{selectedCampaign.code} active on this store
-									</p>
-								</div>
-								<Badge variant="success">
-									{selectedCampaign.discount_type === "percentage"
-										? `${selectedCampaign.discount_value}%`
-										: formatIDRCurrency(
-												String(selectedCampaign.discount_value),
-											)}
-								</Badge>
+						{selectedCampaigns.length > 0 ? (
+							<div className="grid gap-2">
+								{selectedCampaigns.map((campaign) => (
+									<div
+										key={campaign.id}
+										className="flex items-center justify-between gap-3 border border-emerald-300/60 bg-emerald-50/70 p-3 text-sm dark:border-emerald-800 dark:bg-emerald-950/30"
+									>
+										<div>
+											<p className="font-medium">{campaign.name}</p>
+											<p className="text-xs text-muted-foreground">
+												{campaign.code} active on this store
+											</p>
+										</div>
+										<Badge variant="success">
+											{campaign.discount_type === "percentage"
+												? `${campaign.discount_value}%`
+												: formatIDRCurrency(String(campaign.discount_value))}
+										</Badge>
+									</div>
+								))}
 							</div>
 						) : null}
 

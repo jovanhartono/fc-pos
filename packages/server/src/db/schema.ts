@@ -292,6 +292,37 @@ export const userStoresTable = pgTable(
   ]
 );
 
+export const shiftsTable = pgTable(
+  "shifts",
+  {
+    clock_in_at: timestamp("clock_in_at").defaultNow().notNull(),
+    clock_out_at: timestamp("clock_out_at"),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    store_id: integer("store_id")
+      .references(() => storesTable.id, { onDelete: "restrict" })
+      .notNull(),
+    updated_at: timestamp("updated_at")
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+    user_id: integer("user_id")
+      .references(() => usersTable.id, { onDelete: "cascade" })
+      .notNull(),
+  },
+  (table) => [
+    index("shifts_user_clock_in_idx").on(table.user_id, table.clock_in_at),
+    index("shifts_store_clock_in_idx").on(table.store_id, table.clock_in_at),
+    uniqueIndex("shifts_user_open_uidx")
+      .on(table.user_id)
+      .where(sql`${table.clock_out_at} IS NULL`),
+    check(
+      "shifts_clock_out_after_clock_in_check",
+      sql`${table.clock_out_at} IS NULL OR ${table.clock_out_at} >= ${table.clock_in_at}`
+    ),
+  ]
+);
+
 export const ordersTable = pgTable(
   "orders",
   {
@@ -303,7 +334,6 @@ export const ordersTable = pgTable(
     created_at: timestamp("created_at").notNull().defaultNow(),
 
     // cashier
-    campaign_id: integer("campaign_id").references(() => campaignsTable.id),
     created_by: integer("created_by")
       .references(() => usersTable.id)
       .notNull(),
@@ -357,7 +387,6 @@ export const ordersTable = pgTable(
     index("order_store_idx").on(table.store_id),
     index("order_store_created_at_idx").on(table.store_id, table.created_at),
     index("order_customer_idx").on(table.customer_id),
-    index("order_campaign_idx").on(table.campaign_id),
     index("order_payment_status_idx").on(table.payment_status),
     index("order_status_idx").on(table.status),
     index("order_created_at_idx").on(table.created_at),
@@ -397,11 +426,46 @@ export const orderCountersTable = pgTable(
   ]
 );
 
+export const orderCampaignsTable = pgTable(
+  "order_campaigns",
+  {
+    applied_amount: decimal("applied_amount", { precision: 12 })
+      .default("0")
+      .notNull(),
+    campaign_id: integer("campaign_id")
+      .references(() => campaignsTable.id, { onDelete: "restrict" })
+      .notNull(),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    discount_type: campaignDiscountTypeEnum("discount_type").notNull(),
+    discount_value: decimal("discount_value", { precision: 12 })
+      .default("0")
+      .notNull(),
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    max_discount: decimal("max_discount", { precision: 12 }),
+    order_id: integer("order_id")
+      .references(() => ordersTable.id, { onDelete: "cascade" })
+      .notNull(),
+  },
+  (table) => [
+    index("order_campaigns_order_idx").on(table.order_id),
+    index("order_campaigns_campaign_idx").on(table.campaign_id),
+    uniqueIndex("order_campaigns_order_campaign_uidx").on(
+      table.order_id,
+      table.campaign_id
+    ),
+    check(
+      "order_campaigns_applied_amount_non_negative_check",
+      sql`${table.applied_amount} >= 0`
+    ),
+  ]
+);
+
 export const ordersServicesTable = pgTable(
   "orders_services",
   {
     discount: decimal("discount", { precision: 12 }).default("0").notNull(),
 
+    cancel_reason: text("cancel_reason"),
     handler_id: integer("handler_id").references(() => usersTable.id),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     is_priority: boolean("is_priority").default(false).notNull(),

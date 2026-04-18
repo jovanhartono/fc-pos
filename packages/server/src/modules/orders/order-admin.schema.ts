@@ -1,10 +1,9 @@
 import { z } from "zod";
 import { orderServiceStatusEnum } from "@/db/schema";
 import { MAX_PAGE_SIZE } from "@/modules/orders/order.schema";
+import { dateStringSchema } from "@/schema/common";
 import { normalizePagination } from "@/utils/pagination";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
-
-const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 export const ORDER_STATUS_TRANSITIONS: Record<
   (typeof orderServiceStatusEnum.enumValues)[number],
@@ -62,10 +61,21 @@ export const POSTOrderPickupEventSchema = z.object({
   service_ids: z.array(z.coerce.number().int().positive()).min(1),
 });
 
-export const PATCHOrderServiceStatusSchema = z.object({
-  note: z.string().trim().optional(),
-  status: z.enum(orderServiceStatusEnum.enumValues),
-});
+export const PATCHOrderServiceStatusSchema = z
+  .object({
+    cancel_reason: z.string().trim().max(1000).optional(),
+    note: z.string().trim().optional(),
+    status: z.enum(orderServiceStatusEnum.enumValues),
+  })
+  .superRefine((value, ctx) => {
+    if (value.status === "cancelled" && !value.cancel_reason?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Cancel reason is required when cancelling a service",
+        path: ["cancel_reason"],
+      });
+    }
+  });
 
 export const PATCHOrderServiceHandlerSchema = z.object({
   handler_id: z.coerce.number().int().positive().nullable(),
@@ -119,14 +129,8 @@ export const GETOrderServiceQueueQuerySchema = z
     store_id: z.coerce.number().int().positive().optional(),
     search: z.string().trim().min(1).max(100).optional(),
     status: z.enum(orderServiceStatusEnum.enumValues).optional(),
-    date_from: z
-      .string()
-      .regex(dateRegex, "date_from must use YYYY-MM-DD format")
-      .optional(),
-    date_to: z
-      .string()
-      .regex(dateRegex, "date_to must use YYYY-MM-DD format")
-      .optional(),
+    date_from: dateStringSchema("date_from").optional(),
+    date_to: dateStringSchema("date_to").optional(),
   })
   .refine(
     (query) =>

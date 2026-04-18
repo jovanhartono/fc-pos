@@ -219,11 +219,16 @@ function DialogForm({
 	const isPending = updateStatusMutation.isPending;
 
 	const handleConfirm = async () => {
+		const trimmed = note.trim();
 		await updateStatusMutation.mutateAsync({
 			serviceId,
 			payload: {
 				status: nextStatus,
-				note: note.trim() || undefined,
+				...(isCancel
+					? { cancel_reason: trimmed }
+					: trimmed
+						? { note: trimmed }
+						: {}),
 			},
 		});
 		closeDialog();
@@ -611,8 +616,22 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 								<dt className="text-muted-foreground">Subtotal</dt>
 								<dd>{formatIDRCurrency(String(detail.total ?? 0))}</dd>
 							</div>
+							{detail.campaigns.map((row) => (
+								<div key={row.id} className="flex justify-between gap-4">
+									<dt className="text-muted-foreground">
+										{row.campaign?.code ?? "Campaign"}
+										{row.campaign?.name ? (
+											<span className="text-muted-foreground/70">
+												{" "}
+												· {row.campaign.name}
+											</span>
+										) : null}
+									</dt>
+									<dd>-{formatIDRCurrency(String(row.applied_amount ?? 0))}</dd>
+								</div>
+							))}
 							<div className="flex justify-between gap-4">
-								<dt className="text-muted-foreground">Discount</dt>
+								<dt className="text-muted-foreground">Discount total</dt>
 								<dd>-{formatIDRCurrency(String(detail.discount ?? 0))}</dd>
 							</div>
 						</dl>
@@ -905,6 +924,15 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 											</dd>
 										</div>
 									</dl>
+
+									{service.status === "cancelled" && service.cancel_reason ? (
+										<div className="border-destructive/40 bg-destructive/5 border p-3">
+											<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+												Cancel reason
+											</p>
+											<p className="mt-1 text-sm">{service.cancel_reason}</p>
+										</div>
+									) : null}
 
 									<div className="flex flex-wrap gap-2 border-t pt-4">
 										{(ORDER_STATUS_TRANSITIONS[service.status] || []).map(

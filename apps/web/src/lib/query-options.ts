@@ -2,13 +2,16 @@ import { queryOptions } from "@tanstack/react-query";
 import {
 	type FetchCampaignsQuery,
 	type FetchCustomersQuery,
+	type FetchDailyReportQuery,
 	type FetchOrdersQuery,
+	type FetchShiftsQuery,
 	type FetchUsersQuery,
 	fetchCampaigns,
-	fetchCampaignsPage,
 	fetchCategories,
+	fetchCurrentShift,
 	fetchCurrentUserDetail,
 	fetchCustomersPage,
+	fetchDailyReport,
 	fetchDashboardCounts,
 	fetchMyOrderServices,
 	fetchOrderDetail,
@@ -16,6 +19,7 @@ import {
 	fetchPaymentMethods,
 	fetchProducts,
 	fetchServices,
+	fetchShifts,
 	fetchStores,
 	fetchUsersPage,
 	queryKeys,
@@ -96,18 +100,30 @@ export const orderDetailQueryOptions = (id: number) =>
 
 export const campaignsQueryOptions = (query?: FetchCampaignsQuery) =>
 	queryOptions({
-		queryKey: queryKeys.campaignsList(query),
-		queryFn: () => fetchCampaigns(query),
-	});
-
-export const campaignsPageQueryOptions = (query?: FetchCampaignsQuery) =>
-	queryOptions({
 		queryKey: queryKeys.campaigns(query),
-		queryFn: () => fetchCampaignsPage(query),
+		queryFn: () => fetchCampaigns(query),
 	});
 
 export const myOrderServicesQueryOptions = (storeId?: number) =>
 	queryOptions({
 		queryKey: queryKeys.myOrderServices(storeId),
 		queryFn: () => fetchMyOrderServices(storeId),
+	});
+
+export const currentShiftQueryOptions = () =>
+	queryOptions({
+		queryKey: queryKeys.shiftCurrent,
+		queryFn: fetchCurrentShift,
+	});
+
+export const shiftsQueryOptions = (query?: FetchShiftsQuery) =>
+	queryOptions({
+		queryKey: queryKeys.shifts(query),
+		queryFn: () => fetchShifts(query),
+	});
+
+export const dailyReportQueryOptions = (query: FetchDailyReportQuery) =>
+	queryOptions({
+		queryKey: queryKeys.dailyReport(query),
+		queryFn: () => fetchDailyReport(query),
 	});

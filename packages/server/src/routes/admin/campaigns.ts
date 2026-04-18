@@ -20,9 +20,9 @@ const app = new Hono()
   .get("/", zodValidator("query", GETCampaignsQuerySchema), async (c) => {
     const query = c.req.valid("query");
 
-    const { items, meta } = await getCampaigns(query);
+    const items = await getCampaigns(query);
 
-    return c.json(success(items, undefined, meta));
+    return c.json(success(items));
   })
   .get("/:id", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");

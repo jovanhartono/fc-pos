@@ -509,7 +509,12 @@ export async function getOrderDetailById(id: number) {
   const detail = await db.query.ordersTable.findFirst({
     where: { id },
     with: {
-      campaign: true,
+      campaigns: {
+        with: {
+          campaign: true,
+        },
+        orderBy: { id: "asc" },
+      },
       customer: true,
       paymentMethod: true,
       pickupEvents: {
@@ -854,10 +859,20 @@ export async function updateOrderServiceStatus({
     const needsHandlerAssign =
       isClaimTransition && locked.handler_id !== user.id;
 
+    const cancelReason =
+      body.status === "cancelled" ? body.cancel_reason?.trim() : undefined;
+    const cancelReasonPatch = cancelReason
+      ? { cancel_reason: cancelReason }
+      : {};
+
     if (needsHandlerAssign) {
       await tx
         .update(ordersServicesTable)
-        .set({ handler_id: user.id, status: body.status })
+        .set({
+          handler_id: user.id,
+          status: body.status,
+          ...cancelReasonPatch,
+        })
         .where(eq(ordersServicesTable.id, serviceId));
 
       await tx.insert(orderServiceHandlerLogsTable).values({
@@ -870,7 +885,10 @@ export async function updateOrderServiceStatus({
     } else {
       await tx
         .update(ordersServicesTable)
-        .set({ status: body.status })
+        .set({
+          status: body.status,
+          ...cancelReasonPatch,
+        })
         .where(eq(ordersServicesTable.id, serviceId));
     }
 

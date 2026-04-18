@@ -31,7 +31,7 @@ import { servicesQueryOptions } from "@/lib/query-options";
 export type OrderFormState = {
 	customer_id: string;
 	store_id: string;
-	campaign_id: string;
+	campaign_ids: string[];
 	payment_method_id: string;
 	payment_status: "paid" | "unpaid";
 	discount: string;
@@ -53,7 +53,7 @@ export type OrderFormState = {
 const defaultForm: OrderFormState = {
 	customer_id: "",
 	store_id: "",
-	campaign_id: "",
+	campaign_ids: [],
 	payment_method_id: "",
 	payment_status: "unpaid",
 	discount: "",
@@ -75,7 +75,7 @@ function toOrderPayload(values: OrderFormState): CreateOrderPayload {
 	return {
 		customer_id: Number(values.customer_id),
 		store_id: Number(values.store_id),
-		campaign_id: values.campaign_id ? Number(values.campaign_id) : undefined,
+		campaign_ids: values.campaign_ids.map((id) => Number(id)),
 		products: values.products
 			.filter((product) => !!product.id)
 			.map((product) => ({
@@ -115,7 +115,7 @@ const orderFormResolverSchema = z
 				(value) => value.trim() === "" || Number(value) > 0,
 				"Discount must be positive",
 			),
-		campaign_id: z.string(),
+		campaign_ids: z.array(z.string()),
 		notes: z.string(),
 		products: z.array(
 			z.object({
@@ -233,13 +233,13 @@ export function OrderForm({
 				/>
 
 				<Controller
-					name="campaign_id"
+					name="campaign_ids"
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<CampaignAutocomplete
-							value={field.value}
+							values={field.value}
 							storeId={selectedStoreId}
-							onValueChange={field.onChange}
+							onValuesChange={field.onChange}
 							disabled={isSubmitting}
 							error={fieldState.error}
 						/>

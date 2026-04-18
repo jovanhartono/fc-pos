@@ -17,7 +17,9 @@ import { Route as AuthLoginRouteImport } from "./routes/auth/login";
 import { Route as AdminUsersRouteImport } from "./routes/_admin/users";
 import { Route as AdminTransactionsRouteImport } from "./routes/_admin/transactions";
 import { Route as AdminStoresRouteImport } from "./routes/_admin/stores";
+import { Route as AdminShiftsRouteImport } from "./routes/_admin/shifts";
 import { Route as AdminServicesRouteImport } from "./routes/_admin/services";
+import { Route as AdminReportsRouteImport } from "./routes/_admin/reports";
 import { Route as AdminProductsRouteImport } from "./routes/_admin/products";
 import { Route as AdminPaymentMethodsRouteImport } from "./routes/_admin/payment-methods";
 import { Route as AdminCustomersRouteImport } from "./routes/_admin/customers";
@@ -67,9 +69,19 @@ const AdminStoresRoute = AdminStoresRouteImport.update({
   path: "/stores",
   getParentRoute: () => AdminRouteRoute,
 } as any);
+const AdminShiftsRoute = AdminShiftsRouteImport.update({
+  id: "/shifts",
+  path: "/shifts",
+  getParentRoute: () => AdminRouteRoute,
+} as any);
 const AdminServicesRoute = AdminServicesRouteImport.update({
   id: "/services",
   path: "/services",
+  getParentRoute: () => AdminRouteRoute,
+} as any);
+const AdminReportsRoute = AdminReportsRouteImport.update({
+  id: "/reports",
+  path: "/reports",
   getParentRoute: () => AdminRouteRoute,
 } as any);
 const AdminProductsRoute = AdminProductsRouteImport.update({
@@ -127,7 +139,9 @@ export interface FileRoutesByFullPath {
   "/customers": typeof AdminCustomersRoute;
   "/payment-methods": typeof AdminPaymentMethodsRoute;
   "/products": typeof AdminProductsRoute;
+  "/reports": typeof AdminReportsRoute;
   "/services": typeof AdminServicesRoute;
+  "/shifts": typeof AdminShiftsRoute;
   "/stores": typeof AdminStoresRoute;
   "/transactions": typeof AdminTransactionsRoute;
   "/users": typeof AdminUsersRoute;
@@ -145,7 +159,9 @@ export interface FileRoutesByTo {
   "/customers": typeof AdminCustomersRoute;
   "/payment-methods": typeof AdminPaymentMethodsRoute;
   "/products": typeof AdminProductsRoute;
+  "/reports": typeof AdminReportsRoute;
   "/services": typeof AdminServicesRoute;
+  "/shifts": typeof AdminShiftsRoute;
   "/stores": typeof AdminStoresRoute;
   "/transactions": typeof AdminTransactionsRoute;
   "/users": typeof AdminUsersRoute;
@@ -166,7 +182,9 @@ export interface FileRoutesById {
   "/_admin/customers": typeof AdminCustomersRoute;
   "/_admin/payment-methods": typeof AdminPaymentMethodsRoute;
   "/_admin/products": typeof AdminProductsRoute;
+  "/_admin/reports": typeof AdminReportsRoute;
   "/_admin/services": typeof AdminServicesRoute;
+  "/_admin/shifts": typeof AdminShiftsRoute;
   "/_admin/stores": typeof AdminStoresRoute;
   "/_admin/transactions": typeof AdminTransactionsRoute;
   "/_admin/users": typeof AdminUsersRoute;
@@ -188,7 +206,9 @@ export interface FileRouteTypes {
     | "/customers"
     | "/payment-methods"
     | "/products"
+    | "/reports"
     | "/services"
+    | "/shifts"
     | "/stores"
     | "/transactions"
     | "/users"
@@ -206,7 +226,9 @@ export interface FileRouteTypes {
     | "/customers"
     | "/payment-methods"
     | "/products"
+    | "/reports"
     | "/services"
+    | "/shifts"
     | "/stores"
     | "/transactions"
     | "/users"
@@ -226,7 +248,9 @@ export interface FileRouteTypes {
     | "/_admin/customers"
     | "/_admin/payment-methods"
     | "/_admin/products"
+    | "/_admin/reports"
     | "/_admin/services"
+    | "/_admin/shifts"
     | "/_admin/stores"
     | "/_admin/transactions"
     | "/_admin/users"
@@ -303,11 +327,25 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AdminStoresRouteImport;
       parentRoute: typeof AdminRouteRoute;
     };
+    "/_admin/shifts": {
+      id: "/_admin/shifts";
+      path: "/shifts";
+      fullPath: "/shifts";
+      preLoaderRoute: typeof AdminShiftsRouteImport;
+      parentRoute: typeof AdminRouteRoute;
+    };
     "/_admin/services": {
       id: "/_admin/services";
       path: "/services";
       fullPath: "/services";
       preLoaderRoute: typeof AdminServicesRouteImport;
+      parentRoute: typeof AdminRouteRoute;
+    };
+    "/_admin/reports": {
+      id: "/_admin/reports";
+      path: "/reports";
+      fullPath: "/reports";
+      preLoaderRoute: typeof AdminReportsRouteImport;
       parentRoute: typeof AdminRouteRoute;
     };
     "/_admin/products": {
@@ -382,7 +420,9 @@ interface AdminRouteRouteChildren {
   AdminCustomersRoute: typeof AdminCustomersRoute;
   AdminPaymentMethodsRoute: typeof AdminPaymentMethodsRoute;
   AdminProductsRoute: typeof AdminProductsRoute;
+  AdminReportsRoute: typeof AdminReportsRoute;
   AdminServicesRoute: typeof AdminServicesRoute;
+  AdminShiftsRoute: typeof AdminShiftsRoute;
   AdminStoresRoute: typeof AdminStoresRoute;
   AdminTransactionsRoute: typeof AdminTransactionsRoute;
   AdminUsersRoute: typeof AdminUsersRoute;
@@ -399,7 +439,9 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminCustomersRoute: AdminCustomersRoute,
   AdminPaymentMethodsRoute: AdminPaymentMethodsRoute,
   AdminProductsRoute: AdminProductsRoute,
+  AdminReportsRoute: AdminReportsRoute,
   AdminServicesRoute: AdminServicesRoute,
+  AdminShiftsRoute: AdminShiftsRoute,
   AdminStoresRoute: AdminStoresRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,
   AdminUsersRoute: AdminUsersRoute,

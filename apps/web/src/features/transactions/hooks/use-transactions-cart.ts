@@ -47,7 +47,7 @@ export function useTransactionsCart() {
 		form.reset({
 			selectedStoreId,
 			selectedCustomerId: "",
-			selectedCampaignId: "",
+			selectedCampaignIds: [],
 			selectedPaymentMethodId: "",
 			paymentStatus: "unpaid",
 			manualDiscount: "",

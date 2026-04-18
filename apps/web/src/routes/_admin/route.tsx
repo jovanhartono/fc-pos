@@ -72,6 +72,14 @@ const pageMeta: Record<string, { title: string; description?: string }> = {
 		title: "Stores",
 		description: "Insert and edit store master data.",
 	},
+	"/reports": {
+		title: "Daily Report",
+		description: "Revenue, items processed, and order flow for a single day.",
+	},
+	"/shifts": {
+		title: "Shifts",
+		description: "Track worker clock in and clock out history across stores.",
+	},
 	"/users": {
 		title: "Users",
 		description: "Insert and edit users with role management.",
