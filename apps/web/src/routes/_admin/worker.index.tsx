@@ -13,6 +13,7 @@ import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DateRangePicker } from "@/components/ui/date-picker";
 import {
 	Dialog,
 	DialogContent,
@@ -29,7 +30,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { DateRangeFilter } from "@/features/orders/components/date-range-filter";
 import {
 	type FetchOrderServiceQueueQuery,
 	fetchOrderDetail,
@@ -516,13 +516,7 @@ function WorkerQueuePage() {
 		});
 	};
 
-	const updateDateRangeFilter = ({
-		dateFrom,
-		dateTo,
-	}: {
-		dateFrom?: string;
-		dateTo?: string;
-	}) => {
+	const updateDateRangeFilter = (next: { from?: string; to?: string } = {}) => {
 		void navigate({
 			search: (prev: {
 				storeId?: number;
@@ -531,23 +525,8 @@ function WorkerQueuePage() {
 				dateTo?: string;
 			}) => ({
 				...prev,
-				dateFrom,
-				dateTo,
-			}),
-		});
-	};
-
-	const clearDateRangeFilter = () => {
-		void navigate({
-			search: (prev: {
-				storeId?: number;
-				status?: (typeof QUEUE_STATUS_OPTIONS)[number];
-				dateFrom?: string;
-				dateTo?: string;
-			}) => ({
-				...prev,
-				dateFrom: undefined,
-				dateTo: undefined,
+				dateFrom: next.from,
+				dateTo: next.to,
 			}),
 		});
 	};
@@ -648,11 +627,12 @@ function WorkerQueuePage() {
 										</div>
 									</div>
 
-									<DateRangeFilter
-										dateFrom={selectedDateFrom}
-										dateTo={selectedDateTo}
-										onRangeChange={updateDateRangeFilter}
-										onClear={clearDateRangeFilter}
+									<DateRangePicker
+										commitOnComplete
+										from={selectedDateFrom}
+										to={selectedDateTo}
+										onChange={updateDateRangeFilter}
+										onClear={() => updateDateRangeFilter()}
 									/>
 
 									<Button
@@ -783,11 +763,12 @@ function WorkerQueuePage() {
 					</div>
 
 					<div className="hidden md:block">
-						<DateRangeFilter
-							dateFrom={selectedDateFrom}
-							dateTo={selectedDateTo}
-							onRangeChange={updateDateRangeFilter}
-							onClear={clearDateRangeFilter}
+						<DateRangePicker
+							commitOnComplete
+							from={selectedDateFrom}
+							to={selectedDateTo}
+							onChange={updateDateRangeFilter}
+							onClear={() => updateDateRangeFilter()}
 						/>
 					</div>
 

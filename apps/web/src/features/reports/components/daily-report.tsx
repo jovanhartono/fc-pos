@@ -4,7 +4,7 @@ import dayjs from "dayjs";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
 	Select,
 	SelectContent,
@@ -344,14 +344,13 @@ export const DailyReport = ({
 					>
 						Date (Asia/Jakarta)
 					</label>
-					<Input
+					<DatePicker
 						id="report-date"
-						type="date"
 						value={date}
 						max={dayjs().format("YYYY-MM-DD")}
-						onChange={(event) => {
-							if (event.target.value) {
-								onDateChange(event.target.value);
+						onChange={(next) => {
+							if (next) {
+								onDateChange(next);
 							}
 						}}
 					/>

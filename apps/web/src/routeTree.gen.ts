@@ -25,6 +25,7 @@ import { Route as AdminPaymentMethodsRouteImport } from "./routes/_admin/payment
 import { Route as AdminCustomersRouteImport } from "./routes/_admin/customers";
 import { Route as AdminCategoriesRouteImport } from "./routes/_admin/categories";
 import { Route as AdminCampaignsRouteImport } from "./routes/_admin/campaigns";
+import { Route as AdminAttendanceRouteImport } from "./routes/_admin/attendance";
 import { Route as AdminWorkerIndexRouteImport } from "./routes/_admin/worker.index";
 import { Route as AdminOrdersIndexRouteImport } from "./routes/_admin/orders.index";
 import { Route as AdminOrdersOrderIdRouteImport } from "./routes/_admin/orders.$orderId";
@@ -108,6 +109,11 @@ const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
   path: "/campaigns",
   getParentRoute: () => AdminRouteRoute,
 } as any);
+const AdminAttendanceRoute = AdminAttendanceRouteImport.update({
+  id: "/attendance",
+  path: "/attendance",
+  getParentRoute: () => AdminRouteRoute,
+} as any);
 const AdminWorkerIndexRoute = AdminWorkerIndexRouteImport.update({
   id: "/worker/",
   path: "/worker/",
@@ -128,6 +134,7 @@ export interface FileRoutesByFullPath {
   "/": typeof AdminIndexRoute;
   "/login": typeof LoginRoute;
   "/track": typeof TrackRoute;
+  "/attendance": typeof AdminAttendanceRoute;
   "/campaigns": typeof AdminCampaignsRoute;
   "/categories": typeof AdminCategoriesRoute;
   "/customers": typeof AdminCustomersRoute;
@@ -147,6 +154,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   "/login": typeof LoginRoute;
   "/track": typeof TrackRoute;
+  "/attendance": typeof AdminAttendanceRoute;
   "/campaigns": typeof AdminCampaignsRoute;
   "/categories": typeof AdminCategoriesRoute;
   "/customers": typeof AdminCustomersRoute;
@@ -169,6 +177,7 @@ export interface FileRoutesById {
   "/_admin": typeof AdminRouteRouteWithChildren;
   "/login": typeof LoginRoute;
   "/track": typeof TrackRoute;
+  "/_admin/attendance": typeof AdminAttendanceRoute;
   "/_admin/campaigns": typeof AdminCampaignsRoute;
   "/_admin/categories": typeof AdminCategoriesRoute;
   "/_admin/customers": typeof AdminCustomersRoute;
@@ -192,6 +201,7 @@ export interface FileRouteTypes {
     | "/"
     | "/login"
     | "/track"
+    | "/attendance"
     | "/campaigns"
     | "/categories"
     | "/customers"
@@ -211,6 +221,7 @@ export interface FileRouteTypes {
   to:
     | "/login"
     | "/track"
+    | "/attendance"
     | "/campaigns"
     | "/categories"
     | "/customers"
@@ -232,6 +243,7 @@ export interface FileRouteTypes {
     | "/_admin"
     | "/login"
     | "/track"
+    | "/_admin/attendance"
     | "/_admin/campaigns"
     | "/_admin/categories"
     | "/_admin/customers"
@@ -371,6 +383,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AdminCampaignsRouteImport;
       parentRoute: typeof AdminRouteRoute;
     };
+    "/_admin/attendance": {
+      id: "/_admin/attendance";
+      path: "/attendance";
+      fullPath: "/attendance";
+      preLoaderRoute: typeof AdminAttendanceRouteImport;
+      parentRoute: typeof AdminRouteRoute;
+    };
     "/_admin/worker/": {
       id: "/_admin/worker/";
       path: "/worker";
@@ -396,6 +415,7 @@ declare module "@tanstack/react-router" {
 }
 
 interface AdminRouteRouteChildren {
+  AdminAttendanceRoute: typeof AdminAttendanceRoute;
   AdminCampaignsRoute: typeof AdminCampaignsRoute;
   AdminCategoriesRoute: typeof AdminCategoriesRoute;
   AdminCustomersRoute: typeof AdminCustomersRoute;
@@ -414,6 +434,7 @@ interface AdminRouteRouteChildren {
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminAttendanceRoute: AdminAttendanceRoute,
   AdminCampaignsRoute: AdminCampaignsRoute,
   AdminCategoriesRoute: AdminCategoriesRoute,
   AdminCustomersRoute: AdminCustomersRoute,

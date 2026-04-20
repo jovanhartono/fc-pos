@@ -64,3 +64,9 @@ react-hook-form + zodResolver + useMutation for every form.
 - File-based under `src/routes/`; `_admin` layout with `beforeLoad: requireAuth`
 - Search params validated with Zod via `validateSearch`
 - `Route.useSearch()` / `Route.useParams()` in components
+- After renaming/creating a route file, run `bun run generate-routes` before type-check. If `FileRoutesByPath` still errors, run type-check again — `tsc -b` incremental cache sometimes lags one pass.
+
+## Dates
+
+- Server date params (`from`, `to`, `date`) require `YYYY-MM-DD`. Use `dayjs(x).format("YYYY-MM-DD")` or the built-in `DatePicker`/`DateRangePicker` (already emit correct format).
+- dayjs runs vanilla — no `isoWeek` plugin. For Mon-start weeks: `const daysFromMonday = (dayjs().day() + 6) % 7`.

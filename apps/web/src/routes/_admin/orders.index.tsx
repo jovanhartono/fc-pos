@@ -11,6 +11,7 @@ import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DateRangePicker } from "@/components/ui/date-picker";
 import {
 	Select,
 	SelectContent,
@@ -18,7 +19,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { DateRangeFilter } from "@/features/orders/components/date-range-filter";
 import { PickupRadar } from "@/features/orders/components/pickup-radar";
 import type { Order } from "@/lib/api";
 import {
@@ -369,17 +369,18 @@ function OrdersPage() {
 									))}
 								</SelectContent>
 							</Select>
-							<DateRangeFilter
+							<DateRangePicker
 								resetOnSelect
-								dateFrom={search.dateFrom}
-								dateTo={search.dateTo}
-								onRangeChange={({ dateFrom, dateTo }) => {
+								commitOnComplete
+								from={search.dateFrom}
+								to={search.dateTo}
+								onChange={({ from, to }) => {
 									void navigate({
 										search: (prev) => ({
 											...prev,
 											page: 1,
-											dateFrom,
-											dateTo,
+											dateFrom: from,
+											dateTo: to,
 										}),
 									});
 								}}

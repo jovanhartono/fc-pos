@@ -20,3 +20,4 @@ bunx tsdown          # One-off type export build
 - Use `src/utils/http.ts` helpers (`success()`, `failure()`) for responses.
 - Export types/schemas for web via package exports (`schema`, `rpc`, `types`) — no deep internal imports from `@fresclean/web`.
 - Migrations: `drizzle-*` scripts in `package.json` with matching config per environment.
+- **Date query params**: `dateStringSchema()` requires `YYYY-MM-DD` — never send `.toISOString()`. Used on shifts, reports, daily-report endpoints.

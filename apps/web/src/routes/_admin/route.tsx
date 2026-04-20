@@ -76,6 +76,10 @@ const pageMeta: Record<string, { title: string; description?: string }> = {
 		title: "Shifts",
 		description: "Track worker clock in and clock out history across stores.",
 	},
+	"/attendance": {
+		title: "Attendance",
+		description: "Clock in, clock out, and review your recent shifts.",
+	},
 	"/users": {
 		title: "Users",
 		description: "Insert and edit users with role management.",

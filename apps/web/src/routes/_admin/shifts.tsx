@@ -8,7 +8,7 @@ import { DataTable } from "@/components/data-table";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/ui/date-picker";
 import {
 	Select,
 	SelectContent,
@@ -162,44 +162,19 @@ function ShiftsPage() {
 								</Select>
 							</div>
 							<div className="grid gap-1">
-								<label
-									htmlFor="shifts-from"
-									className="text-muted-foreground text-xs font-medium uppercase"
-								>
-									From
-								</label>
-								<Input
-									id="shifts-from"
-									type="date"
-									value={search.from ?? ""}
-									onChange={(event) => {
-										const value = event.target.value;
+								<span className="text-muted-foreground text-xs font-medium uppercase">
+									Date range
+								</span>
+								<DateRangePicker
+									id="shifts-range"
+									from={search.from}
+									to={search.to}
+									onChange={({ from, to }) => {
 										void navigate({
 											search: (prev) => ({
 												...prev,
-												from: value || undefined,
-											}),
-										});
-									}}
-								/>
-							</div>
-							<div className="grid gap-1">
-								<label
-									htmlFor="shifts-to"
-									className="text-muted-foreground text-xs font-medium uppercase"
-								>
-									To
-								</label>
-								<Input
-									id="shifts-to"
-									type="date"
-									value={search.to ?? ""}
-									onChange={(event) => {
-										const value = event.target.value;
-										void navigate({
-											search: (prev) => ({
-												...prev,
-												to: value || undefined,
+												from: from ?? undefined,
+												to: to ?? undefined,
 											}),
 										});
 									}}

@@ -18,7 +18,6 @@ import {
 	TagIcon,
 	UserGearIcon,
 } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { type ComponentType, type PropsWithChildren, useEffect } from "react";
 import { useTheme } from "@/components/theme-provider";
@@ -42,12 +41,10 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 	SidebarProvider,
+	SidebarRail,
 	SidebarSeparator,
 	SidebarTrigger,
-	useSidebar,
 } from "@/components/ui/sidebar";
-import { ShiftClockCard } from "@/features/shifts/components/shift-clock-card";
-import { storesQueryOptions } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
 import { getCurrentUser, useAuthStore } from "@/stores/auth-store";
 
@@ -61,6 +58,12 @@ type NavItem = {
 };
 
 const workNavigation: NavItem[] = [
+	{
+		to: "/attendance",
+		label: "Attendance",
+		icon: ClockIcon,
+		roles: ["cashier", "worker"],
+	},
 	{
 		to: "/transactions",
 		label: "Transactions",
@@ -118,13 +121,11 @@ const catalogNavigation: NavItem[] = [
 ] as const;
 
 const operationsNavigation: NavItem[] = [
-	{ to: "/stores", label: "Stores", icon: StorefrontIcon, roles: ["admin"] },
 	{
-		to: "/users",
-		label: "Users",
-		icon: UserGearIcon,
+		to: "/",
+		label: "Dashboard",
+		icon: HouseIcon,
 		roles: ["admin"],
-		search: { page: 1 },
 	},
 	{
 		to: "/reports",
@@ -133,11 +134,13 @@ const operationsNavigation: NavItem[] = [
 		roles: ["admin"],
 	},
 	{
-		to: "/",
-		label: "Dashboard",
-		icon: HouseIcon,
+		to: "/users",
+		label: "Users",
+		icon: UserGearIcon,
 		roles: ["admin"],
+		search: { page: 1 },
 	},
+	{ to: "/stores", label: "Stores", icon: StorefrontIcon, roles: ["admin"] },
 ] as const;
 
 interface AppShellProps extends PropsWithChildren {
@@ -183,24 +186,6 @@ const FooterThemeButton = () => {
 	);
 };
 
-function FloatingSidebarTrigger() {
-	const { isMobile, state } = useSidebar();
-
-	if (isMobile) {
-		return (
-			<SidebarTrigger className="fixed left-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-20 size-8 border border-sidebar-border/70 bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80" />
-		);
-	}
-
-	if (state === "collapsed") {
-		return (
-			<SidebarTrigger className="fixed left-2 top-1/2 z-20 size-8 -translate-y-1/2 border border-sidebar-border/70 bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80" />
-		);
-	}
-
-	return null;
-}
-
 function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
 	return (
 		<SidebarMenu>
@@ -238,10 +223,6 @@ export function AppShell({ title, children }: AppShellProps) {
 	const clearToken = useAuthStore((state) => state.clearToken);
 	const user = getCurrentUser();
 	const role = user?.role as Role | undefined;
-	const storesQuery = useQuery({
-		...storesQueryOptions(),
-		enabled: !!user,
-	});
 
 	useEffect(() => {
 		document.title = `${title} | Fresclean POS`;
@@ -267,11 +248,13 @@ export function AppShell({ title, children }: AppShellProps) {
 
 	return (
 		<SidebarProvider>
-			<Sidebar collapsible="offcanvas" variant="inset">
-				<SidebarHeader className="flex-row items-center justify-between">
+			<Sidebar collapsible="icon" variant="inset">
+				<SidebarHeader className="flex-row items-center justify-between group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
 					<div className="flex items-center gap-2 px-2 text-sm font-semibold uppercase tracking-[0.2em] text-sidebar-foreground/80">
 						<BuildingsIcon className="size-4" />
-						Fresclean POS
+						<span className="group-data-[collapsible=icon]:hidden">
+							Fresclean POS
+						</span>
 					</div>
 					<SidebarTrigger className="size-6 shrink-0" />
 				</SidebarHeader>
@@ -279,6 +262,15 @@ export function AppShell({ title, children }: AppShellProps) {
 				<SidebarSeparator />
 
 				<SidebarContent>
+					{allowedOperationsNavigation.length > 0 ? (
+						<SidebarGroup>
+							<SidebarGroupLabel>Operations</SidebarGroupLabel>
+							<SidebarGroupContent>
+								<SidebarNavLinks items={allowedOperationsNavigation} />
+							</SidebarGroupContent>
+						</SidebarGroup>
+					) : null}
+
 					{allowedWorkNavigation.length > 0 ? (
 						<SidebarGroup>
 							<SidebarGroupLabel>Work</SidebarGroupLabel>
@@ -305,32 +297,17 @@ export function AppShell({ title, children }: AppShellProps) {
 							</SidebarGroupContent>
 						</SidebarGroup>
 					) : null}
-
-					{allowedOperationsNavigation.length > 0 ? (
-						<SidebarGroup>
-							<SidebarGroupLabel>Operations</SidebarGroupLabel>
-							<SidebarGroupContent>
-								<SidebarNavLinks items={allowedOperationsNavigation} />
-							</SidebarGroupContent>
-						</SidebarGroup>
-					) : null}
 				</SidebarContent>
 
 				<SidebarFooter>
-					<div className="border border-sidebar-border/70 bg-background">
-						<div className="flex items-center gap-2.5 px-2.5 py-2">
-							<div className="flex size-9 shrink-0 items-center justify-center border border-sidebar-border/70 bg-sidebar-accent/40 font-semibold text-sm uppercase tracking-wider">
-								{user?.name?.trim()?.charAt(0) ?? "?"}
-							</div>
-							<div className="min-w-0 flex-1">
+					<div className="border border-sidebar-border/70 bg-background group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent">
+						<div className="flex items-center gap-2.5 px-2.5 py-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0">
+							<div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
 								<p className="truncate font-medium text-sm leading-tight">
 									{user?.name ?? "Unknown User"}
 								</p>
-								<p className="truncate font-mono text-[11px] text-muted-foreground leading-tight">
-									@{user?.username ?? "-"}
-								</p>
 							</div>
-							<div className="flex shrink-0 items-center gap-0.5">
+							<div className="flex shrink-0 items-center gap-0.5 group-data-[collapsible=icon]:flex-col">
 								<FooterThemeButton />
 								<Button
 									variant="ghost"
@@ -341,7 +318,7 @@ export function AppShell({ title, children }: AppShellProps) {
 								/>
 							</div>
 						</div>
-						<div className="flex items-center justify-between border-sidebar-border/70 border-t px-2.5 py-1.5">
+						<div className="flex items-center justify-between border-sidebar-border/70 border-t px-2.5 py-1.5 group-data-[collapsible=icon]:hidden">
 							<span className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
 								Role
 							</span>
@@ -351,23 +328,16 @@ export function AppShell({ title, children }: AppShellProps) {
 						</div>
 					</div>
 				</SidebarFooter>
+				<SidebarRail />
 			</Sidebar>
 
 			<SidebarInset>
-				<FloatingSidebarTrigger />
-				{user ? (
-					<div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-sidebar-border/70 bg-background/95 px-3 py-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6 md:px-8 lg:px-10">
-						<div className="ml-10 flex min-w-0 items-center gap-2 md:ml-0">
-							<span className="truncate font-mono text-[11px] text-muted-foreground uppercase tracking-[0.18em]">
-								@{user.username ?? "—"}
-							</span>
-							<span className="border border-border/70 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em]">
-								{role ?? "—"}
-							</span>
-						</div>
-						<ShiftClockCard stores={storesQuery.data ?? []} />
-					</div>
-				) : null}
+				<div className="sticky top-0 z-10 flex items-center gap-2 border-b border-sidebar-border/70 bg-background/95 px-3 py-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
+					<SidebarTrigger className="size-9" />
+					<span className="font-semibold text-sm uppercase tracking-[0.18em]">
+						Fresclean POS
+					</span>
+				</div>
 				<section className="overflow-x-hidden px-3 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10">
 					{children}
 				</section>
