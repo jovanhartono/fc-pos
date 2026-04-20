@@ -1,21 +1,16 @@
-import {
-	MagnifyingGlassIcon,
-	PencilSimpleLineIcon,
-	PlusIcon,
-	XIcon,
-} from "@phosphor-icons/react";
+import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
+import { DebouncedSearchInput } from "@/components/debounced-search-input";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
 import type { Customer } from "@/lib/api";
 import { customersPageQueryOptions } from "@/lib/query-options";
@@ -46,11 +41,19 @@ function CustomersPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 	const { openSheet } = useSheet();
-	const [searchInput, setSearchInput] = useState(search.search ?? "");
 
-	useEffect(() => {
-		setSearchInput(search.search ?? "");
-	}, [search.search]);
+	const handleSearchChange = useCallback(
+		(next: string) => {
+			void navigate({
+				search: (prev) => ({
+					...prev,
+					page: 1,
+					search: next || undefined,
+				}),
+			});
+		},
+		[navigate],
+	);
 
 	const customersQuery = useQuery(
 		customersPageQueryOptions({
@@ -94,14 +97,14 @@ function CustomersPage() {
 				header: "Email",
 				cell: ({ row }) => (
 					<span title={row.original.email ?? undefined} className="truncate">
-						{row.original.email ?? "-"}
+						{row.original.email ?? "—"}
 					</span>
 				),
 			},
 			{
 				id: "origin_store",
 				header: "Origin Store",
-				cell: ({ row }) => row.original.originStore?.name ?? "-",
+				cell: ({ row }) => row.original.originStore?.name ?? "—",
 			},
 			{
 				id: "actions",
@@ -142,58 +145,14 @@ function CustomersPage() {
 			<div className="grid gap-4">
 				<Card>
 					<CardContent className="pt-6">
-						<form
-							className="mb-4 flex w-full items-center gap-2 sm:w-auto"
-							onSubmit={(event) => {
-								event.preventDefault();
-								const nextSearch = searchInput.trim();
-
-								void navigate({
-									search: (prev) => ({
-										...prev,
-										page: 1,
-										search: nextSearch || undefined,
-									}),
-								});
-							}}
-						>
-							<Input
-								id="customers-search"
-								value={searchInput}
-								onChange={(event) => setSearchInput(event.target.value)}
-								placeholder="Search by name or phone"
-								aria-label="Search customers"
-								className="h-10 w-full min-w-0 sm:w-72"
-							/>
-							<Button
-								type="submit"
-								variant="outline"
-								className="h-10"
-								icon={<MagnifyingGlassIcon className="size-4" />}
-							>
-								Search
-							</Button>
-							{search.search ? (
-								<Button
-									type="button"
-									variant="outline"
-									className="h-10"
-									icon={<XIcon className="size-4" />}
-									onClick={() => {
-										setSearchInput("");
-										void navigate({
-											search: (prev) => ({
-												...prev,
-												page: 1,
-												search: undefined,
-											}),
-										});
-									}}
-								>
-									Clear
-								</Button>
-							) : null}
-						</form>
+						<DebouncedSearchInput
+							id="customers-search"
+							value={search.search ?? ""}
+							onDebouncedChange={handleSearchChange}
+							placeholder="Search by name or phone"
+							ariaLabel="Search customers"
+							className="mb-4 w-full sm:w-72"
+						/>
 						<div className="grid gap-4">
 							<DataTable
 								columns={columns}

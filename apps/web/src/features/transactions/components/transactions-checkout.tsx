@@ -7,7 +7,7 @@ import {
 	XIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { Badge } from "@/components/ui/badge";
@@ -108,6 +108,38 @@ export function TransactionsCheckout({
 
 	const { cartProductRows, cartServiceRows, subtotal, cartCount } =
 		useCartTotals();
+
+	useEffect(() => {
+		if (isInSheet) {
+			return;
+		}
+		const handleKeydown = (event: KeyboardEvent) => {
+			if (
+				event.key !== "Enter" ||
+				event.metaKey ||
+				event.ctrlKey ||
+				event.altKey
+			) {
+				return;
+			}
+			if (paymentSheetOpen || cartCount === 0) {
+				return;
+			}
+			const target = event.target as HTMLElement | null;
+			const isTyping =
+				target?.tagName === "INPUT" ||
+				target?.tagName === "TEXTAREA" ||
+				target?.tagName === "SELECT" ||
+				target?.isContentEditable;
+			if (isTyping) {
+				return;
+			}
+			event.preventDefault();
+			setPaymentSheetOpen(true);
+		};
+		window.addEventListener("keydown", handleKeydown);
+		return () => window.removeEventListener("keydown", handleKeydown);
+	}, [cartCount, isInSheet, paymentSheetOpen]);
 
 	const selectedStoreNumber =
 		selectedStoreId && Number.isFinite(Number(selectedStoreId))
@@ -514,7 +546,12 @@ export function TransactionsCheckout({
 								disabled={cartCount === 0}
 								icon={<CreditCardIcon className="size-4" />}
 							>
-								Review Checkout
+								<span className="flex w-full items-center justify-center gap-2">
+									Review Checkout
+									<kbd className="hidden items-center justify-center border border-border/60 bg-background/10 px-1.5 py-0.5 font-mono text-[10px] font-medium sm:inline-flex">
+										⏎
+									</kbd>
+								</span>
 							</Button>
 						</div>
 					</CardContent>

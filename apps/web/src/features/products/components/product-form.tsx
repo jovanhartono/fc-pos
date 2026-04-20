@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { CategoryAutocomplete } from "@/features/orders/components/category-autocomplete";
+import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
 const productFormResolverSchema = z.object({
 	...POSTProductSchema.shape,
@@ -58,6 +59,7 @@ export function ProductForm({
 		resolver: zodResolver(productFormResolverSchema),
 		defaultValues: defaultValues ?? defaultForm,
 	});
+	useSheetDirtyGuard(form.formState.isDirty);
 	const isSubmitting = form.formState.isSubmitting;
 
 	return (

@@ -4,7 +4,7 @@ import {
 	ScissorsIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useDeferredValue, useMemo } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { Combobox } from "@/components/ui/combobox";
@@ -68,6 +68,29 @@ export function TransactionsCatalog() {
 
 	const deferredSearchTerm = useDeferredValue(searchTerm);
 	const searchValue = deferredSearchTerm.trim().toLowerCase();
+
+	const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+	useEffect(() => {
+		const handleKeydown = (event: KeyboardEvent) => {
+			if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) {
+				return;
+			}
+			const target = event.target as HTMLElement | null;
+			const isTyping =
+				target?.tagName === "INPUT" ||
+				target?.tagName === "TEXTAREA" ||
+				target?.isContentEditable;
+			if (isTyping) {
+				return;
+			}
+			event.preventDefault();
+			searchInputRef.current?.focus();
+			searchInputRef.current?.select();
+		};
+		window.addEventListener("keydown", handleKeydown);
+		return () => window.removeEventListener("keydown", handleKeydown);
+	}, []);
 
 	const filteredProducts = useMemo(
 		() =>
@@ -177,24 +200,29 @@ export function TransactionsCatalog() {
 							<div className="relative">
 								<MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
 								<Input
+									ref={searchInputRef}
 									id="transaction-search"
 									value={searchTerm}
 									onChange={(event) => setSearchTerm(event.target.value)}
-									placeholder="Search services or add-ons"
-									className="h-11 border-border/70 bg-background pl-9"
+									placeholder="Search services or add-ons (press /)"
+									className="h-11 border-border/70 bg-background pl-9 pr-10"
 								/>
+								<kbd className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 items-center justify-center border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
+									/
+								</kbd>
 							</div>
 						</Field>
 					</div>
 				</CardContent>
 			</Card>
 
-			<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+			<div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
 				{activeItems.map((item) => {
 					const isProduct = mode === "products";
 					const productCount = productCartQtyById.get(item.id) ?? 0;
 					const isOutOfStock =
 						isProduct && Number((item as Product).stock ?? 0) <= productCount;
+					const categoryName = getEntityCategoryName(item, categoryMap);
 
 					return (
 						<Card
@@ -210,7 +238,7 @@ export function TransactionsCatalog() {
 								<button
 									type="button"
 									className={cn(
-										"grid h-full w-full gap-4 p-4 text-left transition-colors",
+										"flex h-full w-full flex-col gap-2 p-3 text-left transition-colors",
 										isProduct ? "hover:bg-muted/30" : "hover:bg-background/80",
 										isOutOfStock && "cursor-not-allowed opacity-50",
 									)}
@@ -222,19 +250,17 @@ export function TransactionsCatalog() {
 									disabled={isOutOfStock}
 									aria-label={`Add ${item.name}`}
 								>
-									<div className="grid gap-2">
-										<div>
-											<p className="text-sm font-semibold sm:text-base">
-												{item.name}
-											</p>
-										</div>
-									</div>
-
-									<div className="mt-auto flex items-end justify-between gap-3">
-										<p className="text-base font-semibold sm:text-lg">
-											{formatIDRCurrency(String(item.price))}
-										</p>
-									</div>
+									{categoryName ? (
+										<span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+											{categoryName}
+										</span>
+									) : null}
+									<p className="line-clamp-2 text-sm font-semibold leading-snug">
+										{item.name}
+									</p>
+									<p className="mt-auto font-mono text-sm font-semibold tabular-nums">
+										{formatIDRCurrency(String(item.price))}
+									</p>
 								</button>
 							</CardContent>
 						</Card>

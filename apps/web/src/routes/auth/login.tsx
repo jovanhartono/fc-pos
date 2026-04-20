@@ -16,11 +16,21 @@ const loginSchema = z.object({
 	password: z.string().trim().min(1, "Password is required"),
 });
 
+const landingRouteForRole = (role?: string) => {
+	if (role === "worker") {
+		return "/worker" as const;
+	}
+	if (role === "cashier") {
+		return "/transactions" as const;
+	}
+	return "/" as const;
+};
+
 export const Route = createFileRoute("/auth/login")({
 	beforeLoad: () => {
 		if (useAuthStore.getState().token) {
 			const user = getCurrentUser();
-			throw redirect({ to: user?.role === "worker" ? "/worker" : "/" });
+			throw redirect({ to: landingRouteForRole(user?.role) });
 		}
 	},
 	component: LoginPage,
@@ -52,7 +62,7 @@ function LoginPage() {
 		onSuccess: (response) => {
 			setToken(response.token);
 			const user = getCurrentUser();
-			void navigate({ to: user?.role === "worker" ? "/worker" : "/" });
+			void navigate({ to: landingRouteForRole(user?.role) });
 		},
 	});
 

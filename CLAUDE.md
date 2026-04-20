@@ -136,6 +136,11 @@ apps/web/src/
   stores/              # Zustand stores (auth, dialog, sheet, transaction-preferences)
 ```
 
+### UI Gotchas
+
+- Base UI `PopoverTrigger render={<div/>}` requires `nativeButton={false}` or it warns at runtime.
+- Biome a11y: `role="button"` on span/div is disallowed (use a real `<button>`); `role="combobox"` requires `aria-expanded`.
+
 ## Database
 
 ### Drizzle Commands
@@ -164,6 +169,8 @@ Uses **Ultracite** (Biome preset):
 bun x ultracite fix      # Auto-fix formatting and lint issues
 bun x ultracite check    # Check without fixing
 ```
+
+Always run from the repo root — running from `apps/web` or `packages/server` mangles paths.
 
 ### Pre-commit Hook
 

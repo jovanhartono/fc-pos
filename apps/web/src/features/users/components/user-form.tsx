@@ -26,6 +26,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
 export type UserFormState = {
 	username: string;
@@ -53,6 +54,7 @@ export function UserForm({
 }: UserFormProps) {
 	const { control, handleSubmit, formState } = useFormContext<UserFormState>();
 	const isSubmitting = formState.isSubmitting;
+	useSheetDirtyGuard(formState.isDirty);
 
 	return (
 		<form onSubmit={handleSubmit(onSubmit)}>

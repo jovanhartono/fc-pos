@@ -9,11 +9,13 @@ import {
 	MonitorIcon,
 	MoonIcon,
 	PackageIcon,
+	ReceiptIcon,
 	ScissorsIcon,
 	ShoppingCartIcon,
 	SignOutIcon,
 	StorefrontIcon,
 	SunIcon,
+	TagIcon,
 	UserGearIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -58,31 +60,35 @@ type NavItem = {
 	search?: Record<string, number>;
 };
 
-const mainNavigation: NavItem[] = [
-	{ to: "/", label: "Dashboard", icon: HouseIcon, roles: ["admin", "cashier"] },
+const workNavigation: NavItem[] = [
+	{
+		to: "/transactions",
+		label: "Transactions",
+		icon: ShoppingCartIcon,
+		roles: ["admin", "cashier"],
+	},
 	{
 		to: "/worker",
 		label: "Queue",
 		icon: ScissorsIcon,
 		roles: ["admin", "cashier", "worker"],
 	},
-];
-
-const masterDataNavigation: NavItem[] = [
 	{
 		to: "/orders",
 		label: "Orders",
-		icon: ShoppingCartIcon,
+		icon: ReceiptIcon,
 		roles: ["admin", "cashier"],
 		search: { page: 1 },
 	},
 	{
-		to: "/campaigns",
-		label: "Campaigns",
-		icon: CreditCardIcon,
-		roles: ["admin", "cashier"],
-		search: { page: 1 },
+		to: "/shifts",
+		label: "Shifts",
+		icon: ClockIcon,
+		roles: ["admin"],
 	},
+] as const;
+
+const customersNavigation: NavItem[] = [
 	{
 		to: "/customers",
 		label: "Customers",
@@ -91,27 +97,34 @@ const masterDataNavigation: NavItem[] = [
 		search: { page: 1 },
 	},
 	{
-		to: "/users",
-		label: "Users",
-		icon: UserGearIcon,
-		roles: ["admin"],
+		to: "/campaigns",
+		label: "Campaigns",
+		icon: TagIcon,
+		roles: ["admin", "cashier"],
 		search: { page: 1 },
 	},
-	{ to: "/stores", label: "Stores", icon: StorefrontIcon, roles: ["admin"] },
-	{ to: "/categories", label: "Categories", icon: ListIcon, roles: ["admin"] },
+] as const;
+
+const catalogNavigation: NavItem[] = [
 	{ to: "/services", label: "Services", icon: ScissorsIcon, roles: ["admin"] },
 	{ to: "/products", label: "Products", icon: PackageIcon, roles: ["admin"] },
+	{ to: "/categories", label: "Categories", icon: ListIcon, roles: ["admin"] },
 	{
 		to: "/payment-methods",
 		label: "Payment Methods",
 		icon: CreditCardIcon,
 		roles: ["admin"],
 	},
+] as const;
+
+const operationsNavigation: NavItem[] = [
+	{ to: "/stores", label: "Stores", icon: StorefrontIcon, roles: ["admin"] },
 	{
-		to: "/shifts",
-		label: "Shifts",
-		icon: ClockIcon,
+		to: "/users",
+		label: "Users",
+		icon: UserGearIcon,
 		roles: ["admin"],
+		search: { page: 1 },
 	},
 	{
 		to: "/reports",
@@ -119,14 +132,11 @@ const masterDataNavigation: NavItem[] = [
 		icon: ChartLineIcon,
 		roles: ["admin"],
 	},
-] as const;
-
-const transactionNavigation: NavItem[] = [
 	{
-		to: "/transactions",
-		label: "Transactions",
-		icon: ShoppingCartIcon,
-		roles: ["admin", "cashier"],
+		to: "/",
+		label: "Dashboard",
+		icon: HouseIcon,
+		roles: ["admin"],
 	},
 ] as const;
 
@@ -242,13 +252,16 @@ export function AppShell({ title, children }: AppShellProps) {
 		void navigate({ to: "/auth/login" });
 	};
 
-	const allowedMainNavigation = mainNavigation.filter((item) =>
+	const allowedWorkNavigation = workNavigation.filter((item) =>
 		role ? item.roles.includes(role) : false,
 	);
-	const allowedMasterNavigation = masterDataNavigation.filter((item) =>
+	const allowedCustomersNavigation = customersNavigation.filter((item) =>
 		role ? item.roles.includes(role) : false,
 	);
-	const allowedTransactionNavigation = transactionNavigation.filter((item) =>
+	const allowedCatalogNavigation = catalogNavigation.filter((item) =>
+		role ? item.roles.includes(role) : false,
+	);
+	const allowedOperationsNavigation = operationsNavigation.filter((item) =>
 		role ? item.roles.includes(role) : false,
 	);
 
@@ -266,26 +279,38 @@ export function AppShell({ title, children }: AppShellProps) {
 				<SidebarSeparator />
 
 				<SidebarContent>
-					<SidebarGroup>
-						<SidebarGroupContent>
-							<SidebarNavLinks items={allowedMainNavigation} />
-						</SidebarGroupContent>
-					</SidebarGroup>
-
-					{allowedMasterNavigation.length > 0 ? (
+					{allowedWorkNavigation.length > 0 ? (
 						<SidebarGroup>
-							<SidebarGroupLabel>Master Data</SidebarGroupLabel>
+							<SidebarGroupLabel>Work</SidebarGroupLabel>
 							<SidebarGroupContent>
-								<SidebarNavLinks items={allowedMasterNavigation} />
+								<SidebarNavLinks items={allowedWorkNavigation} />
 							</SidebarGroupContent>
 						</SidebarGroup>
 					) : null}
 
-					{allowedTransactionNavigation.length > 0 ? (
+					{allowedCustomersNavigation.length > 0 ? (
 						<SidebarGroup>
-							<SidebarGroupLabel>Transactions</SidebarGroupLabel>
+							<SidebarGroupLabel>Customers</SidebarGroupLabel>
 							<SidebarGroupContent>
-								<SidebarNavLinks items={allowedTransactionNavigation} />
+								<SidebarNavLinks items={allowedCustomersNavigation} />
+							</SidebarGroupContent>
+						</SidebarGroup>
+					) : null}
+
+					{allowedCatalogNavigation.length > 0 ? (
+						<SidebarGroup>
+							<SidebarGroupLabel>Catalog</SidebarGroupLabel>
+							<SidebarGroupContent>
+								<SidebarNavLinks items={allowedCatalogNavigation} />
+							</SidebarGroupContent>
+						</SidebarGroup>
+					) : null}
+
+					{allowedOperationsNavigation.length > 0 ? (
+						<SidebarGroup>
+							<SidebarGroupLabel>Operations</SidebarGroupLabel>
+							<SidebarGroupContent>
+								<SidebarNavLinks items={allowedOperationsNavigation} />
 							</SidebarGroupContent>
 						</SidebarGroup>
 					) : null}
@@ -324,18 +349,26 @@ export function AppShell({ title, children }: AppShellProps) {
 								{role ?? "—"}
 							</span>
 						</div>
-						{user ? (
-							<div className="border-sidebar-border/70 border-t p-2">
-								<ShiftClockCard stores={storesQuery.data ?? []} />
-							</div>
-						) : null}
 					</div>
 				</SidebarFooter>
 			</Sidebar>
 
 			<SidebarInset>
 				<FloatingSidebarTrigger />
-				<section className="overflow-x-hidden px-3 pt-[calc(env(safe-area-inset-top)+3.5rem)] pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10">
+				{user ? (
+					<div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-sidebar-border/70 bg-background/95 px-3 py-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6 md:px-8 lg:px-10">
+						<div className="ml-10 flex min-w-0 items-center gap-2 md:ml-0">
+							<span className="truncate font-mono text-[11px] text-muted-foreground uppercase tracking-[0.18em]">
+								@{user.username ?? "—"}
+							</span>
+							<span className="border border-border/70 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em]">
+								{role ?? "—"}
+							</span>
+						</div>
+						<ShiftClockCard stores={storesQuery.data ?? []} />
+					</div>
+				) : null}
+				<section className="overflow-x-hidden px-3 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10">
 					{children}
 				</section>
 			</SidebarInset>

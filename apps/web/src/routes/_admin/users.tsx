@@ -1,24 +1,19 @@
 import { PUTUserSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-	MagnifyingGlassIcon,
-	PencilSimpleLineIcon,
-	PlusIcon,
-	XIcon,
-} from "@phosphor-icons/react";
+import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { FormProvider, type SubmitHandler, useForm } from "react-hook-form";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
+import { DebouncedSearchInput } from "@/components/debounced-search-input";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
 	UserForm,
 	type UserFormState,
@@ -96,11 +91,19 @@ function UsersPage() {
 	const queryClient = useQueryClient();
 	const { openSheet, closeSheet } = useSheet();
 	const [editingUser, setEditingUser] = useState<User | null>(null);
-	const [searchInput, setSearchInput] = useState(search.search ?? "");
 
-	useEffect(() => {
-		setSearchInput(search.search ?? "");
-	}, [search.search]);
+	const handleSearchChange = useCallback(
+		(next: string) => {
+			void navigate({
+				search: (prev) => ({
+					...prev,
+					page: 1,
+					search: next || undefined,
+				}),
+			});
+		},
+		[navigate],
+	);
 
 	const form = useForm<UserFormState>({
 		resolver: zodResolver(userFormSchema),
@@ -291,7 +294,7 @@ function UsersPage() {
 										storeMap.get(item.store_id)?.code ?? String(item.store_id),
 								)
 								.join(", ")
-						: "-",
+						: "—",
 			},
 			{
 				id: "actions",
@@ -332,58 +335,14 @@ function UsersPage() {
 			<div className="grid gap-4">
 				<Card>
 					<CardContent className="pt-6">
-						<form
-							className="mb-4 flex w-full items-center gap-2 sm:w-auto"
-							onSubmit={(event) => {
-								event.preventDefault();
-								const nextSearch = searchInput.trim();
-
-								void navigate({
-									search: (prev) => ({
-										...prev,
-										page: 1,
-										search: nextSearch || undefined,
-									}),
-								});
-							}}
-						>
-							<Input
-								id="users-search"
-								value={searchInput}
-								onChange={(event) => setSearchInput(event.target.value)}
-								placeholder="Search by username or name"
-								aria-label="Search users"
-								className="h-10 w-full min-w-0 sm:w-72"
-							/>
-							<Button
-								type="submit"
-								variant="outline"
-								className="h-10"
-								icon={<MagnifyingGlassIcon className="size-4" />}
-							>
-								Search
-							</Button>
-							{search.search ? (
-								<Button
-									type="button"
-									variant="outline"
-									className="h-10"
-									icon={<XIcon className="size-4" />}
-									onClick={() => {
-										setSearchInput("");
-										void navigate({
-											search: (prev) => ({
-												...prev,
-												page: 1,
-												search: undefined,
-											}),
-										});
-									}}
-								>
-									Clear
-								</Button>
-							) : null}
-						</form>
+						<DebouncedSearchInput
+							id="users-search"
+							value={search.search ?? ""}
+							onDebouncedChange={handleSearchChange}
+							placeholder="Search by username or name"
+							ariaLabel="Search users"
+							className="mb-4 w-full sm:w-72"
+						/>
 						<div className="grid gap-4">
 							<DataTable
 								columns={columns}

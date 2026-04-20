@@ -25,6 +25,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 import type { CampaignPayload } from "@/lib/api";
 
 const campaignFormSchema = z.object({
@@ -77,6 +78,7 @@ export function CampaignForm({
 		defaultValues,
 	});
 	const isSubmitting = form.formState.isSubmitting;
+	useSheetDirtyGuard(form.formState.isDirty);
 	const discountType = form.watch("discount_type");
 
 	return (

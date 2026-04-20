@@ -1,7 +1,8 @@
 import {
+	ArchiveIcon,
+	ArrowCounterClockwiseIcon,
 	PencilSimpleLineIcon,
 	PlusIcon,
-	TrashIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -28,7 +29,6 @@ import {
 	type Campaign,
 	type CampaignPayload,
 	createCampaign,
-	deleteCampaign,
 	queryKeys,
 	updateCampaign,
 } from "@/lib/api";
@@ -38,22 +38,36 @@ import { getCurrentUser } from "@/stores/auth-store";
 import { useDialog } from "@/stores/dialog-store";
 import { useSheet } from "@/stores/sheet-store";
 
+const CAMPAIGN_STATUS_OPTIONS = [
+	"all",
+	"active",
+	"expired",
+	"archived",
+] as const;
+
 const campaignsSearchSchema = z.object({
-	status: z.enum(["all", "active", "inactive"]).catch("all"),
+	status: z.enum(CAMPAIGN_STATUS_OPTIONS).catch("all"),
 });
+
+type CampaignStatus = (typeof CAMPAIGN_STATUS_OPTIONS)[number];
+
+function deriveCampaignState(
+	campaign: Campaign,
+): Exclude<CampaignStatus, "all"> {
+	if (!campaign.is_active) {
+		return "archived";
+	}
+	if (campaign.is_expired) {
+		return "expired";
+	}
+	return "active";
+}
 
 export const Route = createFileRoute("/_admin/campaigns")({
 	validateSearch: (search) => campaignsSearchSchema.parse(search),
-	loaderDeps: ({ search }) => search,
-	loader: ({ context, deps }) =>
+	loader: ({ context }) =>
 		Promise.all([
-			context.queryClient.ensureQueryData(
-				campaignsQueryOptions(
-					deps.status === "all"
-						? undefined
-						: { is_active: deps.status === "active" },
-				),
-			),
+			context.queryClient.ensureQueryData(campaignsQueryOptions()),
 			context.queryClient.ensureQueryData(storesQueryOptions()),
 		]),
 	component: CampaignsPage,
@@ -90,7 +104,7 @@ function formatCampaignDiscount(campaign: Campaign) {
 	return formatIDRCurrency(String(campaign.discount_value));
 }
 
-function DeleteCampaignButton({
+function ArchiveCampaignButton({
 	campaign,
 	disabled,
 	isPending,
@@ -99,41 +113,55 @@ function DeleteCampaignButton({
 	campaign: Campaign;
 	disabled: boolean;
 	isPending: boolean;
-	onConfirm: (campaignId: number) => Promise<void>;
+	onConfirm: (options: {
+		campaignId: number;
+		nextIsActive: boolean;
+	}) => Promise<void>;
 }) {
 	const { openDialog, closeDialog } = useDialog();
+	const isArchived = !campaign.is_active;
+	const label = isArchived ? "Unarchive" : "Archive";
+	const Icon = isArchived ? ArrowCounterClockwiseIcon : ArchiveIcon;
 
 	return (
 		<Button
 			variant="outline"
 			size="sm"
 			disabled={disabled || isPending}
-			icon={<TrashIcon className="size-4" />}
+			icon={<Icon className="size-4" />}
+			className={
+				isArchived ? undefined : "text-destructive hover:text-destructive"
+			}
 			onClick={() => {
 				openDialog({
-					title: "Delete campaign?",
-					description: `Delete ${campaign.code} (${campaign.name})? This cannot be undone.`,
+					title: `${label} campaign?`,
+					description: isArchived
+						? `Make ${campaign.code} (${campaign.name}) active again?`
+						: `Archive ${campaign.code} (${campaign.name})? It will stop appearing in the active list but history stays.`,
 					footer: () => (
 						<>
 							<Button variant="outline" onClick={closeDialog}>
 								Cancel
 							</Button>
 							<Button
-								variant="destructive"
+								variant={isArchived ? "default" : "destructive"}
 								disabled={isPending}
 								onClick={async () => {
-									await onConfirm(campaign.id);
+									await onConfirm({
+										campaignId: campaign.id,
+										nextIsActive: isArchived,
+									});
 									closeDialog();
 								}}
 							>
-								Delete campaign
+								{label} campaign
 							</Button>
 						</>
 					),
 				});
 			}}
 		>
-			Delete
+			{label}
 		</Button>
 	);
 }
@@ -146,17 +174,19 @@ function CampaignsPage() {
 	const queryClient = useQueryClient();
 	const { openSheet, closeSheet } = useSheet();
 
-	const campaignQueryFilters =
-		search.status === "all"
-			? undefined
-			: { is_active: search.status === "active" };
-
-	const campaignsQuery = useQuery(campaignsQueryOptions(campaignQueryFilters));
-
+	const campaignsQuery = useQuery(campaignsQueryOptions());
 	const storesQuery = useQuery(storesQueryOptions());
 
 	const stores = storesQuery.data ?? [];
-	const campaigns = campaignsQuery.data ?? [];
+	const allCampaigns = campaignsQuery.data ?? [];
+	const campaigns = useMemo(() => {
+		if (search.status === "all") {
+			return allCampaigns;
+		}
+		return allCampaigns.filter(
+			(campaign) => deriveCampaignState(campaign) === search.status,
+		);
+	}, [allCampaigns, search.status]);
 
 	const createMutation = useMutation({
 		mutationKey: ["create-campaign"],
@@ -183,9 +213,10 @@ function CampaignsPage() {
 		},
 	});
 
-	const deleteMutation = useMutation({
-		mutationKey: ["delete-campaign"],
-		mutationFn: (id: number) => deleteCampaign(id),
+	const archiveMutation = useMutation({
+		mutationKey: ["archive-campaign"],
+		mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) =>
+			updateCampaign(id, { is_active }),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
 			await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
@@ -266,7 +297,7 @@ function CampaignsPage() {
 				cell: ({ row }) =>
 					row.original.max_discount
 						? formatIDRCurrency(String(row.original.max_discount))
-						: "-",
+						: "—",
 			},
 			{
 				id: "stores",
@@ -284,11 +315,16 @@ function CampaignsPage() {
 			{
 				id: "status",
 				header: "Status",
-				cell: ({ row }) => (
-					<Badge variant={row.original.is_active ? "success" : "danger"}>
-						{row.original.is_active ? "Active" : "Inactive"}
-					</Badge>
-				),
+				cell: ({ row }) => {
+					const state = deriveCampaignState(row.original);
+					if (state === "expired") {
+						return <Badge variant="warning">Expired</Badge>;
+					}
+					if (state === "archived") {
+						return <Badge variant="secondary">Archived</Badge>;
+					}
+					return <Badge variant="success">Active</Badge>;
+				},
 			},
 			{
 				id: "actions",
@@ -304,19 +340,22 @@ function CampaignsPage() {
 						>
 							Edit
 						</Button>
-						<DeleteCampaignButton
+						<ArchiveCampaignButton
 							campaign={row.original}
 							disabled={!isAdmin}
-							isPending={deleteMutation.isPending}
-							onConfirm={async (campaignId) => {
-								await deleteMutation.mutateAsync(campaignId);
+							isPending={archiveMutation.isPending}
+							onConfirm={async ({ campaignId, nextIsActive }) => {
+								await archiveMutation.mutateAsync({
+									id: campaignId,
+									is_active: nextIsActive,
+								});
 							}}
 						/>
 					</div>
 				),
 			},
 		],
-		[deleteMutation, handleOpenEditSheet, isAdmin],
+		[archiveMutation, handleOpenEditSheet, isAdmin],
 	);
 
 	return (
@@ -347,10 +386,7 @@ function CampaignsPage() {
 								onValueChange={(value) => {
 									void navigate({
 										search: () => ({
-											status:
-												(value as z.infer<
-													typeof campaignsSearchSchema
-												>["status"]) ?? "all",
+											status: (value as CampaignStatus) ?? "all",
 										}),
 									});
 								}}
@@ -361,7 +397,8 @@ function CampaignsPage() {
 								<SelectContent>
 									<SelectItem value="all">All status</SelectItem>
 									<SelectItem value="active">Active only</SelectItem>
-									<SelectItem value="inactive">Inactive only</SelectItem>
+									<SelectItem value="expired">Expired only</SelectItem>
+									<SelectItem value="archived">Archived only</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>
@@ -369,6 +406,8 @@ function CampaignsPage() {
 							columns={columns}
 							data={campaigns}
 							isLoading={campaignsQuery.isPending || storesQuery.isPending}
+							sortable
+							cardPrimaryColumnId="name"
 						/>
 					</CardContent>
 				</Card>

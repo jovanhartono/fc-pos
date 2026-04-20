@@ -7,6 +7,7 @@ import {
 	CustomerForm,
 	type CustomerFormState,
 } from "@/features/customers/components/customer-form";
+import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 import {
 	type Customer,
 	createCustomer,
@@ -56,6 +57,7 @@ export function CustomerSheetContent({
 				}
 			: defaultForm,
 	});
+	useSheetDirtyGuard(form.formState.isDirty);
 
 	const createMutation = useMutation({
 		mutationKey: ["create-customer"],

@@ -168,6 +168,7 @@ function PaymentMethodsPage() {
 							columns={columns}
 							data={paymentMethods}
 							isLoading={isPending}
+							sortable
 						/>
 					</CardContent>
 				</Card>

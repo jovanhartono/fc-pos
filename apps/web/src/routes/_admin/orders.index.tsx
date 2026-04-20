@@ -1,21 +1,16 @@
-import {
-	CrosshairSimpleIcon,
-	MagnifyingGlassIcon,
-	PlusIcon,
-	XIcon,
-} from "@phosphor-icons/react";
+import { CrosshairSimpleIcon, PlusIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
+import { DebouncedSearchInput } from "@/components/debounced-search-input";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -37,8 +32,16 @@ import {
 	getOrderStatusBadgeVariant,
 	getPaymentStatusBadgeVariant,
 } from "@/lib/status";
+import { formatIDRCurrency } from "@/shared/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useSheet } from "@/stores/sheet-store";
+
+const orderCreatedFormatter = new Intl.DateTimeFormat("en-ID", {
+	day: "2-digit",
+	month: "short",
+	hour: "2-digit",
+	minute: "2-digit",
+});
 
 const ordersSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
@@ -99,7 +102,6 @@ function OrdersPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const currentUser = getCurrentUser();
 	const search = Route.useSearch();
-	const [searchInput, setSearchInput] = useState(search.search ?? "");
 
 	const storesQuery = useQuery(storesQueryOptions());
 	const currentUserDetailQuery = useQuery({
@@ -131,9 +133,18 @@ function OrdersPage() {
 		}
 	}, [currentUser, navigate, search.storeId, userStoreIds]);
 
-	useEffect(() => {
-		setSearchInput(search.search ?? "");
-	}, [search.search]);
+	const handleSearchChange = useCallback(
+		(next: string) => {
+			void navigate({
+				search: (prev) => ({
+					...prev,
+					page: 1,
+					search: next || undefined,
+				}),
+			});
+		},
+		[navigate],
+	);
 
 	const parsedStoreId = search.storeId;
 	const orderQuery =
@@ -197,10 +208,19 @@ function OrdersPage() {
 					<Link
 						to="/orders/$orderId"
 						params={{ orderId: String(row.original.id) }}
-						className="underline"
+						className="font-mono underline"
 					>
 						{row.original.code}
 					</Link>
+				),
+			},
+			{
+				id: "created",
+				header: "Created",
+				cell: ({ row }) => (
+					<span className="font-mono text-xs text-muted-foreground tabular-nums">
+						{orderCreatedFormatter.format(new Date(row.original.created_at))}
+					</span>
 				),
 			},
 			{
@@ -209,6 +229,15 @@ function OrdersPage() {
 				cell: ({ row }) => row.original.store_code,
 			},
 			{ accessorKey: "customer_name", header: "Customer" },
+			{
+				id: "items",
+				header: "Items",
+				cell: ({ row }) => (
+					<span className="font-mono tabular-nums">
+						{row.original.fulfillment.service_total_count}
+					</span>
+				),
+			},
 			{
 				accessorKey: "status",
 				header: "Status",
@@ -229,13 +258,22 @@ function OrdersPage() {
 					</Badge>
 				),
 			},
+			{
+				id: "total",
+				header: () => <div className="text-right">Total</div>,
+				cell: ({ row }) => (
+					<div className="text-right font-mono font-medium tabular-nums">
+						{row.original.total ? formatIDRCurrency(row.original.total) : "—"}
+					</div>
+				),
+			},
 		],
 		[],
 	);
 
 	const handleAddOrder = () => {
 		void navigate({
-			to: "/orders/new",
+			to: "/transactions",
 		});
 	};
 
@@ -287,58 +325,14 @@ function OrdersPage() {
 				<Card>
 					<CardContent className="pt-6">
 						<div className="mb-4 flex flex-wrap items-center gap-2">
-							<form
-								className="flex w-full items-center gap-2 sm:w-auto"
-								onSubmit={(event) => {
-									event.preventDefault();
-									const nextSearch = searchInput.trim();
-
-									void navigate({
-										search: (prev) => ({
-											...prev,
-											page: 1,
-											search: nextSearch || undefined,
-										}),
-									});
-								}}
-							>
-								<Input
-									id="orders-search"
-									value={searchInput}
-									onChange={(event) => setSearchInput(event.target.value)}
-									placeholder="Order ID or line ID"
-									aria-label="Search orders"
-									className="h-10 w-full min-w-0 sm:w-64"
-								/>
-								<Button
-									type="submit"
-									variant="outline"
-									className="h-10"
-									icon={<MagnifyingGlassIcon className="size-4" />}
-								>
-									Search
-								</Button>
-								{search.search ? (
-									<Button
-										type="button"
-										variant="outline"
-										className="h-10"
-										icon={<XIcon className="size-4" />}
-										onClick={() => {
-											setSearchInput("");
-											void navigate({
-												search: (prev) => ({
-													...prev,
-													page: 1,
-													search: undefined,
-												}),
-											});
-										}}
-									>
-										Clear
-									</Button>
-								) : null}
-							</form>
+							<DebouncedSearchInput
+								id="orders-search"
+								value={search.search ?? ""}
+								onDebouncedChange={handleSearchChange}
+								placeholder="Order ID, customer, phone"
+								ariaLabel="Search orders"
+								className="w-full sm:w-72"
+							/>
 							<Select
 								items={storeFilterItems}
 								value={

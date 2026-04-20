@@ -4,7 +4,9 @@ type BadgeVariant =
 	| "danger"
 	| "warning"
 	| "info"
-	| "outline";
+	| "outline"
+	| "outline-success"
+	| "outline-danger";
 
 const paymentStatusLabels = {
 	paid: "Paid",
@@ -32,7 +34,7 @@ const orderServiceStatusLabels = {
 export function getPaymentStatusBadgeVariant(
 	status: keyof typeof paymentStatusLabels,
 ): BadgeVariant {
-	return status === "paid" ? "success" : "danger";
+	return status === "paid" ? "outline-success" : "outline-danger";
 }
 
 export function formatPaymentStatus(status: keyof typeof paymentStatusLabels) {

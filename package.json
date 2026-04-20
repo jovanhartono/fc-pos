@@ -24,6 +24,10 @@
     "ultracite": "7.0.11"
   },
   "devDependencies": {
+    "lint-staged": "^16.4.0",
     "turbo": "^2.9.6"
+  },
+  "lint-staged": {
+    "*": "bunx biome check --write --no-errors-on-unmatched"
   }
 }

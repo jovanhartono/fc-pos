@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
 export type PaymentMethodFormState = z.infer<typeof POSTPaymentMethodSchema>;
 
@@ -41,6 +42,7 @@ export function PaymentMethodForm({
 		defaultValues: defaultValues ?? defaultForm,
 	});
 	const isSubmitting = form.formState.isSubmitting;
+	useSheetDirtyGuard(form.formState.isDirty);
 
 	return (
 		<form

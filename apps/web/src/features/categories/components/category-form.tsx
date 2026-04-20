@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
 export type CategoryFormState = z.infer<typeof POSTCategorySchema>;
 
@@ -42,6 +43,7 @@ export function CategoryForm({
 		defaultValues: defaultValues ?? defaultForm,
 	});
 	const isSubmitting = form.formState.isSubmitting;
+	useSheetDirtyGuard(form.formState.isDirty);
 
 	return (
 		<form onSubmit={form.handleSubmit(handleOnSubmit)}>

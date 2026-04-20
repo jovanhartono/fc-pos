@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
 export type StoreFormState = z.infer<typeof POSTStoreSchema>;
 
@@ -50,6 +51,7 @@ export function StoreForm({
 		defaultValues: defaultValues ?? defaultForm,
 	});
 	const isSubmitting = form.formState.isSubmitting || isSubmittingProp;
+	useSheetDirtyGuard(form.formState.isDirty);
 
 	return (
 		<form onSubmit={form.handleSubmit(handleOnSubmit)}>

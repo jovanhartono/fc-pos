@@ -192,6 +192,8 @@ function ServicesPage() {
 							columns={columns}
 							data={services}
 							isLoading={isPending}
+							sortable
+							cardPrimaryColumnId="name"
 						/>
 					</CardContent>
 				</Card>

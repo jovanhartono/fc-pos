@@ -1,5 +1,6 @@
 import {
 	CaretRightIcon,
+	HourglassIcon,
 	MagnifyingGlassIcon,
 	ScanIcon,
 	WarningCircleIcon,
@@ -58,6 +59,52 @@ const QUEUE_STATUS_OPTIONS = [
 	"ready_for_pickup",
 ] as const;
 
+const TERMINAL_QUEUE_STATUSES = new Set<QueueOrderServiceItem["status"]>([
+	"picked_up",
+	"refunded",
+	"cancelled",
+]);
+
+const HOUR_MS = 3_600_000;
+const DAY_MS = 24 * HOUR_MS;
+
+type AgeTone = "muted" | "info" | "warning" | "destructive";
+
+function formatElapsedDuration(ms: number): string {
+	const totalMinutes = Math.floor(ms / 60_000);
+	if (totalMinutes < 60) {
+		return `${Math.max(totalMinutes, 0)}m`;
+	}
+	const totalHours = Math.floor(totalMinutes / 60);
+	const minutes = totalMinutes % 60;
+	if (totalHours < 24) {
+		return `${totalHours}h ${minutes}m`;
+	}
+	const days = Math.floor(totalHours / 24);
+	const hours = totalHours % 24;
+	return `${days}d ${hours}h`;
+}
+
+function getElapsedTone(ms: number): AgeTone {
+	if (ms < 2 * HOUR_MS) {
+		return "muted";
+	}
+	if (ms < DAY_MS) {
+		return "info";
+	}
+	if (ms < 3 * DAY_MS) {
+		return "warning";
+	}
+	return "destructive";
+}
+
+const AGE_TONE_CLASS: Record<AgeTone, string> = {
+	muted: "border-border/70 bg-muted/40 text-muted-foreground",
+	info: "border-info/40 bg-info/10 text-info",
+	warning: "border-warning/50 bg-warning/10 text-warning",
+	destructive: "border-destructive/50 bg-destructive/10 text-destructive",
+};
+
 const workerSearchSchema = z.object({
 	storeId: z.coerce.number().int().positive().optional(),
 	status: z.enum(QUEUE_STATUS_OPTIONS).optional(),
@@ -101,6 +148,12 @@ function WorkerQueuePage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 	const loadMoreRef = useRef<HTMLDivElement | null>(null);
+	const [now, setNow] = useState(() => Date.now());
+
+	useEffect(() => {
+		const interval = setInterval(() => setNow(Date.now()), 60_000);
+		return () => clearInterval(interval);
+	}, []);
 
 	const [itemCode, setItemCode] = useState("");
 	const [isScanning, setIsScanning] = useState(false);
@@ -761,6 +814,7 @@ function WorkerQueuePage() {
 							key={item.id}
 							item={item}
 							currentUserId={currentUser?.id}
+							now={now}
 							onOpen={() => navigateToQueueDetail(item)}
 						/>
 					))}
@@ -809,10 +863,12 @@ function WorkerQueuePage() {
 function QueueRow({
 	item,
 	currentUserId,
+	now,
 	onOpen,
 }: {
 	item: QueueOrderServiceItem;
 	currentUserId?: number;
+	now: number;
 	onOpen: () => void;
 }) {
 	const isHandledByCurrentUser =
@@ -821,6 +877,14 @@ function QueueRow({
 		item.handler_id !== null &&
 		item.handler_id !== undefined &&
 		!isHandledByCurrentUser;
+
+	const isTerminal = TERMINAL_QUEUE_STATUSES.has(item.status);
+	const elapsedMs = Math.max(
+		0,
+		now - new Date(item.order_created_at).getTime(),
+	);
+	const ageTone = getElapsedTone(elapsedMs);
+	const ageLabel = formatElapsedDuration(elapsedMs);
 
 	return (
 		<button
@@ -849,6 +913,17 @@ function QueueRow({
 									? `Assigned to ${item.handler_name ?? "worker"}`
 									: "Open"}
 						</Badge>
+						{isTerminal ? null : (
+							<span
+								className={cn(
+									"inline-flex items-center gap-1 border px-2 py-0.5 font-mono text-[11px] tabular-nums",
+									AGE_TONE_CLASS[ageTone],
+								)}
+							>
+								<HourglassIcon className="size-3" />
+								{`Waiting ${ageLabel}`}
+							</span>
+						)}
 					</div>
 					<div className="grid gap-1">
 						<p className="text-lg font-semibold tracking-tight">

@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { CategoryAutocomplete } from "@/features/orders/components/category-autocomplete";
+import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
 const serviceFormResolverSchema = z.object({
 	...POSTServiceSchema.shape,
@@ -57,6 +58,7 @@ export function ServiceForm({
 		defaultValues: defaultValues ?? defaultForm,
 	});
 	const isSubmitting = form.formState.isSubmitting;
+	useSheetDirtyGuard(form.formState.isDirty);
 
 	return (
 		<form onSubmit={form.handleSubmit(handleOnSubmit)}>

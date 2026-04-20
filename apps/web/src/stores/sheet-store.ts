@@ -18,9 +18,11 @@ type OpenSheetPayload = {
 
 type SheetStore = {
 	sheetState: SheetState;
+	isDirty: boolean;
 	setOpen: (open: boolean) => void;
 	openSheet: (payload: OpenSheetPayload) => void;
 	closeSheet: () => void;
+	setDirty: (dirty: boolean) => void;
 };
 
 const defaultState: SheetState = {
@@ -32,6 +34,7 @@ const defaultState: SheetState = {
 
 export const useSheet = create<SheetStore>((set) => ({
 	sheetState: defaultState,
+	isDirty: false,
 	setOpen: (open) =>
 		set((state) => ({
 			sheetState: {
@@ -47,6 +50,7 @@ export const useSheet = create<SheetStore>((set) => ({
 				content,
 				open: true,
 			},
+			isDirty: false,
 		}),
 	closeSheet: () => {
 		set((state) => ({
@@ -54,10 +58,12 @@ export const useSheet = create<SheetStore>((set) => ({
 				...state.sheetState,
 				open: false,
 			},
+			isDirty: false,
 		}));
 
 		setTimeout(() => {
 			set({ sheetState: defaultState });
 		}, 200);
 	},
+	setDirty: (dirty) => set({ isDirty: dirty }),
 }));

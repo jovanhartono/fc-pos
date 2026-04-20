@@ -31,3 +31,7 @@ coverage
 *.tsbuildinfo
 
 .playwright-cli
+
+# Claude local config / personal notes
+.claude/
+.claude.local.md

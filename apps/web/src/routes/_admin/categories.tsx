@@ -90,7 +90,7 @@ const columns: ColumnDef<Category>[] = [
 	{
 		accessorKey: "description",
 		header: "Description",
-		cell: ({ row }) => row.original.description ?? "-",
+		cell: ({ row }) => row.original.description ?? "—",
 	},
 	{
 		id: "status",
@@ -162,7 +162,12 @@ function CategoriesPage() {
 			<div className="grid gap-4">
 				<Card>
 					<CardContent className="pt-6">
-						<DataTable columns={columns} data={data} isLoading={isPending} />
+						<DataTable
+							columns={columns}
+							data={data}
+							isLoading={isPending}
+							sortable
+						/>
 					</CardContent>
 				</Card>
 			</div>

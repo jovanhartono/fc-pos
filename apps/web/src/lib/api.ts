@@ -58,9 +58,11 @@ const orderServiceByItemCodeRoute =
 const orderServiceQueueRoute = rpc.api.admin.orders.services.queue.$get;
 const myOrderServicesRoute = rpc.api.admin.orders.services.me.$get;
 const dashboardCountsRoute = rpc.api.admin.dashboard.counts.$get;
+const dashboardOverviewRoute = rpc.api.admin.dashboard.overview.$get;
 const shiftsRoute = rpc.api.admin.shifts.$get;
 const shiftCurrentRoute = rpc.api.admin.shifts.current.$get;
 const dailyReportRoute = rpc.api.admin.reports.daily.$get;
+const reportOverviewRoute = rpc.api.admin.reports.overview.$get;
 const publicTrackOrderRoute = rpc.api.public.orders.track.$post;
 
 type LoginSuccessResponse = Extract<
@@ -140,6 +142,17 @@ export type DailyReport = Extract<
 export type FetchDailyReportQuery = {
 	date: string;
 	store_id?: number;
+};
+
+export type ReportOverview = Extract<
+	InferResponseType<typeof reportOverviewRoute>,
+	{ success: true }
+>["data"];
+
+export type FetchReportOverviewQuery = {
+	date: string;
+	store_id?: number;
+	trend_days?: number;
 };
 
 export type LoginPayload = {
@@ -332,10 +345,14 @@ export const queryKeys = {
 	myOrderServices: (storeId?: number) =>
 		["my-order-services", storeId ?? "all"] as const,
 	dashboard: ["dashboard"] as const,
+	dashboardOverview: (query?: FetchDashboardOverviewQuery) =>
+		["dashboard-overview", query ?? {}] as const,
 	shifts: (query?: FetchShiftsQuery) => ["shifts", query ?? {}] as const,
 	shiftCurrent: ["shift-current"] as const,
 	dailyReport: (query: FetchDailyReportQuery) =>
 		["daily-report", query] as const,
+	reportOverview: (query: FetchReportOverviewQuery) =>
+		["report-overview", query] as const,
 };
 
 export async function login(payload: LoginPayload) {
@@ -944,9 +961,26 @@ export type DashboardCounts = InferResponseType<
 	typeof dashboardCountsRoute
 >["data"];
 
+export type DashboardOverview = Extract<
+	InferResponseType<typeof dashboardOverviewRoute>,
+	{ success: true }
+>["data"];
+
+export type FetchDashboardOverviewQuery = { date?: string };
+
 export async function fetchDashboardCounts() {
 	return parseSuccessData<DashboardCounts>(
 		rpcWithAuth().api.admin.dashboard.counts.$get(),
+	);
+}
+
+export async function fetchDashboardOverview(
+	query?: FetchDashboardOverviewQuery,
+) {
+	return parseSuccessData<DashboardOverview>(
+		rpcWithAuth().api.admin.dashboard.overview.$get({
+			query: query?.date ? { date: query.date } : {},
+		}),
 	);
 }
 
@@ -994,6 +1028,22 @@ export async function fetchDailyReport(query: FetchDailyReportQuery) {
 				date: query.date,
 				...(query.store_id !== undefined
 					? { store_id: String(query.store_id) }
+					: {}),
+			},
+		}),
+	);
+}
+
+export async function fetchReportOverview(query: FetchReportOverviewQuery) {
+	return parseSuccessData<ReportOverview>(
+		rpcWithAuth().api.admin.reports.overview.$get({
+			query: {
+				date: query.date,
+				...(query.store_id !== undefined
+					? { store_id: String(query.store_id) }
+					: {}),
+				...(query.trend_days !== undefined
+					? { trend_days: String(query.trend_days) }
 					: {}),
 			},
 		}),

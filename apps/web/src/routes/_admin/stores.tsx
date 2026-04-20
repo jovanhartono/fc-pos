@@ -158,7 +158,13 @@ function StoresPage() {
 			<div className="grid gap-4">
 				<Card>
 					<CardContent className="pt-6">
-						<DataTable columns={columns} data={stores} isLoading={isPending} />
+						<DataTable
+							columns={columns}
+							data={stores}
+							isLoading={isPending}
+							sortable
+							cardPrimaryColumnId="name"
+						/>
 					</CardContent>
 				</Card>
 			</div>

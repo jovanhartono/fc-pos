@@ -47,10 +47,6 @@ const pageMeta: Record<string, { title: string; description?: string }> = {
 		description:
 			"Review historical orders, payment status, and order detail records.",
 	},
-	"/orders/new": {
-		title: "Create Order",
-		description: "Create a new order from products and services.",
-	},
 	"/transactions": {
 		title: "Transactions",
 		description:

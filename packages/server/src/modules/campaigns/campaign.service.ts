@@ -31,15 +31,32 @@ async function ensureStoresExist(storeIds: number[]) {
   }
 }
 
-export function getCampaigns(query?: GetCampaignsQuery) {
-  return listCampaigns({
+function markExpired<T extends { ends_at: Date | null }>(
+  campaign: T,
+  now: Date
+): T & { is_expired: boolean } {
+  return {
+    ...campaign,
+    is_expired: campaign.ends_at !== null && campaign.ends_at < now,
+  };
+}
+
+export async function getCampaigns(query?: GetCampaignsQuery) {
+  const now = new Date();
+  const campaigns = await listCampaigns({
     is_active: query?.is_active,
     store_id: query?.store_id,
   });
+
+  return campaigns.map((campaign) => markExpired(campaign, now));
 }
 
-export function getCampaignById(id: number) {
-  return findCampaignById(id);
+export async function getCampaignById(id: number) {
+  const campaign = await findCampaignById(id);
+  if (!campaign) {
+    return campaign;
+  }
+  return markExpired(campaign, new Date());
 }
 
 export async function createCampaign({

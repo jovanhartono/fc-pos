@@ -4,7 +4,7 @@ import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { DailyReport } from "@/features/reports/components/daily-report";
 import {
-	dailyReportQueryOptions,
+	reportOverviewQueryOptions,
 	storesQueryOptions,
 } from "@/lib/query-options";
 
@@ -22,9 +22,10 @@ export const Route = createFileRoute("/_admin/reports")({
 	loader: ({ context, deps }) =>
 		Promise.all([
 			context.queryClient.ensureQueryData(
-				dailyReportQueryOptions({
+				reportOverviewQueryOptions({
 					date: deps.date,
 					store_id: deps.store_id,
+					trend_days: 14,
 				}),
 			),
 			context.queryClient.ensureQueryData(storesQueryOptions()),

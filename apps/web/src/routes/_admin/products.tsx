@@ -185,6 +185,8 @@ function ProductsPage() {
 							columns={columns}
 							data={products}
 							isLoading={isPending}
+							sortable
+							cardPrimaryColumnId="name"
 						/>
 					</CardContent>
 				</Card>
