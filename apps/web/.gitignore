@@ -23,3 +23,6 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+# TanStack Router/Start scratch dir
+.tanstack/

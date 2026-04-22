@@ -482,6 +482,9 @@ export const ordersServicesTable = pgTable(
 
     // snapshot
     price: decimal("price", { precision: 12 }).default("0"),
+    cogs_snapshot: decimal("cogs_snapshot", { precision: 12 })
+      .default("0")
+      .notNull(),
 
     brand: varchar("brand", { length: 255 }),
     color: varchar("color", { length: 255 }),
@@ -578,6 +581,9 @@ export const orderServiceStatusLogsTable = pgTable(
   (table) => [
     index("order_service_status_logs_service_idx").on(table.order_service_id),
     index("order_service_status_logs_changed_by_idx").on(table.changed_by),
+    index("order_service_status_logs_processing_idx")
+      .on(table.to_status, table.from_status, table.created_at)
+      .where(sql`${table.to_status} = 'processing'`),
   ]
 );
 
@@ -668,6 +674,9 @@ export const ordersProductsTable = pgTable(
 
     // snapshot
     price: decimal("price", { precision: 12 }).default("0"),
+    cogs_snapshot: decimal("cogs_snapshot", { precision: 12 })
+      .default("0")
+      .notNull(),
     product_id: integer("product_id").references(() => productsTable.id, {
       onDelete: "cascade",
     }),

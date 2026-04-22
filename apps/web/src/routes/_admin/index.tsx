@@ -1,95 +1,25 @@
-import {
-	ArrowDownIcon,
-	ArrowUpIcon,
-	MinusIcon,
-	WarningCircleIcon,
-} from "@phosphor-icons/react";
+import { WarningCircleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import type { DashboardOverview } from "@/lib/api";
 import { dashboardOverviewQueryOptions } from "@/lib/query-options";
-import { cn } from "@/lib/utils";
 import { formatIDRCurrency } from "@/shared/utils";
-
-export const Route = createFileRoute("/_admin/")({
-	loader: ({ context }) =>
-		context.queryClient.ensureQueryData(dashboardOverviewQueryOptions()),
-	component: DashboardPage,
-});
-
-type KpiValue = DashboardOverview["kpi"]["revenue"];
-
-type KpiCardProps = {
-	label: string;
-	value: string;
-	kpi: KpiValue;
-	formatter?: (value: number) => string;
-};
 
 const numberFormatter = new Intl.NumberFormat("en-ID");
 
-const formatDelta = (deltaPct: number | null): string => {
-	if (deltaPct === null) {
-		return "— vs yesterday";
-	}
-	const prefix = deltaPct > 0 ? "+" : deltaPct < 0 ? "" : "±";
-	return `${prefix}${deltaPct.toFixed(1)}% vs yesterday`;
-};
-
-const deltaTone = (deltaPct: number | null): string => {
-	if (deltaPct === null || deltaPct === 0) {
-		return "text-muted-foreground";
-	}
-	return deltaPct > 0 ? "text-success" : "text-destructive";
-};
-
-function DeltaIcon({ deltaPct }: { deltaPct: number | null }) {
-	if (deltaPct === null) {
-		return <MinusIcon className="size-3" />;
-	}
-	if (deltaPct > 0) {
-		return <ArrowUpIcon className="size-3" weight="bold" />;
-	}
-	if (deltaPct < 0) {
-		return <ArrowDownIcon className="size-3" weight="bold" />;
-	}
-	return <MinusIcon className="size-3" />;
-}
-
-function KpiCard({ label, value, kpi }: KpiCardProps) {
-	return (
-		<Card className="border-border/70">
-			<CardContent className="grid gap-2 p-4">
-				<p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-					{label}
-				</p>
-				<p className="font-mono text-2xl font-semibold tabular-nums">{value}</p>
-				<p
-					className={cn(
-						"flex items-center gap-1 font-mono text-[11px] tabular-nums",
-						deltaTone(kpi.delta_pct),
-					)}
-				>
-					<DeltaIcon deltaPct={kpi.delta_pct} />
-					{formatDelta(kpi.delta_pct)}
-				</p>
-			</CardContent>
-		</Card>
-	);
-}
-
 type PerStoreEntry = DashboardOverview["per_store_today"][number];
 
-function PerStoreCard({
+const PerStoreCard = ({
 	store,
 	maxRevenue,
 }: {
 	store: PerStoreEntry;
 	maxRevenue: number;
-}) {
+}) => {
 	const pct = maxRevenue === 0 ? 0 : (store.revenue / maxRevenue) * 100;
 
 	return (
@@ -119,11 +49,11 @@ function PerStoreCard({
 			</CardContent>
 		</Card>
 	);
-}
+};
 
 type TopService = DashboardOverview["top_services_week"][number];
 
-function TopServicesCard({ services }: { services: TopService[] }) {
+const TopServicesCard = ({ services }: { services: TopService[] }) => {
 	return (
 		<Card className="border-border/70">
 			<CardHeader>
@@ -157,11 +87,11 @@ function TopServicesCard({ services }: { services: TopService[] }) {
 			</CardContent>
 		</Card>
 	);
-}
+};
 
 type Risks = DashboardOverview["risks"];
 
-function RiskStrip({ risks }: { risks: Risks }) {
+const RiskStrip = ({ risks }: { risks: Risks }) => {
 	const hasOldest = risks.oldest_open_order !== null;
 	const anyRisk =
 		hasOldest ||
@@ -215,9 +145,9 @@ function RiskStrip({ risks }: { risks: Risks }) {
 			</CardContent>
 		</Card>
 	);
-}
+};
 
-function RiskRow({
+const RiskRow = ({
 	label,
 	value,
 	to,
@@ -229,7 +159,7 @@ function RiskRow({
 	to?: string;
 	params?: Record<string, string>;
 	search?: Record<string, unknown>;
-}) {
+}) => {
 	const content = (
 		<div className="flex items-center justify-between gap-3 border-b border-border/40 py-2 last:border-0">
 			<p className="text-sm">{label}</p>
@@ -251,9 +181,9 @@ function RiskRow({
 			{content}
 		</Link>
 	);
-}
+};
 
-function DashboardPage() {
+const DashboardPage = () => {
 	const { data, isPending } = useQuery(dashboardOverviewQueryOptions());
 
 	const maxRevenue = useMemo(() => {
@@ -295,28 +225,32 @@ function DashboardPage() {
 			/>
 
 			<div className="grid gap-6">
-				<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+				<KpiRow>
 					<KpiCard
 						label="Revenue"
 						value={formatIDRCurrency(String(data.kpi.revenue.today))}
-						kpi={data.kpi.revenue}
+						delta={data.kpi.revenue}
+						comparisonLabel="vs yesterday"
 					/>
 					<KpiCard
 						label="Orders in"
 						value={numberFormatter.format(data.kpi.orders_in.today)}
-						kpi={data.kpi.orders_in}
+						delta={data.kpi.orders_in}
+						comparisonLabel="vs yesterday"
 					/>
 					<KpiCard
 						label="Orders out"
 						value={numberFormatter.format(data.kpi.orders_out.today)}
-						kpi={data.kpi.orders_out}
+						delta={data.kpi.orders_out}
+						comparisonLabel="vs yesterday"
 					/>
 					<KpiCard
 						label="Queue depth"
 						value={numberFormatter.format(data.kpi.queue_depth.today)}
-						kpi={data.kpi.queue_depth}
+						delta={data.kpi.queue_depth}
+						comparisonLabel="vs yesterday"
 					/>
-				</div>
+				</KpiRow>
 
 				<div className="grid gap-3">
 					<p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -340,4 +274,10 @@ function DashboardPage() {
 			</div>
 		</>
 	);
-}
+};
+
+export const Route = createFileRoute("/_admin/")({
+	loader: ({ context }) =>
+		context.queryClient.ensureQueryData(dashboardOverviewQueryOptions()),
+	component: DashboardPage,
+});

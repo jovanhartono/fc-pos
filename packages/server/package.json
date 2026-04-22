@@ -30,15 +30,15 @@
     "lint": "biome check .",
     "type-check": "tsc -b",
     "seed:dev": "bun run src/db/seed.ts",
-    "pull:dev": "bun --bun drizzle-kit pull --config=drizzle-dev.config.ts",
+    "pull:dev": "node --env-file=.env ../../node_modules/drizzle-kit/bin.cjs pull --config=drizzle-dev.config.ts",
     "build:watch": "bun --bun tsdown --watch",
-    "pull:prod": "bun --bun drizzle-kit pull --config=drizzle-prod.config.ts",
-    "push:dev": "bun --bun drizzle-kit push --config=drizzle-dev.config.ts",
-    "push:prod": "bun --bun drizzle-kit push --config=drizzle-prod.config.ts",
-    "generate:dev": "bun --bun drizzle-kit generate --config=drizzle-dev.config.ts",
-    "generate:prod": "bun --bun drizzle-kit generate --config=drizzle-prod.config.ts",
-    "migrate:dev": "bun --bun drizzle-kit migrate --config=drizzle-dev.config.ts",
-    "migrate:prod": "bun --bun drizzle-kit migrate --config=drizzle-prod.config.ts"
+    "pull:prod": "node --env-file=.env ../../node_modules/drizzle-kit/bin.cjs pull --config=drizzle-prod.config.ts",
+    "push:dev": "node --env-file=.env ../../node_modules/drizzle-kit/bin.cjs push --config=drizzle-dev.config.ts",
+    "push:prod": "node --env-file=.env ../../node_modules/drizzle-kit/bin.cjs push --config=drizzle-prod.config.ts",
+    "generate:dev": "node --env-file=.env ../../node_modules/drizzle-kit/bin.cjs generate --config=drizzle-dev.config.ts",
+    "generate:prod": "node --env-file=.env ../../node_modules/drizzle-kit/bin.cjs generate --config=drizzle-prod.config.ts",
+    "migrate:dev": "node --env-file=.env ../../node_modules/drizzle-kit/bin.cjs migrate --config=drizzle-dev.config.ts",
+    "migrate:prod": "node --env-file=.env ../../node_modules/drizzle-kit/bin.cjs migrate --config=drizzle-prod.config.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.924.0",

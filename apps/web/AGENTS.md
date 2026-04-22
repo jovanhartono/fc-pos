@@ -38,6 +38,7 @@ react-hook-form + zodResolver + useMutation for every form.
 - Pair every form with `useMutation`. Global `QueryClient` handles success/error toasts — only add `onSuccess`/`onError` for invalidation, close sheet, or navigate.
 - Use `Field`, `FieldLabel`, `FieldError` from `@/components/ui/field`. `Controller` for non-native inputs. `useFieldArray` for lists. `useWatch` for derived values.
 - Schemas from `@fresclean/api/schema` or local; shared frontend-only in `src/shared/zod.ts`.
+- `StoreAutocomplete` (`features/orders/components/`) reused across features. For filter UIs pass `allOptionLabel="All stores"` — prepends `{ value: "", label }` sentinel so `""` = unscoped.
 
 ## No Props Drilling
 

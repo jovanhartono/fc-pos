@@ -10,6 +10,14 @@ import type {
 	PUTCustomerSchema,
 	PUTUserSchema,
 } from "@fresclean/api/schema";
+import type {
+	ComparableSummary,
+	KpiDelta,
+	ReportGranularity,
+} from "@fresclean/api/types";
+
+export type { ComparableSummary, KpiDelta, ReportGranularity };
+
 import { type InferResponseType, parseResponse } from "hono/client";
 import type { z } from "zod";
 import { rpc, rpcWithAuth } from "@/lib/rpc";
@@ -63,6 +71,16 @@ const shiftsRoute = rpc.api.admin.shifts.$get;
 const shiftCurrentRoute = rpc.api.admin.shifts.current.$get;
 const dailyReportRoute = rpc.api.admin.reports.daily.$get;
 const reportOverviewRoute = rpc.api.admin.reports.overview.$get;
+const financialRoute = rpc.api.admin.reports.financial.$get;
+const ordersFlowRoute = rpc.api.admin.reports["orders-flow"].$get;
+const paymentMixRoute = rpc.api.admin.reports["payment-mix"].$get;
+const customerAcquisitionRoute =
+	rpc.api.admin.reports["customer-acquisition"].$get;
+const refundTrendRoute = rpc.api.admin.reports["refund-trend"].$get;
+const workerProductivityRoute =
+	rpc.api.admin.reports["worker-productivity"].$get;
+const campaignEffectivenessRoute =
+	rpc.api.admin.reports["campaign-effectiveness"].$get;
 const publicTrackOrderRoute = rpc.api.public.orders.track.$post;
 
 type LoginSuccessResponse = Extract<
@@ -154,6 +172,48 @@ export type FetchReportOverviewQuery = {
 	store_id?: number;
 	trend_days?: number;
 };
+
+export type FetchReportRangeQuery = {
+	from: string;
+	to: string;
+	store_id?: number;
+	granularity?: ReportGranularity;
+};
+
+export type FinancialReport = Extract<
+	InferResponseType<typeof financialRoute>,
+	{ success: true }
+>["data"];
+
+export type OrdersFlowReport = Extract<
+	InferResponseType<typeof ordersFlowRoute>,
+	{ success: true }
+>["data"];
+
+export type PaymentMixReport = Extract<
+	InferResponseType<typeof paymentMixRoute>,
+	{ success: true }
+>["data"];
+
+export type CustomerAcquisitionReport = Extract<
+	InferResponseType<typeof customerAcquisitionRoute>,
+	{ success: true }
+>["data"];
+
+export type RefundTrendReport = Extract<
+	InferResponseType<typeof refundTrendRoute>,
+	{ success: true }
+>["data"];
+
+export type WorkerProductivityReport = Extract<
+	InferResponseType<typeof workerProductivityRoute>,
+	{ success: true }
+>["data"];
+
+export type CampaignEffectivenessReport = Extract<
+	InferResponseType<typeof campaignEffectivenessRoute>,
+	{ success: true }
+>["data"];
 
 export type LoginPayload = {
 	username: string;
@@ -353,6 +413,20 @@ export const queryKeys = {
 		["daily-report", query] as const,
 	reportOverview: (query: FetchReportOverviewQuery) =>
 		["report-overview", query] as const,
+	financial: (query: FetchReportRangeQuery) =>
+		["report-financial", query] as const,
+	ordersFlow: (query: FetchReportRangeQuery) =>
+		["report-orders-flow", query] as const,
+	paymentMix: (query: FetchReportRangeQuery) =>
+		["report-payment-mix", query] as const,
+	customerAcquisition: (query: FetchReportRangeQuery) =>
+		["report-customer-acquisition", query] as const,
+	refundTrend: (query: FetchReportRangeQuery) =>
+		["report-refund-trend", query] as const,
+	workerProductivity: (query: FetchReportRangeQuery) =>
+		["report-worker-productivity", query] as const,
+	campaignEffectiveness: (query: FetchReportRangeQuery) =>
+		["report-campaign-effectiveness", query] as const,
 };
 
 export async function login(payload: LoginPayload) {
@@ -1046,6 +1120,79 @@ export async function fetchReportOverview(query: FetchReportOverviewQuery) {
 					? { trend_days: String(query.trend_days) }
 					: {}),
 			},
+		}),
+	);
+}
+
+function toRangeQuery(query: FetchReportRangeQuery) {
+	return {
+		from: query.from,
+		to: query.to,
+		...(query.store_id !== undefined
+			? { store_id: String(query.store_id) }
+			: {}),
+		...(query.granularity ? { granularity: query.granularity } : {}),
+	};
+}
+
+export async function fetchFinancialReport(query: FetchReportRangeQuery) {
+	return parseSuccessData<FinancialReport>(
+		rpcWithAuth().api.admin.reports.financial.$get({
+			query: toRangeQuery(query),
+		}),
+	);
+}
+
+export async function fetchOrdersFlowReport(query: FetchReportRangeQuery) {
+	return parseSuccessData<OrdersFlowReport>(
+		rpcWithAuth().api.admin.reports["orders-flow"].$get({
+			query: toRangeQuery(query),
+		}),
+	);
+}
+
+export async function fetchPaymentMixReport(query: FetchReportRangeQuery) {
+	return parseSuccessData<PaymentMixReport>(
+		rpcWithAuth().api.admin.reports["payment-mix"].$get({
+			query: toRangeQuery(query),
+		}),
+	);
+}
+
+export async function fetchCustomerAcquisitionReport(
+	query: FetchReportRangeQuery,
+) {
+	return parseSuccessData<CustomerAcquisitionReport>(
+		rpcWithAuth().api.admin.reports["customer-acquisition"].$get({
+			query: toRangeQuery(query),
+		}),
+	);
+}
+
+export async function fetchRefundTrendReport(query: FetchReportRangeQuery) {
+	return parseSuccessData<RefundTrendReport>(
+		rpcWithAuth().api.admin.reports["refund-trend"].$get({
+			query: toRangeQuery(query),
+		}),
+	);
+}
+
+export async function fetchWorkerProductivityReport(
+	query: FetchReportRangeQuery,
+) {
+	return parseSuccessData<WorkerProductivityReport>(
+		rpcWithAuth().api.admin.reports["worker-productivity"].$get({
+			query: toRangeQuery(query),
+		}),
+	);
+}
+
+export async function fetchCampaignEffectivenessReport(
+	query: FetchReportRangeQuery,
+) {
+	return parseSuccessData<CampaignEffectivenessReport>(
+		rpcWithAuth().api.admin.reports["campaign-effectiveness"].$get({
+			query: toRangeQuery(query),
 		}),
 	);
 }

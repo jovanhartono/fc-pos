@@ -102,6 +102,7 @@ function buildOrderServiceRows({
       order_id: orderId,
       service_id: service.id,
       price: service.price,
+      cogs_snapshot: service.cogs,
       notes: item.notes,
       color: item.color,
       size: item.size,
@@ -378,6 +379,7 @@ export async function createOrder(
             order_id: orderId,
             product_id: product.id,
             price: product.price,
+            cogs_snapshot: (Number(product.cogs) * item.qty).toFixed(2),
             qty: item.qty,
             notes: item.notes,
           };

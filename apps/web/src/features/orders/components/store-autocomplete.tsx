@@ -12,6 +12,8 @@ type StoreAutocompleteProps = {
 	label?: string;
 	id?: string;
 	error?: { message?: string };
+	placeholder?: string;
+	allOptionLabel?: string;
 };
 
 export function StoreAutocomplete({
@@ -23,6 +25,8 @@ export function StoreAutocomplete({
 	label = "Store",
 	id = "order-store",
 	error,
+	placeholder = "Select store",
+	allOptionLabel,
 }: StoreAutocompleteProps) {
 	const { data: stores = [], isPending } = useQuery({
 		queryKey: queryKeys.stores,
@@ -31,6 +35,14 @@ export function StoreAutocomplete({
 	const filteredStores = allowedStoreIds
 		? stores.filter((store) => allowedStoreIds.includes(store.id))
 		: stores;
+
+	const options = filteredStores.map((store) => ({
+		value: String(store.id),
+		label: store.name,
+	}));
+	if (allOptionLabel) {
+		options.unshift({ value: "", label: allOptionLabel });
+	}
 
 	return (
 		<Field data-invalid={!!error}>
@@ -41,14 +53,11 @@ export function StoreAutocomplete({
 				id={id}
 				required={required}
 				triggerClassName="h-10 w-full text-sm"
-				options={filteredStores.map((store) => ({
-					value: String(store.id),
-					label: store.name,
-				}))}
+				options={options}
 				value={value}
 				onValueChange={onValueChange}
 				loading={isPending}
-				placeholder="Select store"
+				placeholder={placeholder}
 				searchPlaceholder="Search store..."
 				emptyText="No store found"
 				disabled={disabled}

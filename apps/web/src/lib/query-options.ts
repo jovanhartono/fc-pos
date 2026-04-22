@@ -6,26 +6,34 @@ import {
 	type FetchDashboardOverviewQuery,
 	type FetchOrdersQuery,
 	type FetchReportOverviewQuery,
+	type FetchReportRangeQuery,
 	type FetchShiftsQuery,
 	type FetchUsersQuery,
+	fetchCampaignEffectivenessReport,
 	fetchCampaigns,
 	fetchCategories,
 	fetchCurrentShift,
 	fetchCurrentUserDetail,
+	fetchCustomerAcquisitionReport,
 	fetchCustomersPage,
 	fetchDailyReport,
 	fetchDashboardCounts,
 	fetchDashboardOverview,
+	fetchFinancialReport,
 	fetchMyOrderServices,
 	fetchOrderDetail,
+	fetchOrdersFlowReport,
 	fetchOrdersPage,
 	fetchPaymentMethods,
+	fetchPaymentMixReport,
 	fetchProducts,
+	fetchRefundTrendReport,
 	fetchReportOverview,
 	fetchServices,
 	fetchShifts,
 	fetchStores,
 	fetchUsersPage,
+	fetchWorkerProductivityReport,
 	queryKeys,
 } from "@/lib/api";
 
@@ -144,4 +152,48 @@ export const reportOverviewQueryOptions = (query: FetchReportOverviewQuery) =>
 	queryOptions({
 		queryKey: queryKeys.reportOverview(query),
 		queryFn: () => fetchReportOverview(query),
+	});
+
+export const financialQueryOptions = (query: FetchReportRangeQuery) =>
+	queryOptions({
+		queryKey: queryKeys.financial(query),
+		queryFn: () => fetchFinancialReport(query),
+	});
+
+export const ordersFlowQueryOptions = (query: FetchReportRangeQuery) =>
+	queryOptions({
+		queryKey: queryKeys.ordersFlow(query),
+		queryFn: () => fetchOrdersFlowReport(query),
+	});
+
+export const paymentMixQueryOptions = (query: FetchReportRangeQuery) =>
+	queryOptions({
+		queryKey: queryKeys.paymentMix(query),
+		queryFn: () => fetchPaymentMixReport(query),
+	});
+
+export const customerAcquisitionQueryOptions = (query: FetchReportRangeQuery) =>
+	queryOptions({
+		queryKey: queryKeys.customerAcquisition(query),
+		queryFn: () => fetchCustomerAcquisitionReport(query),
+	});
+
+export const refundTrendQueryOptions = (query: FetchReportRangeQuery) =>
+	queryOptions({
+		queryKey: queryKeys.refundTrend(query),
+		queryFn: () => fetchRefundTrendReport(query),
+	});
+
+export const workerProductivityQueryOptions = (query: FetchReportRangeQuery) =>
+	queryOptions({
+		queryKey: queryKeys.workerProductivity(query),
+		queryFn: () => fetchWorkerProductivityReport(query),
+	});
+
+export const campaignEffectivenessQueryOptions = (
+	query: FetchReportRangeQuery,
+) =>
+	queryOptions({
+		queryKey: queryKeys.campaignEffectiveness(query),
+		queryFn: () => fetchCampaignEffectivenessReport(query),
 	});
