@@ -1,5 +1,5 @@
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { Pool } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
 import { relations } from "@/db/relations";
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -15,5 +15,6 @@ if (!databaseUrl) {
   );
 }
 
-const sql = neon(databaseUrl);
-export const db = drizzle({ client: sql, relations });
+// Bun ships global WebSocket — no neonConfig.webSocketConstructor needed.
+const pool = new Pool({ connectionString: databaseUrl });
+export const db = drizzle({ client: pool, relations });
