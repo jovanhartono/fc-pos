@@ -180,6 +180,7 @@ export const orderServiceStatusEnum = pgEnum("order_service_status_enum", [
   "queued",
   "processing",
   "quality_check",
+  "qc_reject",
   "ready_for_pickup",
   "picked_up",
   "refunded",
@@ -363,6 +364,10 @@ export const ordersTable = pgTable(
       .default("0")
       .notNull(),
     paid_at: timestamp("paid_at"),
+
+    pickup_code: varchar("pickup_code", { length: 6 })
+      .notNull()
+      .default(sql`lpad(floor(random() * 1000000)::text, 6, '0')`),
 
     refunded_amount: decimal("refunded_amount", { precision: 12 })
       .default("0")

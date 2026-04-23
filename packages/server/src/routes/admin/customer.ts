@@ -25,16 +25,19 @@ const app = new Hono()
   })
   .post("/", zodValidator("json", POSTCustomerSchema), async (c) => {
     const { id: user_id } = c.get("jwtPayload") as JWTPayload;
-    const customer = c.req.valid("json");
+    const payload = c.req.valid("json");
 
-    const created = await createCustomer({
+    const { customer, existed } = await createCustomer({
       actorId: user_id,
-      payload: customer,
+      payload,
     });
 
     return c.json(
-      success(created, "Create customer success"),
-      StatusCodes.CREATED
+      success(
+        customer,
+        existed ? "Customer already exists" : "Create customer success"
+      ),
+      existed ? StatusCodes.OK : StatusCodes.CREATED
     );
   })
   .get("/:id", idParamSchema, async (c) => {

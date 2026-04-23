@@ -131,6 +131,7 @@ type OrderServiceStatus =
   | "queued"
   | "processing"
   | "quality_check"
+  | "qc_reject"
   | "ready_for_pickup"
   | "picked_up"
   | "refunded"
@@ -263,6 +264,14 @@ function createStatusNote(nextStatus: OrderServiceStatus): string {
     ]);
   }
 
+  if (nextStatus === "qc_reject") {
+    return faker.helpers.arrayElement([
+      "QC flagged residue, sent back for rework",
+      "Rejected at quality check — needs reprocessing",
+      "Finishing inconsistency found, returning to worker",
+    ]);
+  }
+
   if (nextStatus === "ready_for_pickup") {
     return faker.helpers.arrayElement([
       "Cleaning completed and item is ready for pickup",
@@ -318,6 +327,7 @@ const STATUS_PATHS: Partial<Record<OrderServiceStatus, OrderServiceStatus[]>> =
     queued: [],
     processing: ["processing"],
     quality_check: ["processing", "quality_check"],
+    qc_reject: ["processing", "quality_check", "qc_reject"],
     ready_for_pickup: ["processing", "quality_check", "ready_for_pickup"],
     picked_up: ["processing", "quality_check", "ready_for_pickup", "picked_up"],
     refunded: ["processing", "quality_check", "ready_for_pickup", "refunded"],
@@ -340,9 +350,14 @@ function buildStatusPath(
   const qcIdx = base.indexOf("quality_check");
   if (qcIdx !== -1 && chance(0.15)) {
     const loopCount = chance(0.25) ? 2 : 1;
+    const useReject = chance(0.5);
     const loop: OrderServiceStatus[] = [];
     for (let i = 0; i < loopCount; i++) {
-      loop.push("processing", "quality_check");
+      if (useReject) {
+        loop.push("qc_reject", "processing", "quality_check");
+      } else {
+        loop.push("processing", "quality_check");
+      }
     }
     base.splice(qcIdx + 1, 0, ...loop);
   }
@@ -378,6 +393,7 @@ function pickFinalServiceStatuses(
         "queued",
         "processing",
         "quality_check",
+        "qc_reject",
         "ready_for_pickup",
       ] as const)
     );

@@ -209,6 +209,12 @@ The server dev script runs `tsdown --watch` alongside the server. For a one-off 
 cd packages/server && bunx tsdown
 ```
 
+## v1 Scope Source of Truth
+
+- `docs/core-implementation-plan.md` — groups A–G, locked scope for v1
+- `docs/deferred-actions.md` — 19 items explicitly deferred (D-1..D-19); do not re-propose unless trigger hit
+- `docs/production-readiness-audit.md` — original findings + rationale
+
 ## Detailed Standards
 
 @AGENTS.md

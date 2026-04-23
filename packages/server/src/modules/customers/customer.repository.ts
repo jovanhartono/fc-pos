@@ -68,6 +68,12 @@ export function findCustomerById(id: number) {
   });
 }
 
+export function findCustomerByPhone(phone_number: string) {
+  return db.query.customersTable.findFirst({
+    where: { phone_number },
+  });
+}
+
 export function insertCustomer(
   values: InferInsertModel<typeof customersTable>
 ) {

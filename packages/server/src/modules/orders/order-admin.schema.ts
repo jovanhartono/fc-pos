@@ -11,7 +11,8 @@ export const ORDER_STATUS_TRANSITIONS: Record<
 > = {
   queued: ["processing", "cancelled"],
   processing: ["quality_check", "cancelled"],
-  quality_check: ["processing", "ready_for_pickup", "cancelled"],
+  quality_check: ["processing", "qc_reject", "ready_for_pickup", "cancelled"],
+  qc_reject: ["processing", "cancelled"],
   ready_for_pickup: ["refunded", "cancelled"],
   picked_up: [],
   refunded: [],

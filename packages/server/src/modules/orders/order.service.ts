@@ -1,4 +1,3 @@
-import dayjs from "dayjs";
 import { eq } from "drizzle-orm";
 import type z from "zod";
 import { db } from "@/db";
@@ -31,6 +30,7 @@ import { stackCampaignDiscounts } from "@/schema/discount";
 import type { JWTPayload } from "@/types";
 import type { Store } from "@/types/entity";
 import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
+import { jakartaNow } from "@/utils/date";
 import { buildPaginationMeta } from "@/utils/pagination";
 
 function formatOrderCode(storeCode: string, dateStr: string, sequence: number) {
@@ -317,6 +317,15 @@ export async function createOrder(
     );
   }
 
+  const inactiveProducts = productIds.filter(
+    (id) => !productMap.get(id)?.is_active
+  );
+  if (inactiveProducts.length > 0) {
+    throw new BadRequestException(
+      `Product is not active: ${inactiveProducts.join(", ")}`
+    );
+  }
+
   const missingServices = serviceIds.filter((id) => !serviceMap.has(id));
   if (missingServices.length > 0) {
     throw new NotFoundException(
@@ -325,7 +334,7 @@ export async function createOrder(
   }
 
   return db.transaction(async (tx) => {
-    const dateStr = dayjs().format("DDMMYYYY");
+    const dateStr = jakartaNow().format("DDMMYYYY");
     const sequence = await reserveNextOrderNumber(tx, store.code, dateStr);
     const code = formatOrderCode(store.code, dateStr, sequence);
     const expandedServices = expandServices(services);

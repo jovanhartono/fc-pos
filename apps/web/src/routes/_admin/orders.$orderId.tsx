@@ -90,6 +90,7 @@ const STATUS_ACTION_LABELS: Record<
 	queued: "Queue",
 	processing: "Process",
 	quality_check: "Quality Check",
+	qc_reject: "Reject at QC",
 	ready_for_pickup: "Ready for Pickup",
 	picked_up: "Pick Up",
 	refunded: "Refund",
@@ -100,6 +101,7 @@ const IN_PROGRESS_SERVICE_STATUSES = new Set([
 	"queued",
 	"processing",
 	"quality_check",
+	"qc_reject",
 ]);
 
 const REFUND_REASONS = ["damaged", "cannot_process", "lost", "other"] as const;

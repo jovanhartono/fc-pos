@@ -25,6 +25,7 @@ const orderServiceStatusLabels = {
 	cancelled: "Cancelled",
 	picked_up: "Picked Up",
 	processing: "In Progress",
+	qc_reject: "QC Rejected",
 	quality_check: "Quality Check",
 	queued: "Queued",
 	ready_for_pickup: "Ready for Pickup",
@@ -72,6 +73,8 @@ export function getOrderServiceStatusBadgeVariant(
 			return "info";
 		case "quality_check":
 			return "warning";
+		case "qc_reject":
+			return "danger";
 		case "ready_for_pickup":
 			return "success";
 		case "picked_up":

@@ -19,6 +19,7 @@ type OrderServiceStatus =
   | "queued"
   | "processing"
   | "quality_check"
+  | "qc_reject"
   | "ready_for_pickup"
   | "picked_up"
   | "refunded"

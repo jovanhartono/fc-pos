@@ -3,6 +3,7 @@ import type { customersTable } from "@/db/schema";
 import {
   countCustomers,
   findCustomerById,
+  findCustomerByPhone,
   insertCustomer,
   listCustomers,
   updateCustomerById,
@@ -43,13 +44,39 @@ export async function createCustomer({
     "created_by" | "updated_by"
   >;
 }) {
-  const [customer] = await insertCustomer({
-    ...payload,
-    created_by: actorId,
-    updated_by: actorId,
-  });
+  const existing = await findCustomerByPhone(payload.phone_number);
+  if (existing) {
+    return { customer: existing, existed: true as const };
+  }
 
-  return customer;
+  try {
+    const [customer] = await insertCustomer({
+      ...payload,
+      created_by: actorId,
+      updated_by: actorId,
+    });
+
+    return { customer, existed: false as const };
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      const raced = await findCustomerByPhone(payload.phone_number);
+      if (raced) {
+        return { customer: raced, existed: true as const };
+      }
+    }
+    throw error;
+  }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const cause = (error as { cause?: unknown }).cause;
+  if (typeof cause === "object" && cause !== null && "code" in cause) {
+    return (cause as { code?: string }).code === "23505";
+  }
+  return "code" in error && (error as { code?: string }).code === "23505";
 }
 
 export async function updateCustomer({

@@ -17,7 +17,12 @@ type OrderFulfillmentOverviewProps = {
 	order: OrderDetail;
 };
 
-const IN_FLIGHT_STATUSES = new Set(["queued", "processing", "quality_check"]);
+const IN_FLIGHT_STATUSES = new Set([
+	"queued",
+	"processing",
+	"quality_check",
+	"qc_reject",
+]);
 
 export function OrderFulfillmentOverview({
 	canCompletePickup,

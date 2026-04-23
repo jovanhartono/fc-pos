@@ -56,6 +56,7 @@ const QUEUE_STATUS_OPTIONS = [
 	"queued",
 	"processing",
 	"quality_check",
+	"qc_reject",
 	"ready_for_pickup",
 ] as const;
 

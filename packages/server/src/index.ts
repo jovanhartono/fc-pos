@@ -1,3 +1,4 @@
+import "@/utils/date";
 import { HTTPException } from "hono/http-exception";
 import { StatusCodes } from "http-status-codes";
 import app from "@/app";

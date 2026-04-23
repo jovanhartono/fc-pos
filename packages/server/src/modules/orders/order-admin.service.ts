@@ -1,4 +1,3 @@
-import dayjs from "dayjs";
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -42,6 +41,7 @@ import {
 } from "@/modules/orders/order-fulfillment";
 import type { JWTPayload } from "@/types";
 import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
+import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
 import { buildPaginationMeta } from "@/utils/pagination";
 import { buildMediaUrl, createPresignedUploadUrl } from "@/utils/s3";
 
@@ -435,19 +435,13 @@ export async function getOrderServiceQueue(
 
   if (normalized.date_from) {
     conditions.push(
-      gte(
-        ordersTable.created_at,
-        dayjs(normalized.date_from).startOf("day").toDate()
-      )
+      gte(ordersTable.created_at, jakartaDayStart(normalized.date_from))
     );
   }
 
   if (normalized.date_to) {
     conditions.push(
-      lte(
-        ordersTable.created_at,
-        dayjs(normalized.date_to).endOf("day").toDate()
-      )
+      lte(ordersTable.created_at, jakartaDayEnd(normalized.date_to))
     );
   }
 
@@ -855,7 +849,8 @@ export async function updateOrderServiceStatus({
     }
 
     const isClaimTransition =
-      locked.status === "queued" && body.status === "processing";
+      (locked.status === "queued" || locked.status === "qc_reject") &&
+      body.status === "processing";
     const needsHandlerAssign =
       isClaimTransition && locked.handler_id !== user.id;
 

@@ -1,4 +1,3 @@
-import dayjs from "dayjs";
 import type { InferInsertModel } from "drizzle-orm";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -10,6 +9,7 @@ import {
 } from "@/db/schema";
 import type { NormalizedOrderListQuery } from "@/modules/orders/order.schema";
 import { summarizeOrderFulfillment } from "@/modules/orders/order-fulfillment";
+import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
 
 export type OrderTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -88,13 +88,13 @@ function buildOrderWhere(
 
   if (filters.date_from) {
     conditions.push({
-      created_at: { gte: dayjs(filters.date_from).startOf("day").toDate() },
+      created_at: { gte: jakartaDayStart(filters.date_from) },
     });
   }
 
   if (filters.date_to) {
     conditions.push({
-      created_at: { lte: dayjs(filters.date_to).endOf("day").toDate() },
+      created_at: { lte: jakartaDayEnd(filters.date_to) },
     });
   }
 
