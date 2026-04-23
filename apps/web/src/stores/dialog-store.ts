@@ -9,6 +9,7 @@ type DialogState = {
 	description: string | null;
 	content: RenderNode | null;
 	footer: RenderNode | null;
+	contentClassName: string | null;
 };
 
 type OpenDialogPayload = {
@@ -16,6 +17,7 @@ type OpenDialogPayload = {
 	description?: string | null;
 	content?: RenderNode | null;
 	footer?: RenderNode | null;
+	contentClassName?: string | null;
 };
 
 type DialogStore = {
@@ -31,6 +33,7 @@ const defaultState: DialogState = {
 	description: null,
 	content: null,
 	footer: null,
+	contentClassName: null,
 };
 
 export const useDialog = create<DialogStore>((set) => ({
@@ -47,6 +50,7 @@ export const useDialog = create<DialogStore>((set) => ({
 		description = null,
 		content = null,
 		footer = null,
+		contentClassName = null,
 	}) =>
 		set({
 			dialogState: {
@@ -54,6 +58,7 @@ export const useDialog = create<DialogStore>((set) => ({
 				description,
 				content,
 				footer,
+				contentClassName,
 				open: true,
 			},
 		}),

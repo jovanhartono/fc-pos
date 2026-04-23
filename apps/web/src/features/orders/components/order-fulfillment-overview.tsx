@@ -86,17 +86,15 @@ export function OrderFulfillmentOverview({
 							type="button"
 							className="h-11"
 							loading={isCompleting}
-							loadingText="Completing…"
+							loadingText="Saving…"
 							disabled={!canCompletePickup}
 							onClick={onCompletePickup}
 						>
-							{fulfillment.is_partially_picked_up
-								? `Complete remaining pickup (${fulfillment.ready_for_pickup_count})`
-								: `Mark order completed (${fulfillment.ready_for_pickup_count})`}
+							{`Pick up (${fulfillment.ready_for_pickup_count})`}
 						</Button>
 						{canCompletePickup ? null : (
 							<p className="text-muted-foreground text-xs leading-relaxed">
-								Available when every active line is ready for pickup.
+								No items ready yet.
 							</p>
 						)}
 					</div>

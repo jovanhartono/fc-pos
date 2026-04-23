@@ -47,6 +47,7 @@ const app = new Hono().post(
         discount: true,
         total: true,
         notes: true,
+        pickup_code: true,
         created_at: true,
         completed_at: true,
         cancelled_at: true,
@@ -109,12 +110,14 @@ const app = new Hono().post(
     }
 
     const orderCustomer = order.customer;
+    const { pickup_code, ...orderWithoutPickupCode } = order;
 
     return c.json(
       success(
         {
-          ...order,
+          ...orderWithoutPickupCode,
           services: order.services,
+          pickup_code: order.status === "ready_for_pickup" ? pickup_code : null,
           customer: {
             id: orderCustomer.id,
             name: orderCustomer.name,

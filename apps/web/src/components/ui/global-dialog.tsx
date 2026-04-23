@@ -10,9 +10,8 @@ import { cn } from "@/lib/utils";
 import { useDialog } from "@/stores/dialog-store";
 
 export function GlobalDialog() {
-	const { open, title, description, content, footer } = useDialog(
-		(state) => state.dialogState,
-	);
+	const { open, title, description, content, footer, contentClassName } =
+		useDialog((state) => state.dialogState);
 	const closeDialog = useDialog((state) => state.closeDialog);
 
 	return (
@@ -24,7 +23,7 @@ export function GlobalDialog() {
 				}
 			}}
 		>
-			<DialogContent>
+			<DialogContent className={cn(contentClassName)}>
 				{title || description ? (
 					<DialogHeader>
 						{title ? <DialogTitle>{title}</DialogTitle> : null}

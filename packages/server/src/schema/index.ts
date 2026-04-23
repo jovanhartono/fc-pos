@@ -4,9 +4,16 @@ import parsePhoneNumberFromString, {
 import z from "zod";
 import { orderPaymentStatusEnum } from "@/db/schema";
 
-import { ORDER_STATUS_TRANSITIONS as _ORDER_STATUS_TRANSITIONS } from "@/modules/orders/order-admin.schema";
+import {
+  ORDER_STATUS_TRANSITIONS as _ORDER_STATUS_TRANSITIONS,
+  POSTOrderPickupEventPresignSchema as _POSTOrderPickupEventPresignSchema,
+  POSTOrderPickupEventSchema as _POSTOrderPickupEventSchema,
+} from "@/modules/orders/order-admin.schema";
 
 export const ORDER_STATUS_TRANSITIONS = _ORDER_STATUS_TRANSITIONS;
+export const POSTOrderPickupEventPresignSchema =
+  _POSTOrderPickupEventPresignSchema;
+export const POSTOrderPickupEventSchema = _POSTOrderPickupEventSchema;
 
 import {
   type CampaignContribution as _CampaignContribution,

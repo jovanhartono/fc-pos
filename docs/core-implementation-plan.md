@@ -62,25 +62,29 @@ Follow-ups (not blocking merge):
 
 ---
 
-### Group B — Pickup flow rewrite
+### Group B — Pickup flow rewrite ✅ DONE
 
-6. **B-1. Server: block pickup without code match**
-   - `createOrderPickupEvent` accepts `pickup_code` in body. Compare against `orders.pickup_code`. Reject on mismatch. Rate-limit (5 attempts → lockout 5 min) via a small in-memory guard or `order_pickup_events_attempts` log.
-   - Decision for audit: log failed attempts to `order_pickup_attempts_log` table or accept as transient signal only? **Recommend**: log (small table, audit value high).
+Shipped: 2026-04-23 · branch `feat/group-b-pickup-flow`
 
-7. **B-2. Web: pickup dialog adds code input**
-   - `apps/web/src/features/orders/components/order-pickup-event-dialog.tsx` → add `<OTPInput length={6} />` primitive (shadcn has `input-otp`).
-   - Compound API: `<PickupDialog><PickupDialog.Services /><PickupDialog.CodeInput /><PickupDialog.Photos /></PickupDialog>`.
-   - Submit disabled until 6 digits + at least one photo uploaded.
+6. **B-1. Server: block pickup without code match** ✅
+   - `createOrderPickupEvent` requires `pickup_code` in body, compared against `orders.pickup_code`; mismatches throw 400.
+   - Rate limiting + attempts log deferred — kept simple for v1.
 
-8. **B-3. Track page shows pickup code to customer**
-   - Public `/track` returns `pickup_code` only when `order.status === 'ready_for_pickup'` (not before, so customer can't abuse early).
-   - Customer reads code to cashier at counter. No phone photo needed.
+7. **B-2. Web: pickup dialog adds code input** ✅
+   - Added `<InputOTP maxLength={6}>` (shadcn `input-otp`) as `PickupCodeField` in the existing compound pickup dialog (via context).
+   - Submit disabled until 6 digits + ≥1 photo + ≥1 service selected.
 
-9. **B-4. Remove any "mark as picked_up" shortcut from status dropdown**
-   - Audit `apps/web/src/features/orders/components/queue-service-detail.tsx` and status picker. Confirm already hidden.
+8. **B-3. Track page shows pickup code to customer** ✅
+   - Public `/track` returns `pickup_code` only when `order.status === 'ready_for_pickup'`; otherwise `null`.
+   - Track page renders the code in the "Ready for pickup" banner. Admin `getOrderDetailById` strips `pickup_code` so cashiers cannot peek.
+
+9. **B-4. Picked-up shortcut audit** ✅
+   - Confirmed `ORDER_STATUS_TRANSITIONS` never offers `picked_up` as a next status; the only entry path is the pickup dialog.
 
 Commit: `feat(pickup): 6-digit code auth + compound dialog + track-page display`
+
+Follow-ups (not blocking merge):
+- Run `bun run push:dev` + `bun run seed:dev` to create `order_pickup_attempts_log` and refresh demo data.
 
 ---
 
@@ -174,7 +178,7 @@ Each group = one PR. Each PR independently shippable.
 
 ## Locked decisions (2026-04-22)
 
-1. **B-1 attempt logging:** new `order_pickup_attempts_log` table. Columns: `order_id, attempted_code, ip, user_id, created_at`. Rate-limit: 5 attempts / 5 min window → soft lock.
+1. **B-1 attempt logging:** ~~attempts table + rate-limit~~ — reverted 2026-04-23, kept simple for v1. No throttle; mismatched code just returns 400.
 2. **C-2 auto-refund:** automatic on cancel-paid. Single toast "Order cancelled + refund issued". Refund item `reason='other'`, `note=cancel_reason`.
 3. **C-3 admin-only refund:** `assertCanProcessPaymentOrRefund` tightened to `role==='admin'` for refund endpoint. Payment collection remains cashier+admin.
 4. **D-1 auto-close trigger:** Upstash Schedule → HTTP POST to `/admin/cron/shifts/auto-close` (internal shared-secret header). Runs at 00:05 Jakarta daily (cushion for clock drift).

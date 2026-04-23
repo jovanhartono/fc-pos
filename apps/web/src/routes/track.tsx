@@ -473,8 +473,16 @@ function TrackOrderPage() {
 								) : null}
 
 								{isReady ? (
-									<div className="border-l-2 border-emerald-500 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-										Ready for pickup. Show your order code at the counter.
+									<div className="grid gap-3 border-l-2 border-emerald-500 bg-emerald-50 px-4 py-4">
+										<p className="text-sm text-emerald-900">
+											Ready for pickup. Read the code below to the cashier at
+											the counter.
+										</p>
+										{trackData.pickup_code ? (
+											<p className="font-mono text-3xl font-bold tracking-[0.3em] text-emerald-900 tabular-nums">
+												{trackData.pickup_code}
+											</p>
+										) : null}
 									</div>
 								) : null}
 							</div>

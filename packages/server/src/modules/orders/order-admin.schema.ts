@@ -59,6 +59,7 @@ export const PUTOrderDropoffPhotoSchema = z.object({
 
 export const POSTOrderPickupEventSchema = z.object({
   image_path: z.string().trim().min(1).max(512),
+  pickup_code: z.string().regex(/^\d{6}$/, "Pickup code must be 6 digits"),
   service_ids: z.array(z.coerce.number().int().positive()).min(1),
 });
 

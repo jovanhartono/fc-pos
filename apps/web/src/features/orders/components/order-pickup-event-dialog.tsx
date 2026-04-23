@@ -3,8 +3,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
 	createContext,
 	memo,
+	use,
 	useCallback,
-	useContext,
 	useEffect,
 	useMemo,
 	useRef,
@@ -13,6 +13,11 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+	InputOTP,
+	InputOTPGroup,
+	InputOTPSlot,
+} from "@/components/ui/input-otp";
 import {
 	ACCEPTED_IMAGE_TYPES,
 	isAcceptedImage,
@@ -42,16 +47,31 @@ type PickupDialogContextValue = {
 	isPending: boolean;
 };
 
+type PickupCodeContextValue = {
+	pickupCode: string;
+	setPickupCode: (value: string) => void;
+};
+
 const PickupDialogContext = createContext<PickupDialogContextValue | null>(
 	null,
 );
 
+const PickupCodeContext = createContext<PickupCodeContextValue | null>(null);
+
 const usePickupDialog = () => {
-	const context = useContext(PickupDialogContext);
+	const context = use(PickupDialogContext);
 	if (!context) {
 		throw new Error(
 			"usePickupDialog must be used within OrderPickupEventDialog",
 		);
+	}
+	return context;
+};
+
+const usePickupCode = () => {
+	const context = use(PickupCodeContext);
+	if (!context) {
+		throw new Error("usePickupCode must be used within OrderPickupEventDialog");
 	}
 	return context;
 };
@@ -73,6 +93,7 @@ export const OrderPickupEventDialog = ({
 	);
 	const [file, setFileState] = useState<File | null>(null);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+	const [pickupCode, setPickupCode] = useState("");
 
 	useEffect(() => {
 		return () => {
@@ -120,6 +141,9 @@ export const OrderPickupEventDialog = ({
 			if (!isAcceptedImage(file.type)) {
 				throw new Error("Unsupported image type");
 			}
+			if (!/^\d{6}$/.test(pickupCode)) {
+				throw new Error("Enter the 6-digit pickup code");
+			}
 			const serviceIds = Array.from(selectedIds);
 			if (serviceIds.length === 0) {
 				throw new Error("Select at least one item to pick up");
@@ -131,6 +155,7 @@ export const OrderPickupEventDialog = ({
 			await uploadFileToPresignedUrl(presigned.upload_url, file, file.type);
 			return createOrderPickupEvent(orderId, {
 				image_path: presigned.key,
+				pickup_code: pickupCode,
 				service_ids: serviceIds,
 			});
 		},
@@ -147,15 +172,16 @@ export const OrderPickupEventDialog = ({
 		},
 	});
 
+	const { mutateAsync: mutatePickup, isPending } = pickupMutation;
 	const submit = useCallback(async () => {
-		await pickupMutation.mutateAsync();
-	}, [pickupMutation]);
+		await mutatePickup();
+	}, [mutatePickup]);
 
-	const contextValue = useMemo<PickupDialogContextValue>(
+	const dialogValue = useMemo<PickupDialogContextValue>(
 		() => ({
 			clearSelection,
 			file,
-			isPending: pickupMutation.isPending,
+			isPending,
 			orderId,
 			previewUrl,
 			readyServices,
@@ -168,8 +194,8 @@ export const OrderPickupEventDialog = ({
 		[
 			clearSelection,
 			file,
+			isPending,
 			orderId,
-			pickupMutation.isPending,
 			previewUrl,
 			readyServices,
 			selectAll,
@@ -180,16 +206,56 @@ export const OrderPickupEventDialog = ({
 		],
 	);
 
+	const codeValue = useMemo<PickupCodeContextValue>(
+		() => ({ pickupCode, setPickupCode }),
+		[pickupCode],
+	);
+
 	return (
-		<PickupDialogContext.Provider value={contextValue}>
-			<div className="flex flex-col gap-5">
-				<PickupServiceList />
-				<PickupPhotoField />
-				<PickupActions onCancel={closeDialog} />
-			</div>
+		<PickupDialogContext.Provider value={dialogValue}>
+			<PickupCodeContext.Provider value={codeValue}>
+				<div className="flex flex-col gap-5">
+					<PickupServiceList />
+					<PickupCodeField />
+					<PickupPhotoField />
+					<PickupActions onCancel={closeDialog} />
+				</div>
+			</PickupCodeContext.Provider>
 		</PickupDialogContext.Provider>
 	);
 };
+
+const PickupCodeField = memo(() => {
+	const { pickupCode, setPickupCode } = usePickupCode();
+
+	return (
+		<div className="space-y-2">
+			<p className="text-sm font-medium">
+				Pickup code{" "}
+				<span className="text-muted-foreground">(6 digits, from customer)</span>
+			</p>
+			<InputOTP
+				maxLength={6}
+				value={pickupCode}
+				onChange={setPickupCode}
+				autoComplete="one-time-code"
+				inputMode="numeric"
+				pattern="[0-9]*"
+				containerClassName="justify-start"
+			>
+				<InputOTPGroup>
+					<InputOTPSlot index={0} className="size-11 text-base" />
+					<InputOTPSlot index={1} className="size-11 text-base" />
+					<InputOTPSlot index={2} className="size-11 text-base" />
+					<InputOTPSlot index={3} className="size-11 text-base" />
+					<InputOTPSlot index={4} className="size-11 text-base" />
+					<InputOTPSlot index={5} className="size-11 text-base" />
+				</InputOTPGroup>
+			</InputOTP>
+		</div>
+	);
+});
+PickupCodeField.displayName = "PickupCodeField";
 
 const PickupServiceList = memo(() => {
 	const {
@@ -335,7 +401,9 @@ PickupPhotoField.displayName = "PickupPhotoField";
 
 const PickupActions = memo(({ onCancel }: { onCancel: () => void }) => {
 	const { file, isPending, selectedIds, submit } = usePickupDialog();
-	const isSubmitDisabled = !file || selectedIds.size === 0 || isPending;
+	const { pickupCode } = usePickupCode();
+	const isSubmitDisabled =
+		!file || selectedIds.size === 0 || pickupCode.length !== 6 || isPending;
 
 	return (
 		<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
