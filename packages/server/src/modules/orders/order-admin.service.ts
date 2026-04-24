@@ -23,6 +23,7 @@ import type {
   PatchOrderPaymentInput,
   PatchOrderServiceHandlerInput,
   PatchOrderServiceStatusInput,
+  PostOrderCancelInput,
   PostOrderDropoffPhotoPresignInput,
   PostOrderPickupEventInput,
   PostOrderPickupEventPresignInput,
@@ -850,6 +851,18 @@ export async function updateOrderServiceStatus({
       );
     }
 
+    if (body.status === "cancelled") {
+      const parentOrder = await tx.query.ordersTable.findFirst({
+        where: { id: orderId },
+        columns: { payment_status: true },
+      });
+      if (parentOrder?.payment_status === "paid") {
+        throw new BadRequestException(
+          "Paid orders cannot cancel individual services. Refund the service instead."
+        );
+      }
+    }
+
     const isClaimTransition =
       (locked.status === "queued" || locked.status === "qc_reject") &&
       body.status === "processing";
@@ -1210,7 +1223,7 @@ export async function createOrderRefund({
   body: PostOrderRefundInput;
   user: JWTPayload;
 }) {
-  assertCanProcessPaymentOrRefund(user);
+  assertIsAdmin(user);
 
   const uniqueServiceIds = [
     ...new Set(body.items.map((item) => item.order_service_id)),
@@ -1254,7 +1267,7 @@ export async function createOrderRefund({
   }
 
   for (const service of services) {
-    if (["picked_up", "refunded", "cancelled"].includes(service.status)) {
+    if (["refunded", "cancelled"].includes(service.status)) {
       throw new BadRequestException(
         `Service ${service.id} cannot be refunded from status ${service.status}`
       );
@@ -1343,5 +1356,105 @@ export async function createOrderRefund({
   return {
     refund,
     total_refund_amount: totalRefundAmount,
+  };
+}
+
+export async function cancelOrder({
+  orderId,
+  body,
+  user,
+}: {
+  orderId: number;
+  body: PostOrderCancelInput;
+  user: JWTPayload;
+}) {
+  assertIsAdmin(user);
+
+  const order = await db.query.ordersTable.findFirst({
+    where: { id: orderId },
+    columns: {
+      id: true,
+      status: true,
+      payment_status: true,
+    },
+  });
+
+  if (!order) {
+    throw new BadRequestException("Order not found");
+  }
+
+  if (order.status === "cancelled") {
+    throw new BadRequestException("Order is already cancelled");
+  }
+
+  if (order.payment_status === "paid") {
+    throw new BadRequestException(
+      "Paid orders cannot be cancelled. Issue a refund instead."
+    );
+  }
+
+  const allServices = await db.query.ordersServicesTable.findMany({
+    where: { order_id: orderId },
+    columns: { id: true, status: true },
+  });
+
+  const cancellableServices = allServices.filter(
+    (service) => !isTerminalOrderServiceStatus(service.status)
+  );
+
+  if (cancellableServices.length === 0) {
+    throw new BadRequestException("No cancellable services on this order");
+  }
+
+  const cancelReason = body.cancel_reason.trim();
+  const cancellableIds = cancellableServices.map((service) => service.id);
+
+  const cancellableStatusById = new Map(
+    cancellableServices.map((service) => [service.id, service.status])
+  );
+
+  await db.transaction(async (tx) => {
+    const updatedServices = await tx
+      .update(ordersServicesTable)
+      .set({ status: "cancelled", cancel_reason: cancelReason })
+      .where(
+        and(
+          eq(ordersServicesTable.order_id, orderId),
+          inArray(ordersServicesTable.id, cancellableIds),
+          sql`${ordersServicesTable.status} NOT IN ('picked_up', 'refunded', 'cancelled')`
+        )
+      )
+      .returning({ id: ordersServicesTable.id });
+
+    if (updatedServices.length === 0) {
+      throw new BadRequestException(
+        "Services changed state before cancellation could apply. Refresh and try again."
+      );
+    }
+
+    await tx.insert(orderServiceStatusLogsTable).values(
+      updatedServices.map((row) => ({
+        order_service_id: row.id,
+        from_status: cancellableStatusById.get(row.id),
+        to_status: "cancelled" as const,
+        changed_by: user.id,
+        note: cancelReason,
+      }))
+    );
+
+    await tx
+      .update(ordersTable)
+      .set({
+        cancelled_at: new Date(),
+        updated_by: user.id,
+      })
+      .where(eq(ordersTable.id, orderId));
+
+    await recalculateOrderStatus(tx, orderId, user.id);
+  });
+
+  return {
+    cancelled_service_ids: cancellableIds,
+    order_id: orderId,
   };
 }

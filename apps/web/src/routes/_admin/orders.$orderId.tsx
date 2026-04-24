@@ -1,11 +1,6 @@
 import { ORDER_STATUS_TRANSITIONS } from "@fresclean/api/schema";
 import { CameraIcon, LinkSimpleIcon } from "@phosphor-icons/react";
-import {
-	type UseMutationResult,
-	useMutation,
-	useQuery,
-	useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -14,8 +9,6 @@ import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -26,14 +19,18 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
+import { CancelOrderForm } from "@/features/orders/components/cancel-order-form";
 import { OrderDropoffPhotoCard } from "@/features/orders/components/order-dropoff-photo-card";
 import { OrderFulfillmentOverview } from "@/features/orders/components/order-fulfillment-overview";
 import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
 import { OrderPickupEventDialog } from "@/features/orders/components/order-pickup-event-dialog";
 import { QueueServiceDetail } from "@/features/orders/components/queue-service-detail";
+import { RefundOrderForm } from "@/features/orders/components/refund-order-form";
+import { ServiceCancelButton } from "@/features/orders/components/service-cancel-button";
+import { ServiceStatusUpdateButton } from "@/features/orders/components/service-status-update-button";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import {
+	cancelOrder,
 	createOrderRefund,
 	type OrderDetail,
 	presignOrderServicePhoto,
@@ -83,21 +80,8 @@ export const Route = createFileRoute("/_admin/orders/$orderId")({
 	component: OrderDetailPage,
 });
 
-const STATUS_ACTION_LABELS: Record<
-	UpdateOrderServiceStatusPayload["status"],
-	string
-> = {
-	queued: "Queue",
-	processing: "Process",
-	quality_check: "Quality Check",
-	qc_reject: "Reject at QC",
-	ready_for_pickup: "Ready for Pickup",
-	picked_up: "Pick Up",
-	refunded: "Refund",
-	cancelled: "Cancel",
-};
-
-const REFUND_REASONS = ["damaged", "cannot_process", "lost", "other"] as const;
+const formatRefundReason = (reason: string) =>
+	reason.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
 function OrderDetailSkeleton() {
 	return (
@@ -139,122 +123,6 @@ function OrderDetailMessage({
 		>
 			<p className="font-medium">{title}</p>
 			<p className="text-muted-foreground">{description}</p>
-		</div>
-	);
-}
-
-function ServiceStatusUpdateButton({
-	serviceId,
-	nextStatus,
-	isCancel,
-	updateStatusMutation,
-}: {
-	serviceId: number;
-	nextStatus: UpdateOrderServiceStatusPayload["status"];
-	isCancel: boolean;
-	updateStatusMutation: UseMutationResult<
-		unknown,
-		Error,
-		{ serviceId: number; payload: UpdateOrderServiceStatusPayload },
-		unknown
-	>;
-}) {
-	const openDialog = useDialog((s) => s.openDialog);
-	const closeDialog = useDialog((s) => s.closeDialog);
-
-	const handleClick = () => {
-		openDialog({
-			title: isCancel
-				? "Cancel Service"
-				: `Update Status to ${STATUS_ACTION_LABELS[nextStatus]}`,
-			description: isCancel
-				? "Please provide a reason for cancelling this service."
-				: `Are you sure you want to change the status to ${STATUS_ACTION_LABELS[nextStatus]}?`,
-			content: () => (
-				<DialogForm
-					isCancel={isCancel}
-					serviceId={serviceId}
-					nextStatus={nextStatus}
-					updateStatusMutation={updateStatusMutation}
-					closeDialog={closeDialog}
-				/>
-			),
-		});
-	};
-
-	return (
-		<Button
-			variant={isCancel ? "destructive" : "secondary"}
-			size="sm"
-			onClick={handleClick}
-		>
-			{STATUS_ACTION_LABELS[nextStatus]}
-		</Button>
-	);
-}
-
-function DialogForm({
-	isCancel,
-	serviceId,
-	nextStatus,
-	updateStatusMutation,
-	closeDialog,
-}: {
-	isCancel: boolean;
-	serviceId: number;
-	nextStatus: UpdateOrderServiceStatusPayload["status"];
-	updateStatusMutation: UseMutationResult<
-		unknown,
-		Error,
-		{ serviceId: number; payload: UpdateOrderServiceStatusPayload },
-		unknown
-	>;
-	closeDialog: () => void;
-}) {
-	const [note, setNote] = useState("");
-	const isPending = updateStatusMutation.isPending;
-
-	const handleConfirm = async () => {
-		const trimmed = note.trim();
-		await updateStatusMutation.mutateAsync({
-			serviceId,
-			payload: {
-				status: nextStatus,
-				...(isCancel
-					? { cancel_reason: trimmed }
-					: trimmed
-						? { note: trimmed }
-						: {}),
-			},
-		});
-		closeDialog();
-	};
-
-	return (
-		<div className="flex flex-col gap-4">
-			<Textarea
-				placeholder={
-					isCancel ? "Cancel reason (required)" : "Optional status note"
-				}
-				value={note}
-				onChange={(e) => setNote(e.target.value)}
-			/>
-			<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-				<Button variant="outline" onClick={closeDialog}>
-					Go back
-				</Button>
-				<Button
-					variant={isCancel ? "destructive" : "default"}
-					disabled={isPending || (isCancel && !note.trim())}
-					onClick={handleConfirm}
-				>
-					{isPending
-						? "Saving…"
-						: isCancel
-							? "Confirm Cancel"
-							: "Confirm Update"}
-				</Button>
-			</div>
 		</div>
 	);
 }
@@ -342,7 +210,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 		user?.role === "admin" ||
 		user?.role === "cashier" ||
 		user?.can_process_pickup === true;
-	const isRefundAllowed = isPaymentAllowed;
+	const isAdmin = user?.role === "admin";
 	const openDialog = useDialog((s) => s.openDialog);
 	const closeDialog = useDialog((s) => s.closeDialog);
 
@@ -356,24 +224,15 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 	>({});
 	const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState("");
 
-	const [refundServiceIds, setRefundServiceIds] = useState<number[]>([]);
-	const [refundReasonByServiceId, setRefundReasonByServiceId] = useState<
-		Record<number, (typeof REFUND_REASONS)[number]>
-	>({});
-	const [refundItemNoteByServiceId, setRefundItemNoteByServiceId] = useState<
-		Record<number, string>
-	>({});
-	const [refundNote, setRefundNote] = useState("");
-
 	const detailQuery = useQuery(orderDetailQueryOptions(id));
 
 	const paymentMethodsQuery = useQuery(paymentMethodsQueryOptions());
 
 	const refreshOrderData = async () => {
-		await queryClient.invalidateQueries({
-			queryKey: queryKeys.orderDetail(id),
-		});
-		await queryClient.invalidateQueries({ queryKey: ["orders"] });
+		await Promise.all([
+			queryClient.invalidateQueries({ queryKey: queryKeys.orderDetail(id) }),
+			queryClient.invalidateQueries({ queryKey: ["orders"] }),
+		]);
 	};
 
 	const updateStatusMutation = useMutation({
@@ -385,7 +244,6 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 			payload: UpdateOrderServiceStatusPayload;
 		}) => updateOrderServiceStatus(id, serviceId, payload),
 		onSuccess: async () => {
-			toast.success("Service status updated");
 			await refreshOrderData();
 		},
 	});
@@ -394,11 +252,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 		mutationFn: (paymentMethodId: number) =>
 			updateOrderPayment(id, { payment_method_id: paymentMethodId }),
 		onSuccess: async () => {
-			toast.success("Payment updated");
 			await refreshOrderData();
-		},
-		onError: (error: Error) => {
-			toast.error(error.message || "Failed to update payment");
 		},
 	});
 
@@ -436,7 +290,6 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 			});
 		},
 		onSuccess: async (_, variables) => {
-			toast.success("Photo uploaded");
 			setPhotoFileByServiceId((prev) => ({
 				...prev,
 				[variables.serviceId]: null,
@@ -458,11 +311,13 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 			payload: Parameters<typeof createOrderRefund>[1];
 		}) => createOrderRefund(targetOrderId, payload),
 		onSuccess: async () => {
-			toast.success("Refund processed");
-			setRefundServiceIds([]);
-			setRefundReasonByServiceId({});
-			setRefundItemNoteByServiceId({});
-			setRefundNote("");
+			await refreshOrderData();
+		},
+	});
+
+	const cancelOrderMutation = useMutation({
+		mutationFn: (cancel_reason: string) => cancelOrder(id, { cancel_reason }),
+		onSuccess: async () => {
 			await refreshOrderData();
 		},
 	});
@@ -525,19 +380,56 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 	};
 
 	const refundableServices = orderServices.filter(
+		(service) => !["refunded", "cancelled"].includes(service.status),
+	);
+
+	const hasCancellableServices = orderServices.some(
 		(service) =>
 			!["picked_up", "refunded", "cancelled"].includes(service.status),
 	);
+	const isPaid = detail.payment_status === "paid";
+	const canCancelOrder =
+		isAdmin &&
+		detail.status !== "cancelled" &&
+		!isPaid &&
+		hasCancellableServices;
+	const canRefundWholeOrder =
+		isAdmin &&
+		detail.status !== "cancelled" &&
+		isPaid &&
+		refundableServices.length > 0;
 
-	const selectedRefundItems = refundServiceIds.map((serviceId) => ({
-		order_service_id: serviceId,
-		reason: refundReasonByServiceId[serviceId] ?? "damaged",
-		note: refundItemNoteByServiceId[serviceId]?.trim() || undefined,
-	}));
+	const openCancelOrderDialog = () => {
+		openDialog({
+			title: "Cancel order",
+			description: "All remaining items will be cancelled.",
+			content: () => (
+				<CancelOrderForm
+					closeDialog={closeDialog}
+					cancelOrderMutation={cancelOrderMutation}
+				/>
+			),
+		});
+	};
 
-	const refundValidationError = selectedRefundItems.find(
-		(item) => item.reason === "other" && !item.note,
-	);
+	const openRefundOrderDialog = () => {
+		openDialog({
+			title: "Refund order",
+			description: "Select items to refund and provide reasons.",
+			contentClassName: "sm:max-w-xl",
+			content: () => (
+				<RefundOrderForm
+					closeDialog={closeDialog}
+					orderId={id}
+					refundableServices={refundableServices.map((service) => ({
+						id: service.id,
+						item_code: service.item_code ?? null,
+					}))}
+					refundMutation={refundMutation}
+				/>
+			),
+		});
+	};
 
 	const trackingUrl = (() => {
 		const phone = detail.customer?.phone_number ?? "";
@@ -583,6 +475,28 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 									Copy tracking link
 								</Button>
 							) : null}
+							{canCancelOrder && (
+								<Button
+									type="button"
+									variant="destructive"
+									size="sm"
+									disabled={cancelOrderMutation.isPending}
+									onClick={openCancelOrderDialog}
+								>
+									Cancel order
+								</Button>
+							)}
+							{canRefundWholeOrder && (
+								<Button
+									type="button"
+									variant="destructive"
+									size="sm"
+									disabled={refundMutation.isPending}
+									onClick={openRefundOrderDialog}
+								>
+									Refund order
+								</Button>
+							)}
 							<Badge variant={getOrderStatusBadgeVariant(detail.status)}>
 								{formatOrderStatus(detail.status)}
 							</Badge>
@@ -742,139 +656,6 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 							</CardContent>
 						</Card>
 					) : null}
-
-					{isRefundAllowed ? (
-						<Card>
-							<CardHeader>
-								<CardTitle>Refund</CardTitle>
-							</CardHeader>
-							<CardContent className="grid gap-3">
-								<div className="flex gap-2">
-									<Button
-										variant="outline"
-										onClick={() =>
-											setRefundServiceIds(
-												refundableServices.map((service) => service.id),
-											)
-										}
-									>
-										Select all refundable
-									</Button>
-									<Button
-										variant="outline"
-										onClick={() => setRefundServiceIds([])}
-									>
-										Clear
-									</Button>
-								</div>
-
-								{refundableServices.map((service) => {
-									const selected = refundServiceIds.includes(service.id);
-									const reason =
-										refundReasonByServiceId[service.id] ?? "damaged";
-									return (
-										<div key={service.id} className="grid gap-2 border p-3">
-											<Field orientation="horizontal">
-												<Checkbox
-													id={`refund-service-${service.id}`}
-													checked={selected}
-													onCheckedChange={(value) => {
-														if (value) {
-															setRefundServiceIds((prev) =>
-																prev.includes(service.id)
-																	? prev
-																	: [...prev, service.id],
-															);
-															return;
-														}
-														setRefundServiceIds((prev) =>
-															prev.filter((id) => id !== service.id),
-														);
-													}}
-												/>
-												<FieldLabel htmlFor={`refund-service-${service.id}`}>
-													{service.item_code ?? `Service #${service.id}`}
-												</FieldLabel>
-											</Field>
-
-											<Select
-												value={reason}
-												onValueChange={(value) =>
-													setRefundReasonByServiceId((prev) => ({
-														...prev,
-														[service.id]: (value ??
-															"damaged") as (typeof REFUND_REASONS)[number],
-													}))
-												}
-												disabled={!selected}
-											>
-												<SelectTrigger size="md" className="w-full">
-													<SelectValue placeholder="Select reason" />
-												</SelectTrigger>
-												<SelectContent>
-													{REFUND_REASONS.map((refundReason) => (
-														<SelectItem key={refundReason} value={refundReason}>
-															{refundReason}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-
-											<Textarea
-												placeholder="Reason note"
-												value={refundItemNoteByServiceId[service.id] ?? ""}
-												onChange={(event) =>
-													setRefundItemNoteByServiceId((prev) => ({
-														...prev,
-														[service.id]: event.target.value,
-													}))
-												}
-												disabled={!selected}
-											/>
-										</div>
-									);
-								})}
-
-								<Field>
-									<FieldLabel htmlFor="refund-note">
-										Refund note (optional)
-									</FieldLabel>
-									<Textarea
-										id="refund-note"
-										placeholder="General refund note"
-										value={refundNote}
-										onChange={(event) => setRefundNote(event.target.value)}
-									/>
-								</Field>
-
-								<Button
-									disabled={
-										refundMutation.isPending ||
-										refundServiceIds.length === 0 ||
-										!!refundValidationError
-									}
-									onClick={async () => {
-										if (refundValidationError) {
-											toast.error(
-												"Refund note is required when reason is other",
-											);
-											return;
-										}
-
-										await refundMutation.mutateAsync({
-											orderId: id,
-											payload: {
-												items: selectedRefundItems,
-												note: refundNote.trim() || undefined,
-											},
-										});
-									}}
-								>
-									Process refund
-								</Button>
-							</CardContent>
-						</Card>
-					) : null}
 				</div>
 
 				<div className="grid gap-3 sm:gap-4 lg:col-span-8">
@@ -912,30 +693,55 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 					{orderServices.map((service) => {
 						const selectedPhotoFile = photoFileByServiceId[service.id] ?? null;
 						const selectedPhotoNote = photoNoteByServiceId[service.id] ?? "";
+						const availableTransitions = (
+							ORDER_STATUS_TRANSITIONS[service.status] || []
+						).filter((nextStatus) => !(nextStatus === "cancelled" && isPaid));
 
 						return (
 							<Card key={service.id}>
-								<CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-3">
-									<div className="min-w-0 space-y-1">
-										<CardTitle className="text-base leading-snug">
-											{service.item_code ?? `Service #${service.id}`}
-										</CardTitle>
-										<p className="text-muted-foreground text-sm">
-											{service.service?.name ?? "Service"}
-										</p>
+								<CardHeader className="space-y-3 pb-3">
+									<div className="flex flex-row items-start justify-between gap-3">
+										<div className="min-w-0 space-y-1">
+											<CardTitle className="text-base leading-snug">
+												{service.item_code ?? `Service #${service.id}`}
+											</CardTitle>
+											<p className="text-muted-foreground text-sm">
+												{service.service?.name ?? "Service"}
+											</p>
+										</div>
+										<div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+											{service.is_priority ? (
+												<Badge variant="warning">Priority</Badge>
+											) : null}
+											<Badge
+												variant={getOrderServiceStatusBadgeVariant(
+													service.status,
+												)}
+											>
+												{formatOrderServiceStatus(service.status)}
+											</Badge>
+										</div>
 									</div>
-									<div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-										{service.is_priority ? (
-											<Badge variant="warning">Priority</Badge>
-										) : null}
-										<Badge
-											variant={getOrderServiceStatusBadgeVariant(
-												service.status,
+									{availableTransitions.length > 0 ? (
+										<div className="flex flex-wrap gap-2">
+											{availableTransitions.map((nextStatus) =>
+												nextStatus === "cancelled" ? (
+													<ServiceCancelButton
+														key={nextStatus}
+														serviceId={service.id}
+														updateStatusMutation={updateStatusMutation}
+													/>
+												) : (
+													<ServiceStatusUpdateButton
+														key={nextStatus}
+														serviceId={service.id}
+														nextStatus={nextStatus}
+														updateStatusMutation={updateStatusMutation}
+													/>
+												),
 											)}
-										>
-											{formatOrderServiceStatus(service.status)}
-										</Badge>
-									</div>
+										</div>
+									) : null}
 								</CardHeader>
 								<CardContent className="space-y-5 text-sm">
 									<dl className="grid gap-3 sm:grid-cols-2">
@@ -962,23 +768,29 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 										</div>
 									) : null}
 
-									<div className="flex flex-wrap gap-2 border-t pt-4">
-										{(ORDER_STATUS_TRANSITIONS[service.status] || []).map(
-											(nextStatus) => {
-												const isCancel = nextStatus === "cancelled";
-
-												return (
-													<ServiceStatusUpdateButton
-														key={nextStatus}
-														serviceId={service.id}
-														nextStatus={nextStatus}
-														isCancel={isCancel}
-														updateStatusMutation={updateStatusMutation}
-													/>
-												);
-											},
-										)}
-									</div>
+									{service.status === "refunded" &&
+									service.refundItems.length > 0 ? (
+										<div className="border-destructive/40 bg-destructive/5 border p-3">
+											<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+												Refund reason
+											</p>
+											<ul className="mt-1 grid gap-1 text-sm">
+												{service.refundItems.map((item) => (
+													<li key={item.id}>
+														<span className="font-medium">
+															{formatRefundReason(item.reason)}
+														</span>
+														{item.note ? (
+															<span className="text-muted-foreground">
+																{" "}
+																— {item.note}
+															</span>
+														) : null}
+													</li>
+												))}
+											</ul>
+										</div>
+									) : null}
 
 									<div className="border-t pt-4">
 										<p className="text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wide">
@@ -1042,7 +854,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 										</div>
 									</div>
 
-									<div className="space-y-2">
+									<div className="@container space-y-2">
 										<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
 											Photos ({service.images.length})
 										</p>
@@ -1054,7 +866,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 														image.note ??
 														`Photo for ${service.item_code ?? `service-${service.id}`}`,
 												}))}
-												gridClassName="sm:grid-cols-2"
+												gridClassName="@md:grid-cols-2 @2xl:grid-cols-3 @4xl:grid-cols-4"
 												thumbnailClassName="bg-muted/30"
 												title={`Photos for ${service.item_code ?? `service-${service.id}`}`}
 											/>

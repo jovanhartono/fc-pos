@@ -191,6 +191,7 @@ export const refundReasonEnum = pgEnum("refund_reason_enum", [
   "cannot_process",
   "lost",
   "other",
+  "customer_cancelled",
 ]);
 
 export const campaignsTable = pgTable(
@@ -526,8 +527,8 @@ export const ordersServicesTable = pgTable(
     check("price_non_negative_check", sql`${table.price} >= 0`),
     check("discount_valid_check", sql`${table.price} >= ${table.discount}`),
     check(
-      "order_services_pickup_event_matches_status_check",
-      sql`(${table.status} = 'picked_up') = (${table.pickup_event_id} IS NOT NULL)`
+      "order_services_pickup_event_terminal_check",
+      sql`${table.pickup_event_id} IS NULL OR ${table.status} IN ('picked_up', 'refunded')`
     ),
   ]
 );

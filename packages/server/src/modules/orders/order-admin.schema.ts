@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { orderServiceStatusEnum } from "@/db/schema";
+import { orderServiceStatusEnum, refundReasonEnum } from "@/db/schema";
 import { MAX_PAGE_SIZE } from "@/modules/orders/order.schema";
 import { dateStringSchema } from "@/schema/common";
 import { normalizePagination } from "@/utils/pagination";
@@ -88,6 +88,10 @@ export const PATCHOrderPaymentSchema = z.object({
   payment_method_id: z.coerce.number().int().positive(),
 });
 
+export const POSTOrderCancelSchema = z.object({
+  cancel_reason: z.string().trim().min(1).max(1000),
+});
+
 export const POSTOrderRefundSchema = z.object({
   items: z
     .array(
@@ -95,7 +99,7 @@ export const POSTOrderRefundSchema = z.object({
         .object({
           note: z.string().trim().optional(),
           order_service_id: z.coerce.number().int().positive(),
-          reason: z.enum(["damaged", "cannot_process", "lost", "other"]),
+          reason: z.enum(refundReasonEnum.enumValues),
         })
         .superRefine((value, ctx) => {
           if (value.reason === "other" && !value.note?.trim()) {
@@ -161,6 +165,7 @@ export type PostOrderServicePhotoPresignInput = z.infer<
 export type PostOrderDropoffPhotoPresignInput = z.infer<
   typeof POSTOrderDropoffPhotoPresignSchema
 >;
+export type PostOrderCancelInput = z.infer<typeof POSTOrderCancelSchema>;
 export type PostOrderRefundInput = z.infer<typeof POSTOrderRefundSchema>;
 export type PatchOrderServiceHandlerInput = z.infer<
   typeof PATCHOrderServiceHandlerSchema

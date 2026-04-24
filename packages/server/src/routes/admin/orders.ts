@@ -12,6 +12,7 @@ import {
   PATCHOrderPaymentSchema,
   PATCHOrderServiceHandlerSchema,
   PATCHOrderServiceStatusSchema,
+  POSTOrderCancelSchema,
   POSTOrderDropoffPhotoPresignSchema,
   POSTOrderPickupEventPresignSchema,
   POSTOrderPickupEventSchema,
@@ -21,6 +22,7 @@ import {
   PUTOrderDropoffPhotoSchema,
 } from "@/modules/orders/order-admin.schema";
 import {
+  cancelOrder,
   createOrderDropoffPhotoPresign,
   createOrderPickupEvent,
   createOrderPickupEventPresign,
@@ -386,6 +388,26 @@ const app = new Hono()
         success(result, "Order refund processed"),
         StatusCodes.CREATED
       );
+    }
+  )
+  .post(
+    "/:id/cancel",
+    idParamSchema,
+    zodValidator("json", POSTOrderCancelSchema),
+    async (c) => {
+      const user = c.get("jwtPayload") as JWTPayload;
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
+
+      await assertOrderAccess(user, id);
+
+      const result = await cancelOrder({
+        orderId: id,
+        body,
+        user,
+      });
+
+      return c.json(success(result, "Order cancelled"));
     }
   );
 

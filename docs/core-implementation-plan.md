@@ -88,19 +88,25 @@ Follow-ups (not blocking merge):
 
 ---
 
-### Group C — Refund flow
+### Group C — Refund flow ✅ DONE
 
-10. **C-1. Allow refund after pickup (ambiguity 3.2)**
-    - `order-admin.service.ts` refund path: drop the "status must not be picked_up" guard. Keep payment_status=paid guard.
+Shipped: 2026-04-24 · branch `feat/group-c-refund-cancel`
 
-11. **C-2. Cancel auto-triggers refund if paid (ambiguity 3.6)**
-    - When admin cancels a **paid** order (or any paid service within), auto-create `order_refund` record with refund items = the cancelled services. Reason = `other`, note = cancel_reason text.
-    - Emit single success toast: "Order cancelled + refund issued".
+10. **C-1. Allow refund after pickup (ambiguity 3.2)** ✅
+    - `order-admin.service.ts` refund path: dropped the "status must not be picked_up" guard. Payment_status=paid guard kept.
 
-12. **C-3. Admin-only refund guard audit**
-    - Confirm `assertCanProcessPaymentOrRefund(user)` gates refund route to `role === 'admin'` only. (Currently may include cashier — verify + lock down.)
+11. **C-2. Split cancel vs refund by payment status** ✅ *(supersedes original auto-refund-on-paid design)*
+    - Business has binary payment (paid/unpaid — no partial). Cleaner split: cancel handles unpaid, refund handles paid. Removes auto-refund branching inside cancel.
+    - **Server**: `cancelOrder` rejects paid orders (`"Paid orders cannot be cancelled. Issue a refund instead."`). `updateOrderServiceStatus` rejects `cancelled` transition on paid orders. `createOrderRefund` already paid-only — unchanged.
+    - **Schema**: `refund_reason_enum` gains `customer_cancelled` for pre-pickup paid refunds initiated by the customer.
+    - **Web**: order detail header shows `Cancel order` (unpaid) or `Refund order` (paid) — never both. Paid refund dialog seeds all refundable services with reason `customer_cancelled`. Per-line `cancelled` transition hidden on paid orders.
 
-Commit: `feat(refund): allow post-pickup + auto-refund on paid cancel`
+12. **C-3. Admin-only refund guard audit** ✅
+    - `assertIsAdmin` gates `POST /admin/orders/:id/refunds` and `POST /admin/orders/:id/cancel`. Verified 2026-04-23: cashier + worker → 403.
+
+Commits:
+- `feat(refund): allow post-pickup + auto-refund on paid cancel` (12d8757 — C-1 + initial C-2 auto-refund)
+- `refactor(orders): split cancel/refund by payment status` (this PR — supersedes C-2 auto-refund)
 
 ---
 
@@ -179,7 +185,7 @@ Each group = one PR. Each PR independently shippable.
 ## Locked decisions (2026-04-22)
 
 1. **B-1 attempt logging:** ~~attempts table + rate-limit~~ — reverted 2026-04-23, kept simple for v1. No throttle; mismatched code just returns 400.
-2. **C-2 auto-refund:** automatic on cancel-paid. Single toast "Order cancelled + refund issued". Refund item `reason='other'`, `note=cancel_reason`.
+2. **C-2 cancel vs refund split:** (revised 2026-04-24) cancel = unpaid-only, refund = paid-only. Original auto-refund-on-paid-cancel design reverted: simpler to gate by payment status. Binary payment model (paid/unpaid, no partial) keeps the split unambiguous — partial-payment scenarios are split into two orders operationally.
 3. **C-3 admin-only refund:** `assertCanProcessPaymentOrRefund` tightened to `role==='admin'` for refund endpoint. Payment collection remains cashier+admin.
 4. **D-1 auto-close trigger:** Upstash Schedule → HTTP POST to `/admin/cron/shifts/auto-close` (internal shared-secret header). Runs at 00:05 Jakarta daily (cushion for clock drift).
 5. **E-1 photo delete:** soft delete (`deleted_at`, `deleted_by`). S3 object stays (future sweep).

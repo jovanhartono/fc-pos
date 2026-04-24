@@ -367,7 +367,12 @@ export type CreateOrderPickupEventPayload = z.infer<
 	typeof POSTOrderPickupEventSchema
 >;
 
-export type OrderRefundReason = "damaged" | "cannot_process" | "lost" | "other";
+export type OrderRefundReason =
+	| "damaged"
+	| "cannot_process"
+	| "lost"
+	| "other"
+	| "customer_cancelled";
 
 export type CreateOrderRefundPayload = {
 	note?: string;
@@ -376,6 +381,10 @@ export type CreateOrderRefundPayload = {
 		reason: OrderRefundReason;
 		note?: string;
 	}>;
+};
+
+export type CancelOrderPayload = {
+	cancel_reason: string;
 };
 
 export type UpdateUserStoresPayload = {
@@ -1004,6 +1013,18 @@ export async function createOrderRefund(
 ) {
 	return parseResponse(
 		rpcWithAuth().api.admin.orders[":id"].refunds.$post({
+			param: { id: String(orderId) },
+			json: payload,
+		}),
+	);
+}
+
+export async function cancelOrder(
+	orderId: number,
+	payload: CancelOrderPayload,
+) {
+	return parseResponse(
+		rpcWithAuth().api.admin.orders[":id"].cancel.$post({
 			param: { id: String(orderId) },
 			json: payload,
 		}),
