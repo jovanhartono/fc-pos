@@ -1,11 +1,13 @@
 import { Hono } from "hono";
 import { ForbiddenException } from "@/errors";
 import {
+  GETAgingQueueQuerySchema,
   GETDailyReportQuerySchema,
   GETReportOverviewQuerySchema,
   GETReportRangeQuerySchema,
 } from "@/modules/reports/report.schema";
 import {
+  getAgingQueueReport,
   getDailyReport,
   getReportOverview,
 } from "@/modules/reports/report.service";
@@ -158,6 +160,20 @@ const app = new Hono()
       }
       const data = await getCampaignEffectivenessReport(query);
       return c.json(success(data));
+    }
+  )
+  .get(
+    "/aging-queue",
+    zodValidator("query", GETAgingQueueQuerySchema),
+    async (c) => {
+      const user = c.get("jwtPayload") as JWTPayload;
+      assertAdmin(user);
+      const query = c.req.valid("query");
+      if (query.store_id !== undefined) {
+        await assertStoreAccess(user, query.store_id);
+      }
+      const result = await getAgingQueueReport(query);
+      return c.json(success(result.items, undefined, result.meta));
     }
   );
 

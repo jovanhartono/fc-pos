@@ -7,7 +7,7 @@ import {
 	XIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { Badge } from "@/components/ui/badge";
@@ -16,14 +16,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetFooter,
-	SheetHeader,
-	SheetTitle,
-} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { CampaignAutocomplete } from "@/features/orders/components/campaign-autocomplete";
 import { CustomerAutocomplete } from "@/features/orders/components/customer-autocomplete";
@@ -41,13 +33,8 @@ import {
 	categoriesQueryOptions,
 	paymentMethodsQueryOptions,
 } from "@/lib/query-options";
-import { cn } from "@/lib/utils";
 import { formatIDRCurrency } from "@/shared/utils";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
-
-interface TransactionsCheckoutProps {
-	isInSheet?: boolean;
-}
 
 type OrderMetaBadgeProps = {
 	label: string;
@@ -72,10 +59,7 @@ function OrderMetaBadge({
 	);
 }
 
-export function TransactionsCheckout({
-	isInSheet = false,
-}: TransactionsCheckoutProps) {
-	const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
+export function TransactionsCheckout() {
 	const { visibleStores, submit } = useTransactionsPageContext();
 	const {
 		resetCart,
@@ -108,38 +92,6 @@ export function TransactionsCheckout({
 
 	const { cartProductRows, cartServiceRows, subtotal, cartCount } =
 		useCartTotals();
-
-	useEffect(() => {
-		if (isInSheet) {
-			return;
-		}
-		const handleKeydown = (event: KeyboardEvent) => {
-			if (
-				event.key !== "Enter" ||
-				event.metaKey ||
-				event.ctrlKey ||
-				event.altKey
-			) {
-				return;
-			}
-			if (paymentSheetOpen || cartCount === 0) {
-				return;
-			}
-			const target = event.target as HTMLElement | null;
-			const isTyping =
-				target?.tagName === "INPUT" ||
-				target?.tagName === "TEXTAREA" ||
-				target?.tagName === "SELECT" ||
-				target?.isContentEditable;
-			if (isTyping) {
-				return;
-			}
-			event.preventDefault();
-			setPaymentSheetOpen(true);
-		};
-		window.addEventListener("keydown", handleKeydown);
-		return () => window.removeEventListener("keydown", handleKeydown);
-	}, [cartCount, isInSheet, paymentSheetOpen]);
 
 	const selectedStoreNumber =
 		selectedStoreId && Number.isFinite(Number(selectedStoreId))
@@ -229,56 +181,178 @@ export function TransactionsCheckout({
 	const campaignVariant = selectedCampaigns.length > 0 ? "success" : "outline";
 	const paymentVariant = paymentStatus === "paid" ? "warning" : "outline";
 
-	return (
+	const paymentFields = (
 		<>
-			<div
-				className={cn(
-					"grid gap-5",
-					!isInSheet && "xl:sticky xl:top-0 xl:self-start",
+			<Controller
+				name="selectedCampaignIds"
+				control={form.control}
+				render={({ field, fieldState }) => (
+					<CampaignAutocomplete
+						id="transaction-campaign"
+						label="Campaigns"
+						storeId={selectedStoreId}
+						values={field.value}
+						onValuesChange={field.onChange}
+						error={fieldState.error}
+					/>
 				)}
-			>
-				<Card
-					className={cn(
-						"border-border/70",
-						isInSheet && "rounded-none border-0 bg-transparent shadow-none",
-					)}
-				>
-					<CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
-						<div>
-							<CardTitle className="flex items-center gap-2">
-								<ShoppingCartIcon className="size-4" />
-								Cart Summary
-							</CardTitle>
-						</div>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={resetCart}
-							disabled={
-								cartCount === 0 &&
-								!selectedCustomerId &&
-								selectedCampaignIds.length === 0
+			/>
+
+			<Controller
+				name="selectedPaymentMethodId"
+				control={form.control}
+				render={({ field, fieldState }) => (
+					<Field data-invalid={fieldState.invalid}>
+						<FieldLabel htmlFor="transaction-payment-method">
+							Payment Method
+						</FieldLabel>
+						<Combobox
+							id="transaction-payment-method"
+							triggerClassName="h-11 w-full text-sm"
+							options={paymentMethodOptions}
+							value={field.value || "none"}
+							onValueChange={(value) =>
+								field.onChange(value === "none" ? "" : value)
 							}
-							icon={<TrashIcon className="size-4" />}
-						>
-							Reset
-						</Button>
-					</CardHeader>
-					<CardContent className="grid gap-5">
-						<Controller
-							name="selectedCustomerId"
-							control={form.control}
-							render={({ field, fieldState }) => (
-								<CustomerAutocomplete
-									value={field.value}
-									onValueChange={field.onChange}
-									error={fieldState.error}
-									required
-								/>
-							)}
+							loading={paymentMethodsQuery.isFetching}
+							placeholder="No payment method"
+							searchPlaceholder="Search payment method..."
+							emptyText="No payment method found"
 						/>
-						<div className="grid max-h-[52vh] gap-3 overflow-y-auto pr-2">
+						<FieldError errors={[fieldState.error]} />
+					</Field>
+				)}
+			/>
+
+			<Controller
+				name="paymentStatus"
+				control={form.control}
+				render={({ field, fieldState }) => (
+					<Field data-invalid={fieldState.invalid}>
+						<FieldLabel>Payment Status</FieldLabel>
+						<div className="grid grid-cols-2 gap-2">
+							<Button
+								type="button"
+								variant={field.value === "unpaid" ? "default" : "outline"}
+								className="h-11"
+								onClick={() => field.onChange("unpaid")}
+							>
+								Unpaid
+							</Button>
+							<Button
+								type="button"
+								variant={field.value === "paid" ? "default" : "outline"}
+								className="h-11"
+								onClick={() => field.onChange("paid")}
+							>
+								Paid
+							</Button>
+						</div>
+						<FieldError errors={[fieldState.error]} />
+					</Field>
+				)}
+			/>
+
+			{selectedCampaigns.length > 0 ? (
+				<div className="grid gap-2">
+					{selectedCampaigns.map((campaign) => (
+						<div
+							key={campaign.id}
+							className="flex items-center justify-between gap-3 border border-emerald-300/60 bg-emerald-50/70 p-3 text-sm dark:border-emerald-800 dark:bg-emerald-950/30"
+						>
+							<div>
+								<p className="font-medium">{campaign.name}</p>
+								<p className="text-xs text-muted-foreground">
+									{campaign.code} active on this store
+								</p>
+							</div>
+							<Badge variant="success">
+								{campaign.discount_type === "percentage"
+									? `${campaign.discount_value}%`
+									: formatIDRCurrency(String(campaign.discount_value))}
+							</Badge>
+						</div>
+					))}
+				</div>
+			) : null}
+
+			<Controller
+				name="manualDiscount"
+				control={form.control}
+				render={({ field, fieldState }) => (
+					<Field data-invalid={fieldState.invalid}>
+						<FieldLabel htmlFor="transaction-discount">
+							Manual Discount
+						</FieldLabel>
+						<CurrencyInput
+							id="transaction-discount"
+							value={field.value}
+							onValueChange={field.onChange}
+						/>
+						<FieldError errors={[fieldState.error]} />
+					</Field>
+				)}
+			/>
+
+			<Controller
+				name="notes"
+				control={form.control}
+				render={({ field, fieldState }) => (
+					<Field data-invalid={fieldState.invalid}>
+						<FieldLabel htmlFor="transaction-notes">Notes</FieldLabel>
+						<Textarea
+							id="transaction-notes"
+							value={field.value}
+							onChange={field.onChange}
+							placeholder="Add notes"
+						/>
+						<FieldError errors={[fieldState.error]} />
+					</Field>
+				)}
+			/>
+		</>
+	);
+
+	return (
+		<div className="grid gap-5">
+			<Card className="rounded-none border-0 bg-transparent shadow-none">
+				<CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+					<div>
+						<CardTitle className="flex items-center gap-2">
+							<ShoppingCartIcon className="size-4" />
+							Cart Summary
+						</CardTitle>
+					</div>
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						onClick={resetCart}
+						disabled={
+							cartCount === 0 &&
+							!selectedCustomerId &&
+							selectedCampaignIds.length === 0
+						}
+						icon={<TrashIcon className="size-4" />}
+					>
+						Reset
+					</Button>
+				</CardHeader>
+				<CardContent className="grid gap-5">
+					<Controller
+						name="selectedCustomerId"
+						control={form.control}
+						render={({ field, fieldState }) => (
+							<CustomerAutocomplete
+								value={field.value}
+								onValueChange={field.onChange}
+								error={fieldState.error}
+								required
+							/>
+						)}
+					/>
+					<div className="grid gap-5 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] md:items-start">
+						<div className="grid gap-3">
 							{cartProductRows.length === 0 && cartServiceRows.length === 0 ? (
 								<div className="border border-dashed border-border p-4 text-sm text-muted-foreground">
 									Cart is empty.
@@ -302,6 +376,7 @@ export function TransactionsCheckout({
 											type="button"
 											variant="outline"
 											size="icon-xs"
+											className="size-11"
 											onClick={() => removeProductFromCart(line.id)}
 											icon={<XIcon className="size-4" />}
 										/>
@@ -312,6 +387,7 @@ export function TransactionsCheckout({
 												type="button"
 												variant="outline"
 												size="icon-xs"
+												className="size-11"
 												onClick={() =>
 													updateProductQty(
 														line.id,
@@ -329,6 +405,7 @@ export function TransactionsCheckout({
 												type="button"
 												variant="outline"
 												size="icon-xs"
+												className="size-11"
 												onClick={() =>
 													updateProductQty(
 														line.id,
@@ -369,6 +446,7 @@ export function TransactionsCheckout({
 											type="button"
 											variant="outline"
 											size="icon-xs"
+											className="size-11"
 											onClick={() => removeServiceFromCart(line.line_id)}
 											icon={<XIcon className="size-4" />}
 										/>
@@ -479,7 +557,7 @@ export function TransactionsCheckout({
 							))}
 						</div>
 
-						<div className="grid gap-4 border-t border-border/70 pt-4">
+						<div className="grid gap-4 border-t border-border/70 pt-4 md:sticky md:top-0 md:self-start md:border-t-0 md:pt-0">
 							<div className="grid gap-3 border border-border/70 p-4">
 								<div className="flex items-center justify-between gap-3 text-sm">
 									<div className="flex items-center gap-2">
@@ -524,7 +602,7 @@ export function TransactionsCheckout({
 								</div>
 							</div>
 
-							<div className="grid gap-2 sm:grid-cols-3">
+							<div className="grid grid-cols-2 gap-2">
 								<OrderMetaBadge
 									label="Campaign"
 									value={campaignSummary}
@@ -537,212 +615,28 @@ export function TransactionsCheckout({
 								/>
 							</div>
 
+							<div className="grid gap-5 border-t border-border/70 pt-4">
+								{paymentFields}
+							</div>
+
 							{submitError ? <FieldError>{submitError}</FieldError> : null}
 
 							<Button
 								type="button"
 								size="lg"
-								onClick={() => setPaymentSheetOpen(true)}
+								className="h-11"
+								onClick={submit}
+								loading={isSubmitting}
+								loadingText="Creating order..."
 								disabled={cartCount === 0}
 								icon={<CreditCardIcon className="size-4" />}
 							>
-								<span className="flex w-full items-center justify-center gap-2">
-									Review Checkout
-									<kbd className="hidden items-center justify-center border border-border/60 bg-background/10 px-1.5 py-0.5 font-mono text-[10px] font-medium sm:inline-flex">
-										⏎
-									</kbd>
-								</span>
+								Create Order
 							</Button>
 						</div>
-					</CardContent>
-				</Card>
-			</div>
-
-			<Sheet open={paymentSheetOpen} onOpenChange={setPaymentSheetOpen}>
-				<SheetContent className="w-full sm:max-w-xl!">
-					<SheetHeader className="border-b border-border/70">
-						<SheetTitle>Payment & Customer</SheetTitle>
-						<SheetDescription>
-							Finalize customer, campaign, payment, and notes after the order
-							lines are correct.
-						</SheetDescription>
-					</SheetHeader>
-
-					<div className="grid gap-5 overflow-y-auto p-4">
-						<Controller
-							name="selectedCampaignIds"
-							control={form.control}
-							render={({ field, fieldState }) => (
-								<CampaignAutocomplete
-									id="transaction-campaign"
-									label="Campaigns"
-									storeId={selectedStoreId}
-									values={field.value}
-									onValuesChange={field.onChange}
-									error={fieldState.error}
-								/>
-							)}
-						/>
-
-						<Controller
-							name="selectedPaymentMethodId"
-							control={form.control}
-							render={({ field, fieldState }) => (
-								<Field data-invalid={fieldState.invalid}>
-									<FieldLabel htmlFor="transaction-payment-method">
-										Payment Method
-									</FieldLabel>
-									<Combobox
-										id="transaction-payment-method"
-										triggerClassName="h-10 w-full text-sm"
-										options={paymentMethodOptions}
-										value={field.value || "none"}
-										onValueChange={(value) =>
-											field.onChange(value === "none" ? "" : value)
-										}
-										loading={paymentMethodsQuery.isFetching}
-										placeholder="No payment method"
-										searchPlaceholder="Search payment method..."
-										emptyText="No payment method found"
-									/>
-									<FieldError errors={[fieldState.error]} />
-								</Field>
-							)}
-						/>
-
-						<Controller
-							name="paymentStatus"
-							control={form.control}
-							render={({ field, fieldState }) => (
-								<Field data-invalid={fieldState.invalid}>
-									<FieldLabel>Payment Status</FieldLabel>
-									<div className="grid grid-cols-2 gap-2">
-										<Button
-											type="button"
-											variant={field.value === "unpaid" ? "default" : "outline"}
-											onClick={() => field.onChange("unpaid")}
-										>
-											Unpaid
-										</Button>
-										<Button
-											type="button"
-											variant={field.value === "paid" ? "default" : "outline"}
-											onClick={() => field.onChange("paid")}
-										>
-											Paid
-										</Button>
-									</div>
-									<FieldError errors={[fieldState.error]} />
-								</Field>
-							)}
-						/>
-
-						{selectedCampaigns.length > 0 ? (
-							<div className="grid gap-2">
-								{selectedCampaigns.map((campaign) => (
-									<div
-										key={campaign.id}
-										className="flex items-center justify-between gap-3 border border-emerald-300/60 bg-emerald-50/70 p-3 text-sm dark:border-emerald-800 dark:bg-emerald-950/30"
-									>
-										<div>
-											<p className="font-medium">{campaign.name}</p>
-											<p className="text-xs text-muted-foreground">
-												{campaign.code} active on this store
-											</p>
-										</div>
-										<Badge variant="success">
-											{campaign.discount_type === "percentage"
-												? `${campaign.discount_value}%`
-												: formatIDRCurrency(String(campaign.discount_value))}
-										</Badge>
-									</div>
-								))}
-							</div>
-						) : null}
-
-						<Controller
-							name="manualDiscount"
-							control={form.control}
-							render={({ field, fieldState }) => (
-								<Field data-invalid={fieldState.invalid}>
-									<FieldLabel htmlFor="transaction-discount">
-										Manual Discount
-									</FieldLabel>
-									<CurrencyInput
-										id="transaction-discount"
-										value={field.value}
-										onValueChange={field.onChange}
-									/>
-									<FieldError errors={[fieldState.error]} />
-								</Field>
-							)}
-						/>
-
-						<Controller
-							name="notes"
-							control={form.control}
-							render={({ field, fieldState }) => (
-								<Field data-invalid={fieldState.invalid}>
-									<FieldLabel htmlFor="transaction-notes">Notes</FieldLabel>
-									<Textarea
-										id="transaction-notes"
-										value={field.value}
-										onChange={field.onChange}
-										placeholder="Add notes"
-									/>
-									<FieldError errors={[fieldState.error]} />
-								</Field>
-							)}
-						/>
-
-						<div className="grid gap-2 border border-border/70 p-4">
-							<div className="flex items-center justify-between gap-3 text-sm">
-								<span className="text-muted-foreground">Subtotal</span>
-								<span className="font-medium">
-									{formatIDRCurrency(String(subtotal))}
-								</span>
-							</div>
-							<div className="flex items-center justify-between gap-3 text-sm">
-								<span className="text-muted-foreground">Campaign Discount</span>
-								<span className="font-medium">
-									-{formatIDRCurrency(String(Math.round(campaignDiscount)))}
-								</span>
-							</div>
-							<div className="flex items-center justify-between gap-3 text-sm">
-								<span className="text-muted-foreground">Manual Discount</span>
-								<span className="font-medium">
-									-{formatIDRCurrency(String(discountValue))}
-								</span>
-							</div>
-							<div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-base font-semibold">
-								<span>Total Payment</span>
-								<span>{formatIDRCurrency(String(Math.round(total)))}</span>
-							</div>
-						</div>
-
-						{submitError ? <FieldError>{submitError}</FieldError> : null}
 					</div>
-
-					<SheetFooter className="border-t border-border/70">
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => setPaymentSheetOpen(false)}
-						>
-							Back to Cart
-						</Button>
-						<Button
-							type="button"
-							onClick={submit}
-							loading={isSubmitting}
-							loadingText="Creating order..."
-							disabled={cartCount === 0}
-						>
-							Create Order
-						</Button>
-					</SheetFooter>
-				</SheetContent>
-			</Sheet>
-		</>
+				</CardContent>
+			</Card>
+		</div>
 	);
 }

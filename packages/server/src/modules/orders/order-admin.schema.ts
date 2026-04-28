@@ -27,6 +27,15 @@ export const orderServiceParamSchema = zodValidator(
   })
 );
 
+export const orderServicePhotoParamSchema = zodValidator(
+  "param",
+  z.object({
+    id: z.coerce.number().int().positive(),
+    serviceId: z.coerce.number().int().positive(),
+    photoId: z.coerce.number().int().positive(),
+  })
+);
+
 const photoContentTypeSchema = z
   .string()
   .trim()

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
 	Sheet,
 	SheetContent,
@@ -9,26 +9,9 @@ import {
 import { CartMiniBar } from "@/features/transactions/components/cart-mini-bar";
 import { TransactionsCatalog } from "@/features/transactions/components/transactions-catalog";
 import { TransactionsCheckout } from "@/features/transactions/components/transactions-checkout";
-import { useIsDesktop } from "@/hooks/use-is-desktop";
 
 export function TransactionsWorkspace() {
-	const isDesktop = useIsDesktop();
 	const [cartSheetOpen, setCartSheetOpen] = useState(false);
-
-	useEffect(() => {
-		if (isDesktop) {
-			setCartSheetOpen(false);
-		}
-	}, [isDesktop]);
-
-	if (isDesktop) {
-		return (
-			<div className="grid gap-6 xl:grid-cols-[minmax(0,1.9fr)_minmax(360px,0.82fr)]">
-				<TransactionsCatalog />
-				<TransactionsCheckout />
-			</div>
-		);
-	}
 
 	return (
 		<>
@@ -48,7 +31,7 @@ export function TransactionsWorkspace() {
 							Review cart lines, shoe details, and totals before checkout.
 						</SheetDescription>
 					</SheetHeader>
-					<TransactionsCheckout isInSheet />
+					<TransactionsCheckout />
 				</SheetContent>
 			</Sheet>
 		</>

@@ -166,10 +166,10 @@ export function TransactionsCatalog() {
 							<button
 								type="button"
 								className={cn(
-									"flex items-center justify-between gap-2 border px-3 py-2 text-left transition-colors",
+									"flex min-h-11 items-center justify-between gap-2 border px-3 py-2 text-left outline-none transition-colors focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
 									mode === "services"
-										? "border-foreground bg-foreground text-background"
-										: "border-transparent text-foreground/70 hover:border-border/70 hover:bg-muted/40",
+										? "border-foreground bg-foreground text-background active:bg-foreground/85"
+										: "border-transparent text-foreground/70 hover:border-border/70 hover:bg-muted/40 active:border-border active:bg-muted/60",
 								)}
 								onClick={() => setMode("services")}
 							>
@@ -181,10 +181,10 @@ export function TransactionsCatalog() {
 							<button
 								type="button"
 								className={cn(
-									"flex items-center justify-between gap-2 border px-3 py-2 text-left transition-colors",
+									"flex min-h-11 items-center justify-between gap-2 border px-3 py-2 text-left outline-none transition-colors focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
 									mode === "products"
-										? "border-border bg-card text-foreground"
-										: "border-transparent text-foreground/55 hover:border-border/70 hover:bg-muted/40",
+										? "border-border bg-card text-foreground active:bg-card/85"
+										: "border-transparent text-foreground/55 hover:border-border/70 hover:bg-muted/40 active:border-border active:bg-muted/60",
 								)}
 								onClick={() => setMode("products")}
 							>
@@ -238,8 +238,10 @@ export function TransactionsCatalog() {
 								<button
 									type="button"
 									className={cn(
-										"flex h-full w-full flex-col gap-2 p-3 text-left transition-colors",
-										isProduct ? "hover:bg-muted/30" : "hover:bg-background/80",
+										"flex h-full min-h-22 w-full flex-col gap-2 p-3 text-left outline-none transition-colors focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
+										isProduct
+											? "hover:bg-muted/30 active:bg-muted/60"
+											: "hover:bg-background/80 active:bg-background/60",
 										isOutOfStock && "cursor-not-allowed opacity-50",
 									)}
 									onClick={() =>

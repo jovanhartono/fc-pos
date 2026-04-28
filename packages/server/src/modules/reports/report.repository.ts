@@ -1,4 +1,14 @@
-import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  lt,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 import { db } from "@/db";
 import {
   categoriesTable,
@@ -9,7 +19,9 @@ import {
   ordersTable,
   servicesTable,
   storesTable,
+  usersTable,
 } from "@/db/schema";
+import { ORDER_TERMINAL_SERVICE_STATUSES } from "@/modules/orders/order-fulfillment";
 
 const ITEM_PROCESSED_STATUSES = ["ready_for_pickup", "quality_check"] as const;
 const JAKARTA_DAY_SQL = sql.raw(`'Asia/Jakarta'`);
@@ -461,4 +473,74 @@ export async function perStoreForRange({ range }: { range: DateRange }) {
     orders_in: ordersInByStore.get(store.id) ?? 0,
     orders_out: ordersOutByStore.get(store.id) ?? 0,
   }));
+}
+
+interface AgingQueueFilters {
+  storeId?: number;
+}
+
+function buildAgingQueueWhere(filters: AgingQueueFilters) {
+  const conditions = [
+    notInArray(ordersServicesTable.status, [
+      ...ORDER_TERMINAL_SERVICE_STATUSES,
+    ]),
+  ];
+  if (filters.storeId !== undefined) {
+    conditions.push(eq(ordersTable.store_id, filters.storeId));
+  }
+  return and(...conditions);
+}
+
+export async function listAgingQueue({
+  filters,
+  limit,
+  offset,
+}: {
+  filters: AgingQueueFilters;
+  limit: number;
+  offset: number;
+}) {
+  const rows = await db
+    .select({
+      id: ordersServicesTable.id,
+      order_id: ordersServicesTable.order_id,
+      order_code: ordersTable.code,
+      item_code: ordersServicesTable.item_code,
+      status: ordersServicesTable.status,
+      service_name: servicesTable.name,
+      store_id: ordersTable.store_id,
+      store_code: storesTable.code,
+      store_name: storesTable.name,
+      handler_id: ordersServicesTable.handler_id,
+      handler_name: usersTable.name,
+      created_at: ordersTable.created_at,
+      days_waiting: sql<number>`EXTRACT(DAY FROM NOW() - ${ordersTable.created_at})::int`,
+    })
+    .from(ordersServicesTable)
+    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .innerJoin(storesTable, eq(ordersTable.store_id, storesTable.id))
+    .innerJoin(
+      servicesTable,
+      eq(ordersServicesTable.service_id, servicesTable.id)
+    )
+    .leftJoin(usersTable, eq(ordersServicesTable.handler_id, usersTable.id))
+    .where(buildAgingQueueWhere(filters))
+    .orderBy(asc(ordersTable.created_at))
+    .limit(limit)
+    .offset(offset);
+
+  return rows.map((row) => ({
+    ...row,
+    days_waiting: Number(row.days_waiting),
+  }));
+}
+
+export async function countAgingQueue(filters: AgingQueueFilters) {
+  const [row] = await db
+    .select({ total: sql<string>`COUNT(*)` })
+    .from(ordersServicesTable)
+    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .where(buildAgingQueueWhere(filters));
+
+  return Number(row?.total ?? 0);
 }

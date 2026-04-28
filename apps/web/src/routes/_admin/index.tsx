@@ -1,12 +1,17 @@
-import { WarningCircleIcon } from "@phosphor-icons/react";
+import { ClockCountdownIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
-import type { DashboardOverview } from "@/lib/api";
-import { dashboardOverviewQueryOptions } from "@/lib/query-options";
+import { defaultRange } from "@/features/reports/utils/report-filters";
+import type { AgingQueueItem, DashboardOverview } from "@/lib/api";
+import {
+	agingQueueQueryOptions,
+	dashboardOverviewQueryOptions,
+} from "@/lib/query-options";
+import { cn } from "@/lib/utils";
 import { formatIDRCurrency } from "@/shared/utils";
 
 const numberFormatter = new Intl.NumberFormat("en-ID");
@@ -147,6 +152,63 @@ const RiskStrip = ({ risks }: { risks: Risks }) => {
 	);
 };
 
+interface AgingQueueCardProps {
+	items: AgingQueueItem[];
+}
+
+const AgingQueueCard = ({ items }: AgingQueueCardProps) => {
+	return (
+		<Card className="border-border/70">
+			<CardHeader>
+				<CardTitle className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+					<ClockCountdownIcon className="size-3" />
+					Oldest in queue
+				</CardTitle>
+			</CardHeader>
+			<CardContent className="grid gap-2 p-4 pt-0">
+				{items.length === 0 ? (
+					<p className="text-sm text-muted-foreground">Queue is clear.</p>
+				) : (
+					items.map((item) => (
+						<Link
+							key={item.id}
+							to="/orders/$orderId"
+							params={{ orderId: String(item.order_id) }}
+							className="flex items-center justify-between gap-3 border-b border-border/40 py-2 last:border-0 transition-colors hover:bg-muted/40"
+						>
+							<div className="min-w-0">
+								<p className="truncate text-sm font-medium">
+									{item.item_code ?? `#${item.id}`}{" "}
+									<span className="text-muted-foreground">·</span>{" "}
+									{item.service_name}
+								</p>
+								<p className="font-mono text-[11px] tabular-nums text-muted-foreground">
+									{item.store_code} · {item.handler_name ?? "Unassigned"}
+								</p>
+							</div>
+							<p
+								className={cn(
+									"font-mono text-sm font-medium tabular-nums",
+									item.days_waiting >= 14 && "text-destructive",
+								)}
+							>
+								{item.days_waiting}d
+							</p>
+						</Link>
+					))
+				)}
+				<Link
+					to="/reports"
+					search={{ tab: "aging-queue", ...defaultRange() }}
+					className="mt-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
+				>
+					View all →
+				</Link>
+			</CardContent>
+		</Card>
+	);
+};
+
 const RiskRow = ({
 	label,
 	value,
@@ -185,6 +247,7 @@ const RiskRow = ({
 
 const DashboardPage = () => {
 	const { data, isPending } = useQuery(dashboardOverviewQueryOptions());
+	const agingQueue = useQuery(agingQueueQueryOptions({ limit: 5 }));
 
 	const maxRevenue = useMemo(() => {
 		if (!data) {
@@ -267,9 +330,10 @@ const DashboardPage = () => {
 					</div>
 				</div>
 
-				<div className="grid gap-3 xl:grid-cols-2">
+				<div className="grid gap-3 xl:grid-cols-3">
 					<TopServicesCard services={data.top_services_week} />
 					<RiskStrip risks={data.risks} />
+					<AgingQueueCard items={agingQueue.data?.items ?? []} />
 				</div>
 			</div>
 		</>
@@ -278,6 +342,9 @@ const DashboardPage = () => {
 
 export const Route = createFileRoute("/_admin/")({
 	loader: ({ context }) =>
-		context.queryClient.ensureQueryData(dashboardOverviewQueryOptions()),
+		Promise.all([
+			context.queryClient.ensureQueryData(dashboardOverviewQueryOptions()),
+			context.queryClient.ensureQueryData(agingQueueQueryOptions({ limit: 5 })),
+		]),
 	component: DashboardPage,
 });

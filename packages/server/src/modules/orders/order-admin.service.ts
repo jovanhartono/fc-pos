@@ -16,6 +16,7 @@ import {
   usersTable,
 } from "@/db/schema";
 import { BadRequestException, ForbiddenException } from "@/errors";
+import { softDeleteOrderServiceImageById } from "@/modules/order-service-images/order-service-image.repository";
 import type { OrderTx } from "@/modules/orders/order.repository";
 import type {
   GetMyOrderServicesQuery,
@@ -572,6 +573,7 @@ export async function getOrderDetailById(id: number) {
             orderBy: { id: "asc" },
           },
           images: {
+            where: { deleted_at: { isNull: true } },
             orderBy: { id: "asc" },
           },
           refundItems: true,
@@ -1017,6 +1019,46 @@ export async function saveOrderServicePhoto({
     ...photo,
     image_url: buildMediaUrl(photo.image_path),
   };
+}
+
+export async function deleteOrderServicePhoto({
+  orderId,
+  serviceId,
+  photoId,
+  user,
+}: {
+  orderId: number;
+  serviceId: number;
+  photoId: number;
+  user: JWTPayload;
+}) {
+  await getOrderServiceOrThrow(orderId, serviceId);
+
+  const photo = await db.query.orderServicesImagesTable.findFirst({
+    where: {
+      id: photoId,
+      order_service_id: serviceId,
+      deleted_at: { isNull: true },
+    },
+    columns: { id: true, uploaded_by: true },
+  });
+
+  if (!photo) {
+    throw new BadRequestException("Photo not found");
+  }
+
+  if (user.role !== "admin" && photo.uploaded_by !== user.id) {
+    throw new ForbiddenException(
+      "Only the uploader or an admin can delete this photo"
+    );
+  }
+
+  const [deleted] = await softDeleteOrderServiceImageById(photoId, user.id);
+  if (!deleted) {
+    throw new BadRequestException("Photo already deleted");
+  }
+
+  return { id: deleted.id };
 }
 
 export async function saveOrderDropoffPhoto({

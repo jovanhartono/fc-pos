@@ -14,6 +14,7 @@ import {
 } from "@/features/reports/utils/report-filters";
 import type { ReportGranularity } from "@/lib/api";
 import {
+	agingQueueQueryOptions,
 	campaignEffectivenessQueryOptions,
 	customerAcquisitionQueryOptions,
 	financialQueryOptions,
@@ -49,6 +50,9 @@ const WorkersPanel = lazy(
 const CampaignsPanel = lazy(
 	() => import("@/features/reports/panels/campaigns-panel"),
 );
+const AgingQueuePanel = lazy(
+	() => import("@/features/reports/panels/aging-queue-panel"),
+);
 
 const tabs: ReportTab[] = [
 	{ id: "overview", label: "Overview" },
@@ -59,6 +63,7 @@ const tabs: ReportTab[] = [
 	{ id: "quality", label: "Quality" },
 	{ id: "workers", label: "Workers" },
 	{ id: "campaigns", label: "Campaigns" },
+	{ id: "aging-queue", label: "Aging Queue" },
 ];
 
 const tabSchema = z.enum([
@@ -70,6 +75,7 @@ const tabSchema = z.enum([
 	"quality",
 	"workers",
 	"campaigns",
+	"aging-queue",
 ]);
 
 type Tab = z.infer<typeof tabSchema>;
@@ -135,6 +141,10 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 			return queryClient.ensureQueryData(
 				campaignEffectivenessQueryOptions(range),
 			);
+		case "aging-queue":
+			return queryClient.ensureQueryData(
+				agingQueueQueryOptions({ store_id: search.store_id, limit: 50 }),
+			);
 		default:
 			return Promise.resolve();
 	}
@@ -173,6 +183,7 @@ const descriptions: Record<Tab, string> = {
 	quality: "Refund volume and root-cause mix.",
 	workers: "Items completed and shift productivity.",
 	campaigns: "Orders, revenue and discount cost per campaign.",
+	"aging-queue": "Items still in queue, oldest first.",
 };
 
 function ReportsPage() {
@@ -181,8 +192,10 @@ function ReportsPage() {
 
 	const currentTab = search.tab as Tab;
 
-	const showRangeFilters = currentTab !== "overview";
-	const showGranularity = currentTab !== "overview";
+	const showRangeFilters =
+		currentTab !== "overview" && currentTab !== "aging-queue";
+	const showGranularity =
+		currentTab !== "overview" && currentTab !== "aging-queue";
 
 	return (
 		<>
@@ -289,6 +302,9 @@ function ReportsPage() {
 							storeId={search.store_id}
 							granularity={search.granularity}
 						/>
+					)}
+					{currentTab === "aging-queue" && (
+						<AgingQueuePanel storeId={search.store_id} />
 					)}
 				</Suspense>
 			</ReportShell>

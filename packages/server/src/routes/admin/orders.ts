@@ -9,6 +9,7 @@ import {
   GETOrderServiceByIdQuerySchema,
   GETOrderServiceQueueQuerySchema,
   orderServiceParamSchema,
+  orderServicePhotoParamSchema,
   PATCHOrderPaymentSchema,
   PATCHOrderServiceHandlerSchema,
   PATCHOrderServiceStatusSchema,
@@ -28,6 +29,7 @@ import {
   createOrderPickupEventPresign,
   createOrderRefund,
   createOrderServicePhotoPresign,
+  deleteOrderServicePhoto,
   getMyOrderServices,
   getOrderDetailById,
   getOrderServiceById,
@@ -365,6 +367,25 @@ const app = new Hono()
       });
 
       return c.json(success(photo, "Photo saved"), StatusCodes.CREATED);
+    }
+  )
+  .delete(
+    "/:id/services/:serviceId/photos/:photoId",
+    orderServicePhotoParamSchema,
+    async (c) => {
+      const user = c.get("jwtPayload") as JWTPayload;
+      const { id, serviceId, photoId } = c.req.valid("param");
+
+      await assertOrderAccess(user, id);
+
+      const result = await deleteOrderServicePhoto({
+        orderId: id,
+        serviceId,
+        photoId,
+        user,
+      });
+
+      return c.json(success(result, "Photo deleted"));
     }
   )
   .post(

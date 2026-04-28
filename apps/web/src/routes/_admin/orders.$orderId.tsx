@@ -32,6 +32,7 @@ import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import {
 	cancelOrder,
 	createOrderRefund,
+	deleteOrderServicePhoto,
 	type OrderDetail,
 	presignOrderServicePhoto,
 	queryKeys,
@@ -202,6 +203,59 @@ function OrderPickupHistoryCard({
 		</Card>
 	);
 }
+
+const DeletePhotoConfirmDialog = ({
+	orderId,
+	serviceId,
+	photoId,
+}: {
+	orderId: number;
+	serviceId: number;
+	photoId: number;
+}) => {
+	const queryClient = useQueryClient();
+	const closeDialog = useDialog((s) => s.closeDialog);
+
+	const deletePhotoMutation = useMutation({
+		mutationFn: () => deleteOrderServicePhoto(orderId, serviceId, photoId),
+		onSuccess: async () => {
+			await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: queryKeys.orderDetail(orderId),
+				}),
+				queryClient.invalidateQueries({ queryKey: ["orders"] }),
+			]);
+			toast.success("Photo deleted");
+			closeDialog();
+		},
+		onError: (error) => {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to delete photo",
+			);
+		},
+	});
+
+	return (
+		<div className="grid gap-4">
+			<p className="text-sm text-muted-foreground">
+				You can re-upload a replacement if needed.
+			</p>
+			<div className="flex justify-end gap-2">
+				<Button type="button" variant="outline" onClick={closeDialog}>
+					Cancel
+				</Button>
+				<Button
+					type="button"
+					variant="destructive"
+					loading={deletePhotoMutation.isPending}
+					onClick={() => deletePhotoMutation.mutate()}
+				>
+					Delete photo
+				</Button>
+			</div>
+		</div>
+	);
+};
 
 function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 	const user = getCurrentUser();
@@ -865,10 +919,25 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 													alt:
 														image.note ??
 														`Photo for ${service.item_code ?? `service-${service.id}`}`,
+													canDelete: isAdmin || image.uploaded_by === user?.id,
 												}))}
 												gridClassName="@md:grid-cols-2 @2xl:grid-cols-3 @4xl:grid-cols-4"
 												thumbnailClassName="bg-muted/30"
 												title={`Photos for ${service.item_code ?? `service-${service.id}`}`}
+												onDelete={(photoId) => {
+													openDialog({
+														title: "Delete photo?",
+														description:
+															"This hides the photo from the order detail. The image file is retained for audit.",
+														content: () => (
+															<DeletePhotoConfirmDialog
+																orderId={id}
+																serviceId={service.id}
+																photoId={photoId}
+															/>
+														),
+													});
+												}}
 											/>
 										) : (
 											<p className="text-muted-foreground text-sm">None yet</p>

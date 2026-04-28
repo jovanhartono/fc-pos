@@ -338,7 +338,7 @@ export function AppShell({ title, children }: AppShellProps) {
 						Fresclean POS
 					</span>
 				</div>
-				<section className="overflow-x-hidden px-3 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10">
+				<section className="overflow-x-clip px-3 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10">
 					{children}
 				</section>
 			</SidebarInset>

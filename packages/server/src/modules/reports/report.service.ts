@@ -1,8 +1,10 @@
 import {
   categoryRevenueForRange,
+  countAgingQueue,
   countDailyItemsProcessed,
   countDailyOrdersIn,
   countDailyOrdersOut,
+  listAgingQueue,
   ordersInTrendSeries,
   ordersOutTrendSeries,
   paidTrendSeries,
@@ -13,9 +15,11 @@ import {
   topServicesForRange,
 } from "@/modules/reports/report.repository";
 import type {
+  GetAgingQueueQuery,
   GetDailyReportQuery,
   GetReportOverviewQuery,
 } from "@/modules/reports/report.schema";
+import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 
 // Asia/Jakarta is UTC+7 year-round (no DST).
 const JAKARTA_OFFSET_MINUTES = 7 * 60;
@@ -116,5 +120,24 @@ export async function getReportOverview(query: GetReportOverviewQuery) {
     categories,
     top_services: topServices,
     per_store: perStore,
+  };
+}
+
+export async function getAgingQueueReport(query?: GetAgingQueueQuery) {
+  const pagination = normalizePagination(query, { maxPageSize: 200 });
+  const filters = { storeId: query?.store_id };
+
+  const [items, total] = await Promise.all([
+    listAgingQueue({
+      filters,
+      limit: pagination.limit,
+      offset: pagination.offset,
+    }),
+    countAgingQueue(filters),
+  ]);
+
+  return {
+    items,
+    meta: buildPaginationMeta(total, pagination),
   };
 }

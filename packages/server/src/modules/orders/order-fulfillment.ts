@@ -1,8 +1,12 @@
-const ORDER_TERMINAL_SERVICE_STATUSES = new Set([
+export const ORDER_TERMINAL_SERVICE_STATUSES = [
   "picked_up",
   "refunded",
   "cancelled",
-]);
+] as const;
+
+const ORDER_TERMINAL_SERVICE_STATUS_SET = new Set<string>(
+  ORDER_TERMINAL_SERVICE_STATUSES
+);
 
 export interface OrderFulfillmentSummary {
   active_count: number;
@@ -36,7 +40,7 @@ export function summarizeOrderFulfillment(
     (status) => status === "picked_up"
   ).length;
   const terminal_count = statuses.filter((status) =>
-    ORDER_TERMINAL_SERVICE_STATUSES.has(status)
+    ORDER_TERMINAL_SERVICE_STATUS_SET.has(status)
   ).length;
   const active_count = service_total_count - terminal_count;
   const remaining_count = Math.max(active_count - ready_for_pickup_count, 0);
@@ -54,5 +58,5 @@ export function summarizeOrderFulfillment(
 }
 
 export function isTerminalOrderServiceStatus(status: OrderServiceStatus) {
-  return ORDER_TERMINAL_SERVICE_STATUSES.has(status);
+  return ORDER_TERMINAL_SERVICE_STATUS_SET.has(status);
 }

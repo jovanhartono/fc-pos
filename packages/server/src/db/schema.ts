@@ -553,21 +553,29 @@ export const orderPickupEventsTable = pgTable(
   ]
 );
 
-export const orderServicesImagesTable = pgTable("order_services_images", {
-  created_at: timestamp("created_at").defaultNow().notNull(),
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  image_path: varchar("image_path", { length: 512 }).notNull(),
-  note: text("note"),
-  order_service_id: integer("order_service_id").references(
-    () => ordersServicesTable.id,
-    { onDelete: "cascade" }
-  ),
-  uploaded_by: integer("uploaded_by").references(() => usersTable.id),
-  updated_at: timestamp("updated_at")
-    .defaultNow()
-    .notNull()
-    .$onUpdate(() => new Date()),
-});
+export const orderServicesImagesTable = pgTable(
+  "order_services_images",
+  {
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    deleted_at: timestamp("deleted_at"),
+    deleted_by: integer("deleted_by").references(() => usersTable.id),
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    image_path: varchar("image_path", { length: 512 }).notNull(),
+    note: text("note"),
+    order_service_id: integer("order_service_id").references(
+      () => ordersServicesTable.id,
+      { onDelete: "cascade" }
+    ),
+    uploaded_by: integer("uploaded_by").references(() => usersTable.id),
+    updated_at: timestamp("updated_at")
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index("order_services_images_deleted_at_idx").on(table.deleted_at),
+  ]
+);
 
 export const orderServiceStatusLogsTable = pgTable(
   "order_service_status_logs",

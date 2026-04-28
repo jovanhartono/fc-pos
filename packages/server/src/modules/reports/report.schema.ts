@@ -37,6 +37,14 @@ export const GETReportRangeQuerySchema = z
 
 export type GetReportRangeQuery = z.infer<typeof GETReportRangeQuerySchema>;
 
+export const GETAgingQueueQuerySchema = z.object({
+  store_id: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+
+export type GetAgingQueueQuery = z.infer<typeof GETAgingQueueQuerySchema>;
+
 export interface KpiDelta<T = number> {
   current: T;
   previous: T;

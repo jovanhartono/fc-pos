@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import {
+	type FetchAgingQueueQuery,
 	type FetchCampaignsQuery,
 	type FetchCustomersQuery,
 	type FetchDailyReportQuery,
@@ -9,6 +10,7 @@ import {
 	type FetchReportRangeQuery,
 	type FetchShiftsQuery,
 	type FetchUsersQuery,
+	fetchAgingQueueReport,
 	fetchCampaignEffectivenessReport,
 	fetchCampaigns,
 	fetchCategories,
@@ -196,4 +198,10 @@ export const campaignEffectivenessQueryOptions = (
 	queryOptions({
 		queryKey: queryKeys.campaignEffectiveness(query),
 		queryFn: () => fetchCampaignEffectivenessReport(query),
+	});
+
+export const agingQueueQueryOptions = (query?: FetchAgingQueueQuery) =>
+	queryOptions({
+		queryKey: queryKeys.agingQueue(query),
+		queryFn: () => fetchAgingQueueReport(query),
 	});

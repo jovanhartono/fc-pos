@@ -83,6 +83,7 @@ const workerProductivityRoute =
 	rpc.api.admin.reports["worker-productivity"].$get;
 const campaignEffectivenessRoute =
 	rpc.api.admin.reports["campaign-effectiveness"].$get;
+const agingQueueRoute = rpc.api.admin.reports["aging-queue"].$get;
 const publicTrackOrderRoute = rpc.api.public.orders.track.$post;
 
 type LoginSuccessResponse = Extract<
@@ -216,6 +217,17 @@ export type CampaignEffectivenessReport = Extract<
 	InferResponseType<typeof campaignEffectivenessRoute>,
 	{ success: true }
 >["data"];
+
+export type AgingQueueItem = Extract<
+	InferResponseType<typeof agingQueueRoute>,
+	{ success: true }
+>["data"][number];
+
+export interface FetchAgingQueueQuery {
+	store_id?: number;
+	limit?: number;
+	offset?: number;
+}
 
 export type LoginPayload = {
 	username: string;
@@ -439,6 +451,8 @@ export const queryKeys = {
 		["report-worker-productivity", query] as const,
 	campaignEffectiveness: (query: FetchReportRangeQuery) =>
 		["report-campaign-effectiveness", query] as const,
+	agingQueue: (query?: FetchAgingQueueQuery) =>
+		["report-aging-queue", query ?? {}] as const,
 };
 
 export async function login(payload: LoginPayload) {
@@ -951,6 +965,24 @@ export async function saveOrderServicePhoto(
 	);
 }
 
+export async function deleteOrderServicePhoto(
+	orderId: number,
+	serviceId: number,
+	photoId: number,
+) {
+	return parseResponse(
+		rpcWithAuth().api.admin.orders[":id"].services[":serviceId"].photos[
+			":photoId"
+		].$delete({
+			param: {
+				id: String(orderId),
+				serviceId: String(serviceId),
+				photoId: String(photoId),
+			},
+		}),
+	);
+}
+
 export async function presignOrderDropoffPhoto(
 	orderId: number,
 	payload: PresignOrderDropoffPhotoPayload,
@@ -1219,4 +1251,30 @@ export async function fetchCampaignEffectivenessReport(
 			query: toRangeQuery(query),
 		}),
 	);
+}
+
+export async function fetchAgingQueueReport(
+	query?: FetchAgingQueueQuery,
+): Promise<PaginatedData<AgingQueueItem>> {
+	const response = await parseResponse(
+		rpcWithAuth().api.admin.reports["aging-queue"].$get({
+			query: {
+				...(query?.store_id !== undefined
+					? { store_id: String(query.store_id) }
+					: {}),
+				...(query?.limit !== undefined ? { limit: String(query.limit) } : {}),
+				...(query?.offset !== undefined
+					? { offset: String(query.offset) }
+					: {}),
+			},
+		}),
+	);
+	return {
+		items: response.data,
+		meta: (response.meta ?? {
+			limit: query?.limit ?? response.data.length,
+			offset: query?.offset ?? 0,
+			total: response.data.length,
+		}) as PaginationMeta,
+	};
 }

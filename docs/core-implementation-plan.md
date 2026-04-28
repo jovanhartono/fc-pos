@@ -110,50 +110,61 @@ Commits:
 
 ---
 
-### Group D — Shifts
+### Group D — Shifts (deferred)
 
 13. **D-1. Auto-close at 23:59 Jakarta**
     - Add cron-equivalent worker (Bun scheduled task or cron endpoint hit by external scheduler) that runs at 00:00 Jakarta. Sets `clock_out` on any `shifts.status='active'` rows to `23:59:59 of previous day` Jakarta.
     - If Bun scheduled tasks unavailable, expose `POST /admin/shifts/cron/auto-close` + document external trigger (Neon Cron / Upstash Schedule / GH Action).
     - Log each auto-closed shift with flag `auto_closed=true` for reports.
 
-Commit: `feat(shifts): auto-close at 23:59 Jakarta`
+Status: deferred 2026-04-26 — cron infra not in place yet. Re-pick up once external scheduler is chosen.
+
+Commit (when implemented): `feat(shifts): auto-close at 23:59 Jakarta`
 
 ---
 
-### Group E — Photo delete
+### Group E — Photo delete ✅ DONE
 
-14. **E-1. Delete photo endpoint**
-    - `DELETE /admin/orders/:id/services/:serviceId/photos/:photoId`.
-    - Authz: uploader OR admin.
-    - Soft delete (set `deleted_at`) not hard delete — keep audit trail, exclude from default query.
-    - Do NOT delete S3 object (cost vs audit trade-off; add to D-5 future sweep if size becomes issue).
+Shipped: 2026-04-26 · branch `main`
+
+14. **E-1. Delete photo endpoint** ✅
+    - `DELETE /admin/orders/:id/services/:serviceId/photos/:photoId` — soft delete (`deleted_at`, `deleted_by`); S3 object retained.
+    - Authz: inline `user.role === 'admin' || photo.uploaded_by === user.id`. Cashiers/workers see their own delete buttons only.
+    - Schema: `order_services_images.deleted_at`, `deleted_by` + `deleted_at` index.
+    - All read paths filter `deleted_at IS NULL` (`getOrderDetailById` images relation, `listOrderServiceImages`, `findOrderServiceImageById`).
+    - Web: `OrderPhotoGallery` gains optional `onDelete`/`canDelete`; order detail page shows confirm dialog before triggering soft delete.
 
 Commit: `feat(photos): soft-delete photo endpoint`
 
+Follow-ups (not blocking merge):
+- Run `bun run push:dev` to add `deleted_at`/`deleted_by` columns + index.
+
 ---
 
-### Group F — Aging items UI (ambiguity 3.9)
+### Group F — Aging items UI ✅ DONE
 
-15. **F-1. Aging queue view on dashboard**
-    - New report endpoint: `/admin/reports/aging-queue` — lists `order_services` not in terminal status, ordered by `created_at ASC` (oldest first).
-    - Web: add card to `/` dashboard or new panel in `/reports` "Operations" tab.
-    - Columns: item_code, service, store, days waiting, current status, handler.
-    - No action buttons — informational only.
+Shipped: 2026-04-26 · branch `main`
+
+15. **F-1. Aging queue view** ✅
+    - `GET /admin/reports/aging-queue` (admin-only) returns paginated `order_services` filtered via shared `ORDER_TERMINAL_SERVICE_STATUSES` (`picked_up`/`refunded`/`cancelled`), oldest first by `orders.created_at`.
+    - Columns: `item_code`, `service_name`, `store_code`/`store_name`, `days_waiting` (SQL `EXTRACT(DAY FROM NOW() - orders.created_at)::int`), `status`, `handler_name`.
+    - Web: new lazy panel `aging-queue-panel.tsx` registered as 9th tab in `/reports`; range/granularity filters hidden for this tab.
+    - Dashboard `/` adds `AgingQueueCard` showing top-5 oldest with "View all" → `/reports?tab=aging-queue`.
 
 Commit: `feat(reports): aging-queue view`
 
 ---
 
-### Group G — Tablet ergonomics (sanity pass)
+### Group G — Tablet ergonomics ✅ DONE
 
-16. **G-1. Audit `/transactions` for hover-only interactions**
-    - Scan all `hover:` in `apps/web/src/features/transactions/**` that lack a non-hover state.
-    - Ensure `active:` / `focus-visible:` equivalents exist.
-    - Verify touch targets ≥ 44×44 px.
-    - No new features — cleanup pass only.
+Shipped: 2026-04-26 · branch `main`
 
-Commit: `style(transactions): tablet-friendly active/focus states`
+16. **G-1. `/transactions` tablet ergonomics audit** ✅
+    - `transactions-catalog.tsx`: mode-toggle and catalog-card inner buttons now carry `min-h-11`, paired `active:` and `focus-visible:` states.
+    - `transactions-checkout.tsx`: 4× `icon-xs` cart-line buttons bumped to `size-11` via className override; payment Combobox `h-10` → `h-11`; Review Checkout / Paid/Unpaid toggle / Sheet footer buttons `h-11`.
+    - CVA stays untouched — overrides are scoped to `/transactions` per locked decision G-1.
+
+Commit: `style(transactions): tablet-friendly touch targets + active/focus states`
 
 ---
 
