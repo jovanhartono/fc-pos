@@ -180,7 +180,7 @@ function ProductsPage() {
 			/>
 			<div className="grid gap-4">
 				<Card>
-					<CardContent className="pt-6">
+					<CardContent>
 						<DataTable
 							columns={columns}
 							data={products}

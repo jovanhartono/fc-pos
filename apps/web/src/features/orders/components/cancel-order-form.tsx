@@ -1,9 +1,21 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import type { UseMutationResult } from "@tanstack/react-query";
-import { useState } from "react";
+import { FormProvider, useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import type { CancelOrderPayload } from "@/lib/api";
+import {
+	type CancelFormValues,
+	CancelReasonFields,
+	cancelFormDefaults,
+	cancelFormSchema,
+} from "./cancel-reason-fields";
 
-type CancelOrderMutation = UseMutationResult<unknown, Error, string, unknown>;
+type CancelOrderMutation = UseMutationResult<
+	unknown,
+	Error,
+	CancelOrderPayload,
+	unknown
+>;
 
 interface CancelOrderFormProps {
 	closeDialog: () => void;
@@ -14,34 +26,42 @@ export const CancelOrderForm = ({
 	closeDialog,
 	cancelOrderMutation,
 }: CancelOrderFormProps) => {
-	const [reason, setReason] = useState("");
-	const trimmed = reason.trim();
+	const form = useForm<CancelFormValues>({
+		resolver: zodResolver(cancelFormSchema),
+		defaultValues: cancelFormDefaults,
+	});
 	const isPending = cancelOrderMutation.isPending;
 
-	const handleConfirm = async () => {
-		await cancelOrderMutation.mutateAsync(trimmed);
+	const onSubmit = async (values: CancelFormValues) => {
+		await cancelOrderMutation.mutateAsync({
+			cancel_reason: values.cancel_reason,
+			cancel_note: values.cancel_note?.trim() || undefined,
+		});
 		closeDialog();
 	};
 
 	return (
-		<div className="flex flex-col gap-4">
-			<Textarea
-				placeholder="Cancel reason (required)"
-				value={reason}
-				onChange={(event) => setReason(event.target.value)}
-			/>
-			<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-				<Button variant="outline" onClick={closeDialog}>
-					Go back
-				</Button>
-				<Button
-					variant="destructive"
-					disabled={isPending || !trimmed}
-					onClick={handleConfirm}
-				>
-					{isPending ? "Cancelling…" : "Confirm Cancel Order"}
-				</Button>
-			</div>
-		</div>
+		<FormProvider {...form}>
+			<form
+				className="flex flex-col gap-4"
+				onSubmit={form.handleSubmit(onSubmit)}
+			>
+				<CancelReasonFields disabled={isPending} />
+
+				<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={closeDialog}
+						disabled={isPending}
+					>
+						Go back
+					</Button>
+					<Button type="submit" variant="destructive" disabled={isPending}>
+						{isPending ? "Cancelling…" : "Confirm Cancel Order"}
+					</Button>
+				</div>
+			</form>
+		</FormProvider>
 	);
 };

@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { orderServiceStatusEnum, refundReasonEnum } from "@/db/schema";
+import {
+  cancelReasonEnum,
+  orderServiceStatusEnum,
+  refundReasonEnum,
+} from "@/db/schema";
 import { MAX_PAGE_SIZE } from "@/modules/orders/order.schema";
 import { dateStringSchema } from "@/schema/common";
 import { normalizePagination } from "@/utils/pagination";
@@ -74,16 +78,28 @@ export const POSTOrderPickupEventSchema = z.object({
 
 export const PATCHOrderServiceStatusSchema = z
   .object({
-    cancel_reason: z.string().trim().max(1000).optional(),
+    cancel_note: z.string().trim().max(1000).optional(),
+    cancel_reason: z.enum(cancelReasonEnum.enumValues).optional(),
     note: z.string().trim().optional(),
     status: z.enum(orderServiceStatusEnum.enumValues),
   })
   .superRefine((value, ctx) => {
-    if (value.status === "cancelled" && !value.cancel_reason?.trim()) {
+    if (value.status !== "cancelled") {
+      return;
+    }
+    if (!value.cancel_reason) {
       ctx.addIssue({
         code: "custom",
         message: "Cancel reason is required when cancelling a service",
         path: ["cancel_reason"],
+      });
+      return;
+    }
+    if (value.cancel_reason === "other" && !value.cancel_note?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Cancel note is required when reason is 'other'",
+        path: ["cancel_note"],
       });
     }
   });
@@ -97,9 +113,20 @@ export const PATCHOrderPaymentSchema = z.object({
   payment_method_id: z.coerce.number().int().positive(),
 });
 
-export const POSTOrderCancelSchema = z.object({
-  cancel_reason: z.string().trim().min(1).max(1000),
-});
+export const POSTOrderCancelSchema = z
+  .object({
+    cancel_note: z.string().trim().max(1000).optional(),
+    cancel_reason: z.enum(cancelReasonEnum.enumValues),
+  })
+  .superRefine((value, ctx) => {
+    if (value.cancel_reason === "other" && !value.cancel_note?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Cancel note is required when reason is 'other'",
+        path: ["cancel_note"],
+      });
+    }
+  });
 
 export const POSTOrderRefundSchema = z.object({
   items: z

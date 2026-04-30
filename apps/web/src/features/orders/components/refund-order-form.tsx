@@ -21,17 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { CreateOrderRefundPayload, OrderRefundReason } from "@/lib/api";
-
-const REFUND_REASONS = [
-	"damaged",
-	"cannot_process",
-	"lost",
-	"other",
-	"customer_cancelled",
-] as const satisfies readonly OrderRefundReason[];
-
-const formatRefundReason = (reason: OrderRefundReason) =>
-	reason.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+import { formatRefundReason, REFUND_REASONS } from "@/lib/status";
 
 const refundFormSchema = z
 	.object({
@@ -269,7 +259,9 @@ const RefundItemRow = ({ disabled, index, label }: RefundItemRowProps) => {
 						disabled={inputsDisabled}
 					>
 						<SelectTrigger size="md" className="w-full">
-							<SelectValue placeholder="Select reason" />
+							<SelectValue placeholder="Select reason">
+								{field.value ? formatRefundReason(field.value) : undefined}
+							</SelectValue>
 						</SelectTrigger>
 						<SelectContent>
 							{REFUND_REASONS.map((reason) => (

@@ -24,18 +24,5 @@
 			"@/*": ["./src/*"]
 		}
 	},
-	"include": [
-		"env.d.ts",
-		"src/main.tsx",
-		"src/routeTree.gen.ts",
-		"src/components/**/*.ts",
-		"src/components/**/*.tsx",
-		"src/lib/**/*.ts",
-		"src/lib/**/*.tsx",
-		"src/routes/**/*.ts",
-		"src/routes/**/*.tsx",
-		"src/stores/**/*.ts",
-		"src/shared/zod.ts",
-		"src/shared/utils.ts"
-	]
+	"include": ["env.d.ts", "src"]
 }

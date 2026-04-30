@@ -193,6 +193,13 @@ export const refundReasonEnum = pgEnum("refund_reason_enum", [
   "other",
   "customer_cancelled",
 ]);
+export const cancelReasonEnum = pgEnum("cancel_reason_enum", [
+  "customer_request",
+  "cannot_process",
+  "damaged_intake",
+  "duplicate_order",
+  "other",
+]);
 
 export const campaignsTable = pgTable(
   "campaigns",
@@ -471,7 +478,8 @@ export const ordersServicesTable = pgTable(
   {
     discount: decimal("discount", { precision: 12 }).default("0").notNull(),
 
-    cancel_reason: text("cancel_reason"),
+    cancel_reason: cancelReasonEnum("cancel_reason"),
+    cancel_note: text("cancel_note"),
     handler_id: integer("handler_id").references(() => usersTable.id),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     is_priority: boolean("is_priority").default(false).notNull(),

@@ -35,3 +35,6 @@ coverage
 # Claude local config / personal notes
 .claude/
 .claude.local.md
+
+# Codex migration artifacts
+.codex/

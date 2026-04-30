@@ -119,7 +119,7 @@ function ShiftsPage() {
 			<PageHeader title="Shifts" />
 			<div className="grid gap-4">
 				<Card>
-					<CardContent className="pt-6">
+					<CardContent>
 						<div className="mb-4 flex flex-wrap items-end gap-2">
 							<div className="grid gap-1">
 								<label

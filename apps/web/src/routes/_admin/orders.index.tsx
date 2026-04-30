@@ -29,8 +29,10 @@ import {
 import {
 	formatOrderStatus,
 	formatPaymentStatus,
+	formatRefundStatus,
 	getOrderStatusBadgeVariant,
 	getPaymentStatusBadgeVariant,
+	getRefundStatusBadgeVariant,
 } from "@/lib/status";
 import { formatIDRCurrency } from "@/shared/utils";
 import { getCurrentUser } from "@/stores/auth-store";
@@ -204,11 +206,16 @@ function OrdersPage() {
 			{
 				accessorKey: "code",
 				header: "Order Code",
+				meta: {
+					mobileCard: {
+						slot: "title",
+					},
+				},
 				cell: ({ row }) => (
 					<Link
 						to="/orders/$orderId"
 						params={{ orderId: String(row.original.id) }}
-						className="font-mono underline"
+						className="font-mono font-semibold text-foreground underline underline-offset-4 md:font-normal"
 					>
 						{row.original.code}
 					</Link>
@@ -217,8 +224,13 @@ function OrdersPage() {
 			{
 				id: "created",
 				header: "Created",
+				meta: {
+					mobileCard: {
+						slot: "eyebrow",
+					},
+				},
 				cell: ({ row }) => (
-					<span className="font-mono text-xs text-muted-foreground tabular-nums">
+					<span className="font-mono font-medium text-muted-foreground text-xs tabular-nums">
 						{orderCreatedFormatter.format(new Date(row.original.created_at))}
 					</span>
 				),
@@ -226,12 +238,35 @@ function OrdersPage() {
 			{
 				id: "store",
 				header: "Store",
-				cell: ({ row }) => row.original.store_code,
+				meta: {
+					mobileCard: {
+						slot: "eyebrow",
+					},
+				},
+				cell: ({ row }) => (
+					<span className="font-mono font-medium text-foreground">
+						{row.original.store_code}
+					</span>
+				),
 			},
-			{ accessorKey: "customer_name", header: "Customer" },
+			{
+				accessorKey: "customer_name",
+				header: "Customer",
+				meta: {
+					mobileCard: {
+						label: "Customer",
+						valueClassName: "truncate",
+					},
+				},
+			},
 			{
 				id: "items",
 				header: "Items",
+				meta: {
+					mobileCard: {
+						label: "Items",
+					},
+				},
 				cell: ({ row }) => (
 					<span className="font-mono tabular-nums">
 						{row.original.fulfillment.service_total_count}
@@ -241,6 +276,11 @@ function OrdersPage() {
 			{
 				accessorKey: "status",
 				header: "Status",
+				meta: {
+					mobileCard: {
+						slot: "badges",
+					},
+				},
 				cell: ({ row }) => (
 					<Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
 						{formatOrderStatus(row.original.status)}
@@ -250,17 +290,40 @@ function OrdersPage() {
 			{
 				accessorKey: "payment_status",
 				header: "Payment",
+				meta: {
+					mobileCard: {
+						slot: "badges",
+					},
+				},
 				cell: ({ row }) => (
-					<Badge
-						variant={getPaymentStatusBadgeVariant(row.original.payment_status)}
-					>
-						{formatPaymentStatus(row.original.payment_status)}
-					</Badge>
+					<div className="flex flex-wrap gap-1">
+						<Badge
+							variant={getPaymentStatusBadgeVariant(
+								row.original.payment_status,
+							)}
+						>
+							{formatPaymentStatus(row.original.payment_status)}
+						</Badge>
+						{row.original.refund_status !== "none" && (
+							<Badge
+								variant={getRefundStatusBadgeVariant(
+									row.original.refund_status,
+								)}
+							>
+								{formatRefundStatus(row.original.refund_status)}
+							</Badge>
+						)}
+					</div>
 				),
 			},
 			{
 				id: "total",
 				header: () => <div className="text-right">Total</div>,
+				meta: {
+					mobileCard: {
+						slot: "footer",
+					},
+				},
 				cell: ({ row }) => (
 					<div className="text-right font-mono font-medium tabular-nums">
 						{row.original.total ? formatIDRCurrency(row.original.total) : "—"}
@@ -323,7 +386,7 @@ function OrdersPage() {
 			/>
 			<div className="grid gap-4">
 				<Card>
-					<CardContent className="pt-6">
+					<CardContent>
 						<div className="mb-4 flex flex-wrap items-center gap-2">
 							<DebouncedSearchInput
 								id="orders-search"

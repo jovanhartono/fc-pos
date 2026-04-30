@@ -261,6 +261,7 @@ export function OrderPhotoGallery({
 									download={getPhotoDownloadName(item)}
 									aria-label={`Save ${getPhotoPrimaryLabel(item)} image`}
 								>
+									<DownloadSimpleIcon className="size-4" aria-hidden="true" />
 									<span className="sr-only">
 										{`Save ${getPhotoPrimaryLabel(item)} image`}
 									</span>
@@ -268,11 +269,8 @@ export function OrderPhotoGallery({
 							}
 							variant="outline"
 							size="icon-sm"
-							className="absolute top-3 right-3 border-black/10 bg-background/92 shadow-sm backdrop-blur-xs hover:border-border hover:bg-background"
+							className="absolute top-3 right-3 border-black/10 bg-background/92 text-foreground shadow-sm backdrop-blur-xs hover:border-border hover:bg-background hover:text-foreground"
 							title="Save image"
-							icon={
-								<DownloadSimpleIcon className="size-4" aria-hidden="true" />
-							}
 						/>
 						{onDelete && item.canDelete ? (
 							<Button

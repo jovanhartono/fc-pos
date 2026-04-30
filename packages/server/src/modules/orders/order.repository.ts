@@ -9,6 +9,10 @@ import {
 } from "@/db/schema";
 import type { NormalizedOrderListQuery } from "@/modules/orders/order.schema";
 import { summarizeOrderFulfillment } from "@/modules/orders/order-fulfillment";
+import {
+  deriveOrderRefundStatus,
+  type OrderRefundStatus,
+} from "@/modules/orders/order-refund-status";
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
 
 export type OrderTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -23,6 +27,7 @@ export interface OrderListItem {
     | "completed"
     | "cancelled";
   payment_status: "paid" | "unpaid";
+  refund_status: OrderRefundStatus;
   discount: string;
   total: string | null;
   notes: string | null;
@@ -146,6 +151,8 @@ export async function findOrders(
         code: true,
         status: true,
         payment_status: true,
+        paid_amount: true,
+        refunded_amount: true,
         discount: true,
         total: true,
         notes: true,
@@ -227,6 +234,10 @@ export async function findOrders(
     code: row.code,
     status: row.status,
     payment_status: row.payment_status,
+    refund_status: deriveOrderRefundStatus({
+      paid_amount: row.paid_amount,
+      refunded_amount: row.refunded_amount,
+    }),
     discount: row.discount,
     total: row.total,
     notes: row.notes,

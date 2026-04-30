@@ -41,6 +41,7 @@ import {
   isTerminalOrderServiceStatus,
   summarizeOrderFulfillment,
 } from "@/modules/orders/order-fulfillment";
+import { deriveOrderRefundStatus } from "@/modules/orders/order-refund-status";
 import type { JWTPayload } from "@/types";
 import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
@@ -605,6 +606,10 @@ export async function getOrderDetailById(id: number) {
   return {
     ...detailWithoutPickupCode,
     dropoff_photo_url: buildMediaUrl(detail.dropoff_photo_path),
+    refund_status: deriveOrderRefundStatus({
+      paid_amount: detail.paid_amount,
+      refunded_amount: detail.refunded_amount,
+    }),
     pickup_events: detail.pickupEvents.map((event) => ({
       created_at: event.created_at,
       id: event.id,
@@ -871,22 +876,24 @@ export async function updateOrderServiceStatus({
     const needsHandlerAssign =
       isClaimTransition && locked.handler_id !== user.id;
 
-    const cancelReason =
-      body.status === "cancelled" ? body.cancel_reason?.trim() : undefined;
-    const cancelReasonPatch = cancelReason
-      ? { cancel_reason: cancelReason }
-      : {};
+    const isCancelling = body.status === "cancelled";
+    const setPatch: Partial<typeof ordersServicesTable.$inferInsert> = {
+      status: body.status,
+    };
+    if (isCancelling) {
+      setPatch.cancel_reason = body.cancel_reason;
+      setPatch.cancel_note = body.cancel_note?.trim() || null;
+    }
+    if (needsHandlerAssign) {
+      setPatch.handler_id = user.id;
+    }
+
+    await tx
+      .update(ordersServicesTable)
+      .set(setPatch)
+      .where(eq(ordersServicesTable.id, serviceId));
 
     if (needsHandlerAssign) {
-      await tx
-        .update(ordersServicesTable)
-        .set({
-          handler_id: user.id,
-          status: body.status,
-          ...cancelReasonPatch,
-        })
-        .where(eq(ordersServicesTable.id, serviceId));
-
       await tx.insert(orderServiceHandlerLogsTable).values({
         order_service_id: serviceId,
         from_handler_id: locked.handler_id,
@@ -894,14 +901,6 @@ export async function updateOrderServiceStatus({
         changed_by: user.id,
         note: "Auto-assigned on status update",
       });
-    } else {
-      await tx
-        .update(ordersServicesTable)
-        .set({
-          status: body.status,
-          ...cancelReasonPatch,
-        })
-        .where(eq(ordersServicesTable.id, serviceId));
     }
 
     await tx.insert(orderServiceStatusLogsTable).values({
@@ -1448,7 +1447,8 @@ export async function cancelOrder({
     throw new BadRequestException("No cancellable services on this order");
   }
 
-  const cancelReason = body.cancel_reason.trim();
+  const cancelReason = body.cancel_reason;
+  const cancelNote = body.cancel_note?.trim() || null;
   const cancellableIds = cancellableServices.map((service) => service.id);
 
   const cancellableStatusById = new Map(
@@ -1458,7 +1458,11 @@ export async function cancelOrder({
   await db.transaction(async (tx) => {
     const updatedServices = await tx
       .update(ordersServicesTable)
-      .set({ status: "cancelled", cancel_reason: cancelReason })
+      .set({
+        status: "cancelled",
+        cancel_reason: cancelReason,
+        cancel_note: cancelNote,
+      })
       .where(
         and(
           eq(ordersServicesTable.order_id, orderId),
@@ -1480,7 +1484,7 @@ export async function cancelOrder({
         from_status: cancellableStatusById.get(row.id),
         to_status: "cancelled" as const,
         changed_by: user.id,
-        note: cancelReason,
+        note: cancelNote ?? cancelReason,
       }))
     );
 

@@ -334,7 +334,7 @@ function UsersPage() {
 			/>
 			<div className="grid gap-4">
 				<Card>
-					<CardContent className="pt-6">
+					<CardContent>
 						<DebouncedSearchInput
 							id="users-search"
 							value={search.search ?? ""}

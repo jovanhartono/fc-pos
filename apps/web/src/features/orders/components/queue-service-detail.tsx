@@ -99,7 +99,6 @@ export function QueueServiceDetail({
 	const currentUser = getCurrentUser();
 	const galleryInputRef = useRef<HTMLInputElement | null>(null);
 	const cameraPreviewRef = useRef<HTMLVideoElement | null>(null);
-	const cameraStreamRef = useRef<MediaStream | null>(null);
 
 	const [statusNote, setStatusNote] = useState("");
 	const [photoNote, setPhotoNote] = useState("");
@@ -108,6 +107,8 @@ export function QueueServiceDetail({
 		string | null
 	>(null);
 	const [isCameraOpen, setIsCameraOpen] = useState(false);
+	const [isCameraReady, setIsCameraReady] = useState(false);
+	const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
 	const [cameraError, setCameraError] = useState<string | null>(null);
 
 	const openGalleryInput = (input: HTMLInputElement | null) => {
@@ -125,22 +126,27 @@ export function QueueServiceDetail({
 	};
 
 	const stopCameraStream = useCallback(() => {
-		if (cameraStreamRef.current) {
-			for (const track of cameraStreamRef.current.getTracks()) {
-				track.stop();
+		setCameraStream((prev) => {
+			if (prev) {
+				for (const track of prev.getTracks()) {
+					track.stop();
+				}
 			}
-			cameraStreamRef.current = null;
-		}
+			return null;
+		});
 
 		if (cameraPreviewRef.current) {
 			cameraPreviewRef.current.srcObject = null;
 		}
 
+		setIsCameraReady(false);
 		setIsCameraOpen(false);
 	}, []);
 
 	const openCamera = async () => {
 		setCameraError(null);
+		setIsCameraReady(false);
+		setIsCameraOpen(true);
 
 		try {
 			const stream = await navigator.mediaDevices.getUserMedia({
@@ -148,17 +154,57 @@ export function QueueServiceDetail({
 				audio: false,
 			});
 
-			cameraStreamRef.current = stream;
-			setIsCameraOpen(true);
+			setCameraStream(stream);
 		} catch {
 			setCameraError("Unable to open the camera on this device.");
-			stopCameraStream();
+			setIsCameraOpen(false);
 		}
 	};
 
+	const waitForVideoReady = (video: HTMLVideoElement) =>
+		new Promise<void>((resolve, reject) => {
+			if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+				resolve();
+				return;
+			}
+
+			const cleanup = () => {
+				video.removeEventListener("loadedmetadata", onReady);
+				video.removeEventListener("error", onError);
+				clearTimeout(timeoutId);
+			};
+			const onReady = () => {
+				cleanup();
+				resolve();
+			};
+			const onError = () => {
+				cleanup();
+				reject(new Error("video error"));
+			};
+			const timeoutId = setTimeout(() => {
+				cleanup();
+				reject(new Error("video timeout"));
+			}, 3000);
+
+			video.addEventListener("loadedmetadata", onReady);
+			video.addEventListener("error", onError);
+		});
+
 	const captureCameraPhoto = async () => {
 		const video = cameraPreviewRef.current;
-		if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+		if (!video) {
+			setCameraError("Camera preview is not ready yet.");
+			return;
+		}
+
+		try {
+			await waitForVideoReady(video);
+		} catch {
+			setCameraError("Camera preview is not ready yet.");
+			return;
+		}
+
+		if (video.videoWidth === 0 || video.videoHeight === 0) {
 			setCameraError("Camera preview is not ready yet.");
 			return;
 		}
@@ -211,24 +257,26 @@ export function QueueServiceDetail({
 	}, [selectedPhotoFile]);
 
 	useEffect(() => {
-		const stream = cameraStreamRef.current;
 		const preview = cameraPreviewRef.current;
 
-		if (!isCameraOpen || !stream || !preview) {
+		if (!cameraStream || !preview) {
 			return;
 		}
 
-		preview.srcObject = stream;
+		preview.srcObject = cameraStream;
+		if (preview.readyState >= HTMLMediaElement.HAVE_METADATA) {
+			setIsCameraReady(true);
+		}
 		void preview.play().catch(() => {
 			setCameraError("Camera preview is unavailable on this device.");
 		});
 
 		return () => {
-			if (preview.srcObject === stream) {
+			if (preview.srcObject === cameraStream) {
 				preview.srcObject = null;
 			}
 		};
-	}, [isCameraOpen]);
+	}, [cameraStream]);
 
 	useEffect(() => {
 		return () => {
@@ -456,6 +504,7 @@ export function QueueServiceDetail({
 							autoPlay
 							muted
 							playsInline
+							onLoadedMetadata={() => setIsCameraReady(true)}
 							className="aspect-[4/3] w-full border border-border bg-black object-cover"
 						/>
 
@@ -479,11 +528,12 @@ export function QueueServiceDetail({
 							</Button>
 							<Button
 								type="button"
+								disabled={!isCameraReady}
 								onClick={async () => {
 									await captureCameraPhoto();
 								}}
 							>
-								Capture
+								{isCameraReady ? "Capture" : "Loading…"}
 							</Button>
 						</DialogFooter>
 					</DialogContent>

@@ -325,8 +325,16 @@ export type CampaignPayload = {
 	store_ids: number[];
 };
 
+export type OrderCancelReason =
+	| "customer_request"
+	| "cannot_process"
+	| "damaged_intake"
+	| "duplicate_order"
+	| "other";
+
 export type UpdateOrderServiceStatusPayload = {
-	cancel_reason?: string;
+	cancel_note?: string;
+	cancel_reason?: OrderCancelReason;
 	note?: string;
 	status:
 		| "queued"
@@ -396,7 +404,8 @@ export type CreateOrderRefundPayload = {
 };
 
 export type CancelOrderPayload = {
-	cancel_reason: string;
+	cancel_note?: string;
+	cancel_reason: OrderCancelReason;
 };
 
 export type UpdateUserStoresPayload = {

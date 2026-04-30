@@ -48,12 +48,16 @@ import {
 	paymentMethodsQueryOptions,
 } from "@/lib/query-options";
 import {
+	formatCancelReason,
 	formatOrderServiceStatus,
 	formatOrderStatus,
 	formatPaymentStatus,
+	formatRefundReason,
+	formatRefundStatus,
 	getOrderServiceStatusBadgeVariant,
 	getOrderStatusBadgeVariant,
 	getPaymentStatusBadgeVariant,
+	getRefundStatusBadgeVariant,
 } from "@/lib/status";
 import { formatIDRCurrency } from "@/shared/utils";
 import { getCurrentUser } from "@/stores/auth-store";
@@ -80,9 +84,6 @@ export const Route = createFileRoute("/_admin/orders/$orderId")({
 	},
 	component: OrderDetailPage,
 });
-
-const formatRefundReason = (reason: string) =>
-	reason.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
 function OrderDetailSkeleton() {
 	return (
@@ -370,7 +371,8 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 	});
 
 	const cancelOrderMutation = useMutation({
-		mutationFn: (cancel_reason: string) => cancelOrder(id, { cancel_reason }),
+		mutationFn: (payload: Parameters<typeof cancelOrder>[1]) =>
+			cancelOrder(id, payload),
 		onSuccess: async () => {
 			await refreshOrderData();
 		},
@@ -517,48 +519,64 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 					title={`Order ${detail.code}`}
 					description={detail.customer?.name ?? "Unknown customer"}
 					actions={
-						<div className="flex max-w-full flex-wrap justify-end gap-1.5">
-							{trackingUrl ? (
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									icon={<LinkSimpleIcon className="size-4" />}
-									onClick={handleCopyTrackingLink}
+						<div className="flex w-full max-w-full flex-wrap items-center gap-1.5 sm:justify-end">
+							<div className="flex max-w-full flex-wrap items-center gap-1.5">
+								{trackingUrl ? (
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										icon={<LinkSimpleIcon className="size-4" />}
+										onClick={handleCopyTrackingLink}
+									>
+										Copy tracking link
+									</Button>
+								) : null}
+								{canCancelOrder && (
+									<Button
+										type="button"
+										variant="destructive"
+										size="sm"
+										disabled={cancelOrderMutation.isPending}
+										onClick={openCancelOrderDialog}
+									>
+										Cancel order
+									</Button>
+								)}
+								{canRefundWholeOrder && (
+									<Button
+										type="button"
+										variant="destructive"
+										size="sm"
+										disabled={refundMutation.isPending}
+										onClick={openRefundOrderDialog}
+									>
+										Refund order
+									</Button>
+								)}
+							</div>
+							<div className="flex shrink-0 items-center gap-1.5">
+								<Badge
+									className="h-7"
+									variant={getOrderStatusBadgeVariant(detail.status)}
 								>
-									Copy tracking link
-								</Button>
-							) : null}
-							{canCancelOrder && (
-								<Button
-									type="button"
-									variant="destructive"
-									size="sm"
-									disabled={cancelOrderMutation.isPending}
-									onClick={openCancelOrderDialog}
+									{formatOrderStatus(detail.status)}
+								</Badge>
+								<Badge
+									className="h-7"
+									variant={getPaymentStatusBadgeVariant(detail.payment_status)}
 								>
-									Cancel order
-								</Button>
-							)}
-							{canRefundWholeOrder && (
-								<Button
-									type="button"
-									variant="destructive"
-									size="sm"
-									disabled={refundMutation.isPending}
-									onClick={openRefundOrderDialog}
-								>
-									Refund order
-								</Button>
-							)}
-							<Badge variant={getOrderStatusBadgeVariant(detail.status)}>
-								{formatOrderStatus(detail.status)}
-							</Badge>
-							<Badge
-								variant={getPaymentStatusBadgeVariant(detail.payment_status)}
-							>
-								{formatPaymentStatus(detail.payment_status)}
-							</Badge>
+									{formatPaymentStatus(detail.payment_status)}
+								</Badge>
+								{detail.refund_status !== "none" && (
+									<Badge
+										className="h-7"
+										variant={getRefundStatusBadgeVariant(detail.refund_status)}
+									>
+										{formatRefundStatus(detail.refund_status)}
+									</Badge>
+								)}
+							</div>
 						</div>
 					}
 				/>
@@ -818,7 +836,14 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 											<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
 												Cancel reason
 											</p>
-											<p className="mt-1 text-sm">{service.cancel_reason}</p>
+											<p className="mt-1 text-sm font-medium">
+												{formatCancelReason(service.cancel_reason)}
+											</p>
+											{service.cancel_note ? (
+												<p className="text-muted-foreground mt-1 text-sm">
+													{service.cancel_note}
+												</p>
+											) : null}
 										</div>
 									) : null}
 

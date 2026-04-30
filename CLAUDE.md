@@ -217,6 +217,5 @@ cd packages/server && bunx tsdown
 
 ## Detailed Standards
 
-@AGENTS.md
 @packages/server/AGENTS.md
 @apps/web/AGENTS.md

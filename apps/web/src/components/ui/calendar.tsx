@@ -42,21 +42,22 @@ function Calendar({
 	return (
 		<DayPicker
 			showOutsideDays={showOutsideDays}
+			fixedWeeks
 			className={cn("p-3", className)}
 			classNames={{
 				root: "w-fit",
-				months: "flex flex-col gap-4 sm:flex-row",
-				month: "grid gap-4",
-				month_caption: "relative flex items-center justify-center px-8 pt-1",
+				months: "flex flex-col items-start gap-4 sm:flex-row",
+				month: "relative grid gap-4",
+				month_caption: "flex h-7 items-center justify-center px-9 pt-1",
 				caption_label: "text-sm font-medium",
-				nav: "flex items-center gap-1",
+				nav: "pointer-events-none absolute inset-x-0 top-1 z-10 flex items-center justify-between px-1",
 				button_previous: cn(
 					buttonVariants({ variant: "outline", size: "icon-sm" }),
-					"absolute top-1 left-1 size-7 border-border bg-background p-0",
+					"pointer-events-auto size-7 border-border bg-background p-0",
 				),
 				button_next: cn(
 					buttonVariants({ variant: "outline", size: "icon-sm" }),
-					"absolute top-1 right-1 size-7 border-border bg-background p-0",
+					"pointer-events-auto size-7 border-border bg-background p-0",
 				),
 				month_grid: "border-collapse space-y-1",
 				weekdays: "flex",

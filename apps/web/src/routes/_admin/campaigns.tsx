@@ -379,7 +379,7 @@ function CampaignsPage() {
 			/>
 			<div className="grid gap-4">
 				<Card>
-					<CardContent className="pt-6">
+					<CardContent>
 						<div className="mb-4 flex items-center gap-2">
 							<Select
 								value={search.status}
