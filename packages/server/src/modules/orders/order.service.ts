@@ -50,9 +50,11 @@ interface ExpandedServiceItem {
 interface ResolvedCampaignRow {
   applied_amount: string;
   campaign_id: number;
-  discount_type: "fixed" | "percentage";
+  discount_type: "fixed" | "percentage" | "buy_n_get_m_free";
   discount_value: string;
   max_discount: string | null;
+  buy_quantity: number | null;
+  free_quantity: number | null;
 }
 
 interface ResolvedDiscount {
@@ -132,6 +134,7 @@ async function loadAndValidateCampaigns({
     where: { id: { in: campaignIds } },
     with: {
       stores: { columns: { store_id: true } },
+      eligibleServices: { columns: { service_id: true } },
     },
   });
 
@@ -196,6 +199,7 @@ async function resolveDiscount({
   manualDiscount,
   storeId,
   storeCode,
+  lines,
 }: {
   tx: OrderTx;
   campaignIds: number[];
@@ -203,6 +207,7 @@ async function resolveDiscount({
   manualDiscount: number;
   storeId: number;
   storeCode: string;
+  lines: { price: number; service_id: number }[];
 }): Promise<ResolvedDiscount> {
   const manual = Math.max(0, manualDiscount);
 
@@ -222,9 +227,17 @@ async function resolveDiscount({
     storeCode,
   });
 
+  const stackInput = campaigns.map((campaign) => ({
+    ...campaign,
+    eligible_service_ids: campaign.eligibleServices.map(
+      (entry) => entry.service_id
+    ),
+  }));
+
   const { total: campaignDiscount, breakdown } = stackCampaignDiscounts(
     grossTotal,
-    campaigns
+    stackInput,
+    lines
   );
 
   const campaignRows: ResolvedCampaignRow[] = breakdown.map(
@@ -234,6 +247,8 @@ async function resolveDiscount({
       discount_type: campaign.discount_type,
       discount_value: campaign.discount_value,
       max_discount: campaign.max_discount,
+      buy_quantity: campaign.buy_quantity,
+      free_quantity: campaign.free_quantity,
     })
   );
 
@@ -397,6 +412,14 @@ export async function createOrder(
     ]);
 
     const grossTotal = serviceSubtotal + productSubtotal;
+    const lines = expandedServices.map((item) => {
+      const service = serviceMap.get(item.id);
+      return {
+        price: Number(service?.price ?? 0),
+        service_id: item.id,
+      };
+    });
+
     const { discountAmount, discountSource, campaignRows } =
       await resolveDiscount({
         tx,
@@ -405,6 +428,7 @@ export async function createOrder(
         manualDiscount: Number(orderPayload.discount),
         storeId: store.id,
         storeCode: store.code,
+        lines,
       });
 
     if (discountAmount > grossTotal) {
@@ -420,6 +444,8 @@ export async function createOrder(
           discount_value: row.discount_value,
           max_discount: row.max_discount,
           applied_amount: row.applied_amount,
+          buy_quantity: row.buy_quantity,
+          free_quantity: row.free_quantity,
         }))
       );
     }

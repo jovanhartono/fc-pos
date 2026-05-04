@@ -1,10 +1,30 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { campaignStoresTable, campaignsTable } from "@/db/schema";
+import {
+  campaignEligibleServicesTable,
+  campaignStoresTable,
+  campaignsTable,
+} from "@/db/schema";
 
 interface CampaignFilters {
   is_active?: boolean;
   store_id?: number;
+}
+
+type CampaignDiscountType = "fixed" | "percentage" | "buy_n_get_m_free";
+
+interface CampaignWritePayload {
+  code: string;
+  name: string;
+  discount_type: CampaignDiscountType;
+  discount_value: string;
+  max_discount?: string | null;
+  min_order_total: string;
+  starts_at?: Date | null;
+  ends_at?: Date | null;
+  is_active: boolean;
+  buy_quantity?: number | null;
+  free_quantity?: number | null;
 }
 
 export function listCampaigns(filters: CampaignFilters) {
@@ -34,6 +54,18 @@ export function listCampaigns(filters: CampaignFilters) {
           },
         },
       },
+      eligibleServices: {
+        columns: { service_id: true },
+        with: {
+          service: {
+            columns: {
+              id: true,
+              code: true,
+              name: true,
+            },
+          },
+        },
+      },
     },
   });
 }
@@ -54,6 +86,18 @@ export function findCampaignById(id: number) {
           },
         },
       },
+      eligibleServices: {
+        columns: { id: true, service_id: true },
+        with: {
+          service: {
+            columns: {
+              id: true,
+              code: true,
+              name: true,
+            },
+          },
+        },
+      },
     },
   });
 }
@@ -65,24 +109,23 @@ export function findStoresByIds(storeIds: number[]) {
   });
 }
 
+export function findServicesByIds(serviceIds: number[]) {
+  return db.query.servicesTable.findMany({
+    where: { id: { in: serviceIds } },
+    columns: { id: true },
+  });
+}
+
 export function insertCampaignWithStores({
   payload,
   actorId,
   storeIds,
+  serviceIds,
 }: {
-  payload: {
-    code: string;
-    name: string;
-    discount_type: "fixed" | "percentage";
-    discount_value: string;
-    max_discount?: string | null;
-    min_order_total: string;
-    starts_at?: Date | null;
-    ends_at?: Date | null;
-    is_active: boolean;
-  };
+  payload: CampaignWritePayload;
   actorId: number;
   storeIds: number[];
+  serviceIds: number[];
 }) {
   return db.transaction(async (tx) => {
     const [campaign] = await tx
@@ -103,6 +146,15 @@ export function insertCampaignWithStores({
       );
     }
 
+    if (serviceIds.length > 0) {
+      await tx.insert(campaignEligibleServicesTable).values(
+        serviceIds.map((serviceId) => ({
+          campaign_id: campaign.id,
+          service_id: serviceId,
+        }))
+      );
+    }
+
     return campaign;
   });
 }
@@ -112,21 +164,13 @@ export function updateCampaignWithStores({
   payload,
   actorId,
   storeIds,
+  serviceIds,
 }: {
   id: number;
-  payload: Partial<{
-    code: string;
-    name: string;
-    discount_type: "fixed" | "percentage";
-    discount_value: string;
-    max_discount?: string | null;
-    min_order_total: string;
-    starts_at?: Date | null;
-    ends_at?: Date | null;
-    is_active: boolean;
-  }>;
+  payload: Partial<CampaignWritePayload>;
   actorId: number;
   storeIds?: number[];
+  serviceIds?: number[];
 }) {
   return db.transaction(async (tx) => {
     const rows = await tx
@@ -153,6 +197,21 @@ export function updateCampaignWithStores({
       }
     }
 
+    if (serviceIds) {
+      await tx
+        .delete(campaignEligibleServicesTable)
+        .where(eq(campaignEligibleServicesTable.campaign_id, id));
+
+      if (serviceIds.length > 0) {
+        await tx.insert(campaignEligibleServicesTable).values(
+          serviceIds.map((serviceId) => ({
+            campaign_id: id,
+            service_id: serviceId,
+          }))
+        );
+      }
+    }
+
     return rows[0] ?? null;
   });
 }
@@ -163,4 +222,23 @@ export function deleteCampaignById(id: number) {
     .where(eq(campaignsTable.id, id))
     .returning({ id: campaignsTable.id })
     .then((rows) => rows[0] ?? null);
+}
+
+export function findCampaignsByIdsWithEligibility(ids: number[]) {
+  if (ids.length === 0) {
+    return Promise.resolve(
+      [] as Awaited<ReturnType<typeof queryCampaignsWithEligibility>>
+    );
+  }
+  return queryCampaignsWithEligibility(ids);
+}
+
+function queryCampaignsWithEligibility(ids: number[]) {
+  return db.query.campaignsTable.findMany({
+    where: { id: { in: ids } },
+    with: {
+      stores: { columns: { store_id: true } },
+      eligibleServices: { columns: { service_id: true } },
+    },
+  });
 }

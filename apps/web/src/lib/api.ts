@@ -312,18 +312,39 @@ export type FetchCampaignsQuery = {
 	is_active?: boolean;
 };
 
-export type CampaignPayload = {
+export type CampaignBasePayload = {
 	code: string;
 	name: string;
-	discount_type: "fixed" | "percentage";
-	discount_value: string;
 	min_order_total: string;
-	max_discount?: string | null;
 	starts_at?: Date | null;
 	ends_at?: Date | null;
 	is_active: boolean;
 	store_ids: number[];
+	eligible_service_ids: number[];
 };
+
+export type CampaignFixedPayload = CampaignBasePayload & {
+	discount_type: "fixed";
+	discount_value: string;
+	max_discount?: string | null;
+};
+
+export type CampaignPercentagePayload = CampaignBasePayload & {
+	discount_type: "percentage";
+	discount_value: string;
+	max_discount?: string | null;
+};
+
+export type CampaignBogoPayload = CampaignBasePayload & {
+	discount_type: "buy_n_get_m_free";
+	buy_quantity: number;
+	free_quantity: number;
+};
+
+export type CampaignPayload =
+	| CampaignFixedPayload
+	| CampaignPercentagePayload
+	| CampaignBogoPayload;
 
 export type OrderCancelReason =
 	| "customer_request"
@@ -686,9 +707,25 @@ export async function createCampaign(payload: CampaignPayload) {
 	);
 }
 
+export type UpdateCampaignPayload = {
+	code?: string;
+	name?: string;
+	discount_type?: "fixed" | "percentage" | "buy_n_get_m_free";
+	discount_value?: string;
+	min_order_total?: string;
+	max_discount?: string | null;
+	starts_at?: Date | null;
+	ends_at?: Date | null;
+	is_active?: boolean;
+	store_ids?: number[];
+	eligible_service_ids?: number[];
+	buy_quantity?: number | null;
+	free_quantity?: number | null;
+};
+
 export async function updateCampaign(
 	id: number,
-	payload: Partial<CampaignPayload>,
+	payload: UpdateCampaignPayload,
 ) {
 	return parseResponse(
 		rpcWithAuth().api.admin.campaigns[":id"].$put({

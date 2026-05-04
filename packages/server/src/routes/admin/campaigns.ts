@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import {
   CampaignPayloadSchema,
+  CampaignUpdatePayloadSchema,
   GETCampaignsQuerySchema,
 } from "@/modules/campaigns/campaign.schema";
 import {
@@ -52,7 +53,7 @@ const app = new Hono()
   .put(
     "/:id",
     idParamSchema,
-    zodValidator("json", CampaignPayloadSchema.partial()),
+    zodValidator("json", CampaignUpdatePayloadSchema),
     async (c) => {
       const user = c.get("jwtPayload") as JWTPayload;
       const { id } = c.req.valid("param");

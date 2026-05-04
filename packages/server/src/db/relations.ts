@@ -79,6 +79,7 @@ export const relations = defineRelations(schema, (r) => ({
   },
 
   servicesTable: {
+    campaignEligibilities: r.many.campaignEligibleServicesTable(),
     category: r.one.categoriesTable({
       from: r.servicesTable.category_id,
       to: r.categoriesTable.id,
@@ -98,6 +99,7 @@ export const relations = defineRelations(schema, (r) => ({
       alias: "campaign_created_by",
       optional: false,
     }),
+    eligibleServices: r.many.campaignEligibleServicesTable(),
     orderCampaigns: r.many.orderCampaignsTable(),
     stores: r.many.campaignStoresTable(),
     updatedBy: r.one.usersTable({
@@ -117,6 +119,19 @@ export const relations = defineRelations(schema, (r) => ({
     store: r.one.storesTable({
       from: r.campaignStoresTable.store_id,
       to: r.storesTable.id,
+      optional: false,
+    }),
+  },
+
+  campaignEligibleServicesTable: {
+    campaign: r.one.campaignsTable({
+      from: r.campaignEligibleServicesTable.campaign_id,
+      to: r.campaignsTable.id,
+      optional: false,
+    }),
+    service: r.one.servicesTable({
+      from: r.campaignEligibleServicesTable.service_id,
+      to: r.servicesTable.id,
       optional: false,
     }),
   },

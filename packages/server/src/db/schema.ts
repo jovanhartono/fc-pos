@@ -175,6 +175,7 @@ export const discountSourceEnum = pgEnum("discount_source_enum", [
 export const campaignDiscountTypeEnum = pgEnum("campaign_discount_type_enum", [
   "fixed",
   "percentage",
+  "buy_n_get_m_free",
 ]);
 export const orderServiceStatusEnum = pgEnum("order_service_status_enum", [
   "queued",
@@ -213,6 +214,8 @@ export const campaignsTable = pgTable(
     discount_value: decimal("discount_value", { precision: 12 })
       .default("0")
       .notNull(),
+    buy_quantity: integer("buy_quantity"),
+    free_quantity: integer("free_quantity"),
     ends_at: timestamp("ends_at"),
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     is_active: boolean("is_active").default(true).notNull(),
@@ -254,6 +257,16 @@ export const campaignsTable = pgTable(
       "campaign_percentage_discount_limit_check",
       sql`${table.discount_type} != 'percentage' OR (${table.discount_value} >= 0 AND ${table.discount_value} <= 100)`
     ),
+    check(
+      "campaign_bogo_valid_check",
+      sql`${table.discount_type} != 'buy_n_get_m_free'
+          OR (
+            ${table.buy_quantity} IS NOT NULL
+            AND ${table.free_quantity} IS NOT NULL
+            AND ${table.buy_quantity} >= 1
+            AND ${table.free_quantity} >= 1
+          )`
+    ),
   ]
 );
 
@@ -275,6 +288,28 @@ export const campaignStoresTable = pgTable(
     uniqueIndex("campaign_stores_campaign_store_uidx").on(
       table.campaign_id,
       table.store_id
+    ),
+  ]
+);
+
+export const campaignEligibleServicesTable = pgTable(
+  "campaign_eligible_services",
+  {
+    campaign_id: integer("campaign_id")
+      .references(() => campaignsTable.id, { onDelete: "cascade" })
+      .notNull(),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    service_id: integer("service_id")
+      .references(() => servicesTable.id, { onDelete: "cascade" })
+      .notNull(),
+  },
+  (table) => [
+    index("campaign_eligible_services_campaign_idx").on(table.campaign_id),
+    index("campaign_eligible_services_service_idx").on(table.service_id),
+    uniqueIndex("campaign_eligible_services_campaign_service_uidx").on(
+      table.campaign_id,
+      table.service_id
     ),
   ]
 );
@@ -445,6 +480,7 @@ export const orderCampaignsTable = pgTable(
     applied_amount: decimal("applied_amount", { precision: 12 })
       .default("0")
       .notNull(),
+    buy_quantity: integer("buy_quantity"),
     campaign_id: integer("campaign_id")
       .references(() => campaignsTable.id, { onDelete: "restrict" })
       .notNull(),
@@ -453,6 +489,7 @@ export const orderCampaignsTable = pgTable(
     discount_value: decimal("discount_value", { precision: 12 })
       .default("0")
       .notNull(),
+    free_quantity: integer("free_quantity"),
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     max_discount: decimal("max_discount", { precision: 12 }),
     order_id: integer("order_id")

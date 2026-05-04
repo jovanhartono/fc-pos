@@ -3,7 +3,7 @@ import parsePhoneNumberFromString, {
 } from "libphonenumber-js";
 import z from "zod";
 import { orderPaymentStatusEnum } from "@/db/schema";
-
+import { CampaignPayloadSchema as _CampaignPayloadSchema } from "@/modules/campaigns/campaign.schema";
 import {
   ORDER_STATUS_TRANSITIONS as _ORDER_STATUS_TRANSITIONS,
   POSTOrderPickupEventPresignSchema as _POSTOrderPickupEventPresignSchema,
@@ -14,11 +14,13 @@ export const ORDER_STATUS_TRANSITIONS = _ORDER_STATUS_TRANSITIONS;
 export const POSTOrderPickupEventPresignSchema =
   _POSTOrderPickupEventPresignSchema;
 export const POSTOrderPickupEventSchema = _POSTOrderPickupEventSchema;
+export const CampaignPayloadSchema = _CampaignPayloadSchema;
 
 import {
   type CampaignContribution as _CampaignContribution,
   type CampaignDiscountInput as _CampaignDiscountInput,
   computeCampaignContribution as _computeCampaignContribution,
+  type DiscountLine as _DiscountLine,
   type StackedDiscount as _StackedDiscount,
   stackCampaignDiscounts as _stackCampaignDiscounts,
 } from "@/schema/discount";
@@ -26,6 +28,7 @@ import {
 export type CampaignContribution<T extends _CampaignDiscountInput> =
   _CampaignContribution<T>;
 export type CampaignDiscountInput = _CampaignDiscountInput;
+export type DiscountLine = _DiscountLine;
 export type StackedDiscount<T extends _CampaignDiscountInput> =
   _StackedDiscount<T>;
 export const computeCampaignContribution = _computeCampaignContribution;

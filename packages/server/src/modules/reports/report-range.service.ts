@@ -10,6 +10,7 @@ import {
   listCampaignEffectivenessRows,
   listCategoryRevenueSeries,
   listNewCustomersSeries,
+  listOrderDiscountSeries,
   listOrdersInSeries,
   listOrdersOutSeries,
   listPaymentMixSeries,
@@ -100,6 +101,8 @@ interface FinancialSummary {
   gross_revenue: number;
   services_total: number;
   products_total: number;
+  discount: number;
+  net_revenue: number;
   cogs: number;
   gross_profit: number;
   refunds: number;
@@ -116,12 +119,13 @@ async function financialSummaryFor({
   storeId?: number;
   granularity: Granularity;
 }) {
-  const [services, products, servicesCogs, productsCogs, refunds] =
+  const [services, products, servicesCogs, productsCogs, discount, refunds] =
     await Promise.all([
       listServicesRevenueSeries({ range, storeId, granularity }),
       listProductsRevenueSeries({ range, storeId, granularity }),
       listServicesCogsSeries({ range, storeId, granularity }),
       listProductsCogsSeries({ range, storeId, granularity }),
+      listOrderDiscountSeries({ range, storeId, granularity }),
       listRefundAmountSeries({ range, storeId, granularity }),
     ]);
   return {
@@ -129,6 +133,7 @@ async function financialSummaryFor({
     products,
     servicesCogs,
     productsCogs,
+    discount,
     refunds,
   };
 }
@@ -153,6 +158,7 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
   const productsMap = indexBy(current.products);
   const servicesCogsMap = indexBy(current.servicesCogs);
   const productsCogsMap = indexBy(current.productsCogs);
+  const discountMap = indexBy(current.discount);
   const refundsMap = indexBy(current.refunds);
 
   const series = ctx.buckets.map((bucket) => {
@@ -160,18 +166,22 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     const p = productsMap.get(bucket)?.revenue ?? 0;
     const sc = servicesCogsMap.get(bucket)?.cogs ?? 0;
     const pc = productsCogsMap.get(bucket)?.cogs ?? 0;
+    const d = discountMap.get(bucket)?.discount ?? 0;
     const r = refundsMap.get(bucket)?.amount ?? 0;
     const gross = s + p;
     const cogs = sc + pc;
+    const netRevenue = gross - d;
     return {
       bucket,
       services: s,
       products: p,
       gross_revenue: gross,
+      discount: d,
+      net_revenue: netRevenue,
       cogs,
-      gross_profit: gross - cogs,
+      gross_profit: netRevenue - cogs,
       refunds: r,
-      net_income: gross - cogs - r,
+      net_income: netRevenue - cogs - r,
     };
   });
 
@@ -262,6 +272,7 @@ function summariseFinancial(raw: {
   products: { revenue: number }[];
   servicesCogs: { cogs: number }[];
   productsCogs: { cogs: number }[];
+  discount: { discount: number }[];
   refunds: { amount: number }[];
 }): FinancialSummary {
   const servicesTotal = raw.services.reduce((s, r) => s + r.revenue, 0);
@@ -269,15 +280,19 @@ function summariseFinancial(raw: {
   const cogs =
     raw.servicesCogs.reduce((s, r) => s + r.cogs, 0) +
     raw.productsCogs.reduce((s, r) => s + r.cogs, 0);
+  const discount = raw.discount.reduce((s, r) => s + r.discount, 0);
   const refunds = raw.refunds.reduce((s, r) => s + r.amount, 0);
   const gross = servicesTotal + productsTotal;
-  const grossProfit = gross - cogs;
-  const netIncome = gross - cogs - refunds;
-  const netMargin = gross > 0 ? netIncome / gross : 0;
+  const netRevenue = gross - discount;
+  const grossProfit = netRevenue - cogs;
+  const netIncome = netRevenue - cogs - refunds;
+  const netMargin = netRevenue > 0 ? netIncome / netRevenue : 0;
   return {
     gross_revenue: gross,
     services_total: servicesTotal,
     products_total: productsTotal,
+    discount,
+    net_revenue: netRevenue,
     cogs,
     gross_profit: grossProfit,
     refunds,

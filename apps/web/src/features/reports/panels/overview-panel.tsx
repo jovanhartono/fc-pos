@@ -157,7 +157,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 
 			<KpiRow>
 				<KpiCard
-					label="Revenue"
+					label="Net revenue"
 					value={formatIDRCurrency(String(overview?.daily.revenue ?? 0))}
 					helper="Paid minus refunded"
 				/>

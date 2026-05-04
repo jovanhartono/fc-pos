@@ -68,6 +68,10 @@ export const FinancialPanel = ({
 		lines.push(
 			`Totals,Products,${summary?.products_total ?? 0},${prev.products_total}`,
 		);
+		lines.push(`Totals,Discount,${summary?.discount ?? 0},${prev.discount}`);
+		lines.push(
+			`Totals,Net revenue,${summary?.net_revenue ?? 0},${prev.net_revenue}`,
+		);
 		lines.push(`Totals,COGS,${summary?.cogs ?? 0},${prev.cogs}`);
 		lines.push(
 			`Totals,Gross profit,${summary?.gross_profit ?? 0},${prev.gross_profit}`,
@@ -81,11 +85,11 @@ export const FinancialPanel = ({
 		);
 		lines.push("");
 		lines.push(
-			"Financial series,Bucket,Services,Products,Gross,COGS,Gross profit,Refunds,Net income",
+			"Financial series,Bucket,Services,Products,Gross,Discount,Net revenue,COGS,Gross profit,Refunds,Net income",
 		);
 		for (const row of data.series) {
 			lines.push(
-				`Series,${escapeCsv(row.bucket)},${row.services},${row.products},${row.gross_revenue},${row.cogs},${row.gross_profit},${row.refunds},${row.net_income}`,
+				`Series,${escapeCsv(row.bucket)},${row.services},${row.products},${row.gross_revenue},${row.discount},${row.net_revenue},${row.cogs},${row.gross_profit},${row.refunds},${row.net_income}`,
 			);
 		}
 		lines.push("");
@@ -112,6 +116,18 @@ export const FinancialPanel = ({
 						helper="Services + products"
 					/>
 					<KpiCard
+						label="Discount"
+						value={formatIDRCurrency(String(summary?.discount ?? 0))}
+						delta={deltas?.discount}
+						helper="Campaign + manual"
+					/>
+					<KpiCard
+						label="Net revenue"
+						value={formatIDRCurrency(String(summary?.net_revenue ?? 0))}
+						delta={deltas?.net_revenue}
+						helper="Gross - discount"
+					/>
+					<KpiCard
 						label="COGS"
 						value={formatIDRCurrency(String(summary?.cogs ?? 0))}
 						delta={deltas?.cogs}
@@ -121,7 +137,7 @@ export const FinancialPanel = ({
 						label="Gross profit"
 						value={formatIDRCurrency(String(summary?.gross_profit ?? 0))}
 						delta={deltas?.gross_profit}
-						helper="Before refunds"
+						helper="Net revenue - COGS"
 					/>
 					<KpiCard
 						label="Refunds"
@@ -132,13 +148,13 @@ export const FinancialPanel = ({
 						label="Net income"
 						value={formatIDRCurrency(String(summary?.net_income ?? 0))}
 						delta={deltas?.net_income}
-						helper="Gross - COGS - refunds"
+						helper="Net revenue - COGS - refunds"
 					/>
 					<KpiCard
 						label="Net margin"
 						value={percentFormatter.format(summary?.net_margin ?? 0)}
 						delta={deltas?.net_margin}
-						helper="Net income / gross"
+						helper="Net income / net revenue"
 					/>
 					<KpiCard
 						label="Services"
@@ -171,13 +187,14 @@ export const FinancialPanel = ({
 			<ChartCard
 				variant="stacked-bar"
 				title="Gross revenue composition"
-				description="Net income + COGS + refunds = gross revenue per bucket."
+				description="Net income + COGS + refunds + discount = gross revenue per bucket."
 				data={data?.series ?? []}
 				granularity={data?.granularity ?? "day"}
 				series={[
 					{ key: "net_income", label: "Net income", color: CHART_PALETTE[1] },
 					{ key: "cogs", label: "COGS", color: CHART_PALETTE[2] },
 					{ key: "refunds", label: "Refunds", color: CHART_PALETTE[3] },
+					{ key: "discount", label: "Discount", color: CHART_PALETTE[4] },
 				]}
 				valueFormatter={(v) => formatIDRCurrency(String(v))}
 			/>

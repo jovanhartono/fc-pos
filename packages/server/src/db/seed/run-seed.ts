@@ -65,23 +65,324 @@ const STORE_PRESETS = [
 ] as const;
 
 const CATEGORY_PRESETS = [
-  { key: "core", name: "Core Cleaning" },
-  { key: "restoration", name: "Restoration" },
-  { key: "protection", name: "Protection & Finishing" },
+  { key: "deep_clean", name: "Deep Clean" },
+  { key: "leather", name: "Leather Care" },
+  { key: "suede", name: "Suede Care" },
+  { key: "helmet", name: "Helmet" },
+  { key: "sole_protector", name: "Sole Protector" },
+  { key: "repaint", name: "Repaint" },
+  { key: "repair", name: "Repair" },
+  { key: "addons", name: "Add-Ons" },
+  { key: "express", name: "Express" },
   { key: "retail", name: "Retail Product" },
 ] as const;
 
+// Prices in IDR (rupiah). COGS approximated per service type.
 const SERVICE_PRESETS = [
-  { code: "DCB", name: "Deep Clean Basic", categoryKey: "core" },
-  { code: "DCP", name: "Deep Clean Premium", categoryKey: "core" },
-  { code: "EXP", name: "Express Cleaning", categoryKey: "core" },
-  { code: "RPT", name: "Repaint Touch-up", categoryKey: "restoration" },
-  { code: "RPF", name: "Repaint Full", categoryKey: "restoration" },
-  { code: "GLU", name: "Reglue Service", categoryKey: "restoration" },
-  { code: "WPR", name: "Water Repellent Coating", categoryKey: "protection" },
-  { code: "UVT", name: "Unyellowing Treatment", categoryKey: "protection" },
-  { code: "DST", name: "Deodorizing Sterilization", categoryKey: "protection" },
-  { code: "LCE", name: "Lace Replacement", categoryKey: "restoration" },
+  // Deep Clean
+  {
+    code: "DCS",
+    name: "Deep Clean Standard (Shoes / Hat)",
+    categoryKey: "deep_clean",
+    price: 60_000,
+    cogs: 11_000,
+  },
+  {
+    code: "DCE",
+    name: "Deep Clean Express (6h to 24h)",
+    categoryKey: "deep_clean",
+    price: 90_000,
+    cogs: 16_000,
+  },
+  {
+    code: "DCB",
+    name: "Deep Clean Baby (up to EU 24)",
+    categoryKey: "deep_clean",
+    price: 30_000,
+    cogs: 6000,
+  },
+  {
+    code: "DCW",
+    name: "Deep Clean Waist / Sling / Hand Bag",
+    categoryKey: "deep_clean",
+    price: 60_000,
+    cogs: 11_000,
+  },
+  {
+    code: "DCP",
+    name: "Deep Clean Backpack / Tote Bag",
+    categoryKey: "deep_clean",
+    price: 80_000,
+    cogs: 14_000,
+  },
+  {
+    code: "DCL",
+    name: "Deep Clean Luggage / Golf / Gym Bag",
+    categoryKey: "deep_clean",
+    price: 100_000,
+    cogs: 18_000,
+  },
+  {
+    code: "DCT",
+    name: "Deep Clean Stroller",
+    categoryKey: "deep_clean",
+    price: 150_000,
+    cogs: 27_000,
+  },
+
+  // Leather Care
+  {
+    code: "LCS",
+    name: "Leather Care Standard",
+    categoryKey: "leather",
+    price: 125_000,
+    cogs: 25_000,
+  },
+  {
+    code: "LCB",
+    name: "Leather Care Bag",
+    categoryKey: "leather",
+    price: 200_000,
+    cogs: 40_000,
+  },
+  {
+    code: "LCC",
+    name: "Leather Care Complete (with Outsole Cleaning)",
+    categoryKey: "leather",
+    price: 150_000,
+    cogs: 30_000,
+  },
+
+  // Suede Care
+  {
+    code: "SCC",
+    name: "Suede Care Complete (Suede / Nubuck)",
+    categoryKey: "suede",
+    price: 150_000,
+    cogs: 30_000,
+  },
+
+  // Helmet
+  {
+    code: "HLM",
+    name: "Helmet Half / Full Face",
+    categoryKey: "helmet",
+    price: 80_000,
+    cogs: 16_000,
+  },
+
+  // Sole Protector
+  {
+    code: "SPI",
+    name: "Sole Protector Items Only",
+    categoryKey: "sole_protector",
+    price: 150_000,
+    cogs: 60_000,
+  },
+  {
+    code: "SPN",
+    name: "Sole Protector Installation (6 Mo. Warranty)",
+    categoryKey: "sole_protector",
+    price: 275_000,
+    cogs: 90_000,
+  },
+
+  // Repaint
+  {
+    code: "RPB",
+    name: "Repaint Full Body",
+    categoryKey: "repaint",
+    price: 175_000,
+    cogs: 35_000,
+  },
+  {
+    code: "RPM",
+    name: "Repaint Mid Sole",
+    categoryKey: "repaint",
+    price: 130_000,
+    cogs: 26_000,
+  },
+  {
+    code: "RPU",
+    name: "Repaint Upper Sole",
+    categoryKey: "repaint",
+    price: 150_000,
+    cogs: 30_000,
+  },
+  {
+    code: "RP2",
+    name: "Repaint Add Two Tone (2 Color)",
+    categoryKey: "repaint",
+    price: 50_000,
+    cogs: 12_000,
+  },
+  {
+    code: "RPC",
+    name: "Repaint Add Checkerboard",
+    categoryKey: "repaint",
+    price: 100_000,
+    cogs: 22_000,
+  },
+  {
+    code: "RPG",
+    name: "Repaint Bag",
+    categoryKey: "repaint",
+    price: 250_000,
+    cogs: 50_000,
+  },
+
+  // Repair (6 Mo. Warranty)
+  {
+    code: "RGM",
+    name: "Repair Minor Reglue",
+    categoryKey: "repair",
+    price: 35_000,
+    cogs: 8000,
+  },
+  {
+    code: "RGF",
+    name: "Repair Full Sole Reglue",
+    categoryKey: "repair",
+    price: 150_000,
+    cogs: 35_000,
+  },
+  {
+    code: "RST",
+    name: "Repair Restitch",
+    categoryKey: "repair",
+    price: 80_000,
+    cogs: 18_000,
+  },
+  {
+    code: "RLR",
+    name: "Repair Leather Replacement",
+    categoryKey: "repair",
+    price: 120_000,
+    cogs: 35_000,
+  },
+  {
+    code: "RZP",
+    name: "Repair Zipper Replacement",
+    categoryKey: "repair",
+    price: 90_000,
+    cogs: 25_000,
+  },
+  {
+    code: "RSS",
+    name: "Repair Slide Swap",
+    categoryKey: "repair",
+    price: 500_000,
+    cogs: 175_000,
+  },
+  {
+    code: "RSO",
+    name: "Repair Sole Swap",
+    categoryKey: "repair",
+    price: 200_000,
+    cogs: 70_000,
+  },
+  {
+    code: "RSY",
+    name: "Repair Sole Swap Yeezy",
+    categoryKey: "repair",
+    price: 700_000,
+    cogs: 280_000,
+  },
+  {
+    code: "RSB",
+    name: "Repair Sole Swap Balenciaga",
+    categoryKey: "repair",
+    price: 1_100_000,
+    cogs: 440_000,
+  },
+  {
+    code: "RSL",
+    name: "Repair Sole Swap Louboutin",
+    categoryKey: "repair",
+    price: 1_110_000,
+    cogs: 440_000,
+  },
+  {
+    code: "RSN",
+    name: "Repair Sole Swap Yonex SHB",
+    categoryKey: "repair",
+    price: 325_000,
+    cogs: 110_000,
+  },
+  {
+    code: "RHT",
+    name: "Repair Heels Tip",
+    categoryKey: "repair",
+    price: 100_000,
+    cogs: 28_000,
+  },
+  {
+    code: "RLW",
+    name: "Repair Luggage Wheels",
+    categoryKey: "repair",
+    price: 150_000,
+    cogs: 50_000,
+  },
+  {
+    code: "ROT",
+    name: "Repair Others",
+    categoryKey: "repair",
+    price: 250_000,
+    cogs: 80_000,
+  },
+
+  // Add-Ons
+  {
+    code: "AWT",
+    name: "Add-On Whitening (Canvas)",
+    categoryKey: "addons",
+    price: 90_000,
+    cogs: 14_000,
+  },
+  {
+    code: "AHS",
+    name: "Add-On Hard Stain (Mesh, Knit)",
+    categoryKey: "addons",
+    price: 40_000,
+    cogs: 7000,
+  },
+  {
+    code: "AUY",
+    name: "Add-On Unyellow (Hard Rubber)",
+    categoryKey: "addons",
+    price: 50_000,
+    cogs: 9000,
+  },
+  {
+    code: "AUW",
+    name: "Add-On Unwrinkle (Remove Creasing)",
+    categoryKey: "addons",
+    price: 50_000,
+    cogs: 9000,
+  },
+  {
+    code: "AHR",
+    name: "Add-On Hat Reshape",
+    categoryKey: "addons",
+    price: 60_000,
+    cogs: 10_000,
+  },
+  {
+    code: "AWP",
+    name: "Add-On Waterproof",
+    categoryKey: "addons",
+    price: 50_000,
+    cogs: 12_000,
+  },
+
+  // Express
+  {
+    code: "EXP",
+    name: "Express Skip the Line",
+    categoryKey: "express",
+    price: 30_000,
+    cogs: 5000,
+  },
 ] as const;
 
 const PAYMENT_METHODS = [
@@ -156,7 +457,7 @@ interface StoreRow {
 interface CampaignRow {
   id: number;
   code: string;
-  discount_type: "fixed" | "percentage";
+  discount_type: "fixed" | "percentage" | "buy_n_get_m_free";
   discount_value: number;
   min_order_total: number;
   max_discount: number | null;
@@ -694,8 +995,8 @@ async function seedCatalog(adminId: number) {
         code: service.code,
         name: service.name,
         description: faker.lorem.sentence(),
-        cogs: asMoney(randInt(14_000, 65_000)),
-        price: asMoney(randInt(40_000, 180_000)),
+        cogs: asMoney(service.cogs),
+        price: asMoney(service.price),
         is_active: true,
       }))
     )

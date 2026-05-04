@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CampaignAutocomplete } from "@/features/orders/components/campaign-autocomplete";
 import { CustomerAutocomplete } from "@/features/orders/components/customer-autocomplete";
+import { CampaignSummaryCard } from "@/features/transactions/components/campaign-summary-card";
 import { useCartTotals } from "@/features/transactions/hooks/use-cart-totals";
 import { useTransactionsCart } from "@/features/transactions/hooks/use-transactions-cart";
 import {
@@ -156,9 +157,17 @@ export function TransactionsCheckout() {
 		[paymentMethodOptions, selectedPaymentMethodId],
 	);
 
+	const lines = useMemo(
+		() =>
+			cartServiceRows.map((row) => ({
+				price: Number(row.service.price),
+				service_id: row.service.id,
+			})),
+		[cartServiceRows],
+	);
 	const stackedDiscount = useMemo(
-		() => getStackedDiscount(subtotal, selectedCampaigns),
-		[subtotal, selectedCampaigns],
+		() => getStackedDiscount(subtotal, selectedCampaigns, lines),
+		[subtotal, selectedCampaigns, lines],
 	);
 	const campaignDiscount = stackedDiscount.total;
 	const discountValue = Number(manualDiscount || 0);
@@ -256,22 +265,7 @@ export function TransactionsCheckout() {
 			{selectedCampaigns.length > 0 ? (
 				<div className="grid gap-2">
 					{selectedCampaigns.map((campaign) => (
-						<div
-							key={campaign.id}
-							className="flex items-center justify-between gap-3 border border-emerald-300/60 bg-emerald-50/70 p-3 text-sm dark:border-emerald-800 dark:bg-emerald-950/30"
-						>
-							<div>
-								<p className="font-medium">{campaign.name}</p>
-								<p className="text-xs text-muted-foreground">
-									{campaign.code} active on this store
-								</p>
-							</div>
-							<Badge variant="success">
-								{campaign.discount_type === "percentage"
-									? `${campaign.discount_value}%`
-									: formatIDRCurrency(String(campaign.discount_value))}
-							</Badge>
-						</div>
+						<CampaignSummaryCard key={campaign.id} campaign={campaign} />
 					))}
 				</div>
 			) : null}

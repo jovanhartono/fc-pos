@@ -170,6 +170,38 @@ export async function listProductsCogsSeries({
   }));
 }
 
+// ───────────────────────── Discount (Financial) ─────────────────────────
+
+export async function listOrderDiscountSeries({
+  range,
+  storeId,
+  granularity,
+}: BaseRangeArgs) {
+  const bucket = jakartaBucketExpr(ordersTable.paid_at, granularity);
+  const conditions = [
+    gte(ordersTable.paid_at, range.start),
+    lt(ordersTable.paid_at, range.end),
+    isNotNull(ordersTable.paid_at),
+  ];
+  if (storeId !== undefined) {
+    conditions.push(eq(ordersTable.store_id, storeId));
+  }
+
+  const rows = await db
+    .select({
+      bucket,
+      discount: sql<string>`COALESCE(SUM(${ordersTable.discount}), 0)`,
+    })
+    .from(ordersTable)
+    .where(and(...conditions))
+    .groupBy(bucket);
+
+  return rows.map((row) => ({
+    bucket: row.bucket,
+    discount: Number(row.discount),
+  }));
+}
+
 // ───────────────────────── Store revenue (branch donut) ─────────────────────────
 
 export async function listStoreRevenueRows({ range }: { range: DateRange }) {

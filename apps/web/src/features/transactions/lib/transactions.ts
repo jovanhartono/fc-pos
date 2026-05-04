@@ -1,5 +1,6 @@
 import {
 	type CampaignContribution,
+	type DiscountLine,
 	stackCampaignDiscounts,
 } from "@fresclean/api/schema";
 import type {
@@ -113,8 +114,17 @@ export function isCampaignAvailable(campaign: Campaign, now: Date) {
 
 export type CampaignBreakdown = CampaignContribution<Campaign>;
 
-export function getStackedDiscount(subtotal: number, campaigns: Campaign[]) {
-	return stackCampaignDiscounts(subtotal, campaigns);
+export function getStackedDiscount(
+	subtotal: number,
+	campaigns: Campaign[],
+	lines: DiscountLine[] = [],
+) {
+	const stackInput = campaigns.map((campaign) => ({
+		...campaign,
+		eligible_service_ids:
+			campaign.eligibleServices?.map((entry) => entry.service_id) ?? [],
+	}));
+	return stackCampaignDiscounts(subtotal, stackInput, lines);
 }
 
 export function toTransactionPayload({

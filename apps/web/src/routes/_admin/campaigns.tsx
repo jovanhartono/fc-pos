@@ -27,9 +27,9 @@ import {
 } from "@/features/campaigns/components/campaign-form";
 import {
 	type Campaign,
-	type CampaignPayload,
 	createCampaign,
 	queryKeys,
+	type UpdateCampaignPayload,
 	updateCampaign,
 } from "@/lib/api";
 import { campaignsQueryOptions, storesQueryOptions } from "@/lib/query-options";
@@ -84,6 +84,9 @@ const defaultCampaignForm: CampaignFormState = {
 	ends_at: "",
 	is_active: true,
 	store_ids: [],
+	eligible_service_ids: [],
+	buy_quantity: undefined,
+	free_quantity: undefined,
 };
 
 function toDateTimeLocal(value: Date | string | null | undefined) {
@@ -99,6 +102,12 @@ function toDateTimeLocal(value: Date | string | null | undefined) {
 function formatCampaignDiscount(campaign: Campaign) {
 	if (campaign.discount_type === "percentage") {
 		return `${campaign.discount_value}%`;
+	}
+
+	if (campaign.discount_type === "buy_n_get_m_free") {
+		return `Buy ${campaign.buy_quantity ?? "?"} Get ${
+			campaign.free_quantity ?? "?"
+		} Free`;
 	}
 
 	return formatIDRCurrency(String(campaign.discount_value));
@@ -205,7 +214,7 @@ function CampaignsPage() {
 			payload,
 		}: {
 			id: number;
-			payload: Partial<CampaignPayload>;
+			payload: UpdateCampaignPayload;
 		}) => updateCampaign(id, payload),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
@@ -259,6 +268,10 @@ function CampaignsPage() {
 							ends_at: toDateTimeLocal(campaign.ends_at),
 							is_active: campaign.is_active,
 							store_ids: campaign.stores.map((item) => item.store_id),
+							eligible_service_ids:
+								campaign.eligibleServices?.map((item) => item.service_id) ?? [],
+							buy_quantity: campaign.buy_quantity ?? undefined,
+							free_quantity: campaign.free_quantity ?? undefined,
 						}}
 						isEditing
 						onReset={closeSheet}
