@@ -279,6 +279,63 @@ export async function listCategoryRevenueSeries({
   }));
 }
 
+// ───────────────────────── Branch × Category revenue ─────────────────────────
+
+export async function listStoreCategoryRevenueRows({
+  range,
+  storeId,
+}: {
+  range: DateRange;
+  storeId?: number;
+}) {
+  const conditions = [
+    gte(ordersTable.paid_at, range.start),
+    lt(ordersTable.paid_at, range.end),
+    isNotNull(ordersTable.paid_at),
+  ];
+  if (storeId !== undefined) {
+    conditions.push(eq(ordersTable.store_id, storeId));
+  }
+
+  const rows = await db
+    .select({
+      store_id: ordersTable.store_id,
+      store_name: storesTable.name,
+      store_code: storesTable.code,
+      category_id: categoriesTable.id,
+      category_name: categoriesTable.name,
+      revenue: sql<string>`COALESCE(SUM(${ordersServicesTable.subtotal}), 0)`,
+    })
+    .from(ordersServicesTable)
+    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .innerJoin(storesTable, eq(ordersTable.store_id, storesTable.id))
+    .innerJoin(
+      servicesTable,
+      eq(ordersServicesTable.service_id, servicesTable.id)
+    )
+    .innerJoin(
+      categoriesTable,
+      eq(servicesTable.category_id, categoriesTable.id)
+    )
+    .where(and(...conditions))
+    .groupBy(
+      ordersTable.store_id,
+      storesTable.name,
+      storesTable.code,
+      categoriesTable.id,
+      categoriesTable.name
+    );
+
+  return rows.map((row) => ({
+    store_id: row.store_id,
+    store_name: row.store_name,
+    store_code: row.store_code,
+    category_id: row.category_id,
+    category_name: row.category_name,
+    revenue: Number(row.revenue),
+  }));
+}
+
 // ───────────────────────── Orders flow (R2) ─────────────────────────
 
 export async function listOrdersInSeries({

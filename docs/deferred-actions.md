@@ -165,6 +165,21 @@ Items skipped for first production launch. Each entry: **what**, **why deferred*
 
 ---
 
+## Reports
+
+### D-20. Financial panel — Iteration 2 (manual two-range compare + per-bucket/per-category previous)
+- **What:**
+  1. Manual two-range pickers + compare-mode toggle on financial panel (`apps/web/src/features/reports/panels/financial-panel.tsx`).
+  2. Server endpoint `/admin/reports/financial` accepts `compare_from` / `compare_to` query params.
+  3. Server returns per-category previous totals → enable per-category deltas in Branch×Category matrix and category bars.
+  4. Server returns per-bucket previous series → overlay ghost line on revenue line chart.
+- **Current:** Iteration 1 ships only auto-compare against equivalent prior range (`summary.previous` + `summary.deltas`). Hero KPI + stat strips show deltas; matrix + line chart do not.
+- **Why deferred:** Iteration 1 design freeze; manual picker UX + server schema change need their own pass.
+- **Revisit when:** Stakeholder requests YoY/MoM compare OR per-category trend signal.
+- **Effort:** Medium. UI picker + Zod query schema + range util + repository per-category/per-bucket previous queries.
+
+---
+
 ## Index
 
 | ID | Area | Effort | Trigger |
@@ -188,3 +203,4 @@ Items skipped for first production launch. Each entry: **what**, **why deferred*
 | D-17 | DR backup | M | Compliance |
 | D-18 | Secrets management | LM | Compliance |
 | D-19 | Cancel→refund note link | L | Audit request |
+| D-20 | Financial panel Iteration 2 (manual compare + per-bucket/per-category previous) | M | YoY/MoM ask or category trend signal |

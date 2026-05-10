@@ -21,6 +21,7 @@ import {
   listReturningCustomerOrdersSeries,
   listServicesCogsSeries,
   listServicesRevenueSeries,
+  listStoreCategoryRevenueRows,
   listStoreRevenueRows,
   listTopCustomers,
   listWorkerProductivityRows,
@@ -143,16 +144,22 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
 
-  const [current, previous, categories, storeRevenue] = await Promise.all([
-    financialSummaryFor({ range, storeId, granularity: ctx.granularity }),
-    financialSummaryFor({
-      range: ctx.previous.range,
-      storeId,
-      granularity: ctx.granularity,
-    }),
-    listCategoryRevenueSeries({ range, storeId, granularity: ctx.granularity }),
-    listStoreRevenueRows({ range }),
-  ]);
+  const [current, previous, categories, storeRevenue, storeCategoryRows] =
+    await Promise.all([
+      financialSummaryFor({ range, storeId, granularity: ctx.granularity }),
+      financialSummaryFor({
+        range: ctx.previous.range,
+        storeId,
+        granularity: ctx.granularity,
+      }),
+      listCategoryRevenueSeries({
+        range,
+        storeId,
+        granularity: ctx.granularity,
+      }),
+      listStoreRevenueRows({ range }),
+      listStoreCategoryRevenueRows({ range, storeId }),
+    ]);
 
   const servicesMap = indexBy(current.services);
   const productsMap = indexBy(current.products);
@@ -248,6 +255,115 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     }))
     .sort((a, b) => b.revenue - a.revenue);
 
+  // Branch × Category matrix: global top N columns, "Other" collapses rest
+  const STORE_CATEGORY_TOP_N = 6;
+  const STORE_CATEGORY_MAX_STORES = 12;
+  const OTHER_CATEGORY_ID = -1;
+
+  const globalCategoryTotals = new Map<
+    number,
+    { label: string; revenue: number }
+  >();
+  for (const row of storeCategoryRows) {
+    const entry = globalCategoryTotals.get(row.category_id);
+    globalCategoryTotals.set(row.category_id, {
+      label: row.category_name,
+      revenue: (entry?.revenue ?? 0) + row.revenue,
+    });
+  }
+
+  const globalSorted = Array.from(globalCategoryTotals.entries())
+    .map(([id, c]) => ({
+      category_id: id,
+      label: c.label,
+      revenue: c.revenue,
+    }))
+    .sort((a, b) => b.revenue - a.revenue || a.category_id - b.category_id);
+
+  const topCategoryEntries = globalSorted.slice(0, STORE_CATEGORY_TOP_N);
+  const hasOtherStoreCategory = globalSorted.length > STORE_CATEGORY_TOP_N;
+  const topCategoryIdSet = new Set(
+    topCategoryEntries.map((c) => c.category_id)
+  );
+
+  const storeCategoryColumns: {
+    category_id: number;
+    label: string;
+    revenue: number;
+  }[] = topCategoryEntries.map((c) => ({
+    category_id: c.category_id,
+    label: c.label,
+    revenue: c.revenue,
+  }));
+  if (hasOtherStoreCategory) {
+    const otherTotal = globalSorted
+      .slice(STORE_CATEGORY_TOP_N)
+      .reduce((s, c) => s + c.revenue, 0);
+    storeCategoryColumns.push({
+      category_id: OTHER_CATEGORY_ID,
+      label: "Other",
+      revenue: otherTotal,
+    });
+  }
+
+  interface StoreBucket {
+    store_id: number;
+    store_code: string;
+    store_name: string;
+    total: number;
+    byCategory: Map<number, number>;
+  }
+
+  const storeBuckets = new Map<number, StoreBucket>();
+  for (const row of storeCategoryRows) {
+    const bucket = storeBuckets.get(row.store_id) ?? {
+      store_id: row.store_id,
+      store_code: row.store_code,
+      store_name: row.store_name,
+      total: 0,
+      byCategory: new Map<number, number>(),
+    };
+    const colId = topCategoryIdSet.has(row.category_id)
+      ? row.category_id
+      : OTHER_CATEGORY_ID;
+    bucket.byCategory.set(
+      colId,
+      (bucket.byCategory.get(colId) ?? 0) + row.revenue
+    );
+    bucket.total += row.revenue;
+    storeBuckets.set(row.store_id, bucket);
+  }
+
+  const sortedStoreBuckets = Array.from(storeBuckets.values()).sort(
+    (a, b) => b.total - a.total
+  );
+  const omittedStoreCount = Math.max(
+    0,
+    sortedStoreBuckets.length - STORE_CATEGORY_MAX_STORES
+  );
+  const visibleStoreBuckets = sortedStoreBuckets.slice(
+    0,
+    STORE_CATEGORY_MAX_STORES
+  );
+
+  const storeCategoryRowsOut = visibleStoreBuckets.map((bucket) => {
+    const cells = storeCategoryColumns.map((col) => {
+      const revenue = bucket.byCategory.get(col.category_id) ?? 0;
+      return {
+        category_id: col.category_id,
+        revenue,
+        share: bucket.total > 0 ? revenue / bucket.total : 0,
+      };
+    });
+    return {
+      store_id: bucket.store_id,
+      store_code: bucket.store_code,
+      store_name: bucket.store_name,
+      total: bucket.total,
+      cells,
+    };
+  });
+
   return {
     from: ctx.from,
     to: ctx.to,
@@ -259,6 +375,11 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     category_keys: categoryKeys,
     category_treemap: categoryTreemap,
     store_breakdown: storeBreakdown,
+    store_category_matrix: {
+      columns: storeCategoryColumns,
+      rows: storeCategoryRowsOut,
+      omitted_stores: omittedStoreCount,
+    },
     summary: {
       current: summary,
       previous: prevSummary,
