@@ -1,5 +1,5 @@
 import { ORDER_STATUS_TRANSITIONS } from "@fresclean/api/schema";
-import { CameraIcon, LinkSimpleIcon } from "@phosphor-icons/react";
+import { ImageSquareIcon, LinkSimpleIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -9,7 +9,6 @@ import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -24,23 +23,26 @@ import { OrderDropoffPhotoCard } from "@/features/orders/components/order-dropof
 import { OrderFulfillmentOverview } from "@/features/orders/components/order-fulfillment-overview";
 import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
 import { OrderPickupEventDialog } from "@/features/orders/components/order-pickup-event-dialog";
+import {
+	PhotoLightbox,
+	type PhotoLightboxItem,
+} from "@/features/orders/components/photo-lightbox";
+import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { QueueServiceDetail } from "@/features/orders/components/queue-service-detail";
 import { RefundOrderForm } from "@/features/orders/components/refund-order-form";
 import { ServiceCancelButton } from "@/features/orders/components/service-cancel-button";
 import { ServiceStatusUpdateButton } from "@/features/orders/components/service-status-update-button";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
+import { uploadOrderServicePhoto } from "@/features/orders/utils/photo-upload";
 import {
 	cancelOrder,
 	createOrderRefund,
 	deleteOrderServicePhoto,
 	type OrderDetail,
-	presignOrderServicePhoto,
 	queryKeys,
-	saveOrderServicePhoto,
 	type UpdateOrderServiceStatusPayload,
 	updateOrderPayment,
 	updateOrderServiceStatus,
-	uploadFileToPresignedUrl,
 } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
@@ -165,43 +167,99 @@ function OrderPickupHistoryCard({
 }: {
 	pickupEvents: PickupEvent[];
 }) {
-	return (
-		<Card>
-			<CardHeader className="pb-2">
-				<CardTitle className="text-base">Pickup history</CardTitle>
-			</CardHeader>
-			<CardContent className="grid gap-3">
-				{pickupEvents.map((event) => {
-					const pickedUpAt = new Date(event.picked_up_at).toLocaleString(
-						"en-ID",
-						{
-							dateStyle: "medium",
-							timeStyle: "short",
-						},
-					);
-					const pickedUpBy = event.picked_up_by?.name ?? "unknown operator";
+	const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
-					return (
-						<div key={event.id} className="grid gap-2 border p-2 text-sm">
-							{event.image_url ? (
-								<img
-									src={event.image_url}
-									alt={`Pickup on ${pickedUpAt} by ${pickedUpBy}`}
-									width={640}
-									height={400}
-									className="aspect-16/10 w-full border object-cover"
-									loading="lazy"
-								/>
-							) : null}
-							<div className="grid gap-0.5">
-								<p className="font-medium">{pickedUpAt}</p>
-								<p className="text-muted-foreground text-xs">by {pickedUpBy}</p>
+	const eventsWithImage = pickupEvents
+		.map((event, index) => ({ event, index }))
+		.filter(({ event }) => Boolean(event.image_url));
+
+	const lightboxItems: PhotoLightboxItem[] = eventsWithImage.map(
+		({ event }) => {
+			const pickedUpAt = new Date(event.picked_up_at).toLocaleString("en-ID", {
+				dateStyle: "medium",
+				timeStyle: "short",
+			});
+			const pickedUpBy = event.picked_up_by?.name ?? "unknown operator";
+			return {
+				alt: `Pickup on ${pickedUpAt} by ${pickedUpBy}`,
+				created_at: event.picked_up_at,
+				id: `pickup-${event.id}`,
+				image_url: event.image_url ?? "",
+				primaryLabel: `Pickup · ${pickedUpBy}`,
+			};
+		},
+	);
+
+	const openPreview = (eventId: number) => {
+		const indexInLightbox = eventsWithImage.findIndex(
+			({ event }) => event.id === eventId,
+		);
+		if (indexInLightbox >= 0) {
+			setPreviewIndex(indexInLightbox);
+		}
+	};
+
+	return (
+		<>
+			<Card>
+				<CardHeader className="pb-2">
+					<CardTitle className="text-base">Pickup history</CardTitle>
+				</CardHeader>
+				<CardContent className="grid gap-3">
+					{pickupEvents.map((event) => {
+						const pickedUpAt = new Date(event.picked_up_at).toLocaleString(
+							"en-ID",
+							{
+								dateStyle: "medium",
+								timeStyle: "short",
+							},
+						);
+						const pickedUpBy = event.picked_up_by?.name ?? "unknown operator";
+
+						return (
+							<div key={event.id} className="grid gap-2 border p-2 text-sm">
+								{event.image_url ? (
+									<button
+										type="button"
+										className="block w-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/50"
+										onClick={() => openPreview(event.id)}
+										aria-label={`Open pickup photo from ${pickedUpAt}`}
+									>
+										<img
+											src={event.image_url}
+											alt={`Pickup on ${pickedUpAt} by ${pickedUpBy}`}
+											width={640}
+											height={400}
+											className="aspect-16/10 w-full border object-cover"
+											loading="lazy"
+										/>
+									</button>
+								) : null}
+								<div className="grid gap-0.5">
+									<p className="font-medium">{pickedUpAt}</p>
+									<p className="text-muted-foreground text-xs">
+										by {pickedUpBy}
+									</p>
+								</div>
 							</div>
-						</div>
-					);
-				})}
-			</CardContent>
-		</Card>
+						);
+					})}
+				</CardContent>
+			</Card>
+			{lightboxItems.length > 0 ? (
+				<PhotoLightbox
+					open={previewIndex !== null}
+					onOpenChange={(open) => {
+						if (!open) {
+							setPreviewIndex(null);
+						}
+					}}
+					title="Pickup photo"
+					items={lightboxItems}
+					initialIndex={previewIndex ?? 0}
+				/>
+			) : null}
+		</>
 	);
 }
 
@@ -271,12 +329,9 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 
 	const queryClient = useQueryClient();
 
-	const [photoFileByServiceId, setPhotoFileByServiceId] = useState<
-		Record<number, File | null>
-	>({});
-	const [photoNoteByServiceId, setPhotoNoteByServiceId] = useState<
-		Record<number, string>
-	>({});
+	const [photoUploadServiceId, setPhotoUploadServiceId] = useState<
+		number | null
+	>(null);
 	const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState("");
 
 	const detailQuery = useQuery(orderDetailQueryOptions(id));
@@ -307,52 +362,6 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 		mutationFn: (paymentMethodId: number) =>
 			updateOrderPayment(id, { payment_method_id: paymentMethodId }),
 		onSuccess: async () => {
-			await refreshOrderData();
-		},
-	});
-
-	const uploadPhotoMutation = useMutation({
-		mutationFn: async ({
-			serviceId,
-			file,
-			note,
-		}: {
-			serviceId: number;
-			file: File;
-			note?: string;
-		}) => {
-			const contentType = file.type as
-				| "image/jpeg"
-				| "image/png"
-				| "image/webp"
-				| "image/heic";
-
-			if (
-				!["image/jpeg", "image/png", "image/webp", "image/heic"].includes(
-					contentType,
-				)
-			) {
-				throw new Error("Unsupported image type");
-			}
-
-			const presigned = await presignOrderServicePhoto(id, serviceId, {
-				content_type: contentType,
-			});
-			await uploadFileToPresignedUrl(presigned.upload_url, file, contentType);
-			await saveOrderServicePhoto(id, serviceId, {
-				image_path: presigned.key,
-				note,
-			});
-		},
-		onSuccess: async (_, variables) => {
-			setPhotoFileByServiceId((prev) => ({
-				...prev,
-				[variables.serviceId]: null,
-			}));
-			setPhotoNoteByServiceId((prev) => ({
-				...prev,
-				[variables.serviceId]: "",
-			}));
 			await refreshOrderData();
 		},
 	});
@@ -763,11 +772,10 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 						</Card>
 					) : null}
 					{orderServices.map((service) => {
-						const selectedPhotoFile = photoFileByServiceId[service.id] ?? null;
-						const selectedPhotoNote = photoNoteByServiceId[service.id] ?? "";
 						const availableTransitions = (
 							ORDER_STATUS_TRANSITIONS[service.status] || []
 						).filter((nextStatus) => !(nextStatus === "cancelled" && isPaid));
+						const itemLabel = service.item_code ?? `Service #${service.id}`;
 
 						return (
 							<Card key={service.id}>
@@ -875,62 +883,27 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 										<p className="text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wide">
 											Add item photo
 										</p>
-										<div className="grid gap-2">
-											<label
-												htmlFor={`service-photo-${service.id}`}
-												className="inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 border border-border bg-background px-3 text-sm font-medium shadow-xs transition-colors hover:bg-accent hover:text-accent-foreground"
-											>
-												<CameraIcon className="size-4" />
-												<span className="truncate">
-													{selectedPhotoFile
-														? selectedPhotoFile.name
-														: `Choose photo${service.item_code ? ` for ${service.item_code}` : ""}`}
-												</span>
-											</label>
-											<input
-												id={`service-photo-${service.id}`}
-												type="file"
-												aria-label={`Choose photo file for ${service.item_code ?? `Service #${service.id}`}`}
-												accept="image/jpeg,image/png,image/webp,image/heic"
-												className="sr-only"
-												onChange={(event) =>
-													setPhotoFileByServiceId((prev) => ({
-														...prev,
-														[service.id]: event.target.files?.[0] ?? null,
-													}))
-												}
-											/>
-											<Input
-												placeholder="Optional note (e.g. outsole cracked)"
-												value={selectedPhotoNote}
-												onChange={(event) =>
-													setPhotoNoteByServiceId((prev) => ({
-														...prev,
-														[service.id]: event.target.value,
-													}))
-												}
-												aria-label={`Photo note for ${service.item_code ?? `Service #${service.id}`}`}
-											/>
-											<Button
-												variant="secondary"
-												className="sm:self-end"
-												disabled={
-													!selectedPhotoFile || uploadPhotoMutation.isPending
-												}
-												onClick={async () => {
-													if (!selectedPhotoFile) {
-														return;
-													}
-													await uploadPhotoMutation.mutateAsync({
-														serviceId: service.id,
-														file: selectedPhotoFile,
-														note: selectedPhotoNote.trim() || undefined,
-													});
-												}}
-											>
-												Upload
-											</Button>
-										</div>
+										<Button
+											type="button"
+											variant="secondary"
+											className="w-full sm:w-auto"
+											icon={<ImageSquareIcon className="size-4" />}
+											onClick={() => setPhotoUploadServiceId(service.id)}
+										>
+											Add item photo
+										</Button>
+										<PhotoUploadDialog
+											open={photoUploadServiceId === service.id}
+											onOpenChange={(open) => {
+												setPhotoUploadServiceId(open ? service.id : null);
+											}}
+											title="Add item photo"
+											badgeLabel={itemLabel}
+											uploadPhoto={(input) =>
+												uploadOrderServicePhoto(id, service.id, input)
+											}
+											onUploaded={refreshOrderData}
+										/>
 									</div>
 
 									<div className="@container space-y-2">

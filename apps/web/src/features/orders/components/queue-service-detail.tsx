@@ -1,36 +1,27 @@
 import { ORDER_STATUS_TRANSITIONS } from "@fresclean/api/schema";
 import {
 	ArrowLeftIcon,
-	CameraIcon,
 	ImageSquareIcon,
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { HoldToConfirmButton } from "@/features/orders/components/hold-to-confirm-button";
 import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
+import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
+import { uploadOrderServicePhoto } from "@/features/orders/utils/photo-upload";
 import {
-	presignOrderServicePhoto,
 	queryKeys,
-	saveOrderServicePhoto,
 	type UpdateOrderServiceStatusPayload,
 	updateOrderServiceStatus,
-	uploadFileToPresignedUrl,
 } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { orderDetailQueryOptions } from "@/lib/query-options";
@@ -97,192 +88,15 @@ export function QueueServiceDetail({
 }: QueueServiceDetailProps) {
 	const queryClient = useQueryClient();
 	const currentUser = getCurrentUser();
-	const galleryInputRef = useRef<HTMLInputElement | null>(null);
-	const cameraPreviewRef = useRef<HTMLVideoElement | null>(null);
 
 	const [statusNote, setStatusNote] = useState("");
-	const [photoNote, setPhotoNote] = useState("");
-	const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
-	const [selectedPhotoPreviewUrl, setSelectedPhotoPreviewUrl] = useState<
-		string | null
-	>(null);
-	const [isCameraOpen, setIsCameraOpen] = useState(false);
-	const [isCameraReady, setIsCameraReady] = useState(false);
-	const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-	const [cameraError, setCameraError] = useState<string | null>(null);
-
-	const openGalleryInput = (input: HTMLInputElement | null) => {
-		if (!input) {
-			return;
-		}
-
-		input.value = "";
-		if (typeof input.showPicker === "function") {
-			input.showPicker();
-			return;
-		}
-
-		input.click();
-	};
-
-	const stopCameraStream = useCallback(() => {
-		setCameraStream((prev) => {
-			if (prev) {
-				for (const track of prev.getTracks()) {
-					track.stop();
-				}
-			}
-			return null;
-		});
-
-		if (cameraPreviewRef.current) {
-			cameraPreviewRef.current.srcObject = null;
-		}
-
-		setIsCameraReady(false);
-		setIsCameraOpen(false);
-	}, []);
-
-	const openCamera = async () => {
-		setCameraError(null);
-		setIsCameraReady(false);
-		setIsCameraOpen(true);
-
-		try {
-			const stream = await navigator.mediaDevices.getUserMedia({
-				video: { facingMode: { ideal: "environment" } },
-				audio: false,
-			});
-
-			setCameraStream(stream);
-		} catch {
-			setCameraError("Unable to open the camera on this device.");
-			setIsCameraOpen(false);
-		}
-	};
-
-	const waitForVideoReady = (video: HTMLVideoElement) =>
-		new Promise<void>((resolve, reject) => {
-			if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
-				resolve();
-				return;
-			}
-
-			const cleanup = () => {
-				video.removeEventListener("loadedmetadata", onReady);
-				video.removeEventListener("error", onError);
-				clearTimeout(timeoutId);
-			};
-			const onReady = () => {
-				cleanup();
-				resolve();
-			};
-			const onError = () => {
-				cleanup();
-				reject(new Error("video error"));
-			};
-			const timeoutId = setTimeout(() => {
-				cleanup();
-				reject(new Error("video timeout"));
-			}, 3000);
-
-			video.addEventListener("loadedmetadata", onReady);
-			video.addEventListener("error", onError);
-		});
-
-	const captureCameraPhoto = async () => {
-		const video = cameraPreviewRef.current;
-		if (!video) {
-			setCameraError("Camera preview is not ready yet.");
-			return;
-		}
-
-		try {
-			await waitForVideoReady(video);
-		} catch {
-			setCameraError("Camera preview is not ready yet.");
-			return;
-		}
-
-		if (video.videoWidth === 0 || video.videoHeight === 0) {
-			setCameraError("Camera preview is not ready yet.");
-			return;
-		}
-
-		const canvas = document.createElement("canvas");
-		canvas.width = video.videoWidth;
-		canvas.height = video.videoHeight;
-
-		const context = canvas.getContext("2d");
-		if (!context) {
-			setCameraError("Unable to capture a photo right now.");
-			return;
-		}
-
-		context.drawImage(video, 0, 0, canvas.width, canvas.height);
-		const blob = await new Promise<Blob | null>((resolve) => {
-			canvas.toBlob(resolve, "image/jpeg", 0.92);
-		});
-
-		if (!blob) {
-			setCameraError("Unable to capture a photo right now.");
-			return;
-		}
-
-		const timestamp = Date.now();
-		setSelectedPhotoFile(
-			new File([blob], `queue-camera-${serviceId}-${timestamp}.jpg`, {
-				type: "image/jpeg",
-			}),
-		);
-		stopCameraStream();
-	};
+	const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
 
 	const detailQuery = useQuery(orderDetailQueryOptions(orderId));
 	const detail = detailQuery.data;
 	const selectedService = detail?.services.find(
 		(service) => service.id === serviceId,
 	);
-
-	useEffect(() => {
-		if (!selectedPhotoFile) {
-			setSelectedPhotoPreviewUrl(null);
-			return;
-		}
-
-		const objectUrl = URL.createObjectURL(selectedPhotoFile);
-		setSelectedPhotoPreviewUrl(objectUrl);
-
-		return () => URL.revokeObjectURL(objectUrl);
-	}, [selectedPhotoFile]);
-
-	useEffect(() => {
-		const preview = cameraPreviewRef.current;
-
-		if (!cameraStream || !preview) {
-			return;
-		}
-
-		preview.srcObject = cameraStream;
-		if (preview.readyState >= HTMLMediaElement.HAVE_METADATA) {
-			setIsCameraReady(true);
-		}
-		void preview.play().catch(() => {
-			setCameraError("Camera preview is unavailable on this device.");
-		});
-
-		return () => {
-			if (preview.srcObject === cameraStream) {
-				preview.srcObject = null;
-			}
-		};
-	}, [cameraStream]);
-
-	useEffect(() => {
-		return () => {
-			stopCameraStream();
-		};
-	}, [stopCameraStream]);
 
 	const refreshData = async (storeId?: number) => {
 		await queryClient.invalidateQueries({
@@ -317,43 +131,6 @@ export function QueueServiceDetail({
 		},
 		onError: (error: Error) => {
 			toast.error(error.message || "Failed to update status");
-		},
-	});
-
-	const uploadMutation = useMutation({
-		mutationFn: async ({ file, note }: { file: File; note?: string }) => {
-			const contentType = file.type as
-				| "image/jpeg"
-				| "image/png"
-				| "image/webp"
-				| "image/heic";
-
-			if (
-				!["image/jpeg", "image/png", "image/webp", "image/heic"].includes(
-					contentType,
-				)
-			) {
-				throw new Error("Unsupported image type");
-			}
-
-			const presigned = await presignOrderServicePhoto(orderId, serviceId, {
-				content_type: contentType,
-			});
-
-			await uploadFileToPresignedUrl(presigned.upload_url, file, contentType);
-			await saveOrderServicePhoto(orderId, serviceId, {
-				image_path: presigned.key,
-				note,
-			});
-		},
-		onSuccess: async () => {
-			toast.success("Photo uploaded");
-			setSelectedPhotoFile(null);
-			setPhotoNote("");
-			await refreshData(detail?.store?.id);
-		},
-		onError: (error: Error) => {
-			toast.error(error.message || "Failed to upload photo");
 		},
 	});
 
@@ -483,62 +260,6 @@ export function QueueServiceDetail({
 					) : null}
 				</section>
 
-				<Dialog
-					open={isCameraOpen}
-					onOpenChange={(open) => {
-						if (!open) {
-							stopCameraStream();
-						}
-					}}
-				>
-					<DialogContent className="sm:max-w-md">
-						<DialogHeader>
-							<DialogTitle className="flex items-center justify-between">
-								<span>Camera</span>
-								<Badge variant="outline">Live</Badge>
-							</DialogTitle>
-						</DialogHeader>
-
-						<video
-							ref={cameraPreviewRef}
-							autoPlay
-							muted
-							playsInline
-							onLoadedMetadata={() => setIsCameraReady(true)}
-							className="aspect-[4/3] w-full border border-border bg-black object-cover"
-						/>
-
-						{cameraError ? (
-							<div className="flex items-start gap-2 border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-								<WarningCircleIcon
-									className="mt-0.5 size-4 shrink-0"
-									weight="fill"
-								/>
-								<span>{cameraError}</span>
-							</div>
-						) : null}
-
-						<DialogFooter>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={stopCameraStream}
-							>
-								Cancel
-							</Button>
-							<Button
-								type="button"
-								disabled={!isCameraReady}
-								onClick={async () => {
-									await captureCameraPhoto();
-								}}
-							>
-								{isCameraReady ? "Capture" : "Loading…"}
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
-
 				<section className="grid gap-4 border border-border bg-background">
 					<div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4 lg:px-5">
 						<div className="grid gap-1">
@@ -551,95 +272,15 @@ export function QueueServiceDetail({
 							<Button
 								type="button"
 								variant="outline"
-								size="icon"
-								onClick={async () => {
-									await openCamera();
-								}}
+								icon={<ImageSquareIcon className="size-4" />}
+								onClick={() => setIsPhotoDialogOpen(true)}
 							>
-								<CameraIcon className="size-4" />
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								size="icon"
-								onClick={() => openGalleryInput(galleryInputRef.current)}
-							>
-								<ImageSquareIcon className="size-4" />
+								Add photo
 							</Button>
 						</div>
 					</div>
 
 					<div className="grid gap-4 px-4 pb-4 lg:px-5 lg:pb-5">
-						<input
-							ref={galleryInputRef}
-							type="file"
-							accept="image/*"
-							capture="environment"
-							className="sr-only"
-							onChange={(event) =>
-								setSelectedPhotoFile(event.target.files?.[0] ?? null)
-							}
-						/>
-
-						{selectedPhotoPreviewUrl ? (
-							<div className="grid gap-3">
-								<p className="text-sm font-semibold uppercase tracking-[0.16em]">
-									Upload preview
-								</p>
-
-								<img
-									src={selectedPhotoPreviewUrl}
-									alt="Selected upload preview"
-									width={960}
-									height={768}
-									className="aspect-[4/3] w-full border border-border object-cover"
-									loading="lazy"
-								/>
-
-								<textarea
-									value={photoNote}
-									onChange={(event) => setPhotoNote(event.target.value)}
-									placeholder="Optional note (e.g. outsole cracked, midsole separated at heel)"
-									rows={2}
-									maxLength={200}
-									className="w-full resize-none border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring/50"
-									aria-label="Photo note"
-								/>
-
-								<div className="flex gap-2">
-									<Button
-										type="button"
-										className="flex-1"
-										loading={uploadMutation.isPending}
-										loadingText="Uploading…"
-										onClick={async () => {
-											if (!selectedPhotoFile) {
-												return;
-											}
-
-											await uploadMutation.mutateAsync({
-												file: selectedPhotoFile,
-												note: photoNote.trim() || undefined,
-											});
-										}}
-									>
-										Upload
-									</Button>
-									<Button
-										type="button"
-										variant="outline"
-										disabled={uploadMutation.isPending}
-										onClick={() => {
-											setSelectedPhotoFile(null);
-											setPhotoNote("");
-										}}
-									>
-										Clear
-									</Button>
-								</div>
-							</div>
-						) : null}
-
 						<OrderPhotoGallery
 							items={selectedService.images.map((image) => ({
 								...image,
@@ -659,6 +300,19 @@ export function QueueServiceDetail({
 						/>
 					</div>
 				</section>
+
+				<PhotoUploadDialog
+					open={isPhotoDialogOpen}
+					onOpenChange={setIsPhotoDialogOpen}
+					title="Add item photo"
+					badgeLabel={selectedService.item_code ?? `Service #${serviceId}`}
+					uploadPhoto={(input) =>
+						uploadOrderServicePhoto(orderId, serviceId, input)
+					}
+					onUploaded={async () => {
+						await refreshData(detail.store?.id);
+					}}
+				/>
 
 				<section className="grid gap-4 border border-border p-4">
 					<StatusTimeline logs={selectedService.statusLogs} />
