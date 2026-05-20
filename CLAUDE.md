@@ -84,7 +84,7 @@ packages/server/src/modules/<domain>/
 
 Routes (`src/routes/`) are thin HTTP handlers that call services directly.
 
-Modules: `campaigns`, `categories`, `customers`, `orders`, `order-service-images`, `payment-methods`, `products`, `services`, `stores`, `users`
+Modules: `campaigns`, `categories`, `customers`, `dashboard`, `orders`, `order-service-images`, `payment-methods`, `products`, `reports`, `services`, `shifts`, `stores`, `users`
 
 ### Server Route Structure
 
@@ -209,13 +209,31 @@ The server dev script runs `tsdown --watch` alongside the server. For a one-off 
 cd packages/server && bunx tsdown
 ```
 
+## Domain & Decisions (read first)
+
+- `CONTEXT.md` — domain glossary, relationships, flagged ambiguities. Use these terms exactly.
+- `docs/adr/` — Architecture Decision Records. Hard-to-reverse choices with rationale.
+
 ## v1 Scope Source of Truth
 
-- `docs/core-implementation-plan.md` — groups A–G, locked scope for v1
-- `docs/deferred-actions.md` — 19 items explicitly deferred (D-1..D-19); do not re-propose unless trigger hit
-- `docs/production-readiness-audit.md` — original findings + rationale
+- `TODO.md` — current lightweight task list when present
+- `docs/archive/2026-04-28-v1-ship/` — historical v1-ship audits (overcomplexity, production-readiness, deferred D-1..D-19). Frozen reference; do not extend in place.
 
 ## Detailed Standards
 
 @packages/server/AGENTS.md
 @apps/web/AGENTS.md
+
+## Agent skills
+
+### Issue tracker
+
+GitHub issues on `jovanhartono/fc-bun-api` via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`); only `wontfix` exists on the repo today. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout — `CONTEXT.md` + `docs/adr/` at the repo root, created lazily by `/grill-with-docs`. See `docs/agents/domain.md`.

@@ -40,6 +40,12 @@ react-hook-form + zodResolver + useMutation for every form.
 - Schemas from `@fresclean/api/schema` or local; shared frontend-only in `src/shared/zod.ts`.
 - `StoreAutocomplete` (`features/orders/components/`) reused across features. For filter UIs pass `allOptionLabel="All stores"` — prepends `{ value: "", label }` sentinel so `""` = unscoped.
 
+## Photos
+
+Every photo upload flow — drop-off, service detail, pickup, future entry points — must reuse `PhotoUploadDialog` (`features/orders/components/photo-upload-dialog.tsx`). Pass an `uploadPhoto({ file, contentType, note })` callback wiring presign → upload → save. The dialog owns camera capture, file picker, and in-dialog preview. Cards/sections own only the trigger button and the saved-photo preview. **Do not** inline `<input type="file">` or build a one-off upload dialog.
+
+Every saved/uploaded image rendered anywhere must be clickable and open in `PhotoLightbox` (`features/orders/components/photo-lightbox.tsx`). Single images use a 1-item array; collections pass the full list + `initialIndex` for swipe/keyboard navigation. Do not build a one-off image preview dialog.
+
 ## No Props Drilling
 
 - `useFormContext()` for form state
