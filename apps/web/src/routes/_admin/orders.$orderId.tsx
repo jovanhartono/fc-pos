@@ -1,4 +1,4 @@
-import { ORDER_STATUS_TRANSITIONS } from "@fresclean/api/schema";
+import { ORDER_SERVICE_TRANSITIONS } from "@fresclean/api/schema";
 import { ImageSquareIcon, LinkSimpleIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -773,7 +773,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 					) : null}
 					{orderServices.map((service) => {
 						const availableTransitions = (
-							ORDER_STATUS_TRANSITIONS[service.status] || []
+							ORDER_SERVICE_TRANSITIONS[service.status] || []
 						).filter((nextStatus) => !(nextStatus === "cancelled" && isPaid));
 						const itemLabel = service.item_code ?? `Service #${service.id}`;
 

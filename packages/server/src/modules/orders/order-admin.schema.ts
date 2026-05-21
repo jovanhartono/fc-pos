@@ -9,20 +9,6 @@ import { dateStringSchema } from "@/schema/common";
 import { normalizePagination } from "@/utils/pagination";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-export const ORDER_STATUS_TRANSITIONS: Record<
-  (typeof orderServiceStatusEnum.enumValues)[number],
-  (typeof orderServiceStatusEnum.enumValues)[number][]
-> = {
-  queued: ["processing", "cancelled"],
-  processing: ["quality_check", "cancelled"],
-  quality_check: ["processing", "qc_reject", "ready_for_pickup", "cancelled"],
-  qc_reject: ["processing", "cancelled"],
-  ready_for_pickup: ["refunded", "cancelled"],
-  picked_up: [],
-  refunded: [],
-  cancelled: [],
-};
-
 export const orderServiceParamSchema = zodValidator(
   "param",
   z.object({

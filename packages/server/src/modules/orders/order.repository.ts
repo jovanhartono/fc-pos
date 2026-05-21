@@ -8,11 +8,11 @@ import {
   ordersTable,
 } from "@/db/schema";
 import type { NormalizedOrderListQuery } from "@/modules/orders/order.schema";
-import { summarizeOrderFulfillment } from "@/modules/orders/order-fulfillment";
 import {
   deriveOrderRefundStatus,
   type OrderRefundStatus,
 } from "@/modules/orders/order-refund-status";
+import { summarizeOrderFulfillment } from "@/modules/orders/order-status-machine";
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
 
 export type OrderTx = Parameters<Parameters<typeof db.transaction>[0]>[0];

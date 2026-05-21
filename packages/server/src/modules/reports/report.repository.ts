@@ -21,7 +21,7 @@ import {
   storesTable,
   usersTable,
 } from "@/db/schema";
-import { ORDER_TERMINAL_SERVICE_STATUSES } from "@/modules/orders/order-fulfillment";
+import { ORDER_TERMINAL_SERVICE_STATUSES } from "@/modules/orders/order-status-machine";
 
 const ITEM_PROCESSED_STATUSES = ["ready_for_pickup", "quality_check"] as const;
 const JAKARTA_DAY_SQL = sql.raw(`'Asia/Jakarta'`);

@@ -1,0 +1,284 @@
+# Architecture Deepening — Multi-Session Plan
+
+Tracking the `/improve-codebase-architecture` skill output. Seven candidates
+identified to turn shallow modules into deep ones. Worked one candidate per
+session, drop in here when resuming.
+
+Vocabulary is from `~/.claude/skills/improve-codebase-architecture/LANGUAGE.md`
+(module, interface, seam, depth, leverage, locality, deletion test). Domain
+nouns from `CONTEXT.md` (Order, OrderService, Pickup, Reversal, etc.).
+
+## Resume protocol
+
+1. Read this file.
+2. Read `CONTEXT.md` for domain terms, `docs/adr/*` for locked decisions.
+3. Pick the next candidate (status table below). Order suggested: 3 → 5 → 6 → 2 → 4 → 7.
+4. Re-enter the skill's grilling loop: present open design questions, get answers,
+   implement, run type-check + lint + tests.
+5. Update this file when a candidate flips to ✅.
+
+Suggested order:
+
+1. #1 OrderStateMachine — foundation. Unblocks 2/5/6.
+2. #3 Permissions — independent, small, parallel-safe warm-up if you want a quick win.
+3. #5 Pickup then #6 Reversal — slices of #2, each riding on #1's seam.
+4. #2 split — by this point order-admin.service is mostly already split; finalize residual (queue + photo modules).
+5. #4 Campaign eligibility — independent.
+6. #7 shallow CRUD — policy call, defer.
+
+## Status
+
+| # | Candidate                                       | Status      | Notes |
+|---|-------------------------------------------------|-------------|-------|
+| 1 | Order Status Machine                            | ✅ Done      | See §1 |
+| 2 | Split `order-admin.service.ts` by lifecycle     | ⬜ Pending   | Partially eased by #1; depends on #5 + #6 |
+| 3 | Permissions module (ADR-0004 capability table)  | ⬜ Pending   | Independent, small, warm-up candidate |
+| 4 | Campaign eligibility → Campaigns module         | ⬜ Pending   | Independent |
+| 5 | Pickup module (ADR-0005 invariants)             | ⬜ Pending   | Uses #1's `completePickup` seam |
+| 6 | Reversal off-ramps (cancel + refund)            | ⬜ Pending   | Uses #1's `transitionOrderService` + `applyRefundTransition` seams |
+| 7 | Collapse shallow CRUD services                  | ⬜ Pending   | Policy call, defer |
+| 8 | Product refunds + `refund_status` fix           | ⬜ Pending   | Bug; independent, schema change |
+
+Dependencies: **#1 must land before #5, #6, #2.** #3 / #4 / #7 / #8 are independent.
+
+---
+
+## §1 — Order Status Machine ✅
+
+**Goal**: one module owns every status write on `orders` / `orders_services`
+plus the audit-log entry. Replace scattered `recalculateOrderStatus` /
+`recalculateOrderStatusDirect` with a single tx-agnostic seam.
+
+**Home**: `packages/server/src/modules/orders/order-status-machine.ts`
+(renamed from `order-fulfillment.ts`).
+
+**Exports**
+
+| Symbol                          | Role                                                   |
+|---------------------------------|--------------------------------------------------------|
+| `ORDER_SERVICE_TRANSITIONS`     | Transition graph; refund reachable from every non-terminal + picked_up |
+| `ORDER_TERMINAL_SERVICE_STATUSES` | `["picked_up", "refunded", "cancelled"]`             |
+| `isTerminalOrderServiceStatus`  | Set check                                              |
+| `summarizeOrderFulfillment`     | Status counts (used by `order.repository.ts`)          |
+| `deriveOrderStatus`             | Pure: children + product count → Order rollup          |
+| `recomputeOrderRollup`          | Read children → write `orders.status` (tx-agnostic)    |
+| `transitionOrderService`        | Public seam, non-terminal moves only. Rejects `picked_up` and `refunded`. Validates paid-cancel guard inline (ADR-0004). |
+| `completePickup`                | Sibling-only seam for `→ picked_up`; called by Pickup module after writing `order_pickup_events`. Returns flipped IDs; caller compensates on partial. |
+| `applyRefundTransition`         | Sibling-only seam for `→ refunded`; called by Reversal module after writing `order_refunds` + `order_refund_items`. |
+| `DbExecutor`                    | `typeof db \| OrderTx` — single executor type for tx-agnostic calls |
+
+**Transition map (current)**
+
+```
+queued            → processing, cancelled, refunded
+processing        → quality_check, cancelled, refunded
+quality_check     → qc_reject, ready_for_pickup, cancelled, refunded
+qc_reject         → processing, cancelled, refunded
+ready_for_pickup  → picked_up, refunded, cancelled
+picked_up         → refunded                         (ADR-0004: refund after pickup)
+refunded          → ∅
+cancelled         → ∅
+```
+
+**Behavior changes vs pre-refactor**
+
+- QC redo must loop through `qc_reject` (no direct `quality_check → processing` shortcut). Audit log captures every redo.
+- `refunded` reachable from every non-terminal + `picked_up` (was only `ready_for_pickup`). Honest map per ADR-0004.
+- Paid-order cancel guard now centralized inside `transitionOrderService`, not re-asserted per handler.
+
+**Ported call sites**
+
+| Handler                          | What changed |
+|----------------------------------|--------------|
+| `startOrderServiceWork`          | Handler-axis writes kept inline; status writes via `transitionOrderService`. |
+| `updateOrderServiceStatus`       | Removed inline `picked_up` reject + inline transition map check + inline paid-cancel guard + inline status log + inline recalc — all in `transitionOrderService`. Auto-claim handler-axis stays. |
+| `createOrderPickupEvent`         | Pickup-code validation, `order_pickup_events` write, compensating rollback stay. Status flip + log + recalc via `completePickup`. |
+| `createOrderRefund`              | Refund row writes stay. Per-service status flip + log + recalc via `applyRefundTransition`. Removed pre-check on status (state machine handles). |
+| `cancelOrder`                    | Per-OrderService loop calling `transitionOrderService(to: "cancelled")`. Order-level `cancelled_at` write stays. Batch update + log inlined approach replaced. |
+
+**Tests**: `order-status-machine.test.ts` — 19 unit tests via `bun:test`,
+cover derive branches, transition map invariants, terminal set,
+fulfillment summary. Integration tests deferred (needs test-DB strategy).
+
+**External name change**: `ORDER_STATUS_TRANSITIONS` renamed to
+`ORDER_SERVICE_TRANSITIONS` (re-exported through `@fresclean/api/schema`).
+Web consumers updated:
+- `apps/web/src/features/orders/components/queue-service-detail.tsx`
+- `apps/web/src/routes/_admin/orders.$orderId.tsx`
+
+**CONTEXT.md additions**: "Order Status Machine" glossary entry under
+"Order lifecycle"; QC redo flow note appended to "OrderService status".
+
+**Outcomes**
+- `order-admin.service.ts`: 1506 → 1282 lines (−15%).
+- Status writes through one seam.
+- Map honest about ADR-0004.
+
+---
+
+## §2 — Split `order-admin.service.ts` ⬜
+
+**Problem**: 1282 lines (down from 1506 after #1) still spanning queue + handler
++ pickup + refund + cancel + photo + payment. After #5 and #6 land, residual
+is queue + photo + payment.
+
+**Plan**: extract `order-queue.service.ts` and `order-photo.service.ts`.
+Maybe collapse `updateOrderPayment` into a small `order-payment.service.ts`
+or leave it.
+
+**Wait for**: #5 and #6 to land first — those carve out pickup and reversal
+naturally.
+
+---
+
+## §3 — Permissions module ⬜ (independent, recommended next)
+
+**Problem**: ADR-0004 documents the capability matrix. Code does not encode it.
+`assertIsAdmin` duplicated (`order-admin.service.ts` + `campaign.service.ts`).
+`assertCanProcessPaymentOrRefund` + `assertCanProcessPickup` live next to one
+caller. No `permissions/` module.
+
+**Sketch**: `packages/server/src/modules/permissions/permissions.ts` exports
+one function per ADR-0004 row: `assertCanRefund(user, order)`,
+`assertCanCancelOrderService(user, order)`, `assertCanSelfAssign(user)`,
+`assertCanProcessPickup(user)`, `assertCanEditCampaign(user)`, etc.
+Reads role + `can_process_pickup` + Order's `payment_status` when relevant.
+
+**Design questions to grill before implementing**
+- Where do the `payment_status`-aware checks live? Permissions module reads
+  the Order, or callers pass the Order in?
+- Coexistence with state machine: state machine already gates paid-cancel.
+  Does Permissions just refuse to attempt the call (defense in depth) or trust
+  the state machine?
+- Path: do existing helpers move into the new module, or get re-exported?
+- Test surface: pure functions (`(user, order?) → ok/throw`), no DB.
+
+---
+
+## §4 — Campaign eligibility → Campaigns ⬜ (independent)
+
+**Problem**: `order.service.ts:120-193` (`loadAndValidateCampaigns`,
+`assertCampaignUsable`) lives in Order. Campaigns module owns CRUD only,
+not eligibility. Future POS price-preview would duplicate the rules.
+
+**Sketch**: move both into `campaigns/campaign.service.ts` as
+`loadApplicableCampaigns({ campaignIds, storeId, serviceIds, subtotal, when })`.
+Returns ready-to-apply Campaigns or typed validation error.
+
+**Design questions**
+- Return shape: `{ applicable: Campaign[]; rejected: Array<{ id, reason }> }`
+  vs throw-on-first-rejection. POS price-preview may want non-throwing.
+- Subtotal computation: caller passes, or campaigns module re-derives from
+  service IDs?
+
+---
+
+## §5 — Pickup module ⬜ (uses #1's `completePickup`)
+
+**Problem**: ADR-0005 invariants scattered across `createOrderPickupEvent` +
+pickup-photo presign + dropoff-photo handler (misleadingly-named in current
+file). Reader has to scan three handlers to verify ADR-0005 holds.
+
+**Sketch**: `packages/server/src/modules/orders/order-pickup.service.ts`
+owns:
+- `validatePickupCode(order, code)` — code matches this Order, status check
+- `recordPickupEvent({ orderId, serviceIds, photo, by })` — full flow
+  including the existing compensating-rollback for partial flips
+- pickup-photo presign
+
+State machine's `completePickup` is the seam this module crosses for the
+status flip.
+
+**Bonus**: surface the schema CHECK gap noted in ADR-0005's "Outstanding fix"
+section — add the reverse-direction CHECK in a migration.
+
+**Design questions**
+- Use real `db.transaction` instead of compensating rollback? (Neon driver
+  is `neon-serverless` Pool — supports tx. The compensating-rollback comment
+  in current code is outdated.)
+- Photo-handler naming cleanup (`saveOrderDropoffPhoto` is misleading).
+
+---
+
+## §6 — Reversal off-ramps ⬜ (uses #1's `applyRefundTransition`)
+
+**Problem**: Cancel + refund framed as disjoint off-ramps by ADR-0004 +
+CONTEXT.md, but live as sibling bare functions inside the giant file.
+`buildRefundItems` (largest-remainder allocation) is private helper used once.
+Zero shared scaffolding between cancel and refund despite same shape (terminal
+status + reason enum + status-log + recalc).
+
+**Sketch**: `packages/server/src/modules/orders/order-reversal.service.ts`
+exports `cancelOrderServices` and `refundOrderServices`. Internal scaffold
+`applyTerminalExit({ orderId, items, terminalStatus, reason, audit })`
+shared between them. `buildRefundItems` collapses into the refund step.
+Payment-status gate asserted once at module entry, selects callable path.
+
+**Design questions**
+- Should this module be a peer of #5 (own module), or a sub-folder
+  `orders/reversal/`?
+- Allocation math (`buildRefundItems`) stays in this module or moves to a
+  pure helper in `utils/`? It's used once — keep inline.
+
+---
+
+## §7 — Collapse shallow CRUD services ⬜ (policy call)
+
+**Problem**: `product.service.ts`, `service.service.ts`,
+`payment-method.service.ts` are 31-32 lines of pure passthroughs to their
+repositories. Interface ≈ implementation. By LANGUAGE.md: shallow modules
+that cost cognitive load without leverage.
+
+**Two options**
+- (a) Delete the service files; routes call repositories directly.
+  Document the trivial-CRUD exception to the 3-layer rule.
+- (b) Add real orchestration (validation, derived shape) so the layer earns
+  its keep.
+
+**Recommendation**: defer until either (1) we find ourselves repeatedly
+needing pre-DB validation on these domains, or (2) someone tries to read a
+Product mutation path and is annoyed by the extra hop. Either signal picks
+the option. Today there's no signal.
+
+---
+
+## §8 — Product refunds + `refund_status` fix ⬜
+
+**Bug**: `orders.refund_status` is derived from money (`deriveOrderRefundStatus` in `order-refund-status.ts`): `none` / `partial` / `full` based on `refunded_amount` vs `paid_amount`. The refund flow (`createOrderRefund` + `getOrderLineRefundCaps` in `order-admin.service.ts`) iterates **services only** — products are not refundable in v1. But `paid_amount` includes products (`total = serviceSubtotal + productSubtotal`, `order.service.ts:414`). So any Order containing products will hit `partial` and stay there forever after all services are refunded. UI badge ("Fully Refunded" in `apps/web/src/lib/status.ts:58-62`) reads `partial` and operators cannot advance it.
+
+**Reproduction**: 1 service (80k) + 1 product (20k), discount 0, paid_amount = 100k. Refund the service → `refunded_amount = 80k`. Badge stuck on "Partially Refunded" with no further action available.
+
+**Decision**: extend refund flow to cover product lines so money-axis can reach `full`. Products become refundable line items alongside services; refund dialog gains a product picker; `getOrderLineRefundCaps` (or successor) iterates both `orders_services` and `orders_products`.
+
+**Why not service-state-axis** (badge means "all services refunded", ignore money): products-only refund is on the roadmap, so we'd need a money signal eventually anyway. Also silently flips semantics under any existing report reader that interprets `full` as "money fully returned."
+
+**Why not two badges**: UI noise; one fact should map to one badge.
+
+**Why not exclude products from denominator** (compare `refunded_amount` to `paid_amount - productSubtotal`): lies about reality. Customer paid for products and didn't get the money back; "fully refunded" would be wrong.
+
+**Schema scope**
+- Either extend `order_refund_items` with optional `order_product_id` (mutually exclusive with `order_service_id`), or new `order_refund_products` table.
+- `orders_products` gains a "refunded" marker — boolean `refunded_at` if no other product states are anticipated, enum otherwise.
+
+**Open questions before implementing**
+- Audit report queries reading `refund_status` for money-semantics assumptions. Flag any consumer treating `full` as "every line refunded."
+- `refundReasonEnum` is service-shaped (`damaged`, `cannot_process`, `lost`, `other`, `customer_cancelled`). Apply unchanged to products, or new vocab?
+
+**Until built**: badge is *accurate from a money perspective* — the product portion is genuinely unrefunded. Do not patch by flipping the badge to a service-state rule without revisiting the decision here.
+
+**CONTEXT.md touchpoints** (rewrite when fix lands)
+- `OrderRefund / OrderRefundItem` entry — "Products are not refundable in v1" claim, and the link back here.
+- `Refund status` entry — bug description, and the link back here.
+
+---
+
+## Out of scope (recorded so we don't re-suggest)
+
+- **Splitting OrderService status into two columns** (processing axis vs
+  terminal-outcome axis): documented as accepted v1 trade-off in
+  `CONTEXT.md` "OrderService status". Tied to the Order Status Machine
+  refactor only by name; the column split is a separate, larger migration.
+- **ADR-0005 declined items** (CSPRNG pickup code, UNIQUE on pickup_code):
+  declined with reasons in ADR-0005. Do not re-propose.
+- **Cancel/refund partial state, partial payment**: ADR-0001 (payment is
+  binary) + ADR-0003 (business rules locked). Do not re-suggest.

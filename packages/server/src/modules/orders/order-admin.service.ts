@@ -5,10 +5,7 @@ import {
   orderRefundItemsTable,
   orderRefundsTable,
   orderServiceHandlerLogsTable,
-  type orderServiceStatusEnum,
-  orderServiceStatusLogsTable,
   orderServicesImagesTable,
-  ordersProductsTable,
   ordersServicesTable,
   ordersTable,
   servicesTable,
@@ -17,7 +14,6 @@ import {
 } from "@/db/schema";
 import { BadRequestException, ForbiddenException } from "@/errors";
 import { softDeleteOrderServiceImageById } from "@/modules/order-service-images/order-service-image.repository";
-import type { OrderTx } from "@/modules/orders/order.repository";
 import type {
   GetMyOrderServicesQuery,
   GetOrderServiceQueueQuery,
@@ -33,15 +29,15 @@ import type {
   PostOrderServicePhotoPresignInput,
   PutOrderDropoffPhotoInput,
 } from "@/modules/orders/order-admin.schema";
+import { normalizeOrderServiceQueueQuery } from "@/modules/orders/order-admin.schema";
+import { deriveOrderRefundStatus } from "@/modules/orders/order-refund-status";
 import {
-  normalizeOrderServiceQueueQuery,
-  ORDER_STATUS_TRANSITIONS,
-} from "@/modules/orders/order-admin.schema";
-import {
+  applyRefundTransition,
+  completePickup,
   isTerminalOrderServiceStatus,
   summarizeOrderFulfillment,
-} from "@/modules/orders/order-fulfillment";
-import { deriveOrderRefundStatus } from "@/modules/orders/order-refund-status";
+  transitionOrderService,
+} from "@/modules/orders/order-status-machine";
 import type { JWTPayload } from "@/types";
 import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
@@ -158,66 +154,6 @@ function assertCanProcessPickup(user: JWTPayload) {
       "Only admin, cashier, or authorized pickup handlers can complete pickups"
     );
   }
-}
-
-type DerivedOrderStatus =
-  | "created"
-  | "processing"
-  | "ready_for_pickup"
-  | "completed"
-  | "cancelled";
-
-function deriveOrderStatus(
-  services: { status: (typeof orderServiceStatusEnum.enumValues)[number] }[],
-  productCount: number
-): DerivedOrderStatus {
-  if (services.length === 0) {
-    return productCount > 0 ? "completed" : "created";
-  }
-
-  if (services.every((item) => isTerminalOrderServiceStatus(item.status))) {
-    return services.every((item) => item.status === "cancelled")
-      ? "cancelled"
-      : "completed";
-  }
-
-  const activeServices = services.filter(
-    (item) => !isTerminalOrderServiceStatus(item.status)
-  );
-  if (activeServices.every((item) => item.status === "ready_for_pickup")) {
-    return "ready_for_pickup";
-  }
-
-  if (services.some((item) => item.status !== "queued")) {
-    return "processing";
-  }
-
-  return "created";
-}
-
-async function recalculateOrderStatus(
-  tx: OrderTx,
-  orderId: number,
-  updatedBy: number
-) {
-  const [services, productCount] = await Promise.all([
-    tx.query.ordersServicesTable.findMany({
-      where: { order_id: orderId },
-      columns: { status: true },
-    }),
-    tx.$count(ordersProductsTable, eq(ordersProductsTable.order_id, orderId)),
-  ]);
-
-  const nextStatus = deriveOrderStatus(services, productCount);
-
-  await tx
-    .update(ordersTable)
-    .set({
-      status: nextStatus,
-      completed_at: nextStatus === "completed" ? new Date() : null,
-      updated_by: updatedBy,
-    })
-    .where(eq(ordersTable.id, orderId));
 }
 
 async function getOrderLineRefundCaps(orderId: number) {
@@ -700,7 +636,7 @@ export async function startOrderServiceWork({
   serviceId: number;
   user: JWTPayload;
 }) {
-  const orderService = await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [locked] = await tx
       .select()
       .from(ordersServicesTable)
@@ -716,12 +652,6 @@ export async function startOrderServiceWork({
       throw new BadRequestException("Order service not found for this order");
     }
 
-    if (locked.status !== "queued") {
-      throw new BadRequestException(
-        `Service ${serviceId} cannot be started from status ${locked.status}`
-      );
-    }
-
     if (
       locked.handler_id !== null &&
       locked.handler_id !== undefined &&
@@ -735,7 +665,7 @@ export async function startOrderServiceWork({
     if (locked.handler_id !== user.id) {
       await tx
         .update(ordersServicesTable)
-        .set({ handler_id: user.id, status: "processing" })
+        .set({ handler_id: user.id })
         .where(eq(ordersServicesTable.id, serviceId));
 
       await tx.insert(orderServiceHandlerLogsTable).values({
@@ -745,28 +675,21 @@ export async function startOrderServiceWork({
         changed_by: user.id,
         note: "Started from queue",
       });
-    } else {
-      await tx
-        .update(ordersServicesTable)
-        .set({ status: "processing" })
-        .where(eq(ordersServicesTable.id, serviceId));
     }
 
-    await tx.insert(orderServiceStatusLogsTable).values({
-      order_service_id: serviceId,
-      from_status: locked.status,
-      to_status: "processing",
-      changed_by: user.id,
+    const { from } = await transitionOrderService(tx, {
+      orderId,
+      serviceId,
+      to: "processing",
+      by: user.id,
       note: "Started from queue",
     });
 
-    await recalculateOrderStatus(tx, orderId, user.id);
-
-    return locked;
+    return { from };
   });
 
   return {
-    from_status: orderService.status,
+    from_status: result.from,
     handler_id: user.id,
     order_service_id: serviceId,
     to_status: "processing" as const,
@@ -829,12 +752,6 @@ export async function updateOrderServiceStatus({
     );
   }
 
-  if (body.status === "picked_up") {
-    throw new BadRequestException(
-      "Items must be picked up through the pickup desk, not the status dropdown"
-    );
-  }
-
   const fromStatus = await db.transaction(async (tx) => {
     const [locked] = await tx
       .select()
@@ -851,49 +768,18 @@ export async function updateOrderServiceStatus({
       throw new BadRequestException("Order service not found for this order");
     }
 
-    const allowedStatuses = ORDER_STATUS_TRANSITIONS[locked.status];
-    if (!allowedStatuses.includes(body.status)) {
-      throw new BadRequestException(
-        `Invalid status transition from ${locked.status} to ${body.status}`
-      );
-    }
-
-    if (body.status === "cancelled") {
-      const parentOrder = await tx.query.ordersTable.findFirst({
-        where: { id: orderId },
-        columns: { payment_status: true },
-      });
-      if (parentOrder?.payment_status === "paid") {
-        throw new BadRequestException(
-          "Paid orders cannot cancel individual services. Refund the service instead."
-        );
-      }
-    }
-
     const isClaimTransition =
       (locked.status === "queued" || locked.status === "qc_reject") &&
       body.status === "processing";
     const needsHandlerAssign =
       isClaimTransition && locked.handler_id !== user.id;
 
-    const isCancelling = body.status === "cancelled";
-    const setPatch: Partial<typeof ordersServicesTable.$inferInsert> = {
-      status: body.status,
-    };
-    if (isCancelling) {
-      setPatch.cancel_reason = body.cancel_reason;
-      setPatch.cancel_note = body.cancel_note?.trim() || null;
-    }
     if (needsHandlerAssign) {
-      setPatch.handler_id = user.id;
-    }
+      await tx
+        .update(ordersServicesTable)
+        .set({ handler_id: user.id })
+        .where(eq(ordersServicesTable.id, serviceId));
 
-    await tx
-      .update(ordersServicesTable)
-      .set(setPatch)
-      .where(eq(ordersServicesTable.id, serviceId));
-
-    if (needsHandlerAssign) {
       await tx.insert(orderServiceHandlerLogsTable).values({
         order_service_id: serviceId,
         from_handler_id: locked.handler_id,
@@ -903,17 +789,17 @@ export async function updateOrderServiceStatus({
       });
     }
 
-    await tx.insert(orderServiceStatusLogsTable).values({
-      order_service_id: serviceId,
-      from_status: locked.status,
-      to_status: body.status,
-      changed_by: user.id,
+    const { from } = await transitionOrderService(tx, {
+      orderId,
+      serviceId,
+      to: body.status,
+      by: user.id,
       note: body.note,
+      cancelReason: body.cancel_reason,
+      cancelNote: body.cancel_note?.trim() || null,
     });
 
-    await recalculateOrderStatus(tx, orderId, user.id);
-
-    return locked.status;
+    return from;
   });
 
   return {
@@ -1166,61 +1052,36 @@ export async function createOrderPickupEvent({
       picked_up_at: orderPickupEventsTable.picked_up_at,
     });
 
-  // Race guard: only flip rows still in ready_for_pickup. If the count
-  // drops, another cashier already claimed a service — compensate by
-  // rolling back the pickup event we just inserted.
-  const flipped = await db
-    .update(ordersServicesTable)
-    .set({ status: "picked_up", pickup_event_id: pickupEvent.id })
-    .where(
-      and(
-        eq(ordersServicesTable.order_id, orderId),
-        inArray(ordersServicesTable.id, uniqueServiceIds),
-        eq(ordersServicesTable.status, "ready_for_pickup")
-      )
-    )
-    .returning({ id: ordersServicesTable.id });
+  let pickupResult: { flippedIds: number[] };
+  try {
+    pickupResult = await completePickup(db, {
+      orderId,
+      serviceIds: uniqueServiceIds,
+      pickupEventId: pickupEvent.id,
+      by: user.id,
+      note: "Completed from order pickup desk",
+    });
+  } catch (error) {
+    await db
+      .delete(orderPickupEventsTable)
+      .where(eq(orderPickupEventsTable.id, pickupEvent.id));
+    throw error;
+  }
 
-  if (flipped.length !== uniqueServiceIds.length) {
-    // Compensating rollback (neon-http has no transactions). The CHECK
-    // constraint pairs status<->pickup_event_id, so we flip rows back
-    // before deleting the event. If rollback itself fails we surface a
-    // 500 so the orphaned state is visible instead of masked by the 400.
-    try {
-      if (flipped.length > 0) {
-        await db
-          .update(ordersServicesTable)
-          .set({ status: "ready_for_pickup", pickup_event_id: null })
-          .where(eq(ordersServicesTable.pickup_event_id, pickupEvent.id));
-      }
+  if (pickupResult.flippedIds.length !== uniqueServiceIds.length) {
+    if (pickupResult.flippedIds.length > 0) {
       await db
-        .delete(orderPickupEventsTable)
-        .where(eq(orderPickupEventsTable.id, pickupEvent.id));
-    } catch (rollbackError) {
-      throw new Error(
-        `Pickup rollback failed for event ${pickupEvent.id}: ${
-          rollbackError instanceof Error
-            ? rollbackError.message
-            : String(rollbackError)
-        }`
-      );
+        .update(ordersServicesTable)
+        .set({ status: "ready_for_pickup", pickup_event_id: null })
+        .where(eq(ordersServicesTable.pickup_event_id, pickupEvent.id));
     }
+    await db
+      .delete(orderPickupEventsTable)
+      .where(eq(orderPickupEventsTable.id, pickupEvent.id));
     throw new BadRequestException(
       "Another cashier already processed one of the selected items. Refresh and try again."
     );
   }
-
-  await db.insert(orderServiceStatusLogsTable).values(
-    candidateServices.map((service) => ({
-      order_service_id: service.id,
-      from_status: "ready_for_pickup" as const,
-      to_status: "picked_up" as const,
-      changed_by: user.id,
-      note: "Completed from order pickup desk",
-    }))
-  );
-
-  await recalculateOrderStatusDirect(orderId, user.id);
 
   return {
     id: pickupEvent.id,
@@ -1229,30 +1090,6 @@ export async function createOrderPickupEvent({
     picked_up_at: pickupEvent.picked_up_at,
     service_ids: uniqueServiceIds,
   };
-}
-
-async function recalculateOrderStatusDirect(
-  orderId: number,
-  updatedBy: number
-) {
-  const [services, productCount] = await Promise.all([
-    db.query.ordersServicesTable.findMany({
-      where: { order_id: orderId },
-      columns: { status: true },
-    }),
-    db.$count(ordersProductsTable, eq(ordersProductsTable.order_id, orderId)),
-  ]);
-
-  const nextStatus = deriveOrderStatus(services, productCount);
-
-  await db
-    .update(ordersTable)
-    .set({
-      status: nextStatus,
-      completed_at: nextStatus === "completed" ? new Date() : null,
-      updated_by: updatedBy,
-    })
-    .where(eq(ordersTable.id, orderId));
 }
 
 export async function createOrderRefund({
@@ -1293,26 +1130,6 @@ export async function createOrderRefund({
     throw new BadRequestException(
       "Refund can only be processed for paid orders"
     );
-  }
-
-  const services = await db.query.ordersServicesTable.findMany({
-    where: { order_id: orderId, id: { in: uniqueServiceIds } },
-    columns: {
-      id: true,
-      status: true,
-    },
-  });
-
-  if (services.length !== uniqueServiceIds.length) {
-    throw new BadRequestException("One or more order_service_id is invalid");
-  }
-
-  for (const service of services) {
-    if (["refunded", "cancelled"].includes(service.status)) {
-      throw new BadRequestException(
-        `Service ${service.id} cannot be refunded from status ${service.status}`
-      );
-    }
   }
 
   const refundCaps = await getOrderLineRefundCaps(orderId);
@@ -1367,29 +1184,14 @@ export async function createOrderRefund({
       }))
     );
 
-    await tx
-      .update(ordersServicesTable)
-      .set({ status: "refunded" })
-      .where(
-        inArray(
-          ordersServicesTable.id,
-          refundItems.map((item) => item.order_service_id)
-        )
-      );
-
-    await tx.insert(orderServiceStatusLogsTable).values(
-      refundItems.map((item) => ({
-        order_service_id: item.order_service_id,
-        from_status: services.find(
-          (service) => service.id === item.order_service_id
-        )?.status,
-        to_status: "refunded" as const,
-        changed_by: user.id,
+    await applyRefundTransition(tx, {
+      orderId,
+      by: user.id,
+      items: refundItems.map((item) => ({
+        serviceId: item.order_service_id,
         note: item.note,
-      }))
-    );
-
-    await recalculateOrderStatus(tx, orderId, user.id);
+      })),
+    });
 
     return [createdRefund] as const;
   });
@@ -1451,42 +1253,18 @@ export async function cancelOrder({
   const cancelNote = body.cancel_note?.trim() || null;
   const cancellableIds = cancellableServices.map((service) => service.id);
 
-  const cancellableStatusById = new Map(
-    cancellableServices.map((service) => [service.id, service.status])
-  );
-
   await db.transaction(async (tx) => {
-    const updatedServices = await tx
-      .update(ordersServicesTable)
-      .set({
-        status: "cancelled",
-        cancel_reason: cancelReason,
-        cancel_note: cancelNote,
-      })
-      .where(
-        and(
-          eq(ordersServicesTable.order_id, orderId),
-          inArray(ordersServicesTable.id, cancellableIds),
-          sql`${ordersServicesTable.status} NOT IN ('picked_up', 'refunded', 'cancelled')`
-        )
-      )
-      .returning({ id: ordersServicesTable.id });
-
-    if (updatedServices.length === 0) {
-      throw new BadRequestException(
-        "Services changed state before cancellation could apply. Refresh and try again."
-      );
-    }
-
-    await tx.insert(orderServiceStatusLogsTable).values(
-      updatedServices.map((row) => ({
-        order_service_id: row.id,
-        from_status: cancellableStatusById.get(row.id),
-        to_status: "cancelled" as const,
-        changed_by: user.id,
+    for (const service of cancellableServices) {
+      await transitionOrderService(tx, {
+        orderId,
+        serviceId: service.id,
+        to: "cancelled",
+        by: user.id,
+        cancelReason,
+        cancelNote,
         note: cancelNote ?? cancelReason,
-      }))
-    );
+      });
+    }
 
     await tx
       .update(ordersTable)
@@ -1495,8 +1273,6 @@ export async function cancelOrder({
         updated_by: user.id,
       })
       .where(eq(ordersTable.id, orderId));
-
-    await recalculateOrderStatus(tx, orderId, user.id);
   });
 
   return {

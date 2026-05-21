@@ -1,4 +1,4 @@
-import { ORDER_STATUS_TRANSITIONS } from "@fresclean/api/schema";
+import { ORDER_SERVICE_TRANSITIONS } from "@fresclean/api/schema";
 import {
 	ArrowLeftIcon,
 	ImageSquareIcon,
@@ -167,7 +167,7 @@ export function QueueServiceDetail({
 		selectedService.handler_id !== null &&
 		selectedService.handler_id !== undefined &&
 		!isHandledByCurrentUser;
-	const nextStatuses = ORDER_STATUS_TRANSITIONS[selectedService.status] ?? [];
+	const nextStatuses = ORDER_SERVICE_TRANSITIONS[selectedService.status] ?? [];
 	const canStartWork = selectedService.status === "queued";
 	const actionStatuses = nextStatuses.filter(
 		(status) =>

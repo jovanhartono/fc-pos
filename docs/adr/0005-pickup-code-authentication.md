@@ -30,23 +30,57 @@ Read: *if `pickup_event_id` is set, status must be `picked_up` or `refunded`*. O
 
 The reverse direction — *if status is `picked_up`, `pickup_event_id` must be set* — is **NOT enforced by the schema**. Today only the service-layer code path (`order-admin.service.ts` pickup handler) guarantees the invariant.
 
-## Known hardening gaps (must fix before v1 ship)
+## Considered and declined
 
-These are recorded as deferred-fix items, not as deliberate design:
+Two changes were on the table during ADR drafting and **deliberately declined** after walking the threat model. They are recorded here so future explorers see the trade-off, not as open gaps to revisit.
 
-1. **Generation must move from DB-level `random()` to application-level `crypto.randomInt`.** The current `lpad(floor(random() * 1000000)::text, 6, '0')` DB default is a PRNG, not a CSPRNG. Move generation into `order.service.ts createOrder`: `crypto.randomInt(0, 1_000_000).toString().padStart(6, "0")`. Drop the DB default; column stays `NOT NULL`. Generation and retry-on-conflict (see gap 2) belong in one place. Tests can inject a deterministic generator.
-2. **Add partial UNIQUE on non-terminal Orders + retry-on-conflict in service.** Index: `uniqueIndex("orders_pickup_code_uidx").on(table.pickup_code).where(sql\`status NOT IN ('completed','cancelled')\`)`. Service catches `23505` unique-violation, regenerates, retries. Rationale for *partial*: a `pickup_code` is only meaningful while the Order is active — once terminal, the code is dead weight and global UNIQUE-forever would accumulate collisions unnecessarily across ~30k orders/yr × 5yr against a 10⁶ codespace. Partial UNIQUE keeps the invariant where it matters (no two active Orders share a code) without forcing historical uniqueness.
-3. **Add missing CHECK implication.** Current constraint allows `status='picked_up'` with `pickup_event_id IS NULL` — a row that claims pickup happened without the dialog flow. Add a second CHECK so schema enforces `status='picked_up' → pickup_event_id IS NOT NULL`. The dialog-only invariant then lives in the database, not just in application code. Combined target:
+### Declined: app-level generation (CSPRNG)
 
-   ```sql
-   CHECK (
-     (pickup_event_id IS NULL OR status IN ('picked_up', 'refunded'))
-     AND
-     (status != 'picked_up' OR pickup_event_id IS NOT NULL)
-   )
-   ```
+Original proposal: move generation from DB-level `random()` into `order.service.ts createOrder` as `crypto.randomInt(0, 1_000_000).toString().padStart(6, "0")`, drop the DB default, inject a deterministic generator in tests.
 
-When all three land, the ADR can be updated to record the post-hardening design instead of the current state + gaps.
+Declined because the CSPRNG-vs-PRNG distinction does not matter for this attack model:
+
+- The "attack" is *random walk-in guesses 6 digits and walks out with someone's shoes* — probability 1/10⁶ regardless of generator quality.
+- An attacker would need to observe a long sequence of consecutive codes to exploit `random()`'s predictability. No such sequence is exposed — `/track` is gated by `code + phone_number` match, and the customer only ever sees their own code.
+- Testability gain is trivial — the only assertion worth writing is `/^\d{6}$/` shape, which needs no injection.
+
+DB default stays. Reading the schema column tells the whole story in one line.
+
+### Declined: UNIQUE on `pickup_code`
+
+Original proposal: partial `uniqueIndex` on non-terminal Orders plus retry-on-conflict in the service layer.
+
+Declined because `pickup_code` is **per-Order verification, not cross-Order discovery** (see [CONTEXT.md](../../CONTEXT.md) "Pickup code"). The cashier has already opened a specific Order before entering the code; the server checks the code against **that Order's row only**, never across the table. A duplicate code on another Order is invisible to this validation path.
+
+Birthday math at expected scale:
+
+- ~30 active Orders per store at peak; pickup is single-store-scoped.
+- P(any two active Orders in one store share a code) ≈ C(30,2) / 10⁶ ≈ 0.04% at any moment.
+- A wrong-handover would additionally require the cashier to misclick the wrong Order **and** the customer in front of them to read out a code that coincidentally matches the wrong row. Two independent errors must coincide.
+
+Estimated wrong-handovers from this path: very low single digits per year worst case. The partial-UNIQUE index would close the path, but the cost (write amplification on every Order insert, a migration over live data) buys protection against a multi-event coincidence the current per-Order check already substantially mitigates.
+
+Accepted residual risk: cashier may, in rare birthday-collision cases combined with row-misclick, complete pickup against the wrong Order. Mitigated operationally (cashier confirms customer name on dialog) rather than schema-enforced.
+
+## Outstanding fix
+
+One gap from the original drafting **remains real** and is independent of the two declined items:
+
+### Missing CHECK implication
+
+The schema currently enforces *if `pickup_event_id` is set, status must be `picked_up`/`refunded`*, but **not** the reverse — *if status is `picked_up`, `pickup_event_id` must be set*. A row claiming pickup happened without the dialog flow is therefore allowed by the database; only application code prevents it today.
+
+Target combined constraint:
+
+```sql
+CHECK (
+  (pickup_event_id IS NULL OR status IN ('picked_up', 'refunded'))
+  AND
+  (status != 'picked_up' OR pickup_event_id IS NOT NULL)
+)
+```
+
+This is a data-integrity invariant, not an authentication concern — it belongs in the schema regardless of how the code is generated or whether it is UNIQUE. Fix on its own; no coupling to the declined items.
 
 ## Consequences
 

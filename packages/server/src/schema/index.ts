@@ -5,12 +5,12 @@ import z from "zod";
 import { orderPaymentStatusEnum } from "@/db/schema";
 import { CampaignPayloadSchema as _CampaignPayloadSchema } from "@/modules/campaigns/campaign.schema";
 import {
-  ORDER_STATUS_TRANSITIONS as _ORDER_STATUS_TRANSITIONS,
   POSTOrderPickupEventPresignSchema as _POSTOrderPickupEventPresignSchema,
   POSTOrderPickupEventSchema as _POSTOrderPickupEventSchema,
 } from "@/modules/orders/order-admin.schema";
+import { ORDER_SERVICE_TRANSITIONS as _ORDER_SERVICE_TRANSITIONS } from "@/modules/orders/order-status-machine";
 
-export const ORDER_STATUS_TRANSITIONS = _ORDER_STATUS_TRANSITIONS;
+export const ORDER_SERVICE_TRANSITIONS = _ORDER_SERVICE_TRANSITIONS;
 export const POSTOrderPickupEventPresignSchema =
   _POSTOrderPickupEventPresignSchema;
 export const POSTOrderPickupEventSchema = _POSTOrderPickupEventSchema;
