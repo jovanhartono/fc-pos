@@ -23,7 +23,6 @@ export type { ComparableSummary, KpiDelta, ReportGranularity };
 import { type InferResponseType, parseResponse } from "hono/client";
 import type { z } from "zod";
 import { rpc, rpcWithAuth } from "@/lib/rpc";
-import { getCurrentUser } from "@/stores/auth-store";
 
 export interface ApiSuccess<T> {
 	success: true;
@@ -52,7 +51,7 @@ async function parseSuccessData<T>(
 const loginRoute = rpc.api.auth.login.$post;
 const customersRoute = rpc.api.admin.customers.$get;
 const usersRoute = rpc.api.admin.users.$get;
-const userDetailRoute = rpc.api.admin.users[":id"].$get;
+const meRoute = rpc.api.admin.users.me.$get;
 const storesRoute = rpc.api.admin.stores.$get;
 const categoriesRoute = rpc.api.admin.categories.$get;
 const servicesRoute = rpc.api.admin.services.$get;
@@ -93,10 +92,6 @@ type LoginSuccessResponse = Extract<
 
 export type Customer = InferResponseType<typeof customersRoute>["data"][number];
 export type User = InferResponseType<typeof usersRoute>["data"][number];
-export type UserDetail = Extract<
-	InferResponseType<typeof userDetailRoute>,
-	{ success: true }
->["data"];
 export type Store = InferResponseType<typeof storesRoute>["data"][number];
 export type Category = InferResponseType<
 	typeof categoriesRoute
@@ -437,7 +432,7 @@ export const queryKeys = {
 	customers: (query?: FetchCustomersQuery) =>
 		["customers", query ?? {}] as const,
 	users: (query?: FetchUsersQuery) => ["users", query ?? {}] as const,
-	userDetail: (id: number) => ["user-detail", id] as const,
+	me: ["me"] as const,
 	stores: ["stores"] as const,
 	categories: ["categories"] as const,
 	services: ["services"] as const,
@@ -563,20 +558,13 @@ export async function fetchUsersPage(
 	};
 }
 
-export async function fetchUserById(id: number) {
-	return parseSuccessData<UserDetail>(
-		rpcWithAuth().api.admin.users[":id"].$get({
-			param: { id: String(id) },
-		}),
-	);
-}
+export type Me = Extract<
+	InferResponseType<typeof meRoute>,
+	{ success: true }
+>["data"];
 
-export async function fetchCurrentUserDetail() {
-	const current = getCurrentUser();
-	if (!current) {
-		throw new Error("User not authenticated");
-	}
-	return fetchUserById(current.id);
+export async function fetchMe() {
+	return parseSuccessData<Me>(rpcWithAuth().api.admin.users.me.$get());
 }
 
 export async function fetchStores() {

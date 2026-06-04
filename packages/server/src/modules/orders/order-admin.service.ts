@@ -38,6 +38,13 @@ import {
   summarizeOrderFulfillment,
   transitionOrderService,
 } from "@/modules/orders/order-status-machine";
+import {
+  assertCanCancelOrderService,
+  assertCanProcessPayment,
+  assertCanProcessPickup,
+  assertCanReassignHandler,
+  assertCanRefundOrderService,
+} from "@/modules/permissions/permissions";
 import type { JWTPayload } from "@/types";
 import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
@@ -107,20 +114,6 @@ function buildRefundItems({
   return refundItems.map(({ preciseAmount, ...item }) => item);
 }
 
-function assertIsAdmin(user: JWTPayload) {
-  if (user.role !== "admin") {
-    throw new ForbiddenException("Only admin can perform this action");
-  }
-}
-
-export function assertCanProcessPaymentOrRefund(user: JWTPayload) {
-  if (!["admin", "cashier"].includes(user.role)) {
-    throw new ForbiddenException(
-      "Only admin or cashier can perform this action"
-    );
-  }
-}
-
 const getOrderServicePrepared = db.query.ordersServicesTable
   .findFirst({
     where: {
@@ -141,19 +134,6 @@ async function getOrderServiceOrThrow(orderId: number, serviceId: number) {
   }
 
   return orderService;
-}
-
-function assertCanProcessPickup(user: JWTPayload) {
-  const allowed =
-    user.role === "admin" ||
-    user.role === "cashier" ||
-    user.can_process_pickup === true;
-
-  if (!allowed) {
-    throw new ForbiddenException(
-      "Only admin, cashier, or authorized pickup handlers can complete pickups"
-    );
-  }
 }
 
 async function getOrderLineRefundCaps(orderId: number) {
@@ -575,7 +555,7 @@ export async function updateOrderPayment({
   body: PatchOrderPaymentInput;
   user: JWTPayload;
 }) {
-  assertCanProcessPaymentOrRefund(user);
+  assertCanProcessPayment(user);
 
   const order = await db.query.ordersTable.findFirst({
     where: { id: orderId },
@@ -658,7 +638,7 @@ export async function startOrderServiceWork({
       locked.handler_id !== user.id
     ) {
       throw new ForbiddenException(
-        "This item is already assigned to another worker"
+        "This item is already assigned to another staff member"
       );
     }
 
@@ -707,7 +687,7 @@ export async function updateOrderServiceHandler({
   body: PatchOrderServiceHandlerInput;
   user: JWTPayload;
 }) {
-  assertIsAdmin(user);
+  assertCanReassignHandler(user);
 
   const orderService = await getOrderServiceOrThrow(orderId, serviceId);
 
@@ -743,12 +723,11 @@ export async function updateOrderServiceStatus({
   body: PatchOrderServiceStatusInput;
   user: JWTPayload;
 }) {
-  if (
-    user.role === "worker" &&
-    (body.status === "cancelled" || body.status === "refunded")
-  ) {
+  if (isTerminalOrderServiceStatus(body.status)) {
     throw new ForbiddenException(
-      "Workers cannot cancel or refund items from the Queue"
+      body.status === "picked_up"
+        ? "Use the pickup endpoint to record pickups"
+        : "Use the cancel or refund endpoint for terminal exit states"
     );
   }
 
@@ -1101,8 +1080,6 @@ export async function createOrderRefund({
   body: PostOrderRefundInput;
   user: JWTPayload;
 }) {
-  assertIsAdmin(user);
-
   const uniqueServiceIds = [
     ...new Set(body.items.map((item) => item.order_service_id)),
   ];
@@ -1126,11 +1103,7 @@ export async function createOrderRefund({
     throw new BadRequestException("Order not found");
   }
 
-  if (order.payment_status !== "paid") {
-    throw new BadRequestException(
-      "Refund can only be processed for paid orders"
-    );
-  }
+  assertCanRefundOrderService(user, order);
 
   const refundCaps = await getOrderLineRefundCaps(orderId);
   const capsByServiceId = new Map(
@@ -1211,8 +1184,6 @@ export async function cancelOrder({
   body: PostOrderCancelInput;
   user: JWTPayload;
 }) {
-  assertIsAdmin(user);
-
   const order = await db.query.ordersTable.findFirst({
     where: { id: orderId },
     columns: {
@@ -1226,14 +1197,10 @@ export async function cancelOrder({
     throw new BadRequestException("Order not found");
   }
 
+  assertCanCancelOrderService(user, order);
+
   if (order.status === "cancelled") {
     throw new BadRequestException("Order is already cancelled");
-  }
-
-  if (order.payment_status === "paid") {
-    throw new BadRequestException(
-      "Paid orders cannot be cancelled. Issue a refund instead."
-    );
   }
 
   const allServices = await db.query.ordersServicesTable.findMany({

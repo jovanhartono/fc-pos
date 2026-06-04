@@ -2,13 +2,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type {
-	NonCancelServiceStatus,
+	NonTerminalServiceStatus,
 	UpdateStatusMutation,
 } from "./order-service-dialog.types";
 
 interface ServiceStatusConfirmFormProps {
 	serviceId: number;
-	nextStatus: NonCancelServiceStatus;
+	nextStatus: NonTerminalServiceStatus;
 	updateStatusMutation: UpdateStatusMutation;
 	closeDialog: () => void;
 }

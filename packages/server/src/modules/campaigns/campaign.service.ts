@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from "@/errors";
+import { BadRequestException } from "@/errors";
 import {
   deleteCampaignById,
   findCampaignById,
@@ -13,13 +13,8 @@ import type {
   CampaignUpdatePayload,
   GetCampaignsQuery,
 } from "@/modules/campaigns/campaign.schema";
+import { assertCanManageCampaigns } from "@/modules/permissions/permissions";
 import type { JWTPayload } from "@/types";
-
-function assertIsAdmin(user: JWTPayload) {
-  if (user.role !== "admin") {
-    throw new ForbiddenException("Only admin can perform this action");
-  }
-}
 
 async function ensureStoresExist(storeIds: number[]) {
   if (storeIds.length === 0) {
@@ -169,7 +164,7 @@ export async function createCampaign({
   user: JWTPayload;
   payload: CampaignPayload;
 }) {
-  assertIsAdmin(user);
+  assertCanManageCampaigns(user);
 
   const storeIds = [...new Set(payload.store_ids)];
   const serviceIds = [...new Set(payload.eligible_service_ids)];
@@ -196,7 +191,7 @@ export async function updateCampaign({
   id: number;
   payload: CampaignUpdatePayload;
 }) {
-  assertIsAdmin(user);
+  assertCanManageCampaigns(user);
 
   const storeIds = payload.store_ids
     ? [...new Set(payload.store_ids)]
@@ -220,6 +215,6 @@ export async function updateCampaign({
 }
 
 export function deleteCampaign({ user, id }: { user: JWTPayload; id: number }) {
-  assertIsAdmin(user);
+  assertCanManageCampaigns(user);
   return deleteCampaignById(id);
 }

@@ -8,9 +8,13 @@ import {
   POSTOrderPickupEventPresignSchema as _POSTOrderPickupEventPresignSchema,
   POSTOrderPickupEventSchema as _POSTOrderPickupEventSchema,
 } from "@/modules/orders/order-admin.schema";
-import { ORDER_SERVICE_TRANSITIONS as _ORDER_SERVICE_TRANSITIONS } from "@/modules/orders/order-status-machine";
+import {
+  ORDER_SERVICE_TRANSITIONS as _ORDER_SERVICE_TRANSITIONS,
+  ORDER_TERMINAL_SERVICE_STATUSES as _ORDER_TERMINAL_SERVICE_STATUSES,
+} from "@/modules/orders/order-status-machine";
 
 export const ORDER_SERVICE_TRANSITIONS = _ORDER_SERVICE_TRANSITIONS;
+export const ORDER_TERMINAL_SERVICE_STATUSES = _ORDER_TERMINAL_SERVICE_STATUSES;
 export const POSTOrderPickupEventPresignSchema =
   _POSTOrderPickupEventPresignSchema;
 export const POSTOrderPickupEventSchema = _POSTOrderPickupEventSchema;

@@ -61,7 +61,6 @@ const app = new Hono().post(
       name: user.name,
       username: user.username,
       role: user.role,
-      is_active: user.is_active,
       can_process_pickup: user.can_process_pickup,
       exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 1 week
     };

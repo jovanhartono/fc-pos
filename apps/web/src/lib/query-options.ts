@@ -15,13 +15,13 @@ import {
 	fetchCampaigns,
 	fetchCategories,
 	fetchCurrentShift,
-	fetchCurrentUserDetail,
 	fetchCustomerAcquisitionReport,
 	fetchCustomersPage,
 	fetchDailyReport,
 	fetchDashboardCounts,
 	fetchDashboardOverview,
 	fetchFinancialReport,
+	fetchMe,
 	fetchMyOrderServices,
 	fetchOrderDetail,
 	fetchOrdersFlowReport,
@@ -67,10 +67,10 @@ export const usersPageQueryOptions = (query?: FetchUsersQuery) =>
 		queryFn: () => fetchUsersPage(query),
 	});
 
-export const currentUserDetailQueryOptions = (userId: number) =>
+export const meQueryOptions = () =>
 	queryOptions({
-		queryKey: queryKeys.userDetail(userId),
-		queryFn: fetchCurrentUserDetail,
+		queryKey: queryKeys.me,
+		queryFn: fetchMe,
 	});
 
 export const storesQueryOptions = () =>

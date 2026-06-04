@@ -12,10 +12,7 @@ import {
 } from "@/features/transactions/lib/transactions";
 import type { TransactionsPageContextValue } from "@/features/transactions/lib/transactions-context";
 import { createOrder } from "@/lib/api";
-import {
-	currentUserDetailQueryOptions,
-	storesQueryOptions,
-} from "@/lib/query-options";
+import { meQueryOptions, storesQueryOptions } from "@/lib/query-options";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useTransactionPreferencesStore } from "@/stores/transaction-preferences-store";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
@@ -118,15 +115,16 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 			name: "selectedStoreId",
 		}) ?? "";
 	const storesQuery = useQuery(storesQueryOptions());
-	const currentUserDetailQuery = useQuery({
-		...currentUserDetailQueryOptions(currentUser?.id ?? -1),
+	const meQuery = useQuery({
+		...meQueryOptions(),
 		enabled: !!currentUser,
 	});
 
 	const userStoreIds =
-		currentUserDetailQuery.data?.userStores?.map((item) => item.store_id) ?? [];
+		meQuery.data?.userStores?.map((item) => item.store_id) ?? [];
 
-	const isAdmin = currentUser?.role === "admin";
+	// DB-fresh role — JWT claim goes stale on mid-session role changes.
+	const isAdmin = meQuery.data?.role === "admin";
 
 	const visibleStores = useMemo(() => {
 		const stores = storesQuery.data ?? [];
@@ -138,7 +136,7 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 
 	useEffect(() => {
 		const canResolveStoreSelection =
-			storesQuery.isSuccess && (isAdmin || currentUserDetailQuery.isSuccess);
+			storesQuery.isSuccess && (isAdmin || meQuery.isSuccess);
 
 		if (!canResolveStoreSelection || !currentUserKey) {
 			return;
@@ -172,7 +170,7 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 		}
 	}, [
 		clearPersistedSelectedStoreId,
-		currentUserDetailQuery.isSuccess,
+		meQuery.isSuccess,
 		currentUserKey,
 		form,
 		isAdmin,
@@ -183,8 +181,7 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 		visibleStores,
 	]);
 
-	const isBootstrapping =
-		storesQuery.isPending || currentUserDetailQuery.isPending;
+	const isBootstrapping = storesQuery.isPending || meQuery.isPending;
 
 	const createMutation = useMutation({
 		mutationKey: ["create-pos-order"],

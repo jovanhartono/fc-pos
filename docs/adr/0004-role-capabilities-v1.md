@@ -2,6 +2,8 @@
 
 Three roles with disjoint capabilities. Locked for v1; do not blur the lines.
 
+> **Amended 2026-06-04:** the processing axis is now open to all staff — see [Amendment](#amendment-2026-06-04--processing-axis-open-to-all-staff). Money and admin operations remain role-gated exactly as below.
+
 ## Capabilities
 
 | Capability | Cashier | Worker | Admin |
@@ -10,9 +12,9 @@ Three roles with disjoint capabilities. Locked for v1; do not blur the lines.
 | Create unpaid Order | ✅ | — | ✅ |
 | Apply existing Campaign | ✅ | — | ✅ |
 | Process pickup (collect payment, validate pickup code) | ✅ if `can_process_pickup=true` | — | ✅ |
-| Self-assign OrderService from queue | — | ✅ | — |
-| Update OrderService status during processing | — | ✅ | ✅ |
-| Upload service detail photos | — | ✅ | ✅ |
+| Self-assign OrderService from queue | ✅ | ✅ | ✅ |
+| Update OrderService status during processing | ✅ | ✅ | ✅ |
+| Upload service detail photos | ✅ | ✅ | ✅ |
 | Cancel OrderService on an **unpaid** Order | ✅ | ✅ | ✅ |
 | Refund OrderService on a **paid** Order | — | — | ✅ |
 | Create / edit Campaigns | — | — | ✅ |
@@ -66,3 +68,26 @@ Overlap is partial (`cannot_process`, `other`). Each enum lives on a different t
 - Do not build an "auto-refund on cancel" cascade — paid-Order cancellation is not a real operation; the admin runs the refund dialog instead.
 - Any UX that initiates reversal must read `payment_status` first to choose the dialog (cancel vs refund). The two off-ramps are not interchangeable.
 - The status conflation between processing axis and terminal-outcome axis (see [CONTEXT.md](../../CONTEXT.md) "OrderService status") is accepted for v1 and recorded for the Order Status Machine refactor.
+
+## Amendment 2026-06-04 — processing axis open to all staff
+
+Field reality contradicted the locked matrix: staff roles are fluid on the floor. A cashier QCs pairs when the bench backs up; whoever is free does the work. The worker/cashier wall on the processing axis blocked legitimate operations (a cashier could not move `quality_check → ready_for_pickup`) while adding no safety — the original rationale for the wall was accountability, which the audit logs already provide.
+
+**New rule: role gates money and admin operations; the processing axis is open to any authenticated staff.**
+
+Opened to all three roles:
+
+- Self-assign OrderService from queue
+- Update OrderService status during processing
+- Upload service detail photos
+
+Unchanged (the rule's other half):
+
+- Create Order, process payment — admin/cashier
+- Process pickup — admin/cashier/`can_process_pickup` flag (pickup collects money)
+- Refund, reassign handler, manage Campaigns/Users — admin only
+- Cancel — any staff, still gated by `payment_status = unpaid`; the disjoint off-ramps stand
+
+Why audit survives without the role wall: every status transition records `changed_by` in `order_service_status_logs`; every handler change is appended to `order_service_handler_logs`. The poach guard (cannot self-assign an item whose `handler_id` belongs to someone else) is handler-based, not role-based, and stays.
+
+Lockstep with [ADR-0006](0006-permissions-module-shape.md): capabilities open to all staff have **no** `assertCan*` function — `permissions.ts` lists only restricted capabilities. `adminMiddleware` (JWT + DB auth-state refresh, see [ADR-0006](0006-permissions-module-shape.md)) is the sole gate on open rows. A matrix row of all-✅ therefore corresponds to *absence* of an assert, deliberately.

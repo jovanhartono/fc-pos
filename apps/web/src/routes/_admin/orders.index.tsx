@@ -22,7 +22,7 @@ import {
 import { PickupRadar } from "@/features/orders/components/pickup-radar";
 import type { Order } from "@/lib/api";
 import {
-	currentUserDetailQueryOptions,
+	meQueryOptions,
 	ordersPageQueryOptions,
 	storesQueryOptions,
 } from "@/lib/query-options";
@@ -68,13 +68,12 @@ export const Route = createFileRoute("/_admin/orders/")({
 		const currentUser = getCurrentUser();
 		await context.queryClient.ensureQueryData(storesQueryOptions());
 
-		if (currentUser) {
-			await context.queryClient.ensureQueryData(
-				currentUserDetailQueryOptions(currentUser.id),
-			);
-		}
+		// DB-fresh role — JWT claim goes stale on mid-session role changes.
+		const me = currentUser
+			? await context.queryClient.ensureQueryData(meQueryOptions())
+			: undefined;
 
-		if (currentUser?.role === "admin" || deps.storeId !== undefined) {
+		if (me?.role === "admin" || deps.storeId !== undefined) {
 			await context.queryClient.ensureQueryData(
 				ordersPageQueryOptions(
 					deps.storeId !== undefined
@@ -106,20 +105,22 @@ function OrdersPage() {
 	const search = Route.useSearch();
 
 	const storesQuery = useQuery(storesQueryOptions());
-	const currentUserDetailQuery = useQuery({
-		...currentUserDetailQueryOptions(currentUser?.id ?? -1),
+	const meQuery = useQuery({
+		...meQueryOptions(),
 		enabled: !!currentUser,
 	});
 
 	const userStoreIds =
-		currentUserDetailQuery.data?.userStores?.map((item) => item.store_id) ?? [];
+		meQuery.data?.userStores?.map((item) => item.store_id) ?? [];
+	// DB-fresh role — JWT claim goes stale on mid-session role changes.
+	const role = meQuery.data?.role;
 
 	useEffect(() => {
 		if (!currentUser || search.storeId !== undefined) {
 			return;
 		}
 
-		if (currentUser.role === "admin") {
+		if (role === "admin") {
 			return;
 		}
 
@@ -133,7 +134,7 @@ function OrdersPage() {
 				replace: true,
 			});
 		}
-	}, [currentUser, navigate, search.storeId, userStoreIds]);
+	}, [currentUser, navigate, role, search.storeId, userStoreIds]);
 
 	const handleSearchChange = useCallback(
 		(next: string) => {
@@ -150,7 +151,7 @@ function OrdersPage() {
 
 	const parsedStoreId = search.storeId;
 	const orderQuery =
-		currentUser?.role === "admin"
+		role === "admin"
 			? parsedStoreId
 				? {
 						limit: PAGE_SIZE,
@@ -180,13 +181,11 @@ function OrdersPage() {
 
 	const ordersQuery = useQuery({
 		...ordersPageQueryOptions(orderQuery),
-		enabled: currentUser?.role === "admin" ? true : parsedStoreId !== undefined,
+		enabled: role === "admin" ? true : parsedStoreId !== undefined,
 	});
 
 	const hasNoStoreAssignment =
-		currentUser?.role !== "admin" &&
-		currentUserDetailQuery.isSuccess &&
-		userStoreIds.length === 0;
+		role !== "admin" && meQuery.isSuccess && userStoreIds.length === 0;
 
 	const openSheet = useSheet((state) => state.openSheet);
 
@@ -341,22 +340,20 @@ function OrdersPage() {
 	};
 
 	const visibleStores =
-		currentUser?.role === "admin"
+		role === "admin"
 			? (storesQuery.data ?? [])
 			: (storesQuery.data ?? []).filter((store) =>
 					userStoreIds.includes(store.id),
 				);
 	const storeFilterItems = useMemo(
 		() => [
-			...(currentUser?.role === "admin"
-				? [{ value: "all", label: "All stores" }]
-				: []),
+			...(role === "admin" ? [{ value: "all", label: "All stores" }] : []),
 			...visibleStores.map((store) => ({
 				value: String(store.id),
 				label: `${store.code} - ${store.name}`,
 			})),
 		],
-		[currentUser?.role, visibleStores],
+		[role, visibleStores],
 	);
 
 	return (
@@ -399,7 +396,7 @@ function OrdersPage() {
 							<Select
 								items={storeFilterItems}
 								value={
-									currentUser?.role === "admin"
+									role === "admin"
 										? (search.storeId?.toString() ?? "all")
 										: (search.storeId?.toString() ?? "")
 								}
@@ -422,7 +419,7 @@ function OrdersPage() {
 									<SelectValue placeholder="Filter by store" />
 								</SelectTrigger>
 								<SelectContent>
-									{currentUser?.role === "admin" ? (
+									{role === "admin" ? (
 										<SelectItem value="all">All stores</SelectItem>
 									) : null}
 									{visibleStores.map((store) => (

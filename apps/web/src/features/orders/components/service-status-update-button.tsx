@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useDialog } from "@/stores/dialog-store";
 import {
-	type NonCancelServiceStatus,
+	type NonTerminalServiceStatus,
 	STATUS_ACTION_LABELS,
 	type UpdateStatusMutation,
 } from "./order-service-dialog.types";
@@ -9,7 +9,7 @@ import { ServiceStatusConfirmForm } from "./service-status-confirm-form";
 
 interface ServiceStatusUpdateButtonProps {
 	serviceId: number;
-	nextStatus: NonCancelServiceStatus;
+	nextStatus: NonTerminalServiceStatus;
 	updateStatusMutation: UpdateStatusMutation;
 }
 

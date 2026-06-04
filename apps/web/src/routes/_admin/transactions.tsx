@@ -7,7 +7,7 @@ import { TransactionsPageProvider } from "@/features/transactions/lib/transactio
 import {
 	campaignsQueryOptions,
 	categoriesQueryOptions,
-	currentUserDetailQueryOptions,
+	meQueryOptions,
 	paymentMethodsQueryOptions,
 	productsQueryOptions,
 	servicesQueryOptions,
@@ -31,12 +31,10 @@ export const Route = createFileRoute("/_admin/transactions")({
 			return;
 		}
 
-		const currentUserDetail = await context.queryClient.ensureQueryData(
-			currentUserDetailQueryOptions(currentUser.id),
-		);
+		const me = await context.queryClient.ensureQueryData(meQueryOptions());
 
-		if (currentUser.role !== "admin") {
-			const firstStoreId = currentUserDetail.userStores[0]?.store_id;
+		if (me.role !== "admin") {
+			const firstStoreId = me.userStores[0]?.store_id;
 
 			if (firstStoreId) {
 				await context.queryClient.ensureQueryData(

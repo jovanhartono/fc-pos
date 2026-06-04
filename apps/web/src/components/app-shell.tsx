@@ -18,6 +18,7 @@ import {
 	TagIcon,
 	UserGearIcon,
 } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { type ComponentType, type PropsWithChildren, useEffect } from "react";
 import { useTheme } from "@/components/theme-provider";
@@ -45,6 +46,7 @@ import {
 	SidebarSeparator,
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { meQueryOptions } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
 import { getCurrentUser, useAuthStore } from "@/stores/auth-store";
 
@@ -222,7 +224,10 @@ export function AppShell({ title, children }: AppShellProps) {
 	const navigate = useNavigate();
 	const clearToken = useAuthStore((state) => state.clearToken);
 	const user = getCurrentUser();
-	const role = user?.role as Role | undefined;
+	// Nav visibility follows the DB-fresh role from /admin/users/me, not the
+	// stale JWT claim — role changes apply without re-login.
+	const meQuery = useQuery(meQueryOptions());
+	const role = meQuery.data?.role as Role | undefined;
 
 	useEffect(() => {
 		document.title = `${title} | Fresclean POS`;

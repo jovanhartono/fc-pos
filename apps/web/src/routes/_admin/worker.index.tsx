@@ -40,10 +40,7 @@ import {
 	queryKeys,
 } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
-import {
-	currentUserDetailQueryOptions,
-	storesQueryOptions,
-} from "@/lib/query-options";
+import { meQueryOptions, storesQueryOptions } from "@/lib/query-options";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
@@ -136,9 +133,7 @@ export const Route = createFileRoute("/_admin/worker/")({
 		await context.queryClient.ensureQueryData(storesQueryOptions());
 
 		if (currentUser) {
-			await context.queryClient.ensureQueryData(
-				currentUserDetailQueryOptions(currentUser.id),
-			);
+			await context.queryClient.ensureQueryData(meQueryOptions());
 		}
 	},
 	component: WorkerQueuePage,
@@ -167,24 +162,24 @@ function WorkerQueuePage() {
 	const scanningRef = useRef(false);
 
 	const storesQuery = useQuery(storesQueryOptions());
-	const currentUserDetailQuery = useQuery({
-		...currentUserDetailQueryOptions(currentUser?.id ?? -1),
+	const meQuery = useQuery({
+		...meQueryOptions(),
 		enabled: !!currentUser,
 	});
 
 	const userStoreIds = useMemo(
-		() =>
-			currentUserDetailQuery.data?.userStores.map((item) => item.store_id) ??
-			[],
-		[currentUserDetailQuery.data],
+		() => meQuery.data?.userStores.map((item) => item.store_id) ?? [],
+		[meQuery.data],
 	);
+	// DB-fresh role — JWT claim goes stale on mid-session role changes.
+	const role = meQuery.data?.role;
 
 	useEffect(() => {
 		if (!currentUser || search.storeId !== undefined) {
 			return;
 		}
 
-		if (currentUser.role === "admin") {
+		if (role === "admin") {
 			return;
 		}
 
@@ -197,19 +192,19 @@ function WorkerQueuePage() {
 				replace: true,
 			});
 		}
-	}, [currentUser, navigate, search.storeId, userStoreIds]);
+	}, [currentUser, navigate, search.storeId, userStoreIds, role]);
 
 	const parsedStoreId = useMemo(() => {
 		if (search.storeId !== undefined) {
 			return search.storeId;
 		}
 
-		if (currentUser?.role === "admin") {
+		if (role === "admin") {
 			return undefined;
 		}
 
 		return userStoreIds[0];
-	}, [currentUser?.role, search.storeId, userStoreIds]);
+	}, [role, search.storeId, userStoreIds]);
 	const selectedStatus = search.status;
 	const selectedDateFrom = search.dateFrom;
 	const selectedDateTo = search.dateTo;
@@ -446,7 +441,7 @@ function WorkerQueuePage() {
 	};
 
 	const visibleStores =
-		currentUser?.role === "admin"
+		role === "admin"
 			? (storesQuery.data ?? [])
 			: (storesQuery.data ?? []).filter((store) =>
 					userStoreIds.includes(store.id),
@@ -785,7 +780,7 @@ function WorkerQueuePage() {
 				</section>
 
 				<section className="grid gap-2">
-					{currentUser?.role === "admin" && parsedStoreId === undefined ? (
+					{role === "admin" && parsedStoreId === undefined ? (
 						<div className="border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
 							Select a store.
 						</div>

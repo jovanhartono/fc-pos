@@ -32,9 +32,12 @@ import {
 	type UpdateCampaignPayload,
 	updateCampaign,
 } from "@/lib/api";
-import { campaignsQueryOptions, storesQueryOptions } from "@/lib/query-options";
+import {
+	campaignsQueryOptions,
+	meQueryOptions,
+	storesQueryOptions,
+} from "@/lib/query-options";
 import { formatIDRCurrency } from "@/shared/utils";
-import { getCurrentUser } from "@/stores/auth-store";
 import { useDialog } from "@/stores/dialog-store";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -69,6 +72,7 @@ export const Route = createFileRoute("/_admin/campaigns")({
 		Promise.all([
 			context.queryClient.ensureQueryData(campaignsQueryOptions()),
 			context.queryClient.ensureQueryData(storesQueryOptions()),
+			context.queryClient.ensureQueryData(meQueryOptions()),
 		]),
 	component: CampaignsPage,
 });
@@ -176,10 +180,11 @@ function ArchiveCampaignButton({
 }
 
 function CampaignsPage() {
-	const user = getCurrentUser();
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
-	const isAdmin = user?.role === "admin";
+	// DB-fresh role — JWT claim goes stale on mid-session role changes.
+	const meQuery = useQuery(meQueryOptions());
+	const isAdmin = meQuery.data?.role === "admin";
 	const queryClient = useQueryClient();
 	const { openSheet, closeSheet } = useSheet();
 

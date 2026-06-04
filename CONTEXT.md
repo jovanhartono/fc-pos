@@ -33,7 +33,7 @@ A physical shop location. Owns its own Orders and Shifts. **Does not** own its o
 _Avoid_: Branch, outlet.
 
 **User**:
-An operator. Role is one of **admin**, **cashier**, **worker**. Scoped to one-or-many Stores via `userStores`.
+An operator. Role is one of **admin**, **cashier**, **worker**. Scoped to one-or-many Stores via `userStores`. Role gates **money and admin operations** only; the OrderService processing axis (queue claim, status updates, detail photos) is open to any staff regardless of role — see [ADR-0004 amendment](docs/adr/0004-role-capabilities-v1.md).
 
 **Shift**:
 A User's working session at a Store, with `clock_in`/`clock_out`. Used for attendance reporting and revenue-by-shift breakdown in `reports`. Shifts do **not** gate POS access — Order creation never reads shift state in v1.
@@ -45,7 +45,7 @@ A single intake: a Customer drops items at a Store, work is done on the items, i
 _Avoid_: Transaction (legacy folder name — see Ambiguities), sale, ticket.
 
 **OrderService**:
-**One pair of footwear receiving one Service.** Not one shoe — a pair is the unit. An Order has 1..N OrderServices. Each owns its own status, a single **current** handler (`handler_id`), detail photos, optional `item_code`, and an `is_priority` flag (defaults from `services.is_priority` on the catalog row, overridable per line at intake). The handler can be reassigned by an admin (workers cannot poach a peer's item — self-assign throws if `handler_id` is already set to someone else); every reassignment is appended to `order_service_handler_logs` with `from_handler_id`, `to_handler_id`, `changed_by`, and an optional note.
+**One pair of footwear receiving one Service.** Not one shoe — a pair is the unit. An Order has 1..N OrderServices. Each owns its own status, a single **current** handler (`handler_id`), detail photos, optional `item_code`, and an `is_priority` flag (defaults from `services.is_priority` on the catalog row, overridable per line at intake). The handler can be reassigned by an admin (staff cannot poach a peer's item — self-assign throws if `handler_id` is already set to someone else); every reassignment is appended to `order_service_handler_logs` with `from_handler_id`, `to_handler_id`, `changed_by`, and an optional note.
 _Avoid_: Order item, line item, job (informal worker shorthand only).
 
 **OrderProduct**:
@@ -116,7 +116,7 @@ All three types are soft-deleted (`deleted_at`). S3 objects are retained forever
 Ephemeral client-side construct in the Transactions POS. Holds in-progress OrderServices, OrderProducts, applied Campaigns, and chosen PaymentMethod. **Becomes an Order only when checkout succeeds.** Nothing persists server-side until then.
 
 **Queue**:
-The worker's view of OrderServices needing work, scoped by their Store, filtered by status. Workers self-assign `queued → processing`. Sort order is `is_priority DESC, Order.created_at ASC, OrderService.id ASC` — priority items bubble to the top; otherwise FIFO by intake time. `is_priority` carries no SLA or pricing effect; it is purely a queue-bumper.
+The view of OrderServices needing work, scoped by Store, filtered by status. Used mainly by workers; any staff may self-assign `queued → processing` (processing axis is role-open — see [ADR-0004 amendment](docs/adr/0004-role-capabilities-v1.md)). Sort order is `is_priority DESC, Order.created_at ASC, OrderService.id ASC` — priority items bubble to the top; otherwise FIFO by intake time. `is_priority` carries no SLA or pricing effect; it is purely a queue-bumper.
 
 **Aging queue**:
 A dashboard surface listing OrderServices not in a terminal status, ordered by `created_at` ascending.

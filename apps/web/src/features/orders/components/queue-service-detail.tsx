@@ -1,4 +1,7 @@
-import { ORDER_SERVICE_TRANSITIONS } from "@fresclean/api/schema";
+import {
+	ORDER_SERVICE_TRANSITIONS,
+	ORDER_TERMINAL_SERVICE_STATUSES,
+} from "@fresclean/api/schema";
 import {
 	ArrowLeftIcon,
 	ImageSquareIcon,
@@ -32,9 +35,11 @@ import {
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 
+// Terminal statuses go through dedicated endpoints — the status endpoint
+// rejects them, so never offer them as queue actions.
 const WORKER_BLOCKED_QUEUE_STATUSES = new Set<
 	UpdateOrderServiceStatusPayload["status"]
->(["cancelled", "refunded"]);
+>(ORDER_TERMINAL_SERVICE_STATUSES);
 
 function QueueServiceDetailSkeleton() {
 	return (
