@@ -27,8 +27,8 @@ const ITEM_PROCESSED_STATUSES = ["ready_for_pickup", "quality_check"] as const;
 const JAKARTA_DAY_SQL = sql.raw(`'Asia/Jakarta'`);
 
 interface DateRange {
-  start: Date;
   end: Date;
+  start: Date;
 }
 
 export async function sumDailyPaid({

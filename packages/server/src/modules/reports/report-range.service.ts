@@ -37,19 +37,19 @@ import {
 } from "@/modules/reports/report-range.util";
 
 interface PeriodWindow {
-  from: string;
-  to: string;
-  range: ReturnType<typeof getJakartaRange>;
   buckets: string[];
+  from: string;
+  range: ReturnType<typeof getJakartaRange>;
+  to: string;
 }
 
 interface ReportContext {
-  from: string;
-  to: string;
-  store_id: number | null;
-  granularity: Granularity;
   buckets: string[];
+  from: string;
+  granularity: Granularity;
   previous: PeriodWindow;
+  store_id: number | null;
+  to: string;
 }
 
 function buildContext(query: GetReportRangeQuery): ReportContext {
@@ -99,16 +99,16 @@ function buildDeltas<T extends object>(
 // ───────────────────────── Financial ─────────────────────────
 
 interface FinancialSummary {
-  gross_revenue: number;
-  services_total: number;
-  products_total: number;
-  discount: number;
-  net_revenue: number;
   cogs: number;
+  discount: number;
   gross_profit: number;
-  refunds: number;
+  gross_revenue: number;
   net_income: number;
   net_margin: number;
+  net_revenue: number;
+  products_total: number;
+  refunds: number;
+  services_total: number;
 }
 
 async function financialSummaryFor({
@@ -307,11 +307,11 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
   }
 
   interface StoreBucket {
-    store_id: number;
+    byCategory: Map<number, number>;
     store_code: string;
+    store_id: number;
     store_name: string;
     total: number;
-    byCategory: Map<number, number>;
   }
 
   const storeBuckets = new Map<number, StoreBucket>();
@@ -425,10 +425,10 @@ function summariseFinancial(raw: {
 // ───────────────────────── Orders flow ─────────────────────────
 
 interface OrdersFlowSummary {
+  distinct_handlers: number;
+  net_flow: number;
   orders_in_total: number;
   orders_out_total: number;
-  net_flow: number;
-  distinct_handlers: number;
   throughput_per_handler: number;
 }
 
@@ -583,10 +583,10 @@ export async function getPaymentMixReport(query: GetReportRangeQuery) {
 // ───────────────────────── Customer acquisition ─────────────────────────
 
 interface CustomerSummary {
-  new_customers: number;
+  active_customers_in_range: number;
   cumulative_end: number;
   cumulative_start: number;
-  active_customers_in_range: number;
+  new_customers: number;
   repeat_customers_in_range: number;
   repeat_rate: number;
 }
@@ -776,12 +776,12 @@ export async function getRefundTrendReport(query: GetReportRangeQuery) {
 // ───────────────────────── Worker productivity ─────────────────────────
 
 interface WorkerSummary {
-  worker_count: number;
+  avg_items_per_hour: number;
+  rework_rate: number;
   total_items_completed: number;
   total_refund_items: number;
   total_rework_items: number;
-  rework_rate: number;
-  avg_items_per_hour: number;
+  worker_count: number;
 }
 
 export async function getWorkerProductivityReport(query: GetReportRangeQuery) {

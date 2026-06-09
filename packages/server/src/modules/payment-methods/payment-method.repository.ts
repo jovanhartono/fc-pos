@@ -7,9 +7,9 @@ export function listPaymentMethods(where?: { is_active?: boolean }) {
   return db.query.paymentMethodsTable.findMany({
     orderBy: { id: "asc" },
     where:
-      where?.is_active !== undefined
-        ? { is_active: where.is_active }
-        : undefined,
+      where?.is_active === undefined
+        ? undefined
+        : { is_active: where.is_active },
   });
 }
 

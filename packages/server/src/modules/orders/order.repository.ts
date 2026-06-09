@@ -18,32 +18,32 @@ import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
 export type OrderTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export interface OrderListItem {
-  id: number;
   code: string;
+  created_at: Date;
+  created_by: number;
+  customer_id: number;
+  customer_name: string;
+  customer_phone: string;
+  discount: string;
+  fulfillment: ReturnType<typeof summarizeOrderFulfillment>;
+  id: number;
+  notes: string | null;
+  payment_method_id: number | null;
+  payment_method_name: string | null;
+  payment_status: "paid" | "unpaid";
+  refund_status: OrderRefundStatus;
   status:
     | "created"
     | "processing"
     | "ready_for_pickup"
     | "completed"
     | "cancelled";
-  payment_status: "paid" | "unpaid";
-  refund_status: OrderRefundStatus;
-  discount: string;
-  total: string | null;
-  notes: string | null;
-  created_at: Date;
-  updated_at: Date;
-  customer_id: number;
-  customer_name: string;
-  customer_phone: string;
-  store_id: number;
   store_code: string;
+  store_id: number;
   store_name: string;
-  payment_method_id: number | null;
-  payment_method_name: string | null;
-  created_by: number;
+  total: string | null;
+  updated_at: Date;
   updated_by: number;
-  fulfillment: ReturnType<typeof summarizeOrderFulfillment>;
 }
 
 interface FindOrdersResult {
@@ -132,7 +132,7 @@ function buildOrderWhere(
   }
 
   if (conditions.length === 0) {
-    return undefined;
+    return;
   }
   if (conditions.length === 1) {
     return conditions[0];

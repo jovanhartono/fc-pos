@@ -41,7 +41,7 @@ function buildRelationalWhere(filters: UserFilters) {
   }
 
   if (conditions.length === 0) {
-    return undefined;
+    return;
   }
   if (conditions.length === 1) {
     return conditions[0];

@@ -42,7 +42,6 @@ interface MobileCardColumnOptions {
 }
 
 declare module "@tanstack/react-table" {
-	// biome-ignore lint/correctness/noUnusedVariables: TanStack declaration merging requires these generic names.
 	interface ColumnMeta<TData extends RowData, TValue> {
 		mobileCard?: MobileCardColumnOptions;
 	}

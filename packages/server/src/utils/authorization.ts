@@ -61,7 +61,7 @@ export async function assertOrderAccess(user: JWTPayload, orderId: number) {
 
 export async function buildStoreWhereClause(user: JWTPayload) {
   if (user.role === "admin") {
-    return undefined;
+    return;
   }
 
   const storeIds = await getUserStoreIds(user.id);

@@ -37,9 +37,9 @@ import {
 } from "@/modules/reports/report-range.util";
 
 interface BaseRangeArgs {
+  granularity: Granularity;
   range: DateRange;
   storeId?: number;
-  granularity: Granularity;
 }
 
 // ───────────────────────── Revenue trend (R1) ─────────────────────────

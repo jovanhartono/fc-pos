@@ -103,17 +103,17 @@ function buildCreatePayload(payload: CampaignPayload) {
 }
 
 interface UpdateWritePayload {
+  buy_quantity?: number | null;
   code?: string;
-  name?: string;
   discount_type?: "fixed" | "percentage" | "buy_n_get_m_free";
   discount_value?: string;
+  ends_at?: Date | null;
+  free_quantity?: number | null;
+  is_active?: boolean;
   max_discount?: string | null;
   min_order_total?: string;
+  name?: string;
   starts_at?: Date | null;
-  ends_at?: Date | null;
-  is_active?: boolean;
-  buy_quantity?: number | null;
-  free_quantity?: number | null;
 }
 
 const UPDATE_FIELDS = [

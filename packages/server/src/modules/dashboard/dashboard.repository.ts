@@ -21,8 +21,8 @@ const LOW_STOCK_THRESHOLD = 20;
 const UNCLAIMED_CUTOFF_DAYS = 30;
 
 interface DateRange {
-  start: Date;
   end: Date;
+  start: Date;
 }
 
 export async function getEntityCounts() {

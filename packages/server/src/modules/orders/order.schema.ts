@@ -40,19 +40,19 @@ export type GetOrdersQuery = z.infer<typeof GETOrdersQuerySchema>;
 type ParsedOrdersQuery = NonNullable<GetOrdersQuery>;
 
 export interface NormalizedOrderListQuery {
-  limit: number;
-  offset: number;
-  search?: string;
-  status?: ParsedOrdersQuery["status"];
-  payment_status?: ParsedOrdersQuery["payment_status"];
-  customer_id?: number;
-  store_id?: number;
   created_by?: number;
-  payment_method_id?: number;
+  customer_id?: number;
   date_from?: string;
   date_to?: string;
+  limit: number;
+  offset: number;
+  payment_method_id?: number;
+  payment_status?: ParsedOrdersQuery["payment_status"];
+  search?: string;
   sort_by: ParsedOrdersQuery["sort_by"];
   sort_order: ParsedOrdersQuery["sort_order"];
+  status?: ParsedOrdersQuery["status"];
+  store_id?: number;
 }
 
 export function normalizeOrderListQuery(

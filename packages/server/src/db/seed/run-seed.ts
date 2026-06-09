@@ -449,66 +449,66 @@ type ServiceScenario =
 type DiscountSource = "none" | "manual" | "campaign";
 
 interface StoreRow {
-  id: number;
   code: string;
+  id: number;
   name: string;
 }
 
 interface CampaignRow {
-  id: number;
   code: string;
   discount_type: "fixed" | "percentage" | "buy_n_get_m_free";
   discount_value: number;
-  min_order_total: number;
-  max_discount: number | null;
-  starts_at: Date | null;
   ends_at: Date | null;
+  id: number;
+  max_discount: number | null;
+  min_order_total: number;
+  starts_at: Date | null;
   store_ids: Set<number>;
 }
 
 interface DraftStatusLog {
-  from_status: OrderServiceStatus | null;
-  to_status: OrderServiceStatus;
   changed_by: number;
   created_at: Date;
+  from_status: OrderServiceStatus | null;
   note: string | null;
+  to_status: OrderServiceStatus;
 }
 
 interface DraftHandlerLog {
-  from_handler_id: number | null;
-  to_handler_id: number | null;
   changed_by: number;
   created_at: Date;
+  from_handler_id: number | null;
   note: string | null;
+  to_handler_id: number | null;
 }
 
 interface DraftServiceLine {
-  item_code: string;
-  service_id: number;
-  price: number;
-  cogs: number;
-  status: OrderServiceStatus;
-  handler_id: number | null;
   brand: string;
+  cogs: number;
   color: string;
-  model: string;
-  size: string;
-  notes: string | null;
-  status_logs: DraftStatusLog[];
+  handler_id: number | null;
   handler_logs: DraftHandlerLog[];
+  item_code: string;
+  model: string;
+  notes: string | null;
   photos: Array<{
     created_at: Date;
     note: string | null;
     uploaded_by: number | null;
   }>;
+  price: number;
+  service_id: number;
+  size: string;
+  status: OrderServiceStatus;
+  status_logs: DraftStatusLog[];
 }
 
 interface DraftProductLine {
-  product_id: number;
-  price: number;
   cogs: number;
-  qty: number;
   notes: string | null;
+  price: number;
+  product_id: number;
+  qty: number;
 }
 
 const TERMINAL_SERVICE_STATUSES = new Set<OrderServiceStatus>([

@@ -1,20 +1,20 @@
 interface Metadata {
-  total?: number;
   limit?: number;
   offset?: number;
+  total?: number;
 }
 
 interface SuccessResponse<T, M extends object = Metadata> {
-  success: true;
-  message?: string;
   data: T;
+  message?: string;
   meta?: M;
+  success: true;
 }
 
 interface ErrorResponse {
-  success: false;
-  message: string;
   errors?: unknown;
+  message: string;
+  success: false;
 }
 
 export function success<T, M extends object = Metadata>(

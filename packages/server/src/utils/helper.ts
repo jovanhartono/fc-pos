@@ -2,9 +2,8 @@ import type { Context } from "hono";
 import { StatusCodes } from "http-status-codes";
 import { failure } from "@/utils/http";
 
-export const getNumericValue = (formattedValue: string): string => {
-  return formattedValue.replaceAll(/[^\d]/g, "");
-};
+export const getNumericValue = (formattedValue: string): string =>
+  formattedValue.replaceAll(/[^\d]/g, "");
 
 export function notFoundOrFirst<T>(
   rows: T[],

@@ -9,8 +9,8 @@ export const JAKARTA_TZ_SQL = sql.raw(`'Asia/Jakarta'`);
 export type Granularity = "day" | "week" | "month" | "year";
 
 export interface DateRange {
-  start: Date;
   end: Date;
+  start: Date;
 }
 
 export function getJakartaDayRange(date: string): DateRange {

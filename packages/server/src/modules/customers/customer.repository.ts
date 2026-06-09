@@ -17,7 +17,7 @@ function buildRelationalWhere(filters: CustomerFilters) {
       ],
     };
   }
-  return undefined;
+  return;
 }
 
 function buildCountWhere(filters: CustomerFilters) {
@@ -28,7 +28,7 @@ function buildCountWhere(filters: CustomerFilters) {
       ilike(customersTable.phone_number, searchPattern)
     );
   }
-  return undefined;
+  return;
 }
 
 export function listCustomers({

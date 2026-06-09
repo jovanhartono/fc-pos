@@ -47,12 +47,12 @@ export type GetAgingQueueQuery = z.infer<typeof GETAgingQueueQuerySchema>;
 
 export interface KpiDelta<T = number> {
   current: T;
-  previous: T;
   delta_pct: number | null;
+  previous: T;
 }
 
 export interface ComparableSummary<T> {
   current: T;
-  previous: T;
   deltas: { [K in keyof T]?: KpiDelta<T[K] extends number ? number : never> };
+  previous: T;
 }

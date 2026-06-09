@@ -7,9 +7,9 @@ export function listCategories(where?: { is_active?: boolean }) {
   return db.query.categoriesTable.findMany({
     orderBy: { id: "asc" },
     where:
-      where?.is_active !== undefined
-        ? { is_active: where.is_active }
-        : undefined,
+      where?.is_active === undefined
+        ? undefined
+        : { is_active: where.is_active },
   });
 }
 

@@ -14,31 +14,31 @@ interface CampaignFilters {
 type CampaignDiscountType = "fixed" | "percentage" | "buy_n_get_m_free";
 
 interface CampaignWritePayload {
+  buy_quantity?: number | null;
   code: string;
-  name: string;
   discount_type: CampaignDiscountType;
   discount_value: string;
+  ends_at?: Date | null;
+  free_quantity?: number | null;
+  is_active: boolean;
   max_discount?: string | null;
   min_order_total: string;
+  name: string;
   starts_at?: Date | null;
-  ends_at?: Date | null;
-  is_active: boolean;
-  buy_quantity?: number | null;
-  free_quantity?: number | null;
 }
 
 export function listCampaigns(filters: CampaignFilters) {
   return db.query.campaignsTable.findMany({
     where: {
       is_active: filters.is_active,
-      ...(filters.store_id !== undefined
-        ? {
+      ...(filters.store_id === undefined
+        ? {}
+        : {
             OR: [
               { stores: { store_id: filters.store_id } },
               { NOT: { stores: true } },
             ],
-          }
-        : {}),
+          }),
     },
     orderBy: { id: "asc" },
     with: {

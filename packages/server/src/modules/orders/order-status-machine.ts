@@ -149,13 +149,13 @@ export async function recomputeOrderRollup(
 }
 
 export interface TransitionOrderServiceInput {
+  by: number;
+  cancelNote?: string | null;
+  cancelReason?: CancelReason;
+  note?: string;
   orderId: number;
   serviceId: number;
   to: OrderServiceStatus;
-  by: number;
-  note?: string;
-  cancelReason?: CancelReason;
-  cancelNote?: string | null;
 }
 
 export async function transitionOrderService(
@@ -246,11 +246,11 @@ export async function transitionOrderService(
 }
 
 export interface CompletePickupInput {
-  orderId: number;
-  serviceIds: number[];
-  pickupEventId: number;
   by: number;
   note?: string;
+  orderId: number;
+  pickupEventId: number;
+  serviceIds: number[];
 }
 
 export async function completePickup(
@@ -310,14 +310,14 @@ export async function completePickup(
 }
 
 export interface RefundTransitionItem {
-  serviceId: number;
   note?: string;
+  serviceId: number;
 }
 
 export interface ApplyRefundTransitionInput {
-  orderId: number;
-  items: RefundTransitionItem[];
   by: number;
+  items: RefundTransitionItem[];
+  orderId: number;
 }
 
 export async function applyRefundTransition(

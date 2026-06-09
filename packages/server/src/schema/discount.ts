@@ -1,11 +1,11 @@
 export interface CampaignDiscountInput {
+  buy_quantity?: number | null;
   discount_type: "fixed" | "percentage" | "buy_n_get_m_free";
   discount_value: string;
+  eligible_service_ids?: number[];
+  free_quantity?: number | null;
   max_discount: string | null;
   min_order_total?: string | null;
-  buy_quantity?: number | null;
-  free_quantity?: number | null;
-  eligible_service_ids?: number[];
 }
 
 export interface DiscountLine {
@@ -14,13 +14,13 @@ export interface DiscountLine {
 }
 
 export interface CampaignContribution<T extends CampaignDiscountInput> {
-  campaign: T;
   amount: number;
+  campaign: T;
 }
 
 export interface StackedDiscount<T extends CampaignDiscountInput> {
-  total: number;
   breakdown: CampaignContribution<T>[];
+  total: number;
 }
 
 function computeBogoContribution(

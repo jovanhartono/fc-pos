@@ -91,9 +91,9 @@ function buildRefundItems({
     const remainderDiff =
       right.preciseAmount - right.amount - (left.preciseAmount - left.amount);
 
-    return remainderDiff !== 0
-      ? remainderDiff
-      : left.order_service_id - right.order_service_id;
+    return remainderDiff === 0
+      ? left.order_service_id - right.order_service_id
+      : remainderDiff;
   });
 
   for (const item of itemsByLargestRemainder) {
@@ -257,16 +257,16 @@ export async function getMyOrderServices(
     if (query.store_id !== undefined) {
       conditions.push(eq(ordersTable.store_id, query.store_id));
     }
-  } else if (query.store_id !== undefined) {
-    await assertStoreAccess(user, query.store_id);
-    conditions.push(eq(ordersTable.store_id, query.store_id));
-  } else {
+  } else if (query.store_id === undefined) {
     const storeIds = await getUserStoreIds(user.id);
     if (storeIds.length === 0) {
       return [];
     }
 
     conditions.push(inArray(ordersTable.store_id, storeIds));
+  } else {
+    await assertStoreAccess(user, query.store_id);
+    conditions.push(eq(ordersTable.store_id, query.store_id));
   }
 
   return db
@@ -315,10 +315,7 @@ export async function getOrderServiceQueue(
     }
 
     conditions.push(eq(ordersTable.store_id, normalized.store_id));
-  } else if (normalized.store_id !== undefined) {
-    await assertStoreAccess(user, normalized.store_id);
-    conditions.push(eq(ordersTable.store_id, normalized.store_id));
-  } else {
+  } else if (normalized.store_id === undefined) {
     const storeIds = await getUserStoreIds(user.id);
     if (storeIds.length === 0) {
       return {
@@ -328,6 +325,9 @@ export async function getOrderServiceQueue(
     }
 
     conditions.push(inArray(ordersTable.store_id, storeIds));
+  } else {
+    await assertStoreAccess(user, normalized.store_id);
+    conditions.push(eq(ordersTable.store_id, normalized.store_id));
   }
 
   if (normalized.status !== undefined) {
