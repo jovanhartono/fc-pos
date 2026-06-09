@@ -35,7 +35,7 @@ Suggested order:
 | 3 | Permissions module (ADR-0004 capability table)  | ✅ Done      | See §3 + ADR-0006 |
 | 4 | Campaign eligibility → Campaigns module         | ⬜ Pending   | Independent |
 | 5 | Pickup module (ADR-0005 invariants)             | ✅ Done      | See §5 |
-| 6 | Reversal off-ramps (cancel + refund)            | ⬜ Pending   | Uses #1's `transitionOrderService` + `applyRefundTransition` seams |
+| 6 | Reversal off-ramps (cancel + refund)            | ✅ Done      | See §6 |
 | 7 | Collapse shallow CRUD services                  | ⬜ Pending   | Policy call, defer |
 | 8 | Product refunds + `refund_status` fix           | ⬜ Pending   | Bug; independent, schema change |
 
@@ -118,16 +118,16 @@ Web consumers updated:
 
 ## §2 — Split `order-admin.service.ts` ⬜
 
-**Problem**: 1106 lines (down from 1506; −#1 then −#5) still spanning queue +
-handler + refund + cancel + photo + payment. After #6 lands, residual is queue +
-photo + payment.
+**Problem**: 802 lines (down from 1506; −#1, −#5, −#6) now spanning queue +
+handler + photo + payment. Pickup and reversal are out.
 
 **Plan**: extract `order-queue.service.ts` and `order-photo.service.ts`.
 Maybe collapse `updateOrderPayment` into a small `order-payment.service.ts`
 or leave it.
 
-**Wait for**: #6 to land first — carves out reversal naturally. (#5 done — pickup
-already carved into `order-pickup.service.ts`.)
+**Unblocked**: #5 + #6 both landed (pickup → `order-pickup.service.ts`, reversal →
+`order-reversal.service.ts`). No remaining prerequisite — this is now the next
+natural candidate.
 
 ---
 
@@ -279,25 +279,57 @@ integration tests deferred (needs a test-DB strategy, same as #1).
 
 ---
 
-## §6 — Reversal off-ramps ⬜ (uses #1's `applyRefundTransition`)
+## §6 — Reversal off-ramps ✅
 
-**Problem**: Cancel + refund framed as disjoint off-ramps by ADR-0004 +
-CONTEXT.md, but live as sibling bare functions inside the giant file.
-`buildRefundItems` (largest-remainder allocation) is private helper used once.
-Zero shared scaffolding between cancel and refund despite same shape (terminal
-status + reason enum + status-log + recalc).
+**Goal**: gather the two Order off-ramps (cancel + refund) into one module so the
+reversal paths read in one place, out of the giant `order-admin.service.ts`.
 
-**Sketch**: `packages/server/src/modules/orders/order-reversal.service.ts`
-exports `cancelOrderServices` and `refundOrderServices`. Internal scaffold
-`applyTerminalExit({ orderId, items, terminalStatus, reason, audit })`
-shared between them. `buildRefundItems` collapses into the refund step.
-Payment-status gate asserted once at module entry, selects callable path.
+**Home**: `packages/server/src/modules/orders/order-reversal.service.ts`. Single
+file, peer of `order-pickup.service.ts`.
 
-**Design questions**
-- Should this module be a peer of #5 (own module), or a sub-folder
-  `orders/reversal/`?
-- Allocation math (`buildRefundItems`) stays in this module or moves to a
-  pure helper in `utils/`? It's used once — keep inline.
+**Scope correction — no shared scaffold**: the original sketch proposed an internal
+`applyTerminalExit` shared between cancel and refund, plus a payment-status gate "at
+module entry." Dropped after reading the code. Cancel and refund only *rhyme*
+("both terminal"); the concrete shared part — flip status + write status-log +
+recompute rollup — already lives in #1's seams (`transitionOrderService` for cancel,
+`applyRefundTransition` for refund). The payment-status gate already lives in #3's
+permissions (`assertCanCancelOrderService` = unpaid, `assertCanRefundOrderService` =
+paid). A new `applyTerminalExit` would either bypass those seams (re-implement
+transition validation = regression) or wrap them with no added logic (fails the
+deletion test). So #6 is **relocation-only** — the win is locality, not a new
+abstraction.
+
+**Exports** (names kept — only `routes/admin/orders.ts` imports them; rename = churn)
+
+| Symbol              | Role |
+|---------------------|------|
+| `createOrderRefund` | Refund flow: dup-check → caps → largest-remainder allocation → cap check → (tx) bump `refunded_amount` + insert `order_refunds`/`order_refund_items` + `applyRefundTransition`. |
+| `cancelOrder`       | Cancel flow: load non-terminal services → (tx) per-service `transitionOrderService(to:'cancelled')` + write `cancelled_at`. |
+
+Private to the module: `buildRefundItems` (largest-remainder rounding),
+`getOrderLineRefundCaps` (per-line discount allocation + already-refunded netting),
+`roundCurrencyUnit`. All three were refund-only; verified used nowhere else before
+moving.
+
+**Behavior changes vs pre-refactor**: none. Pure relocation — same validations,
+same error messages, same transactions, same permission gates. No status-machine or
+schema change.
+
+**Ported call sites**
+
+| Handler / Route | What changed |
+|-----------------|--------------|
+| `routes/admin/orders.ts` | The two reversal imports repointed from `order-admin.service` to `order-reversal.service`. Route bodies unchanged. |
+| `orders/order-admin.service.ts` | `createOrderRefund`, `cancelOrder` + 3 private refund helpers removed; orphaned imports cleaned (`orderRefundItemsTable`, `orderRefundsTable`, `applyRefundTransition`, `assertCanCancelOrderService`, `assertCanRefundOrderService`, the two reversal input types). 1106 → 802 lines (−27%). |
+
+**Tests**: existing suite 42/42 pass; server type-check (3/3 turbo tasks) + biome clean.
+
+**Outcomes**
+- Reversal reads end-to-end in one 319-line file.
+- `order-admin.service.ts` down to 802 lines (queue + handler + photo + payment).
+- #2 (split) now fully unblocked — pickup and reversal both carved out.
+- Rejected the sketch's `applyTerminalExit`: #1 seams + #3 permissions already own
+  everything it would have wrapped.
 
 ---
 

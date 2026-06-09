@@ -23,9 +23,7 @@ import {
   PUTOrderDropoffPhotoSchema,
 } from "@/modules/orders/order-admin.schema";
 import {
-  cancelOrder,
   createOrderDropoffPhotoPresign,
-  createOrderRefund,
   createOrderServicePhotoPresign,
   deleteOrderServicePhoto,
   getMyOrderServices,
@@ -44,6 +42,10 @@ import {
   createOrderPickupEvent,
   createOrderPickupEventPresign,
 } from "@/modules/orders/order-pickup.service";
+import {
+  cancelOrder,
+  createOrderRefund,
+} from "@/modules/orders/order-reversal.service";
 import { assertCanCreateOrder } from "@/modules/permissions/permissions";
 import { getStoreById } from "@/modules/stores/store.service";
 import { POSTOrderSchema } from "@/schema";
