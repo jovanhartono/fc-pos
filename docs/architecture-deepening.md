@@ -31,7 +31,7 @@ Suggested order:
 | # | Candidate                                       | Status      | Notes |
 |---|-------------------------------------------------|-------------|-------|
 | 1 | Order Status Machine                            | ✅ Done      | See §1 |
-| 2 | Split `order-admin.service.ts` by lifecycle     | ⬜ Pending   | Partially eased by #1; depends on #5 + #6 |
+| 2 | Split `order-admin.service.ts` by lifecycle     | ✅ Done      | See §2 |
 | 3 | Permissions module (ADR-0004 capability table)  | ✅ Done      | See §3 + ADR-0006 |
 | 4 | Campaign eligibility → Campaigns module         | ⬜ Pending   | Independent |
 | 5 | Pickup module (ADR-0005 invariants)             | ✅ Done      | See §5 |
@@ -116,18 +116,60 @@ Web consumers updated:
 
 ---
 
-## §2 — Split `order-admin.service.ts` ⬜
+## §2 — Split `order-admin.service.ts` ✅
 
-**Problem**: 802 lines (down from 1506; −#1, −#5, −#6) now spanning queue +
-handler + photo + payment. Pickup and reversal are out.
+**Goal**: dissolve the last grab-bag file. After #1/#5/#6 the residual 802-line
+`order-admin.service.ts` still mixed four unrelated concerns. Split each into a
+single-concern module and delete the file — no `order-admin` remnant.
 
-**Plan**: extract `order-queue.service.ts` and `order-photo.service.ts`.
-Maybe collapse `updateOrderPayment` into a small `order-payment.service.ts`
-or leave it.
+**Scope correction**: the original plan named only "queue + photo" and missed the
+**work/handler axis** (start work, reassign handler, change status) — a third
+mutation cluster — plus `getOrderDetailById`, an Order-aggregate read sitting in the
+wrong file. Real decomposition is four concerns, not two.
 
-**Unblocked**: #5 + #6 both landed (pickup → `order-pickup.service.ts`, reversal →
-`order-reversal.service.ts`). No remaining prerequisite — this is now the next
-natural candidate.
+**Result — `order-admin.service.ts` deleted, replaced by:**
+
+| Module | Owns |
+|--------|------|
+| `order-queue.service.ts` | OrderService work surface: reads (`getOrderServiceQueue`, `getMyOrderServices`, `getOrderServiceById`, `getOrderServiceByItemCode`) + lifecycle mutations (`startOrderServiceWork`, `updateOrderServiceHandler`, `updateOrderServiceStatus`) + queue helpers (relation columns, prepared lookups, search regex). |
+| `order-photo.service.ts` | All 5 photo handlers (service-photo presign/save/delete + dropoff presign/save). |
+| `order-payment.service.ts` | `updateOrderPayment`. |
+| `order.service.ts` (existing) | Gained `getOrderDetailById` — colocated with the other Order-aggregate ops (`createOrder`, `listOrders`). |
+
+**Shared guard**: `getOrderServiceOrThrow` (+ its prepared statement) crossed the
+queue/photo boundary (handler-reassign path + all three service-photo handlers).
+Moved to `order.repository.ts` — the orders DB layer both modules already depend on.
+One source of truth, correct service → repository direction, no sibling coupling.
+(Considered pure `findOrderServiceByIds` + a throw in each consumer; rejected as a
+duplicated guard for no gain.)
+
+**Behavior changes vs pre-refactor**: none. Pure relocation. Confirmed the
+processing-axis handlers (`startOrderServiceWork`, `updateOrderServiceStatus`,
+`saveOrderServicePhoto`) carry no permission assert — **intentional** per the
+ADR-0004 amendment 2026-06-04 (processing-axis open to all staff), documented in
+`permissions.ts`. The §3 "Ported call sites" table is **stale** on this point (it
+lists `assertCanSelfAssign` / `assertCanProcessOrderService` /
+`assertCanUploadServicePhotos`, which the amendment removed and which exist nowhere
+in the code); left as historical record, not re-enforced here.
+
+**Ported call sites**
+
+| File | What changed |
+|------|--------------|
+| `routes/admin/orders.ts` | One 14-symbol `order-admin.service` import split four ways: `order.service` (+`getOrderDetailById`), `order-queue.service`, `order-photo.service`, `order-payment.service`. Route bodies unchanged. |
+| `order.repository.ts` | Gained `getOrderServiceOrThrow` + prepared statement. |
+| `order-admin.service.ts` | **Deleted.** |
+
+`order-admin.schema.ts` stays — shared Zod schemas, package-exported, consumed by the
+new modules + routes.
+
+**Tests**: existing suite 42/42 pass; server type-check (3/3 turbo tasks) + biome clean.
+
+**Outcomes**
+- `order-admin.service.ts` gone. Orders domain is now single-concern modules: queue,
+  photo, payment, pickup, reversal, status-machine, + Order aggregate (`order.service`).
+- The #1 → #5 → #6 → #2 teardown is complete: the 1506-line god-file fully dissolved.
+- Surfaced (not fixed): §3 doc drift on processing-axis asserts.
 
 ---
 

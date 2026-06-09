@@ -7,6 +7,7 @@ import {
   ordersServicesTable,
   ordersTable,
 } from "@/db/schema";
+import { BadRequestException } from "@/errors";
 import type { NormalizedOrderListQuery } from "@/modules/orders/order.schema";
 import {
   deriveOrderRefundStatus,
@@ -16,6 +17,31 @@ import { summarizeOrderFulfillment } from "@/modules/orders/order-status-machine
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
 
 export type OrderTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+const getOrderServicePrepared = db.query.ordersServicesTable
+  .findFirst({
+    where: {
+      order_id: { eq: sql.placeholder("order_id") },
+      id: { eq: sql.placeholder("id") },
+    },
+  })
+  .prepare("get_order_service");
+
+export async function getOrderServiceOrThrow(
+  orderId: number,
+  serviceId: number
+) {
+  const orderService = await getOrderServicePrepared.execute({
+    order_id: orderId,
+    id: serviceId,
+  });
+
+  if (!orderService) {
+    throw new BadRequestException("Order service not found for this order");
+  }
+
+  return orderService;
+}
 
 export interface OrderListItem {
   code: string;

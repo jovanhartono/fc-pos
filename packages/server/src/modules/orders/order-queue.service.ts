@@ -2,7 +2,6 @@ import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   orderServiceHandlerLogsTable,
-  orderServicesImagesTable,
   ordersServicesTable,
   ordersTable,
   servicesTable,
@@ -10,58 +9,25 @@ import {
   usersTable,
 } from "@/db/schema";
 import { BadRequestException, ForbiddenException } from "@/errors";
-import { softDeleteOrderServiceImageById } from "@/modules/order-service-images/order-service-image.repository";
+import { getOrderServiceOrThrow } from "@/modules/orders/order.repository";
 import type {
   GetMyOrderServicesQuery,
   GetOrderServiceQueueQuery,
-  PatchOrderPaymentInput,
   PatchOrderServiceHandlerInput,
   PatchOrderServiceStatusInput,
-  PostOrderDropoffPhotoPresignInput,
-  PostOrderServicePhotoInput,
-  PostOrderServicePhotoPresignInput,
-  PutOrderDropoffPhotoInput,
 } from "@/modules/orders/order-admin.schema";
 import { normalizeOrderServiceQueueQuery } from "@/modules/orders/order-admin.schema";
-import { deriveOrderRefundStatus } from "@/modules/orders/order-refund-status";
 import {
   isTerminalOrderServiceStatus,
-  summarizeOrderFulfillment,
   transitionOrderService,
 } from "@/modules/orders/order-status-machine";
-import {
-  assertCanProcessPayment,
-  assertCanReassignHandler,
-} from "@/modules/permissions/permissions";
+import { assertCanReassignHandler } from "@/modules/permissions/permissions";
 import type { JWTPayload } from "@/types";
 import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
 import { buildPaginationMeta } from "@/utils/pagination";
-import { buildMediaUrl, createPresignedUploadUrl } from "@/utils/s3";
 
 const numericSearchRegex = /^\d+$/;
-
-const getOrderServicePrepared = db.query.ordersServicesTable
-  .findFirst({
-    where: {
-      order_id: { eq: sql.placeholder("order_id") },
-      id: { eq: sql.placeholder("id") },
-    },
-  })
-  .prepare("get_order_service");
-
-async function getOrderServiceOrThrow(orderId: number, serviceId: number) {
-  const orderService = await getOrderServicePrepared.execute({
-    order_id: orderId,
-    id: serviceId,
-  });
-
-  if (!orderService) {
-    throw new BadRequestException("Order service not found for this order");
-  }
-
-  return orderService;
-}
 
 const queueRelationColumns = {
   order: {
@@ -286,195 +252,6 @@ export async function getOrderServiceQueue(
   };
 }
 
-export async function getOrderDetailById(id: number) {
-  const detail = await db.query.ordersTable.findFirst({
-    where: { id },
-    with: {
-      campaigns: {
-        with: {
-          campaign: true,
-        },
-        orderBy: { id: "asc" },
-      },
-      customer: true,
-      paymentMethod: true,
-      pickupEvents: {
-        with: {
-          pickedUpBy: {
-            columns: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-        orderBy: { picked_up_at: "asc" },
-      },
-      products: {
-        with: {
-          product: true,
-        },
-      },
-      refunds: {
-        with: {
-          items: true,
-          refundedBy: {
-            columns: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-        orderBy: { id: "asc" },
-      },
-      services: {
-        with: {
-          handler: {
-            columns: {
-              id: true,
-              name: true,
-            },
-          },
-          handlerLogs: {
-            with: {
-              changedBy: {
-                columns: {
-                  id: true,
-                  name: true,
-                },
-              },
-              fromHandler: {
-                columns: {
-                  id: true,
-                  name: true,
-                },
-              },
-              toHandler: {
-                columns: {
-                  id: true,
-                  name: true,
-                },
-              },
-            },
-            orderBy: { id: "asc" },
-          },
-          images: {
-            where: { deleted_at: { isNull: true } },
-            orderBy: { id: "asc" },
-          },
-          refundItems: true,
-          service: true,
-          statusLogs: {
-            with: {
-              changedBy: {
-                columns: {
-                  id: true,
-                  name: true,
-                },
-              },
-            },
-            orderBy: { id: "asc" },
-          },
-        },
-        orderBy: { id: "asc" },
-      },
-      store: true,
-    },
-  });
-
-  if (!detail) {
-    return null;
-  }
-
-  const { pickup_code: _pickup_code, ...detailWithoutPickupCode } = detail;
-
-  return {
-    ...detailWithoutPickupCode,
-    dropoff_photo_url: buildMediaUrl(detail.dropoff_photo_path),
-    refund_status: deriveOrderRefundStatus({
-      paid_amount: detail.paid_amount,
-      refunded_amount: detail.refunded_amount,
-    }),
-    pickup_events: detail.pickupEvents.map((event) => ({
-      created_at: event.created_at,
-      id: event.id,
-      image_url: buildMediaUrl(event.image_path),
-      picked_up_at: event.picked_up_at,
-      picked_up_by: event.pickedUpBy,
-    })),
-    services: detail.services.map((service) => ({
-      ...service,
-      images: service.images.map((image) => ({
-        ...image,
-        image_url: buildMediaUrl(image.image_path),
-      })),
-    })),
-    fulfillment: summarizeOrderFulfillment(
-      detail.services.map((service) => service.status)
-    ),
-  };
-}
-
-export async function updateOrderPayment({
-  orderId,
-  body,
-  user,
-}: {
-  orderId: number;
-  body: PatchOrderPaymentInput;
-  user: JWTPayload;
-}) {
-  assertCanProcessPayment(user);
-
-  const order = await db.query.ordersTable.findFirst({
-    where: { id: orderId },
-    columns: {
-      id: true,
-      total: true,
-      discount: true,
-      refunded_amount: true,
-      payment_status: true,
-      status: true,
-    },
-  });
-
-  if (!order) {
-    return null;
-  }
-
-  if (order.payment_status === "paid") {
-    throw new BadRequestException("Order has already been paid");
-  }
-
-  if (order.status === "cancelled") {
-    throw new BadRequestException(
-      "Cannot collect payment on a cancelled order"
-    );
-  }
-
-  const netDue =
-    Number(order.total ?? 0) -
-    Number(order.discount) -
-    Number(order.refunded_amount);
-
-  const rows = await db
-    .update(ordersTable)
-    .set({
-      payment_method_id: body.payment_method_id,
-      payment_status: "paid",
-      paid_amount: Math.max(netDue, 0).toString(),
-      paid_at: new Date(),
-      updated_by: user.id,
-    })
-    .where(eq(ordersTable.id, orderId))
-    .returning({
-      id: ordersTable.id,
-      payment_status: ordersTable.payment_status,
-      paid_amount: ordersTable.paid_amount,
-    });
-
-  return rows[0] ?? null;
-}
-
 export async function startOrderServiceWork({
   orderId,
   serviceId,
@@ -653,150 +430,5 @@ export async function updateOrderServiceStatus({
     from_status: fromStatus,
     order_service_id: serviceId,
     to_status: body.status,
-  };
-}
-
-export async function createOrderServicePhotoPresign({
-  orderId,
-  serviceId,
-  body,
-}: {
-  orderId: number;
-  serviceId: number;
-  body: PostOrderServicePhotoPresignInput;
-}) {
-  await getOrderServiceOrThrow(orderId, serviceId);
-
-  const key = `orders/${orderId}/services/${serviceId}/${crypto.randomUUID()}`;
-  return createPresignedUploadUrl({
-    contentType: body.content_type,
-    key,
-  });
-}
-
-export async function createOrderDropoffPhotoPresign({
-  orderId,
-  body,
-}: {
-  orderId: number;
-  body: PostOrderDropoffPhotoPresignInput;
-}) {
-  const order = await db.query.ordersTable.findFirst({
-    where: { id: orderId },
-    columns: { id: true },
-  });
-
-  if (!order) {
-    throw new BadRequestException("Order not found");
-  }
-
-  const key = `orders/${orderId}/dropoff/${crypto.randomUUID()}`;
-  return createPresignedUploadUrl({
-    contentType: body.content_type,
-    key,
-  });
-}
-
-export async function saveOrderServicePhoto({
-  orderId,
-  serviceId,
-  body,
-  user,
-}: {
-  orderId: number;
-  serviceId: number;
-  body: PostOrderServicePhotoInput;
-  user: JWTPayload;
-}) {
-  await getOrderServiceOrThrow(orderId, serviceId);
-
-  const [photo] = await db
-    .insert(orderServicesImagesTable)
-    .values({
-      order_service_id: serviceId,
-      image_path: body.image_path,
-      note: body.note ?? null,
-      uploaded_by: user.id,
-    })
-    .returning();
-
-  return {
-    ...photo,
-    image_url: buildMediaUrl(photo.image_path),
-  };
-}
-
-export async function deleteOrderServicePhoto({
-  orderId,
-  serviceId,
-  photoId,
-  user,
-}: {
-  orderId: number;
-  serviceId: number;
-  photoId: number;
-  user: JWTPayload;
-}) {
-  await getOrderServiceOrThrow(orderId, serviceId);
-
-  const photo = await db.query.orderServicesImagesTable.findFirst({
-    where: {
-      id: photoId,
-      order_service_id: serviceId,
-      deleted_at: { isNull: true },
-    },
-    columns: { id: true, uploaded_by: true },
-  });
-
-  if (!photo) {
-    throw new BadRequestException("Photo not found");
-  }
-
-  if (user.role !== "admin" && photo.uploaded_by !== user.id) {
-    throw new ForbiddenException(
-      "Only the uploader or an admin can delete this photo"
-    );
-  }
-
-  const [deleted] = await softDeleteOrderServiceImageById(photoId, user.id);
-  if (!deleted) {
-    throw new BadRequestException("Photo already deleted");
-  }
-
-  return { id: deleted.id };
-}
-
-export async function saveOrderDropoffPhoto({
-  orderId,
-  body,
-  user,
-}: {
-  orderId: number;
-  body: PutOrderDropoffPhotoInput;
-  user: JWTPayload;
-}) {
-  const [order] = await db
-    .update(ordersTable)
-    .set({
-      dropoff_photo_path: body.image_path,
-      dropoff_photo_uploaded_at: new Date(),
-      dropoff_photo_uploaded_by: user.id,
-      updated_by: user.id,
-    })
-    .where(eq(ordersTable.id, orderId))
-    .returning({
-      id: ordersTable.id,
-      dropoff_photo_uploaded_at: ordersTable.dropoff_photo_uploaded_at,
-      dropoff_photo_path: ordersTable.dropoff_photo_path,
-    });
-
-  if (!order) {
-    throw new BadRequestException("Order not found");
-  }
-
-  return {
-    id: order.id,
-    dropoff_photo_uploaded_at: order.dropoff_photo_uploaded_at,
-    dropoff_photo_url: buildMediaUrl(order.dropoff_photo_path),
   };
 }

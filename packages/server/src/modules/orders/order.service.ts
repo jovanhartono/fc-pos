@@ -15,6 +15,8 @@ import {
   type GetOrdersQuery,
   normalizeOrderListQuery,
 } from "@/modules/orders/order.schema";
+import { deriveOrderRefundStatus } from "@/modules/orders/order-refund-status";
+import { summarizeOrderFulfillment } from "@/modules/orders/order-status-machine";
 import {
   decrementProductStock,
   findProducts,
@@ -27,6 +29,7 @@ import type { Store } from "@/types/entity";
 import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
 import { jakartaNow } from "@/utils/date";
 import { buildPaginationMeta } from "@/utils/pagination";
+import { buildMediaUrl } from "@/utils/s3";
 
 function formatOrderCode(storeCode: string, dateStr: string, sequence: number) {
   return `#${storeCode}/${dateStr}/${sequence}`;
@@ -458,4 +461,132 @@ export async function createOrder(
       total_after_discount: netTotal,
     };
   });
+}
+
+export async function getOrderDetailById(id: number) {
+  const detail = await db.query.ordersTable.findFirst({
+    where: { id },
+    with: {
+      campaigns: {
+        with: {
+          campaign: true,
+        },
+        orderBy: { id: "asc" },
+      },
+      customer: true,
+      paymentMethod: true,
+      pickupEvents: {
+        with: {
+          pickedUpBy: {
+            columns: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: { picked_up_at: "asc" },
+      },
+      products: {
+        with: {
+          product: true,
+        },
+      },
+      refunds: {
+        with: {
+          items: true,
+          refundedBy: {
+            columns: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: { id: "asc" },
+      },
+      services: {
+        with: {
+          handler: {
+            columns: {
+              id: true,
+              name: true,
+            },
+          },
+          handlerLogs: {
+            with: {
+              changedBy: {
+                columns: {
+                  id: true,
+                  name: true,
+                },
+              },
+              fromHandler: {
+                columns: {
+                  id: true,
+                  name: true,
+                },
+              },
+              toHandler: {
+                columns: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+            orderBy: { id: "asc" },
+          },
+          images: {
+            where: { deleted_at: { isNull: true } },
+            orderBy: { id: "asc" },
+          },
+          refundItems: true,
+          service: true,
+          statusLogs: {
+            with: {
+              changedBy: {
+                columns: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+            orderBy: { id: "asc" },
+          },
+        },
+        orderBy: { id: "asc" },
+      },
+      store: true,
+    },
+  });
+
+  if (!detail) {
+    return null;
+  }
+
+  const { pickup_code: _pickup_code, ...detailWithoutPickupCode } = detail;
+
+  return {
+    ...detailWithoutPickupCode,
+    dropoff_photo_url: buildMediaUrl(detail.dropoff_photo_path),
+    refund_status: deriveOrderRefundStatus({
+      paid_amount: detail.paid_amount,
+      refunded_amount: detail.refunded_amount,
+    }),
+    pickup_events: detail.pickupEvents.map((event) => ({
+      created_at: event.created_at,
+      id: event.id,
+      image_url: buildMediaUrl(event.image_path),
+      picked_up_at: event.picked_up_at,
+      picked_up_by: event.pickedUpBy,
+    })),
+    services: detail.services.map((service) => ({
+      ...service,
+      images: service.images.map((image) => ({
+        ...image,
+        image_url: buildMediaUrl(image.image_path),
+      })),
+    })),
+    fulfillment: summarizeOrderFulfillment(
+      detail.services.map((service) => service.status)
+    ),
+  };
 }
