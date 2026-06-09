@@ -575,6 +575,12 @@ export const ordersServicesTable = pgTable(
       "order_services_pickup_event_terminal_check",
       sql`${table.pickup_event_id} IS NULL OR ${table.status} IN ('picked_up', 'refunded')`
     ),
+    // ADR-0005: reverse direction — a picked_up row must point at a real pickup
+    // event, so the picked_up transition can only come from the pickup dialog.
+    check(
+      "order_services_picked_up_requires_event_check",
+      sql`${table.status} != 'picked_up' OR ${table.pickup_event_id} IS NOT NULL`
+    ),
   ]
 );
 

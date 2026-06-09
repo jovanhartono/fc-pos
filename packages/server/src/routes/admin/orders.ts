@@ -25,8 +25,6 @@ import {
 import {
   cancelOrder,
   createOrderDropoffPhotoPresign,
-  createOrderPickupEvent,
-  createOrderPickupEventPresign,
   createOrderRefund,
   createOrderServicePhotoPresign,
   deleteOrderServicePhoto,
@@ -42,6 +40,10 @@ import {
   updateOrderServiceHandler,
   updateOrderServiceStatus,
 } from "@/modules/orders/order-admin.service";
+import {
+  createOrderPickupEvent,
+  createOrderPickupEventPresign,
+} from "@/modules/orders/order-pickup.service";
 import { assertCanCreateOrder } from "@/modules/permissions/permissions";
 import { getStoreById } from "@/modules/stores/store.service";
 import { POSTOrderSchema } from "@/schema";

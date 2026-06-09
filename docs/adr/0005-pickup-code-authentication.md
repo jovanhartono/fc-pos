@@ -62,29 +62,28 @@ Estimated wrong-handovers from this path: very low single digits per year worst 
 
 Accepted residual risk: cashier may, in rare birthday-collision cases combined with row-misclick, complete pickup against the wrong Order. Mitigated operationally (cashier confirms customer name on dialog) rather than schema-enforced.
 
-## Outstanding fix
+## Resolved fix
 
-One gap from the original drafting **remains real** and is independent of the two declined items:
+The one real gap from the original drafting (independent of the two declined items) is now closed.
 
-### Missing CHECK implication
+### Missing CHECK implication — fixed
 
-The schema currently enforces *if `pickup_event_id` is set, status must be `picked_up`/`refunded`*, but **not** the reverse — *if status is `picked_up`, `pickup_event_id` must be set*. A row claiming pickup happened without the dialog flow is therefore allowed by the database; only application code prevents it today.
+The schema previously enforced *if `pickup_event_id` is set, status must be `picked_up`/`refunded`*, but **not** the reverse. A row claiming pickup without the dialog flow was therefore allowed by the database; only application code prevented it.
 
-Target combined constraint:
+Two named CHECK constraints on `orders_services` now enforce both directions:
 
 ```sql
-CHECK (
-  (pickup_event_id IS NULL OR status IN ('picked_up', 'refunded'))
-  AND
-  (status != 'picked_up' OR pickup_event_id IS NOT NULL)
-)
+-- pre-existing
+CHECK (pickup_event_id IS NULL OR status IN ('picked_up', 'refunded'))
+-- added (architecture-deepening §5)
+CHECK (status != 'picked_up' OR pickup_event_id IS NOT NULL)
 ```
 
-This is a data-integrity invariant, not an authentication concern — it belongs in the schema regardless of how the code is generated or whether it is UNIQUE. Fix on its own; no coupling to the declined items.
+A data-integrity invariant, not an authentication concern — it belongs in the schema regardless of how the code is generated or whether it is UNIQUE. Landed independently of the declined items, applied to dev via `push:dev` after a data-safety query confirmed zero violating rows.
 
 ## Consequences
 
-- The picked-up transition must never be settable via a generic status dropdown — only through the pickup dialog. Today this is an **application-layer invariant**, not a schema-enforced one (see gap 3).
+- The picked-up transition must never be settable via a generic status dropdown — only through the pickup dialog. The application layer enforces the dialog path; the CHECK above (`status != 'picked_up' OR pickup_event_id IS NOT NULL`) now backstops it — a dropdown write that sets `picked_up` without a pickup event is rejected by the database.
 - `pickup_code` must never leak to admin/cashier UI for Orders not yet `ready_for_pickup` (would let an internal actor bypass the customer-presence check).
 - The public `/track` page is the only surface that exposes the code, and only after the status check.
 - Replacing the scheme later (e.g. with QR) means deprecating the dialog input path and migrating the generation column, not editing application code alone.

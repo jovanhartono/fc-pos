@@ -1,7 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  orderPickupEventsTable,
   orderRefundItemsTable,
   orderRefundsTable,
   orderServiceHandlerLogsTable,
@@ -22,8 +21,6 @@ import type {
   PatchOrderServiceStatusInput,
   PostOrderCancelInput,
   PostOrderDropoffPhotoPresignInput,
-  PostOrderPickupEventInput,
-  PostOrderPickupEventPresignInput,
   PostOrderRefundInput,
   PostOrderServicePhotoInput,
   PostOrderServicePhotoPresignInput,
@@ -33,7 +30,6 @@ import { normalizeOrderServiceQueueQuery } from "@/modules/orders/order-admin.sc
 import { deriveOrderRefundStatus } from "@/modules/orders/order-refund-status";
 import {
   applyRefundTransition,
-  completePickup,
   isTerminalOrderServiceStatus,
   summarizeOrderFulfillment,
   transitionOrderService,
@@ -41,7 +37,6 @@ import {
 import {
   assertCanCancelOrderService,
   assertCanProcessPayment,
-  assertCanProcessPickup,
   assertCanReassignHandler,
   assertCanRefundOrderService,
 } from "@/modules/permissions/permissions";
@@ -829,33 +824,6 @@ export async function createOrderDropoffPhotoPresign({
   });
 }
 
-export async function createOrderPickupEventPresign({
-  orderId,
-  body,
-  user,
-}: {
-  orderId: number;
-  body: PostOrderPickupEventPresignInput;
-  user: JWTPayload;
-}) {
-  assertCanProcessPickup(user);
-
-  const order = await db.query.ordersTable.findFirst({
-    where: { id: orderId },
-    columns: { id: true },
-  });
-
-  if (!order) {
-    throw new BadRequestException("Order not found");
-  }
-
-  const key = `orders/${orderId}/pickup/${crypto.randomUUID()}`;
-  return createPresignedUploadUrl({
-    contentType: body.content_type,
-    key,
-  });
-}
-
 export async function saveOrderServicePhoto({
   orderId,
   serviceId,
@@ -957,117 +925,6 @@ export async function saveOrderDropoffPhoto({
     id: order.id,
     dropoff_photo_uploaded_at: order.dropoff_photo_uploaded_at,
     dropoff_photo_url: buildMediaUrl(order.dropoff_photo_path),
-  };
-}
-
-export async function createOrderPickupEvent({
-  orderId,
-  body,
-  user,
-}: {
-  orderId: number;
-  body: PostOrderPickupEventInput;
-  user: JWTPayload;
-}) {
-  assertCanProcessPickup(user);
-
-  const uniqueServiceIds = Array.from(new Set(body.service_ids));
-  if (uniqueServiceIds.length === 0) {
-    throw new BadRequestException("At least one service must be picked up");
-  }
-
-  const [order, candidateServices] = await Promise.all([
-    db.query.ordersTable.findFirst({
-      where: { id: orderId },
-      columns: { id: true, pickup_code: true },
-    }),
-    db.query.ordersServicesTable.findMany({
-      where: {
-        order_id: orderId,
-        id: { in: uniqueServiceIds },
-      },
-      columns: {
-        id: true,
-        item_code: true,
-        status: true,
-      },
-    }),
-  ]);
-
-  if (!order) {
-    throw new BadRequestException("Order not found");
-  }
-
-  if (body.pickup_code !== order.pickup_code) {
-    throw new BadRequestException("Invalid pickup code");
-  }
-
-  if (candidateServices.length !== uniqueServiceIds.length) {
-    throw new BadRequestException(
-      "One or more services do not belong to this order"
-    );
-  }
-
-  const notReady = candidateServices.filter(
-    (service) => service.status !== "ready_for_pickup"
-  );
-  if (notReady.length > 0) {
-    throw new BadRequestException(
-      `Services not ready for pickup: ${notReady
-        .map((service) => service.item_code ?? String(service.id))
-        .join(", ")}`
-    );
-  }
-
-  const [pickupEvent] = await db
-    .insert(orderPickupEventsTable)
-    .values({
-      order_id: orderId,
-      image_path: body.image_path,
-      picked_up_by: user.id,
-    })
-    .returning({
-      id: orderPickupEventsTable.id,
-      picked_up_at: orderPickupEventsTable.picked_up_at,
-    });
-
-  let pickupResult: { flippedIds: number[] };
-  try {
-    pickupResult = await completePickup(db, {
-      orderId,
-      serviceIds: uniqueServiceIds,
-      pickupEventId: pickupEvent.id,
-      by: user.id,
-      note: "Completed from order pickup desk",
-    });
-  } catch (error) {
-    await db
-      .delete(orderPickupEventsTable)
-      .where(eq(orderPickupEventsTable.id, pickupEvent.id));
-    throw error;
-  }
-
-  if (pickupResult.flippedIds.length !== uniqueServiceIds.length) {
-    if (pickupResult.flippedIds.length > 0) {
-      await db
-        .update(ordersServicesTable)
-        .set({ status: "ready_for_pickup", pickup_event_id: null })
-        .where(eq(ordersServicesTable.pickup_event_id, pickupEvent.id));
-    }
-    await db
-      .delete(orderPickupEventsTable)
-      .where(eq(orderPickupEventsTable.id, pickupEvent.id));
-    throw new BadRequestException(
-      "Another cashier already processed one of the selected items. Refresh and try again."
-    );
-  }
-
-  return {
-    id: pickupEvent.id,
-    image_url: buildMediaUrl(body.image_path),
-    order_id: orderId,
-    picked_up_at: pickupEvent.picked_up_at,
-    service_ids: uniqueServiceIds,
   };
 }
 

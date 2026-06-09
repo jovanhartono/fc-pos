@@ -34,7 +34,7 @@ Suggested order:
 | 2 | Split `order-admin.service.ts` by lifecycle     | ⬜ Pending   | Partially eased by #1; depends on #5 + #6 |
 | 3 | Permissions module (ADR-0004 capability table)  | ✅ Done      | See §3 + ADR-0006 |
 | 4 | Campaign eligibility → Campaigns module         | ⬜ Pending   | Independent |
-| 5 | Pickup module (ADR-0005 invariants)             | ⬜ Pending   | Uses #1's `completePickup` seam |
+| 5 | Pickup module (ADR-0005 invariants)             | ✅ Done      | See §5 |
 | 6 | Reversal off-ramps (cancel + refund)            | ⬜ Pending   | Uses #1's `transitionOrderService` + `applyRefundTransition` seams |
 | 7 | Collapse shallow CRUD services                  | ⬜ Pending   | Policy call, defer |
 | 8 | Product refunds + `refund_status` fix           | ⬜ Pending   | Bug; independent, schema change |
@@ -118,16 +118,16 @@ Web consumers updated:
 
 ## §2 — Split `order-admin.service.ts` ⬜
 
-**Problem**: 1282 lines (down from 1506 after #1) still spanning queue + handler
-+ pickup + refund + cancel + photo + payment. After #5 and #6 land, residual
-is queue + photo + payment.
+**Problem**: 1106 lines (down from 1506; −#1 then −#5) still spanning queue +
+handler + refund + cancel + photo + payment. After #6 lands, residual is queue +
+photo + payment.
 
 **Plan**: extract `order-queue.service.ts` and `order-photo.service.ts`.
 Maybe collapse `updateOrderPayment` into a small `order-payment.service.ts`
 or leave it.
 
-**Wait for**: #5 and #6 to land first — those carve out pickup and reversal
-naturally.
+**Wait for**: #6 to land first — carves out reversal naturally. (#5 done — pickup
+already carved into `order-pickup.service.ts`.)
 
 ---
 
@@ -220,30 +220,62 @@ Returns ready-to-apply Campaigns or typed validation error.
 
 ---
 
-## §5 — Pickup module ⬜ (uses #1's `completePickup`)
+## §5 — Pickup module ✅
 
-**Problem**: ADR-0005 invariants scattered across `createOrderPickupEvent` +
-pickup-photo presign + dropoff-photo handler (misleadingly-named in current
-file). Reader has to scan three handlers to verify ADR-0005 holds.
+**Goal**: gather every pickup-code / pickup-event invariant (ADR-0005) into one
+module so the picked-up transition reads end-to-end in one place, instead of
+living inside the giant `order-admin.service.ts`.
 
-**Sketch**: `packages/server/src/modules/orders/order-pickup.service.ts`
-owns:
-- `validatePickupCode(order, code)` — code matches this Order, status check
-- `recordPickupEvent({ orderId, serviceIds, photo, by })` — full flow
-  including the existing compensating-rollback for partial flips
-- pickup-photo presign
+**Home**: `packages/server/src/modules/orders/order-pickup.service.ts`. Single file.
 
-State machine's `completePickup` is the seam this module crosses for the
-status flip.
+**Scope correction**: the original sketch listed the drop-off photo handler as a
+third pickup site ("misleadingly-named"). It is **not** pickup — drop-off photo is
+an **intake** concern (writes `orders.dropoff_photo_*`, no ADR-0005 logic). It
+stayed in `order-admin.service.ts`. The Pickup module owns only the two genuinely
+pickup handlers. `saveOrderDropoffPhoto`'s name was accurate all along.
 
-**Bonus**: surface the schema CHECK gap noted in ADR-0005's "Outstanding fix"
-section — add the reverse-direction CHECK in a migration.
+**Exports**
 
-**Design questions**
-- Use real `db.transaction` instead of compensating rollback? (Neon driver
-  is `neon-serverless` Pool — supports tx. The compensating-rollback comment
-  in current code is outdated.)
-- Photo-handler naming cleanup (`saveOrderDropoffPhoto` is misleading).
+| Symbol                          | Role |
+|---------------------------------|------|
+| `createOrderPickupEvent`        | Full pickup flow: code-validate → readiness check → (tx) insert `order_pickup_events` + `completePickup`. |
+| `createOrderPickupEventPresign` | Pickup-photo upload URL (gated by `assertCanProcessPickup`). |
+
+Private `assertPickupCodeMatches(order, code)` names the ADR-0005 per-Order code rule.
+
+**Behavior changes vs pre-refactor**
+
+- Pickup writes now run inside a real `db.transaction`. The hand-rolled
+  compensating rollback (manual event-delete + service-reset on partial flip / error)
+  is deleted — the transaction rolls back automatically. No external behavior change:
+  same validations, same error messages, same concurrency guard (a concurrent pickup
+  leaves a short flip from `completePickup` → throw → rollback).
+- Names kept (`createOrderPickupEvent` / `createOrderPickupEventPresign`) — accurate,
+  no rename churn into routes.
+
+**Ported call sites**
+
+| Handler / Route | What changed |
+|-----------------|--------------|
+| `routes/admin/orders.ts` | The two pickup imports repointed from `order-admin.service` to `order-pickup.service`. Route bodies unchanged. |
+| `orders/order-admin.service.ts` | Both pickup functions removed; orphaned imports (`orderPickupEventsTable`, `completePickup`, `assertCanProcessPickup`, the two pickup input types) cleaned. 1249 → 1106 lines (−11%). |
+
+**Schema (ADR-0005 "Outstanding fix" landed)**
+
+- Added CHECK `order_services_picked_up_requires_event_check`:
+  `status != 'picked_up' OR pickup_event_id IS NOT NULL`. The picked-up transition is
+  now DB-enforced, not just application-enforced. Applied to dev via `push:dev` (this
+  repo uses the push workflow — `drizzle/dev` has no migration journal, only a pulled
+  snapshot). A read-only data-safety query confirmed **0** violating rows before apply.
+- ADR-0005 updated to mark the gap resolved.
+
+**Tests**: existing suite 42/42 pass; server type-check + biome clean. Pickup-flow
+integration tests deferred (needs a test-DB strategy, same as #1).
+
+**Outcomes**
+- `order-admin.service.ts` shrinks; pickup logic readable in one 145-line file.
+- ADR-0005 invariant promoted from code-only to schema-enforced.
+- Manual compensating-rollback retired in favor of a transaction.
 
 ---
 
