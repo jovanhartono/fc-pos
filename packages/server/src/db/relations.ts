@@ -286,10 +286,13 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.orderRefundsTable.id,
       optional: false,
     }),
+    orderProduct: r.one.ordersProductsTable({
+      from: r.orderRefundItemsTable.order_product_id,
+      to: r.ordersProductsTable.id,
+    }),
     orderService: r.one.ordersServicesTable({
       from: r.orderRefundItemsTable.order_service_id,
       to: r.ordersServicesTable.id,
-      optional: false,
     }),
   },
 
@@ -302,6 +305,7 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.ordersProductsTable.product_id,
       to: r.productsTable.id,
     }),
+    refundItems: r.many.orderRefundItemsTable(),
   },
 
   orderCampaignsTable: {

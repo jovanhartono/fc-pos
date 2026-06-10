@@ -784,13 +784,15 @@ function fetchRefundsPerItem(range: DateRange, storeId?: number) {
   const conditions = [
     gte(orderRefundsTable.created_at, range.start),
     lt(orderRefundsTable.created_at, range.end),
+    // product refund lines have no handler; worker attribution is service-only
+    isNotNull(orderRefundItemsTable.order_service_id),
   ];
   if (storeId !== undefined) {
     conditions.push(eq(ordersTable.store_id, storeId));
   }
   return db
     .select({
-      order_service_id: orderRefundItemsTable.order_service_id,
+      order_service_id: sql<number>`${orderRefundItemsTable.order_service_id}`,
       refunds: sql<number>`COUNT(DISTINCT ${orderRefundItemsTable.id})::int`,
     })
     .from(orderRefundItemsTable)

@@ -460,6 +460,9 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 	const refundableServices = orderServices.filter(
 		(service) => !["refunded", "cancelled"].includes(service.status),
 	);
+	const refundableProducts = detail.products.filter(
+		(item) => !item.refunded_at,
+	);
 
 	const hasCancellableServices = orderServices.some(
 		(service) =>
@@ -472,7 +475,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 		isAdmin &&
 		detail.status !== "cancelled" &&
 		isPaid &&
-		refundableServices.length > 0;
+		(refundableServices.length > 0 || refundableProducts.length > 0);
 
 	const openCancelOrderDialog = () => {
 		openDialog({
@@ -496,6 +499,11 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 				<RefundOrderForm
 					closeDialog={closeDialog}
 					orderId={id}
+					refundableProducts={refundableProducts.map((item) => ({
+						id: item.id,
+						name: item.product?.name ?? `Product #${item.product_id}`,
+						qty: item.qty,
+					}))}
 					refundableServices={refundableServices.map((service) => ({
 						id: service.id,
 						item_code: service.item_code ?? null,
@@ -763,9 +771,15 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 											className="flex items-center justify-between gap-4 border px-3 py-2.5 text-sm"
 										>
 											<div className="min-w-0">
-												<p className="font-medium leading-snug">
-													{item.product?.name ?? `Product #${item.product_id}`}
-												</p>
+												<div className="flex flex-wrap items-center gap-1.5">
+													<p className="font-medium leading-snug">
+														{item.product?.name ??
+															`Product #${item.product_id}`}
+													</p>
+													{item.refunded_at ? (
+														<Badge variant="danger">Refunded</Badge>
+													) : null}
+												</div>
 												<p className="text-muted-foreground text-xs">
 													{formatIDRCurrency(String(item.price ?? 0))} x{" "}
 													{item.qty}

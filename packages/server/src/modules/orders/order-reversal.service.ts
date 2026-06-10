@@ -1,8 +1,9 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   orderRefundItemsTable,
   orderRefundsTable,
+  ordersProductsTable,
   ordersTable,
 } from "@/db/schema";
 import { BadRequestException } from "@/errors";
@@ -25,23 +26,59 @@ function roundCurrencyUnit(value: number) {
   return Math.round(value);
 }
 
+type RefundLineInput = PostOrderRefundInput["items"][number];
+type RefundLineKind = "service" | "product";
+
+interface RefundLine {
+  id: number;
+  kind: RefundLineKind;
+  note?: string;
+  reason: RefundLineInput["reason"];
+}
+
+function lineKey(kind: RefundLineKind, id: number) {
+  return `${kind}:${id}`;
+}
+
+function toRefundLine(item: RefundLineInput): RefundLine {
+  if (item.order_service_id != null) {
+    return {
+      kind: "service",
+      id: item.order_service_id,
+      note: item.note,
+      reason: item.reason,
+    };
+  }
+  if (item.order_product_id != null) {
+    return {
+      kind: "product",
+      id: item.order_product_id,
+      note: item.note,
+      reason: item.reason,
+    };
+  }
+  throw new BadRequestException(
+    "Each refund item must reference a service or product line"
+  );
+}
+
 function buildRefundItems({
-  capsByServiceId,
-  items,
+  capsByLineKey,
+  lines,
 }: {
-  capsByServiceId: Map<number, number>;
-  items: PostOrderRefundInput["items"];
+  capsByLineKey: Map<string, number>;
+  lines: RefundLine[];
 }) {
-  const refundItems = items.map((item) => {
-    const maxRefundable = capsByServiceId.get(item.order_service_id) ?? 0;
+  const refundItems = lines.map((line) => {
+    const maxRefundable = capsByLineKey.get(lineKey(line.kind, line.id)) ?? 0;
     if (maxRefundable <= 0) {
       throw new BadRequestException(
-        `Order service ${item.order_service_id} has no refundable amount remaining`
+        `Order ${line.kind} ${line.id} has no refundable amount remaining`
       );
     }
 
     return {
-      ...item,
+      ...line,
       amount: Math.floor(maxRefundable),
       preciseAmount: maxRefundable,
     };
@@ -59,9 +96,13 @@ function buildRefundItems({
     const remainderDiff =
       right.preciseAmount - right.amount - (left.preciseAmount - left.amount);
 
-    return remainderDiff === 0
-      ? left.order_service_id - right.order_service_id
-      : remainderDiff;
+    if (remainderDiff !== 0) {
+      return remainderDiff;
+    }
+
+    return left.kind === right.kind
+      ? left.id - right.id
+      : left.kind.localeCompare(right.kind);
   });
 
   for (const item of itemsByLargestRemainder) {
@@ -75,7 +116,7 @@ function buildRefundItems({
 
   if (remainingWholeUnits > 0) {
     throw new BadRequestException(
-      "Refund amount could not be allocated across the selected services"
+      "Refund amount could not be allocated across the selected refund lines"
     );
   }
 
@@ -83,7 +124,7 @@ function buildRefundItems({
 }
 
 async function getOrderLineRefundCaps(orderId: number) {
-  const [order, serviceRows, refundedRows] = await Promise.all([
+  const [order, serviceRows, productRows, refundedRows] = await Promise.all([
     db.query.ordersTable.findFirst({
       where: { id: orderId },
       columns: {
@@ -99,8 +140,17 @@ async function getOrderLineRefundCaps(orderId: number) {
         subtotal: true,
       },
     }),
+    db.query.ordersProductsTable.findMany({
+      where: { order_id: orderId },
+      columns: {
+        id: true,
+        refunded_at: true,
+        subtotal: true,
+      },
+    }),
     db
       .select({
+        order_product_id: orderRefundItemsTable.order_product_id,
         order_service_id: orderRefundItemsTable.order_service_id,
         refunded_total: sql<string>`COALESCE(SUM(${orderRefundItemsTable.amount}), 0)`,
       })
@@ -110,7 +160,10 @@ async function getOrderLineRefundCaps(orderId: number) {
         eq(orderRefundItemsTable.order_refund_id, orderRefundsTable.id)
       )
       .where(eq(orderRefundsTable.order_id, orderId))
-      .groupBy(orderRefundItemsTable.order_service_id),
+      .groupBy(
+        orderRefundItemsTable.order_service_id,
+        orderRefundItemsTable.order_product_id
+      ),
   ]);
 
   if (!order) {
@@ -120,25 +173,37 @@ async function getOrderLineRefundCaps(orderId: number) {
   const grossTotal = Number(order.total ?? 0);
   const orderDiscount = Number(order.discount);
 
-  const refundedByServiceId = new Map(
+  const refundedByLineKey = new Map(
     refundedRows.map((row) => [
-      row.order_service_id,
+      row.order_service_id == null
+        ? lineKey("product", row.order_product_id ?? 0)
+        : lineKey("service", row.order_service_id),
       Number(row.refunded_total),
     ])
   );
 
-  return serviceRows.map((row) => {
-    const grossLine = Number(row.subtotal ?? 0);
+  const lineCap = (key: string, subtotal: string | null) => {
+    const grossLine = Number(subtotal ?? 0);
     const allocatedDiscount =
       grossTotal > 0 ? (grossLine / grossTotal) * orderDiscount : 0;
     const refundableGross = Math.max(0, grossLine - allocatedDiscount);
-    const alreadyRefunded = refundedByServiceId.get(row.id) ?? 0;
+    const alreadyRefunded = refundedByLineKey.get(key) ?? 0;
 
-    return {
-      maxRefundable: Math.max(0, refundableGross - alreadyRefunded),
-      order_service_id: row.id,
-    };
-  });
+    return Math.max(0, refundableGross - alreadyRefunded);
+  };
+
+  return new Map<string, number>([
+    ...serviceRows.map((row): [string, number] => {
+      const key = lineKey("service", row.id);
+      return [key, lineCap(key, row.subtotal)];
+    }),
+    ...productRows.map((row): [string, number] => {
+      const key = lineKey("product", row.id);
+      // rounding residue can leave a fractional cap after a whole-line refund;
+      // refunded_at is authoritative — a refunded product line is never refundable again
+      return [key, row.refunded_at ? 0 : lineCap(key, row.subtotal)];
+    }),
+  ]);
 }
 
 export async function createOrderRefund({
@@ -150,12 +215,14 @@ export async function createOrderRefund({
   body: PostOrderRefundInput;
   user: JWTPayload;
 }) {
-  const uniqueServiceIds = [
-    ...new Set(body.items.map((item) => item.order_service_id)),
-  ];
-  if (uniqueServiceIds.length !== body.items.length) {
+  const lines = body.items.map(toRefundLine);
+
+  const uniqueLineKeys = new Set(
+    lines.map((line) => lineKey(line.kind, line.id))
+  );
+  if (uniqueLineKeys.size !== lines.length) {
     throw new BadRequestException(
-      "Duplicate order_service_id entries are not allowed"
+      "Duplicate refund line entries are not allowed"
     );
   }
 
@@ -175,14 +242,11 @@ export async function createOrderRefund({
 
   assertCanRefundOrderService(user, order);
 
-  const refundCaps = await getOrderLineRefundCaps(orderId);
-  const capsByServiceId = new Map(
-    refundCaps.map((item) => [item.order_service_id, item.maxRefundable])
-  );
+  const capsByLineKey = await getOrderLineRefundCaps(orderId);
 
   const refundItems = buildRefundItems({
-    capsByServiceId,
-    items: body.items,
+    capsByLineKey,
+    lines,
   });
 
   const totalRefundAmount = refundItems.reduce(
@@ -220,21 +284,36 @@ export async function createOrderRefund({
     await tx.insert(orderRefundItemsTable).values(
       refundItems.map((item) => ({
         order_refund_id: createdRefund.id,
-        order_service_id: item.order_service_id,
+        order_service_id: item.kind === "service" ? item.id : null,
+        order_product_id: item.kind === "product" ? item.id : null,
         amount: item.amount.toString(),
         reason: item.reason,
         note: item.note,
       }))
     );
 
-    await applyRefundTransition(tx, {
-      orderId,
-      by: user.id,
-      items: refundItems.map((item) => ({
-        serviceId: item.order_service_id,
-        note: item.note,
-      })),
-    });
+    const refundedProductIds = refundItems
+      .filter((item) => item.kind === "product")
+      .map((item) => item.id);
+
+    if (refundedProductIds.length > 0) {
+      await tx
+        .update(ordersProductsTable)
+        .set({ refunded_at: new Date() })
+        .where(inArray(ordersProductsTable.id, refundedProductIds));
+    }
+
+    const serviceItems = refundItems
+      .filter((item) => item.kind === "service")
+      .map((item) => ({ serviceId: item.id, note: item.note }));
+
+    if (serviceItems.length > 0) {
+      await applyRefundTransition(tx, {
+        orderId,
+        by: user.id,
+        items: serviceItems,
+      });
+    }
 
     return [createdRefund] as const;
   });

@@ -412,11 +412,12 @@ export type OrderRefundReason =
 
 export type CreateOrderRefundPayload = {
 	note?: string;
-	items: Array<{
-		order_service_id: number;
-		reason: OrderRefundReason;
-		note?: string;
-	}>;
+	items: Array<
+		({ order_service_id: number } | { order_product_id: number }) & {
+			reason: OrderRefundReason;
+			note?: string;
+		}
+	>;
 };
 
 export type CancelOrderPayload = {

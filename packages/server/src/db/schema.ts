@@ -705,20 +705,31 @@ export const orderRefundItemsTable = pgTable(
     amount: decimal("amount", { precision: 12 }).default("0").notNull(),
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     note: text("note"),
+    order_product_id: integer("order_product_id").references(
+      () => ordersProductsTable.id
+    ),
     order_refund_id: integer("order_refund_id")
       .references(() => orderRefundsTable.id, { onDelete: "cascade" })
       .notNull(),
-    order_service_id: integer("order_service_id")
-      .references(() => ordersServicesTable.id)
-      .notNull(),
+    order_service_id: integer("order_service_id").references(
+      () => ordersServicesTable.id
+    ),
     reason: refundReasonEnum("reason").notNull(),
   },
   (table) => [
     index("order_refund_items_refund_idx").on(table.order_refund_id),
     index("order_refund_items_service_idx").on(table.order_service_id),
+    // whole-line product refunds: each product line refunds at most once (ADR-0007)
+    uniqueIndex("order_refund_items_product_uidx")
+      .on(table.order_product_id)
+      .where(sql`${table.order_product_id} IS NOT NULL`),
     check(
       "order_refund_items_amount_non_negative_check",
       sql`${table.amount} >= 0`
+    ),
+    check(
+      "order_refund_items_line_xor_check",
+      sql`(${table.order_service_id} IS NULL) != (${table.order_product_id} IS NULL)`
     ),
     check(
       "order_refund_items_other_reason_requires_note_check",
@@ -747,6 +758,9 @@ export const ordersProductsTable = pgTable(
     }),
 
     qty: smallint("qty").notNull().default(1),
+
+    // whole-line refund marker (ADR-0007); money lives in order_refund_items
+    refunded_at: timestamp("refunded_at"),
 
     subtotal: decimal("subtotal", {
       precision: 12,

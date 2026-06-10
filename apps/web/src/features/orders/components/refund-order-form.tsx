@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { UseMutationResult } from "@tanstack/react-query";
+import { Fragment } from "react";
 import {
 	Controller,
 	FormProvider,
@@ -27,7 +28,8 @@ const refundFormSchema = z
 	.object({
 		items: z.array(
 			z.object({
-				order_service_id: z.number(),
+				id: z.number(),
+				kind: z.enum(["service", "product"]),
 				selected: z.boolean(),
 				reason: z.enum(REFUND_REASONS),
 				note: z.string().optional(),
@@ -73,9 +75,16 @@ export interface RefundableServiceOption {
 	item_code: string | null;
 }
 
+export interface RefundableProductOption {
+	id: number;
+	name: string;
+	qty: number;
+}
+
 interface RefundOrderFormProps {
 	closeDialog: () => void;
 	orderId: number;
+	refundableProducts: RefundableProductOption[];
 	refundableServices: RefundableServiceOption[];
 	refundMutation: RefundOrderMutation;
 }
@@ -83,14 +92,30 @@ interface RefundOrderFormProps {
 export const RefundOrderForm = ({
 	closeDialog,
 	orderId,
+	refundableProducts,
 	refundableServices,
 	refundMutation,
 }: RefundOrderFormProps) => {
+	const refundLines = [
+		...refundableServices.map((service) => ({
+			kind: "service" as const,
+			id: service.id,
+			label: service.item_code ?? `Service #${service.id}`,
+		})),
+		...refundableProducts.map((product) => ({
+			kind: "product" as const,
+			id: product.id,
+			label: `${product.name} × ${product.qty}`,
+		})),
+	];
+	const hasBothKinds =
+		refundableServices.length > 0 && refundableProducts.length > 0;
 	const form = useForm<RefundFormValues>({
 		resolver: zodResolver(refundFormSchema),
 		defaultValues: {
-			items: refundableServices.map((service) => ({
-				order_service_id: service.id,
+			items: refundLines.map((line) => ({
+				id: line.id,
+				kind: line.kind,
 				selected: false,
 				reason: "damaged",
 				note: "",
@@ -123,7 +148,9 @@ export const RefundOrderForm = ({
 		const items = values.items
 			.filter((item) => item.selected)
 			.map((item) => ({
-				order_service_id: item.order_service_id,
+				...(item.kind === "service"
+					? { order_service_id: item.id }
+					: { order_product_id: item.id }),
 				reason: item.reason,
 				note: item.note?.trim() || undefined,
 			}));
@@ -175,17 +202,27 @@ export const RefundOrderForm = ({
 				) : null}
 
 				<div className="grid max-h-[50vh] gap-3 overflow-y-auto pr-1">
-					{fields.map((field, index) => (
-						<RefundItemRow
-							key={field.id}
-							index={index}
-							label={
-								refundableServices[index]?.item_code ??
-								`Service #${refundableServices[index]?.id ?? index + 1}`
-							}
-							disabled={isPending}
-						/>
-					))}
+					{fields.map((field, index) => {
+						const line = refundLines[index];
+						const showKindHeader =
+							hasBothKinds &&
+							(index === 0 || refundLines[index - 1]?.kind !== line?.kind);
+
+						return (
+							<Fragment key={field.id}>
+								{showKindHeader ? (
+									<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+										{line?.kind === "product" ? "Products" : "Services"}
+									</p>
+								) : null}
+								<RefundItemRow
+									index={index}
+									label={line?.label ?? `Item #${index + 1}`}
+									disabled={isPending}
+								/>
+							</Fragment>
+						);
+					})}
 				</div>
 
 				<Field>

@@ -120,10 +120,21 @@ export const POSTOrderRefundSchema = z.object({
       z
         .object({
           note: z.string().trim().optional(),
-          order_service_id: z.coerce.number().int().positive(),
+          order_product_id: z.coerce.number().int().positive().nullish(),
+          order_service_id: z.coerce.number().int().positive().nullish(),
           reason: z.enum(refundReasonEnum.enumValues),
         })
         .superRefine((value, ctx) => {
+          const hasService = value.order_service_id != null;
+          const hasProduct = value.order_product_id != null;
+          if (hasService === hasProduct) {
+            ctx.addIssue({
+              code: "custom",
+              message:
+                "Provide exactly one of order_service_id or order_product_id",
+              path: ["order_service_id"],
+            });
+          }
           if (value.reason === "other" && !value.note?.trim()) {
             ctx.addIssue({
               code: "custom",
