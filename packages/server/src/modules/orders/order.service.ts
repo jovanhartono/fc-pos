@@ -3,12 +3,12 @@ import type z from "zod";
 import { db } from "@/db";
 import { orderCampaignsTable, ordersTable } from "@/db/schema";
 import { BadRequestException, NotFoundException } from "@/errors";
+import { getUsableCampaigns } from "@/modules/campaigns/campaign.service";
 import {
   findOrders,
   insertOrder,
   insertOrderProducts,
   insertOrderServices,
-  type OrderTx,
   reserveNextOrderNumber,
 } from "@/modules/orders/order.repository";
 import {
@@ -111,87 +111,7 @@ function buildOrderServiceRows({
   });
 }
 
-type ValidatedCampaign = Awaited<
-  ReturnType<OrderTx["query"]["campaignsTable"]["findFirst"]>
->;
-
-async function loadAndValidateCampaigns({
-  tx,
-  campaignIds,
-  grossTotal,
-  storeId,
-  storeCode,
-}: {
-  tx: OrderTx;
-  campaignIds: number[];
-  grossTotal: number;
-  storeId: number;
-  storeCode: string;
-}) {
-  const campaigns = await tx.query.campaignsTable.findMany({
-    where: { id: { in: campaignIds } },
-    with: {
-      stores: { columns: { store_id: true } },
-      eligibleServices: { columns: { service_id: true } },
-    },
-  });
-
-  const campaignsById = new Map(campaigns.map((item) => [item.id, item]));
-  const missing = campaignIds.filter((id) => !campaignsById.has(id));
-  if (missing.length > 0) {
-    throw new NotFoundException(`Campaign not found: ${missing.join(", ")}`);
-  }
-
-  const now = new Date();
-  for (const campaign of campaigns) {
-    assertCampaignUsable(campaign, {
-      now,
-      grossTotal,
-      storeId,
-      storeCode,
-    });
-  }
-
-  return campaigns;
-}
-
-function assertCampaignUsable(
-  campaign: NonNullable<ValidatedCampaign> & { stores: { store_id: number }[] },
-  {
-    now,
-    grossTotal,
-    storeId,
-    storeCode,
-  }: { now: Date; grossTotal: number; storeId: number; storeCode: string }
-) {
-  if (!campaign.is_active) {
-    throw new BadRequestException(`Campaign ${campaign.code} is not active`);
-  }
-  if (campaign.starts_at && now < campaign.starts_at) {
-    throw new BadRequestException(
-      `Campaign ${campaign.code} has not started yet`
-    );
-  }
-  if (campaign.ends_at && now > campaign.ends_at) {
-    throw new BadRequestException(`Campaign ${campaign.code} has ended`);
-  }
-
-  const storeScopes = campaign.stores.map((item) => item.store_id);
-  if (storeScopes.length > 0 && !storeScopes.includes(storeId)) {
-    throw new BadRequestException(
-      `Campaign ${campaign.code} is not available for store ${storeCode}`
-    );
-  }
-
-  if (grossTotal < Number(campaign.min_order_total)) {
-    throw new BadRequestException(
-      `Order total does not meet minimum for campaign ${campaign.code}`
-    );
-  }
-}
-
 async function resolveDiscount({
-  tx,
   campaignIds,
   grossTotal,
   manualDiscount,
@@ -199,7 +119,6 @@ async function resolveDiscount({
   storeCode,
   lines,
 }: {
-  tx: OrderTx;
   campaignIds: number[];
   grossTotal: number;
   manualDiscount: number;
@@ -217,24 +136,16 @@ async function resolveDiscount({
     };
   }
 
-  const campaigns = await loadAndValidateCampaigns({
-    tx,
+  const campaigns = await getUsableCampaigns({
     campaignIds,
     grossTotal,
     storeId,
     storeCode,
   });
 
-  const stackInput = campaigns.map((campaign) => ({
-    ...campaign,
-    eligible_service_ids: campaign.eligibleServices.map(
-      (entry) => entry.service_id
-    ),
-  }));
-
   const { total: campaignDiscount, breakdown } = stackCampaignDiscounts(
     grossTotal,
-    stackInput,
+    campaigns,
     lines
   );
 
@@ -412,7 +323,6 @@ export async function createOrder(
 
     const { discountAmount, discountSource, campaignRows } =
       await resolveDiscount({
-        tx,
         campaignIds: [...new Set(campaign_ids)],
         grossTotal,
         manualDiscount: Number(orderPayload.discount),

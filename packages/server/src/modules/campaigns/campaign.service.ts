@@ -1,7 +1,8 @@
-import { BadRequestException } from "@/errors";
+import { BadRequestException, NotFoundException } from "@/errors";
 import {
   deleteCampaignById,
   findCampaignById,
+  findCampaignsByIdsWithEligibility,
   findServicesByIds,
   findStoresByIds,
   insertCampaignWithStores,
@@ -217,4 +218,76 @@ export async function updateCampaign({
 export function deleteCampaign({ user, id }: { user: JWTPayload; id: number }) {
   assertCanManageCampaigns(user);
   return deleteCampaignById(id);
+}
+
+type CampaignEligibility = Pick<
+  Awaited<ReturnType<typeof findCampaignsByIdsWithEligibility>>[number],
+  "code" | "ends_at" | "is_active" | "min_order_total" | "starts_at" | "stores"
+>;
+
+export function assertCampaignUsable(
+  campaign: CampaignEligibility,
+  {
+    now,
+    grossTotal,
+    storeId,
+    storeCode,
+  }: { now: Date; grossTotal: number; storeId: number; storeCode: string }
+) {
+  if (!campaign.is_active) {
+    throw new BadRequestException(`Campaign ${campaign.code} is not active`);
+  }
+  if (campaign.starts_at && now < campaign.starts_at) {
+    throw new BadRequestException(
+      `Campaign ${campaign.code} has not started yet`
+    );
+  }
+  if (campaign.ends_at && now > campaign.ends_at) {
+    throw new BadRequestException(`Campaign ${campaign.code} has ended`);
+  }
+
+  const storeScopes = campaign.stores.map((item) => item.store_id);
+  if (storeScopes.length > 0 && !storeScopes.includes(storeId)) {
+    throw new BadRequestException(
+      `Campaign ${campaign.code} is not available for store ${storeCode}`
+    );
+  }
+
+  if (grossTotal < Number(campaign.min_order_total)) {
+    throw new BadRequestException(
+      `Order total does not meet minimum for campaign ${campaign.code}`
+    );
+  }
+}
+
+export async function getUsableCampaigns({
+  campaignIds,
+  grossTotal,
+  storeId,
+  storeCode,
+}: {
+  campaignIds: number[];
+  grossTotal: number;
+  storeId: number;
+  storeCode: string;
+}) {
+  const campaigns = await findCampaignsByIdsWithEligibility(campaignIds);
+
+  const foundIds = new Set(campaigns.map((item) => item.id));
+  const missing = campaignIds.filter((id) => !foundIds.has(id));
+  if (missing.length > 0) {
+    throw new NotFoundException(`Campaign not found: ${missing.join(", ")}`);
+  }
+
+  const now = new Date();
+  for (const campaign of campaigns) {
+    assertCampaignUsable(campaign, { now, grossTotal, storeId, storeCode });
+  }
+
+  return campaigns.map(
+    ({ stores: _stores, eligibleServices, ...campaign }) => ({
+      ...campaign,
+      eligible_service_ids: eligibleServices.map((entry) => entry.service_id),
+    })
+  );
 }

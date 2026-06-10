@@ -33,7 +33,7 @@ Suggested order:
 | 1 | Order Status Machine                            | ✅ Done      | See §1 |
 | 2 | Split `order-admin.service.ts` by lifecycle     | ✅ Done      | See §2 |
 | 3 | Permissions module (ADR-0004 capability table)  | ✅ Done      | See §3 + ADR-0006 |
-| 4 | Campaign eligibility → Campaigns module         | ⬜ Pending   | Independent |
+| 4 | Campaign eligibility → Campaigns module         | ✅ Done      | See §4 |
 | 5 | Pickup module (ADR-0005 invariants)             | ✅ Done      | See §5 |
 | 6 | Reversal off-ramps (cancel + refund)            | ✅ Done      | See §6 |
 | 7 | Collapse shallow CRUD services                  | ⬜ Pending   | Policy call, defer |
@@ -244,21 +244,82 @@ payment-status-deny. Full server suite 80/80 pass.
 
 ---
 
-## §4 — Campaign eligibility → Campaigns ⬜ (independent)
+## §4 — Campaign eligibility → Campaigns ✅
 
-**Problem**: `order.service.ts:120-193` (`loadAndValidateCampaigns`,
-`assertCampaignUsable`) lives in Order. Campaigns module owns CRUD only,
-not eligibility. Future POS price-preview would duplicate the rules.
+**Goal**: `loadAndValidateCampaigns` + `assertCampaignUsable` lived in
+`order.service.ts` — Order owned Campaign eligibility while the Campaigns module
+owned only CRUD. Move both into `campaigns/campaign.service.ts` so eligibility
+reads in the module that owns the concept.
 
-**Sketch**: move both into `campaigns/campaign.service.ts` as
-`loadApplicableCampaigns({ campaignIds, storeId, serviceIds, subtotal, when })`.
-Returns ready-to-apply Campaigns or typed validation error.
+**Premise correction**: the sketch justified the move partly by "future POS
+price-preview would duplicate the rules." Reading the code: the preview **already
+exists and is client-side** (`apps/web/.../transactions/lib/transactions.ts` →
+`getStackedDiscount` → `stackCampaignDiscounts`). The part worth sharing — the
+discount **math** — is *already* DRY via the pure `@fresclean/api/schema` export.
+What's duplicated is the eligibility *rules* (server validates active+dates+store+
+min-order; web's `isCampaignAvailable` checks active+dates only — a subset), and a
+client preview can't call a server module without a new endpoint that doesn't
+exist. So the move stands on **locality alone**, not on de-duplication.
 
-**Design questions**
-- Return shape: `{ applicable: Campaign[]; rejected: Array<{ id, reason }> }`
-  vs throw-on-first-rejection. POS price-preview may want non-throwing.
-- Subtotal computation: caller passes, or campaigns module re-derives from
-  service IDs?
+**Home**: `packages/server/src/modules/campaigns/campaign.service.ts`.
+
+**Exports added**
+
+| Symbol | Role |
+|--------|------|
+| `assertCampaignUsable(campaign, ctx)` | Pure rule — active / started / not-ended / store-scoped / min-order. Throws `BadRequestException`. Exported so the branches unit-test without a DB. |
+| `getUsableCampaigns({ campaignIds, grossTotal, storeId, storeCode })` | DB load (`findCampaignsByIdsWithEligibility`) → missing-id check (`NotFoundException`) → `assertCampaignUsable` per campaign → returns discount-ready `{ ...campaign, eligible_service_ids }[]`. |
+
+**Design decisions (grilled)**
+
+- **Throw-on-first-rejection** kept (not the sketch's `{ applicable, rejected }`).
+  Only caller is `createOrder`, which wants atomic fail; the phantom non-throwing
+  consumer is YAGNI. Add a non-throwing variant when a *server* preview endpoint
+  actually lands.
+- **`db` read, not `tx`-threaded.** Used the already-built-but-unused
+  `findCampaignsByIdsWithEligibility` (db-bound) and dropped `tx` from
+  `resolveDiscount`. Postgres default isolation is READ COMMITTED and nothing in
+  the order tx writes campaigns before this read, so in-tx vs out-of-tx is
+  outcome-identical. Closes the loop on the orphaned repo fn; deletes the
+  duplicate inline `tx.query`.
+- **Discount-ready return**: module flattens `eligibleServices → eligible_service_ids`
+  and drops the validation-only `stores` relation, so `order.service` no longer
+  re-maps and the campaign relation shape stays inside Campaigns.
+- **Subtotal** passed by caller (`grossTotal`) — Campaigns can't re-derive it
+  (gross includes *products*, which Campaigns knows nothing about).
+- **`now`**: the pure `assertCampaignUsable` takes `now` in its ctx (the test pins
+  dates there); `getUsableCampaigns` computes `new Date()` internally — no unused
+  injection seam on the loader. Plain instant comparison, no Jakarta-TZ rule.
+- **`CampaignEligibility`** is a `Pick<>` of the repo row type (not a hand-rolled
+  literal) — drift-safe, and the validator's read-surface stays explicit.
+
+**Behavior changes vs pre-refactor**: none. Same validations, same error messages,
+same throw semantics. Pure relocation + the provably-equivalent tx→db read swap.
+
+**Ported call sites**
+
+| File | What changed |
+|------|--------------|
+| `campaigns/campaign.service.ts` | Gained `assertCampaignUsable` + `getUsableCampaigns`; imports `NotFoundException` + `findCampaignsByIdsWithEligibility`. |
+| `orders/order.service.ts` | `loadAndValidateCampaigns`, `assertCampaignUsable`, the `ValidatedCampaign` type removed. `resolveDiscount` drops its `tx` param, calls `getUsableCampaigns`, stacks the flattened campaigns directly. Orphaned `OrderTx` import removed. `createOrder` call site drops the `tx` arg. |
+
+**Tests**: `campaign-eligibility.test.ts` — 10 unit tests via `bun:test` (happy
+path + 5 reject branches + store-scope allow + 3 inclusive-boundary allows that
+pin the strict `<`/`>` operators: `now === starts_at`, `now === ends_at`,
+`grossTotal === min_order_total`). Full server suite 52/52 pass; type-check 3/3
+turbo tasks + biome clean. Loader (`getUsableCampaigns`) is DB-touching —
+integration test deferred, same as #1/#5.
+
+**Outcomes**
+- Campaign eligibility reads in the Campaigns module; Order no longer owns it.
+- `findCampaignsByIdsWithEligibility` is no longer dead code.
+- Validation rules pinned by unit tests for the first time.
+- No new abstraction — the discount math was already shared; this was locality.
+
+**Not done (recorded)**: web `isCampaignAvailable` still duplicates a *subset* of
+the rules client-side. Unifying it requires a server preview endpoint (doesn't
+exist) or shipping the full rule set as another pure `@fresclean/api/schema`
+export. No signal to do either today.
 
 ---
 
