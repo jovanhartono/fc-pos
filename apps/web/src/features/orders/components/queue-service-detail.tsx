@@ -20,6 +20,7 @@ import { HoldToConfirmButton } from "@/features/orders/components/hold-to-confir
 import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
 import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
+import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { uploadOrderServicePhoto } from "@/features/orders/utils/photo-upload";
 import {
 	queryKeys,
@@ -83,13 +84,11 @@ function QueueServiceDetailMessage({
 type QueueServiceDetailProps = {
 	orderId: number;
 	serviceId: number;
-	queueStoreId?: number;
 };
 
 export function QueueServiceDetail({
 	orderId,
 	serviceId,
-	queueStoreId,
 }: QueueServiceDetailProps) {
 	const queryClient = useQueryClient();
 	const currentUser = getCurrentUser();
@@ -185,7 +184,7 @@ export function QueueServiceDetail({
 			<div className="mb-6 flex items-center gap-3">
 				<Link
 					to="/worker"
-					search={{ storeId: queueStoreId ?? detail.store?.id }}
+					search={{ storeId: detail.store?.id }}
 					className="flex size-9 shrink-0 items-center justify-center border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 				>
 					<ArrowLeftIcon className="size-4" weight="bold" />
@@ -214,12 +213,7 @@ export function QueueServiceDetail({
 							{detail.customer.phone_number}
 						</a>
 					) : null}
-					<span>
-						{new Date(detail.created_at).toLocaleString("en-ID", {
-							dateStyle: "medium",
-							timeStyle: "short",
-						})}
-					</span>
+					<span>{formatOrderDateTime(detail.created_at)}</span>
 				</div>
 
 				<section className="grid gap-4 border border-border bg-background/70 p-4">

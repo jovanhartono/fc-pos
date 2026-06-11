@@ -1,54 +1,7 @@
-import {
-	type CampaignContribution,
-	type DiscountLine,
-	stackCampaignDiscounts,
-} from "@fresclean/api/schema";
-import type {
-	Campaign,
-	Category,
-	CreateOrderPayload,
-	Product,
-	Service,
-} from "@/lib/api";
+import type { Campaign, Category, Product, Service } from "@/lib/api";
 
 export type CatalogMode = "products" | "services";
 export type CategoryFilter = "all" | number;
-
-export type ProductCartLine = {
-	kind: "product";
-	id: number;
-	qty: number;
-};
-
-export type ServiceCartLine = {
-	kind: "service";
-	line_id: string;
-	id: number;
-	brand: string;
-	color: string;
-	model: string;
-	size: string;
-};
-
-export type ProductCartDisplayLine = ProductCartLine & {
-	product: Product;
-};
-
-export type ServiceCartDisplayLine = ServiceCartLine & {
-	service: Service;
-};
-
-export type TransactionDraftValues = {
-	selectedStoreId: string;
-	selectedCustomerId: string;
-	selectedCampaignIds: string[];
-	selectedPaymentMethodId: string;
-	paymentStatus: CreateOrderPayload["payment_status"];
-	manualDiscount: string;
-	notes: string;
-	productCart: ProductCartLine[];
-	serviceCart: ServiceCartLine[];
-};
 
 export type CategoryTab = {
 	id: number;
@@ -110,56 +63,4 @@ export function isCampaignAvailable(campaign: Campaign, now: Date) {
 	}
 
 	return true;
-}
-
-export type CampaignBreakdown = CampaignContribution<Campaign>;
-
-export function getStackedDiscount(
-	subtotal: number,
-	campaigns: Campaign[],
-	lines: DiscountLine[] = [],
-) {
-	const stackInput = campaigns.map((campaign) => ({
-		...campaign,
-		eligible_service_ids:
-			campaign.eligibleServices?.map((entry) => entry.service_id) ?? [],
-	}));
-	return stackCampaignDiscounts(subtotal, stackInput, lines);
-}
-
-export function toTransactionPayload({
-	selectedCustomerId,
-	selectedStoreId,
-	selectedCampaignIds,
-	selectedPaymentMethodId,
-	paymentStatus,
-	manualDiscount,
-	notes,
-	productCart,
-	serviceCart,
-}: TransactionDraftValues): CreateOrderPayload {
-	return {
-		customer_id: Number(selectedCustomerId),
-		store_id: Number(selectedStoreId),
-		campaign_ids: selectedCampaignIds.map((id) => Number(id)),
-		discount: manualDiscount || "0",
-		payment_method_id: selectedPaymentMethodId
-			? Number(selectedPaymentMethodId)
-			: undefined,
-		payment_status: paymentStatus,
-		notes: notes.trim() || undefined,
-		products: productCart.map((line) => ({
-			id: line.id,
-			qty: line.qty,
-			notes: undefined,
-		})),
-		services: serviceCart.map((line) => ({
-			id: line.id,
-			brand: line.brand.trim() || undefined,
-			color: line.color.trim() || undefined,
-			model: line.model.trim() || undefined,
-			size: line.size.trim() || undefined,
-			notes: undefined,
-		})),
-	};
 }

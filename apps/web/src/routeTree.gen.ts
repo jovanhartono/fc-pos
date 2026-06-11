@@ -29,6 +29,7 @@ import { Route as AdminAttendanceRouteImport } from "./routes/_admin/attendance"
 import { Route as AdminWorkerIndexRouteImport } from "./routes/_admin/worker.index";
 import { Route as AdminOrdersIndexRouteImport } from "./routes/_admin/orders.index";
 import { Route as AdminOrdersOrderIdRouteImport } from "./routes/_admin/orders.$orderId";
+import { Route as AdminWorkerOrderIdServiceIdRouteImport } from "./routes/_admin/worker.$orderId.$serviceId";
 
 const TrackRoute = TrackRouteImport.update({
   id: "/track",
@@ -129,6 +130,12 @@ const AdminOrdersOrderIdRoute = AdminOrdersOrderIdRouteImport.update({
   path: "/orders/$orderId",
   getParentRoute: () => AdminRouteRoute,
 } as any);
+const AdminWorkerOrderIdServiceIdRoute =
+  AdminWorkerOrderIdServiceIdRouteImport.update({
+    id: "/worker/$orderId/$serviceId",
+    path: "/worker/$orderId/$serviceId",
+    getParentRoute: () => AdminRouteRoute,
+  } as any);
 
 export interface FileRoutesByFullPath {
   "/": typeof AdminIndexRoute;
@@ -150,6 +157,7 @@ export interface FileRoutesByFullPath {
   "/orders/$orderId": typeof AdminOrdersOrderIdRoute;
   "/orders/": typeof AdminOrdersIndexRoute;
   "/worker/": typeof AdminWorkerIndexRoute;
+  "/worker/$orderId/$serviceId": typeof AdminWorkerOrderIdServiceIdRoute;
 }
 export interface FileRoutesByTo {
   "/login": typeof LoginRoute;
@@ -171,6 +179,7 @@ export interface FileRoutesByTo {
   "/orders/$orderId": typeof AdminOrdersOrderIdRoute;
   "/orders": typeof AdminOrdersIndexRoute;
   "/worker": typeof AdminWorkerIndexRoute;
+  "/worker/$orderId/$serviceId": typeof AdminWorkerOrderIdServiceIdRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
@@ -194,6 +203,7 @@ export interface FileRoutesById {
   "/_admin/orders/$orderId": typeof AdminOrdersOrderIdRoute;
   "/_admin/orders/": typeof AdminOrdersIndexRoute;
   "/_admin/worker/": typeof AdminWorkerIndexRoute;
+  "/_admin/worker/$orderId/$serviceId": typeof AdminWorkerOrderIdServiceIdRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -216,7 +226,8 @@ export interface FileRouteTypes {
     | "/auth/login"
     | "/orders/$orderId"
     | "/orders/"
-    | "/worker/";
+    | "/worker/"
+    | "/worker/$orderId/$serviceId";
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/login"
@@ -237,7 +248,8 @@ export interface FileRouteTypes {
     | "/"
     | "/orders/$orderId"
     | "/orders"
-    | "/worker";
+    | "/worker"
+    | "/worker/$orderId/$serviceId";
   id:
     | "__root__"
     | "/_admin"
@@ -259,7 +271,8 @@ export interface FileRouteTypes {
     | "/_admin/"
     | "/_admin/orders/$orderId"
     | "/_admin/orders/"
-    | "/_admin/worker/";
+    | "/_admin/worker/"
+    | "/_admin/worker/$orderId/$serviceId";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -411,6 +424,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AdminOrdersOrderIdRouteImport;
       parentRoute: typeof AdminRouteRoute;
     };
+    "/_admin/worker/$orderId/$serviceId": {
+      id: "/_admin/worker/$orderId/$serviceId";
+      path: "/worker/$orderId/$serviceId";
+      fullPath: "/worker/$orderId/$serviceId";
+      preLoaderRoute: typeof AdminWorkerOrderIdServiceIdRouteImport;
+      parentRoute: typeof AdminRouteRoute;
+    };
   }
 }
 
@@ -431,6 +451,7 @@ interface AdminRouteRouteChildren {
   AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute;
   AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute;
   AdminWorkerIndexRoute: typeof AdminWorkerIndexRoute;
+  AdminWorkerOrderIdServiceIdRoute: typeof AdminWorkerOrderIdServiceIdRoute;
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
@@ -450,6 +471,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,
   AdminOrdersIndexRoute: AdminOrdersIndexRoute,
   AdminWorkerIndexRoute: AdminWorkerIndexRoute,
+  AdminWorkerOrderIdServiceIdRoute: AdminWorkerOrderIdServiceIdRoute,
 };
 
 const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(

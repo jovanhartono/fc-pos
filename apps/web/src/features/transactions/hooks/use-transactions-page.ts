@@ -8,8 +8,8 @@ import { z } from "zod";
 import { handleCreatedOrderSuccess } from "@/features/orders/lib/create-order-workflow";
 import {
 	type TransactionDraftValues,
-	toTransactionPayload,
-} from "@/features/transactions/lib/transactions";
+	toOrderPayload,
+} from "@/features/transactions/cart/cart";
 import type { TransactionsPageContextValue } from "@/features/transactions/lib/transactions-context";
 import { createOrder } from "@/lib/api";
 import { meQueryOptions, storesQueryOptions } from "@/lib/query-options";
@@ -203,7 +203,7 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 
 			try {
 				const created = await createMutation.mutateAsync(
-					toTransactionPayload(values),
+					toOrderPayload(values),
 				);
 
 				await handleCreatedOrderSuccess({

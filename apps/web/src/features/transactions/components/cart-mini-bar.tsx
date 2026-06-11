@@ -1,6 +1,6 @@
 import { CaretUpIcon, ShoppingCartIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import { useCartTotals } from "@/features/transactions/hooks/use-cart-totals";
+import { useCart } from "@/features/transactions/cart/useCart";
 import { formatIDRCurrency } from "@/shared/utils";
 
 interface CartMiniBarProps {
@@ -8,9 +8,9 @@ interface CartMiniBarProps {
 }
 
 export const CartMiniBar = ({ onOpen }: CartMiniBarProps) => {
-	const { cartCount, subtotal } = useCartTotals();
+	const { count, subtotal } = useCart();
 
-	if (cartCount === 0) {
+	if (count === 0) {
 		return null;
 	}
 
@@ -25,7 +25,7 @@ export const CartMiniBar = ({ onOpen }: CartMiniBarProps) => {
 				<span className="flex items-center gap-2">
 					<ShoppingCartIcon className="size-5" />
 					<span className="font-medium">
-						{cartCount} {cartCount === 1 ? "item" : "items"}
+						{count} {count === 1 ? "item" : "items"}
 					</span>
 				</span>
 				<span className="flex items-center gap-2">

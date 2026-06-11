@@ -1,11 +1,23 @@
-import { useCallback } from "react";
-import { useFormContext } from "react-hook-form";
-import type {
-	ProductCartLine,
-	ServiceCartLine,
-	TransactionDraftValues,
-} from "@/features/transactions/lib/transactions";
+import { useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
+import { useFormContext, useWatch } from "react-hook-form";
+import {
+	buildActiveItemMap,
+	enrichProductCart,
+	enrichServiceCart,
+	getCartCount,
+	getCartSubtotal,
+	type ProductCartDisplayLine,
+	type ProductCartLine,
+	type ServiceCartDisplayLine,
+	type ServiceCartLine,
+	type TransactionDraftValues,
+} from "@/features/transactions/cart/cart";
 import type { Product, Service } from "@/lib/api";
+import {
+	productsQueryOptions,
+	servicesQueryOptions,
+} from "@/lib/query-options";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 function createServiceCartLineId() {
@@ -15,7 +27,27 @@ function createServiceCartLineId() {
 	);
 }
 
-export function useTransactionsCart() {
+export interface CartOps {
+	resetCart: () => void;
+	removeProduct: (productId: number) => void;
+	removeService: (lineId: string) => void;
+	updateProductQty: (
+		productId: number,
+		nextQty: number,
+		maxStock: number,
+	) => void;
+	updateServiceField: (
+		lineId: string,
+		field: "brand" | "color" | "model" | "size",
+		value: string,
+	) => void;
+	addProduct: (product: Product) => void;
+	addService: (service: Service) => void;
+}
+
+// Write ops only — reads via getValues, so consumers (e.g. the catalog) do
+// not re-render on cart changes.
+export function useCartOps(): CartOps {
 	const form = useFormContext<TransactionDraftValues>();
 	const setSubmitError = useTransactionsPageStore(
 		(state) => state.setSubmitError,
@@ -57,7 +89,7 @@ export function useTransactionsCart() {
 		});
 	}, [form, setSubmitError]);
 
-	const removeProductFromCart = useCallback(
+	const removeProduct = useCallback(
 		(productId: number) => {
 			setSubmitError("");
 			setProductCart(
@@ -67,7 +99,7 @@ export function useTransactionsCart() {
 		[form, setProductCart, setSubmitError],
 	);
 
-	const removeServiceFromCart = useCallback(
+	const removeService = useCallback(
 		(lineId: string) => {
 			setSubmitError("");
 			setServiceCart(
@@ -118,7 +150,7 @@ export function useTransactionsCart() {
 		[form, setServiceCart, setSubmitError],
 	);
 
-	const handleAddProduct = useCallback(
+	const addProduct = useCallback(
 		(product: Product) => {
 			const currentCart = form.getValues("productCart");
 			const maxStock = Number(product.stock ?? 0);
@@ -149,7 +181,7 @@ export function useTransactionsCart() {
 		[form, setProductCart, setSubmitError],
 	);
 
-	const handleAddService = useCallback(
+	const addService = useCallback(
 		(service: Service) => {
 			setSubmitError("");
 			setServiceCart([
@@ -170,11 +202,64 @@ export function useTransactionsCart() {
 
 	return {
 		resetCart,
-		removeProductFromCart,
-		removeServiceFromCart,
+		removeProduct,
+		removeService,
 		updateProductQty,
 		updateServiceField,
-		handleAddProduct,
-		handleAddService,
+		addProduct,
+		addService,
 	};
+}
+
+export interface Cart extends CartOps {
+	productRows: ProductCartDisplayLine[];
+	serviceRows: ServiceCartDisplayLine[];
+	subtotal: number;
+	count: number;
+}
+
+// Ops + derived rows/totals — subscribes to cart form state and the
+// product/service catalogs.
+export function useCart(): Cart {
+	const ops = useCartOps();
+
+	const [
+		productCart = [] as ProductCartLine[],
+		serviceCart = [] as ServiceCartLine[],
+	] = useWatch<TransactionDraftValues, ["productCart", "serviceCart"]>({
+		name: ["productCart", "serviceCart"],
+	});
+
+	const productsQuery = useQuery(productsQueryOptions());
+	const servicesQuery = useQuery(servicesQueryOptions());
+
+	const productMap = useMemo(
+		() => buildActiveItemMap(productsQuery.data ?? []),
+		[productsQuery.data],
+	);
+	const serviceMap = useMemo(
+		() => buildActiveItemMap(servicesQuery.data ?? []),
+		[servicesQuery.data],
+	);
+
+	const productRows = useMemo(
+		() => enrichProductCart(productCart, productMap),
+		[productCart, productMap],
+	);
+	const serviceRows = useMemo(
+		() => enrichServiceCart(serviceCart, serviceMap),
+		[serviceCart, serviceMap],
+	);
+
+	const subtotal = useMemo(
+		() => getCartSubtotal(productRows, serviceRows),
+		[productRows, serviceRows],
+	);
+
+	const count = useMemo(
+		() => getCartCount(productCart, serviceCart),
+		[productCart, serviceCart],
+	);
+
+	return { ...ops, productRows, serviceRows, subtotal, count };
 }

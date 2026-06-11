@@ -30,6 +30,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { formatOrderDateTime } from "@/features/orders/lib/format";
 import {
 	type FetchOrderServiceQueueQuery,
 	fetchOrderDetail,
@@ -328,16 +329,21 @@ function WorkerQueuePage() {
 			};
 		},
 		onSuccess: (result) => {
+			if (result.workerServiceId !== undefined) {
+				void navigate({
+					to: "/worker/$orderId/$serviceId",
+					params: {
+						orderId: String(result.orderId),
+						serviceId: String(result.workerServiceId),
+					},
+				});
+				return;
+			}
+
 			void navigate({
 				to: "/orders/$orderId",
 				params: {
 					orderId: String(result.orderId),
-				},
-				search: {
-					queueStoreId: result.storeId,
-					...(result.workerServiceId !== undefined
-						? { workerServiceId: result.workerServiceId }
-						: {}),
 				},
 			});
 		},
@@ -472,13 +478,10 @@ function WorkerQueuePage() {
 
 	const navigateToQueueDetail = (item: QueueOrderServiceItem) => {
 		void navigate({
-			to: "/orders/$orderId",
+			to: "/worker/$orderId/$serviceId",
 			params: {
 				orderId: String(item.order_id),
-			},
-			search: {
-				queueStoreId: item.store_id,
-				workerServiceId: item.id,
+				serviceId: String(item.id),
 			},
 		});
 	};
@@ -917,12 +920,7 @@ function QueueRow({
 
 			<div className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-2">
 				<p>{`Order ${item.order_code}`}</p>
-				<p>
-					{new Date(item.order_created_at).toLocaleString("en-ID", {
-						dateStyle: "medium",
-						timeStyle: "short",
-					})}
-				</p>
+				<p>{formatOrderDateTime(item.order_created_at)}</p>
 				<p>{`Store ${item.store_code} - ${item.store_name}`}</p>
 				<p>{`Item ${formatOrderServiceItemDetails(item)}`}</p>
 			</div>

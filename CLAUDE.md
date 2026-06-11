@@ -149,12 +149,12 @@ apps/web/src/
 All run from `packages/server`:
 
 ```bash
-bun run generate:dev     # Generate migration files
-bun run migrate:dev      # Apply migrations
-bun run push:dev         # Push schema directly (no migration files)
+bun run push:dev         # Push schema directly — the workflow this repo uses
 bun run pull:dev         # Pull schema from database
 bun run seed:dev         # Seed database with test data
 ```
+
+`generate:dev` / `migrate:dev` scripts exist but are **not used** — `drizzle/dev/` has no migration journal, so `generate:dev` produces a misleading full-schema snapshot. If run by accident, delete the folder it creates.
 
 Replace `:dev` with `:prod` for production. Each uses its own config (`drizzle-dev.config.ts` / `drizzle-prod.config.ts`).
 
@@ -198,9 +198,10 @@ Husky runs `bunx biome check --write --staged --no-errors-on-unmatched` before e
 ### Adding a Schema Change
 
 1. Edit `packages/server/src/db/schema.ts`
-2. Run `bun run generate:dev` to create migration
-3. Run `bun run migrate:dev` to apply
-4. Update Zod schemas in the relevant module if needed
+2. Adding a constraint over live data? First count violating rows with a read-only query (`bun -e` with `process.env.DATABASE_URL_DEV`; `.env` auto-loads in `packages/server`)
+3. Run `bun run push:dev` (diffs live DB against schema, applies delta)
+4. Verify CHECK constraints via `pg_constraint` — push applies them silently without printing diffs
+5. Update Zod schemas in the relevant module if needed
 
 ### Building Server Types for Web
 

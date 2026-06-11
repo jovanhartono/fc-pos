@@ -19,14 +19,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CampaignAutocomplete } from "@/features/orders/components/campaign-autocomplete";
 import { CustomerAutocomplete } from "@/features/orders/components/customer-autocomplete";
+import {
+	getCartPricing,
+	type TransactionDraftValues,
+} from "@/features/transactions/cart/cart";
+import { useCart } from "@/features/transactions/cart/useCart";
 import { CampaignSummaryCard } from "@/features/transactions/components/campaign-summary-card";
-import { useCartTotals } from "@/features/transactions/hooks/use-cart-totals";
-import { useTransactionsCart } from "@/features/transactions/hooks/use-transactions-cart";
 import {
 	getEntityCategoryName,
-	getStackedDiscount,
 	isCampaignAvailable,
-	type TransactionDraftValues,
 } from "@/features/transactions/lib/transactions";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
 import {
@@ -64,11 +65,15 @@ export function TransactionsCheckout() {
 	const { visibleStores, submit } = useTransactionsPageContext();
 	const {
 		resetCart,
-		removeProductFromCart,
-		removeServiceFromCart,
+		removeProduct,
+		removeService,
 		updateProductQty,
 		updateServiceField,
-	} = useTransactionsCart();
+		productRows,
+		serviceRows,
+		subtotal,
+		count,
+	} = useCart();
 	const submitError = useTransactionsPageStore((state) => state.submitError);
 
 	const form = useFormContext<TransactionDraftValues>();
@@ -90,9 +95,6 @@ export function TransactionsCheckout() {
 			"selectedStoreId",
 		],
 	});
-
-	const { cartProductRows, cartServiceRows, subtotal, cartCount } =
-		useCartTotals();
 
 	const selectedStoreNumber =
 		selectedStoreId && Number.isFinite(Number(selectedStoreId))
@@ -157,22 +159,24 @@ export function TransactionsCheckout() {
 		[paymentMethodOptions, selectedPaymentMethodId],
 	);
 
-	const lines = useMemo(
+	const serviceLines = useMemo(
 		() =>
-			cartServiceRows.map((row) => ({
+			serviceRows.map((row) => ({
 				price: Number(row.service.price),
 				service_id: row.service.id,
 			})),
-		[cartServiceRows],
+		[serviceRows],
 	);
-	const stackedDiscount = useMemo(
-		() => getStackedDiscount(subtotal, selectedCampaigns, lines),
-		[subtotal, selectedCampaigns, lines],
+	const pricing = useMemo(
+		() =>
+			getCartPricing({
+				subtotal,
+				campaigns: selectedCampaigns,
+				serviceLines,
+				manualDiscount,
+			}),
+		[subtotal, selectedCampaigns, serviceLines, manualDiscount],
 	);
-	const campaignDiscount = stackedDiscount.total;
-	const discountValue = Number(manualDiscount || 0);
-	const totalDiscount = Math.min(subtotal, discountValue + campaignDiscount);
-	const total = Math.max(0, subtotal - totalDiscount);
 
 	const isSubmitting = form.formState.isSubmitting;
 
@@ -323,7 +327,7 @@ export function TransactionsCheckout() {
 						size="sm"
 						onClick={resetCart}
 						disabled={
-							cartCount === 0 &&
+							count === 0 &&
 							!selectedCustomerId &&
 							selectedCampaignIds.length === 0
 						}
@@ -347,13 +351,13 @@ export function TransactionsCheckout() {
 					/>
 					<div className="grid gap-5 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] md:items-start">
 						<div className="grid gap-3">
-							{cartProductRows.length === 0 && cartServiceRows.length === 0 ? (
+							{productRows.length === 0 && serviceRows.length === 0 ? (
 								<div className="border border-dashed border-border p-4 text-sm text-muted-foreground">
 									Cart is empty.
 								</div>
 							) : null}
 
-							{cartProductRows.map((line) => (
+							{productRows.map((line) => (
 								<div
 									key={`product-${line.id}`}
 									className="grid gap-3 border border-border/70 p-3"
@@ -371,7 +375,7 @@ export function TransactionsCheckout() {
 											variant="outline"
 											size="icon-xs"
 											className="size-11"
-											onClick={() => removeProductFromCart(line.id)}
+											onClick={() => removeProduct(line.id)}
 											icon={<XIcon className="size-4" />}
 										/>
 									</div>
@@ -423,7 +427,7 @@ export function TransactionsCheckout() {
 								</div>
 							))}
 
-							{cartServiceRows.map((line, index) => (
+							{serviceRows.map((line, index) => (
 								<div
 									key={line.line_id}
 									className="grid gap-3 border border-border/70 p-3"
@@ -441,7 +445,7 @@ export function TransactionsCheckout() {
 											variant="outline"
 											size="icon-xs"
 											className="size-11"
-											onClick={() => removeServiceFromCart(line.line_id)}
+											onClick={() => removeService(line.line_id)}
 											icon={<XIcon className="size-4" />}
 										/>
 									</div>
@@ -571,7 +575,7 @@ export function TransactionsCheckout() {
 										{formatIDRCurrency(String(subtotal))}
 									</span>
 								</div>
-								{stackedDiscount.breakdown.map(({ campaign, amount }) => (
+								{pricing.campaignBreakdown.map(({ campaign, amount }) => (
 									<div
 										key={campaign.id}
 										className="flex items-center justify-between gap-3 text-sm"
@@ -587,12 +591,14 @@ export function TransactionsCheckout() {
 								<div className="flex items-center justify-between gap-3 text-sm">
 									<span className="text-muted-foreground">Manual Discount</span>
 									<span className="font-medium">
-										-{formatIDRCurrency(String(discountValue))}
+										-{formatIDRCurrency(String(pricing.manualDiscount))}
 									</span>
 								</div>
 								<div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-base font-semibold">
 									<span>Total Payment</span>
-									<span>{formatIDRCurrency(String(Math.round(total)))}</span>
+									<span>
+										{formatIDRCurrency(String(Math.round(pricing.total)))}
+									</span>
 								</div>
 							</div>
 
@@ -622,7 +628,7 @@ export function TransactionsCheckout() {
 								onClick={submit}
 								loading={isSubmitting}
 								loadingText="Creating order..."
-								disabled={cartCount === 0}
+								disabled={count === 0}
 								icon={<CreditCardIcon className="size-4" />}
 							>
 								Create Order

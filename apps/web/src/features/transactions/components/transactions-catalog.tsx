@@ -10,11 +10,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Combobox } from "@/components/ui/combobox";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useTransactionsCart } from "@/features/transactions/hooks/use-transactions-cart";
-import {
-	getEntityCategoryName,
-	type TransactionDraftValues,
-} from "@/features/transactions/lib/transactions";
+import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
+import { useCartOps } from "@/features/transactions/cart/useCart";
+import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
 import type { Product, Service } from "@/lib/api";
 import {
@@ -29,7 +27,7 @@ import { useTransactionsPageStore } from "@/stores/transactions-store";
 export function TransactionsCatalog() {
 	const { isAdmin, visibleStores, handleStoreChange } =
 		useTransactionsPageContext();
-	const { handleAddProduct, handleAddService } = useTransactionsCart();
+	const { addProduct, addService } = useCartOps();
 	const mode = useTransactionsPageStore((state) => state.mode);
 	const setMode = useTransactionsPageStore((state) => state.setMode);
 	const searchTerm = useTransactionsPageStore((state) => state.searchTerm);
@@ -246,8 +244,8 @@ export function TransactionsCatalog() {
 									)}
 									onClick={() =>
 										isProduct
-											? handleAddProduct(item as Product)
-											: handleAddService(item as Service)
+											? addProduct(item as Product)
+											: addService(item as Service)
 									}
 									disabled={isOutOfStock}
 									aria-label={`Add ${item.name}`}
