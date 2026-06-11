@@ -84,7 +84,7 @@ packages/server/src/modules/<domain>/
 
 Routes (`src/routes/`) are thin HTTP handlers that call services directly.
 
-Modules: `campaigns`, `categories`, `customers`, `dashboard`, `orders`, `order-service-images`, `payment-methods`, `products`, `reports`, `services`, `shifts`, `stores`, `users`
+Modules: `campaigns`, `categories`, `customers`, `orders`, `order-service-images`, `payment-methods`, `products`, `reports`, `services`, `shifts`, `stores`, `users`
 
 ### Server Route Structure
 

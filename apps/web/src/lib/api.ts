@@ -66,8 +66,6 @@ const orderServiceByItemCodeRoute =
 	rpc.api.admin.orders.services["by-item-code"].$get;
 const orderServiceQueueRoute = rpc.api.admin.orders.services.queue.$get;
 const myOrderServicesRoute = rpc.api.admin.orders.services.me.$get;
-const dashboardCountsRoute = rpc.api.admin.dashboard.counts.$get;
-const dashboardOverviewRoute = rpc.api.admin.dashboard.overview.$get;
 const shiftsRoute = rpc.api.admin.shifts.$get;
 const shiftCurrentRoute = rpc.api.admin.shifts.current.$get;
 const dailyReportRoute = rpc.api.admin.reports.daily.$get;
@@ -454,9 +452,6 @@ export const queryKeys = {
 	) => ["order-service-queue", query ?? {}] as const,
 	myOrderServices: (storeId?: number) =>
 		["my-order-services", storeId ?? "all"] as const,
-	dashboard: ["dashboard"] as const,
-	dashboardOverview: (query?: FetchDashboardOverviewQuery) =>
-		["dashboard-overview", query ?? {}] as const,
 	shifts: (query?: FetchShiftsQuery) => ["shifts", query ?? {}] as const,
 	shiftCurrent: ["shift-current"] as const,
 	dailyReport: (query: FetchDailyReportQuery) =>
@@ -1119,33 +1114,6 @@ export async function uploadFileToPresignedUrl(
 export async function trackPublicOrder(payload: TrackPublicOrderPayload) {
 	return parseSuccessData<PublicTrackedOrder>(
 		rpc.api.public.orders.track.$post({ json: payload }),
-	);
-}
-
-export type DashboardCounts = InferResponseType<
-	typeof dashboardCountsRoute
->["data"];
-
-export type DashboardOverview = Extract<
-	InferResponseType<typeof dashboardOverviewRoute>,
-	{ success: true }
->["data"];
-
-export type FetchDashboardOverviewQuery = { date?: string };
-
-export async function fetchDashboardCounts() {
-	return parseSuccessData<DashboardCounts>(
-		rpcWithAuth().api.admin.dashboard.counts.$get(),
-	);
-}
-
-export async function fetchDashboardOverview(
-	query?: FetchDashboardOverviewQuery,
-) {
-	return parseSuccessData<DashboardOverview>(
-		rpcWithAuth().api.admin.dashboard.overview.$get({
-			query: query?.date ? { date: query.date } : {},
-		}),
 	);
 }
 

@@ -37,8 +37,7 @@ const ErrorCard = ({ error, reset }: ErrorComponentProps) => {
 					Application error
 				</CardTitle>
 				<CardDescription>
-					Something broke while rendering this screen. Retry or return to the
-					dashboard.
+					Something broke while rendering this screen. Retry or return home.
 				</CardDescription>
 			</CardHeader>
 
@@ -63,7 +62,7 @@ const ErrorCard = ({ error, reset }: ErrorComponentProps) => {
 						render={<Link to="/" />}
 						icon={<HouseIcon />}
 					>
-						Dashboard
+						Home
 					</Button>
 				</div>
 			</CardContent>

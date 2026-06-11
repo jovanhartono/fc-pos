@@ -28,7 +28,6 @@ import {
 import {
 	type Campaign,
 	createCampaign,
-	queryKeys,
 	type UpdateCampaignPayload,
 	updateCampaign,
 } from "@/lib/api";
@@ -207,7 +206,6 @@ function CampaignsPage() {
 		mutationFn: createCampaign,
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
-			await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
 			closeSheet();
 		},
 	});
@@ -233,7 +231,6 @@ function CampaignsPage() {
 			updateCampaign(id, { is_active }),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
-			await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
 		},
 	});
 

@@ -65,7 +65,7 @@ const NotFoundPage = () => {
 							render={<Link to="/" />}
 							icon={<HouseIcon />}
 						>
-							Dashboard
+							Home
 						</Button>
 					</div>
 				</CardContent>

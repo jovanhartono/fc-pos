@@ -120,7 +120,6 @@ function CategoriesPage() {
 		mutationFn: createCategory,
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.categories });
-			await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
 			closeSheet();
 		},
 	});

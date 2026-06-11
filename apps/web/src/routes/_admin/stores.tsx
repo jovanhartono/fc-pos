@@ -34,7 +34,6 @@ function StoresPage() {
 		mutationFn: createStore,
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.stores });
-			await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
 			closeSheet();
 		},
 	});

@@ -119,7 +119,7 @@ Ephemeral client-side construct in the Transactions POS. Holds in-progress Order
 The view of OrderServices needing work, scoped by Store, filtered by status. Used mainly by workers; any staff may self-assign `queued → processing` (processing axis is role-open — see [ADR-0004 amendment](docs/adr/0004-role-capabilities-v1.md)). Sort order is `is_priority DESC, Order.created_at ASC, OrderService.id ASC` — priority items bubble to the top; otherwise FIFO by intake time. `is_priority` carries no SLA or pricing effect; it is purely a queue-bumper.
 
 **Aging queue**:
-A dashboard surface listing OrderServices not in a terminal status, ordered by `created_at` ascending.
+A Reports tab listing OrderServices not in a terminal status, ordered by `created_at` ascending.
 
 **Transactions POS**:
 The cashier UI at `/transactions` for creating Orders. (See Ambiguities — "Transaction" is the legacy folder name.)

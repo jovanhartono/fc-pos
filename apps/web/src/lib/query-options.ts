@@ -4,7 +4,6 @@ import {
 	type FetchCampaignsQuery,
 	type FetchCustomersQuery,
 	type FetchDailyReportQuery,
-	type FetchDashboardOverviewQuery,
 	type FetchOrdersQuery,
 	type FetchReportOverviewQuery,
 	type FetchReportRangeQuery,
@@ -18,8 +17,6 @@ import {
 	fetchCustomerAcquisitionReport,
 	fetchCustomersPage,
 	fetchDailyReport,
-	fetchDashboardCounts,
-	fetchDashboardOverview,
 	fetchFinancialReport,
 	fetchMe,
 	fetchMyOrderServices,
@@ -40,20 +37,6 @@ import {
 } from "@/lib/api";
 
 const REFERENCE_DATA_STALE_TIME = 5 * 60 * 1000;
-
-export const dashboardQueryOptions = () =>
-	queryOptions({
-		queryKey: queryKeys.dashboard,
-		queryFn: fetchDashboardCounts,
-	});
-
-export const dashboardOverviewQueryOptions = (
-	query?: FetchDashboardOverviewQuery,
-) =>
-	queryOptions({
-		queryKey: queryKeys.dashboardOverview(query),
-		queryFn: () => fetchDashboardOverview(query),
-	});
 
 export const customersPageQueryOptions = (query?: FetchCustomersQuery) =>
 	queryOptions({

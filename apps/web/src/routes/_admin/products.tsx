@@ -40,7 +40,6 @@ function ProductsPage() {
 		mutationFn: createProduct,
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.products });
-			await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
 			closeSheet();
 		},
 	});

@@ -1,5 +1,4 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { queryKeys } from "@/lib/api";
 
 type HandleCreatedOrderSuccessOptions = {
 	created: unknown;
@@ -33,7 +32,6 @@ export async function handleCreatedOrderSuccess({
 	const orderId = getCreatedOrderId(created);
 
 	await queryClient.invalidateQueries({ queryKey: ["orders"] });
-	await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
 
 	if (!orderId) {
 		onFallbackNavigate();

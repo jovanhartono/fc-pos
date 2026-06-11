@@ -25,11 +25,6 @@ function AdminErrorComponent(props: ErrorComponentProps) {
 }
 
 const pageMeta: Record<string, { title: string; description?: string }> = {
-	"/": {
-		title: "Dashboard",
-		description:
-			"React + TanStack migration baseline with shared API contracts.",
-	},
 	"/categories": {
 		title: "Categories",
 		description: "Insert and edit category master data.",

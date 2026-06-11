@@ -18,13 +18,7 @@ import {
 	UserForm,
 	type UserFormState,
 } from "@/features/users/components/user-form";
-import {
-	createUser,
-	queryKeys,
-	type User,
-	updateUser,
-	updateUserStores,
-} from "@/lib/api";
+import { createUser, type User, updateUser, updateUserStores } from "@/lib/api";
 import { storesQueryOptions, usersPageQueryOptions } from "@/lib/query-options";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -201,7 +195,6 @@ function UsersPage() {
 				});
 			}
 			await queryClient.invalidateQueries({ queryKey: ["users"] });
-			await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
 			resetForm();
 		},
 		[

@@ -3,7 +3,6 @@ import {
 	ChartLineIcon,
 	ClockIcon,
 	CreditCardIcon,
-	HouseIcon,
 	IdentificationCardIcon,
 	ListIcon,
 	MonitorIcon,
@@ -123,12 +122,6 @@ const catalogNavigation: NavItem[] = [
 ] as const;
 
 const operationsNavigation: NavItem[] = [
-	{
-		to: "/",
-		label: "Dashboard",
-		icon: HouseIcon,
-		roles: ["admin"],
-	},
 	{
 		to: "/reports",
 		label: "Reports",

@@ -8,12 +8,7 @@ import {
 	type CustomerFormState,
 } from "@/features/customers/components/customer-form";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
-import {
-	type Customer,
-	createCustomer,
-	queryKeys,
-	updateCustomer,
-} from "@/lib/api";
+import { type Customer, createCustomer, updateCustomer } from "@/lib/api";
 import { normalizePhoneNumber } from "@/lib/phone-number";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -64,7 +59,6 @@ export function CustomerSheetContent({
 		mutationFn: createCustomer,
 		onSuccess: async (data) => {
 			await queryClient.invalidateQueries({ queryKey: ["customers"] });
-			await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
 			if (onSuccess) {
 				onSuccess(data.data);
 			}

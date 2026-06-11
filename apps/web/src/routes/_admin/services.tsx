@@ -40,7 +40,6 @@ function ServicesPage() {
 		mutationFn: createService,
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.services });
-			await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
 			closeSheet();
 		},
 	});

@@ -43,7 +43,6 @@ function PaymentMethodsPage() {
 			await queryClient.invalidateQueries({
 				queryKey: queryKeys.paymentMethods,
 			});
-			await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
 			closeSheet();
 		},
 	});
