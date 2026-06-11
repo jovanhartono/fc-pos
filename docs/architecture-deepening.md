@@ -1,30 +1,19 @@
-# Architecture Deepening — Multi-Session Plan
+# Architecture Deepening — Frozen Record (complete 2026-06-10)
 
-Tracking the `/improve-codebase-architecture` skill output. Seven candidates
-identified to turn shallow modules into deep ones. Worked one candidate per
-session, drop in here when resuming.
+Record of the `/improve-codebase-architecture` effort (2026-05 → 2026-06).
+All candidates closed: §1–§6 + §8 shipped, §7 deferred with re-open triggers
+(see §7). **Do not resume — there is no pending work here.** This file is the
+why-record for the orders-domain module layout (status-machine, pickup,
+reversal, queue, photo, payment, permissions, campaigns) and is linked from
+`CONTEXT.md`, ADR-0005, and ADR-0007. Read sections on demand; do not load
+wholesale.
+
+Live follow-ups were extracted to `TODO.md` on 2026-06-10; per-section
+"follow-ups" notes below are historical record only.
 
 Vocabulary is from `~/.claude/skills/improve-codebase-architecture/LANGUAGE.md`
 (module, interface, seam, depth, leverage, locality, deletion test). Domain
 nouns from `CONTEXT.md` (Order, OrderService, Pickup, Reversal, etc.).
-
-## Resume protocol
-
-1. Read this file.
-2. Read `CONTEXT.md` for domain terms, `docs/adr/*` for locked decisions.
-3. Pick the next candidate (status table below). Order suggested: 3 → 5 → 6 → 2 → 4 → 7.
-4. Re-enter the skill's grilling loop: present open design questions, get answers,
-   implement, run type-check + lint + tests.
-5. Update this file when a candidate flips to ✅.
-
-Suggested order:
-
-1. #1 OrderStateMachine — foundation. Unblocks 2/5/6.
-2. #3 Permissions — independent, small, parallel-safe warm-up if you want a quick win.
-3. #5 Pickup then #6 Reversal — slices of #2, each riding on #1's seam.
-4. #2 split — by this point order-admin.service is mostly already split; finalize residual (queue + photo modules).
-5. #4 Campaign eligibility — independent.
-6. #7 shallow CRUD — policy call, defer.
 
 ## Status
 
@@ -36,7 +25,7 @@ Suggested order:
 | 4 | Campaign eligibility → Campaigns module         | ✅ Done      | See §4 |
 | 5 | Pickup module (ADR-0005 invariants)             | ✅ Done      | See §5 |
 | 6 | Reversal off-ramps (cancel + refund)            | ✅ Done      | See §6 |
-| 7 | Collapse shallow CRUD services                  | ⬜ Pending   | Policy call, defer |
+| 7 | Collapse shallow CRUD services                  | 🚫 Deferred  | Closed 2026-06-10, no trigger fired. See §7 |
 | 8 | Product refunds + `refund_status` fix           | ✅ Done      | PR #41 + ADR-0007. See §8 |
 
 Dependencies: **#1 must land before #5, #6, #2.** #3 / #4 / #7 / #8 are independent.
@@ -436,7 +425,7 @@ schema change.
 
 ---
 
-## §7 — Collapse shallow CRUD services ⬜ (policy call)
+## §7 — Collapse shallow CRUD services 🚫 (closed: deferred 2026-06-10)
 
 **Problem**: `product.service.ts`, `service.service.ts`,
 `payment-method.service.ts` are 31-32 lines of pure passthroughs to their
@@ -453,6 +442,24 @@ that cost cognitive load without leverage.
 needing pre-DB validation on these domains, or (2) someone tries to read a
 Product mutation path and is annoyed by the extra hop. Either signal picks
 the option. Today there's no signal.
+
+**Close-out (2026-06-10)**: re-audited after §1–§8 landed. Neither trigger fired:
+(1) zero pre-DB validation need surfaced on these domains across the entire
+deepening effort — even §8 (product refunds) touched `order_refund_items` +
+`orders_products.refunded_at`, never `product.service.ts`; (2) no readability
+complaint. Cost of leaving as-is: ~94 dead passthrough lines, static, no bug
+surface (passthroughs can't drift wrong). Cost of collapsing now: route churn +
+an AGENTS.md convention exception for zero behavior gain. Asymmetry favors
+waiting; reversal is ~15 min per domain whenever a signal appears — re-open then.
+
+**Scope correction (recorded for any future re-open)**: the candidate list named
+3 files but the true pure-passthrough set is **4** — `category.service.ts`
+(32 lines) is identical in shape and was missed. `store.service.ts` (58 lines) is
+borderline: passthroughs plus `?? 1`/`?? false` re-defaults the Zod schema already
+applies, and `getStoreById` is consumed cross-domain by `routes/admin/orders.ts`.
+`shift.service.ts` (62 lines) has real logic (store-access assert, open-shift dup
+check, 23505 mapping, role-scoped listing) and was never §7 material. A future
+sweep is the 4 passthroughs (+ the stores call), not the original 3.
 
 ---
 
