@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { ForbiddenException } from "@/errors";
+import { assertIsAdmin } from "@/modules/permissions/permissions";
 import {
   GETAgingQueueQuerySchema,
   GETDailyReportQuerySchema,
@@ -25,19 +25,16 @@ import { assertStoreAccess } from "@/utils/authorization";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-function assertAdmin(user: JWTPayload) {
-  if (user.role !== "admin") {
-    throw new ForbiddenException("Admin role required");
-  }
-}
-
 const app = new Hono()
+  .use(async (c, next) => {
+    assertIsAdmin(c.get("jwtPayload") as JWTPayload);
+    await next();
+  })
   .get(
     "/daily",
     zodValidator("query", GETDailyReportQuerySchema),
     async (c) => {
       const user = c.get("jwtPayload") as JWTPayload;
-      assertAdmin(user);
 
       const query = c.req.valid("query");
       if (query.store_id !== undefined) {
@@ -53,7 +50,6 @@ const app = new Hono()
     zodValidator("query", GETReportOverviewQuerySchema),
     async (c) => {
       const user = c.get("jwtPayload") as JWTPayload;
-      assertAdmin(user);
 
       const query = c.req.valid("query");
       if (query.store_id !== undefined) {
@@ -69,7 +65,6 @@ const app = new Hono()
     zodValidator("query", GETReportRangeQuerySchema),
     async (c) => {
       const user = c.get("jwtPayload") as JWTPayload;
-      assertAdmin(user);
       const query = c.req.valid("query");
       if (query.store_id !== undefined) {
         await assertStoreAccess(user, query.store_id);
@@ -83,7 +78,6 @@ const app = new Hono()
     zodValidator("query", GETReportRangeQuerySchema),
     async (c) => {
       const user = c.get("jwtPayload") as JWTPayload;
-      assertAdmin(user);
       const query = c.req.valid("query");
       if (query.store_id !== undefined) {
         await assertStoreAccess(user, query.store_id);
@@ -97,7 +91,6 @@ const app = new Hono()
     zodValidator("query", GETReportRangeQuerySchema),
     async (c) => {
       const user = c.get("jwtPayload") as JWTPayload;
-      assertAdmin(user);
       const query = c.req.valid("query");
       if (query.store_id !== undefined) {
         await assertStoreAccess(user, query.store_id);
@@ -111,7 +104,6 @@ const app = new Hono()
     zodValidator("query", GETReportRangeQuerySchema),
     async (c) => {
       const user = c.get("jwtPayload") as JWTPayload;
-      assertAdmin(user);
       const query = c.req.valid("query");
       if (query.store_id !== undefined) {
         await assertStoreAccess(user, query.store_id);
@@ -125,7 +117,6 @@ const app = new Hono()
     zodValidator("query", GETReportRangeQuerySchema),
     async (c) => {
       const user = c.get("jwtPayload") as JWTPayload;
-      assertAdmin(user);
       const query = c.req.valid("query");
       if (query.store_id !== undefined) {
         await assertStoreAccess(user, query.store_id);
@@ -139,7 +130,6 @@ const app = new Hono()
     zodValidator("query", GETReportRangeQuerySchema),
     async (c) => {
       const user = c.get("jwtPayload") as JWTPayload;
-      assertAdmin(user);
       const query = c.req.valid("query");
       if (query.store_id !== undefined) {
         await assertStoreAccess(user, query.store_id);
@@ -153,7 +143,6 @@ const app = new Hono()
     zodValidator("query", GETReportRangeQuerySchema),
     async (c) => {
       const user = c.get("jwtPayload") as JWTPayload;
-      assertAdmin(user);
       const query = c.req.valid("query");
       if (query.store_id !== undefined) {
         await assertStoreAccess(user, query.store_id);
@@ -167,7 +156,6 @@ const app = new Hono()
     zodValidator("query", GETAgingQueueQuerySchema),
     async (c) => {
       const user = c.get("jwtPayload") as JWTPayload;
-      assertAdmin(user);
       const query = c.req.valid("query");
       if (query.store_id !== undefined) {
         await assertStoreAccess(user, query.store_id);

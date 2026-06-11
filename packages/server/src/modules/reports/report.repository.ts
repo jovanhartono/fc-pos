@@ -22,14 +22,12 @@ import {
   usersTable,
 } from "@/db/schema";
 import { ORDER_TERMINAL_SERVICE_STATUSES } from "@/modules/orders/order-status-machine";
+import {
+  type DateRange,
+  JAKARTA_TZ_SQL,
+} from "@/modules/reports/report-range.util";
 
 const ITEM_PROCESSED_STATUSES = ["ready_for_pickup", "quality_check"] as const;
-const JAKARTA_DAY_SQL = sql.raw(`'Asia/Jakarta'`);
-
-interface DateRange {
-  end: Date;
-  start: Date;
-}
 
 export async function sumDailyPaid({
   range,
@@ -181,7 +179,7 @@ export async function ordersInTrendSeries({
     conditions.push(eq(ordersTable.store_id, storeId));
   }
 
-  const dayExpr = sql<string>`to_char(${ordersTable.created_at} AT TIME ZONE ${JAKARTA_DAY_SQL}, 'YYYY-MM-DD')`;
+  const dayExpr = sql<string>`to_char(${ordersTable.created_at} AT TIME ZONE ${JAKARTA_TZ_SQL}, 'YYYY-MM-DD')`;
 
   const rows = await db
     .select({
@@ -213,7 +211,7 @@ export async function paidTrendSeries({
     conditions.push(eq(ordersTable.store_id, storeId));
   }
 
-  const dayExpr = sql<string>`to_char(${ordersTable.paid_at} AT TIME ZONE ${JAKARTA_DAY_SQL}, 'YYYY-MM-DD')`;
+  const dayExpr = sql<string>`to_char(${ordersTable.paid_at} AT TIME ZONE ${JAKARTA_TZ_SQL}, 'YYYY-MM-DD')`;
 
   const rows = await db
     .select({
@@ -245,7 +243,7 @@ export async function refundsTrendSeries({
     conditions.push(eq(ordersTable.store_id, storeId));
   }
 
-  const dayExpr = sql<string>`to_char(${orderRefundsTable.created_at} AT TIME ZONE ${JAKARTA_DAY_SQL}, 'YYYY-MM-DD')`;
+  const dayExpr = sql<string>`to_char(${orderRefundsTable.created_at} AT TIME ZONE ${JAKARTA_TZ_SQL}, 'YYYY-MM-DD')`;
 
   const rows = await db
     .select({
@@ -278,7 +276,7 @@ export async function ordersOutTrendSeries({
     conditions.push(eq(ordersTable.store_id, storeId));
   }
 
-  const dayExpr = sql<string>`to_char(${orderPickupEventsTable.picked_up_at} AT TIME ZONE ${JAKARTA_DAY_SQL}, 'YYYY-MM-DD')`;
+  const dayExpr = sql<string>`to_char(${orderPickupEventsTable.picked_up_at} AT TIME ZONE ${JAKARTA_TZ_SQL}, 'YYYY-MM-DD')`;
 
   const rows = await db
     .select({

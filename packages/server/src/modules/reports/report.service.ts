@@ -19,26 +19,11 @@ import type {
   GetDailyReportQuery,
   GetReportOverviewQuery,
 } from "@/modules/reports/report.schema";
+import {
+  getJakartaDayRange,
+  shiftDate,
+} from "@/modules/reports/report-range.util";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
-
-// Asia/Jakarta is UTC+7 year-round (no DST).
-const JAKARTA_OFFSET_MINUTES = 7 * 60;
-const DAY_MS = 86_400_000;
-
-function getJakartaDayRange(date: string) {
-  const [year, month, day] = date.split("-").map(Number);
-  const startUtcMs =
-    Date.UTC(year, month - 1, day, 0, 0, 0) - JAKARTA_OFFSET_MINUTES * 60_000;
-  const start = new Date(startUtcMs);
-  const end = new Date(startUtcMs + DAY_MS);
-  return { start, end };
-}
-
-function shiftDate(date: string, deltaDays: number) {
-  const [year, month, day] = date.split("-").map(Number);
-  const shifted = new Date(Date.UTC(year, month - 1, day + deltaDays));
-  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}-${String(shifted.getUTCDate()).padStart(2, "0")}`;
-}
 
 export async function getDailyReport(query: GetDailyReportQuery) {
   const range = getJakartaDayRange(query.date);
