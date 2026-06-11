@@ -27,7 +27,7 @@ bun run generate-routes # Regenerate TanStack Router route tree
 - `hooks/` — shared hooks (`use-mobile.ts`)
 - `lib/` — `api.ts`, `rpc.ts`, `query-options.ts`, `status.ts`, `utils.ts`
 - `routes/` — TanStack Router file-based; thin orchestrators only
-- `shared/` — shared Zod schemas (`zod.ts`) and utils (`utils.ts`)
+- `shared/` — shared utils (`utils.ts`); add `zod.ts` lazily if frontend-only schemas appear
 - `stores/` — Zustand stores (auth, dialog, sheet, transaction-preferences)
 
 ## Forms
@@ -37,7 +37,7 @@ react-hook-form + zodResolver + useMutation for every form.
 - Wrap with `FormProvider`; children use `useFormContext()`. Never prop-drill `control`/`errors`/`isSubmitting`.
 - Pair every form with `useMutation`. Global `QueryClient` handles success/error toasts — only add `onSuccess`/`onError` for invalidation, close sheet, or navigate.
 - Use `Field`, `FieldLabel`, `FieldError` from `@/components/ui/field`. `Controller` for non-native inputs. `useFieldArray` for lists. `useWatch` for derived values.
-- Schemas from `@fresclean/api/schema` or local; shared frontend-only in `src/shared/zod.ts`.
+- Schemas from `@fresclean/api/schema` or local to the feature. Do not re-implement the server's field builders.
 - `StoreAutocomplete` (`features/orders/components/`) reused across features. For filter UIs pass `allOptionLabel="All stores"` — prepends `{ value: "", label }` sentinel so `""` = unscoped.
 
 ## Photos

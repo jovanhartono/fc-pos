@@ -1,3 +1,4 @@
+import { campaignIneligibilityReason } from "@fresclean/api/schema";
 import { CaretDownIcon, XIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -10,7 +11,6 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import { isCampaignAvailable } from "@/features/transactions/lib/transactions";
 import { fetchCampaigns, queryKeys } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +18,7 @@ interface CampaignAutocompleteProps {
 	id?: string;
 	label?: string;
 	storeId?: string;
+	grossTotal: number;
 	values: string[];
 	onValuesChange: (values: string[]) => void;
 	disabled?: boolean;
@@ -28,6 +29,7 @@ export const CampaignAutocomplete = ({
 	id = "order-campaign",
 	label = "Campaigns (optional)",
 	storeId,
+	grossTotal,
 	values,
 	onValuesChange,
 	disabled,
@@ -56,9 +58,17 @@ export const CampaignAutocomplete = ({
 
 	const { selectableCampaigns, selectedCampaigns, valueSet } = useMemo(() => {
 		const now = new Date();
-		const selectable = campaigns.filter((campaign) =>
-			isCampaignAvailable(campaign, now),
-		);
+		const selectable =
+			parsedStoreId === undefined
+				? []
+				: campaigns.filter(
+						(campaign) =>
+							campaignIneligibilityReason(campaign, {
+								now,
+								grossTotal,
+								storeId: parsedStoreId,
+							}) === null,
+					);
 		const selectedIds = new Set(values);
 		const selected = selectable.filter((campaign) =>
 			selectedIds.has(String(campaign.id)),
@@ -68,7 +78,7 @@ export const CampaignAutocomplete = ({
 			selectedCampaigns: selected,
 			valueSet: selectedIds,
 		};
-	}, [campaigns, values]);
+	}, [campaigns, values, grossTotal, parsedStoreId]);
 
 	const hasSelection = selectedCampaigns.length > 0;
 

@@ -1,3 +1,4 @@
+import { campaignIneligibilityReason } from "@fresclean/api/schema";
 import {
 	CreditCardIcon,
 	ReceiptIcon,
@@ -25,10 +26,7 @@ import {
 } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
 import { CampaignSummaryCard } from "@/features/transactions/components/campaign-summary-card";
-import {
-	getEntityCategoryName,
-	isCampaignAvailable,
-} from "@/features/transactions/lib/transactions";
+import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
 import {
 	campaignsQueryOptions,
@@ -114,11 +112,19 @@ export function TransactionsCheckout() {
 	const categories = categoriesQuery.data ?? [];
 	const paymentMethods = paymentMethodsQuery.data ?? [];
 	const availableCampaigns = useMemo(() => {
+		if (selectedStoreNumber === undefined) {
+			return [];
+		}
 		const now = new Date();
-		return (campaignsQuery.data ?? []).filter((campaign) =>
-			isCampaignAvailable(campaign, now),
+		return (campaignsQuery.data ?? []).filter(
+			(campaign) =>
+				campaignIneligibilityReason(campaign, {
+					now,
+					grossTotal: subtotal,
+					storeId: selectedStoreNumber,
+				}) === null,
 		);
-	}, [campaignsQuery.data]);
+	}, [campaignsQuery.data, selectedStoreNumber, subtotal]);
 
 	const categoryMap = useMemo(
 		() => new Map(categories.map((category) => [category.id, category])),
@@ -204,6 +210,7 @@ export function TransactionsCheckout() {
 						id="transaction-campaign"
 						label="Campaigns"
 						storeId={selectedStoreId}
+						grossTotal={subtotal}
 						values={field.value}
 						onValuesChange={field.onChange}
 						error={fieldState.error}

@@ -39,6 +39,16 @@ export const computeCampaignContribution = _computeCampaignContribution;
 export const stackCampaignDiscounts = _stackCampaignDiscounts;
 
 import {
+  type CampaignEligibilityContext as _CampaignEligibilityContext,
+  type CampaignEligibilityInput as _CampaignEligibilityInput,
+  campaignIneligibilityReason as _campaignIneligibilityReason,
+} from "@/schema/campaign-eligibility";
+
+export type CampaignEligibilityContext = _CampaignEligibilityContext;
+export type CampaignEligibilityInput = _CampaignEligibilityInput;
+export const campaignIneligibilityReason = _campaignIneligibilityReason;
+
+import {
   currencySchema,
   isActiveSchema,
   optionalVarcharSchema,

@@ -20,8 +20,12 @@ _Avoid_: Merchandise, add-on.
 Grouping for Services and Products. Used in reports (revenue is reported as Store × Category).
 
 **Campaign**:
-A discount rule with a date window, target Stores, and eligible Services. May be percentage or fixed amount. Multiple Campaigns may stack on one Order.
+A discount rule with a date window, a minimum order total, and eligible Services, scoped to 0..N Stores (zero = valid at every Store). May be percentage or fixed amount. Multiple Campaigns may stack on one Order.
 _Avoid_: Promo, voucher, coupon — these are all Campaigns.
+
+**Usable (Campaign)**:
+A Campaign is Usable for a given Store and order total at a moment in time when every rule passes: active, within its date window, Store in scope (or unscoped), and order total meets the minimum. The POS offers only Usable Campaigns; checkout rejects unusable ones.
+_Avoid_: Available — the web's former term for a partial (2-of-4 rule) version of this check.
 
 **PaymentMethod**:
 A configurable tender (cash, transfer, QRIS, etc.). Same list across all Stores.
@@ -132,7 +136,7 @@ The cashier UI at `/transactions` for creating Orders. (See Ambiguities — "Tra
 - An **Order**'s status is **derived** from its **OrderServices** plus product count — never authored. See "Order status" for the rollup rule.
 - An **Order** may have 0..N **OrderPickupEvents** — partial pickup permitted.
 - Cancel and refund are **disjoint off-ramps** gated by the Order's `payment_status`: unpaid → cancel only; paid → refund only. There is no auto-cascade between them.
-- A **Campaign** targets 1..N **Stores** and 1..N **Services**.
+- A **Campaign** is scoped to 0..N **Stores** (zero = all Stores) and targets 1..N **Services**.
 - A **User** is scoped to 1..N **Stores** and opens a **Shift** to take payments at one Store at a time.
 
 ## Example dialogue

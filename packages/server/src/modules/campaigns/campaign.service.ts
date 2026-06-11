@@ -15,6 +15,7 @@ import type {
   GetCampaignsQuery,
 } from "@/modules/campaigns/campaign.schema";
 import { assertCanManageCampaigns } from "@/modules/permissions/permissions";
+import { campaignIneligibilityReason } from "@/schema/campaign-eligibility";
 import type { JWTPayload } from "@/types";
 
 async function ensureStoresExist(storeIds: number[]) {
@@ -227,36 +228,11 @@ type CampaignEligibility = Pick<
 
 export function assertCampaignUsable(
   campaign: CampaignEligibility,
-  {
-    now,
-    grossTotal,
-    storeId,
-    storeCode,
-  }: { now: Date; grossTotal: number; storeId: number; storeCode: string }
+  ctx: { now: Date; grossTotal: number; storeId: number; storeCode: string }
 ) {
-  if (!campaign.is_active) {
-    throw new BadRequestException(`Campaign ${campaign.code} is not active`);
-  }
-  if (campaign.starts_at && now < campaign.starts_at) {
-    throw new BadRequestException(
-      `Campaign ${campaign.code} has not started yet`
-    );
-  }
-  if (campaign.ends_at && now > campaign.ends_at) {
-    throw new BadRequestException(`Campaign ${campaign.code} has ended`);
-  }
-
-  const storeScopes = campaign.stores.map((item) => item.store_id);
-  if (storeScopes.length > 0 && !storeScopes.includes(storeId)) {
-    throw new BadRequestException(
-      `Campaign ${campaign.code} is not available for store ${storeCode}`
-    );
-  }
-
-  if (grossTotal < Number(campaign.min_order_total)) {
-    throw new BadRequestException(
-      `Order total does not meet minimum for campaign ${campaign.code}`
-    );
+  const reason = campaignIneligibilityReason(campaign, ctx);
+  if (reason) {
+    throw new BadRequestException(reason);
   }
 }
 
