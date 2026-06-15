@@ -8,7 +8,11 @@ import type {
 import { completePickup } from "@/modules/orders/order-status-machine";
 import { assertCanProcessPickup } from "@/modules/permissions/permissions";
 import type { JWTPayload } from "@/types";
-import { buildMediaUrl, createPresignedUploadUrl } from "@/utils/s3";
+import {
+  buildMediaUrl,
+  createPresignedUploadUrl,
+  optimizeUploadedImage,
+} from "@/utils/s3";
 
 // ADR-0005: the pickup code proves the customer in front of the cashier placed
 // this Order. It is a per-Order check, never a cross-Order lookup.
@@ -101,6 +105,12 @@ export async function createOrderPickupEvent({
         .join(", ")}`
     );
   }
+
+  if (!body.image_path.startsWith(`orders/${orderId}/pickup/`)) {
+    throw new BadRequestException("Invalid image path");
+  }
+
+  await optimizeUploadedImage(body.image_path);
 
   // One transaction: insert the pickup event + flip the services together. A
   // concurrent pickup of the same items leaves fewer rows ready, so completePickup

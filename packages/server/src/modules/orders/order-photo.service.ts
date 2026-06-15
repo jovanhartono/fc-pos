@@ -11,7 +11,11 @@ import type {
   PutOrderDropoffPhotoInput,
 } from "@/modules/orders/order-admin.schema";
 import type { JWTPayload } from "@/types";
-import { buildMediaUrl, createPresignedUploadUrl } from "@/utils/s3";
+import {
+  buildMediaUrl,
+  createPresignedUploadUrl,
+  optimizeUploadedImage,
+} from "@/utils/s3";
 
 export async function createOrderServicePhotoPresign({
   orderId,
@@ -66,6 +70,12 @@ export async function saveOrderServicePhoto({
   user: JWTPayload;
 }) {
   await getOrderServiceOrThrow(orderId, serviceId);
+
+  if (!body.image_path.startsWith(`orders/${orderId}/services/${serviceId}/`)) {
+    throw new BadRequestException("Invalid image path");
+  }
+
+  await optimizeUploadedImage(body.image_path);
 
   const [photo] = await db
     .insert(orderServicesImagesTable)
@@ -132,6 +142,12 @@ export async function saveOrderDropoffPhoto({
   body: PutOrderDropoffPhotoInput;
   user: JWTPayload;
 }) {
+  if (!body.image_path.startsWith(`orders/${orderId}/dropoff/`)) {
+    throw new BadRequestException("Invalid image path");
+  }
+
+  await optimizeUploadedImage(body.image_path);
+
   const [order] = await db
     .update(ordersTable)
     .set({
