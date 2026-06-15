@@ -29,7 +29,6 @@ const refundFormSchema = z
 				note: z.string().optional(),
 			}),
 		),
-		note: z.string().optional(),
 	})
 	.superRefine((data, ctx) => {
 		const selectedCount = data.items.filter((item) => item.selected).length;
@@ -114,7 +113,6 @@ export const RefundOrderForm = ({
 				reason: "damaged",
 				note: "",
 			})),
-			note: "",
 		},
 	});
 	const { fields } = useFieldArray({ control: form.control, name: "items" });
@@ -153,7 +151,6 @@ export const RefundOrderForm = ({
 			orderId,
 			payload: {
 				items,
-				note: values.note?.trim() || undefined,
 			},
 		});
 		closeDialog();
@@ -218,16 +215,6 @@ export const RefundOrderForm = ({
 						);
 					})}
 				</div>
-
-				<Field>
-					<FieldLabel htmlFor="refund-note">Refund note (optional)</FieldLabel>
-					<Textarea
-						id="refund-note"
-						placeholder="General refund note"
-						disabled={isPending}
-						{...form.register("note")}
-					/>
-				</Field>
 
 				<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
 					<Button

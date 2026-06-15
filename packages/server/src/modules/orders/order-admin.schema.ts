@@ -163,7 +163,6 @@ export const POSTOrderRefundSchema = z.object({
         })
     )
     .min(1),
-  note: z.string().trim().optional(),
 });
 
 export const GETOrderByItemCodeQuerySchema = z.object({

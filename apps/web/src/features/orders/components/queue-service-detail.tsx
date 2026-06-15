@@ -339,7 +339,7 @@ export function QueueServiceDetail({
 								await startWorkMutation.mutateAsync();
 							}}
 						>
-							Hold 1s to Start Work
+							Hold to Start Work
 						</HoldToConfirmButton>
 					) : null}
 

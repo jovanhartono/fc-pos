@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
-import { SelectField } from "@/components/form/select-field";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { PickupRadar } from "@/features/orders/components/pickup-radar";
+import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import type { Order } from "@/lib/api";
 import {
 	meQueryOptions,
@@ -333,23 +333,6 @@ function OrdersPage() {
 		});
 	};
 
-	const visibleStores =
-		role === "admin"
-			? (storesQuery.data ?? [])
-			: (storesQuery.data ?? []).filter((store) =>
-					userStoreIds.includes(store.id),
-				);
-	const storeFilterItems = useMemo(
-		() => [
-			...(role === "admin" ? [{ value: "all", label: "All stores" }] : []),
-			...visibleStores.map((store) => ({
-				value: String(store.id),
-				label: `${store.code} - ${store.name}`,
-			})),
-		],
-		[role, visibleStores],
-	);
-
 	return (
 		<>
 			<PageHeader
@@ -387,26 +370,23 @@ function OrdersPage() {
 								ariaLabel="Search orders"
 								className="w-full sm:w-72"
 							/>
-							<SelectField
-								items={storeFilterItems}
-								value={
-									role === "admin"
-										? (search.storeId?.toString() ?? "all")
-										: (search.storeId?.toString() ?? "")
-								}
+							<StoreAutocomplete
+								id="orders-store-filter"
+								hideLabel
+								value={search.storeId?.toString() ?? ""}
 								onValueChange={(value) => {
 									void navigate({
 										search: (prev) => ({
 											...prev,
 											page: 1,
-											storeId:
-												value && value !== "all" ? Number(value) : undefined,
+											storeId: value ? Number(value) : undefined,
 										}),
 									});
 								}}
-								aria-label="Filter by store"
-								className="min-w-48 w-max"
+								allowedStoreIds={role === "admin" ? undefined : userStoreIds}
+								allOptionLabel={role === "admin" ? "All stores" : undefined}
 								placeholder="Filter by store"
+								triggerClassName="h-10 w-max min-w-48 text-sm"
 							/>
 							<DateRangePicker
 								resetOnSelect

@@ -1,5 +1,5 @@
 import { CalendarBlankIcon, XIcon } from "@phosphor-icons/react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, startOfToday } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import type { DateRange, Matcher } from "react-day-picker";
 import { Button } from "@/components/ui/button";
@@ -175,6 +175,7 @@ export const DateRangePicker = ({
 					defaultMonth={displayRange?.from}
 					selected={displayRange}
 					numberOfMonths={numberOfMonths}
+					disabled={{ after: startOfToday() }}
 					onSelect={(range) => {
 						setDraftRange(range);
 						if (commitOnComplete && !(range?.from && range?.to)) {

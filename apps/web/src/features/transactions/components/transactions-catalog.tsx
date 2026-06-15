@@ -7,9 +7,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Card, CardContent } from "@/components/ui/card";
-import { Combobox } from "@/components/ui/combobox";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import { useCartOps } from "@/features/transactions/cart/useCart";
 import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
@@ -143,20 +143,16 @@ export function TransactionsCatalog() {
 				<CardContent className="grid gap-4 p-4 sm:p-5">
 					<div className="grid gap-3">
 						<Field>
-							<Combobox
+							<StoreAutocomplete
 								id="transaction-store"
+								hideLabel
 								required
-								triggerClassName="h-11 w-full border-border/70 bg-background text-sm"
-								options={visibleStores.map((store) => ({
-									value: String(store.id),
-									label: `${store.code} - ${store.name}`,
-								}))}
 								value={selectedStoreId}
 								onValueChange={handleStoreChange}
-								placeholder="Select store"
-								searchPlaceholder="Search store..."
-								emptyText="No store available"
+								allowedStoreIds={visibleStores.map((store) => store.id)}
 								disabled={!isAdmin}
+								triggerClassName="h-11 w-full border-border/70 bg-background text-sm"
+								placeholder="Select store"
 							/>
 						</Field>
 

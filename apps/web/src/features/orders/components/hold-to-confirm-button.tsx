@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type PointerEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -51,11 +51,12 @@ export function HoldToConfirmButton({
 		};
 	}, []);
 
-	const beginHold = () => {
+	const beginHold = (event: PointerEvent<HTMLButtonElement>) => {
 		if (disabled || loading || isHolding) {
 			return;
 		}
 
+		event.currentTarget.setPointerCapture(event.pointerId);
 		setIsHolding(true);
 		completedRef.current = false;
 		startTimeRef.current = performance.now();
@@ -97,18 +98,21 @@ export function HoldToConfirmButton({
 	return (
 		<Button
 			type="button"
-			className={cn("relative overflow-hidden", className)}
+			className={cn(
+				"relative touch-none overflow-hidden [-webkit-touch-callout:none]",
+				className,
+			)}
 			disabled={disabled || loading}
 			loading={loading}
 			loadingText="Starting..."
+			onContextMenu={(event) => event.preventDefault()}
 			onPointerDown={beginHold}
 			onPointerUp={cancelHold}
 			onPointerCancel={cancelHold}
-			onPointerLeave={cancelHold}
 		>
 			<span
 				aria-hidden="true"
-				className="pointer-events-none absolute inset-y-0 left-0 bg-background/20 transition-[width] duration-75"
+				className="pointer-events-none absolute inset-y-0 left-0 bg-primary-foreground/40 transition-[width] duration-75"
 				style={{ width: `${progress * 100}%` }}
 			/>
 			<span className="relative z-10">

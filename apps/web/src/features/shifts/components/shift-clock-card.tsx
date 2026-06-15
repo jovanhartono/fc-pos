@@ -1,8 +1,8 @@
 import { ClockIcon } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
+import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { useCurrentShift } from "@/features/shifts/hooks/useCurrentShift";
 import { clockInShift, clockOutShift, queryKeys, type Store } from "@/lib/api";
 
@@ -89,15 +89,13 @@ export const ShiftClockCard = ({ stores }: ShiftClockCardProps) => {
 	return (
 		<div className="flex items-center gap-2">
 			{stores.length > 1 ? (
-				<SelectField
-					items={stores.map((store) => ({
-						value: String(store.id),
-						label: store.code,
-					}))}
+				<StoreAutocomplete
+					id="shift-clock-store"
+					hideLabel
 					value={selectedStoreId}
 					onValueChange={(value) => setStoreOverride(value || null)}
-					size="sm"
-					className="h-8 min-w-24 text-xs"
+					allowedStoreIds={stores.map((store) => store.id)}
+					triggerClassName="h-8 min-w-24 text-xs"
 					placeholder="Store"
 				/>
 			) : null}

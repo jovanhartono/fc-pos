@@ -10,7 +10,6 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { SelectField } from "@/components/form/select-field";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import {
 	type FetchOrderServiceQueueQuery,
@@ -156,7 +156,6 @@ function WorkerQueuePage() {
 	const rafRef = useRef<number | null>(null);
 	const scanningRef = useRef(false);
 
-	const storesQuery = useQuery(storesQueryOptions());
 	const meQuery = useQuery({
 		...meQueryOptions(),
 		enabled: !!currentUser,
@@ -440,20 +439,6 @@ function WorkerQueuePage() {
 		}
 	};
 
-	const visibleStores =
-		role === "admin"
-			? (storesQuery.data ?? [])
-			: (storesQuery.data ?? []).filter((store) =>
-					userStoreIds.includes(store.id),
-				);
-	const storeSelectItems = useMemo(
-		() =>
-			visibleStores.map((store) => ({
-				value: String(store.id),
-				label: `${store.code} - ${store.name}`,
-			})),
-		[visibleStores],
-	);
 	const statusTabItems = useMemo(
 		() => [
 			{ value: "all", label: "All active statuses" },
@@ -558,18 +543,15 @@ function WorkerQueuePage() {
 									<DialogTitle>Filters</DialogTitle>
 								</DialogHeader>
 								<div className="grid gap-4">
-									<Field>
-										<FieldLabel htmlFor="queue-store-mobile">Store</FieldLabel>
-										<SelectField
-											id="queue-store-mobile"
-											items={storeSelectItems}
-											value={parsedStoreId?.toString() ?? ""}
-											onValueChange={updateStoreFilter}
-											size="lg"
-											className="w-full"
-											placeholder="Select store"
-										/>
-									</Field>
+									<StoreAutocomplete
+										id="queue-store-mobile"
+										value={parsedStoreId?.toString() ?? ""}
+										onValueChange={updateStoreFilter}
+										allowedStoreIds={
+											role === "admin" ? undefined : userStoreIds
+										}
+										placeholder="Select store"
+									/>
 
 									<div className="grid gap-2">
 										<p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
@@ -631,18 +613,13 @@ function WorkerQueuePage() {
 
 					<div className="grid gap-3 md:grid-cols-[minmax(0,220px)_1fr]">
 						<div className="hidden md:block">
-							<Field>
-								<FieldLabel htmlFor="queue-store">Store</FieldLabel>
-								<SelectField
-									id="queue-store"
-									items={storeSelectItems}
-									value={parsedStoreId?.toString() ?? ""}
-									onValueChange={updateStoreFilter}
-									size="lg"
-									className="w-full"
-									placeholder="Select store"
-								/>
-							</Field>
+							<StoreAutocomplete
+								id="queue-store"
+								value={parsedStoreId?.toString() ?? ""}
+								onValueChange={updateStoreFilter}
+								allowedStoreIds={role === "admin" ? undefined : userStoreIds}
+								placeholder="Select store"
+							/>
 						</div>
 						<div className="grid gap-2">
 							<Field>

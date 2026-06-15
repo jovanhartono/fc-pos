@@ -1759,7 +1759,6 @@ async function seedOrders(params: {
             order_id: order.id,
             refunded_by: createdBy,
             total_amount: asMoney(boundedRefund),
-            note: faker.lorem.sentence(),
             created_at: dayjs(updatedAt).add(randInt(5, 45), "minute").toDate(),
           })
           .returning({ id: orderRefundsTable.id });

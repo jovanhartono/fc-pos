@@ -678,7 +678,6 @@ export const orderRefundsTable = pgTable(
   {
     created_at: timestamp("created_at").defaultNow().notNull(),
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-    note: text("note"),
     order_id: integer("order_id")
       .references(() => ordersTable.id, { onDelete: "cascade" })
       .notNull(),

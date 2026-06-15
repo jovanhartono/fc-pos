@@ -283,7 +283,6 @@ export async function createOrderRefund({
         order_id: orderId,
         refunded_by: user.id,
         total_amount: totalRefundAmount.toString(),
-        note: body.note,
       })
       .returning();
 

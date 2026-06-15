@@ -10,9 +10,11 @@ type StoreAutocompleteProps = {
 	disabled?: boolean;
 	required?: boolean;
 	label?: string;
+	hideLabel?: boolean;
 	id?: string;
 	error?: { message?: string };
 	placeholder?: string;
+	triggerClassName?: string;
 	allOptionLabel?: string;
 };
 
@@ -23,9 +25,11 @@ export function StoreAutocomplete({
 	disabled,
 	required,
 	label = "Store",
+	hideLabel = false,
 	id = "order-store",
 	error,
 	placeholder = "Select store",
+	triggerClassName = "h-10 w-full text-sm",
 	allOptionLabel,
 }: StoreAutocompleteProps) {
 	const { data: stores = [], isPending } = useQuery({
@@ -38,10 +42,30 @@ export function StoreAutocomplete({
 
 	const options = filteredStores.map((store) => ({
 		value: String(store.id),
-		label: store.name,
+		label: `${store.code} - ${store.name}`,
 	}));
 	if (allOptionLabel) {
 		options.unshift({ value: "", label: allOptionLabel });
+	}
+
+	const combobox = (
+		<Combobox
+			id={id}
+			required={required}
+			triggerClassName={triggerClassName}
+			options={options}
+			value={value}
+			onValueChange={onValueChange}
+			loading={isPending}
+			placeholder={placeholder}
+			searchPlaceholder="Search store..."
+			emptyText="No store found"
+			disabled={disabled}
+		/>
+	);
+
+	if (hideLabel) {
+		return combobox;
 	}
 
 	return (
@@ -49,19 +73,7 @@ export function StoreAutocomplete({
 			<FieldLabel htmlFor={id} asterisk={required}>
 				{label}
 			</FieldLabel>
-			<Combobox
-				id={id}
-				required={required}
-				triggerClassName="h-10 w-full text-sm"
-				options={options}
-				value={value}
-				onValueChange={onValueChange}
-				loading={isPending}
-				placeholder={placeholder}
-				searchPlaceholder="Search store..."
-				emptyText="No store found"
-				disabled={disabled}
-			/>
+			{combobox}
 			<FieldError errors={[error]} />
 		</Field>
 	);
