@@ -149,7 +149,6 @@ export const toOrderPayload = ({
 	products: productCart.map((line) => ({
 		id: line.id,
 		qty: line.qty,
-		notes: undefined,
 	})),
 	services: serviceCart.map((line) => ({
 		id: line.id,

@@ -16,6 +16,20 @@ export function decrementProductStock(
     .returning({ id: productsTable.id });
 }
 
+// Second stock writer (ADR-0008): cancelling an unpaid product line restores
+// stock — the goods never left the shop, unlike a refund.
+export function incrementProductStock(
+  tx: OrderTx,
+  productId: number,
+  qty: number
+) {
+  return tx
+    .update(productsTable)
+    .set({ stock: sql`${productsTable.stock} + ${qty}` })
+    .where(eq(productsTable.id, productId))
+    .returning({ id: productsTable.id });
+}
+
 export function findProducts(ids: number[]) {
   return db.query.productsTable.findMany({
     where: { id: { in: ids } },

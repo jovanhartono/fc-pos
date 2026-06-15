@@ -743,7 +743,6 @@ export const ordersProductsTable = pgTable(
   {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     discount: decimal("discount", { precision: 12 }).default("0").notNull(),
-    notes: text("notes"),
     order_id: integer("order_id").references(() => ordersTable.id, {
       onDelete: "cascade",
     }),
@@ -761,6 +760,11 @@ export const ordersProductsTable = pgTable(
 
     // whole-line refund marker (ADR-0007); money lives in order_refund_items
     refunded_at: timestamp("refunded_at"),
+
+    // whole-line cancel marker (unpaid off-ramp, ADR-0008); reason inline
+    cancelled_at: timestamp("cancelled_at"),
+    cancel_reason: cancelReasonEnum("cancel_reason"),
+    cancel_note: text("cancel_note"),
 
     subtotal: decimal("subtotal", {
       precision: 12,
@@ -781,6 +785,21 @@ export const ordersProductsTable = pgTable(
     check(
       "discount_valid_check",
       sql`(${table.price} * ${table.qty}) >= ${table.discount}`
+    ),
+    // disjoint off-ramps (ADR-0008): a line is cancelled XOR refunded, never both
+    check(
+      "order_products_cancel_refund_xor_check",
+      sql`${table.cancelled_at} IS NULL OR ${table.refunded_at} IS NULL`
+    ),
+    // a cancelled line must carry a reason
+    check(
+      "order_products_cancel_reason_required_check",
+      sql`${table.cancelled_at} IS NULL OR ${table.cancel_reason} IS NOT NULL`
+    ),
+    // reason 'other' requires a note (mirrors order_refund_items)
+    check(
+      "order_products_cancel_other_reason_requires_note_check",
+      sql`${table.cancel_reason} != 'other' OR (${table.cancel_note} IS NOT NULL AND LENGTH(TRIM(${table.cancel_note})) > 0)`
     ),
   ]
 );

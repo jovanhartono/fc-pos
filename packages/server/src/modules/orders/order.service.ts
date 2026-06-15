@@ -306,7 +306,6 @@ export async function createOrder(
             price: product.price,
             cogs_snapshot: (Number(product.cogs) * item.qty).toFixed(2),
             qty: item.qty,
-            notes: item.notes,
           };
         })
       ),

@@ -1,4 +1,4 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   orderRefundItemsTable,
@@ -13,13 +13,14 @@ import type {
 } from "@/modules/orders/order-admin.schema";
 import {
   applyRefundTransition,
-  isTerminalOrderServiceStatus,
+  recomputeOrderRollup,
   transitionOrderService,
 } from "@/modules/orders/order-status-machine";
 import {
   assertCanCancelOrderService,
   assertCanRefundOrderService,
 } from "@/modules/permissions/permissions";
+import { incrementProductStock } from "@/modules/products/product.repository";
 import type { JWTPayload } from "@/types";
 
 function roundCurrencyUnit(value: number) {
@@ -145,6 +146,7 @@ async function getOrderLineRefundCaps(orderId: number) {
       columns: {
         id: true,
         refunded_at: true,
+        cancelled_at: true,
         subtotal: true,
       },
     }),
@@ -200,8 +202,12 @@ async function getOrderLineRefundCaps(orderId: number) {
     ...productRows.map((row): [string, number] => {
       const key = lineKey("product", row.id);
       // rounding residue can leave a fractional cap after a whole-line refund;
-      // refunded_at is authoritative — a refunded product line is never refundable again
-      return [key, row.refunded_at ? 0 : lineCap(key, row.subtotal)];
+      // refunded_at/cancelled_at are authoritative — a line that already took an
+      // off-ramp (refund or unpaid cancel, ADR-0008) is never refundable again
+      return [
+        key,
+        row.refunded_at || row.cancelled_at ? 0 : lineCap(key, row.subtotal),
+      ];
     }),
   ]);
 }
@@ -324,6 +330,40 @@ export async function createOrderRefund({
   };
 }
 
+type CancelLineInput = PostOrderCancelInput["items"][number];
+
+interface CancelLine {
+  id: number;
+  kind: RefundLineKind;
+  note?: string;
+  reason: CancelLineInput["reason"];
+}
+
+function toCancelLine(item: CancelLineInput): CancelLine {
+  if (item.order_service_id != null) {
+    return {
+      kind: "service",
+      id: item.order_service_id,
+      note: item.note,
+      reason: item.reason,
+    };
+  }
+  if (item.order_product_id != null) {
+    return {
+      kind: "product",
+      id: item.order_product_id,
+      note: item.note,
+      reason: item.reason,
+    };
+  }
+  throw new BadRequestException(
+    "Each cancel item must reference a service or product line"
+  );
+}
+
+// Cancel is the unpaid, per-line twin of refund (ADR-0008): staff pick which
+// service and product lines to void. No money moves; cancelled product lines
+// restore stock. The Order rollup is recomputed from the resulting line states.
 export async function cancelOrder({
   orderId,
   body,
@@ -333,13 +373,20 @@ export async function cancelOrder({
   body: PostOrderCancelInput;
   user: JWTPayload;
 }) {
+  const lines = body.items.map(toCancelLine);
+
+  const uniqueLineKeys = new Set(
+    lines.map((line) => lineKey(line.kind, line.id))
+  );
+  if (uniqueLineKeys.size !== lines.length) {
+    throw new BadRequestException(
+      "Duplicate cancel line entries are not allowed"
+    );
+  }
+
   const order = await db.query.ordersTable.findFirst({
     where: { id: orderId },
-    columns: {
-      id: true,
-      status: true,
-      payment_status: true,
-    },
+    columns: { id: true, status: true, payment_status: true },
   });
 
   if (!order) {
@@ -348,51 +395,101 @@ export async function cancelOrder({
 
   assertCanCancelOrderService(user, order);
 
-  if (order.status === "cancelled") {
-    throw new BadRequestException("Order is already cancelled");
+  const serviceLines = lines.filter((line) => line.kind === "service");
+  const productLines = lines.filter((line) => line.kind === "product");
+
+  const productRows =
+    productLines.length > 0
+      ? await db.query.ordersProductsTable.findMany({
+          where: {
+            order_id: orderId,
+            id: { in: productLines.map((l) => l.id) },
+          },
+          columns: {
+            id: true,
+            qty: true,
+            product_id: true,
+            refunded_at: true,
+            cancelled_at: true,
+          },
+        })
+      : [];
+  const productRowById = new Map(productRows.map((row) => [row.id, row]));
+
+  for (const line of productLines) {
+    const row = productRowById.get(line.id);
+    if (!row) {
+      throw new BadRequestException(
+        `Product line ${line.id} not found on this order`
+      );
+    }
+    if (row.cancelled_at) {
+      throw new BadRequestException(
+        `Product line ${line.id} is already cancelled`
+      );
+    }
+    if (row.refunded_at) {
+      throw new BadRequestException(
+        `Product line ${line.id} is refunded and cannot be cancelled`
+      );
+    }
   }
-
-  const allServices = await db.query.ordersServicesTable.findMany({
-    where: { order_id: orderId },
-    columns: { id: true, status: true },
-  });
-
-  const cancellableServices = allServices.filter(
-    (service) => !isTerminalOrderServiceStatus(service.status)
-  );
-
-  if (cancellableServices.length === 0) {
-    throw new BadRequestException("No cancellable services on this order");
-  }
-
-  const cancelReason = body.cancel_reason;
-  const cancelNote = body.cancel_note?.trim() || null;
-  const cancellableIds = cancellableServices.map((service) => service.id);
 
   await db.transaction(async (tx) => {
-    for (const service of cancellableServices) {
+    for (const line of serviceLines) {
       await transitionOrderService(tx, {
         orderId,
-        serviceId: service.id,
+        serviceId: line.id,
         to: "cancelled",
         by: user.id,
-        cancelReason,
-        cancelNote,
-        note: cancelNote ?? cancelReason,
+        cancelReason: line.reason,
+        cancelNote: line.note ?? null,
+        note: line.note ?? line.reason,
       });
     }
 
-    await tx
-      .update(ordersTable)
-      .set({
-        cancelled_at: new Date(),
-        updated_by: user.id,
-      })
-      .where(eq(ordersTable.id, orderId));
+    for (const line of productLines) {
+      const row = productRowById.get(line.id);
+      if (!row) {
+        continue;
+      }
+      // CAS on the still-open markers (mirrors transitionOrderService): only one
+      // concurrent cancel wins, so stock is restored exactly once.
+      const updated = await tx
+        .update(ordersProductsTable)
+        .set({
+          cancelled_at: new Date(),
+          cancel_reason: line.reason,
+          cancel_note: line.note ?? null,
+        })
+        .where(
+          and(
+            eq(ordersProductsTable.id, line.id),
+            isNull(ordersProductsTable.cancelled_at),
+            isNull(ordersProductsTable.refunded_at)
+          )
+        )
+        .returning({ id: ordersProductsTable.id });
+      if (updated.length === 0) {
+        throw new BadRequestException(
+          `Product line ${line.id} was already cancelled or refunded`
+        );
+      }
+      if (row.product_id != null) {
+        await incrementProductStock(tx, row.product_id, row.qty);
+      }
+    }
+
+    // Service cancels recompute inside transitionOrderService; product-only
+    // cancels need an explicit recompute to fold product states into the rollup.
+    if (productLines.length > 0) {
+      await recomputeOrderRollup(tx, orderId, user.id);
+    }
   });
 
   return {
-    cancelled_service_ids: cancellableIds,
+    cancelled_service_ids: serviceLines.map((line) => line.id),
+    cancelled_product_ids: productLines.map((line) => line.id),
     order_id: orderId,
   };
 }

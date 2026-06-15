@@ -41,11 +41,21 @@ export const OrderDetailHeader = ({
 	const openCancelOrderDialog = () => {
 		openDialog({
 			title: "Cancel order",
-			description: "All remaining items will be cancelled.",
+			description: "Select items to cancel and provide reasons.",
+			contentClassName: "sm:max-w-xl",
 			content: () => (
 				<CancelOrderForm
 					closeDialog={closeDialog}
 					cancelOrderMutation={cancelOrderMutation}
+					cancellableProducts={gates.cancellableProducts.map((item) => ({
+						id: item.id,
+						name: item.product?.name ?? `Product #${item.product_id}`,
+						qty: item.qty,
+					}))}
+					cancellableServices={gates.cancellableServices.map((service) => ({
+						id: service.id,
+						item_code: service.item_code ?? null,
+					}))}
 				/>
 			),
 		});

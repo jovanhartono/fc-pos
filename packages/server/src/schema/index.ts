@@ -233,7 +233,6 @@ export const POSTOrderSchema = z
           {
             id: z.number("Product is required"),
             qty: z.int().positive("Quantity must be positive"),
-            notes: z.string().optional(),
           },
           "Product is required"
         )

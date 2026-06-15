@@ -10,54 +10,77 @@ import {
 } from "@/modules/orders/order-status-machine";
 
 const s = (status: OrderServiceStatus) => ({ status });
+// product line state: cancelled vs active/refunded (only cancellation affects rollup)
+const p = (cancelled = false) => ({
+  cancelled_at: cancelled ? new Date() : null,
+});
 
 describe("deriveOrderStatus", () => {
   it("returns 'created' when there are no services and no products", () => {
-    expect(deriveOrderStatus([], 0)).toBe("created");
+    expect(deriveOrderStatus([], [])).toBe("created");
   });
 
-  it("returns 'completed' when there are no services but products exist", () => {
-    expect(deriveOrderStatus([], 1)).toBe("completed");
+  it("returns 'completed' when there are no services but a live product exists", () => {
+    expect(deriveOrderStatus([], [p()])).toBe("completed");
   });
 
-  it("returns 'cancelled' when every service is cancelled", () => {
-    expect(deriveOrderStatus([s("cancelled"), s("cancelled")], 0)).toBe(
+  it("returns 'cancelled' for a products-only order with every product cancelled", () => {
+    expect(deriveOrderStatus([], [p(true)])).toBe("cancelled");
+    expect(deriveOrderStatus([], [p(true), p(true)])).toBe("cancelled");
+  });
+
+  it("returns 'completed' for a products-only order with a partial cancel", () => {
+    expect(deriveOrderStatus([], [p(true), p()])).toBe("completed");
+  });
+
+  it("treats a refunded (not cancelled) product as real activity -> 'completed'", () => {
+    // refunded product lines carry refunded_at, not cancelled_at
+    expect(deriveOrderStatus([], [p()])).toBe("completed");
+  });
+
+  it("returns 'cancelled' when every line (service and product) is cancelled", () => {
+    expect(deriveOrderStatus([s("cancelled"), s("cancelled")], [])).toBe(
       "cancelled"
     );
+    expect(deriveOrderStatus([s("cancelled")], [p(true)])).toBe("cancelled");
+  });
+
+  it("returns 'completed' when a service is cancelled but a product line is live", () => {
+    expect(deriveOrderStatus([s("cancelled")], [p()])).toBe("completed");
   });
 
   it("returns 'completed' when all services are terminal and at least one was delivered", () => {
-    expect(deriveOrderStatus([s("picked_up"), s("cancelled")], 0)).toBe(
+    expect(deriveOrderStatus([s("picked_up"), s("cancelled")], [])).toBe(
       "completed"
     );
-    expect(deriveOrderStatus([s("refunded"), s("cancelled")], 0)).toBe(
+    expect(deriveOrderStatus([s("refunded"), s("cancelled")], [])).toBe(
       "completed"
     );
-    expect(deriveOrderStatus([s("picked_up")], 0)).toBe("completed");
+    expect(deriveOrderStatus([s("picked_up")], [])).toBe("completed");
   });
 
   it("returns 'ready_for_pickup' when every active service is ready", () => {
     expect(
-      deriveOrderStatus([s("ready_for_pickup"), s("ready_for_pickup")], 0)
+      deriveOrderStatus([s("ready_for_pickup"), s("ready_for_pickup")], [])
     ).toBe("ready_for_pickup");
   });
 
   it("returns 'ready_for_pickup' (partial pickup state) when picked-up co-exists with ready services", () => {
-    expect(deriveOrderStatus([s("picked_up"), s("ready_for_pickup")], 0)).toBe(
+    expect(deriveOrderStatus([s("picked_up"), s("ready_for_pickup")], [])).toBe(
       "ready_for_pickup"
     );
   });
 
-  it("returns 'processing' when any service has moved past 'queued'", () => {
-    expect(deriveOrderStatus([s("queued"), s("processing")], 0)).toBe(
+  it("ignores product lines while services are still active", () => {
+    expect(deriveOrderStatus([s("queued"), s("processing")], [p(true)])).toBe(
       "processing"
     );
-    expect(deriveOrderStatus([s("quality_check")], 0)).toBe("processing");
-    expect(deriveOrderStatus([s("qc_reject")], 0)).toBe("processing");
+    expect(deriveOrderStatus([s("quality_check")], [])).toBe("processing");
+    expect(deriveOrderStatus([s("qc_reject")], [])).toBe("processing");
   });
 
   it("returns 'created' when every service is queued", () => {
-    expect(deriveOrderStatus([s("queued"), s("queued")], 0)).toBe("created");
+    expect(deriveOrderStatus([s("queued"), s("queued")], [])).toBe("created");
   });
 });
 

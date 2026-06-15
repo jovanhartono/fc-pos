@@ -4,7 +4,6 @@ import {
   type cancelReasonEnum,
   type orderServiceStatusEnum,
   orderServiceStatusLogsTable,
-  ordersProductsTable,
   ordersServicesTable,
   ordersTable,
 } from "@/db/schema";
@@ -94,30 +93,39 @@ export function summarizeOrderFulfillment(
 
 export function deriveOrderStatus(
   services: { status: OrderServiceStatus }[],
-  productCount: number
+  products: { cancelled_at: Date | null }[]
 ): DerivedOrderStatus {
-  if (services.length === 0) {
-    return productCount > 0 ? "completed" : "created";
-  }
-
-  if (services.every((item) => isTerminalOrderServiceStatus(item.status))) {
-    return services.every((item) => item.status === "cancelled")
-      ? "cancelled"
-      : "completed";
-  }
-
   const activeServices = services.filter(
     (item) => !isTerminalOrderServiceStatus(item.status)
   );
-  if (activeServices.every((item) => item.status === "ready_for_pickup")) {
-    return "ready_for_pickup";
+
+  // Active work comes only from services (products have no processing axis).
+  if (activeServices.length > 0) {
+    if (activeServices.every((item) => item.status === "ready_for_pickup")) {
+      return "ready_for_pickup";
+    }
+    if (services.some((item) => item.status !== "queued")) {
+      return "processing";
+    }
+    return "created";
   }
 
-  if (services.some((item) => item.status !== "queued")) {
-    return "processing";
+  // No active services: roll up over every terminal line — services and products.
+  if (services.length + products.length === 0) {
+    return "created";
   }
 
-  return "created";
+  const everyServiceCancelled = services.every(
+    (item) => item.status === "cancelled"
+  );
+  const everyProductCancelled = products.every(
+    (item) => item.cancelled_at != null
+  );
+  if (everyServiceCancelled && everyProductCancelled) {
+    return "cancelled";
+  }
+
+  return "completed";
 }
 
 export async function recomputeOrderRollup(
@@ -125,24 +133,25 @@ export async function recomputeOrderRollup(
   orderId: number,
   updatedBy: number
 ): Promise<void> {
-  const [services, productCount] = await Promise.all([
+  const [services, products] = await Promise.all([
     executor.query.ordersServicesTable.findMany({
       where: { order_id: orderId },
       columns: { status: true },
     }),
-    executor.$count(
-      ordersProductsTable,
-      eq(ordersProductsTable.order_id, orderId)
-    ),
+    executor.query.ordersProductsTable.findMany({
+      where: { order_id: orderId },
+      columns: { cancelled_at: true },
+    }),
   ]);
 
-  const nextStatus = deriveOrderStatus(services, productCount);
+  const nextStatus = deriveOrderStatus(services, products);
 
   await executor
     .update(ordersTable)
     .set({
       status: nextStatus,
       completed_at: nextStatus === "completed" ? new Date() : null,
+      cancelled_at: nextStatus === "cancelled" ? new Date() : null,
       updated_by: updatedBy,
     })
     .where(eq(ordersTable.id, orderId));

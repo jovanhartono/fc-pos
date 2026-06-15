@@ -11,6 +11,8 @@ export interface OrderActionGates {
 	readyForPickupServices: OrderDetail["services"];
 	refundableServices: OrderDetail["services"];
 	refundableProducts: OrderDetail["products"];
+	cancellableServices: OrderDetail["services"];
+	cancellableProducts: OrderDetail["products"];
 }
 
 // Pure derivation of every role/state gate on the order detail page. `me`
@@ -33,10 +35,15 @@ export const getOrderActionGates = (
 		(service) => !["refunded", "cancelled"].includes(service.status),
 	);
 	const products = Array.isArray(detail.products) ? detail.products : [];
-	const refundableProducts = products.filter((item) => !item.refunded_at);
-	const hasCancellableServices = services.some(
+	const refundableProducts = products.filter(
+		(item) => !(item.refunded_at || item.cancelled_at),
+	);
+	const cancellableServices = services.filter(
 		(service) =>
 			!["picked_up", "refunded", "cancelled"].includes(service.status),
+	);
+	const cancellableProducts = products.filter(
+		(item) => !item.refunded_at && !item.cancelled_at,
 	);
 	const isPaid = detail.payment_status === "paid";
 
@@ -47,7 +54,9 @@ export const getOrderActionGates = (
 		canManageDropoffPhoto,
 		canOpenPickup: isPickupAllowed && readyForPickupServices.length > 0,
 		canCancelOrder:
-			detail.status !== "cancelled" && !isPaid && hasCancellableServices,
+			detail.status !== "cancelled" &&
+			!isPaid &&
+			(cancellableServices.length > 0 || cancellableProducts.length > 0),
 		canRefundWholeOrder:
 			isAdmin &&
 			detail.status !== "cancelled" &&
@@ -56,5 +65,7 @@ export const getOrderActionGates = (
 		readyForPickupServices,
 		refundableServices,
 		refundableProducts,
+		cancellableServices,
+		cancellableProducts,
 	};
 };

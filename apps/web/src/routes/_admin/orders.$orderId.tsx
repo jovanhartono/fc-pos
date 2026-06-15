@@ -137,6 +137,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 	const gates = getOrderActionGates(meQuery.data, detail);
 	const orderServices = Array.isArray(detail.services) ? detail.services : [];
 	const orderProducts = Array.isArray(detail.products) ? detail.products : [];
+	const orderRefunds = Array.isArray(detail.refunds) ? detail.refunds : [];
 	const pickupEvents = Array.isArray(detail.pickup_events)
 		? detail.pickup_events
 		: [];
@@ -191,7 +192,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 				</div>
 
 				<div className="grid gap-3 sm:gap-4 lg:col-span-8">
-					<OrderProductsCard products={orderProducts} />
+					<OrderProductsCard products={orderProducts} refunds={orderRefunds} />
 					{orderServices.map((service) => (
 						<OrderServiceCard
 							key={service.id}

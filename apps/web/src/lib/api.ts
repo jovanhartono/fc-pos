@@ -419,8 +419,12 @@ export type CreateOrderRefundPayload = {
 };
 
 export type CancelOrderPayload = {
-	cancel_note?: string;
-	cancel_reason: OrderCancelReason;
+	items: Array<
+		({ order_service_id: number } | { order_product_id: number }) & {
+			reason: OrderCancelReason;
+			note?: string;
+		}
+	>;
 };
 
 export type UpdateUserStoresPayload = {

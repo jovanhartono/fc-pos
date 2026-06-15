@@ -99,20 +99,38 @@ export const PATCHOrderPaymentSchema = z.object({
   payment_method_id: z.coerce.number().int().positive(),
 });
 
-export const POSTOrderCancelSchema = z
-  .object({
-    cancel_note: z.string().trim().max(1000).optional(),
-    cancel_reason: z.enum(cancelReasonEnum.enumValues),
-  })
-  .superRefine((value, ctx) => {
-    if (value.cancel_reason === "other" && !value.cancel_note?.trim()) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Cancel note is required when reason is 'other'",
-        path: ["cancel_note"],
-      });
-    }
-  });
+export const POSTOrderCancelSchema = z.object({
+  items: z
+    .array(
+      z
+        .object({
+          note: z.string().trim().max(1000).optional(),
+          order_product_id: z.coerce.number().int().positive().nullish(),
+          order_service_id: z.coerce.number().int().positive().nullish(),
+          reason: z.enum(cancelReasonEnum.enumValues),
+        })
+        .superRefine((value, ctx) => {
+          const hasService = value.order_service_id != null;
+          const hasProduct = value.order_product_id != null;
+          if (hasService === hasProduct) {
+            ctx.addIssue({
+              code: "custom",
+              message:
+                "Provide exactly one of order_service_id or order_product_id",
+              path: ["order_service_id"],
+            });
+          }
+          if (value.reason === "other" && !value.note?.trim()) {
+            ctx.addIssue({
+              code: "custom",
+              message: "Cancel note is required when reason is 'other'",
+              path: ["note"],
+            });
+          }
+        })
+    )
+    .min(1),
+});
 
 export const POSTOrderRefundSchema = z.object({
   items: z

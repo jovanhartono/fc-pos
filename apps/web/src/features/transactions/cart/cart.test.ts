@@ -171,7 +171,7 @@ describe("toOrderPayload", () => {
 			payment_method_id: undefined,
 			payment_status: "unpaid",
 			notes: undefined,
-			products: [{ id: 1, qty: 2, notes: undefined }],
+			products: [{ id: 1, qty: 2 }],
 			services: [
 				{
 					id: 5,

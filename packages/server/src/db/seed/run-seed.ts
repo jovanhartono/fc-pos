@@ -505,7 +505,6 @@ interface DraftServiceLine {
 
 interface DraftProductLine {
   cogs: number;
-  notes: string | null;
   price: number;
   product_id: number;
   qty: number;
@@ -1441,7 +1440,6 @@ async function seedOrders(params: {
           price: Number(product.price),
           cogs: Number(product.cogs),
           qty,
-          notes: chance(0.2) ? faker.commerce.productDescription() : null,
         };
       }
     );
@@ -1663,7 +1661,6 @@ async function seedOrders(params: {
           cogs_snapshot: asMoney(line.cogs * line.qty),
           qty: line.qty,
           discount: "0",
-          notes: line.notes,
         }))
       );
     }

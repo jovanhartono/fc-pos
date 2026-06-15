@@ -11,4 +11,4 @@
 ## Consequences
 
 - Per-qty refunds stay reachable later: add a `qty` column to `order_refund_items` and swap `refunded_at` for a refunded-qty counter. Existing whole-line rows remain interpretable.
-- Products-only **unpaid** Orders still cannot be cancelled (`cancelOrder` requires at least one cancellable OrderService) — known adjacent gap, deliberately out of scope here.
+- Products-only **unpaid** Orders still cannot be cancelled (`cancelOrder` requires at least one cancellable OrderService) — known adjacent gap, deliberately out of scope here. **Resolved by [ADR-0008](0008-cancel-is-unpaid-per-line-refund-twin.md):** cancel became per-line over services + products, and the "no stock mutation" stance (point 3 above) is now scoped to refund only — cancel restores stock.
