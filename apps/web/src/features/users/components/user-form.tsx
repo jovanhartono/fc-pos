@@ -4,6 +4,7 @@ import {
 	type SubmitHandler,
 	useFormContext,
 } from "react-hook-form";
+import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -18,13 +19,6 @@ import {
 	FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
@@ -155,26 +149,17 @@ export function UserForm({
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
 							<FieldLabel htmlFor="user-role">Role</FieldLabel>
-							<Select
+							<SelectField
+								id="user-role"
+								items={{ admin: "Admin", cashier: "Cashier", worker: "Worker" }}
 								value={field.value}
 								onValueChange={(value) =>
-									field.onChange((value ?? "cashier") as UserFormState["role"])
+									field.onChange(value as UserFormState["role"])
 								}
 								disabled={isSubmitting}
-							>
-								<SelectTrigger
-									id="user-role"
-									size="md"
-									className="w-full text-sm"
-								>
-									<SelectValue placeholder="Select role" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="admin">Admin</SelectItem>
-									<SelectItem value="cashier">Cashier</SelectItem>
-									<SelectItem value="worker">Worker</SelectItem>
-								</SelectContent>
-							</Select>
+								className="w-full text-sm"
+								placeholder="Select role"
+							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>
 					)}

@@ -50,8 +50,17 @@ interface PhotoUploadDialogBaseProps {
 	badgeLabel?: string;
 	multiple: boolean;
 	withNote: boolean;
-	uploadPhoto: (input: UploadPhotoInput) => Promise<void>;
-	onUploaded: () => Promise<void>;
+	// Upload mode: presign → upload → save on confirm.
+	uploadPhoto?: (input: UploadPhotoInput) => Promise<void>;
+	onUploaded?: () => Promise<void>;
+	// Capture-only mode: hand the picked File(s) back instead of uploading. Used
+	// at the POS where the Order does not exist yet, so the upload is deferred to
+	// after checkout commits. When set, uploadPhoto/onUploaded are ignored.
+	onCapture?: (files: File[]) => void;
+	// Camera-only: drop the "Upload from device" path, auto-open the camera, and
+	// stop it after a shot for a single review still. For intake flows that want
+	// a live photo, not a gallery pick. See SinglePhotoCaptureDialog.
+	cameraOnly?: boolean;
 }
 
 const PhotoUploadDialogBase = ({
@@ -63,6 +72,8 @@ const PhotoUploadDialogBase = ({
 	withNote,
 	uploadPhoto,
 	onUploaded,
+	onCapture,
+	cameraOnly = false,
 }: PhotoUploadDialogBaseProps) => {
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const camera = useCameraCapture();
@@ -70,6 +81,7 @@ const PhotoUploadDialogBase = ({
 	const [note, setNote] = useState("");
 
 	const stopCamera = camera.stop;
+	const openCamera = camera.open;
 	const resetDialogState = useCallback(() => {
 		stopCamera();
 		setPendingPhotos((previous) => {
@@ -83,8 +95,12 @@ const PhotoUploadDialogBase = ({
 		if (!open) {
 			return;
 		}
+		// Camera-only intake: skip the chooser, go straight to the live camera.
+		if (cameraOnly) {
+			void openCamera();
+		}
 		return resetDialogState;
-	}, [open, resetDialogState]);
+	}, [open, cameraOnly, openCamera, resetDialogState]);
 
 	const addFiles = useCallback(
 		(files: File[]) => {
@@ -143,6 +159,11 @@ const PhotoUploadDialogBase = ({
 				type: "image/jpeg",
 			}),
 		]);
+		// Camera-only: stop after the shot so the user reviews one still, not a
+		// live feed stacked under the capture.
+		if (cameraOnly) {
+			stopCamera();
+		}
 	};
 
 	const removePhoto = (photoId: string) => {
@@ -173,7 +194,7 @@ const PhotoUploadDialogBase = ({
 
 			const trimmedNote = withNote ? note.trim() || undefined : undefined;
 			for (const photo of validatedPhotos) {
-				await uploadPhoto({
+				await uploadPhoto?.({
 					file: photo.file,
 					contentType: photo.contentType,
 					note: trimmedNote,
@@ -185,7 +206,7 @@ const PhotoUploadDialogBase = ({
 				pendingPhotos.length > 1 ? "Photos uploaded" : "Photo uploaded",
 			);
 			onOpenChange(false);
-			await onUploaded();
+			await onUploaded?.();
 		},
 		onError: (error: Error) => {
 			toast.error(error.message || "Failed to upload photos");
@@ -200,8 +221,28 @@ const PhotoUploadDialogBase = ({
 		setNote("");
 	};
 
+	const handleRetake = () => {
+		handleClear();
+		void openCamera();
+	};
+
 	const photoNoun = multiple ? "photos" : "photo";
 	const labelSuffix = badgeLabel ? ` for ${badgeLabel}` : "";
+
+	const isCaptureMode = Boolean(onCapture);
+	const confirmLabel = isCaptureMode
+		? multiple
+			? "Use photos"
+			: "Use photo"
+		: "Upload";
+	const handleConfirm = async () => {
+		if (onCapture) {
+			onCapture(pendingPhotos.map((photo) => photo.file));
+			onOpenChange(false);
+			return;
+		}
+		await uploadMutation.mutateAsync();
+	};
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -218,40 +259,44 @@ const PhotoUploadDialogBase = ({
 				</DialogHeader>
 
 				<div className="grid gap-4">
-					<div className="grid gap-2 sm:grid-cols-2">
-						<Button
-							type="button"
-							variant="outline"
-							className="h-12 justify-start"
-							icon={<CameraIcon className="size-4" />}
-							disabled={uploadMutation.isPending || camera.isOpen}
-							onClick={camera.open}
-						>
-							Camera
-						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							className="h-12 justify-start"
-							icon={<ImageSquareIcon className="size-4" />}
-							disabled={uploadMutation.isPending}
-							onClick={openFileInput}
-						>
-							Upload from device
-						</Button>
-					</div>
+					{cameraOnly ? null : (
+						<>
+							<div className="grid gap-2 sm:grid-cols-2">
+								<Button
+									type="button"
+									variant="outline"
+									className="h-12 justify-start"
+									icon={<CameraIcon className="size-4" />}
+									disabled={uploadMutation.isPending || camera.isOpen}
+									onClick={camera.open}
+								>
+									Camera
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									className="h-12 justify-start"
+									icon={<ImageSquareIcon className="size-4" />}
+									disabled={uploadMutation.isPending}
+									onClick={openFileInput}
+								>
+									Upload from device
+								</Button>
+							</div>
 
-					<input
-						ref={fileInputRef}
-						type="file"
-						aria-label={`Choose ${photoNoun}${labelSuffix}`}
-						accept={ACCEPTED_IMAGE_TYPES.join(",")}
-						multiple={multiple}
-						className="sr-only"
-						onChange={(event) => {
-							addFiles(Array.from(event.target.files ?? []));
-						}}
-					/>
+							<input
+								ref={fileInputRef}
+								type="file"
+								aria-label={`Choose ${photoNoun}${labelSuffix}`}
+								accept={ACCEPTED_IMAGE_TYPES.join(",")}
+								multiple={multiple}
+								className="sr-only"
+								onChange={(event) => {
+									addFiles(Array.from(event.target.files ?? []));
+								}}
+							/>
+						</>
+					)}
 
 					{camera.isOpen ? (
 						<div className="grid gap-3 border border-border bg-muted/20 p-3">
@@ -261,7 +306,10 @@ const PhotoUploadDialogBase = ({
 								muted
 								playsInline
 								onLoadedMetadata={camera.markReady}
-								className="aspect-[4/3] w-full border border-border bg-black object-cover"
+								className={cn(
+									"aspect-[4/3] border border-border bg-black object-cover",
+									cameraOnly ? "mx-auto max-h-80 w-auto" : "w-full",
+								)}
 							/>
 
 							{camera.error ? (
@@ -275,14 +323,16 @@ const PhotoUploadDialogBase = ({
 							) : null}
 
 							<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-								<Button
-									type="button"
-									variant="outline"
-									disabled={uploadMutation.isPending}
-									onClick={camera.stop}
-								>
-									Cancel
-								</Button>
+								{cameraOnly ? null : (
+									<Button
+										type="button"
+										variant="outline"
+										disabled={uploadMutation.isPending}
+										onClick={camera.stop}
+									>
+										Cancel
+									</Button>
+								)}
 								<Button
 									type="button"
 									disabled={!camera.isReady || uploadMutation.isPending}
@@ -306,10 +356,13 @@ const PhotoUploadDialogBase = ({
 									type="button"
 									size="sm"
 									variant="outline"
+									icon={
+										cameraOnly ? <CameraIcon className="size-4" /> : undefined
+									}
 									disabled={uploadMutation.isPending}
-									onClick={handleClear}
+									onClick={cameraOnly ? handleRetake : handleClear}
 								>
-									Clear
+									{cameraOnly ? "Retake" : "Clear"}
 								</Button>
 							</div>
 							<div
@@ -319,25 +372,38 @@ const PhotoUploadDialogBase = ({
 								)}
 							>
 								{pendingPhotos.map((photo) => (
-									<div key={photo.id} className="relative border border-border">
+									<div
+										key={photo.id}
+										className={cn(
+											"relative border border-border",
+											cameraOnly && "mx-auto w-fit",
+										)}
+									>
 										<img
 											src={photo.previewUrl}
 											alt={`Preview ${photo.file.name}`}
 											width={480}
 											height={360}
-											className="aspect-[4/3] w-full object-cover"
+											className={cn(
+												"aspect-[4/3] w-full object-cover",
+												cameraOnly && "mx-auto max-h-80 w-auto",
+											)}
 										/>
-										<Button
-											type="button"
-											size="icon-sm"
-											variant="secondary"
-											className="absolute top-1 right-1 bg-background/90"
-											disabled={uploadMutation.isPending}
-											onClick={() => removePhoto(photo.id)}
-										>
-											<TrashIcon className="size-3.5" />
-											<span className="sr-only">Remove {photo.file.name}</span>
-										</Button>
+										{cameraOnly ? null : (
+											<Button
+												type="button"
+												size="icon-sm"
+												variant="secondary"
+												className="absolute top-1 right-1 bg-background/90"
+												disabled={uploadMutation.isPending}
+												onClick={() => removePhoto(photo.id)}
+											>
+												<TrashIcon className="size-3.5" />
+												<span className="sr-only">
+													Remove {photo.file.name}
+												</span>
+											</Button>
+										)}
 									</div>
 								))}
 							</div>
@@ -352,6 +418,35 @@ const PhotoUploadDialogBase = ({
 									aria-label={`Photo note${labelSuffix}`}
 								/>
 							) : null}
+						</div>
+					) : cameraOnly ? (
+						<div
+							className={cn(
+								"grid gap-3 border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground",
+								camera.isOpen && "hidden",
+							)}
+						>
+							{camera.error ? (
+								<div className="flex items-start gap-2 border border-destructive/40 bg-destructive/5 px-3 py-2 text-left text-destructive">
+									<WarningCircleIcon
+										className="mt-0.5 size-4 shrink-0"
+										weight="fill"
+									/>
+									<span>{camera.error}</span>
+								</div>
+							) : (
+								<p>Camera is required for the drop-off photo.</p>
+							)}
+							<Button
+								type="button"
+								variant="outline"
+								className="mx-auto"
+								icon={<CameraIcon className="size-4" />}
+								disabled={uploadMutation.isPending}
+								onClick={() => void openCamera()}
+							>
+								{camera.error ? "Try camera again" : "Open camera"}
+							</Button>
 						</div>
 					) : (
 						<div
@@ -379,11 +474,9 @@ const PhotoUploadDialogBase = ({
 						disabled={pendingPhotos.length === 0 || uploadMutation.isPending}
 						loading={uploadMutation.isPending}
 						loadingText="Uploading..."
-						onClick={async () => {
-							await uploadMutation.mutateAsync();
-						}}
+						onClick={handleConfirm}
 					>
-						Upload
+						{confirmLabel}
 					</Button>
 				</DialogFooter>
 			</DialogContent>
@@ -393,7 +486,7 @@ const PhotoUploadDialogBase = ({
 
 type PhotoUploadDialogProps = Omit<
 	PhotoUploadDialogBaseProps,
-	"multiple" | "withNote"
+	"multiple" | "withNote" | "onCapture"
 >;
 
 export const PhotoUploadDialog = (props: PhotoUploadDialogProps) => (
@@ -402,4 +495,38 @@ export const PhotoUploadDialog = (props: PhotoUploadDialogProps) => (
 
 export const SinglePhotoUploadDialog = (props: PhotoUploadDialogProps) => (
 	<PhotoUploadDialogBase {...props} multiple={false} withNote={false} />
+);
+
+type SinglePhotoCaptureDialogProps = Pick<
+	PhotoUploadDialogBaseProps,
+	"open" | "onOpenChange" | "title" | "badgeLabel"
+> & {
+	onCapture: (file: File) => void;
+};
+
+// Capture-only single-photo dialog. Reuses the camera/picker/preview UI but,
+// instead of uploading, hands the picked File back to the caller — for flows
+// where the target row does not exist yet (POS drop-off photo before checkout).
+//
+// Camera-only by design: drop-off is an intake action, so we want a live photo
+// of the items in front of the cashier, not a gallery pick. Trade-off: the
+// drop-off photo is required, so a device with no camera (or denied permission)
+// cannot create the Order — accepted, since the POS runs on store iPads. Do not
+// re-add "Upload from device" here without revisiting that decision.
+export const SinglePhotoCaptureDialog = ({
+	onCapture,
+	...props
+}: SinglePhotoCaptureDialogProps) => (
+	<PhotoUploadDialogBase
+		{...props}
+		multiple={false}
+		withNote={false}
+		cameraOnly
+		onCapture={(files) => {
+			const [file] = files;
+			if (file) {
+				onCapture(file);
+			}
+		}}
+	/>
 );

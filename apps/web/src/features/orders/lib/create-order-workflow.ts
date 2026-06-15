@@ -7,7 +7,7 @@ type HandleCreatedOrderSuccessOptions = {
 	onOrderDetailNavigate: (orderId: number) => void;
 };
 
-function getCreatedOrderId(created: unknown): number | undefined {
+export function getCreatedOrderId(created: unknown): number | undefined {
 	if (
 		typeof created !== "object" ||
 		created === null ||

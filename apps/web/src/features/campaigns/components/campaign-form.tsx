@@ -9,6 +9,7 @@ import {
 } from "react-hook-form";
 import { z } from "zod";
 import { CurrencyInput } from "@/components/form/currency-input";
+import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -23,13 +24,6 @@ import {
 	FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ServicesMultiAutocomplete } from "@/features/orders/components/services-multi-autocomplete";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
@@ -395,24 +389,16 @@ export function CampaignForm({
 								<FieldLabel htmlFor="campaign-discount-type" asterisk>
 									Discount Type
 								</FieldLabel>
-								<Select
+								<SelectField
+									id="campaign-discount-type"
+									items={DISCOUNT_TYPE_OPTIONS}
 									value={field.value}
 									onValueChange={(value) =>
-										field.onChange((value ?? "fixed") as CampaignDiscountType)
+										field.onChange(value as CampaignDiscountType)
 									}
 									disabled={isSubmitting}
-								>
-									<SelectTrigger id="campaign-discount-type" size="md">
-										<SelectValue placeholder="Select discount type" />
-									</SelectTrigger>
-									<SelectContent>
-										{DISCOUNT_TYPE_OPTIONS.map((option) => (
-											<SelectItem key={option.value} value={option.value}>
-												{option.label}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
+									placeholder="Select discount type"
+								/>
 								<FieldError errors={[fieldState.error]} />
 							</Field>
 						)}

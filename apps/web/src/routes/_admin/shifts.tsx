@@ -5,17 +5,11 @@ import dayjs from "dayjs";
 import { useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
+import { SelectField } from "@/components/form/select-field";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-picker";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import type { Shift } from "@/lib/api";
 import { shiftsQueryOptions, storesQueryOptions } from "@/lib/query-options";
 
@@ -128,7 +122,15 @@ function ShiftsPage() {
 								>
 									Store
 								</label>
-								<Select
+								<SelectField
+									id="shifts-store"
+									items={[
+										{ value: "all", label: "All stores" },
+										...stores.map((store) => ({
+											value: String(store.id),
+											label: `${store.code} · ${store.name}`,
+										})),
+									]}
 									value={
 										search.store_id !== undefined
 											? String(search.store_id)
@@ -143,23 +145,9 @@ function ShiftsPage() {
 											}),
 										});
 									}}
-								>
-									<SelectTrigger
-										id="shifts-store"
-										size="md"
-										className="min-w-40"
-									>
-										<SelectValue placeholder="All stores" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="all">All stores</SelectItem>
-										{stores.map((store) => (
-											<SelectItem key={store.id} value={String(store.id)}>
-												{store.code} · {store.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
+									className="min-w-40"
+									placeholder="All stores"
+								/>
 							</div>
 							<div className="grid gap-1">
 								<span className="text-muted-foreground text-xs font-medium uppercase">

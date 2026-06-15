@@ -22,6 +22,15 @@ function assertPickupCodeMatches(order: { pickup_code: string }, code: string) {
   }
 }
 
+// ADR-0009: payment precedes pickup. An Order must be fully paid before any
+// pickup event — partial or not. Enforced here so the rule holds regardless of
+// the caller.
+function assertOrderPaidForPickup(order: { payment_status: string }) {
+  if (order.payment_status !== "paid") {
+    throw new BadRequestException("Order must be paid before pickup");
+  }
+}
+
 export async function createOrderPickupEventPresign({
   orderId,
   body,
@@ -35,12 +44,14 @@ export async function createOrderPickupEventPresign({
 
   const order = await db.query.ordersTable.findFirst({
     where: { id: orderId },
-    columns: { id: true },
+    columns: { id: true, payment_status: true },
   });
 
   if (!order) {
     throw new BadRequestException("Order not found");
   }
+
+  assertOrderPaidForPickup(order);
 
   const key = `orders/${orderId}/pickup/${crypto.randomUUID()}`;
   return createPresignedUploadUrl({
@@ -68,7 +79,7 @@ export async function createOrderPickupEvent({
   const [order, candidateServices] = await Promise.all([
     db.query.ordersTable.findFirst({
       where: { id: orderId },
-      columns: { id: true, pickup_code: true },
+      columns: { id: true, pickup_code: true, payment_status: true },
     }),
     db.query.ordersServicesTable.findMany({
       where: {
@@ -86,6 +97,8 @@ export async function createOrderPickupEvent({
   if (!order) {
     throw new BadRequestException("Order not found");
   }
+
+  assertOrderPaidForPickup(order);
 
   assertPickupCodeMatches(order, body.pickup_code);
 

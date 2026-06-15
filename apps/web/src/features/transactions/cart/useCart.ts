@@ -9,6 +9,7 @@ import {
 	getCartSubtotal,
 	type ProductCartDisplayLine,
 	type ProductCartLine,
+	resetTransactionDraft,
 	type ServiceCartDisplayLine,
 	type ServiceCartLine,
 	type TransactionDraftValues,
@@ -52,6 +53,9 @@ export function useCartOps(): CartOps {
 	const setSubmitError = useTransactionsPageStore(
 		(state) => state.setSubmitError,
 	);
+	const setDropoffPhoto = useTransactionsPageStore(
+		(state) => state.setDropoffPhoto,
+	);
 
 	const setProductCart = useCallback(
 		(nextCart: ProductCartLine[]) => {
@@ -74,20 +78,8 @@ export function useCartOps(): CartOps {
 	);
 
 	const resetCart = useCallback(() => {
-		const selectedStoreId = form.getValues("selectedStoreId");
-		setSubmitError("");
-		form.reset({
-			selectedStoreId,
-			selectedCustomerId: "",
-			selectedCampaignIds: [],
-			selectedPaymentMethodId: "",
-			paymentStatus: "unpaid",
-			manualDiscount: "",
-			notes: "",
-			productCart: [],
-			serviceCart: [],
-		});
-	}, [form, setSubmitError]);
+		resetTransactionDraft(form, { setSubmitError, setDropoffPhoto });
+	}, [form, setSubmitError, setDropoffPhoto]);
 
 	const removeProduct = useCallback(
 		(productId: number) => {

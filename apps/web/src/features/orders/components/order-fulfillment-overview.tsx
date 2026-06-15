@@ -12,6 +12,7 @@ import {
 
 type OrderFulfillmentOverviewProps = {
 	canCompletePickup: boolean;
+	disabledReason?: string;
 	isCompleting: boolean;
 	onCompletePickup: () => Promise<void>;
 	order: OrderDetail;
@@ -26,6 +27,7 @@ const IN_FLIGHT_STATUSES = new Set([
 
 export function OrderFulfillmentOverview({
 	canCompletePickup,
+	disabledReason,
 	isCompleting,
 	onCompletePickup,
 	order,
@@ -88,13 +90,19 @@ export function OrderFulfillmentOverview({
 							loading={isCompleting}
 							loadingText="Saving…"
 							disabled={!canCompletePickup}
+							aria-describedby={
+								canCompletePickup ? undefined : "pickup-disabled-reason"
+							}
 							onClick={onCompletePickup}
 						>
 							{`Pick up (${fulfillment.ready_for_pickup_count})`}
 						</Button>
 						{canCompletePickup ? null : (
-							<p className="text-muted-foreground text-xs leading-relaxed">
-								No items ready yet.
+							<p
+								className="text-muted-foreground text-xs leading-relaxed"
+								id="pickup-disabled-reason"
+							>
+								{disabledReason ?? "No items ready yet."}
 							</p>
 						)}
 					</div>

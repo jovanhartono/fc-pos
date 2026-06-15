@@ -1,14 +1,8 @@
 import { ClockIcon } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { useCurrentShift } from "@/features/shifts/hooks/useCurrentShift";
 import { clockInShift, clockOutShift, queryKeys, type Store } from "@/lib/api";
 
@@ -95,21 +89,17 @@ export const ShiftClockCard = ({ stores }: ShiftClockCardProps) => {
 	return (
 		<div className="flex items-center gap-2">
 			{stores.length > 1 ? (
-				<Select
+				<SelectField
+					items={stores.map((store) => ({
+						value: String(store.id),
+						label: store.code,
+					}))}
 					value={selectedStoreId}
-					onValueChange={(value) => setStoreOverride(value ?? null)}
-				>
-					<SelectTrigger size="sm" className="h-8 min-w-24 text-xs">
-						<SelectValue placeholder="Store" />
-					</SelectTrigger>
-					<SelectContent>
-						{stores.map((store) => (
-							<SelectItem key={store.id} value={String(store.id)}>
-								{store.code}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
+					onValueChange={(value) => setStoreOverride(value || null)}
+					size="sm"
+					className="h-8 min-w-24 text-xs"
+					placeholder="Store"
+				/>
 			) : null}
 			<Button
 				size="sm"

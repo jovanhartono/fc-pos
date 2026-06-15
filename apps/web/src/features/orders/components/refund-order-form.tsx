@@ -10,16 +10,10 @@ import {
 	useWatch,
 } from "react-hook-form";
 import { z } from "zod";
+import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { CreateOrderRefundPayload, OrderRefundReason } from "@/lib/api";
 import { formatRefundReason, REFUND_REASONS } from "@/lib/status";
@@ -288,26 +282,19 @@ const RefundItemRow = ({ disabled, index, label }: RefundItemRowProps) => {
 				control={control}
 				name={`items.${index}.reason`}
 				render={({ field }) => (
-					<Select
+					<SelectField
+						items={REFUND_REASONS.map((reason) => ({
+							value: reason,
+							label: formatRefundReason(reason),
+						}))}
 						value={field.value}
 						onValueChange={(value) =>
-							field.onChange((value ?? "damaged") as OrderRefundReason)
+							field.onChange(value as OrderRefundReason)
 						}
 						disabled={inputsDisabled}
-					>
-						<SelectTrigger size="md" className="w-full">
-							<SelectValue placeholder="Select reason">
-								{field.value ? formatRefundReason(field.value) : undefined}
-							</SelectValue>
-						</SelectTrigger>
-						<SelectContent>
-							{REFUND_REASONS.map((reason) => (
-								<SelectItem key={reason} value={reason}>
-									{formatRefundReason(reason)}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
+						placeholder="Select reason"
+						className="w-full"
+					/>
 				)}
 			/>
 

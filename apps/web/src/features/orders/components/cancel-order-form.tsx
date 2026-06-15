@@ -10,16 +10,10 @@ import {
 	useWatch,
 } from "react-hook-form";
 import { z } from "zod";
+import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { CancelOrderPayload, OrderCancelReason } from "@/lib/api";
 import { CANCEL_REASONS, formatCancelReason } from "@/lib/status";
@@ -268,26 +262,19 @@ const CancelItemRow = ({ disabled, index, label }: CancelItemRowProps) => {
 				control={control}
 				name={`items.${index}.reason`}
 				render={({ field }) => (
-					<Select
+					<SelectField
+						items={CANCEL_REASONS.map((reason) => ({
+							value: reason,
+							label: formatCancelReason(reason),
+						}))}
 						value={field.value}
 						onValueChange={(value) =>
-							field.onChange((value ?? "customer_request") as OrderCancelReason)
+							field.onChange(value as OrderCancelReason)
 						}
 						disabled={inputsDisabled}
-					>
-						<SelectTrigger size="md" className="w-full">
-							<SelectValue placeholder="Select reason">
-								{field.value ? formatCancelReason(field.value) : undefined}
-							</SelectValue>
-						</SelectTrigger>
-						<SelectContent>
-							{CANCEL_REASONS.map((reason) => (
-								<SelectItem key={reason} value={reason}>
-									{formatCancelReason(reason)}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
+						placeholder="Select reason"
+						className="w-full"
+					/>
 				)}
 			/>
 

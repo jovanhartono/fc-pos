@@ -1,14 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { useOrderPaymentMutation } from "@/features/orders/hooks/useOrderMutations";
 import { paymentMethodsQueryOptions } from "@/lib/query-options";
 
@@ -31,21 +25,16 @@ export const OrderPaymentCard = ({ orderId }: OrderPaymentCardProps) => {
 				<CardTitle>Payment</CardTitle>
 			</CardHeader>
 			<CardContent className="grid gap-3">
-				<Select
+				<SelectField
+					items={paymentMethods.map((method) => ({
+						value: String(method.id),
+						label: method.name,
+					}))}
 					value={selectedPaymentMethodId}
-					onValueChange={(value) => setSelectedPaymentMethodId(value ?? "")}
-				>
-					<SelectTrigger size="md" className="w-full">
-						<SelectValue placeholder="Select payment method" />
-					</SelectTrigger>
-					<SelectContent>
-						{paymentMethods.map((method) => (
-							<SelectItem key={method.id} value={String(method.id)}>
-								{method.name}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
+					onValueChange={setSelectedPaymentMethodId}
+					placeholder="Select payment method"
+					className="w-full"
+				/>
 				<Button
 					disabled={paymentMutation.isPending || !selectedPaymentMethodId}
 					onClick={async () => {

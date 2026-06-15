@@ -165,6 +165,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 				<OrderFulfillmentOverview
 					order={detail}
 					canCompletePickup={gates.canOpenPickup}
+					disabledReason={gates.pickupDisabledReason}
 					isCompleting={false}
 					onCompletePickup={async () => {
 						openPickupDialog();

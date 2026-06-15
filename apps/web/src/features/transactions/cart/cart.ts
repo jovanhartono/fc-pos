@@ -4,6 +4,7 @@ import {
 	type DiscountLine,
 	stackCampaignDiscounts,
 } from "@fresclean/api/schema";
+import type { UseFormReturn } from "react-hook-form";
 import type { CreateOrderPayload, Product, Service } from "@/lib/api";
 
 export type ProductCartLine = {
@@ -40,6 +41,37 @@ export type TransactionDraftValues = {
 	notes: string;
 	productCart: ProductCartLine[];
 	serviceCart: ServiceCartLine[];
+};
+
+export const defaultDraftValues: TransactionDraftValues = {
+	selectedStoreId: "",
+	selectedCustomerId: "",
+	selectedCampaignIds: [],
+	selectedPaymentMethodId: "",
+	paymentStatus: "unpaid",
+	manualDiscount: "",
+	notes: "",
+	productCart: [],
+	serviceCart: [],
+};
+
+type TransactionResetActions = {
+	setSubmitError: (message: string) => void;
+	setDropoffPhoto: (file: File | null) => void;
+};
+
+// Single source of truth for clearing the POS draft — used by both the Reset
+// button (useCartOps) and the post-checkout reset (page bootstrap). Keeps cart,
+// submit error, and the held drop-off photo from drifting; they previously
+// lived in two near-duplicate resets and the photo was missed on one path.
+export const resetTransactionDraft = (
+	form: UseFormReturn<TransactionDraftValues>,
+	{ setSubmitError, setDropoffPhoto }: TransactionResetActions,
+) => {
+	const selectedStoreId = form.getValues("selectedStoreId");
+	setSubmitError("");
+	setDropoffPhoto(null);
+	form.reset({ ...defaultDraftValues, selectedStoreId });
 };
 
 export const buildActiveItemMap = <

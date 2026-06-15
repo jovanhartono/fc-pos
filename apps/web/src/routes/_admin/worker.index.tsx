@@ -10,6 +10,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { SelectField } from "@/components/form/select-field";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,13 +24,6 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import {
 	type FetchOrderServiceQueueQuery,
@@ -566,26 +560,15 @@ function WorkerQueuePage() {
 								<div className="grid gap-4">
 									<Field>
 										<FieldLabel htmlFor="queue-store-mobile">Store</FieldLabel>
-										<Select
+										<SelectField
+											id="queue-store-mobile"
 											items={storeSelectItems}
 											value={parsedStoreId?.toString() ?? ""}
 											onValueChange={updateStoreFilter}
-										>
-											<SelectTrigger
-												id="queue-store-mobile"
-												size="lg"
-												className="w-full"
-											>
-												<SelectValue placeholder="Select store" />
-											</SelectTrigger>
-											<SelectContent>
-												{visibleStores.map((store) => (
-													<SelectItem key={store.id} value={String(store.id)}>
-														{`${store.code} - ${store.name}`}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
+											size="lg"
+											className="w-full"
+											placeholder="Select store"
+										/>
 									</Field>
 
 									<div className="grid gap-2">
@@ -650,22 +633,15 @@ function WorkerQueuePage() {
 						<div className="hidden md:block">
 							<Field>
 								<FieldLabel htmlFor="queue-store">Store</FieldLabel>
-								<Select
+								<SelectField
+									id="queue-store"
 									items={storeSelectItems}
 									value={parsedStoreId?.toString() ?? ""}
 									onValueChange={updateStoreFilter}
-								>
-									<SelectTrigger id="queue-store" size="lg" className="w-full">
-										<SelectValue placeholder="Select store" />
-									</SelectTrigger>
-									<SelectContent>
-										{visibleStores.map((store) => (
-											<SelectItem key={store.id} value={String(store.id)}>
-												{`${store.code} - ${store.name}`}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
+									size="lg"
+									className="w-full"
+									placeholder="Select store"
+								/>
 							</Field>
 						</div>
 						<div className="grid gap-2">

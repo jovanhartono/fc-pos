@@ -10,17 +10,11 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
+import { SelectField } from "@/components/form/select-field";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import {
 	CampaignForm,
 	type CampaignFormState,
@@ -396,26 +390,24 @@ function CampaignsPage() {
 				<Card>
 					<CardContent>
 						<div className="mb-4 flex items-center gap-2">
-							<Select
+							<SelectField
+								items={{
+									all: "All status",
+									active: "Active only",
+									expired: "Expired only",
+									archived: "Archived only",
+								}}
 								value={search.status}
 								onValueChange={(value) => {
 									void navigate({
 										search: () => ({
-											status: (value as CampaignStatus) ?? "all",
+											status: value as CampaignStatus,
 										}),
 									});
 								}}
-							>
-								<SelectTrigger size="md" className="min-w-40 w-max">
-									<SelectValue placeholder="Filter status" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All status</SelectItem>
-									<SelectItem value="active">Active only</SelectItem>
-									<SelectItem value="expired">Expired only</SelectItem>
-									<SelectItem value="archived">Archived only</SelectItem>
-								</SelectContent>
-							</Select>
+								className="min-w-40 w-max"
+								placeholder="Filter status"
+							/>
 						</div>
 						<DataTable
 							columns={columns}

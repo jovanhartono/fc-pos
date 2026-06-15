@@ -1,5 +1,6 @@
 import { campaignIneligibilityReason } from "@fresclean/api/schema";
 import {
+	CameraIcon,
 	CreditCardIcon,
 	ReceiptIcon,
 	ShoppingCartIcon,
@@ -8,7 +9,7 @@ import {
 	XIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CampaignAutocomplete } from "@/features/orders/components/campaign-autocomplete";
 import { CustomerAutocomplete } from "@/features/orders/components/customer-autocomplete";
+import { SinglePhotoCaptureDialog } from "@/features/orders/components/photo-upload-dialog";
 import {
 	getCartPricing,
 	type TransactionDraftValues,
@@ -73,6 +75,7 @@ export function TransactionsCheckout() {
 		count,
 	} = useCart();
 	const submitError = useTransactionsPageStore((state) => state.submitError);
+	const dropoffPhoto = useTransactionsPageStore((state) => state.dropoffPhoto);
 
 	const form = useFormContext<TransactionDraftValues>();
 	const [
@@ -626,6 +629,8 @@ export function TransactionsCheckout() {
 								{paymentFields}
 							</div>
 
+							<CheckoutDropoffPhotoField />
+
 							{submitError ? <FieldError>{submitError}</FieldError> : null}
 
 							<Button
@@ -635,15 +640,83 @@ export function TransactionsCheckout() {
 								onClick={submit}
 								loading={isSubmitting}
 								loadingText="Creating order..."
-								disabled={count === 0}
+								disabled={count === 0 || !dropoffPhoto}
+								aria-describedby={
+									count > 0 && !dropoffPhoto ? "create-order-hint" : undefined
+								}
 								icon={<CreditCardIcon className="size-4" />}
 							>
 								Create Order
 							</Button>
+							{count > 0 && !dropoffPhoto ? (
+								<p
+									className="text-muted-foreground text-xs"
+									id="create-order-hint"
+								>
+									Add a drop-off photo to create the order.
+								</p>
+							) : null}
 						</div>
 					</div>
 				</CardContent>
 			</Card>
 		</div>
+	);
+}
+
+function CheckoutDropoffPhotoField() {
+	const dropoffPhoto = useTransactionsPageStore((state) => state.dropoffPhoto);
+	const setDropoffPhoto = useTransactionsPageStore(
+		(state) => state.setDropoffPhoto,
+	);
+	const [isDialogOpen, setIsDialogOpen] = useState(false);
+	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+	useEffect(() => {
+		if (!dropoffPhoto) {
+			setPreviewUrl(null);
+			return;
+		}
+		const url = URL.createObjectURL(dropoffPhoto);
+		setPreviewUrl(url);
+		return () => URL.revokeObjectURL(url);
+	}, [dropoffPhoto]);
+
+	return (
+		<Field>
+			<FieldLabel>
+				Drop-off photo <span className="text-muted-foreground">(required)</span>
+			</FieldLabel>
+			<div className="aspect-4/3 w-full overflow-hidden border bg-muted sm:aspect-16/10">
+				{previewUrl ? (
+					<img
+						src={previewUrl}
+						alt="Drop-off preview"
+						className="h-full w-full object-cover"
+					/>
+				) : (
+					<div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-muted-foreground">
+						<CameraIcon className="size-8 opacity-50" />
+						<p className="text-sm">Photo of the items at intake</p>
+					</div>
+				)}
+			</div>
+			<Button
+				type="button"
+				variant="outline"
+				className="w-full"
+				icon={<CameraIcon className="size-4" />}
+				onClick={() => setIsDialogOpen(true)}
+			>
+				{dropoffPhoto ? "Replace photo" : "Add photo"}
+			</Button>
+			<SinglePhotoCaptureDialog
+				open={isDialogOpen}
+				onOpenChange={setIsDialogOpen}
+				title="Drop-off photo"
+				badgeLabel="Drop-off"
+				onCapture={setDropoffPhoto}
+			/>
+		</Field>
 	);
 }

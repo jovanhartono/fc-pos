@@ -6,6 +6,7 @@ export interface OrderActionGates {
 	isPickupAllowed: boolean;
 	canManageDropoffPhoto: boolean;
 	canOpenPickup: boolean;
+	pickupDisabledReason?: string;
 	canCancelOrder: boolean;
 	canRefundWholeOrder: boolean;
 	readyForPickupServices: OrderDetail["services"];
@@ -46,13 +47,24 @@ export const getOrderActionGates = (
 		(item) => !item.refunded_at && !item.cancelled_at,
 	);
 	const isPaid = detail.payment_status === "paid";
+	// ADR-0009: items are ready but the Order is unpaid — explain why pickup is
+	// blocked, and to whom (a pickup-only worker must fetch a cashier to collect).
+	const pickupDisabledReason =
+		readyForPickupServices.length > 0 && !isPaid
+			? isPaymentAllowed
+				? "Order must be paid before pickup."
+				: "A cashier must collect payment before pickup."
+			: undefined;
 
 	return {
 		isAdmin,
 		isPaymentAllowed,
 		isPickupAllowed,
 		canManageDropoffPhoto,
-		canOpenPickup: isPickupAllowed && readyForPickupServices.length > 0,
+		// ADR-0009: payment precedes pickup — no collection on an unpaid Order.
+		canOpenPickup:
+			isPickupAllowed && readyForPickupServices.length > 0 && isPaid,
+		pickupDisabledReason,
 		canCancelOrder:
 			detail.status !== "cancelled" &&
 			!isPaid &&
