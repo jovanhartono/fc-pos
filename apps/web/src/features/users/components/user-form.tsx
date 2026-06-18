@@ -173,9 +173,6 @@ export function UserForm({
 							<Field orientation="horizontal">
 								<FieldContent>
 									<FieldTitle>Active</FieldTitle>
-									<FieldDescription>
-										Active users can sign in and access their assigned areas.
-									</FieldDescription>
 								</FieldContent>
 								<Switch
 									id="user-active"
@@ -196,10 +193,7 @@ export function UserForm({
 							<Field orientation="horizontal">
 								<FieldContent>
 									<FieldTitle>Can process pickup</FieldTitle>
-									<FieldDescription>
-										Grant a non-cashier (e.g. a backup worker) permission to
-										complete customer pickups.
-									</FieldDescription>
+									<FieldDescription>Allow pickup processing.</FieldDescription>
 								</FieldContent>
 								<Switch
 									id="user-pickup"

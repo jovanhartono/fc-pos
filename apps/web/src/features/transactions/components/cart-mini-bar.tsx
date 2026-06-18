@@ -19,7 +19,7 @@ export const CartMiniBar = ({ onOpen }: CartMiniBarProps) => {
 			<Button
 				type="button"
 				size="lg"
-				className="h-14 w-full justify-between gap-3 shadow-lg"
+				className="h-14 w-full justify-between gap-3"
 				onClick={onOpen}
 			>
 				<span className="flex items-center gap-2">

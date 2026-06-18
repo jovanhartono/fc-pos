@@ -184,7 +184,6 @@ function OrdersPage() {
 	const openSheet = useSheet((state) => state.openSheet);
 
 	const orders = ordersQuery.data?.items ?? [];
-	const orderCount = ordersQuery.data?.meta.total ?? 0;
 
 	const handleOpenPickupRadar = useCallback(() => {
 		openSheet({
@@ -339,9 +338,6 @@ function OrdersPage() {
 				title="Orders"
 				actions={
 					<>
-						<Badge
-							variant={ordersQuery.isPending ? "secondary" : "outline"}
-						>{`${orderCount} items`}</Badge>
 						<Button
 							variant="outline"
 							onClick={handleOpenPickupRadar}
@@ -416,13 +412,8 @@ function OrdersPage() {
 							/>
 						</div>
 						{hasNoStoreAssignment ? (
-							<div className="rounded border border-dashed border-border bg-muted/30 p-8 text-center">
-								<p className="font-medium text-foreground text-sm">
-									No store assigned
-								</p>
-								<p className="mt-1 text-muted-foreground text-sm">
-									Ask an admin to assign you to a store before viewing orders.
-								</p>
+							<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-[0.18em]">
+								No store assigned
 							</div>
 						) : (
 							<div className="grid gap-4">

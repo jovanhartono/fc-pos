@@ -204,7 +204,9 @@ export const PhotoLightbox = ({
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent
-				className="max-w-[calc(100%-1rem)] gap-0 overflow-hidden border-border bg-background p-0 text-foreground shadow-2xl sm:max-w-5xl [overscroll-behavior:contain]"
+				className="z-60 max-w-[calc(100%-1rem)] gap-0 overflow-hidden border-border bg-background p-0 text-foreground shadow-2xl sm:max-w-5xl overscroll-contain"
+				overlayClassName="z-[60] bg-black/70 supports-backdrop-filter:backdrop-blur-sm"
+				overlayForceRender
 				showCloseButton
 			>
 				<DialogTitle className="sr-only">{title}</DialogTitle>
@@ -214,7 +216,7 @@ export const PhotoLightbox = ({
 
 				<div className="grid bg-black">
 					<div
-						className="relative flex min-h-[320px] items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.14),_transparent_52%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.18))] px-3 py-12 sm:min-h-[560px] sm:px-14 [touch-action:pan-y]"
+						className="relative flex min-h-80 items-center justify-center bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_52%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.18))] px-3 py-12 sm:min-h-140 sm:px-14 [touch-action:pan-y]"
 						onPointerDown={handlePointerDown}
 						onPointerMove={handlePointerMove}
 						onPointerUp={commitSwipe}
@@ -227,7 +229,7 @@ export const PhotoLightbox = ({
 								alt={activeItem.alt}
 								width={1600}
 								height={1200}
-								className="max-h-[min(72vh,calc(100dvh-14rem))] w-auto max-w-full object-contain select-none"
+								className="pointer-events-none max-h-[min(72vh,calc(100dvh-14rem))] w-auto max-w-full object-contain select-none"
 							/>
 						) : (
 							<div className="grid place-items-center gap-2 px-6 py-12 text-center text-sm text-white/72">
@@ -242,20 +244,22 @@ export const PhotoLightbox = ({
 									type="button"
 									variant="outline"
 									size="icon-lg"
-									className="absolute top-1/2 left-3 hidden -translate-y-1/2 border-white/20 bg-black/45 text-white hover:bg-black/60 hover:text-white focus-visible:border-white/60 md:inline-flex"
+									className="absolute top-1/2 left-3 z-10 hidden size-11 -translate-y-1/2 border-white/20 bg-black/45 text-white hover:bg-black/60 hover:text-white focus-visible:border-white/60 md:inline-flex"
+									onPointerDown={(event) => event.stopPropagation()}
 									onClick={showPrevious}
 									aria-label="Show previous image"
-									icon={<ArrowLeftIcon className="size-4" aria-hidden="true" />}
+									icon={<ArrowLeftIcon className="size-5" aria-hidden="true" />}
 								/>
 								<Button
 									type="button"
 									variant="outline"
 									size="icon-lg"
-									className="absolute top-1/2 right-3 hidden -translate-y-1/2 border-white/20 bg-black/45 text-white hover:bg-black/60 hover:text-white focus-visible:border-white/60 md:inline-flex"
+									className="absolute top-1/2 right-3 z-10 hidden size-11 -translate-y-1/2 border-white/20 bg-black/45 text-white hover:bg-black/60 hover:text-white focus-visible:border-white/60 md:inline-flex"
+									onPointerDown={(event) => event.stopPropagation()}
 									onClick={showNext}
 									aria-label="Show next image"
 									icon={
-										<ArrowRightIcon className="size-4" aria-hidden="true" />
+										<ArrowRightIcon className="size-5" aria-hidden="true" />
 									}
 								/>
 							</>

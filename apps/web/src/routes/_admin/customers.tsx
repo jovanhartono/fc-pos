@@ -8,7 +8,6 @@ import { DataTable } from "@/components/data-table";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
@@ -63,7 +62,6 @@ function CustomersPage() {
 		}),
 	);
 	const customers = customersQuery.data?.items ?? [];
-	const customerCount = customersQuery.data?.meta.total ?? 0;
 
 	const handleOpenEditSheet = useCallback(
 		(customer: Customer) => {
@@ -129,17 +127,12 @@ function CustomersPage() {
 			<PageHeader
 				title="Customers"
 				actions={
-					<>
-						<Badge
-							variant={customersQuery.isPending ? "secondary" : "outline"}
-						>{`${customerCount} items`}</Badge>
-						<Button
-							onClick={handleOpenCreateSheet}
-							icon={<PlusIcon className="size-4" />}
-						>
-							Add Customer
-						</Button>
-					</>
+					<Button
+						onClick={handleOpenCreateSheet}
+						icon={<PlusIcon className="size-4" />}
+					>
+						Add Customer
+					</Button>
 				}
 			/>
 			<div className="grid gap-4">

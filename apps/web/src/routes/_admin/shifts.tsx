@@ -5,18 +5,30 @@ import dayjs from "dayjs";
 import { useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
-import { SelectField } from "@/components/form/select-field";
 import { PageHeader } from "@/components/page-header";
+import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-picker";
+import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import type { Shift } from "@/lib/api";
 import { shiftsQueryOptions, storesQueryOptions } from "@/lib/query-options";
 
+const PAGE_SIZE = 25;
+
 const shiftsSearchSchema = z.object({
 	from: z.string().optional().catch(undefined),
+	page: z.coerce.number().int().positive().catch(1),
 	store_id: z.coerce.number().int().positive().optional().catch(undefined),
 	to: z.string().optional().catch(undefined),
+});
+
+const buildShiftsQuery = (search: z.infer<typeof shiftsSearchSchema>) => ({
+	limit: PAGE_SIZE,
+	offset: (search.page - 1) * PAGE_SIZE,
+	...(search.from ? { from: search.from } : {}),
+	...(search.to ? { to: search.to } : {}),
+	...(search.store_id !== undefined ? { store_id: search.store_id } : {}),
 });
 
 export const Route = createFileRoute("/_admin/shifts")({
@@ -24,7 +36,9 @@ export const Route = createFileRoute("/_admin/shifts")({
 	loaderDeps: ({ search }) => search,
 	loader: ({ context, deps }) =>
 		Promise.all([
-			context.queryClient.ensureQueryData(shiftsQueryOptions(deps)),
+			context.queryClient.ensureQueryData(
+				shiftsQueryOptions(buildShiftsQuery(deps)),
+			),
 			context.queryClient.ensureQueryData(storesQueryOptions()),
 		]),
 	component: ShiftsPage,
@@ -50,10 +64,8 @@ const formatDuration = (
 function ShiftsPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
-	const shiftsQuery = useQuery(shiftsQueryOptions(search));
-	const storesQuery = useQuery(storesQueryOptions());
-	const shifts = shiftsQuery.data ?? [];
-	const stores = storesQuery.data ?? [];
+	const shiftsQuery = useQuery(shiftsQueryOptions(buildShiftsQuery(search)));
+	const shifts = shiftsQuery.data?.items ?? [];
 
 	const columns = useMemo<ColumnDef<Shift>[]>(
 		() => [
@@ -114,66 +126,57 @@ function ShiftsPage() {
 			<div className="grid gap-4">
 				<Card>
 					<CardContent>
-						<div className="mb-4 flex flex-wrap items-end gap-2">
-							<div className="grid gap-1">
-								<label
-									htmlFor="shifts-store"
-									className="text-muted-foreground text-xs font-medium uppercase"
-								>
-									Store
-								</label>
-								<SelectField
-									id="shifts-store"
-									items={[
-										{ value: "all", label: "All stores" },
-										...stores.map((store) => ({
-											value: String(store.id),
-											label: `${store.code} · ${store.name}`,
-										})),
-									]}
-									value={
-										search.store_id !== undefined
-											? String(search.store_id)
-											: "all"
-									}
-									onValueChange={(value) => {
-										void navigate({
-											search: (prev) => ({
-												...prev,
-												store_id:
-													!value || value === "all" ? undefined : Number(value),
-											}),
-										});
-									}}
-									className="min-w-40"
-									placeholder="All stores"
-								/>
-							</div>
-							<div className="grid gap-1">
-								<span className="text-muted-foreground text-xs font-medium uppercase">
-									Date range
-								</span>
-								<DateRangePicker
-									id="shifts-range"
-									from={search.from}
-									to={search.to}
-									onChange={({ from, to }) => {
-										void navigate({
-											search: (prev) => ({
-												...prev,
-												from: from ?? undefined,
-												to: to ?? undefined,
-											}),
-										});
-									}}
-								/>
-							</div>
+						<div className="mb-4 flex flex-wrap items-center gap-2">
+							<StoreAutocomplete
+								id="shifts-store"
+								hideLabel
+								value={search.store_id?.toString() ?? ""}
+								onValueChange={(value) => {
+									void navigate({
+										search: (prev) => ({
+											...prev,
+											page: 1,
+											store_id: value ? Number(value) : undefined,
+										}),
+									});
+								}}
+								allOptionLabel="All stores"
+								placeholder="Filter by store"
+								triggerClassName="h-10 w-max min-w-48 text-sm"
+							/>
+							<DateRangePicker
+								commitOnComplete
+								id="shifts-range"
+								from={search.from}
+								to={search.to}
+								onChange={({ from, to }) => {
+									void navigate({
+										search: (prev) => ({
+											...prev,
+											from: from ?? undefined,
+											page: 1,
+											to: to ?? undefined,
+										}),
+									});
+								}}
+							/>
 						</div>
-						<DataTable
-							columns={columns}
-							data={shifts}
-							isLoading={shiftsQuery.isPending}
-						/>
+						<div className="grid gap-4">
+							<DataTable
+								columns={columns}
+								data={shifts}
+								isLoading={shiftsQuery.isPending}
+							/>
+							<TablePagination
+								meta={shiftsQuery.data?.meta}
+								isLoading={shiftsQuery.isPending}
+								onPageChange={(page) => {
+									void navigate({
+										search: (prev) => ({ ...prev, page }),
+									});
+								}}
+							/>
+						</div>
 					</CardContent>
 				</Card>
 			</div>

@@ -389,7 +389,7 @@ function CampaignsPage() {
 			<div className="grid gap-4">
 				<Card>
 					<CardContent>
-						<div className="mb-4 flex items-center gap-2">
+						<div className="mb-4 flex flex-wrap items-center gap-2">
 							<SelectField
 								items={{
 									all: "All status",

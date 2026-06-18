@@ -122,7 +122,7 @@ export function OrderPhotoGallery({
 							}
 							variant="outline"
 							size="icon-sm"
-							className="absolute top-3 right-3 border-black/10 bg-background/92 text-foreground shadow-sm backdrop-blur-xs hover:border-border hover:bg-background hover:text-foreground"
+							className="absolute top-3 right-3 border-black/10 bg-background text-foreground hover:border-border hover:bg-background hover:text-foreground"
 							title="Save image"
 						/>
 						{onDelete && item.canDelete ? (
@@ -130,7 +130,7 @@ export function OrderPhotoGallery({
 								type="button"
 								variant="outline"
 								size="icon-sm"
-								className="absolute top-3 right-12 border-black/10 bg-background/92 text-destructive shadow-sm backdrop-blur-xs hover:border-destructive/40 hover:bg-destructive/10"
+								className="absolute top-3 right-12 border-black/10 bg-background text-destructive hover:border-destructive/40 hover:bg-destructive/10"
 								onClick={() => onDelete(item.id)}
 								disabled={deletingId === item.id}
 								aria-label={`Delete ${getPhotoPrimaryLabel(item)} image`}

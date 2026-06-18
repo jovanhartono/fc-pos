@@ -173,7 +173,7 @@ export const CustomersPanel = ({
 									<div key={c.customer_id} className="grid gap-1">
 										<div className="flex items-center justify-between gap-2">
 											<span className="flex items-center gap-2 truncate text-sm font-medium">
-												<span className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+												<span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
 													{`#${idx + 1}`}
 												</span>
 												<span className="truncate">{c.customer_name}</span>

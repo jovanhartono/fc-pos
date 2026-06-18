@@ -5,16 +5,20 @@ type ServiceItemDetails = {
 	size?: string | null;
 };
 
-export function formatOrderServiceItemDetails({
+export function getOrderServiceItemDetails({
 	brand,
 	model,
 	color,
 	size,
-}: ServiceItemDetails) {
+}: ServiceItemDetails): string | null {
 	const parts = [brand, model, color, size].flatMap((value) => {
 		const trimmed = value?.trim();
 		return trimmed ? [trimmed] : [];
 	});
 
-	return parts.join(" · ") || "No item details";
+	return parts.join(" · ") || null;
+}
+
+export function formatOrderServiceItemDetails(details: ServiceItemDetails) {
+	return getOrderServiceItemDetails(details) ?? "No item details";
 }

@@ -831,7 +831,7 @@ const KpiStrip = ({ data, storeId }: KpiStripProps) => {
 		return (
 			<Card className="border-border/70">
 				<CardContent className="grid h-30 place-items-center p-5 sm:p-6">
-					<p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+					<p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
 						Loading totals…
 					</p>
 				</CardContent>

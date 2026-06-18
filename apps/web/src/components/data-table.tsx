@@ -90,7 +90,9 @@ export const DataTable = <TData extends RowData>({
 	cardHiddenColumnIds,
 }: DataTableProps<TData>) => {
 	const [sorting, setSorting] = useState<SortingState>([]);
-	const isMobile = useIsMobile();
+	// Sidebar stays expanded until lg, leaving too little width for a real
+	// table at tablet — render the card layout up to lg instead of md.
+	const isCardView = useIsMobile(1024);
 
 	const table = useReactTable({
 		data,
@@ -103,10 +105,10 @@ export const DataTable = <TData extends RowData>({
 
 	const colSpan = Math.max(columns.length, 1);
 
-	if (isMobile) {
+	if (isCardView) {
 		if (isLoading) {
 			return (
-				<div className="grid gap-2 md:hidden">
+				<div className="grid gap-2 lg:hidden">
 					{Array.from({ length: 3 }, (_, index) => (
 						<div
 							key={index}
@@ -123,7 +125,7 @@ export const DataTable = <TData extends RowData>({
 
 		if (data.length === 0) {
 			return (
-				<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-[0.18em] md:hidden">
+				<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-[0.18em] lg:hidden">
 					{emptyMessage}
 				</div>
 			);
@@ -140,7 +142,7 @@ export const DataTable = <TData extends RowData>({
 		const hiddenIds = new Set(cardHiddenColumnIds ?? []);
 
 		return (
-			<div className="grid gap-2 md:hidden">
+			<div className="grid gap-2 lg:hidden">
 				{table.getRowModel().rows.map((row) => {
 					const visibleCells = row.getVisibleCells();
 					const primaryCell = visibleCells.find(
@@ -194,7 +196,7 @@ export const DataTable = <TData extends RowData>({
 													) : null}
 													<span
 														className={cn(
-															"font-medium font-mono text-[10px] text-muted-foreground uppercase tracking-[0.16em]",
+															"font-medium font-mono text-[10px] text-muted-foreground uppercase tracking-[0.18em]",
 															mobileCard?.className,
 														)}
 													>
@@ -291,7 +293,7 @@ export const DataTable = <TData extends RowData>({
 											>
 												<dt
 													className={cn(
-														"font-medium font-mono text-[10px] text-muted-foreground uppercase tracking-[0.16em]",
+														"font-medium font-mono text-[10px] text-muted-foreground uppercase tracking-[0.18em]",
 														mobileCard?.labelClassName,
 													)}
 												>
@@ -321,12 +323,12 @@ export const DataTable = <TData extends RowData>({
 	}
 
 	return (
-		<Table>
+		<Table containerClassName="lg:max-h-[calc(100dvh-18rem)]">
 			<TableHeader>
 				{table.getHeaderGroups().map((headerGroup) => (
 					<TableRow
 						key={headerGroup.id}
-						className="border-border bg-muted/40 hover:bg-muted/40"
+						className="border-border hover:bg-muted"
 					>
 						{headerGroup.headers.map((header) => {
 							const canSort = sortable && header.column.getCanSort();
@@ -334,14 +336,16 @@ export const DataTable = <TData extends RowData>({
 							return (
 								<TableHead
 									key={header.id}
-									className="h-9 font-medium font-mono text-[10px] text-muted-foreground uppercase tracking-[0.14em]"
+									className="sticky top-0 z-10 h-9 bg-muted font-medium font-mono text-[10px] text-muted-foreground uppercase tracking-[0.18em]"
 								>
 									{header.isPlaceholder ? null : canSort ? (
 										<button
 											type="button"
 											onClick={header.column.getToggleSortingHandler()}
 											className={cn(
-												"flex items-center gap-1 transition-colors hover:text-foreground",
+												// Browsers force text-transform:none on <button>, so restate
+												// uppercase here to match the non-sortable plain-text headers.
+												"flex items-center gap-1 uppercase transition-colors hover:text-foreground",
 												sortState && "text-foreground",
 											)}
 										>
@@ -377,7 +381,7 @@ export const DataTable = <TData extends RowData>({
 					<TableRow>
 						<TableCell
 							colSpan={colSpan}
-							className="h-20 text-center font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-[0.16em] md:h-24"
+							className="h-20 text-center font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-[0.18em] md:h-24"
 						>
 							Loading…
 						</TableCell>
@@ -396,7 +400,7 @@ export const DataTable = <TData extends RowData>({
 					<TableRow>
 						<TableCell
 							colSpan={colSpan}
-							className="h-20 text-center font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-[0.16em] md:h-24"
+							className="h-20 text-center font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-[0.18em] md:h-24"
 						>
 							{emptyMessage}
 						</TableCell>

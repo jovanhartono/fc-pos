@@ -51,7 +51,7 @@ function OrderMetaBadge({
 }: OrderMetaBadgeProps) {
 	return (
 		<div className="border border-border/70 bg-muted/20 px-3 py-2">
-			<p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+			<p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
 				{label}
 			</p>
 			<div className="mt-1 flex items-center gap-2">

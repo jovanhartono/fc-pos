@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from "@/errors";
 import {
+  countShifts,
   findOpenShiftByUserId,
   insertShift,
   listShifts,
@@ -8,6 +9,7 @@ import {
 import type { GetShiftsQuery } from "@/modules/shifts/shift.schema";
 import type { JWTPayload } from "@/types";
 import { assertStoreAccess } from "@/utils/authorization";
+import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 
 export async function clockIn({
   user,
@@ -54,9 +56,22 @@ export function getCurrentShift(user: JWTPayload) {
   return findOpenShiftByUserId(user.id);
 }
 
-export function getShifts(user: JWTPayload, query?: GetShiftsQuery) {
-  if (user.role !== "admin") {
-    return listShifts({ ...query, user_id: user.id });
-  }
-  return listShifts(query);
+export async function getShifts(user: JWTPayload, query?: GetShiftsQuery) {
+  const effectiveQuery =
+    user.role === "admin" ? query : { ...query, user_id: user.id };
+  const pagination = normalizePagination(effectiveQuery, { maxPageSize: 100 });
+
+  const [items, total] = await Promise.all([
+    listShifts({
+      limit: pagination.limit,
+      offset: pagination.offset,
+      query: effectiveQuery,
+    }),
+    countShifts(effectiveQuery),
+  ]);
+
+  return {
+    items,
+    meta: buildPaginationMeta(total, pagination),
+  };
 }

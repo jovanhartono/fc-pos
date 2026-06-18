@@ -117,7 +117,6 @@ function UsersPage() {
 		() => new Map((storesQuery.data ?? []).map((store) => [store.id, store])),
 		[storesQuery.data],
 	);
-	const userCount = usersQuery.data?.meta.total ?? 0;
 
 	const resetForm = useCallback(() => {
 		form.reset(defaultForm);
@@ -312,17 +311,9 @@ function UsersPage() {
 			<PageHeader
 				title="Users"
 				actions={
-					<>
-						<Badge
-							variant={usersQuery.isPending ? "secondary" : "outline"}
-						>{`${userCount} items`}</Badge>
-						<Button
-							icon={<PlusIcon className="size-4" />}
-							onClick={handleCreate}
-						>
-							Add User
-						</Button>
-					</>
+					<Button icon={<PlusIcon className="size-4" />} onClick={handleCreate}>
+						Add User
+					</Button>
 				}
 			/>
 			<div className="grid gap-4">

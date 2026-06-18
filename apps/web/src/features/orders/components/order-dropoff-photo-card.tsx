@@ -30,10 +30,7 @@ export const OrderDropoffPhotoCard = memo(
 					<CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-2">
 						<div className="min-w-0 space-y-1">
 							<CardTitle className="text-base">Drop-off photo</CardTitle>
-							<p className="text-muted-foreground text-sm">
-								Proof the customer handed the items over. Uploading replaces the
-								current file.
-							</p>
+							<p className="text-muted-foreground text-sm">Proof of handoff.</p>
 						</div>
 						<Badge variant={isSaved ? "secondary" : "outline"}>
 							{isSaved ? "Saved" : "Missing"}
@@ -86,11 +83,6 @@ export const OrderDropoffPhotoCard = memo(
 						>
 							{isSaved ? "Replace photo" : "Upload photo"}
 						</Button>
-						{canManage ? null : (
-							<p className="text-muted-foreground text-xs">
-								Cashiers and workers can update the drop-off photo.
-							</p>
-						)}
 					</CardContent>
 				</Card>
 				{order.dropoff_photo_url ? (

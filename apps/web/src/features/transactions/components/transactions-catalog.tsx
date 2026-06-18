@@ -139,7 +139,7 @@ export function TransactionsCatalog() {
 
 	return (
 		<div className="grid gap-5 self-start xl:sticky xl:top-0">
-			<Card className="border-border/70 bg-linear-to-br from-background via-background to-card shadow-sm">
+			<Card className="border-border/70">
 				<CardContent className="grid gap-4 p-4 sm:p-5">
 					<div className="grid gap-3">
 						<Field>
@@ -222,10 +222,10 @@ export function TransactionsCatalog() {
 						<Card
 							key={`${mode}-${item.id}`}
 							className={cn(
-								"overflow-hidden border-border/70 shadow-sm transition-all",
+								"overflow-hidden border-border/70 transition-colors",
 								isProduct
 									? "bg-background hover:border-border"
-									: "bg-muted/20 hover:border-border hover:shadow-md",
+									: "bg-muted/20 hover:border-border",
 							)}
 						>
 							<CardContent className="p-0">
@@ -247,7 +247,7 @@ export function TransactionsCatalog() {
 									aria-label={`Add ${item.name}`}
 								>
 									{categoryName ? (
-										<span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+										<span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
 											{categoryName}
 										</span>
 									) : null}

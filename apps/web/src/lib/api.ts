@@ -146,6 +146,8 @@ export type FetchShiftsQuery = {
 	store_id?: number;
 	from?: string;
 	to?: string;
+	limit?: number;
+	offset?: number;
 };
 
 export type DailyReport = Extract<
@@ -1127,7 +1129,9 @@ export async function fetchCurrentShift() {
 	);
 }
 
-export async function fetchShifts(query?: FetchShiftsQuery) {
+export async function fetchShifts(
+	query?: FetchShiftsQuery,
+): Promise<PaginatedData<Shift>> {
 	const response = await parseResponse(
 		rpcWithAuth().api.admin.shifts.$get({
 			query:
@@ -1141,11 +1145,25 @@ export async function fetchShifts(query?: FetchShiftsQuery) {
 								: {}),
 							...(query.from ? { from: query.from } : {}),
 							...(query.to ? { to: query.to } : {}),
+							...(query.limit !== undefined
+								? { limit: String(query.limit) }
+								: {}),
+							...(query.offset !== undefined
+								? { offset: String(query.offset) }
+								: {}),
 						}
 					: undefined,
 		}),
 	);
-	return response.data;
+
+	return {
+		items: response.data,
+		meta: (response.meta ?? {
+			limit: query?.limit ?? response.data.length,
+			offset: query?.offset ?? 0,
+			total: response.data.length,
+		}) as PaginationMeta,
+	};
 }
 
 export async function clockInShift(payload: { store_id: number }) {

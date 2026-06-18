@@ -19,9 +19,9 @@ const app = new Hono()
     const user = c.get("jwtPayload") as JWTPayload;
     const query = c.req.valid("query");
 
-    const items = await getShifts(user, query);
+    const { items, meta } = await getShifts(user, query);
 
-    return c.json(success(items));
+    return c.json(success(items, undefined, meta));
   })
   .get("/current", async (c) => {
     const user = c.get("jwtPayload") as JWTPayload;

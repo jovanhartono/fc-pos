@@ -110,7 +110,7 @@ function AttendancePage() {
 	const elapsed = currentShift
 		? formatElapsed(new Date(currentShift.clock_in_at), now)
 		: null;
-	const weekShifts = shiftsQuery.data ?? [];
+	const weekShifts = shiftsQuery.data?.items ?? [];
 
 	return (
 		<>
@@ -127,7 +127,7 @@ function AttendancePage() {
 						<div className="flex flex-col items-center gap-2">
 							<span
 								className={cn(
-									"inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.28em]",
+									"inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em]",
 									onShift
 										? "text-emerald-600 dark:text-emerald-400"
 										: "text-muted-foreground",
@@ -225,7 +225,7 @@ function AttendancePage() {
 
 				<div className="grid gap-2">
 					<div className="flex items-baseline justify-between px-1">
-						<h2 className="font-semibold text-xs uppercase tracking-[0.2em]">
+						<h2 className="font-semibold text-xs uppercase tracking-[0.18em]">
 							This week
 						</h2>
 						<span className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.18em]">
@@ -272,7 +272,7 @@ function ShiftRow({ shift }: { shift: Shift }) {
 								: "border-border bg-muted text-foreground",
 						)}
 					>
-						<span className="text-[9px] uppercase tracking-[0.14em]">
+						<span className="text-[9px] uppercase tracking-[0.18em]">
 							{dayjs(shift.clock_in_at).format("ddd")}
 						</span>
 						<span className="font-semibold text-xs leading-none">

@@ -248,7 +248,7 @@ export function AppShell({ title, children }: AppShellProps) {
 		<SidebarProvider>
 			<Sidebar collapsible="icon" variant="inset">
 				<SidebarHeader className="flex-row items-center justify-between group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
-					<div className="flex items-center gap-2 px-2 text-sm font-semibold uppercase tracking-[0.2em] text-sidebar-foreground/80">
+					<div className="flex items-center gap-2 px-2 text-sm font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/80">
 						<BuildingsIcon className="size-4" />
 						<span className="group-data-[collapsible=icon]:hidden">
 							Fresclean POS
@@ -317,10 +317,10 @@ export function AppShell({ title, children }: AppShellProps) {
 							</div>
 						</div>
 						<div className="flex items-center justify-between border-sidebar-border/70 border-t px-2.5 py-1.5 group-data-[collapsible=icon]:hidden">
-							<span className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
+							<span className="text-[10px] text-muted-foreground uppercase tracking-[0.18em]">
 								Role
 							</span>
-							<span className="font-semibold text-[10px] uppercase tracking-[0.2em]">
+							<span className="font-semibold text-[10px] uppercase tracking-[0.18em]">
 								{role ?? "—"}
 							</span>
 						</div>

@@ -1,15 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Skeleton } from "@/components/ui/skeleton";
-import { OrderDetailHeader } from "@/features/orders/components/order-detail-header";
 import { OrderDropoffPhotoCard } from "@/features/orders/components/order-dropoff-photo-card";
-import { OrderFulfillmentOverview } from "@/features/orders/components/order-fulfillment-overview";
+import { OrderIdentityStrip } from "@/features/orders/components/order-identity-strip";
+import { OrderLineItemsCard } from "@/features/orders/components/order-line-items-card";
 import { OrderPaymentCard } from "@/features/orders/components/order-payment-card";
-import { OrderPickupEventDialog } from "@/features/orders/components/order-pickup-event-dialog";
 import { OrderPickupHistoryCard } from "@/features/orders/components/order-pickup-history-card";
-import { OrderProductsCard } from "@/features/orders/components/order-products-card";
-import { OrderServiceCard } from "@/features/orders/components/order-service-card";
-import { OrderSummaryCard } from "@/features/orders/components/order-summary-card";
 import { useRefreshOrder } from "@/features/orders/hooks/useOrderMutations";
 import { getOrderActionGates } from "@/features/orders/lib/order-action-gates";
 import {
@@ -17,7 +13,6 @@ import {
 	orderDetailQueryOptions,
 	paymentMethodsQueryOptions,
 } from "@/lib/query-options";
-import { useDialog } from "@/stores/dialog-store";
 
 export const Route = createFileRoute("/_admin/orders/$orderId")({
 	loader: async ({ context, params }) => {
@@ -101,8 +96,6 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 	// the JWT claims go stale when an admin changes them mid-session.
 	const meQuery = useQuery(meQueryOptions());
 	const detailQuery = useQuery(orderDetailQueryOptions(id));
-	const openDialog = useDialog((s) => s.openDialog);
-	const closeDialog = useDialog((s) => s.closeDialog);
 	const refreshOrder = useRefreshOrder(id);
 
 	if (detailQuery.isPending) {
@@ -135,73 +128,35 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 
 	const detail = detailQuery.data;
 	const gates = getOrderActionGates(meQuery.data, detail);
-	const orderServices = Array.isArray(detail.services) ? detail.services : [];
-	const orderProducts = Array.isArray(detail.products) ? detail.products : [];
-	const orderRefunds = Array.isArray(detail.refunds) ? detail.refunds : [];
-	const pickupEvents = Array.isArray(detail.pickup_events)
-		? detail.pickup_events
-		: [];
-
-	const openPickupDialog = () => {
-		openDialog({
-			title: "Record pickup",
-			description: "Select the items being collected and attach a photo.",
-			contentClassName: "sm:max-w-xl",
-			content: () => (
-				<OrderPickupEventDialog
-					closeDialog={closeDialog}
-					orderId={id}
-					readyServices={gates.readyForPickupServices}
-				/>
-			),
-		});
-	};
+	const pickupEvents = detail.pickup_events;
 
 	return (
 		<>
-			<OrderDetailHeader orderId={id} detail={detail} gates={gates} />
+			<OrderIdentityStrip detail={detail} gates={gates} orderId={id} />
 
-			<div className="mb-4 grid gap-3 sm:mb-6 sm:gap-4">
-				<OrderFulfillmentOverview
-					order={detail}
-					canCompletePickup={gates.canOpenPickup}
-					disabledReason={gates.pickupDisabledReason}
-					isCompleting={false}
-					onCompletePickup={async () => {
-						openPickupDialog();
-					}}
-				/>
-			</div>
+			<div className="grid items-start gap-3 sm:gap-4 lg:grid-cols-3">
+				<div className="lg:col-span-2">
+					<OrderLineItemsCard
+						detail={detail}
+						isAdmin={gates.isAdmin}
+						orderId={id}
+					/>
+				</div>
 
-			<OrderSummaryCard detail={detail} />
+				<div className="grid gap-3 sm:gap-4">
+					{gates.isPaymentAllowed && detail.payment_status !== "paid" ? (
+						<OrderPaymentCard orderId={id} />
+					) : null}
 
-			<div className="grid items-start gap-3 sm:gap-4 lg:grid-cols-12">
-				<div className="grid gap-3 sm:gap-4 lg:col-span-4">
 					<OrderDropoffPhotoCard
-						order={detail}
 						canManage={gates.canManageDropoffPhoto}
 						onUploaded={refreshOrder}
+						order={detail}
 					/>
 
 					{pickupEvents.length > 0 ? (
 						<OrderPickupHistoryCard pickupEvents={pickupEvents} />
 					) : null}
-
-					{gates.isPaymentAllowed && detail.payment_status !== "paid" ? (
-						<OrderPaymentCard orderId={id} />
-					) : null}
-				</div>
-
-				<div className="grid gap-3 sm:gap-4 lg:col-span-8">
-					<OrderProductsCard products={orderProducts} refunds={orderRefunds} />
-					{orderServices.map((service) => (
-						<OrderServiceCard
-							key={service.id}
-							orderId={id}
-							service={service}
-							isAdmin={gates.isAdmin}
-						/>
-					))}
 				</div>
 			</div>
 		</>

@@ -133,7 +133,7 @@ function BrandMark({ className }: { className?: string }) {
 				</text>
 			</svg>
 			<div className="leading-none">
-				<p className="font-bold text-[13px] tracking-[0.28em] text-[#0f1a16]">
+				<p className="font-bold text-[13px] tracking-[0.18em] text-[#0f1a16]">
 					FRESCLEAN
 				</p>
 				<p className="mt-1 font-mono text-[9px] uppercase tracking-[0.24em] text-[#2a2922]/50">
@@ -208,7 +208,7 @@ function ProgressIndicator({
 							<div className="grid gap-0.5">
 								<p
 									className={cn(
-										"font-semibold text-[11px] uppercase tracking-[0.14em] sm:text-xs",
+										"font-semibold text-[11px] uppercase tracking-[0.18em] sm:text-xs",
 										isComplete || isCurrent
 											? "text-[#0f1a16]"
 											: "text-[#2a2922]/45",
@@ -331,7 +331,7 @@ function TrackOrderPage() {
 						href="https://wa.me/6281290033232"
 						target="_blank"
 						rel="noreferrer"
-						className="inline-flex items-center gap-1.5 border border-[#0f1a16]/15 bg-white px-3 py-2 text-xs font-medium uppercase tracking-[0.14em] text-[#0f1a16] transition-colors hover:bg-[#0f1a16] hover:text-white"
+						className="inline-flex items-center gap-1.5 border border-[#0f1a16]/15 bg-white px-3 py-2 text-xs font-medium uppercase tracking-[0.18em] text-[#0f1a16] transition-colors hover:bg-[#0f1a16] hover:text-white"
 					>
 						<WhatsappLogoIcon className="size-3.5" weight="duotone" />
 						<span className="hidden sm:inline">Help</span>
@@ -372,7 +372,7 @@ function TrackOrderPage() {
 							<Field data-invalid={!!formError}>
 								<FieldLabel
 									htmlFor="track-code"
-									className="font-mono text-[10px] font-medium uppercase tracking-[0.2em] text-[#2a2922]/70"
+									className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-[#2a2922]/70"
 								>
 									Order code
 								</FieldLabel>
@@ -387,7 +387,7 @@ function TrackOrderPage() {
 							<Field data-invalid={!!formError}>
 								<FieldLabel
 									htmlFor="track-phone"
-									className="font-mono text-[10px] font-medium uppercase tracking-[0.2em] text-[#2a2922]/70"
+									className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-[#2a2922]/70"
 								>
 									WhatsApp number
 								</FieldLabel>
@@ -407,7 +407,7 @@ function TrackOrderPage() {
 							type="button"
 							onClick={handleTrack}
 							disabled={isLoading}
-							className="h-11 rounded-none bg-[#0f1a16] text-xs font-semibold uppercase tracking-[0.2em] text-white transition-colors hover:bg-[#2a2922] disabled:opacity-60"
+							className="h-11 rounded-none bg-[#0f1a16] text-xs font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#2a2922] disabled:opacity-60"
 						>
 							{isLoading ? "Searching…" : "Track order →"}
 						</Button>
@@ -427,7 +427,7 @@ function TrackOrderPage() {
 							<div className="grid gap-5 sm:gap-7">
 								<div className="grid gap-4 border-b border-[#0f1a16]/10 pb-5 sm:grid-cols-3 sm:gap-6">
 									<div className="grid gap-1 sm:col-span-2">
-										<p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#2a2922]/55">
+										<p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#2a2922]/55">
 											Order code
 										</p>
 										<p className="font-mono text-xl font-semibold tracking-tight text-[#0f1a16]">
@@ -438,7 +438,7 @@ function TrackOrderPage() {
 										</p>
 									</div>
 									<div className="grid gap-1 sm:text-right">
-										<p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#2a2922]/55">
+										<p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#2a2922]/55">
 											Branch
 										</p>
 										<p className="text-sm font-semibold text-[#0f1a16]">
@@ -448,7 +448,7 @@ function TrackOrderPage() {
 											{orderStatus ? (
 												<Badge
 													variant={getOrderStatusBadgeVariant(orderStatus)}
-													className="font-mono text-[10px] uppercase tracking-[0.14em]"
+													className="font-mono text-[10px] uppercase tracking-[0.18em]"
 												>
 													{formatOrderStatus(orderStatus)}
 												</Badge>
@@ -506,7 +506,7 @@ function TrackOrderPage() {
 											{String(index + 1).padStart(2, "0")}
 										</span>
 										<div className="min-w-0 grid gap-1">
-											<p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#2a2922]/55">
+											<p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#2a2922]/55">
 												{item.item_code ?? `#${item.id}`}
 											</p>
 											<p className="font-semibold text-[15px] text-[#0f1a16]">
@@ -518,7 +518,7 @@ function TrackOrderPage() {
 										</div>
 										<Badge
 											variant={getOrderServiceStatusBadgeVariant(item.status)}
-											className="h-fit justify-self-start font-mono text-[10px] uppercase tracking-[0.14em] sm:justify-self-end"
+											className="h-fit justify-self-start font-mono text-[10px] uppercase tracking-[0.18em] sm:justify-self-end"
 										>
 											{formatOrderServiceStatus(item.status)}
 										</Badge>
@@ -536,7 +536,7 @@ function TrackOrderPage() {
 							</div>
 							<div className="grid gap-5 sm:grid-cols-[1fr_auto] sm:items-center sm:gap-8">
 								<div className="grid gap-1">
-									<p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#2a2922]/55">
+									<p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#2a2922]/55">
 										Questions?
 									</p>
 									<p className="text-sm text-[#2a2922]/80">
@@ -552,14 +552,14 @@ function TrackOrderPage() {
 										}
 										target="_blank"
 										rel="noreferrer"
-										className="inline-flex items-center gap-2 border border-emerald-600 bg-emerald-600 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-emerald-700"
+										className="inline-flex items-center gap-2 border border-emerald-600 bg-emerald-600 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:bg-emerald-700"
 									>
 										<WhatsappLogoIcon className="size-4" weight="duotone" />
 										WhatsApp
 									</a>
 									<a
 										href={`tel:${trackData.store.phone_number ?? ""}`}
-										className="inline-flex items-center gap-2 border border-[#0f1a16]/15 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#0f1a16] transition-colors hover:bg-[#0f1a16] hover:text-white"
+										className="inline-flex items-center gap-2 border border-[#0f1a16]/15 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#0f1a16] transition-colors hover:bg-[#0f1a16] hover:text-white"
 									>
 										<PhoneIcon className="size-4" weight="duotone" />
 										Call
@@ -579,7 +579,7 @@ function TrackOrderPage() {
 									setCode("");
 									setPhone("");
 								}}
-								className="inline-flex items-center gap-2 border border-[#0f1a16]/20 bg-transparent px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#0f1a16] transition-colors hover:bg-[#0f1a16] hover:text-white"
+								className="inline-flex items-center gap-2 border border-[#0f1a16]/20 bg-transparent px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#0f1a16] transition-colors hover:bg-[#0f1a16] hover:text-white"
 							>
 								<ArrowCounterClockwiseIcon
 									className="size-3.5"

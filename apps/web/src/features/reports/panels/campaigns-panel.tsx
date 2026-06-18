@@ -110,7 +110,7 @@ export const CampaignsPanel = ({
 									<div key={c.campaign_id} className="grid gap-1">
 										<div className="flex items-center justify-between gap-2">
 											<span className="flex items-center gap-2 truncate text-sm font-medium">
-												<span className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+												<span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
 													{c.campaign_code}
 												</span>
 												<span className="truncate">{c.campaign_name}</span>
