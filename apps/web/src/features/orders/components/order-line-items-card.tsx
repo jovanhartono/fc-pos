@@ -103,7 +103,7 @@ export const OrderLineItemsCard = ({
 	return (
 		<div className="grid gap-3 sm:gap-4">
 			<Card className="gap-0 overflow-hidden py-0">
-				<SectionHeader>Services · {services.length}</SectionHeader>
+				<SectionHeader>Services</SectionHeader>
 				{services.length > 0 ? (
 					services.map((service) => (
 						<OrderServiceRow
@@ -122,7 +122,7 @@ export const OrderLineItemsCard = ({
 
 			{products.length > 0 ? (
 				<Card className="gap-0 overflow-hidden py-0">
-					<SectionHeader>Products · {products.length}</SectionHeader>
+					<SectionHeader>Products</SectionHeader>
 					{products.map((item) => (
 						<ProductLine
 							key={item.id}

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PhotoLightbox } from "@/features/orders/components/photo-lightbox";
 import { SinglePhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
+import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { uploadOrderDropoffPhoto } from "@/features/orders/utils/photo-upload";
 import type { OrderDetail } from "@/lib/api";
 
@@ -63,14 +64,7 @@ export const OrderDropoffPhotoCard = memo(
 						</div>
 						{order.dropoff_photo_uploaded_at ? (
 							<p className="text-muted-foreground text-xs">
-								Uploaded{" "}
-								{new Date(order.dropoff_photo_uploaded_at).toLocaleString(
-									"en-ID",
-									{
-										dateStyle: "medium",
-										timeStyle: "short",
-									},
-								)}
+								Uploaded {formatOrderDateTime(order.dropoff_photo_uploaded_at)}
 							</p>
 						) : null}
 						<Button

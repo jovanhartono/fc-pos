@@ -7,6 +7,7 @@ import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
+import { formatIDRCurrency } from "@/shared/utils";
 import { useSheet } from "@/stores/sheet-store";
 
 type OrderServiceRowService = OrderDetail["services"][number];
@@ -24,7 +25,9 @@ export const OrderServiceRow = memo(
 		const code = service.item_code ?? `Service #${service.id}`;
 		const serviceName = service.service?.name ?? "Service";
 		const itemDetails = getOrderServiceItemDetails(service);
-		const handlerName = service.handler?.name;
+		const metaLine = [itemDetails, service.handler?.name]
+			.filter(Boolean)
+			.join(" · ");
 
 		const handleClick = () => {
 			openSheet({
@@ -51,24 +54,24 @@ export const OrderServiceRow = memo(
 						{code}
 					</span>
 					<span className="block text-sm leading-snug">{serviceName}</span>
-					{itemDetails ? (
+					{metaLine ? (
 						<span className="block text-muted-foreground text-xs leading-snug">
-							{itemDetails}
-						</span>
-					) : null}
-					{handlerName ? (
-						<span className="block text-muted-foreground text-xs leading-snug">
-							Handler · {handlerName}
+							{metaLine}
 						</span>
 					) : null}
 				</span>
-				<span className="flex shrink-0 flex-wrap justify-end gap-1.5">
-					{service.is_priority ? (
-						<Badge variant="warning">Priority</Badge>
-					) : null}
-					<Badge variant={getOrderServiceStatusBadgeVariant(service.status)}>
-						{formatOrderServiceStatus(service.status)}
-					</Badge>
+				<span className="flex shrink-0 flex-col items-end gap-1.5">
+					<span className="flex flex-wrap justify-end gap-1.5">
+						{service.is_priority ? (
+							<Badge variant="warning">Priority</Badge>
+						) : null}
+						<Badge variant={getOrderServiceStatusBadgeVariant(service.status)}>
+							{formatOrderServiceStatus(service.status)}
+						</Badge>
+					</span>
+					<span className="font-mono text-sm tabular-nums">
+						{formatIDRCurrency(String(service.subtotal ?? 0))}
+					</span>
 				</span>
 			</button>
 		);

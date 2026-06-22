@@ -264,7 +264,12 @@ export type FetchOrdersQuery = {
 	offset?: number;
 	search?: string;
 	store_id?: number;
-	status?: "created" | "processing" | "completed" | "cancelled";
+	status?:
+		| "created"
+		| "processing"
+		| "ready_for_pickup"
+		| "completed"
+		| "cancelled";
 	payment_status?: "paid" | "unpaid";
 	date_from?: string;
 	date_to?: string;

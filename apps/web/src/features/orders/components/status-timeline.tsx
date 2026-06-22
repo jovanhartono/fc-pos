@@ -1,4 +1,5 @@
 import { CaretRightIcon } from "@phosphor-icons/react";
+import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { formatOrderServiceStatus } from "@/lib/status";
 
 type StatusLog = {
@@ -27,7 +28,7 @@ export function StatusTimeline({ logs }: { logs: StatusLog[] }) {
 								{formatOrderServiceStatus(log.to_status)}
 							</p>
 							<p className="text-muted-foreground">
-								{`${log.changedBy?.name ?? "—"} · ${new Date(log.created_at).toLocaleString()}`}
+								{`${log.changedBy?.name ?? "—"} · ${formatOrderDateTime(log.created_at)}`}
 							</p>
 							{log.note ? (
 								<p className="text-muted-foreground">{log.note}</p>

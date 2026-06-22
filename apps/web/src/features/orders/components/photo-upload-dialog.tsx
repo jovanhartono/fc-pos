@@ -99,8 +99,13 @@ const PhotoUploadDialogBase = ({
 		if (cameraOnly) {
 			void openCamera();
 		}
-		return resetDialogState;
-	}, [open, cameraOnly, openCamera, resetDialogState]);
+	}, [open, cameraOnly, openCamera]);
+
+	// Release the camera if the dialog unmounts while still open. The visual reset
+	// (stop camera + clear photos) is deferred to onOpenChangeComplete so the popup
+	// keeps its full height through the close animation instead of collapsing and
+	// re-centering first — that snap was the layout shift.
+	useEffect(() => stopCamera, [stopCamera]);
 
 	const addFiles = useCallback(
 		(files: File[]) => {
@@ -245,7 +250,15 @@ const PhotoUploadDialogBase = ({
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
+		<Dialog
+			open={open}
+			onOpenChange={onOpenChange}
+			onOpenChangeComplete={(isOpen) => {
+				if (!isOpen) {
+					resetDialogState();
+				}
+			}}
+		>
 			<DialogContent className="sm:max-w-2xl">
 				<DialogHeader>
 					<DialogTitle className="flex items-center justify-between gap-3 pr-8">

@@ -44,6 +44,9 @@ interface MobileCardColumnOptions {
 declare module "@tanstack/react-table" {
 	interface ColumnMeta<TData extends RowData, TValue> {
 		mobileCard?: MobileCardColumnOptions;
+		// Extra classes for the desktop table th/td (e.g. sticky columns).
+		headerClassName?: string;
+		cellClassName?: string;
 	}
 }
 
@@ -336,7 +339,10 @@ export const DataTable = <TData extends RowData>({
 							return (
 								<TableHead
 									key={header.id}
-									className="sticky top-0 z-10 h-9 bg-muted font-medium font-mono text-[10px] text-muted-foreground uppercase tracking-[0.18em]"
+									className={cn(
+										"sticky top-0 z-10 h-9 bg-muted font-medium font-mono text-[10px] text-muted-foreground uppercase tracking-[0.18em]",
+										header.column.columnDef.meta?.headerClassName,
+									)}
 								>
 									{header.isPlaceholder ? null : canSort ? (
 										<button
@@ -390,7 +396,13 @@ export const DataTable = <TData extends RowData>({
 					table.getRowModel().rows.map((row) => (
 						<TableRow key={row.id} className="border-border/60">
 							{row.getVisibleCells().map((cell) => (
-								<TableCell key={cell.id}>
+								<TableCell
+									key={cell.id}
+									className={cn(
+										"py-3",
+										cell.column.columnDef.meta?.cellClassName,
+									)}
+								>
 									{flexRender(cell.column.columnDef.cell, cell.getContext())}
 								</TableCell>
 							))}

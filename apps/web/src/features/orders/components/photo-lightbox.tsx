@@ -3,6 +3,7 @@ import {
 	ArrowRightIcon,
 	ImageSquareIcon,
 } from "@phosphor-icons/react";
+import dayjs from "dayjs";
 import type * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -14,11 +15,6 @@ import {
 } from "@/components/ui/dialog";
 
 const SWIPE_THRESHOLD = 56;
-
-const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
-	dateStyle: "medium",
-	timeStyle: "short",
-});
 
 export interface PhotoLightboxItem {
 	alt: string;
@@ -49,11 +45,11 @@ export function getPhotoPrimaryLabel(item: {
 }
 
 export function formatPhotoTimestamp(createdAt: string) {
-	const timestamp = new Date(createdAt);
-	if (Number.isNaN(timestamp.getTime())) {
+	const parsed = dayjs(createdAt);
+	if (!parsed.isValid()) {
 		return createdAt;
 	}
-	return dateTimeFormatter.format(timestamp);
+	return parsed.format("DD MMM YYYY, HH:mm");
 }
 
 export const PhotoLightbox = ({

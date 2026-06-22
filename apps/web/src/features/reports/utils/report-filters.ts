@@ -1,14 +1,7 @@
-import dayjs from "dayjs";
-
-const jakartaDateFormatter = new Intl.DateTimeFormat("en-CA", {
-	timeZone: "Asia/Jakarta",
-	year: "numeric",
-	month: "2-digit",
-	day: "2-digit",
-});
+import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 
 export function jakartaToday(): string {
-	return jakartaDateFormatter.format(new Date());
+	return dayjs().tz(JAKARTA_TZ).format("YYYY-MM-DD");
 }
 
 export type DatePreset =

@@ -12,9 +12,38 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 	const net = Number(detail.total ?? 0) - discount;
 	const refunded = Number(detail.refunded_amount ?? 0);
 
+	const servicesSubtotal = detail.services.reduce(
+		(sum, service) => sum + Number(service.subtotal ?? 0),
+		0,
+	);
+	const productsSubtotal = detail.products.reduce(
+		(sum, product) => sum + Number(product.subtotal ?? 0),
+		0,
+	);
+	// Only worth splitting when the subtotal mixes both — otherwise the component
+	// line just repeats the Subtotal.
+	const showSubtotalBreakdown =
+		detail.services.length > 0 && detail.products.length > 0;
+
 	return (
 		<div className="px-4 py-4">
 			<dl className="grid gap-1.5 text-sm tabular-nums">
+				{showSubtotalBreakdown ? (
+					<>
+						<div className="flex justify-between gap-4">
+							<dt className="text-muted-foreground">Services</dt>
+							<dd className="font-mono">
+								{formatIDRCurrency(String(servicesSubtotal))}
+							</dd>
+						</div>
+						<div className="flex justify-between gap-4">
+							<dt className="text-muted-foreground">Products</dt>
+							<dd className="font-mono">
+								{formatIDRCurrency(String(productsSubtotal))}
+							</dd>
+						</div>
+					</>
+				) : null}
 				<div className="flex justify-between gap-4">
 					<dt className="text-muted-foreground">Subtotal</dt>
 					<dd className="font-mono">

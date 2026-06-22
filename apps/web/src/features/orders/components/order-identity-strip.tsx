@@ -149,10 +149,25 @@ export const OrderIdentityStrip = ({
 		.filter(Boolean)
 		.join(" · ");
 
+	const renderPickupButton = (className: string) =>
+		readyCount > 0 ? (
+			<Button
+				aria-describedby={
+					gates.canOpenPickup ? undefined : "pickup-disabled-reason"
+				}
+				className={className}
+				disabled={!gates.canOpenPickup}
+				onClick={openPickupDialog}
+				type="button"
+			>
+				Pick up · {readyCount}
+			</Button>
+		) : null;
+
 	return (
 		<Card className="mb-4 sm:mb-6">
-			<CardContent className="grid gap-4 pt-5 sm:pt-6">
-				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+			<CardContent className="grid gap-4">
+				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0 space-y-2">
 						<div className="flex flex-wrap items-center gap-2">
 							<h1 className="break-all font-mono font-semibold text-lg tracking-tight sm:text-xl">
@@ -178,20 +193,8 @@ export const OrderIdentityStrip = ({
 					</div>
 
 					{showActions ? (
-						<div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
-							{readyCount > 0 ? (
-								<Button
-									aria-describedby={
-										gates.canOpenPickup ? undefined : "pickup-disabled-reason"
-									}
-									className="flex-1 sm:flex-none"
-									disabled={!gates.canOpenPickup}
-									onClick={openPickupDialog}
-									type="button"
-								>
-									Pick up · {readyCount}
-								</Button>
-							) : null}
+						<div className="flex shrink-0 items-center gap-2">
+							{renderPickupButton("hidden sm:inline-flex")}
 							{hasMenu ? (
 								<DropdownMenu>
 									<DropdownMenuTrigger
@@ -233,6 +236,8 @@ export const OrderIdentityStrip = ({
 						</div>
 					) : null}
 				</div>
+
+				{renderPickupButton("w-full sm:hidden")}
 
 				{totalCount > 0 ? (
 					<div className="grid gap-1.5">
