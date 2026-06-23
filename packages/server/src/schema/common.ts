@@ -3,7 +3,9 @@ import {
   parsePhoneNumberFromString,
 } from "libphonenumber-js";
 import { z } from "zod";
-import { getNumericValue } from "@/utils/helper";
+
+const getNumericValue = (formattedValue: string): string =>
+  formattedValue.replaceAll(/[^\d]/g, "");
 
 export const varcharSchema = (field: string) =>
   z

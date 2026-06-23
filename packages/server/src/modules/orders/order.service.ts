@@ -15,6 +15,7 @@ import {
   type GetOrdersQuery,
   normalizeOrderListQuery,
 } from "@/modules/orders/order.schema";
+import { assertActiveCourier } from "@/modules/orders/order-courier.service";
 import { deriveOrderRefundStatus } from "@/modules/orders/order-refund-status";
 import { summarizeOrderFulfillment } from "@/modules/orders/order-status-machine";
 import {
@@ -211,6 +212,10 @@ export async function createOrder(
     ...orderPayload
   } = payload;
 
+  if (orderPayload.collected_by != null) {
+    await assertActiveCourier(orderPayload.collected_by);
+  }
+
   const productIds = [...new Set(products.map((item) => item.id))];
   const serviceIds = [...new Set(services.map((item) => item.id))];
 
@@ -268,6 +273,7 @@ export async function createOrder(
       completed_at: expandedServices.length > 0 ? null : new Date(),
       paid_at: null,
       store_id: store.id,
+      collected_by: orderPayload.collected_by ?? null,
       created_by: userId,
       updated_by: userId,
     });
@@ -381,6 +387,12 @@ export async function getOrderDetailById(id: number) {
           campaign: true,
         },
         orderBy: { id: "asc" },
+      },
+      collectedBy: {
+        columns: {
+          id: true,
+          name: true,
+        },
       },
       customer: true,
       paymentMethod: true,

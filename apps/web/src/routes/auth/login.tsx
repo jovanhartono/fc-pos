@@ -23,6 +23,9 @@ const landingRouteForRole = (role?: string) => {
 	if (role === "cashier") {
 		return "/transactions" as const;
 	}
+	if (role === "courier") {
+		return "/attendance" as const;
+	}
 	return "/" as const;
 };
 

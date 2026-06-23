@@ -15,7 +15,7 @@ export function findUserById(userId: number) {
 
 interface UserFilters {
   is_active?: boolean;
-  role?: "admin" | "cashier" | "worker";
+  role?: "admin" | "cashier" | "worker" | "courier";
   search?: string;
 }
 

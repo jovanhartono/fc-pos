@@ -41,7 +41,7 @@
     "migrate:prod": "bun drizzle-kit migrate --config=drizzle-prod.config.ts"
   },
   "dependencies": {
-    "@faker-js/faker": "^10.4.0",
+    "@faker-js/faker": "^10.5.0",
     "@hono/zod-validator": "^0.8.0",
     "@neondatabase/serverless": "^1.1.0",
     "dayjs": "catalog:",
@@ -56,7 +56,7 @@
     "@types/bun": "latest",
     "concurrently": "^10.0.3",
     "drizzle-kit": "beta",
-    "tsdown": "^0.22.1",
+    "tsdown": "^0.22.3",
     "typescript": "catalog:",
     "ultracite": "catalog:"
   }

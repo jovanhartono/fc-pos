@@ -5,6 +5,7 @@ export interface OrderActionGates {
 	isPaymentAllowed: boolean;
 	isPickupAllowed: boolean;
 	canManageDropoffPhoto: boolean;
+	canManageCourier: boolean;
 	canOpenPickup: boolean;
 	pickupDisabledReason?: string;
 	canCancelOrder: boolean;
@@ -27,6 +28,8 @@ export const getOrderActionGates = (
 	const isPaymentAllowed = isAdmin || me?.role === "cashier";
 	const isPickupAllowed = isPaymentAllowed || me?.can_process_pickup === true;
 	const canManageDropoffPhoto = isPaymentAllowed || me?.role === "worker";
+	// Courier attribution edit mirrors create-order permission (admin + cashier).
+	const canManageCourier = isPaymentAllowed;
 
 	const services = Array.isArray(detail.services) ? detail.services : [];
 	const readyForPickupServices = services.filter(
@@ -61,6 +64,7 @@ export const getOrderActionGates = (
 		isPaymentAllowed,
 		isPickupAllowed,
 		canManageDropoffPhoto,
+		canManageCourier,
 		// ADR-0009: payment precedes pickup — no collection on an unpaid Order.
 		canOpenPickup:
 			isPickupAllowed && readyForPickupServices.length > 0 && isPaid,

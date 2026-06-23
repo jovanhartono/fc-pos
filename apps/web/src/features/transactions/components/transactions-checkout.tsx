@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { CurrencyInput } from "@/components/form/currency-input";
+import { SelectField } from "@/components/form/select-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +35,7 @@ import {
 	campaignsQueryOptions,
 	categoriesQueryOptions,
 	paymentMethodsQueryOptions,
+	usersPageQueryOptions,
 } from "@/lib/query-options";
 import { formatIDRCurrency } from "@/shared/utils";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
@@ -104,6 +106,9 @@ export function TransactionsCheckout() {
 
 	const categoriesQuery = useQuery(categoriesQueryOptions());
 	const paymentMethodsQuery = useQuery(paymentMethodsQueryOptions());
+	const couriersQuery = useQuery(
+		usersPageQueryOptions({ role: "courier", is_active: true }),
+	);
 	const campaignsQuery = useQuery({
 		...campaignsQueryOptions({
 			store_id: selectedStoreNumber,
@@ -143,6 +148,17 @@ export function TransactionsCheckout() {
 			})),
 		],
 		[paymentMethods],
+	);
+
+	const courierOptions = useMemo<ComboboxOption[]>(
+		() => [
+			{ value: "none", label: "Walk-in (no courier)" },
+			...(couriersQuery.data?.items ?? []).map((courier) => ({
+				value: String(courier.id),
+				label: courier.name,
+			})),
+		],
+		[couriersQuery.data],
 	);
 
 	const selectedStore = useMemo(
@@ -296,6 +312,29 @@ export function TransactionsCheckout() {
 							id="transaction-discount"
 							value={field.value}
 							onValueChange={field.onChange}
+						/>
+						<FieldError errors={[fieldState.error]} />
+					</Field>
+				)}
+			/>
+
+			<Controller
+				name="selectedCourierId"
+				control={form.control}
+				render={({ field, fieldState }) => (
+					<Field data-invalid={fieldState.invalid}>
+						<FieldLabel htmlFor="transaction-courier">
+							Collected by courier
+						</FieldLabel>
+						<SelectField
+							id="transaction-courier"
+							items={courierOptions}
+							value={field.value || "none"}
+							onValueChange={(value) =>
+								field.onChange(value === "none" ? "" : value)
+							}
+							placeholder="Walk-in (no courier)"
+							className="h-11 w-full text-sm"
 						/>
 						<FieldError errors={[fieldState.error]} />
 					</Field>

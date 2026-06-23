@@ -885,7 +885,7 @@ async function seedUsers(stores: StoreRow[]) {
   const userRows: Array<{
     username: string;
     name: string;
-    role: "admin" | "cashier" | "worker";
+    role: "admin" | "cashier" | "worker" | "courier";
     is_active: boolean;
     can_process_pickup: boolean;
     password: string;
@@ -932,6 +932,28 @@ async function seedUsers(stores: StoreRow[]) {
     );
   }
 
+  // Two roaming couriers — collect items at intake, deliver finished items
+  // back. They log in only to clock a Shift; excluded from the worker
+  // productivity report by allowlist (see ADR-0010).
+  userRows.push(
+    {
+      username: "courier.1",
+      name: faker.person.fullName(),
+      role: "courier",
+      is_active: true,
+      can_process_pickup: false,
+      password: passwordHash,
+    },
+    {
+      username: "courier.2",
+      name: faker.person.fullName(),
+      role: "courier",
+      is_active: true,
+      can_process_pickup: false,
+      password: passwordHash,
+    }
+  );
+
   const users = await db.insert(usersTable).values(userRows).returning({
     id: usersTable.id,
     username: usersTable.username,
@@ -955,6 +977,17 @@ async function seedUsers(stores: StoreRow[]) {
         continue;
       }
       assignments.push({ user_id: user.id, store_id: store.id });
+    }
+  }
+
+  // Couriers roam — assign to every store so they can clock a Shift anywhere.
+  for (const username of ["courier.1", "courier.2"]) {
+    const courier = userByUsername.get(username);
+    if (!courier) {
+      continue;
+    }
+    for (const store of stores) {
+      assignments.push({ user_id: courier.id, store_id: store.id });
     }
   }
 
@@ -1270,6 +1303,7 @@ async function seedOrders(params: {
   campaigns: CampaignRow[];
   cashiersByStore: Map<number, number[]>;
   workersByStore: Map<number, number[]>;
+  courierIds: number[];
 }) {
   const activeServices = params.services.filter((service) => service.is_active);
   const activeProducts = params.products.filter((product) => product.is_active);
@@ -1312,6 +1346,12 @@ async function seedOrders(params: {
     const cashiers = params.cashiersByStore.get(store.id) ?? [];
     const workers = params.workersByStore.get(store.id) ?? [];
     const createdBy = faker.helpers.arrayElement(cashiers);
+
+    // ~30% of intakes arrive via a courier collection; the rest are walk-ins.
+    const collectedBy =
+      params.courierIds.length > 0 && chance(0.3)
+        ? faker.helpers.arrayElement(params.courierIds)
+        : null;
 
     const createdAt = dayjs()
       .subtract(randInt(0, ORDER_LOOKBACK_DAYS), "day")
@@ -1529,6 +1569,7 @@ async function seedOrders(params: {
         code: orderCode,
         customer_id: customerId,
         store_id: store.id,
+        collected_by: collectedBy,
         discount_source: discountRes.discount_source,
         discount: asMoney(discount),
         dropoff_photo_path: dropoffPhotoPath,
@@ -1835,6 +1876,10 @@ export async function runSeed() {
     );
   }
 
+  const courierIds = ["courier.1", "courier.2"]
+    .map((username) => userByUsername.get(username)?.id)
+    .filter((id): id is number => id !== undefined);
+
   const catalog = await seedCatalog(admin.id);
 
   const storeByCode = new Map(stores.map((store) => [store.code, store]));
@@ -1897,6 +1942,7 @@ export async function runSeed() {
     campaigns: campaignRows,
     cashiersByStore,
     workersByStore,
+    courierIds,
   });
 
   await db

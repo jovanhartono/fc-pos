@@ -99,6 +99,10 @@ export const PATCHOrderPaymentSchema = z.object({
   payment_method_id: z.coerce.number().int().positive(),
 });
 
+export const PATCHOrderCourierSchema = z.object({
+  collected_by: z.coerce.number().int().positive().nullable(),
+});
+
 export const POSTOrderCancelSchema = z.object({
   items: z
     .array(
@@ -221,6 +225,7 @@ export type PatchOrderServiceHandlerInput = z.infer<
   typeof PATCHOrderServiceHandlerSchema
 >;
 export type PatchOrderPaymentInput = z.infer<typeof PATCHOrderPaymentSchema>;
+export type PatchOrderCourierInput = z.infer<typeof PATCHOrderCourierSchema>;
 export type PutOrderDropoffPhotoInput = z.infer<
   typeof PUTOrderDropoffPhotoSchema
 >;

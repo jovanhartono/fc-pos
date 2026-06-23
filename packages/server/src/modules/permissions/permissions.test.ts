@@ -30,6 +30,7 @@ const buildUser = (
 const admin = buildUser("admin");
 const cashier = buildUser("cashier");
 const worker = buildUser("worker");
+const courier = buildUser("courier");
 const cashierWithPickup = buildUser("cashier", { can_process_pickup: true });
 const workerWithPickup = buildUser("worker", { can_process_pickup: true });
 
@@ -135,6 +136,20 @@ describe("assertCanRefundOrderService", () => {
 
   it("rejects admin on unpaid order", () => {
     expect(() => assertCanRefundOrderService(admin, unpaid)).toThrow(
+      ForbiddenException
+    );
+  });
+});
+
+describe("courier role gains no privileged powers (ADR-0010)", () => {
+  const unpaid = { payment_status: "unpaid" as const };
+
+  it("is excluded from every restricted seam", () => {
+    expect(() => assertIsAdmin(courier)).toThrow(ForbiddenException);
+    expect(() => assertCanCreateOrder(courier)).toThrow(ForbiddenException);
+    expect(() => assertCanProcessPayment(courier)).toThrow(ForbiddenException);
+    expect(() => assertCanProcessPickup(courier)).toThrow(ForbiddenException);
+    expect(() => assertCanCancelOrderService(courier, unpaid)).toThrow(
       ForbiddenException
     );
   });

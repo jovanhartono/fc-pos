@@ -14,6 +14,7 @@ import {
   GETOrderServiceQueueQuerySchema,
   orderServiceParamSchema,
   orderServicePhotoParamSchema,
+  PATCHOrderCourierSchema,
   PATCHOrderPaymentSchema,
   PATCHOrderServiceHandlerSchema,
   PATCHOrderServiceStatusSchema,
@@ -26,6 +27,7 @@ import {
   POSTOrderServicePhotoSchema,
   PUTOrderDropoffPhotoSchema,
 } from "@/modules/orders/order-admin.schema";
+import { updateOrderCollectedBy } from "@/modules/orders/order-courier.service";
 import { updateOrderPayment } from "@/modules/orders/order-payment.service";
 import {
   createOrderDropoffPhotoPresign,
@@ -192,6 +194,30 @@ const app = new Hono()
       }
 
       return c.json(success(payment, "Payment updated successfully"));
+    }
+  )
+  .patch(
+    "/:id/courier",
+    idParamSchema,
+    zodValidator("json", PATCHOrderCourierSchema),
+    async (c) => {
+      const user = c.get("jwtPayload") as JWTPayload;
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
+
+      await assertOrderAccess(user, id);
+
+      const updated = await updateOrderCollectedBy({
+        orderId: id,
+        collectedBy: body.collected_by,
+        user,
+      });
+
+      if (!updated) {
+        return c.json(failure("Order not found"), StatusCodes.NOT_FOUND);
+      }
+
+      return c.json(success(updated, "Courier updated successfully"));
     }
   )
   .post(

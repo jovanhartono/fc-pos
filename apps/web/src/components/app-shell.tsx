@@ -49,7 +49,7 @@ import { meQueryOptions } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
 import { getCurrentUser, useAuthStore } from "@/stores/auth-store";
 
-type Role = "admin" | "cashier" | "worker";
+type Role = "admin" | "cashier" | "worker" | "courier";
 type NavItem = {
 	to: string;
 	label: string;
@@ -63,7 +63,7 @@ const workNavigation: NavItem[] = [
 		to: "/attendance",
 		label: "Attendance",
 		icon: ClockIcon,
-		roles: ["cashier", "worker"],
+		roles: ["cashier", "worker", "courier"],
 	},
 	{
 		to: "/transactions",

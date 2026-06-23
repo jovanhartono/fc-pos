@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Skeleton } from "@/components/ui/skeleton";
+import { OrderCourierCard } from "@/features/orders/components/order-courier-card";
 import { OrderDropoffPhotoCard } from "@/features/orders/components/order-dropoff-photo-card";
 import { OrderIdentityStrip } from "@/features/orders/components/order-identity-strip";
 import { OrderLineItemsCard } from "@/features/orders/components/order-line-items-card";
@@ -152,6 +153,12 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 						canManage={gates.canManageDropoffPhoto}
 						onUploaded={refreshOrder}
 						order={detail}
+					/>
+
+					<OrderCourierCard
+						canManage={gates.canManageCourier}
+						detail={detail}
+						orderId={id}
 					/>
 
 					{pickupEvents.length > 0 ? (

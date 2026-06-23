@@ -304,7 +304,7 @@ export type FetchUsersQuery = {
 	offset?: number;
 	search?: string;
 	is_active?: boolean;
-	role?: "admin" | "cashier" | "worker";
+	role?: "admin" | "cashier" | "worker" | "courier";
 };
 
 export type FetchCampaignsQuery = {
@@ -375,6 +375,10 @@ export type UpdateOrderServiceHandlerPayload = {
 
 export type UpdateOrderPaymentPayload = {
 	payment_method_id: number;
+};
+
+export type UpdateOrderCourierPayload = {
+	collected_by: number | null;
 };
 
 export type PhotoContentType =
@@ -968,6 +972,18 @@ export async function updateOrderPayment(
 ) {
 	return parseResponse(
 		rpcWithAuth().api.admin.orders[":id"].payment.$patch({
+			param: { id: String(orderId) },
+			json: payload,
+		}),
+	);
+}
+
+export async function updateOrderCourier(
+	orderId: number,
+	payload: UpdateOrderCourierPayload,
+) {
+	return parseResponse(
+		rpcWithAuth().api.admin.orders[":id"].courier.$patch({
 			param: { id: String(orderId) },
 			json: payload,
 		}),

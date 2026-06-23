@@ -151,6 +151,10 @@ export const relations = defineRelations(schema, (r) => ({
 
   ordersTable: {
     campaigns: r.many.orderCampaignsTable(),
+    collectedBy: r.one.usersTable({
+      from: r.ordersTable.collected_by,
+      to: r.usersTable.id,
+    }),
     createdBy: r.one.usersTable({
       from: r.ordersTable.created_by,
       to: r.usersTable.id,

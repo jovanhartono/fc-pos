@@ -71,7 +71,10 @@ const userSchema = z.object({
     .string("Minimum 8 characters")
     .trim()
     .min(8, "Minimum 8 characters"),
-  role: z.literal(["admin", "cashier", "worker"], "Role is required"),
+  role: z.literal(
+    ["admin", "cashier", "worker", "courier"],
+    "Role is required"
+  ),
   is_active: isActiveSchema,
   can_process_pickup: z.boolean().default(false),
 });
@@ -261,6 +264,7 @@ export const POSTOrderSchema = z
       "Payment status is required"
     ),
     notes: z.string().trim().optional(),
+    collected_by: z.number().int().positive().optional(),
   })
   .refine(
     (val) => {

@@ -35,6 +35,7 @@ const transactionDraftSchema = z
 		selectedCustomerId: z.string().trim().min(1, "Customer is required."),
 		selectedCampaignIds: z.array(z.string()),
 		selectedPaymentMethodId: z.string(),
+		selectedCourierId: z.string(),
 		paymentStatus: z.enum(["paid", "unpaid"]),
 		manualDiscount: z
 			.string()

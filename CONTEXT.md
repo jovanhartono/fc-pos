@@ -37,10 +37,14 @@ A physical shop location. Owns its own Orders and Shifts. **Does not** own its o
 _Avoid_: Branch, outlet.
 
 **User**:
-An operator. Role is one of **admin**, **cashier**, **worker**. Scoped to one-or-many Stores via `userStores`. Role gates **money and admin operations** only; the OrderService processing axis (queue claim, status updates, detail photos) is open to any staff regardless of role — see [ADR-0004 amendment](docs/adr/0004-role-capabilities-v1.md).
+An operator. Role is one of **admin**, **cashier**, **worker**, **courier**. Scoped to one-or-many Stores via `userStores`. Role gates **money and admin operations** only; the OrderService processing axis (queue claim, status updates, detail photos) is open to any staff regardless of role — see [ADR-0004 amendment](docs/adr/0004-role-capabilities-v1.md).
 
 **Shift**:
 A User's working session at a Store, with `clock_in`/`clock_out`. Used for attendance reporting and revenue-by-shift breakdown in `reports`. Shifts do **not** gate POS access — Order creation never reads shift state in v1.
+
+**Courier** (`role = courier`):
+A User whose job is **collecting** dropped-off items from the customer at intake and **delivering** finished items back after pickup. Logs in solely to open a Shift (attendance); does **not** operate the POS, the queue, or money. Deliberately excluded from the worker-productivity report — that report is an allowlist on `role = worker`, so a Courier never appears. Excluding Couriers from that report is the reason the role exists. See [ADR-0010](docs/adr/0010-courier-role-login-only-excluded-by-allowlist.md).
+_Avoid_: delivery guy, driver, rider (informal only).
 
 ### Order lifecycle
 
@@ -134,6 +138,7 @@ The cashier UI at `/transactions` for creating Orders. (See Ambiguities — "Tra
 - Each **OrderService** represents one pair receiving one Service; one **User** (worker) is the current handler at any time. Admin may reassign; reassignments are logged in `order_service_handler_logs`.
 - An **Order**'s status is **derived** from its **OrderService** statuses plus **OrderProduct** line states — never authored. See "Order status" for the rollup rule.
 - An **Order** may have 0..N **OrderPickupEvents** — partial pickup permitted.
+- An **Order** may record the **Courier** who collected its items at intake (`orders.collected_by`, nullable FK → a `role = courier` User). A non-null value marks the Order as collected via delivery rather than walk-in; null = walk-in. There is no separate "is delivery" boolean — the Courier reference **is** the marker. Records **intake** only (collection), not return delivery. See [ADR-0010](docs/adr/0010-courier-role-login-only-excluded-by-allowlist.md).
 - Cancel and refund are **disjoint, per-line off-ramps** gated by the Order's `payment_status`: unpaid → cancel only; paid → refund only. Both are **per-line** (staff/admin pick which OrderServices and OrderProducts to reverse) and both cover service **and** product lines; the only differences are the trigger (`payment_status`), the reason enum (`cancelReasonEnum` vs `refundReasonEnum`), money movement (none on cancel), and stock (cancel restores, refund does not). There is no auto-cascade between them. See [ADR-0008](docs/adr/0008-cancel-is-unpaid-per-line-refund-twin.md).
 - A **Campaign** is scoped to 0..N **Stores** (zero = all Stores) and targets 1..N **Services**.
 - A **User** is scoped to 1..N **Stores** and opens a **Shift** to take payments at one Store at a time.

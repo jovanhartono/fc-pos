@@ -27,7 +27,7 @@ export type UserFormState = {
 	name: string;
 	password: string;
 	confirm_password: string;
-	role: "admin" | "cashier" | "worker";
+	role: "admin" | "cashier" | "worker" | "courier";
 	is_active: boolean;
 	can_process_pickup: boolean;
 	store_ids: number[];
@@ -151,7 +151,12 @@ export function UserForm({
 							<FieldLabel htmlFor="user-role">Role</FieldLabel>
 							<SelectField
 								id="user-role"
-								items={{ admin: "Admin", cashier: "Cashier", worker: "Worker" }}
+								items={{
+									admin: "Admin",
+									cashier: "Cashier",
+									worker: "Worker",
+									courier: "Courier",
+								}}
 								value={field.value}
 								onValueChange={(value) =>
 									field.onChange(value as UserFormState["role"])

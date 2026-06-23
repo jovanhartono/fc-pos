@@ -14,7 +14,12 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-export const userRoleEnum = pgEnum("user_role", ["admin", "cashier", "worker"]);
+export const userRoleEnum = pgEnum("user_role", [
+  "admin",
+  "cashier",
+  "worker",
+  "courier",
+]);
 export type UserRole = (typeof userRoleEnum.enumValues)[number];
 
 export const usersTable = pgTable(
@@ -377,6 +382,8 @@ export const ordersTable = pgTable(
 
     created_at: timestamp("created_at").notNull().defaultNow(),
 
+    // courier who collected items at intake; null = walk-in
+    collected_by: integer("collected_by").references(() => usersTable.id),
     // cashier
     created_by: integer("created_by")
       .references(() => usersTable.id)

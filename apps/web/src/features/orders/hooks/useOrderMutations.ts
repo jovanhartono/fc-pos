@@ -5,6 +5,7 @@ import {
 	createOrderRefund,
 	queryKeys,
 	type UpdateOrderServiceStatusPayload,
+	updateOrderCourier,
 	updateOrderPayment,
 	updateOrderServiceStatus,
 } from "@/lib/api";
@@ -45,6 +46,18 @@ export const useOrderPaymentMutation = (orderId: number) => {
 	return useMutation({
 		mutationFn: (paymentMethodId: number) =>
 			updateOrderPayment(orderId, { payment_method_id: paymentMethodId }),
+		onSuccess: async () => {
+			await refreshOrder();
+		},
+	});
+};
+
+export const useUpdateOrderCourierMutation = (orderId: number) => {
+	const refreshOrder = useRefreshOrder(orderId);
+
+	return useMutation({
+		mutationFn: (collectedBy: number | null) =>
+			updateOrderCourier(orderId, { collected_by: collectedBy }),
 		onSuccess: async () => {
 			await refreshOrder();
 		},
