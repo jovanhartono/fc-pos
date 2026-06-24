@@ -3,6 +3,13 @@ import { eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
 import { customersTable } from "@/db/schema";
 
+// Either the pool-backed db or a transaction handle, so find-or-create can run
+// inside an Order transaction (atomic Customer + Order — see ADR-0011) or
+// standalone.
+export type CustomerExecutor =
+  | typeof db
+  | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 interface CustomerFilters {
   search?: string;
 }
@@ -68,16 +75,20 @@ export function findCustomerById(id: number) {
   });
 }
 
-export function findCustomerByPhone(phone_number: string) {
-  return db.query.customersTable.findFirst({
+export function findCustomerByPhone(
+  phone_number: string,
+  executor: CustomerExecutor = db
+) {
+  return executor.query.customersTable.findFirst({
     where: { phone_number },
   });
 }
 
 export function insertCustomer(
-  values: InferInsertModel<typeof customersTable>
+  values: InferInsertModel<typeof customersTable>,
+  executor: CustomerExecutor = db
 ) {
-  return db.insert(customersTable).values(values).returning();
+  return executor.insert(customersTable).values(values).returning();
 }
 
 export function updateCustomerById(

@@ -232,7 +232,7 @@ export function TransactionsCatalog() {
 								<button
 									type="button"
 									className={cn(
-										"flex h-full min-h-22 w-full flex-col gap-2 p-3 text-left outline-none transition-colors focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
+										"flex h-full min-h-22 w-full flex-col gap-2 p-3 text-left outline-none transition active:scale-[0.97] focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
 										isProduct
 											? "hover:bg-muted/30 active:bg-muted/60"
 											: "hover:bg-background/80 active:bg-background/60",

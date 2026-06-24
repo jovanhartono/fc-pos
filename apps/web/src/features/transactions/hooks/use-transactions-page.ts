@@ -21,6 +21,7 @@ import {
 } from "@/features/transactions/cart/cart";
 import type { TransactionsPageContextValue } from "@/features/transactions/lib/transactions-context";
 import { createOrder } from "@/lib/api";
+import { isValidPhoneNumber } from "@/lib/phone-number";
 import { meQueryOptions, storesQueryOptions } from "@/lib/query-options";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useTransactionPreferencesStore } from "@/stores/transaction-preferences-store";
@@ -32,11 +33,15 @@ const transactionDraftSchema = z
 			.string()
 			.trim()
 			.min(1, "Store is required before creating a transaction."),
-		selectedCustomerId: z.string().trim().min(1, "Customer is required."),
+		customerName: z.string().trim().min(1, "Customer name is required."),
+		customerPhone: z
+			.string()
+			.trim()
+			.min(1, "Phone number is required.")
+			.refine(isValidPhoneNumber, "Invalid phone number"),
 		selectedCampaignIds: z.array(z.string()),
 		selectedPaymentMethodId: z.string(),
 		selectedCourierId: z.string(),
-		paymentStatus: z.enum(["paid", "unpaid"]),
 		manualDiscount: z
 			.string()
 			.refine(
@@ -69,14 +74,6 @@ const transactionDraftSchema = z
 				code: "custom",
 				path: ["productCart"],
 				message: "Add at least one product or service to the cart.",
-			});
-		}
-
-		if (values.paymentStatus === "paid" && !values.selectedPaymentMethodId) {
-			ctx.addIssue({
-				code: "custom",
-				path: ["selectedPaymentMethodId"],
-				message: "Payment method is required for paid orders.",
 			});
 		}
 	});
@@ -251,8 +248,16 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 		[createMutation, navigate, queryClient, resetCart],
 	);
 
+	// onInvalid surfaces a footer error: the two-step split can put a failing
+	// field on a step the cashier isn't looking at, so a blocked submit would
+	// otherwise be a silent no-op with the FieldError on the hidden step.
 	const submit = useMemo(
-		() => form.handleSubmit(onValidSubmit),
+		() =>
+			form.handleSubmit(onValidSubmit, () => {
+				useTransactionsPageStore
+					.getState()
+					.setSubmitError("Some details are incomplete. Check the cart step.");
+			}),
 		[form, onValidSubmit],
 	);
 

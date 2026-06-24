@@ -150,11 +150,11 @@ describe("getCartPricing", () => {
 describe("toOrderPayload", () => {
 	const draft: TransactionDraftValues = {
 		selectedStoreId: "2",
-		selectedCustomerId: "7",
+		customerName: " budi santoso ",
+		customerPhone: "081234567890",
 		selectedCampaignIds: ["3", "4"],
 		selectedPaymentMethodId: "",
 		selectedCourierId: "",
-		paymentStatus: "unpaid",
 		manualDiscount: "",
 		notes: "  ",
 		productCart: [productLine(1, 2)],
@@ -165,7 +165,10 @@ describe("toOrderPayload", () => {
 
 	test("maps draft to CreateOrderPayload with trimmed optional fields", () => {
 		expect(toOrderPayload(draft)).toEqual({
-			customer_id: 7,
+			customer: {
+				name: "budi santoso",
+				phone_number: "+6281234567890",
+			},
 			store_id: 2,
 			campaign_ids: [3, 4],
 			discount: "0",
@@ -187,11 +190,10 @@ describe("toOrderPayload", () => {
 		});
 	});
 
-	test("carries payment method and manual discount when set", () => {
+	test("a selected payment method marks the order paid and carries discount", () => {
 		const payload = toOrderPayload({
 			...draft,
 			selectedPaymentMethodId: "9",
-			paymentStatus: "paid",
 			manualDiscount: "2500",
 		});
 		expect(payload.payment_method_id).toBe(9);

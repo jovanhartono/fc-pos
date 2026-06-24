@@ -28,7 +28,7 @@ A Campaign is Usable for a given Store and order total at a moment in time when 
 _Avoid_: Available — the web's former term for a partial (2-of-4 rule) version of this check.
 
 **PaymentMethod**:
-A configurable tender (cash, transfer, QRIS, etc.). Same list across all Stores.
+A configurable tender (cash, transfer, QRIS, etc.). Same list across all Stores. An Order carries a PaymentMethod **only when `payment_status = paid`** — a tender is *how money arrived*, so an unpaid Order has none. The POS hides the method picker while a Cart is unpaid and drops any chosen method when it toggles back to unpaid; a paid Order **requires** one. This is a corollary of binary payment — see [ADR-0001](docs/adr/0001-payment-is-binary.md).
 
 ### Operators
 
@@ -120,7 +120,7 @@ All three types are soft-deleted (`deleted_at`). S3 objects are retained forever
 ### Operator views (web-only)
 
 **Cart**:
-Ephemeral client-side construct in the Transactions POS. Holds in-progress OrderServices, OrderProducts, applied Campaigns, and chosen PaymentMethod. **Becomes an Order only when checkout succeeds.** Nothing persists server-side until then.
+Ephemeral client-side construct in the Transactions POS. Holds in-progress OrderServices, OrderProducts, applied Campaigns, and — only when marked paid — a chosen PaymentMethod (see PaymentMethod). **Becomes an Order only when checkout succeeds.** Nothing persists server-side until then.
 
 **Queue**:
 The view of OrderServices needing work, scoped by Store, filtered by status. Used mainly by workers; any staff may self-assign `queued → processing` (processing axis is role-open — see [ADR-0004 amendment](docs/adr/0004-role-capabilities-v1.md)). Sort order is `is_priority DESC, Order.created_at ASC, OrderService.id ASC` — priority items bubble to the top; otherwise FIFO by intake time. `is_priority` carries no SLA or pricing effect; it is purely a queue-bumper.

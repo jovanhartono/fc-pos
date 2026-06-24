@@ -2,6 +2,7 @@ import type { CountryCode } from "libphonenumber-js";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { normalizePhoneNumber } from "@/lib/phone-number";
+import { cn } from "@/lib/utils";
 
 type PhoneNumberFieldProps = {
 	id: string;
@@ -13,6 +14,7 @@ type PhoneNumberFieldProps = {
 	required?: boolean;
 	error?: { message?: string };
 	defaultCountry?: CountryCode;
+	inputClassName?: string;
 };
 
 export function PhoneNumberField({
@@ -25,6 +27,7 @@ export function PhoneNumberField({
 	required,
 	error,
 	defaultCountry = "ID",
+	inputClassName,
 }: PhoneNumberFieldProps) {
 	return (
 		<Field data-invalid={!!error}>
@@ -47,7 +50,7 @@ export function PhoneNumberField({
 				}}
 				aria-invalid={!!error}
 				disabled={disabled}
-				className="h-10"
+				className={cn("h-10", inputClassName)}
 			/>
 			<FieldError errors={[error]} />
 		</Field>

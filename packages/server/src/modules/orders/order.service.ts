@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { orderCampaignsTable, ordersTable } from "@/db/schema";
 import { BadRequestException, NotFoundException } from "@/errors";
 import { getUsableCampaigns } from "@/modules/campaigns/campaign.service";
+import { resolveOrCreateCustomer } from "@/modules/customers/customer.service";
 import {
   findOrders,
   insertOrder,
@@ -260,9 +261,17 @@ export async function createOrder(
     const code = formatOrderCode(store.code, dateStr, sequence);
     const expandedServices = expandServices(services);
 
+    const customerId = await resolveOrCreateCustomer({
+      executor: tx,
+      actorId: userId,
+      name: orderPayload.customer.name,
+      phone_number: orderPayload.customer.phone_number,
+      origin_store_id: store.id,
+    });
+
     const orderId = await insertOrder(tx, {
       code,
-      customer_id: orderPayload.customer_id,
+      customer_id: customerId,
       payment_method_id: orderPayload.payment_method_id,
       payment_status: orderPayload.payment_status,
       discount: "0",

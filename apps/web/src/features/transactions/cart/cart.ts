@@ -6,6 +6,7 @@ import {
 } from "@fresclean/api/schema";
 import type { UseFormReturn } from "react-hook-form";
 import type { CreateOrderPayload, Product, Service } from "@/lib/api";
+import { isValidPhoneNumber, normalizePhoneNumber } from "@/lib/phone-number";
 
 export type ProductCartLine = {
 	kind: "product";
@@ -33,11 +34,11 @@ export type ServiceCartDisplayLine = ServiceCartLine & {
 
 export type TransactionDraftValues = {
 	selectedStoreId: string;
-	selectedCustomerId: string;
+	customerName: string;
+	customerPhone: string;
 	selectedCampaignIds: string[];
 	selectedPaymentMethodId: string;
 	selectedCourierId: string;
-	paymentStatus: CreateOrderPayload["payment_status"];
 	manualDiscount: string;
 	notes: string;
 	productCart: ProductCartLine[];
@@ -46,11 +47,11 @@ export type TransactionDraftValues = {
 
 export const defaultDraftValues: TransactionDraftValues = {
 	selectedStoreId: "",
-	selectedCustomerId: "",
+	customerName: "",
+	customerPhone: "",
 	selectedCampaignIds: [],
 	selectedPaymentMethodId: "",
 	selectedCourierId: "",
-	paymentStatus: "unpaid",
 	manualDiscount: "",
 	notes: "",
 	productCart: [],
@@ -160,19 +161,31 @@ export const getCartPricing = <C extends CartCampaign>({
 	};
 };
 
+// The cart→payment gate: a customer is ready once they have a name and a phone
+// that parses. Shared by the step tabs, the Continue button, and the Create
+// Order button so all three progression controls enforce the identical rule.
+export const isCustomerReady = (
+	customerName: string,
+	customerPhone: string,
+): boolean =>
+	customerName.trim().length > 0 && isValidPhoneNumber(customerPhone);
+
 export const toOrderPayload = ({
-	selectedCustomerId,
+	customerName,
+	customerPhone,
 	selectedStoreId,
 	selectedCampaignIds,
 	selectedPaymentMethodId,
 	selectedCourierId,
-	paymentStatus,
 	manualDiscount,
 	notes,
 	productCart,
 	serviceCart,
 }: TransactionDraftValues): CreateOrderPayload => ({
-	customer_id: Number(selectedCustomerId),
+	customer: {
+		name: customerName.trim(),
+		phone_number: normalizePhoneNumber(customerPhone),
+	},
 	store_id: Number(selectedStoreId),
 	campaign_ids: selectedCampaignIds.map((id) => Number(id)),
 	discount: manualDiscount || "0",
@@ -180,7 +193,8 @@ export const toOrderPayload = ({
 		? Number(selectedPaymentMethodId)
 		: undefined,
 	collected_by: selectedCourierId ? Number(selectedCourierId) : undefined,
-	payment_status: paymentStatus,
+	// A picked method means money arrived; no method means pay-later.
+	payment_status: selectedPaymentMethodId ? "paid" : "unpaid",
 	notes: notes.trim() || undefined,
 	products: productCart.map((line) => ({
 		id: line.id,

@@ -45,6 +45,13 @@ export const SelectField = ({
 				label,
 			}));
 
+	// Touch targets: trigger size already grows the closed control, but popup
+	// rows stay at the dense ~32px/text-xs default. On `lg` (touch/iPad pickers)
+	// bump each row to the 44px HIG minimum so options are tappable, not just
+	// the trigger. Scoped to this instance — the shared SelectItem stays dense
+	// for tables and filters.
+	const itemClassName = size === "lg" ? "min-h-11 py-2.5 text-sm" : undefined;
+
 	return (
 		<Select
 			items={items}
@@ -62,7 +69,11 @@ export const SelectField = ({
 			</SelectTrigger>
 			<SelectContent>
 				{entries.map((entry) => (
-					<SelectItem key={entry.value} value={entry.value}>
+					<SelectItem
+						key={entry.value}
+						value={entry.value}
+						className={itemClassName}
+					>
 						{entry.label}
 					</SelectItem>
 				))}

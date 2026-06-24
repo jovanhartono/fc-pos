@@ -1,6 +1,7 @@
 import type { InferInsertModel } from "drizzle-orm";
 import type { customersTable } from "@/db/schema";
 import {
+  type CustomerExecutor,
   countCustomers,
   findCustomerById,
   findCustomerByPhone,
@@ -10,6 +11,7 @@ import {
 } from "@/modules/customers/customer.repository";
 import type { GetCustomersQuery } from "@/modules/customers/customer.schema";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
+import { toTitleCase } from "@/utils/string";
 
 export async function getCustomers(query?: GetCustomersQuery) {
   const pagination = normalizePagination(query, { maxPageSize: 100 });
@@ -52,6 +54,7 @@ export async function createCustomer({
   try {
     const [customer] = await insertCustomer({
       ...payload,
+      name: toTitleCase(payload.name),
       created_by: actorId,
       updated_by: actorId,
     });
@@ -66,6 +69,49 @@ export async function createCustomer({
     }
     throw error;
   }
+}
+
+// Find-or-create a Customer by phone, runnable inside an Order transaction so
+// the Customer and Order commit (or roll back) together — never an orphan. A
+// phone hit reuses the existing record (phone is identity); only brand-new
+// Customers are inserted, Title Cased. See ADR-0011.
+export async function resolveOrCreateCustomer({
+  executor,
+  actorId,
+  name,
+  phone_number,
+  origin_store_id,
+}: {
+  executor: CustomerExecutor;
+  actorId: number;
+  name: string;
+  phone_number: string;
+  origin_store_id: number;
+}): Promise<number> {
+  const existing = await findCustomerByPhone(phone_number, executor);
+  if (existing) {
+    return existing.id;
+  }
+
+  // No in-transaction retry on a unique-violation race: a 23505 poisons the
+  // whole Postgres transaction, so a retry read here would only throw 25P02.
+  // The race (two Orders for the same brand-new phone in the same instant) is
+  // operationally near-impossible; the UNIQUE constraint is the backstop —
+  // 23505 rolls back the Order, and the cashier's retry finds the row above.
+  const [customer] = await insertCustomer(
+    {
+      name: toTitleCase(name),
+      phone_number,
+      origin_store_id,
+      created_by: actorId,
+      updated_by: actorId,
+    },
+    executor
+  );
+  if (!customer) {
+    throw new Error("Failed to create customer");
+  }
+  return customer.id;
 }
 
 function isUniqueViolation(error: unknown): boolean {

@@ -221,7 +221,12 @@ export const POSTProductSchema = z.object({
 
 export const POSTOrderSchema = z
   .object({
-    customer_id: z.number("Customer is required"),
+    // POS sends the typed customer; the server find-or-creates by phone inside
+    // the Order transaction (no client-resolved id). See ADR-0011.
+    customer: z.object({
+      name: varcharSchema("Name"),
+      phone_number: phoneSchema,
+    }),
     store_id: z.number("Store ID is required"),
     campaign_ids: z
       .array(z.number().int().positive())
