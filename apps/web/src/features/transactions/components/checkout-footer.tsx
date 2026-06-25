@@ -12,12 +12,15 @@ import {
 	type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
+import type { CheckoutStep } from "@/features/transactions/components/checkout-stepper";
 import { useCheckoutPricing } from "@/features/transactions/hooks/useCheckoutPricing";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
 import { formatIDRCurrency } from "@/shared/utils";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
-export type CheckoutStep = "cart" | "payment";
+// Shared between the hint element and the Continue button's aria-describedby so
+// the two can't drift apart.
+const PHOTO_HINT_ID = "checkout-photo-hint";
 
 interface CheckoutFooterProps {
 	step: CheckoutStep;
@@ -27,7 +30,7 @@ interface CheckoutFooterProps {
 
 // Pinned action bar — total + the step's primary button stay visible while the
 // step body scrolls above. Self-sources everything from the form/cart/pricing
-// hooks; only step + onContinue are owned by the orchestrator.
+// hooks; only step + onContinue/onBack are owned by the orchestrator.
 export const CheckoutFooter = ({
 	step,
 	onContinue,
@@ -46,7 +49,10 @@ export const CheckoutFooter = ({
 	const submitError = useTransactionsPageStore((state) => state.submitError);
 	const dropoffPhoto = useTransactionsPageStore((state) => state.dropoffPhoto);
 
-	const showPhotoHint = step === "payment" && count > 0 && !dropoffPhoto;
+	// The drop-off photo gates leaving the Items step (it's captured there now),
+	// so the hint and the Create Order gate both key off it.
+	const itemsReady = count > 0 && !!dropoffPhoto;
+	const showPhotoHint = step === "items" && count > 0 && !dropoffPhoto;
 
 	return (
 		<SheetFooter className="shrink-0 gap-2 border-t border-border/70 bg-popover">
@@ -60,51 +66,117 @@ export const CheckoutFooter = ({
 						{formatIDRCurrency(String(Math.round(pricing.total)))}
 					</span>
 				</div>
-				{step === "cart" ? (
-					<Button
-						type="button"
-						size="lg"
-						className="h-11"
-						onClick={onContinue}
-						disabled={count === 0 || !customerReady}
-						icon={<ArrowRightIcon className="size-4" />}
-					>
-						Continue
-					</Button>
-				) : (
-					<div className="flex items-center gap-2">
-						<Button
-							type="button"
-							variant="outline"
-							size="lg"
-							className="h-11"
-							onClick={onBack}
-							disabled={isSubmitting}
-							icon={<ArrowLeftIcon className="size-4" />}
-						>
-							Back
-						</Button>
-						<Button
-							type="button"
-							size="lg"
-							className="h-11"
-							onClick={submit}
-							loading={isSubmitting}
-							loadingText="Creating order..."
-							disabled={count === 0 || !dropoffPhoto || !customerReady}
-							aria-describedby={showPhotoHint ? "create-order-hint" : undefined}
-							icon={<CreditCardIcon className="size-4" />}
-						>
-							Create Order
-						</Button>
-					</div>
-				)}
+				<CheckoutStepActions
+					customerReady={customerReady}
+					isSubmitting={isSubmitting}
+					itemsReady={itemsReady}
+					onBack={onBack}
+					onContinue={onContinue}
+					onSubmit={submit}
+					photoHintId={showPhotoHint ? PHOTO_HINT_ID : undefined}
+					step={step}
+				/>
 			</div>
 			{showPhotoHint ? (
-				<p className="text-muted-foreground text-xs" id="create-order-hint">
-					Add a drop-off photo to create the order.
+				<p className="text-muted-foreground text-xs" id={PHOTO_HINT_ID}>
+					Add a drop-off photo to continue.
 				</p>
 			) : null}
 		</SheetFooter>
+	);
+};
+
+interface CheckoutStepActionsProps {
+	step: CheckoutStep;
+	onContinue: () => void;
+	onBack: () => void;
+	onSubmit: () => void;
+	customerReady: boolean;
+	itemsReady: boolean;
+	isSubmitting: boolean;
+	photoHintId?: string;
+}
+
+// One button set per step. Early returns instead of a nested ternary keep each
+// variant readable and lint-clean.
+const CheckoutStepActions = ({
+	step,
+	onContinue,
+	onBack,
+	onSubmit,
+	customerReady,
+	itemsReady,
+	isSubmitting,
+	photoHintId,
+}: CheckoutStepActionsProps) => {
+	if (step === "customer") {
+		return (
+			<Button
+				className="h-11"
+				disabled={!customerReady}
+				icon={<ArrowRightIcon className="size-4" />}
+				onClick={onContinue}
+				size="lg"
+				type="button"
+			>
+				Continue
+			</Button>
+		);
+	}
+
+	if (step === "items") {
+		return (
+			<div className="flex items-center gap-2">
+				<Button
+					className="h-11"
+					icon={<ArrowLeftIcon className="size-4" />}
+					onClick={onBack}
+					size="lg"
+					type="button"
+					variant="outline"
+				>
+					Back
+				</Button>
+				<Button
+					aria-describedby={photoHintId}
+					className="h-11"
+					disabled={!itemsReady}
+					icon={<ArrowRightIcon className="size-4" />}
+					onClick={onContinue}
+					size="lg"
+					type="button"
+				>
+					Continue
+				</Button>
+			</div>
+		);
+	}
+
+	return (
+		<div className="flex items-center gap-2">
+			<Button
+				className="h-11"
+				disabled={isSubmitting}
+				icon={<ArrowLeftIcon className="size-4" />}
+				onClick={onBack}
+				size="lg"
+				type="button"
+				variant="outline"
+			>
+				Back
+			</Button>
+			<Button
+				className="h-11"
+				disabled={!(customerReady && itemsReady)}
+				icon={<CreditCardIcon className="size-4" />}
+				loading={isSubmitting}
+				loadingText="Creating order..."
+				onClick={onSubmit}
+				size="lg"
+				type="button"
+			>
+				Create Order
+			</Button>
+		</div>
 	);
 };

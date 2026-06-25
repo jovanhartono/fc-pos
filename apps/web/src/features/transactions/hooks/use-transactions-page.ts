@@ -256,7 +256,9 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 			form.handleSubmit(onValidSubmit, () => {
 				useTransactionsPageStore
 					.getState()
-					.setSubmitError("Some details are incomplete. Check the cart step.");
+					.setSubmitError(
+						"Some details are incomplete. Check the customer, items, and payment steps.",
+					);
 			}),
 		[form, onValidSubmit],
 	);
