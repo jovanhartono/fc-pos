@@ -1,9 +1,11 @@
-import parsePhoneNumberFromString, {
-  isValidPhoneNumber,
-} from "libphonenumber-js";
 import z from "zod";
 import { orderPaymentStatusEnum } from "@/db/schema";
 import { CampaignPayloadSchema as _CampaignPayloadSchema } from "@/modules/campaigns/campaign.schema";
+import { POSTCategorySchema as _POSTCategorySchema } from "@/modules/categories/category.schema";
+import {
+  POSTCustomerSchema as _POSTCustomerSchema,
+  PUTCustomerSchema as _PUTCustomerSchema,
+} from "@/modules/customers/customer.schema";
 import {
   POSTOrderPickupEventPresignSchema as _POSTOrderPickupEventPresignSchema,
   POSTOrderPickupEventSchema as _POSTOrderPickupEventSchema,
@@ -12,6 +14,10 @@ import {
   ORDER_SERVICE_TRANSITIONS as _ORDER_SERVICE_TRANSITIONS,
   ORDER_TERMINAL_SERVICE_STATUSES as _ORDER_TERMINAL_SERVICE_STATUSES,
 } from "@/modules/orders/order-status-machine";
+import { POSTPaymentMethodSchema as _POSTPaymentMethodSchema } from "@/modules/payment-methods/payment-method.schema";
+import { POSTProductSchema as _POSTProductSchema } from "@/modules/products/product.schema";
+import { POSTServiceSchema as _POSTServiceSchema } from "@/modules/services/service.schema";
+import { POSTStoreSchema as _POSTStoreSchema } from "@/modules/stores/store.schema";
 
 export const ORDER_SERVICE_TRANSITIONS = _ORDER_SERVICE_TRANSITIONS;
 export const ORDER_TERMINAL_SERVICE_STATUSES = _ORDER_TERMINAL_SERVICE_STATUSES;
@@ -19,6 +25,13 @@ export const POSTOrderPickupEventPresignSchema =
   _POSTOrderPickupEventPresignSchema;
 export const POSTOrderPickupEventSchema = _POSTOrderPickupEventSchema;
 export const CampaignPayloadSchema = _CampaignPayloadSchema;
+export const POSTCustomerSchema = _POSTCustomerSchema;
+export const PUTCustomerSchema = _PUTCustomerSchema;
+export const POSTCategorySchema = _POSTCategorySchema;
+export const POSTPaymentMethodSchema = _POSTPaymentMethodSchema;
+export const POSTProductSchema = _POSTProductSchema;
+export const POSTServiceSchema = _POSTServiceSchema;
+export const POSTStoreSchema = _POSTStoreSchema;
 
 import {
   type CampaignContribution as _CampaignContribution,
@@ -53,7 +66,6 @@ import {
   isActiveSchema,
   optionalVarcharSchema,
   phoneSchema,
-  textSchema,
   varcharSchema,
 } from "@/schema/common";
 
@@ -94,129 +106,6 @@ export const POSTUserSchema = userSchema.refine(
 export const PUTUserSchema = userSchema.omit({
   password: true,
   confirm_password: true,
-});
-
-const customerSchema = z.object({
-  name: varcharSchema("Name"),
-  phone_number: phoneSchema,
-  email: z.email("Invalid email address").nullish(),
-  address: textSchema("Address").nullish(),
-  origin_store_id: z.int({
-    error: (issue) =>
-      issue.input === undefined
-        ? "Origin store is required"
-        : "Origin store must be a number",
-  }),
-});
-export const POSTCustomerSchema = customerSchema;
-export const PUTCustomerSchema = customerSchema.omit({
-  origin_store_id: true,
-});
-
-export const POSTStoreSchema = z.object({
-  code: z.string().trim().min(3, "Minimum 3 characters").max(3),
-  name: z.string().trim().min(1, "Store name is required"),
-  phone_number: z
-    .string()
-    .trim()
-    .min(1, "Phone number is required!")
-    .refine(isValidPhoneNumber, { error: "Invalid phone number" })
-    .pipe(
-      z.transform((value) => parsePhoneNumberFromString(value)?.number ?? value)
-    ),
-  address: z.string().trim().min(1, "Address is required!"),
-  latitude: z.preprocess(
-    (val) => (val === "" ? undefined : Number(val)),
-    z
-      .number("Latitude is required!")
-      .min(-90, "Invalid latitude")
-      .max(90, "Invalid latitude")
-      .transform(String)
-  ),
-  longitude: z.preprocess(
-    (val) => (val === "" ? undefined : Number(val)),
-    z
-      .number("Longitude is required!")
-      .min(-180, "Invalid longitude")
-      .max(180, "Invalid longitude")
-      .transform(String)
-  ),
-  is_active: isActiveSchema,
-});
-
-export const POSTCategorySchema = z.object({
-  name: varcharSchema("name"),
-  description: textSchema("Description").nullish(),
-  is_active: isActiveSchema,
-});
-
-export const POSTServiceSchema = z.object({
-  category_id: z
-    .int({
-      error: (issue) =>
-        issue.input === undefined
-          ? "Category is required"
-          : "Category must be a number",
-    })
-    .positive("Category must be a valid category ID"),
-
-  code: z
-    .string({
-      error: (issue) =>
-        issue.input === undefined
-          ? "Code is required"
-          : "Code must be a string",
-    })
-    .min(1, "Code is required")
-    .max(4, "Code must be at most 4 characters")
-    .regex(
-      /^[A-Z0-9]+$/,
-      "Code must contain only uppercase letters and numbers"
-    ),
-
-  cogs: currencySchema("COGS"),
-  price: currencySchema("Price"),
-
-  name: varcharSchema("Name"),
-  description: textSchema("Description").nullish(),
-  is_active: isActiveSchema,
-  is_priority: z.boolean().default(false),
-});
-
-export const POSTPaymentMethodSchema = z.object({
-  name: varcharSchema("Payment Method"),
-  code: varcharSchema("Code"),
-  is_active: isActiveSchema,
-});
-
-export const POSTProductSchema = z.object({
-  name: varcharSchema("Name"),
-  description: textSchema("Description").nullish(),
-  is_active: isActiveSchema,
-  sku: z
-    .string({
-      error: (issue) =>
-        issue.input === undefined ? "SKU is required" : "SKU must be a string",
-    })
-    .min(1, "SKU is required")
-    .regex(
-      /^[A-Z0-9]+$/,
-      "SKU must contain only uppercase letters and numbers"
-    ),
-  uom: varcharSchema("UOM"),
-  stock: z.int("Stock is required"),
-
-  category_id: z
-    .int({
-      error: (issue) =>
-        issue.input === undefined
-          ? "Category is required"
-          : "Category must be a number",
-    })
-    .positive("Category must be a valid category ID"),
-
-  cogs: currencySchema("COGS"),
-  price: currencySchema("Price"),
 });
 
 export const POSTOrderSchema = z

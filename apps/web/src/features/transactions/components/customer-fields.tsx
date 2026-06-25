@@ -1,12 +1,12 @@
 import { CheckCircleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { PhoneNumberField } from "@/components/form/phone-number-field";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
-import { fetchCustomersPage } from "@/lib/api";
+import { fetchCustomerByPhone } from "@/lib/api";
 import { isValidPhoneNumber, normalizePhoneNumber } from "@/lib/phone-number";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ export const CustomerFields = () => {
 
 	const lookupQuery = useQuery({
 		queryKey: ["customer-by-phone", lookupPhone],
-		queryFn: () => fetchCustomersPage({ limit: 5, search: lookupPhone }),
+		queryFn: () => fetchCustomerByPhone(lookupPhone),
 		enabled: lookupPhone.length > 0,
 		// A phone→customer mapping is stable; cache it so re-looking-up the same
 		// phone (e.g. after a cart↔payment tab toggle remounts this field) is
@@ -42,18 +42,9 @@ export const CustomerFields = () => {
 		staleTime: 5 * 60 * 1000,
 	});
 
-	// search is a substring match, so confirm exact phone equality before
-	// treating it as the returning customer.
-	const match = useMemo(() => {
-		if (!lookupPhone) {
-			return null;
-		}
-		return (
-			lookupQuery.data?.items.find(
-				(customer) => customer.phone_number === lookupPhone,
-			) ?? null
-		);
-	}, [lookupQuery.data, lookupPhone]);
+	// Exact-phone lookup returns the Customer or null directly — phone is
+	// identity, so no client-side disambiguation needed.
+	const match = lookupQuery.data ?? null;
 
 	const isReturning = match !== null;
 

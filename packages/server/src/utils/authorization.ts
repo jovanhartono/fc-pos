@@ -1,6 +1,5 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db } from "@/db";
-import { ordersTable } from "@/db/schema";
 import { ForbiddenException, NotFoundException } from "@/errors";
 import type { JWTPayload } from "@/types";
 
@@ -57,17 +56,4 @@ export async function assertOrderAccess(user: JWTPayload, orderId: number) {
 
   await assertStoreAccess(user, order.store_id);
   return order;
-}
-
-export async function buildStoreWhereClause(user: JWTPayload) {
-  if (user.role === "admin") {
-    return;
-  }
-
-  const storeIds = await getUserStoreIds(user.id);
-  if (storeIds.length === 0) {
-    return eq(ordersTable.id, -1);
-  }
-
-  return inArray(ordersTable.store_id, storeIds);
 }

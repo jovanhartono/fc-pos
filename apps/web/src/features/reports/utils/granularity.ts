@@ -1,24 +1,6 @@
 import type { ReportGranularity } from "@/lib/api";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 
-export function daysBetween(from: string, to: string): number {
-	return dayjs(to).diff(dayjs(from), "day") + 1;
-}
-
-export function pickGranularity(from: string, to: string): ReportGranularity {
-	const days = daysBetween(from, to);
-	if (days <= 31) {
-		return "day";
-	}
-	if (days <= 120) {
-		return "week";
-	}
-	if (days <= 730) {
-		return "month";
-	}
-	return "year";
-}
-
 export function bucketToLabel(
 	bucket: string,
 	granularity: ReportGranularity,

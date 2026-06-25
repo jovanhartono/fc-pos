@@ -16,5 +16,4 @@ export const GETShiftsQuerySchema = z
   })
   .optional();
 
-export type ClockInInput = z.infer<typeof POSTClockInSchema>;
 export type GetShiftsQuery = z.infer<typeof GETShiftsQuerySchema>;

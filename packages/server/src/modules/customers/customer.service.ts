@@ -10,6 +10,7 @@ import {
   updateCustomerById,
 } from "@/modules/customers/customer.repository";
 import type { GetCustomersQuery } from "@/modules/customers/customer.schema";
+import { isUniqueViolation } from "@/utils/errors";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 import { toTitleCase } from "@/utils/string";
 
@@ -34,6 +35,13 @@ export async function getCustomers(query?: GetCustomersQuery) {
 
 export function getCustomerById(id: number) {
   return findCustomerById(id);
+}
+
+// Exact-phone lookup for the POS name-prefill. Phone is identity (UNIQUE), so
+// this is 0-or-1 — never a list. UX-only; checkout still find-or-creates by
+// phone server-side. See ADR-0011.
+export async function getCustomerByPhone(phone_number: string) {
+  return (await findCustomerByPhone(phone_number)) ?? null;
 }
 
 export async function createCustomer({
@@ -112,17 +120,6 @@ export async function resolveOrCreateCustomer({
     throw new Error("Failed to create customer");
   }
   return customer.id;
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) {
-    return false;
-  }
-  const cause = (error as { cause?: unknown }).cause;
-  if (typeof cause === "object" && cause !== null && "code" in cause) {
-    return (cause as { code?: string }).code === "23505";
-  }
-  return "code" in error && (error as { code?: string }).code === "23505";
 }
 
 export async function updateCustomer({

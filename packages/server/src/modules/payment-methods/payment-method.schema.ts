@@ -1,8 +1,13 @@
-import { createInsertSchema, createUpdateSchema } from "drizzle-orm/zod";
+import { createUpdateSchema } from "drizzle-orm/zod";
 import { z } from "zod";
 import { paymentMethodsTable } from "@/db/schema";
+import { isActiveSchema, varcharSchema } from "@/schema/common";
 
-export const POSTPaymentMethodSchema = createInsertSchema(paymentMethodsTable);
+export const POSTPaymentMethodSchema = z.object({
+  name: varcharSchema("Payment Method"),
+  code: varcharSchema("Code"),
+  is_active: isActiveSchema,
+});
 export const PUTPaymentMethodSchema = createUpdateSchema(paymentMethodsTable);
 
 export const GETPaymentMethodsQuerySchema = z

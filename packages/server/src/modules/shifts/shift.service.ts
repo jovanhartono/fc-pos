@@ -9,6 +9,7 @@ import {
 import type { GetShiftsQuery } from "@/modules/shifts/shift.schema";
 import type { JWTPayload } from "@/types";
 import { assertStoreAccess } from "@/utils/authorization";
+import { isUniqueViolation } from "@/utils/errors";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 
 export async function clockIn({
@@ -28,15 +29,7 @@ export async function clockIn({
   try {
     return await insertShift({ user_id: user.id, store_id: storeId });
   } catch (error) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "cause" in error &&
-      typeof error.cause === "object" &&
-      error.cause !== null &&
-      "code" in error.cause &&
-      error.cause.code === "23505"
-    ) {
+    if (isUniqueViolation(error)) {
       throw new BadRequestException("You already have an open shift");
     }
     throw error;

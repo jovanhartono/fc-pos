@@ -3,7 +3,6 @@ import {
 	type FetchAgingQueueQuery,
 	type FetchCampaignsQuery,
 	type FetchCustomersQuery,
-	type FetchDailyReportQuery,
 	type FetchOrdersQuery,
 	type FetchReportOverviewQuery,
 	type FetchReportRangeQuery,
@@ -16,10 +15,8 @@ import {
 	fetchCurrentShift,
 	fetchCustomerAcquisitionReport,
 	fetchCustomersPage,
-	fetchDailyReport,
 	fetchFinancialReport,
 	fetchMe,
-	fetchMyOrderServices,
 	fetchOrderDetail,
 	fetchOrdersFlowReport,
 	fetchOrdersPage,
@@ -109,12 +106,6 @@ export const campaignsQueryOptions = (query?: FetchCampaignsQuery) =>
 		queryFn: () => fetchCampaigns(query),
 	});
 
-export const myOrderServicesQueryOptions = (storeId?: number) =>
-	queryOptions({
-		queryKey: queryKeys.myOrderServices(storeId),
-		queryFn: () => fetchMyOrderServices(storeId),
-	});
-
 export const currentShiftQueryOptions = () =>
 	queryOptions({
 		queryKey: queryKeys.shiftCurrent,
@@ -125,12 +116,6 @@ export const shiftsQueryOptions = (query?: FetchShiftsQuery) =>
 	queryOptions({
 		queryKey: queryKeys.shifts(query),
 		queryFn: () => fetchShifts(query),
-	});
-
-export const dailyReportQueryOptions = (query: FetchDailyReportQuery) =>
-	queryOptions({
-		queryKey: queryKeys.dailyReport(query),
-		queryFn: () => fetchDailyReport(query),
 	});
 
 export const reportOverviewQueryOptions = (query: FetchReportOverviewQuery) =>

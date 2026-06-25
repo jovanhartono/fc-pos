@@ -104,6 +104,9 @@ _Avoid_: "order status service," "transition helper."
 **Customer**:
 The person who placed the Order. `phone_number` is **UNIQUE** — duplicate phone on create returns the existing Customer.
 
+**Customer lookup**:
+The POS phone→name prefill. A dedicated `GET /admin/customers/lookup?phone=` returns the matching Customer (its columns; no store relation — the prefill needs only the name) or `null` — phone is identity, so the result is **0-or-1**, never a list. **UX-only**: it prefills the name and toggles the "Existing customer" badge; it does **not** resolve a `customer_id` for checkout. Checkout correctness stays with server find-or-create at Order submit — the payload is always `customer: { name, phone_number }`, never an id (see [ADR-0011](docs/adr/0011-pos-creates-customer-atomically-with-order.md)). Distinct from the admin customer **browse list** (`GET /admin/customers` — paginated, substring `ilike` on name/phone): same table, different intent. Do **not** route the POS lookup through the browse list — substring search is the wrong model for an identity probe.
+
 ### Photos
 
 **Drop-off photo**:

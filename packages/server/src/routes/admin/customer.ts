@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import {
+  GETCustomerLookupQuerySchema,
   GETCustomersQuerySchema,
   POSTCustomerSchema,
   PUTCustomerSchema,
@@ -8,6 +9,7 @@ import {
 import {
   createCustomer,
   getCustomerById,
+  getCustomerByPhone,
   getCustomers,
   updateCustomer,
 } from "@/modules/customers/customer.service";
@@ -40,6 +42,20 @@ const app = new Hono()
       existed ? StatusCodes.OK : StatusCodes.CREATED
     );
   })
+  // Exact-phone lookup for the POS name-prefill (ADR-0011). Registered before
+  // "/:id" so "lookup" is matched as a literal, not parsed as an id. Returns
+  // the matching Customer or null — phone is identity, so 0-or-1.
+  .get(
+    "/lookup",
+    zodValidator("query", GETCustomerLookupQuerySchema),
+    async (c) => {
+      const { phone } = c.req.valid("query");
+
+      const customer = await getCustomerByPhone(phone);
+
+      return c.json(success(customer));
+    }
+  )
   .get("/:id", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
 

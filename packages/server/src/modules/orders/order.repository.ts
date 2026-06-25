@@ -1,5 +1,5 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   orderCountersTable,
@@ -355,11 +355,4 @@ export async function insertOrderProducts(
     .returning({ subtotal: ordersProductsTable.subtotal });
 
   return inserted.reduce((sum, row) => sum + Number(row.subtotal ?? 0), 0);
-}
-
-export function updateOrderTotal(tx: OrderTx, orderId: number, total: number) {
-  return tx
-    .update(ordersTable)
-    .set({ total: total.toString() })
-    .where(eq(ordersTable.id, orderId));
 }

@@ -225,7 +225,6 @@ export type PatchOrderServiceHandlerInput = z.infer<
   typeof PATCHOrderServiceHandlerSchema
 >;
 export type PatchOrderPaymentInput = z.infer<typeof PATCHOrderPaymentSchema>;
-export type PatchOrderCourierInput = z.infer<typeof PATCHOrderCourierSchema>;
 export type PutOrderDropoffPhotoInput = z.infer<
   typeof PUTOrderDropoffPhotoSchema
 >;

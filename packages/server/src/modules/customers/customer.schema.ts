@@ -11,6 +11,10 @@ export const GETCustomersQuerySchema = z
 
 export type GetCustomersQuery = z.infer<typeof GETCustomersQuerySchema>;
 
+export const GETCustomerLookupQuerySchema = z.object({
+  phone: z.string().min(1),
+});
+
 const customerSchema = z.object({
   name: varcharSchema("Name"),
   phone_number: phoneSchema,

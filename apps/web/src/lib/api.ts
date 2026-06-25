@@ -24,12 +24,6 @@ import { type InferResponseType, parseResponse } from "hono/client";
 import type { z } from "zod";
 import { rpc, rpcWithAuth } from "@/lib/rpc";
 
-export interface ApiSuccess<T> {
-	success: true;
-	message?: string;
-	data: T;
-}
-
 export interface PaginationMeta {
 	total: number;
 	limit: number;
@@ -50,6 +44,7 @@ async function parseSuccessData<T>(
 
 const loginRoute = rpc.api.auth.login.$post;
 const customersRoute = rpc.api.admin.customers.$get;
+const customerLookupRoute = rpc.api.admin.customers.lookup.$get;
 const usersRoute = rpc.api.admin.users.$get;
 const meRoute = rpc.api.admin.users.me.$get;
 const storesRoute = rpc.api.admin.stores.$get;
@@ -65,10 +60,8 @@ const orderServiceByIdRoute = rpc.api.admin.orders.services["by-id"].$get;
 const orderServiceByItemCodeRoute =
 	rpc.api.admin.orders.services["by-item-code"].$get;
 const orderServiceQueueRoute = rpc.api.admin.orders.services.queue.$get;
-const myOrderServicesRoute = rpc.api.admin.orders.services.me.$get;
 const shiftsRoute = rpc.api.admin.shifts.$get;
 const shiftCurrentRoute = rpc.api.admin.shifts.current.$get;
-const dailyReportRoute = rpc.api.admin.reports.daily.$get;
 const reportOverviewRoute = rpc.api.admin.reports.overview.$get;
 const financialRoute = rpc.api.admin.reports.financial.$get;
 const ordersFlowRoute = rpc.api.admin.reports["orders-flow"].$get;
@@ -89,6 +82,11 @@ type LoginSuccessResponse = Extract<
 >;
 
 export type Customer = InferResponseType<typeof customersRoute>["data"][number];
+// Leaner than Customer — the lookup omits the originStore relation (the POS
+// prefill reads only the name). 0-or-1, so the data is the row or null.
+export type CustomerLookup = InferResponseType<
+	typeof customerLookupRoute
+>["data"];
 export type User = InferResponseType<typeof usersRoute>["data"][number];
 export type Store = InferResponseType<typeof storesRoute>["data"][number];
 export type Category = InferResponseType<
@@ -124,10 +122,6 @@ export type QueueOrderServiceItem = Extract<
 	InferResponseType<typeof orderServiceQueueRoute>,
 	{ success: true }
 >["data"][number];
-export type MyOrderServiceItem = Extract<
-	InferResponseType<typeof myOrderServicesRoute>,
-	{ success: true }
->["data"][number];
 export type PublicTrackedOrder = Extract<
 	InferResponseType<typeof publicTrackOrderRoute>,
 	{ success: true }
@@ -148,16 +142,6 @@ export type FetchShiftsQuery = {
 	to?: string;
 	limit?: number;
 	offset?: number;
-};
-
-export type DailyReport = Extract<
-	InferResponseType<typeof dailyReportRoute>,
-	{ success: true }
->["data"];
-
-export type FetchDailyReportQuery = {
-	date: string;
-	store_id?: number;
 };
 
 export type ReportOverview = Extract<
@@ -465,12 +449,8 @@ export const queryKeys = {
 			"store_id" | "search" | "status" | "date_from" | "date_to"
 		>,
 	) => ["order-service-queue", query ?? {}] as const,
-	myOrderServices: (storeId?: number) =>
-		["my-order-services", storeId ?? "all"] as const,
 	shifts: (query?: FetchShiftsQuery) => ["shifts", query ?? {}] as const,
 	shiftCurrent: ["shift-current"] as const,
-	dailyReport: (query: FetchDailyReportQuery) =>
-		["daily-report", query] as const,
 	reportOverview: (query: FetchReportOverviewQuery) =>
 		["report-overview", query] as const,
 	financial: (query: FetchReportRangeQuery) =>
@@ -532,6 +512,15 @@ export async function fetchCustomersPage(
 			total: response.data.length,
 		}) as PaginationMeta,
 	};
+}
+
+// Exact-phone lookup for the POS name-prefill. Returns the matching customer or
+// null — phone is identity, so 0-or-1. UX-only; checkout still find-or-creates
+// by phone server-side (ADR-0011).
+export function fetchCustomerByPhone(phone: string): Promise<CustomerLookup> {
+	return parseSuccessData<CustomerLookup>(
+		rpcWithAuth().api.admin.customers.lookup.$get({ query: { phone } }),
+	);
 }
 
 export async function fetchUsers() {
@@ -930,14 +919,6 @@ export async function fetchOrderServiceQueuePage(
 	};
 }
 
-export async function fetchMyOrderServices(storeId?: number) {
-	return parseSuccessData<MyOrderServiceItem[]>(
-		rpcWithAuth().api.admin.orders.services.me.$get({
-			query: storeId !== undefined ? { store_id: String(storeId) } : {},
-		}),
-	);
-}
-
 export async function updateOrderServiceStatus(
 	orderId: number,
 	serviceId: number,
@@ -1195,19 +1176,6 @@ export async function clockInShift(payload: { store_id: number }) {
 
 export async function clockOutShift() {
 	return parseResponse(rpcWithAuth().api.admin.shifts["clock-out"].$post());
-}
-
-export async function fetchDailyReport(query: FetchDailyReportQuery) {
-	return parseSuccessData<DailyReport>(
-		rpcWithAuth().api.admin.reports.daily.$get({
-			query: {
-				date: query.date,
-				...(query.store_id !== undefined
-					? { store_id: String(query.store_id) }
-					: {}),
-			},
-		}),
-	);
 }
 
 export async function fetchReportOverview(query: FetchReportOverviewQuery) {
