@@ -1,12 +1,15 @@
 import { describe, expect, it } from "bun:test";
 import { orderServiceStatusEnum } from "@/db/schema";
+import { BadRequestException } from "@/errors";
 import {
+  type DbExecutor,
   deriveOrderStatus,
   isTerminalOrderServiceStatus,
   ORDER_SERVICE_TRANSITIONS,
   ORDER_TERMINAL_SERVICE_STATUSES,
   type OrderServiceStatus,
   summarizeOrderFulfillment,
+  transitionOrderService,
 } from "@/modules/orders/order-status-machine";
 
 const s = (status: OrderServiceStatus) => ({ status });
@@ -151,6 +154,77 @@ describe("isTerminalOrderServiceStatus", () => {
     for (const status of active) {
       expect(isTerminalOrderServiceStatus(status)).toBe(false);
     }
+  });
+});
+
+// transitionOrderService takes its DB handle as a parameter, so a hand-rolled
+// fake executor exercises the photo gate without a database. The fluent
+// update/insert stubs only need to satisfy the write + rollup path that runs
+// once the gate passes.
+const makeExecutor = ({
+  serviceStatus,
+  hasPhoto,
+}: {
+  serviceStatus: OrderServiceStatus;
+  hasPhoto: boolean;
+}) =>
+  ({
+    query: {
+      ordersServicesTable: {
+        findFirst: () => Promise.resolve({ id: 1, status: serviceStatus }),
+        findMany: () =>
+          Promise.resolve([{ status: "processing" as OrderServiceStatus }]),
+      },
+      orderServicesImagesTable: {
+        findFirst: () => Promise.resolve(hasPhoto ? { id: 10 } : undefined),
+      },
+      ordersProductsTable: {
+        findMany: () => Promise.resolve([]),
+      },
+    },
+    update: () => ({
+      set: () => ({
+        where: () => ({ returning: () => Promise.resolve([{ id: 1 }]) }),
+      }),
+    }),
+    insert: () => ({ values: () => Promise.resolve() }),
+  }) as unknown as DbExecutor;
+
+const transitionTo = (executor: DbExecutor, to: OrderServiceStatus) =>
+  transitionOrderService(executor, { orderId: 1, serviceId: 1, to, by: 1 });
+
+describe("transitionOrderService photo gate (ADR-0012)", () => {
+  it("blocks queued -> processing when the service has no photo", async () => {
+    const executor = makeExecutor({ serviceStatus: "queued", hasPhoto: false });
+    let error: unknown;
+    try {
+      await transitionTo(executor, "processing");
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "Add an item photo before starting work"
+    );
+  });
+
+  it("allows queued -> processing once a photo exists", async () => {
+    const executor = makeExecutor({ serviceStatus: "queued", hasPhoto: true });
+    expect(await transitionTo(executor, "processing")).toEqual({
+      from: "queued",
+      to: "processing",
+    });
+  });
+
+  it("exempts the qc_reject -> processing redo from the gate", async () => {
+    const executor = makeExecutor({
+      serviceStatus: "qc_reject",
+      hasPhoto: false,
+    });
+    expect(await transitionTo(executor, "processing")).toEqual({
+      from: "qc_reject",
+      to: "processing",
+    });
   });
 });
 

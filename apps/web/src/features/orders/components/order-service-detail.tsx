@@ -124,6 +124,9 @@ export const OrderServiceDetail = ({
 			!TERMINAL_SERVICE_STATUSES.has(nextStatus),
 	);
 	const itemLabel = service.item_code ?? `Service #${service.id}`;
+	// ADR-0012: a pair cannot start processing without a photo.
+	const needsPhotoToStart =
+		service.status === "queued" && service.images.length === 0;
 
 	return (
 		<div className="grid gap-5 text-sm">
@@ -135,15 +138,23 @@ export const OrderServiceDetail = ({
 			</div>
 
 			{availableTransitions.length > 0 ? (
-				<div className="flex flex-wrap gap-2">
-					{availableTransitions.map((nextStatus) => (
-						<ServiceStatusUpdateButton
-							key={nextStatus}
-							nextStatus={nextStatus}
-							serviceId={service.id}
-							updateStatusMutation={updateStatusMutation}
-						/>
-					))}
+				<div className="grid gap-2">
+					<div className="flex flex-wrap gap-2">
+						{availableTransitions.map((nextStatus) => (
+							<ServiceStatusUpdateButton
+								disabled={nextStatus === "processing" && needsPhotoToStart}
+								key={nextStatus}
+								nextStatus={nextStatus}
+								serviceId={service.id}
+								updateStatusMutation={updateStatusMutation}
+							/>
+						))}
+					</div>
+					{needsPhotoToStart ? (
+						<p className="text-muted-foreground text-xs">
+							Add an item photo before starting work.
+						</p>
+					) : null}
 				</div>
 			) : null}
 

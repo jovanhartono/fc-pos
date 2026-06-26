@@ -11,17 +11,22 @@ interface ServiceStatusUpdateButtonProps {
 	serviceId: number;
 	nextStatus: NonTerminalServiceStatus;
 	updateStatusMutation: UpdateStatusMutation;
+	disabled?: boolean;
 }
 
 export const ServiceStatusUpdateButton = ({
 	serviceId,
 	nextStatus,
 	updateStatusMutation,
+	disabled,
 }: ServiceStatusUpdateButtonProps) => {
 	const openDialog = useDialog((s) => s.openDialog);
 	const closeDialog = useDialog((s) => s.closeDialog);
 
 	const handleClick = () => {
+		if (disabled) {
+			return;
+		}
 		openDialog({
 			title: `Update Status to ${STATUS_ACTION_LABELS[nextStatus]}`,
 			description: `Are you sure you want to change the status to ${STATUS_ACTION_LABELS[nextStatus]}?`,
@@ -37,7 +42,12 @@ export const ServiceStatusUpdateButton = ({
 	};
 
 	return (
-		<Button variant="secondary" size="sm" onClick={handleClick}>
+		<Button
+			disabled={disabled}
+			onClick={handleClick}
+			size="sm"
+			variant="secondary"
+		>
 			{STATUS_ACTION_LABELS[nextStatus]}
 		</Button>
 	);

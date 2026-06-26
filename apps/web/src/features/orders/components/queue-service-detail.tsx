@@ -173,6 +173,8 @@ export function QueueServiceDetail({
 		!isHandledByCurrentUser;
 	const nextStatuses = ORDER_SERVICE_TRANSITIONS[selectedService.status] ?? [];
 	const canStartWork = selectedService.status === "queued";
+	// ADR-0012: a pair cannot start processing without a photo.
+	const needsPhotoToStart = canStartWork && selectedService.images.length === 0;
 	const actionStatuses = nextStatuses.filter(
 		(status) =>
 			!WORKER_BLOCKED_QUEUE_STATUSES.has(status) &&
@@ -328,11 +330,16 @@ export function QueueServiceDetail({
 			</div>
 
 			<div className="sticky bottom-0 z-10 mt-6 border-t border-border bg-background/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur sm:px-0 sm:pb-3">
+				{needsPhotoToStart ? (
+					<p className="mb-2 text-xs text-muted-foreground">
+						Add an item photo before starting work.
+					</p>
+				) : null}
 				<div className="flex flex-col gap-2 sm:flex-row">
 					{canStartWork ? (
 						<HoldToConfirmButton
 							className="h-12 sm:flex-1"
-							disabled={isHandledByAnotherWorker}
+							disabled={isHandledByAnotherWorker || needsPhotoToStart}
 							loading={startWorkMutation.isPending}
 							onComplete={async () => {
 								await startWorkMutation.mutateAsync();

@@ -199,6 +199,19 @@ export async function transitionOrderService(
     );
   }
 
+  // ADR-0012: proof-of-condition before work starts. A pair cannot leave
+  // queued → processing without at least one non-deleted photo. The qc_reject
+  // redo loop is exempt — photos already exist by then.
+  if (from === "queued" && to === "processing") {
+    const photo = await executor.query.orderServicesImagesTable.findFirst({
+      where: { order_service_id: serviceId, deleted_at: { isNull: true } },
+      columns: { id: true },
+    });
+    if (!photo) {
+      throw new BadRequestException("Add an item photo before starting work");
+    }
+  }
+
   if (to === "cancelled") {
     if (!cancelReason) {
       throw new BadRequestException(

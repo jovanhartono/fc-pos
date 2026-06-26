@@ -83,7 +83,7 @@ A second derived field on Order, separate from Order status. Computed from money
 **OrderService status**:
 A single `orderServiceStatusEnum` column on `orders_services` that conflates two axes for v1:
 
-- **Processing axis** — `queued → processing → quality_check → (qc_reject → processing | ready_for_pickup) → picked_up`. QC redo always loops through `qc_reject` (no direct `quality_check → processing` shortcut) so every redo is auditable in `order_service_status_logs`. `picked_up` is the success terminal; the transition is gated by pickup-code validation in the pickup dialog and is never settable from a generic status dropdown.
+- **Processing axis** — `queued → processing → quality_check → (qc_reject → processing | ready_for_pickup) → picked_up`. QC redo always loops through `qc_reject` (no direct `quality_check → processing` shortcut) so every redo is auditable in `order_service_status_logs`. `queued → processing` requires ≥1 non-deleted service photo (proof-of-condition; the `qc_reject → processing` redo is exempt) — see [ADR-0012](docs/adr/0012-photo-precedes-processing.md). `picked_up` is the success terminal; the transition is gated by pickup-code validation in the pickup dialog and is never settable from a generic status dropdown.
 - **Terminal-outcome axis** — `cancelled` and `refunded` are exit states gated by the Order's `payment_status` (unpaid → `cancelled`, paid → `refunded`). See [ADR-0004](docs/adr/0004-role-capabilities-v1.md). Reading these values loses the processing step the OrderService was in at the moment of exit; reconstruct from `order_service_status_logs` if needed.
 
 Splitting the two axes into separate columns is a recorded follow-up tied to the Order Status Machine refactor; v1 ships with the conflated encoding.
@@ -92,7 +92,7 @@ Splitting the two axes into separate columns is a recorded follow-up tied to the
 One module owns every status write on `orders` and `orders_services`, plus the matching audit-log entry. Lives at `packages/server/src/modules/orders/order-status-machine.ts`. It holds:
 
 - `deriveOrderStatus` — pure function. Children OrderService statuses + product count → Order rollup status.
-- `transitionOrderService` — public seam for non-terminal status changes. Looks up the transition graph (`ORDER_SERVICE_TRANSITIONS`), rejects illegal moves, writes the row + status-log entry + recomputed Order rollup. Refuses `picked_up` and `refunded`; callers must use the sibling-only seams below. Refuses `cancelled` when Order is paid (per ADR-0004 disjoint off-ramps).
+- `transitionOrderService` — public seam for non-terminal status changes. Looks up the transition graph (`ORDER_SERVICE_TRANSITIONS`), rejects illegal moves, writes the row + status-log entry + recomputed Order rollup. Refuses `picked_up` and `refunded`; callers must use the sibling-only seams below. Refuses `cancelled` when Order is paid (per ADR-0004 disjoint off-ramps). Refuses `queued → processing` when the OrderService has zero non-deleted photos (per [ADR-0012](docs/adr/0012-photo-precedes-processing.md)).
 - `completePickup` / `applyRefundTransition` — sibling-only seams for terminal transitions. The Pickup module calls `completePickup` **after** writing `order_pickup_events`; the Reversal module calls `applyRefundTransition` **after** writing `order_refunds` + `order_refund_items`.
 
 All status writes go through this module. Do not write `orders_services.status` or `orders.status` directly from a handler.
@@ -113,7 +113,7 @@ The POS phone→name prefill. A dedicated `GET /admin/customers/lookup?phone=` r
 One per Order, captured on the store iPad at intake. **Required at intake** — the POS blocks checkout until one is attached. Captured before the Order exists and attached immediately after checkout commits; still replaceable later on the order detail page. Not a hard invariant: if the post-checkout attach fails, the Order can briefly exist without one, surfaced as "Missing" on the detail page for retry. (Was "Non-blocking" pre-2026-06-15.)
 
 **Service detail photo**:
-N per OrderService, no cap, captured during processing on the worker phone. Optional per-photo note.
+N per OrderService, no cap, capturable from intake onward on the worker phone (upload is **not** status-gated). Optional per-photo note. **At least one is required to start work**: an OrderService cannot transition `queued → processing` with zero non-deleted photos — proof-of-condition before the shop touches the pair. See [ADR-0012](docs/adr/0012-photo-precedes-processing.md).
 
 **Pickup photo**:
 Captured per OrderPickupEvent, **blocking** at the picked-up transition.
