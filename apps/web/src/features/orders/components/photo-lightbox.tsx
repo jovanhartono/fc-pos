@@ -2,6 +2,7 @@ import {
 	ArrowLeftIcon,
 	ArrowRightIcon,
 	ImageSquareIcon,
+	XIcon,
 } from "@phosphor-icons/react";
 import dayjs from "dayjs";
 import type * as React from "react";
@@ -102,29 +103,15 @@ export const PhotoLightbox = ({
 		);
 	}, [canNavigate, imageCount]);
 
-	useEffect(() => {
-		if (!open) {
-			return;
+	const handleKeyDown = (event: React.KeyboardEvent) => {
+		if (event.key === "ArrowLeft") {
+			event.preventDefault();
+			showPrevious();
+		} else if (event.key === "ArrowRight") {
+			event.preventDefault();
+			showNext();
 		}
-
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === "ArrowLeft") {
-				event.preventDefault();
-				showPrevious();
-			}
-
-			if (event.key === "ArrowRight") {
-				event.preventDefault();
-				showNext();
-			}
-		};
-
-		window.addEventListener("keydown", handleKeyDown);
-
-		return () => {
-			window.removeEventListener("keydown", handleKeyDown);
-		};
-	}, [open, showNext, showPrevious]);
+	};
 
 	const resetPointerState = () => {
 		pointerStateRef.current = {
@@ -200,19 +187,20 @@ export const PhotoLightbox = ({
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent
-				className="z-60 max-w-[calc(100%-1rem)] gap-0 overflow-hidden border-border bg-background p-0 text-foreground shadow-2xl sm:max-w-5xl overscroll-contain"
-				overlayClassName="z-[60] bg-black/70 supports-backdrop-filter:backdrop-blur-sm"
+				className="inset-0 z-[60] flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 bg-black p-0 text-white ring-0 sm:max-w-none"
+				onKeyDown={handleKeyDown}
+				overlayClassName="z-[60] bg-black"
 				overlayForceRender
-				showCloseButton
+				showCloseButton={false}
 			>
 				<DialogTitle className="sr-only">{title}</DialogTitle>
 				<DialogDescription className="sr-only">
 					Browse order attachments and swipe between images.
 				</DialogDescription>
 
-				<div className="grid bg-black">
+				<div className="flex min-h-0 flex-1 flex-col bg-black">
 					<div
-						className="relative flex min-h-80 items-center justify-center bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_52%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.18))] px-3 py-12 sm:min-h-140 sm:px-14 [touch-action:pan-y]"
+						className="relative flex min-h-0 flex-1 items-center justify-center bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_52%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.18))] px-3 sm:px-14 [touch-action:pan-y]"
 						onPointerDown={handlePointerDown}
 						onPointerMove={handlePointerMove}
 						onPointerUp={commitSwipe}
@@ -225,7 +213,7 @@ export const PhotoLightbox = ({
 								alt={activeItem.alt}
 								width={1600}
 								height={1200}
-								className="pointer-events-none max-h-[min(72vh,calc(100dvh-14rem))] w-auto max-w-full object-contain select-none"
+								className="pointer-events-none max-h-full w-auto max-w-full object-contain select-none"
 							/>
 						) : (
 							<div className="grid place-items-center gap-2 px-6 py-12 text-center text-sm text-white/72">
@@ -234,13 +222,22 @@ export const PhotoLightbox = ({
 							</div>
 						)}
 
+						<button
+							aria-label="Close"
+							className="absolute top-[calc(env(safe-area-inset-top)_+_1rem)] right-4 z-10 grid size-9 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+							onClick={() => onOpenChange(false)}
+							type="button"
+						>
+							<XIcon className="size-5" aria-hidden="true" />
+						</button>
+
 						{canNavigate ? (
 							<>
 								<Button
 									type="button"
 									variant="outline"
 									size="icon-lg"
-									className="absolute top-1/2 left-3 z-10 hidden size-11 -translate-y-1/2 border-white/20 bg-black/45 text-white hover:bg-black/60 hover:text-white focus-visible:border-white/60 md:inline-flex"
+									className="absolute top-1/2 left-3 z-10 hidden size-11 -translate-y-1/2 border-white/20 bg-black/45 text-white hover:bg-black/60 hover:text-white focus-visible:border-white/60 active:-translate-y-1/2! md:inline-flex"
 									onPointerDown={(event) => event.stopPropagation()}
 									onClick={showPrevious}
 									aria-label="Show previous image"
@@ -250,7 +247,7 @@ export const PhotoLightbox = ({
 									type="button"
 									variant="outline"
 									size="icon-lg"
-									className="absolute top-1/2 right-3 z-10 hidden size-11 -translate-y-1/2 border-white/20 bg-black/45 text-white hover:bg-black/60 hover:text-white focus-visible:border-white/60 md:inline-flex"
+									className="absolute top-1/2 right-3 z-10 hidden size-11 -translate-y-1/2 border-white/20 bg-black/45 text-white hover:bg-black/60 hover:text-white focus-visible:border-white/60 active:-translate-y-1/2! md:inline-flex"
 									onPointerDown={(event) => event.stopPropagation()}
 									onClick={showNext}
 									aria-label="Show next image"
@@ -262,7 +259,7 @@ export const PhotoLightbox = ({
 						) : null}
 					</div>
 
-					<div className="grid gap-2 border-t border-white/10 bg-zinc-950 px-4 py-3 text-white sm:grid-cols-[1fr_auto] sm:items-end">
+					<div className="grid gap-2 border-t border-white/10 bg-zinc-950 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)_+_0.75rem)] text-white sm:grid-cols-[1fr_auto] sm:items-end">
 						<div className="grid gap-1">
 							<p className="text-sm font-medium">
 								{activeCaption?.primary ?? "Attachment"}

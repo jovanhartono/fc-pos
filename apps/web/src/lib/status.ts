@@ -1,6 +1,6 @@
 import type { OrderCancelReason, OrderRefundReason } from "@/lib/api";
 
-type BadgeVariant =
+export type BadgeVariant =
 	| "secondary"
 	| "success"
 	| "danger"

@@ -16,6 +16,7 @@ import {
 	SunIcon,
 	TagIcon,
 	UserGearIcon,
+	WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -81,6 +82,13 @@ const workNavigation: NavItem[] = [
 		to: "/orders",
 		label: "Orders",
 		icon: ReceiptIcon,
+		roles: ["admin", "cashier"],
+		search: { page: 1 },
+	},
+	{
+		to: "/complaints",
+		label: "Complaints",
+		icon: WarningCircleIcon,
 		roles: ["admin", "cashier"],
 		search: { page: 1 },
 	},

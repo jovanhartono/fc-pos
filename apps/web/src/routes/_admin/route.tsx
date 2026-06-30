@@ -42,6 +42,11 @@ const pageMeta: Record<string, { title: string; description?: string }> = {
 		description:
 			"Review historical orders, payment status, and order detail records.",
 	},
+	"/complaints": {
+		title: "Complaints",
+		description:
+			"Post-pickup complaints, rework lines, and resolution tracking.",
+	},
 	"/transactions": {
 		title: "Transactions",
 		description:
@@ -100,10 +105,15 @@ function AdminLayout() {
 						title: "Order Detail",
 						description: "Review one order and its service timeline.",
 					}
-				: {
-						title: "Admin",
-						description: "Admin panel",
-					});
+				: pathname.startsWith("/complaints/")
+					? {
+							title: "Complaint Detail",
+							description: "Review one complaint and its rework lines.",
+						}
+					: {
+							title: "Admin",
+							description: "Admin panel",
+						});
 
 	return (
 		<AppShell title={meta.title} description={meta.description}>

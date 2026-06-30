@@ -1,4 +1,8 @@
-import { DotsThreeVerticalIcon, LinkSimpleIcon } from "@phosphor-icons/react";
+import {
+	DotsThreeVerticalIcon,
+	LinkSimpleIcon,
+	WarningCircleIcon,
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +13,8 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { OpenComplaintForm } from "@/features/complaints/components/open-complaint-form";
+import { useOpenComplaintMutation } from "@/features/complaints/hooks/useComplaintMutations";
 import { CancelOrderForm } from "@/features/orders/components/cancel-order-form";
 import { OrderPickupEventDialog } from "@/features/orders/components/order-pickup-event-dialog";
 import { RefundOrderForm } from "@/features/orders/components/refund-order-form";
@@ -19,6 +25,7 @@ import {
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
 import type { OrderDetail } from "@/lib/api";
+import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	formatOrderStatus,
 	formatPaymentStatus,
@@ -44,6 +51,7 @@ export const OrderIdentityStrip = ({
 	const closeDialog = useDialog((s) => s.closeDialog);
 	const cancelOrderMutation = useCancelOrderMutation(orderId);
 	const refundMutation = useRefundOrderMutation(orderId);
+	const openComplaintMutation = useOpenComplaintMutation(orderId);
 
 	const fulfillment = detail.fulfillment;
 	const totalCount = fulfillment.service_total_count;
@@ -137,8 +145,31 @@ export const OrderIdentityStrip = ({
 		});
 	};
 
+	const openComplaintDialog = () => {
+		openDialog({
+			title: "Open complaint",
+			description: "Log a customer complaint and optionally start a rework.",
+			contentClassName: "sm:max-w-2xl",
+			content: () => (
+				<OpenComplaintForm
+					closeDialog={closeDialog}
+					lines={gates.complaintableServices.map((service) => ({
+						id: service.id,
+						itemCode: service.item_code ?? `#${service.id}`,
+						serviceName: service.service?.name ?? "Service",
+						details: formatOrderServiceItemDetails(service),
+					}))}
+					mutation={openComplaintMutation}
+				/>
+			),
+		});
+	};
+
 	const hasMenu =
-		Boolean(trackingUrl) || gates.canCancelOrder || gates.canRefundWholeOrder;
+		Boolean(trackingUrl) ||
+		gates.canCancelOrder ||
+		gates.canRefundWholeOrder ||
+		gates.canOpenComplaint;
 	const showActions = readyCount > 0 || hasMenu;
 	const meta = [
 		detail.customer?.name,
@@ -212,6 +243,12 @@ export const OrderIdentityStrip = ({
 											<DropdownMenuItem onClick={handleCopyTrackingLink}>
 												<LinkSimpleIcon className="size-4" />
 												Copy tracking link
+											</DropdownMenuItem>
+										) : null}
+										{gates.canOpenComplaint ? (
+											<DropdownMenuItem onClick={openComplaintDialog}>
+												<WarningCircleIcon className="size-4" />
+												Open complaint
 											</DropdownMenuItem>
 										) : null}
 										{gates.canCancelOrder ? (

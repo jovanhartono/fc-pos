@@ -30,6 +30,11 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.orderServiceHandlerLogsTable.to_handler_id,
       alias: "order_service_handler_to",
     }),
+    complaintsOpened: r.many.complaintsTable({
+      from: r.usersTable.id,
+      to: r.complaintsTable.opened_by,
+      alias: "complaint_opened_by",
+    }),
     orderServiceStatusLogs: r.many.orderServiceStatusLogsTable(),
     orderServices: r.many.ordersServicesTable(),
     orderServiceUploadedPhotos: r.many.orderServicesImagesTable(),
@@ -186,6 +191,18 @@ export const relations = defineRelations(schema, (r) => ({
   },
 
   ordersServicesTable: {
+    // Complaints opened against this line (it is the complained line).
+    complaints: r.many.complaintsTable({
+      from: r.ordersServicesTable.id,
+      to: r.complaintsTable.order_service_id,
+      alias: "complaint_subject_service",
+    }),
+    // When this line is a rework, the complaint that spawned it.
+    reworkOf: r.one.complaintsTable({
+      from: r.ordersServicesTable.complaint_id,
+      to: r.complaintsTable.id,
+      alias: "complaint_rework_lines",
+    }),
     handlerLogs: r.many.orderServiceHandlerLogsTable(),
     handler: r.one.usersTable({
       from: r.ordersServicesTable.handler_id,
@@ -206,6 +223,28 @@ export const relations = defineRelations(schema, (r) => ({
     }),
     statusLogs: r.many.orderServiceStatusLogsTable(),
     refundItems: r.many.orderRefundItemsTable(),
+  },
+
+  complaintsTable: {
+    // The original complained line.
+    orderService: r.one.ordersServicesTable({
+      from: r.complaintsTable.order_service_id,
+      to: r.ordersServicesTable.id,
+      alias: "complaint_subject_service",
+      optional: false,
+    }),
+    // Free rework lines spawned by this complaint (via orders_services.complaint_id).
+    reworkLines: r.many.ordersServicesTable({
+      from: r.complaintsTable.id,
+      to: r.ordersServicesTable.complaint_id,
+      alias: "complaint_rework_lines",
+    }),
+    openedBy: r.one.usersTable({
+      from: r.complaintsTable.opened_by,
+      to: r.usersTable.id,
+      alias: "complaint_opened_by",
+      optional: false,
+    }),
   },
 
   orderPickupEventsTable: {

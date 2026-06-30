@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import {
 	type FetchAgingQueueQuery,
 	type FetchCampaignsQuery,
+	type FetchComplaintsQuery,
 	type FetchCustomersQuery,
 	type FetchOrdersQuery,
 	type FetchReportOverviewQuery,
@@ -12,6 +13,8 @@ import {
 	fetchCampaignEffectivenessReport,
 	fetchCampaigns,
 	fetchCategories,
+	fetchComplaintDetail,
+	fetchComplaintsPage,
 	fetchCurrentShift,
 	fetchCustomerAcquisitionReport,
 	fetchCustomersPage,
@@ -104,6 +107,18 @@ export const campaignsQueryOptions = (query?: FetchCampaignsQuery) =>
 	queryOptions({
 		queryKey: queryKeys.campaigns(query),
 		queryFn: () => fetchCampaigns(query),
+	});
+
+export const complaintsPageQueryOptions = (query?: FetchComplaintsQuery) =>
+	queryOptions({
+		queryKey: queryKeys.complaints(query),
+		queryFn: () => fetchComplaintsPage(query),
+	});
+
+export const complaintDetailQueryOptions = (id: number) =>
+	queryOptions({
+		queryKey: queryKeys.complaintDetail(id),
+		queryFn: () => fetchComplaintDetail(id),
 	});
 
 export const currentShiftQueryOptions = () =>

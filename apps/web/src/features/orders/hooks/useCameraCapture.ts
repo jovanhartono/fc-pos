@@ -140,9 +140,33 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 			return null;
 		}
 
+		// Crop the captured frame to the region the object-cover preview actually
+		// showed, so the saved photo matches what the user framed (WYSIWYG) instead
+		// of the full sensor frame that object-cover hid behind the viewfinder edges.
+		const frameWidth = video.videoWidth;
+		const frameHeight = video.videoHeight;
+		const boxWidth = video.clientWidth || frameWidth;
+		const boxHeight = video.clientHeight || frameHeight;
+		const frameAspect = frameWidth / frameHeight;
+		const boxAspect = boxWidth / boxHeight;
+
+		let sourceX = 0;
+		let sourceY = 0;
+		let sourceWidth = frameWidth;
+		let sourceHeight = frameHeight;
+		if (frameAspect > boxAspect) {
+			// Frame wider than the viewfinder → its sides were cropped off.
+			sourceWidth = Math.round(frameHeight * boxAspect);
+			sourceX = Math.round((frameWidth - sourceWidth) / 2);
+		} else {
+			// Frame taller than the viewfinder → its top and bottom were cropped off.
+			sourceHeight = Math.round(frameWidth / boxAspect);
+			sourceY = Math.round((frameHeight - sourceHeight) / 2);
+		}
+
 		const canvas = document.createElement("canvas");
-		canvas.width = video.videoWidth;
-		canvas.height = video.videoHeight;
+		canvas.width = sourceWidth;
+		canvas.height = sourceHeight;
 
 		const context = canvas.getContext("2d");
 		if (!context) {
@@ -150,7 +174,17 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 			return null;
 		}
 
-		context.drawImage(video, 0, 0, canvas.width, canvas.height);
+		context.drawImage(
+			video,
+			sourceX,
+			sourceY,
+			sourceWidth,
+			sourceHeight,
+			0,
+			0,
+			sourceWidth,
+			sourceHeight,
+		);
 		const blob = await new Promise<Blob | null>((resolve) => {
 			canvas.toBlob(resolve, "image/jpeg", 0.92);
 		});

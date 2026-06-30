@@ -7,7 +7,6 @@ import {
 	useCallback,
 	useEffect,
 	useMemo,
-	useRef,
 	useState,
 } from "react";
 import { toast } from "sonner";
@@ -18,10 +17,8 @@ import {
 	InputOTPGroup,
 	InputOTPSlot,
 } from "@/components/ui/input-otp";
-import {
-	ACCEPTED_IMAGE_TYPES,
-	isAcceptedImage,
-} from "@/features/orders/utils/photo-upload";
+import { SinglePhotoCaptureDialog } from "@/features/orders/components/photo-upload-dialog";
+import { isAcceptedImage } from "@/features/orders/utils/photo-upload";
 import {
 	createOrderPickupEvent,
 	type OrderDetail,
@@ -346,54 +343,49 @@ const PickupServiceRow = memo(
 PickupServiceRow.displayName = "PickupServiceRow";
 
 const PickupPhotoField = memo(() => {
-	const { file, previewUrl, setFile } = usePickupDialog();
-	const inputRef = useRef<HTMLInputElement | null>(null);
-
-	const handleFileChange = useCallback(
-		(event: React.ChangeEvent<HTMLInputElement>) => {
-			const nextFile = event.target.files?.[0] ?? null;
-			setFile(nextFile);
-		},
-		[setFile],
-	);
+	const { previewUrl, setFile } = usePickupDialog();
+	const [isCameraOpen, setIsCameraOpen] = useState(false);
 
 	return (
 		<div className="space-y-2">
 			<p className="text-sm font-medium">
 				Pickup photo <span className="text-muted-foreground">(required)</span>
 			</p>
-			<div className="aspect-4/3 w-full overflow-hidden border bg-muted sm:aspect-16/10">
+
+			{/* Trigger + saved preview only — the full-screen dialog owns capture,
+			    file picker, and review (see PhotoUpload mandate in AGENTS.md). */}
+			<button
+				aria-label={previewUrl ? "Retake pickup photo" : "Add pickup photo"}
+				className="relative flex aspect-4/3 w-full items-center justify-center overflow-hidden border bg-black sm:aspect-16/10"
+				onClick={() => setIsCameraOpen(true)}
+				type="button"
+			>
 				{previewUrl ? (
-					<img
-						src={previewUrl}
-						alt="Pickup preview"
-						className="h-full w-full object-cover"
-					/>
+					<>
+						<img
+							alt="Pickup preview"
+							className="size-full object-contain"
+							src={previewUrl}
+						/>
+						<span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2 text-center text-white text-xs">
+							Tap to retake
+						</span>
+					</>
 				) : (
-					<div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-muted-foreground">
-						<CameraIcon className="size-8 opacity-50" />
-						<p className="text-sm">Photo of the customer collecting items</p>
+					<div className="flex flex-col items-center justify-center gap-2 text-white/70">
+						<CameraIcon className="size-8 opacity-60" />
+						<span className="text-sm">Add pickup photo</span>
 					</div>
 				)}
-			</div>
-			<input
-				ref={inputRef}
-				type="file"
-				aria-label="Choose pickup photo"
-				accept={ACCEPTED_IMAGE_TYPES.join(",")}
-				capture="environment"
-				className="sr-only"
-				onChange={handleFileChange}
+			</button>
+
+			<SinglePhotoCaptureDialog
+				cameraOnly={false}
+				onCapture={setFile}
+				onOpenChange={setIsCameraOpen}
+				open={isCameraOpen}
+				title="Pickup photo"
 			/>
-			<Button
-				type="button"
-				variant="outline"
-				className="w-full"
-				icon={<CameraIcon className="size-4" />}
-				onClick={() => inputRef.current?.click()}
-			>
-				{file ? "Replace photo" : "Choose photo"}
-			</Button>
 		</div>
 	);
 });

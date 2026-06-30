@@ -3,7 +3,6 @@ import type * as React from "react";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-	formatPhotoTimestamp,
 	getPhotoPrimaryLabel,
 	PhotoLightbox,
 	type PhotoLightboxItem,
@@ -73,81 +72,78 @@ export function OrderPhotoGallery({
 
 	return (
 		<>
-			<div className={cn("grid gap-3 sm:grid-cols-2", gridClassName)}>
+			<div
+				className={cn("grid grid-cols-3 gap-2 sm:grid-cols-4", gridClassName)}
+			>
 				{items.map((item, index) => (
-					<div key={item.id} className="group relative">
+					<div className="group relative" key={item.id}>
 						<button
-							type="button"
+							aria-label={`Open ${getPhotoPrimaryLabel(item)} image ${index + 1} of ${imageCount}`}
 							className={cn(
-								"grid w-full gap-2 border border-border bg-background p-2 text-left transition-[border-color,background-color,box-shadow,opacity] hover:bg-muted/30 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
+								"block w-full overflow-hidden border border-border bg-muted transition-[border-color,box-shadow] hover:border-ring focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
 								thumbnailClassName,
 							)}
 							onClick={() => openAtIndex(index)}
-							aria-label={`Open ${getPhotoPrimaryLabel(item)} image ${index + 1} of ${imageCount}`}
+							type="button"
 						>
 							<img
-								src={item.image_url}
 								alt={item.alt}
-								width={960}
-								height={768}
 								className={cn(
-									"aspect-[4/3] w-full bg-muted object-cover",
+									"aspect-square w-full bg-muted object-cover",
 									thumbnailImageClassName,
 								)}
+								decoding="async"
+								height={480}
 								loading="lazy"
+								src={item.image_url}
+								width={480}
 							/>
-							<div className="grid gap-1 pr-10">
-								<p className="text-xs font-medium">
-									{getPhotoPrimaryLabel(item)}
-								</p>
-								<p className="text-xs text-muted-foreground">
-									{formatPhotoTimestamp(item.created_at)}
-								</p>
-							</div>
 						</button>
 
-						<Button
-							nativeButton={false}
-							render={
-								<a
-									href={item.image_url}
-									download={getPhotoDownloadName(item)}
-									aria-label={`Save ${getPhotoPrimaryLabel(item)} image`}
-								>
-									<DownloadSimpleIcon className="size-4" aria-hidden="true" />
-									<span className="sr-only">
-										{`Save ${getPhotoPrimaryLabel(item)} image`}
-									</span>
-								</a>
-							}
-							variant="outline"
-							size="icon-sm"
-							className="absolute top-3 right-3 border-black/10 bg-background text-foreground hover:border-border hover:bg-background hover:text-foreground"
-							title="Save image"
-						/>
-						{onDelete && item.canDelete ? (
+						<div className="pointer-events-none absolute inset-x-0 top-0 flex justify-end gap-1 p-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
 							<Button
-								type="button"
-								variant="outline"
+								className="pointer-events-auto border-black/10 bg-background/90 text-foreground hover:bg-background"
+								nativeButton={false}
+								render={
+									<a
+										aria-label={`Save ${getPhotoPrimaryLabel(item)} image`}
+										download={getPhotoDownloadName(item)}
+										href={item.image_url}
+									>
+										<DownloadSimpleIcon className="size-4" aria-hidden="true" />
+										<span className="sr-only">
+											{`Save ${getPhotoPrimaryLabel(item)} image`}
+										</span>
+									</a>
+								}
 								size="icon-sm"
-								className="absolute top-3 right-12 border-black/10 bg-background text-destructive hover:border-destructive/40 hover:bg-destructive/10"
-								onClick={() => onDelete(item.id)}
-								disabled={deletingId === item.id}
-								aria-label={`Delete ${getPhotoPrimaryLabel(item)} image`}
-								title="Delete photo"
-								icon={<TrashIcon className="size-4" aria-hidden="true" />}
-								loading={deletingId === item.id}
+								title="Save image"
+								variant="outline"
 							/>
-						) : null}
+							{onDelete && item.canDelete ? (
+								<Button
+									aria-label={`Delete ${getPhotoPrimaryLabel(item)} image`}
+									className="pointer-events-auto border-black/10 bg-background/90 text-destructive hover:border-destructive/40 hover:bg-destructive/10"
+									disabled={deletingId === item.id}
+									icon={<TrashIcon className="size-4" aria-hidden="true" />}
+									loading={deletingId === item.id}
+									onClick={() => onDelete(item.id)}
+									size="icon-sm"
+									title="Delete photo"
+									type="button"
+									variant="outline"
+								/>
+							) : null}
+						</div>
 					</div>
 				))}
 			</div>
 
 			<PhotoLightbox
-				open={isOpen}
-				onOpenChange={setIsOpen}
-				items={lightboxItems}
 				initialIndex={activeIndex}
+				items={lightboxItems}
+				onOpenChange={setIsOpen}
+				open={isOpen}
 				title={title}
 			/>
 		</>

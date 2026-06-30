@@ -468,6 +468,16 @@ export async function getOrderDetailById(id: number) {
             where: { deleted_at: { isNull: true } },
             orderBy: { id: "asc" },
           },
+          // Complaints opened against this line + (if this line is a rework)
+          // the complaint that spawned it — see ADR-0013. Existence is the
+          // only signal; the complaint carries no status (ADR-0013 amendment).
+          complaints: {
+            columns: { id: true },
+            orderBy: { id: "asc" },
+          },
+          reworkOf: {
+            columns: { id: true },
+          },
           refundItems: true,
           service: true,
           statusLogs: {

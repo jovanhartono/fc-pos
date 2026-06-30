@@ -45,10 +45,7 @@ export function GlobalSheet() {
 	return (
 		<>
 			<Sheet open={open} onOpenChange={handleOpenChange}>
-				<SheetContent
-					side="right"
-					className="w-full max-w-[480px] overflow-y-auto data-[side=right]:sm:max-w-[480px]"
-				>
+				<SheetContent side="right" className="w-full overflow-y-auto">
 					{title || description ? (
 						<SheetHeader>
 							{title ? <SheetTitle>{title}</SheetTitle> : null}

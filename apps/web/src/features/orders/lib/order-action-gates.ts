@@ -10,6 +10,8 @@ export interface OrderActionGates {
 	pickupDisabledReason?: string;
 	canCancelOrder: boolean;
 	canRefundWholeOrder: boolean;
+	canOpenComplaint: boolean;
+	complaintableServices: OrderDetail["services"];
 	readyForPickupServices: OrderDetail["services"];
 	refundableServices: OrderDetail["services"];
 	refundableProducts: OrderDetail["products"];
@@ -36,7 +38,10 @@ export const getOrderActionGates = (
 		(service) => service.status === "ready_for_pickup",
 	);
 	const refundableServices = services.filter(
-		(service) => !["refunded", "cancelled"].includes(service.status),
+		// Rework lines are free (₀) — never refundable. Escalation refunds the
+		// original complained line, not its rework (ADR-0013).
+		(service) =>
+			!service.reworkOf && !["refunded", "cancelled"].includes(service.status),
 	);
 	const products = Array.isArray(detail.products) ? detail.products : [];
 	const refundableProducts = products.filter(
@@ -48,6 +53,14 @@ export const getOrderActionGates = (
 	);
 	const cancellableProducts = products.filter(
 		(item) => !item.refunded_at && !item.cancelled_at,
+	);
+	// ADR-0013: only picked_up lines with no complaint yet are complainable
+	// (one complaint per line, lifetime); rework lines are never re-complained.
+	const complaintableServices = services.filter(
+		(service) =>
+			!service.reworkOf &&
+			service.status === "picked_up" &&
+			(service.complaints ?? []).length === 0,
 	);
 	const isPaid = detail.payment_status === "paid";
 	// ADR-0009: items are ready but the Order is unpaid — explain why pickup is
@@ -78,6 +91,9 @@ export const getOrderActionGates = (
 			detail.status !== "cancelled" &&
 			isPaid &&
 			(refundableServices.length > 0 || refundableProducts.length > 0),
+		// Opening a complaint is open to any staff (ADR-0013) — no role gate.
+		canOpenComplaint: complaintableServices.length > 0,
+		complaintableServices,
 		readyForPickupServices,
 		refundableServices,
 		refundableProducts,

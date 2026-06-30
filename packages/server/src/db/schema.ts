@@ -1,5 +1,6 @@
 import { type SQL, sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   decimal,
@@ -206,7 +207,6 @@ export const cancelReasonEnum = pgEnum("cancel_reason_enum", [
   "duplicate_order",
   "other",
 ]);
-
 export const campaignsTable = pgTable(
   "campaigns",
   {
@@ -524,6 +524,13 @@ export const ordersServicesTable = pgTable(
 
     cancel_reason: cancelReasonEnum("cancel_reason"),
     cancel_note: text("cancel_note"),
+    // Non-null marks this line as a REWORK: a free re-clean spawned by the
+    // complaint it points at (the original complained line carries no value
+    // here). See ADR-0013.
+    complaint_id: integer("complaint_id").references(
+      (): AnyPgColumn => complaintsTable.id,
+      { onDelete: "set null" }
+    ),
     handler_id: integer("handler_id").references(() => usersTable.id),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     is_priority: boolean("is_priority").default(false).notNull(),
@@ -575,6 +582,7 @@ export const ordersServicesTable = pgTable(
     index("order_services_priority_idx").on(table.is_priority),
     index("order_services_item_code_idx").on(table.item_code),
     index("order_services_pickup_event_idx").on(table.pickup_event_id),
+    index("order_services_complaint_idx").on(table.complaint_id),
     uniqueIndex("order_services_item_code_uidx").on(table.item_code),
     check("price_non_negative_check", sql`${table.price} >= 0`),
     check("discount_valid_check", sql`${table.price} >= ${table.discount}`),
@@ -588,6 +596,33 @@ export const ordersServicesTable = pgTable(
       "order_services_picked_up_requires_event_check",
       sql`${table.status} != 'picked_up' OR ${table.pickup_event_id} IS NOT NULL`
     ),
+  ]
+);
+
+// A Customer's post-pickup grievance about an OrderService (ADR-0013). The
+// original complained line is `order_service_id`; the free re-clean lines it
+// spawns point back via `orders_services.complaint_id`. picked_up stays
+// terminal — a complaint never mutates the original line.
+export const complaintsTable = pgTable(
+  "complaints",
+  {
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    opened_by: integer("opened_by")
+      .references(() => usersTable.id)
+      .notNull(),
+    order_service_id: integer("order_service_id")
+      .references((): AnyPgColumn => ordersServicesTable.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
+    reason: text("reason").notNull(),
+  },
+  (table) => [
+    index("complaints_opened_by_idx").on(table.opened_by),
+    // One Complaint per original line, lifetime (ADR-0013 amendment). The
+    // outcome is derived from the lines, not stored — so there is no status.
+    uniqueIndex("complaints_order_service_uidx").on(table.order_service_id),
   ]
 );
 

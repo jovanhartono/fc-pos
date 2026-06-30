@@ -28,7 +28,9 @@ import { Route as AdminCampaignsRouteImport } from "./routes/_admin/campaigns";
 import { Route as AdminAttendanceRouteImport } from "./routes/_admin/attendance";
 import { Route as AdminWorkerIndexRouteImport } from "./routes/_admin/worker.index";
 import { Route as AdminOrdersIndexRouteImport } from "./routes/_admin/orders.index";
+import { Route as AdminComplaintsIndexRouteImport } from "./routes/_admin/complaints.index";
 import { Route as AdminOrdersOrderIdRouteImport } from "./routes/_admin/orders.$orderId";
+import { Route as AdminComplaintsComplaintIdRouteImport } from "./routes/_admin/complaints.$complaintId";
 import { Route as AdminWorkerOrderIdServiceIdRouteImport } from "./routes/_admin/worker.$orderId.$serviceId";
 
 const TrackRoute = TrackRouteImport.update({
@@ -125,11 +127,22 @@ const AdminOrdersIndexRoute = AdminOrdersIndexRouteImport.update({
   path: "/orders/",
   getParentRoute: () => AdminRouteRoute,
 } as any);
+const AdminComplaintsIndexRoute = AdminComplaintsIndexRouteImport.update({
+  id: "/complaints/",
+  path: "/complaints/",
+  getParentRoute: () => AdminRouteRoute,
+} as any);
 const AdminOrdersOrderIdRoute = AdminOrdersOrderIdRouteImport.update({
   id: "/orders/$orderId",
   path: "/orders/$orderId",
   getParentRoute: () => AdminRouteRoute,
 } as any);
+const AdminComplaintsComplaintIdRoute =
+  AdminComplaintsComplaintIdRouteImport.update({
+    id: "/complaints/$complaintId",
+    path: "/complaints/$complaintId",
+    getParentRoute: () => AdminRouteRoute,
+  } as any);
 const AdminWorkerOrderIdServiceIdRoute =
   AdminWorkerOrderIdServiceIdRouteImport.update({
     id: "/worker/$orderId/$serviceId",
@@ -154,7 +167,9 @@ export interface FileRoutesByFullPath {
   "/transactions": typeof AdminTransactionsRoute;
   "/users": typeof AdminUsersRoute;
   "/auth/login": typeof AuthLoginRoute;
+  "/complaints/$complaintId": typeof AdminComplaintsComplaintIdRoute;
   "/orders/$orderId": typeof AdminOrdersOrderIdRoute;
+  "/complaints/": typeof AdminComplaintsIndexRoute;
   "/orders/": typeof AdminOrdersIndexRoute;
   "/worker/": typeof AdminWorkerIndexRoute;
   "/worker/$orderId/$serviceId": typeof AdminWorkerOrderIdServiceIdRoute;
@@ -176,7 +191,9 @@ export interface FileRoutesByTo {
   "/users": typeof AdminUsersRoute;
   "/auth/login": typeof AuthLoginRoute;
   "/": typeof AdminIndexRoute;
+  "/complaints/$complaintId": typeof AdminComplaintsComplaintIdRoute;
   "/orders/$orderId": typeof AdminOrdersOrderIdRoute;
+  "/complaints": typeof AdminComplaintsIndexRoute;
   "/orders": typeof AdminOrdersIndexRoute;
   "/worker": typeof AdminWorkerIndexRoute;
   "/worker/$orderId/$serviceId": typeof AdminWorkerOrderIdServiceIdRoute;
@@ -200,7 +217,9 @@ export interface FileRoutesById {
   "/_admin/users": typeof AdminUsersRoute;
   "/auth/login": typeof AuthLoginRoute;
   "/_admin/": typeof AdminIndexRoute;
+  "/_admin/complaints/$complaintId": typeof AdminComplaintsComplaintIdRoute;
   "/_admin/orders/$orderId": typeof AdminOrdersOrderIdRoute;
+  "/_admin/complaints/": typeof AdminComplaintsIndexRoute;
   "/_admin/orders/": typeof AdminOrdersIndexRoute;
   "/_admin/worker/": typeof AdminWorkerIndexRoute;
   "/_admin/worker/$orderId/$serviceId": typeof AdminWorkerOrderIdServiceIdRoute;
@@ -224,7 +243,9 @@ export interface FileRouteTypes {
     | "/transactions"
     | "/users"
     | "/auth/login"
+    | "/complaints/$complaintId"
     | "/orders/$orderId"
+    | "/complaints/"
     | "/orders/"
     | "/worker/"
     | "/worker/$orderId/$serviceId";
@@ -246,7 +267,9 @@ export interface FileRouteTypes {
     | "/users"
     | "/auth/login"
     | "/"
+    | "/complaints/$complaintId"
     | "/orders/$orderId"
+    | "/complaints"
     | "/orders"
     | "/worker"
     | "/worker/$orderId/$serviceId";
@@ -269,7 +292,9 @@ export interface FileRouteTypes {
     | "/_admin/users"
     | "/auth/login"
     | "/_admin/"
+    | "/_admin/complaints/$complaintId"
     | "/_admin/orders/$orderId"
+    | "/_admin/complaints/"
     | "/_admin/orders/"
     | "/_admin/worker/"
     | "/_admin/worker/$orderId/$serviceId";
@@ -417,11 +442,25 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AdminOrdersIndexRouteImport;
       parentRoute: typeof AdminRouteRoute;
     };
+    "/_admin/complaints/": {
+      id: "/_admin/complaints/";
+      path: "/complaints";
+      fullPath: "/complaints/";
+      preLoaderRoute: typeof AdminComplaintsIndexRouteImport;
+      parentRoute: typeof AdminRouteRoute;
+    };
     "/_admin/orders/$orderId": {
       id: "/_admin/orders/$orderId";
       path: "/orders/$orderId";
       fullPath: "/orders/$orderId";
       preLoaderRoute: typeof AdminOrdersOrderIdRouteImport;
+      parentRoute: typeof AdminRouteRoute;
+    };
+    "/_admin/complaints/$complaintId": {
+      id: "/_admin/complaints/$complaintId";
+      path: "/complaints/$complaintId";
+      fullPath: "/complaints/$complaintId";
+      preLoaderRoute: typeof AdminComplaintsComplaintIdRouteImport;
       parentRoute: typeof AdminRouteRoute;
     };
     "/_admin/worker/$orderId/$serviceId": {
@@ -448,7 +487,9 @@ interface AdminRouteRouteChildren {
   AdminTransactionsRoute: typeof AdminTransactionsRoute;
   AdminUsersRoute: typeof AdminUsersRoute;
   AdminIndexRoute: typeof AdminIndexRoute;
+  AdminComplaintsComplaintIdRoute: typeof AdminComplaintsComplaintIdRoute;
   AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute;
+  AdminComplaintsIndexRoute: typeof AdminComplaintsIndexRoute;
   AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute;
   AdminWorkerIndexRoute: typeof AdminWorkerIndexRoute;
   AdminWorkerOrderIdServiceIdRoute: typeof AdminWorkerOrderIdServiceIdRoute;
@@ -468,7 +509,9 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminTransactionsRoute: AdminTransactionsRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminComplaintsComplaintIdRoute: AdminComplaintsComplaintIdRoute,
   AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,
+  AdminComplaintsIndexRoute: AdminComplaintsIndexRoute,
   AdminOrdersIndexRoute: AdminOrdersIndexRoute,
   AdminWorkerIndexRoute: AdminWorkerIndexRoute,
   AdminWorkerOrderIdServiceIdRoute: AdminWorkerOrderIdServiceIdRoute,
