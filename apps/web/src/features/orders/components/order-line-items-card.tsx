@@ -1,9 +1,8 @@
-import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { OrderMoneySummary } from "@/features/orders/components/order-money-summary";
 import { OrderReasonCallout } from "@/features/orders/components/order-reason-callout";
+import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { OrderServiceRow } from "@/features/orders/components/order-service-row";
 import type { OrderDetail, OrderRefundReason } from "@/lib/api";
 import { formatCancelReason, formatRefundReason } from "@/lib/status";
@@ -15,12 +14,6 @@ interface RefundInfo {
 	reason: OrderRefundReason;
 	note?: string;
 }
-
-const SectionHeader = ({ children }: { children: ReactNode }) => (
-	<div className="flex items-center justify-between px-4 py-2.5">
-		<p className="text-foreground text-sm font-semibold">{children}</p>
-	</div>
-);
 
 const ProductLine = ({
 	product,
@@ -103,7 +96,7 @@ export const OrderLineItemsCard = ({
 	return (
 		<div className="grid gap-3 sm:gap-4">
 			<Card className="gap-0 overflow-hidden py-0">
-				<SectionHeader>Services</SectionHeader>
+				<OrderSectionHeader>Services</OrderSectionHeader>
 				{services.length > 0 ? (
 					services.map((service) => (
 						<OrderServiceRow
@@ -122,7 +115,7 @@ export const OrderLineItemsCard = ({
 
 			{products.length > 0 ? (
 				<Card className="gap-0 overflow-hidden py-0">
-					<SectionHeader>Products</SectionHeader>
+					<OrderSectionHeader>Products</OrderSectionHeader>
 					{products.map((item) => (
 						<ProductLine
 							key={item.id}
@@ -132,11 +125,6 @@ export const OrderLineItemsCard = ({
 					))}
 				</Card>
 			) : null}
-
-			<Card className="gap-0 overflow-hidden py-0">
-				<SectionHeader>Totals</SectionHeader>
-				<OrderMoneySummary detail={detail} />
-			</Card>
 		</div>
 	);
 };

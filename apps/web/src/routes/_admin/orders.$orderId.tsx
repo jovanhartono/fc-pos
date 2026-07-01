@@ -1,12 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Skeleton } from "@/components/ui/skeleton";
-import { OrderCourierCard } from "@/features/orders/components/order-courier-card";
-import { OrderDropoffPhotoCard } from "@/features/orders/components/order-dropoff-photo-card";
+import { OrderAttachmentsCard } from "@/features/orders/components/order-attachments-card";
 import { OrderIdentityStrip } from "@/features/orders/components/order-identity-strip";
 import { OrderLineItemsCard } from "@/features/orders/components/order-line-items-card";
-import { OrderPaymentCard } from "@/features/orders/components/order-payment-card";
-import { OrderPickupHistoryCard } from "@/features/orders/components/order-pickup-history-card";
+import { OrderPaymentSection } from "@/features/orders/components/order-payment-section";
 import { useRefreshOrder } from "@/features/orders/hooks/useOrderMutations";
 import { getOrderActionGates } from "@/features/orders/lib/order-action-gates";
 import {
@@ -33,21 +31,11 @@ export const Route = createFileRoute("/_admin/orders/$orderId")({
 });
 
 const OrderDetailSkeleton = () => (
-	<div className="grid gap-6">
-		<div className="flex items-center justify-between gap-3">
-			<Skeleton className="h-8 w-64" />
-			<Skeleton className="h-9 w-32" />
-		</div>
-		<div className="grid gap-4 md:grid-cols-[2fr_1fr]">
-			<div className="grid gap-4">
-				<Skeleton className="h-40 w-full" />
-				<Skeleton className="h-64 w-full" />
-			</div>
-			<div className="grid gap-4">
-				<Skeleton className="h-32 w-full" />
-				<Skeleton className="h-48 w-full" />
-			</div>
-		</div>
+	<div className="grid gap-4">
+		<Skeleton className="h-28 w-full" />
+		<Skeleton className="h-64 w-full" />
+		<Skeleton className="h-52 w-full" />
+		<Skeleton className="h-64 w-full" />
 	</div>
 );
 
@@ -135,36 +123,21 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 		<>
 			<OrderIdentityStrip detail={detail} gates={gates} orderId={id} />
 
-			<div className="grid items-start gap-3 sm:gap-4 lg:grid-cols-3">
-				<div className="lg:col-span-2">
-					<OrderLineItemsCard
-						detail={detail}
-						isAdmin={gates.isAdmin}
-						orderId={id}
-					/>
-				</div>
+			<div className="grid gap-3 sm:gap-4">
+				<OrderLineItemsCard
+					detail={detail}
+					isAdmin={gates.isAdmin}
+					orderId={id}
+				/>
 
-				<div className="grid gap-3 sm:gap-4">
-					{gates.isPaymentAllowed && detail.payment_status !== "paid" ? (
-						<OrderPaymentCard orderId={id} />
-					) : null}
+				<OrderPaymentSection detail={detail} gates={gates} orderId={id} />
 
-					<OrderDropoffPhotoCard
-						canManage={gates.canManageDropoffPhoto}
-						onUploaded={refreshOrder}
-						order={detail}
-					/>
-
-					<OrderCourierCard
-						canManage={gates.canManageCourier}
-						detail={detail}
-						orderId={id}
-					/>
-
-					{pickupEvents.length > 0 ? (
-						<OrderPickupHistoryCard pickupEvents={pickupEvents} />
-					) : null}
-				</div>
+				<OrderAttachmentsCard
+					canManageDropoff={gates.canManageDropoffPhoto}
+					onUploaded={refreshOrder}
+					order={detail}
+					pickupEvents={pickupEvents}
+				/>
 			</div>
 		</>
 	);

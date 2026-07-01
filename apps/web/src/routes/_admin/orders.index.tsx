@@ -17,6 +17,7 @@ import {
 	type OrderFilterValues,
 	PAYMENT_STATUS_VALUES,
 } from "@/features/orders/components/order-filters";
+import { PaymentStatusBadge } from "@/features/orders/components/payment-status-badge";
 import { PickupRadar } from "@/features/orders/components/pickup-radar";
 import type { FetchOrdersQuery, Order } from "@/lib/api";
 import {
@@ -26,10 +27,8 @@ import {
 } from "@/lib/query-options";
 import {
 	formatOrderStatus,
-	formatPaymentStatus,
 	formatRefundStatus,
 	getOrderStatusBadgeVariant,
-	getPaymentStatusBadgeVariant,
 	getRefundStatusBadgeVariant,
 } from "@/lib/status";
 import { formatIDRCurrency } from "@/shared/utils";
@@ -239,13 +238,7 @@ function OrdersPage() {
 				},
 				cell: ({ row }) => (
 					<div className="flex flex-wrap gap-1">
-						<Badge
-							variant={getPaymentStatusBadgeVariant(
-								row.original.payment_status,
-							)}
-						>
-							{formatPaymentStatus(row.original.payment_status)}
-						</Badge>
+						<PaymentStatusBadge status={row.original.payment_status} />
 						{row.original.refund_status !== "none" && (
 							<Badge
 								variant={getRefundStatusBadgeVariant(

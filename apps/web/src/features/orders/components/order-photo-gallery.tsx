@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 export type OrderPhotoGalleryItem = {
 	alt: string;
 	canDelete?: boolean;
+	caption?: React.ReactNode;
 	created_at: string;
 	id: number;
 	image_url: string;
@@ -135,6 +136,8 @@ export function OrderPhotoGallery({
 								/>
 							) : null}
 						</div>
+
+						{item.caption ? <div className="mt-1.5">{item.caption}</div> : null}
 					</div>
 				))}
 			</div>

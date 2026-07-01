@@ -118,7 +118,7 @@ The POS phone→name prefill. A dedicated `GET /admin/customers/lookup?phone=` r
 ### Photos
 
 **Drop-off photo**:
-One per Order, captured on the store iPad at intake. **Required at intake** — the POS blocks checkout until one is attached. Captured before the Order exists and attached immediately after checkout commits; still replaceable later on the order detail page. Not a hard invariant: if the post-checkout attach fails, the Order can briefly exist without one, surfaced as "Missing" on the detail page for retry. (Was "Non-blocking" pre-2026-06-15.)
+One per Order, captured on the store iPad at intake. **Required at intake for every Order** — the POS blocks checkout until one is attached, **product-only Orders included** (product-only is a negligible share, so it is not special-cased). Captured before the Order exists and attached immediately after checkout commits; still replaceable later on the order detail page. Not a hard invariant: the post-checkout attach can fail, leaving the Order without one until someone retries — surfaced as "Missing" on the detail page, which is the designed recovery path. (Was "Non-blocking" pre-2026-06-15.) See [ADR-0014](docs/adr/0014-dropoff-photo-required-best-effort.md).
 
 **Service detail photo**:
 N per OrderService, no cap, capturable from intake onward on the worker phone (upload is **not** status-gated). Optional per-photo note. **At least one is required to start work**: an OrderService cannot transition `queued → processing` with zero non-deleted photos — proof-of-condition before the shop touches the pair. See [ADR-0012](docs/adr/0012-photo-precedes-processing.md).

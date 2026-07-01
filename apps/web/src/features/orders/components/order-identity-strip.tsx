@@ -1,6 +1,7 @@
 import {
 	DotsThreeVerticalIcon,
 	LinkSimpleIcon,
+	TruckIcon,
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
@@ -16,7 +17,9 @@ import {
 import { OpenComplaintForm } from "@/features/complaints/components/open-complaint-form";
 import { useOpenComplaintMutation } from "@/features/complaints/hooks/useComplaintMutations";
 import { CancelOrderForm } from "@/features/orders/components/cancel-order-form";
+import { OrderCourierForm } from "@/features/orders/components/order-courier-form";
 import { OrderPickupEventDialog } from "@/features/orders/components/order-pickup-event-dialog";
+import { PaymentStatusBadge } from "@/features/orders/components/payment-status-badge";
 import { RefundOrderForm } from "@/features/orders/components/refund-order-form";
 import {
 	useCancelOrderMutation,
@@ -28,10 +31,8 @@ import type { OrderDetail } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	formatOrderStatus,
-	formatPaymentStatus,
 	formatRefundStatus,
 	getOrderStatusBadgeVariant,
-	getPaymentStatusBadgeVariant,
 	getRefundStatusBadgeVariant,
 } from "@/lib/status";
 import { useDialog } from "@/stores/dialog-store";
@@ -93,6 +94,24 @@ export const OrderIdentityStrip = ({
 					closeDialog={closeDialog}
 					orderId={orderId}
 					readyServices={gates.readyForPickupServices}
+				/>
+			),
+		});
+	};
+
+	const openCourierDialog = () => {
+		openDialog({
+			title: "Set courier",
+			description:
+				"Assign a courier to collect this order, or leave as walk-in.",
+			contentClassName: "sm:max-w-md",
+			content: () => (
+				<OrderCourierForm
+					closeDialog={closeDialog}
+					currentCourierId={
+						detail.collected_by ? String(detail.collected_by) : ""
+					}
+					orderId={orderId}
 				/>
 			),
 		});
@@ -167,6 +186,7 @@ export const OrderIdentityStrip = ({
 
 	const hasMenu =
 		Boolean(trackingUrl) ||
+		gates.canManageCourier ||
 		gates.canCancelOrder ||
 		gates.canRefundWholeOrder ||
 		gates.canOpenComplaint;
@@ -176,6 +196,7 @@ export const OrderIdentityStrip = ({
 		detail.customer?.phone_number,
 		detail.store?.name,
 		formatOrderDateTime(detail.created_at),
+		detail.collectedBy ? `Courier: ${detail.collectedBy.name}` : null,
 	]
 		.filter(Boolean)
 		.join(" · ");
@@ -207,11 +228,7 @@ export const OrderIdentityStrip = ({
 							<Badge variant={getOrderStatusBadgeVariant(detail.status)}>
 								{formatOrderStatus(detail.status)}
 							</Badge>
-							<Badge
-								variant={getPaymentStatusBadgeVariant(detail.payment_status)}
-							>
-								{formatPaymentStatus(detail.payment_status)}
-							</Badge>
+							<PaymentStatusBadge status={detail.payment_status} />
 							{detail.refund_status !== "none" ? (
 								<Badge
 									variant={getRefundStatusBadgeVariant(detail.refund_status)}
@@ -238,11 +255,17 @@ export const OrderIdentityStrip = ({
 											/>
 										}
 									/>
-									<DropdownMenuContent align="end">
+									<DropdownMenuContent align="end" className="w-40">
 										{trackingUrl ? (
 											<DropdownMenuItem onClick={handleCopyTrackingLink}>
 												<LinkSimpleIcon className="size-4" />
 												Copy tracking link
+											</DropdownMenuItem>
+										) : null}
+										{gates.canManageCourier ? (
+											<DropdownMenuItem onClick={openCourierDialog}>
+												<TruckIcon className="size-4" />
+												Set courier
 											</DropdownMenuItem>
 										) : null}
 										{gates.canOpenComplaint ? (

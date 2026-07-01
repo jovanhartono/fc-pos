@@ -1555,7 +1555,10 @@ async function seedOrders(params: {
       createdAt
     );
 
-    const hasDropoffPhoto = draftServices.length > 0 && chance(0.7);
+    // Drop-off photo is required for every Order — product-only included, not
+    // gated on services (see CONTEXT.md). The ~10% miss simulates a failed
+    // post-checkout attach, exercising the "Missing" recovery path on detail.
+    const hasDropoffPhoto = chance(0.9);
     const dropoffPhotoPath = hasDropoffPhoto
       ? `seed/orders/${sanitizeForS3(orderCode)}/dropoff/handover.jpg`
       : null;
