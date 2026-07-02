@@ -59,7 +59,6 @@ export function CustomerForm({
 								placeholder="e.g. John Doe"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
-								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>
@@ -96,7 +95,6 @@ export function CustomerForm({
 								placeholder="e.g. john@example.com"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
-								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>

@@ -70,7 +70,6 @@ export function StoreForm({
 								placeholder="e.g. STR-JKT-01"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
-								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>
@@ -90,7 +89,6 @@ export function StoreForm({
 								placeholder="e.g. Fresclean Sudirman"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
-								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>
@@ -149,7 +147,6 @@ export function StoreForm({
 								aria-invalid={fieldState.invalid}
 								value={String(field.value ?? "")}
 								disabled={isSubmitting}
-								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>
@@ -173,7 +170,6 @@ export function StoreForm({
 								aria-invalid={fieldState.invalid}
 								value={String(field.value ?? "")}
 								disabled={isSubmitting}
-								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>

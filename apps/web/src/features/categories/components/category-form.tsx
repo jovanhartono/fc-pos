@@ -62,7 +62,6 @@ export function CategoryForm({
 								placeholder="e.g. Laundry"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
-								className="h-10"
 							/>
 							{fieldState.invalid && <FieldError errors={[fieldState.error]} />}
 						</Field>
@@ -84,7 +83,6 @@ export function CategoryForm({
 								aria-invalid={fieldState.invalid}
 								value={field.value ?? ""}
 								disabled={isSubmitting}
-								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>

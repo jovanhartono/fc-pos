@@ -68,7 +68,7 @@ export function DebouncedSearchInput({
 				onChange={(event) => handleChange(event.target.value)}
 				placeholder={placeholder}
 				aria-label={ariaLabel}
-				className={cn("h-10 w-full min-w-0 pl-9 pr-9", inputClassName)}
+				className={cn("w-full min-w-0 pl-9 pr-9", inputClassName)}
 			/>
 			{internalValue ? (
 				<Button

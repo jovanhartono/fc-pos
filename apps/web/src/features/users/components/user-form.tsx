@@ -67,7 +67,6 @@ export function UserForm({
 								placeholder="e.g. cashier01"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting || isEditing}
-								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>
@@ -88,7 +87,6 @@ export function UserForm({
 								placeholder="e.g. Budi Santoso"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
-								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>
@@ -112,7 +110,6 @@ export function UserForm({
 										placeholder="Enter password"
 										aria-invalid={fieldState.invalid}
 										disabled={isSubmitting}
-										className="h-10"
 									/>
 									<FieldError errors={[fieldState.error]} />
 								</Field>
@@ -134,7 +131,6 @@ export function UserForm({
 										placeholder="Confirm password"
 										aria-invalid={fieldState.invalid}
 										disabled={isSubmitting}
-										className="h-10"
 									/>
 									<FieldError errors={[fieldState.error]} />
 								</Field>

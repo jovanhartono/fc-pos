@@ -102,7 +102,7 @@ const CollectPaymentForm = ({ orderId }: { orderId: number }) => {
 				value={selectedPaymentMethodId}
 			/>
 			<Button
-				className="h-11"
+				className="h-10 pointer-coarse:h-11"
 				disabled={paymentMutation.isPending || !selectedPaymentMethodId}
 				onClick={async () => {
 					await paymentMutation.mutateAsync(Number(selectedPaymentMethodId));

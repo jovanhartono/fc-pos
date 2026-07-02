@@ -188,7 +188,6 @@ const UsageLimitField = () => {
 					<FieldLabel htmlFor="campaign-usage-limit">Usage Limit</FieldLabel>
 					<Input
 						aria-invalid={fieldState.invalid}
-						className="h-10"
 						disabled={isSubmitting}
 						id="campaign-usage-limit"
 						min={1}
@@ -232,7 +231,6 @@ const CodeCountField = ({ isEditing }: CodeCountFieldProps) => {
 					</FieldLabel>
 					<Input
 						aria-invalid={fieldState.invalid}
-						className="h-10"
 						disabled={isSubmitting || isEditing}
 						id="campaign-code-count"
 						min={1}
@@ -324,7 +322,6 @@ const PercentageDiscountFields = () => {
 							min={1}
 							max={100}
 							aria-invalid={fieldState.invalid}
-							className="h-10"
 						/>
 						<FieldError errors={[fieldState.error]} />
 					</Field>
@@ -377,7 +374,6 @@ const BogoDiscountFields = () => {
 								)
 							}
 							aria-invalid={fieldState.invalid}
-							className="h-10"
 						/>
 						<FieldError errors={[fieldState.error]} />
 					</Field>
@@ -403,7 +399,6 @@ const BogoDiscountFields = () => {
 								)
 							}
 							aria-invalid={fieldState.invalid}
-							className="h-10"
 						/>
 						<FieldError errors={[fieldState.error]} />
 					</Field>
@@ -488,7 +483,6 @@ export function CampaignForm({
 									placeholder="e.g. MARCH10"
 									aria-invalid={fieldState.invalid}
 									disabled={isSubmitting}
-									className="h-10"
 								/>
 								<FieldError errors={[fieldState.error]} />
 							</Field>
@@ -509,7 +503,6 @@ export function CampaignForm({
 									placeholder="e.g. March Promo"
 									aria-invalid={fieldState.invalid}
 									disabled={isSubmitting}
-									className="h-10"
 								/>
 								<FieldError errors={[fieldState.error]} />
 							</Field>
@@ -613,7 +606,6 @@ export function CampaignForm({
 									type="datetime-local"
 									aria-invalid={fieldState.invalid}
 									disabled={isSubmitting}
-									className="h-10"
 								/>
 								<FieldError errors={[fieldState.error]} />
 							</Field>
@@ -632,7 +624,6 @@ export function CampaignForm({
 									type="datetime-local"
 									aria-invalid={fieldState.invalid}
 									disabled={isSubmitting}
-									className="h-10"
 								/>
 								<FieldError errors={[fieldState.error]} />
 							</Field>

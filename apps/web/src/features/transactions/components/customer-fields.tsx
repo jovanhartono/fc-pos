@@ -79,7 +79,6 @@ export const CustomerFields = () => {
 						onValueChange={field.onChange}
 						required
 						error={fieldState.error}
-						inputClassName="h-11"
 					/>
 				)}
 			/>
@@ -111,7 +110,6 @@ export const CustomerFields = () => {
 						</div>
 						<Input
 							id="customer-name"
-							className="h-11"
 							value={field.value}
 							onChange={field.onChange}
 							readOnly={isReturning}

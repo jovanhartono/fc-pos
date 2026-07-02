@@ -79,7 +79,7 @@ export const VoucherCodeEntry = ({
 				<Input
 					aria-invalid={resolveMutation.isError || undefined}
 					autoCapitalize="characters"
-					className="h-11 font-mono uppercase"
+					className="font-mono uppercase"
 					disabled={storeId === undefined}
 					id="voucher-code"
 					onChange={(event) => {
@@ -98,7 +98,7 @@ export const VoucherCodeEntry = ({
 					value={code}
 				/>
 				<Button
-					className="h-11"
+					className="h-10 pointer-coarse:h-11"
 					disabled={!canApply}
 					icon={<TicketIcon />}
 					loading={resolveMutation.isPending}

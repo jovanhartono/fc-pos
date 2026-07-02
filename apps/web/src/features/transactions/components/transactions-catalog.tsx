@@ -151,7 +151,7 @@ export function TransactionsCatalog() {
 								onValueChange={handleStoreChange}
 								allowedStoreIds={visibleStores.map((store) => store.id)}
 								disabled={!isAdmin}
-								triggerClassName="h-11 w-full border-border/70 bg-background text-sm"
+								triggerClassName="h-10 pointer-coarse:h-11 w-full border-border/70 bg-background text-sm"
 								placeholder="Select store"
 							/>
 						</Field>
@@ -199,7 +199,7 @@ export function TransactionsCatalog() {
 									value={searchTerm}
 									onChange={(event) => setSearchTerm(event.target.value)}
 									placeholder="Search services or add-ons (press /)"
-									className="h-11 border-border/70 bg-background pl-9 pr-10"
+									className="border-border/70 bg-background pl-9 pr-10"
 								/>
 								<kbd className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 items-center justify-center border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
 									/
