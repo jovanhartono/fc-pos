@@ -79,7 +79,7 @@ export const VoucherCodeEntry = ({
 				<Input
 					aria-invalid={resolveMutation.isError || undefined}
 					autoCapitalize="characters"
-					className="font-mono uppercase"
+					className="h-11 font-mono uppercase"
 					disabled={storeId === undefined}
 					id="voucher-code"
 					onChange={(event) => {
@@ -98,6 +98,7 @@ export const VoucherCodeEntry = ({
 					value={code}
 				/>
 				<Button
+					className="h-11"
 					disabled={!canApply}
 					icon={<TicketIcon />}
 					loading={resolveMutation.isPending}
@@ -117,13 +118,14 @@ export const VoucherCodeEntry = ({
 				<ul className="flex flex-wrap gap-1.5">
 					{resolvedVoucherEntries.map((entry) => (
 						<li key={entry.code}>
-							<span className="inline-flex items-center gap-1.5 border border-input bg-muted/40 py-1 pr-1 pl-2 text-xs">
+							<span className="inline-flex items-center gap-1.5 border border-input bg-muted/40 pr-0 pl-2 text-xs">
 								<span className="font-medium">{entry.campaign.name}</span>
 								<span className="font-mono text-muted-foreground">
 									{entry.code}
 								</span>
 								<Button
 									aria-label={`Remove voucher ${entry.code}`}
+									className="size-11"
 									icon={<XIcon />}
 									onClick={() => removeResolvedVoucher(entry.code)}
 									size="icon-xs"
