@@ -68,22 +68,20 @@ export async function mintCampaignCodes(
     if (attempts > MAX_COLLISION_RETRIES) {
       throw new Error("Too many code collisions during minting");
     }
+    attempts++;
     const candidates = Array.from({ length: remaining }, () =>
       generateCrockfordCode()
     );
-    try {
-      await tx
-        .insert(campaignCodesTable)
-        .values(candidates.map((code) => ({ campaign_id: campaignId, code })));
-      remaining = 0;
-    } catch (err) {
-      // 23505 = unique_violation; retry a fresh batch with bounded attempts.
-      if ((err as { code?: string }).code === "23505") {
-        attempts++;
-        continue;
-      }
-      throw err;
-    }
+    // ON CONFLICT DO NOTHING so a rare code collision silently skips that row
+    // rather than raising 23505 — which, inside the enclosing campaign-create
+    // transaction, would poison the tx and make any retry fail with 25P02.
+    // Only the shortfall (codes that collided) is retried with a fresh batch.
+    const inserted = await tx
+      .insert(campaignCodesTable)
+      .values(candidates.map((code) => ({ campaign_id: campaignId, code })))
+      .onConflictDoNothing({ target: campaignCodesTable.code })
+      .returning({ id: campaignCodesTable.id });
+    remaining -= inserted.length;
   }
 }
 
@@ -188,21 +186,11 @@ export function findCampaignByCode(code: string) {
 }
 
 export function findCampaignByIdWithCodes(id: number) {
+  // The /:id/codes route reads only redemption_mode + codes, so skip the
+  // stores/eligibleServices joins the general campaign lookups carry.
   return db.query.campaignsTable.findFirst({
     where: { id },
     with: {
-      stores: {
-        columns: { id: true, store_id: true },
-        with: {
-          store: { columns: { id: true, code: true, name: true } },
-        },
-      },
-      eligibleServices: {
-        columns: { id: true, service_id: true },
-        with: {
-          service: { columns: { id: true, code: true, name: true } },
-        },
-      },
       codes: {
         columns: {
           id: true,

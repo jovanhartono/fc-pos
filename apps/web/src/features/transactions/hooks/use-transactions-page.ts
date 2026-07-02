@@ -284,6 +284,13 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 				shouldDirty: true,
 				shouldValidate: true,
 			});
+			// Clear the mirrored form field too, not just the store: the
+			// CheckoutPaymentStep mirror effect only runs while mounted, so switching
+			// store from another step would otherwise leave stale codes in the payload.
+			form.setValue("appliedVoucherCodes", [], {
+				shouldDirty: true,
+				shouldValidate: true,
+			});
 			useTransactionsPageStore.getState().clearResolvedVouchers();
 		},
 		[currentUserKey, form],

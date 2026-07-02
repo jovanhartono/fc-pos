@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { resolveVoucherCode } from "@/lib/api";
-import { cn } from "@/lib/utils";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 interface VoucherCodeEntryProps {
@@ -118,11 +117,7 @@ export const VoucherCodeEntry = ({
 				<ul className="flex flex-wrap gap-1.5">
 					{resolvedVoucherEntries.map((entry) => (
 						<li key={entry.code}>
-							<span
-								className={cn(
-									"inline-flex items-center gap-1.5 border border-input bg-muted/40 py-1 pr-1 pl-2 text-xs",
-								)}
-							>
+							<span className="inline-flex items-center gap-1.5 border border-input bg-muted/40 py-1 pr-1 pl-2 text-xs">
 								<span className="font-medium">{entry.campaign.name}</span>
 								<span className="font-mono text-muted-foreground">
 									{entry.code}

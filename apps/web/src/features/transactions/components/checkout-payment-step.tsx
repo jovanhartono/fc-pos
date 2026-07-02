@@ -35,6 +35,9 @@ export const CheckoutPaymentStep = () => {
 	const resolvedVoucherEntries = useTransactionsPageStore(
 		(s) => s.resolvedVoucherEntries,
 	);
+	const removeResolvedVoucher = useTransactionsPageStore(
+		(s) => s.removeResolvedVoucher,
+	);
 	const selectedStoreId =
 		useWatch({ control: form.control, name: "selectedStoreId" }) ?? "";
 
@@ -115,6 +118,32 @@ export const CheckoutPaymentStep = () => {
 			form.setValue("appliedVoucherCodes", codes, { shouldValidate: true });
 		}
 	}, [resolvedVoucherEntries, form]);
+
+	// Drop any applied voucher that stopped being eligible (e.g. the cart total
+	// fell below its minimum). Mirrors the listed-campaign prune above: a silently
+	// zeroed code would otherwise ride to submit and hard-fail the whole order.
+	useEffect(() => {
+		if (selectedStoreNumber === undefined) {
+			return;
+		}
+		const now = new Date();
+		for (const entry of resolvedVoucherEntries) {
+			const ineligible =
+				campaignIneligibilityReason(entry.campaign, {
+					now,
+					grossTotal: subtotal,
+					storeId: selectedStoreNumber,
+				}) !== null;
+			if (ineligible) {
+				removeResolvedVoucher(entry.code);
+			}
+		}
+	}, [
+		resolvedVoucherEntries,
+		subtotal,
+		selectedStoreNumber,
+		removeResolvedVoucher,
+	]);
 
 	return (
 		<div className="grid gap-5">

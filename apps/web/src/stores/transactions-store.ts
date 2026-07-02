@@ -65,8 +65,14 @@ export const useTransactionsPageStore = create<TransactionsPageStore>()(
 		setDropoffPhoto: (dropoffPhoto) => set({ dropoffPhoto }),
 		addResolvedVoucher: (code, campaign) =>
 			set((s) => ({
+				// One voucher per campaign per order (the server enforces the same via
+				// order_campaigns' unique constraint): drop any existing entry for this
+				// code OR this campaign before adding, so the same campaign can't be
+				// applied twice and double-count in the price preview.
 				resolvedVoucherEntries: [
-					...s.resolvedVoucherEntries.filter((e) => e.code !== code),
+					...s.resolvedVoucherEntries.filter(
+						(e) => e.code !== code && e.campaign.id !== campaign.id,
+					),
 					{ code, campaign },
 				],
 			})),

@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PlusIcon } from "@phosphor-icons/react";
+import { useMemo } from "react";
 import {
 	Controller,
 	FormProvider,
@@ -29,28 +30,32 @@ import { ServicesMultiAutocomplete } from "@/features/orders/components/services
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 import type { CampaignPayload } from "@/lib/api";
 
-const campaignFormSchema = z
-	.object({
-		code: z.string().trim().min(1, "Code is required"),
-		name: z.string().trim().min(1, "Name is required"),
-		redemption_mode: z.enum(["listed", "code"]),
-		discount_type: z.enum(["fixed", "percentage", "buy_n_get_m_free"]),
-		discount_value: z.string(),
-		min_order_total: z.string().min(1, "Min order total is required"),
-		max_discount: z.string().optional(),
-		usage_limit: z.number().int().min(1).optional(),
-		code_count: z.number().int().min(1).optional(),
-		starts_at: z.string().optional(),
-		ends_at: z.string().optional(),
-		is_active: z.boolean(),
-		store_ids: z.array(z.number().int().positive()),
-		eligible_service_ids: z.array(z.number().int().positive()),
-		buy_quantity: z.number().int().min(1).optional(),
-		free_quantity: z.number().int().min(1).optional(),
-	})
-	.superRefine((value, ctx) => {
+const campaignFormBaseSchema = z.object({
+	code: z.string().trim().min(1, "Code is required"),
+	name: z.string().trim().min(1, "Name is required"),
+	redemption_mode: z.enum(["listed", "code"]),
+	discount_type: z.enum(["fixed", "percentage", "buy_n_get_m_free"]),
+	discount_value: z.string(),
+	min_order_total: z.string().min(1, "Min order total is required"),
+	max_discount: z.string().optional(),
+	usage_limit: z.number().int().min(1).optional(),
+	code_count: z.number().int().min(1).optional(),
+	starts_at: z.string().optional(),
+	ends_at: z.string().optional(),
+	is_active: z.boolean(),
+	store_ids: z.array(z.number().int().positive()),
+	eligible_service_ids: z.array(z.number().int().positive()),
+	buy_quantity: z.number().int().min(1).optional(),
+	free_quantity: z.number().int().min(1).optional(),
+});
+
+const makeCampaignFormSchema = (isEditing: boolean) =>
+	campaignFormBaseSchema.superRefine((value, ctx) => {
 		if (value.redemption_mode === "code") {
-			if (!value.code_count || value.code_count < 1) {
+			// code_count is fixed at creation (immutable): its field is disabled and
+			// stripped from the update payload when editing, so require it only on
+			// create — otherwise a voucher edit could never satisfy the form.
+			if (!isEditing && (!value.code_count || value.code_count < 1)) {
 				ctx.addIssue({
 					code: "custom",
 					path: ["code_count"],
@@ -106,7 +111,7 @@ const campaignFormSchema = z
 		}
 	});
 
-export type CampaignFormState = z.infer<typeof campaignFormSchema>;
+export type CampaignFormState = z.infer<typeof campaignFormBaseSchema>;
 
 type CampaignDiscountType = CampaignFormState["discount_type"];
 
@@ -168,12 +173,11 @@ const REDEMPTION_MODE_OPTIONS: {
 	{ value: "code", label: "Voucher (codes)" },
 ];
 
-interface UsageLimitFieldProps {
-	isSubmitting: boolean;
-}
-
-const UsageLimitField = ({ isSubmitting }: UsageLimitFieldProps) => {
-	const { control } = useFormContext<CampaignFormState>();
+const UsageLimitField = () => {
+	const {
+		control,
+		formState: { isSubmitting },
+	} = useFormContext<CampaignFormState>();
 
 	return (
 		<Controller
@@ -208,12 +212,14 @@ const UsageLimitField = ({ isSubmitting }: UsageLimitFieldProps) => {
 };
 
 interface CodeCountFieldProps {
-	isSubmitting: boolean;
 	isEditing: boolean;
 }
 
-const CodeCountField = ({ isSubmitting, isEditing }: CodeCountFieldProps) => {
-	const { control } = useFormContext<CampaignFormState>();
+const CodeCountField = ({ isEditing }: CodeCountFieldProps) => {
+	const {
+		control,
+		formState: { isSubmitting },
+	} = useFormContext<CampaignFormState>();
 
 	return (
 		<Controller
@@ -442,8 +448,9 @@ export function CampaignForm({
 	isEditing,
 	onReset,
 }: CampaignFormProps) {
+	const schema = useMemo(() => makeCampaignFormSchema(isEditing), [isEditing]);
 	const form = useForm<CampaignFormState>({
-		resolver: zodResolver(campaignFormSchema),
+		resolver: zodResolver(schema),
 		defaultValues,
 	});
 	const isSubmitting = form.formState.isSubmitting;
@@ -589,9 +596,9 @@ export function CampaignForm({
 					/>
 
 					{isVoucher ? (
-						<CodeCountField isEditing={isEditing} isSubmitting={isSubmitting} />
+						<CodeCountField isEditing={isEditing} />
 					) : (
-						<UsageLimitField isSubmitting={isSubmitting} />
+						<UsageLimitField />
 					)}
 
 					<Controller

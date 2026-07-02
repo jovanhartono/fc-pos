@@ -61,7 +61,6 @@ interface ResolvedCampaignRow {
   applied_amount: string;
   buy_quantity: number | null;
   campaign_id: number;
-  code_id: number | null;
   discount_type: "fixed" | "percentage" | "buy_n_get_m_free";
   discount_value: string;
   free_quantity: number | null;
@@ -215,19 +214,23 @@ async function resolveDiscount({
     lines
   );
 
-  const campaignRows: ResolvedCampaignRow[] = breakdown.map(
-    ({ campaign, amount }) => ({
+  // Only campaigns that actually contributed a discount are claimed and logged.
+  // stackCampaignDiscounts emits a zero-amount entry for every campaign it could
+  // not apply (a voucher stacked after the order total was already fully
+  // discounted, or a BOGO with no eligible line). Redeeming those would burn a
+  // single-use bearer code or a usage-limit slot for no benefit.
+  const campaignRows: ResolvedCampaignRow[] = breakdown
+    .filter(({ amount }) => amount > 0)
+    .map(({ campaign, amount }) => ({
       applied_amount: amount.toString(),
       campaign_id: campaign.id,
-      code_id: null,
       _voucherCode: campaign._voucherCode,
       discount_type: campaign.discount_type,
       discount_value: campaign.discount_value,
       max_discount: campaign.max_discount,
       buy_quantity: campaign.buy_quantity,
       free_quantity: campaign.free_quantity,
-    })
-  );
+    }));
 
   const afterCampaign = Math.max(0, grossTotal - campaignDiscount);
   const appliedManual = Math.min(manual, afterCampaign);
@@ -496,6 +499,7 @@ export async function createOrder(
         paid_amount:
           orderPayload.payment_status === "paid" ? netTotal.toString() : "0",
         paid_at: orderPayload.payment_status === "paid" ? new Date() : null,
+        paid_by: orderPayload.payment_status === "paid" ? userId : null,
       })
       .where(eq(ordersTable.id, orderId));
 

@@ -96,7 +96,7 @@ const DropoffAttachment = ({
 						<p className="text-sm">No drop-off photo yet</p>
 					</div>
 				}
-				gridClassName="grid-cols-1 sm:grid-cols-1"
+				gridClassName="grid-cols-1"
 				items={items}
 				thumbnailImageClassName="aspect-16/10"
 				title="Drop-off photo"

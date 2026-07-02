@@ -63,7 +63,7 @@ export const defaultDraftValues: TransactionDraftValues = {
 type TransactionResetActions = {
 	setSubmitError: (message: string) => void;
 	setDropoffPhoto: (file: File | null) => void;
-	clearResolvedVouchers?: () => void;
+	clearResolvedVouchers: () => void;
 };
 
 // Single source of truth for clearing the POS draft — used by both the Reset
@@ -81,7 +81,7 @@ export const resetTransactionDraft = (
 	const selectedStoreId = form.getValues("selectedStoreId");
 	setSubmitError("");
 	setDropoffPhoto(null);
-	clearResolvedVouchers?.();
+	clearResolvedVouchers();
 	form.reset({ ...defaultDraftValues, selectedStoreId });
 };
 

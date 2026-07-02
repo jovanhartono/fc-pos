@@ -29,30 +29,43 @@ describe("generateCrockfordCode", () => {
   });
 });
 
-type InsertBehavior = "ok" | "dup" | "boom";
+// Per-attempt outcome for the fake insert: a number = how many of the requested
+// rows ON CONFLICT DO NOTHING actually inserted (a shortfall models code
+// collisions silently skipped), "boom" = a genuine non-conflict DB error.
+type InsertBehavior = number | "boom";
 
-// A fake OrderTx whose insert().values() resolves or rejects per the scripted
-// behaviors, recording how many rows each attempt tried to insert.
+// A fake OrderTx whose insert().values().onConflictDoNothing().returning()
+// resolves to the inserted id rows per scripted attempt, recording how many
+// rows each attempt requested.
 function makeTx(behaviors: InsertBehavior[]) {
-  const attempts: number[] = [];
+  const requested: number[] = [];
   let call = 0;
   const tx = {
     insert: () => ({
       values: (rows: unknown[]) => {
-        attempts.push(Array.isArray(rows) ? rows.length : 0);
-        const behavior = behaviors[call] ?? "ok";
+        const requestedCount = Array.isArray(rows) ? rows.length : 0;
+        requested.push(requestedCount);
+        const behavior = behaviors[call] ?? requestedCount;
         call += 1;
-        if (behavior === "dup") {
-          return Promise.reject({ code: "23505" });
-        }
-        if (behavior === "boom") {
-          return Promise.reject({ code: "42P01" });
-        }
-        return Promise.resolve();
+        return {
+          onConflictDoNothing: () => ({
+            returning: () => {
+              if (behavior === "boom") {
+                return Promise.reject({ code: "42P01" });
+              }
+              const insertedCount = Math.min(behavior, requestedCount);
+              return Promise.resolve(
+                Array.from({ length: insertedCount }, (_, index) => ({
+                  id: index,
+                }))
+              );
+            },
+          }),
+        };
       },
     }),
   };
-  return { tx: tx as unknown as OrderTx, attempts };
+  return { tx: tx as unknown as OrderTx, requested };
 }
 
 const captureRejection = async (
@@ -68,33 +81,32 @@ const captureRejection = async (
 
 describe("mintCampaignCodes", () => {
   it("inserts the whole batch in one attempt on success", async () => {
-    const { tx, attempts } = makeTx(["ok"]);
+    const { tx, requested } = makeTx([5]);
     await mintCampaignCodes(tx, 1, 5);
-    expect(attempts).toEqual([5]);
+    expect(requested).toEqual([5]);
   });
 
-  it("retries a fresh batch on a 23505 unique-violation, then succeeds", async () => {
-    const { tx, attempts } = makeTx(["dup", "dup", "ok"]);
+  it("retries only the shortfall when codes collide, then succeeds", async () => {
+    // Attempt 1 inserts 1 of 3 (2 collided); attempt 2 inserts the missing 2.
+    const { tx, requested } = makeTx([1, 2]);
     await mintCampaignCodes(tx, 1, 3);
-    expect(attempts).toHaveLength(3);
+    expect(requested).toEqual([3, 2]);
   });
 
   it("gives up after exceeding the collision-retry ceiling", async () => {
-    const { tx, attempts } = makeTx(
-      Array.from({ length: 20 }, () => "dup" as const)
-    );
+    const { tx, requested } = makeTx(Array.from({ length: 20 }, () => 0));
     const error = await captureRejection(mintCampaignCodes(tx, 1, 2));
     expect((error as Error).message).toBe(
       "Too many code collisions during minting"
     );
     // 11 insert attempts (attempts 0..10) before the ceiling guard trips.
-    expect(attempts).toHaveLength(11);
+    expect(requested).toHaveLength(11);
   });
 
-  it("rethrows a non-collision database error without retrying", async () => {
-    const { tx, attempts } = makeTx(["boom"]);
+  it("propagates a non-collision database error without retrying", async () => {
+    const { tx, requested } = makeTx(["boom"]);
     const error = await captureRejection(mintCampaignCodes(tx, 1, 4));
     expect((error as { code?: string }).code).toBe("42P01");
-    expect(attempts).toHaveLength(1);
+    expect(requested).toHaveLength(1);
   });
 });
