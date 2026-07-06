@@ -1,39 +1,29 @@
-# web
+# @fresclean/web
 
-This template should help get you started developing with Vue 3 in Vite.
+Admin web dashboard for Fresclean. React 19 + Vite + TypeScript.
 
-## Recommended IDE Setup
+- **Routing:** TanStack Router (file-based)
+- **Data:** TanStack Query + typed RPC client from `@fresclean/api`
+- **Forms:** react-hook-form + Zod (`zodResolver`)
+- **State:** Zustand
+- **UI:** shadcn (base-lyra), Base UI, Phosphor Icons, Tailwind CSS v4
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## Commands
 
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+Run from this directory (or use the root `bun run dev` to start API + web together):
 
 ```sh
-bun install
+bun run dev               # Vite dev server at http://localhost:5173
+bun run build             # TypeScript check + production build
+bun run preview           # Preview the production build
+bun run type-check        # Regenerate routes + TypeScript check
+bun run generate-routes   # Regenerate TanStack Router route tree
 ```
 
-### Compile and Hot-Reload for Development
+The dev server expects the API running at port 8000 (`bun run dev` in `packages/server`).
 
-```sh
-bun dev
-```
+## Notes
 
-### Type-Check, Compile and Minify for Production
-
-```sh
-bun run build
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-bun lint
-```
+- Add shadcn components via `bunx shadcn@latest add <component>` into `src/components/ui/`.
+- After renaming/creating a route file, run `bun run generate-routes` before type-checking.
+- Conventions and structure: see [`AGENTS.md`](AGENTS.md).
