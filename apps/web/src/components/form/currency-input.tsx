@@ -38,7 +38,7 @@ export function CurrencyInput({
 				onChange={(event) => onValueChange(getNumericValue(event.target.value))}
 				disabled={disabled}
 				required={required}
-				className="h-10 pl-8"
+				className="pl-8"
 			/>
 		</div>
 	);

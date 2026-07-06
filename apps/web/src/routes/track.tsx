@@ -381,7 +381,7 @@ function TrackOrderPage() {
 									placeholder="ABC/06032026/1"
 									value={code}
 									onChange={(event) => setCode(event.target.value)}
-									className="h-11 rounded-none border-[#0f1a16]/15 bg-white font-mono text-sm uppercase focus-visible:border-[#0f1a16] focus-visible:ring-0"
+									className="rounded-none border-[#0f1a16]/15 bg-white font-mono text-sm uppercase focus-visible:border-[#0f1a16] focus-visible:ring-0"
 								/>
 							</Field>
 							<Field data-invalid={!!formError}>
@@ -396,7 +396,7 @@ function TrackOrderPage() {
 									placeholder="08123456789"
 									value={phone}
 									onChange={(event) => setPhone(event.target.value)}
-									className="h-11 rounded-none border-[#0f1a16]/15 bg-white font-mono text-sm focus-visible:border-[#0f1a16] focus-visible:ring-0"
+									className="rounded-none border-[#0f1a16]/15 bg-white font-mono text-sm focus-visible:border-[#0f1a16] focus-visible:ring-0"
 								/>
 							</Field>
 						</div>
@@ -407,7 +407,7 @@ function TrackOrderPage() {
 							type="button"
 							onClick={handleTrack}
 							disabled={isLoading}
-							className="h-11 rounded-none bg-[#0f1a16] text-xs font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#2a2922] disabled:opacity-60"
+							className="h-10 pointer-coarse:h-11 rounded-none bg-[#0f1a16] text-xs font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#2a2922] disabled:opacity-60"
 						>
 							{isLoading ? "Searching…" : "Track order →"}
 						</Button>

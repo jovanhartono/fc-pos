@@ -37,6 +37,7 @@ export type TransactionDraftValues = {
 	customerName: string;
 	customerPhone: string;
 	selectedCampaignIds: string[];
+	appliedVoucherCodes: string[];
 	selectedPaymentMethodId: string;
 	selectedCourierId: string;
 	manualDiscount: string;
@@ -50,6 +51,7 @@ export const defaultDraftValues: TransactionDraftValues = {
 	customerName: "",
 	customerPhone: "",
 	selectedCampaignIds: [],
+	appliedVoucherCodes: [],
 	selectedPaymentMethodId: "",
 	selectedCourierId: "",
 	manualDiscount: "",
@@ -61,6 +63,7 @@ export const defaultDraftValues: TransactionDraftValues = {
 type TransactionResetActions = {
 	setSubmitError: (message: string) => void;
 	setDropoffPhoto: (file: File | null) => void;
+	clearResolvedVouchers: () => void;
 };
 
 // Single source of truth for clearing the POS draft — used by both the Reset
@@ -69,11 +72,16 @@ type TransactionResetActions = {
 // lived in two near-duplicate resets and the photo was missed on one path.
 export const resetTransactionDraft = (
 	form: UseFormReturn<TransactionDraftValues>,
-	{ setSubmitError, setDropoffPhoto }: TransactionResetActions,
+	{
+		setSubmitError,
+		setDropoffPhoto,
+		clearResolvedVouchers,
+	}: TransactionResetActions,
 ) => {
 	const selectedStoreId = form.getValues("selectedStoreId");
 	setSubmitError("");
 	setDropoffPhoto(null);
+	clearResolvedVouchers();
 	form.reset({ ...defaultDraftValues, selectedStoreId });
 };
 
@@ -175,6 +183,7 @@ export const toOrderPayload = ({
 	customerPhone,
 	selectedStoreId,
 	selectedCampaignIds,
+	appliedVoucherCodes,
 	selectedPaymentMethodId,
 	selectedCourierId,
 	manualDiscount,
@@ -188,6 +197,7 @@ export const toOrderPayload = ({
 	},
 	store_id: Number(selectedStoreId),
 	campaign_ids: selectedCampaignIds.map((id) => Number(id)),
+	voucher_codes: appliedVoucherCodes.map((code) => code.trim()),
 	discount: manualDiscount || "0",
 	payment_method_id: selectedPaymentMethodId
 		? Number(selectedPaymentMethodId)

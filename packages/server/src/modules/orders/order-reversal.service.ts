@@ -7,6 +7,12 @@ import {
   ordersTable,
 } from "@/db/schema";
 import { BadRequestException } from "@/errors";
+import {
+  decrementCampaignRedeemed,
+  findOrderCampaignsByOrderId,
+  releaseCampaignCodeRedemption,
+} from "@/modules/campaigns/campaign.repository";
+import type { OrderTx } from "@/modules/orders/order.repository";
 import type {
   PostOrderCancelInput,
   PostOrderRefundInput,
@@ -360,6 +366,68 @@ function toCancelLine(item: CancelLineInput): CancelLine {
   );
 }
 
+// Release each redemption logged on the order (ADR-0015): a code redemption is
+// unclaimed (redeemed_at/redeemed_order_id nulled), a listed redemption
+// decrements the campaign's redeemed_count. Only called when a full cancel
+// closes the order.
+async function releaseCampaignRedemptions(tx: OrderTx, orderId: number) {
+  const orderCampaigns = await findOrderCampaignsByOrderId(tx, orderId);
+  for (const oc of orderCampaigns) {
+    if (oc.code_id === null) {
+      await decrementCampaignRedeemed(tx, oc.campaign_id);
+    } else {
+      await releaseCampaignCodeRedemption(tx, oc.code_id);
+    }
+  }
+}
+
+interface CancelProductRow {
+  cancelled_at: Date | null;
+  id: number;
+  product_id: number | null;
+  qty: number;
+  refunded_at: Date | null;
+}
+
+// Void the given product lines inside the cancel transaction. CAS on the still-
+// open markers (mirrors transitionOrderService): only one concurrent cancel
+// wins, so stock is restored exactly once.
+async function cancelProductLines(
+  tx: OrderTx,
+  productLines: CancelLine[],
+  productRowById: Map<number, CancelProductRow>
+) {
+  for (const line of productLines) {
+    const row = productRowById.get(line.id);
+    if (!row) {
+      continue;
+    }
+    const updated = await tx
+      .update(ordersProductsTable)
+      .set({
+        cancelled_at: new Date(),
+        cancel_reason: line.reason,
+        cancel_note: line.note ?? null,
+      })
+      .where(
+        and(
+          eq(ordersProductsTable.id, line.id),
+          isNull(ordersProductsTable.cancelled_at),
+          isNull(ordersProductsTable.refunded_at)
+        )
+      )
+      .returning({ id: ordersProductsTable.id });
+    if (updated.length === 0) {
+      throw new BadRequestException(
+        `Product line ${line.id} was already cancelled or refunded`
+      );
+    }
+    if (row.product_id != null) {
+      await incrementProductStock(tx, row.product_id, row.qty);
+    }
+  }
+}
+
 // Cancel is the unpaid, per-line twin of refund (ADR-0008): staff pick which
 // service and product lines to void. No money moves; cancelled product lines
 // restore stock. The Order rollup is recomputed from the resulting line states.
@@ -447,42 +515,26 @@ export async function cancelOrder({
       });
     }
 
-    for (const line of productLines) {
-      const row = productRowById.get(line.id);
-      if (!row) {
-        continue;
-      }
-      // CAS on the still-open markers (mirrors transitionOrderService): only one
-      // concurrent cancel wins, so stock is restored exactly once.
-      const updated = await tx
-        .update(ordersProductsTable)
-        .set({
-          cancelled_at: new Date(),
-          cancel_reason: line.reason,
-          cancel_note: line.note ?? null,
-        })
-        .where(
-          and(
-            eq(ordersProductsTable.id, line.id),
-            isNull(ordersProductsTable.cancelled_at),
-            isNull(ordersProductsTable.refunded_at)
-          )
-        )
-        .returning({ id: ordersProductsTable.id });
-      if (updated.length === 0) {
-        throw new BadRequestException(
-          `Product line ${line.id} was already cancelled or refunded`
-        );
-      }
-      if (row.product_id != null) {
-        await incrementProductStock(tx, row.product_id, row.qty);
-      }
-    }
+    await cancelProductLines(tx, productLines, productRowById);
 
     // Service cancels recompute inside transitionOrderService; product-only
     // cancels need an explicit recompute to fold product states into the rollup.
     if (productLines.length > 0) {
       await recomputeOrderRollup(tx, orderId, user.id);
+    }
+
+    // Release campaign redemptions if this cancel fully closed the order
+    // (ADR-0015). Gate on the pre-loaded status: avoids double-release when
+    // re-cancelling an already-cancelled order. Single site covers both
+    // service-only and product cancels.
+    if (order.status !== "cancelled") {
+      const updated = await tx.query.ordersTable.findFirst({
+        where: { id: orderId },
+        columns: { status: true },
+      });
+      if (updated?.status === "cancelled") {
+        await releaseCampaignRedemptions(tx, orderId);
+      }
     }
   });
 

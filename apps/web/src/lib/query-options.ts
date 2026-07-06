@@ -12,6 +12,7 @@ import {
 	fetchAgingQueueReport,
 	fetchCampaignEffectivenessReport,
 	fetchCampaigns,
+	fetchCampaignVoucherCodes,
 	fetchCategories,
 	fetchComplaintDetail,
 	fetchComplaintsPage,
@@ -107,6 +108,12 @@ export const campaignsQueryOptions = (query?: FetchCampaignsQuery) =>
 	queryOptions({
 		queryKey: queryKeys.campaigns(query),
 		queryFn: () => fetchCampaigns(query),
+	});
+
+export const campaignVoucherCodesQueryOptions = (campaignId: number) =>
+	queryOptions({
+		queryKey: queryKeys.campaignVoucherCodes(campaignId),
+		queryFn: () => fetchCampaignVoucherCodes(campaignId),
 	});
 
 export const complaintsPageQueryOptions = (query?: FetchComplaintsQuery) =>

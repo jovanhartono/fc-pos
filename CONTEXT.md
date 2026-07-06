@@ -20,12 +20,24 @@ _Avoid_: Merchandise, add-on.
 Grouping for Services and Products. Used in reports (revenue is reported as Store × Category).
 
 **Campaign**:
-A discount rule with a date window, a minimum order total, and eligible Services, scoped to 0..N Stores (zero = valid at every Store). May be percentage or fixed amount. Multiple Campaigns may stack on one Order.
-_Avoid_: Promo, voucher, coupon — these are all Campaigns.
+A discount rule with a date window, a minimum order total, and eligible Services, scoped to 0..N Stores (zero = valid at every Store). May be percentage or fixed amount. Multiple Campaigns may stack on one Order. Redeemed one of two ways, set by its **redemption mode**: **listed** (offered in the POS list and picked by the cashier — the default) or by **code** (a Voucher — not listed; the cashier types a code). A listed Campaign may carry a **usage limit**; a code Campaign is a Voucher. See [ADR-0015](docs/adr/0015-campaign-usage-limit-and-vouchers.md).
+_Avoid_: Promo, coupon — these are Campaigns. **Voucher** is not a separate concept: it is a code-mode Campaign (see Voucher).
 
 **Usable (Campaign)**:
-A Campaign is Usable for a given Store and order total at a moment in time when every rule passes: active, within its date window, Store in scope (or unscoped), and order total meets the minimum. The POS offers only Usable Campaigns; checkout rejects unusable ones.
+A Campaign is Usable for a given Store and order total at a moment in time when every rule passes: active, within its date window, Store in scope (or unscoped), and order total meets the minimum. Usage limits and Vouchers add two more gates: a listed Campaign at its **usage limit** is not Usable, and a Voucher additionally requires a matching, unredeemed **Voucher code**. The POS offers only Usable *listed* Campaigns; a Voucher is applied by entering its code, which checkout validates the same way. Checkout rejects unusable ones.
 _Avoid_: Available — the web's former term for a partial (2-of-4 rule) version of this check.
+
+**Voucher**:
+A code-mode Campaign: a batch of **bearer, single-use codes** handed to specific people to redeem later. Not offered in the POS list — the cashier types a code at checkout and the server resolves which Campaign it belongs to. Each code redeems exactly once, for whoever presents it (**not bound to a customer** — presenting the code is the only proof), and the batch size is the Campaign's effective cap. All codes in one Voucher share its discount, date window, Store scope, and eligible Services; deactivating or expiring the Campaign kills every code. See [ADR-0015](docs/adr/0015-campaign-usage-limit-and-vouchers.md).
+_Avoid_: Coupon, gift card, promo code — a Voucher is a Campaign.
+
+**Voucher code**:
+One bearer, single-use string belonging to a Voucher. Globally unique across all Vouchers and deliberately **non-guessable** (a code is money — anyone holding it can redeem it). Minted when the Voucher is created; claimed atomically at checkout so it can never be spent twice; freed again only if its Order is **fully cancelled** — a paid refund or a partial per-line cancel does not free it. See [ADR-0015](docs/adr/0015-campaign-usage-limit-and-vouchers.md).
+_Avoid_: Coupon code, redemption key.
+
+**Usage limit**:
+An optional global cap on how many times a **listed** Campaign may be redeemed across all Orders and Stores (e.g. "the first 100 Orders"). Enforced atomically at checkout — concurrent checkouts racing the last slot can never both win (the same guarantee Product stock has). A Voucher does not use this field; its cap is its code count. A redemption returns to the pool only when its Order is fully cancelled. See [ADR-0015](docs/adr/0015-campaign-usage-limit-and-vouchers.md).
+_Avoid_: Quota, max uses.
 
 **PaymentMethod**:
 A configurable tender (cash, transfer, QRIS, etc.). Same list across all Stores. An Order carries a PaymentMethod **only when `payment_status = paid`** — a tender is *how money arrived*, so an unpaid Order has none. The POS hides the method picker while a Cart is unpaid and drops any chosen method when it toggles back to unpaid; a paid Order **requires** one. This is a corollary of binary payment — see [ADR-0001](docs/adr/0001-payment-is-binary.md).
@@ -153,6 +165,8 @@ The cashier UI at `/transactions` for creating Orders. (See Ambiguities — "Tra
 - An **Order** may record the **Courier** who collected its items at intake (`orders.collected_by`, nullable FK → a `role = courier` User). A non-null value marks the Order as collected via delivery rather than walk-in; null = walk-in. There is no separate "is delivery" boolean — the Courier reference **is** the marker. Records **intake** only (collection), not return delivery. See [ADR-0010](docs/adr/0010-courier-role-login-only-excluded-by-allowlist.md).
 - Cancel and refund are **disjoint, per-line off-ramps** gated by the Order's `payment_status`: unpaid → cancel only; paid → refund only. Both are **per-line** (staff/admin pick which OrderServices and OrderProducts to reverse) and both cover service **and** product lines; the only differences are the trigger (`payment_status`), the reason enum (`cancelReasonEnum` vs `refundReasonEnum`), money movement (none on cancel), and stock (cancel restores, refund does not). There is no auto-cascade between them. See [ADR-0008](docs/adr/0008-cancel-is-unpaid-per-line-refund-twin.md).
 - A **Campaign** is scoped to 0..N **Stores** (zero = all Stores) and targets 1..N **Services**.
+- A **Campaign** is either **listed** (optionally carrying a **usage limit**) or a **Voucher** (code mode) owning 1..N **Voucher codes** — never both; the two modes are mutually exclusive by construction. Each Voucher code redeems at most once. See [ADR-0015](docs/adr/0015-campaign-usage-limit-and-vouchers.md).
+- An **Order** records every **Campaign** it redeemed; a Voucher redemption additionally names the specific **Voucher code** consumed. A redemption is released back to its Campaign's pool — a listed slot, or the code — only when the Order is **fully cancelled**, never on refund or partial per-line cancel.
 - A **User** is scoped to 1..N **Stores** and opens a **Shift** to take payments at one Store at a time.
 
 ## Example dialogue
@@ -171,6 +185,9 @@ The cashier UI at `/transactions` for creating Orders. (See Ambiguities — "Tra
 
 > **Dev:** "Customer comes back two days after pickup — the clean was bad. Do we reopen the order?"
 > **Domain expert:** "No. `picked_up` is terminal. Open a Complaint against that OrderService and add a free Rework line to the same Order — same code, same receipt. If the re-clean still fails, an admin refunds the original line and we promise a voucher." (See [ADR-0013](docs/adr/0013-complaint-and-rework-line.md).)
+
+> **Dev:** "A VIP has a voucher code we gave them — do we pick their campaign at checkout?"
+> **Domain expert:** "No. The cashier types the code; the server finds the Campaign. The code is bearer and single-use — it works once for whoever holds it, then it's dead. It isn't tied to that customer." (See [ADR-0015](docs/adr/0015-campaign-usage-limit-and-vouchers.md).)
 
 ## Flagged ambiguities
 

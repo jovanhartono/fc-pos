@@ -1,6 +1,10 @@
 import z from "zod";
 import { orderPaymentStatusEnum } from "@/db/schema";
-import { CampaignPayloadSchema as _CampaignPayloadSchema } from "@/modules/campaigns/campaign.schema";
+import {
+  CampaignPayloadSchema as _CampaignPayloadSchema,
+  type CampaignRedemptionMode as _CampaignRedemptionMode,
+  CampaignUpdatePayloadSchema as _CampaignUpdatePayloadSchema,
+} from "@/modules/campaigns/campaign.schema";
 import { POSTCategorySchema as _POSTCategorySchema } from "@/modules/categories/category.schema";
 import {
   POSTCustomerSchema as _POSTCustomerSchema,
@@ -25,6 +29,8 @@ export const POSTOrderPickupEventPresignSchema =
   _POSTOrderPickupEventPresignSchema;
 export const POSTOrderPickupEventSchema = _POSTOrderPickupEventSchema;
 export const CampaignPayloadSchema = _CampaignPayloadSchema;
+export const CampaignUpdatePayloadSchema = _CampaignUpdatePayloadSchema;
+export type CampaignRedemptionMode = _CampaignRedemptionMode;
 export const POSTCustomerSchema = _POSTCustomerSchema;
 export const PUTCustomerSchema = _PUTCustomerSchema;
 export const POSTCategorySchema = _POSTCategorySchema;
@@ -123,6 +129,22 @@ export const POSTOrderSchema = z
       .refine(
         (ids) => new Set(ids).size === ids.length,
         "Duplicate campaign IDs are not allowed"
+      ),
+    // Bearer voucher codes. Normalized to uppercase per element so the whole
+    // downstream (service claim, repo lookup) receives already-canonical codes.
+    voucher_codes: z
+      .array(
+        z
+          .string()
+          .trim()
+          .min(1)
+          .max(32)
+          .transform((code) => code.toUpperCase())
+      )
+      .default([])
+      .refine(
+        (codes) => new Set(codes).size === codes.length,
+        "Duplicate voucher codes are not allowed"
       ),
     products: z
       .array(

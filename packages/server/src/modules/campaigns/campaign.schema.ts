@@ -6,6 +6,10 @@ const campaignStoreIdsSchema = z
 
 const campaignServiceIdsSchema = z.array(z.coerce.number().int().positive());
 
+const campaignRedemptionModeSchema = z
+  .enum(["listed", "code"])
+  .default("listed");
+
 const baseCampaignSchema = z.object({
   code: z.string().trim().min(1).max(32),
   name: z.string().trim().min(1).max(255),
@@ -14,6 +18,9 @@ const baseCampaignSchema = z.object({
   min_order_total: z.string().trim().min(1).default("0"),
   starts_at: z.coerce.date().nullish(),
   store_ids: campaignStoreIdsSchema,
+  redemption_mode: campaignRedemptionModeSchema,
+  usage_limit: z.coerce.number().int().positive().nullish(),
+  code_count: z.coerce.number().int().positive().nullish(),
 });
 
 const fixedCampaignSchema = baseCampaignSchema.extend({
@@ -42,11 +49,42 @@ const bogoCampaignSchema = baseCampaignSchema.extend({
   ),
 });
 
-export const CampaignPayloadSchema = z.discriminatedUnion("discount_type", [
-  fixedCampaignSchema,
-  percentageCampaignSchema,
-  bogoCampaignSchema,
-]);
+export const CampaignPayloadSchema = z
+  .discriminatedUnion("discount_type", [
+    fixedCampaignSchema,
+    percentageCampaignSchema,
+    bogoCampaignSchema,
+  ])
+  .superRefine((data, ctx) => {
+    if (data.redemption_mode === "code") {
+      // A Voucher owns a batch of codes; the batch size is its cap, so a
+      // separate usage_limit is redundant and disallowed (mutual exclusivity).
+      if (data.code_count == null || data.code_count < 1) {
+        ctx.addIssue({
+          code: "custom",
+          message: "code_count is required (min 1) for voucher campaigns",
+          path: ["code_count"],
+        });
+      }
+      if (data.usage_limit != null) {
+        ctx.addIssue({
+          code: "custom",
+          message: "usage_limit is not allowed for voucher campaigns",
+          path: ["usage_limit"],
+        });
+      }
+      return;
+    }
+
+    // Listed campaigns never mint codes.
+    if (data.code_count != null) {
+      ctx.addIssue({
+        code: "custom",
+        message: "code_count is only allowed for voucher campaigns",
+        path: ["code_count"],
+      });
+    }
+  });
 
 export const CampaignUpdatePayloadSchema = z
   .object({
@@ -67,6 +105,9 @@ export const CampaignUpdatePayloadSchema = z
       .optional(),
     buy_quantity: z.coerce.number().int().min(1).nullable().optional(),
     free_quantity: z.coerce.number().int().min(1).nullable().optional(),
+    // redemption_mode and code_count are immutable — a Voucher's mode and its
+    // minted batch are fixed at creation; only the cap may change on listed.
+    usage_limit: z.coerce.number().int().positive().nullable().optional(),
   })
   .strict();
 
@@ -80,3 +121,6 @@ export const GETCampaignsQuerySchema = z
 export type CampaignPayload = z.infer<typeof CampaignPayloadSchema>;
 export type CampaignUpdatePayload = z.infer<typeof CampaignUpdatePayloadSchema>;
 export type GetCampaignsQuery = z.infer<typeof GETCampaignsQuerySchema>;
+export type CampaignRedemptionMode = z.infer<
+  typeof campaignRedemptionModeSchema
+>;

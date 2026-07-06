@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from "@/errors";
 import {
   deleteCampaignById,
+  findCampaignByCode,
   findCampaignById,
   findCampaignsByIdsWithEligibility,
   findServicesByIds,
@@ -59,6 +60,9 @@ export async function getCampaigns(query?: GetCampaignsQuery) {
   const campaigns = await listCampaigns({
     is_active: query?.is_active,
     store_id: query?.store_id,
+    // POS queries with is_active:true — exclude vouchers from that list so
+    // code-mode campaigns never surface as selectable tiles.
+    redemption_mode: query?.is_active === true ? "listed" : undefined,
   });
 
   return campaigns.map((campaign) => markExpired(campaign, now));
@@ -72,7 +76,64 @@ export async function getCampaignById(id: number) {
   return markExpired(campaign, new Date());
 }
 
+// Resolve a bearer voucher code to its owning campaign, shaped EXACTLY like a
+// listCampaigns row (nested stores + eligibleServices, is_expired via
+// markExpired) plus an internal-only _voucherCode. The caller (route) strips
+// _voucherCode before responding; createOrder uses it to claim the code.
+export async function resolveVoucherCode(
+  code: string,
+  ctx: { storeId: number; storeCode: string; grossTotal: number }
+) {
+  const row = await findCampaignByCode(code);
+
+  if (!row) {
+    throw new BadRequestException(`Voucher code not found: ${code}`);
+  }
+  if (row.redeemed_at !== null) {
+    throw new BadRequestException(
+      `Voucher code ${code} has already been redeemed`
+    );
+  }
+
+  const { campaign } = row;
+  if (campaign.redemption_mode !== "code") {
+    throw new BadRequestException(
+      `Code ${code} does not belong to a voucher campaign`
+    );
+  }
+
+  const now = new Date();
+  const reason = campaignIneligibilityReason(
+    {
+      code: campaign.code,
+      ends_at: campaign.ends_at,
+      is_active: campaign.is_active,
+      min_order_total: campaign.min_order_total,
+      starts_at: campaign.starts_at,
+      stores: campaign.stores,
+    },
+    {
+      now,
+      grossTotal: ctx.grossTotal,
+      storeId: ctx.storeId,
+      storeCode: ctx.storeCode,
+    }
+  );
+  if (reason) {
+    throw new BadRequestException(reason);
+  }
+
+  return {
+    ...markExpired(campaign, now),
+    _voucherCode: code,
+  };
+}
+
 function buildCreatePayload(payload: CampaignPayload) {
+  // usage_limit only applies to listed campaigns (mode-exclusivity CHECK).
+  const usage_limit =
+    payload.redemption_mode === "code" ? null : (payload.usage_limit ?? null);
+
   if (payload.discount_type === "buy_n_get_m_free") {
     return {
       code: payload.code,
@@ -86,6 +147,8 @@ function buildCreatePayload(payload: CampaignPayload) {
       starts_at: payload.starts_at ?? null,
       ends_at: payload.ends_at ?? null,
       is_active: payload.is_active,
+      redemption_mode: payload.redemption_mode,
+      usage_limit,
     };
   }
 
@@ -101,6 +164,8 @@ function buildCreatePayload(payload: CampaignPayload) {
     starts_at: payload.starts_at ?? null,
     ends_at: payload.ends_at ?? null,
     is_active: payload.is_active,
+    redemption_mode: payload.redemption_mode,
+    usage_limit,
   };
 }
 
@@ -116,6 +181,9 @@ interface UpdateWritePayload {
   min_order_total?: string;
   name?: string;
   starts_at?: Date | null;
+  // redemption_mode and code_count are immutable after create — never in this
+  // list, so they can never be written on update.
+  usage_limit?: number | null;
 }
 
 const UPDATE_FIELDS = [
@@ -130,6 +198,7 @@ const UPDATE_FIELDS = [
   "is_active",
   "buy_quantity",
   "free_quantity",
+  "usage_limit",
 ] as const satisfies ReadonlyArray<keyof UpdateWritePayload>;
 
 function buildUpdatePayload(
@@ -181,6 +250,11 @@ export async function createCampaign({
     actorId: user.id,
     storeIds,
     serviceIds,
+    // Only code-mode campaigns mint a bearer-code batch.
+    codeCount:
+      payload.redemption_mode === "code"
+        ? (payload.code_count ?? undefined)
+        : undefined,
   });
 }
 
@@ -249,10 +323,24 @@ export async function getUsableCampaigns({
 }) {
   const campaigns = await findCampaignsByIdsWithEligibility(campaignIds);
 
+  // Missing-id check FIRST so "not found" wins over "wrong mode".
   const foundIds = new Set(campaigns.map((item) => item.id));
   const missing = campaignIds.filter((id) => !foundIds.has(id));
   if (missing.length > 0) {
     throw new NotFoundException(`Campaign not found: ${missing.join(", ")}`);
+  }
+
+  // Reject code-mode campaigns sent via campaign_ids — they must go through
+  // voucher_codes so a bearer code is claimed atomically.
+  const codeModes = campaigns.filter(
+    (campaign) => campaign.redemption_mode === "code"
+  );
+  if (codeModes.length > 0) {
+    throw new BadRequestException(
+      `Campaign ${codeModes
+        .map((campaign) => campaign.id)
+        .join(", ")} is a voucher — submit via voucher_codes, not campaign_ids`
+    );
   }
 
   const now = new Date();

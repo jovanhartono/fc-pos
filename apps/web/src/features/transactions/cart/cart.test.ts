@@ -153,6 +153,7 @@ describe("toOrderPayload", () => {
 		customerName: " budi santoso ",
 		customerPhone: "081234567890",
 		selectedCampaignIds: ["3", "4"],
+		appliedVoucherCodes: [],
 		selectedPaymentMethodId: "",
 		selectedCourierId: "",
 		manualDiscount: "",
@@ -171,6 +172,7 @@ describe("toOrderPayload", () => {
 			},
 			store_id: 2,
 			campaign_ids: [3, 4],
+			voucher_codes: [],
 			discount: "0",
 			payment_method_id: undefined,
 			collected_by: undefined,
@@ -199,5 +201,13 @@ describe("toOrderPayload", () => {
 		expect(payload.payment_method_id).toBe(9);
 		expect(payload.payment_status).toBe("paid");
 		expect(payload.discount).toBe("2500");
+	});
+
+	test("carries applied voucher codes into voucher_codes, trimmed", () => {
+		const payload = toOrderPayload({
+			...draft,
+			appliedVoucherCodes: ["  ABC123DE  ", "XYZ789FG"],
+		});
+		expect(payload.voucher_codes).toEqual(["ABC123DE", "XYZ789FG"]);
 	});
 });

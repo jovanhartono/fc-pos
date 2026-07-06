@@ -3,13 +3,21 @@ import type z from "zod";
 import { db } from "@/db";
 import { orderCampaignsTable, ordersTable } from "@/db/schema";
 import { BadRequestException, NotFoundException } from "@/errors";
-import { getUsableCampaigns } from "@/modules/campaigns/campaign.service";
+import {
+  atomicClaimCampaignCode,
+  atomicIncrementCampaignRedeemed,
+} from "@/modules/campaigns/campaign.repository";
+import {
+  getUsableCampaigns,
+  resolveVoucherCode,
+} from "@/modules/campaigns/campaign.service";
 import { resolveOrCreateCustomer } from "@/modules/customers/customer.service";
 import {
   findOrders,
   insertOrder,
   insertOrderProducts,
   insertOrderServices,
+  type OrderTx,
   reserveNextOrderNumber,
 } from "@/modules/orders/order.repository";
 import {
@@ -48,6 +56,8 @@ interface ExpandedServiceItem {
 }
 
 interface ResolvedCampaignRow {
+  // internal transport only; never returned from createOrder
+  _voucherCode?: string;
   applied_amount: string;
   buy_quantity: number | null;
   campaign_id: number;
@@ -78,6 +88,12 @@ function expandServices(
 }
 
 type DbService = Awaited<ReturnType<typeof findServices>>[number];
+
+type DbProduct = Awaited<ReturnType<typeof findProducts>>[number];
+
+type OrderProductInput = NonNullable<
+  z.infer<typeof POSTOrderSchema>["products"]
+>[number];
 
 function buildOrderServiceRows({
   code,
@@ -115,6 +131,7 @@ function buildOrderServiceRows({
 
 async function resolveDiscount({
   campaignIds,
+  voucherCodes,
   grossTotal,
   manualDiscount,
   storeId,
@@ -122,6 +139,7 @@ async function resolveDiscount({
   lines,
 }: {
   campaignIds: number[];
+  voucherCodes: string[];
   grossTotal: number;
   manualDiscount: number;
   storeId: number;
@@ -130,7 +148,7 @@ async function resolveDiscount({
 }): Promise<ResolvedDiscount> {
   const manual = Math.max(0, manualDiscount);
 
-  if (campaignIds.length === 0) {
+  if (campaignIds.length === 0 && voucherCodes.length === 0) {
     return {
       discountAmount: manual,
       discountSource: manual > 0 ? "manual" : "none",
@@ -138,30 +156,81 @@ async function resolveDiscount({
     };
   }
 
-  const campaigns = await getUsableCampaigns({
-    campaignIds,
-    grossTotal,
-    storeId,
-    storeCode,
-  });
+  const campaigns =
+    campaignIds.length > 0
+      ? await getUsableCampaigns({
+          campaignIds,
+          grossTotal,
+          storeId,
+          storeCode,
+        })
+      : [];
+
+  // Resolve vouchers — each call validates eligibility and returns the campaign
+  // shaped like a listCampaigns item (nested eligibleServices) and carrying an
+  // internal _voucherCode marker used to claim the code inside the tx.
+  const voucherCampaigns = await Promise.all(
+    voucherCodes.map((code) =>
+      resolveVoucherCode(code, { storeId, storeCode, grossTotal })
+    )
+  );
+
+  // order_campaigns is unique on (order_id, campaign_id): a campaign may apply at
+  // most once per order. Two voucher codes from the same campaign — or a voucher
+  // whose campaign is also listed — would otherwise collide on the DB constraint
+  // mid-checkout (and clobber the claimed code_id). Reject up front instead.
+  const allCampaignIds = [
+    ...campaigns.map((campaign) => campaign.id),
+    ...voucherCampaigns.map((campaign) => campaign.id),
+  ];
+  const duplicateId = allCampaignIds.find(
+    (id, index) => allCampaignIds.indexOf(id) !== index
+  );
+  if (duplicateId !== undefined) {
+    throw new BadRequestException(
+      "A campaign can only be applied once per order"
+    );
+  }
+
+  // Normalize both sources to the flat stackCampaignDiscounts input shape.
+  // Listed campaigns already expose eligible_service_ids; vouchers expose the
+  // nested eligibleServices -> service_id, which we flatten here.
+  const stackInput = [
+    ...campaigns.map((campaign) => ({
+      ...campaign,
+      _voucherCode: undefined as string | undefined,
+    })),
+    ...voucherCampaigns.map((campaign) => ({
+      ...campaign,
+      eligible_service_ids: campaign.eligibleServices.map(
+        (entry) => entry.service_id
+      ),
+    })),
+  ];
 
   const { total: campaignDiscount, breakdown } = stackCampaignDiscounts(
     grossTotal,
-    campaigns,
+    stackInput,
     lines
   );
 
-  const campaignRows: ResolvedCampaignRow[] = breakdown.map(
-    ({ campaign, amount }) => ({
+  // Only campaigns that actually contributed a discount are claimed and logged.
+  // stackCampaignDiscounts emits a zero-amount entry for every campaign it could
+  // not apply (a voucher stacked after the order total was already fully
+  // discounted, or a BOGO with no eligible line). Redeeming those would burn a
+  // single-use bearer code or a usage-limit slot for no benefit.
+  const campaignRows: ResolvedCampaignRow[] = breakdown
+    .filter(({ amount }) => amount > 0)
+    .map(({ campaign, amount }) => ({
       applied_amount: amount.toString(),
       campaign_id: campaign.id,
+      _voucherCode: campaign._voucherCode,
       discount_type: campaign.discount_type,
       discount_value: campaign.discount_value,
       max_discount: campaign.max_discount,
       buy_quantity: campaign.buy_quantity,
       free_quantity: campaign.free_quantity,
-    })
-  );
+    }));
 
   const afterCampaign = Math.max(0, grossTotal - campaignDiscount);
   const appliedManual = Math.min(manual, afterCampaign);
@@ -201,6 +270,80 @@ export async function listOrders(query?: GetOrdersQuery, user?: JWTPayload) {
   };
 }
 
+async function decrementProductsStock(
+  tx: OrderTx,
+  products: OrderProductInput[],
+  productMap: Map<number, DbProduct>
+) {
+  for (const item of products) {
+    const [decremented] = await decrementProductStock(tx, item.id, item.qty);
+    if (!decremented) {
+      const product = productMap.get(item.id);
+      throw new BadRequestException(
+        `Insufficient stock for product ${product?.name ?? item.id}`
+      );
+    }
+  }
+}
+
+// Claim each resolved campaign inside the order transaction (ADR-0015): a
+// voucher row atomically claims its single-use code; a listed row does a
+// conditional increment that also passes for uncapped campaigns. Then log the
+// applied rows on the order.
+async function applyCampaignRedemptions(
+  tx: OrderTx,
+  campaignRows: ResolvedCampaignRow[],
+  orderId: number
+) {
+  if (campaignRows.length === 0) {
+    return;
+  }
+
+  const resolvedCodeIds = new Map<number, number>(); // campaignId -> codeId
+
+  for (const row of campaignRows) {
+    if (row._voucherCode === undefined) {
+      // Listed: atomic conditional increment (uncapped campaigns pass too).
+      const claimed = await atomicIncrementCampaignRedeemed(
+        tx,
+        row.campaign_id
+      );
+      if (!claimed) {
+        throw new BadRequestException(
+          `Campaign ${row.campaign_id} has reached its usage limit`
+        );
+      }
+    } else {
+      // Voucher: atomic single-use claim of the specific code.
+      const claimed = await atomicClaimCampaignCode(
+        tx,
+        row._voucherCode,
+        orderId
+      );
+      if (!claimed) {
+        throw new BadRequestException(
+          `Voucher code ${row._voucherCode} has already been redeemed`
+        );
+      }
+      resolvedCodeIds.set(row.campaign_id, claimed.codeId);
+    }
+  }
+
+  await tx.insert(orderCampaignsTable).values(
+    campaignRows.map((row) => ({
+      order_id: orderId,
+      campaign_id: row.campaign_id,
+      code_id: resolvedCodeIds.get(row.campaign_id) ?? null,
+      discount_type: row.discount_type,
+      discount_value: row.discount_value,
+      max_discount: row.max_discount,
+      applied_amount: row.applied_amount,
+      buy_quantity: row.buy_quantity,
+      free_quantity: row.free_quantity,
+    }))
+  );
+}
+
 export async function createOrder(
   userId: number,
   store: Store,
@@ -210,6 +353,7 @@ export async function createOrder(
     products = [],
     services = [],
     campaign_ids = [],
+    voucher_codes = [],
     ...orderPayload
   } = payload;
 
@@ -287,15 +431,7 @@ export async function createOrder(
       updated_by: userId,
     });
 
-    for (const item of products) {
-      const [decremented] = await decrementProductStock(tx, item.id, item.qty);
-      if (!decremented) {
-        const product = productMap.get(item.id);
-        throw new BadRequestException(
-          `Insufficient stock for product ${product?.name ?? item.id}`
-        );
-      }
-    }
+    await decrementProductsStock(tx, products, productMap);
 
     const [serviceSubtotal, productSubtotal] = await Promise.all([
       insertOrderServices(
@@ -338,6 +474,7 @@ export async function createOrder(
     const { discountAmount, discountSource, campaignRows } =
       await resolveDiscount({
         campaignIds: [...new Set(campaign_ids)],
+        voucherCodes: [...new Set(voucher_codes)],
         grossTotal,
         manualDiscount: Number(orderPayload.discount),
         storeId: store.id,
@@ -349,20 +486,7 @@ export async function createOrder(
       throw new BadRequestException("Order discount cannot exceed order total");
     }
 
-    if (campaignRows.length > 0) {
-      await tx.insert(orderCampaignsTable).values(
-        campaignRows.map((row) => ({
-          order_id: orderId,
-          campaign_id: row.campaign_id,
-          discount_type: row.discount_type,
-          discount_value: row.discount_value,
-          max_discount: row.max_discount,
-          applied_amount: row.applied_amount,
-          buy_quantity: row.buy_quantity,
-          free_quantity: row.free_quantity,
-        }))
-      );
-    }
+    await applyCampaignRedemptions(tx, campaignRows, orderId);
 
     const netTotal = grossTotal - discountAmount;
 
@@ -375,6 +499,7 @@ export async function createOrder(
         paid_amount:
           orderPayload.payment_status === "paid" ? netTotal.toString() : "0",
         paid_at: orderPayload.payment_status === "paid" ? new Date() : null,
+        paid_by: orderPayload.payment_status === "paid" ? userId : null,
       })
       .where(eq(ordersTable.id, orderId));
 
@@ -404,6 +529,12 @@ export async function getOrderDetailById(id: number) {
         },
       },
       customer: true,
+      paidBy: {
+        columns: {
+          id: true,
+          name: true,
+        },
+      },
       paymentMethod: true,
       pickupEvents: {
         with: {

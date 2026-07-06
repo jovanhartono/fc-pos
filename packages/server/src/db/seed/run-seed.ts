@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  campaignCodesTable,
   campaignStoresTable,
   campaignsTable,
   categoriesTable,
@@ -32,6 +33,12 @@ const ADMIN_PASSWORD = "rojpyp-2cuzdo-rozmoP";
 const CUSTOMER_COUNT = 120;
 const ORDER_COUNT = 180;
 const ORDER_LOOKBACK_DAYS = 45;
+const VOUCHER_CODE_COUNT = 10;
+
+// Crockford base32 (no 0/O/1/I/L) — mirrors the minting alphabet in
+// campaign.repository.ts. Seeded voucher codes are bearer single-use secrets.
+const CROCKFORD_CHARSET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
+const VOUCHER_CODE_LENGTH = 8;
 
 const STORE_PRESETS = [
   {
@@ -462,6 +469,7 @@ interface CampaignRow {
   id: number;
   max_discount: number | null;
   min_order_total: number;
+  redemption_mode: "listed" | "code";
   starts_at: Date | null;
   store_ids: Set<number>;
 }
@@ -537,6 +545,13 @@ function slugify(value: string): string {
 
 function sanitizeForS3(value: string): string {
   return slugify(value).replace(/-/g, "_");
+}
+
+// Deterministic (faker-seeded) voucher code so re-seeds are reproducible.
+function generateVoucherCode(): string {
+  return Array.from({ length: VOUCHER_CODE_LENGTH }, () =>
+    faker.helpers.arrayElement(CROCKFORD_CHARSET.split(""))
+  ).join("");
 }
 
 function createStatusNote(nextStatus: OrderServiceStatus): string {
@@ -775,6 +790,11 @@ function chooseDiscount(
   discount_source: DiscountSource;
 } {
   const eligible = campaigns.filter((campaign) => {
+    // Vouchers (code-mode) are bearer, per-code single-use — never auto-applied
+    // to a seeded order. Only listed campaigns show up in the POS discount pool.
+    if (campaign.redemption_mode === "code") {
+      return false;
+    }
     if (campaign.store_ids.size > 0 && !campaign.store_ids.has(storeId)) {
       return false;
     }
@@ -845,6 +865,7 @@ async function resetDatabase() {
       "order_counters",
       "shifts",
       "campaign_stores",
+      "campaign_codes",
       "campaigns",
       "payment_methods",
       "products",
@@ -1094,6 +1115,7 @@ async function seedCatalog(adminId: number) {
       starts_at: null,
       ends_at: null,
       is_active: true,
+      redemption_mode: "listed" as const,
       scope_codes: [],
     },
     {
@@ -1106,6 +1128,7 @@ async function seedCatalog(adminId: number) {
       starts_at: dayjs().subtract(30, "day").startOf("day").toDate(),
       ends_at: dayjs().add(60, "day").endOf("day").toDate(),
       is_active: true,
+      redemption_mode: "listed" as const,
       scope_codes: ["KMG", "BSD", "BKS"],
     },
     {
@@ -1118,6 +1141,7 @@ async function seedCatalog(adminId: number) {
       starts_at: dayjs().subtract(100, "day").startOf("day").toDate(),
       ends_at: null,
       is_active: true,
+      redemption_mode: "listed" as const,
       scope_codes: [],
     },
     {
@@ -1130,6 +1154,7 @@ async function seedCatalog(adminId: number) {
       starts_at: dayjs().subtract(90, "day").startOf("day").toDate(),
       ends_at: dayjs().subtract(7, "day").endOf("day").toDate(),
       is_active: false,
+      redemption_mode: "listed" as const,
       scope_codes: [],
     },
     {
@@ -1142,7 +1167,24 @@ async function seedCatalog(adminId: number) {
       starts_at: dayjs().subtract(15, "day").startOf("day").toDate(),
       ends_at: dayjs().add(20, "day").endOf("day").toDate(),
       is_active: true,
+      redemption_mode: "listed" as const,
       scope_codes: ["BKS"],
+    },
+    {
+      // Voucher campaign — bearer, per-code single-use. usage_limit MUST stay
+      // null (campaign_mode_exclusivity_check: code-mode forbids a global cap).
+      // Codes are minted after insert (VOUCHER_CODE_COUNT rows).
+      code: "VIP_LAUNCH",
+      name: "VIP Launch Voucher",
+      discount_type: "percentage" as const,
+      discount_value: 25,
+      min_order_total: 100_000,
+      max_discount: 75_000,
+      starts_at: dayjs().subtract(10, "day").startOf("day").toDate(),
+      ends_at: dayjs().add(30, "day").endOf("day").toDate(),
+      is_active: true,
+      redemption_mode: "code" as const,
+      scope_codes: [],
     },
   ];
 
@@ -1162,6 +1204,7 @@ async function seedCatalog(adminId: number) {
         starts_at: campaign.starts_at,
         ends_at: campaign.ends_at,
         is_active: campaign.is_active,
+        redemption_mode: campaign.redemption_mode,
         created_by: adminId,
         updated_by: adminId,
       }))
@@ -1175,7 +1218,31 @@ async function seedCatalog(adminId: number) {
       max_discount: campaignsTable.max_discount,
       starts_at: campaignsTable.starts_at,
       ends_at: campaignsTable.ends_at,
+      redemption_mode: campaignsTable.redemption_mode,
     });
+
+  // Mint bearer codes for every voucher (code-mode) campaign. Codes are unique
+  // per the campaign_codes_code_uidx; the Set guards intra-seed collisions.
+  const voucherCampaigns = campaigns.filter(
+    (campaign) => campaign.redemption_mode === "code"
+  );
+  if (voucherCampaigns.length > 0) {
+    const mintedCodes = new Set<string>();
+    const codeRows: Array<{ campaign_id: number; code: string }> = [];
+
+    for (const campaign of voucherCampaigns) {
+      for (let index = 0; index < VOUCHER_CODE_COUNT; index++) {
+        let code = generateVoucherCode();
+        while (mintedCodes.has(code)) {
+          code = generateVoucherCode();
+        }
+        mintedCodes.add(code);
+        codeRows.push({ campaign_id: campaign.id, code });
+      }
+    }
+
+    await db.insert(campaignCodesTable).values(codeRows);
+  }
 
   return {
     services,
@@ -1927,6 +1994,7 @@ export async function runSeed() {
     discount_value: Number(campaign.discount_value),
     min_order_total: Number(campaign.min_order_total),
     max_discount: campaign.max_discount ? Number(campaign.max_discount) : null,
+    redemption_mode: campaign.redemption_mode,
     starts_at: campaign.starts_at,
     ends_at: campaign.ends_at,
     store_ids: campaignScopeMap.get(campaign.id) ?? new Set<number>(),

@@ -192,8 +192,8 @@ function OrdersPage() {
 				),
 			},
 			{
-				id: "store",
-				header: "Store",
+				id: "created_at",
+				header: "Created At",
 				meta: {
 					mobileCard: {
 						slot: "eyebrow",

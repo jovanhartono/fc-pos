@@ -601,7 +601,7 @@ function WorkerQueuePage() {
 
 									<Button
 										type="button"
-										className="h-11"
+										className="h-10 pointer-coarse:h-11"
 										onClick={() => setIsMobileFilterOpen(false)}
 									>
 										Done
@@ -632,12 +632,11 @@ function WorkerQueuePage() {
 										placeholder="Type item code, order ID, or line ID"
 										value={itemCode}
 										onChange={(event) => setItemCode(event.target.value)}
-										className="h-11"
 									/>
 									<Button
 										type="button"
 										variant="outline"
-										className="h-11 w-full lg:w-auto lg:min-w-28"
+										className="h-10 pointer-coarse:h-11 w-full lg:w-auto lg:min-w-28"
 										icon={<MagnifyingGlassIcon className="size-4" />}
 										disabled={!itemCode.trim() || lookupMutation.isPending}
 										onClick={async () => {
@@ -652,7 +651,7 @@ function WorkerQueuePage() {
 									<Button
 										type="button"
 										variant="outline"
-										className="h-11 w-full lg:w-auto lg:min-w-28"
+										className="h-10 pointer-coarse:h-11 w-full lg:w-auto lg:min-w-28"
 										icon={<ScanIcon className="size-4" />}
 										onClick={async () => {
 											if (isScanning) {

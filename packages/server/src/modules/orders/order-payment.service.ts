@@ -55,6 +55,7 @@ export async function updateOrderPayment({
       payment_status: "paid",
       paid_amount: Math.max(netDue, 0).toString(),
       paid_at: new Date(),
+      paid_by: user.id,
       updated_by: user.id,
     })
     .where(eq(ordersTable.id, orderId))

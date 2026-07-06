@@ -63,7 +63,6 @@ export function PaymentMethodForm({
 							placeholder="e.g. Cash"
 							aria-invalid={fieldState.invalid}
 							disabled={isSubmitting}
-							className="h-10"
 						/>
 						<FieldError errors={[fieldState.error]} />
 					</Field>
@@ -84,7 +83,6 @@ export function PaymentMethodForm({
 							placeholder="e.g. CASH"
 							aria-invalid={fieldState.invalid}
 							disabled={isSubmitting}
-							className="h-10"
 						/>
 						<FieldError errors={[fieldState.error]} />
 					</Field>

@@ -88,7 +88,6 @@ export function ServiceForm({
 							<Input
 								{...field}
 								aria-invalid={fieldState.invalid}
-								className="h-10"
 								disabled={isSubmitting}
 								id="service-code"
 								placeholder="e.g. SVC-001"
@@ -109,7 +108,6 @@ export function ServiceForm({
 							<Input
 								{...field}
 								aria-invalid={fieldState.invalid}
-								className="h-10"
 								disabled={isSubmitting}
 								id="service-name"
 								placeholder="e.g. Dry Clean Premium"
@@ -128,7 +126,6 @@ export function ServiceForm({
 							<Input
 								{...field}
 								aria-invalid={fieldState.invalid}
-								className="h-10"
 								disabled={isSubmitting}
 								id="service-description"
 								placeholder="e.g. 24-hour turnaround"

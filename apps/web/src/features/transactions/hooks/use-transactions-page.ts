@@ -40,6 +40,7 @@ const transactionDraftSchema = z
 			.min(1, "Phone number is required.")
 			.refine(isValidPhoneNumber, "Invalid phone number"),
 		selectedCampaignIds: z.array(z.string()),
+		appliedVoucherCodes: z.array(z.string()),
 		selectedPaymentMethodId: z.string(),
 		selectedCourierId: z.string(),
 		manualDiscount: z
@@ -184,9 +185,13 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 	});
 
 	const resetCart = useCallback(() => {
-		const { setSubmitError, setDropoffPhoto } =
+		const { setSubmitError, setDropoffPhoto, clearResolvedVouchers } =
 			useTransactionsPageStore.getState();
-		resetTransactionDraft(form, { setSubmitError, setDropoffPhoto });
+		resetTransactionDraft(form, {
+			setSubmitError,
+			setDropoffPhoto,
+			clearResolvedVouchers,
+		});
 	}, [form]);
 
 	const onValidSubmit = useCallback(
@@ -279,6 +284,14 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 				shouldDirty: true,
 				shouldValidate: true,
 			});
+			// Clear the mirrored form field too, not just the store: the
+			// CheckoutPaymentStep mirror effect only runs while mounted, so switching
+			// store from another step would otherwise leave stale codes in the payload.
+			form.setValue("appliedVoucherCodes", [], {
+				shouldDirty: true,
+				shouldValidate: true,
+			});
+			useTransactionsPageStore.getState().clearResolvedVouchers();
 		},
 		[currentUserKey, form],
 	);

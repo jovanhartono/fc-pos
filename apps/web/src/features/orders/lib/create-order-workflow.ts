@@ -31,7 +31,14 @@ export async function handleCreatedOrderSuccess({
 }: HandleCreatedOrderSuccessOptions) {
 	const orderId = getCreatedOrderId(created);
 
-	await queryClient.invalidateQueries({ queryKey: ["orders"] });
+	await Promise.all([
+		queryClient.invalidateQueries({ queryKey: ["orders"] }),
+		// A redeemed voucher / bumped listed-campaign redeemed_count changes what's
+		// eligible at the next checkout — refresh campaigns so a capped promo that
+		// just hit its limit stops showing as selectable and the voucher-codes
+		// sheet reflects the new redemption.
+		queryClient.invalidateQueries({ queryKey: ["campaigns"] }),
+	]);
 
 	if (!orderId) {
 		onFallbackNavigate();

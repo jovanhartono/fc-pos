@@ -3,6 +3,7 @@ import {
 	ArrowCounterClockwiseIcon,
 	PencilSimpleLineIcon,
 	PlusIcon,
+	TicketIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -19,6 +20,7 @@ import {
 	CampaignForm,
 	type CampaignFormState,
 } from "@/features/campaigns/components/campaign-form";
+import { VoucherCodesSheet } from "@/features/campaigns/components/voucher-codes-sheet";
 import {
 	type Campaign,
 	createCampaign,
@@ -73,10 +75,13 @@ export const Route = createFileRoute("/_admin/campaigns")({
 const defaultCampaignForm: CampaignFormState = {
 	code: "",
 	name: "",
+	redemption_mode: "listed",
 	discount_type: "fixed",
 	discount_value: "0",
 	min_order_total: "0",
 	max_discount: "",
+	usage_limit: undefined,
+	code_count: undefined,
 	starts_at: "",
 	ends_at: "",
 	is_active: true,
@@ -254,12 +259,15 @@ function CampaignsPage() {
 						defaultValues={{
 							code: campaign.code,
 							name: campaign.name,
+							redemption_mode: campaign.redemption_mode,
 							discount_type: campaign.discount_type,
 							discount_value: String(campaign.discount_value),
 							min_order_total: String(campaign.min_order_total),
 							max_discount: campaign.max_discount
 								? String(campaign.max_discount)
 								: "",
+							usage_limit: campaign.usage_limit ?? undefined,
+							code_count: undefined,
 							starts_at: toDateTimeLocal(campaign.starts_at),
 							ends_at: toDateTimeLocal(campaign.ends_at),
 							is_active: campaign.is_active,
@@ -273,9 +281,12 @@ function CampaignsPage() {
 						onReset={closeSheet}
 						stores={stores}
 						handleOnSubmit={async (payload) => {
+							// redemption_mode + code_count are create-only (immutable); the
+							// strict update schema rejects them, so omit before sending.
+							const { redemption_mode, code_count, ...updatePayload } = payload;
 							await updateMutation.mutateAsync({
 								id: campaign.id,
-								payload,
+								payload: updatePayload,
 							});
 						}}
 					/>
@@ -283,6 +294,16 @@ function CampaignsPage() {
 			});
 		},
 		[closeSheet, openSheet, stores, updateMutation],
+	);
+
+	const handleOpenVoucherDetail = useCallback(
+		(campaign: Campaign) => {
+			openSheet({
+				title: `Voucher Codes — ${campaign.code}`,
+				content: () => <VoucherCodesSheet campaignId={campaign.id} />,
+			});
+		},
+		[openSheet],
 	);
 
 	const columns = useMemo<ColumnDef<Campaign>[]>(
@@ -322,6 +343,21 @@ function CampaignsPage() {
 				},
 			},
 			{
+				id: "mode",
+				header: "Mode",
+				cell: ({ row }) => {
+					if (row.original.redemption_mode === "code") {
+						return <Badge variant="info">Voucher</Badge>;
+					}
+					if (row.original.usage_limit != null) {
+						return (
+							<Badge variant="outline">{`Cap ${row.original.usage_limit}`}</Badge>
+						);
+					}
+					return "—";
+				},
+			},
+			{
 				id: "status",
 				header: "Status",
 				cell: ({ row }) => {
@@ -340,6 +376,16 @@ function CampaignsPage() {
 				header: "Actions",
 				cell: ({ row }) => (
 					<div className="flex gap-2">
+						{row.original.redemption_mode === "code" && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => handleOpenVoucherDetail(row.original)}
+								icon={<TicketIcon className="size-4" />}
+							>
+								Codes
+							</Button>
+						)}
 						<Button
 							variant="outline"
 							size="sm"
@@ -364,7 +410,7 @@ function CampaignsPage() {
 				),
 			},
 		],
-		[archiveMutation, handleOpenEditSheet, isAdmin],
+		[archiveMutation, handleOpenEditSheet, handleOpenVoucherDetail, isAdmin],
 	);
 
 	return (

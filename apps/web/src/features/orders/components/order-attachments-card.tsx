@@ -8,7 +8,6 @@ import {
 	type OrderPhotoGalleryItem,
 } from "@/features/orders/components/order-photo-gallery";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
-import { PhotoLightbox } from "@/features/orders/components/photo-lightbox";
 import { SinglePhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { uploadOrderDropoffPhoto } from "@/features/orders/utils/photo-upload";
@@ -36,7 +35,7 @@ export const OrderAttachmentsCard = ({
 }: OrderAttachmentsCardProps) => (
 	<Card className="gap-0 overflow-hidden py-0">
 		<OrderSectionHeader>Attachments</OrderSectionHeader>
-		<div className="grid gap-6 border-t p-4 md:grid-cols-2">
+		<div className="grid gap-6 border-t p-4 md:grid-cols-3">
 			<DropoffAttachment
 				canManage={canManageDropoff}
 				onUploaded={onUploaded}
@@ -65,9 +64,21 @@ const DropoffAttachment = ({
 	onUploaded,
 }: DropoffAttachmentProps) => {
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
-	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
 	const isSaved = Boolean(order.dropoff_photo_url);
+
+	// Single drop-off photo rendered through the shared gallery so its tile
+	// matches the pickup thumbnails exactly (size, border, hover, lightbox).
+	const items: OrderPhotoGalleryItem[] = order.dropoff_photo_url
+		? [
+				{
+					alt: "Order drop-off",
+					created_at: order.dropoff_photo_uploaded_at ?? order.created_at,
+					id: order.id,
+					image_url: order.dropoff_photo_url,
+				},
+			]
+		: [];
 
 	return (
 		<section className="grid content-start gap-3">
@@ -78,30 +89,18 @@ const DropoffAttachment = ({
 				</Badge>
 			</div>
 
-			{order.dropoff_photo_url ? (
-				<div className="relative overflow-hidden border bg-muted">
-					<button
-						aria-label="Open drop-off photo preview"
-						className="block w-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/50"
-						onClick={() => setIsPreviewOpen(true)}
-						type="button"
-					>
-						<img
-							alt="Order drop-off"
-							className="aspect-16/10 w-full object-cover"
-							height={800}
-							loading="lazy"
-							src={order.dropoff_photo_url}
-							width={1280}
-						/>
-					</button>
-				</div>
-			) : (
-				<div className="flex aspect-16/10 flex-col items-center justify-center gap-2 border bg-muted px-6 text-center text-muted-foreground">
-					<CameraIcon className="size-8 opacity-50" />
-					<p className="text-sm">No drop-off photo yet</p>
-				</div>
-			)}
+			<OrderPhotoGallery
+				emptyState={
+					<div className="flex aspect-16/10 flex-col items-center justify-center gap-2 border bg-muted px-4 text-center text-muted-foreground">
+						<CameraIcon className="size-8 opacity-50" />
+						<p className="text-sm">No drop-off photo yet</p>
+					</div>
+				}
+				gridClassName="grid-cols-1"
+				items={items}
+				thumbnailImageClassName="aspect-16/10"
+				title="Drop-off photo"
+			/>
 
 			{order.dropoff_photo_uploaded_at ? (
 				<p className="text-muted-foreground text-xs">
@@ -119,23 +118,6 @@ const DropoffAttachment = ({
 			>
 				{isSaved ? "Replace photo" : "Upload photo"}
 			</Button>
-
-			{order.dropoff_photo_url ? (
-				<PhotoLightbox
-					items={[
-						{
-							alt: "Order drop-off",
-							created_at: order.dropoff_photo_uploaded_at ?? order.created_at,
-							id: `dropoff-${order.id}`,
-							image_url: order.dropoff_photo_url,
-							primaryLabel: "Drop-off photo",
-						},
-					]}
-					onOpenChange={setIsPreviewOpen}
-					open={isPreviewOpen}
-					title="Drop-off photo"
-				/>
-			) : null}
 
 			<SinglePhotoUploadDialog
 				badgeLabel="Drop-off"
@@ -178,13 +160,13 @@ const PickupsAttachment = ({
 		});
 
 	return (
-		<section className="grid content-start gap-3">
+		<section className="grid content-start gap-3 md:col-span-2">
 			<AttachmentLabel>Pickups</AttachmentLabel>
 			<OrderPhotoGallery
 				emptyState={
 					<p className="text-muted-foreground text-sm">No pickups yet.</p>
 				}
-				gridClassName="grid-cols-2 gap-3 sm:grid-cols-2"
+				gridClassName="grid-cols-2 gap-3 sm:grid-cols-3"
 				items={items}
 				thumbnailImageClassName="aspect-16/10"
 				title="Pickup photo"

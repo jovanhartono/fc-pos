@@ -98,6 +98,7 @@ export const relations = defineRelations(schema, (r) => ({
   },
 
   campaignsTable: {
+    codes: r.many.campaignCodesTable(),
     createdBy: r.one.usersTable({
       from: r.campaignsTable.created_by,
       to: r.usersTable.id,
@@ -141,6 +142,18 @@ export const relations = defineRelations(schema, (r) => ({
     }),
   },
 
+  campaignCodesTable: {
+    campaign: r.one.campaignsTable({
+      from: r.campaignCodesTable.campaign_id,
+      to: r.campaignsTable.id,
+      optional: false,
+    }),
+    redeemedOrder: r.one.ordersTable({
+      from: r.campaignCodesTable.redeemed_order_id,
+      to: r.ordersTable.id,
+    }),
+  },
+
   userStoresTable: {
     store: r.one.storesTable({
       from: r.userStoresTable.store_id,
@@ -169,6 +182,10 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.ordersTable.customer_id,
       to: r.customersTable.id,
       optional: false,
+    }),
+    paidBy: r.one.usersTable({
+      from: r.ordersTable.paid_by,
+      to: r.usersTable.id,
     }),
     paymentMethod: r.one.paymentMethodsTable({
       from: r.ordersTable.payment_method_id,
@@ -356,6 +373,10 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.orderCampaignsTable.campaign_id,
       to: r.campaignsTable.id,
       optional: false,
+    }),
+    code: r.one.campaignCodesTable({
+      from: r.orderCampaignsTable.code_id,
+      to: r.campaignCodesTable.id,
     }),
     order: r.one.ordersTable({
       from: r.orderCampaignsTable.order_id,

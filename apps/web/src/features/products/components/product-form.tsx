@@ -79,7 +79,6 @@ export function ProductForm({
 								placeholder="e.g. Liquid Detergent"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
-								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>
@@ -100,7 +99,6 @@ export function ProductForm({
 								placeholder="e.g. PRD-001"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
-								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>
@@ -135,7 +133,6 @@ export function ProductForm({
 								placeholder="e.g. pcs"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
-								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>
@@ -158,7 +155,6 @@ export function ProductForm({
 								value={String(field.value)}
 								onChange={(event) => field.onChange(Number(event.target.value))}
 								disabled={isSubmitting}
-								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>
@@ -178,7 +174,6 @@ export function ProductForm({
 								aria-invalid={fieldState.invalid}
 								value={field.value ?? ""}
 								disabled={isSubmitting}
-								className="h-10"
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>

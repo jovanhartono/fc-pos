@@ -59,7 +59,7 @@ export const DatePicker = ({
 						variant="outline"
 						disabled={disabled}
 						className={cn(
-							"h-10 justify-start font-normal",
+							"h-10 pointer-coarse:h-11 justify-start font-normal",
 							!value && "text-muted-foreground",
 							className,
 						)}
@@ -159,7 +159,7 @@ export const DateRangePicker = ({
 						variant="outline"
 						disabled={disabled}
 						className={cn(
-							"h-10 justify-start font-normal",
+							"h-10 pointer-coarse:h-11 justify-start font-normal",
 							!hasValue && "text-muted-foreground",
 							showClear && "pr-9",
 							className,

@@ -56,6 +56,8 @@ const ordersRoute = rpc.api.admin.orders.$get;
 const orderDetailRoute = rpc.api.admin.orders[":id"].$get;
 const campaignsRoute = rpc.api.admin.campaigns.$get;
 const campaignDetailRoute = rpc.api.admin.campaigns[":id"].$get;
+const resolveVoucherCodeRoute = rpc.api.admin.campaigns["resolve-code"].$post;
+const campaignVoucherCodesRoute = rpc.api.admin.campaigns[":id"].codes.$get;
 const complaintsRoute = rpc.api.admin.complaints.$get;
 const complaintDetailRoute = rpc.api.admin.complaints[":id"].$get;
 const orderServiceByIdRoute = rpc.api.admin.orders.services["by-id"].$get;
@@ -112,6 +114,15 @@ export type CampaignDetail = Extract<
 	InferResponseType<typeof campaignDetailRoute>,
 	{ success: true }
 >["data"];
+export type ResolvedVoucher = Extract<
+	InferResponseType<typeof resolveVoucherCodeRoute>,
+	{ success: true }
+>["data"];
+export type VoucherCodesResponse = Extract<
+	InferResponseType<typeof campaignVoucherCodesRoute>,
+	{ success: true }
+>["data"];
+export type VoucherCode = VoucherCodesResponse["codes"][number];
 export type ComplaintListItem = Extract<
 	InferResponseType<typeof complaintsRoute>,
 	{ success: true }
@@ -258,7 +269,9 @@ export type CreatePaymentMethodPayload = z.infer<
 export type UpdatePaymentMethodPayload = z.infer<
 	typeof POSTPaymentMethodSchema
 >;
-export type CreateOrderPayload = z.infer<typeof POSTOrderSchema>;
+export type CreateOrderPayload = z.infer<typeof POSTOrderSchema> & {
+	voucher_codes: string[];
+};
 
 export type TrackPublicOrderPayload = {
 	code: string;
@@ -327,6 +340,9 @@ export type CampaignBasePayload = {
 	is_active: boolean;
 	store_ids: number[];
 	eligible_service_ids: number[];
+	redemption_mode: "listed" | "code";
+	usage_limit?: number | null;
+	code_count?: number;
 };
 
 export type CampaignFixedPayload = CampaignBasePayload & {
@@ -463,6 +479,7 @@ export const queryKeys = {
 	campaigns: (query?: FetchCampaignsQuery) =>
 		["campaigns", query ?? {}] as const,
 	campaignDetail: (id: number) => ["campaign-detail", id] as const,
+	campaignVoucherCodes: (id: number) => ["campaigns", id, "codes"] as const,
 	complaints: (query?: FetchComplaintsQuery) =>
 		["complaints", query ?? {}] as const,
 	complaintDetail: (id: number) => ["complaint-detail", id] as const,
@@ -734,6 +751,7 @@ export type UpdateCampaignPayload = {
 	eligible_service_ids?: number[];
 	buy_quantity?: number | null;
 	free_quantity?: number | null;
+	usage_limit?: number | null;
 };
 
 export async function updateCampaign(
@@ -752,6 +770,26 @@ export async function deleteCampaign(id: number) {
 	return parseResponse(
 		rpcWithAuth().api.admin.campaigns[":id"].$delete({
 			param: { id: String(id) },
+		}),
+	);
+}
+
+export type ResolveVoucherCodePayload = {
+	code: string;
+	store_id: number;
+	gross_total: number;
+};
+
+export function resolveVoucherCode(payload: ResolveVoucherCodePayload) {
+	return parseSuccessData<ResolvedVoucher>(
+		rpcWithAuth().api.admin.campaigns["resolve-code"].$post({ json: payload }),
+	);
+}
+
+export function fetchCampaignVoucherCodes(campaignId: number) {
+	return parseSuccessData<VoucherCodesResponse>(
+		rpcWithAuth().api.admin.campaigns[":id"].codes.$get({
+			param: { id: String(campaignId) },
 		}),
 	);
 }

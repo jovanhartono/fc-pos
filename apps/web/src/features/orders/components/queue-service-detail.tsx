@@ -27,7 +27,7 @@ import {
 	type UpdateOrderServiceStatusPayload,
 	updateOrderServiceStatus,
 } from "@/lib/api";
-import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
+import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { orderDetailQueryOptions } from "@/lib/query-options";
 import {
 	formatOrderServiceStatus,
@@ -41,6 +41,9 @@ import { getCurrentUser } from "@/stores/auth-store";
 const WORKER_BLOCKED_QUEUE_STATUSES = new Set<
 	UpdateOrderServiceStatusPayload["status"]
 >(ORDER_TERMINAL_SERVICE_STATUSES);
+
+const LABEL_CLASS =
+	"text-[0.65rem] font-medium uppercase tracking-[0.14em] text-muted-foreground";
 
 function QueueServiceDetailSkeleton() {
 	return (
@@ -181,9 +184,22 @@ export function QueueServiceDetail({
 			(!canStartWork || status !== "processing"),
 	);
 
+	const itemDetails = getOrderServiceItemDetails(selectedService);
+	const handlerLabel = isHandledByCurrentUser
+		? "You"
+		: isHandledByAnotherWorker
+			? (selectedService.handler?.name ?? "Another worker")
+			: "Unassigned";
+	const blockerMessage =
+		canStartWork && isHandledByAnotherWorker
+			? `${selectedService.handler?.name ?? "Another worker"} is handling this item — actions are locked for you.`
+			: needsPhotoToStart
+				? "Add an item photo to start work."
+				: null;
+
 	return (
 		<>
-			<div className="mb-6 flex items-center gap-3">
+			<div className="mb-5 flex items-start gap-3">
 				<Link
 					to="/worker"
 					search={{ storeId: detail.store?.id }}
@@ -191,97 +207,129 @@ export function QueueServiceDetail({
 				>
 					<ArrowLeftIcon className="size-4" weight="bold" />
 				</Link>
-				<h1 className="text-2xl font-bold tracking-tight">
-					{selectedService.item_code ?? `Queue Item #${selectedService.id}`}
-				</h1>
-			</div>
-
-			<div className="grid gap-5">
-				<div className="flex flex-wrap items-center gap-x-4 gap-y-1 border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-					<Link
-						to="/orders/$orderId"
-						params={{ orderId: String(orderId) }}
-						className="underline underline-offset-2 hover:text-foreground"
-					>
-						{detail.code}
-					</Link>
-					<span>{detail.store?.code ?? "-"}</span>
-					<span>{detail.customer?.name ?? "-"}</span>
-					{detail.customer?.phone_number ? (
-						<a
-							href={`tel:${detail.customer.phone_number}`}
-							className="underline underline-offset-2 hover:text-foreground"
-						>
-							{detail.customer.phone_number}
-						</a>
-					) : null}
-					<span>{formatOrderDateTime(detail.created_at)}</span>
-				</div>
-
-				<section className="grid gap-4 border border-border bg-background/70 p-4">
-					<div className="flex flex-wrap items-center gap-2">
-						{selectedService.is_priority ? (
-							<Badge variant="warning">Priority</Badge>
-						) : (
-							<Badge variant="outline">Standard</Badge>
-						)}
+				<div className="min-w-0 flex-1">
+					<div className="flex items-start justify-between gap-3">
+						<h1 className="font-mono text-[1.65rem] font-bold leading-tight tracking-tight">
+							{selectedService.item_code ?? `Queue Item #${selectedService.id}`}
+						</h1>
 						<Badge
+							className="mt-1 shrink-0"
 							variant={getOrderServiceStatusBadgeVariant(
 								selectedService.status,
 							)}
 						>
 							{formatOrderServiceStatus(selectedService.status)}
 						</Badge>
-						<Badge variant={isHandledByCurrentUser ? "info" : "secondary"}>
-							{isHandledByCurrentUser
-								? "Assigned to me"
-								: isHandledByAnotherWorker
-									? `Assigned to ${selectedService.handler?.name ?? "worker"}`
-									: "Open"}
-						</Badge>
 					</div>
+					<p className="mt-1 text-sm text-muted-foreground">
+						{selectedService.service?.name ?? "Service"}
+						{itemDetails ? (
+							<>
+								<span aria-hidden="true" className="mx-1.5 text-border">
+									·
+								</span>
+								{itemDetails}
+							</>
+						) : null}
+					</p>
+				</div>
+			</div>
 
-					<div className="grid gap-1">
-						<p className="text-2xl font-semibold tracking-tight">
-							{selectedService.service?.name ?? "Service"}
-						</p>
-						<p className="text-sm text-muted-foreground">
-							{`Item ${formatOrderServiceItemDetails(selectedService)}`}
-						</p>
+			<div className="grid gap-5">
+				<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border border-border bg-muted/40 px-3 py-2.5">
+					{selectedService.is_priority ? (
+						<Badge variant="warning">Priority</Badge>
+					) : (
+						<Badge variant="outline">Standard</Badge>
+					)}
+					<p className="text-xs text-muted-foreground">
+						Handler{" "}
+						<span className="font-medium text-foreground">{handlerLabel}</span>
+					</p>
+				</div>
+
+				{selectedService.status === "ready_for_pickup" ? (
+					<div className="flex items-start gap-2 border border-muted bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
+						<WarningCircleIcon
+							className="mt-0.5 size-4 shrink-0"
+							weight="fill"
+						/>
+						<p>Waiting for cashier to complete pickup at the counter.</p>
 					</div>
+				) : null}
 
-					{selectedService.status === "ready_for_pickup" ? (
-						<div className="flex items-start gap-2 border border-muted bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
-							<WarningCircleIcon
-								className="mt-0.5 size-4 shrink-0"
-								weight="fill"
-							/>
-							<p>Waiting for cashier to complete pickup at the counter.</p>
-						</div>
-					) : null}
-				</section>
-
-				<section className="grid gap-4 border border-border bg-background">
-					<div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4 lg:px-5">
-						<div className="grid gap-1">
-							<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-								Photos
-							</p>
-						</div>
-
-						<div className="flex items-center gap-2">
-							<Button
-								type="button"
-								variant="outline"
-								icon={<ImageSquareIcon className="size-4" />}
-								onClick={() => setIsPhotoDialogOpen(true)}
+				<dl className="grid grid-cols-2 gap-px border border-border bg-border">
+					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
+						<dt className={LABEL_CLASS}>Order</dt>
+						<dd>
+							<Link
+								to="/orders/$orderId"
+								params={{ orderId: String(orderId) }}
+								className="font-mono text-sm text-foreground underline underline-offset-2 hover:text-muted-foreground"
 							>
-								Add photo
-							</Button>
+								{detail.code}
+							</Link>
+						</dd>
+					</div>
+					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
+						<dt className={LABEL_CLASS}>Store</dt>
+						<dd className="text-sm text-foreground">
+							{detail.store?.code ?? "-"}
+						</dd>
+					</div>
+					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
+						<dt className={LABEL_CLASS}>Customer</dt>
+						<dd className="text-sm text-foreground">
+							{detail.customer?.name ?? "-"}
+						</dd>
+					</div>
+					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
+						<dt className={LABEL_CLASS}>Phone</dt>
+						<dd className="text-sm text-foreground">
+							{detail.customer?.phone_number ? (
+								<a
+									href={`tel:${detail.customer.phone_number}`}
+									className="font-mono underline underline-offset-2 hover:text-muted-foreground"
+								>
+									{detail.customer.phone_number}
+								</a>
+							) : (
+								"-"
+							)}
+						</dd>
+					</div>
+					<div className="col-span-2 grid content-start gap-1 bg-background px-3 py-2.5">
+						<dt className={LABEL_CLASS}>Received</dt>
+						<dd className="text-sm text-foreground">
+							{formatOrderDateTime(detail.created_at)}
+						</dd>
+					</div>
+				</dl>
+
+				<section className="border border-border bg-background">
+					<div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+						<div className="flex items-center gap-2">
+							<p className={LABEL_CLASS}>Photos</p>
+							{needsPhotoToStart ? (
+								<Badge variant="warning">Required</Badge>
+							) : selectedService.images.length > 0 ? (
+								<Badge variant="secondary">
+									{selectedService.images.length}
+								</Badge>
+							) : null}
 						</div>
+
+						<Button
+							type="button"
+							variant="outline"
+							icon={<ImageSquareIcon className="size-4" />}
+							onClick={() => setIsPhotoDialogOpen(true)}
+						>
+							Add photo
+						</Button>
 					</div>
 
-					<div className="grid gap-4 px-4 pb-4 lg:px-5 lg:pb-5">
+					<div className="px-4 pb-4 pt-4">
 						<OrderPhotoGallery
 							items={selectedService.images.map((image) => ({
 								...image,
@@ -294,9 +342,27 @@ export function QueueServiceDetail({
 							thumbnailImageClassName="aspect-[5/4]"
 							title={`Photos for ${selectedService.item_code ?? `service-${selectedService.id}`}`}
 							emptyState={
-								<p className="col-span-full border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-									No photos.
-								</p>
+								needsPhotoToStart ? (
+									<div className="col-span-full flex items-start gap-2.5 border border-dashed border-warning/50 bg-warning/10 px-4 py-6 text-sm">
+										<WarningCircleIcon
+											aria-hidden="true"
+											className="mt-0.5 size-4 shrink-0 text-warning"
+											weight="fill"
+										/>
+										<div className="grid gap-0.5">
+											<p className="font-medium text-foreground">
+												Photo required to start
+											</p>
+											<p className="text-muted-foreground">
+												Add one item photo to unlock the queue action.
+											</p>
+										</div>
+									</div>
+								) : (
+									<p className="col-span-full border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+										No photos.
+									</p>
+								)
 							}
 						/>
 					</div>
@@ -330,10 +396,15 @@ export function QueueServiceDetail({
 			</div>
 
 			<div className="sticky bottom-0 z-10 mt-6 border-t border-border bg-background/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur sm:px-0 sm:pb-3">
-				{needsPhotoToStart ? (
-					<p className="mb-2 text-xs text-muted-foreground">
-						Add an item photo before starting work.
-					</p>
+				{blockerMessage ? (
+					<div className="mb-2 flex items-center gap-2 border border-warning/50 bg-warning/10 px-3 py-2 text-xs font-medium text-foreground">
+						<WarningCircleIcon
+							aria-hidden="true"
+							className="size-4 shrink-0 text-warning"
+							weight="fill"
+						/>
+						{blockerMessage}
+					</div>
 				) : null}
 				<div className="flex flex-col gap-2 sm:flex-row">
 					{canStartWork ? (

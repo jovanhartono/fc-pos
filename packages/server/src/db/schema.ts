@@ -207,6 +207,12 @@ export const cancelReasonEnum = pgEnum("cancel_reason_enum", [
   "duplicate_order",
   "other",
 ]);
+export const campaignRedemptionModeEnum = pgEnum("campaign_redemption_mode", [
+  "listed",
+  "code",
+]);
+export type CampaignRedemptionMode =
+  (typeof campaignRedemptionModeEnum.enumValues)[number];
 export const campaignsTable = pgTable(
   "campaigns",
   {
@@ -229,6 +235,10 @@ export const campaignsTable = pgTable(
       .default("0")
       .notNull(),
     name: varchar("name", { length: 255 }).notNull(),
+    redeemed_count: integer("redeemed_count").default(0).notNull(),
+    redemption_mode: campaignRedemptionModeEnum("redemption_mode")
+      .default("listed")
+      .notNull(),
     starts_at: timestamp("starts_at"),
     updated_at: timestamp("updated_at")
       .defaultNow()
@@ -237,6 +247,7 @@ export const campaignsTable = pgTable(
     updated_by: integer("updated_by")
       .references(() => usersTable.id)
       .notNull(),
+    usage_limit: integer("usage_limit"),
   },
   (table) => [
     index("campaign_code_idx").on(table.code),
@@ -271,6 +282,18 @@ export const campaignsTable = pgTable(
             AND ${table.buy_quantity} >= 1
             AND ${table.free_quantity} >= 1
           )`
+    ),
+    check(
+      "campaign_redeemed_count_non_negative_check",
+      sql`${table.redeemed_count} >= 0`
+    ),
+    check(
+      "campaign_usage_limit_non_negative_check",
+      sql`${table.usage_limit} IS NULL OR ${table.usage_limit} >= 1`
+    ),
+    check(
+      "campaign_mode_exclusivity_check",
+      sql`${table.redemption_mode} = 'listed' OR ${table.usage_limit} IS NULL`
     ),
   ]
 );
@@ -316,6 +339,30 @@ export const campaignEligibleServicesTable = pgTable(
       table.campaign_id,
       table.service_id
     ),
+  ]
+);
+
+// NOTE: campaign_codes.code is a Crockford-base32 bearer redemption string
+// (8 chars, random). Do NOT confuse with campaigns.code (admin label, e.g. "SUMMER24").
+export const campaignCodesTable = pgTable(
+  "campaign_codes",
+  {
+    campaign_id: integer("campaign_id")
+      .references(() => campaignsTable.id, { onDelete: "cascade" })
+      .notNull(),
+    code: varchar("code", { length: 32 }).notNull(),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    redeemed_at: timestamp("redeemed_at", { withTimezone: true }),
+    redeemed_order_id: integer("redeemed_order_id").references(
+      () => ordersTable.id,
+      { onDelete: "set null" }
+    ),
+  },
+  (table) => [
+    index("campaign_codes_campaign_idx").on(table.campaign_id),
+    index("campaign_codes_redeemed_at_idx").on(table.redeemed_at),
+    uniqueIndex("campaign_codes_code_uidx").on(table.code),
   ]
 );
 
@@ -414,6 +461,8 @@ export const ordersTable = pgTable(
       .default("0")
       .notNull(),
     paid_at: timestamp("paid_at"),
+    // who marked this order paid; immutable, set once on the paid transition
+    paid_by: integer("paid_by").references(() => usersTable.id),
 
     pickup_code: varchar("pickup_code", { length: 6 })
       .notNull()
@@ -491,6 +540,9 @@ export const orderCampaignsTable = pgTable(
     campaign_id: integer("campaign_id")
       .references(() => campaignsTable.id, { onDelete: "restrict" })
       .notNull(),
+    code_id: integer("code_id").references(() => campaignCodesTable.id, {
+      onDelete: "set null",
+    }),
     created_at: timestamp("created_at").defaultNow().notNull(),
     discount_type: campaignDiscountTypeEnum("discount_type").notNull(),
     discount_value: decimal("discount_value", { precision: 12 })
@@ -506,6 +558,7 @@ export const orderCampaignsTable = pgTable(
   (table) => [
     index("order_campaigns_order_idx").on(table.order_id),
     index("order_campaigns_campaign_idx").on(table.campaign_id),
+    index("order_campaigns_code_idx").on(table.code_id),
     uniqueIndex("order_campaigns_order_campaign_uidx").on(
       table.order_id,
       table.campaign_id
