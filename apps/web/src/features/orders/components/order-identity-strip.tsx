@@ -1,6 +1,7 @@
 import {
 	DotsThreeVerticalIcon,
 	LinkSimpleIcon,
+	PrinterIcon,
 	TruckIcon,
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
@@ -27,6 +28,8 @@ import {
 } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
+import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
+import { usePrintReceiptMutation } from "@/features/printing/hooks/usePrintReceipt";
 import type { OrderDetail } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
@@ -53,6 +56,7 @@ export const OrderIdentityStrip = ({
 	const cancelOrderMutation = useCancelOrderMutation(orderId);
 	const refundMutation = useRefundOrderMutation(orderId);
 	const openComplaintMutation = useOpenComplaintMutation(orderId);
+	const printReceiptMutation = usePrintReceiptMutation(orderId);
 
 	const fulfillment = detail.fulfillment;
 	const totalCount = fulfillment.service_total_count;
@@ -65,9 +69,7 @@ export const OrderIdentityStrip = ({
 		if (!(detail.code && phone)) {
 			return null;
 		}
-		const origin = typeof window !== "undefined" ? window.location.origin : "";
-		const params = new URLSearchParams({ code: detail.code, phone });
-		return `${origin}/track?${params.toString()}`;
+		return buildTrackingUrl(detail.code, phone);
 	})();
 
 	const handleCopyTrackingLink = async () => {
@@ -256,6 +258,13 @@ export const OrderIdentityStrip = ({
 										}
 									/>
 									<DropdownMenuContent align="end" className="w-40">
+										<DropdownMenuItem
+											disabled={printReceiptMutation.isPending}
+											onClick={() => printReceiptMutation.mutate()}
+										>
+											<PrinterIcon className="size-4" />
+											Print receipt
+										</DropdownMenuItem>
 										{trackingUrl ? (
 											<DropdownMenuItem onClick={handleCopyTrackingLink}>
 												<LinkSimpleIcon className="size-4" />

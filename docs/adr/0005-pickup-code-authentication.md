@@ -84,6 +84,10 @@ A data-integrity invariant, not an authentication concern — it belongs in the 
 ## Consequences
 
 - The picked-up transition must never be settable via a generic status dropdown — only through the pickup dialog. The application layer enforces the dialog path; the CHECK above (`status != 'picked_up' OR pickup_event_id IS NOT NULL`) now backstops it — a dropdown write that sets `picked_up` without a pickup event is rejected by the database.
-- `pickup_code` must never leak to admin/cashier UI for Orders not yet `ready_for_pickup` (would let an internal actor bypass the customer-presence check).
-- The public `/track` page is the only surface that exposes the code, and only after the status check.
+- `pickup_code` must never leak to admin/cashier UI for Orders not yet `ready_for_pickup` (would let an internal actor bypass the customer-presence check). *Amended 2026-07-06 — see below.*
+- The public `/track` page is the only surface that exposes the code, and only after the status check. *Amended 2026-07-06 — see below.*
 - Replacing the scheme later (e.g. with QR) means deprecating the dialog input path and migrating the generation column, not editing application code alone.
+
+## Amendment (2026-07-06)
+
+[ADR-0016](0016-receipt-is-claim-ticket.md) carves one sanctioned exception out of the two amended consequences above: the printed thermal Receipt (produced at drop-off and on reprint) carries the pickup code — the paper is the claim ticket. A dedicated receipt read is the only admin surface allowed to return `pickup_code`; every other admin response keeps the strip, and `/track`'s ready-only reveal is unchanged.

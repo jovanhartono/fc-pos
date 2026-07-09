@@ -49,6 +49,7 @@ import {
   updateOrderServiceHandler,
   updateOrderServiceStatus,
 } from "@/modules/orders/order-queue.service";
+import { getOrderReceiptById } from "@/modules/orders/order-receipt.service";
 import {
   cancelOrder,
   createOrderRefund,
@@ -171,6 +172,20 @@ const app = new Hono()
     }
 
     return c.json(success(detail, "Order detail retrieved successfully"));
+  })
+  .get("/:id/receipt", idParamSchema, async (c) => {
+    const user = c.get("jwtPayload") as JWTPayload;
+    const { id } = c.req.valid("param");
+
+    await assertOrderAccess(user, id);
+
+    const receipt = await getOrderReceiptById(id);
+
+    if (!receipt) {
+      return c.json(failure("Order not found"), StatusCodes.NOT_FOUND);
+    }
+
+    return c.json(success(receipt, "Order receipt retrieved successfully"));
   })
   .patch(
     "/:id/payment",

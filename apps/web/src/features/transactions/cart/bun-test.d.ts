@@ -3,12 +3,15 @@
 declare module "bun:test" {
 	type TestFn = (name: string, fn: () => void | Promise<void>) => void;
 
-	export const describe: (name: string, fn: () => void) => void;
-	export const test: TestFn;
-	export const it: TestFn;
-	export const expect: (value: unknown) => {
+	interface Matchers {
 		toBe(expected: unknown): void;
 		toEqual(expected: unknown): void;
 		toHaveLength(expected: number): void;
-	};
+		toContain(expected: unknown): void;
+	}
+
+	export const describe: (name: string, fn: () => void) => void;
+	export const test: TestFn;
+	export const it: TestFn;
+	export const expect: (value: unknown) => Matchers & { not: Matchers };
 }

@@ -13,6 +13,8 @@ import {
 	isAcceptedImage,
 	uploadOrderDropoffPhoto,
 } from "@/features/orders/utils/photo-upload";
+import { printOrderReceipt } from "@/features/printing/print-order-receipt";
+import { PrinterNotPairedError } from "@/features/printing/printer-transport";
 import {
 	defaultDraftValues,
 	resetTransactionDraft,
@@ -207,6 +209,28 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 				// id. A failed attach must NOT fail the Order — surface it and let the
 				// cashier retry from the order detail card.
 				const orderId = getCreatedOrderId(created);
+
+				// Fire-and-forget auto-print: a receipt failure must never fail
+				// or delay the Order — surface it and let the cashier reprint
+				// from the order detail menu. Skip entirely where the browser
+				// can't print at all (no Web Bluetooth) so we don't red-toast
+				// every checkout on an unsupported browser.
+				if (orderId && navigator.bluetooth) {
+					void printOrderReceipt(orderId, { allowPairing: false }).catch(
+						(error: unknown) => {
+							if (error instanceof PrinterNotPairedError) {
+								toast.info("Order created. Pair a printer to auto-print", {
+									description: "Open the order and use Print receipt.",
+								});
+								return;
+							}
+							toast.error("Order created, but the receipt failed to print", {
+								description: "Reprint from the order detail page.",
+							});
+						},
+					);
+				}
+
 				const { dropoffPhoto } = useTransactionsPageStore.getState();
 				if (orderId && dropoffPhoto && isAcceptedImage(dropoffPhoto.type)) {
 					try {

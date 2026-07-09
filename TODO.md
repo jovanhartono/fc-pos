@@ -1,5 +1,27 @@
 # TODO
 
+## Report-stack consolidation (from 2026-07-06 simplification grill)
+
+- [ ] **Unify "item processed" definition** — worker-productivity completions
+  (`report-range.repository.ts` `fetchCompletions`, `to_status = 'ready_for_pickup'`)
+  must match the daily KPI's `ITEM_PROCESSED_STATUSES`
+  (`report.repository.ts:30`, includes `quality_check`). Canonical definition now
+  in CONTEXT.md ("Item processed"): counts on first reaching `quality_check`.
+  Small standalone fix; can land before the full consolidation.
+- [ ] **Merge the two report stacks** — `report.repository.ts` (daily/overview)
+  and `report-range.repository.ts`/`report-range.service.ts` (7 range panels)
+  duplicate paid revenue, refunds sum, category revenue, and orders_out (×4
+  implementations), and bucket dates two different ways (hand-rolled
+  `to_char AT TIME ZONE` vs `jakartaBucketExpr`). Extract shared query builders
+  (paid-window + optional-store filter skeleton is copy-pasted across ~15
+  bucketed-series functions); one bucketing util. Existing report tests stay green.
+- [ ] **Web voucher double-bookkeeping** — applied vouchers tracked in both
+  `transactions-store.ts` (`resolvedVoucherEntries`) and a mirrored form field
+  (`appliedVoucherCodes`), synced by three effects in
+  `checkout-payment-step.tsx`; campaign eligibility filtered twice
+  (`checkout-payment-step.tsx` + `useCheckoutPricing.ts`). Collapse to one
+  source of truth.
+
 ## Architecture-deepening follow-ups (extracted 2026-06-10, source: docs/architecture-deepening.md)
 
 - [ ] **`push:prod` before next prod deploy** — product-refund schema guards
