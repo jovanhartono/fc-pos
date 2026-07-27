@@ -8,6 +8,9 @@ declare module "bun:test" {
 		toEqual(expected: unknown): void;
 		toHaveLength(expected: number): void;
 		toContain(expected: unknown): void;
+		toMatch(expected: RegExp | string): void;
+		toBeGreaterThan(expected: number): void;
+		toBeLessThanOrEqual(expected: number): void;
 	}
 
 	export const describe: (name: string, fn: () => void) => void;

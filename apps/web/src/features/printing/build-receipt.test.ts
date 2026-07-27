@@ -43,6 +43,7 @@ const baseReceipt: OrderReceipt = {
 			color: "Putih",
 			model: "AF1",
 			size: "42",
+			notes: "Sol kanan lepas sedikit",
 			service: { name: "Deep Clean" },
 		},
 	],
@@ -78,6 +79,7 @@ describe("buildReceiptEscPos", () => {
 		expect(text).toContain("Deep Clean");
 		expect(text).toContain("Nike - AF1 - Putih - 42");
 		expect(text).toContain("#JKT/06072026/12/S001");
+		expect(text).toContain("  * Sol kanan lepas sedikit");
 		expect(text).toContain("2 x Rp45.000");
 		expect(text).toContain("Rp315.000");
 		expect(text).toContain("PROMO10 - Promo Juli");
@@ -122,6 +124,31 @@ describe("buildReceiptEscPos", () => {
 		const text = decodeText(bytes);
 
 		expect(text).toContain("Putih - 42Rp75.000");
+	});
+
+	test("long item note wraps inside 48 columns keeping the item indent", () => {
+		const bytes = buildReceiptEscPos(
+			{
+				...baseReceipt,
+				services: [
+					{
+						...baseReceipt.services[0],
+						notes:
+							"jangan pakai pemutih karena bahannya sensitif dan mudah luntur",
+					},
+				],
+			},
+			"http://localhost/track",
+		);
+		const lines = decodeText(bytes).split("\n");
+		const start = lines.findIndex((line) => line.startsWith("  * jangan"));
+
+		expect(start).toBeGreaterThan(-1);
+		// Continuation stays indented under the item, not flush at column 0.
+		expect(lines[start + 1]).toMatch(/^ {2}\S/);
+		for (const line of [lines[start], lines[start + 1]]) {
+			expect(line.length).toBeLessThanOrEqual(48);
+		}
 	});
 
 	test("unpaid order prints pay-at-pickup line and no method", () => {

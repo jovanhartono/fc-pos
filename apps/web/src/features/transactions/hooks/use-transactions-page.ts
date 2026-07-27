@@ -68,6 +68,7 @@ const transactionDraftSchema = z
 				color: z.string(),
 				model: z.string(),
 				size: z.string(),
+				notes: z.string(),
 			}),
 		),
 	})

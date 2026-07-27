@@ -235,6 +235,24 @@ export const CheckoutItemsStep = () => {
 									errors={[form.formState.errors.serviceCart?.[index]?.size]}
 								/>
 							</Field>
+							<Field className="sm:col-span-2">
+								<FieldLabel htmlFor={`service-notes-${line.line_id}`}>
+									Item notes
+								</FieldLabel>
+								<Input
+									className="h-11"
+									id={`service-notes-${line.line_id}`}
+									onChange={(event) =>
+										updateServiceField(
+											line.line_id,
+											"notes",
+											event.target.value,
+										)
+									}
+									placeholder="e.g. Loose sole, no bleach"
+									value={line.notes}
+								/>
+							</Field>
 						</div>
 						<div className="flex items-center justify-end gap-3">
 							<p className="text-sm font-semibold">

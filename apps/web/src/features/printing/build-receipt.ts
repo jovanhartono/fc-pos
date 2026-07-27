@@ -31,20 +31,21 @@ const row = (leftRaw: string, rightRaw: string): string => {
 	return `${left}${" ".repeat(gap)}${right}`;
 };
 
-const wrap = (text: string): string[] => {
+const wrap = (text: string, indent = ""): string[] => {
 	const lines: string[] = [];
+	const limit = WIDTH - indent.length;
 	let current = "";
 	for (const word of toPrintableAscii(text).split(/\s+/)) {
 		const candidate = current ? `${current} ${word}` : word;
-		if (candidate.length > WIDTH && current) {
-			lines.push(current);
+		if (candidate.length > limit && current) {
+			lines.push(indent + current);
 			current = word;
 		} else {
 			current = candidate;
 		}
 	}
 	if (current) {
-		lines.push(current);
+		lines.push(indent + current);
 	}
 	return lines;
 };
@@ -102,6 +103,11 @@ export const buildReceiptEscPos = (
 			b.line(row(details ? `  ${details}` : "", money(line.subtotal)));
 			if (line.item_code) {
 				b.line(`  ${line.item_code}`);
+			}
+			if (line.notes?.trim()) {
+				for (const noteLine of wrap(`* ${line.notes.trim()}`, "  ")) {
+					b.line(noteLine);
+				}
 			}
 		}
 	}

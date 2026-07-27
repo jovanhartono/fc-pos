@@ -65,6 +65,7 @@ export async function getOrderReceiptById(id: number) {
           color: true,
           model: true,
           size: true,
+          notes: true,
         },
         with: {
           service: {
