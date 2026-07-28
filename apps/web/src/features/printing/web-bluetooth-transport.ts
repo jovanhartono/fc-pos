@@ -45,8 +45,28 @@ async function findWritableCharacteristic(
 	return null;
 }
 
+// Chromium never rejects gatt.connect() for an off/out-of-range device — the
+// promise stays pending until the device advertises again (crbug.com/666377).
+// Unbounded, one dead connect would wedge the serialized print queue for the
+// whole session, so cap the wait and cancel the pending request on timeout.
+const CONNECT_TIMEOUT_MS = 10_000;
+
 async function connect(device: BluetoothDevice): Promise<ConnectedPrinter> {
-	const server = await device.gatt?.connect();
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timeout = new Promise<never>((_, reject) => {
+		timer = setTimeout(() => {
+			device.gatt?.disconnect();
+			reject(
+				new Error("Printer is not responding — check it is on and in range"),
+			);
+		}, CONNECT_TIMEOUT_MS);
+	});
+	let server: BluetoothRemoteGATTServer | undefined;
+	try {
+		server = await Promise.race([device.gatt?.connect(), timeout]);
+	} finally {
+		clearTimeout(timer);
+	}
 	if (!server) {
 		throw new Error("Printer refused the Bluetooth connection");
 	}
@@ -91,9 +111,19 @@ async function resolvePrinter(
 	if (deviceId) {
 		const known = cached?.device ?? (await findGrantedDevice(deviceId));
 		if (known) {
-			// A paired-but-unreachable printer is a real fault (off, out of
-			// range) — let it throw instead of degrading to "not paired".
-			return await connect(known);
+			if (!allowPairing) {
+				// Auto-print: a paired-but-unreachable printer is a real fault
+				// (off, out of range) — let it throw instead of degrading to
+				// "not paired".
+				return await connect(known);
+			}
+			try {
+				return await connect(known);
+			} catch {
+				// Manual print is a pairing gesture: a failing known device must
+				// not block re-pairing forever (mis-picked device, replaced
+				// printer) — fall through to the picker instead.
+			}
 		}
 	}
 
@@ -105,8 +135,12 @@ async function resolvePrinter(
 		acceptAllDevices: true,
 		optionalServices: PRINTER_SERVICES,
 	});
+	const printer = await connect(device);
+	// Persist only after a successful connect — the acceptAllDevices chooser
+	// lists every nearby BLE device, and a mis-pick must not become the
+	// remembered printer.
 	usePrinterStore.getState().setDeviceId(device.id);
-	return await connect(device);
+	return printer;
 }
 
 async function printNow(data: Uint8Array, allowPairing: boolean) {
