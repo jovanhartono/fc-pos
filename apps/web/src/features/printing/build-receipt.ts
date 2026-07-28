@@ -36,12 +36,28 @@ const wrap = (text: string, indent = ""): string[] => {
 	const limit = WIDTH - indent.length;
 	let current = "";
 	for (const word of toPrintableAscii(text).split(/\s+/)) {
-		const candidate = current ? `${current} ${word}` : word;
-		if (candidate.length > limit && current) {
-			lines.push(indent + current);
-			current = word;
-		} else {
-			current = candidate;
+		// A token wider than the line (URL, long reference code) has no
+		// whitespace to break on — hard-split it, filling the current line
+		// first, so no line ever exceeds WIDTH and loses its indent.
+		let piece = word;
+		while (piece.length > 0) {
+			const candidate = current ? `${current} ${piece}` : piece;
+			if (candidate.length <= limit) {
+				current = candidate;
+				break;
+			}
+			if (current) {
+				const room = limit - current.length - 1;
+				if (room > 0 && piece.length > limit) {
+					current = `${current} ${piece.slice(0, room)}`;
+					piece = piece.slice(room);
+				}
+				lines.push(indent + current);
+				current = "";
+			} else {
+				lines.push(indent + piece.slice(0, limit));
+				piece = piece.slice(limit);
+			}
 		}
 	}
 	if (current) {
@@ -65,6 +81,7 @@ export const buildReceiptEscPos = (
 	const manualDiscount = Math.max(discount - campaignDiscount, 0);
 	const net = Number(receipt.total ?? 0) - discount;
 	const isPaid = receipt.payment_status === "paid";
+	const isCancelled = receipt.status === "cancelled";
 
 	const b = new EscPosBuilder();
 	b.init();
@@ -98,7 +115,15 @@ export const buildReceiptEscPos = (
 	if (receipt.services.length > 0) {
 		b.bold(true).line("LAYANAN").bold(false);
 		for (const line of receipt.services) {
-			b.line(line.service?.name ?? "Layanan");
+			// Reprints happen after lines can be voided (ADR-0016 sanctions
+			// reprints) — an unmarked voided line reads as a live claim.
+			const voided =
+				line.status === "cancelled"
+					? " (BATAL)"
+					: line.status === "refunded"
+						? " (REFUND)"
+						: "";
+			b.line(`${line.service?.name ?? "Layanan"}${voided}`);
 			const details = getOrderServiceItemDetails(line);
 			b.line(row(details ? `  ${details}` : "", money(line.subtotal)));
 			if (line.item_code) {
@@ -117,7 +142,12 @@ export const buildReceiptEscPos = (
 		}
 		b.bold(true).line("PRODUK").bold(false);
 		for (const line of receipt.products) {
-			b.line(line.product?.name ?? "Produk");
+			const voided = line.cancelled_at
+				? " (BATAL)"
+				: line.refunded_at
+					? " (REFUND)"
+					: "";
+			b.line(`${line.product?.name ?? "Produk"}${voided}`);
 			b.line(row(`  ${line.qty} x ${money(line.price)}`, money(line.subtotal)));
 		}
 	}
@@ -138,19 +168,28 @@ export const buildReceiptEscPos = (
 		.line(row("TOTAL", money(net)))
 		.bold(false);
 	b.line();
-	b.line(
-		isPaid
-			? `Pembayaran: LUNAS - ${receipt.paymentMethod?.name ?? "-"}`
-			: "Pembayaran: BELUM LUNAS - bayar saat pengambilan",
-	);
+	if (isCancelled) {
+		b.bold(true).line("ORDER DIBATALKAN").bold(false);
+	} else {
+		b.line(
+			isPaid
+				? `Pembayaran: LUNAS - ${receipt.paymentMethod?.name ?? "-"}`
+				: "Pembayaran: BELUM LUNAS - bayar saat pengambilan",
+		);
+	}
 	b.line(DIVIDER);
 
-	// Pickup code — the claim ticket (ADR-0016)
+	// Pickup code — the claim ticket (ADR-0016). A cancelled Order has nothing
+	// to claim, so it gets no live-looking code.
 	b.align("center");
-	b.line("KODE PENGAMBILAN");
-	b.size("double").line(receipt.pickup_code.split("").join(" ")).size("normal");
-	b.line("Tunjukkan kode ini saat mengambil");
-	b.feed(1);
+	if (!isCancelled) {
+		b.line("KODE PENGAMBILAN");
+		b.size("double")
+			.line(receipt.pickup_code.split("").join(" "))
+			.size("normal");
+		b.line("Tunjukkan kode ini saat mengambil");
+		b.feed(1);
+	}
 
 	// Tracking QR
 	b.qr(trackingUrl);

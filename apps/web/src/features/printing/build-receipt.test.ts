@@ -7,6 +7,7 @@ const baseReceipt: OrderReceipt = {
 	code: "#JKT/06072026/12",
 	created_at: "2026-07-06T07:32:00.000Z",
 	notes: "Jangan pakai pemutih",
+	status: "created",
 	payment_status: "paid",
 	total: "315000.00",
 	discount: "41500.00",
@@ -38,6 +39,7 @@ const baseReceipt: OrderReceipt = {
 		{
 			id: 1,
 			item_code: "#JKT/06072026/12/S001",
+			status: "queued",
 			subtotal: "75000.00",
 			brand: "Nike",
 			color: "Putih",
@@ -53,6 +55,8 @@ const baseReceipt: OrderReceipt = {
 			qty: 2,
 			price: "45000.00",
 			subtotal: "90000.00",
+			cancelled_at: null,
+			refunded_at: null,
 			product: { name: "Shoe Cleaner 250ml" },
 		},
 	],
@@ -149,6 +153,82 @@ describe("buildReceiptEscPos", () => {
 		for (const line of [lines[start], lines[start + 1]]) {
 			expect(line.length).toBeLessThanOrEqual(48);
 		}
+	});
+
+	test("unbreakable long token in a note hard-splits inside 48 columns", () => {
+		const bytes = buildReceiptEscPos(
+			{
+				...baseReceipt,
+				services: [
+					{
+						...baseReceipt.services[0],
+						notes: "https://instagram.com/p/Cx1234567890abcdefghijklmnop",
+					},
+				],
+			},
+			"http://localhost/track",
+		);
+		const lines = decodeText(bytes).split("\n");
+		const start = lines.findIndex((line) => line.startsWith("  * https://"));
+
+		expect(start).toBeGreaterThan(-1);
+		// Continuation stays indented, and no line exceeds the printer width.
+		expect(lines[start + 1]).toMatch(/^ {2}\S/);
+		for (const line of [lines[start], lines[start + 1]]) {
+			expect(line.length).toBeLessThanOrEqual(48);
+		}
+	});
+
+	test("voided lines are marked on reprint", () => {
+		const bytes = buildReceiptEscPos(
+			{
+				...baseReceipt,
+				services: [{ ...baseReceipt.services[0], status: "refunded" }],
+				products: [{ ...baseReceipt.products[0], cancelled_at: null }],
+			},
+			"http://localhost/track",
+		);
+		const text = decodeText(bytes);
+
+		expect(text).toContain("Deep Clean (REFUND)");
+		expect(text).toContain("Shoe Cleaner 250ml");
+		expect(text).not.toContain("Shoe Cleaner 250ml (BATAL)");
+
+		const cancelledProduct = decodeText(
+			buildReceiptEscPos(
+				{
+					...baseReceipt,
+					products: [
+						{
+							...baseReceipt.products[0],
+							cancelled_at: "2026-07-07T03:00:00.000Z",
+						},
+					],
+				},
+				"http://localhost/track",
+			),
+		);
+		expect(cancelledProduct).toContain("Shoe Cleaner 250ml (BATAL)");
+	});
+
+	test("cancelled order prints no pickup code and no pay-at-pickup line", () => {
+		const bytes = buildReceiptEscPos(
+			{
+				...baseReceipt,
+				status: "cancelled",
+				payment_status: "unpaid",
+				paymentMethod: null,
+				services: [{ ...baseReceipt.services[0], status: "cancelled" }],
+			},
+			"http://localhost/track",
+		);
+		const text = decodeText(bytes);
+
+		expect(text).toContain("ORDER DIBATALKAN");
+		expect(text).toContain("Deep Clean (BATAL)");
+		expect(text).not.toContain("KODE PENGAMBILAN");
+		expect(text).not.toContain("4 8 2 9 1 7");
+		expect(text).not.toContain("bayar saat pengambilan");
 	});
 
 	test("unpaid order prints pay-at-pickup line and no method", () => {

@@ -11,6 +11,7 @@ export async function getOrderReceiptById(id: number) {
       code: true,
       created_at: true,
       notes: true,
+      status: true,
       payment_status: true,
       total: true,
       discount: true,
@@ -60,6 +61,7 @@ export async function getOrderReceiptById(id: number) {
         columns: {
           id: true,
           item_code: true,
+          status: true,
           subtotal: true,
           brand: true,
           color: true,
@@ -82,6 +84,8 @@ export async function getOrderReceiptById(id: number) {
           qty: true,
           price: true,
           subtotal: true,
+          cancelled_at: true,
+          refunded_at: true,
         },
         with: {
           product: {
