@@ -22,7 +22,7 @@ import {
 	toOrderPayload,
 } from "@/features/transactions/cart/cart";
 import type { TransactionsPageContextValue } from "@/features/transactions/lib/transactions-context";
-import { createOrder } from "@/lib/api";
+import { createOrder, type ResolvedVoucher } from "@/lib/api";
 import { isValidPhoneNumber } from "@/lib/phone-number";
 import { meQueryOptions, storesQueryOptions } from "@/lib/query-options";
 import { getCurrentUser } from "@/stores/auth-store";
@@ -42,7 +42,14 @@ const transactionDraftSchema = z
 			.min(1, "Phone number is required.")
 			.refine(isValidPhoneNumber, "Invalid phone number"),
 		selectedCampaignIds: z.array(z.string()),
-		appliedVoucherCodes: z.array(z.string()),
+		// The campaign shape comes straight from the resolve-code response; it is
+		// carried for the pricing preview, not re-validated here.
+		appliedVouchers: z.array(
+			z.object({
+				code: z.string(),
+				campaign: z.custom<ResolvedVoucher>(),
+			}),
+		),
 		selectedPaymentMethodId: z.string(),
 		selectedCourierId: z.string(),
 		manualDiscount: z
@@ -188,13 +195,9 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 	});
 
 	const resetCart = useCallback(() => {
-		const { setSubmitError, setDropoffPhoto, clearResolvedVouchers } =
+		const { setSubmitError, setDropoffPhoto } =
 			useTransactionsPageStore.getState();
-		resetTransactionDraft(form, {
-			setSubmitError,
-			setDropoffPhoto,
-			clearResolvedVouchers,
-		});
+		resetTransactionDraft(form, { setSubmitError, setDropoffPhoto });
 	}, [form]);
 
 	const onValidSubmit = useCallback(
@@ -309,14 +312,12 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 				shouldDirty: true,
 				shouldValidate: true,
 			});
-			// Clear the mirrored form field too, not just the store: the
-			// CheckoutPaymentStep mirror effect only runs while mounted, so switching
-			// store from another step would otherwise leave stale codes in the payload.
-			form.setValue("appliedVoucherCodes", [], {
+			// Vouchers were resolved against the previous store, so they must be
+			// re-entered.
+			form.setValue("appliedVouchers", [], {
 				shouldDirty: true,
 				shouldValidate: true,
 			});
-			useTransactionsPageStore.getState().clearResolvedVouchers();
 		},
 		[currentUserKey, form],
 	);

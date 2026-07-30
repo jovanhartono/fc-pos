@@ -5,7 +5,12 @@ import {
 	stackCampaignDiscounts,
 } from "@fresclean/api/schema";
 import type { UseFormReturn } from "react-hook-form";
-import type { CreateOrderPayload, Product, Service } from "@/lib/api";
+import type {
+	CreateOrderPayload,
+	Product,
+	ResolvedVoucher,
+	Service,
+} from "@/lib/api";
 import { isValidPhoneNumber, normalizePhoneNumber } from "@/lib/phone-number";
 
 export type ProductCartLine = {
@@ -33,12 +38,20 @@ export type ServiceCartDisplayLine = ServiceCartLine & {
 	service: Service;
 };
 
+// A voucher the cashier has resolved (validated + previewed) but not yet
+// committed. The code string rides in the checkout payload's voucher_codes;
+// the campaign shape feeds the checkout pricing preview.
+export interface AppliedVoucher {
+	code: string;
+	campaign: ResolvedVoucher;
+}
+
 export type TransactionDraftValues = {
 	selectedStoreId: string;
 	customerName: string;
 	customerPhone: string;
 	selectedCampaignIds: string[];
-	appliedVoucherCodes: string[];
+	appliedVouchers: AppliedVoucher[];
 	selectedPaymentMethodId: string;
 	selectedCourierId: string;
 	manualDiscount: string;
@@ -52,7 +65,7 @@ export const defaultDraftValues: TransactionDraftValues = {
 	customerName: "",
 	customerPhone: "",
 	selectedCampaignIds: [],
-	appliedVoucherCodes: [],
+	appliedVouchers: [],
 	selectedPaymentMethodId: "",
 	selectedCourierId: "",
 	manualDiscount: "",
@@ -64,7 +77,6 @@ export const defaultDraftValues: TransactionDraftValues = {
 type TransactionResetActions = {
 	setSubmitError: (message: string) => void;
 	setDropoffPhoto: (file: File | null) => void;
-	clearResolvedVouchers: () => void;
 };
 
 // Single source of truth for clearing the POS draft — used by both the Reset
@@ -73,16 +85,11 @@ type TransactionResetActions = {
 // lived in two near-duplicate resets and the photo was missed on one path.
 export const resetTransactionDraft = (
 	form: UseFormReturn<TransactionDraftValues>,
-	{
-		setSubmitError,
-		setDropoffPhoto,
-		clearResolvedVouchers,
-	}: TransactionResetActions,
+	{ setSubmitError, setDropoffPhoto }: TransactionResetActions,
 ) => {
 	const selectedStoreId = form.getValues("selectedStoreId");
 	setSubmitError("");
 	setDropoffPhoto(null);
-	clearResolvedVouchers();
 	form.reset({ ...defaultDraftValues, selectedStoreId });
 };
 
@@ -184,7 +191,7 @@ export const toOrderPayload = ({
 	customerPhone,
 	selectedStoreId,
 	selectedCampaignIds,
-	appliedVoucherCodes,
+	appliedVouchers,
 	selectedPaymentMethodId,
 	selectedCourierId,
 	manualDiscount,
@@ -198,7 +205,7 @@ export const toOrderPayload = ({
 	},
 	store_id: Number(selectedStoreId),
 	campaign_ids: selectedCampaignIds.map((id) => Number(id)),
-	voucher_codes: appliedVoucherCodes.map((code) => code.trim()),
+	voucher_codes: appliedVouchers.map((entry) => entry.code.trim()),
 	discount: manualDiscount || "0",
 	payment_method_id: selectedPaymentMethodId
 		? Number(selectedPaymentMethodId)
