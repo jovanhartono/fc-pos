@@ -28,6 +28,7 @@ import {
 } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
+import { buildRefundCaps } from "@/features/orders/lib/refund-preview";
 import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
 import { usePrintReceiptMutation } from "@/features/printing/hooks/usePrintReceipt";
 import type { OrderDetail } from "@/lib/api";
@@ -149,6 +150,7 @@ export const OrderIdentityStrip = ({
 			contentClassName: "sm:max-w-xl",
 			content: () => (
 				<RefundOrderForm
+					capsByLineKey={buildRefundCaps(detail)}
 					closeDialog={closeDialog}
 					orderId={orderId}
 					refundableProducts={gates.refundableProducts.map((item) => ({

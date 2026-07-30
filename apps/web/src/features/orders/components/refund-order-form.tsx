@@ -1,6 +1,7 @@
+import { allocateRefund, lineKey } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { UseMutationResult } from "@tanstack/react-query";
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import {
 	Controller,
 	FormProvider,
@@ -17,6 +18,7 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import type { CreateOrderRefundPayload, OrderRefundReason } from "@/lib/api";
 import { formatRefundReason, REFUND_REASONS } from "@/lib/status";
+import { formatIDRCurrency } from "@/shared/utils";
 
 const refundFormSchema = z
 	.object({
@@ -75,6 +77,7 @@ export interface RefundableProductOption {
 }
 
 interface RefundOrderFormProps {
+	capsByLineKey: Map<string, number>;
 	closeDialog: () => void;
 	orderId: number;
 	refundableProducts: RefundableProductOption[];
@@ -83,6 +86,7 @@ interface RefundOrderFormProps {
 }
 
 export const RefundOrderForm = ({
+	capsByLineKey,
 	closeDialog,
 	orderId,
 	refundableProducts,
@@ -116,6 +120,47 @@ export const RefundOrderForm = ({
 		},
 	});
 	const { fields } = useFieldArray({ control: form.control, name: "items" });
+	const watchedItems = useWatch({ control: form.control, name: "items" });
+	// Amounts come from the same allocateRefund the server runs at submit.
+	// Selected lines are allocated together (leftover rupiah shift with the
+	// set); unselected lines preview what they'd refund alone.
+	const previewAmounts = useMemo(() => {
+		const amounts = new Map<string, number>();
+		const items = watchedItems ?? [];
+		const selected = items.filter(
+			(item) =>
+				item.selected &&
+				(capsByLineKey.get(lineKey(item.kind, item.id)) ?? 0) > 0,
+		);
+		if (selected.length > 0) {
+			for (const line of allocateRefund({ capsByLineKey, lines: selected })) {
+				amounts.set(lineKey(line.kind, line.id), line.amount);
+			}
+		}
+		for (const item of items) {
+			const key = lineKey(item.kind, item.id);
+			if (!amounts.has(key)) {
+				const cap = capsByLineKey.get(key) ?? 0;
+				amounts.set(
+					key,
+					cap > 0
+						? allocateRefund({
+								capsByLineKey,
+								lines: [{ id: item.id, kind: item.kind }],
+							})[0].amount
+						: 0,
+				);
+			}
+		}
+		return amounts;
+	}, [watchedItems, capsByLineKey]);
+	const totalRefund = (watchedItems ?? []).reduce(
+		(sum, item) =>
+			item.selected
+				? sum + (previewAmounts.get(lineKey(item.kind, item.id)) ?? 0)
+				: sum,
+		0,
+	);
 	const isPending = refundMutation.isPending;
 	const itemsError = form.formState.errors.items;
 	const itemsRootMessage =
@@ -207,6 +252,11 @@ export const RefundOrderForm = ({
 									</p>
 								) : null}
 								<RefundItemRow
+									amount={
+										line
+											? (previewAmounts.get(lineKey(line.kind, line.id)) ?? 0)
+											: 0
+									}
 									index={index}
 									label={line?.label ?? `Item #${index + 1}`}
 									disabled={isPending}
@@ -214,6 +264,13 @@ export const RefundOrderForm = ({
 							</Fragment>
 						);
 					})}
+				</div>
+
+				<div className="flex items-center justify-between border-t pt-3 text-sm">
+					<span className="text-muted-foreground">Refund total</span>
+					<span className="font-medium font-mono tabular-nums">
+						{formatIDRCurrency(String(totalRefund)) || "Rp0"}
+					</span>
 				</div>
 
 				<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -226,7 +283,11 @@ export const RefundOrderForm = ({
 						Go back
 					</Button>
 					<Button type="submit" variant="destructive" disabled={isPending}>
-						{isPending ? "Refunding…" : "Confirm refund"}
+						{isPending
+							? "Refunding…"
+							: totalRefund > 0
+								? `Refund ${formatIDRCurrency(String(totalRefund))}`
+								: "Confirm refund"}
 					</Button>
 				</div>
 			</form>
@@ -235,12 +296,18 @@ export const RefundOrderForm = ({
 };
 
 interface RefundItemRowProps {
+	amount: number;
 	disabled: boolean;
 	index: number;
 	label: string;
 }
 
-const RefundItemRow = ({ disabled, index, label }: RefundItemRowProps) => {
+const RefundItemRow = ({
+	amount,
+	disabled,
+	index,
+	label,
+}: RefundItemRowProps) => {
 	const { control, register } = useFormContext<RefundFormValues>();
 	const selected =
 		useWatch({ control, name: `items.${index}.selected` }) ?? false;
@@ -261,6 +328,9 @@ const RefundItemRow = ({ disabled, index, label }: RefundItemRowProps) => {
 							disabled={disabled}
 						/>
 						<FieldLabel htmlFor={checkboxId}>{label}</FieldLabel>
+						<span className="ml-auto font-mono text-sm tabular-nums">
+							{formatIDRCurrency(String(amount)) || "Rp0"}
+						</span>
 					</Field>
 				)}
 			/>
