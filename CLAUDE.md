@@ -20,6 +20,7 @@ bun install            # Install all workspace dependencies
 bun run dev            # Turbo: build API types, then start server (8000) + web (5173)
 bun run build          # Turbo: build all packages (cached)
 bun run lint           # Turbo: lint all packages (cached)
+bun run test           # Turbo: run all bun test suites (cached)
 bun run type-check     # Turbo: type-check all packages (cached)
 ```
 
@@ -65,7 +66,7 @@ The server reads from `process.env`:
 - **Toasts:** Sonner (auto-handled by global mutation callbacks)
 
 ### Monorepo Tooling
-- **Turborepo** for task orchestration (`turbo.json`): `build`, `dev`, `lint`, `type-check`
+- **Turborepo** for task orchestration (`turbo.json`): `build`, `dev`, `lint`, `test`, `type-check`
 - Pipeline topology: `api#build` (tsdown) runs before any web task via `^build` dependency
 - Local caching enabled; no remote caching
 

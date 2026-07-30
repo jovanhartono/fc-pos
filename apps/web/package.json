@@ -10,6 +10,7 @@
 		"lint:fix": "biome check --write .",
 		"format": "biome format --write .",
 		"type-check": "bun run generate-routes && tsc -b",
+		"test": "bun test",
 		"generate-routes": "tsr generate"
 	},
 	"dependencies": {
