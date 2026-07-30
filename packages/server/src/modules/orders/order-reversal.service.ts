@@ -27,24 +27,21 @@ import {
   assertCanRefundOrderService,
 } from "@/modules/permissions/permissions";
 import { incrementProductStock } from "@/modules/products/product.repository";
+import {
+  allocateRefund,
+  lineKey,
+  lineRefundCap,
+  type RefundLineKind,
+} from "@/schema/refund-allocation";
 import type { JWTPayload } from "@/types";
 
-function roundCurrencyUnit(value: number) {
-  return Math.round(value);
-}
-
 type RefundLineInput = PostOrderRefundInput["items"][number];
-type RefundLineKind = "service" | "product";
 
 interface RefundLine {
   id: number;
   kind: RefundLineKind;
   note?: string;
   reason: RefundLineInput["reason"];
-}
-
-function lineKey(kind: RefundLineKind, id: number) {
-  return `${kind}:${id}`;
 }
 
 function toRefundLine(item: RefundLineInput): RefundLine {
@@ -67,67 +64,6 @@ function toRefundLine(item: RefundLineInput): RefundLine {
   throw new BadRequestException(
     "Each refund item must reference a service or product line"
   );
-}
-
-function buildRefundItems({
-  capsByLineKey,
-  lines,
-}: {
-  capsByLineKey: Map<string, number>;
-  lines: RefundLine[];
-}) {
-  const refundItems = lines.map((line) => {
-    const maxRefundable = capsByLineKey.get(lineKey(line.kind, line.id)) ?? 0;
-    if (maxRefundable <= 0) {
-      throw new BadRequestException(
-        `Order ${line.kind} ${line.id} has no refundable amount remaining`
-      );
-    }
-
-    return {
-      ...line,
-      amount: Math.floor(maxRefundable),
-      preciseAmount: maxRefundable,
-    };
-  });
-
-  const roundedTotalRefundAmount = roundCurrencyUnit(
-    refundItems.reduce((sum, item) => sum + item.preciseAmount, 0)
-  );
-
-  let remainingWholeUnits =
-    roundedTotalRefundAmount -
-    refundItems.reduce((sum, item) => sum + item.amount, 0);
-
-  const itemsByLargestRemainder = [...refundItems].sort((left, right) => {
-    const remainderDiff =
-      right.preciseAmount - right.amount - (left.preciseAmount - left.amount);
-
-    if (remainderDiff !== 0) {
-      return remainderDiff;
-    }
-
-    return left.kind === right.kind
-      ? left.id - right.id
-      : left.kind.localeCompare(right.kind);
-  });
-
-  for (const item of itemsByLargestRemainder) {
-    if (remainingWholeUnits <= 0) {
-      break;
-    }
-
-    item.amount += 1;
-    remainingWholeUnits -= 1;
-  }
-
-  if (remainingWholeUnits > 0) {
-    throw new BadRequestException(
-      "Refund amount could not be allocated across the selected refund lines"
-    );
-  }
-
-  return refundItems.map(({ preciseAmount, ...item }) => item);
 }
 
 async function getOrderLineRefundCaps(orderId: number) {
@@ -190,15 +126,13 @@ async function getOrderLineRefundCaps(orderId: number) {
     ])
   );
 
-  const lineCap = (key: string, subtotal: string | null) => {
-    const grossLine = Number(subtotal ?? 0);
-    const allocatedDiscount =
-      grossTotal > 0 ? (grossLine / grossTotal) * orderDiscount : 0;
-    const refundableGross = Math.max(0, grossLine - allocatedDiscount);
-    const alreadyRefunded = refundedByLineKey.get(key) ?? 0;
-
-    return Math.max(0, refundableGross - alreadyRefunded);
-  };
+  const lineCap = (key: string, subtotal: string | null) =>
+    lineRefundCap({
+      alreadyRefunded: refundedByLineKey.get(key) ?? 0,
+      grossLine: Number(subtotal ?? 0),
+      grossTotal,
+      orderDiscount,
+    });
 
   return new Map<string, number>([
     ...serviceRows.map((row): [string, number] => {
@@ -256,7 +190,7 @@ export async function createOrderRefund({
 
   const capsByLineKey = await getOrderLineRefundCaps(orderId);
 
-  const refundItems = buildRefundItems({
+  const refundItems = allocateRefund({
     capsByLineKey,
     lines,
   });
