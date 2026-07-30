@@ -31,6 +31,7 @@ const serviceLine = (
 	color: "",
 	model: "",
 	size: "",
+	notes: "",
 	...overrides,
 });
 
@@ -201,6 +202,34 @@ describe("toOrderPayload", () => {
 		expect(payload.payment_method_id).toBe(9);
 		expect(payload.payment_status).toBe("paid");
 		expect(payload.discount).toBe("2500");
+	});
+
+	test("carries per-item notes, trimmed, and drops blank ones", () => {
+		const payload = toOrderPayload({
+			...draft,
+			serviceCart: [
+				serviceLine("a", 5, { notes: "  sol kanan lepas  " }),
+				serviceLine("b", 6, { notes: "   " }),
+			],
+		});
+		expect(payload.services).toEqual([
+			{
+				id: 5,
+				brand: undefined,
+				color: undefined,
+				model: undefined,
+				size: undefined,
+				notes: "sol kanan lepas",
+			},
+			{
+				id: 6,
+				brand: undefined,
+				color: undefined,
+				model: undefined,
+				size: undefined,
+				notes: undefined,
+			},
+		]);
 	});
 
 	test("carries applied voucher codes into voucher_codes, trimmed", () => {

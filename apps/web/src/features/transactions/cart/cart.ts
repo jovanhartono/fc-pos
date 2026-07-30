@@ -22,6 +22,7 @@ export type ServiceCartLine = {
 	color: string;
 	model: string;
 	size: string;
+	notes: string;
 };
 
 export type ProductCartDisplayLine = ProductCartLine & {
@@ -216,6 +217,6 @@ export const toOrderPayload = ({
 		color: line.color.trim() || undefined,
 		model: line.model.trim() || undefined,
 		size: line.size.trim() || undefined,
-		notes: undefined,
+		notes: line.notes.trim() || undefined,
 	})),
 });

@@ -39,7 +39,7 @@ export interface CartOps {
 	) => void;
 	updateServiceField: (
 		lineId: string,
-		field: "brand" | "color" | "model" | "size",
+		field: "brand" | "color" | "model" | "size" | "notes",
 		value: string,
 	) => void;
 	addProduct: (product: Product) => void;
@@ -134,7 +134,7 @@ export function useCartOps(): CartOps {
 	const updateServiceField = useCallback(
 		(
 			lineId: string,
-			field: "brand" | "color" | "model" | "size",
+			field: "brand" | "color" | "model" | "size" | "notes",
 			value: string,
 		) => {
 			setSubmitError("");
@@ -193,6 +193,7 @@ export function useCartOps(): CartOps {
 					color: "",
 					model: "",
 					size: "",
+					notes: "",
 				},
 			]);
 		},

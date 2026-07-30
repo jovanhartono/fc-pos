@@ -54,6 +54,7 @@ const productsRoute = rpc.api.admin.products.$get;
 const paymentMethodsRoute = rpc.api.admin["payment-methods"].$get;
 const ordersRoute = rpc.api.admin.orders.$get;
 const orderDetailRoute = rpc.api.admin.orders[":id"].$get;
+const orderReceiptRoute = rpc.api.admin.orders[":id"].receipt.$get;
 const campaignsRoute = rpc.api.admin.campaigns.$get;
 const campaignDetailRoute = rpc.api.admin.campaigns[":id"].$get;
 const resolveVoucherCodeRoute = rpc.api.admin.campaigns["resolve-code"].$post;
@@ -107,6 +108,10 @@ export type Order = Extract<
 >["data"][number];
 export type OrderDetail = Extract<
 	InferResponseType<typeof orderDetailRoute>,
+	{ success: true }
+>["data"];
+export type OrderReceipt = Extract<
+	InferResponseType<typeof orderReceiptRoute>,
 	{ success: true }
 >["data"];
 export type Campaign = InferResponseType<typeof campaignsRoute>["data"][number];
@@ -925,6 +930,14 @@ export async function createOrder(payload: CreateOrderPayload) {
 export async function fetchOrderDetail(id: number) {
 	return parseSuccessData<OrderDetail>(
 		rpcWithAuth().api.admin.orders[":id"].$get({
+			param: { id: String(id) },
+		}),
+	);
+}
+
+export async function fetchOrderReceipt(id: number) {
+	return parseSuccessData<OrderReceipt>(
+		rpcWithAuth().api.admin.orders[":id"].receipt.$get({
 			param: { id: String(id) },
 		}),
 	);
