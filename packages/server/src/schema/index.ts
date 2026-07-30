@@ -68,6 +68,20 @@ export type CampaignEligibilityInput = _CampaignEligibilityInput;
 export const campaignIneligibilityReason = _campaignIneligibilityReason;
 
 import {
+  allocateRefund as _allocateRefund,
+  lineKey as _lineKey,
+  lineRefundCap as _lineRefundCap,
+  type RefundLineKind as _RefundLineKind,
+  type RefundLineRef as _RefundLineRef,
+} from "@/schema/refund-allocation";
+
+export type RefundLineKind = _RefundLineKind;
+export type RefundLineRef = _RefundLineRef;
+export const allocateRefund = _allocateRefund;
+export const lineKey = _lineKey;
+export const lineRefundCap = _lineRefundCap;
+
+import {
   currencySchema,
   isActiveSchema,
   optionalVarcharSchema,
