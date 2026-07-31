@@ -15,12 +15,9 @@
   `to_char AT TIME ZONE` vs `jakartaBucketExpr`). Extract shared query builders
   (paid-window + optional-store filter skeleton is copy-pasted across ~15
   bucketed-series functions); one bucketing util. Existing report tests stay green.
-- [ ] **Web voucher double-bookkeeping** — applied vouchers tracked in both
-  `transactions-store.ts` (`resolvedVoucherEntries`) and a mirrored form field
-  (`appliedVoucherCodes`), synced by three effects in
-  `checkout-payment-step.tsx`; campaign eligibility filtered twice
-  (`checkout-payment-step.tsx` + `useCheckoutPricing.ts`). Collapse to one
-  source of truth.
+- [x] **Web voucher double-bookkeeping** (done 2026-07-31, PR #64) — the form
+  field `appliedVouchers: {code, campaign}[]` is now the single home; the
+  Zustand `resolvedVoucherEntries` slice and its mirror effects are deleted.
 
 ## Architecture-deepening follow-ups (extracted 2026-06-10, source: docs/architecture-deepening.md)
 
