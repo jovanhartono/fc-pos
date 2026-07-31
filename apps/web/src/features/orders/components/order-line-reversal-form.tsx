@@ -30,12 +30,12 @@ import { formatIDRCurrency } from "@/shared/utils";
 // config per off-ramp. The refund config additionally carries line caps to
 // preview the exact amounts the server will book.
 
-export interface ReversalServiceOption {
+interface ReversalServiceOption {
 	id: number;
 	item_code: string | null;
 }
 
-export interface ReversalProductOption {
+interface ReversalProductOption {
 	id: number;
 	name: string;
 	qty: number;
@@ -49,7 +49,7 @@ type ReversalSubmitItem<R extends string> = (
 	note?: string;
 };
 
-const buildReversalSchema = (verb: string) =>
+const buildReversalSchema = (verb: string, reasons: readonly string[]) =>
 	z
 		.object({
 			items: z.array(
@@ -57,9 +57,7 @@ const buildReversalSchema = (verb: string) =>
 					id: z.number(),
 					kind: z.enum(["service", "product"]),
 					selected: z.boolean(),
-					// Values come from the config's reasons list via the Select; the
-					// server re-validates against its own enum.
-					reason: z.string(),
+					reason: z.enum(reasons as [string, ...string[]]),
 					note: z.string().optional(),
 				}),
 			),
@@ -73,7 +71,7 @@ const buildReversalSchema = (verb: string) =>
 					message: `Select at least one item to ${verb}.`,
 				});
 			}
-			data.items.forEach((item, index) => {
+			for (const [index, item] of data.items.entries()) {
 				if (
 					item.selected &&
 					item.reason === "other" &&
@@ -85,7 +83,7 @@ const buildReversalSchema = (verb: string) =>
 						message: "Note is required when reason is Other.",
 					});
 				}
-			});
+			}
 		});
 
 type ReversalFormValues = z.infer<ReturnType<typeof buildReversalSchema>>;
@@ -137,7 +135,14 @@ const OrderLineReversalForm = <R extends string>({
 		})),
 	];
 	const hasBothKinds = services.length > 0 && products.length > 0;
-	const schema = useMemo(() => buildReversalSchema(copy.verb), [copy.verb]);
+	const reasonItems = reasons.map((reason) => ({
+		value: reason as string,
+		label: formatReason(reason),
+	}));
+	const schema = useMemo(
+		() => buildReversalSchema(copy.verb, reasons),
+		[copy.verb, reasons],
+	);
 	const form = useForm<ReversalFormValues>({
 		resolver: zodResolver(schema),
 		defaultValues: {
@@ -151,7 +156,19 @@ const OrderLineReversalForm = <R extends string>({
 		},
 	});
 	const { fields } = useFieldArray({ control: form.control, name: "items" });
-	const watchedItems = useWatch({ control: form.control, name: "items" });
+	// The dialog store renders a closure captured at open time, so the isPending
+	// prop is a frozen snapshot of the mutation result. isSubmitting comes from
+	// this form's own state and reliably disables re-submits while the mutation
+	// promise is in flight.
+	const pending = isPending || form.formState.isSubmitting;
+	const watchedItems = useWatch({
+		control: form.control,
+		name: "items",
+		// Refund only: the whole-array watch feeds previewAmounts/totalRefund,
+		// both dead without caps. Disabling it spares the cancel dialog a full
+		// re-render per keystroke.
+		disabled: !capsByLineKey,
+	});
 	// Amounts come from the same allocateRefund the server runs at submit.
 	// Selected lines are allocated together (leftover rupiah shift with the
 	// set); unselected lines preview what they'd refund alone.
@@ -202,16 +219,16 @@ const OrderLineReversalForm = <R extends string>({
 			: undefined;
 
 	const handleSelectAll = () => {
-		fields.forEach((_, index) => {
+		for (const index of fields.keys()) {
 			form.setValue(`items.${index}.selected`, true, { shouldDirty: true });
-		});
+		}
 		form.clearErrors("items");
 	};
 
 	const handleClear = () => {
-		fields.forEach((_, index) => {
+		for (const index of fields.keys()) {
 			form.setValue(`items.${index}.selected`, false, { shouldDirty: true });
-		});
+		}
 	};
 
 	const onSubmit = async (values: ReversalFormValues) => {
@@ -230,7 +247,7 @@ const OrderLineReversalForm = <R extends string>({
 	};
 
 	const submitLabel = () => {
-		if (isPending) {
+		if (pending) {
 			return copy.pending;
 		}
 		if (capsByLineKey && totalRefund > 0) {
@@ -255,7 +272,7 @@ const OrderLineReversalForm = <R extends string>({
 							variant="outline"
 							size="sm"
 							onClick={handleSelectAll}
-							disabled={isPending || fields.length === 0}
+							disabled={pending || fields.length === 0}
 						>
 							Select all
 						</Button>
@@ -264,7 +281,7 @@ const OrderLineReversalForm = <R extends string>({
 							variant="outline"
 							size="sm"
 							onClick={handleClear}
-							disabled={isPending || fields.length === 0}
+							disabled={pending || fields.length === 0}
 						>
 							Clear
 						</Button>
@@ -295,12 +312,10 @@ const OrderLineReversalForm = <R extends string>({
 											? (previewAmounts.get(lineKey(line.kind, line.id)) ?? 0)
 											: undefined
 									}
-									disabled={isPending}
-									formatReason={formatReason}
-									idPrefix={copy.verb}
+									disabled={pending}
 									index={index}
 									label={line?.label ?? `Item #${index + 1}`}
-									reasons={reasons}
+									reasonItems={reasonItems}
 								/>
 							</Fragment>
 						);
@@ -321,11 +336,11 @@ const OrderLineReversalForm = <R extends string>({
 						type="button"
 						variant="outline"
 						onClick={closeDialog}
-						disabled={isPending}
+						disabled={pending}
 					>
 						Go back
 					</Button>
-					<Button type="submit" variant="destructive" disabled={isPending}>
+					<Button type="submit" variant="destructive" disabled={pending}>
 						{submitLabel()}
 					</Button>
 				</div>
@@ -334,30 +349,28 @@ const OrderLineReversalForm = <R extends string>({
 	);
 };
 
-interface ReversalItemRowProps<R extends string> {
+interface ReversalItemRowProps {
 	amount: number | undefined;
 	disabled: boolean;
-	formatReason: (reason: R) => string;
-	idPrefix: string;
 	index: number;
 	label: string;
-	reasons: readonly R[];
+	reasonItems: { value: string; label: string }[];
 }
 
-const ReversalItemRow = <R extends string>({
+const ReversalItemRow = ({
 	amount,
 	disabled,
-	formatReason,
-	idPrefix,
 	index,
 	label,
-	reasons,
-}: ReversalItemRowProps<R>) => {
+	reasonItems,
+}: ReversalItemRowProps) => {
 	const { control, register } = useFormContext<ReversalFormValues>();
 	const selected =
 		useWatch({ control, name: `items.${index}.selected` }) ?? false;
 	const inputsDisabled = disabled || !selected;
-	const checkboxId = `${idPrefix}-item-${index}`;
+	// Only one reversal dialog mounts at a time (single GlobalDialog slot), so
+	// a static prefix is safe and keeps ids decoupled from display copy.
+	const checkboxId = `reversal-item-${index}`;
 
 	return (
 		<div className="grid gap-2 border p-3">
@@ -387,10 +400,7 @@ const ReversalItemRow = <R extends string>({
 				name={`items.${index}.reason`}
 				render={({ field }) => (
 					<SelectField
-						items={reasons.map((reason) => ({
-							value: reason,
-							label: formatReason(reason),
-						}))}
+						items={reasonItems}
 						value={field.value}
 						onValueChange={field.onChange}
 						disabled={inputsDisabled}
