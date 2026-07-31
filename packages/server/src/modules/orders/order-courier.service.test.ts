@@ -1,5 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import { BadRequestException } from "@/errors";
+import { captureRejection } from "@/test-support/capture-rejection";
 
 interface SeedUser {
   id: number;
@@ -22,17 +23,6 @@ mock.module("@/modules/users/user.repository", () => ({
 const { assertActiveCourier } = await import(
   "@/modules/orders/order-courier.service"
 );
-
-const captureRejection = async (
-  promise: Promise<unknown>
-): Promise<unknown> => {
-  try {
-    await promise;
-  } catch (error) {
-    return error;
-  }
-  throw new Error("Expected promise to reject, but it resolved");
-};
 
 describe("assertActiveCourier", () => {
   it("resolves for an active courier", async () => {
