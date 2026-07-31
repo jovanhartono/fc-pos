@@ -1,16 +1,16 @@
 import { eq } from "drizzle-orm";
 import type z from "zod";
 import { db } from "@/db";
-import { orderCampaignsTable, ordersTable } from "@/db/schema";
+import { ordersTable } from "@/db/schema";
 import { BadRequestException, NotFoundException } from "@/errors";
-import {
-  atomicClaimCampaignCode,
-  atomicIncrementCampaignRedeemed,
-} from "@/modules/campaigns/campaign.repository";
 import {
   getUsableCampaigns,
   resolveVoucherCode,
 } from "@/modules/campaigns/campaign.service";
+import {
+  claimRedemptions,
+  type ResolvedCampaignRow,
+} from "@/modules/campaigns/campaign-redemption.service";
 import { resolveOrCreateCustomer } from "@/modules/customers/customer.service";
 import {
   findOrders,
@@ -53,18 +53,6 @@ interface ExpandedServiceItem {
   model?: string;
   notes?: string;
   size?: string;
-}
-
-interface ResolvedCampaignRow {
-  // internal transport only; never returned from createOrder
-  _voucherCode?: string;
-  applied_amount: string;
-  buy_quantity: number | null;
-  campaign_id: number;
-  discount_type: "fixed" | "percentage" | "buy_n_get_m_free";
-  discount_value: string;
-  free_quantity: number | null;
-  max_discount: string | null;
 }
 
 interface ResolvedDiscount {
@@ -286,64 +274,6 @@ async function decrementProductsStock(
   }
 }
 
-// Claim each resolved campaign inside the order transaction (ADR-0015): a
-// voucher row atomically claims its single-use code; a listed row does a
-// conditional increment that also passes for uncapped campaigns. Then log the
-// applied rows on the order.
-async function applyCampaignRedemptions(
-  tx: OrderTx,
-  campaignRows: ResolvedCampaignRow[],
-  orderId: number
-) {
-  if (campaignRows.length === 0) {
-    return;
-  }
-
-  const resolvedCodeIds = new Map<number, number>(); // campaignId -> codeId
-
-  for (const row of campaignRows) {
-    if (row._voucherCode === undefined) {
-      // Listed: atomic conditional increment (uncapped campaigns pass too).
-      const claimed = await atomicIncrementCampaignRedeemed(
-        tx,
-        row.campaign_id
-      );
-      if (!claimed) {
-        throw new BadRequestException(
-          `Campaign ${row.campaign_id} has reached its usage limit`
-        );
-      }
-    } else {
-      // Voucher: atomic single-use claim of the specific code.
-      const claimed = await atomicClaimCampaignCode(
-        tx,
-        row._voucherCode,
-        orderId
-      );
-      if (!claimed) {
-        throw new BadRequestException(
-          `Voucher code ${row._voucherCode} has already been redeemed`
-        );
-      }
-      resolvedCodeIds.set(row.campaign_id, claimed.codeId);
-    }
-  }
-
-  await tx.insert(orderCampaignsTable).values(
-    campaignRows.map((row) => ({
-      order_id: orderId,
-      campaign_id: row.campaign_id,
-      code_id: resolvedCodeIds.get(row.campaign_id) ?? null,
-      discount_type: row.discount_type,
-      discount_value: row.discount_value,
-      max_discount: row.max_discount,
-      applied_amount: row.applied_amount,
-      buy_quantity: row.buy_quantity,
-      free_quantity: row.free_quantity,
-    }))
-  );
-}
-
 export async function createOrder(
   userId: number,
   store: Store,
@@ -486,7 +416,7 @@ export async function createOrder(
       throw new BadRequestException("Order discount cannot exceed order total");
     }
 
-    await applyCampaignRedemptions(tx, campaignRows, orderId);
+    await claimRedemptions(tx, campaignRows, orderId);
 
     const netTotal = grossTotal - discountAmount;
 

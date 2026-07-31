@@ -7,11 +7,7 @@ import {
   ordersTable,
 } from "@/db/schema";
 import { BadRequestException } from "@/errors";
-import {
-  decrementCampaignRedeemed,
-  findOrderCampaignsByOrderId,
-  releaseCampaignCodeRedemption,
-} from "@/modules/campaigns/campaign.repository";
+import { releaseRedemptions } from "@/modules/campaigns/campaign-redemption.service";
 import type { OrderTx } from "@/modules/orders/order.repository";
 import type {
   PostOrderCancelInput,
@@ -300,21 +296,6 @@ function toCancelLine(item: CancelLineInput): CancelLine {
   );
 }
 
-// Release each redemption logged on the order (ADR-0015): a code redemption is
-// unclaimed (redeemed_at/redeemed_order_id nulled), a listed redemption
-// decrements the campaign's redeemed_count. Only called when a full cancel
-// closes the order.
-async function releaseCampaignRedemptions(tx: OrderTx, orderId: number) {
-  const orderCampaigns = await findOrderCampaignsByOrderId(tx, orderId);
-  for (const oc of orderCampaigns) {
-    if (oc.code_id === null) {
-      await decrementCampaignRedeemed(tx, oc.campaign_id);
-    } else {
-      await releaseCampaignCodeRedemption(tx, oc.code_id);
-    }
-  }
-}
-
 interface CancelProductRow {
   cancelled_at: Date | null;
   id: number;
@@ -467,7 +448,7 @@ export async function cancelOrder({
         columns: { status: true },
       });
       if (updated?.status === "cancelled") {
-        await releaseCampaignRedemptions(tx, orderId);
+        await releaseRedemptions(tx, orderId);
       }
     }
   });
