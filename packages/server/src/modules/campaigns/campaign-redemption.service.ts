@@ -16,9 +16,7 @@ import type { OrderTx } from "@/modules/orders/order.repository";
 // applied). The exactly-once release gate lives at the cancel call site; both
 // sides of the bookkeeping live here.
 
-export interface ResolvedCampaignRow {
-  // internal transport only; never returned from createOrder
-  _voucherCode?: string;
+export interface CampaignRedemptionFields {
   applied_amount: string;
   buy_quantity: number | null;
   campaign_id: number;
@@ -27,6 +25,13 @@ export interface ResolvedCampaignRow {
   free_quantity: number | null;
   max_discount: string | null;
 }
+
+// A union, not an optional voucherCode: a voucher row must carry its code, a
+// listed row has none. A missing code would send the row down the listed branch
+// below, so atomicClaimCampaignCode never runs — the order takes its discount
+// while the code keeps redeemed_at NULL and stays spendable again (ADR-0015).
+export type ResolvedCampaignRow = CampaignRedemptionFields &
+  ({ kind: "listed" } | { kind: "voucher"; voucherCode: string });
 
 // Claim each resolved campaign inside the order transaction: a voucher row
 // atomically claims its single-use code; a listed row does a conditional
@@ -44,7 +49,7 @@ export async function claimRedemptions(
   const resolvedCodeIds = new Map<number, number>(); // campaignId -> codeId
 
   for (const row of campaignRows) {
-    if (row._voucherCode === undefined) {
+    if (row.kind === "listed") {
       // Listed: atomic conditional increment (uncapped campaigns pass too).
       const claimed = await atomicIncrementCampaignRedeemed(
         tx,
@@ -59,12 +64,12 @@ export async function claimRedemptions(
       // Voucher: atomic single-use claim of the specific code.
       const claimed = await atomicClaimCampaignCode(
         tx,
-        row._voucherCode,
+        row.voucherCode,
         orderId
       );
       if (!claimed) {
         throw new BadRequestException(
-          `Voucher code ${row._voucherCode} has already been redeemed`
+          `Voucher code ${row.voucherCode} has already been redeemed`
         );
       }
       resolvedCodeIds.set(row.campaign_id, claimed.codeId);

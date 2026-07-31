@@ -78,8 +78,9 @@ export async function getCampaignById(id: number) {
 
 // Resolve a bearer voucher code to its owning campaign, shaped EXACTLY like a
 // listCampaigns row (nested stores + eligibleServices, is_expired via
-// markExpired) plus an internal-only _voucherCode. The caller (route) strips
-// _voucherCode before responding; createOrder uses it to claim the code.
+// markExpired). The code comes back beside the campaign rather than on it, so no
+// response shape can carry it and no caller has to remember to strip it;
+// createOrder pairs the two to claim the code inside the order transaction.
 export async function resolveVoucherCode(
   code: string,
   ctx: { storeId: number; storeCode: string; grossTotal: number }
@@ -124,8 +125,8 @@ export async function resolveVoucherCode(
   }
 
   return {
-    ...markExpired(campaign, now),
-    _voucherCode: code,
+    campaign: markExpired(campaign, now),
+    voucherCode: code,
   };
 }
 

@@ -155,9 +155,9 @@ async function resolveDiscount({
       : [];
 
   // Resolve vouchers — each call validates eligibility and returns the campaign
-  // shaped like a listCampaigns item (nested eligibleServices) and carrying an
-  // internal _voucherCode marker used to claim the code inside the tx.
-  const voucherCampaigns = await Promise.all(
+  // (shaped like a listCampaigns item, nested eligibleServices) paired with the
+  // code, which is claimed inside the tx.
+  const resolvedVouchers = await Promise.all(
     voucherCodes.map((code) =>
       resolveVoucherCode(code, { storeId, storeCode, grossTotal })
     )
@@ -169,7 +169,7 @@ async function resolveDiscount({
   // mid-checkout (and clobber the claimed code_id). Reject up front instead.
   const allCampaignIds = [
     ...campaigns.map((campaign) => campaign.id),
-    ...voucherCampaigns.map((campaign) => campaign.id),
+    ...resolvedVouchers.map(({ campaign }) => campaign.id),
   ];
   const duplicateId = allCampaignIds.find(
     (id, index) => allCampaignIds.indexOf(id) !== index
@@ -180,15 +180,21 @@ async function resolveDiscount({
     );
   }
 
+  // campaign_id is unique per order (the check above), so the code can be looked
+  // up by campaign after stacking instead of riding along through it.
+  const voucherCodeByCampaignId = new Map(
+    resolvedVouchers.map(({ campaign, voucherCode }) => [
+      campaign.id,
+      voucherCode,
+    ])
+  );
+
   // Normalize both sources to the flat stackCampaignDiscounts input shape.
   // Listed campaigns already expose eligible_service_ids; vouchers expose the
   // nested eligibleServices -> service_id, which we flatten here.
   const stackInput = [
-    ...campaigns.map((campaign) => ({
-      ...campaign,
-      _voucherCode: undefined as string | undefined,
-    })),
-    ...voucherCampaigns.map((campaign) => ({
+    ...campaigns,
+    ...resolvedVouchers.map(({ campaign }) => ({
       ...campaign,
       eligible_service_ids: campaign.eligibleServices.map(
         (entry) => entry.service_id
@@ -209,16 +215,21 @@ async function resolveDiscount({
   // single-use bearer code or a usage-limit slot for no benefit.
   const campaignRows: ResolvedCampaignRow[] = breakdown
     .filter(({ amount }) => amount > 0)
-    .map(({ campaign, amount }) => ({
-      applied_amount: amount.toString(),
-      campaign_id: campaign.id,
-      _voucherCode: campaign._voucherCode,
-      discount_type: campaign.discount_type,
-      discount_value: campaign.discount_value,
-      max_discount: campaign.max_discount,
-      buy_quantity: campaign.buy_quantity,
-      free_quantity: campaign.free_quantity,
-    }));
+    .map(({ campaign, amount }) => {
+      const fields = {
+        applied_amount: amount.toString(),
+        campaign_id: campaign.id,
+        discount_type: campaign.discount_type,
+        discount_value: campaign.discount_value,
+        max_discount: campaign.max_discount,
+        buy_quantity: campaign.buy_quantity,
+        free_quantity: campaign.free_quantity,
+      };
+      const voucherCode = voucherCodeByCampaignId.get(campaign.id);
+      return voucherCode === undefined
+        ? { ...fields, kind: "listed" as const }
+        : { ...fields, kind: "voucher" as const, voucherCode };
+    });
 
   const afterCampaign = Math.max(0, grossTotal - campaignDiscount);
   const appliedManual = Math.min(manual, afterCampaign);
