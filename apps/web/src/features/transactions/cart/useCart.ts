@@ -56,9 +56,6 @@ export function useCartOps(): CartOps {
 	const setDropoffPhoto = useTransactionsPageStore(
 		(state) => state.setDropoffPhoto,
 	);
-	const clearResolvedVouchers = useTransactionsPageStore(
-		(state) => state.clearResolvedVouchers,
-	);
 
 	const setProductCart = useCallback(
 		(nextCart: ProductCartLine[]) => {
@@ -81,12 +78,8 @@ export function useCartOps(): CartOps {
 	);
 
 	const resetCart = useCallback(() => {
-		resetTransactionDraft(form, {
-			setSubmitError,
-			setDropoffPhoto,
-			clearResolvedVouchers,
-		});
-	}, [form, setSubmitError, setDropoffPhoto, clearResolvedVouchers]);
+		resetTransactionDraft(form, { setSubmitError, setDropoffPhoto });
+	}, [form, setSubmitError, setDropoffPhoto]);
 
 	const removeProduct = useCallback(
 		(productId: number) => {

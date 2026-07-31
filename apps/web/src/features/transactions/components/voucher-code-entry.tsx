@@ -2,11 +2,15 @@ import { TicketIcon, XIcon } from "@phosphor-icons/react";
 import { useMutation } from "@tanstack/react-query";
 import { DetailedError } from "hono/client";
 import { useState } from "react";
+import { useFormContext, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import type {
+	AppliedVoucher,
+	TransactionDraftValues,
+} from "@/features/transactions/cart/cart";
 import { resolveVoucherCode } from "@/lib/api";
-import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 interface VoucherCodeEntryProps {
 	storeId: number | undefined;
@@ -34,15 +38,16 @@ export const VoucherCodeEntry = ({
 	subtotal,
 }: VoucherCodeEntryProps) => {
 	const [code, setCode] = useState("");
-	const addResolvedVoucher = useTransactionsPageStore(
-		(s) => s.addResolvedVoucher,
-	);
-	const removeResolvedVoucher = useTransactionsPageStore(
-		(s) => s.removeResolvedVoucher,
-	);
-	const resolvedVoucherEntries = useTransactionsPageStore(
-		(s) => s.resolvedVoucherEntries,
-	);
+	const form = useFormContext<TransactionDraftValues>();
+	const appliedVouchers =
+		useWatch({ control: form.control, name: "appliedVouchers" }) ?? [];
+
+	const setAppliedVouchers = (next: AppliedVoucher[]) => {
+		form.setValue("appliedVouchers", next, {
+			shouldDirty: true,
+			shouldValidate: true,
+		});
+	};
 
 	const resolveMutation = useMutation({
 		mutationFn: (voucherCode: string) =>
@@ -52,7 +57,19 @@ export const VoucherCodeEntry = ({
 				gross_total: subtotal,
 			}),
 		onSuccess: (campaign, voucherCode) => {
-			addResolvedVoucher(voucherCode, campaign);
+			// One voucher per campaign per order (the server enforces the same via
+			// order_campaigns' unique constraint): drop any existing entry for this
+			// code OR this campaign before adding, so the same campaign can't be
+			// applied twice and double-count in the price preview.
+			setAppliedVouchers([
+				...form
+					.getValues("appliedVouchers")
+					.filter(
+						(entry) =>
+							entry.code !== voucherCode && entry.campaign.id !== campaign.id,
+					),
+				{ code: voucherCode, campaign },
+			]);
 			setCode("");
 		},
 	});
@@ -114,9 +131,9 @@ export const VoucherCodeEntry = ({
 				<FieldError>{getServerMessage(resolveMutation.error)}</FieldError>
 			) : null}
 
-			{resolvedVoucherEntries.length > 0 ? (
+			{appliedVouchers.length > 0 ? (
 				<ul className="flex flex-wrap gap-1.5">
-					{resolvedVoucherEntries.map((entry) => (
+					{appliedVouchers.map((entry) => (
 						<li key={entry.code}>
 							<span className="inline-flex items-center gap-1.5 border border-input bg-muted/40 pr-0 pl-2 text-xs">
 								<span className="font-medium">{entry.campaign.name}</span>
@@ -127,7 +144,13 @@ export const VoucherCodeEntry = ({
 									aria-label={`Remove voucher ${entry.code}`}
 									className="size-11"
 									icon={<XIcon />}
-									onClick={() => removeResolvedVoucher(entry.code)}
+									onClick={() =>
+										setAppliedVouchers(
+											form
+												.getValues("appliedVouchers")
+												.filter((applied) => applied.code !== entry.code),
+										)
+									}
 									size="icon-xs"
 									type="button"
 									variant="ghost"

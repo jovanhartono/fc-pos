@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	type AppliedVoucher,
 	buildActiveItemMap,
 	type CartCampaign,
 	enrichProductCart,
@@ -154,7 +155,7 @@ describe("toOrderPayload", () => {
 		customerName: " budi santoso ",
 		customerPhone: "081234567890",
 		selectedCampaignIds: ["3", "4"],
-		appliedVoucherCodes: [],
+		appliedVouchers: [],
 		selectedPaymentMethodId: "",
 		selectedCourierId: "",
 		manualDiscount: "",
@@ -235,7 +236,10 @@ describe("toOrderPayload", () => {
 	test("carries applied voucher codes into voucher_codes, trimmed", () => {
 		const payload = toOrderPayload({
 			...draft,
-			appliedVoucherCodes: ["  ABC123DE  ", "XYZ789FG"],
+			appliedVouchers: ["  ABC123DE  ", "XYZ789FG"].map((code) => ({
+				code,
+				campaign: { id: 1 } as AppliedVoucher["campaign"],
+			})),
 		});
 		expect(payload.voucher_codes).toEqual(["ABC123DE", "XYZ789FG"]);
 	});

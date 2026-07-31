@@ -23,7 +23,6 @@ import {
 } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
 import { formatIDRCurrency } from "@/shared/utils";
-import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 // Step ③ — money, kept together: campaign, manual discount, the running total
 // breakdown, and tender. Campaign eligibility ("Usable") and the discount it
@@ -32,12 +31,8 @@ export const CheckoutPaymentStep = () => {
 	const { visibleStores } = useTransactionsPageContext();
 	const { subtotal, pricing } = useCheckoutPricing();
 	const form = useFormContext<TransactionDraftValues>();
-	const resolvedVoucherEntries = useTransactionsPageStore(
-		(s) => s.resolvedVoucherEntries,
-	);
-	const removeResolvedVoucher = useTransactionsPageStore(
-		(s) => s.removeResolvedVoucher,
-	);
+	const appliedVouchers =
+		useWatch({ control: form.control, name: "appliedVouchers" }) ?? [];
 	const selectedStoreId =
 		useWatch({ control: form.control, name: "selectedStoreId" }) ?? "";
 
@@ -104,21 +99,6 @@ export const CheckoutPaymentStep = () => {
 		}
 	}, [eligibleCampaigns, selectedStoreNumber, campaignsQuery.isPending, form]);
 
-	// Applied vouchers live in the store (they drive the price preview via
-	// useCheckoutPricing). Mirror their codes into the form field so
-	// toOrderPayload submits exactly the codes the preview priced — the store is
-	// the single source of truth and the form field is its submit-time mirror.
-	useEffect(() => {
-		const codes = resolvedVoucherEntries.map((entry) => entry.code);
-		const current = form.getValues("appliedVoucherCodes");
-		if (
-			codes.length !== current.length ||
-			codes.some((code, index) => code !== current[index])
-		) {
-			form.setValue("appliedVoucherCodes", codes, { shouldValidate: true });
-		}
-	}, [resolvedVoucherEntries, form]);
-
 	// Drop any applied voucher that stopped being eligible (e.g. the cart total
 	// fell below its minimum). Mirrors the listed-campaign prune above: a silently
 	// zeroed code would otherwise ride to submit and hard-fail the whole order.
@@ -127,23 +107,18 @@ export const CheckoutPaymentStep = () => {
 			return;
 		}
 		const now = new Date();
-		for (const entry of resolvedVoucherEntries) {
-			const ineligible =
+		const eligible = appliedVouchers.filter(
+			(entry) =>
 				campaignIneligibilityReason(entry.campaign, {
 					now,
 					grossTotal: subtotal,
 					storeId: selectedStoreNumber,
-				}) !== null;
-			if (ineligible) {
-				removeResolvedVoucher(entry.code);
-			}
+				}) === null,
+		);
+		if (eligible.length !== appliedVouchers.length) {
+			form.setValue("appliedVouchers", eligible, { shouldValidate: true });
 		}
-	}, [
-		resolvedVoucherEntries,
-		subtotal,
-		selectedStoreNumber,
-		removeResolvedVoucher,
-	]);
+	}, [appliedVouchers, subtotal, selectedStoreNumber, form]);
 
 	return (
 		<div className="grid gap-5">

@@ -8,7 +8,6 @@ import {
 } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
 import { campaignsQueryOptions } from "@/lib/query-options";
-import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 // Shared checkout derivation — campaign eligibility + final pricing. Lives in a
 // hook (not the component) because both the payment step's breakdown and the
@@ -16,13 +15,27 @@ import { useTransactionsPageStore } from "@/stores/transactions-store";
 // by TanStack Query, so calling this in two places costs only the cheap memos.
 export function useCheckoutPricing() {
 	const { subtotal, serviceRows } = useCart();
-	const [selectedStoreId = "", selectedCampaignIds = [], manualDiscount = ""] =
-		useWatch<
-			TransactionDraftValues,
-			["selectedStoreId", "selectedCampaignIds", "manualDiscount"]
-		>({
-			name: ["selectedStoreId", "selectedCampaignIds", "manualDiscount"],
-		});
+	const [
+		selectedStoreId = "",
+		selectedCampaignIds = [],
+		manualDiscount = "",
+		appliedVouchers = [],
+	] = useWatch<
+		TransactionDraftValues,
+		[
+			"selectedStoreId",
+			"selectedCampaignIds",
+			"manualDiscount",
+			"appliedVouchers",
+		]
+	>({
+		name: [
+			"selectedStoreId",
+			"selectedCampaignIds",
+			"manualDiscount",
+			"appliedVouchers",
+		],
+	});
 
 	const selectedStoreNumber =
 		selectedStoreId && Number.isFinite(Number(selectedStoreId))
@@ -59,19 +72,15 @@ export function useCheckoutPricing() {
 		);
 	}, [availableCampaigns, selectedCampaignIds]);
 
-	const resolvedVoucherEntries = useTransactionsPageStore(
-		(state) => state.resolvedVoucherEntries,
-	);
-
 	// Applied vouchers are code-mode campaigns resolved via /resolve-code; they
 	// never appear in the tile list (selectedCampaigns), so merge them here so
 	// the client discount preview reflects them alongside listed campaigns.
 	const pricingCampaigns = useMemo(
 		() => [
 			...selectedCampaigns,
-			...resolvedVoucherEntries.map((entry) => entry.campaign),
+			...appliedVouchers.map((entry) => entry.campaign),
 		],
-		[selectedCampaigns, resolvedVoucherEntries],
+		[selectedCampaigns, appliedVouchers],
 	);
 
 	const serviceLines = useMemo(
