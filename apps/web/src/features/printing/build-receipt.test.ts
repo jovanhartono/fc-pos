@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { OrderReceipt } from "@/lib/api";
 import { buildReceiptEscPos } from "./build-receipt";
+import { RECEIPT_LOGO } from "./receipt-logo";
 
 const baseReceipt: OrderReceipt = {
 	id: 12,
@@ -65,6 +66,19 @@ const baseReceipt: OrderReceipt = {
 const decodeText = (bytes: Uint8Array): string =>
 	new TextDecoder().decode(bytes);
 
+const RASTER_HEADER = [0x1d, 0x76, 0x30, 0x00];
+
+// Index of the first byte after the header logo, or 0 when no logo is set.
+const afterHeaderLogo = (bytes: number[]): number => {
+	if (!RECEIPT_LOGO) {
+		return 0;
+	}
+	const start = bytes.findIndex((_, index) =>
+		RASTER_HEADER.every((byte, offset) => bytes[index + offset] === byte),
+	);
+	return start + RASTER_HEADER.length + 4 + RECEIPT_LOGO.data.length;
+};
+
 describe("buildReceiptEscPos", () => {
 	test("produces a complete paid receipt", () => {
 		const bytes = buildReceiptEscPos(
@@ -106,8 +120,38 @@ describe("buildReceiptEscPos", () => {
 		expect(hasQrPrint).toBe(true);
 
 		// Every printable byte is ASCII — no codepage surprises on the printer.
-		const nonAscii = asArray.filter((byte) => byte > 0x7e);
+		// The header logo is skipped: a 1-bit bitmap is arbitrary bytes, and the
+		// guarantee being made here is about the text the cashier reads.
+		const nonAscii = asArray
+			.slice(afterHeaderLogo(asArray))
+			.filter((byte) => byte > 0x7e);
 		expect(nonAscii).toEqual([]);
+	});
+
+	test("header carries the centred brand mark", () => {
+		const bytes = buildReceiptEscPos(baseReceipt, "http://localhost/track");
+		const asArray = [...bytes];
+		const start = asArray.findIndex((_, index) =>
+			RASTER_HEADER.every((byte, offset) => asArray[index + offset] === byte),
+		);
+
+		expect(RECEIPT_LOGO).not.toBeNull();
+		expect(start).toBeGreaterThan(-1);
+		// ESC a 1 precedes it, or the mark prints hard against the left edge.
+		expect(asArray.slice(start - 3, start)).toEqual([0x1b, 0x61, 0x01]);
+		// Width and height in the command must match the bitmap that follows,
+		// otherwise the printer eats receipt text as image data.
+		expect(asArray.slice(start + 4, start + 8)).toEqual([
+			RECEIPT_LOGO?.widthBytes ?? 0,
+			0,
+			RECEIPT_LOGO?.height ?? 0,
+			0,
+		]);
+		expect(RECEIPT_LOGO?.data.length).toBe(
+			(RECEIPT_LOGO?.widthBytes ?? 0) * (RECEIPT_LOGO?.height ?? 0),
+		);
+		// The mark must not push the store name off the top of the receipt.
+		expect(decodeText(bytes)).toContain("Fresclean Kemang");
 	});
 
 	test("line that exactly fills 48 columns keeps every character", () => {
