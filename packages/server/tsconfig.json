@@ -12,7 +12,13 @@
     },
     "outDir": "dist",
     "declaration": true,
-    "sourceMap": true,
+
+    // `tsc -b` is build mode, so it emits. Nothing consumes its JS — the
+    // server runs from src, the web imports tsdown's bundle — and emitting it
+    // dropped compiled copies of every *.test.ts into dist, where a bare
+    // `bun test` discovered and failed them. Declarations only keeps the type
+    // check (tests included) without the phantom test files.
+    "emitDeclarationOnly": true,
 
     // composite true is only needed when it's being referenced in another tsconfig workspace
     "composite": true

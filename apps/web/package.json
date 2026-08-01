@@ -11,7 +11,8 @@
 		"format": "biome format --write .",
 		"type-check": "bun run generate-routes && tsc -b",
 		"test": "bun test",
-		"generate-routes": "tsr generate"
+		"generate-routes": "tsr generate",
+		"generate-receipt-logo": "bun run scripts/generate-receipt-logo.ts"
 	},
 	"dependencies": {
 		"@base-ui/react": "^1.6.0",

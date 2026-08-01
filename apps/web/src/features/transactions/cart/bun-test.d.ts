@@ -11,6 +11,7 @@ declare module "bun:test" {
 		toMatch(expected: RegExp | string): void;
 		toBeGreaterThan(expected: number): void;
 		toBeLessThanOrEqual(expected: number): void;
+		toBeNull(): void;
 	}
 
 	export const describe: (name: string, fn: () => void) => void;
