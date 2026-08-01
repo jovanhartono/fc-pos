@@ -109,8 +109,11 @@ export const POSTOrderCancelSchema = z.object({
       z
         .object({
           note: z.string().trim().max(1000).optional(),
-          order_product_id: z.coerce.number().int().positive().nullish(),
-          order_service_id: z.coerce.number().int().positive().nullish(),
+          // Plain z.number (not z.coerce): this is a JSON body, so ids arrive as
+          // real numbers. z.coerce would widen the RPC's inferred input type to
+          // `unknown` and silently drop the client's compile-time check.
+          order_product_id: z.number().int().positive().nullish(),
+          order_service_id: z.number().int().positive().nullish(),
           reason: z.enum(cancelReasonEnum.enumValues),
         })
         .superRefine((value, ctx) => {
@@ -142,8 +145,9 @@ export const POSTOrderRefundSchema = z.object({
       z
         .object({
           note: z.string().trim().optional(),
-          order_product_id: z.coerce.number().int().positive().nullish(),
-          order_service_id: z.coerce.number().int().positive().nullish(),
+          // Plain z.number for the same reason as the cancel schema above.
+          order_product_id: z.number().int().positive().nullish(),
+          order_service_id: z.number().int().positive().nullish(),
           reason: z.enum(refundReasonEnum.enumValues),
         })
         .superRefine((value, ctx) => {

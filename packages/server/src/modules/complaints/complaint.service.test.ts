@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { BadRequestException, NotFoundException } from "@/errors";
 import { normalizeComplaintListQuery } from "@/modules/complaints/complaint.schema";
+import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
 
 // The service takes its DB handle as a parameter on every repository call, so a
@@ -100,17 +101,6 @@ const makeSubject = (over: AnyObj = {}) => ({
   order: { id: 7, code: "ORD-001", store_id: 1 },
   ...over,
 });
-
-const captureRejection = async (
-  promise: Promise<unknown>
-): Promise<unknown> => {
-  try {
-    await promise;
-  } catch (error) {
-    return error;
-  }
-  throw new Error("Expected promise to reject, but it resolved");
-};
 
 beforeEach(() => {
   repo.subject = makeSubject();

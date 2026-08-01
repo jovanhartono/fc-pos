@@ -4,6 +4,7 @@ import {
   mintCampaignCodes,
 } from "@/modules/campaigns/campaign.repository";
 import type { OrderTx } from "@/modules/orders/order.repository";
+import { captureRejection } from "@/test-support/capture-rejection";
 
 const CROCKFORD = /^[23456789ABCDEFGHJKMNPQRSTVWXYZ]{8}$/;
 
@@ -67,17 +68,6 @@ function makeTx(behaviors: InsertBehavior[]) {
   };
   return { tx: tx as unknown as OrderTx, requested };
 }
-
-const captureRejection = async (
-  promise: Promise<unknown>
-): Promise<unknown> => {
-  try {
-    await promise;
-  } catch (error) {
-    return error;
-  }
-  throw new Error("Expected promise to reject, but it resolved");
-};
 
 describe("mintCampaignCodes", () => {
   it("inserts the whole batch in one attempt on success", async () => {

@@ -5,11 +5,13 @@ import {
   orderCampaignsTable,
 } from "@/db/schema";
 import {
+  type CampaignRedemptionFields,
   claimRedemptions,
   type ResolvedCampaignRow,
   releaseRedemptions,
 } from "@/modules/campaigns/campaign-redemption.service";
 import type { OrderTx } from "@/modules/orders/order.repository";
+import { captureRejection } from "@/test-support/capture-rejection";
 
 interface UpdateCall {
   set: Record<string, unknown>;
@@ -70,9 +72,7 @@ function makeTx({
   return { tx: tx as unknown as OrderTx, updates, inserts };
 }
 
-const listedRow = (
-  over: Partial<ResolvedCampaignRow> = {}
-): ResolvedCampaignRow => ({
+const redemptionFields: CampaignRedemptionFields = {
   applied_amount: "10000",
   buy_quantity: null,
   campaign_id: 1,
@@ -80,24 +80,18 @@ const listedRow = (
   discount_value: "10000",
   free_quantity: null,
   max_discount: null,
-  ...over,
+};
+
+const listedRow = (): ResolvedCampaignRow => ({
+  ...redemptionFields,
+  kind: "listed",
 });
 
-const voucherRow = (
-  code: string,
-  over: Partial<ResolvedCampaignRow> = {}
-): ResolvedCampaignRow => listedRow({ _voucherCode: code, ...over });
-
-const captureRejection = async (
-  promise: Promise<unknown>
-): Promise<unknown> => {
-  try {
-    await promise;
-  } catch (error) {
-    return error;
-  }
-  throw new Error("Expected promise to reject, but it resolved");
-};
+const voucherRow = (code: string): ResolvedCampaignRow => ({
+  ...redemptionFields,
+  kind: "voucher",
+  voucherCode: code,
+});
 
 describe("claimRedemptions", () => {
   it("does nothing for an order without campaigns", async () => {

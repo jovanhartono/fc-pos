@@ -51,15 +51,13 @@ const app = new Hono()
         return c.json(failure("Store not found"), StatusCodes.NOT_FOUND);
       }
 
-      const resolved = await resolveVoucherCode(code, {
+      const { campaign } = await resolveVoucherCode(code, {
         grossTotal: gross_total,
         storeCode: store.code,
         storeId: store_id,
       });
 
-      // Strip internal-only field before returning to the client
-      const { _voucherCode: _, ...responseData } = resolved;
-      return c.json(success(responseData));
+      return c.json(success(campaign));
     }
   )
   .get("/:id/codes", idParamSchema, async (c) => {

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { BadRequestException, NotFoundException } from "@/errors";
+import { captureRejection } from "@/test-support/capture-rejection";
 
 // The service takes no DB handle: it calls repository functions directly. A pair
 // of in-memory doubles drives resolveVoucherCode (findCampaignByCode) and
@@ -26,17 +27,6 @@ mock.module("@/modules/campaigns/campaign.repository", () => ({
 const { resolveVoucherCode, getUsableCampaigns } = await import(
   "@/modules/campaigns/campaign.service"
 );
-
-const captureRejection = async (
-  promise: Promise<unknown>
-): Promise<unknown> => {
-  try {
-    await promise;
-  } catch (error) {
-    return error;
-  }
-  throw new Error("Expected promise to reject, but it resolved");
-};
 
 // A code-mode campaign shaped like the nested findCampaignByCode row's
 // `campaign` (stores/eligibleServices nested, discount columns present).
@@ -108,12 +98,12 @@ describe("resolveVoucherCode", () => {
     expect((error as Error).message).toBe("Campaign VIP is not active");
   });
 
-  it("resolves an unredeemed, eligible code and tags it with _voucherCode", async () => {
+  it("resolves an unredeemed, eligible code and returns it beside the campaign", async () => {
     repo.byCode = { redeemed_at: null, campaign: makeVoucherCampaign() };
-    const resolved = await resolveVoucherCode("VIP12345", ctx);
-    expect(resolved._voucherCode).toBe("VIP12345");
-    expect(resolved.id).toBe(7);
-    expect(resolved.is_expired).toBe(false);
+    const { campaign, voucherCode } = await resolveVoucherCode("VIP12345", ctx);
+    expect(voucherCode).toBe("VIP12345");
+    expect(campaign.id).toBe(7);
+    expect(campaign.is_expired).toBe(false);
   });
 });
 
