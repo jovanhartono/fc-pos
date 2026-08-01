@@ -57,5 +57,5 @@ router.onError((err, c) => {
 export type AppType = typeof router;
 export default {
   fetch: router.fetch,
-  port: "8000",
+  port: process.env.PORT ?? "8000",
 };
