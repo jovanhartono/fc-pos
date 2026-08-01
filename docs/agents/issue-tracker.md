@@ -1,6 +1,6 @@
 # Issue tracker: GitHub
 
-Issues and PRDs for this repo live as GitHub issues on `jovanhartono/fc-bun-api`. Use the `gh` CLI for all operations.
+Issues and PRDs for this repo live as GitHub issues on `jovanhartono/fc-pos`. Use the `gh` CLI for all operations.
 
 ## Conventions
 
