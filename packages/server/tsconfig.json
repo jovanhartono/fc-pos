@@ -10,18 +10,13 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "outDir": "dist",
-    "declaration": true,
-
-    // `tsc -b` is build mode, so it emits. Nothing consumes its JS — the
-    // server runs from src, the web imports tsdown's bundle — and emitting it
-    // dropped compiled copies of every *.test.ts into dist, where a bare
-    // `bun test` discovered and failed them. Declarations only keeps the type
-    // check (tests included) without the phantom test files.
-    "emitDeclarationOnly": true,
-
-    // composite true is only needed when it's being referenced in another tsconfig workspace
-    "composite": true
+    // tsc only checks here; tsdown owns dist and every package export. Emitting
+    // put tsc's output alongside tsdown's in one directory, which cost us a
+    // compiled copy of every *.test.ts for a bare `bun test` to find, and
+    // forced `clean: false` so neither tool could delete the other's files.
+    // Declared here rather than as a --noEmit flag so a stray `tsc` run cannot
+    // reintroduce either problem.
+    "noEmit": true
   },
   "exclude": ["node_modules", "drizzle", "dist", "bun.lock"]
 }
