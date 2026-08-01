@@ -13,6 +13,7 @@ import {
   deriveOrderRefundStatus,
   type OrderRefundStatus,
 } from "@/modules/orders/order-refund-status";
+import { isNumericSearch } from "@/modules/orders/order-search";
 import { summarizeOrderFulfillment } from "@/modules/orders/order-status-machine";
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
 
@@ -76,8 +77,6 @@ interface FindOrdersResult {
   items: OrderListItem[];
   total: number;
 }
-
-const numericSearchRegex = /^\d+$/;
 
 function buildOrderWhere(
   filters: NormalizedOrderListQuery,
@@ -146,7 +145,7 @@ function buildOrderWhere(
       },
     ];
 
-    if (numericSearchRegex.test(search)) {
+    if (isNumericSearch(search)) {
       const numericSearch = Number(search);
       searchOr.push({ id: numericSearch });
       searchOr.push({

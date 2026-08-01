@@ -1,4 +1,14 @@
-import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  lte,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 import { db } from "@/db";
 import {
   orderServiceHandlerLogsTable,
@@ -17,8 +27,10 @@ import type {
   PatchOrderServiceStatusInput,
 } from "@/modules/orders/order-admin.schema";
 import { normalizeOrderServiceQueueQuery } from "@/modules/orders/order-admin.schema";
+import { isNumericSearch } from "@/modules/orders/order-search";
 import {
   isTerminalOrderServiceStatus,
+  ORDER_TERMINAL_SERVICE_STATUSES,
   transitionOrderService,
 } from "@/modules/orders/order-status-machine";
 import { assertCanReassignHandler } from "@/modules/permissions/permissions";
@@ -26,8 +38,6 @@ import type { JWTPayload } from "@/types";
 import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
 import { buildPaginationMeta } from "@/utils/pagination";
-
-const numericSearchRegex = /^\d+$/;
 
 const queueRelationColumns = {
   order: {
@@ -83,7 +93,9 @@ export async function getMyOrderServices(
 
   if (!query.include_terminal) {
     conditions.push(
-      sql`${ordersServicesTable.status} NOT IN ('picked_up', 'refunded', 'cancelled')`
+      notInArray(ordersServicesTable.status, [
+        ...ORDER_TERMINAL_SERVICE_STATUSES,
+      ])
     );
   }
 
@@ -140,7 +152,9 @@ export async function getOrderServiceQueue(
 ) {
   const normalized = normalizeOrderServiceQueueQuery(query);
   const conditions = [
-    sql`${ordersServicesTable.status} NOT IN ('picked_up', 'refunded', 'cancelled')`,
+    notInArray(ordersServicesTable.status, [
+      ...ORDER_TERMINAL_SERVICE_STATUSES,
+    ]),
   ];
 
   if (user.role === "admin") {
@@ -176,7 +190,7 @@ export async function getOrderServiceQueue(
       sql`LOWER(${ordersServicesTable.item_code}) LIKE ${loweredSearchPrefix}`,
     ];
 
-    if (numericSearchRegex.test(search)) {
+    if (isNumericSearch(search)) {
       const numericSearch = Number(search);
 
       searchConditions.push(eq(ordersTable.id, numericSearch));
