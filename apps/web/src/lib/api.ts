@@ -570,11 +570,6 @@ export function fetchCustomerByPhone(phone: string): Promise<CustomerLookup> {
 	);
 }
 
-export async function fetchUsers() {
-	const response = await parseResponse(rpcWithAuth().api.admin.users.$get());
-	return response.data;
-}
-
 export async function fetchUsersPage(
 	query?: FetchUsersQuery,
 ): Promise<PaginatedData<User>> {
@@ -639,33 +634,6 @@ export async function fetchProducts() {
 export async function fetchPaymentMethods() {
 	const response = await parseResponse(
 		rpcWithAuth().api.admin["payment-methods"].$get(),
-	);
-	return response.data;
-}
-
-export async function fetchOrders(query?: FetchOrdersQuery) {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.orders.$get({
-			query:
-				query && Object.keys(query).length > 0
-					? {
-							...(query.store_id !== undefined
-								? { store_id: String(query.store_id) }
-								: {}),
-							...(query.search ? { search: query.search } : {}),
-							...(query.status ? { status: query.status } : {}),
-							...(query.payment_status
-								? { payment_status: query.payment_status }
-								: {}),
-							...(query.date_from !== undefined
-								? { date_from: query.date_from }
-								: {}),
-							...(query.date_to !== undefined
-								? { date_to: query.date_to }
-								: {}),
-						}
-					: undefined,
-		}),
 	);
 	return response.data;
 }
