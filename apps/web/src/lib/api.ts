@@ -408,11 +408,7 @@ export type UpdateOrderCourierPayload = {
 	collected_by: number | null;
 };
 
-export type PhotoContentType =
-	| "image/jpeg"
-	| "image/png"
-	| "image/webp"
-	| "image/heic";
+export type PhotoContentType = "image/jpeg" | "image/png" | "image/webp";
 
 export type PresignOrderServicePhotoPayload = {
 	content_type: PhotoContentType;

@@ -2,8 +2,15 @@ import { s3 } from "bun";
 import { BadRequestException } from "@/errors";
 
 const DEFAULT_PRESIGNED_EXPIRES_SECONDS = 300;
-const MAX_IMAGE_DIMENSION = 1600;
-const WEBP_QUALITY = 80;
+// 2560 on the long edge keeps a 5mm stain reading as a mark rather than a smudge across a
+// whole-garment frame when a customer disputes the damage; q80 smoothed away exactly the
+// faint low-contrast discoloration those disputes turn on. The counter app already scales
+// its uploads to the same bound (MAX_UPLOAD_DIMENSION in apps/web normalize-image.ts), so
+// the resize below only bites on bytes that skipped it — a counter phone still running a
+// stale bundle, or anything else PUTting to a presigned URL. Raise one bound without the
+// other and they stop matching.
+const MAX_IMAGE_DIMENSION = 2560;
+const WEBP_QUALITY = 85;
 
 export function buildMediaUrl(path: string): string;
 export function buildMediaUrl(path: null | undefined): null;
@@ -60,13 +67,14 @@ export async function optimizeUploadedImage(key: string): Promise<void> {
       .webp({ quality: WEBP_QUALITY })
       .bytes();
   } catch (error) {
-    const code = (error as { code?: string }).code;
-    // Format Bun can't decode on this platform (e.g. HEIC) — keep the original.
-    if (code === "ERR_IMAGE_FORMAT_UNSUPPORTED") {
-      return;
-    }
-    // Any other image error means the upload isn't a usable image.
-    if (code?.startsWith("ERR_IMAGE_")) {
+    // Every stored object has to be browser-renderable WebP. Keeping an
+    // undecodable original instead meant a drop-off photo opened as a broken
+    // image for every operator not on Safari — the evidence was silently gone
+    // by the time a customer claimed the tear was ours. Note HEIC only reaches
+    // this branch where no OS codec exists, which is the Linux container we
+    // deploy to: the same upload converts fine on a macOS dev machine via
+    // ImageIO, so a local success is not evidence HEIC is safe to accept again.
+    if ((error as { code?: string }).code?.startsWith("ERR_IMAGE_")) {
       throw new BadRequestException("Uploaded file is not a valid image");
     }
     // S3/network/other infra fault — propagate, don't mislabel as a bad image.

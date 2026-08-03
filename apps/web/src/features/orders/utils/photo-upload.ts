@@ -11,7 +11,6 @@ export const ACCEPTED_IMAGE_TYPES: readonly PhotoContentType[] = [
 	"image/jpeg",
 	"image/png",
 	"image/webp",
-	"image/heic",
 ];
 
 export const isAcceptedImage = (value: string): value is PhotoContentType =>

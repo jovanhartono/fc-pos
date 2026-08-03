@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useCameraCapture } from "@/features/orders/hooks/useCameraCapture";
+import { normalizeImageFile } from "@/features/orders/utils/normalize-image";
 import {
 	ACCEPTED_IMAGE_TYPES,
 	isAcceptedImage,
@@ -124,6 +125,8 @@ const PhotoUploadDialogBase = ({
 	const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
 	const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
 	const [note, setNote] = useState("");
+	const [isNormalizing, setIsNormalizing] = useState(false);
+	const sessionRef = useRef(0);
 
 	const stopCamera = camera.stop;
 	const openCamera = camera.open;
@@ -138,6 +141,11 @@ const PhotoUploadDialogBase = ({
 	}, [stopCamera]);
 
 	useEffect(() => {
+		// A scale-down that finishes after the operator gave up on the dialog must not push
+		// its photo into the next order's evidence: opening or closing voids work in flight.
+		sessionRef.current += 1;
+		setIsNormalizing(false);
+
 		if (!open) {
 			return;
 		}
@@ -153,23 +161,44 @@ const PhotoUploadDialogBase = ({
 	// re-centering first — that snap was the layout shift.
 	useEffect(() => stopCamera, [stopCamera]);
 
+	// Single entry point for the strip: a 12MP phone photo is scaled down before it
+	// ever reaches 4G, and an iPhone HEIC either becomes a JPEG here or is rejected
+	// here rather than sitting in S3 as unviewable dispute evidence.
 	const addFiles = useCallback(
-		(files: File[]) => {
+		async (files: File[]) => {
 			if (files.length === 0) {
 				return;
 			}
 
 			const accepted = multiple ? files : files.slice(0, 1);
+			const session = sessionRef.current;
+			setIsNormalizing(true);
 
-			const unsupportedFile = accepted.find(
-				(file) => !isAcceptedImage(file.type),
-			);
-			if (unsupportedFile) {
-				toast.error(`Unsupported image type: ${unsupportedFile.name}`);
+			const normalized: File[] = [];
+			try {
+				for (const file of accepted) {
+					try {
+						normalized.push(await normalizeImageFile(file));
+					} catch (error) {
+						toast.error(
+							`${error instanceof Error && error.message ? error.message : "Unsupported image type"}: ${file.name}`,
+						);
+					}
+					if (sessionRef.current !== session) {
+						return;
+					}
+				}
+			} finally {
+				if (sessionRef.current === session) {
+					setIsNormalizing(false);
+				}
+			}
+
+			if (normalized.length === 0) {
 				return;
 			}
 
-			const created = accepted.map((file) => createPendingPhoto(file));
+			const created = normalized.map((file) => createPendingPhoto(file));
 			setPendingPhotos((previous) => {
 				if (!multiple) {
 					revokePhotos(previous);
@@ -207,7 +236,7 @@ const PhotoUploadDialogBase = ({
 		}
 
 		const timestamp = Date.now();
-		addFiles([
+		await addFiles([
 			new File([blob], `photo-${timestamp}.jpg`, {
 				type: "image/jpeg",
 			}),
@@ -275,7 +304,9 @@ const PhotoUploadDialogBase = ({
 		},
 	});
 
-	const isBusy = uploadMutation.isPending;
+	// Normalizing counts as busy: confirming while a pick is still being scaled down uploaded
+	// only the photos that had landed, toasted success, and dropped the rest of the evidence.
+	const isBusy = uploadMutation.isPending || isNormalizing;
 	const photoNoun = multiple ? "photos" : "photo";
 	const labelSuffix = badgeLabel ? ` for ${badgeLabel}` : "";
 
@@ -449,7 +480,7 @@ const PhotoUploadDialogBase = ({
 							multiple={multiple}
 							className="sr-only"
 							onChange={(event) => {
-								addFiles(Array.from(event.target.files ?? []));
+								void addFiles(Array.from(event.target.files ?? []));
 							}}
 						/>
 					)}
@@ -472,7 +503,7 @@ const PhotoUploadDialogBase = ({
 						type="button"
 						disabled={pendingPhotos.length === 0 || isBusy}
 						loading={isBusy}
-						loadingText="Uploading..."
+						loadingText={isNormalizing ? "Processing..." : "Uploading..."}
 						onClick={handleConfirm}
 					>
 						{confirmLabel}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { MAX_UPLOAD_DIMENSION } from "@/features/orders/utils/normalize-image";
 
 const waitForVideoReady = (video: HTMLVideoElement) =>
 	new Promise<void>((resolve, reject) => {
@@ -80,8 +81,15 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 		}
 
 		try {
+			// Unconstrained negotiation settles on 640x480, useless for proving a 5mm
+			// stain was already there. ideal (not exact) degrades on cheap Androids
+			// instead of refusing to open the camera.
 			const nextStream = await navigator.mediaDevices.getUserMedia({
-				video: { facingMode: { ideal: "environment" } },
+				video: {
+					facingMode: { ideal: "environment" },
+					width: { ideal: 2560 },
+					height: { ideal: 2560 },
+				},
 				audio: false,
 			});
 
@@ -164,9 +172,17 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 			sourceY = Math.round((frameHeight - sourceHeight) / 2);
 		}
 
+		// A 4K-capable phone hands back a frame well past what the server keeps, and letting
+		// the normalize step shrink it would cost a second JPEG generation before the WebP
+		// one — three lossy passes over the faint mark a dispute turns on. Scale here so the
+		// shot is already in budget and goes up re-encoded exactly once.
+		const outputScale = Math.min(
+			1,
+			MAX_UPLOAD_DIMENSION / Math.max(sourceWidth, sourceHeight),
+		);
 		const canvas = document.createElement("canvas");
-		canvas.width = sourceWidth;
-		canvas.height = sourceHeight;
+		canvas.width = Math.round(sourceWidth * outputScale);
+		canvas.height = Math.round(sourceHeight * outputScale);
 
 		const context = canvas.getContext("2d");
 		if (!context) {
@@ -182,8 +198,8 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 			sourceHeight,
 			0,
 			0,
-			sourceWidth,
-			sourceHeight,
+			canvas.width,
+			canvas.height,
 		);
 		const blob = await new Promise<Blob | null>((resolve) => {
 			canvas.toBlob(resolve, "image/jpeg", 0.92);
