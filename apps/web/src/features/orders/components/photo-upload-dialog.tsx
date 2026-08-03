@@ -400,7 +400,7 @@ const PhotoUploadDialogBase = ({
 							muted
 							playsInline
 							onLoadedMetadata={camera.markReady}
-							className="size-full object-cover"
+							className="size-full object-contain"
 						/>
 					) : selectedPhoto ? (
 						<PhotoStage

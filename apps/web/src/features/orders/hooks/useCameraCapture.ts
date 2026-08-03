@@ -143,46 +143,30 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 			return null;
 		}
 
-		if (video.videoWidth === 0 || video.videoHeight === 0) {
+		const frameWidth = video.videoWidth;
+		const frameHeight = video.videoHeight;
+		if (frameWidth === 0 || frameHeight === 0) {
 			setError("Camera preview is not ready yet.");
 			return null;
 		}
 
-		// Crop the captured frame to the region the object-cover preview actually
-		// showed, so the saved photo matches what the user framed (WYSIWYG) instead
-		// of the full sensor frame that object-cover hid behind the viewfinder edges.
-		const frameWidth = video.videoWidth;
-		const frameHeight = video.videoHeight;
-		const boxWidth = video.clientWidth || frameWidth;
-		const boxHeight = video.clientHeight || frameHeight;
-		const frameAspect = frameWidth / frameHeight;
-		const boxAspect = boxWidth / boxHeight;
-
-		let sourceX = 0;
-		let sourceY = 0;
-		let sourceWidth = frameWidth;
-		let sourceHeight = frameHeight;
-		if (frameAspect > boxAspect) {
-			// Frame wider than the viewfinder → its sides were cropped off.
-			sourceWidth = Math.round(frameHeight * boxAspect);
-			sourceX = Math.round((frameWidth - sourceWidth) / 2);
-		} else {
-			// Frame taller than the viewfinder → its top and bottom were cropped off.
-			sourceHeight = Math.round(frameWidth / boxAspect);
-			sourceY = Math.round((frameHeight - sourceHeight) / 2);
-		}
-
+		// Keep the whole sensor frame rather than the slice the viewfinder box happened to
+		// show. Cropping to the box was WYSIWYG, but a portrait viewfinder over a landscape
+		// track threw away a fifth of the width — exactly the pixels a whole-garment frame
+		// needs for a 5mm stain to read as a mark. The preview uses object-contain so this
+		// stays honest: the letterboxed feed is the frame that gets saved.
+		//
 		// A 4K-capable phone hands back a frame well past what the server keeps, and letting
 		// the normalize step shrink it would cost a second JPEG generation before the WebP
 		// one — three lossy passes over the faint mark a dispute turns on. Scale here so the
 		// shot is already in budget and goes up re-encoded exactly once.
 		const outputScale = Math.min(
 			1,
-			MAX_UPLOAD_DIMENSION / Math.max(sourceWidth, sourceHeight),
+			MAX_UPLOAD_DIMENSION / Math.max(frameWidth, frameHeight),
 		);
 		const canvas = document.createElement("canvas");
-		canvas.width = Math.round(sourceWidth * outputScale);
-		canvas.height = Math.round(sourceHeight * outputScale);
+		canvas.width = Math.round(frameWidth * outputScale);
+		canvas.height = Math.round(frameHeight * outputScale);
 
 		const context = canvas.getContext("2d");
 		if (!context) {
@@ -190,17 +174,7 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 			return null;
 		}
 
-		context.drawImage(
-			video,
-			sourceX,
-			sourceY,
-			sourceWidth,
-			sourceHeight,
-			0,
-			0,
-			canvas.width,
-			canvas.height,
-		);
+		context.drawImage(video, 0, 0, canvas.width, canvas.height);
 		const blob = await new Promise<Blob | null>((resolve) => {
 			canvas.toBlob(resolve, "image/jpeg", 0.92);
 		});
