@@ -4,6 +4,7 @@ import {
 	CreditCardIcon,
 } from "@phosphor-icons/react";
 import { useFormContext, useWatch } from "react-hook-form";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import { SheetFooter } from "@/components/ui/sheet";
@@ -12,8 +13,12 @@ import {
 	type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
-import type { CheckoutStep } from "@/features/transactions/components/checkout-stepper";
+import {
+	CHECKOUT_STEPS,
+	type CheckoutStep,
+} from "@/features/transactions/components/checkout-stepper";
 import { useCheckoutPricing } from "@/features/transactions/hooks/useCheckoutPricing";
+import { getIssueStep } from "@/features/transactions/lib/checkout-issues";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
 import { formatIDRCurrency } from "@/shared/utils";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
@@ -22,10 +27,14 @@ import { useTransactionsPageStore } from "@/stores/transactions-store";
 // the two can't drift apart.
 const PHOTO_HINT_ID = "checkout-photo-hint";
 
+const stepLabel = (step: CheckoutStep): string =>
+	CHECKOUT_STEPS.find((entry) => entry.key === step)?.label ?? "";
+
 interface CheckoutFooterProps {
 	step: CheckoutStep;
 	onContinue: () => void;
 	onBack: () => void;
+	onNavigate: (step: CheckoutStep) => void;
 }
 
 // Pinned action bar — total + the step's primary button stay visible while the
@@ -35,6 +44,7 @@ export const CheckoutFooter = ({
 	step,
 	onContinue,
 	onBack,
+	onNavigate,
 }: CheckoutFooterProps) => {
 	const { submit } = useTransactionsPageContext();
 	const { count } = useCart();
@@ -54,6 +64,42 @@ export const CheckoutFooter = ({
 	const itemsReady = count > 0 && !!dropoffPhoto;
 	const showPhotoHint = step === "items" && count > 0 && !dropoffPhoto;
 
+	// A blocked checkout gets named, not summarized: the toast says exactly what
+	// failed and offers to take the cashier to the step that owns it, because the
+	// failing field can be on a step they aren't looking at. The footer keeps the
+	// same text as the record that outlives the toast.
+	const handleCreateOrder = async () => {
+		const issues = await submit();
+		if (issues.length === 0) {
+			return;
+		}
+
+		const [firstIssue] = issues;
+		const targetStep = getIssueStep(firstIssue);
+		// No action when the fix is already on screen — a button that jumps to the
+		// current step reads as broken.
+		const jumpStep = targetStep && targetStep !== step ? targetStep : null;
+
+		toast.error("Can't create order", {
+			description:
+				issues.length === 1 ? (
+					firstIssue.message
+				) : (
+					<ul className="grid gap-0.5">
+						{issues.map((issue) => (
+							<li key={issue.message}>{issue.message}</li>
+						))}
+					</ul>
+				),
+			action: jumpStep
+				? {
+						label: `Go to ${stepLabel(jumpStep)}`,
+						onClick: () => onNavigate(jumpStep),
+					}
+				: undefined,
+		});
+	};
+
 	return (
 		<SheetFooter className="shrink-0 gap-2 border-t border-border/70 bg-popover">
 			{submitError ? <FieldError>{submitError}</FieldError> : null}
@@ -72,7 +118,7 @@ export const CheckoutFooter = ({
 					itemsReady={itemsReady}
 					onBack={onBack}
 					onContinue={onContinue}
-					onSubmit={submit}
+					onSubmit={handleCreateOrder}
 					photoHintId={showPhotoHint ? PHOTO_HINT_ID : undefined}
 					step={step}
 				/>

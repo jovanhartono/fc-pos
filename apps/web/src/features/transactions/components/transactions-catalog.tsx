@@ -7,12 +7,15 @@ import { useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Card, CardContent } from "@/components/ui/card";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import { useCartOps } from "@/features/transactions/cart/useCart";
-import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
+import {
+	getEntityCategoryName,
+	STORE_FIELD_ID,
+} from "@/features/transactions/lib/transactions";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
 import type { Product, Service } from "@/lib/api";
 import {
@@ -55,8 +58,9 @@ export function TransactionsCatalog() {
 		[servicesQuery.data],
 	);
 
-	const { control } = useFormContext<TransactionDraftValues>();
+	const { control, formState } = useFormContext<TransactionDraftValues>();
 	const selectedStoreId = useWatch({ control, name: "selectedStoreId" }) ?? "";
+	const storeError = formState.errors.selectedStoreId;
 	const productCart = useWatch({ control, name: "productCart" }) ?? [];
 
 	const categoryMap = useMemo(
@@ -142,9 +146,12 @@ export function TransactionsCatalog() {
 			<Card className="border-border/70">
 				<CardContent className="grid gap-4 p-4 sm:p-5">
 					<div className="grid gap-3">
-						<Field>
+						{/* hideLabel returns the bare Combobox, so the error has to be
+						    rendered here — this is the only place the store can be fixed,
+						    and the checkout sheet covers it. */}
+						<Field data-invalid={!!storeError}>
 							<StoreAutocomplete
-								id="transaction-store"
+								id={STORE_FIELD_ID}
 								hideLabel
 								required
 								value={selectedStoreId}
@@ -154,6 +161,7 @@ export function TransactionsCatalog() {
 								triggerClassName="h-10 pointer-coarse:h-11 w-full border-border/70 bg-background text-sm"
 								placeholder="Select store"
 							/>
+							<FieldError errors={[storeError]} />
 						</Field>
 
 						<div className="grid grid-cols-2 gap-2 border border-border/70 bg-background/80 p-1">

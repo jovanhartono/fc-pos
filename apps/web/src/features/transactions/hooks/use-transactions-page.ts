@@ -21,6 +21,13 @@ import {
 	type TransactionDraftValues,
 	toOrderPayload,
 } from "@/features/transactions/cart/cart";
+import {
+	type CheckoutIssue,
+	collectCheckoutIssues,
+	describeServerFailure,
+	readServerErrorMessage,
+	summarizeCheckoutIssues,
+} from "@/features/transactions/lib/checkout-issues";
 import type { TransactionsPageContextValue } from "@/features/transactions/lib/transactions-context";
 import { createOrder, type ResolvedVoucher } from "@/lib/api";
 import { isValidPhoneNumber } from "@/lib/phone-number";
@@ -31,10 +38,7 @@ import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 const transactionDraftSchema = z
 	.object({
-		selectedStoreId: z
-			.string()
-			.trim()
-			.min(1, "Store is required before creating a transaction."),
+		selectedStoreId: z.string().trim().min(1, "Store is required."),
 		customerName: z.string().trim().min(1, "Customer name is required."),
 		customerPhone: z
 			.string()
@@ -192,6 +196,10 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 	const createMutation = useMutation({
 		mutationKey: ["create-pos-order"],
 		mutationFn: createOrder,
+		// Opt out of the global error toast (main.tsx): a failed checkout is
+		// reported by the sheet with the step to fix and a button to get there, and
+		// the global one would fire alongside it as a second, blunter copy.
+		onError: () => undefined,
 	});
 
 	const resetCart = useCallback(() => {
@@ -200,8 +208,11 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 		resetTransactionDraft(form, { setSubmitError, setDropoffPhoto });
 	}, [form]);
 
+	// Resolves to the failure that stopped the checkout, or null once the Order is
+	// committed. Post-commit hiccups (photo, receipt) keep their own toasts — they
+	// don't fail the Order, so they are not returned as checkout failures.
 	const onValidSubmit = useCallback(
-		async (values: TransactionDraftValues) => {
+		async (values: TransactionDraftValues): Promise<CheckoutIssue | null> => {
 			useTransactionsPageStore.getState().setSubmitError("");
 
 			try {
@@ -267,34 +278,43 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 						});
 					},
 				});
+
+				return null;
 			} catch (error) {
-				const message =
-					error instanceof Error
-						? error.message
-						: "Failed to create transaction";
-				useTransactionsPageStore.getState().setSubmitError(message);
-				toast.error("Unable to create transaction", {
-					description: message,
-				});
+				const issue = describeServerFailure(readServerErrorMessage(error));
+				useTransactionsPageStore.getState().setSubmitError(issue.message);
+				return issue;
 			}
 		},
 		[createMutation, navigate, queryClient, resetCart],
 	);
 
-	// onInvalid surfaces a footer error: the two-step split can put a failing
-	// field on a step the cashier isn't looking at, so a blocked submit would
-	// otherwise be a silent no-op with the FieldError on the hidden step.
-	const submit = useMemo(
-		() =>
-			form.handleSubmit(onValidSubmit, () => {
+	// Reports back what blocked the checkout instead of only writing a footer
+	// error: a failing field can sit on a step the cashier isn't looking at, and
+	// the toast that offers to take them there has to be raised inside the sheet,
+	// where step navigation lives. Each call gets its own report, so an overlapping
+	// submit can't read another one's issues.
+	const submit = useCallback(async (): Promise<CheckoutIssue[]> => {
+		const report: CheckoutIssue[] = [];
+
+		await form.handleSubmit(
+			async (values) => {
+				const failure = await onValidSubmit(values);
+				if (failure) {
+					report.push(failure);
+				}
+			},
+			(errors) => {
+				const issues = collectCheckoutIssues(errors);
 				useTransactionsPageStore
 					.getState()
-					.setSubmitError(
-						"Some details are incomplete. Check the customer, items, and payment steps.",
-					);
-			}),
-		[form, onValidSubmit],
-	);
+					.setSubmitError(summarizeCheckoutIssues(issues));
+				report.push(...issues);
+			},
+		)();
+
+		return report;
+	}, [form, onValidSubmit]);
 
 	const handleStoreChange = useCallback(
 		(value: string) => {
