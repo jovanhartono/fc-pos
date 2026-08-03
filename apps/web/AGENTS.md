@@ -2,15 +2,6 @@
 
 `@fresclean/web` — React 19, Vite, TanStack (Router/Query/Table), shadcn, Zustand. Repo-wide rules: `../../AGENTS.md`
 
-## Commands
-
-```bash
-bun run dev             # Vite dev server (port 5173)
-bun run build           # TypeScript check + production build
-bun run type-check      # TypeScript check + route regeneration
-bun run generate-routes # Regenerate TanStack Router route tree
-```
-
 ## UI Preferences
 
 - Terse, operational copy. No marketing/guiding prose. Short labels and empty states.

@@ -13,62 +13,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The web package consumes the server package as a workspace dependency (`@fresclean/api`) for shared types, Zod schemas, and typed RPC client.
 
-## Quick Start
-
-```bash
-bun install            # Install all workspace dependencies
-bun run dev            # Turbo: build API types, then start server (8000) + web (5173)
-bun run build          # Turbo: build all packages (cached)
-bun run lint           # Turbo: lint all packages (cached)
-bun run test           # Turbo: run all bun test suites (cached)
-bun run type-check     # Turbo: type-check all packages (cached)
-```
-
-### Server only
-```bash
-cd packages/server
-bun run dev                  # API with hot reload (port 8000) + tsdown --watch for type exports
-```
-
-### Web only
-```bash
-cd apps/web
-bun run dev                  # Vite dev server at http://localhost:5173
-bun run build               # TypeScript check + Vite production build
-bun run type-check          # TypeScript check only (also regenerates routes)
-bun run generate-routes     # Regenerate TanStack Router route tree
-```
-
 ## Environment Variables
 
 The server reads from `process.env`:
 - `DATABASE_URL_DEV` / `DATABASE_URL_PROD` - Neon PostgreSQL connection strings
 - `JWT_SECRET` - Secret key for JWT authentication
-
-## Tech Stack
-
-### Server (`packages/server`)
-- **Runtime:** Bun
-- **HTTP:** Hono 4 (base path `/api`, CORS for localhost:5173 and :4173)
-- **Database:** Drizzle ORM + `@neondatabase/serverless` (PostgreSQL)
-- **Validation:** Zod 4, `@hono/zod-validator`
-- **Auth:** JWT (`hono/jwt`) with admin middleware on `/admin/*`
-- **Storage:** AWS S3 (`@aws-sdk/client-s3`, presigned URLs)
-- **Build:** `tsdown` bundles types/schemas/RPC for the web package; Turborepo orchestrates cross-package builds
-
-### Web (`apps/web`)
-- **Framework:** React 19, Vite 8, TypeScript
-- **Routing:** TanStack Router (file-based routes)
-- **Data:** TanStack Query, TanStack Table
-- **Forms:** react-hook-form + `@hookform/resolvers` (zodResolver)
-- **State:** Zustand (persisted auth, UI dialogs/sheets, transaction preferences)
-- **UI:** shadcn (base-lyra style), `@base-ui/react`, Phosphor Icons, Tailwind CSS v4
-- **Toasts:** Sonner (auto-handled by global mutation callbacks)
-
-### Monorepo Tooling
-- **Turborepo** for task orchestration (`turbo.json`): `build`, `dev`, `lint`, `test`, `type-check`
-- Pipeline topology: `api#build` (tsdown) runs before any web task via `^build` dependency
-- Local caching enabled; no remote caching
 
 ## Architecture
 
@@ -84,24 +33,6 @@ packages/server/src/modules/<domain>/
 ```
 
 Routes (`src/routes/`) are thin HTTP handlers that call services directly.
-
-Modules: `campaigns`, `categories`, `customers`, `orders`, `order-service-images`, `payment-methods`, `products`, `reports`, `services`, `shifts`, `stores`, `users`
-
-### Server Route Structure
-
-```
-src/
-  app.ts            # Hono app instance, CORS, logger middleware
-  index.ts          # Route mounting, global error handler, AppType export
-  routes/
-    auth.ts         # Authentication endpoints
-    admin/          # JWT-protected admin endpoints (one file per domain)
-      index.ts      # Mounts all admin sub-routes
-    public/         # Public endpoints
-      index.ts
-```
-
-All admin routes are protected by `adminMiddleware` applied to `/admin/*`.
 
 ### API Response Format
 
@@ -122,20 +53,6 @@ Server package exports (via `tsdown` build into `dist/`):
 - `@fresclean/api/rpc` - Typed Hono client helper
 - `@fresclean/api/schema` - Shared Zod schemas
 - `@fresclean/api/types` - Shared TypeScript types
-
-### Web Structure
-
-```
-apps/web/src/
-  components/ui/       # shadcn components
-  components/form/     # Shared form fields (CurrencyInput, PhoneNumberField)
-  features/<domain>/   # Feature modules (components/, hooks/)
-  hooks/               # Shared hooks (use-mobile.ts)
-  lib/                 # api.ts, rpc.ts, query-options.ts, status.ts, utils.ts
-  routes/              # TanStack Router file-based routes
-  shared/              # Shared Zod schemas, utils
-  stores/              # Zustand stores (auth, dialog, sheet, transaction-preferences)
-```
 
 ### UI Gotchas
 
@@ -178,15 +95,6 @@ Always run from the repo root — running from `apps/web` or `packages/server` m
 
 Husky runs `bunx biome check --write --staged --no-errors-on-unmatched` before every commit.
 
-### Key Rules
-
-- Explicit types for function params/returns when they enhance clarity
-- `unknown` over `any`; `const` over `let`; never `var`
-- Arrow functions for callbacks; `for...of` over `.forEach()`
-- `async/await` over promise chains
-- No `console.log`, `debugger`, or `alert` in production code
-- Early returns over nested conditionals
-
 ## Common Tasks
 
 ### Adding a New Admin Endpoint
@@ -223,8 +131,10 @@ cd packages/server && bunx tsdown
 
 ## Detailed Standards
 
-@packages/server/AGENTS.md
-@apps/web/AGENTS.md
+Loaded automatically when working under their own directory, not before:
+
+- `packages/server/AGENTS.md` — server/API standards
+- `apps/web/AGENTS.md` — web standards
 
 ## Agent skills
 
