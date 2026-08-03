@@ -22,6 +22,7 @@ import {
 	isAcceptedImage,
 	type UploadPhotoInput,
 } from "@/features/orders/utils/photo-upload";
+import { readServerErrorMessage } from "@/lib/server-error";
 import { cn } from "@/lib/utils";
 
 interface PendingPhoto {
@@ -270,7 +271,7 @@ const PhotoUploadDialogBase = ({
 			await onUploaded?.();
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to upload photos");
+			toast.error(readServerErrorMessage(error, "Failed to upload photos"));
 		},
 	});
 

@@ -21,20 +21,23 @@ import {
 	type TransactionDraftValues,
 	toOrderPayload,
 } from "@/features/transactions/cart/cart";
+import {
+	collectCheckoutIssues,
+	describeServerFailure,
+	summarizeCheckoutIssues,
+} from "@/features/transactions/lib/checkout-issues";
 import type { TransactionsPageContextValue } from "@/features/transactions/lib/transactions-context";
 import { createOrder, type ResolvedVoucher } from "@/lib/api";
 import { isValidPhoneNumber } from "@/lib/phone-number";
 import { meQueryOptions, storesQueryOptions } from "@/lib/query-options";
+import { readServerErrorMessage } from "@/lib/server-error";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useTransactionPreferencesStore } from "@/stores/transaction-preferences-store";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 const transactionDraftSchema = z
 	.object({
-		selectedStoreId: z
-			.string()
-			.trim()
-			.min(1, "Store is required before creating a transaction."),
+		selectedStoreId: z.string().trim().min(1, "Store is required."),
 		customerName: z.string().trim().min(1, "Customer name is required."),
 		customerPhone: z
 			.string()
@@ -192,6 +195,10 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 	const createMutation = useMutation({
 		mutationKey: ["create-pos-order"],
 		mutationFn: createOrder,
+		// Opt out of the global error toast (main.tsx): a failed checkout is
+		// already reported inline by the sheet footer, and the global one would
+		// fire alongside it as a second, blunter copy.
+		onError: () => undefined,
 	});
 
 	const resetCart = useCallback(() => {
@@ -200,6 +207,8 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 		resetTransactionDraft(form, { setSubmitError, setDropoffPhoto });
 	}, [form]);
 
+	// A rejected checkout lands in the footer error; post-commit hiccups (photo,
+	// receipt) keep their own toasts — they don't fail the Order.
 	const onValidSubmit = useCallback(
 		async (values: TransactionDraftValues) => {
 			useTransactionsPageStore.getState().setSubmitError("");
@@ -268,29 +277,25 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 					},
 				});
 			} catch (error) {
-				const message =
-					error instanceof Error
-						? error.message
-						: "Failed to create transaction";
-				useTransactionsPageStore.getState().setSubmitError(message);
-				toast.error("Unable to create transaction", {
-					description: message,
-				});
+				const issue = describeServerFailure(
+					readServerErrorMessage(error, "Failed to create transaction"),
+				);
+				useTransactionsPageStore.getState().setSubmitError(issue.message);
 			}
 		},
 		[createMutation, navigate, queryClient, resetCart],
 	);
 
-	// onInvalid surfaces a footer error: the two-step split can put a failing
-	// field on a step the cashier isn't looking at, so a blocked submit would
-	// otherwise be a silent no-op with the FieldError on the hidden step.
+	// onInvalid names each blocked field in the footer error, in fix order: a
+	// failing field can sit on a step the cashier isn't looking at, so the footer
+	// line is what tells them a hidden step needs attention.
 	const submit = useMemo(
 		() =>
-			form.handleSubmit(onValidSubmit, () => {
+			form.handleSubmit(onValidSubmit, (errors) => {
 				useTransactionsPageStore
 					.getState()
 					.setSubmitError(
-						"Some details are incomplete. Check the customer, items, and payment steps.",
+						summarizeCheckoutIssues(collectCheckoutIssues(errors)),
 					);
 			}),
 		[form, onValidSubmit],

@@ -36,6 +36,7 @@ import {
 } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { meQueryOptions, storesQueryOptions } from "@/lib/query-options";
+import { readServerErrorMessage } from "@/lib/server-error";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
@@ -341,7 +342,9 @@ function WorkerQueuePage() {
 			});
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to find item, order, or line");
+			toast.error(
+				readServerErrorMessage(error, "Failed to find item, order, or line"),
+			);
 		},
 	});
 

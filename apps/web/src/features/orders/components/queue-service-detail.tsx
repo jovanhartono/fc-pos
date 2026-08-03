@@ -29,6 +29,7 @@ import {
 } from "@/lib/api";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { orderDetailQueryOptions } from "@/lib/query-options";
+import { readServerErrorMessage } from "@/lib/server-error";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
@@ -124,7 +125,7 @@ export function QueueServiceDetail({
 			await refreshData(detail?.store?.id);
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to start work");
+			toast.error(readServerErrorMessage(error, "Failed to start work"));
 		},
 	});
 
@@ -137,7 +138,7 @@ export function QueueServiceDetail({
 			await refreshData(detail?.store?.id);
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to update status");
+			toast.error(readServerErrorMessage(error, "Failed to update status"));
 		},
 	});
 
