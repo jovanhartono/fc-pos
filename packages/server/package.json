@@ -24,7 +24,7 @@
     }
   },
   "scripts": {
-    "dev": "bun --bun concurrently -k -n server,types -c blue,magenta \"bun run --hot src/index.ts\" \"bun --bun tsdown --watch\"",
+    "dev": "bun --bun concurrently -k -n server,types -c blue,magenta \"bun run --hot src/index.ts\" \"bun --bun tsdown --watch --no-clean\"",
     "build": "bun --bun tsdown",
     "build:types": "bun --bun tsdown",
     "lint": "biome check .",
