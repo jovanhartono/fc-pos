@@ -126,11 +126,13 @@ export const Route = createFileRoute("/_admin/worker/")({
 	validateSearch: (search) => workerSearchSchema.parse(search),
 	loader: async ({ context }) => {
 		const currentUser = getCurrentUser();
-		await context.queryClient.ensureQueryData(storesQueryOptions());
 
-		if (currentUser) {
-			await context.queryClient.ensureQueryData(meQueryOptions());
-		}
+		await Promise.all([
+			context.queryClient.ensureQueryData(storesQueryOptions()),
+			currentUser
+				? context.queryClient.ensureQueryData(meQueryOptions())
+				: undefined,
+		]);
 	},
 	component: WorkerQueuePage,
 });

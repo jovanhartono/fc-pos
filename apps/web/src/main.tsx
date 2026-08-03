@@ -7,6 +7,7 @@ import { DetailedError } from "hono/client";
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
+import { RoutePending } from "@/components/route-pending";
 import { ThemeProvider } from "@/components/theme-provider";
 import { routeTree } from "@/routeTree.gen";
 
@@ -56,6 +57,12 @@ const router = createRouter({
 	context: {
 		queryClient,
 	},
+	defaultPreload: "intent",
+	// Loaders delegate freshness to React Query's staleTime; without this the
+	// router's own 30s preload window would shadow it.
+	defaultPreloadStaleTime: 0,
+	defaultPendingComponent: RoutePending,
+	defaultViewTransition: true,
 });
 
 declare module "@tanstack/react-router" {
