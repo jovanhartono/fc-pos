@@ -1,11 +1,13 @@
 import {
 	CameraIcon,
 	ImageSquareIcon,
+	PencilSimpleLineIcon,
+	TrashIcon,
 	WarningCircleIcon,
 	XIcon,
 } from "@phosphor-icons/react";
 import { useMutation } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +18,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { PhotoStage } from "@/features/orders/components/photo-stage";
 import { useCameraCapture } from "@/features/orders/hooks/useCameraCapture";
 import { normalizeImageFile } from "@/features/orders/utils/normalize-image";
 import {
@@ -43,50 +46,6 @@ const revokePhotos = (photos: PendingPhoto[]) => {
 		URL.revokeObjectURL(photo.previewUrl);
 	}
 };
-
-interface PhotoThumbProps {
-	disabled: boolean;
-	isActive: boolean;
-	onRemove: () => void;
-	onSelect: () => void;
-	photo: PendingPhoto;
-}
-
-// One captured/picked still in the bottom thumb strip (iOS-camera style): tap to
-// review it in the stage, the corner × removes it.
-const PhotoThumb = ({
-	disabled,
-	isActive,
-	onRemove,
-	onSelect,
-	photo,
-}: PhotoThumbProps) => (
-	<div className="relative shrink-0">
-		<button
-			aria-current={isActive}
-			aria-label={`Preview ${photo.file.name}`}
-			className={cn(
-				"block size-14 overflow-hidden border bg-white/5 transition",
-				isActive
-					? "border-white ring-1 ring-white"
-					: "border-white/30 opacity-70 hover:opacity-100",
-			)}
-			onClick={onSelect}
-			type="button"
-		>
-			<img alt="" className="size-full object-cover" src={photo.previewUrl} />
-		</button>
-		<button
-			aria-label={`Remove ${photo.file.name}`}
-			className="absolute top-1 right-1 grid size-5 place-items-center rounded-full bg-black/60 text-white shadow-sm transition hover:bg-black/80 disabled:opacity-50"
-			disabled={disabled}
-			onClick={onRemove}
-			type="button"
-		>
-			<XIcon className="size-3" aria-hidden="true" />
-		</button>
-	</div>
-);
 
 interface PhotoUploadDialogBaseProps {
 	open: boolean;
@@ -125,6 +84,7 @@ const PhotoUploadDialogBase = ({
 	const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
 	const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
 	const [note, setNote] = useState("");
+	const [isNoteOpen, setIsNoteOpen] = useState(false);
 	const [isNormalizing, setIsNormalizing] = useState(false);
 	const sessionRef = useRef(0);
 
@@ -138,6 +98,7 @@ const PhotoUploadDialogBase = ({
 		});
 		setSelectedPhotoId(null);
 		setNote("");
+		setIsNoteOpen(false);
 	}, [stopCamera]);
 
 	useEffect(() => {
@@ -243,7 +204,8 @@ const PhotoUploadDialogBase = ({
 		]);
 		// Single-photo flows: stop after the shot so the still preview replaces the
 		// live feed in the stage. Multiple-photo flows keep the camera open so
-		// consecutive shots can be taken — the shots pile up in the thumb strip.
+		// consecutive shots can be taken — the shots pile up behind the last-shot
+		// square, which the operator taps once to review them all.
 		if (!multiple) {
 			stopCamera();
 		}
@@ -261,8 +223,8 @@ const PhotoUploadDialogBase = ({
 		);
 	};
 
-	// Tapping a thumb reviews it in the stage, so the live feed must yield to the
-	// still — stop the camera and let the user reopen it to shoot more.
+	// Reviewing a still means the live feed must yield to it — stop the camera and let
+	// the operator reopen it to shoot more.
 	const reviewPhoto = (photoId: string) => {
 		setSelectedPhotoId(photoId);
 		stopCamera();
@@ -307,6 +269,7 @@ const PhotoUploadDialogBase = ({
 	// Normalizing counts as busy: confirming while a pick is still being scaled down uploaded
 	// only the photos that had landed, toasted success, and dropped the rest of the evidence.
 	const isBusy = uploadMutation.isPending || isNormalizing;
+	const photoCount = pendingPhotos.length;
 	const photoNoun = multiple ? "photos" : "photo";
 	const labelSuffix = badgeLabel ? ` for ${badgeLabel}` : "";
 
@@ -317,9 +280,7 @@ const PhotoUploadDialogBase = ({
 			: "Use photo"
 		: "Upload";
 	const confirmLabel =
-		multiple && pendingPhotos.length > 0
-			? `${confirmBase} · ${pendingPhotos.length}`
-			: confirmBase;
+		multiple && photoCount > 0 ? `${confirmBase} · ${photoCount}` : confirmBase;
 	const handleConfirm = async () => {
 		if (onCapture) {
 			onCapture(pendingPhotos.map((photo) => photo.file));
@@ -329,17 +290,39 @@ const PhotoUploadDialogBase = ({
 		await uploadMutation.mutateAsync();
 	};
 
-	// The stage shows the live feed while shooting; otherwise the reviewed still
-	// (falling back to the latest shot if the selection was removed).
-	const selectedPhoto =
-		pendingPhotos.find((photo) => photo.id === selectedPhotoId) ??
-		pendingPhotos.at(-1) ??
-		null;
+	// Shooting fills the screen with the viewfinder; reviewing hands the same photo surface
+	// the lightbox uses to the stills, so a shot swipes and pinches identically before and
+	// after it is uploaded.
+	const isShooting = camera.isOpen;
+	const lastPhoto = pendingPhotos.at(-1);
+	const selectedIndex = pendingPhotos.findIndex(
+		(photo) => photo.id === selectedPhotoId,
+	);
+	// A removed selection falls through to the newest shot rather than emptying the stage.
+	const activeIndex = selectedIndex === -1 ? photoCount - 1 : selectedIndex;
+	const selectedPhoto = pendingPhotos[activeIndex] ?? null;
+	const stageItems = useMemo(
+		() =>
+			pendingPhotos.map((photo) => ({
+				alt: `Preview ${photo.file.name}`,
+				id: photo.id,
+				image_url: photo.previewUrl,
+			})),
+		[pendingPhotos],
+	);
+	const handleIndexChange = (index: number) => {
+		const photo = pendingPhotos[index];
+		if (photo) {
+			setSelectedPhotoId(photo.id);
+		}
+	};
+
 	const cameraButtonLabel =
-		pendingPhotos.length === 0 ? "Open camera" : multiple ? "Camera" : "Retake";
+		photoCount === 0 ? "Open camera" : multiple ? "Camera" : "Retake";
 	const placeholderText = cameraOnly
 		? "Camera is required for this photo."
 		: "Open the camera or pick from your device.";
+	const hasNote = note.trim().length > 0;
 
 	return (
 		<Dialog
@@ -358,32 +341,59 @@ const PhotoUploadDialogBase = ({
 			>
 				<DialogTitle className="sr-only">{title}</DialogTitle>
 				<DialogDescription className="sr-only">
-					Capture a photo with the camera or upload one from your device.
+					{isShooting
+						? "Capture a photo with the camera or upload one from your device."
+						: "Pinch or double-tap to zoom. Swipe to move between photos."}
 				</DialogDescription>
 
-				{/* Top chrome: close · item badge, over the viewfinder. */}
-				<div className="flex shrink-0 items-center justify-between gap-3 px-4 pt-[calc(env(safe-area-inset-top)_+_0.75rem)] pb-3">
+				{/* Top chrome: close · position · item badge, over the viewfinder. The fast path
+				    uploads from here so the shooting layout never gives up height for a button. */}
+				<div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 pt-[calc(env(safe-area-inset-top)_+_0.75rem)] pb-3">
 					<button
 						aria-label="Close"
-						className="grid size-9 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+						className="grid size-9 place-items-center justify-self-start rounded-full bg-white/10 text-white transition hover:bg-white/20"
 						onClick={() => onOpenChange(false)}
 						type="button"
 					>
 						<XIcon className="size-5" aria-hidden="true" />
 					</button>
-					{badgeLabel ? (
-						<Badge
-							className="border-white/40 bg-transparent text-white"
-							variant="outline"
-						>
-							{badgeLabel}
-						</Badge>
-					) : null}
+
+					{!isShooting && photoCount > 1 ? (
+						<p className="justify-self-center font-mono text-xs text-white/70 tabular-nums">
+							{activeIndex + 1} / {photoCount}
+						</p>
+					) : (
+						<span />
+					)}
+
+					<div className="flex items-center justify-end gap-2 justify-self-end">
+						{badgeLabel ? (
+							<Badge
+								className="border-white/40 bg-transparent text-white"
+								variant="outline"
+							>
+								{badgeLabel}
+							</Badge>
+						) : null}
+						{isShooting && photoCount > 0 ? (
+							<Button
+								className="bg-white font-semibold text-black hover:bg-white/90"
+								disabled={isBusy}
+								loading={isBusy}
+								loadingText={isNormalizing ? "Processing..." : "Uploading..."}
+								onClick={handleConfirm}
+								size="sm"
+								type="button"
+							>
+								{confirmLabel}
+							</Button>
+						) : null}
+					</div>
 				</div>
 
-				{/* Viewfinder: live feed, reviewed still, or empty hint. */}
-				<div className="relative min-h-0 flex-1 overflow-hidden px-4">
-					{camera.isOpen ? (
+				{/* Live feed, reviewed still, or empty hint. */}
+				<div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+					{isShooting ? (
 						<video
 							ref={camera.previewRef}
 							autoPlay
@@ -393,10 +403,10 @@ const PhotoUploadDialogBase = ({
 							className="size-full object-cover"
 						/>
 					) : selectedPhoto ? (
-						<img
-							src={selectedPhoto.previewUrl}
-							alt={`Preview ${selectedPhoto.file.name}`}
-							className="size-full object-contain"
+						<PhotoStage
+							activeIndex={activeIndex}
+							items={stageItems}
+							onIndexChange={handleIndexChange}
 						/>
 					) : (
 						<div className="flex size-full flex-col items-center justify-center gap-2 px-6 text-center text-sm text-white/70">
@@ -416,34 +426,61 @@ const PhotoUploadDialogBase = ({
 					) : null}
 				</div>
 
-				{/* Bottom chrome: thumbs · shutter · device, note, primary action. */}
+				{/* Bottom chrome: native-camera controls while shooting, photo actions while
+				    reviewing. Neither mode reserves height for the other's controls. */}
 				<div className="shrink-0 space-y-3 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)_+_1rem)]">
-					<div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-2">
-						<div className="flex min-w-0 items-center gap-2 overflow-x-auto py-1">
-							{pendingPhotos.map((photo) => (
-								<PhotoThumb
-									disabled={isBusy}
-									isActive={!camera.isOpen && selectedPhoto?.id === photo.id}
-									key={photo.id}
-									onRemove={() => removePhoto(photo.id)}
-									onSelect={() => reviewPhoto(photo.id)}
-									photo={photo}
-								/>
-							))}
-						</div>
+					{isShooting ? (
+						<div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-2">
+							<div className="justify-self-start">
+								{lastPhoto ? (
+									<button
+										aria-label={`Review ${photoCount} ${photoCount === 1 ? "photo" : "photos"}`}
+										className="relative block size-14 overflow-hidden border border-white/40 bg-white/5 disabled:opacity-40"
+										disabled={isBusy}
+										onClick={() => reviewPhoto(lastPhoto.id)}
+										type="button"
+									>
+										<img
+											alt=""
+											className="size-full object-cover"
+											src={lastPhoto.previewUrl}
+										/>
+										{photoCount > 1 ? (
+											<span className="absolute top-0 right-0 grid size-5 place-items-center bg-white text-[0.625rem] font-medium text-black tabular-nums">
+												{photoCount}
+											</span>
+										) : null}
+									</button>
+								) : null}
+							</div>
 
-						<div className="justify-self-center">
-							{camera.isOpen ? (
-								<button
-									aria-label="Capture photo"
-									className="grid size-16 place-items-center rounded-full border-4 border-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-40"
-									disabled={!camera.isReady || isBusy}
-									onClick={captureCameraPhoto}
-									type="button"
-								>
-									<span className="size-12 rounded-full bg-white transition active:scale-90" />
-								</button>
-							) : (
+							<button
+								aria-label="Capture photo"
+								className="grid size-16 place-items-center justify-self-center rounded-full border-4 border-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-40"
+								disabled={!camera.isReady || isBusy}
+								onClick={captureCameraPhoto}
+								type="button"
+							>
+								<span className="size-12 rounded-full bg-white transition active:scale-90" />
+							</button>
+
+							<div className="justify-self-end">
+								{cameraOnly ? null : (
+									<button
+										aria-label="Upload from device"
+										className="grid size-12 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
+										disabled={isBusy}
+										onClick={openFileInput}
+										type="button"
+									>
+										<ImageSquareIcon className="size-5" aria-hidden="true" />
+									</button>
+								)}
+							</div>
+						</div>
+					) : (
+						<>
+							<div className="flex h-12 items-center gap-2">
 								<button
 									className="flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2.5 font-medium text-sm text-white transition hover:bg-white/20 disabled:opacity-40"
 									disabled={isBusy}
@@ -453,23 +490,87 @@ const PhotoUploadDialogBase = ({
 									<CameraIcon className="size-4" aria-hidden="true" />
 									{cameraButtonLabel}
 								</button>
-							)}
-						</div>
 
-						<div className="justify-self-end">
-							{cameraOnly ? null : (
-								<button
-									aria-label="Upload from device"
-									className="grid size-12 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
+								{cameraOnly ? null : (
+									<button
+										aria-label="Upload from device"
+										className="grid size-12 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
+										disabled={isBusy}
+										onClick={openFileInput}
+										type="button"
+									>
+										<ImageSquareIcon className="size-5" aria-hidden="true" />
+									</button>
+								)}
+
+								{withNote && photoCount > 0 ? (
+									<button
+										aria-expanded={isNoteOpen}
+										aria-label={isNoteOpen ? "Hide note" : "Add note"}
+										className={cn(
+											"relative grid size-12 place-items-center rounded-full transition disabled:opacity-40",
+											isNoteOpen
+												? "bg-white text-black"
+												: "bg-white/10 text-white hover:bg-white/20",
+										)}
+										disabled={isBusy}
+										onClick={() => setIsNoteOpen((previous) => !previous)}
+										type="button"
+									>
+										<PencilSimpleLineIcon
+											className="size-5"
+											aria-hidden="true"
+										/>
+										{hasNote && !isNoteOpen ? (
+											<span className="absolute top-2 right-2 size-1.5 bg-white" />
+										) : null}
+									</button>
+								) : null}
+
+								{selectedPhoto ? (
+									<button
+										aria-label={`Remove ${selectedPhoto.file.name}`}
+										className="ml-auto grid size-12 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
+										disabled={isBusy}
+										onClick={() => removePhoto(selectedPhoto.id)}
+										type="button"
+									>
+										<TrashIcon className="size-5" aria-hidden="true" />
+									</button>
+								) : null}
+							</div>
+
+							{withNote && isNoteOpen ? (
+								<Textarea
+									value={note}
+									onChange={(event) => setNote(event.target.value)}
+									placeholder={
+										photoCount > 1
+											? `Note for all ${photoCount} photos`
+											: "Optional note"
+									}
+									rows={2}
+									maxLength={200}
 									disabled={isBusy}
-									onClick={openFileInput}
+									aria-label={`Photo note${labelSuffix}`}
+									className="border-white/20 bg-white/5 text-white placeholder:text-white/50 disabled:opacity-50"
+								/>
+							) : null}
+
+							{photoCount > 0 ? (
+								<Button
+									className="h-14 w-full bg-white font-semibold text-base text-black hover:bg-white/90"
 									type="button"
+									disabled={isBusy}
+									loading={isBusy}
+									loadingText={isNormalizing ? "Processing..." : "Uploading..."}
+									onClick={handleConfirm}
 								>
-									<ImageSquareIcon className="size-5" aria-hidden="true" />
-								</button>
-							)}
-						</div>
-					</div>
+									{confirmLabel}
+								</Button>
+							) : null}
+						</>
+					)}
 
 					{cameraOnly ? null : (
 						<input
@@ -484,30 +585,6 @@ const PhotoUploadDialogBase = ({
 							}}
 						/>
 					)}
-
-					{withNote ? (
-						<Textarea
-							value={note}
-							onChange={(event) => setNote(event.target.value)}
-							placeholder="Optional note"
-							rows={2}
-							maxLength={200}
-							disabled={isBusy || pendingPhotos.length === 0}
-							aria-label={`Photo note${labelSuffix}`}
-							className="border-white/20 bg-white/5 text-white placeholder:text-white/50 disabled:opacity-50"
-						/>
-					) : null}
-
-					<Button
-						className="h-14 w-full bg-white font-semibold text-base text-black hover:bg-white/90"
-						type="button"
-						disabled={pendingPhotos.length === 0 || isBusy}
-						loading={isBusy}
-						loadingText={isNormalizing ? "Processing..." : "Uploading..."}
-						onClick={handleConfirm}
-					>
-						{confirmLabel}
-					</Button>
 				</div>
 			</DialogContent>
 		</Dialog>
