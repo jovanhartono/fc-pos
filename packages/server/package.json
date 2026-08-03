@@ -28,7 +28,7 @@
     "build": "bun --bun tsdown",
     "build:types": "bun --bun tsdown",
     "lint": "biome check .",
-    "type-check": "tsc -b",
+    "type-check": "tsc",
     "test": "bun test",
     "seed:dev": "bun run src/db/seed.ts",
     "pull:dev": "bun drizzle-kit pull --config=drizzle-dev.config.ts",
