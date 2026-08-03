@@ -26,7 +26,7 @@
 react-hook-form + zodResolver + useMutation for every form.
 
 - Wrap with `FormProvider`; children use `useFormContext()`. Never prop-drill `control`/`errors`/`isSubmitting`.
-- Pair every form with `useMutation`. Global `QueryClient` handles success/error toasts — only add `onSuccess`/`onError` for invalidation, close sheet, or navigate.
+- Pair every form with `useMutation`. Global `QueryClient` handles success/error toasts — only add `onSuccess`/`onError` for invalidation, close sheet, navigate, or to opt out of the global toast when the component already reports the same failure/success with more context (e.g. `onError: () => undefined` when a form surfaces its own error with a fix-it action). `onSuccess`/`onError` set on a mutation fully replace the global default's version of that callback rather than composing with it — that's the mechanism this opt-out relies on.
 - Use `Field`, `FieldLabel`, `FieldError` from `@/components/ui/field`. `Controller` for non-native inputs. `useFieldArray` for lists. `useWatch` for derived values.
 - Schemas from `@fresclean/api/schema` or local to the feature. Do not re-implement the server's field builders.
 - `StoreAutocomplete` (`features/orders/components/`) reused across features. For filter UIs pass `allOptionLabel="All stores"` — prepends `{ value: "", label }` sentinel so `""` = unscoped.

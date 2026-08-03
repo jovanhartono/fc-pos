@@ -66,8 +66,8 @@ const firstMessage = (error: unknown): string | undefined => {
 // move, ordered by where they go to make it.
 export const collectCheckoutIssues = (
 	errors: FieldErrors<TransactionDraftValues>,
-): CheckoutIssue[] =>
-	TARGET_ORDER.flatMap((target) =>
+): CheckoutIssue[] => {
+	const ordered = TARGET_ORDER.flatMap((target) =>
 		Object.entries(FIELD_TARGETS).flatMap(([field, fieldTarget]) => {
 			if (fieldTarget !== target) {
 				return [];
@@ -78,6 +78,16 @@ export const collectCheckoutIssues = (
 			return message ? [{ target, message }] : [];
 		}),
 	);
+	// Keys outside FIELD_TARGETS (RHF's root) would block submit in silence.
+	const unmapped = Object.entries(errors).flatMap(([field, error]) => {
+		if (field in FIELD_TARGETS) {
+			return [];
+		}
+		const message = firstMessage(error);
+		return message ? [{ target: null, message }] : [];
+	});
+	return [...ordered, ...unmapped];
+};
 
 // One line for the footer, which has room for a sentence rather than a list.
 export const summarizeCheckoutIssues = (issues: CheckoutIssue[]): string =>
@@ -92,7 +102,10 @@ export const getIssueStep = (issue: CheckoutIssue): CheckoutStep | null =>
 // hono's parseResponse throws a DetailedError whose own message is just the
 // status line ("400 Bad Request"); the server's reason rides in detail.data as
 // { success: false, message }. Without this unwrap the cashier reads the status.
-export const readServerErrorMessage = (error: unknown): string => {
+export const readServerErrorMessage = (
+	error: unknown,
+	fallback = "Failed to create transaction",
+): string => {
 	if (error instanceof DetailedError) {
 		const detail = error.detail as { data?: { message?: string } } | undefined;
 		if (detail?.data?.message) {
@@ -102,7 +115,7 @@ export const readServerErrorMessage = (error: unknown): string => {
 	if (error instanceof Error && error.message.length > 0) {
 		return error.message;
 	}
-	return "Failed to create transaction";
+	return fallback;
 };
 
 // The server's reasons already read well and name the offending product or code;

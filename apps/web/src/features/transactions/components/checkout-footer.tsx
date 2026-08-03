@@ -86,8 +86,10 @@ export const CheckoutFooter = ({
 					firstIssue.message
 				) : (
 					<ul className="grid gap-0.5">
-						{issues.map((issue) => (
-							<li key={issue.message}>{issue.message}</li>
+						{issues.map((issue, index) => (
+							<li key={`${issue.target ?? "none"}-${index}`}>
+								{issue.message}
+							</li>
 						))}
 					</ul>
 				),

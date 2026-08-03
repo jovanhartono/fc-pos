@@ -1,6 +1,5 @@
 import { TicketIcon, XIcon } from "@phosphor-icons/react";
 import { useMutation } from "@tanstack/react-query";
-import { DetailedError } from "hono/client";
 import { useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -10,28 +9,13 @@ import type {
 	AppliedVoucher,
 	TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
+import { readServerErrorMessage } from "@/features/transactions/lib/checkout-issues";
 import { resolveVoucherCode } from "@/lib/api";
 
 interface VoucherCodeEntryProps {
 	storeId: number | undefined;
 	subtotal: number;
 }
-
-// DetailedError carries the server body at detail.data.message; the plain
-// message is only the "400 Bad Request" status line. Surface the server copy
-// inline so the cashier sees why a code was rejected, not just a toast.
-const getServerMessage = (error: unknown): string => {
-	if (error instanceof DetailedError) {
-		const detail = error.detail as { data?: { message?: string } } | undefined;
-		if (detail?.data?.message) {
-			return detail.data.message;
-		}
-	}
-	if (error instanceof Error) {
-		return error.message;
-	}
-	return "Failed to apply voucher code";
-};
 
 export const VoucherCodeEntry = ({
 	storeId,
@@ -128,7 +112,12 @@ export const VoucherCodeEntry = ({
 			</Field>
 
 			{resolveMutation.isError ? (
-				<FieldError>{getServerMessage(resolveMutation.error)}</FieldError>
+				<FieldError>
+					{readServerErrorMessage(
+						resolveMutation.error,
+						"Failed to apply voucher code",
+					)}
+				</FieldError>
 			) : null}
 
 			{appliedVouchers.length > 0 ? (

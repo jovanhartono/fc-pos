@@ -11,7 +11,7 @@ import { useTransactionsPageContext } from "@/features/transactions/lib/transact
 
 export function TransactionsWorkspace() {
 	const [cartSheetOpen, setCartSheetOpen] = useState(false);
-	const { visibleStores } = useTransactionsPageContext();
+	const { isAdmin, visibleStores } = useTransactionsPageContext();
 	const form = useFormContext<TransactionDraftValues>();
 	const selectedStoreId =
 		useWatch({ control: form.control, name: "selectedStoreId" }) ?? "";
@@ -24,15 +24,19 @@ export function TransactionsWorkspace() {
 		if (!selectedStoreId) {
 			// A staff account with no store assigned lands here with an empty, disabled
 			// picker — offering "Select store" would point at a control they can't use.
-			if (visibleStores.length === 0) {
+			if (!isAdmin && visibleStores.length === 0) {
 				toast.error("No store assigned to your account", {
 					description: "Ask an admin to assign one.",
 				});
 				return;
 			}
 			void form.trigger("selectedStoreId");
+			// Only the admin's picker is enabled — for staff it is auto-filled and
+			// disabled, so focusing it would do nothing.
 			toast.error("Select a store first", {
-				action: { label: "Select store", onClick: focusStoreField },
+				action: isAdmin
+					? { label: "Select store", onClick: focusStoreField }
+					: undefined,
 			});
 			return;
 		}
