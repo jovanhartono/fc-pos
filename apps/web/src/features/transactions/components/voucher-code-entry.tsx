@@ -9,8 +9,8 @@ import type {
 	AppliedVoucher,
 	TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
-import { readServerErrorMessage } from "@/features/transactions/lib/checkout-issues";
 import { resolveVoucherCode } from "@/lib/api";
+import { readServerErrorMessage } from "@/lib/server-error";
 
 interface VoucherCodeEntryProps {
 	storeId: number | undefined;

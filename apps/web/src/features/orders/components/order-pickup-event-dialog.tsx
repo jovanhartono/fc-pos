@@ -27,6 +27,7 @@ import {
 	uploadFileToPresignedUrl,
 } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
+import { readServerErrorMessage } from "@/lib/server-error";
 
 type ReadyService = OrderDetail["services"][number];
 
@@ -165,7 +166,7 @@ export const OrderPickupEventDialog = ({
 			closeDialog();
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to record pickup");
+			toast.error(readServerErrorMessage(error, "Failed to record pickup"));
 		},
 	});
 

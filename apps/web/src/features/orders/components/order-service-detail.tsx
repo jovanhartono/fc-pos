@@ -22,6 +22,7 @@ import { uploadOrderServicePhoto } from "@/features/orders/utils/photo-upload";
 import { deleteOrderServicePhoto } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { orderDetailQueryOptions } from "@/lib/query-options";
+import { readServerErrorMessage } from "@/lib/server-error";
 import {
 	formatCancelReason,
 	formatOrderServiceStatus,
@@ -57,9 +58,7 @@ const DeletePhotoConfirmDialog = ({
 			closeDialog();
 		},
 		onError: (error) => {
-			toast.error(
-				error instanceof Error ? error.message : "Failed to delete photo",
-			);
+			toast.error(readServerErrorMessage(error, "Failed to delete photo"));
 		},
 	});
 

@@ -1,4 +1,3 @@
-import { DetailedError } from "hono/client";
 import type { FieldErrors } from "react-hook-form";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import type { CheckoutStep } from "@/features/transactions/components/checkout-stepper";
@@ -92,25 +91,6 @@ export const collectCheckoutIssues = (
 // One line for the footer, which has room for a sentence rather than a list.
 export const summarizeCheckoutIssues = (issues: CheckoutIssue[]): string =>
 	issues.map((issue) => issue.message).join(" ");
-
-// hono's parseResponse throws a DetailedError whose own message is just the
-// status line ("400 Bad Request"); the server's reason rides in detail.data as
-// { success: false, message }. Without this unwrap the cashier reads the status.
-export const readServerErrorMessage = (
-	error: unknown,
-	fallback = "Failed to create transaction",
-): string => {
-	if (error instanceof DetailedError) {
-		const detail = error.detail as { data?: { message?: string } } | undefined;
-		if (detail?.data?.message) {
-			return detail.data.message;
-		}
-	}
-	if (error instanceof Error && error.message.length > 0) {
-		return error.message;
-	}
-	return fallback;
-};
 
 // The server's reasons already read well and name the offending product or code;
 // what they lack is the next move and the step that owns it. Keep the reason

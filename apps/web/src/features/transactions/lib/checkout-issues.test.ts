@@ -1,12 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { DetailedError } from "hono/client";
 import type { FieldErrors } from "react-hook-form";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import {
 	type CheckoutIssue,
 	collectCheckoutIssues,
 	describeServerFailure,
-	readServerErrorMessage,
 	summarizeCheckoutIssues,
 } from "./checkout-issues";
 
@@ -71,29 +69,6 @@ describe("collectCheckoutIssues", () => {
 
 	test("a clean form reports nothing", () => {
 		expect(collectCheckoutIssues(errors({}))).toHaveLength(0);
-	});
-});
-
-describe("readServerErrorMessage", () => {
-	test("a rejected checkout reads as the reason, not the status line", () => {
-		const error = new DetailedError("400 Bad Request", {
-			detail: {
-				data: {
-					success: false,
-					message: "Insufficient stock for product Nike Cleaner",
-				},
-			},
-		});
-
-		expect(readServerErrorMessage(error)).toBe(
-			"Insufficient stock for product Nike Cleaner",
-		);
-	});
-
-	test("a dropped connection still says something", () => {
-		expect(readServerErrorMessage(new Error("Failed to fetch"))).toBe(
-			"Failed to fetch",
-		);
 	});
 });
 

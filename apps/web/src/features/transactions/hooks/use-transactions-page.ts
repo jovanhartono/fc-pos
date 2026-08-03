@@ -24,13 +24,13 @@ import {
 import {
 	collectCheckoutIssues,
 	describeServerFailure,
-	readServerErrorMessage,
 	summarizeCheckoutIssues,
 } from "@/features/transactions/lib/checkout-issues";
 import type { TransactionsPageContextValue } from "@/features/transactions/lib/transactions-context";
 import { createOrder, type ResolvedVoucher } from "@/lib/api";
 import { isValidPhoneNumber } from "@/lib/phone-number";
 import { meQueryOptions, storesQueryOptions } from "@/lib/query-options";
+import { readServerErrorMessage } from "@/lib/server-error";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useTransactionPreferencesStore } from "@/stores/transaction-preferences-store";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
@@ -277,7 +277,9 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 					},
 				});
 			} catch (error) {
-				const issue = describeServerFailure(readServerErrorMessage(error));
+				const issue = describeServerFailure(
+					readServerErrorMessage(error, "Failed to create transaction"),
+				);
 				useTransactionsPageStore.getState().setSubmitError(issue.message);
 			}
 		},
