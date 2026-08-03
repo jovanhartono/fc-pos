@@ -1,5 +1,6 @@
 import {
 	CameraIcon,
+	CircleNotchIcon,
 	ImageSquareIcon,
 	PencilSimpleLineIcon,
 	TrashIcon,
@@ -85,7 +86,12 @@ const PhotoUploadDialogBase = ({
 	const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
 	const [note, setNote] = useState("");
 	const [isNoteOpen, setIsNoteOpen] = useState(false);
-	const [isNormalizing, setIsNormalizing] = useState(false);
+	// Which of a picked batch is being scaled down. A 12MP gallery photo takes long enough
+	// that the cashier retaps thinking nothing happened, so the count is worth carrying.
+	const [normalizing, setNormalizing] = useState<{
+		done: number;
+		total: number;
+	} | null>(null);
 	const sessionRef = useRef(0);
 
 	const stopCamera = camera.stop;
@@ -105,7 +111,7 @@ const PhotoUploadDialogBase = ({
 		// A scale-down that finishes after the operator gave up on the dialog must not push
 		// its photo into the next order's evidence: opening or closing voids work in flight.
 		sessionRef.current += 1;
-		setIsNormalizing(false);
+		setNormalizing(null);
 
 		if (!open) {
 			return;
@@ -133,11 +139,11 @@ const PhotoUploadDialogBase = ({
 
 			const accepted = multiple ? files : files.slice(0, 1);
 			const session = sessionRef.current;
-			setIsNormalizing(true);
 
 			const normalized: File[] = [];
 			try {
-				for (const file of accepted) {
+				for (const [index, file] of accepted.entries()) {
+					setNormalizing({ done: index, total: accepted.length });
 					try {
 						normalized.push(await normalizeImageFile(file));
 					} catch (error) {
@@ -151,7 +157,7 @@ const PhotoUploadDialogBase = ({
 				}
 			} finally {
 				if (sessionRef.current === session) {
-					setIsNormalizing(false);
+					setNormalizing(null);
 				}
 			}
 
@@ -268,7 +274,16 @@ const PhotoUploadDialogBase = ({
 
 	// Normalizing counts as busy: confirming while a pick is still being scaled down uploaded
 	// only the photos that had landed, toasted success, and dropped the rest of the evidence.
+	const isNormalizing = normalizing !== null;
 	const isBusy = uploadMutation.isPending || isNormalizing;
+	// Picking from the gallery before any photo exists leaves nothing on screen to hang a
+	// spinner off — the only feedback was the picker icon dimming, which read as a dead
+	// button and got retapped. The stage carries it instead, so every mode shows it.
+	const normalizeLabel =
+		normalizing && normalizing.total > 1
+			? `Processing ${normalizing.done + 1} of ${normalizing.total}...`
+			: "Processing...";
+	const busyLabel = isNormalizing ? normalizeLabel : "Uploading...";
 	const photoCount = pendingPhotos.length;
 	const photoNoun = multiple ? "photos" : "photo";
 	const labelSuffix = badgeLabel ? ` for ${badgeLabel}` : "";
@@ -380,7 +395,7 @@ const PhotoUploadDialogBase = ({
 								className="bg-white font-semibold text-black hover:bg-white/90"
 								disabled={isBusy}
 								loading={isBusy}
-								loadingText={isNormalizing ? "Processing..." : "Uploading..."}
+								loadingText={busyLabel}
 								onClick={handleConfirm}
 								size="sm"
 								type="button"
@@ -414,6 +429,17 @@ const PhotoUploadDialogBase = ({
 							<p>{placeholderText}</p>
 						</div>
 					)}
+
+					{isNormalizing ? (
+						<div
+							aria-live="polite"
+							className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/70 text-sm text-white"
+							role="status"
+						>
+							<CircleNotchIcon className="size-7 animate-spin" />
+							<p>{normalizeLabel}</p>
+						</div>
+					) : null}
 
 					{camera.error ? (
 						<div className="absolute inset-x-4 bottom-4 flex items-start gap-2 border border-destructive/40 bg-destructive px-3 py-2 text-sm text-destructive-foreground">
@@ -563,7 +589,7 @@ const PhotoUploadDialogBase = ({
 									type="button"
 									disabled={isBusy}
 									loading={isBusy}
-									loadingText={isNormalizing ? "Processing..." : "Uploading..."}
+									loadingText={busyLabel}
 									onClick={handleConfirm}
 								>
 									{confirmLabel}
@@ -581,7 +607,14 @@ const PhotoUploadDialogBase = ({
 							multiple={multiple}
 							className="sr-only"
 							onChange={(event) => {
-								void addFiles(Array.from(event.target.files ?? []));
+								const files = Array.from(event.target.files ?? []);
+								// A gallery pick used to land behind a still-running viewfinder, so the
+								// photo the cashier just chose was nowhere on screen. Cancelling the
+								// picker (no files) must leave the camera alone.
+								if (files.length > 0) {
+									stopCamera();
+								}
+								void addFiles(files);
 							}}
 						/>
 					)}
