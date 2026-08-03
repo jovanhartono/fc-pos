@@ -6,7 +6,6 @@ import {
 	type CheckoutIssue,
 	collectCheckoutIssues,
 	describeServerFailure,
-	getIssueStep,
 	readServerErrorMessage,
 	summarizeCheckoutIssues,
 } from "./checkout-issues";
@@ -72,24 +71,6 @@ describe("collectCheckoutIssues", () => {
 
 	test("a clean form reports nothing", () => {
 		expect(collectCheckoutIssues(errors({}))).toHaveLength(0);
-	});
-});
-
-describe("getIssueStep", () => {
-	test("the store cannot be fixed from inside the sheet", () => {
-		expect(
-			getIssueStep({ target: "store", message: "Store is required." }),
-		).toBeNull();
-	});
-
-	test("an unrecognized rejection has no step to offer", () => {
-		expect(getIssueStep({ target: null, message: "Something odd" })).toBeNull();
-	});
-
-	test("a step issue can be jumped to", () => {
-		expect(
-			getIssueStep({ target: "payment", message: "Voucher rejected" }),
-		).toBe("payment");
 	});
 });
 

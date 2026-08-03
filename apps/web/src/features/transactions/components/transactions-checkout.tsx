@@ -154,12 +154,7 @@ export const TransactionsCheckout = () => {
 				</div>
 			</div>
 
-			<CheckoutFooter
-				onBack={goBack}
-				onContinue={goNext}
-				onNavigate={goToStep}
-				step={step}
-			/>
+			<CheckoutFooter onBack={goBack} onContinue={goNext} step={step} />
 		</div>
 	);
 };

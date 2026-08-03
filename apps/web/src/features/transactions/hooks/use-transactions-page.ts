@@ -22,7 +22,6 @@ import {
 	toOrderPayload,
 } from "@/features/transactions/cart/cart";
 import {
-	type CheckoutIssue,
 	collectCheckoutIssues,
 	describeServerFailure,
 	readServerErrorMessage,
@@ -197,8 +196,8 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 		mutationKey: ["create-pos-order"],
 		mutationFn: createOrder,
 		// Opt out of the global error toast (main.tsx): a failed checkout is
-		// reported by the sheet with the step to fix and a button to get there, and
-		// the global one would fire alongside it as a second, blunter copy.
+		// already reported inline by the sheet footer, and the global one would
+		// fire alongside it as a second, blunter copy.
 		onError: () => undefined,
 	});
 
@@ -208,11 +207,10 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 		resetTransactionDraft(form, { setSubmitError, setDropoffPhoto });
 	}, [form]);
 
-	// Resolves to the failure that stopped the checkout, or null once the Order is
-	// committed. Post-commit hiccups (photo, receipt) keep their own toasts — they
-	// don't fail the Order, so they are not returned as checkout failures.
+	// A rejected checkout lands in the footer error; post-commit hiccups (photo,
+	// receipt) keep their own toasts — they don't fail the Order.
 	const onValidSubmit = useCallback(
-		async (values: TransactionDraftValues): Promise<CheckoutIssue | null> => {
+		async (values: TransactionDraftValues) => {
 			useTransactionsPageStore.getState().setSubmitError("");
 
 			try {
@@ -278,43 +276,28 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 						});
 					},
 				});
-
-				return null;
 			} catch (error) {
 				const issue = describeServerFailure(readServerErrorMessage(error));
 				useTransactionsPageStore.getState().setSubmitError(issue.message);
-				return issue;
 			}
 		},
 		[createMutation, navigate, queryClient, resetCart],
 	);
 
-	// Reports back what blocked the checkout instead of only writing a footer
-	// error: a failing field can sit on a step the cashier isn't looking at, and
-	// the toast that offers to take them there has to be raised inside the sheet,
-	// where step navigation lives. Each call gets its own report, so an overlapping
-	// submit can't read another one's issues.
-	const submit = useCallback(async (): Promise<CheckoutIssue[]> => {
-		const report: CheckoutIssue[] = [];
-
-		await form.handleSubmit(
-			async (values) => {
-				const failure = await onValidSubmit(values);
-				if (failure) {
-					report.push(failure);
-				}
-			},
-			(errors) => {
-				const issues = collectCheckoutIssues(errors);
+	// onInvalid names each blocked field in the footer error, in fix order: a
+	// failing field can sit on a step the cashier isn't looking at, so the footer
+	// line is what tells them a hidden step needs attention.
+	const submit = useMemo(
+		() =>
+			form.handleSubmit(onValidSubmit, (errors) => {
 				useTransactionsPageStore
 					.getState()
-					.setSubmitError(summarizeCheckoutIssues(issues));
-				report.push(...issues);
-			},
-		)();
-
-		return report;
-	}, [form, onValidSubmit]);
+					.setSubmitError(
+						summarizeCheckoutIssues(collectCheckoutIssues(errors)),
+					);
+			}),
+		[form, onValidSubmit],
+	);
 
 	const handleStoreChange = useCallback(
 		(value: string) => {

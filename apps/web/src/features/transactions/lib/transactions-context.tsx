@@ -1,12 +1,10 @@
 import { createContext, type ReactNode, use } from "react";
-import type { CheckoutIssue } from "@/features/transactions/lib/checkout-issues";
 import type { Store } from "@/lib/api";
 
 export type TransactionsPageContextValue = {
 	isAdmin: boolean;
 	visibleStores: Store[];
-	// Resolves to what blocked the checkout — empty once the Order is created.
-	submit: () => Promise<CheckoutIssue[]>;
+	submit: () => Promise<void>;
 	handleStoreChange: (value: string) => void;
 };
 

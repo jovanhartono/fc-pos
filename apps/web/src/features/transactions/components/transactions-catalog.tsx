@@ -12,10 +12,7 @@ import { Input } from "@/components/ui/input";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import { useCartOps } from "@/features/transactions/cart/useCart";
-import {
-	getEntityCategoryName,
-	STORE_FIELD_ID,
-} from "@/features/transactions/lib/transactions";
+import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
 import type { Product, Service } from "@/lib/api";
 import {
@@ -151,7 +148,6 @@ export function TransactionsCatalog() {
 						    and the checkout sheet covers it. */}
 						<Field data-invalid={!!storeError}>
 							<StoreAutocomplete
-								id={STORE_FIELD_ID}
 								hideLabel
 								required
 								value={selectedStoreId}

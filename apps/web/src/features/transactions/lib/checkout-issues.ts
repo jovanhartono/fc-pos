@@ -93,12 +93,6 @@ export const collectCheckoutIssues = (
 export const summarizeCheckoutIssues = (issues: CheckoutIssue[]): string =>
 	issues.map((issue) => issue.message).join(" ");
 
-// Only a checkout step can be reached from inside the sheet: the store picker
-// sits in the catalog behind it, and an unrecognized server reason has no step
-// to point at. Drives whether the toast gets an action button.
-export const getIssueStep = (issue: CheckoutIssue): CheckoutStep | null =>
-	issue.target === "store" || issue.target === null ? null : issue.target;
-
 // hono's parseResponse throws a DetailedError whose own message is just the
 // status line ("400 Bad Request"); the server's reason rides in detail.data as
 // { success: false, message }. Without this unwrap the cashier reads the status.

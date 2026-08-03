@@ -18,7 +18,7 @@ export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
 	return (
 		<div className="sticky bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-40 grid gap-1 py-1">
 			{/* Says up front why the bar won't open, so the block isn't a dead-end
-			    tap. The tap still explains itself and offers the way back. */}
+			    tap — this hint is the only in-place explanation the cashier gets. */}
 			{hasStore ? null : (
 				<p className="text-muted-foreground text-xs">
 					Select a store to check out.
