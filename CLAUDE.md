@@ -140,7 +140,7 @@ Loaded automatically when working under their own directory, not before:
 
 ### Issue tracker
 
-GitHub issues on `jovanhartono/fc-bun-api` via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+GitHub issues on `jovanhartono/fc-pos` via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
