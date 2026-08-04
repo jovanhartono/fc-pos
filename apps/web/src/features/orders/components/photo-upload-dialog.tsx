@@ -329,7 +329,9 @@ const PhotoUploadDialogBase = ({
 	const isBusy = uploadMutation.isPending || isNormalizing;
 	// Picking from the gallery before any photo exists leaves nothing on screen to hang a
 	// spinner off — the only feedback was the picker icon dimming, which read as a dead
-	// button and got retapped. The stage carries it instead, so every mode shows it.
+	// button and got retapped. The stage carries it instead, so every mode shows it, and the
+	// confirm button is free to stay narrow enough to sit beside the shutter without
+	// "Uploading 4 of 5..." growing into it.
 	const normalizeLabel =
 		normalizing && normalizing.total > 1
 			? `Processing ${normalizing.done + 1} of ${normalizing.total}...`
@@ -419,8 +421,8 @@ const PhotoUploadDialogBase = ({
 						: "Pinch or double-tap to zoom. Swipe to move between photos."}
 				</DialogDescription>
 
-				{/* Top chrome: close · position · item badge, over the viewfinder. The fast path
-				    uploads from here so the shooting layout never gives up height for a button. */}
+				{/* Top chrome: close · position · item badge, over the viewfinder. Actions live in
+				    the bottom bar within thumb reach — nothing up here is a tap target but Close. */}
 				<div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 pt-[calc(env(safe-area-inset-top)_+_0.75rem)] pb-3">
 					<button
 						aria-label="Close"
@@ -439,7 +441,7 @@ const PhotoUploadDialogBase = ({
 						<span />
 					)}
 
-					<div className="flex items-center justify-end gap-2 justify-self-end">
+					<div className="justify-self-end">
 						{badgeLabel ? (
 							<Badge
 								className="border-white/40 bg-transparent text-white"
@@ -447,19 +449,6 @@ const PhotoUploadDialogBase = ({
 							>
 								{badgeLabel}
 							</Badge>
-						) : null}
-						{isShooting && photoCount > 0 ? (
-							<Button
-								className="bg-white font-semibold text-black hover:bg-white/90"
-								disabled={isBusy}
-								loading={isBusy}
-								loadingText={busyLabel}
-								onClick={handleConfirm}
-								size="sm"
-								type="button"
-							>
-								{confirmLabel}
-							</Button>
 						) : null}
 					</div>
 				</div>
@@ -488,14 +477,14 @@ const PhotoUploadDialogBase = ({
 						</div>
 					)}
 
-					{isNormalizing ? (
+					{isBusy ? (
 						<div
 							aria-live="polite"
 							className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/70 text-sm text-white"
 							role="status"
 						>
 							<CircleNotchIcon className="size-7 animate-spin" />
-							<p>{normalizeLabel}</p>
+							<p>{busyLabel}</p>
 						</div>
 					) : null}
 
@@ -548,8 +537,22 @@ const PhotoUploadDialogBase = ({
 								<span className="size-12 rounded-full bg-white transition active:scale-90" />
 							</button>
 
+							{/* Finish the batch from where a document scanner puts it: bottom-right,
+							    beside the shot count, both a thumb's width from the shutter. The
+							    picker gives up the slot once a shot exists — mid-batch gallery picks
+							    are rare, and it is still one tap away behind the review square. */}
 							<div className="justify-self-end">
-								{cameraOnly ? null : (
+								{photoCount > 0 ? (
+									<Button
+										className="h-12 bg-white px-4 font-semibold text-black hover:bg-white/90"
+										disabled={isBusy}
+										loading={isBusy}
+										onClick={handleConfirm}
+										type="button"
+									>
+										{confirmLabel}
+									</Button>
+								) : cameraOnly ? null : (
 									<button
 										aria-label="Upload from device"
 										className="grid size-12 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
@@ -647,7 +650,6 @@ const PhotoUploadDialogBase = ({
 									type="button"
 									disabled={isBusy}
 									loading={isBusy}
-									loadingText={busyLabel}
 									onClick={handleConfirm}
 								>
 									{confirmLabel}

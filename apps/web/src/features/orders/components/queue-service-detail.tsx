@@ -373,7 +373,7 @@ export function QueueServiceDetail({
 					open={isPhotoDialogOpen}
 					onOpenChange={setIsPhotoDialogOpen}
 					title="Add item photo"
-					badgeLabel={selectedService.item_code ?? `Service #${serviceId}`}
+					badgeLabel={selectedService.item_code ?? undefined}
 					uploader={orderServicePhotoUploader(orderId, serviceId)}
 					onUploaded={async () => {
 						await refreshData(detail.store?.id);

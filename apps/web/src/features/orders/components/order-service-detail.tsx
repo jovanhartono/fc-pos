@@ -122,7 +122,6 @@ export const OrderServiceDetail = ({
 		(nextStatus): nextStatus is NonTerminalServiceStatus =>
 			!TERMINAL_SERVICE_STATUSES.has(nextStatus),
 	);
-	const itemLabel = service.item_code ?? `Service #${service.id}`;
 	// ADR-0012: a pair cannot start processing without a photo.
 	const needsPhotoToStart =
 		service.status === "queued" && service.images.length === 0;
@@ -211,7 +210,7 @@ export const OrderServiceDetail = ({
 					Add item photo
 				</Button>
 				<PhotoUploadDialog
-					badgeLabel={itemLabel}
+					badgeLabel={service.item_code ?? undefined}
 					onOpenChange={setIsPhotoUploadOpen}
 					onUploaded={refreshOrder}
 					open={isPhotoUploadOpen}
