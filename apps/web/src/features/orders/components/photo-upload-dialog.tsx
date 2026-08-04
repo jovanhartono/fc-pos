@@ -25,7 +25,7 @@ import { normalizeImageFile } from "@/features/orders/utils/normalize-image";
 import {
 	ACCEPTED_IMAGE_TYPES,
 	isAcceptedImage,
-	type UploadPhotoInput,
+	type PhotoUploader,
 } from "@/features/orders/utils/photo-upload";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { cn } from "@/lib/utils";
@@ -55,12 +55,12 @@ interface PhotoUploadDialogBaseProps {
 	badgeLabel?: string;
 	multiple: boolean;
 	withNote: boolean;
-	// Upload mode: presign → upload → save on confirm.
-	uploadPhoto?: (input: UploadPhotoInput) => Promise<void>;
+	// Upload mode: push bytes → commit on confirm.
+	uploader?: PhotoUploader;
 	onUploaded?: () => Promise<void>;
 	// Capture-only mode: hand the picked File(s) back instead of uploading. Used
 	// at the POS where the Order does not exist yet, so the upload is deferred to
-	// after checkout commits. When set, uploadPhoto/onUploaded are ignored.
+	// after checkout commits. When set, uploader/onUploaded are ignored.
 	onCapture?: (files: File[]) => void;
 	// Camera-only: drop the "Upload from device" path, auto-open the camera, and
 	// stop it after a shot for a single review still. For intake flows that want
@@ -75,7 +75,7 @@ const PhotoUploadDialogBase = ({
 	badgeLabel,
 	multiple,
 	withNote,
-	uploadPhoto,
+	uploader,
 	onUploaded,
 	onCapture,
 	cameraOnly = false,
@@ -92,6 +92,13 @@ const PhotoUploadDialogBase = ({
 		done: number;
 		total: number;
 	} | null>(null);
+	// How far the confirm has got through the batch, and which photos are already saved so a
+	// retry after a mid-batch failure does not upload them twice.
+	const [uploading, setUploading] = useState<{
+		done: number;
+		total: number;
+	} | null>(null);
+	const committedRef = useRef<string[]>([]);
 	const sessionRef = useRef(0);
 
 	const stopCamera = camera.stop;
@@ -241,6 +248,9 @@ const PhotoUploadDialogBase = ({
 			if (pendingPhotos.length === 0) {
 				throw new Error("Add at least one photo");
 			}
+			if (!uploader) {
+				return;
+			}
 
 			const validatedPhotos = pendingPhotos.map((photo) => {
 				const contentType = photo.file.type;
@@ -251,13 +261,45 @@ const PhotoUploadDialogBase = ({
 			});
 
 			const trimmedNote = withNote ? note.trim() || undefined : undefined;
-			// TODO: make this parallel instead of waterfall request
-			for (const photo of validatedPhotos) {
-				await uploadPhoto?.({
-					file: photo.file,
+			committedRef.current = [];
+
+			// The batch is a pipeline, not a fan-out. Commits stay strictly in shot order
+			// because the gallery sorts on the row id the commit assigns — fire them together
+			// and a before/after pair comes back shuffled, which is the whole point of the
+			// photo. What does overlap is the part worth overlapping: the next photo's bytes
+			// go up while the server is still re-encoding the current one, which was dead
+			// time on the uplink and most of why a five-photo batch felt stalled. A wider
+			// fan-out buys nothing on top of that — the shop uplink is already saturated by
+			// one upload, and every commit queues on the same container's transcode.
+			let pending: Promise<string> | null = null;
+			for (const [index, photo] of validatedPhotos.entries()) {
+				setUploading({ done: index, total: validatedPhotos.length });
+				const input = {
 					contentType: photo.contentType,
+					file: photo.file,
 					note: trimmedNote,
-				});
+				};
+				const key = await (pending ?? uploader.pushBytes(input));
+
+				const nextPhoto = validatedPhotos[index + 1];
+				pending = nextPhoto
+					? uploader.pushBytes({
+							contentType: nextPhoto.contentType,
+							file: nextPhoto.file,
+							note: trimmedNote,
+						})
+					: null;
+				// Claim the read-ahead's failure the moment it exists, not once the loop ends.
+				// The very next line parks for as long as the server takes to re-encode, and a
+				// push that dies inside that window — dropped 4G, expired token — would be
+				// reported as an unhandled rejection before anything awaits it. The await below
+				// still throws and still drives the error toast; this only stops the duplicate
+				// report. A read-ahead that succeeds after an abandoned batch leaves its bytes
+				// orphaned in the bucket, which the browser cannot clean up either way.
+				pending?.catch(() => undefined);
+
+				await uploader.commit(key, input);
+				committedRef.current.push(photo.id);
 			}
 		},
 		onSuccess: async () => {
@@ -269,6 +311,15 @@ const PhotoUploadDialogBase = ({
 		},
 		onError: (error: Error) => {
 			toast.error(readServerErrorMessage(error, "Failed to upload photos"));
+			// Photos already in the database have to leave the strip, or tapping Upload again
+			// saves a second copy of every one that had landed before the failure.
+			for (const photoId of committedRef.current) {
+				removePhoto(photoId);
+			}
+			committedRef.current = [];
+		},
+		onSettled: () => {
+			setUploading(null);
 		},
 	});
 
@@ -283,7 +334,11 @@ const PhotoUploadDialogBase = ({
 		normalizing && normalizing.total > 1
 			? `Processing ${normalizing.done + 1} of ${normalizing.total}...`
 			: "Processing...";
-	const busyLabel = isNormalizing ? normalizeLabel : "Uploading...";
+	const uploadLabel =
+		uploading && uploading.total > 1
+			? `Uploading ${uploading.done + 1} of ${uploading.total}...`
+			: "Uploading...";
+	const busyLabel = isNormalizing ? normalizeLabel : uploadLabel;
 	const photoCount = pendingPhotos.length;
 	const photoNoun = multiple ? "photos" : "photo";
 	const labelSuffix = badgeLabel ? ` for ${badgeLabel}` : "";
@@ -296,13 +351,16 @@ const PhotoUploadDialogBase = ({
 		: "Upload";
 	const confirmLabel =
 		multiple && photoCount > 0 ? `${confirmBase} · ${photoCount}` : confirmBase;
-	const handleConfirm = async () => {
+	const handleConfirm = () => {
 		if (onCapture) {
 			onCapture(pendingPhotos.map((photo) => photo.file));
 			onOpenChange(false);
 			return;
 		}
-		await uploadMutation.mutateAsync();
+		// mutate, not mutateAsync: onError already reports the failure, and the rejected
+		// promise mutateAsync hands back had nobody awaiting it on an onClick, so every
+		// failed batch also logged an uncaught rejection.
+		uploadMutation.mutate();
 	};
 
 	// Shooting fills the screen with the viewfinder; reviewing hands the same photo surface

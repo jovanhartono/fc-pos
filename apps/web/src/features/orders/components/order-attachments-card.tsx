@@ -10,7 +10,7 @@ import {
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { SinglePhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
-import { uploadOrderDropoffPhoto } from "@/features/orders/utils/photo-upload";
+import { orderDropoffPhotoUploader } from "@/features/orders/utils/photo-upload";
 import type { OrderDetail } from "@/lib/api";
 
 type PickupEvent = OrderDetail["pickup_events"][number];
@@ -125,7 +125,7 @@ const DropoffAttachment = ({
 				onUploaded={onUploaded}
 				open={isDialogOpen}
 				title="Upload drop-off photo"
-				uploadPhoto={(input) => uploadOrderDropoffPhoto(order.id, input)}
+				uploader={orderDropoffPhotoUploader(order.id)}
 			/>
 		</section>
 	);

@@ -18,7 +18,7 @@ import {
 	useRefreshOrder,
 	useUpdateServiceStatusMutation,
 } from "@/features/orders/hooks/useOrderMutations";
-import { uploadOrderServicePhoto } from "@/features/orders/utils/photo-upload";
+import { orderServicePhotoUploader } from "@/features/orders/utils/photo-upload";
 import { deleteOrderServicePhoto } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { orderDetailQueryOptions } from "@/lib/query-options";
@@ -216,9 +216,7 @@ export const OrderServiceDetail = ({
 					onUploaded={refreshOrder}
 					open={isPhotoUploadOpen}
 					title="Add item photo"
-					uploadPhoto={(input) =>
-						uploadOrderServicePhoto(orderId, service.id, input)
-					}
+					uploader={orderServicePhotoUploader(orderId, service.id)}
 				/>
 			</div>
 

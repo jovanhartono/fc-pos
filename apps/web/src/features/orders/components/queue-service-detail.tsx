@@ -21,7 +21,7 @@ import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gall
 import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
-import { uploadOrderServicePhoto } from "@/features/orders/utils/photo-upload";
+import { orderServicePhotoUploader } from "@/features/orders/utils/photo-upload";
 import {
 	queryKeys,
 	type UpdateOrderServiceStatusPayload,
@@ -374,9 +374,7 @@ export function QueueServiceDetail({
 					onOpenChange={setIsPhotoDialogOpen}
 					title="Add item photo"
 					badgeLabel={selectedService.item_code ?? `Service #${serviceId}`}
-					uploadPhoto={(input) =>
-						uploadOrderServicePhoto(orderId, serviceId, input)
-					}
+					uploader={orderServicePhotoUploader(orderId, serviceId)}
 					onUploaded={async () => {
 						await refreshData(detail.store?.id);
 					}}
