@@ -225,7 +225,7 @@ export const OrderServiceDetail = ({
 				</p>
 				{service.images.length > 0 ? (
 					<OrderPhotoGallery
-						gridClassName="@md:grid-cols-2 @2xl:grid-cols-3"
+						gridClassName="grid-cols-1 @md:grid-cols-2 @2xl:grid-cols-3"
 						items={service.images.map((image) => ({
 							...image,
 							alt:

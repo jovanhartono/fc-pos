@@ -77,7 +77,13 @@ export function OrderPhotoGallery({
 	return (
 		<>
 			<div
-				className={cn("grid grid-cols-3 gap-2 sm:grid-cols-4", gridClassName)}
+				className={cn(
+					// Keep this default variant-free: tailwind-merge only resolves
+					// conflicts inside a variant, so a `sm:` here would outrank every
+					// unprefixed grid-cols-* a caller passes.
+					"grid grid-cols-3 gap-2",
+					gridClassName,
+				)}
 			>
 				{items.map((item, index) => (
 					<div className="group relative" key={item.id}>
