@@ -136,9 +136,31 @@ const PhotoUploadDialogBase = ({
 	// re-centering first — that snap was the layout shift.
 	useEffect(() => stopCamera, [stopCamera]);
 
-	// Single entry point for the strip: a 12MP phone photo is scaled down before it
-	// ever reaches 4G, and an iPhone HEIC either becomes a JPEG here or is rejected
-	// here rather than sitting in S3 as unviewable dispute evidence.
+	// Photos this dialog produced itself. The capture canvas already scaled them into
+	// budget and encoded them as JPEG, so there is nothing left to decode or check and
+	// they go on the strip in the same frame as the shutter press.
+	const stagePhotos = useCallback(
+		(files: File[]) => {
+			const created = files.map((file) => createPendingPhoto(file));
+			setPendingPhotos((previous) => {
+				if (!multiple) {
+					revokePhotos(previous);
+					return created;
+				}
+				return [...previous, ...created];
+			});
+			const newest = created.at(-1);
+			if (newest) {
+				setSelectedPhotoId(newest.id);
+			}
+		},
+		[multiple],
+	);
+
+	// Photos arriving from the device gallery, where nothing is known about them yet: a
+	// 12MP phone photo is scaled down before it ever reaches 4G, and an iPhone HEIC either
+	// becomes a JPEG here or is rejected here rather than sitting in S3 as unviewable
+	// dispute evidence. Slow enough on a real photo to need the progress overlay.
 	const addFiles = useCallback(
 		async (files: File[]) => {
 			if (files.length === 0) {
@@ -173,20 +195,9 @@ const PhotoUploadDialogBase = ({
 				return;
 			}
 
-			const created = normalized.map((file) => createPendingPhoto(file));
-			setPendingPhotos((previous) => {
-				if (!multiple) {
-					revokePhotos(previous);
-					return created;
-				}
-				return [...previous, ...created];
-			});
-			const newest = created.at(-1);
-			if (newest) {
-				setSelectedPhotoId(newest.id);
-			}
+			stagePhotos(normalized);
 		},
-		[multiple],
+		[multiple, stagePhotos],
 	);
 
 	const openFileInput = () => {
@@ -211,7 +222,7 @@ const PhotoUploadDialogBase = ({
 		}
 
 		const timestamp = Date.now();
-		await addFiles([
+		stagePhotos([
 			new File([blob], `photo-${timestamp}.jpg`, {
 				type: "image/jpeg",
 			}),
