@@ -30,7 +30,10 @@ type OrderPhotoGalleryProps = {
 	title?: string;
 };
 
-function getPhotoDownloadName(item: OrderPhotoGalleryItem) {
+export function getPhotoDownloadName(item: {
+	id: number | string;
+	image_url: string;
+}) {
 	const pathname = new URL(item.image_url, "https://fresclean.local").pathname;
 	const extension = pathname.split(".").pop()?.toLowerCase();
 	const resolvedExtension =
