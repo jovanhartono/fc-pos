@@ -1,13 +1,6 @@
-import {
-	ArrowLeftIcon,
-	ArrowRightIcon,
-	ImageSquareIcon,
-	XIcon,
-} from "@phosphor-icons/react";
+import { ImageSquareIcon, XIcon } from "@phosphor-icons/react";
 import dayjs from "dayjs";
-import type * as React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useMemo, useState } from "react";
 import {
 	Dialog,
 	DialogContent,
@@ -65,31 +58,6 @@ export const PhotoLightbox = ({
 	const canNavigate = imageCount > 1;
 	const activeItem = items[activeIndex];
 
-	const showPrevious = useCallback(() => {
-		setActiveIndex((currentIndex) =>
-			currentIndex === 0 ? imageCount - 1 : currentIndex - 1,
-		);
-	}, [imageCount]);
-
-	const showNext = useCallback(() => {
-		setActiveIndex((currentIndex) =>
-			currentIndex === imageCount - 1 ? 0 : currentIndex + 1,
-		);
-	}, [imageCount]);
-
-	const handleKeyDown = (event: React.KeyboardEvent) => {
-		if (!canNavigate) {
-			return;
-		}
-		if (event.key === "ArrowLeft") {
-			event.preventDefault();
-			showPrevious();
-		} else if (event.key === "ArrowRight") {
-			event.preventDefault();
-			showNext();
-		}
-	};
-
 	useEffect(() => {
 		if (open) {
 			setActiveIndex(initialIndex);
@@ -112,7 +80,6 @@ export const PhotoLightbox = ({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent
 				className="inset-0 z-[60] flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 bg-black p-0 text-white ring-0 sm:max-w-none"
-				onKeyDown={handleKeyDown}
 				overlayClassName="z-[60] bg-black"
 				overlayForceRender
 				showCloseButton={false}
@@ -128,7 +95,7 @@ export const PhotoLightbox = ({
 					{activeItem ? (
 						<PhotoStage
 							activeIndex={activeIndex}
-							className="bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_52%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.18))] sm:px-14"
+							className="bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_52%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.18))]"
 							items={items}
 							onIndexChange={setActiveIndex}
 						>
@@ -140,33 +107,6 @@ export const PhotoLightbox = ({
 							>
 								<XIcon className="size-5" aria-hidden="true" />
 							</button>
-
-							{canNavigate ? (
-								<>
-									<Button
-										type="button"
-										variant="outline"
-										size="icon-lg"
-										className="absolute top-1/2 left-3 z-10 hidden size-11 -translate-y-1/2 border-white/20 bg-black/45 text-white hover:bg-black/60 hover:text-white focus-visible:border-white/60 active:-translate-y-1/2! md:inline-flex"
-										onClick={showPrevious}
-										aria-label="Show previous image"
-										icon={
-											<ArrowLeftIcon className="size-5" aria-hidden="true" />
-										}
-									/>
-									<Button
-										type="button"
-										variant="outline"
-										size="icon-lg"
-										className="absolute top-1/2 right-3 z-10 hidden size-11 -translate-y-1/2 border-white/20 bg-black/45 text-white hover:bg-black/60 hover:text-white focus-visible:border-white/60 active:-translate-y-1/2! md:inline-flex"
-										onClick={showNext}
-										aria-label="Show next image"
-										icon={
-											<ArrowRightIcon className="size-5" aria-hidden="true" />
-										}
-									/>
-								</>
-							) : null}
 						</PhotoStage>
 					) : (
 						<div className="relative flex min-h-0 flex-1 items-center justify-center">

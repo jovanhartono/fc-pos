@@ -1,5 +1,7 @@
+import { ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import type * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
 	clampOffset,
 	doubleTapZoom,
@@ -43,9 +45,10 @@ export interface PhotoStageItem {
 interface PhotoStageProps {
 	activeIndex: number;
 	/**
-	 * Overlay chrome, absolutely positioned inside the gesture surface. Anything
-	 * interactive here must be a real `<button>` — that is what the surface tests for
-	 * before claiming a touch as a gesture.
+	 * Caller-specific overlay chrome, absolutely positioned inside the gesture surface
+	 * alongside the navigation arrows. Anything interactive here must be a real
+	 * `<button>` — that is what the surface tests for before claiming a touch as a
+	 * gesture.
 	 */
 	children?: React.ReactNode;
 	className?: string;
@@ -510,6 +513,42 @@ export const PhotoStage = ({
 		};
 	}, [applyTransform, commitTransform, resetPointerState, surfaceNode]);
 
+	// A mouse cannot swipe — a drag on the desk machine is a pan, never a page turn — so on
+	// a counter PC the arrow keys and the arrows above are the only way through a batch.
+	// Bound on the document rather than the surface because the surface is not focusable and
+	// nothing would reach it; both callers are full-screen dialogs that trap focus, so this
+	// never fires against the rest of the admin. Text fields are exempt or the note in the
+	// capture dialog could not be edited without the photo changing under it.
+	useEffect(() => {
+		const owner = surfaceNode?.ownerDocument;
+		if (!owner) {
+			return;
+		}
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (!latestRef.current.canNavigate || event.altKey || event.metaKey) {
+				return;
+			}
+			if (
+				(event.target as Element | null)?.closest(
+					"input, textarea, [contenteditable]",
+				)
+			) {
+				return;
+			}
+			if (event.key === "ArrowLeft") {
+				event.preventDefault();
+				latestRef.current.showPrevious();
+			} else if (event.key === "ArrowRight") {
+				event.preventDefault();
+				latestRef.current.showNext();
+			}
+		};
+
+		owner.addEventListener("keydown", handleKeyDown);
+		return () => owner.removeEventListener("keydown", handleKeyDown);
+	}, [surfaceNode]);
+
 	// The browser defaults that fight a pinch on the evidence: iOS Safari page-zooms on any
 	// two-finger touch whatever touch-action says, and a long press pops "Save image" over the
 	// photo. Scoped to this surface so the rest of the admin keeps accessibility zoom.
@@ -562,6 +601,9 @@ export const PhotoStage = ({
 		<div
 			className={cn(
 				"relative flex min-h-0 flex-1 items-center justify-center [touch-action:none]",
+				// Only from the breakpoint the arrows appear at — a phone gives the whole
+				// width to the garment and turns pages with a swipe.
+				canNavigate && "md:px-14",
 				className,
 			)}
 			ref={setSurfaceNode}
@@ -583,6 +625,29 @@ export const PhotoStage = ({
 						/>
 					</div>
 				</div>
+			) : null}
+
+			{canNavigate ? (
+				<>
+					<Button
+						aria-label="Show previous photo"
+						className="absolute top-1/2 left-3 z-10 hidden size-11 -translate-y-1/2 border-white/20 bg-black/45 text-white hover:bg-black/60 hover:text-white focus-visible:border-white/60 active:-translate-y-1/2! md:inline-flex"
+						icon={<ArrowLeftIcon className="size-5" aria-hidden="true" />}
+						onClick={showPrevious}
+						size="icon-lg"
+						type="button"
+						variant="outline"
+					/>
+					<Button
+						aria-label="Show next photo"
+						className="absolute top-1/2 right-3 z-10 hidden size-11 -translate-y-1/2 border-white/20 bg-black/45 text-white hover:bg-black/60 hover:text-white focus-visible:border-white/60 active:-translate-y-1/2! md:inline-flex"
+						icon={<ArrowRightIcon className="size-5" aria-hidden="true" />}
+						onClick={showNext}
+						size="icon-lg"
+						type="button"
+						variant="outline"
+					/>
+				</>
 			) : null}
 
 			{children}
