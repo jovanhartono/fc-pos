@@ -1,5 +1,6 @@
 import {
 	CameraIcon,
+	CheckIcon,
 	CircleNotchIcon,
 	ImageSquareIcon,
 	PencilSimpleLineIcon,
@@ -62,10 +63,10 @@ interface PhotoUploadDialogBaseProps {
 	// at the POS where the Order does not exist yet, so the upload is deferred to
 	// after checkout commits. When set, uploader/onUploaded are ignored.
 	onCapture?: (files: File[]) => void;
-	// Camera-only: drop the "Upload from device" path, auto-open the camera, and
-	// stop it after a shot for a single review still. For intake flows that want
-	// a live photo, not a gallery pick. See SinglePhotoCaptureDialog.
-	cameraOnly?: boolean;
+	// Skip the chooser and go straight to the viewfinder. For intake flows where a
+	// live photo is the expected answer and the gallery is the exception — the
+	// picker is still in the shutter row. See SinglePhotoCaptureDialog.
+	autoOpenCamera?: boolean;
 }
 
 const PhotoUploadDialogBase = ({
@@ -78,7 +79,7 @@ const PhotoUploadDialogBase = ({
 	uploader,
 	onUploaded,
 	onCapture,
-	cameraOnly = false,
+	autoOpenCamera = false,
 }: PhotoUploadDialogBaseProps) => {
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const camera = useCameraCapture();
@@ -123,11 +124,11 @@ const PhotoUploadDialogBase = ({
 		if (!open) {
 			return;
 		}
-		// Camera-only intake: skip the chooser, go straight to the live camera.
-		if (cameraOnly) {
+		// Intake flows: skip the chooser, go straight to the live camera.
+		if (autoOpenCamera) {
 			void openCamera();
 		}
-	}, [open, cameraOnly, openCamera]);
+	}, [open, autoOpenCamera, openCamera]);
 
 	// Release the camera if the dialog unmounts while still open. The visual reset
 	// (stop camera + clear photos) is deferred to onOpenChangeComplete so the popup
@@ -353,6 +354,10 @@ const PhotoUploadDialogBase = ({
 		: "Upload";
 	const confirmLabel =
 		multiple && photoCount > 0 ? `${confirmBase} · ${photoCount}` : confirmBase;
+	// The shutter row has no width to spare for a word, so the count stays on the review
+	// square and the tick carries the action. Assistive tech still gets the full sentence.
+	const confirmAriaLabel =
+		photoCount > 1 ? `${confirmBase}, ${photoCount} photos` : confirmBase;
 	const handleConfirm = () => {
 		if (onCapture) {
 			onCapture(pendingPhotos.map((photo) => photo.file));
@@ -392,11 +397,8 @@ const PhotoUploadDialogBase = ({
 		}
 	};
 
-	const cameraButtonLabel =
-		photoCount === 0 ? "Open camera" : multiple ? "Camera" : "Retake";
-	const placeholderText = cameraOnly
-		? "Camera is required for this photo."
-		: "Open the camera or pick from your device.";
+	// Only ever rendered with a shot already in hand — the empty state has its own button.
+	const cameraButtonLabel = multiple ? "Camera" : "Retake";
 	const hasNote = note.trim().length > 0;
 
 	return (
@@ -471,9 +473,13 @@ const PhotoUploadDialogBase = ({
 							onIndexChange={handleIndexChange}
 						/>
 					) : (
-						<div className="flex size-full flex-col items-center justify-center gap-2 px-6 text-center text-sm text-white/70">
-							<CameraIcon className="size-10 opacity-60" />
-							<p>{placeholderText}</p>
+						// No sentence: the two buttons below already say what they do, and saying it
+						// twice put a second focal point in the middle of an otherwise empty screen.
+						<div className="grid size-full place-items-center">
+							<CameraIcon
+								className="size-10 text-white/40"
+								aria-hidden="true"
+							/>
 						</div>
 					)}
 
@@ -538,21 +544,27 @@ const PhotoUploadDialogBase = ({
 							</button>
 
 							{/* Finish the batch from where a document scanner puts it: bottom-right,
-							    beside the shot count, both a thumb's width from the shutter. The
-							    picker gives up the slot once a shot exists — mid-batch gallery picks
-							    are rare, and it is still one tap away behind the review square. */}
+							    beside the shot count, both a thumb's width from the shutter. Squared
+							    off rather than round, so a white circle beside the shutter is never
+							    mistaken for a second one. The picker gives up the slot once a shot
+							    exists — mid-batch gallery picks are rare, and it is still one tap
+							    behind the review square. */}
 							<div className="justify-self-end">
 								{photoCount > 0 ? (
-									<Button
-										className="h-12 bg-white px-4 font-semibold text-black hover:bg-white/90"
+									<button
+										aria-label={confirmAriaLabel}
+										className="grid size-14 place-items-center bg-white text-black transition hover:bg-white/90 disabled:opacity-40"
 										disabled={isBusy}
-										loading={isBusy}
 										onClick={handleConfirm}
 										type="button"
 									>
-										{confirmLabel}
-									</Button>
-								) : cameraOnly ? null : (
+										{isBusy ? (
+											<CircleNotchIcon className="size-6 animate-spin" />
+										) : (
+											<CheckIcon className="size-7" aria-hidden="true" />
+										)}
+									</button>
+								) : (
 									<button
 										aria-label="Upload from device"
 										className="grid size-12 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
@@ -564,6 +576,31 @@ const PhotoUploadDialogBase = ({
 									</button>
 								)}
 							</div>
+						</div>
+					) : photoCount === 0 ? (
+						// Nothing captured yet, so there is only one thing to do: the camera takes the
+						// width and the fill that the confirm button takes once there is something to
+						// confirm, and the picker sits beside it as the exception it is.
+						<div className="flex h-14 items-center gap-2">
+							<button
+								className="flex h-14 flex-1 items-center justify-center gap-2 bg-white font-semibold text-base text-black transition hover:bg-white/90 disabled:opacity-40"
+								disabled={isBusy}
+								onClick={() => void openCamera()}
+								type="button"
+							>
+								<CameraIcon className="size-5" aria-hidden="true" />
+								Open camera
+							</button>
+
+							<button
+								aria-label="Upload from device"
+								className="grid size-14 place-items-center border border-white/30 bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
+								disabled={isBusy}
+								onClick={openFileInput}
+								type="button"
+							>
+								<ImageSquareIcon className="size-6" aria-hidden="true" />
+							</button>
 						</div>
 					) : (
 						<>
@@ -578,19 +615,17 @@ const PhotoUploadDialogBase = ({
 									{cameraButtonLabel}
 								</button>
 
-								{cameraOnly ? null : (
-									<button
-										aria-label="Upload from device"
-										className="grid size-12 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
-										disabled={isBusy}
-										onClick={openFileInput}
-										type="button"
-									>
-										<ImageSquareIcon className="size-5" aria-hidden="true" />
-									</button>
-								)}
+								<button
+									aria-label="Upload from device"
+									className="grid size-12 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
+									disabled={isBusy}
+									onClick={openFileInput}
+									type="button"
+								>
+									<ImageSquareIcon className="size-5" aria-hidden="true" />
+								</button>
 
-								{withNote && photoCount > 0 ? (
+								{withNote ? (
 									<button
 										aria-expanded={isNoteOpen}
 										aria-label={isNoteOpen ? "Hide note" : "Add note"}
@@ -658,26 +693,24 @@ const PhotoUploadDialogBase = ({
 						</>
 					)}
 
-					{cameraOnly ? null : (
-						<input
-							ref={fileInputRef}
-							type="file"
-							aria-label={`Choose ${photoNoun}${labelSuffix}`}
-							accept={ACCEPTED_IMAGE_TYPES.join(",")}
-							multiple={multiple}
-							className="sr-only"
-							onChange={(event) => {
-								const files = Array.from(event.target.files ?? []);
-								// A gallery pick used to land behind a still-running viewfinder, so the
-								// photo the cashier just chose was nowhere on screen. Cancelling the
-								// picker (no files) must leave the camera alone.
-								if (files.length > 0) {
-									stopCamera();
-								}
-								void addFiles(files);
-							}}
-						/>
-					)}
+					<input
+						ref={fileInputRef}
+						type="file"
+						aria-label={`Choose ${photoNoun}${labelSuffix}`}
+						accept={ACCEPTED_IMAGE_TYPES.join(",")}
+						multiple={multiple}
+						className="sr-only"
+						onChange={(event) => {
+							const files = Array.from(event.target.files ?? []);
+							// A gallery pick used to land behind a still-running viewfinder, so the
+							// photo the cashier just chose was nowhere on screen. Cancelling the
+							// picker (no files) must leave the camera alone.
+							if (files.length > 0) {
+								stopCamera();
+							}
+							void addFiles(files);
+						}}
+					/>
 				</div>
 			</DialogContent>
 		</Dialog>
@@ -699,7 +732,7 @@ export const SinglePhotoUploadDialog = (props: PhotoUploadDialogProps) => (
 
 type SinglePhotoCaptureDialogProps = Pick<
 	PhotoUploadDialogBaseProps,
-	"open" | "onOpenChange" | "title" | "badgeLabel" | "cameraOnly"
+	"open" | "onOpenChange" | "title" | "badgeLabel" | "autoOpenCamera"
 > & {
 	onCapture: (file: File) => void;
 };
@@ -709,21 +742,21 @@ type SinglePhotoCaptureDialogProps = Pick<
 // flows where the target row does not exist yet (POS drop-off photo before
 // checkout) or where the upload is bundled with other data (pickup event).
 //
-// Defaults to camera-only: drop-off is an intake action, so we want a live photo
-// of the items in front of the cashier, not a gallery pick. Trade-off: a device
-// with no camera (or denied permission) cannot complete it — accepted, since the
-// POS runs on store iPads. Pass cameraOnly={false} for flows that should still
-// allow a gallery pick (e.g. pickup).
+// Opens on the viewfinder by default: drop-off is an intake action, so a live
+// photo of the items in front of the cashier is the expected answer. It is no
+// longer the only one — a store whose iPad camera is refused or broken can still
+// finish the drop-off from the gallery. Pass autoOpenCamera={false} for flows
+// that should land on the chooser instead (e.g. pickup).
 export const SinglePhotoCaptureDialog = ({
 	onCapture,
-	cameraOnly = true,
+	autoOpenCamera = true,
 	...props
 }: SinglePhotoCaptureDialogProps) => (
 	<PhotoUploadDialogBase
 		{...props}
 		multiple={false}
 		withNote={false}
-		cameraOnly={cameraOnly}
+		autoOpenCamera={autoOpenCamera}
 		onCapture={(files) => {
 			const [file] = files;
 			if (file) {
