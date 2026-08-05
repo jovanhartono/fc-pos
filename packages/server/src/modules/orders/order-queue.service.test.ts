@@ -120,6 +120,7 @@ const {
   getMyOrderServices,
   getOrderServiceQueue,
   startOrderServiceWork,
+  updateOrderServiceHandler,
   updateOrderServiceStatus,
 } = await import("@/modules/orders/order-queue.service");
 
@@ -362,6 +363,61 @@ describe("getOrderServiceQueue", () => {
       items: [],
       meta: { limit: 25, offset: 0, total: 0 },
     });
+  });
+});
+
+describe("updateOrderServiceHandler", () => {
+  it("records the handler it took the garment from under the same lock it writes", async () => {
+    // Two supervisors reassigning one garment at the same moment: whoever
+    // commits second must log Sari as the previous handler, not the handler the
+    // first one saw. Reading it outside the lock forks the trail, and the trail
+    // is what the shop follows when an item cannot be found.
+    dbState.lockedRows = [
+      makeLockedRow({ handler_id: 9, status: "processing" }),
+    ];
+
+    const result = await updateOrderServiceHandler({
+      body: { handler_id: 11, note: "Sari went home" },
+      orderId: 88,
+      serviceId: 501,
+      user: ADMIN,
+    });
+
+    expect(result).toEqual({ handler_id: 11, order_service_id: 501 });
+    expect(dbState.transactions).toBe(1);
+    expect(dbState.updates).toEqual([
+      { table: ordersServicesTable, values: { handler_id: 11 } },
+    ]);
+    expect(dbState.inserts).toEqual([
+      {
+        table: orderServiceHandlerLogsTable,
+        values: {
+          changed_by: 1,
+          from_handler_id: 9,
+          note: "Sari went home",
+          order_service_id: 501,
+          to_handler_id: 11,
+        },
+      },
+    ]);
+  });
+
+  it("refuses a reassignment for a garment that is not on this order", async () => {
+    // A mistyped order number must not move a garment belonging to someone else.
+    dbState.lockedRows = [];
+
+    const error = await captureRejection(
+      updateOrderServiceHandler({
+        body: { handler_id: 11, note: "wrong order" },
+        orderId: 88,
+        serviceId: 501,
+        user: ADMIN,
+      })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect(dbState.updates).toEqual([]);
+    expect(dbState.inserts).toEqual([]);
   });
 });
 
