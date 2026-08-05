@@ -1,5 +1,7 @@
 import { Hono } from "hono";
+import { createMiddleware } from "hono/factory";
 import { StatusCodes } from "http-status-codes";
+import { z } from "zod";
 import { NotFoundException } from "@/errors";
 import { GETOrdersQuerySchema } from "@/modules/orders/order.schema";
 import {
@@ -63,7 +65,42 @@ import { assertOrderAccess, assertStoreAccess } from "@/utils/authorization";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-const app = new Hono()
+interface OrderAccessEnv {
+  Variables: {
+    jwtPayload: JWTPayload;
+    order?: Awaited<ReturnType<typeof assertOrderAccess>>;
+  };
+}
+
+// The id is read the way the handlers below validate it, not as plain digits.
+// /orders/+123 and /orders/%20123 both reach a handler as order 123, so a gate
+// that recognised only digits would wave them through unchecked.
+const orderIdParam = z.coerce.number().int().positive();
+
+// Every screen that opens a single order — the ticket, its receipt, its photos,
+// its refund — has to prove the person works at that branch: a cashier at Kemang
+// can never open a Bintaro order. One gate covers all of them, because the way
+// this leaks is a new /orders/:id screen whose author forgot line one.
+//
+// A path that is not an order id passes through untouched: the workshop queue at
+// /orders/services/queue is not order "services", and does its own branch check.
+const requireOrderAccess = createMiddleware<OrderAccessEnv>(async (c, next) => {
+  const orderId = orderIdParam.safeParse(c.req.param("id"));
+
+  if (orderId.success && !c.get("order")) {
+    const order = await assertOrderAccess(c.get("jwtPayload"), orderId.data);
+    c.set("order", order);
+  }
+
+  await next();
+});
+
+const app = new Hono<OrderAccessEnv>()
+  // Both shapes, because which one matches a bare /orders/123 depends on the
+  // router Hono picks for the whole API. Whichever fires first files the order
+  // and the other steps aside, so the branch is looked up once.
+  .use("/:id", requireOrderAccess)
+  .use("/:id/*", requireOrderAccess)
   .get("/", zodValidator("query", GETOrdersQuerySchema), async (c) => {
     const query = c.req.valid("query");
     const user = c.get("jwtPayload") as JWTPayload;
@@ -154,10 +191,7 @@ const app = new Hono()
     return c.json(success(created, "Order created"), StatusCodes.CREATED);
   })
   .get("/:id", idParamSchema, async (c) => {
-    const user = c.get("jwtPayload") as JWTPayload;
     const { id } = c.req.valid("param");
-
-    await assertOrderAccess(user, id);
 
     const detail = await getOrderDetailById(id);
 
@@ -168,10 +202,7 @@ const app = new Hono()
     return c.json(success(detail, "Order detail retrieved successfully"));
   })
   .get("/:id/receipt", idParamSchema, async (c) => {
-    const user = c.get("jwtPayload") as JWTPayload;
     const { id } = c.req.valid("param");
-
-    await assertOrderAccess(user, id);
 
     const receipt = await getOrderReceiptById(id);
 
@@ -189,8 +220,6 @@ const app = new Hono()
       const user = c.get("jwtPayload") as JWTPayload;
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
-
-      await assertOrderAccess(user, id);
 
       const payment = await updateOrderPayment({
         orderId: id,
@@ -214,8 +243,6 @@ const app = new Hono()
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      await assertOrderAccess(user, id);
-
       const updated = await updateOrderCollectedBy({
         orderId: id,
         collectedBy: body.collected_by,
@@ -238,8 +265,6 @@ const app = new Hono()
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      await assertOrderAccess(user, id);
-
       const signed = await createOrderPickupEventPresign({
         orderId: id,
         body,
@@ -260,8 +285,6 @@ const app = new Hono()
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      await assertOrderAccess(user, id);
-
       const result = await createOrderPickupEvent({
         orderId: id,
         body,
@@ -281,8 +304,6 @@ const app = new Hono()
       const user = c.get("jwtPayload") as JWTPayload;
       const { id, serviceId } = c.req.valid("param");
 
-      await assertOrderAccess(user, id);
-
       const result = await startOrderServiceWork({
         orderId: id,
         serviceId,
@@ -300,8 +321,6 @@ const app = new Hono()
       const user = c.get("jwtPayload") as JWTPayload;
       const { id, serviceId } = c.req.valid("param");
       const body = c.req.valid("json");
-
-      await assertOrderAccess(user, id);
 
       const result = await updateOrderServiceHandler({
         orderId: id,
@@ -322,8 +341,6 @@ const app = new Hono()
       const { id, serviceId } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      await assertOrderAccess(user, id);
-
       const result = await updateOrderServiceStatus({
         orderId: id,
         serviceId,
@@ -339,12 +356,8 @@ const app = new Hono()
     orderServiceParamSchema,
     zodValidator("json", POSTOrderServicePhotoPresignSchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
-
       const { id, serviceId } = c.req.valid("param");
       const body = c.req.valid("json");
-
-      await assertOrderAccess(user, id);
 
       const signed = await createOrderServicePhotoPresign({
         orderId: id,
@@ -360,11 +373,8 @@ const app = new Hono()
     idParamSchema,
     zodValidator("json", POSTOrderDropoffPhotoPresignSchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
-
-      await assertOrderAccess(user, id);
 
       const signed = await createOrderDropoffPhotoPresign({
         orderId: id,
@@ -385,8 +395,6 @@ const app = new Hono()
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      await assertOrderAccess(user, id);
-
       const photo = await saveOrderDropoffPhoto({
         orderId: id,
         body,
@@ -405,8 +413,6 @@ const app = new Hono()
       const { id, serviceId } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      await assertOrderAccess(user, id);
-
       const photo = await saveOrderServicePhoto({
         orderId: id,
         serviceId,
@@ -423,8 +429,6 @@ const app = new Hono()
     async (c) => {
       const user = c.get("jwtPayload") as JWTPayload;
       const { id, serviceId, photoId } = c.req.valid("param");
-
-      await assertOrderAccess(user, id);
 
       const result = await deleteOrderServicePhoto({
         orderId: id,
@@ -444,8 +448,6 @@ const app = new Hono()
       const user = c.get("jwtPayload") as JWTPayload;
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
-
-      await assertOrderAccess(user, id);
 
       const result = await createOrderRefund({
         orderId: id,
@@ -467,8 +469,6 @@ const app = new Hono()
       const user = c.get("jwtPayload") as JWTPayload;
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
-
-      await assertOrderAccess(user, id);
 
       const result = await cancelOrder({
         orderId: id,

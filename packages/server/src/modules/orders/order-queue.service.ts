@@ -36,7 +36,7 @@ import {
 import { assertCanReassignHandler } from "@/modules/permissions/permissions";
 import type { JWTPayload } from "@/types";
 import type { OrderService } from "@/types/entity";
-import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
+import { resolveStoreScope, unhandledStoreScope } from "@/utils/authorization";
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
 import { buildPaginationMeta } from "@/utils/pagination";
 
@@ -100,20 +100,24 @@ export async function getMyOrderServices(
     );
   }
 
-  if (user.role === "admin") {
-    if (query.store_id !== undefined) {
-      conditions.push(eq(ordersTable.store_id, query.store_id));
-    }
-  } else if (query.store_id === undefined) {
-    const storeIds = await getUserStoreIds(user.id);
-    if (storeIds.length === 0) {
-      return [];
-    }
+  const scope = await resolveStoreScope(user, query.store_id);
 
-    conditions.push(inArray(ordersTable.store_id, storeIds));
-  } else {
-    await assertStoreAccess(user, query.store_id);
-    conditions.push(eq(ordersTable.store_id, query.store_id));
+  switch (scope.kind) {
+    case "one":
+      conditions.push(eq(ordersTable.store_id, scope.storeId));
+      break;
+    case "some":
+      conditions.push(inArray(ordersTable.store_id, scope.storeIds));
+      break;
+    // A worker with no branch yet has no rack to show.
+    case "none":
+      return [];
+    // An admin who named no branch sees their own items across every branch —
+    // this is one person's rack, so it is never the whole company's floor.
+    case "all":
+      break;
+    default:
+      return unhandledStoreScope(scope);
   }
 
   return db
@@ -158,25 +162,27 @@ export async function getOrderServiceQueue(
     ]),
   ];
 
-  if (user.role === "admin") {
-    if (normalized.store_id === undefined) {
-      throw new BadRequestException("Store is required for admin queue access");
-    }
+  const scope = await resolveStoreScope(user, normalized.store_id);
 
-    conditions.push(eq(ordersTable.store_id, normalized.store_id));
-  } else if (normalized.store_id === undefined) {
-    const storeIds = await getUserStoreIds(user.id);
-    if (storeIds.length === 0) {
+  switch (scope.kind) {
+    case "one":
+      conditions.push(eq(ordersTable.store_id, scope.storeId));
+      break;
+    case "some":
+      conditions.push(inArray(ordersTable.store_id, scope.storeIds));
+      break;
+    // A worker with no branch yet gets an empty page, not the company queue.
+    case "none":
       return {
         items: [],
         meta: buildPaginationMeta(0, normalized),
       };
-    }
-
-    conditions.push(inArray(ordersTable.store_id, storeIds));
-  } else {
-    await assertStoreAccess(user, normalized.store_id);
-    conditions.push(eq(ordersTable.store_id, normalized.store_id));
+    // Unlike the other lists, an unscoped floor is useless here: every branch's
+    // work in one queue is a list nobody can work from, so the admin must pick.
+    case "all":
+      throw new BadRequestException("Store is required for admin queue access");
+    default:
+      return unhandledStoreScope(scope);
   }
 
   if (normalized.status !== undefined) {

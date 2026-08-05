@@ -20,7 +20,11 @@ import {
   recomputeOrderRollup,
 } from "@/modules/orders/order-status-machine";
 import type { JWTPayload } from "@/types";
-import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
+import {
+  assertStoreAccess,
+  resolveStoreScope,
+  unhandledStoreScope,
+} from "@/utils/authorization";
 import { buildPaginationMeta } from "@/utils/pagination";
 
 type SubjectService = NonNullable<
@@ -178,14 +182,26 @@ export async function listComplaints(
   query?: GetComplaintsQuery
 ) {
   const normalized = normalizeComplaintListQuery(query);
+  const scope = await resolveStoreScope(user, normalized.store_id);
   let scopedStoreIds: number[] | undefined;
 
-  if (user.role !== "admin") {
-    if (normalized.store_id === undefined) {
-      scopedStoreIds = await getUserStoreIds(user.id);
-    } else {
-      await assertStoreAccess(user, normalized.store_id);
-    }
+  switch (scope.kind) {
+    // Complaints are the branch's own returns desk — a cashier reviewing them
+    // sees the branches they work at, never another branch's grievances.
+    case "some":
+      scopedStoreIds = scope.storeIds;
+      break;
+    // A staff account not yet assigned to a branch: nothing, not everything.
+    case "none":
+      scopedStoreIds = [];
+      break;
+    // An admin reviews every branch, and a named branch is already the
+    // store_id filter the query carries.
+    case "all":
+    case "one":
+      break;
+    default:
+      return unhandledStoreScope(scope);
   }
 
   const { items, total } = await findComplaints(normalized, scopedStoreIds);
