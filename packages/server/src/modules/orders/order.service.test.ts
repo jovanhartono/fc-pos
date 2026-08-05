@@ -27,6 +27,7 @@ type AnyObj = Record<string, unknown>;
 interface CatalogService {
   cogs: string;
   id: number;
+  is_active: boolean;
   is_priority: boolean;
   price: string;
 }
@@ -330,8 +331,20 @@ describe("createOrder", () => {
     // must literally read 02082026 — the Jakarta business date — and no
     // rupiah may land in paid_amount before money actually changes hands.
     catalog.services = [
-      { id: 10, price: "30000", cogs: "12000", is_priority: false },
-      { id: 11, price: "15000", cogs: "4000", is_priority: false },
+      {
+        id: 10,
+        price: "30000",
+        cogs: "12000",
+        is_priority: false,
+        is_active: true,
+      },
+      {
+        id: 11,
+        price: "15000",
+        cogs: "4000",
+        is_priority: false,
+        is_active: true,
+      },
     ];
 
     const result = await checkout({ services: [{ id: 10 }, { id: 11 }] });
@@ -391,7 +404,13 @@ describe("createOrder", () => {
     // holds Rp45.000 — booking the gross would overstate revenue by the
     // discount, and the promo's redemption must be burned in the same breath.
     catalog.services = [
-      { id: 10, price: "50000", cogs: "20000", is_priority: false },
+      {
+        id: 10,
+        price: "50000",
+        cogs: "20000",
+        is_priority: false,
+        is_active: true,
+      },
     ];
     discount.result = {
       campaignRows: [{ campaign_id: 3, kind: "listed" }],
@@ -437,7 +456,13 @@ describe("createOrder", () => {
     // total is nonsense at the till — and the customer's slip must survive the
     // failed checkout so they can retry, not lose the code to a dead order.
     catalog.services = [
-      { id: 10, price: "50000", cogs: "20000", is_priority: false },
+      {
+        id: 10,
+        price: "50000",
+        cogs: "20000",
+        is_priority: false,
+        is_active: true,
+      },
     ];
     discount.result = {
       campaignRows: [
@@ -465,7 +490,13 @@ describe("createOrder", () => {
     // the exact-match comp would strand the manager's apology voucher. And the
     // voucher still burns, or the customer washes free twice.
     catalog.services = [
-      { id: 10, price: "50000", cogs: "20000", is_priority: false },
+      {
+        id: 10,
+        price: "50000",
+        cogs: "20000",
+        is_priority: false,
+        is_active: true,
+      },
     ];
     discount.result = {
       campaignRows: [
@@ -514,6 +545,30 @@ describe("createOrder", () => {
     expect(repo.insertedOrder).toBeUndefined();
   });
 
+  it("refuses a retired treatment a still-open till keeps offering", async () => {
+    // The shop pulled suede restoration off the menu this morning, but the
+    // cashier's tablet has been open since before that and still lists it. The
+    // POS only hides retired treatments client-side, so nothing but this gate
+    // stops its price and COGS being snapshotted onto a live order.
+    catalog.services = [
+      {
+        id: 12,
+        price: "40000",
+        cogs: "18000",
+        is_priority: false,
+        is_active: false,
+      },
+    ];
+
+    const error = await captureRejection(checkout({ services: [{ id: 12 }] }));
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe("Service is not active: 12");
+    expect(repo.reserveCalls).toHaveLength(0);
+    expect(repo.insertedOrder).toBeUndefined();
+    expect(repo.serviceRows).toEqual([]);
+  });
+
   it("lets an out-of-stock failure escape the transaction so no half-created order survives", async () => {
     // Two cashiers race for the last bottle. The loser's order row was already
     // written inside the transaction — the thrown error is what rolls it back;
@@ -554,8 +609,20 @@ describe("createOrder", () => {
     // receipt code; a line without an explicit priority takes the service's
     // default, an explicit choice beats it.
     catalog.services = [
-      { id: 10, price: "30000", cogs: "12000", is_priority: true },
-      { id: 11, price: "15000", cogs: "4000", is_priority: true },
+      {
+        id: 10,
+        price: "30000",
+        cogs: "12000",
+        is_priority: true,
+        is_active: true,
+      },
+      {
+        id: 11,
+        price: "15000",
+        cogs: "4000",
+        is_priority: true,
+        is_active: true,
+      },
     ];
     catalog.products = [
       {
@@ -611,7 +678,13 @@ describe("createOrder", () => {
     // Most orders are handed over the counter; only courier-collected bags
     // must name an active courier, so the check must not fire for walk-ins.
     catalog.services = [
-      { id: 10, price: "30000", cogs: "12000", is_priority: false },
+      {
+        id: 10,
+        price: "30000",
+        cogs: "12000",
+        is_priority: false,
+        is_active: true,
+      },
     ];
 
     await checkout({ services: [{ id: 10 }] });

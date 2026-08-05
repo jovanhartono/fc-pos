@@ -70,38 +70,73 @@ type OrderProductInput = NonNullable<
   z.infer<typeof POSTOrderSchema>["products"]
 >[number];
 
+interface CatalogLine<TItem, TRow> {
+  item: TItem;
+  row: TRow;
+}
+
+// A till stays open for hours and the POS only hides retired items on screen, so
+// the basket is matched against the live catalog here — before the transaction,
+// so a doomed order never burns a daily order number.
+function resolveCatalogLines<
+  TItem extends { id: number },
+  TRow extends { id: number; is_active: boolean },
+>(label: string, items: TItem[], rows: TRow[]): CatalogLine<TItem, TRow>[] {
+  const rowsById = new Map(rows.map((row) => [row.id, row]));
+  const missing = new Set<number>();
+  const inactive = new Set<number>();
+  const lines: CatalogLine<TItem, TRow>[] = [];
+
+  for (const item of items) {
+    const row = rowsById.get(item.id);
+
+    if (!row) {
+      missing.add(item.id);
+    } else if (row.is_active) {
+      lines.push({ item, row });
+    } else {
+      inactive.add(item.id);
+    }
+  }
+
+  if (missing.size > 0) {
+    throw new NotFoundException(
+      `${label} not found: ${[...missing].join(", ")}`
+    );
+  }
+
+  if (inactive.size > 0) {
+    throw new BadRequestException(
+      `${label} is not active: ${[...inactive].join(", ")}`
+    );
+  }
+
+  return lines;
+}
+
 function buildOrderServiceRows({
   code,
-  expandedServices,
   orderId,
-  serviceMap,
+  serviceLines,
 }: {
   code: string;
-  expandedServices: ExpandedServiceItem[];
   orderId: number;
-  serviceMap: Map<number, DbService>;
+  serviceLines: CatalogLine<ExpandedServiceItem, DbService>[];
 }) {
-  return expandedServices.map((item, index) => {
-    const service = serviceMap.get(item.id);
-    if (!service) {
-      throw new NotFoundException(`Service not found: ${item.id}`);
-    }
-
-    return {
-      brand: item.brand,
-      item_code: `${code}-S${String(index + 1).padStart(3, "0")}`,
-      is_priority: item.is_priority ?? service.is_priority,
-      model: item.model,
-      order_id: orderId,
-      service_id: service.id,
-      price: service.price,
-      cogs_snapshot: service.cogs,
-      notes: item.notes,
-      color: item.color,
-      size: item.size,
-      status: "queued" as const,
-    };
-  });
+  return serviceLines.map(({ item, row: service }, index) => ({
+    brand: item.brand,
+    item_code: `${code}-S${String(index + 1).padStart(3, "0")}`,
+    is_priority: item.is_priority ?? service.is_priority,
+    model: item.model,
+    order_id: orderId,
+    service_id: service.id,
+    price: service.price,
+    cogs_snapshot: service.cogs,
+    notes: item.notes,
+    color: item.color,
+    size: item.size,
+    status: "queued" as const,
+  }));
 }
 
 export async function listOrders(query?: GetOrdersQuery, user?: JWTPayload) {
@@ -126,15 +161,13 @@ export async function listOrders(query?: GetOrdersQuery, user?: JWTPayload) {
 
 async function decrementProductsStock(
   tx: OrderTx,
-  products: OrderProductInput[],
-  productMap: Map<number, DbProduct>
+  productLines: CatalogLine<OrderProductInput, DbProduct>[]
 ) {
-  for (const item of products) {
-    const [decremented] = await decrementProductStock(tx, item.id, item.qty);
+  for (const { item, row: product } of productLines) {
+    const [decremented] = await decrementProductStock(tx, product.id, item.qty);
     if (!decremented) {
-      const product = productMap.get(item.id);
       throw new BadRequestException(
-        `Insufficient stock for product ${product?.name ?? item.id}`
+        `Insufficient stock for product ${product.name}`
       );
     }
   }
@@ -165,41 +198,17 @@ export async function createOrder(
     serviceIds.length > 0 ? findServices(serviceIds) : Promise.resolve([]),
   ]);
 
-  const productMap = new Map(
-    dbProducts.map((product) => [product.id, product])
+  const productLines = resolveCatalogLines("Product", products, dbProducts);
+  const serviceLines = resolveCatalogLines(
+    "Service",
+    expandServices(services),
+    dbServices
   );
-  const serviceMap = new Map(
-    dbServices.map((service) => [service.id, service])
-  );
-
-  const missingProducts = productIds.filter((id) => !productMap.has(id));
-  if (missingProducts.length > 0) {
-    throw new NotFoundException(
-      `Product not found: ${missingProducts.join(", ")}`
-    );
-  }
-
-  const inactiveProducts = productIds.filter(
-    (id) => !productMap.get(id)?.is_active
-  );
-  if (inactiveProducts.length > 0) {
-    throw new BadRequestException(
-      `Product is not active: ${inactiveProducts.join(", ")}`
-    );
-  }
-
-  const missingServices = serviceIds.filter((id) => !serviceMap.has(id));
-  if (missingServices.length > 0) {
-    throw new NotFoundException(
-      `Service not found: ${missingServices.join(", ")}`
-    );
-  }
 
   return db.transaction(async (tx) => {
     const dateStr = jakartaNow().format("DDMMYYYY");
     const sequence = await reserveNextOrderNumber(tx, store.code, dateStr);
     const code = formatOrderCode(store.code, dateStr, sequence);
-    const expandedServices = expandServices(services);
 
     const customerId = await resolveOrCreateCustomer({
       executor: tx,
@@ -218,8 +227,8 @@ export async function createOrder(
       discount_source: "none",
       paid_amount: "0",
       notes: orderPayload.notes,
-      status: expandedServices.length > 0 ? "created" : "completed",
-      completed_at: expandedServices.length > 0 ? null : new Date(),
+      status: serviceLines.length > 0 ? "created" : "completed",
+      completed_at: serviceLines.length > 0 ? null : new Date(),
       paid_at: null,
       store_id: store.id,
       collected_by: orderPayload.collected_by ?? null,
@@ -227,48 +236,35 @@ export async function createOrder(
       updated_by: userId,
     });
 
-    await decrementProductsStock(tx, products, productMap);
+    await decrementProductsStock(tx, productLines);
 
     const [serviceSubtotal, productSubtotal] = await Promise.all([
       insertOrderServices(
         tx,
         buildOrderServiceRows({
           code,
-          expandedServices,
           orderId,
-          serviceMap,
+          serviceLines,
         })
       ),
       insertOrderProducts(
         tx,
-        products.map((item) => {
-          const product = productMap.get(item.id);
-          if (!product) {
-            throw new NotFoundException(`Product not found: ${item.id}`);
-          }
-
-          return {
-            order_id: orderId,
-            product_id: product.id,
-            price: product.price,
-            // COGS is stored in whole rupiah, like every amount at the counter.
-            cogs_snapshot: Math.round(
-              Number(product.cogs) * item.qty
-            ).toString(),
-            qty: item.qty,
-          };
-        })
+        productLines.map(({ item, row: product }) => ({
+          order_id: orderId,
+          product_id: product.id,
+          price: product.price,
+          // COGS is stored in whole rupiah, like every amount at the counter.
+          cogs_snapshot: Math.round(Number(product.cogs) * item.qty).toString(),
+          qty: item.qty,
+        }))
       ),
     ]);
 
     const grossTotal = serviceSubtotal + productSubtotal;
-    const lines = expandedServices.map((item) => {
-      const service = serviceMap.get(item.id);
-      return {
-        price: Number(service?.price ?? 0),
-        service_id: item.id,
-      };
-    });
+    const lines = serviceLines.map(({ item, row: service }) => ({
+      price: Number(service.price),
+      service_id: item.id,
+    }));
 
     const { discountAmount, discountSource, campaignRows } =
       await resolveDiscount({

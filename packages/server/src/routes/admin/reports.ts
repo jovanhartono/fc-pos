@@ -2,13 +2,11 @@ import { Hono } from "hono";
 import { assertIsAdmin } from "@/modules/permissions/permissions";
 import {
   GETAgingQueueQuerySchema,
-  GETDailyReportQuerySchema,
   GETReportOverviewQuerySchema,
   GETReportRangeQuerySchema,
 } from "@/modules/reports/report.schema";
 import {
   getAgingQueueReport,
-  getDailyReport,
   getReportOverview,
 } from "@/modules/reports/report.service";
 import {
@@ -30,21 +28,6 @@ const app = new Hono()
     assertIsAdmin(c.get("jwtPayload") as JWTPayload);
     await next();
   })
-  .get(
-    "/daily",
-    zodValidator("query", GETDailyReportQuerySchema),
-    async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
-
-      const query = c.req.valid("query");
-      if (query.store_id !== undefined) {
-        await assertStoreAccess(user, query.store_id);
-      }
-
-      const data = await getDailyReport(query);
-      return c.json(success(data));
-    }
-  )
   .get(
     "/overview",
     zodValidator("query", GETReportOverviewQuerySchema),

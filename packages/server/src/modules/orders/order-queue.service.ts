@@ -19,7 +19,7 @@ import {
   usersTable,
 } from "@/db/schema";
 import { BadRequestException, ForbiddenException } from "@/errors";
-import { getOrderServiceOrThrow } from "@/modules/orders/order.repository";
+import type { OrderTx } from "@/modules/orders/order.repository";
 import type {
   GetMyOrderServicesQuery,
   GetOrderServiceQueueQuery,
@@ -35,6 +35,7 @@ import {
 } from "@/modules/orders/order-status-machine";
 import { assertCanReassignHandler } from "@/modules/permissions/permissions";
 import type { JWTPayload } from "@/types";
+import type { OrderService } from "@/types/entity";
 import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
 import { buildPaginationMeta } from "@/utils/pagination";
@@ -266,6 +267,62 @@ export async function getOrderServiceQueue(
   };
 }
 
+interface ClaimHandlerInput {
+  lockedOrderService: OrderService;
+  note: string;
+  user: JWTPayload;
+}
+
+// Two scanners can hit the same tag at once, and only one of them may end up
+// holding the garment.
+async function lockOrderServiceOrThrow(
+  tx: OrderTx,
+  orderId: number,
+  serviceId: number
+) {
+  const [locked] = await tx
+    .select()
+    .from(ordersServicesTable)
+    .where(
+      and(
+        eq(ordersServicesTable.id, serviceId),
+        eq(ordersServicesTable.order_id, orderId)
+      )
+    )
+    .for("update");
+
+  if (!locked) {
+    throw new BadRequestException("Order service not found for this order");
+  }
+
+  return locked;
+}
+
+// The hand-off log is what the shop reads when a garment goes missing. Picking up
+// an item you already hold changes nothing — a second row would invent a hand-off
+// that never happened.
+async function claimHandler(
+  tx: OrderTx,
+  { lockedOrderService, note, user }: ClaimHandlerInput
+) {
+  if (lockedOrderService.handler_id === user.id) {
+    return;
+  }
+
+  await tx
+    .update(ordersServicesTable)
+    .set({ handler_id: user.id })
+    .where(eq(ordersServicesTable.id, lockedOrderService.id));
+
+  await tx.insert(orderServiceHandlerLogsTable).values({
+    order_service_id: lockedOrderService.id,
+    from_handler_id: lockedOrderService.handler_id,
+    to_handler_id: user.id,
+    changed_by: user.id,
+    note,
+  });
+}
+
 export async function startOrderServiceWork({
   orderId,
   serviceId,
@@ -276,20 +333,7 @@ export async function startOrderServiceWork({
   user: JWTPayload;
 }) {
   const result = await db.transaction(async (tx) => {
-    const [locked] = await tx
-      .select()
-      .from(ordersServicesTable)
-      .where(
-        and(
-          eq(ordersServicesTable.id, serviceId),
-          eq(ordersServicesTable.order_id, orderId)
-        )
-      )
-      .for("update");
-
-    if (!locked) {
-      throw new BadRequestException("Order service not found for this order");
-    }
+    const locked = await lockOrderServiceOrThrow(tx, orderId, serviceId);
 
     if (
       locked.handler_id !== null &&
@@ -301,20 +345,11 @@ export async function startOrderServiceWork({
       );
     }
 
-    if (locked.handler_id !== user.id) {
-      await tx
-        .update(ordersServicesTable)
-        .set({ handler_id: user.id })
-        .where(eq(ordersServicesTable.id, serviceId));
-
-      await tx.insert(orderServiceHandlerLogsTable).values({
-        order_service_id: serviceId,
-        from_handler_id: locked.handler_id,
-        to_handler_id: user.id,
-        changed_by: user.id,
-        note: "Started from queue",
-      });
-    }
+    await claimHandler(tx, {
+      note: "Started from queue",
+      lockedOrderService: locked,
+      user,
+    });
 
     const { from } = await transitionOrderService(tx, {
       orderId,
@@ -348,9 +383,12 @@ export async function updateOrderServiceHandler({
 }) {
   assertCanReassignHandler(user);
 
-  const orderService = await getOrderServiceOrThrow(orderId, serviceId);
-
   await db.transaction(async (tx) => {
+    // Who held the garment has to be read under the lock: two managers
+    // reassigning at once would otherwise both log the same previous handler,
+    // and the trail could no longer say who to ask when an item goes missing.
+    const orderService = await lockOrderServiceOrThrow(tx, orderId, serviceId);
+
     await tx
       .update(ordersServicesTable)
       .set({ handler_id: body.handler_id })
@@ -391,39 +429,19 @@ export async function updateOrderServiceStatus({
   }
 
   const fromStatus = await db.transaction(async (tx) => {
-    const [locked] = await tx
-      .select()
-      .from(ordersServicesTable)
-      .where(
-        and(
-          eq(ordersServicesTable.id, serviceId),
-          eq(ordersServicesTable.order_id, orderId)
-        )
-      )
-      .for("update");
+    const locked = await lockOrderServiceOrThrow(tx, orderId, serviceId);
 
-    if (!locked) {
-      throw new BadRequestException("Order service not found for this order");
-    }
-
+    // Restarting work on a queued or QC-rejected item means the person doing it
+    // now owns it — the worker who dropped it may have gone home.
     const isClaimTransition =
       (locked.status === "queued" || locked.status === "qc_reject") &&
       body.status === "processing";
-    const needsHandlerAssign =
-      isClaimTransition && locked.handler_id !== user.id;
 
-    if (needsHandlerAssign) {
-      await tx
-        .update(ordersServicesTable)
-        .set({ handler_id: user.id })
-        .where(eq(ordersServicesTable.id, serviceId));
-
-      await tx.insert(orderServiceHandlerLogsTable).values({
-        order_service_id: serviceId,
-        from_handler_id: locked.handler_id,
-        to_handler_id: user.id,
-        changed_by: user.id,
+    if (isClaimTransition) {
+      await claimHandler(tx, {
         note: "Auto-assigned on status update",
+        lockedOrderService: locked,
+        user,
       });
     }
 

@@ -42,6 +42,17 @@ _Avoid_: Quota, max uses.
 **PaymentMethod**:
 A configurable tender (cash, transfer, QRIS, etc.). Same list across all Stores. An Order carries a PaymentMethod **only when `payment_status = paid`** — a tender is *how money arrived*, so an unpaid Order has none. The POS hides the method picker while a Cart is unpaid and drops any chosen method when it toggles back to unpaid; a paid Order **requires** one. This is a corollary of binary payment — see [ADR-0001](docs/adr/0001-payment-is-binary.md).
 
+### Activation
+
+**Active** (`is_active`):
+Whether a row may be used in day-to-day operation. Every table carrying the column starts in the state the business would pick by hand, and the two groups deliberately disagree:
+
+- **Starts inactive** — Category, Service, Product, PaymentMethod, Store. A catalog row is drafted before it is sellable: someone fills in a price, a COGS, a code, and only then puts it on sale. A half-finished Service appearing on six tills the moment it is saved is the worse accident, so the column defaults to `false`.
+- **Starts active** — User, Campaign. Both exist to work immediately: a new cashier logs in on their first shift, and a Campaign already carries its own date window and rules. Here `is_active` is the kill switch, not the go switch, so it defaults to `true`.
+
+Those DB defaults are close to inert in practice — `isActiveSchema` is a **required** boolean on every create payload (Campaign's create schema defaults it to `true`), so the default only surfaces in hand-written SQL. The rule that matters is where inactive is enforced: **server-side, never only in the browser**. Checkout rejects an inactive Service or Product even though the POS also hides them; login and `adminMiddleware` reject an inactive User; Campaign eligibility rejects an inactive Campaign.
+_Avoid_: enabled, published, visible.
+
 ### Operators
 
 **Store**:
