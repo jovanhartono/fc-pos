@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { BadRequestException, NotFoundException } from "@/errors";
+import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 
 // The service takes no DB handle: it calls repository functions directly. A pair

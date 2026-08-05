@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { orderServiceStatusEnum } from "@/db/schema";
-import { BadRequestException } from "@/errors";
+import { BadRequestException } from "@/http-exceptions";
 import {
   type DbExecutor,
   deriveOrderStatus,

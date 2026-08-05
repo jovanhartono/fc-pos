@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { BadRequestException, NotFoundException } from "@/errors";
+import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import {
   countReworkLinesForOrder,
   findComplaintById,

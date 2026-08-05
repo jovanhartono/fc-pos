@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { ordersTable } from "@/db/schema";
-import { BadRequestException } from "@/errors";
+import { BadRequestException } from "@/http-exceptions";
 import type { PatchOrderPaymentInput } from "@/modules/orders/order-admin.schema";
 import { assertCanProcessPayment } from "@/modules/permissions/permissions";
 import type { JWTPayload } from "@/types";

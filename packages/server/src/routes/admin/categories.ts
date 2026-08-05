@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
-import { NotFoundException } from "@/errors";
+import { NotFoundException } from "@/http-exceptions";
 import {
   GETCategoriesQuerySchema,
   POSTCategorySchema,
@@ -13,10 +13,11 @@ import {
   updateCategory,
 } from "@/modules/categories/category.service";
 import { idParamSchema } from "@/schema/param";
+import type { AdminEnv } from "@/types/hono";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-const app = new Hono()
+const app = new Hono<AdminEnv>()
   .get("/", zodValidator("query", GETCategoriesQuerySchema), async (c) => {
     const query = c.req.valid("query");
     const categories = await getCategories(query);

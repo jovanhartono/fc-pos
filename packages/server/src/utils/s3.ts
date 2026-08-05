@@ -1,5 +1,5 @@
 import { s3 } from "bun";
-import { BadRequestException } from "@/errors";
+import { BadRequestException } from "@/http-exceptions";
 
 const DEFAULT_PRESIGNED_EXPIRES_SECONDS = 300;
 // 2560 on the long edge keeps a 5mm stain reading as a mark rather than a smudge in a

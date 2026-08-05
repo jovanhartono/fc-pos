@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
-import { NotFoundException } from "@/errors";
+import { NotFoundException } from "@/http-exceptions";
 import {
   POSTServiceSchema,
   PUTServiceSchema,
@@ -12,10 +12,11 @@ import {
   updateService,
 } from "@/modules/services/service.service";
 import { idParamSchema } from "@/schema/param";
+import type { AdminEnv } from "@/types/hono";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-const app = new Hono()
+const app = new Hono<AdminEnv>()
   .get("/", async (c) => {
     const services = await getServices();
 

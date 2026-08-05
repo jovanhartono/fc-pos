@@ -6,7 +6,7 @@ import {
   ordersProductsTable,
   ordersTable,
 } from "@/db/schema";
-import { BadRequestException } from "@/errors";
+import { BadRequestException } from "@/http-exceptions";
 import { releaseRedemptions } from "@/modules/campaigns/campaign-redemption.service";
 import type { OrderTx } from "@/modules/orders/order.repository";
 import type {

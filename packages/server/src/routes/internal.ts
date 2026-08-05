@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { UnauthorizedException } from "@/errors";
+import { UnauthorizedException } from "@/http-exceptions";
 import { sweepOrphanedOrderPhotos } from "@/modules/orders/order-photo-sweep.service";
 import { success } from "@/utils/http";
 

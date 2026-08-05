@@ -1,4 +1,4 @@
-import { BadRequestException } from "@/errors";
+import { BadRequestException } from "@/http-exceptions";
 
 export type RefundLineKind = "service" | "product";
 

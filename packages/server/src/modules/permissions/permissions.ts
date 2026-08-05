@@ -1,5 +1,5 @@
 import type { ordersTable } from "@/db/schema";
-import { ForbiddenException } from "@/errors";
+import { ForbiddenException } from "@/http-exceptions";
 import type { JWTPayload } from "@/types";
 
 type OrderForPermissions = Pick<

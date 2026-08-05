@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from "@/errors";
+import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import {
   countShifts,
   findOpenShiftByUserId,
@@ -9,8 +9,8 @@ import {
 import type { GetShiftsQuery } from "@/modules/shifts/shift.schema";
 import type { JWTPayload } from "@/types";
 import { assertStoreAccess } from "@/utils/authorization";
-import { isUniqueViolation } from "@/utils/errors";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
+import { isUniqueViolation } from "@/utils/pg-error";
 
 export async function clockIn({
   user,

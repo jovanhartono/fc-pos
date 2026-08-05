@@ -10,8 +10,8 @@ import {
   updateCustomerById,
 } from "@/modules/customers/customer.repository";
 import type { GetCustomersQuery } from "@/modules/customers/customer.schema";
-import { isUniqueViolation } from "@/utils/errors";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
+import { isUniqueViolation } from "@/utils/pg-error";
 import { toTitleCase } from "@/utils/string";
 
 export async function getCustomers(query?: GetCustomersQuery) {

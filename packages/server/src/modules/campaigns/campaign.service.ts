@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from "@/errors";
+import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import {
   deleteCampaignById,
   findCampaignByCode,

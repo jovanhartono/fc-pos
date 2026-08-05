@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
-import { NotFoundException } from "@/errors";
+import { NotFoundException } from "@/http-exceptions";
 import { assertCanManageUsers } from "@/modules/permissions/permissions";
 import {
   GETUsersQuerySchema,
@@ -15,13 +15,13 @@ import {
 } from "@/modules/users/user.service";
 import { POSTUserSchema, PUTUserSchema } from "@/schema";
 import { idParamSchema } from "@/schema/param";
-import type { JWTPayload } from "@/types";
+import type { AdminEnv } from "@/types/hono";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-const app = new Hono()
+const app = new Hono<AdminEnv>()
   .post("/", zodValidator("json", POSTUserSchema), async (c) => {
-    const actor = c.get("jwtPayload") as JWTPayload;
+    const actor = c.get("jwtPayload");
     assertCanManageUsers(actor);
 
     const { confirm_password: _, ...user } = c.req.valid("json");
@@ -30,7 +30,7 @@ const app = new Hono()
     return c.json(success(created, "Create user success"), StatusCodes.CREATED);
   })
   .get("/", zodValidator("query", GETUsersQuerySchema), async (c) => {
-    const actor = c.get("jwtPayload") as JWTPayload;
+    const actor = c.get("jwtPayload");
     assertCanManageUsers(actor);
 
     const query = c.req.valid("query");
@@ -39,7 +39,7 @@ const app = new Hono()
     return c.json(success(items, undefined, meta));
   })
   .get("/me", async (c) => {
-    const actor = c.get("jwtPayload") as JWTPayload;
+    const actor = c.get("jwtPayload");
     const user = await getUserById(actor.id);
 
     if (!user) {
@@ -49,7 +49,7 @@ const app = new Hono()
     return c.json(success(user, "Current user retrieved successfully"));
   })
   .get("/:id", idParamSchema, async (c) => {
-    const actor = c.get("jwtPayload") as JWTPayload;
+    const actor = c.get("jwtPayload");
     assertCanManageUsers(actor);
 
     const { id } = c.req.valid("param");
@@ -66,7 +66,7 @@ const app = new Hono()
     idParamSchema,
     zodValidator("json", PUTUserSchema),
     async (c) => {
-      const actor = c.get("jwtPayload") as JWTPayload;
+      const actor = c.get("jwtPayload");
       assertCanManageUsers(actor);
 
       const { id } = c.req.valid("param");
@@ -86,7 +86,7 @@ const app = new Hono()
     idParamSchema,
     zodValidator("json", PUTUserStoresSchema),
     async (c) => {
-      const actor = c.get("jwtPayload") as JWTPayload;
+      const actor = c.get("jwtPayload");
       assertCanManageUsers(actor);
 
       const { id } = c.req.valid("param");

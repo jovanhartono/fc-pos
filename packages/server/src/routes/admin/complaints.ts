@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
-import { NotFoundException } from "@/errors";
+import { NotFoundException } from "@/http-exceptions";
 import {
   GETComplaintsQuerySchema,
   POSTComplaintSchema,
@@ -12,13 +12,13 @@ import {
   openComplaint,
 } from "@/modules/complaints/complaint.service";
 import { idParamSchema } from "@/schema/param";
-import type { JWTPayload } from "@/types";
+import type { AdminEnv } from "@/types/hono";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-const app = new Hono()
+const app = new Hono<AdminEnv>()
   .get("/", zodValidator("query", GETComplaintsQuerySchema), async (c) => {
-    const user = c.get("jwtPayload") as JWTPayload;
+    const user = c.get("jwtPayload");
     const query = c.req.valid("query");
 
     const { items, meta } = await listComplaints(user, query);
@@ -26,7 +26,7 @@ const app = new Hono()
     return c.json(success(items, undefined, meta));
   })
   .get("/:id", idParamSchema, async (c) => {
-    const user = c.get("jwtPayload") as JWTPayload;
+    const user = c.get("jwtPayload");
     const { id } = c.req.valid("param");
 
     const detail = await getComplaintDetail(user, id);
@@ -37,7 +37,7 @@ const app = new Hono()
     return c.json(success(detail, "Complaint detail retrieved successfully"));
   })
   .post("/", zodValidator("json", POSTComplaintSchema), async (c) => {
-    const user = c.get("jwtPayload") as JWTPayload;
+    const user = c.get("jwtPayload");
     const body = c.req.valid("json");
 
     const result = await openComplaint({ user, body });
@@ -45,7 +45,7 @@ const app = new Hono()
     return c.json(success(result, "Complaint opened"), StatusCodes.CREATED);
   })
   .post("/:id/rework", idParamSchema, async (c) => {
-    const user = c.get("jwtPayload") as JWTPayload;
+    const user = c.get("jwtPayload");
     const { id } = c.req.valid("param");
 
     const rework = await addRework({ user, complaintId: id });

@@ -3,8 +3,8 @@ import { every } from "hono/combine";
 import { createMiddleware } from "hono/factory";
 import { jwt } from "hono/jwt";
 import { db } from "@/db";
-import { UnauthorizedException } from "@/errors";
-import type { JWTPayload } from "@/types";
+import { UnauthorizedException } from "@/http-exceptions";
+import type { AdminEnv } from "@/types/hono";
 
 const findUserAuthStatePrepared = db.query.usersTable
   .findFirst({
@@ -17,9 +17,7 @@ const findUserAuthStatePrepared = db.query.usersTable
 // on every request (and inactive users rejected) so deactivation and role
 // changes take effect on the next request instead of at token expiry — see
 // ADR-0006.
-const refreshAuthState = createMiddleware<{
-  Variables: { jwtPayload: JWTPayload };
-}>(async (c, next) => {
+const refreshAuthState = createMiddleware<AdminEnv>(async (c, next) => {
   const payload = c.get("jwtPayload");
 
   const user = await findUserAuthStatePrepared.execute({ id: payload.id });

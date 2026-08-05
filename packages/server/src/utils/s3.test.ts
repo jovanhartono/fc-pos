@@ -4,7 +4,7 @@
 
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import { s3 } from "bun";
-import { BadRequestException } from "@/errors";
+import { BadRequestException } from "@/http-exceptions";
 import { buildMediaUrl, optimizeUploadedImage } from "@/utils/s3";
 
 describe("buildMediaUrl", () => {

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
-import { ForbiddenException, NotFoundException } from "@/errors";
+import { ForbiddenException, NotFoundException } from "@/http-exceptions";
 import { authorizationDouble } from "@/test-support/authorization-double";
 import type { JWTPayload } from "@/types";
 import { errorHandler } from "@/utils/error-handler";

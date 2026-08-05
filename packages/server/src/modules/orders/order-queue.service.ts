@@ -18,7 +18,7 @@ import {
   storesTable,
   usersTable,
 } from "@/db/schema";
-import { BadRequestException, ForbiddenException } from "@/errors";
+import { BadRequestException, ForbiddenException } from "@/http-exceptions";
 import type { OrderTx } from "@/modules/orders/order.repository";
 import type {
   GetMyOrderServicesQuery,
