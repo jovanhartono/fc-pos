@@ -18,6 +18,9 @@ import { getCurrentUser } from "@/stores/auth-store";
 export const Route = createFileRoute("/_admin/transactions")({
 	loader: async ({ context }) => {
 		const currentUser = getCurrentUser();
+		const mePromise = currentUser
+			? context.queryClient.ensureQueryData(meQueryOptions())
+			: undefined;
 
 		await Promise.all([
 			context.queryClient.ensureQueryData(storesQueryOptions()),
@@ -25,15 +28,12 @@ export const Route = createFileRoute("/_admin/transactions")({
 			context.queryClient.ensureQueryData(productsQueryOptions()),
 			context.queryClient.ensureQueryData(servicesQueryOptions()),
 			context.queryClient.ensureQueryData(paymentMethodsQueryOptions()),
+			mePromise,
 		]);
 
-		if (!currentUser) {
-			return;
-		}
+		const me = await mePromise;
 
-		const me = await context.queryClient.ensureQueryData(meQueryOptions());
-
-		if (me.role !== "admin") {
+		if (me && me.role !== "admin") {
 			const firstStoreId = me.userStores[0]?.store_id;
 
 			if (firstStoreId) {
