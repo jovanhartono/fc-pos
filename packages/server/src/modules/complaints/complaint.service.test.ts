@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { BadRequestException, NotFoundException } from "@/errors";
+import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { normalizeComplaintListQuery } from "@/modules/complaints/complaint.schema";
 import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";

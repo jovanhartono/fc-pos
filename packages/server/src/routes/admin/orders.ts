@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import { StatusCodes } from "http-status-codes";
 import { z } from "zod";
-import { NotFoundException } from "@/errors";
+import { NotFoundException } from "@/http-exceptions";
 import { GETOrdersQuerySchema } from "@/modules/orders/order.schema";
 import {
   createOrder,
@@ -60,14 +60,13 @@ import { assertCanCreateOrder } from "@/modules/permissions/permissions";
 import { getStoreById } from "@/modules/stores/store.service";
 import { POSTOrderSchema } from "@/schema";
 import { idParamSchema } from "@/schema/param";
-import type { JWTPayload } from "@/types";
+import type { AdminEnv } from "@/types/hono";
 import { assertOrderAccess, assertStoreAccess } from "@/utils/authorization";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 interface OrderAccessEnv {
-  Variables: {
-    jwtPayload: JWTPayload;
+  Variables: AdminEnv["Variables"] & {
     order?: Awaited<ReturnType<typeof assertOrderAccess>>;
   };
 }
@@ -103,7 +102,7 @@ const app = new Hono<OrderAccessEnv>()
   .use("/:id/*", requireOrderAccess)
   .get("/", zodValidator("query", GETOrdersQuerySchema), async (c) => {
     const query = c.req.valid("query");
-    const user = c.get("jwtPayload") as JWTPayload;
+    const user = c.get("jwtPayload");
 
     const { items, meta } = await listOrders(query, user);
 
@@ -113,7 +112,7 @@ const app = new Hono<OrderAccessEnv>()
     "/services/queue",
     zodValidator("query", GETOrderServiceQueueQuerySchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const query = c.req.valid("query");
 
       const { items, meta } = await getOrderServiceQueue(user, query);
@@ -125,7 +124,7 @@ const app = new Hono<OrderAccessEnv>()
     "/services/by-id",
     zodValidator("query", GETOrderServiceByIdQuerySchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const { service_id } = c.req.valid("query");
 
       const orderService = await getOrderServiceById(service_id);
@@ -145,7 +144,7 @@ const app = new Hono<OrderAccessEnv>()
     "/services/by-item-code",
     zodValidator("query", GETOrderByItemCodeQuerySchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const { item_code } = c.req.valid("query");
 
       const orderService = await getOrderServiceByItemCode(item_code);
@@ -165,7 +164,7 @@ const app = new Hono<OrderAccessEnv>()
     "/services/me",
     zodValidator("query", GETMyOrderServicesQuerySchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const query = c.req.valid("query");
 
       const rows = await getMyOrderServices(user, query);
@@ -174,7 +173,7 @@ const app = new Hono<OrderAccessEnv>()
     }
   )
   .post("/", zodValidator("json", POSTOrderSchema), async (c) => {
-    const user = c.get("jwtPayload") as JWTPayload;
+    const user = c.get("jwtPayload");
     assertCanCreateOrder(user);
 
     const body = c.req.valid("json");
@@ -217,7 +216,7 @@ const app = new Hono<OrderAccessEnv>()
     idParamSchema,
     zodValidator("json", PATCHOrderPaymentSchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
@@ -239,7 +238,7 @@ const app = new Hono<OrderAccessEnv>()
     idParamSchema,
     zodValidator("json", PATCHOrderCourierSchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
@@ -261,7 +260,7 @@ const app = new Hono<OrderAccessEnv>()
     idParamSchema,
     zodValidator("json", POSTOrderPickupEventPresignSchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
@@ -281,7 +280,7 @@ const app = new Hono<OrderAccessEnv>()
     idParamSchema,
     zodValidator("json", POSTOrderPickupEventSchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
@@ -301,7 +300,7 @@ const app = new Hono<OrderAccessEnv>()
     "/:id/services/:serviceId/start",
     orderServiceParamSchema,
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const { id, serviceId } = c.req.valid("param");
 
       const result = await startOrderServiceWork({
@@ -318,7 +317,7 @@ const app = new Hono<OrderAccessEnv>()
     orderServiceParamSchema,
     zodValidator("json", PATCHOrderServiceHandlerSchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const { id, serviceId } = c.req.valid("param");
       const body = c.req.valid("json");
 
@@ -337,7 +336,7 @@ const app = new Hono<OrderAccessEnv>()
     orderServiceParamSchema,
     zodValidator("json", PATCHOrderServiceStatusSchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const { id, serviceId } = c.req.valid("param");
       const body = c.req.valid("json");
 
@@ -391,7 +390,7 @@ const app = new Hono<OrderAccessEnv>()
     idParamSchema,
     zodValidator("json", PUTOrderDropoffPhotoSchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
@@ -409,7 +408,7 @@ const app = new Hono<OrderAccessEnv>()
     orderServiceParamSchema,
     zodValidator("json", POSTOrderServicePhotoSchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const { id, serviceId } = c.req.valid("param");
       const body = c.req.valid("json");
 
@@ -427,7 +426,7 @@ const app = new Hono<OrderAccessEnv>()
     "/:id/services/:serviceId/photos/:photoId",
     orderServicePhotoParamSchema,
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const { id, serviceId, photoId } = c.req.valid("param");
 
       const result = await deleteOrderServicePhoto({
@@ -445,7 +444,7 @@ const app = new Hono<OrderAccessEnv>()
     idParamSchema,
     zodValidator("json", POSTOrderRefundSchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
@@ -466,7 +465,7 @@ const app = new Hono<OrderAccessEnv>()
     idParamSchema,
     zodValidator("json", POSTOrderCancelSchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 

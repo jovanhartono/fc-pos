@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { orderPickupEventsTable } from "@/db/schema";
-import { BadRequestException } from "@/errors";
+import { BadRequestException } from "@/http-exceptions";
 import type {
   PostOrderPickupEventInput,
   PostOrderPickupEventPresignInput,

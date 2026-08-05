@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import type z from "zod";
 import { db } from "@/db";
 import { ordersTable } from "@/db/schema";
-import { BadRequestException, NotFoundException } from "@/errors";
+import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { claimRedemptions } from "@/modules/campaigns/campaign-redemption.service";
 import { resolveOrCreateCustomer } from "@/modules/customers/customer.service";
 import {
@@ -384,29 +384,6 @@ export async function getOrderDetailById(id: number) {
               name: true,
             },
           },
-          handlerLogs: {
-            with: {
-              changedBy: {
-                columns: {
-                  id: true,
-                  name: true,
-                },
-              },
-              fromHandler: {
-                columns: {
-                  id: true,
-                  name: true,
-                },
-              },
-              toHandler: {
-                columns: {
-                  id: true,
-                  name: true,
-                },
-              },
-            },
-            orderBy: { id: "asc" },
-          },
           images: {
             where: { deleted_at: { isNull: true } },
             orderBy: { id: "asc" },
@@ -416,13 +393,15 @@ export async function getOrderDetailById(id: number) {
           // only signal; the complaint carries no status (ADR-0013 amendment).
           complaints: {
             columns: { id: true },
+            limit: 1,
             orderBy: { id: "asc" },
           },
           reworkOf: {
             columns: { id: true },
           },
           refundItems: true,
-          service: true,
+          // Naming the service only — the shop's cost base stays off the wire.
+          service: { columns: { id: true, name: true } },
           statusLogs: {
             with: {
               changedBy: {
@@ -445,11 +424,17 @@ export async function getOrderDetailById(id: number) {
     return null;
   }
 
-  const { pickup_code: _pickup_code, ...detailWithoutPickupCode } = detail;
+  // Photos ship as a URL; the raw bucket keys stay server-side.
+  const {
+    dropoff_photo_path: dropoffPhotoPath,
+    pickup_code: _pickup_code,
+    pickupEvents: _pickupEvents,
+    ...detailWithoutInternals
+  } = detail;
 
   return {
-    ...detailWithoutPickupCode,
-    dropoff_photo_url: buildMediaUrl(detail.dropoff_photo_path),
+    ...detailWithoutInternals,
+    dropoff_photo_url: buildMediaUrl(dropoffPhotoPath),
     refund_status: deriveOrderRefundStatus({
       paid_amount: detail.paid_amount,
       refunded_amount: detail.refunded_amount,
@@ -463,9 +448,9 @@ export async function getOrderDetailById(id: number) {
     })),
     services: detail.services.map((service) => ({
       ...service,
-      images: service.images.map((image) => ({
+      images: service.images.map(({ image_path, ...image }) => ({
         ...image,
-        image_url: buildMediaUrl(image.image_path),
+        image_url: buildMediaUrl(image_path),
       })),
     })),
     fulfillment: summarizeOrderFulfillment(

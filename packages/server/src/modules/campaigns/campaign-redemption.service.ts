@@ -1,5 +1,5 @@
 import { orderCampaignsTable } from "@/db/schema";
-import { BadRequestException } from "@/errors";
+import { BadRequestException } from "@/http-exceptions";
 import {
   atomicClaimCampaignCode,
   atomicIncrementCampaignRedeemed,

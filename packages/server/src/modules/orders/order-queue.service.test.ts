@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { orderServiceHandlerLogsTable, ordersServicesTable } from "@/db/schema";
-import { BadRequestException, ForbiddenException } from "@/errors";
+import { BadRequestException, ForbiddenException } from "@/http-exceptions";
 import type { PatchOrderServiceStatusInput } from "@/modules/orders/order-admin.schema";
 import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";

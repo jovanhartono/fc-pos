@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
-import { ForbiddenException, NotFoundException } from "@/errors";
+import { ForbiddenException, NotFoundException } from "@/http-exceptions";
 import type { JWTPayload } from "@/types";
 
 const getUserStoreIdsPrepared = db.query.userStoresTable

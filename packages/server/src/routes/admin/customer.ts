@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
-import { NotFoundException } from "@/errors";
+import { NotFoundException } from "@/http-exceptions";
 import {
   GETCustomerLookupQuerySchema,
   GETCustomersQuerySchema,
@@ -15,11 +15,11 @@ import {
   updateCustomer,
 } from "@/modules/customers/customer.service";
 import { idParamSchema } from "@/schema/param";
-import type { JWTPayload } from "@/types";
+import type { AdminEnv } from "@/types/hono";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-const app = new Hono()
+const app = new Hono<AdminEnv>()
   .get("/", zodValidator("query", GETCustomersQuerySchema), async (c) => {
     const query = c.req.valid("query");
     const { items, meta } = await getCustomers(query);
@@ -27,7 +27,7 @@ const app = new Hono()
     return c.json(success(items, undefined, meta));
   })
   .post("/", zodValidator("json", POSTCustomerSchema), async (c) => {
-    const { id: user_id } = c.get("jwtPayload") as JWTPayload;
+    const { id: user_id } = c.get("jwtPayload");
     const payload = c.req.valid("json");
 
     const { customer, existed } = await createCustomer({
@@ -73,7 +73,7 @@ const app = new Hono()
     idParamSchema,
     zodValidator("json", PUTCustomerSchema),
     async (c) => {
-      const { id: user_id } = c.get("jwtPayload") as JWTPayload;
+      const { id: user_id } = c.get("jwtPayload");
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 

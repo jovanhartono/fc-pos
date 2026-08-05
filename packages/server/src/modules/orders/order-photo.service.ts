@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { orderServicesImagesTable, ordersTable } from "@/db/schema";
-import { BadRequestException, ForbiddenException } from "@/errors";
+import { BadRequestException, ForbiddenException } from "@/http-exceptions";
 import { softDeleteOrderServiceImageById } from "@/modules/order-service-images/order-service-image.repository";
 import { getOrderServiceOrThrow } from "@/modules/orders/order.repository";
 import type {

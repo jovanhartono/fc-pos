@@ -5,7 +5,7 @@ import {
   ordersProductsTable,
   ordersTable,
 } from "@/db/schema";
-import { BadRequestException } from "@/errors";
+import { BadRequestException } from "@/http-exceptions";
 import type {
   PostOrderCancelInput,
   PostOrderRefundInput,

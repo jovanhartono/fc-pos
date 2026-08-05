@@ -1,6 +1,6 @@
 import type { InferInsertModel } from "drizzle-orm";
 import type { usersTable } from "@/db/schema";
-import { ForbiddenException } from "@/errors";
+import { ForbiddenException } from "@/http-exceptions";
 import {
   countUsers,
   findUserDetailById,

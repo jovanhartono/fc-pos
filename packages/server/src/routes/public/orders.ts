@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { db } from "@/db";
-import { NotFoundException } from "@/errors";
+import { NotFoundException } from "@/http-exceptions";
 import { phoneSchema } from "@/schema/common";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";

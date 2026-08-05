@@ -7,7 +7,7 @@ import {
   ordersServicesTable,
   ordersTable,
 } from "@/db/schema";
-import { BadRequestException } from "@/errors";
+import { BadRequestException } from "@/http-exceptions";
 import type { OrderTx } from "@/modules/orders/order.repository";
 
 export type OrderServiceStatus =

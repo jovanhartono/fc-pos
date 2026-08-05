@@ -3,12 +3,12 @@ import { HTTPException } from "hono/http-exception";
 import type { JwtVariables } from "hono/jwt";
 import { StatusCodes } from "http-status-codes";
 import type { JWTPayload } from "@/types/jwt";
+import { failure } from "@/utils/http";
 import {
   asPostgresError,
   mapPostgresError,
   redactDetail,
-} from "@/utils/errors";
-import { failure } from "@/utils/http";
+} from "@/utils/pg-error";
 
 export const errorHandler: ErrorHandler<{
   Variables: JwtVariables<JWTPayload>;

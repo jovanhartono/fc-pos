@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { BadRequestException } from "@/errors";
+import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 
 interface SeedUser {

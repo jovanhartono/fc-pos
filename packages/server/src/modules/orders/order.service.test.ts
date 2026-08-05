@@ -8,7 +8,7 @@ import {
   setSystemTime,
 } from "bun:test";
 import { ordersTable } from "@/db/schema";
-import { BadRequestException } from "@/errors";
+import { BadRequestException } from "@/http-exceptions";
 import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";

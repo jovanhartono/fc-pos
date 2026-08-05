@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import { z } from "zod";
-import { BadRequestException, NotFoundException } from "@/errors";
+import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { findCampaignByIdWithCodes } from "@/modules/campaigns/campaign.repository";
 import {
   CampaignPayloadSchema,
@@ -18,11 +18,11 @@ import {
 } from "@/modules/campaigns/campaign.service";
 import { findStoreById } from "@/modules/stores/store.repository";
 import { idParamSchema } from "@/schema/param";
-import type { JWTPayload } from "@/types";
+import type { AdminEnv } from "@/types/hono";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-const app = new Hono()
+const app = new Hono<AdminEnv>()
   .get("/", zodValidator("query", GETCampaignsQuerySchema), async (c) => {
     const query = c.req.valid("query");
 
@@ -99,7 +99,7 @@ const app = new Hono()
     return c.json(success(campaign, "Campaign retrieved successfully"));
   })
   .post("/", zodValidator("json", CampaignPayloadSchema), async (c) => {
-    const user = c.get("jwtPayload") as JWTPayload;
+    const user = c.get("jwtPayload");
     const body = c.req.valid("json");
 
     const campaign = await createCampaign({
@@ -117,7 +117,7 @@ const app = new Hono()
     idParamSchema,
     zodValidator("json", CampaignUpdatePayloadSchema),
     async (c) => {
-      const user = c.get("jwtPayload") as JWTPayload;
+      const user = c.get("jwtPayload");
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
@@ -135,7 +135,7 @@ const app = new Hono()
     }
   )
   .delete("/:id", idParamSchema, async (c) => {
-    const user = c.get("jwtPayload") as JWTPayload;
+    const user = c.get("jwtPayload");
     const { id } = c.req.valid("param");
 
     const deleted = await deleteCampaign({ user, id });
