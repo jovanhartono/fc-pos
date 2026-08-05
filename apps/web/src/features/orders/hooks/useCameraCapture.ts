@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MAX_UPLOAD_DIMENSION } from "@/features/orders/utils/normalize-image";
+import {
+	type EncodedUpload,
+	encodeForUpload,
+	MAX_UPLOAD_DIMENSION,
+} from "@/features/orders/utils/normalize-image";
 
 const waitForVideoReady = (video: HTMLVideoElement) =>
 	new Promise<void>((resolve, reject) => {
@@ -37,7 +41,7 @@ export interface UseCameraCaptureResult {
 	error: string | null;
 	open: () => Promise<void>;
 	stop: () => void;
-	capture: () => Promise<Blob | null>;
+	capture: () => Promise<EncodedUpload | null>;
 	markReady: () => void;
 }
 
@@ -129,7 +133,7 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 		};
 	}, [stream]);
 
-	const capture = useCallback(async (): Promise<Blob | null> => {
+	const capture = useCallback(async (): Promise<EncodedUpload | null> => {
 		const video = previewRef.current;
 		if (!video) {
 			setError("Camera preview is not ready yet.");
@@ -156,10 +160,9 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 		// needs for a 5mm stain to read as a mark. The preview uses object-contain so this
 		// stays honest: the letterboxed feed is the frame that gets saved.
 		//
-		// A 4K-capable phone hands back a frame well past what the server keeps, and letting
-		// the normalize step shrink it would cost a second JPEG generation before the WebP
-		// one — three lossy passes over the faint mark a dispute turns on. Scale here so the
-		// shot is already in budget and goes up re-encoded exactly once.
+		// A 4K phone hands back a frame well past what gets stored. Shrink it here so the shot is
+		// already in budget and gets encoded exactly once — passing it on full-size would cost an
+		// extra lossy pass over the faint mark a dispute is argued from.
 		const outputScale = Math.min(
 			1,
 			MAX_UPLOAD_DIMENSION / Math.max(frameWidth, frameHeight),
@@ -175,16 +178,13 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 		}
 
 		context.drawImage(video, 0, 0, canvas.width, canvas.height);
-		const blob = await new Promise<Blob | null>((resolve) => {
-			canvas.toBlob(resolve, "image/jpeg", 0.92);
-		});
 
-		if (!blob) {
+		try {
+			return await encodeForUpload(canvas);
+		} catch {
 			setError("Unable to capture a photo right now.");
 			return null;
 		}
-
-		return blob;
 	}, []);
 
 	const markReady = useCallback(() => {

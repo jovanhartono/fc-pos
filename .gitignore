@@ -38,3 +38,4 @@ coverage
 
 # Codex migration artifacts
 .codex/
+.vercel

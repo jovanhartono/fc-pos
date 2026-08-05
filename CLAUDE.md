@@ -18,6 +18,20 @@ The web package consumes the server package as a workspace dependency (`@frescle
 The server reads from `process.env`:
 - `DATABASE_URL_DEV` / `DATABASE_URL_PROD` - Neon PostgreSQL connection strings
 - `JWT_SECRET` - Secret key for JWT authentication
+- `CDN_BASE_URL` - Public base for stored photo keys
+- `CRON_SECRET` - Shared secret for `/api/internal/*`. Vercel sends it as `Authorization: Bearer …` on cron invocations. Unset means those endpoints answer 401 to everyone.
+
+## Deployment Regions
+
+Both services run in Singapore — `ap-southeast-1`, Vercel region `sin1` — as does Neon. Photos live in S3 `ap-southeast-3` (Jakarta), served via `https://cdn.fresclean.id`.
+
+The container region is set in **Vercel project settings**, not `vercel.json`: `services.*` there takes no `regions` key. Keeping it beside Neon is what makes an order commit a same-region round trip rather than a cross-region one.
+
+## Scheduled Jobs
+
+`vercel.json` `crons` → HTTP GET to the production URL, routed through the `/api/(.*)` rewrite to the container. **Schedules are UTC only**, so a Jakarta time is written 7 hours earlier: `0 20 * * *` is 03:00 Jakarta.
+
+- `/api/internal/photo-sweep` — deletes order photos no order points at. The counter uploads a photo before the batch is confirmed, so an abandoned batch leaves the file behind with nothing filed against it. Compares bucket to database each run, ignores anything under 48h old, and refuses to delete more than 500 in one pass. Delivery is best-effort: Vercel may skip or repeat a run, which is safe here.
 
 ## Architecture
 

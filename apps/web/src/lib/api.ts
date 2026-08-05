@@ -1200,6 +1200,7 @@ export async function uploadFileToPresignedUrl(
 	uploadUrl: string,
 	file: File,
 	contentType: PhotoContentType,
+	signal?: AbortSignal,
 ) {
 	const response = await fetch(uploadUrl, {
 		method: "PUT",
@@ -1207,6 +1208,7 @@ export async function uploadFileToPresignedUrl(
 			"Content-Type": contentType,
 		},
 		body: file,
+		signal,
 	});
 
 	if (!response.ok) {

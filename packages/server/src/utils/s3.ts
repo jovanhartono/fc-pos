@@ -2,15 +2,40 @@ import { s3 } from "bun";
 import { BadRequestException } from "@/errors";
 
 const DEFAULT_PRESIGNED_EXPIRES_SECONDS = 300;
-// 2560 on the long edge keeps a 5mm stain reading as a mark rather than a smudge across a
-// whole-garment frame when a customer disputes the damage; q80 smoothed away exactly the
-// faint low-contrast discoloration those disputes turn on. The counter app already scales
-// its uploads to the same bound (MAX_UPLOAD_DIMENSION in apps/web normalize-image.ts), so
-// the resize below only bites on bytes that skipped it — a counter phone still running a
-// stale bundle, or anything else PUTting to a presigned URL. Raise one bound without the
-// other and they stop matching.
+// 2560 on the long edge keeps a 5mm stain reading as a mark rather than a smudge in a
+// whole-garment shot, which is what a damage dispute turns on. The counter app scales to the
+// same bound, so this resize only bites on bytes that skipped it — a stale bundle, or anything
+// else PUTting to a presigned URL. Raise one bound without the other and they stop matching.
 const MAX_IMAGE_DIMENSION = 2560;
+// Mirrors the counter app's setting, which is what lets a shot it already encoded be stored as
+// it arrived. Change one without the other and every upload pays for a conversion again.
 const WEBP_QUALITY = 85;
+// Enough of the object to hold an image header, which is all the check below reads. Still a
+// rounding error next to the full download it replaces.
+const METADATA_PROBE_BYTES = 65_536;
+
+// Most shots now arrive already in the format and size we store, so a header-sized read is
+// enough to keep them exactly as they came — sparing a full download, a conversion and a second
+// lossy pass over the faint mark a dispute is argued from. iPad shots still arrive as JPEG and
+// fall through to the conversion below, as does anything else PUTting to a presigned URL, which
+// is why that branch stays as strict as it was.
+//
+// A header nobody can read is not a verdict on the photo: it just means convert. Only the
+// conversion is allowed to reject.
+async function isAlreadyOptimized(
+  file: ReturnType<typeof s3.file>
+): Promise<boolean> {
+  try {
+    const header = await file.slice(0, METADATA_PROBE_BYTES).image().metadata();
+
+    return (
+      header.format === "webp" &&
+      Math.max(header.width, header.height) <= MAX_IMAGE_DIMENSION
+    );
+  } catch {
+    return false;
+  }
+}
 
 export function buildMediaUrl(path: string): string;
 export function buildMediaUrl(path: null | undefined): null;
@@ -53,8 +78,45 @@ export function createPresignedUploadUrl({
   };
 }
 
+export interface StoredObject {
+  key: string;
+  lastModified?: string;
+}
+
+// Every stored object under a prefix, following the pages to the end. A shop a year into
+// trading holds far more than the 1000 keys one listing returns, and a caller that only saw
+// the first page would treat the rest as if the bucket did not hold them.
+export async function listStoredObjects(
+  prefix: string
+): Promise<StoredObject[]> {
+  const objects: StoredObject[] = [];
+  let continuationToken: string | undefined;
+
+  do {
+    const page = await s3.list({ prefix, continuationToken });
+
+    for (const object of page.contents ?? []) {
+      objects.push({ key: object.key, lastModified: object.lastModified });
+    }
+
+    continuationToken = page.isTruncated
+      ? page.nextContinuationToken
+      : undefined;
+  } while (continuationToken);
+
+  return objects;
+}
+
+export function deleteStoredObject(key: string): Promise<void> {
+  return s3.delete(key);
+}
+
 export async function optimizeUploadedImage(key: string): Promise<void> {
   const file = s3.file(key);
+
+  if (await isAlreadyOptimized(file)) {
+    return;
+  }
 
   let optimized: Uint8Array;
   try {
