@@ -481,7 +481,7 @@
           </div>
           <div class="fact">
             <dt>Shipped</dt>
-            <dd>15 / 39</dd>
+            <dd>19 / 39</dd>
           </div>
         </dl>
       </header>
@@ -489,7 +489,7 @@
       <div class="note good">
         <p>
           <strong>Remediation in progress.</strong>
-          Fifteen findings are fixed and merged. Each carries a
+          Nineteen findings are fixed and merged. Each carries a
           <a
             class="shipped"
             href="https://github.com/jovanhartono/fc-pos/pulls?q=is%3Apr+is%3Amerged"
@@ -567,12 +567,43 @@
                 all five status classes.
               </td>
             </tr>
+            <tr>
+              <td>
+                <a href="https://github.com/jovanhartono/fc-pos/pull/82">#82</a>
+              </td>
+              <td><a href="#c1">C1</a></td>
+              <td>
+                One <code>resolveStoreScope</code> answers "which branches may
+                this person see", and a route gate replaced 16 transcribed
+                checks. The gate as first written opened five bypasses —
+                <code>/orders/+123</code>
+                skipped it and still reached order 123 — because the router
+                matches the raw path segment while handlers coerce. A fifth kind
+                of scope now fails to compile rather than serving every branch's
+                takings.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a href="https://github.com/jovanhartono/fc-pos/pull/83">#83</a>
+              </td>
+              <td>
+                <a href="#s6">S6</a> <a href="#s8">S8</a>
+                <a href="#s13">S13</a>
+              </td>
+              <td>
+                All 12 admin sub-apps now declare the context the middleware
+                guarantees, so the casts have nowhere to grow back. The
+                order-detail payload stops shipping what nothing reads —
+                including the shop's cost base and list price, which any
+                signed-in user could read off the network tab.
+              </td>
+            </tr>
           </tbody>
         </table>
         <p>
-          Still open: <a href="#c1">C1</a> (in review),
-          <a href="#s3">S3</a>–<a href="#s6">S6</a>,
-          <a href="#s8">S8</a>, <a href="#s13">S13</a>, and the web findings.
+          Still open: <a href="#s3">S3</a>, <a href="#s4">S4</a>,
+          <a href="#s5">S5</a>, and the web findings.
           <a href="#w1">W1</a>, <a href="#w2">W2</a>, <a href="#w6">W6</a> and
           <a href="#w15">W15</a>
           are deferred: the report page they cover is being rewritten, so
@@ -1418,7 +1449,12 @@ Number(line.product.price) * line.qty               // checkout-items-step.tsx:1
 
       <article class="f hi" id="c1">
         <div class="f-head">
-          <span class="id">C1</span><span class="sev hi">High</span>
+          <span class="id">C1</span><span class="sev hi">High</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/82"
+            >Shipped #82</a
+          >
           <h3 class="f-title">
             Store scoping is enforced in three layers, four different ways
           </h3>
@@ -2021,7 +2057,12 @@ if (storeId !== undefined) {
 
       <article class="f md" id="s6">
         <div class="f-head">
-          <span class="id">S6</span><span class="sev md">Medium</span>
+          <span class="id">S6</span><span class="sev md">Medium</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/83"
+            >Shipped #83</a
+          >
           <h3 class="f-title">
             63 <code>as JWTPayload</code> casts stand in for one missing generic
           </h3>
@@ -2091,6 +2132,24 @@ if (storeId !== undefined) {
           <code>routes/admin/*.ts</code>. All 63 casts delete, and the payload
           becomes typed rather than asserted.
         </p>
+
+        <div class="note good">
+          <p>
+            <strong>How it shipped — 58 casts, not 63.</strong>
+            47 in route files plus 11 test fixtures that build deliberately
+            partial payloads and were left alone. Writing the shape inline per
+            file, as prescribed above, would have made a fourth hand-spelled
+            copy of one contract; it is named once as
+            <code>AdminEnv</code>
+            and applied to all 12 sub-apps and to the middleware that
+            <em>sets</em>
+            the variable. Typing only the seven that read it today would leave
+            the rest returning
+            <code>unknown</code>, and the cheapest exit from
+            <code>unknown</code>
+            is the cast this finding exists to delete.
+          </p>
+        </div>
       </article>
 
       <article class="f md" id="s7">
@@ -2165,7 +2224,12 @@ const missingServices  = serviceIds.filter(id => !serviceMap.has(id));        //
 
       <article class="f md" id="s8">
         <div class="f-head">
-          <span class="id">S8</span><span class="sev md">Medium</span>
+          <span class="id">S8</span><span class="sev md">Medium</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/83"
+            >Shipped #83</a
+          >
           <h3 class="f-title">
             <code>getOrderDetailById</code>
             has no bounded shape
@@ -2212,6 +2276,30 @@ const missingServices  = serviceIds.filter(id => !serviceMap.has(id));        //
           accordingly. Full history moves behind its own endpoint that the
           timeline expands into.
         </p>
+
+        <div class="note good">
+          <p>
+            <strong>How it shipped — capping the logs was the trap.</strong>
+            Two screens render the whole timeline
+            <em>and</em>
+            print its length in the heading beside it, so "the latest few
+            transitions" would have truncated the history and printed a wrong
+            number next to it —
+            <code>statusLogs</code>
+            was left uncapped. What actually went was the payload nothing reads:
+            the
+            <code>handlerLogs</code>
+            relation and its three user joins dropped outright,
+            <code>complaints</code>
+            capped to the one row its unique index already allows, and the
+            catalog row narrowed to
+            <code>id</code>
+            +
+            <code>name</code>
+            — which stops sending the shop's cost base and list price to every
+            browser that opens an order.
+          </p>
+        </div>
       </article>
 
       <article class="f lo" id="s9">
@@ -2403,7 +2491,12 @@ const missingServices  = serviceIds.filter(id => !serviceMap.has(id));        //
 
       <article class="f lo" id="s13">
         <div class="f-head">
-          <span class="id">S13</span><span class="sev lo">Low</span>
+          <span class="id">S13</span><span class="sev lo">Low</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/83"
+            >Shipped #83</a
+          >
           <h3 class="f-title">Two modules named "errors"</h3>
           <div class="tags"><span class="tag">naming</span></div>
         </div>
@@ -3549,7 +3642,12 @@ const visibleStores = useMemo(() =&gt; {
                   href="https://github.com/jovanhartono/fc-pos/pull/81"
                   >#81</a
                 >
-                · S6 open
+                · S6
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/83"
+                  >#83</a
+                >
               </td>
             </tr>
             <tr>
@@ -3564,7 +3662,15 @@ const visibleStores = useMemo(() =&gt; {
                 two enforced ones.
               </td>
               <td class="num">1 day</td>
-              <td>C1 in review · S4 open</td>
+              <td>
+                C1
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/82"
+                  >#82</a
+                >
+                · S4 open
+              </td>
             </tr>
             <tr>
               <td class="num">6</td>
