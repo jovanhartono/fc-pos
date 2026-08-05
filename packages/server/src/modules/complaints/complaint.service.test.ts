@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { BadRequestException, NotFoundException } from "@/errors";
 import { normalizeComplaintListQuery } from "@/modules/complaints/complaint.schema";
+import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
 
@@ -58,13 +59,7 @@ mock.module("@/modules/orders/order-status-machine", () => ({
   },
 }));
 
-mock.module("@/utils/authorization", () => ({
-  assertStoreAccess: (user: { id: number }, storeId: number) => {
-    authz.assertCalls.push({ userId: user.id, storeId });
-    return Promise.resolve();
-  },
-  getUserStoreIds: () => Promise.resolve(authz.storeIds),
-}));
+mock.module("@/utils/authorization", () => authorizationDouble(authz));
 
 mock.module("@/modules/complaints/complaint.repository", () => ({
   findComplaintSubjectService: () => Promise.resolve(repo.subject),

@@ -276,6 +276,27 @@
     .sev.lo {
       color: var(--lo);
     }
+    .shipped {
+      padding: 0.15em 0.5em;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      font-weight: 600;
+      color: var(--ok);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      white-space: nowrap;
+      text-decoration: none;
+      border: 1px solid currentColor;
+    }
+    .shipped:hover,
+    .shipped:focus-visible {
+      color: var(--bg);
+      background: var(--ok);
+    }
+    td .shipped {
+      text-transform: none;
+      letter-spacing: 0.04em;
+    }
     .f-title {
       flex: 1 1 20rem;
       margin: 0;
@@ -458,8 +479,108 @@
             <dt>High</dt>
             <dd>10</dd>
           </div>
+          <div class="fact">
+            <dt>Shipped</dt>
+            <dd>15 / 39</dd>
+          </div>
         </dl>
       </header>
+
+      <div class="note good">
+        <p>
+          <strong>Remediation in progress.</strong>
+          Fifteen findings are fixed and merged. Each carries a
+          <a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pulls?q=is%3Apr+is%3Amerged"
+            >Shipped</a
+          >
+          badge linking its pull request, and several carry a closing note where
+          the fix diverged from what this report prescribed — or where the
+          finding turned out to be wrong.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>PR</th>
+              <th>Findings</th>
+              <th>What it closed</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <a href="https://github.com/jovanhartono/fc-pos/pull/78">#78</a>
+              </td>
+              <td>
+                <a href="#m1">M1</a> <a href="#m2">M2</a> <a href="#m3">M3</a>
+                <a href="#m4">M4</a> <a href="#m5">M5</a>
+              </td>
+              <td>
+                Money integrity. <code>orders.total</code> is
+                <code>NOT NULL</code>
+                in both databases, so the three CHECK constraints that reference
+                it are armed for the first time. Editing a price now passes the
+                same guard as creating one — before, <code>PUT</code> read
+                <code>"1.500"</code>
+                as one and a half rupiah.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a href="https://github.com/jovanhartono/fc-pos/pull/79">#79</a>
+              </td>
+              <td>
+                <a href="#s1">S1</a> <a href="#s2">S2</a>
+                <a href="#s14">S14</a>
+              </td>
+              <td>
+                Error bodies no longer carry customer data, and unhandled errors
+                reach stdout. Three leaks beyond S2 were found and closed, one
+                of them returning a password hash.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a href="https://github.com/jovanhartono/fc-pos/pull/80">#80</a>
+              </td>
+              <td>
+                <a href="#s7">S7</a> <a href="#s9">S9</a> <a href="#s10">S10</a>
+                <a href="#s11">S11</a> <a href="#s12">S12</a>
+              </td>
+              <td>
+                A retired service can no longer be sold from a stale till, and
+                every handler claim is read under the lock it writes — which
+                fixed a live lost update S9 did not know about.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a href="https://github.com/jovanhartono/fc-pos/pull/81">#81</a>
+              </td>
+              <td><a href="#c2">C2</a> <a href="#c3">C3</a></td>
+              <td>
+                One error style on the server.
+                <code>Extract&lt;&gt;</code>
+                wrappers in
+                <code>lib/api.ts</code>: 25 to 0, proven a no-op on the wire for
+                all five status classes.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Still open: <a href="#c1">C1</a> (in review),
+          <a href="#s3">S3</a>–<a href="#s6">S6</a>,
+          <a href="#s8">S8</a>, <a href="#s13">S13</a>, and the web findings.
+          <a href="#w1">W1</a>, <a href="#w2">W2</a>, <a href="#w6">W6</a> and
+          <a href="#w15">W15</a>
+          are deferred: the report page they cover is being rewritten, so
+          nothing under
+          <code>features/reports/</code>
+          has been touched.
+        </p>
+      </div>
 
       <div class="note good">
         <p>
@@ -765,7 +886,12 @@
 
       <article class="f hi" id="m1">
         <div class="f-head">
-          <span class="id">M1</span><span class="sev hi">High</span>
+          <span class="id">M1</span><span class="sev hi">High</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/78"
+            >Shipped #78</a
+          >
           <h3 class="f-title">
             <code>orders.total</code>
             is the only nullable money column, and three CHECK constraints
@@ -859,7 +985,12 @@ check("paid_amount_valid_check",   sql`${table.paid_amount} <= ${table.total}`) 
 
       <article class="f hi" id="m2">
         <div class="f-head">
-          <span class="id">M2</span><span class="sev hi">High</span>
+          <span class="id">M2</span><span class="sev hi">High</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/78"
+            >Shipped #78</a
+          >
           <h3 class="f-title">
             "Money is whole rupiah" is a real invariant that nothing in the
             codebase states — and the database enforces it by silently rounding
@@ -975,11 +1106,23 @@ longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),  // :59<
           <em>all monetary columns are whole IDR; there is no sub-unit.</em>
           One comment retires the whole class of question.
         </p>
+        <div class="note good">
+          <p>
+            <strong>How it shipped.</strong>
+            Twenty-four columns, not twenty-two — the count here was low.
+            Verified against both live databases rather than the schema file.
+          </p>
+        </div>
       </article>
 
       <article class="f md" id="m3">
         <div class="f-head">
-          <span class="id">M3</span><span class="sev md">Medium</span>
+          <span class="id">M3</span><span class="sev md">Medium</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/78"
+            >Shipped #78</a
+          >
           <h3 class="f-title">
             <code>.toFixed(2)</code>
             writes cents into a column that cannot hold them
@@ -1041,11 +1184,26 @@ longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),  // :59<
           was defensive rounding, <code>Math.round</code> states that intent
           honestly and matches what the column will do anyway.
         </p>
+        <div class="note good">
+          <p>
+            <strong>How it shipped.</strong>
+            Kept <code>Math.round</code> rather than dropping the rounding, so
+            the line says what the column will do. The test that fed it
+            fractional COGS had been quietly changed to whole rupiah, which
+            removed the only case exercising this line; the fraction is back and
+            the assertion now pins the rounded result.
+          </p>
+        </div>
       </article>
 
       <article class="f md" id="m4">
         <div class="f-head">
-          <span class="id">M4</span><span class="sev md">Medium</span>
+          <span class="id">M4</span><span class="sev md">Medium</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/78"
+            >Shipped #78</a
+          >
           <h3 class="f-title">
             <code>currencySchema</code>
             is a five-stage round-trip whose validation cannot fail
@@ -1138,7 +1296,12 @@ export const currencySchema = (field: string) =>
 
       <article class="f md" id="m5">
         <div class="f-head">
-          <span class="id">M5</span><span class="sev md">Medium</span>
+          <span class="id">M5</span><span class="sev md">Medium</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/78"
+            >Shipped #78</a
+          >
           <h3 class="f-title">
             Money has two TypeScript types depending on which endpoint you
             called
@@ -1228,6 +1391,21 @@ Number(line.product.price) * line.qty               // checkout-items-step.tsx:1
           <code>toRupiah(value: string): number</code>
           so the coercion lives in one place instead of forty.
         </p>
+        <div class="note good">
+          <p>
+            <strong>How it shipped.</strong>
+            Took the second option, not the preferred one. Serialising money as
+            a number everywhere means rewriting every read path including the
+            reports module, which is being overhauled separately — so
+            <code>createOrder</code>
+            now returns strings like every other endpoint, and one
+            <code>parseMoney</code>/<code>formatMoney</code>
+            pair holds the coercion. That pair also fixed a latent bug this
+            finding did not reach: formatting <code>"45000.00"</code> by
+            stripping non-digits prints <code>Rp&nbsp;4.500.000</code>, a
+            hundred times the price.
+          </p>
+        </div>
       </article>
 
       <!-- ══════════════════════════════════════════════════ -->
@@ -1347,7 +1525,12 @@ Number(line.product.price) * line.qty               // checkout-items-step.tsx:1
 
       <article class="f hi" id="c2">
         <div class="f-head">
-          <span class="id">C2</span><span class="sev hi">High</span>
+          <span class="id">C2</span><span class="sev hi">High</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/81"
+            >Shipped #81</a
+          >
           <h3 class="f-title">
             Two error styles on the server produce 25
             <code>Extract&lt;…, { success: true}&gt;</code>
@@ -1418,11 +1601,31 @@ Number(line.product.price) * line.qty               // checkout-items-step.tsx:1
           <code>Extract&lt;&gt;</code>
           wrappers on the other side of the boundary.
         </p>
+        <div class="note good">
+          <p>
+            <strong>How it shipped.</strong>
+            Thirty-five conversions across twelve files, not thirty-three across
+            eleven —
+            <code>routes/public/orders.ts</code>
+            was missing from the evidence. And twelve of the twenty-five
+            wrappers were <em>already</em> dead before the change: the nine
+            reports routes, two shifts routes and the complaints list never
+            returned inline failures. So the real footprint was thirteen
+            wrappers. Login needed one extra step — it was the only route on raw
+            <code>zValidator</code>, which kept its 400 body in the response
+            type; it now uses the same wrapper as everything else.
+          </p>
+        </div>
       </article>
 
       <article class="f md" id="c3">
         <div class="f-head">
-          <span class="id">C3</span><span class="sev md">Medium</span>
+          <span class="id">C3</span><span class="sev md">Medium</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/81"
+            >Shipped #81</a
+          >
           <h3 class="f-title">Three mechanisms for one timezone</h3>
           <div class="tags"><span class="tag">dates</span></div>
         </div>
@@ -1481,7 +1684,12 @@ Number(line.product.price) * line.qty               // checkout-items-step.tsx:1
 
       <article class="f hi" id="s1">
         <div class="f-head">
-          <span class="id">S1</span><span class="sev hi">High</span>
+          <span class="id">S1</span><span class="sev hi">High</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/79"
+            >Shipped #79</a
+          >
           <h3 class="f-title">
             Unhandled 500s are silent — the error log is commented out
           </h3>
@@ -1522,7 +1730,12 @@ Number(line.product.price) * line.qty               // checkout-items-step.tsx:1
 
       <article class="f hi" id="s2">
         <div class="f-head">
-          <span class="id">S2</span><span class="sev hi">High</span>
+          <span class="id">S2</span><span class="sev hi">High</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/79"
+            >Shipped #79</a
+          >
           <h3 class="f-title">
             Raw Postgres <code>detail</code> is returned to the client — and it
             contains customer PII
@@ -1586,6 +1799,25 @@ Number(line.product.price) * line.qty               // checkout-items-step.tsx:1
           <code>utils/errors.ts</code>
           to hang the constraint-name switch off.
         </p>
+        <div class="note good">
+          <p>
+            <strong>How it shipped.</strong>
+            Reviewing the first attempt turned up three more leaks, one worse
+            than this finding. The fall-through returned
+            <code>err.message</code>, which Drizzle builds from the failed query
+            and every bound parameter — so a dropped connection mid-save
+            returned the whole submitted row, and on
+            <code>POST /admin/users</code>
+            the new password hash.
+            <code>asPostgresError</code>
+            also inspected only
+            <code>err.cause</code>, so the mapping was dead for every
+            <code>db.query.*</code>
+            read, and the <code>HTTPException</code>
+            branch still handed <code>err.cause</code> to the client. All four
+            are covered by tests verified to fail when the leak is put back.
+          </p>
+        </div>
       </article>
 
       <article class="f hi" id="s3">
@@ -1863,7 +2095,12 @@ if (storeId !== undefined) {
 
       <article class="f md" id="s7">
         <div class="f-head">
-          <span class="id">S7</span><span class="sev md">Medium</span>
+          <span class="id">S7</span><span class="sev md">Medium</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/80"
+            >Shipped #80</a
+          >
           <h3 class="f-title">
             <code>createOrder</code>
             rejects inactive products but not inactive services
@@ -1979,7 +2216,12 @@ const missingServices  = serviceIds.filter(id => !serviceMap.has(id));        //
 
       <article class="f lo" id="s9">
         <div class="f-head">
-          <span class="id">S9</span><span class="sev lo">Low</span>
+          <span class="id">S9</span><span class="sev lo">Low</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/80"
+            >Shipped #80</a
+          >
           <h3 class="f-title">
             The handler-claim transaction is written twice
           </h3>
@@ -2018,11 +2260,32 @@ const missingServices  = serviceIds.filter(id => !serviceMap.has(id));        //
           more here than the line count — this is the concurrency-sensitive
           path.
         </p>
+        <div class="note good">
+          <p>
+            <strong>How it shipped.</strong>
+            Only the lock and the claim write were merged. The
+            <code>Forbidden</code>
+            guard and the claim decision stayed at their call sites because they
+            genuinely differ — starting work refuses to take an item off a
+            colleague, while a status change is meant to take over from a worker
+            who went home. Extracting the helper also exposed a third copy that
+            was actually broken:
+            <code>updateOrderServiceHandler</code>
+            read the current handler outside its transaction with no lock, so
+            two supervisors reassigning one garment both logged the same
+            previous handler and the hand-off trail forked.
+          </p>
+        </div>
       </article>
 
       <article class="f lo" id="s10">
         <div class="f-head">
-          <span class="id">S10</span><span class="sev lo">Low</span>
+          <span class="id">S10</span><span class="sev lo">Low</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/80"
+            >Shipped #80</a
+          >
           <h3 class="f-title">
             <code>GET /admin/reports/daily</code>
             has no consumer
@@ -2047,7 +2310,12 @@ const missingServices  = serviceIds.filter(id => !serviceMap.has(id));        //
 
       <article class="f lo" id="s11">
         <div class="f-head">
-          <span class="id">S11</span><span class="sev lo">Low</span>
+          <span class="id">S11</span><span class="sev lo">Low</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/80"
+            >Shipped #80</a
+          >
           <h3 class="f-title">
             <code>is_active</code>
             defaults disagree across tables
@@ -2080,11 +2348,28 @@ const missingServices  = serviceIds.filter(id => !serviceMap.has(id));        //
           settle it, settle it — and the reasoning belongs in
           <code>CONTEXT.md</code>.
         </p>
+        <div class="note good">
+          <p>
+            <strong>How it shipped — this finding's premise was wrong.</strong>
+            <code>is_active</code>
+            is a required boolean on every create payload, so omitting it is a
+            400, not a silently unsellable row. No default was changed and no
+            DDL run; the convention the defaults encode is written into
+            <code>CONTEXT.md</code>
+            instead. Read it as: the column defaults are undocumented and
+            disagree across tables.
+          </p>
+        </div>
       </article>
 
       <article class="f lo" id="s12">
         <div class="f-head">
-          <span class="id">S12</span><span class="sev lo">Low</span>
+          <span class="id">S12</span><span class="sev lo">Low</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/80"
+            >Shipped #80</a
+          >
           <h3 class="f-title">
             Two unreachable defensive throws in <code>createOrder</code>
           </h3>
@@ -2101,6 +2386,19 @@ const missingServices  = serviceIds.filter(id => !serviceMap.has(id));        //
           because on first read they suggest the earlier validation might be
           incomplete.
         </p>
+        <div class="note good">
+          <p>
+            <strong>How it shipped.</strong>
+            The throws were load-bearing — they were what narrowed
+            <code>T | undefined</code>
+            to <code>T</code>. Deleting them needed either a cast or a
+            restructure, so the catalog check now returns the rows it resolved.
+            That also deleted two fictional fallbacks the throws had been
+            hiding, including
+            <code>Number(service?.price ?? 0)</code>, which fed the discount
+            desk a zero line on a map miss.
+          </p>
+        </div>
       </article>
 
       <article class="f lo" id="s13">
@@ -2126,7 +2424,12 @@ const missingServices  = serviceIds.filter(id => !serviceMap.has(id));        //
 
       <article class="f lo" id="s14">
         <div class="f-head">
-          <span class="id">S14</span><span class="sev lo">Low</span>
+          <span class="id">S14</span><span class="sev lo">Low</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/79"
+            >Shipped #79</a
+          >
           <h3 class="f-title">
             CORS allows localhost only, and doesn't say why that's fine
           </h3>
@@ -3163,6 +3466,7 @@ const visibleStores = useMemo(() =&gt; {
               <th>Do</th>
               <th>Why now</th>
               <th>Size</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
@@ -3178,6 +3482,13 @@ const visibleStores = useMemo(() =&gt; {
                 Nothing else in this report has this ratio.
               </td>
               <td class="num">5 min</td>
+              <td>
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/78"
+                  >Shipped #78</a
+                >
+              </td>
             </tr>
             <tr>
               <td class="num">2</td>
@@ -3188,6 +3499,13 @@ const visibleStores = useMemo(() =&gt; {
               </td>
               <td>The two that hurt in production. One is a single line.</td>
               <td class="num">&lt; 1h</td>
+              <td>
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/79"
+                  >Shipped #79</a
+                >
+              </td>
             </tr>
             <tr>
               <td class="num">3</td>
@@ -3203,6 +3521,13 @@ const visibleStores = useMemo(() =&gt; {
                 enforces.
               </td>
               <td class="num">2h</td>
+              <td>
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/78"
+                  >Shipped #78</a
+                >
+              </td>
             </tr>
             <tr>
               <td class="num">4</td>
@@ -3217,6 +3542,15 @@ const visibleStores = useMemo(() =&gt; {
                 to read.
               </td>
               <td class="num">half day</td>
+              <td>
+                C2
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/81"
+                  >#81</a
+                >
+                · S6 open
+              </td>
             </tr>
             <tr>
               <td class="num">5</td>
@@ -3230,6 +3564,7 @@ const visibleStores = useMemo(() =&gt; {
                 two enforced ones.
               </td>
               <td class="num">1 day</td>
+              <td>C1 in review · S4 open</td>
             </tr>
             <tr>
               <td class="num">6</td>
@@ -3244,6 +3579,7 @@ const visibleStores = useMemo(() =&gt; {
                 needs a net first.
               </td>
               <td class="num">2 days</td>
+              <td>Open</td>
             </tr>
             <tr>
               <td class="num">7</td>
@@ -3257,6 +3593,7 @@ const visibleStores = useMemo(() =&gt; {
                 code-splitting reports already pays for.
               </td>
               <td class="num">2 days</td>
+              <td>Deferred — report overhaul</td>
             </tr>
             <tr>
               <td class="num">8</td>
@@ -3270,6 +3607,7 @@ const visibleStores = useMemo(() =&gt; {
                 Four independent, contained changes. Any one is an afternoon.
               </td>
               <td class="num">2 days</td>
+              <td>Open</td>
             </tr>
             <tr>
               <td class="num">9</td>
@@ -3281,6 +3619,21 @@ const visibleStores = useMemo(() =&gt; {
               </td>
               <td>Small correctness items worth not carrying.</td>
               <td class="num">&lt; 2h</td>
+              <td>
+                S7
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/80"
+                  >#80</a
+                >
+                · M3
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/78"
+                  >#78</a
+                >
+                · W10 open
+              </td>
             </tr>
             <tr>
               <td class="num">10</td>
@@ -3290,6 +3643,15 @@ const visibleStores = useMemo(() =&gt; {
                 branch.
               </td>
               <td class="num">—</td>
+              <td>
+                S9–S12, S14
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/80"
+                  >#80</a
+                >
+                · web Low open
+              </td>
             </tr>
           </tbody>
         </table>

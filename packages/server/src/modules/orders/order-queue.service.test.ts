@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { orderServiceHandlerLogsTable, ordersServicesTable } from "@/db/schema";
 import { BadRequestException, ForbiddenException } from "@/errors";
 import type { PatchOrderServiceStatusInput } from "@/modules/orders/order-admin.schema";
+import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
 
@@ -83,10 +84,7 @@ const authz = {
   storeIds: [] as number[],
 };
 
-mock.module("@/utils/authorization", () => ({
-  assertStoreAccess: () => Promise.resolve(),
-  getUserStoreIds: () => Promise.resolve(authz.storeIds),
-}));
+mock.module("@/utils/authorization", () => authorizationDouble(authz));
 
 // Spread the real machine and stub only transitionOrderService: which moves are
 // legal is order-status-machine.test.ts's job; here we pin only what the queue

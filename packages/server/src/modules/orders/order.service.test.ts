@@ -9,6 +9,7 @@ import {
 } from "bun:test";
 import { ordersTable } from "@/db/schema";
 import { BadRequestException } from "@/errors";
+import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
 import type { Store } from "@/types/entity";
@@ -127,17 +128,7 @@ mock.module("@/db", () => ({
   },
 }));
 
-mock.module("@/utils/authorization", () => ({
-  assertStoreAccess: (user: { id: number }, storeId: number) => {
-    authz.assertCalls.push({ userId: user.id, storeId });
-    return Promise.resolve();
-  },
-  getUserStoreIds: (userId: number) => {
-    authz.listCalls.push(userId);
-    return Promise.resolve(authz.storeIds);
-  },
-  assertOrderAccess: () => Promise.resolve({ id: 0, store_id: 0 }),
-}));
+mock.module("@/utils/authorization", () => authorizationDouble(authz));
 
 // Capture the real modules before stubbing so afterAll can hand them back to
 // test files that exercise them for real (their own suites pin the internals).

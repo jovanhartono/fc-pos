@@ -29,7 +29,7 @@ import { findServices } from "@/modules/services/service.repository";
 import type { POSTOrderSchema } from "@/schema";
 import type { JWTPayload } from "@/types";
 import type { Store } from "@/types/entity";
-import { assertStoreAccess, getUserStoreIds } from "@/utils/authorization";
+import { resolveStoreScope, unhandledStoreScope } from "@/utils/authorization";
 import { jakartaNow } from "@/utils/date";
 import { buildPaginationMeta } from "@/utils/pagination";
 import { buildMediaUrl } from "@/utils/s3";
@@ -143,11 +143,26 @@ export async function listOrders(query?: GetOrdersQuery, user?: JWTPayload) {
   const normalized = normalizeOrderListQuery(query);
   let scopedStoreIds: number[] | undefined;
 
-  if (user && user.role !== "admin") {
-    if (normalized.store_id === undefined) {
-      scopedStoreIds = await getUserStoreIds(user.id);
-    } else {
-      await assertStoreAccess(user, normalized.store_id);
+  if (user) {
+    const scope = await resolveStoreScope(user, normalized.store_id);
+
+    switch (scope.kind) {
+      // A cashier browsing "all orders" still only sees the branches they work
+      // at — an open list would leak every branch's takings to any staff.
+      case "some":
+        scopedStoreIds = scope.storeIds;
+        break;
+      // A staff account not yet assigned to a branch: nothing, not everything.
+      case "none":
+        scopedStoreIds = [];
+        break;
+      // An admin browses every branch, and a named branch is already the
+      // store_id filter the query carries.
+      case "all":
+      case "one":
+        break;
+      default:
+        return unhandledStoreScope(scope);
     }
   }
 
