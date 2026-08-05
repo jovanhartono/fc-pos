@@ -15,6 +15,7 @@ import {
   buildMediaUrl,
   createPresignedUploadUrl,
   optimizeUploadedImage,
+  STORAGE_ENV_PREFIX,
 } from "@/utils/s3";
 
 export async function createOrderServicePhotoPresign({
@@ -28,7 +29,7 @@ export async function createOrderServicePhotoPresign({
 }) {
   await getOrderServiceOrThrow(orderId, serviceId);
 
-  const key = `orders/${orderId}/services/${serviceId}/${crypto.randomUUID()}`;
+  const key = `${STORAGE_ENV_PREFIX}orders/${orderId}/services/${serviceId}/${crypto.randomUUID()}`;
   return createPresignedUploadUrl({
     contentType: body.content_type,
     key,
@@ -51,7 +52,7 @@ export async function createOrderDropoffPhotoPresign({
     throw new BadRequestException("Order not found");
   }
 
-  const key = `orders/${orderId}/dropoff/${crypto.randomUUID()}`;
+  const key = `${STORAGE_ENV_PREFIX}orders/${orderId}/dropoff/${crypto.randomUUID()}`;
   return createPresignedUploadUrl({
     contentType: body.content_type,
     key,
@@ -71,7 +72,11 @@ export async function saveOrderServicePhoto({
 }) {
   await getOrderServiceOrThrow(orderId, serviceId);
 
-  if (!body.image_path.startsWith(`orders/${orderId}/services/${serviceId}/`)) {
+  if (
+    !body.image_path.startsWith(
+      `${STORAGE_ENV_PREFIX}orders/${orderId}/services/${serviceId}/`
+    )
+  ) {
     throw new BadRequestException("Invalid image path");
   }
 
@@ -142,7 +147,11 @@ export async function saveOrderDropoffPhoto({
   body: PutOrderDropoffPhotoInput;
   user: JWTPayload;
 }) {
-  if (!body.image_path.startsWith(`orders/${orderId}/dropoff/`)) {
+  if (
+    !body.image_path.startsWith(
+      `${STORAGE_ENV_PREFIX}orders/${orderId}/dropoff/`
+    )
+  ) {
     throw new BadRequestException("Invalid image path");
   }
 

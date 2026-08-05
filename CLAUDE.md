@@ -25,13 +25,15 @@ The server reads from `process.env`:
 
 Both services run in Singapore — `ap-southeast-1`, Vercel region `sin1` — as does Neon. Photos live in S3 `ap-southeast-3` (Jakarta), served via `https://cdn.fresclean.id`.
 
+Dev and production share that bucket, so every key is namespaced by the environment that wrote it: `dev/orders/…` or `prod/orders/…`, from `STORAGE_ENV_PREFIX` in `src/utils/s3.ts`. It reads `NODE_ENV`, the same flag that picks the database in `src/db/index.ts` — the two must agree, or the photo sweep judges one environment's bucket against the other's database. Seed data has its own `seed/` prefix and is outside both.
+
 The container region is set in **Vercel project settings**, not `vercel.json`: `services.*` there takes no `regions` key. Keeping it beside Neon is what makes an order commit a same-region round trip rather than a cross-region one.
 
 ## Scheduled Jobs
 
 `vercel.json` `crons` → HTTP GET to the production URL, routed through the `/api/(.*)` rewrite to the container. **Schedules are UTC only**, so a Jakarta time is written 7 hours earlier: `0 20 * * *` is 03:00 Jakarta.
 
-- `/api/internal/photo-sweep` — deletes order photos no order points at. The counter uploads a photo before the batch is confirmed, so an abandoned batch leaves the file behind with nothing filed against it. Compares bucket to database each run, ignores anything under 48h old, and refuses to delete more than 500 in one pass. Delivery is best-effort: Vercel may skip or repeat a run, which is safe here.
+- `/api/internal/photo-sweep` — deletes order photos no order points at. The counter uploads a photo before the batch is confirmed, so an abandoned batch leaves the file behind with nothing filed against it. Compares its own environment's prefix to the database each run and ignores anything under 24h old. No per-run cap — a backlog clears in one pass. Delivery is best-effort: Vercel may skip or repeat a run, which is safe here. Needs `s3:ListBucket` on the bucket; the object-level rights the presign flow uses are not enough, and without it every run fails with AccessDenied.
 
 ## Architecture
 

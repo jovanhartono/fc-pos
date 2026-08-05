@@ -169,6 +169,11 @@ const PhotoUploadDialogBase = ({
 		[stopCamera],
 	);
 
+	// Tail of the staged uploads, so a new one queues behind them instead of racing them. One
+	// upload already saturates a shop uplink: firing a five-photo gallery pick together makes
+	// every photo slower and the first one — the one confirm waits on first — slowest of all.
+	const pushQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+
 	// The upload starts here, not on confirm. Between staging a shot and confirming the batch the
 	// operator is shooting the next one, swiping back through the last one or typing a note —
 	// seconds the bytes can spend crossing the shop uplink instead, which is the slowest step
@@ -184,15 +189,18 @@ const PhotoUploadDialogBase = ({
 			}
 
 			const controller = new AbortController();
-			const promise = uploader.pushBytes({
-				contentType,
-				file,
-				signal: controller.signal,
-			});
+			const promise = pushQueueRef.current.then(() =>
+				uploader.pushBytes({
+					contentType,
+					file,
+					signal: controller.signal,
+				}),
+			);
 			// Nothing awaits this until confirm, so claim the failure now: a push that dies in
 			// between — dropped 4G, the shot retaken — would otherwise surface as an unhandled
-			// rejection. Confirm still sees it and still retries.
-			promise.catch(() => undefined);
+			// rejection. Confirm still sees it and still retries. The swallowed copy is also what
+			// the next push queues on, so one failure does not strand the rest of the batch.
+			pushQueueRef.current = promise.catch(() => undefined);
 			return { abort: () => controller.abort(), promise };
 		},
 		[onCapture, uploader],
@@ -206,13 +214,16 @@ const PhotoUploadDialogBase = ({
 			const created = files.map((file) =>
 				createPendingPhoto(file, beginPush(file)),
 			);
-			setPendingPhotos((previous) => {
-				if (!multiple) {
-					discardPhotos(previous);
-					return created;
-				}
-				return [...previous, ...created];
-			});
+			// Discarding happens out here, not inside the updater. React may run an updater more
+			// than once for a single commit, and aborting a push twice is harmless only as long as
+			// the photo really is leaving — a replayed updater would otherwise cancel the upload
+			// of a shot still sitting on the strip and revoke the preview it is being shown from.
+			if (!multiple) {
+				discardPhotos(pendingRef.current);
+			}
+			setPendingPhotos((previous) =>
+				multiple ? [...previous, ...created] : created,
+			);
 			const newest = created.at(-1);
 			if (newest) {
 				setSelectedPhotoId(newest.id);
@@ -301,14 +312,12 @@ const PhotoUploadDialogBase = ({
 	};
 
 	const removePhoto = (photoId: string) => {
+		const removed = pendingRef.current.find((photo) => photo.id === photoId);
+		if (removed) {
+			discardPhotos([removed]);
+		}
 		setPendingPhotos((previous) =>
-			previous.filter((photo) => {
-				if (photo.id === photoId) {
-					discardPhotos([photo]);
-					return false;
-				}
-				return true;
-			}),
+			previous.filter((photo) => photo.id !== photoId),
 		);
 	};
 

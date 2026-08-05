@@ -57,10 +57,12 @@ interface StubOptions {
   decode: () => Uint8Array;
   /** What the header of the PUT object says it is, or a throw for a header nobody can read. */
   header?: (() => { format: string; height: number; width: number }) | null;
+  /** Weight of the PUT object. A counter-encoded 2560px shot lands a few hundred KB. */
+  size?: number;
 }
 
 /** Stands in for the object the counter phone just PUT to its presigned URL. */
-const stubUpload = ({ decode, header }: StubOptions) => {
+const stubUpload = ({ decode, header, size = 400_000 }: StubOptions) => {
   const calls: StubbedUpload = {
     resize: [],
     sliced: null,
@@ -91,6 +93,7 @@ const stubUpload = ({ decode, header }: StubOptions) => {
         }),
       };
     },
+    stat: () => Promise.resolve({ size }),
     write: (bytes: Uint8Array, options: unknown) => {
       calls.written.push({ bytes, options });
       return Promise.resolve(bytes.byteLength);
@@ -152,6 +155,24 @@ describe("optimizeUploadedImage", () => {
     expect(calls.sliced).toEqual([0, 65_536]);
     expect(calls.written).toHaveLength(0);
     expect(calls.resize).toEqual([]);
+  });
+
+  it("still re-encodes a WebP inside the pixel budget but far too heavy to put on the CDN", async () => {
+    const optimized = new Uint8Array([1, 1, 2]);
+    const { calls, restore: undo } = stubUpload({
+      decode: () => optimized,
+      header: webpHeader,
+      // A lossless gallery WebP: well inside 2560px, an order of magnitude past what the
+      // conversion would have stored.
+      size: 12_000_000,
+    });
+    restore = undo;
+
+    await optimizeUploadedImage("orders/812/services/9/tear.webp");
+
+    expect(calls.written).toEqual([
+      { bytes: optimized, options: { type: "image/webp" } },
+    ]);
   });
 
   it("still re-encodes a WebP that came in over the dimension bound, whoever PUT it", async () => {

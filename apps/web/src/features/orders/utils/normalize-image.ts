@@ -49,13 +49,18 @@ const canEncodeWebp = async () => {
 };
 
 // The format a shot goes up in: WebP where the device can encode it, JPEG on the iPads
-// that cannot.
+// that cannot. Callers that have already asked the device pass the answer in rather than
+// making it prove itself twice over the same photo.
 export const encodeForUpload = async (
 	canvas: HTMLCanvasElement,
+	supportsWebp?: boolean,
 ): Promise<EncodedUpload> => {
-	if (await canEncodeWebp()) {
+	if (supportsWebp ?? (await canEncodeWebp())) {
 		const blob = await toBlob(canvas, "image/webp", WEBP_QUALITY);
-		if (blob) {
+		// Check the real encode, not just the probe. The silent PNG substitution is what the
+		// probe exists to catch, and a device that does it for a 2560px canvas while managing a
+		// 1px one would otherwise have its PNG filed — and served — labelled image/webp.
+		if (blob?.type === "image/webp") {
 			return { blob, extension: "webp", type: "image/webp" };
 		}
 	}
@@ -88,14 +93,16 @@ export const normalizeImageFile = async (file: File): Promise<File> => {
 			file.size <= MAX_PASSTHROUGH_BYTES &&
 			PASSTHROUGH_TYPES.includes(file.type);
 
+		// Asked once, used twice: the budget check below and the encode further down both turn on
+		// it, and a five-photo gallery pick was otherwise making the device prove itself ten
+		// times over to learn one fixed fact about itself.
+		const supportsWebp = await canEncodeWebp();
+
 		// A WebP already in budget is exactly what would be stored, so it goes up untouched. A
 		// JPEG or PNG gets that same free pass only where the device cannot do better —
 		// elsewhere, encoding it as WebP takes the server's conversion over rather than adding a
 		// second one, and halves what the shop uplink has to carry.
-		if (
-			isInBudget &&
-			(file.type === "image/webp" || !(await canEncodeWebp()))
-		) {
+		if (isInBudget && (file.type === "image/webp" || !supportsWebp)) {
 			return file;
 		}
 
@@ -110,7 +117,10 @@ export const normalizeImageFile = async (file: File): Promise<File> => {
 		}
 
 		context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-		const { blob, extension, type } = await encodeForUpload(canvas);
+		const { blob, extension, type } = await encodeForUpload(
+			canvas,
+			supportsWebp,
+		);
 
 		return new File(
 			[blob],

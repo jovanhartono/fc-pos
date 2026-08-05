@@ -85,7 +85,13 @@ mock.module("@/db", () => ({
   },
 }));
 
+// Dev and production file into the same bucket under their own prefix, so every key the desk
+// issues or accepts carries one. Pinned rather than derived: what these tests care about is that
+// the presign and the image-path gate agree on it.
+const STORAGE_ENV_PREFIX = "dev/";
+
 mock.module("@/utils/s3", () => ({
+  STORAGE_ENV_PREFIX,
   buildMediaUrl: (path: string) => `https://cdn.test/${path}`,
   createPresignedUploadUrl: (input: { contentType: string; key: string }) => {
     s3Calls.presigned.push(input);
@@ -150,7 +156,7 @@ const pickup = (body: AnyObj = {}) =>
   createOrderPickupEvent({
     orderId: ORDER_ID,
     body: {
-      image_path: `orders/${ORDER_ID}/pickup/proof.webp`,
+      image_path: `${STORAGE_ENV_PREFIX}orders/${ORDER_ID}/pickup/proof.webp`,
       pickup_code: "483920",
       service_ids: [5, 6],
       ...body,
@@ -198,8 +204,12 @@ describe("createOrderPickupEventPresign", () => {
     const result = await presign();
     expect(s3Calls.presigned).toHaveLength(1);
     expect(s3Calls.presigned[0].contentType).toBe("image/jpeg");
-    expect(s3Calls.presigned[0].key).toStartWith(`orders/${ORDER_ID}/pickup/`);
-    expect(result.key).toStartWith(`orders/${ORDER_ID}/pickup/`);
+    expect(s3Calls.presigned[0].key).toStartWith(
+      `${STORAGE_ENV_PREFIX}orders/${ORDER_ID}/pickup/`
+    );
+    expect(result.key).toStartWith(
+      `${STORAGE_ENV_PREFIX}orders/${ORDER_ID}/pickup/`
+    );
   });
 });
 
@@ -281,7 +291,7 @@ describe("createOrderPickupEvent", () => {
     // The photo is the evidence of what left for THIS order — pointing at
     // order 99's folder would let one photo vouch for two handovers.
     const error = await captureRejection(
-      pickup({ image_path: "orders/99/pickup/x.jpg" })
+      pickup({ image_path: `${STORAGE_ENV_PREFIX}orders/99/pickup/x.jpg` })
     );
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe("Invalid image path");
@@ -307,10 +317,12 @@ describe("createOrderPickupEvent", () => {
   it("records the handover: photo optimized, event linked to the flip, receipt returned", async () => {
     const result = await pickup();
 
-    expect(s3Calls.optimized).toEqual([`orders/${ORDER_ID}/pickup/proof.webp`]);
+    expect(s3Calls.optimized).toEqual([
+      `${STORAGE_ENV_PREFIX}orders/${ORDER_ID}/pickup/proof.webp`,
+    ]);
     expect(state.insertedEvent).toEqual({
       order_id: ORDER_ID,
-      image_path: `orders/${ORDER_ID}/pickup/proof.webp`,
+      image_path: `${STORAGE_ENV_PREFIX}orders/${ORDER_ID}/pickup/proof.webp`,
       picked_up_by: 8,
     });
     // The flip runs on the same transaction as the event insert and every
@@ -328,7 +340,7 @@ describe("createOrderPickupEvent", () => {
 
     expect(result.id).toBe(EVENT_ID);
     expect(result.image_url).toBe(
-      `https://cdn.test/orders/${ORDER_ID}/pickup/proof.webp`
+      `https://cdn.test/${STORAGE_ENV_PREFIX}orders/${ORDER_ID}/pickup/proof.webp`
     );
     expect(result.order_id).toBe(ORDER_ID);
     expect(result.picked_up_at).toBeInstanceOf(Date);

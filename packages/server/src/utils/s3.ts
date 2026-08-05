@@ -13,6 +13,20 @@ const WEBP_QUALITY = 85;
 // Enough of the object to hold an image header, which is all the check below reads. Still a
 // rounding error next to the full download it replaces.
 const METADATA_PROBE_BYTES = 65_536;
+// Mirrors MAX_PASSTHROUGH_BYTES in apps/web normalize-image.ts. Dimensions alone do not bound
+// weight: a lossless WebP inside the pixel budget can run to tens of MB, and keeping it verbatim
+// would put that on the CDN and on every operator opening the gallery. The conversion below
+// lands a 2560px shot in a few hundred KB, so anything heavier than this is worth converting
+// however well-formed its header is.
+const MAX_PASSTHROUGH_BYTES = 4_000_000;
+
+// Dev and production share one bucket, so every key is filed under the environment that wrote
+// it. What this buys: the photo sweep lists only its own environment's prefix, and so can never
+// weigh a production dispute photo against a development database that has never heard of the
+// order it was filed under — and delete it. Derived from the same flag that picks the database
+// in db/index.ts, so the two halves cannot disagree about which environment this is.
+export const STORAGE_ENV_PREFIX =
+  process.env.NODE_ENV === "production" ? "prod/" : "dev/";
 
 // Most shots now arrive already in the format and size we store, so a header-sized read is
 // enough to keep them exactly as they came — sparing a full download, a conversion and a second
@@ -26,11 +40,17 @@ async function isAlreadyOptimized(
   file: ReturnType<typeof s3.file>
 ): Promise<boolean> {
   try {
-    const header = await file.slice(0, METADATA_PROBE_BYTES).image().metadata();
+    // One round trip, not two: the header says what the bytes are, the stat says how many of
+    // them there are, and a passthrough needs both to be in budget.
+    const [header, stats] = await Promise.all([
+      file.slice(0, METADATA_PROBE_BYTES).image().metadata(),
+      file.stat(),
+    ]);
 
     return (
       header.format === "webp" &&
-      Math.max(header.width, header.height) <= MAX_IMAGE_DIMENSION
+      Math.max(header.width, header.height) <= MAX_IMAGE_DIMENSION &&
+      stats.size <= MAX_PASSTHROUGH_BYTES
     );
   } catch {
     return false;
