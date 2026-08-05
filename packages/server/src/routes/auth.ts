@@ -1,4 +1,3 @@
-import { zValidator } from "@hono/zod-validator";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-orm/zod";
 import { Hono } from "hono";
@@ -6,8 +5,10 @@ import { sign } from "hono/jwt";
 import { StatusCodes } from "http-status-codes";
 import { db } from "@/db";
 import { usersTable } from "@/db/schema";
+import { ForbiddenException, UnauthorizedException } from "@/errors";
 import type { JWTPayload } from "@/types/jwt";
-import { failure, success } from "@/utils/http";
+import { success } from "@/utils/http";
+import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const loginSchema = createInsertSchema(usersTable).pick({
   username: true,
@@ -22,17 +23,14 @@ const findUserByUsernamePrepared = db.query.usersTable
 
 const app = new Hono().post(
   "/login",
-  zValidator("json", loginSchema),
+  zodValidator("json", loginSchema),
   async (c) => {
     const { username, password } = c.req.valid("json");
 
     const user = await findUserByUsernamePrepared.execute({ username });
 
     if (!user) {
-      return c.json(
-        failure("Invalid username or password"),
-        StatusCodes.UNAUTHORIZED
-      );
+      throw new UnauthorizedException("Invalid username or password");
     }
 
     let isPasswordValid = false;
@@ -43,17 +41,11 @@ const app = new Hono().post(
     }
 
     if (!isPasswordValid) {
-      return c.json(
-        failure("Invalid username or password"),
-        StatusCodes.UNAUTHORIZED
-      );
+      throw new UnauthorizedException("Invalid username or password");
     }
 
     if (!user.is_active) {
-      return c.json(
-        failure("User is not active. Please contact admin."),
-        StatusCodes.FORBIDDEN
-      );
+      throw new ForbiddenException("User is not active. Please contact admin.");
     }
 
     const jwtPayload: JWTPayload & { exp: number } = {

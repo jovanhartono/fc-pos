@@ -60,7 +60,7 @@ import { POSTOrderSchema } from "@/schema";
 import { idParamSchema } from "@/schema/param";
 import type { JWTPayload } from "@/types";
 import { assertOrderAccess, assertStoreAccess } from "@/utils/authorization";
-import { failure, success } from "@/utils/http";
+import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const app = new Hono()
@@ -94,10 +94,7 @@ const app = new Hono()
       const orderService = await getOrderServiceById(service_id);
 
       if (!orderService?.order) {
-        return c.json(
-          failure("Order service not found"),
-          StatusCodes.NOT_FOUND
-        );
+        throw new NotFoundException("Order service not found");
       }
 
       await assertStoreAccess(user, orderService.order.store_id);
@@ -117,10 +114,7 @@ const app = new Hono()
       const orderService = await getOrderServiceByItemCode(item_code);
 
       if (!orderService?.order) {
-        return c.json(
-          failure("Order service not found"),
-          StatusCodes.NOT_FOUND
-        );
+        throw new NotFoundException("Order service not found");
       }
 
       await assertStoreAccess(user, orderService.order.store_id);
@@ -168,7 +162,7 @@ const app = new Hono()
     const detail = await getOrderDetailById(id);
 
     if (!detail) {
-      return c.json(failure("Order not found"), StatusCodes.NOT_FOUND);
+      throw new NotFoundException("Order not found");
     }
 
     return c.json(success(detail, "Order detail retrieved successfully"));
@@ -182,7 +176,7 @@ const app = new Hono()
     const receipt = await getOrderReceiptById(id);
 
     if (!receipt) {
-      return c.json(failure("Order not found"), StatusCodes.NOT_FOUND);
+      throw new NotFoundException("Order not found");
     }
 
     return c.json(success(receipt, "Order receipt retrieved successfully"));
@@ -205,7 +199,7 @@ const app = new Hono()
       });
 
       if (!payment) {
-        return c.json(failure("Order not found"), StatusCodes.NOT_FOUND);
+        throw new NotFoundException("Order not found");
       }
 
       return c.json(success(payment, "Payment updated successfully"));
@@ -229,7 +223,7 @@ const app = new Hono()
       });
 
       if (!updated) {
-        return c.json(failure("Order not found"), StatusCodes.NOT_FOUND);
+        throw new NotFoundException("Order not found");
       }
 
       return c.json(success(updated, "Courier updated successfully"));

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import { z } from "zod";
+import { BadRequestException, NotFoundException } from "@/errors";
 import { findCampaignByIdWithCodes } from "@/modules/campaigns/campaign.repository";
 import {
   CampaignPayloadSchema,
@@ -18,7 +19,7 @@ import {
 import { findStoreById } from "@/modules/stores/store.repository";
 import { idParamSchema } from "@/schema/param";
 import type { JWTPayload } from "@/types";
-import { failure, success } from "@/utils/http";
+import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const app = new Hono()
@@ -48,7 +49,7 @@ const app = new Hono()
 
       const store = await findStoreById(store_id);
       if (!store) {
-        return c.json(failure("Store not found"), StatusCodes.NOT_FOUND);
+        throw new NotFoundException("Store not found");
       }
 
       const { campaign } = await resolveVoucherCode(code, {
@@ -65,13 +66,10 @@ const app = new Hono()
 
     const campaign = await findCampaignByIdWithCodes(id);
     if (!campaign) {
-      return c.json(failure("Campaign not found"), StatusCodes.NOT_FOUND);
+      throw new NotFoundException("Campaign not found");
     }
     if (campaign.redemption_mode !== "code") {
-      return c.json(
-        failure("Campaign is not a voucher campaign"),
-        StatusCodes.BAD_REQUEST
-      );
+      throw new BadRequestException("Campaign is not a voucher campaign");
     }
 
     const total = campaign.codes.length;
@@ -95,7 +93,7 @@ const app = new Hono()
     const campaign = await getCampaignById(id);
 
     if (!campaign) {
-      return c.json(failure("Campaign not found"), StatusCodes.NOT_FOUND);
+      throw new NotFoundException("Campaign not found");
     }
 
     return c.json(success(campaign, "Campaign retrieved successfully"));
@@ -130,10 +128,7 @@ const app = new Hono()
       });
 
       if (!campaign) {
-        return c.json(
-          failure("Campaign does not exist"),
-          StatusCodes.NOT_FOUND
-        );
+        throw new NotFoundException("Campaign does not exist");
       }
 
       return c.json(success(campaign, "Campaign updated successfully"));
@@ -146,7 +141,7 @@ const app = new Hono()
     const deleted = await deleteCampaign({ user, id });
 
     if (!deleted) {
-      return c.json(failure("Campaign not found"), StatusCodes.NOT_FOUND);
+      throw new NotFoundException("Campaign not found");
     }
 
     return c.json(success(deleted, "Campaign deleted successfully"));

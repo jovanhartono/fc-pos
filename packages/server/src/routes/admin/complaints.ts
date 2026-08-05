@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
+import { NotFoundException } from "@/errors";
 import {
   GETComplaintsQuerySchema,
   POSTComplaintSchema,
@@ -12,7 +13,7 @@ import {
 } from "@/modules/complaints/complaint.service";
 import { idParamSchema } from "@/schema/param";
 import type { JWTPayload } from "@/types";
-import { failure, success } from "@/utils/http";
+import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const app = new Hono()
@@ -30,7 +31,7 @@ const app = new Hono()
 
     const detail = await getComplaintDetail(user, id);
     if (!detail) {
-      return c.json(failure("Complaint not found"), StatusCodes.NOT_FOUND);
+      throw new NotFoundException("Complaint not found");
     }
 
     return c.json(success(detail, "Complaint detail retrieved successfully"));

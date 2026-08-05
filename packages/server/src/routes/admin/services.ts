@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
+import { NotFoundException } from "@/errors";
 import {
   POSTServiceSchema,
   PUTServiceSchema,
@@ -11,7 +12,7 @@ import {
   updateService,
 } from "@/modules/services/service.service";
 import { idParamSchema } from "@/schema/param";
-import { failure, success } from "@/utils/http";
+import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const app = new Hono()
@@ -26,7 +27,7 @@ const app = new Hono()
     const service = await getServiceById(id);
 
     if (!service) {
-      return c.json(failure("Service not found"), StatusCodes.NOT_FOUND);
+      throw new NotFoundException("Service not found");
     }
 
     return c.json(success(service, "Service retrieved successfully"));
@@ -52,7 +53,7 @@ const app = new Hono()
       const service = await updateService(id, body);
 
       if (!service) {
-        return c.json(failure("Service does not exist"), StatusCodes.NOT_FOUND);
+        throw new NotFoundException("Service does not exist");
       }
 
       return c.json(success(service, `Update service ${service.code} success`));

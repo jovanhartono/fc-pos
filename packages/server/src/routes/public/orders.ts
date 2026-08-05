@@ -1,9 +1,9 @@
 import { Hono } from "hono";
-import { StatusCodes } from "http-status-codes";
 import { z } from "zod";
 import { db } from "@/db";
+import { NotFoundException } from "@/errors";
 import { phoneSchema } from "@/schema/common";
-import { failure, success } from "@/utils/http";
+import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const POSTPublicTrackOrderSchema = z.object({
@@ -28,10 +28,7 @@ const app = new Hono().post(
     });
 
     if (!customer) {
-      return c.json(
-        failure("Order code or phone number is invalid"),
-        StatusCodes.NOT_FOUND
-      );
+      throw new NotFoundException("Order code or phone number is invalid");
     }
 
     const order = await db.query.ordersTable.findFirst({
@@ -103,10 +100,7 @@ const app = new Hono().post(
     });
 
     if (!order) {
-      return c.json(
-        failure("Order code or phone number is invalid"),
-        StatusCodes.NOT_FOUND
-      );
+      throw new NotFoundException("Order code or phone number is invalid");
     }
 
     const orderCustomer = order.customer;

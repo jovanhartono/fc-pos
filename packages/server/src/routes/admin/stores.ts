@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
+import { NotFoundException } from "@/errors";
 import {
   GETNearestStoreQuerySchema,
   PATCHStoreSchema,
@@ -15,7 +16,7 @@ import {
   updateStoreStatus,
 } from "@/modules/stores/store.service";
 import { idParamSchema } from "@/schema/param";
-import { failure, success } from "@/utils/http";
+import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const app = new Hono()
@@ -50,7 +51,7 @@ const app = new Hono()
     const store = await getStoreById(id);
 
     if (!store) {
-      return c.json(failure("Store does not exist"), StatusCodes.NOT_FOUND);
+      throw new NotFoundException("Store does not exist");
     }
 
     return c.json(success(store));
@@ -69,7 +70,7 @@ const app = new Hono()
       });
 
       if (!store) {
-        return c.json(failure("Store does not exist"), StatusCodes.NOT_FOUND);
+        throw new NotFoundException("Store does not exist");
       }
 
       return c.json(success(store, `Successfully updated ${store.name}`));
@@ -89,7 +90,7 @@ const app = new Hono()
       });
 
       if (!store) {
-        return c.json(failure("Store does not exist"), StatusCodes.NOT_FOUND);
+        throw new NotFoundException("Store does not exist");
       }
 
       const statusText = data.is_active ? "Activated" : "Deactivated";

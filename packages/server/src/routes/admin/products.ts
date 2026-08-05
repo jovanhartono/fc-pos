@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
+import { NotFoundException } from "@/errors";
 import {
   POSTProductSchema,
   PUTProductSchema,
@@ -11,7 +12,7 @@ import {
   updateProduct,
 } from "@/modules/products/product.service";
 import { idParamSchema } from "@/schema/param";
-import { failure, success } from "@/utils/http";
+import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const app = new Hono()
@@ -26,7 +27,7 @@ const app = new Hono()
     const product = await getProductById(id);
 
     if (!product) {
-      return c.json(failure("Product not found"), StatusCodes.NOT_FOUND);
+      throw new NotFoundException("Product not found");
     }
 
     return c.json(success(product, "Product retrieved successfully"));
@@ -51,7 +52,7 @@ const app = new Hono()
       const product = await updateProduct(id, body);
 
       if (!product) {
-        return c.json(failure("Product does not exist"), StatusCodes.NOT_FOUND);
+        throw new NotFoundException("Product does not exist");
       }
 
       return c.json(success(product, `Update product ${product.sku} success`));
