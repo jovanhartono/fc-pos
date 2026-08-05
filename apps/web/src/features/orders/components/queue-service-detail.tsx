@@ -344,7 +344,7 @@ export function QueueServiceDetail({
 							title={`Photos for ${selectedService.item_code ?? `service-${selectedService.id}`}`}
 							emptyState={
 								needsPhotoToStart ? (
-									<div className="col-span-full flex items-start gap-2.5 border border-dashed border-warning/50 bg-warning/10 px-4 py-6 text-sm">
+									<div className="flex items-start gap-2.5 border border-dashed border-warning/50 bg-warning/10 px-4 py-6 text-sm">
 										<WarningCircleIcon
 											aria-hidden="true"
 											className="mt-0.5 size-4 shrink-0 text-warning"
@@ -360,7 +360,7 @@ export function QueueServiceDetail({
 										</div>
 									</div>
 								) : (
-									<p className="col-span-full border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+									<p className="border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
 										No photos.
 									</p>
 								)
