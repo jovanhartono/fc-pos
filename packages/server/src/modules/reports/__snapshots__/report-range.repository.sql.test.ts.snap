@@ -1,0 +1,595 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`what each money report asks Postgres for one store asks the same question for services revenue 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."subtotal"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for products revenue 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."subtotal"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for services COGS 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."cogs_snapshot"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for products COGS 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."cogs_snapshot"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for order discount 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select to_char("paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("discount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for category revenue 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "categories"."id", "categories"."name", COALESCE(SUM("orders_services"."subtotal"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" inner join "services" on "orders_services"."service_id" = "services"."id" inner join "categories" on "services"."category_id" = "categories"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "categories"."id", "categories"."name"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for store x category revenue 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select "orders"."store_id", "stores"."name", "stores"."code", "categories"."id", "categories"."name", COALESCE(SUM("orders_services"."subtotal"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" inner join "stores" on "orders"."store_id" = "stores"."id" inner join "services" on "orders_services"."service_id" = "services"."id" inner join "categories" on "services"."category_id" = "categories"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by "orders"."store_id", "stores"."name", "stores"."code", "categories"."id", "categories"."name"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for orders taken in 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select to_char("created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(*)::int from "orders" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2) and ("orders"."store_id" = $3)) group by to_char("orders"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for orders handed back 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select to_char("order_pickup_events"."picked_up_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(DISTINCT "order_pickup_events"."order_id")::int from "order_pickup_events" inner join "orders" on "order_pickup_events"."order_id" = "orders"."id" where (("order_pickup_events"."picked_up_at" >= $1) and ("order_pickup_events"."picked_up_at" < $2) and ("orders"."store_id" = $3)) group by to_char("order_pickup_events"."picked_up_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for distinct handlers 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      "processing",
+      "queued",
+      3,
+    ],
+    "sql": "select COUNT(DISTINCT "order_service_status_logs"."changed_by")::int from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."created_at" >= $1) and ("order_service_status_logs"."created_at" < $2) and ("order_service_status_logs"."to_status" = $3) and ("order_service_status_logs"."from_status" = $4) and ("orders"."store_id" = $5))",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for payment mix 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "orders"."payment_method_id", "payment_methods"."name", COALESCE(SUM("orders"."paid_amount"), 0), COUNT(*)::int from "orders" left join "payment_methods" on "orders"."payment_method_id" = "payment_methods"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "orders"."payment_method_id", "payment_methods"."name"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for new customers 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select to_char("created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(*)::int from "customers" where (("customers"."created_at" >= $1) and ("customers"."created_at" < $2) and ("customers"."origin_store_id" = $3)) group by to_char("customers"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for returning customer orders 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select to_char("orders"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "customers"."created_at", COUNT(*)::int from "orders" inner join "customers" on "orders"."customer_id" = "customers"."id" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2) and (("orders"."customer_id" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "customers"."id", "customers"."created_at"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for top customers 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+      10,
+    ],
+    "sql": "select "customers"."id", "customers"."name", "customers"."phone_number", COUNT(*)::int, COALESCE(SUM("orders"."paid_amount"), 0) from "orders" inner join "customers" on "orders"."customer_id" = "customers"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and (("orders"."customer_id" is not null)) and ("orders"."store_id" = $3)) group by "customers"."id", "customers"."name", "customers"."phone_number" order by SUM("orders"."paid_amount") desc limit $4",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for customers on file before the stretch 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select count(*) from "customers" where (("customers"."created_at" < $1) and ("customers"."origin_store_id" = $2))",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for repeat customer stats 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select COUNT(*)::int, COUNT(*) FILTER (WHERE order_count > 1)::int from (select "customer_id", COUNT(*) as "order_count" from "orders" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2) and (("orders"."customer_id" is not null)) and ("orders"."store_id" = $3)) group by "orders"."customer_id") "customer_orders"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for refund amounts 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select to_char("order_refunds"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("order_refunds"."total_amount"), 0), COUNT(DISTINCT "order_refunds"."id")::int from "order_refunds" inner join "orders" on "order_refunds"."order_id" = "orders"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2) and ("orders"."store_id" = $3)) group by to_char("order_refunds"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for refund reasons 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select to_char("order_refunds"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "order_refund_items"."reason", COALESCE(SUM("order_refund_items"."amount"), 0), COUNT(*)::int from "order_refund_items" inner join "order_refunds" on "order_refund_items"."order_refund_id" = "order_refunds"."id" inner join "orders" on "order_refunds"."order_id" = "orders"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2) and ("orders"."store_id" = $3)) group by to_char("order_refunds"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "order_refund_items"."reason"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for worker productivity 1`] = `
+[
+  {
+    "params": [
+      "ready_for_pickup",
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select distinct on ("order_service_status_logs"."order_service_id") "order_service_status_logs"."order_service_id" from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."to_status" = $1) and ("order_service_status_logs"."created_at" >= $2) and ("order_service_status_logs"."created_at" < $3) and ("orders"."store_id" = $4)) order by "order_service_status_logs"."order_service_id", "order_service_status_logs"."created_at" desc",
+  },
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select "order_refund_items"."order_service_id", COUNT(DISTINCT "order_refund_items"."id")::int from "order_refund_items" inner join "order_refunds" on "order_refund_items"."order_refund_id" = "order_refunds"."id" inner join "orders" on "order_refunds"."order_id" = "orders"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2) and (("order_refund_items"."order_service_id" is not null)) and ("orders"."store_id" = $3)) group by "order_refund_items"."order_service_id"",
+  },
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select "user_id", COALESCE(SUM(EXTRACT(EPOCH FROM ("clock_out_at" - "clock_in_at")) / 60), 0)::int from "shifts" where ((("shifts"."clock_out_at" is not null)) and ("shifts"."clock_in_at" >= $1) and ("shifts"."clock_in_at" < $2) and ("shifts"."store_id" = $3)) group by "shifts"."user_id"",
+  },
+  {
+    "params": [
+      "quality_check",
+      "processing",
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select "rework_log"."order_service_id", COUNT(*)::int from "order_service_status_logs" "rework_log" inner join "orders_services" on "rework_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("rework_log"."from_status" = $1) and ("rework_log"."to_status" = $2) and ("rework_log"."created_at" >= $3) and ("rework_log"."created_at" < $4) and ("orders"."store_id" = $5)) group by "rework_log"."order_service_id"",
+  },
+  {
+    "params": [
+      "worker",
+    ],
+    "sql": "select "id", "name", "role" from "users" where "users"."role" = $1",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for campaign effectiveness 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select "campaigns"."id", "campaigns"."name", "campaigns"."code", COALESCE(SUM("order_campaigns"."applied_amount"), 0) from "order_campaigns" inner join "orders" on "order_campaigns"."order_id" = "orders"."id" inner join "campaigns" on "order_campaigns"."campaign_id" = "campaigns"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by "campaigns"."id", "campaigns"."name", "campaigns"."code"",
+  },
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select distinct "order_campaigns"."campaign_id", "orders"."id", "orders"."paid_amount", "orders"."total" from "order_campaigns" inner join "orders" on "order_campaigns"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3))",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for services revenue 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."subtotal"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for products revenue 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."subtotal"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for services COGS 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."cogs_snapshot"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for products COGS 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."cogs_snapshot"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for order discount 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select to_char("paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("discount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for category revenue 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "categories"."id", "categories"."name", COALESCE(SUM("orders_services"."subtotal"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" inner join "services" on "orders_services"."service_id" = "services"."id" inner join "categories" on "services"."category_id" = "categories"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "categories"."id", "categories"."name"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for store x category revenue 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select "orders"."store_id", "stores"."name", "stores"."code", "categories"."id", "categories"."name", COALESCE(SUM("orders_services"."subtotal"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" inner join "stores" on "orders"."store_id" = "stores"."id" inner join "services" on "orders_services"."service_id" = "services"."id" inner join "categories" on "services"."category_id" = "categories"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by "orders"."store_id", "stores"."name", "stores"."code", "categories"."id", "categories"."name"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for orders taken in 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select to_char("created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(*)::int from "orders" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2)) group by to_char("orders"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for orders handed back 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select to_char("order_pickup_events"."picked_up_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(DISTINCT "order_pickup_events"."order_id")::int from "order_pickup_events" inner join "orders" on "order_pickup_events"."order_id" = "orders"."id" where (("order_pickup_events"."picked_up_at" >= $1) and ("order_pickup_events"."picked_up_at" < $2)) group by to_char("order_pickup_events"."picked_up_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for distinct handlers 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      "processing",
+      "queued",
+    ],
+    "sql": "select COUNT(DISTINCT "order_service_status_logs"."changed_by")::int from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."created_at" >= $1) and ("order_service_status_logs"."created_at" < $2) and ("order_service_status_logs"."to_status" = $3) and ("order_service_status_logs"."from_status" = $4))",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for payment mix 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "orders"."payment_method_id", "payment_methods"."name", COALESCE(SUM("orders"."paid_amount"), 0), COUNT(*)::int from "orders" left join "payment_methods" on "orders"."payment_method_id" = "payment_methods"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "orders"."payment_method_id", "payment_methods"."name"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for new customers 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select to_char("created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(*)::int from "customers" where (("customers"."created_at" >= $1) and ("customers"."created_at" < $2)) group by to_char("customers"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for returning customer orders 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select to_char("orders"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "customers"."created_at", COUNT(*)::int from "orders" inner join "customers" on "orders"."customer_id" = "customers"."id" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2) and (("orders"."customer_id" is not null))) group by to_char("orders"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "customers"."id", "customers"."created_at"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for top customers 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      10,
+    ],
+    "sql": "select "customers"."id", "customers"."name", "customers"."phone_number", COUNT(*)::int, COALESCE(SUM("orders"."paid_amount"), 0) from "orders" inner join "customers" on "orders"."customer_id" = "customers"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and (("orders"."customer_id" is not null))) group by "customers"."id", "customers"."name", "customers"."phone_number" order by SUM("orders"."paid_amount") desc limit $3",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for customers on file before the stretch 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+    ],
+    "sql": "select count(*) from "customers" where "customers"."created_at" < $1",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for repeat customer stats 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select COUNT(*)::int, COUNT(*) FILTER (WHERE order_count > 1)::int from (select "customer_id", COUNT(*) as "order_count" from "orders" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2) and (("orders"."customer_id" is not null))) group by "orders"."customer_id") "customer_orders"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for refund amounts 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select to_char("order_refunds"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("order_refunds"."total_amount"), 0), COUNT(DISTINCT "order_refunds"."id")::int from "order_refunds" inner join "orders" on "order_refunds"."order_id" = "orders"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2)) group by to_char("order_refunds"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for refund reasons 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select to_char("order_refunds"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "order_refund_items"."reason", COALESCE(SUM("order_refund_items"."amount"), 0), COUNT(*)::int from "order_refund_items" inner join "order_refunds" on "order_refund_items"."order_refund_id" = "order_refunds"."id" inner join "orders" on "order_refunds"."order_id" = "orders"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2)) group by to_char("order_refunds"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "order_refund_items"."reason"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for worker productivity 1`] = `
+[
+  {
+    "params": [
+      "ready_for_pickup",
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select distinct on ("order_service_status_logs"."order_service_id") "order_service_status_logs"."order_service_id" from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."to_status" = $1) and ("order_service_status_logs"."created_at" >= $2) and ("order_service_status_logs"."created_at" < $3)) order by "order_service_status_logs"."order_service_id", "order_service_status_logs"."created_at" desc",
+  },
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select "order_refund_items"."order_service_id", COUNT(DISTINCT "order_refund_items"."id")::int from "order_refund_items" inner join "order_refunds" on "order_refund_items"."order_refund_id" = "order_refunds"."id" inner join "orders" on "order_refunds"."order_id" = "orders"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2) and (("order_refund_items"."order_service_id" is not null))) group by "order_refund_items"."order_service_id"",
+  },
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select "user_id", COALESCE(SUM(EXTRACT(EPOCH FROM ("clock_out_at" - "clock_in_at")) / 60), 0)::int from "shifts" where ((("shifts"."clock_out_at" is not null)) and ("shifts"."clock_in_at" >= $1) and ("shifts"."clock_in_at" < $2)) group by "shifts"."user_id"",
+  },
+  {
+    "params": [
+      "quality_check",
+      "processing",
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select "rework_log"."order_service_id", COUNT(*)::int from "order_service_status_logs" "rework_log" inner join "orders_services" on "rework_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("rework_log"."from_status" = $1) and ("rework_log"."to_status" = $2) and ("rework_log"."created_at" >= $3) and ("rework_log"."created_at" < $4)) group by "rework_log"."order_service_id"",
+  },
+  {
+    "params": [
+      "worker",
+    ],
+    "sql": "select "id", "name", "role" from "users" where "users"."role" = $1",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for campaign effectiveness 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select "campaigns"."id", "campaigns"."name", "campaigns"."code", COALESCE(SUM("order_campaigns"."applied_amount"), 0) from "order_campaigns" inner join "orders" on "order_campaigns"."order_id" = "orders"."id" inner join "campaigns" on "order_campaigns"."campaign_id" = "campaigns"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by "campaigns"."id", "campaigns"."name", "campaigns"."code"",
+  },
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select distinct "order_campaigns"."campaign_id", "orders"."id", "orders"."paid_amount", "orders"."total" from "order_campaigns" inner join "orders" on "order_campaigns"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)))",
+  },
+]
+`;
+
+exports[`the store nobody can scope asks for every store's takings, because it takes no store 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select "orders"."store_id", "stores"."name", "stores"."code", COALESCE(SUM("orders"."paid_amount"), 0), COUNT(*)::int from "orders" inner join "stores" on "orders"."store_id" = "stores"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by "orders"."store_id", "stores"."name", "stores"."code" order by "stores"."code" asc",
+  },
+]
+`;

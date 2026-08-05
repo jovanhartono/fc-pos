@@ -1,16 +1,21 @@
 import { z } from "zod";
 import { dateStringSchema } from "@/schema/common";
 
+// The store gate on the reports router reads store_id off the raw querystring,
+// because per-route validators run after it. Both must read "which store" by
+// the same rules, so there is one rule.
+export const storeIdQuerySchema = z.coerce.number().int().positive();
+
 export const GETDailyReportQuerySchema = z.object({
   date: dateStringSchema("date"),
-  store_id: z.coerce.number().int().positive().optional(),
+  store_id: storeIdQuerySchema.optional(),
 });
 
 export type GetDailyReportQuery = z.infer<typeof GETDailyReportQuerySchema>;
 
 export const GETReportOverviewQuerySchema = z.object({
   date: dateStringSchema("date"),
-  store_id: z.coerce.number().int().positive().optional(),
+  store_id: storeIdQuerySchema.optional(),
   trend_days: z.coerce.number().int().min(1).max(60).default(14),
 });
 
@@ -27,7 +32,7 @@ export const GETReportRangeQuerySchema = z
   .object({
     from: dateStringSchema("from"),
     to: dateStringSchema("to"),
-    store_id: z.coerce.number().int().positive().optional(),
+    store_id: storeIdQuerySchema.optional(),
     granularity: granularitySchema,
   })
   .refine((value) => value.from <= value.to, {
@@ -38,7 +43,7 @@ export const GETReportRangeQuerySchema = z
 export type GetReportRangeQuery = z.infer<typeof GETReportRangeQuerySchema>;
 
 export const GETAgingQueueQuerySchema = z.object({
-  store_id: z.coerce.number().int().positive().optional(),
+  store_id: storeIdQuerySchema.optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
   offset: z.coerce.number().int().min(0).optional(),
 });
