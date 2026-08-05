@@ -1,11 +1,14 @@
-import type { InferInsertModel } from "drizzle-orm";
-import type { servicesTable } from "@/db/schema";
+import type z from "zod";
 import {
   findServiceById,
   insertService,
   listServices,
   updateServiceById,
 } from "@/modules/services/service.repository";
+import type {
+  POSTServiceSchema,
+  PUTServiceSchema,
+} from "@/modules/services/service.schema";
 
 export function getServices() {
   return listServices();
@@ -16,16 +19,25 @@ export function getServiceById(id: number) {
 }
 
 export async function createService(
-  payload: InferInsertModel<typeof servicesTable>
+  payload: z.infer<typeof POSTServiceSchema>
 ) {
-  const [service] = await insertService(payload);
+  const [service] = await insertService({
+    ...payload,
+    cogs: payload.cogs.toString(),
+    price: payload.price.toString(),
+  });
   return service;
 }
 
 export async function updateService(
   id: number,
-  payload: Partial<InferInsertModel<typeof servicesTable>>
+  payload: z.infer<typeof PUTServiceSchema>
 ) {
-  const [service] = await updateServiceById(id, payload);
+  const { cogs, price, ...rest } = payload;
+  const [service] = await updateServiceById(id, {
+    ...rest,
+    ...(cogs === undefined ? {} : { cogs: cogs.toString() }),
+    ...(price === undefined ? {} : { price: price.toString() }),
+  });
   return service ?? null;
 }

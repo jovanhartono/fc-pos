@@ -26,6 +26,10 @@ const productFormResolverSchema = z.object({
 		(value) => Number(value),
 		POSTProductSchema.shape.category_id,
 	),
+	// The server parses money into a number for itself, but the API still takes
+	// the digit string the currency field types out — keep the form in that shape.
+	cogs: POSTProductSchema.shape.cogs.transform(String),
+	price: POSTProductSchema.shape.price.transform(String),
 });
 
 export type ProductFormState = z.infer<typeof productFormResolverSchema>;

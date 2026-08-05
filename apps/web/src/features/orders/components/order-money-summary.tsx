@@ -1,23 +1,23 @@
 import { Separator } from "@/components/ui/separator";
 import type { OrderDetail } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney, parseMoney } from "@/shared/money";
 
 interface OrderMoneySummaryProps {
 	detail: OrderDetail;
 }
 
 export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
-	const discount = Number(detail.discount ?? 0);
-	const net = Number(detail.total ?? 0) - discount;
-	const refunded = Number(detail.refunded_amount ?? 0);
+	const discount = parseMoney(detail.discount);
+	const net = parseMoney(detail.total) - discount;
+	const refunded = parseMoney(detail.refunded_amount);
 
 	const servicesSubtotal = detail.services.reduce(
-		(sum, service) => sum + Number(service.subtotal ?? 0),
+		(sum, service) => sum + parseMoney(service.subtotal),
 		0,
 	);
 	const productsSubtotal = detail.products.reduce(
-		(sum, product) => sum + Number(product.subtotal ?? 0),
+		(sum, product) => sum + parseMoney(product.subtotal),
 		0,
 	);
 	// Only worth splitting when the subtotal mixes both — otherwise the component
@@ -32,23 +32,17 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 					<>
 						<div className="flex justify-between gap-4">
 							<dt className="text-muted-foreground">Services</dt>
-							<dd className="font-mono">
-								{formatIDRCurrency(String(servicesSubtotal))}
-							</dd>
+							<dd className="font-mono">{formatMoney(servicesSubtotal)}</dd>
 						</div>
 						<div className="flex justify-between gap-4">
 							<dt className="text-muted-foreground">Products</dt>
-							<dd className="font-mono">
-								{formatIDRCurrency(String(productsSubtotal))}
-							</dd>
+							<dd className="font-mono">{formatMoney(productsSubtotal)}</dd>
 						</div>
 					</>
 				) : null}
 				<div className="flex justify-between gap-4">
 					<dt className="text-muted-foreground">Subtotal</dt>
-					<dd className="font-mono">
-						{formatIDRCurrency(String(detail.total ?? 0))}
-					</dd>
+					<dd className="font-mono">{formatMoney(detail.total)}</dd>
 				</div>
 				{detail.campaigns.map((row) => (
 					<div className="flex justify-between gap-4" key={row.id}>
@@ -62,16 +56,14 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 							) : null}
 						</dt>
 						<dd className="font-mono text-destructive">
-							-{formatIDRCurrency(String(row.applied_amount ?? 0))}
+							-{formatMoney(row.applied_amount)}
 						</dd>
 					</div>
 				))}
 				<div className="flex justify-between gap-4">
 					<dt className="text-muted-foreground">Discount total</dt>
 					<dd className={cn("font-mono", discount > 0 && "text-destructive")}>
-						{discount > 0
-							? `-${formatIDRCurrency(String(discount))}`
-							: formatIDRCurrency("0")}
+						{discount > 0 ? `-${formatMoney(discount)}` : formatMoney(0)}
 					</dd>
 				</div>
 			</dl>
@@ -79,14 +71,12 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 			<dl className="grid gap-1.5 text-sm tabular-nums">
 				<div className="flex justify-between gap-4 font-medium">
 					<dt>Net</dt>
-					<dd className="font-mono">{formatIDRCurrency(String(net))}</dd>
+					<dd className="font-mono">{formatMoney(net)}</dd>
 				</div>
 				{refunded > 0 ? (
 					<div className="flex justify-between gap-4 text-destructive">
 						<dt>Refunded</dt>
-						<dd className="font-mono">
-							-{formatIDRCurrency(String(refunded))}
-						</dd>
+						<dd className="font-mono">-{formatMoney(refunded)}</dd>
 					</div>
 				) : null}
 			</dl>

@@ -19,7 +19,7 @@ import { useCart } from "@/features/transactions/cart/useCart";
 import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
 import { categoriesQueryOptions } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney, parseMoney } from "@/shared/money";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 // Step ② — the goods: review/annotate cart lines, order notes, and the
@@ -115,9 +115,7 @@ export const CheckoutItemsStep = () => {
 								</Button>
 							</div>
 							<p className="text-sm font-semibold">
-								{formatIDRCurrency(
-									String(Number(line.product.price) * line.qty),
-								)}
+								{formatMoney(parseMoney(line.product.price) * line.qty)}
 							</p>
 						</div>
 					</div>
@@ -256,7 +254,7 @@ export const CheckoutItemsStep = () => {
 						</div>
 						<div className="flex items-center justify-end gap-3">
 							<p className="text-sm font-semibold">
-								{formatIDRCurrency(String(line.service.price))}
+								{formatMoney(line.service.price)}
 							</p>
 						</div>
 					</div>

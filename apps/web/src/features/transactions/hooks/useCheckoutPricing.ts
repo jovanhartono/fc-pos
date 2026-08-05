@@ -8,6 +8,7 @@ import {
 } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
 import { campaignsQueryOptions } from "@/lib/query-options";
+import { parseMoney } from "@/shared/money";
 
 // Shared checkout derivation — campaign eligibility + final pricing. Lives in a
 // hook (not the component) because both the payment step's breakdown and the
@@ -86,7 +87,7 @@ export function useCheckoutPricing() {
 	const serviceLines = useMemo(
 		() =>
 			serviceRows.map((row) => ({
-				price: Number(row.service.price),
+				price: parseMoney(row.service.price),
 				service_id: row.service.id,
 			})),
 		[serviceRows],

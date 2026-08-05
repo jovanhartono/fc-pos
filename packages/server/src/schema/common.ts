@@ -4,8 +4,10 @@ import {
 } from "libphonenumber-js";
 import { z } from "zod";
 
-const getNumericValue = (formattedValue: string): string =>
-  formattedValue.replaceAll(/[^\d]/g, "");
+// Indonesian prices are written 1.500 for fifteen hundred: the dot is a
+// thousands separator, never a decimal point, and the counter has no sen.
+const parseIndonesianCurrency = (formattedValue: string): number =>
+  Number(formattedValue.replaceAll(/[^\d]/g, ""));
 
 export const varcharSchema = (field: string) =>
   z
@@ -45,10 +47,8 @@ export const currencySchema = (field: string) =>
   z
     .string(`${field} is required!`)
     .min(1, `${field} is required!`)
-    .transform(getNumericValue)
-    .transform(Number)
-    .pipe(z.number().nonnegative(`${field} cannot be negative`))
-    .pipe(z.coerce.string());
+    .refine((value) => !value.includes("-"), `${field} cannot be negative`)
+    .transform(parseIndonesianCurrency);
 
 const DATE_YYYY_MM_DD_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 

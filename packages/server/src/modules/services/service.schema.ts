@@ -40,4 +40,9 @@ export const POSTServiceSchema = z.object({
   is_active: isActiveSchema,
   is_priority: z.boolean().default(false),
 });
-export const PUTServiceSchema = createUpdateSchema(servicesTable);
+// Editing a price is the same money boundary as creating one, so it gets the
+// same guard — otherwise "1.500" reaches the column as one and a half rupiah.
+export const PUTServiceSchema = createUpdateSchema(servicesTable).extend({
+  cogs: currencySchema("COGS").optional(),
+  price: currencySchema("Price").optional(),
+});

@@ -68,7 +68,7 @@ export interface OrderListItem {
   store_code: string;
   store_id: number;
   store_name: string;
-  total: string | null;
+  total: string;
   updated_at: Date;
   updated_by: number;
 }

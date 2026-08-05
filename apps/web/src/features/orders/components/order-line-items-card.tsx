@@ -6,7 +6,7 @@ import { OrderSectionHeader } from "@/features/orders/components/order-section-h
 import { OrderServiceRow } from "@/features/orders/components/order-service-row";
 import type { OrderDetail, OrderRefundReason } from "@/lib/api";
 import { formatCancelReason, formatRefundReason } from "@/lib/status";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 type OrderDetailProduct = OrderDetail["products"][number];
 
@@ -37,11 +37,11 @@ const ProductLine = ({
 					) : null}
 				</div>
 				<p className="text-muted-foreground text-xs tabular-nums">
-					{formatIDRCurrency(String(product.price ?? 0))} × {product.qty}
+					{formatMoney(product.price)} × {product.qty}
 				</p>
 			</div>
 			<p className="shrink-0 font-mono text-sm tabular-nums">
-				{formatIDRCurrency(String(product.subtotal ?? 0))}
+				{formatMoney(product.subtotal)}
 			</p>
 		</div>
 

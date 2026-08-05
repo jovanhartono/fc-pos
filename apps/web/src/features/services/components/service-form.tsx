@@ -25,6 +25,10 @@ const serviceFormResolverSchema = z.object({
 		(value) => Number(value),
 		POSTServiceSchema.shape.category_id,
 	),
+	// The server parses money into a number for itself, but the API still takes
+	// the digit string the currency field types out — keep the form in that shape.
+	cogs: POSTServiceSchema.shape.cogs.transform(String),
+	price: POSTServiceSchema.shape.price.transform(String),
 });
 
 export type ServiceFormState = z.infer<typeof serviceFormResolverSchema>;

@@ -31,7 +31,7 @@ import {
 	getOrderStatusBadgeVariant,
 	getRefundStatusBadgeVariant,
 } from "@/lib/status";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -270,7 +270,7 @@ function OrdersPage() {
 				},
 				cell: ({ row }) => (
 					<div className="text-right font-mono font-medium tabular-nums">
-						{row.original.total ? formatIDRCurrency(row.original.total) : "—"}
+						{formatMoney(row.original.total)}
 					</div>
 				),
 			},

@@ -7,7 +7,7 @@ import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
 type OrderServiceRowService = OrderDetail["services"][number];
@@ -76,7 +76,7 @@ export const OrderServiceRow = memo(
 						</Badge>
 					</span>
 					<span className="font-mono text-sm tabular-nums">
-						{formatIDRCurrency(String(service.subtotal ?? 0))}
+						{formatMoney(service.subtotal)}
 					</span>
 				</span>
 			</button>
