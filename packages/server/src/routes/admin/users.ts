@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
+import { NotFoundException } from "@/errors";
 import { assertCanManageUsers } from "@/modules/permissions/permissions";
 import {
   GETUsersQuerySchema,
@@ -15,7 +16,7 @@ import {
 import { POSTUserSchema, PUTUserSchema } from "@/schema";
 import { idParamSchema } from "@/schema/param";
 import type { JWTPayload } from "@/types";
-import { failure, success } from "@/utils/http";
+import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const app = new Hono()
@@ -42,7 +43,7 @@ const app = new Hono()
     const user = await getUserById(actor.id);
 
     if (!user) {
-      return c.json(failure("User not found"), StatusCodes.NOT_FOUND);
+      throw new NotFoundException("User not found");
     }
 
     return c.json(success(user, "Current user retrieved successfully"));
@@ -55,7 +56,7 @@ const app = new Hono()
     const user = await getUserById(id);
 
     if (!user) {
-      return c.json(failure("User not found"), StatusCodes.NOT_FOUND);
+      throw new NotFoundException("User not found");
     }
 
     return c.json(success(user, "User retrieved successfully"));
@@ -74,7 +75,7 @@ const app = new Hono()
       const user = await updateUser({ id, payload: body });
 
       if (!user) {
-        return c.json(failure("User does not exist"), StatusCodes.NOT_FOUND);
+        throw new NotFoundException("User does not exist");
       }
 
       return c.json(success(user, `Update user ${user.name} success`));
@@ -98,7 +99,7 @@ const app = new Hono()
       });
 
       if (!result) {
-        return c.json(failure("User not found"), StatusCodes.NOT_FOUND);
+        throw new NotFoundException("User not found");
       }
 
       return c.json(success(result, "User stores updated"));

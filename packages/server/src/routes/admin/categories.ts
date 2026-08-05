@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
+import { NotFoundException } from "@/errors";
 import {
   GETCategoriesQuerySchema,
   POSTCategorySchema,
@@ -12,7 +13,7 @@ import {
   updateCategory,
 } from "@/modules/categories/category.service";
 import { idParamSchema } from "@/schema/param";
-import { failure, success } from "@/utils/http";
+import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const app = new Hono()
@@ -28,7 +29,7 @@ const app = new Hono()
     const category = await getCategoryById(id);
 
     if (!category) {
-      return c.json(failure("Category not found"), StatusCodes.NOT_FOUND);
+      throw new NotFoundException("Category not found");
     }
 
     return c.json(success(category, "Category retrieved successfully"));
@@ -54,10 +55,7 @@ const app = new Hono()
       const category = await updateCategory(id, body);
 
       if (!category) {
-        return c.json(
-          failure("Category does not exist"),
-          StatusCodes.NOT_FOUND
-        );
+        throw new NotFoundException("Category does not exist");
       }
 
       return c.json(

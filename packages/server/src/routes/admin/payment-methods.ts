@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
+import { NotFoundException } from "@/errors";
 import {
   GETPaymentMethodsQuerySchema,
   POSTPaymentMethodSchema,
@@ -12,7 +13,7 @@ import {
   updatePaymentMethod,
 } from "@/modules/payment-methods/payment-method.service";
 import { idParamSchema } from "@/schema/param";
-import { failure, success } from "@/utils/http";
+import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const app = new Hono()
@@ -28,7 +29,7 @@ const app = new Hono()
     const paymentMethod = await getPaymentMethodById(id);
 
     if (!paymentMethod) {
-      return c.json(failure("Payment Method not found"), StatusCodes.NOT_FOUND);
+      throw new NotFoundException("Payment Method not found");
     }
 
     return c.json(
@@ -56,10 +57,7 @@ const app = new Hono()
       const paymentMethod = await updatePaymentMethod(id, body);
 
       if (!paymentMethod) {
-        return c.json(
-          failure("Payment method does not exist"),
-          StatusCodes.NOT_FOUND
-        );
+        throw new NotFoundException("Payment method does not exist");
       }
 
       return c.json(

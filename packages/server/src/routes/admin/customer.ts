@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
+import { NotFoundException } from "@/errors";
 import {
   GETCustomerLookupQuerySchema,
   GETCustomersQuerySchema,
@@ -15,7 +16,7 @@ import {
 } from "@/modules/customers/customer.service";
 import { idParamSchema } from "@/schema/param";
 import type { JWTPayload } from "@/types";
-import { failure, success } from "@/utils/http";
+import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const app = new Hono()
@@ -62,7 +63,7 @@ const app = new Hono()
     const customer = await getCustomerById(id);
 
     if (!customer) {
-      return c.json(failure("Customer not found"), StatusCodes.NOT_FOUND);
+      throw new NotFoundException("Customer not found");
     }
 
     return c.json(success(customer, "Customer retrieved successfully"));
@@ -83,10 +84,7 @@ const app = new Hono()
       });
 
       if (!customer) {
-        return c.json(
-          failure("Customer does not exist"),
-          StatusCodes.NOT_FOUND
-        );
+        throw new NotFoundException("Customer does not exist");
       }
 
       return c.json(

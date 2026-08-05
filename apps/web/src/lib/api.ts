@@ -81,10 +81,7 @@ const campaignEffectivenessRoute =
 const agingQueueRoute = rpc.api.admin.reports["aging-queue"].$get;
 const publicTrackOrderRoute = rpc.api.public.orders.track.$post;
 
-type LoginSuccessResponse = Extract<
-	InferResponseType<typeof loginRoute>,
-	{ success: true }
->;
+type LoginSuccessResponse = InferResponseType<typeof loginRoute>;
 
 export type Customer = InferResponseType<typeof customersRoute>["data"][number];
 // Leaner than Customer — the lookup omits the originStore relation (the POS
@@ -102,39 +99,25 @@ export type Product = InferResponseType<typeof productsRoute>["data"][number];
 export type PaymentMethod = InferResponseType<
 	typeof paymentMethodsRoute
 >["data"][number];
-export type Order = Extract<
-	InferResponseType<typeof ordersRoute>,
-	{ success: true }
->["data"][number];
-export type OrderDetail = Extract<
-	InferResponseType<typeof orderDetailRoute>,
-	{ success: true }
->["data"];
-export type OrderReceipt = Extract<
-	InferResponseType<typeof orderReceiptRoute>,
-	{ success: true }
->["data"];
+export type Order = InferResponseType<typeof ordersRoute>["data"][number];
+export type OrderDetail = InferResponseType<typeof orderDetailRoute>["data"];
+export type OrderReceipt = InferResponseType<typeof orderReceiptRoute>["data"];
 export type Campaign = InferResponseType<typeof campaignsRoute>["data"][number];
-export type CampaignDetail = Extract<
-	InferResponseType<typeof campaignDetailRoute>,
-	{ success: true }
+export type CampaignDetail = InferResponseType<
+	typeof campaignDetailRoute
 >["data"];
-export type ResolvedVoucher = Extract<
-	InferResponseType<typeof resolveVoucherCodeRoute>,
-	{ success: true }
+export type ResolvedVoucher = InferResponseType<
+	typeof resolveVoucherCodeRoute
 >["data"];
-export type VoucherCodesResponse = Extract<
-	InferResponseType<typeof campaignVoucherCodesRoute>,
-	{ success: true }
+export type VoucherCodesResponse = InferResponseType<
+	typeof campaignVoucherCodesRoute
 >["data"];
 export type VoucherCode = VoucherCodesResponse["codes"][number];
-export type ComplaintListItem = Extract<
-	InferResponseType<typeof complaintsRoute>,
-	{ success: true }
+export type ComplaintListItem = InferResponseType<
+	typeof complaintsRoute
 >["data"][number];
-export type ComplaintDetail = Extract<
-	InferResponseType<typeof complaintDetailRoute>,
-	{ success: true }
+export type ComplaintDetail = InferResponseType<
+	typeof complaintDetailRoute
 >["data"];
 export type FetchComplaintsQuery = {
 	store_id?: number;
@@ -148,30 +131,20 @@ export type OpenComplaintPayload = {
 	reason: string;
 	start_rework?: boolean;
 };
-export type OrderServiceLookup = Extract<
-	InferResponseType<typeof orderServiceByItemCodeRoute>,
-	{ success: true }
+export type OrderServiceLookup = InferResponseType<
+	typeof orderServiceByItemCodeRoute
 >["data"];
-export type OrderServiceLookupById = Extract<
-	InferResponseType<typeof orderServiceByIdRoute>,
-	{ success: true }
+export type OrderServiceLookupById = InferResponseType<
+	typeof orderServiceByIdRoute
 >["data"];
-export type QueueOrderServiceItem = Extract<
-	InferResponseType<typeof orderServiceQueueRoute>,
-	{ success: true }
+export type QueueOrderServiceItem = InferResponseType<
+	typeof orderServiceQueueRoute
 >["data"][number];
-export type PublicTrackedOrder = Extract<
-	InferResponseType<typeof publicTrackOrderRoute>,
-	{ success: true }
+export type PublicTrackedOrder = InferResponseType<
+	typeof publicTrackOrderRoute
 >["data"];
-export type Shift = Extract<
-	InferResponseType<typeof shiftsRoute>,
-	{ success: true }
->["data"][number];
-export type CurrentShift = Extract<
-	InferResponseType<typeof shiftCurrentRoute>,
-	{ success: true }
->["data"];
+export type Shift = InferResponseType<typeof shiftsRoute>["data"][number];
+export type CurrentShift = InferResponseType<typeof shiftCurrentRoute>["data"];
 
 export type FetchShiftsQuery = {
 	user_id?: number;
@@ -182,9 +155,8 @@ export type FetchShiftsQuery = {
 	offset?: number;
 };
 
-export type ReportOverview = Extract<
-	InferResponseType<typeof reportOverviewRoute>,
-	{ success: true }
+export type ReportOverview = InferResponseType<
+	typeof reportOverviewRoute
 >["data"];
 
 export type FetchReportOverviewQuery = {
@@ -200,44 +172,34 @@ export type FetchReportRangeQuery = {
 	granularity?: ReportGranularity;
 };
 
-export type FinancialReport = Extract<
-	InferResponseType<typeof financialRoute>,
-	{ success: true }
+export type FinancialReport = InferResponseType<typeof financialRoute>["data"];
+
+export type OrdersFlowReport = InferResponseType<
+	typeof ordersFlowRoute
 >["data"];
 
-export type OrdersFlowReport = Extract<
-	InferResponseType<typeof ordersFlowRoute>,
-	{ success: true }
+export type PaymentMixReport = InferResponseType<
+	typeof paymentMixRoute
 >["data"];
 
-export type PaymentMixReport = Extract<
-	InferResponseType<typeof paymentMixRoute>,
-	{ success: true }
+export type CustomerAcquisitionReport = InferResponseType<
+	typeof customerAcquisitionRoute
 >["data"];
 
-export type CustomerAcquisitionReport = Extract<
-	InferResponseType<typeof customerAcquisitionRoute>,
-	{ success: true }
+export type RefundTrendReport = InferResponseType<
+	typeof refundTrendRoute
 >["data"];
 
-export type RefundTrendReport = Extract<
-	InferResponseType<typeof refundTrendRoute>,
-	{ success: true }
+export type WorkerProductivityReport = InferResponseType<
+	typeof workerProductivityRoute
 >["data"];
 
-export type WorkerProductivityReport = Extract<
-	InferResponseType<typeof workerProductivityRoute>,
-	{ success: true }
+export type CampaignEffectivenessReport = InferResponseType<
+	typeof campaignEffectivenessRoute
 >["data"];
 
-export type CampaignEffectivenessReport = Extract<
-	InferResponseType<typeof campaignEffectivenessRoute>,
-	{ success: true }
->["data"];
-
-export type AgingQueueItem = Extract<
-	InferResponseType<typeof agingQueueRoute>,
-	{ success: true }
+export type AgingQueueItem = InferResponseType<
+	typeof agingQueueRoute
 >["data"][number];
 
 export interface FetchAgingQueueQuery {
@@ -599,10 +561,7 @@ export async function fetchUsersPage(
 	};
 }
 
-export type Me = Extract<
-	InferResponseType<typeof meRoute>,
-	{ success: true }
->["data"];
+export type Me = InferResponseType<typeof meRoute>["data"];
 
 export async function fetchMe() {
 	return parseSuccessData<Me>(rpcWithAuth().api.admin.users.me.$get());
