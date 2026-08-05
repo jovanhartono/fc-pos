@@ -30,8 +30,7 @@ const photoContentTypeSchema = z
   .string()
   .trim()
   .refine(
-    (value) =>
-      ["image/jpeg", "image/png", "image/webp", "image/heic"].includes(value),
+    (value) => ["image/jpeg", "image/png", "image/webp"].includes(value),
     "Unsupported content type"
   );
 

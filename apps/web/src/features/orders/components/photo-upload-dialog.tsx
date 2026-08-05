@@ -1,11 +1,15 @@
 import {
 	CameraIcon,
+	CheckIcon,
+	CircleNotchIcon,
 	ImageSquareIcon,
+	PencilSimpleLineIcon,
+	TrashIcon,
 	WarningCircleIcon,
 	XIcon,
 } from "@phosphor-icons/react";
 import { useMutation } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,11 +20,13 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { PhotoStage } from "@/features/orders/components/photo-stage";
 import { useCameraCapture } from "@/features/orders/hooks/useCameraCapture";
+import { normalizeImageFile } from "@/features/orders/utils/normalize-image";
 import {
 	ACCEPTED_IMAGE_TYPES,
 	isAcceptedImage,
-	type UploadPhotoInput,
+	type PhotoUploader,
 } from "@/features/orders/utils/photo-upload";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { cn } from "@/lib/utils";
@@ -43,50 +49,6 @@ const revokePhotos = (photos: PendingPhoto[]) => {
 	}
 };
 
-interface PhotoThumbProps {
-	disabled: boolean;
-	isActive: boolean;
-	onRemove: () => void;
-	onSelect: () => void;
-	photo: PendingPhoto;
-}
-
-// One captured/picked still in the bottom thumb strip (iOS-camera style): tap to
-// review it in the stage, the corner × removes it.
-const PhotoThumb = ({
-	disabled,
-	isActive,
-	onRemove,
-	onSelect,
-	photo,
-}: PhotoThumbProps) => (
-	<div className="relative shrink-0">
-		<button
-			aria-current={isActive}
-			aria-label={`Preview ${photo.file.name}`}
-			className={cn(
-				"block size-14 overflow-hidden border bg-white/5 transition",
-				isActive
-					? "border-white ring-1 ring-white"
-					: "border-white/30 opacity-70 hover:opacity-100",
-			)}
-			onClick={onSelect}
-			type="button"
-		>
-			<img alt="" className="size-full object-cover" src={photo.previewUrl} />
-		</button>
-		<button
-			aria-label={`Remove ${photo.file.name}`}
-			className="absolute top-1 right-1 grid size-5 place-items-center rounded-full bg-black/60 text-white shadow-sm transition hover:bg-black/80 disabled:opacity-50"
-			disabled={disabled}
-			onClick={onRemove}
-			type="button"
-		>
-			<XIcon className="size-3" aria-hidden="true" />
-		</button>
-	</div>
-);
-
 interface PhotoUploadDialogBaseProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -94,17 +56,17 @@ interface PhotoUploadDialogBaseProps {
 	badgeLabel?: string;
 	multiple: boolean;
 	withNote: boolean;
-	// Upload mode: presign → upload → save on confirm.
-	uploadPhoto?: (input: UploadPhotoInput) => Promise<void>;
+	// Upload mode: push bytes → commit on confirm.
+	uploader?: PhotoUploader;
 	onUploaded?: () => Promise<void>;
 	// Capture-only mode: hand the picked File(s) back instead of uploading. Used
 	// at the POS where the Order does not exist yet, so the upload is deferred to
-	// after checkout commits. When set, uploadPhoto/onUploaded are ignored.
+	// after checkout commits. When set, uploader/onUploaded are ignored.
 	onCapture?: (files: File[]) => void;
-	// Camera-only: drop the "Upload from device" path, auto-open the camera, and
-	// stop it after a shot for a single review still. For intake flows that want
-	// a live photo, not a gallery pick. See SinglePhotoCaptureDialog.
-	cameraOnly?: boolean;
+	// Skip the chooser and go straight to the viewfinder. For intake flows where a
+	// live photo is the expected answer and the gallery is the exception — the
+	// picker is still in the shutter row. See SinglePhotoCaptureDialog.
+	autoOpenCamera?: boolean;
 }
 
 const PhotoUploadDialogBase = ({
@@ -114,16 +76,31 @@ const PhotoUploadDialogBase = ({
 	badgeLabel,
 	multiple,
 	withNote,
-	uploadPhoto,
+	uploader,
 	onUploaded,
 	onCapture,
-	cameraOnly = false,
+	autoOpenCamera = false,
 }: PhotoUploadDialogBaseProps) => {
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const camera = useCameraCapture();
 	const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
 	const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
 	const [note, setNote] = useState("");
+	const [isNoteOpen, setIsNoteOpen] = useState(false);
+	// Which of a picked batch is being scaled down. A 12MP gallery photo takes long enough
+	// that the cashier retaps thinking nothing happened, so the count is worth carrying.
+	const [normalizing, setNormalizing] = useState<{
+		done: number;
+		total: number;
+	} | null>(null);
+	// How far the confirm has got through the batch, and which photos are already saved so a
+	// retry after a mid-batch failure does not upload them twice.
+	const [uploading, setUploading] = useState<{
+		done: number;
+		total: number;
+	} | null>(null);
+	const committedRef = useRef<string[]>([]);
+	const sessionRef = useRef(0);
 
 	const stopCamera = camera.stop;
 	const openCamera = camera.open;
@@ -135,41 +112,49 @@ const PhotoUploadDialogBase = ({
 		});
 		setSelectedPhotoId(null);
 		setNote("");
+		setIsNoteOpen(false);
 	}, [stopCamera]);
 
 	useEffect(() => {
+		// A scale-down that finishes after the operator gave up on the dialog must not push
+		// its photo into the next order's evidence: opening or closing voids work in flight.
+		sessionRef.current += 1;
+		setNormalizing(null);
+
 		if (!open) {
 			return;
 		}
-		// Camera-only intake: skip the chooser, go straight to the live camera.
-		if (cameraOnly) {
+		// Intake flows: skip the chooser, go straight to the live camera.
+		if (autoOpenCamera) {
 			void openCamera();
 		}
-	}, [open, cameraOnly, openCamera]);
+	}, [open, autoOpenCamera, openCamera]);
 
-	// Release the camera if the dialog unmounts while still open. The visual reset
-	// (stop camera + clear photos) is deferred to onOpenChangeComplete so the popup
-	// keeps its full height through the close animation instead of collapsing and
-	// re-centering first — that snap was the layout shift.
-	useEffect(() => stopCamera, [stopCamera]);
+	// Release the camera and the previews if the dialog unmounts while still open. The
+	// visual reset is deferred to onOpenChangeComplete so the popup keeps its full height
+	// through the close animation instead of collapsing and re-centering first — that snap
+	// was the layout shift — but an unmount never reaches that callback. Navigating off the
+	// order, advancing the checkout step or switching queue item with shots still staged
+	// would otherwise strand a blob per photo for as long as the tab lives, and the till
+	// tab lives all day.
+	const pendingRef = useRef<PendingPhoto[]>([]);
+	useEffect(() => {
+		pendingRef.current = pendingPhotos;
+	});
+	useEffect(
+		() => () => {
+			stopCamera();
+			revokePhotos(pendingRef.current);
+		},
+		[stopCamera],
+	);
 
-	const addFiles = useCallback(
+	// Photos this dialog produced itself. The capture canvas already scaled them into
+	// budget and encoded them as JPEG, so there is nothing left to decode or check and
+	// they go on the strip in the same frame as the shutter press.
+	const stagePhotos = useCallback(
 		(files: File[]) => {
-			if (files.length === 0) {
-				return;
-			}
-
-			const accepted = multiple ? files : files.slice(0, 1);
-
-			const unsupportedFile = accepted.find(
-				(file) => !isAcceptedImage(file.type),
-			);
-			if (unsupportedFile) {
-				toast.error(`Unsupported image type: ${unsupportedFile.name}`);
-				return;
-			}
-
-			const created = accepted.map((file) => createPendingPhoto(file));
+			const created = files.map((file) => createPendingPhoto(file));
 			setPendingPhotos((previous) => {
 				if (!multiple) {
 					revokePhotos(previous);
@@ -183,6 +168,49 @@ const PhotoUploadDialogBase = ({
 			}
 		},
 		[multiple],
+	);
+
+	// Photos arriving from the device gallery, where nothing is known about them yet: a
+	// 12MP phone photo is scaled down before it ever reaches 4G, and an iPhone HEIC either
+	// becomes a JPEG here or is rejected here rather than sitting in S3 as unviewable
+	// dispute evidence. Slow enough on a real photo to need the progress overlay.
+	const addFiles = useCallback(
+		async (files: File[]) => {
+			if (files.length === 0) {
+				return;
+			}
+
+			const accepted = multiple ? files : files.slice(0, 1);
+			const session = sessionRef.current;
+
+			const normalized: File[] = [];
+			try {
+				for (const [index, file] of accepted.entries()) {
+					setNormalizing({ done: index, total: accepted.length });
+					try {
+						normalized.push(await normalizeImageFile(file));
+					} catch (error) {
+						toast.error(
+							`${error instanceof Error && error.message ? error.message : "Unsupported image type"}: ${file.name}`,
+						);
+					}
+					if (sessionRef.current !== session) {
+						return;
+					}
+				}
+			} finally {
+				if (sessionRef.current === session) {
+					setNormalizing(null);
+				}
+			}
+
+			if (normalized.length === 0) {
+				return;
+			}
+
+			stagePhotos(normalized);
+		},
+		[multiple, stagePhotos],
 	);
 
 	const openFileInput = () => {
@@ -207,14 +235,15 @@ const PhotoUploadDialogBase = ({
 		}
 
 		const timestamp = Date.now();
-		addFiles([
+		stagePhotos([
 			new File([blob], `photo-${timestamp}.jpg`, {
 				type: "image/jpeg",
 			}),
 		]);
 		// Single-photo flows: stop after the shot so the still preview replaces the
 		// live feed in the stage. Multiple-photo flows keep the camera open so
-		// consecutive shots can be taken — the shots pile up in the thumb strip.
+		// consecutive shots can be taken — the shots pile up behind the last-shot
+		// square, which the operator taps once to review them all.
 		if (!multiple) {
 			stopCamera();
 		}
@@ -232,8 +261,8 @@ const PhotoUploadDialogBase = ({
 		);
 	};
 
-	// Tapping a thumb reviews it in the stage, so the live feed must yield to the
-	// still — stop the camera and let the user reopen it to shoot more.
+	// Reviewing a still means the live feed must yield to it — stop the camera and let
+	// the operator reopen it to shoot more.
 	const reviewPhoto = (photoId: string) => {
 		setSelectedPhotoId(photoId);
 		stopCamera();
@@ -243,6 +272,9 @@ const PhotoUploadDialogBase = ({
 		mutationFn: async () => {
 			if (pendingPhotos.length === 0) {
 				throw new Error("Add at least one photo");
+			}
+			if (!uploader) {
+				return;
 			}
 
 			const validatedPhotos = pendingPhotos.map((photo) => {
@@ -254,13 +286,45 @@ const PhotoUploadDialogBase = ({
 			});
 
 			const trimmedNote = withNote ? note.trim() || undefined : undefined;
-			// TODO: make this parallel instead of waterfall request
-			for (const photo of validatedPhotos) {
-				await uploadPhoto?.({
-					file: photo.file,
+			committedRef.current = [];
+
+			// The batch is a pipeline, not a fan-out. Commits stay strictly in shot order
+			// because the gallery sorts on the row id the commit assigns — fire them together
+			// and a before/after pair comes back shuffled, which is the whole point of the
+			// photo. What does overlap is the part worth overlapping: the next photo's bytes
+			// go up while the server is still re-encoding the current one, which was dead
+			// time on the uplink and most of why a five-photo batch felt stalled. A wider
+			// fan-out buys nothing on top of that — the shop uplink is already saturated by
+			// one upload, and every commit queues on the same container's transcode.
+			let pending: Promise<string> | null = null;
+			for (const [index, photo] of validatedPhotos.entries()) {
+				setUploading({ done: index, total: validatedPhotos.length });
+				const input = {
 					contentType: photo.contentType,
+					file: photo.file,
 					note: trimmedNote,
-				});
+				};
+				const key = await (pending ?? uploader.pushBytes(input));
+
+				const nextPhoto = validatedPhotos[index + 1];
+				pending = nextPhoto
+					? uploader.pushBytes({
+							contentType: nextPhoto.contentType,
+							file: nextPhoto.file,
+							note: trimmedNote,
+						})
+					: null;
+				// Claim the read-ahead's failure the moment it exists, not once the loop ends.
+				// The very next line parks for as long as the server takes to re-encode, and a
+				// push that dies inside that window — dropped 4G, expired token — would be
+				// reported as an unhandled rejection before anything awaits it. The await below
+				// still throws and still drives the error toast; this only stops the duplicate
+				// report. A read-ahead that succeeds after an abandoned batch leaves its bytes
+				// orphaned in the bucket, which the browser cannot clean up either way.
+				pending?.catch(() => undefined);
+
+				await uploader.commit(key, input);
+				committedRef.current.push(photo.id);
 			}
 		},
 		onSuccess: async () => {
@@ -272,10 +336,37 @@ const PhotoUploadDialogBase = ({
 		},
 		onError: (error: Error) => {
 			toast.error(readServerErrorMessage(error, "Failed to upload photos"));
+			// Photos already in the database have to leave the strip, or tapping Upload again
+			// saves a second copy of every one that had landed before the failure.
+			for (const photoId of committedRef.current) {
+				removePhoto(photoId);
+			}
+			committedRef.current = [];
+		},
+		onSettled: () => {
+			setUploading(null);
 		},
 	});
 
-	const isBusy = uploadMutation.isPending;
+	// Normalizing counts as busy: confirming while a pick is still being scaled down uploaded
+	// only the photos that had landed, toasted success, and dropped the rest of the evidence.
+	const isNormalizing = normalizing !== null;
+	const isBusy = uploadMutation.isPending || isNormalizing;
+	// Picking from the gallery before any photo exists leaves nothing on screen to hang a
+	// spinner off — the only feedback was the picker icon dimming, which read as a dead
+	// button and got retapped. The stage carries it instead, so every mode shows it, and the
+	// confirm button is free to stay narrow enough to sit beside the shutter without
+	// "Uploading 4 of 5..." growing into it.
+	const normalizeLabel =
+		normalizing && normalizing.total > 1
+			? `Processing ${normalizing.done + 1} of ${normalizing.total}...`
+			: "Processing...";
+	const uploadLabel =
+		uploading && uploading.total > 1
+			? `Uploading ${uploading.done + 1} of ${uploading.total}...`
+			: "Uploading...";
+	const busyLabel = isNormalizing ? normalizeLabel : uploadLabel;
+	const photoCount = pendingPhotos.length;
 	const photoNoun = multiple ? "photos" : "photo";
 	const labelSuffix = badgeLabel ? ` for ${badgeLabel}` : "";
 
@@ -286,29 +377,53 @@ const PhotoUploadDialogBase = ({
 			: "Use photo"
 		: "Upload";
 	const confirmLabel =
-		multiple && pendingPhotos.length > 0
-			? `${confirmBase} · ${pendingPhotos.length}`
-			: confirmBase;
-	const handleConfirm = async () => {
+		multiple && photoCount > 0 ? `${confirmBase} · ${photoCount}` : confirmBase;
+	// The shutter row has no width to spare for a word, so the count stays on the review
+	// square and the tick carries the action. Assistive tech still gets the full sentence.
+	const confirmAriaLabel =
+		photoCount > 1 ? `${confirmBase}, ${photoCount} photos` : confirmBase;
+	const handleConfirm = () => {
 		if (onCapture) {
 			onCapture(pendingPhotos.map((photo) => photo.file));
 			onOpenChange(false);
 			return;
 		}
-		await uploadMutation.mutateAsync();
+		// mutate, not mutateAsync: onError already reports the failure, and the rejected
+		// promise mutateAsync hands back had nobody awaiting it on an onClick, so every
+		// failed batch also logged an uncaught rejection.
+		uploadMutation.mutate();
 	};
 
-	// The stage shows the live feed while shooting; otherwise the reviewed still
-	// (falling back to the latest shot if the selection was removed).
-	const selectedPhoto =
-		pendingPhotos.find((photo) => photo.id === selectedPhotoId) ??
-		pendingPhotos.at(-1) ??
-		null;
-	const cameraButtonLabel =
-		pendingPhotos.length === 0 ? "Open camera" : multiple ? "Camera" : "Retake";
-	const placeholderText = cameraOnly
-		? "Camera is required for this photo."
-		: "Open the camera or pick from your device.";
+	// Shooting fills the screen with the viewfinder; reviewing hands the same photo surface
+	// the lightbox uses to the stills, so a shot swipes and pinches identically before and
+	// after it is uploaded.
+	const isShooting = camera.isOpen;
+	const lastPhoto = pendingPhotos.at(-1);
+	const selectedIndex = pendingPhotos.findIndex(
+		(photo) => photo.id === selectedPhotoId,
+	);
+	// A removed selection falls through to the newest shot rather than emptying the stage.
+	const activeIndex = selectedIndex === -1 ? photoCount - 1 : selectedIndex;
+	const selectedPhoto = pendingPhotos[activeIndex] ?? null;
+	const stageItems = useMemo(
+		() =>
+			pendingPhotos.map((photo) => ({
+				alt: `Preview ${photo.file.name}`,
+				id: photo.id,
+				image_url: photo.previewUrl,
+			})),
+		[pendingPhotos],
+	);
+	const handleIndexChange = (index: number) => {
+		const photo = pendingPhotos[index];
+		if (photo) {
+			setSelectedPhotoId(photo.id);
+		}
+	};
+
+	// Only ever rendered with a shot already in hand — the empty state has its own button.
+	const cameraButtonLabel = multiple ? "Camera" : "Retake";
+	const hasNote = note.trim().length > 0;
 
 	return (
 		<Dialog
@@ -327,52 +442,81 @@ const PhotoUploadDialogBase = ({
 			>
 				<DialogTitle className="sr-only">{title}</DialogTitle>
 				<DialogDescription className="sr-only">
-					Capture a photo with the camera or upload one from your device.
+					{isShooting
+						? "Capture a photo with the camera or upload one from your device."
+						: "Pinch or double-tap to zoom. Swipe to move between photos."}
 				</DialogDescription>
 
-				{/* Top chrome: close · item badge, over the viewfinder. */}
-				<div className="flex shrink-0 items-center justify-between gap-3 px-4 pt-[calc(env(safe-area-inset-top)_+_0.75rem)] pb-3">
+				{/* Top chrome: close · position · item badge, over the viewfinder. Actions live in
+				    the bottom bar within thumb reach — nothing up here is a tap target but Close. */}
+				<div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 pt-[calc(env(safe-area-inset-top)_+_0.75rem)] pb-3">
 					<button
 						aria-label="Close"
-						className="grid size-9 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+						className="grid size-9 place-items-center justify-self-start rounded-full bg-white/10 text-white transition hover:bg-white/20"
 						onClick={() => onOpenChange(false)}
 						type="button"
 					>
 						<XIcon className="size-5" aria-hidden="true" />
 					</button>
-					{badgeLabel ? (
-						<Badge
-							className="border-white/40 bg-transparent text-white"
-							variant="outline"
-						>
-							{badgeLabel}
-						</Badge>
-					) : null}
+
+					{!isShooting && photoCount > 1 ? (
+						<p className="justify-self-center font-mono text-xs text-white/70 tabular-nums">
+							{activeIndex + 1} / {photoCount}
+						</p>
+					) : (
+						<span />
+					)}
+
+					<div className="justify-self-end">
+						{badgeLabel ? (
+							<Badge
+								className="border-white/40 bg-transparent text-white"
+								variant="outline"
+							>
+								{badgeLabel}
+							</Badge>
+						) : null}
+					</div>
 				</div>
 
-				{/* Viewfinder: live feed, reviewed still, or empty hint. */}
-				<div className="relative min-h-0 flex-1 overflow-hidden px-4">
-					{camera.isOpen ? (
+				{/* Live feed, reviewed still, or empty hint. */}
+				<div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+					{isShooting ? (
 						<video
 							ref={camera.previewRef}
 							autoPlay
 							muted
 							playsInline
 							onLoadedMetadata={camera.markReady}
-							className="size-full object-cover"
-						/>
-					) : selectedPhoto ? (
-						<img
-							src={selectedPhoto.previewUrl}
-							alt={`Preview ${selectedPhoto.file.name}`}
 							className="size-full object-contain"
 						/>
+					) : selectedPhoto ? (
+						<PhotoStage
+							activeIndex={activeIndex}
+							items={stageItems}
+							onIndexChange={handleIndexChange}
+						/>
 					) : (
-						<div className="flex size-full flex-col items-center justify-center gap-2 px-6 text-center text-sm text-white/70">
-							<CameraIcon className="size-10 opacity-60" />
-							<p>{placeholderText}</p>
+						// No sentence: the two buttons below already say what they do, and saying it
+						// twice put a second focal point in the middle of an otherwise empty screen.
+						<div className="grid size-full place-items-center">
+							<CameraIcon
+								className="size-10 text-white/40"
+								aria-hidden="true"
+							/>
 						</div>
 					)}
+
+					{isBusy ? (
+						<div
+							aria-live="polite"
+							className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/70 text-sm text-white"
+							role="status"
+						>
+							<CircleNotchIcon className="size-7 animate-spin" />
+							<p>{busyLabel}</p>
+						</div>
+					) : null}
 
 					{camera.error ? (
 						<div className="absolute inset-x-4 bottom-4 flex items-start gap-2 border border-destructive/40 bg-destructive px-3 py-2 text-sm text-destructive-foreground">
@@ -385,34 +529,106 @@ const PhotoUploadDialogBase = ({
 					) : null}
 				</div>
 
-				{/* Bottom chrome: thumbs · shutter · device, note, primary action. */}
+				{/* Bottom chrome: native-camera controls while shooting, photo actions while
+				    reviewing. Neither mode reserves height for the other's controls. */}
 				<div className="shrink-0 space-y-3 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)_+_1rem)]">
-					<div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-2">
-						<div className="flex min-w-0 items-center gap-2 overflow-x-auto py-1">
-							{pendingPhotos.map((photo) => (
-								<PhotoThumb
-									disabled={isBusy}
-									isActive={!camera.isOpen && selectedPhoto?.id === photo.id}
-									key={photo.id}
-									onRemove={() => removePhoto(photo.id)}
-									onSelect={() => reviewPhoto(photo.id)}
-									photo={photo}
-								/>
-							))}
-						</div>
+					{isShooting ? (
+						<div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-2">
+							<div className="justify-self-start">
+								{lastPhoto ? (
+									<button
+										aria-label={`Review ${photoCount} ${photoCount === 1 ? "photo" : "photos"}`}
+										className="relative block size-14 overflow-hidden border border-white/40 bg-white/5 disabled:opacity-40"
+										disabled={isBusy}
+										onClick={() => reviewPhoto(lastPhoto.id)}
+										type="button"
+									>
+										<img
+											alt=""
+											className="size-full object-cover"
+											src={lastPhoto.previewUrl}
+										/>
+										{photoCount > 1 ? (
+											<span className="absolute top-0 right-0 grid size-5 place-items-center bg-white text-[0.625rem] font-medium text-black tabular-nums">
+												{photoCount}
+											</span>
+										) : null}
+									</button>
+								) : null}
+							</div>
 
-						<div className="justify-self-center">
-							{camera.isOpen ? (
-								<button
-									aria-label="Capture photo"
-									className="grid size-16 place-items-center rounded-full border-4 border-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-40"
-									disabled={!camera.isReady || isBusy}
-									onClick={captureCameraPhoto}
-									type="button"
-								>
-									<span className="size-12 rounded-full bg-white transition active:scale-90" />
-								</button>
-							) : (
+							<button
+								aria-label="Capture photo"
+								className="grid size-16 place-items-center justify-self-center rounded-full border-4 border-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-40"
+								disabled={!camera.isReady || isBusy}
+								onClick={captureCameraPhoto}
+								type="button"
+							>
+								<span className="size-12 rounded-full bg-white transition active:scale-90" />
+							</button>
+
+							{/* Finish the batch from where a document scanner puts it: bottom-right,
+							    beside the shot count, both a thumb's width from the shutter. Squared
+							    off rather than round, so a white circle beside the shutter is never
+							    mistaken for a second one. The picker gives up the slot once a shot
+							    exists — mid-batch gallery picks are rare, and it is still one tap
+							    behind the review square. */}
+							<div className="justify-self-end">
+								{photoCount > 0 ? (
+									<button
+										aria-label={confirmAriaLabel}
+										className="grid size-14 place-items-center bg-white text-black transition hover:bg-white/90 disabled:opacity-40"
+										disabled={isBusy}
+										onClick={handleConfirm}
+										type="button"
+									>
+										{isBusy ? (
+											<CircleNotchIcon className="size-6 animate-spin" />
+										) : (
+											<CheckIcon className="size-7" aria-hidden="true" />
+										)}
+									</button>
+								) : (
+									<button
+										aria-label="Upload from device"
+										className="grid size-12 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
+										disabled={isBusy}
+										onClick={openFileInput}
+										type="button"
+									>
+										<ImageSquareIcon className="size-5" aria-hidden="true" />
+									</button>
+								)}
+							</div>
+						</div>
+					) : photoCount === 0 ? (
+						// Nothing captured yet, so there is only one thing to do: the camera takes the
+						// width and the fill that the confirm button takes once there is something to
+						// confirm, and the picker sits beside it as the exception it is.
+						<div className="flex h-14 items-center gap-2">
+							<button
+								className="flex h-14 flex-1 items-center justify-center gap-2 bg-white font-semibold text-base text-black transition hover:bg-white/90 disabled:opacity-40"
+								disabled={isBusy}
+								onClick={() => void openCamera()}
+								type="button"
+							>
+								<CameraIcon className="size-5" aria-hidden="true" />
+								Open camera
+							</button>
+
+							<button
+								aria-label="Upload from device"
+								className="grid size-14 place-items-center border border-white/30 bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
+								disabled={isBusy}
+								onClick={openFileInput}
+								type="button"
+							>
+								<ImageSquareIcon className="size-6" aria-hidden="true" />
+							</button>
+						</div>
+					) : (
+						<>
+							<div className="flex h-12 items-center gap-2">
 								<button
 									className="flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2.5 font-medium text-sm text-white transition hover:bg-white/20 disabled:opacity-40"
 									disabled={isBusy}
@@ -422,11 +638,7 @@ const PhotoUploadDialogBase = ({
 									<CameraIcon className="size-4" aria-hidden="true" />
 									{cameraButtonLabel}
 								</button>
-							)}
-						</div>
 
-						<div className="justify-self-end">
-							{cameraOnly ? null : (
 								<button
 									aria-label="Upload from device"
 									className="grid size-12 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
@@ -436,47 +648,93 @@ const PhotoUploadDialogBase = ({
 								>
 									<ImageSquareIcon className="size-5" aria-hidden="true" />
 								</button>
-							)}
-						</div>
-					</div>
 
-					{cameraOnly ? null : (
-						<input
-							ref={fileInputRef}
-							type="file"
-							aria-label={`Choose ${photoNoun}${labelSuffix}`}
-							accept={ACCEPTED_IMAGE_TYPES.join(",")}
-							multiple={multiple}
-							className="sr-only"
-							onChange={(event) => {
-								addFiles(Array.from(event.target.files ?? []));
-							}}
-						/>
+								{withNote ? (
+									<button
+										aria-expanded={isNoteOpen}
+										aria-label={isNoteOpen ? "Hide note" : "Add note"}
+										className={cn(
+											"relative grid size-12 place-items-center rounded-full transition disabled:opacity-40",
+											isNoteOpen
+												? "bg-white text-black"
+												: "bg-white/10 text-white hover:bg-white/20",
+										)}
+										disabled={isBusy}
+										onClick={() => setIsNoteOpen((previous) => !previous)}
+										type="button"
+									>
+										<PencilSimpleLineIcon
+											className="size-5"
+											aria-hidden="true"
+										/>
+										{hasNote && !isNoteOpen ? (
+											<span className="absolute top-2 right-2 size-1.5 bg-white" />
+										) : null}
+									</button>
+								) : null}
+
+								{selectedPhoto ? (
+									<button
+										aria-label={`Remove ${selectedPhoto.file.name}`}
+										className="ml-auto grid size-12 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
+										disabled={isBusy}
+										onClick={() => removePhoto(selectedPhoto.id)}
+										type="button"
+									>
+										<TrashIcon className="size-5" aria-hidden="true" />
+									</button>
+								) : null}
+							</div>
+
+							{withNote && isNoteOpen ? (
+								<Textarea
+									value={note}
+									onChange={(event) => setNote(event.target.value)}
+									placeholder={
+										photoCount > 1
+											? `Note for all ${photoCount} photos`
+											: "Optional note"
+									}
+									rows={2}
+									maxLength={200}
+									disabled={isBusy}
+									aria-label={`Photo note${labelSuffix}`}
+									className="border-white/20 bg-white/5 text-white placeholder:text-white/50 disabled:opacity-50"
+								/>
+							) : null}
+
+							{photoCount > 0 ? (
+								<Button
+									className="h-14 w-full bg-white font-semibold text-base text-black hover:bg-white/90"
+									type="button"
+									disabled={isBusy}
+									loading={isBusy}
+									onClick={handleConfirm}
+								>
+									{confirmLabel}
+								</Button>
+							) : null}
+						</>
 					)}
 
-					{withNote ? (
-						<Textarea
-							value={note}
-							onChange={(event) => setNote(event.target.value)}
-							placeholder="Optional note"
-							rows={2}
-							maxLength={200}
-							disabled={isBusy || pendingPhotos.length === 0}
-							aria-label={`Photo note${labelSuffix}`}
-							className="border-white/20 bg-white/5 text-white placeholder:text-white/50 disabled:opacity-50"
-						/>
-					) : null}
-
-					<Button
-						className="h-14 w-full bg-white font-semibold text-base text-black hover:bg-white/90"
-						type="button"
-						disabled={pendingPhotos.length === 0 || isBusy}
-						loading={isBusy}
-						loadingText="Uploading..."
-						onClick={handleConfirm}
-					>
-						{confirmLabel}
-					</Button>
+					<input
+						ref={fileInputRef}
+						type="file"
+						aria-label={`Choose ${photoNoun}${labelSuffix}`}
+						accept={ACCEPTED_IMAGE_TYPES.join(",")}
+						multiple={multiple}
+						className="sr-only"
+						onChange={(event) => {
+							const files = Array.from(event.target.files ?? []);
+							// A gallery pick used to land behind a still-running viewfinder, so the
+							// photo the cashier just chose was nowhere on screen. Cancelling the
+							// picker (no files) must leave the camera alone.
+							if (files.length > 0) {
+								stopCamera();
+							}
+							void addFiles(files);
+						}}
+					/>
 				</div>
 			</DialogContent>
 		</Dialog>
@@ -498,7 +756,7 @@ export const SinglePhotoUploadDialog = (props: PhotoUploadDialogProps) => (
 
 type SinglePhotoCaptureDialogProps = Pick<
 	PhotoUploadDialogBaseProps,
-	"open" | "onOpenChange" | "title" | "badgeLabel" | "cameraOnly"
+	"open" | "onOpenChange" | "title" | "badgeLabel" | "autoOpenCamera"
 > & {
 	onCapture: (file: File) => void;
 };
@@ -508,21 +766,21 @@ type SinglePhotoCaptureDialogProps = Pick<
 // flows where the target row does not exist yet (POS drop-off photo before
 // checkout) or where the upload is bundled with other data (pickup event).
 //
-// Defaults to camera-only: drop-off is an intake action, so we want a live photo
-// of the items in front of the cashier, not a gallery pick. Trade-off: a device
-// with no camera (or denied permission) cannot complete it — accepted, since the
-// POS runs on store iPads. Pass cameraOnly={false} for flows that should still
-// allow a gallery pick (e.g. pickup).
+// Opens on the viewfinder by default: drop-off is an intake action, so a live
+// photo of the items in front of the cashier is the expected answer. It is no
+// longer the only one — a store whose iPad camera is refused or broken can still
+// finish the drop-off from the gallery. Pass autoOpenCamera={false} for flows
+// that should land on the chooser instead (e.g. pickup).
 export const SinglePhotoCaptureDialog = ({
 	onCapture,
-	cameraOnly = true,
+	autoOpenCamera = true,
 	...props
 }: SinglePhotoCaptureDialogProps) => (
 	<PhotoUploadDialogBase
 		{...props}
 		multiple={false}
 		withNote={false}
-		cameraOnly={cameraOnly}
+		autoOpenCamera={autoOpenCamera}
 		onCapture={(files) => {
 			const [file] = files;
 			if (file) {

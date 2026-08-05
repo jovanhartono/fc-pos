@@ -381,7 +381,7 @@ const PickupPhotoField = memo(() => {
 			</button>
 
 			<SinglePhotoCaptureDialog
-				cameraOnly={false}
+				autoOpenCamera={false}
 				onCapture={setFile}
 				onOpenChange={setIsCameraOpen}
 				open={isCameraOpen}

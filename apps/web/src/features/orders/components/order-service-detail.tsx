@@ -18,7 +18,7 @@ import {
 	useRefreshOrder,
 	useUpdateServiceStatusMutation,
 } from "@/features/orders/hooks/useOrderMutations";
-import { uploadOrderServicePhoto } from "@/features/orders/utils/photo-upload";
+import { orderServicePhotoUploader } from "@/features/orders/utils/photo-upload";
 import { deleteOrderServicePhoto } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { orderDetailQueryOptions } from "@/lib/query-options";
@@ -122,7 +122,6 @@ export const OrderServiceDetail = ({
 		(nextStatus): nextStatus is NonTerminalServiceStatus =>
 			!TERMINAL_SERVICE_STATUSES.has(nextStatus),
 	);
-	const itemLabel = service.item_code ?? `Service #${service.id}`;
 	// ADR-0012: a pair cannot start processing without a photo.
 	const needsPhotoToStart =
 		service.status === "queued" && service.images.length === 0;
@@ -211,14 +210,12 @@ export const OrderServiceDetail = ({
 					Add item photo
 				</Button>
 				<PhotoUploadDialog
-					badgeLabel={itemLabel}
+					badgeLabel={service.item_code ?? undefined}
 					onOpenChange={setIsPhotoUploadOpen}
 					onUploaded={refreshOrder}
 					open={isPhotoUploadOpen}
 					title="Add item photo"
-					uploadPhoto={(input) =>
-						uploadOrderServicePhoto(orderId, service.id, input)
-					}
+					uploader={orderServicePhotoUploader(orderId, service.id)}
 				/>
 			</div>
 
@@ -228,7 +225,7 @@ export const OrderServiceDetail = ({
 				</p>
 				{service.images.length > 0 ? (
 					<OrderPhotoGallery
-						gridClassName="@md:grid-cols-2 @2xl:grid-cols-3"
+						gridClassName="grid-cols-1 @md:grid-cols-2 @2xl:grid-cols-3"
 						items={service.images.map((image) => ({
 							...image,
 							alt:
