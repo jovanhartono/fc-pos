@@ -1,0 +1,3333 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <title>Fresclean — Code Quality Audit · 2026-08-05</title>
+    <style>
+    :root {
+      --bg: #ffffff;
+      --bg-sunk: #f6f6f4;
+      --fg: #16181d;
+      --fg-dim: #5c6270;
+      --fg-faint: #8b909c;
+      --line: #dcdde1;
+      --line-soft: #e9eaed;
+      --accent: #16181d;
+      --hi: #b4341f;
+      --md: #9a6205;
+      --lo: #4a6b8a;
+      --ok: #2f6b3f;
+      --code-bg: #f2f2ef;
+      --mono:
+        ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      --sans:
+        ui-sans-serif, -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #101216;
+        --bg-sunk: #16181d;
+        --fg: #e7e8ea;
+        --fg-dim: #9aa0ad;
+        --fg-faint: #6d7382;
+        --line: #2b2f37;
+        --line-soft: #23262c;
+        --accent: #e7e8ea;
+        --hi: #e8705a;
+        --md: #d9a441;
+        --lo: #7aa5c9;
+        --ok: #6bbd83;
+        --code-bg: #1b1e24;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+    html {
+      -webkit-text-size-adjust: 100%;
+    }
+    body {
+      margin: 0;
+      overflow-x: hidden;
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.65;
+      color: var(--fg);
+      background: var(--bg);
+    }
+    .wrap {
+      max-width: 62rem;
+      padding: 0 1.25rem 6rem;
+      margin: 0 auto;
+    }
+
+    /* ── masthead ─────────────────────────────────────── */
+    header.top {
+      padding: 3rem 0 1.75rem;
+      margin-bottom: 2.5rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .eyebrow {
+      margin: 0 0 0.75rem;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--fg-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+    }
+    h1 {
+      margin: 0 0 0.85rem;
+      font-size: clamp(1.6rem, 4vw, 2.1rem);
+      font-weight: 650;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+    }
+    .lede {
+      max-width: 46rem;
+      margin: 0;
+      color: var(--fg-dim);
+    }
+
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+      margin-top: 1.75rem;
+      border: 1px solid var(--line);
+    }
+    .fact {
+      padding: 0.7rem 0.9rem;
+      border-right: 1px solid var(--line-soft);
+    }
+    .fact:last-child {
+      border-right: 0;
+    }
+    .fact dt {
+      margin: 0 0 0.2rem;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--fg-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+    }
+    .fact dd {
+      margin: 0;
+      font-family: var(--mono);
+      font-size: 0.95rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── headings ─────────────────────────────────────── */
+    h2 {
+      padding-bottom: 0.5rem;
+      margin: 3.5rem 0 0.35rem;
+      font-size: 1.15rem;
+      font-weight: 650;
+      letter-spacing: -0.01em;
+      border-bottom: 1px solid var(--line);
+    }
+    h2 .n {
+      margin-right: 0.6rem;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--fg-faint);
+      letter-spacing: 0.16em;
+    }
+    h2 + .sect-note {
+      max-width: 46rem;
+      margin: 0.7rem 0 1.5rem;
+      font-size: 0.92rem;
+      color: var(--fg-dim);
+    }
+    h3 {
+      margin: 2rem 0 0.6rem;
+      font-size: 1rem;
+      font-weight: 620;
+    }
+
+    p {
+      margin: 0 0 0.9rem;
+    }
+    ul,
+    ol {
+      padding-left: 1.25rem;
+      margin: 0 0 0.9rem;
+    }
+    li {
+      margin-bottom: 0.35rem;
+    }
+    li > ul {
+      margin-top: 0.35rem;
+      margin-bottom: 0.5rem;
+    }
+    a {
+      color: inherit;
+      text-decoration-color: var(--fg-faint);
+      text-underline-offset: 2px;
+    }
+
+    code,
+    .m {
+      padding: 0.1em 0.35em;
+      font-family: var(--mono);
+      font-size: 0.855em;
+      white-space: nowrap;
+      background: var(--code-bg);
+      border: 1px solid var(--line-soft);
+    }
+    pre {
+      padding: 0.85rem 1rem;
+      margin: 0 0 1rem;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      line-height: 1.55;
+      background: var(--code-bg);
+      border: 1px solid var(--line-soft);
+    }
+    pre code {
+      padding: 0;
+      font-size: inherit;
+      white-space: pre;
+      background: none;
+      border: 0;
+    }
+
+    /* ── contents ─────────────────────────────────────── */
+    .toc {
+      padding: 1rem 1.25rem;
+      margin: 0 0 1rem;
+      background: var(--bg-sunk);
+      border: 1px solid var(--line);
+    }
+    .toc ol {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      columns: 2;
+      column-gap: 2rem;
+    }
+    @media (max-width: 40rem) {
+      .toc ol {
+        columns: 1;
+      }
+    }
+    .toc li {
+      margin-bottom: 0.3rem;
+      font-size: 0.9rem;
+      break-inside: avoid;
+    }
+    .toc .k {
+      margin-right: 0.5rem;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--fg-faint);
+    }
+
+    /* ── findings ─────────────────────────────────────── */
+    .f {
+      padding: 1.1rem 1.25rem 0.35rem;
+      margin: 0 0 1rem;
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--line);
+    }
+    .f.hi {
+      border-left-color: var(--hi);
+    }
+    .f.md {
+      border-left-color: var(--md);
+    }
+    .f.lo {
+      border-left-color: var(--lo);
+    }
+
+    .f-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      align-items: baseline;
+      margin-bottom: 0.65rem;
+    }
+    .id {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--fg-faint);
+      letter-spacing: 0.1em;
+    }
+    .sev {
+      padding: 0.15em 0.5em;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      border: 1px solid currentColor;
+    }
+    .sev.hi {
+      color: var(--hi);
+    }
+    .sev.md {
+      color: var(--md);
+    }
+    .sev.lo {
+      color: var(--lo);
+    }
+    .f-title {
+      flex: 1 1 20rem;
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 620;
+      letter-spacing: -0.005em;
+    }
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+    }
+    .tag {
+      padding: 0.15em 0.45em;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      color: var(--fg-faint);
+      letter-spacing: 0.08em;
+      border: 1px solid var(--line);
+    }
+
+    .f h4 {
+      margin: 1rem 0 0.45rem;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--fg-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+    }
+    .f h4:first-of-type {
+      margin-top: 0;
+    }
+    .f p,
+    .f ul,
+    .f ol,
+    .f pre {
+      margin-bottom: 0.75rem;
+    }
+
+    .refs {
+      padding: 0;
+      margin: 0 0 0.75rem;
+      list-style: none;
+    }
+    .refs li {
+      margin-bottom: 0.2rem;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--fg-dim);
+    }
+    .refs .path {
+      color: var(--fg);
+    }
+
+    /* ── tables ───────────────────────────────────────── */
+    .tw {
+      margin: 0 0 1.25rem;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+    }
+    table {
+      width: 100%;
+      min-width: 34rem;
+      font-size: 0.85rem;
+      border-collapse: collapse;
+    }
+    th,
+    td {
+      padding: 0.5rem 0.75rem;
+      vertical-align: top;
+      text-align: left;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    thead th {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--fg-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      white-space: nowrap;
+      background: var(--bg-sunk);
+      border-bottom: 1px solid var(--line);
+    }
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+    td.num {
+      font-family: var(--mono);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    td.mono {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+    }
+
+    /* ── callouts ─────────────────────────────────────── */
+    .note {
+      padding: 0.85rem 1.1rem;
+      margin: 0 0 1.25rem;
+      font-size: 0.9rem;
+      background: var(--bg-sunk);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--fg-faint);
+    }
+    .note strong {
+      font-weight: 650;
+    }
+    .note.warn {
+      border-left-color: var(--hi);
+    }
+    .note.good {
+      border-left-color: var(--ok);
+    }
+    .note :last-child {
+      margin-bottom: 0;
+    }
+
+    .good-list {
+      padding: 1rem 1.25rem 1rem 2.4rem;
+      margin: 0 0 1.25rem;
+      border: 1px solid var(--line);
+    }
+    .good-list li::marker {
+      color: var(--ok);
+    }
+
+    footer.end {
+      padding-top: 1.25rem;
+      margin-top: 4rem;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--fg-faint);
+      letter-spacing: 0.06em;
+      border-top: 1px solid var(--line);
+    }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <p class="eyebrow">Fresclean · fc-bun-api · main @ b9b9aae</p>
+        <h1>Code quality audit — readability and maintainability</h1>
+        <p class="lede">
+          A full read of <code>apps/web</code> and <code>packages/server</code>,
+          judged on whether a human can open a file and understand it. Named
+          rule sets — <em>Vercel React Best Practices</em>,
+          <em>React Composition Patterns</em>, this repo's own
+          <code>AGENTS.md</code>
+          — are used as a floor, not a ceiling. Where a rule fires, it is cited.
+          Where something is simply wrong or badly shaped and no rule covers it,
+          it is called that anyway. Section&nbsp;01 came entirely from the
+          second kind of looking.
+        </p>
+
+        <dl class="facts">
+          <div class="fact">
+            <dt>Date</dt>
+            <dd>2026-08-05</dd>
+          </div>
+          <div class="fact">
+            <dt>Files read</dt>
+            <dd>349</dd>
+          </div>
+          <div class="fact">
+            <dt>Web LOC</dt>
+            <dd>32,103</dd>
+          </div>
+          <div class="fact">
+            <dt>Server LOC</dt>
+            <dd>20,102</dd>
+          </div>
+          <div class="fact">
+            <dt>Findings</dt>
+            <dd>39</dd>
+          </div>
+          <div class="fact">
+            <dt>High</dt>
+            <dd>10</dd>
+          </div>
+        </dl>
+      </header>
+
+      <div class="note good">
+        <p>
+          <strong>Baseline is green.</strong>
+          <code>bun x ultracite check</code>
+          passes across all 349 files with no fixes applied.
+          <code>bun test</code>
+          passes 259/259 on the server and 70/70 on the web (1,230 assertions,
+          6,328 lines of test code). Nothing in this report is a broken build or
+          a failing test — it is all about what the code costs to read and
+          change.
+        </p>
+      </div>
+
+      <h2><span class="n">00</span>Verdict</h2>
+      <p class="sect-note">The blunt version, before the itemised list.</p>
+
+      <p>
+        <strong>This is not ugly code.</strong>
+        It is well-organised, consistently formatted, genuinely tested in the
+        places that matter most, and the comments — where they exist — explain
+        <em>why</em>
+        rather than restating the line below them. Most codebases this size are
+        worse. Someone has been paying attention.
+      </p>
+
+      <p>
+        The problem is narrower and more interesting than ugliness:
+        <strong
+          >several important invariants are true by convention rather than by
+          construction.</strong
+        >
+        The code is correct today because three or four unrelated mechanisms
+        happen to agree, not because anything states the rule or would fail
+        loudly if it broke. That is the category of defect that survives code
+        review — every individual line looks fine — and then costs a weekend a
+        year later.
+      </p>
+
+      <p>
+        Section&nbsp;01 is the clearest example and the reason this report was
+        re-cut. The money path is
+        <em>correct</em>, and it is correct by accident in three places at once.
+        No rule set flags any of it.
+      </p>
+
+      <p>
+        Beyond that, the ugliness that does exist is
+        <strong>concentrated, not diffuse</strong>. Four files carry most of it
+        — <code>financial-panel.tsx</code>, <code>lib/api.ts</code>,
+        <code>report-range.repository.ts</code>, <code>worker.index.tsx</code>.
+        Roughly 5,000 of 52,000 lines. The other 90% of the codebase is fine and
+        should be left alone.
+      </p>
+
+      <div class="note">
+        <p>
+          <strong>What I would not spend time on.</strong>
+          Of the 39 findings here, about a dozen are observations rather than
+          problems — <span class="m">S13</span>, <span class="m">W12</span>,
+          <span class="m">W15</span>, <span class="m">W16</span>,
+          <span class="m">W17</span>
+          and most of the Low band. They are recorded for completeness. A long
+          audit invites the mistake of treating length as a work queue; it is
+          not one. If you fix only
+          <span class="m">M1</span>,
+          <span class="m">M2</span>, <span class="m">S1</span>,
+          <span class="m">S2</span>
+          and
+          <span class="m">C1</span>, you will have captured most of the real
+          value in this document.
+        </p>
+      </div>
+
+      <h2><span class="n">00b</span>How to read this</h2>
+      <p class="sect-note">
+        Severity is about <strong>risk to the humans maintaining this</strong>,
+        not about whether the app works today. Four findings (<span class="m"
+          >M1</span
+        >, <span class="m">M2</span>,
+        <span class="m">S1</span>, <span class="m">S2</span>) also carry
+        production, money or privacy consequences and are called out as such.
+      </p>
+
+      <div class="tw">
+        <table>
+          <thead>
+            <tr>
+              <th>Severity</th>
+              <th>Means</th>
+              <th>Count</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="sev hi">High</span></td>
+              <td>
+                A rule lives in more than one place, or holds only by
+                convention, or a file has grown past what one person can keep in
+                their head. Changing it safely requires knowing something not
+                written down.
+              </td>
+              <td class="num">10</td>
+            </tr>
+            <tr>
+              <td><span class="sev md">Medium</span></td>
+              <td>
+                Real duplication or a shape that fights the framework. Costs
+                time on every visit; no trap.
+              </td>
+              <td class="num">16</td>
+            </tr>
+            <tr>
+              <td><span class="sev lo">Low</span></td>
+              <td>Local. Fix it while you're already in the file.</td>
+              <td class="num">13</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <nav aria-label="Contents" class="toc">
+        <ol>
+          <li>
+            <span class="k">M1</span
+            ><a href="#m1"><code>orders.total</code> is nullable</a>
+          </li>
+          <li>
+            <span class="k">M2</span
+            ><a href="#m2">Whole-rupiah rule is unwritten</a>
+          </li>
+          <li>
+            <span class="k">M3</span
+            ><a href="#m3"><code>.toFixed(2)</code> into a scale-0 column</a>
+          </li>
+          <li>
+            <span class="k">M4</span
+            ><a href="#m4"><code>currencySchema</code> can't reject</a>
+          </li>
+          <li>
+            <span class="k">M5</span
+            ><a href="#m5">Money has two TypeScript types</a>
+          </li>
+          <li>
+            <span class="k">C1</span
+            ><a href="#c1">Store scoping lives in three layers</a>
+          </li>
+          <li>
+            <span class="k">C2</span
+            ><a href="#c2"
+              >Two error styles → 25 <code>Extract&lt;&gt;</code></a
+            >
+          </li>
+          <li>
+            <span class="k">C3</span><a href="#c3">Three timezone mechanisms</a>
+          </li>
+          <li><span class="k">S1</span><a href="#s1">500s are silent</a></li>
+          <li>
+            <span class="k">S2</span
+            ><a href="#s2">Postgres detail reaches the client</a>
+          </li>
+          <li>
+            <span class="k">S3</span
+            ><a href="#s3">Reports: 2,975 lines, 1 test file</a>
+          </li>
+          <li>
+            <span class="k">S4</span
+            ><a href="#s4">Ten report handlers, one body</a>
+          </li>
+          <li>
+            <span class="k">S5</span
+            ><a href="#s5">Revenue window copy-pasted 11×</a>
+          </li>
+          <li>
+            <span class="k">S6</span
+            ><a href="#s6">63 <code>as JWTPayload</code> casts</a>
+          </li>
+          <li>
+            <span class="k">S7</span
+            ><a href="#s7">Inactive services can still be sold</a>
+          </li>
+          <li>
+            <span class="k">S8</span
+            ><a href="#s8">Order detail has no bounded shape</a>
+          </li>
+          <li>
+            <span class="k">S9</span
+            ><a href="#s9">Duplicated handler-claim block</a>
+          </li>
+          <li>
+            <span class="k">S10</span
+            ><a href="#s10">Dead <code>/reports/daily</code></a>
+          </li>
+          <li>
+            <span class="k">S11</span
+            ><a href="#s11"><code>is_active</code> defaults disagree</a>
+          </li>
+          <li>
+            <span class="k">S12</span
+            ><a href="#s12">Unreachable defensive throws</a>
+          </li>
+          <li>
+            <span class="k">S13</span
+            ><a href="#s13">Two modules named "errors"</a>
+          </li>
+          <li>
+            <span class="k">S14</span><a href="#s14">CORS is localhost-only</a>
+          </li>
+          <li>
+            <span class="k">W1</span
+            ><a href="#w1">financial-panel: 1,205 lines</a>
+          </li>
+          <li>
+            <span class="k">W2</span
+            ><a href="#w2">chart-card pins all of recharts</a>
+          </li>
+          <li>
+            <span class="k">W3</span
+            ><a href="#w3">Barcode scanner inlined in a route</a>
+          </li>
+          <li>
+            <span class="k">W4</span
+            ><a href="#w4">Queue re-renders every 60s</a>
+          </li>
+          <li>
+            <span class="k">W5</span
+            ><a href="#w5">app-shell writes nav four times</a>
+          </li>
+          <li>
+            <span class="k">W6</span
+            ><a href="#w6">Report panels repeat seven ways</a>
+          </li>
+          <li>
+            <span class="k">W7</span
+            ><a href="#w7">api.ts: same serialiser 7×</a>
+          </li>
+          <li>
+            <span class="k">W8</span><a href="#w8">data-table is two tables</a>
+          </li>
+          <li>
+            <span class="k">W9</span
+            ><a href="#w9">Photo dialog: boolean-mode base</a>
+          </li>
+          <li>
+            <span class="k">W10</span
+            ><a href="#w10">Persisted stores have no version</a>
+          </li>
+          <li>
+            <span class="k">W11</span
+            ><a href="#w11">Five near-identical form fields</a>
+          </li>
+          <li>
+            <span class="k">W12</span
+            ><a href="#w12">theme-provider is pre-React-19</a>
+          </li>
+          <li>
+            <span class="k">W13</span
+            ><a href="#w13">JWT decoded on every call</a>
+          </li>
+          <li>
+            <span class="k">W14</span
+            ><a href="#w14">A <code>useMemo</code> that never hits</a>
+          </li>
+          <li>
+            <span class="k">W15</span><a href="#w15">Matrix lookup by scan</a>
+          </li>
+          <li>
+            <span class="k">W16</span><a href="#w16">Three dead api exports</a>
+          </li>
+          <li>
+            <span class="k">W17</span
+            ><a href="#w17">House style splits at <code>routes/</code></a>
+          </li>
+        </ol>
+      </nav>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <h2><span class="n">01</span>Money &amp; data integrity</h2>
+      <p class="sect-note">
+        This section exists because I stopped consulting rule sets and started
+        asking what I would ask in review:
+        <em
+          >where does the money live, what guarantees its shape, and what
+          happens the day that guarantee is wrong?</em
+        >
+        No linter, and neither Vercel rule set, has an opinion about any of the
+        five findings below. All five were verified against the live dev
+        database, not just read off the schema file.
+      </p>
+
+      <div class="note">
+        <p>
+          <strong>Read this first.</strong>
+          Nothing here is currently producing wrong numbers. Every claim below
+          was checked, and the money is right today. The finding is
+          <em>why</em>
+          it is right: three unrelated mechanisms independently coerce money
+          into whole rupiah, none of them says so, and the database is
+          configured to round silently instead of complaining. That is a
+          correctness result that no one owns.
+        </p>
+      </div>
+
+      <article class="f hi" id="m1">
+        <div class="f-head">
+          <span class="id">M1</span><span class="sev hi">High</span>
+          <h3 class="f-title">
+            <code>orders.total</code>
+            is the only nullable money column, and three CHECK constraints
+            depend on it
+          </h3>
+          <div class="tags">
+            <span class="tag">data-integrity</span><span class="tag">money</span
+            ><span class="tag">one-line-fix</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          Four money columns on <code>orders</code>. Three are
+          <code>.notNull()</code>. One is not:
+        </p>
+        <pre
+        ><code>discount:        decimal("discount",        { precision: 12 }).default("0").notNull(),  // :449
+paid_amount:     decimal("paid_amount",     { precision: 12 }).default("0").notNull(),  // :460
+refunded_amount: decimal("refunded_amount", { precision: 12 }).default("0").notNull(),  // :471
+
+// snapshot
+total:           decimal("total",           { precision: 12 }).default("0"),            // :481  ← no .notNull()</code></pre>
+
+        <p>
+          Confirmed against the live dev database — this is the real column
+          state, not just the source:
+        </p>
+        <pre
+        ><code>column_name      | numeric_precision | numeric_scale | is_nullable
+-----------------+-------------------+---------------+------------
+discount         |        12         |       0       |     NO
+paid_amount      |        12         |       0       |     NO
+refunded_amount  |        12         |       0       |     NO
+total            |        12         |       0       |     YES     ←</code></pre>
+
+        <p>Now look at which constraints reference it:</p>
+        <pre
+        ><code>check("total_non_negative_check",  sql`${table.total} >= 0`),                  // :498
+check("discount_valid_check",      sql`(${table.total}) >= ${table.discount}`), // :505
+check("paid_amount_valid_check",   sql`${table.paid_amount} <= ${table.total}`) // :507</code></pre>
+
+        <h4>Why it matters</h4>
+        <p>
+          A Postgres <code>CHECK</code> fails only on <code>FALSE</code>.
+          <code>NULL</code>
+          makes it
+          <code>UNKNOWN</code>, which passes. So a single <code>NULL</code> in
+          <code>total</code>
+          silently disarms
+          <strong
+            >three of the five money guards on the orders table at once</strong
+          >
+          — an order could then carry a discount larger than its total, or
+          record more money collected than was ever owed, and every constraint
+          would still be satisfied.
+        </p>
+
+        <p>
+          These three checks are the most valuable lines in the schema. They are
+          the reason a pricing bug becomes a failed insert instead of a wrong
+          invoice. Right now their protection is conditional on a column that is
+          allowed to be absent.
+        </p>
+
+        <p>
+          It also leaks outward. <code>total</code> types as
+          <code>string | null</code>, so every consumer has to defend against a
+          null that the business model does not actually permit — 17 occurrences
+          of
+          <code>total ?? 0</code>
+          across the web app, each one a small lie about the domain (an order
+          with no total is not an order worth zero rupiah; it is a bug).
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          Add <code>.notNull()</code> and push.
+          <strong>Zero rows violate it today</strong>
+          — I counted:
+        </p>
+        <pre
+        ><code>SELECT count(*) FROM orders WHERE total IS NULL;  →  0</code></pre>
+        <p>
+          No backfill, no migration risk, no data cleanup. It is a one-word
+          change that re-arms three constraints and deletes 17 defensive
+          coalesces downstream. This is the highest value-per-character fix in
+          the entire report.
+        </p>
+      </article>
+
+      <article class="f hi" id="m2">
+        <div class="f-head">
+          <span class="id">M2</span><span class="sev hi">High</span>
+          <h3 class="f-title">
+            "Money is whole rupiah" is a real invariant that nothing in the
+            codebase states — and the database enforces it by silently rounding
+          </h3>
+          <div class="tags">
+            <span class="tag">money</span
+            ><span class="tag">implicit-invariant</span
+            ><span class="tag">silent-failure</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          Twenty-two money columns are declared with a precision and no scale:
+        </p>
+        <pre
+        ><code>decimal("price",       { precision: 12 })   // ×22 across products, services, campaigns,
+decimal("total",       { precision: 12 })   //     orders, order_services, order_products,
+decimal("applied_amount", { precision: 12 })//     order_refunds, order_refund_items …</code></pre>
+
+        <p>
+          In Postgres, <code>numeric(12)</code> means
+          <code>numeric(12, 0)</code>
+          — precision twelve,
+          <strong>scale zero</strong>. Whole numbers only. The live database
+          confirms
+          <code>numeric_scale = 0</code>
+          on every one of them.
+        </p>
+
+        <p>
+          That this is implicit rather than intended is visible two lines away
+          in the same file, where the only columns that <em>do</em> declare a
+          scale are the ones where somebody thought about it:
+        </p>
+        <pre
+        ><code>latitude:  decimal("latitude",  { precision: 11, scale: 8 }).notNull(),  // :58
+longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),  // :59</code></pre>
+
+        <p>
+          The invariant holds today because three unrelated pieces of code each
+          independently force integers, none of them aware of the others:
+        </p>
+        <ul>
+          <li>
+            <code>getNumericValue</code>
+            strips every non-digit from money input at the HTTP boundary —
+            <code>common.ts:7</code>
+          </li>
+          <li>
+            <code>Math.round(contribution)</code>
+            at the end of every campaign discount calculation —
+            <code>schema/discount.ts:91</code>
+          </li>
+          <li>
+            every price read back out of the database is already integral, so
+            arithmetic over prices stays integral
+          </li>
+        </ul>
+
+        <h4>Why it matters</h4>
+        <p>
+          The failure mode is the bad one. <code>numeric(12,0)</code> does not
+          <em>reject</em>
+          <code>1500.75</code>
+          — it stores <code>1501</code>. No error, no warning, no log line. If
+          any one of those three mechanisms is removed or bypassed by a future
+          contributor, money quietly becomes wrong by up to half a rupiah per
+          operation and nothing anywhere fails.
+        </p>
+
+        <p>
+          For IDR the rule is almost certainly correct — Indonesian retail does
+          not transact in sen. That is exactly why it deserves to be written
+          down: it is a <em>business</em> decision about currency granularity
+          that currently exists only as an emergent property of a regex, a
+          <code>Math.round</code>, and a default nobody chose.
+        </p>
+
+        <p>
+          A new contributor reading
+          <code>decimal("price", { precision: 12 })</code>
+          has no way to know cents are impossible. The word "decimal" actively
+          suggests the opposite.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          Two changes, neither of which alters a single byte of stored data:
+        </p>
+        <ol>
+          <li>
+            Write <code>scale: 0</code> explicitly on all 22 columns. The
+            emitted DDL is identical, so
+            <code>push:dev</code>
+            is a no-op — but the schema now <em>says</em> what it means, and a
+            reviewer who tries to add a cents-bearing column has to consciously
+            break the pattern.
+          </li>
+          <li>
+            Add one test asserting the boundary: feed
+            <code>"1500.75"</code>
+            through
+            <code>currencySchema</code>
+            and assert the result. Whatever the answer should be, pin it — right
+            now the behaviour is defined by a regex written for a different
+            reason (see
+            <span class="m">M4</span>).
+          </li>
+        </ol>
+        <p>
+          Optionally, name the rule once in <code>schema.ts</code>:
+          <em>all monetary columns are whole IDR; there is no sub-unit.</em>
+          One comment retires the whole class of question.
+        </p>
+      </article>
+
+      <article class="f md" id="m3">
+        <div class="f-head">
+          <span class="id">M3</span><span class="sev md">Medium</span>
+          <h3 class="f-title">
+            <code>.toFixed(2)</code>
+            writes cents into a column that cannot hold them
+          </h3>
+          <div class="tags">
+            <span class="tag">money</span
+            ><span class="tag">code-that-lies</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          <code>packages/server/src/modules/orders/order.service.ts:254</code>:
+        </p>
+        <pre
+        ><code>cogs_snapshot: (Number(product.cogs) * item.qty).toFixed(2),</code></pre>
+        <p>
+          <code>cogs_snapshot</code>
+          is <code>decimal("cogs_snapshot", { precision: 12 })</code> — scale 0.
+          The two decimal places are produced, sent to Postgres, and discarded
+          on arrival.
+        </p>
+
+        <h4>Why it matters</h4>
+        <p>
+          No data is lost, because <code>product.cogs</code> is itself scale-0
+          and <code>item.qty</code> is an integer, so the product is always
+          integral and <code>.toFixed(2)</code> only ever appends
+          <code>.00</code>. Nothing is broken.
+        </p>
+
+        <p>
+          The problem is that the line
+          <strong>asserts a precision the schema forbids</strong>. Someone wrote
+          it believing cents existed here. The next person to read it will
+          believe the same thing, and may reasonably conclude that fractional
+          COGS is supported — it is right there in the code. This is how an
+          implicit invariant (<span class="m">M2</span>) gets broken: not by
+          someone ignoring the rule, but by someone reading code that
+          contradicts it.
+        </p>
+
+        <p>
+          For contrast, the two other <code>.toFixed()</code> calls on the
+          server are correct and should stay —
+          <code>report-range.repository.ts:977</code>
+          and
+          <code>:979</code>
+          round
+          <code>rework_rate</code>
+          and <code>items_per_hour</code>, which are genuine ratios in a JSON
+          response, not money bound for a column.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          Drop the <code>.toFixed(2)</code>; use
+          <code>String(Number(product.cogs) * item.qty)</code>. If the intent
+          was defensive rounding, <code>Math.round</code> states that intent
+          honestly and matches what the column will do anyway.
+        </p>
+      </article>
+
+      <article class="f md" id="m4">
+        <div class="f-head">
+          <span class="id">M4</span><span class="sev md">Medium</span>
+          <h3 class="f-title">
+            <code>currencySchema</code>
+            is a five-stage round-trip whose validation cannot fail
+          </h3>
+          <div class="tags">
+            <span class="tag">validation</span><span class="tag">dead-code</span
+            ><span class="tag">naming</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          <code>packages/server/src/schema/common.ts:7</code>
+          and <code>:44</code> — the only guard on every money field that enters
+          the API:
+        </p>
+        <pre><code>const getNumericValue = (formattedValue: string): string =>
+  formattedValue.replaceAll(/[^\d]/g, "");
+
+export const currencySchema = (field: string) =>
+  z
+    .string(`${field} is required!`)
+    .min(1, `${field} is required!`)
+    .transform(getNumericValue)                                  // string → string
+    .transform(Number)                                           // string → number
+    .pipe(z.number().nonnegative(`${field} cannot be negative`))  // ← unreachable
+    .pipe(z.coerce.string());                                    // number → string</code></pre>
+
+        <h4>Why it matters</h4>
+        <p>Three separate problems, all in nine lines.</p>
+
+        <p>
+          <strong>The negative check can never fire.</strong>
+          <code>getNumericValue</code>
+          has already deleted the minus sign by the time
+          <code>.nonnegative()</code>
+          runs. Input <code>"-500"</code>
+          becomes <code>"500"</code> and validates as a perfectly good positive
+          discount. The message
+          <em>"Discount cannot be negative"</em>
+          is unreachable code that reads like a live guarantee — worse than no
+          check at all, because a reviewer sees it and stops worrying.
+        </p>
+
+        <p>
+          <strong
+            >The function is named like an accessor and behaves like a lossy
+            parser.</strong
+          >
+          <code>getNumericValue("12.50")</code>
+          returns <code>"1250"</code>. That is correct and deliberate for
+          Indonesian formatting, where <code>.</code> is the thousands separator
+          and <code>"1.500"</code> means fifteen hundred — but nothing in the
+          name, the signature, or a comment says so. The parameter is called
+          <code>formattedValue</code>, which is the only hint, and it does not
+          survive to the call site. A contributor who assumes it parses decimals
+          will introduce a 100× error and see no test fail.
+        </p>
+
+        <p>
+          <strong>The type round-trips for no one.</strong>
+          String in, string out — and the very first thing the service does is
+          convert it back: <code>Number(orderPayload.discount)</code> at
+          <code>order.service.ts:275</code>. The schema's output type is
+          fighting every consumer it has.
+        </p>
+
+        <h4>What to do</h4>
+        <ul>
+          <li>
+            Rename to <code>parseIndonesianCurrency</code> (or similar) and give
+            it the one-line comment that explains the separator convention. The
+            name is the documentation here.
+          </li>
+          <li>
+            Either validate before sanitising — so <code>"-500"</code> is
+            actually rejected — or delete the
+            <code>.nonnegative()</code>
+            and stop implying a check that does not exist. Rejecting is better:
+            a cashier typing a negative discount has made a mistake worth
+            surfacing.
+          </li>
+          <li>
+            Land on <code>number</code> as the output type and let the
+            repository layer stringify at the Drizzle boundary, where it
+            belongs.
+          </li>
+        </ul>
+      </article>
+
+      <article class="f md" id="m5">
+        <div class="f-head">
+          <span class="id">M5</span><span class="sev md">Medium</span>
+          <h3 class="f-title">
+            Money has two TypeScript types depending on which endpoint you
+            called
+          </h3>
+          <div class="tags">
+            <span class="tag">api-contract</span
+            ><span class="tag">root-cause</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          Inside a single function, <code>order.service.ts</code> writes a
+          string and returns a number:
+        </p>
+        <pre><code>await tx.update(ordersTable).set({
+  total: grossTotal.toString(),        // :292 — string into the column
+  discount: discountAmount.toString(),
+})…
+
+return {
+  code, id: orderId,
+  total: grossTotal,                   // :305 — number out to the caller
+  total_after_discount: netTotal,
+};</code></pre>
+        <p>
+          Every read path returns the Postgres <code>numeric</code> as a string,
+          so
+          <code>POST /orders</code>
+          answers with <code>total: 45000</code> while
+          <code>GET /orders/:id</code>
+          answers with <code>total: "45000"</code>.
+        </p>
+
+        <h4>Why it matters</h4>
+        <p>
+          This is the root cause of a pattern that shows up roughly forty times
+          in the web app and reads like noise until you know why it is there:
+        </p>
+        <pre
+        ><code>const discount = Number(detail.discount ?? 0);      // order-money-summary.tsx:11
+const net      = Number(detail.total ?? 0) - discount;
+const grossTotal   = Number(detail.total ?? 0);     // refund-preview.ts:9
+Number(line.product.price) * line.qty               // checkout-items-step.tsx:119</code></pre>
+        <p>
+          Every component that touches money re-coerces it, because money has no
+          single type to rely on. Each <code>Number()</code> is individually
+          harmless and collectively means the frontend has no money type at all
+          — just strings that everyone agrees to convert, in forty places,
+          correctly so far.
+        </p>
+
+        <p>
+          It compounds with <span class="m">M1</span>: because
+          <code>total</code>
+          is also nullable, the idiom is not
+          <code>Number(x)</code>
+          but <code>Number(x ?? 0)</code>, which converts a missing value into a
+          valid-looking zero. A genuinely absent total renders as
+          <code>Rp&nbsp;0</code>
+          rather than failing visibly.
+        </p>
+
+        <p>
+          This is the same shape as <span class="m">C2</span>: a small
+          inconsistency at the server boundary paid for many times over in
+          client-side ceremony.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          Pick one representation and hold it at the boundary. Given the values
+          are whole rupiah under 2<sup>53</sup>
+          (<span class="m">M2</span>), <code>number</code> is safe and is what
+          every consumer wants — serialise money as a number in every response,
+          including the reads. Then the ~40
+          <code>Number()</code>
+          calls delete themselves, and with <span class="m">M1</span> fixed the
+          <code>?? 0</code>
+          goes too.
+        </p>
+        <p>
+          If you would rather keep strings on the wire, that is defensible — but
+          then make
+          <code>createOrder</code>
+          return a string like everything else, and give the web a single
+          <code>toRupiah(value: string): number</code>
+          so the coercion lives in one place instead of forty.
+        </p>
+      </article>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <h2><span class="n">02</span>Cross-cutting</h2>
+      <p class="sect-note">
+        Three findings that are neither a web problem nor a server problem —
+        they are seams between the two, and each is the root cause of noise
+        elsewhere in this report.
+      </p>
+
+      <article class="f hi" id="c1">
+        <div class="f-head">
+          <span class="id">C1</span><span class="sev hi">High</span>
+          <h3 class="f-title">
+            Store scoping is enforced in three layers, four different ways
+          </h3>
+          <div class="tags">
+            <span class="tag">multi-tenancy</span
+            ><span class="tag">one-rule-one-place</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>Enforced in <strong>routes</strong>:</p>
+        <ul class="refs">
+          <li>
+            <span class="path">packages/server/src/routes/admin/orders.ts</span>
+            — <code>assertOrderAccess</code> written out 15 times, once per
+            <code>/:id/*</code>
+            handler (lines 166, 180, 199, 223, 247, 269, 290, 310, 331, 353,
+            373, 394, 414, 433, 454, 477)
+          </li>
+          <li>
+            <span class="path"
+              >packages/server/src/routes/admin/reports.ts</span
+            >
+            — <code>assertStoreAccess</code> written out 10 times (lines 41, 56,
+            70, 83, 96, 109, 122, 135, 148, 161)
+          </li>
+        </ul>
+        <p>
+          And in <strong>services</strong>, with different semantics each time:
+        </p>
+        <ul class="refs">
+          <li>
+            <span class="path">modules/orders/order.service.ts:111-117</span>
+            — non-admin without <code>store_id</code> → collect ids into
+            <code>scopedStoreIds</code>
+          </li>
+          <li>
+            <span class="path"
+              >modules/orders/order-queue.service.ts:102-116</span
+            >
+            — same case → return <code>[]</code> when the user has no stores
+          </li>
+          <li>
+            <span class="path"
+              >modules/orders/order-queue.service.ts:160-179</span
+            >
+            — same case → empty page; and <em>admin</em> without
+            <code>store_id</code>
+            throws <code>BadRequestException</code>
+          </li>
+          <li>
+            <span class="path"
+              >modules/complaints/complaint.service.ts:183-188</span
+            >
+            — a fourth copy
+          </li>
+          <li>
+            <span class="path">modules/shifts/shift.service.ts:22</span>
+            — a bare <code>assertStoreAccess</code>
+          </li>
+        </ul>
+
+        <h4>Why it matters</h4>
+        <p>
+          There is no single place that answers
+          <em>"is this endpoint store-scoped?"</em>
+          — you have to read every handler and every service to find out. The
+          logic itself is correct everywhere I checked; the repetition is the
+          defect. Add a sixteenth
+          <code>/orders/:id/…</code>
+          route and forget line one, and it silently serves another branch's
+          order. Nothing fails, no test catches it, and the reviewer has fifteen
+          correct examples above it to skim past.
+        </p>
+        <p>
+          The admin check in <code>routes/admin/reports.ts:29-32</code> proves
+          the team already knows the middleware shape — it just wasn't applied
+          to the store check sitting three lines below it.
+        </p>
+
+        <h4>What to do</h4>
+        <ol>
+          <li>
+            One <code>resolveStoreScope(user, requestedStoreId)</code> in
+            <code>utils/authorization.ts</code>
+            returning a discriminated result (<code>all</code>
+            / <code>one</code> / <code>some</code> /
+            <code>none</code>), so the four divergent behaviours become four
+            <em>declared</em>
+            cases instead of four transcriptions.
+          </li>
+          <li>
+            A <code>.use("/:id/*")</code> on the orders sub-app that runs
+            <code>assertOrderAccess</code>
+            once and stashes the order on the context. Fifteen call sites become
+            zero.
+          </li>
+          <li>
+            The same for <code>routes/admin/reports.ts</code> — see
+            <a href="#s4">S4</a>.
+          </li>
+        </ol>
+      </article>
+
+      <article class="f hi" id="c2">
+        <div class="f-head">
+          <span class="id">C2</span><span class="sev hi">High</span>
+          <h3 class="f-title">
+            Two error styles on the server produce 25
+            <code>Extract&lt;…, { success: true}&gt;</code>
+            in the web client
+          </h3>
+          <div class="tags">
+            <span class="tag">rpc</span><span class="tag">consistency</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <ul class="refs">
+          <li>
+            <span class="path">packages/server/src/errors.ts</span>
+            — five <code>HTTPException</code> subclasses, and
+            <span class="path">index.ts:23-26</span>
+            renders them
+          </li>
+          <li>
+            Yet route files contain <strong>35</strong>
+            <code>return c.json(failure(…), status)</code>
+            and exactly
+            <strong>1</strong> <code>throw</code> (<span class="path"
+              >routes/admin/orders.ts:155</span
+            >)
+          </li>
+          <li>
+            <span class="path">routes/admin/orders.ts</span>
+            uses both:
+            <code>throw new NotFoundException("Store not found")</code>
+            at 155, then
+            <code>return c.json(failure("Order not found"), 404)</code>
+            at 171 — two lines apart in spirit, same outcome on the wire
+          </li>
+          <li>
+            <span class="path">apps/web/src/lib/api.ts</span>
+            — 25 occurrences of
+            <code
+              >Extract&lt;InferResponseType&lt;…&gt;, { success: true }&gt;</code
+            >
+            (lines 84-241 and beyond)
+          </li>
+        </ul>
+
+        <h4>Why it matters</h4>
+        <p>
+          A <code>return c.json(failure(...))</code> is part of the handler's
+          <em>return type</em>. A
+          <code>throw</code>
+          is not. So every endpoint that returns a failure inline makes
+          <code>InferResponseType</code>
+          a union, and the web app has to peel the success arm off by hand — 25
+          times, in the one file that is supposed to make the RPC boundary feel
+          typed. Half the types in <code>api.ts</code> are plain (<code
+            >Customer</code
+          >, <code>Store</code>,
+          <code>Service</code>) and half are wrapped, and the difference tells
+          you nothing about the domain — only which error style that route
+          happened to pick.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          Standardise on <code>throw new NotFoundException(...)</code>. The
+          global <code>onError</code>
+          already renders it to the identical body and status, so this is a
+          mechanical edit with no behaviour change — and it deletes all 25
+          <code>Extract&lt;&gt;</code>
+          wrappers on the other side of the boundary.
+        </p>
+      </article>
+
+      <article class="f md" id="c3">
+        <div class="f-head">
+          <span class="id">C3</span><span class="sev md">Medium</span>
+          <h3 class="f-title">Three mechanisms for one timezone</h3>
+          <div class="tags"><span class="tag">dates</span></div>
+        </div>
+
+        <h4>Evidence</h4>
+        <ul class="refs">
+          <li>
+            <span class="path">packages/server/src/utils/date.ts:10-20</span>
+            — dayjs <code>.tz("Asia/Jakarta")</code>
+          </li>
+          <li>
+            <span class="path">modules/reports/report-range.util.ts:4</span>
+            — hand-rolled
+            <code>JAKARTA_OFFSET_MINUTES = 7 * 60</code>
+            arithmetic
+          </li>
+          <li>
+            <span class="path">modules/reports/report-range.util.ts:7</span>
+            — <code>AT TIME ZONE 'Asia/Jakarta'</code> pushed into SQL
+          </li>
+        </ul>
+
+        <h4>Why it matters</h4>
+        <p>
+          All three agree today, and they will keep agreeing: WIB is a fixed
+          UTC+7 with no DST. So this is not a bug. It is that
+          <code>packages/server/AGENTS.md</code>
+          explicitly mandates the dayjs helpers and says "do
+          <strong>not</strong>
+          inline
+          <code>dayjs().startOf('day')</code>" — and the reports module quietly
+          runs a third scheme that the standard doesn't mention. Someone reading
+          the standard will not expect <code>report-range.util.ts</code> to
+          exist.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          Leave the code alone — it's tested and correct. Add the exception to
+          <code>packages/server/AGENTS.md</code>: reports compute buckets with
+          fixed-offset arithmetic and <code>AT TIME ZONE</code> in SQL,
+          deliberately, because they must match Postgres' bucketing exactly. One
+          sentence closes the gap.
+        </p>
+      </article>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <h2><span class="n">03</span>Server — <code>packages/server</code></h2>
+      <p class="sect-note">
+        The module pattern (<span class="m">route → service → repository</span>)
+        is followed consistently and the domain logic around money and order
+        status is the strongest code in the repo. The problems are concentrated
+        in two places: what happens when something goes wrong, and the reports
+        module.
+      </p>
+
+      <article class="f hi" id="s1">
+        <div class="f-head">
+          <span class="id">S1</span><span class="sev hi">High</span>
+          <h3 class="f-title">
+            Unhandled 500s are silent — the error log is commented out
+          </h3>
+          <div class="tags">
+            <span class="tag">operability</span
+            ><span class="tag">production</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p><span class="m">packages/server/src/index.ts:53-54</span></p>
+        <pre><code>  // console.error(err);
+  return c.json(failure(err.message), StatusCodes.INTERNAL_SERVER_ERROR);</code></pre>
+
+        <h4>Why it matters</h4>
+        <p>
+          Any error that is neither an <code>HTTPException</code> nor a Postgres
+          error carrying
+          <code>.detail</code>
+          falls through to this branch. The client gets a message; the server
+          writes nothing. There is no stack, no route, no user id. The API
+          deploys as a container (<code>Dockerfile.vercel</code>), so the only
+          diagnostic surface is stdout — and this line is what would have
+          written to it.
+        </p>
+        <p>
+          This is the cheapest fix in the report and the one most likely to
+          matter at 9am on a Monday when a till stops taking orders.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          Uncomment it, and log the request context alongside — method, path,
+          and
+          <code>c.get("jwtPayload")?.id</code>. Do not log the body.
+        </p>
+      </article>
+
+      <article class="f hi" id="s2">
+        <div class="f-head">
+          <span class="id">S2</span><span class="sev hi">High</span>
+          <h3 class="f-title">
+            Raw Postgres <code>detail</code> is returned to the client — and it
+            contains customer PII
+          </h3>
+          <div class="tags">
+            <span class="tag">privacy</span
+            ><span class="tag">error-handling</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p><span class="m">packages/server/src/index.ts:28-50</span></p>
+        <pre
+        ><code>if (typeof err.cause === "object" && err.cause && "detail" in err.cause) {
+  // ... map SQLSTATE to status ...
+  return c.json(failure(err.cause.detail as string), statusCode);
+}</code></pre>
+        <p>The unique constraints this can fire on:</p>
+        <ul class="refs">
+          <li>
+            <span class="path">db/schema.ts:81</span>
+            — <code>customers.phone_number … .unique()</code>
+          </li>
+          <li>
+            <span class="path">db/schema.ts:75</span>
+            — <code>customers.email … .unique()</code>
+          </li>
+          <li>
+            <span class="path">db/schema.ts:42</span>
+            — <code>users.username … .unique()</code>
+          </li>
+        </ul>
+        <p>
+          Postgres' <code>detail</code> for SQLSTATE 23505 is literally
+          <code>Key (phone_number)=(+62812…) already exists.</code>
+          — the offending value, verbatim, in the HTTP error body. On the web
+          side that string lands in
+          <code>toast.error(details?.data?.message)</code>
+          (<span class="path">apps/web/src/main.tsx:40</span>), so a customer's
+          phone number or email can be rendered on screen as an error message.
+        </p>
+
+        <h4>Scope — being accurate about this</h4>
+        <p>
+          Every route that can hit this sits behind
+          <code>adminMiddleware</code>, so the audience is authenticated staff,
+          not the public. This is not a data breach. It <em>is</em> customer PII
+          leaving the database layer through an unintended channel, into a
+          surface (toast text, and any future client-side error reporting) that
+          was never designed to hold it.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          Map the SQLSTATE to a message you own —
+          <code>"A customer with that phone number already exists"</code>
+          — and keep <code>detail</code> on the server, in the log from
+          <a href="#s1">S1</a>. There is already an
+          <code>isUniqueViolation()</code>
+          helper in
+          <code>utils/errors.ts</code>
+          to hang the constraint-name switch off.
+        </p>
+      </article>
+
+      <article class="f hi" id="s3">
+        <div class="f-head">
+          <span class="id">S3</span><span class="sev hi">High</span>
+          <h3 class="f-title">
+            The reports module is 2,975 lines of money math with one test file
+          </h3>
+          <div class="tags">
+            <span class="tag">test-coverage</span><span class="tag">money</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr>
+                <th>Module</th>
+                <th>LOC</th>
+                <th>Test files</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono">modules/orders</td>
+                <td class="num">6,081</td>
+                <td class="num">11</td>
+              </tr>
+              <tr>
+                <td class="mono">modules/campaigns</td>
+                <td class="num">1,760</td>
+                <td class="num">5</td>
+              </tr>
+              <tr>
+                <td class="mono">modules/complaints</td>
+                <td class="num">717</td>
+                <td class="num">1</td>
+              </tr>
+              <tr>
+                <td class="mono"><strong>modules/reports</strong></td>
+                <td class="num"><strong>2,975</strong></td>
+                <td class="num"><strong>1</strong></td>
+              </tr>
+              <tr>
+                <td class="mono">
+                  modules/users / stores / products / services / shifts /
+                  customers / categories / payment-methods
+                </td>
+                <td class="num">1,202</td>
+                <td class="num">0</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The one reports test is <code>report-range.util.test.ts</code>,
+          covering the 164-line pure date helper. The 1,929 lines that actually
+          compute gross revenue, net revenue, COGS, gross profit, refunds, net
+          income and margin — <code>report-range.service.ts</code> (864) and
+          <code>report-range.repository.ts</code>
+          (1,065) — have none.
+        </p>
+
+        <h4>Why it matters</h4>
+        <p>
+          Every other module that touches money is well covered —
+          <code>order-discount</code>,
+          <code>order-payment</code>, <code>order-reversal</code>,
+          <code>refund-allocation</code>,
+          <code>campaign-eligibility</code>
+          all have dedicated suites. Reports is the single outlier, and it is
+          the layer whose numbers the business actually reads and makes
+          decisions on. A wrong subtotal in an order is visible to a cashier
+          within seconds; a wrong margin in a monthly report is invisible
+          indefinitely.
+        </p>
+        <p>
+          There is already a known open item that fits this profile exactly: the
+          range panels label
+          <em>gross sales</em>
+          as <em>revenue</em>. That is the class of bug tests would have caught.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          You don't need a database to test most of this.
+          <code>report-range.service.ts</code>
+          is mostly pure assembly over repository results —
+          <code>buildContext</code>, <code>kpi</code>,
+          <code>buildDeltas</code>, and the
+          <code>ctx.buckets.map(…)</code>
+          series-stitching in
+          <code>getFinancialReport:171-…</code>. Feed those fixed row arrays and
+          assert the arithmetic. Do this <em>before</em> <a href="#s5">S5</a>,
+          so the dedupe has a net under it.
+        </p>
+      </article>
+
+      <article class="f md" id="s4">
+        <div class="f-head">
+          <span class="id">S4</span><span class="sev md">Medium</span>
+          <h3 class="f-title">Ten report handlers, one body</h3>
+          <div class="tags"><span class="tag">duplication</span></div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          <span class="m"
+            >packages/server/src/routes/admin/reports.ts:33-166</span
+          >
+          — ten handlers, each of which is this:
+        </p>
+        <pre><code>const user  = c.get("jwtPayload") as JWTPayload;
+const query = c.req.valid("query");
+if (query.store_id !== undefined) {
+  await assertStoreAccess(user, query.store_id);
+}
+const data = await getXReport(query);
+return c.json(success(data));</code></pre>
+
+        <h4>Why it matters</h4>
+        <p>
+          Eight of the ten differ only in which <code>getXReport</code> they
+          call. The store-access line is the load-bearing one and it is
+          transcribed ten times — an eleventh report added without it serves
+          another branch's revenue to a store manager. The file already applies
+          <code>assertIsAdmin</code>
+          as a <code>.use()</code> at line 29, which is the shape this wants.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          Move the <code>store_id</code> check into that same
+          <code>.use()</code>
+          — it reads
+          <code>c.req.query("store_id")</code>
+          before validation, or runs as a second middleware after it. Then each
+          handler is one line, and "is this scoped?" has one answer for the
+          whole file.
+        </p>
+      </article>
+
+      <article class="f md" id="s5">
+        <div class="f-head">
+          <span class="id">S5</span><span class="sev md">Medium</span>
+          <h3 class="f-title">
+            The paid-order window is copy-pasted 11 times; the store filter, 24
+          </h3>
+          <div class="tags">
+            <span class="tag">duplication</span><span class="tag">sql</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          <span class="m"
+            >packages/server/src/modules/reports/report-range.repository.ts</span
+          >
+          — 21 exported query functions. This block appears verbatim in 11 of
+          them (53-60, 84-91, 117-124, 148-155, 181-188, 245-252, …):
+        </p>
+        <pre><code>const conditions = [
+  gte(ordersTable.paid_at, range.start),
+  lt(ordersTable.paid_at, range.end),
+  isNotNull(ordersTable.paid_at),
+];
+if (storeId !== undefined) {
+  conditions.push(eq(ordersTable.store_id, storeId));
+}</code></pre>
+        <p>
+          And four functions — <code>listServicesRevenueSeries</code> (47),
+          <code>listProductsRevenueSeries</code>
+          (78), <code>listServicesCogsSeries</code> (111),
+          <code>listProductsCogsSeries</code>
+          (142) — are the same 30-line query four times, differing only in which
+          table they join and which column they <code>SUM</code>.
+        </p>
+
+        <h4>Why it matters</h4>
+        <p>
+          "What counts as revenue" is one of the most important definitions in
+          this business, and it is written down eleven times. If the rule ever
+          changes — say refunded orders should be excluded, or
+          <code>paid_at</code>
+          becomes nullable in a new flow — eleven edits have to land together,
+          and a missed one produces a report that is subtly, silently wrong.
+          This is
+          <a href="#s3">S3</a>'s risk with a concrete trigger attached.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          A <code>paidOrderWindow( { range, storeId })</code> predicate builder,
+          plus one parameterised
+          <code>sumByBucket(table, column, args)</code>
+          for the four revenue/COGS series. Roughly 250 lines go, and the
+          definition of revenue becomes a thing you can point at.
+        </p>
+      </article>
+
+      <article class="f md" id="s6">
+        <div class="f-head">
+          <span class="id">S6</span><span class="sev md">Medium</span>
+          <h3 class="f-title">
+            63 <code>as JWTPayload</code> casts stand in for one missing generic
+          </h3>
+          <div class="tags"><span class="tag">types</span></div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          63 occurrences across the server, concentrated in the route files:
+        </p>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr>
+                <th>File</th>
+                <th>Casts</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono">routes/admin/orders.ts</td>
+                <td class="num">22</td>
+              </tr>
+              <tr>
+                <td class="mono">routes/admin/reports.ts</td>
+                <td class="num">11</td>
+              </tr>
+              <tr>
+                <td class="mono">routes/admin/users.ts</td>
+                <td class="num">6</td>
+              </tr>
+              <tr>
+                <td class="mono">routes/admin/complaints.ts · shifts.ts</td>
+                <td class="num">4 each</td>
+              </tr>
+              <tr>
+                <td class="mono">routes/admin/campaigns.ts</td>
+                <td class="num">3</td>
+              </tr>
+              <tr>
+                <td class="mono">routes/admin/customer.ts</td>
+                <td class="num">2</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>Why it matters</h4>
+        <p>
+          Each sub-app is created as a bare <code>new Hono()</code>, so
+          <code>c.get("jwtPayload")</code>
+          returns <code>unknown</code> and the cast papers over it. The parent
+          app in
+          <code>app.ts:7</code> <em>is</em> correctly typed with
+          <code>JwtVariables&lt;JWTPayload&gt;</code>
+          — the type just doesn't survive the <code>.route()</code> mount. The
+          result is 63 assertions that TypeScript can never check, in exactly
+          the code path that decides who is allowed to see what.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          <code
+            >new Hono&lt; { Variables: { jwtPayload: JWTPayload } }&gt;()</code
+          >
+          in each
+          <code>routes/admin/*.ts</code>. All 63 casts delete, and the payload
+          becomes typed rather than asserted.
+        </p>
+      </article>
+
+      <article class="f md" id="s7">
+        <div class="f-head">
+          <span class="id">S7</span><span class="sev md">Medium</span>
+          <h3 class="f-title">
+            <code>createOrder</code>
+            rejects inactive products but not inactive services
+          </h3>
+          <div class="tags">
+            <span class="tag">correctness</span
+            ><span class="tag">asymmetry</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          <span class="m"
+            >packages/server/src/modules/orders/order.service.ts:175-196</span
+          >
+        </p>
+        <pre
+        ><code>const missingProducts  = productIds.filter(id => !productMap.has(id));        // → 404
+const inactiveProducts = productIds.filter(id => !productMap.get(id)?.is_active); // → 400
+const missingServices  = serviceIds.filter(id => !serviceMap.has(id));        // → 404
+// no inactiveServices check</code></pre>
+        <ul class="refs">
+          <li>
+            <span class="path">db/schema.ts:136</span>
+            — <code>servicesTable.is_active</code> exists
+          </li>
+          <li>
+            <span class="path"
+              >apps/web/src/features/transactions/components/transactions-catalog.tsx:53-56</span
+            >
+            — the POS filters inactive services out <em>client-side</em>
+          </li>
+        </ul>
+
+        <h4>Why it matters</h4>
+        <p>
+          The rule "you cannot sell a retired service" currently lives only in
+          the browser. A cashier with a tab open from before a service was
+          retired can still add it and check out; the server accepts it and
+          snapshots its price and COGS into the order. The products path shows
+          what the right answer looks like, three lines above.
+        </p>
+        <p>
+          The client-side filter is also why this hasn't been noticed — it makes
+          the gap invisible in normal use, which is exactly the property that
+          lets it survive.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          Add the symmetric <code>inactiveServices</code> check. Separately,
+          consider having
+          <code>listServices()</code>
+          / <code>listProducts()</code>
+          (<span class="path">service.repository.ts:14</span>,
+          <span class="path">product.repository.ts:41</span>) take an
+          <code>activeOnly</code>
+          flag so the catalogue endpoint stops shipping retired rows to every
+          till at all.
+        </p>
+      </article>
+
+      <article class="f md" id="s8">
+        <div class="f-head">
+          <span class="id">S8</span><span class="sev md">Medium</span>
+          <h3 class="f-title">
+            <code>getOrderDetailById</code>
+            has no bounded shape
+          </h3>
+          <div class="tags">
+            <span class="tag">payload</span><span class="tag">growth</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          <span class="m"
+            >packages/server/src/modules/orders/order.service.ts:311-426</span
+          >
+          — one relational query with roughly 15 nested
+          <code>with</code>
+          blocks. Per service line it pulls every
+          <code>statusLogs</code>
+          row (each with its
+          <code>changedBy</code>
+          user), every <code>handlerLogs</code> row (each with
+          <code>changedBy</code>, <code>fromHandler</code>,
+          <code>toHandler</code>), plus <code>images</code>,
+          <code>refundItems</code>,
+          <code>complaints</code>
+          and <code>reworkOf</code>. None of it is paginated or capped.
+        </p>
+
+        <h4>Why it matters</h4>
+        <p>
+          Log tables only grow. An order with ten shoe lines that has been
+          through rework returns hundreds of rows to render a timeline that
+          shows a summary. The page is the most-visited screen in the admin app,
+          and its cost per order rises for the life of that order — quietly,
+          with no threshold where anything breaks. It just gets slower on the
+          shop's connection.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          Decide what the detail page actually renders from the logs — most
+          likely the latest few transitions — and cap the nested
+          <code>orderBy</code>/<code>limit</code>
+          accordingly. Full history moves behind its own endpoint that the
+          timeline expands into.
+        </p>
+      </article>
+
+      <article class="f lo" id="s9">
+        <div class="f-head">
+          <span class="id">S9</span><span class="sev lo">Low</span>
+          <h3 class="f-title">
+            The handler-claim transaction is written twice
+          </h3>
+          <div class="tags"><span class="tag">duplication</span></div>
+        </div>
+        <h4>Evidence</h4>
+        <ul class="refs">
+          <li>
+            <span class="path"
+              >modules/orders/order-queue.service.ts:278-317</span
+            >
+            — <code>startOrderServiceWork</code>
+          </li>
+          <li>
+            <span class="path"
+              >modules/orders/order-queue.service.ts:393-428</span
+            >
+            — <code>updateOrderServiceStatus</code>
+          </li>
+        </ul>
+        <p>
+          Both open a transaction, <code>SELECT … .for("update")</code> the
+          service row, throw if missing, conditionally reassign
+          <code>handler_id</code>, and insert an
+          <code>orderServiceHandlerLogsTable</code>
+          row. The only differences are the note string (<code
+            >"Started from queue"</code
+          >
+          vs <code>"Auto-assigned on status update"</code>) and one extra guard.
+          Roughly 25 lines, twice.
+        </p>
+        <h4>What to do</h4>
+        <p>
+          One <code>claimHandler(tx, { serviceId, user, note })</code>. The
+          locking and log-writing behaviour then has one owner, which matters
+          more here than the line count — this is the concurrency-sensitive
+          path.
+        </p>
+      </article>
+
+      <article class="f lo" id="s10">
+        <div class="f-head">
+          <span class="id">S10</span><span class="sev lo">Low</span>
+          <h3 class="f-title">
+            <code>GET /admin/reports/daily</code>
+            has no consumer
+          </h3>
+          <div class="tags"><span class="tag">dead-code</span></div>
+        </div>
+        <p>
+          <span class="m">routes/admin/reports.ts:33-47</span>
+          → <span class="m">report.service.ts:28</span>. Nothing in
+          <code>apps/web</code>
+          calls it — there is no
+          <code>fetchDailyReport</code>
+          in
+          <code>lib/api.ts</code>. It is still validated, authorised, and
+          carried along on every change to the reports module.
+          <code>getDailyReport</code> <em>is</em> used internally by
+          <code>getReportOverview</code>
+          (<span class="path">report.service.ts:72</span>), so keep the function
+          — drop the route, or note why it's kept.
+        </p>
+      </article>
+
+      <article class="f lo" id="s11">
+        <div class="f-head">
+          <span class="id">S11</span><span class="sev lo">Low</span>
+          <h3 class="f-title">
+            <code>is_active</code>
+            defaults disagree across tables
+          </h3>
+          <div class="tags"><span class="tag">schema</span></div>
+        </div>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr>
+                <th>Default <code>true</code></th>
+                <th>Default <code>false</code></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono">users (schema.ts:32)<br>campaigns (232)</td>
+                <td class="mono">
+                  stores (57) · categories (100) · products (113)<br>services
+                  (136) · payment_methods (161)
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Creating a service through the API without explicitly passing
+          <code>is_active</code>
+          yields a service nobody can sell, with no error. Whichever way you
+          settle it, settle it — and the reasoning belongs in
+          <code>CONTEXT.md</code>.
+        </p>
+      </article>
+
+      <article class="f lo" id="s12">
+        <div class="f-head">
+          <span class="id">S12</span><span class="sev lo">Low</span>
+          <h3 class="f-title">
+            Two unreachable defensive throws in <code>createOrder</code>
+          </h3>
+          <div class="tags"><span class="tag">dead-code</span></div>
+        </div>
+        <p>
+          <span class="m">order.service.ts:87</span>
+          and <span class="m">:247</span> re-check
+          <code>serviceMap.get(...)</code>
+          / <code>productMap.get(...)</code> and throw
+          <code>NotFoundException</code>
+          for ids that lines 175-196 already validated and rejected before the
+          transaction opened. They cannot fire. They also cost a reader time,
+          because on first read they suggest the earlier validation might be
+          incomplete.
+        </p>
+      </article>
+
+      <article class="f lo" id="s13">
+        <div class="f-head">
+          <span class="id">S13</span><span class="sev lo">Low</span>
+          <h3 class="f-title">Two modules named "errors"</h3>
+          <div class="tags"><span class="tag">naming</span></div>
+        </div>
+        <p>
+          <code>@/errors</code>
+          (<span class="path">src/errors.ts</span>) holds the five HTTP
+          exception classes. <code>@/utils/errors</code> (<span class="path"
+            >src/utils/errors.ts</span
+          >) holds
+          <code>isUniqueViolation</code>. Nothing in either name tells you which
+          is which, and both get imported into the same files.
+          <code>src/http-exceptions.ts</code>
+          and
+          <code>src/utils/pg-error.ts</code>
+          would each say what they are.
+        </p>
+      </article>
+
+      <article class="f lo" id="s14">
+        <div class="f-head">
+          <span class="id">S14</span><span class="sev lo">Low</span>
+          <h3 class="f-title">
+            CORS allows localhost only, and doesn't say why that's fine
+          </h3>
+          <div class="tags"><span class="tag">config</span></div>
+        </div>
+        <p>
+          <span class="m">app.ts:10-14</span>
+          allows <code>http://localhost:5173</code> and
+          <code>:4173</code>
+          and nothing else. This is <em>correct</em> in production — the
+          rewrites in
+          <code>vercel.json:17-20</code>
+          put the web app and the API behind one origin, so no cross-origin
+          request is ever made. But the config carries no record of that
+          reasoning, and the next person who tries to point a second front end
+          (or a Postman collection with an
+          <code>Origin</code>
+          header) at the API will lose an hour. One comment.
+        </p>
+      </article>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <h2><span class="n">04</span>Web — <code>apps/web</code></h2>
+      <p class="sect-note">
+        Measured against <em>Vercel React Best Practices</em> and
+        <em>React Composition Patterns</em>. The data layer (TanStack Query +
+        loaders + typed RPC) is set up correctly and the performance primitives
+        that are used are used well. The weight is in a handful of files that
+        have grown into several components' worth of work, and in one pattern
+        repeated across nine report panels.
+      </p>
+
+      <article class="f hi" id="w1">
+        <div class="f-head">
+          <span class="id">W1</span><span class="sev hi">High</span>
+          <h3 class="f-title">
+            <code>financial-panel.tsx</code>: 1,205 lines, 15 components, one
+            file
+          </h3>
+          <div class="tags">
+            <span class="tag">file-size</span
+            ><span class="tag">duplication</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          <span class="m"
+            >apps/web/src/features/reports/panels/financial-panel.tsx</span
+          >
+          defines
+          <code>FinancialPanel</code>, <code>PanelSectionTitle</code>,
+          <code>RevenueBreakdownCard</code>,
+          <code>RevenueLineChart</code>, <code>SankeyFlow</code>,
+          <code>SankeyLink</code>,
+          <code>SankeyNode</code>, <code>StatStrip</code>,
+          <code>KpiStrip</code>,
+          <code>BranchCategoryMatrix</code>, <code>MatrixModeToggle</code>,
+          <code>MatrixHeaderCell</code>,
+          <code>MatrixBranchRow</code>, <code>MatrixCell</code> and
+          <code>BranchList</code>
+          — 2.3× the next-largest panel (<code>overview-panel.tsx</code>, 230
+          lines).
+        </p>
+        <p>Inside it:</p>
+        <ul>
+          <li>
+            <code>formatIDRShort</code>
+            (96) and <code>formatAxisShort</code> (111) are the same function
+            twice — same thresholds, same structure, differing only in a
+            <code>Rp&nbsp;</code>
+            prefix and one decimal place.
+          </li>
+          <li>
+            The Sankey empty state is written out twice, identically: 491-500
+            and 581-590.
+          </li>
+          <li>
+            <code>toneForPct</code>
+            (71-77) looks a tone up by stringifying <code>Math.sign()</code>:
+            <code
+              >TONE_BY_SIGN[Math.sign(directional).toString() as "-1" | "0" |
+              "1"]</code
+            >. It works, but the cast is there because the type system is being
+            talked out of something.
+          </li>
+          <li>
+            <code>RevenueBreakdownCard</code>
+            takes both <code>data</code> and
+            <code>exportDisabled= { !data}</code>
+            (216-217) — the second is derivable from the first inside the
+            component.
+          </li>
+        </ul>
+
+        <h4>Why it matters</h4>
+        <p>
+          Three unrelated concerns share the file: KPI arithmetic, a Sankey
+          renderer with its own coordinate maths, and a heatmap table with its
+          own display-mode state. Nobody edits all three, but everybody scrolls
+          past all three, and a reviewer of a two-line change has 1,205 lines of
+          context to decide they don't need.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          Split by concern into <code>panels/financial/</code> —
+          <code>kpi-strip.tsx</code>,
+          <code>revenue-chart.tsx</code>, <code>revenue-sankey.tsx</code>,
+          <code>branch-category-matrix.tsx</code>, <code>branch-list.tsx</code>,
+          with
+          <code>financial-panel.tsx</code>
+          as the ~60-line composition. Lift
+          <code>formatIDRShort</code>/<code>formatAxisShort</code>
+          into
+          <code>features/reports/utils/format.ts</code>
+          as one function with an options argument — they are wanted by other
+          panels anyway.
+        </p>
+      </article>
+
+      <article class="f hi" id="w2">
+        <div class="f-head">
+          <span class="id">W2</span><span class="sev hi">High</span>
+          <h3 class="f-title">
+            <code>chart-card.tsx</code>
+            is a seven-variant switch that pins all of recharts into every panel
+          </h3>
+          <div class="tags">
+            <span class="tag">patterns-explicit-variants</span
+            ><span class="tag">bundle-dynamic-imports</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          <span class="m"
+            >apps/web/src/features/reports/components/chart-card.tsx</span
+          >
+          — 677 lines, 9 components. <code>ChartCardProps</code> is a union of
+          <code
+            >area | bar | stacked-bar | pie | donut | radar | radial | scatter</code
+          >
+          (114-120) and the body switches on <code>variant</code> at lines
+          170-182, with further <code>variant === …</code>
+          branches at 316 and 451. The import block (2-23) pulls
+          <code
+            >Area, AreaChart, Bar, BarChart, Cell, Pie, PieChart, Radar,
+            RadarChart, RadialBar, RadialBarChart, Scatter, ScatterChart</code
+          >
+          and six axis/grid components from recharts.
+        </p>
+
+        <h4>Why it matters</h4>
+        <p>Two costs, one structural and one measurable.</p>
+        <p>
+          <strong>Structural:</strong>
+          the union type is well built — each variant carries only its own props
+          — but the implementation collapses them back into one switch, so
+          adding a chart type means editing the union, the switch, the shell,
+          and the legend logic. Vercel's
+          <code>patterns-explicit-variants</code>
+          is precisely this case: the callers already know which chart they want
+          (<code>&lt;ChartCard variant="stacked-bar" …&gt;</code>), so the
+          variant should be a component name, not a string prop.
+        </p>
+        <p>
+          <strong>Measurable:</strong>
+          <code>routes/_admin/reports.tsx:29-55</code>
+          carefully
+          <code>lazy()</code>-loads all nine panels so a user on the Overview
+          tab doesn't pay for Financial. But the first panel that renders any
+          chart imports <code>chart-card.tsx</code>, which imports the whole
+          recharts surface — Sankey, Radar, Scatter and all. The code-splitting
+          is real; the win is mostly given back.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          Split into <code>&lt;AreaChartCard&gt;</code>,
+          <code>&lt;BarChartCard&gt;</code>,
+          <code>&lt;DonutChartCard&gt;</code>,
+          <code>&lt;RadarChartCard&gt;</code>,
+          <code>&lt;RadialChartCard&gt;</code>,
+          <code>&lt;ScatterChartCard&gt;</code>, each importing only the
+          recharts pieces it draws and all sharing the existing
+          <code>&lt;Shell&gt;</code>
+          (126). Same reuse, no switch, and each panel's lazy chunk carries only
+          the charts it uses.
+        </p>
+      </article>
+
+      <article class="f hi" id="w3">
+        <div class="f-head">
+          <span class="id">W3</span><span class="sev hi">High</span>
+          <h3 class="f-title">
+            The barcode scanner is 90 lines of camera lifecycle inlined into a
+            route — with its teardown written twice
+          </h3>
+          <div class="tags">
+            <span class="tag">extract-hook</span
+            ><span class="tag">duplication</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          <span class="m">apps/web/src/routes/_admin/worker.index.tsx</span>
+          (886 lines). Lines 353-445 own
+          <code>navigator.mediaDevices.getUserMedia</code>, a
+          <code>BarcodeDetector</code>, a
+          <code>requestAnimationFrame</code>
+          detection loop, a <code>MediaStream</code>, and four refs (<code
+            >videoRef</code
+          >, <code>streamRef</code>, <code>rafRef</code>,
+          <code>scanningRef</code>) — inside the same component that renders the
+          queue list, the filters and the pagination.
+        </p>
+        <p>
+          The unmount cleanup at 370-385 is a verbatim copy of
+          <code>stopScanner</code>'s body (353-368):
+        </p>
+        <pre
+        ><code>// stopScanner (353)                    // cleanup effect (370)
+scanningRef.current = false;            scanningRef.current = false;
+if (rafRef.current !== null) {          if (rafRef.current !== null) {
+  cancelAnimationFrame(rafRef.current);   cancelAnimationFrame(rafRef.current);
+  rafRef.current = null;                  rafRef.current = null;
+}                                       }
+if (streamRef.current) {                if (streamRef.current) {
+  for (const t of …getTracks()) …         for (const t of …getTracks()) …
+  streamRef.current = null;               streamRef.current = null;
+}                                       }
+setIsScanning(false);                   // ← only difference</code></pre>
+
+        <h4>Why it matters</h4>
+        <p>
+          Camera teardown has two owners. Fix a leak in one and the other keeps
+          it — and this is a hardware resource: a stream left running holds the
+          camera and drains a tablet that sits on a counter all day. The pattern
+          to follow already exists in this repo:
+          <code>features/orders/hooks/useCameraCapture.ts</code>
+          owns exactly this shape for the photo dialog, with one teardown path.
+        </p>
+        <p>Two more things in the same file:</p>
+        <ul>
+          <li>
+            The status-tab strip is duplicated verbatim between the mobile
+            dialog (565-597) and the desktop row (687-718) — ~30 lines, twice.
+          </li>
+          <li>
+            <code>queueQueryRef.current = queueQuery</code>
+            (245) mutates a ref during render. It works under the current
+            renderer, but it's a render side effect and React makes no promise
+            about it under concurrent rendering.
+          </li>
+        </ul>
+
+        <h4>What to do</h4>
+        <p>
+          Extract <code>useBarcodeScanner()</code> as a sibling to
+          <code>useCameraCapture</code>, returning
+          <code>{ isScanning, error, videoRef, start, stop }</code>. Extract
+          <code>&lt;QueueStatusTabs&gt;</code>. The route drops from 886 to
+          roughly 600 lines and stops being the place where camera bugs live.
+        </p>
+      </article>
+
+      <article class="f md" id="w4">
+        <div class="f-head">
+          <span class="id">W4</span><span class="sev md">Medium</span>
+          <h3 class="f-title">
+            The whole queue re-renders every 60 seconds to update a relative
+            timestamp
+          </h3>
+          <div class="tags">
+            <span class="tag">rerender-memo</span
+            ><span class="tag">rerender-use-ref-transient-values</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p><span class="m">routes/_admin/worker.index.tsx:145-150</span></p>
+        <pre><code>const [now, setNow] = useState(() =&gt; Date.now());
+useEffect(() =&gt; {
+  const interval = setInterval(() =&gt; setNow(Date.now()), 60_000);
+  return () =&gt; clearInterval(interval);
+}, []);</code></pre>
+        <p>
+          <code>now</code>
+          is passed to every <code>&lt;QueueRow&gt;</code> (754) purely so it
+          can render
+          <code>Waiting 3h 20m</code>. <code>QueueRow</code> (800) is not
+          memoized, and
+          <code>onOpen= { () =&gt; navigateToQueueDetail(item)}</code>
+          (755) is a fresh closure per render, so memoizing it alone wouldn't
+          help either.
+        </p>
+
+        <h4>Why it matters</h4>
+        <p>
+          This is an infinite-scroll list —
+          <code>QUEUE_PAGE_SIZE = 20</code>
+          and it grows as the worker scrolls. Every minute, on a tablet, the
+          entire mounted list re-renders so that a handful of visible rows can
+          change one string. It's the busiest screen for the busiest role.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          Either derive a coarse primitive in the parent and memoize the row on
+          it — the tone only has four buckets (<code>getElapsedTone</code>,
+          82-93) and the label only changes by the minute — or push the ticking
+          into a small <code>&lt;WaitingBadge createdAt&gt;</code> so only the
+          badges re-render. Wrap <code>QueueRow</code> in <code>memo</code> and
+          pass <code>item.id</code> to a stable <code>onOpen</code>.
+        </p>
+      </article>
+
+      <article class="f md" id="w5">
+        <div class="f-head">
+          <span class="id">W5</span><span class="sev md">Medium</span>
+          <h3 class="f-title">
+            <code>app-shell.tsx</code>
+            writes the same nav group four times
+          </h3>
+          <div class="tags"><span class="tag">duplication</span></div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          <span class="m">apps/web/src/components/app-shell.tsx:242-253</span>
+          — four identical filters:
+        </p>
+        <pre
+        ><code>const allowedWorkNavigation      = workNavigation.filter(i =&gt; role ? i.roles.includes(role) : false);
+const allowedCustomersNavigation = customersNavigation.filter(i =&gt; role ? i.roles.includes(role) : false);
+const allowedCatalogNavigation   = catalogNavigation.filter(i =&gt; role ? i.roles.includes(role) : false);
+const allowedOperationsNavigation= operationsNavigation.filter(i =&gt; role ? i.roles.includes(role) : false);</code></pre>
+        <p>
+          Then lines 271-305 — four identical render blocks, one per group, each
+          8 lines.
+        </p>
+
+        <h4>Why it matters</h4>
+        <p>
+          Adding a sidebar section is a four-site edit: declare the array,
+          declare the filter, add the block, and get the ordering right. About
+          55 lines encode what is really a list of four
+          <code>{ label, items }</code>
+          pairs. Also <code>role = meQuery.data?.role as Role | undefined</code>
+          (231) casts a value the server already types.
+        </p>
+
+        <h4>What to do</h4>
+        <pre><code>const NAV_GROUPS = [
+  { label: "Operations", items: operationsNavigation },
+  { label: "Work",       items: workNavigation },
+  { label: "Customers",  items: customersNavigation },
+  { label: "Catalog",    items: catalogNavigation },
+] as const;
+
+// …one map, one filter, ~12 lines total</code></pre>
+      </article>
+
+      <article class="f md" id="w6">
+        <div class="f-head">
+          <span class="id">W6</span><span class="sev md">Medium</span>
+          <h3 class="f-title">
+            The nine report panels repeat themselves in four separate ways
+          </h3>
+          <div class="tags">
+            <span class="tag">duplication</span
+            ><span class="tag">named-exports</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr>
+                <th>Repeated thing</th>
+                <th>Copies</th>
+                <th>Where</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  The props interface
+                  <code>{ from, to, storeId?, granularity? }</code>
+                </td>
+                <td class="num">7</td>
+                <td class="mono">
+                  campaigns · customers · financial · operations · payments ·
+                  quality · workers
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code>handleExport</code>
+                  building CSV via <code>lines.push(…)</code>
+                </td>
+                <td class="num">7</td>
+                <td class="mono">same seven</td>
+              </tr>
+              <tr>
+                <td>
+                  Share bar:
+                  <code>&lt;div className="h-1.5 w-full bg-muted"&gt;</code>
+                  + label + amount + footer row
+                </td>
+                <td class="num">8</td>
+                <td class="mono">
+                  overview (×2) · customers · quality · financial · payments ·
+                  campaigns · workers
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  Both <code>export const XPanel</code> and
+                  <code>export default XPanel</code>
+                </td>
+                <td class="num">9</td>
+                <td class="mono">all panels</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>Why it matters</h4>
+        <p>
+          The share bar is the clearest case: eight hand-written copies of the
+          same four-element layout means eight places to touch for a spacing
+          change, and they have already drifted — some show a percentage in the
+          footer, some don't. Same for CSV export: seven <code>lines.push</code>
+          sequences with seven chances to forget <code>escapeCsv</code>.
+        </p>
+        <p>
+          The default exports exist only to satisfy
+          <code>lazy(() =&gt; import(…))</code>
+          in
+          <code>routes/_admin/reports.tsx:29-55</code>. That's avoidable, and
+          it's the one item here that contradicts a stated house rule (named
+          exports, never default).
+        </p>
+
+        <h4>What to do</h4>
+        <ul>
+          <li>
+            One <code>ReportRangePanelProps</code> in
+            <code>features/reports/types.ts</code>.
+          </li>
+          <li>
+            One <code>&lt;ShareBar label value share footer /&gt;</code> in
+            <code>features/reports/components/</code>.
+          </li>
+          <li>
+            One <code>buildCsv(sections)</code> in
+            <code>features/reports/utils/csv.ts</code>, next to the
+            <code>escapeCsv</code>
+            that already lives there.
+          </li>
+          <li>
+            Drop the default exports and use the named-import form —
+            <code
+              >lazy(() =&gt; import("…/financial-panel").then(m =&gt; ( {
+              default: m.FinancialPanel })))</code
+            >
+            — which is the pattern <code>main.tsx:15-19</code> already uses for
+            the devtools.
+          </li>
+        </ul>
+      </article>
+
+      <article class="f md" id="w7">
+        <div class="f-head">
+          <span class="id">W7</span><span class="sev md">Medium</span>
+          <h3 class="f-title">
+            <code>lib/api.ts</code>
+            spells out the same query serialiser seven times — and they've
+            drifted
+          </h3>
+          <div class="tags">
+            <span class="tag">duplication</span><span class="tag">types</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          <span class="m">apps/web/src/lib/api.ts</span>
+          (1,389 lines). Seven functions —
+          <code>fetchCustomersPage</code>
+          (530), <code>fetchUsersPage</code> (569),
+          <code>fetchOrdersPage</code>
+          (637), <code>fetchCampaigns</code> (676),
+          <code>fetchOrderServiceQueuePage</code>
+          (926), <code>fetchComplaintsPage</code> (1014),
+          <code>fetchShifts</code>
+          (1229) — each contain a 10-25 line block of this:
+        </p>
+        <pre><code>query &amp;&amp; Object.keys(query).length &gt; 0
+  ? {
+      ...(query.limit  !== undefined ? { limit:  String(query.limit) }  : {}),
+      ...(query.offset !== undefined ? { offset: String(query.offset) } : {}),
+      ...(query.search ? { search: query.search } : {}),
+      // …one line per field
+    }
+  : undefined</code></pre>
+        <p>
+          Buried in that repetition, the pagination handling has already
+          diverged: four functions synthesise a fallback when the server omits
+          <code>meta</code>
+          (<code>response.meta ?? { limit: …, total: data.length }</code>), and
+          three just cast (<code>response.meta as PaginationMeta</code>) and
+          would produce
+          <code>undefined.total</code>
+          in the same situation. Nothing in the code says which endpoints are
+          which, or why.
+        </p>
+        <p>
+          Separately, <code>parseSuccessData&lt;T&gt;()</code> (38-43) returns
+          <code>response.data</code>
+          as <code>T</code> with no verification. So
+          <code>fetchOrderDetail</code>'s type is
+          <em>asserted</em>
+          while <code>fetchStores</code>'s is genuinely <em>inferred</em> — two
+          tiers of type safety in one file, indistinguishable at the call site.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          One <code>toSearchParams(query)</code> that drops
+          <code>undefined</code>
+          and
+          <code>String()</code>s the rest — roughly 180 lines go. Then decide
+          the <code>meta</code>
+          question once: either every list endpoint returns
+          <code>meta</code>
+          (fix the server) or the fallback is applied in one shared
+          <code>toPaginated(response, query)</code>.
+        </p>
+        <p>
+          The 35 module-level route constants at the top (45-82) exist only to
+          feed
+          <code>InferResponseType&lt;typeof xRoute&gt;</code>.
+          <code>InferResponseType&lt;typeof rpc.api.admin.orders.$get&gt;</code>
+          works inline; the aliases are 38 lines of runtime values used only in
+          type position.
+        </p>
+      </article>
+
+      <article class="f md" id="w8">
+        <div class="f-head">
+          <span class="id">W8</span><span class="sev md">Medium</span>
+          <h3 class="f-title">
+            <code>data-table.tsx</code>
+            is two different tables in one component
+          </h3>
+          <div class="tags">
+            <span class="tag">patterns-explicit-variants</span
+            ><span class="tag">js-combine-iterations</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          <span class="m">apps/web/src/components/data-table.tsx</span>
+          (424 lines). Lines 111-326 render a mobile card list; 328-423 render a
+          real <code>&lt;table&gt;</code>. The branch is
+          <code>if (isCardView)</code>
+          at 111. The card half alone is 215 lines with JSX nested five deep and
+          five separate passes over the same array (154-175):
+        </p>
+        <pre><code>const usableCells  = visibleCells.filter(…);   // pass 1
+const eyebrowCells = usableCells.filter(…);    // pass 2
+const badgeCells   = usableCells.filter(…);    // pass 3
+const footerCells  = usableCells.filter(…);    // pass 4
+const detailCells  = usableCells.filter(…);    // pass 5</code></pre>
+        <p>
+          Related: <span class="m">hooks/use-mobile.ts:6-20</span> starts
+          <code>isMobile</code>
+          at
+          <code>undefined</code>
+          and returns <code>!!isMobile</code>, so the first render on a phone
+          always reports desktop — the full table mounts for one frame before
+          the cards replace it.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          <code>&lt;DataTableCards&gt;</code>
+          and <code>&lt;DataTableGrid&gt;</code>, with
+          <code>DataTable</code>
+          as the ~15-line chooser. Each half becomes readable on its own screen,
+          and the five filters collapse into one bucketing loop. Give
+          <code>useIsMobile</code>
+          a synchronous initial value from
+          <code>window.matchMedia(...).matches</code>
+          to remove the flash.
+        </p>
+      </article>
+
+      <article class="f md" id="w9">
+        <div class="f-head">
+          <span class="id">W9</span><span class="sev md">Medium</span>
+          <h3 class="f-title">
+            The photo dialog gets the variants right and the base wrong
+          </h3>
+          <div class="tags">
+            <span class="tag">architecture-avoid-boolean-props</span
+            ><span class="tag">architecture-compound-components</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <p>
+          <span class="m"
+            >features/orders/components/photo-upload-dialog.tsx</span
+          >
+          (791 lines). The exports are exactly right —
+          <code>PhotoUploadDialog</code>
+          (749),
+          <code>SinglePhotoUploadDialog</code>
+          (753) and <code>SinglePhotoCaptureDialog</code> (774) are explicit,
+          self-documenting variants. That is what Vercel's
+          <code>patterns-explicit-variants</code>
+          asks for, and it's rare to see it done.
+        </p>
+        <p>
+          But all three funnel into <code>PhotoUploadDialogBase</code>, a
+          670-line component taking
+          <code>multiple</code>, <code>withNote</code>,
+          <code>onCapture</code>
+          and
+          <code>autoOpenCamera</code>
+          (52-70) and branching on them throughout — including a three-arm
+          nested ternary spanning lines 535-718, and a nested ternary for a
+          single label at 374-378:
+        </p>
+        <pre
+        ><code>const confirmBase = isCaptureMode ? (multiple ? "Use photos" : "Use photo") : "Upload";</code></pre>
+
+        <h4>Why it matters</h4>
+        <p>
+          Four boolean-ish modes is sixteen notional states in one component,
+          and the reader has to hold all of them to follow any one path. This is
+          the rule's canonical case: the variants know what they want, so they
+          should <em>compose</em> the pieces rather than flag them.
+        </p>
+
+        <h4>What to do</h4>
+        <p>
+          A <code>PhotoCaptureProvider</code> holding
+          <code>{ state, actions, meta }</code>, plus composable chrome —
+          <code>&lt;PhotoCapture.Stage&gt;</code>,
+          <code>&lt;PhotoCapture.Shutter&gt;</code>,
+          <code>&lt;PhotoCapture.Note&gt;</code>,
+          <code>&lt;PhotoCapture.Confirm&gt;</code>. Then
+          <code>SinglePhotoCaptureDialog</code>
+          simply doesn't render
+          <code>&lt;Note&gt;</code>, instead of passing
+          <code>withNote= { false}</code>
+          into a branch 400 lines away.
+        </p>
+        <div class="note good">
+          <p>
+            Worth saying plainly: the comments in this file are the best in the
+            codebase. Lines 291-298 explain <em>why</em> the upload pipeline is
+            serial rather than a fan-out (shot order drives gallery order; the
+            shop uplink saturates on one upload), and 317-323 explain why the
+            read-ahead promise gets a bare <code>.catch</code>. That is business
+            reasoning a future reader could not reconstruct, written down.
+            Whatever the refactor, keep them.
+          </p>
+        </div>
+      </article>
+
+      <article class="f md" id="w10">
+        <div class="f-head">
+          <span class="id">W10</span><span class="sev md">Medium</span>
+          <h3 class="f-title">All three persisted stores are unversioned</h3>
+          <div class="tags">
+            <span class="tag">client-localstorage-schema</span>
+          </div>
+        </div>
+
+        <h4>Evidence</h4>
+        <ul class="refs">
+          <li>
+            <span class="path">stores/auth-store.ts:20</span>
+            — <code>{ name: "jwt" }</code>
+          </li>
+          <li>
+            <span class="path">stores/transaction-preferences-store.ts:35</span>
+            — <code>{ name: "transaction-preferences" }</code>
+          </li>
+          <li>
+            <span class="path">stores/printer-store.ts:18</span>
+            — <code>{ name: "printer" }</code>
+          </li>
+        </ul>
+        <p>
+          None passes zustand's <code>version</code> / <code>migrate</code>.
+          Separately,
+          <span class="m">components/theme-provider.tsx:36</span>
+          and <span class="m">:60</span> call
+          <code>localStorage.getItem</code>/<code>setItem</code>
+          with no <code>try/catch</code>, which throws outright in Safari
+          private browsing.
+        </p>
+
+        <h4>Why it matters</h4>
+        <p>
+          <code>selectedStoreIdByUser</code>
+          is keyed by user id and drives which branch a till defaults to. Change
+          its shape and every device in every branch silently rehydrates stale
+          data into the new type — no error, no reset, just a POS defaulting to
+          the wrong store until someone clears site data. A
+          <code>version: 1</code>
+          today costs nothing and makes that a one-line
+          <code>migrate</code>
+          later.
+        </p>
+      </article>
+
+      <article class="f lo" id="w11">
+        <div class="f-head">
+          <span class="id">W11</span><span class="sev lo">Low</span>
+          <h3 class="f-title">
+            Five near-identical form fields, written out five times
+          </h3>
+          <div class="tags"><span class="tag">duplication</span></div>
+        </div>
+        <p>
+          <span class="m"
+            >features/transactions/components/checkout-items-step.tsx:148-255</span
+          >
+          — Color, Brand, Model, Size and Notes are five ~20-line
+          <code
+            >&lt;Field&gt;&lt;FieldLabel&gt;&lt;Input/&gt;&lt;FieldError/&gt;&lt;/Field&gt;</code
+          >
+          blocks differing only in key, label and placeholder. They have already
+          drifted: Brand, Model and Size render a
+          <code>&lt;FieldError&gt;</code>; Color and Notes don't. A
+          <code>SERVICE_FIELDS</code>
+          array plus one <code>.map</code> is about 15 lines and makes the
+          difference deliberate or gone.
+        </p>
+      </article>
+
+      <article class="f lo" id="w12">
+        <div class="f-head">
+          <span class="id">W12</span><span class="sev lo">Low</span>
+          <h3 class="f-title">
+            <code>theme-provider.tsx</code>
+            is the codebase's only pre-React-19 context
+          </h3>
+          <div class="tags"><span class="tag">react19-no-forwardref</span></div>
+        </div>
+        <p>Four things, all in one 81-line file:</p>
+        <ul>
+          <li>
+            <code>useContext(ThemeProviderContext)</code>
+            (73) where
+            <code>features/transactions/lib/transactions-context.tsx:27</code>
+            already uses
+            <code>use()</code>.
+          </li>
+          <li>
+            <code>&lt;ThemeProviderContext.Provider&gt;</code>
+            (66) where the same file already uses the React 19
+            <code>&lt;Context&gt;</code>
+            form.
+          </li>
+          <li>
+            <code>const value = { theme, setTheme }</code>
+            (57) is a new object every render, so every
+            <code>useTheme()</code>
+            consumer re-renders whenever the provider does.
+          </li>
+          <li>
+            <code>if (context === undefined)</code>
+            (75) can never fire — <code>createContext</code> was given a default
+            at line 27.
+          </li>
+        </ul>
+        <p>
+          Two context idioms in one codebase is one more than needed. This is
+          the file to align.
+        </p>
+      </article>
+
+      <article class="f lo" id="w13">
+        <div class="f-head">
+          <span class="id">W13</span><span class="sev lo">Low</span>
+          <h3 class="f-title">
+            <code>getCurrentUser()</code>
+            decodes the JWT on every call
+          </h3>
+          <div class="tags">
+            <span class="tag">js-cache-function-results</span>
+          </div>
+        </div>
+        <p>
+          <span class="m">stores/auth-store.ts:25-36</span>
+          runs <code>jwtDecode</code> fresh each time. It has 12 call sites,
+          several of them in render bodies that run often —
+          <code>app-shell.tsx:227</code>, <code>worker.index.tsx:141</code>,
+          <code>use-transactions-page.ts:104</code>,
+          <code>order-service-detail.tsx:98</code>. Cache the decoded payload
+          keyed on the token string; invalidate in <code>clearToken</code>.
+        </p>
+      </article>
+
+      <article class="f lo" id="w14">
+        <div class="f-head">
+          <span class="id">W14</span><span class="sev lo">Low</span>
+          <h3 class="f-title">A <code>useMemo</code> that can never hit</h3>
+          <div class="tags"><span class="tag">rerender-dependencies</span></div>
+        </div>
+        <p>
+          <span class="m"
+            >features/transactions/hooks/use-transactions-page.ts:132-144</span
+          >
+        </p>
+        <pre
+        ><code>const userStoreIds = meQuery.data?.userStores?.map(i =&gt; i.store_id) ?? [];  // new array every render
+
+const visibleStores = useMemo(() =&gt; {
+  …
+}, [isAdmin, storesQuery.data, userStoreIds]);   // ← so this dep always changes</code></pre>
+        <p>
+          The filter re-runs on every render regardless. Depend on
+          <code>meQuery.data</code>
+          and move the
+          <code>.map</code>
+          inside, or memoize <code>userStoreIds</code> first. The same shape
+          appears at
+          <code>worker.index.tsx:167-170</code>, where it <em>is</em> memoized
+          correctly — worth matching.
+        </p>
+      </article>
+
+      <article class="f lo" id="w15">
+        <div class="f-head">
+          <span class="id">W15</span><span class="sev lo">Low</span>
+          <h3 class="f-title">
+            The branch × category matrix looks cells up by scanning
+          </h3>
+          <div class="tags"><span class="tag">js-index-maps</span></div>
+        </div>
+        <p>
+          <span class="m">financial-panel.tsx:905</span>
+          and <span class="m">:1073</span> call
+          <code>row.cells.find(c =&gt; c.category_id === col.category_id)</code>
+          inside a
+          <code>columns.map</code>
+          inside a rows loop — O(rows × columns × cells) — and
+          <span class="m">:190</span>
+          repeats it in the CSV export. One
+          <code>new Map(row.cells.map(c =&gt; [c.category_id, c]))</code>
+          per row fixes all three. Today's data is small enough that nobody
+          notices; it's free to fix while <a href="#w1">W1</a> is open.
+        </p>
+      </article>
+
+      <article class="f lo" id="w16">
+        <div class="f-head">
+          <span class="id">W16</span><span class="sev lo">Low</span>
+          <h3 class="f-title">Three dead exports in <code>lib/api.ts</code></h3>
+          <div class="tags"><span class="tag">dead-code</span></div>
+        </div>
+        <p>
+          <code>fetchCampaignById</code>
+          (695), <code>deleteCampaign</code> (738) and
+          <code>updateOrderServiceHandler</code>
+          (975) have no callers anywhere in
+          <code>apps/web/src</code>. The server side is clean by comparison — a
+          scan of every exported service function found no unused ones.
+        </p>
+      </article>
+
+      <article class="f lo" id="w17">
+        <div class="f-head">
+          <span class="id">W17</span><span class="sev lo">Low</span>
+          <h3 class="f-title">
+            House style splits cleanly at the <code>routes/</code> boundary
+          </h3>
+          <div class="tags"><span class="tag">style</span></div>
+        </div>
+        <p>
+          117 components are arrow functions with named exports and
+          <code>FooProps</code>
+          interfaces. 32 outside
+          <code>components/ui/</code>
+          are <code>function</code> declarations with inline prop types — and
+          they are almost exactly the route components plus their local helpers:
+          <code>worker.index.tsx:140,800</code>, <code>app-shell.tsx:192</code>,
+          <code>attendance.tsx:58,261</code>,
+          <code>track.tsx:101,147,238</code>,
+          <code>reports.tsx:189</code>, and every other <code>*Page</code>.
+          <code>components/ui/</code>
+          is shadcn-generated and correctly exempt.
+        </p>
+        <p>
+          Stating it as a fact rather than an argument: this is your own
+          non-negotiable, and
+          <code>routes/</code>
+          is where it isn't held. It's mechanical, and Biome won't tell you.
+        </p>
+        <p>
+          One adjacent item: <code>transactions-catalog.tsx:218-268</code> casts
+          <code>item as Product</code>
+          / <code>item as Service</code> inside a shared
+          <code>.map</code>, because <code>activeItems</code> (135) is an
+          undiscriminated union of the two. Two explicit grids drop both casts.
+        </p>
+      </article>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <h2><span class="n">05</span>What's working</h2>
+      <p class="sect-note">
+        An audit that only lists problems misrepresents the codebase and invites
+        someone to "fix" the parts that are already right. These are
+        load-bearing and should survive any refactor above.
+      </p>
+
+      <ul class="good-list">
+        <li>
+          <strong>The money and status logic is genuinely well tested.</strong>
+          11 test files across
+          <code>modules/orders</code>, 5 across <code>modules/campaigns</code>,
+          plus
+          <code>permissions</code>, <code>refund-allocation</code>,
+          <code>discount</code>
+          and
+          <code>order-status-machine</code>. 259 server + 70 web tests, 1,230
+          assertions, all green.
+        </li>
+
+        <li>
+          <strong><code>report-range.util.ts</code> is the model.</strong>
+          164 lines, pure, no dependencies beyond <code>drizzle-orm/sql</code>,
+          fully tested. Bucket enumeration, ISO week derivation, previous-range
+          shifting — all readable top to bottom. This is what the rest of the
+          reports stack should look like after <a href="#s5">S5</a>.
+        </li>
+
+        <li>
+          <strong>Concurrency is taken seriously where it matters.</strong>
+          <code>order-queue.service.ts</code>
+          uses <code>SELECT … .for("update")</code> before claiming a handler
+          (279-288, 394-403), and status changes go through a real transition
+          machine rather than an <code>UPDATE</code>.
+          <code>decrementProductStock</code>
+          (<code>product.repository.ts:7-17</code>) does the stock check in the
+          <code>WHERE</code>
+          clause and reports failure by empty <code>returning()</code> — no
+          read-then-write race.
+        </li>
+
+        <li>
+          <strong>Prepared statements on the hot paths.</strong>
+          <code>middlewares/admin.ts:9</code>,
+          <code>utils/authorization.ts:6,18,43</code>,
+          <code>order-queue.service.ts:66,73</code>. Applied where they earn
+          their keep, not everywhere.
+        </li>
+
+        <li>
+          <strong>ADR-0006 is honoured on both sides.</strong>
+          The middleware re-reads
+          <code>role</code>
+          and <code>can_process_pickup</code> from the DB every request (<code
+            >admin.ts:16-40</code
+          >), and the web deliberately reads role from
+          <code>/users/me</code>
+          rather than the JWT claim — with the reason written at
+          <code>app-shell.tsx:228</code>
+          and <code>worker.index.tsx:171</code>. A decision, recorded, then
+          actually followed.
+        </li>
+
+        <li>
+          <strong
+            >Performance primitives are used deliberately, not sprayed.</strong
+          >
+          <code>useDeferredValue</code>
+          on catalogue search (<code>transactions-catalog.tsx:68</code>),
+          <code>memo</code>
+          on exactly the two components that needed it (<code
+            >order-service-row.tsx:21</code
+          >,
+          <code>order-pickup-event-dialog.tsx</code>), route-level
+          <code>lazy()</code>
+          + Suspense for report panels, and
+          <code>defaultPreload: "intent"</code>
+          with
+          <code>defaultPreloadStaleTime: 0</code>
+          plus a comment explaining exactly why (<code>main.tsx:60-63</code>).
+        </li>
+
+        <li>
+          <strong>Comments explain business reasons, not mechanics.</strong>
+          <code>photo-upload-dialog.tsx:291-298</code>
+          on serial uploads,
+          <code>api.ts:560-562</code>
+          on why phone lookup is 0-or-1,
+          <code>data-table.tsx:96-97</code>
+          on why the card breakpoint is <code>lg</code> and not
+          <code>md</code>, <code>product.repository.ts:19-20</code> on the
+          second stock writer. This is the hardest kind of documentation to get
+          right and this codebase mostly has it.
+        </li>
+
+        <li>
+          <strong>Ultracite/Biome clean across 349 files.</strong>
+          Formatting and lint are a solved problem here, which is why every
+          finding above is a structural one.
+        </li>
+      </ul>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <h2><span class="n">06</span>Suggested order</h2>
+      <p class="sect-note">Ordered by payoff per hour, not by severity.</p>
+
+      <div class="tw">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Do</th>
+              <th>Why now</th>
+              <th>Size</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="num">1</td>
+              <td>
+                <a href="#m1">M1</a> <code>.notNull()</code> on
+                <code>orders.total</code>
+              </td>
+              <td>
+                One word. Re-arms three CHECK constraints, deletes 17 downstream
+                <code>?? 0</code>. Zero rows violate it, so no migration risk.
+                Nothing else in this report has this ratio.
+              </td>
+              <td class="num">5 min</td>
+            </tr>
+            <tr>
+              <td class="num">2</td>
+              <td>
+                <a href="#s1">S1</a>
+                uncomment the error log · <a href="#s2">S2</a> stop returning
+                Postgres <code>detail</code>
+              </td>
+              <td>The two that hurt in production. One is a single line.</td>
+              <td class="num">&lt; 1h</td>
+            </tr>
+            <tr>
+              <td class="num">3</td>
+              <td>
+                <a href="#m2">M2</a>
+                explicit <code>scale: 0</code> + one boundary test ·
+                <a href="#m4">M4</a>
+                rename and fix <code>currencySchema</code>
+              </td>
+              <td>
+                Turns an accidental invariant into a stated one. The DDL does
+                not change, so this is documentation that the type system
+                enforces.
+              </td>
+              <td class="num">2h</td>
+            </tr>
+            <tr>
+              <td class="num">4</td>
+              <td>
+                <a href="#s6">S6</a>
+                type the Hono <code>Variables</code> · <a href="#c2">C2</a> one
+                error style
+              </td>
+              <td>
+                Mechanical, no behaviour change, deletes 63 casts and 25
+                <code>Extract&lt;&gt;</code>. Makes everything after it easier
+                to read.
+              </td>
+              <td class="num">half day</td>
+            </tr>
+            <tr>
+              <td class="num">5</td>
+              <td>
+                <a href="#c1">C1</a> <code>resolveStoreScope</code> + orders
+                <code>:id</code>
+                middleware · <a href="#s4">S4</a> reports middleware
+              </td>
+              <td>
+                The fragile one. Turns 25 transcribed authorisation lines into
+                two enforced ones.
+              </td>
+              <td class="num">1 day</td>
+            </tr>
+            <tr>
+              <td class="num">6</td>
+              <td>
+                <a href="#s3">S3</a>
+                tests for the reports service, <em>then</em>
+                <a href="#s5">S5</a>
+                dedupe the repository
+              </td>
+              <td>
+                In that order. The dedupe touches the definition of revenue; it
+                needs a net first.
+              </td>
+              <td class="num">2 days</td>
+            </tr>
+            <tr>
+              <td class="num">7</td>
+              <td>
+                <a href="#w1">W1</a>
+                split financial-panel · <a href="#w2">W2</a> explicit chart
+                variants · <a href="#w6">W6</a> shared panel plumbing
+              </td>
+              <td>
+                Biggest readability win in the web app, and W2 gives back the
+                code-splitting reports already pays for.
+              </td>
+              <td class="num">2 days</td>
+            </tr>
+            <tr>
+              <td class="num">8</td>
+              <td>
+                <a href="#w3">W3</a> <code>useBarcodeScanner</code> ·
+                <a href="#w7">W7</a> <code>toSearchParams</code> ·
+                <a href="#w5">W5</a>
+                nav groups · <a href="#w8">W8</a> split data-table
+              </td>
+              <td>
+                Four independent, contained changes. Any one is an afternoon.
+              </td>
+              <td class="num">2 days</td>
+            </tr>
+            <tr>
+              <td class="num">9</td>
+              <td>
+                <a href="#s7">S7</a>
+                inactive-service check · <a href="#m3">M3</a> drop the phantom
+                <code>.toFixed(2)</code>
+                · <a href="#w10">W10</a> store versions
+              </td>
+              <td>Small correctness items worth not carrying.</td>
+              <td class="num">&lt; 2h</td>
+            </tr>
+            <tr>
+              <td class="num">10</td>
+              <td>Everything marked <span class="sev lo">Low</span></td>
+              <td>
+                As you're already in the file. None of them justifies its own
+                branch.
+              </td>
+              <td class="num">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <p>
+          <strong>One thing not to do:</strong>
+          don't chase the <span class="sev lo">Low</span> items first because
+          they're easy. Every finding above
+          <span class="sev md">Medium</span>
+          is a rule written down more than once — or, in section&nbsp;01, a rule
+          written down nowhere at all. Each one you collapse removes a class of
+          future bug rather than a line of code. The <code>Low</code> list is
+          real but it is cosmetics on top of that.
+        </p>
+      </div>
+
+      <div class="note good">
+        <p>
+          <strong>Closing note.</strong>
+          The single most useful thing this audit found is not a bug — it is
+          that the money in this system is correct for reasons the system does
+          not know about. Fix
+          <span class="m">M1</span>
+          and <span class="m">M2</span> and that stops being true: the invariant
+          becomes something the database asserts and a test pins, rather than
+          something three unrelated functions happen to agree on. Everything
+          else in this report is ordinary engineering debt, and the codebase
+          carries less of it than most.
+        </p>
+      </div>
+
+      <footer class="end">
+        Fresclean · fc-bun-api @ b9b9aae · 2026-08-05 · 39 findings across 349
+        files · baseline verified: ultracite clean, 329/329 tests passing ·
+        section 01 verified against the live dev database
+      </footer>
+    </div>
+  </body>
+</html>
