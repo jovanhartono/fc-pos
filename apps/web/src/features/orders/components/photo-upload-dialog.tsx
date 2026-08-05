@@ -27,24 +27,44 @@ import {
 	ACCEPTED_IMAGE_TYPES,
 	isAcceptedImage,
 	type PhotoUploader,
+	resolveUploadedKey,
 } from "@/features/orders/utils/photo-upload";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { cn } from "@/lib/utils";
+
+// Bytes already on their way up, started when the photo hit the strip rather than on confirm.
+// Resolves to the stored key the commit needs.
+interface PendingUpload {
+	promise: Promise<string>;
+	abort: () => void;
+}
 
 interface PendingPhoto {
 	id: string;
 	file: File;
 	previewUrl: string;
+	// Undefined in capture-only mode, and for a file whose type the confirm is going to reject
+	// anyway.
+	upload?: PendingUpload;
 }
 
-const createPendingPhoto = (file: File): PendingPhoto => ({
+const createPendingPhoto = (
+	file: File,
+	upload?: PendingUpload,
+): PendingPhoto => ({
 	file,
 	id: crypto.randomUUID(),
 	previewUrl: URL.createObjectURL(file),
+	upload,
 });
 
-const revokePhotos = (photos: PendingPhoto[]) => {
+// Everything a photo leaving the strip has to let go of. The abort matters as much as the
+// revoke now that bytes start moving at staging time: a retaken shot would otherwise keep
+// competing with its replacement for the same uplink, and would land in the bucket with
+// nothing pointing at it. Safe over a batch that already finished — aborting then does nothing.
+const discardPhotos = (photos: PendingPhoto[]) => {
 	for (const photo of photos) {
+		photo.upload?.abort();
 		URL.revokeObjectURL(photo.previewUrl);
 	}
 };
@@ -107,7 +127,7 @@ const PhotoUploadDialogBase = ({
 	const resetDialogState = useCallback(() => {
 		stopCamera();
 		setPendingPhotos((previous) => {
-			revokePhotos(previous);
+			discardPhotos(previous);
 			return [];
 		});
 		setSelectedPhotoId(null);
@@ -144,30 +164,72 @@ const PhotoUploadDialogBase = ({
 	useEffect(
 		() => () => {
 			stopCamera();
-			revokePhotos(pendingRef.current);
+			discardPhotos(pendingRef.current);
 		},
 		[stopCamera],
 	);
 
+	// Tail of the staged uploads, so a new one queues behind them instead of racing them. One
+	// upload already saturates a shop uplink: firing a five-photo gallery pick together makes
+	// every photo slower and the first one — the one confirm waits on first — slowest of all.
+	const pushQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+
+	// The upload starts here, not on confirm. Between staging a shot and confirming the batch the
+	// operator is shooting the next one, swiping back through the last one or typing a note —
+	// seconds the bytes can spend crossing the shop uplink instead, which is the slowest step
+	// between the cashier and the stored evidence. By confirm there is usually only the commit.
+	//
+	// What this accepts: a batch the operator abandons leaves bytes in the bucket with no row
+	// pointing at them. The browser cannot clean those up, so the server sweeps them nightly.
+	const beginPush = useCallback(
+		(file: File): PendingUpload | undefined => {
+			const contentType = file.type;
+			if (!uploader || onCapture || !isAcceptedImage(contentType)) {
+				return undefined;
+			}
+
+			const controller = new AbortController();
+			const promise = pushQueueRef.current.then(() =>
+				uploader.pushBytes({
+					contentType,
+					file,
+					signal: controller.signal,
+				}),
+			);
+			// Nothing awaits this until confirm, so claim the failure now: a push that dies in
+			// between — dropped 4G, the shot retaken — would otherwise surface as an unhandled
+			// rejection. Confirm still sees it and still retries. The swallowed copy is also what
+			// the next push queues on, so one failure does not strand the rest of the batch.
+			pushQueueRef.current = promise.catch(() => undefined);
+			return { abort: () => controller.abort(), promise };
+		},
+		[onCapture, uploader],
+	);
+
 	// Photos this dialog produced itself. The capture canvas already scaled them into
-	// budget and encoded them as JPEG, so there is nothing left to decode or check and
-	// they go on the strip in the same frame as the shutter press.
+	// budget and encoded them in the upload format, so there is nothing left to decode or
+	// check and they go on the strip in the same frame as the shutter press.
 	const stagePhotos = useCallback(
 		(files: File[]) => {
-			const created = files.map((file) => createPendingPhoto(file));
-			setPendingPhotos((previous) => {
-				if (!multiple) {
-					revokePhotos(previous);
-					return created;
-				}
-				return [...previous, ...created];
-			});
+			const created = files.map((file) =>
+				createPendingPhoto(file, beginPush(file)),
+			);
+			// Discarding happens out here, not inside the updater. React may run an updater more
+			// than once for a single commit, and aborting a push twice is harmless only as long as
+			// the photo really is leaving — a replayed updater would otherwise cancel the upload
+			// of a shot still sitting on the strip and revoke the preview it is being shown from.
+			if (!multiple) {
+				discardPhotos(pendingRef.current);
+			}
+			setPendingPhotos((previous) =>
+				multiple ? [...previous, ...created] : created,
+			);
 			const newest = created.at(-1);
 			if (newest) {
 				setSelectedPhotoId(newest.id);
 			}
 		},
-		[multiple],
+		[beginPush, multiple],
 	);
 
 	// Photos arriving from the device gallery, where nothing is known about them yet: a
@@ -229,15 +291,15 @@ const PhotoUploadDialogBase = ({
 	};
 
 	const captureCameraPhoto = async () => {
-		const blob = await camera.capture();
-		if (!blob) {
+		const shot = await camera.capture();
+		if (!shot) {
 			return;
 		}
 
 		const timestamp = Date.now();
 		stagePhotos([
-			new File([blob], `photo-${timestamp}.jpg`, {
-				type: "image/jpeg",
+			new File([shot.blob], `photo-${timestamp}.${shot.extension}`, {
+				type: shot.type,
 			}),
 		]);
 		// Single-photo flows: stop after the shot so the still preview replaces the
@@ -250,14 +312,12 @@ const PhotoUploadDialogBase = ({
 	};
 
 	const removePhoto = (photoId: string) => {
+		const removed = pendingRef.current.find((photo) => photo.id === photoId);
+		if (removed) {
+			discardPhotos([removed]);
+		}
 		setPendingPhotos((previous) =>
-			previous.filter((photo) => {
-				if (photo.id === photoId) {
-					URL.revokeObjectURL(photo.previewUrl);
-					return false;
-				}
-				return true;
-			}),
+			previous.filter((photo) => photo.id !== photoId),
 		);
 	};
 
@@ -288,15 +348,9 @@ const PhotoUploadDialogBase = ({
 			const trimmedNote = withNote ? note.trim() || undefined : undefined;
 			committedRef.current = [];
 
-			// The batch is a pipeline, not a fan-out. Commits stay strictly in shot order
-			// because the gallery sorts on the row id the commit assigns — fire them together
-			// and a before/after pair comes back shuffled, which is the whole point of the
-			// photo. What does overlap is the part worth overlapping: the next photo's bytes
-			// go up while the server is still re-encoding the current one, which was dead
-			// time on the uplink and most of why a five-photo batch felt stalled. A wider
-			// fan-out buys nothing on top of that — the shop uplink is already saturated by
-			// one upload, and every commit queues on the same container's transcode.
-			let pending: Promise<string> | null = null;
+			// Only the commits are left — every photo's bytes started moving when it was staged.
+			// They stay in shot order because the gallery sorts on the row id a commit assigns,
+			// and a before/after pair that comes back shuffled loses the point of the photo.
 			for (const [index, photo] of validatedPhotos.entries()) {
 				setUploading({ done: index, total: validatedPhotos.length });
 				const input = {
@@ -304,24 +358,12 @@ const PhotoUploadDialogBase = ({
 					file: photo.file,
 					note: trimmedNote,
 				};
-				const key = await (pending ?? uploader.pushBytes(input));
 
-				const nextPhoto = validatedPhotos[index + 1];
-				pending = nextPhoto
-					? uploader.pushBytes({
-							contentType: nextPhoto.contentType,
-							file: nextPhoto.file,
-							note: trimmedNote,
-						})
-					: null;
-				// Claim the read-ahead's failure the moment it exists, not once the loop ends.
-				// The very next line parks for as long as the server takes to re-encode, and a
-				// push that dies inside that window — dropped 4G, expired token — would be
-				// reported as an unhandled rejection before anything awaits it. The await below
-				// still throws and still drives the error toast; this only stops the duplicate
-				// report. A read-ahead that succeeds after an abandoned batch leaves its bytes
-				// orphaned in the bucket, which the browser cannot clean up either way.
-				pending?.catch(() => undefined);
+				const key = await resolveUploadedKey(
+					uploader,
+					input,
+					photo.upload?.promise,
+				);
 
 				await uploader.commit(key, input);
 				committedRef.current.push(photo.id);

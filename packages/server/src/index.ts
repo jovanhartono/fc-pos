@@ -5,6 +5,7 @@ import app from "@/app";
 import { adminMiddleware } from "@/middlewares/admin";
 import adminRoutes from "@/routes/admin";
 import authRoutes from "@/routes/auth";
+import internalRoutes from "@/routes/internal";
 import publicRoutes from "@/routes/public";
 import { failure } from "@/utils/http";
 
@@ -17,7 +18,8 @@ app.use("/admin/*", adminMiddleware);
 const router = app
   .route("/auth", authRoutes)
   .route("/admin", adminRoutes)
-  .route("/public", publicRoutes);
+  .route("/public", publicRoutes)
+  .route("/internal", internalRoutes);
 
 // error handling
 router.onError((err, c) => {

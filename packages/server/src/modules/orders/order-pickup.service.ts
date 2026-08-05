@@ -12,6 +12,7 @@ import {
   buildMediaUrl,
   createPresignedUploadUrl,
   optimizeUploadedImage,
+  STORAGE_ENV_PREFIX,
 } from "@/utils/s3";
 
 // ADR-0005: the pickup code proves the customer in front of the cashier placed
@@ -53,7 +54,7 @@ export async function createOrderPickupEventPresign({
 
   assertOrderPaidForPickup(order);
 
-  const key = `orders/${orderId}/pickup/${crypto.randomUUID()}`;
+  const key = `${STORAGE_ENV_PREFIX}orders/${orderId}/pickup/${crypto.randomUUID()}`;
   return createPresignedUploadUrl({
     contentType: body.content_type,
     key,
@@ -119,7 +120,11 @@ export async function createOrderPickupEvent({
     );
   }
 
-  if (!body.image_path.startsWith(`orders/${orderId}/pickup/`)) {
+  if (
+    !body.image_path.startsWith(
+      `${STORAGE_ENV_PREFIX}orders/${orderId}/pickup/`
+    )
+  ) {
     throw new BadRequestException("Invalid image path");
   }
 

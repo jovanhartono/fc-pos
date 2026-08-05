@@ -17,5 +17,6 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": { "service": "api" } },
     { "source": "/(.*)", "destination": { "service": "web" } }
-  ]
+  ],
+  "crons": [{ "path": "/api/internal/photo-sweep", "schedule": "0 20 * * *" }]
 }
