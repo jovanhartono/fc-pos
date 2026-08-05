@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
 import type { Order } from "@/lib/api";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 type PickupRadarProps = {
 	orders: Order[];
@@ -85,7 +85,7 @@ function RadarRow({ order }: { order: Order }) {
 			</div>
 			<div className="flex items-center gap-3">
 				<p className="font-mono text-xs text-muted-foreground">
-					{formatIDRCurrency(String(order.total ?? 0))}
+					{formatMoney(order.total)}
 				</p>
 				<ArrowRightIcon className="size-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
 			</div>

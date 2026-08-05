@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import type { OrderReceipt } from "@/lib/api";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney as money, parseMoney } from "@/shared/money";
 import { EscPosBuilder, toPrintableAscii } from "./escpos";
 import { RECEIPT_LOGO } from "./receipt-logo";
 
@@ -13,9 +13,6 @@ const FOOTER_THANKS = "Terima kasih - Fresclean";
 const FOOTER_DISCLAIMER =
 	"Barang tidak diambil lebih dari 30 hari di luar tanggung jawab kami. " +
 	"Kerusakan bawaan sesuai persetujuan saat serah terima.";
-
-const money = (value: string | number | null | undefined): string =>
-	formatIDRCurrency(String(Number(value ?? 0)));
 
 // Measure and pad on the ASCII-coerced text — escpos.text() coerces before
 // encoding, so raw .length would drift from the printed column count whenever
@@ -73,13 +70,13 @@ export const buildReceiptEscPos = (
 	receipt: OrderReceipt,
 	trackingUrl: string,
 ): Uint8Array => {
-	const discount = Number(receipt.discount ?? 0);
+	const discount = parseMoney(receipt.discount);
 	const campaignDiscount = receipt.campaigns.reduce(
-		(sum, entry) => sum + Number(entry.applied_amount ?? 0),
+		(sum, entry) => sum + parseMoney(entry.applied_amount),
 		0,
 	);
 	const manualDiscount = Math.max(discount - campaignDiscount, 0);
-	const net = Number(receipt.total ?? 0) - discount;
+	const net = parseMoney(receipt.total) - discount;
 	const isPaid = receipt.payment_status === "paid";
 	const isCancelled = receipt.status === "cancelled";
 

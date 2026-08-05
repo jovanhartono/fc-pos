@@ -15,6 +15,9 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
+// The shop never charges a fraction of a rupiah — there is no sen at the
+// counter — so every money column below is scale: 0, whole rupiah only.
+
 export const userRoleEnum = pgEnum("user_role", [
   "admin",
   "cashier",
@@ -106,8 +109,8 @@ export const productsTable = pgTable(
     category_id: integer("category_id")
       .references(() => categoriesTable.id)
       .notNull(),
-    cogs: decimal("cogs", { precision: 12 }).default("0").notNull(),
-    price: decimal("price", { precision: 12 }).default("0").notNull(),
+    cogs: decimal("cogs", { precision: 12, scale: 0 }).default("0").notNull(),
+    price: decimal("price", { precision: 12, scale: 0 }).default("0").notNull(),
     description: text("description"),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     is_active: boolean("is_active").default(false).notNull(),
@@ -129,8 +132,8 @@ export const servicesTable = pgTable(
       .references(() => categoriesTable.id)
       .notNull(),
     code: varchar("code", { length: 4 }).unique().notNull(),
-    cogs: decimal("cogs", { precision: 12 }).default("0").notNull(),
-    price: decimal("price", { precision: 12 }).default("0").notNull(),
+    cogs: decimal("cogs", { precision: 12, scale: 0 }).default("0").notNull(),
+    price: decimal("price", { precision: 12, scale: 0 }).default("0").notNull(),
     description: text("description"),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     is_active: boolean("is_active").default(false).notNull(),
@@ -222,7 +225,7 @@ export const campaignsTable = pgTable(
       .references(() => usersTable.id)
       .notNull(),
     discount_type: campaignDiscountTypeEnum("discount_type").notNull(),
-    discount_value: decimal("discount_value", { precision: 12 })
+    discount_value: decimal("discount_value", { precision: 12, scale: 0 })
       .default("0")
       .notNull(),
     buy_quantity: integer("buy_quantity"),
@@ -230,8 +233,8 @@ export const campaignsTable = pgTable(
     ends_at: timestamp("ends_at"),
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     is_active: boolean("is_active").default(true).notNull(),
-    max_discount: decimal("max_discount", { precision: 12 }),
-    min_order_total: decimal("min_order_total", { precision: 12 })
+    max_discount: decimal("max_discount", { precision: 12, scale: 0 }),
+    min_order_total: decimal("min_order_total", { precision: 12, scale: 0 })
       .default("0")
       .notNull(),
     name: varchar("name", { length: 255 }).notNull(),
@@ -446,7 +449,9 @@ export const ordersTable = pgTable(
     discount_source: discountSourceEnum("discount_source")
       .default("none")
       .notNull(),
-    discount: decimal("discount", { precision: 12 }).default("0").notNull(),
+    discount: decimal("discount", { precision: 12, scale: 0 })
+      .default("0")
+      .notNull(),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
 
     notes: text("notes"),
@@ -457,7 +462,7 @@ export const ordersTable = pgTable(
     payment_status: orderPaymentStatusEnum("payment_status")
       .default("unpaid")
       .notNull(),
-    paid_amount: decimal("paid_amount", { precision: 12 })
+    paid_amount: decimal("paid_amount", { precision: 12, scale: 0 })
       .default("0")
       .notNull(),
     paid_at: timestamp("paid_at"),
@@ -468,7 +473,7 @@ export const ordersTable = pgTable(
       .notNull()
       .default(sql`lpad(floor(random() * 1000000)::text, 6, '0')`),
 
-    refunded_amount: decimal("refunded_amount", { precision: 12 })
+    refunded_amount: decimal("refunded_amount", { precision: 12, scale: 0 })
       .default("0")
       .notNull(),
     status: orderStatusEnum("status").default("created").notNull(),
@@ -478,7 +483,7 @@ export const ordersTable = pgTable(
       .notNull(),
 
     // snapshot
-    total: decimal("total", { precision: 12 }).default("0"),
+    total: decimal("total", { precision: 12, scale: 0 }).default("0").notNull(),
     updated_at: timestamp("updated_at")
       .notNull()
       .defaultNow()
@@ -533,7 +538,7 @@ export const orderCountersTable = pgTable(
 export const orderCampaignsTable = pgTable(
   "order_campaigns",
   {
-    applied_amount: decimal("applied_amount", { precision: 12 })
+    applied_amount: decimal("applied_amount", { precision: 12, scale: 0 })
       .default("0")
       .notNull(),
     buy_quantity: integer("buy_quantity"),
@@ -545,12 +550,12 @@ export const orderCampaignsTable = pgTable(
     }),
     created_at: timestamp("created_at").defaultNow().notNull(),
     discount_type: campaignDiscountTypeEnum("discount_type").notNull(),
-    discount_value: decimal("discount_value", { precision: 12 })
+    discount_value: decimal("discount_value", { precision: 12, scale: 0 })
       .default("0")
       .notNull(),
     free_quantity: integer("free_quantity"),
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-    max_discount: decimal("max_discount", { precision: 12 }),
+    max_discount: decimal("max_discount", { precision: 12, scale: 0 }),
     order_id: integer("order_id")
       .references(() => ordersTable.id, { onDelete: "cascade" })
       .notNull(),
@@ -573,7 +578,9 @@ export const orderCampaignsTable = pgTable(
 export const ordersServicesTable = pgTable(
   "orders_services",
   {
-    discount: decimal("discount", { precision: 12 }).default("0").notNull(),
+    discount: decimal("discount", { precision: 12, scale: 0 })
+      .default("0")
+      .notNull(),
 
     cancel_reason: cancelReasonEnum("cancel_reason"),
     cancel_note: text("cancel_note"),
@@ -599,8 +606,8 @@ export const ordersServicesTable = pgTable(
     ),
 
     // snapshot
-    price: decimal("price", { precision: 12 }).default("0"),
-    cogs_snapshot: decimal("cogs_snapshot", { precision: 12 })
+    price: decimal("price", { precision: 12, scale: 0 }).default("0"),
+    cogs_snapshot: decimal("cogs_snapshot", { precision: 12, scale: 0 })
       .default("0")
       .notNull(),
 
@@ -616,6 +623,7 @@ export const ordersServicesTable = pgTable(
 
     subtotal: decimal("subtotal", {
       precision: 12,
+      scale: 0,
     }).generatedAlwaysAs(
       (): SQL =>
         sql`${ordersServicesTable.price} - ${ordersServicesTable.discount}`
@@ -779,7 +787,7 @@ export const orderRefundsTable = pgTable(
     refunded_by: integer("refunded_by")
       .references(() => usersTable.id)
       .notNull(),
-    total_amount: decimal("total_amount", { precision: 12 })
+    total_amount: decimal("total_amount", { precision: 12, scale: 0 })
       .default("0")
       .notNull(),
   },
@@ -796,7 +804,9 @@ export const orderRefundsTable = pgTable(
 export const orderRefundItemsTable = pgTable(
   "order_refund_items",
   {
-    amount: decimal("amount", { precision: 12 }).default("0").notNull(),
+    amount: decimal("amount", { precision: 12, scale: 0 })
+      .default("0")
+      .notNull(),
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     note: text("note"),
     order_product_id: integer("order_product_id").references(
@@ -836,14 +846,16 @@ export const ordersProductsTable = pgTable(
   "orders_products",
   {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
-    discount: decimal("discount", { precision: 12 }).default("0").notNull(),
+    discount: decimal("discount", { precision: 12, scale: 0 })
+      .default("0")
+      .notNull(),
     order_id: integer("order_id").references(() => ordersTable.id, {
       onDelete: "cascade",
     }),
 
     // snapshot
-    price: decimal("price", { precision: 12 }).default("0"),
-    cogs_snapshot: decimal("cogs_snapshot", { precision: 12 })
+    price: decimal("price", { precision: 12, scale: 0 }).default("0"),
+    cogs_snapshot: decimal("cogs_snapshot", { precision: 12, scale: 0 })
       .default("0")
       .notNull(),
     product_id: integer("product_id").references(() => productsTable.id, {
@@ -862,6 +874,7 @@ export const ordersProductsTable = pgTable(
 
     subtotal: decimal("subtotal", {
       precision: 12,
+      scale: 0,
     }).generatedAlwaysAs(
       (): SQL =>
         sql`(${ordersProductsTable.price} * ${ordersProductsTable.qty}) - ${ordersProductsTable.discount}`

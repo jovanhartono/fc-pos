@@ -264,17 +264,20 @@ export type CreateStorePayload = z.infer<typeof POSTStoreSchema>;
 export type UpdateStorePayload = z.infer<typeof POSTStoreSchema>;
 export type CreateCategoryPayload = z.infer<typeof POSTCategorySchema>;
 export type UpdateCategoryPayload = z.infer<typeof POSTCategorySchema>;
-export type CreateServicePayload = z.infer<typeof POSTServiceSchema>;
-export type UpdateServicePayload = z.infer<typeof POSTServiceSchema>;
-export type CreateProductPayload = z.infer<typeof POSTProductSchema>;
-export type UpdateProductPayload = z.infer<typeof POSTProductSchema>;
+// Money crosses the wire as the digit string the currency field produced; the
+// server is what turns it into a number. So these payloads are the schemas'
+// input side, not their parsed output.
+export type CreateServicePayload = z.input<typeof POSTServiceSchema>;
+export type UpdateServicePayload = z.input<typeof POSTServiceSchema>;
+export type CreateProductPayload = z.input<typeof POSTProductSchema>;
+export type UpdateProductPayload = z.input<typeof POSTProductSchema>;
 export type CreatePaymentMethodPayload = z.infer<
 	typeof POSTPaymentMethodSchema
 >;
 export type UpdatePaymentMethodPayload = z.infer<
 	typeof POSTPaymentMethodSchema
 >;
-export type CreateOrderPayload = z.infer<typeof POSTOrderSchema> & {
+export type CreateOrderPayload = z.input<typeof POSTOrderSchema> & {
 	voucher_codes: string[];
 };
 

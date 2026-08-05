@@ -12,6 +12,7 @@ import type {
 	Service,
 } from "@/lib/api";
 import { isValidPhoneNumber, normalizePhoneNumber } from "@/lib/phone-number";
+import { parseMoney } from "@/shared/money";
 
 export type ProductCartLine = {
 	kind: "product";
@@ -125,10 +126,13 @@ export const getCartSubtotal = (
 	serviceRows: { service: { price: string | number } }[],
 ): number =>
 	productRows.reduce(
-		(total, line) => total + Number(line.product.price) * line.qty,
+		(total, line) => total + parseMoney(line.product.price) * line.qty,
 		0,
 	) +
-	serviceRows.reduce((total, line) => total + Number(line.service.price), 0);
+	serviceRows.reduce(
+		(total, line) => total + parseMoney(line.service.price),
+		0,
+	);
 
 export const getCartCount = (
 	productCart: ProductCartLine[],

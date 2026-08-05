@@ -187,7 +187,7 @@ export const POSTOrderSchema = z
         )
       )
       .optional(),
-    discount: currencySchema("Discount").default("0"),
+    discount: currencySchema("Discount").default(0),
     payment_method_id: z.number().optional(),
     payment_status: z.enum(
       orderPaymentStatusEnum.enumValues,

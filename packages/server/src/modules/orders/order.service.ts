@@ -251,7 +251,10 @@ export async function createOrder(
             order_id: orderId,
             product_id: product.id,
             price: product.price,
-            cogs_snapshot: (Number(product.cogs) * item.qty).toFixed(2),
+            // COGS is stored in whole rupiah, like every amount at the counter.
+            cogs_snapshot: Math.round(
+              Number(product.cogs) * item.qty
+            ).toString(),
             qty: item.qty,
           };
         })
@@ -272,7 +275,7 @@ export async function createOrder(
         campaignIds: [...new Set(campaign_ids)],
         voucherCodes: [...new Set(voucher_codes)],
         grossTotal,
-        manualDiscount: Number(orderPayload.discount),
+        manualDiscount: orderPayload.discount,
         storeId: store.id,
         storeCode: store.code,
         lines,
@@ -299,11 +302,13 @@ export async function createOrder(
       })
       .where(eq(ordersTable.id, orderId));
 
+    // Money leaves as a string here to match every order read, so the POS
+    // reads one shape whether it just made the order or fetched it back.
     return {
       code,
       id: orderId,
-      total: grossTotal,
-      total_after_discount: netTotal,
+      total: grossTotal.toString(),
+      total_after_discount: netTotal.toString(),
     };
   });
 }

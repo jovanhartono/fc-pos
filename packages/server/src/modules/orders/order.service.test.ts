@@ -291,7 +291,7 @@ const checkout = (over: AnyObj = {}) =>
     store_id: 1,
     campaign_ids: [],
     voucher_codes: [],
-    discount: "0",
+    discount: 0,
     payment_status: "unpaid",
     ...over,
   } as never);
@@ -339,8 +339,8 @@ describe("createOrder", () => {
     expect(result).toEqual({
       code: `#JKT/${JAKARTA_DATE}/1`,
       id: 501,
-      total: 45_000,
-      total_after_discount: 45_000,
+      total: "45000",
+      total_after_discount: "45000",
     });
     expect(repo.reserveCalls).toHaveLength(1);
     expect(repo.reserveCalls[0].tx).toBe(TX);
@@ -406,8 +406,8 @@ describe("createOrder", () => {
       payment_method_id: 1,
     });
 
-    expect(result.total).toBe(50_000);
-    expect(result.total_after_discount).toBe(45_000);
+    expect(result.total).toBe("50000");
+    expect(result.total_after_discount).toBe("45000");
 
     // The discount desk judges the GROSS order, not the running balance.
     expect(discount.calls[0]).toMatchObject({
@@ -480,8 +480,8 @@ describe("createOrder", () => {
       voucher_codes: ["SORRY123"],
     });
 
-    expect(result.total).toBe(50_000);
-    expect(result.total_after_discount).toBe(0);
+    expect(result.total).toBe("50000");
+    expect(result.total_after_discount).toBe("0");
     expect(redemptions.calls).toHaveLength(1);
     expect(redemptions.calls[0].rows).toBe(discount.result.campaignRows);
     expect(finalize.writes[0].set).toMatchObject({
@@ -548,10 +548,11 @@ describe("createOrder", () => {
 
   it("snapshots catalog prices and COGS onto the lines and tags each garment", async () => {
     // Margins are reported from these snapshots months later, when catalog
-    // prices have moved on. 3 detergents at COGS 1250.50 must book 3751.50;
-    // each garment gets a sequential tag off the receipt code; a line without
-    // an explicit priority takes the service's default, an explicit choice
-    // beats it.
+    // prices have moved on. 3 detergents at COGS 1250.50 must book 3752 — the
+    // books are kept in whole rupiah, so the half is settled here rather than
+    // left for the database to drop. Each garment gets a sequential tag off the
+    // receipt code; a line without an explicit priority takes the service's
+    // default, an explicit choice beats it.
     catalog.services = [
       { id: 10, price: "30000", cogs: "12000", is_priority: true },
       { id: 11, price: "15000", cogs: "4000", is_priority: true },
@@ -572,7 +573,7 @@ describe("createOrder", () => {
     });
 
     const code = `#JKT/${JAKARTA_DATE}/1`;
-    expect(result.total).toBe(120_000);
+    expect(result.total).toBe("120000");
 
     // Three bottles sold must leave the shelf count as three — a decrement of
     // one would let the system keep selling detergent that is no longer there.
@@ -583,7 +584,7 @@ describe("createOrder", () => {
         order_id: 501,
         product_id: 20,
         price: "25000",
-        cogs_snapshot: "3751.50",
+        cogs_snapshot: "3752",
         qty: 3,
       },
     ]);
