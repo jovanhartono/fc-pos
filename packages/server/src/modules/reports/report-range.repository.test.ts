@@ -26,6 +26,7 @@ const {
   listPaymentMixSeries,
   listRefundAmountSeries,
   listServicesRevenueSeries,
+  listWorkerProductivityRows,
 } = await import("@/modules/reports/report-range.repository");
 
 // August 2026 as Jakarta sees it: opens 01 Aug 00:00 WIB, closes the instant
@@ -73,6 +74,22 @@ describe("which orders count as takings", () => {
 
     expect(only().sql).toContain('"orders"."store_id" = $');
     expect(only().params).toContain(KEMANG);
+  });
+
+  it("keeps the worker who finished an item to the store it was finished at", async () => {
+    // Who worked on an item is only asked once the report knows which items
+    // finished, so with no finished items the question is never put to Postgres
+    // and the snapshots never see it. One finished item makes it run.
+    rowQueue.push([[42]]);
+
+    await listWorkerProductivityRows({ range: AUGUST, storeId: KEMANG });
+
+    const attribution = queries.find((query) =>
+      query.sql.includes('distinct on ("processing_attribution"')
+    );
+
+    expect(attribution?.sql).toContain('"orders"."store_id" = $');
+    expect(attribution?.params).toContain(KEMANG);
   });
 });
 
