@@ -629,6 +629,22 @@
                 Postgres being asked a single different question.
               </td>
             </tr>
+            <tr>
+              <td>
+                <a href="https://github.com/jovanhartono/fc-pos/pull/86">#86</a>
+              </td>
+              <td>
+                <a href="#w7">W7</a> <a href="#w8">W8</a>
+              </td>
+              <td>
+                One serialiser for all seven list endpoints, which also fixed
+                the drift the finding named: a cleared filter box now drops the
+                parameter everywhere instead of sending
+                <code>search=</code>
+                to endpoints that reject it. The card table and the grid table
+                stopped sharing a body they each ignored half of.
+              </td>
+            </tr>
           </tbody>
         </table>
         <p>
@@ -3084,7 +3100,12 @@ const allowedOperationsNavigation= operationsNavigation.filter(i =&gt; role ? i.
 
       <article class="f md" id="w7">
         <div class="f-head">
-          <span class="id">W7</span><span class="sev md">Medium</span>
+          <span class="id">W7</span><span class="sev md">Medium</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/86"
+            >Shipped #86</a
+          >
           <h3 class="f-title">
             <code>lib/api.ts</code>
             spells out the same query serialiser seven times — and they've
@@ -3161,7 +3182,12 @@ const allowedOperationsNavigation= operationsNavigation.filter(i =&gt; role ? i.
 
       <article class="f md" id="w8">
         <div class="f-head">
-          <span class="id">W8</span><span class="sev md">Medium</span>
+          <span class="id">W8</span><span class="sev md">Medium</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/86"
+            >Shipped #86</a
+          >
           <h3 class="f-title">
             <code>data-table.tsx</code>
             is two different tables in one component
@@ -3814,7 +3840,15 @@ const visibleStores = useMemo(() =&gt; {
                 Four independent, contained changes. Any one is an afternoon.
               </td>
               <td class="num">2 days</td>
-              <td>Open</td>
+              <td>
+                W7 · W8
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/86"
+                  >#86</a
+                >
+                · W5 open
+              </td>
             </tr>
             <tr>
               <td class="num">9</td>
