@@ -42,82 +42,96 @@ async function parseSuccessData<T>(
 	return response.data;
 }
 
-const loginRoute = rpc.api.auth.login.$post;
-const customersRoute = rpc.api.admin.customers.$get;
-const customerLookupRoute = rpc.api.admin.customers.lookup.$get;
-const usersRoute = rpc.api.admin.users.$get;
-const meRoute = rpc.api.admin.users.me.$get;
-const storesRoute = rpc.api.admin.stores.$get;
-const categoriesRoute = rpc.api.admin.categories.$get;
-const servicesRoute = rpc.api.admin.services.$get;
-const productsRoute = rpc.api.admin.products.$get;
-const paymentMethodsRoute = rpc.api.admin["payment-methods"].$get;
-const ordersRoute = rpc.api.admin.orders.$get;
-const orderDetailRoute = rpc.api.admin.orders[":id"].$get;
-const orderReceiptRoute = rpc.api.admin.orders[":id"].receipt.$get;
-const campaignsRoute = rpc.api.admin.campaigns.$get;
-const campaignDetailRoute = rpc.api.admin.campaigns[":id"].$get;
-const resolveVoucherCodeRoute = rpc.api.admin.campaigns["resolve-code"].$post;
-const campaignVoucherCodesRoute = rpc.api.admin.campaigns[":id"].codes.$get;
-const complaintsRoute = rpc.api.admin.complaints.$get;
-const complaintDetailRoute = rpc.api.admin.complaints[":id"].$get;
-const orderServiceByIdRoute = rpc.api.admin.orders.services["by-id"].$get;
-const orderServiceByItemCodeRoute =
-	rpc.api.admin.orders.services["by-item-code"].$get;
-const orderServiceQueueRoute = rpc.api.admin.orders.services.queue.$get;
-const shiftsRoute = rpc.api.admin.shifts.$get;
-const shiftCurrentRoute = rpc.api.admin.shifts.current.$get;
-const reportOverviewRoute = rpc.api.admin.reports.overview.$get;
-const financialRoute = rpc.api.admin.reports.financial.$get;
-const ordersFlowRoute = rpc.api.admin.reports["orders-flow"].$get;
-const paymentMixRoute = rpc.api.admin.reports["payment-mix"].$get;
-const customerAcquisitionRoute =
-	rpc.api.admin.reports["customer-acquisition"].$get;
-const refundTrendRoute = rpc.api.admin.reports["refund-trend"].$get;
-const workerProductivityRoute =
-	rpc.api.admin.reports["worker-productivity"].$get;
-const campaignEffectivenessRoute =
-	rpc.api.admin.reports["campaign-effectiveness"].$get;
-const agingQueueRoute = rpc.api.admin.reports["aging-queue"].$get;
-const publicTrackOrderRoute = rpc.api.public.orders.track.$post;
+type QueryValue = string | number | boolean | undefined;
 
-type LoginSuccessResponse = InferResponseType<typeof loginRoute>;
+// An enum field keeps its literal union or hono rejects the call.
+type SearchParamsOf<T> = {
+	[K in keyof T]?: [Extract<T[K], string>] extends [never]
+		? string
+		: Extract<T[K], string>;
+};
 
-export type Customer = InferResponseType<typeof customersRoute>["data"][number];
+// A cleared filter is an absent param, never an empty one: four of the list
+// endpoints reject `search=` outright, and `store_id=` would 400 the rest.
+export function toSearchParams<T extends Record<string, QueryValue>>(
+	query: T,
+): SearchParamsOf<T> {
+	return Object.fromEntries(
+		Object.entries(query)
+			.filter(([, value]) => value !== undefined && value !== "")
+			.map(([key, value]) => [key, String(value)]),
+	) as SearchParamsOf<T>;
+}
+
+function toPaginated<T>(
+	response: { data: T[]; meta?: PaginationMeta },
+	query?: { limit?: number; offset?: number },
+): PaginatedData<T> {
+	return {
+		items: response.data,
+		meta: response.meta ?? {
+			limit: query?.limit ?? response.data.length,
+			offset: query?.offset ?? 0,
+			total: response.data.length,
+		},
+	};
+}
+
+type LoginSuccessResponse = InferResponseType<typeof rpc.api.auth.login.$post>;
+
+export type Customer = InferResponseType<
+	typeof rpc.api.admin.customers.$get
+>["data"][number];
 // Leaner than Customer — the lookup omits the originStore relation (the POS
 // prefill reads only the name). 0-or-1, so the data is the row or null.
 export type CustomerLookup = InferResponseType<
-	typeof customerLookupRoute
+	typeof rpc.api.admin.customers.lookup.$get
 >["data"];
-export type User = InferResponseType<typeof usersRoute>["data"][number];
-export type Store = InferResponseType<typeof storesRoute>["data"][number];
+export type User = InferResponseType<
+	typeof rpc.api.admin.users.$get
+>["data"][number];
+export type Store = InferResponseType<
+	typeof rpc.api.admin.stores.$get
+>["data"][number];
 export type Category = InferResponseType<
-	typeof categoriesRoute
+	typeof rpc.api.admin.categories.$get
 >["data"][number];
-export type Service = InferResponseType<typeof servicesRoute>["data"][number];
-export type Product = InferResponseType<typeof productsRoute>["data"][number];
+export type Service = InferResponseType<
+	typeof rpc.api.admin.services.$get
+>["data"][number];
+export type Product = InferResponseType<
+	typeof rpc.api.admin.products.$get
+>["data"][number];
 export type PaymentMethod = InferResponseType<
-	typeof paymentMethodsRoute
+	(typeof rpc.api.admin)["payment-methods"]["$get"]
 >["data"][number];
-export type Order = InferResponseType<typeof ordersRoute>["data"][number];
-export type OrderDetail = InferResponseType<typeof orderDetailRoute>["data"];
-export type OrderReceipt = InferResponseType<typeof orderReceiptRoute>["data"];
-export type Campaign = InferResponseType<typeof campaignsRoute>["data"][number];
+export type Order = InferResponseType<
+	typeof rpc.api.admin.orders.$get
+>["data"][number];
+export type OrderDetail = InferResponseType<
+	(typeof rpc.api.admin.orders)[":id"]["$get"]
+>["data"];
+export type OrderReceipt = InferResponseType<
+	(typeof rpc.api.admin.orders)[":id"]["receipt"]["$get"]
+>["data"];
+export type Campaign = InferResponseType<
+	typeof rpc.api.admin.campaigns.$get
+>["data"][number];
 export type CampaignDetail = InferResponseType<
-	typeof campaignDetailRoute
+	(typeof rpc.api.admin.campaigns)[":id"]["$get"]
 >["data"];
 export type ResolvedVoucher = InferResponseType<
-	typeof resolveVoucherCodeRoute
+	(typeof rpc.api.admin.campaigns)["resolve-code"]["$post"]
 >["data"];
 export type VoucherCodesResponse = InferResponseType<
-	typeof campaignVoucherCodesRoute
+	(typeof rpc.api.admin.campaigns)[":id"]["codes"]["$get"]
 >["data"];
 export type VoucherCode = VoucherCodesResponse["codes"][number];
 export type ComplaintListItem = InferResponseType<
-	typeof complaintsRoute
+	typeof rpc.api.admin.complaints.$get
 >["data"][number];
 export type ComplaintDetail = InferResponseType<
-	typeof complaintDetailRoute
+	(typeof rpc.api.admin.complaints)[":id"]["$get"]
 >["data"];
 export type FetchComplaintsQuery = {
 	store_id?: number;
@@ -132,19 +146,23 @@ export type OpenComplaintPayload = {
 	start_rework?: boolean;
 };
 export type OrderServiceLookup = InferResponseType<
-	typeof orderServiceByItemCodeRoute
+	(typeof rpc.api.admin.orders.services)["by-item-code"]["$get"]
 >["data"];
 export type OrderServiceLookupById = InferResponseType<
-	typeof orderServiceByIdRoute
+	(typeof rpc.api.admin.orders.services)["by-id"]["$get"]
 >["data"];
 export type QueueOrderServiceItem = InferResponseType<
-	typeof orderServiceQueueRoute
+	typeof rpc.api.admin.orders.services.queue.$get
 >["data"][number];
 export type PublicTrackedOrder = InferResponseType<
-	typeof publicTrackOrderRoute
+	typeof rpc.api.public.orders.track.$post
 >["data"];
-export type Shift = InferResponseType<typeof shiftsRoute>["data"][number];
-export type CurrentShift = InferResponseType<typeof shiftCurrentRoute>["data"];
+export type Shift = InferResponseType<
+	typeof rpc.api.admin.shifts.$get
+>["data"][number];
+export type CurrentShift = InferResponseType<
+	typeof rpc.api.admin.shifts.current.$get
+>["data"];
 
 export type FetchShiftsQuery = {
 	user_id?: number;
@@ -156,7 +174,7 @@ export type FetchShiftsQuery = {
 };
 
 export type ReportOverview = InferResponseType<
-	typeof reportOverviewRoute
+	typeof rpc.api.admin.reports.overview.$get
 >["data"];
 
 export type FetchReportOverviewQuery = {
@@ -172,34 +190,36 @@ export type FetchReportRangeQuery = {
 	granularity?: ReportGranularity;
 };
 
-export type FinancialReport = InferResponseType<typeof financialRoute>["data"];
+export type FinancialReport = InferResponseType<
+	typeof rpc.api.admin.reports.financial.$get
+>["data"];
 
 export type OrdersFlowReport = InferResponseType<
-	typeof ordersFlowRoute
+	(typeof rpc.api.admin.reports)["orders-flow"]["$get"]
 >["data"];
 
 export type PaymentMixReport = InferResponseType<
-	typeof paymentMixRoute
+	(typeof rpc.api.admin.reports)["payment-mix"]["$get"]
 >["data"];
 
 export type CustomerAcquisitionReport = InferResponseType<
-	typeof customerAcquisitionRoute
+	(typeof rpc.api.admin.reports)["customer-acquisition"]["$get"]
 >["data"];
 
 export type RefundTrendReport = InferResponseType<
-	typeof refundTrendRoute
+	(typeof rpc.api.admin.reports)["refund-trend"]["$get"]
 >["data"];
 
 export type WorkerProductivityReport = InferResponseType<
-	typeof workerProductivityRoute
+	(typeof rpc.api.admin.reports)["worker-productivity"]["$get"]
 >["data"];
 
 export type CampaignEffectivenessReport = InferResponseType<
-	typeof campaignEffectivenessRoute
+	(typeof rpc.api.admin.reports)["campaign-effectiveness"]["$get"]
 >["data"];
 
 export type AgingQueueItem = InferResponseType<
-	typeof agingQueueRoute
+	(typeof rpc.api.admin.reports)["aging-queue"]["$get"]
 >["data"][number];
 
 export interface FetchAgingQueueQuery {
@@ -499,27 +519,12 @@ export async function fetchCustomersPage(
 		rpcWithAuth().api.admin.customers.$get({
 			query:
 				query && Object.keys(query).length > 0
-					? {
-							...(query.limit !== undefined
-								? { limit: String(query.limit) }
-								: {}),
-							...(query.offset !== undefined
-								? { offset: String(query.offset) }
-								: {}),
-							...(query.search ? { search: query.search } : {}),
-						}
+					? toSearchParams(query)
 					: undefined,
 		}),
 	);
 
-	return {
-		items: response.data,
-		meta: (response.meta ?? {
-			limit: query?.limit ?? response.data.length,
-			offset: query?.offset ?? 0,
-			total: response.data.length,
-		}) as PaginationMeta,
-	};
+	return toPaginated(response, query);
 }
 
 // Exact-phone lookup for the POS name-prefill. Returns the matching customer or
@@ -538,30 +543,15 @@ export async function fetchUsersPage(
 		rpcWithAuth().api.admin.users.$get({
 			query:
 				query && Object.keys(query).length > 0
-					? {
-							...(query.limit !== undefined
-								? { limit: String(query.limit) }
-								: {}),
-							...(query.offset !== undefined
-								? { offset: String(query.offset) }
-								: {}),
-							...(query.search ? { search: query.search } : {}),
-							...(query.is_active !== undefined
-								? { is_active: String(query.is_active) }
-								: {}),
-							...(query.role ? { role: query.role } : {}),
-						}
+					? toSearchParams(query)
 					: undefined,
 		}),
 	);
 
-	return {
-		items: response.data,
-		meta: response.meta as PaginationMeta,
-	};
+	return toPaginated(response, query);
 }
 
-export type Me = InferResponseType<typeof meRoute>["data"];
+export type Me = InferResponseType<typeof rpc.api.admin.users.me.$get>["data"];
 
 export async function fetchMe() {
 	return parseSuccessData<Me>(rpcWithAuth().api.admin.users.me.$get());
@@ -603,36 +593,12 @@ export async function fetchOrdersPage(
 		rpcWithAuth().api.admin.orders.$get({
 			query:
 				query && Object.keys(query).length > 0
-					? {
-							...(query.limit !== undefined
-								? { limit: String(query.limit) }
-								: {}),
-							...(query.offset !== undefined
-								? { offset: String(query.offset) }
-								: {}),
-							...(query.store_id !== undefined
-								? { store_id: String(query.store_id) }
-								: {}),
-							...(query.search ? { search: query.search } : {}),
-							...(query.status ? { status: query.status } : {}),
-							...(query.payment_status
-								? { payment_status: query.payment_status }
-								: {}),
-							...(query.date_from !== undefined
-								? { date_from: query.date_from }
-								: {}),
-							...(query.date_to !== undefined
-								? { date_to: query.date_to }
-								: {}),
-						}
+					? toSearchParams(query)
 					: undefined,
 		}),
 	);
 
-	return {
-		items: response.data,
-		meta: response.meta as PaginationMeta,
-	};
+	return toPaginated(response, query);
 }
 
 export async function fetchCampaigns(query?: FetchCampaignsQuery) {
@@ -640,14 +606,7 @@ export async function fetchCampaigns(query?: FetchCampaignsQuery) {
 		rpcWithAuth().api.admin.campaigns.$get({
 			query:
 				query && Object.keys(query).length > 0
-					? {
-							...(query.store_id !== undefined
-								? { store_id: String(query.store_id) }
-								: {}),
-							...(query.is_active !== undefined
-								? { is_active: String(query.is_active) }
-								: {}),
-						}
+					? toSearchParams(query)
 					: undefined,
 		}),
 	);
@@ -891,34 +850,11 @@ export async function fetchOrderServiceQueuePage(
 	const response = await parseResponse(
 		rpcWithAuth().api.admin.orders.services.queue.$get({
 			query:
-				query && Object.keys(query).length > 0
-					? {
-							...(query.limit !== undefined
-								? { limit: String(query.limit) }
-								: {}),
-							...(query.offset !== undefined
-								? { offset: String(query.offset) }
-								: {}),
-							...(query.store_id !== undefined
-								? { store_id: String(query.store_id) }
-								: {}),
-							...(query.search ? { search: query.search } : {}),
-							...(query.status !== undefined ? { status: query.status } : {}),
-							...(query.date_from !== undefined
-								? { date_from: query.date_from }
-								: {}),
-							...(query.date_to !== undefined
-								? { date_to: query.date_to }
-								: {}),
-						}
-					: {},
+				query && Object.keys(query).length > 0 ? toSearchParams(query) : {},
 		}),
 	);
 
-	return {
-		items: response.data,
-		meta: response.meta as PaginationMeta,
-	};
+	return toPaginated(response, query);
 }
 
 export async function updateOrderServiceStatus(
@@ -980,30 +916,12 @@ export async function fetchComplaintsPage(
 		rpcWithAuth().api.admin.complaints.$get({
 			query:
 				query && Object.keys(query).length > 0
-					? {
-							...(query.limit !== undefined
-								? { limit: String(query.limit) }
-								: {}),
-							...(query.offset !== undefined
-								? { offset: String(query.offset) }
-								: {}),
-							...(query.store_id !== undefined
-								? { store_id: String(query.store_id) }
-								: {}),
-							...(query.search ? { search: query.search } : {}),
-						}
+					? toSearchParams(query)
 					: undefined,
 		}),
 	);
 
-	return {
-		items: response.data,
-		meta: (response.meta ?? {
-			limit: query?.limit ?? response.data.length,
-			offset: query?.offset ?? 0,
-			total: response.data.length,
-		}) as PaginationMeta,
-	};
+	return toPaginated(response, query);
 }
 
 export function fetchComplaintDetail(id: number) {
@@ -1197,34 +1115,12 @@ export async function fetchShifts(
 		rpcWithAuth().api.admin.shifts.$get({
 			query:
 				query && Object.keys(query).length > 0
-					? {
-							...(query.user_id !== undefined
-								? { user_id: String(query.user_id) }
-								: {}),
-							...(query.store_id !== undefined
-								? { store_id: String(query.store_id) }
-								: {}),
-							...(query.from ? { from: query.from } : {}),
-							...(query.to ? { to: query.to } : {}),
-							...(query.limit !== undefined
-								? { limit: String(query.limit) }
-								: {}),
-							...(query.offset !== undefined
-								? { offset: String(query.offset) }
-								: {}),
-						}
+					? toSearchParams(query)
 					: undefined,
 		}),
 	);
 
-	return {
-		items: response.data,
-		meta: (response.meta ?? {
-			limit: query?.limit ?? response.data.length,
-			offset: query?.offset ?? 0,
-			total: response.data.length,
-		}) as PaginationMeta,
-	};
+	return toPaginated(response, query);
 }
 
 export async function clockInShift(payload: { store_id: number }) {
@@ -1331,23 +1227,12 @@ export async function fetchAgingQueueReport(
 ): Promise<PaginatedData<AgingQueueItem>> {
 	const response = await parseResponse(
 		rpcWithAuth().api.admin.reports["aging-queue"].$get({
-			query: {
-				...(query?.store_id !== undefined
-					? { store_id: String(query.store_id) }
-					: {}),
-				...(query?.limit !== undefined ? { limit: String(query.limit) } : {}),
-				...(query?.offset !== undefined
-					? { offset: String(query.offset) }
-					: {}),
-			},
+			query: toSearchParams({
+				store_id: query?.store_id,
+				limit: query?.limit,
+				offset: query?.offset,
+			}),
 		}),
 	);
-	return {
-		items: response.data,
-		meta: (response.meta ?? {
-			limit: query?.limit ?? response.data.length,
-			offset: query?.offset ?? 0,
-			total: response.data.length,
-		}) as PaginationMeta,
-	};
+	return toPaginated(response, query);
 }
