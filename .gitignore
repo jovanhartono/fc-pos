@@ -39,3 +39,6 @@ coverage
 # Codex migration artifacts
 .codex/
 .vercel
+
+# Bun leaves these behind on every build
+*.bun-build
