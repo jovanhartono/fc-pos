@@ -78,6 +78,9 @@ interface PhotoCaptureState {
 	isBusy: boolean;
 	isNoteOpen: boolean;
 	isShooting: boolean;
+	// Narrower than isBusy: a scale-down can still be abandoned, a batch part-way onto the
+	// order cannot.
+	isUploading: boolean;
 	lastPhoto: PendingPhoto | undefined;
 	note: string;
 	photoCount: number;
@@ -463,6 +466,17 @@ export const PhotoCaptureProvider = ({
 	const isBusy = uploadMutation.isPending || isNormalizing;
 	const photoCount = pendingPhotos.length;
 
+	// Once photos start landing on the order there is no taking them back, so the dialog stays
+	// up until the batch finishes rather than leaving half of it filed with nobody told. Its own
+	// close on success uses the prop directly — the mutation still reads as pending there, so
+	// routing that through here would leave the dialog stuck open.
+	const requestOpenChange = (next: boolean) => {
+		if (!next && uploadMutation.isPending) {
+			return;
+		}
+		onOpenChange(next);
+	};
+
 	const confirm = () => {
 		if (onCapture) {
 			onCapture(pendingPhotos.map((photo) => photo.file));
@@ -505,7 +519,7 @@ export const PhotoCaptureProvider = ({
 			addFiles,
 			captureCameraPhoto,
 			confirm,
-			onOpenChange,
+			onOpenChange: requestOpenChange,
 			openCamera,
 			openFileInput,
 			removePhoto,
@@ -536,6 +550,7 @@ export const PhotoCaptureProvider = ({
 			isBusy,
 			isNoteOpen,
 			isShooting,
+			isUploading: uploadMutation.isPending,
 			lastPhoto: pendingPhotos.at(-1),
 			note,
 			photoCount,
