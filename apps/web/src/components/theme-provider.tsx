@@ -1,8 +1,9 @@
 import {
 	createContext,
 	type ReactNode,
-	useContext,
+	use,
 	useEffect,
+	useMemo,
 	useState,
 } from "react";
 
@@ -19,12 +20,26 @@ type ThemeProviderState = {
 	setTheme: (theme: Theme) => void;
 };
 
-const initialState: ThemeProviderState = {
-	theme: "system",
-	setTheme: () => null,
+const ThemeProviderContext = createContext<ThemeProviderState | null>(null);
+
+// Reading localStorage throws outright, not returns null, when the browser is
+// set to block all cookies. A counter tablet locked down that way still boots —
+// it just forgets the theme between reloads.
+const readStoredTheme = (storageKey: string): Theme | null => {
+	try {
+		return localStorage.getItem(storageKey) as Theme | null;
+	} catch {
+		return null;
+	}
 };
 
-const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
+const writeStoredTheme = (storageKey: string, theme: Theme) => {
+	try {
+		localStorage.setItem(storageKey, theme);
+	} catch {
+		// nothing to recover; the in-memory theme still applies
+	}
+};
 
 export function ThemeProvider({
 	children,
@@ -33,7 +48,7 @@ export function ThemeProvider({
 	...props
 }: ThemeProviderProps) {
 	const [theme, setTheme] = useState<Theme>(
-		() => (localStorage.getItem(storageKey) as Theme) || defaultTheme,
+		() => readStoredTheme(storageKey) || defaultTheme,
 	);
 
 	useEffect(() => {
@@ -54,25 +69,28 @@ export function ThemeProvider({
 		root.classList.add(theme);
 	}, [theme]);
 
-	const value = {
-		theme,
-		setTheme: (nextTheme: Theme) => {
-			localStorage.setItem(storageKey, nextTheme);
-			setTheme(nextTheme);
-		},
-	};
+	const value = useMemo(
+		() => ({
+			theme,
+			setTheme: (nextTheme: Theme) => {
+				writeStoredTheme(storageKey, nextTheme);
+				setTheme(nextTheme);
+			},
+		}),
+		[theme, storageKey],
+	);
 
 	return (
-		<ThemeProviderContext.Provider {...props} value={value}>
+		<ThemeProviderContext {...props} value={value}>
 			{children}
-		</ThemeProviderContext.Provider>
+		</ThemeProviderContext>
 	);
 }
 
 export const useTheme = () => {
-	const context = useContext(ThemeProviderContext);
+	const context = use(ThemeProviderContext);
 
-	if (context === undefined) {
+	if (!context) {
 		throw new Error("useTheme must be used within a ThemeProvider");
 	}
 

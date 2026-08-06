@@ -129,9 +129,6 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 		enabled: !!currentUser,
 	});
 
-	const userStoreIds =
-		meQuery.data?.userStores?.map((item) => item.store_id) ?? [];
-
 	// DB-fresh role — JWT claim goes stale on mid-session role changes.
 	const isAdmin = meQuery.data?.role === "admin";
 
@@ -140,8 +137,10 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 		if (isAdmin) {
 			return stores;
 		}
+		const userStoreIds =
+			meQuery.data?.userStores?.map((item) => item.store_id) ?? [];
 		return stores.filter((store) => userStoreIds.includes(store.id));
-	}, [isAdmin, storesQuery.data, userStoreIds]);
+	}, [isAdmin, storesQuery.data, meQuery.data]);
 
 	useEffect(() => {
 		const canResolveStoreSelection =

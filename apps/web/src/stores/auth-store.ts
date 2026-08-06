@@ -9,6 +9,9 @@ interface AuthState {
 	clearToken: () => void;
 }
 
+let cachedToken: string | null = null;
+let cachedUser: JWTPayload | null = null;
+
 export const useAuthStore = create<AuthState>()(
 	persist(
 		(set) => ({
@@ -28,8 +31,15 @@ export function getCurrentUser(): JWTPayload | null {
 		return null;
 	}
 
+	if (token === cachedToken) {
+		return cachedUser;
+	}
+
 	try {
-		return jwtDecode<JWTPayload>(token);
+		const user = jwtDecode<JWTPayload>(token);
+		cachedToken = token;
+		cachedUser = user;
+		return user;
 	} catch {
 		return null;
 	}

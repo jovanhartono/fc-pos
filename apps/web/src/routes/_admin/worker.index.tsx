@@ -7,7 +7,7 @@ import {
 } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
@@ -130,12 +130,6 @@ function WorkerQueuePage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 	const loadMoreRef = useRef<HTMLDivElement | null>(null);
-	const [now, setNow] = useState(() => Date.now());
-
-	useEffect(() => {
-		const interval = setInterval(() => setNow(Date.now()), 60_000);
-		return () => clearInterval(interval);
-	}, []);
 
 	const [itemCode, setItemCode] = useState("");
 	const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
@@ -343,15 +337,18 @@ function WorkerQueuePage() {
 		([] as QueueOrderServiceItem[]);
 	const totalItems = queueQuery.data?.pages[0]?.meta.total ?? 0;
 
-	const navigateToQueueDetail = (item: QueueOrderServiceItem) => {
-		void navigate({
-			to: "/worker/$orderId/$serviceId",
-			params: {
-				orderId: String(item.order_id),
-				serviceId: String(item.id),
-			},
-		});
-	};
+	const navigateToQueueDetail = useCallback(
+		(item: QueueOrderServiceItem) => {
+			void navigate({
+				to: "/worker/$orderId/$serviceId",
+				params: {
+					orderId: String(item.order_id),
+					serviceId: String(item.id),
+				},
+			});
+		},
+		[navigate],
+	);
 
 	const updateStoreFilter = (value: string) => {
 		void navigate({
@@ -569,8 +566,7 @@ function WorkerQueuePage() {
 							key={item.id}
 							item={item}
 							currentUserId={currentUser?.id}
-							now={now}
-							onOpen={() => navigateToQueueDetail(item)}
+							onOpen={navigateToQueueDetail}
 						/>
 					))}
 
@@ -615,17 +611,42 @@ function WorkerQueuePage() {
 	);
 }
 
-function QueueRow({
-	item,
-	currentUserId,
-	now,
-	onOpen,
-}: {
+interface WaitingBadgeProps {
+	orderCreatedAt: string;
+}
+
+const WaitingBadge = ({ orderCreatedAt }: WaitingBadgeProps) => {
+	const [now, setNow] = useState(() => Date.now());
+
+	useEffect(() => {
+		const interval = setInterval(() => setNow(Date.now()), 60_000);
+		return () => clearInterval(interval);
+	}, []);
+
+	const elapsedMs = Math.max(0, now - new Date(orderCreatedAt).getTime());
+	const ageTone = getElapsedTone(elapsedMs);
+	const ageLabel = formatElapsedDuration(elapsedMs);
+
+	return (
+		<span
+			className={cn(
+				"inline-flex items-center gap-1 border px-2 py-0.5 font-mono text-[11px] tabular-nums",
+				AGE_TONE_CLASS[ageTone],
+			)}
+		>
+			<HourglassIcon className="size-3" />
+			{`Waiting ${ageLabel}`}
+		</span>
+	);
+};
+
+interface QueueRowProps {
 	item: QueueOrderServiceItem;
 	currentUserId?: number;
-	now: number;
-	onOpen: () => void;
-}) {
+	onOpen: (item: QueueOrderServiceItem) => void;
+}
+
+const QueueRow = memo(({ item, currentUserId, onOpen }: QueueRowProps) => {
 	const isHandledByCurrentUser =
 		currentUserId !== undefined && item.handler_id === currentUserId;
 	const isHandledByAnotherWorker =
@@ -634,12 +655,6 @@ function QueueRow({
 		!isHandledByCurrentUser;
 
 	const isTerminal = TERMINAL_QUEUE_STATUSES.has(item.status);
-	const elapsedMs = Math.max(
-		0,
-		now - new Date(item.order_created_at).getTime(),
-	);
-	const ageTone = getElapsedTone(elapsedMs);
-	const ageLabel = formatElapsedDuration(elapsedMs);
 
 	return (
 		<button
@@ -648,7 +663,7 @@ function QueueRow({
 				"group grid gap-3 border border-border bg-background px-4 py-4 text-left transition-colors hover:bg-muted/40",
 				item.is_priority && "border-warning/40 bg-warning/5",
 			)}
-			onClick={onOpen}
+			onClick={() => onOpen(item)}
 		>
 			<div className="flex items-start justify-between gap-3">
 				<div className="grid gap-2">
@@ -669,15 +684,7 @@ function QueueRow({
 									: "Open"}
 						</Badge>
 						{isTerminal ? null : (
-							<span
-								className={cn(
-									"inline-flex items-center gap-1 border px-2 py-0.5 font-mono text-[11px] tabular-nums",
-									AGE_TONE_CLASS[ageTone],
-								)}
-							>
-								<HourglassIcon className="size-3" />
-								{`Waiting ${ageLabel}`}
-							</span>
+							<WaitingBadge orderCreatedAt={item.order_created_at} />
 						)}
 					</div>
 					<div className="grid gap-1">
@@ -701,4 +708,5 @@ function QueueRow({
 			</div>
 		</button>
 	);
-}
+});
+QueueRow.displayName = "QueueRow";

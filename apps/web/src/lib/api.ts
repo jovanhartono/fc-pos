@@ -117,9 +117,6 @@ export type OrderReceipt = InferResponseType<
 export type Campaign = InferResponseType<
 	typeof rpc.api.admin.campaigns.$get
 >["data"][number];
-export type CampaignDetail = InferResponseType<
-	(typeof rpc.api.admin.campaigns)[":id"]["$get"]
->["data"];
 export type ResolvedVoucher = InferResponseType<
 	(typeof rpc.api.admin.campaigns)["resolve-code"]["$post"]
 >["data"];
@@ -380,11 +377,6 @@ export type UpdateOrderServiceStatusPayload = {
 		| "cancelled";
 };
 
-export type UpdateOrderServiceHandlerPayload = {
-	handler_id: number | null;
-	note?: string;
-};
-
 export type UpdateOrderPaymentPayload = {
 	payment_method_id: number;
 };
@@ -464,7 +456,6 @@ export const queryKeys = {
 	orderDetail: (id: number) => ["order-detail", id] as const,
 	campaigns: (query?: FetchCampaignsQuery) =>
 		["campaigns", query ?? {}] as const,
-	campaignDetail: (id: number) => ["campaign-detail", id] as const,
 	campaignVoucherCodes: (id: number) => ["campaigns", id, "codes"] as const,
 	complaints: (query?: FetchComplaintsQuery) =>
 		["complaints", query ?? {}] as const,
@@ -613,14 +604,6 @@ export async function fetchCampaigns(query?: FetchCampaignsQuery) {
 	return response.data;
 }
 
-export async function fetchCampaignById(id: number) {
-	return parseSuccessData<CampaignDetail>(
-		rpcWithAuth().api.admin.campaigns[":id"].$get({
-			param: { id: String(id) },
-		}),
-	);
-}
-
 export async function createCampaign(payload: CampaignPayload) {
 	return parseResponse(
 		rpcWithAuth().api.admin.campaigns.$post({ json: payload }),
@@ -652,14 +635,6 @@ export async function updateCampaign(
 		rpcWithAuth().api.admin.campaigns[":id"].$put({
 			param: { id: String(id) },
 			json: payload,
-		}),
-	);
-}
-
-export async function deleteCampaign(id: number) {
-	return parseResponse(
-		rpcWithAuth().api.admin.campaigns[":id"].$delete({
-			param: { id: String(id) },
 		}),
 	);
 }
@@ -867,21 +842,6 @@ export async function updateOrderServiceStatus(
 			param: { id: String(orderId), serviceId: String(serviceId) },
 			json: payload,
 		}),
-	);
-}
-
-export async function updateOrderServiceHandler(
-	orderId: number,
-	serviceId: number,
-	payload: UpdateOrderServiceHandlerPayload,
-) {
-	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].services[":serviceId"].handler.$patch(
-			{
-				param: { id: String(orderId), serviceId: String(serviceId) },
-				json: payload,
-			},
-		),
 	);
 }
 
