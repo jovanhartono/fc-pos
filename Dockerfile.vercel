@@ -1,6 +1,6 @@
 # Build context is the repo root: the server resolves `catalog:` versions
 # from the root package.json, so the workspace manifests must be present.
-FROM oven/bun:1.3-alpine
+FROM oven/bun:1.3-alpine AS build
 
 WORKDIR /app
 
@@ -11,5 +11,34 @@ RUN bun install --filter '@fresclean/api' --production
 
 COPY packages/server packages/server
 
+# `bun build` folds `process.env.NODE_ENV` into a literal at build time, so this
+# has to be set BEFORE the compile below — not just on the final stage. It picks
+# the database in src/db/index.ts and the S3 key prefix in src/utils/s3.ts, and a
+# binary compiled without it is welded to dev: it would serve production traffic
+# off the dev database and file photos under `dev/`, with nothing logged.
 ENV NODE_ENV=production
-CMD ["bun", "run", "packages/server/src/index.ts"]
+
+# --bytecode is what shortens cold starts: it moves JS parsing out of every boot
+# and into this build step. --target is left at its default (the host triple,
+# bun-linux-*-musl here) and must stay a `bun` target — auth calls Bun.password,
+# which has no Node equivalent.
+RUN bun build --compile --bytecode packages/server/src/index.ts --outfile /app/server
+
+# Guard the fold above. With no database env set, the binary must ask for the
+# production URL; if it asks for DATABASE_URL_DEV the build is silently wrong.
+RUN timeout 30 /app/server 2>&1 | grep -q 'DATABASE_URL_PROD is required' \
+  || { echo 'build guard: NODE_ENV did not fold to production'; exit 1; }
+
+FROM alpine:3
+
+# Bun's standalone binary links libstdc++/libgcc even on musl; without them it
+# dies at exec with "Error relocating: symbol not found". ca-certificates is not
+# needed on top of these — Bun carries its own CA roots, so outbound TLS to Neon
+# and S3 still verifies on a base image that has no system trust store.
+RUN apk add --no-cache libstdc++ libgcc
+
+WORKDIR /app
+COPY --from=build /app/server /app/server
+
+ENV NODE_ENV=production
+CMD ["/app/server"]
