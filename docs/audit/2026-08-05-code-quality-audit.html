@@ -481,7 +481,7 @@
           </div>
           <div class="fact">
             <dt>Shipped</dt>
-            <dd>22 / 39</dd>
+            <dd>26 / 39</dd>
           </div>
         </dl>
       </header>
@@ -489,7 +489,8 @@
       <div class="note good">
         <p>
           <strong>Remediation in progress.</strong>
-          Twenty-two findings are fixed and merged. Each carries a
+          Twenty-six findings are fixed and merged — every server finding, and
+          four of the web ones. Each carries a
           <a
             class="shipped"
             href="https://github.com/jovanhartono/fc-pos/pulls?q=is%3Apr+is%3Amerged"
@@ -645,10 +646,33 @@
                 stopped sharing a body they each ignored half of.
               </td>
             </tr>
+            <tr>
+              <td>
+                <a href="https://github.com/jovanhartono/fc-pos/pull/88">#88</a>
+              </td>
+              <td>
+                <a href="#w3">W3</a> <a href="#w9">W9</a>
+              </td>
+              <td>
+                W3 turned out to be a bug report. The scanner has never worked:
+                React batches
+                <code>setIsScanning(true)</code>, so the
+                <code>&lt;video&gt;</code>
+                did not exist yet when the stream was assigned to it, and the
+                detect loop read a sourceless element every frame. Extracting
+                the lifecycle into a hook that attaches on a
+                <code>[stream]</code>
+                effect fixes it by construction. W9's three variants became a
+                discriminated union, and the dialog's labels got the first tests
+                it has ever had.
+              </td>
+            </tr>
           </tbody>
         </table>
         <p>
-          Still open: the web findings.
+          Still open: the remaining web findings — <a href="#w4">W4</a>,
+          <a href="#w5">W5</a>
+          and the <span class="sev lo">Low</span> web items.
           <a href="#w1">W1</a>, <a href="#w2">W2</a>, <a href="#w6">W6</a> and
           <a href="#w15">W15</a>
           are deferred: the report page they cover is being rewritten, so
@@ -2816,7 +2840,12 @@ const missingServices  = serviceIds.filter(id => !serviceMap.has(id));        //
 
       <article class="f hi" id="w3">
         <div class="f-head">
-          <span class="id">W3</span><span class="sev hi">High</span>
+          <span class="id">W3</span><span class="sev hi">High</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/88"
+            >Shipped #88</a
+          >
           <h3 class="f-title">
             The barcode scanner is 90 lines of camera lifecycle inlined into a
             route — with its teardown written twice
@@ -3238,7 +3267,12 @@ const detailCells  = usableCells.filter(…);    // pass 5</code></pre>
 
       <article class="f md" id="w9">
         <div class="f-head">
-          <span class="id">W9</span><span class="sev md">Medium</span>
+          <span class="id">W9</span><span class="sev md">Medium</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/88"
+            >Shipped #88</a
+          >
           <h3 class="f-title">
             The photo dialog gets the variants right and the base wrong
           </h3>
@@ -3846,6 +3880,12 @@ const visibleStores = useMemo(() =&gt; {
                   class="shipped"
                   href="https://github.com/jovanhartono/fc-pos/pull/86"
                   >#86</a
+                >
+                · W3
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/88"
+                  >#88</a
                 >
                 · W5 open
               </td>
