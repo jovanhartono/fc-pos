@@ -146,6 +146,13 @@ const operationsNavigation: NavItem[] = [
 	{ to: "/stores", label: "Stores", icon: StorefrontIcon, roles: ["admin"] },
 ] as const;
 
+const NAV_GROUPS = [
+	{ label: "Operations", items: operationsNavigation },
+	{ label: "Work", items: workNavigation },
+	{ label: "Customers", items: customersNavigation },
+	{ label: "Catalog", items: catalogNavigation },
+];
+
 interface AppShellProps extends PropsWithChildren {
 	title: string;
 	description?: string;
@@ -228,7 +235,7 @@ export function AppShell({ title, children }: AppShellProps) {
 	// Nav visibility follows the DB-fresh role from /admin/users/me, not the
 	// stale JWT claim — role changes apply without re-login.
 	const meQuery = useQuery(meQueryOptions());
-	const role = meQuery.data?.role as Role | undefined;
+	const role = meQuery.data?.role;
 
 	useEffect(() => {
 		document.title = `${title} | Fresclean POS`;
@@ -239,18 +246,12 @@ export function AppShell({ title, children }: AppShellProps) {
 		void navigate({ to: "/auth/login" });
 	};
 
-	const allowedWorkNavigation = workNavigation.filter((item) =>
-		role ? item.roles.includes(role) : false,
-	);
-	const allowedCustomersNavigation = customersNavigation.filter((item) =>
-		role ? item.roles.includes(role) : false,
-	);
-	const allowedCatalogNavigation = catalogNavigation.filter((item) =>
-		role ? item.roles.includes(role) : false,
-	);
-	const allowedOperationsNavigation = operationsNavigation.filter((item) =>
-		role ? item.roles.includes(role) : false,
-	);
+	const allowedGroups = role
+		? NAV_GROUPS.map((group) => ({
+				label: group.label,
+				items: group.items.filter((item) => item.roles.includes(role)),
+			})).filter((group) => group.items.length > 0)
+		: [];
 
 	return (
 		<SidebarProvider>
@@ -268,41 +269,14 @@ export function AppShell({ title, children }: AppShellProps) {
 				<SidebarSeparator />
 
 				<SidebarContent>
-					{allowedOperationsNavigation.length > 0 ? (
-						<SidebarGroup>
-							<SidebarGroupLabel>Operations</SidebarGroupLabel>
+					{allowedGroups.map((group) => (
+						<SidebarGroup key={group.label}>
+							<SidebarGroupLabel>{group.label}</SidebarGroupLabel>
 							<SidebarGroupContent>
-								<SidebarNavLinks items={allowedOperationsNavigation} />
+								<SidebarNavLinks items={group.items} />
 							</SidebarGroupContent>
 						</SidebarGroup>
-					) : null}
-
-					{allowedWorkNavigation.length > 0 ? (
-						<SidebarGroup>
-							<SidebarGroupLabel>Work</SidebarGroupLabel>
-							<SidebarGroupContent>
-								<SidebarNavLinks items={allowedWorkNavigation} />
-							</SidebarGroupContent>
-						</SidebarGroup>
-					) : null}
-
-					{allowedCustomersNavigation.length > 0 ? (
-						<SidebarGroup>
-							<SidebarGroupLabel>Customers</SidebarGroupLabel>
-							<SidebarGroupContent>
-								<SidebarNavLinks items={allowedCustomersNavigation} />
-							</SidebarGroupContent>
-						</SidebarGroup>
-					) : null}
-
-					{allowedCatalogNavigation.length > 0 ? (
-						<SidebarGroup>
-							<SidebarGroupLabel>Catalog</SidebarGroupLabel>
-							<SidebarGroupContent>
-								<SidebarNavLinks items={allowedCatalogNavigation} />
-							</SidebarGroupContent>
-						</SidebarGroup>
-					) : null}
+					))}
 				</SidebarContent>
 
 				<SidebarFooter>

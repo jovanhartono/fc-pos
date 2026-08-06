@@ -22,6 +22,27 @@ import { cn } from "@/lib/utils";
 import { formatMoney, parseMoney } from "@/shared/money";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
+interface ServiceFieldSpec {
+	key: "brand" | "color" | "model" | "size" | "notes";
+	label: string;
+	placeholder: string;
+	className?: string;
+}
+
+// Free-text descriptors the cashier reads off the item at the counter.
+const SERVICE_FIELDS: ServiceFieldSpec[] = [
+	{ key: "color", label: "Color", placeholder: "e.g. Black" },
+	{ key: "brand", label: "Brand", placeholder: "e.g. Adidas" },
+	{ key: "model", label: "Model", placeholder: "e.g. Yeezy" },
+	{ key: "size", label: "Size", placeholder: "e.g. 42" },
+	{
+		key: "notes",
+		label: "Item notes",
+		placeholder: "e.g. Loose sole, no bleach",
+		className: "sm:col-span-2",
+	},
+];
+
 // Step ② — the goods: review/annotate cart lines, order notes, and the
 // drop-off photo. The photo lives here (with the items it depicts, captured at
 // intake — see CONTEXT.md) and gates the step forward (see CheckoutFooter).
@@ -121,7 +142,7 @@ export const CheckoutItemsStep = () => {
 					</div>
 				))}
 
-				{serviceRows.map((line, index) => (
+				{serviceRows.map((line) => (
 					<div
 						className="grid gap-3 border border-border/70 p-3"
 						key={line.line_id}
@@ -144,113 +165,26 @@ export const CheckoutItemsStep = () => {
 							/>
 						</div>
 						<div className="grid gap-3 sm:grid-cols-2">
-							<Field>
-								<FieldLabel htmlFor={`service-color-${line.line_id}`}>
-									Color
-								</FieldLabel>
-								<Input
-									className="h-11"
-									id={`service-color-${line.line_id}`}
-									onChange={(event) =>
-										updateServiceField(
-											line.line_id,
-											"color",
-											event.target.value,
-										)
-									}
-									placeholder="e.g. Black"
-									value={line.color}
-								/>
-							</Field>
-							<Field
-								data-invalid={
-									!!form.formState.errors.serviceCart?.[index]?.brand
-								}
-							>
-								<FieldLabel htmlFor={`service-brand-${line.line_id}`}>
-									Brand
-								</FieldLabel>
-								<Input
-									className="h-11"
-									id={`service-brand-${line.line_id}`}
-									onChange={(event) =>
-										updateServiceField(
-											line.line_id,
-											"brand",
-											event.target.value,
-										)
-									}
-									placeholder="e.g. Adidas"
-									value={line.brand}
-								/>
-								<FieldError
-									errors={[form.formState.errors.serviceCart?.[index]?.brand]}
-								/>
-							</Field>
-							<Field
-								data-invalid={
-									!!form.formState.errors.serviceCart?.[index]?.model
-								}
-							>
-								<FieldLabel htmlFor={`service-model-${line.line_id}`}>
-									Model
-								</FieldLabel>
-								<Input
-									className="h-11"
-									id={`service-model-${line.line_id}`}
-									onChange={(event) =>
-										updateServiceField(
-											line.line_id,
-											"model",
-											event.target.value,
-										)
-									}
-									placeholder="e.g. Yeezy"
-									value={line.model}
-								/>
-								<FieldError
-									errors={[form.formState.errors.serviceCart?.[index]?.model]}
-								/>
-							</Field>
-							<Field
-								data-invalid={
-									!!form.formState.errors.serviceCart?.[index]?.size
-								}
-							>
-								<FieldLabel htmlFor={`service-size-${line.line_id}`}>
-									Size
-								</FieldLabel>
-								<Input
-									className="h-11"
-									id={`service-size-${line.line_id}`}
-									onChange={(event) =>
-										updateServiceField(line.line_id, "size", event.target.value)
-									}
-									placeholder="e.g. 42"
-									value={line.size}
-								/>
-								<FieldError
-									errors={[form.formState.errors.serviceCart?.[index]?.size]}
-								/>
-							</Field>
-							<Field className="sm:col-span-2">
-								<FieldLabel htmlFor={`service-notes-${line.line_id}`}>
-									Item notes
-								</FieldLabel>
-								<Input
-									className="h-11"
-									id={`service-notes-${line.line_id}`}
-									onChange={(event) =>
-										updateServiceField(
-											line.line_id,
-											"notes",
-											event.target.value,
-										)
-									}
-									placeholder="e.g. Loose sole, no bleach"
-									value={line.notes}
-								/>
-							</Field>
+							{SERVICE_FIELDS.map((field) => (
+								<Field className={field.className} key={field.key}>
+									<FieldLabel htmlFor={`service-${field.key}-${line.line_id}`}>
+										{field.label}
+									</FieldLabel>
+									<Input
+										className="h-11"
+										id={`service-${field.key}-${line.line_id}`}
+										onChange={(event) =>
+											updateServiceField(
+												line.line_id,
+												field.key,
+												event.target.value,
+											)
+										}
+										placeholder={field.placeholder}
+										value={line[field.key]}
+									/>
+								</Field>
+							))}
 						</div>
 						<div className="flex items-center justify-end gap-3">
 							<p className="text-sm font-semibold">
