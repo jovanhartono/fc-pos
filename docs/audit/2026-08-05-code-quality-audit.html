@@ -481,7 +481,7 @@
           </div>
           <div class="fact">
             <dt>Shipped</dt>
-            <dd>19 / 39</dd>
+            <dd>22 / 39</dd>
           </div>
         </dl>
       </header>
@@ -489,7 +489,7 @@
       <div class="note good">
         <p>
           <strong>Remediation in progress.</strong>
-          Nineteen findings are fixed and merged. Each carries a
+          Twenty-two findings are fixed and merged. Each carries a
           <a
             class="shipped"
             href="https://github.com/jovanhartono/fc-pos/pulls?q=is%3Apr+is%3Amerged"
@@ -599,11 +599,40 @@
                 signed-in user could read off the network tab.
               </td>
             </tr>
+            <tr>
+              <td>
+                <a href="https://github.com/jovanhartono/fc-pos/pull/84">#84</a>
+              </td>
+              <td>
+                <a href="#s3">S3</a> <a href="#s4">S4</a>
+              </td>
+              <td>
+                One gate on the reports router replaces the check ten handlers
+                each had to remember, and it reads
+                <code>store_id</code>
+                off the raw querystring because per-route validators run after
+                it. The money math stopped being untested: 41 snapshots record
+                every statement the reports repository sends, in full, scoped
+                and company-wide.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a href="https://github.com/jovanhartono/fc-pos/pull/85">#85</a>
+              </td>
+              <td><a href="#s5">S5</a></td>
+              <td>
+                What counts as a stretch's takings was written down eleven times
+                and is now written once. Those 41 snapshots are what made it
+                safe — a shared builder emitting the same AST produces
+                byte-identical SQL, so the file shrank by 166 lines without
+                Postgres being asked a single different question.
+              </td>
+            </tr>
           </tbody>
         </table>
         <p>
-          Still open: <a href="#s3">S3</a>, <a href="#s4">S4</a>,
-          <a href="#s5">S5</a>, and the web findings.
+          Still open: the web findings.
           <a href="#w1">W1</a>, <a href="#w2">W2</a>, <a href="#w6">W6</a> and
           <a href="#w15">W15</a>
           are deferred: the report page they cover is being rewritten, so
@@ -1858,7 +1887,12 @@ Number(line.product.price) * line.qty               // checkout-items-step.tsx:1
 
       <article class="f hi" id="s3">
         <div class="f-head">
-          <span class="id">S3</span><span class="sev hi">High</span>
+          <span class="id">S3</span><span class="sev hi">High</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/84"
+            >Shipped #84</a
+          >
           <h3 class="f-title">
             The reports module is 2,975 lines of money math with one test file
           </h3>
@@ -1955,7 +1989,12 @@ Number(line.product.price) * line.qty               // checkout-items-step.tsx:1
 
       <article class="f md" id="s4">
         <div class="f-head">
-          <span class="id">S4</span><span class="sev md">Medium</span>
+          <span class="id">S4</span><span class="sev md">Medium</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/84"
+            >Shipped #84</a
+          >
           <h3 class="f-title">Ten report handlers, one body</h3>
           <div class="tags"><span class="tag">duplication</span></div>
         </div>
@@ -1999,7 +2038,12 @@ return c.json(success(data));</code></pre>
 
       <article class="f md" id="s5">
         <div class="f-head">
-          <span class="id">S5</span><span class="sev md">Medium</span>
+          <span class="id">S5</span><span class="sev md">Medium</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/85"
+            >Shipped #85</a
+          >
           <h3 class="f-title">
             The paid-order window is copy-pasted 11 times; the store filter, 24
           </h3>
@@ -2053,6 +2097,45 @@ if (storeId !== undefined) {
           for the four revenue/COGS series. Roughly 250 lines go, and the
           definition of revenue becomes a thing you can point at.
         </p>
+
+        <div class="note good">
+          <p>
+            <strong>How it shipped — 166 lines, not 250.</strong>
+            The deeper repeat turned out to be the half-open
+            <code>[start, end)</code>
+            window itself, restated 14 times across four different time columns
+            —
+            <code>paid_at</code>, <code>created_at</code>,
+            <code>picked_up_at</code>, <code>clock_in_at</code>. That became
+            <code>timeWindow(column, range)</code>, and
+            <code>paidOrderWindow</code>
+            is built on it. Writing
+            <code>lte</code>
+            where
+            <code>lt</code>
+            belongs bills the closing day to two stretches at once; that call
+            now lives in one line instead of fourteen.
+          </p>
+          <p>
+            The missing 84 lines are the merges this report also implies —
+            services revenue and services COGS are the same statement bar the
+            summed column — and each of those
+            <em>changes</em>
+            the SQL Postgres receives. The 41 snapshots recorded in
+            <a href="#s3">S3</a>
+            are what made this refactor safe precisely because they refuse any
+            such change, so cashing in the rest would have meant spending the
+            guard to do it. They are left for their own reviewed PRs.
+          </p>
+          <p>
+            One hole surfaced on the way.
+            <code>fetchAttribution</code>'s store filter sat outside snapshot
+            coverage — deleting it outright passed all 416 tests, because the
+            fake driver returns no rows and the report short-circuits before
+            that query is built. A test that seeds one finished item now closes
+            it.
+          </p>
+        </div>
       </article>
 
       <article class="f md" id="s6">
@@ -3669,7 +3752,12 @@ const visibleStores = useMemo(() =&gt; {
                   href="https://github.com/jovanhartono/fc-pos/pull/82"
                   >#82</a
                 >
-                · S4 open
+                · S4
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/84"
+                  >#84</a
+                >
               </td>
             </tr>
             <tr>
@@ -3685,7 +3773,20 @@ const visibleStores = useMemo(() =&gt; {
                 needs a net first.
               </td>
               <td class="num">2 days</td>
-              <td>Open</td>
+              <td>
+                S3
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/84"
+                  >#84</a
+                >
+                · S5
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/85"
+                  >#85</a
+                >
+              </td>
             </tr>
             <tr>
               <td class="num">7</td>

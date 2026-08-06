@@ -10,7 +10,7 @@ import {
   lt,
   sql,
 } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { alias, type PgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import {
   campaignsTable,
@@ -36,138 +36,78 @@ import {
   jakartaBucketExpr,
 } from "@/modules/reports/report-range.util";
 
-interface BaseRangeArgs {
-  granularity: Granularity;
+interface RangeArgs {
   range: DateRange;
   storeId?: number;
 }
 
-// ───────────────────────── Revenue trend (R1) ─────────────────────────
+interface SeriesRangeArgs extends RangeArgs {
+  granularity: Granularity;
+}
 
-export async function listServicesRevenueSeries({
-  range,
-  storeId,
-  granularity,
-}: BaseRangeArgs) {
-  const bucket = jakartaBucketExpr(ordersTable.paid_at, granularity);
-  const conditions = [
-    gte(ordersTable.paid_at, range.start),
-    lt(ordersTable.paid_at, range.end),
+function storeScope(column: PgColumn, storeId?: number) {
+  return storeId === undefined ? undefined : eq(column, storeId);
+}
+
+// The closing instant belongs to the next stretch, not this one — otherwise
+// 1 September's first order is billed to August and to September both.
+function timeWindow(column: PgColumn, range: DateRange) {
+  return [gte(column, range.start), lt(column, range.end)];
+}
+
+function paidOrderWindow({ range, storeId }: RangeArgs) {
+  return [
+    ...timeWindow(ordersTable.paid_at, range),
     isNotNull(ordersTable.paid_at),
+    storeScope(ordersTable.store_id, storeId),
   ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
+}
 
-  const rows = await db
+async function sumByBucket(
+  lineTable: typeof ordersServicesTable | typeof ordersProductsTable,
+  amount: "subtotal" | "cogs_snapshot",
+  { range, storeId, granularity }: SeriesRangeArgs
+) {
+  const bucket = jakartaBucketExpr(ordersTable.paid_at, granularity);
+  return await db
     .select({
       bucket,
-      revenue: sql<string>`COALESCE(SUM(${ordersServicesTable.subtotal}), 0)`,
+      total: sql<string>`COALESCE(SUM(${lineTable[amount]}), 0)`,
     })
-    .from(ordersServicesTable)
-    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
-    .where(and(...conditions))
+    .from(lineTable)
+    .innerJoin(ordersTable, eq(lineTable.order_id, ordersTable.id))
+    .where(and(...paidOrderWindow({ range, storeId })))
     .groupBy(bucket);
+}
 
+// ───────────────────────── Revenue trend (R1) ─────────────────────────
+
+export async function listServicesRevenueSeries(args: SeriesRangeArgs) {
+  const rows = await sumByBucket(ordersServicesTable, "subtotal", args);
   return rows.map((row) => ({
     bucket: row.bucket,
-    revenue: Number(row.revenue),
+    revenue: Number(row.total),
   }));
 }
 
-export async function listProductsRevenueSeries({
-  range,
-  storeId,
-  granularity,
-}: BaseRangeArgs) {
-  const bucket = jakartaBucketExpr(ordersTable.paid_at, granularity);
-  const conditions = [
-    gte(ordersTable.paid_at, range.start),
-    lt(ordersTable.paid_at, range.end),
-    isNotNull(ordersTable.paid_at),
-  ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
-
-  const rows = await db
-    .select({
-      bucket,
-      revenue: sql<string>`COALESCE(SUM(${ordersProductsTable.subtotal}), 0)`,
-    })
-    .from(ordersProductsTable)
-    .innerJoin(ordersTable, eq(ordersProductsTable.order_id, ordersTable.id))
-    .where(and(...conditions))
-    .groupBy(bucket);
-
+export async function listProductsRevenueSeries(args: SeriesRangeArgs) {
+  const rows = await sumByBucket(ordersProductsTable, "subtotal", args);
   return rows.map((row) => ({
     bucket: row.bucket,
-    revenue: Number(row.revenue),
+    revenue: Number(row.total),
   }));
 }
 
 // ───────────────────────── COGS (Financial) ─────────────────────────
 
-export async function listServicesCogsSeries({
-  range,
-  storeId,
-  granularity,
-}: BaseRangeArgs) {
-  const bucket = jakartaBucketExpr(ordersTable.paid_at, granularity);
-  const conditions = [
-    gte(ordersTable.paid_at, range.start),
-    lt(ordersTable.paid_at, range.end),
-    isNotNull(ordersTable.paid_at),
-  ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
-
-  const rows = await db
-    .select({
-      bucket,
-      cogs: sql<string>`COALESCE(SUM(${ordersServicesTable.cogs_snapshot}), 0)`,
-    })
-    .from(ordersServicesTable)
-    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
-    .where(and(...conditions))
-    .groupBy(bucket);
-
-  return rows.map((row) => ({
-    bucket: row.bucket,
-    cogs: Number(row.cogs),
-  }));
+export async function listServicesCogsSeries(args: SeriesRangeArgs) {
+  const rows = await sumByBucket(ordersServicesTable, "cogs_snapshot", args);
+  return rows.map((row) => ({ bucket: row.bucket, cogs: Number(row.total) }));
 }
 
-export async function listProductsCogsSeries({
-  range,
-  storeId,
-  granularity,
-}: BaseRangeArgs) {
-  const bucket = jakartaBucketExpr(ordersTable.paid_at, granularity);
-  const conditions = [
-    gte(ordersTable.paid_at, range.start),
-    lt(ordersTable.paid_at, range.end),
-    isNotNull(ordersTable.paid_at),
-  ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
-
-  const rows = await db
-    .select({
-      bucket,
-      cogs: sql<string>`COALESCE(SUM(${ordersProductsTable.cogs_snapshot}), 0)`,
-    })
-    .from(ordersProductsTable)
-    .innerJoin(ordersTable, eq(ordersProductsTable.order_id, ordersTable.id))
-    .where(and(...conditions))
-    .groupBy(bucket);
-
-  return rows.map((row) => ({
-    bucket: row.bucket,
-    cogs: Number(row.cogs),
-  }));
+export async function listProductsCogsSeries(args: SeriesRangeArgs) {
+  const rows = await sumByBucket(ordersProductsTable, "cogs_snapshot", args);
+  return rows.map((row) => ({ bucket: row.bucket, cogs: Number(row.total) }));
 }
 
 // ───────────────────────── Discount (Financial) ─────────────────────────
@@ -176,24 +116,15 @@ export async function listOrderDiscountSeries({
   range,
   storeId,
   granularity,
-}: BaseRangeArgs) {
+}: SeriesRangeArgs) {
   const bucket = jakartaBucketExpr(ordersTable.paid_at, granularity);
-  const conditions = [
-    gte(ordersTable.paid_at, range.start),
-    lt(ordersTable.paid_at, range.end),
-    isNotNull(ordersTable.paid_at),
-  ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
-
   const rows = await db
     .select({
       bucket,
       discount: sql<string>`COALESCE(SUM(${ordersTable.discount}), 0)`,
     })
     .from(ordersTable)
-    .where(and(...conditions))
+    .where(and(...paidOrderWindow({ range, storeId })))
     .groupBy(bucket);
 
   return rows.map((row) => ({
@@ -205,12 +136,6 @@ export async function listOrderDiscountSeries({
 // ───────────────────────── Store revenue (branch donut) ─────────────────────────
 
 export async function listStoreRevenueRows({ range }: { range: DateRange }) {
-  const conditions = [
-    gte(ordersTable.paid_at, range.start),
-    lt(ordersTable.paid_at, range.end),
-    isNotNull(ordersTable.paid_at),
-  ];
-
   const rows = await db
     .select({
       store_id: ordersTable.store_id,
@@ -221,7 +146,7 @@ export async function listStoreRevenueRows({ range }: { range: DateRange }) {
     })
     .from(ordersTable)
     .innerJoin(storesTable, eq(ordersTable.store_id, storesTable.id))
-    .where(and(...conditions))
+    .where(and(...paidOrderWindow({ range })))
     .groupBy(ordersTable.store_id, storesTable.name, storesTable.code)
     .orderBy(asc(storesTable.code));
 
@@ -240,17 +165,8 @@ export async function listCategoryRevenueSeries({
   range,
   storeId,
   granularity,
-}: BaseRangeArgs) {
+}: SeriesRangeArgs) {
   const bucket = jakartaBucketExpr(ordersTable.paid_at, granularity);
-  const conditions = [
-    gte(ordersTable.paid_at, range.start),
-    lt(ordersTable.paid_at, range.end),
-    isNotNull(ordersTable.paid_at),
-  ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
-
   const rows = await db
     .select({
       bucket,
@@ -268,7 +184,7 @@ export async function listCategoryRevenueSeries({
       categoriesTable,
       eq(servicesTable.category_id, categoriesTable.id)
     )
-    .where(and(...conditions))
+    .where(and(...paidOrderWindow({ range, storeId })))
     .groupBy(bucket, categoriesTable.id, categoriesTable.name);
 
   return rows.map((row) => ({
@@ -284,19 +200,7 @@ export async function listCategoryRevenueSeries({
 export async function listStoreCategoryRevenueRows({
   range,
   storeId,
-}: {
-  range: DateRange;
-  storeId?: number;
-}) {
-  const conditions = [
-    gte(ordersTable.paid_at, range.start),
-    lt(ordersTable.paid_at, range.end),
-    isNotNull(ordersTable.paid_at),
-  ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
-
+}: RangeArgs) {
   const rows = await db
     .select({
       store_id: ordersTable.store_id,
@@ -317,7 +221,7 @@ export async function listStoreCategoryRevenueRows({
       categoriesTable,
       eq(servicesTable.category_id, categoriesTable.id)
     )
-    .where(and(...conditions))
+    .where(and(...paidOrderWindow({ range, storeId })))
     .groupBy(
       ordersTable.store_id,
       storesTable.name,
@@ -342,15 +246,12 @@ export async function listOrdersInSeries({
   range,
   storeId,
   granularity,
-}: BaseRangeArgs) {
+}: SeriesRangeArgs) {
   const bucket = jakartaBucketExpr(ordersTable.created_at, granularity);
   const conditions = [
-    gte(ordersTable.created_at, range.start),
-    lt(ordersTable.created_at, range.end),
+    ...timeWindow(ordersTable.created_at, range),
+    storeScope(ordersTable.store_id, storeId),
   ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
 
   const rows = await db
     .select({
@@ -371,18 +272,15 @@ export async function listOrdersOutSeries({
   range,
   storeId,
   granularity,
-}: BaseRangeArgs) {
+}: SeriesRangeArgs) {
   const bucket = jakartaBucketExpr(
     orderPickupEventsTable.picked_up_at,
     granularity
   );
   const conditions = [
-    gte(orderPickupEventsTable.picked_up_at, range.start),
-    lt(orderPickupEventsTable.picked_up_at, range.end),
+    ...timeWindow(orderPickupEventsTable.picked_up_at, range),
+    storeScope(ordersTable.store_id, storeId),
   ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
 
   const rows = await db
     .select({
@@ -400,22 +298,13 @@ export async function listOrdersOutSeries({
   }));
 }
 
-export async function findDistinctHandlerCount({
-  range,
-  storeId,
-}: {
-  range: DateRange;
-  storeId?: number;
-}) {
+export async function findDistinctHandlerCount({ range, storeId }: RangeArgs) {
   const conditions = [
-    gte(orderServiceStatusLogsTable.created_at, range.start),
-    lt(orderServiceStatusLogsTable.created_at, range.end),
+    ...timeWindow(orderServiceStatusLogsTable.created_at, range),
     eq(orderServiceStatusLogsTable.to_status, "processing"),
     eq(orderServiceStatusLogsTable.from_status, "queued"),
+    storeScope(ordersTable.store_id, storeId),
   ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
 
   const [row] = await db
     .select({
@@ -438,17 +327,8 @@ export async function listPaymentMixSeries({
   range,
   storeId,
   granularity,
-}: BaseRangeArgs) {
+}: SeriesRangeArgs) {
   const bucket = jakartaBucketExpr(ordersTable.paid_at, granularity);
-  const conditions = [
-    gte(ordersTable.paid_at, range.start),
-    lt(ordersTable.paid_at, range.end),
-    isNotNull(ordersTable.paid_at),
-  ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
-
   const rows = await db
     .select({
       bucket,
@@ -462,7 +342,7 @@ export async function listPaymentMixSeries({
       paymentMethodsTable,
       eq(ordersTable.payment_method_id, paymentMethodsTable.id)
     )
-    .where(and(...conditions))
+    .where(and(...paidOrderWindow({ range, storeId })))
     .groupBy(bucket, ordersTable.payment_method_id, paymentMethodsTable.name);
 
   return rows.map((row) => ({
@@ -480,15 +360,12 @@ export async function listNewCustomersSeries({
   range,
   storeId,
   granularity,
-}: BaseRangeArgs) {
+}: SeriesRangeArgs) {
   const bucket = jakartaBucketExpr(customersTable.created_at, granularity);
   const conditions = [
-    gte(customersTable.created_at, range.start),
-    lt(customersTable.created_at, range.end),
+    ...timeWindow(customersTable.created_at, range),
+    storeScope(customersTable.origin_store_id, storeId),
   ];
-  if (storeId !== undefined) {
-    conditions.push(eq(customersTable.origin_store_id, storeId));
-  }
 
   const rows = await db
     .select({
@@ -509,16 +386,13 @@ export async function listReturningCustomerOrdersSeries({
   range,
   storeId,
   granularity,
-}: BaseRangeArgs) {
+}: SeriesRangeArgs) {
   const bucket = jakartaBucketExpr(ordersTable.created_at, granularity);
   const conditions = [
-    gte(ordersTable.created_at, range.start),
-    lt(ordersTable.created_at, range.end),
+    ...timeWindow(ordersTable.created_at, range),
     isNotNull(ordersTable.customer_id),
+    storeScope(ordersTable.store_id, storeId),
   ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
 
   const rows = await db
     .select({
@@ -547,15 +421,15 @@ export async function listTopCustomers({
   storeId?: number;
   limit?: number;
 }) {
+  // Spelled out rather than reusing paidOrderWindow: that helper puts the store
+  // filter before "has a customer", and reordering these renumbers the binds
+  // against the LIMIT below.
   const conditions = [
-    gte(ordersTable.paid_at, range.start),
-    lt(ordersTable.paid_at, range.end),
+    ...timeWindow(ordersTable.paid_at, range),
     isNotNull(ordersTable.paid_at),
     isNotNull(ordersTable.customer_id),
+    storeScope(ordersTable.store_id, storeId),
   ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
 
   const rows = await db
     .select({
@@ -592,10 +466,10 @@ export async function findCumulativeCustomersBefore({
   before: Date;
   storeId?: number;
 }) {
-  const conditions = [lt(customersTable.created_at, before)];
-  if (storeId !== undefined) {
-    conditions.push(eq(customersTable.origin_store_id, storeId));
-  }
+  const conditions = [
+    lt(customersTable.created_at, before),
+    storeScope(customersTable.origin_store_id, storeId),
+  ];
 
   const [row] = await db
     .select({ total: count() })
@@ -605,21 +479,12 @@ export async function findCumulativeCustomersBefore({
   return Number(row?.total ?? 0);
 }
 
-export async function findRepeatCustomerStats({
-  range,
-  storeId,
-}: {
-  range: DateRange;
-  storeId?: number;
-}) {
+export async function findRepeatCustomerStats({ range, storeId }: RangeArgs) {
   const conditions = [
-    gte(ordersTable.created_at, range.start),
-    lt(ordersTable.created_at, range.end),
+    ...timeWindow(ordersTable.created_at, range),
     isNotNull(ordersTable.customer_id),
+    storeScope(ordersTable.store_id, storeId),
   ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
 
   const [row] = await db
     .select({
@@ -650,15 +515,12 @@ export async function listRefundAmountSeries({
   range,
   storeId,
   granularity,
-}: BaseRangeArgs) {
+}: SeriesRangeArgs) {
   const bucket = jakartaBucketExpr(orderRefundsTable.created_at, granularity);
   const conditions = [
-    gte(orderRefundsTable.created_at, range.start),
-    lt(orderRefundsTable.created_at, range.end),
+    ...timeWindow(orderRefundsTable.created_at, range),
+    storeScope(ordersTable.store_id, storeId),
   ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
 
   const rows = await db
     .select({
@@ -682,15 +544,12 @@ export async function listRefundReasonSeries({
   range,
   storeId,
   granularity,
-}: BaseRangeArgs) {
+}: SeriesRangeArgs) {
   const bucket = jakartaBucketExpr(orderRefundsTable.created_at, granularity);
   const conditions = [
-    gte(orderRefundsTable.created_at, range.start),
-    lt(orderRefundsTable.created_at, range.end),
+    ...timeWindow(orderRefundsTable.created_at, range),
+    storeScope(ordersTable.store_id, storeId),
   ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
 
   const rows = await db
     .select({
@@ -732,10 +591,8 @@ async function fetchAttribution(
     eq(processingLog.to_status, "processing"),
     eq(processingLog.from_status, "queued"),
     inArray(processingLog.order_service_id, orderServiceIds),
+    storeScope(ordersTable.store_id, storeId),
   ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
   return await db
     .selectDistinctOn([processingLog.order_service_id], {
       worker_id: processingLog.changed_by,
@@ -754,12 +611,9 @@ async function fetchAttribution(
 function fetchCompletions(range: DateRange, storeId?: number) {
   const conditions = [
     eq(orderServiceStatusLogsTable.to_status, "ready_for_pickup"),
-    gte(orderServiceStatusLogsTable.created_at, range.start),
-    lt(orderServiceStatusLogsTable.created_at, range.end),
+    ...timeWindow(orderServiceStatusLogsTable.created_at, range),
+    storeScope(ordersTable.store_id, storeId),
   ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
   // Rework cycles (quality_check → processing → ready_for_pickup) can emit
   // multiple ready_for_pickup logs per item; DISTINCT keeps items_completed
   // aligned with physically distinct finished items.
@@ -782,14 +636,11 @@ function fetchCompletions(range: DateRange, storeId?: number) {
 
 function fetchRefundsPerItem(range: DateRange, storeId?: number) {
   const conditions = [
-    gte(orderRefundsTable.created_at, range.start),
-    lt(orderRefundsTable.created_at, range.end),
+    ...timeWindow(orderRefundsTable.created_at, range),
     // product refund lines have no handler; worker attribution is service-only
     isNotNull(orderRefundItemsTable.order_service_id),
+    storeScope(ordersTable.store_id, storeId),
   ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
   return db
     .select({
       order_service_id: sql<number>`${orderRefundItemsTable.order_service_id}`,
@@ -808,12 +659,9 @@ function fetchRefundsPerItem(range: DateRange, storeId?: number) {
 function fetchShiftMinutes(range: DateRange, storeId?: number) {
   const conditions = [
     isNotNull(shiftsTable.clock_out_at),
-    gte(shiftsTable.clock_in_at, range.start),
-    lt(shiftsTable.clock_in_at, range.end),
+    ...timeWindow(shiftsTable.clock_in_at, range),
+    storeScope(shiftsTable.store_id, storeId),
   ];
-  if (storeId !== undefined) {
-    conditions.push(eq(shiftsTable.store_id, storeId));
-  }
   return db
     .select({
       user_id: shiftsTable.user_id,
@@ -834,12 +682,9 @@ function fetchReworkCounts(
   const conditions = [
     eq(reworkLog.from_status, "quality_check"),
     eq(reworkLog.to_status, "processing"),
-    gte(reworkLog.created_at, range.start),
-    lt(reworkLog.created_at, range.end),
+    ...timeWindow(reworkLog.created_at, range),
+    storeScope(ordersTable.store_id, storeId),
   ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
   return db
     .select({
       order_service_id: reworkLog.order_service_id,
@@ -909,10 +754,7 @@ function aggregatePerWorker(
 export async function listWorkerProductivityRows({
   range,
   storeId,
-}: {
-  range: DateRange;
-  storeId?: number;
-}) {
+}: RangeArgs) {
   const processingLog = alias(
     orderServiceStatusLogsTable,
     "processing_attribution"
@@ -987,18 +829,10 @@ export async function listWorkerProductivityRows({
 export async function listCampaignEffectivenessRows({
   range,
   storeId,
-}: {
-  range: DateRange;
-  storeId?: number;
-}) {
-  const conditions = [
-    gte(ordersTable.paid_at, range.start),
-    lt(ordersTable.paid_at, range.end),
-    isNotNull(ordersTable.paid_at),
-  ];
-  if (storeId !== undefined) {
-    conditions.push(eq(ordersTable.store_id, storeId));
-  }
+}: RangeArgs) {
+  // What a promo cost and what it brought in have to be counted over the same
+  // orders, or the discount is charged against a different set of takings.
+  const window = paidOrderWindow({ range, storeId });
 
   const discountRows = await db
     .select({
@@ -1013,7 +847,7 @@ export async function listCampaignEffectivenessRows({
       campaignsTable,
       eq(orderCampaignsTable.campaign_id, campaignsTable.id)
     )
-    .where(and(...conditions))
+    .where(and(...window))
     .groupBy(campaignsTable.id, campaignsTable.name, campaignsTable.code);
 
   const orderRows = await db
@@ -1025,7 +859,7 @@ export async function listCampaignEffectivenessRows({
     })
     .from(orderCampaignsTable)
     .innerJoin(ordersTable, eq(orderCampaignsTable.order_id, ordersTable.id))
-    .where(and(...conditions));
+    .where(and(...window));
 
   const orderMetrics = new Map<
     number,
