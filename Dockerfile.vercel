@@ -27,14 +27,10 @@ RUN timeout 30 /app/server 2>&1 | grep -q 'DATABASE_URL_PROD is required'
 FROM alpine:3
 
 # Bun's standalone binary links libstdc++/libgcc even on musl.
-RUN apk add --no-cache libstdc++ libgcc \
-  && adduser -S -D -u 10001 app
+RUN apk add --no-cache libstdc++ libgcc
 
 WORKDIR /app
-
-# Copied as root, run as `app`: the process can execute the binary, not rewrite it.
 COPY --from=build /app/server /app/server
-USER app
 
 ENV NODE_ENV=production
 CMD ["/app/server"]
