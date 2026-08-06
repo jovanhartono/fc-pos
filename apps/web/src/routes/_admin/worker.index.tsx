@@ -23,7 +23,9 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { QueueStatusTabs } from "@/features/orders/components/queue-status-tabs";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import { useBarcodeScanner } from "@/features/orders/hooks/useBarcodeScanner";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import {
 	type FetchOrderServiceQueueQuery,
@@ -38,6 +40,7 @@ import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details"
 import { meQueryOptions, storesQueryOptions } from "@/lib/query-options";
 import { readServerErrorMessage } from "@/lib/server-error";
 import {
+	ACTIVE_ORDER_SERVICE_STATUSES,
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
@@ -45,13 +48,6 @@ import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 
 const QUEUE_PAGE_SIZE = 20;
-const QUEUE_STATUS_OPTIONS = [
-	"queued",
-	"processing",
-	"quality_check",
-	"qc_reject",
-	"ready_for_pickup",
-] as const;
 
 const TERMINAL_QUEUE_STATUSES = new Set<QueueOrderServiceItem["status"]>([
 	"picked_up",
@@ -101,7 +97,7 @@ const AGE_TONE_CLASS: Record<AgeTone, string> = {
 
 const workerSearchSchema = z.object({
 	storeId: z.coerce.number().int().positive().optional(),
-	status: z.enum(QUEUE_STATUS_OPTIONS).optional(),
+	status: z.enum(ACTIVE_ORDER_SERVICE_STATUSES).optional(),
 	dateFrom: z
 		.string()
 		.regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -113,14 +109,6 @@ const workerSearchSchema = z.object({
 });
 
 const numericLookupRegex = /^\d+$/;
-
-type BarcodeDetectorLike = {
-	detect: (input: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
-};
-
-type WindowWithBarcodeDetector = typeof window & {
-	BarcodeDetector?: new (...args: unknown[]) => BarcodeDetectorLike;
-};
 
 export const Route = createFileRoute("/_admin/worker/")({
 	validateSearch: (search) => workerSearchSchema.parse(search),
@@ -150,14 +138,7 @@ function WorkerQueuePage() {
 	}, []);
 
 	const [itemCode, setItemCode] = useState("");
-	const [isScanning, setIsScanning] = useState(false);
-	const [scanError, setScanError] = useState<string | null>(null);
 	const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
-
-	const videoRef = useRef<HTMLVideoElement | null>(null);
-	const streamRef = useRef<MediaStream | null>(null);
-	const rafRef = useRef<number | null>(null);
-	const scanningRef = useRef(false);
 
 	const meQuery = useQuery({
 		...meQueryOptions(),
@@ -242,7 +223,9 @@ function WorkerQueuePage() {
 	});
 
 	const queueQueryRef = useRef(queueQuery);
-	queueQueryRef.current = queueQuery;
+	useEffect(() => {
+		queueQueryRef.current = queueQuery;
+	});
 
 	useEffect(() => {
 		const node = loadMoreRef.current;
@@ -350,110 +333,10 @@ function WorkerQueuePage() {
 		},
 	});
 
-	const stopScanner = () => {
-		scanningRef.current = false;
-		if (rafRef.current !== null) {
-			cancelAnimationFrame(rafRef.current);
-			rafRef.current = null;
-		}
-
-		if (streamRef.current) {
-			for (const track of streamRef.current.getTracks()) {
-				track.stop();
-			}
-			streamRef.current = null;
-		}
-
-		setIsScanning(false);
-	};
-
-	useEffect(() => {
-		return () => {
-			scanningRef.current = false;
-			if (rafRef.current !== null) {
-				cancelAnimationFrame(rafRef.current);
-				rafRef.current = null;
-			}
-
-			if (streamRef.current) {
-				for (const track of streamRef.current.getTracks()) {
-					track.stop();
-				}
-				streamRef.current = null;
-			}
-		};
-	}, []);
-
-	const startScanner = async () => {
-		setScanError(null);
-		const windowWithBarcodeDetector = window as WindowWithBarcodeDetector;
-
-		if (!windowWithBarcodeDetector.BarcodeDetector) {
-			setScanError("Barcode scanner is not supported on this browser.");
-			return;
-		}
-
-		try {
-			const stream = await navigator.mediaDevices.getUserMedia({
-				video: { facingMode: { ideal: "environment" } },
-			});
-			streamRef.current = stream;
-			scanningRef.current = true;
-			setIsScanning(true);
-
-			if (videoRef.current) {
-				videoRef.current.srcObject = stream;
-				await videoRef.current.play();
-			}
-
-			const detector = new windowWithBarcodeDetector.BarcodeDetector();
-
-			const detect = async () => {
-				if (!videoRef.current || !scanningRef.current) {
-					return;
-				}
-
-				try {
-					const codes = await detector.detect(videoRef.current);
-					const rawValue = codes.find((item) => !!item.rawValue)?.rawValue;
-
-					if (rawValue) {
-						stopScanner();
-						setItemCode(rawValue);
-						await lookupMutation.mutateAsync({
-							mode: "scan",
-							value: rawValue,
-						});
-						return;
-					}
-				} catch {
-					// ignore frame-level errors
-				}
-
-				rafRef.current = requestAnimationFrame(() => {
-					void detect();
-				});
-			};
-
-			rafRef.current = requestAnimationFrame(() => {
-				void detect();
-			});
-		} catch {
-			setScanError("Unable to access camera.");
-			stopScanner();
-		}
-	};
-
-	const statusTabItems = useMemo(
-		() => [
-			{ value: "all", label: "All active statuses" },
-			...QUEUE_STATUS_OPTIONS.map((status) => ({
-				value: status,
-				label: formatOrderServiceStatus(status),
-			})),
-		],
-		[],
-	);
+	const scanner = useBarcodeScanner((rawValue) => {
+		setItemCode(rawValue);
+		lookupMutation.mutate({ mode: "scan", value: rawValue });
+	});
 
 	const queueItems =
 		queueQuery.data?.pages.flatMap((page) => page.items) ??
@@ -474,7 +357,7 @@ function WorkerQueuePage() {
 		void navigate({
 			search: (prev: {
 				storeId?: number;
-				status?: (typeof QUEUE_STATUS_OPTIONS)[number];
+				status?: (typeof ACTIVE_ORDER_SERVICE_STATUSES)[number];
 			}) => ({
 				...prev,
 				storeId: value ? Number(value) : undefined,
@@ -486,14 +369,14 @@ function WorkerQueuePage() {
 		void navigate({
 			search: (prev: {
 				storeId?: number;
-				status?: (typeof QUEUE_STATUS_OPTIONS)[number];
+				status?: (typeof ACTIVE_ORDER_SERVICE_STATUSES)[number];
 				dateFrom?: string;
 				dateTo?: string;
 			}) => ({
 				...prev,
 				status:
 					value && value !== "all"
-						? (value as (typeof QUEUE_STATUS_OPTIONS)[number])
+						? (value as (typeof ACTIVE_ORDER_SERVICE_STATUSES)[number])
 						: undefined,
 			}),
 		});
@@ -503,7 +386,7 @@ function WorkerQueuePage() {
 		void navigate({
 			search: (prev: {
 				storeId?: number;
-				status?: (typeof QUEUE_STATUS_OPTIONS)[number];
+				status?: (typeof ACTIVE_ORDER_SERVICE_STATUSES)[number];
 				dateFrom?: string;
 				dateTo?: string;
 			}) => ({
@@ -558,43 +441,10 @@ function WorkerQueuePage() {
 										placeholder="Select store"
 									/>
 
-									<div className="grid gap-2">
-										<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-											Status
-										</p>
-										<div className="-mx-1 overflow-x-auto pb-1">
-											<div
-												role="tablist"
-												aria-label="Queue status"
-												className="flex min-w-max gap-2 px-1"
-											>
-												{statusTabItems.map((status) => {
-													const isActive =
-														(selectedStatus ?? "all") === status.value;
-
-													return (
-														<Button
-															key={status.value}
-															type="button"
-															variant={isActive ? "default" : "outline"}
-															size="lg"
-															role="tab"
-															aria-selected={isActive}
-															className={cn(
-																"h-11 px-4 text-sm",
-																isActive
-																	? "border-primary bg-primary text-primary-foreground shadow-sm"
-																	: "border-border/80 bg-background text-foreground/70 hover:border-foreground/20 hover:bg-muted/70 hover:text-foreground",
-															)}
-															onClick={() => updateStatusFilter(status.value)}
-														>
-															{status.label}
-														</Button>
-													);
-												})}
-											</div>
-										</div>
-									</div>
+									<QueueStatusTabs
+										value={selectedStatus ?? "all"}
+										onValueChange={updateStatusFilter}
+									/>
 
 									<DateRangePicker
 										commitOnComplete
@@ -644,8 +494,8 @@ function WorkerQueuePage() {
 										className="h-10 pointer-coarse:h-11 w-full lg:w-auto lg:min-w-28"
 										icon={<MagnifyingGlassIcon className="size-4" />}
 										disabled={!itemCode.trim() || lookupMutation.isPending}
-										onClick={async () => {
-											await lookupMutation.mutateAsync({
+										onClick={() => {
+											lookupMutation.mutate({
 												mode: "manual",
 												value: itemCode.trim(),
 											});
@@ -658,65 +508,33 @@ function WorkerQueuePage() {
 										variant="outline"
 										className="h-10 pointer-coarse:h-11 w-full lg:w-auto lg:min-w-28"
 										icon={<ScanIcon className="size-4" />}
-										onClick={async () => {
-											if (isScanning) {
-												stopScanner();
+										onClick={() => {
+											if (scanner.isScanning) {
+												scanner.stop();
 												return;
 											}
 
-											await startScanner();
+											void scanner.start();
 										}}
 									>
-										{isScanning ? "Stop Scan" : "Scan Tag"}
+										{scanner.isScanning ? "Stop Scan" : "Scan Tag"}
 									</Button>
 								</div>
 							</Field>
-							{scanError ? (
+							{scanner.error ? (
 								<div className="flex items-center gap-2 text-sm text-destructive">
 									<WarningCircleIcon className="size-4" weight="fill" />
-									<span>{scanError}</span>
+									<span>{scanner.error}</span>
 								</div>
 							) : null}
 						</div>
 					</div>
 
-					<div className="hidden gap-2 lg:grid">
-						<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-							Status
-						</p>
-						<div className="-mx-1 overflow-x-auto pb-1">
-							<div
-								id="queue-status-tabs"
-								role="tablist"
-								aria-label="Queue status"
-								className="flex min-w-max gap-2 px-1"
-							>
-								{statusTabItems.map((status) => {
-									const isActive = (selectedStatus ?? "all") === status.value;
-
-									return (
-										<Button
-											key={status.value}
-											type="button"
-											variant={isActive ? "default" : "outline"}
-											size="lg"
-											role="tab"
-											aria-selected={isActive}
-											className={cn(
-												"h-11 px-4 text-sm",
-												isActive
-													? "border-primary bg-primary text-primary-foreground shadow-sm"
-													: "border-border/80 bg-background text-foreground/70 hover:border-foreground/20 hover:bg-muted/70 hover:text-foreground",
-											)}
-											onClick={() => updateStatusFilter(status.value)}
-										>
-											{status.label}
-										</Button>
-									);
-								})}
-							</div>
-						</div>
-					</div>
+					<QueueStatusTabs
+						className="hidden lg:grid"
+						value={selectedStatus ?? "all"}
+						onValueChange={updateStatusFilter}
+					/>
 
 					<div className="hidden lg:block">
 						<DateRangePicker
@@ -728,9 +546,9 @@ function WorkerQueuePage() {
 						/>
 					</div>
 
-					{isScanning ? (
+					{scanner.isScanning ? (
 						<video
-							ref={videoRef}
+							ref={scanner.videoRef}
 							className="aspect-video w-full border border-border object-cover"
 							autoPlay
 							playsInline
