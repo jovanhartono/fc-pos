@@ -481,7 +481,7 @@
           </div>
           <div class="fact">
             <dt>Shipped</dt>
-            <dd>26 / 39</dd>
+            <dd>34 / 39</dd>
           </div>
         </dl>
       </header>
@@ -489,8 +489,8 @@
       <div class="note good">
         <p>
           <strong>Remediation in progress.</strong>
-          Twenty-six findings are fixed and merged — every server finding, and
-          four of the web ones. Each carries a
+          Thirty-four findings are fixed and merged — every server finding, and
+          every web finding outside the report page. Each carries a
           <a
             class="shipped"
             href="https://github.com/jovanhartono/fc-pos/pulls?q=is%3Apr+is%3Amerged"
@@ -667,12 +667,34 @@
                 it has ever had.
               </td>
             </tr>
+            <tr>
+              <td>
+                <a href="https://github.com/jovanhartono/fc-pos/pull/89">#89</a>
+              </td>
+              <td>
+                <a href="#w4">W4</a> <a href="#w5">W5</a>
+                <a href="#w10">W10</a> <a href="#w11">W11</a>
+                <a href="#w12">W12</a> <a href="#w13">W13</a>
+                <a href="#w14">W14</a> <a href="#w16">W16</a>
+              </td>
+              <td>
+                W4's stated cause was the smaller one: the Find box is
+                controlled by state in the same component, so every keystroke —
+                not only the minute tick — re-rendered every mounted queue row.
+                W11 read as a missing guard and was the opposite: all five
+                fields are bare
+                <code>z.string()</code>, so the three
+                <code>FieldError</code>s that did exist could never fire. W10's
+                <code>version: 1</code>
+                was rejected outright; the note on that finding says why.
+              </td>
+            </tr>
           </tbody>
         </table>
         <p>
-          Still open: the remaining web findings — <a href="#w4">W4</a>,
-          <a href="#w5">W5</a>
-          and the <span class="sev lo">Low</span> web items.
+          Still open: nothing outside the report page, bar
+          <a href="#w17">W17</a>, which describes the house style rather than
+          reporting a defect.
           <a href="#w1">W1</a>, <a href="#w2">W2</a>, <a href="#w6">W6</a> and
           <a href="#w15">W15</a>
           are deferred: the report page they cover is being rewritten, so
@@ -2921,7 +2943,12 @@ setIsScanning(false);                   // ← only difference</code></pre>
 
       <article class="f md" id="w4">
         <div class="f-head">
-          <span class="id">W4</span><span class="sev md">Medium</span>
+          <span class="id">W4</span><span class="sev md">Medium</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/89"
+            >Shipped #89</a
+          >
           <h3 class="f-title">
             The whole queue re-renders every 60 seconds to update a relative
             timestamp
@@ -2972,7 +2999,12 @@ useEffect(() =&gt; {
 
       <article class="f md" id="w5">
         <div class="f-head">
-          <span class="id">W5</span><span class="sev md">Medium</span>
+          <span class="id">W5</span><span class="sev md">Medium</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/89"
+            >Shipped #89</a
+          >
           <h3 class="f-title">
             <code>app-shell.tsx</code>
             writes the same nav group four times
@@ -3347,7 +3379,12 @@ const detailCells  = usableCells.filter(…);    // pass 5</code></pre>
 
       <article class="f md" id="w10">
         <div class="f-head">
-          <span class="id">W10</span><span class="sev md">Medium</span>
+          <span class="id">W10</span><span class="sev md">Medium</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/89"
+            >Part shipped #89</a
+          >
           <h3 class="f-title">All three persisted stores are unversioned</h3>
           <div class="tags">
             <span class="tag">client-localstorage-schema</span>
@@ -3391,11 +3428,60 @@ const detailCells  = usableCells.filter(…);    // pass 5</code></pre>
           <code>migrate</code>
           later.
         </p>
+
+        <div class="note warn">
+          <p>
+            <strong>This recommendation was wrong and was not shipped.</strong>
+            <code>version: 1</code>
+            does not cost nothing — it costs every device its persisted state,
+            once. From
+            <span class="mono">node_modules/zustand/esm/middleware.mjs</span>:
+            <code>persist</code>
+            defaults to
+            <code>version: 0</code>
+            (line 334) and stamps that version on every write (line 360), so
+            every entry already in production reads
+            <code>"version": 0</code>. On rehydrate, a version mismatch with no
+            <code>migrate</code>
+            logs an error and returns
+            <code>[false, void 0]</code>
+            (line 392-410) — the stored state is
+            <em>discarded</em>. Bumping to 1 would have logged out every user on
+            every device, forgotten every printer, and erased
+            <code>selectedStoreIdByUser</code>
+            — the exact data this finding set out to protect.
+          </p>
+          <p>
+            It also buys nothing forward. Discard-on-mismatch already works at
+            the implicit
+            <code>version: 0</code>; the field only matters at the moment a
+            persisted shape changes, and the bump belongs in
+            <em>that</em>
+            commit alongside a <code>migrate</code>. What shipped in
+            <a
+              class="shipped"
+              href="https://github.com/jovanhartono/fc-pos/pull/89"
+              >#89</a
+            >
+            is an explicit
+            <code>version: 0</code>
+            on
+            <code>transaction-preferences</code>
+            only, carrying that rule as a comment where the next person to
+            change the shape will read it. The second half of this finding — the
+            unguarded <code>localStorage</code> — was real and is fixed.
+          </p>
+        </div>
       </article>
 
       <article class="f lo" id="w11">
         <div class="f-head">
-          <span class="id">W11</span><span class="sev lo">Low</span>
+          <span class="id">W11</span><span class="sev lo">Low</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/89"
+            >Shipped #89</a
+          >
           <h3 class="f-title">
             Five near-identical form fields, written out five times
           </h3>
@@ -3420,7 +3506,12 @@ const detailCells  = usableCells.filter(…);    // pass 5</code></pre>
 
       <article class="f lo" id="w12">
         <div class="f-head">
-          <span class="id">W12</span><span class="sev lo">Low</span>
+          <span class="id">W12</span><span class="sev lo">Low</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/89"
+            >Shipped #89</a
+          >
           <h3 class="f-title">
             <code>theme-provider.tsx</code>
             is the codebase's only pre-React-19 context
@@ -3462,7 +3553,12 @@ const detailCells  = usableCells.filter(…);    // pass 5</code></pre>
 
       <article class="f lo" id="w13">
         <div class="f-head">
-          <span class="id">W13</span><span class="sev lo">Low</span>
+          <span class="id">W13</span><span class="sev lo">Low</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/89"
+            >Shipped #89</a
+          >
           <h3 class="f-title">
             <code>getCurrentUser()</code>
             decodes the JWT on every call
@@ -3484,7 +3580,12 @@ const detailCells  = usableCells.filter(…);    // pass 5</code></pre>
 
       <article class="f lo" id="w14">
         <div class="f-head">
-          <span class="id">W14</span><span class="sev lo">Low</span>
+          <span class="id">W14</span><span class="sev lo">Low</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/89"
+            >Shipped #89</a
+          >
           <h3 class="f-title">A <code>useMemo</code> that can never hit</h3>
           <div class="tags"><span class="tag">rerender-dependencies</span></div>
         </div>
@@ -3536,7 +3637,12 @@ const visibleStores = useMemo(() =&gt; {
 
       <article class="f lo" id="w16">
         <div class="f-head">
-          <span class="id">W16</span><span class="sev lo">Low</span>
+          <span class="id">W16</span><span class="sev lo">Low</span
+          ><a
+            class="shipped"
+            href="https://github.com/jovanhartono/fc-pos/pull/89"
+            >Shipped #89</a
+          >
           <h3 class="f-title">Three dead exports in <code>lib/api.ts</code></h3>
           <div class="tags"><span class="tag">dead-code</span></div>
         </div>
@@ -3887,7 +3993,12 @@ const visibleStores = useMemo(() =&gt; {
                   href="https://github.com/jovanhartono/fc-pos/pull/88"
                   >#88</a
                 >
-                · W5 open
+                · W5
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/89"
+                  >#89</a
+                >
               </td>
             </tr>
             <tr>
@@ -3913,7 +4024,12 @@ const visibleStores = useMemo(() =&gt; {
                   href="https://github.com/jovanhartono/fc-pos/pull/78"
                   >#78</a
                 >
-                · W10 open
+                · W10 part
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/89"
+                  >#89</a
+                >
               </td>
             </tr>
             <tr>
@@ -3931,7 +4047,12 @@ const visibleStores = useMemo(() =&gt; {
                   href="https://github.com/jovanhartono/fc-pos/pull/80"
                   >#80</a
                 >
-                · web Low open
+                · W11-W14, W16
+                <a
+                  class="shipped"
+                  href="https://github.com/jovanhartono/fc-pos/pull/89"
+                  >#89</a
+                >
               </td>
             </tr>
           </tbody>
