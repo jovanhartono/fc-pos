@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY packages/server/package.json packages/server/
 COPY apps/web/package.json apps/web/
-RUN bun install --filter '@fresclean/api' --production
+RUN bun install --filter '@fresclean/api' --production --frozen-lockfile
 
 COPY packages/server packages/server
 
@@ -16,6 +16,12 @@ COPY packages/server packages/server
 # the database in src/db/index.ts and the S3 key prefix in src/utils/s3.ts, and a
 # binary compiled without it is welded to dev: it would serve production traffic
 # off the dev database and file photos under `dev/`, with nothing logged.
+#
+# Folded in means FROZEN: setting NODE_ENV on the container at runtime no longer
+# does anything, unlike when this image ran from source. So the image is
+# production-only, previews included — a preview deployment reads
+# DATABASE_URL_PROD and files photos under `prod/`. Deployment protection is what
+# keeps traffic off those, not configuration.
 ENV NODE_ENV=production
 
 # --bytecode is what shortens cold starts: it moves JS parsing out of every boot
