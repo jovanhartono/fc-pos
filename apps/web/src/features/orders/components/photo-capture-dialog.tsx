@@ -20,7 +20,8 @@ const TopChrome = () => {
 		<div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 pt-[calc(env(safe-area-inset-top)_+_0.75rem)] pb-3">
 			<button
 				aria-label="Close"
-				className="grid size-9 place-items-center justify-self-start rounded-full bg-white/10 text-white transition hover:bg-white/20"
+				className="grid size-9 place-items-center justify-self-start rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
+				disabled={state.isUploading}
 				onClick={() => actions.onOpenChange(false)}
 				type="button"
 			>
