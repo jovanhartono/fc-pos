@@ -1,13 +1,8 @@
-interface Metadata {
-  limit?: number;
-  offset?: number;
-  total?: number;
-}
+import type { PaginationMeta } from "@/utils/pagination";
 
-interface SuccessResponse<T, M extends object = Metadata> {
+interface SuccessResponse<T> {
   data: T;
   message?: string;
-  meta?: M;
   success: true;
 }
 
@@ -17,11 +12,20 @@ interface ErrorResponse {
   success: false;
 }
 
-export function success<T, M extends object = Metadata>(
+// Two shapes, not one with an optional `meta`. A list endpoint always sends the
+// page it served, so declaring `meta?` made every client write a fallback for a
+// response the server cannot produce.
+export function success<T>(data: T, message?: string): SuccessResponse<T>;
+export function success<T>(
+  data: T,
+  message: string | undefined,
+  meta: PaginationMeta
+): SuccessResponse<T> & { meta: PaginationMeta };
+export function success<T>(
   data: T,
   message?: string,
-  meta?: M
-): SuccessResponse<T, M> {
+  meta?: PaginationMeta
+): SuccessResponse<T> & { meta?: PaginationMeta } {
   return {
     data,
     message,

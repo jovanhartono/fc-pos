@@ -728,6 +728,7 @@ export const orderServicesImagesTable = pgTable(
   },
   (table) => [
     index("order_services_images_deleted_at_idx").on(table.deleted_at),
+    index("order_services_images_service_idx").on(table.order_service_id),
   ]
 );
 
