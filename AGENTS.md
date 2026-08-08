@@ -4,7 +4,9 @@ Guidance for coding agents working anywhere in this repository. `CLAUDE.md` syml
 
 ## Overview
 
-**Fresclean** is a Bun monorepo for a laundry/cleaning service business — an API server (`@fresclean/api`) and an admin web dashboard (`@fresclean/web`) that consumes it as a workspace dependency for shared types, Zod schemas, and the typed RPC client.
+**Fresclean** is a Bun monorepo for a multi-store cleaning, restoration, and repair shop — customers drop off footwear, bags, hats, and luggage, the shop treats them, they collect. It is **not** a laundry: the unit of work is an individual **Item** tracked through named treatments, not a load of garments. An API server (`@fresclean/api`) plus an admin web dashboard (`@fresclean/web`) that consumes it as a workspace dependency for shared types, Zod schemas, and the typed RPC client.
+
+See `CONTEXT.md` for the domain vocabulary — **Item**, **Order**, **OrderService** and the rest have precise meanings here, and using them loosely is the most common way to get the model wrong.
 
 ## Environment Variables
 
