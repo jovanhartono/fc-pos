@@ -68,6 +68,22 @@ export type CampaignEligibilityInput = _CampaignEligibilityInput;
 export const campaignIneligibilityReason = _campaignIneligibilityReason;
 
 import {
+  type EstimateLineState as _EstimateLineState,
+  hasUnconfirmedEstimate as _hasUnconfirmedEstimate,
+  isUnconfirmedEstimate as _isUnconfirmedEstimate,
+} from "@/schema/estimate";
+import {
+  type FixedPriceLine as _FixedPriceLine,
+  fixedPriceSubtotal as _fixedPriceSubtotal,
+} from "@/schema/fixed-price";
+
+export type EstimateLineState = _EstimateLineState;
+export const hasUnconfirmedEstimate = _hasUnconfirmedEstimate;
+export const isUnconfirmedEstimate = _isUnconfirmedEstimate;
+export type FixedPriceLine = _FixedPriceLine;
+export const fixedPriceSubtotal = _fixedPriceSubtotal;
+
+import {
   allocateRefund as _allocateRefund,
   lineKey as _lineKey,
   lineRefundCap as _lineRefundCap,
@@ -182,6 +198,11 @@ export const POSTOrderSchema = z
             color: optionalVarcharSchema("Item Color"),
             model: optionalVarcharSchema("Model"),
             size: optionalVarcharSchema("Size", 64),
+            // ADR-0018: only read for a no-list-price Service (Repair), where
+            // the cashier quotes per Item. createOrder ignores both for any
+            // catalog-priced Service — the browser can never set those prices.
+            price: currencySchema("Price").optional(),
+            is_estimate: z.boolean().optional(),
           },
           "Service is required"
         )

@@ -79,6 +79,11 @@ const transactionDraftSchema = z
 				model: z.string(),
 				size: z.string(),
 				notes: z.string(),
+				// Repair pricing (ADR-0018). Whether a price is required depends on
+				// the catalog row, which this schema cannot see — the Items step
+				// gate and the server enforce it.
+				price: z.string(),
+				is_estimate: z.boolean(),
 			}),
 		),
 	})

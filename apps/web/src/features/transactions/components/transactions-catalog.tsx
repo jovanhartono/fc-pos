@@ -259,7 +259,11 @@ export function TransactionsCatalog() {
 										{item.name}
 									</p>
 									<p className="mt-auto font-mono text-sm font-semibold tabular-nums">
-										{formatIDRCurrency(String(item.price))}
+										{/* No list price (ADR-0018): the cashier keys the number
+										    on the cart line, firm or as an Estimate. */}
+										{item.price === null
+											? "Priced at intake"
+											: formatIDRCurrency(String(item.price))}
 									</p>
 								</button>
 							</CardContent>

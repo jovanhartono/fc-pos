@@ -1,4 +1,5 @@
 import {
+	isUnconfirmedEstimate,
 	ORDER_SERVICE_TRANSITIONS,
 	ORDER_TERMINAL_SERVICE_STATUSES,
 } from "@fresclean/api/schema";
@@ -8,6 +9,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EstimateConfirmForm } from "@/features/orders/components/estimate-confirm-form";
 import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
 import { OrderReasonCallout } from "@/features/orders/components/order-reason-callout";
 import type { NonTerminalServiceStatus } from "@/features/orders/components/order-service-dialog.types";
@@ -29,6 +31,7 @@ import {
 	formatRefundReason,
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
+import { formatMoney } from "@/shared/money";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useDialog } from "@/stores/dialog-store";
 
@@ -126,9 +129,15 @@ export const OrderServiceDetail = ({
 	const needsPhotoToStart =
 		service.status === "queued" && service.images.length === 0;
 
+	// ADR-0018: while true, this line holds the whole Order's payment.
+	const isEstimateUnconfirmed = isUnconfirmedEstimate(service);
+
 	return (
 		<div className="grid gap-5 text-sm">
 			<div className="flex flex-wrap items-center gap-2">
+				{isEstimateUnconfirmed ? (
+					<Badge variant="warning">Estimate</Badge>
+				) : null}
 				{service.is_priority ? <Badge variant="warning">Priority</Badge> : null}
 				<Badge variant={getOrderServiceStatusBadgeVariant(service.status)}>
 					{formatOrderServiceStatus(service.status)}
@@ -170,6 +179,36 @@ export const OrderServiceDetail = ({
 					</dd>
 				</div>
 			</dl>
+
+			{service.estimated_price !== null ? (
+				// Estimate vs final, side by side (ADR-0018): the intake number is
+				// never overwritten — it is what makes estimate accuracy reportable.
+				<div className="grid gap-3 border border-border/70 p-3">
+					<dl className="grid gap-3 sm:grid-cols-2">
+						<div>
+							<dt className="text-muted-foreground text-xs">Estimate</dt>
+							<dd className="mt-0.5 font-mono font-medium tabular-nums">
+								{formatMoney(service.estimated_price)}
+							</dd>
+						</div>
+						<div>
+							<dt className="text-muted-foreground text-xs">Final</dt>
+							<dd className="mt-0.5 font-mono font-medium tabular-nums">
+								{service.estimate_confirmed_at
+									? formatMoney(service.price)
+									: "Unconfirmed"}
+							</dd>
+						</div>
+					</dl>
+					{isEstimateUnconfirmed ? (
+						<EstimateConfirmForm
+							estimatedPrice={service.estimated_price}
+							orderId={orderId}
+							serviceId={service.id}
+						/>
+					) : null}
+				</div>
+			) : null}
 
 			{service.status === "cancelled" && service.cancel_reason ? (
 				<OrderReasonCallout

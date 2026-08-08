@@ -5,6 +5,7 @@ import {
 	buildActiveItemMap,
 	enrichProductCart,
 	enrichServiceCart,
+	getCartCampaignBase,
 	getCartCount,
 	getCartSubtotal,
 	type ProductCartDisplayLine,
@@ -41,6 +42,12 @@ export interface CartOps {
 		lineId: string,
 		field: "brand" | "color" | "model" | "size" | "notes",
 		value: string,
+	) => void;
+	// The Repair pricing entry (ADR-0018): the cashier's number and whether it
+	// is firm or an Estimate. One op so the pair can't drift apart.
+	updateServicePricing: (
+		lineId: string,
+		patch: Partial<Pick<ServiceCartLine, "price" | "is_estimate">>,
 	) => void;
 	addProduct: (product: Product) => void;
 	addService: (service: Service) => void;
@@ -142,6 +149,23 @@ export function useCartOps(): CartOps {
 		[form, setServiceCart, setSubmitError],
 	);
 
+	const updateServicePricing = useCallback(
+		(
+			lineId: string,
+			patch: Partial<Pick<ServiceCartLine, "price" | "is_estimate">>,
+		) => {
+			setSubmitError("");
+			setServiceCart(
+				form
+					.getValues("serviceCart")
+					.map((line) =>
+						line.line_id === lineId ? { ...line, ...patch } : line,
+					),
+			);
+		},
+		[form, setServiceCart, setSubmitError],
+	);
+
 	const addProduct = useCallback(
 		(product: Product) => {
 			const currentCart = form.getValues("productCart");
@@ -187,6 +211,8 @@ export function useCartOps(): CartOps {
 					model: "",
 					size: "",
 					notes: "",
+					price: "",
+					is_estimate: false,
 				},
 			]);
 		},
@@ -199,6 +225,7 @@ export function useCartOps(): CartOps {
 		removeService,
 		updateProductQty,
 		updateServiceField,
+		updateServicePricing,
 		addProduct,
 		addService,
 	};
@@ -208,6 +235,8 @@ export interface Cart extends CartOps {
 	productRows: ProductCartDisplayLine[];
 	serviceRows: ServiceCartDisplayLine[];
 	subtotal: number;
+	// Fixed-price subtotal (ADR-0019) — the base campaigns are judged against.
+	campaignBase: number;
 	count: number;
 }
 
@@ -249,10 +278,15 @@ export function useCart(): Cart {
 		[productRows, serviceRows],
 	);
 
+	const campaignBase = useMemo(
+		() => getCartCampaignBase(productRows, serviceRows),
+		[productRows, serviceRows],
+	);
+
 	const count = useMemo(
 		() => getCartCount(productCart, serviceCart),
 		[productCart, serviceCart],
 	);
 
-	return { ...ops, productRows, serviceRows, subtotal, count };
+	return { ...ops, productRows, serviceRows, subtotal, campaignBase, count };
 }

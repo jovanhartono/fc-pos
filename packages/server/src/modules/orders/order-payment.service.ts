@@ -4,6 +4,7 @@ import { ordersTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import type { PatchOrderPaymentInput } from "@/modules/orders/order-admin.schema";
 import { assertCanProcessPayment } from "@/modules/permissions/permissions";
+import { hasUnconfirmedEstimate } from "@/schema/estimate";
 import type { JWTPayload } from "@/types";
 
 export async function updateOrderPayment({
@@ -40,6 +41,23 @@ export async function updateOrderPayment({
   if (order.status === "cancelled") {
     throw new BadRequestException(
       "Cannot collect payment on a cancelled order"
+    );
+  }
+
+  // ADR-0018: a Repair quoted as an Estimate has not settled yet — the shop
+  // does not take money for a number it may still revise. Payment is binary
+  // (ADR-0001), so the whole Order waits, known lines included.
+  const serviceLines = await db.query.ordersServicesTable.findMany({
+    where: { order_id: orderId },
+    columns: {
+      estimated_price: true,
+      estimate_confirmed_at: true,
+      status: true,
+    },
+  });
+  if (hasUnconfirmedEstimate(serviceLines)) {
+    throw new BadRequestException(
+      "Order has an unconfirmed Estimate — confirm it before collecting payment"
     );
   }
 

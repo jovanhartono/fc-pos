@@ -1,3 +1,4 @@
+import { isUnconfirmedEstimate } from "@fresclean/api/schema";
 import type { Me, OrderDetail } from "@/lib/api";
 
 export interface OrderActionGates {
@@ -11,6 +12,8 @@ export interface OrderActionGates {
 	canCancelOrder: boolean;
 	canRefundWholeOrder: boolean;
 	canOpenComplaint: boolean;
+	// ADR-0018: any unconfirmed Estimate refuses the Order's move to paid.
+	hasUnconfirmedEstimate: boolean;
 	complaintableServices: OrderDetail["services"];
 	readyForPickupServices: OrderDetail["services"];
 	refundableServices: OrderDetail["services"];
@@ -63,6 +66,9 @@ export const getOrderActionGates = (
 			(service.complaints ?? []).length === 0,
 	);
 	const isPaid = detail.payment_status === "paid";
+	// ADR-0018: the same predicate the server's paid transition runs, so the
+	// payment section can explain the block instead of relaying a 400.
+	const hasEstimate = services.some(isUnconfirmedEstimate);
 	// ADR-0009: items are ready but the Order is unpaid — explain why pickup is
 	// blocked, and to whom (a pickup-only worker must fetch a cashier to collect).
 	const pickupDisabledReason =
@@ -93,6 +99,7 @@ export const getOrderActionGates = (
 			(refundableServices.length > 0 || refundableProducts.length > 0),
 		// Opening a complaint is open to any staff (ADR-0013) — no role gate.
 		canOpenComplaint: complaintableServices.length > 0,
+		hasUnconfirmedEstimate: hasEstimate,
 		complaintableServices,
 		readyForPickupServices,
 		refundableServices,

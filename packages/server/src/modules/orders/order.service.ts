@@ -27,6 +27,7 @@ import {
 } from "@/modules/products/product.repository";
 import { findServices } from "@/modules/services/service.repository";
 import type { POSTOrderSchema } from "@/schema";
+import { fixedPriceSubtotal } from "@/schema/fixed-price";
 import type { JWTPayload } from "@/types";
 import type { Store } from "@/types/entity";
 import { resolveStoreScope, unhandledStoreScope } from "@/utils/authorization";
@@ -42,9 +43,11 @@ interface ExpandedServiceItem {
   brand?: string;
   color?: string;
   id: number;
+  is_estimate?: boolean;
   is_priority?: boolean;
   model?: string;
   notes?: string;
+  price?: number;
   size?: string;
 }
 
@@ -55,9 +58,11 @@ function expandServices(
     brand: item.brand,
     model: item.model,
     id: item.id,
+    is_estimate: item.is_estimate,
     is_priority: item.is_priority,
     notes: item.notes,
     color: item.color,
+    price: item.price,
     size: item.size,
   }));
 }
@@ -114,6 +119,41 @@ function resolveCatalogLines<
   return lines;
 }
 
+interface ServiceLinePricing {
+  estimated_price: string | null;
+  price: string;
+}
+
+// The price seam (ADR-0018). A catalog-priced Service always snapshots the
+// catalog row and silently drops anything the browser sent — the POS can
+// never set a normal Service's price. A no-list-price Service (Repair) has
+// nothing to snapshot: the cashier's number is required, kept as the line
+// price, and additionally pinned in estimated_price when it is an Estimate
+// rather than firm.
+function resolveServiceLinePricing(
+  item: ExpandedServiceItem,
+  service: DbService
+): ServiceLinePricing {
+  if (service.price !== null) {
+    return { price: service.price, estimated_price: null };
+  }
+
+  // Zero is not a quote: price 0 already means deliberately free (a Rework
+  // line, ADR-0013), so quoted work must carry a real number.
+  if (item.price == null || item.price <= 0) {
+    throw new BadRequestException(
+      "Service has no list price — a price is required for this line"
+    );
+  }
+
+  const price = item.price.toString();
+  return { price, estimated_price: item.is_estimate ? price : null };
+}
+
+type PricedServiceLine = CatalogLine<ExpandedServiceItem, DbService> & {
+  pricing: ServiceLinePricing;
+};
+
 function buildOrderServiceRows({
   code,
   orderId,
@@ -121,16 +161,17 @@ function buildOrderServiceRows({
 }: {
   code: string;
   orderId: number;
-  serviceLines: CatalogLine<ExpandedServiceItem, DbService>[];
+  serviceLines: PricedServiceLine[];
 }) {
-  return serviceLines.map(({ item, row: service }, index) => ({
+  return serviceLines.map(({ item, row: service, pricing }, index) => ({
     brand: item.brand,
     item_code: `${code}-S${String(index + 1).padStart(3, "0")}`,
     is_priority: item.is_priority ?? service.is_priority,
     model: item.model,
     order_id: orderId,
     service_id: service.id,
-    price: service.price,
+    price: pricing.price,
+    estimated_price: pricing.estimated_price,
     cogs_snapshot: service.cogs,
     notes: item.notes,
     color: item.color,
@@ -214,11 +255,41 @@ export async function createOrder(
   ]);
 
   const productLines = resolveCatalogLines("Product", products, dbProducts);
-  const serviceLines = resolveCatalogLines(
+  const serviceLines: PricedServiceLine[] = resolveCatalogLines(
     "Service",
     expandServices(services),
     dbServices
-  );
+  ).map((line) => ({
+    ...line,
+    // Priced before the transaction — a Repair line missing its quote must
+    // bounce here, not after a daily order number has been burned.
+    pricing: resolveServiceLinePricing(line.item, line.row),
+  }));
+
+  // ADR-0018: every Estimate is unconfirmed at intake, and an Order carrying
+  // an unconfirmed Estimate cannot be paid — not even at the counter.
+  if (
+    orderPayload.payment_status === "paid" &&
+    serviceLines.some((line) => line.pricing.estimated_price !== null)
+  ) {
+    throw new BadRequestException(
+      "An order with an unconfirmed Estimate cannot be marked paid"
+    );
+  }
+
+  // ADR-0019: Campaigns run on the fixed-price subtotal. A no-list-price line
+  // (Repair) can be re-priced after checkout, so it may neither unlock a
+  // Campaign minimum nor count toward the base a discount is computed from.
+  const campaignBase = fixedPriceSubtotal([
+    ...serviceLines.map(({ row, pricing }) => ({
+      has_list_price: row.price !== null,
+      subtotal: Number(pricing.price),
+    })),
+    ...productLines.map(({ item, row: product }) => ({
+      has_list_price: true,
+      subtotal: Number(product.price) * item.qty,
+    })),
+  ]);
 
   return db.transaction(async (tx) => {
     const dateStr = jakartaNow().format("DDMMYYYY");
@@ -276,23 +347,31 @@ export async function createOrder(
     ]);
 
     const grossTotal = serviceSubtotal + productSubtotal;
-    const lines = serviceLines.map(({ item, row: service }) => ({
-      price: Number(service.price),
-      service_id: item.id,
-    }));
+    // No-list-price lines stay out of the discount desk entirely: they are
+    // not in the base (campaignBase) and not selectable by a BOGO either.
+    const lines = serviceLines
+      .filter(({ row }) => row.price !== null)
+      .map(({ item, pricing }) => ({
+        price: Number(pricing.price),
+        service_id: item.id,
+      }));
 
     const { discountAmount, discountSource, campaignRows } =
       await resolveDiscount({
         campaignIds: [...new Set(campaign_ids)],
         voucherCodes: [...new Set(voucher_codes)],
-        grossTotal,
+        grossTotal: campaignBase,
         manualDiscount: orderPayload.discount,
         storeId: store.id,
         storeCode: store.code,
         lines,
       });
 
-    if (discountAmount > grossTotal) {
+    // Capped at the fixed-price subtotal, not the gross: a discount leaning
+    // on a Repair quote would breach the DB's total >= discount invariant the
+    // moment an Estimate is confirmed downward. Equal to the old gross-total
+    // cap whenever the cart carries no no-list-price line.
+    if (discountAmount > campaignBase) {
       throw new BadRequestException("Order discount cannot exceed order total");
     }
 

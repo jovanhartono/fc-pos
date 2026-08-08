@@ -2,6 +2,7 @@ import {
 	type CampaignContribution,
 	type CampaignDiscountInput,
 	type DiscountLine,
+	fixedPriceSubtotal,
 	stackCampaignDiscounts,
 } from "@fresclean/api/schema";
 import type { UseFormReturn } from "react-hook-form";
@@ -29,6 +30,11 @@ export type ServiceCartLine = {
 	model: string;
 	size: string;
 	notes: string;
+	// ADR-0018: only read for a no-list-price Service (Repair) — the cashier's
+	// quote and whether it is firm ("" price until keyed). The server ignores
+	// both on catalog-priced Services.
+	price: string;
+	is_estimate: boolean;
 };
 
 export type ProductCartDisplayLine = ProductCartLine & {
@@ -121,18 +127,47 @@ export const enrichServiceCart = <S extends { id: number }>(
 		return service ? [{ ...line, service }] : [];
 	});
 
+// The one price a service line has: the catalog snapshot, or — when the
+// catalog carries none (Repair, ADR-0018) — whatever the cashier keyed.
+export const getServiceLinePrice = (line: {
+	price: string;
+	service: { price: string | number | null };
+}): number =>
+	line.service.price === null
+		? parseMoney(line.price)
+		: parseMoney(line.service.price);
+
+type SubtotalServiceRow = {
+	price: string;
+	service: { price: string | number | null };
+};
+
 export const getCartSubtotal = (
 	productRows: { qty: number; product: { price: string | number } }[],
-	serviceRows: { service: { price: string | number } }[],
+	serviceRows: SubtotalServiceRow[],
 ): number =>
 	productRows.reduce(
 		(total, line) => total + parseMoney(line.product.price) * line.qty,
 		0,
-	) +
-	serviceRows.reduce(
-		(total, line) => total + parseMoney(line.service.price),
-		0,
-	);
+	) + serviceRows.reduce((total, line) => total + getServiceLinePrice(line), 0);
+
+// ADR-0019: the base Campaigns are judged and computed against. Must mirror
+// the server exactly (both call fixedPriceSubtotal), or the POS previews a
+// discount that checkout then rejects.
+export const getCartCampaignBase = (
+	productRows: { qty: number; product: { price: string | number } }[],
+	serviceRows: SubtotalServiceRow[],
+): number =>
+	fixedPriceSubtotal([
+		...productRows.map((line) => ({
+			has_list_price: true,
+			subtotal: parseMoney(line.product.price) * line.qty,
+		})),
+		...serviceRows.map((line) => ({
+			has_list_price: line.service.price !== null,
+			subtotal: getServiceLinePrice(line),
+		})),
+	]);
 
 export const getCartCount = (
 	productCart: ProductCartLine[],
@@ -154,11 +189,16 @@ export interface CartPricing<C extends CartCampaign> {
 
 export const getCartPricing = <C extends CartCampaign>({
 	subtotal,
+	campaignBase,
 	campaigns,
 	serviceLines,
 	manualDiscount,
 }: {
 	subtotal: number;
+	// Fixed-price subtotal (ADR-0019): what campaigns are stacked against and
+	// what caps the whole discount — a Repair quote can move after checkout,
+	// so no discount may lean on it.
+	campaignBase: number;
 	campaigns: C[];
 	serviceLines: DiscountLine[];
 	manualDiscount: string;
@@ -168,9 +208,19 @@ export const getCartPricing = <C extends CartCampaign>({
 		eligible_service_ids:
 			campaign.eligibleServices?.map((entry) => entry.service_id) ?? [],
 	}));
-	const stacked = stackCampaignDiscounts(subtotal, stackInput, serviceLines);
+	const stacked = stackCampaignDiscounts(
+		campaignBase,
+		stackInput,
+		serviceLines,
+	);
 	const manualDiscountValue = Number(manualDiscount || 0);
-	const totalDiscount = Math.min(subtotal, manualDiscountValue + stacked.total);
+	// Mirrors resolveDiscount: manual absorbs only what the fixed-price base
+	// has left after campaigns.
+	const appliedManual = Math.min(
+		manualDiscountValue,
+		Math.max(0, campaignBase - stacked.total),
+	);
+	const totalDiscount = stacked.total + appliedManual;
 
 	return {
 		campaignBreakdown: stacked.breakdown,
@@ -180,6 +230,26 @@ export const getCartPricing = <C extends CartCampaign>({
 		total: Math.max(0, subtotal - totalDiscount),
 	};
 };
+
+// ADR-0018 POS gates. An Estimate is unconfirmed by definition at intake, so
+// one in the cart means the Order cannot check out paid — the tender tiles
+// lock instead of letting the server bounce the submit.
+export const hasEstimateLine = (
+	serviceRows: {
+		is_estimate: boolean;
+		service: { price: string | number | null };
+	}[],
+): boolean =>
+	serviceRows.some((line) => line.service.price === null && line.is_estimate);
+
+// No-list-price lines the cashier has not priced yet — each blocks leaving
+// the Items step, mirroring the server's price-required rejection.
+export const countUnpricedServiceLines = (
+	serviceRows: SubtotalServiceRow[],
+): number =>
+	serviceRows.filter(
+		(line) => line.service.price === null && getServiceLinePrice(line) <= 0,
+	).length;
 
 // The cart→payment gate: a customer is ready once they have a name and a phone
 // that parses. Shared by the step tabs, the Continue button, and the Create
@@ -229,5 +299,9 @@ export const toOrderPayload = ({
 		model: line.model.trim() || undefined,
 		size: line.size.trim() || undefined,
 		notes: line.notes.trim() || undefined,
+		// Only meaningful on a no-list-price line; the server ignores both for
+		// catalog-priced Services (ADR-0018).
+		price: line.price.trim() || undefined,
+		is_estimate: line.is_estimate || undefined,
 	})),
 });

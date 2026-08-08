@@ -374,6 +374,12 @@ export type UpdateOrderPaymentPayload = {
 	payment_method_id: number;
 };
 
+// Final price for an estimated line (ADR-0018) — the digit string the
+// currency field produced, like every money payload.
+export type ConfirmOrderServiceEstimatePayload = {
+	price: string;
+};
+
 export type UpdateOrderCourierPayload = {
 	collected_by: number | null;
 };
@@ -845,6 +851,21 @@ export async function updateOrderPayment(
 	return parseResponse(
 		rpcWithAuth().api.admin.orders[":id"].payment.$patch({
 			param: { id: String(orderId) },
+			json: payload,
+		}),
+	);
+}
+
+export async function confirmOrderServiceEstimate(
+	orderId: number,
+	serviceId: number,
+	payload: ConfirmOrderServiceEstimatePayload,
+) {
+	return parseResponse(
+		rpcWithAuth().api.admin.orders[":id"].services[":serviceId"][
+			"confirm-estimate"
+		].$post({
+			param: { id: String(orderId), serviceId: String(serviceId) },
 			json: payload,
 		}),
 	);

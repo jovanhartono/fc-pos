@@ -15,7 +15,7 @@ import { parseMoney } from "@/shared/money";
 // pinned footer's grand total need it; the campaigns query is request-deduped
 // by TanStack Query, so calling this in two places costs only the cheap memos.
 export function useCheckoutPricing() {
-	const { subtotal, serviceRows } = useCart();
+	const { subtotal, campaignBase, serviceRows } = useCart();
 	const [
 		selectedStoreId = "",
 		selectedCampaignIds = [],
@@ -51,6 +51,9 @@ export function useCheckoutPricing() {
 		enabled: selectedStoreNumber !== undefined,
 	});
 
+	// Campaigns are judged against the fixed-price subtotal, never the cart
+	// total (ADR-0019) — a Repair quote could move after checkout and take an
+	// already-claimed discount's minimum with it.
 	const availableCampaigns = useMemo(() => {
 		if (selectedStoreNumber === undefined) {
 			return [];
@@ -60,11 +63,11 @@ export function useCheckoutPricing() {
 			(campaign) =>
 				campaignIneligibilityReason(campaign, {
 					now,
-					grossTotal: subtotal,
+					grossTotal: campaignBase,
 					storeId: selectedStoreNumber,
 				}) === null,
 		);
-	}, [campaignsQuery.data, selectedStoreNumber, subtotal]);
+	}, [campaignsQuery.data, selectedStoreNumber, campaignBase]);
 
 	const selectedCampaigns = useMemo(() => {
 		const selectedIdSet = new Set(selectedCampaignIds);
@@ -84,12 +87,20 @@ export function useCheckoutPricing() {
 		[selectedCampaigns, appliedVouchers],
 	);
 
+	// Catalog-priced lines only, mirroring the server: a no-list-price line
+	// (Repair) is not even selectable for a BOGO free slot.
 	const serviceLines = useMemo(
 		() =>
-			serviceRows.map((row) => ({
-				price: parseMoney(row.service.price),
-				service_id: row.service.id,
-			})),
+			serviceRows.flatMap((row) =>
+				row.service.price === null
+					? []
+					: [
+							{
+								price: parseMoney(row.service.price),
+								service_id: row.service.id,
+							},
+						],
+			),
 		[serviceRows],
 	);
 
@@ -97,12 +108,13 @@ export function useCheckoutPricing() {
 		() =>
 			getCartPricing({
 				subtotal,
+				campaignBase,
 				campaigns: pricingCampaigns,
 				serviceLines,
 				manualDiscount,
 			}),
-		[subtotal, pricingCampaigns, serviceLines, manualDiscount],
+		[subtotal, campaignBase, pricingCampaigns, serviceLines, manualDiscount],
 	);
 
-	return { subtotal, selectedCampaigns, pricing };
+	return { subtotal, campaignBase, selectedCampaigns, pricing };
 }

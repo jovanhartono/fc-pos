@@ -25,11 +25,13 @@ import {
   POSTOrderPickupEventPresignSchema,
   POSTOrderPickupEventSchema,
   POSTOrderRefundSchema,
+  POSTOrderServiceEstimateConfirmSchema,
   POSTOrderServicePhotoPresignSchema,
   POSTOrderServicePhotoSchema,
   PUTOrderDropoffPhotoSchema,
 } from "@/modules/orders/order-admin.schema";
 import { updateOrderCollectedBy } from "@/modules/orders/order-courier.service";
+import { confirmOrderServiceEstimate } from "@/modules/orders/order-estimate.service";
 import { updateOrderPayment } from "@/modules/orders/order-payment.service";
 import {
   createOrderDropoffPhotoPresign,
@@ -329,6 +331,27 @@ const app = new Hono<OrderAccessEnv>()
       });
 
       return c.json(success(result, "Order service handler updated"));
+    }
+  )
+  // Open to any staff — deliberately NOT behind the admin money gate
+  // (ADR-0018 / ADR-0004). Who confirmed what is in order_service_price_logs.
+  .post(
+    "/:id/services/:serviceId/confirm-estimate",
+    orderServiceParamSchema,
+    zodValidator("json", POSTOrderServiceEstimateConfirmSchema),
+    async (c) => {
+      const user = c.get("jwtPayload");
+      const { id, serviceId } = c.req.valid("param");
+      const body = c.req.valid("json");
+
+      const result = await confirmOrderServiceEstimate({
+        orderId: id,
+        serviceId,
+        body,
+        user,
+      });
+
+      return c.json(success(result, "Estimate confirmed"));
     }
   )
   .patch(

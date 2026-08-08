@@ -125,6 +125,16 @@ const SERVER_FAILURE_RULES: {
 		target: "customer",
 		action: "Pick another courier, or Walk-in.",
 	},
+	{
+		pattern: /no list price/i,
+		target: "items",
+		action: "Enter a price on the repair line.",
+	},
+	{
+		pattern: /unconfirmed estimate/i,
+		target: "payment",
+		action: "Choose Pay later.",
+	},
 ];
 
 export const describeServerFailure = (message: string): CheckoutIssue => {

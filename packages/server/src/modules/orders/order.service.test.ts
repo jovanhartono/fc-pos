@@ -30,7 +30,8 @@ interface CatalogService {
   id: number;
   is_active: boolean;
   is_priority: boolean;
-  price: string;
+  // null = no list price (Repair, ADR-0018) — quoted per Item at intake.
+  price: string | null;
 }
 
 interface CatalogProduct {
@@ -685,6 +686,159 @@ describe("createOrder", () => {
     await checkout({ services: [{ id: 10 }], collected_by: 9 });
     expect(courier.calls).toEqual([9]);
     expect(repo.insertedOrder?.collected_by).toBe(9);
+  });
+
+  // Repair is the one Service with no list price (ADR-0018): the cashier
+  // quotes per Item at intake, firm or as an Estimate. REPAIR/DEEP_CLEAN
+  // below are that pair on a live catalog.
+  const REPAIR: CatalogService = {
+    id: 30,
+    price: null,
+    cogs: "0",
+    is_priority: false,
+    is_active: true,
+  };
+  const DEEP_CLEAN: CatalogService = {
+    id: 10,
+    price: "150000",
+    cogs: "50000",
+    is_priority: false,
+    is_active: true,
+  };
+
+  it("books a firm repair quote as an ordinary payable line", async () => {
+    // Trained cashier is certain the toebox patch is 300k and says firm: the
+    // money can move at drop-off and no estimate marker is left behind — if
+    // teardown says 500k, the shop absorbs it (ADR-0018).
+    catalog.services = [REPAIR];
+
+    const result = await checkout({
+      services: [{ id: 30, price: 300_000 }],
+      payment_status: "paid",
+      payment_method_id: 1,
+    });
+
+    expect(result.total).toBe("300000");
+    expect(repo.serviceRows[0]).toMatchObject({
+      service_id: 30,
+      price: "300000",
+      estimated_price: null,
+    });
+    expect(finalize.writes[0].set).toMatchObject({ paid_amount: "300000" });
+  });
+
+  it("pins the intake number on an Estimate line, beside the working price", async () => {
+    // Cashier is guessing at 200k: both columns start at 200k so the final
+    // can later land in price while estimated_price preserves the quote —
+    // that pair is what makes estimate accuracy measurable per user.
+    catalog.services = [REPAIR];
+
+    await checkout({
+      services: [{ id: 30, price: 200_000, is_estimate: true }],
+    });
+
+    expect(repo.serviceRows[0]).toMatchObject({
+      service_id: 30,
+      price: "200000",
+      estimated_price: "200000",
+    });
+  });
+
+  it("refuses paid checkout while the cart carries an Estimate, before any side effect", async () => {
+    // ADR-0018's gate at the earliest seam: the cashier picked a tender AND
+    // marked the repair an Estimate. Bounce before an order number is burned
+    // or a voucher claimed — the POS should never have offered payment.
+    catalog.services = [DEEP_CLEAN, REPAIR];
+
+    const error = await captureRejection(
+      checkout({
+        services: [{ id: 10 }, { id: 30, price: 200_000, is_estimate: true }],
+        payment_status: "paid",
+        payment_method_id: 1,
+      })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "An order with an unconfirmed Estimate cannot be marked paid"
+    );
+    expect(repo.reserveCalls).toHaveLength(0);
+    expect(redemptions.calls).toHaveLength(0);
+  });
+
+  it("refuses a repair line with no price before burning an order number", async () => {
+    // The POS blocks this too, but a stale tab or crafted payload must not
+    // slip a priceless quote into the books as a silent zero.
+    catalog.services = [REPAIR];
+
+    const error = await captureRejection(checkout({ services: [{ id: 30 }] }));
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "Service has no list price — a price is required for this line"
+    );
+    expect(repo.reserveCalls).toHaveLength(0);
+  });
+
+  it("ignores a browser-sent price and estimate flag on a catalog-priced service", async () => {
+    // A tampered payload prices the 150k deep clean at 5k and calls it an
+    // Estimate. The catalog snapshot wins and no marker is written — the
+    // browser can never set a normal Service's price (ADR-0018).
+    catalog.services = [DEEP_CLEAN];
+
+    const result = await checkout({
+      services: [{ id: 10, price: 5000, is_estimate: true }],
+    });
+
+    expect(result.total).toBe("150000");
+    expect(repo.serviceRows[0]).toMatchObject({
+      price: "150000",
+      estimated_price: null,
+    });
+  });
+
+  it("rejects a manual discount that leans on the repair quote", async () => {
+    // Manual 300k against deep clean 150k + repair 200k: gross covers it, but
+    // only 150k of that gross is settled. If the repair later confirms down,
+    // total would drop below discount and breach the money invariant — so the
+    // cap is the fixed-price subtotal, same base the campaigns run on.
+    catalog.services = [DEEP_CLEAN, REPAIR];
+    discount.result = {
+      campaignRows: [],
+      discountAmount: 300_000,
+      discountSource: "manual",
+    };
+
+    const error = await captureRejection(
+      checkout({
+        services: [{ id: 10 }, { id: 30, price: 200_000 }],
+        discount: 300_000,
+      })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "Order discount cannot exceed order total"
+    );
+  });
+
+  it("feeds the discount desk the fixed-price subtotal, never the repair quote", async () => {
+    // ADR-0019's exact failure: deep clean 150k + repair 200k. Gross is 350k,
+    // but the campaign base handed to the discount desk must be 150k — and
+    // the repair line must not even be selectable for a BOGO — so a later
+    // re-price can never invalidate a claimed voucher. Firm or Estimate makes
+    // no difference: the rule keys on the catalog having no list price.
+    catalog.services = [DEEP_CLEAN, REPAIR];
+
+    const result = await checkout({
+      services: [{ id: 10 }, { id: 30, price: 200_000 }],
+    });
+
+    expect(result.total).toBe("350000");
+    expect(discount.calls[0]).toMatchObject({ grossTotal: 150_000 });
+    expect(discount.calls[0].lines).toEqual([
+      { price: 150_000, service_id: 10 },
+    ]);
   });
 });
 

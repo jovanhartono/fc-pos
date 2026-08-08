@@ -133,7 +133,10 @@ export const servicesTable = pgTable(
       .notNull(),
     code: varchar("code", { length: 4 }).unique().notNull(),
     cogs: decimal("cogs", { precision: 12, scale: 0 }).default("0").notNull(),
-    price: decimal("price", { precision: 12, scale: 0 }).default("0").notNull(),
+    // NULL = no list price (Repair, ADR-0018): the number is quoted per Item
+    // at intake, never read off this row. 0 stays "deliberately free"
+    // (a Rework line, ADR-0013) — the two must never share an encoding.
+    price: decimal("price", { precision: 12, scale: 0 }),
     description: text("description"),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     is_active: boolean("is_active").default(false).notNull(),
@@ -611,6 +614,16 @@ export const ordersServicesTable = pgTable(
       .default("0")
       .notNull(),
 
+    // ADR-0018: the number the cashier keyed at intake when this line was
+    // entered as an Estimate. Non-null IS the "entered as Estimate" marker;
+    // `price` carries the working (then final) number while this one is never
+    // overwritten — losing it would make estimate accuracy unmeasurable.
+    estimated_price: decimal("estimated_price", { precision: 12, scale: 0 }),
+    // Confirmation marker, nullable-timestamp idiom (like refunded_at):
+    // an estimated line with NULL here is an unconfirmed Estimate, and an
+    // Order carrying one refuses the move to paid.
+    estimate_confirmed_at: timestamp("estimate_confirmed_at"),
+
     brand: varchar("brand", { length: 255 }),
     color: varchar("color", { length: 255 }),
     model: varchar("model", { length: 255 }),
@@ -656,6 +669,15 @@ export const ordersServicesTable = pgTable(
     check(
       "order_services_picked_up_requires_event_check",
       sql`${table.status} != 'picked_up' OR ${table.pickup_event_id} IS NOT NULL`
+    ),
+    check(
+      "estimated_price_non_negative_check",
+      sql`${table.estimated_price} IS NULL OR ${table.estimated_price} >= 0`
+    ),
+    // Only a line that was entered as an Estimate can be confirmed (ADR-0018).
+    check(
+      "order_services_estimate_confirm_requires_estimate_check",
+      sql`${table.estimate_confirmed_at} IS NULL OR ${table.estimated_price} IS NOT NULL`
     ),
   ]
 );
@@ -774,6 +796,29 @@ export const orderServiceHandlerLogsTable = pgTable(
   (table) => [
     index("order_service_handler_logs_service_idx").on(table.order_service_id),
     index("order_service_handler_logs_changed_by_idx").on(table.changed_by),
+  ]
+);
+
+// ADR-0018: confirming an Estimate is open to any staff, so the oversight is
+// this trail — estimate versus final, by user — not an approval gate. One row
+// per confirmation, appended beside the status/handler logs.
+export const orderServicePriceLogsTable = pgTable(
+  "order_service_price_logs",
+  {
+    changed_by: integer("changed_by")
+      .references(() => usersTable.id)
+      .notNull(),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    from_price: decimal("from_price", { precision: 12, scale: 0 }).notNull(),
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    order_service_id: integer("order_service_id")
+      .references(() => ordersServicesTable.id, { onDelete: "cascade" })
+      .notNull(),
+    to_price: decimal("to_price", { precision: 12, scale: 0 }).notNull(),
+  },
+  (table) => [
+    index("order_service_price_logs_service_idx").on(table.order_service_id),
+    index("order_service_price_logs_changed_by_idx").on(table.changed_by),
   ]
 );
 

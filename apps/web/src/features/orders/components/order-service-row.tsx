@@ -1,3 +1,4 @@
+import { isUnconfirmedEstimate } from "@fresclean/api/schema";
 import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { OrderServiceDetail } from "@/features/orders/components/order-service-detail";
@@ -28,6 +29,8 @@ export const OrderServiceRow = memo(
 		// A line carries at most one complaint, lifetime (ADR-0013 amendment) —
 		// existence is the whole signal; the complaint has no status.
 		const hasComplaint = (service.complaints ?? []).length > 0;
+		// ADR-0018: an unconfirmed Estimate holds the whole Order's payment.
+		const isEstimate = isUnconfirmedEstimate(service);
 		const itemDetails = getOrderServiceItemDetails(service);
 		const metaLine = [itemDetails, service.handler?.name]
 			.filter(Boolean)
@@ -66,6 +69,7 @@ export const OrderServiceRow = memo(
 				</span>
 				<span className="flex shrink-0 flex-col items-end gap-1.5">
 					<span className="flex flex-wrap justify-end gap-1.5">
+						{isEstimate ? <Badge variant="warning">Estimate</Badge> : null}
 						{isRework ? <Badge variant="info">Rework</Badge> : null}
 						{hasComplaint ? <Badge variant="danger">Complaint</Badge> : null}
 						{service.is_priority ? (

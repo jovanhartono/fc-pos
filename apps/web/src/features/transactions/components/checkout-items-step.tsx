@@ -1,6 +1,7 @@
 import {
 	CameraIcon,
 	CheckCircleIcon,
+	CheckIcon,
 	EyeIcon,
 	WarningIcon,
 	XIcon,
@@ -8,13 +9,24 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
+import { CurrencyInput } from "@/components/form/currency-input";
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import {
+	Field,
+	FieldError,
+	FieldLabel,
+	FieldLegend,
+	FieldSet,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PhotoLightbox } from "@/features/orders/components/photo-lightbox";
 import { SinglePhotoCaptureDialog } from "@/features/orders/components/photo-upload-dialog";
-import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
+import {
+	getServiceLinePrice,
+	type ServiceCartDisplayLine,
+	type TransactionDraftValues,
+} from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
 import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
 import { categoriesQueryOptions } from "@/lib/query-options";
@@ -52,6 +64,7 @@ export const CheckoutItemsStep = () => {
 		removeService,
 		updateProductQty,
 		updateServiceField,
+		updateServicePricing,
 		productRows,
 		serviceRows,
 	} = useCart();
@@ -186,9 +199,12 @@ export const CheckoutItemsStep = () => {
 								</Field>
 							))}
 						</div>
+						{line.service.price === null ? (
+							<ServiceLinePricing line={line} onPatch={updateServicePricing} />
+						) : null}
 						<div className="flex items-center justify-end gap-3">
 							<p className="text-sm font-semibold">
-								{formatMoney(line.service.price)}
+								{formatMoney(getServiceLinePrice(line))}
 							</p>
 						</div>
 					</div>
@@ -216,6 +232,108 @@ export const CheckoutItemsStep = () => {
 		</div>
 	);
 };
+
+interface ServiceLinePricingProps {
+	line: ServiceCartDisplayLine;
+	onPatch: (
+		lineId: string,
+		patch: { price?: string; is_estimate?: boolean },
+	) => void;
+}
+
+// Pricing entry for a no-list-price Service (ADR-0018): the cashier keys the
+// number and declares it firm or an Estimate. Firm behaves like any catalog
+// price; an Estimate holds the whole Order unpaid until confirmed.
+const ServiceLinePricing = ({ line, onPatch }: ServiceLinePricingProps) => (
+	<div className="grid gap-3 border border-border/70 bg-muted/20 p-3">
+		<div className="grid gap-3 sm:grid-cols-2">
+			<Field>
+				<FieldLabel asterisk htmlFor={`service-price-${line.line_id}`}>
+					Price
+				</FieldLabel>
+				<CurrencyInput
+					id={`service-price-${line.line_id}`}
+					onValueChange={(value) => onPatch(line.line_id, { price: value })}
+					required
+					value={line.price}
+				/>
+			</Field>
+			<FieldSet className="gap-2">
+				<FieldLegend variant="label">Pricing</FieldLegend>
+				<div className="grid grid-cols-2 gap-2">
+					<PricingModeTile
+						hint="Payable now"
+						isSelected={!line.is_estimate}
+						label="Firm"
+						name={`pricing-mode-${line.line_id}`}
+						onSelect={() => onPatch(line.line_id, { is_estimate: false })}
+					/>
+					<PricingModeTile
+						hint="Confirm after inspection"
+						isSelected={line.is_estimate}
+						label="Estimate"
+						name={`pricing-mode-${line.line_id}`}
+						onSelect={() => onPatch(line.line_id, { is_estimate: true })}
+					/>
+				</div>
+			</FieldSet>
+		</div>
+		{line.is_estimate ? (
+			<p className="text-muted-foreground text-xs">
+				Estimate blocks payment until confirmed. Order goes out unpaid.
+			</p>
+		) : null}
+	</div>
+);
+
+interface PricingModeTileProps {
+	label: string;
+	hint: string;
+	name: string;
+	isSelected: boolean;
+	onSelect: () => void;
+}
+
+// Real (visually hidden) radio wrapped by the styled tile — same pattern as
+// the payment method tiles: native radiogroup semantics, full-tile target.
+const PricingModeTile = ({
+	label,
+	hint,
+	name,
+	isSelected,
+	onSelect,
+}: PricingModeTileProps) => (
+	<label
+		className={cn(
+			"flex min-h-11 cursor-pointer items-center justify-between gap-2 border px-3 py-2 text-left transition active:scale-[0.97] has-[:focus-visible]:border-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50",
+			isSelected
+				? "border-foreground bg-foreground text-background"
+				: "border-border/70 text-foreground/80 hover:border-border hover:bg-muted/40",
+		)}
+	>
+		<input
+			checked={isSelected}
+			className="sr-only"
+			name={name}
+			onChange={onSelect}
+			type="radio"
+		/>
+		<span className="flex flex-col">
+			<span className="text-sm font-medium">{label}</span>
+			<span
+				className={cn(
+					"text-[11px]",
+					isSelected ? "text-background/70" : "text-muted-foreground",
+				)}
+			>
+				{hint}
+			</span>
+		</span>
+		{isSelected ? (
+			<CheckIcon className="size-4 shrink-0" weight="bold" />
+		) : null}
+	</label>
+);
 
 const CheckoutDropoffPhotoField = () => {
 	const dropoffPhoto = useTransactionsPageStore((state) => state.dropoffPhoto);

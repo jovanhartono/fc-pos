@@ -48,6 +48,19 @@ const PaymentDetails = ({
 			</>
 		);
 	}
+	// ADR-0018: the server refuses the paid transition while an Estimate is
+	// unconfirmed — say so here instead of offering a form that can only 400.
+	if (gates.hasUnconfirmedEstimate) {
+		return (
+			<>
+				<Separator />
+				<p className="px-4 py-4 text-muted-foreground text-sm">
+					Unconfirmed Estimate on this order. Confirm it before collecting
+					payment.
+				</p>
+			</>
+		);
+	}
 	if (gates.isPaymentAllowed) {
 		return (
 			<>

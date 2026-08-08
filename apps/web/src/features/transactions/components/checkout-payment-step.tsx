@@ -12,7 +12,11 @@ import {
 	FieldLegend,
 	FieldSet,
 } from "@/components/ui/field";
-import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
+import {
+	hasEstimateLine,
+	type TransactionDraftValues,
+} from "@/features/transactions/cart/cart";
+import { useCart } from "@/features/transactions/cart/useCart";
 import { VoucherCodeEntry } from "@/features/transactions/components/voucher-code-entry";
 import { useCheckoutPricing } from "@/features/transactions/hooks/useCheckoutPricing";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
@@ -29,7 +33,8 @@ import { formatIDRCurrency } from "@/shared/utils";
 // produces stay in one view so the cashier sees its effect on the total live.
 export const CheckoutPaymentStep = () => {
 	const { visibleStores } = useTransactionsPageContext();
-	const { subtotal, pricing } = useCheckoutPricing();
+	const { subtotal, campaignBase, pricing } = useCheckoutPricing();
+	const { serviceRows } = useCart();
 	const form = useFormContext<TransactionDraftValues>();
 	const appliedVouchers =
 		useWatch({ control: form.control, name: "appliedVouchers" }) ?? [];
@@ -63,8 +68,14 @@ export const CheckoutPaymentStep = () => {
 		enabled: selectedStoreNumber !== undefined,
 	});
 
-	// Only campaigns whose rules pass for the current store + cart total. Same
-	// eligibility filter the old picker used — ineligible ones are hidden.
+	// ADR-0018: an Estimate in the cart makes the Order unpayable at checkout,
+	// so every tender except "Pay later" locks instead of bouncing at submit.
+	const estimateBlocksPayment = hasEstimateLine(serviceRows);
+
+	// Only campaigns whose rules pass for the current store + the fixed-price
+	// subtotal (ADR-0019 — a Repair quote can move after checkout, so it
+	// counts for nothing here). Same eligibility filter the old picker used —
+	// ineligible ones are hidden.
 	// Voucher (code-mode) campaigns are entered by code, never listed as tiles —
 	// the server already omits them, but filter defensively so one can't leak in.
 	const eligibleCampaigns = useMemo(() => {
@@ -77,11 +88,11 @@ export const CheckoutPaymentStep = () => {
 				campaign.redemption_mode !== "code" &&
 				campaignIneligibilityReason(campaign, {
 					now,
-					grossTotal: subtotal,
+					grossTotal: campaignBase,
 					storeId: selectedStoreNumber,
 				}) === null,
 		);
-	}, [campaignsQuery.data, selectedStoreNumber, subtotal]);
+	}, [campaignsQuery.data, selectedStoreNumber, campaignBase]);
 
 	// Drop any selected campaign that stopped being eligible (e.g. the cart total
 	// fell below its minimum) so a stale id can't ride along to submit.
@@ -99,9 +110,10 @@ export const CheckoutPaymentStep = () => {
 		}
 	}, [eligibleCampaigns, selectedStoreNumber, campaignsQuery.isPending, form]);
 
-	// Drop any applied voucher that stopped being eligible (e.g. the cart total
-	// fell below its minimum). Mirrors the listed-campaign prune above: a silently
-	// zeroed code would otherwise ride to submit and hard-fail the whole order.
+	// Drop any applied voucher that stopped being eligible (e.g. the fixed-price
+	// base fell below its minimum). Mirrors the listed-campaign prune above: a
+	// silently zeroed code would otherwise ride to submit and hard-fail the
+	// whole order.
 	useEffect(() => {
 		if (selectedStoreNumber === undefined) {
 			return;
@@ -111,14 +123,25 @@ export const CheckoutPaymentStep = () => {
 			(entry) =>
 				campaignIneligibilityReason(entry.campaign, {
 					now,
-					grossTotal: subtotal,
+					grossTotal: campaignBase,
 					storeId: selectedStoreNumber,
 				}) === null,
 		);
 		if (eligible.length !== appliedVouchers.length) {
 			form.setValue("appliedVouchers", eligible, { shouldValidate: true });
 		}
-	}, [appliedVouchers, subtotal, selectedStoreNumber, form]);
+	}, [appliedVouchers, campaignBase, selectedStoreNumber, form]);
+
+	// An Estimate added after a tender was picked must clear it — the draft
+	// would otherwise submit as paid and hard-fail at the server gate.
+	useEffect(() => {
+		if (!estimateBlocksPayment) {
+			return;
+		}
+		if (form.getValues("selectedPaymentMethodId") !== "") {
+			form.setValue("selectedPaymentMethodId", "", { shouldValidate: true });
+		}
+	}, [estimateBlocksPayment, form]);
 
 	return (
 		<div className="grid gap-5">
@@ -142,7 +165,7 @@ export const CheckoutPaymentStep = () => {
 						/>
 						<VoucherCodeEntry
 							storeId={selectedStoreNumber}
-							subtotal={subtotal}
+							subtotal={campaignBase}
 						/>
 						<FieldError errors={[fieldState.error]} />
 					</FieldSet>
@@ -187,6 +210,7 @@ export const CheckoutPaymentStep = () => {
 							/>
 							{paymentMethodOptions.map((option) => (
 								<PaymentMethodTile
+									disabled={estimateBlocksPayment}
 									isSelected={field.value === option.value}
 									key={option.value}
 									label={option.label}
@@ -195,6 +219,12 @@ export const CheckoutPaymentStep = () => {
 								/>
 							))}
 						</div>
+						{estimateBlocksPayment ? (
+							<p className="text-muted-foreground text-xs">
+								Order carries an Estimate — pay later only. Payment unlocks once
+								the Estimate is confirmed.
+							</p>
+						) : null}
 						<FieldError errors={[fieldState.error]} />
 					</FieldSet>
 				)}
@@ -217,6 +247,18 @@ export const CheckoutPaymentStep = () => {
 						{formatIDRCurrency(String(subtotal))}
 					</span>
 				</div>
+				{campaignBase !== subtotal ? (
+					// Repair is quoted work, not catalogue spend (ADR-0019) — show the
+					// number campaigns actually run on so "why no promo?" answers itself.
+					<div className="flex items-center justify-between gap-3 text-sm">
+						<span className="text-muted-foreground">
+							Campaign base · excludes repair
+						</span>
+						<span className="font-medium">
+							{formatIDRCurrency(String(campaignBase))}
+						</span>
+					</div>
+				) : null}
 				{pricing.campaignBreakdown.map(({ campaign, amount }) => (
 					<div
 						className="flex items-center justify-between gap-3 text-sm"
@@ -368,6 +410,7 @@ interface PaymentMethodTileProps {
 	hint?: string;
 	value: string;
 	isSelected: boolean;
+	disabled?: boolean;
 	onSelect: () => void;
 }
 
@@ -380,6 +423,7 @@ const PaymentMethodTile = ({
 	hint,
 	value,
 	isSelected,
+	disabled,
 	onSelect,
 }: PaymentMethodTileProps) => (
 	<label
@@ -388,11 +432,14 @@ const PaymentMethodTile = ({
 			isSelected
 				? "border-foreground bg-foreground text-background"
 				: "border-border/70 text-foreground/80 hover:border-border hover:bg-muted/40",
+			disabled &&
+				"cursor-not-allowed opacity-50 hover:border-border/70 hover:bg-transparent active:scale-100",
 		)}
 	>
 		<input
 			checked={isSelected}
 			className="sr-only"
+			disabled={disabled}
 			name={PAYMENT_METHOD_RADIO_NAME}
 			onChange={onSelect}
 			type="radio"

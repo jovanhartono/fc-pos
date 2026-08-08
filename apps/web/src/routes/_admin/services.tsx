@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
 	ServiceForm,
-	type ServiceFormState,
+	type ServiceFormSubmitValues,
 } from "@/features/services/components/service-form";
 import {
 	createService,
@@ -69,7 +69,9 @@ function ServicesPage() {
 							category_id: service.category_id,
 							code: service.code,
 							cogs: String(service.cogs),
-							price: String(service.price),
+							// null = no list price (Repair, ADR-0018)
+							no_list_price: service.price === null,
+							price: service.price === null ? "" : String(service.price),
 							name: service.name,
 							description: service.description ?? "",
 							is_active: service.is_active,
@@ -95,7 +97,7 @@ function ServicesPage() {
 			title: "Add Service",
 			content: () => (
 				<ServiceForm
-					handleOnSubmit={async (values: ServiceFormState) => {
+					handleOnSubmit={async (values: ServiceFormSubmitValues) => {
 						await createMutation.mutateAsync(values);
 					}}
 					isEditing={false}
@@ -128,7 +130,12 @@ function ServicesPage() {
 			{
 				accessorKey: "price",
 				header: "Price",
-				cell: ({ row }) => formatIDRCurrency(String(row.original.price)),
+				cell: ({ row }) =>
+					row.original.price === null ? (
+						<span className="text-muted-foreground">No list price</span>
+					) : (
+						formatIDRCurrency(String(row.original.price))
+					),
 			},
 			{
 				id: "priority",

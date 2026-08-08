@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import {
+	type ConfirmOrderServiceEstimatePayload,
 	cancelOrder,
+	confirmOrderServiceEstimate,
 	createOrderRefund,
 	queryKeys,
 	type UpdateOrderServiceStatusPayload,
@@ -34,6 +36,24 @@ export const useUpdateServiceStatusMutation = (orderId: number) => {
 			serviceId: number;
 			payload: UpdateOrderServiceStatusPayload;
 		}) => updateOrderServiceStatus(orderId, serviceId, payload),
+		onSuccess: async () => {
+			await refreshOrder();
+		},
+	});
+};
+
+// ADR-0018: any staff may confirm; the server logs who settled what.
+export const useConfirmEstimateMutation = (orderId: number) => {
+	const refreshOrder = useRefreshOrder(orderId);
+
+	return useMutation({
+		mutationFn: ({
+			serviceId,
+			payload,
+		}: {
+			serviceId: number;
+			payload: ConfirmOrderServiceEstimatePayload;
+		}) => confirmOrderServiceEstimate(orderId, serviceId, payload),
 		onSuccess: async () => {
 			await refreshOrder();
 		},

@@ -5,7 +5,7 @@ import {
   refundReasonEnum,
 } from "@/db/schema";
 import { MAX_PAGE_SIZE } from "@/modules/orders/order.schema";
-import { dateStringSchema } from "@/schema/common";
+import { currencySchema, dateStringSchema } from "@/schema/common";
 import { normalizePagination } from "@/utils/pagination";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
@@ -96,6 +96,12 @@ export const PATCHOrderServiceHandlerSchema = z.object({
 
 export const PATCHOrderPaymentSchema = z.object({
   payment_method_id: z.coerce.number().int().positive(),
+});
+
+// ADR-0018: the final for an estimated line, keyed after inspection. Money
+// arrives as the digit string the currency field produced.
+export const POSTOrderServiceEstimateConfirmSchema = z.object({
+  price: currencySchema("Final price"),
 });
 
 export const PATCHOrderCourierSchema = z.object({
@@ -228,6 +234,9 @@ export type PatchOrderServiceHandlerInput = z.infer<
   typeof PATCHOrderServiceHandlerSchema
 >;
 export type PatchOrderPaymentInput = z.infer<typeof PATCHOrderPaymentSchema>;
+export type PostOrderServiceEstimateConfirmInput = z.infer<
+  typeof POSTOrderServiceEstimateConfirmSchema
+>;
 export type PutOrderDropoffPhotoInput = z.infer<
   typeof PUTOrderDropoffPhotoSchema
 >;

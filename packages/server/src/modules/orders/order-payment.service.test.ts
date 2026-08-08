@@ -22,8 +22,15 @@ interface FakeOrderRow {
   total: string | null;
 }
 
+interface FakeServiceLine {
+  estimate_confirmed_at: Date | null;
+  estimated_price: string | null;
+  status: string;
+}
+
 const dbState = {
   order: undefined as FakeOrderRow | undefined,
+  serviceLines: [] as FakeServiceLine[],
   findFirstCalls: [] as unknown[],
   setPayload: undefined as Record<string, unknown> | undefined,
   updateCalls: 0,
@@ -37,6 +44,9 @@ mock.module("@/db", () => ({
           dbState.findFirstCalls.push(args);
           return Promise.resolve(dbState.order);
         },
+      },
+      ordersServicesTable: {
+        findMany: () => Promise.resolve(dbState.serviceLines),
       },
     },
     update: () => ({
@@ -81,6 +91,7 @@ const collect = (user: JWTPayload = CASHIER) =>
 
 beforeEach(() => {
   dbState.order = makeOrder();
+  dbState.serviceLines = [];
   dbState.findFirstCalls = [];
   dbState.setPayload = undefined;
   dbState.updateCalls = 0;
@@ -181,6 +192,62 @@ describe("updateOrderPayment", () => {
     await collect();
 
     expect(dbState.setPayload?.paid_amount).toBe("0");
+  });
+
+  it("refuses to collect while a Repair Estimate is unconfirmed", async () => {
+    // Deep clean 150k plus a bag repair the cashier estimated at 200k. Until
+    // the workshop has opened the bag and settled the number, the shop takes
+    // no money — not even the 150k it already knows (ADR-0018, ADR-0001).
+    dbState.serviceLines = [
+      { estimated_price: null, estimate_confirmed_at: null, status: "queued" },
+      {
+        estimated_price: "200000",
+        estimate_confirmed_at: null,
+        status: "queued",
+      },
+    ];
+
+    const error = await captureRejection(collect());
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "Order has an unconfirmed Estimate — confirm it before collecting payment"
+    );
+    expect(dbState.updateCalls).toBe(0);
+  });
+
+  it("collects normally once the Estimate has been confirmed", async () => {
+    // Inspection put the repair at 250k, staff confirmed it, the customer was
+    // called. The confirmed line is a settled number like any other.
+    dbState.serviceLines = [
+      {
+        estimated_price: "200000",
+        estimate_confirmed_at: new Date("2026-08-01T03:00:00Z"),
+        status: "processing",
+      },
+    ];
+
+    await collect();
+
+    expect(dbState.setPayload?.payment_status).toBe("paid");
+  });
+
+  it("ignores a cancelled Estimate line when gating payment", async () => {
+    // The customer dropped the repair after hearing the quote; the line was
+    // cancelled (unpaid off-ramp). Its unsettled number is out of the money,
+    // so the deep clean that stayed must still be collectable.
+    dbState.serviceLines = [
+      {
+        estimated_price: "200000",
+        estimate_confirmed_at: null,
+        status: "cancelled",
+      },
+      { estimated_price: null, estimate_confirmed_at: null, status: "queued" },
+    ];
+
+    await collect();
+
+    expect(dbState.setPayload?.payment_status).toBe("paid");
   });
 
   it("blocks a worker before the order is even looked up", async () => {

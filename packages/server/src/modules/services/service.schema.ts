@@ -33,7 +33,9 @@ export const POSTServiceSchema = z.object({
     ),
 
   cogs: currencySchema("COGS"),
-  price: currencySchema("Price"),
+  // null = no list price (ADR-0018): the Service is quoted per Item at intake
+  // (Repair). Deliberately not price 0 — that already means deliberately free.
+  price: currencySchema("Price").nullable(),
 
   name: varcharSchema("Name"),
   description: textSchema("Description").nullish(),
@@ -44,5 +46,5 @@ export const POSTServiceSchema = z.object({
 // same guard — otherwise "1.500" reaches the column as one and a half rupiah.
 export const PUTServiceSchema = createUpdateSchema(servicesTable).extend({
   cogs: currencySchema("COGS").optional(),
-  price: currencySchema("Price").optional(),
+  price: currencySchema("Price").nullable().optional(),
 });
