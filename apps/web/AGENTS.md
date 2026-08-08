@@ -10,6 +10,12 @@
 - Dense filters → dialogs/sheets on small screens; tabs for high-frequency filters.
 - Match existing visual language; no decorative styling changes.
 
+## UI Gotchas
+
+- Base UI `PopoverTrigger render={<div/>}` requires `nativeButton={false}` or it warns at runtime.
+- Biome a11y: `role="button"` on span/div is disallowed (use a real `<button>`); `role="combobox"` requires `aria-expanded`.
+- Base UI `Select` inside a `Popover`: items register on first Select open, so `SelectValue` shows the raw `value` string until then. Use function-child mapper `<SelectValue>{(v) => label(v)}</SelectValue>` or swap to `Combobox` (which keeps label via `items` prop).
+
 ## Structure
 
 - `components/ui/` — shadcn only, add via `bunx shadcn@latest add <component>`
