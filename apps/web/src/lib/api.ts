@@ -63,18 +63,11 @@ export function toSearchParams<T extends Record<string, QueryValue>>(
 	) as SearchParamsOf<T>;
 }
 
-function toPaginated<T>(
-	response: { data: T[]; meta?: PaginationMeta },
-	query?: { limit?: number; offset?: number },
-): PaginatedData<T> {
-	return {
-		items: response.data,
-		meta: response.meta ?? {
-			limit: query?.limit ?? response.data.length,
-			offset: query?.offset ?? 0,
-			total: response.data.length,
-		},
-	};
+function toPaginated<T>(response: {
+	data: T[];
+	meta: PaginationMeta;
+}): PaginatedData<T> {
+	return { items: response.data, meta: response.meta };
 }
 
 type LoginSuccessResponse = InferResponseType<typeof rpc.api.auth.login.$post>;
@@ -515,7 +508,7 @@ export async function fetchCustomersPage(
 		}),
 	);
 
-	return toPaginated(response, query);
+	return toPaginated(response);
 }
 
 // Exact-phone lookup for the POS name-prefill. Returns the matching customer or
@@ -539,7 +532,7 @@ export async function fetchUsersPage(
 		}),
 	);
 
-	return toPaginated(response, query);
+	return toPaginated(response);
 }
 
 export type Me = InferResponseType<typeof rpc.api.admin.users.me.$get>["data"];
@@ -589,7 +582,7 @@ export async function fetchOrdersPage(
 		}),
 	);
 
-	return toPaginated(response, query);
+	return toPaginated(response);
 }
 
 export async function fetchCampaigns(query?: FetchCampaignsQuery) {
@@ -829,7 +822,7 @@ export async function fetchOrderServiceQueuePage(
 		}),
 	);
 
-	return toPaginated(response, query);
+	return toPaginated(response);
 }
 
 export async function updateOrderServiceStatus(
@@ -881,7 +874,7 @@ export async function fetchComplaintsPage(
 		}),
 	);
 
-	return toPaginated(response, query);
+	return toPaginated(response);
 }
 
 export function fetchComplaintDetail(id: number) {
@@ -1080,7 +1073,7 @@ export async function fetchShifts(
 		}),
 	);
 
-	return toPaginated(response, query);
+	return toPaginated(response);
 }
 
 export async function clockInShift(payload: { store_id: number }) {
@@ -1194,5 +1187,5 @@ export async function fetchAgingQueueReport(
 			}),
 		}),
 	);
-	return toPaginated(response, query);
+	return toPaginated(response);
 }
