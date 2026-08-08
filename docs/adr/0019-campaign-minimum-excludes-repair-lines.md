@@ -15,8 +15,9 @@ The failure this prevents:
 
 ## Decisions
 
-- **Eligibility:** Repair is absent from every Campaign's eligible-service list, so `stackCampaignDiscounts` already skips it. No engine change — this is catalog configuration.
-- **Minimum-total base:** the gross total fed to `campaignIneligibilityReason` and `resolveDiscount` is the **fixed-price subtotal**, not the cart total. This is the actual code change, in `useCheckoutPricing` (client preview) and `order.service.ts` (server truth). The two must agree or the POS previews a discount checkout then rejects.
+- **Keeping Repair off a Campaign's eligible-service list is not enough.** That list is only consulted by the buy-one-get-one rule; a percentage or fixed-amount Campaign takes its cut from whatever total it is handed. So the exclusion has to come from the base, not from how the catalog is configured. The eligible-line list is filtered as well, but only so a misconfigured Campaign cannot hand out a quoted repair as a free slot.
+- **One base, computed once, used by both sides.** `fixedPriceSubtotal` (`schema/fixed-price.ts`) adds up the catalogue-priced work and products only, and is imported by `useCheckoutPricing` for the counter's preview and by `order.service.ts` for the real order. They must agree or the POS shows a discount that checkout then refuses.
+- **That base is what a discount may lean on — including a hand-keyed one.** Campaign minimums, the Campaign's own cut, and the supervisor's manual discount are all capped by it. The Order's stored total stays the real cart total, so the customer is still billed for the repair. Capping the manual discount matters as much as capping the Campaign: a discount resting on a 200k quote would put the line under water the moment inspection settles it at 80k.
 - **The rule keys on the Service having no list price, not on the line being an Estimate.** A firm-priced Repair is excluded too. Otherwise the same Repair would swing a Campaign in or out depending on how confident the cashier felt, which is not a pricing rule anyone can explain to a customer.
 
 ## Consequences

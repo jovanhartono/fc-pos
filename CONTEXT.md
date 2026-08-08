@@ -13,7 +13,7 @@ A cleaning or restoration treatment in the catalog (e.g. "deep clean", "midsole 
 _Avoid_: Treatment, package.
 
 **Repair**:
-The one Service with **no list price**. What it costs depends on how much of the object has to be replaced — a toebox leather patch and a whole re-panel are the same Service at very different prices — so the number is determined per Item by inspection, never read off the catalog. Splitting Repair into narrower catalog rows would not remove this: the variance lives *inside* a job type, not between job types. Entered at intake as either a firm price or an **Estimate**. Deliberately excluded from Campaign eligibility *and* from the Campaign minimum-total base — see [ADR-0019](docs/adr/0019-campaign-minimum-excludes-estimated-lines.md).
+The one Service with **no list price**. What it costs depends on how much of the object has to be replaced — a toebox leather patch and a whole re-panel are the same Service at very different prices — so the number is determined per Item by inspection, never read off the catalog. Splitting Repair into narrower catalog rows would not remove this: the variance lives *inside* a job type, not between job types. Entered at intake as either a firm price or an **Estimate**. Deliberately excluded from Campaign eligibility *and* from the Campaign minimum-total base — see [ADR-0019](docs/adr/0019-campaign-minimum-excludes-repair-lines.md).
 _Avoid_: restoration (the whole category of work, not this Service), fix, overhaul (one instance of Repair, not a distinct Service).
 
 **Estimate**:

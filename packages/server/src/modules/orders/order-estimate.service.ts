@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   orderServicePriceLogsTable,
@@ -52,8 +52,10 @@ export async function confirmOrderServiceEstimate({
   const intakePrice = Number(line.price ?? 0);
 
   return await db.transaction(async (tx) => {
-    // CAS on the unconfirmed marker: two staff settling the same line at once
-    // must not record two finals or two log rows.
+    // The two checks above are repeated here, inside the update, because the
+    // line can move while the price is being typed: another phone settles the
+    // same bag, or the counter cancels it once the customer hears the quote.
+    // Either way this price must not land on the order.
     const [updated] = await tx
       .update(ordersServicesTable)
       .set({
@@ -63,7 +65,8 @@ export async function confirmOrderServiceEstimate({
       .where(
         and(
           eq(ordersServicesTable.id, serviceId),
-          isNull(ordersServicesTable.estimate_confirmed_at)
+          isNull(ordersServicesTable.estimate_confirmed_at),
+          ne(ordersServicesTable.status, "cancelled")
         )
       )
       .returning({
@@ -75,7 +78,7 @@ export async function confirmOrderServiceEstimate({
 
     if (!updated) {
       throw new BadRequestException(
-        "Estimate was already confirmed by someone else. Refresh and try again."
+        "This line changed while you were pricing it — it was already confirmed, or cancelled. Refresh and try again."
       );
     }
 

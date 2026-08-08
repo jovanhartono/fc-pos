@@ -38,9 +38,14 @@ export async function resolveDiscount({
   const manual = Math.max(0, manualDiscount);
 
   if (campaignIds.length === 0 && voucherCodes.length === 0) {
+    // No promos to stack, but the cap still applies: a discount may only lean
+    // on catalogue-priced work, never on a repair quote that inspection can
+    // still lower. The POS caps the same way, so what the cashier sees on the
+    // screen is what the order is created with.
+    const appliedManual = Math.min(manual, grossTotal);
     return {
-      discountAmount: manual,
-      discountSource: manual > 0 ? "manual" : "none",
+      discountAmount: appliedManual,
+      discountSource: appliedManual > 0 ? "manual" : "none",
       campaignRows: [],
     };
   }

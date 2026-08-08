@@ -1,4 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
@@ -21,9 +23,10 @@ interface FakeLine {
 
 const state = {
   line: undefined as FakeLine | undefined,
-  // Simulates losing the CAS race: the row was confirmed between read and write.
+  // Simulates losing the race: the line moved between read and write.
   casWins: true,
   serviceWrites: [] as AnyObj[],
+  serviceWriteGuard: "",
   orderWrites: [] as AnyObj[],
   logRows: [] as AnyObj[],
 };
@@ -34,10 +37,11 @@ const state = {
 const TX = {
   update: (_table: unknown) => ({
     set: (set: AnyObj) => ({
-      where: () => {
+      where: (condition: SQL) => {
         const isServiceWrite = "estimate_confirmed_at" in set;
         if (isServiceWrite) {
           state.serviceWrites.push(set);
+          state.serviceWriteGuard = new PgDialect().sqlToQuery(condition).sql;
         } else {
           state.orderWrites.push(set);
         }
@@ -121,6 +125,7 @@ beforeEach(() => {
   state.line = makeLine();
   state.casWins = true;
   state.serviceWrites = [];
+  state.serviceWriteGuard = "";
   state.orderWrites = [];
   state.logRows = [];
 });
@@ -223,9 +228,23 @@ describe("confirmOrderServiceEstimate", () => {
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Estimate was already confirmed by someone else. Refresh and try again."
+      "This line changed while you were pricing it — it was already confirmed, or cancelled. Refresh and try again."
     );
     expect(state.logRows).toHaveLength(0);
     expect(state.orderWrites).toHaveLength(0);
+  });
+
+  it("will not settle a line the counter cancelled while the price was being typed", async () => {
+    // The customer hears 250k and declines, so the counter cancels the line —
+    // after the workshop already opened the pricing screen. Checking the
+    // status only on the way in would let that final land on a line nobody
+    // owes and push the amount due back up, so the write itself has to
+    // re-check it.
+    await confirm(250_000);
+
+    expect(state.serviceWriteGuard).toContain('"status" <>');
+    expect(state.serviceWriteGuard).toContain(
+      '"estimate_confirmed_at" is null'
+    );
   });
 });
