@@ -16,7 +16,13 @@ const app = new Hono().get("/photo-sweep", async (c) => {
     throw new UnauthorizedException();
   }
 
-  return c.json(success(await sweepOrphanedOrderPhotos()));
+  const result = await sweepOrphanedOrderPhotos();
+  // Vercel's cron history keeps the status code, not the body. Without this the count is lost.
+  console.info(
+    `photo-sweep: deleted ${result.deleted} of ${result.scanned} scanned`
+  );
+
+  return c.json(success(result));
 });
 
 export default app;
