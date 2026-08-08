@@ -2,12 +2,14 @@
 
 ## Report-stack consolidation (from 2026-07-06 simplification grill)
 
-- [ ] **Unify "item processed" definition** — worker-productivity completions
+- [ ] **Unify "services processed" definition** — worker-productivity completions
   (`report-range.repository.ts` `fetchCompletions`, `to_status = 'ready_for_pickup'`)
   must match the daily KPI's `ITEM_PROCESSED_STATUSES`
   (`report.repository.ts:30`, includes `quality_check`). Canonical definition now
-  in CONTEXT.md ("Item processed"): counts on first reaching `quality_check`.
-  Small standalone fix; can land before the full consolidation.
+  in CONTEXT.md ("Services processed"): counts on first reaching `quality_check`.
+  Metric renamed from "Item processed" in #95 — Item now means a physical object,
+  so the old name counted the wrong noun; `ITEM_PROCESSED_STATUSES` should be
+  renamed with it. Small standalone fix; can land before the full consolidation.
 - [ ] **Merge the two report stacks** — `report.repository.ts` (daily/overview)
   and `report-range.repository.ts`/`report-range.service.ts` (7 range panels)
   duplicate paid revenue, refunds sum, category revenue, and orders_out (×4
@@ -21,6 +23,14 @@
 
 ## Architecture-deepening follow-ups (extracted 2026-06-10, source: docs/architecture-deepening.md)
 
+- [ ] **`push:prod` before next prod deploy** — now also includes the **Repair
+  estimate pricing** schema from ADR-0018/ADR-0019: `services.price` becomes
+  **nullable** (NULL = no list price), `orders_services` gains `estimated_price`
+  + `estimate_confirmed_at` and their two CHECKs, and the new
+  `order_service_price_logs` table. All additive or widening — existing rows keep
+  their prices and no backfill is needed — but the payment gate reads
+  `estimated_price`, so the columns must exist before the deploy or every paid
+  checkout 500s. Applied to dev only so far.
 - [ ] **`push:prod` before next prod deploy** — product-refund schema guards
   (`order_refund_items_line_xor_check` CHECK + `order_refund_items_product_uidx`
   partial unique index) exist only in dev. They are the only concurrency guards
