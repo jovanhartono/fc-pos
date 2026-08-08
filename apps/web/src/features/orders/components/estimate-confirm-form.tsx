@@ -40,8 +40,12 @@ export const EstimateConfirmForm = ({
 	return (
 		<form
 			className="grid gap-3"
-			onSubmit={form.handleSubmit(async (values) => {
-				await confirmMutation.mutateAsync({
+			// mutate, not mutateAsync: if someone else settled or cancelled this
+			// line first, the global handler shows the server's reason. Awaiting
+			// it here throws instead, leaving staff with a spinner that stops
+			// and no message.
+			onSubmit={form.handleSubmit((values) => {
+				confirmMutation.mutate({
 					serviceId,
 					payload: { price: values.price },
 				});
@@ -68,7 +72,7 @@ export const EstimateConfirmForm = ({
 			<Button
 				className="h-10 pointer-coarse:h-11"
 				icon={<CheckIcon className="size-4" />}
-				loading={form.formState.isSubmitting}
+				loading={confirmMutation.isPending}
 				type="submit"
 			>
 				Confirm price

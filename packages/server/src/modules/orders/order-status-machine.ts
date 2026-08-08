@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { db } from "@/db";
 import {
   type cancelReasonEnum,
@@ -128,6 +128,24 @@ export function deriveOrderStatus(
   return "completed";
 }
 
+// What the customer still owes. Cancelled work drops off the bill — the shop
+// never did it. Refunded work stays on: it was done and handed over, and the
+// refund is already recorded on the order, so dropping it here would take the
+// same money off twice.
+export function billableOrderTotal(
+  services: { status: OrderServiceStatus; subtotal: string | null }[],
+  products: { cancelled_at: Date | null; subtotal: string | null }[]
+): number {
+  const serviceTotal = services
+    .filter((item) => item.status !== "cancelled")
+    .reduce((sum, item) => sum + Number(item.subtotal ?? 0), 0);
+  const productTotal = products
+    .filter((item) => item.cancelled_at == null)
+    .reduce((sum, item) => sum + Number(item.subtotal ?? 0), 0);
+
+  return serviceTotal + productTotal;
+}
+
 export async function recomputeOrderRollup(
   executor: DbExecutor,
   orderId: number,
@@ -136,15 +154,16 @@ export async function recomputeOrderRollup(
   const [services, products] = await Promise.all([
     executor.query.ordersServicesTable.findMany({
       where: { order_id: orderId },
-      columns: { status: true },
+      columns: { status: true, subtotal: true },
     }),
     executor.query.ordersProductsTable.findMany({
       where: { order_id: orderId },
-      columns: { cancelled_at: true },
+      columns: { cancelled_at: true, subtotal: true },
     }),
   ]);
 
   const nextStatus = deriveOrderStatus(services, products);
+  const nextTotal = billableOrderTotal(services, products);
 
   await executor
     .update(ordersTable)
@@ -152,6 +171,11 @@ export async function recomputeOrderRollup(
       status: nextStatus,
       completed_at: nextStatus === "completed" ? new Date() : null,
       cancelled_at: nextStatus === "cancelled" ? new Date() : null,
+      total: nextTotal.toString(),
+      // A promo the customer already earned stays (ADR-0015), but it can
+      // never be worth more than what is left to pay, so on a mostly
+      // cancelled order it shrinks to fit.
+      discount: sql`least(${ordersTable.discount}, ${nextTotal})`,
       updated_by: updatedBy,
     })
     .where(eq(ordersTable.id, orderId));

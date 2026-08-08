@@ -222,10 +222,9 @@ describe("resolveDiscount", () => {
 
   it("caps a hand-keyed discount at the catalogue-priced work, not the repair quote", async () => {
     // Deep clean 150k plus a bag repair quoted at 200k, and the supervisor
-    // keys 200k off. Only the deep clean can carry a discount — the repair
-    // number can still drop after inspection — so 150k is the most that comes
-    // off. The POS shows the same 150k, so the cashier is not promised one
-    // number and given another.
+    // takes 200k off. Only the deep clean can carry a discount, because the
+    // repair number can still drop after inspection, so 150k is the most that
+    // comes off. The POS shows the same 150k.
     const { discountAmount, discountSource } = await checkout({
       grossTotal: 150_000,
       manualDiscount: 200_000,

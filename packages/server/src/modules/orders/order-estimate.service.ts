@@ -52,10 +52,10 @@ export async function confirmOrderServiceEstimate({
   const intakePrice = Number(line.price ?? 0);
 
   return await db.transaction(async (tx) => {
-    // The two checks above are repeated here, inside the update, because the
-    // line can move while the price is being typed: another phone settles the
-    // same bag, or the counter cancels it once the customer hears the quote.
-    // Either way this price must not land on the order.
+    // Checked again here, inside the update. While the price was being typed,
+    // another phone may have settled this bag, or the counter may have
+    // cancelled it after the customer heard the quote. Either way the price
+    // must not land.
     const [updated] = await tx
       .update(ordersServicesTable)
       .set({

@@ -225,7 +225,10 @@ export const getCartPricing = <C extends CartCampaign>({
 	return {
 		campaignBreakdown: stacked.breakdown,
 		campaignDiscount: stacked.total,
-		manualDiscount: manualDiscountValue,
+		// What actually comes off, not what was typed. With a repair quote in
+		// the cart the two differ, and showing the typed number next to the
+		// total leaves the cashier with a summary that does not add up.
+		manualDiscount: appliedManual,
 		totalDiscount,
 		total: Math.max(0, subtotal - totalDiscount),
 	};

@@ -237,6 +237,25 @@ describe("getCartPricing", () => {
 		expect(pricing.totalDiscount).toBe(150_000);
 		expect(pricing.total).toBe(200_000);
 	});
+
+	test("reports the manual discount that was actually applied, not the keyed one", () => {
+		// Same cart as above. The summary line must read 120k, which is what
+		// the base had left after the campaign, because the total beside it
+		// was worked out that way. Showing the typed 500k there would give the
+		// cashier a column that does not add up.
+		const pricing = getCartPricing({
+			subtotal: 350_000,
+			campaignBase: 150_000,
+			campaigns: [percentCampaign("20")],
+			serviceLines: [],
+			manualDiscount: "500000",
+		});
+		expect(pricing.manualDiscount).toBe(120_000);
+		expect(pricing.campaignDiscount + pricing.manualDiscount).toBe(
+			pricing.totalDiscount,
+		);
+		expect(pricing.total).toBe(350_000 - pricing.totalDiscount);
+	});
 });
 
 describe("toOrderPayload", () => {

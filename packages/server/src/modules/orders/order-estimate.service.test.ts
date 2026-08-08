@@ -235,11 +235,10 @@ describe("confirmOrderServiceEstimate", () => {
   });
 
   it("will not settle a line the counter cancelled while the price was being typed", async () => {
-    // The customer hears 250k and declines, so the counter cancels the line —
-    // after the workshop already opened the pricing screen. Checking the
-    // status only on the way in would let that final land on a line nobody
-    // owes and push the amount due back up, so the write itself has to
-    // re-check it.
+    // The customer hears 250k and declines, so the counter cancels the line
+    // while the workshop still has the pricing screen open. Checking the
+    // status only on the way in would let that price land on a line nobody
+    // owes, and push the amount due back up.
     await confirm(250_000);
 
     expect(state.serviceWriteGuard).toContain('"status" <>');
