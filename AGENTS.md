@@ -1,6 +1,6 @@
-# CLAUDE.md
+# Repo-Wide Standards
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for coding agents working anywhere in this repository. `CLAUDE.md` symlinks here.
 
 ## Overview
 
