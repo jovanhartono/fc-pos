@@ -14,3 +14,17 @@
 - Migrations: `drizzle-*` scripts in `package.json` with matching config per environment.
 - **Date query params**: `dateStringSchema()` requires `YYYY-MM-DD` — never send `.toISOString()`. Used on shifts, reports, daily-report endpoints.
 - **Timezone**: all `dayjs()` calls that compute day/week/month boundaries or format date strings must use `.tz("Asia/Jakarta")`. Bootstrap `utc` + `timezone` plugins at server entry. Use `src/utils/date.ts` helpers (`jakartaNow`, `jakartaDayStart`, `jakartaDayEnd`) — do NOT inline `dayjs().startOf("day")`. Reports module uses `AT TIME ZONE 'Asia/Jakarta'` in SQL; orders/repositories must match via dayjs TZ. Exempt: `modules/reports/report-range.util.ts` deliberately skips the dayjs helpers and computes bucket boundaries with fixed-offset arithmetic (WIB is UTC+7, no DST), so its JS bucket labels match Postgres' own `to_char(… AT TIME ZONE …)` bucketing exactly.
+
+## Database
+
+Schema lives in `src/db/schema.ts`; the connection in `src/db/index.ts`. Each environment has its own config (`drizzle-dev.config.ts` / `drizzle-prod.config.ts`) — swap `:dev` for `:prod` on any drizzle script.
+
+`push:dev` (push the schema straight to the DB) is the workflow this repo uses. `generate:dev` / `migrate:dev` exist but are **not used** — `drizzle/dev/` has no migration journal, so `generate:dev` produces a misleading full-schema snapshot. If run by accident, delete the folder it creates.
+
+### Adding a Schema Change
+
+1. Edit `src/db/schema.ts`
+2. Adding a constraint over live data? First count violating rows with a read-only query (`bun -e` with `process.env.DATABASE_URL_DEV`; `.env` auto-loads in `packages/server`)
+3. Run `bun run push:dev` (diffs live DB against schema, applies delta)
+4. Verify CHECK constraints via `pg_constraint` — push applies them silently without printing diffs
+5. Update Zod schemas in the relevant module if needed

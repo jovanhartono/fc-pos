@@ -72,6 +72,6 @@ The server reads from `process.env` (`.env` in `packages/server`):
 
 ## Docs
 
-- [`CLAUDE.md`](CLAUDE.md) / `AGENTS.md` — architecture, conventions, common tasks
+- [`AGENTS.md`](AGENTS.md) (`CLAUDE.md` symlinks to it) — repo-wide agent guidance; per-package rules in `packages/server/AGENTS.md` and `apps/web/AGENTS.md`
 - [`CONTEXT.md`](CONTEXT.md) — domain glossary and relationships
 - [`docs/adr/`](docs/adr) — architecture decision records
