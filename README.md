@@ -8,7 +8,7 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
 ![Turborepo](https://img.shields.io/badge/Turborepo-EF4444?logo=turborepo&logoColor=white)
 
-Bun monorepo for a laundry/cleaning service business: a REST API and an admin web dashboard.
+Bun monorepo for a multi-store cleaning, restoration, and repair shop — footwear, bags, hats, and luggage: a REST API and an admin web dashboard.
 
 | Package | Name | Path | Description |
 | --- | --- | --- | --- |
