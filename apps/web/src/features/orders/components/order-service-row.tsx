@@ -1,4 +1,4 @@
-import { isUnconfirmedEstimate } from "@fresclean/api/schema";
+import { isUnpricedLine } from "@fresclean/api/schema";
 import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { OrderServiceDetail } from "@/features/orders/components/order-service-detail";
@@ -29,8 +29,9 @@ export const OrderServiceRow = memo(
 		// A line carries at most one complaint, lifetime (ADR-0013 amendment) —
 		// existence is the whole signal; the complaint has no status.
 		const hasComplaint = (service.complaints ?? []).length > 0;
-		// ADR-0018: an unconfirmed Estimate holds the whole Order's payment.
-		const isEstimate = isUnconfirmedEstimate(service);
+		// ADR-0018: a blank price holds the whole Order's payment ("no price, no
+		// payment") — the same predicate the server's paid transition runs.
+		const isUnpriced = isUnpricedLine(service);
 		const itemDetails = getOrderServiceItemDetails(service);
 		const metaLine = [itemDetails, service.handler?.name]
 			.filter(Boolean)
@@ -69,7 +70,7 @@ export const OrderServiceRow = memo(
 				</span>
 				<span className="flex shrink-0 flex-col items-end gap-1.5">
 					<span className="flex flex-wrap justify-end gap-1.5">
-						{isEstimate ? <Badge variant="warning">Estimate</Badge> : null}
+						{isUnpriced ? <Badge variant="warning">Unpriced</Badge> : null}
 						{isRework ? <Badge variant="info">Rework</Badge> : null}
 						{hasComplaint ? <Badge variant="danger">Complaint</Badge> : null}
 						{service.is_priority ? (
@@ -80,7 +81,9 @@ export const OrderServiceRow = memo(
 						</Badge>
 					</span>
 					<span className="font-mono text-sm tabular-nums">
-						{formatMoney(service.subtotal)}
+						{/* A blank line has no subtotal yet — "Rp 0" would read as
+						    deliberately free (a Rework), which it is not. */}
+						{isUnpriced ? "—" : formatMoney(service.subtotal)}
 					</span>
 				</span>
 			</button>

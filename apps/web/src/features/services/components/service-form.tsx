@@ -222,8 +222,8 @@ export function ServiceForm({
 								<FieldContent>
 									<FieldTitle>No list price</FieldTitle>
 									<FieldDescription>
-										Priced per item at intake — firm or as an Estimate (e.g.
-										Repair). Excluded from campaign minimums.
+										Priced per item (e.g. Repair) — keyed at drop-off if agreed,
+										or left blank until inspection.
 									</FieldDescription>
 								</FieldContent>
 								<Switch

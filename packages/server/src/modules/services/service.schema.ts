@@ -33,8 +33,9 @@ export const POSTServiceSchema = z.object({
     ),
 
   cogs: currencySchema("COGS"),
-  // null = no list price (ADR-0018): the Service is quoted per Item at intake
-  // (Repair). Deliberately not price 0 — that already means deliberately free.
+  // null = no list price (ADR-0018): the Service is priced per Item (Repair),
+  // at intake or after the workshop's inspection. Deliberately not price 0 —
+  // that already means deliberately free.
   price: currencySchema("Price").nullable(),
 
   name: varcharSchema("Name"),

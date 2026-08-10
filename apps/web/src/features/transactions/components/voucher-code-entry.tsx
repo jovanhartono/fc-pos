@@ -1,37 +1,30 @@
 import { TicketIcon, XIcon } from "@phosphor-icons/react";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { useFormContext, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import type {
-	AppliedVoucher,
-	TransactionDraftValues,
-} from "@/features/transactions/cart/cart";
+import type { AppliedVoucher } from "@/features/transactions/cart/cart";
 import { resolveVoucherCode } from "@/lib/api";
 import { readServerErrorMessage } from "@/lib/server-error";
 
 interface VoucherCodeEntryProps {
 	storeId: number | undefined;
 	subtotal: number;
+	// Controlled, so both hosts can use it: the POS checkout stores vouchers in
+	// its draft form, the order page's collect-payment form in its own (ADR-0018:
+	// discounts resolve wherever the payment happens).
+	appliedVouchers: AppliedVoucher[];
+	onChange: (next: AppliedVoucher[]) => void;
 }
 
 export const VoucherCodeEntry = ({
 	storeId,
 	subtotal,
+	appliedVouchers,
+	onChange,
 }: VoucherCodeEntryProps) => {
 	const [code, setCode] = useState("");
-	const form = useFormContext<TransactionDraftValues>();
-	const appliedVouchers =
-		useWatch({ control: form.control, name: "appliedVouchers" }) ?? [];
-
-	const setAppliedVouchers = (next: AppliedVoucher[]) => {
-		form.setValue("appliedVouchers", next, {
-			shouldDirty: true,
-			shouldValidate: true,
-		});
-	};
 
 	const resolveMutation = useMutation({
 		mutationFn: (voucherCode: string) =>
@@ -45,13 +38,11 @@ export const VoucherCodeEntry = ({
 			// order_campaigns' unique constraint): drop any existing entry for this
 			// code OR this campaign before adding, so the same campaign can't be
 			// applied twice and double-count in the price preview.
-			setAppliedVouchers([
-				...form
-					.getValues("appliedVouchers")
-					.filter(
-						(entry) =>
-							entry.code !== voucherCode && entry.campaign.id !== campaign.id,
-					),
+			onChange([
+				...appliedVouchers.filter(
+					(entry) =>
+						entry.code !== voucherCode && entry.campaign.id !== campaign.id,
+				),
 				{ code: voucherCode, campaign },
 			]);
 			setCode("");
@@ -137,10 +128,10 @@ export const VoucherCodeEntry = ({
 									className="size-11"
 									icon={<XIcon />}
 									onClick={() =>
-										setAppliedVouchers(
-											form
-												.getValues("appliedVouchers")
-												.filter((applied) => applied.code !== entry.code),
+										onChange(
+											appliedVouchers.filter(
+												(applied) => applied.code !== entry.code,
+											),
 										)
 									}
 									size="icon-xs"

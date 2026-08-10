@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { BadRequestException } from "@/http-exceptions";
+import { captureRejection } from "@/test-support/capture-rejection";
 
 // resolveDiscount is the checkout counter's discount desk: the cashier has ticked
 // some running store promos, the customer may have handed over one or more printed
@@ -199,12 +201,17 @@ describe("resolveDiscount", () => {
     catalog.vouchers.AAAA1111 = makeVoucher(20, "20000");
     catalog.vouchers.BBBB2222 = makeVoucher(20, "20000");
 
-    await expect(
+    const error = await captureRejection(
       checkout({
         voucherCodes: ["AAAA1111", "BBBB2222"],
         grossTotal: 100_000,
       })
-    ).rejects.toThrow("A campaign can only be applied once per order");
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "A campaign can only be applied once per order"
+    );
   });
 
   it("books a manual discount without producing any campaign row", async () => {
@@ -220,11 +227,11 @@ describe("resolveDiscount", () => {
     expect(campaignRows).toEqual([]);
   });
 
-  it("caps a hand-keyed discount at the catalogue-priced work, not the repair quote", async () => {
-    // Deep clean 150k plus a bag repair quoted at 200k, and the supervisor
-    // takes 200k off. Only the deep clean can carry a discount, because the
-    // repair number can still drop after inspection, so 150k is the most that
-    // comes off. The POS shows the same 150k.
+  it("caps a hand-keyed discount at the order total instead of rejecting it", async () => {
+    // The supervisor comps a 150k deep clean by typing 200k off. The order
+    // goes free, not negative — the discount clamps to the 150k that exists,
+    // matching what the POS showed on screen (ADR-0018: every number is
+    // final at payment, so the total IS the cap).
     const { discountAmount, discountSource } = await checkout({
       grossTotal: 150_000,
       manualDiscount: 200_000,

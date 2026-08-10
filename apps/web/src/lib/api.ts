@@ -370,13 +370,20 @@ export type UpdateOrderServiceStatusPayload = {
 		| "cancelled";
 };
 
+// ADR-0018: discounts resolve at payment — the campaigns the cashier ticked,
+// the voucher slips handed over, and the hand-keyed discount all ride with
+// the tender.
 export type UpdateOrderPaymentPayload = {
 	payment_method_id: number;
+	campaign_ids: number[];
+	voucher_codes: string[];
+	discount: string;
 };
 
-// Final price for an estimated line (ADR-0018) — the digit string the
-// currency field produced, like every money payload.
-export type ConfirmOrderServiceEstimatePayload = {
+// The price for a no-list-price line, keyed once it is agreed with the
+// customer — or re-keyed to fix a typo while the Order is unpaid (ADR-0018).
+// A digit string, like every money payload.
+export type SetOrderServicePricePayload = {
 	price: string;
 };
 
@@ -856,15 +863,13 @@ export async function updateOrderPayment(
 	);
 }
 
-export async function confirmOrderServiceEstimate(
+export async function setOrderServicePrice(
 	orderId: number,
 	serviceId: number,
-	payload: ConfirmOrderServiceEstimatePayload,
+	payload: SetOrderServicePricePayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].services[":serviceId"][
-			"confirm-estimate"
-		].$post({
+		rpcWithAuth().api.admin.orders[":id"].services[":serviceId"].price.$patch({
 			param: { id: String(orderId), serviceId: String(serviceId) },
 			json: payload,
 		}),

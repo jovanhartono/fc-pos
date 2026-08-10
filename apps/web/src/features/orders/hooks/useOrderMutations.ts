@@ -1,11 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import {
-	type ConfirmOrderServiceEstimatePayload,
 	cancelOrder,
-	confirmOrderServiceEstimate,
 	createOrderRefund,
 	queryKeys,
+	type SetOrderServicePricePayload,
+	setOrderServicePrice,
+	type UpdateOrderPaymentPayload,
 	type UpdateOrderServiceStatusPayload,
 	updateOrderCourier,
 	updateOrderPayment,
@@ -42,8 +43,9 @@ export const useUpdateServiceStatusMutation = (orderId: number) => {
 	});
 };
 
-// ADR-0018: any staff may confirm; the server logs who settled what.
-export const useConfirmEstimateMutation = (orderId: number) => {
+// ADR-0018: any staff may set or correct a line's price — the oversight is
+// the server-side price log (who keyed what, from what), not a role gate.
+export const useSetServicePriceMutation = (orderId: number) => {
 	const refreshOrder = useRefreshOrder(orderId);
 
 	return useMutation({
@@ -52,8 +54,8 @@ export const useConfirmEstimateMutation = (orderId: number) => {
 			payload,
 		}: {
 			serviceId: number;
-			payload: ConfirmOrderServiceEstimatePayload;
-		}) => confirmOrderServiceEstimate(orderId, serviceId, payload),
+			payload: SetOrderServicePricePayload;
+		}) => setOrderServicePrice(orderId, serviceId, payload),
 		onSuccess: async () => {
 			await refreshOrder();
 		},
@@ -64,8 +66,8 @@ export const useOrderPaymentMutation = (orderId: number) => {
 	const refreshOrder = useRefreshOrder(orderId);
 
 	return useMutation({
-		mutationFn: (paymentMethodId: number) =>
-			updateOrderPayment(orderId, { payment_method_id: paymentMethodId }),
+		mutationFn: (payload: UpdateOrderPaymentPayload) =>
+			updateOrderPayment(orderId, payload),
 		onSuccess: async () => {
 			await refreshOrder();
 		},

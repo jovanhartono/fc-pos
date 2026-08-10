@@ -27,7 +27,6 @@ import {
 } from "@/modules/products/product.repository";
 import { findServices } from "@/modules/services/service.repository";
 import type { POSTOrderSchema } from "@/schema";
-import { fixedPriceSubtotal } from "@/schema/fixed-price";
 import type { JWTPayload } from "@/types";
 import type { Store } from "@/types/entity";
 import { resolveStoreScope, unhandledStoreScope } from "@/utils/authorization";
@@ -43,7 +42,6 @@ interface ExpandedServiceItem {
   brand?: string;
   color?: string;
   id: number;
-  is_estimate?: boolean;
   is_priority?: boolean;
   model?: string;
   notes?: string;
@@ -58,7 +56,6 @@ function expandServices(
     brand: item.brand,
     model: item.model,
     id: item.id,
-    is_estimate: item.is_estimate,
     is_priority: item.is_priority,
     notes: item.notes,
     color: item.color,
@@ -119,39 +116,35 @@ function resolveCatalogLines<
   return lines;
 }
 
-interface ServiceLinePricing {
-  estimated_price: string | null;
-  price: string;
-}
-
 // The price seam (ADR-0018). A catalog-priced Service always snapshots the
 // catalog row and silently drops anything the browser sent — the POS can
 // never set a normal Service's price. A no-list-price Service (Repair) has
-// nothing to snapshot: the cashier's number is required, kept as the line
-// price, and additionally pinned in estimated_price when it is an Estimate
-// rather than firm.
-function resolveServiceLinePricing(
+// nothing to snapshot: the cashier's number is kept when the price is already
+// agreed at drop-off, and the line stays blank (NULL) when the workshop still
+// has to inspect the Item — the price is keyed later and payment waits on it.
+function resolveServiceLinePrice(
   item: ExpandedServiceItem,
   service: DbService
-): ServiceLinePricing {
+): string | null {
   if (service.price !== null) {
-    return { price: service.price, estimated_price: null };
+    return service.price;
   }
 
-  // Zero is not a quote: price 0 already means deliberately free (a Rework
-  // line, ADR-0013), so quoted work must carry a real number.
-  if (item.price == null || item.price <= 0) {
-    throw new BadRequestException(
-      "Service has no list price — a price is required for this line"
-    );
+  if (item.price == null) {
+    return null;
   }
 
-  const price = item.price.toString();
-  return { price, estimated_price: item.is_estimate ? price : null };
+  // Zero is not a price: 0 already means deliberately free (a Rework line,
+  // ADR-0013), and "not priced yet" is a blank, not a keyed zero.
+  if (item.price <= 0) {
+    throw new BadRequestException("Line price must be greater than zero");
+  }
+
+  return item.price.toString();
 }
 
 type PricedServiceLine = CatalogLine<ExpandedServiceItem, DbService> & {
-  pricing: ServiceLinePricing;
+  price: string | null;
 };
 
 function buildOrderServiceRows({
@@ -163,15 +156,14 @@ function buildOrderServiceRows({
   orderId: number;
   serviceLines: PricedServiceLine[];
 }) {
-  return serviceLines.map(({ item, row: service, pricing }, index) => ({
+  return serviceLines.map(({ item, row: service, price }, index) => ({
     brand: item.brand,
     item_code: `${code}-S${String(index + 1).padStart(3, "0")}`,
     is_priority: item.is_priority ?? service.is_priority,
     model: item.model,
     order_id: orderId,
     service_id: service.id,
-    price: pricing.price,
-    estimated_price: pricing.estimated_price,
+    price,
     cogs_snapshot: service.cogs,
     notes: item.notes,
     color: item.color,
@@ -242,6 +234,24 @@ export async function createOrder(
     ...orderPayload
   } = payload;
 
+  const isPaidAtDropoff = orderPayload.payment_status === "paid";
+
+  // ADR-0018: discounts resolve at payment, so a promo keyed onto an unpaid
+  // drop-off has nowhere to go. Accepting it silently would be worse than a
+  // bug — the customer watches their voucher slip get typed in, it claims
+  // nothing, and the mismatch surfaces as an argument at pickup. Bounce it
+  // loudly instead: a bearer code is money.
+  if (
+    !isPaidAtDropoff &&
+    (campaign_ids.length > 0 ||
+      voucher_codes.length > 0 ||
+      orderPayload.discount > 0)
+  ) {
+    throw new BadRequestException(
+      "Discounts are applied when payment is collected — leave promotions off an unpaid order"
+    );
+  }
+
   if (orderPayload.collected_by != null) {
     await assertActiveCourier(orderPayload.collected_by);
   }
@@ -261,35 +271,19 @@ export async function createOrder(
     dbServices
   ).map((line) => ({
     ...line,
-    // Priced before the transaction — a Repair line missing its quote must
+    // Priced before the transaction — a keyed zero on a Repair line must
     // bounce here, not after a daily order number has been burned.
-    pricing: resolveServiceLinePricing(line.item, line.row),
+    price: resolveServiceLinePrice(line.item, line.row),
   }));
 
-  // ADR-0018: every Estimate is unconfirmed at intake, and an Order carrying
-  // an unconfirmed Estimate cannot be paid — not even at the counter.
-  if (
-    orderPayload.payment_status === "paid" &&
-    serviceLines.some((line) => line.pricing.estimated_price !== null)
-  ) {
+  // ADR-0018: no price, no payment. A blank line is a Repair the workshop has
+  // not inspected yet — its number is not known, so no money moves for the
+  // Order, not even for the lines the counter already knows.
+  if (isPaidAtDropoff && serviceLines.some((line) => line.price === null)) {
     throw new BadRequestException(
-      "An order with an unconfirmed Estimate cannot be marked paid"
+      "Order has an unpriced line — set its price before collecting payment"
     );
   }
-
-  // ADR-0019: Campaigns run on the fixed-price subtotal. A no-list-price line
-  // (Repair) can be re-priced after checkout, so it may neither unlock a
-  // Campaign minimum nor count toward the base a discount is computed from.
-  const campaignBase = fixedPriceSubtotal([
-    ...serviceLines.map(({ row, pricing }) => ({
-      has_list_price: row.price !== null,
-      subtotal: Number(pricing.price),
-    })),
-    ...productLines.map(({ item, row: product }) => ({
-      has_list_price: true,
-      subtotal: Number(product.price) * item.qty,
-    })),
-  ]);
 
   return db.transaction(async (tx) => {
     const dateStr = jakartaNow().format("DDMMYYYY");
@@ -347,33 +341,38 @@ export async function createOrder(
     ]);
 
     const grossTotal = serviceSubtotal + productSubtotal;
-    // No-list-price lines stay out of the discount desk entirely: they are
-    // not in the base (campaignBase) and not selectable by a BOGO either.
+
+    // BOGO stays exclusive (ADR-0018): a no-list-price line (Repair) is never
+    // selectable as a buy-one-get-one free slot — a misconfigured Campaign
+    // must not hand out a repair as a free item. Deliberate owner decision;
+    // it keys on the catalog having no list price, not on the line's number.
     const lines = serviceLines
       .filter(({ row }) => row.price !== null)
-      .map(({ item, pricing }) => ({
-        price: Number(pricing.price),
+      .map(({ item, price }) => ({
+        price: Number(price),
         service_id: item.id,
       }));
 
-    const { discountAmount, discountSource, campaignRows } =
-      await resolveDiscount({
-        campaignIds: [...new Set(campaign_ids)],
-        voucherCodes: [...new Set(voucher_codes)],
-        grossTotal: campaignBase,
-        manualDiscount: orderPayload.discount,
-        storeId: store.id,
-        storeCode: store.code,
-        lines,
-      });
-
-    // Capped at the fixed-price subtotal, not the gross: a discount leaning
-    // on a Repair quote would breach the DB's total >= discount invariant the
-    // moment an Estimate is confirmed downward. Equal to the old gross-total
-    // cap whenever the cart carries no no-list-price line.
-    if (discountAmount > campaignBase) {
-      throw new BadRequestException("Order discount cannot exceed order total");
-    }
+    // ADR-0018: discounts resolve at payment. Paying at drop-off is that
+    // moment, so the discount desk runs on the full gross total — every line
+    // is priced (the gate above) and about to be frozen. An unpaid Order
+    // carries no discount and claims nothing: its promos, voucher slips, and
+    // hand-keyed discount all arrive with the tender at pickup instead.
+    const { discountAmount, discountSource, campaignRows } = isPaidAtDropoff
+      ? await resolveDiscount({
+          campaignIds: campaign_ids,
+          voucherCodes: voucher_codes,
+          grossTotal,
+          manualDiscount: orderPayload.discount,
+          storeId: store.id,
+          storeCode: store.code,
+          lines,
+        })
+      : {
+          discountAmount: 0,
+          discountSource: "none" as const,
+          campaignRows: [],
+        };
 
     await claimRedemptions(tx, campaignRows, orderId);
 
@@ -385,10 +384,9 @@ export async function createOrder(
         total: grossTotal.toString(),
         discount: discountAmount.toString(),
         discount_source: discountSource,
-        paid_amount:
-          orderPayload.payment_status === "paid" ? netTotal.toString() : "0",
-        paid_at: orderPayload.payment_status === "paid" ? new Date() : null,
-        paid_by: orderPayload.payment_status === "paid" ? userId : null,
+        paid_amount: isPaidAtDropoff ? netTotal.toString() : "0",
+        paid_at: isPaidAtDropoff ? new Date() : null,
+        paid_by: isPaidAtDropoff ? userId : null,
       })
       .where(eq(ordersTable.id, orderId));
 

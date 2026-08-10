@@ -50,16 +50,18 @@ export const CheckoutFooter = ({
 	const submitError = useTransactionsPageStore((state) => state.submitError);
 	const dropoffPhoto = useTransactionsPageStore((state) => state.dropoffPhoto);
 
-	// Leaving the Items step needs the drop-off photo (captured there) and a
-	// price on every no-list-price line (ADR-0018) — the same rule the server
-	// enforces, surfaced before the cashier walks into a rejection.
+	// Leaving the Items step needs only the drop-off photo (captured there).
+	// A blank price is normal (ADR-0018) — it never blocks checkout, it only
+	// blocks paying now, so the hint states the consequence without gating.
 	const unpricedCount = countUnpricedServiceLines(serviceRows);
-	const itemsReady = count > 0 && !!dropoffPhoto && unpricedCount === 0;
+	const itemsReady = count > 0 && !!dropoffPhoto;
 	const itemsHint =
 		step === "items" && count > 0
 			? [
 					dropoffPhoto ? null : "Add a drop-off photo to continue.",
-					unpricedCount > 0 ? "Enter a price for each repair line." : null,
+					unpricedCount > 0
+						? "A line has no price yet — the order goes out unpaid until it is priced."
+						: null,
 				]
 					.filter(Boolean)
 					.join(" ")

@@ -6,11 +6,9 @@ import {
 	countUnpricedServiceLines,
 	enrichProductCart,
 	enrichServiceCart,
-	getCartCampaignBase,
 	getCartCount,
 	getCartPricing,
 	getCartSubtotal,
-	hasEstimateLine,
 	type ProductCartLine,
 	type ServiceCartLine,
 	type TransactionDraftValues,
@@ -37,7 +35,6 @@ const serviceLine = (
 	size: "",
 	notes: "",
 	price: "",
-	is_estimate: false,
 	...overrides,
 });
 
@@ -88,7 +85,7 @@ describe("getCartSubtotal", () => {
 	});
 
 	test("a repair line counts at the cashier's keyed price, not the catalog", () => {
-		// Repair has no list price (ADR-0018): the line total IS the quote.
+		// Repair has no list price (ADR-0018): the line total IS the agreed price.
 		const subtotal = getCartSubtotal(
 			[],
 			[
@@ -98,47 +95,24 @@ describe("getCartSubtotal", () => {
 		);
 		expect(subtotal).toBe(250_000);
 	});
-});
 
-describe("getCartCampaignBase", () => {
-	test("excludes repair lines — firm or Estimate — from the campaign base", () => {
-		// ADR-0019's failure case: deep clean 150k + repair 200k is gross 350k,
-		// but a "min order 250k" campaign must see only the 150k that cannot
-		// move after checkout.
-		const base = getCartCampaignBase(
+	test("a blank repair line adds nothing — its price is absent, not zero", () => {
+		// ADR-0018: NULL means "not yet determined". The drop-off receipt shows
+		// the gross of what IS priced; the blank line must not be read as a
+		// deliberately free Rework.
+		const subtotal = getCartSubtotal(
 			[],
 			[
-				{ price: "", service: { price: "150000" } },
-				{ price: "200000", service: { price: null } },
+				{ price: "", service: { price: null } },
+				{ price: "", service: { price: "50000" } },
 			],
 		);
-		expect(base).toBe(150_000);
-	});
-
-	test("equals the subtotal when every line is catalog-priced", () => {
-		const productRows = [{ qty: 2, product: { price: "10000" } }];
-		const serviceRows = [{ price: "", service: { price: "50000" } }];
-		expect(getCartCampaignBase(productRows, serviceRows)).toBe(
-			getCartSubtotal(productRows, serviceRows),
-		);
+		expect(subtotal).toBe(50_000);
 	});
 });
 
-describe("hasEstimateLine / countUnpricedServiceLines", () => {
-	test("an Estimate on a no-list-price line locks the tender tiles", () => {
-		expect(
-			hasEstimateLine([
-				{ is_estimate: true, service: { price: null } },
-				{ is_estimate: false, service: { price: "50000" } },
-			]),
-		).toBe(true);
-		// is_estimate is meaningless on a catalog-priced line — never a lock.
-		expect(
-			hasEstimateLine([{ is_estimate: true, service: { price: "50000" } }]),
-		).toBe(false);
-	});
-
-	test("counts repair lines still waiting for a price", () => {
+describe("countUnpricedServiceLines", () => {
+	test("counts repair lines left blank for pricing after inspection", () => {
 		expect(
 			countUnpricedServiceLines([
 				{ price: "", service: { price: null } },
@@ -146,6 +120,17 @@ describe("hasEstimateLine / countUnpricedServiceLines", () => {
 				{ price: "", service: { price: "50000" } },
 			]),
 		).toBe(1);
+	});
+
+	test("a fully keyed or catalog-priced cart has nothing blocking payment", () => {
+		// A blank line only blocks paying at drop-off (ADR-0018) — checkout
+		// itself always goes through, so zero here is what unlocks the tender.
+		expect(
+			countUnpricedServiceLines([
+				{ price: "150000", service: { price: null } },
+				{ price: "", service: { price: "50000" } },
+			]),
+		).toBe(0);
 	});
 });
 
@@ -171,7 +156,6 @@ describe("getCartPricing", () => {
 	test("manual discount only", () => {
 		const pricing = getCartPricing({
 			subtotal: 100_000,
-			campaignBase: 100_000,
 			campaigns: [],
 			serviceLines: [],
 			manualDiscount: "15000",
@@ -185,7 +169,6 @@ describe("getCartPricing", () => {
 	test("empty manual discount reads as zero", () => {
 		const pricing = getCartPricing({
 			subtotal: 100_000,
-			campaignBase: 100_000,
 			campaigns: [],
 			serviceLines: [],
 			manualDiscount: "",
@@ -197,7 +180,6 @@ describe("getCartPricing", () => {
 	test("stacks campaign and manual discount", () => {
 		const pricing = getCartPricing({
 			subtotal: 100_000,
-			campaignBase: 100_000,
 			campaigns: [percentCampaign("10")],
 			serviceLines: [],
 			manualDiscount: "5000",
@@ -209,10 +191,23 @@ describe("getCartPricing", () => {
 		expect(pricing.total).toBe(85_000);
 	});
 
-	test("clamps total discount at the campaign base so total never goes negative", () => {
+	test("campaigns run on the full order total — repair spend counts (ADR-0018)", () => {
+		// The owner's reversal of ADR-0019: deep clean 150k + repair 200k is a
+		// 350k order, and a 20% campaign discounts 20% of 350k, because at the
+		// moment money moves every number is final.
+		const pricing = getCartPricing({
+			subtotal: 350_000,
+			campaigns: [percentCampaign("20")],
+			serviceLines: [],
+			manualDiscount: "",
+		});
+		expect(pricing.campaignDiscount).toBe(70_000);
+		expect(pricing.total).toBe(280_000);
+	});
+
+	test("clamps total discount at the subtotal so total never goes negative", () => {
 		const pricing = getCartPricing({
 			subtotal: 20_000,
-			campaignBase: 20_000,
 			campaigns: [percentCampaign("50")],
 			serviceLines: [],
 			manualDiscount: "50000",
@@ -221,40 +216,20 @@ describe("getCartPricing", () => {
 		expect(pricing.total).toBe(0);
 	});
 
-	test("campaigns and manual discount run on the fixed-price base, never the repair quote", () => {
-		// Deep clean 150k + repair 200k (ADR-0019): a 20% campaign discounts
-		// 20% of 150k, and a fat manual discount can only eat what the fixed
-		// base has left — the repair's 200k stays fully payable, exactly as
-		// the server will compute it.
-		const pricing = getCartPricing({
-			subtotal: 350_000,
-			campaignBase: 150_000,
-			campaigns: [percentCampaign("20")],
-			serviceLines: [],
-			manualDiscount: "500000",
-		});
-		expect(pricing.campaignDiscount).toBe(30_000);
-		expect(pricing.totalDiscount).toBe(150_000);
-		expect(pricing.total).toBe(200_000);
-	});
-
 	test("reports the manual discount that was actually applied, not the keyed one", () => {
-		// Same cart as above. The summary line must read 120k, which is what
-		// the base had left after the campaign, because the total beside it
-		// was worked out that way. Showing the typed 500k there would give the
-		// cashier a column that does not add up.
+		// The summary line must show what came off, because the total beside it
+		// was worked out that way — a typed 50k next to a 20k cart would give
+		// the cashier a column that does not add up.
 		const pricing = getCartPricing({
-			subtotal: 350_000,
-			campaignBase: 150_000,
-			campaigns: [percentCampaign("20")],
+			subtotal: 20_000,
+			campaigns: [percentCampaign("50")],
 			serviceLines: [],
-			manualDiscount: "500000",
+			manualDiscount: "50000",
 		});
-		expect(pricing.manualDiscount).toBe(120_000);
+		expect(pricing.manualDiscount).toBe(10_000);
 		expect(pricing.campaignDiscount + pricing.manualDiscount).toBe(
 			pricing.totalDiscount,
 		);
-		expect(pricing.total).toBe(350_000 - pricing.totalDiscount);
 	});
 });
 
@@ -263,7 +238,7 @@ describe("toOrderPayload", () => {
 		selectedStoreId: "2",
 		customerName: " budi santoso ",
 		customerPhone: "081234567890",
-		selectedCampaignIds: ["3", "4"],
+		selectedCampaignIds: [],
 		appliedVouchers: [],
 		selectedPaymentMethodId: "",
 		selectedCourierId: "",
@@ -282,7 +257,7 @@ describe("toOrderPayload", () => {
 				phone_number: "+6281234567890",
 			},
 			store_id: 2,
-			campaign_ids: [3, 4],
+			campaign_ids: [],
 			voucher_codes: [],
 			discount: "0",
 			payment_method_id: undefined,
@@ -299,41 +274,41 @@ describe("toOrderPayload", () => {
 					size: "42",
 					notes: undefined,
 					price: undefined,
-					is_estimate: undefined,
 				},
 			],
 		});
 	});
 
-	test("carries the repair quote and Estimate flag onto the line", () => {
+	test("carries an agreed repair price onto the line, and omits a blank one", () => {
+		// ADR-0018: blank means "not yet determined" — the payload must leave
+		// the field out entirely, never send "" or 0.
 		const payload = toOrderPayload({
 			...draft,
 			serviceCart: [
-				serviceLine("a", 7, { price: "200000", is_estimate: true }),
+				serviceLine("a", 7, { price: "200000" }),
+				serviceLine("b", 7, { price: "  " }),
 			],
 		});
-		expect(payload.services).toEqual([
-			{
-				id: 7,
-				brand: undefined,
-				color: undefined,
-				model: undefined,
-				size: undefined,
-				notes: undefined,
-				price: "200000",
-				is_estimate: true,
-			},
-		]);
+		expect(payload.services?.[0].price).toBe("200000");
+		expect(payload.services?.[1].price).toBe(undefined);
 	});
 
-	test("a selected payment method marks the order paid and carries discount", () => {
+	test("a selected payment method marks the order paid and carries discounts", () => {
+		// Paying at drop-off IS the payment moment (ADR-0018), so promos,
+		// voucher codes, and the manual discount ride the create payload.
 		const payload = toOrderPayload({
 			...draft,
 			selectedPaymentMethodId: "9",
+			selectedCampaignIds: ["3", "4"],
+			appliedVouchers: [
+				{ code: "ABC123DE", campaign: { id: 1 } as AppliedVoucher["campaign"] },
+			],
 			manualDiscount: "2500",
 		});
 		expect(payload.payment_method_id).toBe(9);
 		expect(payload.payment_status).toBe("paid");
+		expect(payload.campaign_ids).toEqual([3, 4]);
+		expect(payload.voucher_codes).toEqual(["ABC123DE"]);
 		expect(payload.discount).toBe("2500");
 	});
 
@@ -354,7 +329,6 @@ describe("toOrderPayload", () => {
 				size: undefined,
 				notes: "sol kanan lepas",
 				price: undefined,
-				is_estimate: undefined,
 			},
 			{
 				id: 6,
@@ -364,7 +338,6 @@ describe("toOrderPayload", () => {
 				size: undefined,
 				notes: undefined,
 				price: undefined,
-				is_estimate: undefined,
 			},
 		]);
 	});
@@ -372,6 +345,7 @@ describe("toOrderPayload", () => {
 	test("carries applied voucher codes into voucher_codes, trimmed", () => {
 		const payload = toOrderPayload({
 			...draft,
+			selectedPaymentMethodId: "9",
 			appliedVouchers: ["  ABC123DE  ", "XYZ789FG"].map((code) => ({
 				code,
 				campaign: { id: 1 } as AppliedVoucher["campaign"],

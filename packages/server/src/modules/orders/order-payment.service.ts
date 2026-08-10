@@ -1,10 +1,12 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { ordersTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
+import { claimRedemptions } from "@/modules/campaigns/campaign-redemption.service";
 import type { PatchOrderPaymentInput } from "@/modules/orders/order-admin.schema";
+import { resolveDiscount } from "@/modules/orders/order-discount.service";
 import { assertCanProcessPayment } from "@/modules/permissions/permissions";
-import { hasUnconfirmedEstimate } from "@/schema/estimate";
+import { hasUnpricedLine } from "@/schema/unpriced-line";
 import type { JWTPayload } from "@/types";
 
 export async function updateOrderPayment({
@@ -23,10 +25,13 @@ export async function updateOrderPayment({
     columns: {
       id: true,
       total: true,
-      discount: true,
       refunded_amount: true,
       payment_status: true,
       status: true,
+      store_id: true,
+    },
+    with: {
+      store: { columns: { code: true } },
     },
   });
 
@@ -44,44 +49,93 @@ export async function updateOrderPayment({
     );
   }
 
-  // ADR-0018: a Repair quoted as an Estimate has not settled yet — the shop
-  // does not take money for a number it may still revise. Payment is binary
-  // (ADR-0001), so the whole Order waits, known lines included.
+  // ADR-0018: no price, no payment. A blank line is a Repair the workshop has
+  // not inspected yet — the shop does not take money for a number nobody has
+  // agreed on. Payment is binary (ADR-0001), so the whole Order waits, known
+  // lines included. A cancelled line took the unpaid off-ramp (ADR-0008) and
+  // no longer holds the rest of the Order's money.
   const serviceLines = await db.query.ordersServicesTable.findMany({
     where: { order_id: orderId },
     columns: {
-      estimated_price: true,
-      estimate_confirmed_at: true,
+      price: true,
       status: true,
+      service_id: true,
+    },
+    with: {
+      service: { columns: { price: true } },
     },
   });
-  if (hasUnconfirmedEstimate(serviceLines)) {
+  if (hasUnpricedLine(serviceLines)) {
     throw new BadRequestException(
-      "Order has an unconfirmed Estimate — confirm it before collecting payment"
+      "Order has an unpriced line — set its price before collecting payment"
     );
   }
 
-  const netDue =
-    Number(order.total ?? 0) -
-    Number(order.discount) -
-    Number(order.refunded_amount);
+  const grossTotal = Number(order.total ?? 0);
 
-  const rows = await db
-    .update(ordersTable)
-    .set({
-      payment_method_id: body.payment_method_id,
-      payment_status: "paid",
-      paid_amount: Math.max(netDue, 0).toString(),
-      paid_at: new Date(),
-      paid_by: user.id,
-      updated_by: user.id,
-    })
-    .where(eq(ordersTable.id, orderId))
-    .returning({
-      id: ordersTable.id,
-      payment_status: ordersTable.payment_status,
-      paid_amount: ordersTable.paid_amount,
-    });
+  // BOGO stays exclusive (ADR-0018): a no-list-price line (Repair) is never
+  // selectable as a buy-one-get-one free slot — a misconfigured Campaign must
+  // not hand out a repair as a free item. Deliberate owner decision; it keys
+  // on the catalog having no list price, not on the line's number.
+  const lines = serviceLines.flatMap((line) =>
+    line.status === "cancelled" ||
+    line.service_id === null ||
+    line.service?.price == null
+      ? []
+      : [{ price: Number(line.price), service_id: line.service_id }]
+  );
 
-  return rows[0] ?? null;
+  return await db.transaction(async (tx) => {
+    // ADR-0018: discounts resolve here, at the paid transition — every line
+    // price is final (the gate above) and about to be frozen, so the Campaign
+    // base is simply the order total. The claims commit or roll back with the
+    // payment itself.
+    const { discountAmount, discountSource, campaignRows } =
+      await resolveDiscount({
+        campaignIds: body.campaign_ids,
+        voucherCodes: body.voucher_codes,
+        grossTotal,
+        manualDiscount: body.discount,
+        storeId: order.store_id,
+        storeCode: order.store.code,
+        lines,
+      });
+
+    await claimRedemptions(tx, campaignRows, orderId);
+
+    const netDue = grossTotal - discountAmount - Number(order.refunded_amount);
+
+    // CAS on payment_status: two cashiers tapping collect at once must not
+    // both book the money — the loser's transaction rolls back, and with it
+    // any voucher its resolveDiscount claimed.
+    const rows = await tx
+      .update(ordersTable)
+      .set({
+        payment_method_id: body.payment_method_id,
+        payment_status: "paid",
+        discount: discountAmount.toString(),
+        discount_source: discountSource,
+        paid_amount: Math.max(netDue, 0).toString(),
+        paid_at: new Date(),
+        paid_by: user.id,
+        updated_by: user.id,
+      })
+      .where(
+        and(
+          eq(ordersTable.id, orderId),
+          eq(ordersTable.payment_status, "unpaid")
+        )
+      )
+      .returning({
+        id: ordersTable.id,
+        payment_status: ordersTable.payment_status,
+        paid_amount: ordersTable.paid_amount,
+      });
+
+    if (!rows[0]) {
+      throw new BadRequestException("Order has already been paid");
+    }
+
+    return rows[0];
+  });
 }

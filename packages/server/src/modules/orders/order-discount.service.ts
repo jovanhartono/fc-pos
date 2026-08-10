@@ -38,10 +38,10 @@ export async function resolveDiscount({
   const manual = Math.max(0, manualDiscount);
 
   if (campaignIds.length === 0 && voucherCodes.length === 0) {
-    // No promo here, but the cap still applies: a discount only comes off
-    // catalogue-priced work, never a repair quote that can drop after
-    // inspection. The POS caps it the same way, so the order matches what
-    // the cashier saw on screen.
+    // No promo here, but the cap still applies: a hand-keyed discount can
+    // never take more off than the whole order costs — an over-typed number
+    // clamps to a free order instead of a negative one. The POS caps it the
+    // same way, so the order matches what the cashier saw on screen.
     const appliedManual = Math.min(manual, grossTotal);
     return {
       discountAmount: appliedManual,

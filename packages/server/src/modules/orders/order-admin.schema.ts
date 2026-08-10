@@ -5,7 +5,12 @@ import {
   refundReasonEnum,
 } from "@/db/schema";
 import { MAX_PAGE_SIZE } from "@/modules/orders/order.schema";
-import { currencySchema, dateStringSchema } from "@/schema/common";
+import {
+  campaignIdsSchema,
+  currencySchema,
+  dateStringSchema,
+  voucherCodesSchema,
+} from "@/schema/common";
 import { normalizePagination } from "@/utils/pagination";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
@@ -94,14 +99,20 @@ export const PATCHOrderServiceHandlerSchema = z.object({
   note: z.string().trim().optional(),
 });
 
+// ADR-0018: discounts resolve here, at the paid transition — the promos the
+// cashier ticked, the voucher slips handed over, and the hand-keyed discount
+// all arrive with the tender, because only now is every line price final.
 export const PATCHOrderPaymentSchema = z.object({
   payment_method_id: z.coerce.number().int().positive(),
+  campaign_ids: campaignIdsSchema,
+  voucher_codes: voucherCodesSchema,
+  discount: currencySchema("Discount").default(0),
 });
 
-// ADR-0018: the final for an estimated line, keyed after inspection. Money
-// arrives as the digit string the currency field produced.
-export const POSTOrderServiceEstimateConfirmSchema = z.object({
-  price: currencySchema("Final price"),
+// ADR-0018: the price for a no-list-price line, keyed once it is agreed with
+// the customer — or re-keyed to fix a typo while the Order is still unpaid.
+export const PATCHOrderServicePriceSchema = z.object({
+  price: currencySchema("Price"),
 });
 
 export const PATCHOrderCourierSchema = z.object({
@@ -234,8 +245,8 @@ export type PatchOrderServiceHandlerInput = z.infer<
   typeof PATCHOrderServiceHandlerSchema
 >;
 export type PatchOrderPaymentInput = z.infer<typeof PATCHOrderPaymentSchema>;
-export type PostOrderServiceEstimateConfirmInput = z.infer<
-  typeof POSTOrderServiceEstimateConfirmSchema
+export type PatchOrderServicePriceInput = z.infer<
+  typeof PATCHOrderServicePriceSchema
 >;
 export type PutOrderDropoffPhotoInput = z.infer<
   typeof PUTOrderDropoffPhotoSchema

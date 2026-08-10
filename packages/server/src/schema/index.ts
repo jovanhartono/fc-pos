@@ -68,20 +68,14 @@ export type CampaignEligibilityInput = _CampaignEligibilityInput;
 export const campaignIneligibilityReason = _campaignIneligibilityReason;
 
 import {
-  type EstimateLineState as _EstimateLineState,
-  hasUnconfirmedEstimate as _hasUnconfirmedEstimate,
-  isUnconfirmedEstimate as _isUnconfirmedEstimate,
-} from "@/schema/estimate";
-import {
-  type FixedPriceLine as _FixedPriceLine,
-  fixedPriceSubtotal as _fixedPriceSubtotal,
-} from "@/schema/fixed-price";
+  hasUnpricedLine as _hasUnpricedLine,
+  isUnpricedLine as _isUnpricedLine,
+  type UnpricedLineState as _UnpricedLineState,
+} from "@/schema/unpriced-line";
 
-export type EstimateLineState = _EstimateLineState;
-export const hasUnconfirmedEstimate = _hasUnconfirmedEstimate;
-export const isUnconfirmedEstimate = _isUnconfirmedEstimate;
-export type FixedPriceLine = _FixedPriceLine;
-export const fixedPriceSubtotal = _fixedPriceSubtotal;
+export type UnpricedLineState = _UnpricedLineState;
+export const hasUnpricedLine = _hasUnpricedLine;
+export const isUnpricedLine = _isUnpricedLine;
 
 import {
   allocateRefund as _allocateRefund,
@@ -98,11 +92,13 @@ export const lineKey = _lineKey;
 export const lineRefundCap = _lineRefundCap;
 
 import {
+  campaignIdsSchema,
   currencySchema,
   isActiveSchema,
   optionalVarcharSchema,
   phoneSchema,
   varcharSchema,
+  voucherCodesSchema,
 } from "@/schema/common";
 
 const userSchema = z.object({
@@ -153,29 +149,8 @@ export const POSTOrderSchema = z
       phone_number: phoneSchema,
     }),
     store_id: z.number("Store ID is required"),
-    campaign_ids: z
-      .array(z.number().int().positive())
-      .default([])
-      .refine(
-        (ids) => new Set(ids).size === ids.length,
-        "Duplicate campaign IDs are not allowed"
-      ),
-    // Bearer voucher codes. Normalized to uppercase per element so the whole
-    // downstream (service claim, repo lookup) receives already-canonical codes.
-    voucher_codes: z
-      .array(
-        z
-          .string()
-          .trim()
-          .min(1)
-          .max(32)
-          .transform((code) => code.toUpperCase())
-      )
-      .default([])
-      .refine(
-        (codes) => new Set(codes).size === codes.length,
-        "Duplicate voucher codes are not allowed"
-      ),
+    campaign_ids: campaignIdsSchema,
+    voucher_codes: voucherCodesSchema,
     products: z
       .array(
         z.object(
@@ -198,11 +173,12 @@ export const POSTOrderSchema = z
             color: optionalVarcharSchema("Item Color"),
             model: optionalVarcharSchema("Model"),
             size: optionalVarcharSchema("Size", 64),
-            // ADR-0018: only read for a no-list-price Service (Repair), where
-            // the cashier quotes per Item. createOrder ignores both for any
-            // catalog-priced Service — the browser can never set those prices.
+            // ADR-0018: only read for a no-list-price Service (Repair) —
+            // sent when the price is already agreed at drop-off, left out
+            // when the workshop still has to inspect the Item. createOrder
+            // ignores it for any catalog-priced Service: the browser can
+            // never set a normal Service's price.
             price: currencySchema("Price").optional(),
-            is_estimate: z.boolean().optional(),
           },
           "Service is required"
         )

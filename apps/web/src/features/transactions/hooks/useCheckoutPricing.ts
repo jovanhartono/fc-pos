@@ -1,4 +1,3 @@
-import { campaignIneligibilityReason } from "@fresclean/api/schema";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useWatch } from "react-hook-form";
@@ -7,6 +6,7 @@ import {
 	type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
+import { filterEligibleCampaigns } from "@/features/transactions/lib/campaign-eligibility";
 import { campaignsQueryOptions } from "@/lib/query-options";
 import { parseMoney } from "@/shared/money";
 
@@ -15,7 +15,7 @@ import { parseMoney } from "@/shared/money";
 // pinned footer's grand total need it; the campaigns query is request-deduped
 // by TanStack Query, so calling this in two places costs only the cheap memos.
 export function useCheckoutPricing() {
-	const { subtotal, campaignBase, serviceRows } = useCart();
+	const { subtotal, serviceRows } = useCart();
 	const [
 		selectedStoreId = "",
 		selectedCampaignIds = [],
@@ -51,23 +51,17 @@ export function useCheckoutPricing() {
 		enabled: selectedStoreNumber !== undefined,
 	});
 
-	// Campaigns are judged against the fixed-price subtotal, never the cart
-	// total (ADR-0019) — a Repair quote could move after checkout and take an
-	// already-claimed discount's minimum with it.
-	const availableCampaigns = useMemo(() => {
-		if (selectedStoreNumber === undefined) {
-			return [];
-		}
-		const now = new Date();
-		return (campaignsQuery.data ?? []).filter(
-			(campaign) =>
-				campaignIneligibilityReason(campaign, {
-					now,
-					grossTotal: campaignBase,
-					storeId: selectedStoreNumber,
-				}) === null,
-		);
-	}, [campaignsQuery.data, selectedStoreNumber, campaignBase]);
+	// Campaigns are judged against the cart total (ADR-0018): discounts only
+	// apply when the order is paid at drop-off, and at that moment every line
+	// price is final — the total IS the campaign base.
+	const availableCampaigns = useMemo(
+		() =>
+			filterEligibleCampaigns(campaignsQuery.data, {
+				grossTotal: subtotal,
+				storeId: selectedStoreNumber,
+			}),
+		[campaignsQuery.data, selectedStoreNumber, subtotal],
+	);
 
 	const selectedCampaigns = useMemo(() => {
 		const selectedIdSet = new Set(selectedCampaignIds);
@@ -88,7 +82,7 @@ export function useCheckoutPricing() {
 	);
 
 	// Catalog-priced lines only, mirroring the server: a no-list-price line
-	// (Repair) is not even selectable for a BOGO free slot.
+	// (Repair) is not even selectable for a BOGO free slot (ADR-0018).
 	const serviceLines = useMemo(
 		() =>
 			serviceRows.flatMap((row) =>
@@ -108,13 +102,12 @@ export function useCheckoutPricing() {
 		() =>
 			getCartPricing({
 				subtotal,
-				campaignBase,
 				campaigns: pricingCampaigns,
 				serviceLines,
 				manualDiscount,
 			}),
-		[subtotal, campaignBase, pricingCampaigns, serviceLines, manualDiscount],
+		[subtotal, pricingCampaigns, serviceLines, manualDiscount],
 	);
 
-	return { subtotal, campaignBase, selectedCampaigns, pricing };
+	return { subtotal, selectedCampaigns, pricing };
 }

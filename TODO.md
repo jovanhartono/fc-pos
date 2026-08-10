@@ -24,13 +24,17 @@
 ## Architecture-deepening follow-ups (extracted 2026-06-10, source: docs/architecture-deepening.md)
 
 - [ ] **`push:prod` before next prod deploy** — now also includes the **Repair
-  estimate pricing** schema from ADR-0018/ADR-0019: `services.price` becomes
-  **nullable** (NULL = no list price), `orders_services` gains `estimated_price`
-  + `estimate_confirmed_at` and their two CHECKs, and the new
-  `order_service_price_logs` table. All additive or widening — existing rows keep
-  their prices and no backfill is needed — but the payment gate reads
-  `estimated_price`, so the columns must exist before the deploy or every paid
-  checkout 500s. Applied to dev only so far.
+  blank-price** schema from ADR-0018: `services.price` DROP NOT NULL + DROP
+  DEFAULT (NULL = no list price — Repair's catalog row), `orders_services.price`
+  DROP NOT NULL (NULL = not yet determined), and the new
+  `order_service_price_logs` table (every price set-or-correct logs the acting
+  user). The earlier estimate design's `estimated_price` /
+  `estimate_confirmed_at` columns and their CHECKs never reach prod — it was
+  reversed before deploying. All widening or additive — existing rows keep
+  their prices, no backfill — but the deploy breaks without it: intake inserts
+  NULL for a blank Repair line (NOT NULL violation → every Repair checkout
+  500s) and the price set/correct endpoint writes `order_service_price_logs`
+  (missing table → 500). Applied to dev only so far.
 - [ ] **`push:prod` before next prod deploy** — product-refund schema guards
   (`order_refund_items_line_xor_check` CHECK + `order_refund_items_product_uidx`
   partial unique index) exist only in dev. They are the only concurrency guards

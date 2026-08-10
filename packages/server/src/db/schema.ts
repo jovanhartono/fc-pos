@@ -133,9 +133,9 @@ export const servicesTable = pgTable(
       .notNull(),
     code: varchar("code", { length: 4 }).unique().notNull(),
     cogs: decimal("cogs", { precision: 12, scale: 0 }).default("0").notNull(),
-    // NULL = no list price (Repair, ADR-0018): the number is quoted per Item
-    // at intake, never read off this row. 0 stays "deliberately free"
-    // (a Rework line, ADR-0013) — the two must never share an encoding.
+    // NULL = no list price (Repair, ADR-0018): the number is agreed per Item,
+    // never read off this row. 0 stays "deliberately free" (a Rework line,
+    // ADR-0013) — the two must never share an encoding.
     price: decimal("price", { precision: 12, scale: 0 }),
     description: text("description"),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -608,21 +608,15 @@ export const ordersServicesTable = pgTable(
       { onDelete: "set null" }
     ),
 
-    // snapshot
-    price: decimal("price", { precision: 12, scale: 0 }).default("0"),
+    // Snapshot for a catalog-priced Service. For a no-list-price Service
+    // (Repair, ADR-0018) NULL means "not yet determined" — the workshop has
+    // not inspected the Item yet. Never 0: that already means deliberately
+    // free (a Rework line, ADR-0013). An Order with a NULL-priced live line
+    // refuses the move to paid; payment freezes prices.
+    price: decimal("price", { precision: 12, scale: 0 }),
     cogs_snapshot: decimal("cogs_snapshot", { precision: 12, scale: 0 })
       .default("0")
       .notNull(),
-
-    // ADR-0018: the number the cashier keyed at intake when this line was
-    // entered as an Estimate. Non-null IS the "entered as Estimate" marker;
-    // `price` carries the working (then final) number while this one is never
-    // overwritten — losing it would make estimate accuracy unmeasurable.
-    estimated_price: decimal("estimated_price", { precision: 12, scale: 0 }),
-    // Confirmation marker, nullable-timestamp idiom (like refunded_at):
-    // an estimated line with NULL here is an unconfirmed Estimate, and an
-    // Order carrying one refuses the move to paid.
-    estimate_confirmed_at: timestamp("estimate_confirmed_at"),
 
     brand: varchar("brand", { length: 255 }),
     color: varchar("color", { length: 255 }),
@@ -658,7 +652,10 @@ export const ordersServicesTable = pgTable(
     index("order_services_pickup_event_idx").on(table.pickup_event_id),
     index("order_services_complaint_idx").on(table.complaint_id),
     uniqueIndex("order_services_item_code_uidx").on(table.item_code),
-    check("price_non_negative_check", sql`${table.price} >= 0`),
+    check(
+      "price_non_negative_check",
+      sql`${table.price} IS NULL OR ${table.price} >= 0`
+    ),
     check("discount_valid_check", sql`${table.price} >= ${table.discount}`),
     check(
       "order_services_pickup_event_terminal_check",
@@ -669,15 +666,6 @@ export const ordersServicesTable = pgTable(
     check(
       "order_services_picked_up_requires_event_check",
       sql`${table.status} != 'picked_up' OR ${table.pickup_event_id} IS NOT NULL`
-    ),
-    check(
-      "estimated_price_non_negative_check",
-      sql`${table.estimated_price} IS NULL OR ${table.estimated_price} >= 0`
-    ),
-    // Only a line that was entered as an Estimate can be confirmed (ADR-0018).
-    check(
-      "order_services_estimate_confirm_requires_estimate_check",
-      sql`${table.estimate_confirmed_at} IS NULL OR ${table.estimated_price} IS NOT NULL`
     ),
   ]
 );
@@ -799,9 +787,10 @@ export const orderServiceHandlerLogsTable = pgTable(
   ]
 );
 
-// ADR-0018: confirming an Estimate is open to any staff, so the oversight is
-// this trail — estimate versus final, by user — not an approval gate. One row
-// per confirmation, appended beside the status/handler logs.
+// ADR-0018: every set-or-correct of a line price leaves a row here — setting
+// a price is open to any staff, so the oversight is this trail (who put which
+// number on which Item, from what), not an approval gate. Appended beside the
+// status/handler logs.
 export const orderServicePriceLogsTable = pgTable(
   "order_service_price_logs",
   {
@@ -809,7 +798,8 @@ export const orderServicePriceLogsTable = pgTable(
       .references(() => usersTable.id)
       .notNull(),
     created_at: timestamp("created_at").defaultNow().notNull(),
-    from_price: decimal("from_price", { precision: 12, scale: 0 }).notNull(),
+    // NULL = the line was blank until this row priced it for the first time.
+    from_price: decimal("from_price", { precision: 12, scale: 0 }),
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     order_service_id: integer("order_service_id")
       .references(() => ordersServicesTable.id, { onDelete: "cascade" })
