@@ -1,3 +1,4 @@
+import { hasUnpricedLine } from "@fresclean/api/schema";
 import type { Me, OrderDetail } from "@/lib/api";
 
 export interface OrderActionGates {
@@ -11,6 +12,9 @@ export interface OrderActionGates {
 	canCancelOrder: boolean;
 	canRefundWholeOrder: boolean;
 	canOpenComplaint: boolean;
+	// ADR-0018: no price, no payment — any live unpriced line refuses the
+	// Order's move to paid.
+	hasUnpricedLine: boolean;
 	complaintableServices: OrderDetail["services"];
 	readyForPickupServices: OrderDetail["services"];
 	refundableServices: OrderDetail["services"];
@@ -93,6 +97,9 @@ export const getOrderActionGates = (
 			(refundableServices.length > 0 || refundableProducts.length > 0),
 		// Opening a complaint is open to any staff (ADR-0013) — no role gate.
 		canOpenComplaint: complaintableServices.length > 0,
+		// ADR-0018: the same predicate the server's paid transition runs, so the
+		// payment section can explain the block instead of relaying a 400.
+		hasUnpricedLine: hasUnpricedLine(services),
 		complaintableServices,
 		readyForPickupServices,
 		refundableServices,

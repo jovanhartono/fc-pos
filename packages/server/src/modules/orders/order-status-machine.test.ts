@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { orderServiceStatusEnum } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import {
+  billableOrderTotal,
   type DbExecutor,
   deriveOrderStatus,
   isTerminalOrderServiceStatus,
@@ -225,6 +226,51 @@ describe("transitionOrderService photo gate (ADR-0012)", () => {
       from: "qc_reject",
       to: "processing",
     });
+  });
+});
+
+describe("billableOrderTotal", () => {
+  const svc = (status: OrderServiceStatus, subtotal: string) => ({
+    status,
+    subtotal,
+  });
+  const prod = (subtotal: string, cancelled = false) => ({
+    cancelled_at: cancelled ? new Date() : null,
+    subtotal,
+  });
+
+  it("drops a cancelled repair so the counter stops asking for it", () => {
+    // Customer brings in a deep clean and a bag repair, hears the 200k quote
+    // and says no. Staff cancel that line before any money changes hands, so
+    // only the deep clean is left to collect.
+    expect(
+      billableOrderTotal(
+        [svc("queued", "60000"), svc("cancelled", "200000")],
+        []
+      )
+    ).toBe(60_000);
+  });
+
+  it("keeps a refunded line on the bill", () => {
+    // The shop cleaned the shoes, handed them back, and later returned the
+    // money. That sale still happened, and the refund is recorded on the
+    // order, so taking it off here too would count it twice.
+    expect(billableOrderTotal([svc("refunded", "60000")], [])).toBe(60_000);
+  });
+
+  it("drops cancelled product lines and keeps the rest", () => {
+    expect(
+      billableOrderTotal(
+        [svc("queued", "60000")],
+        [prod("25000"), prod("50000", true)]
+      )
+    ).toBe(85_000);
+  });
+
+  it("comes to nothing once every line is cancelled", () => {
+    expect(
+      billableOrderTotal([svc("cancelled", "60000")], [prod("25000", true)])
+    ).toBe(0);
   });
 });
 

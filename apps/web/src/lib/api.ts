@@ -370,8 +370,22 @@ export type UpdateOrderServiceStatusPayload = {
 		| "cancelled";
 };
 
+// ADR-0018: promos ride with the tender only for an Order that arrived
+// unpriced and had nothing to settle at drop-off — the campaigns the cashier
+// ticked, the voucher slips handed over, and the hand-keyed discount. An Order
+// whose discount already settled must send none of them.
 export type UpdateOrderPaymentPayload = {
 	payment_method_id: number;
+	campaign_ids: number[];
+	voucher_codes: string[];
+	discount: string;
+};
+
+// The price for a no-list-price line, keyed once it is agreed with the
+// customer — or re-keyed to fix a typo while the Order is unpaid (ADR-0018).
+// A digit string, like every money payload.
+export type SetOrderServicePricePayload = {
+	price: string;
 };
 
 export type UpdateOrderCourierPayload = {
@@ -845,6 +859,19 @@ export async function updateOrderPayment(
 	return parseResponse(
 		rpcWithAuth().api.admin.orders[":id"].payment.$patch({
 			param: { id: String(orderId) },
+			json: payload,
+		}),
+	);
+}
+
+export async function setOrderServicePrice(
+	orderId: number,
+	serviceId: number,
+	payload: SetOrderServicePricePayload,
+) {
+	return parseResponse(
+		rpcWithAuth().api.admin.orders[":id"].services[":serviceId"].price.$patch({
+			param: { id: String(orderId), serviceId: String(serviceId) },
 			json: payload,
 		}),
 	);

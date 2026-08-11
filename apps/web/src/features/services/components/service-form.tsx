@@ -19,24 +19,45 @@ import { Switch } from "@/components/ui/switch";
 import { CategoryAutocomplete } from "@/features/orders/components/category-autocomplete";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
-const serviceFormResolverSchema = z.object({
-	...POSTServiceSchema.shape,
-	category_id: z.preprocess(
-		(value) => Number(value),
-		POSTServiceSchema.shape.category_id,
-	),
-	// The server parses money into a number for itself, but the API still takes
-	// the digit string the currency field types out — keep the form in that shape.
-	cogs: POSTServiceSchema.shape.cogs.transform(String),
-	price: POSTServiceSchema.shape.price.transform(String),
-});
+const serviceFormResolverSchema = z
+	.object({
+		...POSTServiceSchema.shape,
+		category_id: z.preprocess(
+			(value) => Number(value),
+			POSTServiceSchema.shape.category_id,
+		),
+		// The server parses money into a number for itself, but the API still takes
+		// the digit string the currency field types out — keep the form in that shape.
+		cogs: POSTServiceSchema.shape.cogs.transform(String),
+		// "No list price" (ADR-0018: quoted per Item at intake, e.g. Repair) is a
+		// form-only switch; it becomes price: null at the API boundary.
+		no_list_price: z.boolean(),
+		price: z.string(),
+	})
+	.superRefine((values, ctx) => {
+		if (!values.no_list_price && values.price.trim().length === 0) {
+			ctx.addIssue({
+				code: "custom",
+				path: ["price"],
+				message: "Price is required!",
+			});
+		}
+	});
 
 export type ServiceFormState = z.infer<typeof serviceFormResolverSchema>;
+
+// What leaves the form: the API payload shape, price already null for a
+// no-list-price Service.
+export type ServiceFormSubmitValues = Omit<
+	ServiceFormState,
+	"no_list_price" | "price"
+> & { price: string | null };
 
 const defaultForm: ServiceFormState = {
 	category_id: 0,
 	code: "",
 	cogs: "",
+	no_list_price: false,
 	price: "",
 	name: "",
 	description: "",
@@ -46,7 +67,7 @@ const defaultForm: ServiceFormState = {
 
 interface ServiceFormProps {
 	defaultValues?: ServiceFormState;
-	handleOnSubmit: (values: ServiceFormState) => Promise<void> | void;
+	handleOnSubmit: (values: ServiceFormSubmitValues) => Promise<void> | void;
 	isEditing: boolean;
 	onReset: () => void;
 }
@@ -63,9 +84,14 @@ export function ServiceForm({
 	});
 	const isSubmitting = form.formState.isSubmitting;
 	useSheetDirtyGuard(form.formState.isDirty);
+	const noListPrice = form.watch("no_list_price");
 
 	return (
-		<form onSubmit={form.handleSubmit(handleOnSubmit)}>
+		<form
+			onSubmit={form.handleSubmit(({ no_list_price, price, ...rest }) =>
+				handleOnSubmit({ ...rest, price: no_list_price ? null : price }),
+			)}
+		>
 			<FieldGroup>
 				<Controller
 					control={form.control}
@@ -161,24 +187,58 @@ export function ServiceForm({
 					)}
 				/>
 
+				{noListPrice ? null : (
+					<Controller
+						control={form.control}
+						name="price"
+						render={({ field, fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<FieldLabel htmlFor="service-price" asterisk>
+									Price
+								</FieldLabel>
+								<CurrencyInput
+									disabled={isSubmitting}
+									id="service-price"
+									onValueChange={field.onChange}
+									placeholder="Rp0"
+									required
+									value={field.value}
+								/>
+								<FieldError errors={[fieldState.error]} />
+							</Field>
+						)}
+					/>
+				)}
+
 				<Controller
 					control={form.control}
-					name="price"
-					render={({ field, fieldState }) => (
-						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="service-price" asterisk>
-								Price
-							</FieldLabel>
-							<CurrencyInput
-								disabled={isSubmitting}
-								id="service-price"
-								onValueChange={field.onChange}
-								placeholder="Rp0"
-								required
-								value={field.value}
-							/>
-							<FieldError errors={[fieldState.error]} />
-						</Field>
+					name="no_list_price"
+					render={({ field }) => (
+						<FieldLabel
+							htmlFor="service-no-list-price"
+							className="md:col-span-2"
+						>
+							<Field orientation="horizontal">
+								<FieldContent>
+									<FieldTitle>No list price</FieldTitle>
+									<FieldDescription>
+										Priced per item (e.g. Repair) — keyed at drop-off if agreed,
+										or left blank until inspection.
+									</FieldDescription>
+								</FieldContent>
+								<Switch
+									checked={field.value}
+									disabled={isSubmitting}
+									id="service-no-list-price"
+									onCheckedChange={(checked) => {
+										field.onChange(!!checked);
+										if (checked) {
+											form.setValue("price", "", { shouldValidate: true });
+										}
+									}}
+								/>
+							</Field>
+						</FieldLabel>
 					)}
 				/>
 

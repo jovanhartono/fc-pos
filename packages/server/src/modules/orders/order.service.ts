@@ -45,6 +45,7 @@ interface ExpandedServiceItem {
   is_priority?: boolean;
   model?: string;
   notes?: string;
+  price?: number;
   size?: string;
 }
 
@@ -58,6 +59,7 @@ function expandServices(
     is_priority: item.is_priority,
     notes: item.notes,
     color: item.color,
+    price: item.price,
     size: item.size,
   }));
 }
@@ -114,6 +116,37 @@ function resolveCatalogLines<
   return lines;
 }
 
+// The price seam (ADR-0018). A catalog-priced Service always snapshots the
+// catalog row and silently drops anything the browser sent — the POS can
+// never set a normal Service's price. A no-list-price Service (Repair) has
+// nothing to snapshot: the cashier's number is kept when the price is already
+// agreed at drop-off, and the line stays blank (NULL) when the workshop still
+// has to inspect the Item — the price is keyed later and payment waits on it.
+function resolveServiceLinePrice(
+  item: ExpandedServiceItem,
+  service: DbService
+): string | null {
+  if (service.price !== null) {
+    return service.price;
+  }
+
+  if (item.price == null) {
+    return null;
+  }
+
+  // Zero is not a price: 0 already means deliberately free (a Rework line,
+  // ADR-0013), and "not priced yet" is a blank, not a keyed zero.
+  if (item.price <= 0) {
+    throw new BadRequestException("Line price must be greater than zero");
+  }
+
+  return item.price.toString();
+}
+
+type PricedServiceLine = CatalogLine<ExpandedServiceItem, DbService> & {
+  price: string | null;
+};
+
 function buildOrderServiceRows({
   code,
   orderId,
@@ -121,16 +154,16 @@ function buildOrderServiceRows({
 }: {
   code: string;
   orderId: number;
-  serviceLines: CatalogLine<ExpandedServiceItem, DbService>[];
+  serviceLines: PricedServiceLine[];
 }) {
-  return serviceLines.map(({ item, row: service }, index) => ({
+  return serviceLines.map(({ item, row: service, price }, index) => ({
     brand: item.brand,
     item_code: `${code}-S${String(index + 1).padStart(3, "0")}`,
     is_priority: item.is_priority ?? service.is_priority,
     model: item.model,
     order_id: orderId,
     service_id: service.id,
-    price: service.price,
+    price,
     cogs_snapshot: service.cogs,
     notes: item.notes,
     color: item.color,
@@ -201,6 +234,8 @@ export async function createOrder(
     ...orderPayload
   } = payload;
 
+  const isPaidAtDropoff = orderPayload.payment_status === "paid";
+
   if (orderPayload.collected_by != null) {
     await assertActiveCourier(orderPayload.collected_by);
   }
@@ -214,11 +249,44 @@ export async function createOrder(
   ]);
 
   const productLines = resolveCatalogLines("Product", products, dbProducts);
-  const serviceLines = resolveCatalogLines(
+  const serviceLines: PricedServiceLine[] = resolveCatalogLines(
     "Service",
     expandServices(services),
     dbServices
-  );
+  ).map((line) => ({
+    ...line,
+    // Priced before the transaction — a keyed zero on a Repair line must
+    // bounce here, not after a daily order number has been burned.
+    price: resolveServiceLinePrice(line.item, line.row),
+  }));
+
+  // ADR-0018: no price, no payment. A blank line is a Repair the workshop has
+  // not inspected yet — its number is not known, so no money moves for the
+  // Order, not even for the lines the counter already knows.
+  const hasBlankLine = serviceLines.some((line) => line.price === null);
+  if (isPaidAtDropoff && hasBlankLine) {
+    throw new BadRequestException(
+      "Order has an unpriced line — set its price before collecting payment"
+    );
+  }
+
+  // ADR-0018: a promo settles once every line is priced, not once
+  // the money arrives. The customer who sends a driver with the items pays at
+  // pickup, and the drop-off Receipt is the only proof they hold — a gross
+  // total under a promised discount is a verbal promise in print, and they
+  // will not trust it. What must never happen is a promo settled against a
+  // guess, so a blank line still bounces: the base is not knowable until the
+  // workshop has inspected the Item.
+  if (
+    hasBlankLine &&
+    (campaign_ids.length > 0 ||
+      voucher_codes.length > 0 ||
+      orderPayload.discount > 0)
+  ) {
+    throw new BadRequestException(
+      "Order has an unpriced line — promotions wait until every item is priced"
+    );
+  }
 
   return db.transaction(async (tx) => {
     const dateStr = jakartaNow().format("DDMMYYYY");
@@ -276,25 +344,41 @@ export async function createOrder(
     ]);
 
     const grossTotal = serviceSubtotal + productSubtotal;
-    const lines = serviceLines.map(({ item, row: service }) => ({
-      price: Number(service.price),
-      service_id: item.id,
-    }));
 
-    const { discountAmount, discountSource, campaignRows } =
-      await resolveDiscount({
-        campaignIds: [...new Set(campaign_ids)],
-        voucherCodes: [...new Set(voucher_codes)],
-        grossTotal,
-        manualDiscount: orderPayload.discount,
-        storeId: store.id,
-        storeCode: store.code,
-        lines,
-      });
+    // BOGO stays exclusive (ADR-0018): a no-list-price line (Repair) is never
+    // selectable as a buy-one-get-one free slot — a misconfigured Campaign
+    // must not hand out a repair as a free item. Deliberate owner decision;
+    // it keys on the catalog having no list price, not on the line's number.
+    const lines = serviceLines
+      .filter(({ row }) => row.price !== null)
+      .map(({ item, price }) => ({
+        price: Number(price),
+        service_id: item.id,
+      }));
 
-    if (discountAmount > grossTotal) {
-      throw new BadRequestException("Order discount cannot exceed order total");
-    }
+    // ADR-0018: the discount desk runs once every line is priced —
+    // the gate above — whether or not the tender arrives now. Attaching is
+    // claiming: the voucher code leaves circulation and the usage slot is
+    // taken the moment the discount goes on the Receipt, because that Receipt
+    // is what the customer will hold the shop to. Printing a promo the shop
+    // has not actually reserved is how two customers end up holding the last
+    // slot of the same campaign. An Order still carrying a blank line settles
+    // nothing here and waits for the payment desk.
+    const { discountAmount, discountSource, campaignRows } = hasBlankLine
+      ? {
+          discountAmount: 0,
+          discountSource: "none" as const,
+          campaignRows: [],
+        }
+      : await resolveDiscount({
+          campaignIds: campaign_ids,
+          voucherCodes: voucher_codes,
+          grossTotal,
+          manualDiscount: orderPayload.discount,
+          storeId: store.id,
+          storeCode: store.code,
+          lines,
+        });
 
     await claimRedemptions(tx, campaignRows, orderId);
 
@@ -306,10 +390,9 @@ export async function createOrder(
         total: grossTotal.toString(),
         discount: discountAmount.toString(),
         discount_source: discountSource,
-        paid_amount:
-          orderPayload.payment_status === "paid" ? netTotal.toString() : "0",
-        paid_at: orderPayload.payment_status === "paid" ? new Date() : null,
-        paid_by: orderPayload.payment_status === "paid" ? userId : null,
+        paid_amount: isPaidAtDropoff ? netTotal.toString() : "0",
+        paid_at: isPaidAtDropoff ? new Date() : null,
+        paid_by: isPaidAtDropoff ? userId : null,
       })
       .where(eq(ordersTable.id, orderId));
 

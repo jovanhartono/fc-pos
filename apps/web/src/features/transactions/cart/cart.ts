@@ -29,6 +29,10 @@ export type ServiceCartLine = {
 	model: string;
 	size: string;
 	notes: string;
+	// ADR-0018: only read for a no-list-price Service (Repair) — the agreed
+	// price if the customer already knows it, "" when the workshop still has
+	// to inspect. The server ignores it on catalog-priced Services.
+	price: string;
 };
 
 export type ProductCartDisplayLine = ProductCartLine & {
@@ -121,18 +125,31 @@ export const enrichServiceCart = <S extends { id: number }>(
 		return service ? [{ ...line, service }] : [];
 	});
 
+// The one price a service line has: the catalog snapshot, or — when the
+// catalog carries none (Repair, ADR-0018) — whatever the cashier keyed.
+// A blank keyed price reads as 0 here: the line adds nothing to the total
+// until it is priced, exactly what the drop-off receipt should show.
+export const getServiceLinePrice = (line: {
+	price: string;
+	service: { price: string | number | null };
+}): number =>
+	line.service.price === null
+		? parseMoney(line.price)
+		: parseMoney(line.service.price);
+
+type SubtotalServiceRow = {
+	price: string;
+	service: { price: string | number | null };
+};
+
 export const getCartSubtotal = (
 	productRows: { qty: number; product: { price: string | number } }[],
-	serviceRows: { service: { price: string | number } }[],
+	serviceRows: SubtotalServiceRow[],
 ): number =>
 	productRows.reduce(
 		(total, line) => total + parseMoney(line.product.price) * line.qty,
 		0,
-	) +
-	serviceRows.reduce(
-		(total, line) => total + parseMoney(line.service.price),
-		0,
-	);
+	) + serviceRows.reduce((total, line) => total + getServiceLinePrice(line), 0);
 
 export const getCartCount = (
 	productCart: ProductCartLine[],
@@ -158,6 +175,8 @@ export const getCartPricing = <C extends CartCampaign>({
 	serviceLines,
 	manualDiscount,
 }: {
+	// ADR-0018: a discount settles once every line price is final — so the
+	// Campaign base is simply the order total.
 	subtotal: number;
 	campaigns: C[];
 	serviceLines: DiscountLine[];
@@ -170,16 +189,34 @@ export const getCartPricing = <C extends CartCampaign>({
 	}));
 	const stacked = stackCampaignDiscounts(subtotal, stackInput, serviceLines);
 	const manualDiscountValue = Number(manualDiscount || 0);
-	const totalDiscount = Math.min(subtotal, manualDiscountValue + stacked.total);
+	// Mirrors resolveDiscount: manual absorbs only what the total has left
+	// after campaigns.
+	const appliedManual = Math.min(
+		manualDiscountValue,
+		Math.max(0, subtotal - stacked.total),
+	);
+	const totalDiscount = stacked.total + appliedManual;
 
 	return {
 		campaignBreakdown: stacked.breakdown,
 		campaignDiscount: stacked.total,
-		manualDiscount: manualDiscountValue,
+		// What actually comes off, not what was typed — the summary column must
+		// add up to the total beside it.
+		manualDiscount: appliedManual,
 		totalDiscount,
 		total: Math.max(0, subtotal - totalDiscount),
 	};
 };
+
+// No-list-price lines left blank at intake. A blank line is normal — the
+// workshop prices it after inspection — so it never blocks checkout; it only
+// blocks paying now, mirroring the server's "no price, no payment" gate.
+export const countUnpricedServiceLines = (
+	serviceRows: SubtotalServiceRow[],
+): number =>
+	serviceRows.filter(
+		(line) => line.service.price === null && getServiceLinePrice(line) <= 0,
+	).length;
 
 // The cart→payment gate: a customer is ready once they have a name and a phone
 // that parses. Shared by the step tabs, the Continue button, and the Create
@@ -202,32 +239,44 @@ export const toOrderPayload = ({
 	notes,
 	productCart,
 	serviceCart,
-}: TransactionDraftValues): CreateOrderPayload => ({
-	customer: {
-		name: customerName.trim(),
-		phone_number: normalizePhoneNumber(customerPhone),
-	},
-	store_id: Number(selectedStoreId),
-	campaign_ids: selectedCampaignIds.map((id) => Number(id)),
-	voucher_codes: appliedVouchers.map((entry) => entry.code.trim()),
-	discount: manualDiscount || "0",
-	payment_method_id: selectedPaymentMethodId
-		? Number(selectedPaymentMethodId)
-		: undefined,
-	collected_by: selectedCourierId ? Number(selectedCourierId) : undefined,
-	// A picked method means money arrived; no method means pay-later.
-	payment_status: selectedPaymentMethodId ? "paid" : "unpaid",
-	notes: notes.trim() || undefined,
-	products: productCart.map((line) => ({
-		id: line.id,
-		qty: line.qty,
-	})),
-	services: serviceCart.map((line) => ({
-		id: line.id,
-		brand: line.brand.trim() || undefined,
-		color: line.color.trim() || undefined,
-		model: line.model.trim() || undefined,
-		size: line.size.trim() || undefined,
-		notes: line.notes.trim() || undefined,
-	})),
-});
+}: TransactionDraftValues): CreateOrderPayload => {
+	// A picked method means money arrives now; no method means pay-later.
+	const isPaidAtDropoff = selectedPaymentMethodId !== "";
+
+	return {
+		customer: {
+			name: customerName.trim(),
+			phone_number: normalizePhoneNumber(customerPhone),
+		},
+		store_id: Number(selectedStoreId),
+		// Sent as drafted: when the cashier switches to Pay later, the payment
+		// step already clears these fields on screen — and a promo that still
+		// slips onto an unpaid order (a stale tab) gets the server's loud 400,
+		// never a silent strip the customer would discover at pickup (ADR-0018).
+		campaign_ids: selectedCampaignIds.map((id) => Number(id)),
+		voucher_codes: appliedVouchers.map((entry) => entry.code.trim()),
+		discount: manualDiscount || "0",
+		payment_method_id: isPaidAtDropoff
+			? Number(selectedPaymentMethodId)
+			: undefined,
+		collected_by: selectedCourierId ? Number(selectedCourierId) : undefined,
+		payment_status: isPaidAtDropoff ? "paid" : "unpaid",
+		notes: notes.trim() || undefined,
+		products: productCart.map((line) => ({
+			id: line.id,
+			qty: line.qty,
+		})),
+		services: serviceCart.map((line) => ({
+			id: line.id,
+			brand: line.brand.trim() || undefined,
+			color: line.color.trim() || undefined,
+			model: line.model.trim() || undefined,
+			size: line.size.trim() || undefined,
+			notes: line.notes.trim() || undefined,
+			// Only meaningful on a no-list-price line — blank means the workshop
+			// prices it after inspection. The server ignores it for catalog-priced
+			// Services (ADR-0018).
+			price: line.price.trim() || undefined,
+		})),
+	};
+};

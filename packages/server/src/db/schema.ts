@@ -133,7 +133,10 @@ export const servicesTable = pgTable(
       .notNull(),
     code: varchar("code", { length: 4 }).unique().notNull(),
     cogs: decimal("cogs", { precision: 12, scale: 0 }).default("0").notNull(),
-    price: decimal("price", { precision: 12, scale: 0 }).default("0").notNull(),
+    // NULL = no list price (Repair, ADR-0018): the number is agreed per Item,
+    // never read off this row. 0 stays "deliberately free" (a Rework line,
+    // ADR-0013) — the two must never share an encoding.
+    price: decimal("price", { precision: 12, scale: 0 }),
     description: text("description"),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     is_active: boolean("is_active").default(false).notNull(),
@@ -605,8 +608,12 @@ export const ordersServicesTable = pgTable(
       { onDelete: "set null" }
     ),
 
-    // snapshot
-    price: decimal("price", { precision: 12, scale: 0 }).default("0"),
+    // Snapshot for a catalog-priced Service. For a no-list-price Service
+    // (Repair, ADR-0018) NULL means "not yet determined" — the workshop has
+    // not inspected the Item yet. Never 0: that already means deliberately
+    // free (a Rework line, ADR-0013). An Order with a NULL-priced live line
+    // refuses the move to paid; payment freezes prices.
+    price: decimal("price", { precision: 12, scale: 0 }),
     cogs_snapshot: decimal("cogs_snapshot", { precision: 12, scale: 0 })
       .default("0")
       .notNull(),
@@ -645,7 +652,10 @@ export const ordersServicesTable = pgTable(
     index("order_services_pickup_event_idx").on(table.pickup_event_id),
     index("order_services_complaint_idx").on(table.complaint_id),
     uniqueIndex("order_services_item_code_uidx").on(table.item_code),
-    check("price_non_negative_check", sql`${table.price} >= 0`),
+    check(
+      "price_non_negative_check",
+      sql`${table.price} IS NULL OR ${table.price} >= 0`
+    ),
     check("discount_valid_check", sql`${table.price} >= ${table.discount}`),
     check(
       "order_services_pickup_event_terminal_check",
@@ -774,6 +784,31 @@ export const orderServiceHandlerLogsTable = pgTable(
   (table) => [
     index("order_service_handler_logs_service_idx").on(table.order_service_id),
     index("order_service_handler_logs_changed_by_idx").on(table.changed_by),
+  ]
+);
+
+// ADR-0018: every set-or-correct of a line price leaves a row here — setting
+// a price is open to any staff, so the oversight is this trail (who put which
+// number on which Item, from what), not an approval gate. Appended beside the
+// status/handler logs.
+export const orderServicePriceLogsTable = pgTable(
+  "order_service_price_logs",
+  {
+    changed_by: integer("changed_by")
+      .references(() => usersTable.id)
+      .notNull(),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    // NULL = the line was blank until this row priced it for the first time.
+    from_price: decimal("from_price", { precision: 12, scale: 0 }),
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    order_service_id: integer("order_service_id")
+      .references(() => ordersServicesTable.id, { onDelete: "cascade" })
+      .notNull(),
+    to_price: decimal("to_price", { precision: 12, scale: 0 }).notNull(),
+  },
+  (table) => [
+    index("order_service_price_logs_service_idx").on(table.order_service_id),
+    index("order_service_price_logs_changed_by_idx").on(table.changed_by),
   ]
 );
 

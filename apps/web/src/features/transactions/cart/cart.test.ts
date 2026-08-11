@@ -3,6 +3,7 @@ import {
 	type AppliedVoucher,
 	buildActiveItemMap,
 	type CartCampaign,
+	countUnpricedServiceLines,
 	enrichProductCart,
 	enrichServiceCart,
 	getCartCount,
@@ -33,6 +34,7 @@ const serviceLine = (
 	model: "",
 	size: "",
 	notes: "",
+	price: "",
 	...overrides,
 });
 
@@ -74,9 +76,61 @@ describe("getCartSubtotal", () => {
 				{ qty: 2, product: { price: "10000" } },
 				{ qty: 1, product: { price: "2500" } },
 			],
-			[{ service: { price: "50000" } }, { service: { price: "75000" } }],
+			[
+				{ price: "", service: { price: "50000" } },
+				{ price: "", service: { price: "75000" } },
+			],
 		);
 		expect(subtotal).toBe(2 * 10_000 + 2500 + 50_000 + 75_000);
+	});
+
+	test("a repair line counts at the cashier's keyed price, not the catalog", () => {
+		// Repair has no list price (ADR-0018): the line total IS the agreed price.
+		const subtotal = getCartSubtotal(
+			[],
+			[
+				{ price: "200000", service: { price: null } },
+				{ price: "", service: { price: "50000" } },
+			],
+		);
+		expect(subtotal).toBe(250_000);
+	});
+
+	test("a blank repair line adds nothing — its price is absent, not zero", () => {
+		// ADR-0018: NULL means "not yet determined". The drop-off receipt shows
+		// the gross of what IS priced; the blank line must not be read as a
+		// deliberately free Rework.
+		const subtotal = getCartSubtotal(
+			[],
+			[
+				{ price: "", service: { price: null } },
+				{ price: "", service: { price: "50000" } },
+			],
+		);
+		expect(subtotal).toBe(50_000);
+	});
+});
+
+describe("countUnpricedServiceLines", () => {
+	test("counts repair lines left blank for pricing after inspection", () => {
+		expect(
+			countUnpricedServiceLines([
+				{ price: "", service: { price: null } },
+				{ price: "200000", service: { price: null } },
+				{ price: "", service: { price: "50000" } },
+			]),
+		).toBe(1);
+	});
+
+	test("a fully keyed or catalog-priced cart has nothing blocking payment", () => {
+		// A blank line only blocks paying at drop-off (ADR-0018) — checkout
+		// itself always goes through, so zero here is what unlocks the tender.
+		expect(
+			countUnpricedServiceLines([
+				{ price: "150000", service: { price: null } },
+				{ price: "", service: { price: "50000" } },
+			]),
+		).toBe(0);
 	});
 });
 
@@ -137,7 +191,21 @@ describe("getCartPricing", () => {
 		expect(pricing.total).toBe(85_000);
 	});
 
-	test("clamps total discount at subtotal so total never goes negative", () => {
+	test("campaigns run on the full order total — repair spend counts (ADR-0018)", () => {
+		// The owner's reversal of ADR-0019: deep clean 150k + repair 200k is a
+		// 350k order, and a 20% campaign discounts 20% of 350k, because at the
+		// moment money moves every number is final.
+		const pricing = getCartPricing({
+			subtotal: 350_000,
+			campaigns: [percentCampaign("20")],
+			serviceLines: [],
+			manualDiscount: "",
+		});
+		expect(pricing.campaignDiscount).toBe(70_000);
+		expect(pricing.total).toBe(280_000);
+	});
+
+	test("clamps total discount at the subtotal so total never goes negative", () => {
 		const pricing = getCartPricing({
 			subtotal: 20_000,
 			campaigns: [percentCampaign("50")],
@@ -147,6 +215,22 @@ describe("getCartPricing", () => {
 		expect(pricing.totalDiscount).toBe(20_000);
 		expect(pricing.total).toBe(0);
 	});
+
+	test("reports the manual discount that was actually applied, not the keyed one", () => {
+		// The summary line must show what came off, because the total beside it
+		// was worked out that way — a typed 50k next to a 20k cart would give
+		// the cashier a column that does not add up.
+		const pricing = getCartPricing({
+			subtotal: 20_000,
+			campaigns: [percentCampaign("50")],
+			serviceLines: [],
+			manualDiscount: "50000",
+		});
+		expect(pricing.manualDiscount).toBe(10_000);
+		expect(pricing.campaignDiscount + pricing.manualDiscount).toBe(
+			pricing.totalDiscount,
+		);
+	});
 });
 
 describe("toOrderPayload", () => {
@@ -154,7 +238,7 @@ describe("toOrderPayload", () => {
 		selectedStoreId: "2",
 		customerName: " budi santoso ",
 		customerPhone: "081234567890",
-		selectedCampaignIds: ["3", "4"],
+		selectedCampaignIds: [],
 		appliedVouchers: [],
 		selectedPaymentMethodId: "",
 		selectedCourierId: "",
@@ -173,7 +257,7 @@ describe("toOrderPayload", () => {
 				phone_number: "+6281234567890",
 			},
 			store_id: 2,
-			campaign_ids: [3, 4],
+			campaign_ids: [],
 			voucher_codes: [],
 			discount: "0",
 			payment_method_id: undefined,
@@ -189,19 +273,42 @@ describe("toOrderPayload", () => {
 					model: undefined,
 					size: "42",
 					notes: undefined,
+					price: undefined,
 				},
 			],
 		});
 	});
 
-	test("a selected payment method marks the order paid and carries discount", () => {
+	test("carries an agreed repair price onto the line, and omits a blank one", () => {
+		// ADR-0018: blank means "not yet determined" — the payload must leave
+		// the field out entirely, never send "" or 0.
+		const payload = toOrderPayload({
+			...draft,
+			serviceCart: [
+				serviceLine("a", 7, { price: "200000" }),
+				serviceLine("b", 7, { price: "  " }),
+			],
+		});
+		expect(payload.services?.[0].price).toBe("200000");
+		expect(payload.services?.[1].price).toBe(undefined);
+	});
+
+	test("a selected payment method marks the order paid and carries discounts", () => {
+		// Paying at drop-off IS the payment moment (ADR-0018), so promos,
+		// voucher codes, and the manual discount ride the create payload.
 		const payload = toOrderPayload({
 			...draft,
 			selectedPaymentMethodId: "9",
+			selectedCampaignIds: ["3", "4"],
+			appliedVouchers: [
+				{ code: "ABC123DE", campaign: { id: 1 } as AppliedVoucher["campaign"] },
+			],
 			manualDiscount: "2500",
 		});
 		expect(payload.payment_method_id).toBe(9);
 		expect(payload.payment_status).toBe("paid");
+		expect(payload.campaign_ids).toEqual([3, 4]);
+		expect(payload.voucher_codes).toEqual(["ABC123DE"]);
 		expect(payload.discount).toBe("2500");
 	});
 
@@ -221,6 +328,7 @@ describe("toOrderPayload", () => {
 				model: undefined,
 				size: undefined,
 				notes: "sol kanan lepas",
+				price: undefined,
 			},
 			{
 				id: 6,
@@ -229,6 +337,7 @@ describe("toOrderPayload", () => {
 				model: undefined,
 				size: undefined,
 				notes: undefined,
+				price: undefined,
 			},
 		]);
 	});
@@ -236,6 +345,7 @@ describe("toOrderPayload", () => {
 	test("carries applied voucher codes into voucher_codes, trimmed", () => {
 		const payload = toOrderPayload({
 			...draft,
+			selectedPaymentMethodId: "9",
 			appliedVouchers: ["  ABC123DE  ", "XYZ789FG"].map((code) => ({
 				code,
 				campaign: { id: 1 } as AppliedVoucher["campaign"],

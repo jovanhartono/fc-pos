@@ -5,7 +5,12 @@ import {
   refundReasonEnum,
 } from "@/db/schema";
 import { MAX_PAGE_SIZE } from "@/modules/orders/order.schema";
-import { dateStringSchema } from "@/schema/common";
+import {
+  campaignIdsSchema,
+  currencySchema,
+  dateStringSchema,
+  voucherCodesSchema,
+} from "@/schema/common";
 import { normalizePagination } from "@/utils/pagination";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
@@ -94,8 +99,21 @@ export const PATCHOrderServiceHandlerSchema = z.object({
   note: z.string().trim().optional(),
 });
 
+// ADR-0018: the desk still accepts promos with the tender, for the Order that
+// arrived unpriced and had nothing to settle at drop-off. An Order whose
+// discount already settled rejects them here — the cashier collects the total
+// printed on the customer's Receipt rather than claiming a second time.
 export const PATCHOrderPaymentSchema = z.object({
   payment_method_id: z.coerce.number().int().positive(),
+  campaign_ids: campaignIdsSchema,
+  voucher_codes: voucherCodesSchema,
+  discount: currencySchema("Discount").default(0),
+});
+
+// ADR-0018: the price for a no-list-price line, keyed once it is agreed with
+// the customer — or re-keyed to fix a typo while the Order is still unpaid.
+export const PATCHOrderServicePriceSchema = z.object({
+  price: currencySchema("Price"),
 });
 
 export const PATCHOrderCourierSchema = z.object({
@@ -228,6 +246,9 @@ export type PatchOrderServiceHandlerInput = z.infer<
   typeof PATCHOrderServiceHandlerSchema
 >;
 export type PatchOrderPaymentInput = z.infer<typeof PATCHOrderPaymentSchema>;
+export type PatchOrderServicePriceInput = z.infer<
+  typeof PATCHOrderServicePriceSchema
+>;
 export type PutOrderDropoffPhotoInput = z.infer<
   typeof PUTOrderDropoffPhotoSchema
 >;

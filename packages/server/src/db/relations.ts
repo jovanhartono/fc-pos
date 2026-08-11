@@ -239,6 +239,7 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.servicesTable.id,
     }),
     statusLogs: r.many.orderServiceStatusLogsTable(),
+    priceLogs: r.many.orderServicePriceLogsTable(),
     refundItems: r.many.orderRefundItemsTable(),
   },
 
@@ -297,6 +298,19 @@ export const relations = defineRelations(schema, (r) => ({
     }),
     orderService: r.one.ordersServicesTable({
       from: r.orderServiceStatusLogsTable.order_service_id,
+      to: r.ordersServicesTable.id,
+      optional: false,
+    }),
+  },
+
+  orderServicePriceLogsTable: {
+    changedBy: r.one.usersTable({
+      from: r.orderServicePriceLogsTable.changed_by,
+      to: r.usersTable.id,
+      optional: false,
+    }),
+    orderService: r.one.ordersServicesTable({
+      from: r.orderServicePriceLogsTable.order_service_id,
       to: r.ordersServicesTable.id,
       optional: false,
     }),

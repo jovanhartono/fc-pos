@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import { SheetFooter } from "@/components/ui/sheet";
 import {
+	countUnpricedServiceLines,
 	isCustomerReady,
 	type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
@@ -20,7 +21,7 @@ import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 // Shared between the hint element and the Continue button's aria-describedby so
 // the two can't drift apart.
-const PHOTO_HINT_ID = "checkout-photo-hint";
+const ITEMS_HINT_ID = "checkout-items-hint";
 
 interface CheckoutFooterProps {
 	step: CheckoutStep;
@@ -37,7 +38,7 @@ export const CheckoutFooter = ({
 	onBack,
 }: CheckoutFooterProps) => {
 	const { submit } = useTransactionsPageContext();
-	const { count } = useCart();
+	const { count, serviceRows } = useCart();
 	const { pricing } = useCheckoutPricing();
 	const form = useFormContext<TransactionDraftValues>();
 	const isSubmitting = form.formState.isSubmitting;
@@ -49,10 +50,22 @@ export const CheckoutFooter = ({
 	const submitError = useTransactionsPageStore((state) => state.submitError);
 	const dropoffPhoto = useTransactionsPageStore((state) => state.dropoffPhoto);
 
-	// The drop-off photo gates leaving the Items step (it's captured there now),
-	// so the hint and the Create Order gate both key off it.
+	// Leaving the Items step needs only the drop-off photo (captured there).
+	// A blank price is normal (ADR-0018) — it never blocks checkout, it only
+	// blocks paying now, so the hint states the consequence without gating.
+	const unpricedCount = countUnpricedServiceLines(serviceRows);
 	const itemsReady = count > 0 && !!dropoffPhoto;
-	const showPhotoHint = step === "items" && count > 0 && !dropoffPhoto;
+	const itemsHint =
+		step === "items" && count > 0
+			? [
+					dropoffPhoto ? null : "Add a drop-off photo to continue.",
+					unpricedCount > 0
+						? "A line has no price yet — the order goes out unpaid until it is priced."
+						: null,
+				]
+					.filter(Boolean)
+					.join(" ")
+			: "";
 
 	return (
 		<SheetFooter className="shrink-0 gap-2 border-t border-border/70 bg-popover">
@@ -73,13 +86,13 @@ export const CheckoutFooter = ({
 					onBack={onBack}
 					onContinue={onContinue}
 					onSubmit={submit}
-					photoHintId={showPhotoHint ? PHOTO_HINT_ID : undefined}
+					photoHintId={itemsHint ? ITEMS_HINT_ID : undefined}
 					step={step}
 				/>
 			</div>
-			{showPhotoHint ? (
-				<p className="text-muted-foreground text-xs" id={PHOTO_HINT_ID}>
-					Add a drop-off photo to continue.
+			{itemsHint ? (
+				<p className="text-muted-foreground text-xs" id={ITEMS_HINT_ID}>
+					{itemsHint}
 				</p>
 			) : null}
 		</SheetFooter>

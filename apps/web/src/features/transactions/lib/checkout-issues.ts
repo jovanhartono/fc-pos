@@ -125,6 +125,19 @@ const SERVER_FAILURE_RULES: {
 		target: "customer",
 		action: "Pick another courier, or Walk-in.",
 	},
+	{
+		// A keyed 0 on a repair line: zero means deliberately free (a Rework),
+		// never "not priced yet" — that is a blank (ADR-0018).
+		pattern: /price must be greater than zero/i,
+		target: "items",
+		action:
+			"Key the agreed price on the repair line, or leave it blank to price after inspection.",
+	},
+	{
+		pattern: /unpriced line/i,
+		target: "payment",
+		action: "Choose Pay later.",
+	},
 ];
 
 export const describeServerFailure = (message: string): CheckoutIssue => {

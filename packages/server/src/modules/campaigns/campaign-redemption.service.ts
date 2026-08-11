@@ -1,9 +1,12 @@
-import { orderCampaignsTable } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { orderCampaignsTable, ordersTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import {
   atomicClaimCampaignCode,
   atomicIncrementCampaignRedeemed,
   decrementCampaignRedeemed,
+  deleteOrderCampaignsByOrderId,
+  findOrderCampaignMinimums,
   findOrderCampaignsByOrderId,
   releaseCampaignCodeRedemption,
 } from "@/modules/campaigns/campaign.repository";
@@ -103,4 +106,38 @@ export async function releaseRedemptions(tx: OrderTx, orderId: number) {
       await releaseCampaignCodeRedemption(tx, oc.code_id);
     }
   }
+}
+
+// A promo settles at drop-off once every line is priced (ADR-0018), but an
+// unpaid Order's billable total can still fall afterwards — a line is cancelled
+// (ADR-0008), or a price is corrected downward. If what is left no longer clears
+// the minimum the promo was granted against, the promo is void. Call this from
+// every path that lowers the total of an unpaid Order; a fixed-amount promo
+// ("100k off, min 250k") is otherwise free money once the Order shrinks under
+// the bar.
+export async function voidCampaignsBelowMinimum(
+  tx: OrderTx,
+  orderId: number,
+  billableTotal: number
+) {
+  const attached = await findOrderCampaignMinimums(tx, orderId);
+  if (attached.length === 0) {
+    return;
+  }
+  if (
+    attached.every((row) => billableTotal >= Number(row.minOrderTotal ?? 0))
+  ) {
+    return;
+  }
+
+  // Every promo goes, not only the one that broke. Re-applying is one tap at
+  // the counter and it re-checks every rule on the way back in, where
+  // recomputing a stacked discount around a hole is a money bug waiting to
+  // happen — and the cashier is reprinting the Receipt regardless.
+  await releaseRedemptions(tx, orderId);
+  await deleteOrderCampaignsByOrderId(tx, orderId);
+  await tx
+    .update(ordersTable)
+    .set({ discount: "0", discount_source: "none" })
+    .where(eq(ordersTable.id, orderId));
 }

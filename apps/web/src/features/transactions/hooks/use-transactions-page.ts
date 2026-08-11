@@ -79,6 +79,10 @@ const transactionDraftSchema = z
 				model: z.string(),
 				size: z.string(),
 				notes: z.string(),
+				// Repair pricing (ADR-0018): blank means "price after inspection" —
+				// always valid here; only paying now requires every line priced,
+				// and the payment step enforces that.
+				price: z.string(),
 			}),
 		),
 	})

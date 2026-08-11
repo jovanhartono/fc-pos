@@ -12,11 +12,16 @@ import {
 	FieldLegend,
 	FieldSet,
 } from "@/components/ui/field";
-import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
+import {
+	countUnpricedServiceLines,
+	type TransactionDraftValues,
+} from "@/features/transactions/cart/cart";
+import { useCart } from "@/features/transactions/cart/useCart";
+import { CampaignTileGroup } from "@/features/transactions/components/campaign-tile-group";
 import { VoucherCodeEntry } from "@/features/transactions/components/voucher-code-entry";
 import { useCheckoutPricing } from "@/features/transactions/hooks/useCheckoutPricing";
+import { filterEligibleCampaigns } from "@/features/transactions/lib/campaign-eligibility";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
-import type { Campaign } from "@/lib/api";
 import {
 	campaignsQueryOptions,
 	paymentMethodsQueryOptions,
@@ -24,18 +29,20 @@ import {
 import { cn } from "@/lib/utils";
 import { formatIDRCurrency } from "@/shared/utils";
 
-// Step ③ — money, kept together: campaign, manual discount, the running total
-// breakdown, and tender. Campaign eligibility ("Usable") and the discount it
-// produces stay in one view so the cashier sees its effect on the total live.
+// Step ③ — money. A discount settles once every line is priced (ADR-0018),
+// not once the money arrives, so campaigns/voucher/manual discount are offered
+// whenever the cart is fully priced — including for a customer paying at
+// pickup, whose Receipt then prints the discount they were promised. A cart
+// still carrying an unpriced line defers them to the order page.
 export const CheckoutPaymentStep = () => {
 	const { visibleStores } = useTransactionsPageContext();
 	const { subtotal, pricing } = useCheckoutPricing();
+	const { serviceRows } = useCart();
 	const form = useFormContext<TransactionDraftValues>();
 	const appliedVouchers =
 		useWatch({ control: form.control, name: "appliedVouchers" }) ?? [];
 	const selectedStoreId =
 		useWatch({ control: form.control, name: "selectedStoreId" }) ?? "";
-
 	const paymentMethodsQuery = useQuery(paymentMethodsQueryOptions());
 
 	const paymentMethodOptions = useMemo<ComboboxOption[]>(
@@ -63,25 +70,26 @@ export const CheckoutPaymentStep = () => {
 		enabled: selectedStoreNumber !== undefined,
 	});
 
-	// Only campaigns whose rules pass for the current store + cart total. Same
-	// eligibility filter the old picker used — ineligible ones are hidden.
-	// Voucher (code-mode) campaigns are entered by code, never listed as tiles —
-	// the server already omits them, but filter defensively so one can't leak in.
-	const eligibleCampaigns = useMemo(() => {
-		if (selectedStoreNumber === undefined) {
-			return [];
-		}
-		const now = new Date();
-		return (campaignsQuery.data ?? []).filter(
-			(campaign) =>
-				campaign.redemption_mode !== "code" &&
-				campaignIneligibilityReason(campaign, {
-					now,
-					grossTotal: subtotal,
-					storeId: selectedStoreNumber,
-				}) === null,
-		);
-	}, [campaignsQuery.data, selectedStoreNumber, subtotal]);
+	// ADR-0018: no price, no payment. A blank repair line makes the Order
+	// unpayable at drop-off, so every tender except "Pay later" locks instead
+	// of bouncing at submit. The same blank line is what defers the promo
+	// (ADR-0018 amended): once every line is priced the discount may settle
+	// here, whether the customer pays now or sends a driver and pays at pickup.
+	const unpricedCount = countUnpricedServiceLines(serviceRows);
+	const isFullyPriced = unpricedCount === 0;
+	const paymentBlocked = !isFullyPriced;
+
+	// Only campaigns whose rules pass for the current store + the cart total —
+	// at drop-off payment every line is priced (blank lines lock the tender),
+	// so the total is the campaign base (ADR-0018).
+	const eligibleCampaigns = useMemo(
+		() =>
+			filterEligibleCampaigns(campaignsQuery.data, {
+				grossTotal: subtotal,
+				storeId: selectedStoreNumber,
+			}),
+		[campaignsQuery.data, selectedStoreNumber, subtotal],
+	);
 
 	// Drop any selected campaign that stopped being eligible (e.g. the cart total
 	// fell below its minimum) so a stale id can't ride along to submit.
@@ -100,8 +108,9 @@ export const CheckoutPaymentStep = () => {
 	}, [eligibleCampaigns, selectedStoreNumber, campaignsQuery.isPending, form]);
 
 	// Drop any applied voucher that stopped being eligible (e.g. the cart total
-	// fell below its minimum). Mirrors the listed-campaign prune above: a silently
-	// zeroed code would otherwise ride to submit and hard-fail the whole order.
+	// fell below its minimum). Mirrors the listed-campaign prune above: a
+	// silently zeroed code would otherwise ride to submit and hard-fail the
+	// whole order.
 	useEffect(() => {
 		if (selectedStoreNumber === undefined) {
 			return;
@@ -120,53 +129,39 @@ export const CheckoutPaymentStep = () => {
 		}
 	}, [appliedVouchers, subtotal, selectedStoreNumber, form]);
 
+	// A blank line added after a tender was picked must clear it — the draft
+	// would otherwise submit as paid and hard-fail at the server gate.
+	useEffect(() => {
+		if (!paymentBlocked) {
+			return;
+		}
+		if (form.getValues("selectedPaymentMethodId") !== "") {
+			form.setValue("selectedPaymentMethodId", "", { shouldValidate: true });
+		}
+	}, [paymentBlocked, form]);
+
+	// A blank line carries no discount (ADR-0018 amended): adding an unpriced
+	// repair to a cart that already has promos on it clears them the moment the
+	// line lands — visibly, with the deferral sentence in the section's place,
+	// never silently at submit time. Switching to "Pay later" no longer clears
+	// anything: a promo on a fully priced Order survives to the Receipt.
+	useEffect(() => {
+		if (isFullyPriced) {
+			return;
+		}
+		if (form.getValues("selectedCampaignIds").length > 0) {
+			form.setValue("selectedCampaignIds", [], { shouldValidate: true });
+		}
+		if (form.getValues("appliedVouchers").length > 0) {
+			form.setValue("appliedVouchers", [], { shouldValidate: true });
+		}
+		if (form.getValues("manualDiscount") !== "") {
+			form.setValue("manualDiscount", "", { shouldValidate: true });
+		}
+	}, [isFullyPriced, form]);
+
 	return (
 		<div className="grid gap-5">
-			<Controller
-				control={form.control}
-				name="selectedCampaignIds"
-				render={({ field, fieldState }) => (
-					<FieldSet className="gap-2" data-invalid={fieldState.invalid}>
-						<FieldLegend variant="label">Campaigns</FieldLegend>
-						<CampaignTileGroup
-							eligibleCampaigns={eligibleCampaigns}
-							hasStore={selectedStoreNumber !== undefined}
-							onToggle={(campaignId) =>
-								field.onChange(
-									field.value.includes(campaignId)
-										? field.value.filter((value) => value !== campaignId)
-										: [...field.value, campaignId],
-								)
-							}
-							selectedIds={field.value}
-						/>
-						<VoucherCodeEntry
-							storeId={selectedStoreNumber}
-							subtotal={subtotal}
-						/>
-						<FieldError errors={[fieldState.error]} />
-					</FieldSet>
-				)}
-			/>
-
-			<Controller
-				control={form.control}
-				name="manualDiscount"
-				render={({ field, fieldState }) => (
-					<Field data-invalid={fieldState.invalid}>
-						<FieldLabel htmlFor="transaction-discount">
-							Manual Discount
-						</FieldLabel>
-						<CurrencyInput
-							id="transaction-discount"
-							onValueChange={field.onChange}
-							value={field.value}
-						/>
-						<FieldError errors={[fieldState.error]} />
-					</Field>
-				)}
-			/>
-
 			<Controller
 				control={form.control}
 				name="selectedPaymentMethodId"
@@ -187,6 +182,7 @@ export const CheckoutPaymentStep = () => {
 							/>
 							{paymentMethodOptions.map((option) => (
 								<PaymentMethodTile
+									disabled={paymentBlocked}
 									isSelected={field.value === option.value}
 									key={option.value}
 									label={option.label}
@@ -195,10 +191,77 @@ export const CheckoutPaymentStep = () => {
 								/>
 							))}
 						</div>
+						{paymentBlocked ? (
+							<p className="text-muted-foreground text-xs">
+								A line has no price yet — the order goes out unpaid and is
+								collected once every line is priced.
+							</p>
+						) : null}
 						<FieldError errors={[fieldState.error]} />
 					</FieldSet>
 				)}
 			/>
+
+			{isFullyPriced ? (
+				<>
+					<Controller
+						control={form.control}
+						name="selectedCampaignIds"
+						render={({ field, fieldState }) => (
+							<FieldSet className="gap-2" data-invalid={fieldState.invalid}>
+								<FieldLegend variant="label">Campaigns</FieldLegend>
+								<CampaignTileGroup
+									eligibleCampaigns={eligibleCampaigns}
+									hasStore={selectedStoreNumber !== undefined}
+									onToggle={(campaignId) =>
+										field.onChange(
+											field.value.includes(campaignId)
+												? field.value.filter((value) => value !== campaignId)
+												: [...field.value, campaignId],
+										)
+									}
+									selectedIds={field.value}
+								/>
+								<VoucherCodeEntry
+									appliedVouchers={appliedVouchers}
+									onChange={(next) =>
+										form.setValue("appliedVouchers", next, {
+											shouldDirty: true,
+											shouldValidate: true,
+										})
+									}
+									storeId={selectedStoreNumber}
+									subtotal={subtotal}
+								/>
+								<FieldError errors={[fieldState.error]} />
+							</FieldSet>
+						)}
+					/>
+
+					<Controller
+						control={form.control}
+						name="manualDiscount"
+						render={({ field, fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<FieldLabel htmlFor="transaction-discount">
+									Manual Discount
+								</FieldLabel>
+								<CurrencyInput
+									id="transaction-discount"
+									onValueChange={field.onChange}
+									value={field.value}
+								/>
+								<FieldError errors={[fieldState.error]} />
+							</Field>
+						)}
+					/>
+				</>
+			) : (
+				<p className="text-muted-foreground text-sm">
+					A line has no price yet — campaigns, voucher codes and manual discount
+					are entered once every item is priced.
+				</p>
+			)}
 
 			<div className="grid gap-3 border border-border/70 p-4">
 				<div className="flex items-center justify-between gap-3 text-sm">
@@ -250,115 +313,6 @@ export const CheckoutPaymentStep = () => {
 	);
 };
 
-const campaignDiscountLabel = (campaign: Campaign): string => {
-	if (campaign.discount_type === "fixed") {
-		return `-${formatIDRCurrency(String(campaign.discount_value))}`;
-	}
-	if (campaign.discount_type === "percentage") {
-		return `-${campaign.discount_value}%`;
-	}
-	return `Buy ${campaign.buy_quantity ?? 0} Get ${campaign.free_quantity ?? 0}`;
-};
-
-interface CampaignTileGroupProps {
-	eligibleCampaigns: Campaign[];
-	selectedIds: string[];
-	hasStore: boolean;
-	onToggle: (campaignId: string) => void;
-}
-
-// Empty / no-store states via early returns; otherwise the eligible campaigns as
-// a multi-select tile grid (same column layout as the payment tiles).
-const CampaignTileGroup = ({
-	eligibleCampaigns,
-	selectedIds,
-	hasStore,
-	onToggle,
-}: CampaignTileGroupProps) => {
-	if (!hasStore) {
-		return (
-			<p className="text-muted-foreground text-sm">
-				Select store first to load campaigns
-			</p>
-		);
-	}
-
-	if (eligibleCampaigns.length === 0) {
-		return (
-			<p className="text-muted-foreground text-sm">No campaigns available</p>
-		);
-	}
-
-	return (
-		<div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-			{eligibleCampaigns.map((campaign) => {
-				const campaignId = String(campaign.id);
-				return (
-					<CampaignTile
-						code={campaign.code}
-						discountLabel={campaignDiscountLabel(campaign)}
-						isSelected={selectedIds.includes(campaignId)}
-						key={campaign.id}
-						onToggle={() => onToggle(campaignId)}
-					/>
-				);
-			})}
-		</div>
-	);
-};
-
-interface CampaignTileProps {
-	code: string;
-	discountLabel: string;
-	isSelected: boolean;
-	onToggle: () => void;
-}
-
-// Multi-select tile (campaigns stack): a visually hidden checkbox wrapped by the
-// styled label — native checkbox semantics + keyboard, full tile as the touch
-// target. Selected = solid green; the check echoes the state.
-const CampaignTile = ({
-	code,
-	discountLabel,
-	isSelected,
-	onToggle,
-}: CampaignTileProps) => (
-	<label
-		className={cn(
-			"flex min-h-12 cursor-pointer items-center justify-between gap-2 border px-3 py-2 text-left transition active:scale-[0.97] has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50",
-			isSelected
-				? "border-emerald-300/60 bg-emerald-50/70 text-foreground dark:border-emerald-800 dark:bg-emerald-950/30"
-				: "border-border/70 text-foreground/80 hover:border-border hover:bg-muted/40",
-		)}
-	>
-		<input
-			checked={isSelected}
-			className="sr-only"
-			onChange={onToggle}
-			type="checkbox"
-		/>
-		<span className="flex flex-col">
-			<span className="font-medium text-sm">{code}</span>
-			<span
-				className={cn(
-					"text-[11px]",
-					isSelected
-						? "text-emerald-700 dark:text-emerald-400"
-						: "text-muted-foreground",
-				)}
-			>
-				{discountLabel}
-			</span>
-		</span>
-		{isSelected ? (
-			<CheckIcon
-				className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
-				weight="bold"
-			/>
-		) : null}
-	</label>
-);
-
 // Shared radio group name so the tiles are mutually exclusive at the DOM level
 // and get native arrow-key navigation.
 const PAYMENT_METHOD_RADIO_NAME = "checkout-payment-method";
@@ -368,6 +322,7 @@ interface PaymentMethodTileProps {
 	hint?: string;
 	value: string;
 	isSelected: boolean;
+	disabled?: boolean;
 	onSelect: () => void;
 }
 
@@ -380,6 +335,7 @@ const PaymentMethodTile = ({
 	hint,
 	value,
 	isSelected,
+	disabled,
 	onSelect,
 }: PaymentMethodTileProps) => (
 	<label
@@ -388,11 +344,14 @@ const PaymentMethodTile = ({
 			isSelected
 				? "border-foreground bg-foreground text-background"
 				: "border-border/70 text-foreground/80 hover:border-border hover:bg-muted/40",
+			disabled &&
+				"cursor-not-allowed opacity-50 hover:border-border/70 hover:bg-transparent active:scale-100",
 		)}
 	>
 		<input
 			checked={isSelected}
 			className="sr-only"
+			disabled={disabled}
 			name={PAYMENT_METHOD_RADIO_NAME}
 			onChange={onSelect}
 			type="radio"

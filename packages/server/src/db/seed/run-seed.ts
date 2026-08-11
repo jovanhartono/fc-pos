@@ -1356,7 +1356,7 @@ async function seedOrders(params: {
   customers: Array<{ id: number; origin_store_id: number }>;
   services: Array<{
     id: number;
-    price: string;
+    price: string | null;
     cogs: string;
     is_active: boolean;
   }>;
@@ -1372,7 +1372,13 @@ async function seedOrders(params: {
   workersByStore: Map<number, number[]>;
   courierIds: number[];
 }) {
-  const activeServices = params.services.filter((service) => service.is_active);
+  // Seeded orders price their lines off the catalog row, so a no-list-price
+  // Service (Repair, ADR-0018) cannot take part — it has no number to copy.
+  const activeServices = params.services.flatMap((service) =>
+    service.is_active && service.price !== null
+      ? [{ ...service, price: service.price }]
+      : []
+  );
   const activeProducts = params.products.filter((product) => product.is_active);
   const activePaymentMethods = params.paymentMethods.filter(
     (method) => method.is_active

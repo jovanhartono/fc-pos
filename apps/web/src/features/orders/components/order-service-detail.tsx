@@ -1,4 +1,5 @@
 import {
+	isUnpricedLine,
 	ORDER_SERVICE_TRANSITIONS,
 	ORDER_TERMINAL_SERVICE_STATUSES,
 } from "@fresclean/api/schema";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
 import { OrderReasonCallout } from "@/features/orders/components/order-reason-callout";
 import type { NonTerminalServiceStatus } from "@/features/orders/components/order-service-dialog.types";
+import { OrderServicePriceForm } from "@/features/orders/components/order-service-price-form";
 import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { ServiceStatusUpdateButton } from "@/features/orders/components/service-status-update-button";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
@@ -29,6 +31,7 @@ import {
 	formatRefundReason,
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
+import { formatMoney } from "@/shared/money";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useDialog } from "@/stores/dialog-store";
 
@@ -126,9 +129,15 @@ export const OrderServiceDetail = ({
 	const needsPhotoToStart =
 		service.status === "queued" && service.images.length === 0;
 
+	const isOrderPaid = detailQuery.data?.payment_status === "paid";
+	// ADR-0018: while true, this line holds the whole Order's payment — the
+	// same predicate the server's paid transition runs.
+	const isUnpriced = isUnpricedLine(service);
+
 	return (
 		<div className="grid gap-5 text-sm">
 			<div className="flex flex-wrap items-center gap-2">
+				{isUnpriced ? <Badge variant="warning">Unpriced</Badge> : null}
 				{service.is_priority ? <Badge variant="warning">Priority</Badge> : null}
 				<Badge variant={getOrderServiceStatusBadgeVariant(service.status)}>
 					{formatOrderServiceStatus(service.status)}
@@ -170,6 +179,14 @@ export const OrderServiceDetail = ({
 					</dd>
 				</div>
 			</dl>
+
+			<ServicePriceSection
+				isOrderPaid={isOrderPaid}
+				orderId={orderId}
+				price={service.price}
+				serviceId={service.id}
+				status={service.status}
+			/>
 
 			{service.status === "cancelled" && service.cancel_reason ? (
 				<OrderReasonCallout
@@ -256,6 +273,80 @@ export const OrderServiceDetail = ({
 			</div>
 
 			<StatusTimeline logs={service.statusLogs} />
+		</div>
+	);
+};
+
+interface ServicePriceSectionProps {
+	orderId: number;
+	serviceId: number;
+	price: string | null;
+	status: string;
+	isOrderPaid: boolean;
+}
+
+// The line's one price (ADR-0018): blank until agreed with the customer, open
+// to correction by any staff while the order is unpaid, frozen once paid. A
+// cancelled line shows nothing — nobody owes its number anymore.
+const ServicePriceSection = ({
+	orderId,
+	serviceId,
+	price,
+	status,
+	isOrderPaid,
+}: ServicePriceSectionProps) => {
+	const [isCorrecting, setIsCorrecting] = useState(false);
+
+	if (status === "cancelled") {
+		return null;
+	}
+
+	return (
+		<div className="grid gap-3 border border-border/70 p-3">
+			<div className="flex items-center justify-between gap-3">
+				<div>
+					<p className="text-muted-foreground text-xs">Price</p>
+					<p className="mt-0.5 font-mono font-medium tabular-nums">
+						{price === null ? "Not set" : formatMoney(price)}
+					</p>
+				</div>
+				{price !== null && !(isOrderPaid || isCorrecting) ? (
+					<Button
+						onClick={() => setIsCorrecting(true)}
+						size="sm"
+						type="button"
+						variant="outline"
+					>
+						Correct price
+					</Button>
+				) : null}
+			</div>
+			{price === null ? (
+				<>
+					<p className="text-muted-foreground text-xs">
+						Agree the price with the customer, then set it here — the order
+						can't be paid until every line is priced.
+					</p>
+					<OrderServicePriceForm
+						currentPrice={null}
+						orderId={orderId}
+						serviceId={serviceId}
+					/>
+				</>
+			) : null}
+			{price !== null && isCorrecting && !isOrderPaid ? (
+				<OrderServicePriceForm
+					currentPrice={price}
+					onSuccess={() => setIsCorrecting(false)}
+					orderId={orderId}
+					serviceId={serviceId}
+				/>
+			) : null}
+			{isOrderPaid ? (
+				<p className="text-muted-foreground text-xs">
+					Paid — prices are frozen.
+				</p>
+			) : null}
 		</div>
 	);
 };

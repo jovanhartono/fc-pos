@@ -24,7 +24,8 @@ export async function createService(
   const [service] = await insertService({
     ...payload,
     cogs: payload.cogs.toString(),
-    price: payload.price.toString(),
+    // null = no list price (Repair) — stored as NULL, never coerced to "0".
+    price: payload.price === null ? null : payload.price.toString(),
   });
   return service;
 }
@@ -37,7 +38,9 @@ export async function updateService(
   const [service] = await updateServiceById(id, {
     ...rest,
     ...(cogs === undefined ? {} : { cogs: cogs.toString() }),
-    ...(price === undefined ? {} : { price: price.toString() }),
+    ...(price === undefined
+      ? {}
+      : { price: price === null ? null : price.toString() }),
   });
   return service ?? null;
 }

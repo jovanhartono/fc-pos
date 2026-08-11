@@ -8,13 +8,22 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
+import { CurrencyInput } from "@/components/form/currency-input";
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import {
+	Field,
+	FieldDescription,
+	FieldError,
+	FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PhotoLightbox } from "@/features/orders/components/photo-lightbox";
 import { SinglePhotoCaptureDialog } from "@/features/orders/components/photo-upload-dialog";
-import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
+import {
+	getServiceLinePrice,
+	type TransactionDraftValues,
+} from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
 import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
 import { categoriesQueryOptions } from "@/lib/query-options";
@@ -186,9 +195,31 @@ export const CheckoutItemsStep = () => {
 								</Field>
 							))}
 						</div>
+						{line.service.price === null ? (
+							// No-list-price Service (Repair, ADR-0018): the price is keyed
+							// here when the customer already agreed to a number, and left
+							// blank when the workshop still has to inspect the item.
+							<Field>
+								<FieldLabel htmlFor={`service-price-${line.line_id}`}>
+									Price
+								</FieldLabel>
+								<CurrencyInput
+									id={`service-price-${line.line_id}`}
+									onValueChange={(value) =>
+										updateServiceField(line.line_id, "price", value)
+									}
+									value={line.price}
+								/>
+								<FieldDescription>
+									{line.price.trim() === ""
+										? "No price yet — payment waits until this line is priced after inspection."
+										: "Agreed price. Can be corrected until the order is paid."}
+								</FieldDescription>
+							</Field>
+						) : null}
 						<div className="flex items-center justify-end gap-3">
 							<p className="text-sm font-semibold">
-								{formatMoney(line.service.price)}
+								{formatMoney(getServiceLinePrice(line))}
 							</p>
 						</div>
 					</div>

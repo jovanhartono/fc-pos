@@ -5,6 +5,7 @@ import {
   campaignEligibleServicesTable,
   campaignStoresTable,
   campaignsTable,
+  orderCampaignsTable,
 } from "@/db/schema";
 import type { OrderTx } from "@/modules/orders/order.repository";
 
@@ -417,4 +418,23 @@ export function findOrderCampaignsByOrderId(tx: OrderTx, orderId: number) {
     where: { order_id: orderId },
     columns: { id: true, campaign_id: true, code_id: true },
   });
+}
+
+// The minimum each promo on this Order was granted against — needed when lines
+// are cancelled and the Order may no longer clear the bar it qualified under.
+export function findOrderCampaignMinimums(tx: OrderTx, orderId: number) {
+  return tx
+    .select({ minOrderTotal: campaignsTable.min_order_total })
+    .from(orderCampaignsTable)
+    .innerJoin(
+      campaignsTable,
+      eq(campaignsTable.id, orderCampaignsTable.campaign_id)
+    )
+    .where(eq(orderCampaignsTable.order_id, orderId));
+}
+
+export function deleteOrderCampaignsByOrderId(tx: OrderTx, orderId: number) {
+  return tx
+    .delete(orderCampaignsTable)
+    .where(eq(orderCampaignsTable.order_id, orderId));
 }

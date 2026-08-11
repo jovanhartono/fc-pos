@@ -19,6 +19,7 @@ import {
   PATCHOrderCourierSchema,
   PATCHOrderPaymentSchema,
   PATCHOrderServiceHandlerSchema,
+  PATCHOrderServicePriceSchema,
   PATCHOrderServiceStatusSchema,
   POSTOrderCancelSchema,
   POSTOrderDropoffPhotoPresignSchema,
@@ -42,6 +43,7 @@ import {
   createOrderPickupEvent,
   createOrderPickupEventPresign,
 } from "@/modules/orders/order-pickup.service";
+import { setOrderServicePrice } from "@/modules/orders/order-price.service";
 import {
   getMyOrderServices,
   getOrderServiceById,
@@ -329,6 +331,27 @@ const app = new Hono<OrderAccessEnv>()
       });
 
       return c.json(success(result, "Order service handler updated"));
+    }
+  )
+  // Open to any staff — deliberately NOT behind the admin money gate
+  // (ADR-0018 / ADR-0004). Who set what price is in order_service_price_logs.
+  .patch(
+    "/:id/services/:serviceId/price",
+    orderServiceParamSchema,
+    zodValidator("json", PATCHOrderServicePriceSchema),
+    async (c) => {
+      const user = c.get("jwtPayload");
+      const { id, serviceId } = c.req.valid("param");
+      const body = c.req.valid("json");
+
+      const result = await setOrderServicePrice({
+        orderId: id,
+        serviceId,
+        body,
+        user,
+      });
+
+      return c.json(success(result, "Price updated"));
     }
   )
   .patch(

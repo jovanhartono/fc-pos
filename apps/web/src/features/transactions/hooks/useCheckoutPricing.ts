@@ -1,4 +1,3 @@
-import { campaignIneligibilityReason } from "@fresclean/api/schema";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useWatch } from "react-hook-form";
@@ -7,6 +6,7 @@ import {
 	type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
+import { filterEligibleCampaigns } from "@/features/transactions/lib/campaign-eligibility";
 import { campaignsQueryOptions } from "@/lib/query-options";
 import { parseMoney } from "@/shared/money";
 
@@ -51,20 +51,17 @@ export function useCheckoutPricing() {
 		enabled: selectedStoreNumber !== undefined,
 	});
 
-	const availableCampaigns = useMemo(() => {
-		if (selectedStoreNumber === undefined) {
-			return [];
-		}
-		const now = new Date();
-		return (campaignsQuery.data ?? []).filter(
-			(campaign) =>
-				campaignIneligibilityReason(campaign, {
-					now,
-					grossTotal: subtotal,
-					storeId: selectedStoreNumber,
-				}) === null,
-		);
-	}, [campaignsQuery.data, selectedStoreNumber, subtotal]);
+	// Campaigns are judged against the cart total (ADR-0018): discounts only
+	// apply when the order is paid at drop-off, and at that moment every line
+	// price is final — the total IS the campaign base.
+	const availableCampaigns = useMemo(
+		() =>
+			filterEligibleCampaigns(campaignsQuery.data, {
+				grossTotal: subtotal,
+				storeId: selectedStoreNumber,
+			}),
+		[campaignsQuery.data, selectedStoreNumber, subtotal],
+	);
 
 	const selectedCampaigns = useMemo(() => {
 		const selectedIdSet = new Set(selectedCampaignIds);
@@ -84,12 +81,20 @@ export function useCheckoutPricing() {
 		[selectedCampaigns, appliedVouchers],
 	);
 
+	// Catalog-priced lines only, mirroring the server: a no-list-price line
+	// (Repair) is not even selectable for a BOGO free slot (ADR-0018).
 	const serviceLines = useMemo(
 		() =>
-			serviceRows.map((row) => ({
-				price: parseMoney(row.service.price),
-				service_id: row.service.id,
-			})),
+			serviceRows.flatMap((row) =>
+				row.service.price === null
+					? []
+					: [
+							{
+								price: parseMoney(row.service.price),
+								service_id: row.service.id,
+							},
+						],
+			),
 		[serviceRows],
 	);
 

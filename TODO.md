@@ -2,12 +2,25 @@
 
 ## Report-stack consolidation (from 2026-07-06 simplification grill)
 
-- [ ] **Unify "item processed" definition** — worker-productivity completions
+- [ ] **Unify "services processed" definition** — worker-productivity completions
   (`report-range.repository.ts` `fetchCompletions`, `to_status = 'ready_for_pickup'`)
   must match the daily KPI's `ITEM_PROCESSED_STATUSES`
   (`report.repository.ts:30`, includes `quality_check`). Canonical definition now
-  in CONTEXT.md ("Item processed"): counts on first reaching `quality_check`.
-  Small standalone fix; can land before the full consolidation.
+  in CONTEXT.md ("Services processed"): counts on first reaching `quality_check`.
+  Metric renamed from "Item processed" in #95 — Item now means a physical object,
+  so the old name counted the wrong noun; `ITEM_PROCESSED_STATUSES` should be
+  renamed with it. Small standalone fix; can land before the full consolidation.
+- [ ] **Finish the metric rename in the code** — the "Services processed" rename
+  in #95 was glossary-only. The daily KPI still ships `items_processed`
+  (`report.service.ts:45`) off `countDailyItemsProcessed` /
+  `ITEM_PROCESSED_STATUSES` (`report.repository.ts:30`, `:83`), surfaced as the
+  "Items processed" tile (`overview-panel.tsx:165`). Worker productivity ships the
+  *other* forbidden noun — `items_completed` / `total_items_completed`
+  (`report-range.repository.ts:815`, `report-range.service.ts:781`) surfaced in
+  `workers-panel.tsx` (tile at :95, CSV header at :71) and `reports.tsx:184`.
+  That one counts `ready_for_pickup`, so it is a **different metric**, not the
+  same one misnamed — it needs its own name, not a blind rename. Both API fields
+  are breaking renames: land them with the consolidation below, not before.
 - [ ] **Merge the two report stacks** — `report.repository.ts` (daily/overview)
   and `report-range.repository.ts`/`report-range.service.ts` (7 range panels)
   duplicate paid revenue, refunds sum, category revenue, and orders_out (×4
@@ -21,6 +34,18 @@
 
 ## Architecture-deepening follow-ups (extracted 2026-06-10, source: docs/architecture-deepening.md)
 
+- [ ] **`push:prod` before next prod deploy** — now also includes the **Repair
+  blank-price** schema from ADR-0018: `services.price` DROP NOT NULL + DROP
+  DEFAULT (NULL = no list price — Repair's catalog row), `orders_services.price`
+  DROP NOT NULL (NULL = not yet determined), and the new
+  `order_service_price_logs` table (every price set-or-correct logs the acting
+  user). The earlier estimate design's `estimated_price` /
+  `estimate_confirmed_at` columns and their CHECKs never reach prod — it was
+  reversed before deploying. All widening or additive — existing rows keep
+  their prices, no backfill — but the deploy breaks without it: intake inserts
+  NULL for a blank Repair line (NOT NULL violation → every Repair checkout
+  500s) and the price set/correct endpoint writes `order_service_price_logs`
+  (missing table → 500). Applied to dev only so far.
 - [ ] **`push:prod` before next prod deploy** — product-refund schema guards
   (`order_refund_items_line_xor_check` CHECK + `order_refund_items_product_uidx`
   partial unique index) exist only in dev. They are the only concurrency guards

@@ -30,7 +30,9 @@ interface CatalogService {
   id: number;
   is_active: boolean;
   is_priority: boolean;
-  price: string;
+  // null = no list price (Repair, ADR-0018) — priced per Item, at intake or
+  // after the workshop's inspection.
+  price: string | null;
 }
 
 interface CatalogProduct {
@@ -442,43 +444,10 @@ describe("createOrder", () => {
     expect(redemptions.calls[0].orderId).toBe(501);
   });
 
-  it("rejects a discount larger than the order without spending the voucher", async () => {
-    // Stacked promos worth Rp60.000 against a Rp50.000 basket. A negative
-    // total is nonsense at the till — and the customer's slip must survive the
-    // failed checkout so they can retry, not lose the code to a dead order.
-    catalog.services = [
-      {
-        id: 10,
-        price: "50000",
-        cogs: "20000",
-        is_priority: false,
-        is_active: true,
-      },
-    ];
-    discount.result = {
-      campaignRows: [
-        { campaign_id: 5, kind: "voucher", voucherCode: "VIP12345" },
-      ],
-      discountAmount: 60_000,
-      discountSource: "campaign",
-    };
-
-    const error = await captureRejection(
-      checkout({ services: [{ id: 10 }], voucher_codes: ["VIP12345"] })
-    );
-
-    expect(error).toBeInstanceOf(BadRequestException);
-    expect((error as Error).message).toBe(
-      "Order discount cannot exceed order total"
-    );
-    expect(redemptions.calls).toHaveLength(0);
-  });
-
   it("honors a voucher worth exactly the basket as a free wash", async () => {
-    // A Rp50.000 comp voucher against a Rp50.000 wash is a legitimate 100%
-    // giveaway — the shop hands the wash out free all the time for complaints.
-    // The gate must reject only discounts LARGER than the order; turning away
-    // the exact-match comp would strand the manager's apology voucher. And the
+    // A Rp50.000 comp voucher against a Rp50.000 wash settled at the counter
+    // is a legitimate 100% giveaway — the shop hands the wash out free all
+    // the time for complaints. The exact-match comp must go through, and the
     // voucher still burns, or the customer washes free twice.
     catalog.services = [
       {
@@ -500,6 +469,8 @@ describe("createOrder", () => {
     const result = await checkout({
       services: [{ id: 10 }],
       voucher_codes: ["SORRY123"],
+      payment_status: "paid",
+      payment_method_id: 1,
     });
 
     expect(result.total).toBe("50000");
@@ -685,6 +656,228 @@ describe("createOrder", () => {
     await checkout({ services: [{ id: 10 }], collected_by: 9 });
     expect(courier.calls).toEqual([9]);
     expect(repo.insertedOrder?.collected_by).toBe(9);
+  });
+
+  // Repair is the one Service with no list price (ADR-0018): its price is
+  // agreed per Item — at drop-off when the cashier already knows it, after
+  // the workshop's inspection otherwise. REPAIR/DEEP_CLEAN below are that
+  // pair on a live catalog.
+  const REPAIR: CatalogService = {
+    id: 30,
+    price: null,
+    cogs: "0",
+    is_priority: false,
+    is_active: true,
+  };
+  const DEEP_CLEAN: CatalogService = {
+    id: 10,
+    price: "150000",
+    cogs: "50000",
+    is_priority: false,
+    is_active: true,
+  };
+
+  it("books a repair whose price was agreed at drop-off as an ordinary payable line", async () => {
+    // The toebox patch is a job the cashier has priced a hundred times: 300k,
+    // agreed on the spot, so the money can move at drop-off like any other
+    // Service (ADR-0018).
+    catalog.services = [REPAIR];
+
+    const result = await checkout({
+      services: [{ id: 30, price: 300_000 }],
+      payment_status: "paid",
+      payment_method_id: 1,
+    });
+
+    expect(result.total).toBe("300000");
+    expect(repo.serviceRows[0]).toMatchObject({
+      service_id: 30,
+      price: "300000",
+    });
+    expect(finalize.writes[0].set).toMatchObject({ paid_amount: "300000" });
+  });
+
+  it("books a repair with no agreed price yet as a blank line, not a zero", async () => {
+    // The bag has to be opened before anyone can name a number, but the Item
+    // still needs its tag, photo, and claim ticket today (ADR-0018). The line
+    // goes in blank — NULL, never 0, which would read as deliberately free.
+    catalog.services = [REPAIR];
+
+    await checkout({ services: [{ id: 30 }] });
+
+    expect(repo.serviceRows[0]).toMatchObject({
+      service_id: 30,
+      price: null,
+    });
+    expect(repo.insertedOrder?.payment_status).toBe("unpaid");
+  });
+
+  it("refuses paid checkout while a line is unpriced, before any side effect", async () => {
+    // ADR-0018's gate at the earliest seam: no price, no payment — not even
+    // the 150k deep clean the counter already knows. Bounce before an order
+    // number is burned or a voucher claimed.
+    catalog.services = [DEEP_CLEAN, REPAIR];
+
+    const error = await captureRejection(
+      checkout({
+        services: [{ id: 10 }, { id: 30 }],
+        payment_status: "paid",
+        payment_method_id: 1,
+      })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "Order has an unpriced line — set its price before collecting payment"
+    );
+    expect(repo.reserveCalls).toHaveLength(0);
+    expect(redemptions.calls).toHaveLength(0);
+  });
+
+  it("rejects a keyed zero on a repair line — free is a Rework, blank is NULL", async () => {
+    // A crafted payload types 0 for the repair. Zero already means
+    // deliberately free (ADR-0013), and "not priced yet" is a blank line, so
+    // a keyed zero can only be a mistake.
+    catalog.services = [REPAIR];
+
+    const error = await captureRejection(
+      checkout({ services: [{ id: 30, price: 0 }] })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "Line price must be greater than zero"
+    );
+    expect(repo.reserveCalls).toHaveLength(0);
+  });
+
+  it("ignores a browser-sent price on a catalog-priced service", async () => {
+    // A tampered payload prices the 150k deep clean at 5k. The catalog
+    // snapshot wins — the browser can never set a normal Service's price
+    // (ADR-0018).
+    catalog.services = [DEEP_CLEAN];
+
+    const result = await checkout({
+      services: [{ id: 10, price: 5000 }],
+    });
+
+    expect(result.total).toBe("150000");
+    expect(repo.serviceRows[0]).toMatchObject({ price: "150000" });
+  });
+
+  it("settles a voucher on an unpaid drop-off once every line is priced", async () => {
+    // The customer sends a driver with the items and pays at pickup — the
+    // driver carries no money, but the voucher slip is in the bag. That
+    // drop-off receipt is the only proof the customer will hold, and a gross
+    // total under a promised discount is a verbal promise in print: they will
+    // not trust it. So the promo settles now and prints. Attaching claims, so
+    // the code leaves circulation here and cannot also be spent elsewhere.
+    catalog.services = [DEEP_CLEAN];
+    discount.result = {
+      campaignRows: [{ campaign_id: 5, code_id: 9 }],
+      discountAmount: 30_000,
+      discountSource: "campaign",
+    };
+
+    const result = await checkout({
+      services: [{ id: 10 }],
+      voucher_codes: ["VIP12345"],
+    });
+
+    expect(discount.calls[0]).toMatchObject({
+      grossTotal: 150_000,
+      voucherCodes: ["VIP12345"],
+    });
+    expect(redemptions.calls[0].rows).toEqual([{ campaign_id: 5, code_id: 9 }]);
+    expect(result.total_after_discount).toBe("120000");
+    // The discount is real and printed, but no money arrived with the driver.
+    expect(finalize.writes[0].set).toMatchObject({
+      discount: "30000",
+      discount_source: "campaign",
+      paid_amount: "0",
+      paid_at: null,
+    });
+  });
+
+  it("settles a hand-keyed discount on an unpaid drop-off the same way", async () => {
+    // Same seam for the supervisor's manual number: it goes on the receipt the
+    // driver takes away, so it is stored at drop-off rather than re-keyed from
+    // memory by whoever happens to be at the counter come pickup.
+    catalog.services = [DEEP_CLEAN];
+    discount.result = {
+      campaignRows: [],
+      discountAmount: 25_000,
+      discountSource: "manual",
+    };
+
+    await checkout({ services: [{ id: 10 }], discount: 25_000 });
+
+    expect(discount.calls[0]).toMatchObject({ manualDiscount: 25_000 });
+    expect(finalize.writes[0].set).toMatchObject({
+      discount: "25000",
+      discount_source: "manual",
+      paid_amount: "0",
+    });
+  });
+
+  it("bounces a voucher while any line is still unpriced", async () => {
+    // The failure ADR-0018 exists to make impossible: a repair guessed at 200k
+    // pushes the order over a 250k minimum, the bearer code is spent, then
+    // inspection puts the repair at 80k and the order never qualified. With a
+    // blank line the campaign base is not knowable, so the slip rides along to
+    // pickup and is keyed once the workshop has agreed a number.
+    catalog.services = [DEEP_CLEAN, REPAIR];
+
+    const error = await captureRejection(
+      checkout({
+        services: [{ id: 10 }, { id: 30 }],
+        voucher_codes: ["VIP12345"],
+      })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "Order has an unpriced line — promotions wait until every item is priced"
+    );
+    expect(repo.reserveCalls).toHaveLength(0);
+    expect(discount.calls).toHaveLength(0);
+    expect(redemptions.calls).toHaveLength(0);
+  });
+
+  it("stores no discount for a plain unpaid drop-off", async () => {
+    // No promo fields at all — the everyday drop-off. Nothing is applied and
+    // no redemption row exists for a later cancel to release.
+    catalog.services = [DEEP_CLEAN];
+
+    await checkout({ services: [{ id: 10 }] });
+
+    expect(redemptions.calls[0].rows).toEqual([]);
+    expect(finalize.writes[0].set).toMatchObject({
+      discount: "0",
+      discount_source: "none",
+      paid_amount: "0",
+    });
+  });
+
+  it("feeds the discount desk the full order total, repair spend included", async () => {
+    // Deep clean 150k + repair agreed at 200k, settled at the counter. The
+    // owner wants repair spend to count toward promotions (ADR-0018), so the
+    // campaign base is the whole 350k — every number is final at payment.
+    // Only the BOGO free-slot list still excludes the repair line: a
+    // misconfigured campaign must not hand out a repair as a free item.
+    catalog.services = [DEEP_CLEAN, REPAIR];
+
+    const result = await checkout({
+      services: [{ id: 10 }, { id: 30, price: 200_000 }],
+      payment_status: "paid",
+      payment_method_id: 1,
+    });
+
+    expect(result.total).toBe("350000");
+    expect(discount.calls[0]).toMatchObject({ grossTotal: 350_000 });
+    expect(discount.calls[0].lines).toEqual([
+      { price: 150_000, service_id: 10 },
+    ]);
   });
 });
 
