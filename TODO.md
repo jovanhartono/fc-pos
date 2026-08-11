@@ -10,6 +10,17 @@
   Metric renamed from "Item processed" in #95 — Item now means a physical object,
   so the old name counted the wrong noun; `ITEM_PROCESSED_STATUSES` should be
   renamed with it. Small standalone fix; can land before the full consolidation.
+- [ ] **Finish the metric rename in the code** — the "Services processed" rename
+  in #95 was glossary-only. The daily KPI still ships `items_processed`
+  (`report.service.ts:45`) off `countDailyItemsProcessed` /
+  `ITEM_PROCESSED_STATUSES` (`report.repository.ts:30`, `:83`), surfaced as the
+  "Items processed" tile (`overview-panel.tsx:165`). Worker productivity ships the
+  *other* forbidden noun — `items_completed` / `total_items_completed`
+  (`report-range.repository.ts:815`, `report-range.service.ts:781`) surfaced in
+  `workers-panel.tsx` (tile at :95, CSV header at :71) and `reports.tsx:184`.
+  That one counts `ready_for_pickup`, so it is a **different metric**, not the
+  same one misnamed — it needs its own name, not a blind rename. Both API fields
+  are breaking renames: land them with the consolidation below, not before.
 - [ ] **Merge the two report stacks** — `report.repository.ts` (daily/overview)
   and `report-range.repository.ts`/`report-range.service.ts` (7 range panels)
   duplicate paid revenue, refunds sum, category revenue, and orders_out (×4
