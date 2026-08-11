@@ -175,8 +175,8 @@ export const getCartPricing = <C extends CartCampaign>({
 	serviceLines,
 	manualDiscount,
 }: {
-	// ADR-0018: discounts resolve at payment, when every line price is final —
-	// so the Campaign base is simply the order total.
+	// ADR-0018: a discount settles once every line price is final — so the
+	// Campaign base is simply the order total.
 	subtotal: number;
 	campaigns: C[];
 	serviceLines: DiscountLine[];

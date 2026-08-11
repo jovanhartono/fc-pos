@@ -20,8 +20,9 @@ interface CampaignTileGroupProps {
 	onToggle: (campaignId: string) => void;
 }
 
-// Shared campaign picker (ADR-0018: discounts resolve at payment) — used by
-// the POS pay-at-drop-off step and the order page's collect-payment form.
+// Shared campaign picker (ADR-0018: a discount settles once every line is
+// priced) — used by the POS checkout step and the order page's
+// collect-payment form.
 // Empty / no-store states via early returns; otherwise the eligible campaigns
 // as a multi-select tile grid.
 export const CampaignTileGroup = ({

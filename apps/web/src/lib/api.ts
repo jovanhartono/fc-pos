@@ -370,9 +370,10 @@ export type UpdateOrderServiceStatusPayload = {
 		| "cancelled";
 };
 
-// ADR-0018: discounts resolve at payment — the campaigns the cashier ticked,
-// the voucher slips handed over, and the hand-keyed discount all ride with
-// the tender.
+// ADR-0018: promos ride with the tender only for an Order that arrived
+// unpriced and had nothing to settle at drop-off — the campaigns the cashier
+// ticked, the voucher slips handed over, and the hand-keyed discount. An Order
+// whose discount already settled must send none of them.
 export type UpdateOrderPaymentPayload = {
 	payment_method_id: number;
 	campaign_ids: number[];

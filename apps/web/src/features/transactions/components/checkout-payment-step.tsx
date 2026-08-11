@@ -29,10 +29,11 @@ import {
 import { cn } from "@/lib/utils";
 import { formatIDRCurrency } from "@/shared/utils";
 
-// Step ③ — money. Tender first, because it decides the rest: discounts
-// resolve at payment (ADR-0018), so campaigns/voucher/manual discount are
-// offered only when the order is being paid at drop-off. Pay later defers
-// them to the collect-payment form on the order page.
+// Step ③ — money. A discount settles once every line is priced (ADR-0018),
+// not once the money arrives, so campaigns/voucher/manual discount are offered
+// whenever the cart is fully priced — including for a customer paying at
+// pickup, whose Receipt then prints the discount they were promised. A cart
+// still carrying an unpriced line defers them to the order page.
 export const CheckoutPaymentStep = () => {
 	const { visibleStores } = useTransactionsPageContext();
 	const { subtotal, pricing } = useCheckoutPricing();

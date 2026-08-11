@@ -135,10 +135,13 @@ interface CollectPaymentFormProps {
 	detail: OrderDetail;
 }
 
-// ADR-0018: discounts resolve here, at the paid transition. The customer is
-// at the counter with their promos and voucher slips — campaigns, codes, and
-// a manual discount all ride the payment PATCH. Every line is priced by now
-// (the unpriced gate above), so the order total is the campaign base.
+// ADR-0018: this desk settles the discount for the Order that came in
+// unpriced — the Repair whose number only landed after inspection, so there
+// was nothing to settle at drop-off. Campaigns, codes, and a manual discount
+// ride the payment PATCH. Every line is priced by now (the unpriced gate
+// above), so the order total is the campaign base. An Order whose discount
+// already settled shows the printed total instead: the server refuses a
+// second claim.
 const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 	const paymentMethodsQuery = useQuery(paymentMethodsQueryOptions());
 	const servicesQuery = useQuery(servicesQueryOptions());

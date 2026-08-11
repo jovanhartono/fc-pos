@@ -7,7 +7,10 @@ import {
   ordersTable,
 } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
-import { releaseRedemptions } from "@/modules/campaigns/campaign-redemption.service";
+import {
+  releaseRedemptions,
+  voidCampaignsBelowMinimum,
+} from "@/modules/campaigns/campaign-redemption.service";
 import type { OrderTx } from "@/modules/orders/order.repository";
 import type {
   PostOrderCancelInput,
@@ -346,6 +349,15 @@ async function cancelProductLines(
 // Cancel is the unpaid, per-line twin of refund (ADR-0008): staff pick which
 // service and product lines to void. No money moves; cancelled product lines
 // restore stock. The Order rollup is recomputed from the resulting line states.
+// ADR-0018: a promo settled at drop-off is printed on the Receipt the
+// customer carries away, so the shop honours it for as long as the Order still
+// clears the bar it was granted under. Cancel items and it may stop clearing:
+// holding a "min Rp250.000" discount on a Rp110.000 Order is not a promise
+// anyone can defend at the counter, and on a fixed-amount campaign it would
+// hand back most of what is left to pay. The minimum is the minimum, whoever
+// asked for the cancellation. Paid Orders are untouched — that money already
+// moved, and an earned promo stays (ADR-0015); there the discount only shrinks
+// to fit the smaller bill.
 export async function cancelOrder({
   orderId,
   body,
@@ -445,10 +457,18 @@ export async function cancelOrder({
     if (order.status !== "cancelled") {
       const updated = await tx.query.ordersTable.findFirst({
         where: { id: orderId },
-        columns: { status: true },
+        columns: { status: true, total: true, payment_status: true },
       });
       if (updated?.status === "cancelled") {
         await releaseRedemptions(tx, orderId);
+      } else if (updated?.payment_status === "unpaid") {
+        // Partial cancel on an unpaid Order: the promo may have settled at
+        // drop-off, so what is left has to still qualify for it.
+        await voidCampaignsBelowMinimum(
+          tx,
+          orderId,
+          Number(updated.total ?? 0)
+        );
       }
     }
   });

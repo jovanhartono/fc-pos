@@ -6,6 +6,7 @@ import {
   ordersTable,
 } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
+import { voidCampaignsBelowMinimum } from "@/modules/campaigns/campaign-redemption.service";
 import { getOrderServiceOrThrow } from "@/modules/orders/order.repository";
 import type { PatchOrderServicePriceInput } from "@/modules/orders/order-admin.schema";
 import { recomputeOrderRollup } from "@/modules/orders/order-status-machine";
@@ -101,6 +102,18 @@ export async function setOrderServicePrice({
     // orders.total is a snapshot of its billable lines — refresh it so the
     // amount due at the counter reflects the number just agreed.
     await recomputeOrderRollup(tx, orderId, user.id);
+
+    // A promo may already have settled on this unpaid Order (ADR-0018): every
+    // line was priced, the discount printed on the Receipt. Correcting a price
+    // downward can drop the Order under the minimum that promo was granted
+    // against, so the same check the cancel path runs has to run here too —
+    // otherwise "correct the repair to 10k" is a way to keep a 100k fixed
+    // discount on a 160k Order.
+    const rolled = await tx.query.ordersTable.findFirst({
+      where: { id: orderId },
+      columns: { total: true },
+    });
+    await voidCampaignsBelowMinimum(tx, orderId, Number(rolled?.total ?? 0));
 
     return updated;
   });

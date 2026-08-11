@@ -270,7 +270,7 @@ export async function createOrder(
     );
   }
 
-  // ADR-0018 (amended): a promo settles once every line is priced, not once
+  // ADR-0018: a promo settles once every line is priced, not once
   // the money arrives. The customer who sends a driver with the items pays at
   // pickup, and the drop-off Receipt is the only proof they hold — a gross
   // total under a promised discount is a verbal promise in print, and they
@@ -356,7 +356,7 @@ export async function createOrder(
         service_id: item.id,
       }));
 
-    // ADR-0018 (amended): the discount desk runs once every line is priced —
+    // ADR-0018: the discount desk runs once every line is priced —
     // the gate above — whether or not the tender arrives now. Attaching is
     // claiming: the voucher code leaves circulation and the usage slot is
     // taken the moment the discount goes on the Receipt, because that Receipt

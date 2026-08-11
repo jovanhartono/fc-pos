@@ -73,7 +73,7 @@ export async function updateOrderPayment({
     );
   }
 
-  // ADR-0018 (amended): the promo may already have settled at drop-off, when
+  // ADR-0018: the promo may already have settled at drop-off, when
   // every line was priced. Its voucher code is out of circulation and its
   // amount is printed on the Receipt the customer is holding. Resolving again
   // here would claim a second time and overwrite the number they were
@@ -106,7 +106,7 @@ export async function updateOrderPayment({
   );
 
   return await db.transaction(async (tx) => {
-    // ADR-0018 (amended): for an Order whose promo settled at drop-off this
+    // ADR-0018: for an Order whose promo settled at drop-off this
     // desk only books the tender — the stored amount stands, and re-claiming
     // it would spend the voucher twice. Otherwise the promo settles here,
     // which is the first moment every line has a price: the Campaign base is

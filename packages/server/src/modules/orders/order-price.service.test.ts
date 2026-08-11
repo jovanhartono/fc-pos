@@ -29,9 +29,18 @@ const state = {
   serviceWriteGuard: "",
   logRows: [] as AnyObj[],
   rollupCalls: [] as { orderId: number; userId: number }[],
+  // orders.total as recomputeOrderRollup leaves it — what the promo minimum is
+  // re-checked against once the corrected price has landed.
+  postRollupTotal: "0",
+  voidCalls: [] as { orderId: number; billableTotal: number }[],
 };
 
 const TX = {
+  query: {
+    ordersTable: {
+      findFirst: () => Promise.resolve({ total: state.postRollupTotal }),
+    },
+  },
   update: (_table: unknown) => ({
     set: (set: AnyObj) => ({
       where: (condition: SQL) => {
@@ -119,6 +128,25 @@ mock.module("@/modules/orders/order-status-machine", () => ({
   },
 }));
 
+// The void rule's own arithmetic (which minimums, releasing redemptions,
+// zeroing the discount) is pinned in campaign-redemption tests; here we only
+// pin that pricing hands it the freshly recomputed total.
+const actualRedemptionService = {
+  ...(await import("@/modules/campaigns/campaign-redemption.service")),
+};
+
+mock.module("@/modules/campaigns/campaign-redemption.service", () => ({
+  ...actualRedemptionService,
+  voidCampaignsBelowMinimum: (
+    _tx: unknown,
+    orderId: number,
+    billableTotal: number
+  ) => {
+    state.voidCalls.push({ orderId, billableTotal });
+    return Promise.resolve();
+  },
+}));
+
 const { setOrderServicePrice } = await import(
   "@/modules/orders/order-price.service"
 );
@@ -128,6 +156,10 @@ afterAll(() => {
   mock.module(
     "@/modules/orders/order-status-machine",
     () => actualStatusMachine
+  );
+  mock.module(
+    "@/modules/campaigns/campaign-redemption.service",
+    () => actualRedemptionService
   );
 });
 
@@ -156,6 +188,8 @@ beforeEach(() => {
   state.serviceWriteGuard = "";
   state.logRows = [];
   state.rollupCalls = [];
+  state.postRollupTotal = "0";
+  state.voidCalls = [];
 });
 
 describe("setOrderServicePrice", () => {
@@ -278,5 +312,28 @@ describe("setOrderServicePrice", () => {
     );
     expect(state.logRows).toHaveLength(0);
     expect(state.rollupCalls).toHaveLength(0);
+  });
+
+  it("re-checks the promo minimum against the corrected total", async () => {
+    // A promo settled at drop-off on a fully priced Order and printed on the
+    // Receipt. The workshop then corrects the repair down — 210k was a typo
+    // for 10k — leaving 160k. Without this re-check, "100k off, min 250k"
+    // rides a 160k Order and the customer pays 60k for 160k of work.
+    state.line = makeLine({ price: "210000" });
+    state.postRollupTotal = "160000";
+
+    await setPrice(10_000);
+
+    expect(state.voidCalls).toEqual([{ orderId: 10, billableTotal: 160_000 }]);
+  });
+
+  it("re-checks nothing until the price actually landed", async () => {
+    // The correction lost the race, so the total never moved — voiding a promo
+    // off the back of a rolled-back write would strip a discount for free.
+    state.casWins = false;
+
+    await captureRejection(setPrice(10_000));
+
+    expect(state.voidCalls).toHaveLength(0);
   });
 });

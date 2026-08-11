@@ -99,9 +99,10 @@ export const PATCHOrderServiceHandlerSchema = z.object({
   note: z.string().trim().optional(),
 });
 
-// ADR-0018: discounts resolve here, at the paid transition — the promos the
-// cashier ticked, the voucher slips handed over, and the hand-keyed discount
-// all arrive with the tender, because only now is every line price final.
+// ADR-0018: the desk still accepts promos with the tender, for the Order that
+// arrived unpriced and had nothing to settle at drop-off. An Order whose
+// discount already settled rejects them here — the cashier collects the total
+// printed on the customer's Receipt rather than claiming a second time.
 export const PATCHOrderPaymentSchema = z.object({
   payment_method_id: z.coerce.number().int().positive(),
   campaign_ids: campaignIdsSchema,

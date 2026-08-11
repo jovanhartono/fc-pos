@@ -40,6 +40,10 @@ const state = {
   productRows: [] as AnyObj[], // db.query.ordersProductsTable.findMany
   refundedRows: [] as AnyObj[], // prior-refund SUM rows (db.select chain)
   postCancelStatus: undefined as string | undefined, // tx re-read after cancel
+  // Same tx re-read. Unpaid by default, matching makeUnpaidOrder; cases that
+  // care about the promo-minimum recheck set a total and some minimums too.
+  postCancelPaymentStatus: "unpaid" as string,
+  postCancelTotal: "0" as string | null,
   casResults: [] as { id: number }[][], // queued CAS update outcomes, in order
 };
 
@@ -84,7 +88,11 @@ const fakeTx = {
         Promise.resolve(
           state.postCancelStatus == null
             ? undefined
-            : { status: state.postCancelStatus }
+            : {
+                payment_status: state.postCancelPaymentStatus,
+                status: state.postCancelStatus,
+                total: state.postCancelTotal,
+              }
         ),
     },
   },
@@ -166,6 +174,7 @@ mock.module("@/modules/orders/order-status-machine", () => ({
 
 const redemption = {
   releaseCalls: [] as { executor: unknown; orderId: number }[],
+  voidCalls: [] as { billableTotal: number; orderId: number }[],
 };
 
 const actualRedemption = await import(
@@ -176,6 +185,17 @@ mock.module("@/modules/campaigns/campaign-redemption.service", () => ({
   ...actualRedemption,
   releaseRedemptions: (executor: unknown, orderId: number) => {
     redemption.releaseCalls.push({ executor, orderId });
+    return Promise.resolve();
+  },
+  // What the void rule does with a breached minimum is pinned in
+  // campaign-redemption.service.test.ts; cancelling is only responsible for
+  // deciding whether to ask, and with which total.
+  voidCampaignsBelowMinimum: (
+    _tx: unknown,
+    orderId: number,
+    billableTotal: number
+  ) => {
+    redemption.voidCalls.push({ orderId, billableTotal });
     return Promise.resolve();
   },
 }));
@@ -265,6 +285,8 @@ beforeEach(() => {
   state.productRows = [];
   state.refundedRows = [];
   state.postCancelStatus = undefined;
+  state.postCancelPaymentStatus = "unpaid";
+  state.postCancelTotal = "0";
   state.casResults = [];
   reads.orderLookups = 0;
   writes.updates = [];
@@ -274,6 +296,7 @@ beforeEach(() => {
   machine.serviceTransitions = [];
   machine.rollupCalls = [];
   redemption.releaseCalls = [];
+  redemption.voidCalls = [];
   stock.calls = [];
 });
 
@@ -535,6 +558,50 @@ describe("cancelOrder", () => {
     // The dropped bottle still goes back on the shelf...
     expect(stock.calls).toEqual([{ executor: fakeTx, productId: 12, qty: 1 }]);
     // ...but the redemption stays attached to the still-live order.
+    expect(redemption.releaseCalls).toHaveLength(0);
+  });
+
+  it("re-checks the promo minimum against what survives a partial cancel", async () => {
+    // Rp360.000 of work cleared a "min Rp250.000" promo at drop-off and the
+    // discount is printed on the receipt the driver carried away. The customer
+    // then drops items until only Rp110.000 is left. A Rp250.000-minimum
+    // discount on a Rp110.000 bill is not a promise the shop can defend at the
+    // counter — on a fixed-amount campaign it would hand back most of what is
+    // left to pay — so the surviving total goes back to the void rule.
+    state.order = makeUnpaidOrder();
+    state.productRows = [
+      { id: 30, qty: 1, product_id: 12, refunded_at: null, cancelled_at: null },
+    ];
+    state.postCancelStatus = "processing";
+    state.postCancelTotal = "110000";
+
+    await cancel([{ order_product_id: 30, reason: "customer_request" }]);
+
+    expect(redemption.voidCalls).toEqual([
+      { orderId: 5, billableTotal: 110_000 },
+    ]);
+    // A partial cancel never releases outright — that is the void rule's call
+    // to make once it has compared the total against the minimums.
+    expect(redemption.releaseCalls).toHaveLength(0);
+  });
+
+  it("leaves the promo alone when payment won the race against the cancel", async () => {
+    // One staff member voids a line while another collects at the pickup desk.
+    // The order was unpaid when the cancel started, so the pre-check let it
+    // through, but the tender landed first. That money moved against the
+    // printed total, so the promo was earned (ADR-0015) and taking it back now
+    // would mean asking for more than the customer already paid.
+    state.order = makeUnpaidOrder();
+    state.productRows = [
+      { id: 30, qty: 1, product_id: 12, refunded_at: null, cancelled_at: null },
+    ];
+    state.postCancelStatus = "processing";
+    state.postCancelPaymentStatus = "paid";
+    state.postCancelTotal = "110000";
+
+    await cancel([{ order_product_id: 30, reason: "customer_request" }]);
+
+    expect(redemption.voidCalls).toHaveLength(0);
     expect(redemption.releaseCalls).toHaveLength(0);
   });
 

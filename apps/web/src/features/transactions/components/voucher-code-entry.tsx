@@ -13,7 +13,7 @@ interface VoucherCodeEntryProps {
 	subtotal: number;
 	// Controlled, so both hosts can use it: the POS checkout stores vouchers in
 	// its draft form, the order page's collect-payment form in its own (ADR-0018:
-	// discounts resolve wherever the payment happens).
+	// a discount settles at whichever desk first sees every line priced).
 	appliedVouchers: AppliedVoucher[];
 	onChange: (next: AppliedVoucher[]) => void;
 }
