@@ -42,9 +42,6 @@ export const CheckoutPaymentStep = () => {
 		useWatch({ control: form.control, name: "appliedVouchers" }) ?? [];
 	const selectedStoreId =
 		useWatch({ control: form.control, name: "selectedStoreId" }) ?? "";
-	const selectedPaymentMethodId =
-		useWatch({ control: form.control, name: "selectedPaymentMethodId" }) ?? "";
-
 	const paymentMethodsQuery = useQuery(paymentMethodsQueryOptions());
 
 	const paymentMethodOptions = useMemo<ComboboxOption[]>(
@@ -74,10 +71,12 @@ export const CheckoutPaymentStep = () => {
 
 	// ADR-0018: no price, no payment. A blank repair line makes the Order
 	// unpayable at drop-off, so every tender except "Pay later" locks instead
-	// of bouncing at submit.
+	// of bouncing at submit. The same blank line is what defers the promo
+	// (ADR-0018 amended): once every line is priced the discount may settle
+	// here, whether the customer pays now or sends a driver and pays at pickup.
 	const unpricedCount = countUnpricedServiceLines(serviceRows);
-	const paymentBlocked = unpricedCount > 0;
-	const isPayingNow = selectedPaymentMethodId !== "";
+	const isFullyPriced = unpricedCount === 0;
+	const paymentBlocked = !isFullyPriced;
 
 	// Only campaigns whose rules pass for the current store + the cart total —
 	// at drop-off payment every line is priced (blank lines lock the tender),
@@ -140,12 +139,13 @@ export const CheckoutPaymentStep = () => {
 		}
 	}, [paymentBlocked, form]);
 
-	// Pay later carries no discount (ADR-0018): anything picked while a tender
-	// was selected is cleared the moment the cashier switches back — visibly,
-	// with the deferral sentence in the section's place, never silently at
-	// submit time.
+	// A blank line carries no discount (ADR-0018 amended): adding an unpriced
+	// repair to a cart that already has promos on it clears them the moment the
+	// line lands — visibly, with the deferral sentence in the section's place,
+	// never silently at submit time. Switching to "Pay later" no longer clears
+	// anything: a promo on a fully priced Order survives to the Receipt.
 	useEffect(() => {
-		if (isPayingNow) {
+		if (isFullyPriced) {
 			return;
 		}
 		if (form.getValues("selectedCampaignIds").length > 0) {
@@ -157,7 +157,7 @@ export const CheckoutPaymentStep = () => {
 		if (form.getValues("manualDiscount") !== "") {
 			form.setValue("manualDiscount", "", { shouldValidate: true });
 		}
-	}, [isPayingNow, form]);
+	}, [isFullyPriced, form]);
 
 	return (
 		<div className="grid gap-5">
@@ -201,7 +201,7 @@ export const CheckoutPaymentStep = () => {
 				)}
 			/>
 
-			{isPayingNow ? (
+			{isFullyPriced ? (
 				<>
 					<Controller
 						control={form.control}
@@ -257,8 +257,8 @@ export const CheckoutPaymentStep = () => {
 				</>
 			) : (
 				<p className="text-muted-foreground text-sm">
-					Discounts are applied at payment — campaigns, voucher codes and manual
-					discount are entered when the customer pays.
+					A line has no price yet — campaigns, voucher codes and manual discount
+					are entered once every item is priced.
 				</p>
 			)}
 

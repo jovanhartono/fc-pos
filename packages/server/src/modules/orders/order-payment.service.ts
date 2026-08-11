@@ -25,6 +25,8 @@ export async function updateOrderPayment({
     columns: {
       id: true,
       total: true,
+      discount: true,
+      discount_source: true,
       refunded_amount: true,
       payment_status: true,
       status: true,
@@ -71,6 +73,24 @@ export async function updateOrderPayment({
     );
   }
 
+  // ADR-0018 (amended): the promo may already have settled at drop-off, when
+  // every line was priced. Its voucher code is out of circulation and its
+  // amount is printed on the Receipt the customer is holding. Resolving again
+  // here would claim a second time and overwrite the number they were
+  // promised, so the payment desk collects the printed total instead.
+  const isSettledAtDropoff =
+    order.discount_source === "campaign" || order.discount_source === "manual";
+  if (
+    isSettledAtDropoff &&
+    (body.campaign_ids.length > 0 ||
+      body.voucher_codes.length > 0 ||
+      body.discount > 0)
+  ) {
+    throw new BadRequestException(
+      "This order's discount was settled at drop-off — collect the printed total"
+    );
+  }
+
   const grossTotal = Number(order.total ?? 0);
 
   // BOGO stays exclusive (ADR-0018): a no-list-price line (Repair) is never
@@ -86,20 +106,26 @@ export async function updateOrderPayment({
   );
 
   return await db.transaction(async (tx) => {
-    // ADR-0018: discounts resolve here, at the paid transition — every line
-    // price is final (the gate above) and about to be frozen, so the Campaign
-    // base is simply the order total. The claims commit or roll back with the
-    // payment itself.
-    const { discountAmount, discountSource, campaignRows } =
-      await resolveDiscount({
-        campaignIds: body.campaign_ids,
-        voucherCodes: body.voucher_codes,
-        grossTotal,
-        manualDiscount: body.discount,
-        storeId: order.store_id,
-        storeCode: order.store.code,
-        lines,
-      });
+    // ADR-0018 (amended): for an Order whose promo settled at drop-off this
+    // desk only books the tender — the stored amount stands, and re-claiming
+    // it would spend the voucher twice. Otherwise the promo settles here,
+    // which is the first moment every line has a price: the Campaign base is
+    // the order total, and the claims commit or roll back with the payment.
+    const { discountAmount, discountSource, campaignRows } = isSettledAtDropoff
+      ? {
+          discountAmount: Number(order.discount),
+          discountSource: order.discount_source,
+          campaignRows: [],
+        }
+      : await resolveDiscount({
+          campaignIds: body.campaign_ids,
+          voucherCodes: body.voucher_codes,
+          grossTotal,
+          manualDiscount: body.discount,
+          storeId: order.store_id,
+          storeCode: order.store.code,
+          lines,
+        });
 
     await claimRedemptions(tx, campaignRows, orderId);
 

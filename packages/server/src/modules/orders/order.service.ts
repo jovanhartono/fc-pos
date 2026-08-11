@@ -236,22 +236,6 @@ export async function createOrder(
 
   const isPaidAtDropoff = orderPayload.payment_status === "paid";
 
-  // ADR-0018: discounts resolve at payment, so a promo keyed onto an unpaid
-  // drop-off has nowhere to go. Accepting it silently would be worse than a
-  // bug — the customer watches their voucher slip get typed in, it claims
-  // nothing, and the mismatch surfaces as an argument at pickup. Bounce it
-  // loudly instead: a bearer code is money.
-  if (
-    !isPaidAtDropoff &&
-    (campaign_ids.length > 0 ||
-      voucher_codes.length > 0 ||
-      orderPayload.discount > 0)
-  ) {
-    throw new BadRequestException(
-      "Discounts are applied when payment is collected — leave promotions off an unpaid order"
-    );
-  }
-
   if (orderPayload.collected_by != null) {
     await assertActiveCourier(orderPayload.collected_by);
   }
@@ -279,9 +263,28 @@ export async function createOrder(
   // ADR-0018: no price, no payment. A blank line is a Repair the workshop has
   // not inspected yet — its number is not known, so no money moves for the
   // Order, not even for the lines the counter already knows.
-  if (isPaidAtDropoff && serviceLines.some((line) => line.price === null)) {
+  const hasBlankLine = serviceLines.some((line) => line.price === null);
+  if (isPaidAtDropoff && hasBlankLine) {
     throw new BadRequestException(
       "Order has an unpriced line — set its price before collecting payment"
+    );
+  }
+
+  // ADR-0018 (amended): a promo settles once every line is priced, not once
+  // the money arrives. The customer who sends a driver with the items pays at
+  // pickup, and the drop-off Receipt is the only proof they hold — a gross
+  // total under a promised discount is a verbal promise in print, and they
+  // will not trust it. What must never happen is a promo settled against a
+  // guess, so a blank line still bounces: the base is not knowable until the
+  // workshop has inspected the Item.
+  if (
+    hasBlankLine &&
+    (campaign_ids.length > 0 ||
+      voucher_codes.length > 0 ||
+      orderPayload.discount > 0)
+  ) {
+    throw new BadRequestException(
+      "Order has an unpriced line — promotions wait until every item is priced"
     );
   }
 
@@ -353,13 +356,21 @@ export async function createOrder(
         service_id: item.id,
       }));
 
-    // ADR-0018: discounts resolve at payment. Paying at drop-off is that
-    // moment, so the discount desk runs on the full gross total — every line
-    // is priced (the gate above) and about to be frozen. An unpaid Order
-    // carries no discount and claims nothing: its promos, voucher slips, and
-    // hand-keyed discount all arrive with the tender at pickup instead.
-    const { discountAmount, discountSource, campaignRows } = isPaidAtDropoff
-      ? await resolveDiscount({
+    // ADR-0018 (amended): the discount desk runs once every line is priced —
+    // the gate above — whether or not the tender arrives now. Attaching is
+    // claiming: the voucher code leaves circulation and the usage slot is
+    // taken the moment the discount goes on the Receipt, because that Receipt
+    // is what the customer will hold the shop to. Printing a promo the shop
+    // has not actually reserved is how two customers end up holding the last
+    // slot of the same campaign. An Order still carrying a blank line settles
+    // nothing here and waits for the payment desk.
+    const { discountAmount, discountSource, campaignRows } = hasBlankLine
+      ? {
+          discountAmount: 0,
+          discountSource: "none" as const,
+          campaignRows: [],
+        }
+      : await resolveDiscount({
           campaignIds: campaign_ids,
           voucherCodes: voucher_codes,
           grossTotal,
@@ -367,12 +378,7 @@ export async function createOrder(
           storeId: store.id,
           storeCode: store.code,
           lines,
-        })
-      : {
-          discountAmount: 0,
-          discountSource: "none" as const,
-          campaignRows: [],
-        };
+        });
 
     await claimRedemptions(tx, campaignRows, orderId);
 

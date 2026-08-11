@@ -765,54 +765,92 @@ describe("createOrder", () => {
     expect(repo.serviceRows[0]).toMatchObject({ price: "150000" });
   });
 
-  it("bounces a voucher keyed onto an unpaid drop-off instead of eating it", async () => {
-    // ADR-0018: discounts resolve at payment. The customer watched their slip
-    // get typed in — silently claiming nothing would surface as an argument
-    // at pickup over a code that looks spent. Refuse before an order number
-    // is burned; the slip rides along to pickup instead.
+  it("settles a voucher on an unpaid drop-off once every line is priced", async () => {
+    // The customer sends a driver with the items and pays at pickup — the
+    // driver carries no money, but the voucher slip is in the bag. That
+    // drop-off receipt is the only proof the customer will hold, and a gross
+    // total under a promised discount is a verbal promise in print: they will
+    // not trust it. So the promo settles now and prints. Attaching claims, so
+    // the code leaves circulation here and cannot also be spent elsewhere.
     catalog.services = [DEEP_CLEAN];
+    discount.result = {
+      campaignRows: [{ campaign_id: 5, code_id: 9 }],
+      discountAmount: 30_000,
+      discountSource: "campaign",
+    };
+
+    const result = await checkout({
+      services: [{ id: 10 }],
+      voucher_codes: ["VIP12345"],
+    });
+
+    expect(discount.calls[0]).toMatchObject({
+      grossTotal: 150_000,
+      voucherCodes: ["VIP12345"],
+    });
+    expect(redemptions.calls[0].rows).toEqual([{ campaign_id: 5, code_id: 9 }]);
+    expect(result.total_after_discount).toBe("120000");
+    // The discount is real and printed, but no money arrived with the driver.
+    expect(finalize.writes[0].set).toMatchObject({
+      discount: "30000",
+      discount_source: "campaign",
+      paid_amount: "0",
+      paid_at: null,
+    });
+  });
+
+  it("settles a hand-keyed discount on an unpaid drop-off the same way", async () => {
+    // Same seam for the supervisor's manual number: it goes on the receipt the
+    // driver takes away, so it is stored at drop-off rather than re-keyed from
+    // memory by whoever happens to be at the counter come pickup.
+    catalog.services = [DEEP_CLEAN];
+    discount.result = {
+      campaignRows: [],
+      discountAmount: 25_000,
+      discountSource: "manual",
+    };
+
+    await checkout({ services: [{ id: 10 }], discount: 25_000 });
+
+    expect(discount.calls[0]).toMatchObject({ manualDiscount: 25_000 });
+    expect(finalize.writes[0].set).toMatchObject({
+      discount: "25000",
+      discount_source: "manual",
+      paid_amount: "0",
+    });
+  });
+
+  it("bounces a voucher while any line is still unpriced", async () => {
+    // The failure ADR-0018 exists to make impossible: a repair guessed at 200k
+    // pushes the order over a 250k minimum, the bearer code is spent, then
+    // inspection puts the repair at 80k and the order never qualified. With a
+    // blank line the campaign base is not knowable, so the slip rides along to
+    // pickup and is keyed once the workshop has agreed a number.
+    catalog.services = [DEEP_CLEAN, REPAIR];
 
     const error = await captureRejection(
       checkout({
-        services: [{ id: 10 }],
+        services: [{ id: 10 }, { id: 30 }],
         voucher_codes: ["VIP12345"],
       })
     );
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Discounts are applied when payment is collected — leave promotions off an unpaid order"
+      "Order has an unpriced line — promotions wait until every item is priced"
     );
     expect(repo.reserveCalls).toHaveLength(0);
     expect(discount.calls).toHaveLength(0);
     expect(redemptions.calls).toHaveLength(0);
   });
 
-  it("bounces a hand-keyed discount on an unpaid drop-off the same way", async () => {
-    // Same seam for the supervisor's manual number: an unpaid order stores
-    // discount 0, so a keyed 25k would vanish without this gate.
-    catalog.services = [DEEP_CLEAN];
-
-    const error = await captureRejection(
-      checkout({ services: [{ id: 10 }], discount: 25_000 })
-    );
-
-    expect(error).toBeInstanceOf(BadRequestException);
-    expect((error as Error).message).toBe(
-      "Discounts are applied when payment is collected — leave promotions off an unpaid order"
-    );
-    expect(repo.reserveCalls).toHaveLength(0);
-  });
-
-  it("resolves no discount and claims nothing for a plain unpaid drop-off", async () => {
-    // No promo fields at all — the everyday drop-off. The discount desk is
-    // never consulted and no redemption row exists for a later cancel to
-    // release (ADR-0018: unpaid orders hold no claims).
+  it("stores no discount for a plain unpaid drop-off", async () => {
+    // No promo fields at all — the everyday drop-off. Nothing is applied and
+    // no redemption row exists for a later cancel to release.
     catalog.services = [DEEP_CLEAN];
 
     await checkout({ services: [{ id: 10 }] });
 
-    expect(discount.calls).toHaveLength(0);
     expect(redemptions.calls[0].rows).toEqual([]);
     expect(finalize.writes[0].set).toMatchObject({
       discount: "0",

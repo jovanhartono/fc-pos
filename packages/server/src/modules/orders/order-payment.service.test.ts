@@ -18,6 +18,8 @@ import type { JWTPayload } from "@/types";
 type AnyObj = Record<string, unknown>;
 
 interface FakeOrderRow {
+  discount: string | null;
+  discount_source: string;
   id: number;
   payment_status: string;
   refunded_amount: string | null;
@@ -141,6 +143,8 @@ afterAll(() => {
 const CASHIER = { id: 42, role: "cashier" } as unknown as JWTPayload;
 
 const makeOrder = (over: Partial<FakeOrderRow> = {}): FakeOrderRow => ({
+  discount: "0",
+  discount_source: "none",
   id: 10,
   payment_status: "unpaid",
   refunded_amount: "0",
@@ -219,9 +223,10 @@ describe("updateOrderPayment", () => {
   });
 
   it("claims the voucher only now, inside the payment transaction", async () => {
-    // The customer held their voucher slip since drop-off; the unpaid order
-    // never burned it (ADR-0018). It is claimed in the same transaction that
-    // books the money, so a failed payment leaves the code spendable.
+    // A repair kept this order unpriced at drop-off, so the slip could not be
+    // keyed then (ADR-0018) — the customer held it until the workshop agreed a
+    // number. It is claimed in the same transaction that books the money, so a
+    // failed payment leaves the code spendable.
     discount.result = {
       campaignRows: [
         { campaign_id: 5, kind: "voucher", voucherCode: "VIP12345" },
@@ -239,6 +244,48 @@ describe("updateOrderPayment", () => {
       { tx: TX, rows: discount.result.campaignRows, orderId: 10 },
     ]);
     expect(dbState.setPayload?.paid_amount).toBe("80000");
+  });
+
+  it("collects the printed total without claiming a promo twice", async () => {
+    // The driver dropped fully priced items off and the promo settled then: its
+    // code is already out of circulation and its amount is printed on the
+    // receipt the customer is holding. At pickup the desk only books the money.
+    // Re-running the discount desk here would spend the voucher a second time
+    // and could quietly hand back a different number than the printed one.
+    dbState.order = makeOrder({
+      discount: "30000",
+      discount_source: "campaign",
+    });
+
+    const result = await collect();
+
+    expect(discount.calls).toHaveLength(0);
+    expect(redemptions.calls[0].rows).toEqual([]);
+    expect(result?.paid_amount).toBe("70000");
+    expect(dbState.setPayload).toMatchObject({
+      discount: "30000",
+      discount_source: "campaign",
+    });
+  });
+
+  it("refuses a second promo at the desk when one already printed", async () => {
+    // A cashier keying the campaign again at pickup — the customer produces the
+    // receipt, the cashier assumes nothing was applied. Stacking a second claim
+    // on top would double the discount and burn another code, so the desk says
+    // plainly that the number on the receipt is what to collect.
+    dbState.order = makeOrder({
+      discount: "30000",
+      discount_source: "campaign",
+    });
+
+    const error = await captureRejection(collect({ campaign_ids: [5] }));
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "This order's discount was settled at drop-off — collect the printed total"
+    );
+    expect(discount.calls).toHaveLength(0);
+    expect(redemptions.calls).toHaveLength(0);
   });
 
   it("runs the campaign base on the full total but keeps repair lines out of the BOGO slots", async () => {
