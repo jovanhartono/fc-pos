@@ -6,6 +6,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,12 @@ export function TransactionsCatalog() {
 	);
 	const activeServiceCategory = useTransactionsPageStore(
 		(state) => state.activeServiceCategory,
+	);
+	const setActiveProductCategory = useTransactionsPageStore(
+		(state) => state.setActiveProductCategory,
+	);
+	const setActiveServiceCategory = useTransactionsPageStore(
+		(state) => state.setActiveServiceCategory,
 	);
 
 	const categoriesQuery = useQuery(categoriesQueryOptions());
@@ -133,6 +140,32 @@ export function TransactionsCatalog() {
 	);
 
 	const activeItems = mode === "products" ? filteredProducts : filteredServices;
+
+	const modeItems = mode === "products" ? products : services;
+	const activeCategory =
+		mode === "products" ? activeProductCategory : activeServiceCategory;
+	const setActiveCategory =
+		mode === "products" ? setActiveProductCategory : setActiveServiceCategory;
+
+	// Counted off the whole catalog, never the search-narrowed list: a pill set
+	// that shrinks as you type can drop the pill you are filtering by.
+	const categoryOptions = useMemo(() => {
+		const byId = new Map<number, { id: number; name: string; count: number }>();
+		for (const item of modeItems) {
+			const seen = byId.get(item.category_id);
+			if (seen) {
+				seen.count += 1;
+				continue;
+			}
+			byId.set(item.category_id, {
+				id: item.category_id,
+				name: getEntityCategoryName(item, categoryMap),
+				count: 1,
+			});
+		}
+		return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+	}, [categoryMap, modeItems]);
+
 	const productCartQtyById = useMemo(
 		() => new Map(productCart.map((line) => [line.id, line.qty])),
 		[productCart],
@@ -212,6 +245,49 @@ export function TransactionsCatalog() {
 								</kbd>
 							</div>
 						</Field>
+
+						{/* Ten categories over 43 services never fit a phone row, so the
+						    strip scrolls and fades at the edge — same treatment as the
+						    /queue status chips. Hidden when the catalog has one category,
+						    because then the strip only ever says "All". */}
+						{categoryOptions.length > 1 ? (
+							<div className="-mx-1 overflow-x-auto pb-1 [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]">
+								<fieldset className="flex min-w-max gap-2 border-0 p-0 px-1 pr-8">
+									<legend className="sr-only">Filter by category</legend>
+									<Button
+										aria-pressed={activeCategory === "all"}
+										className="h-11 gap-1.5 px-3 text-sm"
+										onClick={() => setActiveCategory("all")}
+										type="button"
+										variant={activeCategory === "all" ? "default" : "outline"}
+									>
+										All
+										<span className="font-mono font-semibold tabular-nums">
+											{modeItems.length}
+										</span>
+									</Button>
+									{categoryOptions.map((category) => {
+										const isActive = activeCategory === category.id;
+
+										return (
+											<Button
+												aria-pressed={isActive}
+												className="h-11 gap-1.5 px-3 text-sm"
+												key={category.id}
+												onClick={() => setActiveCategory(category.id)}
+												type="button"
+												variant={isActive ? "default" : "outline"}
+											>
+												{category.name}
+												<span className="font-mono font-semibold tabular-nums">
+													{category.count}
+												</span>
+											</Button>
+										);
+									})}
+								</fieldset>
+							</div>
+						) : null}
 					</div>
 				</CardContent>
 			</Card>
