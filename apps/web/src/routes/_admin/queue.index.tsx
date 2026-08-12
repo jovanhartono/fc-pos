@@ -1,5 +1,6 @@
 import {
 	CaretRightIcon,
+	FlagIcon,
 	FunnelIcon,
 	MagnifyingGlassIcon,
 	ScanIcon,
@@ -34,7 +35,7 @@ import {
 	type QueueOrderServiceItem,
 	queryKeys,
 } from "@/lib/api";
-import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
+import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	meQueryOptions,
 	orderServiceQueueCountsQueryOptions,
@@ -54,9 +55,11 @@ const TERMINAL_QUEUE_STATUSES = new Set<QueueOrderServiceItem["status"]>([
 ]);
 
 const HOUR_MS = 3_600_000;
-const DAY_MS = 24 * HOUR_MS;
 
-type AgeTone = "clean" | "aging" | "late" | "overdue";
+// The turnaround the shop promises. One threshold, not a four-step ramp: an
+// amber-at-24h/red-at-72h scale paints a whole backlog the same colour, and a
+// list where every row is red says nothing. Matches PICKUP_OVERDUE_HOURS.
+const TURNAROUND_MS = 72 * HOUR_MS;
 
 function formatElapsedDuration(ms: number): string {
 	const totalMinutes = Math.floor(ms / 60_000);
@@ -69,33 +72,6 @@ function formatElapsedDuration(ms: number): string {
 	}
 	return `${Math.floor(totalHours / 24)}d`;
 }
-
-function getElapsedTone(ms: number): AgeTone {
-	if (ms < 2 * HOUR_MS) {
-		return "clean";
-	}
-	if (ms < DAY_MS) {
-		return "aging";
-	}
-	if (ms < 3 * DAY_MS) {
-		return "late";
-	}
-	return "overdue";
-}
-
-const AGE_STRIPE_CLASS: Record<AgeTone, string> = {
-	clean: "bg-border",
-	aging: "bg-info",
-	late: "bg-warning",
-	overdue: "bg-destructive",
-};
-
-const AGE_TEXT_CLASS: Record<AgeTone, string> = {
-	clean: "text-muted-foreground",
-	aging: "text-info",
-	late: "text-warning",
-	overdue: "text-destructive",
-};
 
 const queueSearchSchema = z.object({
 	storeId: z.coerce.number().int().positive().optional(),
@@ -514,7 +490,7 @@ function QueuePage() {
 					value={selectedStatus ?? "all"}
 				/>
 
-				<section className="grid gap-2">
+				<section className="grid min-w-0 gap-2">
 					{role === "admin" && parsedStoreId === undefined ? (
 						<div className="border border-dashed border-border px-4 py-8 text-center text-muted-foreground text-sm">
 							Select a store.
@@ -591,56 +567,68 @@ const QueueRow = memo(({ item, currentUserId, onOpen }: QueueRowProps) => {
 		0,
 		now - new Date(item.order_created_at).getTime(),
 	);
-	const tone = getElapsedTone(elapsedMs);
+	const isBreached = !isTerminal && elapsedMs >= TURNAROUND_MS;
 
 	const isHandledByCurrentUser =
 		currentUserId !== undefined && item.handler_id === currentUserId;
-	const isHandledByAnotherWorker =
-		item.handler_id !== null &&
-		item.handler_id !== undefined &&
-		!isHandledByCurrentUser;
-	const assignment = isHandledByCurrentUser
-		? "Assigned to me"
-		: isHandledByAnotherWorker
-			? `Assigned to ${item.handler_name ?? "worker"}`
-			: "Open";
+	const handler = isHandledByCurrentUser
+		? "Me"
+		: (item.handler_name ?? (item.handler_id === null ? null : "Worker"));
+
+	// Lead with whatever actually identifies the Item. Descriptors are optional at
+	// intake, so a fixed "descriptors on top" row shouts "No item details" at full
+	// weight and demotes the service — the only thing left that says anything.
+	const descriptors = getOrderServiceItemDetails(item);
+	const secondary = [descriptors ? item.service_name : null, handler]
+		.filter(Boolean)
+		.join(" · ");
 
 	return (
+		// min-w-0 at every level down to the truncating text: without it the row's
+		// min-content sizes the auto grid column, and the search field and status
+		// chips above — siblings in that same column — get pushed off screen.
 		<button
-			className="group flex items-stretch gap-0 border border-border bg-background text-left transition-colors hover:bg-muted/40"
+			className="group flex min-w-0 items-stretch gap-0 border border-border bg-background text-left transition-colors hover:bg-muted/40"
 			onClick={() => onOpen(item)}
 			type="button"
 		>
 			<span
 				aria-hidden="true"
-				className={cn("w-1 shrink-0", AGE_STRIPE_CLASS[tone])}
+				className={cn(
+					"w-1 shrink-0",
+					isBreached ? "bg-destructive" : "bg-border",
+				)}
 			/>
 			<span className="grid min-w-0 flex-1 gap-0.5 px-3 py-2.5">
-				<span className="flex items-baseline gap-2">
+				<span className="flex min-w-0 items-baseline gap-2">
+					{item.is_priority ? (
+						<FlagIcon
+							aria-label="Priority"
+							className="size-3.5 shrink-0 self-center text-warning"
+							weight="fill"
+						/>
+					) : null}
+					<span className="min-w-0 flex-1 truncate font-medium text-sm">
+						{descriptors ?? item.service_name}
+					</span>
 					<span
 						className={cn(
-							"w-10 shrink-0 font-mono font-semibold text-sm tabular-nums",
-							AGE_TEXT_CLASS[tone],
+							"shrink-0 font-mono font-semibold text-sm tabular-nums",
+							isBreached ? "text-destructive" : "text-muted-foreground",
 						)}
 					>
 						{isTerminal ? "—" : formatElapsedDuration(elapsedMs)}
-					</span>
-					<span className="min-w-0 flex-1 truncate font-mono font-semibold text-sm">
-						{item.item_code ?? `Service #${item.id}`}
 					</span>
 					<CaretRightIcon
 						className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
 						weight="bold"
 					/>
 				</span>
-				<span className="truncate pl-12 text-muted-foreground text-xs">
-					{`${item.service_name} · ${formatOrderServiceItemDetails(item)}`}
-				</span>
-				<span className="truncate pl-12 text-muted-foreground text-xs">
-					{item.is_priority ? (
-						<span className="font-medium text-warning">Priority · </span>
-					) : null}
-					{assignment}
+				<span className="flex min-w-0 items-baseline gap-2 text-muted-foreground text-xs">
+					<span className="min-w-0 flex-1 truncate">{secondary}</span>
+					<span className="shrink-0 font-mono text-[10px]">
+						{item.item_code ?? `#${item.id}`}
+					</span>
 				</span>
 			</span>
 		</button>
