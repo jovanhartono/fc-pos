@@ -24,6 +24,10 @@ import {
 import { cn } from "@/lib/utils";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
+// Shared between the hint element and the stepper's aria-describedby so the two
+// can't drift apart.
+const LOCKED_STEP_HINT_ID = "checkout-locked-step-hint";
+
 // Three-step POS checkout: Customer → Items → Payment. Body scrolls; the total +
 // primary action live in a pinned footer so they stay reachable on the iPad
 // sheet. Step is local state and resets to "customer" each time the sheet
@@ -63,6 +67,31 @@ export const TransactionsCheckout = () => {
 		return customerReady;
 	};
 
+	// Dimming a locked step says "not yet" but never says what to do about it.
+	// Name the locked steps and the field that clears the gate, in fix order —
+	// the same information the footer's Continue hint gives for the step the
+	// cashier is already on.
+	const lockedStepHint = (() => {
+		const locked = CHECKOUT_STEPS.filter(
+			(entry, index) => index > stepIndex && !isStepEnabled(entry.key),
+		);
+		if (locked.length === 0) {
+			return "";
+		}
+		const steps = locked.map((entry) => entry.label).join(" and ");
+		const verb = locked.length > 1 ? "unlock" : "unlocks";
+		if (!customerReady) {
+			return `${steps} ${verb} once you enter the customer name and phone.`;
+		}
+		const missing = [
+			count > 0 ? null : "an item",
+			dropoffPhoto ? null : "a drop-off photo",
+		]
+			.filter(Boolean)
+			.join(" and ");
+		return `${steps} ${verb} once you add ${missing}.`;
+	})();
+
 	const headingRef = useRef<HTMLHeadingElement>(null);
 
 	// Direction is a consequence of the navigation action — set alongside the
@@ -96,41 +125,49 @@ export const TransactionsCheckout = () => {
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
-			<SheetHeader className="flex-row items-center gap-3 border-b border-border/70">
+			<SheetHeader className="gap-2 border-b border-border/70">
 				<SheetTitle className="sr-only">Checkout</SheetTitle>
 				<SheetDescription className="sr-only">
 					Complete customer, items, and payment to create the order.
 				</SheetDescription>
-				<div className="min-w-0 flex-1">
-					<CheckoutStepper
-						current={step}
-						isStepEnabled={isStepEnabled}
-						onSelect={goToStep}
-					/>
+				<div className="flex flex-row items-center gap-3">
+					<div className="min-w-0 flex-1">
+						<CheckoutStepper
+							current={step}
+							isStepEnabled={isStepEnabled}
+							lockHintId={lockedStepHint ? LOCKED_STEP_HINT_ID : undefined}
+							onSelect={goToStep}
+						/>
+					</div>
+					<Button
+						className="h-11 shrink-0"
+						disabled={
+							count === 0 &&
+							!customerName &&
+							!customerPhone &&
+							selectedCampaignIds.length === 0 &&
+							!dropoffPhoto
+						}
+						icon={<TrashIcon className="size-4" />}
+						onClick={() => {
+							resetCart();
+							// Start over means start at step one — otherwise Reset on the
+							// Payment step strands the cashier there with everything cleared
+							// and a disabled Create Order.
+							goToStep("customer");
+						}}
+						size="sm"
+						type="button"
+						variant="outline"
+					>
+						Reset
+					</Button>
 				</div>
-				<Button
-					className="h-11 shrink-0"
-					disabled={
-						count === 0 &&
-						!customerName &&
-						!customerPhone &&
-						selectedCampaignIds.length === 0 &&
-						!dropoffPhoto
-					}
-					icon={<TrashIcon className="size-4" />}
-					onClick={() => {
-						resetCart();
-						// Start over means start at step one — otherwise Reset on the
-						// Payment step strands the cashier there with everything cleared
-						// and a disabled Create Order.
-						goToStep("customer");
-					}}
-					size="sm"
-					type="button"
-					variant="outline"
-				>
-					Reset
-				</Button>
+				{lockedStepHint ? (
+					<p className="text-muted-foreground text-xs" id={LOCKED_STEP_HINT_ID}>
+						{lockedStepHint}
+					</p>
+				) : null}
 			</SheetHeader>
 
 			<div className="min-h-0 flex-1 overflow-y-auto">

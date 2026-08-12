@@ -15,6 +15,7 @@ interface CheckoutStepperProps {
 	current: CheckoutStep;
 	onSelect: (step: CheckoutStep) => void;
 	isStepEnabled: (step: CheckoutStep) => boolean;
+	lockHintId?: string;
 }
 
 // Labeled progress header. New cashiers follow Continue; the labels say what's
@@ -25,27 +26,42 @@ export const CheckoutStepper = ({
 	current,
 	onSelect,
 	isStepEnabled,
+	lockHintId,
 }: CheckoutStepperProps) => {
 	const currentIndex = CHECKOUT_STEPS.findIndex((step) => step.key === current);
 
 	return (
-		<nav aria-label="Checkout steps" className="flex items-stretch gap-1">
+		<nav
+			aria-describedby={lockHintId}
+			aria-label="Checkout steps"
+			className="flex items-stretch gap-1"
+		>
 			{CHECKOUT_STEPS.map((step, index) => {
 				const isCurrent = step.key === current;
 				const isComplete = index < currentIndex;
+				// aria-disabled, not disabled: a `disabled` button drops out of the tab
+				// order, so the one control that could carry "why is this locked" became
+				// unreachable to a keyboard or screen reader. Locked steps stay
+				// focusable and point at the hint; the click is guarded instead.
+				const isLocked = !isStepEnabled(step.key);
 
 				return (
 					<button
 						aria-current={isCurrent ? "step" : undefined}
+						aria-disabled={isLocked || undefined}
 						className={cn(
-							"flex min-h-11 flex-1 items-center justify-center gap-2 border px-2 text-xs font-medium outline-none transition focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-40",
+							"flex min-h-11 flex-1 items-center justify-center gap-2 border px-2 text-xs font-medium outline-none transition focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
 							isCurrent
 								? "border-foreground bg-foreground text-background"
 								: "border-border/70 text-foreground/60 hover:bg-muted/40",
+							isLocked && "cursor-not-allowed opacity-40 hover:bg-transparent",
 						)}
-						disabled={!isStepEnabled(step.key)}
 						key={step.key}
-						onClick={() => onSelect(step.key)}
+						onClick={() => {
+							if (!isLocked) {
+								onSelect(step.key);
+							}
+						}}
 						type="button"
 					>
 						<span
