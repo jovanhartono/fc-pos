@@ -1,6 +1,11 @@
-import { CaretUpIcon, ShoppingCartIcon } from "@phosphor-icons/react";
+import {
+	CaretDownIcon,
+	CaretUpIcon,
+	ShoppingCartIcon,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/features/transactions/cart/useCart";
+import { CartLines } from "@/features/transactions/components/cart-lines";
 import { formatIDRCurrency } from "@/shared/utils";
 
 interface CartMiniBarProps {
@@ -26,11 +31,31 @@ export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
 					Select a store to check out.
 				</p>
 			)}
+
+			{/* Closed by default. Without it, dropping a mis-tapped line means keying
+			    a customer name and phone first, because the lines only exist on step
+			    two of the checkout. Capped height so an open cart cannot bury the
+			    catalog the cashier is still tapping. */}
+			<details className="group border border-border/70 bg-background">
+				<summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 hover:bg-muted/30 focus-visible:outline focus-visible:outline-1 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+					<span className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.18em]">
+						Cart
+					</span>
+					<CaretDownIcon
+						aria-hidden="true"
+						className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+					/>
+				</summary>
+				<div className="max-h-[40dvh] overflow-y-auto border-border/70 border-t px-3 py-2">
+					<CartLines />
+				</div>
+			</details>
+
 			<Button
-				type="button"
-				size="lg"
 				className="h-14 w-full justify-between gap-3"
 				onClick={onOpen}
+				size="lg"
+				type="button"
 			>
 				<span className="flex items-center gap-2">
 					<ShoppingCartIcon className="size-5" />

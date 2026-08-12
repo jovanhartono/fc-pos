@@ -1,16 +1,8 @@
 import { ShoppingCartIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import {
-	getServiceLinePrice,
-	type ServiceCartDisplayLine,
-} from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
-import { formatMoney, parseMoney } from "@/shared/money";
-
-const getServiceDescriptors = (line: ServiceCartDisplayLine): string[] =>
-	[line.brand, line.color, line.model, line.size]
-		.map((value) => value.trim())
-		.filter(Boolean);
+import { CartLines } from "@/features/transactions/components/cart-lines";
+import { formatMoney } from "@/shared/money";
 
 interface CartRailProps {
 	hasStore: boolean;
@@ -18,7 +10,7 @@ interface CartRailProps {
 }
 
 export const CartRail = ({ hasStore, onCheckout }: CartRailProps) => {
-	const { productRows, serviceRows, subtotal, count } = useCart();
+	const { subtotal, count } = useCart();
 
 	return (
 		<aside
@@ -40,66 +32,9 @@ export const CartRail = ({ hasStore, onCheckout }: CartRailProps) => {
 						Tap a service to start an order.
 					</p>
 				) : (
-					<ul className="grid gap-2 p-3">
-						{productRows.map((line) => (
-							<li
-								className="grid gap-0.5 border-border/70 border-b border-dashed pb-2 last:border-b-0"
-								key={`product-${line.id}`}
-							>
-								<div className="flex items-baseline justify-between gap-2">
-									<span className="min-w-0 truncate font-medium text-xs">
-										{line.qty} × {line.product.name}
-									</span>
-									<span className="shrink-0 font-mono text-[11px] tabular-nums">
-										{formatMoney(parseMoney(line.product.price) * line.qty)}
-									</span>
-								</div>
-							</li>
-						))}
-
-						{serviceRows.map((line, index) => {
-							const descriptors = getServiceDescriptors(line);
-							const isUnpriced =
-								line.service.price === null && getServiceLinePrice(line) <= 0;
-
-							return (
-								<li
-									className="grid gap-1 border-border/70 border-b border-dashed pb-2 last:border-b-0"
-									key={line.line_id}
-								>
-									<div className="flex items-baseline justify-between gap-2">
-										<span className="min-w-0 truncate font-medium text-xs">
-											{index + 1} · {line.service.name}
-										</span>
-										<span className="shrink-0 font-mono text-[11px] tabular-nums">
-											{formatMoney(getServiceLinePrice(line))}
-										</span>
-									</div>
-									<div className="flex flex-wrap gap-1">
-										{descriptors.length > 0 ? (
-											descriptors.map((value) => (
-												<span
-													className="border border-border/70 bg-background px-1.5 font-mono text-[10px] text-muted-foreground"
-													key={value}
-												>
-													{value}
-												</span>
-											))
-										) : (
-											<span className="font-mono text-[10px] text-muted-foreground">
-												No detail yet
-											</span>
-										)}
-										{isUnpriced ? (
-											<span className="border border-warning/50 bg-warning/10 px-1.5 font-mono text-[10px] text-warning">
-												No price yet
-											</span>
-										) : null}
-									</div>
-								</li>
-							);
-						})}
-					</ul>
+					<div className="p-3">
+						<CartLines />
+					</div>
 				)}
 			</div>
 
