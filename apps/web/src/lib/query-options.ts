@@ -23,6 +23,7 @@ import {
 	fetchMe,
 	fetchOrderCounts,
 	fetchOrderDetail,
+	fetchOrderServiceQueueCounts,
 	fetchOrdersFlowReport,
 	fetchOrdersPage,
 	fetchPaymentMethods,
@@ -97,6 +98,12 @@ export const ordersPageQueryOptions = (query?: FetchOrdersQuery) =>
 	queryOptions({
 		queryKey: queryKeys.orders(query),
 		queryFn: () => fetchOrdersPage(query),
+	});
+
+export const orderServiceQueueCountsQueryOptions = (storeId?: number) =>
+	queryOptions({
+		queryKey: queryKeys.orderServiceQueueCounts(storeId),
+		queryFn: () => fetchOrderServiceQueueCounts(storeId),
 	});
 
 export const orderCountsQueryOptions = (storeId?: number) =>

@@ -17,6 +17,7 @@ import {
   GETMyOrderServicesQuerySchema,
   GETOrderByItemCodeQuerySchema,
   GETOrderServiceByIdQuerySchema,
+  GETOrderServiceQueueCountsQuerySchema,
   GETOrderServiceQueueQuerySchema,
   orderServiceParamSchema,
   orderServicePhotoParamSchema,
@@ -53,6 +54,7 @@ import {
   getOrderServiceById,
   getOrderServiceByItemCode,
   getOrderServiceQueue,
+  getOrderServiceQueueCounts,
   startOrderServiceWork,
   updateOrderServiceHandler,
   updateOrderServiceStatus,
@@ -136,6 +138,16 @@ const app = new Hono<OrderAccessEnv>()
       const { items, meta } = await getOrderServiceQueue(user, query);
 
       return c.json(success(items, "Queue retrieved successfully", meta));
+    }
+  )
+  .get(
+    "/services/queue/counts",
+    zodValidator("query", GETOrderServiceQueueCountsQuerySchema),
+    async (c) => {
+      const user = c.get("jwtPayload");
+      const query = c.req.valid("query");
+
+      return c.json(success(await getOrderServiceQueueCounts(user, query)));
     }
   )
   .get(

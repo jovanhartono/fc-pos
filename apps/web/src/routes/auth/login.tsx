@@ -18,7 +18,7 @@ const loginSchema = z.object({
 
 const landingRouteForRole = (role?: string) => {
 	if (role === "worker") {
-		return "/worker" as const;
+		return "/queue" as const;
 	}
 	if (role === "cashier") {
 		return "/transactions" as const;

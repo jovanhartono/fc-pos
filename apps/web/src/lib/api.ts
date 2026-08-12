@@ -104,6 +104,9 @@ export type Order = InferResponseType<
 export type OrderListCounts = InferResponseType<
 	typeof rpc.api.admin.orders.counts.$get
 >["data"];
+export type OrderServiceQueueCounts = InferResponseType<
+	typeof rpc.api.admin.orders.services.queue.counts.$get
+>["data"];
 export type OrderDetail = InferResponseType<
 	(typeof rpc.api.admin.orders)[":id"]["$get"]
 >["data"];
@@ -484,6 +487,8 @@ export const queryKeys = {
 			"store_id" | "search" | "status" | "date_from" | "date_to"
 		>,
 	) => ["order-service-queue", query ?? {}] as const,
+	orderServiceQueueCounts: (storeId?: number) =>
+		["order-service-queue-counts", storeId ?? null] as const,
 	shifts: (query?: FetchShiftsQuery) => ["shifts", query ?? {}] as const,
 	shiftCurrent: ["shift-current"] as const,
 	reportOverview: (query: FetchReportOverviewQuery) =>
@@ -856,6 +861,16 @@ export async function fetchOrderServiceQueuePage(
 	);
 
 	return toPaginated(response);
+}
+
+export async function fetchOrderServiceQueueCounts(storeId?: number) {
+	const response = await parseResponse(
+		rpcWithAuth().api.admin.orders.services.queue.counts.$get({
+			query: storeId === undefined ? {} : { store_id: String(storeId) },
+		}),
+	);
+
+	return response.data;
 }
 
 export async function updateOrderServiceStatus(

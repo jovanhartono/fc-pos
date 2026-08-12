@@ -74,7 +74,7 @@ const workNavigation: NavItem[] = [
 		roles: ["admin", "cashier"],
 	},
 	{
-		to: "/worker",
+		to: "/queue",
 		label: "Queue",
 		icon: ScissorsIcon,
 		roles: ["admin", "cashier", "worker"],

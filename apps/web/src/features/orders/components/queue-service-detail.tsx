@@ -115,6 +115,11 @@ export function QueueServiceDetail({
 				queryKey: queryKeys.orderServiceQueue({ store_id: storeId }),
 			});
 		}
+		// Moving an item between statuses moves it between chips, so the numbers
+		// on the strip the worker just came from are already wrong.
+		await queryClient.invalidateQueries({
+			queryKey: ["order-service-queue-counts"],
+		});
 	};
 
 	const startWorkMutation = useMutation({
@@ -202,7 +207,7 @@ export function QueueServiceDetail({
 		<>
 			<div className="mb-5 flex items-start gap-3">
 				<Link
-					to="/worker"
+					to="/queue"
 					search={{ storeId: detail.store?.id }}
 					className="flex size-9 shrink-0 items-center justify-center border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 				>

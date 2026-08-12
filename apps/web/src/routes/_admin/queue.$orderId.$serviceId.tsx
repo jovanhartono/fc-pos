@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { QueueServiceDetail } from "@/features/orders/components/queue-service-detail";
 import { orderDetailQueryOptions } from "@/lib/query-options";
 
-export const Route = createFileRoute("/_admin/worker/$orderId/$serviceId")({
+export const Route = createFileRoute("/_admin/queue/$orderId/$serviceId")({
 	loader: async ({ context, params }) => {
 		const orderId = Number(params.orderId);
 
@@ -12,10 +12,10 @@ export const Route = createFileRoute("/_admin/worker/$orderId/$serviceId")({
 
 		await context.queryClient.ensureQueryData(orderDetailQueryOptions(orderId));
 	},
-	component: WorkerQueueDetailPage,
+	component: QueueDetailPage,
 });
 
-function WorkerQueueDetailPage() {
+function QueueDetailPage() {
 	const { orderId, serviceId } = Route.useParams();
 	const parsedOrderId = Number(orderId);
 	const parsedServiceId = Number(serviceId);

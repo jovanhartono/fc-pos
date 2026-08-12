@@ -22,6 +22,7 @@ import { BadRequestException, ForbiddenException } from "@/http-exceptions";
 import type { OrderTx } from "@/modules/orders/order.repository";
 import type {
   GetMyOrderServicesQuery,
+  GetOrderServiceQueueCountsQuery,
   GetOrderServiceQueueQuery,
   PatchOrderServiceHandlerInput,
   PatchOrderServiceStatusInput,
@@ -151,32 +152,17 @@ export async function getMyOrderServices(
     .orderBy(asc(ordersServicesTable.id));
 }
 
-export async function getOrderServiceQueue(
-  user: JWTPayload,
-  query?: GetOrderServiceQueueQuery
-) {
-  const normalized = normalizeOrderServiceQueueQuery(query);
-  const conditions = [
-    notInArray(ordersServicesTable.status, [
-      ...ORDER_TERMINAL_SERVICE_STATUSES,
-    ]),
-  ];
-
-  const scope = await resolveStoreScope(user, normalized.store_id);
+// Null means this account has no branch yet: an empty queue, not the company's.
+async function resolveQueueStoreCondition(user: JWTPayload, storeId?: number) {
+  const scope = await resolveStoreScope(user, storeId);
 
   switch (scope.kind) {
     case "one":
-      conditions.push(eq(ordersTable.store_id, scope.storeId));
-      break;
+      return eq(ordersTable.store_id, scope.storeId);
     case "some":
-      conditions.push(inArray(ordersTable.store_id, scope.storeIds));
-      break;
-    // A worker with no branch yet gets an empty page, not the company queue.
+      return inArray(ordersTable.store_id, scope.storeIds);
     case "none":
-      return {
-        items: [],
-        meta: buildPaginationMeta(0, normalized),
-      };
+      return null;
     // Unlike the other lists, an unscoped floor is useless here: every branch's
     // work in one queue is a list nobody can work from, so the admin must pick.
     case "all":
@@ -184,6 +170,31 @@ export async function getOrderServiceQueue(
     default:
       return unhandledStoreScope(scope);
   }
+}
+
+export async function getOrderServiceQueue(
+  user: JWTPayload,
+  query?: GetOrderServiceQueueQuery
+) {
+  const normalized = normalizeOrderServiceQueueQuery(query);
+  const storeCondition = await resolveQueueStoreCondition(
+    user,
+    normalized.store_id
+  );
+
+  if (storeCondition === null) {
+    return {
+      items: [],
+      meta: buildPaginationMeta(0, normalized),
+    };
+  }
+
+  const conditions = [
+    notInArray(ordersServicesTable.status, [
+      ...ORDER_TERMINAL_SERVICE_STATUSES,
+    ]),
+    storeCondition,
+  ];
 
   if (normalized.status !== undefined) {
     conditions.push(eq(ordersServicesTable.status, normalized.status));
@@ -270,6 +281,67 @@ export async function getOrderServiceQueue(
   return {
     items,
     meta: buildPaginationMeta(Number(countRows[0]?.total ?? 0), normalized),
+  };
+}
+
+const EMPTY_QUEUE_COUNTS = {
+  all: 0,
+  queued: 0,
+  processing: 0,
+  quality_check: 0,
+  qc_reject: 0,
+  ready_for_pickup: 0,
+};
+
+// How much work is sitting in each status right now, for the strip a worker
+// taps to filter by. Branch-scoped only: a count that also honoured the date
+// range would describe the page already on screen.
+export async function getOrderServiceQueueCounts(
+  user: JWTPayload,
+  query?: GetOrderServiceQueueCountsQuery
+) {
+  const storeCondition = await resolveQueueStoreCondition(
+    user,
+    query?.store_id
+  );
+
+  if (storeCondition === null) {
+    return EMPTY_QUEUE_COUNTS;
+  }
+
+  const rows = await db
+    .select({
+      status: ordersServicesTable.status,
+      total: sql<number>`count(*)`,
+    })
+    .from(ordersServicesTable)
+    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .where(
+      and(
+        notInArray(ordersServicesTable.status, [
+          ...ORDER_TERMINAL_SERVICE_STATUSES,
+        ]),
+        storeCondition
+      )
+    )
+    .groupBy(ordersServicesTable.status);
+
+  const totalByStatus = new Map(
+    rows.map((row) => [row.status, Number(row.total)])
+  );
+  const countOf = (status: OrderService["status"]) =>
+    totalByStatus.get(status) ?? 0;
+
+  // Spelled out rather than derived from the enum: a status added to the
+  // workshop has to be given a chip here on purpose, not silently counted
+  // into nothing.
+  return {
+    all: rows.reduce((sum, row) => sum + Number(row.total), 0),
+    queued: countOf("queued"),
+    processing: countOf("processing"),
+    quality_check: countOf("quality_check"),
+    qc_reject: countOf("qc_reject"),
+    ready_for_pickup: countOf("ready_for_pickup"),
   };
 }
 
