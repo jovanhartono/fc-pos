@@ -24,6 +24,39 @@ import { cn } from "@/lib/utils";
 import { formatIDRCurrency } from "@/shared/utils";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
+interface CategoryPillProps {
+	label: string;
+	isActive: boolean;
+	onSelect: () => void;
+	count?: number;
+}
+
+const CategoryPill = ({
+	label,
+	isActive,
+	onSelect,
+	count,
+}: CategoryPillProps) => (
+	<button
+		aria-pressed={isActive}
+		className={cn(
+			"flex min-h-8 items-baseline gap-1.5 border px-2 py-1 text-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
+			isActive
+				? "border-foreground bg-foreground text-background"
+				: "border-border/70 text-foreground/70 hover:bg-muted/40",
+		)}
+		onClick={onSelect}
+		type="button"
+	>
+		{label}
+		{count === undefined ? null : (
+			<span className="font-mono font-semibold text-[10px] tabular-nums">
+				{count}
+			</span>
+		)}
+	</button>
+);
+
 export function TransactionsCatalog() {
 	const { isAdmin, visibleStores, handleStoreChange } =
 		useTransactionsPageContext();
@@ -39,6 +72,12 @@ export function TransactionsCatalog() {
 	);
 	const activeServiceCategory = useTransactionsPageStore(
 		(state) => state.activeServiceCategory,
+	);
+	const setActiveProductCategory = useTransactionsPageStore(
+		(state) => state.setActiveProductCategory,
+	);
+	const setActiveServiceCategory = useTransactionsPageStore(
+		(state) => state.setActiveServiceCategory,
 	);
 
 	const categoriesQuery = useQuery(categoriesQueryOptions());
@@ -59,6 +98,7 @@ export function TransactionsCatalog() {
 	const selectedStoreId = useWatch({ control, name: "selectedStoreId" }) ?? "";
 	const storeError = formState.errors.selectedStoreId;
 	const productCart = useWatch({ control, name: "productCart" }) ?? [];
+	const serviceCart = useWatch({ control, name: "serviceCart" }) ?? [];
 
 	const categoryMap = useMemo(
 		() => new Map(categories.map((category) => [category.id, category])),
@@ -91,55 +131,72 @@ export function TransactionsCatalog() {
 		return () => window.removeEventListener("keydown", handleKeydown);
 	}, []);
 
-	const filteredProducts = useMemo(
+	const modeItems: (Product | Service)[] =
+		mode === "products" ? products : services;
+	const activeCategory =
+		mode === "products" ? activeProductCategory : activeServiceCategory;
+	const setActiveCategory =
+		mode === "products" ? setActiveProductCategory : setActiveServiceCategory;
+
+	// Counts come from the whole catalog, not the search-narrowed list: a pill set
+	// that shrinks as you type can drop the pill you filtered by, leaving no way
+	// back to All.
+	const categoryOptions = useMemo(() => {
+		const byId = new Map<number, { id: number; name: string; count: number }>();
+		for (const item of modeItems) {
+			const seen = byId.get(item.category_id);
+			if (seen) {
+				seen.count += 1;
+				continue;
+			}
+			byId.set(item.category_id, {
+				id: item.category_id,
+				name: getEntityCategoryName(item, categoryMap),
+				count: 1,
+			});
+		}
+		return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+	}, [categoryMap, modeItems]);
+
+	const activeItems = useMemo(
 		() =>
-			products.filter((product) => {
+			modeItems.filter((item) => {
+				if (activeCategory !== "all" && item.category_id !== activeCategory) {
+					return false;
+				}
+				if (searchValue.length === 0) {
+					return true;
+				}
 				const categoryName = getEntityCategoryName(
-					product,
+					item,
 					categoryMap,
 				).toLowerCase();
-				const matchesCategory =
-					activeProductCategory === "all" ||
-					product.category_id === activeProductCategory;
-				const matchesSearch =
-					searchValue.length === 0 ||
-					product.name.toLowerCase().includes(searchValue) ||
-					(product.description ?? "").toLowerCase().includes(searchValue) ||
-					categoryName.includes(searchValue);
-
-				return matchesCategory && matchesSearch;
+				return (
+					item.name.toLowerCase().includes(searchValue) ||
+					(item.description ?? "").toLowerCase().includes(searchValue) ||
+					categoryName.includes(searchValue)
+				);
 			}),
-		[activeProductCategory, categoryMap, products, searchValue],
-	);
-	const filteredServices = useMemo(
-		() =>
-			services.filter((service) => {
-				const categoryName = getEntityCategoryName(
-					service,
-					categoryMap,
-				).toLowerCase();
-				const matchesCategory =
-					activeServiceCategory === "all" ||
-					service.category_id === activeServiceCategory;
-				const matchesSearch =
-					searchValue.length === 0 ||
-					service.name.toLowerCase().includes(searchValue) ||
-					(service.description ?? "").toLowerCase().includes(searchValue) ||
-					categoryName.includes(searchValue);
-
-				return matchesCategory && matchesSearch;
-			}),
-		[activeServiceCategory, categoryMap, searchValue, services],
+		[activeCategory, categoryMap, modeItems, searchValue],
 	);
 
-	const activeItems = mode === "products" ? filteredProducts : filteredServices;
 	const productCartQtyById = useMemo(
 		() => new Map(productCart.map((line) => [line.id, line.qty])),
 		[productCart],
 	);
 
+	// Each service add creates its own cart line (one line = one Item), so the
+	// card's badge counts lines, not a qty field.
+	const serviceCartCountById = useMemo(() => {
+		const counts = new Map<number, number>();
+		for (const line of serviceCart) {
+			counts.set(line.id, (counts.get(line.id) ?? 0) + 1);
+		}
+		return counts;
+	}, [serviceCart]);
+
 	return (
-		<div className="grid gap-5 self-start xl:sticky xl:top-0">
+		<div className="grid gap-5 self-start">
 			<Card className="border-border/70">
 				<CardContent className="grid gap-4 p-4 sm:p-5">
 					<div className="grid gap-3">
@@ -210,17 +267,44 @@ export function TransactionsCatalog() {
 								</kbd>
 							</div>
 						</Field>
+
+						{/* One strip instead of the same category eyebrow repeated on all 43
+						    cards. A single category isn't a filter, so the strip only earns
+						    its row when there are at least two. */}
+						{categoryOptions.length > 1 ? (
+							<fieldset className="flex min-w-0 flex-wrap gap-1 border-0 p-0">
+								<legend className="sr-only">Filter by category</legend>
+								<CategoryPill
+									isActive={activeCategory === "all"}
+									label="All"
+									onSelect={() => setActiveCategory("all")}
+								/>
+								{categoryOptions.map((category) => (
+									<CategoryPill
+										count={category.count}
+										isActive={activeCategory === category.id}
+										key={category.id}
+										label={category.name}
+										onSelect={() => setActiveCategory(category.id)}
+									/>
+								))}
+							</fieldset>
+						) : null}
 					</div>
 				</CardContent>
 			</Card>
 
-			<div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+			{/* Two-up from the smallest width: one card per row put 43 services over
+			    6323px — about 7.5 phone screens to reach the last one. */}
+			<div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
 				{activeItems.map((item) => {
 					const isProduct = mode === "products";
 					const productCount = productCartQtyById.get(item.id) ?? 0;
 					const isOutOfStock =
 						isProduct && Number((item as Product).stock ?? 0) <= productCount;
-					const categoryName = getEntityCategoryName(item, categoryMap);
+					const inCartCount = isProduct
+						? productCount
+						: (serviceCartCountById.get(item.id) ?? 0);
 
 					return (
 						<Card
@@ -236,7 +320,7 @@ export function TransactionsCatalog() {
 								<button
 									type="button"
 									className={cn(
-										"flex h-full min-h-22 w-full flex-col gap-2 p-3 text-left outline-none transition active:scale-[0.97] focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
+										"relative flex h-full min-h-16 w-full flex-col gap-1 p-2.5 text-left outline-none transition active:scale-[0.97] focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
 										isProduct
 											? "hover:bg-muted/30 active:bg-muted/60"
 											: "hover:bg-background/80 active:bg-background/60",
@@ -250,15 +334,23 @@ export function TransactionsCatalog() {
 									disabled={isOutOfStock}
 									aria-label={`Add ${item.name}`}
 								>
-									{categoryName ? (
-										<span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-											{categoryName}
+									{/* Adding an item otherwise leaves no mark on the card it came
+									    from, so a cashier mid-intake can't tell what they have
+									    already put in the cart without opening it. */}
+									{inCartCount > 0 ? (
+										<span className="absolute top-0 right-0 grid size-5 place-items-center bg-foreground font-mono font-bold text-[10px] text-background tabular-nums">
+											{inCartCount}
 										</span>
 									) : null}
-									<p className="line-clamp-2 text-sm font-semibold leading-snug">
+									<p
+										className={cn(
+											"line-clamp-2 text-sm font-semibold leading-snug",
+											inCartCount > 0 && "pr-5",
+										)}
+									>
 										{item.name}
 									</p>
-									<p className="mt-auto font-mono text-sm font-semibold tabular-nums">
+									<p className="mt-auto font-mono text-xs font-semibold tabular-nums">
 										{/* No list price (ADR-0018): the cashier keys the number
 										    on the cart line if agreed, or leaves it blank until
 										    the workshop inspects the item. */}
