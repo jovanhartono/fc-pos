@@ -6,16 +6,12 @@ import { CartMiniBar } from "@/features/transactions/components/cart-mini-bar";
 import { CartRail } from "@/features/transactions/components/cart-rail";
 import { TransactionsCatalog } from "@/features/transactions/components/transactions-catalog";
 import { TransactionsCheckout } from "@/features/transactions/components/transactions-checkout";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 export function TransactionsWorkspace() {
 	const [cartSheetOpen, setCartSheetOpen] = useState(false);
 	const form = useFormContext<TransactionDraftValues>();
 	const selectedStoreId =
 		useWatch({ control: form.control, name: "selectedStoreId" }) ?? "";
-	// Must stay the same breakpoint as CartRail's xl, or the rail and the bottom
-	// sheet both show at once.
-	const isNarrow = useIsMobile(1280);
 
 	// The store scopes everything the checkout reads — campaigns, vouchers, the
 	// order itself — so a storeless checkout can only end in a rejected submit.
@@ -39,10 +35,13 @@ export function TransactionsWorkspace() {
 				<CartRail hasStore={!!selectedStoreId} onCheckout={handleOpenCart} />
 			</div>
 			<Sheet onOpenChange={setCartSheetOpen} open={cartSheetOpen}>
+				{/* Bottom at every width, never a right drawer: the item rows lay their
+				    descriptor fields out in two columns and the stepper needs the room,
+				    and a right sheet caps at max-w-sm. */}
 				<SheetContent
 					className="data-[side=bottom]:h-[92dvh]"
 					showCloseButton={false}
-					side={isNarrow ? "bottom" : "right"}
+					side="bottom"
 				>
 					<TransactionsCheckout />
 				</SheetContent>
