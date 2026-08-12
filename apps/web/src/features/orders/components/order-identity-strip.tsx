@@ -18,19 +18,12 @@ import {
 import { OpenComplaintForm } from "@/features/complaints/components/open-complaint-form";
 import { useOpenComplaintMutation } from "@/features/complaints/hooks/useComplaintMutations";
 import { OrderCourierForm } from "@/features/orders/components/order-courier-form";
-import {
-	CancelOrderForm,
-	RefundOrderForm,
-} from "@/features/orders/components/order-line-reversal-form";
+import { CancelOrderForm } from "@/features/orders/components/order-line-reversal-form";
 import { OrderPickupEventDialog } from "@/features/orders/components/order-pickup-event-dialog";
 import { PaymentStatusBadge } from "@/features/orders/components/payment-status-badge";
-import {
-	useCancelOrderMutation,
-	useRefundOrderMutation,
-} from "@/features/orders/hooks/useOrderMutations";
+import { useCancelOrderMutation } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
-import { buildRefundCaps } from "@/features/orders/lib/refund-preview";
 import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
 import { usePrintReceiptMutation } from "@/features/printing/hooks/usePrintReceipt";
 import type { OrderDetail } from "@/lib/api";
@@ -57,7 +50,6 @@ export const OrderIdentityStrip = ({
 	const openDialog = useDialog((s) => s.openDialog);
 	const closeDialog = useDialog((s) => s.closeDialog);
 	const cancelOrderMutation = useCancelOrderMutation(orderId);
-	const refundMutation = useRefundOrderMutation(orderId);
 	const openComplaintMutation = useOpenComplaintMutation(orderId);
 	const printReceiptMutation = usePrintReceiptMutation(orderId);
 
@@ -145,31 +137,6 @@ export const OrderIdentityStrip = ({
 		});
 	};
 
-	const openRefundOrderDialog = () => {
-		openDialog({
-			title: "Refund order",
-			description: "Select items to refund and provide reasons.",
-			contentClassName: "sm:max-w-xl",
-			content: () => (
-				<RefundOrderForm
-					capsByLineKey={buildRefundCaps(detail)}
-					closeDialog={closeDialog}
-					orderId={orderId}
-					refundableProducts={gates.refundableProducts.map((item) => ({
-						id: item.id,
-						name: item.product?.name ?? `Product #${item.product_id}`,
-						qty: item.qty,
-					}))}
-					refundableServices={gates.refundableServices.map((service) => ({
-						id: service.id,
-						item_code: service.item_code ?? null,
-					}))}
-					refundMutation={refundMutation}
-				/>
-			),
-		});
-	};
-
 	const openComplaintDialog = () => {
 		openDialog({
 			title: "Open complaint",
@@ -190,13 +157,14 @@ export const OrderIdentityStrip = ({
 		});
 	};
 
+	// Refund order now lives beside the money it reverses, in the payment column.
+	// It was the only irreversible entry in this menu, one item below a routine
+	// reprint with nothing between them.
 	const hasMenu =
 		Boolean(trackingUrl) ||
 		gates.canManageCourier ||
 		gates.canCancelOrder ||
-		gates.canRefundWholeOrder ||
 		gates.canOpenComplaint;
-	const showActions = readyCount > 0 || hasMenu;
 	const meta = [
 		detail.customer?.name,
 		detail.customer?.phone_number,
@@ -246,68 +214,63 @@ export const OrderIdentityStrip = ({
 						<p className="text-muted-foreground text-sm">{meta}</p>
 					</div>
 
-					{showActions ? (
-						<div className="flex shrink-0 items-center gap-2">
-							{renderPickupButton("hidden sm:inline-flex")}
-							{hasMenu ? (
-								<DropdownMenu>
-									<DropdownMenuTrigger
-										render={
-											<Button
-												aria-label="More actions"
-												icon={<DotsThreeVerticalIcon className="size-4" />}
-												size="icon"
-												variant="outline"
-											/>
-										}
-									/>
-									<DropdownMenuContent align="end" className="w-40">
-										<DropdownMenuItem
-											disabled={printReceiptMutation.isPending}
-											onClick={() => printReceiptMutation.mutate()}
-										>
-											<PrinterIcon className="size-4" />
-											Print receipt
+					<div className="flex shrink-0 items-center gap-2">
+						{renderPickupButton("hidden sm:inline-flex")}
+						{/* Reprinting a receipt is what the counter does most often at this
+						    desk — it belongs on the surface, not two taps down an
+						    unlabelled menu it shared with the refund. */}
+						<Button
+							icon={<PrinterIcon className="size-4" />}
+							loading={printReceiptMutation.isPending}
+							onClick={() => printReceiptMutation.mutate()}
+							type="button"
+							variant="outline"
+						>
+							Print
+						</Button>
+						{hasMenu ? (
+							<DropdownMenu>
+								<DropdownMenuTrigger
+									render={
+										<Button
+											aria-label="More actions"
+											icon={<DotsThreeVerticalIcon className="size-4" />}
+											size="icon"
+											variant="outline"
+										/>
+									}
+								/>
+								<DropdownMenuContent align="end" className="w-40">
+									{trackingUrl ? (
+										<DropdownMenuItem onClick={handleCopyTrackingLink}>
+											<LinkSimpleIcon className="size-4" />
+											Copy tracking link
 										</DropdownMenuItem>
-										{trackingUrl ? (
-											<DropdownMenuItem onClick={handleCopyTrackingLink}>
-												<LinkSimpleIcon className="size-4" />
-												Copy tracking link
-											</DropdownMenuItem>
-										) : null}
-										{gates.canManageCourier ? (
-											<DropdownMenuItem onClick={openCourierDialog}>
-												<TruckIcon className="size-4" />
-												Set courier
-											</DropdownMenuItem>
-										) : null}
-										{gates.canOpenComplaint ? (
-											<DropdownMenuItem onClick={openComplaintDialog}>
-												<WarningCircleIcon className="size-4" />
-												Open complaint
-											</DropdownMenuItem>
-										) : null}
-										{gates.canCancelOrder ? (
-											<DropdownMenuItem
-												onClick={openCancelOrderDialog}
-												variant="destructive"
-											>
-												Cancel order
-											</DropdownMenuItem>
-										) : null}
-										{gates.canRefundWholeOrder ? (
-											<DropdownMenuItem
-												onClick={openRefundOrderDialog}
-												variant="destructive"
-											>
-												Refund order
-											</DropdownMenuItem>
-										) : null}
-									</DropdownMenuContent>
-								</DropdownMenu>
-							) : null}
-						</div>
-					) : null}
+									) : null}
+									{gates.canManageCourier ? (
+										<DropdownMenuItem onClick={openCourierDialog}>
+											<TruckIcon className="size-4" />
+											Set courier
+										</DropdownMenuItem>
+									) : null}
+									{gates.canOpenComplaint ? (
+										<DropdownMenuItem onClick={openComplaintDialog}>
+											<WarningCircleIcon className="size-4" />
+											Open complaint
+										</DropdownMenuItem>
+									) : null}
+									{gates.canCancelOrder ? (
+										<DropdownMenuItem
+											onClick={openCancelOrderDialog}
+											variant="destructive"
+										>
+											Cancel order
+										</DropdownMenuItem>
+									) : null}
+								</DropdownMenuContent>
+							</DropdownMenu>
+						) : null}
+					</div>
 				</div>
 
 				{renderPickupButton("w-full sm:hidden")}

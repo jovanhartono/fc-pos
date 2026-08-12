@@ -123,21 +123,27 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 		<>
 			<OrderIdentityStrip detail={detail} gates={gates} orderId={id} />
 
-			<div className="grid gap-3 sm:gap-4">
+			{/* Two columns at xl: on a 1440 laptop the single stack put Payment
+			    below a 20-item Services list, so the one number the counter is
+			    asked for was a scroll away. Services keeps the wide track; money
+			    and photos ride alongside it. */}
+			<div className="grid items-start gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
 				<OrderLineItemsCard
 					detail={detail}
 					isAdmin={gates.isAdmin}
 					orderId={id}
 				/>
 
-				<OrderPaymentSection detail={detail} gates={gates} orderId={id} />
+				<div className="grid gap-3 sm:gap-4">
+					<OrderPaymentSection detail={detail} gates={gates} orderId={id} />
 
-				<OrderAttachmentsCard
-					canManageDropoff={gates.canManageDropoffPhoto}
-					onUploaded={refreshOrder}
-					order={detail}
-					pickupEvents={pickupEvents}
-				/>
+					<OrderAttachmentsCard
+						canManageDropoff={gates.canManageDropoffPhoto}
+						onUploaded={refreshOrder}
+						order={detail}
+						pickupEvents={pickupEvents}
+					/>
+				</div>
 			</div>
 		</>
 	);

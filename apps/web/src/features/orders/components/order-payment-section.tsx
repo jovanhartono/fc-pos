@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { OrderMoneySummary } from "@/features/orders/components/order-money-summary";
+import { OrderRefundAction } from "@/features/orders/components/order-refund-action";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { useOrderPaymentMutation } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
@@ -52,6 +53,7 @@ export const OrderPaymentSection = ({
 			<OrderMoneySummary detail={detail} />
 		</div>
 		<PaymentDetails detail={detail} gates={gates} orderId={orderId} />
+		<OrderRefundAction detail={detail} gates={gates} orderId={orderId} />
 	</Card>
 );
 
