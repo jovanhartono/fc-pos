@@ -27,10 +27,13 @@ export const QueueStatusTabs = ({
 	counts,
 	onValueChange,
 }: QueueStatusTabsProps) => (
-	<div className="-mx-1 overflow-x-auto pb-1">
+	// Six statuses never fit a phone, so the strip scrolls. The mask fades the
+	// last chip out instead of slicing it mid-word, which read as a broken
+	// layout rather than as "there is more this way".
+	<div className="-mx-1 overflow-x-auto pb-1 [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] sm:[mask-image:none]">
 		<div
 			aria-label="Queue status"
-			className="flex min-w-max gap-2 px-1"
+			className="flex min-w-max gap-2 px-1 pr-8 sm:pr-1"
 			role="tablist"
 		>
 			{STATUS_TAB_ITEMS.map((status) => {

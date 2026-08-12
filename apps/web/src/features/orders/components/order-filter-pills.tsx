@@ -47,9 +47,12 @@ const buildPills = (today: string): OrderFilterPill[] => [
 		label: "Unpaid",
 		patch: { ...CLEARED, paymentStatus: "unpaid" },
 	},
+	// "Ready for pickup" set in tracked uppercase is 17 characters and wraps the
+	// row onto a second line on a phone. The pill sits next to Overdue, which is
+	// the same shelf — "Ready" is not ambiguous here.
 	{
 		key: "ready_for_pickup",
-		label: "Ready for pickup",
+		label: "Ready",
 		patch: { ...CLEARED, status: "ready_for_pickup" },
 	},
 	{ key: "overdue", label: "Overdue", patch: { ...CLEARED, overdue: true } },
