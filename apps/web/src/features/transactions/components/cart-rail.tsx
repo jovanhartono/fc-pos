@@ -7,7 +7,6 @@ import {
 import { useCart } from "@/features/transactions/cart/useCart";
 import { formatMoney, parseMoney } from "@/shared/money";
 
-// The descriptors the cashier keyed, in the order they read them off the item.
 const getServiceDescriptors = (line: ServiceCartDisplayLine): string[] =>
 	[line.brand, line.color, line.model, line.size]
 		.map((value) => value.trim())
@@ -18,10 +17,6 @@ interface CartRailProps {
 	onCheckout: () => void;
 }
 
-// Standing cart, laptop only. Below xl the bottom sheet is the right pattern and
-// stays; at 1280+ the catalog and the cart could never be on screen together, so
-// adding a forgotten item meant closing the sheet and losing your place in a
-// 40-card grid. The running total and the thing being sold belong in one glance.
 export const CartRail = ({ hasStore, onCheckout }: CartRailProps) => {
 	const { productRows, serviceRows, subtotal, count } = useCart();
 
@@ -109,9 +104,8 @@ export const CartRail = ({ hasStore, onCheckout }: CartRailProps) => {
 			</div>
 
 			<div className="grid gap-2 border-border/70 border-t px-3 py-2.5">
-				{/* Subtotal, not Total: campaigns, vouchers and any manual discount are
-				    chosen in the checkout, so the number here is pre-discount and the
-				    footer's Total is the one the customer pays. */}
+				{/* Subtotal, never Total: discounts are chosen in the checkout, so this
+				    number is pre-discount and is not what the customer pays. */}
 				<div className="flex items-baseline justify-between gap-2">
 					<span className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.18em]">
 						Subtotal

@@ -138,9 +138,8 @@ export function TransactionsCatalog() {
 	const setActiveCategory =
 		mode === "products" ? setActiveProductCategory : setActiveServiceCategory;
 
-	// Counts come from the whole catalog, not the search-narrowed list: a pill set
-	// that shrinks as you type can drop the pill you filtered by, leaving no way
-	// back to All.
+	// Built from the whole catalog, never the search-narrowed list: a pill set that
+	// shrinks as you type can drop the pill you are filtering by.
 	const categoryOptions = useMemo(() => {
 		const byId = new Map<number, { id: number; name: string; count: number }>();
 		for (const item of modeItems) {
@@ -185,8 +184,7 @@ export function TransactionsCatalog() {
 		[productCart],
 	);
 
-	// Each service add creates its own cart line (one line = one Item), so the
-	// card's badge counts lines, not a qty field.
+	// One cart line per Item, so this counts lines — services have no qty field.
 	const serviceCartCountById = useMemo(() => {
 		const counts = new Map<number, number>();
 		for (const line of serviceCart) {
@@ -268,9 +266,6 @@ export function TransactionsCatalog() {
 							</div>
 						</Field>
 
-						{/* One strip instead of the same category eyebrow repeated on all 43
-						    cards. A single category isn't a filter, so the strip only earns
-						    its row when there are at least two. */}
 						{categoryOptions.length > 1 ? (
 							<fieldset className="flex min-w-0 flex-wrap gap-1 border-0 p-0">
 								<legend className="sr-only">Filter by category</legend>
@@ -294,8 +289,6 @@ export function TransactionsCatalog() {
 				</CardContent>
 			</Card>
 
-			{/* Two-up from the smallest width: one card per row put 43 services over
-			    6323px — about 7.5 phone screens to reach the last one. */}
 			<div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
 				{activeItems.map((item) => {
 					const isProduct = mode === "products";
@@ -334,9 +327,6 @@ export function TransactionsCatalog() {
 									disabled={isOutOfStock}
 									aria-label={`Add ${item.name}`}
 								>
-									{/* Adding an item otherwise leaves no mark on the card it came
-									    from, so a cashier mid-intake can't tell what they have
-									    already put in the cart without opening it. */}
 									{inCartCount > 0 ? (
 										<span className="absolute top-0 right-0 grid size-5 place-items-center bg-foreground font-mono font-bold text-[10px] text-background tabular-nums">
 											{inCartCount}

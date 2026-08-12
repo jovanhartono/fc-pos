@@ -15,9 +15,8 @@ export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
 		return null;
 	}
 
-	// Opaque surface, not a bare stack: the catalog scrolls underneath, and a
-	// transparent hint let service cards show through the one sentence that
-	// explains a blocked checkout.
+	// Keep the surface opaque: the catalog scrolls underneath, and a transparent
+	// bar let service cards show through the hint text.
 	return (
 		<div className="sticky bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-40 grid gap-1 border-border/70 border-t bg-background px-1 pt-2 pb-1 xl:hidden">
 			{/* Says up front why the bar won't open, so the block isn't a dead-end

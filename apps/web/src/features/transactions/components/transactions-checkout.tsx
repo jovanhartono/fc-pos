@@ -67,10 +67,6 @@ export const TransactionsCheckout = () => {
 		return customerReady;
 	};
 
-	// Dimming a locked step says "not yet" but never says what to do about it.
-	// Name the locked steps and the field that clears the gate, in fix order —
-	// the same information the footer's Continue hint gives for the step the
-	// cashier is already on.
 	const lockedStepHint = (() => {
 		const locked = CHECKOUT_STEPS.filter(
 			(entry, index) => index > stepIndex && !isStepEnabled(entry.key),
@@ -151,9 +147,8 @@ export const TransactionsCheckout = () => {
 						icon={<TrashIcon className="size-4" />}
 						onClick={() => {
 							resetCart();
-							// Start over means start at step one — otherwise Reset on the
-							// Payment step strands the cashier there with everything cleared
-							// and a disabled Create Order.
+							// Reset on the Payment step otherwise strands the cashier there
+							// with an empty cart and a disabled Create Order.
 							goToStep("customer");
 						}}
 						size="sm"

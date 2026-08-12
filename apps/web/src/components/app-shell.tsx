@@ -233,10 +233,6 @@ export function AppShell({ title, children }: AppShellProps) {
 	const navigate = useNavigate();
 	const clearToken = useAuthStore((state) => state.clearToken);
 	const user = getCurrentUser();
-	// Tablet landscape (1024) is the width where DataTable switches to the real
-	// table but a 256px sidebar still eats a quarter of the viewport, clipping the
-	// Orders money column. Start on the icon rail below xl and hand those ~200px
-	// to the table; toggling still wins, so this is only the opening position.
 	const startsCollapsed = useIsMobile(1280);
 	// Nav visibility follows the DB-fresh role from /admin/users/me, not the
 	// stale JWT claim — role changes apply without re-login.

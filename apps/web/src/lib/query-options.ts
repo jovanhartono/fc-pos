@@ -109,10 +109,7 @@ export const orderServiceQueueCountsQueryOptions = (storeId?: number) =>
 export const orderCountsQueryOptions = (storeId?: number) =>
 	queryOptions({
 		queryKey: queryKeys.orderCounts(storeId),
-		queryFn: () =>
-			fetchOrderCounts(
-				storeId === undefined ? undefined : { store_id: storeId },
-			),
+		queryFn: () => fetchOrderCounts(storeId),
 	});
 
 export const orderDetailQueryOptions = (id: number) =>

@@ -447,9 +447,6 @@ function QueuePage() {
 			/>
 
 			<div className="grid gap-3">
-				{/* One line, so the first queue row is above the fold on a phone. The
-				    old panel stacked a label, an input and two full-width buttons and
-				    pushed every item off screen. */}
 				<div className="flex items-center gap-2">
 					<Input
 						aria-label="Find by item code, order ID, or line ID"
@@ -533,10 +530,8 @@ function QueuePage() {
 						/>
 					))}
 
-					{/* isLoading, not isPending: with no store picked the query is
-					    disabled, and a disabled query stays pending forever — gating on
-					    isPending stacks four skeletons under "Select a store." that never
-					    resolve. */}
+					{/* isLoading, never isPending: with no store picked this query is
+					    disabled, and a disabled query stays pending forever. */}
 					{queueQuery.isLoading ? (
 						<div className="grid gap-2">
 							{Array.from({ length: 6 }, (_, index) => (
@@ -585,8 +580,6 @@ interface QueueRowProps {
 }
 
 const QueueRow = memo(({ item, currentUserId, onOpen }: QueueRowProps) => {
-	// One clock for the row, ticking a minute at a time: age is the whole point
-	// of the row, so a stale number is worse than the re-render.
 	const [now, setNow] = useState(() => Date.now());
 	useEffect(() => {
 		const interval = setInterval(() => setNow(Date.now()), 60_000);
@@ -618,8 +611,6 @@ const QueueRow = memo(({ item, currentUserId, onOpen }: QueueRowProps) => {
 			onClick={() => onOpen(item)}
 			type="button"
 		>
-			{/* The stripe is the triage signal — colour at the edge of every row
-			    reads down a list without stopping to parse a badge. */}
 			<span
 				aria-hidden="true"
 				className={cn("w-1 shrink-0", AGE_STRIPE_CLASS[tone])}

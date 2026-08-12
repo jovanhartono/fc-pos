@@ -57,9 +57,6 @@ export interface OrderListItem {
   discount: string;
   fulfillment: ReturnType<typeof summarizeOrderFulfillment>;
   id: number;
-  // What the customer will say at the counter — "the black Nikes, size 42" —
-  // taken from the first live Item on the Order. An Order named only by its
-  // Service reads "Repair · Repair" and identifies nothing.
   item_descriptors: string[];
   notes: string | null;
   payment_method_id: number | null;
@@ -85,9 +82,8 @@ interface FindOrdersResult {
   total: number;
 }
 
-// How long finished work may sit on the shelf before the counter should be
-// chasing the customer. Same 72h the workshop board paints red, so an aged Item
-// and an uncollected Order mean the same thing to whoever is looking.
+// Same 72h the queue paints red for an aged Item, so both screens agree on what
+// "late" means.
 const PICKUP_OVERDUE_HOURS = 72;
 
 function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
@@ -254,8 +250,7 @@ export async function findOrders(
             model: true,
             size: true,
           },
-          // Intake order, so the Item the counter keyed first is the one that
-          // names the Order.
+          // Intake order — item_descriptors below reads the first row.
           orderBy: { id: "asc" },
         });
 
@@ -274,8 +269,8 @@ export async function findOrders(
     current.push(row.status);
     groupedStatuses.set(row.order_id, current);
 
-    // First *described* live line wins, not simply the first: an Item keyed
-    // with nothing but its Service would otherwise blank the whole row.
+    // First *described* live line, not simply the first: an Item keyed with
+    // nothing but its Service would otherwise blank the whole row.
     if (row.status === "cancelled" || descriptorsByOrderId.has(row.order_id)) {
       continue;
     }
@@ -323,18 +318,18 @@ export async function findOrders(
   };
 }
 
-// Same predicate the list runs, without paging it — so a filter pill's count
-// and the total on the page it opens can never disagree.
-export function countOrders(
+// Counts by fetching ids rather than db.$count(), because $count() cannot take
+// the relational builder's object `where` — and reusing buildOrderWhere is what
+// keeps a pill's number equal to the total of the page it opens.
+export async function countOrders(
   filters: OrderListFilters,
   scopedStoreIds?: number[]
 ): Promise<number> {
-  return db.query.ordersTable
-    .findMany({
-      where: buildOrderWhere(filters, scopedStoreIds),
-      columns: { id: true },
-    })
-    .then((rows) => rows.length);
+  const rows = await db.query.ordersTable.findMany({
+    where: buildOrderWhere(filters, scopedStoreIds),
+    columns: { id: true },
+  });
+  return rows.length;
 }
 
 export async function reserveNextOrderNumber(

@@ -78,9 +78,6 @@ export const CheckoutItemsStep = () => {
 
 	return (
 		<div className="grid gap-5">
-			{/* Above the items, not below them: this is the control that satisfies
-			    Continue's "Add a drop-off photo" gate, and with three items expanded it
-			    used to sit ~1000px further down with nothing pointing at it. */}
 			<CheckoutDropoffPhotoField />
 
 			<div className="grid gap-3">
@@ -202,12 +199,6 @@ interface CheckoutServiceLineRowProps {
 	) => void;
 }
 
-// One Item, collapsed to a row. Every descriptor here is optional, so five
-// expanded fields per item turned a realistic five-pair intake into 25 empty
-// inputs and pushed the photo control off screen. The summary carries what the
-// cashier reads back to the customer — the number that tells two identical
-// services apart, the descriptors already keyed, and whether the line is still
-// unpriced — and the fields open on demand.
 const CheckoutServiceLineRow = ({
 	line,
 	itemNumber,
@@ -218,8 +209,6 @@ const CheckoutServiceLineRow = ({
 	const descriptors = [line.brand, line.color, line.model, line.size]
 		.map((value) => value.trim())
 		.filter(Boolean);
-	// A no-list-price line left blank is normal (ADR-0018), but collapsing the
-	// price field would hide that state — so it becomes a chip.
 	const isUnpriced =
 		line.service.price === null && getServiceLinePrice(line) <= 0;
 
@@ -301,9 +290,8 @@ const CheckoutServiceLineRow = ({
 					))}
 				</div>
 				{line.service.price === null ? (
-					// No-list-price Service (Repair, ADR-0018): the price is keyed here
-					// when the customer already agreed to a number, and left blank when
-					// the workshop still has to inspect the item.
+					// Blank is a valid answer here, not a missing one: a Repair is priced
+					// after inspection (ADR-0018).
 					<Field>
 						<FieldLabel htmlFor={`service-price-${line.line_id}`}>
 							Price

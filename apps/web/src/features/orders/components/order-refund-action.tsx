@@ -12,10 +12,6 @@ interface OrderRefundActionProps {
 	gates: OrderActionGates;
 }
 
-// Refunding is the one thing at this desk that moves money back out, and it
-// reads the same numbers the payment card shows — so it sits under them,
-// bordered and destructive, rather than one line below "Print receipt" in a
-// menu where a mis-tap costs a reversal.
 export const OrderRefundAction = ({
 	orderId,
 	detail,

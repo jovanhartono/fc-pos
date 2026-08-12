@@ -152,7 +152,7 @@ export async function getMyOrderServices(
     .orderBy(asc(ordersServicesTable.id));
 }
 
-// Null means this account has no branch yet: an empty queue, not the company's.
+// Null means "no branch assigned" — an empty queue, not an unscoped one.
 async function resolveQueueStoreCondition(user: JWTPayload, storeId?: number) {
   const scope = await resolveStoreScope(user, storeId);
 
@@ -163,8 +163,6 @@ async function resolveQueueStoreCondition(user: JWTPayload, storeId?: number) {
       return inArray(ordersTable.store_id, scope.storeIds);
     case "none":
       return null;
-    // Unlike the other lists, an unscoped floor is useless here: every branch's
-    // work in one queue is a list nobody can work from, so the admin must pick.
     case "all":
       throw new BadRequestException("Store is required for admin queue access");
     default:
@@ -293,9 +291,8 @@ const EMPTY_QUEUE_COUNTS = {
   ready_for_pickup: 0,
 };
 
-// How much work is sitting in each status right now, for the strip a worker
-// taps to filter by. Branch-scoped only: a count that also honoured the date
-// range would describe the page already on screen.
+// Branch-scoped only, deliberately: honouring the date range too would just
+// count what is already on screen.
 export async function getOrderServiceQueueCounts(
   user: JWTPayload,
   query?: GetOrderServiceQueueCountsQuery
@@ -332,9 +329,8 @@ export async function getOrderServiceQueueCounts(
   const countOf = (status: OrderService["status"]) =>
     totalByStatus.get(status) ?? 0;
 
-  // Spelled out rather than derived from the enum: a status added to the
-  // workshop has to be given a chip here on purpose, not silently counted
-  // into nothing.
+  // Listed by hand, not mapped over the enum: a new workshop status must be
+  // given a chip on purpose rather than counted into nothing.
   return {
     all: rows.reduce((sum, row) => sum + Number(row.total), 0),
     queued: countOf("queued"),

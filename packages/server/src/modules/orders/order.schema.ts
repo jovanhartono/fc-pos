@@ -15,9 +15,7 @@ export const GETOrdersQuerySchema = z
     status: z.enum(orderStatusEnum.enumValues).optional(),
     payment_status: z.enum(orderPaymentStatusEnum.enumValues).optional(),
 
-    // Finished work nobody has collected. Not a status of its own — it is
-    // ready_for_pickup that has aged past the shelf window, and the counter
-    // needs it as one click because chasing those customers is the job.
+    // Not a status of its own: ready_for_pickup aged past the shelf window.
     overdue: z.stringbool().optional(),
 
     customer_id: z.coerce.number().int().positive().optional(),
@@ -44,9 +42,8 @@ export const GETOrdersQuerySchema = z
 export type GetOrdersQuery = z.infer<typeof GETOrdersQuerySchema>;
 type ParsedOrdersQuery = NonNullable<GetOrdersQuery>;
 
-// The counts behind the list's filter pills. Only the branch narrows them: a
-// pill set that also honoured the active status or date would count what is
-// already on screen, and the point of the row is what you are not looking at.
+// Branch-scoped only, deliberately: a pill set that honoured the active status
+// or date would count what is already on screen.
 export const GETOrderCountsQuerySchema = z
   .object({
     store_id: z.coerce.number().int().positive().optional(),
@@ -72,8 +69,6 @@ export interface NormalizedOrderListQuery {
   store_id?: number;
 }
 
-// Everything that narrows which orders match, with nothing about which page of
-// them to return — what a count needs and a list needs the rest of.
 export type OrderListFilters = Omit<
   NormalizedOrderListQuery,
   "limit" | "offset" | "sort_by" | "sort_order"

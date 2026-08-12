@@ -4,9 +4,8 @@ import type { OrderFilterValues } from "@/features/orders/components/order-filte
 import type { OrderListCounts } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-// Every pill owns the same five fields, so switching from Unpaid to Overdue
-// cannot leave the payment filter behind — the pill you can see is the whole
-// filter that is applied.
+// Every pill patches all five, so switching from Unpaid to Overdue cannot leave
+// the payment filter behind.
 const PILL_FIELDS = [
 	"status",
 	"paymentStatus",
@@ -29,8 +28,8 @@ const CLEARED: OrderFilterPillPatch = {
 };
 
 interface OrderFilterPill {
-	// Doubles as the counts key — a pill can't show a number that belongs to a
-	// different question than the one it filters by.
+	// Doubles as the counts key, so a pill cannot show a number for one question
+	// while filtering by another.
 	key: keyof OrderListCounts;
 	label: string;
 	patch: OrderFilterPillPatch;
@@ -65,10 +64,6 @@ interface OrderFilterPillsProps {
 	onChange: (patch: Partial<OrderFilterValues>) => void;
 }
 
-// The counts are the filters. Four controls that all read "All …" say nothing
-// until someone operates them, so the one fact worth acting on — three orders
-// nobody has collected — was invisible until you went looking. Now it is the
-// first thing on the page, and clicking it is the filter.
 export const OrderFilterPills = ({
 	values,
 	counts,
@@ -82,9 +77,6 @@ export const OrderFilterPills = ({
 			{pills.map((pill) => {
 				const isActive = isPillActive(pill.patch, values);
 				const count = counts?.[pill.key];
-				// Overdue earns its colour only when there is something to chase, and
-				// only while it isn't the filter — an active pill reads as selected,
-				// not as an alarm.
 				const isAlarm = pill.key === "overdue" && !isActive && !!count;
 
 				return (

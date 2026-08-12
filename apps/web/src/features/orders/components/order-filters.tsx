@@ -88,9 +88,8 @@ export const OrderFilters = ({
 	const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 	const isAdmin = role === "admin";
 
-	// Status and payment live in the pills now, so they are not counted here and
-	// Clear all leaves them alone — clearing the dialog must not silently undo
-	// the pill the user can see selected above it.
+	// Status and payment belong to the pills, so this dialog neither counts nor
+	// clears them: Clear all must not undo the pill selected above it.
 	const activeCount =
 		(values.dateFrom || values.dateTo ? 1 : 0) +
 		(isAdmin && values.storeId ? 1 : 0);

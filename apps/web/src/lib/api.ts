@@ -281,10 +281,6 @@ export type FetchOrdersQuery = {
 	date_to?: string;
 };
 
-export type FetchOrderCountsQuery = {
-	store_id?: number;
-};
-
 export type FetchOrderServiceQueueQuery = {
 	limit?: number;
 	offset?: number;
@@ -613,10 +609,10 @@ export async function fetchOrdersPage(
 	return toPaginated(response);
 }
 
-export async function fetchOrderCounts(query?: FetchOrderCountsQuery) {
+export async function fetchOrderCounts(storeId?: number) {
 	const response = await parseResponse(
 		rpcWithAuth().api.admin.orders.counts.$get({
-			query: query ? toSearchParams(query) : undefined,
+			query: toSearchParams({ store_id: storeId }),
 		}),
 	);
 
@@ -866,7 +862,7 @@ export async function fetchOrderServiceQueuePage(
 export async function fetchOrderServiceQueueCounts(storeId?: number) {
 	const response = await parseResponse(
 		rpcWithAuth().api.admin.orders.services.queue.counts.$get({
-			query: storeId === undefined ? {} : { store_id: String(storeId) },
+			query: toSearchParams({ store_id: storeId }),
 		}),
 	);
 

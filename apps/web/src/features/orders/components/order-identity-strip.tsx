@@ -157,9 +157,6 @@ export const OrderIdentityStrip = ({
 		});
 	};
 
-	// Refund order now lives beside the money it reverses, in the payment column.
-	// It was the only irreversible entry in this menu, one item below a routine
-	// reprint with nothing between them.
 	const hasMenu =
 		Boolean(trackingUrl) ||
 		gates.canManageCourier ||
@@ -216,9 +213,6 @@ export const OrderIdentityStrip = ({
 
 					<div className="flex shrink-0 items-center gap-2">
 						{renderPickupButton("hidden sm:inline-flex")}
-						{/* Reprinting a receipt is what the counter does most often at this
-						    desk — it belongs on the surface, not two taps down an
-						    unlabelled menu it shared with the refund. */}
 						<Button
 							icon={<PrinterIcon className="size-4" />}
 							loading={printReceiptMutation.isPending}

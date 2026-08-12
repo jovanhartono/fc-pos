@@ -116,8 +116,7 @@ const app = new Hono<OrderAccessEnv>()
 
     return c.json(success(items, undefined, meta));
   })
-  // Ahead of /:id, like /services/queue: "counts" is not an order number, and
-  // the router matches on registration order.
+  // Must stay ahead of /:id — the router matches on registration order.
   .get(
     "/counts",
     zodValidator("query", GETOrderCountsQuerySchema),

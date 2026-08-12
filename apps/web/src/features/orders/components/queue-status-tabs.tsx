@@ -4,7 +4,6 @@ import {
 	ACTIVE_ORDER_SERVICE_STATUSES,
 	formatOrderServiceStatus,
 } from "@/lib/status";
-import { cn } from "@/lib/utils";
 
 const STATUS_TAB_ITEMS: {
 	value: "all" | (typeof ACTIVE_ORDER_SERVICE_STATUSES)[number];
@@ -21,16 +20,14 @@ interface QueueStatusTabsProps {
 	value: string;
 	counts?: OrderServiceQueueCounts;
 	onValueChange: (value: string) => void;
-	className?: string;
 }
 
 export const QueueStatusTabs = ({
 	value,
 	counts,
 	onValueChange,
-	className,
 }: QueueStatusTabsProps) => (
-	<div className={cn("-mx-1 overflow-x-auto pb-1", className)}>
+	<div className="-mx-1 overflow-x-auto pb-1">
 		<div
 			aria-label="Queue status"
 			className="flex min-w-max gap-2 px-1"

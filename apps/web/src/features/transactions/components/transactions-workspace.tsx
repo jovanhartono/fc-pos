@@ -13,9 +13,8 @@ export function TransactionsWorkspace() {
 	const form = useFormContext<TransactionDraftValues>();
 	const selectedStoreId =
 		useWatch({ control: form.control, name: "selectedStoreId" }) ?? "";
-	// Same 1280 boundary the cart rail uses: where the rail is standing, the
-	// checkout comes in from the side so the catalog it used to bury stays on
-	// screen. Below that the bottom sheet is the right pattern and keeps it.
+	// Must stay the same breakpoint as CartRail's xl, or the rail and the bottom
+	// sheet both show at once.
 	const isNarrow = useIsMobile(1280);
 
 	// The store scopes everything the checkout reads — campaigns, vouchers, the

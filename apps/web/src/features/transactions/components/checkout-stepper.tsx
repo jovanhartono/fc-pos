@@ -39,10 +39,8 @@ export const CheckoutStepper = ({
 			{CHECKOUT_STEPS.map((step, index) => {
 				const isCurrent = step.key === current;
 				const isComplete = index < currentIndex;
-				// aria-disabled, not disabled: a `disabled` button drops out of the tab
-				// order, so the one control that could carry "why is this locked" became
-				// unreachable to a keyboard or screen reader. Locked steps stay
-				// focusable and point at the hint; the click is guarded instead.
+				// aria-disabled, never disabled: a `disabled` button leaves the tab order,
+				// taking the hint that explains the lock out of reach. Guard the click.
 				const isLocked = !isStepEnabled(step.key);
 
 				return (

@@ -164,8 +164,8 @@ function OrdersPage() {
 		enabled: role === "admin" ? true : parsedStoreId !== undefined,
 	});
 
-	// Same gate as the list: pills that counted branches the list refuses to show
-	// would be a triage row for someone else's orders.
+	// Must stay the same gate as the list, or the pills count branches the list
+	// below them refuses to show.
 	const orderCountsQuery = useQuery({
 		...orderCountsQueryOptions(parsedStoreId),
 		enabled: role === "admin" ? true : parsedStoreId !== undefined,
@@ -227,9 +227,6 @@ function OrdersPage() {
 				accessorKey: "customer_name",
 				header: "Customer",
 				meta: {
-					// Subtitle, not a detail cell: the name is what people search by, and
-					// it used to be the last thing on a phone card, boxed in below the
-					// badges with the fields nobody scans for.
 					mobileCard: {
 						slot: "subtitle",
 					},
@@ -239,8 +236,6 @@ function OrdersPage() {
 						<span className="truncate font-medium">
 							{row.original.customer_name}
 						</span>
-						{/* What the customer says at the counter — "the black Nikes" — is
-						    the only way to tell two Repair orders apart. */}
 						{row.original.item_descriptors.length > 0 ? (
 							<span className="flex min-w-0 flex-wrap gap-1">
 								{row.original.item_descriptors.map((descriptor) => (

@@ -115,8 +115,6 @@ export function QueueServiceDetail({
 				queryKey: queryKeys.orderServiceQueue({ store_id: storeId }),
 			});
 		}
-		// Moving an item between statuses moves it between chips, so the numbers
-		// on the strip the worker just came from are already wrong.
 		await queryClient.invalidateQueries({
 			queryKey: ["order-service-queue-counts"],
 		});

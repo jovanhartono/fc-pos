@@ -216,9 +216,6 @@ export const DataTableCards = <TData extends RowData>({
 										)}
 									</div>
 								) : null}
-								{/* Directly under the title, above the badges: a field people
-								    search by (the customer's name) cannot be the last thing
-								    on the card, boxed in with the low-frequency detail. */}
 								{subtitleCells.map((cell) => {
 									const mobileCard = cell.column.columnDef.meta?.mobileCard;
 									return (
