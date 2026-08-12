@@ -123,23 +123,21 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 		<>
 			<OrderIdentityStrip detail={detail} gates={gates} orderId={id} />
 
-			<div className="grid items-start gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+			<div className="grid gap-3 sm:gap-4">
 				<OrderLineItemsCard
 					detail={detail}
 					isAdmin={gates.isAdmin}
 					orderId={id}
 				/>
 
-				<div className="grid gap-3 sm:gap-4">
-					<OrderPaymentSection detail={detail} gates={gates} orderId={id} />
+				<OrderPaymentSection detail={detail} gates={gates} orderId={id} />
 
-					<OrderAttachmentsCard
-						canManageDropoff={gates.canManageDropoffPhoto}
-						onUploaded={refreshOrder}
-						order={detail}
-						pickupEvents={pickupEvents}
-					/>
-				</div>
+				<OrderAttachmentsCard
+					canManageDropoff={gates.canManageDropoffPhoto}
+					onUploaded={refreshOrder}
+					order={detail}
+					pickupEvents={pickupEvents}
+				/>
 			</div>
 		</>
 	);
