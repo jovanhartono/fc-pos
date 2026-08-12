@@ -1,5 +1,6 @@
 import {
 	CameraIcon,
+	CaretDownIcon,
 	CheckCircleIcon,
 	EyeIcon,
 	WarningIcon,
@@ -22,6 +23,7 @@ import { PhotoLightbox } from "@/features/orders/components/photo-lightbox";
 import { SinglePhotoCaptureDialog } from "@/features/orders/components/photo-upload-dialog";
 import {
 	getServiceLinePrice,
+	type ServiceCartDisplayLine,
 	type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
@@ -76,6 +78,11 @@ export const CheckoutItemsStep = () => {
 
 	return (
 		<div className="grid gap-5">
+			{/* Above the items, not below them: this is the control that satisfies
+			    Continue's "Add a drop-off photo" gate, and with three items expanded it
+			    used to sit ~1000px further down with nothing pointing at it. */}
+			<CheckoutDropoffPhotoField />
+
 			<div className="grid gap-3">
 				{productRows.length === 0 && serviceRows.length === 0 ? (
 					<div className="border border-dashed border-border p-4 text-sm text-muted-foreground">
@@ -151,78 +158,15 @@ export const CheckoutItemsStep = () => {
 					</div>
 				))}
 
-				{serviceRows.map((line) => (
-					<div
-						className="grid gap-3 border border-border/70 p-3"
+				{serviceRows.map((line, index) => (
+					<CheckoutServiceLineRow
+						categoryName={getEntityCategoryName(line.service, categoryMap)}
+						itemNumber={index + 1}
 						key={line.line_id}
-					>
-						<div className="flex items-start justify-between gap-3">
-							<div>
-								<p className="text-sm font-medium">{line.service.name}</p>
-								<p className="text-xs text-muted-foreground">
-									Service | {getEntityCategoryName(line.service, categoryMap)}
-								</p>
-							</div>
-							<Button
-								aria-label={`Remove ${line.service.name}`}
-								className="size-11"
-								icon={<XIcon className="size-4" />}
-								onClick={() => removeService(line.line_id)}
-								size="icon-xs"
-								type="button"
-								variant="outline"
-							/>
-						</div>
-						<div className="grid gap-3 sm:grid-cols-2">
-							{SERVICE_FIELDS.map((field) => (
-								<Field className={field.className} key={field.key}>
-									<FieldLabel htmlFor={`service-${field.key}-${line.line_id}`}>
-										{field.label}
-									</FieldLabel>
-									<Input
-										className="h-11"
-										id={`service-${field.key}-${line.line_id}`}
-										onChange={(event) =>
-											updateServiceField(
-												line.line_id,
-												field.key,
-												event.target.value,
-											)
-										}
-										placeholder={field.placeholder}
-										value={line[field.key]}
-									/>
-								</Field>
-							))}
-						</div>
-						{line.service.price === null ? (
-							// No-list-price Service (Repair, ADR-0018): the price is keyed
-							// here when the customer already agreed to a number, and left
-							// blank when the workshop still has to inspect the item.
-							<Field>
-								<FieldLabel htmlFor={`service-price-${line.line_id}`}>
-									Price
-								</FieldLabel>
-								<CurrencyInput
-									id={`service-price-${line.line_id}`}
-									onValueChange={(value) =>
-										updateServiceField(line.line_id, "price", value)
-									}
-									value={line.price}
-								/>
-								<FieldDescription>
-									{line.price.trim() === ""
-										? "No price yet — payment waits until this line is priced after inspection."
-										: "Agreed price. Can be corrected until the order is paid."}
-								</FieldDescription>
-							</Field>
-						) : null}
-						<div className="flex items-center justify-end gap-3">
-							<p className="text-sm font-semibold">
-								{formatMoney(getServiceLinePrice(line))}
-							</p>
-						</div>
-					</div>
+						line={line}
+						onFieldChange={updateServiceField}
+						onRemove={removeService}
+					/>
 				))}
 			</div>
 
@@ -242,9 +186,144 @@ export const CheckoutItemsStep = () => {
 					</Field>
 				)}
 			/>
-
-			<CheckoutDropoffPhotoField />
 		</div>
+	);
+};
+
+interface CheckoutServiceLineRowProps {
+	line: ServiceCartDisplayLine;
+	itemNumber: number;
+	categoryName: string;
+	onRemove: (lineId: string) => void;
+	onFieldChange: (
+		lineId: string,
+		field: ServiceFieldSpec["key"] | "price",
+		value: string,
+	) => void;
+}
+
+// One Item, collapsed to a row. Every descriptor here is optional, so five
+// expanded fields per item turned a realistic five-pair intake into 25 empty
+// inputs and pushed the photo control off screen. The summary carries what the
+// cashier reads back to the customer — the number that tells two identical
+// services apart, the descriptors already keyed, and whether the line is still
+// unpriced — and the fields open on demand.
+const CheckoutServiceLineRow = ({
+	line,
+	itemNumber,
+	categoryName,
+	onRemove,
+	onFieldChange,
+}: CheckoutServiceLineRowProps) => {
+	const descriptors = [line.brand, line.color, line.model, line.size]
+		.map((value) => value.trim())
+		.filter(Boolean);
+	// A no-list-price line left blank is normal (ADR-0018), but collapsing the
+	// price field would hide that state — so it becomes a chip.
+	const isUnpriced =
+		line.service.price === null && getServiceLinePrice(line) <= 0;
+
+	return (
+		<details className="group relative border border-border/70">
+			<summary className="flex cursor-pointer list-none items-start gap-3 p-3 hover:bg-muted/30 focus-visible:outline focus-visible:outline-1 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+				<span className="mt-0.5 shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums">
+					{itemNumber}
+				</span>
+				<span className="grid min-w-0 flex-1 gap-1">
+					<span className="flex min-w-0 items-baseline gap-1.5">
+						<span className="truncate text-sm font-medium">
+							{line.service.name}
+						</span>
+						<span className="shrink-0 text-muted-foreground text-xs">
+							{categoryName}
+						</span>
+					</span>
+					<span className="flex flex-wrap gap-1">
+						{descriptors.length > 0 ? (
+							descriptors.map((value) => (
+								<span
+									className="border border-border/70 px-1.5 font-mono text-[10px] text-muted-foreground"
+									key={value}
+								>
+									{value}
+								</span>
+							))
+						) : (
+							<span className="font-mono text-[10px] text-muted-foreground">
+								Add detail
+							</span>
+						)}
+						{isUnpriced ? (
+							<span className="border border-warning/50 bg-warning/10 px-1.5 font-mono text-[10px] text-warning">
+								No price yet
+							</span>
+						) : null}
+					</span>
+				</span>
+				<span className="mt-0.5 shrink-0 pr-11 font-mono text-sm font-semibold tabular-nums">
+					{formatMoney(getServiceLinePrice(line))}
+				</span>
+				<CaretDownIcon
+					aria-hidden="true"
+					className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+				/>
+			</summary>
+
+			{/* Outside <summary> so the row keeps one activation target — a button
+			    nested in a summary toggles the disclosure on its way through. */}
+			<Button
+				aria-label={`Remove ${line.service.name}`}
+				className="absolute top-2 right-8 size-11"
+				icon={<XIcon className="size-4" />}
+				onClick={() => onRemove(line.line_id)}
+				size="icon-xs"
+				type="button"
+				variant="outline"
+			/>
+
+			<div className="grid gap-3 border-border/70 border-t p-3">
+				<div className="grid gap-3 sm:grid-cols-2">
+					{SERVICE_FIELDS.map((field) => (
+						<Field className={field.className} key={field.key}>
+							<FieldLabel htmlFor={`service-${field.key}-${line.line_id}`}>
+								{field.label}
+							</FieldLabel>
+							<Input
+								className="h-11"
+								id={`service-${field.key}-${line.line_id}`}
+								onChange={(event) =>
+									onFieldChange(line.line_id, field.key, event.target.value)
+								}
+								placeholder={field.placeholder}
+								value={line[field.key]}
+							/>
+						</Field>
+					))}
+				</div>
+				{line.service.price === null ? (
+					// No-list-price Service (Repair, ADR-0018): the price is keyed here
+					// when the customer already agreed to a number, and left blank when
+					// the workshop still has to inspect the item.
+					<Field>
+						<FieldLabel htmlFor={`service-price-${line.line_id}`}>
+							Price
+						</FieldLabel>
+						<CurrencyInput
+							id={`service-price-${line.line_id}`}
+							onValueChange={(value) =>
+								onFieldChange(line.line_id, "price", value)
+							}
+							value={line.price}
+						/>
+						<FieldDescription>
+							{line.price.trim() === ""
+								? "No price yet — payment waits until this line is priced after inspection."
+								: "Agreed price. Can be corrected until the order is paid."}
+						</FieldDescription>
+					</Field>
+				) : null}
+			</div>
+		</details>
 	);
 };
 
