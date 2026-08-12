@@ -399,7 +399,7 @@ function WorkerQueuePage() {
 			<PageHeader
 				title="Queue"
 				actions={
-					<Badge variant={queueQuery.isPending ? "secondary" : "outline"}>
+					<Badge variant={queueQuery.isLoading ? "secondary" : "outline"}>
 						{`${totalItems} items`}
 					</Badge>
 				}
@@ -570,7 +570,11 @@ function WorkerQueuePage() {
 						/>
 					))}
 
-					{queueQuery.isPending ? (
+					{/* isLoading, not isPending: with no store picked the query is
+					    disabled, and a disabled query stays pending forever — gating on
+					    isPending stacks four skeletons under "Select a store." that never
+					    resolve. */}
+					{queueQuery.isLoading ? (
 						<div className="grid gap-2">
 							{Array.from({ length: 4 }, (_, index) => (
 								<div
@@ -589,7 +593,7 @@ function WorkerQueuePage() {
 						</div>
 					) : null}
 
-					{!queueQuery.isPending &&
+					{!queueQuery.isLoading &&
 					!queueQuery.isError &&
 					queueItems.length === 0 &&
 					parsedStoreId !== undefined ? (
