@@ -157,7 +157,6 @@ export const CheckoutItemsStep = () => {
 
 				{serviceRows.map((line, index) => (
 					<CheckoutServiceLineRow
-						categoryName={getEntityCategoryName(line.service, categoryMap)}
 						itemNumber={index + 1}
 						key={line.line_id}
 						line={line}
@@ -190,7 +189,6 @@ export const CheckoutItemsStep = () => {
 interface CheckoutServiceLineRowProps {
 	line: ServiceCartDisplayLine;
 	itemNumber: number;
-	categoryName: string;
 	onRemove: (lineId: string) => void;
 	onFieldChange: (
 		lineId: string,
@@ -202,7 +200,6 @@ interface CheckoutServiceLineRowProps {
 const CheckoutServiceLineRow = ({
 	line,
 	itemNumber,
-	categoryName,
 	onRemove,
 	onFieldChange,
 }: CheckoutServiceLineRowProps) => {
@@ -219,13 +216,11 @@ const CheckoutServiceLineRow = ({
 					{itemNumber}
 				</span>
 				<span className="grid min-w-0 flex-1 gap-1">
-					<span className="flex min-w-0 items-baseline gap-1.5">
-						<span className="truncate text-sm font-medium">
-							{line.service.name}
-						</span>
-						<span className="shrink-0 text-muted-foreground text-xs">
-							{categoryName}
-						</span>
+					{/* Wraps rather than truncates: service names run to 30+ characters
+					    and the price column leaves this one ~130px on a phone, so
+					    truncating cut every line down to "Deep Clea…". */}
+					<span className="line-clamp-2 text-sm font-medium">
+						{line.service.name}
 					</span>
 					<span className="flex flex-wrap gap-1">
 						{descriptors.length > 0 ? (
