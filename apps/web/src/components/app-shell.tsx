@@ -46,6 +46,7 @@ import {
 	SidebarSeparator,
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { meQueryOptions } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
 import { getCurrentUser, useAuthStore } from "@/stores/auth-store";
@@ -232,6 +233,11 @@ export function AppShell({ title, children }: AppShellProps) {
 	const navigate = useNavigate();
 	const clearToken = useAuthStore((state) => state.clearToken);
 	const user = getCurrentUser();
+	// Tablet landscape (1024) is the width where DataTable switches to the real
+	// table but a 256px sidebar still eats a quarter of the viewport, clipping the
+	// Orders money column. Start on the icon rail below xl and hand those ~200px
+	// to the table; toggling still wins, so this is only the opening position.
+	const startsCollapsed = useIsMobile(1280);
 	// Nav visibility follows the DB-fresh role from /admin/users/me, not the
 	// stale JWT claim — role changes apply without re-login.
 	const meQuery = useQuery(meQueryOptions());
@@ -254,7 +260,7 @@ export function AppShell({ title, children }: AppShellProps) {
 		: [];
 
 	return (
-		<SidebarProvider>
+		<SidebarProvider defaultOpen={!startsCollapsed}>
 			<Sidebar collapsible="icon" variant="inset">
 				<SidebarHeader className="flex-row items-center justify-between group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
 					<div className="flex items-center gap-2 px-2 text-sm font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/80">
