@@ -32,7 +32,11 @@ export const DataTableGrid = <TData extends RowData>({
 	emptyMessage,
 	sortable,
 }: DataTableGridProps<TData>) => (
-	<Table containerClassName="lg:max-h-[calc(100dvh-18rem)]">
+	// No height cap: capping the container made it the only scroller, so a 43-row
+	// services table showed 26% of its rows behind a 6px scrollbar while the page
+	// itself stayed put. The page scrolls now; the wrapper keeps overflow-x for
+	// tables wider than the viewport.
+	<Table>
 		<TableHeader>
 			{table.getHeaderGroups().map((headerGroup) => (
 				<TableRow key={headerGroup.id} className="border-border hover:bg-muted">
