@@ -6,6 +6,7 @@ import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { claimRedemptions } from "@/modules/campaigns/campaign-redemption.service";
 import { resolveOrCreateCustomer } from "@/modules/customers/customer.service";
 import {
+  countOrders,
   findOrders,
   insertOrder,
   insertOrderProducts,
@@ -14,6 +15,7 @@ import {
   reserveNextOrderNumber,
 } from "@/modules/orders/order.repository";
 import {
+  type GetOrderCountsQuery,
   type GetOrdersQuery,
   normalizeOrderListQuery,
 } from "@/modules/orders/order.schema";
@@ -172,38 +174,69 @@ function buildOrderServiceRows({
   }));
 }
 
+// Which branches this account may be shown, as the repository wants it:
+// undefined means "do not narrow further", [] means nothing at all.
+async function resolveOrderScopedStoreIds(user: JWTPayload, storeId?: number) {
+  const scope = await resolveStoreScope(user, storeId);
+
+  switch (scope.kind) {
+    // A cashier browsing "all orders" still only sees the branches they work
+    // at — an open list would leak every branch's takings to any staff.
+    case "some":
+      return scope.storeIds;
+    // A staff account not yet assigned to a branch: nothing, not everything.
+    case "none":
+      return [];
+    // An admin browses every branch, and a named branch is already the
+    // store_id filter the query carries.
+    case "all":
+    case "one":
+      return;
+    default:
+      return unhandledStoreScope(scope);
+  }
+}
+
 export async function listOrders(query?: GetOrdersQuery, user?: JWTPayload) {
   const normalized = normalizeOrderListQuery(query);
-  let scopedStoreIds: number[] | undefined;
-
-  if (user) {
-    const scope = await resolveStoreScope(user, normalized.store_id);
-
-    switch (scope.kind) {
-      // A cashier browsing "all orders" still only sees the branches they work
-      // at — an open list would leak every branch's takings to any staff.
-      case "some":
-        scopedStoreIds = scope.storeIds;
-        break;
-      // A staff account not yet assigned to a branch: nothing, not everything.
-      case "none":
-        scopedStoreIds = [];
-        break;
-      // An admin browses every branch, and a named branch is already the
-      // store_id filter the query carries.
-      case "all":
-      case "one":
-        break;
-      default:
-        return unhandledStoreScope(scope);
-    }
-  }
+  const scopedStoreIds = user
+    ? await resolveOrderScopedStoreIds(user, normalized.store_id)
+    : undefined;
 
   const { items, total } = await findOrders(normalized, scopedStoreIds);
 
   return {
     items,
     meta: buildPaginationMeta(total, normalized),
+  };
+}
+
+// The list's triage row: how many orders sit behind each pill, before anyone
+// touches a control. Every count runs the list's own predicate, so a pill
+// reading 3 opens a page whose total is 3.
+export async function getOrderListCounts(
+  query: GetOrderCountsQuery,
+  user: JWTPayload
+) {
+  const storeId = query?.store_id;
+  const scopedStoreIds = await resolveOrderScopedStoreIds(user, storeId);
+  const base = { store_id: storeId };
+  const today = jakartaNow().format("YYYY-MM-DD");
+
+  const [all, todayTotal, unpaid, readyForPickup, overdue] = await Promise.all([
+    countOrders(base, scopedStoreIds),
+    countOrders({ ...base, date_from: today, date_to: today }, scopedStoreIds),
+    countOrders({ ...base, payment_status: "unpaid" }, scopedStoreIds),
+    countOrders({ ...base, status: "ready_for_pickup" }, scopedStoreIds),
+    countOrders({ ...base, overdue: true }, scopedStoreIds),
+  ]);
+
+  return {
+    all,
+    today: todayTotal,
+    unpaid,
+    ready_for_pickup: readyForPickup,
+    overdue,
   };
 }
 

@@ -11,6 +11,7 @@ import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { OrderFilterPills } from "@/features/orders/components/order-filter-pills";
 import {
 	ORDER_STATUS_VALUES,
 	OrderFilters,
@@ -22,6 +23,7 @@ import { PickupRadar } from "@/features/orders/components/pickup-radar";
 import type { FetchOrdersQuery, Order } from "@/lib/api";
 import {
 	meQueryOptions,
+	orderCountsQueryOptions,
 	ordersPageQueryOptions,
 	storesQueryOptions,
 } from "@/lib/query-options";
@@ -41,6 +43,7 @@ const ordersSearchSchema = z.object({
 	storeId: z.coerce.number().int().positive().optional().catch(undefined),
 	status: z.enum(ORDER_STATUS_VALUES).optional().catch(undefined),
 	paymentStatus: z.enum(PAYMENT_STATUS_VALUES).optional().catch(undefined),
+	overdue: z.boolean().optional().catch(undefined),
 	dateFrom: z
 		.string()
 		.regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -66,6 +69,7 @@ function buildOrdersListParams(
 		...(storeId !== undefined ? { store_id: storeId } : {}),
 		...(filters.status ? { status: filters.status } : {}),
 		...(filters.paymentStatus ? { payment_status: filters.paymentStatus } : {}),
+		...(filters.overdue ? { overdue: true } : {}),
 		...(filters.dateFrom ? { date_from: filters.dateFrom } : {}),
 		...(filters.dateTo ? { date_to: filters.dateTo } : {}),
 	};
@@ -160,6 +164,13 @@ function OrdersPage() {
 		enabled: role === "admin" ? true : parsedStoreId !== undefined,
 	});
 
+	// Same gate as the list: pills that counted branches the list refuses to show
+	// would be a triage row for someone else's orders.
+	const orderCountsQuery = useQuery({
+		...orderCountsQueryOptions(parsedStoreId),
+		enabled: role === "admin" ? true : parsedStoreId !== undefined,
+	});
+
 	const hasNoStoreAssignment =
 		role !== "admin" && meQuery.isSuccess && userStoreIds.length === 0;
 
@@ -216,12 +227,34 @@ function OrdersPage() {
 				accessorKey: "customer_name",
 				header: "Customer",
 				meta: {
+					// Subtitle, not a detail cell: the name is what people search by, and
+					// it used to be the last thing on a phone card, boxed in below the
+					// badges with the fields nobody scans for.
 					mobileCard: {
-						label: "Customer",
-						className: "col-span-2",
-						valueClassName: "truncate",
+						slot: "subtitle",
 					},
 				},
+				cell: ({ row }) => (
+					<div className="grid min-w-0 gap-1">
+						<span className="truncate font-medium">
+							{row.original.customer_name}
+						</span>
+						{/* What the customer says at the counter — "the black Nikes" — is
+						    the only way to tell two Repair orders apart. */}
+						{row.original.item_descriptors.length > 0 ? (
+							<span className="flex min-w-0 flex-wrap gap-1">
+								{row.original.item_descriptors.map((descriptor) => (
+									<span
+										className="border border-border/70 bg-muted/40 px-1.5 font-mono text-[10px] text-muted-foreground"
+										key={descriptor}
+									>
+										{descriptor}
+									</span>
+								))}
+							</span>
+						) : null}
+					</div>
+				),
 			},
 			{
 				accessorKey: "status",
@@ -295,6 +328,11 @@ function OrdersPage() {
 			<div className="grid gap-4">
 				<Card>
 					<CardContent>
+						<OrderFilterPills
+							counts={orderCountsQuery.data}
+							onChange={handleFilterChange}
+							values={search}
+						/>
 						<OrderFilters
 							values={search}
 							role={role}

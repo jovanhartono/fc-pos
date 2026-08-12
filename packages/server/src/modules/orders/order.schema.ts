@@ -15,6 +15,11 @@ export const GETOrdersQuerySchema = z
     status: z.enum(orderStatusEnum.enumValues).optional(),
     payment_status: z.enum(orderPaymentStatusEnum.enumValues).optional(),
 
+    // Finished work nobody has collected. Not a status of its own — it is
+    // ready_for_pickup that has aged past the shelf window, and the counter
+    // needs it as one click because chasing those customers is the job.
+    overdue: z.stringbool().optional(),
+
     customer_id: z.coerce.number().int().positive().optional(),
     store_id: z.coerce.number().int().positive().optional(),
     created_by: z.coerce.number().int().positive().optional(),
@@ -39,6 +44,17 @@ export const GETOrdersQuerySchema = z
 export type GetOrdersQuery = z.infer<typeof GETOrdersQuerySchema>;
 type ParsedOrdersQuery = NonNullable<GetOrdersQuery>;
 
+// The counts behind the list's filter pills. Only the branch narrows them: a
+// pill set that also honoured the active status or date would count what is
+// already on screen, and the point of the row is what you are not looking at.
+export const GETOrderCountsQuerySchema = z
+  .object({
+    store_id: z.coerce.number().int().positive().optional(),
+  })
+  .optional();
+
+export type GetOrderCountsQuery = z.infer<typeof GETOrderCountsQuerySchema>;
+
 export interface NormalizedOrderListQuery {
   created_by?: number;
   customer_id?: number;
@@ -46,6 +62,7 @@ export interface NormalizedOrderListQuery {
   date_to?: string;
   limit: number;
   offset: number;
+  overdue?: boolean;
   payment_method_id?: number;
   payment_status?: ParsedOrdersQuery["payment_status"];
   search?: string;
@@ -54,6 +71,13 @@ export interface NormalizedOrderListQuery {
   status?: ParsedOrdersQuery["status"];
   store_id?: number;
 }
+
+// Everything that narrows which orders match, with nothing about which page of
+// them to return — what a count needs and a list needs the rest of.
+export type OrderListFilters = Omit<
+  NormalizedOrderListQuery,
+  "limit" | "offset" | "sort_by" | "sort_order"
+>;
 
 export function normalizeOrderListQuery(
   query?: GetOrdersQuery
@@ -69,6 +93,7 @@ export function normalizeOrderListQuery(
     search: query?.search,
     status: query?.status,
     payment_status: query?.payment_status,
+    overdue: query?.overdue,
     customer_id: query?.customer_id,
     store_id: query?.store_id,
     created_by: query?.created_by,

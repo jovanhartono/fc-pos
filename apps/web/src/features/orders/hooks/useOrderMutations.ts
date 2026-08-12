@@ -22,6 +22,7 @@ export const useRefreshOrder = (orderId: number) => {
 				queryKey: queryKeys.orderDetail(orderId),
 			}),
 			queryClient.invalidateQueries({ queryKey: ["orders"] }),
+			queryClient.invalidateQueries({ queryKey: ["order-counts"] }),
 		]);
 	}, [orderId, queryClient]);
 };

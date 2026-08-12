@@ -8,14 +8,17 @@ import {
   ordersTable,
 } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
-import type { NormalizedOrderListQuery } from "@/modules/orders/order.schema";
+import type {
+  NormalizedOrderListQuery,
+  OrderListFilters,
+} from "@/modules/orders/order.schema";
 import {
   deriveOrderRefundStatus,
   type OrderRefundStatus,
 } from "@/modules/orders/order-refund-status";
 import { isNumericSearch } from "@/modules/orders/order-search";
 import { summarizeOrderFulfillment } from "@/modules/orders/order-status-machine";
-import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
+import { jakartaDayEnd, jakartaDayStart, jakartaNow } from "@/utils/date";
 
 export type OrderTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -54,6 +57,10 @@ export interface OrderListItem {
   discount: string;
   fulfillment: ReturnType<typeof summarizeOrderFulfillment>;
   id: number;
+  // What the customer will say at the counter — "the black Nikes, size 42" —
+  // taken from the first live Item on the Order. An Order named only by its
+  // Service reads "Repair · Repair" and identifies nothing.
+  item_descriptors: string[];
   notes: string | null;
   payment_method_id: number | null;
   payment_method_name: string | null;
@@ -78,10 +85,12 @@ interface FindOrdersResult {
   total: number;
 }
 
-function buildOrderWhere(
-  filters: NormalizedOrderListQuery,
-  scopedStoreIds?: number[]
-) {
+// How long finished work may sit on the shelf before the counter should be
+// chasing the customer. Same 72h the workshop board paints red, so an aged Item
+// and an uncollected Order mean the same thing to whoever is looking.
+const PICKUP_OVERDUE_HOURS = 72;
+
+function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
   const conditions: Record<string, unknown>[] = [];
 
   if (scopedStoreIds !== undefined) {
@@ -98,6 +107,15 @@ function buildOrderWhere(
 
   if (filters.payment_status) {
     conditions.push({ payment_status: filters.payment_status });
+  }
+
+  if (filters.overdue) {
+    conditions.push({ status: "ready_for_pickup" });
+    conditions.push({
+      created_at: {
+        lt: jakartaNow().subtract(PICKUP_OVERDUE_HOURS, "hour").toDate(),
+      },
+    });
   }
 
   if (filters.store_id) {
@@ -219,12 +237,7 @@ export async function findOrders(
       limit: filters.limit,
       offset: filters.offset,
     }),
-    db.query.ordersTable
-      .findMany({
-        where: buildOrderWhere(filters, scopedStoreIds),
-        columns: { id: true },
-      })
-      .then((rows) => rows.length),
+    countOrders(filters, scopedStoreIds),
   ]);
 
   const orderIds = rows.map((row) => row.id);
@@ -236,13 +249,21 @@ export async function findOrders(
           columns: {
             order_id: true,
             status: true,
+            brand: true,
+            color: true,
+            model: true,
+            size: true,
           },
+          // Intake order, so the Item the counter keyed first is the one that
+          // names the Order.
+          orderBy: { id: "asc" },
         });
 
   const groupedStatuses = new Map<
     number,
     (typeof serviceRows)[number]["status"][]
   >();
+  const descriptorsByOrderId = new Map<number, string[]>();
 
   for (const row of serviceRows) {
     if (row.order_id === null) {
@@ -252,6 +273,20 @@ export async function findOrders(
     const current = groupedStatuses.get(row.order_id) ?? [];
     current.push(row.status);
     groupedStatuses.set(row.order_id, current);
+
+    // First *described* live line wins, not simply the first: an Item keyed
+    // with nothing but its Service would otherwise blank the whole row.
+    if (row.status === "cancelled" || descriptorsByOrderId.has(row.order_id)) {
+      continue;
+    }
+
+    const descriptors = [row.brand, row.color, row.model, row.size]
+      .map((value) => value?.trim())
+      .filter((value): value is string => Boolean(value));
+
+    if (descriptors.length > 0) {
+      descriptorsByOrderId.set(row.order_id, descriptors);
+    }
   }
 
   const items: OrderListItem[] = rows.map((row) => ({
@@ -279,12 +314,27 @@ export async function findOrders(
     created_by: row.created_by,
     updated_by: row.updated_by,
     fulfillment: summarizeOrderFulfillment(groupedStatuses.get(row.id) ?? []),
+    item_descriptors: descriptorsByOrderId.get(row.id) ?? [],
   }));
 
   return {
     items,
     total,
   };
+}
+
+// Same predicate the list runs, without paging it — so a filter pill's count
+// and the total on the page it opens can never disagree.
+export function countOrders(
+  filters: OrderListFilters,
+  scopedStoreIds?: number[]
+): Promise<number> {
+  return db.query.ordersTable
+    .findMany({
+      where: buildOrderWhere(filters, scopedStoreIds),
+      columns: { id: true },
+    })
+    .then((rows) => rows.length);
 }
 
 export async function reserveNextOrderNumber(

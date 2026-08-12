@@ -1,7 +1,6 @@
 import { FunnelIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
-import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import {
@@ -12,7 +11,6 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
-import { formatOrderStatus, formatPaymentStatus } from "@/lib/status";
 
 export const ORDER_STATUS_VALUES = [
 	"created",
@@ -32,6 +30,7 @@ export interface OrderFilterValues {
 	storeId?: number;
 	status?: OrderStatusFilter;
 	paymentStatus?: PaymentStatusFilter;
+	overdue?: boolean;
 	dateFrom?: string;
 	dateTo?: string;
 }
@@ -42,22 +41,6 @@ interface OrderFiltersProps {
 	userStoreIds: number[];
 	onChange: (patch: Partial<OrderFilterValues>) => void;
 }
-
-// "" is the all-stores/statuses sentinel — selecting it maps back to undefined.
-const STATUS_ITEMS: Record<string, string> = {
-	"": "All statuses",
-	created: formatOrderStatus("created"),
-	processing: formatOrderStatus("processing"),
-	ready_for_pickup: formatOrderStatus("ready_for_pickup"),
-	completed: formatOrderStatus("completed"),
-	cancelled: formatOrderStatus("cancelled"),
-};
-
-const PAYMENT_ITEMS: Record<string, string> = {
-	"": "All payments",
-	paid: formatPaymentStatus("paid"),
-	unpaid: formatPaymentStatus("unpaid"),
-};
 
 interface FilterControlsProps extends OrderFiltersProps {
 	idPrefix: string;
@@ -83,28 +66,6 @@ const FilterControls = ({
 			placeholder="Filter by store"
 			triggerClassName="h-10 w-full lg:w-max lg:min-w-40"
 		/>
-		<SelectField
-			id={`${idPrefix}-status`}
-			aria-label="Filter by order status"
-			items={STATUS_ITEMS}
-			value={values.status ?? ""}
-			onValueChange={(value) =>
-				onChange({ status: (value || undefined) as OrderStatusFilter })
-			}
-			placeholder="All statuses"
-			className="w-full lg:w-max lg:min-w-40"
-		/>
-		<SelectField
-			id={`${idPrefix}-payment`}
-			aria-label="Filter by payment status"
-			items={PAYMENT_ITEMS}
-			value={values.paymentStatus ?? ""}
-			onValueChange={(value) =>
-				onChange({ paymentStatus: (value || undefined) as PaymentStatusFilter })
-			}
-			placeholder="All payments"
-			className="w-full lg:w-max lg:min-w-40"
-		/>
 		<DateRangePicker
 			id={`${idPrefix}-date`}
 			resetOnSelect
@@ -127,16 +88,15 @@ export const OrderFilters = ({
 	const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 	const isAdmin = role === "admin";
 
+	// Status and payment live in the pills now, so they are not counted here and
+	// Clear all leaves them alone — clearing the dialog must not silently undo
+	// the pill the user can see selected above it.
 	const activeCount =
-		(values.status ? 1 : 0) +
-		(values.paymentStatus ? 1 : 0) +
 		(values.dateFrom || values.dateTo ? 1 : 0) +
 		(isAdmin && values.storeId ? 1 : 0);
 
 	const handleClearAll = () => {
 		onChange({
-			status: undefined,
-			paymentStatus: undefined,
 			dateFrom: undefined,
 			dateTo: undefined,
 			...(isAdmin ? { storeId: undefined } : {}),

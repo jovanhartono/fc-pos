@@ -21,6 +21,7 @@ import {
 	fetchCustomersPage,
 	fetchFinancialReport,
 	fetchMe,
+	fetchOrderCounts,
 	fetchOrderDetail,
 	fetchOrdersFlowReport,
 	fetchOrdersPage,
@@ -96,6 +97,15 @@ export const ordersPageQueryOptions = (query?: FetchOrdersQuery) =>
 	queryOptions({
 		queryKey: queryKeys.orders(query),
 		queryFn: () => fetchOrdersPage(query),
+	});
+
+export const orderCountsQueryOptions = (storeId?: number) =>
+	queryOptions({
+		queryKey: queryKeys.orderCounts(storeId),
+		queryFn: () =>
+			fetchOrderCounts(
+				storeId === undefined ? undefined : { store_id: storeId },
+			),
 	});
 
 export const orderDetailQueryOptions = (id: number) =>
