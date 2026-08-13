@@ -23,6 +23,13 @@ export const useRefreshOrder = (orderId: number) => {
 			}),
 			queryClient.invalidateQueries({ queryKey: ["orders"] }),
 			queryClient.invalidateQueries({ queryKey: ["order-counts"] }),
+			// A service status moved from the order detail is the same move the
+			// workshop makes from /queue, so both chip strips have to be dropped —
+			// otherwise whichever screen you did not use keeps yesterday's number.
+			queryClient.invalidateQueries({ queryKey: ["order-service-queue"] }),
+			queryClient.invalidateQueries({
+				queryKey: ["order-service-queue-counts"],
+			}),
 		]);
 	}, [orderId, queryClient]);
 };

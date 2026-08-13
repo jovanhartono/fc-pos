@@ -118,6 +118,9 @@ export function QueueServiceDetail({
 		await queryClient.invalidateQueries({
 			queryKey: ["order-service-queue-counts"],
 		});
+		// The Orders list and its pills read the same fulfillment this just moved.
+		await queryClient.invalidateQueries({ queryKey: ["orders"] });
+		await queryClient.invalidateQueries({ queryKey: ["order-counts"] });
 	};
 
 	const startWorkMutation = useMutation({

@@ -28,6 +28,7 @@ import {
 } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
 import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
+import { getOrderServiceItemDescriptors } from "@/lib/order-service-item-details";
 import { categoriesQueryOptions } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
 import { formatMoney, parseMoney } from "@/shared/money";
@@ -203,58 +204,101 @@ const CheckoutServiceLineRow = ({
 	onRemove,
 	onFieldChange,
 }: CheckoutServiceLineRowProps) => {
-	const descriptors = [line.brand, line.color, line.model, line.size]
-		.map((value) => value.trim())
-		.filter(Boolean);
+	const descriptors = getOrderServiceItemDescriptors(line);
 	const isUnpriced =
 		line.service.price === null && getServiceLinePrice(line) <= 0;
 
 	return (
-		<details className="group relative border border-border/70">
-			<summary className="flex cursor-pointer list-none items-start gap-3 p-3 hover:bg-muted/30 focus-visible:outline focus-visible:outline-1 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
-				<span className="mt-0.5 shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums">
-					{itemNumber}
-				</span>
-				<span className="grid min-w-0 flex-1 gap-1">
-					{/* Wraps rather than truncates: service names run to 30+ characters
-					    and the price column leaves this one ~130px on a phone, so
-					    truncating cut every line down to "Deep Clea…". */}
-					<span className="line-clamp-2 text-sm font-medium">
-						{line.service.name}
+		// Remove sits outside <details>, not merely outside <summary>: a closed
+		// disclosure hides every non-summary child, so a button parked there is
+		// unreachable until the row is expanded — and rows start collapsed.
+		<div className="relative">
+			<details className="group border border-border/70">
+				<summary className="flex cursor-pointer list-none items-start gap-3 p-3 hover:bg-muted/30 focus-visible:outline focus-visible:outline-1 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+					<span className="mt-0.5 shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums">
+						{itemNumber}
 					</span>
-					<span className="flex flex-wrap gap-1">
-						{descriptors.length > 0 ? (
-							descriptors.map((value) => (
-								<span
-									className="border border-border/70 px-1.5 font-mono text-[10px] text-muted-foreground"
-									key={value}
-								>
-									{value}
+					<span className="grid min-w-0 flex-1 gap-1">
+						{/* Wraps rather than truncates: service names run to 30+ characters
+						    and the price column leaves this one ~130px on a phone, so
+						    truncating cut every line down to "Deep Clea…". */}
+						<span className="line-clamp-2 text-sm font-medium">
+							{line.service.name}
+						</span>
+						<span className="flex flex-wrap gap-1">
+							{descriptors.length > 0 ? (
+								descriptors.map((value, valueIndex) => (
+									<span
+										className="border border-border/70 px-1.5 font-mono text-[10px] text-muted-foreground"
+										key={`${valueIndex}-${value}`}
+									>
+										{value}
+									</span>
+								))
+							) : (
+								<span className="font-mono text-[10px] text-muted-foreground">
+									Add detail
 								</span>
-							))
-						) : (
-							<span className="font-mono text-[10px] text-muted-foreground">
-								Add detail
-							</span>
-						)}
-						{isUnpriced ? (
-							<span className="border border-warning/50 bg-warning/10 px-1.5 font-mono text-[10px] text-warning">
-								No price yet
-							</span>
-						) : null}
+							)}
+							{isUnpriced ? (
+								<span className="border border-warning/50 bg-warning/10 px-1.5 font-mono text-[10px] text-warning">
+									No price yet
+								</span>
+							) : null}
+						</span>
 					</span>
-				</span>
-				<span className="mt-0.5 shrink-0 pr-11 font-mono text-sm font-semibold tabular-nums">
-					{formatMoney(getServiceLinePrice(line))}
-				</span>
-				<CaretDownIcon
-					aria-hidden="true"
-					className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
-				/>
-			</summary>
+					<span className="mt-0.5 shrink-0 pr-11 font-mono text-sm font-semibold tabular-nums">
+						{formatMoney(getServiceLinePrice(line))}
+					</span>
+					<CaretDownIcon
+						aria-hidden="true"
+						className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+					/>
+				</summary>
 
-			{/* Outside <summary> so the row keeps one activation target — a button
-			    nested in a summary toggles the disclosure on its way through. */}
+				<div className="grid gap-3 border-border/70 border-t p-3">
+					<div className="grid gap-3 sm:grid-cols-2">
+						{SERVICE_FIELDS.map((field) => (
+							<Field className={field.className} key={field.key}>
+								<FieldLabel htmlFor={`service-${field.key}-${line.line_id}`}>
+									{field.label}
+								</FieldLabel>
+								<Input
+									className="h-11"
+									id={`service-${field.key}-${line.line_id}`}
+									onChange={(event) =>
+										onFieldChange(line.line_id, field.key, event.target.value)
+									}
+									placeholder={field.placeholder}
+									value={line[field.key]}
+								/>
+							</Field>
+						))}
+					</div>
+					{line.service.price === null ? (
+						// Blank is a valid answer here, not a missing one: a Repair is priced
+						// after inspection (ADR-0018).
+						<Field>
+							<FieldLabel htmlFor={`service-price-${line.line_id}`}>
+								Price
+							</FieldLabel>
+							<CurrencyInput
+								id={`service-price-${line.line_id}`}
+								onValueChange={(value) =>
+									onFieldChange(line.line_id, "price", value)
+								}
+								value={line.price}
+							/>
+							<FieldDescription>
+								{line.price.trim() === ""
+									? "No price yet — payment waits until this line is priced after inspection."
+									: "Agreed price. Can be corrected until the order is paid."}
+							</FieldDescription>
+						</Field>
+					) : null}
+				</div>
+			</details>
+
 			<Button
 				aria-label={`Remove ${line.service.name}`}
 				className="absolute top-2 right-8 size-11"
@@ -264,49 +308,7 @@ const CheckoutServiceLineRow = ({
 				type="button"
 				variant="outline"
 			/>
-
-			<div className="grid gap-3 border-border/70 border-t p-3">
-				<div className="grid gap-3 sm:grid-cols-2">
-					{SERVICE_FIELDS.map((field) => (
-						<Field className={field.className} key={field.key}>
-							<FieldLabel htmlFor={`service-${field.key}-${line.line_id}`}>
-								{field.label}
-							</FieldLabel>
-							<Input
-								className="h-11"
-								id={`service-${field.key}-${line.line_id}`}
-								onChange={(event) =>
-									onFieldChange(line.line_id, field.key, event.target.value)
-								}
-								placeholder={field.placeholder}
-								value={line[field.key]}
-							/>
-						</Field>
-					))}
-				</div>
-				{line.service.price === null ? (
-					// Blank is a valid answer here, not a missing one: a Repair is priced
-					// after inspection (ADR-0018).
-					<Field>
-						<FieldLabel htmlFor={`service-price-${line.line_id}`}>
-							Price
-						</FieldLabel>
-						<CurrencyInput
-							id={`service-price-${line.line_id}`}
-							onValueChange={(value) =>
-								onFieldChange(line.line_id, "price", value)
-							}
-							value={line.price}
-						/>
-						<FieldDescription>
-							{line.price.trim() === ""
-								? "No price yet — payment waits until this line is priced after inspection."
-								: "Agreed price. Can be corrected until the order is paid."}
-						</FieldDescription>
-					</Field>
-				) : null}
-			</div>
-		</details>
+		</div>
 	);
 };
 

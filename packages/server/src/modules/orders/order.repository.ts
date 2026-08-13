@@ -275,7 +275,10 @@ export async function findOrders(
       continue;
     }
 
-    const descriptors = [row.brand, row.color, row.model, row.size]
+    // brand · model · color · size — the same order the web's
+    // getOrderServiceItemDescriptors uses, so /orders and /queue name one Item
+    // the same way round.
+    const descriptors = [row.brand, row.model, row.color, row.size]
       .map((value) => value?.trim())
       .filter((value): value is string => Boolean(value));
 

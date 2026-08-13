@@ -1,16 +1,9 @@
 import { XIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import {
-	getServiceLinePrice,
-	type ServiceCartDisplayLine,
-} from "@/features/transactions/cart/cart";
+import { getServiceLinePrice } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
+import { getOrderServiceItemDescriptors } from "@/lib/order-service-item-details";
 import { formatMoney, parseMoney } from "@/shared/money";
-
-const getServiceDescriptors = (line: ServiceCartDisplayLine): string[] =>
-	[line.brand, line.color, line.model, line.size]
-		.map((value) => value.trim())
-		.filter(Boolean);
 
 // Shared by the standing rail and the phone mini bar. Reads the cart itself
 // rather than taking rows as props, so the two surfaces cannot show different
@@ -47,7 +40,7 @@ export const CartLines = () => {
 			))}
 
 			{serviceRows.map((line, index) => {
-				const descriptors = getServiceDescriptors(line);
+				const descriptors = getOrderServiceItemDescriptors(line);
 				const isUnpriced =
 					line.service.price === null && getServiceLinePrice(line) <= 0;
 
@@ -67,10 +60,10 @@ export const CartLines = () => {
 							</span>
 							<span className="flex flex-wrap gap-1">
 								{descriptors.length > 0 ? (
-									descriptors.map((value) => (
+									descriptors.map((value, valueIndex) => (
 										<span
 											className="border border-border/70 bg-background px-1.5 font-mono text-[10px] text-muted-foreground"
-											key={value}
+											key={`${valueIndex}-${value}`}
 										>
 											{value}
 										</span>

@@ -31,11 +31,7 @@ export const CheckoutStepper = ({
 	const currentIndex = CHECKOUT_STEPS.findIndex((step) => step.key === current);
 
 	return (
-		<nav
-			aria-describedby={lockHintId}
-			aria-label="Checkout steps"
-			className="flex items-stretch gap-1"
-		>
+		<nav aria-label="Checkout steps" className="flex items-stretch gap-1">
 			{CHECKOUT_STEPS.map((step, index) => {
 				const isCurrent = step.key === current;
 				const isComplete = index < currentIndex;
@@ -46,6 +42,10 @@ export const CheckoutStepper = ({
 				return (
 					<button
 						aria-current={isCurrent ? "step" : undefined}
+						// On the locked button itself, not on the <nav>: a description
+						// hung off a landmark is not read out when focus lands on a child,
+						// which would leave the lock unexplained again.
+						aria-describedby={isLocked ? lockHintId : undefined}
 						aria-disabled={isLocked || undefined}
 						className={cn(
 							"flex min-h-11 flex-1 items-center justify-center gap-2 border px-2 text-xs font-medium outline-none transition focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",

@@ -1,4 +1,3 @@
-import dayjs from "dayjs";
 import { Button } from "@/components/ui/button";
 import type { OrderFilterValues } from "@/features/orders/components/order-filters";
 import type { OrderListCounts } from "@/lib/api";
@@ -34,6 +33,14 @@ interface OrderFilterPill {
 	label: string;
 	patch: OrderFilterPillPatch;
 }
+
+// Jakarta's date, never the device's: the server counts "today" with
+// jakartaNow(), and dayjs runs vanilla here, so a tablet left on UTC would send
+// a date_from the count never used. en-CA is the locale that prints YYYY-MM-DD.
+const jakartaToday = () =>
+	new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(
+		new Date(),
+	);
 
 const buildPills = (today: string): OrderFilterPill[] => [
 	{ key: "all", label: "All", patch: CLEARED },
@@ -72,7 +79,7 @@ export const OrderFilterPills = ({
 	counts,
 	onChange,
 }: OrderFilterPillsProps) => {
-	const pills = buildPills(dayjs().format("YYYY-MM-DD"));
+	const pills = buildPills(jakartaToday());
 
 	return (
 		<fieldset className="mb-3 flex min-w-0 flex-wrap gap-1 border-0 p-0">

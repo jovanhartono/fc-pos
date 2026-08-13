@@ -238,10 +238,10 @@ function OrdersPage() {
 						</span>
 						{row.original.item_descriptors.length > 0 ? (
 							<span className="flex min-w-0 flex-wrap gap-1">
-								{row.original.item_descriptors.map((descriptor) => (
+								{row.original.item_descriptors.map((descriptor, index) => (
 									<span
 										className="border border-border/70 bg-muted/40 px-1.5 font-mono text-[10px] text-muted-foreground"
-										key={descriptor}
+										key={`${index}-${descriptor}`}
 									>
 										{descriptor}
 									</span>

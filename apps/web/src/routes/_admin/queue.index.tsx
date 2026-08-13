@@ -61,6 +61,20 @@ const HOUR_MS = 3_600_000;
 // list where every row is red says nothing. Matches PICKUP_OVERDUE_HOURS.
 const TURNAROUND_MS = 72 * HOUR_MS;
 
+// One timer for the whole list, not one per row: the queue scrolls to hundreds
+// of rows and each row used to own its own interval, so the clock cost grew
+// with the backlog and every row ticked on its own drifting phase.
+function useMinuteClock(): number {
+	const [now, setNow] = useState(() => Date.now());
+
+	useEffect(() => {
+		const interval = setInterval(() => setNow(Date.now()), 60_000);
+		return () => clearInterval(interval);
+	}, []);
+
+	return now;
+}
+
 function formatElapsedDuration(ms: number): string {
 	const totalMinutes = Math.floor(ms / 60_000);
 	if (totalMinutes < 60) {
@@ -111,6 +125,7 @@ function QueuePage() {
 
 	const [itemCode, setItemCode] = useState("");
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
+	const now = useMinuteClock();
 
 	const meQuery = useQuery({
 		...meQueryOptions(),
@@ -428,8 +443,14 @@ function QueuePage() {
 						aria-label="Find by item code, order ID, or line ID"
 						className="min-w-0 flex-1"
 						onChange={(event) => setItemCode(event.target.value)}
+						// Same guard the Find button carries: without it a held Enter
+						// fires a second lookup over the first and navigates twice.
 						onKeyDown={(event) => {
-							if (event.key === "Enter" && itemCode.trim()) {
+							if (
+								event.key === "Enter" &&
+								itemCode.trim() &&
+								!lookupMutation.isPending
+							) {
 								lookupMutation.mutate({
 									mode: "manual",
 									value: itemCode.trim(),
@@ -502,6 +523,7 @@ function QueuePage() {
 							currentUserId={currentUser?.id}
 							item={item}
 							key={item.id}
+							now={now}
 							onOpen={navigateToQueueDetail}
 						/>
 					))}
@@ -552,16 +574,11 @@ function QueuePage() {
 interface QueueRowProps {
 	item: QueueOrderServiceItem;
 	currentUserId?: number;
+	now: number;
 	onOpen: (item: QueueOrderServiceItem) => void;
 }
 
-const QueueRow = memo(({ item, currentUserId, onOpen }: QueueRowProps) => {
-	const [now, setNow] = useState(() => Date.now());
-	useEffect(() => {
-		const interval = setInterval(() => setNow(Date.now()), 60_000);
-		return () => clearInterval(interval);
-	}, []);
-
+const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 	const isTerminal = TERMINAL_QUEUE_STATUSES.has(item.status);
 	const elapsedMs = Math.max(
 		0,
