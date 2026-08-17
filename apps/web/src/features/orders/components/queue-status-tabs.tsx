@@ -1,3 +1,4 @@
+import { CHIP_STRIP_ROW, ChipStripScroller } from "@/components/chip-strip";
 import { Button } from "@/components/ui/button";
 import type { OrderServiceQueueCounts } from "@/lib/api";
 import {
@@ -27,17 +28,8 @@ export const QueueStatusTabs = ({
 	counts,
 	onValueChange,
 }: QueueStatusTabsProps) => (
-	// Six statuses rarely fit, so the strip scrolls. The mask fades the last chip
-	// out instead of slicing it mid-word, which read as a broken layout rather
-	// than as "there is more this way". Unconditional, not phone-only: whether
-	// the strip overflows depends on the container — the expanded sidebar cuts it
-	// at 1024 too — and when it does fit the fade lands on empty padding.
-	<div className="-mx-1 overflow-x-auto pb-1 [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]">
-		<div
-			aria-label="Queue status"
-			className="flex min-w-max gap-2 px-1 pr-8"
-			role="tablist"
-		>
+	<ChipStripScroller>
+		<div aria-label="Queue status" className={CHIP_STRIP_ROW} role="tablist">
 			{STATUS_TAB_ITEMS.map((status) => {
 				const isActive = value === status.value;
 				const count = counts?.[status.value];
@@ -62,5 +54,5 @@ export const QueueStatusTabs = ({
 				);
 			})}
 		</div>
-	</div>
+	</ChipStripScroller>
 );

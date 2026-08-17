@@ -37,10 +37,10 @@ interface OrderFilterPill {
 // Jakarta's date, never the device's: the server counts "today" with
 // jakartaNow(), and dayjs runs vanilla here, so a tablet left on UTC would send
 // a date_from the count never used. en-CA is the locale that prints YYYY-MM-DD.
-const jakartaToday = () =>
-	new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(
-		new Date(),
-	);
+const jakartaDateFormat = new Intl.DateTimeFormat("en-CA", {
+	timeZone: "Asia/Jakarta",
+});
+const jakartaToday = () => jakartaDateFormat.format(new Date());
 
 const buildPills = (today: string): OrderFilterPill[] => [
 	{ key: "all", label: "All", patch: CLEARED },

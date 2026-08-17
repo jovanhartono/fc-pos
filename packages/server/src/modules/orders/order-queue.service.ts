@@ -282,17 +282,6 @@ export async function getOrderServiceQueue(
   };
 }
 
-// A factory, not a shared constant: handing every unassigned worker the same
-// object means one caller mutating it changes what the next request is told.
-const emptyQueueCounts = () => ({
-  all: 0,
-  queued: 0,
-  processing: 0,
-  quality_check: 0,
-  qc_reject: 0,
-  ready_for_pickup: 0,
-});
-
 // Branch-scoped only, deliberately: honouring the date range too would just
 // count what is already on screen.
 export async function getOrderServiceQueueCounts(
@@ -304,8 +293,16 @@ export async function getOrderServiceQueueCounts(
     query?.store_id
   );
 
+  // A worker with no branch yet: an empty rack, not the company's.
   if (storeCondition === null) {
-    return emptyQueueCounts();
+    return {
+      all: 0,
+      queued: 0,
+      processing: 0,
+      quality_check: 0,
+      qc_reject: 0,
+      ready_for_pickup: 0,
+    };
   }
 
   const rows = await db

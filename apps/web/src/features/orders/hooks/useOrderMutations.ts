@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { invalidateOrderQueries } from "@/features/orders/lib/invalidate-order-queries";
 import {
 	cancelOrder,
 	createOrderRefund,
-	queryKeys,
 	type SetOrderServicePricePayload,
 	setOrderServicePrice,
 	type UpdateOrderPaymentPayload,
@@ -17,20 +17,7 @@ export const useRefreshOrder = (orderId: number) => {
 	const queryClient = useQueryClient();
 
 	return useCallback(async () => {
-		await Promise.all([
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.orderDetail(orderId),
-			}),
-			queryClient.invalidateQueries({ queryKey: ["orders"] }),
-			queryClient.invalidateQueries({ queryKey: ["order-counts"] }),
-			// A service status moved from the order detail is the same move the
-			// workshop makes from /queue, so both chip strips have to be dropped —
-			// otherwise whichever screen you did not use keeps yesterday's number.
-			queryClient.invalidateQueries({ queryKey: ["order-service-queue"] }),
-			queryClient.invalidateQueries({
-				queryKey: ["order-service-queue-counts"],
-			}),
-		]);
+		await invalidateOrderQueries(queryClient, orderId);
 	}, [orderId, queryClient]);
 };
 

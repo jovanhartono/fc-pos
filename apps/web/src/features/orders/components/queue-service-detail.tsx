@@ -21,9 +21,9 @@ import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gall
 import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
+import { invalidateOrderQueries } from "@/features/orders/lib/invalidate-order-queries";
 import { orderServicePhotoUploader } from "@/features/orders/utils/photo-upload";
 import {
-	queryKeys,
 	type UpdateOrderServiceStatusPayload,
 	updateOrderServiceStatus,
 } from "@/lib/api";
@@ -106,29 +106,14 @@ export function QueueServiceDetail({
 		(service) => service.id === serviceId,
 	);
 
-	const refreshData = async (storeId?: number) => {
-		await queryClient.invalidateQueries({
-			queryKey: queryKeys.orderDetail(orderId),
-		});
-		if (storeId !== undefined) {
-			await queryClient.invalidateQueries({
-				queryKey: queryKeys.orderServiceQueue({ store_id: storeId }),
-			});
-		}
-		await queryClient.invalidateQueries({
-			queryKey: ["order-service-queue-counts"],
-		});
-		// The Orders list and its pills read the same fulfillment this just moved.
-		await queryClient.invalidateQueries({ queryKey: ["orders"] });
-		await queryClient.invalidateQueries({ queryKey: ["order-counts"] });
-	};
+	const refreshData = () => invalidateOrderQueries(queryClient, orderId);
 
 	const startWorkMutation = useMutation({
 		mutationFn: () =>
 			updateOrderServiceStatus(orderId, serviceId, { status: "processing" }),
 		onSuccess: async () => {
 			toast.success("Work started");
-			await refreshData(detail?.store?.id);
+			await refreshData();
 		},
 		onError: (error: Error) => {
 			toast.error(readServerErrorMessage(error, "Failed to start work"));
@@ -141,7 +126,7 @@ export function QueueServiceDetail({
 		onSuccess: async () => {
 			toast.success("Status updated");
 			setStatusNote("");
-			await refreshData(detail?.store?.id);
+			await refreshData();
 		},
 		onError: (error: Error) => {
 			toast.error(readServerErrorMessage(error, "Failed to update status"));
@@ -382,7 +367,7 @@ export function QueueServiceDetail({
 					badgeLabel={selectedService.item_code ?? undefined}
 					uploader={orderServicePhotoUploader(orderId, serviceId)}
 					onUploaded={async () => {
-						await refreshData(detail.store?.id);
+						await refreshData();
 					}}
 				/>
 

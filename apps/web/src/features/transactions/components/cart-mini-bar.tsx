@@ -6,7 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/features/transactions/cart/useCart";
 import { CartLines } from "@/features/transactions/components/cart-lines";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 interface CartMiniBarProps {
 	hasStore: boolean;
@@ -64,9 +64,7 @@ export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
 					</span>
 				</span>
 				<span className="flex items-center gap-2">
-					<span className="font-semibold">
-						{formatIDRCurrency(String(subtotal))}
-					</span>
+					<span className="font-semibold">{formatMoney(subtotal)}</span>
 					<CaretUpIcon className="size-4" />
 				</span>
 			</Button>

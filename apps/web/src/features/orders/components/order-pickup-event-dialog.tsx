@@ -18,12 +18,12 @@ import {
 	InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { SinglePhotoCaptureDialog } from "@/features/orders/components/photo-upload-dialog";
+import { invalidateOrderQueries } from "@/features/orders/lib/invalidate-order-queries";
 import { isAcceptedImage } from "@/features/orders/utils/photo-upload";
 import {
 	createOrderPickupEvent,
 	type OrderDetail,
 	presignOrderPickupEvent,
-	queryKeys,
 	uploadFileToPresignedUrl,
 } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
@@ -159,10 +159,10 @@ export const OrderPickupEventDialog = ({
 		},
 		onSuccess: async () => {
 			toast.success("Pickup recorded");
-			await queryClient.invalidateQueries({
-				queryKey: queryKeys.orderDetail(orderId),
-			});
-			await queryClient.invalidateQueries({ queryKey: ["orders"] });
+			// A collected Item leaves the workshop queue and the ready-for-pickup
+			// shelf both — the /queue chips and the /orders pills each hold a number
+			// this hand-off just changed.
+			await invalidateOrderQueries(queryClient, orderId);
 			closeDialog();
 		},
 		onError: (error: Error) => {

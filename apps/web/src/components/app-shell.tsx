@@ -20,7 +20,12 @@ import {
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { type ComponentType, type PropsWithChildren, useEffect } from "react";
+import {
+	type ComponentType,
+	type PropsWithChildren,
+	useEffect,
+	useState,
+} from "react";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,7 +51,6 @@ import {
 	SidebarSeparator,
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { meQueryOptions } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
 import { getCurrentUser, useAuthStore } from "@/stores/auth-store";
@@ -233,7 +237,11 @@ export function AppShell({ title, children }: AppShellProps) {
 	const navigate = useNavigate();
 	const clearToken = useAuthStore((state) => state.clearToken);
 	const user = getCurrentUser();
-	const startsCollapsed = useIsMobile(1280);
+	// Read once, deliberately not tracked: this only seeds the sidebar's
+	// defaultOpen, a state initializer nobody reads again. Following the
+	// breakpoint afterwards re-rendered the whole shell mid-drag to change
+	// nothing, and would fight a cashier who had collapsed the sidebar by hand.
+	const [startsCollapsed] = useState(() => window.innerWidth < 1280);
 	// Nav visibility follows the DB-fresh role from /admin/users/me, not the
 	// stale JWT claim — role changes apply without re-login.
 	const meQuery = useQuery(meQueryOptions());

@@ -1,3 +1,4 @@
+import { PICKUP_OVERDUE_HOURS } from "@fresclean/api/schema";
 import {
 	CaretRightIcon,
 	FlagIcon,
@@ -42,7 +43,10 @@ import {
 	storesQueryOptions,
 } from "@/lib/query-options";
 import { readServerErrorMessage } from "@/lib/server-error";
-import { ACTIVE_ORDER_SERVICE_STATUSES } from "@/lib/status";
+import {
+	ACTIVE_ORDER_SERVICE_STATUSES,
+	formatOrderServiceStatus,
+} from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 
@@ -56,10 +60,9 @@ const TERMINAL_QUEUE_STATUSES = new Set<QueueOrderServiceItem["status"]>([
 
 const HOUR_MS = 3_600_000;
 
-// The turnaround the shop promises. One threshold, not a four-step ramp: an
-// amber-at-24h/red-at-72h scale paints a whole backlog the same colour, and a
-// list where every row is red says nothing. Matches PICKUP_OVERDUE_HOURS.
-const TURNAROUND_MS = 72 * HOUR_MS;
+// One threshold, not a four-step ramp: an amber-at-24h/red-at-72h scale paints a
+// whole backlog the same colour, and a list where every row is red says nothing.
+const TURNAROUND_MS = PICKUP_OVERDUE_HOURS * HOUR_MS;
 
 // One timer for the whole list, not one per row: the queue scrolls to hundreds
 // of rows and each row used to own its own interval, so the clock cost grew
@@ -642,6 +645,16 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 					/>
 				</span>
 				<span className="flex min-w-0 items-baseline gap-2 text-muted-foreground text-xs">
+					{/* On the All chip a queued Item and one back from a failed quality
+					    check are otherwise the same row, and triaging the rack means
+					    opening each one. Kept on the filtered chips too: a barcode scan
+					    and a search both land here spanning statuses. */}
+					<Badge
+						className="shrink-0 px-1.5 py-0 font-mono text-[10px] uppercase tracking-wide"
+						variant="outline"
+					>
+						{formatOrderServiceStatus(item.status)}
+					</Badge>
 					<span className="min-w-0 flex-1 truncate">{secondary}</span>
 					<span className="shrink-0 font-mono text-[10px]">
 						{item.item_code ?? `#${item.id}`}

@@ -18,6 +18,7 @@ import {
 } from "@/modules/orders/order-refund-status";
 import { isNumericSearch } from "@/modules/orders/order-search";
 import { summarizeOrderFulfillment } from "@/modules/orders/order-status-machine";
+import { PICKUP_OVERDUE_HOURS } from "@/schema/turnaround";
 import { jakartaDayEnd, jakartaDayStart, jakartaNow } from "@/utils/date";
 
 export type OrderTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -82,10 +83,6 @@ interface FindOrdersResult {
   total: number;
 }
 
-// Same 72h the queue paints red for an aged Item, so both screens agree on what
-// "late" means.
-const PICKUP_OVERDUE_HOURS = 72;
-
 function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
   const conditions: Record<string, unknown>[] = [];
 
@@ -107,8 +104,11 @@ function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
 
   if (filters.overdue) {
     conditions.push({ status: "ready_for_pickup" });
+    // Aged from the shelf, not from intake. A null ready_at drops out of `lt`
+    // on its own, which is the wanted answer: an order nobody has finished has
+    // not kept the customer waiting for a collection it could not make.
     conditions.push({
-      created_at: {
+      ready_at: {
         lt: jakartaNow().subtract(PICKUP_OVERDUE_HOURS, "hour").toDate(),
       },
     });
@@ -321,18 +321,23 @@ export async function findOrders(
   };
 }
 
-// Counts by fetching ids rather than db.$count(), because $count() cannot take
-// the relational builder's object `where` — and reusing buildOrderWhere is what
-// keeps a pill's number equal to the total of the page it opens.
+// Postgres does the counting and hands back one row. db.$count() cannot take the
+// relational builder's object `where`, and a second SQL-level where-builder is
+// how a pill's number stops matching the total of the page it opens — so the
+// count rides along on buildOrderWhere itself. The window runs before LIMIT, so
+// the single row carries the count of every match, not of the row returned.
 export async function countOrders(
   filters: OrderListFilters,
   scopedStoreIds?: number[]
 ): Promise<number> {
-  const rows = await db.query.ordersTable.findMany({
+  const [row] = await db.query.ordersTable.findMany({
     where: buildOrderWhere(filters, scopedStoreIds),
     columns: { id: true },
+    extras: { total: sql<number>`(count(*) over ())::int`.as("total") },
+    limit: 1,
   });
-  return rows.length;
+  // No row means nothing matched — the window had nothing to report it on.
+  return row?.total ?? 0;
 }
 
 export async function reserveNextOrderNumber(

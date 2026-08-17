@@ -6,6 +6,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
+import { CHIP_STRIP_ROW, ChipStripScroller } from "@/components/chip-strip";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -246,13 +247,11 @@ export function TransactionsCatalog() {
 							</div>
 						</Field>
 
-						{/* Ten categories over 43 services never fit a phone row, so the
-						    strip scrolls and fades at the edge — same treatment as the
-						    /queue status chips. Hidden when the catalog has one category,
-						    because then the strip only ever says "All". */}
+						{/* Hidden when the catalog has one category, because then the strip
+						    only ever says "All". */}
 						{categoryOptions.length > 1 ? (
-							<div className="-mx-1 overflow-x-auto pb-1 [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]">
-								<fieldset className="flex min-w-max gap-2 border-0 p-0 px-1 pr-8">
+							<ChipStripScroller>
+								<fieldset className={cn(CHIP_STRIP_ROW, "border-0 p-0")}>
 									<legend className="sr-only">Filter by category</legend>
 									<Button
 										aria-pressed={activeCategory === "all"}
@@ -286,7 +285,7 @@ export function TransactionsCatalog() {
 										);
 									})}
 								</fieldset>
-							</div>
+							</ChipStripScroller>
 						) : null}
 					</div>
 				</CardContent>

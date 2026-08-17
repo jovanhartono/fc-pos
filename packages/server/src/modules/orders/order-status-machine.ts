@@ -146,6 +146,18 @@ export function billableOrderTotal(
   return serviceTotal + productTotal;
 }
 
+// When the shelf clock should read from, given where the order just landed.
+// coalesce rather than a fresh now(): a rollup fired by a price edit or a
+// payment must not push the clock forward, or an order sitting uncollected for a
+// week would never surface as overdue. Null on any other status, so a qc_reject
+// sending the Item back to the workshop restarts the wait from the day the
+// customer is next told to come.
+export function nextReadyAt(status: DerivedOrderStatus) {
+  return status === "ready_for_pickup"
+    ? sql`coalesce(${ordersTable.ready_at}, now())`
+    : null;
+}
+
 export async function recomputeOrderRollup(
   executor: DbExecutor,
   orderId: number,
@@ -171,6 +183,7 @@ export async function recomputeOrderRollup(
       status: nextStatus,
       completed_at: nextStatus === "completed" ? new Date() : null,
       cancelled_at: nextStatus === "cancelled" ? new Date() : null,
+      ready_at: nextReadyAt(nextStatus),
       total: nextTotal.toString(),
       // A promo the customer already earned stays (ADR-0015), but it can
       // never be worth more than what is left to pay, so on a mostly
