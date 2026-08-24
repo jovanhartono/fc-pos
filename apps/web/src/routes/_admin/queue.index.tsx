@@ -443,7 +443,10 @@ function QueuePage() {
 				<div className="flex items-center gap-2">
 					<Input
 						aria-label="Find by item code, order ID, or line ID"
+						autoCapitalize="none"
+						autoCorrect="off"
 						className="min-w-0 flex-1"
+						spellCheck={false}
 						onChange={(event) => setItemCode(event.target.value)}
 						// Same guard the Find button carries: without it a held Enter
 						// fires a second lookup over the first and navigates twice.
@@ -459,7 +462,7 @@ function QueuePage() {
 								});
 							}
 						}}
-						placeholder="Item code / order ID"
+						placeholder="Item code / order ID…"
 						value={itemCode}
 					/>
 					<Button

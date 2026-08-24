@@ -59,14 +59,8 @@ const SERVICE_FIELDS: ServiceFieldSpec[] = [
 // drop-off photo. The photo lives here (with the items it depicts, captured at
 // intake — see CONTEXT.md) and gates the step forward (see CheckoutFooter).
 export const CheckoutItemsStep = () => {
-	const {
-		removeProduct,
-		removeService,
-		updateProductQty,
-		updateServiceField,
-		productRows,
-		serviceRows,
-	} = useCart();
+	const { removeProduct, updateProductQty, productRows, serviceRows } =
+		useCart();
 	const form = useFormContext<TransactionDraftValues>();
 	const categoriesQuery = useQuery(categoriesQueryOptions());
 	const categoryMap = useMemo(
@@ -161,8 +155,6 @@ export const CheckoutItemsStep = () => {
 						itemNumber={index + 1}
 						key={line.line_id}
 						line={line}
-						onFieldChange={updateServiceField}
-						onRemove={removeService}
 					/>
 				))}
 			</div>
@@ -190,20 +182,15 @@ export const CheckoutItemsStep = () => {
 interface CheckoutServiceLineRowProps {
 	line: ServiceCartDisplayLine;
 	itemNumber: number;
-	onRemove: (lineId: string) => void;
-	onFieldChange: (
-		lineId: string,
-		field: ServiceFieldSpec["key"] | "price",
-		value: string,
-	) => void;
 }
 
+// Reads the cart itself instead of taking forwarded actions as props — same
+// contract as CartLines, so every surface removes and edits lines identically.
 const CheckoutServiceLineRow = ({
 	line,
 	itemNumber,
-	onRemove,
-	onFieldChange,
 }: CheckoutServiceLineRowProps) => {
+	const { removeService, updateServiceField } = useCart();
 	const descriptors = getOrderServiceItemDescriptors(line);
 	const isUnpriced =
 		line.service.price === null && getServiceLinePrice(line) <= 0;
@@ -265,7 +252,11 @@ const CheckoutServiceLineRow = ({
 									className="h-11"
 									id={`service-${field.key}-${line.line_id}`}
 									onChange={(event) =>
-										onFieldChange(line.line_id, field.key, event.target.value)
+										updateServiceField(
+											line.line_id,
+											field.key,
+											event.target.value,
+										)
 									}
 									placeholder={field.placeholder}
 									value={line[field.key]}
@@ -283,7 +274,7 @@ const CheckoutServiceLineRow = ({
 							<CurrencyInput
 								id={`service-price-${line.line_id}`}
 								onValueChange={(value) =>
-									onFieldChange(line.line_id, "price", value)
+									updateServiceField(line.line_id, "price", value)
 								}
 								value={line.price}
 							/>
@@ -301,7 +292,7 @@ const CheckoutServiceLineRow = ({
 				aria-label={`Remove ${line.service.name}`}
 				className="absolute top-2 right-8 size-11"
 				icon={<XIcon className="size-4" />}
-				onClick={() => onRemove(line.line_id)}
+				onClick={() => removeService(line.line_id)}
 				size="icon-xs"
 				type="button"
 				variant="outline"

@@ -12,7 +12,6 @@ import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import { useCartOps } from "@/features/transactions/cart/useCart";
 import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
-import type { Product, Service } from "@/lib/api";
 import {
 	categoriesQueryOptions,
 	productsQueryOptions,
@@ -102,19 +101,19 @@ export function TransactionsCatalog() {
 	const filteredEntries = useMemo(
 		() =>
 			catalogEntries.filter(({ item }) => {
-				const categoryName = getEntityCategoryName(
-					item,
-					categoryMap,
-				).toLowerCase();
-				const matchesCategory =
-					activeCategory === "all" || item.category_id === activeCategory;
-				const matchesSearch =
-					searchValue.length === 0 ||
+				if (activeCategory !== "all" && item.category_id !== activeCategory) {
+					return false;
+				}
+				if (searchValue.length === 0) {
+					return true;
+				}
+				return (
 					item.name.toLowerCase().includes(searchValue) ||
 					(item.description ?? "").toLowerCase().includes(searchValue) ||
-					categoryName.includes(searchValue);
-
-				return matchesCategory && matchesSearch;
+					getEntityCategoryName(item, categoryMap)
+						.toLowerCase()
+						.includes(searchValue)
+				);
 			}),
 		[activeCategory, catalogEntries, categoryMap, searchValue],
 	);
@@ -230,16 +229,20 @@ export function TransactionsCatalog() {
 			</Card>
 
 			<div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-				{filteredEntries.map(({ kind, item }) => {
-					const isProduct = kind === "product";
+				{filteredEntries.map((entry) => {
+					// Narrow on entry.kind, never destructure first: pulling kind and
+					// item apart severs the discriminated union and forces casts.
+					const { item } = entry;
+					const isProduct = entry.kind === "product";
 					const productCount = productCartQtyById.get(item.id) ?? 0;
 					const isOutOfStock =
-						isProduct && Number((item as Product).stock ?? 0) <= productCount;
+						entry.kind === "product" &&
+						Number(entry.item.stock ?? 0) <= productCount;
 					const categoryName = getEntityCategoryName(item, categoryMap);
 
 					return (
 						<Card
-							key={`${kind}-${item.id}`}
+							key={`${entry.kind}-${item.id}`}
 							className={cn(
 								"overflow-hidden border-border/70 transition-colors",
 								isProduct
@@ -258,9 +261,9 @@ export function TransactionsCatalog() {
 										isOutOfStock && "cursor-not-allowed opacity-50",
 									)}
 									onClick={() =>
-										isProduct
-											? addProduct(item as Product)
-											: addService(item as Service)
+										entry.kind === "product"
+											? addProduct(entry.item)
+											: addService(entry.item)
 									}
 									disabled={isOutOfStock}
 									aria-label={`Add ${item.name}`}

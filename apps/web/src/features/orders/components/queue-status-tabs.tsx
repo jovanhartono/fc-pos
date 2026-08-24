@@ -5,6 +5,7 @@ import {
 	ACTIVE_ORDER_SERVICE_STATUSES,
 	formatOrderServiceStatus,
 } from "@/lib/status";
+import { cn } from "@/lib/utils";
 
 const STATUS_TAB_ITEMS: {
 	value: "all" | (typeof ACTIVE_ORDER_SERVICE_STATUSES)[number];
@@ -29,18 +30,21 @@ export const QueueStatusTabs = ({
 	onValueChange,
 }: QueueStatusTabsProps) => (
 	<ChipStripScroller>
-		<div aria-label="Queue status" className={CHIP_STRIP_ROW} role="tablist">
+		{/* Toggle buttons, not tabs: tablist semantics promise arrow-key roving
+		    and tabpanels these filter chips don't have. Matches the catalog's
+		    category strip. */}
+		<fieldset className={cn(CHIP_STRIP_ROW, "border-0 p-0")}>
+			<legend className="sr-only">Filter by status</legend>
 			{STATUS_TAB_ITEMS.map((status) => {
 				const isActive = value === status.value;
 				const count = counts?.[status.value];
 
 				return (
 					<Button
-						aria-selected={isActive}
+						aria-pressed={isActive}
 						className="h-11 gap-1.5 px-3 text-sm"
 						key={status.value}
 						onClick={() => onValueChange(status.value)}
-						role="tab"
 						type="button"
 						variant={isActive ? "default" : "outline"}
 					>
@@ -53,6 +57,6 @@ export const QueueStatusTabs = ({
 					</Button>
 				);
 			})}
-		</div>
+		</fieldset>
 	</ChipStripScroller>
 );

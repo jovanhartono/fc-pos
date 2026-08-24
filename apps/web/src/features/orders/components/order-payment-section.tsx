@@ -98,7 +98,15 @@ const PaymentDetails = ({
 	return null;
 };
 
-const CollectPaymentAction = ({ orderId, detail }: CollectPaymentFormProps) => {
+interface CollectPaymentActionProps {
+	orderId: number;
+	detail: OrderDetail;
+}
+
+const CollectPaymentAction = ({
+	orderId,
+	detail,
+}: CollectPaymentActionProps) => {
 	const openSheet = useSheet((s) => s.openSheet);
 
 	return (
