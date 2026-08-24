@@ -63,6 +63,7 @@ const router = createRouter({
 	defaultPreloadStaleTime: 0,
 	defaultPendingComponent: RoutePending,
 	defaultViewTransition: true,
+	scrollRestoration: true,
 });
 
 declare module "@tanstack/react-router" {
