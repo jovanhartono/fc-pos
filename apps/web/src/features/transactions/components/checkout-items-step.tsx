@@ -196,108 +196,112 @@ const CheckoutServiceLineRow = ({
 		line.service.price === null && getServiceLinePrice(line) <= 0;
 
 	return (
-		// Remove sits outside <details>, not merely outside <summary>: a closed
-		// disclosure hides every non-summary child, so a button parked there is
-		// unreachable until the row is expanded — and rows start collapsed.
-		<div className="relative">
-			<details className="group border border-border/70">
-				<summary className="flex cursor-pointer list-none items-start gap-3 p-3 hover:bg-muted/30 focus-visible:outline focus-visible:outline-1 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
-					<span className="mt-0.5 shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums">
-						{itemNumber}
-					</span>
-					<span className="grid min-w-0 flex-1 gap-1">
-						{/* Wraps rather than truncates: service names run to 30+ characters
+		<details className="group border border-border/70">
+			<summary className="flex cursor-pointer list-none items-start gap-3 p-3 hover:bg-muted/30 focus-visible:outline focus-visible:outline-1 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+				<span className="mt-0.5 shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums">
+					{itemNumber}
+				</span>
+				<span className="grid min-w-0 flex-1 gap-1">
+					{/* Wraps rather than truncates: service names run to 30+ characters
 						    and the price column leaves this one ~130px on a phone, so
 						    truncating cut every line down to "Deep Clea…". */}
-						<span className="text-sm font-medium">{line.service.name}</span>
-						<span className="flex flex-wrap gap-1">
-							{descriptors.length > 0 ? (
-								descriptors.map((value, valueIndex) => (
-									<span
-										className="border border-border/70 px-1.5 font-mono text-[10px] text-muted-foreground"
-										key={`${valueIndex}-${value}`}
-									>
-										{value}
-									</span>
-								))
-							) : (
-								<span className="font-mono text-[10px] text-muted-foreground">
-									Add detail
+					<span className="text-sm font-medium">{line.service.name}</span>
+					<span className="flex flex-wrap gap-1">
+						{descriptors.length > 0 ? (
+							descriptors.map((value, valueIndex) => (
+								<span
+									className="border border-border/70 px-1.5 font-mono text-[10px] text-muted-foreground"
+									key={`${valueIndex}-${value}`}
+								>
+									{value}
 								</span>
-							)}
-							{isUnpriced ? (
-								<span className="border border-warning/50 bg-warning/10 px-1.5 font-mono text-[10px] text-warning">
-									No price yet
-								</span>
-							) : null}
-						</span>
+							))
+						) : (
+							<span className="font-mono text-[10px] text-muted-foreground">
+								Add detail
+							</span>
+						)}
+						{isUnpriced ? (
+							<span className="border border-warning/50 bg-warning/10 px-1.5 font-mono text-[10px] text-warning">
+								No price yet
+							</span>
+						) : null}
 					</span>
-					<span className="mt-0.5 shrink-0 pr-11 font-mono text-sm font-semibold tabular-nums">
+				</span>
+				{/* self-center against the summary, whose height never changes when
+					    the disclosure opens — so price, remove and caret sit perfectly
+					    centered on the row at any name length or open state. */}
+				<span className="flex shrink-0 items-center gap-2 self-center">
+					<span className="font-mono text-sm font-semibold tabular-nums">
 						{formatMoney(getServiceLinePrice(line))}
 					</span>
+					<Button
+						aria-label={`Remove ${line.service.name}`}
+						className="size-11 border-destructive/50 bg-destructive/10 text-destructive hover:border-destructive hover:bg-destructive/20 hover:text-destructive"
+						icon={<XIcon className="size-3.5" />}
+						// A button inside <summary>: preventDefault stops the click from
+						// also toggling the disclosure while the row is being removed.
+						onClick={(event) => {
+							event.preventDefault();
+							removeService(line.line_id);
+						}}
+						size="icon-xs"
+						type="button"
+						variant="outline"
+					/>
 					<CaretDownIcon
 						aria-hidden="true"
-						className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+						className="size-4 text-muted-foreground transition-transform group-open:rotate-180"
 					/>
-				</summary>
+				</span>
+			</summary>
 
-				<div className="grid gap-3 border-border/70 border-t p-3">
-					<div className="grid gap-3 sm:grid-cols-2">
-						{SERVICE_FIELDS.map((field) => (
-							<Field className={field.className} key={field.key}>
-								<FieldLabel htmlFor={`service-${field.key}-${line.line_id}`}>
-									{field.label}
-								</FieldLabel>
-								<Input
-									className="h-11"
-									id={`service-${field.key}-${line.line_id}`}
-									onChange={(event) =>
-										updateServiceField(
-											line.line_id,
-											field.key,
-											event.target.value,
-										)
-									}
-									placeholder={field.placeholder}
-									value={line[field.key]}
-								/>
-							</Field>
-						))}
-					</div>
-					{line.service.price === null ? (
-						// Blank is a valid answer here, not a missing one: a Repair is priced
-						// after inspection (ADR-0018).
-						<Field>
-							<FieldLabel htmlFor={`service-price-${line.line_id}`}>
-								Price
+			<div className="grid gap-3 border-border/70 border-t p-3">
+				<div className="grid gap-3 sm:grid-cols-2">
+					{SERVICE_FIELDS.map((field) => (
+						<Field className={field.className} key={field.key}>
+							<FieldLabel htmlFor={`service-${field.key}-${line.line_id}`}>
+								{field.label}
 							</FieldLabel>
-							<CurrencyInput
-								id={`service-price-${line.line_id}`}
-								onValueChange={(value) =>
-									updateServiceField(line.line_id, "price", value)
+							<Input
+								className="h-11"
+								id={`service-${field.key}-${line.line_id}`}
+								onChange={(event) =>
+									updateServiceField(
+										line.line_id,
+										field.key,
+										event.target.value,
+									)
 								}
-								value={line.price}
+								placeholder={field.placeholder}
+								value={line[field.key]}
 							/>
-							<FieldDescription>
-								{line.price.trim() === ""
-									? "No price yet — payment waits until this line is priced after inspection."
-									: "Agreed price. Can be corrected until the order is paid."}
-							</FieldDescription>
 						</Field>
-					) : null}
+					))}
 				</div>
-			</details>
-
-			<Button
-				aria-label={`Remove ${line.service.name}`}
-				className="absolute top-2 right-8 size-11 border-destructive/50 bg-destructive/10 text-destructive hover:border-destructive hover:bg-destructive/20 hover:text-destructive"
-				icon={<XIcon className="size-3.5" />}
-				onClick={() => removeService(line.line_id)}
-				size="icon-xs"
-				type="button"
-				variant="outline"
-			/>
-		</div>
+				{line.service.price === null ? (
+					// Blank is a valid answer here, not a missing one: a Repair is priced
+					// after inspection (ADR-0018).
+					<Field>
+						<FieldLabel htmlFor={`service-price-${line.line_id}`}>
+							Price
+						</FieldLabel>
+						<CurrencyInput
+							id={`service-price-${line.line_id}`}
+							onValueChange={(value) =>
+								updateServiceField(line.line_id, "price", value)
+							}
+							value={line.price}
+						/>
+						<FieldDescription>
+							{line.price.trim() === ""
+								? "No price yet — payment waits until this line is priced after inspection."
+								: "Agreed price. Can be corrected until the order is paid."}
+						</FieldDescription>
+					</Field>
+				) : null}
+			</div>
+		</details>
 	);
 };
 
