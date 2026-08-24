@@ -1,8 +1,4 @@
-import {
-	MagnifyingGlassIcon,
-	PackageIcon,
-	ScissorsIcon,
-} from "@phosphor-icons/react";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
@@ -30,23 +26,15 @@ export function TransactionsCatalog() {
 	const { isAdmin, visibleStores, handleStoreChange } =
 		useTransactionsPageContext();
 	const { addProduct, addService } = useCartOps();
-	const mode = useTransactionsPageStore((state) => state.mode);
-	const setMode = useTransactionsPageStore((state) => state.setMode);
 	const searchTerm = useTransactionsPageStore((state) => state.searchTerm);
 	const setSearchTerm = useTransactionsPageStore(
 		(state) => state.setSearchTerm,
 	);
-	const activeProductCategory = useTransactionsPageStore(
-		(state) => state.activeProductCategory,
+	const activeCategory = useTransactionsPageStore(
+		(state) => state.activeCategory,
 	);
-	const activeServiceCategory = useTransactionsPageStore(
-		(state) => state.activeServiceCategory,
-	);
-	const setActiveProductCategory = useTransactionsPageStore(
-		(state) => state.setActiveProductCategory,
-	);
-	const setActiveServiceCategory = useTransactionsPageStore(
-		(state) => state.setActiveServiceCategory,
+	const setActiveCategory = useTransactionsPageStore(
+		(state) => state.setActiveCategory,
 	);
 
 	const categoriesQuery = useQuery(categoriesQueryOptions());
@@ -99,60 +87,43 @@ export function TransactionsCatalog() {
 		return () => window.removeEventListener("keydown", handleKeydown);
 	}, []);
 
-	const filteredProducts = useMemo(
+	// One catalog: services and retail products in the same grid, with the
+	// products' single "Retail Product" category as just another pill. The
+	// Services / Add-ons toggle this replaces made the pills mode-scoped and
+	// made search silently skip whichever half was inactive.
+	const catalogEntries = useMemo(
+		() => [
+			...services.map((item) => ({ kind: "service" as const, item })),
+			...products.map((item) => ({ kind: "product" as const, item })),
+		],
+		[products, services],
+	);
+
+	const filteredEntries = useMemo(
 		() =>
-			products.filter((product) => {
+			catalogEntries.filter(({ item }) => {
 				const categoryName = getEntityCategoryName(
-					product,
+					item,
 					categoryMap,
 				).toLowerCase();
 				const matchesCategory =
-					activeProductCategory === "all" ||
-					product.category_id === activeProductCategory;
+					activeCategory === "all" || item.category_id === activeCategory;
 				const matchesSearch =
 					searchValue.length === 0 ||
-					product.name.toLowerCase().includes(searchValue) ||
-					(product.description ?? "").toLowerCase().includes(searchValue) ||
+					item.name.toLowerCase().includes(searchValue) ||
+					(item.description ?? "").toLowerCase().includes(searchValue) ||
 					categoryName.includes(searchValue);
 
 				return matchesCategory && matchesSearch;
 			}),
-		[activeProductCategory, categoryMap, products, searchValue],
+		[activeCategory, catalogEntries, categoryMap, searchValue],
 	);
-	const filteredServices = useMemo(
-		() =>
-			services.filter((service) => {
-				const categoryName = getEntityCategoryName(
-					service,
-					categoryMap,
-				).toLowerCase();
-				const matchesCategory =
-					activeServiceCategory === "all" ||
-					service.category_id === activeServiceCategory;
-				const matchesSearch =
-					searchValue.length === 0 ||
-					service.name.toLowerCase().includes(searchValue) ||
-					(service.description ?? "").toLowerCase().includes(searchValue) ||
-					categoryName.includes(searchValue);
-
-				return matchesCategory && matchesSearch;
-			}),
-		[activeServiceCategory, categoryMap, searchValue, services],
-	);
-
-	const activeItems = mode === "products" ? filteredProducts : filteredServices;
-
-	const modeItems = mode === "products" ? products : services;
-	const activeCategory =
-		mode === "products" ? activeProductCategory : activeServiceCategory;
-	const setActiveCategory =
-		mode === "products" ? setActiveProductCategory : setActiveServiceCategory;
 
 	// Counted off the whole catalog, never the search-narrowed list: a pill set
 	// that shrinks as you type can drop the pill you are filtering by.
 	const categoryOptions = useMemo(() => {
 		const byId = new Map<number, { id: number; name: string; count: number }>();
-		for (const item of modeItems) {
+		for (const { item } of catalogEntries) {
 			const seen = byId.get(item.category_id);
 			if (seen) {
 				seen.count += 1;
@@ -165,7 +136,7 @@ export function TransactionsCatalog() {
 			});
 		}
 		return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
-	}, [categoryMap, modeItems]);
+	}, [categoryMap, catalogEntries]);
 
 	const productCartQtyById = useMemo(
 		() => new Map(productCart.map((line) => [line.id, line.qty])),
@@ -193,39 +164,6 @@ export function TransactionsCatalog() {
 							/>
 							<FieldError errors={[storeError]} />
 						</Field>
-
-						<div className="grid grid-cols-2 gap-2 border border-border/70 bg-background/80 p-1">
-							<button
-								type="button"
-								className={cn(
-									"flex min-h-11 items-center justify-between gap-2 border px-3 py-2 text-left outline-none transition-colors focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
-									mode === "services"
-										? "border-foreground bg-foreground text-background active:bg-foreground/85"
-										: "border-transparent text-foreground/70 hover:border-border/70 hover:bg-muted/40 active:border-border active:bg-muted/60",
-								)}
-								onClick={() => setMode("services")}
-							>
-								<span className="flex items-center gap-2 text-sm font-medium">
-									<ScissorsIcon className="size-4" />
-									Services
-								</span>
-							</button>
-							<button
-								type="button"
-								className={cn(
-									"flex min-h-11 items-center justify-between gap-2 border px-3 py-2 text-left outline-none transition-colors focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
-									mode === "products"
-										? "border-border bg-card text-foreground active:bg-card/85"
-										: "border-transparent text-foreground/55 hover:border-border/70 hover:bg-muted/40 active:border-border active:bg-muted/60",
-								)}
-								onClick={() => setMode("products")}
-							>
-								<span className="flex items-center gap-2 text-sm font-medium">
-									<PackageIcon className="size-4" />
-									Add-ons
-								</span>
-							</button>
-						</div>
 
 						<Field>
 							<FieldLabel className="sr-only" htmlFor="transaction-search">
@@ -262,7 +200,7 @@ export function TransactionsCatalog() {
 									>
 										All
 										<span className="font-mono font-semibold tabular-nums">
-											{modeItems.length}
+											{catalogEntries.length}
 										</span>
 									</Button>
 									{categoryOptions.map((category) => {
@@ -292,8 +230,8 @@ export function TransactionsCatalog() {
 			</Card>
 
 			<div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-				{activeItems.map((item) => {
-					const isProduct = mode === "products";
+				{filteredEntries.map(({ kind, item }) => {
+					const isProduct = kind === "product";
 					const productCount = productCartQtyById.get(item.id) ?? 0;
 					const isOutOfStock =
 						isProduct && Number((item as Product).stock ?? 0) <= productCount;
@@ -301,7 +239,7 @@ export function TransactionsCatalog() {
 
 					return (
 						<Card
-							key={`${mode}-${item.id}`}
+							key={`${kind}-${item.id}`}
 							className={cn(
 								"overflow-hidden border-border/70 transition-colors",
 								isProduct
@@ -350,7 +288,7 @@ export function TransactionsCatalog() {
 				})}
 			</div>
 
-			{activeItems.length === 0 ? (
+			{filteredEntries.length === 0 ? (
 				<Card>
 					<CardContent className="py-12 text-center text-sm text-muted-foreground">
 						No items.
