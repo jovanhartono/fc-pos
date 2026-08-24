@@ -18,12 +18,19 @@ import {
 import { OpenComplaintForm } from "@/features/complaints/components/open-complaint-form";
 import { useOpenComplaintMutation } from "@/features/complaints/hooks/useComplaintMutations";
 import { OrderCourierForm } from "@/features/orders/components/order-courier-form";
-import { CancelOrderForm } from "@/features/orders/components/order-line-reversal-form";
+import {
+	CancelOrderForm,
+	RefundOrderForm,
+} from "@/features/orders/components/order-line-reversal-form";
 import { OrderPickupEventDialog } from "@/features/orders/components/order-pickup-event-dialog";
 import { PaymentStatusBadge } from "@/features/orders/components/payment-status-badge";
-import { useCancelOrderMutation } from "@/features/orders/hooks/useOrderMutations";
+import {
+	useCancelOrderMutation,
+	useRefundOrderMutation,
+} from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
+import { buildRefundCaps } from "@/features/orders/lib/refund-preview";
 import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
 import { usePrintReceiptMutation } from "@/features/printing/hooks/usePrintReceipt";
 import type { OrderDetail } from "@/lib/api";
@@ -50,6 +57,7 @@ export const OrderIdentityStrip = ({
 	const openDialog = useDialog((s) => s.openDialog);
 	const closeDialog = useDialog((s) => s.closeDialog);
 	const cancelOrderMutation = useCancelOrderMutation(orderId);
+	const refundMutation = useRefundOrderMutation(orderId);
 	const openComplaintMutation = useOpenComplaintMutation(orderId);
 	const printReceiptMutation = usePrintReceiptMutation(orderId);
 
@@ -137,6 +145,31 @@ export const OrderIdentityStrip = ({
 		});
 	};
 
+	const openRefundOrderDialog = () => {
+		openDialog({
+			title: "Refund order",
+			description: "Select items to refund and provide reasons.",
+			contentClassName: "sm:max-w-xl",
+			content: () => (
+				<RefundOrderForm
+					capsByLineKey={buildRefundCaps(detail)}
+					closeDialog={closeDialog}
+					orderId={orderId}
+					refundableProducts={gates.refundableProducts.map((item) => ({
+						id: item.id,
+						name: item.product?.name ?? `Product #${item.product_id}`,
+						qty: item.qty,
+					}))}
+					refundableServices={gates.refundableServices.map((service) => ({
+						id: service.id,
+						item_code: service.item_code ?? null,
+					}))}
+					refundMutation={refundMutation}
+				/>
+			),
+		});
+	};
+
 	const openComplaintDialog = () => {
 		openDialog({
 			title: "Open complaint",
@@ -161,6 +194,7 @@ export const OrderIdentityStrip = ({
 		Boolean(trackingUrl) ||
 		gates.canManageCourier ||
 		gates.canCancelOrder ||
+		gates.canRefundWholeOrder ||
 		gates.canOpenComplaint;
 	const meta = [
 		detail.customer?.name,
@@ -251,6 +285,14 @@ export const OrderIdentityStrip = ({
 										<DropdownMenuItem onClick={openComplaintDialog}>
 											<WarningCircleIcon className="size-4" />
 											Open complaint
+										</DropdownMenuItem>
+									) : null}
+									{gates.canRefundWholeOrder ? (
+										<DropdownMenuItem
+											onClick={openRefundOrderDialog}
+											variant="destructive"
+										>
+											Refund order
 										</DropdownMenuItem>
 									) : null}
 									{gates.canCancelOrder ? (

@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { OrderMoneySummary } from "@/features/orders/components/order-money-summary";
-import { OrderRefundAction } from "@/features/orders/components/order-refund-action";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { useOrderPaymentMutation } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
@@ -35,6 +34,7 @@ import {
 	servicesQueryOptions,
 } from "@/lib/query-options";
 import { formatMoney, parseMoney } from "@/shared/money";
+import { useSheet } from "@/stores/sheet-store";
 
 interface OrderPaymentSectionProps {
 	orderId: number;
@@ -53,7 +53,6 @@ export const OrderPaymentSection = ({
 			<OrderMoneySummary detail={detail} />
 		</div>
 		<PaymentDetails detail={detail} gates={gates} orderId={orderId} />
-		<OrderRefundAction detail={detail} gates={gates} orderId={orderId} />
 	</Card>
 );
 
@@ -91,11 +90,34 @@ const PaymentDetails = ({
 		return (
 			<>
 				<Separator />
-				<CollectPaymentForm detail={detail} orderId={orderId} />
+				<CollectPaymentAction detail={detail} orderId={orderId} />
 			</>
 		);
 	}
 	return null;
+};
+
+const CollectPaymentAction = ({ orderId, detail }: CollectPaymentFormProps) => {
+	const openSheet = useSheet((s) => s.openSheet);
+
+	return (
+		<div className="px-4 py-3">
+			<Button
+				onClick={() =>
+					openSheet({
+						title: "Collect payment",
+						description: detail.code,
+						content: () => (
+							<CollectPaymentForm detail={detail} orderId={orderId} />
+						),
+					})
+				}
+				type="button"
+			>
+				Collect payment
+			</Button>
+		</div>
+	);
 };
 
 const PaidDetails = ({ detail }: { detail: OrderDetail }) => (
@@ -145,6 +167,7 @@ interface CollectPaymentFormProps {
 // already settled shows the printed total instead: the server refuses a
 // second claim.
 const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
+	const closeSheet = useSheet((s) => s.closeSheet);
 	const paymentMethodsQuery = useQuery(paymentMethodsQueryOptions());
 	const servicesQuery = useQuery(servicesQueryOptions());
 	const campaignsQuery = useQuery(
@@ -231,17 +254,20 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 
 	return (
 		<form
-			className="grid gap-4 px-4 py-4"
+			className="grid gap-4"
 			// mutate, not mutateAsync: on a race (someone else collected first)
 			// the global handler shows the server's reason instead of a silent
 			// stopped spinner.
 			onSubmit={form.handleSubmit((values) => {
-				paymentMutation.mutate({
-					payment_method_id: Number(values.paymentMethodId),
-					campaign_ids: values.campaignIds.map((id) => Number(id)),
-					voucher_codes: values.vouchers.map((entry) => entry.code),
-					discount: values.discount || "0",
-				});
+				paymentMutation.mutate(
+					{
+						payment_method_id: Number(values.paymentMethodId),
+						campaign_ids: values.campaignIds.map((id) => Number(id)),
+						voucher_codes: values.vouchers.map((entry) => entry.code),
+						discount: values.discount || "0",
+					},
+					{ onSuccess: () => closeSheet() },
+				);
 			})}
 		>
 			<Controller
