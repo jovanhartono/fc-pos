@@ -19,13 +19,13 @@
 ## Structure
 
 - `components/ui/` — shadcn only, add via `bunx shadcn@latest add <component>`
-- `components/form/` — shared form fields (CurrencyInput, PhoneNumberField)
+- `components/form/` — shared form fields
 - `features/<domain>/components/`, `features/<domain>/hooks/` — feature modules
-- `hooks/` — shared hooks (`use-mobile.ts`)
-- `lib/` — `api.ts`, `rpc.ts`, `query-options.ts`, `status.ts`, `utils.ts`
+- `hooks/` — shared hooks
+- `lib/` — API client, RPC, query options, status maps, shared helpers
 - `routes/` — TanStack Router file-based; thin orchestrators only
-- `shared/` — shared utils (`utils.ts`); add `zod.ts` lazily if frontend-only schemas appear
-- `stores/` — Zustand stores (auth, dialog, sheet, transaction-preferences)
+- `shared/` — cross-cutting utils (money, utils)
+- `stores/` — Zustand stores (auth, dialog, sheet, printer, transactions, transaction-preferences)
 
 ## Forms
 
