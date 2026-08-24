@@ -342,11 +342,6 @@ const ServicePriceSection = ({
 					serviceId={serviceId}
 				/>
 			) : null}
-			{isOrderPaid ? (
-				<p className="text-muted-foreground text-xs">
-					Paid — prices are frozen.
-				</p>
-			) : null}
 		</div>
 	);
 };
