@@ -90,14 +90,18 @@
 
 ## Prod schema drift (opened 2026-08-25, from the orders/:id outage)
 
-- [ ] **Drop `playing_with_neon` from prod** — Neon's stock sample table, created
+- [x] **Drop `playing_with_neon` from prod** (done 2026-08-25) — Neon's stock sample table, created
   with the project and never used by us. Drizzle reports it non-empty, so it sits
   in every `explain:prod` plan as a `DROP TABLE` data-loss warning attached to
   whatever unrelated change is being shipped. Confirm it is the stock sample rows,
   then drop it deliberately: `DROP TABLE playing_with_neon;` via `bun -e`. Not
   urgent; the point is to stop a destructive statement riding along with the next
   deploy.
-- [ ] **Normalise the `pickup_code` default in `schema.ts`** — phantom diff.
+  Confirmed as the stock seed before dropping — `(id integer, name text, value
+  real)`, 10 rows of `LEFT(md5(1..10), 10)` + `random()`, no foreign keys
+  referencing it, absent from `schema.ts` and the codebase. Rows dumped as
+  restorable INSERTs first. `explain:prod` no longer carries a `DROP`.
+- [x] **Normalise the `pickup_code` default in `schema.ts`** (done 2026-08-25, PR #99) — phantom diff.
   Postgres stores the default in its own normalised form, and drizzle compares raw
   text, so `explain:prod` always reports a change:
   `lpad(floor(random() * 1000000)::text, 6, '0')` (schema.ts:477) vs
@@ -105,6 +109,8 @@
   (prod). Behaviourally identical — applying it is a no-op. Paste Postgres's form
   into `schema.ts` so future plans come back clean. Cosmetic, but it is noise on
   top of the deploy check that is supposed to be read carefully.
+  With this and the drop above, `explain:dev` and `explain:prod` both report no
+  changes — the plan is now a real signal.
 
 ## AWS / CDN follow-ups
 
