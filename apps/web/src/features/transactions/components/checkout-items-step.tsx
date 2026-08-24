@@ -222,9 +222,7 @@ const CheckoutServiceLineRow = ({
 						{/* Wraps rather than truncates: service names run to 30+ characters
 						    and the price column leaves this one ~130px on a phone, so
 						    truncating cut every line down to "Deep Clea…". */}
-						<span className="line-clamp-2 text-sm font-medium">
-							{line.service.name}
-						</span>
+						<span className="text-sm font-medium">{line.service.name}</span>
 						<span className="flex flex-wrap gap-1">
 							{descriptors.length > 0 ? (
 								descriptors.map((value, valueIndex) => (
