@@ -3,7 +3,6 @@ import { useFormContext, useWatch } from "react-hook-form";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import { CartMiniBar } from "@/features/transactions/components/cart-mini-bar";
-import { CartRail } from "@/features/transactions/components/cart-rail";
 import { TransactionsCatalog } from "@/features/transactions/components/transactions-catalog";
 import { TransactionsCheckout } from "@/features/transactions/components/transactions-checkout";
 
@@ -27,12 +26,9 @@ export function TransactionsWorkspace() {
 
 	return (
 		<>
-			<div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-				<div className="grid min-w-0 gap-6">
-					<TransactionsCatalog />
-					<CartMiniBar hasStore={!!selectedStoreId} onOpen={handleOpenCart} />
-				</div>
-				<CartRail hasStore={!!selectedStoreId} onCheckout={handleOpenCart} />
+			<div className="grid min-w-0 gap-6">
+				<TransactionsCatalog />
+				<CartMiniBar hasStore={!!selectedStoreId} onOpen={handleOpenCart} />
 			</div>
 			<Sheet onOpenChange={setCartSheetOpen} open={cartSheetOpen}>
 				{/* Bottom at every width, never a right drawer: the item rows lay their

@@ -27,7 +27,7 @@ export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
 	// lets service cards show through the text (the original B4 bug). The
 	// wrapper is pointer-transparent so the gaps between children stay tappable.
 	return (
-		<div className="pointer-events-none sticky bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-40 grid gap-1 px-1 xl:hidden">
+		<div className="pointer-events-none sticky bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-40 grid gap-1 px-1">
 			{/* Says up front why the bar won't open, so the block isn't a dead-end
 			    tap — this hint is the only in-place explanation the cashier gets. */}
 			{hasStore ? null : (

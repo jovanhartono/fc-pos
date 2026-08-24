@@ -2,10 +2,10 @@ import { XIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/features/transactions/cart/useCart";
 
-// Shared by the standing rail and the phone mini bar. Reads the cart itself
-// rather than taking rows as props, so the two surfaces cannot show different
-// lines or remove them differently. Callers gate on count and own the empty
-// state — this renders nothing useful for an empty cart.
+// Rendered in the floating bar's peek. Reads the cart itself rather than
+// taking rows as props — the same contract as the checkout's item rows, so no
+// surface can show different lines or remove them differently. Callers gate on
+// count and own the empty state — this renders nothing useful for an empty cart.
 //
 // Name only, no price or descriptors: this list exists to verify and drop
 // lines before checkout; the money and the item details live there.
