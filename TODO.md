@@ -34,8 +34,8 @@
 
 ## Architecture-deepening follow-ups (extracted 2026-06-10, source: docs/architecture-deepening.md)
 
-- [ ] **`push:prod` before next prod deploy** — now also includes the **Repair
-  blank-price** schema from ADR-0018: `services.price` DROP NOT NULL + DROP
+- [x] **`push:prod` before next prod deploy** (verified applied 2026-08-25) —
+  now also includes the **Repair blank-price** schema from ADR-0018: `services.price` DROP NOT NULL + DROP
   DEFAULT (NULL = no list price — Repair's catalog row), `orders_services.price`
   DROP NOT NULL (NULL = not yet determined), and the new
   `order_service_price_logs` table (every price set-or-correct logs the acting
@@ -45,8 +45,11 @@
   their prices, no backfill — but the deploy breaks without it: intake inserts
   NULL for a blank Repair line (NOT NULL violation → every Repair checkout
   500s) and the price set/correct endpoint writes `order_service_price_logs`
-  (missing table → 500). Applied to dev only so far.
-- [ ] **`push:prod` before next prod deploy** — product-refund schema guards
+  (missing table → 500).
+  Prod checked 2026-08-25: `order_service_price_logs` exists, both `price`
+  columns are nullable with no default. Nothing left to push.
+- [x] **`push:prod` before next prod deploy** (verified applied 2026-08-25) —
+  product-refund schema guards
   (`order_refund_items_line_xor_check` CHECK + `order_refund_items_product_uidx`
   partial unique index) exist only in dev. They are the only concurrency guards
   for product refunds. (§8) Now also includes the **product-cancel** columns +
@@ -54,6 +57,11 @@
   + `order_products_cancel_refund_xor_check`,
   `order_products_cancel_reason_required_check`,
   `order_products_cancel_other_reason_requires_note_check`).
+  Prod checked 2026-08-25 via `pg_constraint` / `pg_indexes` — the CHECK, the
+  partial unique index, all three `cancelled_at`/`cancel_reason`/`cancel_note`
+  columns and all three cancel CHECKs are present. Nothing left to push.
+  Note `--explain` would not have shown any of these; they were confirmed by
+  querying the catalogs directly.
 - [ ] **Integration-test DB strategy** — deferred 3× (§1/§4/§5). Partial as of
   2026-06-15: pure-function unit tests now exist for status machine
   (`order-status-machine.test.ts`), campaign eligibility
@@ -79,6 +87,24 @@
   [ADR-0008](docs/adr/0008-cancel-is-unpaid-per-line-refund-twin.md). Products
   gained `cancelled_at`/`cancel_reason`/`cancel_note`; cancelling an unpaid
   product line restores stock; `deriveOrderStatus` rolls up over all lines. (§8)
+
+## Prod schema drift (opened 2026-08-25, from the orders/:id outage)
+
+- [ ] **Drop `playing_with_neon` from prod** — Neon's stock sample table, created
+  with the project and never used by us. Drizzle reports it non-empty, so it sits
+  in every `explain:prod` plan as a `DROP TABLE` data-loss warning attached to
+  whatever unrelated change is being shipped. Confirm it is the stock sample rows,
+  then drop it deliberately: `DROP TABLE playing_with_neon;` via `bun -e`. Not
+  urgent; the point is to stop a destructive statement riding along with the next
+  deploy.
+- [ ] **Normalise the `pickup_code` default in `schema.ts`** — phantom diff.
+  Postgres stores the default in its own normalised form, and drizzle compares raw
+  text, so `explain:prod` always reports a change:
+  `lpad(floor(random() * 1000000)::text, 6, '0')` (schema.ts:477) vs
+  `lpad((floor((random() * (1000000)::double precision)))::text, 6, '0'::text)`
+  (prod). Behaviourally identical — applying it is a no-op. Paste Postgres's form
+  into `schema.ts` so future plans come back clean. Cosmetic, but it is noise on
+  top of the deploy check that is supposed to be read carefully.
 
 ## AWS / CDN follow-ups
 

@@ -28,3 +28,22 @@ Schema lives in `src/db/schema.ts`; the connection in `src/db/index.ts`. Each en
    - Destructive deltas (drops) need a TTY to confirm — from an agent shell push errors out and piping `y` does not work. Apply the DDL directly via `bun -e` with idempotent statements (`IF EXISTS`), then verify via `information_schema.columns` / `pg_indexes`. Drop dependent CHECKs/indexes before the column, enum types after.
 4. Verify CHECK constraints via `pg_constraint` — push applies them silently without printing diffs
 5. Update Zod schemas in the relevant module if needed
+
+### Shipping a Schema Change to Prod
+
+A column that exists in `schema.ts` but not in prod breaks **every** read that
+selects it, not just the feature that added it: `findFirst` without a `columns:`
+filter expands to `SELECT <table>.*` off the schema file, so one unpushed column
+500s the whole detail endpoint. Shipping code and pushing schema are one deploy,
+not two.
+
+1. Run `bun run explain:prod` **first** — read-only dry run, prints the planned
+   SQL without applying it. `push` diffs the entire schema against prod, so the
+   plan routinely carries drift that has nothing to do with your change.
+2. Plan is exactly your delta? `bun run push:prod`, interactively, by a human.
+3. Plan carries anything else — especially a `DROP` — do not push. Apply your own
+   DDL via `bun -e` (idempotent, `IF NOT EXISTS`), then verify via
+   `information_schema.columns`. Deal with the unrelated drift as its own change.
+4. `--explain` does not diff CHECK constraints or partial indexes. Verify those
+   directly via `pg_constraint` / `pg_indexes` — an empty plan is not proof they
+   landed.
