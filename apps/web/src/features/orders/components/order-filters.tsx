@@ -32,7 +32,6 @@ export interface OrderFilterValues {
 	storeId?: number;
 	status?: OrderStatusFilter;
 	paymentStatus?: PaymentStatusFilter;
-	overdue?: boolean;
 	dateFrom?: string;
 	dateTo?: string;
 }
@@ -84,28 +83,14 @@ const FilterControls = ({
 			placeholder="Filter by store"
 			triggerClassName="h-10 w-full lg:w-max lg:min-w-40"
 		/>
-		{/* The pills above cover the two statuses the counter reaches for hourly.
-		    These carry the rest — cancelled, completed, paid — which reconciliation
-		    needs and no pill offers, and they double as the readout for a status
-		    arrived at by shared link or back button. */}
 		<SelectField
 			id={`${idPrefix}-status`}
 			aria-label="Filter by order status"
 			items={STATUS_ITEMS}
 			value={values.status ?? ""}
-			onValueChange={(value) => {
-				const status = (value || undefined) as OrderStatusFilter | undefined;
-				onChange({
-					status,
-					// Overdue is the ready-for-pickup shelf aged past its window, so
-					// naming any other status contradicts it. Dropping it here is what
-					// keeps the Overdue pill and this select from asking together for
-					// orders that cannot exist, which the server refuses outright.
-					...(status && status !== "ready_for_pickup"
-						? { overdue: undefined }
-						: {}),
-				});
-			}}
+			onValueChange={(value) =>
+				onChange({ status: (value || undefined) as OrderStatusFilter })
+			}
 			placeholder="All statuses"
 			className="w-full lg:w-max lg:min-w-40"
 		/>
@@ -142,15 +127,14 @@ export const OrderFilters = ({
 	const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 	const isAdmin = role === "admin";
 
-	// Every field that narrows the list is counted here and cleared by Clear all,
-	// including the ones a pill can set. A filter the badge does not count is a
-	// filter the cashier cannot see, and one Clear all skips is a filter they
-	// cannot undo — which is how a shared /orders?status=completed link used to
-	// leave someone staring at a short list with nothing on screen explaining it.
+	// Every field that narrows the list is counted here and cleared by Clear all.
+	// A filter the badge does not count is a filter the cashier cannot see, and
+	// one Clear all skips is a filter they cannot undo — which is how a shared
+	// /orders?status=completed link used to leave someone staring at a short
+	// list with nothing on screen explaining it.
 	const activeCount =
 		(values.status ? 1 : 0) +
 		(values.paymentStatus ? 1 : 0) +
-		(values.overdue ? 1 : 0) +
 		(values.dateFrom || values.dateTo ? 1 : 0) +
 		(isAdmin && values.storeId ? 1 : 0);
 
@@ -158,7 +142,6 @@ export const OrderFilters = ({
 		onChange({
 			status: undefined,
 			paymentStatus: undefined,
-			overdue: undefined,
 			dateFrom: undefined,
 			dateTo: undefined,
 			...(isAdmin ? { storeId: undefined } : {}),

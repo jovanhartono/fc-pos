@@ -17,7 +17,6 @@ export const invalidateOrderQueries = (
 					queryKey: queryKeys.orderDetail(orderId),
 				}),
 		queryClient.invalidateQueries({ queryKey: ["orders"] }),
-		queryClient.invalidateQueries({ queryKey: ["order-counts"] }),
 		queryClient.invalidateQueries({ queryKey: ["order-service-queue"] }),
 		queryClient.invalidateQueries({
 			queryKey: ["order-service-queue-counts"],

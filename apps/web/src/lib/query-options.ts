@@ -21,7 +21,6 @@ import {
 	fetchCustomersPage,
 	fetchFinancialReport,
 	fetchMe,
-	fetchOrderCounts,
 	fetchOrderDetail,
 	fetchOrderServiceQueueCounts,
 	fetchOrdersFlowReport,
@@ -104,12 +103,6 @@ export const orderServiceQueueCountsQueryOptions = (storeId?: number) =>
 	queryOptions({
 		queryKey: queryKeys.orderServiceQueueCounts(storeId),
 		queryFn: () => fetchOrderServiceQueueCounts(storeId),
-	});
-
-export const orderCountsQueryOptions = (storeId?: number) =>
-	queryOptions({
-		queryKey: queryKeys.orderCounts(storeId),
-		queryFn: () => fetchOrderCounts(storeId),
 	});
 
 export const orderDetailQueryOptions = (id: number) =>

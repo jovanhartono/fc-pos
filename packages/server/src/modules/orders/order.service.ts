@@ -6,7 +6,6 @@ import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { claimRedemptions } from "@/modules/campaigns/campaign-redemption.service";
 import { resolveOrCreateCustomer } from "@/modules/customers/customer.service";
 import {
-  countOrders,
   findOrders,
   insertOrder,
   insertOrderProducts,
@@ -15,7 +14,6 @@ import {
   reserveNextOrderNumber,
 } from "@/modules/orders/order.repository";
 import {
-  type GetOrderCountsQuery,
   type GetOrdersQuery,
   normalizeOrderListQuery,
 } from "@/modules/orders/order.schema";
@@ -203,32 +201,6 @@ export async function listOrders(query?: GetOrdersQuery, user?: JWTPayload) {
   return {
     items,
     meta: buildPaginationMeta(total, normalized),
-  };
-}
-
-export async function getOrderListCounts(
-  query: GetOrderCountsQuery,
-  user: JWTPayload
-) {
-  const storeId = query?.store_id;
-  const scopedStoreIds = await resolveOrderScopedStoreIds(user, storeId);
-  const base = { store_id: storeId };
-  const today = jakartaNow().format("YYYY-MM-DD");
-
-  const [all, todayTotal, unpaid, readyForPickup, overdue] = await Promise.all([
-    countOrders(base, scopedStoreIds),
-    countOrders({ ...base, date_from: today, date_to: today }, scopedStoreIds),
-    countOrders({ ...base, payment_status: "unpaid" }, scopedStoreIds),
-    countOrders({ ...base, status: "ready_for_pickup" }, scopedStoreIds),
-    countOrders({ ...base, overdue: true }, scopedStoreIds),
-  ]);
-
-  return {
-    all,
-    today: todayTotal,
-    unpaid,
-    ready_for_pickup: readyForPickup,
-    overdue,
   };
 }
 

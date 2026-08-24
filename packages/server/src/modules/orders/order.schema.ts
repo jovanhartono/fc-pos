@@ -54,16 +54,6 @@ export const GETOrdersQuerySchema = z
 export type GetOrdersQuery = z.infer<typeof GETOrdersQuerySchema>;
 type ParsedOrdersQuery = NonNullable<GetOrdersQuery>;
 
-// Branch-scoped only, deliberately: a pill set that honoured the active status
-// or date would count what is already on screen.
-export const GETOrderCountsQuerySchema = z
-  .object({
-    store_id: z.coerce.number().int().positive().optional(),
-  })
-  .optional();
-
-export type GetOrderCountsQuery = z.infer<typeof GETOrderCountsQuerySchema>;
-
 export interface NormalizedOrderListQuery {
   created_by?: number;
   customer_id?: number;

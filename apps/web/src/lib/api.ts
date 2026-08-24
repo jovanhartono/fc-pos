@@ -101,9 +101,6 @@ export type PaymentMethod = InferResponseType<
 export type Order = InferResponseType<
 	typeof rpc.api.admin.orders.$get
 >["data"][number];
-export type OrderListCounts = InferResponseType<
-	typeof rpc.api.admin.orders.counts.$get
->["data"];
 export type OrderServiceQueueCounts = InferResponseType<
 	typeof rpc.api.admin.orders.services.queue.counts.$get
 >["data"];
@@ -467,7 +464,6 @@ export const queryKeys = {
 	products: ["products"] as const,
 	paymentMethods: ["payment-methods"] as const,
 	orders: (query?: FetchOrdersQuery) => ["orders", query ?? {}] as const,
-	orderCounts: (storeId?: number) => ["order-counts", storeId ?? null] as const,
 	orderDetail: (id: number) => ["order-detail", id] as const,
 	campaigns: (query?: FetchCampaignsQuery) =>
 		["campaigns", query ?? {}] as const,
@@ -607,16 +603,6 @@ export async function fetchOrdersPage(
 	);
 
 	return toPaginated(response);
-}
-
-export async function fetchOrderCounts(storeId?: number) {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.orders.counts.$get({
-			query: toSearchParams({ store_id: storeId }),
-		}),
-	);
-
-	return response.data;
 }
 
 export async function fetchCampaigns(query?: FetchCampaignsQuery) {

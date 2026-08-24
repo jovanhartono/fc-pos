@@ -3,14 +3,10 @@ import { createMiddleware } from "hono/factory";
 import { StatusCodes } from "http-status-codes";
 import { z } from "zod";
 import { NotFoundException } from "@/http-exceptions";
-import {
-  GETOrderCountsQuerySchema,
-  GETOrdersQuerySchema,
-} from "@/modules/orders/order.schema";
+import { GETOrdersQuerySchema } from "@/modules/orders/order.schema";
 import {
   createOrder,
   getOrderDetailById,
-  getOrderListCounts,
   listOrders,
 } from "@/modules/orders/order.service";
 import {
@@ -116,17 +112,6 @@ const app = new Hono<OrderAccessEnv>()
 
     return c.json(success(items, undefined, meta));
   })
-  // Must stay ahead of /:id — the router matches on registration order.
-  .get(
-    "/counts",
-    zodValidator("query", GETOrderCountsQuerySchema),
-    async (c) => {
-      const query = c.req.valid("query");
-      const user = c.get("jwtPayload");
-
-      return c.json(success(await getOrderListCounts(query, user)));
-    }
-  )
   .get(
     "/services/queue",
     zodValidator("query", GETOrderServiceQueueQuerySchema),

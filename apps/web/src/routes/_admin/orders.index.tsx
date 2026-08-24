@@ -11,7 +11,6 @@ import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { OrderFilterPills } from "@/features/orders/components/order-filter-pills";
 import {
 	ORDER_STATUS_VALUES,
 	OrderFilters,
@@ -23,7 +22,6 @@ import { PickupRadar } from "@/features/orders/components/pickup-radar";
 import type { FetchOrdersQuery, Order } from "@/lib/api";
 import {
 	meQueryOptions,
-	orderCountsQueryOptions,
 	ordersPageQueryOptions,
 	storesQueryOptions,
 } from "@/lib/query-options";
@@ -43,7 +41,6 @@ const ordersSearchSchema = z.object({
 	storeId: z.coerce.number().int().positive().optional().catch(undefined),
 	status: z.enum(ORDER_STATUS_VALUES).optional().catch(undefined),
 	paymentStatus: z.enum(PAYMENT_STATUS_VALUES).optional().catch(undefined),
-	overdue: z.boolean().optional().catch(undefined),
 	dateFrom: z
 		.string()
 		.regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -69,7 +66,6 @@ function buildOrdersListParams(
 		...(storeId !== undefined ? { store_id: storeId } : {}),
 		...(filters.status ? { status: filters.status } : {}),
 		...(filters.paymentStatus ? { payment_status: filters.paymentStatus } : {}),
-		...(filters.overdue ? { overdue: true } : {}),
 		...(filters.dateFrom ? { date_from: filters.dateFrom } : {}),
 		...(filters.dateTo ? { date_to: filters.dateTo } : {}),
 	};
@@ -161,13 +157,6 @@ function OrdersPage() {
 
 	const ordersQuery = useQuery({
 		...ordersPageQueryOptions(orderQuery),
-		enabled: role === "admin" ? true : parsedStoreId !== undefined,
-	});
-
-	// Must stay the same gate as the list, or the pills count branches the list
-	// below them refuses to show.
-	const orderCountsQuery = useQuery({
-		...orderCountsQueryOptions(parsedStoreId),
 		enabled: role === "admin" ? true : parsedStoreId !== undefined,
 	});
 
@@ -323,11 +312,6 @@ function OrdersPage() {
 			<div className="grid gap-4">
 				<Card>
 					<CardContent>
-						<OrderFilterPills
-							counts={orderCountsQuery.data}
-							onChange={handleFilterChange}
-							values={search}
-						/>
 						<OrderFilters
 							values={search}
 							role={role}
