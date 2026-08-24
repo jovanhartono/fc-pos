@@ -627,8 +627,10 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 					>
 						{isTerminal ? "—" : formatElapsedDuration(elapsedMs)}
 					</span>
+					{/* self-center: an svg has no text baseline, so in this baseline-aligned
+					    row it would sit on the baseline and ride 3px high. */}
 					<CaretRightIcon
-						className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+						className="size-4 shrink-0 self-center text-muted-foreground transition-transform group-hover:translate-x-0.5"
 						weight="bold"
 					/>
 				</span>

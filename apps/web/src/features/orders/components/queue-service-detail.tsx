@@ -200,7 +200,10 @@ export function QueueServiceDetail({
 					<ArrowLeftIcon className="size-4" weight="bold" />
 				</Link>
 				<div className="min-w-0 flex-1">
-					<div className="flex items-start justify-between gap-3">
+					{/* flex-wrap: a long status badge ("Ready for Pickup") next to a long
+					    item code otherwise runs past the 390px viewport and is clipped
+					    by the section's overflow-x-clip — wrapped, it drops below. */}
+					<div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
 						<h1 className="font-mono text-[1.65rem] font-bold leading-tight tracking-tight">
 							{selectedService.item_code ?? `Queue Item #${selectedService.id}`}
 						</h1>

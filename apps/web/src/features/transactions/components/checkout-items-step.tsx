@@ -87,7 +87,7 @@ export const CheckoutItemsStep = () => {
 						className="grid gap-3 border border-border/70 p-3"
 						key={`product-${line.id}`}
 					>
-						<div className="flex items-start justify-between gap-3">
+						<div className="flex items-center justify-between gap-3">
 							<div>
 								<p className="text-sm font-medium">{line.product.name}</p>
 								<p className="text-xs text-muted-foreground">
@@ -96,7 +96,7 @@ export const CheckoutItemsStep = () => {
 							</div>
 							<Button
 								aria-label={`Remove ${line.product.name}`}
-								className="size-11 border-destructive/50 bg-destructive/10 text-destructive hover:border-destructive hover:bg-destructive/20 hover:text-destructive"
+								className="relative size-7 border-destructive/50 bg-destructive/10 text-destructive before:absolute before:-inset-2 before:content-[''] hover:border-destructive hover:bg-destructive/20 hover:text-destructive"
 								icon={<XIcon className="size-3.5" />}
 								onClick={() => removeProduct(line.id)}
 								size="icon-xs"
@@ -237,7 +237,7 @@ const CheckoutServiceLineRow = ({
 					</span>
 					<Button
 						aria-label={`Remove ${line.service.name}`}
-						className="size-11 border-destructive/50 bg-destructive/10 text-destructive hover:border-destructive hover:bg-destructive/20 hover:text-destructive"
+						className="relative size-7 border-destructive/50 bg-destructive/10 text-destructive before:absolute before:-inset-2 before:content-[''] hover:border-destructive hover:bg-destructive/20 hover:text-destructive"
 						icon={<XIcon className="size-3.5" />}
 						// A button inside <summary>: preventDefault stops the click from
 						// also toggling the disclosure while the row is being removed.
