@@ -58,7 +58,6 @@ export interface OrderListItem {
   discount: string;
   fulfillment: ReturnType<typeof summarizeOrderFulfillment>;
   id: number;
-  item_descriptors: string[];
   notes: string | null;
   payment_method_id: number | null;
   payment_method_name: string | null;
@@ -245,20 +244,13 @@ export async function findOrders(
           columns: {
             order_id: true,
             status: true,
-            brand: true,
-            color: true,
-            model: true,
-            size: true,
           },
-          // Intake order — item_descriptors below reads the first row.
-          orderBy: { id: "asc" },
         });
 
   const groupedStatuses = new Map<
     number,
     (typeof serviceRows)[number]["status"][]
   >();
-  const descriptorsByOrderId = new Map<number, string[]>();
 
   for (const row of serviceRows) {
     if (row.order_id === null) {
@@ -268,23 +260,6 @@ export async function findOrders(
     const current = groupedStatuses.get(row.order_id) ?? [];
     current.push(row.status);
     groupedStatuses.set(row.order_id, current);
-
-    // First *described* live line, not simply the first: an Item keyed with
-    // nothing but its Service would otherwise blank the whole row.
-    if (row.status === "cancelled" || descriptorsByOrderId.has(row.order_id)) {
-      continue;
-    }
-
-    // brand · model · color · size — the same order the web's
-    // getOrderServiceItemDescriptors uses, so /orders and /queue name one Item
-    // the same way round.
-    const descriptors = [row.brand, row.model, row.color, row.size]
-      .map((value) => value?.trim())
-      .filter((value): value is string => Boolean(value));
-
-    if (descriptors.length > 0) {
-      descriptorsByOrderId.set(row.order_id, descriptors);
-    }
   }
 
   const items: OrderListItem[] = rows.map((row) => ({
@@ -312,7 +287,6 @@ export async function findOrders(
     created_by: row.created_by,
     updated_by: row.updated_by,
     fulfillment: summarizeOrderFulfillment(groupedStatuses.get(row.id) ?? []),
-    item_descriptors: descriptorsByOrderId.get(row.id) ?? [],
   }));
 
   return {
