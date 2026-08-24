@@ -3,6 +3,7 @@ import {
 	CaretUpIcon,
 	ShoppingCartIcon,
 } from "@phosphor-icons/react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/features/transactions/cart/useCart";
 import { CartLines } from "@/features/transactions/components/cart-lines";
@@ -15,6 +16,7 @@ interface CartMiniBarProps {
 
 export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
 	const { count, subtotal } = useCart();
+	const [isPeeking, setIsPeeking] = useState(false);
 
 	if (count === 0) {
 		return null;
@@ -32,42 +34,48 @@ export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
 				</p>
 			)}
 
-			{/* Closed by default. Without it, dropping a mis-tapped line means keying
-			    a customer name and phone first, because the lines only exist on step
-			    two of the checkout. Capped height so an open cart cannot bury the
-			    catalog the cashier is still tapping. */}
-			<details className="group border border-border/70 bg-background">
-				<summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 hover:bg-muted/30 focus-visible:outline focus-visible:outline-1 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
-					<span className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.18em]">
-						Cart
-					</span>
-					<CaretDownIcon
-						aria-hidden="true"
-						className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
-					/>
-				</summary>
-				<div className="max-h-[40dvh] overflow-y-auto border-border/70 border-t px-3 py-2">
+			{/* Peek panel above the bar. Without it, dropping a mis-tapped line means
+			    keying a customer name and phone first, because the lines otherwise
+			    only exist on step two of the checkout. Capped height so an open cart
+			    cannot bury the catalog the cashier is still tapping. */}
+			{isPeeking ? (
+				<div className="max-h-[40dvh] overflow-y-auto border border-border/70 bg-background px-3 py-2">
 					<CartLines />
 				</div>
-			</details>
+			) : null}
 
-			<Button
-				className="h-14 w-full justify-between gap-3"
-				onClick={onOpen}
-				size="lg"
-				type="button"
-			>
-				<span className="flex items-center gap-2">
+			<div className="flex gap-1">
+				<Button
+					aria-expanded={isPeeking}
+					className="h-14 gap-2"
+					onClick={() => setIsPeeking((open) => !open)}
+					size="lg"
+					type="button"
+					variant="outline"
+				>
 					<ShoppingCartIcon className="size-5" />
 					<span className="font-medium">
 						{count} {count === 1 ? "item" : "items"}
 					</span>
-				</span>
-				<span className="flex items-center gap-2">
+					{isPeeking ? (
+						<CaretDownIcon aria-hidden="true" className="size-4" />
+					) : (
+						<CaretUpIcon aria-hidden="true" className="size-4" />
+					)}
+				</Button>
+				<Button
+					className="h-14 flex-1 justify-between gap-3"
+					onClick={() => {
+						setIsPeeking(false);
+						onOpen();
+					}}
+					size="lg"
+					type="button"
+				>
 					<span className="font-semibold">{formatMoney(subtotal)}</span>
-					<CaretUpIcon className="size-4" />
-				</span>
-			</Button>
+					<span className="font-medium">Check out</span>
+				</Button>
+			</div>
 		</div>
 	);
 };
