@@ -96,8 +96,8 @@ export const CheckoutItemsStep = () => {
 							</div>
 							<Button
 								aria-label={`Remove ${line.product.name}`}
-								className="size-11"
-								icon={<XIcon className="size-4" />}
+								className="size-11 text-destructive/70 hover:text-destructive"
+								icon={<XIcon className="size-3.5" />}
 								onClick={() => removeProduct(line.id)}
 								size="icon-xs"
 								type="button"
@@ -290,8 +290,8 @@ const CheckoutServiceLineRow = ({
 
 			<Button
 				aria-label={`Remove ${line.service.name}`}
-				className="absolute top-2 right-8 size-11"
-				icon={<XIcon className="size-4" />}
+				className="absolute top-2 right-8 size-11 text-destructive/70 hover:text-destructive"
+				icon={<XIcon className="size-3.5" />}
 				onClick={() => removeService(line.line_id)}
 				size="icon-xs"
 				type="button"

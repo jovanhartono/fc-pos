@@ -24,8 +24,8 @@ export const CartLines = () => {
 					</span>
 					<Button
 						aria-label={`Remove ${line.product.name}`}
-						className="size-11 shrink-0"
-						icon={<XIcon className="size-4" />}
+						className="size-11 shrink-0 text-destructive/70 hover:text-destructive"
+						icon={<XIcon className="size-3.5" />}
 						onClick={() => removeProduct(line.id)}
 						size="icon-xs"
 						type="button"
@@ -44,8 +44,8 @@ export const CartLines = () => {
 					</span>
 					<Button
 						aria-label={`Remove ${line.service.name}`}
-						className="size-11 shrink-0"
-						icon={<XIcon className="size-4" />}
+						className="size-11 shrink-0 text-destructive/70 hover:text-destructive"
+						icon={<XIcon className="size-3.5" />}
 						onClick={() => removeService(line.line_id)}
 						size="icon-xs"
 						type="button"
