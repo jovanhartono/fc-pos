@@ -1,7 +1,6 @@
 import { PICKUP_OVERDUE_HOURS } from "@fresclean/api/schema";
 import {
 	CaretRightIcon,
-	FlagIcon,
 	FunnelIcon,
 	MagnifyingGlassIcon,
 	ScanIcon,
@@ -612,22 +611,8 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 			onClick={() => onOpen(item)}
 			type="button"
 		>
-			<span
-				aria-hidden="true"
-				className={cn(
-					"w-1 shrink-0",
-					isBreached ? "bg-destructive" : "bg-border",
-				)}
-			/>
 			<span className="grid min-w-0 flex-1 gap-0.5 px-3 py-2.5">
 				<span className="flex min-w-0 items-baseline gap-2">
-					{item.is_priority ? (
-						<FlagIcon
-							aria-label="Priority"
-							className="size-3.5 shrink-0 self-center text-warning"
-							weight="fill"
-						/>
-					) : null}
 					<span className="min-w-0 flex-1 truncate font-medium text-sm">
 						{descriptors ?? item.service_name}
 					</span>
@@ -649,6 +634,14 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 					    check are otherwise the same row, and triaging the rack means
 					    opening each one. Kept on the filtered chips too: a barcode scan
 					    and a search both land here spanning statuses. */}
+					{item.is_priority ? (
+						<Badge
+							className="shrink-0 px-1.5 py-0 font-mono text-[10px] uppercase tracking-wide"
+							variant="warning"
+						>
+							Priority
+						</Badge>
+					) : null}
 					<Badge
 						className="shrink-0 px-1.5 py-0 font-mono text-[10px] uppercase tracking-wide"
 						variant="outline"
