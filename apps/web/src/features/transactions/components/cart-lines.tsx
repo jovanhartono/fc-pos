@@ -50,7 +50,10 @@ export const CartLines = () => {
 						key={line.line_id}
 					>
 						<span className="grid min-w-0 flex-1 gap-1">
-							<span className="flex items-baseline justify-between gap-2">
+							{/* min-w-0 again: this flex row is a grid item, and without it
+							    the track takes the name's min-content width and shoves the
+							    remove button out of the card. */}
+							<span className="flex min-w-0 items-baseline justify-between gap-2">
 								<span className="min-w-0 truncate font-medium text-xs">
 									{index + 1} · {line.service.name}
 								</span>
