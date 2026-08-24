@@ -20,7 +20,12 @@ import {
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { type ComponentType, type PropsWithChildren, useEffect } from "react";
+import {
+	type ComponentType,
+	type PropsWithChildren,
+	useEffect,
+	useState,
+} from "react";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,7 +78,7 @@ const workNavigation: NavItem[] = [
 		roles: ["admin", "cashier"],
 	},
 	{
-		to: "/worker",
+		to: "/queue",
 		label: "Queue",
 		icon: ScissorsIcon,
 		roles: ["admin", "cashier", "worker"],
@@ -232,6 +237,11 @@ export function AppShell({ title, children }: AppShellProps) {
 	const navigate = useNavigate();
 	const clearToken = useAuthStore((state) => state.clearToken);
 	const user = getCurrentUser();
+	// Read once, deliberately not tracked: this only seeds the sidebar's
+	// defaultOpen, a state initializer nobody reads again. Following the
+	// breakpoint afterwards re-rendered the whole shell mid-drag to change
+	// nothing, and would fight a cashier who had collapsed the sidebar by hand.
+	const [startsCollapsed] = useState(() => window.innerWidth < 1280);
 	// Nav visibility follows the DB-fresh role from /admin/users/me, not the
 	// stale JWT claim — role changes apply without re-login.
 	const meQuery = useQuery(meQueryOptions());
@@ -254,7 +264,7 @@ export function AppShell({ title, children }: AppShellProps) {
 		: [];
 
 	return (
-		<SidebarProvider>
+		<SidebarProvider defaultOpen={!startsCollapsed}>
 			<Sidebar collapsible="icon" variant="inset">
 				<SidebarHeader className="flex-row items-center justify-between group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
 					<div className="flex items-center gap-2 px-2 text-sm font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/80">

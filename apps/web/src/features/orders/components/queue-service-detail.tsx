@@ -21,9 +21,9 @@ import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gall
 import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
+import { invalidateOrderQueries } from "@/features/orders/lib/invalidate-order-queries";
 import { orderServicePhotoUploader } from "@/features/orders/utils/photo-upload";
 import {
-	queryKeys,
 	type UpdateOrderServiceStatusPayload,
 	updateOrderServiceStatus,
 } from "@/lib/api";
@@ -106,23 +106,14 @@ export function QueueServiceDetail({
 		(service) => service.id === serviceId,
 	);
 
-	const refreshData = async (storeId?: number) => {
-		await queryClient.invalidateQueries({
-			queryKey: queryKeys.orderDetail(orderId),
-		});
-		if (storeId !== undefined) {
-			await queryClient.invalidateQueries({
-				queryKey: queryKeys.orderServiceQueue({ store_id: storeId }),
-			});
-		}
-	};
+	const refreshData = () => invalidateOrderQueries(queryClient, orderId);
 
 	const startWorkMutation = useMutation({
 		mutationFn: () =>
 			updateOrderServiceStatus(orderId, serviceId, { status: "processing" }),
 		onSuccess: async () => {
 			toast.success("Work started");
-			await refreshData(detail?.store?.id);
+			await refreshData();
 		},
 		onError: (error: Error) => {
 			toast.error(readServerErrorMessage(error, "Failed to start work"));
@@ -135,7 +126,7 @@ export function QueueServiceDetail({
 		onSuccess: async () => {
 			toast.success("Status updated");
 			setStatusNote("");
-			await refreshData(detail?.store?.id);
+			await refreshData();
 		},
 		onError: (error: Error) => {
 			toast.error(readServerErrorMessage(error, "Failed to update status"));
@@ -202,14 +193,17 @@ export function QueueServiceDetail({
 		<>
 			<div className="mb-5 flex items-start gap-3">
 				<Link
-					to="/worker"
+					to="/queue"
 					search={{ storeId: detail.store?.id }}
 					className="flex size-9 shrink-0 items-center justify-center border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 				>
 					<ArrowLeftIcon className="size-4" weight="bold" />
 				</Link>
 				<div className="min-w-0 flex-1">
-					<div className="flex items-start justify-between gap-3">
+					{/* flex-wrap: a long status badge ("Ready for Pickup") next to a long
+					    item code otherwise runs past the 390px viewport and is clipped
+					    by the section's overflow-x-clip — wrapped, it drops below. */}
+					<div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
 						<h1 className="font-mono text-[1.65rem] font-bold leading-tight tracking-tight">
 							{selectedService.item_code ?? `Queue Item #${selectedService.id}`}
 						</h1>
@@ -376,7 +370,7 @@ export function QueueServiceDetail({
 					badgeLabel={selectedService.item_code ?? undefined}
 					uploader={orderServicePhotoUploader(orderId, serviceId)}
 					onUploaded={async () => {
-						await refreshData(detail.store?.id);
+						await refreshData();
 					}}
 				/>
 

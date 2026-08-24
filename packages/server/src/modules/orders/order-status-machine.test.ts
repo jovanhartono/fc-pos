@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { is, SQL } from "drizzle-orm";
 import { orderServiceStatusEnum } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import {
@@ -6,6 +7,7 @@ import {
   type DbExecutor,
   deriveOrderStatus,
   isTerminalOrderServiceStatus,
+  nextReadyAt,
   ORDER_SERVICE_TRANSITIONS,
   ORDER_TERMINAL_SERVICE_STATUSES,
   type OrderServiceStatus,
@@ -304,5 +306,30 @@ describe("summarizeOrderFulfillment", () => {
     ]);
     expect(summary.is_ready_for_pickup).toBe(true);
     expect(summary.is_partially_picked_up).toBe(false);
+  });
+});
+
+describe("nextReadyAt shelf clock", () => {
+  it("does not restart the wait when a rollup finds the order still on the shelf", () => {
+    // Editing a repair price or taking payment recomputes the order. Stamping
+    // the current time here would push the shelf clock forward every time, and
+    // a pair nobody has collected in a week would never reach the Overdue pill.
+    // A plain Date is exactly that regression, so reject one.
+    const readyAt = nextReadyAt("ready_for_pickup");
+
+    expect(readyAt).not.toBeInstanceOf(Date);
+    expect(is(readyAt, SQL)).toBe(true);
+  });
+
+  it("clears the shelf clock when work reopens", () => {
+    // A failed quality check sends the Item back to the workshop. The customer
+    // cannot collect it, so the wait starts over when it returns to the shelf.
+    expect(nextReadyAt("processing")).toBeNull();
+    expect(nextReadyAt("created")).toBeNull();
+  });
+
+  it("clears the shelf clock once the order is off the books", () => {
+    expect(nextReadyAt("completed")).toBeNull();
+    expect(nextReadyAt("cancelled")).toBeNull();
   });
 });

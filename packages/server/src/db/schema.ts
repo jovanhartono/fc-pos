@@ -476,6 +476,14 @@ export const ordersTable = pgTable(
       .notNull()
       .default(sql`lpad(floor(random() * 1000000)::text, 6, '0')`),
 
+    // When the Item actually reached the shelf and the customer could first come
+    // for it. The overdue shelf is measured from here, never from created_at: a
+    // repair booked Monday and finished Thursday has been collectable for an
+    // hour, not for three days. Null unless the order is standing ready now —
+    // recomputeOrderRollup clears it when work reopens, so the clock restarts
+    // from the day the customer was next told to come.
+    ready_at: timestamp("ready_at"),
+
     refunded_amount: decimal("refunded_amount", { precision: 12, scale: 0 })
       .default("0")
       .notNull(),

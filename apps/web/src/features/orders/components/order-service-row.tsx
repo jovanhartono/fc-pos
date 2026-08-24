@@ -58,7 +58,9 @@ export const OrderServiceRow = memo(
 				type="button"
 			>
 				<span className="min-w-0 flex-1 space-y-1">
-					<span className="block break-all font-mono text-[13px] font-semibold leading-snug">
+					{/* leading-5 matches the 20px badge line across the row, so the
+					    service name and the subtotal below share a center. */}
+					<span className="block break-all font-mono text-[13px] font-semibold leading-5">
 						{code}
 					</span>
 					<span className="block text-sm leading-snug">{serviceName}</span>
@@ -68,7 +70,7 @@ export const OrderServiceRow = memo(
 						</span>
 					) : null}
 				</span>
-				<span className="flex shrink-0 flex-col items-end gap-1.5">
+				<span className="flex shrink-0 flex-col items-end gap-1">
 					<span className="flex flex-wrap justify-end gap-1.5">
 						{isUnpriced ? <Badge variant="warning">Unpriced</Badge> : null}
 						{isRework ? <Badge variant="info">Rework</Badge> : null}

@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { invalidateOrderQueries } from "@/features/orders/lib/invalidate-order-queries";
 import {
 	cancelOrder,
 	createOrderRefund,
-	queryKeys,
 	type SetOrderServicePricePayload,
 	setOrderServicePrice,
 	type UpdateOrderPaymentPayload,
@@ -17,12 +17,7 @@ export const useRefreshOrder = (orderId: number) => {
 	const queryClient = useQueryClient();
 
 	return useCallback(async () => {
-		await Promise.all([
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.orderDetail(orderId),
-			}),
-			queryClient.invalidateQueries({ queryKey: ["orders"] }),
-		]);
+		await invalidateOrderQueries(queryClient, orderId);
 	}, [orderId, queryClient]);
 };
 

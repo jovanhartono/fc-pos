@@ -2,6 +2,7 @@ import type { RowData } from "@tanstack/react-table";
 
 type MobileCardSlot =
 	| "title"
+	| "subtitle"
 	| "eyebrow"
 	| "badges"
 	| "detail"

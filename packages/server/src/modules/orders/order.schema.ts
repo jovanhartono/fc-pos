@@ -15,6 +15,9 @@ export const GETOrdersQuerySchema = z
     status: z.enum(orderStatusEnum.enumValues).optional(),
     payment_status: z.enum(orderPaymentStatusEnum.enumValues).optional(),
 
+    // Not a status of its own: ready_for_pickup aged past the shelf window.
+    overdue: z.stringbool().optional(),
+
     customer_id: z.coerce.number().int().positive().optional(),
     store_id: z.coerce.number().int().positive().optional(),
     created_by: z.coerce.number().int().positive().optional(),
@@ -34,6 +37,18 @@ export const GETOrdersQuerySchema = z
       path: ["date_from"],
     }
   )
+  // overdue already pins status to ready_for_pickup, so pairing it with any
+  // other status asks for orders that cannot exist. Answering that with an empty
+  // list would read as "nothing on the shelf is late" — the one thing the caller
+  // must not conclude from a query the shelf never got asked.
+  .refine(
+    (query) =>
+      !(query.overdue && query.status) || query.status === "ready_for_pickup",
+    {
+      error: "overdue only applies to status=ready_for_pickup",
+      path: ["overdue"],
+    }
+  )
   .optional();
 
 export type GetOrdersQuery = z.infer<typeof GETOrdersQuerySchema>;
@@ -46,6 +61,7 @@ export interface NormalizedOrderListQuery {
   date_to?: string;
   limit: number;
   offset: number;
+  overdue?: boolean;
   payment_method_id?: number;
   payment_status?: ParsedOrdersQuery["payment_status"];
   search?: string;
@@ -54,6 +70,11 @@ export interface NormalizedOrderListQuery {
   status?: ParsedOrdersQuery["status"];
   store_id?: number;
 }
+
+export type OrderListFilters = Omit<
+  NormalizedOrderListQuery,
+  "limit" | "offset" | "sort_by" | "sort_order"
+>;
 
 export function normalizeOrderListQuery(
   query?: GetOrdersQuery
@@ -69,6 +90,7 @@ export function normalizeOrderListQuery(
     search: query?.search,
     status: query?.status,
     payment_status: query?.payment_status,
+    overdue: query?.overdue,
     customer_id: query?.customer_id,
     store_id: query?.store_id,
     created_by: query?.created_by,

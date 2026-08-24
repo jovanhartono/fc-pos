@@ -30,8 +30,8 @@ import { Route as AdminComplaintsIndexRouteImport } from "./routes/_admin/compla
 import { Route as AdminComplaintsComplaintIdRouteImport } from "./routes/_admin/complaints.$complaintId";
 import { Route as AdminOrdersIndexRouteImport } from "./routes/_admin/orders.index";
 import { Route as AdminOrdersOrderIdRouteImport } from "./routes/_admin/orders.$orderId";
-import { Route as AdminWorkerIndexRouteImport } from "./routes/_admin/worker.index";
-import { Route as AdminWorkerOrderIdServiceIdRouteImport } from "./routes/_admin/worker.$orderId.$serviceId";
+import { Route as AdminQueueIndexRouteImport } from "./routes/_admin/queue.index";
+import { Route as AdminQueueOrderIdServiceIdRouteImport } from "./routes/_admin/queue.$orderId.$serviceId";
 
 const AdminRouteRoute = AdminRouteRouteImport.update({
   id: "/_admin",
@@ -138,15 +138,15 @@ const AdminOrdersOrderIdRoute = AdminOrdersOrderIdRouteImport.update({
   path: "/orders/$orderId",
   getParentRoute: () => AdminRouteRoute,
 } as any);
-const AdminWorkerIndexRoute = AdminWorkerIndexRouteImport.update({
-  id: "/worker/",
-  path: "/worker/",
+const AdminQueueIndexRoute = AdminQueueIndexRouteImport.update({
+  id: "/queue/",
+  path: "/queue/",
   getParentRoute: () => AdminRouteRoute,
 } as any);
-const AdminWorkerOrderIdServiceIdRoute =
-  AdminWorkerOrderIdServiceIdRouteImport.update({
-    id: "/worker/$orderId/$serviceId",
-    path: "/worker/$orderId/$serviceId",
+const AdminQueueOrderIdServiceIdRoute =
+  AdminQueueOrderIdServiceIdRouteImport.update({
+    id: "/queue/$orderId/$serviceId",
+    path: "/queue/$orderId/$serviceId",
     getParentRoute: () => AdminRouteRoute,
   } as any);
 
@@ -171,8 +171,8 @@ export interface FileRoutesByFullPath {
   "/orders/$orderId": typeof AdminOrdersOrderIdRoute;
   "/complaints/": typeof AdminComplaintsIndexRoute;
   "/orders/": typeof AdminOrdersIndexRoute;
-  "/worker/": typeof AdminWorkerIndexRoute;
-  "/worker/$orderId/$serviceId": typeof AdminWorkerOrderIdServiceIdRoute;
+  "/queue/": typeof AdminQueueIndexRoute;
+  "/queue/$orderId/$serviceId": typeof AdminQueueOrderIdServiceIdRoute;
 }
 export interface FileRoutesByTo {
   "/login": typeof LoginRoute;
@@ -195,8 +195,8 @@ export interface FileRoutesByTo {
   "/orders/$orderId": typeof AdminOrdersOrderIdRoute;
   "/complaints": typeof AdminComplaintsIndexRoute;
   "/orders": typeof AdminOrdersIndexRoute;
-  "/worker": typeof AdminWorkerIndexRoute;
-  "/worker/$orderId/$serviceId": typeof AdminWorkerOrderIdServiceIdRoute;
+  "/queue": typeof AdminQueueIndexRoute;
+  "/queue/$orderId/$serviceId": typeof AdminQueueOrderIdServiceIdRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
@@ -221,8 +221,8 @@ export interface FileRoutesById {
   "/_admin/orders/$orderId": typeof AdminOrdersOrderIdRoute;
   "/_admin/complaints/": typeof AdminComplaintsIndexRoute;
   "/_admin/orders/": typeof AdminOrdersIndexRoute;
-  "/_admin/worker/": typeof AdminWorkerIndexRoute;
-  "/_admin/worker/$orderId/$serviceId": typeof AdminWorkerOrderIdServiceIdRoute;
+  "/_admin/queue/": typeof AdminQueueIndexRoute;
+  "/_admin/queue/$orderId/$serviceId": typeof AdminQueueOrderIdServiceIdRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -247,8 +247,8 @@ export interface FileRouteTypes {
     | "/orders/$orderId"
     | "/complaints/"
     | "/orders/"
-    | "/worker/"
-    | "/worker/$orderId/$serviceId";
+    | "/queue/"
+    | "/queue/$orderId/$serviceId";
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/login"
@@ -271,8 +271,8 @@ export interface FileRouteTypes {
     | "/orders/$orderId"
     | "/complaints"
     | "/orders"
-    | "/worker"
-    | "/worker/$orderId/$serviceId";
+    | "/queue"
+    | "/queue/$orderId/$serviceId";
   id:
     | "__root__"
     | "/_admin"
@@ -296,8 +296,8 @@ export interface FileRouteTypes {
     | "/_admin/orders/$orderId"
     | "/_admin/complaints/"
     | "/_admin/orders/"
-    | "/_admin/worker/"
-    | "/_admin/worker/$orderId/$serviceId";
+    | "/_admin/queue/"
+    | "/_admin/queue/$orderId/$serviceId";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -456,18 +456,18 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AdminOrdersOrderIdRouteImport;
       parentRoute: typeof AdminRouteRoute;
     };
-    "/_admin/worker/": {
-      id: "/_admin/worker/";
-      path: "/worker";
-      fullPath: "/worker/";
-      preLoaderRoute: typeof AdminWorkerIndexRouteImport;
+    "/_admin/queue/": {
+      id: "/_admin/queue/";
+      path: "/queue";
+      fullPath: "/queue/";
+      preLoaderRoute: typeof AdminQueueIndexRouteImport;
       parentRoute: typeof AdminRouteRoute;
     };
-    "/_admin/worker/$orderId/$serviceId": {
-      id: "/_admin/worker/$orderId/$serviceId";
-      path: "/worker/$orderId/$serviceId";
-      fullPath: "/worker/$orderId/$serviceId";
-      preLoaderRoute: typeof AdminWorkerOrderIdServiceIdRouteImport;
+    "/_admin/queue/$orderId/$serviceId": {
+      id: "/_admin/queue/$orderId/$serviceId";
+      path: "/queue/$orderId/$serviceId";
+      fullPath: "/queue/$orderId/$serviceId";
+      preLoaderRoute: typeof AdminQueueOrderIdServiceIdRouteImport;
       parentRoute: typeof AdminRouteRoute;
     };
   }
@@ -491,8 +491,8 @@ interface AdminRouteRouteChildren {
   AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute;
   AdminComplaintsIndexRoute: typeof AdminComplaintsIndexRoute;
   AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute;
-  AdminWorkerIndexRoute: typeof AdminWorkerIndexRoute;
-  AdminWorkerOrderIdServiceIdRoute: typeof AdminWorkerOrderIdServiceIdRoute;
+  AdminQueueIndexRoute: typeof AdminQueueIndexRoute;
+  AdminQueueOrderIdServiceIdRoute: typeof AdminQueueOrderIdServiceIdRoute;
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
@@ -513,8 +513,8 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,
   AdminComplaintsIndexRoute: AdminComplaintsIndexRoute,
   AdminOrdersIndexRoute: AdminOrdersIndexRoute,
-  AdminWorkerIndexRoute: AdminWorkerIndexRoute,
-  AdminWorkerOrderIdServiceIdRoute: AdminWorkerOrderIdServiceIdRoute,
+  AdminQueueIndexRoute: AdminQueueIndexRoute,
+  AdminQueueOrderIdServiceIdRoute: AdminQueueOrderIdServiceIdRoute,
 };
 
 const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(

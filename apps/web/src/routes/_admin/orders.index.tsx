@@ -217,11 +217,14 @@ function OrdersPage() {
 				header: "Customer",
 				meta: {
 					mobileCard: {
-						label: "Customer",
-						className: "col-span-2",
-						valueClassName: "truncate",
+						slot: "subtitle",
 					},
 				},
+				cell: ({ row }) => (
+					<span className="truncate font-medium">
+						{row.original.customer_name}
+					</span>
+				),
 			},
 			{
 				accessorKey: "status",

@@ -67,6 +67,10 @@ export type CampaignEligibilityContext = _CampaignEligibilityContext;
 export type CampaignEligibilityInput = _CampaignEligibilityInput;
 export const campaignIneligibilityReason = _campaignIneligibilityReason;
 
+import { PICKUP_OVERDUE_HOURS as _PICKUP_OVERDUE_HOURS } from "@/schema/turnaround";
+
+export const PICKUP_OVERDUE_HOURS = _PICKUP_OVERDUE_HOURS;
+
 import {
   hasUnpricedLine as _hasUnpricedLine,
   isUnpricedLine as _isUnpricedLine,

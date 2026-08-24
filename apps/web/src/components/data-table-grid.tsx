@@ -32,7 +32,9 @@ export const DataTableGrid = <TData extends RowData>({
 	emptyMessage,
 	sortable,
 }: DataTableGridProps<TData>) => (
-	<Table containerClassName="lg:max-h-[calc(100dvh-18rem)]">
+	// Never cap the height here: an inner scroller left 3 of 4 rows in a long
+	// table unreachable, because the page itself then had nothing to scroll.
+	<Table>
 		<TableHeader>
 			{table.getHeaderGroups().map((headerGroup) => (
 				<TableRow key={headerGroup.id} className="border-border hover:bg-muted">

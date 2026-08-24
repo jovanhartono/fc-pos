@@ -196,7 +196,6 @@ export const OrderIdentityStrip = ({
 		gates.canCancelOrder ||
 		gates.canRefundWholeOrder ||
 		gates.canOpenComplaint;
-	const showActions = readyCount > 0 || hasMenu;
 	const meta = [
 		detail.customer?.name,
 		detail.customer?.phone_number,
@@ -246,68 +245,68 @@ export const OrderIdentityStrip = ({
 						<p className="text-muted-foreground text-sm">{meta}</p>
 					</div>
 
-					{showActions ? (
-						<div className="flex shrink-0 items-center gap-2">
-							{renderPickupButton("hidden sm:inline-flex")}
-							{hasMenu ? (
-								<DropdownMenu>
-									<DropdownMenuTrigger
-										render={
-											<Button
-												aria-label="More actions"
-												icon={<DotsThreeVerticalIcon className="size-4" />}
-												size="icon"
-												variant="outline"
-											/>
-										}
-									/>
-									<DropdownMenuContent align="end" className="w-40">
-										<DropdownMenuItem
-											disabled={printReceiptMutation.isPending}
-											onClick={() => printReceiptMutation.mutate()}
-										>
-											<PrinterIcon className="size-4" />
-											Print receipt
+					<div className="flex shrink-0 items-center gap-2">
+						{renderPickupButton("hidden sm:inline-flex")}
+						<Button
+							icon={<PrinterIcon className="size-4" />}
+							loading={printReceiptMutation.isPending}
+							onClick={() => printReceiptMutation.mutate()}
+							type="button"
+							variant="outline"
+						>
+							Print
+						</Button>
+						{hasMenu ? (
+							<DropdownMenu>
+								<DropdownMenuTrigger
+									render={
+										<Button
+											aria-label="More actions"
+											icon={<DotsThreeVerticalIcon className="size-4" />}
+											size="icon"
+											variant="outline"
+										/>
+									}
+								/>
+								<DropdownMenuContent align="end" className="w-40">
+									{trackingUrl ? (
+										<DropdownMenuItem onClick={handleCopyTrackingLink}>
+											<LinkSimpleIcon className="size-4" />
+											Copy tracking link
 										</DropdownMenuItem>
-										{trackingUrl ? (
-											<DropdownMenuItem onClick={handleCopyTrackingLink}>
-												<LinkSimpleIcon className="size-4" />
-												Copy tracking link
-											</DropdownMenuItem>
-										) : null}
-										{gates.canManageCourier ? (
-											<DropdownMenuItem onClick={openCourierDialog}>
-												<TruckIcon className="size-4" />
-												Set courier
-											</DropdownMenuItem>
-										) : null}
-										{gates.canOpenComplaint ? (
-											<DropdownMenuItem onClick={openComplaintDialog}>
-												<WarningCircleIcon className="size-4" />
-												Open complaint
-											</DropdownMenuItem>
-										) : null}
-										{gates.canCancelOrder ? (
-											<DropdownMenuItem
-												onClick={openCancelOrderDialog}
-												variant="destructive"
-											>
-												Cancel order
-											</DropdownMenuItem>
-										) : null}
-										{gates.canRefundWholeOrder ? (
-											<DropdownMenuItem
-												onClick={openRefundOrderDialog}
-												variant="destructive"
-											>
-												Refund order
-											</DropdownMenuItem>
-										) : null}
-									</DropdownMenuContent>
-								</DropdownMenu>
-							) : null}
-						</div>
-					) : null}
+									) : null}
+									{gates.canManageCourier ? (
+										<DropdownMenuItem onClick={openCourierDialog}>
+											<TruckIcon className="size-4" />
+											Set courier
+										</DropdownMenuItem>
+									) : null}
+									{gates.canOpenComplaint ? (
+										<DropdownMenuItem onClick={openComplaintDialog}>
+											<WarningCircleIcon className="size-4" />
+											Open complaint
+										</DropdownMenuItem>
+									) : null}
+									{gates.canRefundWholeOrder ? (
+										<DropdownMenuItem
+											onClick={openRefundOrderDialog}
+											variant="destructive"
+										>
+											Refund order
+										</DropdownMenuItem>
+									) : null}
+									{gates.canCancelOrder ? (
+										<DropdownMenuItem
+											onClick={openCancelOrderDialog}
+											variant="destructive"
+										>
+											Cancel order
+										</DropdownMenuItem>
+									) : null}
+								</DropdownMenuContent>
+							</DropdownMenu>
+						) : null}
+					</div>
 				</div>
 
 				{renderPickupButton("w-full sm:hidden")}

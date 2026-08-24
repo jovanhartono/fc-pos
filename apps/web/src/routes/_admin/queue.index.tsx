@@ -1,6 +1,7 @@
+import { PICKUP_OVERDUE_HOURS } from "@fresclean/api/schema";
 import {
 	CaretRightIcon,
-	HourglassIcon,
+	FunnelIcon,
 	MagnifyingGlassIcon,
 	ScanIcon,
 	WarningCircleIcon,
@@ -21,12 +22,10 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { QueueStatusTabs } from "@/features/orders/components/queue-status-tabs";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { useBarcodeScanner } from "@/features/orders/hooks/useBarcodeScanner";
-import { formatOrderDateTime } from "@/features/orders/lib/format";
 import {
 	type FetchOrderServiceQueueQuery,
 	fetchOrderDetail,
@@ -36,13 +35,16 @@ import {
 	type QueueOrderServiceItem,
 	queryKeys,
 } from "@/lib/api";
-import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
-import { meQueryOptions, storesQueryOptions } from "@/lib/query-options";
+import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
+import {
+	meQueryOptions,
+	orderServiceQueueCountsQueryOptions,
+	storesQueryOptions,
+} from "@/lib/query-options";
 import { readServerErrorMessage } from "@/lib/server-error";
 import {
 	ACTIVE_ORDER_SERVICE_STATUSES,
 	formatOrderServiceStatus,
-	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
@@ -56,9 +58,24 @@ const TERMINAL_QUEUE_STATUSES = new Set<QueueOrderServiceItem["status"]>([
 ]);
 
 const HOUR_MS = 3_600_000;
-const DAY_MS = 24 * HOUR_MS;
 
-type AgeTone = "muted" | "info" | "warning" | "destructive";
+// One threshold, not a four-step ramp: an amber-at-24h/red-at-72h scale paints a
+// whole backlog the same colour, and a list where every row is red says nothing.
+const TURNAROUND_MS = PICKUP_OVERDUE_HOURS * HOUR_MS;
+
+// One timer for the whole list, not one per row: the queue scrolls to hundreds
+// of rows and each row used to own its own interval, so the clock cost grew
+// with the backlog and every row ticked on its own drifting phase.
+function useMinuteClock(): number {
+	const [now, setNow] = useState(() => Date.now());
+
+	useEffect(() => {
+		const interval = setInterval(() => setNow(Date.now()), 60_000);
+		return () => clearInterval(interval);
+	}, []);
+
+	return now;
+}
 
 function formatElapsedDuration(ms: number): string {
 	const totalMinutes = Math.floor(ms / 60_000);
@@ -66,36 +83,13 @@ function formatElapsedDuration(ms: number): string {
 		return `${Math.max(totalMinutes, 0)}m`;
 	}
 	const totalHours = Math.floor(totalMinutes / 60);
-	const minutes = totalMinutes % 60;
-	if (totalHours < 24) {
-		return `${totalHours}h ${minutes}m`;
+	if (totalHours < 48) {
+		return `${totalHours}h`;
 	}
-	const days = Math.floor(totalHours / 24);
-	const hours = totalHours % 24;
-	return `${days}d ${hours}h`;
+	return `${Math.floor(totalHours / 24)}d`;
 }
 
-function getElapsedTone(ms: number): AgeTone {
-	if (ms < 2 * HOUR_MS) {
-		return "muted";
-	}
-	if (ms < DAY_MS) {
-		return "info";
-	}
-	if (ms < 3 * DAY_MS) {
-		return "warning";
-	}
-	return "destructive";
-}
-
-const AGE_TONE_CLASS: Record<AgeTone, string> = {
-	muted: "border-border/70 bg-muted/40 text-muted-foreground",
-	info: "border-info/40 bg-info/10 text-info",
-	warning: "border-warning/50 bg-warning/10 text-warning",
-	destructive: "border-destructive/50 bg-destructive/10 text-destructive",
-};
-
-const workerSearchSchema = z.object({
+const queueSearchSchema = z.object({
 	storeId: z.coerce.number().int().positive().optional(),
 	status: z.enum(ACTIVE_ORDER_SERVICE_STATUSES).optional(),
 	dateFrom: z
@@ -110,8 +104,8 @@ const workerSearchSchema = z.object({
 
 const numericLookupRegex = /^\d+$/;
 
-export const Route = createFileRoute("/_admin/worker/")({
-	validateSearch: (search) => workerSearchSchema.parse(search),
+export const Route = createFileRoute("/_admin/queue/")({
+	validateSearch: (search) => queueSearchSchema.parse(search),
 	loader: async ({ context }) => {
 		const currentUser = getCurrentUser();
 
@@ -122,17 +116,18 @@ export const Route = createFileRoute("/_admin/worker/")({
 				: undefined,
 		]);
 	},
-	component: WorkerQueuePage,
+	component: QueuePage,
 });
 
-function WorkerQueuePage() {
+function QueuePage() {
 	const currentUser = getCurrentUser();
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 	const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
 	const [itemCode, setItemCode] = useState("");
-	const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+	const [isFilterOpen, setIsFilterOpen] = useState(false);
+	const now = useMinuteClock();
 
 	const meQuery = useQuery({
 		...meQueryOptions(),
@@ -157,10 +152,7 @@ function WorkerQueuePage() {
 
 		if (userStoreIds.length > 0) {
 			void navigate({
-				search: (prev: { storeId?: number }) => ({
-					...prev,
-					storeId: userStoreIds[0],
-				}),
+				search: (prev) => ({ ...prev, storeId: userStoreIds[0] }),
 				replace: true,
 			});
 		}
@@ -213,6 +205,11 @@ function WorkerQueuePage() {
 			const nextOffset = lastPage.meta.offset + lastPage.meta.limit;
 			return nextOffset < lastPage.meta.total ? nextOffset : undefined;
 		},
+		enabled: parsedStoreId !== undefined,
+	});
+
+	const countsQuery = useQuery({
+		...orderServiceQueueCountsQueryOptions(parsedStoreId),
 		enabled: parsedStoreId !== undefined,
 	});
 
@@ -278,7 +275,7 @@ function WorkerQueuePage() {
 						return {
 							orderId: orderService.order.id,
 							storeId: orderService.order.store_id,
-							workerServiceId: orderService.id,
+							queueServiceId: orderService.id,
 						};
 					}
 				} catch {
@@ -298,16 +295,16 @@ function WorkerQueuePage() {
 			return {
 				orderId: orderService.order.id,
 				storeId: orderService.order.store_id,
-				workerServiceId: orderService.id,
+				queueServiceId: orderService.id,
 			};
 		},
 		onSuccess: (result) => {
-			if (result.workerServiceId !== undefined) {
+			if (result.queueServiceId !== undefined) {
 				void navigate({
-					to: "/worker/$orderId/$serviceId",
+					to: "/queue/$orderId/$serviceId",
 					params: {
 						orderId: String(result.orderId),
-						serviceId: String(result.workerServiceId),
+						serviceId: String(result.queueServiceId),
 					},
 				});
 				return;
@@ -340,7 +337,7 @@ function WorkerQueuePage() {
 	const navigateToQueueDetail = useCallback(
 		(item: QueueOrderServiceItem) => {
 			void navigate({
-				to: "/worker/$orderId/$serviceId",
+				to: "/queue/$orderId/$serviceId",
 				params: {
 					orderId: String(item.order_id),
 					serviceId: String(item.id),
@@ -352,10 +349,7 @@ function WorkerQueuePage() {
 
 	const updateStoreFilter = (value: string) => {
 		void navigate({
-			search: (prev: {
-				storeId?: number;
-				status?: (typeof ACTIVE_ORDER_SERVICE_STATUSES)[number];
-			}) => ({
+			search: (prev) => ({
 				...prev,
 				storeId: value ? Number(value) : undefined,
 			}),
@@ -364,12 +358,7 @@ function WorkerQueuePage() {
 
 	const updateStatusFilter = (value: string) => {
 		void navigate({
-			search: (prev: {
-				storeId?: number;
-				status?: (typeof ACTIVE_ORDER_SERVICE_STATUSES)[number];
-				dateFrom?: string;
-				dateTo?: string;
-			}) => ({
+			search: (prev) => ({
 				...prev,
 				status:
 					value && value !== "all"
@@ -381,12 +370,7 @@ function WorkerQueuePage() {
 
 	const updateDateRangeFilter = (next: { from?: string; to?: string } = {}) => {
 		void navigate({
-			search: (prev: {
-				storeId?: number;
-				status?: (typeof ACTIVE_ORDER_SERVICE_STATUSES)[number];
-				dateFrom?: string;
-				dateTo?: string;
-			}) => ({
+			search: (prev) => ({
 				...prev,
 				dateFrom: next.from,
 				dateTo: next.to,
@@ -394,67 +378,56 @@ function WorkerQueuePage() {
 		});
 	};
 
+	const activeFilterCount =
+		(selectedDateFrom || selectedDateTo ? 1 : 0) +
+		(role === "admin" && parsedStoreId !== undefined ? 1 : 0);
+
 	return (
 		<>
 			<PageHeader
-				title="Queue"
 				actions={
-					<Badge variant={queueQuery.isPending ? "secondary" : "outline"}>
-						{`${totalItems} items`}
-					</Badge>
-				}
-			/>
-
-			<div className="grid gap-5">
-				<section className="grid gap-4 border border-border bg-background/70 p-4">
-					<div className="flex justify-end lg:hidden">
-						<Dialog
-							open={isMobileFilterOpen}
-							onOpenChange={setIsMobileFilterOpen}
-						>
+					<div className="flex items-center gap-2">
+						<Badge variant={queueQuery.isLoading ? "secondary" : "outline"}>
+							{`${totalItems} items`}
+						</Badge>
+						<Dialog onOpenChange={setIsFilterOpen} open={isFilterOpen}>
 							<DialogTrigger
 								render={
 									<Button
+										aria-label="Filters"
+										icon={<FunnelIcon className="size-4" />}
 										type="button"
 										variant="outline"
-										className="h-11 px-4"
 									/>
 								}
 							>
-								Filters
+								{activeFilterCount > 0 ? String(activeFilterCount) : null}
 							</DialogTrigger>
-							<DialogContent className="max-w-[calc(100%-1.5rem)] gap-5 p-4">
+							<DialogContent className="max-w-[calc(100%-1.5rem)] gap-5 p-4 sm:max-w-md">
 								<DialogHeader>
 									<DialogTitle>Filters</DialogTitle>
 								</DialogHeader>
 								<div className="grid gap-4">
 									<StoreAutocomplete
-										id="queue-store-mobile"
-										value={parsedStoreId?.toString() ?? ""}
-										onValueChange={updateStoreFilter}
 										allowedStoreIds={
 											role === "admin" ? undefined : userStoreIds
 										}
+										id="queue-store"
+										onValueChange={updateStoreFilter}
 										placeholder="Select store"
+										value={parsedStoreId?.toString() ?? ""}
 									/>
-
-									<QueueStatusTabs
-										value={selectedStatus ?? "all"}
-										onValueChange={updateStatusFilter}
-									/>
-
 									<DateRangePicker
 										commitOnComplete
 										from={selectedDateFrom}
-										to={selectedDateTo}
 										onChange={updateDateRangeFilter}
 										onClear={() => updateDateRangeFilter()}
+										to={selectedDateTo}
 									/>
-
 									<Button
-										type="button"
 										className="h-10 pointer-coarse:h-11"
-										onClick={() => setIsMobileFilterOpen(false)}
+										onClick={() => setIsFilterOpen(false)}
+										type="button"
 									>
 										Done
 									</Button>
@@ -462,147 +435,139 @@ function WorkerQueuePage() {
 							</DialogContent>
 						</Dialog>
 					</div>
+				}
+				title="Queue"
+			/>
 
-					<div className="grid gap-3 lg:grid-cols-[minmax(0,220px)_1fr]">
-						<div className="hidden lg:block">
-							<StoreAutocomplete
-								id="queue-store"
-								value={parsedStoreId?.toString() ?? ""}
-								onValueChange={updateStoreFilter}
-								allowedStoreIds={role === "admin" ? undefined : userStoreIds}
-								placeholder="Select store"
-							/>
-						</div>
-						<div className="grid gap-2">
-							<Field>
-								<FieldLabel htmlFor="queue-item-code">
-									Find order item
-								</FieldLabel>
-								<div className="grid gap-2 lg:flex lg:flex-row">
-									<Input
-										id="queue-item-code"
-										placeholder="Type item code, order ID, or line ID"
-										value={itemCode}
-										onChange={(event) => setItemCode(event.target.value)}
-									/>
-									<Button
-										type="button"
-										variant="outline"
-										className="h-10 pointer-coarse:h-11 w-full lg:w-auto lg:min-w-28"
-										icon={<MagnifyingGlassIcon className="size-4" />}
-										disabled={!itemCode.trim() || lookupMutation.isPending}
-										onClick={() => {
-											lookupMutation.mutate({
-												mode: "manual",
-												value: itemCode.trim(),
-											});
-										}}
-									>
-										Find
-									</Button>
-									<Button
-										type="button"
-										variant="outline"
-										className="h-10 pointer-coarse:h-11 w-full lg:w-auto lg:min-w-28"
-										icon={<ScanIcon className="size-4" />}
-										onClick={() => {
-											if (scanner.isScanning) {
-												scanner.stop();
-												return;
-											}
-
-											void scanner.start();
-										}}
-									>
-										{scanner.isScanning ? "Stop Scan" : "Scan Tag"}
-									</Button>
-								</div>
-							</Field>
-							{scanner.error ? (
-								<div className="flex items-center gap-2 text-sm text-destructive">
-									<WarningCircleIcon className="size-4" weight="fill" />
-									<span>{scanner.error}</span>
-								</div>
-							) : null}
-						</div>
-					</div>
-
-					<QueueStatusTabs
-						className="hidden lg:grid"
-						value={selectedStatus ?? "all"}
-						onValueChange={updateStatusFilter}
+			<div className="grid gap-3">
+				<div className="flex items-center gap-2">
+					<Input
+						aria-label="Find by item code, order ID, or line ID"
+						autoCapitalize="none"
+						autoCorrect="off"
+						className="min-w-0 flex-1"
+						spellCheck={false}
+						onChange={(event) => setItemCode(event.target.value)}
+						// Same guard the Find button carries: without it a held Enter
+						// fires a second lookup over the first and navigates twice.
+						onKeyDown={(event) => {
+							if (
+								event.key === "Enter" &&
+								itemCode.trim() &&
+								!lookupMutation.isPending
+							) {
+								lookupMutation.mutate({
+									mode: "manual",
+									value: itemCode.trim(),
+								});
+							}
+						}}
+						placeholder="Item code / order ID…"
+						value={itemCode}
 					/>
+					<Button
+						aria-label="Find"
+						disabled={!itemCode.trim() || lookupMutation.isPending}
+						icon={<MagnifyingGlassIcon className="size-4" />}
+						onClick={() => {
+							lookupMutation.mutate({ mode: "manual", value: itemCode.trim() });
+						}}
+						size="icon-lg"
+						type="button"
+						variant="outline"
+					/>
+					<Button
+						aria-label={scanner.isScanning ? "Stop scan" : "Scan tag"}
+						icon={<ScanIcon className="size-4" />}
+						onClick={() => {
+							if (scanner.isScanning) {
+								scanner.stop();
+								return;
+							}
 
-					<div className="hidden lg:block">
-						<DateRangePicker
-							commitOnComplete
-							from={selectedDateFrom}
-							to={selectedDateTo}
-							onChange={updateDateRangeFilter}
-							onClear={() => updateDateRangeFilter()}
-						/>
+							void scanner.start();
+						}}
+						size="icon-lg"
+						type="button"
+						variant={scanner.isScanning ? "default" : "outline"}
+					/>
+				</div>
+
+				{scanner.error ? (
+					<div className="flex items-center gap-2 text-destructive text-sm">
+						<WarningCircleIcon className="size-4" weight="fill" />
+						<span>{scanner.error}</span>
 					</div>
+				) : null}
 
-					{scanner.isScanning ? (
-						<video
-							ref={scanner.videoRef}
-							className="aspect-video w-full border border-border object-cover"
-							autoPlay
-							playsInline
-							muted
-						/>
-					) : null}
-				</section>
+				{scanner.isScanning ? (
+					<video
+						autoPlay
+						className="aspect-video w-full border border-border object-cover"
+						muted
+						playsInline
+						ref={scanner.videoRef}
+					/>
+				) : null}
 
-				<section className="grid gap-2">
+				<QueueStatusTabs
+					counts={countsQuery.data}
+					onValueChange={updateStatusFilter}
+					value={selectedStatus ?? "all"}
+				/>
+
+				<section className="grid min-w-0 gap-2">
 					{role === "admin" && parsedStoreId === undefined ? (
-						<div className="border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+						<div className="border border-dashed border-border px-4 py-8 text-center text-muted-foreground text-sm">
 							Select a store.
 						</div>
 					) : null}
 
 					{queueItems.map((item) => (
 						<QueueRow
-							key={item.id}
-							item={item}
 							currentUserId={currentUser?.id}
+							item={item}
+							key={item.id}
+							now={now}
 							onOpen={navigateToQueueDetail}
 						/>
 					))}
 
-					{queueQuery.isPending ? (
+					{/* isLoading, never isPending: with no store picked this query is
+					    disabled, and a disabled query stays pending forever. */}
+					{queueQuery.isLoading ? (
 						<div className="grid gap-2">
-							{Array.from({ length: 4 }, (_, index) => (
+							{Array.from({ length: 6 }, (_, index) => (
 								<div
+									className="h-20 animate-pulse border border-border bg-muted/40"
 									key={index}
-									className="h-28 animate-pulse border border-border bg-muted/40"
 								/>
 							))}
 						</div>
 					) : null}
 
 					{queueQuery.isError ? (
-						<div className="border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+						<div className="border border-destructive/30 bg-destructive/5 px-4 py-3 text-destructive text-sm">
 							{queueQuery.error instanceof Error
 								? queueQuery.error.message
 								: "Failed to load the queue."}
 						</div>
 					) : null}
 
-					{!queueQuery.isPending &&
+					{!queueQuery.isLoading &&
 					!queueQuery.isError &&
 					queueItems.length === 0 &&
 					parsedStoreId !== undefined ? (
-						<div className="border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+						<div className="border border-dashed border-border px-4 py-8 text-center text-muted-foreground text-sm">
 							No items.
 						</div>
 					) : null}
 
-					<div ref={loadMoreRef} className="h-6" />
+					<div className="h-6" ref={loadMoreRef} />
 
 					{queueQuery.isFetchingNextPage ? (
-						<p className="text-center text-sm text-muted-foreground">
-							Loading...
+						<p className="text-center text-muted-foreground text-sm">
+							Loading…
 						</p>
 					) : null}
 				</section>
@@ -611,101 +576,89 @@ function WorkerQueuePage() {
 	);
 }
 
-interface WaitingBadgeProps {
-	orderCreatedAt: string;
-}
-
-const WaitingBadge = ({ orderCreatedAt }: WaitingBadgeProps) => {
-	const [now, setNow] = useState(() => Date.now());
-
-	useEffect(() => {
-		const interval = setInterval(() => setNow(Date.now()), 60_000);
-		return () => clearInterval(interval);
-	}, []);
-
-	const elapsedMs = Math.max(0, now - new Date(orderCreatedAt).getTime());
-	const ageTone = getElapsedTone(elapsedMs);
-	const ageLabel = formatElapsedDuration(elapsedMs);
-
-	return (
-		<span
-			className={cn(
-				"inline-flex items-center gap-1 border px-2 py-0.5 font-mono text-[11px] tabular-nums",
-				AGE_TONE_CLASS[ageTone],
-			)}
-		>
-			<HourglassIcon className="size-3" />
-			{`Waiting ${ageLabel}`}
-		</span>
-	);
-};
-
 interface QueueRowProps {
 	item: QueueOrderServiceItem;
 	currentUserId?: number;
+	now: number;
 	onOpen: (item: QueueOrderServiceItem) => void;
 }
 
-const QueueRow = memo(({ item, currentUserId, onOpen }: QueueRowProps) => {
+const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
+	const isTerminal = TERMINAL_QUEUE_STATUSES.has(item.status);
+	const elapsedMs = Math.max(
+		0,
+		now - new Date(item.order_created_at).getTime(),
+	);
+	const isBreached = !isTerminal && elapsedMs >= TURNAROUND_MS;
+
 	const isHandledByCurrentUser =
 		currentUserId !== undefined && item.handler_id === currentUserId;
-	const isHandledByAnotherWorker =
-		item.handler_id !== null &&
-		item.handler_id !== undefined &&
-		!isHandledByCurrentUser;
+	const handler = isHandledByCurrentUser
+		? "Me"
+		: (item.handler_name ?? (item.handler_id === null ? null : "Worker"));
 
-	const isTerminal = TERMINAL_QUEUE_STATUSES.has(item.status);
+	// Lead with whatever actually identifies the Item. Descriptors are optional at
+	// intake, so a fixed "descriptors on top" row shouts "No item details" at full
+	// weight and demotes the service — the only thing left that says anything.
+	const descriptors = getOrderServiceItemDetails(item);
+	const secondary = [descriptors ? item.service_name : null, handler]
+		.filter(Boolean)
+		.join(" · ");
 
 	return (
+		// min-w-0 at every level down to the truncating text: without it the row's
+		// min-content sizes the auto grid column, and the search field and status
+		// chips above — siblings in that same column — get pushed off screen.
 		<button
-			type="button"
-			className={cn(
-				"group grid gap-3 border border-border bg-background px-4 py-4 text-left transition-colors hover:bg-muted/40",
-				item.is_priority && "border-warning/40 bg-warning/5",
-			)}
+			className="group flex min-w-0 items-stretch gap-0 border border-border bg-background text-left transition-colors hover:bg-muted/40"
 			onClick={() => onOpen(item)}
+			type="button"
 		>
-			<div className="flex items-start justify-between gap-3">
-				<div className="grid gap-2">
-					<div className="flex flex-wrap items-center gap-2">
-						{item.is_priority ? (
-							<Badge variant="warning">Priority</Badge>
-						) : (
-							<Badge variant="outline">Standard</Badge>
+			<span className="grid min-w-0 flex-1 gap-0.5 px-3 py-2.5">
+				<span className="flex min-w-0 items-baseline gap-2">
+					<span className="min-w-0 flex-1 truncate font-medium text-sm">
+						{descriptors ?? item.service_name}
+					</span>
+					<span
+						className={cn(
+							"shrink-0 font-mono font-semibold text-sm tabular-nums",
+							isBreached ? "text-destructive" : "text-muted-foreground",
 						)}
-						<Badge variant={getOrderServiceStatusBadgeVariant(item.status)}>
-							{formatOrderServiceStatus(item.status)}
+					>
+						{isTerminal ? "—" : formatElapsedDuration(elapsedMs)}
+					</span>
+					{/* self-center: an svg has no text baseline, so in this baseline-aligned
+					    row it would sit on the baseline and ride 3px high. */}
+					<CaretRightIcon
+						className="size-4 shrink-0 self-center text-muted-foreground transition-transform group-hover:translate-x-0.5"
+						weight="bold"
+					/>
+				</span>
+				<span className="flex min-w-0 items-baseline gap-2 text-muted-foreground text-xs">
+					{/* On the All chip a queued Item and one back from a failed quality
+					    check are otherwise the same row, and triaging the rack means
+					    opening each one. Kept on the filtered chips too: a barcode scan
+					    and a search both land here spanning statuses. */}
+					{item.is_priority ? (
+						<Badge
+							className="shrink-0 px-1.5 py-0 font-mono text-[10px] uppercase tracking-wide"
+							variant="warning"
+						>
+							Priority
 						</Badge>
-						<Badge variant={isHandledByCurrentUser ? "info" : "secondary"}>
-							{isHandledByCurrentUser
-								? "Assigned to me"
-								: isHandledByAnotherWorker
-									? `Assigned to ${item.handler_name ?? "worker"}`
-									: "Open"}
-						</Badge>
-						{isTerminal ? null : (
-							<WaitingBadge orderCreatedAt={item.order_created_at} />
-						)}
-					</div>
-					<div className="grid gap-1">
-						<p className="text-lg font-semibold tracking-tight">
-							{item.item_code ?? `Service #${item.id}`}
-						</p>
-						<p className="text-sm text-muted-foreground">{item.service_name}</p>
-					</div>
-				</div>
-				<CaretRightIcon
-					className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-					weight="bold"
-				/>
-			</div>
-
-			<div className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-2">
-				<p>{`Order ${item.order_code}`}</p>
-				<p>{formatOrderDateTime(item.order_created_at)}</p>
-				<p>{`Store ${item.store_code} - ${item.store_name}`}</p>
-				<p>{`Item ${formatOrderServiceItemDetails(item)}`}</p>
-			</div>
+					) : null}
+					<Badge
+						className="shrink-0 px-1.5 py-0 font-mono text-[10px] uppercase tracking-wide"
+						variant="outline"
+					>
+						{formatOrderServiceStatus(item.status)}
+					</Badge>
+					<span className="min-w-0 flex-1 truncate">{secondary}</span>
+					<span className="shrink-0 font-mono text-[10px]">
+						{item.item_code ?? `#${item.id}`}
+					</span>
+				</span>
+			</span>
 		</button>
 	);
 });

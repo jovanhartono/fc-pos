@@ -8,6 +8,14 @@ Guidance for coding agents working anywhere in this repository. `CLAUDE.md` syml
 
 See `CONTEXT.md` for the domain vocabulary — **Item**, **Order**, **OrderService** and the rest have precise meanings here, and using them loosely is the most common way to get the model wrong.
 
+## Commands
+
+```bash
+bun run dev          # turbo dev — server (hot reload + tsdown --watch) and web (vite)
+bun run test         # turbo test — bun test in each package
+bun run type-check   # turbo type-check — web runs generate-routes first
+```
+
 ## Environment Variables
 
 The server reads from `process.env`:
@@ -54,7 +62,7 @@ Always run from the repo root — running from `apps/web` or `packages/server` m
 
 ## v1 Scope Source of Truth
 
-- `TODO.md` — current lightweight task list when present
+- `TODO.md` — current lightweight task list
 - `docs/archive/2026-04-28-v1-ship/` — historical v1-ship audits (overcomplexity, production-readiness, deferred D-1..D-19). Frozen reference; do not extend in place.
 
 ## Detailed Standards
@@ -66,14 +74,6 @@ Loaded automatically when working under their own directory, not before:
 
 ## Agent skills
 
-### Issue tracker
-
-GitHub issues on `jovanhartono/fc-pos` via the `gh` CLI. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Canonical label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`); only `wontfix` exists on the repo today. See `docs/agents/triage-labels.md`.
-
 ### Domain docs
 
-Single-context layout — `CONTEXT.md` + `docs/adr/` at the repo root, created lazily by `/grill-with-docs`. See `docs/agents/domain.md`.
+Single-context layout — `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.

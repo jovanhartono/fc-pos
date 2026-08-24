@@ -26,15 +26,18 @@ export function TransactionsWorkspace() {
 
 	return (
 		<>
-			<div className="grid gap-6">
+			<div className="grid min-w-0 gap-6">
 				<TransactionsCatalog />
 				<CartMiniBar hasStore={!!selectedStoreId} onOpen={handleOpenCart} />
 			</div>
-			<Sheet open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
+			<Sheet onOpenChange={setCartSheetOpen} open={cartSheetOpen}>
+				{/* Bottom at every width, never a right drawer: the item rows lay their
+				    descriptor fields out in two columns and the stepper needs the room,
+				    and a right sheet caps at max-w-sm. */}
 				<SheetContent
-					side="bottom"
 					className="data-[side=bottom]:h-[92dvh]"
 					showCloseButton={false}
+					side="bottom"
 				>
 					<TransactionsCheckout />
 				</SheetContent>

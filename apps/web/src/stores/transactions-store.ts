@@ -1,14 +1,9 @@
 import { create } from "zustand";
-import type {
-	CatalogMode,
-	CategoryFilter,
-} from "@/features/transactions/lib/transactions";
+import type { CategoryFilter } from "@/features/transactions/lib/transactions";
 
 type TransactionsPageUiState = {
-	mode: CatalogMode;
 	searchTerm: string;
-	activeProductCategory: CategoryFilter;
-	activeServiceCategory: CategoryFilter;
+	activeCategory: CategoryFilter;
 	submitError: string;
 	// Drop-off photo captured in the POS before the Order exists; uploaded after
 	// checkout commits. Kept here (not in the page context) so a photo pick only
@@ -17,10 +12,8 @@ type TransactionsPageUiState = {
 };
 
 type TransactionsPageUiActions = {
-	setMode: (mode: CatalogMode) => void;
 	setSearchTerm: (value: string) => void;
-	setActiveProductCategory: (category: CategoryFilter) => void;
-	setActiveServiceCategory: (category: CategoryFilter) => void;
+	setActiveCategory: (category: CategoryFilter) => void;
 	setSubmitError: (message: string) => void;
 	setDropoffPhoto: (file: File | null) => void;
 	resetUi: () => void;
@@ -30,10 +23,8 @@ export type TransactionsPageStore = TransactionsPageUiState &
 	TransactionsPageUiActions;
 
 const initialUiState: TransactionsPageUiState = {
-	mode: "services",
 	searchTerm: "",
-	activeProductCategory: "all",
-	activeServiceCategory: "all",
+	activeCategory: "all",
 	submitError: "",
 	dropoffPhoto: null,
 };
@@ -41,12 +32,8 @@ const initialUiState: TransactionsPageUiState = {
 export const useTransactionsPageStore = create<TransactionsPageStore>()(
 	(set) => ({
 		...initialUiState,
-		setMode: (mode) => set({ mode }),
 		setSearchTerm: (searchTerm) => set({ searchTerm }),
-		setActiveProductCategory: (activeProductCategory) =>
-			set({ activeProductCategory }),
-		setActiveServiceCategory: (activeServiceCategory) =>
-			set({ activeServiceCategory }),
+		setActiveCategory: (activeCategory) => set({ activeCategory }),
 		setSubmitError: (submitError) => set({ submitError }),
 		setDropoffPhoto: (dropoffPhoto) => set({ dropoffPhoto }),
 		resetUi: () => set(initialUiState),

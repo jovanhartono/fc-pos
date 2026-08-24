@@ -8,14 +8,18 @@ import {
   ordersTable,
 } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
-import type { NormalizedOrderListQuery } from "@/modules/orders/order.schema";
+import type {
+  NormalizedOrderListQuery,
+  OrderListFilters,
+} from "@/modules/orders/order.schema";
 import {
   deriveOrderRefundStatus,
   type OrderRefundStatus,
 } from "@/modules/orders/order-refund-status";
 import { isNumericSearch } from "@/modules/orders/order-search";
 import { summarizeOrderFulfillment } from "@/modules/orders/order-status-machine";
-import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
+import { PICKUP_OVERDUE_HOURS } from "@/schema/turnaround";
+import { jakartaDayEnd, jakartaDayStart, jakartaNow } from "@/utils/date";
 
 export type OrderTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -78,10 +82,7 @@ interface FindOrdersResult {
   total: number;
 }
 
-function buildOrderWhere(
-  filters: NormalizedOrderListQuery,
-  scopedStoreIds?: number[]
-) {
+function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
   const conditions: Record<string, unknown>[] = [];
 
   if (scopedStoreIds !== undefined) {
@@ -98,6 +99,18 @@ function buildOrderWhere(
 
   if (filters.payment_status) {
     conditions.push({ payment_status: filters.payment_status });
+  }
+
+  if (filters.overdue) {
+    conditions.push({ status: "ready_for_pickup" });
+    // Aged from the shelf, not from intake. A null ready_at drops out of `lt`
+    // on its own, which is the wanted answer: an order nobody has finished has
+    // not kept the customer waiting for a collection it could not make.
+    conditions.push({
+      ready_at: {
+        lt: jakartaNow().subtract(PICKUP_OVERDUE_HOURS, "hour").toDate(),
+      },
+    });
   }
 
   if (filters.store_id) {
@@ -219,12 +232,7 @@ export async function findOrders(
       limit: filters.limit,
       offset: filters.offset,
     }),
-    db.query.ordersTable
-      .findMany({
-        where: buildOrderWhere(filters, scopedStoreIds),
-        columns: { id: true },
-      })
-      .then((rows) => rows.length),
+    countOrders(filters, scopedStoreIds),
   ]);
 
   const orderIds = rows.map((row) => row.id);
@@ -285,6 +293,25 @@ export async function findOrders(
     items,
     total,
   };
+}
+
+// Postgres does the counting and hands back one row. db.$count() cannot take the
+// relational builder's object `where`, and a second SQL-level where-builder is
+// how a pill's number stops matching the total of the page it opens — so the
+// count rides along on buildOrderWhere itself. The window runs before LIMIT, so
+// the single row carries the count of every match, not of the row returned.
+export async function countOrders(
+  filters: OrderListFilters,
+  scopedStoreIds?: number[]
+): Promise<number> {
+  const [row] = await db.query.ordersTable.findMany({
+    where: buildOrderWhere(filters, scopedStoreIds),
+    columns: { id: true },
+    extras: { total: sql<number>`(count(*) over ())::int`.as("total") },
+    limit: 1,
+  });
+  // No row means nothing matched — the window had nothing to report it on.
+  return row?.total ?? 0;
 }
 
 export async function reserveNextOrderNumber(

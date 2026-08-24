@@ -18,6 +18,7 @@ interface DataTableCardsProps<TData extends RowData> {
 
 interface CardCells<TData extends RowData> {
 	primaryCell?: Cell<TData, unknown>;
+	subtitleCells: Cell<TData, unknown>[];
 	eyebrowCells: Cell<TData, unknown>[];
 	badgeCells: Cell<TData, unknown>[];
 	footerCells: Cell<TData, unknown>[];
@@ -41,6 +42,7 @@ const bucketCardCells = <TData extends RowData>(
 	hiddenIds: Set<string>,
 ): CardCells<TData> => {
 	const buckets: CardCells<TData> = {
+		subtitleCells: [],
 		eyebrowCells: [],
 		badgeCells: [],
 		footerCells: [],
@@ -56,6 +58,10 @@ const bucketCardCells = <TData extends RowData>(
 			continue;
 		}
 		const slot = cell.column.columnDef.meta?.mobileCard?.slot;
+		if (slot === "subtitle") {
+			buckets.subtitleCells.push(cell);
+			continue;
+		}
 		if (slot === "eyebrow") {
 			buckets.eyebrowCells.push(cell);
 			continue;
@@ -124,6 +130,7 @@ export const DataTableCards = <TData extends RowData>({
 			{rows.map((row) => {
 				const {
 					primaryCell,
+					subtitleCells,
 					eyebrowCells,
 					badgeCells,
 					footerCells,
@@ -192,7 +199,9 @@ export const DataTableCards = <TData extends RowData>({
 							</div>
 						) : null}
 
-						{primaryCell || badgeCells.length > 0 ? (
+						{primaryCell ||
+						subtitleCells.length > 0 ||
+						badgeCells.length > 0 ? (
 							<div className="grid gap-2 px-3 py-2.5">
 								{primaryCell ? (
 									<div
@@ -207,6 +216,20 @@ export const DataTableCards = <TData extends RowData>({
 										)}
 									</div>
 								) : null}
+								{subtitleCells.map((cell) => {
+									const mobileCard = cell.column.columnDef.meta?.mobileCard;
+									return (
+										<div
+											className={cn("min-w-0 text-sm", mobileCard?.className)}
+											key={cell.id}
+										>
+											{flexRender(
+												cell.column.columnDef.cell,
+												cell.getContext(),
+											)}
+										</div>
+									);
+								})}
 								{badgeCells.length > 0 ? (
 									<div className="flex flex-wrap items-center gap-1">
 										{badgeCells.map((cell) => {

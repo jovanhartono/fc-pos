@@ -34,6 +34,7 @@ import {
 	servicesQueryOptions,
 } from "@/lib/query-options";
 import { formatMoney, parseMoney } from "@/shared/money";
+import { useSheet } from "@/stores/sheet-store";
 
 interface OrderPaymentSectionProps {
 	orderId: number;
@@ -47,22 +48,31 @@ export const OrderPaymentSection = ({
 	gates,
 }: OrderPaymentSectionProps) => (
 	<Card className="gap-0 overflow-hidden py-0">
-		<OrderSectionHeader>Payment</OrderSectionHeader>
+		<OrderSectionHeader
+			action={
+				detail.payment_status !== "paid" &&
+				gates.isPaymentAllowed &&
+				!gates.hasUnpricedLine ? (
+					<CollectPaymentAction detail={detail} orderId={orderId} />
+				) : null
+			}
+		>
+			Payment
+		</OrderSectionHeader>
 		<div className="border-t">
 			<OrderMoneySummary detail={detail} />
 		</div>
-		<PaymentDetails detail={detail} gates={gates} orderId={orderId} />
+		<PaymentDetails detail={detail} gates={gates} />
 	</Card>
 );
 
 // Payment status itself is shown in the header status chip (OrderIdentityStrip),
-// so this section adds only the extra detail — how it was paid, or the control
-// to collect it — and renders nothing when there is neither (unpaid, no rights).
+// so this section adds only the extra detail — how it was paid, or why it
+// cannot be collected yet — and renders nothing when there is neither.
 const PaymentDetails = ({
-	orderId,
 	detail,
 	gates,
-}: OrderPaymentSectionProps) => {
+}: Pick<OrderPaymentSectionProps, "detail" | "gates">) => {
 	if (detail.payment_status === "paid") {
 		return (
 			<>
@@ -72,8 +82,8 @@ const PaymentDetails = ({
 		);
 	}
 	// ADR-0018: no price, no payment. The server refuses the paid transition
-	// while a live line is unpriced — say so here instead of offering a form
-	// that can only 400.
+	// while a live line is unpriced — say so here instead of offering a
+	// Collect payment button that can only 400.
 	if (gates.hasUnpricedLine) {
 		return (
 			<>
@@ -85,15 +95,37 @@ const PaymentDetails = ({
 			</>
 		);
 	}
-	if (gates.isPaymentAllowed) {
-		return (
-			<>
-				<Separator />
-				<CollectPaymentForm detail={detail} orderId={orderId} />
-			</>
-		);
-	}
 	return null;
+};
+
+interface CollectPaymentActionProps {
+	orderId: number;
+	detail: OrderDetail;
+}
+
+const CollectPaymentAction = ({
+	orderId,
+	detail,
+}: CollectPaymentActionProps) => {
+	const openSheet = useSheet((s) => s.openSheet);
+
+	return (
+		<Button
+			onClick={() =>
+				openSheet({
+					title: "Collect payment",
+					description: detail.code,
+					content: () => (
+						<CollectPaymentForm detail={detail} orderId={orderId} />
+					),
+				})
+			}
+			size="sm"
+			type="button"
+		>
+			Collect payment
+		</Button>
+	);
 };
 
 const PaidDetails = ({ detail }: { detail: OrderDetail }) => (
@@ -143,6 +175,7 @@ interface CollectPaymentFormProps {
 // already settled shows the printed total instead: the server refuses a
 // second claim.
 const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
+	const closeSheet = useSheet((s) => s.closeSheet);
 	const paymentMethodsQuery = useQuery(paymentMethodsQueryOptions());
 	const servicesQuery = useQuery(servicesQueryOptions());
 	const campaignsQuery = useQuery(
@@ -229,17 +262,20 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 
 	return (
 		<form
-			className="grid gap-4 px-4 py-4"
+			className="grid gap-4"
 			// mutate, not mutateAsync: on a race (someone else collected first)
 			// the global handler shows the server's reason instead of a silent
 			// stopped spinner.
 			onSubmit={form.handleSubmit((values) => {
-				paymentMutation.mutate({
-					payment_method_id: Number(values.paymentMethodId),
-					campaign_ids: values.campaignIds.map((id) => Number(id)),
-					voucher_codes: values.vouchers.map((entry) => entry.code),
-					discount: values.discount || "0",
-				});
+				paymentMutation.mutate(
+					{
+						payment_method_id: Number(values.paymentMethodId),
+						campaign_ids: values.campaignIds.map((id) => Number(id)),
+						voucher_codes: values.vouchers.map((entry) => entry.code),
+						discount: values.discount || "0",
+					},
+					{ onSuccess: () => closeSheet() },
+				);
 			})}
 		>
 			<Controller

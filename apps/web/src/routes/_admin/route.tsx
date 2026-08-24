@@ -84,7 +84,7 @@ const pageMeta: Record<string, { title: string; description?: string }> = {
 		title: "Users",
 		description: "Insert and edit users with role management.",
 	},
-	"/worker": {
+	"/queue": {
 		title: "Queue",
 		description:
 			"Priority-first worker queue with item detail and photo upload.",
@@ -95,7 +95,7 @@ function AdminLayout() {
 	const { pathname } = useLocation();
 	const meta =
 		pageMeta[pathname] ??
-		(pathname.startsWith("/worker/")
+		(pathname.startsWith("/queue/")
 			? {
 					title: "Queue Detail",
 					description: "Update one queue item and upload progress photos.",

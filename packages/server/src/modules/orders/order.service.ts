@@ -172,32 +172,29 @@ function buildOrderServiceRows({
   }));
 }
 
+// As the repository wants it: undefined means "do not narrow further", [] means
+// nothing at all. Confusing the two shows one account every branch's orders.
+async function resolveOrderScopedStoreIds(user: JWTPayload, storeId?: number) {
+  const scope = await resolveStoreScope(user, storeId);
+
+  switch (scope.kind) {
+    case "some":
+      return scope.storeIds;
+    case "none":
+      return [];
+    case "all":
+    case "one":
+      return;
+    default:
+      return unhandledStoreScope(scope);
+  }
+}
+
 export async function listOrders(query?: GetOrdersQuery, user?: JWTPayload) {
   const normalized = normalizeOrderListQuery(query);
-  let scopedStoreIds: number[] | undefined;
-
-  if (user) {
-    const scope = await resolveStoreScope(user, normalized.store_id);
-
-    switch (scope.kind) {
-      // A cashier browsing "all orders" still only sees the branches they work
-      // at — an open list would leak every branch's takings to any staff.
-      case "some":
-        scopedStoreIds = scope.storeIds;
-        break;
-      // A staff account not yet assigned to a branch: nothing, not everything.
-      case "none":
-        scopedStoreIds = [];
-        break;
-      // An admin browses every branch, and a named branch is already the
-      // store_id filter the query carries.
-      case "all":
-      case "one":
-        break;
-      default:
-        return unhandledStoreScope(scope);
-    }
-  }
+  const scopedStoreIds = user
+    ? await resolveOrderScopedStoreIds(user, normalized.store_id)
+    : undefined;
 
   const { items, total } = await findOrders(normalized, scopedStoreIds);
 

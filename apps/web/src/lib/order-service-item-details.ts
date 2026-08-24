@@ -5,18 +5,25 @@ type ServiceItemDetails = {
 	size?: string | null;
 };
 
-export function getOrderServiceItemDetails({
+// One field order for every surface that names an Item — the cart line, the
+// checkout row, the queue row. Two screens listing the same shoe as
+// "Nike · Black · Yeezy" and "Nike · Yeezy · Black" read as two different items.
+export function getOrderServiceItemDescriptors({
 	brand,
 	model,
 	color,
 	size,
-}: ServiceItemDetails): string | null {
-	const parts = [brand, model, color, size].flatMap((value) => {
+}: ServiceItemDetails): string[] {
+	return [brand, model, color, size].flatMap((value) => {
 		const trimmed = value?.trim();
 		return trimmed ? [trimmed] : [];
 	});
+}
 
-	return parts.join(" · ") || null;
+export function getOrderServiceItemDetails(
+	details: ServiceItemDetails,
+): string | null {
+	return getOrderServiceItemDescriptors(details).join(" · ") || null;
 }
 
 export function formatOrderServiceItemDetails(details: ServiceItemDetails) {

@@ -1,12 +1,17 @@
+import { CHIP_STRIP_ROW, ChipStripScroller } from "@/components/chip-strip";
 import { Button } from "@/components/ui/button";
+import type { OrderServiceQueueCounts } from "@/lib/api";
 import {
 	ACTIVE_ORDER_SERVICE_STATUSES,
 	formatOrderServiceStatus,
 } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
-const STATUS_TAB_ITEMS = [
-	{ value: "all", label: "All active statuses" },
+const STATUS_TAB_ITEMS: {
+	value: "all" | (typeof ACTIVE_ORDER_SERVICE_STATUSES)[number];
+	label: string;
+}[] = [
+	{ value: "all", label: "All" },
 	...ACTIVE_ORDER_SERVICE_STATUSES.map((status) => ({
 		value: status,
 		label: formatOrderServiceStatus(status),
@@ -15,49 +20,43 @@ const STATUS_TAB_ITEMS = [
 
 interface QueueStatusTabsProps {
 	value: string;
+	counts?: OrderServiceQueueCounts;
 	onValueChange: (value: string) => void;
-	className?: string;
 }
 
 export const QueueStatusTabs = ({
 	value,
+	counts,
 	onValueChange,
-	className,
 }: QueueStatusTabsProps) => (
-	<div className={cn("grid gap-2", className)}>
-		<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-			Status
-		</p>
-		<div className="-mx-1 overflow-x-auto pb-1">
-			<div
-				role="tablist"
-				aria-label="Queue status"
-				className="flex min-w-max gap-2 px-1"
-			>
-				{STATUS_TAB_ITEMS.map((status) => {
-					const isActive = value === status.value;
+	<ChipStripScroller>
+		{/* Toggle buttons, not tabs: tablist semantics promise arrow-key roving
+		    and tabpanels these filter chips don't have. Matches the catalog's
+		    category strip. */}
+		<fieldset className={cn(CHIP_STRIP_ROW, "border-0 p-0")}>
+			<legend className="sr-only">Filter by status</legend>
+			{STATUS_TAB_ITEMS.map((status) => {
+				const isActive = value === status.value;
+				const count = counts?.[status.value];
 
-					return (
-						<Button
-							key={status.value}
-							type="button"
-							variant={isActive ? "default" : "outline"}
-							size="lg"
-							role="tab"
-							aria-selected={isActive}
-							className={cn(
-								"h-11 px-4 text-sm",
-								isActive
-									? "border-primary bg-primary text-primary-foreground shadow-sm"
-									: "border-border/80 bg-background text-foreground/70 hover:border-foreground/20 hover:bg-muted/70 hover:text-foreground",
-							)}
-							onClick={() => onValueChange(status.value)}
-						>
-							{status.label}
-						</Button>
-					);
-				})}
-			</div>
-		</div>
-	</div>
+				return (
+					<Button
+						aria-pressed={isActive}
+						className="h-11 gap-1.5 px-3 text-sm"
+						key={status.value}
+						onClick={() => onValueChange(status.value)}
+						type="button"
+						variant={isActive ? "default" : "outline"}
+					>
+						{status.label}
+						{count === undefined ? null : (
+							<span className="font-mono font-semibold tabular-nums">
+								{count}
+							</span>
+						)}
+					</Button>
+				);
+			})}
+		</fieldset>
+	</ChipStripScroller>
 );

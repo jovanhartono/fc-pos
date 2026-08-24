@@ -222,8 +222,17 @@ export const GETOrderServiceQueueQuerySchema = z
     }
   );
 
+export const GETOrderServiceQueueCountsQuerySchema = z
+  .object({
+    store_id: z.coerce.number().int().positive().optional(),
+  })
+  .optional();
+
 export type GetMyOrderServicesQuery = z.infer<
   typeof GETMyOrderServicesQuerySchema
+>;
+export type GetOrderServiceQueueCountsQuery = z.infer<
+  typeof GETOrderServiceQueueCountsQuerySchema
 >;
 export type GetOrderServiceQueueQuery = z.infer<
   typeof GETOrderServiceQueueQuerySchema
