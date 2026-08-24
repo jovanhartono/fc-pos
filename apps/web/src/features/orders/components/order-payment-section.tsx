@@ -48,22 +48,31 @@ export const OrderPaymentSection = ({
 	gates,
 }: OrderPaymentSectionProps) => (
 	<Card className="gap-0 overflow-hidden py-0">
-		<OrderSectionHeader>Payment</OrderSectionHeader>
+		<OrderSectionHeader
+			action={
+				detail.payment_status !== "paid" &&
+				gates.isPaymentAllowed &&
+				!gates.hasUnpricedLine ? (
+					<CollectPaymentAction detail={detail} orderId={orderId} />
+				) : null
+			}
+		>
+			Payment
+		</OrderSectionHeader>
 		<div className="border-t">
 			<OrderMoneySummary detail={detail} />
 		</div>
-		<PaymentDetails detail={detail} gates={gates} orderId={orderId} />
+		<PaymentDetails detail={detail} gates={gates} />
 	</Card>
 );
 
 // Payment status itself is shown in the header status chip (OrderIdentityStrip),
-// so this section adds only the extra detail — how it was paid, or the control
-// to collect it — and renders nothing when there is neither (unpaid, no rights).
+// so this section adds only the extra detail — how it was paid, or why it
+// cannot be collected yet — and renders nothing when there is neither.
 const PaymentDetails = ({
-	orderId,
 	detail,
 	gates,
-}: OrderPaymentSectionProps) => {
+}: Pick<OrderPaymentSectionProps, "detail" | "gates">) => {
 	if (detail.payment_status === "paid") {
 		return (
 			<>
@@ -73,8 +82,8 @@ const PaymentDetails = ({
 		);
 	}
 	// ADR-0018: no price, no payment. The server refuses the paid transition
-	// while a live line is unpriced — say so here instead of offering a form
-	// that can only 400.
+	// while a live line is unpriced — say so here instead of offering a
+	// Collect payment button that can only 400.
 	if (gates.hasUnpricedLine) {
 		return (
 			<>
@@ -86,14 +95,6 @@ const PaymentDetails = ({
 			</>
 		);
 	}
-	if (gates.isPaymentAllowed) {
-		return (
-			<>
-				<Separator />
-				<CollectPaymentAction detail={detail} orderId={orderId} />
-			</>
-		);
-	}
 	return null;
 };
 
@@ -101,22 +102,21 @@ const CollectPaymentAction = ({ orderId, detail }: CollectPaymentFormProps) => {
 	const openSheet = useSheet((s) => s.openSheet);
 
 	return (
-		<div className="px-4 py-3">
-			<Button
-				onClick={() =>
-					openSheet({
-						title: "Collect payment",
-						description: detail.code,
-						content: () => (
-							<CollectPaymentForm detail={detail} orderId={orderId} />
-						),
-					})
-				}
-				type="button"
-			>
-				Collect payment
-			</Button>
-		</div>
+		<Button
+			onClick={() =>
+				openSheet({
+					title: "Collect payment",
+					description: detail.code,
+					content: () => (
+						<CollectPaymentForm detail={detail} orderId={orderId} />
+					),
+				})
+			}
+			size="sm"
+			type="button"
+		>
+			Collect payment
+		</Button>
 	);
 };
 
