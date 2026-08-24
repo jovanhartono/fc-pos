@@ -472,9 +472,15 @@ export const ordersTable = pgTable(
     // who marked this order paid; immutable, set once on the paid transition
     paid_by: integer("paid_by").references(() => usersTable.id),
 
+    // Written in Postgres' own normalised form, not the shorter equivalent.
+    // drizzle compares default expressions as raw text against what the server
+    // stored, so `lpad(floor(random() * 1000000)::text, 6, '0')` — same
+    // behaviour — makes every push plan report a change that is a no-op.
     pickup_code: varchar("pickup_code", { length: 6 })
       .notNull()
-      .default(sql`lpad(floor(random() * 1000000)::text, 6, '0')`),
+      .default(
+        sql`lpad((floor((random() * (1000000)::double precision)))::text, 6, '0'::text)`
+      ),
 
     // When the Item actually reached the shelf and the customer could first come
     // for it. The overdue shelf is measured from here, never from created_at: a
