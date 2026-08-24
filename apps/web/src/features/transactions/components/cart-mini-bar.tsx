@@ -31,7 +31,7 @@ export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
 			{/* Says up front why the bar won't open, so the block isn't a dead-end
 			    tap — this hint is the only in-place explanation the cashier gets. */}
 			{hasStore ? null : (
-				<p className="pointer-events-auto justify-self-start border border-border/70 bg-background px-2 py-1 text-muted-foreground text-xs">
+				<p className="pointer-events-auto justify-self-start border border-border/70 bg-background/85 px-2 py-1 text-muted-foreground text-xs backdrop-blur-md">
 					Select a store to check out.
 				</p>
 			)}
@@ -41,12 +41,14 @@ export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
 			    only exist on step two of the checkout. Capped height so an open cart
 			    cannot bury the catalog the cashier is still tapping. */}
 			{isPeeking ? (
-				<div className="pointer-events-auto max-h-[40dvh] overflow-y-auto overscroll-contain border border-border/70 bg-background px-3 py-2">
+				<div className="pointer-events-auto max-h-[40dvh] overflow-y-auto overscroll-contain border border-border/70 bg-background/85 px-3 py-2 backdrop-blur-md">
 					<CartLines />
 				</div>
 			) : null}
 
-			<div className="pointer-events-auto flex gap-1">
+			{/* Frosted strip under the buttons: the catalog scrolling behind reads as
+			    blurred depth instead of card borders cutting into the bar's edges. */}
+			<div className="pointer-events-auto flex gap-1 bg-background/60 p-1 backdrop-blur-md">
 				<Button
 					aria-expanded={isPeeking}
 					className="h-14 gap-2"
