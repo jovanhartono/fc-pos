@@ -1,4 +1,5 @@
 import { lineKey, lineRefundCap } from "@fresclean/api/schema";
+import { flattenOrderLines } from "@/features/orders/lib/order-lines";
 import type { OrderDetail } from "@/lib/api";
 import { parseMoney } from "@/shared/money";
 
@@ -33,7 +34,7 @@ export const buildRefundCaps = (detail: OrderDetail): Map<string, number> => {
 		});
 
 	const caps = new Map<string, number>();
-	for (const service of detail.services ?? []) {
+	for (const service of flattenOrderLines(detail)) {
 		const key = lineKey("service", service.id);
 		caps.set(key, capFor(key, service.subtotal));
 	}

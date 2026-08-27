@@ -1,7 +1,7 @@
 import type {
 	OrderCancelReason,
 	OrderRefundReason,
-	QueueOrderServiceItem,
+	QueueItemService,
 } from "@/lib/api";
 
 export type BadgeVariant =
@@ -54,17 +54,19 @@ export const REFUND_REASONS = [
 	"customer_cancelled",
 ] as const satisfies readonly OrderRefundReason[];
 
-// The statuses an item can still be worked on, in the order the shop moves it
-// through them. The other three — picked_up, refunded, cancelled — are where an
-// item leaves the worker's list. `satisfies` is what makes a server-side rename
-// fail the build here instead of silently dropping a filter from the queue.
+// The statuses a treatment can still be worked on, in the order the shop moves
+// it through them. The other three — picked_up, refunded, cancelled — are where
+// it leaves the worker's list. The queue's cards are objects now, but its chips
+// still filter by the treatments on them (ADR-0017). `satisfies` is what makes
+// a server-side rename fail the build here instead of silently dropping a
+// filter from the queue.
 export const ACTIVE_ORDER_SERVICE_STATUSES = [
 	"queued",
 	"processing",
 	"quality_check",
 	"qc_reject",
 	"ready_for_pickup",
-] as const satisfies readonly QueueOrderServiceItem["status"][];
+] as const satisfies readonly QueueItemService["status"][];
 
 const paymentStatusLabels = {
 	paid: "Paid",

@@ -30,9 +30,13 @@ import { formatIDRCurrency } from "@/shared/utils";
 // config per off-ramp. The refund config additionally carries line caps to
 // preview the exact amounts the server will book.
 
+// Several treatments can share one tag now (ADR-0017), so the tag alone no
+// longer tells two refundable lines apart — the treatment's name is what makes
+// the row pickable.
 interface ReversalServiceOption {
 	id: number;
-	item_code: string | null;
+	item_code: string;
+	service_name: string;
 }
 
 interface ReversalProductOption {
@@ -126,7 +130,7 @@ const OrderLineReversalForm = <R extends string>({
 		...services.map((service) => ({
 			kind: "service" as const,
 			id: service.id,
-			label: service.item_code ?? `Service #${service.id}`,
+			label: `${service.item_code} · ${service.service_name}`,
 		})),
 		...products.map((product) => ({
 			kind: "product" as const,
@@ -264,7 +268,7 @@ const OrderLineReversalForm = <R extends string>({
 			>
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<p className="text-muted-foreground text-sm">
-						Select items to {copy.verb} and choose a reason for each.
+						Select lines to {copy.verb} and choose a reason for each.
 					</p>
 					<div className="flex gap-2">
 						<Button

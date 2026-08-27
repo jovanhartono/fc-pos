@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   decimal,
+  foreignKey,
   index,
   integer,
   pgEnum,
@@ -592,6 +593,37 @@ export const orderCampaignsTable = pgTable(
   ]
 );
 
+// One physical object dropped off for service — a pair of shoes, a bag, a hat,
+// a suitcase. The thing the tag is stuck to and the thing the customer collects
+// back, which is why it owns `item_code` and the descriptors staff read off the
+// object at the counter. The treatments it receives are its OrderServices; its
+// status is derived from them and never stored here. See ADR-0017.
+export const itemsTable = pgTable(
+  "items",
+  {
+    brand: varchar("brand", { length: 255 }),
+    color: varchar("color", { length: 255 }),
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    // The physical tag. One per object, so three treatments on one shoe share
+    // one code — the drift ADR-0017 removes.
+    item_code: varchar("item_code", { length: 64 }).notNull(),
+    model: varchar("model", { length: 255 }),
+    order_id: integer("order_id")
+      .references(() => ordersTable.id, { onDelete: "cascade" })
+      .notNull(),
+    size: varchar("size", { length: 64 }),
+  },
+  (table) => [
+    index("items_order_idx").on(table.order_id),
+    uniqueIndex("items_item_code_uidx").on(table.item_code),
+    // Composite target for orders_services' (order_id, item_id) FK below. A
+    // treatment row carries its own order_id so the Order rollup keeps reading
+    // lines directly (ADR-0017); this index is what stops that copy from ever
+    // naming a different Order than the Item it hangs off.
+    uniqueIndex("items_order_id_id_uidx").on(table.order_id, table.id),
+  ]
+);
+
 export const ordersServicesTable = pgTable(
   "orders_services",
   {
@@ -611,11 +643,18 @@ export const ordersServicesTable = pgTable(
     handler_id: integer("handler_id").references(() => usersTable.id),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     is_priority: boolean("is_priority").default(false).notNull(),
-    item_code: varchar("item_code", { length: 64 }),
+    // The object this treatment is applied to. Its descriptors and tag live on
+    // the Item, not here — see ADR-0017.
+    item_id: integer("item_id")
+      .references(() => itemsTable.id, { onDelete: "cascade" })
+      .notNull(),
     notes: text("notes"),
-    order_id: integer("order_id").references(() => ordersTable.id, {
-      onDelete: "cascade",
-    }),
+    // Deliberately kept alongside item_id: deriveOrderStatus rolls up over an
+    // Order's treatment rows directly, so routing that through Items would buy
+    // nothing and rewrite the status machine (ADR-0017).
+    order_id: integer("order_id")
+      .references(() => ordersTable.id, { onDelete: "cascade" })
+      .notNull(),
 
     pickup_event_id: integer("pickup_event_id").references(
       () => orderPickupEventsTable.id,
@@ -632,10 +671,6 @@ export const ordersServicesTable = pgTable(
       .default("0")
       .notNull(),
 
-    brand: varchar("brand", { length: 255 }),
-    color: varchar("color", { length: 255 }),
-    model: varchar("model", { length: 255 }),
-    size: varchar("size", { length: 64 }),
     service_id: integer("service_id").references(() => servicesTable.id, {
       onDelete: "cascade",
     }),
@@ -662,10 +697,16 @@ export const ordersServicesTable = pgTable(
       table.status
     ),
     index("order_services_priority_idx").on(table.is_priority),
-    index("order_services_item_code_idx").on(table.item_code),
+    index("order_services_item_idx").on(table.item_id),
     index("order_services_pickup_event_idx").on(table.pickup_event_id),
     index("order_services_complaint_idx").on(table.complaint_id),
-    uniqueIndex("order_services_item_code_uidx").on(table.item_code),
+    // A treatment and the object it treats must agree on which Order they
+    // belong to. Without this the denormalized order_id above could drift.
+    foreignKey({
+      columns: [table.order_id, table.item_id],
+      foreignColumns: [itemsTable.order_id, itemsTable.id],
+      name: "order_services_order_item_fk",
+    }).onDelete("cascade"),
     check(
       "price_non_negative_check",
       sql`${table.price} IS NULL OR ${table.price} >= 0`

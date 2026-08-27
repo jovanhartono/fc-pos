@@ -59,8 +59,11 @@ export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
 					variant="outline"
 				>
 					<ShoppingCartIcon className="size-5" />
+					{/* Lines, not Items: this counts what is on the bill, so an
+					    upsold pair is two of them though the customer handed over one
+					    shoe. "Item" means the physical object now (ADR-0017). */}
 					<span className="font-medium">
-						{count} {count === 1 ? "item" : "items"}
+						{count} {count === 1 ? "line" : "lines"}
 					</span>
 					{isPeeking ? (
 						<CaretDownIcon aria-hidden="true" className="size-4" />

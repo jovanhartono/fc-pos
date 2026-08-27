@@ -72,28 +72,15 @@ export async function createOrderPickupEvent({
 }) {
   assertCanProcessPickup(user);
 
-  const uniqueServiceIds = Array.from(new Set(body.service_ids));
-  if (uniqueServiceIds.length === 0) {
-    throw new BadRequestException("At least one service must be picked up");
+  const uniqueItemIds = Array.from(new Set(body.item_ids));
+  if (uniqueItemIds.length === 0) {
+    throw new BadRequestException("At least one item must be picked up");
   }
 
-  const [order, candidateServices] = await Promise.all([
-    db.query.ordersTable.findFirst({
-      where: { id: orderId },
-      columns: { id: true, pickup_code: true, payment_status: true },
-    }),
-    db.query.ordersServicesTable.findMany({
-      where: {
-        order_id: orderId,
-        id: { in: uniqueServiceIds },
-      },
-      columns: {
-        id: true,
-        item_code: true,
-        status: true,
-      },
-    }),
-  ]);
+  const order = await db.query.ordersTable.findFirst({
+    where: { id: orderId },
+    columns: { id: true, pickup_code: true, payment_status: true },
+  });
 
   if (!order) {
     throw new BadRequestException("Order not found");
@@ -102,23 +89,6 @@ export async function createOrderPickupEvent({
   assertOrderPaidForPickup(order);
 
   assertPickupCodeMatches(order, body.pickup_code);
-
-  if (candidateServices.length !== uniqueServiceIds.length) {
-    throw new BadRequestException(
-      "One or more services do not belong to this order"
-    );
-  }
-
-  const notReady = candidateServices.filter(
-    (service) => service.status !== "ready_for_pickup"
-  );
-  if (notReady.length > 0) {
-    throw new BadRequestException(
-      `Services not ready for pickup: ${notReady
-        .map((service) => service.item_code ?? String(service.id))
-        .join(", ")}`
-    );
-  }
 
   if (
     !body.image_path.startsWith(
@@ -146,28 +116,32 @@ export async function createOrderPickupEvent({
         picked_up_at: orderPickupEventsTable.picked_up_at,
       });
 
-    const { flippedIds } = await completePickup(tx, {
+    // Which treatment rows flip is the machine's call — it resolves the
+    // objects' live siblings in this same transaction and refuses a half-ready
+    // one (ADR-0017).
+    const { flippedIds, requestedIds } = await completePickup(tx, {
       orderId,
-      serviceIds: uniqueServiceIds,
+      itemIds: uniqueItemIds,
       pickupEventId: event.id,
       by: user.id,
       note: "Completed from order pickup desk",
     });
 
-    if (flippedIds.length !== uniqueServiceIds.length) {
+    if (flippedIds.length !== requestedIds.length) {
       throw new BadRequestException(
         "Another cashier already processed one of the selected items. Refresh and try again."
       );
     }
 
-    return event;
+    return { event, flippedIds };
   });
 
   return {
-    id: pickupEvent.id,
+    id: pickupEvent.event.id,
     image_url: buildMediaUrl(body.image_path),
+    item_ids: uniqueItemIds,
     order_id: orderId,
-    picked_up_at: pickupEvent.picked_up_at,
-    service_ids: uniqueServiceIds,
+    picked_up_at: pickupEvent.event.picked_up_at,
+    service_ids: pickupEvent.flippedIds,
   };
 }

@@ -7,6 +7,7 @@ import { claimRedemptions } from "@/modules/campaigns/campaign-redemption.servic
 import { resolveOrCreateCustomer } from "@/modules/customers/customer.service";
 import {
   findOrders,
+  insertItems,
   insertOrder,
   insertOrderProducts,
   insertOrderServices,
@@ -20,7 +21,10 @@ import {
 import { assertActiveCourier } from "@/modules/orders/order-courier.service";
 import { resolveDiscount } from "@/modules/orders/order-discount.service";
 import { deriveOrderRefundStatus } from "@/modules/orders/order-refund-status";
-import { summarizeOrderFulfillment } from "@/modules/orders/order-status-machine";
+import {
+  deriveItemStatus,
+  summarizeOrderFulfillment,
+} from "@/modules/orders/order-status-machine";
 import {
   decrementProductStock,
   findProducts,
@@ -38,30 +42,31 @@ function formatOrderCode(storeCode: string, dateStr: string, sequence: number) {
   return `#${storeCode}/${dateStr}/${sequence}`;
 }
 
+// One treatment, plus which object on the counter it was sold against.
+// `item_index` points into the Items array of the same payload — the objects
+// have no ids yet, so position is the only handle until they are inserted.
 interface ExpandedServiceItem {
-  brand?: string;
-  color?: string;
   id: number;
   is_priority?: boolean;
-  model?: string;
+  item_index: number;
   notes?: string;
   price?: number;
-  size?: string;
 }
 
-function expandServices(
-  payloadServices: z.infer<typeof POSTOrderSchema>["services"] = []
+// Only the flattening is real work: the payload's Items already carry exactly
+// the descriptors buildItemRows needs, so they travel as-is.
+function expandOrderServices(
+  payloadItems: z.infer<typeof POSTOrderSchema>["items"] = []
 ): ExpandedServiceItem[] {
-  return payloadServices.map((item) => ({
-    brand: item.brand,
-    model: item.model,
-    id: item.id,
-    is_priority: item.is_priority,
-    notes: item.notes,
-    color: item.color,
-    price: item.price,
-    size: item.size,
-  }));
+  return payloadItems.flatMap((item, item_index) =>
+    item.services.map((service) => ({
+      id: service.id,
+      is_priority: service.is_priority,
+      item_index,
+      notes: service.notes,
+      price: service.price,
+    }))
+  );
 }
 
 type DbService = Awaited<ReturnType<typeof findServices>>[number];
@@ -147,27 +152,44 @@ type PricedServiceLine = CatalogLine<ExpandedServiceItem, DbService> & {
   price: string | null;
 };
 
-function buildOrderServiceRows({
+// The tag is minted per object, not per treatment: a pair in for a deep clean,
+// a repaint and leather care carries one code, not three (ADR-0017).
+function buildItemRows({
   code,
+  items,
+  orderId,
+}: {
+  code: string;
+  items: NonNullable<z.infer<typeof POSTOrderSchema>["items"]>;
+  orderId: number;
+}) {
+  return items.map((item, index) => ({
+    brand: item.brand,
+    color: item.color,
+    item_code: `${code}-S${String(index + 1).padStart(3, "0")}`,
+    model: item.model,
+    order_id: orderId,
+    size: item.size,
+  }));
+}
+
+function buildOrderServiceRows({
+  itemIds,
   orderId,
   serviceLines,
 }: {
-  code: string;
+  itemIds: number[];
   orderId: number;
   serviceLines: PricedServiceLine[];
 }) {
-  return serviceLines.map(({ item, row: service, price }, index) => ({
-    brand: item.brand,
-    item_code: `${code}-S${String(index + 1).padStart(3, "0")}`,
+  return serviceLines.map(({ item, row: service, price }) => ({
     is_priority: item.is_priority ?? service.is_priority,
-    model: item.model,
+    item_id: itemIds[item.item_index],
     order_id: orderId,
     service_id: service.id,
     price,
     cogs_snapshot: service.cogs,
     notes: item.notes,
-    color: item.color,
-    size: item.size,
     status: "queued" as const,
   }));
 }
@@ -225,7 +247,7 @@ export async function createOrder(
 ) {
   const {
     products = [],
-    services = [],
+    items = [],
     campaign_ids = [],
     voucher_codes = [],
     ...orderPayload
@@ -236,6 +258,8 @@ export async function createOrder(
   if (orderPayload.collected_by != null) {
     await assertActiveCourier(orderPayload.collected_by);
   }
+
+  const services = expandOrderServices(items);
 
   const productIds = [...new Set(products.map((item) => item.id))];
   const serviceIds = [...new Set(services.map((item) => item.id))];
@@ -248,7 +272,7 @@ export async function createOrder(
   const productLines = resolveCatalogLines("Product", products, dbProducts);
   const serviceLines: PricedServiceLine[] = resolveCatalogLines(
     "Service",
-    expandServices(services),
+    services,
     dbServices
   ).map((line) => ({
     ...line,
@@ -318,11 +342,28 @@ export async function createOrder(
 
     await decrementProductsStock(tx, productLines);
 
+    // Objects before treatments: a treatment row cannot exist until the object
+    // it is applied to has an id to point at.
+    const itemRows = buildItemRows({ code, items, orderId });
+    const insertedItems = await insertItems(tx, itemRows);
+    const itemIdByCode = new Map(
+      insertedItems.map((row) => [row.item_code, row.id])
+    );
+    // Positional again from here, but the positions come from a join on the
+    // unique tag rather than from RETURNING's row order.
+    const itemIds = itemRows.map((row) => {
+      const id = itemIdByCode.get(row.item_code);
+      if (id === undefined) {
+        throw new Error(`Item ${row.item_code} was not inserted`);
+      }
+      return id;
+    });
+
     const [serviceSubtotal, productSubtotal] = await Promise.all([
       insertOrderServices(
         tx,
         buildOrderServiceRows({
-          code,
+          itemIds,
           orderId,
           serviceLines,
         })
@@ -456,39 +497,50 @@ export async function getOrderDetailById(id: number) {
         },
         orderBy: { id: "asc" },
       },
-      services: {
+      // The Order's objects, each carrying the treatments applied to it
+      // (ADR-0017). The counter and the workshop both work object-first, so
+      // this is the shape the wire carries; anything that genuinely works
+      // per-treatment flattens it back.
+      items: {
         with: {
-          handler: {
-            columns: {
-              id: true,
-              name: true,
-            },
-          },
-          images: {
-            where: { deleted_at: { isNull: true } },
-            orderBy: { id: "asc" },
-          },
-          // Complaints opened against this line + (if this line is a rework)
-          // the complaint that spawned it — see ADR-0013. Existence is the
-          // only signal; the complaint carries no status (ADR-0013 amendment).
-          complaints: {
-            columns: { id: true },
-            limit: 1,
-            orderBy: { id: "asc" },
-          },
-          reworkOf: {
-            columns: { id: true },
-          },
-          refundItems: true,
-          // Naming the service only — the shop's cost base stays off the wire.
-          service: { columns: { id: true, name: true } },
-          statusLogs: {
+          services: {
             with: {
-              changedBy: {
+              handler: {
                 columns: {
                   id: true,
                   name: true,
                 },
+              },
+              images: {
+                where: { deleted_at: { isNull: true } },
+                orderBy: { id: "asc" },
+              },
+              // Complaints opened against this line + (if this line is a
+              // rework) the complaint that spawned it — see ADR-0013.
+              // Existence is the only signal; the complaint carries no status
+              // (ADR-0013 amendment).
+              complaints: {
+                columns: { id: true },
+                limit: 1,
+                orderBy: { id: "asc" },
+              },
+              reworkOf: {
+                columns: { id: true },
+              },
+              refundItems: true,
+              // Naming the service only — the shop's cost base stays off the
+              // wire.
+              service: { columns: { id: true, name: true } },
+              statusLogs: {
+                with: {
+                  changedBy: {
+                    columns: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+                orderBy: { id: "asc" },
               },
             },
             orderBy: { id: "asc" },
@@ -526,15 +578,36 @@ export async function getOrderDetailById(id: number) {
       picked_up_at: event.picked_up_at,
       picked_up_by: event.pickedUpBy,
     })),
-    services: detail.services.map((service) => ({
-      ...service,
-      images: service.images.map(({ image_path, ...image }) => ({
-        ...image,
-        image_url: buildMediaUrl(image_path),
-      })),
-    })),
+    items: detail.items.map((item) => {
+      const services = item.services.map((service) => ({
+        ...service,
+        images: service.images.map(({ image_path, ...image }) => ({
+          ...image,
+          image_url: buildMediaUrl(image_path),
+        })),
+      }));
+
+      // Derived on read, never stored — an Item has no status column to drift
+      // out of step with its treatments (ADR-0017). `is_collectable` is sent
+      // rather than left to the client because the rule ("every live treatment
+      // ready") is the server's to state; it is this same status by definition,
+      // so it is read off it rather than derived a second way.
+      const status = deriveItemStatus(services);
+
+      return {
+        ...item,
+        status,
+        is_collectable: status === "ready_for_pickup",
+        services,
+      };
+    }),
+    // Still rolled up over treatment rows rather than over Item statuses: the
+    // two are equivalent and this keeps the Order rollup exactly where it was
+    // (ADR-0017).
     fulfillment: summarizeOrderFulfillment(
-      detail.services.map((service) => service.status)
+      detail.items.flatMap((item) =>
+        item.services.map((service) => service.status)
+      )
     ),
   };
 }

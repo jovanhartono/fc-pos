@@ -86,13 +86,20 @@ mock.module("@/modules/orders/order-queue.service", () => ({
     reached.push("getOrderServiceById");
     return Promise.resolve({ order: { store_id: KEMANG } });
   },
-  getOrderServiceByItemCode: () => {
-    reached.push("getOrderServiceByItemCode");
-    return Promise.resolve({ order: { store_id: KEMANG } });
+  getItemByItemCode: () => {
+    reached.push("getItemByItemCode");
+    return Promise.resolve({
+      order: { store_id: KEMANG },
+      services: [],
+    });
   },
   getOrderServiceQueue: () => {
     reached.push("getOrderServiceQueue");
     return Promise.resolve({ items: [], meta: {} });
+  },
+  getOrderServiceQueueCounts: () => {
+    reached.push("getOrderServiceQueueCounts");
+    return Promise.resolve({});
   },
   startOrderServiceWork: marker("startOrderServiceWork"),
   updateOrderServiceHandler: marker("updateOrderServiceHandler"),
@@ -156,11 +163,11 @@ describe("the workshop queue is not an order", () => {
     expect(orderAccessCalls).toEqual([]);
   });
 
-  it("looks a garment up by the tag pinned to it without asking which order 'services' is", async () => {
-    const res = await call("/services/by-item-code?item_code=ORD-0007-1");
+  it("looks an object up by the tag stuck to it without asking which order 'items' is", async () => {
+    const res = await call("/items/by-item-code?item_code=ORD-0007-1");
 
     expect(res.status).toBe(200);
-    expect(reached).toContain("getOrderServiceByItemCode");
+    expect(reached).toContain("getItemByItemCode");
     expect(orderAccessCalls).toEqual([]);
   });
 });

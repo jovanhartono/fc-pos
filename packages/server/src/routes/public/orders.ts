@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { db } from "@/db";
 import { NotFoundException } from "@/http-exceptions";
+import { deriveItemStatus } from "@/modules/orders/order-status-machine";
 import { phoneSchema } from "@/schema/common";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
@@ -58,7 +59,10 @@ const app = new Hono().post(
             phone_number: true,
           },
         },
-        services: {
+        // Grouped by the object the customer handed over (ADR-0017), so the
+        // tracking page reads "your shoe: clean done, repaint in progress"
+        // rather than listing the same shoe three times.
+        items: {
           columns: {
             brand: true,
             color: true,
@@ -66,26 +70,35 @@ const app = new Hono().post(
             item_code: true,
             model: true,
             size: true,
-            status: true,
           },
           with: {
-            service: {
+            services: {
               columns: {
                 id: true,
-                code: true,
-                name: true,
+                status: true,
               },
-            },
-            statusLogs: {
-              columns: {
-                id: true,
-                from_status: true,
-                to_status: true,
-                note: true,
-                created_at: true,
+              with: {
+                service: {
+                  columns: {
+                    id: true,
+                    code: true,
+                    name: true,
+                  },
+                },
+                statusLogs: {
+                  columns: {
+                    id: true,
+                    from_status: true,
+                    to_status: true,
+                    note: true,
+                    created_at: true,
+                  },
+                },
               },
+              orderBy: { id: "asc" },
             },
           },
+          orderBy: { id: "asc" },
         },
         store: {
           columns: {
@@ -110,7 +123,12 @@ const app = new Hono().post(
       success(
         {
           ...orderWithoutPickupCode,
-          services: order.services,
+          // Derived from the treatment statuses already on the wire, so this
+          // exposes nothing new — it just saves the page doing the rollup.
+          items: order.items.map((item) => ({
+            ...item,
+            status: deriveItemStatus(item.services),
+          })),
           pickup_code: order.status === "ready_for_pickup" ? pickup_code : null,
           customer: {
             id: orderCustomer.id,

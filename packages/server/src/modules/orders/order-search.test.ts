@@ -10,7 +10,7 @@ describe("isNumericSearch", () => {
     expect(isNumericSearch("#JKT/20260801/12")).toBe(false);
   });
 
-  it("treats an item code the same way — '#JKT/20260801/12-S001' is a claim-ticket code, not an id", () => {
+  it("treats an item code the same way — '#JKT/20260801/12-S001' is the tag on an object, not an id", () => {
     expect(isNumericSearch("#JKT/20260801/12-S001")).toBe(false);
   });
 

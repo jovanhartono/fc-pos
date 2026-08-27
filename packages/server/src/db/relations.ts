@@ -194,7 +194,14 @@ export const relations = defineRelations(schema, (r) => ({
     pickupEvents: r.many.orderPickupEventsTable(),
     refunds: r.many.orderRefundsTable(),
     products: r.many.ordersProductsTable(),
-    services: r.many.ordersServicesTable(),
+    items: r.many.itemsTable(),
+    // Kept alongside `items` even though every service hangs off one: the
+    // status rollup and the money queries read an Order's treatment rows
+    // directly rather than walking through its objects (ADR-0017).
+    services: r.many.ordersServicesTable({
+      from: r.ordersTable.id,
+      to: r.ordersServicesTable.order_id,
+    }),
     store: r.one.storesTable({
       from: r.ordersTable.store_id,
       to: r.storesTable.id,
@@ -204,6 +211,21 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.ordersTable.updated_by,
       to: r.usersTable.id,
       optional: false,
+    }),
+  },
+
+  itemsTable: {
+    order: r.one.ordersTable({
+      from: r.itemsTable.order_id,
+      to: r.ordersTable.id,
+      optional: false,
+    }),
+    // Explicit from/to rather than a bare r.many: orders_services reaches items
+    // by two declared paths (item_id, and the composite (order_id, item_id)
+    // guard), so inference has nothing unambiguous to pick.
+    services: r.many.ordersServicesTable({
+      from: r.itemsTable.id,
+      to: r.ordersServicesTable.item_id,
     }),
   },
 
@@ -226,9 +248,17 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.usersTable.id,
     }),
     images: r.many.orderServicesImagesTable(),
+    // The physical object this treatment is applied to — where the tag and the
+    // brand/color/model/size descriptors live (ADR-0017).
+    item: r.one.itemsTable({
+      from: r.ordersServicesTable.item_id,
+      to: r.itemsTable.id,
+      optional: false,
+    }),
     order: r.one.ordersTable({
       from: r.ordersServicesTable.order_id,
       to: r.ordersTable.id,
+      optional: false,
     }),
     pickupEvent: r.one.orderPickupEventsTable({
       from: r.ordersServicesTable.pickup_event_id,

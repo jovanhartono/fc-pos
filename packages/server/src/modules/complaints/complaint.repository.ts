@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, isNotNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   complaintsTable,
@@ -47,19 +47,6 @@ export function findComplaintSubjectService(serviceId: number) {
   });
 }
 
-export function countReworkLinesForOrder(
-  executor: DbExecutor,
-  orderId: number
-) {
-  return executor.$count(
-    ordersServicesTable,
-    and(
-      eq(ordersServicesTable.order_id, orderId),
-      isNotNull(ordersServicesTable.complaint_id)
-    )
-  );
-}
-
 export async function insertReworkLine(
   executor: DbExecutor,
   values: ReworkLineInsert
@@ -78,6 +65,19 @@ export function findComplaintDetailById(id: number) {
       orderService: {
         with: {
           service: { columns: { id: true, name: true } },
+          // The tag and descriptors staff read off the returning object live on
+          // the shared Item, not the line (ADR-0017). Rework lines reuse this
+          // same Item, so exposing it once here covers them too.
+          item: {
+            columns: {
+              id: true,
+              item_code: true,
+              brand: true,
+              color: true,
+              model: true,
+              size: true,
+            },
+          },
           order: {
             columns: {
               id: true,
@@ -99,7 +99,6 @@ export function findComplaintDetailById(id: number) {
         columns: {
           id: true,
           status: true,
-          item_code: true,
         },
         with: {
           service: { columns: { id: true, name: true } },

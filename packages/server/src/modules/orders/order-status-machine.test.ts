@@ -4,8 +4,11 @@ import { orderServiceStatusEnum } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import {
   billableOrderTotal,
+  completePickup,
   type DbExecutor,
+  deriveItemStatus,
   deriveOrderStatus,
+  isItemCollectable,
   isTerminalOrderServiceStatus,
   nextReadyAt,
   ORDER_SERVICE_TRANSITIONS,
@@ -14,6 +17,11 @@ import {
   summarizeOrderFulfillment,
   transitionOrderService,
 } from "@/modules/orders/order-status-machine";
+
+interface AnyLine {
+  id: number;
+  status: OrderServiceStatus;
+}
 
 const s = (status: OrderServiceStatus) => ({ status });
 // product line state: cancelled vs active/refunded (only cancellation affects rollup)
@@ -71,6 +79,30 @@ describe("deriveOrderStatus", () => {
     ).toBe("ready_for_pickup");
   });
 
+  it("stays 'created' when the only non-queued line was cancelled at the counter", () => {
+    // The customer dropped one treatment off the ticket before anyone touched
+    // the rack. Nothing has been worked on, so the order has not started —
+    // reading the cancellation as progress tells the customer the shop is
+    // cleaning a shoe that is still sitting untouched.
+    expect(deriveOrderStatus([s("cancelled"), s("queued")], [])).toBe(
+      "created"
+    );
+    expect(
+      deriveOrderStatus([s("cancelled"), s("cancelled"), s("queued")], [])
+    ).toBe("created");
+  });
+
+  it("returns 'processing' when a line was delivered and the rest are queued", () => {
+    // Unlike a cancellation, a picked-up or refunded line is work that really
+    // happened, so the order is genuinely under way.
+    expect(deriveOrderStatus([s("picked_up"), s("queued")], [])).toBe(
+      "processing"
+    );
+    expect(deriveOrderStatus([s("refunded"), s("queued")], [])).toBe(
+      "processing"
+    );
+  });
+
   it("returns 'ready_for_pickup' (partial pickup state) when picked-up co-exists with ready services", () => {
     expect(deriveOrderStatus([s("picked_up"), s("ready_for_pickup")], [])).toBe(
       "ready_for_pickup"
@@ -87,6 +119,86 @@ describe("deriveOrderStatus", () => {
 
   it("returns 'created' when every service is queued", () => {
     expect(deriveOrderStatus([s("queued"), s("queued")], [])).toBe("created");
+  });
+});
+
+// ADR-0017. An Item has no status column: what it is doing is read off the
+// treatments applied to it, so there is nothing to drift.
+describe("deriveItemStatus", () => {
+  it("reads as queued while the pair is still waiting to be started", () => {
+    expect(deriveItemStatus([s("queued"), s("queued")])).toBe("queued");
+  });
+
+  it("reads as processing the moment any one treatment is under way", () => {
+    // Three jobs on one shoe: the object is in the workshop as soon as the
+    // first worker picks it up, whatever the other two are doing.
+    expect(deriveItemStatus([s("queued"), s("processing"), s("queued")])).toBe(
+      "processing"
+    );
+    expect(deriveItemStatus([s("queued"), s("quality_check")])).toBe(
+      "processing"
+    );
+  });
+
+  it("reaches the shelf only when every live treatment is finished", () => {
+    expect(
+      deriveItemStatus([s("ready_for_pickup"), s("ready_for_pickup")])
+    ).toBe("ready_for_pickup");
+    // One still in the workshop keeps the whole object off the shelf.
+    expect(deriveItemStatus([s("ready_for_pickup"), s("processing")])).toBe(
+      "processing"
+    );
+  });
+
+  it("ignores a cancelled sibling when the rest are done", () => {
+    // Work the shop is never going to do must not strand the object.
+    expect(deriveItemStatus([s("ready_for_pickup"), s("cancelled")])).toBe(
+      "ready_for_pickup"
+    );
+  });
+
+  it("still reads as queued when a cancelled treatment is the only thing that moved", () => {
+    // The shoe is on the rack untouched. This status is what the customer sees
+    // on /track, so calling it processing promises work nobody has started.
+    expect(deriveItemStatus([s("cancelled"), s("queued")])).toBe("queued");
+  });
+
+  it("reads as picked_up once nothing live is left on it", () => {
+    expect(deriveItemStatus([s("picked_up")])).toBe("picked_up");
+    expect(deriveItemStatus([s("picked_up"), s("refunded")])).toBe("picked_up");
+    // A refund is still an object that left the shop, not a cancelled one.
+    expect(deriveItemStatus([s("refunded"), s("cancelled")])).toBe("picked_up");
+  });
+
+  it("reads as cancelled only when the whole object was called off", () => {
+    expect(deriveItemStatus([s("cancelled"), s("cancelled")])).toBe(
+      "cancelled"
+    );
+  });
+});
+
+describe("isItemCollectable", () => {
+  it("lets an object go when every live treatment on it is ready", () => {
+    expect(
+      isItemCollectable([s("ready_for_pickup"), s("ready_for_pickup")])
+    ).toBe(true);
+    expect(isItemCollectable([s("ready_for_pickup"), s("cancelled")])).toBe(
+      true
+    );
+  });
+
+  it("holds it back while any treatment is still live and unfinished", () => {
+    expect(isItemCollectable([s("ready_for_pickup"), s("processing")])).toBe(
+      false
+    );
+    expect(isItemCollectable([s("queued")])).toBe(false);
+  });
+
+  it("refuses an object with nothing left to hand over", () => {
+    // Already collected, so re-scanning the tag must not mint a second
+    // handover for a shoe that is out of the shop.
+    expect(isItemCollectable([s("picked_up")])).toBe(false);
+    expect(isItemCollectable([])).toBe(false);
   });
 });
 
@@ -195,6 +307,169 @@ const makeExecutor = ({
 
 const transitionTo = (executor: DbExecutor, to: OrderServiceStatus) =>
   transitionOrderService(executor, { orderId: 1, serviceId: 1, to, by: 1 });
+
+// The pickup desk hands over whole objects, so completePickup resolves an
+// Item's own treatments rather than trusting a list of line ids. `flipped` is
+// what the guarded UPDATE won — set it short to stand in for another cashier
+// getting there first.
+const makePickupExecutor = ({
+  items,
+  flipped,
+}: {
+  items: { id: number; item_code: string; services: AnyLine[] }[];
+  flipped?: number[];
+}) => {
+  const readyIds = items.flatMap((item) =>
+    item.services
+      .filter((service) => service.status === "ready_for_pickup")
+      .map((service) => service.id)
+  );
+
+  return {
+    query: {
+      itemsTable: { findMany: () => Promise.resolve(items) },
+      ordersServicesTable: { findMany: () => Promise.resolve([]) },
+      ordersProductsTable: { findMany: () => Promise.resolve([]) },
+    },
+    update: () => ({
+      set: () => ({
+        where: () => ({
+          returning: () =>
+            Promise.resolve((flipped ?? readyIds).map((id) => ({ id }))),
+        }),
+      }),
+    }),
+    insert: () => ({ values: () => Promise.resolve() }),
+  } as unknown as DbExecutor;
+};
+
+const pickUp = (executor: DbExecutor, itemIds: number[]) =>
+  completePickup(executor, {
+    orderId: 1,
+    itemIds,
+    pickupEventId: 9,
+    by: 1,
+  });
+
+describe("completePickup (ADR-0017: whole objects only)", () => {
+  it("flips every finished treatment on the object, not a chosen subset", async () => {
+    const executor = makePickupExecutor({
+      items: [
+        {
+          id: 1,
+          item_code: "#ORD-S001",
+          services: [
+            { id: 5, status: "ready_for_pickup" },
+            { id: 6, status: "ready_for_pickup" },
+          ],
+        },
+      ],
+    });
+    expect(await pickUp(executor, [1])).toEqual({
+      flippedIds: [5, 6],
+      requestedIds: [5, 6],
+    });
+  });
+
+  it("refuses a shoe whose repaint is still wet", async () => {
+    // The rule lives here rather than at the desk, so any future caller — a
+    // courier hand-off, a bulk release — inherits it.
+    const executor = makePickupExecutor({
+      items: [
+        {
+          id: 1,
+          item_code: "#ORD-S001",
+          services: [
+            { id: 5, status: "ready_for_pickup" },
+            { id: 6, status: "processing" },
+          ],
+        },
+      ],
+    });
+    let error: unknown;
+    try {
+      await pickUp(executor, [1]);
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "Items not ready for pickup: #ORD-S001"
+    );
+  });
+
+  it("lets a bag go when the treatment holding it back was cancelled", async () => {
+    const executor = makePickupExecutor({
+      items: [
+        {
+          id: 1,
+          item_code: "#ORD-S001",
+          services: [
+            { id: 5, status: "ready_for_pickup" },
+            { id: 6, status: "cancelled" },
+          ],
+        },
+      ],
+    });
+    expect((await pickUp(executor, [1])).flippedIds).toEqual([5]);
+  });
+
+  it("refuses an object the customer already collected", async () => {
+    const executor = makePickupExecutor({
+      items: [
+        {
+          id: 1,
+          item_code: "#ORD-S001",
+          services: [{ id: 5, status: "picked_up" }],
+        },
+      ],
+    });
+    let error: unknown;
+    try {
+      await pickUp(executor, [1]);
+    } catch (caught) {
+      error = caught;
+    }
+    expect((error as Error).message).toBe(
+      "Items not ready for pickup: #ORD-S001"
+    );
+  });
+
+  it("refuses an object that lives on someone else's ticket", async () => {
+    const executor = makePickupExecutor({ items: [] });
+    let error: unknown;
+    try {
+      await pickUp(executor, [1]);
+    } catch (caught) {
+      error = caught;
+    }
+    expect((error as Error).message).toBe(
+      "One or more items do not belong to this order"
+    );
+  });
+
+  it("reports a short flip so the caller can roll the handover back", async () => {
+    // Two counters serving the same order: the guarded UPDATE wins fewer rows
+    // than it asked for, and the desk turns that into a rollback.
+    const executor = makePickupExecutor({
+      items: [
+        {
+          id: 1,
+          item_code: "#ORD-S001",
+          services: [
+            { id: 5, status: "ready_for_pickup" },
+            { id: 6, status: "ready_for_pickup" },
+          ],
+        },
+      ],
+      flipped: [5],
+    });
+    expect(await pickUp(executor, [1])).toEqual({
+      flippedIds: [5],
+      requestedIds: [5, 6],
+    });
+  });
+});
 
 describe("transitionOrderService photo gate (ADR-0012)", () => {
   it("blocks queued -> processing when the service has no photo", async () => {

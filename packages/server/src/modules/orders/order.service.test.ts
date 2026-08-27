@@ -48,11 +48,16 @@ const catalog = {
   services: [] as CatalogService[],
 };
 
+// Item ids the doubled insert hands back, so an assertion can say "this
+// treatment was sold against the second object on the counter".
+const ITEM_ID_BASE = 900;
+
 const repo = {
   sequence: 1,
   reserveCalls: [] as { tx: unknown; storeCode: string; dateStr: string }[],
   orderId: 501,
   insertedOrder: undefined as AnyObj | undefined,
+  itemRows: [] as AnyObj[],
   serviceRows: [] as AnyObj[],
   productRows: [] as AnyObj[],
   findOrdersCalls: [] as { filters: AnyObj; scopedStoreIds?: number[] }[],
@@ -165,6 +170,20 @@ mock.module("@/modules/orders/order.repository", () => ({
   insertOrder: (_tx: unknown, values: AnyObj) => {
     repo.insertedOrder = values;
     return Promise.resolve(repo.orderId);
+  },
+  // Hands back each new id beside the tag it was inserted with, like the real
+  // insert — the caller pairs treatments to objects on that tag, so returning
+  // the rows shuffled would still have to produce the right pairing.
+  insertItems: (_tx: unknown, rows: AnyObj[]) => {
+    repo.itemRows = rows;
+    return Promise.resolve(
+      rows
+        .map((row, index) => ({
+          id: ITEM_ID_BASE + index,
+          item_code: row.item_code as string,
+        }))
+        .reverse()
+    );
   },
   // Mirrors the DB's generated subtotal: price per garment, price × qty per
   // retail line — so the gross total under test is what a live checkout sums.
@@ -279,7 +298,7 @@ afterAll(() => {
 const CASHIER_ID = 42;
 const STORE = { id: 1, code: "JKT" } as unknown as Store;
 
-const checkout = (over: AnyObj = {}) =>
+const checkout = ({ services, ...over }: AnyObj = {}) =>
   createOrder(CASHIER_ID, STORE, {
     customer: { name: "Budi", phone_number: "081234567890" },
     store_id: 1,
@@ -287,6 +306,17 @@ const checkout = (over: AnyObj = {}) =>
     voucher_codes: [],
     discount: 0,
     payment_status: "unpaid",
+    // Most of what follows is about money, not grouping, so those tests still
+    // name treatments flatly and get one object each — a whole rack of separate
+    // shoes, which is what a service line meant before ADR-0017. The tests that
+    // do care about grouping hand over `items` themselves.
+    ...(services
+      ? {
+          items: (services as AnyObj[]).map((service) => ({
+            services: [service],
+          })),
+        }
+      : {}),
     ...over,
   } as never);
 
@@ -296,6 +326,7 @@ beforeEach(() => {
   repo.sequence = 1;
   repo.reserveCalls = [];
   repo.insertedOrder = undefined;
+  repo.itemRows = [];
   repo.serviceRows = [];
   repo.productRows = [];
   repo.findOrdersCalls = [];
@@ -618,10 +649,19 @@ describe("createOrder", () => {
       },
     ]);
 
+    // Two separate shoes, so two tags — the codes belong to the objects now,
+    // not to the treatments written against them (ADR-0017).
+    expect(repo.itemRows).toHaveLength(2);
+    expect(repo.itemRows[0]).toMatchObject({
+      item_code: `${code}-S001`,
+      order_id: 501,
+    });
+    expect(repo.itemRows[1]).toMatchObject({ item_code: `${code}-S002` });
+
     expect(repo.serviceRows).toHaveLength(2);
     expect(repo.serviceRows[0]).toMatchObject({
-      item_code: `${code}-S001`,
       is_priority: true,
+      item_id: ITEM_ID_BASE,
       order_id: 501,
       service_id: 10,
       price: "30000",
@@ -629,11 +669,53 @@ describe("createOrder", () => {
       status: "queued",
     });
     expect(repo.serviceRows[1]).toMatchObject({
-      item_code: `${code}-S002`,
       is_priority: false,
+      item_id: ITEM_ID_BASE + 1,
       service_id: 11,
       price: "15000",
     });
+  });
+
+  // The counter's everyday upsell, and the case the whole ADR exists for: one
+  // pair in for a deep clean leaves the till with three treatments on it.
+  it("gives one pair sold three treatments a single tag", async () => {
+    catalog.services = [10, 11, 12].map((id) => ({
+      id,
+      price: "30000",
+      cogs: "12000",
+      is_priority: false,
+      is_active: true,
+    })) as CatalogService[];
+
+    await checkout({
+      items: [
+        {
+          brand: "Nike",
+          color: "Black",
+          services: [{ id: 10 }, { id: 11 }, { id: 12 }],
+        },
+      ],
+    });
+
+    const code = `#JKT/${JAKARTA_DATE}/1`;
+
+    expect(repo.itemRows).toEqual([
+      expect.objectContaining({
+        brand: "Nike",
+        color: "Black",
+        item_code: `${code}-S001`,
+        order_id: 501,
+      }),
+    ]);
+
+    // Three jobs, one object: every line points at the same tag, and the
+    // descriptors are stored once rather than copied three times.
+    expect(repo.serviceRows).toHaveLength(3);
+    expect(repo.serviceRows.map((row) => row.item_id)).toEqual([
+      ITEM_ID_BASE,
+      ITEM_ID_BASE,
+      ITEM_ID_BASE,
+    ]);
   });
 
   it("verifies the courier only when the bag arrived with one", async () => {
@@ -933,7 +1015,7 @@ describe("getOrderDetailById", () => {
       refunded_amount: "0",
       dropoff_photo_path: null,
       pickupEvents: [],
-      services: [],
+      items: [],
     };
 
     const result = await getOrderDetailById(9);

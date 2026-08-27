@@ -34,6 +34,31 @@
 
 ## Architecture-deepening follow-ups (extracted 2026-06-10, source: docs/architecture-deepening.md)
 
+- [ ] **Apply the ADR-0017 Item migration to PROD** —
+  `packages/server/migrations/0001-adr-0017-item-groups-order-services.sql`.
+  Runbook: `docs/runbooks/2026-08-27-adr-0017-prod.md`.
+  Creates `items`, adds `orders_services.item_id`, backfills one Item per
+  existing treatment row, then drops `brand`/`color`/`model`/`size`/`item_code`
+  and tightens `item_id`/`order_id` to NOT NULL. **Do not run `push:dev` or
+  `push:prod` for this one** — either would add the NOT NULL column against
+  populated rows and drop the five columns before anything had copied them,
+  losing every tag code in the shop, and no generator writes the
+  `INSERT..SELECT` that has to run between the two halves. Run the file itself;
+  it is one transaction, so a failure leaves the database exactly as it was.
+  - **Dev: done 2026-08-27.** 357 treatment rows → 357 Items, 0 unlinked,
+    composite FK rejects a cross-Order link. Re-seeded afterwards, so dev now
+    has genuinely grouped Items (264 Items over 349 treatments, 72 of them
+    multi-treatment) rather than the 1:1 backfill.
+  - **Prod: not applied.** The code is merged ahead of the schema, so every
+    order read 500s until it runs.
+- [ ] **Backfill `orders.status` after the cancelled-sibling fix** — the rollup
+  no longer reads a cancelled line as evidence that work started, so orders
+  whose live lines are all queued but which carry a cancelled line move
+  `processing` → `created`. The fix only corrects rows something later touches,
+  so stored rows stay stale until backfilled. Dev: done (1 order). Prod: pending,
+  and it must run **after** the ADR-0017 migration, because the finder query
+  reads `orders_services`. Query and `recomputeOrderRollup` loop are in the
+  runbook.
 - [x] **`push:prod` before next prod deploy** (verified applied 2026-08-25) —
   now also includes the **Repair blank-price** schema from ADR-0018: `services.price` DROP NOT NULL + DROP
   DEFAULT (NULL = no list price — Repair's catalog row), `orders_services.price`

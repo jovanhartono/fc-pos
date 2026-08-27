@@ -20,6 +20,7 @@ import { OrderSectionHeader } from "@/features/orders/components/order-section-h
 import { useOrderPaymentMutation } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
+import { flattenOrderLines } from "@/features/orders/lib/order-lines";
 import {
 	type AppliedVoucher,
 	getCartPricing,
@@ -220,7 +221,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 		const catalogPriceByServiceId = new Map(
 			(servicesQuery.data ?? []).map((service) => [service.id, service.price]),
 		);
-		return detail.services.flatMap((line) => {
+		return flattenOrderLines(detail).flatMap((line) => {
 			if (line.status === "cancelled" || line.service === null) {
 				return [];
 			}
@@ -229,7 +230,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 				? []
 				: [{ price: parseMoney(line.price), service_id: line.service.id }];
 		});
-	}, [detail.services, servicesQuery.data]);
+	}, [detail, servicesQuery.data]);
 
 	const pricing = useMemo(
 		() =>

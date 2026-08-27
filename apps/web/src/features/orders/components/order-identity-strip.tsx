@@ -63,7 +63,11 @@ export const OrderIdentityStrip = ({
 
 	const fulfillment = detail.fulfillment;
 	const totalCount = fulfillment.service_total_count;
-	const readyCount = fulfillment.ready_for_pickup_count;
+	// ADR-0017: what leaves the counter is an object, so the button counts
+	// collectable Items — not ready treatments. A shoe whose repaint is done but
+	// whose sole swap is still in QC contributes a ready treatment and no
+	// collectable object, and offering to hand back "1" of it is a lie.
+	const collectableCount = gates.collectableItems.length;
 	const progressWidth =
 		totalCount === 0 ? 0 : (fulfillment.picked_up_count / totalCount) * 100;
 
@@ -98,7 +102,7 @@ export const OrderIdentityStrip = ({
 				<OrderPickupEventDialog
 					closeDialog={closeDialog}
 					orderId={orderId}
-					readyServices={gates.readyForPickupServices}
+					collectableItems={gates.collectableItems}
 				/>
 			),
 		});
@@ -125,7 +129,7 @@ export const OrderIdentityStrip = ({
 	const openCancelOrderDialog = () => {
 		openDialog({
 			title: "Cancel order",
-			description: "Select items to cancel and provide reasons.",
+			description: "Select lines to cancel and provide reasons.",
 			contentClassName: "sm:max-w-xl",
 			content: () => (
 				<CancelOrderForm
@@ -137,7 +141,8 @@ export const OrderIdentityStrip = ({
 					}))}
 					cancellableServices={gates.cancellableServices.map((service) => ({
 						id: service.id,
-						item_code: service.item_code ?? null,
+						item_code: service.item.item_code,
+						service_name: service.service?.name ?? "Service",
 					}))}
 					closeDialog={closeDialog}
 				/>
@@ -148,7 +153,7 @@ export const OrderIdentityStrip = ({
 	const openRefundOrderDialog = () => {
 		openDialog({
 			title: "Refund order",
-			description: "Select items to refund and provide reasons.",
+			description: "Select lines to refund and provide reasons.",
 			contentClassName: "sm:max-w-xl",
 			content: () => (
 				<RefundOrderForm
@@ -162,7 +167,8 @@ export const OrderIdentityStrip = ({
 					}))}
 					refundableServices={gates.refundableServices.map((service) => ({
 						id: service.id,
-						item_code: service.item_code ?? null,
+						item_code: service.item.item_code,
+						service_name: service.service?.name ?? "Service",
 					}))}
 					refundMutation={refundMutation}
 				/>
@@ -180,9 +186,9 @@ export const OrderIdentityStrip = ({
 					closeDialog={closeDialog}
 					lines={gates.complaintableServices.map((service) => ({
 						id: service.id,
-						itemCode: service.item_code ?? `#${service.id}`,
+						itemCode: service.item.item_code,
 						serviceName: service.service?.name ?? "Service",
-						details: formatOrderServiceItemDetails(service),
+						details: formatOrderServiceItemDetails(service.item),
 					}))}
 					mutation={openComplaintMutation}
 				/>
@@ -207,7 +213,7 @@ export const OrderIdentityStrip = ({
 		.join(" · ");
 
 	const renderPickupButton = (className: string) =>
-		readyCount > 0 ? (
+		collectableCount > 0 ? (
 			<Button
 				aria-describedby={
 					gates.canOpenPickup ? undefined : "pickup-disabled-reason"
@@ -217,7 +223,7 @@ export const OrderIdentityStrip = ({
 				onClick={openPickupDialog}
 				type="button"
 			>
-				Pick up · {readyCount}
+				Pick up · {collectableCount}
 			</Button>
 		) : null;
 
@@ -332,7 +338,7 @@ export const OrderIdentityStrip = ({
 								style={{ width: `${progressWidth}%` }}
 							/>
 						</div>
-						{readyCount > 0 && !gates.canOpenPickup ? (
+						{collectableCount > 0 && !gates.canOpenPickup ? (
 							<p
 								className="text-muted-foreground text-xs leading-relaxed"
 								id="pickup-disabled-reason"

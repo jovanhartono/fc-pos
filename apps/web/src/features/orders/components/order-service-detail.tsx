@@ -20,6 +20,7 @@ import {
 	useRefreshOrder,
 	useUpdateServiceStatusMutation,
 } from "@/features/orders/hooks/useOrderMutations";
+import { findOrderLine } from "@/features/orders/lib/order-lines";
 import { orderServicePhotoUploader } from "@/features/orders/utils/photo-upload";
 import { deleteOrderServicePhoto } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
@@ -107,7 +108,7 @@ export const OrderServiceDetail = ({
 	// Read the service live from the cached order so status changes made in this
 	// sheet reflect immediately instead of pinning a frozen prop from open time.
 	const detailQuery = useQuery(orderDetailQueryOptions(orderId));
-	const service = detailQuery.data?.services.find((s) => s.id === serviceId);
+	const service = findOrderLine(detailQuery.data, serviceId);
 
 	if (!service) {
 		return (
@@ -169,7 +170,7 @@ export const OrderServiceDetail = ({
 				<div>
 					<dt className="text-muted-foreground text-xs">Item</dt>
 					<dd className="mt-0.5 font-medium">
-						{formatOrderServiceItemDetails(service)}
+						{formatOrderServiceItemDetails(service.item)}
 					</dd>
 				</div>
 				<div>
@@ -227,7 +228,7 @@ export const OrderServiceDetail = ({
 					Add item photo
 				</Button>
 				<PhotoUploadDialog
-					badgeLabel={service.item_code ?? undefined}
+					badgeLabel={service.item.item_code}
 					onOpenChange={setIsPhotoUploadOpen}
 					onUploaded={refreshOrder}
 					open={isPhotoUploadOpen}
@@ -245,9 +246,7 @@ export const OrderServiceDetail = ({
 						gridClassName="grid-cols-1 @md:grid-cols-2 @2xl:grid-cols-3"
 						items={service.images.map((image) => ({
 							...image,
-							alt:
-								image.note ??
-								`Photo for ${service.item_code ?? `service-${service.id}`}`,
+							alt: image.note ?? `Photo for ${service.item.item_code}`,
 							canDelete: isAdmin || image.uploaded_by === user?.id,
 						}))}
 						onDelete={(photoId) => {
@@ -265,7 +264,7 @@ export const OrderServiceDetail = ({
 							});
 						}}
 						thumbnailClassName="bg-muted/30"
-						title={`Photos for ${service.item_code ?? `service-${service.id}`}`}
+						title={`Photos for ${service.item.item_code}`}
 					/>
 				) : (
 					<p className="text-muted-foreground text-sm">None yet</p>

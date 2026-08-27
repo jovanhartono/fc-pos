@@ -12,6 +12,7 @@ import {
 import { db } from "@/db";
 import {
   categoriesTable,
+  itemsTable,
   orderPickupEventsTable,
   orderRefundsTable,
   orderServiceStatusLogsTable,
@@ -503,7 +504,7 @@ export async function listAgingQueue({
       id: ordersServicesTable.id,
       order_id: ordersServicesTable.order_id,
       order_code: ordersTable.code,
-      item_code: ordersServicesTable.item_code,
+      item_code: itemsTable.item_code,
       status: ordersServicesTable.status,
       service_name: servicesTable.name,
       store_id: ordersTable.store_id,
@@ -521,6 +522,9 @@ export async function listAgingQueue({
       servicesTable,
       eq(ordersServicesTable.service_id, servicesTable.id)
     )
+    // The tag the worker reads off the shelf belongs to the physical object,
+    // not the treatment line (ADR-0017).
+    .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
     .leftJoin(usersTable, eq(ordersServicesTable.handler_id, usersTable.id))
     .where(buildAgingQueueWhere(filters))
     .orderBy(asc(ordersTable.created_at))

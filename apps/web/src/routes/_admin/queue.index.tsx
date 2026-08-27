@@ -30,9 +30,9 @@ import {
 	type FetchOrderServiceQueueQuery,
 	fetchOrderDetail,
 	fetchOrderServiceQueuePage,
+	lookupItemByItemCode,
 	lookupOrderServiceById,
-	lookupOrderServiceByItemCode,
-	type QueueOrderServiceItem,
+	type QueueItem,
 	queryKeys,
 } from "@/lib/api";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
@@ -50,12 +50,6 @@ import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 
 const QUEUE_PAGE_SIZE = 20;
-
-const TERMINAL_QUEUE_STATUSES = new Set<QueueOrderServiceItem["status"]>([
-	"picked_up",
-	"refunded",
-	"cancelled",
-]);
 
 const HOUR_MS = 3_600_000;
 
@@ -92,6 +86,10 @@ function formatElapsedDuration(ms: number): string {
 const queueSearchSchema = z.object({
 	storeId: z.coerce.number().int().positive().optional(),
 	status: z.enum(ACTIVE_ORDER_SERVICE_STATUSES).optional(),
+	// Set when a scanned tag turns out to have several treatments open on it:
+	// the rack narrows to that one object so the worker can say which job they
+	// are starting (ADR-0017).
+	search: z.string().min(1).optional(),
 	dateFrom: z
 		.string()
 		.regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -172,12 +170,14 @@ function QueuePage() {
 	const selectedStatus = search.status;
 	const selectedDateFrom = search.dateFrom;
 	const selectedDateTo = search.dateTo;
+	const selectedSearch = search.search;
 	const queueQueryInput: FetchOrderServiceQueueQuery | undefined =
 		parsedStoreId !== undefined
 			? {
 					limit: QUEUE_PAGE_SIZE,
 					store_id: parsedStoreId,
 					...(selectedStatus !== undefined ? { status: selectedStatus } : {}),
+					...(selectedSearch !== undefined ? { search: selectedSearch } : {}),
 					...(selectedDateFrom !== undefined
 						? { date_from: selectedDateFrom }
 						: {}),
@@ -190,6 +190,7 @@ function QueuePage() {
 			...queryKeys.orderServiceQueue({
 				store_id: parsedStoreId,
 				status: selectedStatus,
+				search: selectedSearch,
 				date_from: selectedDateFrom,
 				date_to: selectedDateTo,
 			}),
@@ -283,19 +284,25 @@ function QueuePage() {
 				}
 			}
 
-			const orderService = await lookupOrderServiceByItemCode(query);
-			if (!orderService.order) {
+			// A tag names an object, and an object can have several treatments open
+			// on it (ADR-0017). Go straight to the work screen when there is only
+			// one thing to do; otherwise land on the queue filtered to that tag and
+			// let the worker pick off the card.
+			const item = await lookupItemByItemCode(query);
+			if (!item.order) {
 				throw new Error(
 					mode === "scan"
-						? "Shoe item not found"
+						? "Item not found"
 						: "No item, order, or line matched",
 				);
 			}
 
 			return {
-				orderId: orderService.order.id,
-				storeId: orderService.order.store_id,
-				queueServiceId: orderService.id,
+				orderId: item.order.id,
+				storeId: item.order.store_id,
+				queueServiceId:
+					item.services.length === 1 ? item.services[0].id : undefined,
+				itemCode: item.services.length > 1 ? item.item_code : undefined,
 			};
 		},
 		onSuccess: (result) => {
@@ -306,6 +313,19 @@ function QueuePage() {
 						orderId: String(result.orderId),
 						serviceId: String(result.queueServiceId),
 					},
+				});
+				return;
+			}
+
+			// Several jobs open on the one object: show its card and let the worker
+			// say which one they are starting.
+			if (result.itemCode !== undefined) {
+				void navigate({
+					search: (prev) => ({
+						...prev,
+						search: result.itemCode,
+						status: undefined,
+					}),
 				});
 				return;
 			}
@@ -330,17 +350,16 @@ function QueuePage() {
 	});
 
 	const queueItems =
-		queueQuery.data?.pages.flatMap((page) => page.items) ??
-		([] as QueueOrderServiceItem[]);
+		queueQuery.data?.pages.flatMap((page) => page.items) ?? ([] as QueueItem[]);
 	const totalItems = queueQuery.data?.pages[0]?.meta.total ?? 0;
 
 	const navigateToQueueDetail = useCallback(
-		(item: QueueOrderServiceItem) => {
+		(item: QueueItem, serviceId: number) => {
 			void navigate({
 				to: "/queue/$orderId/$serviceId",
 				params: {
 					orderId: String(item.order_id),
-					serviceId: String(item.id),
+					serviceId: String(serviceId),
 				},
 			});
 		},
@@ -388,7 +407,7 @@ function QueuePage() {
 				actions={
 					<div className="flex items-center gap-2">
 						<Badge variant={queueQuery.isLoading ? "secondary" : "outline"}>
-							{`${totalItems} items`}
+							{`${totalItems} ${totalItems === 1 ? "item" : "items"}`}
 						</Badge>
 						<Dialog onOpenChange={setIsFilterOpen} open={isFilterOpen}>
 							<DialogTrigger
@@ -577,89 +596,102 @@ function QueuePage() {
 }
 
 interface QueueRowProps {
-	item: QueueOrderServiceItem;
+	item: QueueItem;
 	currentUserId?: number;
 	now: number;
-	onOpen: (item: QueueOrderServiceItem) => void;
+	onOpen: (item: QueueItem, serviceId: number) => void;
 }
 
+// One card per physical object, with every treatment still live on it listed
+// inside (ADR-0017). A pair in for a deep clean, a repaint and leather care
+// used to be three separate rows on the rack with nothing saying they were the
+// same shoe — and physics already stops two workers holding it at once.
 const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
-	const isTerminal = TERMINAL_QUEUE_STATUSES.has(item.status);
 	const elapsedMs = Math.max(
 		0,
 		now - new Date(item.order_created_at).getTime(),
 	);
-	const isBreached = !isTerminal && elapsedMs >= TURNAROUND_MS;
+	const isBreached = elapsedMs >= TURNAROUND_MS;
 
-	const isHandledByCurrentUser =
-		currentUserId !== undefined && item.handler_id === currentUserId;
-	const handler = isHandledByCurrentUser
-		? "Me"
-		: (item.handler_name ?? (item.handler_id === null ? null : "Worker"));
-
-	// Lead with whatever actually identifies the Item. Descriptors are optional at
-	// intake, so a fixed "descriptors on top" row shouts "No item details" at full
-	// weight and demotes the service — the only thing left that says anything.
+	// Descriptors are optional at intake, so falling back to the tag keeps the
+	// heading from reading "No item details" at full weight.
 	const descriptors = getOrderServiceItemDetails(item);
-	const secondary = [descriptors ? item.service_name : null, handler]
-		.filter(Boolean)
-		.join(" · ");
 
 	return (
-		// min-w-0 at every level down to the truncating text: without it the row's
+		// min-w-0 at every level down to the truncating text: without it the card's
 		// min-content sizes the auto grid column, and the search field and status
 		// chips above — siblings in that same column — get pushed off screen.
-		<button
-			className="group flex min-w-0 items-stretch gap-0 border border-border bg-background text-left transition-colors hover:bg-muted/40"
-			onClick={() => onOpen(item)}
-			type="button"
-		>
-			<span className="grid min-w-0 flex-1 gap-0.5 px-3 py-2.5">
-				<span className="flex min-w-0 items-baseline gap-2">
-					<span className="min-w-0 flex-1 truncate font-medium text-sm">
-						{descriptors ?? item.service_name}
-					</span>
-					<span
-						className={cn(
-							"shrink-0 font-mono font-semibold text-sm tabular-nums",
-							isBreached ? "text-destructive" : "text-muted-foreground",
-						)}
-					>
-						{isTerminal ? "—" : formatElapsedDuration(elapsedMs)}
-					</span>
-					{/* self-center: an svg has no text baseline, so in this baseline-aligned
-					    row it would sit on the baseline and ride 3px high. */}
-					<CaretRightIcon
-						className="size-4 shrink-0 self-center text-muted-foreground transition-transform group-hover:translate-x-0.5"
-						weight="bold"
-					/>
-				</span>
-				<span className="flex min-w-0 items-baseline gap-2 text-muted-foreground text-xs">
-					{/* On the All chip a queued Item and one back from a failed quality
-					    check are otherwise the same row, and triaging the rack means
-					    opening each one. Kept on the filtered chips too: a barcode scan
-					    and a search both land here spanning statuses. */}
-					{item.is_priority ? (
-						<Badge
-							className="shrink-0 px-1.5 py-0 font-mono text-[10px] uppercase tracking-wide"
-							variant="warning"
-						>
-							Priority
-						</Badge>
-					) : null}
+		<article className="min-w-0 border border-border bg-background">
+			<header className="flex min-w-0 items-baseline gap-2 px-3 pt-2.5 pb-1.5">
+				<h3 className="min-w-0 flex-1 truncate font-medium text-sm">
+					{descriptors ?? item.item_code}
+				</h3>
+				{item.is_priority ? (
 					<Badge
 						className="shrink-0 px-1.5 py-0 font-mono text-[10px] uppercase tracking-wide"
-						variant="outline"
+						variant="warning"
 					>
-						{formatOrderServiceStatus(item.status)}
+						Priority
 					</Badge>
-					<span className="min-w-0 flex-1 truncate">{secondary}</span>
-					<span className="shrink-0 font-mono text-[10px]">
-						{item.item_code ?? `#${item.id}`}
-					</span>
+				) : null}
+				<span
+					className={cn(
+						"shrink-0 font-mono font-semibold text-sm tabular-nums",
+						isBreached ? "text-destructive" : "text-muted-foreground",
+					)}
+				>
+					{formatElapsedDuration(elapsedMs)}
 				</span>
-			</span>
-		</button>
+			</header>
+
+			<p className="flex min-w-0 items-baseline gap-2 px-3 pb-1.5 text-muted-foreground text-xs">
+				<span className="min-w-0 flex-1 truncate">{item.order_code}</span>
+				<span className="shrink-0 font-mono text-[10px]">{item.item_code}</span>
+			</p>
+
+			{/* Each treatment is its own target: the worker taps the job they are
+			    about to do, not the object. */}
+			<ul className="grid">
+				{item.services.map((service) => {
+					const handler =
+						service.handler_id === currentUserId
+							? "Me"
+							: (service.handler_name ??
+								(service.handler_id === null ? null : "Worker"));
+
+					return (
+						<li className="min-w-0" key={service.id}>
+							<button
+								className="group flex w-full min-w-0 items-baseline gap-2 border-border/70 border-t px-3 py-2 text-left transition-colors hover:bg-muted/40"
+								onClick={() => onOpen(item, service.id)}
+								type="button"
+							>
+								<Badge
+									className="shrink-0 px-1.5 py-0 font-mono text-[10px] uppercase tracking-wide"
+									variant="outline"
+								>
+									{formatOrderServiceStatus(service.status)}
+								</Badge>
+								<span className="min-w-0 flex-1 truncate text-sm">
+									{service.service_name}
+								</span>
+								{handler ? (
+									<span className="shrink-0 text-muted-foreground text-xs">
+										{handler}
+									</span>
+								) : null}
+								{/* self-center: an svg has no text baseline, so in this
+								    baseline-aligned row it would ride 3px high. */}
+								<CaretRightIcon
+									className="size-4 shrink-0 self-center text-muted-foreground transition-transform group-hover:translate-x-0.5"
+									weight="bold"
+								/>
+							</button>
+						</li>
+					);
+				})}
+			</ul>
+		</article>
 	);
 });
 QueueRow.displayName = "QueueRow";

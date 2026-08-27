@@ -22,6 +22,7 @@ import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dia
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { invalidateOrderQueries } from "@/features/orders/lib/invalidate-order-queries";
+import { findOrderLine } from "@/features/orders/lib/order-lines";
 import { orderServicePhotoUploader } from "@/features/orders/utils/photo-upload";
 import {
 	type UpdateOrderServiceStatusPayload,
@@ -102,9 +103,7 @@ export function QueueServiceDetail({
 
 	const detailQuery = useQuery(orderDetailQueryOptions(orderId));
 	const detail = detailQuery.data;
-	const selectedService = detail?.services.find(
-		(service) => service.id === serviceId,
-	);
+	const selectedService = findOrderLine(detail, serviceId);
 
 	const refreshData = () => invalidateOrderQueries(queryClient, orderId);
 
@@ -176,7 +175,7 @@ export function QueueServiceDetail({
 			(!canStartWork || status !== "processing"),
 	);
 
-	const itemDetails = getOrderServiceItemDetails(selectedService);
+	const itemDetails = getOrderServiceItemDetails(selectedService.item);
 	const handlerLabel = isHandledByCurrentUser
 		? "You"
 		: isHandledByAnotherWorker
@@ -205,7 +204,7 @@ export function QueueServiceDetail({
 					    by the section's overflow-x-clip — wrapped, it drops below. */}
 					<div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
 						<h1 className="font-mono text-[1.65rem] font-bold leading-tight tracking-tight">
-							{selectedService.item_code ?? `Queue Item #${selectedService.id}`}
+							{selectedService.item.item_code}
 						</h1>
 						<Badge
 							className="mt-1 shrink-0"
@@ -329,13 +328,12 @@ export function QueueServiceDetail({
 							items={selectedService.images.map((image) => ({
 								...image,
 								alt:
-									image.note ??
-									`Photo for ${selectedService.item_code ?? `service-${selectedService.id}`}`,
+									image.note ?? `Photo for ${selectedService.item.item_code}`,
 							}))}
 							gridClassName="grid-cols-2 xl:grid-cols-3"
 							thumbnailClassName="bg-background"
 							thumbnailImageClassName="aspect-[5/4]"
-							title={`Photos for ${selectedService.item_code ?? `service-${selectedService.id}`}`}
+							title={`Photos for ${selectedService.item.item_code}`}
 							emptyState={
 								needsPhotoToStart ? (
 									<div className="flex items-start gap-2.5 border border-dashed border-warning/50 bg-warning/10 px-4 py-6 text-sm">
@@ -367,7 +365,7 @@ export function QueueServiceDetail({
 					open={isPhotoDialogOpen}
 					onOpenChange={setIsPhotoDialogOpen}
 					title="Add item photo"
-					badgeLabel={selectedService.item_code ?? undefined}
+					badgeLabel={selectedService.item.item_code}
 					uploader={orderServicePhotoUploader(orderId, serviceId)}
 					onUploaded={async () => {
 						await refreshData();

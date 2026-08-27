@@ -3,7 +3,6 @@ import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { OrderServiceDetail } from "@/features/orders/components/order-service-detail";
 import type { OrderDetail } from "@/lib/api";
-import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
@@ -11,19 +10,22 @@ import {
 import { formatMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
-type OrderServiceRowService = OrderDetail["services"][number];
+type OrderServiceRowService = OrderDetail["items"][number]["services"][number];
 
 interface OrderServiceRowProps {
 	orderId: number;
 	service: OrderServiceRowService;
+	// The tag of the object this treatment is applied to. Rendered once on the
+	// Item header above, but the sheet still opens under it so a worker knows
+	// which thing on the shelf they are looking at (ADR-0017).
+	itemCode: string;
 	isAdmin: boolean;
 }
 
 export const OrderServiceRow = memo(
-	({ orderId, service, isAdmin }: OrderServiceRowProps) => {
+	({ orderId, service, itemCode, isAdmin }: OrderServiceRowProps) => {
 		const openSheet = useSheet((s) => s.openSheet);
 
-		const code = service.item_code ?? `Service #${service.id}`;
 		const serviceName = service.service?.name ?? "Service";
 		const isRework = Boolean(service.reworkOf);
 		// A line carries at most one complaint, lifetime (ADR-0013 amendment) —
@@ -32,14 +34,10 @@ export const OrderServiceRow = memo(
 		// ADR-0018: a blank price holds the whole Order's payment ("no price, no
 		// payment") — the same predicate the server's paid transition runs.
 		const isUnpriced = isUnpricedLine(service);
-		const itemDetails = getOrderServiceItemDetails(service);
-		const metaLine = [itemDetails, service.handler?.name]
-			.filter(Boolean)
-			.join(" · ");
 
 		const handleClick = () => {
 			openSheet({
-				title: code,
+				title: itemCode,
 				description: serviceName,
 				content: () => (
 					<OrderServiceDetail
@@ -60,13 +58,10 @@ export const OrderServiceRow = memo(
 				<span className="min-w-0 flex-1 space-y-1">
 					{/* leading-5 matches the 20px badge line across the row, so the
 					    service name and the subtotal below share a center. */}
-					<span className="block break-all font-mono text-[13px] font-semibold leading-5">
-						{code}
-					</span>
-					<span className="block text-sm leading-snug">{serviceName}</span>
-					{metaLine ? (
+					<span className="block text-sm leading-5">{serviceName}</span>
+					{service.handler?.name ? (
 						<span className="block text-muted-foreground text-xs leading-snug">
-							{metaLine}
+							{service.handler.name}
 						</span>
 					) : null}
 				</span>

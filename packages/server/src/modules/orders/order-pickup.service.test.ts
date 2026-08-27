@@ -1,37 +1,40 @@
-import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
 
 // The pickup desk handover: a customer reads out the receipt's 6-digit pickup
-// code, the cashier photographs the garments leaving the counter, and only then
-// do the selected items flip to picked_up. These tests pin the desk's hard
+// code, the cashier photographs the objects leaving the counter, and only then
+// do the selected Items flip to picked_up. These tests pin the desk's hard
 // gates — full payment before anything leaves (ADR-0009), the per-order pickup
-// code as proof the person at the counter placed this order (ADR-0005) — and
+// code as proof the person at the counter placed this order (ADR-0005) — plus
 // the one-transaction guarantee that a concurrent double-pickup rolls the
-// photographed event back out. The DB, S3 (presign/optimize/CDN URL) and the
-// status machine's completePickup flip are doubled; the permission check and
-// every gate in between stay real.
+// photographed event back out. The cashier chooses objects, never treatments.
+// The DB and S3 (presign/optimize/CDN URL) are doubled; the permission check,
+// every gate in between, and the status machine itself stay real — so the
+// whole-object rule is genuinely exercised through the desk here as well as
+// unit-pinned in order-status-machine.test.ts.
 
 type AnyObj = Record<string, unknown>;
 
-interface CandidateService {
+interface CandidateItem {
   id: number;
-  item_code: string | null;
-  status: string;
+  item_code: string;
+  services: { id: number; status: string }[];
 }
 
 const EVENT_ID = 77;
 
 const state = {
   order: undefined as AnyObj | undefined,
-  services: [] as CandidateService[],
+  items: [] as CandidateItem[],
   // undefined → the flip succeeds for every requested id (no concurrent race)
   flippedIds: undefined as number[] | undefined,
   // captured reads/writes
   orderReads: [] as AnyObj[],
-  serviceReads: [] as AnyObj[],
+  itemReads: [] as AnyObj[],
   insertedEvent: undefined as AnyObj | undefined,
+  statusLogs: [] as AnyObj[],
   transactionOutcome: undefined as "committed" | "rolled_back" | undefined,
 };
 
@@ -40,21 +43,60 @@ const s3Calls = {
   optimized: [] as string[],
 };
 
-const flipCalls: { executor: unknown; input: AnyObj }[] = [];
-
-// Sentinel transaction handle threaded into completePickup — the flip must run
-// on the same transaction as the event insert or the rollback guarantee is gone.
+// Sentinel transaction handle. The REAL status machine runs against it, so the
+// whole-object rule is exercised here rather than doubled away — and the flip
+// provably runs on the same transaction as the event insert, which is what
+// makes the rollback guarantee real.
 const TX = {
-  insert: () => ({
-    values: (values: AnyObj) => ({
-      returning: () => {
-        state.insertedEvent = values;
-        // id + picked_up_at are DB defaults the real insert hands back.
-        return Promise.resolve([{ id: EVENT_ID, picked_up_at: new Date() }]);
+  query: {
+    itemsTable: {
+      findMany: (args: AnyObj) => {
+        state.itemReads.push(args);
+        return Promise.resolve(
+          state.items.filter((item) =>
+            (args.where as { id: { in: number[] } }).id.in.includes(item.id)
+          )
+        );
       },
+    },
+    // The rollup after the flip re-reads the order; nothing here asserts on it.
+    ordersServicesTable: { findMany: () => Promise.resolve([]) },
+    ordersProductsTable: { findMany: () => Promise.resolve([]) },
+  },
+  insert: () => ({
+    values: (values: AnyObj | AnyObj[]) => {
+      if (Array.isArray(values)) {
+        state.statusLogs.push(...values);
+        return Promise.resolve();
+      }
+      state.insertedEvent = values;
+      return Object.assign(Promise.resolve(), {
+        // id + picked_up_at are DB defaults the real insert hands back.
+        returning: () =>
+          Promise.resolve([{ id: EVENT_ID, picked_up_at: new Date() }]),
+      });
+    },
+  }),
+  update: () => ({
+    set: () => ({
+      where: () =>
+        Object.assign(Promise.resolve(), {
+          returning: () =>
+            Promise.resolve(
+              (state.flippedIds ?? readyServiceIds()).map((id) => ({ id }))
+            ),
+        }),
     }),
   }),
 };
+
+// What the guarded UPDATE would win: every treatment already on the shelf.
+const readyServiceIds = () =>
+  state.items.flatMap((item) =>
+    item.services
+      .filter((service) => service.status === "ready_for_pickup")
+      .map((service) => service.id)
+  );
 
 mock.module("@/db", () => ({
   db: {
@@ -65,10 +107,10 @@ mock.module("@/db", () => ({
           return Promise.resolve(state.order);
         },
       },
-      ordersServicesTable: {
+      itemsTable: {
         findMany: (args: AnyObj) => {
-          state.serviceReads.push(args);
-          return Promise.resolve(state.services);
+          state.itemReads.push(args);
+          return Promise.resolve(state.items);
         },
       },
     },
@@ -107,30 +149,6 @@ mock.module("@/utils/s3", () => ({
   },
 }));
 
-// Spread the real status machine and stub only completePickup: the machine's
-// own tests already pin that picked_up is reachable solely from
-// ready_for_pickup, so here the flip just reports which rows it won.
-const actualStatusMachine = await import(
-  "@/modules/orders/order-status-machine"
-);
-
-mock.module("@/modules/orders/order-status-machine", () => ({
-  ...actualStatusMachine,
-  completePickup: (executor: unknown, input: { serviceIds: number[] }) => {
-    flipCalls.push({ executor, input });
-    return Promise.resolve({
-      flippedIds: state.flippedIds ?? input.serviceIds,
-    });
-  },
-}));
-
-afterAll(() => {
-  mock.module(
-    "@/modules/orders/order-status-machine",
-    () => actualStatusMachine
-  );
-});
-
 const { createOrderPickupEvent, createOrderPickupEventPresign } = await import(
   "@/modules/orders/order-pickup.service"
 );
@@ -158,7 +176,7 @@ const pickup = (body: AnyObj = {}) =>
     body: {
       image_path: `${STORAGE_ENV_PREFIX}orders/${ORDER_ID}/pickup/proof.webp`,
       pickup_code: "483920",
-      service_ids: [5, 6],
+      item_ids: [1, 2],
       ...body,
     } as never,
     user: CASHIER,
@@ -173,18 +191,28 @@ const presign = () =>
 
 beforeEach(() => {
   state.order = makeOrder();
-  state.services = [
-    { id: 5, item_code: "ORD-042-001", status: "ready_for_pickup" },
-    { id: 6, item_code: "ORD-042-002", status: "ready_for_pickup" },
+  // Two objects on the shelf, one finished treatment each — the ordinary
+  // two-bag collection.
+  state.items = [
+    {
+      id: 1,
+      item_code: "ORD-042-S001",
+      services: [{ id: 5, status: "ready_for_pickup" }],
+    },
+    {
+      id: 2,
+      item_code: "ORD-042-S002",
+      services: [{ id: 6, status: "ready_for_pickup" }],
+    },
   ];
   state.flippedIds = undefined;
   state.orderReads = [];
-  state.serviceReads = [];
+  state.itemReads = [];
   state.insertedEvent = undefined;
+  state.statusLogs = [];
   state.transactionOutcome = undefined;
   s3Calls.presigned = [];
   s3Calls.optimized = [];
-  flipCalls.length = 0;
 });
 
 describe("createOrderPickupEventPresign", () => {
@@ -236,55 +264,26 @@ describe("createOrderPickupEvent", () => {
     expect(s3Calls.optimized).toHaveLength(0);
   });
 
-  it("collapses a double-tapped line so one garment is only handed over once", async () => {
-    // The UI can send the same line twice on a double-tap; the desk must treat
-    // it as one garment everywhere — validation, the flip, and the receipt.
-    const result = await pickup({ service_ids: [5, 5, 6] });
-    expect(state.serviceReads[0].where).toEqual({
+  it("collapses a double-tapped tag so one object is only handed over once", async () => {
+    // The UI can send the same object twice on a double-tap; the desk must
+    // treat it as one everywhere — validation, the flip, and the receipt.
+    const result = await pickup({ item_ids: [1, 1, 2] });
+    expect(state.itemReads[0].where).toEqual({
       order_id: ORDER_ID,
-      id: { in: [5, 6] },
+      id: { in: [1, 2] },
     });
-    expect(flipCalls[0].input.serviceIds).toEqual([5, 6]);
+    expect(result.item_ids).toEqual([1, 2]);
     expect(result.service_ids).toEqual([5, 6]);
   });
 
   it("rejects a handover with nothing selected before touching the database", async () => {
-    const error = await captureRejection(pickup({ service_ids: [] }));
+    const error = await captureRejection(pickup({ item_ids: [] }));
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "At least one service must be picked up"
+      "At least one item must be picked up"
     );
     expect(state.orderReads).toHaveLength(0);
-    expect(state.serviceReads).toHaveLength(0);
-  });
-
-  it("refuses when a selected line belongs to another customer's order", async () => {
-    // A stale tab or mistyped id must never let order 42's code release a
-    // garment that lives on someone else's ticket.
-    state.services = [
-      { id: 5, item_code: "ORD-042-001", status: "ready_for_pickup" },
-    ];
-    const error = await captureRejection(pickup({ service_ids: [5, 6] }));
-    expect(error).toBeInstanceOf(BadRequestException);
-    expect((error as Error).message).toBe(
-      "One or more services do not belong to this order"
-    );
-    expect(state.transactionOutcome).toBeUndefined();
-  });
-
-  it("holds the whole handover while one garment is still in the wash", async () => {
-    // Partial pickup is per-line, but every SELECTED line must be ready — a
-    // shirt still processing cannot leave beside a finished one. Lines coded
-    // before tagging fall back to their numeric id in the message.
-    state.services = [
-      { id: 5, item_code: "ORD-042-001", status: "ready_for_pickup" },
-      { id: 9, item_code: null, status: "processing" },
-    ];
-    const error = await captureRejection(pickup({ service_ids: [5, 9] }));
-    expect(error).toBeInstanceOf(BadRequestException);
-    expect((error as Error).message).toBe("Services not ready for pickup: 9");
-    expect(s3Calls.optimized).toHaveLength(0);
-    expect(state.transactionOutcome).toBeUndefined();
+    expect(state.itemReads).toHaveLength(0);
   });
 
   it("rejects a proof photo filed under another order's folder", async () => {
@@ -305,7 +304,7 @@ describe("createOrderPickupEvent", () => {
     // with the rollback, or the shop keeps a photo of a handover that never
     // happened.
     state.flippedIds = [5];
-    const error = await captureRejection(pickup({ service_ids: [5, 6] }));
+    const error = await captureRejection(pickup({ item_ids: [1, 2] }));
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
       "Another cashier already processed one of the selected items. Refresh and try again."
@@ -325,17 +324,11 @@ describe("createOrderPickupEvent", () => {
       image_path: `${STORAGE_ENV_PREFIX}orders/${ORDER_ID}/pickup/proof.webp`,
       picked_up_by: 8,
     });
-    // The flip runs on the same transaction as the event insert and every
-    // flipped garment points back at this event's photo.
-    expect(flipCalls).toHaveLength(1);
-    expect(flipCalls[0].executor).toBe(TX);
-    expect(flipCalls[0].input).toEqual({
-      orderId: ORDER_ID,
-      serviceIds: [5, 6],
-      pickupEventId: EVENT_ID,
-      by: 8,
-      note: "Completed from order pickup desk",
-    });
+    // The flip ran on the same transaction as the event insert — the object
+    // resolution happened against TX, not the outer db handle.
+    expect(state.itemReads).toHaveLength(1);
+    // One status-log row per treatment that actually left the shop.
+    expect(state.statusLogs.map((log) => log.order_service_id)).toEqual([5, 6]);
     expect(state.transactionOutcome).toBe("committed");
 
     expect(result.id).toBe(EVENT_ID);

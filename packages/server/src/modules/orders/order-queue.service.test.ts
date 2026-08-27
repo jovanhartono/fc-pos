@@ -59,9 +59,15 @@ const TX = {
 mock.module("@/db", () => ({
   db: {
     // order-queue.service (and order.repository in its import graph) build
-    // prepared item-code lookups at module load — without this stub the
-    // import itself would dial the database.
+    // prepared tag lookups at module load — without these stubs the import
+    // itself would dial the database. The tag lookup hangs off items now that
+    // a code names an object rather than a treatment (ADR-0017).
     query: {
+      itemsTable: {
+        findFirst: () => ({
+          prepare: () => ({ execute: () => Promise.resolve(undefined) }),
+        }),
+      },
       ordersServicesTable: {
         findFirst: () => ({
           prepare: () => ({ execute: () => Promise.resolve(undefined) }),
