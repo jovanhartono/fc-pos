@@ -397,6 +397,15 @@ function QueuePage() {
 		});
 	};
 
+	// Set by a scan that landed on a multi-treatment tag. Nothing else writes it,
+	// and without a way back the worker stays on a one-card rack — the chips above
+	// keep counting the whole branch, so the counts stop matching the list.
+	const clearSearchFilter = () => {
+		void navigate({
+			search: (prev) => ({ ...prev, search: undefined }),
+		});
+	};
+
 	const activeFilterCount =
 		(selectedDateFrom || selectedDateTo ? 1 : 0) +
 		(role === "admin" && parsedStoreId !== undefined ? 1 : 0);
@@ -527,6 +536,22 @@ function QueuePage() {
 						playsInline
 						ref={scanner.videoRef}
 					/>
+				) : null}
+
+				{selectedSearch ? (
+					<div className="flex min-w-0 items-center gap-2 border border-dashed border-border px-3 py-2 text-sm">
+						<span className="min-w-0 flex-1 truncate text-muted-foreground">
+							Showing <span className="font-mono">{selectedSearch}</span> only
+						</span>
+						<Button
+							onClick={clearSearchFilter}
+							size="sm"
+							type="button"
+							variant="outline"
+						>
+							Clear
+						</Button>
+					</div>
 				) : null}
 
 				<QueueStatusTabs
