@@ -75,6 +75,10 @@ const app = new Hono().post(
             services: {
               columns: {
                 id: true,
+                // Read only to tell a pair that was refunded and collected
+                // from one that was refunded and is still on our rack. It is
+                // an internal id and is stripped again below.
+                pickup_event_id: true,
                 status: true,
               },
               with: {
@@ -123,11 +127,21 @@ const app = new Hono().post(
       success(
         {
           ...orderWithoutPickupCode,
-          // Derived from the treatment statuses already on the wire, so this
-          // exposes nothing new — it just saves the page doing the rollup.
-          items: order.items.map((item) => ({
+          // Derived here rather than on the page: the rollup now turns on
+          // whether a pickup event ever took the object out, and that is a
+          // shop-internal id no tracking page should be handed. Each treatment
+          // is rebuilt field by field rather than spread-minus-the-id, so the
+          // next column selected to feed a derivation has to be named here
+          // before it can reach a customer.
+          items: order.items.map(({ services, ...item }) => ({
             ...item,
-            status: deriveItemStatus(item.services),
+            status: deriveItemStatus(services),
+            services: services.map(({ id, status, service, statusLogs }) => ({
+              id,
+              status,
+              service,
+              statusLogs,
+            })),
           })),
           pickup_code: order.status === "ready_for_pickup" ? pickup_code : null,
           customer: {

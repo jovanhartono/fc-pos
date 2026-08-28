@@ -8,6 +8,8 @@ import {
   type DbExecutor,
   deriveItemStatus,
   deriveOrderStatus,
+  type ItemStatusLine,
+  isHandedOverByPickup,
   isItemCollectable,
   isTerminalOrderServiceStatus,
   nextReadyAt,
@@ -18,12 +20,21 @@ import {
   transitionOrderService,
 } from "@/modules/orders/order-status-machine";
 
-interface AnyLine {
+interface AnyLine extends ItemStatusLine {
   id: number;
-  status: OrderServiceStatus;
 }
 
 const s = (status: OrderServiceStatus) => ({ status });
+
+const PICKUP_EVENT = 9;
+
+// A treatment as the Item rollup reads it — the second argument is the whole
+// question there, so every test states it: an id means this row went out the
+// door on that handover, null means it is still on our rack.
+const t = (
+  status: OrderServiceStatus,
+  pickup_event_id: number | null = null
+) => ({ pickup_event_id, status });
 // product line state: cancelled vs active/refunded (only cancellation affects rollup)
 const p = (cancelled = false) => ({
   cancelled_at: cancelled ? new Date() : null,
@@ -126,33 +137,33 @@ describe("deriveOrderStatus", () => {
 // treatments applied to it, so there is nothing to drift.
 describe("deriveItemStatus", () => {
   it("reads as queued while the pair is still waiting to be started", () => {
-    expect(deriveItemStatus([s("queued"), s("queued")])).toBe("queued");
+    expect(deriveItemStatus([t("queued"), t("queued")])).toBe("queued");
   });
 
   it("reads as processing the moment any one treatment is under way", () => {
     // Three jobs on one shoe: the object is in the workshop as soon as the
     // first worker picks it up, whatever the other two are doing.
-    expect(deriveItemStatus([s("queued"), s("processing"), s("queued")])).toBe(
+    expect(deriveItemStatus([t("queued"), t("processing"), t("queued")])).toBe(
       "processing"
     );
-    expect(deriveItemStatus([s("queued"), s("quality_check")])).toBe(
+    expect(deriveItemStatus([t("queued"), t("quality_check")])).toBe(
       "processing"
     );
   });
 
   it("reaches the shelf only when every live treatment is finished", () => {
     expect(
-      deriveItemStatus([s("ready_for_pickup"), s("ready_for_pickup")])
+      deriveItemStatus([t("ready_for_pickup"), t("ready_for_pickup")])
     ).toBe("ready_for_pickup");
     // One still in the workshop keeps the whole object off the shelf.
-    expect(deriveItemStatus([s("ready_for_pickup"), s("processing")])).toBe(
+    expect(deriveItemStatus([t("ready_for_pickup"), t("processing")])).toBe(
       "processing"
     );
   });
 
   it("ignores a cancelled sibling when the rest are done", () => {
     // Work the shop is never going to do must not strand the object.
-    expect(deriveItemStatus([s("ready_for_pickup"), s("cancelled")])).toBe(
+    expect(deriveItemStatus([t("ready_for_pickup"), t("cancelled")])).toBe(
       "ready_for_pickup"
     );
   });
@@ -160,18 +171,32 @@ describe("deriveItemStatus", () => {
   it("still reads as queued when a cancelled treatment is the only thing that moved", () => {
     // The shoe is on the rack untouched. This status is what the customer sees
     // on /track, so calling it processing promises work nobody has started.
-    expect(deriveItemStatus([s("cancelled"), s("queued")])).toBe("queued");
+    expect(deriveItemStatus([t("cancelled"), t("queued")])).toBe("queued");
   });
 
-  it("reads as picked_up once nothing live is left on it", () => {
-    expect(deriveItemStatus([s("picked_up")])).toBe("picked_up");
-    expect(deriveItemStatus([s("picked_up"), s("refunded")])).toBe("picked_up");
-    // A refund is still an object that left the shop, not a cancelled one.
-    expect(deriveItemStatus([s("refunded"), s("cancelled")])).toBe("picked_up");
+  it("reads as picked_up once the object has actually gone out the door", () => {
+    expect(deriveItemStatus([t("picked_up", PICKUP_EVENT)])).toBe("picked_up");
+    expect(
+      deriveItemStatus([t("picked_up", PICKUP_EVENT), t("refunded")])
+    ).toBe("picked_up");
+    // Collected first, refunded afterwards at the counter: the row is refunded
+    // but it still points at the handover that took the pair home.
+    expect(
+      deriveItemStatus([t("refunded", PICKUP_EVENT), t("cancelled")])
+    ).toBe("picked_up");
+  });
+
+  it("reads as refunded when the money went back but the pair never did", () => {
+    // Paid up front, changed their mind while it sat queued. Money settled,
+    // nothing called off — the Order rollup calls that completed — but the
+    // shoes are on our rack, and /track must not tell the customer they are
+    // holding them.
+    expect(deriveItemStatus([t("refunded")])).toBe("refunded");
+    expect(deriveItemStatus([t("refunded"), t("cancelled")])).toBe("refunded");
   });
 
   it("reads as cancelled only when the whole object was called off", () => {
-    expect(deriveItemStatus([s("cancelled"), s("cancelled")])).toBe(
+    expect(deriveItemStatus([t("cancelled"), t("cancelled")])).toBe(
       "cancelled"
     );
   });
@@ -180,24 +205,33 @@ describe("deriveItemStatus", () => {
 describe("isItemCollectable", () => {
   it("lets an object go when every live treatment on it is ready", () => {
     expect(
-      isItemCollectable([s("ready_for_pickup"), s("ready_for_pickup")])
+      isItemCollectable([t("ready_for_pickup"), t("ready_for_pickup")])
     ).toBe(true);
-    expect(isItemCollectable([s("ready_for_pickup"), s("cancelled")])).toBe(
+    expect(isItemCollectable([t("ready_for_pickup"), t("cancelled")])).toBe(
       true
     );
   });
 
+  it("lets a refunded pair go home even though nothing was done to it", () => {
+    // The refund settled the money, not the object. Without this the pair has
+    // no treatment left that could ever turn ready, so the desk could never
+    // record giving it back and it would sit on the rack for good.
+    expect(isItemCollectable([t("refunded")])).toBe(true);
+    expect(isItemCollectable([t("refunded"), t("cancelled")])).toBe(true);
+  });
+
   it("holds it back while any treatment is still live and unfinished", () => {
-    expect(isItemCollectable([s("ready_for_pickup"), s("processing")])).toBe(
+    expect(isItemCollectable([t("ready_for_pickup"), t("processing")])).toBe(
       false
     );
-    expect(isItemCollectable([s("queued")])).toBe(false);
+    expect(isItemCollectable([t("queued")])).toBe(false);
   });
 
   it("refuses an object with nothing left to hand over", () => {
     // Already collected, so re-scanning the tag must not mint a second
     // handover for a shoe that is out of the shop.
-    expect(isItemCollectable([s("picked_up")])).toBe(false);
+    expect(isItemCollectable([t("picked_up", PICKUP_EVENT)])).toBe(false);
+    expect(isItemCollectable([t("refunded", PICKUP_EVENT)])).toBe(false);
     expect(isItemCollectable([])).toBe(false);
   });
 });
@@ -319,11 +353,15 @@ const makePickupExecutor = ({
   items: { id: number; item_code: string; services: AnyLine[] }[];
   flipped?: number[];
 }) => {
-  const readyIds = items.flatMap((item) =>
-    item.services
-      .filter((service) => service.status === "ready_for_pickup")
-      .map((service) => service.id)
-  );
+  const handedOver = items
+    .flatMap((item) => item.services)
+    .filter(isHandedOverByPickup);
+  const readyIds = handedOver
+    .filter((service) => service.status === "ready_for_pickup")
+    .map((service) => service.id);
+  const stampIds = handedOver
+    .filter((service) => service.status !== "ready_for_pickup")
+    .map((service) => service.id);
 
   return {
     query: {
@@ -331,11 +369,18 @@ const makePickupExecutor = ({
       ordersServicesTable: { findMany: () => Promise.resolve([]) },
       ordersProductsTable: { findMany: () => Promise.resolve([]) },
     },
+    // The flip carries a new status, the stamp only the event — so the SET
+    // itself says which UPDATE this is, and the fake never has to assume the
+    // order they run in.
     update: () => ({
-      set: () => ({
+      set: (values: { status?: OrderServiceStatus }) => ({
         where: () => ({
           returning: () =>
-            Promise.resolve((flipped ?? readyIds).map((id) => ({ id }))),
+            Promise.resolve(
+              (values.status ? (flipped ?? readyIds) : stampIds).map((id) => ({
+                id,
+              }))
+            ),
         }),
       }),
     }),
@@ -359,14 +404,14 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
           id: 1,
           item_code: "#ORD-S001",
           services: [
-            { id: 5, status: "ready_for_pickup" },
-            { id: 6, status: "ready_for_pickup" },
+            { id: 5, ...t("ready_for_pickup") },
+            { id: 6, ...t("ready_for_pickup") },
           ],
         },
       ],
     });
     expect(await pickUp(executor, [1])).toEqual({
-      flippedIds: [5, 6],
+      handedOverIds: [5, 6],
       requestedIds: [5, 6],
     });
   });
@@ -380,8 +425,8 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
           id: 1,
           item_code: "#ORD-S001",
           services: [
-            { id: 5, status: "ready_for_pickup" },
-            { id: 6, status: "processing" },
+            { id: 5, ...t("ready_for_pickup") },
+            { id: 6, ...t("processing") },
           ],
         },
       ],
@@ -405,13 +450,13 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
           id: 1,
           item_code: "#ORD-S001",
           services: [
-            { id: 5, status: "ready_for_pickup" },
-            { id: 6, status: "cancelled" },
+            { id: 5, ...t("ready_for_pickup") },
+            { id: 6, ...t("cancelled") },
           ],
         },
       ],
     });
-    expect((await pickUp(executor, [1])).flippedIds).toEqual([5]);
+    expect((await pickUp(executor, [1])).handedOverIds).toEqual([5]);
   });
 
   it("refuses an object the customer already collected", async () => {
@@ -420,7 +465,72 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
         {
           id: 1,
           item_code: "#ORD-S001",
-          services: [{ id: 5, status: "picked_up" }],
+          services: [{ id: 5, ...t("picked_up", PICKUP_EVENT) }],
+        },
+      ],
+    });
+    let error: unknown;
+    try {
+      await pickUp(executor, [1]);
+    } catch (caught) {
+      error = caught;
+    }
+    expect((error as Error).message).toBe(
+      "Items not ready for pickup: #ORD-S001"
+    );
+  });
+
+  it("gives back a pair that was refunded before anyone came for it", async () => {
+    // Paid up front, refunded at the counter while it sat queued, and the
+    // customer still wants their shoes. Nothing flips — a refunded row has no
+    // status left to move — but the object leaves, so the row is stamped with
+    // the handover that took it.
+    const executor = makePickupExecutor({
+      items: [
+        {
+          id: 1,
+          item_code: "#ORD-S001",
+          services: [{ id: 5, ...t("refunded") }],
+        },
+      ],
+    });
+    expect(await pickUp(executor, [1])).toEqual({
+      handedOverIds: [5],
+      requestedIds: [5],
+    });
+  });
+
+  it("hands over the finished treatment and the refunded one together", async () => {
+    // One shoe, clean done and repaint refunded. It is a single object across
+    // the counter, so both rows record the same handover even though only the
+    // clean changes status.
+    const executor = makePickupExecutor({
+      items: [
+        {
+          id: 1,
+          item_code: "#ORD-S001",
+          services: [
+            { id: 5, ...t("ready_for_pickup") },
+            { id: 6, ...t("refunded") },
+          ],
+        },
+      ],
+    });
+    expect(await pickUp(executor, [1])).toEqual({
+      handedOverIds: [5, 6],
+      requestedIds: [5, 6],
+    });
+  });
+
+  it("refuses a refunded pair the customer has already taken home", async () => {
+    // Same rule as a collected shoe: the row already points at a handover, so
+    // re-scanning the tag must not mint a second one.
+    const executor = makePickupExecutor({
+      items: [
+        {
+          id: 1,
+          item_code: "#ORD-S001",
+          services: [{ id: 5, ...t("refunded", PICKUP_EVENT) }],
         },
       ],
     });
@@ -457,15 +567,15 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
           id: 1,
           item_code: "#ORD-S001",
           services: [
-            { id: 5, status: "ready_for_pickup" },
-            { id: 6, status: "ready_for_pickup" },
+            { id: 5, ...t("ready_for_pickup") },
+            { id: 6, ...t("ready_for_pickup") },
           ],
         },
       ],
       flipped: [5],
     });
     expect(await pickUp(executor, [1])).toEqual({
-      flippedIds: [5],
+      handedOverIds: [5],
       requestedIds: [5, 6],
     });
   });

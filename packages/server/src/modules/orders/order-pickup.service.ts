@@ -116,10 +116,10 @@ export async function createOrderPickupEvent({
         picked_up_at: orderPickupEventsTable.picked_up_at,
       });
 
-    // Which treatment rows flip is the machine's call — it resolves the
+    // Which treatment rows take part is the machine's call — it resolves the
     // objects' live siblings in this same transaction and refuses a half-ready
     // one (ADR-0017).
-    const { flippedIds, requestedIds } = await completePickup(tx, {
+    const { handedOverIds, requestedIds } = await completePickup(tx, {
       orderId,
       itemIds: uniqueItemIds,
       pickupEventId: event.id,
@@ -127,13 +127,13 @@ export async function createOrderPickupEvent({
       note: "Completed from order pickup desk",
     });
 
-    if (flippedIds.length !== requestedIds.length) {
+    if (handedOverIds.length !== requestedIds.length) {
       throw new BadRequestException(
         "Another cashier already processed one of the selected items. Refresh and try again."
       );
     }
 
-    return { event, flippedIds };
+    return { event, handedOverIds };
   });
 
   return {
@@ -142,6 +142,6 @@ export async function createOrderPickupEvent({
     item_ids: uniqueItemIds,
     order_id: orderId,
     picked_up_at: pickupEvent.event.picked_up_at,
-    service_ids: pickupEvent.flippedIds,
+    service_ids: pickupEvent.handedOverIds,
   };
 }

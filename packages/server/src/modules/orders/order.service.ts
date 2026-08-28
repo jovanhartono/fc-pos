@@ -23,6 +23,7 @@ import { resolveDiscount } from "@/modules/orders/order-discount.service";
 import { deriveOrderRefundStatus } from "@/modules/orders/order-refund-status";
 import {
   deriveItemStatus,
+  isCollectableItemStatus,
   summarizeOrderFulfillment,
 } from "@/modules/orders/order-status-machine";
 import {
@@ -589,15 +590,16 @@ export async function getOrderDetailById(id: number) {
 
       // Derived on read, never stored — an Item has no status column to drift
       // out of step with its treatments (ADR-0017). `is_collectable` is sent
-      // rather than left to the client because the rule ("every live treatment
-      // ready") is the server's to state; it is this same status by definition,
-      // so it is read off it rather than derived a second way.
+      // rather than left to the client because the rule is the server's to
+      // state: an object goes home when every live treatment on it is ready,
+      // and also when there is no live treatment left because the counter
+      // refunded it before anyone came back for the pair.
       const status = deriveItemStatus(services);
 
       return {
         ...item,
         status,
-        is_collectable: status === "ready_for_pickup",
+        is_collectable: isCollectableItemStatus(status),
         services,
       };
     }),

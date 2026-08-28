@@ -1,3 +1,4 @@
+import { isHandedOverByPickup } from "@fresclean/api/schema";
 import { CameraIcon } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -28,6 +29,7 @@ import {
 } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { readServerErrorMessage } from "@/lib/server-error";
+import { formatOrderServiceStatus } from "@/lib/status";
 
 type PickupDialogContextValue = {
 	orderId: number;
@@ -336,11 +338,20 @@ const PickupItemRow = memo(
 						<p className="text-muted-foreground text-xs">
 							{formatOrderServiceItemDetails(item)}
 						</p>
-						{/* Every treatment on it goes back together, so the cashier can
-						    see what they are actually handing over. */}
+						{/* Exactly the rows the pickup will act on — the same predicate the
+						    server partitions with, so a change to what a handover covers can
+						    never leave the cashier reading out the wrong list. A refunded one
+						    still crosses the counter but is marked, or it would promise work
+						    the customer is not getting. */}
 						<p className="text-muted-foreground text-xs">
 							{item.services
-								.map((treatment) => treatment.service?.name ?? "Service")
+								.filter(isHandedOverByPickup)
+								.map((treatment) => {
+									const name = treatment.service?.name ?? "Service";
+									return treatment.status === "refunded"
+										? `${name} (${formatOrderServiceStatus(treatment.status)})`
+										: name;
+								})
 								.join(", ")}
 						</p>
 					</div>

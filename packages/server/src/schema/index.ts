@@ -15,6 +15,8 @@ import {
   POSTOrderPickupEventSchema as _POSTOrderPickupEventSchema,
 } from "@/modules/orders/order-admin.schema";
 import {
+  type ItemStatusLine as _ItemStatusLine,
+  isHandedOverByPickup as _isHandedOverByPickup,
   ORDER_SERVICE_TRANSITIONS as _ORDER_SERVICE_TRANSITIONS,
   ORDER_TERMINAL_SERVICE_STATUSES as _ORDER_TERMINAL_SERVICE_STATUSES,
 } from "@/modules/orders/order-status-machine";
@@ -25,6 +27,8 @@ import { POSTStoreSchema as _POSTStoreSchema } from "@/modules/stores/store.sche
 
 export const ORDER_SERVICE_TRANSITIONS = _ORDER_SERVICE_TRANSITIONS;
 export const ORDER_TERMINAL_SERVICE_STATUSES = _ORDER_TERMINAL_SERVICE_STATUSES;
+export type ItemStatusLine = _ItemStatusLine;
+export const isHandedOverByPickup = _isHandedOverByPickup;
 export const POSTOrderPickupEventPresignSchema =
   _POSTOrderPickupEventPresignSchema;
 export const POSTOrderPickupEventSchema = _POSTOrderPickupEventSchema;

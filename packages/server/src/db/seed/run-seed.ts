@@ -1552,7 +1552,18 @@ async function seedOrders(params: {
       // while its repaint is still running — the case the pickup gate exists
       // to refuse.
       const lastItem = draftItems.at(-1);
-      if (lastItem && chance(UPSELL_ON_SAME_ITEM_CHANCE)) {
+      // ...but never a half-collected one. An object leaves the counter whole
+      // (ADR-0017), so a picked-up treatment cannot sit beside one still on the
+      // rack — the pickup desk can no longer produce that, and seeding it would
+      // put states in dev that no cashier could ever reach.
+      if (
+        lastItem &&
+        chance(UPSELL_ON_SAME_ITEM_CHANCE) &&
+        lastItem.treatments.every(
+          (existing) =>
+            (existing.status === "picked_up") === (finalStatus === "picked_up")
+        )
+      ) {
         lastItem.treatments.push(treatment);
       } else {
         draftItems.push({

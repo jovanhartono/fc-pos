@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { db } from "@/db";
 import {
   type cancelReasonEnum,
@@ -91,22 +91,33 @@ export function summarizeOrderFulfillment(
   };
 }
 
+// A treatment as the Item rollup needs to see it. `pickup_event_id` is not
+// decoration here — it is the only record of whether this treatment's object
+// physically went out the door, and the schema keeps it honest: the column is
+// NULL unless the row is picked_up or refunded, and never NULL on picked_up.
+export interface ItemStatusLine {
+  pickup_event_id: number | null;
+  status: OrderServiceStatus;
+}
+
 // What an Item is doing, rolled up from the treatments applied to it. Derived
 // on read and never stored: an Item is only ever loaded beside its own
 // treatments, so a column would be a second copy of the truth with nothing to
-// gain from it. `queued` stands where an Order reads `created`, `picked_up`
-// where it reads `completed`. See ADR-0017.
+// gain from it. `queued` stands where an Order reads `created`. See ADR-0017.
 export type DerivedItemStatus =
   | "queued"
   | "processing"
   | "ready_for_pickup"
   | "picked_up"
+  | "refunded"
   | "cancelled";
 
 // An Item rolls up exactly like an Order — same branches, same reading of a
 // cancelled sibling — so it *is* the Order rollup, renamed into treatment
 // vocabulary rather than restated. Writing the branches out a second time
 // would mean hand-syncing two copies every time a transition changes.
+//
+// `completed` is the one entry that cannot be renamed on its own: see below.
 const ITEM_STATUS_FOR: Record<DerivedOrderStatus, DerivedItemStatus> = {
   created: "queued",
   processing: "processing",
@@ -116,19 +127,57 @@ const ITEM_STATUS_FOR: Record<DerivedOrderStatus, DerivedItemStatus> = {
 };
 
 export function deriveItemStatus(
-  services: { status: OrderServiceStatus }[]
+  services: ItemStatusLine[]
 ): DerivedItemStatus {
-  return ITEM_STATUS_FOR[deriveOrderStatus(services, [])];
+  const status = ITEM_STATUS_FOR[deriveOrderStatus(services, [])];
+
+  // The Order rollup calls two different endings `completed` — money settled,
+  // nothing called off — and for an Order that is right. An Item status is a
+  // different claim: it says where the physical object is. A pair refunded at
+  // the counter while it was still queued has settled money and never moved off
+  // the rack, so reading it as picked_up tells the customer on /track that they
+  // are holding shoes that are actually still here. Only the pickup event
+  // separates that from the pair refunded after it was collected.
+  if (
+    status === "picked_up" &&
+    !services.some((service) => service.pickup_event_id != null)
+  ) {
+    return "refunded";
+  }
+
+  return status;
 }
 
 // You cannot hand back half an object: an Item leaves the counter only once
 // every treatment still live on it is ready. A cancelled sibling does not hold
-// the object hostage — the shop is never going to do that work — and that
-// reading comes free by asking the rollup rather than re-deriving it.
-export function isItemCollectable(
-  services: { status: OrderServiceStatus }[]
-): boolean {
-  return deriveItemStatus(services) === "ready_for_pickup";
+// the object hostage — the shop is never going to do that work.
+//
+// `refunded` is the object nobody ever touched: the money went back over the
+// counter while the pair sat queued, and the pair is still the customer's to
+// take home. It has no live treatment left that could ever turn ready, so
+// without this branch the desk could never record handing it back at all.
+export function isCollectableItemStatus(status: DerivedItemStatus): boolean {
+  return status === "ready_for_pickup" || status === "refunded";
+}
+
+export function isItemCollectable(services: ItemStatusLine[]): boolean {
+  return isCollectableItemStatus(deriveItemStatus(services));
+}
+
+// Does this treatment leave the shop when the desk hands its object over?
+// The finished ones do, and so do the ones refunded before anyone came for the
+// pair — the shop still owes those back. A cancelled treatment does not: the
+// work was called off, and the schema refuses it a pickup event. One already
+// carrying an event went out on an earlier handover.
+//
+// Exported through `@fresclean/api/schema` so the pickup dialog lists exactly
+// the rows this will act on, rather than the client keeping its own copy of
+// the rule (the same seam ADR-0018's `hasUnpricedLine` uses).
+export function isHandedOverByPickup(line: ItemStatusLine): boolean {
+  return (
+    line.status === "ready_for_pickup" ||
+    (line.status === "refunded" && line.pickup_event_id == null)
+  );
 }
 
 export function deriveOrderStatus(
@@ -362,21 +411,31 @@ export interface CompletePickupInput {
 }
 
 // Objects leave the counter, treatments do not — so the unit here is the Item,
-// and which of its rows flip is worked out from the Item rather than trusted
-// from the caller. ADR-0017's "you cannot hand back half an object" then holds
-// for anyone who reaches this, not just the pickup desk, and the read happens
-// inside the caller's transaction: resolving siblings outside it would let a
-// rework queued a moment earlier slip past the check.
+// and which of its rows take part is worked out from the Item rather than
+// trusted from the caller. ADR-0017's "you cannot hand back half an object"
+// then holds for anyone who reaches this, not just the pickup desk, and the
+// read happens inside the caller's transaction: resolving siblings outside it
+// would let a rework queued a moment earlier slip past the check.
+//
+// Two kinds of row leave with the object. The finished ones flip to picked_up.
+// The ones refunded before the customer ever came back have no status left to
+// move — the shop still owes them the pair — so they only take the stamp
+// saying which handover took them out. A cancelled sibling takes neither: the
+// shop never did that work, and the schema refuses it a pickup event.
 export async function completePickup(
   executor: DbExecutor,
   input: CompletePickupInput
-): Promise<{ flippedIds: number[]; requestedIds: number[] }> {
+): Promise<{ handedOverIds: number[]; requestedIds: number[] }> {
   const { orderId, itemIds, pickupEventId, by, note } = input;
 
   const items = await executor.query.itemsTable.findMany({
     where: { order_id: orderId, id: { in: itemIds } },
     columns: { id: true, item_code: true },
-    with: { services: { columns: { id: true, status: true } } },
+    with: {
+      services: {
+        columns: { id: true, pickup_event_id: true, status: true },
+      },
+    },
   });
 
   if (items.length !== itemIds.length) {
@@ -396,43 +455,75 @@ export async function completePickup(
     );
   }
 
-  const services = items.flatMap((item) =>
-    item.services.filter((service) => service.status === "ready_for_pickup")
-  );
-  const serviceIds = services.map((service) => service.id);
+  const handedOver = items
+    .flatMap((item) => item.services)
+    .filter(isHandedOverByPickup);
+  const flipIds = handedOver
+    .filter((service) => service.status === "ready_for_pickup")
+    .map((service) => service.id);
+  const stampIds = handedOver
+    .filter((service) => service.status !== "ready_for_pickup")
+    .map((service) => service.id);
+  const requestedIds = [...flipIds, ...stampIds];
 
-  const flipped = await executor
-    .update(ordersServicesTable)
-    .set({ status: "picked_up", pickup_event_id: pickupEventId })
-    .where(
-      and(
-        eq(ordersServicesTable.order_id, orderId),
-        inArray(ordersServicesTable.id, serviceIds),
-        eq(ordersServicesTable.status, "ready_for_pickup")
-      )
-    )
-    .returning({ id: ordersServicesTable.id });
+  const flipped =
+    flipIds.length > 0
+      ? await executor
+          .update(ordersServicesTable)
+          .set({ status: "picked_up", pickup_event_id: pickupEventId })
+          .where(
+            and(
+              eq(ordersServicesTable.order_id, orderId),
+              inArray(ordersServicesTable.id, flipIds),
+              eq(ordersServicesTable.status, "ready_for_pickup")
+            )
+          )
+          .returning({ id: ordersServicesTable.id })
+      : [];
 
-  if (flipped.length !== serviceIds.length) {
-    return {
-      flippedIds: flipped.map((row) => row.id),
-      requestedIds: serviceIds,
-    };
+  // Same guard as the flip: a row another cashier already stamped is a row
+  // this handover did not win, so the caller can roll the whole event back.
+  const stamped =
+    stampIds.length > 0
+      ? await executor
+          .update(ordersServicesTable)
+          .set({ pickup_event_id: pickupEventId })
+          .where(
+            and(
+              eq(ordersServicesTable.order_id, orderId),
+              inArray(ordersServicesTable.id, stampIds),
+              eq(ordersServicesTable.status, "refunded"),
+              isNull(ordersServicesTable.pickup_event_id)
+            )
+          )
+          .returning({ id: ordersServicesTable.id })
+      : [];
+
+  const handedOverIds = [...flipped, ...stamped].map((row) => row.id);
+
+  if (handedOverIds.length !== requestedIds.length) {
+    return { handedOverIds, requestedIds };
   }
 
-  await executor.insert(orderServiceStatusLogsTable).values(
-    services.map((service) => ({
-      order_service_id: service.id,
-      from_status: service.status,
-      to_status: "picked_up" as const,
-      changed_by: by,
-      note,
-    }))
-  );
+  // Only the flips get a log line. A stamped row did not change status, and a
+  // refunded → refunded entry would render on the line's timeline as a
+  // transition that never happened; the pickup event itself is the record of
+  // when that pair went back and who handed it over.
+  if (flipIds.length > 0) {
+    await executor.insert(orderServiceStatusLogsTable).values(
+      flipIds.map((serviceId) => ({
+        order_service_id: serviceId,
+        from_status: "ready_for_pickup" as const,
+        to_status: "picked_up" as const,
+        changed_by: by,
+        note,
+      }))
+    );
+  }
 
   await recomputeOrderRollup(executor, orderId, by);
 
-  return { flippedIds: flipped.map((row) => row.id), requestedIds: serviceIds };
+  return { handedOverIds, requestedIds };
 }
 
 export interface RefundTransitionItem {
