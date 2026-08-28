@@ -91,6 +91,44 @@ export function summarizeOrderFulfillment(
   };
 }
 
+// How far along the live treatments are, with nothing said about what the
+// ending is called. This is the part an Order and an Item genuinely share —
+// including the subtle rule that a cancelled line is not evidence anyone
+// started — so it lives here once and each aggregate names its own endings.
+type TreatmentWorkPhase =
+  | "nothing_started"
+  | "in_progress"
+  | "all_ready"
+  | "no_live_work";
+
+function classifyTreatmentWork(
+  services: { status: OrderServiceStatus }[]
+): TreatmentWorkPhase {
+  const active = services.filter(
+    (item) => !isTerminalOrderServiceStatus(item.status)
+  );
+
+  if (active.length === 0) {
+    return "no_live_work";
+  }
+  if (active.every((item) => item.status === "ready_for_pickup")) {
+    return "all_ready";
+  }
+  // Has anything actually been worked on? A cancelled line is work the shop
+  // will never do, so it is no evidence that anyone started — the customer who
+  // dropped the treatment at the counter must still see the rest of the rack as
+  // untouched. Every other terminal line (picked_up, refunded) IS evidence:
+  // that work happened and left.
+  if (
+    services.some(
+      (item) => item.status !== "queued" && item.status !== "cancelled"
+    )
+  ) {
+    return "in_progress";
+  }
+  return "nothing_started";
+}
+
 // A treatment as the Item rollup needs to see it. `pickup_event_id` is not
 // decoration here — it is the only record of whether this treatment's object
 // physically went out the door, and the schema keeps it honest: the column is
@@ -103,7 +141,7 @@ export interface ItemStatusLine {
 // What an Item is doing, rolled up from the treatments applied to it. Derived
 // on read and never stored: an Item is only ever loaded beside its own
 // treatments, so a column would be a second copy of the truth with nothing to
-// gain from it. `queued` stands where an Order reads `created`. See ADR-0017.
+// gain from it. See ADR-0017.
 export type DerivedItemStatus =
   | "queued"
   | "processing"
@@ -112,40 +150,37 @@ export type DerivedItemStatus =
   | "refunded"
   | "cancelled";
 
-// An Item rolls up exactly like an Order — same branches, same reading of a
-// cancelled sibling — so it *is* the Order rollup, renamed into treatment
-// vocabulary rather than restated. Writing the branches out a second time
-// would mean hand-syncing two copies every time a transition changes.
-//
-// `completed` is the one entry that cannot be renamed on its own: see below.
-const ITEM_STATUS_FOR: Record<DerivedOrderStatus, DerivedItemStatus> = {
-  created: "queued",
-  processing: "processing",
-  ready_for_pickup: "ready_for_pickup",
-  completed: "picked_up",
-  cancelled: "cancelled",
-};
-
 export function deriveItemStatus(
   services: ItemStatusLine[]
 ): DerivedItemStatus {
-  const status = ITEM_STATUS_FOR[deriveOrderStatus(services, [])];
+  const phase = classifyTreatmentWork(services);
 
-  // The Order rollup calls two different endings `completed` — money settled,
-  // nothing called off — and for an Order that is right. An Item status is a
-  // different claim: it says where the physical object is. A pair refunded at
-  // the counter while it was still queued has settled money and never moved off
-  // the rack, so reading it as picked_up tells the customer on /track that they
-  // are holding shoes that are actually still here. Only the pickup event
-  // separates that from the pair refunded after it was collected.
-  if (
-    status === "picked_up" &&
-    !services.some((service) => service.pickup_event_id != null)
-  ) {
-    return "refunded";
+  if (phase === "all_ready") {
+    return "ready_for_pickup";
+  }
+  if (phase === "in_progress") {
+    return "processing";
+  }
+  if (phase === "nothing_started") {
+    return "queued";
   }
 
-  return status;
+  // Nothing live is left, and unlike an Order — which only has to say whether
+  // money settled — an Item status is a claim about where the physical object
+  // is. So the endings split three ways, and the pickup event is what tells
+  // them apart: a pair refunded at the counter while it was still queued never
+  // moved off the rack, and calling that picked_up would tell the customer on
+  // /track that they are holding shoes still sitting in the shop.
+  if (services.length === 0) {
+    return "queued";
+  }
+  if (services.every((service) => service.status === "cancelled")) {
+    return "cancelled";
+  }
+  if (services.some((service) => service.pickup_event_id != null)) {
+    return "picked_up";
+  }
+  return "refunded";
 }
 
 // You cannot hand back half an object: an Item leaves the counter only once
@@ -184,31 +219,20 @@ export function deriveOrderStatus(
   services: { status: OrderServiceStatus }[],
   products: { cancelled_at: Date | null }[]
 ): DerivedOrderStatus {
-  const activeServices = services.filter(
-    (item) => !isTerminalOrderServiceStatus(item.status)
-  );
+  // Live work comes only from services (products have no processing axis).
+  const phase = classifyTreatmentWork(services);
 
-  // Active work comes only from services (products have no processing axis).
-  if (activeServices.length > 0) {
-    if (activeServices.every((item) => item.status === "ready_for_pickup")) {
-      return "ready_for_pickup";
-    }
-    // Has anything actually been worked on? A cancelled line is work the shop
-    // will never do, so it is no evidence that anyone started — the customer
-    // who dropped the treatment at the counter must still see the rest of the
-    // rack as queued. Every other terminal line (picked_up, refunded) IS
-    // evidence: that work happened and left.
-    if (
-      services.some(
-        (item) => item.status !== "queued" && item.status !== "cancelled"
-      )
-    ) {
-      return "processing";
-    }
+  if (phase === "all_ready") {
+    return "ready_for_pickup";
+  }
+  if (phase === "in_progress") {
+    return "processing";
+  }
+  if (phase === "nothing_started") {
     return "created";
   }
 
-  // No active services: roll up over every terminal line — services and products.
+  // No live services: roll up over every terminal line — services and products.
   if (services.length + products.length === 0) {
     return "created";
   }

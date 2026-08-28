@@ -30,7 +30,7 @@ The trigger was `item_code`. It is generated per service line (`${code}-S001`, `
 
 ## Amendment 2026-08-28 — a refunded pair still goes home
 
-Two decisions above combine into a wrong answer. Item status was defined as the Order rollup renamed into treatment vocabulary, which maps the Order's `completed` onto the Item's `picked_up`; and refund is reachable from every non-terminal status ([ADR-0004](0004-role-capabilities-v1.md)). So a pair dropped off, refunded at the counter, and still sitting on the rack has no live treatment left, rolls up as `completed`, and reads back as `picked_up`.
+Two decisions above combined into a wrong answer. Item status was taken to be the Order rollup with its endings renamed, so the Order's `completed` became the Item's `picked_up`; and refund is reachable from every non-terminal status ([ADR-0004](0004-role-capabilities-v1.md)). So a pair dropped off, refunded at the counter, and still sitting on the rack had no live treatment left, rolled up as `completed`, and read back as `picked_up`.
 
 `completed` is the right word for the Order — money settled, nothing called off. It is the wrong word for an Item, because an Item status is a claim about **where the physical object is**, and this one never moved. The customer saw **PICKED UP** on `/track` for shoes still in our shop, and the pickup desk refused to hand them over, because a refunded row has no live treatment that could ever turn ready.
 
@@ -40,4 +40,6 @@ Two decisions above combine into a wrong answer. Item status was defined as the 
 - **A fully refunded, never-collected Item is collectable.** The refund settled the money, not the object; the pair is still the customer's to take home.
 - **The handover is recorded on every row that leaves with the object; only a status change earns a status-log entry.** The finished treatments flip to `picked_up`. A treatment refunded before anyone came for the pair has no status left to move, so it records the handover and nothing else — the pickup event is what says when that pair went back and who returned it. A `cancelled` sibling records neither: the shop never did that work, and the schema refuses it a pickup event.
 
-Order status is untouched: `deriveOrderStatus` still rolls up over treatment rows and still calls both endings `completed`, which for an Order is correct ([ADR-0008](0008-cancel-is-unpaid-per-line-refund-twin.md)).
+- **The two rollups share how far the work got, not what the ending is called.** "Renaming the Order rollup" was the wrong seam — it had to be corrected afterwards from the very rows it was given, because the rename collapsed two endings into one. What an Order and an Item genuinely share is reading the live treatments: nothing started, in progress, all ready, or nothing live left — including the subtle rule that a cancelled line is no evidence anyone started. That classification lives in one place; each aggregate then names its own endings. This is still not "Order status derived from Item statuses", which stays rejected above.
+
+Order status is unchanged: it still rolls up over treatment rows directly, and still calls both endings `completed`, which for an Order is correct — money settled, nothing called off ([ADR-0008](0008-cancel-is-unpaid-per-line-refund-twin.md)).
