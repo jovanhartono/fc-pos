@@ -2,7 +2,10 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { db } from "@/db";
 import { NotFoundException } from "@/http-exceptions";
-import { deriveItemStatus } from "@/modules/orders/order-status-machine";
+import {
+  deriveItemStatus,
+  isCollectableItemStatus,
+} from "@/modules/orders/order-status-machine";
 import { phoneSchema } from "@/schema/common";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
@@ -123,27 +126,38 @@ const app = new Hono().post(
     const orderCustomer = order.customer;
     const { pickup_code, ...orderWithoutPickupCode } = order;
 
+    // Derived here rather than on the page: the rollup now turns on
+    // whether a pickup event ever took the object out, and that is a
+    // shop-internal id no tracking page should be handed. Each treatment
+    // is rebuilt field by field rather than spread-minus-the-id, so the
+    // next column selected to feed a derivation has to be named here
+    // before it can reach a customer.
+    const items = order.items.map(({ services, ...item }) => ({
+      ...item,
+      status: deriveItemStatus(services),
+      services: services.map(({ id, status, service, statusLogs }) => ({
+        id,
+        status,
+        service,
+        statusLogs,
+      })),
+    }));
+
     return c.json(
       success(
         {
           ...orderWithoutPickupCode,
-          // Derived here rather than on the page: the rollup now turns on
-          // whether a pickup event ever took the object out, and that is a
-          // shop-internal id no tracking page should be handed. Each treatment
-          // is rebuilt field by field rather than spread-minus-the-id, so the
-          // next column selected to feed a derivation has to be named here
-          // before it can reach a customer.
-          items: order.items.map(({ services, ...item }) => ({
-            ...item,
-            status: deriveItemStatus(services),
-            services: services.map(({ id, status, service, statusLogs }) => ({
-              id,
-              status,
-              service,
-              statusLogs,
-            })),
-          })),
-          pickup_code: order.status === "ready_for_pickup" ? pickup_code : null,
+          items,
+          // Shown while anything is still on the rack to collect — which
+          // includes a fully refunded pair the customer never came back for.
+          // The Order rollup says "completed" there (the money is settled,
+          // ADR-0008), so gating on it hid the code for exactly the object
+          // most likely to be forgotten.
+          pickup_code: items.some((item) =>
+            isCollectableItemStatus(item.status)
+          )
+            ? pickup_code
+            : null,
           customer: {
             id: orderCustomer.id,
             name: orderCustomer.name,

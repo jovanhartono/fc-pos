@@ -653,10 +653,10 @@ describe("createOrder", () => {
     // not to the treatments written against them (ADR-0017).
     expect(repo.itemRows).toHaveLength(2);
     expect(repo.itemRows[0]).toMatchObject({
-      item_code: `${code}-S001`,
+      item_code: `${code}-I001`,
       order_id: 501,
     });
-    expect(repo.itemRows[1]).toMatchObject({ item_code: `${code}-S002` });
+    expect(repo.itemRows[1]).toMatchObject({ item_code: `${code}-I002` });
 
     expect(repo.serviceRows).toHaveLength(2);
     expect(repo.serviceRows[0]).toMatchObject({
@@ -703,7 +703,7 @@ describe("createOrder", () => {
       expect.objectContaining({
         brand: "Nike",
         color: "Black",
-        item_code: `${code}-S001`,
+        item_code: `${code}-I001`,
         order_id: 501,
       }),
     ]);

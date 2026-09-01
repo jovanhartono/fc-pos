@@ -1,4 +1,4 @@
-import { PICKUP_OVERDUE_HOURS } from "@fresclean/api/schema";
+import { TURNAROUND_PROMISE_HOURS } from "@fresclean/api/schema";
 import {
 	CaretRightIcon,
 	FunnelIcon,
@@ -55,7 +55,9 @@ const HOUR_MS = 3_600_000;
 
 // One threshold, not a four-step ramp: an amber-at-24h/red-at-72h scale paints a
 // whole backlog the same colour, and a list where every row is red says nothing.
-const TURNAROUND_MS = PICKUP_OVERDUE_HOURS * HOUR_MS;
+// The workshop clock (from drop-off) — not PICKUP_OVERDUE_HOURS, which times
+// the customer's collection from ready_at on a different screen.
+const TURNAROUND_MS = TURNAROUND_PROMISE_HOURS * HOUR_MS;
 
 // One timer for the whole list, not one per row: the queue scrolls to hundreds
 // of rows and each row used to own its own interval, so the clock cost grew
@@ -554,11 +556,16 @@ function QueuePage() {
 					</div>
 				) : null}
 
-				<QueueStatusTabs
-					counts={countsQuery.data}
-					onValueChange={updateStatusFilter}
-					value={selectedStatus ?? "all"}
-				/>
+				{/* Hidden while a scanned tag pins the list to one object: the counts
+				    describe the whole branch, and chips saying "47" over a one-card
+				    list are lying. They come back with Clear. */}
+				{!selectedSearch && (
+					<QueueStatusTabs
+						counts={countsQuery.data}
+						onValueChange={updateStatusFilter}
+						value={selectedStatus ?? "all"}
+					/>
+				)}
 
 				<section className="grid min-w-0 gap-2">
 					{role === "admin" && parsedStoreId === undefined ? (

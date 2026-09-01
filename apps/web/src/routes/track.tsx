@@ -1,4 +1,8 @@
 import {
+	type DerivedItemStatus,
+	isCollectableItemStatus,
+} from "@fresclean/api/schema";
+import {
 	ArrowCounterClockwiseIcon,
 	CheckCircleIcon,
 	PackageIcon,
@@ -45,6 +49,11 @@ type OrderStatus =
 	| "completed"
 	| "cancelled";
 
+type TrackItem = {
+	status: DerivedItemStatus;
+	services: { status: string }[];
+};
+
 type Stage = {
 	key: "received" | "cleaned" | "qc" | "ready";
 	label: string;
@@ -79,21 +88,26 @@ const STAGES: readonly Stage[] = [
 	},
 ] as const;
 
-function getStageIndexFromOrderStatus(
-	status: OrderStatus,
-	serviceStatuses: string[],
-): number {
-	if (status === "completed") {
+// The rail follows the objects, not the money. The Order rollup says
+// "completed" for a refunded pair still on our rack (ADR-0008 — the money is
+// settled), and reading it here painted all four stages done for a shoe the
+// customer still has to come and get.
+function getStageIndex(items: TrackItem[]): number {
+	const statuses = items.map((item) => item.status);
+	if (
+		statuses.length > 0 &&
+		statuses.every((status) => status === "picked_up" || status === "cancelled")
+	) {
 		return STAGES.length;
 	}
-	if (status === "ready_for_pickup") {
+	if (statuses.some(isCollectableItemStatus)) {
 		return 3;
 	}
-	if (status === "processing") {
-		if (serviceStatuses.some((s) => s === "quality_check")) {
-			return 2;
-		}
-		return 1;
+	if (statuses.includes("processing")) {
+		const serviceStatuses = items.flatMap((item) =>
+			item.services.map((service) => service.status),
+		);
+		return serviceStatuses.includes("quality_check") ? 2 : 1;
 	}
 	return 0;
 }
@@ -301,16 +315,14 @@ function TrackOrderPage() {
 
 	const items = trackData?.items ?? [];
 
-	const stageIndex = trackData
-		? getStageIndexFromOrderStatus(
-				trackData.status as OrderStatus,
-				items.flatMap((item) => item.services.map((s) => s.status)),
-			)
-		: 0;
+	const stageIndex = getStageIndex(items);
 
 	const orderStatus = trackData?.status as OrderStatus | undefined;
 	const isCancelled = orderStatus === "cancelled";
-	const isReady = orderStatus === "ready_for_pickup";
+	// Per item, not per order: one collectable object is enough to send the
+	// customer to the counter — and this is the same predicate the server gates
+	// pickup_code on, so the banner and the code can never disagree.
+	const isReady = items.some((item) => isCollectableItemStatus(item.status));
 
 	const storePhoneE164 = trackData?.store.phone_number?.replace(/\D/g, "");
 

@@ -167,7 +167,10 @@ function buildItemRows({
   return items.map((item, index) => ({
     brand: item.brand,
     color: item.color,
-    item_code: `${code}-S${String(index + 1).padStart(3, "0")}`,
+    // I for Item, the unit of work since ADR-0017. Tags minted before that
+    // carry -S and stay valid: nothing parses the suffix — every lookup
+    // matches the stored string.
+    item_code: `${code}-I${String(index + 1).padStart(3, "0")}`,
     model: item.model,
     order_id: orderId,
     size: item.size,

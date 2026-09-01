@@ -11,6 +11,7 @@ import {
 	useState,
 } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -27,7 +28,7 @@ import {
 	presignOrderPickupEvent,
 	uploadFileToPresignedUrl,
 } from "@/lib/api";
-import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
+import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { formatOrderServiceStatus } from "@/lib/status";
 
@@ -91,7 +92,16 @@ export const OrderPickupEventDialog = ({
 }: OrderPickupEventDialogProps) => {
 	const queryClient = useQueryClient();
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(
-		() => new Set(collectableItems.map((item) => item.id)),
+		// Only the ready ones start ticked. A refunded pair is collectable too,
+		// but it is the row most likely to be wrong by default — a customer
+		// collecting one pair walked out with two unless the cashier read the
+		// small print. Handing it back stays one deliberate tap.
+		() =>
+			new Set(
+				collectableItems
+					.filter((item) => item.status === "ready_for_pickup")
+					.map((item) => item.id),
+			),
 	);
 	const [file, setFileState] = useState<File | null>(null);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -320,6 +330,7 @@ type PickupItemRowProps = {
 const PickupItemRow = memo(
 	({ isSelected, onToggle, item }: PickupItemRowProps) => {
 		const id = `pickup-item-${item.id}`;
+		const details = getOrderServiceItemDetails(item);
 		return (
 			<li>
 				<label
@@ -332,27 +343,36 @@ const PickupItemRow = memo(
 						onCheckedChange={() => onToggle(item.id)}
 					/>
 					<div className="min-w-0 flex-1">
+						{/* What the cashier says out loud leads; the tag is the machine's
+						    handle and reads second, in mono like every other screen. */}
 						<span className="block font-medium leading-snug">
-							{item.item_code}
+							{details ?? item.item_code}
 						</span>
-						<p className="text-muted-foreground text-xs">
-							{formatOrderServiceItemDetails(item)}
-						</p>
+						{details ? (
+							<p className="font-mono text-[11px] text-muted-foreground">
+								{item.item_code}
+							</p>
+						) : null}
 						{/* Exactly the rows the pickup will act on — the same predicate the
 						    server partitions with, so a change to what a handover covers can
 						    never leave the cashier reading out the wrong list. A refunded one
-						    still crosses the counter but is marked, or it would promise work
-						    the customer is not getting. */}
-						<p className="text-muted-foreground text-xs">
-							{item.services
-								.filter(isHandedOverByPickup)
-								.map((treatment) => {
-									const name = treatment.service?.name ?? "Service";
-									return treatment.status === "refunded"
-										? `${name} (${formatOrderServiceStatus(treatment.status)})`
-										: name;
-								})
-								.join(", ")}
+						    still crosses the counter, and it carries the same danger badge it
+						    earns everywhere else — the one fact that changes what the cashier
+						    hands over must not be small print. */}
+						<p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-muted-foreground text-xs">
+							{item.services.filter(isHandedOverByPickup).map((treatment) => (
+								<span
+									className="inline-flex items-center gap-1"
+									key={treatment.id}
+								>
+									{treatment.service?.name ?? "Service"}
+									{treatment.status === "refunded" ? (
+										<Badge variant="danger">
+											{formatOrderServiceStatus(treatment.status)}
+										</Badge>
+									) : null}
+								</span>
+							))}
 						</p>
 					</div>
 				</label>

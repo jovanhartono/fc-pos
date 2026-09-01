@@ -1569,7 +1569,7 @@ async function seedOrders(params: {
         draftItems.push({
           brand: faker.helpers.arrayElement(BRANDS),
           color: faker.color.human(),
-          item_code: `${orderCode}-S${String(draftItems.length + 1).padStart(3, "0")}`,
+          item_code: `${orderCode}-I${String(draftItems.length + 1).padStart(3, "0")}`,
           model: faker.helpers.arrayElement([
             "Classic",
             "Sport",
