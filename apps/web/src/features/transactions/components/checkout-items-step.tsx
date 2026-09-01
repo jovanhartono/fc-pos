@@ -1,7 +1,9 @@
 import {
+	ArrowsLeftRightIcon,
 	CameraIcon,
 	CheckCircleIcon,
 	EyeIcon,
+	PlusIcon,
 	WarningIcon,
 	XIcon,
 } from "@phosphor-icons/react";
@@ -10,6 +12,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
 	Field,
 	FieldDescription,
@@ -202,9 +210,21 @@ interface CheckoutTreatmentRowProps {
 }
 
 const CheckoutTreatmentRow = ({ itemId, line }: CheckoutTreatmentRowProps) => {
-	const { removeService, updateServiceField } = useCart();
+	const { removeService, updateServiceField, moveService, itemRows } =
+		useCart();
 	const isUnpriced =
 		line.service.price === null && getServiceLinePrice(line) <= 0;
+	// Other objects this treatment could belong to instead. Numbered by cart
+	// position so the menu matches the card numbers on screen.
+	const moveTargets = itemRows
+		.map((item, index) => ({ item, itemNumber: index + 1 }))
+		.filter(({ item }) => item.line_id !== itemId);
+	// Moving is only meaningful when there is somewhere for the line to go:
+	// another card, or off a card that holds more than this one line. A single
+	// treatment alone on the only card would just be renumbering itself. With
+	// one card, that card is necessarily the one this row renders under.
+	const canMove =
+		itemRows.length > 1 || (itemRows[0]?.services.length ?? 0) > 1;
 
 	return (
 		<div className="grid gap-2 border-border/70 border-t p-3">
@@ -222,6 +242,46 @@ const CheckoutTreatmentRow = ({ itemId, line }: CheckoutTreatmentRowProps) => {
 					<span className="font-mono text-sm font-semibold tabular-nums">
 						{formatMoney(getServiceLinePrice(line))}
 					</span>
+					{/* The recovery for a tap that landed on the wrong shoe: carry the
+					    line — notes and negotiated price included — instead of delete,
+					    re-add, retype. */}
+					{canMove ? (
+						<DropdownMenu>
+							<DropdownMenuTrigger
+								render={
+									<Button
+										aria-label={`Move ${line.service.name} to another item`}
+										className="relative size-7 before:absolute before:-inset-2 before:content-['']"
+										icon={<ArrowsLeftRightIcon className="size-3.5" />}
+										size="icon-xs"
+										type="button"
+										variant="outline"
+									/>
+								}
+							/>
+							<DropdownMenuContent align="end">
+								{moveTargets.map(({ item, itemNumber }) => (
+									<DropdownMenuItem
+										key={item.line_id}
+										onClick={() =>
+											moveService(itemId, line.line_id, item.line_id)
+										}
+									>
+										<span className="font-mono tabular-nums">{itemNumber}</span>
+										<span className="max-w-40 truncate">
+											{getOrderServiceItemDetails(item) ?? "New item"}
+										</span>
+									</DropdownMenuItem>
+								))}
+								<DropdownMenuItem
+									onClick={() => moveService(itemId, line.line_id, null)}
+								>
+									<PlusIcon className="size-4" />
+									New item
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					) : null}
 					<Button
 						aria-label={`Remove ${line.service.name}`}
 						className="relative size-7 border-destructive/50 bg-destructive/10 text-destructive before:absolute before:-inset-2 before:content-[''] hover:border-destructive hover:bg-destructive/20 hover:text-destructive"

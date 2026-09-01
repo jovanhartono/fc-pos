@@ -3,12 +3,15 @@ import { useCallback, useMemo } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import {
 	buildActiveItemMap,
+	createCartLineId,
+	createEmptyItem,
 	enrichItemCart,
 	enrichProductCart,
 	getCartCount,
 	getCartSubtotal,
 	type ItemCartDisplayLine,
 	type ItemCartLine,
+	moveCartService,
 	type ProductCartDisplayLine,
 	type ProductCartLine,
 	resetTransactionDraft,
@@ -23,22 +26,6 @@ import {
 	servicesQueryOptions,
 } from "@/lib/query-options";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
-
-function createCartLineId(prefix: string) {
-	return (
-		globalThis.crypto?.randomUUID?.() ??
-		`${prefix}-${Date.now()}-${Math.random()}`
-	);
-}
-
-const createEmptyItem = (): ItemCartLine => ({
-	line_id: createCartLineId("item"),
-	brand: "",
-	color: "",
-	model: "",
-	size: "",
-	services: [],
-});
 
 export interface CartOps {
 	resetCart: () => void;
@@ -60,6 +47,11 @@ export interface CartOps {
 		lineId: string,
 		field: "notes" | "price",
 		value: string,
+	) => void;
+	moveService: (
+		fromItemId: string,
+		lineId: string,
+		toItemId: string | null,
 	) => void;
 	addProduct: (product: Product) => void;
 	addService: (service: Service) => void;
@@ -240,6 +232,23 @@ export function useCartOps(): CartOps {
 		[form, setProductCart, setSubmitError],
 	);
 
+	const moveService = useCallback(
+		(fromItemId: string, lineId: string, toItemId: string | null) => {
+			const next = moveCartService(
+				form.getValues("itemCart"),
+				fromItemId,
+				lineId,
+				toItemId,
+			);
+			if (!next) {
+				return;
+			}
+			setSubmitError("");
+			setItemCart(next);
+		},
+		[form, setItemCart, setSubmitError],
+	);
+
 	const addItem = useCallback(() => {
 		setSubmitError("");
 		const item = createEmptyItem();
@@ -294,6 +303,7 @@ export function useCartOps(): CartOps {
 		updateProductQty,
 		updateItemField,
 		updateServiceField,
+		moveService,
 		addProduct,
 		addService,
 		addItem,

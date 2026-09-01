@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/features/transactions/cart/useCart";
 import { CartLines } from "@/features/transactions/components/cart-lines";
+import { ItemTray } from "@/features/transactions/components/item-tray";
 import { formatMoney } from "@/shared/money";
 
 interface CartMiniBarProps {
@@ -15,8 +16,9 @@ interface CartMiniBarProps {
 }
 
 export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
-	const { count, subtotal } = useCart();
+	const { count, subtotal, itemRows } = useCart();
 	const [isPeeking, setIsPeeking] = useState(false);
+	const lineCountLabel = `${count} ${count === 1 ? "line" : "lines"}`;
 
 	if (count === 0) {
 		return null;
@@ -47,6 +49,8 @@ export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
 				</div>
 			) : null}
 
+			<ItemTray itemRows={itemRows} />
+
 			{/* Frosted strip under the buttons: the catalog scrolling behind reads as
 			    blurred depth instead of card borders cutting into the bar's edges. */}
 			<div className="pointer-events-auto flex gap-1 bg-background/40 p-1 backdrop-blur-xl">
@@ -59,11 +63,15 @@ export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
 					variant="outline"
 				>
 					<ShoppingCartIcon className="size-5" />
-					{/* Lines, not Items: this counts what is on the bill, so an
-					    upsold pair is two of them though the customer handed over one
-					    shoe. "Item" means the physical object now (ADR-0017). */}
+					{/* Both units, because they answer different questions: items is
+					    what the customer handed over, lines is what is on the bill —
+					    an upsold pair is one of the former and two of the latter
+					    (ADR-0017). Products have no object, so a product-only cart
+					    counts lines alone. */}
 					<span className="font-medium">
-						{count} {count === 1 ? "line" : "lines"}
+						{itemRows.length > 0
+							? `${itemRows.length} ${itemRows.length === 1 ? "item" : "items"} · ${lineCountLabel}`
+							: lineCountLabel}
 					</span>
 					{isPeeking ? (
 						<CaretDownIcon aria-hidden="true" className="size-4" />

@@ -97,6 +97,62 @@ interface TransactionResetActions {
 	setDropoffPhoto: (file: File | null) => void;
 }
 
+export const createCartLineId = (prefix: string) =>
+	globalThis.crypto?.randomUUID?.() ??
+	`${prefix}-${Date.now()}-${Math.random()}`;
+
+export const createEmptyItem = (): ItemCartLine => ({
+	line_id: createCartLineId("item"),
+	brand: "",
+	color: "",
+	model: "",
+	size: "",
+	services: [],
+});
+
+// The recovery for a catalog tap that landed on the wrong object: three shoes
+// on the counter each needing a Deep Clean used to become one shoe with three
+// Deep Cleans, and the only way back was delete + re-add + retype the notes and
+// the negotiated price. Moving carries the whole line. `toItemId: null` splits
+// it onto a fresh card. Returns null when there is nothing valid to do — a
+// vanished source, target, or line must be a no-op, never a dropped line.
+export const moveCartService = (
+	cart: ItemCartLine[],
+	fromItemId: string,
+	lineId: string,
+	toItemId: string | null,
+): ItemCartLine[] | null => {
+	if (fromItemId === toItemId) {
+		return null;
+	}
+	const source = cart.find((item) => item.line_id === fromItemId);
+	const line = source?.services.find((service) => service.line_id === lineId);
+	if (!line) {
+		return null;
+	}
+	if (toItemId !== null && !cart.some((item) => item.line_id === toItemId)) {
+		return null;
+	}
+	const stripped = cart.map((item) =>
+		item.line_id === fromItemId
+			? {
+					...item,
+					services: item.services.filter(
+						(service) => service.line_id !== lineId,
+					),
+				}
+			: item,
+	);
+	if (toItemId === null) {
+		return [...stripped, { ...createEmptyItem(), services: [line] }];
+	}
+	return stripped.map((item) =>
+		item.line_id === toItemId
+			? { ...item, services: [...item.services, line] }
+			: item,
+	);
+};
+
 // Which card a catalog tap lands on. Resolved from the cart on every read
 // rather than kept in step with it: a pointer at a card that is gone falls back
 // to the last one still on the counter, so no writer of `itemCart` has to

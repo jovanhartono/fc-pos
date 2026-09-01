@@ -11,6 +11,7 @@ import {
 	getCartPricing,
 	getCartSubtotal,
 	type ItemCartLine,
+	moveCartService,
 	type ProductCartLine,
 	type ServiceCartLine,
 	type TransactionDraftValues,
@@ -427,5 +428,40 @@ describe("toOrderPayload", () => {
 			})),
 		});
 		expect(payload.voucher_codes).toEqual(["ABC123DE", "XYZ789FG"]);
+	});
+});
+
+describe("moveCartService", () => {
+	// The three-shoes counter mistake: each shoe needs a Deep Clean, but every
+	// tap landed on the first card. Recovery is moving lines, not retyping them.
+	test("carries the whole line — notes and keyed price included — to the target card", () => {
+		const line = serviceLine("b", 6, { notes: "no bleach", price: "75000" });
+		const cart = [
+			itemLine("i1", [serviceLine("a", 5), line]),
+			itemLine("i2", []),
+		];
+		const next = moveCartService(cart, "i1", "b", "i2");
+		expect(next?.[0].services.map((s) => s.line_id)).toEqual(["a"]);
+		expect(next?.[1].services).toEqual([line]);
+	});
+
+	test("splits onto a fresh card when the tap should have been a second shoe", () => {
+		const cart = [itemLine("i1", [serviceLine("a", 5), serviceLine("b", 5)])];
+		const next = moveCartService(cart, "i1", "b", null);
+		expect(next).toHaveLength(2);
+		expect(next?.[0].services.map((s) => s.line_id)).toEqual(["a"]);
+		expect(next?.[1].services.map((s) => s.line_id)).toEqual(["b"]);
+		// A fresh card starts undescribed — the cashier has not typed anything
+		// about the second shoe yet.
+		expect(next?.[1].brand).toBe("");
+	});
+
+	test("refuses rather than drops the line when the target card is gone", () => {
+		// A stale menu can name a card another tap already removed; the line must
+		// stay where it is, never vanish off the bill.
+		const cart = [itemLine("i1", [serviceLine("a", 5)])];
+		expect(moveCartService(cart, "i1", "a", "gone")).toBeNull();
+		expect(moveCartService(cart, "i1", "missing-line", null)).toBeNull();
+		expect(moveCartService(cart, "i1", "a", "i1")).toBeNull();
 	});
 });
