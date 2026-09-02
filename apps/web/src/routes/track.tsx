@@ -93,9 +93,15 @@ const STAGES: readonly Stage[] = [
 // settled), and reading it here painted all four stages done for a shoe the
 // customer still has to come and get.
 function getStageIndex(items: TrackItem[]): number {
+	// Nothing was handed over — a products-only order — so there is no object
+	// to follow. Such an order is completed the moment it is created (or
+	// cancelled, which the rail handles above this), so the rail should say
+	// done rather than sit on "Received" beside a Completed badge.
+	if (items.length === 0) {
+		return STAGES.length;
+	}
 	const statuses = items.map((item) => item.status);
 	if (
-		statuses.length > 0 &&
 		statuses.every((status) => status === "picked_up" || status === "cancelled")
 	) {
 		return STAGES.length;
@@ -478,9 +484,14 @@ function TrackOrderPage() {
 
 								{isReady ? (
 									<div className="grid gap-3 border-l-2 border-emerald-500 bg-emerald-50 px-4 py-4">
+										{/* Says where the things are, not what state they are in:
+										    a refunded pair still on the rack already wears a
+										    Completed badge and a Refunded badge on this screen, and
+										    "ready for pickup" beside them was a third word for one
+										    situation. */}
 										<p className="text-sm text-emerald-900">
-											Ready for pickup. Read the code below to the cashier at
-											the counter.
+											Your order is waiting at the counter. Read the code below
+											to the cashier.
 										</p>
 										{trackData.pickup_code ? (
 											<p className="font-mono text-3xl font-bold tracking-[0.3em] text-emerald-900 tabular-nums">

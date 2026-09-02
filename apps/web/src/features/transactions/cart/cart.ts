@@ -114,14 +114,16 @@ export const createEmptyItem = (): ItemCartLine => ({
 // on the counter each needing a Deep Clean used to become one shoe with three
 // Deep Cleans, and the only way back was delete + re-add + retype the notes and
 // the negotiated price. Moving carries the whole line. `toItemId: null` splits
-// it onto a fresh card. Returns null when there is nothing valid to do — a
-// vanished source, target, or line must be a no-op, never a dropped line.
+// it onto a fresh card, and the result names that card so the caller can make
+// it the active one without guessing at its position. Returns null when there
+// is nothing valid to do — a vanished source, target, or line must be a no-op,
+// never a dropped line.
 export const moveCartService = (
 	cart: ItemCartLine[],
 	fromItemId: string,
 	lineId: string,
 	toItemId: string | null,
-): ItemCartLine[] | null => {
+): { cart: ItemCartLine[]; createdItemId: string | null } | null => {
 	if (fromItemId === toItemId) {
 		return null;
 	}
@@ -144,13 +146,17 @@ export const moveCartService = (
 			: item,
 	);
 	if (toItemId === null) {
-		return [...stripped, { ...createEmptyItem(), services: [line] }];
+		const created = { ...createEmptyItem(), services: [line] };
+		return { cart: [...stripped, created], createdItemId: created.line_id };
 	}
-	return stripped.map((item) =>
-		item.line_id === toItemId
-			? { ...item, services: [...item.services, line] }
-			: item,
-	);
+	return {
+		cart: stripped.map((item) =>
+			item.line_id === toItemId
+				? { ...item, services: [...item.services, line] }
+				: item,
+		),
+		createdItemId: null,
+	};
 };
 
 // Which card a catalog tap lands on. Resolved from the cart on every read

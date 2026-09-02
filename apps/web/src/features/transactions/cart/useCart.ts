@@ -234,19 +234,24 @@ export function useCartOps(): CartOps {
 
 	const moveService = useCallback(
 		(fromItemId: string, lineId: string, toItemId: string | null) => {
-			const next = moveCartService(
+			const moved = moveCartService(
 				form.getValues("itemCart"),
 				fromItemId,
 				lineId,
 				toItemId,
 			);
-			if (!next) {
+			if (!moved) {
 				return;
 			}
 			setSubmitError("");
-			setItemCart(next);
+			setItemCart(moved.cart);
+			// A split opens a card the same way "+ Item" does, so the next catalog
+			// tap lands on it the same way too.
+			if (moved.createdItemId) {
+				setActiveItemId(moved.createdItemId);
+			}
 		},
-		[form, setItemCart, setSubmitError],
+		[form, setItemCart, setSubmitError, setActiveItemId],
 	);
 
 	const addItem = useCallback(() => {

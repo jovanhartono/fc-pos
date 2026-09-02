@@ -440,20 +440,24 @@ describe("moveCartService", () => {
 			itemLine("i1", [serviceLine("a", 5), line]),
 			itemLine("i2", []),
 		];
-		const next = moveCartService(cart, "i1", "b", "i2");
-		expect(next?.[0].services.map((s) => s.line_id)).toEqual(["a"]);
-		expect(next?.[1].services).toEqual([line]);
+		const moved = moveCartService(cart, "i1", "b", "i2");
+		expect(moved?.cart[0].services.map((s) => s.line_id)).toEqual(["a"]);
+		expect(moved?.cart[1].services).toEqual([line]);
+		// Landed on a card that already existed, so nothing new to point at.
+		expect(moved?.createdItemId).toBeNull();
 	});
 
 	test("splits onto a fresh card when the tap should have been a second shoe", () => {
 		const cart = [itemLine("i1", [serviceLine("a", 5), serviceLine("b", 5)])];
-		const next = moveCartService(cart, "i1", "b", null);
-		expect(next).toHaveLength(2);
-		expect(next?.[0].services.map((s) => s.line_id)).toEqual(["a"]);
-		expect(next?.[1].services.map((s) => s.line_id)).toEqual(["b"]);
+		const moved = moveCartService(cart, "i1", "b", null);
+		expect(moved?.cart).toHaveLength(2);
+		expect(moved?.cart[0].services.map((s) => s.line_id)).toEqual(["a"]);
+		expect(moved?.cart[1].services.map((s) => s.line_id)).toEqual(["b"]);
 		// A fresh card starts undescribed — the cashier has not typed anything
-		// about the second shoe yet.
-		expect(next?.[1].brand).toBe("");
+		// about the second shoe yet — and is named so the next catalog tap can
+		// land on it, the way "+ Item" does.
+		expect(moved?.cart[1].brand).toBe("");
+		expect(moved?.createdItemId).toBe(moved?.cart[1].line_id);
 	});
 
 	test("refuses rather than drops the line when the target card is gone", () => {

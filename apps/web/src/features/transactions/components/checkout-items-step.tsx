@@ -35,7 +35,7 @@ import {
 	type ServiceCartDisplayLine,
 	type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
-import { useCart } from "@/features/transactions/cart/useCart";
+import { useCart, useCartOps } from "@/features/transactions/cart/useCart";
 import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { categoriesQueryOptions } from "@/lib/query-options";
@@ -165,6 +165,7 @@ export const CheckoutItemsStep = () => {
 
 				{itemRows.map((item, index) => (
 					<CheckoutItemCard
+						allItems={itemRows}
 						isActive={item.line_id === activeItemId}
 						item={item}
 						itemNumber={index + 1}
@@ -204,27 +205,27 @@ export const CheckoutItemsStep = () => {
 	);
 };
 
-interface CheckoutTreatmentRowProps {
-	itemId: string;
-	line: ServiceCartDisplayLine;
+interface MoveTarget {
+	item: ItemCartDisplayLine;
+	itemNumber: number;
 }
 
-const CheckoutTreatmentRow = ({ itemId, line }: CheckoutTreatmentRowProps) => {
-	const { removeService, updateServiceField, moveService, itemRows } =
-		useCart();
+interface CheckoutTreatmentRowProps {
+	canMove: boolean;
+	itemId: string;
+	line: ServiceCartDisplayLine;
+	moveTargets: MoveTarget[];
+}
+
+const CheckoutTreatmentRow = ({
+	canMove,
+	itemId,
+	line,
+	moveTargets,
+}: CheckoutTreatmentRowProps) => {
+	const { removeService, updateServiceField, moveService } = useCartOps();
 	const isUnpriced =
 		line.service.price === null && getServiceLinePrice(line) <= 0;
-	// Other objects this treatment could belong to instead. Numbered by cart
-	// position so the menu matches the card numbers on screen.
-	const moveTargets = itemRows
-		.map((item, index) => ({ item, itemNumber: index + 1 }))
-		.filter(({ item }) => item.line_id !== itemId);
-	// Moving is only meaningful when there is somewhere for the line to go:
-	// another card, or off a card that holds more than this one line. A single
-	// treatment alone on the only card would just be renumbering itself. With
-	// one card, that card is necessarily the one this row renders under.
-	const canMove =
-		itemRows.length > 1 || (itemRows[0]?.services.length ?? 0) > 1;
 
 	return (
 		<div className="grid gap-2 border-border/70 border-t p-3">
@@ -273,11 +274,14 @@ const CheckoutTreatmentRow = ({ itemId, line }: CheckoutTreatmentRowProps) => {
 										</span>
 									</DropdownMenuItem>
 								))}
+								{/* A verb, because a card without descriptors is labelled
+								    "New item" above it, and two entries with one label and
+								    two outcomes is a menu nobody can read. */}
 								<DropdownMenuItem
 									onClick={() => moveService(itemId, line.line_id, null)}
 								>
 									<PlusIcon className="size-4" />
-									New item
+									Split to a new item
 								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
@@ -340,6 +344,10 @@ const CheckoutTreatmentRow = ({ itemId, line }: CheckoutTreatmentRowProps) => {
 };
 
 interface CheckoutItemCardProps {
+	// Every card on the counter, from the step that already derived them. A
+	// useCart() down here would re-derive the whole cart once per card on every
+	// keystroke in a notes field.
+	allItems: ItemCartDisplayLine[];
 	item: ItemCartDisplayLine;
 	itemNumber: number;
 	isActive: boolean;
@@ -349,12 +357,22 @@ interface CheckoutItemCardProps {
 // it the active one, so the next catalog tap is an upsell on this shoe rather
 // than a second shoe (ADR-0017).
 const CheckoutItemCard = ({
+	allItems,
 	item,
 	itemNumber,
 	isActive,
 }: CheckoutItemCardProps) => {
-	const { removeItem, updateItemField, setActiveItem } = useCart();
+	const { removeItem, updateItemField, setActiveItem } = useCartOps();
 	const descriptors = getOrderServiceItemDetails(item);
+	// Where a treatment on this card could go instead, numbered by cart position
+	// so the menu matches the card numbers on screen. Moving is only meaningful
+	// when there is somewhere to go: another card, or off a card holding more
+	// than the one line — a lone treatment on the only card would just be
+	// renumbering itself.
+	const moveTargets: MoveTarget[] = allItems
+		.map((other, index) => ({ item: other, itemNumber: index + 1 }))
+		.filter((target) => target.item.line_id !== item.line_id);
+	const canMove = moveTargets.length > 0 || item.services.length > 1;
 
 	return (
 		<article
@@ -422,9 +440,11 @@ const CheckoutItemCard = ({
 
 			{item.services.map((line) => (
 				<CheckoutTreatmentRow
+					canMove={canMove}
 					itemId={item.line_id}
 					key={line.line_id}
 					line={line}
+					moveTargets={moveTargets}
 				/>
 			))}
 		</article>
