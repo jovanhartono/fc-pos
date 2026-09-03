@@ -116,6 +116,7 @@ export function HoldToConfirmButton({
 				style={{ width: `${progress * 100}%` }}
 			/>
 			<span className="relative z-10">
+				{/* biome-ignore lint/suspicious/noLeakedRender: children is the button label, a ReactNode the caller already renders */}
 				{isHolding ? "Keep holding..." : children}
 			</span>
 		</Button>

@@ -24,7 +24,7 @@ const state = {
   orderPaymentStatus: "unpaid" as string | undefined,
   line: undefined as FakeLine | undefined,
   // Simulates losing the race: the line was cancelled between read and write.
-  casWins: true,
+  casWins: true as boolean,
   serviceWrites: [] as AnyObj[],
   serviceWriteGuard: "",
   logRows: [] as AnyObj[],

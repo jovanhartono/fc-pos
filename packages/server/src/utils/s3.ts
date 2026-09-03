@@ -157,7 +157,9 @@ export async function optimizeUploadedImage(key: string): Promise<void> {
     // deploy to: the same upload converts fine on a macOS dev machine via
     // ImageIO, so a local success is not evidence HEIC is safe to accept again.
     if ((error as { code?: string }).code?.startsWith("ERR_IMAGE_")) {
-      throw new BadRequestException("Uploaded file is not a valid image");
+      throw new BadRequestException("Uploaded file is not a valid image", {
+        cause: error,
+      });
     }
     // S3/network/other infra fault — propagate, don't mislabel as a bad image.
     throw error;

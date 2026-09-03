@@ -68,6 +68,7 @@ export const DatePicker = ({
 				}
 			>
 				<span className="truncate">
+					{/* biome-ignore lint/suspicious/noLeakedRender: placeholder is a string prop, so no 0 or NaN can reach the DOM */}
 					{value ? dayjs(value).format(DISPLAY_FORMAT) : placeholder}
 				</span>
 			</PopoverTrigger>

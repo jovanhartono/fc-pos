@@ -115,7 +115,7 @@ function buildComplaintListFilters(
   normalized: NormalizedComplaintListQuery,
   scopedStoreIds?: number[]
 ) {
-  const search = normalized.search;
+  const { search } = normalized;
   return and(
     normalized.store_id
       ? eq(ordersTable.store_id, normalized.store_id)

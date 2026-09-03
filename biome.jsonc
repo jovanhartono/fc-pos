@@ -4,10 +4,33 @@
     "ignoreUnknown": true,
     "includes": []
   },
+  "assist": {
+    "actions": {
+      "source": {
+        // Sorting select() keys reorders the columns Postgres returns, and the
+        // reports repositories map rows back by position, so the money reports
+        // would read amounts as dates. Keep key order as written.
+        "useSortedKeys": "off"
+      }
+    }
+  },
   "linter": {
     "rules": {
+      "performance": {
+        // Order writes run one statement after another inside a transaction on
+        // purpose: a redemption cap or a refund reversal must see the previous
+        // row's result before the next runs, and S3 pages by continuation token.
+        "noAwaitInLoops": "off"
+      },
       "style": {
-        "noMagicNumbers": "off"
+        "noMagicNumbers": "off",
+        // i++ in seed and code-generation loops; rewriting them buys nothing.
+        "noIncrementDecrement": "off"
+      },
+      "suspicious": {
+        // `x == null` is the codebase's deliberate null-or-undefined check;
+        // spelling out both halves at 22 sites would only add noise.
+        "noEqualsToNull": "off"
       }
     }
   },

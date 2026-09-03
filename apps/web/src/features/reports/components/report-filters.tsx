@@ -125,7 +125,7 @@ export const ReportFilters = ({
 					align="end"
 					className="w-[min(20rem,calc(100vw-2rem))] gap-4 p-4"
 				>
-					{showRangeFilters && (
+					{showRangeFilters ? (
 						<div className="grid gap-2">
 							<span className={FIELD_LABEL}>Preset</span>
 							<div className="grid grid-cols-2 gap-1">
@@ -148,8 +148,8 @@ export const ReportFilters = ({
 								))}
 							</div>
 						</div>
-					)}
-					{showRangeFilters && (
+					) : null}
+					{showRangeFilters ? (
 						<div className="grid gap-2">
 							<span className={FIELD_LABEL}>Range</span>
 							<DateRangePicker
@@ -163,8 +163,8 @@ export const ReportFilters = ({
 								}}
 							/>
 						</div>
-					)}
-					{showGranularity && onGranularityChange && (
+					) : null}
+					{showGranularity && onGranularityChange ? (
 						<div className="grid gap-2">
 							<span className={FIELD_LABEL}>Granularity</span>
 							<div className="grid grid-cols-5 gap-1">
@@ -192,7 +192,7 @@ export const ReportFilters = ({
 								})}
 							</div>
 						</div>
-					)}
+					) : null}
 					<StoreAutocomplete
 						id="reports-store"
 						label="Store"

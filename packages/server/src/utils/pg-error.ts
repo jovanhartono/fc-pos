@@ -10,7 +10,7 @@ export function isUniqueViolation(error: unknown): boolean {
   if (typeof error !== "object" || error === null) {
     return false;
   }
-  const cause = (error as { cause?: unknown }).cause;
+  const { cause } = error as { cause?: unknown };
   if (typeof cause === "object" && cause !== null && "code" in cause) {
     return (cause as { code?: string }).code === "23505";
   }
@@ -103,5 +103,5 @@ export function mapPostgresError({
 // the log; whose phone number it was is not.
 export const redactDetail = (detail: string): string =>
   detail
-    .replaceAll(/=\([^)]*\)/g, "=(…)")
+    .replaceAll(/[=]\([^)]*\)/g, "=(…)")
     .replaceAll(/contains \([^)]*\)/g, "contains (…)");
