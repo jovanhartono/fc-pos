@@ -24,7 +24,9 @@
     }
   },
   "scripts": {
-    "dev": "bun --bun concurrently -k -n server,types -c blue,magenta \"bun run --hot src/index.ts\" \"bun --bun tsdown --watch --no-clean\"",
+    "dev": "bun run --parallel dev:server dev:types",
+    "dev:server": "bun run --hot src/index.ts",
+    "dev:types": "bun --bun tsdown --watch --no-clean",
     "build": "bun --bun tsdown",
     "build:types": "bun --bun tsdown",
     "build:watch": "bun tsdown --watch",
@@ -58,7 +60,6 @@
   "devDependencies": {
     "@biomejs/biome": "catalog:",
     "@types/bun": "latest",
-    "concurrently": "^10.0.3",
     "drizzle-kit": "beta",
     "tsdown": "^0.22.3",
     "typescript": "catalog:",
