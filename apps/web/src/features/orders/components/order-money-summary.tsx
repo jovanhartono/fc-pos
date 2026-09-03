@@ -1,4 +1,5 @@
 import { Separator } from "@/components/ui/separator";
+import { flattenOrderLines } from "@/features/orders/lib/order-lines";
 import type { OrderDetail } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { formatMoney, parseMoney } from "@/shared/money";
@@ -12,7 +13,10 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 	const net = parseMoney(detail.total) - discount;
 	const refunded = parseMoney(detail.refunded_amount);
 
-	const servicesSubtotal = detail.services.reduce(
+	// Money is charged per treatment, not per object, so this flattens across
+	// the Items to add the bill up (ADR-0017).
+	const serviceLines = flattenOrderLines(detail);
+	const servicesSubtotal = serviceLines.reduce(
 		(sum, service) => sum + parseMoney(service.subtotal),
 		0,
 	);
@@ -23,7 +27,7 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 	// Only worth splitting when the subtotal mixes both — otherwise the component
 	// line just repeats the Subtotal.
 	const showSubtotalBreakdown =
-		detail.services.length > 0 && detail.products.length > 0;
+		serviceLines.length > 0 && detail.products.length > 0;
 
 	return (
 		<div className="px-4 py-4">
@@ -61,7 +65,14 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 					</div>
 				))}
 				<div className="flex justify-between gap-4">
-					<dt className="text-muted-foreground">Discount total</dt>
+					{/* Campaigns name themselves in the rows above; a manual discount
+					    has no row of its own, so the total line says where it came
+					    from rather than leaving the cashier to guess. */}
+					<dt className="text-muted-foreground">
+						{detail.discount_source === "manual"
+							? "Manual discount"
+							: "Discount total"}
+					</dt>
 					<dd className={cn("font-mono", discount > 0 && "text-destructive")}>
 						{discount > 0 ? `-${formatMoney(discount)}` : formatMoney(0)}
 					</dd>

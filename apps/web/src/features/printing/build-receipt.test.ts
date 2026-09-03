@@ -36,18 +36,23 @@ const baseReceipt: OrderReceipt = {
 			campaign: { code: "PROMO10", name: "Promo Juli" },
 		},
 	],
-	services: [
+	items: [
 		{
 			id: 1,
-			item_code: "#JKT/06072026/12/S001",
-			status: "queued",
-			subtotal: "75000.00",
+			item_code: "#JKT/06072026/12-S001",
 			brand: "Nike",
 			color: "Putih",
 			model: "AF1",
 			size: "42",
-			notes: "Sol kanan lepas sedikit",
-			service: { name: "Deep Clean" },
+			services: [
+				{
+					id: 1,
+					status: "queued",
+					subtotal: "75000.00",
+					notes: "Sol kanan lepas sedikit",
+					service: { name: "Deep Clean" },
+				},
+			],
 		},
 	],
 	products: [
@@ -62,6 +67,20 @@ const baseReceipt: OrderReceipt = {
 		},
 	],
 };
+
+const withItem = (
+	overrides: Partial<OrderReceipt["items"][number]>,
+): OrderReceipt => ({
+	...baseReceipt,
+	items: [{ ...baseReceipt.items[0], ...overrides }],
+});
+
+const withService = (
+	overrides: Partial<OrderReceipt["items"][number]["services"][number]>,
+): OrderReceipt =>
+	withItem({
+		services: [{ ...baseReceipt.items[0].services[0], ...overrides }],
+	});
 
 const decodeText = (bytes: Uint8Array): string =>
 	new TextDecoder().decode(bytes);
@@ -94,10 +113,10 @@ describe("buildReceiptEscPos", () => {
 		expect(text).toContain("Fresclean Kemang");
 		expect(text).toContain("No. Order : #JKT/06072026/12");
 		expect(text).toContain("Kasir     : Rina");
-		expect(text).toContain("Deep Clean");
 		expect(text).toContain("Nike - AF1 - Putih - 42");
-		expect(text).toContain("#JKT/06072026/12/S001");
-		expect(text).toContain("  * Sol kanan lepas sedikit");
+		expect(text).toContain("#JKT/06072026/12-S001");
+		expect(text).toContain("  Deep Clean");
+		expect(text).toContain("    * Sol kanan lepas sedikit");
 		expect(text).toContain("2 x Rp45.000");
 		expect(text).toContain("Rp315.000");
 		expect(text).toContain("PROMO10 - Promo Juli");
@@ -154,46 +173,68 @@ describe("buildReceiptEscPos", () => {
 		expect(decodeText(bytes)).toContain("Fresclean Kemang");
 	});
 
-	test("line that exactly fills 48 columns keeps every character", () => {
+	test("one Item with three treatments prints one tag and one descriptor row", () => {
+		// The counter's standard upsell (ADR-0017): a pair arrives for a deep
+		// clean and leaves the till as deep clean + repaint + leather care.
+		// One physical object — the receipt must not read as three shoes.
 		const bytes = buildReceiptEscPos(
-			{
-				...baseReceipt,
+			withItem({
 				services: [
+					baseReceipt.items[0].services[0],
 					{
-						...baseReceipt.services[0],
-						// "  " + 38-char details + "Rp75.000" = exactly 48 columns.
-						brand: "ABCDEFGHIJKLMNOPQRS",
-						subtotal: "75000",
+						...baseReceipt.items[0].services[0],
+						id: 2,
+						subtotal: "150000.00",
+						notes: null,
+						service: { name: "Repaint" },
+					},
+					{
+						...baseReceipt.items[0].services[0],
+						id: 3,
+						subtotal: "35000.00",
+						notes: null,
+						service: { name: "Leather Care" },
 					},
 				],
-			},
+			}),
 			"http://localhost/track",
 		);
 		const text = decodeText(bytes);
 
-		expect(text).toContain("Putih - 42Rp75.000");
+		expect(text.split("Nike - AF1 - Putih - 42").length - 1).toBe(1);
+		expect(text.split("#JKT/06072026/12-S001").length - 1).toBe(1);
+		// Each treatment still prices on its own line — the cashier sold three.
+		expect(text).toMatch(/ {2}Deep Clean +Rp75\.000/);
+		expect(text).toMatch(/ {2}Repaint +Rp150\.000/);
+		expect(text).toMatch(/ {2}Leather Care +Rp35\.000/);
 	});
 
-	test("long item note wraps inside 48 columns keeping the item indent", () => {
+	test("item header that exactly fills 48 columns keeps every character", () => {
 		const bytes = buildReceiptEscPos(
-			{
-				...baseReceipt,
-				services: [
-					{
-						...baseReceipt.services[0],
-						notes:
-							"jangan pakai pemutih karena bahannya sensitif dan mudah luntur",
-					},
-				],
-			},
+			// 29-char brand + " - AF1 - Putih - 42" = exactly 48 columns.
+			withItem({ brand: "ABCDEFGHIJKLMNOPQRSTUVWXYZ123" }),
+			"http://localhost/track",
+		);
+		const text = decodeText(bytes);
+
+		// The full 48-char header survives unbroken — a wrap or a truncation
+		// would put a newline or a cut inside it.
+		expect(text).toContain("ABCDEFGHIJKLMNOPQRSTUVWXYZ123 - AF1 - Putih - 42");
+	});
+
+	test("long item note wraps inside 48 columns keeping the treatment indent", () => {
+		const bytes = buildReceiptEscPos(
+			withService({
+				notes: "jangan pakai pemutih karena bahannya sensitif dan mudah luntur",
+			}),
 			"http://localhost/track",
 		);
 		const lines = decodeText(bytes).split("\n");
-		const start = lines.findIndex((line) => line.startsWith("  * jangan"));
+		const start = lines.findIndex((line) => line.startsWith("    * jangan"));
 
 		expect(start).toBeGreaterThan(-1);
-		// Continuation stays indented under the item, not flush at column 0.
-		expect(lines[start + 1]).toMatch(/^ {2}\S/);
+		// Continuation stays indented under the treatment, not flush at column 0.
+		expect(lines[start + 1]).toMatch(/^ {4}\S/);
 		for (const line of [lines[start], lines[start + 1]]) {
 			expect(line.length).toBeLessThanOrEqual(48);
 		}
@@ -201,23 +242,17 @@ describe("buildReceiptEscPos", () => {
 
 	test("unbreakable long token in a note hard-splits inside 48 columns", () => {
 		const bytes = buildReceiptEscPos(
-			{
-				...baseReceipt,
-				services: [
-					{
-						...baseReceipt.services[0],
-						notes: "https://instagram.com/p/Cx1234567890abcdefghijklmnop",
-					},
-				],
-			},
+			withService({
+				notes: "https://instagram.com/p/Cx1234567890abcdefghijklmnop",
+			}),
 			"http://localhost/track",
 		);
 		const lines = decodeText(bytes).split("\n");
-		const start = lines.findIndex((line) => line.startsWith("  * https://"));
+		const start = lines.findIndex((line) => line.startsWith("    * https://"));
 
 		expect(start).toBeGreaterThan(-1);
 		// Continuation stays indented, and no line exceeds the printer width.
-		expect(lines[start + 1]).toMatch(/^ {2}\S/);
+		expect(lines[start + 1]).toMatch(/^ {4}\S/);
 		for (const line of [lines[start], lines[start + 1]]) {
 			expect(line.length).toBeLessThanOrEqual(48);
 		}
@@ -226,8 +261,7 @@ describe("buildReceiptEscPos", () => {
 	test("voided lines are marked on reprint", () => {
 		const bytes = buildReceiptEscPos(
 			{
-				...baseReceipt,
-				services: [{ ...baseReceipt.services[0], status: "refunded" }],
+				...withService({ status: "refunded" }),
 				products: [{ ...baseReceipt.products[0], cancelled_at: null }],
 			},
 			"http://localhost/track",
@@ -258,11 +292,10 @@ describe("buildReceiptEscPos", () => {
 	test("cancelled order prints no pickup code and no pay-at-pickup line", () => {
 		const bytes = buildReceiptEscPos(
 			{
-				...baseReceipt,
+				...withService({ status: "cancelled" }),
 				status: "cancelled",
 				payment_status: "unpaid",
 				paymentMethod: null,
-				services: [{ ...baseReceipt.services[0], status: "cancelled" }],
 			},
 			"http://localhost/track",
 		);

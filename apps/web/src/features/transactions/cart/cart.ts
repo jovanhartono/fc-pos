@@ -24,15 +24,24 @@ export type ServiceCartLine = {
 	kind: "service";
 	line_id: string;
 	id: number;
-	brand: string;
-	color: string;
-	model: string;
-	size: string;
 	notes: string;
 	// ADR-0018: only read for a no-list-price Service (Repair) — the agreed
 	// price if the customer already knows it, "" when the workshop still has
 	// to inspect. The server ignores it on catalog-priced Services.
 	price: string;
+};
+
+// One physical object on the counter and the treatments sold against it
+// (ADR-0017). The descriptors are typed once here — the everyday flow is a
+// pair arriving for a deep clean and leaving as deep clean + repaint + leather
+// care, and the cashier should not describe the same shoe three times.
+export type ItemCartLine = {
+	line_id: string;
+	brand: string;
+	color: string;
+	model: string;
+	size: string;
+	services: ServiceCartLine[];
 };
 
 export type ProductCartDisplayLine = ProductCartLine & {
@@ -41,6 +50,10 @@ export type ProductCartDisplayLine = ProductCartLine & {
 
 export type ServiceCartDisplayLine = ServiceCartLine & {
 	service: Service;
+};
+
+export type ItemCartDisplayLine = Omit<ItemCartLine, "services"> & {
+	services: ServiceCartDisplayLine[];
 };
 
 // A voucher the cashier has resolved (validated + previewed) but not yet
@@ -62,7 +75,7 @@ export type TransactionDraftValues = {
 	manualDiscount: string;
 	notes: string;
 	productCart: ProductCartLine[];
-	serviceCart: ServiceCartLine[];
+	itemCart: ItemCartLine[];
 };
 
 export const defaultDraftValues: TransactionDraftValues = {
@@ -76,13 +89,87 @@ export const defaultDraftValues: TransactionDraftValues = {
 	manualDiscount: "",
 	notes: "",
 	productCart: [],
-	serviceCart: [],
+	itemCart: [],
 };
 
-type TransactionResetActions = {
+interface TransactionResetActions {
 	setSubmitError: (message: string) => void;
 	setDropoffPhoto: (file: File | null) => void;
+}
+
+export const createCartLineId = (prefix: string) =>
+	globalThis.crypto?.randomUUID?.() ??
+	`${prefix}-${Date.now()}-${Math.random()}`;
+
+export const createEmptyItem = (): ItemCartLine => ({
+	line_id: createCartLineId("item"),
+	brand: "",
+	color: "",
+	model: "",
+	size: "",
+	services: [],
+});
+
+// The recovery for a catalog tap that landed on the wrong object: three shoes
+// on the counter each needing a Deep Clean used to become one shoe with three
+// Deep Cleans, and the only way back was delete + re-add + retype the notes and
+// the negotiated price. Moving carries the whole line. `toItemId: null` splits
+// it onto a fresh card, and the result names that card so the caller can make
+// it the active one without guessing at its position. Returns null when there
+// is nothing valid to do — a vanished source, target, or line must be a no-op,
+// never a dropped line.
+export const moveCartService = (
+	cart: ItemCartLine[],
+	fromItemId: string,
+	lineId: string,
+	toItemId: string | null,
+): { cart: ItemCartLine[]; createdItemId: string | null } | null => {
+	if (fromItemId === toItemId) {
+		return null;
+	}
+	const source = cart.find((item) => item.line_id === fromItemId);
+	const line = source?.services.find((service) => service.line_id === lineId);
+	if (!line) {
+		return null;
+	}
+	if (toItemId !== null && !cart.some((item) => item.line_id === toItemId)) {
+		return null;
+	}
+	const stripped = cart.map((item) =>
+		item.line_id === fromItemId
+			? {
+					...item,
+					services: item.services.filter(
+						(service) => service.line_id !== lineId,
+					),
+				}
+			: item,
+	);
+	if (toItemId === null) {
+		const created = { ...createEmptyItem(), services: [line] };
+		return { cart: [...stripped, created], createdItemId: created.line_id };
+	}
+	return {
+		cart: stripped.map((item) =>
+			item.line_id === toItemId
+				? { ...item, services: [...item.services, line] }
+				: item,
+		),
+		createdItemId: null,
+	};
 };
+
+// Which card a catalog tap lands on. Resolved from the cart on every read
+// rather than kept in step with it: a pointer at a card that is gone falls back
+// to the last one still on the counter, so no writer of `itemCart` has to
+// remember to re-point it (ADR-0017).
+export const resolveActiveItemId = (
+	items: { line_id: string }[],
+	pointer: string | null,
+): string | null =>
+	items.some((item) => item.line_id === pointer)
+		? pointer
+		: (items.at(-1)?.line_id ?? null);
 
 // Single source of truth for clearing the POS draft — used by both the Reset
 // button (useCartOps) and the post-checkout reset (page bootstrap). Keeps cart,
@@ -125,6 +212,19 @@ export const enrichServiceCart = <S extends { id: number }>(
 		return service ? [{ ...line, service }] : [];
 	});
 
+// Every card the cashier opened stays on the counter, treatments or not: a
+// fresh "+ New item" has none yet, and pulling the last treatment off one is a
+// mid-correction, not a delete. Empty cards are dropped on the way to the wire
+// (toOrderPayload), which is the only place it costs anything.
+export const enrichItemCart = <S extends { id: number }>(
+	items: ItemCartLine[],
+	serviceMap: Map<number, S>,
+) =>
+	items.map((item) => ({
+		...item,
+		services: enrichServiceCart(item.services, serviceMap),
+	}));
+
 // The one price a service line has: the catalog snapshot, or — when the
 // catalog carries none (Repair, ADR-0018) — whatever the cashier keyed.
 // A blank keyed price reads as 0 here: the line adds nothing to the total
@@ -151,11 +251,20 @@ export const getCartSubtotal = (
 		0,
 	) + serviceRows.reduce((total, line) => total + getServiceLinePrice(line), 0);
 
+// What actually counts as a sellable line: an object with nothing being done
+// to it is a correction in progress, not an intake. Shared with the draft
+// schema's "cart is empty" refine so the two can never disagree.
+export const countCartTreatments = (itemCart: ItemCartLine[]): number =>
+	itemCart.reduce((sum, item) => sum + item.services.length, 0);
+
+// Counts treatments, not objects: the badge answers "how many things are on
+// this bill", and an upsold pair is three of them.
 export const getCartCount = (
 	productCart: ProductCartLine[],
-	serviceCart: ServiceCartLine[],
+	itemCart: ItemCartLine[],
 ): number =>
-	productCart.reduce((sum, item) => sum + item.qty, 0) + serviceCart.length;
+	productCart.reduce((sum, item) => sum + item.qty, 0) +
+	countCartTreatments(itemCart);
 
 export type CartCampaign = CampaignDiscountInput & {
 	eligibleServices?: { service_id: number }[] | null;
@@ -238,7 +347,7 @@ export const toOrderPayload = ({
 	manualDiscount,
 	notes,
 	productCart,
-	serviceCart,
+	itemCart,
 }: TransactionDraftValues): CreateOrderPayload => {
 	// A picked method means money arrives now; no method means pay-later.
 	const isPaidAtDropoff = selectedPaymentMethodId !== "";
@@ -266,17 +375,24 @@ export const toOrderPayload = ({
 			id: line.id,
 			qty: line.qty,
 		})),
-		services: serviceCart.map((line) => ({
-			id: line.id,
-			brand: line.brand.trim() || undefined,
-			color: line.color.trim() || undefined,
-			model: line.model.trim() || undefined,
-			size: line.size.trim() || undefined,
-			notes: line.notes.trim() || undefined,
-			// Only meaningful on a no-list-price line — blank means the workshop
-			// prices it after inspection. The server ignores it for catalog-priced
-			// Services (ADR-0018).
-			price: line.price.trim() || undefined,
-		})),
+		// One entry per object on the counter, the treatments sold for it nested
+		// inside (ADR-0017). An object with nothing being done to it is not an
+		// intake, so it never reaches the wire.
+		items: itemCart
+			.filter((item) => item.services.length > 0)
+			.map((item) => ({
+				brand: item.brand.trim() || undefined,
+				color: item.color.trim() || undefined,
+				model: item.model.trim() || undefined,
+				size: item.size.trim() || undefined,
+				services: item.services.map((line) => ({
+					id: line.id,
+					notes: line.notes.trim() || undefined,
+					// Only meaningful on a no-list-price line — blank means the
+					// workshop prices it after inspection. The server ignores it
+					// for catalog-priced Services (ADR-0018).
+					price: line.price.trim() || undefined,
+				})),
+			})),
 	};
 };

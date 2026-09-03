@@ -22,7 +22,7 @@ const FIELD_TARGETS: Record<keyof TransactionDraftValues, CheckoutIssueTarget> =
 		customerPhone: "customer",
 		selectedCourierId: "customer",
 		productCart: "items",
-		serviceCart: "items",
+		itemCart: "items",
 		notes: "items",
 		selectedCampaignIds: "payment",
 		appliedVouchers: "payment",
@@ -40,7 +40,8 @@ const TARGET_ORDER: CheckoutIssueTarget[] = [
 ];
 
 // RHF hangs array errors off both the array itself (superRefine issues) and its
-// entries (serviceCart[2].brand), so a message can sit at any depth.
+// entries — and since ADR-0017 those entries nest one level deeper again
+// (itemCart[2].services[0].price), so a message can sit at any depth.
 const firstMessage = (error: unknown): string | undefined => {
 	if (!error || typeof error !== "object") {
 		return undefined;

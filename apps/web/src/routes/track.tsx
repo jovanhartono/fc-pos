@@ -1,4 +1,8 @@
 import {
+	type DerivedItemStatus,
+	isCollectableItemStatus,
+} from "@fresclean/api/schema";
+import {
 	ArrowCounterClockwiseIcon,
 	CheckCircleIcon,
 	PackageIcon,
@@ -11,7 +15,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { DetailedError } from "hono/client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +48,11 @@ type OrderStatus =
 	| "ready_for_pickup"
 	| "completed"
 	| "cancelled";
+
+type TrackItem = {
+	status: DerivedItemStatus;
+	services: { status: string }[];
+};
 
 type Stage = {
 	key: "received" | "cleaned" | "qc" | "ready";
@@ -79,21 +88,32 @@ const STAGES: readonly Stage[] = [
 	},
 ] as const;
 
-function getStageIndexFromOrderStatus(
-	status: OrderStatus,
-	serviceStatuses: string[],
-): number {
-	if (status === "completed") {
+// The rail follows the objects, not the money. The Order rollup says
+// "completed" for a refunded pair still on our rack (ADR-0008 — the money is
+// settled), and reading it here painted all four stages done for a shoe the
+// customer still has to come and get.
+function getStageIndex(items: TrackItem[]): number {
+	// Nothing was handed over — a products-only order — so there is no object
+	// to follow. Such an order is completed the moment it is created (or
+	// cancelled, which the rail handles above this), so the rail should say
+	// done rather than sit on "Received" beside a Completed badge.
+	if (items.length === 0) {
 		return STAGES.length;
 	}
-	if (status === "ready_for_pickup") {
+	const statuses = items.map((item) => item.status);
+	if (
+		statuses.every((status) => status === "picked_up" || status === "cancelled")
+	) {
+		return STAGES.length;
+	}
+	if (statuses.some(isCollectableItemStatus)) {
 		return 3;
 	}
-	if (status === "processing") {
-		if (serviceStatuses.some((s) => s === "quality_check")) {
-			return 2;
-		}
-		return 1;
+	if (statuses.includes("processing")) {
+		const serviceStatuses = items.flatMap((item) =>
+			item.services.map((service) => service.status),
+		);
+		return serviceStatuses.includes("quality_check") ? 2 : 1;
 	}
 	return 0;
 }
@@ -299,26 +319,16 @@ function TrackOrderPage() {
 	const trackData = trackQuery.data;
 	const isLoading = trackQuery.isFetching;
 
-	const sortedServices = useMemo(() => {
-		if (!trackData) {
-			return [];
-		}
-		return [...trackData.services].sort((a, b) => a.id - b.id);
-	}, [trackData]);
+	const items = trackData?.items ?? [];
 
-	const stageIndex = useMemo(() => {
-		if (!trackData) {
-			return 0;
-		}
-		return getStageIndexFromOrderStatus(
-			trackData.status as OrderStatus,
-			sortedServices.map((s) => s.status),
-		);
-	}, [trackData, sortedServices]);
+	const stageIndex = getStageIndex(items);
 
 	const orderStatus = trackData?.status as OrderStatus | undefined;
 	const isCancelled = orderStatus === "cancelled";
-	const isReady = orderStatus === "ready_for_pickup";
+	// Per item, not per order: one collectable object is enough to send the
+	// customer to the counter — and this is the same predicate the server gates
+	// pickup_code on, so the banner and the code can never disagree.
+	const isReady = items.some((item) => isCollectableItemStatus(item.status));
 
 	const storePhoneE164 = trackData?.store.phone_number?.replace(/\D/g, "");
 
@@ -474,9 +484,14 @@ function TrackOrderPage() {
 
 								{isReady ? (
 									<div className="grid gap-3 border-l-2 border-emerald-500 bg-emerald-50 px-4 py-4">
+										{/* Says where the things are, not what state they are in:
+										    a refunded pair still on the rack already wears a
+										    Completed badge and a Refunded badge on this screen, and
+										    "ready for pickup" beside them was a third word for one
+										    situation. */}
 										<p className="text-sm text-emerald-900">
-											Ready for pickup. Read the code below to the cashier at
-											the counter.
+											Your order is waiting at the counter. Read the code below
+											to the cashier.
 										</p>
 										{trackData.pickup_code ? (
 											<p className="font-mono text-3xl font-bold tracking-[0.3em] text-emerald-900 tabular-nums">
@@ -491,13 +506,15 @@ function TrackOrderPage() {
 						<section className="grid gap-6 border-b border-[#0f1a16]/10 py-10">
 							<div className="flex items-center gap-3">
 								<span className="font-mono text-[10px] uppercase tracking-[0.3em] text-[#2a2922]/60">
-									[ 04 ] Items ·{" "}
-									{String(sortedServices.length).padStart(2, "0")}
+									[ 04 ] Items · {String(items.length).padStart(2, "0")}
 								</span>
 								<span className="h-px flex-1 bg-[#0f1a16]/15" />
 							</div>
+							{/* One block per object handed over, its treatments beneath
+							    (ADR-0017): "your shoe: clean done, repaint in progress",
+							    never the same shoe listed three times. */}
 							<ul className="grid">
-								{sortedServices.map((item, index) => (
+								{items.map((item, index) => (
 									<li
 										key={item.id}
 										className="grid gap-3 border-t border-[#0f1a16]/10 py-4 text-sm first:border-t-0 first:pt-0 sm:grid-cols-[auto_1fr_auto] sm:items-start sm:gap-6"
@@ -507,14 +524,31 @@ function TrackOrderPage() {
 										</span>
 										<div className="min-w-0 grid gap-1">
 											<p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#2a2922]/55">
-												{item.item_code ?? `#${item.id}`}
+												{item.item_code}
 											</p>
 											<p className="font-semibold text-[15px] text-[#0f1a16]">
-												{item.service?.name ?? "Service"}
-											</p>
-											<p className="text-xs text-[#2a2922]/65">
 												{formatOrderServiceItemDetails(item)}
 											</p>
+											<ul className="mt-1.5 grid gap-1.5 border-[#0f1a16]/10 border-l pl-3">
+												{item.services.map((service) => (
+													<li
+														key={service.id}
+														className="flex flex-wrap items-center justify-between gap-2"
+													>
+														<span className="text-[13px] text-[#2a2922]/80">
+															{service.service?.name ?? "Service"}
+														</span>
+														<Badge
+															variant={getOrderServiceStatusBadgeVariant(
+																service.status,
+															)}
+															className="font-mono text-[10px] uppercase tracking-[0.18em]"
+														>
+															{formatOrderServiceStatus(service.status)}
+														</Badge>
+													</li>
+												))}
+											</ul>
 										</div>
 										<Badge
 											variant={getOrderServiceStatusBadgeVariant(item.status)}

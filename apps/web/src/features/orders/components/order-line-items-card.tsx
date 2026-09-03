@@ -4,8 +4,15 @@ import { Card } from "@/components/ui/card";
 import { OrderReasonCallout } from "@/features/orders/components/order-reason-callout";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { OrderServiceRow } from "@/features/orders/components/order-service-row";
+import type { OrderItem } from "@/features/orders/lib/order-lines";
 import type { OrderDetail, OrderRefundReason } from "@/lib/api";
-import { formatCancelReason, formatRefundReason } from "@/lib/status";
+import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
+import {
+	formatCancelReason,
+	formatOrderServiceStatus,
+	formatRefundReason,
+	getOrderServiceStatusBadgeVariant,
+} from "@/lib/status";
 import { formatMoney } from "@/shared/money";
 
 type OrderDetailProduct = OrderDetail["products"][number];
@@ -65,6 +72,59 @@ const ProductLine = ({
 	</div>
 );
 
+interface ItemBlockProps {
+	orderId: number;
+	item: OrderItem;
+	isAdmin: boolean;
+}
+
+// One physical object and every treatment sold against it (ADR-0017). The tag
+// and the descriptors are stated once here rather than repeated down each
+// treatment — a pair in for a clean, a repaint and leather care used to read
+// as three unrelated lines with three tag codes.
+const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
+	const descriptors = getOrderServiceItemDetails(item);
+
+	return (
+		<article className="border-t">
+			<header className="flex items-start justify-between gap-3 bg-muted/30 px-4 py-2.5">
+				{/* The object leads, the tag follows: what the cashier says out loud
+				    is "the red New Balance", and the code is how the shelf finds it.
+				    Same order as the queue card and the pickup dialog. */}
+				<div className="min-w-0">
+					{descriptors ? (
+						<>
+							<h3 className="text-pretty font-semibold text-[15px] leading-5">
+								{descriptors}
+							</h3>
+							<p className="break-all font-mono text-muted-foreground text-xs leading-snug">
+								{item.item_code}
+							</p>
+						</>
+					) : (
+						<h3 className="break-all font-mono text-[15px] font-semibold leading-5">
+							{item.item_code}
+						</h3>
+					)}
+				</div>
+				<Badge variant={getOrderServiceStatusBadgeVariant(item.status)}>
+					{formatOrderServiceStatus(item.status)}
+				</Badge>
+			</header>
+			{item.services.map((service) => (
+				<OrderServiceRow
+					isAdmin={isAdmin}
+					itemCode={item.item_code}
+					itemStatus={item.status}
+					key={service.id}
+					orderId={orderId}
+					service={service}
+				/>
+			))}
+		</article>
+	);
+};
+
 interface OrderLineItemsCardProps {
 	orderId: number;
 	detail: OrderDetail;
@@ -76,7 +136,7 @@ export const OrderLineItemsCard = ({
 	detail,
 	isAdmin,
 }: OrderLineItemsCardProps) => {
-	const { services, products } = detail;
+	const { items, products } = detail;
 
 	const refundByProductId = useMemo(() => {
 		const map = new Map<number, RefundInfo>();
@@ -95,23 +155,21 @@ export const OrderLineItemsCard = ({
 
 	return (
 		<div className="grid gap-3 sm:gap-4">
-			<Card className="gap-0 overflow-hidden py-0">
-				<OrderSectionHeader>Services</OrderSectionHeader>
-				{services.length > 0 ? (
-					services.map((service) => (
-						<OrderServiceRow
+			{/* A products-only sale has no card here at all: an empty "Items"
+			    section says nothing the Products card below does not. */}
+			{items.length > 0 ? (
+				<Card className="gap-0 overflow-hidden py-0">
+					<OrderSectionHeader>Items</OrderSectionHeader>
+					{items.map((item) => (
+						<ItemBlock
 							isAdmin={isAdmin}
-							key={service.id}
+							item={item}
+							key={item.id}
 							orderId={orderId}
-							service={service}
 						/>
-					))
-				) : (
-					<p className="px-4 py-6 text-muted-foreground text-sm">
-						No service lines.
-					</p>
-				)}
-			</Card>
+					))}
+				</Card>
+			) : null}
 
 			{products.length > 0 ? (
 				<Card className="gap-0 overflow-hidden py-0">

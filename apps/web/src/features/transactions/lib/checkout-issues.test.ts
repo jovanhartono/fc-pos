@@ -59,12 +59,17 @@ describe("collectCheckoutIssues", () => {
 		]);
 	});
 
-	test("finds a message on a single shoe line, not just on the cart", () => {
+	test("finds a message nested under one object's treatment, not just on the cart", () => {
+		// ADR-0017 put a level between the cart and the treatment, so the walk
+		// has to reach `itemCart[1].services[0].price` — a message stranded down
+		// there would leave the footer saying only "check the cart".
 		const issues = collectCheckoutIssues(
-			errors({ serviceCart: [undefined, { brand: { message: "Brand?" } }] }),
+			errors({
+				itemCart: [undefined, { services: [{ price: { message: "Price?" } }] }],
+			}),
 		);
 
-		expect(issues).toEqual([{ target: "items", message: "Brand?" }]);
+		expect(issues).toEqual([{ target: "items", message: "Price?" }]);
 	});
 
 	test("a clean form reports nothing", () => {

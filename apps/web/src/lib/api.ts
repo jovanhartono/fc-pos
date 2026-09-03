@@ -138,15 +138,18 @@ export type OpenComplaintPayload = {
 	reason: string;
 	start_rework?: boolean;
 };
-export type OrderServiceLookup = InferResponseType<
-	(typeof rpc.api.admin.orders.services)["by-item-code"]["$get"]
+// A scanned tag resolves to the object, not to one job on it (ADR-0017).
+export type ItemLookup = InferResponseType<
+	(typeof rpc.api.admin.orders.items)["by-item-code"]["$get"]
 >["data"];
 export type OrderServiceLookupById = InferResponseType<
 	(typeof rpc.api.admin.orders.services)["by-id"]["$get"]
 >["data"];
-export type QueueOrderServiceItem = InferResponseType<
+// The queue pages by object, each carrying the treatments still live on it.
+export type QueueItem = InferResponseType<
 	typeof rpc.api.admin.orders.services.queue.$get
 >["data"][number];
+export type QueueItemService = QueueItem["services"][number];
 export type PublicTrackedOrder = InferResponseType<
 	typeof rpc.api.public.orders.track.$post
 >["data"];
@@ -816,9 +819,9 @@ export async function fetchOrderReceipt(id: number) {
 	);
 }
 
-export async function lookupOrderServiceByItemCode(itemCode: string) {
-	return parseSuccessData<OrderServiceLookup>(
-		rpcWithAuth().api.admin.orders.services["by-item-code"].$get({
+export async function lookupItemByItemCode(itemCode: string) {
+	return parseSuccessData<ItemLookup>(
+		rpcWithAuth().api.admin.orders.items["by-item-code"].$get({
 			query: { item_code: itemCode },
 		}),
 	);
@@ -834,7 +837,7 @@ export async function lookupOrderServiceById(serviceId: number) {
 
 export async function fetchOrderServiceQueuePage(
 	query?: FetchOrderServiceQueueQuery,
-): Promise<PaginatedData<QueueOrderServiceItem>> {
+): Promise<PaginatedData<QueueItem>> {
 	const response = await parseResponse(
 		rpcWithAuth().api.admin.orders.services.queue.$get({
 			query:

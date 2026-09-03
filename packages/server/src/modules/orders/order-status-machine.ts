@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { db } from "@/db";
 import {
   type cancelReasonEnum,
@@ -28,6 +28,17 @@ export const ORDER_TERMINAL_SERVICE_STATUSES = [
   "picked_up",
   "refunded",
   "cancelled",
+] as const;
+
+// The statuses a workshop still has to act on. `ready_for_pickup` is live but
+// not workshop work: the treatment is finished and the object is the counter's
+// until the customer collects it, so the queue does not list it and the chips
+// do not count it.
+export const WORKSHOP_SERVICE_STATUSES = [
+  "queued",
+  "processing",
+  "quality_check",
+  "qc_reject",
 ] as const;
 
 const ORDER_TERMINAL_SERVICE_STATUS_SET = new Set<OrderServiceStatus>(
@@ -91,26 +102,148 @@ export function summarizeOrderFulfillment(
   };
 }
 
+// How far along the live treatments are, with nothing said about what the
+// ending is called. This is the part an Order and an Item genuinely share —
+// including the subtle rule that a cancelled line is not evidence anyone
+// started — so it lives here once and each aggregate names its own endings.
+type TreatmentWorkPhase =
+  | "nothing_started"
+  | "in_progress"
+  | "all_ready"
+  | "no_live_work";
+
+function classifyTreatmentWork(
+  services: { status: OrderServiceStatus }[]
+): TreatmentWorkPhase {
+  const active = services.filter(
+    (item) => !isTerminalOrderServiceStatus(item.status)
+  );
+
+  if (active.length === 0) {
+    return "no_live_work";
+  }
+  if (active.every((item) => item.status === "ready_for_pickup")) {
+    return "all_ready";
+  }
+  // Has anything actually been worked on? A cancelled line is work the shop
+  // will never do, so it is no evidence that anyone started — the customer who
+  // dropped the treatment at the counter must still see the rest of the rack as
+  // untouched. Every other terminal line (picked_up, refunded) IS evidence:
+  // that work happened and left.
+  if (
+    services.some(
+      (item) => item.status !== "queued" && item.status !== "cancelled"
+    )
+  ) {
+    return "in_progress";
+  }
+  return "nothing_started";
+}
+
+// A treatment as the Item rollup needs to see it. `pickup_event_id` is not
+// decoration here — it is the only record of whether this treatment's object
+// physically went out the door, and the schema keeps it honest: the column is
+// NULL unless the row is picked_up or refunded, and never NULL on picked_up.
+export interface ItemStatusLine {
+  pickup_event_id: number | null;
+  status: OrderServiceStatus;
+}
+
+// What an Item is doing, rolled up from the treatments applied to it. Derived
+// on read and never stored: an Item is only ever loaded beside its own
+// treatments, so a column would be a second copy of the truth with nothing to
+// gain from it. See ADR-0017.
+export type DerivedItemStatus =
+  | "queued"
+  | "processing"
+  | "ready_for_pickup"
+  | "picked_up"
+  | "refunded"
+  | "cancelled";
+
+export function deriveItemStatus(
+  services: ItemStatusLine[]
+): DerivedItemStatus {
+  const phase = classifyTreatmentWork(services);
+
+  if (phase === "all_ready") {
+    return "ready_for_pickup";
+  }
+  if (phase === "in_progress") {
+    return "processing";
+  }
+  if (phase === "nothing_started") {
+    return "queued";
+  }
+
+  // Nothing live is left, and unlike an Order — which only has to say whether
+  // money settled — an Item status is a claim about where the physical object
+  // is. So the endings split three ways, and the pickup event is what tells
+  // them apart: a pair refunded at the counter while it was still queued never
+  // moved off the rack, and calling that picked_up would tell the customer on
+  // /track that they are holding shoes still sitting in the shop.
+  if (services.length === 0) {
+    return "queued";
+  }
+  if (services.every((service) => service.status === "cancelled")) {
+    return "cancelled";
+  }
+  if (services.some((service) => service.pickup_event_id != null)) {
+    return "picked_up";
+  }
+  return "refunded";
+}
+
+// You cannot hand back half an object: an Item leaves the counter only once
+// every treatment still live on it is ready. A cancelled sibling does not hold
+// the object hostage — the shop is never going to do that work.
+//
+// `refunded` is the object nobody ever touched: the money went back over the
+// counter while the pair sat queued, and the pair is still the customer's to
+// take home. It has no live treatment left that could ever turn ready, so
+// without this branch the desk could never record handing it back at all.
+export function isCollectableItemStatus(status: DerivedItemStatus): boolean {
+  return status === "ready_for_pickup" || status === "refunded";
+}
+
+export function isItemCollectable(services: ItemStatusLine[]): boolean {
+  return isCollectableItemStatus(deriveItemStatus(services));
+}
+
+// Does this treatment leave the shop when the desk hands its object over?
+// The finished ones do, and so do the ones refunded before anyone came for the
+// pair — the shop still owes those back. A cancelled treatment does not: the
+// work was called off, and the schema refuses it a pickup event. One already
+// carrying an event went out on an earlier handover.
+//
+// Exported through `@fresclean/api/schema` so the pickup dialog lists exactly
+// the rows this will act on, rather than the client keeping its own copy of
+// the rule (the same seam ADR-0018's `hasUnpricedLine` uses).
+export function isHandedOverByPickup(line: ItemStatusLine): boolean {
+  return (
+    line.status === "ready_for_pickup" ||
+    (line.status === "refunded" && line.pickup_event_id == null)
+  );
+}
+
 export function deriveOrderStatus(
   services: { status: OrderServiceStatus }[],
   products: { cancelled_at: Date | null }[]
 ): DerivedOrderStatus {
-  const activeServices = services.filter(
-    (item) => !isTerminalOrderServiceStatus(item.status)
-  );
+  // Live work comes only from services (products have no processing axis).
+  const phase = classifyTreatmentWork(services);
 
-  // Active work comes only from services (products have no processing axis).
-  if (activeServices.length > 0) {
-    if (activeServices.every((item) => item.status === "ready_for_pickup")) {
-      return "ready_for_pickup";
-    }
-    if (services.some((item) => item.status !== "queued")) {
-      return "processing";
-    }
+  if (phase === "all_ready") {
+    return "ready_for_pickup";
+  }
+  if (phase === "in_progress") {
+    return "processing";
+  }
+  if (phase === "nothing_started") {
     return "created";
   }
 
-  // No active services: roll up over every terminal line — services and products.
+  // No live services: roll up over every terminal line — services and products.
   if (services.length + products.length === 0) {
     return "created";
   }
@@ -306,66 +439,126 @@ export async function transitionOrderService(
 
 export interface CompletePickupInput {
   by: number;
+  itemIds: number[];
   note?: string;
   orderId: number;
   pickupEventId: number;
-  serviceIds: number[];
 }
 
+// Objects leave the counter, treatments do not — so the unit here is the Item,
+// and which of its rows take part is worked out from the Item rather than
+// trusted from the caller. ADR-0017's "you cannot hand back half an object"
+// then holds for anyone who reaches this, not just the pickup desk, and the
+// read happens inside the caller's transaction: resolving siblings outside it
+// would let a rework queued a moment earlier slip past the check.
+//
+// Two kinds of row leave with the object. The finished ones flip to picked_up.
+// The ones refunded before the customer ever came back have no status left to
+// move — the shop still owes them the pair — so they only take the stamp
+// saying which handover took them out. A cancelled sibling takes neither: the
+// shop never did that work, and the schema refuses it a pickup event.
 export async function completePickup(
   executor: DbExecutor,
   input: CompletePickupInput
-): Promise<{ flippedIds: number[] }> {
-  const { orderId, serviceIds, pickupEventId, by, note } = input;
+): Promise<{ handedOverIds: number[]; requestedIds: number[] }> {
+  const { orderId, itemIds, pickupEventId, by, note } = input;
 
-  const services = await executor.query.ordersServicesTable.findMany({
-    where: { order_id: orderId, id: { in: serviceIds } },
-    columns: { id: true, status: true },
+  const items = await executor.query.itemsTable.findMany({
+    where: { order_id: orderId, id: { in: itemIds } },
+    columns: { id: true, item_code: true },
+    with: {
+      services: {
+        columns: { id: true, pickup_event_id: true, status: true },
+      },
+    },
   });
 
-  if (services.length !== serviceIds.length) {
+  if (items.length !== itemIds.length) {
     throw new BadRequestException(
-      "One or more services do not belong to this order"
+      "One or more items do not belong to this order"
     );
   }
 
-  for (const service of services) {
-    if (!ORDER_SERVICE_TRANSITIONS[service.status].includes("picked_up")) {
-      throw new BadRequestException(
-        `Service ${service.id} cannot be picked up from status ${service.status}`
-      );
-    }
-  }
-
-  const flipped = await executor
-    .update(ordersServicesTable)
-    .set({ status: "picked_up", pickup_event_id: pickupEventId })
-    .where(
-      and(
-        eq(ordersServicesTable.order_id, orderId),
-        inArray(ordersServicesTable.id, serviceIds),
-        eq(ordersServicesTable.status, "ready_for_pickup")
-      )
-    )
-    .returning({ id: ordersServicesTable.id });
-
-  if (flipped.length !== serviceIds.length) {
-    return { flippedIds: flipped.map((row) => row.id) };
-  }
-
-  await executor.insert(orderServiceStatusLogsTable).values(
-    services.map((service) => ({
-      order_service_id: service.id,
-      from_status: service.status,
-      to_status: "picked_up" as const,
-      changed_by: by,
-      note,
-    }))
+  const notCollectable = items.filter(
+    (item) => !isItemCollectable(item.services)
   );
+  if (notCollectable.length > 0) {
+    throw new BadRequestException(
+      `Items not ready for pickup: ${notCollectable
+        .map((item) => item.item_code)
+        .join(", ")}`
+    );
+  }
+
+  const handedOver = items
+    .flatMap((item) => item.services)
+    .filter(isHandedOverByPickup);
+  const flipIds = handedOver
+    .filter((service) => service.status === "ready_for_pickup")
+    .map((service) => service.id);
+  const stampIds = handedOver
+    .filter((service) => service.status !== "ready_for_pickup")
+    .map((service) => service.id);
+  const requestedIds = [...flipIds, ...stampIds];
+
+  const flipped =
+    flipIds.length > 0
+      ? await executor
+          .update(ordersServicesTable)
+          .set({ status: "picked_up", pickup_event_id: pickupEventId })
+          .where(
+            and(
+              eq(ordersServicesTable.order_id, orderId),
+              inArray(ordersServicesTable.id, flipIds),
+              eq(ordersServicesTable.status, "ready_for_pickup")
+            )
+          )
+          .returning({ id: ordersServicesTable.id })
+      : [];
+
+  // Same guard as the flip: a row another cashier already stamped is a row
+  // this handover did not win, so the caller can roll the whole event back.
+  const stamped =
+    stampIds.length > 0
+      ? await executor
+          .update(ordersServicesTable)
+          .set({ pickup_event_id: pickupEventId })
+          .where(
+            and(
+              eq(ordersServicesTable.order_id, orderId),
+              inArray(ordersServicesTable.id, stampIds),
+              eq(ordersServicesTable.status, "refunded"),
+              isNull(ordersServicesTable.pickup_event_id)
+            )
+          )
+          .returning({ id: ordersServicesTable.id })
+      : [];
+
+  const handedOverIds = [...flipped, ...stamped].map((row) => row.id);
+
+  if (handedOverIds.length !== requestedIds.length) {
+    return { handedOverIds, requestedIds };
+  }
+
+  // Only the flips get a log line. A stamped row did not change status, and a
+  // refunded → refunded entry would render on the line's timeline as a
+  // transition that never happened; the pickup event itself is the record of
+  // when that pair went back and who handed it over.
+  if (flipIds.length > 0) {
+    await executor.insert(orderServiceStatusLogsTable).values(
+      flipIds.map((serviceId) => ({
+        order_service_id: serviceId,
+        from_status: "ready_for_pickup" as const,
+        to_status: "picked_up" as const,
+        changed_by: by,
+        note,
+      }))
+    );
+  }
 
   await recomputeOrderRollup(executor, orderId, by);
 
-  return { flippedIds: flipped.map((row) => row.id) };
+  return { handedOverIds, requestedIds };
 }
 
 export interface RefundTransitionItem {

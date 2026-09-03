@@ -15,8 +15,13 @@ import {
   POSTOrderPickupEventSchema as _POSTOrderPickupEventSchema,
 } from "@/modules/orders/order-admin.schema";
 import {
+  type DerivedItemStatus as _DerivedItemStatus,
+  type ItemStatusLine as _ItemStatusLine,
+  isCollectableItemStatus as _isCollectableItemStatus,
+  isHandedOverByPickup as _isHandedOverByPickup,
   ORDER_SERVICE_TRANSITIONS as _ORDER_SERVICE_TRANSITIONS,
   ORDER_TERMINAL_SERVICE_STATUSES as _ORDER_TERMINAL_SERVICE_STATUSES,
+  WORKSHOP_SERVICE_STATUSES as _WORKSHOP_SERVICE_STATUSES,
 } from "@/modules/orders/order-status-machine";
 import { POSTPaymentMethodSchema as _POSTPaymentMethodSchema } from "@/modules/payment-methods/payment-method.schema";
 import { POSTProductSchema as _POSTProductSchema } from "@/modules/products/product.schema";
@@ -25,6 +30,11 @@ import { POSTStoreSchema as _POSTStoreSchema } from "@/modules/stores/store.sche
 
 export const ORDER_SERVICE_TRANSITIONS = _ORDER_SERVICE_TRANSITIONS;
 export const ORDER_TERMINAL_SERVICE_STATUSES = _ORDER_TERMINAL_SERVICE_STATUSES;
+export const WORKSHOP_SERVICE_STATUSES = _WORKSHOP_SERVICE_STATUSES;
+export type DerivedItemStatus = _DerivedItemStatus;
+export type ItemStatusLine = _ItemStatusLine;
+export const isCollectableItemStatus = _isCollectableItemStatus;
+export const isHandedOverByPickup = _isHandedOverByPickup;
 export const POSTOrderPickupEventPresignSchema =
   _POSTOrderPickupEventPresignSchema;
 export const POSTOrderPickupEventSchema = _POSTOrderPickupEventSchema;
@@ -44,10 +54,14 @@ import {
   type CampaignDiscountInput as _CampaignDiscountInput,
   computeCampaignContribution as _computeCampaignContribution,
   type DiscountLine as _DiscountLine,
+  type DiscountSource as _DiscountSource,
+  isDiscountSettled as _isDiscountSettled,
   type StackedDiscount as _StackedDiscount,
   stackCampaignDiscounts as _stackCampaignDiscounts,
 } from "@/schema/discount";
 
+export type DiscountSource = _DiscountSource;
+export const isDiscountSettled = _isDiscountSettled;
 export type CampaignContribution<T extends _CampaignDiscountInput> =
   _CampaignContribution<T>;
 export type CampaignDiscountInput = _CampaignDiscountInput;
@@ -67,9 +81,13 @@ export type CampaignEligibilityContext = _CampaignEligibilityContext;
 export type CampaignEligibilityInput = _CampaignEligibilityInput;
 export const campaignIneligibilityReason = _campaignIneligibilityReason;
 
-import { PICKUP_OVERDUE_HOURS as _PICKUP_OVERDUE_HOURS } from "@/schema/turnaround";
+import {
+  PICKUP_OVERDUE_HOURS as _PICKUP_OVERDUE_HOURS,
+  TURNAROUND_PROMISE_HOURS as _TURNAROUND_PROMISE_HOURS,
+} from "@/schema/turnaround";
 
 export const PICKUP_OVERDUE_HOURS = _PICKUP_OVERDUE_HOURS;
+export const TURNAROUND_PROMISE_HOURS = _TURNAROUND_PROMISE_HOURS;
 
 import {
   hasUnpricedLine as _hasUnpricedLine,
@@ -166,25 +184,40 @@ export const POSTOrderSchema = z
         )
       )
       .optional(),
-    services: z
+    // One entry per physical object on the counter, with the treatments sold
+    // for it nested inside. ADR-0017: the descriptors and the tag describe the
+    // object, so the cashier types them once no matter how many treatments the
+    // upsell ends up adding.
+    items: z
       .array(
         z.object(
           {
-            id: z.number("Service is required"),
-            is_priority: z.boolean().optional(),
-            notes: z.string().optional(),
             brand: optionalVarcharSchema("Brand"),
             color: optionalVarcharSchema("Item Color"),
             model: optionalVarcharSchema("Model"),
             size: optionalVarcharSchema("Size", 64),
-            // ADR-0018: only read for a no-list-price Service (Repair) —
-            // sent when the price is already agreed at drop-off, left out
-            // when the workshop still has to inspect the Item. createOrder
-            // ignores it for any catalog-priced Service: the browser can
-            // never set a normal Service's price.
-            price: currencySchema("Price").optional(),
+            services: z
+              .array(
+                z.object(
+                  {
+                    id: z.number("Service is required"),
+                    is_priority: z.boolean().optional(),
+                    notes: z.string().optional(),
+                    // ADR-0018: only read for a no-list-price Service (Repair)
+                    // — sent when the price is already agreed at drop-off, left
+                    // out when the workshop still has to inspect the Item.
+                    // createOrder ignores it for any catalog-priced Service:
+                    // the browser can never set a normal Service's price.
+                    price: currencySchema("Price").optional(),
+                  },
+                  "Service is required"
+                )
+              )
+              // An object with no treatment is not an intake — nothing would
+              // ever be done to it and nothing would price it.
+              .min(1, "Every item needs at least one service"),
           },
-          "Service is required"
+          "Item is required"
         )
       )
       .optional(),
@@ -199,14 +232,12 @@ export const POSTOrderSchema = z
   })
   .refine(
     (val) => {
-      const hasAtLeastOneItem = !!(
-        val.products?.length || val.services?.length
-      );
+      const hasAtLeastOneItem = !!(val.products?.length || val.items?.length);
       return hasAtLeastOneItem;
     },
     {
       error: "Product or Service is required",
-      path: ["products_ids", "services_ids"],
+      path: ["products", "items"],
     }
   )
   .refine(

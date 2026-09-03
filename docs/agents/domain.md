@@ -6,7 +6,7 @@ How the engineering skills should consume this repo's domain documentation when 
 
 **Single-context** — one `CONTEXT.md` + `docs/adr/` at the repo root.
 
-Both exist and are actively maintained — `CONTEXT.md` at the root, and `docs/adr/0001`–`0016`. Read them; `/grill-with-docs` extends them as terms and decisions crystallise.
+Both exist and are actively maintained — `CONTEXT.md` at the root, and the numbered ADRs under `docs/adr/`. Read them; `/grill-with-docs` extends them as terms and decisions crystallise.
 
 Note: this is a Bun monorepo (`packages/server` + `apps/web`). If domain language between API and web ever diverges enough to be confusing, switch to multi-context by adding a `CONTEXT-MAP.md` at the root pointing at per-package `CONTEXT.md` files.
 

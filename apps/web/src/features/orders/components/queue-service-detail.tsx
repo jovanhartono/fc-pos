@@ -4,6 +4,7 @@ import {
 } from "@fresclean/api/schema";
 import {
 	ArrowLeftIcon,
+	CheckCircleIcon,
 	ImageSquareIcon,
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
@@ -22,6 +23,7 @@ import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dia
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { invalidateOrderQueries } from "@/features/orders/lib/invalidate-order-queries";
+import { findOrderLine } from "@/features/orders/lib/order-lines";
 import { orderServicePhotoUploader } from "@/features/orders/utils/photo-upload";
 import {
 	type UpdateOrderServiceStatusPayload,
@@ -102,9 +104,7 @@ export function QueueServiceDetail({
 
 	const detailQuery = useQuery(orderDetailQueryOptions(orderId));
 	const detail = detailQuery.data;
-	const selectedService = detail?.services.find(
-		(service) => service.id === serviceId,
-	);
+	const selectedService = findOrderLine(detail, serviceId);
 
 	const refreshData = () => invalidateOrderQueries(queryClient, orderId);
 
@@ -176,7 +176,7 @@ export function QueueServiceDetail({
 			(!canStartWork || status !== "processing"),
 	);
 
-	const itemDetails = getOrderServiceItemDetails(selectedService);
+	const itemDetails = getOrderServiceItemDetails(selectedService.item);
 	const handlerLabel = isHandledByCurrentUser
 		? "You"
 		: isHandledByAnotherWorker
@@ -200,12 +200,15 @@ export function QueueServiceDetail({
 					<ArrowLeftIcon className="size-4" weight="bold" />
 				</Link>
 				<div className="min-w-0 flex-1">
-					{/* flex-wrap: a long status badge ("Ready for Pickup") next to a long
-					    item code otherwise runs past the 390px viewport and is clipped
-					    by the section's overflow-x-clip — wrapped, it drops below. */}
+					{/* Two headlines of equal weight: the job, and the object it is done
+					    to. A worker needs both to pick the right shoe off the rack, so
+					    neither is demoted to small print. The tag is the machine's
+					    handle and reads third, in mono. flex-wrap so a long status badge
+					    drops below a long name on a 390px viewport instead of being
+					    clipped by the section's overflow-x-clip. */}
 					<div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-						<h1 className="font-mono text-[1.65rem] font-bold leading-tight tracking-tight">
-							{selectedService.item_code ?? `Queue Item #${selectedService.id}`}
+						<h1 className="text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
+							{selectedService.service?.name ?? "Service"}
 						</h1>
 						<Badge
 							className="mt-1 shrink-0"
@@ -216,16 +219,13 @@ export function QueueServiceDetail({
 							{formatOrderServiceStatus(selectedService.status)}
 						</Badge>
 					</div>
-					<p className="mt-1 text-sm text-muted-foreground">
-						{selectedService.service?.name ?? "Service"}
-						{itemDetails ? (
-							<>
-								<span aria-hidden="true" className="mx-1.5 text-border">
-									·
-								</span>
-								{itemDetails}
-							</>
-						) : null}
+					{itemDetails ? (
+						<p className="text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
+							{itemDetails}
+						</p>
+					) : null}
+					<p className="mt-1 break-all font-mono text-sm text-muted-foreground">
+						{selectedService.item.item_code}
 					</p>
 				</div>
 			</div>
@@ -243,13 +243,19 @@ export function QueueServiceDetail({
 					</p>
 				</div>
 
+				{/* Emerald, the done tone every other screen uses for ready: the
+				    workshop's part is finished, and grey read as a warning. */}
 				{selectedService.status === "ready_for_pickup" ? (
-					<div className="flex items-start gap-2 border border-muted bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
-						<WarningCircleIcon
-							className="mt-0.5 size-4 shrink-0"
+					<div className="flex items-start gap-2 border border-emerald-300/60 bg-emerald-50/70 px-3 py-3 text-emerald-900 text-sm dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
+						<CheckCircleIcon
+							aria-hidden="true"
+							className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
 							weight="fill"
 						/>
-						<p>Waiting for cashier to complete pickup at the counter.</p>
+						<p>
+							<strong>Ready.</strong> Waiting for the cashier to complete pickup
+							at the counter.
+						</p>
 					</div>
 				) : null}
 
@@ -329,13 +335,12 @@ export function QueueServiceDetail({
 							items={selectedService.images.map((image) => ({
 								...image,
 								alt:
-									image.note ??
-									`Photo for ${selectedService.item_code ?? `service-${selectedService.id}`}`,
+									image.note ?? `Photo for ${selectedService.item.item_code}`,
 							}))}
 							gridClassName="grid-cols-2 xl:grid-cols-3"
 							thumbnailClassName="bg-background"
 							thumbnailImageClassName="aspect-[5/4]"
-							title={`Photos for ${selectedService.item_code ?? `service-${selectedService.id}`}`}
+							title={`Photos for ${selectedService.item.item_code}`}
 							emptyState={
 								needsPhotoToStart ? (
 									<div className="flex items-start gap-2.5 border border-dashed border-warning/50 bg-warning/10 px-4 py-6 text-sm">
@@ -367,7 +372,7 @@ export function QueueServiceDetail({
 					open={isPhotoDialogOpen}
 					onOpenChange={setIsPhotoDialogOpen}
 					title="Add item photo"
-					badgeLabel={selectedService.item_code ?? undefined}
+					badgeLabel={selectedService.item.item_code}
 					uploader={orderServicePhotoUploader(orderId, serviceId)}
 					onUploaded={async () => {
 						await refreshData();

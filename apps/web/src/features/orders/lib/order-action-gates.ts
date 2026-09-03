@@ -1,4 +1,9 @@
 import { hasUnpricedLine } from "@fresclean/api/schema";
+import {
+	flattenOrderLines,
+	type OrderItem,
+	type OrderLine,
+} from "@/features/orders/lib/order-lines";
 import type { Me, OrderDetail } from "@/lib/api";
 
 export interface OrderActionGates {
@@ -15,11 +20,13 @@ export interface OrderActionGates {
 	// ADR-0018: no price, no payment — any live unpriced line refuses the
 	// Order's move to paid.
 	hasUnpricedLine: boolean;
-	complaintableServices: OrderDetail["services"];
-	readyForPickupServices: OrderDetail["services"];
-	refundableServices: OrderDetail["services"];
+	complaintableServices: OrderLine[];
+	// ADR-0017: what can actually leave the counter is an object, not a
+	// treatment — you cannot hand back half a shoe.
+	collectableItems: OrderItem[];
+	refundableServices: OrderLine[];
 	refundableProducts: OrderDetail["products"];
-	cancellableServices: OrderDetail["services"];
+	cancellableServices: OrderLine[];
 	cancellableProducts: OrderDetail["products"];
 }
 
@@ -37,9 +44,9 @@ export const getOrderActionGates = (
 	// Courier attribution edit mirrors create-order permission (admin + cashier).
 	const canManageCourier = isPaymentAllowed;
 
-	const services = Array.isArray(detail.services) ? detail.services : [];
-	const readyForPickupServices = services.filter(
-		(service) => service.status === "ready_for_pickup",
+	const services = flattenOrderLines(detail);
+	const collectableItems = (detail.items ?? []).filter(
+		(item) => item.is_collectable,
 	);
 	const refundableServices = services.filter(
 		// Rework lines are free (₀) — never refundable. Escalation refunds the
@@ -70,7 +77,7 @@ export const getOrderActionGates = (
 	// ADR-0009: items are ready but the Order is unpaid — explain why pickup is
 	// blocked, and to whom (a pickup-only worker must fetch a cashier to collect).
 	const pickupDisabledReason =
-		readyForPickupServices.length > 0 && !isPaid
+		collectableItems.length > 0 && !isPaid
 			? isPaymentAllowed
 				? "Order must be paid before pickup."
 				: "A cashier must collect payment before pickup."
@@ -83,8 +90,7 @@ export const getOrderActionGates = (
 		canManageDropoffPhoto,
 		canManageCourier,
 		// ADR-0009: payment precedes pickup — no collection on an unpaid Order.
-		canOpenPickup:
-			isPickupAllowed && readyForPickupServices.length > 0 && isPaid,
+		canOpenPickup: isPickupAllowed && collectableItems.length > 0 && isPaid,
 		pickupDisabledReason,
 		canCancelOrder:
 			detail.status !== "cancelled" &&
@@ -101,7 +107,7 @@ export const getOrderActionGates = (
 		// payment section can explain the block instead of relaying a 400.
 		hasUnpricedLine: hasUnpricedLine(services),
 		complaintableServices,
-		readyForPickupServices,
+		collectableItems,
 		refundableServices,
 		refundableProducts,
 		cancellableServices,

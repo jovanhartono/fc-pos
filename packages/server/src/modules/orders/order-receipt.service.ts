@@ -57,23 +57,34 @@ export async function getOrderReceiptById(id: number) {
         },
         orderBy: { id: "asc" },
       },
-      services: {
+      // The struk prints one header per physical object — tag + descriptors
+      // once — with each treatment sold against it as a sub-line beneath
+      // (ADR-0017). One upsold pair is one header, three priced lines.
+      items: {
         columns: {
           id: true,
           item_code: true,
-          status: true,
-          subtotal: true,
           brand: true,
           color: true,
           model: true,
           size: true,
-          notes: true,
         },
         with: {
-          service: {
+          services: {
             columns: {
-              name: true,
+              id: true,
+              status: true,
+              subtotal: true,
+              notes: true,
             },
+            with: {
+              service: {
+                columns: {
+                  name: true,
+                },
+              },
+            },
+            orderBy: { id: "asc" },
           },
         },
         orderBy: { id: "asc" },

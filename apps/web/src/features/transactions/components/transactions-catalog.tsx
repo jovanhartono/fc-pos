@@ -175,7 +175,7 @@ export function TransactionsCatalog() {
 									id="transaction-search"
 									value={searchTerm}
 									onChange={(event) => setSearchTerm(event.target.value)}
-									placeholder="Search services or add-ons (press /)"
+									placeholder="Search services or products (press /)"
 									className="border-border/70 bg-background pl-9 pr-10"
 								/>
 								<kbd className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 items-center justify-center border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">

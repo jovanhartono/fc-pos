@@ -75,7 +75,7 @@ export const OpenComplaintForm = ({
 					name="order_service_id"
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<p className="text-sm font-medium">Which item?</p>
+							<p className="text-sm font-medium">Which treatment?</p>
 							<div
 								aria-label="Item with complaint"
 								className="grid gap-2 sm:grid-cols-2"
@@ -165,8 +165,9 @@ interface ComplaintLineCardProps {
 
 // A real (visually hidden) radio input wrapped by the styled card: native
 // radiogroup semantics and keyboard behavior, with the full card as the touch
-// target. order_service_id is unreadable on its own, so the card surfaces the
-// item code, service, and item details (brand · color · model · size).
+// target. Sibling treatments on one object share a tag (ADR-0017), so the
+// service name leads and the tag rides in the badge — three lines on one
+// shoe differ by treatment, not by code.
 const ComplaintLineCard = ({
 	disabled,
 	isSelected,
@@ -193,9 +194,9 @@ const ComplaintLineCard = ({
 		/>
 		<span className="min-w-0 flex-1 space-y-1">
 			<span className="flex items-center gap-2">
-				<span className="truncate font-medium text-sm">{line.itemCode}</span>
-				<Badge className="shrink-0" variant="outline">
-					{line.serviceName}
+				<span className="truncate font-medium text-sm">{line.serviceName}</span>
+				<Badge className="shrink-0 font-mono" variant="outline">
+					{line.itemCode}
 				</Badge>
 			</span>
 			<span className="block text-muted-foreground text-xs">

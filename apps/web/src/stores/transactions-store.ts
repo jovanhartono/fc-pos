@@ -9,6 +9,11 @@ type TransactionsPageUiState = {
 	// checkout commits. Kept here (not in the page context) so a photo pick only
 	// re-renders the checkout field, not the whole catalog.
 	dropoffPhoto: File | null;
+	// Which Item card a catalog tap lands on (ADR-0017). The cashier works one
+	// object at a time — put the shoe down, sell it a clean, upsell a repaint —
+	// so taps follow the thing on the counter rather than asking every time.
+	// Transient like the photo above: it never reaches the server.
+	activeItemId: string | null;
 };
 
 type TransactionsPageUiActions = {
@@ -16,6 +21,7 @@ type TransactionsPageUiActions = {
 	setActiveCategory: (category: CategoryFilter) => void;
 	setSubmitError: (message: string) => void;
 	setDropoffPhoto: (file: File | null) => void;
+	setActiveItemId: (itemId: string | null) => void;
 	resetUi: () => void;
 };
 
@@ -27,6 +33,7 @@ const initialUiState: TransactionsPageUiState = {
 	activeCategory: "all",
 	submitError: "",
 	dropoffPhoto: null,
+	activeItemId: null,
 };
 
 export const useTransactionsPageStore = create<TransactionsPageStore>()(
@@ -36,6 +43,7 @@ export const useTransactionsPageStore = create<TransactionsPageStore>()(
 		setActiveCategory: (activeCategory) => set({ activeCategory }),
 		setSubmitError: (submitError) => set({ submitError }),
 		setDropoffPhoto: (dropoffPhoto) => set({ dropoffPhoto }),
+		setActiveItemId: (activeItemId) => set({ activeItemId }),
 		resetUi: () => set(initialUiState),
 	}),
 );

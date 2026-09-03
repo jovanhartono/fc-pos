@@ -48,5 +48,13 @@ export const authorizationDouble = (state: StoreMembershipState) => {
     assertStoreAccess,
     getUserStoreIds,
     resolveStoreScope,
+    // Doubled with real teeth, not a no-op: a suite that reaches this has
+    // routed a scope no screen handles, and letting it fall through would run
+    // the query unfiltered — every branch's takings. Present here because a
+    // module double must offer every export its importer names, or Bun refuses
+    // to link the module at all.
+    unhandledStoreScope: (scope: never): never => {
+      throw new Error(`Unhandled store scope: ${JSON.stringify(scope)}`);
+    },
   };
 };

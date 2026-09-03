@@ -1,4 +1,7 @@
-import { PICKUP_OVERDUE_HOURS } from "@fresclean/api/schema";
+import {
+	TURNAROUND_PROMISE_HOURS,
+	WORKSHOP_SERVICE_STATUSES,
+} from "@fresclean/api/schema";
 import {
 	CaretRightIcon,
 	FunnelIcon,
@@ -30,9 +33,9 @@ import {
 	type FetchOrderServiceQueueQuery,
 	fetchOrderDetail,
 	fetchOrderServiceQueuePage,
+	lookupItemByItemCode,
 	lookupOrderServiceById,
-	lookupOrderServiceByItemCode,
-	type QueueOrderServiceItem,
+	type QueueItem,
 	queryKeys,
 } from "@/lib/api";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
@@ -43,25 +46,22 @@ import {
 } from "@/lib/query-options";
 import { readServerErrorMessage } from "@/lib/server-error";
 import {
-	ACTIVE_ORDER_SERVICE_STATUSES,
 	formatOrderServiceStatus,
+	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
+import { useQueuePreferencesStore } from "@/stores/queue-preferences-store";
 
 const QUEUE_PAGE_SIZE = 20;
-
-const TERMINAL_QUEUE_STATUSES = new Set<QueueOrderServiceItem["status"]>([
-	"picked_up",
-	"refunded",
-	"cancelled",
-]);
 
 const HOUR_MS = 3_600_000;
 
 // One threshold, not a four-step ramp: an amber-at-24h/red-at-72h scale paints a
 // whole backlog the same colour, and a list where every row is red says nothing.
-const TURNAROUND_MS = PICKUP_OVERDUE_HOURS * HOUR_MS;
+// The workshop clock (from drop-off) — not PICKUP_OVERDUE_HOURS, which times
+// the customer's collection from ready_at on a different screen.
+const TURNAROUND_MS = TURNAROUND_PROMISE_HOURS * HOUR_MS;
 
 // One timer for the whole list, not one per row: the queue scrolls to hundreds
 // of rows and each row used to own its own interval, so the clock cost grew
@@ -91,7 +91,11 @@ function formatElapsedDuration(ms: number): string {
 
 const queueSearchSchema = z.object({
 	storeId: z.coerce.number().int().positive().optional(),
-	status: z.enum(ACTIVE_ORDER_SERVICE_STATUSES).optional(),
+	status: z.enum(WORKSHOP_SERVICE_STATUSES).optional(),
+	// Set when a scanned tag turns out to have several treatments open on it:
+	// the rack narrows to that one object so the worker can say which job they
+	// are starting (ADR-0017).
+	search: z.string().min(1).optional(),
 	dateFrom: z
 		.string()
 		.regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -133,6 +137,13 @@ function QueuePage() {
 		...meQueryOptions(),
 		enabled: !!currentUser,
 	});
+	const currentUserKey = currentUser ? String(currentUser.id) : "";
+	const persistedStoreId = useQueuePreferencesStore(
+		(state) => state.storeIdByUser[currentUserKey],
+	);
+	const setPersistedStoreId = useQueuePreferencesStore(
+		(state) => state.setStoreId,
+	);
 
 	const userStoreIds = useMemo(
 		() => meQuery.data?.userStores.map((item) => item.store_id) ?? [],
@@ -141,22 +152,56 @@ function QueuePage() {
 	// DB-fresh role — JWT claim goes stale on mid-session role changes.
 	const role = meQuery.data?.role;
 
+	// One effect owns the store filter's memory. With a store in the URL,
+	// remember it — however it got there: the filter dialog, a scan, or the back
+	// link from a job. Without one, restore the remembered branch once per
+	// visit, so an explicit clear stays cleared instead of bouncing back.
+	const hasRestoredStoreRef = useRef(false);
 	useEffect(() => {
-		if (!currentUser || search.storeId !== undefined) {
+		if (!currentUser || role === undefined) {
 			return;
 		}
 
-		if (role === "admin") {
+		if (search.storeId !== undefined) {
+			if (search.storeId !== persistedStoreId) {
+				setPersistedStoreId(currentUserKey, search.storeId);
+			}
 			return;
 		}
 
-		if (userStoreIds.length > 0) {
+		if (!hasRestoredStoreRef.current) {
+			hasRestoredStoreRef.current = true;
+			// Only a branch this worker may still see — one moved between branches
+			// since must not land on the old rack.
+			if (
+				persistedStoreId !== undefined &&
+				(role === "admin" || userStoreIds.includes(persistedStoreId))
+			) {
+				void navigate({
+					search: (prev) => ({ ...prev, storeId: persistedStoreId }),
+					replace: true,
+				});
+				return;
+			}
+		}
+
+		// A worker always has a rack; only an admin may look at none.
+		if (role !== "admin" && userStoreIds.length > 0) {
 			void navigate({
 				search: (prev) => ({ ...prev, storeId: userStoreIds[0] }),
 				replace: true,
 			});
 		}
-	}, [currentUser, navigate, search.storeId, userStoreIds, role]);
+	}, [
+		currentUser,
+		currentUserKey,
+		navigate,
+		persistedStoreId,
+		role,
+		search.storeId,
+		setPersistedStoreId,
+		userStoreIds,
+	]);
 
 	const parsedStoreId = useMemo(() => {
 		if (search.storeId !== undefined) {
@@ -172,12 +217,14 @@ function QueuePage() {
 	const selectedStatus = search.status;
 	const selectedDateFrom = search.dateFrom;
 	const selectedDateTo = search.dateTo;
+	const selectedSearch = search.search;
 	const queueQueryInput: FetchOrderServiceQueueQuery | undefined =
 		parsedStoreId !== undefined
 			? {
 					limit: QUEUE_PAGE_SIZE,
 					store_id: parsedStoreId,
 					...(selectedStatus !== undefined ? { status: selectedStatus } : {}),
+					...(selectedSearch !== undefined ? { search: selectedSearch } : {}),
 					...(selectedDateFrom !== undefined
 						? { date_from: selectedDateFrom }
 						: {}),
@@ -190,6 +237,7 @@ function QueuePage() {
 			...queryKeys.orderServiceQueue({
 				store_id: parsedStoreId,
 				status: selectedStatus,
+				search: selectedSearch,
 				date_from: selectedDateFrom,
 				date_to: selectedDateTo,
 			}),
@@ -283,19 +331,25 @@ function QueuePage() {
 				}
 			}
 
-			const orderService = await lookupOrderServiceByItemCode(query);
-			if (!orderService.order) {
+			// A tag names an object, and an object can have several treatments open
+			// on it (ADR-0017). Go straight to the work screen when there is only
+			// one thing to do; otherwise land on the queue filtered to that tag and
+			// let the worker pick off the card.
+			const item = await lookupItemByItemCode(query);
+			if (!item.order) {
 				throw new Error(
 					mode === "scan"
-						? "Shoe item not found"
+						? "Item not found"
 						: "No item, order, or line matched",
 				);
 			}
 
 			return {
-				orderId: orderService.order.id,
-				storeId: orderService.order.store_id,
-				queueServiceId: orderService.id,
+				orderId: item.order.id,
+				storeId: item.order.store_id,
+				queueServiceId:
+					item.services.length === 1 ? item.services[0].id : undefined,
+				itemCode: item.services.length > 1 ? item.item_code : undefined,
 			};
 		},
 		onSuccess: (result) => {
@@ -306,6 +360,19 @@ function QueuePage() {
 						orderId: String(result.orderId),
 						serviceId: String(result.queueServiceId),
 					},
+				});
+				return;
+			}
+
+			// Several jobs open on the one object: show its card and let the worker
+			// say which one they are starting.
+			if (result.itemCode !== undefined) {
+				void navigate({
+					search: (prev) => ({
+						...prev,
+						search: result.itemCode,
+						status: undefined,
+					}),
 				});
 				return;
 			}
@@ -330,17 +397,16 @@ function QueuePage() {
 	});
 
 	const queueItems =
-		queueQuery.data?.pages.flatMap((page) => page.items) ??
-		([] as QueueOrderServiceItem[]);
+		queueQuery.data?.pages.flatMap((page) => page.items) ?? ([] as QueueItem[]);
 	const totalItems = queueQuery.data?.pages[0]?.meta.total ?? 0;
 
 	const navigateToQueueDetail = useCallback(
-		(item: QueueOrderServiceItem) => {
+		(item: QueueItem, serviceId: number) => {
 			void navigate({
 				to: "/queue/$orderId/$serviceId",
 				params: {
 					orderId: String(item.order_id),
-					serviceId: String(item.id),
+					serviceId: String(serviceId),
 				},
 			});
 		},
@@ -362,7 +428,7 @@ function QueuePage() {
 				...prev,
 				status:
 					value && value !== "all"
-						? (value as (typeof ACTIVE_ORDER_SERVICE_STATUSES)[number])
+						? (value as (typeof WORKSHOP_SERVICE_STATUSES)[number])
 						: undefined,
 			}),
 		});
@@ -378,6 +444,15 @@ function QueuePage() {
 		});
 	};
 
+	// Set by a scan that landed on a multi-treatment tag. Nothing else writes it,
+	// and without a way back the worker stays on a one-card rack — the chips above
+	// keep counting the whole branch, so the counts stop matching the list.
+	const clearSearchFilter = () => {
+		void navigate({
+			search: (prev) => ({ ...prev, search: undefined }),
+		});
+	};
+
 	const activeFilterCount =
 		(selectedDateFrom || selectedDateTo ? 1 : 0) +
 		(role === "admin" && parsedStoreId !== undefined ? 1 : 0);
@@ -388,7 +463,7 @@ function QueuePage() {
 				actions={
 					<div className="flex items-center gap-2">
 						<Badge variant={queueQuery.isLoading ? "secondary" : "outline"}>
-							{`${totalItems} items`}
+							{`${totalItems} ${totalItems === 1 ? "item" : "items"}`}
 						</Badge>
 						<Dialog onOpenChange={setIsFilterOpen} open={isFilterOpen}>
 							<DialogTrigger
@@ -510,11 +585,32 @@ function QueuePage() {
 					/>
 				) : null}
 
-				<QueueStatusTabs
-					counts={countsQuery.data}
-					onValueChange={updateStatusFilter}
-					value={selectedStatus ?? "all"}
-				/>
+				{selectedSearch ? (
+					<div className="flex min-w-0 items-center gap-2 border border-dashed border-border px-3 py-2 text-sm">
+						<span className="min-w-0 flex-1 truncate text-muted-foreground">
+							Showing <span className="font-mono">{selectedSearch}</span> only
+						</span>
+						<Button
+							onClick={clearSearchFilter}
+							size="sm"
+							type="button"
+							variant="outline"
+						>
+							Clear
+						</Button>
+					</div>
+				) : null}
+
+				{/* Hidden while a scanned tag pins the list to one object: the counts
+				    describe the whole branch, and chips saying "47" over a one-card
+				    list are lying. They come back with Clear. */}
+				{!selectedSearch && (
+					<QueueStatusTabs
+						counts={countsQuery.data}
+						onValueChange={updateStatusFilter}
+						value={selectedStatus ?? "all"}
+					/>
+				)}
 
 				<section className="grid min-w-0 gap-2">
 					{role === "admin" && parsedStoreId === undefined ? (
@@ -577,89 +673,127 @@ function QueuePage() {
 }
 
 interface QueueRowProps {
-	item: QueueOrderServiceItem;
+	item: QueueItem;
 	currentUserId?: number;
 	now: number;
-	onOpen: (item: QueueOrderServiceItem) => void;
+	onOpen: (item: QueueItem, serviceId: number) => void;
 }
 
+// One card per physical object, with every treatment still live on it listed
+// inside (ADR-0017). A pair in for a deep clean, a repaint and leather care
+// used to be three separate rows on the rack with nothing saying they were the
+// same shoe — and physics already stops two workers holding it at once.
 const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
-	const isTerminal = TERMINAL_QUEUE_STATUSES.has(item.status);
 	const elapsedMs = Math.max(
 		0,
 		now - new Date(item.order_created_at).getTime(),
 	);
-	const isBreached = !isTerminal && elapsedMs >= TURNAROUND_MS;
+	const isBreached = elapsedMs >= TURNAROUND_MS;
 
-	const isHandledByCurrentUser =
-		currentUserId !== undefined && item.handler_id === currentUserId;
-	const handler = isHandledByCurrentUser
-		? "Me"
-		: (item.handler_name ?? (item.handler_id === null ? null : "Worker"));
-
-	// Lead with whatever actually identifies the Item. Descriptors are optional at
-	// intake, so a fixed "descriptors on top" row shouts "No item details" at full
-	// weight and demotes the service — the only thing left that says anything.
+	// Descriptors are optional at intake, so falling back to the tag keeps the
+	// heading from reading "No item details" at full weight.
 	const descriptors = getOrderServiceItemDetails(item);
-	const secondary = [descriptors ? item.service_name : null, handler]
-		.filter(Boolean)
-		.join(" · ");
+	// The order code sits on the line below, so the heading only needs the part
+	// of the tag that tells this object from its siblings. Derived by stripping
+	// the order code the row already carries rather than by knowing where the
+	// dash sits; anything unexpected shows the whole tag. Display only: every
+	// lookup still matches the whole stored string.
+	const orderPrefix = `${item.order_code}-`;
+	const tagSuffix = item.item_code.startsWith(orderPrefix)
+		? item.item_code.slice(orderPrefix.length)
+		: item.item_code;
 
 	return (
-		// min-w-0 at every level down to the truncating text: without it the row's
+		// min-w-0 at every level down to the truncating text: without it the card's
 		// min-content sizes the auto grid column, and the search field and status
 		// chips above — siblings in that same column — get pushed off screen.
-		<button
-			className="group flex min-w-0 items-stretch gap-0 border border-border bg-background text-left transition-colors hover:bg-muted/40"
-			onClick={() => onOpen(item)}
-			type="button"
+		<article
+			className={cn(
+				"min-w-0 border border-border bg-background",
+				// An object is urgent if any treatment on it is: the shoe is on the
+				// priority shelf. The edge marks the shoe; the chip on the row below
+				// marks which job carries the promise.
+				item.is_priority && "border-l-4 border-l-amber-500",
+			)}
 		>
-			<span className="grid min-w-0 flex-1 gap-0.5 px-3 py-2.5">
-				<span className="flex min-w-0 items-baseline gap-2">
-					<span className="min-w-0 flex-1 truncate font-medium text-sm">
-						{descriptors ?? item.service_name}
+			<header className="grid min-w-0 gap-0.5 px-3 pt-2.5 pb-2">
+				<h3 className="flex min-w-0 items-baseline gap-2 font-medium text-[15px] leading-snug">
+					{descriptors ? (
+						<>
+							<span className="shrink-0 font-mono text-muted-foreground text-xs tabular-nums">
+								{tagSuffix}
+							</span>
+							<span className="min-w-0 flex-1 break-words">{descriptors}</span>
+						</>
+					) : (
+						<span className="min-w-0 flex-1 break-all font-mono">
+							{item.item_code}
+						</span>
+					)}
+				</h3>
+				<p className="flex min-w-0 items-baseline gap-2 text-muted-foreground text-xs">
+					<span className="min-w-0 flex-1 truncate">
+						{item.order_code} · {item.customer_name}
 					</span>
 					<span
 						className={cn(
-							"shrink-0 font-mono font-semibold text-sm tabular-nums",
-							isBreached ? "text-destructive" : "text-muted-foreground",
+							"shrink-0 font-mono font-semibold tabular-nums",
+							isBreached && "text-destructive",
 						)}
 					>
-						{isTerminal ? "—" : formatElapsedDuration(elapsedMs)}
+						{formatElapsedDuration(elapsedMs)}
 					</span>
-					{/* self-center: an svg has no text baseline, so in this baseline-aligned
-					    row it would sit on the baseline and ride 3px high. */}
-					<CaretRightIcon
-						className="size-4 shrink-0 self-center text-muted-foreground transition-transform group-hover:translate-x-0.5"
-						weight="bold"
-					/>
-				</span>
-				<span className="flex min-w-0 items-baseline gap-2 text-muted-foreground text-xs">
-					{/* On the All chip a queued Item and one back from a failed quality
-					    check are otherwise the same row, and triaging the rack means
-					    opening each one. Kept on the filtered chips too: a barcode scan
-					    and a search both land here spanning statuses. */}
-					{item.is_priority ? (
-						<Badge
-							className="shrink-0 px-1.5 py-0 font-mono text-[10px] uppercase tracking-wide"
-							variant="warning"
-						>
-							Priority
-						</Badge>
-					) : null}
-					<Badge
-						className="shrink-0 px-1.5 py-0 font-mono text-[10px] uppercase tracking-wide"
-						variant="outline"
-					>
-						{formatOrderServiceStatus(item.status)}
-					</Badge>
-					<span className="min-w-0 flex-1 truncate">{secondary}</span>
-					<span className="shrink-0 font-mono text-[10px]">
-						{item.item_code ?? `#${item.id}`}
-					</span>
-				</span>
-			</span>
-		</button>
+				</p>
+			</header>
+
+			{/* Each treatment is its own target: the worker taps the job they are
+			    about to do, not the object. */}
+			<ul className="grid">
+				{item.services.map((service) => {
+					const handler =
+						service.handler_id === currentUserId
+							? "Me"
+							: (service.handler_name ??
+								(service.handler_id === null ? null : "Worker"));
+
+					return (
+						<li className="min-w-0" key={service.id}>
+							<button
+								className="group grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 border-border/70 border-t px-3 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+								onClick={() => onOpen(item, service.id)}
+								type="button"
+							>
+								<span className="min-w-0 break-words text-sm">
+									{service.service_name}
+								</span>
+								<CaretRightIcon
+									aria-hidden="true"
+									className="row-span-2 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+									weight="bold"
+								/>
+								<span className="flex min-w-0 flex-wrap items-center gap-1.5 text-muted-foreground text-xs">
+									<Badge
+										className="px-1.5 py-0 text-[11px]"
+										variant={getOrderServiceStatusBadgeVariant(service.status)}
+									>
+										{formatOrderServiceStatus(service.status)}
+									</Badge>
+									{service.is_priority ? (
+										<Badge
+											className="px-1.5 py-0 text-[11px]"
+											variant="warning"
+										>
+											Priority
+										</Badge>
+									) : null}
+									{handler ? <span>{handler}</span> : null}
+								</span>
+							</button>
+						</li>
+					);
+				})}
+			</ul>
+		</article>
 	);
 });
 QueueRow.displayName = "QueueRow";

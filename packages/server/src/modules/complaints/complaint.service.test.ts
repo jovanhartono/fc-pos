@@ -15,7 +15,6 @@ const repo = {
   subject: undefined as AnyObj | undefined,
   existingComplaint: undefined as AnyObj | undefined,
   complaintById: undefined as AnyObj | undefined,
-  reworkCount: 0,
   // captured writes
   insertedComplaint: undefined as AnyObj | undefined,
   insertedRework: undefined as AnyObj | undefined,
@@ -65,7 +64,6 @@ mock.module("@/modules/complaints/complaint.repository", () => ({
   findComplaintSubjectService: () => Promise.resolve(repo.subject),
   findComplaintForService: () => Promise.resolve(repo.existingComplaint),
   findComplaintById: () => Promise.resolve(repo.complaintById),
-  countReworkLinesForOrder: () => Promise.resolve(repo.reworkCount),
   insertComplaint: (_executor: unknown, values: AnyObj) => {
     repo.insertedComplaint = values;
     return Promise.resolve({ id: 99, ...values });
@@ -84,15 +82,14 @@ const { addRework, openComplaint } = await import(
 
 const USER = { id: 42, role: "cashier" } as unknown as JWTPayload;
 
+// The complained line points at the physical object it treated — the pair of
+// Nikes on the shelf is Item 21; its tag and descriptors live there (ADR-0017).
 const makeSubject = (over: AnyObj = {}) => ({
   id: 10,
   status: "picked_up",
   complaint_id: null,
   service_id: 3,
-  brand: "Nike",
-  color: "white",
-  model: "AirMax",
-  size: "42",
+  item_id: 21,
   order: { id: 7, code: "ORD-001", store_id: 1 },
   ...over,
 });
@@ -101,7 +98,6 @@ beforeEach(() => {
   repo.subject = makeSubject();
   repo.existingComplaint = undefined;
   repo.complaintById = undefined;
-  repo.reworkCount = 0;
   repo.insertedComplaint = undefined;
   repo.insertedRework = undefined;
   rollup.calls = [];
@@ -179,20 +175,17 @@ describe("openComplaint", () => {
 
     expect(result.rework).not.toBeNull();
     // Rework is a free, priority, queued line carrying complaint_id, on the
-    // ORIGINAL order, copying the complained item's attributes (ADR-0013).
+    // ORIGINAL order (ADR-0013), treating the ORIGINAL item — the same shoes
+    // are back on the shelf, not a new drop-off (ADR-0017).
     expect(repo.insertedRework).toMatchObject({
       order_id: 7,
+      item_id: 21,
       service_id: 3,
-      brand: "Nike",
-      color: "white",
-      model: "AirMax",
-      size: "42",
       price: "0",
       cogs_snapshot: "0",
       is_priority: true,
       status: "queued",
       complaint_id: 99,
-      item_code: "ORD-001-RW001",
     });
   });
 
@@ -201,10 +194,18 @@ describe("openComplaint", () => {
     expect(rollup.calls).toEqual([{ executor: TX, orderId: 7, userId: 42 }]);
   });
 
-  it("numbers rework lines sequentially per order, zero-padded to 3", async () => {
-    repo.reworkCount = 2;
+  it("reuses the complained item's tag instead of minting a rework code", async () => {
     await open({ start_rework: true });
-    expect(repo.insertedRework?.item_code).toBe("ORD-001-RW003");
+    // One physical object, one tag (ADR-0017): the returning shoes keep the
+    // code already stuck to them. The retired -RW### series would have put a
+    // second tag on the same object; descriptors stay on the shared Item too.
+    expect(repo.insertedRework).not.toContainAnyKeys([
+      "item_code",
+      "brand",
+      "color",
+      "model",
+      "size",
+    ]);
   });
 });
 
@@ -228,19 +229,21 @@ describe("addRework", () => {
     );
   });
 
-  it("adds a sequential rework line to the complaint", async () => {
+  it("adds another rework round on the same item", async () => {
     repo.complaintById = { id: 99, order_service_id: 10 };
-    repo.reworkCount = 1;
 
     const line = await add();
 
+    // "Still bad after the first rework" stays inside the one complaint
+    // episode (ADR-0013): another free round on the very same object, which
+    // holds the item off the collectable list until this round is ready.
     expect(line.id).toBe(500);
     expect(repo.insertedRework).toMatchObject({
       complaint_id: 99,
+      item_id: 21,
       price: "0",
       is_priority: true,
       status: "queued",
-      item_code: "ORD-001-RW002",
     });
     expect(rollup.calls).toEqual([{ executor: TX, orderId: 7, userId: 42 }]);
   });

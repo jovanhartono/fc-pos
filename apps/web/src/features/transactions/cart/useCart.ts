@@ -3,13 +3,19 @@ import { useCallback, useMemo } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import {
 	buildActiveItemMap,
+	createCartLineId,
+	createEmptyItem,
+	enrichItemCart,
 	enrichProductCart,
-	enrichServiceCart,
 	getCartCount,
 	getCartSubtotal,
+	type ItemCartDisplayLine,
+	type ItemCartLine,
+	moveCartService,
 	type ProductCartDisplayLine,
 	type ProductCartLine,
 	resetTransactionDraft,
+	resolveActiveItemId,
 	type ServiceCartDisplayLine,
 	type ServiceCartLine,
 	type TransactionDraftValues,
@@ -21,29 +27,36 @@ import {
 } from "@/lib/query-options";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
-function createServiceCartLineId() {
-	return (
-		globalThis.crypto?.randomUUID?.() ??
-		`service-${Date.now()}-${Math.random()}`
-	);
-}
-
 export interface CartOps {
 	resetCart: () => void;
 	removeProduct: (productId: number) => void;
-	removeService: (lineId: string) => void;
+	removeItem: (itemId: string) => void;
+	removeService: (itemId: string, lineId: string) => void;
 	updateProductQty: (
 		productId: number,
 		nextQty: number,
 		maxStock: number,
 	) => void;
-	updateServiceField: (
-		lineId: string,
-		field: "brand" | "color" | "model" | "size" | "notes" | "price",
+	updateItemField: (
+		itemId: string,
+		field: "brand" | "color" | "model" | "size",
 		value: string,
+	) => void;
+	updateServiceField: (
+		itemId: string,
+		lineId: string,
+		field: "notes" | "price",
+		value: string,
+	) => void;
+	moveService: (
+		fromItemId: string,
+		lineId: string,
+		toItemId: string | null,
 	) => void;
 	addProduct: (product: Product) => void;
 	addService: (service: Service) => void;
+	addItem: () => void;
+	setActiveItem: (itemId: string) => void;
 }
 
 // Write ops only — reads via getValues, so consumers (e.g. the catalog) do
@@ -67,14 +80,22 @@ export function useCartOps(): CartOps {
 		[form],
 	);
 
-	const setServiceCart = useCallback(
-		(nextCart: ServiceCartLine[]) => {
-			form.setValue("serviceCart", nextCart, {
+	const setItemCart = useCallback(
+		(nextCart: ItemCartLine[]) => {
+			form.setValue("itemCart", nextCart, {
 				shouldDirty: true,
 				shouldValidate: true,
 			});
 		},
 		[form],
+	);
+
+	// Which card a catalog tap lands on. Transient counter state, so it lives
+	// beside the drop-off photo rather than in the draft the server sees. Only
+	// the setter is subscribed to: reading the value here would re-render every
+	// consumer of this hook — including the whole catalog grid — on each tap.
+	const setActiveItemId = useTransactionsPageStore(
+		(state) => state.setActiveItemId,
 	);
 
 	const resetCart = useCallback(() => {
@@ -91,14 +112,42 @@ export function useCartOps(): CartOps {
 		[form, setProductCart, setSubmitError],
 	);
 
-	const removeService = useCallback(
-		(lineId: string) => {
+	// Every write goes through here, so the "one item is active" pointer is
+	// reconciled here too rather than re-remembered at each call site.
+	const patchItem = useCallback(
+		(itemId: string, patch: (item: ItemCartLine) => ItemCartLine) => {
 			setSubmitError("");
-			setServiceCart(
-				form.getValues("serviceCart").filter((line) => line.line_id !== lineId),
+			setItemCart(
+				form
+					.getValues("itemCart")
+					.map((item) => (item.line_id === itemId ? patch(item) : item)),
 			);
 		},
-		[form, setServiceCart, setSubmitError],
+		[form, setItemCart, setSubmitError],
+	);
+
+	const removeItem = useCallback(
+		(itemId: string) => {
+			setSubmitError("");
+			setItemCart(
+				form.getValues("itemCart").filter((item) => item.line_id !== itemId),
+			);
+		},
+		[form, setItemCart, setSubmitError],
+	);
+
+	// Pulling the last treatment off an object leaves the card standing and
+	// empty on purpose: the cashier is mid-correction, and silently deleting the
+	// descriptors they just typed would be the wrong kind of tidy. It is dropped
+	// on the way to the wire instead.
+	const removeService = useCallback(
+		(itemId: string, lineId: string) => {
+			patchItem(itemId, (item) => ({
+				...item,
+				services: item.services.filter((line) => line.line_id !== lineId),
+			}));
+		},
+		[patchItem],
 	);
 
 	const updateProductQty = useCallback(
@@ -124,22 +173,32 @@ export function useCartOps(): CartOps {
 		[form, setProductCart, setSubmitError],
 	);
 
-	const updateServiceField = useCallback(
+	const updateItemField = useCallback(
 		(
-			lineId: string,
-			field: "brand" | "color" | "model" | "size" | "notes" | "price",
+			itemId: string,
+			field: "brand" | "color" | "model" | "size",
 			value: string,
 		) => {
-			setSubmitError("");
-			setServiceCart(
-				form
-					.getValues("serviceCart")
-					.map((line) =>
-						line.line_id === lineId ? { ...line, [field]: value } : line,
-					),
-			);
+			patchItem(itemId, (item) => ({ ...item, [field]: value }));
 		},
-		[form, setServiceCart, setSubmitError],
+		[patchItem],
+	);
+
+	const updateServiceField = useCallback(
+		(
+			itemId: string,
+			lineId: string,
+			field: "notes" | "price",
+			value: string,
+		) => {
+			patchItem(itemId, (item) => ({
+				...item,
+				services: item.services.map((line) =>
+					line.line_id === lineId ? { ...line, [field]: value } : line,
+				),
+			}));
+		},
+		[patchItem],
 	);
 
 	const addProduct = useCallback(
@@ -173,40 +232,95 @@ export function useCartOps(): CartOps {
 		[form, setProductCart, setSubmitError],
 	);
 
+	const moveService = useCallback(
+		(fromItemId: string, lineId: string, toItemId: string | null) => {
+			const moved = moveCartService(
+				form.getValues("itemCart"),
+				fromItemId,
+				lineId,
+				toItemId,
+			);
+			if (!moved) {
+				return;
+			}
+			setSubmitError("");
+			setItemCart(moved.cart);
+			// A split opens a card the same way "+ Item" does, so the next catalog
+			// tap lands on it the same way too.
+			if (moved.createdItemId) {
+				setActiveItemId(moved.createdItemId);
+			}
+		},
+		[form, setItemCart, setSubmitError, setActiveItemId],
+	);
+
+	const addItem = useCallback(() => {
+		setSubmitError("");
+		const item = createEmptyItem();
+		setItemCart([...form.getValues("itemCart"), item]);
+		setActiveItemId(item.line_id);
+	}, [form, setItemCart, setSubmitError, setActiveItemId]);
+
+	// A catalog tap lands on the object already on the counter — that is the
+	// upsell, and it is the common case. The first tap of an order has no card
+	// to land on, so it opens one: a single-object order costs the cashier
+	// exactly the taps it always did (ADR-0017).
 	const addService = useCallback(
 		(service: Service) => {
 			setSubmitError("");
-			setServiceCart([
-				...form.getValues("serviceCart"),
-				{
-					kind: "service",
-					line_id: createServiceCartLineId(),
-					id: service.id,
-					brand: "",
-					color: "",
-					model: "",
-					size: "",
-					notes: "",
-					price: "",
-				},
-			]);
+			const cart = form.getValues("itemCart");
+			const treatment: ServiceCartLine = {
+				kind: "service",
+				line_id: createCartLineId("service"),
+				id: service.id,
+				notes: "",
+				price: "",
+			};
+
+			// Read the pointer, don't subscribe to it — and resolve it against the
+			// cart, so a pointer at a card the cashier just removed lands on one
+			// still on the counter instead of opening a stray third card.
+			const activeId = resolveActiveItemId(
+				cart,
+				useTransactionsPageStore.getState().activeItemId,
+			);
+			const target = cart.find((item) => item.line_id === activeId);
+			if (!target) {
+				const item = createEmptyItem();
+				setItemCart([...cart, { ...item, services: [treatment] }]);
+				setActiveItemId(item.line_id);
+				return;
+			}
+
+			patchItem(target.line_id, (item) => ({
+				...item,
+				services: [...item.services, treatment],
+			}));
 		},
-		[form, setServiceCart, setSubmitError],
+		[form, patchItem, setItemCart, setSubmitError, setActiveItemId],
 	);
 
 	return {
 		resetCart,
 		removeProduct,
+		removeItem,
 		removeService,
 		updateProductQty,
+		updateItemField,
 		updateServiceField,
+		moveService,
 		addProduct,
 		addService,
+		addItem,
+		setActiveItem: setActiveItemId,
 	};
 }
 
 export interface Cart extends CartOps {
 	productRows: ProductCartDisplayLine[];
+	itemRows: ItemCartDisplayLine[];
+	// Every treatment across every object, for the money maths and the
+	// unpriced-line checks that are genuinely per-treatment.
 	serviceRows: ServiceCartDisplayLine[];
 	subtotal: number;
 	count: number;
@@ -219,9 +333,9 @@ export function useCart(): Cart {
 
 	const [
 		productCart = [] as ProductCartLine[],
-		serviceCart = [] as ServiceCartLine[],
-	] = useWatch<TransactionDraftValues, ["productCart", "serviceCart"]>({
-		name: ["productCart", "serviceCart"],
+		itemCart = [] as ItemCartLine[],
+	] = useWatch<TransactionDraftValues, ["productCart", "itemCart"]>({
+		name: ["productCart", "itemCart"],
 	});
 
 	const productsQuery = useQuery(productsQueryOptions());
@@ -240,9 +354,14 @@ export function useCart(): Cart {
 		() => enrichProductCart(productCart, productMap),
 		[productCart, productMap],
 	);
+	const itemRows = useMemo(
+		() => enrichItemCart(itemCart, serviceMap),
+		[itemCart, serviceMap],
+	);
+
 	const serviceRows = useMemo(
-		() => enrichServiceCart(serviceCart, serviceMap),
-		[serviceCart, serviceMap],
+		() => itemRows.flatMap((item) => item.services),
+		[itemRows],
 	);
 
 	const subtotal = useMemo(
@@ -251,9 +370,9 @@ export function useCart(): Cart {
 	);
 
 	const count = useMemo(
-		() => getCartCount(productCart, serviceCart),
-		[productCart, serviceCart],
+		() => getCartCount(productCart, itemCart),
+		[productCart, itemCart],
 	);
 
-	return { ...ops, productRows, serviceRows, subtotal, count };
+	return { ...ops, productRows, itemRows, serviceRows, subtotal, count };
 }

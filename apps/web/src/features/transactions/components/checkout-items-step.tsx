@@ -1,16 +1,22 @@
 import {
+	ArrowsLeftRightIcon,
 	CameraIcon,
-	CaretDownIcon,
 	CheckCircleIcon,
 	EyeIcon,
+	PlusIcon,
 	WarningIcon,
-	XIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
 	Field,
 	FieldDescription,
@@ -23,43 +29,43 @@ import { PhotoLightbox } from "@/features/orders/components/photo-lightbox";
 import { SinglePhotoCaptureDialog } from "@/features/orders/components/photo-upload-dialog";
 import {
 	getServiceLinePrice,
+	type ItemCartDisplayLine,
 	type ServiceCartDisplayLine,
 	type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
-import { useCart } from "@/features/transactions/cart/useCart";
+import { useCart, useCartOps } from "@/features/transactions/cart/useCart";
+import { RemoveLineButton } from "@/features/transactions/components/remove-line-button";
 import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
-import { getOrderServiceItemDescriptors } from "@/lib/order-service-item-details";
+import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { categoriesQueryOptions } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
 import { formatMoney, parseMoney } from "@/shared/money";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
-interface ServiceFieldSpec {
-	key: "brand" | "color" | "model" | "size" | "notes";
+interface ItemFieldSpec {
+	key: "brand" | "color" | "model" | "size";
 	label: string;
 	placeholder: string;
-	className?: string;
 }
 
-// Free-text descriptors the cashier reads off the item at the counter.
-const SERVICE_FIELDS: ServiceFieldSpec[] = [
-	{ key: "color", label: "Color", placeholder: "e.g. Black" },
+// Free-text descriptors the cashier reads off the object at the counter. They
+// describe one physical thing, so they are typed once per Item however many
+// treatments get sold against it (ADR-0017).
+// Same order as getOrderServiceItemDescriptors reads them back — brand, model,
+// colour, size. The cashier types the tag in the order every other screen and
+// the printed receipt will show it.
+const ITEM_FIELDS: ItemFieldSpec[] = [
 	{ key: "brand", label: "Brand", placeholder: "e.g. Adidas" },
 	{ key: "model", label: "Model", placeholder: "e.g. Yeezy" },
+	{ key: "color", label: "Color", placeholder: "e.g. Black" },
 	{ key: "size", label: "Size", placeholder: "e.g. 42" },
-	{
-		key: "notes",
-		label: "Item notes",
-		placeholder: "e.g. Loose sole, no bleach",
-		className: "sm:col-span-2",
-	},
 ];
 
 // Step ② — the goods: review/annotate cart lines, order notes, and the
 // drop-off photo. The photo lives here (with the items it depicts, captured at
 // intake — see CONTEXT.md) and gates the step forward (see CheckoutFooter).
 export const CheckoutItemsStep = () => {
-	const { removeProduct, updateProductQty, productRows, serviceRows } =
+	const { removeProduct, updateProductQty, productRows, itemRows, addItem } =
 		useCart();
 	const form = useFormContext<TransactionDraftValues>();
 	const categoriesQuery = useQuery(categoriesQueryOptions());
@@ -76,7 +82,7 @@ export const CheckoutItemsStep = () => {
 			<CheckoutDropoffPhotoField />
 
 			<div className="grid gap-3">
-				{productRows.length === 0 && serviceRows.length === 0 ? (
+				{productRows.length === 0 && itemRows.length === 0 ? (
 					<div className="border border-dashed border-border p-4 text-sm text-muted-foreground">
 						Cart is empty.
 					</div>
@@ -94,14 +100,9 @@ export const CheckoutItemsStep = () => {
 									Product | {getEntityCategoryName(line.product, categoryMap)}
 								</p>
 							</div>
-							<Button
-								aria-label={`Remove ${line.product.name}`}
-								className="relative size-7 border-destructive/50 bg-destructive/10 text-destructive before:absolute before:-inset-2 before:content-[''] hover:border-destructive hover:bg-destructive/20 hover:text-destructive"
-								icon={<XIcon className="size-3.5" />}
+							<RemoveLineButton
+								label={`Remove ${line.product.name}`}
 								onClick={() => removeProduct(line.id)}
-								size="icon-xs"
-								type="button"
-								variant="outline"
 							/>
 						</div>
 						<div className="flex items-center justify-between gap-3">
@@ -150,13 +151,25 @@ export const CheckoutItemsStep = () => {
 					</div>
 				))}
 
-				{serviceRows.map((line, index) => (
-					<CheckoutServiceLineRow
+				{itemRows.map((item, index) => (
+					<CheckoutItemCard
+						allItems={itemRows}
+						item={item}
 						itemNumber={index + 1}
-						key={line.line_id}
-						line={line}
+						key={item.line_id}
 					/>
 				))}
+
+				{itemRows.length > 0 ? (
+					<Button
+						className="h-11"
+						onClick={addItem}
+						type="button"
+						variant="outline"
+					>
+						+ New item
+					</Button>
+				) : null}
 			</div>
 
 			<Controller
@@ -179,129 +192,219 @@ export const CheckoutItemsStep = () => {
 	);
 };
 
-interface CheckoutServiceLineRowProps {
-	line: ServiceCartDisplayLine;
+interface MoveTarget {
+	item: ItemCartDisplayLine;
 	itemNumber: number;
 }
 
-// Reads the cart itself instead of taking forwarded actions as props — same
-// contract as CartLines, so every surface removes and edits lines identically.
-const CheckoutServiceLineRow = ({
+interface CheckoutTreatmentRowProps {
+	canMove: boolean;
+	itemId: string;
+	line: ServiceCartDisplayLine;
+	moveTargets: MoveTarget[];
+}
+
+const CheckoutTreatmentRow = ({
+	canMove,
+	itemId,
 	line,
-	itemNumber,
-}: CheckoutServiceLineRowProps) => {
-	const { removeService, updateServiceField } = useCart();
-	const descriptors = getOrderServiceItemDescriptors(line);
+	moveTargets,
+}: CheckoutTreatmentRowProps) => {
+	const { removeService, updateServiceField, moveService } = useCartOps();
 	const isUnpriced =
 		line.service.price === null && getServiceLinePrice(line) <= 0;
 
 	return (
-		<details className="group border border-border/70">
-			<summary className="flex cursor-pointer list-none items-start gap-3 p-3 hover:bg-muted/30 focus-visible:outline focus-visible:outline-1 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
-				<span className="mt-0.5 shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums">
-					{itemNumber}
-				</span>
-				<span className="grid min-w-0 flex-1 gap-1">
-					{/* Wraps rather than truncates: service names run to 30+ characters
-						    and the price column leaves this one ~130px on a phone, so
-						    truncating cut every line down to "Deep Clea…". */}
-					<span className="text-sm font-medium">{line.service.name}</span>
-					<span className="flex flex-wrap gap-1">
-						{descriptors.length > 0 ? (
-							descriptors.map((value, valueIndex) => (
-								<span
-									className="border border-border/70 px-1.5 font-mono text-[10px] text-muted-foreground"
-									key={`${valueIndex}-${value}`}
-								>
-									{value}
-								</span>
-							))
-						) : (
-							<span className="font-mono text-[10px] text-muted-foreground">
-								Add detail
-							</span>
-						)}
-						{isUnpriced ? (
-							<span className="border border-warning/50 bg-warning/10 px-1.5 font-mono text-[10px] text-warning">
-								No price yet
-							</span>
-						) : null}
-					</span>
-				</span>
-				{/* self-center against the summary, whose height never changes when
-					    the disclosure opens — so price, remove and caret sit perfectly
-					    centered on the row at any name length or open state. */}
-				<span className="flex shrink-0 items-center gap-2 self-center">
+		<div className="grid gap-2 border-border/70 border-t p-3 first-of-type:border-t-0">
+			<div className="flex items-start gap-3">
+				{/* Wraps rather than truncates: service names run to 30+ characters
+				    and the price column leaves this one ~130px on a phone, so
+				    truncating cut every line down to "Deep Clea…". */}
+				<span className="min-w-0 flex-1 text-sm">{line.service.name}</span>
+				<span className="flex shrink-0 items-center gap-2">
+					{isUnpriced ? (
+						<span className="border border-warning/50 bg-warning/10 px-1.5 font-mono text-[10px] text-warning">
+							No price yet
+						</span>
+					) : null}
 					<span className="font-mono text-sm font-semibold tabular-nums">
 						{formatMoney(getServiceLinePrice(line))}
 					</span>
-					<Button
-						aria-label={`Remove ${line.service.name}`}
-						className="relative size-7 border-destructive/50 bg-destructive/10 text-destructive before:absolute before:-inset-2 before:content-[''] hover:border-destructive hover:bg-destructive/20 hover:text-destructive"
-						icon={<XIcon className="size-3.5" />}
-						// A button inside <summary>: preventDefault stops the click from
-						// also toggling the disclosure while the row is being removed.
-						onClick={(event) => {
-							event.preventDefault();
-							removeService(line.line_id);
-						}}
-						size="icon-xs"
-						type="button"
-						variant="outline"
-					/>
-					<CaretDownIcon
-						aria-hidden="true"
-						className="size-4 text-muted-foreground transition-transform group-open:rotate-180"
+					{/* The recovery for a tap that landed on the wrong shoe: carry the
+					    line — notes and negotiated price included — instead of delete,
+					    re-add, retype. */}
+					{canMove ? (
+						<DropdownMenu>
+							<DropdownMenuTrigger
+								render={
+									<Button
+										aria-label={`Move ${line.service.name} to another item`}
+										className="relative size-7 before:absolute before:-inset-2 before:content-['']"
+										icon={<ArrowsLeftRightIcon className="size-3.5" />}
+										size="icon-xs"
+										type="button"
+										variant="outline"
+									/>
+								}
+							/>
+							<DropdownMenuContent align="end">
+								{moveTargets.map(({ item, itemNumber }) => (
+									<DropdownMenuItem
+										key={item.line_id}
+										onClick={() =>
+											moveService(itemId, line.line_id, item.line_id)
+										}
+									>
+										<span className="font-mono tabular-nums">{itemNumber}</span>
+										<span className="max-w-40 truncate">
+											{getOrderServiceItemDetails(item) ?? "New item"}
+										</span>
+									</DropdownMenuItem>
+								))}
+								{/* A verb, because a card without descriptors is labelled
+								    "New item" above it, and two entries with one label and
+								    two outcomes is a menu nobody can read. */}
+								<DropdownMenuItem
+									onClick={() => moveService(itemId, line.line_id, null)}
+								>
+									<PlusIcon className="size-4" />
+									Split to a new item
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					) : null}
+					<RemoveLineButton
+						label={`Remove ${line.service.name}`}
+						onClick={() => removeService(itemId, line.line_id)}
 					/>
 				</span>
-			</summary>
-
-			<div className="grid gap-3 border-border/70 border-t p-3">
-				<div className="grid gap-3 sm:grid-cols-2">
-					{SERVICE_FIELDS.map((field) => (
-						<Field className={field.className} key={field.key}>
-							<FieldLabel htmlFor={`service-${field.key}-${line.line_id}`}>
-								{field.label}
-							</FieldLabel>
-							<Input
-								className="h-11"
-								id={`service-${field.key}-${line.line_id}`}
-								onChange={(event) =>
-									updateServiceField(
-										line.line_id,
-										field.key,
-										event.target.value,
-									)
-								}
-								placeholder={field.placeholder}
-								value={line[field.key]}
-							/>
-						</Field>
-					))}
-				</div>
-				{line.service.price === null ? (
-					// Blank is a valid answer here, not a missing one: a Repair is priced
-					// after inspection (ADR-0018).
-					<Field>
-						<FieldLabel htmlFor={`service-price-${line.line_id}`}>
-							Price
-						</FieldLabel>
-						<CurrencyInput
-							id={`service-price-${line.line_id}`}
-							onValueChange={(value) =>
-								updateServiceField(line.line_id, "price", value)
-							}
-							value={line.price}
-						/>
-						<FieldDescription>
-							{line.price.trim() === ""
-								? "No price yet — payment waits until this line is priced after inspection."
-								: "Agreed price. Can be corrected until the order is paid."}
-						</FieldDescription>
-					</Field>
-				) : null}
 			</div>
-		</details>
+
+			<Field>
+				<FieldLabel htmlFor={`service-notes-${line.line_id}`}>Notes</FieldLabel>
+				<Input
+					className="h-11"
+					id={`service-notes-${line.line_id}`}
+					onChange={(event) =>
+						updateServiceField(
+							itemId,
+							line.line_id,
+							"notes",
+							event.target.value,
+						)
+					}
+					placeholder="e.g. No bleach"
+					value={line.notes}
+				/>
+			</Field>
+
+			{line.service.price === null ? (
+				// Blank is a valid answer here, not a missing one: a Repair is priced
+				// after inspection (ADR-0018).
+				<Field>
+					<FieldLabel htmlFor={`service-price-${line.line_id}`}>
+						Price
+					</FieldLabel>
+					<CurrencyInput
+						id={`service-price-${line.line_id}`}
+						onValueChange={(value) =>
+							updateServiceField(itemId, line.line_id, "price", value)
+						}
+						value={line.price}
+					/>
+					<FieldDescription>
+						{line.price.trim() === ""
+							? "No price yet — payment waits until this line is priced after inspection."
+							: "Agreed price. Can be corrected until the order is paid."}
+					</FieldDescription>
+				</Field>
+			) : null}
+		</div>
+	);
+};
+
+interface CheckoutItemCardProps {
+	// Every card on the counter, from the step that already derived them. A
+	// useCart() down here would re-derive the whole cart once per card on every
+	// keystroke in a notes field.
+	allItems: ItemCartDisplayLine[];
+	item: ItemCartDisplayLine;
+	itemNumber: number;
+}
+
+// One physical object and everything sold against it (ADR-0017). Three bands:
+// a shaded header naming the object, its descriptors, then the treatments inset
+// under a rail — so the eye reads parent and children rather than one flat run
+// of hairlines. Which card the next catalog tap lands on is chosen in the tray,
+// where the catalog is; this sheet has nothing to point at.
+const CheckoutItemCard = ({
+	allItems,
+	item,
+	itemNumber,
+}: CheckoutItemCardProps) => {
+	const { removeItem, updateItemField } = useCartOps();
+	const descriptors = getOrderServiceItemDetails(item);
+	// Where a treatment on this card could go instead, numbered by cart position
+	// so the menu matches the card numbers on screen. Moving is only meaningful
+	// when there is somewhere to go: another card, or off a card holding more
+	// than the one line — a lone treatment on the only card would just be
+	// renumbering itself.
+	const moveTargets: MoveTarget[] = allItems
+		.map((other, index) => ({ item: other, itemNumber: index + 1 }))
+		.filter((target) => target.item.line_id !== item.line_id);
+	const canMove = moveTargets.length > 0 || item.services.length > 1;
+
+	return (
+		<article className="border border-border/70">
+			<header className="flex items-center gap-3 bg-muted/40 px-3 py-2">
+				<h3 className="min-w-0 flex-1 truncate font-medium text-sm">
+					{descriptors ?? "New item"}
+				</h3>
+				<RemoveLineButton
+					label={`Remove item ${itemNumber}`}
+					onClick={() => removeItem(item.line_id)}
+				/>
+			</header>
+
+			<div className="grid gap-3 p-3 sm:grid-cols-2">
+				{ITEM_FIELDS.map((field) => (
+					<Field key={field.key}>
+						<FieldLabel htmlFor={`item-${field.key}-${item.line_id}`}>
+							{field.label}
+						</FieldLabel>
+						<Input
+							className="h-11"
+							id={`item-${field.key}-${item.line_id}`}
+							onChange={(event) =>
+								updateItemField(item.line_id, field.key, event.target.value)
+							}
+							placeholder={field.placeholder}
+							value={item[field.key]}
+						/>
+					</Field>
+				))}
+			</div>
+
+			<section
+				aria-label={`Treatments on item ${itemNumber}`}
+				className="mx-3 mb-3 border border-border/70 border-l-2 border-l-foreground/40"
+			>
+				{item.services.length === 0 ? (
+					<p className="px-3 py-2.5 text-muted-foreground text-xs">
+						Tap a service to add it here
+					</p>
+				) : null}
+				{item.services.map((line) => (
+					<CheckoutTreatmentRow
+						canMove={canMove}
+						itemId={item.line_id}
+						key={line.line_id}
+						line={line}
+						moveTargets={moveTargets}
+					/>
+				))}
+			</section>
+		</article>
 	);
 };
 

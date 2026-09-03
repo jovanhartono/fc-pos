@@ -1,7 +1,6 @@
 import { db } from "@/db";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import {
-  countReworkLinesForOrder,
   findComplaintById,
   findComplaintDetailById,
   findComplaintForService,
@@ -32,7 +31,10 @@ type SubjectService = NonNullable<
 >;
 
 // A rework is a free OrderService line on the same order (ADR-0013); adding it
-// flips the order rollup back to processing.
+// flips the order rollup back to processing. It is the same physical object
+// coming back over the counter, so the line reuses the complained Item — same
+// tag, same descriptors — and the Item stops being collectable until the
+// re-clean is ready (ADR-0017).
 async function createReworkLine(
   tx: DbExecutor,
   {
@@ -50,22 +52,15 @@ async function createReworkLine(
     throw new BadRequestException("Order service is not attached to an order");
   }
 
-  const seq = (await countReworkLinesForOrder(tx, order.id)) + 1;
-  const item_code = `${order.code}-RW${String(seq).padStart(3, "0")}`;
-
   const line = await insertReworkLine(tx, {
     order_id: order.id,
+    item_id: subject.item_id,
     service_id: subject.service_id,
-    brand: subject.brand,
-    color: subject.color,
-    model: subject.model,
-    size: subject.size,
     price: "0",
     cogs_snapshot: "0",
     is_priority: true,
     status: "queued",
     complaint_id: complaintId,
-    item_code,
     notes: `Rework for complaint #${complaintId}`,
   });
 

@@ -108,33 +108,46 @@ export const buildReceiptEscPos = (
 	b.line(infoRow("Telepon", receipt.customer.phone_number));
 	b.line(DIVIDER);
 
-	// Line items
-	if (receipt.services.length > 0) {
+	// Line items — one header per physical object, its treatments beneath
+	// (ADR-0017): an upsold pair prints its tag and descriptors once, not
+	// once per treatment sold against it.
+	if (receipt.items.length > 0) {
 		b.bold(true).line("LAYANAN").bold(false);
-		for (const line of receipt.services) {
-			// Reprints happen after lines can be voided (ADR-0016 sanctions
-			// reprints) — an unmarked voided line reads as a live claim.
-			const voided =
-				line.status === "cancelled"
-					? " (BATAL)"
-					: line.status === "refunded"
-						? " (REFUND)"
-						: "";
-			b.line(`${line.service?.name ?? "Layanan"}${voided}`);
-			const details = getOrderServiceItemDetails(line);
-			b.line(row(details ? `  ${details}` : "", money(line.subtotal)));
-			if (line.item_code) {
-				b.line(`  ${line.item_code}`);
+		for (const item of receipt.items) {
+			const details = getOrderServiceItemDetails(item);
+			if (details) {
+				for (const line of wrap(details)) {
+					b.line(line);
+				}
 			}
-			if (line.notes?.trim()) {
-				for (const noteLine of wrap(`* ${line.notes.trim()}`, "  ")) {
-					b.line(noteLine);
+			if (item.item_code) {
+				b.line(item.item_code);
+			}
+			for (const line of item.services) {
+				// Reprints happen after lines can be voided (ADR-0016 sanctions
+				// reprints) — an unmarked voided line reads as a live claim.
+				const voided =
+					line.status === "cancelled"
+						? " (BATAL)"
+						: line.status === "refunded"
+							? " (REFUND)"
+							: "";
+				b.line(
+					row(
+						`  ${line.service?.name ?? "Layanan"}${voided}`,
+						money(line.subtotal),
+					),
+				);
+				if (line.notes?.trim()) {
+					for (const noteLine of wrap(`* ${line.notes.trim()}`, "    ")) {
+						b.line(noteLine);
+					}
 				}
 			}
 		}
 	}
 	if (receipt.products.length > 0) {
-		if (receipt.services.length > 0) {
+		if (receipt.items.length > 0) {
 			b.line();
 		}
 		b.bold(true).line("PRODUK").bold(false);

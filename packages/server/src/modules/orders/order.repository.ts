@@ -2,6 +2,7 @@ import type { InferInsertModel } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  itemsTable,
   orderCountersTable,
   ordersProductsTable,
   ordersServicesTable,
@@ -349,6 +350,27 @@ export async function insertOrder(
     .returning({ id: ordersTable.id });
 
   return created.id;
+}
+
+// Returns the new id beside the tag it was inserted with, so the caller can
+// pair each treatment with the object it was sold against by matching on
+// `item_code` — which carries a unique index — rather than trusting the order
+// RETURNING happens to hand rows back in. Attaching a treatment to the wrong
+// object would put the wrong tag on the wrong shoe, and no constraint can catch
+// it: any (order_id, item_id) pair inside one Order satisfies the composite FK
+// (ADR-0017).
+export async function insertItems(
+  tx: OrderTx,
+  values: InferInsertModel<typeof itemsTable>[]
+): Promise<{ id: number; item_code: string }[]> {
+  if (values.length === 0) {
+    return [];
+  }
+
+  return await tx
+    .insert(itemsTable)
+    .values(values)
+    .returning({ id: itemsTable.id, item_code: itemsTable.item_code });
 }
 
 export async function insertOrderServices(

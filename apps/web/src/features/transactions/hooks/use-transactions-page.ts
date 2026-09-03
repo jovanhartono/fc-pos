@@ -16,6 +16,7 @@ import {
 import { printOrderReceipt } from "@/features/printing/print-order-receipt";
 import { PrinterNotPairedError } from "@/features/printing/printer-transport";
 import {
+	countCartTreatments,
 	defaultDraftValues,
 	resetTransactionDraft,
 	type TransactionDraftValues,
@@ -69,25 +70,36 @@ const transactionDraftSchema = z
 				qty: z.number().int().positive(),
 			}),
 		),
-		serviceCart: z.array(
+		// One entry per object on the counter, treatments nested (ADR-0017). The
+		// descriptors stay free-text and optional: they help match the thing at
+		// handoff, they do not identify it, so the POS never blocks on them.
+		itemCart: z.array(
 			z.object({
-				kind: z.literal("service"),
 				line_id: z.string(),
-				id: z.number(),
 				brand: z.string(),
 				color: z.string(),
 				model: z.string(),
 				size: z.string(),
-				notes: z.string(),
-				// Repair pricing (ADR-0018): blank means "price after inspection" —
-				// always valid here; only paying now requires every line priced,
-				// and the payment step enforces that.
-				price: z.string(),
+				services: z.array(
+					z.object({
+						kind: z.literal("service"),
+						line_id: z.string(),
+						id: z.number(),
+						notes: z.string(),
+						// Repair pricing (ADR-0018): blank means "price after
+						// inspection" — always valid here; only paying now requires
+						// every line priced, and the payment step enforces that.
+						price: z.string(),
+					}),
+				),
 			}),
 		),
 	})
 	.superRefine((values, ctx) => {
-		if (values.productCart.length === 0 && values.serviceCart.length === 0) {
+		if (
+			values.productCart.length === 0 &&
+			countCartTreatments(values.itemCart) === 0
+		) {
 			ctx.addIssue({
 				code: "custom",
 				path: ["productCart"],

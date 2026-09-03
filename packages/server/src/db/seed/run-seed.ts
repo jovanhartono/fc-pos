@@ -8,6 +8,7 @@ import {
   campaignsTable,
   categoriesTable,
   customersTable,
+  itemsTable,
   orderCampaignsTable,
   orderCountersTable,
   orderPickupEventsTable,
@@ -97,6 +98,9 @@ const SERVICE_PRESETS = [
   {
     code: "DCE",
     name: "Deep Clean Express (6h to 24h)",
+    // The two express services are the shop's priority lane: a treatment sold
+    // from them jumps the queue, so the seed needs some on the rack to show it.
+    is_priority: true,
     categoryKey: "deep_clean",
     price: 90_000,
     cogs: 16_000,
@@ -389,6 +393,7 @@ const SERVICE_PRESETS = [
     categoryKey: "express",
     price: 30_000,
     cogs: 5000,
+    is_priority: true,
   },
 ] as const;
 
@@ -491,13 +496,11 @@ interface DraftHandlerLog {
 }
 
 interface DraftServiceLine {
-  brand: string;
   cogs: number;
-  color: string;
   handler_id: number | null;
   handler_logs: DraftHandlerLog[];
-  item_code: string;
-  model: string;
+  // Same rule as createOrder: a treatment inherits its Service's lane.
+  is_priority: boolean;
   notes: string | null;
   photos: Array<{
     created_at: Date;
@@ -506,10 +509,28 @@ interface DraftServiceLine {
   }>;
   price: number;
   service_id: number;
-  size: string;
   status: OrderServiceStatus;
   status_logs: DraftStatusLog[];
 }
+
+// One physical object over the counter (ADR-0017). The tag and the descriptors
+// the cashier reads off it belong here; each treatment sold against it keeps
+// its own status, handler, price and photos.
+interface DraftItem {
+  brand: string;
+  color: string;
+  item_code: string;
+  model: string;
+  size: string;
+  treatments: DraftServiceLine[];
+}
+
+// How often the next treatment is an upsell on the object already on the
+// counter rather than a new object. The shop's most common flow is a pair
+// arriving for a deep clean and leaving as deep clean + repaint + leather
+// care, so this is deliberately high enough that the grouped queue and the
+// pickup gate both get realistic data to work against.
+const UPSELL_ON_SAME_ITEM_CHANCE = 0.45;
 
 interface DraftProductLine {
   cogs: number;
@@ -860,6 +881,7 @@ async function resetDatabase() {
       "order_pickup_events",
       "orders_products",
       "orders_services",
+      "items",
       "order_campaigns",
       "orders",
       "order_counters",
@@ -1051,6 +1073,7 @@ async function seedCatalog(adminId: number) {
         cogs: asMoney(service.cogs),
         price: asMoney(service.price),
         is_active: true,
+        is_priority: "is_priority" in service ? service.is_priority : false,
       }))
     )
     .returning({
@@ -1059,6 +1082,7 @@ async function seedCatalog(adminId: number) {
       price: servicesTable.price,
       cogs: servicesTable.cogs,
       is_active: servicesTable.is_active,
+      is_priority: servicesTable.is_priority,
     });
 
   const retailCategoryId = categoryByKey.get("retail") ?? categories[0].id;
@@ -1359,6 +1383,7 @@ async function seedOrders(params: {
     price: string | null;
     cogs: string;
     is_active: boolean;
+    is_priority: boolean;
   }>;
   products: Array<{
     id: number;
@@ -1452,13 +1477,12 @@ async function seedOrders(params: {
       params.customers.map((customer) => customer.id);
     const customerId = faker.helpers.arrayElement(localCustomers);
 
-    const draftServices: DraftServiceLine[] = [];
+    const draftItems: DraftItem[] = [];
 
     for (let serviceIndex = 0; serviceIndex < serviceCount; serviceIndex++) {
       const service = faker.helpers.arrayElement(activeServices);
       const finalStatus = serviceStatuses[serviceIndex] ?? "queued";
       const path = buildStatusPath(finalStatus);
-      const itemCode = `${orderCode}-S${String(serviceIndex + 1).padStart(3, "0")}`;
       const handlerId =
         workers.length > 0 && path.length > 0
           ? faker.helpers.arrayElement(workers)
@@ -1517,31 +1541,64 @@ async function seedOrders(params: {
         });
       }
 
-      draftServices.push({
-        item_code: itemCode,
+      const treatment: DraftServiceLine = {
         service_id: service.id,
         price: Number(service.price),
         cogs: Number(service.cogs),
         status: finalStatus,
         handler_id: handlerId,
-        brand: faker.helpers.arrayElement(BRANDS),
-        color: faker.color.human(),
-        model: faker.helpers.arrayElement([
-          "Classic",
-          "Sport",
-          "Premium",
-          "Traveler",
-          "Urban",
-        ]),
-        size: faker.helpers.arrayElement(SIZES),
+        is_priority: service.is_priority,
         notes: chance(0.35)
           ? faker.helpers.arrayElement(SERVICE_NOTE_POOL)
           : null,
         status_logs: statusLogs,
         handler_logs: handlerLogs,
         photos,
-      });
+      };
+
+      // Either the cashier upsold the object already on the counter, or the
+      // customer put a second thing down. Statuses were drawn per treatment
+      // above, so an upsold object routinely ends up with its clean finished
+      // while its repaint is still running — the case the pickup gate exists
+      // to refuse.
+      const lastItem = draftItems.at(-1);
+      // ...but never a half-collected one. An object leaves the counter whole
+      // (ADR-0017), so a picked-up treatment cannot sit beside one still on the
+      // rack — the pickup desk can no longer produce that, and seeding it would
+      // put states in dev that no cashier could ever reach.
+      if (
+        lastItem &&
+        chance(UPSELL_ON_SAME_ITEM_CHANCE) &&
+        lastItem.treatments.every(
+          (existing) =>
+            (existing.status === "picked_up") === (finalStatus === "picked_up")
+        )
+      ) {
+        lastItem.treatments.push(treatment);
+      } else {
+        draftItems.push({
+          brand: faker.helpers.arrayElement(BRANDS),
+          color: faker.color.human(),
+          item_code: `${orderCode}-I${String(draftItems.length + 1).padStart(3, "0")}`,
+          model: faker.helpers.arrayElement([
+            "Classic",
+            "Sport",
+            "Premium",
+            "Traveler",
+            "Urban",
+          ]),
+          size: faker.helpers.arrayElement(SIZES),
+          treatments: [treatment],
+        });
+      }
     }
+
+    // Flat view for the money maths and the log/photo fan-out below, which are
+    // all genuinely per-treatment. Order matters: it is what pairs each draft
+    // with its inserted row further down.
+    const draftServices: DraftServiceLine[] = draftItems.flatMap(
+      (item) => item.treatments
+    );
 
     const draftProducts: DraftProductLine[] = Array.from(
       { length: productCount },
@@ -1688,34 +1745,63 @@ async function seedOrders(params: {
       }
     }
 
+    // Objects first: a treatment row cannot exist before the thing it is
+    // applied to has an id.
+    const insertedItems = draftItems.length
+      ? await db
+          .insert(itemsTable)
+          .values(
+            draftItems.map((item) => ({
+              order_id: order.id,
+              item_code: item.item_code,
+              brand: item.brand,
+              color: item.color,
+              model: item.model,
+              size: item.size,
+            }))
+          )
+          .returning({ id: itemsTable.id, item_code: itemsTable.item_code })
+      : [];
+    const itemIdByCode = new Map(
+      insertedItems.map((row) => [row.item_code, row.id])
+    );
+
     const insertedServices = draftServices.length
       ? await db
           .insert(ordersServicesTable)
           .values(
-            draftServices.map((line) => ({
-              order_id: order.id,
-              service_id: line.service_id,
-              item_code: line.item_code,
-              price: asMoney(line.price),
-              cogs_snapshot: asMoney(line.cogs),
-              discount: "0",
-              notes: line.notes,
-              brand: line.brand,
-              color: line.color,
-              model: line.model,
-              size: line.size,
-              // seed picked_up as ready_for_pickup; the pickup event insert
-              // below flips it in place so the CHECK constraint holds.
-              status:
-                line.status === "picked_up" ? "ready_for_pickup" : line.status,
-              handler_id: line.handler_id,
-            }))
+            // Paired on the tag, which is unique — not on RETURNING's row
+            // order, so a treatment can never land on the wrong object.
+            draftItems.flatMap((item) =>
+              item.treatments.map((line) => ({
+                order_id: order.id,
+                item_id: itemIdByCode.get(item.item_code) as number,
+                service_id: line.service_id,
+                price: asMoney(line.price),
+                cogs_snapshot: asMoney(line.cogs),
+                discount: "0",
+                notes: line.notes,
+                // seed picked_up as ready_for_pickup; the pickup event insert
+                // below flips it in place so the CHECK constraint holds.
+                status:
+                  line.status === "picked_up"
+                    ? "ready_for_pickup"
+                    : line.status,
+                handler_id: line.handler_id,
+                is_priority: line.is_priority,
+              }))
+            )
           )
-          .returning({
-            id: ordersServicesTable.id,
-            item_code: ordersServicesTable.item_code,
-          })
+          .returning({ id: ordersServicesTable.id })
       : [];
+
+    // Postgres hands the ids back in the order the rows were given, and that
+    // order is draftItems flattened — the same order draftServices was built
+    // in. The tag used to carry this correlation; it names an object now, and
+    // one tag fronts several lines, so it can no longer identify one (ADR-0017).
+    const serviceIdByLine = new Map<DraftServiceLine, number>(
+      draftServices.map((line, index) => [line, insertedServices[index].id])
+    );
 
     const pickedUpDraftLines = draftServices.filter(
       (line) => line.status === "picked_up"
@@ -1746,12 +1832,9 @@ async function seedOrders(params: {
         })
         .returning({ id: orderPickupEventsTable.id });
 
-      const pickedUpItemCodes = new Set(
-        pickedUpDraftLines.map((line) => line.item_code)
-      );
-      const pickedUpServiceIds = insertedServices
-        .filter((row) => row.item_code && pickedUpItemCodes.has(row.item_code))
-        .map((row) => row.id);
+      const pickedUpServiceIds = pickedUpDraftLines
+        .map((line) => serviceIdByLine.get(line))
+        .filter((id): id is number => id !== undefined);
 
       if (pickedUpServiceIds.length > 0) {
         await db
@@ -1782,15 +1865,9 @@ async function seedOrders(params: {
       );
     }
 
-    const serviceIdByItemCode = new Map(
-      insertedServices
-        .filter((line) => !!line.item_code)
-        .map((line) => [line.item_code as string, line.id])
-    );
-
     const statusLogRows = draftServices.flatMap((line) =>
       line.status_logs.map((log) => ({
-        order_service_id: serviceIdByItemCode.get(line.item_code) ?? 0,
+        order_service_id: serviceIdByLine.get(line) ?? 0,
         from_status: log.from_status,
         to_status: log.to_status,
         changed_by: log.changed_by,
@@ -1801,7 +1878,7 @@ async function seedOrders(params: {
 
     const handlerLogRows = draftServices.flatMap((line) =>
       line.handler_logs.map((log) => ({
-        order_service_id: serviceIdByItemCode.get(line.item_code) ?? 0,
+        order_service_id: serviceIdByLine.get(line) ?? 0,
         from_handler_id: log.from_handler_id,
         to_handler_id: log.to_handler_id,
         changed_by: log.changed_by,
@@ -1811,20 +1888,23 @@ async function seedOrders(params: {
     );
 
     const safeOrderCode = sanitizeForS3(orderCode);
-    const photoRows = draftServices.flatMap((line) =>
-      line.photos.map((photo, photoIndex) => {
-        const safeItem = sanitizeForS3(line.item_code);
-        const imagePath = `seed/orders/${safeOrderCode}/${safeItem}/item-${photoIndex + 1}.jpg`;
+    const photoRows = draftServices.flatMap((line) => {
+      const serviceId = serviceIdByLine.get(line) ?? 0;
+      return line.photos.map((photo, photoIndex) => {
+        // Mirrors the live key layout, which is keyed by the treatment's row
+        // id — never by the tag, which now names an object shared by several
+        // treatments.
+        const imagePath = `seed/orders/${safeOrderCode}/services/${serviceId}/item-${photoIndex + 1}.jpg`;
         return {
-          order_service_id: serviceIdByItemCode.get(line.item_code) ?? 0,
+          order_service_id: serviceId,
           image_path: imagePath,
           note: photo.note,
           uploaded_by: photo.uploaded_by,
           created_at: photo.created_at,
           updated_at: photo.created_at,
         };
-      })
-    );
+      });
+    });
 
     if (statusLogRows.length > 0) {
       await db
@@ -1853,7 +1933,7 @@ async function seedOrders(params: {
               : 0;
           const amount = Math.max(0, line.price - allocatedDiscount);
           return {
-            order_service_id: serviceIdByItemCode.get(line.item_code) ?? 0,
+            order_service_id: serviceIdByLine.get(line) ?? 0,
             amount,
             reason: faker.helpers.arrayElement([
               "damaged",

@@ -19,14 +19,52 @@ const product = (over: Record<string, unknown> = {}) => ({
 	...over,
 });
 
-const detail = (over: Record<string, unknown> = {}): OrderDetail =>
+// One object per treatment — the pre-ADR-0017 reading of a service line, which
+// is what most of these gates are about. Tests that care about grouping build
+// `items` themselves.
+const detail = ({
+	services,
+	...over
+}: Record<string, unknown> = {}): OrderDetail =>
 	({
 		status: "processing",
 		payment_status: "paid",
-		services: [],
+		items: ((services ?? []) as ServiceOverrides[]).map((line, index) => ({
+			id: 100 + index,
+			item_code: `#ORD-S${index + 1}`,
+			brand: null,
+			color: null,
+			model: null,
+			size: null,
+			status: line.status,
+			is_collectable: line.status === "ready_for_pickup",
+			services: [line],
+		})),
 		products: [],
 		...over,
 	}) as unknown as OrderDetail;
+
+// An object carrying several treatments, collectable only when every live one
+// is finished (ADR-0017).
+// `is_collectable` is passed in, never derived here. The server owns that rule
+// and it is subtler than it looks — a cancelled sibling does NOT hold the object
+// back — so a fixture that re-derived it would happily pin the opposite of what
+// the API ships and still go green.
+const item = (
+	is_collectable: boolean,
+	services: ServiceOverrides[],
+	over: ServiceOverrides = {},
+) => ({
+	id: 900,
+	item_code: "#ORD-S001",
+	brand: null,
+	color: null,
+	model: null,
+	size: null,
+	is_collectable,
+	services,
+	...over,
+});
 
 const admin = { role: "admin" } as Me;
 const cashier = { role: "cashier" } as Me;
@@ -147,6 +185,40 @@ describe("canOpenPickup (ADR-0009: payment precedes pickup)", () => {
 		);
 		expect(gates.canOpenPickup).toBe(false);
 		expect(gates.pickupDisabledReason).toBe(undefined);
+	});
+
+	it("will not hand back a shoe whose repaint is still wet", () => {
+		// ADR-0017: one object, two treatments, and only one of them finished —
+		// the counter has nothing it can give the customer.
+		const gates = getOrderActionGates(
+			cashier,
+			detail({
+				items: [
+					item(false, [
+						service({ id: 1, status: "ready_for_pickup" }),
+						service({ id: 2, status: "processing" }),
+					]),
+				],
+			}),
+		);
+		expect(gates.collectableItems).toHaveLength(0);
+		expect(gates.canOpenPickup).toBe(false);
+	});
+
+	it("offers the pair once every treatment sold on it is done", () => {
+		const gates = getOrderActionGates(
+			cashier,
+			detail({
+				items: [
+					item(true, [
+						service({ id: 1, status: "ready_for_pickup" }),
+						service({ id: 2, status: "ready_for_pickup" }),
+					]),
+				],
+			}),
+		);
+		expect(gates.collectableItems).toHaveLength(1);
+		expect(gates.canOpenPickup).toBe(true);
 	});
 });
 

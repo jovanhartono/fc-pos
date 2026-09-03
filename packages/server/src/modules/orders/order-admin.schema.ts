@@ -63,7 +63,10 @@ export const PUTOrderDropoffPhotoSchema = z.object({
 export const POSTOrderPickupEventSchema = z.object({
   image_path: z.string().trim().min(1).max(512),
   pickup_code: z.string().regex(/^\d{6}$/, "Pickup code must be 6 digits"),
-  service_ids: z.array(z.coerce.number().int().positive()).min(1),
+  // Objects, not treatments (ADR-0017). The counter hands back a shoe, never
+  // "the repaint on the shoe" — so the caller cannot express a half-collected
+  // object and the server has nothing to reject after the fact.
+  item_ids: z.array(z.coerce.number().int().positive()).min(1),
 });
 
 export const PATCHOrderServiceStatusSchema = z

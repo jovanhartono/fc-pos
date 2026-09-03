@@ -111,7 +111,7 @@ const ComplaintDetailPage = () => {
 							<span className="flex flex-wrap items-center gap-2">
 								<span>{subject.service?.name ?? "Service"}</span>
 								<span className="font-mono text-muted-foreground text-xs">
-									{subject.item_code ?? `#${subject.id}`}
+									{subject.item.item_code}
 								</span>
 								<Badge
 									variant={getOrderServiceStatusBadgeVariant(subject.status)}
@@ -144,18 +144,20 @@ const ComplaintDetailPage = () => {
 								No rework started.
 							</p>
 						) : (
+							// A rework re-treats the complained object, so the tag shown
+							// above is its tag too (ADR-0017) — rounds are told apart by
+							// line number, not by a code of their own.
 							detail.reworkLines.map((line) => (
 								<div
 									key={line.id}
 									className="flex flex-wrap items-center justify-between gap-2 border p-3"
 								>
 									<div className="flex flex-col gap-0.5">
-										<span className="font-mono text-sm">
-											{line.item_code ?? `#${line.id}`}
+										<span className="text-sm">
+											{line.service?.name ?? "Service"}
 										</span>
 										<span className="text-muted-foreground text-xs">
-											{line.service?.name ?? "Service"} ·{" "}
-											{line.handler?.name ?? "Unassigned"}
+											#{line.id} · {line.handler?.name ?? "Unassigned"}
 										</span>
 									</div>
 									<Badge

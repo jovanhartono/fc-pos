@@ -1,18 +1,16 @@
+import { WORKSHOP_SERVICE_STATUSES } from "@fresclean/api/schema";
 import { CHIP_STRIP_ROW, ChipStripScroller } from "@/components/chip-strip";
 import { Button } from "@/components/ui/button";
 import type { OrderServiceQueueCounts } from "@/lib/api";
-import {
-	ACTIVE_ORDER_SERVICE_STATUSES,
-	formatOrderServiceStatus,
-} from "@/lib/status";
+import { formatOrderServiceStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 const STATUS_TAB_ITEMS: {
-	value: "all" | (typeof ACTIVE_ORDER_SERVICE_STATUSES)[number];
+	value: "all" | (typeof WORKSHOP_SERVICE_STATUSES)[number];
 	label: string;
 }[] = [
 	{ value: "all", label: "All" },
-	...ACTIVE_ORDER_SERVICE_STATUSES.map((status) => ({
+	...WORKSHOP_SERVICE_STATUSES.map((status) => ({
 		value: status,
 		label: formatOrderServiceStatus(status),
 	})),

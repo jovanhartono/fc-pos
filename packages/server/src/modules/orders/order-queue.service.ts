@@ -11,6 +11,8 @@ import {
 } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  customersTable,
+  itemsTable,
   orderServiceHandlerLogsTable,
   ordersServicesTable,
   ordersTable,
@@ -33,6 +35,7 @@ import {
   isTerminalOrderServiceStatus,
   ORDER_TERMINAL_SERVICE_STATUSES,
   transitionOrderService,
+  WORKSHOP_SERVICE_STATUSES,
 } from "@/modules/orders/order-status-machine";
 import { assertCanReassignHandler } from "@/modules/permissions/permissions";
 import type { JWTPayload } from "@/types";
@@ -65,12 +68,34 @@ const queueRelationColumns = {
   },
 } as const;
 
-const getOrderServiceByItemCodePrepared = db.query.ordersServicesTable
+// Scanning a tag now finds an object, not a job: one code can front several
+// treatments (ADR-0017). Its live treatments come back with it so the caller
+// can send a worker straight to the only open one, or make them choose.
+const getItemByItemCodePrepared = db.query.itemsTable
   .findFirst({
     where: { item_code: { eq: sql.placeholder("item_code") } },
-    with: queueRelationColumns,
+    with: {
+      order: {
+        columns: {
+          id: true,
+          code: true,
+          store_id: true,
+          status: true,
+        },
+      },
+      // A tag on the shelf points at work still to do, so terminal treatments
+      // are filtered in the query rather than fetched and dropped.
+      services: {
+        columns: {
+          id: true,
+          status: true,
+        },
+        where: { status: { notIn: [...ORDER_TERMINAL_SERVICE_STATUSES] } },
+        orderBy: { id: "asc" },
+      },
+    },
   })
-  .prepare("get_order_service_by_item_code");
+  .prepare("get_item_by_item_code");
 
 const getOrderServiceByIdPrepared = db.query.ordersServicesTable
   .findFirst({
@@ -79,8 +104,8 @@ const getOrderServiceByIdPrepared = db.query.ordersServicesTable
   })
   .prepare("get_order_service_by_id");
 
-export function getOrderServiceByItemCode(item_code: string) {
-  return getOrderServiceByItemCodePrepared.execute({ item_code });
+export function getItemByItemCode(item_code: string) {
+  return getItemByItemCodePrepared.execute({ item_code });
 }
 
 export function getOrderServiceById(serviceId: number) {
@@ -121,27 +146,32 @@ export async function getMyOrderServices(
       return unhandledStoreScope(scope);
   }
 
+  // Stays one row per treatment: this is the rack of jobs one worker is
+  // holding, not the shelf of objects waiting. The Item's tag and descriptors
+  // ride along so the row can still name what is in their hands (ADR-0017).
   return db
     .select({
-      brand: ordersServicesTable.brand,
-      color: ordersServicesTable.color,
+      brand: itemsTable.brand,
+      color: itemsTable.color,
       handler_id: ordersServicesTable.handler_id,
       id: ordersServicesTable.id,
       is_priority: ordersServicesTable.is_priority,
-      item_code: ordersServicesTable.item_code,
-      model: ordersServicesTable.model,
+      item_code: itemsTable.item_code,
+      item_id: itemsTable.id,
+      model: itemsTable.model,
       order_code: ordersTable.code,
       order_created_at: ordersTable.created_at,
       order_id: ordersTable.id,
       service_code: servicesTable.code,
       service_name: servicesTable.name,
-      size: ordersServicesTable.size,
+      size: itemsTable.size,
       status: ordersServicesTable.status,
       store_code: storesTable.code,
       store_id: storesTable.id,
       store_name: storesTable.name,
     })
     .from(ordersServicesTable)
+    .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
     .innerJoin(storesTable, eq(ordersTable.store_id, storesTable.id))
     .innerJoin(
@@ -187,10 +217,10 @@ export async function getOrderServiceQueue(
     };
   }
 
+  // An object is on the rack while something on it still needs the workshop.
+  // One whose every live treatment is ready belongs to the counter, not here.
   const conditions = [
-    notInArray(ordersServicesTable.status, [
-      ...ORDER_TERMINAL_SERVICE_STATUSES,
-    ]),
+    inArray(ordersServicesTable.status, [...WORKSHOP_SERVICE_STATUSES]),
     storeCondition,
   ];
 
@@ -203,7 +233,7 @@ export async function getOrderServiceQueue(
     const loweredSearchPrefix = `${search.toLowerCase()}%`;
     const searchConditions = [
       sql`LOWER(${ordersTable.code}) LIKE ${loweredSearchPrefix}`,
-      sql`LOWER(${ordersServicesTable.item_code}) LIKE ${loweredSearchPrefix}`,
+      sql`LOWER(${itemsTable.item_code}) LIKE ${loweredSearchPrefix}`,
     ];
 
     if (isNumericSearch(search)) {
@@ -230,54 +260,121 @@ export async function getOrderServiceQueue(
 
   const whereClause = and(...conditions);
 
-  const [items, countRows] = await Promise.all([
+  // The page unit is the object, not the treatment (ADR-0017). Paginating
+  // treatments and grouping in the browser would split one shoe's card across
+  // a page boundary — two half-cards for one object on the shelf.
+  const [itemRows, countRows] = await Promise.all([
     db
       .select({
-        brand: ordersServicesTable.brand,
-        color: ordersServicesTable.color,
-        handler_id: ordersServicesTable.handler_id,
-        handler_name: usersTable.name,
-        id: ordersServicesTable.id,
-        is_priority: ordersServicesTable.is_priority,
-        item_code: ordersServicesTable.item_code,
-        model: ordersServicesTable.model,
+        brand: itemsTable.brand,
+        color: itemsTable.color,
+        // Workers know regulars by name before they know the tag.
+        customer_name: customersTable.name,
+        id: itemsTable.id,
+        item_code: itemsTable.item_code,
+        model: itemsTable.model,
         order_code: ordersTable.code,
         order_created_at: ordersTable.created_at,
         order_id: ordersTable.id,
-        service_name: servicesTable.name,
-        size: ordersServicesTable.size,
-        status: ordersServicesTable.status,
+        size: itemsTable.size,
         store_code: storesTable.code,
         store_id: storesTable.id,
         store_name: storesTable.name,
+        // An object is urgent if any treatment on it is: the shoe is on the
+        // priority shelf, not one of the three jobs written against it.
+        is_priority: sql<boolean>`bool_or(${ordersServicesTable.is_priority})`,
       })
       .from(ordersServicesTable)
+      .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
       .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
       .innerJoin(storesTable, eq(ordersTable.store_id, storesTable.id))
-      .innerJoin(
-        servicesTable,
-        eq(ordersServicesTable.service_id, servicesTable.id)
-      )
-      .leftJoin(usersTable, eq(ordersServicesTable.handler_id, usersTable.id))
+      .innerJoin(customersTable, eq(ordersTable.customer_id, customersTable.id))
       .where(whereClause)
+      // Grouped by the customer's id, not their name: the id is the PK, so the
+      // name rides along as a dependent column and the hash key stays narrow.
+      .groupBy(
+        customersTable.id,
+        itemsTable.id,
+        itemsTable.brand,
+        itemsTable.color,
+        itemsTable.item_code,
+        itemsTable.model,
+        itemsTable.size,
+        ordersTable.code,
+        ordersTable.created_at,
+        ordersTable.id,
+        storesTable.code,
+        storesTable.id,
+        storesTable.name
+      )
       .orderBy(
-        desc(ordersServicesTable.is_priority),
+        desc(sql`bool_or(${ordersServicesTable.is_priority})`),
         asc(ordersTable.created_at),
-        asc(ordersServicesTable.id)
+        asc(itemsTable.id)
       )
       .limit(normalized.limit)
       .offset(normalized.offset),
     db
       .select({
-        total: sql<number>`count(*)`,
+        total: sql<number>`count(DISTINCT ${ordersServicesTable.item_id})`,
       })
       .from(ordersServicesTable)
+      .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
       .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
       .where(whereClause),
   ]);
 
+  // Second pass for the treatments themselves. Deliberately NOT filtered by
+  // the status chip, and it keeps ready siblings: a card claiming to be one
+  // object has to show every live job on it, or a worker filtered to "Queued"
+  // would start a repaint without seeing the clean already done on the same
+  // shoe.
+  const services =
+    itemRows.length === 0
+      ? []
+      : await db
+          .select({
+            handler_id: ordersServicesTable.handler_id,
+            handler_name: usersTable.name,
+            id: ordersServicesTable.id,
+            is_priority: ordersServicesTable.is_priority,
+            item_id: ordersServicesTable.item_id,
+            service_name: servicesTable.name,
+            status: ordersServicesTable.status,
+          })
+          .from(ordersServicesTable)
+          .innerJoin(
+            servicesTable,
+            eq(ordersServicesTable.service_id, servicesTable.id)
+          )
+          .leftJoin(
+            usersTable,
+            eq(ordersServicesTable.handler_id, usersTable.id)
+          )
+          .where(
+            and(
+              inArray(
+                ordersServicesTable.item_id,
+                itemRows.map((item) => item.id)
+              ),
+              notInArray(ordersServicesTable.status, [
+                ...ORDER_TERMINAL_SERVICE_STATUSES,
+              ])
+            )
+          )
+          .orderBy(asc(ordersServicesTable.id));
+
+  const servicesByItem = Map.groupBy(services, (service) => service.item_id);
+
+  // Deliberately no rolled-up Item status here. The card shows a badge per
+  // treatment — which is what a worker acts on — and deriving one from this
+  // page's non-terminal rows would disagree with the order detail, which rolls
+  // up over every sibling including the cancelled ones.
   return {
-    items,
+    items: itemRows.map((item) => ({
+      ...item,
+      services: servicesByItem.get(item.id) ?? [],
+    })),
     meta: buildPaginationMeta(Number(countRows[0]?.total ?? 0), normalized),
   };
 }
@@ -301,42 +398,42 @@ export async function getOrderServiceQueueCounts(
       processing: 0,
       quality_check: 0,
       qc_reject: 0,
-      ready_for_pickup: 0,
     };
   }
 
-  const rows = await db
+  // Counts objects, not treatments, because the queue below lists objects — a
+  // chip reading 12 has to open onto 12 cards. One shoe with a clean queued and
+  // a repaint in progress is therefore counted under both chips, and the chips
+  // legitimately sum to more than `all`: they are filters, not a partition.
+  // Every chip in one pass. Named by hand rather than mapped over the enum: a
+  // new workshop status must be given a chip on purpose rather than counted
+  // into nothing.
+  const chip = (status: OrderService["status"]) =>
+    sql<number>`count(DISTINCT ${ordersServicesTable.item_id}) FILTER (WHERE ${ordersServicesTable.status} = ${status})`;
+
+  const [row] = await db
     .select({
-      status: ordersServicesTable.status,
-      total: sql<number>`count(*)`,
+      all: sql<number>`count(DISTINCT ${ordersServicesTable.item_id})`,
+      queued: chip("queued"),
+      processing: chip("processing"),
+      quality_check: chip("quality_check"),
+      qc_reject: chip("qc_reject"),
     })
     .from(ordersServicesTable)
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
     .where(
       and(
-        notInArray(ordersServicesTable.status, [
-          ...ORDER_TERMINAL_SERVICE_STATUSES,
-        ]),
+        inArray(ordersServicesTable.status, [...WORKSHOP_SERVICE_STATUSES]),
         storeCondition
       )
-    )
-    .groupBy(ordersServicesTable.status);
+    );
 
-  const totalByStatus = new Map(
-    rows.map((row) => [row.status, Number(row.total)])
-  );
-  const countOf = (status: OrderService["status"]) =>
-    totalByStatus.get(status) ?? 0;
-
-  // Listed by hand, not mapped over the enum: a new workshop status must be
-  // given a chip on purpose rather than counted into nothing.
   return {
-    all: rows.reduce((sum, row) => sum + Number(row.total), 0),
-    queued: countOf("queued"),
-    processing: countOf("processing"),
-    quality_check: countOf("quality_check"),
-    qc_reject: countOf("qc_reject"),
-    ready_for_pickup: countOf("ready_for_pickup"),
+    all: Number(row?.all ?? 0),
+    queued: Number(row?.queued ?? 0),
+    processing: Number(row?.processing ?? 0),
+    quality_check: Number(row?.quality_check ?? 0),
+    qc_reject: Number(row?.qc_reject ?? 0),
   };
 }
 
