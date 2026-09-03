@@ -1,57 +1,57 @@
 {
   "name": "@fresclean/api",
-  "type": "module",
   "version": "0.0.1",
   "sideEffects": false,
+  "type": "module",
   "exports": {
     "./rpc": {
       "import": {
-        "default": "./dist/rpc.js",
-        "types": "./dist/rpc.d.ts"
+        "types": "./dist/rpc.d.ts",
+        "default": "./dist/rpc.js"
       }
     },
     "./types": {
       "import": {
-        "default": "./dist/types/index.js",
-        "types": "./dist/types/index.d.ts"
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/types/index.js"
       }
     },
     "./schema": {
       "import": {
-        "default": "./dist/schema/index.js",
-        "types": "./dist/schema/index.d.ts"
+        "types": "./dist/schema/index.d.ts",
+        "default": "./dist/schema/index.js"
       }
     }
   },
   "scripts": {
-    "dev": "bun run --parallel dev:server dev:types",
-    "dev:server": "bun run --hot src/index.ts",
-    "dev:types": "bun --bun tsdown --watch --no-clean",
+    "baseline:dev": "bun run src/db/baseline.ts dev",
+    "baseline:prod": "bun run src/db/baseline.ts prod",
     "build": "bun --bun tsdown",
     "build:types": "bun --bun tsdown",
     "build:watch": "bun tsdown --watch",
-    "lint": "biome check .",
-    "type-check": "tsc",
-    "test": "bun test",
-    "seed:dev": "bun run src/db/seed.ts",
-    "generate": "bun drizzle-kit generate --config=drizzle.config.ts",
-    "migrations:check": "bun drizzle-kit check --config=drizzle.config.ts",
-    "migrate:dev": "bun drizzle-kit migrate --config=drizzle-dev.config.ts",
-    "migrate:prod": "bun drizzle-kit migrate --config=drizzle-prod.config.ts",
-    "baseline:dev": "bun run src/db/baseline.ts dev",
-    "baseline:prod": "bun run src/db/baseline.ts prod",
+    "dev": "bun run --parallel dev:server dev:types",
+    "dev:server": "bun run --hot src/index.ts",
+    "dev:types": "bun --bun tsdown --watch --no-clean",
     "drift:dev": "bun drizzle-kit push --config=drizzle-dev.config.ts --explain --verbose",
     "drift:prod": "bun drizzle-kit push --config=drizzle-prod.config.ts --explain --verbose",
-    "push:dev": "bun drizzle-kit push --config=drizzle-dev.config.ts",
+    "generate": "bun drizzle-kit generate --config=drizzle.config.ts",
+    "lint": "biome check .",
+    "migrate:dev": "bun drizzle-kit migrate --config=drizzle-dev.config.ts",
+    "migrate:prod": "bun drizzle-kit migrate --config=drizzle-prod.config.ts",
+    "migrations:check": "bun drizzle-kit check --config=drizzle.config.ts",
     "pull:dev": "bun drizzle-kit pull --config=drizzle-dev.config.ts",
-    "pull:prod": "bun drizzle-kit pull --config=drizzle-prod.config.ts"
+    "pull:prod": "bun drizzle-kit pull --config=drizzle-prod.config.ts",
+    "push:dev": "bun drizzle-kit push --config=drizzle-dev.config.ts",
+    "seed:dev": "bun run src/db/seed.ts",
+    "test": "bun test",
+    "type-check": "tsc"
   },
   "dependencies": {
-    "@faker-js/faker": "^10.5.0",
-    "@hono/zod-validator": "^0.8.0",
+    "@faker-js/faker": "^10.6.0",
+    "@hono/zod-validator": "^0.9.1",
     "@neondatabase/serverless": "^1.1.0",
     "dayjs": "catalog:",
-    "drizzle-orm": "beta",
+    "drizzle-orm": "rc",
     "hono": "catalog:",
     "http-status-codes": "^2.3.0",
     "libphonenumber-js": "catalog:",
@@ -59,9 +59,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
-    "@types/bun": "latest",
-    "drizzle-kit": "beta",
-    "tsdown": "^0.22.3",
+    "@types/bun": "^1.4.0",
+    "drizzle-kit": "rc",
+    "tsdown": "^0.22.14",
     "typescript": "catalog:",
     "ultracite": "catalog:"
   }

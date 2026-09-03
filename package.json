@@ -1,36 +1,36 @@
 {
   "name": "fresclean",
-  "type": "module",
-  "sideEffects": false,
   "private": true,
-  "packageManager": "bun@1.4.0",
-  "scripts": {
-    "dev": "turbo dev",
-    "build": "turbo build",
-    "lint": "turbo lint",
-    "type-check": "turbo type-check",
-    "test": "turbo test",
-    "prepare": "husky"
-  },
+  "sideEffects": false,
+  "type": "module",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
-  "catalog": {
-    "dayjs": "^1.11.21",
-    "zod": "^4.4.3",
-    "typescript": "^6",
-    "libphonenumber-js": "^1.13.7",
-    "@biomejs/biome": "2.5.0",
-    "hono": "4.12.34",
-    "ultracite": "7.8.3"
-  },
-  "devDependencies": {
-    "husky": "^9.1.7",
-    "lint-staged": "^17.0.8",
-    "turbo": "^2.10.0"
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "prepare": "husky",
+    "test": "turbo test",
+    "type-check": "turbo type-check"
   },
   "lint-staged": {
     "*": "bunx ultracite fix"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.4.1",
+    "turbo": "^2.10.12"
+  },
+  "packageManager": "bun@1.4.0",
+  "catalog": {
+    "dayjs": "^1.11.23",
+    "zod": "^4.5.4",
+    "typescript": "^7.0.2",
+    "libphonenumber-js": "^1.13.12",
+    "@biomejs/biome": "2.5.12",
+    "hono": "4.13.5",
+    "ultracite": "7.10.7"
   }
 }
