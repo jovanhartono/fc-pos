@@ -1,9 +1,9 @@
 import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useMemo } from "react";
 import { DataTable } from "@/components/data-table";
+import type { DataTableColumnDef } from "@/components/data-table-features";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -106,7 +106,7 @@ function ProductsPage() {
 		});
 	}, [closeSheet, createMutation, openSheet]);
 
-	const columns = useMemo<ColumnDef<Product>[]>(
+	const columns = useMemo<DataTableColumnDef<Product>[]>(
 		() => [
 			{
 				accessorKey: "sku",

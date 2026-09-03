@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
 import { useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
+import type { DataTableColumnDef } from "@/components/data-table-features";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
@@ -67,7 +67,7 @@ function ShiftsPage() {
 	const shiftsQuery = useQuery(shiftsQueryOptions(buildShiftsQuery(search)));
 	const shifts = shiftsQuery.data?.items ?? [];
 
-	const columns = useMemo<ColumnDef<Shift>[]>(
+	const columns = useMemo<DataTableColumnDef<Shift>[]>(
 		() => [
 			{
 				id: "user",

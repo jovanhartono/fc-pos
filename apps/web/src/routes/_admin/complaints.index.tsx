@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
 import { useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
+import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
@@ -52,7 +52,7 @@ const ComplaintsPage = () => {
 		});
 	};
 
-	const columns = useMemo<ColumnDef<ComplaintListItem>[]>(
+	const columns = useMemo<DataTableColumnDef<ComplaintListItem>[]>(
 		() => [
 			{
 				id: "complaint",

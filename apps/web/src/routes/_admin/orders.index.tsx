@@ -1,11 +1,11 @@
 import { CrosshairSimpleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
+import type { DataTableColumnDef } from "@/components/data-table-features";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
@@ -175,7 +175,7 @@ function OrdersPage() {
 		});
 	}, [openSheet, orders]);
 
-	const columns = useMemo<ColumnDef<Order>[]>(
+	const columns = useMemo<DataTableColumnDef<Order>[]>(
 		() => [
 			{
 				accessorKey: "code",

@@ -1,9 +1,12 @@
 import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import type { ColumnDef, Row } from "@tanstack/react-table";
 import { useCallback } from "react";
 import { DataTable } from "@/components/data-table";
+import type {
+	DataTableColumnDef,
+	DataTableRow,
+} from "@/components/data-table-features";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,7 +30,7 @@ export const Route = createFileRoute("/_admin/categories")({
 	component: CategoriesPage,
 });
 
-const CategoriesActions = ({ row }: { row: Row<Category> }) => {
+const CategoriesActions = ({ row }: { row: DataTableRow<Category> }) => {
 	const queryClient = useQueryClient();
 	const { openSheet, closeSheet } = useSheet();
 
@@ -82,7 +85,7 @@ const CategoriesActions = ({ row }: { row: Row<Category> }) => {
 	);
 };
 
-const columns: ColumnDef<Category>[] = [
+const columns: DataTableColumnDef<Category>[] = [
 	{
 		accessorKey: "name",
 		header: "Category",

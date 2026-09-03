@@ -8,6 +8,7 @@ import {
 	type RowData,
 	type Table as TanstackTable,
 } from "@tanstack/react-table";
+import type { DataTableFeatures } from "@/components/data-table-features";
 import "@/components/data-table-meta";
 import {
 	Table,
@@ -20,7 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 
 interface DataTableGridProps<TData extends RowData> {
-	table: TanstackTable<TData>;
+	table: TanstackTable<DataTableFeatures, TData>;
 	isLoading?: boolean;
 	emptyMessage: string;
 	sortable: boolean;
@@ -100,7 +101,7 @@ export const DataTableGrid = <TData extends RowData>({
 			) : table.getRowModel().rows.length ? (
 				table.getRowModel().rows.map((row) => (
 					<TableRow key={row.id} className="border-border/60">
-						{row.getVisibleCells().map((cell) => (
+						{row.getAllCells().map((cell) => (
 							<TableCell
 								key={cell.id}
 								className={cn(

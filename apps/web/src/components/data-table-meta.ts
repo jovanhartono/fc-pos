@@ -1,4 +1,4 @@
-import type { RowData } from "@tanstack/react-table";
+import type { CellData, RowData, TableFeatures } from "@tanstack/react-table";
 
 type MobileCardSlot =
 	| "title"
@@ -18,7 +18,11 @@ interface MobileCardColumnOptions {
 }
 
 declare module "@tanstack/react-table" {
-	interface ColumnMeta<TData extends RowData, TValue> {
+	interface ColumnMeta<
+		in out TFeatures extends TableFeatures,
+		in out TData extends RowData,
+		TValue extends CellData = CellData,
+	> {
 		mobileCard?: MobileCardColumnOptions;
 		// Extra classes for the desktop table th/td (e.g. sticky columns).
 		headerClassName?: string;

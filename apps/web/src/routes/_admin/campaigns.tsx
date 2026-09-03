@@ -7,10 +7,10 @@ import {
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
+import type { DataTableColumnDef } from "@/components/data-table-features";
 import { SelectField } from "@/components/form/select-field";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -306,7 +306,7 @@ function CampaignsPage() {
 		[openSheet],
 	);
 
-	const columns = useMemo<ColumnDef<Campaign>[]>(
+	const columns = useMemo<DataTableColumnDef<Campaign>[]>(
 		() => [
 			{ accessorKey: "code", header: "Code" },
 			{ accessorKey: "name", header: "Name" },

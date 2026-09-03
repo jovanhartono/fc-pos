@@ -3,11 +3,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useMemo, useState } from "react";
 import { FormProvider, type SubmitHandler, useForm } from "react-hook-form";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
+import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
@@ -255,7 +255,7 @@ function UsersPage() {
 		});
 	}, [form, openSheet, storesQuery.data, resetForm, handleSubmit]);
 
-	const columns = useMemo<ColumnDef<User>[]>(
+	const columns = useMemo<DataTableColumnDef<User>[]>(
 		() => [
 			{ accessorKey: "username", header: "Username" },
 			{ accessorKey: "name", header: "Name" },
