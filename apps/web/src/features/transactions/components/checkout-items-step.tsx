@@ -281,9 +281,7 @@ const CheckoutTreatmentRow = ({
 			</div>
 
 			<Field>
-				<FieldLabel htmlFor={`service-notes-${line.line_id}`}>
-					Service notes
-				</FieldLabel>
+				<FieldLabel htmlFor={`service-notes-${line.line_id}`}>Notes</FieldLabel>
 				<Input
 					className="h-11"
 					id={`service-notes-${line.line_id}`}
@@ -359,14 +357,9 @@ const CheckoutItemCard = ({
 	return (
 		<article className="border border-border/70">
 			<header className="flex items-center gap-3 bg-muted/40 px-3 py-2">
-				<div className="grid min-w-0 flex-1 gap-0.5">
-					<p className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
-						Item {itemNumber}
-					</p>
-					<h3 className="truncate font-medium text-sm">
-						{descriptors ?? "New item"}
-					</h3>
-				</div>
+				<h3 className="min-w-0 flex-1 truncate font-medium text-sm">
+					{descriptors ?? "New item"}
+				</h3>
 				<RemoveLineButton
 					label={`Remove item ${itemNumber}`}
 					onClick={() => removeItem(item.line_id)}
@@ -396,11 +389,8 @@ const CheckoutItemCard = ({
 				aria-label={`Treatments on item ${itemNumber}`}
 				className="mx-3 mb-3 border border-border/70 border-l-2 border-l-foreground/40"
 			>
-				<p className="px-3 pt-2 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
-					Treatments · {item.services.length}
-				</p>
 				{item.services.length === 0 ? (
-					<p className="px-3 pt-1 pb-2.5 text-muted-foreground text-xs">
+					<p className="px-3 py-2.5 text-muted-foreground text-xs">
 						Tap a service to add it here
 					</p>
 				) : null}

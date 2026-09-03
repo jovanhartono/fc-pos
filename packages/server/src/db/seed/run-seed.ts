@@ -98,6 +98,9 @@ const SERVICE_PRESETS = [
   {
     code: "DCE",
     name: "Deep Clean Express (6h to 24h)",
+    // The two express services are the shop's priority lane: a treatment sold
+    // from them jumps the queue, so the seed needs some on the rack to show it.
+    is_priority: true,
     categoryKey: "deep_clean",
     price: 90_000,
     cogs: 16_000,
@@ -390,6 +393,7 @@ const SERVICE_PRESETS = [
     categoryKey: "express",
     price: 30_000,
     cogs: 5000,
+    is_priority: true,
   },
 ] as const;
 
@@ -495,6 +499,8 @@ interface DraftServiceLine {
   cogs: number;
   handler_id: number | null;
   handler_logs: DraftHandlerLog[];
+  // Same rule as createOrder: a treatment inherits its Service's lane.
+  is_priority: boolean;
   notes: string | null;
   photos: Array<{
     created_at: Date;
@@ -1067,6 +1073,7 @@ async function seedCatalog(adminId: number) {
         cogs: asMoney(service.cogs),
         price: asMoney(service.price),
         is_active: true,
+        is_priority: "is_priority" in service ? service.is_priority : false,
       }))
     )
     .returning({
@@ -1075,6 +1082,7 @@ async function seedCatalog(adminId: number) {
       price: servicesTable.price,
       cogs: servicesTable.cogs,
       is_active: servicesTable.is_active,
+      is_priority: servicesTable.is_priority,
     });
 
   const retailCategoryId = categoryByKey.get("retail") ?? categories[0].id;
@@ -1375,6 +1383,7 @@ async function seedOrders(params: {
     price: string | null;
     cogs: string;
     is_active: boolean;
+    is_priority: boolean;
   }>;
   products: Array<{
     id: number;
@@ -1538,6 +1547,7 @@ async function seedOrders(params: {
         cogs: Number(service.cogs),
         status: finalStatus,
         handler_id: handlerId,
+        is_priority: service.is_priority,
         notes: chance(0.35)
           ? faker.helpers.arrayElement(SERVICE_NOTE_POOL)
           : null,
@@ -1778,6 +1788,7 @@ async function seedOrders(params: {
                     ? "ready_for_pickup"
                     : line.status,
                 handler_id: line.handler_id,
+                is_priority: line.is_priority,
               }))
             )
           )

@@ -199,10 +199,12 @@ export function QueueServiceDetail({
 					<ArrowLeftIcon className="size-4" weight="bold" />
 				</Link>
 				<div className="min-w-0 flex-1">
-					{/* The job is the headline: a worker opens this page to do a
-					    treatment, and the tag is how they find the shoe for it. flex-wrap
-					    so a long status badge drops below a long name on a 390px viewport
-					    instead of being clipped by the section's overflow-x-clip. */}
+					{/* Two headlines of equal weight: the job, and the object it is done
+					    to. A worker needs both to pick the right shoe off the rack, so
+					    neither is demoted to small print. The tag is the machine's
+					    handle and reads third, in mono. flex-wrap so a long status badge
+					    drops below a long name on a 390px viewport instead of being
+					    clipped by the section's overflow-x-clip. */}
 					<div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
 						<h1 className="text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
 							{selectedService.service?.name ?? "Service"}
@@ -216,20 +218,13 @@ export function QueueServiceDetail({
 							{formatOrderServiceStatus(selectedService.status)}
 						</Badge>
 					</div>
-					<p className="mt-1 text-sm text-muted-foreground">
-						{/* break-all on the tag only: it has no spaces to wrap at, while
-						    the descriptors do and must not be split mid-word. */}
-						<span className="break-all font-mono">
-							{selectedService.item.item_code}
-						</span>
-						{itemDetails ? (
-							<>
-								<span aria-hidden="true" className="mx-1.5 text-border">
-									·
-								</span>
-								{itemDetails}
-							</>
-						) : null}
+					{itemDetails ? (
+						<p className="text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
+							{itemDetails}
+						</p>
+					) : null}
+					<p className="mt-1 break-all font-mono text-sm text-muted-foreground">
+						{selectedService.item.item_code}
 					</p>
 				</div>
 			</div>

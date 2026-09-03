@@ -1,5 +1,6 @@
 import { isDiscountSettled } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { CheckCircleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import {
@@ -257,10 +258,18 @@ const SettledDiscountPaymentForm = ({
 					);
 				})}
 			>
-				{/* The breakdown itself is on the page under this sheet. */}
-				<p className="border border-border/70 bg-muted/30 px-3 py-2.5 text-muted-foreground text-sm">
-					Discount of {formatMoney(discount)} settled at drop-off. Collect the
-					printed total.
+				{/* Same emerald as a captured drop-off photo: settled is a done state,
+				    not a warning. The breakdown itself is on the page under this sheet. */}
+				<p className="flex items-start gap-2 border border-emerald-300/60 bg-emerald-50/70 px-3 py-2.5 text-emerald-900 text-sm dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
+					<CheckCircleIcon
+						aria-hidden="true"
+						className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+						weight="fill"
+					/>
+					<span>
+						Discount of <strong>{formatMoney(discount)}</strong> settled at
+						drop-off. Collect the printed total.
+					</span>
 				</p>
 				<ToCollectLine amount={toCollect} />
 				<PaymentMethodField />
