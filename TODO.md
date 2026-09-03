@@ -34,23 +34,27 @@
 
 ## Architecture-deepening follow-ups (extracted 2026-06-10, source: docs/architecture-deepening.md)
 
-- [ ] **Apply the ADR-0017 Item migration to PROD** —
-  `packages/server/migrations/0001-adr-0017-item-groups-order-services.sql`.
+- [ ] **Apply the ADR-0017 Item migration to PROD, then baseline prod onto
+  migrations** — `packages/server/migrations/0001-adr-0017-item-groups-order-services.sql`.
   Runbook: `docs/runbooks/2026-08-27-adr-0017-prod.md`.
   Creates `items`, adds `orders_services.item_id`, backfills one Item per
   existing treatment row, then drops `brand`/`color`/`model`/`size`/`item_code`
-  and tightens `item_id`/`order_id` to NOT NULL. **Do not run `push:dev` or
-  `push:prod` for this one** — either would add the NOT NULL column against
+  and tightens `item_id`/`order_id` to NOT NULL. **Do not run `push` or
+  `migrate:prod` for this one** — push would add the NOT NULL column against
   populated rows and drop the five columns before anything had copied them,
-  losing every tag code in the shop, and no generator writes the
-  `INSERT..SELECT` that has to run between the two halves. Run the file itself;
-  it is one transaction, so a failure leaves the database exactly as it was.
+  losing every tag code in the shop; `migrate:prod` has nothing to apply,
+  because this migration deliberately sits outside `drizzle/` (it predates the
+  baseline). Run the file itself; it is one transaction, so a failure leaves the
+  database exactly as it was.
   - **Dev: done 2026-08-27.** 357 treatment rows → 357 Items, 0 unlinked,
     composite FK rejects a cross-Order link. Re-seeded afterwards, so dev now
     has genuinely grouped Items (264 Items over 349 treatments, 72 of them
     multi-treatment) rather than the 1:1 backfill.
   - **Prod: not applied.** The code is merged ahead of the schema, so every
-    order read 500s until it runs.
+    order read 500s until it runs. Prod also still carries the pre-ADR-0017
+    schema and is **not yet baselined** — `bun run baseline:prod` must come
+    after the migration, so that prod and dev baseline at the same schema.
+  - Also needs the `deriveOrderStatus` cancelled-sibling backfill (see below).
 - [ ] **Backfill `orders.status` after the cancelled-sibling fix** — the rollup
   no longer reads a cancelled line as evidence that work started, so orders
   whose live lines are all queued but which carry a cancelled line move
