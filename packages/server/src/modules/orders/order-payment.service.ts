@@ -6,6 +6,7 @@ import { claimRedemptions } from "@/modules/campaigns/campaign-redemption.servic
 import type { PatchOrderPaymentInput } from "@/modules/orders/order-admin.schema";
 import { resolveDiscount } from "@/modules/orders/order-discount.service";
 import { assertCanProcessPayment } from "@/modules/permissions/permissions";
+import { isDiscountSettled } from "@/schema/discount";
 import { hasUnpricedLine } from "@/schema/unpriced-line";
 import type { JWTPayload } from "@/types";
 
@@ -78,8 +79,7 @@ export async function updateOrderPayment({
   // amount is printed on the Receipt the customer is holding. Resolving again
   // here would claim a second time and overwrite the number they were
   // promised, so the payment desk collects the printed total instead.
-  const isSettledAtDropoff =
-    order.discount_source === "campaign" || order.discount_source === "manual";
+  const isSettledAtDropoff = isDiscountSettled(order.discount_source);
   if (
     isSettledAtDropoff &&
     (body.campaign_ids.length > 0 ||

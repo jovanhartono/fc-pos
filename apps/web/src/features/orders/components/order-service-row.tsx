@@ -3,10 +3,7 @@ import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { OrderServiceDetail } from "@/features/orders/components/order-service-detail";
 import type { OrderDetail } from "@/lib/api";
-import {
-	formatOrderServiceStatus,
-	getOrderServiceStatusBadgeVariant,
-} from "@/lib/status";
+import { formatOrderServiceStatus } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -19,11 +16,20 @@ interface OrderServiceRowProps {
 	// Item header above, but the sheet still opens under it so a worker knows
 	// which thing on the shelf they are looking at (ADR-0017).
 	itemCode: string;
+	// The object's rolled-up status; a treatment names its own only when it
+	// disagrees with this.
+	itemStatus: string;
 	isAdmin: boolean;
 }
 
 export const OrderServiceRow = memo(
-	({ orderId, service, itemCode, isAdmin }: OrderServiceRowProps) => {
+	({
+		orderId,
+		service,
+		itemCode,
+		itemStatus,
+		isAdmin,
+	}: OrderServiceRowProps) => {
 		const openSheet = useSheet((s) => s.openSheet);
 
 		const serviceName = service.service?.name ?? "Service";
@@ -58,7 +64,15 @@ export const OrderServiceRow = memo(
 				<span className="min-w-0 flex-1 space-y-1">
 					{/* leading-5 matches the 20px badge line across the row, so the
 					    service name and the subtotal below share a center. */}
-					<span className="block text-sm leading-5">{serviceName}</span>
+					<span className="block text-sm leading-5">
+						{serviceName}
+						{service.status === itemStatus ? null : (
+							<span className="text-muted-foreground">
+								{" "}
+								· {formatOrderServiceStatus(service.status)}
+							</span>
+						)}
+					</span>
 					{service.handler?.name ? (
 						<span className="block text-muted-foreground text-xs leading-snug">
 							{service.handler.name}
@@ -73,9 +87,6 @@ export const OrderServiceRow = memo(
 						{service.is_priority ? (
 							<Badge variant="warning">Priority</Badge>
 						) : null}
-						<Badge variant={getOrderServiceStatusBadgeVariant(service.status)}>
-							{formatOrderServiceStatus(service.status)}
-						</Badge>
 					</span>
 					<span className="font-mono text-sm tabular-nums">
 						{/* A blank line has no subtotal yet — "Rp 0" would read as

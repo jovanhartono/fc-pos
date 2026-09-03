@@ -1,7 +1,14 @@
+import { isDiscountSettled } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import {
+	Controller,
+	FormProvider,
+	useForm,
+	useFormContext,
+	useWatch,
+} from "react-hook-form";
 import { z } from "zod";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { SelectField } from "@/components/form/select-field";
@@ -109,6 +116,10 @@ const CollectPaymentAction = ({
 	detail,
 }: CollectPaymentActionProps) => {
 	const openSheet = useSheet((s) => s.openSheet);
+	// ADR-0018: a discount that settled at drop-off is printed on the Receipt
+	// the customer holds, and the server refuses a second one. That desk gets a
+	// form with no discount controls at all rather than fields that can only 400.
+	const isSettled = isDiscountSettled(detail.discount_source);
 
 	return (
 		<Button
@@ -116,9 +127,12 @@ const CollectPaymentAction = ({
 				openSheet({
 					title: "Collect payment",
 					description: detail.code,
-					content: () => (
-						<CollectPaymentForm detail={detail} orderId={orderId} />
-					),
+					content: () =>
+						isSettled ? (
+							<SettledDiscountPaymentForm detail={detail} orderId={orderId} />
+						) : (
+							<CollectPaymentForm detail={detail} orderId={orderId} />
+						),
 				})
 			}
 			size="sm"
@@ -150,12 +164,123 @@ const PaidDetails = ({ detail }: { detail: OrderDetail }) => (
 	</dl>
 );
 
+const paymentMethodSchema = z.object({
+	paymentMethodId: z.string().min(1, "Payment method is required."),
+});
+
+// The tender picker both payment forms end with. Reads the form through
+// context so neither form threads control/errors down to it.
+const PaymentMethodField = () => {
+	const { control } = useFormContext<z.infer<typeof paymentMethodSchema>>();
+	const paymentMethodsQuery = useQuery(paymentMethodsQueryOptions());
+	const paymentMethods = Array.isArray(paymentMethodsQuery.data)
+		? paymentMethodsQuery.data
+		: [];
+
+	return (
+		<Controller
+			control={control}
+			name="paymentMethodId"
+			render={({ field, fieldState }) => (
+				<Field data-invalid={fieldState.invalid}>
+					<FieldLabel className="sr-only" htmlFor="collect-payment-method">
+						Payment method
+					</FieldLabel>
+					<SelectField
+						className="w-full"
+						id="collect-payment-method"
+						items={paymentMethods.map((method) => ({
+							value: String(method.id),
+							label: method.name,
+						}))}
+						onValueChange={field.onChange}
+						placeholder="Select payment method"
+						value={field.value}
+					/>
+					<FieldError errors={[fieldState.error]} />
+				</Field>
+			)}
+		/>
+	);
+};
+
+interface ToCollectLineProps {
+	amount: number;
+}
+
+const ToCollectLine = ({ amount }: ToCollectLineProps) => (
+	<div className="flex items-center justify-between gap-4 text-sm font-medium">
+		<span>To collect</span>
+		<span className="font-mono tabular-nums">{formatMoney(amount)}</span>
+	</div>
+);
+
+interface SettledDiscountPaymentFormProps {
+	orderId: number;
+	detail: OrderDetail;
+}
+
+// The Order whose discount settled at drop-off (ADR-0018): the amount is
+// already on the Receipt, so this desk only books the tender. No campaign
+// tiles, no voucher box, no manual discount — the server would refuse every
+// one of them, and the cashier had no way to know that from the form.
+const SettledDiscountPaymentForm = ({
+	orderId,
+	detail,
+}: SettledDiscountPaymentFormProps) => {
+	const closeSheet = useSheet((s) => s.closeSheet);
+	const paymentMutation = useOrderPaymentMutation(orderId);
+	const form = useForm<z.infer<typeof paymentMethodSchema>>({
+		resolver: zodResolver(paymentMethodSchema),
+		defaultValues: { paymentMethodId: "" },
+	});
+
+	const discount = parseMoney(detail.discount);
+	// Mirrors the server: net due = gross − stored discount − already refunded.
+	const toCollect = Math.max(
+		parseMoney(detail.total) - discount - parseMoney(detail.refunded_amount),
+		0,
+	);
+	return (
+		<FormProvider {...form}>
+			<form
+				className="grid gap-4"
+				onSubmit={form.handleSubmit((values) => {
+					paymentMutation.mutate(
+						{
+							payment_method_id: Number(values.paymentMethodId),
+							campaign_ids: [],
+							voucher_codes: [],
+							discount: "0",
+						},
+						{ onSuccess: () => closeSheet() },
+					);
+				})}
+			>
+				{/* The breakdown itself is on the page under this sheet. */}
+				<p className="border border-border/70 bg-muted/30 px-3 py-2.5 text-muted-foreground text-sm">
+					Discount of {formatMoney(discount)} settled at drop-off. Collect the
+					printed total.
+				</p>
+				<ToCollectLine amount={toCollect} />
+				<PaymentMethodField />
+				<Button
+					className="h-10 pointer-coarse:h-11"
+					loading={paymentMutation.isPending}
+					type="submit"
+				>
+					Mark as paid
+				</Button>
+			</form>
+		</FormProvider>
+	);
+};
+
 // The only rule the form enforces is that a tender was picked. The rest are
 // declared, not validated: the tile group and voucher entry only emit entries
 // the server already vetted, and CurrencyInput cannot produce a negative —
 // the server clamps the discount regardless.
-const collectPaymentSchema = z.object({
-	paymentMethodId: z.string().min(1, "Payment method is required."),
+const collectPaymentSchema = paymentMethodSchema.extend({
 	campaignIds: z.array(z.string()),
 	vouchers: z.array(z.custom<AppliedVoucher>()),
 	discount: z.string(),
@@ -177,7 +302,6 @@ interface CollectPaymentFormProps {
 // second claim.
 const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 	const closeSheet = useSheet((s) => s.closeSheet);
-	const paymentMethodsQuery = useQuery(paymentMethodsQueryOptions());
 	const servicesQuery = useQuery(servicesQueryOptions());
 	const campaignsQuery = useQuery(
 		campaignsQueryOptions({
@@ -257,136 +381,108 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 	// Mirrors the server: net due = gross − discount − already refunded.
 	const toCollect = Math.max(pricing.total - refunded, 0);
 
-	const paymentMethods = Array.isArray(paymentMethodsQuery.data)
-		? paymentMethodsQuery.data
-		: [];
-
 	return (
-		<form
-			className="grid gap-4"
-			// mutate, not mutateAsync: on a race (someone else collected first)
-			// the global handler shows the server's reason instead of a silent
-			// stopped spinner.
-			onSubmit={form.handleSubmit((values) => {
-				paymentMutation.mutate(
-					{
-						payment_method_id: Number(values.paymentMethodId),
-						campaign_ids: values.campaignIds.map((id) => Number(id)),
-						voucher_codes: values.vouchers.map((entry) => entry.code),
-						discount: values.discount || "0",
-					},
-					{ onSuccess: () => closeSheet() },
-				);
-			})}
-		>
-			<Controller
-				control={form.control}
-				name="campaignIds"
-				render={({ field }) => (
-					<FieldSet className="gap-2">
-						<FieldLegend variant="label">Campaigns</FieldLegend>
-						<CampaignTileGroup
-							eligibleCampaigns={eligibleCampaigns}
-							hasStore={storeId !== undefined}
-							onToggle={(campaignId) =>
-								field.onChange(
-									field.value.includes(campaignId)
-										? field.value.filter((value) => value !== campaignId)
-										: [...field.value, campaignId],
-								)
-							}
-							selectedIds={field.value}
-						/>
-						<VoucherCodeEntry
-							appliedVouchers={vouchers}
-							onChange={(next) =>
-								form.setValue("vouchers", next, {
-									shouldDirty: true,
-									shouldValidate: true,
-								})
-							}
-							storeId={storeId}
-							subtotal={grossTotal}
-						/>
-					</FieldSet>
-				)}
-			/>
-
-			<Controller
-				control={form.control}
-				name="discount"
-				render={({ field, fieldState }) => (
-					<Field data-invalid={fieldState.invalid}>
-						<FieldLabel htmlFor="collect-payment-discount">
-							Manual Discount
-						</FieldLabel>
-						<CurrencyInput
-							id="collect-payment-discount"
-							onValueChange={field.onChange}
-							value={field.value}
-						/>
-						<FieldError errors={[fieldState.error]} />
-					</Field>
-				)}
-			/>
-
-			{pricing.totalDiscount > 0 ? (
-				<dl className="grid gap-1.5 text-sm tabular-nums">
-					{pricing.campaignBreakdown.map(({ campaign, amount }) => (
-						<div className="flex justify-between gap-4" key={campaign.id}>
-							<dt className="text-muted-foreground">
-								{campaign.code} ({campaign.name})
-							</dt>
-							<dd className="font-mono text-destructive">
-								-{formatMoney(amount)}
-							</dd>
-						</div>
-					))}
-					{pricing.manualDiscount > 0 ? (
-						<div className="flex justify-between gap-4">
-							<dt className="text-muted-foreground">Manual Discount</dt>
-							<dd className="font-mono text-destructive">
-								-{formatMoney(pricing.manualDiscount)}
-							</dd>
-						</div>
-					) : null}
-				</dl>
-			) : null}
-			<div className="flex items-center justify-between gap-4 text-sm font-medium">
-				<span>To collect</span>
-				<span className="font-mono tabular-nums">{formatMoney(toCollect)}</span>
-			</div>
-
-			<Controller
-				control={form.control}
-				name="paymentMethodId"
-				render={({ field, fieldState }) => (
-					<Field data-invalid={fieldState.invalid}>
-						<FieldLabel className="sr-only" htmlFor="collect-payment-method">
-							Payment method
-						</FieldLabel>
-						<SelectField
-							className="w-full"
-							id="collect-payment-method"
-							items={paymentMethods.map((method) => ({
-								value: String(method.id),
-								label: method.name,
-							}))}
-							onValueChange={field.onChange}
-							placeholder="Select payment method"
-							value={field.value}
-						/>
-						<FieldError errors={[fieldState.error]} />
-					</Field>
-				)}
-			/>
-			<Button
-				className="h-10 pointer-coarse:h-11"
-				loading={paymentMutation.isPending}
-				type="submit"
+		<FormProvider {...form}>
+			<form
+				className="grid gap-4"
+				// mutate, not mutateAsync: on a race (someone else collected first)
+				// the global handler shows the server's reason instead of a silent
+				// stopped spinner.
+				onSubmit={form.handleSubmit((values) => {
+					paymentMutation.mutate(
+						{
+							payment_method_id: Number(values.paymentMethodId),
+							campaign_ids: values.campaignIds.map((id) => Number(id)),
+							voucher_codes: values.vouchers.map((entry) => entry.code),
+							discount: values.discount || "0",
+						},
+						{ onSuccess: () => closeSheet() },
+					);
+				})}
 			>
-				Mark as paid
-			</Button>
-		</form>
+				<Controller
+					control={form.control}
+					name="campaignIds"
+					render={({ field }) => (
+						<FieldSet className="gap-2">
+							<FieldLegend variant="label">Campaigns</FieldLegend>
+							<CampaignTileGroup
+								eligibleCampaigns={eligibleCampaigns}
+								hasStore={storeId !== undefined}
+								onToggle={(campaignId) =>
+									field.onChange(
+										field.value.includes(campaignId)
+											? field.value.filter((value) => value !== campaignId)
+											: [...field.value, campaignId],
+									)
+								}
+								selectedIds={field.value}
+							/>
+							<VoucherCodeEntry
+								appliedVouchers={vouchers}
+								onChange={(next) =>
+									form.setValue("vouchers", next, {
+										shouldDirty: true,
+										shouldValidate: true,
+									})
+								}
+								storeId={storeId}
+								subtotal={grossTotal}
+							/>
+						</FieldSet>
+					)}
+				/>
+
+				<Controller
+					control={form.control}
+					name="discount"
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor="collect-payment-discount">
+								Manual Discount
+							</FieldLabel>
+							<CurrencyInput
+								id="collect-payment-discount"
+								onValueChange={field.onChange}
+								value={field.value}
+							/>
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
+				/>
+
+				{pricing.totalDiscount > 0 ? (
+					<dl className="grid gap-1.5 text-sm tabular-nums">
+						{pricing.campaignBreakdown.map(({ campaign, amount }) => (
+							<div className="flex justify-between gap-4" key={campaign.id}>
+								<dt className="text-muted-foreground">
+									{campaign.code} ({campaign.name})
+								</dt>
+								<dd className="font-mono text-destructive">
+									-{formatMoney(amount)}
+								</dd>
+							</div>
+						))}
+						{pricing.manualDiscount > 0 ? (
+							<div className="flex justify-between gap-4">
+								<dt className="text-muted-foreground">Manual Discount</dt>
+								<dd className="font-mono text-destructive">
+									-{formatMoney(pricing.manualDiscount)}
+								</dd>
+							</div>
+						) : null}
+					</dl>
+				) : null}
+				<ToCollectLine amount={toCollect} />
+				<PaymentMethodField />
+				<Button
+					className="h-10 pointer-coarse:h-11"
+					loading={paymentMutation.isPending}
+					type="submit"
+				>
+					Mark as paid
+				</Button>
+			</form>
+		</FormProvider>
 	);
 };

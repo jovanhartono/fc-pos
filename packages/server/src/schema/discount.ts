@@ -1,3 +1,12 @@
+// Where an Order's discount was settled. ADR-0018: once a promo or manual
+// discount has settled — every line priced, the amount printed on the Receipt
+// the customer holds — no desk may claim another; the server refuses and the
+// payment form offers no discount controls. "none" is the only unsettled state.
+export type DiscountSource = "none" | "manual" | "campaign";
+
+export const isDiscountSettled = (source: DiscountSource): boolean =>
+  source !== "none";
+
 export interface CampaignDiscountInput {
   buy_quantity?: number | null;
   discount_type: "fixed" | "percentage" | "buy_n_get_m_free";

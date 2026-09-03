@@ -199,12 +199,13 @@ export function QueueServiceDetail({
 					<ArrowLeftIcon className="size-4" weight="bold" />
 				</Link>
 				<div className="min-w-0 flex-1">
-					{/* flex-wrap: a long status badge ("Ready for Pickup") next to a long
-					    item code otherwise runs past the 390px viewport and is clipped
-					    by the section's overflow-x-clip — wrapped, it drops below. */}
+					{/* The job is the headline: a worker opens this page to do a
+					    treatment, and the tag is how they find the shoe for it. flex-wrap
+					    so a long status badge drops below a long name on a 390px viewport
+					    instead of being clipped by the section's overflow-x-clip. */}
 					<div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-						<h1 className="font-mono text-[1.65rem] font-bold leading-tight tracking-tight">
-							{selectedService.item.item_code}
+						<h1 className="text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
+							{selectedService.service?.name ?? "Service"}
 						</h1>
 						<Badge
 							className="mt-1 shrink-0"
@@ -216,7 +217,11 @@ export function QueueServiceDetail({
 						</Badge>
 					</div>
 					<p className="mt-1 text-sm text-muted-foreground">
-						{selectedService.service?.name ?? "Service"}
+						{/* break-all on the tag only: it has no spaces to wrap at, while
+						    the descriptors do and must not be split mid-word. */}
+						<span className="break-all font-mono">
+							{selectedService.item.item_code}
+						</span>
 						{itemDetails ? (
 							<>
 								<span aria-hidden="true" className="mx-1.5 text-border">

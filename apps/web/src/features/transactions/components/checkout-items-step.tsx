@@ -5,7 +5,6 @@ import {
 	EyeIcon,
 	PlusIcon,
 	WarningIcon,
-	XIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -31,11 +30,11 @@ import { SinglePhotoCaptureDialog } from "@/features/orders/components/photo-upl
 import {
 	getServiceLinePrice,
 	type ItemCartDisplayLine,
-	resolveActiveItemId,
 	type ServiceCartDisplayLine,
 	type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
 import { useCart, useCartOps } from "@/features/transactions/cart/useCart";
+import { RemoveLineButton } from "@/features/transactions/components/remove-line-button";
 import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { categoriesQueryOptions } from "@/lib/query-options";
@@ -69,12 +68,6 @@ export const CheckoutItemsStep = () => {
 	const { removeProduct, updateProductQty, productRows, itemRows, addItem } =
 		useCart();
 	const form = useFormContext<TransactionDraftValues>();
-	// Subscribed here, not in useCartOps: this is the component that renders the
-	// highlight, so it is the one that should re-render when the pointer moves.
-	const activeItemId = resolveActiveItemId(
-		itemRows,
-		useTransactionsPageStore((state) => state.activeItemId),
-	);
 	const categoriesQuery = useQuery(categoriesQueryOptions());
 	const categoryMap = useMemo(
 		() =>
@@ -107,14 +100,9 @@ export const CheckoutItemsStep = () => {
 									Product | {getEntityCategoryName(line.product, categoryMap)}
 								</p>
 							</div>
-							<Button
-								aria-label={`Remove ${line.product.name}`}
-								className="relative size-7 border-destructive/50 bg-destructive/10 text-destructive before:absolute before:-inset-2 before:content-[''] hover:border-destructive hover:bg-destructive/20 hover:text-destructive"
-								icon={<XIcon className="size-3.5" />}
+							<RemoveLineButton
+								label={`Remove ${line.product.name}`}
 								onClick={() => removeProduct(line.id)}
-								size="icon-xs"
-								type="button"
-								variant="outline"
 							/>
 						</div>
 						<div className="flex items-center justify-between gap-3">
@@ -166,7 +154,6 @@ export const CheckoutItemsStep = () => {
 				{itemRows.map((item, index) => (
 					<CheckoutItemCard
 						allItems={itemRows}
-						isActive={item.line_id === activeItemId}
 						item={item}
 						itemNumber={index + 1}
 						key={item.line_id}
@@ -228,7 +215,7 @@ const CheckoutTreatmentRow = ({
 		line.service.price === null && getServiceLinePrice(line) <= 0;
 
 	return (
-		<div className="grid gap-2 border-border/70 border-t p-3">
+		<div className="grid gap-2 border-border/70 border-t p-3 first-of-type:border-t-0">
 			<div className="flex items-start gap-3">
 				{/* Wraps rather than truncates: service names run to 30+ characters
 				    and the price column leaves this one ~130px on a phone, so
@@ -286,14 +273,9 @@ const CheckoutTreatmentRow = ({
 							</DropdownMenuContent>
 						</DropdownMenu>
 					) : null}
-					<Button
-						aria-label={`Remove ${line.service.name}`}
-						className="relative size-7 border-destructive/50 bg-destructive/10 text-destructive before:absolute before:-inset-2 before:content-[''] hover:border-destructive hover:bg-destructive/20 hover:text-destructive"
-						icon={<XIcon className="size-3.5" />}
+					<RemoveLineButton
+						label={`Remove ${line.service.name}`}
 						onClick={() => removeService(itemId, line.line_id)}
-						size="icon-xs"
-						type="button"
-						variant="outline"
 					/>
 				</span>
 			</div>
@@ -350,19 +332,19 @@ interface CheckoutItemCardProps {
 	allItems: ItemCartDisplayLine[];
 	item: ItemCartDisplayLine;
 	itemNumber: number;
-	isActive: boolean;
 }
 
-// One physical object and everything sold against it. Tapping the card makes
-// it the active one, so the next catalog tap is an upsell on this shoe rather
-// than a second shoe (ADR-0017).
+// One physical object and everything sold against it (ADR-0017). Three bands:
+// a shaded header naming the object, its descriptors, then the treatments inset
+// under a rail — so the eye reads parent and children rather than one flat run
+// of hairlines. Which card the next catalog tap lands on is chosen in the tray,
+// where the catalog is; this sheet has nothing to point at.
 const CheckoutItemCard = ({
 	allItems,
 	item,
 	itemNumber,
-	isActive,
 }: CheckoutItemCardProps) => {
-	const { removeItem, updateItemField, setActiveItem } = useCartOps();
+	const { removeItem, updateItemField } = useCartOps();
 	const descriptors = getOrderServiceItemDetails(item);
 	// Where a treatment on this card could go instead, numbered by cart position
 	// so the menu matches the card numbers on screen. Moving is only meaningful
@@ -375,51 +357,23 @@ const CheckoutItemCard = ({
 	const canMove = moveTargets.length > 0 || item.services.length > 1;
 
 	return (
-		<article
-			className={cn(
-				"border",
-				isActive ? "border-foreground/40" : "border-border/70",
-			)}
-		>
-			<header className="flex items-start gap-3 p-3">
-				<span className="mt-0.5 shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums">
-					{itemNumber}
-				</span>
-				{/* Tapping the card is how the cashier says "the next thing I sell
-				    goes on this one" — the upsell, without a picker in the way. */}
-				<button
-					className="grid min-w-0 flex-1 gap-1 text-left"
-					onClick={() => setActiveItem(item.line_id)}
-					type="button"
-				>
-					<span className="flex flex-wrap items-center gap-1.5">
-						<span className="font-medium text-sm">
-							{descriptors ?? "New item"}
-						</span>
-						{isActive ? (
-							<span className="border border-border px-1.5 font-mono text-[10px] uppercase tracking-wide">
-								Active
-							</span>
-						) : null}
-					</span>
-					<span className="font-mono text-[10px] text-muted-foreground">
-						{item.services.length === 0
-							? "Tap a service to add it here"
-							: `${item.services.length} service${item.services.length > 1 ? "s" : ""}`}
-					</span>
-				</button>
-				<Button
-					aria-label={`Remove item ${itemNumber}`}
-					className="relative size-7 shrink-0 self-center border-destructive/50 bg-destructive/10 text-destructive before:absolute before:-inset-2 before:content-[''] hover:border-destructive hover:bg-destructive/20 hover:text-destructive"
-					icon={<XIcon className="size-3.5" />}
+		<article className="border border-border/70">
+			<header className="flex items-center gap-3 bg-muted/40 px-3 py-2">
+				<div className="grid min-w-0 flex-1 gap-0.5">
+					<p className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+						Item {itemNumber}
+					</p>
+					<h3 className="truncate font-medium text-sm">
+						{descriptors ?? "New item"}
+					</h3>
+				</div>
+				<RemoveLineButton
+					label={`Remove item ${itemNumber}`}
 					onClick={() => removeItem(item.line_id)}
-					size="icon-xs"
-					type="button"
-					variant="outline"
 				/>
 			</header>
 
-			<div className="grid gap-3 border-border/70 border-t p-3 sm:grid-cols-2">
+			<div className="grid gap-3 p-3 sm:grid-cols-2">
 				{ITEM_FIELDS.map((field) => (
 					<Field key={field.key}>
 						<FieldLabel htmlFor={`item-${field.key}-${item.line_id}`}>
@@ -438,15 +392,28 @@ const CheckoutItemCard = ({
 				))}
 			</div>
 
-			{item.services.map((line) => (
-				<CheckoutTreatmentRow
-					canMove={canMove}
-					itemId={item.line_id}
-					key={line.line_id}
-					line={line}
-					moveTargets={moveTargets}
-				/>
-			))}
+			<section
+				aria-label={`Treatments on item ${itemNumber}`}
+				className="mx-3 mb-3 border border-border/70 border-l-2 border-l-foreground/40"
+			>
+				<p className="px-3 pt-2 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+					Treatments · {item.services.length}
+				</p>
+				{item.services.length === 0 ? (
+					<p className="px-3 pt-1 pb-2.5 text-muted-foreground text-xs">
+						Tap a service to add it here
+					</p>
+				) : null}
+				{item.services.map((line) => (
+					<CheckoutTreatmentRow
+						canMove={canMove}
+						itemId={item.line_id}
+						key={line.line_id}
+						line={line}
+						moveTargets={moveTargets}
+					/>
+				))}
+			</section>
 		</article>
 	);
 };

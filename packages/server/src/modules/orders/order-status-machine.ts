@@ -30,6 +30,17 @@ export const ORDER_TERMINAL_SERVICE_STATUSES = [
   "cancelled",
 ] as const;
 
+// The statuses a workshop still has to act on. `ready_for_pickup` is live but
+// not workshop work: the treatment is finished and the object is the counter's
+// until the customer collects it, so the queue does not list it and the chips
+// do not count it.
+export const WORKSHOP_SERVICE_STATUSES = [
+  "queued",
+  "processing",
+  "quality_check",
+  "qc_reject",
+] as const;
+
 const ORDER_TERMINAL_SERVICE_STATUS_SET = new Set<OrderServiceStatus>(
   ORDER_TERMINAL_SERVICE_STATUSES
 );

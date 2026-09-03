@@ -21,6 +21,7 @@ import {
   isHandedOverByPickup as _isHandedOverByPickup,
   ORDER_SERVICE_TRANSITIONS as _ORDER_SERVICE_TRANSITIONS,
   ORDER_TERMINAL_SERVICE_STATUSES as _ORDER_TERMINAL_SERVICE_STATUSES,
+  WORKSHOP_SERVICE_STATUSES as _WORKSHOP_SERVICE_STATUSES,
 } from "@/modules/orders/order-status-machine";
 import { POSTPaymentMethodSchema as _POSTPaymentMethodSchema } from "@/modules/payment-methods/payment-method.schema";
 import { POSTProductSchema as _POSTProductSchema } from "@/modules/products/product.schema";
@@ -29,6 +30,7 @@ import { POSTStoreSchema as _POSTStoreSchema } from "@/modules/stores/store.sche
 
 export const ORDER_SERVICE_TRANSITIONS = _ORDER_SERVICE_TRANSITIONS;
 export const ORDER_TERMINAL_SERVICE_STATUSES = _ORDER_TERMINAL_SERVICE_STATUSES;
+export const WORKSHOP_SERVICE_STATUSES = _WORKSHOP_SERVICE_STATUSES;
 export type DerivedItemStatus = _DerivedItemStatus;
 export type ItemStatusLine = _ItemStatusLine;
 export const isCollectableItemStatus = _isCollectableItemStatus;
@@ -52,10 +54,14 @@ import {
   type CampaignDiscountInput as _CampaignDiscountInput,
   computeCampaignContribution as _computeCampaignContribution,
   type DiscountLine as _DiscountLine,
+  type DiscountSource as _DiscountSource,
+  isDiscountSettled as _isDiscountSettled,
   type StackedDiscount as _StackedDiscount,
   stackCampaignDiscounts as _stackCampaignDiscounts,
 } from "@/schema/discount";
 
+export type DiscountSource = _DiscountSource;
+export const isDiscountSettled = _isDiscountSettled;
 export type CampaignContribution<T extends _CampaignDiscountInput> =
   _CampaignContribution<T>;
 export type CampaignDiscountInput = _CampaignDiscountInput;

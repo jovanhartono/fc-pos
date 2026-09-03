@@ -65,7 +65,14 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 					</div>
 				))}
 				<div className="flex justify-between gap-4">
-					<dt className="text-muted-foreground">Discount total</dt>
+					{/* Campaigns name themselves in the rows above; a manual discount
+					    has no row of its own, so the total line says where it came
+					    from rather than leaving the cashier to guess. */}
+					<dt className="text-muted-foreground">
+						{detail.discount_source === "manual"
+							? "Manual discount"
+							: "Discount total"}
+					</dt>
 					<dd className={cn("font-mono", discount > 0 && "text-destructive")}>
 						{discount > 0 ? `-${formatMoney(discount)}` : formatMoney(0)}
 					</dd>

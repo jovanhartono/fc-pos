@@ -106,6 +106,7 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 				<OrderServiceRow
 					isAdmin={isAdmin}
 					itemCode={item.item_code}
+					itemStatus={item.status}
 					key={service.id}
 					orderId={orderId}
 					service={service}
@@ -145,23 +146,21 @@ export const OrderLineItemsCard = ({
 
 	return (
 		<div className="grid gap-3 sm:gap-4">
-			<Card className="gap-0 overflow-hidden py-0">
-				<OrderSectionHeader>Items</OrderSectionHeader>
-				{items.length > 0 ? (
-					items.map((item) => (
+			{/* A products-only sale has no card here at all: an empty "Items"
+			    section says nothing the Products card below does not. */}
+			{items.length > 0 ? (
+				<Card className="gap-0 overflow-hidden py-0">
+					<OrderSectionHeader>Items</OrderSectionHeader>
+					{items.map((item) => (
 						<ItemBlock
 							isAdmin={isAdmin}
 							item={item}
 							key={item.id}
 							orderId={orderId}
 						/>
-					))
-				) : (
-					<p className="px-4 py-6 text-muted-foreground text-sm">
-						No items dropped off.
-					</p>
-				)}
-			</Card>
+					))}
+				</Card>
+			) : null}
 
 			{products.length > 0 ? (
 				<Card className="gap-0 overflow-hidden py-0">

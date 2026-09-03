@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  customersTable,
   itemsTable,
   orderServiceHandlerLogsTable,
   ordersServicesTable,
@@ -34,6 +35,7 @@ import {
   isTerminalOrderServiceStatus,
   ORDER_TERMINAL_SERVICE_STATUSES,
   transitionOrderService,
+  WORKSHOP_SERVICE_STATUSES,
 } from "@/modules/orders/order-status-machine";
 import { assertCanReassignHandler } from "@/modules/permissions/permissions";
 import type { JWTPayload } from "@/types";
@@ -215,10 +217,10 @@ export async function getOrderServiceQueue(
     };
   }
 
+  // An object is on the rack while something on it still needs the workshop.
+  // One whose every live treatment is ready belongs to the counter, not here.
   const conditions = [
-    notInArray(ordersServicesTable.status, [
-      ...ORDER_TERMINAL_SERVICE_STATUSES,
-    ]),
+    inArray(ordersServicesTable.status, [...WORKSHOP_SERVICE_STATUSES]),
     storeCondition,
   ];
 
@@ -266,6 +268,8 @@ export async function getOrderServiceQueue(
       .select({
         brand: itemsTable.brand,
         color: itemsTable.color,
+        // Workers know regulars by name before they know the tag.
+        customer_name: customersTable.name,
         id: itemsTable.id,
         item_code: itemsTable.item_code,
         model: itemsTable.model,
@@ -284,8 +288,12 @@ export async function getOrderServiceQueue(
       .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
       .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
       .innerJoin(storesTable, eq(ordersTable.store_id, storesTable.id))
+      .innerJoin(customersTable, eq(ordersTable.customer_id, customersTable.id))
       .where(whereClause)
+      // Grouped by the customer's id, not their name: the id is the PK, so the
+      // name rides along as a dependent column and the hash key stays narrow.
       .groupBy(
+        customersTable.id,
         itemsTable.id,
         itemsTable.brand,
         itemsTable.color,
@@ -317,9 +325,10 @@ export async function getOrderServiceQueue(
   ]);
 
   // Second pass for the treatments themselves. Deliberately NOT filtered by
-  // the status chip: a card claiming to be one object has to show every live
-  // job on it, or a worker filtered to "Queued" would start a repaint without
-  // seeing the clean already in progress on the same shoe.
+  // the status chip, and it keeps ready siblings: a card claiming to be one
+  // object has to show every live job on it, or a worker filtered to "Queued"
+  // would start a repaint without seeing the clean already done on the same
+  // shoe.
   const services =
     itemRows.length === 0
       ? []
@@ -389,7 +398,6 @@ export async function getOrderServiceQueueCounts(
       processing: 0,
       quality_check: 0,
       qc_reject: 0,
-      ready_for_pickup: 0,
     };
   }
 
@@ -410,15 +418,12 @@ export async function getOrderServiceQueueCounts(
       processing: chip("processing"),
       quality_check: chip("quality_check"),
       qc_reject: chip("qc_reject"),
-      ready_for_pickup: chip("ready_for_pickup"),
     })
     .from(ordersServicesTable)
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
     .where(
       and(
-        notInArray(ordersServicesTable.status, [
-          ...ORDER_TERMINAL_SERVICE_STATUSES,
-        ]),
+        inArray(ordersServicesTable.status, [...WORKSHOP_SERVICE_STATUSES]),
         storeCondition
       )
     );
@@ -429,7 +434,6 @@ export async function getOrderServiceQueueCounts(
     processing: Number(row?.processing ?? 0),
     quality_check: Number(row?.quality_check ?? 0),
     qc_reject: Number(row?.qc_reject ?? 0),
-    ready_for_pickup: Number(row?.ready_for_pickup ?? 0),
   };
 }
 

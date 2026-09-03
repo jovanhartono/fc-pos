@@ -1,4 +1,7 @@
-import { TURNAROUND_PROMISE_HOURS } from "@fresclean/api/schema";
+import {
+	TURNAROUND_PROMISE_HOURS,
+	WORKSHOP_SERVICE_STATUSES,
+} from "@fresclean/api/schema";
 import {
 	CaretRightIcon,
 	FunnelIcon,
@@ -43,11 +46,12 @@ import {
 } from "@/lib/query-options";
 import { readServerErrorMessage } from "@/lib/server-error";
 import {
-	ACTIVE_ORDER_SERVICE_STATUSES,
 	formatOrderServiceStatus,
+	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
+import { useQueuePreferencesStore } from "@/stores/queue-preferences-store";
 
 const QUEUE_PAGE_SIZE = 20;
 
@@ -87,7 +91,7 @@ function formatElapsedDuration(ms: number): string {
 
 const queueSearchSchema = z.object({
 	storeId: z.coerce.number().int().positive().optional(),
-	status: z.enum(ACTIVE_ORDER_SERVICE_STATUSES).optional(),
+	status: z.enum(WORKSHOP_SERVICE_STATUSES).optional(),
 	// Set when a scanned tag turns out to have several treatments open on it:
 	// the rack narrows to that one object so the worker can say which job they
 	// are starting (ADR-0017).
@@ -133,6 +137,13 @@ function QueuePage() {
 		...meQueryOptions(),
 		enabled: !!currentUser,
 	});
+	const currentUserKey = currentUser ? String(currentUser.id) : "";
+	const persistedStoreId = useQueuePreferencesStore(
+		(state) => state.storeIdByUser[currentUserKey],
+	);
+	const setPersistedStoreId = useQueuePreferencesStore(
+		(state) => state.setStoreId,
+	);
 
 	const userStoreIds = useMemo(
 		() => meQuery.data?.userStores.map((item) => item.store_id) ?? [],
@@ -141,22 +152,56 @@ function QueuePage() {
 	// DB-fresh role — JWT claim goes stale on mid-session role changes.
 	const role = meQuery.data?.role;
 
+	// One effect owns the store filter's memory. With a store in the URL,
+	// remember it — however it got there: the filter dialog, a scan, or the back
+	// link from a job. Without one, restore the remembered branch once per
+	// visit, so an explicit clear stays cleared instead of bouncing back.
+	const hasRestoredStoreRef = useRef(false);
 	useEffect(() => {
-		if (!currentUser || search.storeId !== undefined) {
+		if (!currentUser || role === undefined) {
 			return;
 		}
 
-		if (role === "admin") {
+		if (search.storeId !== undefined) {
+			if (search.storeId !== persistedStoreId) {
+				setPersistedStoreId(currentUserKey, search.storeId);
+			}
 			return;
 		}
 
-		if (userStoreIds.length > 0) {
+		if (!hasRestoredStoreRef.current) {
+			hasRestoredStoreRef.current = true;
+			// Only a branch this worker may still see — one moved between branches
+			// since must not land on the old rack.
+			if (
+				persistedStoreId !== undefined &&
+				(role === "admin" || userStoreIds.includes(persistedStoreId))
+			) {
+				void navigate({
+					search: (prev) => ({ ...prev, storeId: persistedStoreId }),
+					replace: true,
+				});
+				return;
+			}
+		}
+
+		// A worker always has a rack; only an admin may look at none.
+		if (role !== "admin" && userStoreIds.length > 0) {
 			void navigate({
 				search: (prev) => ({ ...prev, storeId: userStoreIds[0] }),
 				replace: true,
 			});
 		}
-	}, [currentUser, navigate, search.storeId, userStoreIds, role]);
+	}, [
+		currentUser,
+		currentUserKey,
+		navigate,
+		persistedStoreId,
+		role,
+		search.storeId,
+		setPersistedStoreId,
+		userStoreIds,
+	]);
 
 	const parsedStoreId = useMemo(() => {
 		if (search.storeId !== undefined) {
@@ -383,7 +428,7 @@ function QueuePage() {
 				...prev,
 				status:
 					value && value !== "all"
-						? (value as (typeof ACTIVE_ORDER_SERVICE_STATUSES)[number])
+						? (value as (typeof WORKSHOP_SERVICE_STATUSES)[number])
 						: undefined,
 			}),
 		});
@@ -648,38 +693,58 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 	// Descriptors are optional at intake, so falling back to the tag keeps the
 	// heading from reading "No item details" at full weight.
 	const descriptors = getOrderServiceItemDetails(item);
+	// The order code sits on the line below, so the heading only needs the part
+	// of the tag that tells this object from its siblings. Derived by stripping
+	// the order code the row already carries rather than by knowing where the
+	// dash sits; anything unexpected shows the whole tag. Display only: every
+	// lookup still matches the whole stored string.
+	const orderPrefix = `${item.order_code}-`;
+	const tagSuffix = item.item_code.startsWith(orderPrefix)
+		? item.item_code.slice(orderPrefix.length)
+		: item.item_code;
 
 	return (
 		// min-w-0 at every level down to the truncating text: without it the card's
 		// min-content sizes the auto grid column, and the search field and status
 		// chips above — siblings in that same column — get pushed off screen.
-		<article className="min-w-0 border border-border bg-background">
-			<header className="flex min-w-0 items-baseline gap-2 px-3 pt-2.5 pb-1.5">
-				<h3 className="min-w-0 flex-1 truncate font-medium text-sm">
-					{descriptors ?? item.item_code}
-				</h3>
-				{item.is_priority ? (
-					<Badge
-						className="shrink-0 px-1.5 py-0 font-mono text-[10px] uppercase tracking-wide"
-						variant="warning"
-					>
-						Priority
-					</Badge>
-				) : null}
-				<span
-					className={cn(
-						"shrink-0 font-mono font-semibold text-sm tabular-nums",
-						isBreached ? "text-destructive" : "text-muted-foreground",
+		<article
+			className={cn(
+				"min-w-0 border border-border bg-background",
+				// An object is urgent if any treatment on it is: the shoe is on the
+				// priority shelf. The edge marks the shoe; the chip on the row below
+				// marks which job carries the promise.
+				item.is_priority && "border-l-4 border-l-amber-500",
+			)}
+		>
+			<header className="grid min-w-0 gap-0.5 px-3 pt-2.5 pb-2">
+				<h3 className="flex min-w-0 items-baseline gap-2 font-medium text-[15px] leading-snug">
+					{descriptors ? (
+						<>
+							<span className="shrink-0 font-mono text-muted-foreground text-xs tabular-nums">
+								{tagSuffix}
+							</span>
+							<span className="min-w-0 flex-1 break-words">{descriptors}</span>
+						</>
+					) : (
+						<span className="min-w-0 flex-1 break-all font-mono">
+							{item.item_code}
+						</span>
 					)}
-				>
-					{formatElapsedDuration(elapsedMs)}
-				</span>
+				</h3>
+				<p className="flex min-w-0 items-baseline gap-2 text-muted-foreground text-xs">
+					<span className="min-w-0 flex-1 truncate">
+						{item.order_code} · {item.customer_name}
+					</span>
+					<span
+						className={cn(
+							"shrink-0 font-mono font-semibold tabular-nums",
+							isBreached && "text-destructive",
+						)}
+					>
+						{formatElapsedDuration(elapsedMs)}
+					</span>
+				</p>
 			</header>
-
-			<p className="flex min-w-0 items-baseline gap-2 px-3 pb-1.5 text-muted-foreground text-xs">
-				<span className="min-w-0 flex-1 truncate">{item.order_code}</span>
-				<span className="shrink-0 font-mono text-[10px]">{item.item_code}</span>
-			</p>
 
 			{/* Each treatment is its own target: the worker taps the job they are
 			    about to do, not the object. */}
@@ -694,30 +759,35 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 					return (
 						<li className="min-w-0" key={service.id}>
 							<button
-								className="group flex w-full min-w-0 items-baseline gap-2 border-border/70 border-t px-3 py-2 text-left transition-colors hover:bg-muted/40"
+								className="group grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 border-border/70 border-t px-3 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
 								onClick={() => onOpen(item, service.id)}
 								type="button"
 							>
-								<Badge
-									className="shrink-0 px-1.5 py-0 font-mono text-[10px] uppercase tracking-wide"
-									variant="outline"
-								>
-									{formatOrderServiceStatus(service.status)}
-								</Badge>
-								<span className="min-w-0 flex-1 truncate text-sm">
+								<span className="min-w-0 break-words text-sm">
 									{service.service_name}
 								</span>
-								{handler ? (
-									<span className="shrink-0 text-muted-foreground text-xs">
-										{handler}
-									</span>
-								) : null}
-								{/* self-center: an svg has no text baseline, so in this
-								    baseline-aligned row it would ride 3px high. */}
 								<CaretRightIcon
-									className="size-4 shrink-0 self-center text-muted-foreground transition-transform group-hover:translate-x-0.5"
+									aria-hidden="true"
+									className="row-span-2 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
 									weight="bold"
 								/>
+								<span className="flex min-w-0 flex-wrap items-center gap-1.5 text-muted-foreground text-xs">
+									<Badge
+										className="px-1.5 py-0 text-[11px]"
+										variant={getOrderServiceStatusBadgeVariant(service.status)}
+									>
+										{formatOrderServiceStatus(service.status)}
+									</Badge>
+									{service.is_priority ? (
+										<Badge
+											className="px-1.5 py-0 text-[11px]"
+											variant="warning"
+										>
+											Priority
+										</Badge>
+									) : null}
+									{handler ? <span>{handler}</span> : null}
+								</span>
 							</button>
 						</li>
 					);
