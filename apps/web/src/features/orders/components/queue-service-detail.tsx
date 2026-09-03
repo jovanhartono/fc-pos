@@ -4,6 +4,7 @@ import {
 } from "@fresclean/api/schema";
 import {
 	ArrowLeftIcon,
+	CheckCircleIcon,
 	ImageSquareIcon,
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
@@ -242,13 +243,19 @@ export function QueueServiceDetail({
 					</p>
 				</div>
 
+				{/* Emerald, the done tone every other screen uses for ready: the
+				    workshop's part is finished, and grey read as a warning. */}
 				{selectedService.status === "ready_for_pickup" ? (
-					<div className="flex items-start gap-2 border border-muted bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
-						<WarningCircleIcon
-							className="mt-0.5 size-4 shrink-0"
+					<div className="flex items-start gap-2 border border-emerald-300/60 bg-emerald-50/70 px-3 py-3 text-emerald-900 text-sm dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
+						<CheckCircleIcon
+							aria-hidden="true"
+							className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
 							weight="fill"
 						/>
-						<p>Waiting for cashier to complete pickup at the counter.</p>
+						<p>
+							<strong>Ready.</strong> Waiting for the cashier to complete pickup
+							at the counter.
+						</p>
 					</div>
 				) : null}
 
