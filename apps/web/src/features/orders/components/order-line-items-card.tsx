@@ -88,15 +88,24 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 	return (
 		<article className="border-t">
 			<header className="flex items-start justify-between gap-3 bg-muted/30 px-4 py-2.5">
+				{/* The object leads, the tag follows: what the cashier says out loud
+				    is "the red New Balance", and the code is how the shelf finds it.
+				    Same order as the queue card and the pickup dialog. */}
 				<div className="min-w-0">
-					<p className="break-all font-mono text-[13px] font-semibold leading-5">
-						{item.item_code}
-					</p>
 					{descriptors ? (
-						<p className="text-muted-foreground text-xs leading-snug">
-							{descriptors}
-						</p>
-					) : null}
+						<>
+							<h3 className="text-pretty font-semibold text-[15px] leading-5">
+								{descriptors}
+							</h3>
+							<p className="break-all font-mono text-muted-foreground text-xs leading-snug">
+								{item.item_code}
+							</p>
+						</>
+					) : (
+						<h3 className="break-all font-mono text-[15px] font-semibold leading-5">
+							{item.item_code}
+						</h3>
+					)}
 				</div>
 				<Badge variant={getOrderServiceStatusBadgeVariant(item.status)}>
 					{formatOrderServiceStatus(item.status)}
