@@ -772,19 +772,22 @@ export const orderPickupEventsTable = pgTable(
   ]
 );
 
-export const orderServicesImagesTable = pgTable(
-  "order_services_images",
+// The before-service record of an object: taken at drop-off, shared by every
+// treatment on the Item, and what the queued → processing gate reads
+// (ADR-0012, ADR-0019). Hung off the Item rather than the treatment row
+// because one shoe sold three Services is still one shoe in one condition.
+export const itemImagesTable = pgTable(
+  "item_images",
   {
     created_at: timestamp("created_at").defaultNow().notNull(),
     deleted_at: timestamp("deleted_at"),
     deleted_by: integer("deleted_by").references(() => usersTable.id),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     image_path: varchar("image_path", { length: 512 }).notNull(),
+    item_id: integer("item_id")
+      .references(() => itemsTable.id, { onDelete: "cascade" })
+      .notNull(),
     note: text("note"),
-    order_service_id: integer("order_service_id").references(
-      () => ordersServicesTable.id,
-      { onDelete: "cascade" }
-    ),
     uploaded_by: integer("uploaded_by").references(() => usersTable.id),
     updated_at: timestamp("updated_at")
       .defaultNow()
@@ -792,8 +795,8 @@ export const orderServicesImagesTable = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => [
-    index("order_services_images_deleted_at_idx").on(table.deleted_at),
-    index("order_services_images_service_idx").on(table.order_service_id),
+    index("item_images_deleted_at_idx").on(table.deleted_at),
+    index("item_images_item_idx").on(table.item_id),
   ]
 );
 

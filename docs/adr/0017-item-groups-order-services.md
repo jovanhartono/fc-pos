@@ -1,5 +1,7 @@
 # Item groups OrderServices
 
+> **Amended 2026-09-05:** photos now belong to the Item, not the OrderService — see [ADR-0019](0019-photos-belong-to-the-item.md).
+>
 > **Amended 2026-08-28:** an Item refunded before it was ever collected is now collectable, and reads as `refunded` rather than `picked_up` — see [Amendment](#amendment-2026-08-28--a-refunded-pair-still-goes-home).
 
 `OrderService` was defined as *"one pair of footwear receiving one Service"*, so the physical object and the treatment applied to it were the same row: `brand`, `color`, `model`, `size` and `item_code` all live on `orders_services`. Reality disagrees. The shop's most common counter flow is an upsell — a pair arrives for a deep clean and leaves the till as deep clean + repaint + leather care — and each treatment genuinely needs its own status and its own handler. One object, several treatments. We decided to introduce **Item** as a first-class entity between `Order` and `OrderService`: the Order holds 1..N Items, each Item holds 1..N OrderServices, and the Item's status is **derived** from its children exactly as Order status already is.
@@ -15,7 +17,7 @@ The trigger was `item_code`. It is generated per service line (`${code}-S001`, `
 
 ## Decisions
 
-- **Item owns identity, OrderService owns work.** `brand`, `color`, `model`, `size`, `item_code` move to the Item. Status, `handler_id`, price, `is_priority`, and detail photos stay on the OrderService.
+- **Item owns identity, OrderService owns work.** `brand`, `color`, `model`, `size`, `item_code` move to the Item. Status, `handler_id`, price, `is_priority`, and detail photos stay on the OrderService. *(Detail photos moved to the Item on 2026-09-05 — [ADR-0019](0019-photos-belong-to-the-item.md).)*
 - **Item status is derived, never authored** — the same discipline as `deriveOrderStatus`. No second authoring path for status.
 - **Order status keeps deriving directly from OrderServices.** Not from Item statuses. The rollup is equivalent and routing it through a new level would rewrite `order-status-machine.ts` for no behavioural gain — smallest blast radius.
 - **An Item is collectable only when every one of its OrderServices is `ready_for_pickup`.** You cannot hand back half an object. Today nothing prevents recording pickup on one line while a sibling on the same object is still `processing`. *(Amended 2026-08-28 — a fully refunded Item is collectable too; see below.)*
@@ -25,7 +27,7 @@ The trigger was `item_code`. It is generated per service line (`${code}-S001`, `
 
 - **The largest migration in the codebase so far.** Every query joining `orders → orders_services` gains a level, and existing rows must be backfilled into synthesised Items. Attribute-identical lines on one Order are *not* safely mergeable — two identical white Air Force 1s are two Items — so the backfill is one Item per existing OrderService, which is lossless but does not retroactively group anything.
 - **`item_code` changes meaning.** It stops identifying a treatment line and starts identifying a physical object. Anything reading it as a line reference breaks.
-- The per-OrderService photo gate ([ADR-0012](0012-photo-precedes-processing.md)) is unchanged and stays per-treatment: proof-of-condition before *each* treatment is the intended reading, not an accident.
+- The per-OrderService photo gate ([ADR-0012](0012-photo-precedes-processing.md)) is unchanged and stays per-treatment: proof-of-condition before *each* treatment is the intended reading, not an accident. *(Reversed 2026-09-05 — the photo turned out to be a record of the object, not the treatment; photos and the gate now live on the Item. See [ADR-0019](0019-photos-belong-to-the-item.md).)*
 - The reports metric formerly called "Items processed" was renamed **Services processed** — it counts OrderServices, and "Item" now means something else.
 
 ## Amendment 2026-08-28 — a refunded pair still goes home

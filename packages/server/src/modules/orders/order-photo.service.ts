@@ -1,13 +1,13 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { orderServicesImagesTable, ordersTable } from "@/db/schema";
+import { itemImagesTable, ordersTable } from "@/db/schema";
 import { BadRequestException, ForbiddenException } from "@/http-exceptions";
-import { softDeleteOrderServiceImageById } from "@/modules/order-service-images/order-service-image.repository";
-import { getOrderServiceOrThrow } from "@/modules/orders/order.repository";
+import { softDeleteItemImageById } from "@/modules/item-images/item-image.repository";
+import { getItemOrThrow } from "@/modules/orders/order.repository";
 import type {
+  PostItemPhotoInput,
+  PostItemPhotoPresignInput,
   PostOrderDropoffPhotoPresignInput,
-  PostOrderServicePhotoInput,
-  PostOrderServicePhotoPresignInput,
   PutOrderDropoffPhotoInput,
 } from "@/modules/orders/order-admin.schema";
 import type { JWTPayload } from "@/types";
@@ -18,18 +18,21 @@ import {
   STORAGE_ENV_PREFIX,
 } from "@/utils/s3";
 
-export async function createOrderServicePhotoPresign({
+// Item photos are keyed by the object, not the treatment (ADR-0019). Photos
+// filed before that change keep their `services/{serviceId}/` keys — the sweep
+// protects whatever path the database holds, so nothing is moved.
+export async function createItemPhotoPresign({
   orderId,
-  serviceId,
+  itemId,
   body,
 }: {
   orderId: number;
-  serviceId: number;
-  body: PostOrderServicePhotoPresignInput;
+  itemId: number;
+  body: PostItemPhotoPresignInput;
 }) {
-  await getOrderServiceOrThrow(orderId, serviceId);
+  await getItemOrThrow(orderId, itemId);
 
-  const key = `${STORAGE_ENV_PREFIX}orders/${orderId}/services/${serviceId}/${crypto.randomUUID()}`;
+  const key = `${STORAGE_ENV_PREFIX}orders/${orderId}/items/${itemId}/${crypto.randomUUID()}`;
   return createPresignedUploadUrl({
     contentType: body.content_type,
     key,
@@ -59,22 +62,22 @@ export async function createOrderDropoffPhotoPresign({
   });
 }
 
-export async function saveOrderServicePhoto({
+export async function saveItemPhoto({
   orderId,
-  serviceId,
+  itemId,
   body,
   user,
 }: {
   orderId: number;
-  serviceId: number;
-  body: PostOrderServicePhotoInput;
+  itemId: number;
+  body: PostItemPhotoInput;
   user: JWTPayload;
 }) {
-  await getOrderServiceOrThrow(orderId, serviceId);
+  await getItemOrThrow(orderId, itemId);
 
   if (
     !body.image_path.startsWith(
-      `${STORAGE_ENV_PREFIX}orders/${orderId}/services/${serviceId}/`
+      `${STORAGE_ENV_PREFIX}orders/${orderId}/items/${itemId}/`
     )
   ) {
     throw new BadRequestException("Invalid image path");
@@ -83,9 +86,9 @@ export async function saveOrderServicePhoto({
   await optimizeUploadedImage(body.image_path);
 
   const [photo] = await db
-    .insert(orderServicesImagesTable)
+    .insert(itemImagesTable)
     .values({
-      order_service_id: serviceId,
+      item_id: itemId,
       image_path: body.image_path,
       note: body.note ?? null,
       uploaded_by: user.id,
@@ -98,23 +101,23 @@ export async function saveOrderServicePhoto({
   };
 }
 
-export async function deleteOrderServicePhoto({
+export async function deleteItemPhoto({
   orderId,
-  serviceId,
+  itemId,
   photoId,
   user,
 }: {
   orderId: number;
-  serviceId: number;
+  itemId: number;
   photoId: number;
   user: JWTPayload;
 }) {
-  await getOrderServiceOrThrow(orderId, serviceId);
+  await getItemOrThrow(orderId, itemId);
 
-  const photo = await db.query.orderServicesImagesTable.findFirst({
+  const photo = await db.query.itemImagesTable.findFirst({
     where: {
       id: photoId,
-      order_service_id: serviceId,
+      item_id: itemId,
       deleted_at: { isNull: true },
     },
     columns: { id: true, uploaded_by: true },
@@ -130,7 +133,7 @@ export async function deleteOrderServicePhoto({
     );
   }
 
-  const [deleted] = await softDeleteOrderServiceImageById(photoId, user.id);
+  const [deleted] = await softDeleteItemImageById(photoId, user.id);
   if (!deleted) {
     throw new BadRequestException("Photo already deleted");
   }

@@ -33,6 +33,29 @@ const getOrderServicePrepared = db.query.ordersServicesTable
   })
   .prepare("get_order_service");
 
+const getItemPrepared = db.query.itemsTable
+  .findFirst({
+    where: {
+      order_id: { eq: sql.placeholder("order_id") },
+      id: { eq: sql.placeholder("id") },
+    },
+    columns: { id: true },
+  })
+  .prepare("get_item");
+
+export async function getItemOrThrow(orderId: number, itemId: number) {
+  const item = await getItemPrepared.execute({
+    order_id: orderId,
+    id: itemId,
+  });
+
+  if (!item) {
+    throw new BadRequestException("Item not found for this order");
+  }
+
+  return item;
+}
+
 export async function getOrderServiceOrThrow(
   orderId: number,
   serviceId: number

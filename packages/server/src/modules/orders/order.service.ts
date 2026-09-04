@@ -23,6 +23,7 @@ import { resolveDiscount } from "@/modules/orders/order-discount.service";
 import { deriveOrderRefundStatus } from "@/modules/orders/order-refund-status";
 import {
   deriveItemStatus,
+  hasStartPhoto,
   isCollectableItemStatus,
   summarizeOrderFulfillment,
 } from "@/modules/orders/order-status-machine";
@@ -507,6 +508,12 @@ export async function getOrderDetailById(id: number) {
       // per-treatment flattens it back.
       items: {
         with: {
+          // The object's before-service photos, shared by every treatment on
+          // it (ADR-0019).
+          images: {
+            where: { deleted_at: { isNull: true } },
+            orderBy: { id: "asc" },
+          },
           services: {
             with: {
               handler: {
@@ -514,10 +521,6 @@ export async function getOrderDetailById(id: number) {
                   id: true,
                   name: true,
                 },
-              },
-              images: {
-                where: { deleted_at: { isNull: true } },
-                orderBy: { id: "asc" },
               },
               // Complaints opened against this line + (if this line is a
               // rework) the complaint that spawned it — see ADR-0013.
@@ -529,7 +532,7 @@ export async function getOrderDetailById(id: number) {
                 orderBy: { id: "asc" },
               },
               reworkOf: {
-                columns: { id: true },
+                columns: { id: true, created_at: true },
               },
               refundItems: true,
               // Naming the service only — the shop's cost base stays off the
@@ -583,12 +586,19 @@ export async function getOrderDetailById(id: number) {
       picked_up_by: event.pickedUpBy,
     })),
     items: detail.items.map((item) => {
+      const images = item.images.map(({ image_path, ...image }) => ({
+        ...image,
+        image_url: buildMediaUrl(image_path),
+      }));
       const services = item.services.map((service) => ({
         ...service,
-        images: service.images.map(({ image_path, ...image }) => ({
-          ...image,
-          image_url: buildMediaUrl(image_path),
-        })),
+        // Stated by the server like is_collectable below: the same rule the
+        // queued → processing gate runs (ADR-0019), so the UI can explain the
+        // gate early without owning a copy of it.
+        has_start_photo: hasStartPhoto(
+          item.images,
+          service.reworkOf?.created_at ?? null
+        ),
       }));
 
       // Derived on read, never stored — an Item has no status column to drift
@@ -601,6 +611,7 @@ export async function getOrderDetailById(id: number) {
 
       return {
         ...item,
+        images,
         status,
         is_collectable: isCollectableItemStatus(status),
         services,

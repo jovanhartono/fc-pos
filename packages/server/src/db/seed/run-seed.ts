@@ -8,6 +8,7 @@ import {
   campaignsTable,
   categoriesTable,
   customersTable,
+  itemImagesTable,
   itemsTable,
   orderCampaignsTable,
   orderCountersTable,
@@ -16,7 +17,6 @@ import {
   orderRefundsTable,
   orderServiceHandlerLogsTable,
   orderServiceStatusLogsTable,
-  orderServicesImagesTable,
   ordersProductsTable,
   ordersServicesTable,
   ordersTable,
@@ -502,25 +502,26 @@ interface DraftServiceLine {
   // Same rule as createOrder: a treatment inherits its Service's lane.
   is_priority: boolean;
   notes: string | null;
-  photos: Array<{
-    created_at: Date;
-    note: string | null;
-    uploaded_by: number | null;
-  }>;
   price: number;
   service_id: number;
   status: OrderServiceStatus;
   status_logs: DraftStatusLog[];
 }
 
-// One physical object over the counter (ADR-0017). The tag and the descriptors
-// the cashier reads off it belong here; each treatment sold against it keeps
-// its own status, handler, price and photos.
+// One physical object over the counter (ADR-0017). The tag, the descriptors
+// the cashier reads off it, and the drop-off photo of its condition belong
+// here (ADR-0019); each treatment sold against it keeps its own status,
+// handler and price.
 interface DraftItem {
   brand: string;
   color: string;
   item_code: string;
   model: string;
+  photos: Array<{
+    created_at: Date;
+    note: string | null;
+    uploaded_by: number | null;
+  }>;
   size: string;
   treatments: DraftServiceLine[];
 }
@@ -1490,7 +1491,6 @@ async function seedOrders(params: {
 
       const statusLogs: DraftStatusLog[] = [];
       const handlerLogs: DraftHandlerLog[] = [];
-      const photos: DraftServiceLine["photos"] = [];
 
       let currentStatus: OrderServiceStatus = "queued";
       let eventAt = dayjs(createdAt).add(randInt(10, 45), "minute").toDate();
@@ -1517,30 +1517,6 @@ async function seedOrders(params: {
         currentStatus = nextStatus;
       }
 
-      photos.push({
-        created_at: dayjs(createdAt).add(randInt(1, 12), "minute").toDate(),
-        note: chance(0.3)
-          ? faker.helpers.arrayElement([
-              "Outsole cracked, inform customer",
-              "Heel shows mild yellowing",
-              "Tongue discolored — cleaning requested",
-              null,
-            ])
-          : null,
-        uploaded_by: createdBy,
-      });
-
-      if (statusLogs.length >= 2) {
-        const midLog = statusLogs[Math.floor((statusLogs.length - 1) / 2)];
-        photos.push({
-          created_at: dayjs(midLog.created_at)
-            .add(randInt(1, 7), "minute")
-            .toDate(),
-          note: null,
-          uploaded_by: handlerId ?? createdBy,
-        });
-      }
-
       const treatment: DraftServiceLine = {
         service_id: service.id,
         price: Number(service.price),
@@ -1553,7 +1529,6 @@ async function seedOrders(params: {
           : null,
         status_logs: statusLogs,
         handler_logs: handlerLogs,
-        photos,
       };
 
       // Either the cashier upsold the object already on the counter, or the
@@ -1587,14 +1562,32 @@ async function seedOrders(params: {
             "Traveler",
             "Urban",
           ]),
+          // The cashier's one drop-off shot of the object — what unlocks every
+          // treatment on it (ADR-0019). Workers rarely add another.
+          photos: [
+            {
+              created_at: dayjs(createdAt)
+                .add(randInt(1, 12), "minute")
+                .toDate(),
+              note: chance(0.3)
+                ? faker.helpers.arrayElement([
+                    "Outsole cracked, inform customer",
+                    "Heel shows mild yellowing",
+                    "Tongue discolored — cleaning requested",
+                    null,
+                  ])
+                : null,
+              uploaded_by: createdBy,
+            },
+          ],
           size: faker.helpers.arrayElement(SIZES),
           treatments: [treatment],
         });
       }
     }
 
-    // Flat view for the money maths and the log/photo fan-out below, which are
-    // all genuinely per-treatment. Order matters: it is what pairs each draft
+    // Flat view for the money maths and the log fan-out below, which are all
+    // genuinely per-treatment. Order matters: it is what pairs each draft
     // with its inserted row further down.
     const draftServices: DraftServiceLine[] = draftItems.flatMap(
       (item) => item.treatments
@@ -1676,8 +1669,10 @@ async function seedOrders(params: {
       ...draftServices.flatMap((line) => [
         ...line.status_logs.map((log) => log.created_at),
         ...line.handler_logs.map((log) => log.created_at),
-        ...line.photos.map((photo) => photo.created_at),
       ]),
+      ...draftItems.flatMap((item) =>
+        item.photos.map((photo) => photo.created_at)
+      ),
     ];
 
     const updatedAt = updatedAtCandidates.reduce(
@@ -1891,22 +1886,18 @@ async function seedOrders(params: {
     );
 
     const safeOrderCode = sanitizeForS3(orderCode);
-    const photoRows = draftServices.flatMap((line) => {
-      const serviceId = serviceIdByLine.get(line) ?? 0;
-      return line.photos.map((photo, photoIndex) => {
-        // Mirrors the live key layout, which is keyed by the treatment's row
-        // id — never by the tag, which now names an object shared by several
-        // treatments.
-        const imagePath = `seed/orders/${safeOrderCode}/services/${serviceId}/item-${photoIndex + 1}.jpg`;
-        return {
-          order_service_id: serviceId,
-          image_path: imagePath,
-          note: photo.note,
-          uploaded_by: photo.uploaded_by,
-          created_at: photo.created_at,
-          updated_at: photo.created_at,
-        };
-      });
+    const photoRows = draftItems.flatMap((item) => {
+      const itemId = itemIdByCode.get(item.item_code) as number;
+      return item.photos.map((photo, photoIndex) => ({
+        item_id: itemId,
+        // Mirrors the live key layout, keyed by the object's row id
+        // (ADR-0019).
+        image_path: `seed/orders/${safeOrderCode}/items/${itemId}/item-${photoIndex + 1}.jpg`,
+        note: photo.note,
+        uploaded_by: photo.uploaded_by,
+        created_at: photo.created_at,
+        updated_at: photo.created_at,
+      }));
     });
 
     if (statusLogRows.length > 0) {
@@ -1922,9 +1913,7 @@ async function seedOrders(params: {
     }
 
     if (photoRows.length > 0) {
-      await db
-        .insert(orderServicesImagesTable)
-        .values(photoRows.filter((row) => row.order_service_id > 0));
+      await db.insert(itemImagesTable).values(photoRows);
     }
 
     if (refundedLines.length > 0) {

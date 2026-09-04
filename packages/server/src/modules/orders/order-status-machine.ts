@@ -337,6 +337,46 @@ export interface TransitionOrderServiceInput {
   to: OrderServiceStatus;
 }
 
+// The photo gate's one rule (ADR-0019). Any live photo on the Item unlocks
+// work on it — unless the line is a Rework, in which case the photo has to
+// postdate the Complaint: the object came back over the counter, and the first
+// visit's photos say nothing about the condition it came back in.
+export function hasStartPhoto(
+  photos: ReadonlyArray<{ created_at: Date }>,
+  reworkOpenedAt: Date | null
+): boolean {
+  return photos.some(
+    (photo) => reworkOpenedAt === null || photo.created_at > reworkOpenedAt
+  );
+}
+
+// Reads the Item's photos and, for a Rework, the Complaint they must postdate,
+// then applies hasStartPhoto.
+async function assertStartPhoto(
+  executor: DbExecutor,
+  line: { item_id: number; complaint_id: number | null }
+) {
+  const [photos, complaint] = await Promise.all([
+    executor.query.itemImagesTable.findMany({
+      where: { item_id: line.item_id, deleted_at: { isNull: true } },
+      columns: { created_at: true },
+    }),
+    line.complaint_id
+      ? executor.query.complaintsTable.findFirst({
+          where: { id: line.complaint_id },
+          columns: { created_at: true },
+        })
+      : undefined,
+  ]);
+  if (!hasStartPhoto(photos, complaint?.created_at ?? null)) {
+    throw new BadRequestException(
+      complaint
+        ? "Add a photo of the returned item before starting the rework"
+        : "Add an item photo before starting work"
+    );
+  }
+}
+
 export async function transitionOrderService(
   executor: DbExecutor,
   input: TransitionOrderServiceInput
@@ -356,7 +396,7 @@ export async function transitionOrderService(
 
   const current = await executor.query.ordersServicesTable.findFirst({
     where: { order_id: orderId, id: serviceId },
-    columns: { id: true, status: true },
+    columns: { id: true, status: true, item_id: true, complaint_id: true },
   });
   if (!current) {
     throw new BadRequestException("Order service not found for this order");
@@ -369,17 +409,10 @@ export async function transitionOrderService(
     );
   }
 
-  // ADR-0012: proof-of-condition before work starts. A pair cannot leave
-  // queued → processing without at least one non-deleted photo. The qc_reject
-  // redo loop is exempt — photos already exist by then.
+  // ADR-0012: proof-of-condition before work starts. The qc_reject redo loop
+  // is exempt — photos already exist by then.
   if (from === "queued" && to === "processing") {
-    const photo = await executor.query.orderServicesImagesTable.findFirst({
-      where: { order_service_id: serviceId, deleted_at: { isNull: true } },
-      columns: { id: true },
-    });
-    if (!photo) {
-      throw new BadRequestException("Add an item photo before starting work");
-    }
+    await assertStartPhoto(executor, current);
   }
 
   if (to === "cancelled") {

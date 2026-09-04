@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { Me, OrderDetail } from "@/lib/api";
-import { getOrderActionGates } from "./order-action-gates";
+import { getOrderActionGates, startPhotoBlocker } from "./order-action-gates";
 
 type ServiceOverrides = Record<string, unknown>;
 
@@ -275,5 +275,51 @@ describe("complaintable lines (ADR-0013)", () => {
 
 		expect(gates.complaintableServices.map((s) => s.id)).toEqual([1]);
 		expect(gates.canOpenComplaint).toBe(true);
+	});
+});
+
+// ADR-0019: the cashier photographs the object once at drop-off; every
+// treatment sold on it starts off that shot. A Rework is the exception — the
+// customer brought the pair back, so the first-visit photos say nothing about
+// the state it returned in.
+describe("startPhotoBlocker", () => {
+	it("says nothing once the object has a usable photo", () => {
+		expect(
+			startPhotoBlocker({
+				status: "queued",
+				has_start_photo: true,
+				reworkOf: null,
+			}),
+		).toBe(undefined);
+	});
+
+	it("asks for a photo of an unphotographed object", () => {
+		expect(
+			startPhotoBlocker({
+				status: "queued",
+				has_start_photo: false,
+				reworkOf: null,
+			}),
+		).toBe("Add an item photo before starting work.");
+	});
+
+	it("asks for a photo of the returned pair on a Rework", () => {
+		expect(
+			startPhotoBlocker({
+				status: "queued",
+				has_start_photo: false,
+				reworkOf: { id: 9, created_at: "2026-09-08T04:00:00.000Z" },
+			}),
+		).toBe("Photograph the returned item before starting the rework.");
+	});
+
+	it("is silent once work has started, photos or not", () => {
+		expect(
+			startPhotoBlocker({
+				status: "processing",
+				has_start_photo: false,
+				reworkOf: null,
+			}),
+		).toBe(undefined);
 	});
 });

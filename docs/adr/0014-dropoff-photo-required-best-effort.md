@@ -18,4 +18,4 @@ Every Order carries one **drop-off photo** — proof of what was handed across t
 
 - **Consumers must treat `dropoff_photo_path` as nullable.** Failed or never-retried attaches leave photoless Orders indefinitely; rendering must handle null (order detail does).
 - **Seed mirrors reality.** ~10% of seeded Orders are photoless (`run-seed.ts`) to keep the recovery UI exercised; the old seed wrongly tied photos to service-bearing Orders only.
-- **Distinct from the per-pair service photo gate.** The `queued → processing` service-photo rule ([ADR-0012](0012-photo-precedes-processing.md)) *is* hard server-enforced; the drop-off photo is deliberately softer (intake gate + best-effort). Two photo rules, two enforcement strengths — don't conflate them.
+- **Distinct from the per-Item photo gate.** The `queued → processing` Item-photo rule ([ADR-0012](0012-photo-precedes-processing.md), photos moved onto the Item in [ADR-0019](0019-photos-belong-to-the-item.md)) *is* hard server-enforced; the drop-off photo is deliberately softer (intake gate + best-effort). Two photo rules, two enforcement strengths — don't conflate them.

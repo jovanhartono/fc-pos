@@ -20,9 +20,10 @@ import {
 	useRefreshOrder,
 	useUpdateServiceStatusMutation,
 } from "@/features/orders/hooks/useOrderMutations";
+import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import { findOrderLine } from "@/features/orders/lib/order-lines";
-import { orderServicePhotoUploader } from "@/features/orders/utils/photo-upload";
-import { deleteOrderServicePhoto } from "@/lib/api";
+import { itemPhotoUploader } from "@/features/orders/utils/photo-upload";
+import { deleteItemPhoto } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { orderDetailQueryOptions } from "@/lib/query-options";
 import { readServerErrorMessage } from "@/lib/server-error";
@@ -42,20 +43,20 @@ const TERMINAL_SERVICE_STATUSES = new Set<string>(
 
 interface DeletePhotoConfirmDialogProps {
 	orderId: number;
-	serviceId: number;
+	itemId: number;
 	photoId: number;
 }
 
 const DeletePhotoConfirmDialog = ({
 	orderId,
-	serviceId,
+	itemId,
 	photoId,
 }: DeletePhotoConfirmDialogProps) => {
 	const refreshOrder = useRefreshOrder(orderId);
 	const closeDialog = useDialog((s) => s.closeDialog);
 
 	const deletePhotoMutation = useMutation({
-		mutationFn: () => deleteOrderServicePhoto(orderId, serviceId, photoId),
+		mutationFn: () => deleteItemPhoto(orderId, itemId, photoId),
 		onSuccess: async () => {
 			await refreshOrder();
 			toast.success("Photo deleted");
@@ -126,9 +127,8 @@ export const OrderServiceDetail = ({
 		(nextStatus): nextStatus is NonTerminalServiceStatus =>
 			!TERMINAL_SERVICE_STATUSES.has(nextStatus),
 	);
-	// ADR-0012: a pair cannot start processing without a photo.
-	const needsPhotoToStart =
-		service.status === "queued" && service.images.length === 0;
+	const photoBlocker = startPhotoBlocker(service);
+	const needsPhotoToStart = photoBlocker !== undefined;
 
 	const isOrderPaid = detailQuery.data?.payment_status === "paid";
 	// ADR-0018: while true, this line holds the whole Order's payment — the
@@ -158,10 +158,8 @@ export const OrderServiceDetail = ({
 							/>
 						))}
 					</div>
-					{needsPhotoToStart ? (
-						<p className="text-muted-foreground text-xs">
-							Add an item photo before starting work.
-						</p>
+					{photoBlocker ? (
+						<p className="text-muted-foreground text-xs">{photoBlocker}</p>
 					) : null}
 				</div>
 			) : null}
@@ -233,18 +231,18 @@ export const OrderServiceDetail = ({
 					onUploaded={refreshOrder}
 					open={isPhotoUploadOpen}
 					title="Add item photo"
-					uploader={orderServicePhotoUploader(orderId, service.id)}
+					uploader={itemPhotoUploader(orderId, service.item.id)}
 				/>
 			</div>
 
 			<div className="@container space-y-2">
 				<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-					Photos ({service.images.length})
+					Photos ({service.item.images.length})
 				</p>
-				{service.images.length > 0 ? (
+				{service.item.images.length > 0 ? (
 					<OrderPhotoGallery
 						gridClassName="grid-cols-1 @md:grid-cols-2 @2xl:grid-cols-3"
-						items={service.images.map((image) => ({
+						items={service.item.images.map((image) => ({
 							...image,
 							alt: image.note ?? `Photo for ${service.item.item_code}`,
 							canDelete: isAdmin || image.uploaded_by === user?.id,
@@ -256,9 +254,9 @@ export const OrderServiceDetail = ({
 									"This hides the photo from the order detail. The image file is retained for audit.",
 								content: () => (
 									<DeletePhotoConfirmDialog
+										itemId={service.item.id}
 										orderId={orderId}
 										photoId={photoId}
-										serviceId={service.id}
 									/>
 								),
 							});

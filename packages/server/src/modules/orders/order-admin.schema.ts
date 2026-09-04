@@ -22,11 +22,19 @@ export const orderServiceParamSchema = zodValidator(
   })
 );
 
-export const orderServicePhotoParamSchema = zodValidator(
+export const orderItemParamSchema = zodValidator(
   "param",
   z.object({
     id: z.coerce.number().int().positive(),
-    serviceId: z.coerce.number().int().positive(),
+    itemId: z.coerce.number().int().positive(),
+  })
+);
+
+export const orderItemPhotoParamSchema = zodValidator(
+  "param",
+  z.object({
+    id: z.coerce.number().int().positive(),
+    itemId: z.coerce.number().int().positive(),
     photoId: z.coerce.number().int().positive(),
   })
 );
@@ -39,7 +47,7 @@ const photoContentTypeSchema = z
     "Unsupported content type"
   );
 
-export const POSTOrderServicePhotoPresignSchema = z.object({
+export const POSTItemPhotoPresignSchema = z.object({
   content_type: photoContentTypeSchema,
 });
 
@@ -51,7 +59,7 @@ export const POSTOrderPickupEventPresignSchema = z.object({
   content_type: photoContentTypeSchema,
 });
 
-export const POSTOrderServicePhotoSchema = z.object({
+export const POSTItemPhotoSchema = z.object({
   image_path: z.string().trim().min(1).max(512),
   note: z.string().trim().max(1000).optional(),
 });
@@ -243,11 +251,9 @@ export type GetOrderServiceQueueQuery = z.infer<
 export type PatchOrderServiceStatusInput = z.infer<
   typeof PATCHOrderServiceStatusSchema
 >;
-export type PostOrderServicePhotoInput = z.infer<
-  typeof POSTOrderServicePhotoSchema
->;
-export type PostOrderServicePhotoPresignInput = z.infer<
-  typeof POSTOrderServicePhotoPresignSchema
+export type PostItemPhotoInput = z.infer<typeof POSTItemPhotoSchema>;
+export type PostItemPhotoPresignInput = z.infer<
+  typeof POSTItemPhotoPresignSchema
 >;
 export type PostOrderDropoffPhotoPresignInput = z.infer<
   typeof POSTOrderDropoffPhotoPresignSchema

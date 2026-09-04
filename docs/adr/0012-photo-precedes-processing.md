@@ -1,5 +1,7 @@
 # Photo precedes processing
 
+> **Amended 2026-09-05:** the gate now counts photos on the line's **Item**, not on the OrderService, and a Rework counts only photos newer than its Complaint — see [Amendment](#amendment-2026-09-05--the-gate-reads-the-items-photos). The trigger, scope, and no-override stance below are unchanged.
+
 Service detail photos shipped as **optional**, captured *during* processing on the worker phone ([CONTEXT.md](../../CONTEXT.md) — Photos). The business now wants at least one photo of a pair **before** work starts on it: proof-of-condition before the shop touches the shoes (dispute/liability evidence). We decided that an `OrderService` cannot leave `queued → processing` while it has **zero non-deleted** service photos.
 
 This is the per-pair twin of the order-level drop-off gate: the drop-off photo proves what arrived at intake; the per-pair photo proves each pair's condition before cleaning begins.
@@ -23,3 +25,9 @@ This is the per-pair twin of the order-level drop-off gate: the drop-off photo p
 - A photo is **capturable while still queued** — `saveOrderServicePhoto` does not gate on status — so the rule is no chicken-and-egg deadlock: photograph the pair, then start.
 - An Order now has **two** photo gates with distinct purposes: the order-level drop-off photo at intake ([CONTEXT.md](../../CONTEXT.md) — Drop-off photo) and the per-pair service photo at work start.
 - **No schema change.** Existing `queued` items with zero photos become un-startable until one is added; nothing migrates.
+
+## Amendment 2026-09-05 — the gate reads the Item's photos
+
+Photos moved off the treatment row and onto the **Item** ([ADR-0019](0019-photos-belong-to-the-item.md)): the shot is a before-service record of the object, taken at drop-off, and one object with three treatments was clearing three gates with it. The check in `transitionOrderService` is unchanged in trigger and posture — `queued → processing` only, `qc_reject → processing` exempt, role-blind, no override — but it now asks whether the line's **Item** has ≥1 non-deleted `item_images` row.
+
+One sharpening. A **Rework** line ([ADR-0013](0013-complaint-and-rework-line.md)) counts only Item photos with `created_at` later than its Complaint's `created_at`: the object left the shop and came back, so the first-visit photos are not evidence of its returned condition. Every other line counts any non-deleted photo on the Item. The web mirror (order detail "Process", queue "Hold to Start Work") reads the same rule; the hint gains a Rework variant.
