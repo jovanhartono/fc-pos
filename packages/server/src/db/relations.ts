@@ -37,7 +37,7 @@ export const relations = defineRelations(schema, (r) => ({
     }),
     orderServiceStatusLogs: r.many.orderServiceStatusLogsTable(),
     orderServices: r.many.ordersServicesTable(),
-    orderServiceUploadedPhotos: r.many.orderServicesImagesTable(),
+    itemUploadedPhotos: r.many.itemImagesTable(),
     orders: r.many.ordersTable({
       from: r.usersTable.id,
       to: r.ordersTable.created_by,
@@ -227,6 +227,9 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.itemsTable.id,
       to: r.ordersServicesTable.item_id,
     }),
+    // The object's before-service photos, shared by every treatment on it
+    // (ADR-0019).
+    images: r.many.itemImagesTable(),
   },
 
   ordersServicesTable: {
@@ -247,7 +250,6 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.ordersServicesTable.handler_id,
       to: r.usersTable.id,
     }),
-    images: r.many.orderServicesImagesTable(),
     // The physical object this treatment is applied to — where the tag and the
     // brand/color/model/size descriptors live (ADR-0017).
     item: r.one.itemsTable({
@@ -309,13 +311,14 @@ export const relations = defineRelations(schema, (r) => ({
     services: r.many.ordersServicesTable(),
   },
 
-  orderServicesImagesTable: {
-    orderService: r.one.ordersServicesTable({
-      from: r.orderServicesImagesTable.order_service_id,
-      to: r.ordersServicesTable.id,
+  itemImagesTable: {
+    item: r.one.itemsTable({
+      from: r.itemImagesTable.item_id,
+      to: r.itemsTable.id,
+      optional: false,
     }),
     uploadedBy: r.one.usersTable({
-      from: r.orderServicesImagesTable.uploaded_by,
+      from: r.itemImagesTable.uploaded_by,
       to: r.usersTable.id,
     }),
   },

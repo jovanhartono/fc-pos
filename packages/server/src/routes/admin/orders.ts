@@ -15,30 +15,31 @@ import {
   GETOrderServiceByIdQuerySchema,
   GETOrderServiceQueueCountsQuerySchema,
   GETOrderServiceQueueQuerySchema,
+  orderItemParamSchema,
+  orderItemPhotoParamSchema,
   orderServiceParamSchema,
-  orderServicePhotoParamSchema,
   PATCHOrderCourierSchema,
   PATCHOrderPaymentSchema,
   PATCHOrderServiceHandlerSchema,
   PATCHOrderServicePriceSchema,
   PATCHOrderServiceStatusSchema,
+  POSTItemPhotoPresignSchema,
+  POSTItemPhotoSchema,
   POSTOrderCancelSchema,
   POSTOrderDropoffPhotoPresignSchema,
   POSTOrderPickupEventPresignSchema,
   POSTOrderPickupEventSchema,
   POSTOrderRefundSchema,
-  POSTOrderServicePhotoPresignSchema,
-  POSTOrderServicePhotoSchema,
   PUTOrderDropoffPhotoSchema,
 } from "@/modules/orders/order-admin.schema";
 import { updateOrderCollectedBy } from "@/modules/orders/order-courier.service";
 import { updateOrderPayment } from "@/modules/orders/order-payment.service";
 import {
+  createItemPhotoPresign,
   createOrderDropoffPhotoPresign,
-  createOrderServicePhotoPresign,
-  deleteOrderServicePhoto,
+  deleteItemPhoto,
+  saveItemPhoto,
   saveOrderDropoffPhoto,
-  saveOrderServicePhoto,
 } from "@/modules/orders/order-photo.service";
 import {
   createOrderPickupEvent,
@@ -387,16 +388,16 @@ const app = new Hono<OrderAccessEnv>()
     }
   )
   .post(
-    "/:id/services/:serviceId/photos/presign",
-    orderServiceParamSchema,
-    zodValidator("json", POSTOrderServicePhotoPresignSchema),
+    "/:id/items/:itemId/photos/presign",
+    orderItemParamSchema,
+    zodValidator("json", POSTItemPhotoPresignSchema),
     async (c) => {
-      const { id, serviceId } = c.req.valid("param");
+      const { id, itemId } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      const signed = await createOrderServicePhotoPresign({
+      const signed = await createItemPhotoPresign({
         orderId: id,
-        serviceId,
+        itemId,
         body,
       });
 
@@ -440,17 +441,17 @@ const app = new Hono<OrderAccessEnv>()
     }
   )
   .post(
-    "/:id/services/:serviceId/photos",
-    orderServiceParamSchema,
-    zodValidator("json", POSTOrderServicePhotoSchema),
+    "/:id/items/:itemId/photos",
+    orderItemParamSchema,
+    zodValidator("json", POSTItemPhotoSchema),
     async (c) => {
       const user = c.get("jwtPayload");
-      const { id, serviceId } = c.req.valid("param");
+      const { id, itemId } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      const photo = await saveOrderServicePhoto({
+      const photo = await saveItemPhoto({
         orderId: id,
-        serviceId,
+        itemId,
         body,
         user,
       });
@@ -459,15 +460,15 @@ const app = new Hono<OrderAccessEnv>()
     }
   )
   .delete(
-    "/:id/services/:serviceId/photos/:photoId",
-    orderServicePhotoParamSchema,
+    "/:id/items/:itemId/photos/:photoId",
+    orderItemPhotoParamSchema,
     async (c) => {
       const user = c.get("jwtPayload");
-      const { id, serviceId, photoId } = c.req.valid("param");
+      const { id, itemId, photoId } = c.req.valid("param");
 
-      const result = await deleteOrderServicePhoto({
+      const result = await deleteItemPhoto({
         orderId: id,
-        serviceId,
+        itemId,
         photoId,
         user,
       });

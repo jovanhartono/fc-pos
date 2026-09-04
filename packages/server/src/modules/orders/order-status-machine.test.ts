@@ -309,23 +309,37 @@ describe("isTerminalOrderServiceStatus", () => {
 // transitionOrderService takes its DB handle as a parameter, so a hand-rolled
 // fake executor exercises the photo gate without a database. The fluent
 // update/insert stubs only need to satisfy the write + rollup path that runs
-// once the gate passes.
+// once the gate passes. Photos hang off the Item the line belongs to
+// (ADR-0019); a reworkOpenedAt marks the line as a Rework of a Complaint
+// opened at that moment.
 const makeExecutor = ({
   serviceStatus,
-  hasPhoto,
+  photosAt = [],
+  reworkOpenedAt = null,
 }: {
   serviceStatus: OrderServiceStatus;
-  hasPhoto: boolean;
+  photosAt?: Date[];
+  reworkOpenedAt?: Date | null;
 }) =>
   ({
     query: {
       ordersServicesTable: {
-        findFirst: () => Promise.resolve({ id: 1, status: serviceStatus }),
+        findFirst: () =>
+          Promise.resolve({
+            id: 1,
+            status: serviceStatus,
+            item_id: 7,
+            complaint_id: reworkOpenedAt ? 99 : null,
+          }),
         findMany: () =>
           Promise.resolve([{ status: "processing" as OrderServiceStatus }]),
       },
-      orderServicesImagesTable: {
-        findFirst: () => Promise.resolve(hasPhoto ? { id: 10 } : undefined),
+      itemImagesTable: {
+        findMany: () =>
+          Promise.resolve(photosAt.map((created_at) => ({ created_at }))),
+      },
+      complaintsTable: {
+        findFirst: () => Promise.resolve({ created_at: reworkOpenedAt }),
       },
       ordersProductsTable: {
         findMany: () => Promise.resolve([]),
@@ -581,9 +595,10 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
   });
 });
 
-describe("transitionOrderService photo gate (ADR-0012)", () => {
-  it("blocks queued -> processing when the service has no photo", async () => {
-    const executor = makeExecutor({ serviceStatus: "queued", hasPhoto: false });
+describe("transitionOrderService photo gate (ADR-0012, ADR-0019)", () => {
+  const dropOff = new Date("2026-09-01T02:00:00Z");
+
+  const expectBlocked = async (executor: DbExecutor, message: string) => {
     let error: unknown;
     try {
       await transitionTo(executor, "processing");
@@ -591,13 +606,23 @@ describe("transitionOrderService photo gate (ADR-0012)", () => {
       error = caught;
     }
     expect(error).toBeInstanceOf(BadRequestException);
-    expect((error as Error).message).toBe(
+    expect((error as Error).message).toBe(message);
+  };
+
+  it("blocks queued -> processing while the object has no photo at all", async () => {
+    await expectBlocked(
+      makeExecutor({ serviceStatus: "queued" }),
       "Add an item photo before starting work"
     );
   });
 
-  it("allows queued -> processing once a photo exists", async () => {
-    const executor = makeExecutor({ serviceStatus: "queued", hasPhoto: true });
+  // The cashier photographs the pair once at drop-off; that single shot
+  // unlocks the deep clean and the repaint upsold on the same shoe alike.
+  it("allows queued -> processing on the cashier's drop-off shot of the object", async () => {
+    const executor = makeExecutor({
+      serviceStatus: "queued",
+      photosAt: [dropOff],
+    });
     expect(await transitionTo(executor, "processing")).toEqual({
       from: "queued",
       to: "processing",
@@ -605,13 +630,40 @@ describe("transitionOrderService photo gate (ADR-0012)", () => {
   });
 
   it("exempts the qc_reject -> processing redo from the gate", async () => {
-    const executor = makeExecutor({
-      serviceStatus: "qc_reject",
-      hasPhoto: false,
-    });
+    const executor = makeExecutor({ serviceStatus: "qc_reject" });
     expect(await transitionTo(executor, "processing")).toEqual({
       from: "qc_reject",
       to: "processing",
+    });
+  });
+
+  // A customer brings the pair back a week later complaining. The photos from
+  // its first visit say nothing about the state it came back in, so the Rework
+  // waits for a fresh one.
+  describe("a Rework of a complained pair", () => {
+    const complaintOpened = new Date("2026-09-08T04:00:00Z");
+
+    it("blocks on first-visit photos only", async () => {
+      await expectBlocked(
+        makeExecutor({
+          serviceStatus: "queued",
+          photosAt: [dropOff],
+          reworkOpenedAt: complaintOpened,
+        }),
+        "Add a photo of the returned item before starting the rework"
+      );
+    });
+
+    it("allows once the returned pair has been photographed", async () => {
+      const executor = makeExecutor({
+        serviceStatus: "queued",
+        photosAt: [dropOff, new Date("2026-09-08T04:10:00Z")],
+        reworkOpenedAt: complaintOpened,
+      });
+      expect(await transitionTo(executor, "processing")).toEqual({
+        from: "queued",
+        to: "processing",
+      });
     });
   });
 });

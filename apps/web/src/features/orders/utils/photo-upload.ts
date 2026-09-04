@@ -1,9 +1,9 @@
 import {
 	type PhotoContentType,
+	presignItemPhoto,
 	presignOrderDropoffPhoto,
-	presignOrderServicePhoto,
+	saveItemPhoto,
 	saveOrderDropoffPhoto,
-	saveOrderServicePhoto,
 	uploadFileToPresignedUrl,
 } from "@/lib/api";
 
@@ -59,12 +59,12 @@ export const resolveUploadedKey = async (
 	return uploader.pushBytes(input);
 };
 
-export const orderServicePhotoUploader = (
+export const itemPhotoUploader = (
 	orderId: number,
-	serviceId: number,
+	itemId: number,
 ): PhotoUploader => ({
 	pushBytes: async ({ file, contentType, signal }) => {
-		const presigned = await presignOrderServicePhoto(orderId, serviceId, {
+		const presigned = await presignItemPhoto(orderId, itemId, {
 			content_type: contentType,
 		});
 		await uploadFileToPresignedUrl(
@@ -76,7 +76,7 @@ export const orderServicePhotoUploader = (
 		return presigned.key;
 	},
 	commit: async (key, { note }) => {
-		await saveOrderServicePhoto(orderId, serviceId, {
+		await saveItemPhoto(orderId, itemId, {
 			image_path: key,
 			note,
 		});

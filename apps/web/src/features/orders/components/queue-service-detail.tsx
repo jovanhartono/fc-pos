@@ -23,8 +23,9 @@ import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dia
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { invalidateOrderQueries } from "@/features/orders/lib/invalidate-order-queries";
+import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import { findOrderLine } from "@/features/orders/lib/order-lines";
-import { orderServicePhotoUploader } from "@/features/orders/utils/photo-upload";
+import { itemPhotoUploader } from "@/features/orders/utils/photo-upload";
 import {
 	type UpdateOrderServiceStatusPayload,
 	updateOrderServiceStatus,
@@ -168,8 +169,8 @@ export function QueueServiceDetail({
 		!isHandledByCurrentUser;
 	const nextStatuses = ORDER_SERVICE_TRANSITIONS[selectedService.status] ?? [];
 	const canStartWork = selectedService.status === "queued";
-	// ADR-0012: a pair cannot start processing without a photo.
-	const needsPhotoToStart = canStartWork && selectedService.images.length === 0;
+	const photoBlocker = startPhotoBlocker(selectedService);
+	const needsPhotoToStart = photoBlocker !== undefined;
 	const actionStatuses = nextStatuses.filter(
 		(status) =>
 			!WORKER_BLOCKED_QUEUE_STATUSES.has(status) &&
@@ -185,9 +186,7 @@ export function QueueServiceDetail({
 	const blockerMessage =
 		canStartWork && isHandledByAnotherWorker
 			? `${selectedService.handler?.name ?? "Another worker"} is handling this item — actions are locked for you.`
-			: needsPhotoToStart
-				? "Add an item photo to start work."
-				: null;
+			: (photoBlocker ?? null);
 
 	return (
 		<>
@@ -313,9 +312,9 @@ export function QueueServiceDetail({
 							<p className={LABEL_CLASS}>Photos</p>
 							{needsPhotoToStart ? (
 								<Badge variant="warning">Required</Badge>
-							) : selectedService.images.length > 0 ? (
+							) : selectedService.item.images.length > 0 ? (
 								<Badge variant="secondary">
-									{selectedService.images.length}
+									{selectedService.item.images.length}
 								</Badge>
 							) : null}
 						</div>
@@ -330,9 +329,27 @@ export function QueueServiceDetail({
 						</Button>
 					</div>
 
-					<div className="px-4 pb-4 pt-4">
+					<div className="grid gap-3 px-4 pb-4 pt-4">
+						{/* Shown whenever the gate is shut, not only when the gallery is
+						    empty: a Rework's Item already carries first-visit photos, and
+						    the worker needs to hear why those do not count. */}
+						{photoBlocker ? (
+							<div className="flex items-start gap-2.5 border border-dashed border-warning/50 bg-warning/10 px-4 py-3 text-sm">
+								<WarningCircleIcon
+									aria-hidden="true"
+									className="mt-0.5 size-4 shrink-0 text-warning"
+									weight="fill"
+								/>
+								<div className="grid gap-0.5">
+									<p className="font-medium text-foreground">
+										Photo required to start
+									</p>
+									<p className="text-muted-foreground">{photoBlocker}</p>
+								</div>
+							</div>
+						) : null}
 						<OrderPhotoGallery
-							items={selectedService.images.map((image) => ({
+							items={selectedService.item.images.map((image) => ({
 								...image,
 								alt:
 									image.note ?? `Photo for ${selectedService.item.item_code}`,
@@ -342,23 +359,7 @@ export function QueueServiceDetail({
 							thumbnailImageClassName="aspect-[5/4]"
 							title={`Photos for ${selectedService.item.item_code}`}
 							emptyState={
-								needsPhotoToStart ? (
-									<div className="flex items-start gap-2.5 border border-dashed border-warning/50 bg-warning/10 px-4 py-6 text-sm">
-										<WarningCircleIcon
-											aria-hidden="true"
-											className="mt-0.5 size-4 shrink-0 text-warning"
-											weight="fill"
-										/>
-										<div className="grid gap-0.5">
-											<p className="font-medium text-foreground">
-												Photo required to start
-											</p>
-											<p className="text-muted-foreground">
-												Add one item photo to unlock the queue action.
-											</p>
-										</div>
-									</div>
-								) : (
+								photoBlocker ? null : (
 									<p className="border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
 										No photos.
 									</p>
@@ -373,7 +374,7 @@ export function QueueServiceDetail({
 					onOpenChange={setIsPhotoDialogOpen}
 					title="Add item photo"
 					badgeLabel={selectedService.item.item_code}
-					uploader={orderServicePhotoUploader(orderId, serviceId)}
+					uploader={itemPhotoUploader(orderId, selectedService.item.id)}
 					onUploaded={async () => {
 						await refreshData();
 					}}

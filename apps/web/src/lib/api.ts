@@ -401,11 +401,11 @@ export type UpdateOrderCourierPayload = {
 
 export type PhotoContentType = "image/jpeg" | "image/png" | "image/webp";
 
-export type PresignOrderServicePhotoPayload = {
+export type PresignItemPhotoPayload = {
 	content_type: PhotoContentType;
 };
 
-export type SaveOrderServicePhotoPayload = {
+export type SaveItemPhotoPayload = {
 	image_path: string;
 	note?: string;
 };
@@ -945,50 +945,50 @@ export async function addComplaintRework(complaintId: number) {
 	);
 }
 
-export async function presignOrderServicePhoto(
+export async function presignItemPhoto(
 	orderId: number,
-	serviceId: number,
-	payload: PresignOrderServicePhotoPayload,
+	itemId: number,
+	payload: PresignItemPhotoPayload,
 ) {
 	return parseSuccessData<{
 		upload_url: string;
 		key: string;
 		expires_in_seconds: number;
 	}>(
-		rpcWithAuth().api.admin.orders[":id"].services[
-			":serviceId"
-		].photos.presign.$post({
-			param: { id: String(orderId), serviceId: String(serviceId) },
-			json: payload,
-		}),
+		rpcWithAuth().api.admin.orders[":id"].items[":itemId"].photos.presign.$post(
+			{
+				param: { id: String(orderId), itemId: String(itemId) },
+				json: payload,
+			},
+		),
 	);
 }
 
-export async function saveOrderServicePhoto(
+export async function saveItemPhoto(
 	orderId: number,
-	serviceId: number,
-	payload: SaveOrderServicePhotoPayload,
+	itemId: number,
+	payload: SaveItemPhotoPayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].services[":serviceId"].photos.$post({
-			param: { id: String(orderId), serviceId: String(serviceId) },
+		rpcWithAuth().api.admin.orders[":id"].items[":itemId"].photos.$post({
+			param: { id: String(orderId), itemId: String(itemId) },
 			json: payload,
 		}),
 	);
 }
 
-export async function deleteOrderServicePhoto(
+export async function deleteItemPhoto(
 	orderId: number,
-	serviceId: number,
+	itemId: number,
 	photoId: number,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].services[":serviceId"].photos[
+		rpcWithAuth().api.admin.orders[":id"].items[":itemId"].photos[
 			":photoId"
 		].$delete({
 			param: {
 				id: String(orderId),
-				serviceId: String(serviceId),
+				itemId: String(itemId),
 				photoId: String(photoId),
 			},
 		}),

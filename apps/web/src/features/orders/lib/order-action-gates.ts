@@ -30,6 +30,22 @@ export interface OrderActionGates {
 	cancellableProducts: OrderDetail["products"];
 }
 
+// ADR-0012 / ADR-0019: why a queued line cannot start yet, or undefined when
+// it can. The verdict is the server's (`has_start_photo`); this only puts
+// words to it before the button relays a 400. A Rework needs a photo taken
+// after the customer brought the object back — its first-visit photos are
+// there in the gallery but do not count.
+export const startPhotoBlocker = (
+	line: Pick<OrderLine, "status" | "has_start_photo" | "reworkOf">,
+): string | undefined => {
+	if (line.status !== "queued" || line.has_start_photo) {
+		return undefined;
+	}
+	return line.reworkOf
+		? "Photograph the returned item before starting the rework."
+		: "Add an item photo before starting work.";
+};
+
 // Pure derivation of every role/state gate on the order detail page. `me`
 // must come from /admin/users/me — JWT claims go stale when an admin changes
 // roles mid-session.
