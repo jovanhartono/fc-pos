@@ -462,7 +462,7 @@ describe("createOrder", () => {
       storeCode: "JKT",
     });
 
-    const set = finalize.writes[0].set;
+    const { set } = finalize.writes[0];
     expect(set.total).toBe("50000");
     expect(set.discount).toBe("5000");
     expect(set.paid_amount).toBe("45000");

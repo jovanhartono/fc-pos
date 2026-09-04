@@ -1,18 +1,19 @@
 import {
-	type ColumnDef,
-	getCoreRowModel,
-	getSortedRowModel,
 	type RowData,
 	type SortingState,
-	useReactTable,
+	useTable,
 } from "@tanstack/react-table";
 import { useState } from "react";
 import { DataTableCards } from "@/components/data-table-cards";
+import {
+	type DataTableColumnDef,
+	dataTableFeatures,
+} from "@/components/data-table-features";
 import { DataTableGrid } from "@/components/data-table-grid";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface DataTableProps<TData extends RowData> {
-	columns: ColumnDef<TData, unknown>[];
+	columns: DataTableColumnDef<TData>[];
 	data: TData[];
 	isLoading?: boolean;
 	emptyMessage?: string;
@@ -37,13 +38,12 @@ export const DataTable = <TData extends RowData>({
 
 	// One instance for both layouts, so a sort picked on the desktop table
 	// survives a tablet rotation into the card list.
-	const table = useReactTable({
+	const table = useTable({
+		features: dataTableFeatures,
 		data,
 		columns,
 		state: sortable ? { sorting } : undefined,
 		onSortingChange: sortable ? setSorting : undefined,
-		getCoreRowModel: getCoreRowModel(),
-		getSortedRowModel: sortable ? getSortedRowModel() : undefined,
 	});
 
 	if (isCardView) {

@@ -63,7 +63,9 @@ export function CategoryForm({
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
 							/>
-							{fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+							{fieldState.invalid ? (
+								<FieldError errors={[fieldState.error]} />
+							) : null}
 						</Field>
 					)}
 				/>

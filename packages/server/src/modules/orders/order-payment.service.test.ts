@@ -44,7 +44,7 @@ const dbState = {
   updateCalls: 0,
   // Simulates losing the collect race: another cashier paid the order
   // between the read and the write.
-  casWins: true,
+  casWins: true as boolean,
 };
 
 const TX = {

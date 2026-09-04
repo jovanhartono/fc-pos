@@ -30,7 +30,9 @@ export async function clockIn({
     return await insertShift({ user_id: user.id, store_id: storeId });
   } catch (error) {
     if (isUniqueViolation(error)) {
-      throw new BadRequestException("You already have an open shift");
+      throw new BadRequestException("You already have an open shift", {
+        cause: error,
+      });
     }
     throw error;
   }

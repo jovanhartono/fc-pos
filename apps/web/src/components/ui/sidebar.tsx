@@ -613,12 +613,12 @@ function SidebarMenuSkeleton({
 			className={cn("flex h-8 items-center gap-2 rounded-none px-2", className)}
 			{...props}
 		>
-			{showIcon && (
+			{showIcon ? (
 				<Skeleton
 					className="size-4 rounded-none"
 					data-sidebar="menu-skeleton-icon"
 				/>
-			)}
+			) : null}
 			<Skeleton
 				className="h-4 max-w-(--skeleton-width) flex-1"
 				data-sidebar="menu-skeleton-text"

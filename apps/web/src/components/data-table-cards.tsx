@@ -5,11 +5,12 @@ import {
 	type Table as TanstackTable,
 } from "@tanstack/react-table";
 import { Fragment } from "react";
+import type { DataTableFeatures } from "@/components/data-table-features";
 import "@/components/data-table-meta";
 import { cn } from "@/lib/utils";
 
 interface DataTableCardsProps<TData extends RowData> {
-	table: TanstackTable<TData>;
+	table: TanstackTable<DataTableFeatures, TData>;
 	isLoading?: boolean;
 	emptyMessage: string;
 	cardPrimaryColumnId?: string;
@@ -17,16 +18,16 @@ interface DataTableCardsProps<TData extends RowData> {
 }
 
 interface CardCells<TData extends RowData> {
-	primaryCell?: Cell<TData, unknown>;
-	subtitleCells: Cell<TData, unknown>[];
-	eyebrowCells: Cell<TData, unknown>[];
-	badgeCells: Cell<TData, unknown>[];
-	footerCells: Cell<TData, unknown>[];
-	detailCells: Cell<TData, unknown>[];
+	primaryCell?: Cell<DataTableFeatures, TData>;
+	subtitleCells: Cell<DataTableFeatures, TData>[];
+	eyebrowCells: Cell<DataTableFeatures, TData>[];
+	badgeCells: Cell<DataTableFeatures, TData>[];
+	footerCells: Cell<DataTableFeatures, TData>[];
+	detailCells: Cell<DataTableFeatures, TData>[];
 }
 
 const getCellHeaderLabel = <TData extends RowData>(
-	cell: Cell<TData, unknown>,
+	cell: Cell<DataTableFeatures, TData>,
 ): string => {
 	const mobileCard = cell.column.columnDef.meta?.mobileCard;
 	if (mobileCard?.label) {
@@ -37,7 +38,7 @@ const getCellHeaderLabel = <TData extends RowData>(
 };
 
 const bucketCardCells = <TData extends RowData>(
-	cells: Cell<TData, unknown>[],
+	cells: Cell<DataTableFeatures, TData>[],
 	primaryColumnKey: string,
 	hiddenIds: Set<string>,
 ): CardCells<TData> => {
@@ -135,7 +136,7 @@ export const DataTableCards = <TData extends RowData>({
 					badgeCells,
 					footerCells,
 					detailCells,
-				} = bucketCardCells(row.getVisibleCells(), primaryColumnKey, hiddenIds);
+				} = bucketCardCells(row.getAllCells(), primaryColumnKey, hiddenIds);
 				const primaryConfig = primaryCell?.column.columnDef.meta?.mobileCard;
 				const hasHeaderStrip =
 					eyebrowCells.length > 0 || footerCells.length > 0;

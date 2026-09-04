@@ -1800,7 +1800,10 @@ async function seedOrders(params: {
     // in. The tag used to carry this correlation; it names an object now, and
     // one tag fronts several lines, so it can no longer identify one (ADR-0017).
     const serviceIdByLine = new Map<DraftServiceLine, number>(
-      draftServices.map((line, index) => [line, insertedServices[index].id])
+      draftServices.map((draftLine, position) => [
+        draftLine,
+        insertedServices[position].id,
+      ])
     );
 
     const pickedUpDraftLines = draftServices.filter(

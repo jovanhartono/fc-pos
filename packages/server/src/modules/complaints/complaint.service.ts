@@ -47,7 +47,7 @@ async function createReworkLine(
     userId: number;
   }
 ) {
-  const order = subject.order;
+  const { order } = subject;
   if (!order) {
     throw new BadRequestException("Order service is not attached to an order");
   }

@@ -130,6 +130,7 @@ export function Combobox({
 						</ComboboxPrimitive.List>
 
 						<ComboboxPrimitive.Empty className="px-2 py-3 text-xs text-muted-foreground">
+							{/* biome-ignore lint/suspicious/noLeakedRender: emptyText is a string prop, so no 0 or NaN can reach the DOM */}
 							{loading ? "Loading options..." : emptyText}
 						</ComboboxPrimitive.Empty>
 					</ComboboxPrimitive.Popup>

@@ -20,8 +20,8 @@ export class ForbiddenException extends HTTPException {
 }
 
 export class BadRequestException extends HTTPException {
-  constructor(message = "Bad Request") {
-    super(StatusCodes.BAD_REQUEST, { message });
+  constructor(message = "Bad Request", options?: { cause?: unknown }) {
+    super(StatusCodes.BAD_REQUEST, { message, cause: options?.cause });
   }
 }
 
