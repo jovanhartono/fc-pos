@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 
 export type OrderPhotoGalleryItem = {
 	alt: string;
-	canDelete?: boolean;
 	caption?: React.ReactNode;
 	created_at: string;
 	id: number;
@@ -21,7 +20,6 @@ type OrderPhotoGalleryProps = {
 	emptyState?: React.ReactNode;
 	gridClassName?: string;
 	items: OrderPhotoGalleryItem[];
-	onDelete?: (id: number) => Promise<void>;
 	thumbnailClassName?: string;
 	thumbnailImageClassName?: string;
 	title?: string;
@@ -31,7 +29,6 @@ export function OrderPhotoGallery({
 	emptyState,
 	gridClassName,
 	items,
-	onDelete,
 	thumbnailClassName,
 	thumbnailImageClassName,
 	title = "Attachment Viewer",
@@ -52,7 +49,6 @@ export function OrderPhotoGallery({
 
 	const lightboxItems: PhotoLightboxItem[] = items.map((item) => ({
 		alt: item.alt,
-		canDelete: item.canDelete,
 		created_at: item.created_at,
 		id: item.id,
 		image_url: item.image_url,
@@ -103,7 +99,6 @@ export function OrderPhotoGallery({
 			<PhotoLightbox
 				initialIndex={activeIndex}
 				items={lightboxItems}
-				onDelete={onDelete ? (id) => onDelete(Number(id)) : undefined}
 				onOpenChange={setIsOpen}
 				open={isOpen}
 				title={title}

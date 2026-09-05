@@ -172,7 +172,7 @@ export const PhotoLightbox = ({
 						</div>
 					)}
 
-					<div className="grid gap-2 border-t border-white/10 bg-zinc-950 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)_+_0.75rem)] text-white sm:grid-cols-[1fr_auto] sm:items-end">
+					<div className="flex items-center justify-between gap-3 border-t border-white/10 bg-zinc-950 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)_+_0.75rem)] text-white">
 						<div className="grid gap-1">
 							<p className="text-sm font-medium">
 								{activeCaption?.primary ?? "Attachment"}
@@ -181,75 +181,73 @@ export const PhotoLightbox = ({
 								{activeCaption?.secondary ?? "No metadata"}
 							</p>
 						</div>
-						<div className="flex items-center justify-between gap-3 text-xs text-white/70 sm:justify-end">
-							{canNavigate ? (
-								<p className="md:hidden">Swipe to browse</p>
-							) : (
-								<span />
-							)}
-							<div className="flex items-center gap-3">
-								<p className="font-mono tabular-nums">
-									{activeCaption?.indexLabel ?? "0 / 0"}
-								</p>
-								{activeItem ? (
-									<div className="flex items-center gap-1.5">
-										{/* Real buttons, not a hover reveal: the shop runs on iPads,
+						<div className="flex shrink-0 items-center gap-3 text-xs text-white/70">
+							<p className="font-mono tabular-nums">
+								{activeCaption?.indexLabel ?? "0 / 0"}
+							</p>
+							{activeItem ? (
+								<div className="flex items-center gap-1.5">
+									{/* Real buttons, not a hover reveal: the shop runs on iPads,
 										    where nothing hovers. */}
-										{isConfirmingDelete ? (
-											<>
-												<p className="text-white">Delete photo?</p>
+									{isConfirmingDelete ? (
+										<>
+											<p className="text-white">Delete photo?</p>
+											<button
+												aria-label="Confirm delete"
+												className={cn(
+													ACTION_CLASS,
+													"bg-destructive hover:bg-destructive/80 disabled:opacity-50",
+												)}
+												disabled={isDeleting}
+												onClick={handleDelete}
+												type="button"
+											>
+												<CheckIcon aria-hidden="true" className="size-4" />
+											</button>
+											<button
+												aria-label="Cancel delete"
+												className={ACTION_CLASS}
+												disabled={isDeleting}
+												onClick={() => setIsConfirmingDelete(false)}
+												type="button"
+											>
+												<XIcon aria-hidden="true" className="size-4" />
+											</button>
+										</>
+									) : (
+										<>
+											{/* The CDN is another origin, so `download` is ignored and a
+												    plain link would swap the app out of this tab for the
+												    raw image. A new tab keeps the order open behind it. */}
+											<a
+												aria-label="Save image"
+												className={ACTION_CLASS}
+												download={getPhotoDownloadName(activeItem)}
+												href={activeItem.image_url}
+												rel="noopener"
+												target="_blank"
+												title="Save image"
+											>
+												<DownloadSimpleIcon
+													aria-hidden="true"
+													className="size-4"
+												/>
+											</a>
+											{onDelete && activeItem.canDelete ? (
 												<button
-													aria-label="Confirm delete"
-													className={cn(
-														ACTION_CLASS,
-														"bg-destructive hover:bg-destructive/80 disabled:opacity-50",
-													)}
-													disabled={isDeleting}
-													onClick={handleDelete}
+													aria-label="Delete photo"
+													className={ACTION_CLASS}
+													onClick={() => setIsConfirmingDelete(true)}
+													title="Delete photo"
 													type="button"
 												>
-													<CheckIcon aria-hidden="true" className="size-4" />
+													<TrashIcon aria-hidden="true" className="size-4" />
 												</button>
-												<button
-													aria-label="Cancel delete"
-													className={ACTION_CLASS}
-													disabled={isDeleting}
-													onClick={() => setIsConfirmingDelete(false)}
-													type="button"
-												>
-													<XIcon aria-hidden="true" className="size-4" />
-												</button>
-											</>
-										) : (
-											<>
-												<a
-													aria-label="Save image"
-													className={ACTION_CLASS}
-													download={getPhotoDownloadName(activeItem)}
-													href={activeItem.image_url}
-													title="Save image"
-												>
-													<DownloadSimpleIcon
-														aria-hidden="true"
-														className="size-4"
-													/>
-												</a>
-												{onDelete && activeItem.canDelete ? (
-													<button
-														aria-label="Delete photo"
-														className={ACTION_CLASS}
-														onClick={() => setIsConfirmingDelete(true)}
-														title="Delete photo"
-														type="button"
-													>
-														<TrashIcon aria-hidden="true" className="size-4" />
-													</button>
-												) : null}
-											</>
-										)}
-									</div>
-								) : null}
-							</div>
+											) : null}
+										</>
+									)}
+								</div>
+							) : null}
 						</div>
 					</div>
 				</div>
