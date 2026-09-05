@@ -12,11 +12,11 @@
 
 ## Decisions
 
-- **`order_services_images` becomes `item_images`.** `item_id NOT NULL` referencing `items`, backfilled from the line's `item_id`; `order_service_id` is dropped. `note`, `uploaded_by`, soft-delete pair, and the uploader-or-admin delete rule are unchanged.
+- **`order_services_images` becomes `item_images`.** `item_id NOT NULL` referencing `items`, backfilled from the line's `item_id`; `order_service_id` is dropped. `note`, `uploaded_by`, soft-delete pair, and the uploader-or-admin delete rule are unchanged. *(Amended 2026-09-05: the file behind a soft-deleted row is no longer kept. The sweep stops counting soft-deleted rows as references, so the picture goes on the next nightly run while the tombstone row stays. The old "retained for audit" stance protected a restore path that never existed.)*
 - **Routes and storage keys are per Item.** `/admin/orders/:id/items/:itemId/photos` (presign, save, delete). New objects are keyed `orders/{orderId}/items/{itemId}/{uuid}`. Existing objects stay under their `services/{serviceId}/` keys and are not moved: the photo sweep protects whatever path the database holds and never reads a key's layout.
 - **The gate in `transitionOrderService`** fires on `from === "queued" && to === "processing"` as before, but counts non-deleted rows on the line's **Item**. When the line carries a `complaint_id`, only rows with `created_at` later than that Complaint's `created_at` count. Still role-blind, still no override, `qc_reject → processing` still exempt.
 - **After-treatment photos are a non-goal.** The shop shoots those on separate devices for marketing. `item_images` has no kind discriminator and gets none; every row is a before-service record.
-- **The Drop-off photo ([ADR-0014](0014-dropoff-photo-required-best-effort.md)) is unchanged.** Still one per Order, still the POS intake gate. It is the group shot of everything that crossed the counter; the Item photo is per object. Both now come from the cashier at drop-off — the overlap is acknowledged and deliberately not resolved here.
+- **The Drop-off photo ([ADR-0014](0014-dropoff-photo-required-best-effort.md)) is unchanged.** Still one per Order, still the POS intake gate. The two answer different questions and do not overlap: the Drop-off photo is **proof of the handover** — who dropped what off across the counter — while the Item photo is **proof of the object's condition**. Both are taken by the cashier at drop-off, which is why they were briefly suspected of overlapping (settled 2026-09-05).
 
 ## Consequences
 
