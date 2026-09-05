@@ -5,6 +5,7 @@ import {
   GETNearestStoreQuerySchema,
   PATCHStoreSchema,
   POSTStoreSchema,
+  PUTStorePrinterSchema,
   PUTStoreSchema,
 } from "@/modules/stores/store.schema";
 import {
@@ -17,6 +18,7 @@ import {
 } from "@/modules/stores/store.service";
 import { idParamSchema } from "@/schema/param";
 import type { AdminEnv } from "@/types/hono";
+import { assertStoreAccess } from "@/utils/authorization";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
@@ -96,6 +98,30 @@ const app = new Hono<AdminEnv>()
 
       const statusText = data.is_active ? "Activated" : "Deactivated";
       return c.json(success(store, `${store.name} is ${statusText}`));
+    }
+  )
+  // The POS that just paired the receipt printer remembers it for the store.
+  // Pairing happens at the counter, so this is the one store write meant for a
+  // cashier, scoped to a store they work at: a Kemang POS must not point
+  // Bintaro's receipts at its own printer. (The sibling PUT/PATCH above carry
+  // no role check yet — a known gap tracked separately, not widened here.)
+  .put(
+    "/:id/printer",
+    idParamSchema,
+    zodValidator("json", PUTStorePrinterSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const { printer_name } = c.req.valid("json");
+
+      await assertStoreAccess(c.get("jwtPayload"), id);
+
+      const store = await updateStore({ id, payload: { printer_name } });
+
+      if (!store) {
+        throw new NotFoundException("Store does not exist");
+      }
+
+      return c.json(success(store, `Printer remembered for ${store.name}`));
     }
   );
 

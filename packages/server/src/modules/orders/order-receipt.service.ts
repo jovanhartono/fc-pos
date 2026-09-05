@@ -19,11 +19,16 @@ export async function getOrderReceiptById(id: number) {
       pickup_code: true,
     },
     with: {
+      // id + printer_name are for the POS, not the paper: they let the web
+      // app open the Bluetooth chooser on this store's own printer and, on the
+      // first pair, remember which one that was.
       store: {
         columns: {
+          id: true,
           name: true,
           address: true,
           phone_number: true,
+          printer_name: true,
         },
       },
       customer: {

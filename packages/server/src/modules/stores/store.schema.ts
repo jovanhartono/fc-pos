@@ -5,7 +5,12 @@ import {
 } from "libphonenumber-js";
 import { z } from "zod";
 import { storesTable } from "@/db/schema";
-import { isActiveSchema } from "@/schema/common";
+import { isActiveSchema, textSchema, varcharSchema } from "@/schema/common";
+
+// The pairing chooser filters on the exact advertised string, so a blank means
+// "no printer remembered" — never "", which would match no device and lock the
+// counter out of pairing. textSchema already turns blank into null.
+const printerNameSchema = textSchema("Printer name", 64).nullish();
 
 export const POSTStoreSchema = z.object({
   code: z.string().trim().min(3, "Minimum 3 characters").max(3),
@@ -36,8 +41,19 @@ export const POSTStoreSchema = z.object({
       .transform(String)
   ),
   is_active: isActiveSchema,
+  printer_name: printerNameSchema,
 });
-export const PUTStoreSchema = createUpdateSchema(storesTable);
+
+export const PUTStoreSchema = createUpdateSchema(storesTable, {
+  printer_name: printerNameSchema,
+});
+
+// Written by the POS that just paired, so the name is whatever the printer
+// advertised — required here because "remember nothing" is not a pairing.
+export const PUTStorePrinterSchema = z.object({
+  printer_name: varcharSchema("Printer name", 64),
+});
+
 export const PATCHStoreSchema = createUpdateSchema(storesTable).pick({
   is_active: true,
 });

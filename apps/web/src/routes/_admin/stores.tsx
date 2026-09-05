@@ -67,6 +67,7 @@ function StoresPage() {
 							latitude: String(store.latitude),
 							longitude: String(store.longitude),
 							is_active: store.is_active,
+							printer_name: store.printer_name ?? "",
 						}}
 						handleOnSubmit={async (values) => {
 							await updateMutation.mutateAsync({
