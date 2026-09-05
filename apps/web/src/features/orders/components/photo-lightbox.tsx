@@ -1,4 +1,10 @@
-import { ImageSquareIcon, XIcon } from "@phosphor-icons/react";
+import {
+	CheckIcon,
+	DownloadSimpleIcon,
+	ImageSquareIcon,
+	TrashIcon,
+	XIcon,
+} from "@phosphor-icons/react";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -8,9 +14,11 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { PhotoStage } from "@/features/orders/components/photo-stage";
+import { cn } from "@/lib/utils";
 
 export interface PhotoLightboxItem {
 	alt: string;
+	canDelete?: boolean;
 	created_at: string;
 	id: number | string;
 	image_url: string;
@@ -24,6 +32,20 @@ interface PhotoLightboxProps {
 	items: PhotoLightboxItem[];
 	initialIndex?: number;
 	title?: string;
+	// Resolves once the photo is gone from `items`, rejects if it is not.
+	onDelete?: (id: number | string) => Promise<void>;
+}
+
+function getPhotoDownloadName(item: {
+	id: number | string;
+	image_url: string;
+}) {
+	const pathname = new URL(item.image_url, "https://fresclean.local").pathname;
+	const extension = pathname.split(".").pop()?.toLowerCase();
+	const resolvedExtension =
+		extension && extension.length <= 5 ? extension : "jpg";
+
+	return `photo-${item.id}.${resolvedExtension}`;
 }
 
 export function getPhotoPrimaryLabel(item: {
@@ -45,14 +67,20 @@ export function formatPhotoTimestamp(createdAt: string) {
 	return parsed.format("DD MMM YYYY, HH:mm");
 }
 
+const ACTION_CLASS =
+	"grid size-9 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20";
+
 export const PhotoLightbox = ({
 	open,
 	onOpenChange,
 	items,
 	initialIndex = 0,
 	title = "Attachment Viewer",
+	onDelete,
 }: PhotoLightboxProps) => {
 	const [activeIndex, setActiveIndex] = useState(initialIndex);
+	const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+	const [isDeleting, setIsDeleting] = useState(false);
 
 	const imageCount = items.length;
 	const canNavigate = imageCount > 1;
@@ -61,8 +89,32 @@ export const PhotoLightbox = ({
 	useEffect(() => {
 		if (open) {
 			setActiveIndex(initialIndex);
+			setIsConfirmingDelete(false);
 		}
 	}, [open, initialIndex]);
+
+	// Exactly one photo leaves per delete: step to the neighbour, or close on
+	// the last one. Decided here rather than watched from `items`, because the
+	// gallery unmounts an empty viewer before any effect could see zero.
+	const handleDelete = async () => {
+		if (!(activeItem && onDelete)) {
+			return;
+		}
+		setIsDeleting(true);
+		try {
+			await onDelete(activeItem.id);
+			if (imageCount === 1) {
+				onOpenChange(false);
+			} else {
+				setActiveIndex(Math.min(activeIndex, imageCount - 2));
+			}
+		} catch {
+			// The caller has already reported the failure; the photo stays.
+		} finally {
+			setIsDeleting(false);
+			setIsConfirmingDelete(false);
+		}
+	};
 
 	const activeCaption = useMemo(() => {
 		if (!activeItem) {
@@ -101,7 +153,10 @@ export const PhotoLightbox = ({
 						>
 							<button
 								aria-label="Close"
-								className="absolute top-[calc(env(safe-area-inset-top)_+_1rem)] right-4 z-10 grid size-9 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+								className={cn(
+									ACTION_CLASS,
+									"absolute top-[calc(env(safe-area-inset-top)_+_1rem)] right-4 z-10",
+								)}
 								onClick={() => onOpenChange(false)}
 								type="button"
 							>
@@ -126,15 +181,75 @@ export const PhotoLightbox = ({
 								{activeCaption?.secondary ?? "No metadata"}
 							</p>
 						</div>
-						<div className="flex items-center justify-between gap-2 text-xs text-white/70 sm:justify-end">
+						<div className="flex items-center justify-between gap-3 text-xs text-white/70 sm:justify-end">
 							{canNavigate ? (
 								<p className="md:hidden">Swipe to browse</p>
 							) : (
 								<span />
 							)}
-							<p className="font-mono tabular-nums">
-								{activeCaption?.indexLabel ?? "0 / 0"}
-							</p>
+							<div className="flex items-center gap-3">
+								<p className="font-mono tabular-nums">
+									{activeCaption?.indexLabel ?? "0 / 0"}
+								</p>
+								{activeItem ? (
+									<div className="flex items-center gap-1.5">
+										{/* Real buttons, not a hover reveal: the shop runs on iPads,
+										    where nothing hovers. */}
+										{isConfirmingDelete ? (
+											<>
+												<p className="text-white">Delete photo?</p>
+												<button
+													aria-label="Confirm delete"
+													className={cn(
+														ACTION_CLASS,
+														"bg-destructive hover:bg-destructive/80 disabled:opacity-50",
+													)}
+													disabled={isDeleting}
+													onClick={handleDelete}
+													type="button"
+												>
+													<CheckIcon aria-hidden="true" className="size-4" />
+												</button>
+												<button
+													aria-label="Cancel delete"
+													className={ACTION_CLASS}
+													disabled={isDeleting}
+													onClick={() => setIsConfirmingDelete(false)}
+													type="button"
+												>
+													<XIcon aria-hidden="true" className="size-4" />
+												</button>
+											</>
+										) : (
+											<>
+												<a
+													aria-label="Save image"
+													className={ACTION_CLASS}
+													download={getPhotoDownloadName(activeItem)}
+													href={activeItem.image_url}
+													title="Save image"
+												>
+													<DownloadSimpleIcon
+														aria-hidden="true"
+														className="size-4"
+													/>
+												</a>
+												{onDelete && activeItem.canDelete ? (
+													<button
+														aria-label="Delete photo"
+														className={ACTION_CLASS}
+														onClick={() => setIsConfirmingDelete(true)}
+														title="Delete photo"
+														type="button"
+													>
+														<TrashIcon aria-hidden="true" className="size-4" />
+													</button>
+												) : null}
+											</>
+										)}
+									</div>
+								) : null}
+							</div>
 						</div>
 					</div>
 				</div>

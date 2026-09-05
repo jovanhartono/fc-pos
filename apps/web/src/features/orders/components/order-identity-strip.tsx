@@ -62,7 +62,7 @@ export const OrderIdentityStrip = ({
 	const printReceiptMutation = usePrintReceiptMutation(orderId);
 
 	const fulfillment = detail.fulfillment;
-	const totalCount = fulfillment.service_total_count;
+	const totalCount = fulfillment.total_count;
 	// ADR-0017: what leaves the counter is an object, so the button counts
 	// collectable Items — not ready treatments. A shoe whose repaint is done but
 	// whose sole swap is still in QC contributes a ready treatment and no

@@ -3,30 +3,20 @@ import {
 	ORDER_SERVICE_TRANSITIONS,
 	ORDER_TERMINAL_SERVICE_STATUSES,
 } from "@fresclean/api/schema";
-import { ImageSquareIcon } from "@phosphor-icons/react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
 import { OrderReasonCallout } from "@/features/orders/components/order-reason-callout";
 import type { NonTerminalServiceStatus } from "@/features/orders/components/order-service-dialog.types";
 import { OrderServicePriceForm } from "@/features/orders/components/order-service-price-form";
-import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { ServiceStatusUpdateButton } from "@/features/orders/components/service-status-update-button";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
-import {
-	useRefreshOrder,
-	useUpdateServiceStatusMutation,
-} from "@/features/orders/hooks/useOrderMutations";
+import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrderMutations";
 import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import { findOrderLine } from "@/features/orders/lib/order-lines";
-import { itemPhotoUploader } from "@/features/orders/utils/photo-upload";
-import { deleteItemPhoto } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { orderDetailQueryOptions } from "@/lib/query-options";
-import { readServerErrorMessage } from "@/lib/server-error";
 import {
 	formatCancelReason,
 	formatOrderServiceStatus,
@@ -34,76 +24,20 @@ import {
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
-import { getCurrentUser } from "@/stores/auth-store";
-import { useDialog } from "@/stores/dialog-store";
 
 const TERMINAL_SERVICE_STATUSES = new Set<string>(
 	ORDER_TERMINAL_SERVICE_STATUSES,
 );
 
-interface DeletePhotoConfirmDialogProps {
-	orderId: number;
-	itemId: number;
-	photoId: number;
-}
-
-const DeletePhotoConfirmDialog = ({
-	orderId,
-	itemId,
-	photoId,
-}: DeletePhotoConfirmDialogProps) => {
-	const refreshOrder = useRefreshOrder(orderId);
-	const closeDialog = useDialog((s) => s.closeDialog);
-
-	const deletePhotoMutation = useMutation({
-		mutationFn: () => deleteItemPhoto(orderId, itemId, photoId),
-		onSuccess: async () => {
-			await refreshOrder();
-			toast.success("Photo deleted");
-			closeDialog();
-		},
-		onError: (error) => {
-			toast.error(readServerErrorMessage(error, "Failed to delete photo"));
-		},
-	});
-
-	return (
-		<div className="grid gap-4">
-			<p className="text-muted-foreground text-sm">
-				You can re-upload a replacement if needed.
-			</p>
-			<div className="flex justify-end gap-2">
-				<Button onClick={closeDialog} type="button" variant="outline">
-					Cancel
-				</Button>
-				<Button
-					loading={deletePhotoMutation.isPending}
-					onClick={() => deletePhotoMutation.mutate()}
-					type="button"
-					variant="destructive"
-				>
-					Delete photo
-				</Button>
-			</div>
-		</div>
-	);
-};
-
 interface OrderServiceDetailProps {
 	orderId: number;
 	serviceId: number;
-	isAdmin: boolean;
 }
 
 export const OrderServiceDetail = ({
 	orderId,
 	serviceId,
-	isAdmin,
 }: OrderServiceDetailProps) => {
-	const user = getCurrentUser();
-	const openDialog = useDialog((s) => s.openDialog);
-	const [isPhotoUploadOpen, setIsPhotoUploadOpen] = useState(false);
-	const refreshOrder = useRefreshOrder(orderId);
 	const updateStatusMutation = useUpdateServiceStatusMutation(orderId);
 
 	// Read the service live from the cached order so status changes made in this
@@ -211,63 +145,6 @@ export const OrderServiceDetail = ({
 					</ul>
 				</OrderReasonCallout>
 			) : null}
-
-			<div className="border-t pt-4">
-				<p className="text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wide">
-					Add item photo
-				</p>
-				<Button
-					className="w-full sm:w-auto"
-					icon={<ImageSquareIcon className="size-4" />}
-					onClick={() => setIsPhotoUploadOpen(true)}
-					type="button"
-					variant="secondary"
-				>
-					Add item photo
-				</Button>
-				<PhotoUploadDialog
-					badgeLabel={service.item.item_code}
-					onOpenChange={setIsPhotoUploadOpen}
-					onUploaded={refreshOrder}
-					open={isPhotoUploadOpen}
-					title="Add item photo"
-					uploader={itemPhotoUploader(orderId, service.item.id)}
-				/>
-			</div>
-
-			<div className="@container space-y-2">
-				<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-					Photos ({service.item.images.length})
-				</p>
-				{service.item.images.length > 0 ? (
-					<OrderPhotoGallery
-						gridClassName="grid-cols-1 @md:grid-cols-2 @2xl:grid-cols-3"
-						items={service.item.images.map((image) => ({
-							...image,
-							alt: image.note ?? `Photo for ${service.item.item_code}`,
-							canDelete: isAdmin || image.uploaded_by === user?.id,
-						}))}
-						onDelete={(photoId) => {
-							openDialog({
-								title: "Delete photo?",
-								description:
-									"This hides the photo from the order detail. The image file is retained for audit.",
-								content: () => (
-									<DeletePhotoConfirmDialog
-										itemId={service.item.id}
-										orderId={orderId}
-										photoId={photoId}
-									/>
-								),
-							});
-						}}
-						thumbnailClassName="bg-muted/30"
-						title={`Photos for ${service.item.item_code}`}
-					/>
-				) : (
-					<p className="text-muted-foreground text-sm">None yet</p>
-				)}
-			</div>
 
 			<StatusTimeline logs={service.statusLogs} />
 		</div>
