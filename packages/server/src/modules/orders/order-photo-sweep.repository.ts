@@ -1,4 +1,4 @@
-import { isNotNull, isNull } from "drizzle-orm";
+import { isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   itemImagesTable,
@@ -10,16 +10,13 @@ import {
  * Every photo an order still points at, across the three places one can be filed: against an
  * Item, as the drop-off shot, and as proof of pickup.
  *
- * A soft-deleted Item photo is not filed. Its row stays as the record of who removed it and
- * when, but the picture itself is litter from the next sweep on — staff deleted it, and nothing
- * ever restores a deleted row (decided 2026-09-05).
+ * Soft-deleted Item photos count as filed. The row is recoverable, so its photo has to be
+ * there when someone recovers it — and until then it is still evidence a dispute can be argued
+ * from. (Briefly reversed in #104, put back the same day: owner's call.)
  */
 export async function listReferencedPhotoKeys(): Promise<Set<string>> {
   const [itemPhotos, dropoffPhotos, pickupPhotos] = await Promise.all([
-    db
-      .select({ path: itemImagesTable.image_path })
-      .from(itemImagesTable)
-      .where(isNull(itemImagesTable.deleted_at)),
+    db.select({ path: itemImagesTable.image_path }).from(itemImagesTable),
     db
       .select({ path: ordersTable.dropoff_photo_path })
       .from(ordersTable)

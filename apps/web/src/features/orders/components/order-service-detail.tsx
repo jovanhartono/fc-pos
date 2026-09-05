@@ -251,7 +251,7 @@ export const OrderServiceDetail = ({
 							openDialog({
 								title: "Delete photo?",
 								description:
-									"This removes the photo from the order. The file itself is cleared overnight.",
+									"This hides the photo from the order detail. The image file is retained for audit.",
 								content: () => (
 									<DeletePhotoConfirmDialog
 										itemId={service.item.id}
