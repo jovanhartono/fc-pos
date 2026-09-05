@@ -5,6 +5,7 @@ import {
   GETNearestStoreQuerySchema,
   PATCHStoreSchema,
   POSTStoreSchema,
+  PUTStorePrinterSchema,
   PUTStoreSchema,
 } from "@/modules/stores/store.schema";
 import {
@@ -17,6 +18,7 @@ import {
 } from "@/modules/stores/store.service";
 import { idParamSchema } from "@/schema/param";
 import type { AdminEnv } from "@/types/hono";
+import { assertStoreAccess } from "@/utils/authorization";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
@@ -96,6 +98,28 @@ const app = new Hono<AdminEnv>()
 
       const statusText = data.is_active ? "Activated" : "Deactivated";
       return c.json(success(store, `${store.name} is ${statusText}`));
+    }
+  )
+  // The cashier pairs the printer at the counter, so a cashier may save this,
+  // but only for their own store. (The store edit routes above still have no
+  // admin-only check; known gap.)
+  .put(
+    "/:id/printer",
+    idParamSchema,
+    zodValidator("json", PUTStorePrinterSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const { printer_name } = c.req.valid("json");
+
+      await assertStoreAccess(c.get("jwtPayload"), id);
+
+      const store = await updateStore({ id, payload: { printer_name } });
+
+      if (!store) {
+        throw new NotFoundException("Store does not exist");
+      }
+
+      return c.json(success(store, `Printer remembered for ${store.name}`));
     }
   );
 

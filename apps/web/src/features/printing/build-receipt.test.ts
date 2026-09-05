@@ -15,9 +15,11 @@ const baseReceipt: OrderReceipt = {
 	discount_source: "campaign",
 	pickup_code: "482917",
 	store: {
+		id: 1,
 		name: "Fresclean Kemang",
 		address: "Jl. Kemang Raya No. 12, Jakarta",
 		phone_number: "081234567890",
+		printer_name: null,
 	},
 	customer: {
 		name: "Budi Santoso",

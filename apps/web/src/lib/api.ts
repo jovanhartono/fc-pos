@@ -10,6 +10,7 @@ import type {
 	POSTStoreSchema,
 	POSTUserSchema,
 	PUTCustomerSchema,
+	PUTStorePrinterSchema,
 	PUTUserSchema,
 } from "@fresclean/api/schema";
 import type {
@@ -240,6 +241,7 @@ export type CreateUserPayload = z.infer<typeof POSTUserSchema>;
 export type UpdateUserPayload = z.infer<typeof PUTUserSchema>;
 export type CreateStorePayload = z.infer<typeof POSTStoreSchema>;
 export type UpdateStorePayload = z.infer<typeof POSTStoreSchema>;
+export type SaveStorePrinterPayload = z.infer<typeof PUTStorePrinterSchema>;
 export type CreateCategoryPayload = z.infer<typeof POSTCategorySchema>;
 export type UpdateCategoryPayload = z.infer<typeof POSTCategorySchema>;
 // Money crosses the wire as the digit string the currency field produced; the
@@ -727,6 +729,18 @@ export async function createStore(payload: CreateStorePayload) {
 export async function updateStore(id: number, payload: UpdateStorePayload) {
 	return parseResponse(
 		rpcWithAuth().api.admin.stores[":id"].$put({
+			param: { id: String(id) },
+			json: payload,
+		}),
+	);
+}
+
+export async function saveStorePrinter(
+	id: number,
+	payload: SaveStorePrinterPayload,
+) {
+	return parseResponse(
+		rpcWithAuth().api.admin.stores[":id"].printer.$put({
 			param: { id: String(id) },
 			json: payload,
 		}),

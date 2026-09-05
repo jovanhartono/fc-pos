@@ -2,6 +2,8 @@ import { usePrinterStore } from "@/stores/printer-store";
 import {
 	PrinterNotPairedError,
 	type PrinterTransport,
+	type PrintOptions,
+	type PrintResult,
 } from "./printer-transport";
 
 // Vendor services seen on budget ESC/POS BLE boards (incl. CBT-80-class
@@ -80,7 +82,12 @@ async function connect(device: BluetoothDevice): Promise<ConnectedPrinter> {
 	device.addEventListener(
 		"gattserverdisconnected",
 		() => {
-			cached = null;
+			// An admin carries a laptop to another store and pairs that printer
+			// while the old one is still connected. When the old printer drops
+			// off later, it must not make us forget the new one.
+			if (cached?.device === device) {
+				cached = null;
+			}
 		},
 		{ once: true },
 	);
@@ -100,17 +107,27 @@ async function findGrantedDevice(
 	return devices.find((device) => device.id === deviceId) ?? null;
 }
 
-async function resolvePrinter(
-	allowPairing: boolean,
-): Promise<ConnectedPrinter> {
-	if (cached?.device.gatt?.connected) {
+// A store that already has a printer only accepts that one: the printer this
+// laptop last used may belong to the store next door. A store with no printer
+// yet accepts whichever one prints.
+const isStorePrinter = (device: BluetoothDevice, printerName: string | null) =>
+	printerName === null || device.name === printerName;
+
+async function resolvePrinter({
+	allowPairing,
+	printerName,
+}: PrintOptions): Promise<ConnectedPrinter> {
+	if (
+		cached?.device.gatt?.connected &&
+		isStorePrinter(cached.device, printerName)
+	) {
 		return cached;
 	}
 
 	const { deviceId } = usePrinterStore.getState();
 	if (deviceId) {
 		const known = cached?.device ?? (await findGrantedDevice(deviceId));
-		if (known) {
+		if (known && isStorePrinter(known, printerName)) {
 			if (!allowPairing) {
 				// Auto-print: a paired-but-unreachable printer is a real fault
 				// (off, out of range) — let it throw instead of degrading to
@@ -131,10 +148,16 @@ async function resolvePrinter(
 		throw new PrinterNotPairedError();
 	}
 
-	const device = await navigator.bluetooth.requestDevice({
-		acceptAllDevices: true,
-		optionalServices: PRINTER_SERVICES,
-	});
+	// If we are still connected to a printer here, it is another store's. These
+	// printers accept one connection at a time, so staying connected would stop
+	// that store's cashier from printing.
+	cached?.device.gatt?.disconnect();
+
+	const device = await navigator.bluetooth.requestDevice(
+		printerName
+			? { filters: [{ name: printerName }], optionalServices: PRINTER_SERVICES }
+			: { acceptAllDevices: true, optionalServices: PRINTER_SERVICES },
+	);
 	const printer = await connect(device);
 	// Persist only after a successful connect — the acceptAllDevices chooser
 	// lists every nearby BLE device, and a mis-pick must not become the
@@ -143,12 +166,15 @@ async function resolvePrinter(
 	return printer;
 }
 
-async function printNow(data: Uint8Array, allowPairing: boolean) {
+async function printNow(
+	data: Uint8Array,
+	options: PrintOptions,
+): Promise<PrintResult> {
 	if (!navigator.bluetooth) {
 		throw new Error("Bluetooth is not available in this browser");
 	}
 
-	const { characteristic } = await resolvePrinter(allowPairing);
+	const { device, characteristic } = await resolvePrinter(options);
 
 	for (let offset = 0; offset < data.length; offset += CHUNK_SIZE) {
 		const chunk = data.slice(offset, offset + CHUNK_SIZE);
@@ -159,20 +185,22 @@ async function printNow(data: Uint8Array, allowPairing: boolean) {
 			await characteristic.writeValue(chunk);
 		}
 	}
+
+	return { deviceName: device.name ?? null };
 }
 
 // Prints share one characteristic — interleaved chunk loops (auto-print
 // racing a manual reprint) would garble two byte streams on the paper, so
 // every print queues behind the previous one.
-let printQueue: Promise<void> = Promise.resolve();
+let printQueue: Promise<unknown> = Promise.resolve();
 
 export const webBluetoothTransport: PrinterTransport = {
-	print(data, { allowPairing }) {
+	print(data, options) {
 		const task = printQueue
 			.catch(() => {
 				// A failed print must not poison the queue for the next one.
 			})
-			.then(() => printNow(data, allowPairing));
+			.then(() => printNow(data, options));
 		printQueue = task.catch(() => {
 			// Same: the caller sees the rejection via `task`; the queue moves on.
 		});

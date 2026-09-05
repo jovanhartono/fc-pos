@@ -29,6 +29,7 @@ const defaultForm: StoreFormState = {
 	latitude: "",
 	longitude: "",
 	is_active: true,
+	printer_name: "",
 };
 
 type StoreFormProps = {
@@ -171,6 +172,28 @@ export function StoreForm({
 								value={String(field.value ?? "")}
 								disabled={isSubmitting}
 							/>
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
+				/>
+				<Controller
+					name="printer_name"
+					control={form.control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid} className="md:col-span-2">
+							<FieldLabel htmlFor="store-printer">Receipt printer</FieldLabel>
+							<Input
+								{...field}
+								value={field.value ?? ""}
+								id="store-printer"
+								placeholder="Set when the counter pairs a printer"
+								aria-invalid={fieldState.invalid}
+								disabled={isSubmitting}
+							/>
+							<FieldDescription>
+								Bluetooth name the pairing list is filtered to. Clear to pair a
+								different printer.
+							</FieldDescription>
 							<FieldError errors={[fieldState.error]} />
 						</Field>
 					)}

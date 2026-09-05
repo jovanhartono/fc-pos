@@ -63,6 +63,12 @@ export const storesTable = pgTable(
     longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),
     name: varchar("name", { length: 255 }).notNull(),
     phone_number: varchar("phone_number", { length: 16 }).unique().notNull(),
+    // The Bluetooth name the store's receipt printer shows when a cashier
+    // pairs it, saved the first time that happens. A browser's own printer id
+    // cannot be shared with other laptops or phones, so this name is what
+    // every POS at the store uses to find the right printer. Empty until the
+    // first pairing.
+    printer_name: varchar("printer_name", { length: 64 }),
   },
   (table) => [check("code_len_check", sql`LENGTH(TRIM(${table.code})) = 3`)]
 );

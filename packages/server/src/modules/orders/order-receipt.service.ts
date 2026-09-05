@@ -19,11 +19,15 @@ export async function getOrderReceiptById(id: number) {
       pickup_code: true,
     },
     with: {
+      // id and printer_name are not printed. The POS uses them to pick this
+      // store's own printer, so a receipt never comes out at another store.
       store: {
         columns: {
+          id: true,
           name: true,
           address: true,
           phone_number: true,
+          printer_name: true,
         },
       },
       customer: {

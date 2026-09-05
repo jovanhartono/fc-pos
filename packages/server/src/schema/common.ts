@@ -9,7 +9,7 @@ import { z } from "zod";
 const parseIndonesianCurrency = (formattedValue: string): number =>
   Number(formattedValue.replaceAll(/[^\d]/g, ""));
 
-export const varcharSchema = (field: string) =>
+export const varcharSchema = (field: string, maxLength = 255) =>
   z
     .string({
       error: (issue) =>
@@ -19,7 +19,7 @@ export const varcharSchema = (field: string) =>
     })
     .trim()
     .min(1, `${field} cannot be empty`)
-    .max(255, `${field} must be at most 255 characters`);
+    .max(maxLength, `${field} must be at most ${maxLength} characters`);
 
 export const optionalVarcharSchema = (field: string, maxLength = 255) =>
   z
@@ -34,11 +34,11 @@ export const optionalVarcharSchema = (field: string, maxLength = 255) =>
     .transform((value) => (value.length === 0 ? undefined : value))
     .optional();
 
-export const textSchema = (field: string) =>
+export const textSchema = (field: string, maxLength = 1000) =>
   z
     .string()
     .trim()
-    .max(1000, `${field} must be at most 1000 characters`)
+    .max(maxLength, `${field} must be at most ${maxLength} characters`)
     .transform((val) => (val.length === 0 ? null : val));
 
 export const isActiveSchema = z.boolean("Active status must be true or false");
