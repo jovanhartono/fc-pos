@@ -148,12 +148,10 @@ async function resolvePrinter({
 		throw new PrinterNotPairedError();
 	}
 
-	// Reaching the chooser means any live handle is another store's printer.
-	// Budget boards accept one central at a time, so release it rather than
-	// keep that store's printer busy from here.
+	// Any live handle here is another store's printer. Budget boards accept one
+	// central at a time, so release it rather than keep that printer busy.
 	cached?.device.gatt?.disconnect();
 
-	// Only the store's very first pair sees every nearby device.
 	const device = await navigator.bluetooth.requestDevice(
 		printerName
 			? { filters: [{ name: printerName }], optionalServices: PRINTER_SERVICES }

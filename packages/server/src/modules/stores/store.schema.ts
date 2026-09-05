@@ -7,9 +7,8 @@ import { z } from "zod";
 import { storesTable } from "@/db/schema";
 import { isActiveSchema, textSchema, varcharSchema } from "@/schema/common";
 
-// The pairing chooser filters on the exact advertised string, so a blank means
-// "no printer remembered" — never "", which would match no device and lock the
-// counter out of pairing. textSchema already turns blank into null.
+// Blank must become null, never "": the chooser filters on the exact string,
+// and "" matches no device, locking the counter out of pairing.
 const printerNameSchema = textSchema("Printer name", 64).nullish();
 
 export const POSTStoreSchema = z.object({
@@ -48,8 +47,6 @@ export const PUTStoreSchema = createUpdateSchema(storesTable, {
   printer_name: printerNameSchema,
 });
 
-// Written by the POS that just paired, so the name is whatever the printer
-// advertised — required here because "remember nothing" is not a pairing.
 export const PUTStorePrinterSchema = z.object({
   printer_name: varcharSchema("Printer name", 64),
 });

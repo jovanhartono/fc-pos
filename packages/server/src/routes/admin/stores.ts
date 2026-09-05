@@ -100,11 +100,8 @@ const app = new Hono<AdminEnv>()
       return c.json(success(store, `${store.name} is ${statusText}`));
     }
   )
-  // The POS that just paired the receipt printer remembers it for the store.
-  // Pairing happens at the counter, so this is the one store write meant for a
-  // cashier, scoped to a store they work at: a Kemang POS must not point
-  // Bintaro's receipts at its own printer. (The sibling PUT/PATCH above carry
-  // no role check yet — a known gap tracked separately, not widened here.)
+  // Pairing happens at the counter, so a cashier may write this — for their own
+  // store only. (The sibling PUT/PATCH still lack a role check; known gap.)
   .put(
     "/:id/printer",
     idParamSchema,

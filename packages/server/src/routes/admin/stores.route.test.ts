@@ -9,8 +9,6 @@ import { errorHandler } from "@/utils/error-handler";
 const KEMANG = 1;
 const BINTARO = 2;
 
-// The stores routes reach only assertStoreAccess, so that is all the double
-// needs to answer.
 mock.module("@/utils/authorization", () => ({
   assertStoreAccess: (user: JWTPayload, storeId: number) => {
     if (user.role !== "admin" && storeId !== KEMANG) {
@@ -69,7 +67,6 @@ describe("remembering the receipt printer a POS just paired", () => {
     const res = await rememberPrinter(KEMANG, "  CBT-80-0F2A ");
 
     expect(res.status).toBe(200);
-    // Trimmed: the chooser filters on the exact advertised string.
     expect(updateStoreCalls).toEqual([
       { id: KEMANG, payload: { printer_name: "CBT-80-0F2A" } },
     ]);

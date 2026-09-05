@@ -735,8 +735,6 @@ export async function updateStore(id: number, payload: UpdateStorePayload) {
 	);
 }
 
-// Called by the POS after its first successful pair at a store, not from a
-// form: the name is whatever the printer advertised.
 export async function saveStorePrinter(
 	id: number,
 	payload: SaveStorePrinterPayload,

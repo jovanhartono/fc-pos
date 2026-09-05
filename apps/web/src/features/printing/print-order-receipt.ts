@@ -21,16 +21,14 @@ export const printOrderReceipt = async (
 		{ ...options, printerName: receipt.store.printer_name },
 	);
 
-	// First pair at this store: the printer that just put a receipt on paper is
-	// the one every POS here should be offered from now on. The receipt is
-	// already printed, so the save neither delays the "sent" toast nor turns a
-	// failure into "print failed" — the next pairing sees the full chooser once
-	// more and tries again.
+	// First pair at this store: whatever just printed becomes the store's printer.
+	// The receipt is already on paper, so a failed save must not read as a
+	// failed print.
 	if (!receipt.store.printer_name && deviceName) {
 		void saveStorePrinter(receipt.store.id, {
 			printer_name: deviceName,
 		}).catch(() => {
-			// see above
+			// the next pairing retries
 		});
 	}
 };
