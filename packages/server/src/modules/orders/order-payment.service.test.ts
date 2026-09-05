@@ -477,12 +477,12 @@ describe("updateOrderPayment", () => {
     expect(dbState.setPayload?.paid_amount).toBe("0");
   });
 
-  it("blocks a worker before the order is even looked up", async () => {
-    // Only the counter roles handle money. A worker's attempt dies at the
-    // permission gate — the database is never touched, read or write.
-    const worker = { id: 7, role: "worker" } as unknown as JWTPayload;
+  it("blocks a courier before the order is even looked up", async () => {
+    // A courier only clocks in (ADR-0010); they never handle money. Their
+    // attempt dies at the permission gate — the database is never touched.
+    const courier = { id: 7, role: "courier" } as unknown as JWTPayload;
 
-    const error = await captureRejection(collect({}, worker));
+    const error = await captureRejection(collect({}, courier));
 
     expect(error).toBeInstanceOf(ForbiddenException);
     expect(dbState.findFirstCalls).toHaveLength(0);

@@ -3,14 +3,16 @@
 Three roles with disjoint capabilities. Locked for v1; do not blur the lines.
 
 > **Amended 2026-06-04:** the processing axis is now open to all staff — see [Amendment](#amendment-2026-06-04--processing-axis-open-to-all-staff). Money and admin operations remain role-gated exactly as below.
+>
+> **Amended 2026-09-05:** the POS is open to workers — Create Order and take payment at drop-off — see [Amendment](#amendment-2026-09-05--the-pos-is-open-to-workers). Pickup keeps its per-user flag; refund and admin operations are unchanged.
 
 ## Capabilities
 
 | Capability | Cashier | Worker | Admin |
 | --- | :---: | :---: | :---: |
-| Create paid Order | ✅ | — | ✅ |
-| Create unpaid Order | ✅ | — | ✅ |
-| Apply existing Campaign | ✅ | — | ✅ |
+| Create paid Order | ✅ | ✅ | ✅ |
+| Create unpaid Order | ✅ | ✅ | ✅ |
+| Apply existing Campaign | ✅ | ✅ | ✅ |
 | Process pickup (collect payment, validate pickup code) | ✅ if `can_process_pickup=true` | — | ✅ |
 | Self-assign OrderService from queue | ✅ | ✅ | ✅ |
 | Update OrderService status during processing | ✅ | ✅ | ✅ |
@@ -91,3 +93,23 @@ Unchanged (the rule's other half):
 Why audit survives without the role wall: every status transition records `changed_by` in `order_service_status_logs`; every handler change is appended to `order_service_handler_logs`. The poach guard (cannot self-assign an item whose `handler_id` belongs to someone else) is handler-based, not role-based, and stays.
 
 Lockstep with [ADR-0006](0006-permissions-module-shape.md): capabilities open to all staff have **no** `assertCan*` function — `permissions.ts` lists only restricted capabilities. `adminMiddleware` (JWT + DB auth-state refresh, see [ADR-0006](0006-permissions-module-shape.md)) is the sole gate on open rows. A matrix row of all-✅ therefore corresponds to *absence* of an assert, deliberately.
+
+## Amendment 2026-09-05 — the POS is open to workers
+
+Field reality again: a store often runs with one person on the floor, and that person is a worker. A customer at the counter with a pair to drop off could not be served — the worker had no Transactions menu, and `assertCanCreateOrder` / `assertCanProcessPayment` refused the role even if they reached the page. The cashier/worker wall on the POS protected nothing: the Order carries `created_by`, the payment carries who took it, and the audit trail is the same whichever role keyed it.
+
+**New rule: every shop role runs the POS.** Opened to workers:
+
+- Create Order (paid or unpaid) and apply Campaigns at drop-off
+- Take payment on an unpaid Order (`OrderPaymentCard`, `updateOrderPayment`)
+- Set courier attribution on an Order (mirrors create-order, as before)
+- The Transactions, Orders and Complaints menus — Orders and Complaints were already open server-side (store-scoped listing, ADR-0013 complaint/rework), only the sidebar hid them
+
+Unchanged:
+
+- **Pickup keeps `can_process_pickup`.** Taking money at drop-off and handing the Item back are different acts: pickup verifies the claim code against the physical object, and the business assigns that trust per person. A worker who rings up an Order may still need to call a flagged colleague to release one. [ADR-0009](0009-payment-precedes-pickup.md)'s "fetch a cashier" consequence is therefore narrower now — it applies to the pickup step only.
+- Refund, reassign handler, manage Campaigns/Users — admin only
+- Courier — login and attendance only ([ADR-0010](0010-courier-role-login-only-excluded-by-allowlist.md)); the two POS asserts share one allow-list of shop roles, so a role added later starts without POS access
+- A worker still lands on the Queue after login; the till is one tap away in the sidebar
+
+Lockstep with [ADR-0006](0006-permissions-module-shape.md) holds: the two asserts stay in `permissions.ts` because one role (courier) is still refused — they are not all-✅ rows.
