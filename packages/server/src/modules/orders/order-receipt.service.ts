@@ -19,8 +19,8 @@ export async function getOrderReceiptById(id: number) {
       pickup_code: true,
     },
     with: {
-      // id + printer_name are for the POS, not the paper: they aim the
-      // Bluetooth chooser at this store's own printer.
+      // id and printer_name are not printed. The POS uses them to pick this
+      // store's own printer, so a receipt never comes out at another store.
       store: {
         columns: {
           id: true,

@@ -4,8 +4,8 @@ import { ForbiddenException } from "@/http-exceptions";
 import type { JWTPayload } from "@/types";
 import { errorHandler } from "@/utils/error-handler";
 
-// Asep is rostered at Kemang. Bintaro is the store across town whose printer
-// he once picked by mistake from the unfiltered chooser.
+// Asep works at the Kemang store. Bintaro is the store across town whose
+// printer he once picked by mistake from the long Bluetooth list.
 const KEMANG = 1;
 const BINTARO = 2;
 

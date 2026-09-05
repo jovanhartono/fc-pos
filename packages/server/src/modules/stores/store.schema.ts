@@ -7,8 +7,8 @@ import { z } from "zod";
 import { storesTable } from "@/db/schema";
 import { isActiveSchema, textSchema, varcharSchema } from "@/schema/common";
 
-// Blank must become null, never "": the chooser filters on the exact string,
-// and "" matches no device, locking the counter out of pairing.
+// A blank must be saved as null, never as "". The printer list only shows
+// exact name matches, and "" matches nothing, so the cashier could never pair.
 const printerNameSchema = textSchema("Printer name", 64).nullish();
 
 export const POSTStoreSchema = z.object({

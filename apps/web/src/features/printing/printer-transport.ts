@@ -9,7 +9,8 @@ export interface PrintOptions {
 	// Pairing opens a browser device picker, which requires a user gesture —
 	// only the manual print path may allow it.
 	allowPairing: boolean;
-	// The store's remembered printer; the picker lists that one device alone.
+	// The store's remembered printer: the cashier sees that one device instead
+	// of guessing among every phone and speaker in the mall.
 	printerName: string | null;
 }
 

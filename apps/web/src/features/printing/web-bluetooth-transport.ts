@@ -82,9 +82,9 @@ async function connect(device: BluetoothDevice): Promise<ConnectedPrinter> {
 	device.addEventListener(
 		"gattserverdisconnected",
 		() => {
-			// An admin laptop carried to another store pairs that store's
-			// printer while this one is still connected; when this one later
-			// drops, it must not wipe the live handle.
+			// An admin carries a laptop to another store and pairs that printer
+			// while the old one is still connected. When the old printer drops
+			// off later, it must not make us forget the new one.
 			if (cached?.device === device) {
 				cached = null;
 			}
@@ -107,9 +107,9 @@ async function findGrantedDevice(
 	return devices.find((device) => device.id === deviceId) ?? null;
 }
 
-// A store with a printer on record only accepts that printer — the device this
-// browser last used may be the neighbouring store's. A store with none yet
-// takes whatever prints.
+// A store that already has a printer only accepts that one: the printer this
+// laptop last used may belong to the store next door. A store with no printer
+// yet accepts whichever one prints.
 const isStorePrinter = (device: BluetoothDevice, printerName: string | null) =>
 	printerName === null || device.name === printerName;
 
@@ -148,8 +148,9 @@ async function resolvePrinter({
 		throw new PrinterNotPairedError();
 	}
 
-	// Any live handle here is another store's printer. Budget boards accept one
-	// central at a time, so release it rather than keep that printer busy.
+	// If we are still connected to a printer here, it is another store's. These
+	// printers accept one connection at a time, so staying connected would stop
+	// that store's cashier from printing.
 	cached?.device.gatt?.disconnect();
 
 	const device = await navigator.bluetooth.requestDevice(

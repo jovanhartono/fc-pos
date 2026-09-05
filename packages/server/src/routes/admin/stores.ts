@@ -100,8 +100,9 @@ const app = new Hono<AdminEnv>()
       return c.json(success(store, `${store.name} is ${statusText}`));
     }
   )
-  // Pairing happens at the counter, so a cashier may write this — for their own
-  // store only. (The sibling PUT/PATCH still lack a role check; known gap.)
+  // The cashier pairs the printer at the counter, so a cashier may save this,
+  // but only for their own store. (The store edit routes above still have no
+  // admin-only check; known gap.)
   .put(
     "/:id/printer",
     idParamSchema,
