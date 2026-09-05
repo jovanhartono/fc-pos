@@ -70,14 +70,28 @@ export interface OrderFulfillmentSummary {
   picked_up_count: number;
   ready_for_pickup_count: number;
   remaining_count: number;
-  service_total_count: number;
   terminal_count: number;
+  total_count: number;
 }
 
+// Takes one status per thing being counted. The order detail hands it Item
+// statuses, because "2 of 4 picked up" is read at the counter as objects on
+// the shelf — a pair booked for a clean and a repaint is one thing to hand
+// back, not two. The list rollup still hands it treatment statuses; nothing
+// reads its counts today.
+//
+// The counts measure the handover, not the workshop: `total_count` is what
+// will ever go home (a cancelled one never does, so it is left out — otherwise
+// an order with one cancelled pair reads "2 of 3" forever after the customer
+// left with everything), `picked_up_count` is what already has, and
+// `remaining_count` is the gap, whether that is still being worked on or a
+// refunded pair waiting on the shelf.
 export function summarizeOrderFulfillment(
   statuses: OrderServiceStatus[]
 ): OrderFulfillmentSummary {
-  const service_total_count = statuses.length;
+  const total_count = statuses.filter(
+    (status) => status !== "cancelled"
+  ).length;
   const ready_for_pickup_count = statuses.filter(
     (status) => status === "ready_for_pickup"
   ).length;
@@ -87,18 +101,18 @@ export function summarizeOrderFulfillment(
   const terminal_count = statuses.filter((status) =>
     isTerminalOrderServiceStatus(status)
   ).length;
-  const active_count = service_total_count - terminal_count;
-  const remaining_count = Math.max(active_count - ready_for_pickup_count, 0);
+  const active_count = statuses.length - terminal_count;
+  const in_workshop_count = active_count - ready_for_pickup_count;
 
   return {
     active_count,
     is_partially_picked_up: picked_up_count > 0 && active_count > 0,
-    is_ready_for_pickup: active_count > 0 && remaining_count === 0,
+    is_ready_for_pickup: active_count > 0 && in_workshop_count === 0,
     picked_up_count,
     ready_for_pickup_count,
-    remaining_count,
-    service_total_count,
+    remaining_count: total_count - picked_up_count,
     terminal_count,
+    total_count,
   };
 }
 
