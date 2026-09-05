@@ -33,8 +33,7 @@ export interface PhotoSweepResult {
  * These exist because the counter uploads a photo the moment it is taken, before the operator
  * confirms the batch — that is what keeps a slow shop uplink off the confirm tap. A batch nobody
  * confirms, or a till tab closed mid-review, leaves the photo in the bucket with nothing filed
- * against it. The browser cannot clean that up, so this does. A photo staff deleted from an Item
- * ends up here too: its row is kept as a tombstone, its file is not.
+ * against it. The browser cannot clean that up, so this does.
  *
  * Safe to run twice, and safe to miss a run: it compares the bucket against the database each
  * time rather than working from a list of what it did last time.

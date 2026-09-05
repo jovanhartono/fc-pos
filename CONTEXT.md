@@ -180,7 +180,7 @@ _Avoid_: Service detail photo, service photo (the pre-2026-09-05 name, when phot
 **Pickup photo**:
 Captured per OrderPickupEvent, **blocking** at the picked-up transition. Deliberately blocking (reaffirmed 2026-07-06): it is the proof-of-handover twin of the intake photos — dispute evidence that the items left with the customer.
 
-Item photos are soft-deleted (`deleted_at`): the row stays as the record of who removed it and when, and the file is swept overnight — a deleted photo is not evidence the shop keeps (decided 2026-09-05; was "retained forever"). A replaced Drop-off photo's old file is swept the same way. Pickup photos cannot be deleted.
+Item photos are soft-deleted (`deleted_at`) and their files are **retained forever** — a deleted photo is hidden from every screen but stays on disk as evidence (reaffirmed 2026-09-05 after a same-day reversal). A replaced Drop-off photo's old file is swept as an orphan. Pickup photos cannot be deleted.
 
 ### Operator views (web-only)
 
