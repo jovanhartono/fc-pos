@@ -75,7 +75,7 @@ const workNavigation: NavItem[] = [
 		to: "/transactions",
 		label: "Transactions",
 		icon: ShoppingCartIcon,
-		roles: ["admin", "cashier"],
+		roles: ["admin", "cashier", "worker"],
 	},
 	{
 		to: "/queue",
@@ -87,14 +87,14 @@ const workNavigation: NavItem[] = [
 		to: "/orders",
 		label: "Orders",
 		icon: ReceiptIcon,
-		roles: ["admin", "cashier"],
+		roles: ["admin", "cashier", "worker"],
 		search: { page: 1 },
 	},
 	{
 		to: "/complaints",
 		label: "Complaints",
 		icon: WarningCircleIcon,
-		roles: ["admin", "cashier"],
+		roles: ["admin", "cashier", "worker"],
 		search: { page: 1 },
 	},
 	{

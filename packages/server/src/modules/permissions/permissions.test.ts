@@ -57,24 +57,26 @@ describe("assertCanManageCampaigns / Users / ReassignHandler", () => {
 });
 
 describe("assertCanCreateOrder", () => {
-  it("allows admin and cashier", () => {
+  it("allows every shop role — a worker rings up a drop-off when the counter is unstaffed", () => {
     expect(() => assertCanCreateOrder(admin)).not.toThrow();
     expect(() => assertCanCreateOrder(cashier)).not.toThrow();
+    expect(() => assertCanCreateOrder(worker)).not.toThrow();
   });
 
-  it("rejects worker", () => {
-    expect(() => assertCanCreateOrder(worker)).toThrow(ForbiddenException);
+  it("rejects courier — they only clock in (ADR-0010)", () => {
+    expect(() => assertCanCreateOrder(courier)).toThrow(ForbiddenException);
   });
 });
 
 describe("assertCanProcessPayment", () => {
-  it("allows admin and cashier", () => {
+  it("allows every shop role", () => {
     expect(() => assertCanProcessPayment(admin)).not.toThrow();
     expect(() => assertCanProcessPayment(cashier)).not.toThrow();
+    expect(() => assertCanProcessPayment(worker)).not.toThrow();
   });
 
-  it("rejects worker", () => {
-    expect(() => assertCanProcessPayment(worker)).toThrow(ForbiddenException);
+  it("rejects courier", () => {
+    expect(() => assertCanProcessPayment(courier)).toThrow(ForbiddenException);
   });
 });
 

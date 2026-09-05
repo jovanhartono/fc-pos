@@ -25,15 +25,25 @@ export function assertCanReassignHandler(user: JWTPayload) {
   assertIsAdmin(user);
 }
 
+// The POS is open to every shop role since the 2026-09-05 amendment of
+// ADR-0004: a worker rings up a drop-off when the counter is unstaffed. A
+// courier only ever clocks in (ADR-0010), so they stay outside. Kept as an
+// allow-list so a role added later starts without POS access.
+const POS_ROLES: ReadonlySet<JWTPayload["role"]> = new Set([
+  "admin",
+  "cashier",
+  "worker",
+]);
+
 export function assertCanCreateOrder(user: JWTPayload) {
-  if (user.role !== "admin" && user.role !== "cashier") {
-    throw new ForbiddenException("Only admin or cashier can create orders");
+  if (!POS_ROLES.has(user.role)) {
+    throw new ForbiddenException("Only shop staff can create orders");
   }
 }
 
 export function assertCanProcessPayment(user: JWTPayload) {
-  if (user.role !== "admin" && user.role !== "cashier") {
-    throw new ForbiddenException("Only admin or cashier can process payment");
+  if (!POS_ROLES.has(user.role)) {
+    throw new ForbiddenException("Only shop staff can process payment");
   }
 }
 

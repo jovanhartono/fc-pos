@@ -54,10 +54,15 @@ export const getOrderActionGates = (
 	detail: OrderDetail,
 ): OrderActionGates => {
 	const isAdmin = me?.role === "admin";
-	const isPaymentAllowed = isAdmin || me?.role === "cashier";
-	const isPickupAllowed = isPaymentAllowed || me?.can_process_pickup === true;
-	const canManageDropoffPhoto = isPaymentAllowed || me?.role === "worker";
-	// Courier attribution edit mirrors create-order permission (admin + cashier).
+	const isCounterRole = isAdmin || me?.role === "cashier";
+	// Every shop role takes payment at the POS since ADR-0004's 2026-09-05
+	// amendment; a courier only clocks in, and a signed-out viewer gets nothing.
+	const isPaymentAllowed = isCounterRole || me?.role === "worker";
+	// Handing the Item back stays a separate gate: a worker still needs the
+	// per-user flag, mirroring assertCanProcessPickup on the server.
+	const isPickupAllowed = isCounterRole || me?.can_process_pickup === true;
+	const canManageDropoffPhoto = isPaymentAllowed;
+	// Courier attribution edit mirrors the create-order permission.
 	const canManageCourier = isPaymentAllowed;
 
 	const services = flattenOrderLines(detail);

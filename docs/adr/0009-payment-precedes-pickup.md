@@ -16,6 +16,6 @@ Payment is binary and whole-Order ([ADR-0001](0001-payment-is-binary.md)); picku
 
 ## Consequences
 
-- A **pickup-only worker** (`can_process_pickup`, not cashier) cannot clear an unpaid Order: they can neither pay (`OrderPaymentCard` isn't rendered for them) nor pick up. This is the intended outcome — they must fetch a cashier. The UI states this rather than showing a silent dead button.
+- A **pickup-only worker** (`can_process_pickup`, not cashier) cannot clear an unpaid Order: they can neither pay (`OrderPaymentCard` isn't rendered for them) nor pick up. This is the intended outcome — they must fetch a cashier. The UI states this rather than showing a silent dead button. *Amended 2026-09-05 by [ADR-0004](0004-role-capabilities-v1.md#amendment-2026-09-05--the-pos-is-open-to-workers): workers now take payment, so this case is left to the courier-with-flag combination only; the pickup flag itself still stands.*
 - The rule reads `payment_status` inside the pickup path, which is why a future reader sees a money field gating a collection action — this ADR is that "why".
 - No schema change. The gate is pure service logic; existing unpaid Orders simply become un-pickable until paid.
