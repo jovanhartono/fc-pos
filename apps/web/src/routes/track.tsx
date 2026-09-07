@@ -169,6 +169,34 @@ const StatusBlock = ({
 	);
 };
 
+// Same footprint as the loaded card so a link opened straight from WhatsApp
+// does not flash the search form before the order appears.
+const StatusPlaceholder = () => (
+	<div className="grid gap-8" aria-busy="true">
+		<section className="grid gap-4 border-[#0f1a16]/20 border-l-[6px] py-1 pl-4">
+			<div className="grid gap-2">
+				<span className="h-6 w-28 animate-pulse bg-[#0f1a16]/10" />
+				<span className="h-4 w-56 animate-pulse bg-[#0f1a16]/10" />
+			</div>
+			<ol className="grid grid-cols-4 gap-1.5">
+				{STAGES.map((label) => (
+					<li key={label} className="grid gap-1.5">
+						<span className="h-1.5 bg-[#0f1a16]/10" />
+						<span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#2a2922]/50">
+							{label}
+						</span>
+					</li>
+				))}
+			</ol>
+		</section>
+		<section className="grid gap-2">
+			<span className="h-6 w-44 animate-pulse bg-[#0f1a16]/10" />
+			<span className="h-4 w-60 animate-pulse bg-[#0f1a16]/10" />
+			<span className="h-4 w-32 animate-pulse bg-[#0f1a16]/10" />
+		</section>
+	</div>
+);
+
 const LABEL_CLASS =
 	"font-mono text-[11px] uppercase tracking-[0.18em] text-[#2a2922]/70";
 const INPUT_CLASS =
@@ -181,15 +209,12 @@ const TrackOrderPage = () => {
 	const [code, setCode] = useState(search.code ?? "");
 	const [phone, setPhone] = useState(search.phone ?? "");
 	const [formError, setFormError] = useState<string | null>(null);
-	const [submitted, setSubmitted] = useState<{
-		code: string;
-		phone: string;
-	} | null>(() => {
-		if (search.code && search.phone) {
-			return { code: search.code, phone: normalizePhoneNumber(search.phone) };
-		}
-		return null;
-	});
+	// The URL is the source of truth for which order is open, so Back after
+	// "Track another" brings the order straight back.
+	const submitted =
+		search.code && search.phone
+			? { code: search.code, phone: normalizePhoneNumber(search.phone) }
+			: null;
 
 	const trackQuery = useQuery({
 		queryKey: ["publicTrackOrder", submitted?.code, submitted?.phone],
@@ -234,17 +259,14 @@ const TrackOrderPage = () => {
 			void trackQuery.refetch();
 			return;
 		}
-		setSubmitted({ code: trimmedCode, phone: trimmedPhone });
+		void navigate({ search: { code: trimmedCode, phone: trimmedPhone } });
 	};
 
 	const handleReset = () => {
 		queryClient.removeQueries({ queryKey: ["publicTrackOrder"] });
-		setSubmitted(null);
 		setCode("");
 		setPhone("");
-		// A shared link carries the code and phone in the URL; drop them so a
-		// reload does not bring the old order straight back.
-		void navigate({ search: {}, replace: true });
+		void navigate({ search: {} });
 	};
 
 	const trackData = trackQuery.data;
@@ -275,7 +297,9 @@ const TrackOrderPage = () => {
 			</header>
 
 			<main className="mx-auto w-full max-w-xl flex-1 px-5 py-8">
-				{trackData ? (
+				{submitted && trackQuery.isPending ? (
+					<StatusPlaceholder />
+				) : trackData ? (
 					<div className="grid gap-8">
 						<StatusBlock
 							stageIndex={getStageIndex(items)}
