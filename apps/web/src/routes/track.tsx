@@ -45,30 +45,32 @@ const STAGES = [
 // "completed" for a refunded pair still on our rack (ADR-0008 — the money is
 // settled), and reading it here painted all four stages done for a shoe the
 // customer still has to come and get.
-function getStageIndex(items: TrackItem[]): number {
-	// Nothing was handed over — a products-only order — so there is no object
-	// to follow. Such an order is completed the moment it is created (or
-	// cancelled, which the rail handles above this), so the rail should say
-	// done rather than sit on "Received".
-	if (items.length === 0) {
-		return STAGES.length;
-	}
-	const statuses = items.map((item) => item.status);
-	if (
-		statuses.every((status) => status === "picked_up" || status === "cancelled")
-	) {
-		return STAGES.length;
-	}
-	if (statuses.some(isCollectableItemStatus)) {
+function getItemStageIndex(item: TrackItem): number {
+	if (isCollectableItemStatus(item.status)) {
 		return 3;
 	}
-	if (statuses.includes("processing")) {
-		const serviceStatuses = items.flatMap((item) =>
-			item.services.map((service) => service.status),
-		);
-		return serviceStatuses.includes("quality_check") ? 2 : 1;
+	if (item.status === "processing") {
+		return item.services.some((service) => service.status === "quality_check")
+			? 2
+			: 1;
 	}
 	return 0;
+}
+
+// Still in the shop and still owed to the customer.
+function isPendingItem(item: TrackItem) {
+	return item.status !== "picked_up" && item.status !== "cancelled";
+}
+
+// Customers come once for everything, so the rail sits where the slowest
+// Item sits. Nothing pending — a products-only order, or every object already
+// collected — reads as done rather than sitting on "Received".
+function getStageIndex(items: TrackItem[]): number {
+	const pending = items.filter(isPendingItem);
+	if (pending.length === 0) {
+		return STAGES.length;
+	}
+	return Math.min(...pending.map(getItemStageIndex));
 }
 
 const BrandMark = () => (
@@ -201,10 +203,15 @@ const TrackOrderPage = () => {
 	const items = trackData?.items ?? [];
 	const stageIndex = getStageIndex(items);
 	const isCancelled = trackData?.status === "cancelled";
-	// Per item, not per order: one collectable object is enough to send the
-	// customer to the counter — and this is the same predicate the server gates
-	// pickup_code on, so the banner and the code can never disagree.
-	const isReady = items.some((item) => isCollectableItemStatus(item.status));
+	// Same predicate the server gates pickup_code on, so the code never shows
+	// without a collectable Item behind it.
+	const pendingItems = items.filter(isPendingItem);
+	const readyCount = pendingItems.filter((item) =>
+		isCollectableItemStatus(item.status),
+	).length;
+	const isAllReady =
+		pendingItems.length > 0 && readyCount === pendingItems.length;
+	const isPartlyReady = readyCount > 0 && !isAllReady;
 	const storePhoneE164 = trackData?.store.phone_number?.replace(/\D/g, "");
 
 	return (
@@ -255,7 +262,7 @@ const TrackOrderPage = () => {
 							</p>
 						)}
 
-						{isReady && (
+						{isAllReady ? (
 							<section className="grid gap-2 border-2 border-[#0f1a16] p-4">
 								<h2 className={LABEL_CLASS}>Pickup code</h2>
 								{trackData.pickup_code ? (
@@ -267,7 +274,23 @@ const TrackOrderPage = () => {
 									Show this at the counter
 								</p>
 							</section>
-						)}
+						) : null}
+
+						{isPartlyReady ? (
+							<p className="border border-[#0f1a16]/15 px-4 py-3 text-[13px] text-[#2a2922]/80">
+								{readyCount} of {pendingItems.length} Items can be collected
+								now.
+								{trackData.pickup_code ? (
+									<>
+										{" "}
+										Pickup code{" "}
+										<span className="font-mono font-semibold text-[#0f1a16]">
+											{trackData.pickup_code}
+										</span>
+									</>
+								) : null}
+							</p>
+						) : null}
 
 						<section className="grid gap-3">
 							<h2 className={LABEL_CLASS}>Items · {items.length}</h2>
