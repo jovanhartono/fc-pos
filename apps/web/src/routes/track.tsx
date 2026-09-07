@@ -4,7 +4,7 @@ import {
 } from "@fresclean/api/schema";
 import { WhatsappLogoIcon } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { DetailedError } from "hono/client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -88,11 +88,9 @@ const StatusBlock = ({
 
 	if (isCancelled) {
 		return (
-			<section className="grid gap-1 bg-red-700 p-5 text-white">
-				<h2 className="font-bold text-3xl uppercase tracking-tight">
-					Cancelled
-				</h2>
-				<p className="text-sm">Contact the branch.</p>
+			<section className="grid gap-1 border-red-700 border-l-[6px] py-1 pl-4">
+				<h2 className="font-semibold text-xl text-[#0f1a16]">Cancelled</h2>
+				<p className="text-sm text-[#2a2922]/80">Contact the branch.</p>
 			</section>
 		);
 	}
@@ -106,35 +104,37 @@ const StatusBlock = ({
 	return (
 		<section
 			className={cn(
-				"grid gap-4 p-5 text-white",
-				isAllReady ? "bg-emerald-700" : "bg-[#0f1a16]",
+				"grid gap-4 border-l-[6px] py-1 pl-4",
+				isAllReady ? "border-emerald-600" : "border-[#0f1a16]",
 			)}
 		>
 			<div className="grid gap-1">
-				<h2 className="font-bold text-3xl uppercase tracking-tight">
-					{headline}
-				</h2>
+				<h2 className="font-semibold text-xl text-[#0f1a16]">{headline}</h2>
 				{isAllDone ? (
-					<p className="text-sm">Everything has been collected.</p>
+					<p className="text-sm text-[#2a2922]/80">
+						Everything has been collected.
+					</p>
 				) : isAllReady ? (
-					<p className="text-sm">Show this code at the counter.</p>
+					<p className="text-sm text-[#2a2922]/80">
+						Show this code at the counter.
+					</p>
 				) : readyCount > 0 ? (
-					<p className="text-sm">
+					<p className="text-sm text-[#2a2922]/80">
 						{readyCount} of {pendingCount} Items done. Collect them now with
 						code{" "}
-						<span className="font-mono font-bold tabular-nums">
+						<span className="font-mono font-bold text-[#0f1a16] tabular-nums">
 							{pickupCode}
 						</span>
 						.
 					</p>
 				) : (
-					<p className="text-sm">
+					<p className="text-sm text-[#2a2922]/80">
 						{pendingCount} {pendingCount === 1 ? "Item" : "Items"} in progress.
 					</p>
 				)}
 			</div>
 			{isAllReady && pickupCode ? (
-				<p className="font-mono text-5xl font-bold tracking-[0.25em] tabular-nums">
+				<p className="font-mono text-3xl font-bold tracking-[0.25em] text-[#0f1a16] tabular-nums">
 					{pickupCode}
 				</p>
 			) : null}
@@ -144,12 +144,19 @@ const StatusBlock = ({
 					return (
 						<li key={label} className="grid gap-1.5">
 							<span
-								className={cn("h-1.5", isActive ? "bg-white" : "bg-white/25")}
+								className={cn(
+									"h-1.5",
+									isActive
+										? isAllReady
+											? "bg-emerald-600"
+											: "bg-[#0f1a16]"
+										: "bg-[#0f1a16]/15",
+								)}
 							/>
 							<span
 								className={cn(
 									"font-mono text-[10px] uppercase tracking-[0.18em]",
-									isActive ? "text-white" : "text-white/50",
+									isActive ? "text-[#0f1a16]" : "text-[#2a2922]/50",
 								)}
 							>
 								{label}
@@ -169,6 +176,7 @@ const INPUT_CLASS =
 
 const TrackOrderPage = () => {
 	const search = Route.useSearch();
+	const navigate = useNavigate({ from: Route.fullPath });
 	const queryClient = useQueryClient();
 	const [code, setCode] = useState(search.code ?? "");
 	const [phone, setPhone] = useState(search.phone ?? "");
@@ -234,10 +242,19 @@ const TrackOrderPage = () => {
 		setSubmitted(null);
 		setCode("");
 		setPhone("");
+		// A shared link carries the code and phone in the URL; drop them so a
+		// reload does not bring the old order straight back.
+		void navigate({ search: {}, replace: true });
 	};
 
 	const trackData = trackQuery.data;
 	const isLoading = trackQuery.isFetching;
+
+	useEffect(() => {
+		document.title = trackData
+			? `${trackData.code} · Order Tracking | Fresclean`
+			: "Order Tracking | Fresclean";
+	}, [trackData]);
 	const items = trackData?.items ?? [];
 	const pendingItems = items.filter(isPendingItem);
 	// Same predicate the server gates pickup_code on, so the code never shows
