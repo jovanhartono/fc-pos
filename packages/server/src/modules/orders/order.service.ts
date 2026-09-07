@@ -571,6 +571,39 @@ export async function getOrderDetailById(id: number) {
     ...detailWithoutInternals
   } = detail;
 
+  const items = detail.items.map((item) => {
+    const images = item.images.map(({ image_path, ...image }) => ({
+      ...image,
+      image_url: buildMediaUrl(image_path),
+    }));
+    const services = item.services.map((service) => ({
+      ...service,
+      // Stated by the server like is_collectable below: the same rule the
+      // queued → processing gate runs (ADR-0019), so the UI can explain the
+      // gate early without owning a copy of it.
+      has_start_photo: hasStartPhoto(
+        item.images,
+        service.reworkOf?.created_at ?? null
+      ),
+    }));
+
+    // Derived on read, never stored — an Item has no status column to drift
+    // out of step with its treatments (ADR-0017). `is_collectable` is sent
+    // rather than left to the client because the rule is the server's to
+    // state: an object goes home when every live treatment on it is ready,
+    // and also when there is no live treatment left because the counter
+    // refunded it before anyone came back for the pair.
+    const status = deriveItemStatus(services);
+
+    return {
+      ...item,
+      images,
+      status,
+      is_collectable: isCollectableItemStatus(status),
+      services,
+    };
+  });
+
   return {
     ...detailWithoutInternals,
     dropoff_photo_url: buildMediaUrl(dropoffPhotoPath),
@@ -585,45 +618,9 @@ export async function getOrderDetailById(id: number) {
       picked_up_at: event.picked_up_at,
       picked_up_by: event.pickedUpBy,
     })),
-    items: detail.items.map((item) => {
-      const images = item.images.map(({ image_path, ...image }) => ({
-        ...image,
-        image_url: buildMediaUrl(image_path),
-      }));
-      const services = item.services.map((service) => ({
-        ...service,
-        // Stated by the server like is_collectable below: the same rule the
-        // queued → processing gate runs (ADR-0019), so the UI can explain the
-        // gate early without owning a copy of it.
-        has_start_photo: hasStartPhoto(
-          item.images,
-          service.reworkOf?.created_at ?? null
-        ),
-      }));
-
-      // Derived on read, never stored — an Item has no status column to drift
-      // out of step with its treatments (ADR-0017). `is_collectable` is sent
-      // rather than left to the client because the rule is the server's to
-      // state: an object goes home when every live treatment on it is ready,
-      // and also when there is no live treatment left because the counter
-      // refunded it before anyone came back for the pair.
-      const status = deriveItemStatus(services);
-
-      return {
-        ...item,
-        images,
-        status,
-        is_collectable: isCollectableItemStatus(status),
-        services,
-      };
-    }),
-    // Still rolled up over treatment rows rather than over Item statuses: the
-    // two are equivalent and this keeps the Order rollup exactly where it was
-    // (ADR-0017).
-    fulfillment: summarizeOrderFulfillment(
-      detail.items.flatMap((item) =>
-        item.services.map((service) => service.status)
-      )
-    ),
+    items,
+    // Item statuses, not treatment rows: the strip's "n of M picked up" counts
+    // objects handed back (ADR-0017).
+    fulfillment: summarizeOrderFulfillment(items.map((item) => item.status)),
   };
 }

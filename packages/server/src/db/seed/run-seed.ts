@@ -878,7 +878,7 @@ async function resetDatabase() {
       "order_refunds",
       "order_service_handler_logs",
       "order_service_status_logs",
-      "order_services_images",
+      "item_images",
       "order_pickup_events",
       "orders_products",
       "orders_services",
@@ -1607,8 +1607,13 @@ async function seedOrders(params: {
       }
     );
 
+    // A cancelled line took the unpaid off-ramp (ADR-0008): the app refuses to
+    // cancel on a paid Order, so its price can never sit inside `total` or
+    // `paid_amount`. Counting it here seeded orders the counter cannot reach,
+    // and the first rollup on them (a Rework, a price fix) tripped the
+    // paid <= total check.
     const serviceGross = draftServices.reduce(
-      (sum, line) => sum + line.price,
+      (sum, line) => (line.status === "cancelled" ? sum : sum + line.price),
       0
     );
     const productGross = draftProducts.reduce(
