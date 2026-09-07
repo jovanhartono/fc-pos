@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { PhotoStage } from "@/features/orders/components/photo-stage";
 import { savePhoto } from "@/features/orders/utils/photo-download";
+import type { PhotoDownloadRef } from "@/lib/api";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,8 @@ export interface PhotoLightboxItem {
 	alt: string;
 	canDelete?: boolean;
 	created_at: string;
+	// Where the photo is filed, for Save. Absent on a preview nothing is filed for yet.
+	download?: PhotoDownloadRef;
 	id: number | string;
 	image_url: string;
 	note?: string | null;
@@ -114,7 +117,7 @@ export const PhotoLightbox = ({
 		}
 		setIsSaving(true);
 		try {
-			await savePhoto(activeItem.image_url);
+			await savePhoto(activeItem.download, activeItem.image_url);
 		} catch (error) {
 			toast.error(readServerErrorMessage(error, "Failed to save photo"));
 		} finally {

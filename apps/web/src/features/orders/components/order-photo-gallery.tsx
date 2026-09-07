@@ -5,12 +5,14 @@ import {
 	PhotoLightbox,
 	type PhotoLightboxItem,
 } from "@/features/orders/components/photo-lightbox";
+import type { PhotoDownloadRef } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export type OrderPhotoGalleryItem = {
 	alt: string;
 	caption?: React.ReactNode;
 	created_at: string;
+	download?: PhotoDownloadRef;
 	id: number;
 	image_url: string;
 	note?: string | null;
@@ -50,6 +52,7 @@ export function OrderPhotoGallery({
 	const lightboxItems: PhotoLightboxItem[] = items.map((item) => ({
 		alt: item.alt,
 		created_at: item.created_at,
+		download: item.download,
 		id: item.id,
 		image_url: item.image_url,
 		note: item.note,

@@ -15,7 +15,7 @@ import type {
   PostPhotoDownloadUrlInput,
   PutOrderDropoffPhotoInput,
 } from "@/modules/orders/order-admin.schema";
-import { findPhotoByPath } from "@/modules/orders/order-photo-download.repository";
+import { findPhotoById } from "@/modules/orders/order-photo-download.repository";
 import type { JWTPayload } from "@/types";
 import { assertStoreAccess } from "@/utils/authorization";
 import {
@@ -24,7 +24,6 @@ import {
   createPresignedUploadUrl,
   isStoredObjectReadable,
   optimizeUploadedImage,
-  resolveMediaKey,
   STORAGE_ENV_PREFIX,
 } from "@/utils/s3";
 
@@ -214,8 +213,7 @@ function extensionOf(key: string) {
 }
 
 // A link that saves the photo as a file, for the operator putting a dispute pack together.
-// Same rule as opening the order: the person has to work at that branch. Our credentials sign
-// nothing an order does not point at.
+// Same rule as opening the order: the person has to work at that branch.
 export async function createPhotoDownloadUrl({
   body,
   user,
@@ -223,20 +221,14 @@ export async function createPhotoDownloadUrl({
   body: PostPhotoDownloadUrlInput;
   user: JWTPayload;
 }) {
-  const key = resolveMediaKey(body.image_url);
-  if (!key) {
-    throw new BadRequestException("Not a stored photo");
-  }
-
-  const [photo, readable] = await Promise.all([
-    findPhotoByPath(key),
-    isStoredObjectReadable(key),
-  ]);
+  const photo = await findPhotoById(body);
   if (!photo) {
-    throw new BadRequestException("Photo not found");
+    throw new NotFoundException("Photo not found");
   }
   await assertStoreAccess(user, photo.store_id);
-  if (!readable) {
+
+  const key = photo.image_path;
+  if (!(await isStoredObjectReadable(key))) {
     throw new NotFoundException("The photo file is no longer in storage");
   }
 

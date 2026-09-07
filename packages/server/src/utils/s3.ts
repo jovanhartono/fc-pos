@@ -77,31 +77,6 @@ export function buildMediaUrl(path: string | null | undefined): string | null {
   return new URL(normalizedPath, normalizedBase).toString();
 }
 
-// The inverse of buildMediaUrl: the stored key behind a link the dashboard was handed, or null
-// when the link points anywhere but our CDN. The database, not this function, decides whether
-// that key is a photo we hold — this only stops a foreign URL from ever reaching that lookup.
-export function resolveMediaKey(url: string): string | null {
-  const base = process.env.CDN_BASE_URL;
-  if (!base) {
-    throw new Error("Missing CDN_BASE_URL configuration");
-  }
-
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return null;
-  }
-
-  const cdn = new URL(base);
-  if (parsed.origin !== cdn.origin) {
-    return null;
-  }
-
-  const key = decodeURIComponent(parsed.pathname).replace(LEADING_SLASHES, "");
-  return key.length > 0 ? key : null;
-}
-
 interface CreatePresignedUploadInput {
   contentType: string;
   key: string;

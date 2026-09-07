@@ -1,21 +1,20 @@
-import { createPhotoDownloadUrl } from "@/lib/api";
+import { createPhotoDownloadUrl, type PhotoDownloadRef } from "@/lib/api";
 import { triggerDownload } from "@/lib/download";
-
-// The drop-off preview at checkout is still a local blob: nothing is filed for it yet, and
-// the browser saves its own blob directly.
-const isLocalPreview = (url: string) =>
-	url.startsWith("blob:") || url.startsWith("data:");
 
 /**
  * Saves the photo as a file. A stored photo goes via a signed link that carries its filename,
- * so the order stays on screen while the browser saves it.
+ * so the order stays on screen while the browser saves it. A preview nothing is filed for yet
+ * (the drop-off shot at checkout) is the browser's own blob, and it saves that directly.
  */
-export async function savePhoto(imageUrl: string) {
-	if (isLocalPreview(imageUrl)) {
+export async function savePhoto(
+	download: PhotoDownloadRef | undefined,
+	imageUrl: string,
+) {
+	if (!download) {
 		triggerDownload(imageUrl, "photo.webp");
 		return;
 	}
 
-	const { url } = await createPhotoDownloadUrl(imageUrl);
+	const { url } = await createPhotoDownloadUrl(download);
 	triggerDownload(url);
 }

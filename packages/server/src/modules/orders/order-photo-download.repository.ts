@@ -1,66 +1,70 @@
-import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import {
-  itemImagesTable,
-  itemsTable,
-  orderPickupEventsTable,
-  ordersTable,
-} from "@/db/schema";
+import type { PostPhotoDownloadUrlInput } from "@/modules/orders/order-admin.schema";
 
-// What a saved photo is named after, and which branch it belongs to. Reads the same three
-// places listReferencedPhotoKeys does: an Item shot is named by the tag on the object, the
-// handover and pickup shots by the Order.
+// What a saved photo is named after, where its file is, and which branch it belongs to. An
+// Item shot is named by the tag on the object, the handover and pickup shots by the Order.
 export interface StoredPhoto {
   code: string;
+  image_path: string;
   store_id: number;
   suffix: string;
 }
 
-export async function findPhotoByPath(
-  path: string
-): Promise<StoredPhoto | null> {
-  const [itemPhoto, dropoffOrder, pickupEvent] = await Promise.all([
-    db
-      .select({
-        code: itemsTable.item_code,
-        photo_id: itemImagesTable.id,
-        store_id: ordersTable.store_id,
-      })
-      .from(itemImagesTable)
-      .innerJoin(itemsTable, eq(itemsTable.id, itemImagesTable.item_id))
-      .innerJoin(ordersTable, eq(ordersTable.id, itemsTable.order_id))
-      .where(eq(itemImagesTable.image_path, path))
-      .limit(1),
-    db
-      .select({ code: ordersTable.code, store_id: ordersTable.store_id })
-      .from(ordersTable)
-      .where(eq(ordersTable.dropoff_photo_path, path))
-      .limit(1),
-    db
-      .select({
-        code: ordersTable.code,
-        event_id: orderPickupEventsTable.id,
-        store_id: ordersTable.store_id,
-      })
-      .from(orderPickupEventsTable)
-      .innerJoin(
-        ordersTable,
-        eq(ordersTable.id, orderPickupEventsTable.order_id)
-      )
-      .where(eq(orderPickupEventsTable.image_path, path))
-      .limit(1),
-  ]);
-
-  if (itemPhoto[0]) {
-    const { code, photo_id, store_id } = itemPhoto[0];
-    return { code, store_id, suffix: `photo-${photo_id}` };
+export async function findPhotoById({
+  kind,
+  id,
+}: PostPhotoDownloadUrlInput): Promise<StoredPhoto | null> {
+  switch (kind) {
+    case "item": {
+      const photo = await db.query.itemImagesTable.findFirst({
+        where: { id, deleted_at: { isNull: true } },
+        columns: { id: true, image_path: true },
+        with: {
+          item: {
+            columns: { item_code: true },
+            with: { order: { columns: { store_id: true } } },
+          },
+        },
+      });
+      return photo
+        ? {
+            code: photo.item.item_code,
+            image_path: photo.image_path,
+            store_id: photo.item.order.store_id,
+            suffix: `photo-${photo.id}`,
+          }
+        : null;
+    }
+    case "dropoff": {
+      const order = await db.query.ordersTable.findFirst({
+        where: { id, dropoff_photo_path: { isNotNull: true } },
+        columns: { code: true, dropoff_photo_path: true, store_id: true },
+      });
+      return order?.dropoff_photo_path
+        ? {
+            code: order.code,
+            image_path: order.dropoff_photo_path,
+            store_id: order.store_id,
+            suffix: "dropoff",
+          }
+        : null;
+    }
+    case "pickup": {
+      const event = await db.query.orderPickupEventsTable.findFirst({
+        where: { id },
+        columns: { id: true, image_path: true },
+        with: { order: { columns: { code: true, store_id: true } } },
+      });
+      return event
+        ? {
+            code: event.order.code,
+            image_path: event.image_path,
+            store_id: event.order.store_id,
+            suffix: `pickup-${event.id}`,
+          }
+        : null;
+    }
+    default:
+      return kind satisfies never;
   }
-  if (dropoffOrder[0]) {
-    return { ...dropoffOrder[0], suffix: "dropoff" };
-  }
-  if (pickupEvent[0]) {
-    const { code, event_id, store_id } = pickupEvent[0];
-    return { code, store_id, suffix: `pickup-${event_id}` };
-  }
-  return null;
 }

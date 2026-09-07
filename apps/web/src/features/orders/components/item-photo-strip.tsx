@@ -66,6 +66,7 @@ export const ItemPhotoStrip = ({
 		...image,
 		alt: image.note ?? `Photo for ${item.item_code}`,
 		canDelete: isAdmin || image.uploaded_by === user?.id,
+		download: { kind: "item" as const, id: image.id },
 	}));
 	const visible = images.slice(0, visibleTiles);
 	const hiddenCount = images.length - visible.length;

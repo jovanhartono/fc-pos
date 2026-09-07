@@ -995,11 +995,14 @@ export async function deleteItemPhoto(
 	);
 }
 
-export async function createPhotoDownloadUrl(imageUrl: string) {
+export type PhotoDownloadRef = {
+	kind: "item" | "dropoff" | "pickup";
+	id: number;
+};
+
+export async function createPhotoDownloadUrl(photo: PhotoDownloadRef) {
 	return parseSuccessData<{ url: string }>(
-		rpcWithAuth().api.admin.photos["download-url"].$post({
-			json: { image_url: imageUrl },
-		}),
+		rpcWithAuth().api.admin.photos["download-url"].$post({ json: photo }),
 	);
 }
 

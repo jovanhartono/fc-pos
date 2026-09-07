@@ -1,11 +1,11 @@
 import { describe, expect, it, mock } from "bun:test";
 
-const asked: string[] = [];
+const asked: unknown[] = [];
 
 // Stand in for the API: the signed link the server would hand back for a stored photo.
 mock.module("@/lib/api", () => ({
-	createPhotoDownloadUrl: (imageUrl: string) => {
-		asked.push(imageUrl);
+	createPhotoDownloadUrl: (photo: unknown) => {
+		asked.push(photo);
 		return Promise.resolve({ url: "https://s3.example/signed" });
 	},
 }));
@@ -45,12 +45,13 @@ describe("savePhoto", () => {
 	it("saves a stored photo through the signed link, which names the file itself", async () => {
 		asked.length = 0;
 		const clicks = await withFakeDocument(() =>
-			savePhoto("https://cdn.fresclean.id/prod/orders/1/items/2/abc"),
+			savePhoto(
+				{ kind: "item", id: 31 },
+				"https://cdn.fresclean.id/prod/orders/1/items/2/abc",
+			),
 		);
 
-		expect(asked).toEqual([
-			"https://cdn.fresclean.id/prod/orders/1/items/2/abc",
-		]);
+		expect(asked).toEqual([{ kind: "item", id: 31 }]);
 		expect(clicks).toEqual([
 			{ href: "https://s3.example/signed", download: "" },
 		]);
@@ -59,7 +60,7 @@ describe("savePhoto", () => {
 	it("saves the drop-off preview at checkout straight from the browser, with no photo on file to ask about", async () => {
 		asked.length = 0;
 		const clicks = await withFakeDocument(() =>
-			savePhoto("blob:http://localhost/preview"),
+			savePhoto(undefined, "blob:http://localhost/preview"),
 		);
 
 		expect(asked).toEqual([]);
