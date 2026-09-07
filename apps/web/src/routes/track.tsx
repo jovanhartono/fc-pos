@@ -15,7 +15,10 @@ import { Input } from "@/components/ui/input";
 import { trackPublicOrder } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { normalizePhoneNumber } from "@/lib/phone-number";
-import { formatOrderServiceStatus } from "@/lib/status";
+import {
+	formatOrderServiceStatus,
+	getOrderServiceStatusBadgeVariant,
+} from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 const trackSearchSchema = z.object({
@@ -64,9 +67,22 @@ function getStageIndex(items: TrackItem[]): number {
 	return Math.min(...pending.map(getItemStageIndex));
 }
 
-function isServiceDone(status: string) {
-	return status === "ready_for_pickup" || status === "picked_up";
-}
+// Same map as the POS badges, drawn as a square and a word instead of a chip.
+// Filled means the treatment is over, for better or worse.
+const SERVICE_STATUS_STYLES: Record<string, { square: string; text: string }> =
+	{
+		success: {
+			square: "border-emerald-600 bg-emerald-600",
+			text: "text-emerald-700",
+		},
+		danger: { square: "border-rose-600 bg-rose-600", text: "text-rose-700" },
+		warning: { square: "border-amber-500", text: "text-amber-700" },
+		info: { square: "border-sky-600", text: "text-sky-700" },
+	};
+const DEFAULT_SERVICE_STATUS_STYLE = {
+	square: "border-[#0f1a16]/40",
+	text: "text-[#2a2922]/80",
+};
 
 interface StatusBlockProps {
 	stageIndex: number;
@@ -338,7 +354,10 @@ const TrackOrderPage = () => {
 										</p>
 										<ul className="grid gap-1.5 text-sm">
 											{item.services.map((service) => {
-												const isDone = isServiceDone(service.status);
+												const style =
+													SERVICE_STATUS_STYLES[
+														getOrderServiceStatusBadgeVariant(service.status)
+													] ?? DEFAULT_SERVICE_STATUS_STYLE;
 												return (
 													<li
 														key={service.id}
@@ -347,23 +366,14 @@ const TrackOrderPage = () => {
 														<span
 															className={cn(
 																"size-3 shrink-0 border-2",
-																isDone
-																	? "border-emerald-600 bg-emerald-600"
-																	: "border-[#0f1a16]/40",
+																style.square,
 															)}
 														/>
 														<span className="min-w-0 text-[#0f1a16]">
 															{service.service?.name ?? "Service"}
 														</span>
 														<span
-															className={cn(
-																"ml-auto shrink-0",
-																isDone
-																	? "text-emerald-700"
-																	: service.status === "qc_reject"
-																		? "text-amber-700"
-																		: "text-[#2a2922]/80",
-															)}
+															className={cn("ml-auto shrink-0", style.text)}
 														>
 															{formatOrderServiceStatus(service.status)}
 														</span>
