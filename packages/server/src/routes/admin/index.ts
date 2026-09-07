@@ -5,6 +5,7 @@ import complaintsRoutes from "@/routes/admin/complaints";
 import customerRoutes from "@/routes/admin/customer";
 import ordersRoutes from "@/routes/admin/orders";
 import paymentMethodsRoutes from "@/routes/admin/payment-methods";
+import photosRoutes from "@/routes/admin/photos";
 import productsRoutes from "@/routes/admin/products";
 import reportsRoutes from "@/routes/admin/reports";
 import servicesRoutes from "@/routes/admin/services";
@@ -23,6 +24,7 @@ const app = new Hono()
   .route("/complaints", complaintsRoutes)
   .route("/payment-methods", paymentMethodsRoutes)
   .route("/orders", ordersRoutes)
+  .route("/photos", photosRoutes)
   .route("/shifts", shiftsRoutes)
   .route("/reports", reportsRoutes);
 

@@ -353,6 +353,7 @@ export function QueueServiceDetail({
 								...image,
 								alt:
 									image.note ?? `Photo for ${selectedService.item.item_code}`,
+								download: { kind: "item" as const, id: image.id },
 							}))}
 							gridClassName="grid-cols-2 xl:grid-cols-3"
 							thumbnailClassName="bg-background"

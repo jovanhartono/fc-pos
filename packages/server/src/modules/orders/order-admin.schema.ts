@@ -59,6 +59,13 @@ export const POSTOrderPickupEventPresignSchema = z.object({
   content_type: photoContentTypeSchema,
 });
 
+// Which of the three places a photo is filed, and its row there: the viewer that opened the
+// photo already knows both, so the server never has to guess from a link.
+export const POSTPhotoDownloadUrlSchema = z.object({
+  kind: z.enum(["item", "dropoff", "pickup"]),
+  id: z.number().int().positive(),
+});
+
 export const POSTItemPhotoSchema = z.object({
   image_path: z.string().trim().min(1).max(512),
   note: z.string().trim().max(1000).optional(),
@@ -252,6 +259,9 @@ export type PatchOrderServiceStatusInput = z.infer<
   typeof PATCHOrderServiceStatusSchema
 >;
 export type PostItemPhotoInput = z.infer<typeof POSTItemPhotoSchema>;
+export type PostPhotoDownloadUrlInput = z.infer<
+  typeof POSTPhotoDownloadUrlSchema
+>;
 export type PostItemPhotoPresignInput = z.infer<
   typeof POSTItemPhotoPresignSchema
 >;

@@ -57,6 +57,8 @@ async function isAlreadyOptimized(
   }
 }
 
+const LEADING_SLASHES = /^\/+/;
+
 export function buildMediaUrl(path: string): string;
 export function buildMediaUrl(path: null | undefined): null;
 export function buildMediaUrl(path: string | null | undefined): string | null;
@@ -71,8 +73,7 @@ export function buildMediaUrl(path: string | null | undefined): string | null {
   }
 
   const normalizedBase = base.endsWith("/") ? base : `${base}/`;
-  // biome-ignore lint/performance/useTopLevelRegex: <i dont care>
-  const normalizedPath = path.replace(/^\/+/, "");
+  const normalizedPath = path.replace(LEADING_SLASHES, "");
   return new URL(normalizedPath, normalizedBase).toString();
 }
 
@@ -96,6 +97,37 @@ export function createPresignedUploadUrl({
     key,
     expires_in_seconds: DEFAULT_PRESIGNED_EXPIRES_SECONDS,
   };
+}
+
+// Whether the object is still there to hand out, checked before a link is signed: a signed
+// link to a missing file is not an attachment, so following it swaps the order screen for
+// S3's error page. An outage is not a missing photo and is reported as it is.
+export async function isStoredObjectReadable(key: string): Promise<boolean> {
+  try {
+    await s3.file(key).slice(0, 1).bytes();
+    return true;
+  } catch (error) {
+    if ((error as { code?: string }).code === "NoSuchKey") {
+      return false;
+    }
+    throw error;
+  }
+}
+
+// A link that saves the photo as a file instead of showing it, straight from S3 — so the CDN
+// needs no CORS and no bytes pass through this server.
+export function createPresignedDownloadUrl({
+  key,
+  filename,
+}: {
+  key: string;
+  filename: string;
+}) {
+  return s3.presign(key, {
+    expiresIn: DEFAULT_PRESIGNED_EXPIRES_SECONDS,
+    method: "GET",
+    contentDisposition: `attachment; filename="${filename}"`,
+  });
 }
 
 export interface StoredObject {

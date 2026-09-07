@@ -138,6 +138,7 @@ const DropoffPhoto = ({ capturedAt, imageUrl, orderId }: DropoffPhotoProps) => {
 	const item: PhotoLightboxItem = {
 		alt: "Order drop-off",
 		created_at: capturedAt,
+		download: { kind: "dropoff", id: orderId },
 		id: orderId,
 		image_url: imageUrl,
 		primaryLabel: "Drop-off photo",
@@ -194,6 +195,7 @@ const PickupsAttachment = ({
 					</div>
 				),
 				created_at: event.picked_up_at,
+				download: { kind: "pickup" as const, id: event.id },
 				id: event.id,
 				image_url: event.image_url ?? "",
 				note: `Pickup · ${pickedUpBy}`,
