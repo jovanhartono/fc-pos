@@ -715,6 +715,8 @@ describe("billableOrderTotal", () => {
 
 describe("summarizeOrderFulfillment", () => {
   it("counts ready_for_pickup, picked_up, terminal, and active", () => {
+    // Five pairs dropped off, one cancelled at the counter: the customer will
+    // only ever leave with four, one of which they already have.
     const summary = summarizeOrderFulfillment([
       "ready_for_pickup",
       "ready_for_pickup",
@@ -722,11 +724,20 @@ describe("summarizeOrderFulfillment", () => {
       "processing",
       "cancelled",
     ]);
-    expect(summary.service_total_count).toBe(5);
+    expect(summary.total_count).toBe(4);
     expect(summary.ready_for_pickup_count).toBe(2);
     expect(summary.picked_up_count).toBe(1);
     expect(summary.terminal_count).toBe(2);
     expect(summary.active_count).toBe(3);
+    expect(summary.remaining_count).toBe(3);
+  });
+
+  it("keeps a refunded pair still on the shelf in the remaining count", () => {
+    // Refunded while queued, customer not yet back for it: the shop still owes
+    // the pair, so the bar must not read complete.
+    const summary = summarizeOrderFulfillment(["picked_up", "refunded"]);
+    expect(summary.total_count).toBe(2);
+    expect(summary.picked_up_count).toBe(1);
     expect(summary.remaining_count).toBe(1);
   });
 

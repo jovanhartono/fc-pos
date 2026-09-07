@@ -23,7 +23,7 @@
 - **Amends two ADRs.** ADR-0012's gate now reads the Item; ADR-0017's "stays per-treatment" consequence is reversed. Both carry a pointer here.
 - **Upsell lines start on one photo.** A second worker taking the repaint on a pair already photographed for its deep clean needs no photo of their own.
 - **A Rework needs a fresh photo.** The worker photographs the returned pair before starting; the first-visit gallery no longer unlocks it. The web mirror's hint needs a Rework-aware variant.
-- **Worker and order-detail screens show the Item's gallery on every treatment.** Two treatments on one object stop showing two disjoint galleries.
+- **Worker and order-detail screens show the Item's gallery on every treatment.** Two treatments on one object stop showing two disjoint galleries. *(2026-09-05: the order detail page moved the gallery and the upload button onto the Item block itself; its treatment sheet no longer repeats them. The worker queue sheet is unchanged.)*
 - **The POS captures no per-Item photo at checkout today.** Cashiers take Item photos from the order detail page after checkout, exactly where they took service photos before. Capturing them inside intake is a follow-up, not part of this decision.
 - **Seed changes shape.** One photo per Item rather than one per treatment line, so every seeded Item clears the gate.
 - **Migration precondition.** `order_service_id` is nullable on the old table. Check both environments for orphan rows before the `NOT NULL` backfill; an orphan cannot be re-parented and has to be dropped by hand.

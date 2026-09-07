@@ -1,19 +1,18 @@
-import { DownloadSimpleIcon, TrashIcon } from "@phosphor-icons/react";
 import type * as React from "react";
 import { useCallback, useState } from "react";
-import { Button } from "@/components/ui/button";
 import {
 	getPhotoPrimaryLabel,
 	PhotoLightbox,
 	type PhotoLightboxItem,
 } from "@/features/orders/components/photo-lightbox";
+import type { PhotoDownloadRef } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export type OrderPhotoGalleryItem = {
 	alt: string;
-	canDelete?: boolean;
 	caption?: React.ReactNode;
 	created_at: string;
+	download?: PhotoDownloadRef;
 	id: number;
 	image_url: string;
 	note?: string | null;
@@ -23,31 +22,15 @@ type OrderPhotoGalleryProps = {
 	emptyState?: React.ReactNode;
 	gridClassName?: string;
 	items: OrderPhotoGalleryItem[];
-	onDelete?: (id: number) => void;
-	deletingId?: number | null;
 	thumbnailClassName?: string;
 	thumbnailImageClassName?: string;
 	title?: string;
 };
 
-export function getPhotoDownloadName(item: {
-	id: number | string;
-	image_url: string;
-}) {
-	const pathname = new URL(item.image_url, "https://fresclean.local").pathname;
-	const extension = pathname.split(".").pop()?.toLowerCase();
-	const resolvedExtension =
-		extension && extension.length <= 5 ? extension : "jpg";
-
-	return `photo-${item.id}.${resolvedExtension}`;
-}
-
 export function OrderPhotoGallery({
 	emptyState,
 	gridClassName,
 	items,
-	onDelete,
-	deletingId,
 	thumbnailClassName,
 	thumbnailImageClassName,
 	title = "Attachment Viewer",
@@ -69,6 +52,7 @@ export function OrderPhotoGallery({
 	const lightboxItems: PhotoLightboxItem[] = items.map((item) => ({
 		alt: item.alt,
 		created_at: item.created_at,
+		download: item.download,
 		id: item.id,
 		image_url: item.image_url,
 		note: item.note,
@@ -86,7 +70,7 @@ export function OrderPhotoGallery({
 				)}
 			>
 				{items.map((item, index) => (
-					<div className="group relative" key={item.id}>
+					<div key={item.id}>
 						<button
 							aria-label={`Open ${getPhotoPrimaryLabel(item)} image ${index + 1} of ${imageCount}`}
 							className={cn(
@@ -109,42 +93,6 @@ export function OrderPhotoGallery({
 								width={480}
 							/>
 						</button>
-
-						<div className="pointer-events-none absolute inset-x-0 top-0 flex justify-end gap-1 p-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-							<Button
-								className="pointer-events-auto border-black/10 bg-background/90 text-foreground hover:bg-background"
-								nativeButton={false}
-								render={
-									<a
-										aria-label={`Save ${getPhotoPrimaryLabel(item)} image`}
-										download={getPhotoDownloadName(item)}
-										href={item.image_url}
-									>
-										<DownloadSimpleIcon className="size-4" aria-hidden="true" />
-										<span className="sr-only">
-											{`Save ${getPhotoPrimaryLabel(item)} image`}
-										</span>
-									</a>
-								}
-								size="icon-sm"
-								title="Save image"
-								variant="outline"
-							/>
-							{onDelete && item.canDelete ? (
-								<Button
-									aria-label={`Delete ${getPhotoPrimaryLabel(item)} image`}
-									className="pointer-events-auto border-black/10 bg-background/90 text-destructive hover:border-destructive/40 hover:bg-destructive/10"
-									disabled={deletingId === item.id}
-									icon={<TrashIcon className="size-4" aria-hidden="true" />}
-									loading={deletingId === item.id}
-									onClick={() => onDelete(item.id)}
-									size="icon-sm"
-									title="Delete photo"
-									type="button"
-									variant="outline"
-								/>
-							) : null}
-						</div>
 
 						{item.caption ? <div className="mt-1.5">{item.caption}</div> : null}
 					</div>

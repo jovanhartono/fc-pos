@@ -1,6 +1,8 @@
+import { hasUnpricedLine } from "@fresclean/api/schema";
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { ItemPhotoStrip } from "@/features/orders/components/item-photo-strip";
 import { OrderReasonCallout } from "@/features/orders/components/order-reason-callout";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { OrderServiceRow } from "@/features/orders/components/order-service-row";
@@ -13,7 +15,7 @@ import {
 	formatRefundReason,
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
-import { formatMoney } from "@/shared/money";
+import { formatMoney, parseMoney } from "@/shared/money";
 
 type OrderDetailProduct = OrderDetail["products"][number];
 
@@ -78,6 +80,20 @@ interface ItemBlockProps {
 	isAdmin: boolean;
 }
 
+// What the customer owes for this object. A blank line has no number yet, so
+// the roll-up shows none either: "Rp 60.000" over an unpriced repaint would
+// read as the whole price of the pair.
+const formatItemTotal = (item: OrderItem): string => {
+	if (hasUnpricedLine(item.services)) {
+		return "—";
+	}
+	return formatMoney(
+		item.services
+			.filter((s) => s.status !== "cancelled")
+			.reduce((sum, s) => sum + parseMoney(s.subtotal), 0),
+	);
+};
+
 // One physical object and every treatment sold against it (ADR-0017). The tag
 // and the descriptors are stated once here rather than repeated down each
 // treatment — a pair in for a clean, a repaint and leather care used to read
@@ -86,8 +102,8 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 	const descriptors = getOrderServiceItemDetails(item);
 
 	return (
-		<article className="border-t">
-			<header className="flex items-start justify-between gap-3 bg-muted/30 px-4 py-2.5">
+		<Card className="gap-0 py-0">
+			<header className="flex items-start justify-between gap-3 px-4 py-3">
 				{/* The object leads, the tag follows: what the cashier says out loud
 				    is "the red New Balance", and the code is how the shelf finds it.
 				    Same order as the queue card and the pickup dialog. */}
@@ -107,21 +123,29 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 						</h3>
 					)}
 				</div>
-				<Badge variant={getOrderServiceStatusBadgeVariant(item.status)}>
-					{formatOrderServiceStatus(item.status)}
-				</Badge>
+				<div className="flex shrink-0 flex-col items-end gap-1">
+					<Badge variant={getOrderServiceStatusBadgeVariant(item.status)}>
+						{formatOrderServiceStatus(item.status)}
+					</Badge>
+					<p className="font-mono text-sm font-semibold tabular-nums">
+						{formatItemTotal(item)}
+					</p>
+				</div>
 			</header>
-			{item.services.map((service) => (
-				<OrderServiceRow
-					isAdmin={isAdmin}
-					itemCode={item.item_code}
-					itemStatus={item.status}
-					key={service.id}
-					orderId={orderId}
-					service={service}
-				/>
-			))}
-		</article>
+			<ItemPhotoStrip isAdmin={isAdmin} item={item} orderId={orderId} />
+			<ul className="mx-4 mb-3 divide-y border-l-2 border-border">
+				{item.services.map((service) => (
+					<li key={service.id}>
+						<OrderServiceRow
+							itemCode={item.item_code}
+							itemStatus={item.status}
+							orderId={orderId}
+							service={service}
+						/>
+					</li>
+				))}
+			</ul>
+		</Card>
 	);
 };
 
@@ -158,8 +182,10 @@ export const OrderLineItemsCard = ({
 			{/* A products-only sale has no card here at all: an empty "Items"
 			    section says nothing the Products card below does not. */}
 			{items.length > 0 ? (
-				<Card className="gap-0 overflow-hidden py-0">
-					<OrderSectionHeader>Items</OrderSectionHeader>
+				<section className="grid gap-3">
+					<h2 className="text-foreground text-sm font-semibold">
+						Items · {items.length}
+					</h2>
 					{items.map((item) => (
 						<ItemBlock
 							isAdmin={isAdmin}
@@ -168,7 +194,7 @@ export const OrderLineItemsCard = ({
 							orderId={orderId}
 						/>
 					))}
-				</Card>
+				</section>
 			) : null}
 
 			{products.length > 0 ? (

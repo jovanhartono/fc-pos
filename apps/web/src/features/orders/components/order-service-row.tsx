@@ -19,17 +19,10 @@ interface OrderServiceRowProps {
 	// The object's rolled-up status; a treatment names its own only when it
 	// disagrees with this.
 	itemStatus: string;
-	isAdmin: boolean;
 }
 
 export const OrderServiceRow = memo(
-	({
-		orderId,
-		service,
-		itemCode,
-		itemStatus,
-		isAdmin,
-	}: OrderServiceRowProps) => {
+	({ orderId, service, itemCode, itemStatus }: OrderServiceRowProps) => {
 		const openSheet = useSheet((s) => s.openSheet);
 
 		const serviceName = service.service?.name ?? "Service";
@@ -46,18 +39,14 @@ export const OrderServiceRow = memo(
 				title: itemCode,
 				description: serviceName,
 				content: () => (
-					<OrderServiceDetail
-						isAdmin={isAdmin}
-						orderId={orderId}
-						serviceId={service.id}
-					/>
+					<OrderServiceDetail orderId={orderId} serviceId={service.id} />
 				),
 			});
 		};
 
 		return (
 			<button
-				className="flex w-full items-start gap-3 border-t px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+				className="flex w-full items-start gap-3 py-2.5 pr-1 pl-3 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
 				onClick={handleClick}
 				type="button"
 			>

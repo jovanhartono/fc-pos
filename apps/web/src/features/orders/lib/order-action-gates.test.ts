@@ -70,20 +70,28 @@ const admin = { role: "admin" } as Me;
 const cashier = { role: "cashier" } as Me;
 const worker = { role: "worker", can_process_pickup: false } as Me;
 const pickupWorker = { role: "worker", can_process_pickup: true } as Me;
+const courier = { role: "courier", can_process_pickup: false } as Me;
 
 describe("role gates", () => {
-	it("grants money gates to admin and cashier only", () => {
+	it("grants the payment card to every shop role, never to a courier", () => {
+		// A worker rings up a drop-off when the counter is unstaffed
+		// (ADR-0004, 2026-09-05 amendment); a courier only clocks in.
 		expect(getOrderActionGates(admin, detail()).isPaymentAllowed).toBe(true);
 		expect(getOrderActionGates(cashier, detail()).isPaymentAllowed).toBe(true);
-		expect(getOrderActionGates(worker, detail()).isPaymentAllowed).toBe(false);
+		expect(getOrderActionGates(worker, detail()).isPaymentAllowed).toBe(true);
+		expect(getOrderActionGates(courier, detail()).isPaymentAllowed).toBe(false);
 	});
 
-	it("grants pickup to payment roles and flagged workers", () => {
+	it("grants pickup to counter roles and flagged workers only", () => {
+		// Taking payment and handing the Item back stay separate gates: a
+		// worker who can ring up a drop-off still needs the pickup flag, the
+		// same rule assertCanProcessPickup enforces on the server.
 		expect(getOrderActionGates(cashier, detail()).isPickupAllowed).toBe(true);
 		expect(getOrderActionGates(pickupWorker, detail()).isPickupAllowed).toBe(
 			true,
 		);
 		expect(getOrderActionGates(worker, detail()).isPickupAllowed).toBe(false);
+		expect(getOrderActionGates(courier, detail()).isPickupAllowed).toBe(false);
 	});
 
 	it("lets workers manage the drop-off photo", () => {
@@ -172,10 +180,17 @@ describe("canOpenPickup (ADR-0009: payment precedes pickup)", () => {
 			"Order must be paid before pickup.",
 		);
 
+		// A flagged worker can now take the payment themselves, so they get
+		// the payer's message; only a flagged user who cannot pay is told to
+		// fetch someone who can.
 		const workerGates = getOrderActionGates(pickupWorker, readyUnpaid);
 		expect(workerGates.pickupDisabledReason).toBe(
-			"A cashier must collect payment before pickup.",
+			"Order must be paid before pickup.",
 		);
+		const flaggedCourier = { role: "courier", can_process_pickup: true } as Me;
+		expect(
+			getOrderActionGates(flaggedCourier, readyUnpaid).pickupDisabledReason,
+		).toBe("A cashier must collect payment before pickup.");
 	});
 
 	it("stays closed with nothing ready", () => {

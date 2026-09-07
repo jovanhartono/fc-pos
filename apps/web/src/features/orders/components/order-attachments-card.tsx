@@ -1,10 +1,9 @@
-import { CameraIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
+import { CameraIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-	getPhotoDownloadName,
 	OrderPhotoGallery,
 	type OrderPhotoGalleryItem,
 } from "@/features/orders/components/order-photo-gallery";
@@ -139,13 +138,14 @@ const DropoffPhoto = ({ capturedAt, imageUrl, orderId }: DropoffPhotoProps) => {
 	const item: PhotoLightboxItem = {
 		alt: "Order drop-off",
 		created_at: capturedAt,
+		download: { kind: "dropoff", id: orderId },
 		id: orderId,
 		image_url: imageUrl,
 		primaryLabel: "Drop-off photo",
 	};
 
 	return (
-		<div className="group relative">
+		<div>
 			<button
 				aria-label="Open drop-off photo"
 				className="block w-full overflow-hidden border border-border bg-muted transition-[border-color,box-shadow] hover:border-ring focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
@@ -162,26 +162,6 @@ const DropoffPhoto = ({ capturedAt, imageUrl, orderId }: DropoffPhotoProps) => {
 					width={640}
 				/>
 			</button>
-
-			<div className="pointer-events-none absolute inset-x-0 top-0 flex justify-end p-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-				<Button
-					className="pointer-events-auto border-black/10 bg-background/90 text-foreground hover:bg-background"
-					nativeButton={false}
-					render={
-						<a
-							aria-label="Save drop-off photo"
-							download={getPhotoDownloadName(item)}
-							href={imageUrl}
-						>
-							<DownloadSimpleIcon aria-hidden="true" className="size-4" />
-							<span className="sr-only">Save drop-off photo</span>
-						</a>
-					}
-					size="icon-sm"
-					title="Save image"
-					variant="outline"
-				/>
-			</div>
 
 			<PhotoLightbox
 				items={[item]}
@@ -215,6 +195,7 @@ const PickupsAttachment = ({
 					</div>
 				),
 				created_at: event.picked_up_at,
+				download: { kind: "pickup" as const, id: event.id },
 				id: event.id,
 				image_url: event.image_url ?? "",
 				note: `Pickup · ${pickedUpBy}`,
