@@ -995,6 +995,14 @@ export async function deleteItemPhoto(
 	);
 }
 
+export async function createPhotoDownloadUrl(imageUrl: string) {
+	return parseSuccessData<{ url: string }>(
+		rpcWithAuth().api.admin.photos["download-url"].$post({
+			json: { image_url: imageUrl },
+		}),
+	);
+}
+
 export async function presignOrderDropoffPhoto(
 	orderId: number,
 	payload: PresignOrderDropoffPhotoPayload,

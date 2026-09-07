@@ -1,20 +1,30 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { itemImagesTable, ordersTable } from "@/db/schema";
-import { BadRequestException, ForbiddenException } from "@/http-exceptions";
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from "@/http-exceptions";
 import { softDeleteItemImageById } from "@/modules/item-images/item-image.repository";
 import { getItemOrThrow } from "@/modules/orders/order.repository";
 import type {
   PostItemPhotoInput,
   PostItemPhotoPresignInput,
   PostOrderDropoffPhotoPresignInput,
+  PostPhotoDownloadUrlInput,
   PutOrderDropoffPhotoInput,
 } from "@/modules/orders/order-admin.schema";
+import { findPhotoByPath } from "@/modules/orders/order-photo-download.repository";
 import type { JWTPayload } from "@/types";
+import { assertStoreAccess } from "@/utils/authorization";
 import {
   buildMediaUrl,
+  createPresignedDownloadUrl,
   createPresignedUploadUrl,
+  isStoredObjectReadable,
   optimizeUploadedImage,
+  resolveMediaKey,
   STORAGE_ENV_PREFIX,
 } from "@/utils/s3";
 
@@ -184,4 +194,52 @@ export async function saveOrderDropoffPhoto({
     dropoff_photo_uploaded_at: order.dropoff_photo_uploaded_at,
     dropoff_photo_url: buildMediaUrl(order.dropoff_photo_path),
   };
+}
+
+// Order codes read `#JKT/20260907/12`, and item codes carry that plus `-I001`. Neither survives
+// as a filename — `/` is a folder, `#` a fragment — so both are flattened to the characters
+// every OS and the Content-Disposition header agree on.
+const UNSAFE_FILENAME_CHARS = /[^A-Za-z0-9._-]+/g;
+
+function toFilenameSlug(code: string) {
+  return code.replace(UNSAFE_FILENAME_CHARS, "-").replace(/^-+|-+$/g, "");
+}
+
+const KEY_EXTENSION = /\.([A-Za-z0-9]{1,5})$/;
+
+// Uploads are stored under extension-less keys and are always WebP (optimizeUploadedImage);
+// seed photos keep the `.jpg` they were filed with, so a key that says what it is wins.
+function extensionOf(key: string) {
+  return KEY_EXTENSION.exec(key)?.[1].toLowerCase() ?? "webp";
+}
+
+// A link that saves the photo as a file, for the operator putting a dispute pack together.
+// Same rule as opening the order: the person has to work at that branch. Our credentials sign
+// nothing an order does not point at.
+export async function createPhotoDownloadUrl({
+  body,
+  user,
+}: {
+  body: PostPhotoDownloadUrlInput;
+  user: JWTPayload;
+}) {
+  const key = resolveMediaKey(body.image_url);
+  if (!key) {
+    throw new BadRequestException("Not a stored photo");
+  }
+
+  const [photo, readable] = await Promise.all([
+    findPhotoByPath(key),
+    isStoredObjectReadable(key),
+  ]);
+  if (!photo) {
+    throw new BadRequestException("Photo not found");
+  }
+  await assertStoreAccess(user, photo.store_id);
+  if (!readable) {
+    throw new NotFoundException("The photo file is no longer in storage");
+  }
+
+  const filename = `${toFilenameSlug(photo.code)}-${photo.suffix}.${extensionOf(key)}`;
+  return { url: createPresignedDownloadUrl({ key, filename }) };
 }

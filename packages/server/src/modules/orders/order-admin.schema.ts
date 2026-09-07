@@ -59,6 +59,10 @@ export const POSTOrderPickupEventPresignSchema = z.object({
   content_type: photoContentTypeSchema,
 });
 
+export const POSTPhotoDownloadUrlSchema = z.object({
+  image_url: z.string().trim().url(),
+});
+
 export const POSTItemPhotoSchema = z.object({
   image_path: z.string().trim().min(1).max(512),
   note: z.string().trim().max(1000).optional(),
@@ -252,6 +256,9 @@ export type PatchOrderServiceStatusInput = z.infer<
   typeof PATCHOrderServiceStatusSchema
 >;
 export type PostItemPhotoInput = z.infer<typeof POSTItemPhotoSchema>;
+export type PostPhotoDownloadUrlInput = z.infer<
+  typeof POSTPhotoDownloadUrlSchema
+>;
 export type PostItemPhotoPresignInput = z.infer<
   typeof POSTItemPhotoPresignSchema
 >;

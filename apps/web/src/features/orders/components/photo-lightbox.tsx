@@ -7,6 +7,7 @@ import {
 } from "@phosphor-icons/react";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
 	Dialog,
 	DialogContent,
@@ -14,6 +15,8 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { PhotoStage } from "@/features/orders/components/photo-stage";
+import { savePhoto } from "@/features/orders/utils/photo-download";
+import { readServerErrorMessage } from "@/lib/server-error";
 import { cn } from "@/lib/utils";
 
 export interface PhotoLightboxItem {
@@ -34,18 +37,6 @@ interface PhotoLightboxProps {
 	title?: string;
 	// Resolves once the photo is gone from `items`, rejects if it is not.
 	onDelete?: (id: number | string) => Promise<void>;
-}
-
-function getPhotoDownloadName(item: {
-	id: number | string;
-	image_url: string;
-}) {
-	const pathname = new URL(item.image_url, "https://fresclean.local").pathname;
-	const extension = pathname.split(".").pop()?.toLowerCase();
-	const resolvedExtension =
-		extension && extension.length <= 5 ? extension : "jpg";
-
-	return `photo-${item.id}.${resolvedExtension}`;
 }
 
 export function getPhotoPrimaryLabel(item: {
@@ -81,6 +72,7 @@ export const PhotoLightbox = ({
 	const [activeIndex, setActiveIndex] = useState(initialIndex);
 	const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
+	const [isSaving, setIsSaving] = useState(false);
 
 	const imageCount = items.length;
 	const canNavigate = imageCount > 1;
@@ -113,6 +105,20 @@ export const PhotoLightbox = ({
 		} finally {
 			setIsDeleting(false);
 			setIsConfirmingDelete(false);
+		}
+	};
+
+	const handleSave = async () => {
+		if (!activeItem) {
+			return;
+		}
+		setIsSaving(true);
+		try {
+			await savePhoto(activeItem.image_url);
+		} catch (error) {
+			toast.error(readServerErrorMessage(error, "Failed to save photo"));
+		} finally {
+			setIsSaving(false);
 		}
 	};
 
@@ -216,23 +222,19 @@ export const PhotoLightbox = ({
 										</>
 									) : (
 										<>
-											{/* The CDN is another origin, so `download` is ignored and a
-												    plain link would swap the app out of this tab for the
-												    raw image. A new tab keeps the order open behind it. */}
-											<a
+											<button
 												aria-label="Save image"
-												className={ACTION_CLASS}
-												download={getPhotoDownloadName(activeItem)}
-												href={activeItem.image_url}
-												rel="noopener"
-												target="_blank"
+												className={cn(ACTION_CLASS, "disabled:opacity-50")}
+												disabled={isSaving}
+												onClick={handleSave}
 												title="Save image"
+												type="button"
 											>
 												<DownloadSimpleIcon
 													aria-hidden="true"
 													className="size-4"
 												/>
-											</a>
+											</button>
 											{onDelete && activeItem.canDelete ? (
 												<button
 													aria-label="Delete photo"

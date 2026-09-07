@@ -18,4 +18,7 @@ declare module "bun:test" {
 	export const test: TestFn;
 	export const it: TestFn;
 	export const expect: (value: unknown) => Matchers & { not: Matchers };
+	export const mock: {
+		module: (specifier: string, factory: () => unknown) => void;
+	};
 }

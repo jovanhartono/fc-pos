@@ -57,6 +57,8 @@ async function isAlreadyOptimized(
   }
 }
 
+const LEADING_SLASHES = /^\/+/;
+
 export function buildMediaUrl(path: string): string;
 export function buildMediaUrl(path: null | undefined): null;
 export function buildMediaUrl(path: string | null | undefined): string | null;
@@ -71,9 +73,33 @@ export function buildMediaUrl(path: string | null | undefined): string | null {
   }
 
   const normalizedBase = base.endsWith("/") ? base : `${base}/`;
-  // biome-ignore lint/performance/useTopLevelRegex: <i dont care>
-  const normalizedPath = path.replace(/^\/+/, "");
+  const normalizedPath = path.replace(LEADING_SLASHES, "");
   return new URL(normalizedPath, normalizedBase).toString();
+}
+
+// The inverse of buildMediaUrl: the stored key behind a link the dashboard was handed, or null
+// when the link points anywhere but our CDN. The database, not this function, decides whether
+// that key is a photo we hold — this only stops a foreign URL from ever reaching that lookup.
+export function resolveMediaKey(url: string): string | null {
+  const base = process.env.CDN_BASE_URL;
+  if (!base) {
+    throw new Error("Missing CDN_BASE_URL configuration");
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+
+  const cdn = new URL(base);
+  if (parsed.origin !== cdn.origin) {
+    return null;
+  }
+
+  const key = decodeURIComponent(parsed.pathname).replace(LEADING_SLASHES, "");
+  return key.length > 0 ? key : null;
 }
 
 interface CreatePresignedUploadInput {
@@ -96,6 +122,37 @@ export function createPresignedUploadUrl({
     key,
     expires_in_seconds: DEFAULT_PRESIGNED_EXPIRES_SECONDS,
   };
+}
+
+// Whether the object is still there to hand out, checked before a link is signed: a signed
+// link to a missing file is not an attachment, so following it swaps the order screen for
+// S3's error page. An outage is not a missing photo and is reported as it is.
+export async function isStoredObjectReadable(key: string): Promise<boolean> {
+  try {
+    await s3.file(key).slice(0, 1).bytes();
+    return true;
+  } catch (error) {
+    if ((error as { code?: string }).code === "NoSuchKey") {
+      return false;
+    }
+    throw error;
+  }
+}
+
+// A link that saves the photo as a file instead of showing it, straight from S3 — so the CDN
+// needs no CORS and no bytes pass through this server.
+export function createPresignedDownloadUrl({
+  key,
+  filename,
+}: {
+  key: string;
+  filename: string;
+}) {
+  return s3.presign(key, {
+    expiresIn: DEFAULT_PRESIGNED_EXPIRES_SECONDS,
+    method: "GET",
+    contentDisposition: `attachment; filename="${filename}"`,
+  });
 }
 
 export interface StoredObject {
