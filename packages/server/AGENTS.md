@@ -20,9 +20,8 @@ Schema lives in `src/db/schema.ts`; the connection in `src/db/index.ts`.
 
 **Migrations are the workflow.** `./drizzle/` holds an ordered, committed
 sequence of `<timestamp>_<name>/migration.sql`, applied to every environment in
-the same order. The repo ran on `push` through early development and was
-baselined onto migrations on 2026-08-27; `drizzle/20260827073115_baseline` is a
-full snapshot of the schema as it stood then, recorded as applied without ever
+the same order. `drizzle/20260827073115_baseline` is a full snapshot of the
+schema as it stood when the ledger began, recorded as applied without ever
 being run. Do not try to run it.
 
 `out` is deliberately identical in all three configs. `drizzle.config.ts` is the
@@ -37,17 +36,16 @@ else. Two output folders would be two divergent histories describing one schema.
    auto-loads in `packages/server`)
 3. `bun run generate --name=<short_snake_name>` — writes the delta, applies
    nothing
-4. **Read the generated SQL.** This is the review step the old `push` workflow
-   never had. A rename drizzle could not infer arrives as DROP + ADD, which
-   silently discards the column's data
+4. **Read the generated SQL.** A rename drizzle could not infer arrives as
+   DROP + ADD, which silently discards the column's data
 5. `bun run migrate:dev`, then `bun run drift:dev` to confirm dev now matches
    `schema.ts` ("No changes detected")
 6. Update Zod schemas in the relevant module if needed
 7. Commit `src/db/schema.ts` **and** the new `drizzle/` folder together
 
-Unlike `push`, a destructive delta needs no TTY: the decision is made at
-generate time into a file a human reads, and `migrate` applies it
-non-interactively. Agent shells can run the whole loop.
+A destructive delta needs no TTY: the decision is made at generate time into a
+file a human reads, and `migrate` applies it non-interactively. Agent shells
+can run the whole loop.
 
 ### Rules
 
@@ -55,10 +53,9 @@ non-interactively. Agent shells can run the whole loop.
   *name*, not by content hash (`getMigrationsToRun` in
   `drizzle-orm/migrator.utils.cjs`), so an edit is silently ignored on every
   database that already ran it. Fix forward with a new migration.
-- **Never `push:prod`.** It applies changes outside the ledger, so history stops
-  describing the database. It has been removed from `package.json`; `push:dev`
-  survives for throwaway local prototyping only — anything you keep must go
-  through `generate`.
+- **`push:dev` is for throwaway local prototyping only.** It applies changes
+  outside the ledger, so history stops describing the database; anything you
+  keep goes through `generate`. There is no `push:prod`.
 - **Data migrations are hand-written.** No generator writes an `INSERT..SELECT`.
   Put the backfill in the generated `migration.sql` between the DDL halves, and
   split statements with `--> statement-breakpoint`.
