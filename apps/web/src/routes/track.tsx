@@ -67,21 +67,12 @@ function getStageIndex(items: TrackItem[]): number {
 	return Math.min(...pending.map(getItemStageIndex));
 }
 
-// Same map as the POS badges, drawn as a square and a word instead of a chip.
-// Filled means the treatment is over, for better or worse.
-const SERVICE_STATUS_STYLES: Record<string, { square: string; text: string }> =
-	{
-		success: {
-			square: "border-emerald-600 bg-emerald-600",
-			text: "text-emerald-700",
-		},
-		danger: { square: "border-rose-600 bg-rose-600", text: "text-rose-700" },
-		warning: { square: "border-amber-500", text: "text-amber-700" },
-		info: { square: "border-sky-600", text: "text-sky-700" },
-	};
-const DEFAULT_SERVICE_STATUS_STYLE = {
-	square: "border-[#0f1a16]/40",
-	text: "text-[#2a2922]/80",
+// Same map as the POS badges, drawn as a coloured word instead of a chip.
+const SERVICE_STATUS_TEXT: Record<string, string> = {
+	success: "text-emerald-700",
+	danger: "text-rose-700",
+	warning: "text-amber-700",
+	info: "text-sky-700",
 };
 
 interface StatusBlockProps {
@@ -353,33 +344,28 @@ const TrackOrderPage = () => {
 											{formatOrderServiceItemDetails(item)}
 										</p>
 										<ul className="grid gap-1.5 text-sm">
-											{item.services.map((service) => {
-												const style =
-													SERVICE_STATUS_STYLES[
-														getOrderServiceStatusBadgeVariant(service.status)
-													] ?? DEFAULT_SERVICE_STATUS_STYLE;
-												return (
-													<li
-														key={service.id}
-														className="flex items-center gap-2.5"
+											{item.services.map((service) => (
+												<li
+													key={service.id}
+													className="flex items-center justify-between gap-3"
+												>
+													<span className="min-w-0 text-[#0f1a16]">
+														{service.service?.name ?? "Service"}
+													</span>
+													<span
+														className={cn(
+															"shrink-0",
+															SERVICE_STATUS_TEXT[
+																getOrderServiceStatusBadgeVariant(
+																	service.status,
+																)
+															] ?? "text-[#2a2922]/80",
+														)}
 													>
-														<span
-															className={cn(
-																"size-3 shrink-0 border-2",
-																style.square,
-															)}
-														/>
-														<span className="min-w-0 text-[#0f1a16]">
-															{service.service?.name ?? "Service"}
-														</span>
-														<span
-															className={cn("ml-auto shrink-0", style.text)}
-														>
-															{formatOrderServiceStatus(service.status)}
-														</span>
-													</li>
-												);
-											})}
+														{formatOrderServiceStatus(service.status)}
+													</span>
+												</li>
+											))}
 										</ul>
 									</li>
 								))}
