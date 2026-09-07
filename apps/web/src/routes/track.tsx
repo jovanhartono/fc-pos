@@ -95,18 +95,13 @@ const StatusBlock = ({
 
 	if (isCancelled) {
 		return (
-			<section className="grid gap-1 border-red-700 border-l-[6px] py-1 pl-4">
-				<h2 className="font-semibold text-xl text-[#0f1a16]">Cancelled</h2>
-				<p className="text-sm text-[#2a2922]/80">Contact the branch.</p>
+			<section className="border-red-700 border-l-[6px] py-1 pl-4">
+				<p className="text-[15px] text-[#0f1a16]">
+					Order cancelled. Contact the branch.
+				</p>
 			</section>
 		);
 	}
-
-	const headline = isAllDone
-		? "Picked up"
-		: isAllReady
-			? "Ready"
-			: STAGES[stageIndex];
 
 	return (
 		<section
@@ -116,17 +111,16 @@ const StatusBlock = ({
 			)}
 		>
 			<div className="grid gap-1">
-				<h2 className="font-semibold text-xl text-[#0f1a16]">{headline}</h2>
 				{isAllDone ? (
-					<p className="text-sm text-[#2a2922]/80">
+					<p className="text-[15px] text-[#0f1a16]">
 						Everything has been collected.
 					</p>
 				) : isAllReady ? (
-					<p className="text-sm text-[#2a2922]/80">
+					<p className="text-[15px] text-[#0f1a16]">
 						Show this code at the counter.
 					</p>
 				) : readyCount > 0 ? (
-					<p className="text-sm text-[#2a2922]/80">
+					<p className="text-[15px] text-[#0f1a16]">
 						{readyCount} of {pendingCount} Items done. Collect them now with
 						code{" "}
 						<span className="font-mono font-bold text-[#0f1a16] tabular-nums">
@@ -135,7 +129,7 @@ const StatusBlock = ({
 						.
 					</p>
 				) : (
-					<p className="text-sm text-[#2a2922]/80">
+					<p className="text-[15px] text-[#0f1a16]">
 						{pendingCount} {pendingCount === 1 ? "Item" : "Items"} in progress.
 					</p>
 				)}
