@@ -47,6 +47,20 @@ A destructive delta needs no TTY: the decision is made at generate time into a
 file a human reads, and `migrate` applies it non-interactively. Agent shells
 can run the whole loop.
 
+A rename is the one case `generate` cannot decide alone. Without a TTY it exits
+with code 2 and prints the hint objects it needs; re-run with them:
+
+```bash
+bun drizzle-kit generate --config=drizzle.config.ts --name=<name> \
+  --hints '[{"type":"rename","kind":"table","from":["public","old"],"to":["public","new"]}]'
+```
+
+One entry per unresolved table, column, index, or FK decision (`rename` or
+`create`); later decisions may only appear once earlier ones resolve, so a second
+round is normal. Still read the SQL: a new NOT NULL column on a populated table
+arrives without a backfill and has to be split into ADD → UPDATE → SET NOT NULL
+by hand.
+
 ### Rules
 
 - **Never edit an applied migration.** `migrate` decides what to skip by folder
