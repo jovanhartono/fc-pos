@@ -9,17 +9,13 @@ import { DetailedError } from "hono/client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { trackPublicOrder } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { normalizePhoneNumber } from "@/lib/phone-number";
-import {
-	formatOrderServiceStatus,
-	getOrderServiceStatusBadgeVariant,
-} from "@/lib/status";
+import { formatOrderServiceStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 const trackSearchSchema = z.object({
@@ -34,12 +30,7 @@ interface TrackItem {
 	services: { status: string }[];
 }
 
-const STAGES = [
-	{ label: "Received", current: "Logged" },
-	{ label: "Cleaning", current: "In progress" },
-	{ label: "QC", current: "Being inspected" },
-	{ label: "Ready", current: "At counter" },
-] as const;
+const STAGES = ["Received", "Cleaning", "QC", "Ready"] as const;
 
 // The rail follows the objects, not the money. The Order rollup says
 // "completed" for a refunded pair still on our rack (ADR-0008 — the money is
@@ -73,61 +64,108 @@ function getStageIndex(items: TrackItem[]): number {
 	return Math.min(...pending.map(getItemStageIndex));
 }
 
-const BrandMark = () => (
-	<p className="font-bold text-[13px] tracking-[0.18em] text-[#0f1a16]">
-		FRESCLEAN
-	</p>
-);
-
-interface StageRailProps {
-	stageIndex: number;
-	isCancelled: boolean;
+function isServiceDone(status: string) {
+	return status === "ready_for_pickup" || status === "picked_up";
 }
 
-const StageRail = ({ stageIndex, isCancelled }: StageRailProps) => {
-	const isAllDone = !isCancelled && stageIndex >= STAGES.length;
+interface StatusBlockProps {
+	stageIndex: number;
+	isCancelled: boolean;
+	readyCount: number;
+	pendingCount: number;
+	pickupCode: string | null;
+}
+
+const StatusBlock = ({
+	stageIndex,
+	isCancelled,
+	readyCount,
+	pendingCount,
+	pickupCode,
+}: StatusBlockProps) => {
+	const isAllReady = pendingCount > 0 && readyCount === pendingCount;
+	const isAllDone = stageIndex >= STAGES.length;
+
+	if (isCancelled) {
+		return (
+			<section className="grid gap-1 bg-red-700 p-5 text-white">
+				<h2 className="font-bold text-3xl uppercase tracking-tight">
+					Cancelled
+				</h2>
+				<p className="text-sm">Contact the branch.</p>
+			</section>
+		);
+	}
+
+	const headline = isAllDone
+		? "Picked up"
+		: isAllReady
+			? "Ready"
+			: STAGES[stageIndex];
+
 	return (
-		<ol className={cn("grid grid-cols-4 gap-1.5", isCancelled && "opacity-35")}>
-			{STAGES.map((stage, index) => {
-				const isComplete = !isCancelled && (stageIndex > index || isAllDone);
-				const isCurrent = !isCancelled && stageIndex === index && !isAllDone;
-				const isActive = isComplete || isCurrent;
-				return (
-					<li key={stage.label} className="grid gap-2">
-						<span
-							className={cn(
-								"h-1",
-								isActive
-									? "bg-[#0f1a16]"
-									: "border-t border-dotted border-[#0f1a16]/30",
-								isCurrent && "animate-pulse",
-							)}
-						/>
-						<p
-							className={cn(
-								"font-mono text-[10px] uppercase tracking-[0.18em]",
-								isActive ? "text-[#0f1a16]" : "text-[#2a2922]/40",
-								isCurrent && "font-bold",
-							)}
-						>
-							{stage.label}
-						</p>
-						{isCurrent ? (
-							<p className="-mt-1 text-[11px] text-[#2a2922]/70">
-								{stage.current}
-							</p>
-						) : null}
-					</li>
-				);
-			})}
-		</ol>
+		<section
+			className={cn(
+				"grid gap-4 p-5 text-white",
+				isAllReady ? "bg-emerald-700" : "bg-[#0f1a16]",
+			)}
+		>
+			<div className="grid gap-1">
+				<h2 className="font-bold text-3xl uppercase tracking-tight">
+					{headline}
+				</h2>
+				{isAllDone ? (
+					<p className="text-sm">Everything has been collected.</p>
+				) : isAllReady ? (
+					<p className="text-sm">Show this code at the counter.</p>
+				) : readyCount > 0 ? (
+					<p className="text-sm">
+						{readyCount} of {pendingCount} Items done. Collect them now with
+						code{" "}
+						<span className="font-mono font-bold tabular-nums">
+							{pickupCode}
+						</span>
+						.
+					</p>
+				) : (
+					<p className="text-sm">
+						{pendingCount} {pendingCount === 1 ? "Item" : "Items"} in progress.
+					</p>
+				)}
+			</div>
+			{isAllReady && pickupCode ? (
+				<p className="font-mono text-5xl font-bold tracking-[0.25em] tabular-nums">
+					{pickupCode}
+				</p>
+			) : null}
+			<ol className="grid grid-cols-4 gap-1.5">
+				{STAGES.map((label, index) => {
+					const isActive = isAllDone || isAllReady || stageIndex >= index;
+					return (
+						<li key={label} className="grid gap-1.5">
+							<span
+								className={cn("h-1.5", isActive ? "bg-white" : "bg-white/25")}
+							/>
+							<span
+								className={cn(
+									"font-mono text-[10px] uppercase tracking-[0.18em]",
+									isActive ? "text-white" : "text-white/50",
+								)}
+							>
+								{label}
+							</span>
+						</li>
+					);
+				})}
+			</ol>
+		</section>
 	);
 };
 
 const LABEL_CLASS =
-	"font-mono text-[10px] uppercase tracking-[0.18em] text-[#2a2922]/55";
+	"font-mono text-[11px] uppercase tracking-[0.18em] text-[#2a2922]/70";
 const INPUT_CLASS =
-	"rounded-none border-[#0f1a16]/15 bg-white font-mono text-sm focus-visible:border-[#0f1a16] focus-visible:ring-0";
+	"rounded-none border-[#0f1a16]/25 bg-white font-mono text-sm focus-visible:border-[#0f1a16] focus-visible:ring-0";
 
 const TrackOrderPage = () => {
 	const search = Route.useSearch();
@@ -201,96 +239,47 @@ const TrackOrderPage = () => {
 	const trackData = trackQuery.data;
 	const isLoading = trackQuery.isFetching;
 	const items = trackData?.items ?? [];
-	const stageIndex = getStageIndex(items);
-	const isCancelled = trackData?.status === "cancelled";
+	const pendingItems = items.filter(isPendingItem);
 	// Same predicate the server gates pickup_code on, so the code never shows
 	// without a collectable Item behind it.
-	const pendingItems = items.filter(isPendingItem);
 	const readyCount = pendingItems.filter((item) =>
 		isCollectableItemStatus(item.status),
 	).length;
-	const isAllReady =
-		pendingItems.length > 0 && readyCount === pendingItems.length;
-	const isPartlyReady = readyCount > 0 && !isAllReady;
 	const storePhoneE164 = trackData?.store.phone_number?.replace(/\D/g, "");
 
 	return (
 		<div className="flex min-h-dvh flex-col bg-white text-[#2a2922]">
 			<header className="border-b border-[#0f1a16]/10">
-				<div className="mx-auto flex max-w-xl items-center justify-between px-5 py-4">
-					<BrandMark />
-					<a
-						href={HELP_WHATSAPP}
-						target="_blank"
-						rel="noreferrer"
-						className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#0f1a16] underline-offset-4 hover:underline"
-					>
-						Help
-					</a>
+				<div className="mx-auto max-w-xl px-5 py-4">
+					<p className="font-bold text-[13px] tracking-[0.18em] text-[#0f1a16]">
+						FRESCLEAN
+					</p>
 				</div>
 			</header>
 
-			<main className="mx-auto w-full max-w-xl flex-1 px-5 py-10">
+			<main className="mx-auto w-full max-w-xl flex-1 px-5 py-8">
 				{trackData ? (
 					<div className="grid gap-8">
+						<StatusBlock
+							stageIndex={getStageIndex(items)}
+							isCancelled={trackData.status === "cancelled"}
+							readyCount={readyCount}
+							pendingCount={pendingItems.length}
+							pickupCode={trackData.pickup_code}
+						/>
+
 						<section className="grid gap-1">
-							<div className="flex items-baseline justify-between gap-4">
-								<h1 className="font-mono text-xl font-semibold tracking-tight text-[#0f1a16]">
-									{trackData.code}
-								</h1>
-								<button
-									type="button"
-									onClick={handleReset}
-									className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#0f1a16] underline-offset-4 hover:underline"
-								>
-									Track another
-								</button>
-							</div>
-							<p className="text-[13px] text-[#2a2922]/70">
-								{trackData.store.name} ·{" "}
-								<span className="font-mono">
-									{trackData.customer.phone_number_masked}
-								</span>
+							<h1 className="font-mono text-xl font-semibold tracking-tight text-[#0f1a16]">
+								{trackData.code}
+							</h1>
+							<p className="text-[15px] text-[#0f1a16]">
+								{trackData.customer.name} ·{" "}
+								<span className="font-mono">{submitted?.phone}</span>
+							</p>
+							<p className="text-sm text-[#2a2922]/80">
+								{trackData.store.name}
 							</p>
 						</section>
-
-						<StageRail stageIndex={stageIndex} isCancelled={isCancelled} />
-
-						{isCancelled && (
-							<p className="border-l-2 border-destructive pl-3 text-sm">
-								Cancelled. Contact the branch.
-							</p>
-						)}
-
-						{isAllReady ? (
-							<section className="grid gap-2 border-2 border-[#0f1a16] p-4">
-								<h2 className={LABEL_CLASS}>Pickup code</h2>
-								{trackData.pickup_code ? (
-									<p className="font-mono text-3xl font-bold tracking-[0.3em] text-[#0f1a16] tabular-nums">
-										{trackData.pickup_code}
-									</p>
-								) : null}
-								<p className="text-[13px] text-[#2a2922]/70">
-									Show this at the counter
-								</p>
-							</section>
-						) : null}
-
-						{isPartlyReady ? (
-							<p className="border border-[#0f1a16]/15 px-4 py-3 text-[13px] text-[#2a2922]/80">
-								{readyCount} of {pendingItems.length} Items can be collected
-								now.
-								{trackData.pickup_code ? (
-									<>
-										{" "}
-										Pickup code{" "}
-										<span className="font-mono font-semibold text-[#0f1a16]">
-											{trackData.pickup_code}
-										</span>
-									</>
-								) : null}
-							</p>
-						) : null}
 
 						<section className="grid gap-3">
 							<h2 className={LABEL_CLASS}>Items · {items.length}</h2>
@@ -301,53 +290,73 @@ const TrackOrderPage = () => {
 								{items.map((item) => (
 									<li
 										key={item.id}
-										className="grid gap-1.5 border-t border-[#0f1a16]/10 py-4"
+										className="grid gap-2 border-t border-[#0f1a16]/15 py-4"
 									>
-										<div className="flex items-start justify-between gap-3">
-											<p className={LABEL_CLASS}>{item.item_code}</p>
-											<Badge
-												variant={getOrderServiceStatusBadgeVariant(item.status)}
-												className="font-mono text-[10px] uppercase tracking-[0.18em]"
-											>
-												{formatOrderServiceStatus(item.status)}
-											</Badge>
-										</div>
 										<p className="font-semibold text-[15px] text-[#0f1a16]">
 											{formatOrderServiceItemDetails(item)}
 										</p>
-										<ul className="grid gap-1 pl-3 text-[13px]">
-											{item.services.map((service) => (
-												<li
-													key={service.id}
-													className="flex justify-between gap-3"
-												>
-													<span className="text-[#2a2922]/80">
-														{service.service?.name ?? "Service"}
-													</span>
-													<span className="text-[#2a2922]/55">
-														{formatOrderServiceStatus(service.status)}
-													</span>
-												</li>
-											))}
+										<ul className="grid gap-1.5 text-sm">
+											{item.services.map((service) => {
+												const isDone = isServiceDone(service.status);
+												return (
+													<li
+														key={service.id}
+														className="flex items-center gap-2.5"
+													>
+														<span
+															className={cn(
+																"size-3 shrink-0 border-2",
+																isDone
+																	? "border-emerald-600 bg-emerald-600"
+																	: "border-[#0f1a16]/40",
+															)}
+														/>
+														<span className="min-w-0 text-[#0f1a16]">
+															{service.service?.name ?? "Service"}
+														</span>
+														<span
+															className={cn(
+																"ml-auto shrink-0",
+																isDone
+																	? "text-emerald-700"
+																	: service.status === "qc_reject"
+																		? "text-amber-700"
+																		: "text-[#2a2922]/80",
+															)}
+														>
+															{formatOrderServiceStatus(service.status)}
+														</span>
+													</li>
+												);
+											})}
 										</ul>
 									</li>
 								))}
 							</ul>
 						</section>
 
-						<a
-							href={
-								storePhoneE164
-									? `https://wa.me/${storePhoneE164}`
-									: HELP_WHATSAPP
-							}
-							target="_blank"
-							rel="noreferrer"
-							className="inline-flex items-center gap-2 border-t border-[#0f1a16]/10 pt-6 text-sm text-[#0f1a16] underline-offset-4 hover:underline"
-						>
-							<WhatsappLogoIcon className="size-4" weight="duotone" />
-							WhatsApp {trackData.store.name}
-						</a>
+						<div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#0f1a16]/15 pt-6">
+							<a
+								href={
+									storePhoneE164
+										? `https://wa.me/${storePhoneE164}`
+										: HELP_WHATSAPP
+								}
+								target="_blank"
+								rel="noreferrer"
+								className="inline-flex items-center gap-2 bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
+							>
+								<WhatsappLogoIcon className="size-4" weight="fill" />
+								WhatsApp {trackData.store.name}
+							</a>
+							<button
+								type="button"
+								onClick={handleReset}
+								className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#0f1a16] underline-offset-4 hover:underline"
+							>
+								Track another
+							</button>
+						</div>
 					</div>
 				) : (
 					<form
@@ -366,7 +375,7 @@ const TrackOrderPage = () => {
 							</FieldLabel>
 							<Input
 								id="track-code"
-								placeholder="ABC/06032026/1"
+								placeholder="#ABC/06032026/1"
 								value={code}
 								onChange={(event) => setCode(event.target.value)}
 								className={cn(INPUT_CLASS, "uppercase")}
