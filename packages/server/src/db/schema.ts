@@ -63,14 +63,30 @@ export const storesTable = pgTable(
     longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),
     name: varchar("name", { length: 255 }).notNull(),
     phone_number: varchar("phone_number", { length: 16 }).unique().notNull(),
-    // The Bluetooth name the store's receipt printer shows when a cashier
-    // pairs it, saved the first time that happens. A browser's own printer id
-    // cannot be shared with other laptops or phones, so this name is what
-    // every POS at the store uses to find the right printer. Empty until the
-    // first pairing.
-    printer_name: varchar("printer_name", { length: 64 }),
   },
   (table) => [check("code_len_check", sql`LENGTH(TRIM(${table.code})) = 3`)]
+);
+
+// Bluetooth devices a cashier registered for a store from the POS. The POS
+// only prints to devices on this list, so a receipt cannot land on a stray
+// speaker or another store's printer. A browser's own device id cannot be
+// shared with other laptops or phones, so the Bluetooth name is what is
+// saved.
+export const storeDevicesTable = pgTable(
+  "store_devices",
+  {
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    label: varchar("label", { length: 64 }),
+    name: varchar("name", { length: 64 }).notNull(),
+    store_id: integer("store_id")
+      .references(() => storesTable.id, { onDelete: "cascade" })
+      .notNull(),
+  },
+  (table) => [
+    index("store_devices_store_idx").on(table.store_id),
+    uniqueIndex("store_devices_store_name_uidx").on(table.store_id, table.name),
+  ]
 );
 
 // customer

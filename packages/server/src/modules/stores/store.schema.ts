@@ -5,11 +5,7 @@ import {
 } from "libphonenumber-js";
 import { z } from "zod";
 import { storesTable } from "@/db/schema";
-import { isActiveSchema, textSchema, varcharSchema } from "@/schema/common";
-
-// A blank must be saved as null, never as "". The printer list only shows
-// exact name matches, and "" matches nothing, so the cashier could never pair.
-const printerNameSchema = textSchema("Printer name", 64).nullish();
+import { isActiveSchema } from "@/schema/common";
 
 export const POSTStoreSchema = z.object({
   code: z.string().trim().min(3, "Minimum 3 characters").max(3),
@@ -40,16 +36,9 @@ export const POSTStoreSchema = z.object({
       .transform(String)
   ),
   is_active: isActiveSchema,
-  printer_name: printerNameSchema,
 });
 
-export const PUTStoreSchema = createUpdateSchema(storesTable, {
-  printer_name: printerNameSchema,
-});
-
-export const PUTStorePrinterSchema = z.object({
-  printer_name: varcharSchema("Printer name", 64),
-});
+export const PUTStoreSchema = createUpdateSchema(storesTable);
 
 export const PATCHStoreSchema = createUpdateSchema(storesTable).pick({
   is_active: true,

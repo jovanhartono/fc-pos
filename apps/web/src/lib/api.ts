@@ -7,10 +7,10 @@ import type {
 	POSTPaymentMethodSchema,
 	POSTProductSchema,
 	POSTServiceSchema,
+	POSTStoreDeviceSchema,
 	POSTStoreSchema,
 	POSTUserSchema,
 	PUTCustomerSchema,
-	PUTStorePrinterSchema,
 	PUTUserSchema,
 } from "@fresclean/api/schema";
 import type {
@@ -241,7 +241,7 @@ export type CreateUserPayload = z.infer<typeof POSTUserSchema>;
 export type UpdateUserPayload = z.infer<typeof PUTUserSchema>;
 export type CreateStorePayload = z.infer<typeof POSTStoreSchema>;
 export type UpdateStorePayload = z.infer<typeof POSTStoreSchema>;
-export type SaveStorePrinterPayload = z.infer<typeof PUTStorePrinterSchema>;
+export type RegisterStoreDevicePayload = z.infer<typeof POSTStoreDeviceSchema>;
 export type CreateCategoryPayload = z.infer<typeof POSTCategorySchema>;
 export type UpdateCategoryPayload = z.infer<typeof POSTCategorySchema>;
 // Money crosses the wire as the digit string the currency field produced; the
@@ -464,6 +464,7 @@ export const queryKeys = {
 	users: (query?: FetchUsersQuery) => ["users", query ?? {}] as const,
 	me: ["me"] as const,
 	stores: ["stores"] as const,
+	storeDevices: (storeId: number) => ["stores", storeId, "devices"] as const,
 	categories: ["categories"] as const,
 	services: ["services"] as const,
 	products: ["products"] as const,
@@ -735,14 +736,34 @@ export async function updateStore(id: number, payload: UpdateStorePayload) {
 	);
 }
 
-export async function saveStorePrinter(
-	id: number,
-	payload: SaveStorePrinterPayload,
+export type StoreDevice = InferResponseType<
+	(typeof rpc.api.admin.stores)[":id"]["devices"]["$get"]
+>["data"][number];
+
+export async function fetchStoreDevices(storeId: number) {
+	return parseSuccessData<StoreDevice[]>(
+		rpcWithAuth().api.admin.stores[":id"].devices.$get({
+			param: { id: String(storeId) },
+		}),
+	);
+}
+
+export async function registerStoreDevice(
+	storeId: number,
+	payload: RegisterStoreDevicePayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.stores[":id"].printer.$put({
-			param: { id: String(id) },
+		rpcWithAuth().api.admin.stores[":id"].devices.$post({
+			param: { id: String(storeId) },
 			json: payload,
+		}),
+	);
+}
+
+export async function deleteStoreDevice(storeId: number, deviceId: number) {
+	return parseResponse(
+		rpcWithAuth().api.admin.stores[":id"].devices[":deviceId"].$delete({
+			param: { id: String(storeId), deviceId: String(deviceId) },
 		}),
 	);
 }

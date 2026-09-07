@@ -18,17 +18,23 @@ mock.module("@/utils/authorization", () => ({
   },
 }));
 
-const updateStoreCalls: { id: number; payload: unknown }[] = [];
+const registered: { storeId: number; payload: unknown }[] = [];
+
+mock.module("@/modules/stores/store-device.service", () => ({
+  getStoreDevices: () => Promise.resolve([]),
+  registerStoreDevice: (storeId: number, payload: { name: string }) => {
+    registered.push({ storeId, payload });
+    return Promise.resolve({ id: 1, store_id: storeId, ...payload });
+  },
+  removeStoreDevice: () => Promise.resolve(null),
+}));
 
 mock.module("@/modules/stores/store.service", () => ({
   createStore: () => Promise.resolve({}),
   getNearestStores: () => Promise.resolve([]),
   getStoreById: () => Promise.resolve(null),
   getStores: () => Promise.resolve([]),
-  updateStore: ({ id, payload }: { id: number; payload: unknown }) => {
-    updateStoreCalls.push({ id, payload });
-    return Promise.resolve({ id, name: "Fresclean Kemang" });
-  },
+  updateStore: () => Promise.resolve(null),
   updateStoreStatus: () => Promise.resolve(null),
 }));
 
@@ -51,38 +57,41 @@ const app = new Hono<{ Variables: { jwtPayload: JWTPayload } }>()
 
 app.onError(errorHandler);
 
-const rememberPrinter = (storeId: number, printer_name: string) =>
-  app.request(`/stores/${storeId}/printer`, {
-    method: "PUT",
+const register = (storeId: number, body: unknown) =>
+  app.request(`/stores/${storeId}/devices`, {
+    method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ printer_name }),
+    body: JSON.stringify(body),
   });
 
 beforeEach(() => {
-  updateStoreCalls.length = 0;
+  registered.length = 0;
 });
 
-describe("remembering the receipt printer a POS just paired", () => {
-  it("lets a cashier remember the printer for the store they work at", async () => {
-    const res = await rememberPrinter(KEMANG, "  CBT-80-0F2A ");
+describe("registering a Bluetooth device from the POS", () => {
+  it("lets a cashier register a device for the store they work at", async () => {
+    const res = await register(KEMANG, {
+      name: "  CBT-80-0F2A ",
+      label: "Kasir 1",
+    });
 
-    expect(res.status).toBe(200);
-    expect(updateStoreCalls).toEqual([
-      { id: KEMANG, payload: { printer_name: "CBT-80-0F2A" } },
+    expect(res.status).toBe(201);
+    expect(registered).toEqual([
+      { storeId: KEMANG, payload: { name: "CBT-80-0F2A", label: "Kasir 1" } },
     ]);
   });
 
-  it("refuses to let a Kemang POS point another store's receipts at its printer", async () => {
-    const res = await rememberPrinter(BINTARO, "CBT-80-0F2A");
+  it("refuses to let a Kemang POS register a device for another store", async () => {
+    const res = await register(BINTARO, { name: "CBT-80-0F2A" });
 
     expect(res.status).toBe(403);
-    expect(updateStoreCalls).toEqual([]);
+    expect(registered).toEqual([]);
   });
 
-  it("rejects a blank name — forgetting the printer is an admin edit, not a pairing", async () => {
-    const res = await rememberPrinter(KEMANG, "   ");
+  it("rejects a device with no Bluetooth name — there is nothing to match on", async () => {
+    const res = await register(KEMANG, { name: "   " });
 
     expect(res.status).toBe(400);
-    expect(updateStoreCalls).toEqual([]);
+    expect(registered).toEqual([]);
   });
 });

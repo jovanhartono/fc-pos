@@ -14,7 +14,10 @@ import {
 	uploadOrderDropoffPhoto,
 } from "@/features/orders/utils/photo-upload";
 import { printOrderReceipt } from "@/features/printing/print-order-receipt";
-import { PrinterNotPairedError } from "@/features/printing/printer-transport";
+import {
+	NoRegisteredDeviceError,
+	PrinterNotPairedError,
+} from "@/features/printing/printer-transport";
 import {
 	countCartTreatments,
 	defaultDraftValues,
@@ -246,6 +249,12 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 				if (orderId && navigator.bluetooth) {
 					void printOrderReceipt(orderId, { allowPairing: false }).catch(
 						(error: unknown) => {
+							if (error instanceof NoRegisteredDeviceError) {
+								toast.info("Order created. No Bluetooth device registered", {
+									description: "Use Devices next to the store name to add one.",
+								});
+								return;
+							}
 							if (error instanceof PrinterNotPairedError) {
 								toast.info("Order created. Pair a printer to auto-print", {
 									description: "Open the order and use Print receipt.",

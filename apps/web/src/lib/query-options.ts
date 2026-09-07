@@ -32,6 +32,7 @@ import {
 	fetchReportOverview,
 	fetchServices,
 	fetchShifts,
+	fetchStoreDevices,
 	fetchStores,
 	fetchUsersPage,
 	fetchWorkerProductivityReport,
@@ -63,6 +64,12 @@ export const storesQueryOptions = () =>
 		queryKey: queryKeys.stores,
 		queryFn: fetchStores,
 		staleTime: REFERENCE_DATA_STALE_TIME,
+	});
+
+export const storeDevicesQueryOptions = (storeId: number) =>
+	queryOptions({
+		queryKey: queryKeys.storeDevices(storeId),
+		queryFn: () => fetchStoreDevices(storeId),
 	});
 
 export const categoriesQueryOptions = () =>

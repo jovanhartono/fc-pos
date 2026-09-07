@@ -1,9 +1,9 @@
 import { usePrinterStore } from "@/stores/printer-store";
 import {
+	NoRegisteredDeviceError,
 	PrinterNotPairedError,
 	type PrinterTransport,
 	type PrintOptions,
-	type PrintResult,
 } from "./printer-transport";
 
 // Vendor services seen on budget ESC/POS BLE boards (incl. CBT-80-class
@@ -107,19 +107,22 @@ async function findGrantedDevice(
 	return devices.find((device) => device.id === deviceId) ?? null;
 }
 
-// A store that already has a printer only accepts that one: the printer this
-// laptop last used may belong to the store next door. A store with no printer
-// yet accepts whichever one prints.
-const isStorePrinter = (device: BluetoothDevice, printerName: string | null) =>
-	printerName === null || device.name === printerName;
+// The printer this laptop last used may belong to the store next door, so it
+// only counts if this store registered it.
+const isRegistered = (device: BluetoothDevice, deviceNames: string[]) =>
+	device.name !== undefined && deviceNames.includes(device.name);
 
 async function resolvePrinter({
 	allowPairing,
-	printerName,
+	deviceNames,
 }: PrintOptions): Promise<ConnectedPrinter> {
+	if (deviceNames.length === 0) {
+		throw new NoRegisteredDeviceError();
+	}
+
 	if (
 		cached?.device.gatt?.connected &&
-		isStorePrinter(cached.device, printerName)
+		isRegistered(cached.device, deviceNames)
 	) {
 		return cached;
 	}
@@ -127,7 +130,7 @@ async function resolvePrinter({
 	const { deviceId } = usePrinterStore.getState();
 	if (deviceId) {
 		const known = cached?.device ?? (await findGrantedDevice(deviceId));
-		if (known && isStorePrinter(known, printerName)) {
+		if (known && isRegistered(known, deviceNames)) {
 			if (!allowPairing) {
 				// Auto-print: a paired-but-unreachable printer is a real fault
 				// (off, out of range) — let it throw instead of degrading to
@@ -153,28 +156,42 @@ async function resolvePrinter({
 	// that store's cashier from printing.
 	cached?.device.gatt?.disconnect();
 
-	const device = await navigator.bluetooth.requestDevice(
-		printerName
-			? { filters: [{ name: printerName }], optionalServices: PRINTER_SERVICES }
-			: { acceptAllDevices: true, optionalServices: PRINTER_SERVICES },
-	);
+	const device = await navigator.bluetooth.requestDevice({
+		filters: deviceNames.map((name) => ({ name })),
+		optionalServices: PRINTER_SERVICES,
+	});
 	const printer = await connect(device);
-	// Persist only after a successful connect — the acceptAllDevices chooser
-	// lists every nearby BLE device, and a mis-pick must not become the
-	// remembered printer.
 	usePrinterStore.getState().setDeviceId(device.id);
 	return printer;
 }
 
-async function printNow(
-	data: Uint8Array,
-	options: PrintOptions,
-): Promise<PrintResult> {
+// Registration from the POS: the cashier picks from every nearby device, and we
+// connect once to prove it is real and in range before the store saves its
+// name. Nothing is printed.
+export async function pairBluetoothDevice(): Promise<string> {
 	if (!navigator.bluetooth) {
 		throw new Error("Bluetooth is not available in this browser");
 	}
 
-	const { device, characteristic } = await resolvePrinter(options);
+	const device = await navigator.bluetooth.requestDevice({
+		acceptAllDevices: true,
+		optionalServices: PRINTER_SERVICES,
+	});
+	if (!device.name) {
+		throw new Error("This device has no Bluetooth name and cannot be saved");
+	}
+
+	await connect(device);
+	usePrinterStore.getState().setDeviceId(device.id);
+	return device.name;
+}
+
+async function printNow(data: Uint8Array, options: PrintOptions) {
+	if (!navigator.bluetooth) {
+		throw new Error("Bluetooth is not available in this browser");
+	}
+
+	const { characteristic } = await resolvePrinter(options);
 
 	for (let offset = 0; offset < data.length; offset += CHUNK_SIZE) {
 		const chunk = data.slice(offset, offset + CHUNK_SIZE);
@@ -185,14 +202,12 @@ async function printNow(
 			await characteristic.writeValue(chunk);
 		}
 	}
-
-	return { deviceName: device.name ?? null };
 }
 
 // Prints share one characteristic — interleaved chunk loops (auto-print
 // racing a manual reprint) would garble two byte streams on the paper, so
 // every print queues behind the previous one.
-let printQueue: Promise<unknown> = Promise.resolve();
+let printQueue: Promise<void> = Promise.resolve();
 
 export const webBluetoothTransport: PrinterTransport = {
 	print(data, options) {

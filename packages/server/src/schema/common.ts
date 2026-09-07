@@ -34,11 +34,11 @@ export const optionalVarcharSchema = (field: string, maxLength = 255) =>
     .transform((value) => (value.length === 0 ? undefined : value))
     .optional();
 
-export const textSchema = (field: string, maxLength = 1000) =>
+export const textSchema = (field: string) =>
   z
     .string()
     .trim()
-    .max(maxLength, `${field} must be at most ${maxLength} characters`)
+    .max(1000, `${field} must be at most 1000 characters`)
     .transform((val) => (val.length === 0 ? null : val));
 
 export const isActiveSchema = z.boolean("Active status must be true or false");
