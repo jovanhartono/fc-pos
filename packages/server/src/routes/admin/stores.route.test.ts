@@ -64,6 +64,12 @@ const register = (storeId: number, body: unknown) =>
     body: JSON.stringify(body),
   });
 
+const listDevices = (storeId: number) =>
+  app.request(`/stores/${storeId}/devices`);
+
+const removeDevice = (storeId: number, deviceId: number) =>
+  app.request(`/stores/${storeId}/devices/${deviceId}`, { method: "DELETE" });
+
 beforeEach(() => {
   registered.length = 0;
 });
@@ -72,12 +78,18 @@ describe("registering a Bluetooth device from the POS", () => {
   it("lets a cashier register a device for the store they work at", async () => {
     const res = await register(KEMANG, {
       name: "  CBT-80-0F2A ",
-      label: "Kasir 1",
+      label: " Kasir 1 ",
     });
 
     expect(res.status).toBe(201);
+    // Some printers announce themselves with a space on the end. Printing
+    // matches that name letter for letter, so it is stored as it arrives; the
+    // label a cashier types is tidied up.
     expect(registered).toEqual([
-      { storeId: KEMANG, payload: { name: "CBT-80-0F2A", label: "Kasir 1" } },
+      {
+        storeId: KEMANG,
+        payload: { name: "  CBT-80-0F2A ", label: "Kasir 1" },
+      },
     ]);
   });
 
@@ -93,5 +105,20 @@ describe("registering a Bluetooth device from the POS", () => {
 
     expect(res.status).toBe(400);
     expect(registered).toEqual([]);
+  });
+});
+
+// The list and the removal are the same branch question as the registration,
+// and each handler asks it for itself — so each one is tested for itself.
+describe("reading and removing another store's devices", () => {
+  it("refuses to list them", async () => {
+    expect((await listDevices(BINTARO)).status).toBe(403);
+    expect((await listDevices(KEMANG)).status).toBe(200);
+  });
+
+  it("refuses to remove one", async () => {
+    expect((await removeDevice(BINTARO, 1)).status).toBe(403);
+    // Kemang clears the branch check; the store has no such device to remove.
+    expect((await removeDevice(KEMANG, 1)).status).toBe(404);
   });
 });

@@ -100,6 +100,11 @@ const trimBlankRows = ({ width, height, ink }: Bitmap): Bitmap => {
 	while (bottom > top && !rowHasInk(bottom - 1)) {
 		bottom--;
 	}
+	if (bottom === top) {
+		// A white-on-transparent export composites to blank paper, and a
+		// zero-height raster prints nothing at all.
+		throw new Error(`${SOURCE_IMAGE} has no ink to print`);
+	}
 	return {
 		width,
 		height: bottom - top,

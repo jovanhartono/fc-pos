@@ -1,6 +1,7 @@
 import { BluetoothIcon, TrashIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,14 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 	const pairMutation = useMutation({
 		mutationFn: pairBluetoothDevice,
 		onSuccess: (name) => setPendingName(name),
+		onError: (error) => {
+			// Closing the device list is how a cashier backs out of registering,
+			// not a fault to shout about.
+			if (error instanceof DOMException && error.name === "NotFoundError") {
+				return;
+			}
+			toast.error(error.message);
+		},
 	});
 
 	const registerMutation = useMutation({
@@ -49,7 +58,7 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 
 	return (
 		<div className="grid gap-4">
-			{devices.length === 0 && !devicesQuery.isPending && (
+			{devicesQuery.isSuccess && devices.length === 0 && (
 				<p className="text-muted-foreground text-sm">
 					No devices yet. Printing is off until one is registered.
 				</p>

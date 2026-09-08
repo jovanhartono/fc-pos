@@ -181,8 +181,17 @@ export async function pairBluetoothDevice(): Promise<string> {
 		throw new Error("This device has no Bluetooth name and cannot be saved");
 	}
 
+	// This chooser lists every nearby device, so what comes out of it must not
+	// become the printer this counter prints to — a manual print from the
+	// filtered chooser settles that. Registering Kasir 2's printer from Kasir
+	// 1's laptop would otherwise send Kasir 1's next receipt across the shop.
+	// The printer is handed straight back as well: these boards take one
+	// connection at a time.
+	const inUse = cached;
 	await connect(device);
-	usePrinterStore.getState().setDeviceId(device.id);
+	cached = inUse;
+	device.gatt?.disconnect();
+
 	return device.name;
 }
 
