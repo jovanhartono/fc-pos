@@ -10,12 +10,15 @@ const transport = webBluetoothTransport;
 
 export const printOrderReceipt = async (
 	orderId: number,
-	options: PrintOptions,
+	options: Pick<PrintOptions, "allowPairing">,
 ): Promise<void> => {
 	const receipt = await fetchOrderReceipt(orderId);
 	const trackingUrl = buildTrackingUrl(
 		receipt.code,
 		receipt.customer.phone_number,
 	);
-	await transport.print(buildReceiptEscPos(receipt, trackingUrl), options);
+	await transport.print(buildReceiptEscPos(receipt, trackingUrl), {
+		...options,
+		deviceNames: receipt.store.devices.map((device) => device.name),
+	});
 };

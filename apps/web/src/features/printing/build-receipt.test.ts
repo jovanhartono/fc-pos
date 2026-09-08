@@ -18,6 +18,7 @@ const baseReceipt: OrderReceipt = {
 		name: "Fresclean Kemang",
 		address: "Jl. Kemang Raya No. 12, Jakarta",
 		phone_number: "081234567890",
+		devices: [],
 	},
 	customer: {
 		name: "Budi Santoso",
@@ -110,7 +111,9 @@ describe("buildReceiptEscPos", () => {
 		expect([bytes[0], bytes[1]]).toEqual([0x1b, 0x40]);
 		expect([...bytes.slice(-4)]).toEqual([0x1d, 0x56, 0x42, 0x00]);
 
-		expect(text).toContain("Fresclean Kemang");
+		// The wordmark carries the brand; the store name would collide with it.
+		expect(text).not.toContain("Fresclean Kemang");
+		expect(text).toContain("Jl. Kemang Raya No. 12, Jakarta");
 		expect(text).toContain("No. Order : #JKT/06072026/12");
 		expect(text).toContain("Kasir     : Rina");
 		expect(text).toContain("Nike - AF1 - Putih - 42");
@@ -169,8 +172,8 @@ describe("buildReceiptEscPos", () => {
 		expect(RECEIPT_LOGO?.data.length).toBe(
 			(RECEIPT_LOGO?.widthBytes ?? 0) * (RECEIPT_LOGO?.height ?? 0),
 		);
-		// The mark must not push the store name off the top of the receipt.
-		expect(decodeText(bytes)).toContain("Fresclean Kemang");
+		// The mark must not push the store address off the top of the receipt.
+		expect(decodeText(bytes)).toContain("Jl. Kemang Raya No. 12, Jakarta");
 	});
 
 	test("one Item with three treatments prints one tag and one descriptor row", () => {

@@ -54,6 +54,7 @@ const CONSTRAINT_MESSAGES: Partial<Record<string, string>> = {
   products_sku: "That SKU is already in use",
   refunded_amount_valid_check: "Refund cannot be more than the amount paid",
   services_code: "That service code is already in use",
+  store_devices_store_name_uidx: "That device is already registered here",
   stores_code: "That store code is already in use",
   users_username: "That username is taken",
 };

@@ -1,0 +1,1 @@
+ALTER TABLE "stores" ADD COLUMN "printer_name" varchar(64);

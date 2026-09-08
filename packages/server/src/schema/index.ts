@@ -27,6 +27,7 @@ import { POSTPaymentMethodSchema as _POSTPaymentMethodSchema } from "@/modules/p
 import { POSTProductSchema as _POSTProductSchema } from "@/modules/products/product.schema";
 import { POSTServiceSchema as _POSTServiceSchema } from "@/modules/services/service.schema";
 import { POSTStoreSchema as _POSTStoreSchema } from "@/modules/stores/store.schema";
+import { POSTStoreDeviceSchema as _POSTStoreDeviceSchema } from "@/modules/stores/store-device.schema";
 
 export const ORDER_SERVICE_TRANSITIONS = _ORDER_SERVICE_TRANSITIONS;
 export const ORDER_TERMINAL_SERVICE_STATUSES = _ORDER_TERMINAL_SERVICE_STATUSES;
@@ -48,6 +49,7 @@ export const POSTPaymentMethodSchema = _POSTPaymentMethodSchema;
 export const POSTProductSchema = _POSTProductSchema;
 export const POSTServiceSchema = _POSTServiceSchema;
 export const POSTStoreSchema = _POSTStoreSchema;
+export const POSTStoreDeviceSchema = _POSTStoreDeviceSchema;
 
 import {
   type CampaignContribution as _CampaignContribution,

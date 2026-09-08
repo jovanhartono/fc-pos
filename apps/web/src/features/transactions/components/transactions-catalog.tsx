@@ -1,4 +1,4 @@
-import { MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { BluetoothIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import { StoreDevicesDialog } from "@/features/printing/components/store-devices-dialog";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import { useCartOps } from "@/features/transactions/cart/useCart";
 import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
@@ -19,12 +20,14 @@ import {
 } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
 import { formatIDRCurrency } from "@/shared/utils";
+import { useDialog } from "@/stores/dialog-store";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 export function TransactionsCatalog() {
 	const { isAdmin, visibleStores, handleStoreChange } =
 		useTransactionsPageContext();
 	const { addProduct, addService } = useCartOps();
+	const openDialog = useDialog((s) => s.openDialog);
 	const searchTerm = useTransactionsPageStore((state) => state.searchTerm);
 	const setSearchTerm = useTransactionsPageStore(
 		(state) => state.setSearchTerm,
@@ -151,16 +154,38 @@ export function TransactionsCatalog() {
 						    rendered here — this is the only place the store can be fixed,
 						    and the checkout sheet covers it. */}
 						<Field data-invalid={!!storeError}>
-							<StoreAutocomplete
-								hideLabel
-								required
-								value={selectedStoreId}
-								onValueChange={handleStoreChange}
-								allowedStoreIds={visibleStores.map((store) => store.id)}
-								disabled={!isAdmin}
-								triggerClassName="h-10 pointer-coarse:h-11 w-full border-border/70 bg-background text-sm"
-								placeholder="Select store"
-							/>
+							<div className="flex gap-2">
+								<StoreAutocomplete
+									hideLabel
+									required
+									value={selectedStoreId}
+									onValueChange={handleStoreChange}
+									allowedStoreIds={visibleStores.map((store) => store.id)}
+									disabled={!isAdmin}
+									triggerClassName="h-10 pointer-coarse:h-11 w-full border-border/70 bg-background text-sm"
+									placeholder="Select store"
+								/>
+								<Button
+									type="button"
+									variant="outline"
+									className="h-10 pointer-coarse:h-11 shrink-0"
+									disabled={!selectedStoreId}
+									icon={<BluetoothIcon className="size-4" />}
+									onClick={() =>
+										openDialog({
+											title: "Bluetooth devices",
+											description:
+												"The POS only prints to devices registered here.",
+											contentClassName: "sm:max-w-md",
+											content: () => (
+												<StoreDevicesDialog storeId={Number(selectedStoreId)} />
+											),
+										})
+									}
+								>
+									Devices
+								</Button>
+							</div>
 							<FieldError errors={[storeError]} />
 						</Field>
 

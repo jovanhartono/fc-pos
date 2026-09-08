@@ -50,6 +50,7 @@ export const relations = defineRelations(schema, (r) => ({
   storesTable: {
     campaignStores: r.many.campaignStoresTable(),
     customers: r.many.customersTable(),
+    devices: r.many.storeDevicesTable(),
     orders: r.many.ordersTable(),
     shifts: r.many.shiftsTable(),
     userStores: r.many.userStoresTable(),
@@ -151,6 +152,14 @@ export const relations = defineRelations(schema, (r) => ({
     redeemedOrder: r.one.ordersTable({
       from: r.campaignCodesTable.redeemed_order_id,
       to: r.ordersTable.id,
+    }),
+  },
+
+  storeDevicesTable: {
+    store: r.one.storesTable({
+      from: r.storeDevicesTable.store_id,
+      to: r.storesTable.id,
+      optional: false,
     }),
   },
 

@@ -9,7 +9,7 @@ import { z } from "zod";
 const parseIndonesianCurrency = (formattedValue: string): number =>
   Number(formattedValue.replaceAll(/[^\d]/g, ""));
 
-export const varcharSchema = (field: string) =>
+export const varcharSchema = (field: string, maxLength = 255) =>
   z
     .string({
       error: (issue) =>
@@ -19,7 +19,7 @@ export const varcharSchema = (field: string) =>
     })
     .trim()
     .min(1, `${field} cannot be empty`)
-    .max(255, `${field} must be at most 255 characters`);
+    .max(maxLength, `${field} must be at most ${maxLength} characters`);
 
 export const optionalVarcharSchema = (field: string, maxLength = 255) =>
   z

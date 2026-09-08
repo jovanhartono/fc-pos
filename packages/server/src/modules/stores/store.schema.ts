@@ -37,7 +37,9 @@ export const POSTStoreSchema = z.object({
   ),
   is_active: isActiveSchema,
 });
+
 export const PUTStoreSchema = createUpdateSchema(storesTable);
+
 export const PATCHStoreSchema = createUpdateSchema(storesTable).pick({
   is_active: true,
 });

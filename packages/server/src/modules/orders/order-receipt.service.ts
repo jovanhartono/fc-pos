@@ -19,11 +19,16 @@ export async function getOrderReceiptById(id: number) {
       pickup_code: true,
     },
     with: {
+      // devices are not printed. The POS only offers these registered Bluetooth
+      // names, so a receipt never comes out at another store.
       store: {
         columns: {
           name: true,
           address: true,
           phone_number: true,
+        },
+        with: {
+          devices: { columns: { name: true } },
         },
       },
       customer: {

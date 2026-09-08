@@ -1,21 +1,21 @@
-// Regenerates src/features/printing/receipt-logo.ts from the brand mark.
-// Run after the monogram changes: `bun run generate-receipt-logo`.
+// Regenerates src/features/printing/receipt-logo.ts from the wordmark.
+// Run after the logo changes: `bun run generate-receipt-logo`.
 //
 // The cashier's receipt is the shop's claim ticket, so the header carries the
-// mark. Thermal heads only fire dots — there is no grey — so the SVG has to
+// mark. Thermal heads only fire dots — there is no grey — so the image has to
 // land as one bit per dot before it can be printed.
 import { execFileSync } from "node:child_process";
 import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const SOURCE_SVG = "public/favicon.svg";
+const SOURCE_IMAGE = "public/receipt-logo.webp";
 const OUTPUT_TS = "src/features/printing/receipt-logo.ts";
 
 // Dots, not millimetres. The printer is 576 dots across (48 columns of the
-// 12-dot font), so 160 is a ~20mm mark. Every dot is also 1/8 byte over BLE:
-// 160 costs ~0.8s of the print, 320 would cost ~3s at the counter.
-const TARGET_WIDTH = 160;
+// 12-dot font). Full width so the wordmark reads on the paper. Every dot is
+// 1/8 byte over Bluetooth: the trimmed wordmark adds ~1.7s before the receipt.
+const TARGET_WIDTH = 576;
 
 // Anti-aliased edges arrive as grey; below mid-grey fires the dot.
 const INK_THRESHOLD = 128;
@@ -27,16 +27,16 @@ interface Bitmap {
 	ink: boolean[];
 }
 
-const rasterizeToBmp = (svgPath: string, width: number): Buffer => {
+const rasterizeToBmp = (imagePath: string, width: number): Buffer => {
 	const bmpPath = join(tmpdir(), `receipt-logo-${width}.bmp`);
-	// sips ships with macOS and reads SVG; -Z fits the long edge to `width`.
+	// sips ships with macOS and reads WebP; -Z fits the long edge to `width`.
 	execFileSync("sips", [
 		"-s",
 		"format",
 		"bmp",
 		"-Z",
 		String(width),
-		svgPath,
+		imagePath,
 		"--out",
 		bmpPath,
 	]);
@@ -51,15 +51,19 @@ const decodeBmp = (bmp: Buffer): Bitmap => {
 	const signedHeight = bmp.readInt32LE(22);
 	const bitsPerPixel = bmp.readUInt16LE(28);
 
-	if (bitsPerPixel !== 32) {
-		throw new Error(`Expected 32-bit BMP from sips, got ${bitsPerPixel}-bit`);
+	if (bitsPerPixel !== 32 && bitsPerPixel !== 24) {
+		throw new Error(
+			`Expected 24/32-bit BMP from sips, got ${bitsPerPixel}-bit`,
+		);
 	}
+	const bytesPerPixel = bitsPerPixel / 8;
 
 	// A negative height means sips wrote the rows top-down; positive is the
 	// BMP default of bottom-up, which has to be flipped back.
 	const height = Math.abs(signedHeight);
 	const isTopDown = signedHeight < 0;
-	const rowBytes = width * 4;
+	// BMP rows are padded to 4-byte boundaries.
+	const rowBytes = Math.ceil((width * bytesPerPixel) / 4) * 4;
 
 	const ink: boolean[] = [];
 	for (let y = 0; y < height; y++) {
@@ -69,11 +73,11 @@ const decodeBmp = (bmp: Buffer): Bitmap => {
 			const blue = bmp[index];
 			const green = bmp[index + 1];
 			const red = bmp[index + 2];
-			const alpha = bmp[index + 3];
-			index += 4;
+			const alpha = bytesPerPixel === 4 ? bmp[index + 3] : 255;
+			index += bytesPerPixel;
 
-			// The monogram is black on transparent, so composite over the paper
-			// first — otherwise every transparent pixel reads as black ink.
+			// A logo with transparency is composited over the paper first —
+			// otherwise every transparent pixel reads as black ink.
 			const luminance = 0.299 * red + 0.587 * green + 0.114 * blue;
 			const overPaper = (luminance * alpha + 255 * (255 - alpha)) / 255;
 			ink.push(overPaper < INK_THRESHOLD);
@@ -81,6 +85,31 @@ const decodeBmp = (bmp: Buffer): Bitmap => {
 	}
 
 	return { width, height, ink };
+};
+
+// The wordmark file has blank bands above and below the letters; on paper they
+// would be empty feed, so drop them. Width is kept for centring.
+const trimBlankRows = ({ width, height, ink }: Bitmap): Bitmap => {
+	const rowHasInk = (y: number) =>
+		ink.slice(y * width, (y + 1) * width).some(Boolean);
+	let top = 0;
+	while (top < height && !rowHasInk(top)) {
+		top++;
+	}
+	let bottom = height;
+	while (bottom > top && !rowHasInk(bottom - 1)) {
+		bottom--;
+	}
+	if (bottom === top) {
+		// A white-on-transparent export composites to blank paper, and a
+		// zero-height raster prints nothing at all.
+		throw new Error(`${SOURCE_IMAGE} has no ink to print`);
+	}
+	return {
+		width,
+		height: bottom - top,
+		ink: ink.slice(top * width, bottom * width),
+	};
 };
 
 // GS v 0 wants rows padded to whole bytes, most significant bit leftmost.
@@ -102,9 +131,9 @@ const packOneBitPerDot = ({ width, height, ink }: Bitmap) => {
 const renderModule = (widthBytes: number, height: number, data: Uint8Array) =>
 	`import type { RasterBitmap } from "./escpos";
 
-// 1-bit raster of the Fresclean monogram for the receipt header (GS v 0).
-// Generated from ${SOURCE_SVG} by \`bun run generate-receipt-logo\` — edit the
-// brand mark and rerun, never this file. Base64 keeps ${data.length} bytes to
+// 1-bit raster of the Fresclean wordmark for the receipt header (GS v 0).
+// Generated from ${SOURCE_IMAGE} by \`bun run generate-receipt-logo\` — edit the
+// logo and rerun, never this file. Base64 keeps ${data.length} bytes to
 // one reviewable line instead of ${data.length} array entries.
 const WIDTH_BYTES = ${widthBytes};
 const HEIGHT = ${height};
@@ -140,7 +169,9 @@ const preview = ({ width, height, ink }: Bitmap) => {
 	return rows.join("\n");
 };
 
-const bitmap = decodeBmp(rasterizeToBmp(SOURCE_SVG, TARGET_WIDTH));
+const bitmap = trimBlankRows(
+	decodeBmp(rasterizeToBmp(SOURCE_IMAGE, TARGET_WIDTH)),
+);
 const { widthBytes, height, data } = packOneBitPerDot(bitmap);
 writeFileSync(OUTPUT_TS, renderModule(widthBytes, height, data));
 
