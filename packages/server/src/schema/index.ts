@@ -26,6 +26,10 @@ import {
 import { POSTPaymentMethodSchema as _POSTPaymentMethodSchema } from "@/modules/payment-methods/payment-method.schema";
 import { POSTProductSchema as _POSTProductSchema } from "@/modules/products/product.schema";
 import { POSTServiceSchema as _POSTServiceSchema } from "@/modules/services/service.schema";
+import {
+  CLOCK_IN_RADIUS_KM as _CLOCK_IN_RADIUS_KM,
+  clockInRequiresLocation as _clockInRequiresLocation,
+} from "@/modules/shifts/shift.schema";
 import { POSTStoreSchema as _POSTStoreSchema } from "@/modules/stores/store.schema";
 import { POSTStoreDeviceSchema as _POSTStoreDeviceSchema } from "@/modules/stores/store-device.schema";
 
@@ -50,6 +54,8 @@ export const POSTProductSchema = _POSTProductSchema;
 export const POSTServiceSchema = _POSTServiceSchema;
 export const POSTStoreSchema = _POSTStoreSchema;
 export const POSTStoreDeviceSchema = _POSTStoreDeviceSchema;
+export const CLOCK_IN_RADIUS_KM = _CLOCK_IN_RADIUS_KM;
+export const clockInRequiresLocation = _clockInRequiresLocation;
 
 import {
   type CampaignContribution as _CampaignContribution,

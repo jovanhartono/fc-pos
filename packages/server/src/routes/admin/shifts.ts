@@ -32,7 +32,11 @@ const app = new Hono<AdminEnv>()
     const user = c.get("jwtPayload");
     const body = c.req.valid("json");
 
-    const shift = await clockIn({ user, storeId: body.store_id });
+    const shift = await clockIn({
+      user,
+      storeId: body.store_id,
+      coordinates: body.coordinates,
+    });
 
     return c.json(
       success(shift, "Clocked in successfully"),

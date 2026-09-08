@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, skipToken } from "@tanstack/react-query";
 import {
 	type FetchAgingQueueQuery,
 	type FetchCampaignsQuery,
@@ -21,6 +21,7 @@ import {
 	fetchCustomersPage,
 	fetchFinancialReport,
 	fetchMe,
+	fetchNearestStores,
 	fetchOrderDetail,
 	fetchOrderServiceQueueCounts,
 	fetchOrdersFlowReport,
@@ -63,6 +64,18 @@ export const storesQueryOptions = () =>
 	queryOptions({
 		queryKey: queryKeys.stores,
 		queryFn: fetchStores,
+		staleTime: REFERENCE_DATA_STALE_TIME,
+	});
+
+// Waits for a fix rather than guessing a position. The nearest branch is only
+// a suggestion; the server recomputes the distance it files against the shift.
+export const nearestStoresQueryOptions = (coordinates?: {
+	latitude: number;
+	longitude: number;
+}) =>
+	queryOptions({
+		queryKey: queryKeys.storesNearest(coordinates),
+		queryFn: coordinates ? () => fetchNearestStores(coordinates) : skipToken,
 		staleTime: REFERENCE_DATA_STALE_TIME,
 	});
 

@@ -1,18 +1,37 @@
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, isNull, lt, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { shiftsTable } from "@/db/schema";
 import type { GetShiftsQuery } from "@/modules/shifts/shift.schema";
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
 
-export function insertShift(values: { user_id: number; store_id: number }) {
+export interface InsertShiftValues {
+  clock_in_distance_km?: string;
+  clock_in_latitude?: string;
+  clock_in_longitude?: string;
+  store_id: number;
+  user_id: number;
+}
+
+export function insertShift(values: InsertShiftValues) {
   return db
     .insert(shiftsTable)
-    .values({
-      user_id: values.user_id,
-      store_id: values.store_id,
-    })
+    .values(values)
     .returning()
     .then((rows) => rows[0]);
+}
+
+// A worker who went home without clocking out. Closing at the day boundary
+// keeps the hours on the day they were worked and frees them to clock in
+// again; leaving the row open would lock them out of their next shift.
+export function closeOpenShiftsBefore(cutoff: Date) {
+  return db
+    .update(shiftsTable)
+    .set({ clock_out_at: cutoff, auto_closed: true })
+    .where(
+      and(isNull(shiftsTable.clock_out_at), lt(shiftsTable.clock_in_at, cutoff))
+    )
+    .returning({ id: shiftsTable.id })
+    .then((rows) => rows.length);
 }
 
 export function findOpenShiftByUserId(userId: number) {

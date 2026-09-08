@@ -87,6 +87,9 @@ export type User = InferResponseType<
 export type Store = InferResponseType<
 	typeof rpc.api.admin.stores.$get
 >["data"][number];
+export type NearestStore = InferResponseType<
+	typeof rpc.api.admin.stores.nearest.$get
+>["data"][number];
 export type Category = InferResponseType<
 	typeof rpc.api.admin.categories.$get
 >["data"][number];
@@ -464,6 +467,8 @@ export const queryKeys = {
 	users: (query?: FetchUsersQuery) => ["users", query ?? {}] as const,
 	me: ["me"] as const,
 	stores: ["stores"] as const,
+	storesNearest: (coordinates?: { latitude: number; longitude: number }) =>
+		["stores", "nearest", coordinates ?? null] as const,
 	storeDevices: (storeId: number) => ["stores", storeId, "devices"] as const,
 	categories: ["categories"] as const,
 	services: ["services"] as const,
@@ -569,6 +574,27 @@ export async function fetchMe() {
 
 export async function fetchStores() {
 	const response = await parseResponse(rpcWithAuth().api.admin.stores.$get());
+	return response.data;
+}
+
+// Every store, ordered by distance, rather than just the closest one: the
+// clock-in screen still has to show a distance after the worker changes the
+// branch by hand.
+const NEAREST_STORES_LIMIT = 20;
+
+export async function fetchNearestStores(coordinates: {
+	latitude: number;
+	longitude: number;
+}) {
+	const response = await parseResponse(
+		rpcWithAuth().api.admin.stores.nearest.$get({
+			query: {
+				latitude: String(coordinates.latitude),
+				limit: String(NEAREST_STORES_LIMIT),
+				longitude: String(coordinates.longitude),
+			},
+		}),
+	);
 	return response.data;
 }
 
@@ -1168,7 +1194,11 @@ export async function fetchShifts(
 	return toPaginated(response);
 }
 
-export async function clockInShift(payload: { store_id: number }) {
+export async function clockInShift(payload: {
+	store_id: number;
+	latitude?: number;
+	longitude?: number;
+}) {
 	return parseResponse(
 		rpcWithAuth().api.admin.shifts["clock-in"].$post({ json: payload }),
 	);
