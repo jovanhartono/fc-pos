@@ -40,6 +40,13 @@ export class EscPosBuilder {
 		return this.text(`${value}\n`);
 	}
 
+	lines(values: string[]): this {
+		for (const value of values) {
+			this.line(value);
+		}
+		return this;
+	}
+
 	align(mode: keyof typeof ALIGN_MODES): this {
 		return this.raw(ESC, 0x61, ALIGN_MODES[mode]);
 	}
