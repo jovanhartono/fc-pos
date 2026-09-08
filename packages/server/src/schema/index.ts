@@ -32,6 +32,10 @@ import {
 } from "@/modules/shifts/shift.schema";
 import { POSTStoreSchema as _POSTStoreSchema } from "@/modules/stores/store.schema";
 import { POSTStoreDeviceSchema as _POSTStoreDeviceSchema } from "@/modules/stores/store-device.schema";
+import {
+  type Coordinates as _Coordinates,
+  distanceKm as _distanceKm,
+} from "@/utils/geo";
 
 export const ORDER_SERVICE_TRANSITIONS = _ORDER_SERVICE_TRANSITIONS;
 export const ORDER_TERMINAL_SERVICE_STATUSES = _ORDER_TERMINAL_SERVICE_STATUSES;
@@ -56,6 +60,11 @@ export const POSTStoreSchema = _POSTStoreSchema;
 export const POSTStoreDeviceSchema = _POSTStoreDeviceSchema;
 export const CLOCK_IN_RADIUS_KM = _CLOCK_IN_RADIUS_KM;
 export const clockInRequiresLocation = _clockInRequiresLocation;
+// The clock-in screen quotes a distance that the row will then be judged on, so
+// it has to measure the same way the server does rather than with a second
+// formula that disagrees near the 1 km line.
+export const distanceKm = _distanceKm;
+export type Coordinates = _Coordinates;
 
 import {
   type CampaignContribution as _CampaignContribution,

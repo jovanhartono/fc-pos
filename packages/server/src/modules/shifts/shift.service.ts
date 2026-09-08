@@ -71,7 +71,16 @@ export async function clockIn({
 
   const existing = await findOpenShiftByUserId(user.id);
   if (existing) {
-    throw new BadRequestException("You already have an open shift");
+    // Yesterday's forgotten clock-out must not cost a worker their morning: the
+    // nightly sweep is best-effort and behind a shared secret, so waiting on it
+    // is what locks someone out at 07:00. A shift opened today still conflicts.
+    const healed = await closeOpenShiftsBefore(
+      jakartaDayStart(jakartaNow().toDate()),
+      user.id
+    );
+    if (healed === 0) {
+      throw new BadRequestException("You already have an open shift");
+    }
   }
 
   const location = await resolveClockInLocation(user, storeId, coordinates);
@@ -101,10 +110,11 @@ export async function clockOut(user: JWTPayload) {
   return updateShiftClockOutById(open.id);
 }
 
-// Runs just after midnight Jakarta. Only Shifts opened before today close, so a
-// worker who started at 00:02 on an early delivery keeps theirs.
+// Reaches back a full day, because someone who clocked in at 22:30 for a late
+// close is still on the floor when this fires at midnight; their row closes
+// tomorrow night, or when they next clock in.
 export async function closeForgottenShifts() {
-  const cutoff = jakartaDayStart(jakartaNow().toDate());
+  const cutoff = jakartaDayStart(jakartaNow().subtract(1, "day").toDate());
   const closed = await closeOpenShiftsBefore(cutoff);
 
   return { closed, cutoff };

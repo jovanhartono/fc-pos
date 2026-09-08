@@ -7,7 +7,10 @@ import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ClockInControl } from "@/features/shifts/components/clock-in-control";
+import {
+	ClockInControl,
+	PRIMARY_BUTTON,
+} from "@/features/shifts/components/clock-in-control";
 import { useCurrentShift } from "@/features/shifts/hooks/useCurrentShift";
 import { invalidateShiftQueries } from "@/features/shifts/lib/shift-cache";
 import { clockOutShift, type Shift } from "@/lib/api";
@@ -162,14 +165,14 @@ function AttendancePage() {
 
 						{onShift || currentShiftPending ? (
 							<Button
-								className="h-16 w-full font-semibold text-base uppercase tracking-[0.18em]"
+								className={PRIMARY_BUTTON}
 								disabled={currentShiftPending}
 								icon={<SignOutIcon className="size-5" weight="duotone" />}
 								loading={currentShiftPending || clockOutMut.isPending}
 								loadingText={currentShiftPending ? "Checking…" : undefined}
 								onClick={() => clockOutMut.mutate()}
 								size="lg"
-								variant="destructive"
+								variant={onShift ? "destructive" : "default"}
 							>
 								Clock out
 							</Button>

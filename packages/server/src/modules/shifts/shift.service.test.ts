@@ -1,4 +1,12 @@
-import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import {
+  afterAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+  setSystemTime,
+} from "bun:test";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";
@@ -7,9 +15,10 @@ import type { JWTPayload } from "@/types";
 // Clocking in is the shop's attendance record and the source of the hours in
 // the worker-productivity report. ADR-0020 splits the two halves of the
 // location rule and these tests pin that split: sharing a location is
-// mandatory, the distance it reports never refuses the shift. Plus the
-// midnight sweep that stops a forgotten clock-out locking someone out of
-// tomorrow.
+// mandatory, the distance it reports never refuses the shift. Plus the two
+// halves of a forgotten clock-out: clocking in closes yesterday's row so
+// nobody is locked out, and the midnight sweep spares anyone still on the
+// floor.
 //
 // Both repositories and the store-access gate are doubled; their own contracts
 // are pinned elsewhere.
@@ -27,6 +36,9 @@ const shiftState = {
   inserted: undefined as Record<string, unknown> | undefined,
   closedBefore: undefined as Date | undefined,
   closedCount: 0,
+  // Rows the guarded update closed: 0 when the open shift started today.
+  staleClosed: 0,
+  staleCutoff: undefined as Date | undefined,
 };
 
 const membership = { storeIds: [1, 2] };
@@ -64,9 +76,13 @@ mock.module("@/modules/stores/store.repository", () => ({
 
 mock.module("@/modules/shifts/shift.repository", () => ({
   ...actualShiftRepo,
-  closeOpenShiftsBefore: (cutoff: Date) => {
-    shiftState.closedBefore = cutoff;
-    return Promise.resolve(shiftState.closedCount);
+  closeOpenShiftsBefore: (cutoff: Date, userId?: number) => {
+    if (userId === undefined) {
+      shiftState.closedBefore = cutoff;
+      return Promise.resolve(shiftState.closedCount);
+    }
+    shiftState.staleCutoff = cutoff;
+    return Promise.resolve(shiftState.staleClosed);
   },
   findOpenShiftByUserId: () => Promise.resolve(shiftState.openShift),
   insertShift: (values: Record<string, unknown>) => {
@@ -80,6 +96,7 @@ const { clockIn, closeForgottenShifts } = await import(
 );
 
 afterAll(() => {
+  setSystemTime();
   mock.module("@/modules/stores/store.repository", () => actualStoreRepo);
   mock.module("@/modules/shifts/shift.repository", () => actualShiftRepo);
 });
@@ -92,6 +109,7 @@ const AT_THE_COUNTER = { latitude: -6.261_848, longitude: 106.812_735 };
 const FROM_HOME = { latitude: -6.289_478, longitude: 106.812_735 };
 
 beforeEach(() => {
+  setSystemTime();
   storeState.coordinates = new Map([
     [1, KEMANG],
     [2, BINTARO],
@@ -101,6 +119,8 @@ beforeEach(() => {
   shiftState.inserted = undefined;
   shiftState.closedBefore = undefined;
   shiftState.closedCount = 0;
+  shiftState.staleClosed = 0;
+  shiftState.staleCutoff = undefined;
   membership.storeIds = [1, 2];
 });
 
@@ -194,8 +214,9 @@ describe("clockIn location rule", () => {
     expect(error).toBeInstanceOf(NotFoundException);
   });
 
-  it("still refuses a second open shift", async () => {
+  it("still refuses a shift already opened today", async () => {
     shiftState.openShift = { id: 5 };
+    shiftState.staleClosed = 0;
 
     const error = await captureRejection(
       clockIn({ user: WORKER, storeId: 1, coordinates: AT_THE_COUNTER })
@@ -204,6 +225,29 @@ describe("clockIn location rule", () => {
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe("You already have an open shift");
     expect(storeState.lookups).toEqual([]);
+    expect(shiftState.inserted).toBeUndefined();
+  });
+});
+
+describe("clockIn closes a forgotten shift instead of locking the worker out", () => {
+  it("opens today's shift once yesterday's row is closed", async () => {
+    setSystemTime(new Date("2026-09-09T01:00:00.000Z")); // 08:00 Jakarta
+    shiftState.openShift = { id: 5 };
+    shiftState.staleClosed = 1;
+
+    const shift = await clockIn({
+      user: WORKER,
+      storeId: 1,
+      coordinates: AT_THE_COUNTER,
+    });
+
+    expect(shift).toBeDefined();
+    expect(shiftState.inserted).toMatchObject({ store_id: 1, user_id: 7 });
+    // Yesterday's row is closed at the day boundary, so the hours stay on the
+    // day they were worked rather than running into this morning.
+    expect(shiftState.staleCutoff?.toISOString()).toBe(
+      "2026-09-08T17:00:00.000Z"
+    );
   });
 });
 
@@ -226,11 +270,17 @@ describe("closeForgottenShifts", () => {
     expect(result.cutoff).toEqual(shiftState.closedBefore as Date);
   });
 
-  it("is a no-op on a second run", async () => {
-    shiftState.closedCount = 0;
+  it("spares yesterday, so a 22:30 late close is left on the floor", async () => {
+    // Half a minute past midnight Jakarta on 9 September, when the cron fires.
+    setSystemTime(new Date("2026-09-08T17:00:30.000Z"));
 
-    const result = await closeForgottenShifts();
+    await closeForgottenShifts();
 
-    expect(result.closed).toBe(0);
+    // Start of 8 September Jakarta. Both the 00:02 early delivery and last
+    // night's 22:30 late close clocked in after this instant, so neither is in
+    // the sweep's reach.
+    expect(shiftState.closedBefore?.toISOString()).toBe(
+      "2026-09-07T17:00:00.000Z"
+    );
   });
 });

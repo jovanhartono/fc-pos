@@ -21,14 +21,19 @@ export function insertShift(values: InsertShiftValues) {
 }
 
 // A worker who went home without clocking out. Closing at the day boundary
-// keeps the hours on the day they were worked and frees them to clock in
-// again; leaving the row open would lock them out of their next shift.
-export function closeOpenShiftsBefore(cutoff: Date) {
+// keeps the hours on the day they were worked and frees them to clock in again.
+// The nightly sweep passes no user; a worker clocking in passes their own id to
+// clear just their row, and both must file the close the same way.
+export function closeOpenShiftsBefore(cutoff: Date, userId?: number) {
   return db
     .update(shiftsTable)
     .set({ clock_out_at: cutoff, auto_closed: true })
     .where(
-      and(isNull(shiftsTable.clock_out_at), lt(shiftsTable.clock_in_at, cutoff))
+      and(
+        isNull(shiftsTable.clock_out_at),
+        lt(shiftsTable.clock_in_at, cutoff),
+        userId === undefined ? undefined : eq(shiftsTable.user_id, userId)
+      )
     )
     .returning({ id: shiftsTable.id })
     .then((rows) => rows.length);
@@ -93,6 +98,18 @@ export function listShifts({
         gte: query?.from ? jakartaDayStart(query.from) : undefined,
         lte: query?.to ? jakartaDayEnd(query.to) : undefined,
       },
+    },
+    // The distance, never the coordinates. The Shifts page shows an admin how
+    // far each worker was; where each worker's phone was every morning is staff
+    // personal data that has no business travelling to a browser.
+    columns: {
+      id: true,
+      user_id: true,
+      store_id: true,
+      clock_in_at: true,
+      clock_out_at: true,
+      clock_in_distance_km: true,
+      auto_closed: true,
     },
     orderBy: { clock_in_at: "desc" },
     with: {

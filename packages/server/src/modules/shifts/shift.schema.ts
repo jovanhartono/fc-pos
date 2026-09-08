@@ -14,34 +14,18 @@ export const CLOCK_IN_RADIUS_KM = 1;
 export const clockInRequiresLocation = (role: JWTPayload["role"]) =>
   role !== "courier";
 
-export const POSTClockInSchema = z
-  .object({
-    latitude: z.coerce
-      .number()
-      .min(-90, "Invalid latitude")
-      .max(90, "Invalid latitude")
-      .optional(),
-    longitude: z.coerce
-      .number()
-      .min(-180, "Invalid longitude")
-      .max(180, "Invalid longitude")
-      .optional(),
-    store_id: z.coerce.number().int().positive(),
-  })
-  .refine(
-    (value) =>
-      (value.latitude === undefined) === (value.longitude === undefined),
-    { error: "Latitude and longitude must be sent together" }
-  )
-  // The wire carries two flat optionals; everything downstream wants one
-  // optional pair, so the pairing is resolved here rather than at every hop.
-  .transform(({ latitude, longitude, store_id }) => ({
-    store_id,
-    coordinates:
-      latitude === undefined || longitude === undefined
-        ? undefined
-        : { latitude, longitude },
-  }));
+export const POSTClockInSchema = z.object({
+  // One optional pair, so a body that shares half a location cannot get through.
+  // Numbers only, no coercion: `null` and `""` coerce to 0, which would file a
+  // shift at the Gulf of Guinea while looking like no location was shared.
+  coordinates: z
+    .object({
+      latitude: z.number().min(-90, "Invalid latitude").max(90),
+      longitude: z.number().min(-180, "Invalid longitude").max(180),
+    })
+    .optional(),
+  store_id: z.coerce.number().int().positive(),
+});
 
 export const GETShiftsQuerySchema = z
   .object({

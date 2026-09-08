@@ -1,14 +1,10 @@
+import type { Coordinates } from "@fresclean/api/schema";
 import { useCallback, useEffect, useState } from "react";
 
 const FIX_TIMEOUT_MS = 10_000;
 // A fix from moments ago is fine for a 1 km judgement, and refusing one made
 // every visit to the screen wait on a cold GPS lock.
 const FIX_MAX_AGE_MS = 30_000;
-
-export interface GeolocationCoordinates {
-	latitude: number;
-	longitude: number;
-}
 
 type GeolocationStatus =
 	| "skipped"
@@ -19,7 +15,7 @@ type GeolocationStatus =
 
 interface GeolocationState {
 	status: GeolocationStatus;
-	coordinates?: GeolocationCoordinates;
+	coordinates?: Coordinates;
 }
 
 // Splits "the worker said no" from "the phone could not tell us", because the
