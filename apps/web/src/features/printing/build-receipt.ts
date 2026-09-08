@@ -83,12 +83,12 @@ export const buildReceiptEscPos = (
 	const b = new EscPosBuilder();
 	b.init();
 
-	// Header
+	// Header: the wordmark already says Fresclean, so the store is identified by
+	// its address and phone only.
 	b.align("center");
 	if (RECEIPT_LOGO) {
 		b.raster(RECEIPT_LOGO).feed(1);
 	}
-	b.size("double").line(receipt.store.name).size("normal");
 	if (receipt.store.address) {
 		for (const line of wrap(receipt.store.address)) {
 			b.line(line);
