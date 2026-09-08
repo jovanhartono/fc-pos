@@ -90,9 +90,7 @@ export const buildReceiptEscPos = (
 		b.raster(RECEIPT_LOGO).feed(1);
 	}
 	if (receipt.store.address) {
-		for (const line of wrap(receipt.store.address)) {
-			b.line(line);
-		}
+		b.lines(wrap(receipt.store.address));
 	}
 	b.line(receipt.store.phone_number);
 	b.line(DIVIDER);
@@ -113,14 +111,18 @@ export const buildReceiptEscPos = (
 	// once per treatment sold against it.
 	if (receipt.items.length > 0) {
 		b.bold(true).line("LAYANAN").bold(false);
-		for (const item of receipt.items) {
-			const details = getOrderServiceItemDetails(item);
-			if (details) {
-				for (const line of wrap(details)) {
-					b.line(line);
-				}
+		for (const [index, item] of receipt.items.entries()) {
+			if (index > 0) {
+				b.line();
 			}
-			if (item.item_code) {
+			// The bold row is what the counter's eye lands on to find one pair
+			// of shoes among five on the same receipt; an Item logged without
+			// brand or model has only its tag to be found by.
+			const details = getOrderServiceItemDetails(item);
+			b.bold(true)
+				.lines(wrap(details ?? item.item_code))
+				.bold(false);
+			if (details) {
 				b.line(item.item_code);
 			}
 			for (const line of item.services) {
@@ -139,9 +141,7 @@ export const buildReceiptEscPos = (
 					),
 				);
 				if (line.notes?.trim()) {
-					for (const noteLine of wrap(`* ${line.notes.trim()}`, "    ")) {
-						b.line(noteLine);
-					}
+					b.lines(wrap(`* ${line.notes.trim()}`, "    "));
 				}
 			}
 		}
@@ -157,7 +157,9 @@ export const buildReceiptEscPos = (
 				: line.refunded_at
 					? " (REFUND)"
 					: "";
-			b.line(`${line.product?.name ?? "Produk"}${voided}`);
+			b.bold(true)
+				.line(`${line.product?.name ?? "Produk"}${voided}`)
+				.bold(false);
 			b.line(row(`  ${line.qty} x ${money(line.price)}`, money(line.subtotal)));
 		}
 	}
@@ -189,6 +191,14 @@ export const buildReceiptEscPos = (
 	}
 	b.line(DIVIDER);
 
+	// Notes — the customer's instruction for the treatment, so it sits with the
+	// order rather than stranded under the QR where nobody reads it.
+	const notes = receipt.notes?.trim();
+	if (notes) {
+		b.lines(wrap(`Catatan: ${notes}`));
+		b.line(DIVIDER);
+	}
+
 	// Pickup code — the claim ticket (ADR-0016). A cancelled Order has nothing
 	// to claim, so it gets no live-looking code.
 	b.align("center");
@@ -205,22 +215,10 @@ export const buildReceiptEscPos = (
 	b.qr(trackingUrl);
 	b.line("Scan untuk cek status order");
 
-	// Notes
-	if (receipt.notes?.trim()) {
-		b.line(DIVIDER);
-		b.align("left");
-		for (const line of wrap(`Catatan: ${receipt.notes.trim()}`)) {
-			b.line(line);
-		}
-		b.align("center");
-	}
-
 	// Footer
 	b.line(DIVIDER);
 	b.line(FOOTER_THANKS);
-	for (const line of wrap(FOOTER_DISCLAIMER)) {
-		b.line(line);
-	}
+	b.align("left").lines(wrap(FOOTER_DISCLAIMER));
 
 	b.feed(4).cut();
 	return b.build();
