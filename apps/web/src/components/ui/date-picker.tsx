@@ -1,5 +1,4 @@
 import { CalendarBlankIcon, XIcon } from "@phosphor-icons/react";
-import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import type { DateRange, Matcher } from "react-day-picker";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,15 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
+import { useIsMobile } from "@/hooks/use-mobile";
+import dayjs from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
+import {
+	getPresets,
+	jakartaToday,
+	matchPreset,
+	type RangePreset,
+} from "@/shared/date-presets";
 
 const DISPLAY_FORMAT = "MMM D, YYYY";
 const WIRE_FORMAT = "YYYY-MM-DD";
@@ -128,6 +135,10 @@ export const DateRangePicker = ({
 	const [draftRange, setDraftRange] = useState<DateRange | undefined>(
 		selectedFromProps,
 	);
+	const [isOpen, setIsOpen] = useState(false);
+	// The preset list eats the height a second month needs, and a popover taller
+	// than the counter's phone cannot be scrolled back into view.
+	const isMobile = useIsMobile(640);
 
 	useEffect(() => {
 		setDraftRange(selectedFromProps);
@@ -137,7 +148,29 @@ export const DateRangePicker = ({
 	const hasValue = Boolean(from || to);
 	const showClear = Boolean(onClear) && hasValue;
 
+	const presets = useMemo(() => getPresets(), []);
+	const activePreset =
+		displayRange?.from && displayRange?.to
+			? matchPreset(
+					presets,
+					dayjs(displayRange.from).format(WIRE_FORMAT),
+					dayjs(displayRange.to).format(WIRE_FORMAT),
+				)
+			: undefined;
+
+	const handlePresetSelect = (preset: RangePreset) => {
+		setDraftRange({
+			from: dayjs(preset.from).toDate(),
+			to: dayjs(preset.to).toDate(),
+		});
+		onChange({ from: preset.from, to: preset.to });
+		setIsOpen(false);
+	};
+
 	const label = (() => {
+		if (activePreset) {
+			return activePreset.label;
+		}
 		if (displayRange?.from && displayRange?.to) {
 			return `${dayjs(displayRange.from).format(DISPLAY_FORMAT)} - ${dayjs(displayRange.to).format(DISPLAY_FORMAT)}`;
 		}
@@ -151,7 +184,7 @@ export const DateRangePicker = ({
 	})();
 
 	const picker = (
-		<Popover>
+		<Popover open={isOpen} onOpenChange={setIsOpen}>
 			<PopoverTrigger
 				render={
 					<Button
@@ -171,30 +204,53 @@ export const DateRangePicker = ({
 			>
 				<span className="truncate">{label}</span>
 			</PopoverTrigger>
-			<PopoverContent align="start" className="w-auto p-0">
-				<Calendar
-					mode="range"
-					resetOnSelect={resetOnSelect}
-					defaultMonth={displayRange?.from}
-					selected={displayRange}
-					numberOfMonths={numberOfMonths}
-					disabled={{ after: dayjs().startOf("day").toDate() }}
-					onSelect={(range) => {
-						setDraftRange(range);
-						if (commitOnComplete && !(range?.from && range?.to)) {
-							return;
-						}
-						if (!(range?.from || range?.to) && !hasValue) {
-							return;
-						}
-						onChange({
-							from: range?.from
-								? dayjs(range.from).format(WIRE_FORMAT)
-								: undefined,
-							to: range?.to ? dayjs(range.to).format(WIRE_FORMAT) : undefined,
-						});
-					}}
-				/>
+			<PopoverContent
+				align="start"
+				className="w-[min(19rem,calc(100vw-4rem))] p-0 sm:w-auto"
+			>
+				<div className="flex flex-col sm:flex-row">
+					<div className="grid grid-cols-3 gap-1 border-b p-1.5 sm:w-36 sm:auto-rows-min sm:grid-cols-1 sm:border-r sm:border-b-0 sm:p-2">
+						{presets.map((preset) => (
+							<button
+								type="button"
+								key={preset.id}
+								onClick={() => handlePresetSelect(preset)}
+								className={cn(
+									"border px-2 py-1 text-xs sm:py-1.5 sm:text-left",
+									activePreset?.id === preset.id
+										? "border-foreground bg-foreground text-background"
+										: "border-border/70 text-muted-foreground hover:text-foreground",
+								)}
+							>
+								{preset.label}
+							</button>
+						))}
+					</div>
+					<Calendar
+						className="mx-auto sm:mx-0"
+						mode="range"
+						resetOnSelect={resetOnSelect}
+						defaultMonth={displayRange?.from}
+						selected={displayRange}
+						numberOfMonths={isMobile ? 1 : numberOfMonths}
+						disabled={{ after: dayjs(jakartaToday()).toDate() }}
+						onSelect={(range) => {
+							setDraftRange(range);
+							if (commitOnComplete && !(range?.from && range?.to)) {
+								return;
+							}
+							if (!(range?.from || range?.to) && !hasValue) {
+								return;
+							}
+							onChange({
+								from: range?.from
+									? dayjs(range.from).format(WIRE_FORMAT)
+									: undefined,
+								to: range?.to ? dayjs(range.to).format(WIRE_FORMAT) : undefined,
+							});
+						}}
+					/>
+				</div>
 			</PopoverContent>
 		</Popover>
 	);
