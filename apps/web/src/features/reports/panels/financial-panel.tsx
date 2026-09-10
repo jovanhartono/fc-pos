@@ -173,7 +173,7 @@ export const FinancialPanel = ({
 		lines.push(`Totals,Net margin,${summary.net_margin},${prev.net_margin}`);
 		lines.push("");
 		lines.push(
-			"Financial series,Bucket,Services,Products,Gross,Discount,Net revenue,COGS,Gross profit,Refunds,Net income",
+			"Financial series,Period,Services,Products,Gross,Discount,Net revenue,COGS,Gross profit,Refunds,Net income",
 		);
 		for (const row of data.series) {
 			lines.push(
@@ -183,7 +183,7 @@ export const FinancialPanel = ({
 		lines.push("");
 		const matrix = data.store_category_matrix;
 		lines.push(
-			"Branch × Category,Store code,Store name,Category,Revenue,Share within branch,Branch total",
+			"Store × Category,Store code,Store name,Category,Revenue,Share within store,Store total",
 		);
 		for (const row of matrix.rows) {
 			for (const cell of row.cells) {
@@ -191,15 +191,15 @@ export const FinancialPanel = ({
 					(c) => c.category_id === cell.category_id,
 				);
 				lines.push(
-					`Branch×Category,${escapeCsv(row.store_code)},${escapeCsv(row.store_name)},${escapeCsv(col?.label ?? "")},${cell.revenue},${cell.share},${row.total}`,
+					`Store×Category,${escapeCsv(row.store_code)},${escapeCsv(row.store_name)},${escapeCsv(col?.label ?? "")},${cell.revenue},${cell.share},${row.total}`,
 				);
 			}
 		}
 		lines.push("");
-		lines.push("Branch revenue,Store code,Store name,Revenue,Orders,Share");
+		lines.push("Store revenue,Store code,Store name,Revenue,Orders,Share");
 		for (const row of storeBreakdown) {
 			lines.push(
-				`Branch,${escapeCsv(row.store_code)},${escapeCsv(row.store_name)},${row.revenue},${row.orders},${row.share}`,
+				`Store,${escapeCsv(row.store_code)},${escapeCsv(row.store_name)},${row.revenue},${row.orders},${row.share}`,
 			);
 		}
 		downloadCsv(
@@ -914,8 +914,8 @@ const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
 			<CardContent className="grid gap-3 p-5 sm:p-6">
 				<div className="flex items-start justify-between gap-3">
 					<PanelSectionTitle
-						meta={`${mode === "share" ? "share within branch" : "revenue (Rp)"} · top ${columns.length} categor${columns.length === 1 ? "y" : "ies"}`}
-						title="Branch × Category"
+						meta={`${mode === "share" ? "share within store" : "revenue (Rp)"} · top ${columns.length} categor${columns.length === 1 ? "y" : "ies"}`}
+						title="Store × Category"
 					/>
 					<MatrixModeToggle mode={mode} onChange={setMode} />
 				</div>
@@ -933,7 +933,7 @@ const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
 										className="sticky left-0 z-10 bg-card px-2 py-1.5 text-left text-[11px] uppercase tracking-widest text-foreground/70"
 										scope="col"
 									>
-										Branch
+										Store
 									</th>
 									{columns.map((col) => (
 										<MatrixHeaderCell column={col} key={col.category_id} />
@@ -984,7 +984,7 @@ const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
 
 				{omittedStores > 0 ? (
 					<p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-						{`(+${omittedStores} branch${omittedStores === 1 ? "" : "es"} not shown)`}
+						{`(+${omittedStores} store${omittedStores === 1 ? "" : "s"} not shown)`}
 					</p>
 				) : null}
 			</CardContent>
@@ -1162,7 +1162,7 @@ const BranchList = ({ rows, max }: BranchListProps) => {
 	return (
 		<Card className="border-border/70">
 			<CardContent className="grid gap-4 p-5 sm:p-6">
-				<PanelSectionTitle title="Branch leaderboard" />
+				<PanelSectionTitle title="Store leaderboard" />
 				<div className="grid gap-3">
 					{rows.map((row) => {
 						const widthPct = max === 0 ? 0 : (row.revenue / max) * 100;

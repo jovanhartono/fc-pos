@@ -217,7 +217,7 @@ beforeEach(() => {
 
 describe("createOrderPickupEventPresign", () => {
   it("refuses to open the camera while money is still owed", async () => {
-    // ADR-0009: a half-paid customer at the counter gets sent to the till, not
+    // ADR-0009: a half-paid customer at the counter gets sent to the counter, not
     // a photo slot — no upload URL may exist for garments that cannot leave.
     state.order = makeOrder({ payment_status: "partial" });
     const error = await captureRejection(presign());

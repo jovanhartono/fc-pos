@@ -537,7 +537,7 @@ function QueuePage() {
 								});
 							}
 						}}
-						placeholder="Item code / order ID…"
+						placeholder="Item code or order ID"
 						value={itemCode}
 					/>
 					<Button
@@ -615,7 +615,7 @@ function QueuePage() {
 				<section className="grid min-w-0 gap-2">
 					{role === "admin" && parsedStoreId === undefined ? (
 						<div className="border border-dashed border-border px-4 py-8 text-center text-muted-foreground text-sm">
-							Select a store.
+							Select a store
 						</div>
 					) : null}
 

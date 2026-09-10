@@ -97,7 +97,7 @@ const StatusBlock = ({
 		return (
 			<section className="border-red-700 border-l-[6px] py-1 pl-4">
 				<p className="text-[15px] text-[#0f1a16]">
-					Order cancelled. Contact the branch.
+					Order cancelled. Contact the store.
 				</p>
 			</section>
 		);

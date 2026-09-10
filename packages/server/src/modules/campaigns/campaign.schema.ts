@@ -62,14 +62,14 @@ export const CampaignPayloadSchema = z
       if (data.code_count == null || data.code_count < 1) {
         ctx.addIssue({
           code: "custom",
-          message: "code_count is required (min 1) for voucher campaigns",
+          message: "A voucher needs at least one code",
           path: ["code_count"],
         });
       }
       if (data.usage_limit != null) {
         ctx.addIssue({
           code: "custom",
-          message: "usage_limit is not allowed for voucher campaigns",
+          message: "A voucher cannot have a usage limit",
           path: ["usage_limit"],
         });
       }
@@ -80,7 +80,7 @@ export const CampaignPayloadSchema = z
     if (data.code_count != null) {
       ctx.addIssue({
         code: "custom",
-        message: "code_count is only allowed for voucher campaigns",
+        message: "Only vouchers have a code count",
         path: ["code_count"],
       });
     }

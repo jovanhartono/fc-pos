@@ -179,7 +179,9 @@ export const CampaignAutocomplete = ({
 				>
 					{selectableCampaigns.length === 0 ? (
 						<p className="p-3 text-muted-foreground text-sm">
-							{parsedStoreId ? "No campaigns available" : "Select store first"}
+							{parsedStoreId
+								? "No campaigns for this store"
+								: "Select store first"}
 						</p>
 					) : (
 						<ul className="divide-y">

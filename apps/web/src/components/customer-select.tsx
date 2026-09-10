@@ -40,7 +40,7 @@ export function CustomerSelect({
 				onValueChange={onValueChange}
 				loading={isPending}
 				placeholder="Select customer"
-				searchPlaceholder="Search customer..."
+				searchPlaceholder="Search customers"
 				emptyText="No customer found"
 				disabled={disabled}
 			/>

@@ -10,7 +10,7 @@ describe("currencySchema", () => {
   });
 
   it("refuses a discount the cashier typed as a negative", () => {
-    // A minus at the till is a slip of the hand. Stripping punctuation would
+    // A minus at the counter is a slip of the hand. Stripping punctuation would
     // erase the sign and hand the customer a real Rp500 off instead.
     const result = currencySchema("Discount").safeParse("-500");
 

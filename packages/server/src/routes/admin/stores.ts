@@ -43,7 +43,7 @@ const app = new Hono<AdminEnv>()
       const query = c.req.valid("query");
       const stores = await getNearestStores(query);
 
-      return c.json(success(stores, "Nearest store retrieved successfully"));
+      return c.json(success(stores));
     }
   )
   .post("/", zodValidator("json", POSTStoreSchema), async (c) => {
@@ -51,10 +51,7 @@ const app = new Hono<AdminEnv>()
 
     const store = await createStore(storeData);
 
-    return c.json(
-      success(store, "Successfully adding new store"),
-      StatusCodes.CREATED
-    );
+    return c.json(success(store, "Store created"), StatusCodes.CREATED);
   })
   .get("/:id", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
@@ -62,7 +59,7 @@ const app = new Hono<AdminEnv>()
     const store = await getStoreById(id);
 
     if (!store) {
-      throw new NotFoundException("Store does not exist");
+      throw new NotFoundException("Store not found");
     }
 
     return c.json(success(store));
@@ -81,7 +78,7 @@ const app = new Hono<AdminEnv>()
       });
 
       if (!store) {
-        throw new NotFoundException("Store does not exist");
+        throw new NotFoundException("Store not found");
       }
 
       return c.json(success(store, `Successfully updated ${store.name}`));
@@ -101,7 +98,7 @@ const app = new Hono<AdminEnv>()
       });
 
       if (!store) {
-        throw new NotFoundException("Store does not exist");
+        throw new NotFoundException("Store not found");
       }
 
       const statusText = data.is_active ? "Activated" : "Deactivated";
@@ -146,7 +143,7 @@ const app = new Hono<AdminEnv>()
       const device = await removeStoreDevice(id, deviceId);
 
       if (!device) {
-        throw new NotFoundException("Device does not exist");
+        throw new NotFoundException("Device not found");
       }
 
       return c.json(success(device, `${device.name} removed`));

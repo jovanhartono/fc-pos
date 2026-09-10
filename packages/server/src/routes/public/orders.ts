@@ -144,28 +144,23 @@ const app = new Hono().post(
     }));
 
     return c.json(
-      success(
-        {
-          ...orderWithoutPickupCode,
-          items,
-          // Shown while anything is still on the rack to collect — which
-          // includes a fully refunded pair the customer never came back for.
-          // The Order rollup says "completed" there (the money is settled,
-          // ADR-0008), so gating on it hid the code for exactly the object
-          // most likely to be forgotten.
-          pickup_code: items.some((item) =>
-            isCollectableItemStatus(item.status)
-          )
-            ? pickup_code
-            : null,
-          customer: {
-            id: orderCustomer.id,
-            name: orderCustomer.name,
-            phone_number_masked: maskPhoneNumber(orderCustomer.phone_number),
-          },
+      success({
+        ...orderWithoutPickupCode,
+        items,
+        // Shown while anything is still on the rack to collect — which
+        // includes a fully refunded pair the customer never came back for.
+        // The Order rollup says "completed" there (the money is settled,
+        // ADR-0008), so gating on it hid the code for exactly the object
+        // most likely to be forgotten.
+        pickup_code: items.some((item) => isCollectableItemStatus(item.status))
+          ? pickup_code
+          : null,
+        customer: {
+          id: orderCustomer.id,
+          name: orderCustomer.name,
+          phone_number_masked: maskPhoneNumber(orderCustomer.phone_number),
         },
-        "Order status retrieved successfully"
-      )
+      })
     );
   }
 );

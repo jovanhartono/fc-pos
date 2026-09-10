@@ -34,15 +34,12 @@ const app = new Hono<AdminEnv>()
 
     const shift = await clockIn({ user, storeId: body.store_id });
 
-    return c.json(
-      success(shift, "Clocked in successfully"),
-      StatusCodes.CREATED
-    );
+    return c.json(success(shift, "Clocked in"), StatusCodes.CREATED);
   })
   .post("/clock-out", async (c) => {
     const user = c.get("jwtPayload");
     const shift = await clockOut(user);
-    return c.json(success(shift, "Clocked out successfully"));
+    return c.json(success(shift, "Clocked out"));
   });
 
 export default app;

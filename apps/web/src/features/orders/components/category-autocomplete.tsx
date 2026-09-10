@@ -40,7 +40,7 @@ export function CategoryAutocomplete({
 				onValueChange={onValueChange}
 				loading={isPending}
 				placeholder="Select category"
-				searchPlaceholder="Search category..."
+				searchPlaceholder="Search categories"
 				emptyText="No category found"
 				disabled={disabled}
 			/>

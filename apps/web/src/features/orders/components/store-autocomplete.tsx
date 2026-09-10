@@ -58,7 +58,7 @@ export function StoreAutocomplete({
 			onValueChange={onValueChange}
 			loading={isPending}
 			placeholder={placeholder}
-			searchPlaceholder="Search store..."
+			searchPlaceholder="Search stores"
 			emptyText="No store found"
 			disabled={disabled}
 		/>

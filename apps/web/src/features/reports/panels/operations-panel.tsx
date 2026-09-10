@@ -36,7 +36,7 @@ export const OperationsPanel = ({
 		if (!data) {
 			return;
 		}
-		const lines: string[] = ["Orders flow,Bucket,Orders in,Orders out"];
+		const lines: string[] = ["Orders flow,Period,Orders in,Orders out"];
 		for (const row of data.series) {
 			lines.push(
 				`Orders flow,${escapeCsv(row.bucket)},${row.orders_in},${row.orders_out}`,
@@ -99,7 +99,6 @@ export const OperationsPanel = ({
 			<ChartCard
 				variant="stacked-bar"
 				title="Order dropoff vs pickup"
-				description="Throughput over the selected range."
 				data={data?.series ?? []}
 				granularity={data?.granularity ?? "day"}
 				series={[

@@ -33,17 +33,14 @@ const app = new Hono<AdminEnv>()
       throw new NotFoundException("Category not found");
     }
 
-    return c.json(success(category, "Category retrieved successfully"));
+    return c.json(success(category));
   })
   .post("/", zodValidator("json", POSTCategorySchema), async (c) => {
     const body = c.req.valid("json");
 
     const category = await createCategory(body);
 
-    return c.json(
-      success(category, "Create category success"),
-      StatusCodes.CREATED
-    );
+    return c.json(success(category, "Category created"), StatusCodes.CREATED);
   })
   .put(
     "/:id",
@@ -56,7 +53,7 @@ const app = new Hono<AdminEnv>()
       const category = await updateCategory(id, body);
 
       if (!category) {
-        throw new NotFoundException("Category does not exist");
+        throw new NotFoundException("Category not found");
       }
 
       return c.json(

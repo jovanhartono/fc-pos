@@ -207,7 +207,7 @@ const PickupsAttachment = ({
 			<AttachmentLabel>Pickups</AttachmentLabel>
 			<OrderPhotoGallery
 				emptyState={
-					<p className="text-muted-foreground text-sm">No pickups yet.</p>
+					<p className="text-muted-foreground text-sm">No pickups yet</p>
 				}
 				gridClassName="grid-cols-2 gap-3 sm:grid-cols-3"
 				items={items}

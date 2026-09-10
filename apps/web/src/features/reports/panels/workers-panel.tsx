@@ -115,7 +115,7 @@ export const WorkersPanel = ({
 			<ChartCard
 				variant="radar"
 				title="Worker profile · top 6"
-				description="Higher = better. Speed and items scaled to top performer; refunds/rework inverted."
+				description="Scored against the top performer. Refunds and rework count against."
 				data={radarData}
 				categoryKey="worker"
 				series={[
@@ -135,7 +135,7 @@ export const WorkersPanel = ({
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					{workers.length === 0 ? (
-						<p className="text-sm text-muted-foreground">No worker activity.</p>
+						<p className="text-sm text-muted-foreground">No worker activity</p>
 					) : (
 						<div className="grid gap-3">
 							{workers.map((w) => {

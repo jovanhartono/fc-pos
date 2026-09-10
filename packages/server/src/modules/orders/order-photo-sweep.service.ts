@@ -13,7 +13,7 @@ const PHOTO_KEY_PREFIX = `${STORAGE_ENV_PREFIX}orders/`;
 // The counter sends a photo up before the order line it belongs to is saved, and an operator can
 // leave a batch staged while they finish serving the customer. Anything younger than this is
 // still plausibly on its way to being filed, so it is left alone. A batch left staged longer
-// than this — a till tab across a weekend — loses its photos, and the confirm then fails.
+// than this — a POS tab across a weekend — loses its photos, and the confirm then fails.
 const SETTLE_HOURS = 24;
 // Deletes go out a few at a time rather than one after another: the bucket is in Jakarta and the
 // container in Singapore, so a long backlog taken in series is minutes the cron spends held open.
@@ -32,7 +32,7 @@ export interface PhotoSweepResult {
  *
  * These exist because the counter uploads a photo the moment it is taken, before the operator
  * confirms the batch — that is what keeps a slow shop uplink off the confirm tap. A batch nobody
- * confirms, or a till tab closed mid-review, leaves the photo in the bucket with nothing filed
+ * confirms, or a POS tab closed mid-review, leaves the photo in the bucket with nothing filed
  * against it. The browser cannot clean that up, so this does.
  *
  * Safe to run twice, and safe to miss a run: it compares the bucket against the database each

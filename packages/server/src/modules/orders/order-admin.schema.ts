@@ -106,7 +106,7 @@ export const PATCHOrderServiceStatusSchema = z
     if (value.cancel_reason === "other" && !value.cancel_note?.trim()) {
       ctx.addIssue({
         code: "custom",
-        message: "Cancel note is required when reason is 'other'",
+        message: "Add a note when the reason is Other",
         path: ["cancel_note"],
       });
     }
@@ -165,7 +165,7 @@ export const POSTOrderCancelSchema = z.object({
           if (value.reason === "other" && !value.note?.trim()) {
             ctx.addIssue({
               code: "custom",
-              message: "Cancel note is required when reason is 'other'",
+              message: "Add a note when the reason is Other",
               path: ["note"],
             });
           }
@@ -199,7 +199,7 @@ export const POSTOrderRefundSchema = z.object({
           if (value.reason === "other" && !value.note?.trim()) {
             ctx.addIssue({
               code: "custom",
-              message: "Reason note is required when reason is 'other'",
+              message: "Add a note when the reason is Other",
               path: ["note"],
             });
           }

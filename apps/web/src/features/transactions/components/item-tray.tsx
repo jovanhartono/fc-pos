@@ -62,7 +62,7 @@ export const ItemTray = ({ itemRows }: ItemTrayProps) => {
 									{descriptors ?? "New item"}
 								</span>
 								<span className="text-xs opacity-70">
-									{pluralize(item.services.length, "treatment")}
+									{pluralize(item.services.length, "service")}
 								</span>
 							</span>
 						</Button>

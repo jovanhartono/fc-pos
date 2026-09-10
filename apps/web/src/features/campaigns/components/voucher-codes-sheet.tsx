@@ -32,7 +32,7 @@ const VoucherCodeRow = ({ code }: VoucherCodeRowProps) => {
 			<span className="min-w-0 break-all font-mono text-sm">{code.code}</span>
 			<div className="flex shrink-0 items-center gap-2">
 				<Badge variant={isRedeemed ? "secondary" : "outline-success"}>
-					{isRedeemed ? "Redeemed" : "Available"}
+					{isRedeemed ? "Redeemed" : "Unused"}
 				</Badge>
 				<Button
 					aria-label={`Copy code ${code.code}`}
@@ -68,7 +68,7 @@ export const VoucherCodesSheet = ({ campaignId }: VoucherCodesSheetProps) => {
 	}
 
 	if (data.codes.length === 0) {
-		return <p className="text-muted-foreground text-sm">No codes minted.</p>;
+		return <p className="text-muted-foreground text-sm">No codes yet</p>;
 	}
 
 	return (

@@ -176,14 +176,14 @@ const PanelSkeleton = () => (
 
 const descriptions: Record<Tab, string> = {
 	overview: "Today's revenue, throughput, and order flow.",
-	financial: "Revenue, COGS, margin and branch performance.",
-	operations: "Dropoff and pickup volume over time.",
-	payments: "Revenue share per payment method.",
-	customers: "Acquisition and retention trends.",
-	quality: "Refund volume and root-cause mix.",
-	workers: "Items completed and shift productivity.",
-	campaigns: "Orders, revenue and discount cost per campaign.",
-	"aging-queue": "Items still in queue, oldest first.",
+	financial: "Revenue, COGS, margin, and store performance",
+	operations: "Dropoff and pickup volume over time",
+	payments: "Revenue share per payment method",
+	customers: "Acquisition and retention trends",
+	quality: "Refund volume and root-cause mix",
+	workers: "Items completed and shift productivity",
+	campaigns: "Orders, revenue, and discount cost per campaign",
+	"aging-queue": "Items still in queue, oldest first",
 };
 
 function ReportsPage() {

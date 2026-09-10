@@ -54,7 +54,7 @@ const only = () => {
 // are the two rules that decide what counts as takings, and a regenerated
 // snapshot would record them wrong just as happily as right.
 describe("which orders count as takings", () => {
-  it("counts a stretch from the moment the till took the money", async () => {
+  it("counts a stretch from the moment the counter took the money", async () => {
     // >= on the closing instant would bill the 1st of September twice, once to
     // each month.
     await listServicesRevenueSeries({ range: AUGUST, granularity: "day" });

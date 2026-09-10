@@ -36,7 +36,7 @@ export async function setOrderServicePrice({
     throw new BadRequestException("Order not found");
   }
   // Payment froze the numbers (ADR-0018): the customer paid against a printed
-  // receipt and the till matches it. A wrong price after that is a refund.
+  // receipt and the POS matches it. A wrong price after that is a refund.
   // This read is only the friendly answer for the ordinary case — the guarded
   // write below is what actually loses a race against the counter.
   if (order.payment_status === "paid") {

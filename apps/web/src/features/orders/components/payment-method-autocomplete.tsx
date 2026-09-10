@@ -40,7 +40,7 @@ export function PaymentMethodAutocomplete({
 				}
 				loading={isPending}
 				placeholder="No payment method"
-				searchPlaceholder="Search payment method..."
+				searchPlaceholder="Search payment methods"
 				emptyText="No payment method found"
 				disabled={disabled}
 			/>

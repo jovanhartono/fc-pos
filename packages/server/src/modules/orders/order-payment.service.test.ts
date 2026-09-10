@@ -404,7 +404,7 @@ describe("updateOrderPayment", () => {
   it("clamps at zero when refunds already exceed what is left to pay", async () => {
     // Rp50.000 order, a Rp10.000 promo settled now, Rp60.000 refunded after
     // a whole bag went missing. Nothing is owed — a negative paid_amount
-    // would poison the revenue report with money the till never saw.
+    // would poison the revenue report with money the POS never recorded.
     dbState.order = makeOrder({ total: "50000", refunded_amount: "60000" });
     discount.result = {
       campaignRows: [],
@@ -430,7 +430,7 @@ describe("updateOrderPayment", () => {
     expect(dbState.updateCalls).toBe(0);
   });
 
-  it("loses the collect race cleanly when another till paid first", async () => {
+  it("loses the collect race cleanly when another POS paid first", async () => {
     // Two cashiers collect the same order from two tills. The loser's write
     // finds payment_status already flipped; the thrown error rolls its
     // transaction back, voucher claims included.

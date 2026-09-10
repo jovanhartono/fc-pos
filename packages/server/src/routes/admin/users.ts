@@ -27,7 +27,7 @@ const app = new Hono<AdminEnv>()
     const { confirm_password: _, ...user } = c.req.valid("json");
     const created = await createUser(user);
 
-    return c.json(success(created, "Create user success"), StatusCodes.CREATED);
+    return c.json(success(created, "User created"), StatusCodes.CREATED);
   })
   .get("/", zodValidator("query", GETUsersQuerySchema), async (c) => {
     const actor = c.get("jwtPayload");
@@ -46,7 +46,7 @@ const app = new Hono<AdminEnv>()
       throw new NotFoundException("User not found");
     }
 
-    return c.json(success(user, "Current user retrieved successfully"));
+    return c.json(success(user));
   })
   .get("/:id", idParamSchema, async (c) => {
     const actor = c.get("jwtPayload");
@@ -59,7 +59,7 @@ const app = new Hono<AdminEnv>()
       throw new NotFoundException("User not found");
     }
 
-    return c.json(success(user, "User retrieved successfully"));
+    return c.json(success(user));
   })
   .put(
     "/:id",
@@ -75,7 +75,7 @@ const app = new Hono<AdminEnv>()
       const user = await updateUser({ id, payload: body });
 
       if (!user) {
-        throw new NotFoundException("User does not exist");
+        throw new NotFoundException("User not found");
       }
 
       return c.json(success(user, `Update user ${user.name} success`));

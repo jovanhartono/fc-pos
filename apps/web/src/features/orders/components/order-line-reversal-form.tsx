@@ -84,7 +84,7 @@ const buildReversalSchema = (verb: string, reasons: readonly string[]) =>
 					ctx.addIssue({
 						code: "custom",
 						path: ["items", index, "note"],
-						message: "Note is required when reason is Other.",
+						message: "Add a note when the reason is Other",
 					});
 				}
 			}

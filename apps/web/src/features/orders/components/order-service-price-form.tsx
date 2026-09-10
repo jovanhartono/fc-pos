@@ -12,7 +12,7 @@ const servicePriceSchema = z.object({
 	price: z
 		.string()
 		.trim()
-		.refine((value) => Number(value) > 0, "Price is required."),
+		.refine((value) => Number(value) > 0, "Price is required"),
 });
 
 type ServicePriceValues = z.infer<typeof servicePriceSchema>;
