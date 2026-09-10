@@ -66,7 +66,7 @@ function Button({
 		haptic?: "success" | "nudge" | "error" | "buzz" | false;
 		hapticMode?: "touch" | "always";
 	}) {
-	const { trigger } = useWebHaptics();
+	const { trigger, isSupported } = useWebHaptics();
 	const isDisabled = disabled || loading;
 	const resolvedIcon = !loading ? icon : null;
 	const dataIcon = resolvedIcon
@@ -78,7 +78,9 @@ function Button({
 	const handleClick: NonNullable<ButtonPrimitive.Props["onClick"]> = (
 		event,
 	) => {
-		if (!isDisabled && haptic) {
+		// On iOS web-haptics buzzes nothing and its hidden-switch clicks shut the menu
+		// the counter just opened, so only ask for a buzz where the device can give one.
+		if (!isDisabled && haptic && isSupported) {
 			const coarsePointer =
 				typeof window !== "undefined" &&
 				window.matchMedia("(any-pointer: coarse)").matches;
