@@ -12,6 +12,7 @@ declare module "bun:test" {
 		toBeGreaterThan(expected: number): void;
 		toBeLessThanOrEqual(expected: number): void;
 		toBeNull(): void;
+		toBeUndefined(): void;
 	}
 
 	export const describe: (name: string, fn: () => void) => void;

@@ -165,6 +165,14 @@ const QUERIES: [string, Query][] = [
     "campaign effectiveness",
     (storeId) => repo.listCampaignEffectivenessRows({ range: AUGUST, storeId }),
   ],
+  [
+    "origin ranking",
+    (storeId) => repo.listOriginRankingRows({ range: AUGUST, storeId }),
+  ],
+  [
+    "origin coverage",
+    (storeId) => repo.findOriginCoverage({ range: AUGUST, storeId }),
+  ],
 ];
 
 describe("what each money report asks Postgres for one store", () => {

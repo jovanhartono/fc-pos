@@ -1,5 +1,5 @@
 import z from "zod";
-import { orderPaymentStatusEnum } from "@/db/schema";
+import { intakeChannelEnum, orderPaymentStatusEnum } from "@/db/schema";
 import {
   CampaignPayloadSchema as _CampaignPayloadSchema,
   type CampaignRedemptionMode as _CampaignRedemptionMode,
@@ -118,6 +118,10 @@ export const lineRefundCap = _lineRefundCap;
 import {
   campaignIdsSchema,
   currencySchema,
+  hasValidCourierPairing,
+  hasValidOriginPairing,
+  INTAKE_COURIER_ERROR,
+  INTAKE_ORIGIN_ERROR,
   isActiveSchema,
   optionalVarcharSchema,
   phoneSchema,
@@ -231,6 +235,8 @@ export const POSTOrderSchema = z
     ),
     notes: z.string().trim().optional(),
     collected_by: z.number().int().positive().optional(),
+    intake_channel: z.enum(intakeChannelEnum.enumValues).default("walk_in"),
+    origin_postal_code: z.string().trim().length(5).optional(),
   })
   .refine(
     (val) => {
@@ -249,4 +255,12 @@ export const POSTOrderSchema = z
       error: "Payment method is required for paid orders",
       path: ["payment_method_id"],
     }
-  );
+  )
+  .refine(hasValidCourierPairing, {
+    error: INTAKE_COURIER_ERROR,
+    path: ["collected_by"],
+  })
+  .refine(hasValidOriginPairing, {
+    error: INTAKE_ORIGIN_ERROR,
+    path: ["origin_postal_code"],
+  });

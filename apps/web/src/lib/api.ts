@@ -215,6 +215,10 @@ export type CampaignEffectivenessReport = InferResponseType<
 	(typeof rpc.api.admin.reports)["campaign-effectiveness"]["$get"]
 >["data"];
 
+export type OriginRankingReport = InferResponseType<
+	(typeof rpc.api.admin.reports)["origin-ranking"]["$get"]
+>["data"];
+
 export type AgingQueueItem = InferResponseType<
 	(typeof rpc.api.admin.reports)["aging-queue"]["$get"]
 >["data"][number];
@@ -397,8 +401,14 @@ export type SetOrderServicePricePayload = {
 	price: string;
 };
 
-export type UpdateOrderCourierPayload = {
+export type IntakeChannel = "walk_in" | "courier" | "shipped";
+
+// How the Items arrived, moved as one fact — the server refuses any partial
+// combination of these three (ADR-0020).
+export type UpdateOrderIntakePayload = {
 	collected_by: number | null;
+	intake_channel: IntakeChannel;
+	origin_postal_code: string | null;
 };
 
 export type PhotoContentType = "image/jpeg" | "image/png" | "image/webp";
@@ -469,6 +479,7 @@ export const queryKeys = {
 	services: ["services"] as const,
 	products: ["products"] as const,
 	paymentMethods: ["payment-methods"] as const,
+	postalCodes: (search: string) => ["postal-codes", search] as const,
 	orders: (query?: FetchOrdersQuery) => ["orders", query ?? {}] as const,
 	orderDetail: (id: number) => ["order-detail", id] as const,
 	campaigns: (query?: FetchCampaignsQuery) =>
@@ -505,6 +516,8 @@ export const queryKeys = {
 		["report-worker-productivity", query] as const,
 	campaignEffectiveness: (query: FetchReportRangeQuery) =>
 		["report-campaign-effectiveness", query] as const,
+	originRanking: (query: FetchReportRangeQuery) =>
+		["report-origin-ranking", query] as const,
 	agingQueue: (query?: FetchAgingQueueQuery) =>
 		["report-aging-queue", query ?? {}] as const,
 };
@@ -592,6 +605,13 @@ export async function fetchProducts() {
 export async function fetchPaymentMethods() {
 	const response = await parseResponse(
 		rpcWithAuth().api.admin["payment-methods"].$get(),
+	);
+	return response.data;
+}
+
+export async function fetchPostalCodes(search: string) {
+	const response = await parseResponse(
+		rpcWithAuth().api.admin["postal-codes"].$get({ query: { search } }),
 	);
 	return response.data;
 }
@@ -931,12 +951,12 @@ export async function setOrderServicePrice(
 	);
 }
 
-export async function updateOrderCourier(
+export async function updateOrderIntake(
 	orderId: number,
-	payload: UpdateOrderCourierPayload,
+	payload: UpdateOrderIntakePayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].courier.$patch({
+		rpcWithAuth().api.admin.orders[":id"].intake.$patch({
 			param: { id: String(orderId) },
 			json: payload,
 		}),
@@ -1252,6 +1272,14 @@ export async function fetchWorkerProductivityReport(
 ) {
 	return parseSuccessData<WorkerProductivityReport>(
 		rpcWithAuth().api.admin.reports["worker-productivity"].$get({
+			query: toRangeQuery(query),
+		}),
+	);
+}
+
+export async function fetchOriginRankingReport(query: FetchReportRangeQuery) {
+	return parseSuccessData<OriginRankingReport>(
+		rpcWithAuth().api.admin.reports["origin-ranking"].$get({
 			query: toRangeQuery(query),
 		}),
 	);

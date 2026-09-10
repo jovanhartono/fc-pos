@@ -17,6 +17,7 @@ import {
   getCustomerAcquisitionReport,
   getFinancialReport,
   getOrdersFlowReport,
+  getOriginRankingReport,
   getPaymentMixReport,
   getRefundTrendReport,
   getWorkerProductivityReport,
@@ -116,6 +117,14 @@ const app = new Hono<AdminEnv>()
     zodValidator("query", GETReportRangeQuerySchema),
     async (c) => {
       const data = await getCampaignEffectivenessReport(c.req.valid("query"));
+      return c.json(success(data));
+    }
+  )
+  .get(
+    "/origin-ranking",
+    zodValidator("query", GETReportRangeQuerySchema),
+    async (c) => {
+      const data = await getOriginRankingReport(c.req.valid("query"));
       return c.json(success(data));
     }
   )

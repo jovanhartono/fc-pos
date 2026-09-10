@@ -303,6 +303,46 @@ exports[`what each money report asks Postgres for one store asks the same questi
 ]
 `;
 
+exports[`what each money report asks Postgres for one store asks the same question for origin ranking 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+      "courier",
+      "shipped",
+    ],
+    "sql": "select "postal_codes"."city", count(*), COALESCE(SUM("orders"."paid_amount"), 0), "postal_codes"."province" from "orders" inner join "postal_codes" on "orders"."origin_postal_code" = "postal_codes"."code" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3) and ("orders"."intake_channel" in ($4, $5))) group by "postal_codes"."city", "postal_codes"."province"",
+  },
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+      "courier",
+      "shipped",
+    ],
+    "sql": "select "postal_codes"."city", "postal_codes"."province", COALESCE(SUM("order_refunds"."total_amount"), 0) from "order_refunds" inner join "orders" on "order_refunds"."order_id" = "orders"."id" inner join "postal_codes" on "orders"."origin_postal_code" = "postal_codes"."code" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2) and ("orders"."store_id" = $3) and ("orders"."intake_channel" in ($4, $5))) group by "postal_codes"."city", "postal_codes"."province"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for origin coverage 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+      "courier",
+      "shipped",
+    ],
+    "sql": "select count(*), COUNT("origin_postal_code")::int from "orders" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2) and ("orders"."store_id" = $3) and ("orders"."intake_channel" in ($4, $5)))",
+  },
+]
+`;
+
 exports[`what each money report asks Postgres for the whole company asks the same question for services revenue 1`] = `
 [
   {
@@ -578,6 +618,43 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-08-31T17:00:00.000Z",
     ],
     "sql": "select distinct "order_campaigns"."campaign_id", "orders"."id", "orders"."paid_amount", "orders"."total" from "order_campaigns" inner join "orders" on "order_campaigns"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)))",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for origin ranking 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      "courier",
+      "shipped",
+    ],
+    "sql": "select "postal_codes"."city", count(*), COALESCE(SUM("orders"."paid_amount"), 0), "postal_codes"."province" from "orders" inner join "postal_codes" on "orders"."origin_postal_code" = "postal_codes"."code" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."intake_channel" in ($3, $4))) group by "postal_codes"."city", "postal_codes"."province"",
+  },
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      "courier",
+      "shipped",
+    ],
+    "sql": "select "postal_codes"."city", "postal_codes"."province", COALESCE(SUM("order_refunds"."total_amount"), 0) from "order_refunds" inner join "orders" on "order_refunds"."order_id" = "orders"."id" inner join "postal_codes" on "orders"."origin_postal_code" = "postal_codes"."code" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2) and ("orders"."intake_channel" in ($3, $4))) group by "postal_codes"."city", "postal_codes"."province"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for origin coverage 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      "courier",
+      "shipped",
+    ],
+    "sql": "select count(*), COUNT("origin_postal_code")::int from "orders" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2) and ("orders"."intake_channel" in ($3, $4)))",
   },
 ]
 `;

@@ -25,6 +25,7 @@ import {
 	fetchOrderServiceQueueCounts,
 	fetchOrdersFlowReport,
 	fetchOrdersPage,
+	fetchOriginRankingReport,
 	fetchPaymentMethods,
 	fetchPaymentMixReport,
 	fetchProducts,
@@ -194,6 +195,12 @@ export const workerProductivityQueryOptions = (query: FetchReportRangeQuery) =>
 	queryOptions({
 		queryKey: queryKeys.workerProductivity(query),
 		queryFn: () => fetchWorkerProductivityReport(query),
+	});
+
+export const originRankingQueryOptions = (query: FetchReportRangeQuery) =>
+	queryOptions({
+		queryKey: queryKeys.originRanking(query),
+		queryFn: () => fetchOriginRankingReport(query),
 	});
 
 export const campaignEffectivenessQueryOptions = (

@@ -7,6 +7,7 @@ import {
 import type { UseFormReturn } from "react-hook-form";
 import type {
 	CreateOrderPayload,
+	IntakeChannel,
 	Product,
 	ResolvedVoucher,
 	Service,
@@ -72,6 +73,8 @@ export type TransactionDraftValues = {
 	appliedVouchers: AppliedVoucher[];
 	selectedPaymentMethodId: string;
 	selectedCourierId: string;
+	intakeChannel: IntakeChannel;
+	originPostalCode: string;
 	manualDiscount: string;
 	notes: string;
 	productCart: ProductCartLine[];
@@ -86,6 +89,8 @@ export const defaultDraftValues: TransactionDraftValues = {
 	appliedVouchers: [],
 	selectedPaymentMethodId: "",
 	selectedCourierId: "",
+	intakeChannel: "walk_in",
+	originPostalCode: "",
 	manualDiscount: "",
 	notes: "",
 	productCart: [],
@@ -327,14 +332,22 @@ export const countUnpricedServiceLines = (
 		(line) => line.service.price === null && getServiceLinePrice(line) <= 0,
 	).length;
 
-// The cart→payment gate: a customer is ready once they have a name and a phone
-// that parses. Shared by the step tabs, the Continue button, and the Create
-// Order button so all three progression controls enforce the identical rule.
-export const isCustomerReady = (
-	customerName: string,
-	customerPhone: string,
-): boolean =>
-	customerName.trim().length > 0 && isValidPhoneNumber(customerPhone);
+// The cart→payment gate: a name, a phone that parses, and the courier's name if
+// the cashier said a courier fetched the items. Shared by the step tabs, the
+// Continue button, and the Create Order button so all three agree. The origin
+// is deliberately absent — it is always optional.
+export const isCustomerReady = ({
+	customerName,
+	customerPhone,
+	intakeChannel,
+	selectedCourierId,
+}: Pick<
+	TransactionDraftValues,
+	"customerName" | "customerPhone" | "intakeChannel" | "selectedCourierId"
+>): boolean =>
+	customerName.trim().length > 0 &&
+	isValidPhoneNumber(customerPhone) &&
+	(intakeChannel !== "courier" || selectedCourierId !== "");
 
 export const toOrderPayload = ({
 	customerName,
@@ -344,6 +357,8 @@ export const toOrderPayload = ({
 	appliedVouchers,
 	selectedPaymentMethodId,
 	selectedCourierId,
+	intakeChannel,
+	originPostalCode,
 	manualDiscount,
 	notes,
 	productCart,
@@ -368,7 +383,17 @@ export const toOrderPayload = ({
 		payment_method_id: isPaidAtDropoff
 			? Number(selectedPaymentMethodId)
 			: undefined,
-		collected_by: selectedCourierId ? Number(selectedCourierId) : undefined,
+		collected_by:
+			intakeChannel === "courier" && selectedCourierId
+				? Number(selectedCourierId)
+				: undefined,
+		intake_channel: intakeChannel,
+		// A walk-in customer is at the counter, so there is nothing to record —
+		// and the server rejects an origin on one (ADR-0020).
+		origin_postal_code:
+			intakeChannel !== "walk_in" && originPostalCode
+				? originPostalCode
+				: undefined,
 		payment_status: isPaidAtDropoff ? "paid" : "unpaid",
 		notes: notes.trim() || undefined,
 		products: productCart.map((line) => ({

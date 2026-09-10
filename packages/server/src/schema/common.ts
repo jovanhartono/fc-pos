@@ -3,6 +3,7 @@ import {
   parsePhoneNumberFromString,
 } from "libphonenumber-js";
 import { z } from "zod";
+import type { IntakeChannel } from "@/db/schema";
 
 // Indonesian prices are written 1.500 for fifteen hundred: the dot is a
 // thousands separator, never a decimal point, and the counter has no sen.
@@ -94,3 +95,21 @@ export const phoneSchema = z
   .pipe(
     z.string().refine(isValidPhoneNumber, { error: "Invalid phone number" })
   );
+
+// The two intake rules, mirrored from the CHECK constraints on `orders` so a
+// cashier gets a message naming the wrong field, not a constraint violation
+// (ADR-0020). Create omits a value, edit nulls it; `== null` covers both.
+export const INTAKE_COURIER_ERROR =
+  "A courier order names its courier, and only a courier order may";
+export const INTAKE_ORIGIN_ERROR =
+  "A walk-in customer is at the counter, so there is no origin";
+
+export const hasValidCourierPairing = (value: {
+  collected_by?: number | null;
+  intake_channel: IntakeChannel;
+}) => (value.intake_channel === "courier") === (value.collected_by != null);
+
+export const hasValidOriginPairing = (value: {
+  intake_channel: IntakeChannel;
+  origin_postal_code?: string | null;
+}) => value.intake_channel !== "walk_in" || value.origin_postal_code == null;

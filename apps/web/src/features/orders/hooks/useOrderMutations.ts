@@ -6,9 +6,10 @@ import {
 	createOrderRefund,
 	type SetOrderServicePricePayload,
 	setOrderServicePrice,
+	type UpdateOrderIntakePayload,
 	type UpdateOrderPaymentPayload,
 	type UpdateOrderServiceStatusPayload,
-	updateOrderCourier,
+	updateOrderIntake,
 	updateOrderPayment,
 	updateOrderServiceStatus,
 } from "@/lib/api";
@@ -69,12 +70,12 @@ export const useOrderPaymentMutation = (orderId: number) => {
 	});
 };
 
-export const useUpdateOrderCourierMutation = (orderId: number) => {
+export const useUpdateOrderIntakeMutation = (orderId: number) => {
 	const refreshOrder = useRefreshOrder(orderId);
 
 	return useMutation({
-		mutationFn: (collectedBy: number | null) =>
-			updateOrderCourier(orderId, { collected_by: collectedBy }),
+		mutationFn: (payload: UpdateOrderIntakePayload) =>
+			updateOrderIntake(orderId, payload),
 		onSuccess: async () => {
 			await refreshOrder();
 		},

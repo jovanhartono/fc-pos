@@ -192,6 +192,10 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.customersTable.id,
       optional: false,
     }),
+    originPostalCode: r.one.postalCodesTable({
+      from: r.ordersTable.origin_postal_code,
+      to: r.postalCodesTable.code,
+    }),
     paidBy: r.one.usersTable({
       from: r.ordersTable.paid_by,
       to: r.usersTable.id,

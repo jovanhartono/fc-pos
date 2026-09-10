@@ -240,6 +240,31 @@ export const campaignRedemptionModeEnum = pgEnum("campaign_redemption_mode", [
   "listed",
   "code",
 ]);
+// How the Items reached the store. A customer outside the store's city sends
+// them by JNE or J&T, and nobody on payroll collected those — before this
+// column they were indistinguishable from someone walking in. See ADR-0020.
+export const intakeChannelEnum = pgEnum("intake_channel_enum", [
+  "walk_in",
+  "courier",
+  "shipped",
+]);
+export type IntakeChannel = (typeof intakeChannelEnum.enumValues)[number];
+
+// Indonesian kode pos, keyed by the 5-digit code. Reference data seeded from a
+// vendored file, never edited in the app — so no is_active, unlike the catalog
+// tables. `districts` is for showing and searching only: 6% of codes cover
+// several kecamatan, so it is not a fact you may group by. The city is, and it
+// is what tells the shop where demand is coming from.
+export const postalCodesTable = pgTable(
+  "postal_codes",
+  {
+    city: varchar("city", { length: 64 }).notNull(),
+    code: varchar("code", { length: 5 }).primaryKey(),
+    districts: varchar("districts", { length: 255 }).notNull(),
+    province: varchar("province", { length: 32 }).notNull(),
+  },
+  (table) => [index("postal_code_city_idx").on(table.city)]
+);
 export type CampaignRedemptionMode =
   (typeof campaignRedemptionModeEnum.enumValues)[number];
 export const campaignsTable = pgTable(
@@ -458,8 +483,18 @@ export const ordersTable = pgTable(
 
     created_at: timestamp("created_at").notNull().defaultNow(),
 
-    // courier who collected items at intake; null = walk-in
+    // courier who collected items at intake; set only when intake_channel is
+    // 'courier', which is now what says the order was collected at all
     collected_by: integer("collected_by").references(() => usersTable.id),
+    intake_channel: intakeChannelEnum("intake_channel")
+      .default("walk_in")
+      .notNull(),
+    // Where the customer sent the items from. Blank means nobody could tell us
+    // — most people do not know their own kode pos — which is worth more than
+    // a guess in a column the shop reads to pick its next storefront.
+    origin_postal_code: varchar("origin_postal_code", { length: 5 }).references(
+      () => postalCodesTable.code
+    ),
     // cashier
     created_by: integer("created_by")
       .references(() => usersTable.id)
@@ -555,6 +590,14 @@ export const ordersTable = pgTable(
     check(
       "refunded_amount_valid_check",
       sql`${table.refunded_amount} <= ${table.paid_amount}`
+    ),
+    check(
+      "intake_channel_courier_check",
+      sql`(${table.intake_channel} = 'courier') = (${table.collected_by} IS NOT NULL)`
+    ),
+    check(
+      "walk_in_has_no_origin_check",
+      sql`${table.intake_channel} <> 'walk_in' OR ${table.origin_postal_code} IS NULL`
     ),
   ]
 );

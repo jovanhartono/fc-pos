@@ -6,6 +6,7 @@ import type {
 import {
   findCumulativeCustomersBefore,
   findDistinctHandlerCount,
+  findOriginCoverage,
   findRepeatCustomerStats,
   listCampaignEffectivenessRows,
   listCategoryRevenueSeries,
@@ -13,6 +14,7 @@ import {
   listOrderDiscountSeries,
   listOrdersInSeries,
   listOrdersOutSeries,
+  listOriginRankingRows,
   listPaymentMixSeries,
   listProductsCogsSeries,
   listProductsRevenueSeries,
@@ -860,5 +862,33 @@ export async function getCampaignEffectivenessReport(
     granularity: ctx.granularity,
     campaigns: rows,
     summary: totals,
+  };
+}
+
+// ───────────────────────── Origin ranking ─────────────────────────
+
+export async function getOriginRankingReport(query: GetReportRangeQuery) {
+  const ctx = buildContext(query);
+  const range = getJakartaRange(ctx.from, ctx.to);
+  const storeId = ctx.store_id ?? undefined;
+
+  const [cities, coverage] = await Promise.all([
+    listOriginRankingRows({ range, storeId }),
+    findOriginCoverage({ range, storeId }),
+  ]);
+
+  return {
+    cities,
+    coverage: {
+      ...coverage,
+      // Zero eligible orders is full coverage, not a division by zero: there
+      // was nothing to find out.
+      pct: coverage.eligible > 0 ? coverage.known / coverage.eligible : 1,
+    },
+    from: ctx.from,
+    granularity: ctx.granularity,
+    previous: { from: ctx.previous.from, to: ctx.previous.to },
+    store_id: ctx.store_id,
+    to: ctx.to,
   };
 }

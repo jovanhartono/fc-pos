@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   cancelReasonEnum,
+  intakeChannelEnum,
   orderServiceStatusEnum,
   refundReasonEnum,
 } from "@/db/schema";
@@ -9,6 +10,10 @@ import {
   campaignIdsSchema,
   currencySchema,
   dateStringSchema,
+  hasValidCourierPairing,
+  hasValidOriginPairing,
+  INTAKE_COURIER_ERROR,
+  INTAKE_ORIGIN_ERROR,
   voucherCodesSchema,
 } from "@/schema/common";
 import { normalizePagination } from "@/utils/pagination";
@@ -134,9 +139,23 @@ export const PATCHOrderServicePriceSchema = z.object({
   price: currencySchema("Price"),
 });
 
-export const PATCHOrderCourierSchema = z.object({
-  collected_by: z.coerce.number().int().positive().nullable(),
-});
+// How the Items arrived, corrected as one fact. The three fields constrain each
+// other in the database, so letting a screen move one of them alone would put
+// the order in a state Postgres rejects (ADR-0020).
+export const PATCHOrderIntakeSchema = z
+  .object({
+    collected_by: z.coerce.number().int().positive().nullable(),
+    intake_channel: z.enum(intakeChannelEnum.enumValues),
+    origin_postal_code: z.string().trim().length(5).nullable(),
+  })
+  .refine(hasValidCourierPairing, {
+    error: INTAKE_COURIER_ERROR,
+    path: ["collected_by"],
+  })
+  .refine(hasValidOriginPairing, {
+    error: INTAKE_ORIGIN_ERROR,
+    path: ["origin_postal_code"],
+  });
 
 export const POSTOrderCancelSchema = z.object({
   items: z

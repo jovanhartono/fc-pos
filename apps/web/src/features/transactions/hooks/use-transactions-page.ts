@@ -59,6 +59,10 @@ const transactionDraftSchema = z
 		),
 		selectedPaymentMethodId: z.string(),
 		selectedCourierId: z.string(),
+		intakeChannel: z.enum(["walk_in", "courier", "shipped"]),
+		// Never required. Plenty of customers cannot recite their kode pos, and
+		// the shop would rather have a blank than a guess (ADR-0020).
+		originPostalCode: z.string(),
 		manualDiscount: z
 			.string()
 			.refine(

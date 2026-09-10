@@ -37,13 +37,37 @@ export const TransactionsCheckout = () => {
 	const [step, setStep] = useState<CheckoutStep>("customer");
 	const [direction, setDirection] = useState<"forward" | "back">("forward");
 	const dropoffPhoto = useTransactionsPageStore((state) => state.dropoffPhoto);
-	const [customerName = "", customerPhone = "", selectedCampaignIds = []] =
-		useWatch<
-			TransactionDraftValues,
-			["customerName", "customerPhone", "selectedCampaignIds"]
-		>({ name: ["customerName", "customerPhone", "selectedCampaignIds"] });
+	const [
+		customerName = "",
+		customerPhone = "",
+		selectedCampaignIds = [],
+		intakeChannel = "walk_in",
+		selectedCourierId = "",
+	] = useWatch<
+		TransactionDraftValues,
+		[
+			"customerName",
+			"customerPhone",
+			"selectedCampaignIds",
+			"intakeChannel",
+			"selectedCourierId",
+		]
+	>({
+		name: [
+			"customerName",
+			"customerPhone",
+			"selectedCampaignIds",
+			"intakeChannel",
+			"selectedCourierId",
+		],
+	});
 
-	const customerReady = isCustomerReady(customerName, customerPhone);
+	const customerReady = isCustomerReady({
+		customerName,
+		customerPhone,
+		intakeChannel,
+		selectedCourierId,
+	});
 	const itemsReady = count > 0 && !!dropoffPhoto;
 
 	const stepIndex = CHECKOUT_STEPS.findIndex((entry) => entry.key === step);

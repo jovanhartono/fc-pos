@@ -8,6 +8,7 @@ import {
   campaignsTable,
   categoriesTable,
   customersTable,
+  type IntakeChannel,
   itemImagesTable,
   itemsTable,
   orderCampaignsTable,
@@ -21,6 +22,7 @@ import {
   ordersServicesTable,
   ordersTable,
   paymentMethodsTable,
+  postalCodesTable,
   productsTable,
   servicesTable,
   shiftsTable,
@@ -1435,6 +1437,12 @@ async function seedOrders(params: {
 
   const orderCounters = new Map<string, number>();
 
+  // Reference data lives outside the reseed (it is never truncated), so an
+  // environment that has not run seed-postal-codes just gets blank origins.
+  const postalCodes = (
+    await db.select({ code: postalCodesTable.code }).from(postalCodesTable)
+  ).map((row) => row.code);
+
   for (let index = 0; index < ORDER_COUNT; index++) {
     const storeId = pickWeighted(storeWeights);
     const store = params.stores.find((item) => item.id === storeId);
@@ -1446,10 +1454,20 @@ async function seedOrders(params: {
     const workers = params.workersByStore.get(store.id) ?? [];
     const createdBy = faker.helpers.arrayElement(cashiers);
 
-    // ~30% of intakes arrive via a courier collection; the rest are walk-ins.
-    const collectedBy =
-      params.courierIds.length > 0 && chance(0.3)
-        ? faker.helpers.arrayElement(params.courierIds)
+    // Most customers still carry their shoes in. ~25% are collected by one of
+    // the shop's couriers, ~8% arrive as a parcel from another city.
+    const hasCourier = params.courierIds.length > 0 && chance(0.25);
+    const intakeChannel = hasCourier
+      ? "courier"
+      : ((chance(0.1) ? "shipped" : "walk_in") as IntakeChannel);
+    const collectedBy = hasCourier
+      ? faker.helpers.arrayElement(params.courierIds)
+      : null;
+    // Optional in real life too: plenty of customers cannot recite their kode
+    // pos, and a blank beats a guess in the data the shop sites stores from.
+    const originPostalCode =
+      intakeChannel !== "walk_in" && postalCodes.length > 0 && chance(0.75)
+        ? faker.helpers.arrayElement(postalCodes)
         : null;
 
     const createdAt = dayjs()
@@ -1703,6 +1721,8 @@ async function seedOrders(params: {
         customer_id: customerId,
         store_id: store.id,
         collected_by: collectedBy,
+        intake_channel: intakeChannel,
+        origin_postal_code: originPostalCode,
         discount_source: discountRes.discount_source,
         discount: asMoney(discount),
         dropoff_photo_path: dropoffPhotoPath,

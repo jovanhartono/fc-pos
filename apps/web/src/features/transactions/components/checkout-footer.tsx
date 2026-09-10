@@ -42,11 +42,28 @@ export const CheckoutFooter = ({
 	const { pricing } = useCheckoutPricing();
 	const form = useFormContext<TransactionDraftValues>();
 	const isSubmitting = form.formState.isSubmitting;
-	const [customerName = "", customerPhone = ""] = useWatch<
+	const [
+		customerName = "",
+		customerPhone = "",
+		intakeChannel = "walk_in",
+		selectedCourierId = "",
+	] = useWatch<
 		TransactionDraftValues,
-		["customerName", "customerPhone"]
-	>({ name: ["customerName", "customerPhone"] });
-	const customerReady = isCustomerReady(customerName, customerPhone);
+		["customerName", "customerPhone", "intakeChannel", "selectedCourierId"]
+	>({
+		name: [
+			"customerName",
+			"customerPhone",
+			"intakeChannel",
+			"selectedCourierId",
+		],
+	});
+	const customerReady = isCustomerReady({
+		customerName,
+		customerPhone,
+		intakeChannel,
+		selectedCourierId,
+	});
 	const submitError = useTransactionsPageStore((state) => state.submitError);
 	const dropoffPhoto = useTransactionsPageStore((state) => state.dropoffPhoto);
 

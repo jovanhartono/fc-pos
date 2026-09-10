@@ -21,6 +21,8 @@ const FIELD_TARGETS: Record<keyof TransactionDraftValues, CheckoutIssueTarget> =
 		customerName: "customer",
 		customerPhone: "customer",
 		selectedCourierId: "customer",
+		intakeChannel: "customer",
+		originPostalCode: "customer",
 		productCart: "items",
 		itemCart: "items",
 		notes: "items",

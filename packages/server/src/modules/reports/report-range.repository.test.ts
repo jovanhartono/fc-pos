@@ -23,6 +23,7 @@ mock.module("@/db", () => ({
 
 const {
   listCampaignEffectivenessRows,
+  listOriginRankingRows,
   listPaymentMixSeries,
   listRefundAmountSeries,
   listServicesRevenueSeries,
@@ -189,6 +190,43 @@ describe("reading rupiah back out of Postgres", () => {
         revenue: 27_002,
         discount_cost: 9000,
         avg_order_value: 30_002 / 3,
+      },
+    ]);
+  });
+});
+
+// Refunds land in the stretch they were issued, never the one the order was
+// paid in (CONTEXT.md, "Revenue"). A city the shop took nothing from this month
+// but refunded into still has to show up, or the month reads richer than it was.
+describe("where the takings came from", () => {
+  it("subtracts a refund from the city that earned it", async () => {
+    rowQueue.push([["KOTA BANDUNG", 4, "500000", "JAWA BARAT"]]);
+    rowQueue.push([["KOTA BANDUNG", "JAWA BARAT", "120000"]]);
+
+    const rows = await listOriginRankingRows({ range: AUGUST });
+
+    expect(rows).toEqual([
+      {
+        city: "KOTA BANDUNG",
+        orders: 4,
+        province: "JAWA BARAT",
+        revenue: 380_000,
+      },
+    ]);
+  });
+
+  it("still reports a city that only refunded this stretch", async () => {
+    rowQueue.push([]);
+    rowQueue.push([["KOTA SURABAYA", "JAWA TIMUR", "90000"]]);
+
+    const rows = await listOriginRankingRows({ range: AUGUST });
+
+    expect(rows).toEqual([
+      {
+        city: "KOTA SURABAYA",
+        orders: 0,
+        province: "JAWA TIMUR",
+        revenue: -90_000,
       },
     ]);
   });
