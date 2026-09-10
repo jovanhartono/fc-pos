@@ -24,9 +24,7 @@ const CategoryBars = ({
 }) => {
 	const max = categories.reduce((m, row) => Math.max(m, row.revenue), 0);
 	if (categories.length === 0) {
-		return (
-			<p className="text-sm text-muted-foreground">No service lines today.</p>
-		);
+		return <p className="text-sm text-muted-foreground">No sales today</p>;
 	}
 	return (
 		<div className="grid gap-2">
@@ -64,7 +62,9 @@ const TopServicesList = ({
 	services: ReportOverview["top_services"];
 }) => {
 	if (services.length === 0) {
-		return <p className="text-sm text-muted-foreground">No services today.</p>;
+		return (
+			<p className="text-sm text-muted-foreground">No services sold today</p>
+		);
 	}
 	return (
 		<div className="grid gap-2">
@@ -97,7 +97,7 @@ const BranchBreakdown = ({
 	const max = perStore.reduce((m, r) => Math.max(m, r.revenue), 0);
 	if (perStore.length === 0) {
 		return (
-			<p className="text-sm text-muted-foreground">No branch activity today.</p>
+			<p className="text-sm text-muted-foreground">No store activity today</p>
 		);
 	}
 	return (
@@ -216,7 +216,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 			<Card className="border-border/70">
 				<CardHeader>
 					<CardTitle className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-						Revenue by branch
+						Revenue by store
 					</CardTitle>
 				</CardHeader>
 				<CardContent className="p-4 pt-0">

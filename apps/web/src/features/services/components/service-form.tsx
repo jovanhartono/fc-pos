@@ -39,7 +39,7 @@ const serviceFormResolverSchema = z
 			ctx.addIssue({
 				code: "custom",
 				path: ["price"],
-				message: "Price is required!",
+				message: "Price is required",
 			});
 		}
 	});

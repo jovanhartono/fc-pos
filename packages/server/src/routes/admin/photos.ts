@@ -13,7 +13,7 @@ const app = new Hono<AdminEnv>().post(
     const user = c.get("jwtPayload");
     const download = await createPhotoDownloadUrl({ body, user });
 
-    return c.json(success(download, "Download URL generated successfully"));
+    return c.json(success(download));
   }
 );
 

@@ -38,7 +38,7 @@ const app = new Hono<AdminEnv>()
     return c.json(
       success(
         customer,
-        existed ? "Customer already exists" : "Create customer success"
+        existed ? "Customer already exists" : "Customer created"
       ),
       existed ? StatusCodes.OK : StatusCodes.CREATED
     );
@@ -66,7 +66,7 @@ const app = new Hono<AdminEnv>()
       throw new NotFoundException("Customer not found");
     }
 
-    return c.json(success(customer, "Customer retrieved successfully"));
+    return c.json(success(customer));
   })
   .put(
     "/:id",
@@ -84,7 +84,7 @@ const app = new Hono<AdminEnv>()
       });
 
       if (!customer) {
-        throw new NotFoundException("Customer does not exist");
+        throw new NotFoundException("Customer not found");
       }
 
       return c.json(

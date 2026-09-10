@@ -176,7 +176,7 @@ export const PhotoLightbox = ({
 						<div className="relative flex min-h-0 flex-1 items-center justify-center">
 							<div className="grid place-items-center gap-2 px-6 py-12 text-center text-sm text-white/72">
 								<ImageSquareIcon className="size-6" aria-hidden="true" />
-								<p>No image selected.</p>
+								<p>No image selected</p>
 							</div>
 						</div>
 					)}

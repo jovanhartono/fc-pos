@@ -27,67 +27,63 @@ function AdminErrorComponent(props: ErrorComponentProps) {
 const pageMeta: Record<string, { title: string; description?: string }> = {
 	"/categories": {
 		title: "Categories",
-		description: "Insert and edit category master data.",
+		description: "Groups for services and products",
 	},
 	"/campaigns": {
 		title: "Campaigns",
-		description: "Create and manage discount campaigns per store.",
+		description: "Discounts and vouchers, per store",
 	},
 	"/customers": {
 		title: "Customers",
-		description: "Insert and edit customer master data.",
+		description: "Names, phones, and addresses",
 	},
 	"/orders": {
 		title: "Orders",
-		description:
-			"Review historical orders, payment status, and order detail records.",
+		description: "Past orders and what was paid",
 	},
 	"/complaints": {
 		title: "Complaints",
-		description:
-			"Post-pickup complaints, rework lines, and resolution tracking.",
+		description: "Complaints raised after pickup",
 	},
 	"/transactions": {
 		title: "Transactions",
-		description:
-			"Run the POS workspace with catalog tabs, cart, customer selection, and payment setup.",
+		description: "Take an order and collect payment",
 	},
 	"/payment-methods": {
 		title: "Payment Methods",
-		description: "Insert and edit payment method master data.",
+		description: "How customers can pay",
 	},
 	"/products": {
 		title: "Products",
-		description: "Insert and edit product master data.",
+		description: "Goods sold alongside the work",
 	},
 	"/services": {
 		title: "Services",
-		description: "Insert and edit service master data.",
+		description: "The work the shop does, and list prices",
 	},
 	"/stores": {
 		title: "Stores",
-		description: "Insert and edit store master data.",
+		description: "Shop locations and their details",
 	},
 	"/reports": {
 		title: "Daily Report",
-		description: "Revenue, items processed, and order flow for a single day.",
+		description: "One day's revenue, items, and orders",
 	},
 	"/shifts": {
 		title: "Shifts",
-		description: "Track worker clock in and clock out history across stores.",
+		description: "Who clocked in and out, and when",
 	},
 	"/attendance": {
 		title: "Attendance",
-		description: "Clock in, clock out, and review your recent shifts.",
+		description: "Clock in, clock out, and see your recent shifts",
 	},
 	"/users": {
 		title: "Users",
-		description: "Insert and edit users with role management.",
+		description: "Staff accounts and roles",
 	},
 	"/queue": {
 		title: "Queue",
-		description:
-			"Priority-first worker queue with item detail and photo upload.",
+		description: "Items waiting for work, most urgent first",
 	},
 };
 
@@ -98,17 +94,17 @@ function AdminLayout() {
 		(pathname.startsWith("/queue/")
 			? {
 					title: "Queue Detail",
-					description: "Update one queue item and upload progress photos.",
+					description: "Work on this item and add photos",
 				}
 			: pathname.startsWith("/orders/")
 				? {
 						title: "Order Detail",
-						description: "Review one order and its service timeline.",
+						description: "This order and everything done to it",
 					}
 				: pathname.startsWith("/complaints/")
 					? {
 							title: "Complaint Detail",
-							description: "Review one complaint and its rework lines.",
+							description: "This complaint and its rework",
 						}
 					: {
 							title: "Admin",

@@ -119,7 +119,7 @@ const ComplaintsPage = () => {
 							id="complaints-search"
 							value={search.search ?? ""}
 							onDebouncedChange={handleSearchChange}
-							placeholder="Search order code or customer…"
+							placeholder="Search order code or customer"
 							ariaLabel="Search complaints"
 						/>
 						<div className="mt-4 grid gap-4">

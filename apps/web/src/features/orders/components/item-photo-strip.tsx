@@ -119,7 +119,7 @@ export const ItemPhotoStrip = ({
 			</button>
 			{images.length === 0 ? (
 				<p className="text-muted-foreground text-xs">
-					{photoBlocker ?? "No photos yet."}
+					{photoBlocker ?? "No photos yet"}
 				</p>
 			) : null}
 			<PhotoLightbox

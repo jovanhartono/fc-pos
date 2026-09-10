@@ -36,7 +36,7 @@ const NotFoundPage = () => {
 						Page not found
 					</CardTitle>
 					<CardDescription>
-						The route you requested does not exist. Check the URL or head back.
+						This page does not exist. Check the address or go back.
 					</CardDescription>
 				</CardHeader>
 

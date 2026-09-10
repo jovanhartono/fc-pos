@@ -44,7 +44,7 @@ export function asPostgresError(error: unknown): PostgresError | undefined {
 
 // Dev calls the constraint customers_phone_number_key, production calls it
 // customers_phone_number_unique. The same duplicate must read the same at the
-// till on either database.
+// counter on either database.
 const UNIQUE_SUFFIX = /_(?:key|unique)$/;
 
 const CONSTRAINT_MESSAGES: Partial<Record<string, string>> = {

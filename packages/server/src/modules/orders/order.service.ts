@@ -84,7 +84,7 @@ interface CatalogLine<TItem, TRow> {
   row: TRow;
 }
 
-// A till stays open for hours and the POS only hides retired items on screen, so
+// A POS tab stays open for hours and the POS only hides retired items on screen, so
 // the basket is matched against the live catalog here — before the transaction,
 // so a doomed order never burns a daily order number.
 function resolveCatalogLines<

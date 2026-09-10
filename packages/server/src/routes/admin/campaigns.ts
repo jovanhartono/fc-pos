@@ -96,7 +96,7 @@ const app = new Hono<AdminEnv>()
       throw new NotFoundException("Campaign not found");
     }
 
-    return c.json(success(campaign, "Campaign retrieved successfully"));
+    return c.json(success(campaign));
   })
   .post("/", zodValidator("json", CampaignPayloadSchema), async (c) => {
     const user = c.get("jwtPayload");
@@ -107,10 +107,7 @@ const app = new Hono<AdminEnv>()
       payload: body,
     });
 
-    return c.json(
-      success(campaign, "Campaign created successfully"),
-      StatusCodes.CREATED
-    );
+    return c.json(success(campaign, "Campaign created"), StatusCodes.CREATED);
   })
   .put(
     "/:id",
@@ -128,10 +125,10 @@ const app = new Hono<AdminEnv>()
       });
 
       if (!campaign) {
-        throw new NotFoundException("Campaign does not exist");
+        throw new NotFoundException("Campaign not found");
       }
 
-      return c.json(success(campaign, "Campaign updated successfully"));
+      return c.json(success(campaign, "Campaign updated"));
     }
   )
   .delete("/:id", idParamSchema, async (c) => {
@@ -144,7 +141,7 @@ const app = new Hono<AdminEnv>()
       throw new NotFoundException("Campaign not found");
     }
 
-    return c.json(success(deleted, "Campaign deleted successfully"));
+    return c.json(success(deleted, "Campaign deleted"));
   });
 
 export default app;

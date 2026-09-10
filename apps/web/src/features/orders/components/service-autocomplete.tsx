@@ -44,7 +44,7 @@ export function ServiceAutocomplete({
 				}
 				loading={isPending}
 				placeholder="No service"
-				searchPlaceholder="Search service..."
+				searchPlaceholder="Search services"
 				emptyText="No service found"
 				disabled={disabled}
 			/>

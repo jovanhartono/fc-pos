@@ -50,7 +50,7 @@ const staff = (id: number, role: JWTPayload["role"]): JWTPayload => ({
   username: `staff-${id}`,
 });
 
-// Sari works the till at Kemang (store 1); Pak Rudi runs all six branches.
+// Sari works the counter at Kemang (store 1); Pak Rudi runs all six branches.
 const CASHIER = staff(9, "cashier");
 const ADMIN = staff(1, "admin");
 

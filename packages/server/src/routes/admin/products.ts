@@ -31,16 +31,13 @@ const app = new Hono<AdminEnv>()
       throw new NotFoundException("Product not found");
     }
 
-    return c.json(success(product, "Product retrieved successfully"));
+    return c.json(success(product));
   })
   .post("/", zodValidator("json", POSTProductSchema), async (c) => {
     const body = c.req.valid("json");
     const product = await createProduct(body);
 
-    return c.json(
-      success(product, "Create product success"),
-      StatusCodes.CREATED
-    );
+    return c.json(success(product, "Product created"), StatusCodes.CREATED);
   })
   .put(
     "/:id",
@@ -53,7 +50,7 @@ const app = new Hono<AdminEnv>()
       const product = await updateProduct(id, body);
 
       if (!product) {
-        throw new NotFoundException("Product does not exist");
+        throw new NotFoundException("Product not found");
       }
 
       return c.json(success(product, `Update product ${product.sku} success`));

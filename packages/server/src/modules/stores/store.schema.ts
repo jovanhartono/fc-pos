@@ -13,16 +13,16 @@ export const POSTStoreSchema = z.object({
   phone_number: z
     .string()
     .trim()
-    .min(1, "Phone number is required!")
+    .min(1, "Phone number is required")
     .refine(isValidPhoneNumber, { error: "Invalid phone number" })
     .pipe(
       z.transform((value) => parsePhoneNumberFromString(value)?.number ?? value)
     ),
-  address: z.string().trim().min(1, "Address is required!"),
+  address: z.string().trim().min(1, "Address is required"),
   latitude: z.preprocess(
     (val) => (val === "" ? undefined : Number(val)),
     z
-      .number("Latitude is required!")
+      .number("Latitude is required")
       .min(-90, "Invalid latitude")
       .max(90, "Invalid latitude")
       .transform(String)
@@ -30,7 +30,7 @@ export const POSTStoreSchema = z.object({
   longitude: z.preprocess(
     (val) => (val === "" ? undefined : Number(val)),
     z
-      .number("Longitude is required!")
+      .number("Longitude is required")
       .min(-180, "Invalid longitude")
       .max(180, "Invalid longitude")
       .transform(String)

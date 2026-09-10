@@ -259,7 +259,7 @@ const { createOrder, getOrderDetailById, listOrders } = await import(
   "@/modules/orders/order.service"
 );
 
-// Freeze the till clock at 00:30 in Jakarta on 2 Aug — still 17:30 on 1 Aug
+// Freeze the POS clock at 00:30 in Jakarta on 2 Aug — still 17:30 on 1 Aug
 // in UTC. A shop open past midnight must stamp receipts with the new Jakarta
 // business date; a UTC-clocked server would keep yesterday's date and hand
 // out duplicate tag numbers against yesterday's counter sequence.
@@ -424,7 +424,7 @@ describe("createOrder", () => {
   });
 
   it("routes the net amount into the paid fields when the customer pays at drop-off", async () => {
-    // Rp50.000 order with a Rp5.000 promo, settled at the counter. The till
+    // Rp50.000 order with a Rp5.000 promo, settled at the counter. The POS
     // holds Rp45.000 — booking the gross would overstate revenue by the
     // discount, and the promo's redemption must be burned in the same breath.
     catalog.services = [
@@ -538,7 +538,7 @@ describe("createOrder", () => {
     expect(repo.insertedOrder).toBeUndefined();
   });
 
-  it("refuses a retired treatment a still-open till keeps offering", async () => {
+  it("refuses a retired treatment a still-open POS keeps offering", async () => {
     // The shop pulled suede restoration off the menu this morning, but the
     // cashier's tablet has been open since before that and still lists it. The
     // POS only hides retired treatments client-side, so nothing but this gate
@@ -677,7 +677,7 @@ describe("createOrder", () => {
   });
 
   // The counter's everyday upsell, and the case the whole ADR exists for: one
-  // pair in for a deep clean leaves the till with three treatments on it.
+  // pair in for a deep clean leaves the POS with three treatments on it.
   it("gives one pair sold three treatments a single tag", async () => {
     catalog.services = [10, 11, 12].map((id) => ({
       id,

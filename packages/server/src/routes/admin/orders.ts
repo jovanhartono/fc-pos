@@ -122,7 +122,7 @@ const app = new Hono<OrderAccessEnv>()
 
       const { items, meta } = await getOrderServiceQueue(user, query);
 
-      return c.json(success(items, "Queue retrieved successfully", meta));
+      return c.json(success(items, undefined, meta));
     }
   )
   .get(
@@ -150,9 +150,7 @@ const app = new Hono<OrderAccessEnv>()
 
       await assertStoreAccess(user, orderService.order.store_id);
 
-      return c.json(
-        success(orderService, "Order service retrieved successfully")
-      );
+      return c.json(success(orderService));
     }
   )
   // A scanned tag names an object, not a job (ADR-0017). The Item comes back
@@ -173,7 +171,7 @@ const app = new Hono<OrderAccessEnv>()
 
       await assertStoreAccess(user, item.order.store_id);
 
-      return c.json(success(item, "Item retrieved successfully"));
+      return c.json(success(item));
     }
   )
   .get(
@@ -185,7 +183,7 @@ const app = new Hono<OrderAccessEnv>()
 
       const rows = await getMyOrderServices(user, query);
 
-      return c.json(success(rows, "My order services retrieved successfully"));
+      return c.json(success(rows));
     }
   )
   .post("/", zodValidator("json", POSTOrderSchema), async (c) => {
@@ -214,7 +212,7 @@ const app = new Hono<OrderAccessEnv>()
       throw new NotFoundException("Order not found");
     }
 
-    return c.json(success(detail, "Order detail retrieved successfully"));
+    return c.json(success(detail));
   })
   .get("/:id/receipt", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
@@ -225,7 +223,7 @@ const app = new Hono<OrderAccessEnv>()
       throw new NotFoundException("Order not found");
     }
 
-    return c.json(success(receipt, "Order receipt retrieved successfully"));
+    return c.json(success(receipt));
   })
   .patch(
     "/:id/payment",
@@ -246,7 +244,7 @@ const app = new Hono<OrderAccessEnv>()
         throw new NotFoundException("Order not found");
       }
 
-      return c.json(success(payment, "Payment updated successfully"));
+      return c.json(success(payment, "Payment updated"));
     }
   )
   .patch(
@@ -268,7 +266,7 @@ const app = new Hono<OrderAccessEnv>()
         throw new NotFoundException("Order not found");
       }
 
-      return c.json(success(updated, "Courier updated successfully"));
+      return c.json(success(updated, "Courier updated"));
     }
   )
   .post(
@@ -286,9 +284,7 @@ const app = new Hono<OrderAccessEnv>()
         user,
       });
 
-      return c.json(
-        success(signed, "Pickup upload URL generated successfully")
-      );
+      return c.json(success(signed));
     }
   )
   .post(
@@ -401,7 +397,7 @@ const app = new Hono<OrderAccessEnv>()
         body,
       });
 
-      return c.json(success(signed, "Upload URL generated successfully"));
+      return c.json(success(signed));
     }
   )
   .post(
@@ -417,9 +413,7 @@ const app = new Hono<OrderAccessEnv>()
         body,
       });
 
-      return c.json(
-        success(signed, "Drop-off upload URL generated successfully")
-      );
+      return c.json(success(signed));
     }
   )
   .put(

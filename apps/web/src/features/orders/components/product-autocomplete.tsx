@@ -44,7 +44,7 @@ export function ProductAutocomplete({
 				}
 				loading={isPending}
 				placeholder="No product"
-				searchPlaceholder="Search product..."
+				searchPlaceholder="Search products"
 				emptyText="No product found"
 				disabled={disabled}
 			/>

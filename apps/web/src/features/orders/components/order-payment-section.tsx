@@ -166,7 +166,7 @@ const PaidDetails = ({ detail }: { detail: OrderDetail }) => (
 );
 
 const paymentMethodSchema = z.object({
-	paymentMethodId: z.string().min(1, "Payment method is required."),
+	paymentMethodId: z.string().min(1, "Payment method is required"),
 });
 
 // The tender picker both payment forms end with. Reads the form through

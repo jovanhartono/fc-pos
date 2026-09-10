@@ -240,7 +240,7 @@ describe("setOrderServicePrice", () => {
   });
 
   it("refuses any price change once the order is paid — the numbers froze", async () => {
-    // The customer paid against a printed receipt and the till matches it.
+    // The customer paid against a printed receipt and the POS matches it.
     // Editing a line after that would desync money already taken; a genuinely
     // wrong price is now a refund, not an edit (ADR-0018).
     state.orderPaymentStatus = "paid";
@@ -289,7 +289,7 @@ describe("setOrderServicePrice", () => {
 
   it("will not land a correction after another cashier collected payment", async () => {
     // The workshop re-keys a typo while a cashier taps collect on another
-    // till. If the correction landed after the paid CAS, the customer would
+    // POS. If the correction landed after the paid CAS, the customer would
     // hold a receipt whose lines no longer sum to what was charged — the
     // exact state ADR-0018 forbids. The pre-check read cannot see a payment
     // that commits after it, so the write itself must require the order to

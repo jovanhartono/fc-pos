@@ -26,7 +26,7 @@ interface QualityPanelProps {
 
 const REASON_LABELS: Record<string, string> = {
 	damaged: "Damaged",
-	cannot_process: "Cannot process",
+	cannot_process: "Cannot Process",
 	lost: "Lost",
 	other: "Other",
 };
@@ -50,7 +50,7 @@ export const QualityPanel = ({
 		if (!data) {
 			return;
 		}
-		const lines: string[] = ["Refund trend,Bucket,Amount,Refunds"];
+		const lines: string[] = ["Refund trend,Period,Amount,Refunds"];
 		for (const row of data.series) {
 			lines.push(
 				`Refund trend,${escapeCsv(row.bucket)},${row.amount},${row.refunds}`,
@@ -99,7 +99,6 @@ export const QualityPanel = ({
 			<ChartCard
 				variant="area"
 				title="Refund amount trend"
-				description="Total refunded value over the range."
 				data={data?.series ?? []}
 				granularity={data?.granularity ?? "day"}
 				series={[

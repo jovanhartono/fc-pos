@@ -172,7 +172,7 @@ export const POSTOrderSchema = z
       name: varcharSchema("Name"),
       phone_number: phoneSchema,
     }),
-    store_id: z.number("Store ID is required"),
+    store_id: z.number("Store is required"),
     campaign_ids: campaignIdsSchema,
     voucher_codes: voucherCodesSchema,
     products: z

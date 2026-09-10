@@ -52,7 +52,7 @@ export const CustomersPanel = ({
 		if (!data) {
 			return;
 		}
-		const lines: string[] = ["Customers,Bucket,New,Cumulative"];
+		const lines: string[] = ["Customers,Period,New,Cumulative"];
 		for (const row of data.series) {
 			lines.push(
 				`Customers,${escapeCsv(row.bucket)},${row.new_customers},${row.cumulative}`,
@@ -60,7 +60,7 @@ export const CustomersPanel = ({
 		}
 		lines.push("");
 		lines.push(
-			"Customer orders,Bucket,New-customer orders,Returning-customer orders",
+			"Customer orders,Period,New-customer orders,Returning-customer orders",
 		);
 		for (const row of data.mix_series) {
 			lines.push(
@@ -118,8 +118,7 @@ export const CustomersPanel = ({
 
 			<ChartCard
 				variant="area"
-				title="New customers per bucket"
-				description="Fresh sign-ups over the range."
+				title="New customers over time"
 				data={data?.series ?? []}
 				granularity={data?.granularity ?? "day"}
 				series={[
@@ -135,7 +134,6 @@ export const CustomersPanel = ({
 			<ChartCard
 				variant="stacked-bar"
 				title="Orders · new vs returning customers"
-				description="Split per bucket."
 				data={data?.mix_series ?? []}
 				granularity={data?.granularity ?? "day"}
 				series={[

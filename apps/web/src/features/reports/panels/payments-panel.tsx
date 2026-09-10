@@ -47,7 +47,7 @@ export const PaymentsPanel = ({
 		}
 		const lines: string[] = [];
 		lines.push(
-			`Payment mix,Bucket,${data.method_keys.map((m) => escapeCsv(m.label)).join(",")}`,
+			`Payment mix,Period,${data.method_keys.map((m) => escapeCsv(m.label)).join(",")}`,
 		);
 		for (const row of data.series) {
 			lines.push(
@@ -88,7 +88,6 @@ export const PaymentsPanel = ({
 			<ChartCard
 				variant="stacked-bar"
 				title="Revenue by payment method"
-				description="Stacked bars over time."
 				data={data?.series ?? []}
 				granularity={data?.granularity ?? "day"}
 				series={series}
@@ -103,7 +102,7 @@ export const PaymentsPanel = ({
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					{(data?.summary.methods ?? []).length === 0 ? (
-						<p className="text-sm text-muted-foreground">No paid orders.</p>
+						<p className="text-sm text-muted-foreground">No paid orders</p>
 					) : (
 						<div className="grid gap-3">
 							{data?.summary.methods.map((m) => (

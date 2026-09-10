@@ -37,7 +37,7 @@ const ErrorCard = ({ error, reset }: ErrorComponentProps) => {
 					Application error
 				</CardTitle>
 				<CardDescription>
-					Something broke while rendering this screen. Retry or return home.
+					Something broke on this screen. Retry, or go home.
 				</CardDescription>
 			</CardHeader>
 

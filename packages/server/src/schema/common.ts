@@ -45,8 +45,8 @@ export const isActiveSchema = z.boolean("Active status must be true or false");
 
 export const currencySchema = (field: string) =>
   z
-    .string(`${field} is required!`)
-    .min(1, `${field} is required!`)
+    .string(`${field} is required`)
+    .min(1, `${field} is required`)
     .refine((value) => !value.includes("-"), `${field} cannot be negative`)
     .transform(parseIndonesianCurrency);
 
@@ -88,8 +88,8 @@ export const dateStringSchema = (field: string) =>
     .regex(DATE_YYYY_MM_DD_REGEX, `${field} must use YYYY-MM-DD format`);
 
 export const phoneSchema = z
-  .string("Phone number is required!")
-  .min(1, "Phone number is required!")
+  .string("Phone number is required")
+  .min(1, "Phone number is required")
   .transform((val) => parsePhoneNumberFromString(val)?.number ?? val)
   .pipe(
     z.string().refine(isValidPhoneNumber, { error: "Invalid phone number" })

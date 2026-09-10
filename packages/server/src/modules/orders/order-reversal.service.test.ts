@@ -356,7 +356,7 @@ describe("createOrderRefund", () => {
 
   it("refuses a refund larger than the cash still held for the order", async () => {
     // Two Rp50.000 washes; the customer paid 60.000 up front and already got
-    // 20.000 back. The line's cap says 50.000 is returnable, but the till only
+    // 20.000 back. The line's cap says 50.000 is returnable, but the counter only
     // holds 40.000 of their money — paying out would refund cash never received.
     state.order = makePaidOrder({
       paid_amount: "60000",

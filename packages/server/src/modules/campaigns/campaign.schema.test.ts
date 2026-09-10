@@ -44,7 +44,7 @@ describe("CampaignPayloadSchema — redemption-mode exclusivity", () => {
     });
     expect(result.success).toBe(false);
     expect(issueFor(result, "code_count")?.message).toBe(
-      "code_count is only allowed for voucher campaigns"
+      "Only vouchers have a code count"
     );
   });
 
@@ -65,7 +65,7 @@ describe("CampaignPayloadSchema — redemption-mode exclusivity", () => {
     });
     expect(result.success).toBe(false);
     expect(issueFor(result, "code_count")?.message).toBe(
-      "code_count is required (min 1) for voucher campaigns"
+      "A voucher needs at least one code"
     );
   });
 
@@ -78,7 +78,7 @@ describe("CampaignPayloadSchema — redemption-mode exclusivity", () => {
     });
     expect(result.success).toBe(false);
     expect(issueFor(result, "usage_limit")?.message).toBe(
-      "usage_limit is not allowed for voucher campaigns"
+      "A voucher cannot have a usage limit"
     );
   });
 });

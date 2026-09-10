@@ -58,7 +58,7 @@ const app = new Hono().post(
     };
     const token = await sign(jwtPayload, process.env.JWT_SECRET as string);
 
-    return c.json(success({ token }, "Login Sucessfull!"), StatusCodes.OK);
+    return c.json(success({ token }, "Signed in"), StatusCodes.OK);
   }
 );
 

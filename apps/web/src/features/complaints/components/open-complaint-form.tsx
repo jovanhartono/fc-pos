@@ -16,7 +16,7 @@ const openComplaintSchema = z.object({
 	reason: z
 		.string()
 		.trim()
-		.min(1, "Describe the complaint.")
+		.min(1, "Describe the complaint")
 		.max(2000, "Keep it under 2000 characters."),
 	start_rework: z.boolean(),
 });
@@ -75,7 +75,7 @@ export const OpenComplaintForm = ({
 					name="order_service_id"
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<p className="text-sm font-medium">Which treatment?</p>
+							<p className="text-sm font-medium">Which service?</p>
 							<div
 								aria-label="Item with complaint"
 								className="grid gap-2 sm:grid-cols-2"

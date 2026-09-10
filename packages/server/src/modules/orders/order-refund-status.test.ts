@@ -59,7 +59,7 @@ describe("deriveOrderRefundStatus", () => {
   });
 
   it("never claims full when nothing was actually paid", () => {
-    // Goodwill payout on an order the till never collected: "full" would imply
+    // Goodwill payout on an order the POS never collected: "full" would imply
     // the payment cycle is closed, hiding that this order earned nothing.
     expect(
       deriveOrderRefundStatus({ paid_amount: "0", refunded_amount: "10000" })
@@ -67,7 +67,7 @@ describe("deriveOrderRefundStatus", () => {
   });
 
   it("ignores a corrupted negative refund instead of showing a phantom badge", () => {
-    // A bad import wrote refunded_amount "-5000". No money ever left the till,
+    // A bad import wrote refunded_amount "-5000". No money ever left the counter,
     // so staff must not see a refund badge that sends them auditing nothing.
     expect(
       deriveOrderRefundStatus({
