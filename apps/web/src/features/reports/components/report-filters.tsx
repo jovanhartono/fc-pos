@@ -9,15 +9,11 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
-import {
-	type DatePreset,
-	defaultRange,
-	getPresets,
-	matchPreset,
-} from "@/features/reports/utils/report-filters";
+import { defaultRange } from "@/features/reports/utils/report-filters";
 import type { ReportGranularity } from "@/lib/api";
 import { storesQueryOptions } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
+import { getPresets, matchPreset } from "@/shared/date-presets";
 
 interface ReportFiltersProps {
 	from: string;
@@ -73,10 +69,9 @@ export const ReportFilters = ({
 
 	const activeBadges: { id: string; label: string }[] = [];
 	if (showRangeFilters) {
-		const preset = presets.find((p) => p.id === activePreset);
 		activeBadges.push({
 			id: "range",
-			label: preset ? preset.label : `${from} → ${to}`,
+			label: activePreset ? activePreset.label : `${from} → ${to}`,
 		});
 	}
 	activeBadges.push({
@@ -125,30 +120,6 @@ export const ReportFilters = ({
 					align="end"
 					className="w-[min(20rem,calc(100vw-2rem))] gap-4 p-4"
 				>
-					{showRangeFilters ? (
-						<div className="grid gap-2">
-							<span className={FIELD_LABEL}>Preset</span>
-							<div className="grid grid-cols-2 gap-1">
-								{presets.map((preset) => (
-									<button
-										type="button"
-										key={preset.id}
-										onClick={() =>
-											onRangeChange({ from: preset.from, to: preset.to })
-										}
-										className={cn(
-											"border px-2 py-1.5 text-xs",
-											activePreset === (preset.id as DatePreset)
-												? "border-foreground bg-foreground text-background"
-												: "border-border/70 text-muted-foreground hover:text-foreground",
-										)}
-									>
-										{preset.label}
-									</button>
-								))}
-							</div>
-						</div>
-					) : null}
 					{showRangeFilters ? (
 						<div className="grid gap-2">
 							<span className={FIELD_LABEL}>Range</span>

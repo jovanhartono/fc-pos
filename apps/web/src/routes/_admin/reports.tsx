@@ -8,10 +8,7 @@ import {
 	ReportShell,
 	type ReportTab,
 } from "@/features/reports/components/report-shell";
-import {
-	defaultRange,
-	jakartaToday,
-} from "@/features/reports/utils/report-filters";
+import { defaultRange } from "@/features/reports/utils/report-filters";
 import type { ReportGranularity } from "@/lib/api";
 import {
 	agingQueueQueryOptions,
@@ -25,6 +22,7 @@ import {
 	storesQueryOptions,
 	workerProductivityQueryOptions,
 } from "@/lib/query-options";
+import { jakartaToday } from "@/shared/date-presets";
 
 const OverviewPanel = lazy(
 	() => import("@/features/reports/panels/overview-panel"),
