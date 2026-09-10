@@ -16,7 +16,7 @@ interface PostalCodeAutocompleteProps {
 	valueLabel?: string;
 }
 
-const formatOption = (postalCode: {
+export const formatPostalCodeLabel = (postalCode: {
 	city: string;
 	code: string;
 	districts: string;
@@ -35,6 +35,10 @@ export const PostalCodeAutocomplete = ({
 }: PostalCodeAutocompleteProps) => {
 	const [input, setInput] = useState("");
 	const [search, setSearch] = useState("");
+	// The picker wipes its own search box on close, so without holding on to the
+	// label the cashier is left staring at five bare digits and cannot tell
+	// whether they picked Depok or Bandung.
+	const [chosenLabel, setChosenLabel] = useState<string>();
 
 	useEffect(() => {
 		const timeoutId = window.setTimeout(() => setSearch(input.trim()), 300);
@@ -53,11 +57,17 @@ export const PostalCodeAutocomplete = ({
 	// picker would blank a value the cashier already set.
 	const options = postalCodes.map((postalCode) => ({
 		value: postalCode.code,
-		label: formatOption(postalCode),
+		label: formatPostalCodeLabel(postalCode),
 	}));
 	if (value && !options.some((option) => option.value === value)) {
-		options.unshift({ value, label: valueLabel ?? value });
+		options.unshift({ value, label: chosenLabel ?? valueLabel ?? value });
 	}
+
+	const handleValueChange = (next: string) => {
+		const picked = postalCodes.find((postalCode) => postalCode.code === next);
+		setChosenLabel(picked ? formatPostalCodeLabel(picked) : undefined);
+		onValueChange(next);
+	};
 
 	return (
 		<Field data-invalid={!!error}>
@@ -67,7 +77,7 @@ export const PostalCodeAutocomplete = ({
 				triggerClassName="h-10 w-full text-sm"
 				options={options}
 				value={value}
-				onValueChange={onValueChange}
+				onValueChange={handleValueChange}
 				onInputChange={setInput}
 				loading={isFetching}
 				placeholder="Not recorded"

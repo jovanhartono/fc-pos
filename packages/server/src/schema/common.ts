@@ -100,7 +100,7 @@ export const phoneSchema = z
 // cashier gets a message naming the wrong field, not a constraint violation
 // (ADR-0020). Create omits a value, edit nulls it; `== null` covers both.
 export const INTAKE_COURIER_ERROR =
-  "A courier order names its courier, and only a courier order may";
+  "A courier order must name its courier, and no other order may name one";
 export const INTAKE_ORIGIN_ERROR =
   "A walk-in customer is at the counter, so there is no origin";
 

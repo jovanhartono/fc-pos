@@ -5,13 +5,10 @@ import {
 } from "@/modules/postal-codes/postal-code.repository";
 import type { GetPostalCodesQuery } from "@/modules/postal-codes/postal-code.schema";
 
-const DEFAULT_LIMIT = 20;
+const LIMIT = 20;
 
 export function getPostalCodes(query: GetPostalCodesQuery) {
-  return listPostalCodes({
-    limit: query.limit ?? DEFAULT_LIMIT,
-    search: query.search,
-  });
+  return listPostalCodes({ limit: LIMIT, search: query.search });
 }
 
 export async function assertPostalCodeExists(code: string) {

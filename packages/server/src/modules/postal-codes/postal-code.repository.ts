@@ -11,13 +11,16 @@ export function listPostalCodes({
   limit: number;
   search: string;
 }) {
-  const contains = `%${search}%`;
+  // A cashier who types % or _ means those characters, not "match anything" —
+  // unescaped they turn a typo into twenty unrelated codes to pick from.
+  const term = search.replace(/[\\%_]/g, "\\$&");
+  const contains = `%${term}%`;
   return db.query.postalCodesTable.findMany({
     limit,
     orderBy: { code: "asc" },
     where: {
       OR: [
-        { code: { ilike: `${search}%` } },
+        { code: { ilike: `${term}%` } },
         { city: { ilike: contains } },
         { districts: { ilike: contains } },
       ],

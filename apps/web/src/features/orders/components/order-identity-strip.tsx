@@ -24,6 +24,7 @@ import {
 } from "@/features/orders/components/order-line-reversal-form";
 import { OrderPickupEventDialog } from "@/features/orders/components/order-pickup-event-dialog";
 import { PaymentStatusBadge } from "@/features/orders/components/payment-status-badge";
+import { formatPostalCodeLabel } from "@/features/orders/components/postal-code-autocomplete";
 import {
 	useCancelOrderMutation,
 	useRefundOrderMutation,
@@ -124,7 +125,7 @@ export const OrderIdentityStrip = ({
 					currentPostalCode={detail.origin_postal_code ?? ""}
 					currentPostalCodeLabel={
 						detail.originPostalCode
-							? `${detail.originPostalCode.code} — ${detail.originPostalCode.districts}, ${detail.originPostalCode.city}`
+							? formatPostalCodeLabel(detail.originPostalCode)
 							: undefined
 					}
 					orderId={orderId}

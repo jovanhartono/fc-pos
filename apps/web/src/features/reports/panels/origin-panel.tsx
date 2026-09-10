@@ -37,7 +37,6 @@ export const OriginPanel = ({
 	const cities: OriginCity[] = data?.cities ?? [];
 	const coverage = data?.coverage;
 	const maxOrders = cities.reduce((max, city) => Math.max(max, city.orders), 0);
-	const totalOrders = cities.reduce((sum, city) => sum + city.orders, 0);
 
 	const handleExport = () => {
 		if (!data) {
@@ -64,9 +63,12 @@ export const OriginPanel = ({
 						value={numberFormatter.format(cities.length)}
 						helper="Distinct origins recorded"
 					/>
+					{/* Every courier and shipped-in order, not just the ones with an
+					    origin — otherwise the count reads as the shop's whole
+					    non-counter volume while silently dropping the blanks. */}
 					<KpiCard
 						label="Orders not walked in"
-						value={numberFormatter.format(totalOrders)}
+						value={numberFormatter.format(coverage?.eligible ?? 0)}
 						helper="Collected by courier or shipped in"
 					/>
 					{/* Without this the panel lies by omission: a column nobody fills

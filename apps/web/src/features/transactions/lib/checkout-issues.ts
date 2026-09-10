@@ -126,7 +126,7 @@ const SERVER_FAILURE_RULES: {
 	{
 		pattern: /active courier/i,
 		target: "customer",
-		action: "Pick another courier, or Walk-in.",
+		action: "Pick another courier, or change how it arrived.",
 	},
 	{
 		// A keyed 0 on a repair line: zero means deliberately free (a Rework),
