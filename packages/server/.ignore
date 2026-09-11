@@ -3,4 +3,3 @@ dist
 drizzle
 .DS_Store
 bun.lock
-src/db/seed/postal-codes.json

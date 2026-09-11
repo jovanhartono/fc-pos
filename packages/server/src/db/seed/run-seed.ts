@@ -1437,8 +1437,7 @@ async function seedOrders(params: {
 
   const orderCounters = new Map<string, number>();
 
-  // Reference data lives outside the reseed (it is never truncated), so an
-  // environment that has not run seed-postal-codes just gets blank origins.
+  // Reference data, so the reseed never truncates it.
   const postalCodes = (
     await db.select({ code: postalCodesTable.code }).from(postalCodesTable)
   ).map((row) => row.code);
@@ -1466,7 +1465,7 @@ async function seedOrders(params: {
     // Optional in real life too: plenty of customers cannot recite their kode
     // pos, and a blank beats a guess in the data the shop sites stores from.
     const originPostalCode =
-      intakeChannel !== "walk_in" && postalCodes.length > 0 && chance(0.75)
+      intakeChannel !== "walk_in" && chance(0.75)
         ? faker.helpers.arrayElement(postalCodes)
         : null;
 
