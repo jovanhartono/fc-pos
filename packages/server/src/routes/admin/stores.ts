@@ -1,15 +1,14 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import { NotFoundException } from "@/http-exceptions";
+import { assertIsAdmin } from "@/modules/permissions/permissions";
 import {
-  GETNearestStoreQuerySchema,
   PATCHStoreSchema,
   POSTStoreSchema,
   PUTStoreSchema,
 } from "@/modules/stores/store.schema";
 import {
   createStore,
-  getNearestStores,
   getStoreById,
   getStores,
   updateStore,
@@ -36,17 +35,8 @@ const app = new Hono<AdminEnv>()
 
     return c.json(success(stores));
   })
-  .get(
-    "/nearest",
-    zodValidator("query", GETNearestStoreQuerySchema),
-    async (c) => {
-      const query = c.req.valid("query");
-      const stores = await getNearestStores(query);
-
-      return c.json(success(stores));
-    }
-  )
   .post("/", zodValidator("json", POSTStoreSchema), async (c) => {
+    assertIsAdmin(c.get("jwtPayload"));
     const storeData = c.req.valid("json");
 
     const store = await createStore(storeData);
@@ -69,6 +59,7 @@ const app = new Hono<AdminEnv>()
     idParamSchema,
     zodValidator("json", PUTStoreSchema),
     async (c) => {
+      assertIsAdmin(c.get("jwtPayload"));
       const { id } = c.req.valid("param");
       const { code: _, ...storeData } = c.req.valid("json");
 
@@ -89,6 +80,7 @@ const app = new Hono<AdminEnv>()
     idParamSchema,
     zodValidator("json", PATCHStoreSchema),
     async (c) => {
+      assertIsAdmin(c.get("jwtPayload"));
       const { id } = c.req.valid("param");
       const data = c.req.valid("json");
 
@@ -107,7 +99,6 @@ const app = new Hono<AdminEnv>()
   )
   // Bluetooth devices the POS may print to. The cashier registers them at the
   // counter, so a cashier may manage this list, but only for their own store.
-  // (The store edit routes above still have no admin-only check; known gap.)
   .get("/:id/devices", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
 

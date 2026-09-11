@@ -30,12 +30,12 @@ mock.module("@/modules/stores/store-device.service", () => ({
 }));
 
 mock.module("@/modules/stores/store.service", () => ({
-  createStore: () => Promise.resolve({}),
-  getNearestStores: () => Promise.resolve([]),
+  createStore: () => Promise.resolve({ id: 10, name: "Kemang" }),
   getStoreById: () => Promise.resolve(null),
   getStores: () => Promise.resolve([]),
-  updateStore: () => Promise.resolve(null),
-  updateStoreStatus: () => Promise.resolve(null),
+  updateStore: () => Promise.resolve({ id: 10, name: "Kemang" }),
+  updateStoreStatus: () =>
+    Promise.resolve({ id: 10, name: "Kemang", is_active: true }),
 }));
 
 const storeRoutes = (await import("@/routes/admin/stores")).default;
@@ -48,14 +48,27 @@ const asep: JWTPayload = {
   can_process_pickup: false,
 };
 
-const app = new Hono<{ Variables: { jwtPayload: JWTPayload } }>()
-  .use("*", async (c, next) => {
-    c.set("jwtPayload", asep);
-    await next();
-  })
-  .route("/stores", storeRoutes);
+const buAdmin: JWTPayload = {
+  id: 8,
+  name: "Bu Admin",
+  username: "admin",
+  role: "admin",
+  can_process_pickup: false,
+};
 
-app.onError(errorHandler);
+const appFor = (user: JWTPayload) => {
+  const app = new Hono<{ Variables: { jwtPayload: JWTPayload } }>()
+    .use("*", async (c, next) => {
+      c.set("jwtPayload", user);
+      await next();
+    })
+    .route("/stores", storeRoutes);
+
+  app.onError(errorHandler);
+  return app;
+};
+
+const app = appFor(asep);
 
 const register = (storeId: number, body: unknown) =>
   app.request(`/stores/${storeId}/devices`, {
@@ -120,5 +133,69 @@ describe("reading and removing another store's devices", () => {
     expect((await removeDevice(BINTARO, 1)).status).toBe(403);
     // Kemang clears the branch check; the store has no such device to remove.
     expect((await removeDevice(KEMANG, 1)).status).toBe(404);
+  });
+});
+
+const storeBody = {
+  code: "KMG",
+  name: "Kemang",
+  phone_number: "+628123456789",
+  address: "Jl. Kemang Raya No. 1",
+  latitude: -6.2,
+  longitude: 106.8,
+  is_active: true,
+};
+
+const createStoreAs = (user: JWTPayload) =>
+  appFor(user).request("/stores", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(storeBody),
+  });
+
+const editStoreAs = (user: JWTPayload) =>
+  appFor(user).request("/stores/10", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({}),
+  });
+
+const setStoreStatusAs = (user: JWTPayload) =>
+  appFor(user).request("/stores/10", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ is_active: true }),
+  });
+
+// Opening a Store or changing its details is an admin decision — see the
+// ADR-0004 row this task added. Registering the printer at the counter is not,
+// so a cashier keeps that door open even though the Store edit doors closed.
+describe("admin-only store writes", () => {
+  it("refuses a cashier's new store", async () => {
+    expect((await createStoreAs(asep)).status).toBe(403);
+  });
+
+  it("lets an admin open a new store", async () => {
+    expect((await createStoreAs(buAdmin)).status).toBe(201);
+  });
+
+  it("refuses a cashier's store edit", async () => {
+    expect((await editStoreAs(asep)).status).toBe(403);
+  });
+
+  it("lets an admin edit a store", async () => {
+    expect((await editStoreAs(buAdmin)).status).toBe(200);
+  });
+
+  it("refuses a cashier's activate/deactivate", async () => {
+    expect((await setStoreStatusAs(asep)).status).toBe(403);
+  });
+
+  it("lets an admin activate/deactivate a store", async () => {
+    expect((await setStoreStatusAs(buAdmin)).status).toBe(200);
+  });
+
+  it("still lets a cashier with store access register a device", async () => {
+    expect((await register(KEMANG, { name: "CBT-80-0F2A" })).status).toBe(201);
   });
 });

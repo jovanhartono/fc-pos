@@ -23,6 +23,7 @@ The server reads from `process.env`:
 - `JWT_SECRET` - Secret key for JWT authentication
 - `CDN_BASE_URL` - Public base for stored photo keys
 - `CRON_SECRET` - Shared secret for `/api/internal/*`. Vercel sends it as `Authorization: Bearer …` on cron invocations. Unset means those endpoints answer 401 to everyone.
+- `SENTRY_DSN` - Optional. Unset means `reportError` is a no-op; set it to send 5xx errors to Sentry's envelope endpoint.
 
 ## Deployment Regions
 
@@ -31,6 +32,15 @@ Both services run in Singapore — `ap-southeast-1`, Vercel region `sin1` — as
 Dev and production share that bucket, so every key is namespaced by the environment that wrote it: `dev/orders/…` or `prod/orders/…`, from `STORAGE_ENV_PREFIX` in `src/utils/s3.ts`. It reads `NODE_ENV`, the same flag that picks the database in `src/db/index.ts` — the two must agree, or the photo sweep judges one environment's bucket against the other's database. Seed data has its own `seed/` prefix and is outside both.
 
 The container region is set in **Vercel project settings**, not `vercel.json`: `services.*` there takes no `regions` key. Keeping it beside Neon is what makes an order commit a same-region round trip rather than a cross-region one.
+
+## Edge protection
+
+Vercel WAF rate limit rules to keep, since the container scales to zero and an
+in-process limiter would reset with it — no in-process limiter is by design:
+
+- `/api/auth/login` — 10 requests per 60s per IP, deny
+- `/api/public/*` — 60 requests per 60s per IP, deny (Pro plan)
+- `/api/health` — 30 requests per 60s per IP, deny (Pro plan) — it opens a database connection per hit
 
 ## Scheduled Jobs
 
