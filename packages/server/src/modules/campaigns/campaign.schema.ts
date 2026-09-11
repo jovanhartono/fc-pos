@@ -6,9 +6,7 @@ const campaignStoreIdsSchema = z
 
 const campaignServiceIdsSchema = z.array(z.coerce.number().int().positive());
 
-const campaignRedemptionModeSchema = z
-  .enum(["listed", "code"])
-  .default("listed");
+const campaignRedemptionModeSchema = z.enum(["listed", "code"]);
 
 const baseCampaignSchema = z.object({
   code: z.string().trim().min(1).max(32),
@@ -18,7 +16,8 @@ const baseCampaignSchema = z.object({
   min_order_total: z.string().trim().min(1).default("0"),
   starts_at: z.coerce.date().nullish(),
   store_ids: campaignStoreIdsSchema,
-  redemption_mode: campaignRedemptionModeSchema,
+  // Left out means a listed campaign: an edit never resends the mode.
+  redemption_mode: campaignRedemptionModeSchema.optional(),
   usage_limit: z.coerce.number().int().positive().nullish(),
   code_count: z.coerce.number().int().positive().nullish(),
 });
@@ -43,10 +42,7 @@ const bogoCampaignSchema = baseCampaignSchema.extend({
   max_discount: z.string().trim().nullish().default(null),
   buy_quantity: z.coerce.number().int().min(1),
   free_quantity: z.coerce.number().int().min(1),
-  eligible_service_ids: campaignServiceIdsSchema.min(
-    1,
-    "Eligible services required for buy N get M free"
-  ),
+  eligible_service_ids: campaignServiceIdsSchema.min(1),
 });
 
 export const CampaignPayloadSchema = z

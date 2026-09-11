@@ -1,14 +1,18 @@
+import {
+	CampaignPayloadSchema,
+	type CampaignRedemptionMode,
+} from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PlusIcon } from "@phosphor-icons/react";
-import { useMemo } from "react";
 import {
 	Controller,
 	FormProvider,
+	type Resolver,
 	useForm,
 	useFormContext,
 	useWatch,
 } from "react-hook-form";
-import { z } from "zod";
+import type { z } from "zod";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
@@ -30,131 +34,69 @@ import { ServicesMultiAutocomplete } from "@/features/orders/components/services
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 import type { CampaignPayload } from "@/lib/api";
 
-const campaignFormBaseSchema = z.object({
-	code: z.string().trim().min(1, "Code is required"),
-	name: z.string().trim().min(1, "Name is required"),
-	redemption_mode: z.enum(["listed", "code"]),
-	discount_type: z.enum(["fixed", "percentage", "buy_n_get_m_free"]),
-	discount_value: z.string(),
-	min_order_total: z.string().min(1, "Min order total is required"),
-	max_discount: z.string().optional(),
-	usage_limit: z.number().int().min(1).optional(),
-	code_count: z.number().int().min(1).optional(),
-	starts_at: z.string().optional(),
-	ends_at: z.string().optional(),
-	is_active: z.boolean(),
-	store_ids: z.array(z.number().int().positive()),
-	eligible_service_ids: z.array(z.number().int().positive()),
-	buy_quantity: z.number().int().min(1).optional(),
-	free_quantity: z.number().int().min(1).optional(),
-});
+type CampaignDiscountType = CampaignPayload["discount_type"];
 
-const makeCampaignFormSchema = (isEditing: boolean) =>
-	campaignFormBaseSchema.superRefine((value, ctx) => {
-		if (value.redemption_mode === "code") {
-			// code_count is fixed at creation (immutable): its field is disabled and
-			// stripped from the update payload when editing, so require it only on
-			// create — otherwise a voucher edit could never satisfy the form.
-			if (!isEditing && (!value.code_count || value.code_count < 1)) {
-				ctx.addIssue({
-					code: "custom",
-					path: ["code_count"],
-					message: "Code count is required for vouchers",
-				});
-			}
-			if (value.usage_limit != null) {
-				ctx.addIssue({
-					code: "custom",
-					path: ["usage_limit"],
-					message: "Vouchers cannot set a usage limit",
-				});
-			}
-		} else if (value.code_count != null) {
-			ctx.addIssue({
-				code: "custom",
-				path: ["code_count"],
-				message: "Only vouchers can set a code count",
-			});
-		}
+// What the sheet holds while a promo is being filled in. Shape only — every
+// rule about it lives in the server's CampaignPayloadSchema.
+export interface CampaignFormInput {
+	code: string;
+	name: string;
+	redemption_mode: CampaignRedemptionMode;
+	discount_type: CampaignDiscountType;
+	discount_value: string;
+	min_order_total: string;
+	max_discount: string | null;
+	usage_limit: number | null;
+	code_count: number | null;
+	buy_quantity: number | null;
+	free_quantity: number | null;
+	starts_at: string | null;
+	ends_at: string | null;
+	is_active: boolean;
+	store_ids: number[];
+	eligible_service_ids: number[];
+}
 
-		if (value.discount_type === "buy_n_get_m_free") {
-			if (value.eligible_service_ids.length < 1) {
-				ctx.addIssue({
-					code: "custom",
-					path: ["eligible_service_ids"],
-					message: "Select at least one eligible service",
-				});
-			}
-			if (!value.buy_quantity || value.buy_quantity < 1) {
-				ctx.addIssue({
-					code: "custom",
-					path: ["buy_quantity"],
-					message: "Buy quantity is required",
-				});
-			}
-			if (!value.free_quantity || value.free_quantity < 1) {
-				ctx.addIssue({
-					code: "custom",
-					path: ["free_quantity"],
-					message: "Free quantity is required",
-				});
-			}
-			return;
-		}
-
-		if (!value.discount_value || value.discount_value.trim().length === 0) {
-			ctx.addIssue({
-				code: "custom",
-				path: ["discount_value"],
-				message: "Discount value is required",
-			});
-		}
-	});
-
-export type CampaignFormState = z.infer<typeof campaignFormBaseSchema>;
-
-type CampaignDiscountType = CampaignFormState["discount_type"];
-
-type CampaignFormProps = {
-	defaultValues: CampaignFormState;
+interface CampaignFormProps {
+	defaultValues: CampaignFormInput;
 	stores: Array<{ id: number; name: string; code: string }>;
 	handleOnSubmit: (values: CampaignPayload) => Promise<void> | void;
 	isEditing: boolean;
 	onReset: () => void;
+}
+
+const REQUIRED_FIELD_LABELS: Partial<Record<keyof CampaignFormInput, string>> =
+	{
+		buy_quantity: "Buy quantity",
+		code: "Code",
+		discount_value: "Discount value",
+		eligible_service_ids: "At least one eligible service",
+		free_quantity: "Free quantity",
+		min_order_total: "Min order total",
+		name: "Name",
+	};
+
+const MAX_LENGTH_MESSAGES: Partial<Record<keyof CampaignFormInput, string>> = {
+	code: "Code must be 32 characters or fewer",
+	name: "Name must be 255 characters or fewer",
 };
 
-function toCampaignPayload(values: CampaignFormState): CampaignPayload {
-	const isVoucher = values.redemption_mode === "code";
-	const base = {
-		code: values.code,
-		name: values.name,
-		min_order_total: values.min_order_total,
-		starts_at: values.starts_at ? new Date(values.starts_at) : null,
-		ends_at: values.ends_at ? new Date(values.ends_at) : null,
-		is_active: values.is_active,
-		store_ids: values.store_ids,
-		eligible_service_ids: values.eligible_service_ids,
-		redemption_mode: values.redemption_mode,
-		usage_limit: isVoucher ? null : (values.usage_limit ?? null),
-		...(isVoucher ? { code_count: values.code_count } : {}),
-	};
+// The API wording for a box left blank or overfilled reads like a stack trace;
+// the staff setting up a promo get a plain sentence instead.
+const campaignFieldMessages: z.core.$ZodErrorMap = (issue) => {
+	const field = String(issue.path?.[0]) as keyof CampaignFormInput;
 
-	if (values.discount_type === "buy_n_get_m_free") {
-		return {
-			...base,
-			discount_type: "buy_n_get_m_free",
-			buy_quantity: values.buy_quantity ?? 1,
-			free_quantity: values.free_quantity ?? 1,
-		};
+	if (issue.code === "too_big") {
+		return MAX_LENGTH_MESSAGES[field];
 	}
 
-	return {
-		...base,
-		discount_type: values.discount_type,
-		discount_value: values.discount_value,
-		max_discount: values.max_discount?.trim() ? values.max_discount : null,
-	};
-}
+	if (issue.code === "too_small" || issue.code === "invalid_type") {
+		const label = REQUIRED_FIELD_LABELS[field];
+		return label ? `${label} is required` : undefined;
+	}
+
+	return undefined;
+};
 
 const DISCOUNT_TYPE_OPTIONS: { value: CampaignDiscountType; label: string }[] =
 	[
@@ -162,8 +104,6 @@ const DISCOUNT_TYPE_OPTIONS: { value: CampaignDiscountType; label: string }[] =
 		{ value: "percentage", label: "Percentage" },
 		{ value: "buy_n_get_m_free", label: "Buy N Get M Free" },
 	];
-
-type CampaignRedemptionMode = CampaignFormState["redemption_mode"];
 
 const REDEMPTION_MODE_OPTIONS: {
 	value: CampaignRedemptionMode;
@@ -177,7 +117,7 @@ const UsageLimitField = () => {
 	const {
 		control,
 		formState: { isSubmitting },
-	} = useFormContext<CampaignFormState>();
+	} = useFormContext<CampaignFormInput>();
 
 	return (
 		<Controller
@@ -193,7 +133,7 @@ const UsageLimitField = () => {
 						min={1}
 						onChange={(event) =>
 							field.onChange(
-								event.target.value ? Number(event.target.value) : undefined,
+								event.target.value ? Number(event.target.value) : null,
 							)
 						}
 						placeholder="Unlimited"
@@ -210,15 +150,11 @@ const UsageLimitField = () => {
 	);
 };
 
-interface CodeCountFieldProps {
-	isEditing: boolean;
-}
-
-const CodeCountField = ({ isEditing }: CodeCountFieldProps) => {
+const CodeCountField = () => {
 	const {
 		control,
 		formState: { isSubmitting },
-	} = useFormContext<CampaignFormState>();
+	} = useFormContext<CampaignFormInput>();
 
 	return (
 		<Controller
@@ -226,28 +162,24 @@ const CodeCountField = ({ isEditing }: CodeCountFieldProps) => {
 			name="code_count"
 			render={({ field, fieldState }) => (
 				<Field data-invalid={fieldState.invalid}>
-					<FieldLabel htmlFor="campaign-code-count" asterisk={!isEditing}>
+					<FieldLabel htmlFor="campaign-code-count" asterisk>
 						Code Count
 					</FieldLabel>
 					<Input
 						aria-invalid={fieldState.invalid}
-						disabled={isSubmitting || isEditing}
+						disabled={isSubmitting}
 						id="campaign-code-count"
 						min={1}
 						onChange={(event) =>
 							field.onChange(
-								event.target.value ? Number(event.target.value) : undefined,
+								event.target.value ? Number(event.target.value) : null,
 							)
 						}
 						placeholder="e.g. 50"
 						type="number"
 						value={field.value ?? ""}
 					/>
-					<FieldDescription>
-						{isEditing
-							? "Batch size is fixed after creation."
-							: "Bearer codes minted on creation."}
-					</FieldDescription>
+					<FieldDescription>Bearer codes minted on creation.</FieldDescription>
 					<FieldError errors={[fieldState.error]} />
 				</Field>
 			)}
@@ -256,7 +188,7 @@ const CodeCountField = ({ isEditing }: CodeCountFieldProps) => {
 };
 
 const FixedDiscountFields = () => {
-	const { control } = useFormContext<CampaignFormState>();
+	const { control } = useFormContext<CampaignFormInput>();
 
 	return (
 		<>
@@ -291,7 +223,7 @@ const FixedDiscountFields = () => {
 							id="campaign-max-discount"
 							placeholder="optional"
 							value={field.value ?? ""}
-							onValueChange={field.onChange}
+							onValueChange={(value) => field.onChange(value || null)}
 						/>
 						<FieldError errors={[fieldState.error]} />
 					</Field>
@@ -302,7 +234,7 @@ const FixedDiscountFields = () => {
 };
 
 const PercentageDiscountFields = () => {
-	const { control } = useFormContext<CampaignFormState>();
+	const { control } = useFormContext<CampaignFormInput>();
 
 	return (
 		<>
@@ -339,7 +271,7 @@ const PercentageDiscountFields = () => {
 							id="campaign-max-discount"
 							placeholder="optional"
 							value={field.value ?? ""}
-							onValueChange={field.onChange}
+							onValueChange={(value) => field.onChange(value || null)}
 						/>
 						<FieldError errors={[fieldState.error]} />
 					</Field>
@@ -350,7 +282,7 @@ const PercentageDiscountFields = () => {
 };
 
 const BogoDiscountFields = () => {
-	const { control } = useFormContext<CampaignFormState>();
+	const { control } = useFormContext<CampaignFormInput>();
 
 	return (
 		<>
@@ -370,7 +302,7 @@ const BogoDiscountFields = () => {
 							value={field.value ?? ""}
 							onChange={(event) =>
 								field.onChange(
-									event.target.value ? Number(event.target.value) : undefined,
+									event.target.value ? Number(event.target.value) : null,
 								)
 							}
 							aria-invalid={fieldState.invalid}
@@ -395,7 +327,7 @@ const BogoDiscountFields = () => {
 							value={field.value ?? ""}
 							onChange={(event) =>
 								field.onChange(
-									event.target.value ? Number(event.target.value) : undefined,
+									event.target.value ? Number(event.target.value) : null,
 								)
 							}
 							aria-invalid={fieldState.invalid}
@@ -419,7 +351,6 @@ const BogoDiscountFields = () => {
 							onValuesChange={field.onChange}
 							error={fieldState.error}
 						/>
-						<FieldError errors={[fieldState.error]} />
 					</Field>
 				)}
 			/>
@@ -436,17 +367,23 @@ const discountTypeFieldsMap: Record<
 	buy_n_get_m_free: BogoDiscountFields,
 };
 
-export function CampaignForm({
+export const CampaignForm = ({
 	defaultValues,
 	stores,
 	handleOnSubmit,
 	isEditing,
 	onReset,
-}: CampaignFormProps) {
-	const schema = useMemo(() => makeCampaignFormSchema(isEditing), [isEditing]);
-	const form = useForm<CampaignFormState>({
-		resolver: zodResolver(schema),
-		defaultValues,
+}: CampaignFormProps) => {
+	// A Campaign keeps the redemption mode and the batch of Voucher codes it was
+	// created with, so an edit leaves both out of the form entirely.
+	const { redemption_mode, code_count, ...editableDefaults } = defaultValues;
+	const form = useForm<CampaignFormInput, unknown, CampaignPayload>({
+		// The schema reads a payload off the wire, where dates and numbers arrive
+		// as text; the sheet already holds them typed.
+		resolver: zodResolver(CampaignPayloadSchema, {
+			error: campaignFieldMessages,
+		}) as Resolver<CampaignFormInput, unknown, CampaignPayload>,
+		defaultValues: isEditing ? editableDefaults : defaultValues,
 	});
 	const isSubmitting = form.formState.isSubmitting;
 	useSheetDirtyGuard(form.formState.isDirty);
@@ -454,20 +391,17 @@ export function CampaignForm({
 		control: form.control,
 		name: "discount_type",
 	});
-	const redemptionMode = useWatch({
+	const watchedRedemptionMode = useWatch({
 		control: form.control,
 		name: "redemption_mode",
 	});
-	const isVoucher = redemptionMode === "code";
+	const isVoucher =
+		(isEditing ? redemption_mode : watchedRedemptionMode) === "code";
 	const DiscountFields = discountTypeFieldsMap[discountType];
 
 	return (
 		<FormProvider {...form}>
-			<form
-				onSubmit={form.handleSubmit(async (values) => {
-					await handleOnSubmit(toCampaignPayload(values));
-				})}
-			>
+			<form onSubmit={form.handleSubmit(handleOnSubmit)}>
 				<FieldGroup>
 					<Controller
 						name="code"
@@ -509,38 +443,44 @@ export function CampaignForm({
 						)}
 					/>
 
-					<Controller
-						name="redemption_mode"
-						control={form.control}
-						render={({ field, fieldState }) => (
-							<Field data-invalid={fieldState.invalid}>
-								<FieldLabel htmlFor="campaign-redemption-mode" asterisk>
-									Redemption Mode
-								</FieldLabel>
-								<SelectField
-									disabled={isSubmitting || isEditing}
-									id="campaign-redemption-mode"
-									items={REDEMPTION_MODE_OPTIONS}
-									onValueChange={(value) =>
-										field.onChange(value as CampaignRedemptionMode)
-									}
-									placeholder="Select redemption mode"
-									value={field.value}
-								/>
-								{isEditing ? (
-									<FieldDescription>
-										Redemption mode is fixed after creation.
-									</FieldDescription>
-								) : (
+					{isEditing ? (
+						<Field>
+							<FieldTitle>Redemption Mode</FieldTitle>
+							<p className="text-sm">
+								{isVoucher ? "Voucher (codes)" : "Listed"}
+							</p>
+							<FieldDescription>
+								Redemption mode is fixed after creation.
+							</FieldDescription>
+						</Field>
+					) : (
+						<Controller
+							name="redemption_mode"
+							control={form.control}
+							render={({ field, fieldState }) => (
+								<Field data-invalid={fieldState.invalid}>
+									<FieldLabel htmlFor="campaign-redemption-mode" asterisk>
+										Redemption Mode
+									</FieldLabel>
+									<SelectField
+										disabled={isSubmitting}
+										id="campaign-redemption-mode"
+										items={REDEMPTION_MODE_OPTIONS}
+										onValueChange={(value) =>
+											field.onChange(value as CampaignRedemptionMode)
+										}
+										placeholder="Select redemption mode"
+										value={field.value}
+									/>
 									<FieldDescription>
 										Listed campaigns are picked at checkout. Vouchers are
 										redeemed by code.
 									</FieldDescription>
-								)}
-								<FieldError errors={[fieldState.error]} />
-							</Field>
-						)}
-					/>
+									<FieldError errors={[fieldState.error]} />
+								</Field>
+							)}
+						/>
+					)}
 
 					<Controller
 						name="discount_type"
@@ -588,11 +528,8 @@ export function CampaignForm({
 						)}
 					/>
 
-					{isVoucher ? (
-						<CodeCountField isEditing={isEditing} />
-					) : (
-						<UsageLimitField />
-					)}
+					{isVoucher && !isEditing && <CodeCountField />}
+					{!isVoucher && <UsageLimitField />}
 
 					<Controller
 						name="starts_at"
@@ -606,6 +543,10 @@ export function CampaignForm({
 									type="datetime-local"
 									aria-invalid={fieldState.invalid}
 									disabled={isSubmitting}
+									onChange={(event) =>
+										field.onChange(event.target.value || null)
+									}
+									value={field.value ?? ""}
 								/>
 								<FieldError errors={[fieldState.error]} />
 							</Field>
@@ -624,6 +565,10 @@ export function CampaignForm({
 									type="datetime-local"
 									aria-invalid={fieldState.invalid}
 									disabled={isSubmitting}
+									onChange={(event) =>
+										field.onChange(event.target.value || null)
+									}
+									value={field.value ?? ""}
 								/>
 								<FieldError errors={[fieldState.error]} />
 							</Field>
@@ -657,9 +602,7 @@ export function CampaignForm({
 														}
 
 														field.onChange(
-															field.value.filter(
-																(id: number) => id !== store.id,
-															),
+															field.value.filter((id) => id !== store.id),
 														);
 													}}
 													disabled={isSubmitting}
@@ -721,4 +664,4 @@ export function CampaignForm({
 			</form>
 		</FormProvider>
 	);
-}
+};
