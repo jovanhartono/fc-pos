@@ -40,6 +40,7 @@ import {
 } from "@/lib/api";
 
 const REFERENCE_DATA_STALE_TIME = 5 * 60 * 1000;
+const REPORT_STALE_TIME = 60_000;
 
 export const customersPageQueryOptions = (query?: FetchCustomersQuery) =>
 	queryOptions({
@@ -158,42 +159,49 @@ export const reportOverviewQueryOptions = (query: FetchReportOverviewQuery) =>
 	queryOptions({
 		queryKey: queryKeys.reportOverview(query),
 		queryFn: () => fetchReportOverview(query),
+		staleTime: REPORT_STALE_TIME,
 	});
 
 export const financialQueryOptions = (query: FetchReportRangeQuery) =>
 	queryOptions({
 		queryKey: queryKeys.financial(query),
 		queryFn: () => fetchFinancialReport(query),
+		staleTime: REPORT_STALE_TIME,
 	});
 
 export const ordersFlowQueryOptions = (query: FetchReportRangeQuery) =>
 	queryOptions({
 		queryKey: queryKeys.ordersFlow(query),
 		queryFn: () => fetchOrdersFlowReport(query),
+		staleTime: REPORT_STALE_TIME,
 	});
 
 export const paymentMixQueryOptions = (query: FetchReportRangeQuery) =>
 	queryOptions({
 		queryKey: queryKeys.paymentMix(query),
 		queryFn: () => fetchPaymentMixReport(query),
+		staleTime: REPORT_STALE_TIME,
 	});
 
 export const customerAcquisitionQueryOptions = (query: FetchReportRangeQuery) =>
 	queryOptions({
 		queryKey: queryKeys.customerAcquisition(query),
 		queryFn: () => fetchCustomerAcquisitionReport(query),
+		staleTime: REPORT_STALE_TIME,
 	});
 
 export const refundTrendQueryOptions = (query: FetchReportRangeQuery) =>
 	queryOptions({
 		queryKey: queryKeys.refundTrend(query),
 		queryFn: () => fetchRefundTrendReport(query),
+		staleTime: REPORT_STALE_TIME,
 	});
 
 export const workerProductivityQueryOptions = (query: FetchReportRangeQuery) =>
 	queryOptions({
 		queryKey: queryKeys.workerProductivity(query),
 		queryFn: () => fetchWorkerProductivityReport(query),
+		staleTime: REPORT_STALE_TIME,
 	});
 
 export const campaignEffectivenessQueryOptions = (
@@ -202,10 +210,12 @@ export const campaignEffectivenessQueryOptions = (
 	queryOptions({
 		queryKey: queryKeys.campaignEffectiveness(query),
 		queryFn: () => fetchCampaignEffectivenessReport(query),
+		staleTime: REPORT_STALE_TIME,
 	});
 
 export const agingQueueQueryOptions = (query?: FetchAgingQueueQuery) =>
 	queryOptions({
 		queryKey: queryKeys.agingQueue(query),
 		queryFn: () => fetchAgingQueueReport(query),
+		staleTime: REPORT_STALE_TIME,
 	});
