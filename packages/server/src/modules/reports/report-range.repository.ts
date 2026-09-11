@@ -981,6 +981,9 @@ export async function listOriginRankingRows({ range, storeId }: RangeArgs) {
 // How much of the ranking above is actually knowable. A column rotting to all
 // blanks looks exactly like a short ranking, so the panel has to say out loud
 // how many eligible orders carry an origin at all.
+// Counted over the same orders the ranking is built from, not everything taken
+// in the window. The figure exists to say how much of the list below is missing;
+// measured over a different set it would understate or overstate exactly that.
 export async function findOriginCoverage({ range, storeId }: RangeArgs) {
   const [row] = await db
     .select({
@@ -990,8 +993,7 @@ export async function findOriginCoverage({ range, storeId }: RangeArgs) {
     .from(ordersTable)
     .where(
       and(
-        ...timeWindow(ordersTable.created_at, range),
-        storeScope(ordersTable.store_id, storeId),
+        ...paidOrderWindow({ range, storeId }),
         inArray(ordersTable.intake_channel, [...REMOTE_CHANNELS])
       )
     );

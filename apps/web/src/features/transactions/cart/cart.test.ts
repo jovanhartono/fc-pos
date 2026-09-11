@@ -11,6 +11,7 @@ import {
 	getCartPricing,
 	getCartSubtotal,
 	type ItemCartLine,
+	isCustomerReady,
 	moveCartService,
 	type ProductCartLine,
 	type ServiceCartLine,
@@ -532,5 +533,41 @@ describe("toOrderPayload intake channel", () => {
 		const payload = toOrderPayload(intakeDraft({ intakeChannel: "shipped" }));
 		expect(payload.intake_channel).toBe("shipped");
 		expect(payload.origin_postal_code).toBeUndefined();
+	});
+});
+
+// A courier order that cannot say which courier fetched it is rejected by the
+// database, so the counter has to stop before the cashier reaches payment.
+describe("isCustomerReady", () => {
+	const ready = (patch: Partial<TransactionDraftValues>) =>
+		isCustomerReady({
+			customerName: "Bu Sri",
+			customerPhone: "081234567890",
+			intakeChannel: "walk_in",
+			selectedCourierId: "",
+			...patch,
+		});
+
+	test("a walk-in needs only a name and a phone", () => {
+		expect(ready({})).toBe(true);
+	});
+
+	test("a blank name is not a customer", () => {
+		expect(ready({ customerName: "   " })).toBe(false);
+	});
+
+	test("a phone that does not parse is not a customer", () => {
+		expect(ready({ customerPhone: "123" })).toBe(false);
+	});
+
+	test("a courier order is not ready until it names its courier", () => {
+		expect(ready({ intakeChannel: "courier" })).toBe(false);
+		expect(ready({ intakeChannel: "courier", selectedCourierId: "7" })).toBe(
+			true,
+		);
+	});
+
+	test("a shipped order needs no courier", () => {
+		expect(ready({ intakeChannel: "shipped" })).toBe(true);
 	});
 });

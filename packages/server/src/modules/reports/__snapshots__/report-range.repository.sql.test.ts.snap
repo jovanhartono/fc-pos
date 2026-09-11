@@ -338,7 +338,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "courier",
       "shipped",
     ],
-    "sql": "select count(*), COUNT("origin_postal_code")::int from "orders" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2) and ("orders"."store_id" = $3) and ("orders"."intake_channel" in ($4, $5)))",
+    "sql": "select count(*), COUNT("origin_postal_code")::int from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3) and ("orders"."intake_channel" in ($4, $5)))",
   },
 ]
 `;
@@ -654,7 +654,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "courier",
       "shipped",
     ],
-    "sql": "select count(*), COUNT("origin_postal_code")::int from "orders" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2) and ("orders"."intake_channel" in ($3, $4)))",
+    "sql": "select count(*), COUNT("origin_postal_code")::int from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."intake_channel" in ($3, $4)))",
   },
 ]
 `;

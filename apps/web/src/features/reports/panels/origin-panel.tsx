@@ -105,7 +105,7 @@ export const OriginPanel = ({
 												{city.city}
 											</span>
 											<span className="font-mono text-sm tabular-nums">
-												{`${numberFormatter.format(city.orders)} orders`}
+												{`${numberFormatter.format(city.orders)} order${city.orders === 1 ? "" : "s"}`}
 											</span>
 										</div>
 										<div className="h-1.5 w-full bg-muted">

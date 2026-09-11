@@ -8,6 +8,7 @@ import {
 	SheetTitle,
 } from "@/components/ui/sheet";
 import {
+	isCustomerIdentified,
 	isCustomerReady,
 	type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
@@ -101,7 +102,19 @@ export const TransactionsCheckout = () => {
 		const steps = locked.map((entry) => entry.label).join(" and ");
 		const verb = locked.length > 1 ? "unlock" : "unlocks";
 		if (!customerReady) {
-			return `${steps} ${verb} once you enter the customer name and phone.`;
+			// Naming only the identity fields would stall a cashier who has already
+			// typed them and is blocked on the courier instead.
+			const missingCustomer = [
+				isCustomerIdentified(customerName, customerPhone)
+					? null
+					: "enter the customer name and phone",
+				intakeChannel === "courier" && !selectedCourierId
+					? "pick the courier who collected it"
+					: null,
+			]
+				.filter(Boolean)
+				.join(", and ");
+			return `${steps} ${verb} once you ${missingCustomer}.`;
 		}
 		const missing = [
 			count > 0 ? null : "an item",

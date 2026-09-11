@@ -336,6 +336,12 @@ export const countUnpricedServiceLines = (
 // the cashier said a courier fetched the items. Shared by the step tabs, the
 // Continue button, and the Create Order button so all three agree. The origin
 // is deliberately absent — it is always optional.
+export const isCustomerIdentified = (
+	customerName: string,
+	customerPhone: string,
+): boolean =>
+	customerName.trim().length > 0 && isValidPhoneNumber(customerPhone);
+
 export const isCustomerReady = ({
 	customerName,
 	customerPhone,
@@ -345,8 +351,7 @@ export const isCustomerReady = ({
 	TransactionDraftValues,
 	"customerName" | "customerPhone" | "intakeChannel" | "selectedCourierId"
 >): boolean =>
-	customerName.trim().length > 0 &&
-	isValidPhoneNumber(customerPhone) &&
+	isCustomerIdentified(customerName, customerPhone) &&
 	(intakeChannel !== "courier" || selectedCourierId !== "");
 
 export const toOrderPayload = ({
