@@ -258,16 +258,12 @@ export type IntakeChannel = (typeof intakeChannelEnum.enumValues)[number];
 // tables. `districts` is for showing and searching only: 6% of codes cover
 // several kecamatan, so it is not a fact you may group by. The city is, and it
 // is what tells the shop where demand is coming from.
-export const postalCodesTable = pgTable(
-  "postal_codes",
-  {
-    city: varchar("city", { length: 64 }).notNull(),
-    code: varchar("code", { length: 5 }).primaryKey(),
-    districts: varchar("districts", { length: 255 }).notNull(),
-    province: varchar("province", { length: 32 }).notNull(),
-  },
-  (table) => [index("postal_code_city_idx").on(table.city)]
-);
+export const postalCodesTable = pgTable("postal_codes", {
+  city: varchar("city", { length: 64 }).notNull(),
+  code: varchar("code", { length: 5 }).primaryKey(),
+  districts: varchar("districts", { length: 255 }).notNull(),
+  province: varchar("province", { length: 32 }).notNull(),
+});
 
 export const campaignsTable = pgTable(
   "campaigns",

@@ -64,14 +64,6 @@ export const OriginPanel = ({
 						value={numberFormatter.format(cities.length)}
 						helper="Distinct origins recorded"
 					/>
-					{/* Courier and shipped-in orders that were paid in this range —
-					    an unpaid one is not in the ranking either, so counting it
-					    here would make the coverage figure below read too low. */}
-					<KpiCard
-						label="Paid, not walked in"
-						value={numberFormatter.format(eligible)}
-						helper="Collected by courier or shipped in"
-					/>
 					{/* Without this the panel lies by omission: a column nobody fills
 					    looks exactly like a short ranking. */}
 					<KpiCard
