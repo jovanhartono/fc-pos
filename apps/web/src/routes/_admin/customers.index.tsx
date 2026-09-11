@@ -1,6 +1,6 @@
 import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
@@ -22,7 +22,7 @@ const customersSearchSchema = z.object({
 	search: z.string().trim().min(1).max(100).optional(),
 });
 
-export const Route = createFileRoute("/_admin/customers")({
+export const Route = createFileRoute("/_admin/customers/")({
 	validateSearch: (search) => customersSearchSchema.parse(search),
 	loaderDeps: ({ search }) => search,
 	loader: ({ context, deps }) =>
@@ -85,6 +85,16 @@ function CustomersPage() {
 			{
 				accessorKey: "name",
 				header: "Name",
+				cell: ({ row }) => (
+					<Link
+						to="/customers/$customerId"
+						params={{ customerId: String(row.original.id) }}
+						search={{ page: 1 }}
+						className="font-semibold"
+					>
+						{row.original.name}
+					</Link>
+				),
 			},
 			{
 				accessorKey: "phone_number",

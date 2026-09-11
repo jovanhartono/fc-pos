@@ -81,6 +81,10 @@ export type Customer = InferResponseType<
 export type CustomerLookup = InferResponseType<
 	typeof rpc.api.admin.customers.lookup.$get
 >["data"];
+// The person plus the money and history behind them. Admin-only (ADR-0021).
+export type CustomerDetail = InferResponseType<
+	(typeof rpc.api.admin.customers)[":id"]["$get"]
+>["data"];
 export type User = InferResponseType<
 	typeof rpc.api.admin.users.$get
 >["data"][number];
@@ -270,6 +274,7 @@ export type FetchOrdersQuery = {
 	limit?: number;
 	offset?: number;
 	search?: string;
+	customer_id?: number;
 	store_id?: number;
 	status?:
 		| "created"
@@ -461,6 +466,7 @@ export type UpdateUserStoresPayload = {
 export const queryKeys = {
 	customers: (query?: FetchCustomersQuery) =>
 		["customers", query ?? {}] as const,
+	customerDetail: (id: number) => ["customers", "detail", id] as const,
 	users: (query?: FetchUsersQuery) => ["users", query ?? {}] as const,
 	me: ["me"] as const,
 	stores: ["stores"] as const,
@@ -535,6 +541,14 @@ export async function fetchCustomersPage(
 	);
 
 	return toPaginated(response);
+}
+
+export function fetchCustomerDetail(id: number): Promise<CustomerDetail> {
+	return parseSuccessData<CustomerDetail>(
+		rpcWithAuth().api.admin.customers[":id"].$get({
+			param: { id: String(id) },
+		}),
+	);
 }
 
 // Exact-phone lookup for the POS name-prefill. Returns the matching customer or

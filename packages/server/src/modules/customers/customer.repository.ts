@@ -1,7 +1,11 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { eq, ilike, or } from "drizzle-orm";
+import { eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { customersTable } from "@/db/schema";
+import {
+  hasUnpricedLine,
+  type UnpricedLineState,
+} from "@/schema/unpriced-line";
 
 // Either the pool-backed db or a transaction handle, so find-or-create can run
 // inside an Order transaction (atomic Customer + Order — see ADR-0011) or
@@ -71,6 +75,133 @@ export function findCustomerById(id: number) {
       originStore: true,
     },
   });
+}
+
+export interface CustomerSummary {
+  complaints: number;
+  last_visit_at: Date | null;
+  lifetime_spend: string;
+  paid_orders: number;
+  service_lines: number;
+  unpaid_amount: string;
+  unpaid_orders: number;
+  unpriced_orders: number;
+}
+
+// Lifetime spend is never bucketed by period the way Revenue is: the question
+// is what this person is worth today, so a refund just lowers it. Last visit
+// counts every Order, including the ones they never paid for.
+function findCustomerOrderStats(customerId: number) {
+  return db.query.ordersTable.findMany({
+    where: { customer_id: customerId },
+    columns: { id: true },
+    extras: {
+      lifetime_spend:
+        sql<string>`COALESCE(SUM(paid_amount - refunded_amount) FILTER (WHERE payment_status = 'paid') OVER (), 0)`.as(
+          "lifetime_spend"
+        ),
+      paid_orders:
+        sql<number>`(COUNT(*) FILTER (WHERE payment_status = 'paid') OVER ())::int`.as(
+          "paid_orders"
+        ),
+      last_visit_at: sql<Date | null>`MAX(created_at) OVER ()`.as(
+        "last_visit_at"
+      ),
+    },
+    limit: 1,
+  });
+}
+
+// An unpaid Order that was never cancelled is money the shop is still owed. A
+// customer carries one or two at most, so these come back as rows and the
+// arithmetic happens in JS, where it can be read and tested.
+function findLiveUnpaidOrders(customerId: number) {
+  return db.query.ordersTable.findMany({
+    where: {
+      customer_id: customerId,
+      payment_status: "unpaid",
+      status: { ne: "cancelled" },
+    },
+    columns: { total: true, discount: true },
+    with: { services: { columns: { price: true, status: true } } },
+  });
+}
+
+// The complaint-rate denominator: this person's own treatment lines, minus
+// Rework lines (non-null complaint_id), so a free re-clean never inflates the
+// grievance that created it — ADR-0013.
+function findCustomerServiceLineCount(customerId: number) {
+  return db.query.ordersServicesTable.findMany({
+    where: {
+      complaint_id: { isNull: true },
+      order: { customer_id: customerId },
+    },
+    columns: { id: true },
+    extras: { total: sql<number>`(COUNT(*) OVER ())::int`.as("total") },
+    limit: 1,
+  });
+}
+
+function findCustomerComplaintCount(customerId: number) {
+  return db.query.complaintsTable.findMany({
+    where: { orderService: { order: { customer_id: customerId } } },
+    columns: { id: true },
+    extras: { total: sql<number>`(COUNT(*) OVER ())::int`.as("total") },
+    limit: 1,
+  });
+}
+
+export interface UnpaidOrderState {
+  discount: string;
+  services: UnpricedLineState[];
+  total: string;
+}
+
+// What the customer still owes, and on how many Orders. An Order whose Repair
+// has not been inspected yet has no amount to quote (ADR-0018), so it is
+// counted apart rather than billed at a number nobody agreed to.
+export function summarizeUnpaidOrders(orders: UnpaidOrderState[]) {
+  let unpaid_amount = 0;
+  let unpriced_orders = 0;
+
+  for (const order of orders) {
+    if (hasUnpricedLine(order.services)) {
+      unpriced_orders += 1;
+      continue;
+    }
+
+    unpaid_amount += Number(order.total) - Number(order.discount);
+  }
+
+  return {
+    unpaid_amount: String(unpaid_amount),
+    unpaid_orders: orders.length,
+    unpriced_orders,
+  };
+}
+
+export async function findCustomerSummary(
+  customerId: number
+): Promise<CustomerSummary> {
+  const [orders, unpaid, lines, complaints] = await Promise.all([
+    findCustomerOrderStats(customerId),
+    findLiveUnpaidOrders(customerId),
+    findCustomerServiceLineCount(customerId),
+    findCustomerComplaintCount(customerId),
+  ]);
+
+  // A customer with no Orders yet gets no row back — the window had nothing to
+  // report itself on.
+  const [stats] = orders;
+
+  return {
+    complaints: complaints[0]?.total ?? 0,
+    last_visit_at: stats?.last_visit_at ?? null,
+    lifetime_spend: stats?.lifetime_spend ?? "0",
+    paid_orders: stats?.paid_orders ?? 0,
+    service_lines: lines[0]?.total ?? 0,
+    ...summarizeUnpaidOrders(unpaid),
+  };
 }
 
 export function findCustomerByPhone(

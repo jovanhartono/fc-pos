@@ -9,11 +9,12 @@ import {
 } from "@/modules/customers/customer.schema";
 import {
   createCustomer,
-  getCustomerById,
   getCustomerByPhone,
+  getCustomerDetail,
   getCustomers,
   updateCustomer,
 } from "@/modules/customers/customer.service";
+import { assertIsAdmin } from "@/modules/permissions/permissions";
 import { idParamSchema } from "@/schema/param";
 import type { AdminEnv } from "@/types/hono";
 import { success } from "@/utils/http";
@@ -57,10 +58,15 @@ const app = new Hono<AdminEnv>()
       return c.json(success(customer));
     }
   )
+  // Admin-only (ADR-0021). The browse list and the POS lookup above stay open
+  // to all staff; this one adds the home address, every store's orders, and
+  // what the person has spent, which a courier has no business reading.
   .get("/:id", idParamSchema, async (c) => {
+    assertIsAdmin(c.get("jwtPayload"));
+
     const { id } = c.req.valid("param");
 
-    const customer = await getCustomerById(id);
+    const customer = await getCustomerDetail(id);
 
     if (!customer) {
       throw new NotFoundException("Customer not found");
