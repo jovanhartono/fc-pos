@@ -60,14 +60,14 @@ _Avoid_: enabled, published, visible.
 ### Operators
 
 **Store**:
-A physical shop location. Owns its own Orders and Shifts. **Does not** own its own Product stock — `products.stock` is global across stores in v1 (per-store stock deferred — D-12). 6 stores today, ceiling ~50.
+A physical shop location. Owns its own Orders and Shifts. **Does not** own its own Product stock — `products.stock` is global across stores in v1 (per-store stock deferred — D-12). 8 stores today, ceiling ~50.
 _Avoid_: Branch, outlet.
 
 **User**:
 An operator. Role is one of **admin**, **cashier**, **worker**, **courier**. Scoped to one-or-many Stores via `userStores`. Role gates **money and admin operations** only; the OrderService processing axis (queue claim, status updates, detail photos) is open to any staff regardless of role — see [ADR-0004 amendment](docs/adr/0004-role-capabilities-v1.md).
 
 **Shift**:
-A User's working session at a Store, with `clock_in`/`clock_out`. Used for attendance reporting and revenue-by-shift breakdown in `reports`. Shifts are **attendance-only by design** (reaffirmed 2026-07-06): the business reviews clock-in data, but a Shift deliberately gates nothing operationally — Order creation, pickup, and payment never read shift state.
+A User's working session at a Store, with `clock_in`/`clock_out`. Used for attendance reporting and revenue-by-shift breakdown in `reports`. Shifts are **attendance-only by design** (reaffirmed 2026-07-06): the business reviews clock-in data, but a Shift deliberately gates nothing operationally — Order creation, pickup, and payment never read shift state. Clocking in **requires** the phone's location and records how far it was from the Store; beyond **1 km** the Shift is marked out-of-range but still opens, and a Courier is exempt from the whole mechanism. A Shift left open is closed automatically at midnight and marked as such. See [ADR-0020](docs/adr/0020-clock-in-records-location-never-blocks-on-distance.md).
 
 **Courier** (`role = courier`):
 A User whose job is **collecting** dropped-off items from the customer at intake and **delivering** finished items back after pickup. Logs in solely to open a Shift (attendance); does **not** operate the POS, the queue, or money. Deliberately excluded from the worker-productivity report — that report is an allowlist on `role = worker`, so a Courier never appears. Excluding Couriers from that report is the reason the role exists. See [ADR-0010](docs/adr/0010-courier-role-login-only-excluded-by-allowlist.md).
@@ -211,7 +211,7 @@ The cashier UI at `/transactions` for creating Orders. (See Ambiguities — "Tra
 - A **Campaign** is scoped to 0..N **Stores** (zero = all Stores) and targets 1..N **Services**.
 - A **Campaign** is either **listed** (optionally carrying a **usage limit**) or a **Voucher** (code mode) owning 1..N **Voucher codes** — never both; the two modes are mutually exclusive by construction. Each Voucher code redeems at most once. See [ADR-0015](docs/adr/0015-campaign-usage-limit-and-vouchers.md).
 - An **Order** records every **Campaign** it redeemed; a Voucher redemption additionally names the specific **Voucher code** consumed. Redemption happens when the discount **settles** — once every line is priced ([ADR-0018](docs/adr/0018-price-is-known-or-blank-discounts-when-priced.md)) — so an unpaid Order can hold a slot or a code. It is released if the Order is fully cancelled, or if a cancellation or downward price correction drops it below the Campaign's minimum. A paid redemption is never released by a refund.
-- A **User** is scoped to 1..N **Stores** and opens a **Shift** to take payments at one Store at a time.
+- A **User** is scoped to 1..N **Stores** and holds at most one open **Shift**, at one Store at a time. The Shift is attendance only — what a User may do at a Store is decided by role and store access, never by whether a Shift is open.
 
 ## Example dialogue
 

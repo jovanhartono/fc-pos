@@ -1,4 +1,5 @@
 import type {
+	Coordinates,
 	POSTCategorySchema,
 	POSTCustomerSchema,
 	POSTOrderPickupEventPresignSchema,
@@ -1168,7 +1169,10 @@ export async function fetchShifts(
 	return toPaginated(response);
 }
 
-export async function clockInShift(payload: { store_id: number }) {
+export async function clockInShift(payload: {
+	store_id: number;
+	coordinates?: Coordinates;
+}) {
 	return parseResponse(
 		rpcWithAuth().api.admin.shifts["clock-in"].$post({ json: payload }),
 	);

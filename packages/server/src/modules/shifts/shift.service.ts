@@ -1,33 +1,96 @@
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import {
+  closeOpenShiftsBefore,
   countShifts,
   findOpenShiftByUserId,
+  type InsertShiftValues,
   insertShift,
   listShifts,
   updateShiftClockOutById,
 } from "@/modules/shifts/shift.repository";
-import type { GetShiftsQuery } from "@/modules/shifts/shift.schema";
+import {
+  clockInRequiresLocation,
+  type GetShiftsQuery,
+} from "@/modules/shifts/shift.schema";
+import { findStoreById } from "@/modules/stores/store.repository";
 import type { JWTPayload } from "@/types";
 import { assertStoreAccess } from "@/utils/authorization";
+import { jakartaDayStart, jakartaNow } from "@/utils/date";
+import { type Coordinates, distanceKm } from "@/utils/geo";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 import { isUniqueViolation } from "@/utils/pg-error";
+
+type ShiftLocation = Pick<
+  InsertShiftValues,
+  "clock_in_distance_km" | "clock_in_latitude" | "clock_in_longitude"
+>;
+
+// Sharing a location is mandatory for everyone the rule covers: refusing is a
+// choice, and the whole record would be opt-out by one tap on Deny. The
+// distance it produces never refuses the Shift. See ADR-0020.
+async function resolveClockInLocation(
+  user: JWTPayload,
+  storeId: number,
+  coordinates?: Coordinates
+): Promise<ShiftLocation> {
+  if (!clockInRequiresLocation(user.role)) {
+    return {};
+  }
+
+  if (!coordinates) {
+    throw new BadRequestException("Location is required to clock in");
+  }
+
+  const store = await findStoreById(storeId);
+  if (!store) {
+    throw new NotFoundException("Store does not exist");
+  }
+
+  const distance = distanceKm(coordinates, {
+    latitude: Number(store.latitude),
+    longitude: Number(store.longitude),
+  });
+
+  return {
+    clock_in_distance_km: distance.toFixed(3),
+    clock_in_latitude: coordinates.latitude.toFixed(8),
+    clock_in_longitude: coordinates.longitude.toFixed(8),
+  };
+}
 
 export async function clockIn({
   user,
   storeId,
+  coordinates,
 }: {
   user: JWTPayload;
   storeId: number;
+  coordinates?: Coordinates;
 }) {
   await assertStoreAccess(user, storeId);
 
   const existing = await findOpenShiftByUserId(user.id);
   if (existing) {
-    throw new BadRequestException("You already have an open shift");
+    // Yesterday's forgotten clock-out must not cost a worker their morning: the
+    // nightly sweep is best-effort and behind a shared secret, so waiting on it
+    // is what locks someone out at 07:00. A shift opened today still conflicts.
+    const healed = await closeOpenShiftsBefore(
+      jakartaDayStart(jakartaNow().toDate()),
+      user.id
+    );
+    if (healed === 0) {
+      throw new BadRequestException("You already have an open shift");
+    }
   }
 
+  const location = await resolveClockInLocation(user, storeId, coordinates);
+
   try {
-    return await insertShift({ user_id: user.id, store_id: storeId });
+    return await insertShift({
+      user_id: user.id,
+      store_id: storeId,
+      ...location,
+    });
   } catch (error) {
     if (isUniqueViolation(error)) {
       throw new BadRequestException("You already have an open shift", {
@@ -45,6 +108,16 @@ export async function clockOut(user: JWTPayload) {
   }
 
   return updateShiftClockOutById(open.id);
+}
+
+// Reaches back a full day, because someone who clocked in at 22:30 for a late
+// close is still on the floor when this fires at midnight; their row closes
+// tomorrow night, or when they next clock in.
+export async function closeForgottenShifts() {
+  const cutoff = jakartaDayStart(jakartaNow().subtract(1, "day").toDate());
+  const closed = await closeOpenShiftsBefore(cutoff);
+
+  return { closed, cutoff };
 }
 
 export function getCurrentShift(user: JWTPayload) {

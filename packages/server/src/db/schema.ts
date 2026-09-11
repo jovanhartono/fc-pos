@@ -420,7 +420,26 @@ export const userStoresTable = pgTable(
 export const shiftsTable = pgTable(
   "shifts",
   {
+    // A worker who goes home without clocking out gets closed at midnight
+    // instead of being locked out of tomorrow's shift.
+    auto_closed: boolean("auto_closed").default(false).notNull(),
     clock_in_at: timestamp("clock_in_at").defaultNow().notNull(),
+    // Where the phone said the worker was, and how far that was from the Store
+    // they clocked in against. Null for a Courier, who roams between Stores and
+    // is never asked. The distance is frozen here: moving a Store's pin later
+    // must not rewrite yesterday's attendance. See ADR-0020.
+    clock_in_distance_km: decimal("clock_in_distance_km", {
+      precision: 8,
+      scale: 3,
+    }),
+    clock_in_latitude: decimal("clock_in_latitude", {
+      precision: 11,
+      scale: 8,
+    }),
+    clock_in_longitude: decimal("clock_in_longitude", {
+      precision: 11,
+      scale: 8,
+    }),
     clock_out_at: timestamp("clock_out_at"),
     created_at: timestamp("created_at").defaultNow().notNull(),
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
