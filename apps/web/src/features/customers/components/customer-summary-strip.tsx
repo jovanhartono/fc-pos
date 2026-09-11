@@ -32,7 +32,9 @@ const formatOwed = ({
 	const priced = unpaid_orders - unpriced_orders;
 	const parts: string[] = [];
 
-	if (priced > 0) {
+	// An order that bills nothing — every line cancelled, or free rework only —
+	// is still unpaid, but "Rp 0 unpaid" reads as a debt the shop should chase.
+	if (priced > 0 && Number(unpaid_amount) > 0) {
 		parts.push(
 			`${formatIDRCurrency(unpaid_amount)} unpaid on ${priced} order${priced === 1 ? "" : "s"}`,
 		);
@@ -90,7 +92,7 @@ export const CustomerSummaryStrip = ({
 					helper="Paid, net of refunds"
 				/>
 				<KpiCard
-					label="Orders"
+					label="Paid orders"
 					value={summary.paid_orders}
 					helper={
 						summary.unpaid_orders > 0

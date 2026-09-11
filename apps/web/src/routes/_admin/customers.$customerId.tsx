@@ -1,16 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CustomerOrdersCard } from "@/features/customers/components/customer-orders-card";
+import {
+	CUSTOMER_ORDERS_PAGE_SIZE,
+	CustomerOrdersCard,
+} from "@/features/customers/components/customer-orders-card";
 import { CustomerSummaryStrip } from "@/features/customers/components/customer-summary-strip";
 import {
 	customerDetailQueryOptions,
 	ordersPageQueryOptions,
 } from "@/lib/query-options";
-
-const ORDERS_PAGE_SIZE = 10;
+import { getCurrentUser } from "@/stores/auth-store";
 
 const customerDetailSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
@@ -63,6 +65,14 @@ const CustomerDetailPage = () => {
 export const Route = createFileRoute("/_admin/customers/$customerId")({
 	validateSearch: (search) => customerDetailSearchSchema.parse(search),
 	loaderDeps: ({ search }) => search,
+	// The page is admin-only server-side (ADR-0021). A cashier who reaches it —
+	// the browse list is theirs too — would otherwise watch both reads 403 into
+	// the layout's crash screen, so send them back to the list instead.
+	beforeLoad: () => {
+		if (getCurrentUser()?.role !== "admin") {
+			throw redirect({ to: "/customers", search: { page: 1 } });
+		}
+	},
 	loader: async ({ context, params, deps }) => {
 		const id = Number(params.customerId);
 
@@ -75,8 +85,8 @@ export const Route = createFileRoute("/_admin/customers/$customerId")({
 			context.queryClient.ensureQueryData(
 				ordersPageQueryOptions({
 					customer_id: id,
-					limit: ORDERS_PAGE_SIZE,
-					offset: (deps.page - 1) * ORDERS_PAGE_SIZE,
+					limit: CUSTOMER_ORDERS_PAGE_SIZE,
+					offset: (deps.page - 1) * CUSTOMER_ORDERS_PAGE_SIZE,
 				}),
 			),
 		]);

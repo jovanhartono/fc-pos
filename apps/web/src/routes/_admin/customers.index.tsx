@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
 import type { Customer } from "@/lib/api";
 import { customersPageQueryOptions } from "@/lib/query-options";
+import { getCurrentUser } from "@/stores/auth-store";
 import { useSheet } from "@/stores/sheet-store";
 
 const PAGE_SIZE = 25;
@@ -40,6 +41,9 @@ function CustomersPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 	const { openSheet } = useSheet();
+	// The detail page is admin-only (ADR-0021); a cashier gets the name as text
+	// rather than a link into a page that would refuse them.
+	const isAdmin = getCurrentUser()?.role === "admin";
 
 	const handleSearchChange = useCallback(
 		(next: string) => {
@@ -85,16 +89,19 @@ function CustomersPage() {
 			{
 				accessorKey: "name",
 				header: "Name",
-				cell: ({ row }) => (
-					<Link
-						to="/customers/$customerId"
-						params={{ customerId: String(row.original.id) }}
-						search={{ page: 1 }}
-						className="font-semibold"
-					>
-						{row.original.name}
-					</Link>
-				),
+				cell: ({ row }) =>
+					isAdmin ? (
+						<Link
+							to="/customers/$customerId"
+							params={{ customerId: String(row.original.id) }}
+							search={{ page: 1 }}
+							className="font-semibold"
+						>
+							{row.original.name}
+						</Link>
+					) : (
+						<span className="font-semibold">{row.original.name}</span>
+					),
 			},
 			{
 				accessorKey: "phone_number",
@@ -129,7 +136,7 @@ function CustomersPage() {
 				),
 			},
 		],
-		[handleOpenEditSheet],
+		[handleOpenEditSheet, isAdmin],
 	);
 
 	return (

@@ -13,7 +13,9 @@ import { ordersPageQueryOptions } from "@/lib/query-options";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 10;
+// The route loader prefetches with this same size — two copies that drift
+// would leave the page fetching twice and flashing a skeleton it already had.
+export const CUSTOMER_ORDERS_PAGE_SIZE = 10;
 
 interface CustomerOrdersCardProps {
 	customerId: number;
@@ -51,8 +53,8 @@ export const CustomerOrdersCard = ({
 	const ordersQuery = useQuery(
 		ordersPageQueryOptions({
 			customer_id: customerId,
-			limit: PAGE_SIZE,
-			offset: (page - 1) * PAGE_SIZE,
+			limit: CUSTOMER_ORDERS_PAGE_SIZE,
+			offset: (page - 1) * CUSTOMER_ORDERS_PAGE_SIZE,
 		}),
 	);
 	const orders = ordersQuery.data?.items ?? [];

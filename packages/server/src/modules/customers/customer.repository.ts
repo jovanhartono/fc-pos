@@ -79,7 +79,7 @@ export function findCustomerById(id: number) {
 
 export interface CustomerSummary {
   complaints: number;
-  last_visit_at: Date | null;
+  last_visit_at: string | null;
   lifetime_spend: string;
   paid_orders: number;
   service_lines: number;
@@ -104,7 +104,13 @@ function findCustomerOrderStats(customerId: number) {
         sql<number>`(COUNT(*) FILTER (WHERE payment_status = 'paid') OVER ())::int`.as(
           "paid_orders"
         ),
-      last_visit_at: sql<Date | null>`MAX(created_at) OVER ()`.as(
+      // Raw SQL skips drizzle's timestamp mapper, so the instant has to carry
+      // its own Z. Without it the browser reads the stored UTC as Jakarta time
+      // and "last visit" lands seven hours before the newest Order listed
+      // underneath it.
+      last_visit_at: sql<
+        string | null
+      >`to_char(MAX(created_at) OVER (), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`.as(
         "last_visit_at"
       ),
     },
@@ -129,11 +135,14 @@ function findLiveUnpaidOrders(customerId: number) {
 
 // The complaint-rate denominator: this person's own treatment lines, minus
 // Rework lines (non-null complaint_id), so a free re-clean never inflates the
-// grievance that created it — ADR-0013.
+// grievance that created it — ADR-0013. Cancelled lines drop out too: work the
+// shop never did cannot be complained about, and counting it would read a
+// customer whose only three lines were all cancelled as "0 of 3".
 function findCustomerServiceLineCount(customerId: number) {
   return db.query.ordersServicesTable.findMany({
     where: {
       complaint_id: { isNull: true },
+      status: { ne: "cancelled" },
       order: { customer_id: customerId },
     },
     columns: { id: true },

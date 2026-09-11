@@ -16,8 +16,8 @@ export interface OrderAmountDisplay {
 }
 
 // What one Order contributed to this customer's Lifetime spend, read off the
-// row. A paid Order shows what the shop kept — collected minus anything
-// refunded — so the column adds up to the figure in the header.
+// row: a paid Order shows what the shop kept, collected minus anything
+// refunded, on the same rule the header figure is summed from.
 export const describeOrderAmount = (
 	order: OrderAmountState,
 ): OrderAmountDisplay => {
