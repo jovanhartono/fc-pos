@@ -342,6 +342,11 @@ export const isCustomerIdentified = (
 ): boolean =>
 	customerName.trim().length > 0 && isValidPhoneNumber(customerPhone);
 
+export const isCourierNamed = (
+	intakeChannel: IntakeChannel,
+	selectedCourierId: string,
+): boolean => intakeChannel !== "courier" || selectedCourierId !== "";
+
 export const isCustomerReady = ({
 	customerName,
 	customerPhone,
@@ -352,7 +357,7 @@ export const isCustomerReady = ({
 	"customerName" | "customerPhone" | "intakeChannel" | "selectedCourierId"
 >): boolean =>
 	isCustomerIdentified(customerName, customerPhone) &&
-	(intakeChannel !== "courier" || selectedCourierId !== "");
+	isCourierNamed(intakeChannel, selectedCourierId);
 
 export const toOrderPayload = ({
 	customerName,

@@ -43,10 +43,13 @@ export const CheckoutCustomerStep = () => {
 		[couriersQuery.data],
 	);
 
-	const handleChannelChange = (value: string) => {
+	const handleChannelChange = (
+		value: string,
+		onChange: (next: IntakeChannel) => void,
+	) => {
 		const next = value as IntakeChannel;
 		const nextCarries = intakeChannelCarries(next);
-		form.setValue("intakeChannel", next);
+		onChange(next);
 		if (!nextCarries.courier) {
 			form.setValue("selectedCourierId", "");
 		}
@@ -70,7 +73,9 @@ export const CheckoutCustomerStep = () => {
 							className="w-full text-sm"
 							id="transaction-intake-channel"
 							items={INTAKE_CHANNEL_ITEMS}
-							onValueChange={handleChannelChange}
+							onValueChange={(value) =>
+								handleChannelChange(value, field.onChange)
+							}
 							size="lg"
 							value={field.value}
 						/>

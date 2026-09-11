@@ -1,4 +1,5 @@
 import type {
+	INTAKE_CHANNELS,
 	POSTCategorySchema,
 	POSTCustomerSchema,
 	POSTOrderPickupEventPresignSchema,
@@ -401,7 +402,7 @@ export type SetOrderServicePricePayload = {
 	price: string;
 };
 
-export type IntakeChannel = "walk_in" | "courier" | "shipped";
+export type IntakeChannel = (typeof INTAKE_CHANNELS)[number];
 
 // How the Items arrived, moved as one fact — the server refuses any partial
 // combination of these three (ADR-0020).

@@ -1437,7 +1437,8 @@ async function seedOrders(params: {
 
   const orderCounters = new Map<string, number>();
 
-  // Reference data, so the reseed never truncates it.
+  // Reference data, so the reseed never truncates it — and it is empty on a
+  // database brought up with `push:dev`, which never runs the data migration.
   const postalCodes = (
     await db.select({ code: postalCodesTable.code }).from(postalCodesTable)
   ).map((row) => row.code);
@@ -1465,7 +1466,7 @@ async function seedOrders(params: {
     // Optional in real life too: plenty of customers cannot recite their kode
     // pos, and a blank beats a guess in the data the shop sites stores from.
     const originPostalCode =
-      intakeChannel !== "walk_in" && chance(0.75)
+      postalCodes.length > 0 && intakeChannel !== "walk_in" && chance(0.75)
         ? faker.helpers.arrayElement(postalCodes)
         : null;
 

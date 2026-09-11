@@ -29,6 +29,9 @@ import { POSTServiceSchema as _POSTServiceSchema } from "@/modules/services/serv
 import { POSTStoreSchema as _POSTStoreSchema } from "@/modules/stores/store.schema";
 import { POSTStoreDeviceSchema as _POSTStoreDeviceSchema } from "@/modules/stores/store-device.schema";
 
+// The POS draft and the order-detail edit both build their channel picker from
+// this, so a fourth way in cannot ship to one screen and not the other.
+export const INTAKE_CHANNELS = intakeChannelEnum.enumValues;
 export const ORDER_SERVICE_TRANSITIONS = _ORDER_SERVICE_TRANSITIONS;
 export const ORDER_TERMINAL_SERVICE_STATUSES = _ORDER_TERMINAL_SERVICE_STATUSES;
 export const WORKSHOP_SERVICE_STATUSES = _WORKSHOP_SERVICE_STATUSES;

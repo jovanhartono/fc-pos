@@ -240,6 +240,9 @@ export const campaignRedemptionModeEnum = pgEnum("campaign_redemption_mode", [
   "listed",
   "code",
 ]);
+export type CampaignRedemptionMode =
+  (typeof campaignRedemptionModeEnum.enumValues)[number];
+
 // How the Items reached the store. A customer outside the store's city sends
 // them by JNE or J&T, and nobody on payroll collected those — before this
 // column they were indistinguishable from someone walking in. See ADR-0020.
@@ -265,8 +268,7 @@ export const postalCodesTable = pgTable(
   },
   (table) => [index("postal_code_city_idx").on(table.city)]
 );
-export type CampaignRedemptionMode =
-  (typeof campaignRedemptionModeEnum.enumValues)[number];
+
 export const campaignsTable = pgTable(
   "campaigns",
   {

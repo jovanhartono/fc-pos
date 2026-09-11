@@ -36,6 +36,7 @@ export const OriginPanel = ({
 	const data = query.data;
 	const cities: OriginCity[] = data?.cities ?? [];
 	const coverage = data?.coverage;
+	const eligible = coverage?.eligible ?? 0;
 	const maxOrders = cities.reduce((max, city) => Math.max(max, city.orders), 0);
 
 	const handleExport = () => {
@@ -63,20 +64,22 @@ export const OriginPanel = ({
 						value={numberFormatter.format(cities.length)}
 						helper="Distinct origins recorded"
 					/>
-					{/* Every courier and shipped-in order, not just the ones with an
-					    origin — otherwise the count reads as the shop's whole
-					    non-counter volume while silently dropping the blanks. */}
+					{/* Courier and shipped-in orders that were paid in this range —
+					    an unpaid one is not in the ranking either, so counting it
+					    here would make the coverage figure below read too low. */}
 					<KpiCard
-						label="Orders not walked in"
-						value={numberFormatter.format(coverage?.eligible ?? 0)}
+						label="Paid, not walked in"
+						value={numberFormatter.format(eligible)}
 						helper="Collected by courier or shipped in"
 					/>
 					{/* Without this the panel lies by omission: a column nobody fills
 					    looks exactly like a short ranking. */}
 					<KpiCard
 						label="Origin known"
-						value={percentFormatter.format(coverage?.pct ?? 0)}
-						helper={`${numberFormatter.format(coverage?.known ?? 0)} of ${numberFormatter.format(coverage?.eligible ?? 0)} eligible orders`}
+						value={
+							eligible === 0 ? "—" : percentFormatter.format(coverage?.pct ?? 0)
+						}
+						helper={`${numberFormatter.format(coverage?.known ?? 0)} of ${numberFormatter.format(eligible)} paid courier and shipped-in orders`}
 					/>
 				</KpiRow>
 				<ExportButton disabled={!data} onClick={handleExport} />
@@ -99,7 +102,10 @@ export const OriginPanel = ({
 								const pct =
 									maxOrders === 0 ? 0 : (city.orders / maxOrders) * 100;
 								return (
-									<div className="grid gap-1" key={city.city}>
+									<div
+										className="grid gap-1"
+										key={`${city.province}/${city.city}`}
+									>
 										<div className="flex items-center justify-between gap-2">
 											<span className="truncate text-sm font-medium">
 												{city.city}
@@ -123,8 +129,6 @@ export const OriginPanel = ({
 							})}
 						</div>
 					)}
-					{/* Walk-ins carry no origin by design (ADR-0020), and they are most
-					    of the shop's volume. */}
 					<p className="mt-4 text-[11px] text-muted-foreground">
 						Walk-ins are not counted here. Read this as demand the shop does not
 						already serve over a counter.

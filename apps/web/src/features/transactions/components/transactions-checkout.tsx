@@ -8,6 +8,7 @@ import {
 	SheetTitle,
 } from "@/components/ui/sheet";
 import {
+	isCourierNamed,
 	isCustomerIdentified,
 	isCustomerReady,
 	type TransactionDraftValues,
@@ -108,9 +109,9 @@ export const TransactionsCheckout = () => {
 				isCustomerIdentified(customerName, customerPhone)
 					? null
 					: "enter the customer name and phone",
-				intakeChannel === "courier" && !selectedCourierId
-					? "pick the courier who collected it"
-					: null,
+				isCourierNamed(intakeChannel, selectedCourierId)
+					? null
+					: "pick the courier who collected it",
 			]
 				.filter(Boolean)
 				.join(", and ");

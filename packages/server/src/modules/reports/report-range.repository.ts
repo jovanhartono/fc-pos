@@ -906,56 +906,61 @@ export async function listCampaignEffectivenessRows({
 const REMOTE_CHANNELS = ["courier", "shipped"] as const;
 
 export async function listOriginRankingRows({ range, storeId }: RangeArgs) {
-  const paidRows = await db
-    .select({
-      city: postalCodesTable.city,
-      orders: count(),
-      paid: sql<string>`COALESCE(SUM(${ordersTable.paid_amount}), 0)`,
-      province: postalCodesTable.province,
-    })
-    .from(ordersTable)
-    .innerJoin(
-      postalCodesTable,
-      eq(ordersTable.origin_postal_code, postalCodesTable.code)
-    )
-    .where(
-      and(
-        ...paidOrderWindow({ range, storeId }),
-        inArray(ordersTable.intake_channel, [...REMOTE_CHANNELS])
+  const [paidRows, refundRows] = await Promise.all([
+    db
+      .select({
+        city: postalCodesTable.city,
+        orders: count(),
+        paid: sql<string>`COALESCE(SUM(${ordersTable.paid_amount}), 0)`,
+        province: postalCodesTable.province,
+      })
+      .from(ordersTable)
+      .innerJoin(
+        postalCodesTable,
+        eq(ordersTable.origin_postal_code, postalCodesTable.code)
       )
-    )
-    .groupBy(postalCodesTable.city, postalCodesTable.province);
-
-  const refundRows = await db
-    .select({
-      city: postalCodesTable.city,
-      province: postalCodesTable.province,
-      refunded: sql<string>`COALESCE(SUM(${orderRefundsTable.total_amount}), 0)`,
-    })
-    .from(orderRefundsTable)
-    .innerJoin(ordersTable, eq(orderRefundsTable.order_id, ordersTable.id))
-    .innerJoin(
-      postalCodesTable,
-      eq(ordersTable.origin_postal_code, postalCodesTable.code)
-    )
-    .where(
-      and(
-        ...timeWindow(orderRefundsTable.created_at, range),
-        storeScope(ordersTable.store_id, storeId),
-        inArray(ordersTable.intake_channel, [...REMOTE_CHANNELS])
+      .where(
+        and(
+          ...paidOrderWindow({ range, storeId }),
+          inArray(ordersTable.intake_channel, [...REMOTE_CHANNELS])
+        )
       )
-    )
-    .groupBy(postalCodesTable.city, postalCodesTable.province);
+      .groupBy(postalCodesTable.city, postalCodesTable.province),
+    db
+      .select({
+        city: postalCodesTable.city,
+        province: postalCodesTable.province,
+        refunded: sql<string>`COALESCE(SUM(${orderRefundsTable.total_amount}), 0)`,
+      })
+      .from(orderRefundsTable)
+      .innerJoin(ordersTable, eq(orderRefundsTable.order_id, ordersTable.id))
+      .innerJoin(
+        postalCodesTable,
+        eq(ordersTable.origin_postal_code, postalCodesTable.code)
+      )
+      .where(
+        and(
+          ...timeWindow(orderRefundsTable.created_at, range),
+          storeScope(ordersTable.store_id, storeId),
+          inArray(ordersTable.intake_channel, [...REMOTE_CHANNELS])
+        )
+      )
+      .groupBy(postalCodesTable.city, postalCodesTable.province),
+  ]);
 
   // A June order refunded in July has to reduce July (CONTEXT.md, "Revenue"),
   // and July may have taken no money from that city at all — so the refund
   // side contributes cities of its own rather than only adjusting paid ones.
+  // Keyed by province too: a BPS refresh can hand two provinces a kabupaten of
+  // the same name, and merging them would credit one market's takings to another.
   const rows = new Map<
     string,
     { city: string; orders: number; province: string; revenue: number }
   >();
+  const keyOf = (row: { city: string; province: string }) =>
+    `${row.province}/${row.city}`;
   for (const row of paidRows) {
-    rows.set(row.city, {
+    rows.set(keyOf(row), {
       city: row.city,
       orders: row.orders,
       province: row.province,
@@ -963,14 +968,14 @@ export async function listOriginRankingRows({ range, storeId }: RangeArgs) {
     });
   }
   for (const row of refundRows) {
-    const entry = rows.get(row.city) ?? {
+    const entry = rows.get(keyOf(row)) ?? {
       city: row.city,
       orders: 0,
       province: row.province,
       revenue: 0,
     };
     entry.revenue -= Number(row.refunded);
-    rows.set(row.city, entry);
+    rows.set(keyOf(row), entry);
   }
 
   return [...rows.values()].sort(
@@ -978,12 +983,9 @@ export async function listOriginRankingRows({ range, storeId }: RangeArgs) {
   );
 }
 
-// How much of the ranking above is actually knowable. A column rotting to all
-// blanks looks exactly like a short ranking, so the panel has to say out loud
-// how many eligible orders carry an origin at all.
-// Counted over the same orders the ranking is built from, not everything taken
-// in the window. The figure exists to say how much of the list below is missing;
-// measured over a different set it would understate or overstate exactly that.
+// How much of the ranking above is knowable: a column rotting to all blanks
+// looks exactly like a short ranking. Counted over the same orders the ranking
+// is built from, or the figure would measure a different set than it describes.
 export async function findOriginCoverage({ range, storeId }: RangeArgs) {
   const [row] = await db
     .select({
