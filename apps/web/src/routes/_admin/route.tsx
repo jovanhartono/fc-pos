@@ -87,29 +87,38 @@ const pageMeta: Record<string, { title: string; description?: string }> = {
 	},
 };
 
+const detailMeta: [string, { title: string; description: string }][] = [
+	[
+		"/queue/",
+		{ title: "Queue Detail", description: "Work on this item and add photos" },
+	],
+	[
+		"/orders/",
+		{
+			title: "Order Detail",
+			description: "This order and everything done to it",
+		},
+	],
+	[
+		"/complaints/",
+		{ title: "Complaint Detail", description: "This complaint and its rework" },
+	],
+	[
+		"/customers/",
+		{
+			title: "Customer Detail",
+			description: "This customer's orders, spend, and complaints",
+		},
+	],
+];
+
 function AdminLayout() {
 	const { pathname } = useLocation();
-	const meta =
-		pageMeta[pathname] ??
-		(pathname.startsWith("/queue/")
-			? {
-					title: "Queue Detail",
-					description: "Work on this item and add photos",
-				}
-			: pathname.startsWith("/orders/")
-				? {
-						title: "Order Detail",
-						description: "This order and everything done to it",
-					}
-				: pathname.startsWith("/complaints/")
-					? {
-							title: "Complaint Detail",
-							description: "This complaint and its rework",
-						}
-					: {
-							title: "Admin",
-							description: "Admin panel",
-						});
+	const meta = pageMeta[pathname] ??
+		detailMeta.find(([prefix]) => pathname.startsWith(prefix))?.[1] ?? {
+			title: "Admin",
+			description: "Admin panel",
+		};
 
 	return (
 		<AppShell title={meta.title} description={meta.description}>

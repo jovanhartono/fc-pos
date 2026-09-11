@@ -18,6 +18,7 @@ import {
 	fetchComplaintsPage,
 	fetchCurrentShift,
 	fetchCustomerAcquisitionReport,
+	fetchCustomerDetail,
 	fetchCustomersPage,
 	fetchFinancialReport,
 	fetchMe,
@@ -45,6 +46,12 @@ export const customersPageQueryOptions = (query?: FetchCustomersQuery) =>
 	queryOptions({
 		queryKey: queryKeys.customers(query),
 		queryFn: () => fetchCustomersPage(query),
+	});
+
+export const customerDetailQueryOptions = (id: number) =>
+	queryOptions({
+		queryKey: queryKeys.customerDetail(id),
+		queryFn: () => fetchCustomerDetail(id),
 	});
 
 export const usersPageQueryOptions = (query?: FetchUsersQuery) =>
