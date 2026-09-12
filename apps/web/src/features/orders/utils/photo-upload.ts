@@ -1,11 +1,10 @@
 import {
-	type PhotoContentType,
 	presignItemPhoto,
 	presignOrderDropoffPhoto,
 	saveItemPhoto,
 	saveOrderDropoffPhoto,
-	uploadFileToPresignedUrl,
 } from "@/lib/api";
+import { type PhotoContentType, uploadFileToPresignedUrl } from "@/lib/http";
 
 export const ACCEPTED_IMAGE_TYPES: readonly PhotoContentType[] = [
 	"image/jpeg",

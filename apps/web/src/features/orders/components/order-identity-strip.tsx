@@ -57,8 +57,8 @@ export const OrderIdentityStrip = ({
 	const openDialog = useDialog((s) => s.openDialog);
 	const closeDialog = useDialog((s) => s.closeDialog);
 	const cancelOrderMutation = useCancelOrderMutation(orderId);
-	const refundMutation = useRefundOrderMutation(orderId);
-	const openComplaintMutation = useOpenComplaintMutation(orderId);
+	const refundMutation = useRefundOrderMutation();
+	const openComplaintMutation = useOpenComplaintMutation();
 	const printReceiptMutation = usePrintReceiptMutation(orderId);
 
 	const fulfillment = detail.fulfillment;

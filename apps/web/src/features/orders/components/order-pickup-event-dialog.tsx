@@ -20,14 +20,11 @@ import {
 	InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { SinglePhotoCaptureDialog } from "@/features/orders/components/photo-upload-dialog";
-import { invalidateOrderQueries } from "@/features/orders/lib/invalidate-order-queries";
 import type { OrderItem } from "@/features/orders/lib/order-lines";
 import { isAcceptedImage } from "@/features/orders/utils/photo-upload";
-import {
-	createOrderPickupEvent,
-	presignOrderPickupEvent,
-	uploadFileToPresignedUrl,
-} from "@/lib/api";
+import { createOrderPickupEvent, presignOrderPickupEvent } from "@/lib/api";
+import { onOrderMoved } from "@/lib/cache-events";
+import { uploadFileToPresignedUrl } from "@/lib/http";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { formatOrderServiceStatus } from "@/lib/status";
@@ -176,7 +173,7 @@ export const OrderPickupEventDialog = ({
 			// A collected Item leaves the workshop queue and the ready-for-pickup
 			// shelf both — the /queue chips and the /orders pills each hold a number
 			// this hand-off just changed.
-			await invalidateOrderQueries(queryClient, orderId);
+			await onOrderMoved(queryClient);
 			closeDialog();
 		},
 		onError: (error: Error) => {

@@ -36,8 +36,7 @@ const ComplaintDetailPage = () => {
 	const complaintQuery = useQuery(complaintDetailQueryOptions(id));
 
 	// 0 until data loads; the rework button only renders after the guard below.
-	const orderId = complaintQuery.data?.orderService?.order?.id ?? 0;
-	const reworkMutation = useAddReworkMutation(id, orderId);
+	const reworkMutation = useAddReworkMutation(id);
 
 	const detail = complaintQuery.data;
 

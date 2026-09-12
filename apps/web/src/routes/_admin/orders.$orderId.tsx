@@ -85,7 +85,7 @@ function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 	// the JWT claims go stale when an admin changes them mid-session.
 	const meQuery = useQuery(meQueryOptions());
 	const detailQuery = useQuery(orderDetailQueryOptions(id));
-	const refreshOrder = useRefreshOrder(id);
+	const refreshOrder = useRefreshOrder();
 
 	if (detailQuery.isPending) {
 		return <OrderDetailSkeleton />;

@@ -40,7 +40,7 @@ export const ItemPhotoStrip = ({
 	isAdmin,
 }: ItemPhotoStripProps) => {
 	const user = getCurrentUser();
-	const refreshOrder = useRefreshOrder(orderId);
+	const refreshOrder = useRefreshOrder();
 	const [isUploadOpen, setIsUploadOpen] = useState(false);
 	const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 	const visibleTiles = useIsMobile(640)

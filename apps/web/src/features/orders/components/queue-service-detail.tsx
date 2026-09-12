@@ -22,7 +22,6 @@ import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gall
 import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
-import { invalidateOrderQueries } from "@/features/orders/lib/invalidate-order-queries";
 import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import { findOrderLine } from "@/features/orders/lib/order-lines";
 import { itemPhotoUploader } from "@/features/orders/utils/photo-upload";
@@ -30,6 +29,7 @@ import {
 	type UpdateOrderServiceStatusPayload,
 	updateOrderServiceStatus,
 } from "@/lib/api";
+import { onOrderMoved } from "@/lib/cache-events";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { orderDetailQueryOptions } from "@/lib/query-options";
 import { readServerErrorMessage } from "@/lib/server-error";
@@ -107,7 +107,7 @@ export function QueueServiceDetail({
 	const detail = detailQuery.data;
 	const selectedService = findOrderLine(detail, serviceId);
 
-	const refreshData = () => invalidateOrderQueries(queryClient, orderId);
+	const refreshData = () => onOrderMoved(queryClient);
 
 	const startWorkMutation = useMutation({
 		mutationFn: () =>
