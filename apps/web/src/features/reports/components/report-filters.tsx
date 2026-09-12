@@ -9,9 +9,9 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import type { ReportGranularity } from "@/features/reports/api";
 import { defaultRange } from "@/features/reports/utils/report-filters";
 import { storesQueries } from "@/features/stores/api";
-import type { ReportGranularity } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { getPresets, matchPreset } from "@/shared/date-presets";
 

@@ -3,14 +3,6 @@ import type {
 	POSTOrderPickupEventSchema,
 	POSTOrderSchema,
 } from "@fresclean/api/schema";
-import type {
-	ComparableSummary,
-	KpiDelta,
-	ReportGranularity,
-} from "@fresclean/api/types";
-
-export type { ComparableSummary, KpiDelta, ReportGranularity };
-
 import { type InferResponseType, parseResponse } from "hono/client";
 import type { z } from "zod";
 import {
@@ -51,61 +43,6 @@ export type QueueItemService = QueueItem["services"][number];
 export type PublicTrackedOrder = InferResponseType<
 	typeof rpc.api.public.orders.track.$post
 >["data"];
-export type ReportOverview = InferResponseType<
-	typeof rpc.api.admin.reports.overview.$get
->["data"];
-
-export type FetchReportOverviewQuery = {
-	date: string;
-	store_id?: number;
-	trend_days?: number;
-};
-
-export type FetchReportRangeQuery = {
-	from: string;
-	to: string;
-	store_id?: number;
-	granularity?: ReportGranularity;
-};
-
-export type FinancialReport = InferResponseType<
-	typeof rpc.api.admin.reports.financial.$get
->["data"];
-
-export type OrdersFlowReport = InferResponseType<
-	(typeof rpc.api.admin.reports)["orders-flow"]["$get"]
->["data"];
-
-export type PaymentMixReport = InferResponseType<
-	(typeof rpc.api.admin.reports)["payment-mix"]["$get"]
->["data"];
-
-export type CustomerAcquisitionReport = InferResponseType<
-	(typeof rpc.api.admin.reports)["customer-acquisition"]["$get"]
->["data"];
-
-export type RefundTrendReport = InferResponseType<
-	(typeof rpc.api.admin.reports)["refund-trend"]["$get"]
->["data"];
-
-export type WorkerProductivityReport = InferResponseType<
-	(typeof rpc.api.admin.reports)["worker-productivity"]["$get"]
->["data"];
-
-export type CampaignEffectivenessReport = InferResponseType<
-	(typeof rpc.api.admin.reports)["campaign-effectiveness"]["$get"]
->["data"];
-
-export type AgingQueueItem = InferResponseType<
-	(typeof rpc.api.admin.reports)["aging-queue"]["$get"]
->["data"][number];
-
-export interface FetchAgingQueueQuery {
-	store_id?: number;
-	limit?: number;
-	offset?: number;
-}
-
 export type LoginPayload = {
 	username: string;
 	password: string;
@@ -263,24 +200,6 @@ export const queryKeys = {
 	) => ["order-service-queue", query ?? {}] as const,
 	orderServiceQueueCounts: (storeId?: number) =>
 		["order-service-queue-counts", storeId ?? null] as const,
-	reportOverview: (query: FetchReportOverviewQuery) =>
-		["report-overview", query] as const,
-	financial: (query: FetchReportRangeQuery) =>
-		["report-financial", query] as const,
-	ordersFlow: (query: FetchReportRangeQuery) =>
-		["report-orders-flow", query] as const,
-	paymentMix: (query: FetchReportRangeQuery) =>
-		["report-payment-mix", query] as const,
-	customerAcquisition: (query: FetchReportRangeQuery) =>
-		["report-customer-acquisition", query] as const,
-	refundTrend: (query: FetchReportRangeQuery) =>
-		["report-refund-trend", query] as const,
-	workerProductivity: (query: FetchReportRangeQuery) =>
-		["report-worker-productivity", query] as const,
-	campaignEffectiveness: (query: FetchReportRangeQuery) =>
-		["report-campaign-effectiveness", query] as const,
-	agingQueue: (query?: FetchAgingQueueQuery) =>
-		["report-aging-queue", query ?? {}] as const,
 };
 
 export async function login(payload: LoginPayload) {
@@ -558,108 +477,4 @@ export async function trackPublicOrder(payload: TrackPublicOrderPayload) {
 	return parseSuccessData<PublicTrackedOrder>(
 		rpc.api.public.orders.track.$post({ json: payload }),
 	);
-}
-
-export async function fetchReportOverview(query: FetchReportOverviewQuery) {
-	return parseSuccessData<ReportOverview>(
-		rpcWithAuth().api.admin.reports.overview.$get({
-			query: {
-				date: query.date,
-				...(query.store_id !== undefined
-					? { store_id: String(query.store_id) }
-					: {}),
-				...(query.trend_days !== undefined
-					? { trend_days: String(query.trend_days) }
-					: {}),
-			},
-		}),
-	);
-}
-
-function toRangeQuery(query: FetchReportRangeQuery) {
-	return {
-		from: query.from,
-		to: query.to,
-		...(query.store_id !== undefined
-			? { store_id: String(query.store_id) }
-			: {}),
-		...(query.granularity ? { granularity: query.granularity } : {}),
-	};
-}
-
-export async function fetchFinancialReport(query: FetchReportRangeQuery) {
-	return parseSuccessData<FinancialReport>(
-		rpcWithAuth().api.admin.reports.financial.$get({
-			query: toRangeQuery(query),
-		}),
-	);
-}
-
-export async function fetchOrdersFlowReport(query: FetchReportRangeQuery) {
-	return parseSuccessData<OrdersFlowReport>(
-		rpcWithAuth().api.admin.reports["orders-flow"].$get({
-			query: toRangeQuery(query),
-		}),
-	);
-}
-
-export async function fetchPaymentMixReport(query: FetchReportRangeQuery) {
-	return parseSuccessData<PaymentMixReport>(
-		rpcWithAuth().api.admin.reports["payment-mix"].$get({
-			query: toRangeQuery(query),
-		}),
-	);
-}
-
-export async function fetchCustomerAcquisitionReport(
-	query: FetchReportRangeQuery,
-) {
-	return parseSuccessData<CustomerAcquisitionReport>(
-		rpcWithAuth().api.admin.reports["customer-acquisition"].$get({
-			query: toRangeQuery(query),
-		}),
-	);
-}
-
-export async function fetchRefundTrendReport(query: FetchReportRangeQuery) {
-	return parseSuccessData<RefundTrendReport>(
-		rpcWithAuth().api.admin.reports["refund-trend"].$get({
-			query: toRangeQuery(query),
-		}),
-	);
-}
-
-export async function fetchWorkerProductivityReport(
-	query: FetchReportRangeQuery,
-) {
-	return parseSuccessData<WorkerProductivityReport>(
-		rpcWithAuth().api.admin.reports["worker-productivity"].$get({
-			query: toRangeQuery(query),
-		}),
-	);
-}
-
-export async function fetchCampaignEffectivenessReport(
-	query: FetchReportRangeQuery,
-) {
-	return parseSuccessData<CampaignEffectivenessReport>(
-		rpcWithAuth().api.admin.reports["campaign-effectiveness"].$get({
-			query: toRangeQuery(query),
-		}),
-	);
-}
-
-export async function fetchAgingQueueReport(
-	query?: FetchAgingQueueQuery,
-): Promise<PaginatedData<AgingQueueItem>> {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.reports["aging-queue"].$get({
-			query: toSearchParams({
-				store_id: query?.store_id,
-				limit: query?.limit,
-				offset: query?.offset,
-			}),
-		}),
-	);
-	return toPaginated(response);
 }

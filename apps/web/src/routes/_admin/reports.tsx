@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
+import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ReportFilters } from "@/features/reports/components/report-filters";
 import {
 	ReportShell,
@@ -10,18 +11,6 @@ import {
 } from "@/features/reports/components/report-shell";
 import { defaultRange } from "@/features/reports/utils/report-filters";
 import { storesQueries } from "@/features/stores/api";
-import type { ReportGranularity } from "@/lib/api";
-import {
-	agingQueueQueryOptions,
-	campaignEffectivenessQueryOptions,
-	customerAcquisitionQueryOptions,
-	financialQueryOptions,
-	ordersFlowQueryOptions,
-	paymentMixQueryOptions,
-	refundTrendQueryOptions,
-	reportOverviewQueryOptions,
-	workerProductivityQueryOptions,
-} from "@/lib/query-options";
 import { jakartaToday } from "@/shared/date-presets";
 
 const OverviewPanel = lazy(
@@ -115,33 +104,35 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 	switch (search.tab) {
 		case "overview":
 			return queryClient.ensureQueryData(
-				reportOverviewQueryOptions({
+				reportsQueries.overview({
 					date: jakartaToday(),
 					store_id: search.store_id,
 					trend_days: 14,
 				}),
 			);
 		case "financial":
-			return queryClient.ensureQueryData(financialQueryOptions(range));
+			return queryClient.ensureQueryData(reportsQueries.financial(range));
 		case "operations":
-			return queryClient.ensureQueryData(ordersFlowQueryOptions(range));
+			return queryClient.ensureQueryData(reportsQueries.ordersFlow(range));
 		case "payments":
-			return queryClient.ensureQueryData(paymentMixQueryOptions(range));
+			return queryClient.ensureQueryData(reportsQueries.paymentMix(range));
 		case "customers":
 			return queryClient.ensureQueryData(
-				customerAcquisitionQueryOptions(range),
+				reportsQueries.customerAcquisition(range),
 			);
 		case "quality":
-			return queryClient.ensureQueryData(refundTrendQueryOptions(range));
+			return queryClient.ensureQueryData(reportsQueries.refundTrend(range));
 		case "workers":
-			return queryClient.ensureQueryData(workerProductivityQueryOptions(range));
+			return queryClient.ensureQueryData(
+				reportsQueries.workerProductivity(range),
+			);
 		case "campaigns":
 			return queryClient.ensureQueryData(
-				campaignEffectivenessQueryOptions(range),
+				reportsQueries.campaignEffectiveness(range),
 			);
 		case "aging-queue":
 			return queryClient.ensureQueryData(
-				agingQueueQueryOptions({ store_id: search.store_id, limit: 50 }),
+				reportsQueries.agingQueue({ store_id: search.store_id, limit: 50 }),
 			);
 		default:
 			return Promise.resolve();

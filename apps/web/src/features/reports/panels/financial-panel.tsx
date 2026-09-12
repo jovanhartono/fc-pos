@@ -18,6 +18,12 @@ import {
 	ChartTooltip,
 	ChartTooltipContent,
 } from "@/components/ui/chart";
+import {
+	type FinancialReport,
+	type KpiDelta,
+	type ReportGranularity,
+	reportsQueries,
+} from "@/features/reports/api";
 import { ExportButton } from "@/features/reports/components/export-button";
 import {
 	csvFilename,
@@ -29,8 +35,6 @@ import {
 	bucketToLabel,
 	bucketToTooltipLabel,
 } from "@/features/reports/utils/granularity";
-import type { FinancialReport, KpiDelta, ReportGranularity } from "@/lib/api";
-import { financialQueryOptions } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
@@ -139,7 +143,7 @@ export const FinancialPanel = ({
 	granularity,
 }: FinancialPanelProps) => {
 	const query = useQuery(
-		financialQueryOptions({ from, to, store_id: storeId, granularity }),
+		reportsQueries.financial({ from, to, store_id: storeId, granularity }),
 	);
 	const data = query.data;
 	const storeBreakdown = data?.store_breakdown ?? [];

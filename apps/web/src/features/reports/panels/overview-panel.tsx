@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { type ReportOverview, reportsQueries } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import {
@@ -8,8 +9,6 @@ import {
 	percentFormatter,
 } from "@/features/reports/utils/format";
 import { CHART_PALETTE } from "@/features/reports/utils/palette";
-import type { ReportOverview } from "@/lib/api";
-import { reportOverviewQueryOptions } from "@/lib/query-options";
 import { formatMoney } from "@/shared/money";
 
 interface OverviewPanelProps {
@@ -137,7 +136,7 @@ const BranchBreakdown = ({
 
 export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 	const overviewQuery = useQuery(
-		reportOverviewQueryOptions({ date, store_id: storeId, trend_days: 14 }),
+		reportsQueries.overview({ date, store_id: storeId, trend_days: 14 }),
 	);
 	const overview = overviewQuery.data;
 
