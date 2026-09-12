@@ -3,7 +3,7 @@ import {
 	presignOrderDropoffPhoto,
 	saveItemPhoto,
 	saveOrderDropoffPhoto,
-} from "@/lib/api";
+} from "@/features/orders/api";
 import { type PhotoContentType, uploadFileToPresignedUrl } from "@/lib/http";
 
 export const ACCEPTED_IMAGE_TYPES: readonly PhotoContentType[] = [

@@ -7,6 +7,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import type { ResolvedVoucher } from "@/features/campaigns/api";
+import { createOrder } from "@/features/orders/api";
 import {
 	getCreatedOrderId,
 	handleCreatedOrderSuccess,
@@ -35,7 +36,6 @@ import {
 } from "@/features/transactions/lib/checkout-issues";
 import type { TransactionsPageContextValue } from "@/features/transactions/lib/transactions-context";
 import { usersQueries } from "@/features/users/api";
-import { createOrder } from "@/lib/api";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useTransactionPreferencesStore } from "@/stores/transaction-preferences-store";

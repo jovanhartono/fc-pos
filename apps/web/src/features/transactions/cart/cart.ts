@@ -8,9 +8,9 @@ import {
 } from "@fresclean/api/schema";
 import type { UseFormReturn } from "react-hook-form";
 import type { ResolvedVoucher } from "@/features/campaigns/api";
+import type { CreateOrderPayload } from "@/features/orders/api";
 import type { Product } from "@/features/products/api";
 import type { Service } from "@/features/services/api";
-import type { CreateOrderPayload } from "@/lib/api";
 import { parseMoney } from "@/shared/money";
 
 export type ProductCartLine = {

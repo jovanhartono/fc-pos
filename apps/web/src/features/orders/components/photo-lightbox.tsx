@@ -14,9 +14,9 @@ import {
 	DialogDescription,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import type { PhotoDownloadRef } from "@/features/orders/api";
 import { PhotoStage } from "@/features/orders/components/photo-stage";
 import { savePhoto } from "@/features/orders/utils/photo-download";
-import type { PhotoDownloadRef } from "@/lib/api";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { cn } from "@/lib/utils";
 

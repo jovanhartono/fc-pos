@@ -12,6 +12,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+	type FetchOrdersQuery,
+	type Order,
+	ordersQueries,
+} from "@/features/orders/api";
+import {
 	ORDER_STATUS_VALUES,
 	OrderFilters,
 	type OrderFilterValues,
@@ -21,8 +26,6 @@ import { PaymentStatusBadge } from "@/features/orders/components/payment-status-
 import { PickupRadar } from "@/features/orders/components/pickup-radar";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
-import type { FetchOrdersQuery, Order } from "@/lib/api";
-import { ordersPageQueryOptions } from "@/lib/query-options";
 import {
 	formatOrderStatus,
 	formatRefundStatus,
@@ -80,7 +83,7 @@ export const Route = createFileRoute("/_admin/orders/")({
 			: undefined;
 		const ensureOrders = () =>
 			context.queryClient.ensureQueryData(
-				ordersPageQueryOptions(buildOrdersListParams(deps, deps.storeId)),
+				ordersQueries.list(buildOrdersListParams(deps, deps.storeId)),
 			);
 
 		await Promise.all([
@@ -154,7 +157,7 @@ function OrdersPage() {
 			: buildOrdersListParams(search, parsedStoreId);
 
 	const ordersQuery = useQuery({
-		...ordersPageQueryOptions(orderQuery),
+		...ordersQueries.list(orderQuery),
 		enabled: role === "admin" ? true : parsedStoreId !== undefined,
 	});
 
@@ -169,9 +172,9 @@ function OrdersPage() {
 		openSheet({
 			title: "Pickup Radar",
 			description: "Orders that can leave the store now.",
-			content: () => <PickupRadar orders={orders} />,
+			content: () => <PickupRadar storeId={parsedStoreId} />,
 		});
-	}, [openSheet, orders]);
+	}, [openSheet, parsedStoreId]);
 
 	const columns = useMemo<DataTableColumnDef<Order>[]>(
 		() => [

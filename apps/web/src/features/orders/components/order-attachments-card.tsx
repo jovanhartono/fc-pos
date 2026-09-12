@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import type { OrderDetail } from "@/features/orders/api";
 import {
 	OrderPhotoGallery,
 	type OrderPhotoGalleryItem,
@@ -15,7 +16,6 @@ import {
 import { SinglePhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { orderDropoffPhotoUploader } from "@/features/orders/utils/photo-upload";
-import type { OrderDetail } from "@/lib/api";
 
 type PickupEvent = OrderDetail["pickup_events"][number];
 

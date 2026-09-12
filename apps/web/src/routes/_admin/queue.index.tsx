@@ -35,22 +35,20 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+	type FetchOrderServiceQueueQuery,
+	fetchOrderDetail,
+	lookupItemByItemCode,
+	lookupOrderServiceById,
+	ordersQueries,
+	type QueueItem,
+} from "@/features/orders/api";
 import { QueueStatusTabs } from "@/features/orders/components/queue-status-tabs";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { useBarcodeScanner } from "@/features/orders/hooks/useBarcodeScanner";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
-import {
-	type FetchOrderServiceQueueQuery,
-	fetchOrderDetail,
-	fetchOrderServiceQueuePage,
-	lookupItemByItemCode,
-	lookupOrderServiceById,
-	type QueueItem,
-	queryKeys,
-} from "@/lib/api";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
-import { orderServiceQueueCountsQueryOptions } from "@/lib/query-options";
 import { readServerErrorMessage } from "@/lib/server-error";
 import {
 	formatOrderServiceStatus,
@@ -248,31 +246,12 @@ function QueuePage() {
 			: undefined;
 
 	const queueQuery = useInfiniteQuery({
-		queryKey: [
-			...queryKeys.orderServiceQueue({
-				store_id: parsedStoreId,
-				status: selectedStatus,
-				search: selectedSearch,
-				date_from: selectedDateFrom,
-				date_to: selectedDateTo,
-			}),
-			"infinite",
-		],
-		initialPageParam: 0,
-		queryFn: ({ pageParam }) =>
-			fetchOrderServiceQueuePage({
-				...queueQueryInput,
-				offset: pageParam,
-			}),
-		getNextPageParam: (lastPage) => {
-			const nextOffset = lastPage.meta.offset + lastPage.meta.limit;
-			return nextOffset < lastPage.meta.total ? nextOffset : undefined;
-		},
+		...ordersQueries.queue(queueQueryInput),
 		enabled: parsedStoreId !== undefined,
 	});
 
 	const countsQuery = useQuery({
-		...orderServiceQueueCountsQueryOptions(parsedStoreId),
+		...ordersQueries.queueCounts(parsedStoreId),
 		enabled: parsedStoreId !== undefined,
 	});
 

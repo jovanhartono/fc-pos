@@ -10,7 +10,7 @@ import {
 	updateOrderCourier,
 	updateOrderPayment,
 	updateOrderServiceStatus,
-} from "@/lib/api";
+} from "@/features/orders/api";
 import { onOrderMoved, onRedemptionSpent } from "@/lib/cache-events";
 
 export const useRefreshOrder = () => {

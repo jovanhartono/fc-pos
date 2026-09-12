@@ -1,11 +1,11 @@
 import { hasUnpricedLine } from "@fresclean/api/schema";
+import type { OrderDetail } from "@/features/orders/api";
 import {
 	flattenOrderLines,
 	type OrderItem,
 	type OrderLine,
 } from "@/features/orders/lib/order-lines";
 import type { Me } from "@/features/users/api";
-import type { OrderDetail } from "@/lib/api";
 
 export interface OrderActionGates {
 	isAdmin: boolean;

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { OrderReceipt } from "@/lib/api";
+import type { OrderReceipt } from "@/features/orders/api";
 import { buildReceiptEscPos } from "./build-receipt";
 import { RECEIPT_LOGO } from "./receipt-logo";
 

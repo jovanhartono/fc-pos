@@ -1,6 +1,6 @@
 import { Separator } from "@/components/ui/separator";
+import type { OrderDetail } from "@/features/orders/api";
 import { flattenOrderLines } from "@/features/orders/lib/order-lines";
-import type { OrderDetail } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { formatMoney, parseMoney } from "@/shared/money";
 
