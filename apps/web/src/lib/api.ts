@@ -51,22 +51,6 @@ export type QueueItemService = QueueItem["services"][number];
 export type PublicTrackedOrder = InferResponseType<
 	typeof rpc.api.public.orders.track.$post
 >["data"];
-export type Shift = InferResponseType<
-	typeof rpc.api.admin.shifts.$get
->["data"][number];
-export type CurrentShift = InferResponseType<
-	typeof rpc.api.admin.shifts.current.$get
->["data"];
-
-export type FetchShiftsQuery = {
-	user_id?: number;
-	store_id?: number;
-	from?: string;
-	to?: string;
-	limit?: number;
-	offset?: number;
-};
-
 export type ReportOverview = InferResponseType<
 	typeof rpc.api.admin.reports.overview.$get
 >["data"];
@@ -279,8 +263,6 @@ export const queryKeys = {
 	) => ["order-service-queue", query ?? {}] as const,
 	orderServiceQueueCounts: (storeId?: number) =>
 		["order-service-queue-counts", storeId ?? null] as const,
-	shifts: (query?: FetchShiftsQuery) => ["shifts", query ?? {}] as const,
-	shiftCurrent: ["shift-current"] as const,
 	reportOverview: (query: FetchReportOverviewQuery) =>
 		["report-overview", query] as const,
 	financial: (query: FetchReportRangeQuery) =>
@@ -576,37 +558,6 @@ export async function trackPublicOrder(payload: TrackPublicOrderPayload) {
 	return parseSuccessData<PublicTrackedOrder>(
 		rpc.api.public.orders.track.$post({ json: payload }),
 	);
-}
-
-export async function fetchCurrentShift() {
-	return parseSuccessData<CurrentShift>(
-		rpcWithAuth().api.admin.shifts.current.$get(),
-	);
-}
-
-export async function fetchShifts(
-	query?: FetchShiftsQuery,
-): Promise<PaginatedData<Shift>> {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.shifts.$get({
-			query:
-				query && Object.keys(query).length > 0
-					? toSearchParams(query)
-					: undefined,
-		}),
-	);
-
-	return toPaginated(response);
-}
-
-export async function clockInShift(payload: { store_id: number }) {
-	return parseResponse(
-		rpcWithAuth().api.admin.shifts["clock-in"].$post({ json: payload }),
-	);
-}
-
-export async function clockOutShift() {
-	return parseResponse(rpcWithAuth().api.admin.shifts["clock-out"].$post());
 }
 
 export async function fetchReportOverview(query: FetchReportOverviewQuery) {

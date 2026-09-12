@@ -8,10 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import {
+	clockInShift,
+	clockOutShift,
+	type Shift,
+	shiftsKeys,
+	shiftsQueries,
+} from "@/features/shifts/api";
 import { useCurrentShift } from "@/features/shifts/hooks/useCurrentShift";
 import { storesQueries } from "@/features/stores/api";
-import { clockInShift, clockOutShift, queryKeys, type Shift } from "@/lib/api";
-import { shiftsQueryOptions } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 
@@ -68,7 +73,7 @@ function AttendancePage() {
 
 	const weekRange = useMemo(() => currentWeekRange(), []);
 	const shiftsQuery = useQuery(
-		shiftsQueryOptions({
+		shiftsQueries.list({
 			from: weekRange.from,
 			to: weekRange.to,
 			...(user ? { user_id: user.id } : {}),
@@ -90,10 +95,7 @@ function AttendancePage() {
 	}, [stores, storeValue]);
 
 	const invalidate = () =>
-		Promise.all([
-			queryClient.invalidateQueries({ queryKey: queryKeys.shiftCurrent }),
-			queryClient.invalidateQueries({ queryKey: ["shifts"] }),
-		]);
+		queryClient.invalidateQueries({ queryKey: shiftsKeys.all });
 
 	const clockInMut = useMutation({
 		mutationKey: ["shift-clock-in"],

@@ -4,10 +4,8 @@ import {
 	type FetchOrdersQuery,
 	type FetchReportOverviewQuery,
 	type FetchReportRangeQuery,
-	type FetchShiftsQuery,
 	fetchAgingQueueReport,
 	fetchCampaignEffectivenessReport,
-	fetchCurrentShift,
 	fetchCustomerAcquisitionReport,
 	fetchFinancialReport,
 	fetchOrderDetail,
@@ -17,7 +15,6 @@ import {
 	fetchPaymentMixReport,
 	fetchRefundTrendReport,
 	fetchReportOverview,
-	fetchShifts,
 	fetchWorkerProductivityReport,
 	queryKeys,
 } from "@/lib/api";
@@ -40,18 +37,6 @@ export const orderDetailQueryOptions = (id: number) =>
 	queryOptions({
 		queryKey: queryKeys.orderDetail(id),
 		queryFn: () => fetchOrderDetail(id),
-	});
-
-export const currentShiftQueryOptions = () =>
-	queryOptions({
-		queryKey: queryKeys.shiftCurrent,
-		queryFn: fetchCurrentShift,
-	});
-
-export const shiftsQueryOptions = (query?: FetchShiftsQuery) =>
-	queryOptions({
-		queryKey: queryKeys.shifts(query),
-		queryFn: () => fetchShifts(query),
 	});
 
 export const reportOverviewQueryOptions = (query: FetchReportOverviewQuery) =>
