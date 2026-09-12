@@ -11,9 +11,7 @@ import {
 } from "@/modules/orders/order.service";
 import {
   GETMyOrderServicesQuerySchema,
-  GETOrderByItemCodeQuerySchema,
   GETOrderLookupQuerySchema,
-  GETOrderServiceByIdQuerySchema,
   GETOrderServiceQueueCountsQuerySchema,
   GETOrderServiceQueueQuerySchema,
   orderItemParamSchema,
@@ -49,9 +47,7 @@ import {
 } from "@/modules/orders/order-pickup.service";
 import { setOrderServicePrice } from "@/modules/orders/order-price.service";
 import {
-  getItemByItemCode,
   getMyOrderServices,
-  getOrderServiceById,
   getOrderServiceQueue,
   getOrderServiceQueueCounts,
   startOrderServiceWork,
@@ -136,45 +132,6 @@ const app = new Hono<OrderAccessEnv>()
       const query = c.req.valid("query");
 
       return c.json(success(await getOrderServiceQueueCounts(user, query)));
-    }
-  )
-  .get(
-    "/services/by-id",
-    zodValidator("query", GETOrderServiceByIdQuerySchema),
-    async (c) => {
-      const user = c.get("jwtPayload");
-      const { service_id } = c.req.valid("query");
-
-      const orderService = await getOrderServiceById(service_id);
-
-      if (!orderService?.order) {
-        throw new NotFoundException("Order service not found");
-      }
-
-      await assertStoreAccess(user, orderService.order.store_id);
-
-      return c.json(success(orderService));
-    }
-  )
-  // A scanned tag names an object, not a job (ADR-0017). The Item comes back
-  // with the treatments still open on it, so the caller can send a worker
-  // straight to the only one outstanding or let them pick.
-  .get(
-    "/items/by-item-code",
-    zodValidator("query", GETOrderByItemCodeQuerySchema),
-    async (c) => {
-      const user = c.get("jwtPayload");
-      const { item_code } = c.req.valid("query");
-
-      const item = await getItemByItemCode(item_code);
-
-      if (!item?.order) {
-        throw new NotFoundException("Item not found");
-      }
-
-      await assertStoreAccess(user, item.order.store_id);
-
-      return c.json(success(item));
     }
   )
   .get(

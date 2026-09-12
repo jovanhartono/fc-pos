@@ -104,17 +104,6 @@ mock.module("@/modules/orders/order-receipt.service", () => ({
 
 mock.module("@/modules/orders/order-queue.service", () => ({
   getMyOrderServices: marker("getMyOrderServices"),
-  getOrderServiceById: () => {
-    reached.push("getOrderServiceById");
-    return Promise.resolve({ order: { store_id: KEMANG } });
-  },
-  getItemByItemCode: () => {
-    reached.push("getItemByItemCode");
-    return Promise.resolve({
-      order: { store_id: KEMANG },
-      services: [],
-    });
-  },
   getOrderServiceQueue: () => {
     reached.push("getOrderServiceQueue");
     return Promise.resolve({ items: [], meta: {} });
@@ -158,7 +147,7 @@ beforeEach(() => {
 });
 
 describe("the workshop queue is not an order", () => {
-  // These four sit at /orders/services/... — the same shape as an order id. The
+  // These two sit at /orders/services/... — the same shape as an order id. The
   // rack screen is the one the workshop watches all day; treating "services" as
   // an order number takes it down.
   it("opens the rack for the workshop without asking which order 'services' is", async () => {
@@ -174,22 +163,6 @@ describe("the workshop queue is not an order", () => {
 
     expect(res.status).toBe(200);
     expect(reached).toContain("getMyOrderServices");
-    expect(orderAccessCalls).toEqual([]);
-  });
-
-  it("looks a garment up by its service id without asking which order 'services' is", async () => {
-    const res = await call("/services/by-id?service_id=5");
-
-    expect(res.status).toBe(200);
-    expect(reached).toContain("getOrderServiceById");
-    expect(orderAccessCalls).toEqual([]);
-  });
-
-  it("looks an object up by the tag stuck to it without asking which order 'items' is", async () => {
-    const res = await call("/items/by-item-code?item_code=ORD-0007-1");
-
-    expect(res.status).toBe(200);
-    expect(reached).toContain("getItemByItemCode");
     expect(orderAccessCalls).toEqual([]);
   });
 });
