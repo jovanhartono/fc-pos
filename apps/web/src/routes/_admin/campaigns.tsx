@@ -32,7 +32,7 @@ import {
 	meQueryOptions,
 	storesQueryOptions,
 } from "@/lib/query-options";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 import { useDialog } from "@/stores/dialog-store";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -134,7 +134,7 @@ function formatCampaignDiscount(campaign: Campaign) {
 		} Free`;
 	}
 
-	return formatIDRCurrency(String(campaign.discount_value));
+	return formatMoney(String(campaign.discount_value));
 }
 
 function ArchiveCampaignButton({
@@ -317,15 +317,14 @@ function CampaignsPage() {
 			{
 				accessorKey: "min_order_total",
 				header: "Min Order",
-				cell: ({ row }) =>
-					formatIDRCurrency(String(row.original.min_order_total)),
+				cell: ({ row }) => formatMoney(String(row.original.min_order_total)),
 			},
 			{
 				accessorKey: "max_discount",
 				header: "Max Discount",
 				cell: ({ row }) =>
 					row.original.max_discount
-						? formatIDRCurrency(String(row.original.max_discount))
+						? formatMoney(String(row.original.max_discount))
 						: "—",
 			},
 			{

@@ -13,7 +13,7 @@ import {
 } from "@/features/reports/utils/format";
 import type { ReportGranularity } from "@/lib/api";
 import { campaignEffectivenessQueryOptions } from "@/lib/query-options";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 interface CampaignsPanelProps {
 	from: string;
@@ -76,11 +76,11 @@ export const CampaignsPanel = ({
 					/>
 					<KpiCard
 						label="Revenue attributed"
-						value={formatIDRCurrency(String(totalRevenue))}
+						value={formatMoney(String(totalRevenue))}
 					/>
 					<KpiCard
 						label="Discount cost"
-						value={formatIDRCurrency(String(totalDiscount))}
+						value={formatMoney(String(totalDiscount))}
 						helper={`ROI ${roi.toFixed(2)}×`}
 					/>
 				</KpiRow>
@@ -129,9 +129,9 @@ export const CampaignsPanel = ({
 											/>
 										</div>
 										<div className="flex items-center justify-between font-mono text-[11px] tabular-nums text-muted-foreground">
-											<span>{formatIDRCurrency(String(c.revenue))}</span>
+											<span>{formatMoney(String(c.revenue))}</span>
 											<span>
-												{`discount ${formatIDRCurrency(String(c.discount_cost))} · ${percentFormatter.format(discountRate)}`}
+												{`discount ${formatMoney(String(c.discount_cost))} · ${percentFormatter.format(discountRate)}`}
 											</span>
 										</div>
 									</div>

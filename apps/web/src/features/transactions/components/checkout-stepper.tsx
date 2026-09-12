@@ -1,15 +1,9 @@
 import { CheckIcon } from "@phosphor-icons/react";
+import {
+	CHECKOUT_STEPS,
+	type CheckoutStep,
+} from "@/features/transactions/lib/checkout-steps";
 import { cn } from "@/lib/utils";
-
-export type CheckoutStep = "customer" | "items" | "payment";
-
-// Single source of step order — the orchestrator derives next/back navigation
-// and the footer derives its gates from this list.
-export const CHECKOUT_STEPS: { key: CheckoutStep; label: string }[] = [
-	{ key: "customer", label: "Customer" },
-	{ key: "items", label: "Items" },
-	{ key: "payment", label: "Payment" },
-];
 
 interface CheckoutStepperProps {
 	current: CheckoutStep;
