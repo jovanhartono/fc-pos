@@ -3,7 +3,7 @@ import {
 	addComplaintRework,
 	type OpenComplaintPayload,
 	openComplaint,
-} from "@/lib/api";
+} from "@/features/complaints/api";
 import { onLineAdded } from "@/lib/cache-events";
 
 export const useOpenComplaintMutation = () => {

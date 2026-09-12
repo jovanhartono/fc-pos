@@ -36,24 +36,6 @@ export type OrderDetail = InferResponseType<
 export type OrderReceipt = InferResponseType<
 	(typeof rpc.api.admin.orders)[":id"]["receipt"]["$get"]
 >["data"];
-export type ComplaintListItem = InferResponseType<
-	typeof rpc.api.admin.complaints.$get
->["data"][number];
-export type ComplaintDetail = InferResponseType<
-	(typeof rpc.api.admin.complaints)[":id"]["$get"]
->["data"];
-export type FetchComplaintsQuery = {
-	store_id?: number;
-	search?: string;
-	limit?: number;
-	offset?: number;
-};
-
-export type OpenComplaintPayload = {
-	order_service_id: number;
-	reason: string;
-	start_rework?: boolean;
-};
 // A scanned tag resolves to the object, not to one job on it (ADR-0017).
 export type ItemLookup = InferResponseType<
 	(typeof rpc.api.admin.orders.items)["by-item-code"]["$get"]
@@ -287,9 +269,6 @@ export type CancelOrderPayload = {
 export const queryKeys = {
 	orders: (query?: FetchOrdersQuery) => ["orders", query ?? {}] as const,
 	orderDetail: (id: number) => ["order-detail", id] as const,
-	complaints: (query?: FetchComplaintsQuery) =>
-		["complaints", query ?? {}] as const,
-	complaintDetail: (id: number) => ["complaint-detail", id] as const,
 	orderServiceLookup: (itemCode: string) =>
 		["order-service-lookup", itemCode] as const,
 	orderServiceQueue: (
@@ -448,43 +427,6 @@ export async function updateOrderCourier(
 		rpcWithAuth().api.admin.orders[":id"].courier.$patch({
 			param: { id: String(orderId) },
 			json: payload,
-		}),
-	);
-}
-
-export async function fetchComplaintsPage(
-	query?: FetchComplaintsQuery,
-): Promise<PaginatedData<ComplaintListItem>> {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.complaints.$get({
-			query:
-				query && Object.keys(query).length > 0
-					? toSearchParams(query)
-					: undefined,
-		}),
-	);
-
-	return toPaginated(response);
-}
-
-export function fetchComplaintDetail(id: number) {
-	return parseSuccessData<ComplaintDetail>(
-		rpcWithAuth().api.admin.complaints[":id"].$get({
-			param: { id: String(id) },
-		}),
-	);
-}
-
-export async function openComplaint(payload: OpenComplaintPayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin.complaints.$post({ json: payload }),
-	);
-}
-
-export async function addComplaintRework(complaintId: number) {
-	return parseResponse(
-		rpcWithAuth().api.admin.complaints[":id"].rework.$post({
-			param: { id: String(complaintId) },
 		}),
 	);
 }

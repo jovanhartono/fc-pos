@@ -7,9 +7,9 @@ import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { complaintsQueries } from "@/features/complaints/api";
 import { useAddReworkMutation } from "@/features/complaints/hooks/useComplaintMutations";
 import { getComplaintOutcome } from "@/features/complaints/lib/format";
-import { complaintDetailQueryOptions } from "@/lib/query-options";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
@@ -33,7 +33,7 @@ const ComplaintDetailPage = () => {
 	const { complaintId } = Route.useParams();
 	const id = Number(complaintId);
 
-	const complaintQuery = useQuery(complaintDetailQueryOptions(id));
+	const complaintQuery = useQuery(complaintsQueries.detail(id));
 
 	// 0 until data loads; the rework button only renders after the guard below.
 	const reworkMutation = useAddReworkMutation(id);
@@ -182,7 +182,7 @@ export const Route = createFileRoute("/_admin/complaints/$complaintId")({
 			return;
 		}
 
-		await context.queryClient.ensureQueryData(complaintDetailQueryOptions(id));
+		await context.queryClient.ensureQueryData(complaintsQueries.detail(id));
 	},
 	component: ComplaintDetailPage,
 });
