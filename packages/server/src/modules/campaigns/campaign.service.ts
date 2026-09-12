@@ -1,3 +1,4 @@
+import type { DbExecutor } from "@/db";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import {
   deleteCampaignById,
@@ -82,10 +83,11 @@ export async function getCampaignById(id: number) {
 // response shape can carry it and no caller has to remember to strip it;
 // createOrder pairs the two to claim the code inside the order transaction.
 export async function resolveVoucherCode(
+  executor: DbExecutor,
   code: string,
   ctx: { storeId: number; storeCode: string; grossTotal: number }
 ) {
-  const row = await findCampaignByCode(code);
+  const row = await findCampaignByCode(executor, code);
 
   if (!row) {
     throw new BadRequestException(`Voucher code not found: ${code}`);
@@ -311,18 +313,24 @@ export function assertCampaignUsable(
   }
 }
 
-export async function getUsableCampaigns({
-  campaignIds,
-  grossTotal,
-  storeId,
-  storeCode,
-}: {
-  campaignIds: number[];
-  grossTotal: number;
-  storeId: number;
-  storeCode: string;
-}) {
-  const campaigns = await findCampaignsByIdsWithEligibility(campaignIds);
+export async function getUsableCampaigns(
+  executor: DbExecutor,
+  {
+    campaignIds,
+    grossTotal,
+    storeId,
+    storeCode,
+  }: {
+    campaignIds: number[];
+    grossTotal: number;
+    storeId: number;
+    storeCode: string;
+  }
+) {
+  const campaigns = await findCampaignsByIdsWithEligibility(
+    executor,
+    campaignIds
+  );
 
   // Missing-id check FIRST so "not found" wins over "wrong mode".
   const foundIds = new Set(campaigns.map((item) => item.id));

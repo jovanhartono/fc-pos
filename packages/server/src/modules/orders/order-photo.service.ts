@@ -6,7 +6,6 @@ import {
   ForbiddenException,
   NotFoundException,
 } from "@/http-exceptions";
-import { softDeleteItemImageById } from "@/modules/item-images/item-image.repository";
 import { getItemOrThrow } from "@/modules/orders/order.repository";
 import type {
   PostItemPhotoInput,
@@ -15,16 +14,20 @@ import type {
   PostPhotoDownloadUrlInput,
   PutOrderDropoffPhotoInput,
 } from "@/modules/orders/order-admin.schema";
-import { findPhotoById } from "@/modules/orders/order-photo-download.repository";
+import {
+  findPhotoById,
+  softDeleteItemImageById,
+} from "@/modules/orders/order-photo.repository";
 import type { JWTPayload } from "@/types";
 import { assertStoreAccess } from "@/utils/authorization";
 import {
+  assertPhotoKeyUnder,
   buildMediaUrl,
   createPresignedDownloadUrl,
   createPresignedUploadUrl,
   isStoredObjectReadable,
+  newPhotoKey,
   optimizeUploadedImage,
-  STORAGE_ENV_PREFIX,
 } from "@/utils/s3";
 
 // Item photos are keyed by the object, not the treatment (ADR-0019). Photos
@@ -41,7 +44,7 @@ export async function createItemPhotoPresign({
 }) {
   await getItemOrThrow(orderId, itemId);
 
-  const key = `${STORAGE_ENV_PREFIX}orders/${orderId}/items/${itemId}/${crypto.randomUUID()}`;
+  const key = newPhotoKey({ itemId, kind: "item", orderId });
   return createPresignedUploadUrl({
     contentType: body.content_type,
     key,
@@ -64,7 +67,7 @@ export async function createOrderDropoffPhotoPresign({
     throw new BadRequestException("Order not found");
   }
 
-  const key = `${STORAGE_ENV_PREFIX}orders/${orderId}/dropoff/${crypto.randomUUID()}`;
+  const key = newPhotoKey({ kind: "dropoff", orderId });
   return createPresignedUploadUrl({
     contentType: body.content_type,
     key,
@@ -84,13 +87,7 @@ export async function saveItemPhoto({
 }) {
   await getItemOrThrow(orderId, itemId);
 
-  if (
-    !body.image_path.startsWith(
-      `${STORAGE_ENV_PREFIX}orders/${orderId}/items/${itemId}/`
-    )
-  ) {
-    throw new BadRequestException("Invalid image path");
-  }
+  assertPhotoKeyUnder(body.image_path, { itemId, kind: "item", orderId });
 
   await optimizeUploadedImage(body.image_path);
 
@@ -159,13 +156,7 @@ export async function saveOrderDropoffPhoto({
   body: PutOrderDropoffPhotoInput;
   user: JWTPayload;
 }) {
-  if (
-    !body.image_path.startsWith(
-      `${STORAGE_ENV_PREFIX}orders/${orderId}/dropoff/`
-    )
-  ) {
-    throw new BadRequestException("Invalid image path");
-  }
+  assertPhotoKeyUnder(body.image_path, { kind: "dropoff", orderId });
 
   await optimizeUploadedImage(body.image_path);
 

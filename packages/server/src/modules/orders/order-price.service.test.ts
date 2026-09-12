@@ -35,10 +35,25 @@ const state = {
   voidCalls: [] as { orderId: number; billableTotal: number }[],
 };
 
+// Both gate reads and the post-rollup re-read run on the transaction handle, so
+// a payment committing mid-pricing cannot slip between them. The order read
+// answers the paid gate first and the settled-promo re-check afterwards.
 const TX = {
   query: {
     ordersTable: {
-      findFirst: () => Promise.resolve({ total: state.postRollupTotal }),
+      findFirst: () =>
+        Promise.resolve(
+          state.orderPaymentStatus === undefined
+            ? undefined
+            : {
+                payment_status: state.orderPaymentStatus,
+                status: "processing",
+                total: state.postRollupTotal,
+              }
+        ),
+    },
+    ordersServicesTable: {
+      findFirst: () => Promise.resolve(state.line),
     },
   },
   update: (_table: unknown) => ({
@@ -65,52 +80,9 @@ const TX = {
   }),
 };
 
-// Real repositories create prepared statements at import time, so the fake db
-// must let any db.query.<table>.findFirst chain into .prepare() — and still
-// resolve when awaited (the paid gate reads the order this way).
-const relationalQuery = (first: () => unknown) => ({
-  findFirst: () =>
-    Object.assign(Promise.resolve().then(first), {
-      prepare: () => ({ execute: () => Promise.resolve(undefined) }),
-    }),
-  findMany: () =>
-    Object.assign(Promise.resolve([] as unknown[]), {
-      prepare: () => ({ execute: () => Promise.resolve([]) }),
-    }),
-});
-
 mock.module("@/db", () => ({
   db: {
     transaction: (cb: (tx: unknown) => unknown) => cb(TX),
-    query: new Proxy(
-      {},
-      {
-        get: (_target, tableName) =>
-          relationalQuery(() =>
-            tableName === "ordersTable" &&
-            state.orderPaymentStatus !== undefined
-              ? { payment_status: state.orderPaymentStatus }
-              : undefined
-          ),
-      }
-    ),
-  },
-}));
-
-// The repository is doubled, not the prepared statement under it — real
-// repositories bind their prepared queries to whatever "@/db" existed at
-// import time, which in a shared test process is another file's double.
-const actualOrderRepository = {
-  ...(await import("@/modules/orders/order.repository")),
-};
-
-mock.module("@/modules/orders/order.repository", () => ({
-  ...actualOrderRepository,
-  getOrderServiceOrThrow: (_orderId: number, _serviceId: number) => {
-    if (!state.line) {
-      throw new BadRequestException("Order service not found for this order");
-    }
-    return Promise.resolve(state.line);
   },
 }));
 
@@ -152,7 +124,6 @@ const { setOrderServicePrice } = await import(
 );
 
 afterAll(() => {
-  mock.module("@/modules/orders/order.repository", () => actualOrderRepository);
   mock.module(
     "@/modules/orders/order-status-machine",
     () => actualStatusMachine

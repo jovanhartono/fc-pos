@@ -7,20 +7,17 @@ import {
   ordersTable,
 } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
-import {
-  releaseRedemptions,
-  voidCampaignsBelowMinimum,
-} from "@/modules/campaigns/campaign-redemption.service";
 import type { OrderTx } from "@/modules/orders/order.repository";
 import type {
   PostOrderCancelInput,
   PostOrderRefundInput,
 } from "@/modules/orders/order-admin.schema";
+import { getOrderStateOrThrow } from "@/modules/orders/order-read.repository";
+import { revalidateSettledPromo } from "@/modules/orders/order-settlement.service";
 import {
   applyRefundTransition,
+  cancelOrderServices,
   type DbExecutor,
-  recomputeOrderRollup,
-  transitionOrderService,
 } from "@/modules/orders/order-status-machine";
 import {
   assertCanCancelOrderService,
@@ -373,14 +370,7 @@ export async function cancelOrder({
     );
   }
 
-  const order = await db.query.ordersTable.findFirst({
-    where: { id: orderId },
-    columns: { id: true, status: true, payment_status: true },
-  });
-
-  if (!order) {
-    throw new BadRequestException("Order not found");
-  }
+  const order = await getOrderStateOrThrow(db, orderId);
 
   assertCanCancelOrderService(user, order);
 
@@ -425,46 +415,25 @@ export async function cancelOrder({
   }
 
   await db.transaction(async (tx) => {
-    for (const line of serviceLines) {
-      await transitionOrderService(tx, {
-        orderId,
-        serviceId: line.id,
-        to: "cancelled",
+    if (serviceLines.length > 0) {
+      await cancelOrderServices(tx, {
         by: user.id,
-        cancelReason: line.reason,
-        cancelNote: line.note ?? null,
-        note: line.note ?? line.reason,
+        lines: serviceLines.map((line) => ({
+          note: line.note,
+          reason: line.reason,
+          serviceId: line.id,
+        })),
+        orderId,
       });
     }
 
     await cancelProductLines(tx, productLines, productRowById);
 
-    // Service cancels recompute inside transitionOrderService; product-only
-    // cancels need an explicit recompute to fold product states into the rollup.
-    if (productLines.length > 0) {
-      await recomputeOrderRollup(tx, orderId, user.id);
-    }
-
-    // Release campaign redemptions if this cancel fully closed the order
-    // (ADR-0015). Gate on the pre-loaded status: avoids double-release when
-    // re-cancelling an already-cancelled order. Single site covers both
-    // service-only and product cancels.
+    // Gate on the pre-loaded status: an Order voided once already handed its
+    // redemptions back, and releasing them again would mint the customer a
+    // second free voucher use (ADR-0015).
     if (order.status !== "cancelled") {
-      const updated = await tx.query.ordersTable.findFirst({
-        where: { id: orderId },
-        columns: { status: true, total: true, payment_status: true },
-      });
-      if (updated?.status === "cancelled") {
-        await releaseRedemptions(tx, orderId);
-      } else if (updated?.payment_status === "unpaid") {
-        // Partial cancel on an unpaid Order: the promo may have settled at
-        // drop-off, so what is left has to still qualify for it.
-        await voidCampaignsBelowMinimum(
-          tx,
-          orderId,
-          Number(updated.total ?? 0)
-        );
-      }
+      await revalidateSettledPromo(tx, orderId, user.id);
     }
   });
 

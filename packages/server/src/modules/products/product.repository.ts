@@ -4,15 +4,30 @@ import { db } from "@/db";
 import { productsTable } from "@/db/schema";
 import type { OrderTx } from "@/modules/orders/order.repository";
 
-export function decrementProductStock(
+// The whole basket in one statement. Each product keeps its own guard, so a
+// shelf that cannot cover one line leaves that row untouched and out of the
+// returned ids — which is how the caller knows what to hand back.
+export function decrementProductsStock(
   tx: OrderTx,
-  productId: number,
-  qty: number
+  entries: { productId: number; qty: number }[]
 ) {
+  const wanted = sql.join(
+    entries.map(
+      (entry) => sql`(${entry.productId}::integer, ${entry.qty}::integer)`
+    ),
+    sql`, `
+  );
+
   return tx
     .update(productsTable)
-    .set({ stock: sql`${productsTable.stock} - ${qty}` })
-    .where(and(eq(productsTable.id, productId), gte(productsTable.stock, qty)))
+    .set({ stock: sql`${productsTable.stock} - wanted.qty` })
+    .from(sql`(values ${wanted}) as wanted(product_id, qty)`)
+    .where(
+      and(
+        eq(productsTable.id, sql`wanted.product_id`),
+        gte(productsTable.stock, sql`wanted.qty`)
+      )
+    )
     .returning({ id: productsTable.id });
 }
 
