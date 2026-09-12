@@ -29,6 +29,7 @@ import { useOrderPaymentMutation } from "@/features/orders/hooks/useOrderMutatio
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
 import { flattenOrderLines } from "@/features/orders/lib/order-lines";
+import { paymentMethodsQueries } from "@/features/payment-methods/api";
 import {
 	type AppliedVoucher,
 	getCartPricing,
@@ -37,10 +38,7 @@ import { CampaignTileGroup } from "@/features/transactions/components/campaign-t
 import { VoucherCodeEntry } from "@/features/transactions/components/voucher-code-entry";
 import { filterEligibleCampaigns } from "@/features/transactions/lib/campaign-eligibility";
 import type { OrderDetail } from "@/lib/api";
-import {
-	campaignsQueryOptions,
-	paymentMethodsQueryOptions,
-} from "@/lib/query-options";
+import { campaignsQueryOptions } from "@/lib/query-options";
 import { formatMoney, parseMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -172,7 +170,7 @@ const paymentMethodSchema = z.object({
 // context so neither form threads control/errors down to it.
 const PaymentMethodField = () => {
 	const { control } = useFormContext<z.infer<typeof paymentMethodSchema>>();
-	const paymentMethodsQuery = useQuery(paymentMethodsQueryOptions());
+	const paymentMethodsQuery = useQuery(paymentMethodsQueries.list());
 	const paymentMethods = Array.isArray(paymentMethodsQuery.data)
 		? paymentMethodsQuery.data
 		: [];

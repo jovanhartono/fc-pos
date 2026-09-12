@@ -8,97 +8,34 @@ import {
 	type FetchReportOverviewQuery,
 	type FetchReportRangeQuery,
 	type FetchShiftsQuery,
-	type FetchUsersQuery,
 	fetchAgingQueueReport,
 	fetchCampaignEffectivenessReport,
 	fetchCampaigns,
 	fetchCampaignVoucherCodes,
-	fetchCategories,
 	fetchComplaintDetail,
 	fetchComplaintsPage,
 	fetchCurrentShift,
 	fetchCustomerAcquisitionReport,
 	fetchCustomersPage,
 	fetchFinancialReport,
-	fetchMe,
 	fetchOrderDetail,
 	fetchOrderServiceQueueCounts,
 	fetchOrdersFlowReport,
 	fetchOrdersPage,
-	fetchPaymentMethods,
 	fetchPaymentMixReport,
-	fetchProducts,
 	fetchRefundTrendReport,
 	fetchReportOverview,
-	fetchServices,
 	fetchShifts,
-	fetchStoreDevices,
-	fetchStores,
-	fetchUsersPage,
 	fetchWorkerProductivityReport,
 	queryKeys,
 } from "@/lib/api";
 
-const REFERENCE_DATA_STALE_TIME = 5 * 60 * 1000;
 const REPORT_STALE_TIME = 60_000;
 
 export const customersPageQueryOptions = (query?: FetchCustomersQuery) =>
 	queryOptions({
 		queryKey: queryKeys.customers(query),
 		queryFn: () => fetchCustomersPage(query),
-	});
-
-export const usersPageQueryOptions = (query?: FetchUsersQuery) =>
-	queryOptions({
-		queryKey: queryKeys.users(query),
-		queryFn: () => fetchUsersPage(query),
-	});
-
-export const meQueryOptions = () =>
-	queryOptions({
-		queryKey: queryKeys.me,
-		queryFn: fetchMe,
-	});
-
-export const storesQueryOptions = () =>
-	queryOptions({
-		queryKey: queryKeys.stores,
-		queryFn: fetchStores,
-		staleTime: REFERENCE_DATA_STALE_TIME,
-	});
-
-export const storeDevicesQueryOptions = (storeId: number) =>
-	queryOptions({
-		queryKey: queryKeys.storeDevices(storeId),
-		queryFn: () => fetchStoreDevices(storeId),
-	});
-
-export const categoriesQueryOptions = () =>
-	queryOptions({
-		queryKey: queryKeys.categories,
-		queryFn: fetchCategories,
-		staleTime: REFERENCE_DATA_STALE_TIME,
-	});
-
-export const servicesQueryOptions = () =>
-	queryOptions({
-		queryKey: queryKeys.services,
-		queryFn: fetchServices,
-		staleTime: REFERENCE_DATA_STALE_TIME,
-	});
-
-export const productsQueryOptions = () =>
-	queryOptions({
-		queryKey: queryKeys.products,
-		queryFn: fetchProducts,
-		staleTime: REFERENCE_DATA_STALE_TIME,
-	});
-
-export const paymentMethodsQueryOptions = () =>
-	queryOptions({
-		queryKey: queryKeys.paymentMethods,
-		queryFn: fetchPaymentMethods,
-		staleTime: REFERENCE_DATA_STALE_TIME,
 	});
 
 export const ordersPageQueryOptions = (query?: FetchOrdersQuery) =>

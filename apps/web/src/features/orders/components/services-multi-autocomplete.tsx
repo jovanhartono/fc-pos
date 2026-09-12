@@ -10,7 +10,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import { servicesQueryOptions } from "@/lib/query-options";
+import { servicesQueries } from "@/features/services/api";
 import { cn } from "@/lib/utils";
 
 interface ServicesMultiAutocompleteProps {
@@ -34,7 +34,7 @@ export const ServicesMultiAutocomplete = ({
 }: ServicesMultiAutocompleteProps) => {
 	const [isOpen, setIsOpen] = useState(false);
 
-	const servicesQuery = useQuery(servicesQueryOptions());
+	const servicesQuery = useQuery(servicesQueries.list());
 
 	const services = servicesQuery.data ?? [];
 

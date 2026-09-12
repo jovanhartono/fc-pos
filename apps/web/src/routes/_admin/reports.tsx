@@ -9,6 +9,7 @@ import {
 	type ReportTab,
 } from "@/features/reports/components/report-shell";
 import { defaultRange } from "@/features/reports/utils/report-filters";
+import { storesQueries } from "@/features/stores/api";
 import type { ReportGranularity } from "@/lib/api";
 import {
 	agingQueueQueryOptions,
@@ -19,7 +20,6 @@ import {
 	paymentMixQueryOptions,
 	refundTrendQueryOptions,
 	reportOverviewQueryOptions,
-	storesQueryOptions,
 	workerProductivityQueryOptions,
 } from "@/lib/query-options";
 import { jakartaToday } from "@/shared/date-presets";
@@ -153,7 +153,7 @@ export const Route = createFileRoute("/_admin/reports")({
 	loaderDeps: ({ search }) => search,
 	loader: ({ context, deps }) =>
 		Promise.all([
-			context.queryClient.ensureQueryData(storesQueryOptions()),
+			context.queryClient.ensureQueryData(storesQueries.list()),
 			prefetchForTab(context.queryClient, deps),
 		]),
 	component: ReportsPage,

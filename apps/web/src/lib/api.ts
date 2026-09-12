@@ -1,19 +1,11 @@
 import type {
 	CampaignPayloadSchema,
 	CampaignUpdatePayloadSchema,
-	POSTCategorySchema,
 	POSTCustomerSchema,
 	POSTOrderPickupEventPresignSchema,
 	POSTOrderPickupEventSchema,
 	POSTOrderSchema,
-	POSTPaymentMethodSchema,
-	POSTProductSchema,
-	POSTServiceSchema,
-	POSTStoreDeviceSchema,
-	POSTStoreSchema,
-	POSTUserSchema,
 	PUTCustomerSchema,
-	PUTUserSchema,
 } from "@fresclean/api/schema";
 import type {
 	ComparableSummary,
@@ -44,24 +36,6 @@ export type Customer = InferResponseType<
 export type CustomerLookup = InferResponseType<
 	typeof rpc.api.admin.customers.lookup.$get
 >["data"];
-export type User = InferResponseType<
-	typeof rpc.api.admin.users.$get
->["data"][number];
-export type Store = InferResponseType<
-	typeof rpc.api.admin.stores.$get
->["data"][number];
-export type Category = InferResponseType<
-	typeof rpc.api.admin.categories.$get
->["data"][number];
-export type Service = InferResponseType<
-	typeof rpc.api.admin.services.$get
->["data"][number];
-export type Product = InferResponseType<
-	typeof rpc.api.admin.products.$get
->["data"][number];
-export type PaymentMethod = InferResponseType<
-	(typeof rpc.api.admin)["payment-methods"]["$get"]
->["data"][number];
 export type Order = InferResponseType<
 	typeof rpc.api.admin.orders.$get
 >["data"][number];
@@ -200,26 +174,6 @@ export type CreateCustomerPayload = Omit<
 	origin_store_id?: number;
 };
 export type UpdateCustomerPayload = z.infer<typeof PUTCustomerSchema>;
-export type CreateUserPayload = z.infer<typeof POSTUserSchema>;
-export type UpdateUserPayload = z.infer<typeof PUTUserSchema>;
-export type CreateStorePayload = z.infer<typeof POSTStoreSchema>;
-export type UpdateStorePayload = z.infer<typeof POSTStoreSchema>;
-export type RegisterStoreDevicePayload = z.infer<typeof POSTStoreDeviceSchema>;
-export type CreateCategoryPayload = z.infer<typeof POSTCategorySchema>;
-export type UpdateCategoryPayload = z.infer<typeof POSTCategorySchema>;
-// Money crosses the wire as the digit string the currency field produced; the
-// server is what turns it into a number. So these payloads are the schemas'
-// input side, not their parsed output.
-export type CreateServicePayload = z.input<typeof POSTServiceSchema>;
-export type UpdateServicePayload = z.input<typeof POSTServiceSchema>;
-export type CreateProductPayload = z.input<typeof POSTProductSchema>;
-export type UpdateProductPayload = z.input<typeof POSTProductSchema>;
-export type CreatePaymentMethodPayload = z.infer<
-	typeof POSTPaymentMethodSchema
->;
-export type UpdatePaymentMethodPayload = z.infer<
-	typeof POSTPaymentMethodSchema
->;
 export type CreateOrderPayload = z.input<typeof POSTOrderSchema> & {
 	voucher_codes: string[];
 };
@@ -268,14 +222,6 @@ export type FetchCustomersQuery = {
 	limit?: number;
 	offset?: number;
 	search?: string;
-};
-
-export type FetchUsersQuery = {
-	limit?: number;
-	offset?: number;
-	search?: string;
-	is_active?: boolean;
-	role?: "admin" | "cashier" | "worker" | "courier";
 };
 
 export type FetchCampaignsQuery = {
@@ -380,21 +326,9 @@ export type CancelOrderPayload = {
 	>;
 };
 
-export type UpdateUserStoresPayload = {
-	store_ids: number[];
-};
-
 export const queryKeys = {
 	customers: (query?: FetchCustomersQuery) =>
 		["customers", query ?? {}] as const,
-	users: (query?: FetchUsersQuery) => ["users", query ?? {}] as const,
-	me: ["me"] as const,
-	stores: ["stores"] as const,
-	storeDevices: (storeId: number) => ["stores", storeId, "devices"] as const,
-	categories: ["categories"] as const,
-	services: ["services"] as const,
-	products: ["products"] as const,
-	paymentMethods: ["payment-methods"] as const,
 	orders: (query?: FetchOrdersQuery) => ["orders", query ?? {}] as const,
 	orderDetail: (id: number) => ["order-detail", id] as const,
 	campaigns: (query?: FetchCampaignsQuery) =>
@@ -470,56 +404,6 @@ export function fetchCustomerByPhone(phone: string): Promise<CustomerLookup> {
 	return parseSuccessData<CustomerLookup>(
 		rpcWithAuth().api.admin.customers.lookup.$get({ query: { phone } }),
 	);
-}
-
-export async function fetchUsersPage(
-	query?: FetchUsersQuery,
-): Promise<PaginatedData<User>> {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.users.$get({
-			query:
-				query && Object.keys(query).length > 0
-					? toSearchParams(query)
-					: undefined,
-		}),
-	);
-
-	return toPaginated(response);
-}
-
-export type Me = InferResponseType<typeof rpc.api.admin.users.me.$get>["data"];
-
-export async function fetchMe() {
-	return parseSuccessData<Me>(rpcWithAuth().api.admin.users.me.$get());
-}
-
-export async function fetchStores() {
-	const response = await parseResponse(rpcWithAuth().api.admin.stores.$get());
-	return response.data;
-}
-
-export async function fetchCategories() {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.categories.$get(),
-	);
-	return response.data;
-}
-
-export async function fetchServices() {
-	const response = await parseResponse(rpcWithAuth().api.admin.services.$get());
-	return response.data;
-}
-
-export async function fetchProducts() {
-	const response = await parseResponse(rpcWithAuth().api.admin.products.$get());
-	return response.data;
-}
-
-export async function fetchPaymentMethods() {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin["payment-methods"].$get(),
-	);
-	return response.data;
 }
 
 export async function fetchOrdersPage(
@@ -605,142 +489,6 @@ export async function updateCustomer(
 ) {
 	return parseResponse(
 		rpcWithAuth().api.admin.customers[":id"].$put({
-			param: { id: String(id) },
-			json: payload,
-		}),
-	);
-}
-
-export async function createUser(payload: CreateUserPayload) {
-	return parseResponse(rpcWithAuth().api.admin.users.$post({ json: payload }));
-}
-
-export async function updateUser(id: number, payload: UpdateUserPayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin.users[":id"].$put({
-			param: { id: String(id) },
-			json: payload,
-		}),
-	);
-}
-
-export async function updateUserStores(
-	id: number,
-	payload: UpdateUserStoresPayload,
-) {
-	return parseResponse(
-		rpcWithAuth().api.admin.users[":id"].stores.$put({
-			param: { id: String(id) },
-			json: payload,
-		}),
-	);
-}
-
-export async function createStore(payload: CreateStorePayload) {
-	return parseResponse(rpcWithAuth().api.admin.stores.$post({ json: payload }));
-}
-
-export async function updateStore(id: number, payload: UpdateStorePayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin.stores[":id"].$put({
-			param: { id: String(id) },
-			json: payload,
-		}),
-	);
-}
-
-export type StoreDevice = InferResponseType<
-	(typeof rpc.api.admin.stores)[":id"]["devices"]["$get"]
->["data"][number];
-
-export async function fetchStoreDevices(storeId: number) {
-	return parseSuccessData<StoreDevice[]>(
-		rpcWithAuth().api.admin.stores[":id"].devices.$get({
-			param: { id: String(storeId) },
-		}),
-	);
-}
-
-export async function registerStoreDevice(
-	storeId: number,
-	payload: RegisterStoreDevicePayload,
-) {
-	return parseResponse(
-		rpcWithAuth().api.admin.stores[":id"].devices.$post({
-			param: { id: String(storeId) },
-			json: payload,
-		}),
-	);
-}
-
-export async function deleteStoreDevice(storeId: number, deviceId: number) {
-	return parseResponse(
-		rpcWithAuth().api.admin.stores[":id"].devices[":deviceId"].$delete({
-			param: { id: String(storeId), deviceId: String(deviceId) },
-		}),
-	);
-}
-
-export async function createCategory(payload: CreateCategoryPayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin.categories.$post({ json: payload }),
-	);
-}
-
-export async function updateCategory(
-	id: number,
-	payload: UpdateCategoryPayload,
-) {
-	return parseResponse(
-		rpcWithAuth().api.admin.categories[":id"].$put({
-			param: { id: String(id) },
-			json: payload,
-		}),
-	);
-}
-
-export async function createService(payload: CreateServicePayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin.services.$post({ json: payload }),
-	);
-}
-
-export async function updateService(id: number, payload: UpdateServicePayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin.services[":id"].$put({
-			param: { id: String(id) },
-			json: payload,
-		}),
-	);
-}
-
-export async function createProduct(payload: CreateProductPayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin.products.$post({ json: payload }),
-	);
-}
-
-export async function updateProduct(id: number, payload: UpdateProductPayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin.products[":id"].$put({
-			param: { id: String(id) },
-			json: payload,
-		}),
-	);
-}
-
-export async function createPaymentMethod(payload: CreatePaymentMethodPayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin["payment-methods"].$post({ json: payload }),
-	);
-}
-
-export async function updatePaymentMethod(
-	id: number,
-	payload: UpdatePaymentMethodPayload,
-) {
-	return parseResponse(
-		rpcWithAuth().api.admin["payment-methods"][":id"].$put({
 			param: { id: String(id) },
 			json: payload,
 		}),

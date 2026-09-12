@@ -7,12 +7,9 @@ import {
 	stackCampaignDiscounts,
 } from "@fresclean/api/schema";
 import type { UseFormReturn } from "react-hook-form";
-import type {
-	CreateOrderPayload,
-	Product,
-	ResolvedVoucher,
-	Service,
-} from "@/lib/api";
+import type { Product } from "@/features/products/api";
+import type { Service } from "@/features/services/api";
+import type { CreateOrderPayload, ResolvedVoucher } from "@/lib/api";
 import { parseMoney } from "@/shared/money";
 
 export type ProductCartLine = {

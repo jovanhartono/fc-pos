@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { useCurrentShift } from "@/features/shifts/hooks/useCurrentShift";
-import { clockInShift, clockOutShift, queryKeys, type Store } from "@/lib/api";
+import type { Store } from "@/features/stores/api";
+import { clockInShift, clockOutShift, queryKeys } from "@/lib/api";
 
 const formatElapsed = (start: Date, now: Date) => {
 	const ms = Math.max(0, now.getTime() - start.getTime());

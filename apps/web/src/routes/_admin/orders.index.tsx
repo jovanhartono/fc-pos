@@ -19,12 +19,10 @@ import {
 } from "@/features/orders/components/order-filters";
 import { PaymentStatusBadge } from "@/features/orders/components/payment-status-badge";
 import { PickupRadar } from "@/features/orders/components/pickup-radar";
+import { storesQueries } from "@/features/stores/api";
+import { usersQueries } from "@/features/users/api";
 import type { FetchOrdersQuery, Order } from "@/lib/api";
-import {
-	meQueryOptions,
-	ordersPageQueryOptions,
-	storesQueryOptions,
-} from "@/lib/query-options";
+import { ordersPageQueryOptions } from "@/lib/query-options";
 import {
 	formatOrderStatus,
 	formatRefundStatus,
@@ -78,7 +76,7 @@ export const Route = createFileRoute("/_admin/orders/")({
 		const currentUser = getCurrentUser();
 		// DB-fresh role — JWT claim goes stale on mid-session role changes.
 		const mePromise = currentUser
-			? context.queryClient.ensureQueryData(meQueryOptions())
+			? context.queryClient.ensureQueryData(usersQueries.me())
 			: undefined;
 		const ensureOrders = () =>
 			context.queryClient.ensureQueryData(
@@ -86,7 +84,7 @@ export const Route = createFileRoute("/_admin/orders/")({
 			);
 
 		await Promise.all([
-			context.queryClient.ensureQueryData(storesQueryOptions()),
+			context.queryClient.ensureQueryData(storesQueries.list()),
 			mePromise,
 			// A storeId in the URL already satisfies the fetch gate.
 			deps.storeId !== undefined ? ensureOrders() : undefined,
@@ -106,9 +104,9 @@ function OrdersPage() {
 	const currentUser = getCurrentUser();
 	const search = Route.useSearch();
 
-	const storesQuery = useQuery(storesQueryOptions());
+	const storesQuery = useQuery(storesQueries.list());
 	const meQuery = useQuery({
-		...meQueryOptions(),
+		...usersQueries.me(),
 		enabled: !!currentUser,
 	});
 

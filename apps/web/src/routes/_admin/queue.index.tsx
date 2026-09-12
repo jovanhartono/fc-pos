@@ -38,6 +38,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { QueueStatusTabs } from "@/features/orders/components/queue-status-tabs";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { useBarcodeScanner } from "@/features/orders/hooks/useBarcodeScanner";
+import { storesQueries } from "@/features/stores/api";
+import { usersQueries } from "@/features/users/api";
 import {
 	type FetchOrderServiceQueueQuery,
 	fetchOrderDetail,
@@ -48,11 +50,7 @@ import {
 	queryKeys,
 } from "@/lib/api";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
-import {
-	meQueryOptions,
-	orderServiceQueueCountsQueryOptions,
-	storesQueryOptions,
-} from "@/lib/query-options";
+import { orderServiceQueueCountsQueryOptions } from "@/lib/query-options";
 import { readServerErrorMessage } from "@/lib/server-error";
 import {
 	formatOrderServiceStatus,
@@ -131,9 +129,9 @@ export const Route = createFileRoute("/_admin/queue/")({
 		const currentUser = getCurrentUser();
 
 		await Promise.all([
-			context.queryClient.ensureQueryData(storesQueryOptions()),
+			context.queryClient.ensureQueryData(storesQueries.list()),
 			currentUser
-				? context.queryClient.ensureQueryData(meQueryOptions())
+				? context.queryClient.ensureQueryData(usersQueries.me())
 				: undefined,
 		]);
 	},
@@ -151,7 +149,7 @@ function QueuePage() {
 	const now = useMinuteClock();
 
 	const meQuery = useQuery({
-		...meQueryOptions(),
+		...usersQueries.me(),
 		enabled: !!currentUser,
 	});
 	const currentUserKey = currentUser ? String(currentUser.id) : "";

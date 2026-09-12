@@ -21,17 +21,15 @@ import {
 	type CampaignFormInput,
 } from "@/features/campaigns/components/campaign-form";
 import { VoucherCodesSheet } from "@/features/campaigns/components/voucher-codes-sheet";
+import { storesQueries } from "@/features/stores/api";
+import { usersQueries } from "@/features/users/api";
 import {
 	type Campaign,
 	createCampaign,
 	type UpdateCampaignPayload,
 	updateCampaign,
 } from "@/lib/api";
-import {
-	campaignsQueryOptions,
-	meQueryOptions,
-	storesQueryOptions,
-} from "@/lib/query-options";
+import { campaignsQueryOptions } from "@/lib/query-options";
 import { formatMoney } from "@/shared/money";
 import { useDialog } from "@/stores/dialog-store";
 import { useSheet } from "@/stores/sheet-store";
@@ -66,8 +64,8 @@ export const Route = createFileRoute("/_admin/campaigns")({
 	loader: ({ context }) =>
 		Promise.all([
 			context.queryClient.ensureQueryData(campaignsQueryOptions()),
-			context.queryClient.ensureQueryData(storesQueryOptions()),
-			context.queryClient.ensureQueryData(meQueryOptions()),
+			context.queryClient.ensureQueryData(storesQueries.list()),
+			context.queryClient.ensureQueryData(usersQueries.me()),
 		]),
 	component: CampaignsPage,
 });
@@ -203,13 +201,13 @@ function CampaignsPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 	// DB-fresh role — JWT claim goes stale on mid-session role changes.
-	const meQuery = useQuery(meQueryOptions());
+	const meQuery = useQuery(usersQueries.me());
 	const isAdmin = meQuery.data?.role === "admin";
 	const queryClient = useQueryClient();
 	const { openSheet, closeSheet } = useSheet();
 
 	const campaignsQuery = useQuery(campaignsQueryOptions());
-	const storesQuery = useQuery(storesQueryOptions());
+	const storesQuery = useQuery(storesQueries.list());
 
 	const stores = storesQuery.data ?? [];
 	const allCampaigns = campaignsQuery.data ?? [];

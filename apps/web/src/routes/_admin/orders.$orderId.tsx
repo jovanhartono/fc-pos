@@ -7,11 +7,9 @@ import { OrderLineItemsCard } from "@/features/orders/components/order-line-item
 import { OrderPaymentSection } from "@/features/orders/components/order-payment-section";
 import { useRefreshOrder } from "@/features/orders/hooks/useOrderMutations";
 import { getOrderActionGates } from "@/features/orders/lib/order-action-gates";
-import {
-	meQueryOptions,
-	orderDetailQueryOptions,
-	paymentMethodsQueryOptions,
-} from "@/lib/query-options";
+import { paymentMethodsQueries } from "@/features/payment-methods/api";
+import { usersQueries } from "@/features/users/api";
+import { orderDetailQueryOptions } from "@/lib/query-options";
 
 export const Route = createFileRoute("/_admin/orders/$orderId")({
 	loader: async ({ context, params }) => {
@@ -23,8 +21,8 @@ export const Route = createFileRoute("/_admin/orders/$orderId")({
 
 		await Promise.all([
 			context.queryClient.ensureQueryData(orderDetailQueryOptions(id)),
-			context.queryClient.ensureQueryData(paymentMethodsQueryOptions()),
-			context.queryClient.ensureQueryData(meQueryOptions()),
+			context.queryClient.ensureQueryData(paymentMethodsQueries.list()),
+			context.queryClient.ensureQueryData(usersQueries.me()),
 		]);
 	},
 	component: OrderDetailPage,
@@ -83,7 +81,7 @@ function OrderDetailPage() {
 function AdminOrderDetailPage({ orderId: id }: { orderId: number }) {
 	// Role/can_process_pickup gates read DB-fresh state via /admin/users/me —
 	// the JWT claims go stale when an admin changes them mid-session.
-	const meQuery = useQuery(meQueryOptions());
+	const meQuery = useQuery(usersQueries.me());
 	const detailQuery = useQuery(orderDetailQueryOptions(id));
 	const refreshOrder = useRefreshOrder();
 

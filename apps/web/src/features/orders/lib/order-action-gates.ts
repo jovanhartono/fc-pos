@@ -4,7 +4,8 @@ import {
 	type OrderItem,
 	type OrderLine,
 } from "@/features/orders/lib/order-lines";
-import type { Me, OrderDetail } from "@/lib/api";
+import type { Me } from "@/features/users/api";
+import type { OrderDetail } from "@/lib/api";
 
 export interface OrderActionGates {
 	isAdmin: boolean;

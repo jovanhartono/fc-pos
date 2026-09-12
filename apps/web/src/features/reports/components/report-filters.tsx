@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/popover";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { defaultRange } from "@/features/reports/utils/report-filters";
+import { storesQueries } from "@/features/stores/api";
 import type { ReportGranularity } from "@/lib/api";
-import { storesQueryOptions } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
 import { getPresets, matchPreset } from "@/shared/date-presets";
 
@@ -53,7 +53,7 @@ export const ReportFilters = ({
 	showGranularity = true,
 }: ReportFiltersProps) => {
 	const presets = getPresets();
-	const storesQuery = useQuery(storesQueryOptions());
+	const storesQuery = useQuery(storesQueries.list());
 	const stores = storesQuery.data ?? [];
 	const activePreset = matchPreset(presets, from, to);
 	const defaults = defaultRange();

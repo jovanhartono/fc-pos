@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { Me, OrderDetail } from "@/lib/api";
+import type { Me } from "@/features/users/api";
+import type { OrderDetail } from "@/lib/api";
 import { getOrderActionGates, startPhotoBlocker } from "./order-action-gates";
 
 type ServiceOverrides = Record<string, unknown>;

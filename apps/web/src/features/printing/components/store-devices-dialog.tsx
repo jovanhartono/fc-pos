@@ -6,8 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { pairBluetoothDevice } from "@/features/printing/web-bluetooth-transport";
-import { deleteStoreDevice, queryKeys, registerStoreDevice } from "@/lib/api";
-import { storeDevicesQueryOptions } from "@/lib/query-options";
+import {
+	deleteStoreDevice,
+	registerStoreDevice,
+	storesKeys,
+	storesQueries,
+} from "@/features/stores/api";
 
 interface StoreDevicesDialogProps {
 	storeId: number;
@@ -17,13 +21,13 @@ interface StoreDevicesDialogProps {
 // device list once; after that the POS only ever offers what is listed here.
 export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 	const queryClient = useQueryClient();
-	const devicesQuery = useQuery(storeDevicesQueryOptions(storeId));
+	const devicesQuery = useQuery(storesQueries.devices(storeId));
 	const [pendingName, setPendingName] = useState<string | null>(null);
 	const [label, setLabel] = useState("");
 
 	const invalidate = () =>
 		queryClient.invalidateQueries({
-			queryKey: queryKeys.storeDevices(storeId),
+			queryKey: storesKeys.devices(storeId),
 		});
 
 	const pairMutation = useMutation({

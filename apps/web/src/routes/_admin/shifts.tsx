@@ -11,8 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import { storesQueries } from "@/features/stores/api";
 import type { Shift } from "@/lib/api";
-import { shiftsQueryOptions, storesQueryOptions } from "@/lib/query-options";
+import { shiftsQueryOptions } from "@/lib/query-options";
 
 const PAGE_SIZE = 25;
 
@@ -39,7 +40,7 @@ export const Route = createFileRoute("/_admin/shifts")({
 			context.queryClient.ensureQueryData(
 				shiftsQueryOptions(buildShiftsQuery(deps)),
 			),
-			context.queryClient.ensureQueryData(storesQueryOptions()),
+			context.queryClient.ensureQueryData(storesQueries.list()),
 		]),
 	component: ShiftsPage,
 });
