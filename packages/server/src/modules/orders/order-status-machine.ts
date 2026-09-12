@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
-import type { db } from "@/db";
+import type { DbExecutor } from "@/db";
 import {
   type cancelReasonEnum,
   type orderServiceStatusEnum,
@@ -8,14 +8,16 @@ import {
   ordersTable,
 } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
-import type { OrderTx } from "@/modules/orders/order.repository";
+import { assertStartPhoto } from "@/modules/orders/order-photo-gate.repository";
 
 export type OrderServiceStatus =
   (typeof orderServiceStatusEnum.enumValues)[number];
 
 type CancelReason = (typeof cancelReasonEnum.enumValues)[number];
 
-export type DbExecutor = typeof db | OrderTx;
+// Lived here before it had other callers; re-exported so nothing that already
+// imports it has to move.
+export type { DbExecutor } from "@/db";
 
 type DerivedOrderStatus =
   | "created"
@@ -351,47 +353,11 @@ export interface TransitionOrderServiceInput {
   to: OrderServiceStatus;
 }
 
-// The photo gate's one rule (ADR-0019). Any live photo on the Item unlocks
-// work on it — unless the line is a Rework, in which case the photo has to
-// postdate the Complaint: the object came back over the counter, and the first
-// visit's photos say nothing about the condition it came back in.
-export function hasStartPhoto(
-  photos: ReadonlyArray<{ created_at: Date }>,
-  reworkOpenedAt: Date | null
-): boolean {
-  return photos.some(
-    (photo) => reworkOpenedAt === null || photo.created_at > reworkOpenedAt
-  );
-}
-
-// Reads the Item's photos and, for a Rework, the Complaint they must postdate,
-// then applies hasStartPhoto.
-async function assertStartPhoto(
-  executor: DbExecutor,
-  line: { item_id: number; complaint_id: number | null }
-) {
-  const [photos, complaint] = await Promise.all([
-    executor.query.itemImagesTable.findMany({
-      where: { item_id: line.item_id, deleted_at: { isNull: true } },
-      columns: { created_at: true },
-    }),
-    line.complaint_id
-      ? executor.query.complaintsTable.findFirst({
-          where: { id: line.complaint_id },
-          columns: { created_at: true },
-        })
-      : undefined,
-  ]);
-  if (!hasStartPhoto(photos, complaint?.created_at ?? null)) {
-    throw new BadRequestException(
-      complaint
-        ? "Add a photo of the returned item before starting the rework"
-        : "Add an item photo before starting work"
-    );
-  }
-}
-
-export async function transitionOrderService(
+// The move itself, without the Order-level rollup: the line's own guarded flip
+// and its timeline entry. Split out so a desk voiding six lines at once leaves
+// the Order's status and amount due recomputed once at the end rather than
+// after every line.
+async function applyServiceTransition(
   executor: DbExecutor,
   input: TransitionOrderServiceInput
 ): Promise<{ from: OrderServiceStatus; to: OrderServiceStatus }> {
@@ -479,9 +445,51 @@ export async function transitionOrderService(
     note,
   });
 
-  await recomputeOrderRollup(executor, orderId, by);
-
   return { from, to };
+}
+
+export async function transitionOrderService(
+  executor: DbExecutor,
+  input: TransitionOrderServiceInput
+): Promise<{ from: OrderServiceStatus; to: OrderServiceStatus }> {
+  const moved = await applyServiceTransition(executor, input);
+
+  await recomputeOrderRollup(executor, input.orderId, input.by);
+
+  return moved;
+}
+
+export interface CancelOrderServiceLine {
+  note?: string;
+  reason: CancelReason;
+  serviceId: number;
+}
+
+// The counter drops several treatments off one ticket in a single tap. Each
+// line is voided under its own guard, and the Order's status and amount due are
+// worked out once at the end — a per-line rollup would have the customer's bill
+// jump six times on the way to the number they are actually told.
+export async function cancelOrderServices(
+  executor: DbExecutor,
+  {
+    by,
+    lines,
+    orderId,
+  }: { by: number; lines: CancelOrderServiceLine[]; orderId: number }
+): Promise<void> {
+  for (const line of lines) {
+    await applyServiceTransition(executor, {
+      by,
+      cancelNote: line.note ?? null,
+      cancelReason: line.reason,
+      note: line.note ?? line.reason,
+      orderId,
+      serviceId: line.serviceId,
+      to: "cancelled",
+    });
+  }
+
+  await recomputeOrderRollup(executor, orderId, by);
 }
 
 export interface CompletePickupInput {

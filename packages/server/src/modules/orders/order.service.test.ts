@@ -231,7 +231,7 @@ mock.module("@/modules/orders/order-courier.service", () => ({
 
 mock.module("@/modules/orders/order-discount.service", () => ({
   ...actualDiscountService,
-  resolveDiscount: (input: AnyObj) => {
+  resolveDiscount: (_executor: unknown, input: AnyObj) => {
     discount.calls.push(input);
     return Promise.resolve(discount.result);
   },
@@ -241,10 +241,15 @@ mock.module("@/modules/products/product.repository", () => ({
   ...actualProductRepository,
   findProducts: (ids: number[]) =>
     Promise.resolve(catalog.products.filter((p) => ids.includes(p.id))),
-  decrementProductStock: (_tx: unknown, productId: number, qty: number) => {
-    stock.calls.push({ productId, qty });
+  decrementProductsStock: (
+    _tx: unknown,
+    entries: { productId: number; qty: number }[]
+  ) => {
+    stock.calls.push(...entries);
     return Promise.resolve(
-      stock.emptyFor.has(productId) ? [] : [{ id: productId }]
+      entries
+        .filter((entry) => !stock.emptyFor.has(entry.productId))
+        .map((entry) => ({ id: entry.productId }))
     );
   },
 }));
@@ -827,9 +832,7 @@ describe("createOrder", () => {
     );
 
     expect(error).toBeInstanceOf(BadRequestException);
-    expect((error as Error).message).toBe(
-      "Line price must be greater than zero"
-    );
+    expect((error as Error).message).toBe("Price must be greater than zero");
     expect(repo.reserveCalls).toHaveLength(0);
   });
 

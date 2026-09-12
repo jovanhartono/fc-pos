@@ -74,16 +74,29 @@ export async function seedShop() {
     .values({ is_active: true, name: "Footwear" })
     .returning();
 
-  const [service] = await testDb
+  // Deep Clean reads its price off the catalog; Repair is the one Service with
+  // no list price, so what it costs is agreed per Item after inspection
+  // (ADR-0018).
+  const [service, repair] = await testDb
     .insert(servicesTable)
-    .values({
-      category_id: category.id,
-      code: "DCLN",
-      cogs: "20000",
-      is_active: true,
-      name: "Deep Clean",
-      price: "100000",
-    })
+    .values([
+      {
+        category_id: category.id,
+        code: "DCLN",
+        cogs: "20000",
+        is_active: true,
+        name: "Deep Clean",
+        price: "100000",
+      },
+      {
+        category_id: category.id,
+        code: "RPR",
+        cogs: "0",
+        is_active: true,
+        name: "Repair",
+        price: null,
+      },
+    ])
     .returning();
 
   const [product] = await testDb
@@ -104,6 +117,7 @@ export async function seedShop() {
     cashier: toPayload(cashier),
     paymentMethodId: paymentMethod.id,
     productId: product.id,
+    repairServiceId: repair.id,
     serviceId: service.id,
     store,
   };

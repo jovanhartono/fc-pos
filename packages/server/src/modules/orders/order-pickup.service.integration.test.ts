@@ -14,14 +14,20 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // the desk issues or accepts carries one.
 const STORAGE_ENV_PREFIX = "dev/";
 
+// Captured before the mock below replaces the module: pure key/scope logic with
+// no S3 or DB of their own, so the real implementation runs here rather than a copy of it.
+const { assertPhotoKeyUnder, newPhotoKey } = await import("@/utils/s3");
+
 mock.module("@/utils/s3", () => ({
   STORAGE_ENV_PREFIX,
+  assertPhotoKeyUnder,
   buildMediaUrl: (path: string) => `https://cdn.test/${path}`,
   createPresignedUploadUrl: ({ key }: { key: string }) => ({
     expires_in_seconds: 300,
     key,
     upload_url: `https://s3.test/${key}`,
   }),
+  newPhotoKey,
   optimizeUploadedImage: () => Promise.resolve(),
 }));
 

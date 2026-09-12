@@ -1,7 +1,6 @@
 import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
-import { eq } from "drizzle-orm";
-import { campaignsTable, ordersTable } from "@/db/schema";
+import { campaignsTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 import { type Shop, seedShop } from "@/test-support/fixtures";
@@ -16,10 +15,6 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // import graph before any module body runs, so a service pulled in up there
 // would hold the shop's real database — and its module-level prepared
 // statements would already be pointing at it.
-const { db } = await import("@/db");
-const { claimRedemptions } = await import(
-  "@/modules/campaigns/campaign-redemption.service"
-);
 const { createOrder } = await import("@/modules/orders/order.service");
 const { cancelOrder, createOrderRefund } = await import(
   "@/modules/orders/order-reversal.service"
@@ -30,10 +25,14 @@ let shop: Shop;
 // Deep Clean 100.000 plus one Shoe Tree 50.000, so a 30.000 discount splits
 // 20.000 / 10.000 across the two lines and every cap is a whole rupiah.
 const placeOrder = (
-  over: { discount?: number; payment_status?: "paid" | "unpaid" } = {}
+  over: {
+    campaign_ids?: number[];
+    discount?: number;
+    payment_status?: "paid" | "unpaid";
+  } = {}
 ) =>
   createOrder(shop.admin.id, shop.store, {
-    campaign_ids: [],
+    campaign_ids: over.campaign_ids ?? [],
     customer: { name: "Budi Santoso", phone_number: "+628111222333" },
     discount: over.discount ?? 0,
     items: [{ services: [{ id: shop.serviceId }] }],
@@ -138,35 +137,11 @@ describe("cancel", () => {
       })
       .returning();
 
-    const order = await placeOrder({ payment_status: "unpaid" });
-    const { productId, serviceId } = await lineIds(order.id);
-
-    // The promo is attached the way the checkout desk attaches it. Known
-    // defect: campaign eligibility reads outside the order transaction; the
-    // settlement refactor threads the executor, then this attaches the promo
-    // through createOrder.
-    await db.transaction(async (tx) => {
-      await claimRedemptions(
-        tx,
-        [
-          {
-            applied_amount: "30000",
-            buy_quantity: null,
-            campaign_id: campaign.id,
-            discount_type: "fixed",
-            discount_value: "30000",
-            free_quantity: null,
-            kind: "listed",
-            max_discount: null,
-          },
-        ],
-        order.id
-      );
-      await tx
-        .update(ordersTable)
-        .set({ discount: "30000", discount_source: "campaign" })
-        .where(eq(ordersTable.id, order.id));
+    const order = await placeOrder({
+      campaign_ids: [campaign.id],
+      payment_status: "unpaid",
     });
+    const { productId, serviceId } = await lineIds(order.id);
 
     expect(
       (
