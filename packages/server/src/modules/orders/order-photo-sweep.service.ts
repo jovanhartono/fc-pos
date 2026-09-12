@@ -1,4 +1,4 @@
-import { listReferencedPhotoKeys } from "@/modules/orders/order-photo-sweep.repository";
+import { listReferencedPhotoKeys } from "@/modules/orders/order-photo.repository";
 import {
   deleteStoredObject,
   listStoredObjects,

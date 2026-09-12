@@ -13,7 +13,7 @@ import {
   spyOn,
 } from "bun:test";
 import { s3 } from "bun";
-import type { StoredPhoto } from "@/modules/orders/order-photo-download.repository";
+import type { StoredPhoto } from "@/modules/orders/order-photo.repository";
 import { authorizationDouble } from "@/test-support/authorization-double";
 import type { JWTPayload } from "@/types";
 
@@ -21,9 +21,10 @@ let filed = new Map<string, StoredPhoto>();
 const assertCalls: { storeId: number; userId: number }[] = [];
 
 // Stand in for the database: which photos are on file, by where they are filed and their row.
-mock.module("@/modules/orders/order-photo-download.repository", () => ({
+mock.module("@/modules/orders/order-photo.repository", () => ({
   findPhotoById: ({ kind, id }: { kind: string; id: number }) =>
     Promise.resolve(filed.get(`${kind}:${id}`) ?? null),
+  softDeleteItemImageById: () => Promise.resolve([]),
 }));
 mock.module("@/utils/authorization", () =>
   authorizationDouble({ assertCalls, storeIds: [] })

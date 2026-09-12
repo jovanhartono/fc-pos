@@ -12,6 +12,7 @@ import {
 import {
   GETMyOrderServicesQuerySchema,
   GETOrderByItemCodeQuerySchema,
+  GETOrderLookupQuerySchema,
   GETOrderServiceByIdQuerySchema,
   GETOrderServiceQueueCountsQuerySchema,
   GETOrderServiceQueueQuerySchema,
@@ -33,6 +34,7 @@ import {
   PUTOrderDropoffPhotoSchema,
 } from "@/modules/orders/order-admin.schema";
 import { updateOrderCollectedBy } from "@/modules/orders/order-courier.service";
+import { resolveOrderLookup } from "@/modules/orders/order-lookup.service";
 import { updateOrderPayment } from "@/modules/orders/order-payment.service";
 import {
   createItemPhotoPresign,
@@ -61,6 +63,7 @@ import {
   cancelOrder,
   createOrderRefund,
 } from "@/modules/orders/order-reversal.service";
+import { getOrderServiceDetail } from "@/modules/orders/order-service-detail.service";
 import { assertCanCreateOrder } from "@/modules/permissions/permissions";
 import { getStoreById } from "@/modules/stores/store.service";
 import { POSTOrderSchema } from "@/schema";
@@ -203,6 +206,20 @@ const app = new Hono<OrderAccessEnv>()
 
     return c.json(success(created, "Order created"), StatusCodes.CREATED);
   })
+  // Registered ahead of /:id so a search for "lookup" is never read as an
+  // order id.
+  .get(
+    "/lookup",
+    zodValidator("query", GETOrderLookupQuerySchema),
+    async (c) => {
+      const user = c.get("jwtPayload");
+      const { q } = c.req.valid("query");
+
+      const result = await resolveOrderLookup(user, q);
+
+      return c.json(success(result));
+    }
+  )
   .get("/:id", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
 
@@ -308,6 +325,17 @@ const app = new Hono<OrderAccessEnv>()
       );
     }
   )
+  .get("/:id/services/:serviceId", orderServiceParamSchema, async (c) => {
+    const { id, serviceId } = c.req.valid("param");
+
+    const detail = await getOrderServiceDetail(id, serviceId);
+
+    if (!detail) {
+      throw new NotFoundException("Order service not found");
+    }
+
+    return c.json(success(detail));
+  })
   .post(
     "/:id/services/:serviceId/start",
     orderServiceParamSchema,

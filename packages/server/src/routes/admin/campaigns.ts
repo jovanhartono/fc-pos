@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import { z } from "zod";
+import { db } from "@/db";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { findCampaignByIdWithCodes } from "@/modules/campaigns/campaign.repository";
 import {
@@ -52,7 +53,7 @@ const app = new Hono<AdminEnv>()
         throw new NotFoundException("Store not found");
       }
 
-      const { campaign } = await resolveVoucherCode(code, {
+      const { campaign } = await resolveVoucherCode(db, code, {
         grossTotal: gross_total,
         storeCode: store.code,
         storeId: store_id,
