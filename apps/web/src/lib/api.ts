@@ -1,6 +1,4 @@
 import type {
-	CampaignPayloadSchema,
-	CampaignUpdatePayloadSchema,
 	POSTOrderPickupEventPresignSchema,
 	POSTOrderPickupEventSchema,
 	POSTOrderSchema,
@@ -38,16 +36,6 @@ export type OrderDetail = InferResponseType<
 export type OrderReceipt = InferResponseType<
 	(typeof rpc.api.admin.orders)[":id"]["receipt"]["$get"]
 >["data"];
-export type Campaign = InferResponseType<
-	typeof rpc.api.admin.campaigns.$get
->["data"][number];
-export type ResolvedVoucher = InferResponseType<
-	(typeof rpc.api.admin.campaigns)["resolve-code"]["$post"]
->["data"];
-export type VoucherCodesResponse = InferResponseType<
-	(typeof rpc.api.admin.campaigns)[":id"]["codes"]["$get"]
->["data"];
-export type VoucherCode = VoucherCodesResponse["codes"][number];
 export type ComplaintListItem = InferResponseType<
 	typeof rpc.api.admin.complaints.$get
 >["data"][number];
@@ -201,13 +189,6 @@ export type FetchOrderServiceQueueQuery = {
 	date_to?: string;
 };
 
-export type FetchCampaignsQuery = {
-	store_id?: number;
-	is_active?: boolean;
-};
-
-export type CampaignPayload = z.output<typeof CampaignPayloadSchema>;
-
 export type OrderCancelReason =
 	| "customer_request"
 	| "cannot_process"
@@ -306,9 +287,6 @@ export type CancelOrderPayload = {
 export const queryKeys = {
 	orders: (query?: FetchOrdersQuery) => ["orders", query ?? {}] as const,
 	orderDetail: (id: number) => ["order-detail", id] as const,
-	campaigns: (query?: FetchCampaignsQuery) =>
-		["campaigns", query ?? {}] as const,
-	campaignVoucherCodes: (id: number) => ["campaigns", id, "codes"] as const,
 	complaints: (query?: FetchComplaintsQuery) =>
 		["complaints", query ?? {}] as const,
 	complaintDetail: (id: number) => ["complaint-detail", id] as const,
@@ -363,60 +341,6 @@ export async function fetchOrdersPage(
 	);
 
 	return toPaginated(response);
-}
-
-export async function fetchCampaigns(query?: FetchCampaignsQuery) {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.campaigns.$get({
-			query:
-				query && Object.keys(query).length > 0
-					? toSearchParams(query)
-					: undefined,
-		}),
-	);
-	return response.data;
-}
-
-export async function createCampaign(payload: CampaignPayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin.campaigns.$post({ json: payload }),
-	);
-}
-
-export type UpdateCampaignPayload = z.output<
-	typeof CampaignUpdatePayloadSchema
->;
-
-export async function updateCampaign(
-	id: number,
-	payload: UpdateCampaignPayload,
-) {
-	return parseResponse(
-		rpcWithAuth().api.admin.campaigns[":id"].$put({
-			param: { id: String(id) },
-			json: payload,
-		}),
-	);
-}
-
-export type ResolveVoucherCodePayload = {
-	code: string;
-	store_id: number;
-	gross_total: number;
-};
-
-export function resolveVoucherCode(payload: ResolveVoucherCodePayload) {
-	return parseSuccessData<ResolvedVoucher>(
-		rpcWithAuth().api.admin.campaigns["resolve-code"].$post({ json: payload }),
-	);
-}
-
-export function fetchCampaignVoucherCodes(campaignId: number) {
-	return parseSuccessData<VoucherCodesResponse>(
-		rpcWithAuth().api.admin.campaigns[":id"].codes.$get({
-			param: { id: String(campaignId) },
-		}),
-	);
 }
 
 export async function createOrder(payload: CreateOrderPayload) {

@@ -23,6 +23,7 @@ import {
 	FieldSet,
 } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
+import { campaignsQueries } from "@/features/campaigns/api";
 import { OrderMoneySummary } from "@/features/orders/components/order-money-summary";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { useOrderPaymentMutation } from "@/features/orders/hooks/useOrderMutations";
@@ -38,7 +39,6 @@ import { CampaignTileGroup } from "@/features/transactions/components/campaign-t
 import { VoucherCodeEntry } from "@/features/transactions/components/voucher-code-entry";
 import { filterEligibleCampaigns } from "@/features/transactions/lib/campaign-eligibility";
 import type { OrderDetail } from "@/lib/api";
-import { campaignsQueryOptions } from "@/lib/query-options";
 import { formatMoney, parseMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -309,7 +309,7 @@ interface CollectPaymentFormProps {
 const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 	const closeSheet = useSheet((s) => s.closeSheet);
 	const campaignsQuery = useQuery(
-		campaignsQueryOptions({
+		campaignsQueries.list({
 			store_id: detail.store_id ?? undefined,
 			is_active: true,
 		}),

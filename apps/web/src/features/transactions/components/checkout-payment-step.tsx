@@ -12,6 +12,7 @@ import {
 	FieldLegend,
 	FieldSet,
 } from "@/components/ui/field";
+import { campaignsQueries } from "@/features/campaigns/api";
 import { paymentMethodsQueries } from "@/features/payment-methods/api";
 import {
 	countUnpricedServiceLines,
@@ -23,7 +24,6 @@ import { VoucherCodeEntry } from "@/features/transactions/components/voucher-cod
 import { useCheckoutPricing } from "@/features/transactions/hooks/useCheckoutPricing";
 import { filterEligibleCampaigns } from "@/features/transactions/lib/campaign-eligibility";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
-import { campaignsQueryOptions } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
@@ -61,7 +61,7 @@ export const CheckoutPaymentStep = () => {
 		: undefined;
 
 	const campaignsQuery = useQuery({
-		...campaignsQueryOptions({
+		...campaignsQueries.list({
 			store_id: selectedStoreNumber,
 			is_active: true,
 		}),

@@ -1,4 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
+import { campaignsKeys } from "@/features/campaigns/api";
 
 // One list for every write that moves an Order or one of its Items, because the
 // same move lands on four screens: the order itself, the /orders list and its
@@ -14,7 +15,7 @@ export const onOrderMoved = (queryClient: QueryClient) =>
 	]);
 
 export const onRedemptionSpent = (queryClient: QueryClient) =>
-	queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+	queryClient.invalidateQueries({ queryKey: campaignsKeys.all });
 
 export const onLineAdded = (queryClient: QueryClient) =>
 	Promise.all([

@@ -17,19 +17,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+	type Campaign,
+	campaignsKeys,
+	campaignsQueries,
+	createCampaign,
+	type UpdateCampaignPayload,
+	updateCampaign,
+} from "@/features/campaigns/api";
+import {
 	CampaignForm,
 	type CampaignFormInput,
 } from "@/features/campaigns/components/campaign-form";
 import { VoucherCodesSheet } from "@/features/campaigns/components/voucher-codes-sheet";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
-import {
-	type Campaign,
-	createCampaign,
-	type UpdateCampaignPayload,
-	updateCampaign,
-} from "@/lib/api";
-import { campaignsQueryOptions } from "@/lib/query-options";
 import { formatMoney } from "@/shared/money";
 import { useDialog } from "@/stores/dialog-store";
 import { useSheet } from "@/stores/sheet-store";
@@ -63,7 +64,7 @@ export const Route = createFileRoute("/_admin/campaigns")({
 	validateSearch: (search) => campaignsSearchSchema.parse(search),
 	loader: ({ context }) =>
 		Promise.all([
-			context.queryClient.ensureQueryData(campaignsQueryOptions()),
+			context.queryClient.ensureQueryData(campaignsQueries.list()),
 			context.queryClient.ensureQueryData(storesQueries.list()),
 			context.queryClient.ensureQueryData(usersQueries.me()),
 		]),
@@ -206,7 +207,7 @@ function CampaignsPage() {
 	const queryClient = useQueryClient();
 	const { openSheet, closeSheet } = useSheet();
 
-	const campaignsQuery = useQuery(campaignsQueryOptions());
+	const campaignsQuery = useQuery(campaignsQueries.list());
 	const storesQuery = useQuery(storesQueries.list());
 
 	const stores = storesQuery.data ?? [];
@@ -224,7 +225,7 @@ function CampaignsPage() {
 		mutationKey: ["create-campaign"],
 		mutationFn: createCampaign,
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+			await queryClient.invalidateQueries({ queryKey: campaignsKeys.all });
 			closeSheet();
 		},
 	});
@@ -239,7 +240,7 @@ function CampaignsPage() {
 			payload: UpdateCampaignPayload;
 		}) => updateCampaign(id, payload),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+			await queryClient.invalidateQueries({ queryKey: campaignsKeys.all });
 			closeSheet();
 		},
 	});
@@ -249,7 +250,7 @@ function CampaignsPage() {
 		mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) =>
 			updateCampaign(id, { is_active }),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+			await queryClient.invalidateQueries({ queryKey: campaignsKeys.all });
 		},
 	});
 

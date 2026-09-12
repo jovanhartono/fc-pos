@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { FormProvider } from "react-hook-form";
 import { Card, CardContent } from "@/components/ui/card";
+import { campaignsQueries } from "@/features/campaigns/api";
 import { categoriesQueries } from "@/features/categories/api";
 import { paymentMethodsQueries } from "@/features/payment-methods/api";
 import { productsQueries } from "@/features/products/api";
@@ -10,7 +11,6 @@ import { TransactionsWorkspace } from "@/features/transactions/components/transa
 import { useTransactionsPageBootstrap } from "@/features/transactions/hooks/use-transactions-page";
 import { TransactionsPageProvider } from "@/features/transactions/lib/transactions-context";
 import { usersQueries } from "@/features/users/api";
-import { campaignsQueryOptions } from "@/lib/query-options";
 import { getCurrentUser } from "@/stores/auth-store";
 
 export const Route = createFileRoute("/_admin/transactions")({
@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_admin/transactions")({
 
 			if (firstStoreId) {
 				await context.queryClient.ensureQueryData(
-					campaignsQueryOptions({
+					campaignsQueries.list({
 						store_id: firstStoreId,
 						is_active: true,
 					}),

@@ -1,7 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import {
 	type FetchAgingQueueQuery,
-	type FetchCampaignsQuery,
 	type FetchComplaintsQuery,
 	type FetchOrdersQuery,
 	type FetchReportOverviewQuery,
@@ -9,8 +8,6 @@ import {
 	type FetchShiftsQuery,
 	fetchAgingQueueReport,
 	fetchCampaignEffectivenessReport,
-	fetchCampaigns,
-	fetchCampaignVoucherCodes,
 	fetchComplaintDetail,
 	fetchComplaintsPage,
 	fetchCurrentShift,
@@ -46,18 +43,6 @@ export const orderDetailQueryOptions = (id: number) =>
 	queryOptions({
 		queryKey: queryKeys.orderDetail(id),
 		queryFn: () => fetchOrderDetail(id),
-	});
-
-export const campaignsQueryOptions = (query?: FetchCampaignsQuery) =>
-	queryOptions({
-		queryKey: queryKeys.campaigns(query),
-		queryFn: () => fetchCampaigns(query),
-	});
-
-export const campaignVoucherCodesQueryOptions = (campaignId: number) =>
-	queryOptions({
-		queryKey: queryKeys.campaignVoucherCodes(campaignId),
-		queryFn: () => fetchCampaignVoucherCodes(campaignId),
 	});
 
 export const complaintsPageQueryOptions = (query?: FetchComplaintsQuery) =>
