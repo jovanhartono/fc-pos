@@ -13,7 +13,7 @@ import {
 } from "@/features/reports/utils/format";
 import type { ReportGranularity } from "@/lib/api";
 import { campaignEffectivenessQueryOptions } from "@/lib/query-options";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 interface CampaignsPanelProps {
 	from: string;
@@ -45,11 +45,11 @@ export const CampaignsPanel = ({
 			return;
 		}
 		const lines: string[] = [
-			"Campaign effectiveness,Code,Name,Orders,Revenue,Discount cost,Avg order value",
+			"Campaign effectiveness,Code,Name,Orders,Collected,Discount cost,Avg order value",
 		];
 		for (const c of campaigns) {
 			lines.push(
-				`Campaign effectiveness,${escapeCsv(c.campaign_code)},${escapeCsv(c.campaign_name)},${c.orders},${c.revenue},${c.discount_cost},${c.avg_order_value}`,
+				`Campaign effectiveness,${escapeCsv(c.campaign_code)},${escapeCsv(c.campaign_name)},${c.orders},${c.collected},${c.discount_cost},${c.avg_order_value}`,
 			);
 		}
 		downloadCsv(
@@ -58,9 +58,9 @@ export const CampaignsPanel = ({
 		);
 	};
 
-	const totalRevenue = data?.summary.revenue ?? 0;
+	const totalCollected = data?.summary.collected ?? 0;
 	const totalDiscount = data?.summary.discount_cost ?? 0;
-	const roi = totalDiscount > 0 ? totalRevenue / totalDiscount : 0;
+	const roi = totalDiscount > 0 ? totalCollected / totalDiscount : 0;
 
 	return (
 		<div className="grid gap-6">
@@ -75,12 +75,12 @@ export const CampaignsPanel = ({
 						value={numberFormatter.format(data?.summary.orders ?? 0)}
 					/>
 					<KpiCard
-						label="Revenue attributed"
-						value={formatIDRCurrency(String(totalRevenue))}
+						label="Collected"
+						value={formatMoney(String(totalCollected))}
 					/>
 					<KpiCard
 						label="Discount cost"
-						value={formatIDRCurrency(String(totalDiscount))}
+						value={formatMoney(String(totalDiscount))}
 						helper={`ROI ${roi.toFixed(2)}×`}
 					/>
 				</KpiRow>
@@ -103,9 +103,9 @@ export const CampaignsPanel = ({
 							{campaigns.map((c) => {
 								const pct = maxOrders === 0 ? 0 : (c.orders / maxOrders) * 100;
 								const discountRate =
-									c.revenue > 0 ? c.discount_cost / c.revenue : 0;
+									c.collected > 0 ? c.discount_cost / c.collected : 0;
 								const campaignRoi =
-									c.discount_cost > 0 ? c.revenue / c.discount_cost : 0;
+									c.discount_cost > 0 ? c.collected / c.discount_cost : 0;
 								return (
 									<div key={c.campaign_id} className="grid gap-1">
 										<div className="flex items-center justify-between gap-2">
@@ -129,9 +129,9 @@ export const CampaignsPanel = ({
 											/>
 										</div>
 										<div className="flex items-center justify-between font-mono text-[11px] tabular-nums text-muted-foreground">
-											<span>{formatIDRCurrency(String(c.revenue))}</span>
+											<span>{formatMoney(String(c.collected))}</span>
 											<span>
-												{`discount ${formatIDRCurrency(String(c.discount_cost))} · ${percentFormatter.format(discountRate)}`}
+												{`discount ${formatMoney(String(c.discount_cost))} · ${percentFormatter.format(discountRate)}`}
 											</span>
 										</div>
 									</div>

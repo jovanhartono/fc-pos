@@ -32,7 +32,7 @@ import {
 import type { FinancialReport, KpiDelta, ReportGranularity } from "@/lib/api";
 import { financialQueryOptions } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 interface FinancialPanelProps {
 	from: string;
@@ -153,37 +153,35 @@ export const FinancialPanel = ({
 		const prev = data.summary.previous;
 		const lines: string[] = [];
 		lines.push("Financial totals,Metric,Current,Previous");
+		lines.push(`Totals,Gross sales,${summary.gross_sales},${prev.gross_sales}`);
 		lines.push(
-			`Totals,Gross revenue,${summary.gross_revenue},${prev.gross_revenue}`,
+			`Totals,Services,${summary.services_gross_sales},${prev.services_gross_sales}`,
 		);
 		lines.push(
-			`Totals,Services,${summary.services_total},${prev.services_total}`,
-		);
-		lines.push(
-			`Totals,Products,${summary.products_total},${prev.products_total}`,
+			`Totals,Products,${summary.products_gross_sales},${prev.products_gross_sales}`,
 		);
 		lines.push(`Totals,Discount,${summary.discount},${prev.discount}`);
-		lines.push(`Totals,Net revenue,${summary.net_revenue},${prev.net_revenue}`);
+		lines.push(`Totals,Collected,${summary.collected},${prev.collected}`);
+		lines.push(`Totals,Refunds,${summary.refunds},${prev.refunds}`);
+		lines.push(`Totals,Revenue,${summary.revenue},${prev.revenue}`);
 		lines.push(`Totals,COGS,${summary.cogs},${prev.cogs}`);
 		lines.push(
 			`Totals,Gross profit,${summary.gross_profit},${prev.gross_profit}`,
 		);
-		lines.push(`Totals,Refunds,${summary.refunds},${prev.refunds}`);
-		lines.push(`Totals,Net income,${summary.net_income},${prev.net_income}`);
-		lines.push(`Totals,Net margin,${summary.net_margin},${prev.net_margin}`);
+		lines.push(`Totals,Margin,${summary.margin},${prev.margin}`);
 		lines.push("");
 		lines.push(
-			"Financial series,Period,Services,Products,Gross,Discount,Net revenue,COGS,Gross profit,Refunds,Net income",
+			"Financial series,Period,Services,Products,Gross sales,Discount,Collected,Refunds,Revenue,COGS,Gross profit",
 		);
 		for (const row of data.series) {
 			lines.push(
-				`Series,${escapeCsv(row.bucket)},${row.services},${row.products},${row.gross_revenue},${row.discount},${row.net_revenue},${row.cogs},${row.gross_profit},${row.refunds},${row.net_income}`,
+				`Series,${escapeCsv(row.bucket)},${row.services},${row.products},${row.gross_sales},${row.discount},${row.collected},${row.refunds},${row.revenue},${row.cogs},${row.gross_profit}`,
 			);
 		}
 		lines.push("");
 		const matrix = data.store_category_matrix;
 		lines.push(
-			"Store × Category,Store code,Store name,Category,Revenue,Share within store,Store total",
+			"Store × Category,Store code,Store name,Category,Gross sales,Share within store,Store total",
 		);
 		for (const row of matrix.rows) {
 			for (const cell of row.cells) {
@@ -191,7 +189,7 @@ export const FinancialPanel = ({
 					(c) => c.category_id === cell.category_id,
 				);
 				lines.push(
-					`Store×Category,${escapeCsv(row.store_code)},${escapeCsv(row.store_name)},${escapeCsv(col?.label ?? "")},${cell.revenue},${cell.share},${row.total}`,
+					`Store×Category,${escapeCsv(row.store_code)},${escapeCsv(row.store_name)},${escapeCsv(col?.label ?? "")},${cell.gross_sales},${cell.share},${row.total}`,
 				);
 			}
 		}
@@ -261,7 +259,7 @@ const RevenueBreakdownCard = ({
 		<Card className="border-border/70">
 			<CardContent className="grid gap-5 p-5 sm:p-6">
 				<div className="flex items-center justify-between">
-					<PanelSectionTitle title="Revenue" />
+					<PanelSectionTitle title="Gross sales → Gross profit" />
 					<ExportButton disabled={exportDisabled} onClick={onExport} />
 				</div>
 
@@ -271,22 +269,22 @@ const RevenueBreakdownCard = ({
 				/>
 
 				<StatStrip
-					title="Revenue trajectory"
+					title="Gross sales → Collected → Revenue"
 					cells={[
 						{
-							label: "Gross",
-							value: summary?.gross_revenue ?? 0,
-							delta: deltas?.gross_revenue,
+							label: "Gross sales",
+							value: summary?.gross_sales ?? 0,
+							delta: deltas?.gross_sales,
 						},
 						{
-							label: "Net revenue",
-							value: summary?.net_revenue ?? 0,
-							delta: deltas?.net_revenue,
+							label: "Collected",
+							value: summary?.collected ?? 0,
+							delta: deltas?.collected,
 						},
 						{
-							label: "Net income",
-							value: summary?.net_income ?? 0,
-							delta: deltas?.net_income,
+							label: "Revenue",
+							value: summary?.revenue ?? 0,
+							delta: deltas?.revenue,
 						},
 					]}
 				/>
@@ -315,9 +313,9 @@ const RevenueBreakdownCard = ({
 							invertDelta: true,
 						},
 						{
-							label: "Net margin",
-							value: summary?.net_margin ?? 0,
-							delta: deltas?.net_margin,
+							label: "Margin",
+							value: summary?.margin ?? 0,
+							delta: deltas?.margin,
 							isPercent: true,
 						},
 					]}
@@ -328,13 +326,13 @@ const RevenueBreakdownCard = ({
 };
 
 const GROSS_COLOR = "#94A3B8";
-const NET_REVENUE_COLOR = "#3B82F6";
-const NET_INCOME_COLOR = "#22C55E";
+const COLLECTED_COLOR = "#3B82F6";
+const REVENUE_COLOR = "#22C55E";
 
 const LINE_CHART_CONFIG: ChartConfig = {
-	gross_revenue: { label: "Gross", color: GROSS_COLOR },
-	net_revenue: { label: "Net revenue", color: NET_REVENUE_COLOR },
-	net_income: { label: "Net income", color: NET_INCOME_COLOR },
+	gross_sales: { label: "Gross sales", color: GROSS_COLOR },
+	collected: { label: "Collected", color: COLLECTED_COLOR },
+	revenue: { label: "Revenue", color: REVENUE_COLOR },
 };
 
 interface RevenueLineChartProps {
@@ -347,14 +345,12 @@ const RevenueLineChart = ({ series, granularity }: RevenueLineChartProps) => {
 		series.length === 0 ||
 		series.every(
 			(row) =>
-				row.gross_revenue === 0 &&
-				row.net_revenue === 0 &&
-				row.net_income === 0,
+				row.gross_sales === 0 && row.collected === 0 && row.revenue === 0,
 		);
 	if (isEmpty) {
 		return (
 			<div className="flex h-60 items-center justify-center border border-border/40 text-sm text-muted-foreground">
-				No revenue in range.
+				No sales in range.
 			</div>
 		);
 	}
@@ -371,16 +367,16 @@ const RevenueLineChart = ({ series, granularity }: RevenueLineChartProps) => {
 				<span className="flex items-center gap-1.5">
 					<span
 						className="h-0.5 w-3"
-						style={{ backgroundColor: NET_REVENUE_COLOR }}
+						style={{ backgroundColor: COLLECTED_COLOR }}
 					/>
-					Net revenue
+					Collected
 				</span>
 				<span className="flex items-center gap-1.5">
 					<span
 						className="h-0.5 w-3"
-						style={{ backgroundColor: NET_INCOME_COLOR }}
+						style={{ backgroundColor: REVENUE_COLOR }}
 					/>
-					Net income
+					Revenue
 				</span>
 			</div>
 			<ChartContainer
@@ -414,7 +410,7 @@ const RevenueLineChart = ({ series, granularity }: RevenueLineChartProps) => {
 											{LINE_CHART_CONFIG[name as string]?.label ?? name}
 										</span>
 										<span className="font-mono font-medium text-foreground tabular-nums">
-											{formatIDRCurrency(String(Number(value)))}
+											{formatMoney(String(Number(value)))}
 										</span>
 									</div>
 								)}
@@ -426,7 +422,7 @@ const RevenueLineChart = ({ series, granularity }: RevenueLineChartProps) => {
 						cursor={false}
 					/>
 					<Line
-						dataKey="gross_revenue"
+						dataKey="gross_sales"
 						dot={false}
 						stroke={GROSS_COLOR}
 						strokeOpacity={0.6}
@@ -434,16 +430,16 @@ const RevenueLineChart = ({ series, granularity }: RevenueLineChartProps) => {
 						type="monotone"
 					/>
 					<Line
-						dataKey="net_revenue"
+						dataKey="collected"
 						dot={false}
-						stroke={NET_REVENUE_COLOR}
+						stroke={COLLECTED_COLOR}
 						strokeWidth={1.75}
 						type="monotone"
 					/>
 					<Line
-						dataKey="net_income"
+						dataKey="revenue"
 						dot={false}
-						stroke={NET_INCOME_COLOR}
+						stroke={REVENUE_COLOR}
 						strokeWidth={2}
 						type="monotone"
 					/>
@@ -488,22 +484,27 @@ const SankeyFlow = ({ summary }: SankeyFlowProps) => {
 		<PanelSectionTitle meta="green retained · red deductions" title="Flow" />
 	);
 
-	if (!summary || summary.gross_revenue <= 0) {
+	if (!summary || summary.gross_sales <= 0) {
 		return (
 			<div className="grid gap-2">
 				{sectionLabel}
 				<div className="flex h-60 items-center justify-center border border-border/40 text-sm text-muted-foreground">
-					No revenue to flow.
+					No sales to flow.
 				</div>
 			</div>
 		);
 	}
 
-	const netIncomePositive = Math.max(summary.net_income, 0);
-	const nodes: SankeyNodeDatum[] = [
+	const hasRevenue = summary.revenue > 0;
+	const revenuePositive = Math.max(summary.revenue, 0);
+	const grossProfitPositive = hasRevenue
+		? Math.max(summary.gross_profit, 0)
+		: 0;
+
+	const baseNodes: SankeyNodeDatum[] = [
 		{
-			name: "Gross revenue",
-			displayValue: summary.gross_revenue,
+			name: "Gross sales",
+			displayValue: summary.gross_sales,
 			color: "var(--muted-foreground)",
 			labelTone: "var(--muted-foreground)",
 		},
@@ -514,16 +515,10 @@ const SankeyFlow = ({ summary }: SankeyFlowProps) => {
 			labelTone: "var(--destructive)",
 		},
 		{
-			name: "Net revenue",
-			displayValue: summary.net_revenue,
+			name: "Collected",
+			displayValue: summary.collected,
 			color: "var(--success)",
 			labelTone: "var(--success)",
-		},
-		{
-			name: "COGS",
-			displayValue: summary.cogs,
-			color: "var(--destructive)",
-			labelTone: "var(--destructive)",
 		},
 		{
 			name: "Refunds",
@@ -531,15 +526,33 @@ const SankeyFlow = ({ summary }: SankeyFlowProps) => {
 			color: "var(--destructive)",
 			labelTone: "var(--destructive)",
 		},
-		{
-			name: "Net income",
-			displayValue: netIncomePositive,
-			color: "var(--success)",
-			labelTone: "var(--success)",
-		},
 	];
+	// Refunds at or above what was collected leave nothing to walk down further.
+	const nodes: SankeyNodeDatum[] = hasRevenue
+		? [
+				...baseNodes,
+				{
+					name: "Revenue",
+					displayValue: revenuePositive,
+					color: "var(--success)",
+					labelTone: "var(--success)",
+				},
+				{
+					name: "COGS",
+					displayValue: summary.cogs,
+					color: "var(--destructive)",
+					labelTone: "var(--destructive)",
+				},
+				{
+					name: "Gross profit",
+					displayValue: grossProfitPositive,
+					color: "var(--success)",
+					labelTone: "var(--success)",
+				},
+			]
+		: baseNodes;
 
-	const linkCandidates: SankeyLinkDatum[] = [
+	const baseLinks: SankeyLinkDatum[] = [
 		{
 			source: 0,
 			target: 1,
@@ -550,32 +563,44 @@ const SankeyFlow = ({ summary }: SankeyFlowProps) => {
 		{
 			source: 0,
 			target: 2,
-			value: summary.net_revenue,
+			value: summary.collected,
 			color: "var(--success)",
 			opacity: 0.24,
 		},
 		{
 			source: 2,
 			target: 3,
-			value: summary.cogs,
+			value: summary.refunds,
 			color: "var(--destructive)",
 			opacity: 0.28,
 		},
-		{
-			source: 2,
-			target: 4,
-			value: summary.refunds,
-			color: "var(--destructive)",
-			opacity: 0.34,
-		},
-		{
-			source: 2,
-			target: 5,
-			value: netIncomePositive,
-			color: "var(--success)",
-			opacity: 0.34,
-		},
 	];
+	const linkCandidates: SankeyLinkDatum[] = hasRevenue
+		? [
+				...baseLinks,
+				{
+					source: 2,
+					target: 4,
+					value: revenuePositive,
+					color: "var(--success)",
+					opacity: 0.34,
+				},
+				{
+					source: 4,
+					target: 5,
+					value: summary.cogs,
+					color: "var(--destructive)",
+					opacity: 0.28,
+				},
+				{
+					source: 4,
+					target: 6,
+					value: grossProfitPositive,
+					color: "var(--success)",
+					opacity: 0.34,
+				},
+			]
+		: baseLinks;
 	const links = linkCandidates.filter((l) => l.value > 0);
 
 	if (links.length === 0) {
@@ -583,7 +608,7 @@ const SankeyFlow = ({ summary }: SankeyFlowProps) => {
 			<div className="grid gap-2">
 				{sectionLabel}
 				<div className="flex h-60 items-center justify-center border border-border/40 text-sm text-muted-foreground">
-					No revenue to flow.
+					No sales to flow.
 				</div>
 			</div>
 		);
@@ -771,29 +796,29 @@ const KpiStrip = ({ data, storeId }: KpiStripProps) => {
 		const totalOrders = storeId
 			? (data.store_breakdown.find((r) => r.store_id === storeId)?.orders ?? 0)
 			: data.store_breakdown.reduce((s, r) => s + r.orders, 0);
-		const aov = safeRatio(summary.gross_revenue, totalOrders);
-		const refundRate = safeRatio(summary.refunds, summary.gross_revenue);
-		const prevRefundRate = safeRatio(prev.refunds, prev.gross_revenue);
-		const marginPp = summary.net_margin - prev.net_margin;
+		const aov = safeRatio(summary.collected, totalOrders);
+		const refundRate = safeRatio(summary.refunds, summary.collected);
+		const prevRefundRate = safeRatio(prev.refunds, prev.collected);
+		const marginPp = summary.margin - prev.margin;
 		const refundRateDiff = refundRate - prevRefundRate;
 
 		return [
 			{
-				label: "Net revenue",
-				value: formatIDRShort(summary.net_revenue),
-				delta: formatDeltaPct(deltas.net_revenue?.delta_pct),
-				tone: toneForPct(deltas.net_revenue?.delta_pct),
+				label: "Collected",
+				value: formatIDRShort(summary.collected),
+				delta: formatDeltaPct(deltas.collected?.delta_pct),
+				tone: toneForPct(deltas.collected?.delta_pct),
 			},
 			{
-				label: "Net income",
-				value: formatIDRShort(summary.net_income),
-				delta: formatDeltaPct(deltas.net_income?.delta_pct),
-				tone: toneForPct(deltas.net_income?.delta_pct),
+				label: "Revenue",
+				value: formatIDRShort(summary.revenue),
+				delta: formatDeltaPct(deltas.revenue?.delta_pct),
+				tone: toneForPct(deltas.revenue?.delta_pct),
 			},
 			{
 				label: "Margin",
-				value: percentFormatter.format(summary.net_margin),
-				delta: formatDeltaPp(summary.net_margin, prev.net_margin),
+				value: percentFormatter.format(summary.margin),
+				delta: formatDeltaPp(summary.margin, prev.margin),
 				tone: toneForPct(marginPp),
 			},
 			{
@@ -903,7 +928,7 @@ const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
 	const columnTotals = columns.map((col) =>
 		rows.reduce((s, r) => {
 			const cell = r.cells.find((c) => c.category_id === col.category_id);
-			return s + (cell?.revenue ?? 0);
+			return s + (cell?.gross_sales ?? 0);
 		}, 0),
 	);
 
@@ -914,7 +939,7 @@ const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
 			<CardContent className="grid gap-3 p-5 sm:p-6">
 				<div className="flex items-start justify-between gap-3">
 					<PanelSectionTitle
-						meta={`${mode === "share" ? "share within store" : "revenue (Rp)"} · top ${columns.length} categor${columns.length === 1 ? "y" : "ies"}`}
+						meta={`${mode === "share" ? "share within store" : "gross sales (Rp)"} · top ${columns.length} categor${columns.length === 1 ? "y" : "ies"}`}
 						title="Store × Category"
 					/>
 					<MatrixModeToggle mode={mode} onChange={setMode} />
@@ -922,7 +947,7 @@ const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
 
 				{isEmpty ? (
 					<p className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-						{"// no category revenue in range"}
+						{"// no category gross sales in range"}
 					</p>
 				) : (
 					<div className="overflow-x-auto">
@@ -1074,7 +1099,7 @@ const MatrixBranchRow = ({
 			return (
 				<MatrixCell
 					branchTotal={row.total}
-					cellRevenue={cell?.revenue ?? 0}
+					cellGrossSales={cell?.gross_sales ?? 0}
 					cellShare={cell?.share ?? 0}
 					columnLabel={col.label}
 					grandTotal={grandTotal}
@@ -1093,7 +1118,7 @@ const MatrixBranchRow = ({
 
 interface MatrixCellProps {
 	cellShare: number;
-	cellRevenue: number;
+	cellGrossSales: number;
 	branchTotal: number;
 	grandTotal: number;
 	columnLabel: string;
@@ -1104,7 +1129,7 @@ interface MatrixCellProps {
 
 const MatrixCell = ({
 	cellShare,
-	cellRevenue,
+	cellGrossSales,
 	branchTotal,
 	grandTotal,
 	columnLabel,
@@ -1112,18 +1137,19 @@ const MatrixCell = ({
 	storeName,
 	mode,
 }: MatrixCellProps) => {
-	const opacity = cellRevenue === 0 ? 0 : Math.max(0.05, cellShare ** 0.7);
+	const opacity = cellGrossSales === 0 ? 0 : Math.max(0.05, cellShare ** 0.7);
 	const isInverted = opacity > 0.35;
 	const branchSharePct = branchTotal > 0 ? cellShare * 100 : 0;
-	const grandSharePct = grandTotal > 0 ? (cellRevenue / grandTotal) * 100 : 0;
-	const tooltip = `${storeCode} ${storeName} · ${columnLabel}\nRp ${cellRevenue.toLocaleString("id-ID")} · ${branchSharePct.toFixed(1)}% of branch · ${grandSharePct.toFixed(1)}% of total`;
+	const grandSharePct =
+		grandTotal > 0 ? (cellGrossSales / grandTotal) * 100 : 0;
+	const tooltip = `${storeCode} ${storeName} · ${columnLabel}\nRp ${cellGrossSales.toLocaleString("id-ID")} · ${branchSharePct.toFixed(1)}% of branch · ${grandSharePct.toFixed(1)}% of total`;
 
 	const display =
-		cellRevenue === 0
+		cellGrossSales === 0
 			? "·"
 			: mode === "share"
 				? `${Math.round(cellShare * 100)}%`
-				: formatIDRShort(cellRevenue);
+				: formatIDRShort(cellGrossSales);
 
 	return (
 		<td
@@ -1139,7 +1165,7 @@ const MatrixCell = ({
 				className={cn(
 					"relative",
 					isInverted ? "text-background" : "text-foreground",
-					cellRevenue === 0 && "text-muted-foreground",
+					cellGrossSales === 0 && "text-muted-foreground",
 				)}
 			>
 				{display}

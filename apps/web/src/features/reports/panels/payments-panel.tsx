@@ -15,7 +15,7 @@ import {
 import { CHART_PALETTE } from "@/features/reports/utils/palette";
 import type { ReportGranularity } from "@/lib/api";
 import { paymentMixQueryOptions } from "@/lib/query-options";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 interface PaymentsPanelProps {
 	from: string;
@@ -55,10 +55,10 @@ export const PaymentsPanel = ({
 			);
 		}
 		lines.push("");
-		lines.push("Totals,Method,Revenue,Orders,Share");
+		lines.push("Totals,Method,Collected,Orders,Share");
 		for (const m of data.summary.methods) {
 			lines.push(
-				`Totals,${escapeCsv(m.payment_method_name)},${m.revenue},${m.orders},${m.share}`,
+				`Totals,${escapeCsv(m.payment_method_name)},${m.collected},${m.orders},${m.share}`,
 			);
 		}
 		downloadCsv(
@@ -72,8 +72,8 @@ export const PaymentsPanel = ({
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<KpiRow>
 					<KpiCard
-						label="Paid revenue"
-						value={formatIDRCurrency(String(data?.summary.grand_total ?? 0))}
+						label="Collected"
+						value={formatMoney(String(data?.summary.grand_total ?? 0))}
 					/>
 					<KpiCard
 						label="Paid orders"
@@ -87,11 +87,11 @@ export const PaymentsPanel = ({
 
 			<ChartCard
 				variant="stacked-bar"
-				title="Revenue by payment method"
+				title="Collected by payment method"
 				data={data?.series ?? []}
 				granularity={data?.granularity ?? "day"}
 				series={series}
-				valueFormatter={(v) => formatIDRCurrency(String(v))}
+				valueFormatter={(v) => formatMoney(String(v))}
 			/>
 
 			<Card className="border-border/70">
@@ -112,7 +112,7 @@ export const PaymentsPanel = ({
 											{m.payment_method_name}
 										</span>
 										<span className="font-mono text-sm tabular-nums">
-											{formatIDRCurrency(String(m.revenue))}
+											{formatMoney(String(m.collected))}
 										</span>
 									</div>
 									<div className="h-1.5 w-full bg-muted">
