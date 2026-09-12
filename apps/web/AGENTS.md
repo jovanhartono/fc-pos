@@ -20,9 +20,9 @@
 
 - `components/ui/` — shadcn only, add via `bunx shadcn@latest add <component>`
 - `components/form/` — shared form fields
-- `features/<domain>/components/`, `features/<domain>/hooks/` — feature modules
+- `features/<domain>/api.ts`, `features/<domain>/components/`, `features/<domain>/hooks/` — feature modules
 - `hooks/` — shared hooks
-- `lib/` — API client, RPC, query options, status maps, shared helpers
+- `lib/` — RPC clients, HTTP helpers, cache events, status maps, shared helpers
 - `routes/` — TanStack Router file-based; thin orchestrators only
 - `shared/` — cross-cutting utils (money, utils)
 - `stores/` — Zustand stores (auth, dialog, sheet, printer, transactions, transaction-preferences)
@@ -52,10 +52,12 @@ Every saved/uploaded image rendered anywhere must be clickable and open in `Phot
 
 ## Data Fetching
 
-- API functions and `queryKeys` in `src/lib/api.ts`; query options in `src/lib/query-options.ts`
-- RPC: `rpc` (public) and `rpcWithAuth()` (JWT) from `src/lib/rpc.ts`
-- Loaders prefetch into cache via `ensureQueryData`; components read via `useQuery`
-- Mutations: `useMutation` + invalidate keys in `onSuccess`
+- One module per domain: `src/features/<domain>/api.ts` exports `<domain>Keys`, `<domain>Queries` (each entry a `queryOptions`), the mutation functions, and the domain's types. Nothing about a domain's endpoints lives outside it.
+- Keys: `all` → `lists()` → `list(query)` → `detail(id)`, so one prefix invalidates every screen the domain owns.
+- Transport helpers (`parseSuccessData`, `toSearchParams`, `toPaginated`, uploads) in `src/lib/http.ts`; shared staleTimes in `src/lib/query-defaults.ts`.
+- RPC: `rpcWithAuth()` (JWT) and `rpc` from `src/lib/rpc.ts`; `rpcPublic` from `src/lib/rpc-public.ts` for endpoints nobody signs in for, and only that one keeps `/track` free of the sign-in code.
+- Loaders prefetch into cache via `ensureQueryData`; components read via `useQuery`.
+- Mutations: `useMutation` + invalidate in `onSuccess`. A write that several screens react to gets a named function in `src/lib/cache-events.ts` — one site, so no caller can forget a screen.
 
 ## State
 
