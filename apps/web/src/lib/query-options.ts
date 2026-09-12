@@ -3,7 +3,6 @@ import {
 	type FetchAgingQueueQuery,
 	type FetchCampaignsQuery,
 	type FetchComplaintsQuery,
-	type FetchCustomersQuery,
 	type FetchOrdersQuery,
 	type FetchReportOverviewQuery,
 	type FetchReportRangeQuery,
@@ -16,7 +15,6 @@ import {
 	fetchComplaintsPage,
 	fetchCurrentShift,
 	fetchCustomerAcquisitionReport,
-	fetchCustomersPage,
 	fetchFinancialReport,
 	fetchOrderDetail,
 	fetchOrderServiceQueueCounts,
@@ -31,12 +29,6 @@ import {
 } from "@/lib/api";
 
 const REPORT_STALE_TIME = 60_000;
-
-export const customersPageQueryOptions = (query?: FetchCustomersQuery) =>
-	queryOptions({
-		queryKey: queryKeys.customers(query),
-		queryFn: () => fetchCustomersPage(query),
-	});
 
 export const ordersPageQueryOptions = (query?: FetchOrdersQuery) =>
 	queryOptions({

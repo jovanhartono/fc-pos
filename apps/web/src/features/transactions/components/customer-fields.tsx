@@ -9,8 +9,8 @@ import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { PhoneNumberField } from "@/components/form/phone-number-field";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { customersQueries } from "@/features/customers/api";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
-import { fetchCustomerByPhone } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 // POS customer entry — two always-visible fields. The cashier enters the phone;
@@ -36,13 +36,8 @@ export const CustomerFields = () => {
 	}, [phone]);
 
 	const lookupQuery = useQuery({
-		queryKey: ["customer-by-phone", lookupPhone],
-		queryFn: () => fetchCustomerByPhone(lookupPhone),
+		...customersQueries.byPhone(lookupPhone),
 		enabled: lookupPhone.length > 0,
-		// A phone→customer mapping is stable; cache it so re-looking-up the same
-		// phone (e.g. after a cart↔payment tab toggle remounts this field) is
-		// instant instead of refetching and flashing the name/badge.
-		staleTime: 5 * 60 * 1000,
 	});
 
 	// Exact-phone lookup returns the Customer or null directly — phone is

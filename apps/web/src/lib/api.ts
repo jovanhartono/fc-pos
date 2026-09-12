@@ -1,11 +1,9 @@
 import type {
 	CampaignPayloadSchema,
 	CampaignUpdatePayloadSchema,
-	POSTCustomerSchema,
 	POSTOrderPickupEventPresignSchema,
 	POSTOrderPickupEventSchema,
 	POSTOrderSchema,
-	PUTCustomerSchema,
 } from "@fresclean/api/schema";
 import type {
 	ComparableSummary,
@@ -28,14 +26,6 @@ import { rpc, rpcWithAuth } from "@/lib/rpc";
 
 type LoginSuccessResponse = InferResponseType<typeof rpc.api.auth.login.$post>;
 
-export type Customer = InferResponseType<
-	typeof rpc.api.admin.customers.$get
->["data"][number];
-// Leaner than Customer — the lookup omits the originStore relation (the POS
-// prefill reads only the name). 0-or-1, so the data is the row or null.
-export type CustomerLookup = InferResponseType<
-	typeof rpc.api.admin.customers.lookup.$get
->["data"];
 export type Order = InferResponseType<
 	typeof rpc.api.admin.orders.$get
 >["data"][number];
@@ -167,13 +157,6 @@ export type LoginPayload = {
 	password: string;
 };
 
-export type CreateCustomerPayload = Omit<
-	z.infer<typeof POSTCustomerSchema>,
-	"origin_store_id"
-> & {
-	origin_store_id?: number;
-};
-export type UpdateCustomerPayload = z.infer<typeof PUTCustomerSchema>;
 export type CreateOrderPayload = z.input<typeof POSTOrderSchema> & {
 	voucher_codes: string[];
 };
@@ -216,12 +199,6 @@ export type FetchOrderServiceQueueQuery = {
 		| "cancelled";
 	date_from?: string;
 	date_to?: string;
-};
-
-export type FetchCustomersQuery = {
-	limit?: number;
-	offset?: number;
-	search?: string;
 };
 
 export type FetchCampaignsQuery = {
@@ -327,8 +304,6 @@ export type CancelOrderPayload = {
 };
 
 export const queryKeys = {
-	customers: (query?: FetchCustomersQuery) =>
-		["customers", query ?? {}] as const,
 	orders: (query?: FetchOrdersQuery) => ["orders", query ?? {}] as const,
 	orderDetail: (id: number) => ["order-detail", id] as const,
 	campaigns: (query?: FetchCampaignsQuery) =>
@@ -372,37 +347,6 @@ export const queryKeys = {
 export async function login(payload: LoginPayload) {
 	return parseSuccessData<LoginSuccessResponse["data"]>(
 		rpc.api.auth.login.$post({ json: payload }),
-	);
-}
-
-export async function fetchCustomers() {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.customers.$get(),
-	);
-	return response.data;
-}
-
-export async function fetchCustomersPage(
-	query?: FetchCustomersQuery,
-): Promise<PaginatedData<Customer>> {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.customers.$get({
-			query:
-				query && Object.keys(query).length > 0
-					? toSearchParams(query)
-					: undefined,
-		}),
-	);
-
-	return toPaginated(response);
-}
-
-// Exact-phone lookup for the POS name-prefill. Returns the matching customer or
-// null — phone is identity, so 0-or-1. UX-only; checkout still find-or-creates
-// by phone server-side (ADR-0011).
-export function fetchCustomerByPhone(phone: string): Promise<CustomerLookup> {
-	return parseSuccessData<CustomerLookup>(
-		rpcWithAuth().api.admin.customers.lookup.$get({ query: { phone } }),
 	);
 }
 
@@ -471,26 +415,6 @@ export function fetchCampaignVoucherCodes(campaignId: number) {
 	return parseSuccessData<VoucherCodesResponse>(
 		rpcWithAuth().api.admin.campaigns[":id"].codes.$get({
 			param: { id: String(campaignId) },
-		}),
-	);
-}
-
-export async function createCustomer(payload: CreateCustomerPayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin.customers.$post({
-			json: payload as z.infer<typeof POSTCustomerSchema>,
-		}),
-	);
-}
-
-export async function updateCustomer(
-	id: number,
-	payload: UpdateCustomerPayload,
-) {
-	return parseResponse(
-		rpcWithAuth().api.admin.customers[":id"].$put({
-			param: { id: String(id) },
-			json: payload,
 		}),
 	);
 }
