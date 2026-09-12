@@ -76,6 +76,28 @@ mock.module("@/modules/orders/order.service", () => ({
   },
 }));
 
+mock.module("@/modules/orders/order-service-detail.service", () => ({
+  getOrderServiceDetail: (orderId: number, serviceId: number) => {
+    reached.push("getOrderServiceDetail");
+    if (orderId === 123 && serviceId === 45) {
+      return Promise.resolve({ ok: "getOrderServiceDetail" });
+    }
+    return Promise.resolve(null);
+  },
+}));
+
+mock.module("@/modules/orders/order-lookup.service", () => ({
+  resolveOrderLookup: () => {
+    reached.push("resolveOrderLookup");
+    return Promise.resolve({
+      item_code: null,
+      order_id: 123,
+      service_id: null,
+      store_id: KEMANG,
+    });
+  },
+}));
+
 mock.module("@/modules/orders/order-receipt.service", () => ({
   getOrderReceiptById: marker("getOrderReceiptById"),
 }));
@@ -257,6 +279,39 @@ describe("what the gate leaves alone", () => {
     const res = await call("/0");
 
     expect(res.status).toBe(400);
+    expect(orderAccessCalls).toEqual([]);
+  });
+});
+
+describe("opening one line on an Order", () => {
+  it("checks the branch before handing over the line", async () => {
+    const res = await call("/123/services/45");
+
+    expect(res.status).toBe(200);
+    expect(reached).toContain("getOrderServiceDetail");
+    expect(orderAccessCalls).toEqual([{ userId: 7, orderId: 123 }]);
+  });
+
+  it("says the line does not exist when it belongs to a different Order", async () => {
+    const res = await call("/123/services/999");
+
+    expect(res.status).toBe(404);
+  });
+
+  it("refuses a line on an Order from another branch before asking the line service", async () => {
+    const res = await call("/777/services/45");
+
+    expect(res.status).toBe(403);
+    expect(reached).not.toContain("getOrderServiceDetail");
+  });
+});
+
+describe("looking an Order up from the queue's search box", () => {
+  it("does not ask which order 'lookup' is", async () => {
+    const res = await call("/lookup?q=123");
+
+    expect(res.status).toBe(200);
+    expect(reached).toContain("resolveOrderLookup");
     expect(orderAccessCalls).toEqual([]);
   });
 });

@@ -259,6 +259,52 @@ export function findOrderReceipt(id: number) {
   });
 }
 
+// The queue's line-detail screen: one line plus enough of its Order to label
+// it, never the whole Order (ADR-0016: no pickup_code here).
+export function findOrderServiceDetail(orderId: number, serviceId: number) {
+  return db.query.ordersServicesTable.findFirst({
+    where: { id: serviceId, order_id: orderId },
+    columns: {
+      id: true,
+      status: true,
+      is_priority: true,
+      handler_id: true,
+    },
+    with: {
+      order: {
+        columns: { id: true, code: true, created_at: true },
+        with: {
+          store: { columns: { id: true, code: true } },
+          customer: { columns: { name: true, phone_number: true } },
+        },
+      },
+      handler: { columns: userRefColumns },
+      service: { columns: { id: true, name: true } },
+      reworkOf: { columns: { id: true, created_at: true } },
+      statusLogs: {
+        with: { changedBy: { columns: userRefColumns } },
+        orderBy: { id: "asc" },
+      },
+      item: {
+        columns: itemCardColumns,
+        with: {
+          images: {
+            where: { deleted_at: { isNull: true } },
+            orderBy: { id: "asc" },
+          },
+        },
+      },
+    },
+  });
+}
+
+export function findOrderForLookup(id: number) {
+  return db.query.ordersTable.findFirst({
+    where: { id },
+    columns: { id: true, store_id: true },
+  });
+}
+
 // The customer's own view of their Order. pickup_code rides along so the
 // tracker can reveal it once something is collectable — when, is the tracking
 // service's call, never this read's.

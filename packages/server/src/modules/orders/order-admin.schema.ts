@@ -216,6 +216,10 @@ export const GETOrderServiceByIdQuerySchema = z.object({
   service_id: z.coerce.number().int().positive(),
 });
 
+export const GETOrderLookupQuerySchema = z.object({
+  q: z.string().trim().min(1).max(64),
+});
+
 export const GETMyOrderServicesQuerySchema = z.object({
   store_id: z.coerce.number().int().positive().optional(),
   include_terminal: z.stringbool().optional().default(false),
