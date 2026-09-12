@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import { NotFoundException } from "@/http-exceptions";
+import { assertIsAdmin } from "@/modules/permissions/permissions";
 import {
   POSTServiceSchema,
   PUTServiceSchema,
@@ -34,6 +35,7 @@ const app = new Hono<AdminEnv>()
     return c.json(success(service));
   })
   .post("/", zodValidator("json", POSTServiceSchema), async (c) => {
+    assertIsAdmin(c.get("jwtPayload"));
     const body = c.req.valid("json");
 
     const service = await createService(body);
@@ -45,6 +47,7 @@ const app = new Hono<AdminEnv>()
     idParamSchema,
     zodValidator("json", PUTServiceSchema),
     async (c) => {
+      assertIsAdmin(c.get("jwtPayload"));
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 

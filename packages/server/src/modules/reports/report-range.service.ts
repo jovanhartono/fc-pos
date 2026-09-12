@@ -1,3 +1,4 @@
+import { revenue } from "@/modules/reports/money-basis";
 import type {
   ComparableSummary,
   GetReportRangeQuery,
@@ -8,21 +9,23 @@ import {
   findDistinctHandlerCount,
   findRepeatCustomerStats,
   listCampaignEffectivenessRows,
-  listCategoryRevenueSeries,
+  listCategoryGrossSalesSeries,
+  listCollectedSeries,
   listNewCustomersSeries,
   listOrderDiscountSeries,
   listOrdersInSeries,
   listOrdersOutSeries,
   listPaymentMixSeries,
   listProductsCogsSeries,
-  listProductsRevenueSeries,
+  listProductsGrossSalesSeries,
   listRefundAmountSeries,
   listRefundReasonSeries,
   listReturningCustomerOrdersSeries,
   listServicesCogsSeries,
-  listServicesRevenueSeries,
-  listStoreCategoryRevenueRows,
-  listStoreRevenueRows,
+  listServicesGrossSalesSeries,
+  listStoreCategoryGrossSalesRows,
+  listStoreCollectedRows,
+  listStoreRefundRows,
   listTopCustomers,
   listWorkerProductivityRows,
 } from "@/modules/reports/report-range.repository";
@@ -100,15 +103,15 @@ function buildDeltas<T extends object>(
 
 interface FinancialSummary {
   cogs: number;
+  collected: number;
   discount: number;
   gross_profit: number;
-  gross_revenue: number;
-  net_income: number;
-  net_margin: number;
-  net_revenue: number;
-  products_total: number;
+  gross_sales: number;
+  margin: number;
+  products_gross_sales: number;
   refunds: number;
-  services_total: number;
+  revenue: number;
+  services_gross_sales: number;
 }
 
 async function financialSummaryFor({
@@ -120,23 +123,55 @@ async function financialSummaryFor({
   storeId?: number;
   granularity: Granularity;
 }) {
-  const [services, products, servicesCogs, productsCogs, discount, refunds] =
-    await Promise.all([
-      listServicesRevenueSeries({ range, storeId, granularity }),
-      listProductsRevenueSeries({ range, storeId, granularity }),
-      listServicesCogsSeries({ range, storeId, granularity }),
-      listProductsCogsSeries({ range, storeId, granularity }),
-      listOrderDiscountSeries({ range, storeId, granularity }),
-      listRefundAmountSeries({ range, storeId, granularity }),
-    ]);
+  const [
+    services,
+    products,
+    servicesCogs,
+    productsCogs,
+    discount,
+    collected,
+    refunds,
+  ] = await Promise.all([
+    listServicesGrossSalesSeries({ range, storeId, granularity }),
+    listProductsGrossSalesSeries({ range, storeId, granularity }),
+    listServicesCogsSeries({ range, storeId, granularity }),
+    listProductsCogsSeries({ range, storeId, granularity }),
+    listOrderDiscountSeries({ range, storeId, granularity }),
+    listCollectedSeries({ range, storeId, granularity }),
+    listRefundAmountSeries({ range, storeId, granularity }),
+  ]);
   return {
     services,
     products,
     servicesCogs,
     productsCogs,
     discount,
+    collected,
     refunds,
   };
+}
+
+// A store that took nothing this stretch but handed money back still needs a
+// line of its own, or the store rows stop adding up to the range's Revenue.
+function mergeStoreRows(
+  collectedRows: Awaited<ReturnType<typeof listStoreCollectedRows>>,
+  refundRows: Awaited<ReturnType<typeof listStoreRefundRows>>
+) {
+  const byStore = new Map(
+    collectedRows.map((row) => [row.store_id, { ...row, refunds: 0 }])
+  );
+  for (const row of refundRows) {
+    const existing = byStore.get(row.store_id);
+    if (existing) {
+      existing.refunds = row.refunds;
+    } else {
+      byStore.set(row.store_id, { ...row, collected: 0, orders: 0 });
+    }
+  }
+  return Array.from(byStore.values()).map((row) => ({
+    ...row,
+    revenue: revenue(row.collected, row.refunds),
+  }));
 }
 
 export async function getFinancialReport(query: GetReportRangeQuery) {
@@ -144,51 +179,59 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
 
-  const [current, previous, categories, storeRevenue, storeCategoryRows] =
-    await Promise.all([
-      financialSummaryFor({ range, storeId, granularity: ctx.granularity }),
-      financialSummaryFor({
-        range: ctx.previous.range,
-        storeId,
-        granularity: ctx.granularity,
-      }),
-      listCategoryRevenueSeries({
-        range,
-        storeId,
-        granularity: ctx.granularity,
-      }),
-      listStoreRevenueRows({ range }),
-      listStoreCategoryRevenueRows({ range, storeId }),
-    ]);
+  const [
+    current,
+    previous,
+    categories,
+    storeCollected,
+    storeRefunds,
+    storeCategoryRows,
+  ] = await Promise.all([
+    financialSummaryFor({ range, storeId, granularity: ctx.granularity }),
+    financialSummaryFor({
+      range: ctx.previous.range,
+      storeId,
+      granularity: ctx.granularity,
+    }),
+    listCategoryGrossSalesSeries({
+      range,
+      storeId,
+      granularity: ctx.granularity,
+    }),
+    listStoreCollectedRows({ range, storeId }),
+    listStoreRefundRows({ range, storeId }),
+    listStoreCategoryGrossSalesRows({ range, storeId }),
+  ]);
 
   const servicesMap = indexBy(current.services);
   const productsMap = indexBy(current.products);
   const servicesCogsMap = indexBy(current.servicesCogs);
   const productsCogsMap = indexBy(current.productsCogs);
   const discountMap = indexBy(current.discount);
+  const collectedMap = indexBy(current.collected);
   const refundsMap = indexBy(current.refunds);
 
   const series = ctx.buckets.map((bucket) => {
-    const s = servicesMap.get(bucket)?.revenue ?? 0;
-    const p = productsMap.get(bucket)?.revenue ?? 0;
+    const s = servicesMap.get(bucket)?.gross_sales ?? 0;
+    const p = productsMap.get(bucket)?.gross_sales ?? 0;
     const sc = servicesCogsMap.get(bucket)?.cogs ?? 0;
     const pc = productsCogsMap.get(bucket)?.cogs ?? 0;
     const d = discountMap.get(bucket)?.discount ?? 0;
+    const c = collectedMap.get(bucket)?.collected ?? 0;
     const r = refundsMap.get(bucket)?.amount ?? 0;
-    const gross = s + p;
     const cogs = sc + pc;
-    const netRevenue = gross - d;
+    const kept = revenue(c, r);
     return {
       bucket,
       services: s,
       products: p,
-      gross_revenue: gross,
+      gross_sales: s + p,
       discount: d,
-      net_revenue: netRevenue,
-      cogs,
-      gross_profit: netRevenue - cogs,
+      collected: c,
       refunds: r,
-      net_income: netRevenue - cogs - r,
+      revenue: kept,
+      cogs,
+      gross_profit: kept - cogs,
     };
   });
 
@@ -198,22 +241,22 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
   // Category treemap
   const categoryTotals = new Map<
     number,
-    { category_id: number; category_name: string; revenue: number }
+    { category_id: number; category_name: string; gross_sales: number }
   >();
   for (const row of categories) {
     const entry = categoryTotals.get(row.category_id);
     if (entry) {
-      entry.revenue += row.revenue;
+      entry.gross_sales += row.gross_sales;
     } else {
       categoryTotals.set(row.category_id, {
         category_id: row.category_id,
         category_name: row.category_name,
-        revenue: row.revenue,
+        gross_sales: row.gross_sales,
       });
     }
   }
   const topCategories = Array.from(categoryTotals.values())
-    .sort((a, b) => b.revenue - a.revenue)
+    .sort((a, b) => b.gross_sales - a.gross_sales)
     .slice(0, 5);
   const topCategoryIds = new Set(topCategories.map((c) => c.category_id));
 
@@ -223,7 +266,7 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     const key = topCategoryIds.has(row.category_id)
       ? `cat_${row.category_id}`
       : "cat_other";
-    bucketRow[key] = (bucketRow[key] ?? 0) + row.revenue;
+    bucketRow[key] = (bucketRow[key] ?? 0) + row.gross_sales;
     categorySeriesMap.set(row.bucket, bucketRow);
   }
   const hasOther = categoryTotals.size > topCategories.length;
@@ -244,31 +287,32 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
   });
 
   const categoryTreemap = Array.from(categoryTotals.values()).sort(
-    (a, b) => b.revenue - a.revenue
+    (a, b) => b.gross_sales - a.gross_sales
   );
 
-  const grandStoreRevenue = storeRevenue.reduce((s, r) => s + r.revenue, 0);
-  const storeBreakdown = storeRevenue
+  const storeRows = mergeStoreRows(storeCollected, storeRefunds);
+  const grandStoreRevenue = storeRows.reduce((s, r) => s + r.revenue, 0);
+  const storeBreakdown = storeRows
     .map((row) => ({
       ...row,
       share: grandStoreRevenue > 0 ? row.revenue / grandStoreRevenue : 0,
     }))
     .sort((a, b) => b.revenue - a.revenue);
 
-  // Branch × Category matrix: global top N columns, "Other" collapses rest
+  // Store × Category matrix: global top N columns, "Other" collapses rest
   const STORE_CATEGORY_TOP_N = 6;
   const STORE_CATEGORY_MAX_STORES = 12;
   const OTHER_CATEGORY_ID = -1;
 
   const globalCategoryTotals = new Map<
     number,
-    { label: string; revenue: number }
+    { label: string; gross_sales: number }
   >();
   for (const row of storeCategoryRows) {
     const entry = globalCategoryTotals.get(row.category_id);
     globalCategoryTotals.set(row.category_id, {
       label: row.category_name,
-      revenue: (entry?.revenue ?? 0) + row.revenue,
+      gross_sales: (entry?.gross_sales ?? 0) + row.gross_sales,
     });
   }
 
@@ -276,9 +320,11 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     .map(([id, c]) => ({
       category_id: id,
       label: c.label,
-      revenue: c.revenue,
+      gross_sales: c.gross_sales,
     }))
-    .sort((a, b) => b.revenue - a.revenue || a.category_id - b.category_id);
+    .sort(
+      (a, b) => b.gross_sales - a.gross_sales || a.category_id - b.category_id
+    );
 
   const topCategoryEntries = globalSorted.slice(0, STORE_CATEGORY_TOP_N);
   const hasOtherStoreCategory = globalSorted.length > STORE_CATEGORY_TOP_N;
@@ -289,20 +335,20 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
   const storeCategoryColumns: {
     category_id: number;
     label: string;
-    revenue: number;
+    gross_sales: number;
   }[] = topCategoryEntries.map((c) => ({
     category_id: c.category_id,
     label: c.label,
-    revenue: c.revenue,
+    gross_sales: c.gross_sales,
   }));
   if (hasOtherStoreCategory) {
     const otherTotal = globalSorted
       .slice(STORE_CATEGORY_TOP_N)
-      .reduce((s, c) => s + c.revenue, 0);
+      .reduce((s, c) => s + c.gross_sales, 0);
     storeCategoryColumns.push({
       category_id: OTHER_CATEGORY_ID,
       label: "Other",
-      revenue: otherTotal,
+      gross_sales: otherTotal,
     });
   }
 
@@ -328,9 +374,9 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
       : OTHER_CATEGORY_ID;
     bucket.byCategory.set(
       colId,
-      (bucket.byCategory.get(colId) ?? 0) + row.revenue
+      (bucket.byCategory.get(colId) ?? 0) + row.gross_sales
     );
-    bucket.total += row.revenue;
+    bucket.total += row.gross_sales;
     storeBuckets.set(row.store_id, bucket);
   }
 
@@ -348,11 +394,11 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
 
   const storeCategoryRowsOut = visibleStoreBuckets.map((bucket) => {
     const cells = storeCategoryColumns.map((col) => {
-      const revenue = bucket.byCategory.get(col.category_id) ?? 0;
+      const amount = bucket.byCategory.get(col.category_id) ?? 0;
       return {
         category_id: col.category_id,
-        revenue,
-        share: bucket.total > 0 ? revenue / bucket.total : 0,
+        gross_sales: amount,
+        share: bucket.total > 0 ? amount / bucket.total : 0,
       };
     });
     return {
@@ -389,36 +435,41 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
 }
 
 function summariseFinancial(raw: {
-  services: { revenue: number }[];
-  products: { revenue: number }[];
+  services: { gross_sales: number }[];
+  products: { gross_sales: number }[];
   servicesCogs: { cogs: number }[];
   productsCogs: { cogs: number }[];
   discount: { discount: number }[];
+  collected: { collected: number }[];
   refunds: { amount: number }[];
 }): FinancialSummary {
-  const servicesTotal = raw.services.reduce((s, r) => s + r.revenue, 0);
-  const productsTotal = raw.products.reduce((s, r) => s + r.revenue, 0);
+  const servicesGrossSales = raw.services.reduce(
+    (s, r) => s + r.gross_sales,
+    0
+  );
+  const productsGrossSales = raw.products.reduce(
+    (s, r) => s + r.gross_sales,
+    0
+  );
   const cogs =
     raw.servicesCogs.reduce((s, r) => s + r.cogs, 0) +
     raw.productsCogs.reduce((s, r) => s + r.cogs, 0);
   const discount = raw.discount.reduce((s, r) => s + r.discount, 0);
+  const collected = raw.collected.reduce((s, r) => s + r.collected, 0);
   const refunds = raw.refunds.reduce((s, r) => s + r.amount, 0);
-  const gross = servicesTotal + productsTotal;
-  const netRevenue = gross - discount;
-  const grossProfit = netRevenue - cogs;
-  const netIncome = netRevenue - cogs - refunds;
-  const netMargin = netRevenue > 0 ? netIncome / netRevenue : 0;
+  const kept = revenue(collected, refunds);
+  const grossProfit = kept - cogs;
   return {
-    gross_revenue: gross,
-    services_total: servicesTotal,
-    products_total: productsTotal,
+    gross_sales: servicesGrossSales + productsGrossSales,
+    services_gross_sales: servicesGrossSales,
+    products_gross_sales: productsGrossSales,
     discount,
-    net_revenue: netRevenue,
+    collected,
+    refunds,
+    revenue: kept,
     cogs,
     gross_profit: grossProfit,
-    refunds,
-    net_income: netIncome,
-    net_margin: netMargin,
+    margin: kept > 0 ? grossProfit / kept : 0,
   };
 }
 
@@ -515,27 +566,27 @@ export async function getPaymentMixReport(query: GetReportRangeQuery) {
     {
       payment_method_id: number;
       payment_method_name: string;
-      revenue: number;
+      collected: number;
       orders: number;
     }
   >();
   for (const row of rows) {
     const current = methodTotals.get(row.payment_method_id);
     if (current) {
-      current.revenue += row.revenue;
+      current.collected += row.collected;
       current.orders += row.orders;
     } else {
       methodTotals.set(row.payment_method_id, {
         payment_method_id: row.payment_method_id,
         payment_method_name: row.payment_method_name,
-        revenue: row.revenue,
+        collected: row.collected,
         orders: row.orders,
       });
     }
   }
 
   const methods = Array.from(methodTotals.values()).sort(
-    (a, b) => b.revenue - a.revenue
+    (a, b) => b.collected - a.collected
   );
   const methodKeys = methods.map((m) => ({
     key: `pm_${m.payment_method_id}`,
@@ -546,7 +597,7 @@ export async function getPaymentMixReport(query: GetReportRangeQuery) {
   for (const row of rows) {
     const bucketRow = bucketMap.get(row.bucket) ?? {};
     const key = `pm_${row.payment_method_id}`;
-    bucketRow[key] = (bucketRow[key] ?? 0) + row.revenue;
+    bucketRow[key] = (bucketRow[key] ?? 0) + row.collected;
     bucketMap.set(row.bucket, bucketRow);
   }
 
@@ -559,13 +610,13 @@ export async function getPaymentMixReport(query: GetReportRangeQuery) {
     return filled;
   });
 
-  const grandTotal = methods.reduce((sum, m) => sum + m.revenue, 0);
+  const grandTotal = methods.reduce((sum, m) => sum + m.collected, 0);
   const summary = {
     grand_total: grandTotal,
     total_orders: methods.reduce((sum, m) => sum + m.orders, 0),
     methods: methods.map((m) => ({
       ...m,
-      share: grandTotal > 0 ? m.revenue / grandTotal : 0,
+      share: grandTotal > 0 ? m.collected / grandTotal : 0,
     })),
   };
 
@@ -776,11 +827,11 @@ export async function getRefundTrendReport(query: GetReportRangeQuery) {
 // ───────────────────────── Worker productivity ─────────────────────────
 
 interface WorkerSummary {
-  avg_items_per_hour: number;
+  avg_services_per_hour: number;
   rework_rate: number;
-  total_items_completed: number;
   total_refund_items: number;
   total_rework_items: number;
+  total_services_processed: number;
   worker_count: number;
 }
 
@@ -816,19 +867,19 @@ function summariseWorkers(
   rows: Awaited<ReturnType<typeof listWorkerProductivityRows>>
 ): WorkerSummary {
   const active = rows.filter(
-    (r) => r.items_completed > 0 || r.shift_minutes > 0 || r.rework_items > 0
+    (r) => r.services_processed > 0 || r.shift_minutes > 0 || r.rework_items > 0
   );
-  const totalCompleted = active.reduce((s, r) => s + r.items_completed, 0);
+  const totalProcessed = active.reduce((s, r) => s + r.services_processed, 0);
   const totalRefunds = active.reduce((s, r) => s + r.refund_items, 0);
   const totalRework = active.reduce((s, r) => s + r.rework_items, 0);
   const totalHours = active.reduce((s, r) => s + r.shift_minutes / 60, 0);
   return {
     worker_count: active.length,
-    total_items_completed: totalCompleted,
+    total_services_processed: totalProcessed,
     total_refund_items: totalRefunds,
     total_rework_items: totalRework,
-    rework_rate: totalCompleted > 0 ? totalRework / totalCompleted : 0,
-    avg_items_per_hour: totalHours > 0 ? totalCompleted / totalHours : 0,
+    rework_rate: totalProcessed > 0 ? totalRework / totalProcessed : 0,
+    avg_services_per_hour: totalHours > 0 ? totalProcessed / totalHours : 0,
   };
 }
 
@@ -846,11 +897,11 @@ export async function getCampaignEffectivenessReport(
   const totals = rows.reduce(
     (acc, row) => {
       acc.orders += row.orders;
-      acc.revenue += row.revenue;
+      acc.collected += row.collected;
       acc.discount_cost += row.discount_cost;
       return acc;
     },
-    { orders: 0, revenue: 0, discount_cost: 0 }
+    { orders: 0, collected: 0, discount_cost: 0 }
   );
 
   return {

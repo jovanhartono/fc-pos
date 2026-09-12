@@ -20,6 +20,7 @@ Three roles with disjoint capabilities. Locked for v1; do not blur the lines.
 | Cancel OrderService on an **unpaid** Order | ✅ | ✅ | ✅ |
 | Refund OrderService on a **paid** Order | — | — | ✅ |
 | Create / edit Campaigns | — | — | ✅ |
+| Create / edit catalog (Services, Products, Categories, Payment methods) and Stores | — | — | ✅ (registering a printer at the counter is store-scoped, not role-gated: any staff with access to that Store) |
 
 ## Cancel and refund — two disjoint off-ramps
 

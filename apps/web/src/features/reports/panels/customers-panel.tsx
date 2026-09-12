@@ -43,8 +43,8 @@ export const CustomersPanel = ({
 	const deltas = data?.summary.deltas;
 
 	const topCustomers = data?.top_customers ?? [];
-	const maxTopRevenue = topCustomers.reduce(
-		(m, c) => Math.max(m, c.revenue),
+	const maxTopCollected = topCustomers.reduce(
+		(m, c) => Math.max(m, c.collected),
 		0,
 	);
 
@@ -68,10 +68,10 @@ export const CustomersPanel = ({
 			);
 		}
 		lines.push("");
-		lines.push("Top customers,Customer ID,Name,Phone,Orders,Revenue");
+		lines.push("Top customers,Customer ID,Name,Phone,Orders,Collected");
 		for (const c of topCustomers) {
 			lines.push(
-				`Top customers,${c.customer_id},${escapeCsv(c.customer_name)},${escapeCsv(c.customer_phone)},${c.orders},${c.revenue}`,
+				`Top customers,${c.customer_id},${escapeCsv(c.customer_name)},${escapeCsv(c.customer_phone)},${c.orders},${c.collected}`,
 			);
 		}
 		downloadCsv(
@@ -166,7 +166,9 @@ export const CustomersPanel = ({
 						<div className="grid gap-3">
 							{topCustomers.map((c, idx) => {
 								const pct =
-									maxTopRevenue === 0 ? 0 : (c.revenue / maxTopRevenue) * 100;
+									maxTopCollected === 0
+										? 0
+										: (c.collected / maxTopCollected) * 100;
 								return (
 									<div key={c.customer_id} className="grid gap-1">
 										<div className="flex items-center justify-between gap-2">
@@ -177,7 +179,7 @@ export const CustomersPanel = ({
 												<span className="truncate">{c.customer_name}</span>
 											</span>
 											<span className="font-mono text-sm tabular-nums">
-												{formatMoney(String(c.revenue))}
+												{formatMoney(String(c.collected))}
 											</span>
 										</div>
 										<div className="h-1.5 w-full bg-muted">

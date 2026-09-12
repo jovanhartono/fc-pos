@@ -3,6 +3,7 @@ import app from "@/app";
 import { adminMiddleware } from "@/middlewares/admin";
 import adminRoutes from "@/routes/admin";
 import authRoutes from "@/routes/auth";
+import healthRoutes from "@/routes/health";
 import internalRoutes from "@/routes/internal";
 import publicRoutes from "@/routes/public";
 import { errorHandler } from "@/utils/error-handler";
@@ -17,7 +18,8 @@ const router = app
   .route("/auth", authRoutes)
   .route("/admin", adminRoutes)
   .route("/public", publicRoutes)
-  .route("/internal", internalRoutes);
+  .route("/internal", internalRoutes)
+  .route("/health", healthRoutes);
 
 router.onError(errorHandler);
 
