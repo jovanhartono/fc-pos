@@ -9,19 +9,21 @@ import { formatMoney } from "@/shared/money";
 const RADAR_LIMIT = 50;
 
 interface PickupRadarProps {
+	enabled: boolean;
 	storeId?: number;
 }
 
 // The sheet asks for the ready rack itself rather than sifting the page of
 // orders behind it — a counter on page three would otherwise see an empty rack.
-export const PickupRadar = ({ storeId }: PickupRadarProps) => {
-	const readyQuery = useQuery(
-		ordersQueries.list({
+export const PickupRadar = ({ enabled, storeId }: PickupRadarProps) => {
+	const readyQuery = useQuery({
+		...ordersQueries.list({
 			status: "ready_for_pickup",
 			store_id: storeId,
 			limit: RADAR_LIMIT,
 		}),
-	);
+		enabled,
+	});
 	const readyOrders = readyQuery.data?.items ?? [];
 
 	if (readyOrders.length === 0) {

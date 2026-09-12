@@ -156,9 +156,11 @@ function OrdersPage() {
 			? undefined
 			: buildOrdersListParams(search, parsedStoreId);
 
+	const canListOrders = role === "admin" ? true : parsedStoreId !== undefined;
+
 	const ordersQuery = useQuery({
 		...ordersQueries.list(orderQuery),
-		enabled: role === "admin" ? true : parsedStoreId !== undefined,
+		enabled: canListOrders,
 	});
 
 	const hasNoStoreAssignment =
@@ -172,9 +174,11 @@ function OrdersPage() {
 		openSheet({
 			title: "Pickup Radar",
 			description: "Orders that can leave the store now.",
-			content: () => <PickupRadar storeId={parsedStoreId} />,
+			content: () => (
+				<PickupRadar enabled={canListOrders} storeId={parsedStoreId} />
+			),
 		});
-	}, [openSheet, parsedStoreId]);
+	}, [canListOrders, openSheet, parsedStoreId]);
 
 	const columns = useMemo<DataTableColumnDef<Order>[]>(
 		() => [

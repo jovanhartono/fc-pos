@@ -42,7 +42,8 @@ export const customersKeys = {
 	lists: () => [...customersKeys.all, "list"] as const,
 	list: (query?: FetchCustomersQuery) =>
 		[...customersKeys.lists(), query ?? {}] as const,
-	byPhone: (phone: string) => ["customer-by-phone", phone] as const,
+	byPhone: (phone: string) =>
+		[...customersKeys.all, "by-phone", phone] as const,
 };
 
 async function fetchCustomersPage(

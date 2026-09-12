@@ -25,9 +25,6 @@ export async function trackPublicOrder(payload: TrackPublicOrderPayload) {
 }
 
 export const trackQueries = {
-	// A customer typing a wrong code should see the message, not four silent
-	// retries, and the next visitor at the same counter must not be shown the
-	// previous customer's order.
 	order: (code?: string, phoneNumber?: string) =>
 		queryOptions({
 			queryKey: trackKeys.order(code, phoneNumber),

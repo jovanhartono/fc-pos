@@ -35,7 +35,7 @@ export const usersKeys = {
 	lists: () => [...usersKeys.all, "list"] as const,
 	list: (query?: FetchUsersQuery) =>
 		[...usersKeys.lists(), query ?? {}] as const,
-	me: () => ["me"] as const,
+	me: () => [...usersKeys.all, "me"] as const,
 };
 
 async function fetchUsersPage(

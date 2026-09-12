@@ -52,7 +52,7 @@ Every saved/uploaded image rendered anywhere must be clickable and open in `Phot
 
 ## Data Fetching
 
-- One module per domain: `src/features/<domain>/api.ts` exports `<domain>Keys`, `<domain>Queries` (each entry a `queryOptions`), the mutation functions, and the domain's types. Nothing about a domain's endpoints lives outside it.
+- One module per domain: `src/features/<domain>/api.ts` exports `<domain>Keys`, `<domain>Queries` (each entry a `queryOptions` / `infiniteQueryOptions`), the mutation functions, and the domain's types. Nothing about a domain's endpoints lives outside it.
 - Keys: `all` → `lists()` → `list(query)` → `detail(id)`, so one prefix invalidates every screen the domain owns.
 - Transport helpers (`parseSuccessData`, `toSearchParams`, `toPaginated`, uploads) in `src/lib/http.ts`; shared staleTimes in `src/lib/query-defaults.ts`.
 - RPC: `rpcWithAuth()` (JWT) and `rpc` from `src/lib/rpc.ts`; `rpcPublic` from `src/lib/rpc-public.ts` for endpoints nobody signs in for, and only that one keeps `/track` free of the sign-in code.

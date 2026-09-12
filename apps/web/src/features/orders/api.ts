@@ -200,7 +200,6 @@ export const ordersKeys = {
 	list: (query?: FetchOrdersQuery) =>
 		[...ordersKeys.lists(), query ?? {}] as const,
 	detail: (id: number) => [...ordersKeys.all, "detail", id] as const,
-	receipt: (id: number) => [...ordersKeys.detail(id), "receipt"] as const,
 	queues: () => [...ordersKeys.all, "queue"] as const,
 	queue: (query?: FetchOrderServiceQueueQuery) =>
 		[...ordersKeys.queues(), query ?? {}] as const,
