@@ -1,8 +1,5 @@
-import {
-  isValidPhoneNumber,
-  parsePhoneNumberFromString,
-} from "libphonenumber-js";
 import { z } from "zod";
+import { isValidPhoneNumber, normalizePhoneNumber } from "@/schema/phone";
 
 // Indonesian prices are written 1.500 for fifteen hundred: the dot is a
 // thousands separator, never a decimal point, and the counter has no sen.
@@ -90,7 +87,7 @@ export const dateStringSchema = (field: string) =>
 export const phoneSchema = z
   .string("Phone number is required")
   .min(1, "Phone number is required")
-  .transform((val) => parsePhoneNumberFromString(val)?.number ?? val)
+  .transform((val) => normalizePhoneNumber(val))
   .pipe(
     z.string().refine(isValidPhoneNumber, { error: "Invalid phone number" })
   );

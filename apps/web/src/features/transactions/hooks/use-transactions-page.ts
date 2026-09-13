@@ -1,3 +1,4 @@
+import { isValidPhoneNumber } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -32,7 +33,6 @@ import {
 } from "@/features/transactions/lib/checkout-issues";
 import type { TransactionsPageContextValue } from "@/features/transactions/lib/transactions-context";
 import { createOrder, type ResolvedVoucher } from "@/lib/api";
-import { isValidPhoneNumber } from "@/lib/phone-number";
 import { meQueryOptions, storesQueryOptions } from "@/lib/query-options";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { getCurrentUser } from "@/stores/auth-store";

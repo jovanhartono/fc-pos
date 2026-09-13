@@ -535,9 +535,10 @@ export async function getOrderDetailById(id: number) {
                 columns: { id: true, created_at: true },
               },
               refundItems: true,
-              // Naming the service only — the shop's cost base stays off the
-              // wire.
-              service: { columns: { id: true, name: true } },
+              // Price is the catalog list price (null for a no-list-price
+              // Service like Repair) — the desk uses it to tell a BOGO-
+              // eligible line from one that can never be the free item.
+              service: { columns: { id: true, name: true, price: true } },
               statusLogs: {
                 with: {
                   changedBy: {

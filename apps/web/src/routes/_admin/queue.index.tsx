@@ -11,13 +11,21 @@ import {
 } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	lazy,
+	memo,
+	Suspense,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DateRangePicker } from "@/components/ui/date-picker";
 import {
 	Dialog,
 	DialogContent,
@@ -26,6 +34,7 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { QueueStatusTabs } from "@/features/orders/components/queue-status-tabs";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { useBarcodeScanner } from "@/features/orders/hooks/useBarcodeScanner";
@@ -52,6 +61,14 @@ import {
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useQueuePreferencesStore } from "@/stores/queue-preferences-store";
+
+// The filter dialog is the only place on this page that needs the range
+// calendar, so it ships in its own chunk instead of the queue's initial load.
+const DateRangePicker = lazy(() =>
+	import("@/components/ui/date-picker").then((module) => ({
+		default: module.DateRangePicker,
+	})),
+);
 
 const QUEUE_PAGE_SIZE = 20;
 
@@ -492,13 +509,15 @@ function QueuePage() {
 										placeholder="Select store"
 										value={parsedStoreId?.toString() ?? ""}
 									/>
-									<DateRangePicker
-										commitOnComplete
-										from={selectedDateFrom}
-										onChange={updateDateRangeFilter}
-										onClear={() => updateDateRangeFilter()}
-										to={selectedDateTo}
-									/>
+									<Suspense fallback={<Skeleton className="h-10 w-full" />}>
+										<DateRangePicker
+											commitOnComplete
+											from={selectedDateFrom}
+											onChange={updateDateRangeFilter}
+											onClear={() => updateDateRangeFilter()}
+											to={selectedDateTo}
+										/>
+									</Suspense>
 									<Button
 										className="h-10 pointer-coarse:h-11"
 										onClick={() => setIsFilterOpen(false)}
