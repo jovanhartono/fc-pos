@@ -33,8 +33,11 @@ Replace `:dev` with `:prod` for production; each uses its own config (`drizzle-d
 
 Read from `process.env` (`.env` auto-loads in this package):
 
-- `DATABASE_URL_DEV` / `DATABASE_URL_PROD` — Neon PostgreSQL connection strings
+- `DATABASE_URL` — Neon PostgreSQL connection string, set per Vercel environment
+- `STORAGE_PREFIX` — `dev/` or `prod/`, set per Vercel environment alongside `DATABASE_URL`
 - `JWT_SECRET` — secret key for JWT authentication
+
+Laptop-only, for the drizzle CLI: `DATABASE_URL_DEV` / `DATABASE_URL_PROD`. See `.env.example`.
 
 ## Structure
 
