@@ -4,7 +4,7 @@ import {
   resolveVoucherCode,
 } from "@/modules/campaigns/campaign.service";
 import type { ResolvedCampaignRow } from "@/modules/campaigns/campaign-redemption.service";
-import { stackCampaignDiscounts } from "@/schema/discount";
+import { applyManualDiscount, stackCampaignDiscounts } from "@/schema/discount";
 
 // The checkout discount desk: the promos a cashier ticked plus the voucher slips a
 // customer handed over become the rows that claim a redemption inside the order
@@ -137,8 +137,11 @@ export async function resolveDiscount({
         : { ...fields, kind: "voucher" as const, voucherCode };
     });
 
-  const afterCampaign = Math.max(0, grossTotal - campaignDiscount);
-  const appliedManual = Math.min(manual, afterCampaign);
+  const appliedManual = applyManualDiscount(
+    grossTotal,
+    campaignDiscount,
+    manual
+  );
   const totalDiscount = campaignDiscount + appliedManual;
 
   let discountSource: ResolvedDiscount["discountSource"] = "none";

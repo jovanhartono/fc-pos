@@ -1,7 +1,10 @@
-import { POSTCustomerSchema } from "@fresclean/api/schema";
+import {
+	normalizePhoneNumber,
+	POSTCustomerSchema,
+} from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type SubmitHandler, useForm } from "react-hook-form";
+import { FormProvider, type SubmitHandler, useForm } from "react-hook-form";
 import { z } from "zod";
 import {
 	CustomerForm,
@@ -9,7 +12,6 @@ import {
 } from "@/features/customers/components/customer-form";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 import { type Customer, createCustomer, updateCustomer } from "@/lib/api";
-import { normalizePhoneNumber } from "@/lib/phone-number";
 import { useSheet } from "@/stores/sheet-store";
 
 const defaultForm: CustomerFormState = {
@@ -119,13 +121,13 @@ export function CustomerSheetContent({
 	};
 
 	return (
-		<CustomerForm
-			control={form.control}
-			handleSubmit={form.handleSubmit}
-			onSubmit={handleSubmit}
-			isSubmitting={isSubmitting}
-			isEditing={isEditing}
-			onReset={closeSheet}
-		/>
+		<FormProvider {...form}>
+			<CustomerForm
+				onSubmit={handleSubmit}
+				isSubmitting={isSubmitting}
+				isEditing={isEditing}
+				onReset={closeSheet}
+			/>
+		</FormProvider>
 	);
 }

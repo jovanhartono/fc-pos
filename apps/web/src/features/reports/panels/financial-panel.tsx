@@ -32,7 +32,7 @@ import {
 import type { FinancialReport, KpiDelta, ReportGranularity } from "@/lib/api";
 import { financialQueryOptions } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 interface FinancialPanelProps {
 	from: string;
@@ -414,7 +414,7 @@ const RevenueLineChart = ({ series, granularity }: RevenueLineChartProps) => {
 											{LINE_CHART_CONFIG[name as string]?.label ?? name}
 										</span>
 										<span className="font-mono font-medium text-foreground tabular-nums">
-											{formatIDRCurrency(String(Number(value)))}
+											{formatMoney(String(Number(value)))}
 										</span>
 									</div>
 								)}

@@ -2,7 +2,8 @@ import { MoneyIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { formatIDRCurrency, getNumericValue } from "@/shared/utils";
+import { formatMoneyInput } from "@/shared/money";
+import { getNumericValue } from "@/shared/utils";
 
 type CurrencyInputProps = {
 	id: string;
@@ -23,7 +24,7 @@ export function CurrencyInput({
 	required,
 	className,
 }: CurrencyInputProps) {
-	const displayValue = useMemo(() => formatIDRCurrency(value), [value]);
+	const displayValue = useMemo(() => formatMoneyInput(value), [value]);
 
 	return (
 		<div className={cn("relative", className)}>

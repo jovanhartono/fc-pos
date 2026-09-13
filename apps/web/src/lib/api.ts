@@ -1,4 +1,6 @@
 import type {
+	CampaignPayloadSchema,
+	CampaignUpdatePayloadSchema,
 	POSTCategorySchema,
 	POSTCustomerSchema,
 	POSTOrderPickupEventPresignSchema,
@@ -320,42 +322,7 @@ export type FetchCampaignsQuery = {
 	is_active?: boolean;
 };
 
-export type CampaignBasePayload = {
-	code: string;
-	name: string;
-	min_order_total: string;
-	starts_at?: Date | null;
-	ends_at?: Date | null;
-	is_active: boolean;
-	store_ids: number[];
-	eligible_service_ids: number[];
-	redemption_mode: "listed" | "code";
-	usage_limit?: number | null;
-	code_count?: number;
-};
-
-export type CampaignFixedPayload = CampaignBasePayload & {
-	discount_type: "fixed";
-	discount_value: string;
-	max_discount?: string | null;
-};
-
-export type CampaignPercentagePayload = CampaignBasePayload & {
-	discount_type: "percentage";
-	discount_value: string;
-	max_discount?: string | null;
-};
-
-export type CampaignBogoPayload = CampaignBasePayload & {
-	discount_type: "buy_n_get_m_free";
-	buy_quantity: number;
-	free_quantity: number;
-};
-
-export type CampaignPayload =
-	| CampaignFixedPayload
-	| CampaignPercentagePayload
-	| CampaignBogoPayload;
+export type CampaignPayload = z.output<typeof CampaignPayloadSchema>;
 
 export type OrderCancelReason =
 	| "customer_request"
@@ -629,22 +596,9 @@ export async function createCampaign(payload: CampaignPayload) {
 	);
 }
 
-export type UpdateCampaignPayload = {
-	code?: string;
-	name?: string;
-	discount_type?: "fixed" | "percentage" | "buy_n_get_m_free";
-	discount_value?: string;
-	min_order_total?: string;
-	max_discount?: string | null;
-	starts_at?: Date | null;
-	ends_at?: Date | null;
-	is_active?: boolean;
-	store_ids?: number[];
-	eligible_service_ids?: number[];
-	buy_quantity?: number | null;
-	free_quantity?: number | null;
-	usage_limit?: number | null;
-};
+export type UpdateCampaignPayload = z.output<
+	typeof CampaignUpdatePayloadSchema
+>;
 
 export async function updateCampaign(
 	id: number,
