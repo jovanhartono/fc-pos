@@ -19,7 +19,7 @@ import {
 	updateService,
 } from "@/lib/api";
 import { servicesQueryOptions } from "@/lib/query-options";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
 export const Route = createFileRoute("/_admin/services")({
@@ -125,7 +125,7 @@ function ServicesPage() {
 			{
 				accessorKey: "cogs",
 				header: "COGS",
-				cell: ({ row }) => formatIDRCurrency(String(row.original.cogs)),
+				cell: ({ row }) => formatMoney(String(row.original.cogs)),
 			},
 			{
 				accessorKey: "price",
@@ -134,7 +134,7 @@ function ServicesPage() {
 					row.original.price === null ? (
 						<span className="text-muted-foreground">No list price</span>
 					) : (
-						formatIDRCurrency(String(row.original.price))
+						formatMoney(String(row.original.price))
 					),
 			},
 			{

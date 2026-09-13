@@ -19,7 +19,7 @@ import {
 	updateProduct,
 } from "@/lib/api";
 import { productsQueryOptions } from "@/lib/query-options";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
 export const Route = createFileRoute("/_admin/products")({
@@ -124,12 +124,12 @@ function ProductsPage() {
 			{
 				accessorKey: "cogs",
 				header: "COGS",
-				cell: ({ row }) => formatIDRCurrency(String(row.original.cogs)),
+				cell: ({ row }) => formatMoney(String(row.original.cogs)),
 			},
 			{
 				accessorKey: "price",
 				header: "Price",
-				cell: ({ row }) => formatIDRCurrency(String(row.original.price)),
+				cell: ({ row }) => formatMoney(String(row.original.price)),
 			},
 			{ accessorKey: "stock", header: "Stock" },
 			{

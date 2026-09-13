@@ -6,7 +6,7 @@ import { claimRedemptions } from "@/modules/campaigns/campaign-redemption.servic
 import type { PatchOrderPaymentInput } from "@/modules/orders/order-admin.schema";
 import { resolveDiscount } from "@/modules/orders/order-discount.service";
 import { assertCanProcessPayment } from "@/modules/permissions/permissions";
-import { isDiscountSettled } from "@/schema/discount";
+import { isDiscountSettled, orderNetDue } from "@/schema/discount";
 import { hasUnpricedLine } from "@/schema/unpriced-line";
 import type { JWTPayload } from "@/types";
 
@@ -129,7 +129,11 @@ export async function updateOrderPayment({
 
     await claimRedemptions(tx, campaignRows, orderId);
 
-    const netDue = grossTotal - discountAmount - Number(order.refunded_amount);
+    const netDue = orderNetDue({
+      grossTotal,
+      discount: discountAmount,
+      refunded: Number(order.refunded_amount),
+    });
 
     // CAS on payment_status: two cashiers tapping collect at once must not
     // both book the money — the loser's transaction rolls back, and with it
@@ -141,7 +145,7 @@ export async function updateOrderPayment({
         payment_status: "paid",
         discount: discountAmount.toString(),
         discount_source: discountSource,
-        paid_amount: Math.max(netDue, 0).toString(),
+        paid_amount: netDue.toString(),
         paid_at: new Date(),
         paid_by: user.id,
         updated_by: user.id,

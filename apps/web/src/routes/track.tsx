@@ -1,6 +1,7 @@
 import {
 	type DerivedItemStatus,
 	isCollectableItemStatus,
+	normalizePhoneNumber,
 } from "@fresclean/api/schema";
 import { WhatsappLogoIcon } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +15,6 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { trackPublicOrder } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
-import { normalizePhoneNumber } from "@/lib/phone-number";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
