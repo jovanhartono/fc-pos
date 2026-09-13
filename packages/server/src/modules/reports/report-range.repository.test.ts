@@ -25,7 +25,7 @@ const {
   listCampaignEffectivenessRows,
   listPaymentMixSeries,
   listRefundAmountSeries,
-  listServicesRevenueSeries,
+  listServicesGrossSalesSeries,
   listWorkerProductivityRows,
 } = await import("@/modules/reports/report-range.repository");
 
@@ -48,7 +48,7 @@ const only = () => {
   return queries[0];
 };
 
-// report-range.repository.sql.test.ts snapshots all 21 statements in full, so
+// report-range.repository.sql.test.ts snapshots all 23 statements in full, so
 // what each query asks Postgres is pinned there. These two stay behind as the
 // tripwire for a blind `--update-snapshots`: the paid window and the store filter
 // are the two rules that decide what counts as takings, and a regenerated
@@ -57,7 +57,7 @@ describe("which orders count as takings", () => {
   it("counts a stretch from the moment the counter took the money", async () => {
     // >= on the closing instant would bill the 1st of September twice, once to
     // each month.
-    await listServicesRevenueSeries({ range: AUGUST, granularity: "day" });
+    await listServicesGrossSalesSeries({ range: AUGUST, granularity: "day" });
 
     expect(only().sql).toContain('"orders"."paid_at" >= $1');
     expect(only().sql).toContain('"orders"."paid_at" < $2');
@@ -66,7 +66,7 @@ describe("which orders count as takings", () => {
   });
 
   it("keeps one store's takings to that store alone", async () => {
-    await listServicesRevenueSeries({
+    await listServicesGrossSalesSeries({
       granularity: "day",
       range: AUGUST,
       storeId: KEMANG,
@@ -105,7 +105,7 @@ describe("grouping takings into chart bars", () => {
 
   for (const { fmt, granularity } of formats) {
     it(`cuts ${granularity} bars at Jakarta midnight`, async () => {
-      await listServicesRevenueSeries({ range: AUGUST, granularity });
+      await listServicesGrossSalesSeries({ range: AUGUST, granularity });
 
       const expr = `to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', '${fmt}')`;
       expect(only().sql).toContain(`select ${expr},`);
@@ -123,14 +123,14 @@ describe("reading rupiah back out of Postgres", () => {
       ["2026-08-02", "0"],
     ]);
 
-    const rows = await listServicesRevenueSeries({
+    const rows = await listServicesGrossSalesSeries({
       range: AUGUST,
       granularity: "day",
     });
 
     expect(rows).toEqual([
-      { bucket: "2026-08-01", revenue: 500_000 },
-      { bucket: "2026-08-02", revenue: 0 },
+      { bucket: "2026-08-01", gross_sales: 500_000 },
+      { bucket: "2026-08-02", gross_sales: 0 },
     ]);
   });
 
@@ -162,7 +162,7 @@ describe("reading rupiah back out of Postgres", () => {
         bucket: "2026-08-01",
         payment_method_id: 0,
         payment_method_name: "Unknown",
-        revenue: 250_000,
+        collected: 250_000,
         orders: 4,
       },
     ]);
@@ -186,7 +186,7 @@ describe("reading rupiah back out of Postgres", () => {
         campaign_name: "Grand Opening",
         campaign_code: "OPEN26",
         orders: 3,
-        revenue: 27_002,
+        collected: 27_002,
         discount_cost: 9000,
         avg_order_value: 30_002 / 3,
       },
