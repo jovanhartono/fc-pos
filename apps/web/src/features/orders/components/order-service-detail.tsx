@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ordersQueries } from "@/features/orders/api";
 import { OrderReasonCallout } from "@/features/orders/components/order-reason-callout";
 import type { NonTerminalServiceStatus } from "@/features/orders/components/order-service-dialog.types";
 import { OrderServicePriceForm } from "@/features/orders/components/order-service-price-form";
@@ -16,7 +17,6 @@ import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrder
 import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import { findOrderLine } from "@/features/orders/lib/order-lines";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
-import { orderDetailQueryOptions } from "@/lib/query-options";
 import {
 	formatCancelReason,
 	formatOrderServiceStatus,
@@ -42,7 +42,7 @@ export const OrderServiceDetail = ({
 
 	// Read the service live from the cached order so status changes made in this
 	// sheet reflect immediately instead of pinning a frozen prop from open time.
-	const detailQuery = useQuery(orderDetailQueryOptions(orderId));
+	const detailQuery = useQuery(ordersQueries.detail(orderId));
 	const service = findOrderLine(detailQuery.data, serviceId);
 
 	if (!service) {

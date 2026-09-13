@@ -1,7 +1,7 @@
+import { revenue } from "@/modules/reports/money-basis";
 import {
-  categoryRevenueForRange,
+  categoryGrossSalesForRange,
   countAgingQueue,
-  countDailyItemsProcessed,
   countDailyOrdersIn,
   countDailyOrdersOut,
   listAgingQueue,
@@ -23,17 +23,18 @@ import {
   getJakartaDayRange,
   shiftDate,
 } from "@/modules/reports/report-range.util";
+import { countServicesProcessed } from "@/modules/reports/services-processed";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 
 export async function getDailyReport(query: GetDailyReportQuery) {
   const range = getJakartaDayRange(query.date);
   const storeId = query.store_id;
 
-  const [paid, refunded, itemsProcessed, ordersIn, ordersOut] =
+  const [paid, refunds, servicesProcessed, ordersIn, ordersOut] =
     await Promise.all([
       sumDailyPaid({ range, storeId }),
       sumDailyRefunds({ range, storeId }),
-      countDailyItemsProcessed({ range, storeId }),
+      countServicesProcessed({ range, storeId }),
       countDailyOrdersIn({ range, storeId }),
       countDailyOrdersOut({ range, storeId }),
     ]);
@@ -41,8 +42,8 @@ export async function getDailyReport(query: GetDailyReportQuery) {
   return {
     date: query.date,
     store_id: storeId ?? null,
-    revenue: paid - refunded,
-    items_processed: itemsProcessed,
+    revenue: revenue(paid, refunds),
+    services_processed: servicesProcessed,
     orders_in: ordersIn,
     orders_out: ordersOut,
   };
@@ -74,7 +75,7 @@ export async function getReportOverview(query: GetReportOverviewQuery) {
     ordersOutTrendSeries({ range: trendRange, storeId }),
     paidTrendSeries({ range: trendRange, storeId }),
     refundsTrendSeries({ range: trendRange, storeId }),
-    categoryRevenueForRange({ range: dayRange, storeId }),
+    categoryGrossSalesForRange({ range: dayRange, storeId }),
     topServicesForRange({ range: dayRange, storeId }),
     perStoreForRange({ range: dayRange }),
   ]);
@@ -92,7 +93,7 @@ export async function getReportOverview(query: GetReportOverviewQuery) {
       date: day,
       orders_in: ordersInByDay.get(day)?.orders_in ?? 0,
       orders_out: ordersOutByDay.get(day)?.orders_out ?? 0,
-      revenue: (paidByDay.get(day) ?? 0) - (refundedByDay.get(day) ?? 0),
+      revenue: revenue(paidByDay.get(day) ?? 0, refundedByDay.get(day) ?? 0),
     };
   });
 

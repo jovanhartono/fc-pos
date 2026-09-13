@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import type { OpenComplaintPayload } from "@/lib/api";
+import type { OpenComplaintPayload } from "@/features/complaints/api";
 import { cn } from "@/lib/utils";
 
 const openComplaintSchema = z.object({

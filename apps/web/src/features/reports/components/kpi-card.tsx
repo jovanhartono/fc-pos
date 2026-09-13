@@ -1,7 +1,7 @@
 import { ArrowDownIcon, ArrowUpIcon, MinusIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import type { KpiDelta } from "@/lib/api";
+import type { KpiDelta } from "@/features/reports/api";
 import { cn } from "@/lib/utils";
 
 interface KpiCardProps {

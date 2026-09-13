@@ -1,6 +1,6 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
-exports[`what each money report asks Postgres for one store asks the same question for services revenue 1`] = `
+exports[`what each money report asks Postgres for one store asks the same question for services gross sales 1`] = `
 [
   {
     "params": [
@@ -13,7 +13,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
 ]
 `;
 
-exports[`what each money report asks Postgres for one store asks the same question for products revenue 1`] = `
+exports[`what each money report asks Postgres for one store asks the same question for products gross sales 1`] = `
 [
   {
     "params": [
@@ -65,7 +65,46 @@ exports[`what each money report asks Postgres for one store asks the same questi
 ]
 `;
 
-exports[`what each money report asks Postgres for one store asks the same question for category revenue 1`] = `
+exports[`what each money report asks Postgres for one store asks the same question for collected 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select to_char("paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("paid_amount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for store collected 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select "orders"."store_id", "stores"."name", "stores"."code", COALESCE(SUM("orders"."paid_amount"), 0), COUNT(*)::int from "orders" inner join "stores" on "orders"."store_id" = "stores"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by "orders"."store_id", "stores"."name", "stores"."code" order by "stores"."code" asc",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for store refunds 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select "orders"."store_id", "stores"."name", "stores"."code", COALESCE(SUM("order_refunds"."total_amount"), 0) from "order_refunds" inner join "orders" on "order_refunds"."order_id" = "orders"."id" inner join "stores" on "orders"."store_id" = "stores"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2) and ("orders"."store_id" = $3)) group by "orders"."store_id", "stores"."name", "stores"."code"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for category gross sales 1`] = `
 [
   {
     "params": [
@@ -78,7 +117,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
 ]
 `;
 
-exports[`what each money report asks Postgres for one store asks the same question for store x category revenue 1`] = `
+exports[`what each money report asks Postgres for one store asks the same question for store x category gross sales 1`] = `
 [
   {
     "params": [
@@ -240,12 +279,13 @@ exports[`what each money report asks Postgres for one store asks the same questi
 [
   {
     "params": [
-      "ready_for_pickup",
-      "2026-07-31T17:00:00.000Z",
+      "quality_check",
       "2026-08-31T17:00:00.000Z",
       3,
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select distinct on ("order_service_status_logs"."order_service_id") "order_service_status_logs"."order_service_id" from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."to_status" = $1) and ("order_service_status_logs"."created_at" >= $2) and ("order_service_status_logs"."created_at" < $3) and ("orders"."store_id" = $4)) order by "order_service_status_logs"."order_service_id", "order_service_status_logs"."created_at" desc",
+    "sql": "select "order_service_status_logs"."order_service_id", MIN("order_service_status_logs"."created_at") as "processed_at" from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."to_status" = $1) and ("order_service_status_logs"."created_at" < $2) and ("orders"."store_id" = $3)) group by "order_service_status_logs"."order_service_id" having ((MIN("order_service_status_logs"."created_at") >= $4) and (MIN("order_service_status_logs"."created_at") < $5))",
   },
   {
     "params": [
@@ -265,13 +305,12 @@ exports[`what each money report asks Postgres for one store asks the same questi
   },
   {
     "params": [
-      "quality_check",
-      "processing",
+      "qc_reject",
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select "rework_log"."order_service_id", COUNT(*)::int from "order_service_status_logs" "rework_log" inner join "orders_services" on "rework_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("rework_log"."from_status" = $1) and ("rework_log"."to_status" = $2) and ("rework_log"."created_at" >= $3) and ("rework_log"."created_at" < $4) and ("orders"."store_id" = $5)) group by "rework_log"."order_service_id"",
+    "sql": "select "rework_log"."order_service_id", COUNT(*)::int from "order_service_status_logs" "rework_log" inner join "orders_services" on "rework_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("rework_log"."to_status" = $1) and ("rework_log"."created_at" >= $2) and ("rework_log"."created_at" < $3) and ("orders"."store_id" = $4)) group by "rework_log"."order_service_id"",
   },
   {
     "params": [
@@ -303,7 +342,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
 ]
 `;
 
-exports[`what each money report asks Postgres for the whole company asks the same question for services revenue 1`] = `
+exports[`what each money report asks Postgres for the whole company asks the same question for services gross sales 1`] = `
 [
   {
     "params": [
@@ -315,7 +354,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
 ]
 `;
 
-exports[`what each money report asks Postgres for the whole company asks the same question for products revenue 1`] = `
+exports[`what each money report asks Postgres for the whole company asks the same question for products gross sales 1`] = `
 [
   {
     "params": [
@@ -363,7 +402,43 @@ exports[`what each money report asks Postgres for the whole company asks the sam
 ]
 `;
 
-exports[`what each money report asks Postgres for the whole company asks the same question for category revenue 1`] = `
+exports[`what each money report asks Postgres for the whole company asks the same question for collected 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select to_char("paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("paid_amount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for store collected 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select "orders"."store_id", "stores"."name", "stores"."code", COALESCE(SUM("orders"."paid_amount"), 0), COUNT(*)::int from "orders" inner join "stores" on "orders"."store_id" = "stores"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by "orders"."store_id", "stores"."name", "stores"."code" order by "stores"."code" asc",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for store refunds 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select "orders"."store_id", "stores"."name", "stores"."code", COALESCE(SUM("order_refunds"."total_amount"), 0) from "order_refunds" inner join "orders" on "order_refunds"."order_id" = "orders"."id" inner join "stores" on "orders"."store_id" = "stores"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2)) group by "orders"."store_id", "stores"."name", "stores"."code"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for category gross sales 1`] = `
 [
   {
     "params": [
@@ -375,7 +450,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
 ]
 `;
 
-exports[`what each money report asks Postgres for the whole company asks the same question for store x category revenue 1`] = `
+exports[`what each money report asks Postgres for the whole company asks the same question for store x category gross sales 1`] = `
 [
   {
     "params": [
@@ -525,11 +600,12 @@ exports[`what each money report asks Postgres for the whole company asks the sam
 [
   {
     "params": [
-      "ready_for_pickup",
+      "quality_check",
+      "2026-08-31T17:00:00.000Z",
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select distinct on ("order_service_status_logs"."order_service_id") "order_service_status_logs"."order_service_id" from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."to_status" = $1) and ("order_service_status_logs"."created_at" >= $2) and ("order_service_status_logs"."created_at" < $3)) order by "order_service_status_logs"."order_service_id", "order_service_status_logs"."created_at" desc",
+    "sql": "select "order_service_status_logs"."order_service_id", MIN("order_service_status_logs"."created_at") as "processed_at" from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."to_status" = $1) and ("order_service_status_logs"."created_at" < $2)) group by "order_service_status_logs"."order_service_id" having ((MIN("order_service_status_logs"."created_at") >= $3) and (MIN("order_service_status_logs"."created_at") < $4))",
   },
   {
     "params": [
@@ -547,12 +623,11 @@ exports[`what each money report asks Postgres for the whole company asks the sam
   },
   {
     "params": [
-      "quality_check",
-      "processing",
+      "qc_reject",
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select "rework_log"."order_service_id", COUNT(*)::int from "order_service_status_logs" "rework_log" inner join "orders_services" on "rework_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("rework_log"."from_status" = $1) and ("rework_log"."to_status" = $2) and ("rework_log"."created_at" >= $3) and ("rework_log"."created_at" < $4)) group by "rework_log"."order_service_id"",
+    "sql": "select "rework_log"."order_service_id", COUNT(*)::int from "order_service_status_logs" "rework_log" inner join "orders_services" on "rework_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("rework_log"."to_status" = $1) and ("rework_log"."created_at" >= $2) and ("rework_log"."created_at" < $3)) group by "rework_log"."order_service_id"",
   },
   {
     "params": [
@@ -578,18 +653,6 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-08-31T17:00:00.000Z",
     ],
     "sql": "select distinct "order_campaigns"."campaign_id", "orders"."id", "orders"."paid_amount", "orders"."total" from "order_campaigns" inner join "orders" on "order_campaigns"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)))",
-  },
-]
-`;
-
-exports[`the store nobody can scope asks for every store's takings, because it takes no store 1`] = `
-[
-  {
-    "params": [
-      "2026-07-31T17:00:00.000Z",
-      "2026-08-31T17:00:00.000Z",
-    ],
-    "sql": "select "orders"."store_id", "stores"."name", "stores"."code", COALESCE(SUM("orders"."paid_amount"), 0), COUNT(*)::int from "orders" inner join "stores" on "orders"."store_id" = "stores"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by "orders"."store_id", "stores"."name", "stores"."code" order by "stores"."code" asc",
   },
 ]
 `;

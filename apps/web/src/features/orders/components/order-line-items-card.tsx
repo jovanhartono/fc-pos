@@ -2,12 +2,12 @@ import { hasUnpricedLine } from "@fresclean/api/schema";
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import type { OrderDetail, OrderRefundReason } from "@/features/orders/api";
 import { ItemPhotoStrip } from "@/features/orders/components/item-photo-strip";
 import { OrderReasonCallout } from "@/features/orders/components/order-reason-callout";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { OrderServiceRow } from "@/features/orders/components/order-service-row";
 import type { OrderItem } from "@/features/orders/lib/order-lines";
-import type { OrderDetail, OrderRefundReason } from "@/lib/api";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	formatCancelReason,

@@ -1,5 +1,5 @@
+import { fetchOrderReceipt } from "@/features/orders/api";
 import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
-import { fetchOrderReceipt } from "@/lib/api";
 import { buildReceiptEscPos } from "./build-receipt";
 import type { PrintOptions } from "./printer-transport";
 import { webBluetoothTransport } from "./web-bluetooth-transport";

@@ -8,9 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import {
+	clockInShift,
+	clockOutShift,
+	type Shift,
+	shiftsKeys,
+	shiftsQueries,
+} from "@/features/shifts/api";
 import { useCurrentShift } from "@/features/shifts/hooks/useCurrentShift";
-import { clockInShift, clockOutShift, queryKeys, type Shift } from "@/lib/api";
-import { shiftsQueryOptions, storesQueryOptions } from "@/lib/query-options";
+import { storesQueries } from "@/features/stores/api";
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 
@@ -27,7 +33,7 @@ const currentWeekRange = () => {
 
 export const Route = createFileRoute("/_admin/attendance")({
 	loader: ({ context }) =>
-		context.queryClient.ensureQueryData(storesQueryOptions()),
+		context.queryClient.ensureQueryData(storesQueries.list()),
 	component: AttendancePage,
 });
 
@@ -60,14 +66,14 @@ function AttendancePage() {
 	const queryClient = useQueryClient();
 	const { data: currentShift, isPending: currentShiftPending } =
 		useCurrentShift();
-	const storesQuery = useQuery(storesQueryOptions());
+	const storesQuery = useQuery(storesQueries.list());
 	const stores = storesQuery.data ?? [];
 	const [storeValue, setStoreValue] = useState("");
 	const [now, setNow] = useState(() => new Date());
 
 	const weekRange = useMemo(() => currentWeekRange(), []);
 	const shiftsQuery = useQuery(
-		shiftsQueryOptions({
+		shiftsQueries.list({
 			from: weekRange.from,
 			to: weekRange.to,
 			...(user ? { user_id: user.id } : {}),
@@ -89,10 +95,7 @@ function AttendancePage() {
 	}, [stores, storeValue]);
 
 	const invalidate = () =>
-		Promise.all([
-			queryClient.invalidateQueries({ queryKey: queryKeys.shiftCurrent }),
-			queryClient.invalidateQueries({ queryKey: ["shifts"] }),
-		]);
+		queryClient.invalidateQueries({ queryKey: shiftsKeys.all });
 
 	const clockInMut = useMutation({
 		mutationKey: ["shift-clock-in"],

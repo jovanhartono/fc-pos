@@ -1,11 +1,11 @@
 import type * as React from "react";
 import { useCallback, useState } from "react";
+import type { PhotoDownloadRef } from "@/features/orders/api";
 import {
 	getPhotoPrimaryLabel,
 	PhotoLightbox,
 	type PhotoLightboxItem,
 } from "@/features/orders/components/photo-lightbox";
-import type { PhotoDownloadRef } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export type OrderPhotoGalleryItem = {

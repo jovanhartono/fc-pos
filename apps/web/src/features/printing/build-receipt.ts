@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import type { OrderReceipt } from "@/lib/api";
+import type { OrderReceipt } from "@/features/orders/api";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { formatMoney as money, parseMoney } from "@/shared/money";
 import { EscPosBuilder, toPrintableAscii } from "./escpos";

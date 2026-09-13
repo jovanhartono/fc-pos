@@ -7,11 +7,16 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormProvider, type SubmitHandler, useForm } from "react-hook-form";
 import { z } from "zod";
 import {
+	type Customer,
+	createCustomer,
+	customersKeys,
+	updateCustomer,
+} from "@/features/customers/api";
+import {
 	CustomerForm,
 	type CustomerFormState,
 } from "@/features/customers/components/customer-form";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
-import { type Customer, createCustomer, updateCustomer } from "@/lib/api";
 import { useSheet } from "@/stores/sheet-store";
 
 const defaultForm: CustomerFormState = {
@@ -60,7 +65,7 @@ export function CustomerSheetContent({
 		mutationKey: ["create-customer"],
 		mutationFn: createCustomer,
 		onSuccess: async (data) => {
-			await queryClient.invalidateQueries({ queryKey: ["customers"] });
+			await queryClient.invalidateQueries({ queryKey: customersKeys.all });
 			if (onSuccess) {
 				onSuccess(data.data);
 			}
@@ -78,7 +83,7 @@ export function CustomerSheetContent({
 			payload: Parameters<typeof updateCustomer>[1];
 		}) => updateCustomer(id, payload),
 		onSuccess: async (data) => {
-			await queryClient.invalidateQueries({ queryKey: ["customers"] });
+			await queryClient.invalidateQueries({ queryKey: customersKeys.all });
 			if (onSuccess) {
 				onSuccess(data.data);
 			}

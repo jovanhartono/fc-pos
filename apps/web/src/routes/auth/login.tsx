@@ -4,11 +4,11 @@ import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { login } from "@/features/auth/api";
 import {
 	LoginForm,
 	type LoginFormValues,
 } from "@/features/auth/components/login-form";
-import { login } from "@/lib/api";
 import { getCurrentUser, useAuthStore } from "@/stores/auth-store";
 
 const loginSchema = z.object({

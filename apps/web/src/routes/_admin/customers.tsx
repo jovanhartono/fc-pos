@@ -10,9 +10,8 @@ import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { type Customer, customersQueries } from "@/features/customers/api";
 import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
-import type { Customer } from "@/lib/api";
-import { customersPageQueryOptions } from "@/lib/query-options";
 import { useSheet } from "@/stores/sheet-store";
 
 const PAGE_SIZE = 25;
@@ -27,7 +26,7 @@ export const Route = createFileRoute("/_admin/customers")({
 	loaderDeps: ({ search }) => search,
 	loader: ({ context, deps }) =>
 		context.queryClient.ensureQueryData(
-			customersPageQueryOptions({
+			customersQueries.list({
 				limit: PAGE_SIZE,
 				offset: (deps.page - 1) * PAGE_SIZE,
 				...(deps.search ? { search: deps.search } : {}),
@@ -55,7 +54,7 @@ function CustomersPage() {
 	);
 
 	const customersQuery = useQuery(
-		customersPageQueryOptions({
+		customersQueries.list({
 			limit: PAGE_SIZE,
 			offset: (search.page - 1) * PAGE_SIZE,
 			...(search.search ? { search: search.search } : {}),

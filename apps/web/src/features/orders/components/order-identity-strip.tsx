@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { OpenComplaintForm } from "@/features/complaints/components/open-complaint-form";
 import { useOpenComplaintMutation } from "@/features/complaints/hooks/useComplaintMutations";
+import type { OrderDetail } from "@/features/orders/api";
 import { OrderCourierForm } from "@/features/orders/components/order-courier-form";
 import {
 	CancelOrderForm,
@@ -33,7 +34,6 @@ import type { OrderActionGates } from "@/features/orders/lib/order-action-gates"
 import { buildRefundCaps } from "@/features/orders/lib/refund-preview";
 import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
 import { usePrintReceiptMutation } from "@/features/printing/hooks/usePrintReceipt";
-import type { OrderDetail } from "@/lib/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	formatOrderStatus,
@@ -57,8 +57,8 @@ export const OrderIdentityStrip = ({
 	const openDialog = useDialog((s) => s.openDialog);
 	const closeDialog = useDialog((s) => s.closeDialog);
 	const cancelOrderMutation = useCancelOrderMutation(orderId);
-	const refundMutation = useRefundOrderMutation(orderId);
-	const openComplaintMutation = useOpenComplaintMutation(orderId);
+	const refundMutation = useRefundOrderMutation();
+	const openComplaintMutation = useOpenComplaintMutation();
 	const printReceiptMutation = usePrintReceiptMutation(orderId);
 
 	const fulfillment = detail.fulfillment;

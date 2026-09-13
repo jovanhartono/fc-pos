@@ -9,16 +9,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+	createStore,
+	type Store,
+	storesKeys,
+	storesQueries,
+	updateStore,
+} from "@/features/stores/api";
+import {
 	StoreForm,
 	type StoreFormState,
 } from "@/features/stores/components/store-form";
-import { createStore, queryKeys, type Store, updateStore } from "@/lib/api";
-import { storesQueryOptions } from "@/lib/query-options";
 import { useSheet } from "@/stores/sheet-store";
 
 export const Route = createFileRoute("/_admin/stores")({
 	loader: ({ context }) =>
-		context.queryClient.ensureQueryData(storesQueryOptions()),
+		context.queryClient.ensureQueryData(storesQueries.list()),
 	component: StoresPage,
 });
 
@@ -26,14 +31,14 @@ function StoresPage() {
 	const queryClient = useQueryClient();
 	const { openSheet, closeSheet } = useSheet();
 
-	const { data: stores = [], isPending } = useQuery(storesQueryOptions());
+	const { data: stores = [], isPending } = useQuery(storesQueries.list());
 	const storeCount = stores.length;
 
 	const createMutation = useMutation({
 		mutationKey: ["create-store"],
 		mutationFn: createStore,
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: queryKeys.stores });
+			await queryClient.invalidateQueries({ queryKey: storesKeys.all });
 			closeSheet();
 		},
 	});
@@ -48,7 +53,7 @@ function StoresPage() {
 			payload: Parameters<typeof updateStore>[1];
 		}) => updateStore(id, payload),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: queryKeys.stores });
+			await queryClient.invalidateQueries({ queryKey: storesKeys.all });
 			closeSheet();
 		},
 	});

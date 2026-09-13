@@ -6,7 +6,7 @@ import type { ComboboxOption } from "@/components/ui/combobox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import { CustomerFields } from "@/features/transactions/components/customer-fields";
-import { usersPageQueryOptions } from "@/lib/query-options";
+import { usersQueries } from "@/features/users/api";
 
 // Step ① — who/how the items arrived: customer identity (phone-lookup prefill)
 // plus the courier who collected them, or walk-in. Gated forward on name + a
@@ -15,7 +15,7 @@ export const CheckoutCustomerStep = () => {
 	const form = useFormContext<TransactionDraftValues>();
 
 	const couriersQuery = useQuery({
-		...usersPageQueryOptions({ role: "courier", is_active: true }),
+		...usersQueries.list({ role: "courier", is_active: true }),
 		// Couriers are slow-changing reference data; cache like the other reference
 		// lists so reopening checkout doesn't refetch the roster every time. The
 		// customer step now mounts on every open, so an uncached query refetched

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
@@ -9,8 +10,6 @@ import {
 } from "@/features/reports/utils/csv";
 import { numberFormatter } from "@/features/reports/utils/format";
 import { CHART_PALETTE } from "@/features/reports/utils/palette";
-import type { ReportGranularity } from "@/lib/api";
-import { ordersFlowQueryOptions } from "@/lib/query-options";
 
 interface OperationsPanelProps {
 	from: string;
@@ -26,7 +25,7 @@ export const OperationsPanel = ({
 	granularity,
 }: OperationsPanelProps) => {
 	const query = useQuery(
-		ordersFlowQueryOptions({ from, to, store_id: storeId, granularity }),
+		reportsQueries.ordersFlow({ from, to, store_id: storeId, granularity }),
 	);
 	const data = query.data;
 	const summary = data?.summary.current;

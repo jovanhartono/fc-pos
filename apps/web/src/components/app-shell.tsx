@@ -51,7 +51,7 @@ import {
 	SidebarSeparator,
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { meQueryOptions } from "@/lib/query-options";
+import { usersQueries } from "@/features/users/api";
 import { cn } from "@/lib/utils";
 import { getCurrentUser, useAuthStore } from "@/stores/auth-store";
 
@@ -244,7 +244,7 @@ export function AppShell({ title, children }: AppShellProps) {
 	const [startsCollapsed] = useState(() => window.innerWidth < 1280);
 	// Nav visibility follows the DB-fresh role from /admin/users/me, not the
 	// stale JWT claim — role changes apply without re-login.
-	const meQuery = useQuery(meQueryOptions());
+	const meQuery = useQuery(usersQueries.me());
 	const role = meQuery.data?.role;
 
 	useEffect(() => {

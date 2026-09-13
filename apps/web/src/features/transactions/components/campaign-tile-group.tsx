@@ -1,5 +1,5 @@
 import { CheckIcon } from "@phosphor-icons/react";
-import type { Campaign } from "@/lib/api";
+import type { Campaign } from "@/features/campaigns/api";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 

@@ -1,18 +1,30 @@
 import { ArrowRightIcon } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
-import type { Order } from "@/lib/api";
+import { type Order, ordersQueries } from "@/features/orders/api";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
 
-type PickupRadarProps = {
-	orders: Order[];
-};
+const RADAR_LIMIT = 50;
 
-export function PickupRadar({ orders }: PickupRadarProps) {
-	const readyOrders = orders.filter(
-		(order) => order.status === "ready_for_pickup",
-	);
+interface PickupRadarProps {
+	enabled: boolean;
+	storeId?: number;
+}
+
+// The sheet asks for the ready rack itself rather than sifting the page of
+// orders behind it — a counter on page three would otherwise see an empty rack.
+export const PickupRadar = ({ enabled, storeId }: PickupRadarProps) => {
+	const readyQuery = useQuery({
+		...ordersQueries.list({
+			status: "ready_for_pickup",
+			store_id: storeId,
+			limit: RADAR_LIMIT,
+		}),
+		enabled,
+	});
+	const readyOrders = readyQuery.data?.items ?? [];
 
 	if (readyOrders.length === 0) {
 		return (
@@ -31,7 +43,7 @@ export function PickupRadar({ orders }: PickupRadarProps) {
 			/>
 		</div>
 	);
-}
+};
 
 function RadarSection({
 	count,

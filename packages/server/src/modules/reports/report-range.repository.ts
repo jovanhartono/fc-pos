@@ -4,13 +4,12 @@ import {
   count,
   desc,
   eq,
-  gte,
   inArray,
   isNotNull,
   lt,
   sql,
 } from "drizzle-orm";
-import { alias, type PgColumn } from "drizzle-orm/pg-core";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import {
   campaignsTable,
@@ -31,36 +30,25 @@ import {
   usersTable,
 } from "@/db/schema";
 import {
+  collected,
+  discount,
+  grossSales,
+  paidOrderWindow,
+  type RangeArgs,
+  refunded,
+  storeScope,
+  sumMoney,
+  timeWindow,
+} from "@/modules/reports/money-basis";
+import {
   type DateRange,
   type Granularity,
   jakartaBucketExpr,
 } from "@/modules/reports/report-range.util";
-
-interface RangeArgs {
-  range: DateRange;
-  storeId?: number;
-}
+import { listServicesProcessed } from "@/modules/reports/services-processed";
 
 interface SeriesRangeArgs extends RangeArgs {
   granularity: Granularity;
-}
-
-function storeScope(column: PgColumn, storeId?: number) {
-  return storeId === undefined ? undefined : eq(column, storeId);
-}
-
-// The closing instant belongs to the next stretch, not this one — otherwise
-// 1 September's first order is billed to August and to September both.
-function timeWindow(column: PgColumn, range: DateRange) {
-  return [gte(column, range.start), lt(column, range.end)];
-}
-
-function paidOrderWindow({ range, storeId }: RangeArgs) {
-  return [
-    ...timeWindow(ordersTable.paid_at, range),
-    isNotNull(ordersTable.paid_at),
-    storeScope(ordersTable.store_id, storeId),
-  ];
 }
 
 async function sumByBucket(
@@ -72,7 +60,7 @@ async function sumByBucket(
   return await db
     .select({
       bucket,
-      total: sql<string>`COALESCE(SUM(${lineTable[amount]}), 0)`,
+      total: sumMoney(lineTable[amount]),
     })
     .from(lineTable)
     .innerJoin(ordersTable, eq(lineTable.order_id, ordersTable.id))
@@ -80,21 +68,21 @@ async function sumByBucket(
     .groupBy(bucket);
 }
 
-// ───────────────────────── Revenue trend (R1) ─────────────────────────
+// ───────────────────────── Gross sales trend (R1) ─────────────────────────
 
-export async function listServicesRevenueSeries(args: SeriesRangeArgs) {
+export async function listServicesGrossSalesSeries(args: SeriesRangeArgs) {
   const rows = await sumByBucket(ordersServicesTable, "subtotal", args);
   return rows.map((row) => ({
     bucket: row.bucket,
-    revenue: Number(row.total),
+    gross_sales: Number(row.total),
   }));
 }
 
-export async function listProductsRevenueSeries(args: SeriesRangeArgs) {
+export async function listProductsGrossSalesSeries(args: SeriesRangeArgs) {
   const rows = await sumByBucket(ordersProductsTable, "subtotal", args);
   return rows.map((row) => ({
     bucket: row.bucket,
-    revenue: Number(row.total),
+    gross_sales: Number(row.total),
   }));
 }
 
@@ -121,7 +109,7 @@ export async function listOrderDiscountSeries({
   const rows = await db
     .select({
       bucket,
-      discount: sql<string>`COALESCE(SUM(${ordersTable.discount}), 0)`,
+      discount: discount(),
     })
     .from(ordersTable)
     .where(and(...paidOrderWindow({ range, storeId })))
@@ -133,20 +121,43 @@ export async function listOrderDiscountSeries({
   }));
 }
 
-// ───────────────────────── Store revenue (branch donut) ─────────────────────────
+// ───────────────────────── Collected (Financial) ─────────────────────────
 
-export async function listStoreRevenueRows({ range }: { range: DateRange }) {
+export async function listCollectedSeries({
+  range,
+  storeId,
+  granularity,
+}: SeriesRangeArgs) {
+  const bucket = jakartaBucketExpr(ordersTable.paid_at, granularity);
+  const rows = await db
+    .select({
+      bucket,
+      collected: collected(),
+    })
+    .from(ordersTable)
+    .where(and(...paidOrderWindow({ range, storeId })))
+    .groupBy(bucket);
+
+  return rows.map((row) => ({
+    bucket: row.bucket,
+    collected: Number(row.collected),
+  }));
+}
+
+// ───────────────────────── Store takings (store donut) ─────────────────────────
+
+export async function listStoreCollectedRows({ range, storeId }: RangeArgs) {
   const rows = await db
     .select({
       store_id: ordersTable.store_id,
       store_name: storesTable.name,
       store_code: storesTable.code,
-      revenue: sql<string>`COALESCE(SUM(${ordersTable.paid_amount}), 0)`,
+      collected: collected(),
       orders: sql<number>`COUNT(*)::int`,
     })
     .from(ordersTable)
     .innerJoin(storesTable, eq(ordersTable.store_id, storesTable.id))
-    .where(and(...paidOrderWindow({ range })))
+    .where(and(...paidOrderWindow({ range, storeId })))
     .groupBy(ordersTable.store_id, storesTable.name, storesTable.code)
     .orderBy(asc(storesTable.code));
 
@@ -154,14 +165,41 @@ export async function listStoreRevenueRows({ range }: { range: DateRange }) {
     store_id: row.store_id,
     store_name: row.store_name,
     store_code: row.store_code,
-    revenue: Number(row.revenue),
+    collected: Number(row.collected),
     orders: Number(row.orders),
+  }));
+}
+
+export async function listStoreRefundRows({ range, storeId }: RangeArgs) {
+  const rows = await db
+    .select({
+      store_id: ordersTable.store_id,
+      store_name: storesTable.name,
+      store_code: storesTable.code,
+      refunds: refunded(),
+    })
+    .from(orderRefundsTable)
+    .innerJoin(ordersTable, eq(orderRefundsTable.order_id, ordersTable.id))
+    .innerJoin(storesTable, eq(ordersTable.store_id, storesTable.id))
+    .where(
+      and(
+        ...timeWindow(orderRefundsTable.created_at, range),
+        storeScope(ordersTable.store_id, storeId)
+      )
+    )
+    .groupBy(ordersTable.store_id, storesTable.name, storesTable.code);
+
+  return rows.map((row) => ({
+    store_id: row.store_id,
+    store_name: row.store_name,
+    store_code: row.store_code,
+    refunds: Number(row.refunds),
   }));
 }
 
 // ───────────────────────── Category trend (R6) ─────────────────────────
 
-export async function listCategoryRevenueSeries({
+export async function listCategoryGrossSalesSeries({
   range,
   storeId,
   granularity,
@@ -172,7 +210,7 @@ export async function listCategoryRevenueSeries({
       bucket,
       category_id: categoriesTable.id,
       category_name: categoriesTable.name,
-      revenue: sql<string>`COALESCE(SUM(${ordersServicesTable.subtotal}), 0)`,
+      gross_sales: grossSales(ordersServicesTable),
     })
     .from(ordersServicesTable)
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
@@ -191,13 +229,13 @@ export async function listCategoryRevenueSeries({
     bucket: row.bucket,
     category_id: row.category_id,
     category_name: row.category_name,
-    revenue: Number(row.revenue),
+    gross_sales: Number(row.gross_sales),
   }));
 }
 
-// ───────────────────────── Branch × Category revenue ─────────────────────────
+// ───────────────────────── Store × Category gross sales ─────────────────────────
 
-export async function listStoreCategoryRevenueRows({
+export async function listStoreCategoryGrossSalesRows({
   range,
   storeId,
 }: RangeArgs) {
@@ -208,7 +246,7 @@ export async function listStoreCategoryRevenueRows({
       store_code: storesTable.code,
       category_id: categoriesTable.id,
       category_name: categoriesTable.name,
-      revenue: sql<string>`COALESCE(SUM(${ordersServicesTable.subtotal}), 0)`,
+      gross_sales: grossSales(ordersServicesTable),
     })
     .from(ordersServicesTable)
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
@@ -236,7 +274,7 @@ export async function listStoreCategoryRevenueRows({
     store_code: row.store_code,
     category_id: row.category_id,
     category_name: row.category_name,
-    revenue: Number(row.revenue),
+    gross_sales: Number(row.gross_sales),
   }));
 }
 
@@ -334,7 +372,7 @@ export async function listPaymentMixSeries({
       bucket,
       payment_method_id: ordersTable.payment_method_id,
       payment_method_name: paymentMethodsTable.name,
-      revenue: sql<string>`COALESCE(SUM(${ordersTable.paid_amount}), 0)`,
+      collected: collected(),
       orders: sql<number>`COUNT(*)::int`,
     })
     .from(ordersTable)
@@ -349,7 +387,7 @@ export async function listPaymentMixSeries({
     bucket: row.bucket,
     payment_method_id: row.payment_method_id ?? 0,
     payment_method_name: row.payment_method_name ?? "Unknown",
-    revenue: Number(row.revenue),
+    collected: Number(row.collected),
     orders: Number(row.orders),
   }));
 }
@@ -437,7 +475,7 @@ export async function listTopCustomers({
       customer_name: customersTable.name,
       customer_phone: customersTable.phone_number,
       orders: sql<number>`COUNT(*)::int`,
-      revenue: sql<string>`COALESCE(SUM(${ordersTable.paid_amount}), 0)`,
+      collected: collected(),
     })
     .from(ordersTable)
     .innerJoin(customersTable, eq(ordersTable.customer_id, customersTable.id))
@@ -455,7 +493,7 @@ export async function listTopCustomers({
     customer_name: row.customer_name,
     customer_phone: row.customer_phone,
     orders: Number(row.orders),
-    revenue: Number(row.revenue),
+    collected: Number(row.collected),
   }));
 }
 
@@ -525,7 +563,7 @@ export async function listRefundAmountSeries({
   const rows = await db
     .select({
       bucket,
-      amount: sql<string>`COALESCE(SUM(${orderRefundsTable.total_amount}), 0)`,
+      amount: refunded(),
       refunds: sql<number>`COUNT(DISTINCT ${orderRefundsTable.id})::int`,
     })
     .from(orderRefundsTable)
@@ -555,7 +593,7 @@ export async function listRefundReasonSeries({
     .select({
       bucket,
       reason: orderRefundItemsTable.reason,
-      amount: sql<string>`COALESCE(SUM(${orderRefundItemsTable.amount}), 0)`,
+      amount: sumMoney(orderRefundItemsTable.amount),
       items: sql<number>`COUNT(*)::int`,
     })
     .from(orderRefundItemsTable)
@@ -608,32 +646,6 @@ async function fetchAttribution(
     .orderBy(processingLog.order_service_id, desc(processingLog.created_at));
 }
 
-function fetchCompletions(range: DateRange, storeId?: number) {
-  const conditions = [
-    eq(orderServiceStatusLogsTable.to_status, "ready_for_pickup"),
-    ...timeWindow(orderServiceStatusLogsTable.created_at, range),
-    storeScope(ordersTable.store_id, storeId),
-  ];
-  // Rework cycles (quality_check → processing → ready_for_pickup) can emit
-  // multiple ready_for_pickup logs per item; DISTINCT keeps items_completed
-  // aligned with physically distinct finished items.
-  return db
-    .selectDistinctOn([orderServiceStatusLogsTable.order_service_id], {
-      order_service_id: orderServiceStatusLogsTable.order_service_id,
-    })
-    .from(orderServiceStatusLogsTable)
-    .innerJoin(
-      ordersServicesTable,
-      eq(orderServiceStatusLogsTable.order_service_id, ordersServicesTable.id)
-    )
-    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
-    .where(and(...conditions))
-    .orderBy(
-      orderServiceStatusLogsTable.order_service_id,
-      desc(orderServiceStatusLogsTable.created_at)
-    );
-}
-
 function fetchRefundsPerItem(range: DateRange, storeId?: number) {
   const conditions = [
     ...timeWindow(orderRefundsTable.created_at, range),
@@ -679,9 +691,11 @@ function fetchReworkCounts(
   range: DateRange,
   storeId?: number
 ) {
+  // A redo is recorded as the inspector sending the line back — arriving at
+  // qc_reject. Counting the return to processing instead misses every redo,
+  // because there is no direct quality_check → processing move.
   const conditions = [
-    eq(reworkLog.from_status, "quality_check"),
-    eq(reworkLog.to_status, "processing"),
+    eq(reworkLog.to_status, "qc_reject"),
     ...timeWindow(reworkLog.created_at, range),
     storeScope(ordersTable.store_id, storeId),
   ];
@@ -713,7 +727,7 @@ function fetchWorkerUsers() {
 
 function aggregatePerWorker(
   attributionRows: Array<{ worker_id: number; order_service_id: number }>,
-  completions: Array<{ order_service_id: number }>,
+  processed: Array<{ order_service_id: number }>,
   refunds: Array<{ order_service_id: number; refunds: number }>,
   reworks: Array<{ order_service_id: number; rework_count: number }>
 ) {
@@ -723,11 +737,11 @@ function aggregatePerWorker(
       attribution.set(row.order_service_id, row.worker_id);
     }
   }
-  const completedMap = new Map<number, number>();
-  for (const row of completions) {
+  const processedMap = new Map<number, number>();
+  for (const row of processed) {
     const worker = attribution.get(row.order_service_id);
     if (worker !== undefined) {
-      completedMap.set(worker, (completedMap.get(worker) ?? 0) + 1);
+      processedMap.set(worker, (processedMap.get(worker) ?? 0) + 1);
     }
   }
   const refundMap = new Map<number, number>();
@@ -748,7 +762,7 @@ function aggregatePerWorker(
     entry.events += Number(row.rework_count);
     reworkTotals.set(worker, entry);
   }
-  return { completedMap, refundMap, reworkTotals };
+  return { processedMap, refundMap, reworkTotals };
 }
 
 export async function listWorkerProductivityRows({
@@ -761,18 +775,16 @@ export async function listWorkerProductivityRows({
   );
   const reworkLog = alias(orderServiceStatusLogsTable, "rework_log");
 
-  const [completions, refunds, shiftRows, reworks, workers] = await Promise.all(
-    [
-      fetchCompletions(range, storeId),
-      fetchRefundsPerItem(range, storeId),
-      fetchShiftMinutes(range, storeId),
-      fetchReworkCounts(reworkLog, range, storeId),
-      fetchWorkerUsers(),
-    ]
-  );
+  const [processed, refunds, shiftRows, reworks, workers] = await Promise.all([
+    listServicesProcessed({ range, storeId }),
+    fetchRefundsPerItem(range, storeId),
+    fetchShiftMinutes(range, storeId),
+    fetchReworkCounts(reworkLog, range, storeId),
+    fetchWorkerUsers(),
+  ]);
 
   const terminalItemIds = new Set<number>();
-  for (const row of completions) {
+  for (const row of processed) {
     terminalItemIds.add(row.order_service_id);
   }
   for (const row of refunds) {
@@ -788,9 +800,9 @@ export async function listWorkerProductivityRows({
     storeId
   );
 
-  const { completedMap, refundMap, reworkTotals } = aggregatePerWorker(
+  const { processedMap, refundMap, reworkTotals } = aggregatePerWorker(
     attributionRows,
-    completions,
+    processed,
     refunds,
     reworks
   );
@@ -802,26 +814,27 @@ export async function listWorkerProductivityRows({
 
   return workers
     .map((worker) => {
-      const completed = completedMap.get(worker.id) ?? 0;
+      const servicesProcessed = processedMap.get(worker.id) ?? 0;
       const refundItems = refundMap.get(worker.id) ?? 0;
       const minutes = minutesMap.get(worker.id) ?? 0;
       const hours = minutes / 60;
-      const itemsPerHour = hours > 0 ? completed / hours : 0;
+      const servicesPerHour = hours > 0 ? servicesProcessed / hours : 0;
       const rework = reworkTotals.get(worker.id) ?? { items: 0, events: 0 };
-      const reworkRate = completed > 0 ? rework.items / completed : 0;
+      const reworkRate =
+        servicesProcessed > 0 ? rework.items / servicesProcessed : 0;
       return {
         user_id: worker.id,
         user_name: worker.name,
-        items_completed: completed,
+        services_processed: servicesProcessed,
         refund_items: refundItems,
         rework_items: rework.items,
         rework_events: rework.events,
         rework_rate: Number(reworkRate.toFixed(4)),
         shift_minutes: minutes,
-        items_per_hour: Number(itemsPerHour.toFixed(2)),
+        services_per_hour: Number(servicesPerHour.toFixed(2)),
       };
     })
-    .sort((a, b) => b.items_completed - a.items_completed);
+    .sort((a, b) => b.services_processed - a.services_processed);
 }
 
 // ───────────────────────── Campaign effectiveness (R8) ─────────────────────────
@@ -863,16 +876,16 @@ export async function listCampaignEffectivenessRows({
 
   const orderMetrics = new Map<
     number,
-    { orders: number; revenue: number; totalSum: number }
+    { collected: number; orders: number; totalSum: number }
   >();
   for (const row of orderRows) {
     const entry = orderMetrics.get(row.campaign_id) ?? {
       orders: 0,
-      revenue: 0,
+      collected: 0,
       totalSum: 0,
     };
     entry.orders += 1;
-    entry.revenue += Number(row.paid_amount);
+    entry.collected += Number(row.paid_amount);
     entry.totalSum += Number(row.total ?? 0);
     orderMetrics.set(row.campaign_id, entry);
   }
@@ -881,7 +894,7 @@ export async function listCampaignEffectivenessRows({
     .map((row) => {
       const metrics = orderMetrics.get(row.campaign_id) ?? {
         orders: 0,
-        revenue: 0,
+        collected: 0,
         totalSum: 0,
       };
       return {
@@ -889,7 +902,7 @@ export async function listCampaignEffectivenessRows({
         campaign_name: row.campaign_name,
         campaign_code: row.campaign_code,
         orders: metrics.orders,
-        revenue: metrics.revenue,
+        collected: metrics.collected,
         discount_cost: Number(row.discount_cost),
         avg_order_value:
           metrics.orders > 0 ? metrics.totalSum / metrics.orders : 0,

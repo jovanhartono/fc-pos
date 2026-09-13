@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useWatch } from "react-hook-form";
+import { campaignsQueries } from "@/features/campaigns/api";
 import {
 	getCartPricing,
 	type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
 import { filterEligibleCampaigns } from "@/features/transactions/lib/campaign-eligibility";
-import { campaignsQueryOptions } from "@/lib/query-options";
 import { parseMoney } from "@/shared/money";
 
 // Shared checkout derivation — campaign eligibility + final pricing. Lives in a
@@ -44,7 +44,7 @@ export function useCheckoutPricing() {
 			: undefined;
 
 	const campaignsQuery = useQuery({
-		...campaignsQueryOptions({
+		...campaignsQueries.list({
 			store_id: selectedStoreNumber,
 			is_active: true,
 		}),

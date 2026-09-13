@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ordersQueries } from "@/features/orders/api";
 import { QueueServiceDetail } from "@/features/orders/components/queue-service-detail";
-import { orderDetailQueryOptions } from "@/lib/query-options";
 
 export const Route = createFileRoute("/_admin/queue/$orderId/$serviceId")({
 	loader: async ({ context, params }) => {
@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_admin/queue/$orderId/$serviceId")({
 			return;
 		}
 
-		await context.queryClient.ensureQueryData(orderDetailQueryOptions(orderId));
+		await context.queryClient.ensureQueryData(ordersQueries.detail(orderId));
 	},
 	component: QueueDetailPage,
 });
