@@ -539,6 +539,7 @@ export const ordersTable = pgTable(
     index("order_payment_status_idx").on(table.payment_status),
     index("order_status_idx").on(table.status),
     index("order_created_at_idx").on(table.created_at),
+    index("order_paid_at_idx").on(table.paid_at),
     uniqueIndex("order_code_idx").on(table.code),
     check("total_non_negative_check", sql`${table.total} >= 0`),
     check("paid_amount_non_negative_check", sql`${table.paid_amount} >= 0`),
@@ -791,6 +792,7 @@ export const orderPickupEventsTable = pgTable(
   (table) => [
     index("order_pickup_events_order_idx").on(table.order_id),
     index("order_pickup_events_picked_up_by_idx").on(table.picked_up_by),
+    index("order_pickup_events_picked_up_at_idx").on(table.picked_up_at),
   ]
 );
 
@@ -843,6 +845,9 @@ export const orderServiceStatusLogsTable = pgTable(
     index("order_service_status_logs_processing_idx")
       .on(table.to_status, table.from_status, table.created_at)
       .where(sql`${table.to_status} = 'processing'`),
+    index("order_service_status_logs_qc_idx")
+      .on(table.to_status, table.created_at)
+      .where(sql`${table.to_status} IN ('quality_check', 'qc_reject')`),
   ]
 );
 
@@ -910,6 +915,7 @@ export const orderRefundsTable = pgTable(
   (table) => [
     index("order_refunds_order_idx").on(table.order_id),
     index("order_refunds_refunded_by_idx").on(table.refunded_by),
+    index("order_refunds_created_at_idx").on(table.created_at),
     check(
       "order_refunds_total_amount_non_negative_check",
       sql`${table.total_amount} >= 0`

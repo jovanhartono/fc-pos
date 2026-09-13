@@ -45,9 +45,10 @@ const state = {
   postCancelPaymentStatus: "unpaid" as string,
   postCancelTotal: "0" as string | null,
   casResults: [] as { id: number }[][], // queued CAS update outcomes, in order
+  // Refund's status flip is doubled by default; the concurrency case runs the
+  // real one to exercise its compare-and-set.
+  realRefundTransition: false as boolean,
 };
-
-const reads = { orderLookups: 0 };
 
 const writes = {
   updates: [] as UpdateCall[],
@@ -79,21 +80,44 @@ const insertBuilder = (table: unknown) => ({
   },
 });
 
+// Doubles for the reads refund makes under the order lock.
+const selectBuilder = () => ({
+  from: () => ({
+    where: () => ({
+      for: () => Promise.resolve(state.order ? [state.order] : []),
+    }),
+    innerJoin: () => ({
+      where: () => ({
+        groupBy: () => Promise.resolve(state.refundedRows),
+      }),
+    }),
+  }),
+});
+
 const fakeTx = {
   update: updateBuilder,
   insert: insertBuilder,
+  select: selectBuilder,
   query: {
     ordersTable: {
+      // Cancel re-reads the order after voiding its lines; refund reads it for
+      // the per-line caps.
       findFirst: () =>
         Promise.resolve(
           state.postCancelStatus == null
-            ? undefined
+            ? state.order
             : {
                 payment_status: state.postCancelPaymentStatus,
                 status: state.postCancelStatus,
                 total: state.postCancelTotal,
               }
         ),
+    },
+    ordersServicesTable: {
+      findMany: () => Promise.resolve(state.serviceRows),
+    },
+    ordersProductsTable: {
+      findMany: () => Promise.resolve(state.productRows),
     },
   },
 };
@@ -102,13 +126,7 @@ mock.module("@/db", () => ({
   db: {
     query: {
       ordersTable: {
-        findFirst: () => {
-          reads.orderLookups += 1;
-          return Promise.resolve(state.order);
-        },
-      },
-      ordersServicesTable: {
-        findMany: () => Promise.resolve(state.serviceRows),
+        findFirst: () => Promise.resolve(state.order),
       },
       ordersProductsTable: {
         findMany: () => Promise.resolve(state.productRows),
@@ -122,15 +140,6 @@ mock.module("@/db", () => ({
         }),
       },
     },
-    select: () => ({
-      from: () => ({
-        innerJoin: () => ({
-          where: () => ({
-            groupBy: () => Promise.resolve(state.refundedRows),
-          }),
-        }),
-      }),
-    }),
     transaction: (cb: (tx: unknown) => unknown) => {
       writes.transactionCount += 1;
       return cb(fakeTx);
@@ -152,11 +161,20 @@ const actualStatusMachine = await import(
   "@/modules/orders/order-status-machine"
 );
 
+// Held before the module is mocked: mock.module rewrites the live namespace,
+// so reading it off the namespace inside the double would call the double.
+const realApplyRefundTransition = actualStatusMachine.applyRefundTransition;
+
 mock.module("@/modules/orders/order-status-machine", () => ({
   ...actualStatusMachine,
   applyRefundTransition: (executor: unknown, input: AnyObj) => {
     machine.refundTransitions.push({ executor, input });
-    return Promise.resolve();
+    return state.realRefundTransition
+      ? realApplyRefundTransition(
+          executor as Parameters<typeof realApplyRefundTransition>[0],
+          input as unknown as Parameters<typeof realApplyRefundTransition>[1]
+        )
+      : Promise.resolve();
   },
   transitionOrderService: (executor: unknown, input: AnyObj) => {
     machine.serviceTransitions.push({ executor, input });
@@ -288,7 +306,7 @@ beforeEach(() => {
   state.postCancelPaymentStatus = "unpaid";
   state.postCancelTotal = "0";
   state.casResults = [];
-  reads.orderLookups = 0;
+  state.realRefundTransition = false;
   writes.updates = [];
   writes.inserts = [];
   writes.transactionCount = 0;
@@ -376,8 +394,7 @@ describe("createOrderRefund", () => {
     expect((error as Error).message).toBe(
       "Refund exceeds remaining paid amount for this order"
     );
-    // No transaction means no partial money writes to unwind.
-    expect(writes.transactionCount).toBe(0);
+    // The guard runs inside the transaction, so nothing is written to unwind.
     expect(writes.updates).toHaveLength(0);
     expect(writes.inserts).toHaveLength(0);
   });
@@ -453,7 +470,29 @@ describe("createOrderRefund", () => {
     expect((error as Error).message).toBe(
       "Order product 20 has no refundable amount remaining"
     );
-    expect(writes.transactionCount).toBe(0);
+    expect(writes.updates).toHaveLength(0);
+    expect(writes.inserts).toHaveLength(0);
+  });
+
+  it("refuses the second of two refunds racing for the same pair of shoes", async () => {
+    // An admin has the order open on two tabs and submits both. The first
+    // flip lands; the second finds nothing left to flip and must not pay out
+    // a second time.
+    state.order = makePaidOrder();
+    state.serviceRows = [
+      { id: 10, subtotal: "100000", status: "ready_for_pickup" },
+    ];
+    state.realRefundTransition = true;
+    state.casResults = [[]];
+
+    const error = await captureRejection(
+      refund([{ order_service_id: 10, reason: "damaged" }])
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "Service changed state before transition could apply. Refresh and try again."
+    );
   });
 
   it("rejects a double-tapped line before touching the order", async () => {
@@ -471,7 +510,6 @@ describe("createOrderRefund", () => {
     expect((error as Error).message).toBe(
       "Duplicate refund line entries are not allowed"
     );
-    expect(reads.orderLookups).toBe(0);
     expect(writes.transactionCount).toBe(0);
   });
 
@@ -484,7 +522,6 @@ describe("createOrderRefund", () => {
     expect((error as Error).message).toBe(
       "Each refund item must reference a service or product line"
     );
-    expect(reads.orderLookups).toBe(0);
     expect(writes.transactionCount).toBe(0);
   });
 });

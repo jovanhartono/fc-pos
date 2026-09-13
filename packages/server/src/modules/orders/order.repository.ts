@@ -18,7 +18,6 @@ import {
   type OrderRefundStatus,
 } from "@/modules/orders/order-refund-status";
 import { isNumericSearch } from "@/modules/orders/order-search";
-import { summarizeOrderFulfillment } from "@/modules/orders/order-status-machine";
 import { PICKUP_OVERDUE_HOURS } from "@/schema/turnaround";
 import { jakartaDayEnd, jakartaDayStart, jakartaNow } from "@/utils/date";
 
@@ -80,7 +79,6 @@ export interface OrderListItem {
   customer_name: string;
   customer_phone: string;
   discount: string;
-  fulfillment: ReturnType<typeof summarizeOrderFulfillment>;
   id: number;
   notes: string | null;
   payment_method_id: number | null;
@@ -259,33 +257,6 @@ export async function findOrders(
     countOrders(filters, scopedStoreIds),
   ]);
 
-  const orderIds = rows.map((row) => row.id);
-  const serviceRows =
-    orderIds.length === 0
-      ? []
-      : await db.query.ordersServicesTable.findMany({
-          where: { order_id: { in: orderIds } },
-          columns: {
-            order_id: true,
-            status: true,
-          },
-        });
-
-  const groupedStatuses = new Map<
-    number,
-    (typeof serviceRows)[number]["status"][]
-  >();
-
-  for (const row of serviceRows) {
-    if (row.order_id === null) {
-      continue;
-    }
-
-    const current = groupedStatuses.get(row.order_id) ?? [];
-    current.push(row.status);
-    groupedStatuses.set(row.order_id, current);
-  }
-
   const items: OrderListItem[] = rows.map((row) => ({
     id: row.id,
     code: row.code,
@@ -310,7 +281,6 @@ export async function findOrders(
     payment_method_name: row.paymentMethod?.name ?? null,
     created_by: row.created_by,
     updated_by: row.updated_by,
-    fulfillment: summarizeOrderFulfillment(groupedStatuses.get(row.id) ?? []),
   }));
 
   return {

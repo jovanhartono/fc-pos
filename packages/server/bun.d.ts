@@ -4,6 +4,7 @@ declare module "bun" {
     DATABASE_URL_DEV: string;
     DATABASE_URL_PROD: string;
     JWT_SECRET: string;
+    SENTRY_DSN?: string;
     STORAGE_PREFIX?: string;
   }
 }

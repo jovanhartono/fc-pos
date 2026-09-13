@@ -18,6 +18,7 @@ import type {
 } from "@/modules/orders/order-admin.schema";
 import {
   applyRefundTransition,
+  type DbExecutor,
   recomputeOrderRollup,
   transitionOrderService,
 } from "@/modules/orders/order-status-machine";
@@ -65,24 +66,20 @@ function toRefundLine(item: RefundLineInput): RefundLine {
   );
 }
 
-async function getOrderLineRefundCaps(orderId: number) {
-  const [order, serviceRows, productRows, refundedRows] = await Promise.all([
-    db.query.ordersTable.findFirst({
-      where: { id: orderId },
-      columns: {
-        id: true,
-        total: true,
-        discount: true,
-      },
-    }),
-    db.query.ordersServicesTable.findMany({
+async function getOrderLineRefundCaps(
+  executor: DbExecutor,
+  order: Pick<typeof ordersTable.$inferSelect, "discount" | "id" | "total">
+) {
+  const orderId = order.id;
+  const [serviceRows, productRows, refundedRows] = await Promise.all([
+    executor.query.ordersServicesTable.findMany({
       where: { order_id: orderId },
       columns: {
         id: true,
         subtotal: true,
       },
     }),
-    db.query.ordersProductsTable.findMany({
+    executor.query.ordersProductsTable.findMany({
       where: { order_id: orderId },
       columns: {
         id: true,
@@ -91,7 +88,7 @@ async function getOrderLineRefundCaps(orderId: number) {
         subtotal: true,
       },
     }),
-    db
+    executor
       .select({
         order_product_id: orderRefundItemsTable.order_product_id,
         order_service_id: orderRefundItemsTable.order_service_id,
@@ -108,10 +105,6 @@ async function getOrderLineRefundCaps(orderId: number) {
         orderRefundItemsTable.order_product_id
       ),
   ]);
-
-  if (!order) {
-    throw new BadRequestException("Order not found");
-  }
 
   const grossTotal = Number(order.total ?? 0);
   const orderDiscount = Number(order.discount);
@@ -171,47 +164,49 @@ export async function createOrderRefund({
     );
   }
 
-  const order = await db.query.ordersTable.findFirst({
-    where: { id: orderId },
-    columns: {
-      id: true,
-      payment_status: true,
-      paid_amount: true,
-      refunded_amount: true,
-    },
-  });
+  // An admin on two tabs would read the full amount as still refundable in
+  // both and hand the cash back twice.
+  const { refund, totalRefundAmount } = await db.transaction(async (tx) => {
+    const [order] = await tx
+      .select({
+        id: ordersTable.id,
+        payment_status: ordersTable.payment_status,
+        paid_amount: ordersTable.paid_amount,
+        refunded_amount: ordersTable.refunded_amount,
+        total: ordersTable.total,
+        discount: ordersTable.discount,
+      })
+      .from(ordersTable)
+      .where(eq(ordersTable.id, orderId))
+      .for("update");
 
-  if (!order) {
-    throw new BadRequestException("Order not found");
-  }
+    if (!order) {
+      throw new BadRequestException("Order not found");
+    }
 
-  assertCanRefundOrderService(user, order);
+    assertCanRefundOrderService(user, order);
 
-  const capsByLineKey = await getOrderLineRefundCaps(orderId);
+    const capsByLineKey = await getOrderLineRefundCaps(tx, order);
 
-  const refundItems = allocateRefund({
-    capsByLineKey,
-    lines,
-  });
+    const refundItems = allocateRefund({
+      capsByLineKey,
+      lines,
+    });
 
-  const totalRefundAmount = refundItems.reduce(
-    (sum, item) => sum + item.amount,
-    0
-  );
+    const totalAmount = refundItems.reduce((sum, item) => sum + item.amount, 0);
 
-  const refundablePaidAmount =
-    Number(order.paid_amount) - Number(order.refunded_amount);
-  if (totalRefundAmount > refundablePaidAmount) {
-    throw new BadRequestException(
-      "Refund exceeds remaining paid amount for this order"
-    );
-  }
+    const refundablePaidAmount =
+      Number(order.paid_amount) - Number(order.refunded_amount);
+    if (totalAmount > refundablePaidAmount) {
+      throw new BadRequestException(
+        "Refund exceeds remaining paid amount for this order"
+      );
+    }
 
-  const [refund] = await db.transaction(async (tx) => {
     await tx
       .update(ordersTable)
       .set({
-        refunded_amount: sql`${ordersTable.refunded_amount} + ${totalRefundAmount}`,
+        refunded_amount: sql`${ordersTable.refunded_amount} + ${totalAmount}`,
         updated_by: user.id,
       })
       .where(eq(ordersTable.id, orderId));
@@ -221,7 +216,7 @@ export async function createOrderRefund({
       .values({
         order_id: orderId,
         refunded_by: user.id,
-        total_amount: totalRefundAmount.toString(),
+        total_amount: totalAmount.toString(),
       })
       .returning();
 
@@ -259,7 +254,7 @@ export async function createOrderRefund({
       });
     }
 
-    return [createdRefund] as const;
+    return { refund: createdRefund, totalRefundAmount: totalAmount };
   });
 
   return {

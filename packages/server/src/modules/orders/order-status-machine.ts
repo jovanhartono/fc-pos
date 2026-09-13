@@ -649,15 +649,26 @@ export async function applyRefundTransition(
     }
   }
 
-  await executor
-    .update(ordersServicesTable)
-    .set({ status: "refunded" })
-    .where(
-      and(
-        eq(ordersServicesTable.order_id, orderId),
-        inArray(ordersServicesTable.id, serviceIds)
+  // An admin on two tabs must not hand the same Item's cash back twice, and the
+  // timeline must not claim a status the line had already left.
+  for (const service of services) {
+    const [won] = await executor
+      .update(ordersServicesTable)
+      .set({ status: "refunded" })
+      .where(
+        and(
+          eq(ordersServicesTable.id, service.id),
+          eq(ordersServicesTable.status, service.status)
+        )
       )
-    );
+      .returning({ id: ordersServicesTable.id });
+
+    if (!won) {
+      throw new BadRequestException(
+        "Service changed state before transition could apply. Refresh and try again."
+      );
+    }
+  }
 
   await executor.insert(orderServiceStatusLogsTable).values(
     items.map((item) => ({

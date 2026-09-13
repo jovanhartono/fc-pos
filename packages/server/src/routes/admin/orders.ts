@@ -72,7 +72,7 @@ import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 interface OrderAccessEnv {
   Variables: AdminEnv["Variables"] & {
-    order?: Awaited<ReturnType<typeof assertOrderAccess>>;
+    orderAccessChecked?: boolean;
   };
 }
 
@@ -91,9 +91,9 @@ const orderIdParam = z.coerce.number().int().positive();
 const requireOrderAccess = createMiddleware<OrderAccessEnv>(async (c, next) => {
   const orderId = orderIdParam.safeParse(c.req.param("id"));
 
-  if (orderId.success && !c.get("order")) {
-    const order = await assertOrderAccess(c.get("jwtPayload"), orderId.data);
-    c.set("order", order);
+  if (orderId.success && !c.get("orderAccessChecked")) {
+    await assertOrderAccess(c.get("jwtPayload"), orderId.data);
+    c.set("orderAccessChecked", true);
   }
 
   await next();
@@ -101,8 +101,8 @@ const requireOrderAccess = createMiddleware<OrderAccessEnv>(async (c, next) => {
 
 const app = new Hono<OrderAccessEnv>()
   // Both shapes, because which one matches a bare /orders/123 depends on the
-  // router Hono picks for the whole API. Whichever fires first files the order
-  // and the other steps aside, so the branch is looked up once.
+  // router Hono picks for the whole API. Whichever fires first marks the check
+  // done and the other steps aside, so Store access is looked up once.
   .use("/:id", requireOrderAccess)
   .use("/:id/*", requireOrderAccess)
   .get("/", zodValidator("query", GETOrdersQuerySchema), async (c) => {
