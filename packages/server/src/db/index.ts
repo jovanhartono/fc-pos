@@ -2,17 +2,10 @@ import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { relations } from "@/db/relations";
 
-const isProduction = process.env.NODE_ENV === "production";
-const databaseUrl = isProduction
-  ? process.env.DATABASE_URL_PROD
-  : process.env.DATABASE_URL_DEV;
+const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
-  throw new Error(
-    `Missing database connection string: ${
-      isProduction ? "DATABASE_URL_PROD" : "DATABASE_URL_DEV"
-    } is required`
-  );
+  throw new Error("DATABASE_URL is required");
 }
 
 // Bun ships global WebSocket — no neonConfig.webSocketConstructor needed.

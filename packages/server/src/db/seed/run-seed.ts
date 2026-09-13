@@ -2002,6 +2002,18 @@ async function seedOrders(params: {
 }
 
 export async function runSeed() {
+  // The seed truncates every table first, so pointed at prod by mistake it wipes
+  // the shop's real Orders. Only a confirmed dev database is allowed through.
+  const isDev =
+    process.env.STORAGE_PREFIX === "dev/" &&
+    (!process.env.DATABASE_URL_DEV ||
+      process.env.DATABASE_URL === process.env.DATABASE_URL_DEV);
+  if (!isDev) {
+    throw new Error(
+      "Refusing to seed: DATABASE_URL is not confirmed to be the dev database"
+    );
+  }
+
   faker.seed(SEED_NUMBER);
   await resetDatabase();
 

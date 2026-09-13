@@ -19,17 +19,20 @@ bun run type-check   # turbo type-check — web runs generate-routes first
 ## Environment Variables
 
 The server reads from `process.env`:
-- `DATABASE_URL_DEV` / `DATABASE_URL_PROD` - Neon PostgreSQL connection strings
+- `DATABASE_URL` - Neon PostgreSQL connection string, set per Vercel environment (Production/Preview/Development)
+- `STORAGE_PREFIX` - `dev/` or `prod/`, set per Vercel environment alongside `DATABASE_URL`
 - `JWT_SECRET` - Secret key for JWT authentication
 - `CDN_BASE_URL` - Public base for stored photo keys
 - `CRON_SECRET` - Shared secret for `/api/internal/*`. Vercel sends it as `Authorization: Bearer …` on cron invocations. Unset means those endpoints answer 401 to everyone.
 - `SENTRY_DSN` - Optional. Unset means `reportError` is a no-op; set it to send 5xx errors to Sentry's envelope endpoint.
 
+Laptop-only, for the drizzle CLI: `DATABASE_URL_DEV` / `DATABASE_URL_PROD`.
+
 ## Deployment Regions
 
 Both services run in Singapore — `ap-southeast-1`, Vercel region `sin1` — as does Neon. Photos live in S3 `ap-southeast-3` (Jakarta), served via `https://cdn.fresclean.id`.
 
-Dev and production share that bucket, so every key is namespaced by the environment that wrote it: `dev/orders/…` or `prod/orders/…`, from `STORAGE_ENV_PREFIX` in `src/utils/s3.ts`. It reads `NODE_ENV`, the same flag that picks the database in `src/db/index.ts` — the two must agree, or the photo sweep judges one environment's bucket against the other's database. Seed data has its own `seed/` prefix and is outside both.
+Dev and production share that bucket, so every key is namespaced by the environment that wrote it: `dev/orders/…` or `prod/orders/…`, from `STORAGE_ENV_PREFIX` in `src/utils/s3.ts`. It reads `STORAGE_PREFIX`, set per Vercel environment alongside `DATABASE_URL` — the two must agree, or the photo sweep judges one environment's bucket against the other's database. Seed data has its own `seed/` prefix and is outside both.
 
 The container region is set in **Vercel project settings**, not `vercel.json`: `services.*` there takes no `regions` key. Keeping it beside Neon is what makes an order commit a same-region round trip rather than a cross-region one.
 
