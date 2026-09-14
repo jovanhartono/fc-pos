@@ -18,5 +18,8 @@
     { "source": "/api/(.*)", "destination": { "service": "api" } },
     { "source": "/(.*)", "destination": { "service": "web" } }
   ],
-  "crons": [{ "path": "/api/internal/photo-sweep", "schedule": "0 20 * * *" }]
+  "crons": [
+    { "path": "/api/internal/photo-sweep", "schedule": "0 20 * * *" },
+    { "path": "/api/internal/close-open-shifts", "schedule": "0 17 * * *" }
+  ]
 }

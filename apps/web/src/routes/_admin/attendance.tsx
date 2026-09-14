@@ -1,4 +1,4 @@
-import { ClockIcon, SignInIcon, SignOutIcon } from "@phosphor-icons/react";
+import { ClockIcon, SignOutIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import dayjs from "dayjs";
@@ -7,16 +7,18 @@ import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import {
-	clockInShift,
 	clockOutShift,
 	type Shift,
-	shiftsKeys,
 	shiftsQueries,
 } from "@/features/shifts/api";
+import {
+	ClockInControl,
+	PRIMARY_BUTTON,
+} from "@/features/shifts/components/clock-in-control";
 import { useCurrentShift } from "@/features/shifts/hooks/useCurrentShift";
 import { storesQueries } from "@/features/stores/api";
+import { onShiftClocked } from "@/lib/cache-events";
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 
@@ -66,9 +68,6 @@ function AttendancePage() {
 	const queryClient = useQueryClient();
 	const { data: currentShift, isPending: currentShiftPending } =
 		useCurrentShift();
-	const storesQuery = useQuery(storesQueries.list());
-	const stores = storesQuery.data ?? [];
-	const [storeValue, setStoreValue] = useState("");
 	const [now, setNow] = useState(() => new Date());
 
 	const weekRange = useMemo(() => currentWeekRange(), []);
@@ -88,25 +87,10 @@ function AttendancePage() {
 		return () => clearInterval(id);
 	}, [currentShift]);
 
-	useEffect(() => {
-		if (!storeValue && stores[0]) {
-			setStoreValue(String(stores[0].id));
-		}
-	}, [stores, storeValue]);
-
-	const invalidate = () =>
-		queryClient.invalidateQueries({ queryKey: shiftsKeys.all });
-
-	const clockInMut = useMutation({
-		mutationKey: ["shift-clock-in"],
-		mutationFn: clockInShift,
-		onSuccess: invalidate,
-	});
-
 	const clockOutMut = useMutation({
 		mutationKey: ["shift-clock-out"],
 		mutationFn: clockOutShift,
-		onSuccess: invalidate,
+		onSuccess: () => onShiftClocked(queryClient),
 	});
 
 	const onShift = Boolean(currentShift);
@@ -183,46 +167,22 @@ function AttendancePage() {
 							)}
 						</div>
 
-						{!currentShiftPending && !onShift && stores.length > 0 ? (
-							<StoreAutocomplete
-								id="clock-store"
-								value={storeValue}
-								onValueChange={setStoreValue}
-								required
-							/>
-						) : null}
-
-						<Button
-							size="lg"
-							variant={onShift ? "destructive" : "default"}
-							className="h-16 w-full text-base font-semibold uppercase tracking-[0.18em]"
-							icon={
-								onShift ? (
-									<SignOutIcon className="size-5" weight="duotone" />
-								) : (
-									<SignInIcon className="size-5" weight="duotone" />
-								)
-							}
-							loading={
-								currentShiftPending ||
-								clockInMut.isPending ||
-								clockOutMut.isPending
-							}
-							loadingText={currentShiftPending ? "Checking…" : undefined}
-							disabled={currentShiftPending || (!onShift && !storeValue)}
-							onClick={() => {
-								if (onShift) {
-									clockOutMut.mutate();
-									return;
-								}
-								if (!storeValue) {
-									return;
-								}
-								clockInMut.mutate({ store_id: Number(storeValue) });
-							}}
-						>
-							{onShift ? "Clock out" : "Clock in"}
-						</Button>
+						{onShift || currentShiftPending ? (
+							<Button
+								className={PRIMARY_BUTTON}
+								disabled={currentShiftPending}
+								icon={<SignOutIcon className="size-5" weight="duotone" />}
+								loading={currentShiftPending || clockOutMut.isPending}
+								loadingText={currentShiftPending ? "Checking…" : undefined}
+								onClick={() => clockOutMut.mutate()}
+								size="lg"
+								variant={onShift ? "destructive" : "default"}
+							>
+								Clock out
+							</Button>
+						) : (
+							<ClockInControl />
+						)}
 					</CardContent>
 				</Card>
 

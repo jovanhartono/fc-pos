@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { campaignsKeys } from "@/features/campaigns/api";
 import { complaintsKeys } from "@/features/complaints/api";
 import { ordersKeys } from "@/features/orders/api";
+import { shiftsKeys } from "@/features/shifts/api";
 
 // One call for every write that moves an Order or one of its Items, because the
 // same move lands on four screens: the order itself, the /orders list and its
@@ -19,3 +20,8 @@ export const onLineAdded = (queryClient: QueryClient) =>
 		queryClient.invalidateQueries({ queryKey: complaintsKeys.all }),
 		queryClient.invalidateQueries({ queryKey: ordersKeys.all }),
 	]);
+
+// Clocking in or out changes the badge on the worker's attendance screen, the
+// week's list under it, and the manager's Shifts table.
+export const onShiftClocked = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({ queryKey: shiftsKeys.all });
