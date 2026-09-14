@@ -18,5 +18,11 @@
     { "source": "/api/(.*)", "destination": { "service": "api" } },
     { "source": "/(.*)", "destination": { "service": "web" } }
   ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+    }
+  ],
   "crons": [{ "path": "/api/internal/photo-sweep", "schedule": "0 20 * * *" }]
 }
