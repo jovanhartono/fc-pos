@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
+import { type Product, productsQueries } from "@/features/products/api";
+import { type Service, servicesQueries } from "@/features/services/api";
 import {
 	buildActiveItemMap,
 	createCartLineId,
@@ -20,11 +22,6 @@ import {
 	type ServiceCartLine,
 	type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
-import type { Product, Service } from "@/lib/api";
-import {
-	productsQueryOptions,
-	servicesQueryOptions,
-} from "@/lib/query-options";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 export interface CartOps {
@@ -338,8 +335,8 @@ export function useCart(): Cart {
 		name: ["productCart", "itemCart"],
 	});
 
-	const productsQuery = useQuery(productsQueryOptions());
-	const servicesQuery = useQuery(servicesQueryOptions());
+	const productsQuery = useQuery(productsQueries.list());
+	const servicesQuery = useQuery(servicesQueries.list());
 
 	const productMap = useMemo(
 		() => buildActiveItemMap(productsQuery.data ?? []),

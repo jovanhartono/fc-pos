@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { resolveVoucherCode } from "@/features/campaigns/api";
 import type { AppliedVoucher } from "@/features/transactions/cart/cart";
-import { resolveVoucherCode } from "@/lib/api";
 import { readServerErrorMessage } from "@/lib/server-error";
 
 interface VoucherCodeEntryProps {

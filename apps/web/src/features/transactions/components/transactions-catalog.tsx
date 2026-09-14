@@ -7,17 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { categoriesQueries } from "@/features/categories/api";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { StoreDevicesDialog } from "@/features/printing/components/store-devices-dialog";
+import { productsQueries } from "@/features/products/api";
+import { servicesQueries } from "@/features/services/api";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import { useCartOps } from "@/features/transactions/cart/useCart";
 import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
-import {
-	categoriesQueryOptions,
-	productsQueryOptions,
-	servicesQueryOptions,
-} from "@/lib/query-options";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 import { useDialog } from "@/stores/dialog-store";
@@ -39,9 +37,9 @@ export function TransactionsCatalog() {
 		(state) => state.setActiveCategory,
 	);
 
-	const categoriesQuery = useQuery(categoriesQueryOptions());
-	const productsQuery = useQuery(productsQueryOptions());
-	const servicesQuery = useQuery(servicesQueryOptions());
+	const categoriesQuery = useQuery(categoriesQueries.list());
+	const productsQuery = useQuery(productsQueries.list());
+	const servicesQuery = useQuery(servicesQueries.list());
 
 	const categories = categoriesQuery.data ?? [];
 	const products = useMemo(

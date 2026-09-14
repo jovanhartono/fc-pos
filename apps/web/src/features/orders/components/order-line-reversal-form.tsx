@@ -16,7 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import type { CancelOrderPayload, CreateOrderRefundPayload } from "@/lib/api";
+import type {
+	CancelOrderPayload,
+	CreateOrderRefundPayload,
+} from "@/features/orders/api";
 import {
 	CANCEL_REASONS,
 	formatCancelReason,

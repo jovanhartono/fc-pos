@@ -9,21 +9,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+	createPaymentMethod,
+	type PaymentMethod,
+	paymentMethodsKeys,
+	paymentMethodsQueries,
+	updatePaymentMethod,
+} from "@/features/payment-methods/api";
+import {
 	PaymentMethodForm,
 	type PaymentMethodFormState,
 } from "@/features/payment-methods/components/payment-method-form";
-import {
-	createPaymentMethod,
-	type PaymentMethod,
-	queryKeys,
-	updatePaymentMethod,
-} from "@/lib/api";
-import { paymentMethodsQueryOptions } from "@/lib/query-options";
 import { useSheet } from "@/stores/sheet-store";
 
 export const Route = createFileRoute("/_admin/payment-methods")({
 	loader: ({ context }) =>
-		context.queryClient.ensureQueryData(paymentMethodsQueryOptions()),
+		context.queryClient.ensureQueryData(paymentMethodsQueries.list()),
 	component: PaymentMethodsPage,
 });
 
@@ -32,7 +32,7 @@ function PaymentMethodsPage() {
 	const { openSheet, closeSheet } = useSheet();
 
 	const { data: paymentMethods = [], isPending } = useQuery(
-		paymentMethodsQueryOptions(),
+		paymentMethodsQueries.list(),
 	);
 	const paymentMethodCount = paymentMethods.length;
 
@@ -41,7 +41,7 @@ function PaymentMethodsPage() {
 		mutationFn: createPaymentMethod,
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({
-				queryKey: queryKeys.paymentMethods,
+				queryKey: paymentMethodsKeys.all,
 			});
 			closeSheet();
 		},
@@ -58,7 +58,7 @@ function PaymentMethodsPage() {
 		}) => updatePaymentMethod(id, payload),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({
-				queryKey: queryKeys.paymentMethods,
+				queryKey: paymentMethodsKeys.all,
 			});
 			closeSheet();
 		},

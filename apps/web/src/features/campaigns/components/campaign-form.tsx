@@ -30,9 +30,9 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import type { CampaignPayload } from "@/features/campaigns/api";
 import { ServicesMultiAutocomplete } from "@/features/orders/components/services-multi-autocomplete";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
-import type { CampaignPayload } from "@/lib/api";
 
 type CampaignDiscountType = CampaignPayload["discount_type"];
 

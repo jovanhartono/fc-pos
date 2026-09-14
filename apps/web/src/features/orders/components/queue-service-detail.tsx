@@ -17,21 +17,21 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import {
+	ordersQueries,
+	type UpdateOrderServiceStatusPayload,
+	updateOrderServiceStatus,
+} from "@/features/orders/api";
 import { HoldToConfirmButton } from "@/features/orders/components/hold-to-confirm-button";
 import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
 import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
-import { invalidateOrderQueries } from "@/features/orders/lib/invalidate-order-queries";
 import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import { findOrderLine } from "@/features/orders/lib/order-lines";
 import { itemPhotoUploader } from "@/features/orders/utils/photo-upload";
-import {
-	type UpdateOrderServiceStatusPayload,
-	updateOrderServiceStatus,
-} from "@/lib/api";
+import { onOrderMoved } from "@/lib/cache-events";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
-import { orderDetailQueryOptions } from "@/lib/query-options";
 import { readServerErrorMessage } from "@/lib/server-error";
 import {
 	formatOrderServiceStatus,
@@ -103,11 +103,11 @@ export function QueueServiceDetail({
 	const [statusNote, setStatusNote] = useState("");
 	const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
 
-	const detailQuery = useQuery(orderDetailQueryOptions(orderId));
+	const detailQuery = useQuery(ordersQueries.detail(orderId));
 	const detail = detailQuery.data;
 	const selectedService = findOrderLine(detail, serviceId);
 
-	const refreshData = () => invalidateOrderQueries(queryClient, orderId);
+	const refreshData = () => onOrderMoved(queryClient);
 
 	const startWorkMutation = useMutation({
 		mutationFn: () =>

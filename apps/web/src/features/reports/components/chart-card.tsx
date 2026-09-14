@@ -30,12 +30,12 @@ import {
 	ChartTooltip,
 	ChartTooltipContent,
 } from "@/components/ui/chart";
+import type { ReportGranularity } from "@/features/reports/api";
 import {
 	bucketToLabel,
 	bucketToTooltipLabel,
 } from "@/features/reports/utils/granularity";
 import { CHART_PALETTE } from "@/features/reports/utils/palette";
-import type { ReportGranularity } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export interface ChartSeries {

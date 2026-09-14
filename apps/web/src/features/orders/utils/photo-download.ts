@@ -1,4 +1,7 @@
-import { createPhotoDownloadUrl, type PhotoDownloadRef } from "@/lib/api";
+import {
+	createPhotoDownloadUrl,
+	type PhotoDownloadRef,
+} from "@/features/orders/api";
 import { triggerDownload } from "@/lib/download";
 
 /**

@@ -13,7 +13,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { trackPublicOrder } from "@/lib/api";
+import { trackKeys, trackQueries } from "@/features/track/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	formatOrderServiceStatus,
@@ -218,16 +218,8 @@ const TrackOrderPage = () => {
 			: null;
 
 	const trackQuery = useQuery({
-		queryKey: ["publicTrackOrder", submitted?.code, submitted?.phone],
-		queryFn: () =>
-			trackPublicOrder({
-				code: submitted?.code || "",
-				phone_number: submitted?.phone || "",
-			}),
+		...trackQueries.order(submitted?.code, submitted?.phone),
 		enabled: !!submitted,
-		retry: false,
-		refetchOnWindowFocus: false,
-		staleTime: 0,
 	});
 
 	useEffect(() => {
@@ -264,7 +256,7 @@ const TrackOrderPage = () => {
 	};
 
 	const handleReset = () => {
-		queryClient.removeQueries({ queryKey: ["publicTrackOrder"] });
+		queryClient.removeQueries({ queryKey: trackKeys.all });
 		setCode("");
 		setPhone("");
 		void navigate({ search: {} });

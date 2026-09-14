@@ -9,22 +9,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+	createProduct,
+	type Product,
+	productsKeys,
+	productsQueries,
+	updateProduct,
+} from "@/features/products/api";
+import {
 	ProductForm,
 	type ProductFormState,
 } from "@/features/products/components/product-form";
-import {
-	createProduct,
-	type Product,
-	queryKeys,
-	updateProduct,
-} from "@/lib/api";
-import { productsQueryOptions } from "@/lib/query-options";
 import { formatMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
 export const Route = createFileRoute("/_admin/products")({
 	loader: ({ context }) =>
-		context.queryClient.ensureQueryData(productsQueryOptions()),
+		context.queryClient.ensureQueryData(productsQueries.list()),
 	component: ProductsPage,
 });
 
@@ -32,14 +32,14 @@ function ProductsPage() {
 	const queryClient = useQueryClient();
 	const { openSheet, closeSheet } = useSheet();
 
-	const { data: products = [], isPending } = useQuery(productsQueryOptions());
+	const { data: products = [], isPending } = useQuery(productsQueries.list());
 	const productCount = products.length;
 
 	const createMutation = useMutation({
 		mutationKey: ["create-product"],
 		mutationFn: createProduct,
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: queryKeys.products });
+			await queryClient.invalidateQueries({ queryKey: productsKeys.all });
 			closeSheet();
 		},
 	});
@@ -54,7 +54,7 @@ function ProductsPage() {
 			payload: Parameters<typeof updateProduct>[1];
 		}) => updateProduct(id, payload),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: queryKeys.products });
+			await queryClient.invalidateQueries({ queryKey: productsKeys.all });
 			closeSheet();
 		},
 	});

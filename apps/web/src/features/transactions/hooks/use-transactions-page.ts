@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import type { ResolvedVoucher } from "@/features/campaigns/api";
+import { createOrder } from "@/features/orders/api";
 import {
 	getCreatedOrderId,
 	handleCreatedOrderSuccess,
@@ -19,6 +21,7 @@ import {
 	NoRegisteredDeviceError,
 	PrinterNotPairedError,
 } from "@/features/printing/printer-transport";
+import { storesQueries } from "@/features/stores/api";
 import {
 	countCartTreatments,
 	defaultDraftValues,
@@ -32,8 +35,7 @@ import {
 	summarizeCheckoutIssues,
 } from "@/features/transactions/lib/checkout-issues";
 import type { TransactionsPageContextValue } from "@/features/transactions/lib/transactions-context";
-import { createOrder, type ResolvedVoucher } from "@/lib/api";
-import { meQueryOptions, storesQueryOptions } from "@/lib/query-options";
+import { usersQueries } from "@/features/users/api";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useTransactionPreferencesStore } from "@/stores/transaction-preferences-store";
@@ -142,9 +144,9 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 			control: form.control,
 			name: "selectedStoreId",
 		}) ?? "";
-	const storesQuery = useQuery(storesQueryOptions());
+	const storesQuery = useQuery(storesQueries.list());
 	const meQuery = useQuery({
-		...meQueryOptions(),
+		...usersQueries.me(),
 		enabled: !!currentUser,
 	});
 

@@ -1,7 +1,7 @@
 import { WORKSHOP_SERVICE_STATUSES } from "@fresclean/api/schema";
 import { CHIP_STRIP_ROW, ChipStripScroller } from "@/components/chip-strip";
 import { Button } from "@/components/ui/button";
-import type { OrderServiceQueueCounts } from "@/lib/api";
+import type { OrderServiceQueueCounts } from "@/features/orders/api";
 import { formatOrderServiceStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
 

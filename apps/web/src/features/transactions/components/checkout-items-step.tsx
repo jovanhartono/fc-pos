@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { categoriesQueries } from "@/features/categories/api";
 import { PhotoLightbox } from "@/features/orders/components/photo-lightbox";
 import { SinglePhotoCaptureDialog } from "@/features/orders/components/photo-upload-dialog";
 import {
@@ -37,7 +38,6 @@ import { useCart, useCartOps } from "@/features/transactions/cart/useCart";
 import { RemoveLineButton } from "@/features/transactions/components/remove-line-button";
 import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
-import { categoriesQueryOptions } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
 import { formatMoney, parseMoney } from "@/shared/money";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
@@ -68,7 +68,7 @@ export const CheckoutItemsStep = () => {
 	const { removeProduct, updateProductQty, productRows, itemRows, addItem } =
 		useCart();
 	const form = useFormContext<TransactionDraftValues>();
-	const categoriesQuery = useQuery(categoriesQueryOptions());
+	const categoriesQuery = useQuery(categoriesQueries.list());
 	const categoryMap = useMemo(
 		() =>
 			new Map(

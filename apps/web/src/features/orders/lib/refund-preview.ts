@@ -1,6 +1,6 @@
 import { lineKey, lineRefundCap } from "@fresclean/api/schema";
+import type { OrderDetail } from "@/features/orders/api";
 import { flattenOrderLines } from "@/features/orders/lib/order-lines";
-import type { OrderDetail } from "@/lib/api";
 import { parseMoney } from "@/shared/money";
 
 // Client-side mirror of the server's per-line refund caps, built from the same

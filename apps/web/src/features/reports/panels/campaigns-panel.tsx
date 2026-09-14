@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import {
@@ -11,8 +12,6 @@ import {
 	numberFormatter,
 	percentFormatter,
 } from "@/features/reports/utils/format";
-import type { ReportGranularity } from "@/lib/api";
-import { campaignEffectivenessQueryOptions } from "@/lib/query-options";
 import { formatMoney } from "@/shared/money";
 
 interface CampaignsPanelProps {
@@ -29,7 +28,7 @@ export const CampaignsPanel = ({
 	granularity,
 }: CampaignsPanelProps) => {
 	const query = useQuery(
-		campaignEffectivenessQueryOptions({
+		reportsQueries.campaignEffectiveness({
 			from,
 			to,
 			store_id: storeId,

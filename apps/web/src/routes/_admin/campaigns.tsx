@@ -17,21 +17,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+	type Campaign,
+	campaignsKeys,
+	campaignsQueries,
+	createCampaign,
+	type UpdateCampaignPayload,
+	updateCampaign,
+} from "@/features/campaigns/api";
+import {
 	CampaignForm,
 	type CampaignFormInput,
 } from "@/features/campaigns/components/campaign-form";
 import { VoucherCodesSheet } from "@/features/campaigns/components/voucher-codes-sheet";
-import {
-	type Campaign,
-	createCampaign,
-	type UpdateCampaignPayload,
-	updateCampaign,
-} from "@/lib/api";
-import {
-	campaignsQueryOptions,
-	meQueryOptions,
-	storesQueryOptions,
-} from "@/lib/query-options";
+import { storesQueries } from "@/features/stores/api";
+import { usersQueries } from "@/features/users/api";
 import { formatMoney } from "@/shared/money";
 import { useDialog } from "@/stores/dialog-store";
 import { useSheet } from "@/stores/sheet-store";
@@ -65,9 +64,9 @@ export const Route = createFileRoute("/_admin/campaigns")({
 	validateSearch: (search) => campaignsSearchSchema.parse(search),
 	loader: ({ context }) =>
 		Promise.all([
-			context.queryClient.ensureQueryData(campaignsQueryOptions()),
-			context.queryClient.ensureQueryData(storesQueryOptions()),
-			context.queryClient.ensureQueryData(meQueryOptions()),
+			context.queryClient.ensureQueryData(campaignsQueries.list()),
+			context.queryClient.ensureQueryData(storesQueries.list()),
+			context.queryClient.ensureQueryData(usersQueries.me()),
 		]),
 	component: CampaignsPage,
 });
@@ -203,13 +202,13 @@ function CampaignsPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 	// DB-fresh role — JWT claim goes stale on mid-session role changes.
-	const meQuery = useQuery(meQueryOptions());
+	const meQuery = useQuery(usersQueries.me());
 	const isAdmin = meQuery.data?.role === "admin";
 	const queryClient = useQueryClient();
 	const { openSheet, closeSheet } = useSheet();
 
-	const campaignsQuery = useQuery(campaignsQueryOptions());
-	const storesQuery = useQuery(storesQueryOptions());
+	const campaignsQuery = useQuery(campaignsQueries.list());
+	const storesQuery = useQuery(storesQueries.list());
 
 	const stores = storesQuery.data ?? [];
 	const allCampaigns = campaignsQuery.data ?? [];
@@ -226,7 +225,7 @@ function CampaignsPage() {
 		mutationKey: ["create-campaign"],
 		mutationFn: createCampaign,
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+			await queryClient.invalidateQueries({ queryKey: campaignsKeys.all });
 			closeSheet();
 		},
 	});
@@ -241,7 +240,7 @@ function CampaignsPage() {
 			payload: UpdateCampaignPayload;
 		}) => updateCampaign(id, payload),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+			await queryClient.invalidateQueries({ queryKey: campaignsKeys.all });
 			closeSheet();
 		},
 	});
@@ -251,7 +250,7 @@ function CampaignsPage() {
 		mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) =>
 			updateCampaign(id, { is_active }),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+			await queryClient.invalidateQueries({ queryKey: campaignsKeys.all });
 		},
 	});
 

@@ -12,6 +12,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+	type FetchOrdersQuery,
+	type Order,
+	ordersQueries,
+} from "@/features/orders/api";
+import {
 	ORDER_STATUS_VALUES,
 	OrderFilters,
 	type OrderFilterValues,
@@ -19,12 +24,8 @@ import {
 } from "@/features/orders/components/order-filters";
 import { PaymentStatusBadge } from "@/features/orders/components/payment-status-badge";
 import { PickupRadar } from "@/features/orders/components/pickup-radar";
-import type { FetchOrdersQuery, Order } from "@/lib/api";
-import {
-	meQueryOptions,
-	ordersPageQueryOptions,
-	storesQueryOptions,
-} from "@/lib/query-options";
+import { storesQueries } from "@/features/stores/api";
+import { usersQueries } from "@/features/users/api";
 import {
 	formatOrderStatus,
 	formatRefundStatus,
@@ -78,15 +79,15 @@ export const Route = createFileRoute("/_admin/orders/")({
 		const currentUser = getCurrentUser();
 		// DB-fresh role — JWT claim goes stale on mid-session role changes.
 		const mePromise = currentUser
-			? context.queryClient.ensureQueryData(meQueryOptions())
+			? context.queryClient.ensureQueryData(usersQueries.me())
 			: undefined;
 		const ensureOrders = () =>
 			context.queryClient.ensureQueryData(
-				ordersPageQueryOptions(buildOrdersListParams(deps, deps.storeId)),
+				ordersQueries.list(buildOrdersListParams(deps, deps.storeId)),
 			);
 
 		await Promise.all([
-			context.queryClient.ensureQueryData(storesQueryOptions()),
+			context.queryClient.ensureQueryData(storesQueries.list()),
 			mePromise,
 			// A storeId in the URL already satisfies the fetch gate.
 			deps.storeId !== undefined ? ensureOrders() : undefined,
@@ -106,9 +107,9 @@ function OrdersPage() {
 	const currentUser = getCurrentUser();
 	const search = Route.useSearch();
 
-	const storesQuery = useQuery(storesQueryOptions());
+	const storesQuery = useQuery(storesQueries.list());
 	const meQuery = useQuery({
-		...meQueryOptions(),
+		...usersQueries.me(),
 		enabled: !!currentUser,
 	});
 
@@ -155,9 +156,11 @@ function OrdersPage() {
 			? undefined
 			: buildOrdersListParams(search, parsedStoreId);
 
+	const canListOrders = role === "admin" ? true : parsedStoreId !== undefined;
+
 	const ordersQuery = useQuery({
-		...ordersPageQueryOptions(orderQuery),
-		enabled: role === "admin" ? true : parsedStoreId !== undefined,
+		...ordersQueries.list(orderQuery),
+		enabled: canListOrders,
 	});
 
 	const hasNoStoreAssignment =
@@ -171,9 +174,11 @@ function OrdersPage() {
 		openSheet({
 			title: "Pickup Radar",
 			description: "Orders that can leave the store now.",
-			content: () => <PickupRadar orders={orders} />,
+			content: () => (
+				<PickupRadar enabled={canListOrders} storeId={parsedStoreId} />
+			),
 		});
-	}, [openSheet, orders]);
+	}, [canListOrders, openSheet, parsedStoreId]);
 
 	const columns = useMemo<DataTableColumnDef<Order>[]>(
 		() => [
