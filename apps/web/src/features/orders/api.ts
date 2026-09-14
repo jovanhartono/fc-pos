@@ -31,13 +31,16 @@ export type OrderServiceQueueCounts = InferResponseType<
 	typeof rpc.api.admin.orders.services.queue.counts.$get
 >["data"];
 
-// A scanned tag resolves to the object, not to one job on it (ADR-0017).
-export type ItemLookup = InferResponseType<
-	(typeof rpc.api.admin.orders.items)["by-item-code"]["$get"]
+// The queue's line-detail screen: one line plus enough of its Order to label
+// it (ADR-0016: no pickup_code here — that stays on the Order detail).
+export type OrderServiceDetail = InferResponseType<
+	(typeof rpc.api.admin.orders)[":id"]["services"][":serviceId"]["$get"]
 >["data"];
 
-export type OrderServiceLookupById = InferResponseType<
-	(typeof rpc.api.admin.orders.services)["by-id"]["$get"]
+// One box for every way a worker names a target: a scanned tag, a typed order
+// id, or a typed line id (ADR-0017).
+export type OrderLookup = InferResponseType<
+	typeof rpc.api.admin.orders.lookup.$get
 >["data"];
 
 // The queue pages by object, each carrying the treatments still live on it.
@@ -200,6 +203,8 @@ export const ordersKeys = {
 	list: (query?: FetchOrdersQuery) =>
 		[...ordersKeys.lists(), query ?? {}] as const,
 	detail: (id: number) => [...ordersKeys.all, "detail", id] as const,
+	orderService: (orderId: number, serviceId: number) =>
+		[...ordersKeys.all, "service", orderId, serviceId] as const,
 	queues: () => [...ordersKeys.all, "queue"] as const,
 	queue: (query?: FetchOrderServiceQueueQuery) =>
 		[...ordersKeys.queues(), query ?? {}] as const,
@@ -238,6 +243,14 @@ export function fetchOrderReceipt(id: number) {
 	);
 }
 
+export function fetchOrderService(orderId: number, serviceId: number) {
+	return parseSuccessData<OrderServiceDetail>(
+		rpcWithAuth().api.admin.orders[":id"].services[":serviceId"].$get({
+			param: { id: String(orderId), serviceId: String(serviceId) },
+		}),
+	);
+}
+
 async function fetchOrderServiceQueuePage(
 	query?: FetchOrderServiceQueueQuery,
 ): Promise<PaginatedData<QueueItem>> {
@@ -272,6 +285,11 @@ export const ordersQueries = {
 			queryKey: ordersKeys.detail(id),
 			queryFn: () => fetchOrderDetail(id),
 		}),
+	orderService: (orderId: number, serviceId: number) =>
+		queryOptions({
+			queryKey: ordersKeys.orderService(orderId, serviceId),
+			queryFn: () => fetchOrderService(orderId, serviceId),
+		}),
 	queue: (query?: FetchOrderServiceQueueQuery) =>
 		infiniteQueryOptions({
 			queryKey: ordersKeys.queue(query),
@@ -294,19 +312,9 @@ export function createOrder(payload: CreateOrderPayload) {
 	return parseResponse(rpcWithAuth().api.admin.orders.$post({ json: payload }));
 }
 
-export function lookupItemByItemCode(itemCode: string) {
-	return parseSuccessData<ItemLookup>(
-		rpcWithAuth().api.admin.orders.items["by-item-code"].$get({
-			query: { item_code: itemCode },
-		}),
-	);
-}
-
-export function lookupOrderServiceById(serviceId: number) {
-	return parseSuccessData<OrderServiceLookupById>(
-		rpcWithAuth().api.admin.orders.services["by-id"].$get({
-			query: { service_id: String(serviceId) },
-		}),
+export function lookupQueueTarget(q: string) {
+	return parseSuccessData<OrderLookup>(
+		rpcWithAuth().api.admin.orders.lookup.$get({ query: { q } }),
 	);
 }
 

@@ -29,6 +29,9 @@ const { createOrder, getOrderDetailById } = await import(
 const { getOrderReceiptById } = await import(
   "@/modules/orders/order-receipt.service"
 );
+const { getOrderServiceDetail } = await import(
+  "@/modules/orders/order-service-detail.service"
+);
 const { getTrackedOrder } = await import(
   "@/modules/orders/order-track.service"
 );
@@ -131,6 +134,29 @@ it("hides the pickup code from the tracker until an object can be collected", as
 
   expect(inTheShop.pickup_code).toBeNull();
   expect(onTheShelf.pickup_code).toBe(await storedPickupCode(order.id));
+});
+
+it("gates the start-photo flag on the queue's line detail the way the shop does", async () => {
+  const order = await placeOrder();
+  const line = await testDb.query.ordersServicesTable.findFirst({
+    where: { order_id: order.id },
+  });
+  const item = await testDb.query.itemsTable.findFirst({
+    where: { order_id: order.id },
+  });
+  if (!(line && item)) {
+    throw new Error("Order has no item or service line");
+  }
+
+  const beforePhoto = await getOrderServiceDetail(order.id, line.id);
+  expect(beforePhoto?.line.has_start_photo).toBe(false);
+
+  await addItemPhoto(item.id, shop.cashier.id);
+
+  const afterPhoto = await getOrderServiceDetail(order.id, line.id);
+  expect(afterPhoto?.line.has_start_photo).toBe(true);
+  expect(afterPhoto).not.toHaveProperty("pickup_code");
+  expect(JSON.stringify(afterPhoto)).not.toContain("pickup_code");
 });
 
 it("masks the phone number the tracker echoes back", async () => {

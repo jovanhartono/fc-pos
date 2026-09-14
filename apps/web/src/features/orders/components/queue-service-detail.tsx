@@ -8,7 +8,7 @@ import {
 	ImageSquareIcon,
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -20,19 +20,17 @@ import { Textarea } from "@/components/ui/textarea";
 import {
 	ordersQueries,
 	type UpdateOrderServiceStatusPayload,
-	updateOrderServiceStatus,
 } from "@/features/orders/api";
 import { HoldToConfirmButton } from "@/features/orders/components/hold-to-confirm-button";
 import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
 import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
+import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
-import { findOrderLine } from "@/features/orders/lib/order-lines";
 import { itemPhotoUploader } from "@/features/orders/utils/photo-upload";
 import { onOrderMoved } from "@/lib/cache-events";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
-import { readServerErrorMessage } from "@/lib/server-error";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
@@ -66,14 +64,16 @@ function QueueServiceDetailSkeleton() {
 	);
 }
 
-function QueueServiceDetailMessage({
+export function QueueServiceDetailMessage({
 	description,
 	title,
 	tone,
+	onRetry,
 }: {
 	description: string;
 	title: string;
 	tone: "error" | "muted";
+	onRetry?: () => void;
 }) {
 	return (
 		<div
@@ -84,6 +84,17 @@ function QueueServiceDetailMessage({
 		>
 			<p className="font-medium">{title}</p>
 			<p className="text-muted-foreground">{description}</p>
+			{onRetry ? (
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					className="mt-2 w-fit"
+					onClick={onRetry}
+				>
+					Retry
+				</Button>
+			) : null}
 		</div>
 	);
 }
@@ -103,63 +114,21 @@ export function QueueServiceDetail({
 	const [statusNote, setStatusNote] = useState("");
 	const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
 
-	const detailQuery = useQuery(ordersQueries.detail(orderId));
-	const detail = detailQuery.data;
-	const selectedService = findOrderLine(detail, serviceId);
+	const detailQuery = useQuery(ordersQueries.orderService(orderId, serviceId));
+	const detail = detailQuery.data?.order;
+	const selectedService = detailQuery.data?.line;
 
-	const refreshData = () => onOrderMoved(queryClient);
-
-	const startWorkMutation = useMutation({
-		mutationFn: () =>
-			updateOrderServiceStatus(orderId, serviceId, { status: "processing" }),
-		onSuccess: async () => {
-			toast.success("Work started");
-			await refreshData();
-		},
-		onError: (error: Error) => {
-			toast.error(readServerErrorMessage(error, "Failed to start work"));
-		},
-	});
-
-	const statusMutation = useMutation({
-		mutationFn: (payload: UpdateOrderServiceStatusPayload) =>
-			updateOrderServiceStatus(orderId, serviceId, payload),
-		onSuccess: async () => {
-			toast.success("Status updated");
-			setStatusNote("");
-			await refreshData();
-		},
-		onError: (error: Error) => {
-			toast.error(readServerErrorMessage(error, "Failed to update status"));
-		},
-	});
+	const updateStatusMutation = useUpdateServiceStatusMutation(orderId);
 
 	if (detailQuery.isPending) {
 		return <QueueServiceDetailSkeleton />;
 	}
 
-	if (detailQuery.isError) {
-		return (
-			<QueueServiceDetailMessage
-				tone="error"
-				title="Failed to load queue item"
-				description={
-					detailQuery.error instanceof Error
-						? detailQuery.error.message
-						: "Please try again in a moment."
-				}
-			/>
-		);
-	}
-
+	// The route's loader already resolved this query before rendering, and its
+	// errorComponent handles a missing or failed lookup — this only satisfies
+	// the type checker for the case that never happens in practice.
 	if (!(detail && selectedService)) {
-		return (
-			<QueueServiceDetailMessage
-				tone="muted"
-				title="Queue item not found"
-				description="It may have been removed or reassigned."
-			/>
-		);
+		return null;
 	}
 
 	const isHandledByCurrentUser = selectedService.handler_id === currentUser?.id;
@@ -377,7 +346,7 @@ export function QueueServiceDetail({
 					badgeLabel={selectedService.item.item_code}
 					uploader={itemPhotoUploader(orderId, selectedService.item.id)}
 					onUploaded={async () => {
-						await refreshData();
+						await onOrderMoved(queryClient);
 					}}
 				/>
 
@@ -411,9 +380,12 @@ export function QueueServiceDetail({
 						<HoldToConfirmButton
 							className="h-12 sm:flex-1"
 							disabled={isHandledByAnotherWorker || needsPhotoToStart}
-							loading={startWorkMutation.isPending}
-							onComplete={async () => {
-								await startWorkMutation.mutateAsync();
+							loading={updateStatusMutation.isPending}
+							onComplete={() => {
+								updateStatusMutation.mutate(
+									{ serviceId, payload: { status: "processing" } },
+									{ onSuccess: () => toast.success("Work started") },
+								);
 							}}
 						>
 							Hold to Start Work
@@ -427,12 +399,23 @@ export function QueueServiceDetail({
 							variant="secondary"
 							size="lg"
 							className={cn("h-12 sm:flex-1", canStartWork && "sm:flex-none")}
-							disabled={statusMutation.isPending}
-							onClick={async () => {
-								await statusMutation.mutateAsync({
-									status: nextStatus,
-									note: statusNote.trim() || undefined,
-								});
+							disabled={updateStatusMutation.isPending}
+							onClick={() => {
+								updateStatusMutation.mutate(
+									{
+										serviceId,
+										payload: {
+											status: nextStatus,
+											note: statusNote.trim() || undefined,
+										},
+									},
+									{
+										onSuccess: () => {
+											toast.success("Status updated");
+											setStatusNote("");
+										},
+									},
+								);
 							}}
 						>
 							{`Set ${formatOrderServiceStatus(nextStatus)}`}

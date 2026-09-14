@@ -1,42 +1,58 @@
-import { createFileRoute } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	type ErrorComponentProps,
+} from "@tanstack/react-router";
+import { DetailedError } from "hono/client";
+import { z } from "zod";
 import { ordersQueries } from "@/features/orders/api";
-import { QueueServiceDetail } from "@/features/orders/components/queue-service-detail";
+import {
+	QueueServiceDetail,
+	QueueServiceDetailMessage,
+} from "@/features/orders/components/queue-service-detail";
 
-export const Route = createFileRoute("/_admin/queue/$orderId/$serviceId")({
-	loader: async ({ context, params }) => {
-		const orderId = Number(params.orderId);
-
-		if (!Number.isInteger(orderId) || orderId <= 0) {
-			return;
-		}
-
-		await context.queryClient.ensureQueryData(ordersQueries.detail(orderId));
-	},
-	component: QueueDetailPage,
+const queueServiceParamsSchema = z.object({
+	orderId: z.coerce.number().int().positive(),
+	serviceId: z.coerce.number().int().positive(),
 });
 
-function QueueDetailPage() {
+const QueueDetailPage = () => {
 	const { orderId, serviceId } = Route.useParams();
-	const parsedOrderId = Number(orderId);
-	const parsedServiceId = Number(serviceId);
-	const isValid =
-		Number.isInteger(parsedOrderId) &&
-		parsedOrderId > 0 &&
-		Number.isInteger(parsedServiceId) &&
-		parsedServiceId > 0;
 
-	if (!isValid) {
+	return <QueueServiceDetail orderId={orderId} serviceId={serviceId} />;
+};
+
+const QueueServiceRouteError = ({ error, reset }: ErrorComponentProps) => {
+	if (error instanceof DetailedError && error.statusCode === 404) {
 		return (
-			<div className="grid gap-1 border border-destructive/40 bg-destructive/5 p-6 text-sm">
-				<p className="font-medium">Invalid queue item</p>
-				<p className="text-muted-foreground">
-					The URL does not point to a valid queue item.
-				</p>
-			</div>
+			<QueueServiceDetailMessage
+				tone="muted"
+				title="Queue item not found"
+				description="It may have been removed or reassigned."
+			/>
 		);
 	}
 
 	return (
-		<QueueServiceDetail orderId={parsedOrderId} serviceId={parsedServiceId} />
+		<QueueServiceDetailMessage
+			tone="error"
+			title="Failed to load queue item"
+			description={
+				error instanceof Error ? error.message : "Please try again in a moment."
+			}
+			onRetry={reset}
+		/>
 	);
-}
+};
+
+export const Route = createFileRoute("/_admin/queue/$orderId/$serviceId")({
+	params: {
+		parse: (params) => queueServiceParamsSchema.parse(params),
+	},
+	loader: async ({ context, params }) => {
+		await context.queryClient.ensureQueryData(
+			ordersQueries.orderService(params.orderId, params.serviceId),
+		);
+	},
+	component: QueueDetailPage,
+	errorComponent: QueueServiceRouteError,
+});

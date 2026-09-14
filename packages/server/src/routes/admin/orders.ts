@@ -11,8 +11,7 @@ import {
 } from "@/modules/orders/order.service";
 import {
   GETMyOrderServicesQuerySchema,
-  GETOrderByItemCodeQuerySchema,
-  GETOrderServiceByIdQuerySchema,
+  GETOrderLookupQuerySchema,
   GETOrderServiceQueueCountsQuerySchema,
   GETOrderServiceQueueQuerySchema,
   orderItemParamSchema,
@@ -33,6 +32,7 @@ import {
   PUTOrderDropoffPhotoSchema,
 } from "@/modules/orders/order-admin.schema";
 import { updateOrderCollectedBy } from "@/modules/orders/order-courier.service";
+import { resolveOrderLookup } from "@/modules/orders/order-lookup.service";
 import { updateOrderPayment } from "@/modules/orders/order-payment.service";
 import {
   createItemPhotoPresign,
@@ -47,9 +47,7 @@ import {
 } from "@/modules/orders/order-pickup.service";
 import { setOrderServicePrice } from "@/modules/orders/order-price.service";
 import {
-  getItemByItemCode,
   getMyOrderServices,
-  getOrderServiceById,
   getOrderServiceQueue,
   getOrderServiceQueueCounts,
   startOrderServiceWork,
@@ -61,6 +59,7 @@ import {
   cancelOrder,
   createOrderRefund,
 } from "@/modules/orders/order-reversal.service";
+import { getOrderServiceDetail } from "@/modules/orders/order-service-detail.service";
 import { assertCanCreateOrder } from "@/modules/permissions/permissions";
 import { getStoreById } from "@/modules/stores/store.service";
 import { POSTOrderSchema } from "@/schema";
@@ -136,45 +135,6 @@ const app = new Hono<OrderAccessEnv>()
     }
   )
   .get(
-    "/services/by-id",
-    zodValidator("query", GETOrderServiceByIdQuerySchema),
-    async (c) => {
-      const user = c.get("jwtPayload");
-      const { service_id } = c.req.valid("query");
-
-      const orderService = await getOrderServiceById(service_id);
-
-      if (!orderService?.order) {
-        throw new NotFoundException("Order service not found");
-      }
-
-      await assertStoreAccess(user, orderService.order.store_id);
-
-      return c.json(success(orderService));
-    }
-  )
-  // A scanned tag names an object, not a job (ADR-0017). The Item comes back
-  // with the treatments still open on it, so the caller can send a worker
-  // straight to the only one outstanding or let them pick.
-  .get(
-    "/items/by-item-code",
-    zodValidator("query", GETOrderByItemCodeQuerySchema),
-    async (c) => {
-      const user = c.get("jwtPayload");
-      const { item_code } = c.req.valid("query");
-
-      const item = await getItemByItemCode(item_code);
-
-      if (!item?.order) {
-        throw new NotFoundException("Item not found");
-      }
-
-      await assertStoreAccess(user, item.order.store_id);
-
-      return c.json(success(item));
-    }
-  )
-  .get(
     "/services/me",
     zodValidator("query", GETMyOrderServicesQuerySchema),
     async (c) => {
@@ -203,6 +163,20 @@ const app = new Hono<OrderAccessEnv>()
 
     return c.json(success(created, "Order created"), StatusCodes.CREATED);
   })
+  // Registered ahead of /:id so a search for "lookup" is never read as an
+  // order id.
+  .get(
+    "/lookup",
+    zodValidator("query", GETOrderLookupQuerySchema),
+    async (c) => {
+      const user = c.get("jwtPayload");
+      const { q } = c.req.valid("query");
+
+      const result = await resolveOrderLookup(user, q);
+
+      return c.json(success(result));
+    }
+  )
   .get("/:id", idParamSchema, async (c) => {
     const { id } = c.req.valid("param");
 
@@ -308,6 +282,17 @@ const app = new Hono<OrderAccessEnv>()
       );
     }
   )
+  .get("/:id/services/:serviceId", orderServiceParamSchema, async (c) => {
+    const { id, serviceId } = c.req.valid("param");
+
+    const detail = await getOrderServiceDetail(id, serviceId);
+
+    if (!detail) {
+      throw new NotFoundException("Order service not found");
+    }
+
+    return c.json(success(detail));
+  })
   .post(
     "/:id/services/:serviceId/start",
     orderServiceParamSchema,
