@@ -58,6 +58,7 @@ Tasks are orchestrated by Turborepo and run across all packages:
 ```sh
 bun run build         # Build all packages (cached)
 bun run lint          # Lint all packages (cached)
+bun run test          # bun test in each package
 bun run type-check    # Type-check all packages (cached)
 ```
 
@@ -70,6 +71,9 @@ The server reads from `process.env` (`.env` in `packages/server`):
 - `DATABASE_URL` — Neon PostgreSQL connection string, set per Vercel environment
 - `STORAGE_PREFIX` — `dev/` or `prod/`, set per Vercel environment alongside `DATABASE_URL`
 - `JWT_SECRET` — secret key for JWT authentication
+- `CDN_BASE_URL` — public base for stored photo keys
+- `CRON_SECRET` — shared secret for `/api/internal/*`; unset means those endpoints answer 401
+- `SENTRY_DSN` — optional; unset means `reportError` is a no-op
 
 Laptop-only, for the drizzle CLI: `DATABASE_URL_DEV` / `DATABASE_URL_PROD`. See `packages/server/.env.example`.
 
