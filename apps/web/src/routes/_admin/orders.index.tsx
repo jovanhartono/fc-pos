@@ -11,6 +11,7 @@ import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { CustomerLink } from "@/features/customers/components/customer-link";
 import {
 	type FetchOrdersQuery,
 	type Order,
@@ -226,9 +227,11 @@ function OrdersPage() {
 					},
 				},
 				cell: ({ row }) => (
-					<span className="truncate font-medium">
-						{row.original.customer_name}
-					</span>
+					<CustomerLink
+						className="truncate"
+						customerId={row.original.customer_id}
+						name={row.original.customer_name}
+					/>
 				),
 			},
 			{

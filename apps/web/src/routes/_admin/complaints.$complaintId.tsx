@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { complaintsQueries } from "@/features/complaints/api";
 import { useAddReworkMutation } from "@/features/complaints/hooks/useComplaintMutations";
 import { getComplaintOutcome } from "@/features/complaints/lib/format";
+import { CustomerLink } from "@/features/customers/components/customer-link";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
@@ -100,10 +101,13 @@ const ComplaintDetailPage = () => {
 								</Link>
 							</Detail>
 							<Detail label="Store">{order.store?.name ?? "—"}</Detail>
-							<Detail label="Customer">{order.customer?.name ?? "—"}</Detail>
-							<Detail label="Phone">
-								{order.customer?.phone_number ?? "—"}
+							<Detail label="Customer">
+								<CustomerLink
+									customerId={order.customer.id}
+									name={order.customer.name}
+								/>
 							</Detail>
+							<Detail label="Phone">{order.customer.phone_number}</Detail>
 						</div>
 
 						<Detail label="Complained item">

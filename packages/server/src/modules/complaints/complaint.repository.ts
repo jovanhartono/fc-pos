@@ -146,6 +146,7 @@ export async function findComplaints(
         order_code: ordersTable.code,
         store_id: ordersTable.store_id,
         store_name: storesTable.name,
+        customer_id: ordersTable.customer_id,
         customer_name: customersTable.name,
         service_name: servicesTable.name,
         opened_by_name: usersTable.name,

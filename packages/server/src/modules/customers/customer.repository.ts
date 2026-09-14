@@ -1,5 +1,5 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { eq, ilike, or } from "drizzle-orm";
+import { eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { customersTable } from "@/db/schema";
 
@@ -71,6 +71,72 @@ export function findCustomerById(id: number) {
       originStore: true,
     },
   });
+}
+
+export interface CustomerSummary {
+  complaints: number;
+  last_visit_at: string | null;
+  lifetime_spend: string;
+  paid_orders: number;
+}
+
+// Lifetime spend is never bucketed by period the way Revenue is: the question
+// is what this person is worth today, so a refund just lowers it. Last visit
+// counts every Order, including the ones they never paid for.
+function findCustomerOrderStats(customerId: number) {
+  return db.query.ordersTable.findMany({
+    where: { customer_id: customerId },
+    columns: { id: true },
+    extras: {
+      lifetime_spend:
+        sql<string>`COALESCE(SUM(paid_amount - refunded_amount) FILTER (WHERE payment_status = 'paid') OVER (), 0)`.as(
+          "lifetime_spend"
+        ),
+      paid_orders:
+        sql<number>`(COUNT(*) FILTER (WHERE payment_status = 'paid') OVER ())::int`.as(
+          "paid_orders"
+        ),
+      // Raw SQL skips drizzle's timestamp mapper, so the instant has to carry
+      // its own Z. Without it the browser reads the stored UTC as Jakarta time
+      // and "last visit" lands seven hours before the newest Order listed
+      // underneath it.
+      last_visit_at: sql<
+        string | null
+      >`to_char(MAX(created_at) OVER (), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`.as(
+        "last_visit_at"
+      ),
+    },
+    limit: 1,
+  });
+}
+
+function findCustomerComplaintCount(customerId: number) {
+  return db.query.complaintsTable.findMany({
+    where: { orderService: { order: { customer_id: customerId } } },
+    columns: { id: true },
+    extras: { total: sql<number>`(COUNT(*) OVER ())::int`.as("total") },
+    limit: 1,
+  });
+}
+
+export async function findCustomerSummary(
+  customerId: number
+): Promise<CustomerSummary> {
+  const [orders, complaints] = await Promise.all([
+    findCustomerOrderStats(customerId),
+    findCustomerComplaintCount(customerId),
+  ]);
+
+  // A customer with no Orders yet gets no row back — the window had nothing to
+  // report itself on.
+  const [stats] = orders;
+
+  return {
+    complaints: complaints[0]?.total ?? 0,
+    last_visit_at: stats?.last_visit_at ?? null,
+    lifetime_spend: stats?.lifetime_spend ?? "0",
+    paid_orders: stats?.paid_orders ?? 0,
+  };
 }
 
 export function findCustomerByPhone(

@@ -275,7 +275,7 @@ export function findOrderServiceDetail(orderId: number, serviceId: number) {
         columns: { id: true, code: true, created_at: true },
         with: {
           store: { columns: { id: true, code: true } },
-          customer: { columns: { name: true, phone_number: true } },
+          customer: { columns: { id: true, name: true, phone_number: true } },
         },
       },
       handler: { columns: userRefColumns },

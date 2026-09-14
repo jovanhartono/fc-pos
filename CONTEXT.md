@@ -169,6 +169,10 @@ _Avoid_: "order status service," "transition helper."
 **Customer**:
 The person who placed the Order. `phone_number` is **UNIQUE** — duplicate phone on create returns the existing Customer.
 
+**Lifetime spend**:
+What one Customer has actually paid the shop and kept paying — `paid_amount` minus `refunded_amount`, summed across their paid Orders, all stores, all time. The customer-level twin of **Revenue**: Campaign and Voucher discounts are already absorbed and refunds are subtracted. Deliberately **not** called Revenue, which names the shop-wide metric and nothing else. Unpaid Orders contribute nothing, and an Order carrying an unpriced Repair line cannot be paid, so it contributes nothing either. The one place the twin breaks: Revenue books a refund in the period it was issued, while Lifetime spend is all-time and simply carries it — the question is what this person is worth today, not what any month earned. Shown on the customer detail page; see [ADR-0021](docs/adr/0021-customer-detail-is-admin-only-and-all-store.md). Reads **lower** than the reports' top-customers panel for anyone ever refunded — that panel reports **Collected**, which has no refund taken off.
+_Avoid_: total spend, customer revenue, lifetime value, LTV, **total** (see Ambiguities).
+
 **Customer lookup**:
 The POS phone→name prefill. A dedicated `GET /admin/customers/lookup?phone=` returns the matching Customer (its columns; no store relation — the prefill needs only the name) or `null` — phone is identity, so the result is **0-or-1**, never a list. **UX-only**: it prefills the name and toggles the "Existing customer" badge; it does **not** resolve a `customer_id` for checkout. Checkout correctness stays with server find-or-create at Order submit — the payload is always `customer: { name, phone_number }`, never an id (see [ADR-0011](docs/adr/0011-pos-creates-customer-atomically-with-order.md)). Distinct from the admin customer **browse list** (`GET /admin/customers` — paginated, substring `ilike` on name/phone): same table, different intent. Do **not** route the POS lookup through the browse list — substring search is the wrong model for an identity probe.
 
