@@ -82,6 +82,15 @@ export function findCustomerByPhone(
   });
 }
 
+// The public tracker matches a caller by phone and never shows the row, so it
+// gets the id and nothing else.
+export function findCustomerIdByPhone(phone_number: string) {
+  return db.query.customersTable.findFirst({
+    where: { phone_number },
+    columns: { id: true },
+  });
+}
+
 export function insertCustomer(
   values: InferInsertModel<typeof customersTable>,
   executor: CustomerExecutor = db

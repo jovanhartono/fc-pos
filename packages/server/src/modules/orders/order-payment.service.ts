@@ -2,12 +2,16 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { ordersTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
-import { claimRedemptions } from "@/modules/campaigns/campaign-redemption.service";
+import { findSettlementLines } from "@/modules/orders/order.repository";
 import type { PatchOrderPaymentInput } from "@/modules/orders/order-admin.schema";
-import { resolveDiscount } from "@/modules/orders/order-discount.service";
+import { findOrderState } from "@/modules/orders/order-read.repository";
+import {
+  assertDiscountRequestAllowed,
+  assertPayable,
+  settleDiscount,
+} from "@/modules/orders/order-settlement.service";
 import { assertCanProcessPayment } from "@/modules/permissions/permissions";
 import { isDiscountSettled, orderNetDue } from "@/schema/discount";
-import { hasUnpricedLine } from "@/schema/unpriced-line";
 import type { JWTPayload } from "@/types";
 
 export async function updateOrderPayment({
@@ -21,113 +25,57 @@ export async function updateOrderPayment({
 }) {
   assertCanProcessPayment(user);
 
-  const order = await db.query.ordersTable.findFirst({
-    where: { id: orderId },
-    columns: {
-      id: true,
-      total: true,
-      discount: true,
-      discount_source: true,
-      refunded_amount: true,
-      payment_status: true,
-      status: true,
-      store_id: true,
-    },
-    with: {
-      store: { columns: { code: true } },
-    },
-  });
-
-  if (!order) {
-    return null;
-  }
-
-  if (order.payment_status === "paid") {
-    throw new BadRequestException("Order has already been paid");
-  }
-
-  if (order.status === "cancelled") {
-    throw new BadRequestException(
-      "Cannot collect payment on a cancelled order"
-    );
-  }
-
-  // ADR-0018: no price, no payment. A blank line is a Repair the workshop has
-  // not inspected yet — the shop does not take money for a number nobody has
-  // agreed on. Payment is binary (ADR-0001), so the whole Order waits, known
-  // lines included. A cancelled line took the unpaid off-ramp (ADR-0008) and
-  // no longer holds the rest of the Order's money.
-  const serviceLines = await db.query.ordersServicesTable.findMany({
-    where: { order_id: orderId },
-    columns: {
-      price: true,
-      status: true,
-      service_id: true,
-    },
-    with: {
-      service: { columns: { price: true } },
-    },
-  });
-  if (hasUnpricedLine(serviceLines)) {
-    throw new BadRequestException(
-      "Order has an unpriced line — set its price before collecting payment"
-    );
-  }
-
-  // ADR-0018: the promo may already have settled at drop-off, when
-  // every line was priced. Its voucher code is out of circulation and its
-  // amount is printed on the Receipt the customer is holding. Resolving again
-  // here would claim a second time and overwrite the number they were
-  // promised, so the payment desk collects the printed total instead.
-  const isSettledAtDropoff = isDiscountSettled(order.discount_source);
-  if (
-    isSettledAtDropoff &&
-    (body.campaign_ids.length > 0 ||
-      body.voucher_codes.length > 0 ||
-      body.discount > 0)
-  ) {
-    throw new BadRequestException(
-      "This order's discount was settled at drop-off — collect the printed total"
-    );
-  }
-
-  const grossTotal = Number(order.total ?? 0);
-
-  // BOGO stays exclusive (ADR-0018): a no-list-price line (Repair) is never
-  // selectable as a buy-one-get-one free slot — a misconfigured Campaign must
-  // not hand out a repair as a free item. Deliberate owner decision; it keys
-  // on the catalog having no list price, not on the line's number.
-  const lines = serviceLines.flatMap((line) =>
-    line.status === "cancelled" ||
-    line.service_id === null ||
-    line.service?.price == null
-      ? []
-      : [{ price: Number(line.price), service_id: line.service_id }]
-  );
-
+  // Everything the desk decides on is read inside the transaction that books
+  // the money, so a price keyed between the read and the write cannot leave the
+  // customer paying a number that no longer matches their lines.
   return await db.transaction(async (tx) => {
-    // ADR-0018: for an Order whose promo settled at drop-off this
-    // desk only books the tender — the stored amount stands, and re-claiming
-    // it would spend the voucher twice. Otherwise the promo settles here,
-    // which is the first moment every line has a price: the Campaign base is
-    // the order total, and the claims commit or roll back with the payment.
-    const { discountAmount, discountSource, campaignRows } = isSettledAtDropoff
-      ? {
-          discountAmount: Number(order.discount),
-          discountSource: order.discount_source,
-          campaignRows: [],
-        }
-      : await resolveDiscount({
-          campaignIds: body.campaign_ids,
-          voucherCodes: body.voucher_codes,
-          grossTotal,
-          manualDiscount: body.discount,
-          storeId: order.store_id,
-          storeCode: order.store.code,
-          lines,
-        });
+    const order = await findOrderState(tx, orderId);
 
-    await claimRedemptions(tx, campaignRows, orderId);
+    if (!order) {
+      return null;
+    }
+
+    if (order.payment_status === "paid") {
+      throw new BadRequestException("Order has already been paid");
+    }
+
+    if (order.status === "cancelled") {
+      throw new BadRequestException(
+        "Cannot collect payment on a cancelled order"
+      );
+    }
+
+    const lines = await findSettlementLines(tx, orderId);
+    assertPayable(lines);
+
+    // Every line is priced by the time this runs, so only a promo that already
+    // settled at drop-off can still turn a second one away.
+    const isSettledAtDropoff = isDiscountSettled(order.discount_source);
+    assertDiscountRequestAllowed({
+      hasBlankLine: false,
+      isSettled: isSettledAtDropoff,
+      request: body,
+    });
+
+    const grossTotal = Number(order.total ?? 0);
+
+    // For an Order whose promo settled at drop-off this desk only books the
+    // tender — the stored amount is what the Receipt says. Otherwise the promo
+    // settles here, and its claims commit or roll back with the payment.
+    const { discountAmount, discountSource } = await settleDiscount(tx, {
+      grossTotal,
+      lines,
+      orderId,
+      request: body,
+      settled: isSettledAtDropoff
+        ? {
+            discountAmount: Number(order.discount),
+            discountSource: order.discount_source,
+          }
+        : undefined,
+      storeCode: order.store.code,
+      storeId: order.store_id,
+    });
 
     const netDue = orderNetDue({
       grossTotal,
@@ -137,7 +85,7 @@ export async function updateOrderPayment({
 
     // CAS on payment_status: two cashiers tapping collect at once must not
     // both book the money — the loser's transaction rolls back, and with it
-    // any voucher its resolveDiscount claimed.
+    // any voucher its discount desk claimed.
     const rows = await tx
       .update(ordersTable)
       .set({

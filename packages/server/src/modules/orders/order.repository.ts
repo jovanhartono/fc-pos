@@ -1,6 +1,6 @@
 import type { InferInsertModel } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import { db } from "@/db";
+import { type DbExecutor, db } from "@/db";
 import {
   itemsTable,
   orderCountersTable,
@@ -22,15 +22,6 @@ import { PICKUP_OVERDUE_HOURS } from "@/schema/turnaround";
 import { jakartaDayEnd, jakartaDayStart, jakartaNow } from "@/utils/date";
 
 export type OrderTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-const getOrderServicePrepared = db.query.ordersServicesTable
-  .findFirst({
-    where: {
-      order_id: { eq: sql.placeholder("order_id") },
-      id: { eq: sql.placeholder("id") },
-    },
-  })
-  .prepare("get_order_service");
 
 const getItemPrepared = db.query.itemsTable
   .findFirst({
@@ -55,20 +46,18 @@ export async function getItemOrThrow(orderId: number, itemId: number) {
   return item;
 }
 
-export async function getOrderServiceOrThrow(
-  orderId: number,
-  serviceId: number
-) {
-  const orderService = await getOrderServicePrepared.execute({
-    order_id: orderId,
-    id: serviceId,
+// Every line of the Order with its own number beside the catalog's — what the
+// settlement desk needs to tell a blank Repair apart from a line that is
+// genuinely free. Takes the executor so it reads inside the transaction that
+// will book the money.
+export function findSettlementLines(executor: DbExecutor, orderId: number) {
+  return executor.query.ordersServicesTable.findMany({
+    where: { order_id: orderId },
+    columns: { price: true, service_id: true, status: true },
+    with: {
+      service: { columns: { price: true } },
+    },
   });
-
-  if (!orderService) {
-    throw new BadRequestException("Order service not found for this order");
-  }
-
-  return orderService;
 }
 
 export interface OrderListItem {

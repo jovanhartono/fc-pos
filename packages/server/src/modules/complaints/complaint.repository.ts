@@ -10,6 +10,7 @@ import {
   usersTable,
 } from "@/db/schema";
 import type { NormalizedComplaintListQuery } from "@/modules/complaints/complaint.schema";
+import { orderRefColumns } from "@/modules/orders/order-read.repository";
 import type { DbExecutor } from "@/modules/orders/order-status-machine";
 
 type ComplaintInsert = typeof complaintsTable.$inferInsert;
@@ -43,7 +44,7 @@ export function findComplaintById(id: number) {
 export function findComplaintSubjectService(serviceId: number) {
   return db.query.ordersServicesTable.findFirst({
     where: { id: serviceId },
-    with: { order: true },
+    with: { order: { columns: orderRefColumns } },
   });
 }
 
@@ -79,13 +80,7 @@ export function findComplaintDetailById(id: number) {
             },
           },
           order: {
-            columns: {
-              id: true,
-              code: true,
-              store_id: true,
-              status: true,
-              payment_status: true,
-            },
+            columns: orderRefColumns,
             with: {
               customer: {
                 columns: { id: true, name: true, phone_number: true },

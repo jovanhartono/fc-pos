@@ -3,7 +3,6 @@ import type z from "zod";
 import { db } from "@/db";
 import { ordersTable } from "@/db/schema";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
-import { claimRedemptions } from "@/modules/campaigns/campaign-redemption.service";
 import { resolveOrCreateCustomer } from "@/modules/customers/customer.service";
 import {
   findOrders,
@@ -19,16 +18,23 @@ import {
   normalizeOrderListQuery,
 } from "@/modules/orders/order.schema";
 import { assertActiveCourier } from "@/modules/orders/order-courier.service";
-import { resolveDiscount } from "@/modules/orders/order-discount.service";
+import { hasStartPhoto } from "@/modules/orders/order-photo-gate.repository";
+import { findOrderDetail } from "@/modules/orders/order-read.repository";
 import { deriveOrderRefundStatus } from "@/modules/orders/order-refund-status";
 import {
+  assertDiscountRequestAllowed,
+  assertLinePrice,
+  assertPayable,
+  type SettlementLine,
+  settleDiscount,
+} from "@/modules/orders/order-settlement.service";
+import {
   deriveItemStatus,
-  hasStartPhoto,
   isCollectableItemStatus,
   summarizeOrderFulfillment,
 } from "@/modules/orders/order-status-machine";
 import {
-  decrementProductStock,
+  decrementProductsStock,
   findProducts,
 } from "@/modules/products/product.repository";
 import { findServices } from "@/modules/services/service.repository";
@@ -141,11 +147,7 @@ function resolveServiceLinePrice(
     return null;
   }
 
-  // Zero is not a price: 0 already means deliberately free (a Rework line,
-  // ADR-0013), and "not priced yet" is a blank, not a keyed zero.
-  if (item.price <= 0) {
-    throw new BadRequestException("Line price must be greater than zero");
-  }
+  assertLinePrice(item.price);
 
   return item.price.toString();
 }
@@ -231,17 +233,36 @@ export async function listOrders(query?: GetOrdersQuery, user?: JWTPayload) {
   };
 }
 
-async function decrementProductsStock(
+// Two lines of the same SKU on one tab are two bottles off the shelf, so the
+// quantities are summed per product before the shelf is asked — otherwise the
+// last bottle sells twice.
+async function reserveBasketStock(
   tx: OrderTx,
   productLines: CatalogLine<OrderProductInput, DbProduct>[]
 ) {
+  const qtyByProductId = new Map<number, number>();
   for (const { item, row: product } of productLines) {
-    const [decremented] = await decrementProductStock(tx, product.id, item.qty);
-    if (!decremented) {
-      throw new BadRequestException(
-        `Insufficient stock for product ${product.name}`
-      );
-    }
+    qtyByProductId.set(
+      product.id,
+      (qtyByProductId.get(product.id) ?? 0) + item.qty
+    );
+  }
+
+  if (qtyByProductId.size === 0) {
+    return;
+  }
+
+  const taken = await decrementProductsStock(
+    tx,
+    [...qtyByProductId].map(([productId, qty]) => ({ productId, qty }))
+  );
+  const takenIds = new Set(taken.map((row) => row.id));
+
+  const short = productLines.find(({ row }) => !takenIds.has(row.id));
+  if (short) {
+    throw new BadRequestException(
+      `Insufficient stock for product ${short.row.name}`
+    );
   }
 }
 
@@ -286,33 +307,32 @@ export async function createOrder(
     price: resolveServiceLinePrice(line.item, line.row),
   }));
 
-  // ADR-0018: no price, no payment. A blank line is a Repair the workshop has
-  // not inspected yet — its number is not known, so no money moves for the
-  // Order, not even for the lines the counter already knows.
-  const hasBlankLine = serviceLines.some((line) => line.price === null);
-  if (isPaidAtDropoff && hasBlankLine) {
-    throw new BadRequestException(
-      "Order has an unpriced line — set its price before collecting payment"
-    );
-  }
+  // The settlement desk's view of the basket: the line's own number beside the
+  // catalog's, which is what says whether a blank is a Repair awaiting
+  // inspection and whether the line could ever be a BOGO free slot.
+  const settlementLines: SettlementLine[] = serviceLines.map(
+    ({ item, row: service, price }) => ({
+      price,
+      service: { price: service.price },
+      service_id: item.id,
+      status: "queued",
+    })
+  );
 
-  // ADR-0018: a promo settles once every line is priced, not once
-  // the money arrives. The customer who sends a driver with the items pays at
-  // pickup, and the drop-off Receipt is the only proof they hold — a gross
-  // total under a promised discount is a verbal promise in print, and they
-  // will not trust it. What must never happen is a promo settled against a
-  // guess, so a blank line still bounces: the base is not knowable until the
-  // workshop has inspected the Item.
-  if (
-    hasBlankLine &&
-    (campaign_ids.length > 0 ||
-      voucher_codes.length > 0 ||
-      orderPayload.discount > 0)
-  ) {
-    throw new BadRequestException(
-      "Order has an unpriced line — promotions wait until every item is priced"
-    );
+  const discountRequest = {
+    campaign_ids,
+    discount: orderPayload.discount,
+    voucher_codes,
+  };
+
+  if (isPaidAtDropoff) {
+    assertPayable(settlementLines);
   }
+  assertDiscountRequestAllowed({
+    hasBlankLine: settlementLines.some((line) => line.price === null),
+    isSettled: false,
+    request: discountRequest,
+  });
 
   return db.transaction(async (tx) => {
     const dateStr = jakartaNow().format("DDMMYYYY");
@@ -345,7 +365,7 @@ export async function createOrder(
       updated_by: userId,
     });
 
-    await decrementProductsStock(tx, productLines);
+    await reserveBasketStock(tx, productLines);
 
     // Objects before treatments: a treatment row cannot exist until the object
     // it is applied to has an id to point at.
@@ -388,42 +408,18 @@ export async function createOrder(
 
     const grossTotal = serviceSubtotal + productSubtotal;
 
-    // BOGO stays exclusive (ADR-0018): a no-list-price line (Repair) is never
-    // selectable as a buy-one-get-one free slot — a misconfigured Campaign
-    // must not hand out a repair as a free item. Deliberate owner decision;
-    // it keys on the catalog having no list price, not on the line's number.
-    const lines = serviceLines
-      .filter(({ row }) => row.price !== null)
-      .map(({ item, price }) => ({
-        price: Number(price),
-        service_id: item.id,
-      }));
-
-    // ADR-0018: the discount desk runs once every line is priced —
-    // the gate above — whether or not the tender arrives now. Attaching is
-    // claiming: the voucher code leaves circulation and the usage slot is
-    // taken the moment the discount goes on the Receipt, because that Receipt
-    // is what the customer will hold the shop to. Printing a promo the shop
-    // has not actually reserved is how two customers end up holding the last
-    // slot of the same campaign. An Order still carrying a blank line settles
-    // nothing here and waits for the payment desk.
-    const { discountAmount, discountSource, campaignRows } = hasBlankLine
-      ? {
-          discountAmount: 0,
-          discountSource: "none" as const,
-          campaignRows: [],
-        }
-      : await resolveDiscount({
-          campaignIds: campaign_ids,
-          voucherCodes: voucher_codes,
-          grossTotal,
-          manualDiscount: orderPayload.discount,
-          storeId: store.id,
-          storeCode: store.code,
-          lines,
-        });
-
-    await claimRedemptions(tx, campaignRows, orderId);
+    // ADR-0018: the discount desk runs once every line is priced — the gate
+    // above — whether or not the tender arrives now. An Order still carrying a
+    // blank line asked for nothing and settles nothing here; its slip rides
+    // along to the payment desk.
+    const { discountAmount, discountSource } = await settleDiscount(tx, {
+      grossTotal,
+      lines: settlementLines,
+      orderId,
+      request: discountRequest,
+      storeCode: store.code,
+      storeId: store.id,
+    });
 
     const netTotal = grossTotal - discountAmount;
 
@@ -451,114 +447,7 @@ export async function createOrder(
 }
 
 export async function getOrderDetailById(id: number) {
-  const detail = await db.query.ordersTable.findFirst({
-    where: { id },
-    with: {
-      campaigns: {
-        with: {
-          campaign: true,
-        },
-        orderBy: { id: "asc" },
-      },
-      collectedBy: {
-        columns: {
-          id: true,
-          name: true,
-        },
-      },
-      customer: true,
-      paidBy: {
-        columns: {
-          id: true,
-          name: true,
-        },
-      },
-      paymentMethod: true,
-      pickupEvents: {
-        with: {
-          pickedUpBy: {
-            columns: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-        orderBy: { picked_up_at: "asc" },
-      },
-      products: {
-        with: {
-          product: true,
-        },
-      },
-      refunds: {
-        with: {
-          items: true,
-          refundedBy: {
-            columns: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-        orderBy: { id: "asc" },
-      },
-      // The Order's objects, each carrying the treatments applied to it
-      // (ADR-0017). The counter and the workshop both work object-first, so
-      // this is the shape the wire carries; anything that genuinely works
-      // per-treatment flattens it back.
-      items: {
-        with: {
-          // The object's before-service photos, shared by every treatment on
-          // it (ADR-0019).
-          images: {
-            where: { deleted_at: { isNull: true } },
-            orderBy: { id: "asc" },
-          },
-          services: {
-            with: {
-              handler: {
-                columns: {
-                  id: true,
-                  name: true,
-                },
-              },
-              // Complaints opened against this line + (if this line is a
-              // rework) the complaint that spawned it — see ADR-0013.
-              // Existence is the only signal; the complaint carries no status
-              // (ADR-0013 amendment).
-              complaints: {
-                columns: { id: true },
-                limit: 1,
-                orderBy: { id: "asc" },
-              },
-              reworkOf: {
-                columns: { id: true, created_at: true },
-              },
-              refundItems: true,
-              // Price is the catalog list price (null for a no-list-price
-              // Service like Repair) — the desk uses it to tell a BOGO-
-              // eligible line from one that can never be the free item.
-              service: { columns: { id: true, name: true, price: true } },
-              statusLogs: {
-                with: {
-                  changedBy: {
-                    columns: {
-                      id: true,
-                      name: true,
-                    },
-                  },
-                },
-                orderBy: { id: "asc" },
-              },
-            },
-            orderBy: { id: "asc" },
-          },
-        },
-        orderBy: { id: "asc" },
-      },
-      store: true,
-    },
-  });
+  const detail = await findOrderDetail(id);
 
   if (!detail) {
     return null;

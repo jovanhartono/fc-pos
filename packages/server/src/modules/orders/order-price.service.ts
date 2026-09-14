@@ -6,10 +6,12 @@ import {
   ordersTable,
 } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
-import { voidCampaignsBelowMinimum } from "@/modules/campaigns/campaign-redemption.service";
-import { getOrderServiceOrThrow } from "@/modules/orders/order.repository";
 import type { PatchOrderServicePriceInput } from "@/modules/orders/order-admin.schema";
-import { recomputeOrderRollup } from "@/modules/orders/order-status-machine";
+import { getOrderStateOrThrow } from "@/modules/orders/order-read.repository";
+import {
+  assertLinePrice,
+  revalidateSettledPromo,
+} from "@/modules/orders/order-settlement.service";
 import type { JWTPayload } from "@/types";
 
 // Setting a line's price is deliberately open to any staff (ADR-0018 /
@@ -28,40 +30,36 @@ export async function setOrderServicePrice({
   body: PatchOrderServicePriceInput;
   user: JWTPayload;
 }) {
-  const order = await db.query.ordersTable.findFirst({
-    where: { id: orderId },
-    columns: { payment_status: true },
-  });
-  if (!order) {
-    throw new BadRequestException("Order not found");
-  }
-  // Payment froze the numbers (ADR-0018): the customer paid against a printed
-  // receipt and the POS matches it. A wrong price after that is a refund.
-  // This read is only the friendly answer for the ordinary case — the guarded
-  // write below is what actually loses a race against the counter.
-  if (order.payment_status === "paid") {
-    throw new BadRequestException(
-      "Order has been paid — its prices are frozen"
-    );
-  }
-
-  const line = await getOrderServiceOrThrow(orderId, serviceId);
-
-  // A cancelled line took the unpaid off-ramp (ADR-0008) — nobody owes its
-  // number anymore, so there is nothing left to price.
-  if (line.status === "cancelled") {
-    throw new BadRequestException("Cannot set a price on a cancelled line");
-  }
-
-  // Zero is not a price: 0 means deliberately free — a Rework line
-  // (ADR-0013), decided at intake, never keyed here.
-  if (body.price <= 0) {
-    throw new BadRequestException("Price must be greater than zero");
-  }
-
-  const nextPrice = body.price.toString();
-
   return await db.transaction(async (tx) => {
+    const order = await getOrderStateOrThrow(tx, orderId);
+    // Payment froze the numbers (ADR-0018): the customer paid against a printed
+    // receipt and the POS matches it. A wrong price after that is a refund.
+    // This read is only the friendly answer for the ordinary case — the guarded
+    // write below is what actually loses a race against the counter.
+    if (order.payment_status === "paid") {
+      throw new BadRequestException(
+        "Order has been paid — its prices are frozen"
+      );
+    }
+
+    const line = await tx.query.ordersServicesTable.findFirst({
+      where: { order_id: orderId, id: serviceId },
+      columns: { price: true, status: true },
+    });
+    if (!line) {
+      throw new BadRequestException("Order service not found for this order");
+    }
+
+    // A cancelled line took the unpaid off-ramp (ADR-0008) — nobody owes its
+    // number anymore, so there is nothing left to price.
+    if (line.status === "cancelled") {
+      throw new BadRequestException("Cannot set a price on a cancelled line");
+    }
+
+    assertLinePrice(body.price);
+
+    const nextPrice = body.price.toString();
+
     // Re-checked inside the write, because the counter moves while the
     // workshop still has the pricing screen open: the customer may have heard
     // the number and declined (line cancelled — that price must not land on a
@@ -99,21 +97,11 @@ export async function setOrderServicePrice({
       to_price: nextPrice,
     });
 
-    // orders.total is a snapshot of its billable lines — refresh it so the
-    // amount due at the counter reflects the number just agreed.
-    await recomputeOrderRollup(tx, orderId, user.id);
-
-    // A promo may already have settled on this unpaid Order (ADR-0018): every
-    // line was priced, the discount printed on the Receipt. Correcting a price
-    // downward can drop the Order under the minimum that promo was granted
-    // against, so the same check the cancel path runs has to run here too —
-    // otherwise "correct the repair to 10k" is a way to keep a 100k fixed
-    // discount on a 160k Order.
-    const rolled = await tx.query.ordersTable.findFirst({
-      where: { id: orderId },
-      columns: { total: true },
-    });
-    await voidCampaignsBelowMinimum(tx, orderId, Number(rolled?.total ?? 0));
+    // Refreshes the amount due, then re-checks any promo that already settled:
+    // correcting a price downward can drop the Order under the minimum it was
+    // granted against, which is otherwise a way to keep a 100k discount on a
+    // 160k Order.
+    await revalidateSettledPromo(tx, orderId, user.id);
 
     return updated;
   });

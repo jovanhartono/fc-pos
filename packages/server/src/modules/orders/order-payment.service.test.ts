@@ -47,7 +47,20 @@ const dbState = {
   casWins: true as boolean,
 };
 
+// Every read the desk makes now runs on the transaction handle, so a price
+// keyed between the read and the write cannot slip past the gates.
 const TX = {
+  query: {
+    ordersTable: {
+      findFirst: (args: unknown) => {
+        dbState.findFirstCalls.push(args);
+        return Promise.resolve(dbState.order);
+      },
+    },
+    ordersServicesTable: {
+      findMany: () => Promise.resolve(dbState.serviceLines),
+    },
+  },
   update: () => ({
     set: (payload: Record<string, unknown>) => {
       dbState.updateCalls += 1;
@@ -72,17 +85,16 @@ const TX = {
   }),
 };
 
+// The order repository builds its prepared statements the moment it is
+// imported, so the fake db has to survive that even though nothing here reads
+// an Item.
 mock.module("@/db", () => ({
   db: {
     query: {
-      ordersTable: {
-        findFirst: (args: unknown) => {
-          dbState.findFirstCalls.push(args);
-          return Promise.resolve(dbState.order);
-        },
-      },
-      ordersServicesTable: {
-        findMany: () => Promise.resolve(dbState.serviceLines),
+      itemsTable: {
+        findFirst: () => ({
+          prepare: () => ({ execute: () => Promise.resolve(undefined) }),
+        }),
       },
     },
     transaction: (cb: (tx: unknown) => unknown) => cb(TX),
@@ -111,7 +123,7 @@ const actualRedemptionService = {
 
 mock.module("@/modules/orders/order-discount.service", () => ({
   ...actualDiscountService,
-  resolveDiscount: (input: AnyObj) => {
+  resolveDiscount: (_executor: unknown, input: AnyObj) => {
     discount.calls.push(input);
     return Promise.resolve(discount.result);
   },
@@ -260,7 +272,7 @@ describe("updateOrderPayment", () => {
     const result = await collect();
 
     expect(discount.calls).toHaveLength(0);
-    expect(redemptions.calls[0].rows).toEqual([]);
+    expect(redemptions.calls).toHaveLength(0);
     expect(result?.paid_amount).toBe("70000");
     expect(dbState.setPayload).toMatchObject({
       discount: "30000",

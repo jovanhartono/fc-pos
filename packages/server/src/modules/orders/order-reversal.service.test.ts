@@ -153,7 +153,7 @@ mock.module("@/db", () => ({
 // process-global for the whole run).
 const machine = {
   refundTransitions: [] as { executor: unknown; input: AnyObj }[],
-  serviceTransitions: [] as { executor: unknown; input: AnyObj }[],
+  serviceCancels: [] as { executor: unknown; input: AnyObj }[],
   rollupCalls: [] as { executor: unknown; orderId: number; userId: number }[],
 };
 
@@ -176,8 +176,8 @@ mock.module("@/modules/orders/order-status-machine", () => ({
         )
       : Promise.resolve();
   },
-  transitionOrderService: (executor: unknown, input: AnyObj) => {
-    machine.serviceTransitions.push({ executor, input });
+  cancelOrderServices: (executor: unknown, input: AnyObj) => {
+    machine.serviceCancels.push({ executor, input });
     return Promise.resolve();
   },
   recomputeOrderRollup: (
@@ -311,7 +311,7 @@ beforeEach(() => {
   writes.inserts = [];
   writes.transactionCount = 0;
   machine.refundTransitions = [];
-  machine.serviceTransitions = [];
+  machine.serviceCancels = [];
   machine.rollupCalls = [];
   redemption.releaseCalls = [];
   redemption.voidCalls = [];
@@ -561,6 +561,41 @@ describe("cancelOrder", () => {
     expect(casUpdate?.set.cancelled_at).toBeInstanceOf(Date);
     expect(casUpdate?.set.cancel_reason).toBe("customer_request");
     expect(casUpdate?.set.cancel_note).toBeNull();
+  });
+
+  it("hands every voided treatment to the cancel seam in one go", async () => {
+    // The customer drops two of the three treatments on one ticket. Both go to
+    // the seam together so the amount due lands on the number they are told
+    // once, instead of stepping down line by line on the way there.
+    state.order = makeUnpaidOrder();
+    state.postCancelStatus = "processing";
+
+    await cancel([
+      { order_service_id: 11, reason: "customer_request" },
+      {
+        order_service_id: 12,
+        reason: "customer_request",
+        note: "changed mind",
+      },
+    ]);
+
+    expect(machine.serviceCancels).toEqual([
+      {
+        executor: fakeTx,
+        input: {
+          by: 42,
+          lines: [
+            { note: undefined, reason: "customer_request", serviceId: 11 },
+            {
+              note: "changed mind",
+              reason: "customer_request",
+              serviceId: 12,
+            },
+          ],
+          orderId: 5,
+        },
+      },
+    ]);
   });
 
   it("does not release the voucher again when the order was already cancelled", async () => {
