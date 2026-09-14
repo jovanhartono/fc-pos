@@ -1,6 +1,6 @@
 import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
@@ -11,8 +11,8 @@ import { TablePagination } from "@/components/table-pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { type Customer, customersQueries } from "@/features/customers/api";
+import { CustomerLink } from "@/features/customers/components/customer-link";
 import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
-import { getCurrentUser } from "@/stores/auth-store";
 import { useSheet } from "@/stores/sheet-store";
 
 const PAGE_SIZE = 25;
@@ -40,9 +40,6 @@ function CustomersPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 	const { openSheet } = useSheet();
-	// The detail page is admin-only (ADR-0021); a cashier gets the name as text
-	// rather than a link into a page that would refuse them.
-	const isAdmin = getCurrentUser()?.role === "admin";
 
 	const handleSearchChange = useCallback(
 		(next: string) => {
@@ -88,19 +85,9 @@ function CustomersPage() {
 			{
 				accessorKey: "name",
 				header: "Name",
-				cell: ({ row }) =>
-					isAdmin ? (
-						<Link
-							to="/customers/$customerId"
-							params={{ customerId: String(row.original.id) }}
-							search={{ page: 1 }}
-							className="font-semibold"
-						>
-							{row.original.name}
-						</Link>
-					) : (
-						<span className="font-semibold">{row.original.name}</span>
-					),
+				cell: ({ row }) => (
+					<CustomerLink customerId={row.original.id} name={row.original.name} />
+				),
 			},
 			{
 				accessorKey: "phone_number",
@@ -135,7 +122,7 @@ function CustomersPage() {
 				),
 			},
 		],
-		[handleOpenEditSheet, isAdmin],
+		[handleOpenEditSheet],
 	);
 
 	return (

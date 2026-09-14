@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CustomerLink } from "@/features/customers/components/customer-link";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
 import { ExportButton } from "@/features/reports/components/export-button";
@@ -175,7 +176,11 @@ export const CustomersPanel = ({
 												<span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
 													{`#${idx + 1}`}
 												</span>
-												<span className="truncate">{c.customer_name}</span>
+												<CustomerLink
+													className="truncate"
+													customerId={c.customer_id}
+													name={c.customer_name}
+												/>
 											</span>
 											<span className="font-mono text-sm tabular-nums">
 												{formatMoney(String(c.collected))}
