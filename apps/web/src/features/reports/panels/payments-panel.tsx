@@ -55,10 +55,10 @@ export const PaymentsPanel = ({
 			);
 		}
 		lines.push("");
-		lines.push("Totals,Method,Revenue,Orders,Share");
+		lines.push("Totals,Method,Collected,Orders,Share");
 		for (const m of data.summary.methods) {
 			lines.push(
-				`Totals,${escapeCsv(m.payment_method_name)},${m.revenue},${m.orders},${m.share}`,
+				`Totals,${escapeCsv(m.payment_method_name)},${m.collected},${m.orders},${m.share}`,
 			);
 		}
 		downloadCsv(
@@ -72,7 +72,7 @@ export const PaymentsPanel = ({
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<KpiRow>
 					<KpiCard
-						label="Paid revenue"
+						label="Collected"
 						value={formatMoney(String(data?.summary.grand_total ?? 0))}
 					/>
 					<KpiCard
@@ -87,7 +87,7 @@ export const PaymentsPanel = ({
 
 			<ChartCard
 				variant="stacked-bar"
-				title="Revenue by payment method"
+				title="Collected by payment method"
 				data={data?.series ?? []}
 				granularity={data?.granularity ?? "day"}
 				series={series}
@@ -112,7 +112,7 @@ export const PaymentsPanel = ({
 											{m.payment_method_name}
 										</span>
 										<span className="font-mono text-sm tabular-nums">
-											{formatMoney(String(m.revenue))}
+											{formatMoney(String(m.collected))}
 										</span>
 									</div>
 									<div className="h-1.5 w-full bg-muted">

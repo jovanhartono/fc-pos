@@ -22,14 +22,14 @@ const CategoryBars = ({
 }: {
 	categories: ReportOverview["categories"];
 }) => {
-	const max = categories.reduce((m, row) => Math.max(m, row.revenue), 0);
+	const max = categories.reduce((m, row) => Math.max(m, row.gross_sales), 0);
 	if (categories.length === 0) {
 		return <p className="text-sm text-muted-foreground">No sales today</p>;
 	}
 	return (
 		<div className="grid gap-2">
 			{categories.map((row) => {
-				const pct = max === 0 ? 0 : (row.revenue / max) * 100;
+				const pct = max === 0 ? 0 : (row.gross_sales / max) * 100;
 				return (
 					<div key={row.category_id} className="grid gap-1">
 						<div className="flex items-center justify-between gap-2">
@@ -37,7 +37,7 @@ const CategoryBars = ({
 								{row.category_name}
 							</span>
 							<span className="font-mono text-sm tabular-nums">
-								{formatMoney(String(row.revenue))}
+								{formatMoney(String(row.gross_sales))}
 							</span>
 						</div>
 						<div className="h-1.5 w-full bg-muted">
@@ -80,7 +80,7 @@ const TopServicesList = ({
 						</p>
 					</div>
 					<p className="font-mono text-sm tabular-nums">
-						{formatMoney(String(row.revenue))}
+						{formatMoney(String(row.gross_sales))}
 					</p>
 				</div>
 			))}
@@ -157,14 +157,16 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 
 			<KpiRow>
 				<KpiCard
-					label="Net revenue"
+					label="Revenue"
 					value={formatMoney(String(overview?.daily.revenue ?? 0))}
 					helper="Paid minus refunded"
 				/>
 				<KpiCard
-					label="Items processed"
-					value={numberFormatter.format(overview?.daily.items_processed ?? 0)}
-					helper="Moved to QC or ready"
+					label="Services processed"
+					value={numberFormatter.format(
+						overview?.daily.services_processed ?? 0,
+					)}
+					helper="First reached QC"
 				/>
 				<KpiCard
 					label="Orders in"
@@ -194,7 +196,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 				<Card className="border-border/70">
 					<CardHeader>
 						<CardTitle className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-							Revenue by category
+							Gross sales by category
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="p-4 pt-0">
@@ -204,7 +206,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 				<Card className="border-border/70">
 					<CardHeader>
 						<CardTitle className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-							Top services today
+							Top services by gross sales
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="p-4 pt-0">
