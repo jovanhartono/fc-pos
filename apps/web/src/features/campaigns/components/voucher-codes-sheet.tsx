@@ -4,8 +4,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { VoucherCode } from "@/lib/api";
-import { campaignVoucherCodesQueryOptions } from "@/lib/query-options";
+import { campaignsQueries, type VoucherCode } from "@/features/campaigns/api";
 
 interface VoucherCodesSheetProps {
 	campaignId: number;
@@ -49,7 +48,7 @@ const VoucherCodeRow = ({ code }: VoucherCodeRowProps) => {
 
 export const VoucherCodesSheet = ({ campaignId }: VoucherCodesSheetProps) => {
 	const { data, isLoading, isError } = useQuery(
-		campaignVoucherCodesQueryOptions(campaignId),
+		campaignsQueries.voucherCodes(campaignId),
 	);
 
 	if (isLoading) {

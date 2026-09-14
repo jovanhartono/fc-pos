@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
@@ -13,9 +14,7 @@ import {
 	percentFormatter,
 } from "@/features/reports/utils/format";
 import { CHART_PALETTE } from "@/features/reports/utils/palette";
-import type { ReportGranularity } from "@/lib/api";
-import { refundTrendQueryOptions } from "@/lib/query-options";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 interface QualityPanelProps {
 	from: string;
@@ -40,7 +39,7 @@ export const QualityPanel = ({
 	granularity,
 }: QualityPanelProps) => {
 	const query = useQuery(
-		refundTrendQueryOptions({ from, to, store_id: storeId, granularity }),
+		reportsQueries.refundTrend({ from, to, store_id: storeId, granularity }),
 	);
 	const data = query.data;
 	const reasonTotals = data?.summary.reason_totals;
@@ -78,7 +77,7 @@ export const QualityPanel = ({
 				<KpiRow>
 					<KpiCard
 						label="Refund amount"
-						value={formatIDRCurrency(String(totalAmount))}
+						value={formatMoney(String(totalAmount))}
 					/>
 					<KpiCard
 						label="Refund events"
@@ -104,7 +103,7 @@ export const QualityPanel = ({
 				series={[
 					{ key: "amount", label: "Refund amount", color: CHART_PALETTE[3] },
 				]}
-				valueFormatter={(v) => formatIDRCurrency(String(v))}
+				valueFormatter={(v) => formatMoney(String(v))}
 			/>
 
 			<Card className="border-border/70">
@@ -126,7 +125,7 @@ export const QualityPanel = ({
 												{REASON_LABELS[reason]}
 											</span>
 											<span className="font-mono text-sm tabular-nums">
-												{formatIDRCurrency(String(totals.amount))}
+												{formatMoney(String(totals.amount))}
 											</span>
 										</div>
 										<div className="h-1.5 w-full bg-muted">

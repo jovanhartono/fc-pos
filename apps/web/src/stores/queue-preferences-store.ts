@@ -18,6 +18,12 @@ export const useQueuePreferencesStore = create<QueuePreferencesStore>()(
 					storeIdByUser: { ...state.storeIdByUser, [userKey]: storeId },
 				})),
 		}),
-		{ name: "queue-preferences" },
+		{
+			name: "queue-preferences",
+			// Which Store's rack the queue reopens on. Change storeIdByUser's
+			// shape and you must bump this and add `migrate`, or every device
+			// forgets its Store once.
+			version: 0,
+		},
 	),
 );

@@ -11,13 +11,22 @@ import {
 } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DetailedError } from "hono/client";
+import {
+	lazy,
+	memo,
+	Suspense,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DateRangePicker } from "@/components/ui/date-picker";
 import {
 	Dialog,
 	DialogContent,
@@ -26,24 +35,19 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+	type FetchOrderServiceQueueQuery,
+	lookupQueueTarget,
+	ordersQueries,
+	type QueueItem,
+} from "@/features/orders/api";
 import { QueueStatusTabs } from "@/features/orders/components/queue-status-tabs";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { useBarcodeScanner } from "@/features/orders/hooks/useBarcodeScanner";
-import {
-	type FetchOrderServiceQueueQuery,
-	fetchOrderDetail,
-	fetchOrderServiceQueuePage,
-	lookupItemByItemCode,
-	lookupOrderServiceById,
-	type QueueItem,
-	queryKeys,
-} from "@/lib/api";
+import { storesQueries } from "@/features/stores/api";
+import { usersQueries } from "@/features/users/api";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
-import {
-	meQueryOptions,
-	orderServiceQueueCountsQueryOptions,
-	storesQueryOptions,
-} from "@/lib/query-options";
 import { readServerErrorMessage } from "@/lib/server-error";
 import {
 	formatOrderServiceStatus,
@@ -52,6 +56,14 @@ import {
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useQueuePreferencesStore } from "@/stores/queue-preferences-store";
+
+// The filter dialog is the only place on this page that needs the range
+// calendar, so it ships in its own chunk instead of the queue's initial load.
+const DateRangePicker = lazy(() =>
+	import("@/components/ui/date-picker").then((module) => ({
+		default: module.DateRangePicker,
+	})),
+);
 
 const QUEUE_PAGE_SIZE = 20;
 
@@ -106,17 +118,15 @@ const queueSearchSchema = z.object({
 		.optional(),
 });
 
-const numericLookupRegex = /^\d+$/;
-
 export const Route = createFileRoute("/_admin/queue/")({
 	validateSearch: (search) => queueSearchSchema.parse(search),
 	loader: async ({ context }) => {
 		const currentUser = getCurrentUser();
 
 		await Promise.all([
-			context.queryClient.ensureQueryData(storesQueryOptions()),
+			context.queryClient.ensureQueryData(storesQueries.list()),
 			currentUser
-				? context.queryClient.ensureQueryData(meQueryOptions())
+				? context.queryClient.ensureQueryData(usersQueries.me())
 				: undefined,
 		]);
 	},
@@ -134,7 +144,7 @@ function QueuePage() {
 	const now = useMinuteClock();
 
 	const meQuery = useQuery({
-		...meQueryOptions(),
+		...usersQueries.me(),
 		enabled: !!currentUser,
 	});
 	const currentUserKey = currentUser ? String(currentUser.id) : "";
@@ -233,31 +243,12 @@ function QueuePage() {
 			: undefined;
 
 	const queueQuery = useInfiniteQuery({
-		queryKey: [
-			...queryKeys.orderServiceQueue({
-				store_id: parsedStoreId,
-				status: selectedStatus,
-				search: selectedSearch,
-				date_from: selectedDateFrom,
-				date_to: selectedDateTo,
-			}),
-			"infinite",
-		],
-		initialPageParam: 0,
-		queryFn: ({ pageParam }) =>
-			fetchOrderServiceQueuePage({
-				...queueQueryInput,
-				offset: pageParam,
-			}),
-		getNextPageParam: (lastPage) => {
-			const nextOffset = lastPage.meta.offset + lastPage.meta.limit;
-			return nextOffset < lastPage.meta.total ? nextOffset : undefined;
-		},
+		...ordersQueries.queue(queueQueryInput),
 		enabled: parsedStoreId !== undefined,
 	});
 
 	const countsQuery = useQuery({
-		...orderServiceQueueCountsQueryOptions(parsedStoreId),
+		...ordersQueries.queueCounts(parsedStoreId),
 		enabled: parsedStoreId !== undefined,
 	});
 
@@ -292,85 +283,29 @@ function QueuePage() {
 	}, []);
 
 	const lookupMutation = useMutation({
-		mutationFn: async ({
-			mode,
-			value,
-		}: {
-			mode: "manual" | "scan";
-			value: string;
-		}) => {
-			const query = value.trim();
-			if (!query) {
-				throw new Error("Enter an item code, order ID, or line ID");
-			}
-
-			if (mode === "manual" && numericLookupRegex.test(query)) {
-				const numericId = Number(query);
-
-				try {
-					const order = await fetchOrderDetail(numericId);
-					return {
-						orderId: order.id,
-						storeId: order.store_id,
-					};
-				} catch {
-					// Fall through to line-id lookup.
-				}
-
-				try {
-					const orderService = await lookupOrderServiceById(numericId);
-					if (orderService.order) {
-						return {
-							orderId: orderService.order.id,
-							storeId: orderService.order.store_id,
-							queueServiceId: orderService.id,
-						};
-					}
-				} catch {
-					// Fall through to item-code lookup.
-				}
-			}
-
-			// A tag names an object, and an object can have several treatments open
-			// on it (ADR-0017). Go straight to the work screen when there is only
-			// one thing to do; otherwise land on the queue filtered to that tag and
-			// let the worker pick off the card.
-			const item = await lookupItemByItemCode(query);
-			if (!item.order) {
-				throw new Error(
-					mode === "scan"
-						? "Item not found"
-						: "No item, order, or line matched",
-				);
-			}
-
-			return {
-				orderId: item.order.id,
-				storeId: item.order.store_id,
-				queueServiceId:
-					item.services.length === 1 ? item.services[0].id : undefined,
-				itemCode: item.services.length > 1 ? item.item_code : undefined,
-			};
-		},
+		mutationFn: async ({ value }: { mode: "manual" | "scan"; value: string }) =>
+			lookupQueueTarget(value.trim()),
 		onSuccess: (result) => {
-			if (result.queueServiceId !== undefined) {
+			if (result.service_id !== null) {
 				void navigate({
 					to: "/queue/$orderId/$serviceId",
 					params: {
-						orderId: String(result.orderId),
-						serviceId: String(result.queueServiceId),
+						orderId: result.order_id,
+						serviceId: result.service_id,
 					},
 				});
 				return;
 			}
 
-			// Several jobs open on the one object: show its card and let the worker
-			// say which one they are starting.
-			if (result.itemCode !== undefined) {
+			// Several lines open on the one object: show its card and let the
+			// worker say which one they are starting.
+			const itemCode = result.item_code;
+			if (itemCode !== null) {
 				void navigate({
 					search: (prev) => ({
 						...prev,
-						search: result.itemCode,
+						storeId: result.store_id,
+						search: itemCode,
 						status: undefined,
 					}),
 				});
@@ -380,13 +315,24 @@ function QueuePage() {
 			void navigate({
 				to: "/orders/$orderId",
 				params: {
-					orderId: String(result.orderId),
+					orderId: String(result.order_id),
 				},
 			});
 		},
 		onError: (error: Error) => {
+			// A missing tag (404) and another Store's Order (403) read the same
+			// to the search box: nothing here matched.
+			const isNotMatched =
+				error instanceof DetailedError &&
+				(error.statusCode === 404 || error.statusCode === 403);
+
 			toast.error(
-				readServerErrorMessage(error, "Failed to find item, order, or line"),
+				isNotMatched
+					? "No item, order, or line matched"
+					: readServerErrorMessage(
+							error,
+							"Failed to find item, order, or line",
+						),
 			);
 		},
 	});
@@ -405,8 +351,8 @@ function QueuePage() {
 			void navigate({
 				to: "/queue/$orderId/$serviceId",
 				params: {
-					orderId: String(item.order_id),
-					serviceId: String(serviceId),
+					orderId: item.order_id,
+					serviceId,
 				},
 			});
 		},
@@ -446,8 +392,9 @@ function QueuePage() {
 
 	// Set by a scan that landed on a multi-treatment tag. Nothing else writes it,
 	// and without a way back the worker stays on a one-card rack — the chips above
-	// keep counting the whole branch, so the counts stop matching the list.
+	// keep counting the whole Store, so the counts stop matching the list.
 	const clearSearchFilter = () => {
+		setItemCode("");
 		void navigate({
 			search: (prev) => ({ ...prev, search: undefined }),
 		});
@@ -492,13 +439,15 @@ function QueuePage() {
 										placeholder="Select store"
 										value={parsedStoreId?.toString() ?? ""}
 									/>
-									<DateRangePicker
-										commitOnComplete
-										from={selectedDateFrom}
-										onChange={updateDateRangeFilter}
-										onClear={() => updateDateRangeFilter()}
-										to={selectedDateTo}
-									/>
+									<Suspense fallback={<Skeleton className="h-10 w-full" />}>
+										<DateRangePicker
+											commitOnComplete
+											from={selectedDateFrom}
+											onChange={updateDateRangeFilter}
+											onClear={() => updateDateRangeFilter()}
+											to={selectedDateTo}
+										/>
+									</Suspense>
 									<Button
 										className="h-10 pointer-coarse:h-11"
 										onClick={() => setIsFilterOpen(false)}
@@ -602,7 +551,7 @@ function QueuePage() {
 				) : null}
 
 				{/* Hidden while a scanned tag pins the list to one object: the counts
-				    describe the whole branch, and chips saying "47" over a one-card
+				    describe the whole Store, and chips saying "47" over a one-card
 				    list are lying. They come back with Clear. */}
 				{!selectedSearch && (
 					<QueueStatusTabs

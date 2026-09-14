@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Combobox } from "@/components/ui/combobox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { fetchCategories, queryKeys } from "@/lib/api";
+import { categoriesQueries } from "@/features/categories/api";
 
 type CategoryAutocompleteProps = {
 	value: string;
@@ -18,10 +18,9 @@ export function CategoryAutocomplete({
 	required,
 	error,
 }: CategoryAutocompleteProps) {
-	const { data: categories = [], isPending } = useQuery({
-		queryKey: queryKeys.categories,
-		queryFn: fetchCategories,
-	});
+	const { data: categories = [], isPending } = useQuery(
+		categoriesQueries.list(),
+	);
 
 	return (
 		<Field data-invalid={!!error}>

@@ -1,4 +1,4 @@
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 export interface OrderAmountState {
 	has_unpriced_line: boolean;
@@ -36,7 +36,7 @@ export const describeOrderAmount = (
 
 	return {
 		isPending: false,
-		label: formatIDRCurrency(String(net)),
-		refunded: refunded > 0 ? formatIDRCurrency(order.refunded_amount) : null,
+		label: formatMoney(String(net)),
+		refunded: refunded > 0 ? formatMoney(order.refunded_amount) : null,
 	};
 };

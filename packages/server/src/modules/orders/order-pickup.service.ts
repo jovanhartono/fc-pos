@@ -5,14 +5,16 @@ import type {
   PostOrderPickupEventInput,
   PostOrderPickupEventPresignInput,
 } from "@/modules/orders/order-admin.schema";
+import { getOrderStateOrThrow } from "@/modules/orders/order-read.repository";
 import { completePickup } from "@/modules/orders/order-status-machine";
 import { assertCanProcessPickup } from "@/modules/permissions/permissions";
 import type { JWTPayload } from "@/types";
 import {
+  assertPhotoKeyUnder,
   buildMediaUrl,
   createPresignedUploadUrl,
+  newPhotoKey,
   optimizeUploadedImage,
-  STORAGE_ENV_PREFIX,
 } from "@/utils/s3";
 
 // ADR-0005: the pickup code proves the customer in front of the cashier placed
@@ -43,18 +45,11 @@ export async function createOrderPickupEventPresign({
 }) {
   assertCanProcessPickup(user);
 
-  const order = await db.query.ordersTable.findFirst({
-    where: { id: orderId },
-    columns: { id: true, payment_status: true },
-  });
-
-  if (!order) {
-    throw new BadRequestException("Order not found");
-  }
+  const order = await getOrderStateOrThrow(db, orderId);
 
   assertOrderPaidForPickup(order);
 
-  const key = `${STORAGE_ENV_PREFIX}orders/${orderId}/pickup/${crypto.randomUUID()}`;
+  const key = newPhotoKey({ kind: "pickup", orderId });
   return createPresignedUploadUrl({
     contentType: body.content_type,
     key,
@@ -90,13 +85,7 @@ export async function createOrderPickupEvent({
 
   assertPickupCodeMatches(order, body.pickup_code);
 
-  if (
-    !body.image_path.startsWith(
-      `${STORAGE_ENV_PREFIX}orders/${orderId}/pickup/`
-    )
-  ) {
-    throw new BadRequestException("Invalid image path");
-  }
+  assertPhotoKeyUnder(body.image_path, { kind: "pickup", orderId });
 
   await optimizeUploadedImage(body.image_path);
 

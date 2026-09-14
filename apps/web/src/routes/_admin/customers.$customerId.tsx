@@ -3,15 +3,13 @@ import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { customersQueries } from "@/features/customers/api";
 import {
 	CUSTOMER_ORDERS_PAGE_SIZE,
 	CustomerOrdersCard,
 } from "@/features/customers/components/customer-orders-card";
 import { CustomerSummaryStrip } from "@/features/customers/components/customer-summary-strip";
-import {
-	customerDetailQueryOptions,
-	ordersPageQueryOptions,
-} from "@/lib/query-options";
+import { ordersQueries } from "@/features/orders/api";
 import { getCurrentUser } from "@/stores/auth-store";
 
 const customerDetailSearchSchema = z.object({
@@ -32,7 +30,7 @@ const CustomerDetailPage = () => {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const id = Number(customerId);
 
-	const customerQuery = useQuery(customerDetailQueryOptions(id));
+	const customerQuery = useQuery(customersQueries.detail(id));
 
 	if (customerQuery.isPending) {
 		return <CustomerDetailSkeleton />;
@@ -81,9 +79,9 @@ export const Route = createFileRoute("/_admin/customers/$customerId")({
 		}
 
 		await Promise.all([
-			context.queryClient.ensureQueryData(customerDetailQueryOptions(id)),
+			context.queryClient.ensureQueryData(customersQueries.detail(id)),
 			context.queryClient.ensureQueryData(
-				ordersPageQueryOptions({
+				ordersQueries.list({
 					customer_id: id,
 					limit: CUSTOMER_ORDERS_PAGE_SIZE,
 					offset: (deps.page - 1) * CUSTOMER_ORDERS_PAGE_SIZE,

@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
 import { useUpdateOrderCourierMutation } from "@/features/orders/hooks/useOrderMutations";
-import { usersPageQueryOptions } from "@/lib/query-options";
+import { usersQueries } from "@/features/users/api";
 
 interface OrderCourierFormProps {
 	orderId: number;
@@ -20,7 +20,7 @@ export const OrderCourierForm = ({
 	const courierMutation = useUpdateOrderCourierMutation(orderId);
 
 	const couriersQuery = useQuery(
-		usersPageQueryOptions({ role: "courier", is_active: true }),
+		usersQueries.list({ role: "courier", is_active: true }),
 	);
 	const courierOptions = useMemo(
 		() => [

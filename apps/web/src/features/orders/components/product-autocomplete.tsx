@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Combobox } from "@/components/ui/combobox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { fetchProducts, queryKeys } from "@/lib/api";
+import { productsQueries } from "@/features/products/api";
 
 type ProductAutocompleteProps = {
 	id?: string;
@@ -20,10 +20,7 @@ export function ProductAutocomplete({
 	disabled,
 	error,
 }: ProductAutocompleteProps) {
-	const { data: products = [], isPending } = useQuery({
-		queryKey: queryKeys.products,
-		queryFn: fetchProducts,
-	});
+	const { data: products = [], isPending } = useQuery(productsQueries.list());
 
 	return (
 		<Field data-invalid={!!error}>

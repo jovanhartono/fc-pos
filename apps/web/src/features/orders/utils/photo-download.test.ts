@@ -3,7 +3,7 @@ import { describe, expect, it, mock } from "bun:test";
 const asked: unknown[] = [];
 
 // Stand in for the API: the signed link the server would hand back for a stored photo.
-mock.module("@/lib/api", () => ({
+mock.module("@/features/orders/api", () => ({
 	createPhotoDownloadUrl: (photo: unknown) => {
 		asked.push(photo);
 		return Promise.resolve({ url: "https://s3.example/signed" });

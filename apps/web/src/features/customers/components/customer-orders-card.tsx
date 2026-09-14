@@ -7,9 +7,8 @@ import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { describeOrderAmount } from "@/features/customers/lib/order-amount";
-import type { Order } from "@/lib/api";
+import { type Order, ordersQueries } from "@/features/orders/api";
 import dayjs from "@/lib/dayjs";
-import { ordersPageQueryOptions } from "@/lib/query-options";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
@@ -51,7 +50,7 @@ export const CustomerOrdersCard = ({
 	page,
 }: CustomerOrdersCardProps) => {
 	const ordersQuery = useQuery(
-		ordersPageQueryOptions({
+		ordersQueries.list({
 			customer_id: customerId,
 			limit: CUSTOMER_ORDERS_PAGE_SIZE,
 			offset: (page - 1) * CUSTOMER_ORDERS_PAGE_SIZE,

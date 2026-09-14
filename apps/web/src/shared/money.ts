@@ -15,3 +15,8 @@ export const parseMoney = (value: string | number | null | undefined): number =>
 export const formatMoney = (
 	value: string | number | null | undefined,
 ): string => IDR.format(parseMoney(value));
+
+// Formats a currency input's raw digit string as the cashier types, so an
+// empty field stays empty instead of showing "Rp0" before anything is keyed.
+export const formatMoneyInput = (digits: string): string =>
+	digits ? IDR.format(Number.parseInt(digits, 10)) : "";

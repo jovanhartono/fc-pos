@@ -1,8 +1,6 @@
 import { rpcFn } from "@fresclean/api/rpc";
+import { API_BASE_URL } from "@/lib/rpc-public";
 import { useAuthStore } from "@/stores/auth-store";
-
-const API_BASE_URL =
-	import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/";
 
 const authFetch: typeof fetch = async (input, init) => {
 	const response = await fetch(input, init);

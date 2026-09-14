@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { toSearchParams } from "./api";
+import { toSearchParams } from "./http";
 
 describe("toSearchParams", () => {
 	test("a cleared search box drops the param instead of sending an empty one", () => {

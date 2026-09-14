@@ -108,6 +108,34 @@ describe("describeServerFailure", () => {
 
 		expect(issue).toEqual({ target: null, message: "Order already exists" });
 	});
+
+	test("a campaign that hit its cap sends the cashier to payment", () => {
+		expect(
+			describeServerFailure("Campaign X has reached its usage limit").target,
+		).toBe("payment");
+	});
+
+	test("a campaign code that does not resolve sends the cashier to payment", () => {
+		expect(describeServerFailure("Campaign not found").target).toBe("payment");
+	});
+
+	test("a cart under a campaign's minimum sends the cashier to payment", () => {
+		expect(
+			describeServerFailure(
+				"Order total does not meet minimum for campaign HEMAT10",
+			).target,
+		).toBe("payment");
+	});
+
+	test("the server's unpriced-line rejection still matches the existing rule", () => {
+		// Pin against packages/server/src/modules/orders/order.service.ts's exact
+		// wording — ADR-0018's blank-price gate has to keep landing on payment.
+		expect(
+			describeServerFailure(
+				"Order has an unpriced line — set its price before collecting payment",
+			).target,
+		).toBe("payment");
+	});
 });
 
 describe("summarizeCheckoutIssues", () => {

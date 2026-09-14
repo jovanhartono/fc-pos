@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { describeOrderAmount } from "@/features/customers/lib/order-amount";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 describe("describeOrderAmount", () => {
 	it("shows what the shop kept, not what was collected", () => {
@@ -13,9 +13,9 @@ describe("describeOrderAmount", () => {
 			refunded_amount: "250000",
 		});
 
-		expect(amount.label).toBe(formatIDRCurrency("550000"));
-		expect(amount.label).not.toBe(formatIDRCurrency("800000"));
-		expect(amount.refunded).toBe(formatIDRCurrency("250000"));
+		expect(amount.label).toBe(formatMoney("550000"));
+		expect(amount.label).not.toBe(formatMoney("800000"));
+		expect(amount.refunded).toBe(formatMoney("250000"));
 		expect(amount.isPending).toBe(false);
 	});
 
@@ -27,7 +27,7 @@ describe("describeOrderAmount", () => {
 			refunded_amount: "0",
 		});
 
-		expect(amount.label).toBe(formatIDRCurrency("250000"));
+		expect(amount.label).toBe(formatMoney("250000"));
 		expect(amount.refunded).toBeNull();
 	});
 
@@ -39,8 +39,8 @@ describe("describeOrderAmount", () => {
 			refunded_amount: "250000",
 		});
 
-		expect(amount.label).toBe(formatIDRCurrency("0"));
-		expect(amount.refunded).toBe(formatIDRCurrency("250000"));
+		expect(amount.label).toBe(formatMoney("0"));
+		expect(amount.refunded).toBe(formatMoney("250000"));
 	});
 
 	it("marks an unpaid order as owing rather than as zero", () => {

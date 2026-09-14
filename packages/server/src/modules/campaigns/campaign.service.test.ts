@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import type { DbExecutor } from "@/db";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 
-// The service takes no DB handle: it calls repository functions directly. A pair
+// The service passes its executor straight through to the repository, so a pair
 // of in-memory doubles drives resolveVoucherCode (findCampaignByCode) and
 // getUsableCampaigns (findCampaignsByIdsWithEligibility) through every branch
 // without touching a database. Tests mutate `repo` to shape each response.
 type AnyObj = Record<string, unknown>;
+
+// The doubled repository never reads it; the checkout's transaction handle is
+// what travels here for real.
+const EXECUTOR = {} as DbExecutor;
 
 const repo = {
   byCode: undefined as AnyObj | undefined,
@@ -59,7 +64,9 @@ beforeEach(() => {
 describe("resolveVoucherCode", () => {
   it("rejects a code that does not exist", async () => {
     repo.byCode = undefined;
-    const error = await captureRejection(resolveVoucherCode("NOPE1234", ctx));
+    const error = await captureRejection(
+      resolveVoucherCode(EXECUTOR, "NOPE1234", ctx)
+    );
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe("Voucher code not found: NOPE1234");
   });
@@ -69,7 +76,9 @@ describe("resolveVoucherCode", () => {
       redeemed_at: new Date("2026-06-01T00:00:00Z"),
       campaign: makeVoucherCampaign(),
     };
-    const error = await captureRejection(resolveVoucherCode("VIP12345", ctx));
+    const error = await captureRejection(
+      resolveVoucherCode(EXECUTOR, "VIP12345", ctx)
+    );
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
       "Voucher code VIP12345 has already been redeemed"
@@ -81,7 +90,9 @@ describe("resolveVoucherCode", () => {
       redeemed_at: null,
       campaign: makeVoucherCampaign({ redemption_mode: "listed" }),
     };
-    const error = await captureRejection(resolveVoucherCode("VIP12345", ctx));
+    const error = await captureRejection(
+      resolveVoucherCode(EXECUTOR, "VIP12345", ctx)
+    );
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
       "Code VIP12345 does not belong to a voucher campaign"
@@ -93,14 +104,20 @@ describe("resolveVoucherCode", () => {
       redeemed_at: null,
       campaign: makeVoucherCampaign({ is_active: false }),
     };
-    const error = await captureRejection(resolveVoucherCode("VIP12345", ctx));
+    const error = await captureRejection(
+      resolveVoucherCode(EXECUTOR, "VIP12345", ctx)
+    );
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe("Campaign VIP is not active");
   });
 
   it("resolves an unredeemed, eligible code and returns it beside the campaign", async () => {
     repo.byCode = { redeemed_at: null, campaign: makeVoucherCampaign() };
-    const { campaign, voucherCode } = await resolveVoucherCode("VIP12345", ctx);
+    const { campaign, voucherCode } = await resolveVoucherCode(
+      EXECUTOR,
+      "VIP12345",
+      ctx
+    );
     expect(voucherCode).toBe("VIP12345");
     expect(campaign.id).toBe(7);
     expect(campaign.is_expired).toBe(false);
@@ -123,7 +140,7 @@ const makeListedRow = (over: AnyObj = {}) => ({
 
 describe("getUsableCampaigns", () => {
   const call = (campaignIds: number[]) =>
-    getUsableCampaigns({
+    getUsableCampaigns(EXECUTOR, {
       campaignIds,
       grossTotal: 100_000,
       storeId: 1,

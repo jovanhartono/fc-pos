@@ -1,4 +1,7 @@
-import type { OrderCancelReason, OrderRefundReason } from "@/lib/api";
+import type {
+	OrderCancelReason,
+	OrderRefundReason,
+} from "@/features/orders/api";
 
 export type BadgeVariant =
 	| "secondary"

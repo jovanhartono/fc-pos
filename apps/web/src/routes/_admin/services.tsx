@@ -9,22 +9,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+	createService,
+	type Service,
+	servicesKeys,
+	servicesQueries,
+	updateService,
+} from "@/features/services/api";
+import {
 	ServiceForm,
 	type ServiceFormSubmitValues,
 } from "@/features/services/components/service-form";
-import {
-	createService,
-	queryKeys,
-	type Service,
-	updateService,
-} from "@/lib/api";
-import { servicesQueryOptions } from "@/lib/query-options";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
 export const Route = createFileRoute("/_admin/services")({
 	loader: ({ context }) =>
-		context.queryClient.ensureQueryData(servicesQueryOptions()),
+		context.queryClient.ensureQueryData(servicesQueries.list()),
 	component: ServicesPage,
 });
 
@@ -32,14 +32,14 @@ function ServicesPage() {
 	const queryClient = useQueryClient();
 	const { openSheet, closeSheet } = useSheet();
 
-	const { data: services = [], isPending } = useQuery(servicesQueryOptions());
+	const { data: services = [], isPending } = useQuery(servicesQueries.list());
 	const serviceCount = services.length;
 
 	const createMutation = useMutation({
 		mutationKey: ["create-service"],
 		mutationFn: createService,
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: queryKeys.services });
+			await queryClient.invalidateQueries({ queryKey: servicesKeys.all });
 			closeSheet();
 		},
 	});
@@ -54,7 +54,7 @@ function ServicesPage() {
 			payload: Parameters<typeof updateService>[1];
 		}) => updateService(id, payload),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: queryKeys.services });
+			await queryClient.invalidateQueries({ queryKey: servicesKeys.all });
 			closeSheet();
 		},
 	});
@@ -125,7 +125,7 @@ function ServicesPage() {
 			{
 				accessorKey: "cogs",
 				header: "COGS",
-				cell: ({ row }) => formatIDRCurrency(String(row.original.cogs)),
+				cell: ({ row }) => formatMoney(String(row.original.cogs)),
 			},
 			{
 				accessorKey: "price",
@@ -134,7 +134,7 @@ function ServicesPage() {
 					row.original.price === null ? (
 						<span className="text-muted-foreground">No list price</span>
 					) : (
-						formatIDRCurrency(String(row.original.price))
+						formatMoney(String(row.original.price))
 					),
 			},
 			{

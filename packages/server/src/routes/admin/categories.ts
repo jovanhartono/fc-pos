@@ -12,6 +12,7 @@ import {
   getCategoryById,
   updateCategory,
 } from "@/modules/categories/category.service";
+import { assertIsAdmin } from "@/modules/permissions/permissions";
 import { idParamSchema } from "@/schema/param";
 import type { AdminEnv } from "@/types/hono";
 import { success } from "@/utils/http";
@@ -36,6 +37,7 @@ const app = new Hono<AdminEnv>()
     return c.json(success(category));
   })
   .post("/", zodValidator("json", POSTCategorySchema), async (c) => {
+    assertIsAdmin(c.get("jwtPayload"));
     const body = c.req.valid("json");
 
     const category = await createCategory(body);
@@ -47,6 +49,7 @@ const app = new Hono<AdminEnv>()
     idParamSchema,
     zodValidator("json", PUTCategorySchema),
     async (c) => {
+      assertIsAdmin(c.get("jwtPayload"));
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 

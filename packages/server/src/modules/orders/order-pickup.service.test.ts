@@ -132,8 +132,13 @@ mock.module("@/db", () => ({
 // the presign and the image-path gate agree on it.
 const STORAGE_ENV_PREFIX = "dev/";
 
+// Captured before the mock below replaces the module: these two are pure key/scope logic with
+// no S3 or DB of their own, so the real implementation runs here rather than a copy of it.
+const { assertPhotoKeyUnder, newPhotoKey } = await import("@/utils/s3");
+
 mock.module("@/utils/s3", () => ({
   STORAGE_ENV_PREFIX,
+  assertPhotoKeyUnder,
   buildMediaUrl: (path: string) => `https://cdn.test/${path}`,
   createPresignedUploadUrl: (input: { contentType: string; key: string }) => {
     s3Calls.presigned.push(input);
@@ -143,6 +148,7 @@ mock.module("@/utils/s3", () => ({
       expires_in_seconds: 300,
     };
   },
+  newPhotoKey,
   optimizeUploadedImage: (key: string) => {
     s3Calls.optimized.push(key);
     return Promise.resolve();

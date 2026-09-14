@@ -11,7 +11,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import { fetchCampaigns, queryKeys } from "@/lib/api";
+import { campaignsQueries } from "@/features/campaigns/api";
 import { cn } from "@/lib/utils";
 
 interface CampaignAutocompleteProps {
@@ -42,15 +42,7 @@ export const CampaignAutocomplete = ({
 			: undefined;
 	const isCampaignQueryEnabled = parsedStoreId !== undefined;
 	const campaignQuery = useQuery({
-		queryKey: queryKeys.campaigns({
-			store_id: parsedStoreId,
-			is_active: true,
-		}),
-		queryFn: () =>
-			fetchCampaigns({
-				store_id: parsedStoreId,
-				is_active: true,
-			}),
+		...campaignsQueries.list({ store_id: parsedStoreId, is_active: true }),
 		enabled: isCampaignQueryEnabled,
 	});
 

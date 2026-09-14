@@ -1,7 +1,21 @@
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db";
+import {
+  itemImagesTable,
+  orderPickupEventsTable,
+  ordersTable,
+} from "@/db/schema";
 import type { PostPhotoDownloadUrlInput } from "@/modules/orders/order-admin.schema";
 
-// What a saved photo is named after, where its file is, and which branch it belongs to. An
+export function softDeleteItemImageById(id: number, userId: number) {
+  return db
+    .update(itemImagesTable)
+    .set({ deleted_at: new Date(), deleted_by: userId })
+    .where(and(eq(itemImagesTable.id, id), isNull(itemImagesTable.deleted_at)))
+    .returning({ id: itemImagesTable.id });
+}
+
+// What a saved photo is named after, where its file is, and which Store it belongs to. An
 // Item shot is named by the tag on the object, the handover and pickup shots by the Order.
 export interface StoredPhoto {
   code: string;
@@ -67,4 +81,34 @@ export async function findPhotoById({
     default:
       return kind satisfies never;
   }
+}
+
+/**
+ * Every photo an order still points at, across the three places one can be filed: against an
+ * Item, as the drop-off shot, and as proof of pickup.
+ *
+ * Soft-deleted Item photos count as filed. The row is recoverable, so its photo has to be
+ * there when someone recovers it — and until then it is still evidence a dispute can be argued
+ * from. (Briefly reversed in #104, put back the same day: owner's call.)
+ */
+export async function listReferencedPhotoKeys(): Promise<Set<string>> {
+  const [itemPhotos, dropoffPhotos, pickupPhotos] = await Promise.all([
+    db.select({ path: itemImagesTable.image_path }).from(itemImagesTable),
+    db
+      .select({ path: ordersTable.dropoff_photo_path })
+      .from(ordersTable)
+      .where(isNotNull(ordersTable.dropoff_photo_path)),
+    db
+      .select({ path: orderPickupEventsTable.image_path })
+      .from(orderPickupEventsTable),
+  ]);
+
+  const referenced = new Set<string>();
+  for (const { path } of [...itemPhotos, ...dropoffPhotos, ...pickupPhotos]) {
+    if (path) {
+      referenced.add(path);
+    }
+  }
+
+  return referenced;
 }

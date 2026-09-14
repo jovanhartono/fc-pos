@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { JwtVariables } from "hono/jwt";
@@ -98,5 +98,46 @@ describe("errorHandler", () => {
     expect(status).toBe(StatusCodes.CONFLICT);
     expect(body).toContain("Order already cancelled");
     expect(body).not.toContain(PHONE);
+  });
+});
+
+describe("errorHandler — reporting a database error Sentry-side", () => {
+  const originalFetch = global.fetch;
+  const originalDsn = process.env.SENTRY_DSN;
+  const fetchMock = mock((..._args: unknown[]) =>
+    Promise.resolve(new Response(null, { status: 200 }))
+  );
+
+  beforeEach(() => {
+    fetchMock.mockClear();
+    global.fetch = fetchMock as unknown as typeof fetch;
+    process.env.SENTRY_DSN = "https://public@o0.ingest.sentry.io/123";
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    if (originalDsn === undefined) {
+      delete process.env.SENTRY_DSN;
+    } else {
+      process.env.SENTRY_DSN = originalDsn;
+    }
+  });
+
+  it("still forwards a Postgres failure that has no mapped 4xx (a stuck query, say)", async () => {
+    // Every code in CODE_FAILURES lands on a 4xx and is an understood, expected
+    // shape (a duplicate, a bad value). A code with no entry there is the one
+    // that surprised the mapping — that is exactly the case Sentry needs to see.
+    const { status } = await respondTo(
+      Object.assign(new Error("canceling statement due to statement timeout"), {
+        code: "57014",
+      })
+    );
+
+    expect(status).toBe(StatusCodes.INTERNAL_SERVER_ERROR);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = options.body as string;
+    expect(body).toContain("database error 57014");
+    expect(body).not.toContain("statement timeout");
   });
 });

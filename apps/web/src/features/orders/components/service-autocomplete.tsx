@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Combobox } from "@/components/ui/combobox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { fetchServices, queryKeys } from "@/lib/api";
+import { servicesQueries } from "@/features/services/api";
 
 type ServiceAutocompleteProps = {
 	id?: string;
@@ -20,10 +20,7 @@ export function ServiceAutocomplete({
 	disabled,
 	error,
 }: ServiceAutocompleteProps) {
-	const { data: services = [], isPending } = useQuery({
-		queryKey: queryKeys.services,
-		queryFn: fetchServices,
-	});
+	const { data: services = [], isPending } = useQuery(servicesQueries.list());
 
 	return (
 		<Field data-invalid={!!error}>

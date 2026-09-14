@@ -25,8 +25,10 @@ const noRows = (): Record<Period, Rows> => ({ now: [], before: [] });
 
 const answers = {
   storeCategory: noRows(),
-  storeRevenue: noRows(),
-  categoryRevenue: noRows(),
+  storeCollected: noRows(),
+  storeRefunds: noRows(),
+  categoryGrossSales: noRows(),
+  collected: noRows(),
   discount: noRows(),
   paymentMix: noRows(),
   products: noRows(),
@@ -50,7 +52,11 @@ const figureOf = (sql: string): keyof typeof answers => {
     return "servicesCogs";
   }
   if (sql.includes('SUM("order_refunds"."total_amount")')) {
-    return "refunds";
+    // The refund trend and the per-store refund rows hand back the same money
+    // off the same column; only the grouping says which panel asked.
+    return sql.includes('group by "orders"."store_id"')
+      ? "storeRefunds"
+      : "refunds";
   }
   if (sql.includes('SUM("order_refund_items"."amount")')) {
     return "refundReasons";
@@ -58,15 +64,18 @@ const figureOf = (sql: string): keyof typeof answers => {
   if (sql.includes('SUM("discount")')) {
     return "discount";
   }
+  if (sql.includes('SUM("paid_amount")')) {
+    return "collected";
+  }
   if (sql.includes('SUM("orders"."paid_amount")')) {
-    return "storeRevenue";
+    return "storeCollected";
   }
   if (sql.includes('SUM("orders_services"."subtotal")')) {
     if (sql.includes('"stores"')) {
       return "storeCategory";
     }
     if (sql.includes('"categories"')) {
-      return "categoryRevenue";
+      return "categoryGrossSales";
     }
     return "services";
   }
@@ -100,7 +109,7 @@ beforeEach(() => {
   }
 
   // Saturday: a full day of laundry plus soap sold off the shelf, with a
-  // Rp20.000 promo off the whole order.
+  // Rp20.000 promo off the whole order — so Rp620.000 quoted, Rp600.000 taken.
   // Sunday: shut — Postgres returns no row for it at all.
   // Monday: services only, and Rp75.000 handed back for Saturday's ruined shirt.
   answers.services.now = [
@@ -114,12 +123,17 @@ beforeEach(() => {
   ];
   answers.productsCogs.now = [takings("2026-08-01", 60_000)];
   answers.discount.now = [takings("2026-08-01", 20_000)];
+  answers.collected.now = [
+    takings("2026-08-01", 600_000),
+    takings("2026-08-03", 300_000),
+  ];
   answers.refunds.now = [["2026-08-03", "75000", 1]];
 
   answers.services.before = [takings("2026-07-29", 700_000)];
   answers.products.before = [takings("2026-07-29", 100_000)];
   answers.servicesCogs.before = [takings("2026-07-29", 200_000)];
   answers.productsCogs.before = [takings("2026-07-29", 50_000)];
+  answers.collected.before = [takings("2026-07-29", 800_000)];
 });
 
 describe("the day-by-day money chart", () => {
@@ -137,13 +151,13 @@ describe("the day-by-day money chart", () => {
       bucket: "2026-08-02",
       services: 0,
       products: 0,
-      gross_revenue: 0,
+      gross_sales: 0,
       discount: 0,
-      net_revenue: 0,
+      collected: 0,
+      refunds: 0,
+      revenue: 0,
       cogs: 0,
       gross_profit: 0,
-      refunds: 0,
-      net_income: 0,
     });
   });
 
@@ -154,13 +168,13 @@ describe("the day-by-day money chart", () => {
       bucket: "2026-08-01",
       services: 500_000,
       products: 120_000,
-      gross_revenue: 620_000,
+      gross_sales: 620_000,
       discount: 20_000,
-      net_revenue: 600_000,
+      collected: 600_000,
+      refunds: 0,
+      revenue: 600_000,
       cogs: 210_000,
       gross_profit: 390_000,
-      refunds: 0,
-      net_income: 390_000,
     });
   });
 
@@ -173,15 +187,15 @@ describe("the day-by-day money chart", () => {
       bucket: "2026-08-03",
       services: 300_000,
       products: 0,
-      gross_revenue: 300_000,
+      gross_sales: 300_000,
       discount: 0,
-      net_revenue: 300_000,
-      cogs: 90_000,
-      gross_profit: 210_000,
+      collected: 300_000,
       refunds: 75_000,
-      net_income: 135_000,
+      revenue: 225_000,
+      cogs: 90_000,
+      gross_profit: 135_000,
     });
-    expect(report.series[0].net_income).toBe(390_000);
+    expect(report.series[0].gross_profit).toBe(390_000);
   });
 
   it("keeps takings Postgres filed outside the charted days off the chart", async () => {
@@ -206,33 +220,34 @@ describe("the headline figures for the whole stretch", () => {
     const report = await financial();
 
     expect(report.summary.current).toEqual({
-      services_total: 800_000,
-      products_total: 120_000,
-      gross_revenue: 920_000,
+      services_gross_sales: 800_000,
+      products_gross_sales: 120_000,
+      gross_sales: 920_000,
       discount: 20_000,
-      net_revenue: 900_000,
-      cogs: 300_000,
-      gross_profit: 600_000,
+      collected: 900_000,
       refunds: 75_000,
-      net_income: 525_000,
-      net_margin: 525_000 / 900_000,
+      revenue: 825_000,
+      cogs: 300_000,
+      gross_profit: 525_000,
+      margin: 525_000 / 825_000,
     });
   });
 
   it("reports no margin on a giveaway stretch instead of dividing by nothing", async () => {
-    // Grand-opening weekend: everything charged was discounted away. A margin of
-    // 0 beats NaN on the card.
+    // Grand-opening weekend: everything charged was discounted away, so the
+    // counter took nothing. A margin of 0 beats NaN on the card.
     answers.services.now = [takings("2026-08-01", 100_000)];
     answers.products.now = [];
     answers.servicesCogs.now = [];
     answers.productsCogs.now = [];
     answers.discount.now = [takings("2026-08-01", 100_000)];
+    answers.collected.now = [];
     answers.refunds.now = [];
 
     const report = await financial();
 
-    expect(report.summary.current.net_revenue).toBe(0);
-    expect(report.summary.current.net_margin).toBe(0);
+    expect(report.summary.current.revenue).toBe(0);
+    expect(report.summary.current.margin).toBe(0);
   });
 
   it("adds a day's takings instead of stringing them together", async () => {
@@ -240,24 +255,25 @@ describe("the headline figures for the whole stretch", () => {
     // laundry and Rp120.000 of soap would render as "500000120000".
     const report = await financial();
 
-    expect(report.summary.current.gross_revenue).toBe(920_000);
-    expect(typeof report.summary.current.gross_revenue).toBe("number");
+    expect(report.summary.current.gross_sales).toBe(920_000);
+    expect(typeof report.summary.current.gross_sales).toBe("number");
   });
 });
 
 describe("this stretch against the one before it", () => {
   it("shows takings up but profit down after a big refund", async () => {
-    // Rp920.000 charged against Rp800.000 the stretch before — but Rp75.000 went
-    // back out, so the shop kept less. Both facts have to survive.
+    // Rp920.000 quoted against Rp800.000 the stretch before — but Rp20.000 came
+    // off as a promo and Rp75.000 went back out, so the shop kept less. Both
+    // facts have to survive.
     const report = await financial();
 
     expect(report.previous).toEqual({ from: "2026-07-29", to: "2026-07-31" });
-    expect(report.summary.deltas.gross_revenue).toEqual({
+    expect(report.summary.deltas.gross_sales).toEqual({
       current: 920_000,
       previous: 800_000,
       delta_pct: 0.15,
     });
-    expect(report.summary.deltas.net_income).toEqual({
+    expect(report.summary.deltas.gross_profit).toEqual({
       current: 525_000,
       previous: 550_000,
       delta_pct: (525_000 - 550_000) / 550_000,
@@ -287,12 +303,12 @@ describe("splitting the takings between stores", () => {
     id: number,
     name: string,
     code: string,
-    revenue: number,
+    collected: number,
     orders: number
-  ) => [id, name, code, String(revenue), orders];
+  ) => [id, name, code, String(collected), orders];
 
   it("gives each store its share of the takings, biggest first", async () => {
-    answers.storeRevenue.now = [
+    answers.storeCollected.now = [
       store(2, "Bintaro", "BIN", 300_000, 4),
       store(3, "Cipete", "CIP", 0, 0),
       store(1, "Kemang", "KEM", 600_000, 9),
@@ -309,8 +325,46 @@ describe("splitting the takings between stores", () => {
     ]);
   });
 
+  it("takes a store's refunds off that store's own takings", async () => {
+    // Bintaro handed Rp200.000 back. Charging it to the company total instead
+    // would leave Bintaro looking like it out-earned Kemang.
+    answers.storeCollected.now = [
+      store(1, "Kemang", "KEM", 300_000, 5),
+      store(2, "Bintaro", "BIN", 400_000, 6),
+    ];
+    answers.storeRefunds.now = [[2, "Bintaro", "BIN", "200000"]];
+
+    const report = await financial();
+
+    expect(
+      report.store_breakdown.map((row) => [row.store_name, row.revenue])
+    ).toEqual([
+      ["Kemang", 300_000],
+      ["Bintaro", 200_000],
+    ]);
+  });
+
+  it("keeps a store that only handed money back on the list", async () => {
+    // Cipete banked nothing in August and refunded an order paid for in July.
+    // Dropping the store would hide the money and leave the store rows adding
+    // up to more than the range took.
+    answers.storeCollected.now = [store(1, "Kemang", "KEM", 500_000, 8)];
+    answers.storeRefunds.now = [[3, "Cipete", "CIP", "150000"]];
+
+    const report = await financial();
+
+    expect(
+      report.store_breakdown.map((row) => [row.store_name, row.revenue])
+    ).toEqual([
+      ["Kemang", 500_000],
+      ["Cipete", -150_000],
+    ]);
+    expect(report.store_breakdown[1].collected).toBe(0);
+    expect(report.store_breakdown[1].orders).toBe(0);
+  });
+
   it("gives a store no share of a stretch nobody banked anything", async () => {
-    answers.storeRevenue.now = [store(1, "Kemang", "KEM", 0, 0)];
+    answers.storeCollected.now = [store(1, "Kemang", "KEM", 0, 0)];
 
     const report = await financial();
 
@@ -331,11 +385,11 @@ describe("which services earn the money", () => {
       [6, "Karpet", 10_000],
       [7, "Boneka", 5000],
     ];
-    answers.categoryRevenue.now = priceList.map(([id, name, revenue]) => [
+    answers.categoryGrossSales.now = priceList.map(([id, name, grossSales]) => [
       "2026-08-01",
       id,
       name,
-      String(revenue),
+      String(grossSales),
     ]);
 
     const report = await financial();
@@ -359,6 +413,11 @@ describe("which services earn the money", () => {
     });
     // The treemap keeps every category, so the small ones stay auditable.
     expect(report.category_treemap).toHaveLength(7);
+    expect(report.category_treemap[0]).toEqual({
+      category_id: 1,
+      category_name: "Cuci Setrika",
+      gross_sales: 400_000,
+    });
   });
 });
 
@@ -432,14 +491,9 @@ describe("asking one store for its takings", () => {
   it("carries the store down into every figure it adds up", async () => {
     await getFinancialReport({ from: FROM, to: TO, store_id: KEMANG });
 
-    const unscoped = sent.filter((query) => !query.sql.includes(storeFilter));
-
-    // Store revenue is the one known exception, and by construction rather than
-    // oversight: listStoreRevenueRows takes no store parameter, so the
-    // store_breakdown panel is company-wide however the report was scoped.
-    for (const query of unscoped) {
-      expect(figureOf(query.sql)).toBe("storeRevenue");
-    }
+    expect(sent.filter((query) => !query.sql.includes(storeFilter))).toEqual(
+      []
+    );
   });
 
   it("asks Postgres for the store that was named, not some other one", async () => {

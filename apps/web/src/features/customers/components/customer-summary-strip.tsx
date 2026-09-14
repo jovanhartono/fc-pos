@@ -1,11 +1,11 @@
 import { PencilSimpleLineIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import type { CustomerDetail } from "@/features/customers/api";
 import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
-import type { CustomerDetail } from "@/lib/api";
 import dayjs from "@/lib/dayjs";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
 interface CustomerSummaryStripProps {
@@ -36,7 +36,7 @@ const formatOwed = ({
 	// is still unpaid, but "Rp 0 unpaid" reads as a debt the shop should chase.
 	if (priced > 0 && Number(unpaid_amount) > 0) {
 		parts.push(
-			`${formatIDRCurrency(unpaid_amount)} unpaid on ${priced} order${priced === 1 ? "" : "s"}`,
+			`${formatMoney(unpaid_amount)} unpaid on ${priced} order${priced === 1 ? "" : "s"}`,
 		);
 	}
 	if (unpriced_orders > 0) {
@@ -88,7 +88,7 @@ export const CustomerSummaryStrip = ({
 			<KpiRow>
 				<KpiCard
 					label="Lifetime spend"
-					value={formatIDRCurrency(summary.lifetime_spend)}
+					value={formatMoney(summary.lifetime_spend)}
 					helper="Paid, net of refunds"
 				/>
 				<KpiCard

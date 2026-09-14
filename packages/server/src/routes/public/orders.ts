@@ -1,11 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { db } from "@/db";
-import { NotFoundException } from "@/http-exceptions";
-import {
-  deriveItemStatus,
-  isCollectableItemStatus,
-} from "@/modules/orders/order-status-machine";
+import { getTrackedOrder } from "@/modules/orders/order-track.service";
 import { phoneSchema } from "@/schema/common";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
@@ -15,154 +10,10 @@ const POSTPublicTrackOrderSchema = z.object({
   phone_number: phoneSchema,
 });
 
-function maskPhoneNumber(phone: string) {
-  const suffix = phone.slice(-4);
-  return `******${suffix}`;
-}
-
 const app = new Hono().post(
   "/track",
   zodValidator("json", POSTPublicTrackOrderSchema),
-  async (c) => {
-    const { code, phone_number } = c.req.valid("json");
-
-    const customer = await db.query.customersTable.findFirst({
-      where: { phone_number },
-      columns: { id: true },
-    });
-
-    if (!customer) {
-      throw new NotFoundException("Order code or phone number is invalid");
-    }
-
-    const order = await db.query.ordersTable.findFirst({
-      where: {
-        code,
-        customer_id: customer.id,
-      },
-      columns: {
-        id: true,
-        code: true,
-        status: true,
-        payment_status: true,
-        discount: true,
-        total: true,
-        notes: true,
-        pickup_code: true,
-        created_at: true,
-        completed_at: true,
-        cancelled_at: true,
-        updated_at: true,
-      },
-      with: {
-        customer: {
-          columns: {
-            id: true,
-            name: true,
-            phone_number: true,
-          },
-        },
-        // Grouped by the object the customer handed over (ADR-0017), so the
-        // tracking page reads "your shoe: clean done, repaint in progress"
-        // rather than listing the same shoe three times.
-        items: {
-          columns: {
-            brand: true,
-            color: true,
-            id: true,
-            item_code: true,
-            model: true,
-            size: true,
-          },
-          with: {
-            services: {
-              columns: {
-                id: true,
-                // Read only to tell a pair that was refunded and collected
-                // from one that was refunded and is still on our rack. It is
-                // an internal id and is stripped again below.
-                pickup_event_id: true,
-                status: true,
-              },
-              with: {
-                service: {
-                  columns: {
-                    id: true,
-                    code: true,
-                    name: true,
-                  },
-                },
-                statusLogs: {
-                  columns: {
-                    id: true,
-                    from_status: true,
-                    to_status: true,
-                    note: true,
-                    created_at: true,
-                  },
-                },
-              },
-              orderBy: { id: "asc" },
-            },
-          },
-          orderBy: { id: "asc" },
-        },
-        store: {
-          columns: {
-            id: true,
-            code: true,
-            name: true,
-            address: true,
-            phone_number: true,
-          },
-        },
-      },
-    });
-
-    if (!order) {
-      throw new NotFoundException("Order code or phone number is invalid");
-    }
-
-    const orderCustomer = order.customer;
-    const { pickup_code, ...orderWithoutPickupCode } = order;
-
-    // Derived here rather than on the page: the rollup now turns on
-    // whether a pickup event ever took the object out, and that is a
-    // shop-internal id no tracking page should be handed. Each treatment
-    // is rebuilt field by field rather than spread-minus-the-id, so the
-    // next column selected to feed a derivation has to be named here
-    // before it can reach a customer.
-    const items = order.items.map(({ services, ...item }) => ({
-      ...item,
-      status: deriveItemStatus(services),
-      services: services.map(({ id, status, service, statusLogs }) => ({
-        id,
-        status,
-        service,
-        statusLogs,
-      })),
-    }));
-
-    return c.json(
-      success({
-        ...orderWithoutPickupCode,
-        items,
-        // Shown while anything is still on the rack to collect — which
-        // includes a fully refunded pair the customer never came back for.
-        // The Order rollup says "completed" there (the money is settled,
-        // ADR-0008), so gating on it hid the code for exactly the object
-        // most likely to be forgotten.
-        pickup_code: items.some((item) => isCollectableItemStatus(item.status))
-          ? pickup_code
-          : null,
-        customer: {
-          id: orderCustomer.id,
-          name: orderCustomer.name,
-          phone_number_masked: maskPhoneNumber(orderCustomer.phone_number),
-        },
-      })
-    );
-  }
+  async (c) => c.json(success(await getTrackedOrder(c.req.valid("json"))))
 );
 
 export default app;

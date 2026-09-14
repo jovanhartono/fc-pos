@@ -208,12 +208,8 @@ export const POSTOrderRefundSchema = z.object({
     .min(1),
 });
 
-export const GETOrderByItemCodeQuerySchema = z.object({
-  item_code: z.string().trim().min(1).max(64),
-});
-
-export const GETOrderServiceByIdQuerySchema = z.object({
-  service_id: z.coerce.number().int().positive(),
+export const GETOrderLookupQuerySchema = z.object({
+  q: z.string().trim().min(1).max(64),
 });
 
 export const GETMyOrderServicesQuerySchema = z.object({
