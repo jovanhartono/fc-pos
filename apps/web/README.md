@@ -18,9 +18,11 @@ bun run build             # TypeScript check + production build
 bun run preview           # Preview the production build
 bun run type-check        # Regenerate routes + TypeScript check
 bun run generate-routes   # Regenerate TanStack Router route tree
+bun run test              # bun test
+bun run generate-receipt-logo   # Rebuild the receipt wordmark bitmap from scripts/
 ```
 
-The dev server expects the API running at port 8000 (`bun run dev` in `packages/server`).
+The dev server expects the API running at port 8000 (`bun run dev` in `packages/server`). `VITE_API_BASE_URL` overrides that; `.env.production` leaves it empty so the RPC client uses same-origin `/api`.
 
 ## Notes
 

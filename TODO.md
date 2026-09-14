@@ -27,35 +27,12 @@
 
 ## Architecture-deepening follow-ups (extracted 2026-06-10, source: docs/architecture-deepening.md)
 
-- [ ] **Apply the ADR-0017 Item migration to PROD, then baseline prod onto
-  migrations** — `packages/server/migrations/0001-adr-0017-item-groups-order-services.sql`.
-  Runbook: `docs/runbooks/2026-08-27-adr-0017-prod.md`.
-  Creates `items`, adds `orders_services.item_id`, backfills one Item per
-  existing treatment row, then drops `brand`/`color`/`model`/`size`/`item_code`
-  and tightens `item_id`/`order_id` to NOT NULL. **Do not run `push` or
-  `migrate:prod` for this one** — push would add the NOT NULL column against
-  populated rows and drop the five columns before anything had copied them,
-  losing every tag code in the shop; `migrate:prod` has nothing to apply,
-  because this migration deliberately sits outside `drizzle/` (it predates the
-  baseline). Run the file itself; it is one transaction, so a failure leaves the
-  database exactly as it was.
-  - **Dev: done 2026-08-27.** 357 treatment rows → 357 Items, 0 unlinked,
-    composite FK rejects a cross-Order link. Re-seeded afterwards, so dev now
-    has genuinely grouped Items (264 Items over 349 treatments, 72 of them
-    multi-treatment) rather than the 1:1 backfill.
-  - **Prod: not applied.** The code is merged ahead of the schema, so every
-    order read 500s until it runs. Prod also still carries the pre-ADR-0017
-    schema and is **not yet baselined** — `bun run baseline:prod` must come
-    after the migration, so that prod and dev baseline at the same schema.
-  - Also needs the `deriveOrderStatus` cancelled-sibling backfill (see below).
-- [ ] **Backfill `orders.status` after the cancelled-sibling fix** — the rollup
-  no longer reads a cancelled line as evidence that work started, so orders
-  whose live lines are all queued but which carry a cancelled line move
-  `processing` → `created`. The fix only corrects rows something later touches,
-  so stored rows stay stale until backfilled. Dev: done (1 order). Prod: pending,
-  and it must run **after** the ADR-0017 migration, because the finder query
-  reads `orders_services`. Query and `recomputeOrderRollup` loop are in the
-  runbook.
+- [x] **Apply the ADR-0017 Item migration to PROD, then baseline prod onto
+  migrations** — closed 2026-09-03. Prod's order-flow tables were wiped as test
+  data and prod was baselined on drizzle migrations the same day, so the
+  hand-run migration and its runbook had nothing left to migrate; both are
+  deleted. The `orders.status` cancelled-sibling backfill went with it — there
+  are no pre-fix rows left to correct.
 - [x] **`push:prod` before next prod deploy** (verified applied 2026-08-25) —
   now also includes the **Repair blank-price** schema from ADR-0018: `services.price` DROP NOT NULL + DROP
   DEFAULT (NULL = no list price — Repair's catalog row), `orders_services.price`
@@ -84,12 +61,10 @@
   columns and all three cancel CHECKs are present. Nothing left to push.
   Note `--explain` would not have shown any of these; they were confirmed by
   querying the catalogs directly.
-- [ ] **Integration-test DB strategy** — deferred 3× (§1/§4/§5). Partial as of
-  2026-06-15: pure-function unit tests now exist for status machine
-  (`order-status-machine.test.ts`), campaign eligibility
-  (`campaign-eligibility.test.ts`), middleware (`admin.test.ts`), permissions
-  (`permissions.test.ts`). Still **no DB integration coverage** for the
-  DB-touching paths: pickup transaction, refund caps.
+- [x] **Integration-test DB strategy** (done 2026-09-13, PR #121) — six
+  `*.integration.test.ts` suites run on PGlite at the `@/db` seam: pickup,
+  settlement, reversal, photos, status machine, order read. Run through
+  `bun run test` so `--isolate` keeps the module swap from leaking.
 - [x] **Web cancel-button gate check** (verified 2026-06-15) — UI aligns with
   server; "Cancel order" renders for any staff on unpaid Orders, no role gate on
   either layer:
@@ -150,7 +125,6 @@
   - IAM → Security credentials → Assign MFA device
   - Use authenticator app (1Password, Authy, etc.)
 
-- [ ] **Prod environment separation** — decide strategy
-  - Option A: separate bucket + distribution per env (cleanest)
-  - Option B: single bucket with `dev/` / `prod/` key prefixes (cheaper, simpler)
-  - Recommendation: Option A for prod isolation
+- [x] **Prod environment separation** (decided, shipped 2026-09-11, PR #118) —
+  one bucket, `dev/` / `prod/` key prefixes from `STORAGE_PREFIX`, set per Vercel
+  environment alongside `DATABASE_URL`. Seed data has its own `seed/` prefix.
