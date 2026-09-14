@@ -9,14 +9,14 @@ import { FieldError } from "@/components/ui/field";
 import { SheetFooter } from "@/components/ui/sheet";
 import {
 	countUnpricedServiceLines,
-	isCustomerReady,
 	type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
-import type { CheckoutStep } from "@/features/transactions/components/checkout-stepper";
 import { useCheckoutPricing } from "@/features/transactions/hooks/useCheckoutPricing";
+import { getCheckoutGates } from "@/features/transactions/lib/checkout-gates";
+import type { CheckoutStep } from "@/features/transactions/lib/checkout-steps";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 // Shared between the hint element and the Continue button's aria-describedby so
@@ -46,15 +46,19 @@ export const CheckoutFooter = ({
 		TransactionDraftValues,
 		["customerName", "customerPhone"]
 	>({ name: ["customerName", "customerPhone"] });
-	const customerReady = isCustomerReady(customerName, customerPhone);
 	const submitError = useTransactionsPageStore((state) => state.submitError);
 	const dropoffPhoto = useTransactionsPageStore((state) => state.dropoffPhoto);
+	const { customerReady, itemsReady } = getCheckoutGates({
+		customerName,
+		customerPhone,
+		itemCount: count,
+		hasDropoffPhoto: !!dropoffPhoto,
+	});
 
 	// Leaving the Items step needs only the drop-off photo (captured there).
 	// A blank price is normal (ADR-0018) — it never blocks checkout, it only
 	// blocks paying now, so the hint states the consequence without gating.
 	const unpricedCount = countUnpricedServiceLines(serviceRows);
-	const itemsReady = count > 0 && !!dropoffPhoto;
 	const itemsHint =
 		step === "items" && count > 0
 			? [
@@ -76,7 +80,7 @@ export const CheckoutFooter = ({
 						Total
 					</span>
 					<span className="text-base font-semibold">
-						{formatIDRCurrency(String(Math.round(pricing.total)))}
+						{formatMoney(String(Math.round(pricing.total)))}
 					</span>
 				</div>
 				<CheckoutStepActions

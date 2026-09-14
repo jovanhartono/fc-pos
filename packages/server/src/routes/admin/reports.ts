@@ -40,7 +40,7 @@ const requireStoreAccess = createMiddleware<AdminEnv>(async (c, next) => {
     const storeId = storeIdQuerySchema.safeParse(raw);
 
     if (!storeId.success) {
-      throw new BadRequestException("store_id must be a positive whole number");
+      throw new BadRequestException("Choose a valid store");
     }
 
     await assertStoreAccess(c.get("jwtPayload"), storeId.data);

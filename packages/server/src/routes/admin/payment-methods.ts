@@ -12,6 +12,7 @@ import {
   getPaymentMethods,
   updatePaymentMethod,
 } from "@/modules/payment-methods/payment-method.service";
+import { assertIsAdmin } from "@/modules/permissions/permissions";
 import { idParamSchema } from "@/schema/param";
 import type { AdminEnv } from "@/types/hono";
 import { success } from "@/utils/http";
@@ -30,20 +31,19 @@ const app = new Hono<AdminEnv>()
     const paymentMethod = await getPaymentMethodById(id);
 
     if (!paymentMethod) {
-      throw new NotFoundException("Payment Method not found");
+      throw new NotFoundException("Payment method not found");
     }
 
-    return c.json(
-      success(paymentMethod, "Payment Method retrieved successfully")
-    );
+    return c.json(success(paymentMethod));
   })
   .post("/", zodValidator("json", POSTPaymentMethodSchema), async (c) => {
+    assertIsAdmin(c.get("jwtPayload"));
     const body = c.req.valid("json");
 
     const paymentMethod = await createPaymentMethod(body);
 
     return c.json(
-      success(paymentMethod, "Create payment method success"),
+      success(paymentMethod, "Payment method created"),
       StatusCodes.CREATED
     );
   })
@@ -52,13 +52,14 @@ const app = new Hono<AdminEnv>()
     idParamSchema,
     zodValidator("json", PUTPaymentMethodSchema),
     async (c) => {
+      assertIsAdmin(c.get("jwtPayload"));
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
       const paymentMethod = await updatePaymentMethod(id, body);
 
       if (!paymentMethod) {
-        throw new NotFoundException("Payment method does not exist");
+        throw new NotFoundException("Payment method not found");
       }
 
       return c.json(

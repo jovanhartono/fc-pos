@@ -8,9 +8,8 @@ export interface Coordinates {
 }
 
 // The distance filed against a Shift, which is the number a manager is later
-// shown. Its SQL twin in store.repository.ts only ever orders and filters
-// candidate Stores, so it stays in the database where the sorting happens;
-// this one has to run before the row exists.
+// shown. It is worked out at clock-in and stored, so an admin correcting a
+// store's pin months later cannot rewrite yesterday's attendance.
 export function distanceKm(from: Coordinates, to: Coordinates) {
   const deltaLat = toRadians(to.latitude - from.latitude);
   const deltaLon = toRadians(to.longitude - from.longitude);

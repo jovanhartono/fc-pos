@@ -4,14 +4,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import { clockInShift } from "@/features/shifts/api";
 import { useGeolocation } from "@/features/shifts/hooks/useGeolocation";
 import {
 	formatDistanceKm,
 	isOutOfClockInRange,
 } from "@/features/shifts/lib/distance";
-import { invalidateShiftQueries } from "@/features/shifts/lib/shift-cache";
-import { clockInShift, type Store } from "@/lib/api";
-import { meQueryOptions, storesQueryOptions } from "@/lib/query-options";
+import { type Store, storesQueries } from "@/features/stores/api";
+import { usersQueries } from "@/features/users/api";
+import { onShiftClocked } from "@/lib/cache-events";
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 
@@ -24,14 +25,14 @@ export const ClockInControl = () => {
 	const needsLocation = clockInRequiresLocation(user?.role ?? "worker");
 
 	const { status, coordinates, retry } = useGeolocation(needsLocation);
-	const storesQuery = useQuery(storesQueryOptions());
-	const meQuery = useQuery({ ...meQueryOptions(), enabled: Boolean(user) });
+	const storesQuery = useQuery(storesQueries.list());
+	const meQuery = useQuery({ ...usersQueries.me(), enabled: Boolean(user) });
 	const [picked, setPicked] = useState<string>();
 
 	const clockInMutation = useMutation({
 		mutationKey: ["shift-clock-in"],
 		mutationFn: clockInShift,
-		onSuccess: () => invalidateShiftQueries(queryClient),
+		onSuccess: () => onShiftClocked(queryClient),
 	});
 
 	// Branches this person is actually assigned to. Preselecting one they are not

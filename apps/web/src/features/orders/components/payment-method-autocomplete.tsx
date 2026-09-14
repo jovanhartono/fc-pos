@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Combobox } from "@/components/ui/combobox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { fetchPaymentMethods, queryKeys } from "@/lib/api";
+import { paymentMethodsQueries } from "@/features/payment-methods/api";
 
 type PaymentMethodAutocompleteProps = {
 	value: string;
@@ -16,10 +16,9 @@ export function PaymentMethodAutocomplete({
 	disabled,
 	error,
 }: PaymentMethodAutocompleteProps) {
-	const { data: paymentMethods = [], isPending } = useQuery({
-		queryKey: queryKeys.paymentMethods,
-		queryFn: fetchPaymentMethods,
-	});
+	const { data: paymentMethods = [], isPending } = useQuery(
+		paymentMethodsQueries.list(),
+	);
 
 	return (
 		<Field data-invalid={!!error}>
@@ -40,7 +39,7 @@ export function PaymentMethodAutocomplete({
 				}
 				loading={isPending}
 				placeholder="No payment method"
-				searchPlaceholder="Search payment method..."
+				searchPlaceholder="Search payment methods"
 				emptyText="No payment method found"
 				disabled={disabled}
 			/>

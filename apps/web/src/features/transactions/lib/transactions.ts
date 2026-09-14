@@ -1,5 +1,6 @@
-import type { Category, Product, Service } from "@/lib/api";
-
+import type { Category } from "@/features/categories/api";
+import type { Product } from "@/features/products/api";
+import type { Service } from "@/features/services/api";
 export type CategoryFilter = "all" | number;
 
 export function getEntityCategoryName(

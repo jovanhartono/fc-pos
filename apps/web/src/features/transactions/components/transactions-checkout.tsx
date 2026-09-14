@@ -7,20 +7,22 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@/components/ui/sheet";
-import {
-	isCustomerReady,
-	type TransactionDraftValues,
-} from "@/features/transactions/cart/cart";
+import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
 import { CheckoutCustomerStep } from "@/features/transactions/components/checkout-customer-step";
 import { CheckoutFooter } from "@/features/transactions/components/checkout-footer";
 import { CheckoutItemsStep } from "@/features/transactions/components/checkout-items-step";
 import { CheckoutPaymentStep } from "@/features/transactions/components/checkout-payment-step";
+import { CheckoutStepper } from "@/features/transactions/components/checkout-stepper";
+import {
+	getCheckoutGates,
+	lockedStepHint as getLockedStepHint,
+	isStepReachable,
+} from "@/features/transactions/lib/checkout-gates";
 import {
 	CHECKOUT_STEPS,
 	type CheckoutStep,
-	CheckoutStepper,
-} from "@/features/transactions/components/checkout-stepper";
+} from "@/features/transactions/lib/checkout-steps";
 import { cn } from "@/lib/utils";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
@@ -43,50 +45,22 @@ export const TransactionsCheckout = () => {
 			["customerName", "customerPhone", "selectedCampaignIds"]
 		>({ name: ["customerName", "customerPhone", "selectedCampaignIds"] });
 
-	const customerReady = isCustomerReady(customerName, customerPhone);
-	const itemsReady = count > 0 && !!dropoffPhoto;
+	const gateInput = {
+		customerName,
+		customerPhone,
+		itemCount: count,
+		hasDropoffPhoto: !!dropoffPhoto,
+	};
+	const gates = getCheckoutGates(gateInput);
 
 	const stepIndex = CHECKOUT_STEPS.findIndex((entry) => entry.key === step);
 
-	// The current step and any earlier one are always reachable — going back to
-	// fix a field is never blocked. A later step is reachable only when its entry
-	// gate passes, the same gate the footer's Continue enforces, so the tabs
-	// can't skip ahead with an incomplete customer or a missing photo.
-	const isStepEnabled = (target: CheckoutStep) => {
-		const targetIndex = CHECKOUT_STEPS.findIndex(
-			(entry) => entry.key === target,
-		);
-		if (targetIndex <= stepIndex) {
-			return true;
-		}
-		if (target === "payment") {
-			return customerReady && itemsReady;
-		}
-		// Only "items" can reach here — "customer" is always at or before the
-		// current step and already returned above.
-		return customerReady;
-	};
+	// The gate the footer's Continue enforces too, so the tabs can't skip ahead
+	// with an incomplete customer or a missing photo.
+	const isStepEnabled = (target: CheckoutStep) =>
+		isStepReachable(gates, step, target);
 
-	const lockedStepHint = (() => {
-		const locked = CHECKOUT_STEPS.filter(
-			(entry, index) => index > stepIndex && !isStepEnabled(entry.key),
-		);
-		if (locked.length === 0) {
-			return "";
-		}
-		const steps = locked.map((entry) => entry.label).join(" and ");
-		const verb = locked.length > 1 ? "unlock" : "unlocks";
-		if (!customerReady) {
-			return `${steps} ${verb} once you enter the customer name and phone.`;
-		}
-		const missing = [
-			count > 0 ? null : "an item",
-			dropoffPhoto ? null : "a drop-off photo",
-		]
-			.filter(Boolean)
-			.join(" and ");
-		return `${steps} ${verb} once you add ${missing}.`;
-	})();
+	const lockedStepHint = getLockedStepHint(gates, step, gateInput);
 
 	const headingRef = useRef<HTMLHeadingElement>(null);
 

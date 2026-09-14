@@ -36,7 +36,7 @@ export function Combobox({
 	value,
 	onValueChange,
 	placeholder = "Select item",
-	searchPlaceholder = "Search...",
+	searchPlaceholder = "Search",
 	emptyText = "No item found",
 	loading,
 	disabled,

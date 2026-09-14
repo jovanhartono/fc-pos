@@ -11,12 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import { type Shift, shiftsQueries } from "@/features/shifts/api";
 import {
 	formatDistanceKm,
 	isOutOfClockInRange,
 } from "@/features/shifts/lib/distance";
-import type { Shift } from "@/lib/api";
-import { shiftsQueryOptions, storesQueryOptions } from "@/lib/query-options";
+import { storesQueries } from "@/features/stores/api";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 25;
@@ -42,9 +42,9 @@ export const Route = createFileRoute("/_admin/shifts")({
 	loader: ({ context, deps }) =>
 		Promise.all([
 			context.queryClient.ensureQueryData(
-				shiftsQueryOptions(buildShiftsQuery(deps)),
+				shiftsQueries.list(buildShiftsQuery(deps)),
 			),
-			context.queryClient.ensureQueryData(storesQueryOptions()),
+			context.queryClient.ensureQueryData(storesQueries.list()),
 		]),
 	component: ShiftsPage,
 });
@@ -69,7 +69,7 @@ const formatDuration = (
 function ShiftsPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
-	const shiftsQuery = useQuery(shiftsQueryOptions(buildShiftsQuery(search)));
+	const shiftsQuery = useQuery(shiftsQueries.list(buildShiftsQuery(search)));
 	const shifts = shiftsQuery.data?.items ?? [];
 
 	const columns = useMemo<DataTableColumnDef<Shift>[]>(

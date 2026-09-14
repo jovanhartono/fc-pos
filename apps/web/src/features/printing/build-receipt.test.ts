@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { OrderReceipt } from "@/lib/api";
+import type { OrderReceipt } from "@/features/orders/api";
 import { buildReceiptEscPos } from "./build-receipt";
 import { RECEIPT_LOGO } from "./receipt-logo";
 
@@ -85,6 +85,12 @@ const withService = (
 
 const decodeText = (bytes: Uint8Array): string =>
 	new TextDecoder().decode(bytes);
+
+// Printer mode commands, as they read in the decoded receipt — prefix a row
+// with one to assert the mode that governs it.
+const EMPHASIS_ON = "\x1bE\x01";
+const EMPHASIS_OFF = "\x1bE\x00";
+const ALIGN_LEFT = "\x1ba\x00";
 
 const RASTER_HEADER = [0x1d, 0x76, 0x30, 0x00];
 
@@ -178,7 +184,7 @@ describe("buildReceiptEscPos", () => {
 
 	test("one Item with three treatments prints one tag and one descriptor row", () => {
 		// The counter's standard upsell (ADR-0017): a pair arrives for a deep
-		// clean and leaves the till as deep clean + repaint + leather care.
+		// clean and leaves the POS as deep clean + repaint + leather care.
 		// One physical object — the receipt must not read as three shoes.
 		const bytes = buildReceiptEscPos(
 			withItem({
@@ -210,6 +216,74 @@ describe("buildReceiptEscPos", () => {
 		expect(text).toMatch(/ {2}Deep Clean +Rp75\.000/);
 		expect(text).toMatch(/ {2}Repaint +Rp150\.000/);
 		expect(text).toMatch(/ {2}Leather Care +Rp35\.000/);
+	});
+
+	test("a second Item is set off by a blank line, and each is named in bold", () => {
+		// Five pairs on one receipt is a normal family drop-off — without the
+		// gap the cashier cannot see which treatments belong to which pair.
+		const bytes = buildReceiptEscPos(
+			{
+				...baseReceipt,
+				items: [
+					baseReceipt.items[0],
+					{
+						...baseReceipt.items[0],
+						item_code: "#JKT/06072026/12-S002",
+						brand: "Adidas",
+						model: "Samba",
+						color: "Hitam",
+						size: "41",
+					},
+				],
+			},
+			"http://localhost/track",
+		);
+		const text = decodeText(bytes);
+		const lines = text.split("\n");
+		const first = lines.findIndex((line) =>
+			line.includes("Nike - AF1 - Putih - 42"),
+		);
+		const second = lines.findIndex((line) =>
+			line.includes("Adidas - Samba - Hitam - 41"),
+		);
+
+		// The first Item hangs straight off the section header; only the ones
+		// after it get a gap.
+		expect(lines[first - 1]).toContain("LAYANAN");
+		expect(lines[second - 1]).toBe("");
+		expect(text).toContain(`${EMPHASIS_ON}Nike - AF1 - Putih - 42`);
+		expect(text).toContain(`${EMPHASIS_ON}Adidas - Samba - Hitam - 41`);
+		// Emphasis is off by the time the tag prints — the name above it is the
+		// anchor, the tag stays plain.
+		expect(text).toContain(`${EMPHASIS_OFF}#JKT/06072026/12-S001`);
+	});
+
+	test("an Item logged without descriptors puts its tag in the bold row", () => {
+		const bytes = buildReceiptEscPos(
+			withItem({ brand: null, model: null, color: null, size: null }),
+			"http://localhost/track",
+		);
+
+		expect(decodeText(bytes)).toContain(`${EMPHASIS_ON}#JKT/06072026/12-S001`);
+	});
+
+	test("products are named in bold like Items", () => {
+		const bytes = buildReceiptEscPos(baseReceipt, "http://localhost/track");
+
+		expect(decodeText(bytes)).toContain(`${EMPHASIS_ON}Shoe Cleaner 250ml`);
+	});
+
+	test("the customer's note prints above the claim ticket, disclaimer flush left", () => {
+		const bytes = buildReceiptEscPos(baseReceipt, "http://localhost/track");
+		const text = decodeText(bytes);
+
+		// The note is an instruction about the treatment, so it belongs with the
+		// order — not stranded under the QR where nobody reads it.
+		expect(text.indexOf("KODE PENGAMBILAN")).toBeGreaterThan(
+			text.indexOf("Catatan: Jangan pakai pemutih"),
+		);
+		// Centred, the three wrapped lines of fine print read as ragged prose.
+		expect(text).toContain(`${ALIGN_LEFT}Barang tidak diambil`);
 	});
 
 	test("item header that exactly fills 48 columns keeps every character", () => {

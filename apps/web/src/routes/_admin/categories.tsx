@@ -12,21 +12,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+	type Category,
+	categoriesKeys,
+	categoriesQueries,
+	createCategory,
+	updateCategory,
+} from "@/features/categories/api";
+import {
 	CategoryForm,
 	type CategoryFormState,
 } from "@/features/categories/components/category-form";
-import {
-	type Category,
-	createCategory,
-	queryKeys,
-	updateCategory,
-} from "@/lib/api";
-import { categoriesQueryOptions } from "@/lib/query-options";
 import { useSheet } from "@/stores/sheet-store";
 
 export const Route = createFileRoute("/_admin/categories")({
 	loader: ({ context }) =>
-		context.queryClient.ensureQueryData(categoriesQueryOptions()),
+		context.queryClient.ensureQueryData(categoriesQueries.list()),
 	component: CategoriesPage,
 });
 
@@ -44,7 +44,7 @@ const CategoriesActions = ({ row }: { row: DataTableRow<Category> }) => {
 			payload: Parameters<typeof updateCategory>[1];
 		}) => updateCategory(id, payload),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: queryKeys.categories });
+			await queryClient.invalidateQueries({ queryKey: categoriesKeys.all });
 			closeSheet();
 		},
 	});
@@ -115,14 +115,14 @@ function CategoriesPage() {
 	const queryClient = useQueryClient();
 	const { openSheet, closeSheet } = useSheet();
 
-	const { data = [], isPending } = useQuery(categoriesQueryOptions());
+	const { data = [], isPending } = useQuery(categoriesQueries.list());
 	const categoryCount = data.length;
 
 	const createMutation = useMutation({
 		mutationKey: ["create-category"],
 		mutationFn: createCategory,
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: queryKeys.categories });
+			await queryClient.invalidateQueries({ queryKey: categoriesKeys.all });
 			closeSheet();
 		},
 	});

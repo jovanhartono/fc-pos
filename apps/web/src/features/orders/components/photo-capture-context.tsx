@@ -225,7 +225,7 @@ export const PhotoCaptureProvider = ({
 	// through the close animation instead of collapsing and re-centering first — that snap
 	// was the layout shift — but an unmount never reaches that callback. Navigating off the
 	// order, advancing the checkout step or switching queue item with shots still staged
-	// would otherwise strand a blob per photo for as long as the tab lives, and the till
+	// would otherwise strand a blob per photo for as long as the tab lives, and the POS
 	// tab lives all day.
 	const pendingRef = useRef<PendingPhoto[]>([]);
 	useEffect(() => {

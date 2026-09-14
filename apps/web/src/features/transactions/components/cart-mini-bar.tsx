@@ -26,7 +26,7 @@ export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
 	const treatmentCount = countCartTreatments(itemRows);
 	const productCount = count - treatmentCount;
 	const summaryLabel = [
-		treatmentCount > 0 ? pluralize(treatmentCount, "treatment") : null,
+		treatmentCount > 0 ? pluralize(treatmentCount, "service") : null,
 		productCount > 0 ? pluralize(productCount, "product") : null,
 	]
 		.filter(Boolean)

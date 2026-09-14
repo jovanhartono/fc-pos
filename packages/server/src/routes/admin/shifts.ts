@@ -38,15 +38,12 @@ const app = new Hono<AdminEnv>()
       coordinates: body.coordinates,
     });
 
-    return c.json(
-      success(shift, "Clocked in successfully"),
-      StatusCodes.CREATED
-    );
+    return c.json(success(shift, "Clocked in"), StatusCodes.CREATED);
   })
   .post("/clock-out", async (c) => {
     const user = c.get("jwtPayload");
     const shift = await clockOut(user);
-    return c.json(success(shift, "Clocked out successfully"));
+    return c.json(success(shift, "Clocked out"));
   });
 
 export default app;

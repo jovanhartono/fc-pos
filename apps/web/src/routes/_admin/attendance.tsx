@@ -8,13 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+	clockOutShift,
+	type Shift,
+	shiftsQueries,
+} from "@/features/shifts/api";
+import {
 	ClockInControl,
 	PRIMARY_BUTTON,
 } from "@/features/shifts/components/clock-in-control";
 import { useCurrentShift } from "@/features/shifts/hooks/useCurrentShift";
-import { invalidateShiftQueries } from "@/features/shifts/lib/shift-cache";
-import { clockOutShift, type Shift } from "@/lib/api";
-import { shiftsQueryOptions, storesQueryOptions } from "@/lib/query-options";
+import { storesQueries } from "@/features/stores/api";
+import { onShiftClocked } from "@/lib/cache-events";
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 
@@ -31,7 +35,7 @@ const currentWeekRange = () => {
 
 export const Route = createFileRoute("/_admin/attendance")({
 	loader: ({ context }) =>
-		context.queryClient.ensureQueryData(storesQueryOptions()),
+		context.queryClient.ensureQueryData(storesQueries.list()),
 	component: AttendancePage,
 });
 
@@ -68,7 +72,7 @@ function AttendancePage() {
 
 	const weekRange = useMemo(() => currentWeekRange(), []);
 	const shiftsQuery = useQuery(
-		shiftsQueryOptions({
+		shiftsQueries.list({
 			from: weekRange.from,
 			to: weekRange.to,
 			...(user ? { user_id: user.id } : {}),
@@ -86,7 +90,7 @@ function AttendancePage() {
 	const clockOutMut = useMutation({
 		mutationKey: ["shift-clock-out"],
 		mutationFn: clockOutShift,
-		onSuccess: () => invalidateShiftQueries(queryClient),
+		onSuccess: () => onShiftClocked(queryClient),
 	});
 
 	const onShift = Boolean(currentShift);

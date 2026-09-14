@@ -1,8 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import {
+  applyManualDiscount,
   type CampaignDiscountInput,
   computeCampaignContribution,
   type DiscountLine,
+  orderNetDue,
   stackCampaignDiscounts,
 } from "@/schema/discount";
 
@@ -181,5 +183,33 @@ describe("stackCampaignDiscounts", () => {
 
     expect(total).toBe(0);
     expect(breakdown).toEqual([]);
+  });
+});
+
+describe("applyManualDiscount", () => {
+  it("absorbs only what the campaign left of the total", () => {
+    expect(applyManualDiscount(100_000, 80_000, 50_000)).toBe(20_000);
+  });
+
+  it("returns zero once a campaign already covers the whole total", () => {
+    expect(applyManualDiscount(100_000, 100_000, 50_000)).toBe(0);
+  });
+
+  it("passes the manual amount through when there is no campaign", () => {
+    expect(applyManualDiscount(100_000, 0, 30_000)).toBe(30_000);
+  });
+});
+
+describe("orderNetDue", () => {
+  it("subtracts the discount and anything already refunded", () => {
+    expect(
+      orderNetDue({ grossTotal: 100_000, discount: 20_000, refunded: 10_000 })
+    ).toBe(70_000);
+  });
+
+  it("never goes below zero", () => {
+    expect(
+      orderNetDue({ grossTotal: 100_000, discount: 20_000, refunded: 90_000 })
+    ).toBe(0);
   });
 });

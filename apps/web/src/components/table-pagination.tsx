@@ -1,6 +1,6 @@
 import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import type { PaginationMeta } from "@/lib/api";
+import type { PaginationMeta } from "@/lib/http";
 
 type TablePaginationProps = {
 	meta?: PaginationMeta;

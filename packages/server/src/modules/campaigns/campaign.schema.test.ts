@@ -4,8 +4,8 @@ import {
   CampaignUpdatePayloadSchema,
 } from "@/modules/campaigns/campaign.schema";
 
-// Minimal valid fixed-discount campaign. redemption_mode defaults to "listed"
-// so the base fixture is a listed campaign that mints no codes.
+// Minimal valid fixed-discount campaign. A missing redemption_mode reads as
+// listed, so the base fixture is a listed campaign that mints no codes.
 const baseCreate = {
   code: "SAVE10",
   name: "Save 10k",
@@ -22,11 +22,11 @@ const issueFor = (
     : result.error.issues.find((i) => i.path[0] === key);
 
 describe("CampaignPayloadSchema — redemption-mode exclusivity", () => {
-  it("defaults redemption_mode to listed and needs no code_count", () => {
+  it("accepts a missing redemption_mode and needs no code_count", () => {
     const result = CampaignPayloadSchema.safeParse(baseCreate);
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.redemption_mode).toBe("listed");
+      expect(result.data.redemption_mode).toBeUndefined();
     }
   });
 
@@ -44,7 +44,7 @@ describe("CampaignPayloadSchema — redemption-mode exclusivity", () => {
     });
     expect(result.success).toBe(false);
     expect(issueFor(result, "code_count")?.message).toBe(
-      "code_count is only allowed for voucher campaigns"
+      "Only vouchers have a code count"
     );
   });
 
@@ -65,7 +65,7 @@ describe("CampaignPayloadSchema — redemption-mode exclusivity", () => {
     });
     expect(result.success).toBe(false);
     expect(issueFor(result, "code_count")?.message).toBe(
-      "code_count is required (min 1) for voucher campaigns"
+      "A voucher needs at least one code"
     );
   });
 
@@ -78,7 +78,7 @@ describe("CampaignPayloadSchema — redemption-mode exclusivity", () => {
     });
     expect(result.success).toBe(false);
     expect(issueFor(result, "usage_limit")?.message).toBe(
-      "usage_limit is not allowed for voucher campaigns"
+      "A voucher cannot have a usage limit"
     );
   });
 });

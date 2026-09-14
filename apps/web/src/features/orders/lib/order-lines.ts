@@ -1,5 +1,4 @@
-import type { OrderDetail } from "@/lib/api";
-
+import type { OrderDetail } from "@/features/orders/api";
 export type OrderItem = OrderDetail["items"][number];
 
 export type OrderLine = OrderItem["services"][number] & { item: OrderItem };

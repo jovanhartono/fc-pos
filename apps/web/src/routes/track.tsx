@@ -1,6 +1,7 @@
 import {
 	type DerivedItemStatus,
 	isCollectableItemStatus,
+	normalizePhoneNumber,
 } from "@fresclean/api/schema";
 import { WhatsappLogoIcon } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,9 +13,8 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { trackPublicOrder } from "@/lib/api";
+import { trackKeys, trackQueries } from "@/features/track/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
-import { normalizePhoneNumber } from "@/lib/phone-number";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
@@ -97,7 +97,7 @@ const StatusBlock = ({
 		return (
 			<section className="border-red-700 border-l-[6px] py-1 pl-4">
 				<p className="text-[15px] text-[#0f1a16]">
-					Order cancelled. Contact the branch.
+					Order cancelled. Contact the store.
 				</p>
 			</section>
 		);
@@ -218,16 +218,8 @@ const TrackOrderPage = () => {
 			: null;
 
 	const trackQuery = useQuery({
-		queryKey: ["publicTrackOrder", submitted?.code, submitted?.phone],
-		queryFn: () =>
-			trackPublicOrder({
-				code: submitted?.code || "",
-				phone_number: submitted?.phone || "",
-			}),
+		...trackQueries.order(submitted?.code, submitted?.phone),
 		enabled: !!submitted,
-		retry: false,
-		refetchOnWindowFocus: false,
-		staleTime: 0,
 	});
 
 	useEffect(() => {
@@ -264,7 +256,7 @@ const TrackOrderPage = () => {
 	};
 
 	const handleReset = () => {
-		queryClient.removeQueries({ queryKey: ["publicTrackOrder"] });
+		queryClient.removeQueries({ queryKey: trackKeys.all });
 		setCode("");
 		setPhone("");
 		void navigate({ search: {} });

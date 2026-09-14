@@ -1,8 +1,8 @@
 import { isUnpricedLine } from "@fresclean/api/schema";
 import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
+import type { OrderDetail } from "@/features/orders/api";
 import { OrderServiceDetail } from "@/features/orders/components/order-service-detail";
-import type { OrderDetail } from "@/lib/api";
 import { formatOrderServiceStatus } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";

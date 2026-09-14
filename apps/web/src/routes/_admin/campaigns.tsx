@@ -17,22 +17,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-	CampaignForm,
-	type CampaignFormState,
-} from "@/features/campaigns/components/campaign-form";
-import { VoucherCodesSheet } from "@/features/campaigns/components/voucher-codes-sheet";
-import {
 	type Campaign,
+	campaignsKeys,
+	campaignsQueries,
 	createCampaign,
 	type UpdateCampaignPayload,
 	updateCampaign,
-} from "@/lib/api";
+} from "@/features/campaigns/api";
 import {
-	campaignsQueryOptions,
-	meQueryOptions,
-	storesQueryOptions,
-} from "@/lib/query-options";
-import { formatIDRCurrency } from "@/shared/utils";
+	CampaignForm,
+	type CampaignFormInput,
+} from "@/features/campaigns/components/campaign-form";
+import { VoucherCodesSheet } from "@/features/campaigns/components/voucher-codes-sheet";
+import { storesQueries } from "@/features/stores/api";
+import { usersQueries } from "@/features/users/api";
+import { formatMoney } from "@/shared/money";
 import { useDialog } from "@/stores/dialog-store";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -65,40 +64,62 @@ export const Route = createFileRoute("/_admin/campaigns")({
 	validateSearch: (search) => campaignsSearchSchema.parse(search),
 	loader: ({ context }) =>
 		Promise.all([
-			context.queryClient.ensureQueryData(campaignsQueryOptions()),
-			context.queryClient.ensureQueryData(storesQueryOptions()),
-			context.queryClient.ensureQueryData(meQueryOptions()),
+			context.queryClient.ensureQueryData(campaignsQueries.list()),
+			context.queryClient.ensureQueryData(storesQueries.list()),
+			context.queryClient.ensureQueryData(usersQueries.me()),
 		]),
 	component: CampaignsPage,
 });
 
-const defaultCampaignForm: CampaignFormState = {
+const defaultCampaignForm: CampaignFormInput = {
 	code: "",
 	name: "",
 	redemption_mode: "listed",
 	discount_type: "fixed",
 	discount_value: "0",
 	min_order_total: "0",
-	max_discount: "",
-	usage_limit: undefined,
-	code_count: undefined,
-	starts_at: "",
-	ends_at: "",
+	max_discount: null,
+	usage_limit: null,
+	code_count: null,
+	buy_quantity: null,
+	free_quantity: null,
+	starts_at: null,
+	ends_at: null,
 	is_active: true,
 	store_ids: [],
 	eligible_service_ids: [],
-	buy_quantity: undefined,
-	free_quantity: undefined,
 };
 
 function toDateTimeLocal(value: Date | string | null | undefined) {
 	if (!value) {
-		return "";
+		return null;
 	}
 
 	const date = new Date(value);
 	const adjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
 	return adjusted.toISOString().slice(0, 16);
+}
+
+function toCampaignFormInput(campaign: Campaign): CampaignFormInput {
+	return {
+		code: campaign.code,
+		name: campaign.name,
+		redemption_mode: campaign.redemption_mode,
+		discount_type: campaign.discount_type,
+		discount_value: String(campaign.discount_value),
+		min_order_total: String(campaign.min_order_total),
+		max_discount: campaign.max_discount ? String(campaign.max_discount) : null,
+		usage_limit: campaign.usage_limit,
+		code_count: null,
+		buy_quantity: campaign.buy_quantity,
+		free_quantity: campaign.free_quantity,
+		starts_at: toDateTimeLocal(campaign.starts_at),
+		ends_at: toDateTimeLocal(campaign.ends_at),
+		is_active: campaign.is_active,
+		store_ids: campaign.stores.map((item) => item.store_id),
+		eligible_service_ids:
+			campaign.eligibleServices?.map((item) => item.service_id) ?? [],
+	};
 }
 
 function formatCampaignDiscount(campaign: Campaign) {
@@ -112,7 +133,7 @@ function formatCampaignDiscount(campaign: Campaign) {
 		} Free`;
 	}
 
-	return formatIDRCurrency(String(campaign.discount_value));
+	return formatMoney(String(campaign.discount_value));
 }
 
 function ArchiveCampaignButton({
@@ -181,13 +202,13 @@ function CampaignsPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 	// DB-fresh role — JWT claim goes stale on mid-session role changes.
-	const meQuery = useQuery(meQueryOptions());
+	const meQuery = useQuery(usersQueries.me());
 	const isAdmin = meQuery.data?.role === "admin";
 	const queryClient = useQueryClient();
 	const { openSheet, closeSheet } = useSheet();
 
-	const campaignsQuery = useQuery(campaignsQueryOptions());
-	const storesQuery = useQuery(storesQueryOptions());
+	const campaignsQuery = useQuery(campaignsQueries.list());
+	const storesQuery = useQuery(storesQueries.list());
 
 	const stores = storesQuery.data ?? [];
 	const allCampaigns = campaignsQuery.data ?? [];
@@ -204,7 +225,7 @@ function CampaignsPage() {
 		mutationKey: ["create-campaign"],
 		mutationFn: createCampaign,
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+			await queryClient.invalidateQueries({ queryKey: campaignsKeys.all });
 			closeSheet();
 		},
 	});
@@ -219,7 +240,7 @@ function CampaignsPage() {
 			payload: UpdateCampaignPayload;
 		}) => updateCampaign(id, payload),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+			await queryClient.invalidateQueries({ queryKey: campaignsKeys.all });
 			closeSheet();
 		},
 	});
@@ -229,7 +250,7 @@ function CampaignsPage() {
 		mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) =>
 			updateCampaign(id, { is_active }),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+			await queryClient.invalidateQueries({ queryKey: campaignsKeys.all });
 		},
 	});
 
@@ -256,37 +277,14 @@ function CampaignsPage() {
 				title: "Edit Campaign",
 				content: () => (
 					<CampaignForm
-						defaultValues={{
-							code: campaign.code,
-							name: campaign.name,
-							redemption_mode: campaign.redemption_mode,
-							discount_type: campaign.discount_type,
-							discount_value: String(campaign.discount_value),
-							min_order_total: String(campaign.min_order_total),
-							max_discount: campaign.max_discount
-								? String(campaign.max_discount)
-								: "",
-							usage_limit: campaign.usage_limit ?? undefined,
-							code_count: undefined,
-							starts_at: toDateTimeLocal(campaign.starts_at),
-							ends_at: toDateTimeLocal(campaign.ends_at),
-							is_active: campaign.is_active,
-							store_ids: campaign.stores.map((item) => item.store_id),
-							eligible_service_ids:
-								campaign.eligibleServices?.map((item) => item.service_id) ?? [],
-							buy_quantity: campaign.buy_quantity ?? undefined,
-							free_quantity: campaign.free_quantity ?? undefined,
-						}}
+						defaultValues={toCampaignFormInput(campaign)}
 						isEditing
 						onReset={closeSheet}
 						stores={stores}
 						handleOnSubmit={async (payload) => {
-							// redemption_mode + code_count are create-only (immutable); the
-							// strict update schema rejects them, so omit before sending.
-							const { redemption_mode, code_count, ...updatePayload } = payload;
 							await updateMutation.mutateAsync({
 								id: campaign.id,
-								payload: updatePayload,
+								payload,
 							});
 						}}
 					/>
@@ -318,15 +316,14 @@ function CampaignsPage() {
 			{
 				accessorKey: "min_order_total",
 				header: "Min Order",
-				cell: ({ row }) =>
-					formatIDRCurrency(String(row.original.min_order_total)),
+				cell: ({ row }) => formatMoney(String(row.original.min_order_total)),
 			},
 			{
 				accessorKey: "max_discount",
 				header: "Max Discount",
 				cell: ({ row }) =>
 					row.original.max_discount
-						? formatIDRCurrency(String(row.original.max_discount))
+						? formatMoney(String(row.original.max_discount))
 						: "—",
 			},
 			{

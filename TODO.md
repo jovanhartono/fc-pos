@@ -2,32 +2,25 @@
 
 ## Report-stack consolidation (from 2026-07-06 simplification grill)
 
-- [ ] **Unify "services processed" definition** — worker-productivity completions
-  (`report-range.repository.ts` `fetchCompletions`, `to_status = 'ready_for_pickup'`)
-  must match the daily KPI's `ITEM_PROCESSED_STATUSES`
-  (`report.repository.ts:30`, includes `quality_check`). Canonical definition now
-  in CONTEXT.md ("Services processed"): counts on first reaching `quality_check`.
-  Metric renamed from "Item processed" in #95 — Item now means a physical object,
-  so the old name counted the wrong noun; `ITEM_PROCESSED_STATUSES` should be
-  renamed with it. Small standalone fix; can land before the full consolidation.
-- [ ] **Finish the metric rename in the code** — the "Services processed" rename
-  in #95 was glossary-only. The daily KPI still ships `items_processed`
-  (`report.service.ts:45`) off `countDailyItemsProcessed` /
-  `ITEM_PROCESSED_STATUSES` (`report.repository.ts:30`, `:83`), surfaced as the
-  "Items processed" tile (`overview-panel.tsx:165`). Worker productivity ships the
-  *other* forbidden noun — `items_completed` / `total_items_completed`
-  (`report-range.repository.ts:815`, `report-range.service.ts:781`) surfaced in
-  `workers-panel.tsx` (tile at :95, CSV header at :71) and `reports.tsx:184`.
-  That one counts `ready_for_pickup`, so it is a **different metric**, not the
-  same one misnamed — it needs its own name, not a blind rename. Both API fields
-  are breaking renames: land them with the consolidation below, not before.
+- [x] **Unify "services processed" definition** (done 2026-09-12) — one query in
+  `modules/reports/services-processed.ts` answers both panels: first arrival at
+  `quality_check` per OrderService, the stretch tested in `HAVING` against that
+  first arrival, so a line re-checked in a later month stays in the month it was
+  first checked. `fetchCompletions` and `ITEM_PROCESSED_STATUSES` are gone.
+- [x] **Finish the metric rename in the code** (done 2026-09-12) — the daily KPI
+  ships `services_processed` and worker productivity ships `services_processed` /
+  `services_per_hour` / `total_services_processed` / `avg_services_per_hour`.
+  Breaking response renames, shipped with the web relabels in the same PR.
 - [ ] **Merge the two report stacks** — `report.repository.ts` (daily/overview)
   and `report-range.repository.ts`/`report-range.service.ts` (7 range panels)
   duplicate paid revenue, refunds sum, category revenue, and orders_out (×4
   implementations), and bucket dates two different ways (hand-rolled
   `to_char AT TIME ZONE` vs `jakartaBucketExpr`). Extract shared query builders
-  (paid-window + optional-store filter skeleton is copy-pasted across ~15
-  bucketed-series functions); one bucketing util. Existing report tests stay green.
+  (the paid-window, store filter and money columns moved to
+  `modules/reports/money-basis.ts` on 2026-09-12; both stacks import them, and
+  what is left to merge is the two stacks themselves and their two bucketing
+  styles); one bucketing util. Existing report tests stay green. **On hold** —
+  ask before starting.
 - [x] **Web voucher double-bookkeeping** (done 2026-07-31, PR #64) — the form
   field `appliedVouchers: {code, campaign}[]` is now the single home; the
   Zustand `resolvedVoucherEntries` slice and its mirror effects are deleted.

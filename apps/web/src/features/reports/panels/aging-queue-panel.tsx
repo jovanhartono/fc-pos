@@ -11,7 +11,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { agingQueueQueryOptions } from "@/lib/query-options";
+import { reportsQueries } from "@/features/reports/api";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
@@ -27,7 +27,7 @@ const PAGE_SIZE = 50;
 export const AgingQueuePanel = ({ storeId }: AgingQueuePanelProps) => {
 	const [offset, setOffset] = useState(0);
 	const query = useQuery(
-		agingQueueQueryOptions({ store_id: storeId, limit: PAGE_SIZE, offset }),
+		reportsQueries.agingQueue({ store_id: storeId, limit: PAGE_SIZE, offset }),
 	);
 
 	const items = query.data?.items ?? [];

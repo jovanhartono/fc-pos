@@ -12,6 +12,7 @@ import {
   getCategoryById,
   updateCategory,
 } from "@/modules/categories/category.service";
+import { assertIsAdmin } from "@/modules/permissions/permissions";
 import { idParamSchema } from "@/schema/param";
 import type { AdminEnv } from "@/types/hono";
 import { success } from "@/utils/http";
@@ -33,30 +34,29 @@ const app = new Hono<AdminEnv>()
       throw new NotFoundException("Category not found");
     }
 
-    return c.json(success(category, "Category retrieved successfully"));
+    return c.json(success(category));
   })
   .post("/", zodValidator("json", POSTCategorySchema), async (c) => {
+    assertIsAdmin(c.get("jwtPayload"));
     const body = c.req.valid("json");
 
     const category = await createCategory(body);
 
-    return c.json(
-      success(category, "Create category success"),
-      StatusCodes.CREATED
-    );
+    return c.json(success(category, "Category created"), StatusCodes.CREATED);
   })
   .put(
     "/:id",
     idParamSchema,
     zodValidator("json", PUTCategorySchema),
     async (c) => {
+      assertIsAdmin(c.get("jwtPayload"));
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
       const category = await updateCategory(id, body);
 
       if (!category) {
-        throw new NotFoundException("Category does not exist");
+        throw new NotFoundException("Category not found");
       }
 
       return c.json(

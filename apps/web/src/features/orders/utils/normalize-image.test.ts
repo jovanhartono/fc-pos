@@ -92,7 +92,7 @@ const basePhone = (
 const counterPhone = (decodes: { height: number; width: number } | null) =>
 	basePhone(decodes, ["image/jpeg", "image/webp"]);
 
-/** A till iPad: Safari encodes no WebP at any version, so shots stay JPEG. */
+/** A counter iPad: Safari encodes no WebP at any version, so shots stay JPEG. */
 const counterIpad = (decodes: { height: number; width: number } | null) =>
 	basePhone(decodes, ["image/jpeg"]);
 
@@ -158,7 +158,7 @@ describe("normalizeImageFile", () => {
 		});
 	});
 
-	it("still scales that 12MP photo on a till iPad, just as the JPEG the server has to re-encode", async () => {
+	it("still scales that 12MP photo on a counter iPad, just as the JPEG the server has to re-encode", async () => {
 		const ipad = counterIpad({ height: 3024, width: 4032 });
 
 		await onCounterPhone(ipad, async () => {

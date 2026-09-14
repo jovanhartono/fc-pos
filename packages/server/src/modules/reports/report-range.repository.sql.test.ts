@@ -52,18 +52,18 @@ type Query = (storeId?: number) => Promise<unknown>;
 
 const QUERIES: [string, Query][] = [
   [
-    "services revenue",
+    "services gross sales",
     (storeId) =>
-      repo.listServicesRevenueSeries({
+      repo.listServicesGrossSalesSeries({
         granularity: DAY,
         range: AUGUST,
         storeId,
       }),
   ],
   [
-    "products revenue",
+    "products gross sales",
     (storeId) =>
-      repo.listProductsRevenueSeries({
+      repo.listProductsGrossSalesSeries({
         granularity: DAY,
         range: AUGUST,
         storeId,
@@ -89,17 +89,31 @@ const QUERIES: [string, Query][] = [
       }),
   ],
   [
-    "category revenue",
+    "collected",
     (storeId) =>
-      repo.listCategoryRevenueSeries({
+      repo.listCollectedSeries({ granularity: DAY, range: AUGUST, storeId }),
+  ],
+  [
+    "store collected",
+    (storeId) => repo.listStoreCollectedRows({ range: AUGUST, storeId }),
+  ],
+  [
+    "store refunds",
+    (storeId) => repo.listStoreRefundRows({ range: AUGUST, storeId }),
+  ],
+  [
+    "category gross sales",
+    (storeId) =>
+      repo.listCategoryGrossSalesSeries({
         granularity: DAY,
         range: AUGUST,
         storeId,
       }),
   ],
   [
-    "store x category revenue",
-    (storeId) => repo.listStoreCategoryRevenueRows({ range: AUGUST, storeId }),
+    "store x category gross sales",
+    (storeId) =>
+      repo.listStoreCategoryGrossSalesRows({ range: AUGUST, storeId }),
   ],
   [
     "orders taken in",
@@ -184,16 +198,4 @@ describe("what each money report asks Postgres for the whole company", () => {
       expect(await askedFor(() => run())).toMatchSnapshot();
     });
   }
-});
-
-describe("the store nobody can scope", () => {
-  it("asks for every store's takings, because it takes no store", async () => {
-    // listStoreRevenueRows has no storeId parameter, so the store_breakdown panel
-    // on a Kemang-scoped financial report carries every store's takings. Every
-    // reader of these reports is an admin today, so this is recorded rather than
-    // fixed — but a filter appearing here should be a deliberate change.
-    expect(
-      await askedFor(() => repo.listStoreRevenueRows({ range: AUGUST }))
-    ).toMatchSnapshot();
-  });
 });

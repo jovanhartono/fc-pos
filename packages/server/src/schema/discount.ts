@@ -7,6 +7,26 @@ export type DiscountSource = "none" | "manual" | "campaign";
 export const isDiscountSettled = (source: DiscountSource): boolean =>
   source !== "none";
 
+// A manual discount only absorbs what a Campaign has left of the total —
+// the cashier can't stack a second discount over the same rupiah.
+export const applyManualDiscount = (
+  grossTotal: number,
+  campaignDiscount: number,
+  manual: number
+): number => Math.min(manual, Math.max(0, grossTotal - campaignDiscount));
+
+// Clamped to zero: an Order refunded past what it collected must still show
+// nothing left to collect, not a negative amount.
+export const orderNetDue = ({
+  grossTotal,
+  discount,
+  refunded,
+}: {
+  grossTotal: number;
+  discount: number;
+  refunded: number;
+}): number => Math.max(0, grossTotal - discount - refunded);
+
 export interface CampaignDiscountInput {
   buy_quantity?: number | null;
   discount_type: "fixed" | "percentage" | "buy_n_get_m_free";
