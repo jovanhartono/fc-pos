@@ -34,7 +34,7 @@ const app = new Hono<AdminEnv>()
       throw new NotFoundException("Complaint not found");
     }
 
-    return c.json(success(detail, "Complaint detail retrieved successfully"));
+    return c.json(success(detail));
   })
   .post("/", zodValidator("json", POSTComplaintSchema), async (c) => {
     const user = c.get("jwtPayload");

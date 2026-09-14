@@ -21,4 +21,13 @@ describe("isNumericSearch", () => {
   it("rejects the empty string so an all-optional filter never turns into an id match", () => {
     expect(isNumericSearch("")).toBe(false);
   });
+
+  it("still treats Postgres' largest int4 as an id", () => {
+    expect(isNumericSearch("2147483647")).toBe(true);
+  });
+
+  it("falls through a longer all-digit string to the item-code lookup instead of overflowing int4", () => {
+    expect(isNumericSearch("2147483648")).toBe(false);
+    expect(isNumericSearch("1234567890123")).toBe(false);
+  });
 });

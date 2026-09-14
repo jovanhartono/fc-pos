@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import type { DbExecutor } from "@/db";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
+
+// The checkout's transaction handle in real life; both campaign lookups are
+// doubled here, so nothing reads it.
+const EXECUTOR = {} as DbExecutor;
 
 // resolveDiscount is the checkout counter's discount desk: the cashier has ticked
 // some running store promos, the customer may have handed over one or more printed
@@ -35,11 +40,13 @@ const catalog: {
 } = { listed: {}, vouchers: {} };
 
 mock.module("@/modules/campaigns/campaign.service", () => ({
-  getUsableCampaigns: ({ campaignIds }: { campaignIds: number[] }) =>
-    Promise.resolve(campaignIds.map((id) => catalog.listed[id])),
+  getUsableCampaigns: (
+    _executor: unknown,
+    { campaignIds }: { campaignIds: number[] }
+  ) => Promise.resolve(campaignIds.map((id) => catalog.listed[id])),
   // Mirrors the real signature after the pair refactor: the code comes back
   // beside the campaign, never on it.
-  resolveVoucherCode: (code: string) =>
+  resolveVoucherCode: (_executor: unknown, code: string) =>
     Promise.resolve({ campaign: catalog.vouchers[code], voucherCode: code }),
 }));
 
@@ -83,7 +90,7 @@ const checkout = ({
   grossTotal: number;
   manualDiscount?: number;
 }) =>
-  resolveDiscount({
+  resolveDiscount(EXECUTOR, {
     campaignIds,
     voucherCodes,
     grossTotal,

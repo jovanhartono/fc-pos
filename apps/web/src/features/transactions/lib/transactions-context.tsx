@@ -1,5 +1,5 @@
 import { createContext, type ReactNode, use } from "react";
-import type { Store } from "@/lib/api";
+import type { Store } from "@/features/stores/api";
 
 export type TransactionsPageContextValue = {
 	isAdmin: boolean;

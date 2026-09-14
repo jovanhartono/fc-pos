@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
@@ -13,9 +14,7 @@ import {
 	percentFormatter,
 } from "@/features/reports/utils/format";
 import { CHART_PALETTE } from "@/features/reports/utils/palette";
-import type { ReportGranularity } from "@/lib/api";
-import { customerAcquisitionQueryOptions } from "@/lib/query-options";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 interface CustomersPanelProps {
 	from: string;
@@ -31,7 +30,7 @@ export const CustomersPanel = ({
 	granularity,
 }: CustomersPanelProps) => {
 	const query = useQuery(
-		customerAcquisitionQueryOptions({
+		reportsQueries.customerAcquisition({
 			from,
 			to,
 			store_id: storeId,
@@ -43,8 +42,8 @@ export const CustomersPanel = ({
 	const deltas = data?.summary.deltas;
 
 	const topCustomers = data?.top_customers ?? [];
-	const maxTopRevenue = topCustomers.reduce(
-		(m, c) => Math.max(m, c.revenue),
+	const maxTopCollected = topCustomers.reduce(
+		(m, c) => Math.max(m, c.collected),
 		0,
 	);
 
@@ -52,7 +51,7 @@ export const CustomersPanel = ({
 		if (!data) {
 			return;
 		}
-		const lines: string[] = ["Customers,Bucket,New,Cumulative"];
+		const lines: string[] = ["Customers,Period,New,Cumulative"];
 		for (const row of data.series) {
 			lines.push(
 				`Customers,${escapeCsv(row.bucket)},${row.new_customers},${row.cumulative}`,
@@ -60,7 +59,7 @@ export const CustomersPanel = ({
 		}
 		lines.push("");
 		lines.push(
-			"Customer orders,Bucket,New-customer orders,Returning-customer orders",
+			"Customer orders,Period,New-customer orders,Returning-customer orders",
 		);
 		for (const row of data.mix_series) {
 			lines.push(
@@ -68,10 +67,10 @@ export const CustomersPanel = ({
 			);
 		}
 		lines.push("");
-		lines.push("Top customers,Customer ID,Name,Phone,Orders,Revenue");
+		lines.push("Top customers,Customer ID,Name,Phone,Orders,Collected");
 		for (const c of topCustomers) {
 			lines.push(
-				`Top customers,${c.customer_id},${escapeCsv(c.customer_name)},${escapeCsv(c.customer_phone)},${c.orders},${c.revenue}`,
+				`Top customers,${c.customer_id},${escapeCsv(c.customer_name)},${escapeCsv(c.customer_phone)},${c.orders},${c.collected}`,
 			);
 		}
 		downloadCsv(
@@ -118,8 +117,7 @@ export const CustomersPanel = ({
 
 			<ChartCard
 				variant="area"
-				title="New customers per bucket"
-				description="Fresh sign-ups over the range."
+				title="New customers over time"
 				data={data?.series ?? []}
 				granularity={data?.granularity ?? "day"}
 				series={[
@@ -135,7 +133,6 @@ export const CustomersPanel = ({
 			<ChartCard
 				variant="stacked-bar"
 				title="Orders · new vs returning customers"
-				description="Split per bucket."
 				data={data?.mix_series ?? []}
 				granularity={data?.granularity ?? "day"}
 				series={[
@@ -168,7 +165,9 @@ export const CustomersPanel = ({
 						<div className="grid gap-3">
 							{topCustomers.map((c, idx) => {
 								const pct =
-									maxTopRevenue === 0 ? 0 : (c.revenue / maxTopRevenue) * 100;
+									maxTopCollected === 0
+										? 0
+										: (c.collected / maxTopCollected) * 100;
 								return (
 									<div key={c.customer_id} className="grid gap-1">
 										<div className="flex items-center justify-between gap-2">
@@ -179,7 +178,7 @@ export const CustomersPanel = ({
 												<span className="truncate">{c.customer_name}</span>
 											</span>
 											<span className="font-mono text-sm tabular-nums">
-												{formatIDRCurrency(String(c.revenue))}
+												{formatMoney(String(c.collected))}
 											</span>
 										</div>
 										<div className="h-1.5 w-full bg-muted">

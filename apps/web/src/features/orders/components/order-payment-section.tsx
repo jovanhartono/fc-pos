@@ -1,4 +1,4 @@
-import { isDiscountSettled } from "@fresclean/api/schema";
+import { isDiscountSettled, orderNetDue } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -23,12 +23,15 @@ import {
 	FieldSet,
 } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
+import { campaignsQueries } from "@/features/campaigns/api";
+import type { OrderDetail } from "@/features/orders/api";
 import { OrderMoneySummary } from "@/features/orders/components/order-money-summary";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { useOrderPaymentMutation } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
 import { flattenOrderLines } from "@/features/orders/lib/order-lines";
+import { paymentMethodsQueries } from "@/features/payment-methods/api";
 import {
 	type AppliedVoucher,
 	getCartPricing,
@@ -36,12 +39,6 @@ import {
 import { CampaignTileGroup } from "@/features/transactions/components/campaign-tile-group";
 import { VoucherCodeEntry } from "@/features/transactions/components/voucher-code-entry";
 import { filterEligibleCampaigns } from "@/features/transactions/lib/campaign-eligibility";
-import type { OrderDetail } from "@/lib/api";
-import {
-	campaignsQueryOptions,
-	paymentMethodsQueryOptions,
-	servicesQueryOptions,
-} from "@/lib/query-options";
 import { formatMoney, parseMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -166,14 +163,14 @@ const PaidDetails = ({ detail }: { detail: OrderDetail }) => (
 );
 
 const paymentMethodSchema = z.object({
-	paymentMethodId: z.string().min(1, "Payment method is required."),
+	paymentMethodId: z.string().min(1, "Payment method is required"),
 });
 
 // The tender picker both payment forms end with. Reads the form through
 // context so neither form threads control/errors down to it.
 const PaymentMethodField = () => {
 	const { control } = useFormContext<z.infer<typeof paymentMethodSchema>>();
-	const paymentMethodsQuery = useQuery(paymentMethodsQueryOptions());
+	const paymentMethodsQuery = useQuery(paymentMethodsQueries.list());
 	const paymentMethods = Array.isArray(paymentMethodsQuery.data)
 		? paymentMethodsQuery.data
 		: [];
@@ -237,11 +234,11 @@ const SettledDiscountPaymentForm = ({
 	});
 
 	const discount = parseMoney(detail.discount);
-	// Mirrors the server: net due = gross − stored discount − already refunded.
-	const toCollect = Math.max(
-		parseMoney(detail.total) - discount - parseMoney(detail.refunded_amount),
-		0,
-	);
+	const toCollect = orderNetDue({
+		grossTotal: parseMoney(detail.total),
+		discount,
+		refunded: parseMoney(detail.refunded_amount),
+	});
 	return (
 		<FormProvider {...form}>
 			<form
@@ -311,9 +308,8 @@ interface CollectPaymentFormProps {
 // second claim.
 const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 	const closeSheet = useSheet((s) => s.closeSheet);
-	const servicesQuery = useQuery(servicesQueryOptions());
 	const campaignsQuery = useQuery(
-		campaignsQueryOptions({
+		campaignsQueries.list({
 			store_id: detail.store_id ?? undefined,
 			is_active: true,
 		}),
@@ -348,22 +344,17 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 	);
 
 	// BOGO free slots come from catalog-priced lines only (ADR-0018) — a
-	// no-list-price line (Repair) is never given away. The order detail names
-	// each line's Service without its catalog price, so look it up.
+	// no-list-price line (Repair) is never given away.
 	const serviceLines = useMemo(() => {
-		const catalogPriceByServiceId = new Map(
-			(servicesQuery.data ?? []).map((service) => [service.id, service.price]),
-		);
 		return flattenOrderLines(detail).flatMap((line) => {
 			if (line.status === "cancelled" || line.service === null) {
 				return [];
 			}
-			const catalogPrice = catalogPriceByServiceId.get(line.service.id);
-			return catalogPrice == null
+			return line.service.price == null
 				? []
 				: [{ price: parseMoney(line.price), service_id: line.service.id }];
 		});
-	}, [detail, servicesQuery.data]);
+	}, [detail]);
 
 	const pricing = useMemo(
 		() =>
@@ -387,8 +378,11 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 			discount,
 		],
 	);
-	// Mirrors the server: net due = gross − discount − already refunded.
-	const toCollect = Math.max(pricing.total - refunded, 0);
+	const toCollect = orderNetDue({
+		grossTotal,
+		discount: pricing.totalDiscount,
+		refunded,
+	});
 
 	return (
 		<FormProvider {...form}>

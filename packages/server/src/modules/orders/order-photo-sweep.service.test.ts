@@ -12,7 +12,7 @@ const hoursAgo = (hours: number) =>
 let referenced = new Set<string>();
 
 // Stand in for the repository so the sweep's judgement can be exercised without a database.
-mock.module("@/modules/orders/order-photo-sweep.repository", () => ({
+mock.module("@/modules/orders/order-photo.repository", () => ({
   listReferencedPhotoKeys: () => Promise.resolve(referenced),
 }));
 

@@ -3,14 +3,14 @@ import { useMemo, useState } from "react";
 import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
+import type { IntakeChannel } from "@/features/orders/api";
 import { PostalCodeAutocomplete } from "@/features/orders/components/postal-code-autocomplete";
 import { useUpdateOrderIntakeMutation } from "@/features/orders/hooks/useOrderMutations";
 import {
 	INTAKE_CHANNEL_ITEMS,
 	intakeChannelCarries,
 } from "@/features/orders/lib/intake-channel";
-import type { IntakeChannel } from "@/lib/api";
-import { usersPageQueryOptions } from "@/lib/query-options";
+import { usersQueries } from "@/features/users/api";
 
 interface OrderIntakeFormProps {
 	orderId: number;
@@ -35,7 +35,7 @@ export const OrderIntakeForm = ({
 	const intakeMutation = useUpdateOrderIntakeMutation(orderId);
 
 	const couriersQuery = useQuery(
-		usersPageQueryOptions({ role: "courier", is_active: true }),
+		usersQueries.list({ role: "courier", is_active: true }),
 	);
 	const courierOptions = useMemo(
 		() =>

@@ -47,7 +47,20 @@ const dbState = {
   casWins: true as boolean,
 };
 
+// Every read the desk makes now runs on the transaction handle, so a price
+// keyed between the read and the write cannot slip past the gates.
 const TX = {
+  query: {
+    ordersTable: {
+      findFirst: (args: unknown) => {
+        dbState.findFirstCalls.push(args);
+        return Promise.resolve(dbState.order);
+      },
+    },
+    ordersServicesTable: {
+      findMany: () => Promise.resolve(dbState.serviceLines),
+    },
+  },
   update: () => ({
     set: (payload: Record<string, unknown>) => {
       dbState.updateCalls += 1;
@@ -72,17 +85,16 @@ const TX = {
   }),
 };
 
+// The order repository builds its prepared statements the moment it is
+// imported, so the fake db has to survive that even though nothing here reads
+// an Item.
 mock.module("@/db", () => ({
   db: {
     query: {
-      ordersTable: {
-        findFirst: (args: unknown) => {
-          dbState.findFirstCalls.push(args);
-          return Promise.resolve(dbState.order);
-        },
-      },
-      ordersServicesTable: {
-        findMany: () => Promise.resolve(dbState.serviceLines),
+      itemsTable: {
+        findFirst: () => ({
+          prepare: () => ({ execute: () => Promise.resolve(undefined) }),
+        }),
       },
     },
     transaction: (cb: (tx: unknown) => unknown) => cb(TX),
@@ -111,7 +123,7 @@ const actualRedemptionService = {
 
 mock.module("@/modules/orders/order-discount.service", () => ({
   ...actualDiscountService,
-  resolveDiscount: (input: AnyObj) => {
+  resolveDiscount: (_executor: unknown, input: AnyObj) => {
     discount.calls.push(input);
     return Promise.resolve(discount.result);
   },
@@ -260,7 +272,7 @@ describe("updateOrderPayment", () => {
     const result = await collect();
 
     expect(discount.calls).toHaveLength(0);
-    expect(redemptions.calls[0].rows).toEqual([]);
+    expect(redemptions.calls).toHaveLength(0);
     expect(result?.paid_amount).toBe("70000");
     expect(dbState.setPayload).toMatchObject({
       discount: "30000",
@@ -404,7 +416,7 @@ describe("updateOrderPayment", () => {
   it("clamps at zero when refunds already exceed what is left to pay", async () => {
     // Rp50.000 order, a Rp10.000 promo settled now, Rp60.000 refunded after
     // a whole bag went missing. Nothing is owed — a negative paid_amount
-    // would poison the revenue report with money the till never saw.
+    // would poison the revenue report with money the POS never recorded.
     dbState.order = makeOrder({ total: "50000", refunded_amount: "60000" });
     discount.result = {
       campaignRows: [],
@@ -430,7 +442,7 @@ describe("updateOrderPayment", () => {
     expect(dbState.updateCalls).toBe(0);
   });
 
-  it("loses the collect race cleanly when another till paid first", async () => {
+  it("loses the collect race cleanly when another POS paid first", async () => {
     // Two cashiers collect the same order from two tills. The loser's write
     // finds payment_status already flipped; the thrown error rolls its
     // transaction back, voucher claims included.

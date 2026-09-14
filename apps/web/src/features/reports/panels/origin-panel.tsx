@@ -1,5 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	type OriginRankingReport,
+	type ReportGranularity,
+	reportsQueries,
+} from "@/features/reports/api";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import {
@@ -11,8 +16,6 @@ import {
 	numberFormatter,
 	percentFormatter,
 } from "@/features/reports/utils/format";
-import type { OriginRankingReport, ReportGranularity } from "@/lib/api";
-import { originRankingQueryOptions } from "@/lib/query-options";
 import { formatMoney } from "@/shared/money";
 
 interface OriginPanelProps {
@@ -31,7 +34,7 @@ export const OriginPanel = ({
 	granularity,
 }: OriginPanelProps) => {
 	const query = useQuery(
-		originRankingQueryOptions({ from, to, store_id: storeId, granularity }),
+		reportsQueries.originRanking({ from, to, store_id: storeId, granularity }),
 	);
 	const data = query.data;
 	const cities: OriginCity[] = data?.cities ?? [];

@@ -1,0 +1,2 @@
+export const REFERENCE_DATA_STALE_TIME = 5 * 60 * 1000;
+export const REPORT_STALE_TIME = 60_000;

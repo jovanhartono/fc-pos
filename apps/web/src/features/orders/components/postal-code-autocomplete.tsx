@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Combobox } from "@/components/ui/combobox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { fetchPostalCodes, queryKeys } from "@/lib/api";
+import { postalCodesQueries } from "@/features/postal-codes/api";
 
 interface PostalCodeAutocompleteProps {
 	value: string;
@@ -45,13 +45,9 @@ export const PostalCodeAutocomplete = ({
 		return () => window.clearTimeout(timeoutId);
 	}, [input]);
 
-	const { data: postalCodes = [], isFetching } = useQuery({
-		queryKey: queryKeys.postalCodes(search),
-		queryFn: () => fetchPostalCodes(search),
-		enabled: search.length > 0,
-		// The kode pos list never changes, so a repeated search is free.
-		staleTime: Number.POSITIVE_INFINITY,
-	});
+	const { data: postalCodes = [], isFetching } = useQuery(
+		postalCodesQueries.list(search),
+	);
 
 	// The chosen code has to survive an empty search box, or reopening the
 	// picker would blank a value the cashier already set.

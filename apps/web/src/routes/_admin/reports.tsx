@@ -3,29 +3,15 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
+import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ReportFilters } from "@/features/reports/components/report-filters";
 import {
 	ReportShell,
 	type ReportTab,
 } from "@/features/reports/components/report-shell";
-import {
-	defaultRange,
-	jakartaToday,
-} from "@/features/reports/utils/report-filters";
-import type { ReportGranularity } from "@/lib/api";
-import {
-	agingQueueQueryOptions,
-	campaignEffectivenessQueryOptions,
-	customerAcquisitionQueryOptions,
-	financialQueryOptions,
-	ordersFlowQueryOptions,
-	originRankingQueryOptions,
-	paymentMixQueryOptions,
-	refundTrendQueryOptions,
-	reportOverviewQueryOptions,
-	storesQueryOptions,
-	workerProductivityQueryOptions,
-} from "@/lib/query-options";
+import { defaultRange } from "@/features/reports/utils/report-filters";
+import { storesQueries } from "@/features/stores/api";
+import { jakartaToday } from "@/shared/date-presets";
 
 const OverviewPanel = lazy(
 	() => import("@/features/reports/panels/overview-panel"),
@@ -123,35 +109,37 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 	switch (search.tab) {
 		case "overview":
 			return queryClient.ensureQueryData(
-				reportOverviewQueryOptions({
+				reportsQueries.overview({
 					date: jakartaToday(),
 					store_id: search.store_id,
 					trend_days: 14,
 				}),
 			);
 		case "financial":
-			return queryClient.ensureQueryData(financialQueryOptions(range));
+			return queryClient.ensureQueryData(reportsQueries.financial(range));
 		case "operations":
-			return queryClient.ensureQueryData(ordersFlowQueryOptions(range));
+			return queryClient.ensureQueryData(reportsQueries.ordersFlow(range));
 		case "payments":
-			return queryClient.ensureQueryData(paymentMixQueryOptions(range));
+			return queryClient.ensureQueryData(reportsQueries.paymentMix(range));
 		case "customers":
 			return queryClient.ensureQueryData(
-				customerAcquisitionQueryOptions(range),
+				reportsQueries.customerAcquisition(range),
 			);
 		case "quality":
-			return queryClient.ensureQueryData(refundTrendQueryOptions(range));
+			return queryClient.ensureQueryData(reportsQueries.refundTrend(range));
 		case "workers":
-			return queryClient.ensureQueryData(workerProductivityQueryOptions(range));
+			return queryClient.ensureQueryData(
+				reportsQueries.workerProductivity(range),
+			);
 		case "campaigns":
 			return queryClient.ensureQueryData(
-				campaignEffectivenessQueryOptions(range),
+				reportsQueries.campaignEffectiveness(range),
 			);
 		case "origin":
-			return queryClient.ensureQueryData(originRankingQueryOptions(range));
+			return queryClient.ensureQueryData(reportsQueries.originRanking(range));
 		case "aging-queue":
 			return queryClient.ensureQueryData(
-				agingQueueQueryOptions({ store_id: search.store_id, limit: 50 }),
+				reportsQueries.agingQueue({ store_id: search.store_id, limit: 50 }),
 			);
 		default:
 			return Promise.resolve();
@@ -163,7 +151,7 @@ export const Route = createFileRoute("/_admin/reports")({
 	loaderDeps: ({ search }) => search,
 	loader: ({ context, deps }) =>
 		Promise.all([
-			context.queryClient.ensureQueryData(storesQueryOptions()),
+			context.queryClient.ensureQueryData(storesQueries.list()),
 			prefetchForTab(context.queryClient, deps),
 		]),
 	component: ReportsPage,
@@ -184,15 +172,15 @@ const PanelSkeleton = () => (
 
 const descriptions: Record<Tab, string> = {
 	overview: "Today's revenue, throughput, and order flow.",
-	financial: "Revenue, COGS, margin and branch performance.",
-	operations: "Dropoff and pickup volume over time.",
-	payments: "Revenue share per payment method.",
-	customers: "Acquisition and retention trends.",
-	quality: "Refund volume and root-cause mix.",
-	workers: "Items completed and shift productivity.",
-	campaigns: "Orders, revenue and discount cost per campaign.",
-	origin: "Where courier and shipped-in orders came from.",
-	"aging-queue": "Items still in queue, oldest first.",
+	financial: "Gross sales, revenue, COGS, margin, and store performance",
+	operations: "Dropoff and pickup volume over time",
+	payments: "Collected share per payment method",
+	customers: "Acquisition and retention trends",
+	quality: "Refund volume and root-cause mix",
+	workers: "Services processed and shift productivity",
+	campaigns: "Orders, collected, and discount cost per campaign",
+	origin: "Where courier and shipped-in orders came from",
+	"aging-queue": "Items still in queue, oldest first",
 };
 
 function ReportsPage() {

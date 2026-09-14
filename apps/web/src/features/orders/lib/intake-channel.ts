@@ -1,5 +1,5 @@
 import type { ComboboxOption } from "@/components/ui/combobox";
-import type { IntakeChannel } from "@/lib/api";
+import type { IntakeChannel } from "@/features/orders/api";
 
 export const INTAKE_CHANNEL_ITEMS: ComboboxOption[] = [
 	{ value: "walk_in", label: "Walk-in (over the counter)" },

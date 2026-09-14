@@ -1,9 +1,8 @@
 import { PlusIcon } from "@phosphor-icons/react";
 import {
-	type Control,
 	Controller,
 	type SubmitHandler,
-	type UseFormHandleSubmit,
+	useFormContext,
 } from "react-hook-form";
 import { PhoneNumberField } from "@/components/form/phone-number-field";
 import { Button } from "@/components/ui/button";
@@ -25,23 +24,21 @@ export type CustomerFormState = {
 	origin_store_id?: number;
 };
 
-type CustomerFormProps = {
-	control: Control<CustomerFormState>;
-	handleSubmit: UseFormHandleSubmit<CustomerFormState>;
+interface CustomerFormProps {
 	onSubmit: SubmitHandler<CustomerFormState>;
 	isSubmitting: boolean;
 	isEditing: boolean;
 	onReset: () => void;
-};
+}
 
-export function CustomerForm({
-	control,
-	handleSubmit,
+export const CustomerForm = ({
 	onSubmit,
 	isSubmitting,
 	isEditing,
 	onReset,
-}: CustomerFormProps) {
+}: CustomerFormProps) => {
+	const { control, handleSubmit } = useFormContext<CustomerFormState>();
+
 	return (
 		<form onSubmit={handleSubmit(onSubmit)}>
 			<FieldGroup>
@@ -161,4 +158,4 @@ export function CustomerForm({
 			</FieldGroup>
 		</form>
 	);
-}
+};

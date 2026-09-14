@@ -14,12 +14,19 @@ import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { storesQueries } from "@/features/stores/api";
+import {
+	createUser,
+	type User,
+	updateUser,
+	updateUserStores,
+	usersKeys,
+	usersQueries,
+} from "@/features/users/api";
 import {
 	UserForm,
 	type UserFormState,
 } from "@/features/users/components/user-form";
-import { createUser, type User, updateUser, updateUserStores } from "@/lib/api";
-import { storesQueryOptions, usersPageQueryOptions } from "@/lib/query-options";
 import { useSheet } from "@/stores/sheet-store";
 
 const PAGE_SIZE = 25;
@@ -35,13 +42,13 @@ export const Route = createFileRoute("/_admin/users")({
 	loader: ({ context, deps }) =>
 		Promise.all([
 			context.queryClient.ensureQueryData(
-				usersPageQueryOptions({
+				usersQueries.list({
 					limit: PAGE_SIZE,
 					offset: (deps.page - 1) * PAGE_SIZE,
 					...(deps.search ? { search: deps.search } : {}),
 				}),
 			),
-			context.queryClient.ensureQueryData(storesQueryOptions()),
+			context.queryClient.ensureQueryData(storesQueries.list()),
 		]),
 	component: UsersPage,
 });
@@ -105,14 +112,14 @@ function UsersPage() {
 	});
 
 	const usersQuery = useQuery(
-		usersPageQueryOptions({
+		usersQueries.list({
 			limit: PAGE_SIZE,
 			offset: (search.page - 1) * PAGE_SIZE,
 			...(search.search ? { search: search.search } : {}),
 		}),
 	);
 	const users = usersQuery.data?.items ?? [];
-	const storesQuery = useQuery(storesQueryOptions());
+	const storesQuery = useQuery(storesQueries.list());
 	const storeMap = useMemo(
 		() => new Map((storesQuery.data ?? []).map((store) => [store.id, store])),
 		[storesQuery.data],
@@ -164,7 +171,7 @@ function UsersPage() {
 					id: editingUser.id,
 					store_ids: values.store_ids,
 				});
-				await queryClient.invalidateQueries({ queryKey: ["users"] });
+				await queryClient.invalidateQueries({ queryKey: usersKeys.all });
 				resetForm();
 				return;
 			}
@@ -193,7 +200,7 @@ function UsersPage() {
 					store_ids: values.store_ids,
 				});
 			}
-			await queryClient.invalidateQueries({ queryKey: ["users"] });
+			await queryClient.invalidateQueries({ queryKey: usersKeys.all });
 			resetForm();
 		},
 		[

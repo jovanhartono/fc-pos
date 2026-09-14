@@ -1,18 +1,16 @@
 import {
+	applyManualDiscount,
 	type CampaignContribution,
 	type CampaignDiscountInput,
 	type DiscountLine,
+	normalizePhoneNumber,
 	stackCampaignDiscounts,
 } from "@fresclean/api/schema";
 import type { UseFormReturn } from "react-hook-form";
-import type {
-	CreateOrderPayload,
-	IntakeChannel,
-	Product,
-	ResolvedVoucher,
-	Service,
-} from "@/lib/api";
-import { isValidPhoneNumber, normalizePhoneNumber } from "@/lib/phone-number";
+import type { ResolvedVoucher } from "@/features/campaigns/api";
+import type { CreateOrderPayload, IntakeChannel } from "@/features/orders/api";
+import type { Product } from "@/features/products/api";
+import type { Service } from "@/features/services/api";
 import { parseMoney } from "@/shared/money";
 
 export type ProductCartLine = {
@@ -303,11 +301,10 @@ export const getCartPricing = <C extends CartCampaign>({
 	}));
 	const stacked = stackCampaignDiscounts(subtotal, stackInput, serviceLines);
 	const manualDiscountValue = Number(manualDiscount || 0);
-	// Mirrors resolveDiscount: manual absorbs only what the total has left
-	// after campaigns.
-	const appliedManual = Math.min(
+	const appliedManual = applyManualDiscount(
+		subtotal,
+		stacked.total,
 		manualDiscountValue,
-		Math.max(0, subtotal - stacked.total),
 	);
 	const totalDiscount = stacked.total + appliedManual;
 
@@ -331,33 +328,6 @@ export const countUnpricedServiceLines = (
 	serviceRows.filter(
 		(line) => line.service.price === null && getServiceLinePrice(line) <= 0,
 	).length;
-
-// The cart→payment gate: a name, a phone that parses, and the courier's name if
-// the cashier said a courier fetched the items. Shared by the step tabs, the
-// Continue button, and the Create Order button so all three agree. The origin
-// is deliberately absent — it is always optional.
-export const isCustomerIdentified = (
-	customerName: string,
-	customerPhone: string,
-): boolean =>
-	customerName.trim().length > 0 && isValidPhoneNumber(customerPhone);
-
-export const isCourierNamed = (
-	intakeChannel: IntakeChannel,
-	selectedCourierId: string,
-): boolean => intakeChannel !== "courier" || selectedCourierId !== "";
-
-export const isCustomerReady = ({
-	customerName,
-	customerPhone,
-	intakeChannel,
-	selectedCourierId,
-}: Pick<
-	TransactionDraftValues,
-	"customerName" | "customerPhone" | "intakeChannel" | "selectedCourierId"
->): boolean =>
-	isCustomerIdentified(customerName, customerPhone) &&
-	isCourierNamed(intakeChannel, selectedCourierId);
 
 export const toOrderPayload = ({
 	customerName,

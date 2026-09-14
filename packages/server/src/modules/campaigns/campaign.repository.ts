@@ -1,5 +1,5 @@
 import { and, eq, isNull, or, sql } from "drizzle-orm";
-import { db } from "@/db";
+import { type DbExecutor, db } from "@/db";
 import {
   campaignCodesTable,
   campaignEligibleServicesTable,
@@ -162,8 +162,8 @@ export function findCampaignById(id: number) {
   });
 }
 
-export function findCampaignByCode(code: string) {
-  return db.query.campaignCodesTable.findFirst({
+export function findCampaignByCode(executor: DbExecutor, code: string) {
+  return executor.query.campaignCodesTable.findFirst({
     where: { code },
     with: {
       campaign: {
@@ -334,17 +334,20 @@ export function deleteCampaignById(id: number) {
     .then((rows) => rows[0] ?? null);
 }
 
-export function findCampaignsByIdsWithEligibility(ids: number[]) {
+export function findCampaignsByIdsWithEligibility(
+  executor: DbExecutor,
+  ids: number[]
+) {
   if (ids.length === 0) {
     return Promise.resolve(
       [] as Awaited<ReturnType<typeof queryCampaignsWithEligibility>>
     );
   }
-  return queryCampaignsWithEligibility(ids);
+  return queryCampaignsWithEligibility(executor, ids);
 }
 
-function queryCampaignsWithEligibility(ids: number[]) {
-  return db.query.campaignsTable.findMany({
+function queryCampaignsWithEligibility(executor: DbExecutor, ids: number[]) {
+  return executor.query.campaignsTable.findMany({
     where: { id: { in: ids } },
     with: {
       stores: { columns: { store_id: true } },

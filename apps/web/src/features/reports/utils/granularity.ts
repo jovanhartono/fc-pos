@@ -1,4 +1,4 @@
-import type { ReportGranularity } from "@/lib/api";
+import type { ReportGranularity } from "@/features/reports/api";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 
 export function bucketToLabel(

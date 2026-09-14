@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { OrderReceipt } from "@/lib/api";
+import type { OrderReceipt } from "@/features/orders/api";
 import { buildReceiptEscPos } from "./build-receipt";
 import { RECEIPT_LOGO } from "./receipt-logo";
 
@@ -184,7 +184,7 @@ describe("buildReceiptEscPos", () => {
 
 	test("one Item with three treatments prints one tag and one descriptor row", () => {
 		// The counter's standard upsell (ADR-0017): a pair arrives for a deep
-		// clean and leaves the till as deep clean + repaint + leather care.
+		// clean and leaves the POS as deep clean + repaint + leather care.
 		// One physical object — the receipt must not read as three shoes.
 		const bytes = buildReceiptEscPos(
 			withItem({

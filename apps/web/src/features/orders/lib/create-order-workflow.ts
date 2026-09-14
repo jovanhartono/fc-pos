@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { invalidateOrderQueries } from "@/features/orders/lib/invalidate-order-queries";
+import { onOrderMoved, onRedemptionSpent } from "@/lib/cache-events";
 
 type HandleCreatedOrderSuccessOptions = {
 	created: unknown;
@@ -36,12 +36,12 @@ export async function handleCreatedOrderSuccess({
 		// A new order is an item on the workshop floor and a row in every count
 		// the /orders pills show, so All and Today are wrong the moment this
 		// returns unless the whole set is dropped.
-		invalidateOrderQueries(queryClient),
+		onOrderMoved(queryClient),
 		// A redeemed voucher / bumped listed-campaign redeemed_count changes what's
 		// eligible at the next checkout — refresh campaigns so a capped promo that
 		// just hit its limit stops showing as selectable and the voucher-codes
 		// sheet reflects the new redemption.
-		queryClient.invalidateQueries({ queryKey: ["campaigns"] }),
+		onRedemptionSpent(queryClient),
 	]);
 
 	if (!orderId) {

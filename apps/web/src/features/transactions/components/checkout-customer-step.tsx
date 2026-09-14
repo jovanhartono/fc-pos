@@ -4,6 +4,7 @@ import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { SelectField } from "@/components/form/select-field";
 import type { ComboboxOption } from "@/components/ui/combobox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import type { IntakeChannel } from "@/features/orders/api";
 import { PostalCodeAutocomplete } from "@/features/orders/components/postal-code-autocomplete";
 import {
 	INTAKE_CHANNEL_ITEMS,
@@ -11,8 +12,7 @@ import {
 } from "@/features/orders/lib/intake-channel";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import { CustomerFields } from "@/features/transactions/components/customer-fields";
-import type { IntakeChannel } from "@/lib/api";
-import { usersPageQueryOptions } from "@/lib/query-options";
+import { usersQueries } from "@/features/users/api";
 
 // Step ① — who dropped the items off and how they got here: customer identity
 // (phone-lookup prefill), the way they arrived, and for anything that did not
@@ -27,7 +27,7 @@ export const CheckoutCustomerStep = () => {
 	const carries = intakeChannelCarries(intakeChannel);
 
 	const couriersQuery = useQuery({
-		...usersPageQueryOptions({ role: "courier", is_active: true }),
+		...usersQueries.list({ role: "courier", is_active: true }),
 		// Couriers are slow-changing reference data; cache like the other reference
 		// lists so reopening checkout doesn't refetch the roster every time. The
 		// customer step now mounts on every open, so an uncached query refetched

@@ -1,16 +1,18 @@
+import type { DbExecutor } from "@/db";
 import { BadRequestException } from "@/http-exceptions";
 import {
   getUsableCampaigns,
   resolveVoucherCode,
 } from "@/modules/campaigns/campaign.service";
 import type { ResolvedCampaignRow } from "@/modules/campaigns/campaign-redemption.service";
-import { stackCampaignDiscounts } from "@/schema/discount";
+import { applyManualDiscount, stackCampaignDiscounts } from "@/schema/discount";
 
 // The checkout discount desk: the promos a cashier ticked plus the voucher slips a
 // customer handed over become the rows that claim a redemption inside the order
 // transaction. Deliberately touches no repository — every lookup it needs comes
 // through campaign.service — so the money arithmetic here is testable without a
-// database.
+// database. The executor rides all the way down so the eligibility reads run on
+// the same transaction that will claim the codes.
 
 export interface ResolvedDiscount {
   campaignRows: ResolvedCampaignRow[];
@@ -18,23 +20,26 @@ export interface ResolvedDiscount {
   discountSource: "none" | "manual" | "campaign";
 }
 
-export async function resolveDiscount({
-  campaignIds,
-  voucherCodes,
-  grossTotal,
-  manualDiscount,
-  storeId,
-  storeCode,
-  lines,
-}: {
-  campaignIds: number[];
-  voucherCodes: string[];
-  grossTotal: number;
-  manualDiscount: number;
-  storeId: number;
-  storeCode: string;
-  lines: { price: number; service_id: number }[];
-}): Promise<ResolvedDiscount> {
+export async function resolveDiscount(
+  executor: DbExecutor,
+  {
+    campaignIds,
+    voucherCodes,
+    grossTotal,
+    manualDiscount,
+    storeId,
+    storeCode,
+    lines,
+  }: {
+    campaignIds: number[];
+    voucherCodes: string[];
+    grossTotal: number;
+    manualDiscount: number;
+    storeId: number;
+    storeCode: string;
+    lines: { price: number; service_id: number }[];
+  }
+): Promise<ResolvedDiscount> {
   const manual = Math.max(0, manualDiscount);
 
   if (campaignIds.length === 0 && voucherCodes.length === 0) {
@@ -52,7 +57,7 @@ export async function resolveDiscount({
 
   const campaigns =
     campaignIds.length > 0
-      ? await getUsableCampaigns({
+      ? await getUsableCampaigns(executor, {
           campaignIds,
           grossTotal,
           storeId,
@@ -65,7 +70,7 @@ export async function resolveDiscount({
   // code, which is claimed inside the tx.
   const resolvedVouchers = await Promise.all(
     voucherCodes.map((code) =>
-      resolveVoucherCode(code, { storeId, storeCode, grossTotal })
+      resolveVoucherCode(executor, code, { storeId, storeCode, grossTotal })
     )
   );
 
@@ -137,8 +142,11 @@ export async function resolveDiscount({
         : { ...fields, kind: "voucher" as const, voucherCode };
     });
 
-  const afterCampaign = Math.max(0, grossTotal - campaignDiscount);
-  const appliedManual = Math.min(manual, afterCampaign);
+  const appliedManual = applyManualDiscount(
+    grossTotal,
+    campaignDiscount,
+    manual
+  );
   const totalDiscount = campaignDiscount + appliedManual;
 
   let discountSource: ResolvedDiscount["discountSource"] = "none";

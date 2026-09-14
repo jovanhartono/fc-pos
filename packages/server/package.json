@@ -43,7 +43,7 @@
     "pull:prod": "bun drizzle-kit pull --config=drizzle-prod.config.ts",
     "push:dev": "bun drizzle-kit push --config=drizzle-dev.config.ts",
     "seed:dev": "bun run src/db/seed.ts",
-    "test": "bun test",
+    "test": "bun test --isolate",
     "type-check": "tsc"
   },
   "dependencies": {
@@ -59,6 +59,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
+    "@electric-sql/pglite": "^0.4.6",
     "@types/bun": "^1.4.0",
     "drizzle-kit": "rc",
     "tsdown": "^0.22.14",

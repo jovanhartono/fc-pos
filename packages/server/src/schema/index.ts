@@ -55,12 +55,14 @@ export const POSTStoreSchema = _POSTStoreSchema;
 export const POSTStoreDeviceSchema = _POSTStoreDeviceSchema;
 
 import {
+  applyManualDiscount as _applyManualDiscount,
   type CampaignContribution as _CampaignContribution,
   type CampaignDiscountInput as _CampaignDiscountInput,
   computeCampaignContribution as _computeCampaignContribution,
   type DiscountLine as _DiscountLine,
   type DiscountSource as _DiscountSource,
   isDiscountSettled as _isDiscountSettled,
+  orderNetDue as _orderNetDue,
   type StackedDiscount as _StackedDiscount,
   stackCampaignDiscounts as _stackCampaignDiscounts,
 } from "@/schema/discount";
@@ -75,6 +77,8 @@ export type StackedDiscount<T extends _CampaignDiscountInput> =
   _StackedDiscount<T>;
 export const computeCampaignContribution = _computeCampaignContribution;
 export const stackCampaignDiscounts = _stackCampaignDiscounts;
+export const applyManualDiscount = _applyManualDiscount;
+export const orderNetDue = _orderNetDue;
 
 import {
   type CampaignEligibilityContext as _CampaignEligibilityContext,
@@ -132,6 +136,14 @@ import {
   voucherCodesSchema,
 } from "@/schema/common";
 
+import {
+  isValidPhoneNumber as _isValidPhoneNumber,
+  normalizePhoneNumber as _normalizePhoneNumber,
+} from "@/schema/phone";
+
+export const isValidPhoneNumber = _isValidPhoneNumber;
+export const normalizePhoneNumber = _normalizePhoneNumber;
+
 const userSchema = z.object({
   username: z
     .string("Minimum 5 characters")
@@ -179,7 +191,7 @@ export const POSTOrderSchema = z
       name: varcharSchema("Name"),
       phone_number: phoneSchema,
     }),
-    store_id: z.number("Store ID is required"),
+    store_id: z.number("Store is required"),
     campaign_ids: campaignIdsSchema,
     voucher_codes: voucherCodesSchema,
     products: z

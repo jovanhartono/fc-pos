@@ -1,6 +1,6 @@
 import type { ORDER_TERMINAL_SERVICE_STATUSES } from "@fresclean/api/schema";
 import type { UseMutationResult } from "@tanstack/react-query";
-import type { UpdateOrderServiceStatusPayload } from "@/lib/api";
+import type { UpdateOrderServiceStatusPayload } from "@/features/orders/api";
 
 export type UpdateStatusMutation = UseMutationResult<
 	unknown,

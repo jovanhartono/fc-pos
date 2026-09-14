@@ -67,8 +67,11 @@ Linting/formatting uses [Ultracite](https://ultracite.ai) (Biome preset) — run
 
 The server reads from `process.env` (`.env` in `packages/server`):
 
-- `DATABASE_URL_DEV` / `DATABASE_URL_PROD` — Neon PostgreSQL connection strings
+- `DATABASE_URL` — Neon PostgreSQL connection string, set per Vercel environment
+- `STORAGE_PREFIX` — `dev/` or `prod/`, set per Vercel environment alongside `DATABASE_URL`
 - `JWT_SECRET` — secret key for JWT authentication
+
+Laptop-only, for the drizzle CLI: `DATABASE_URL_DEV` / `DATABASE_URL_PROD`. See `packages/server/.env.example`.
 
 ## Docs
 

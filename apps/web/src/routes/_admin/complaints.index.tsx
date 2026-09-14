@@ -10,9 +10,12 @@ import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+	type ComplaintListItem,
+	complaintsQueries,
+	type FetchComplaintsQuery,
+} from "@/features/complaints/api";
 import { getComplaintOutcome } from "@/features/complaints/lib/format";
-import type { ComplaintListItem, FetchComplaintsQuery } from "@/lib/api";
-import { complaintsPageQueryOptions } from "@/lib/query-options";
 
 const complaintsSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
@@ -38,7 +41,7 @@ const ComplaintsPage = () => {
 	const search = Route.useSearch();
 
 	const complaintsQuery = useQuery(
-		complaintsPageQueryOptions(buildComplaintsListParams(search)),
+		complaintsQueries.list(buildComplaintsListParams(search)),
 	);
 	const complaints = complaintsQuery.data?.items ?? [];
 
@@ -119,7 +122,7 @@ const ComplaintsPage = () => {
 							id="complaints-search"
 							value={search.search ?? ""}
 							onDebouncedChange={handleSearchChange}
-							placeholder="Search order code or customer…"
+							placeholder="Search order code or customer"
 							ariaLabel="Search complaints"
 						/>
 						<div className="mt-4 grid gap-4">
@@ -150,7 +153,7 @@ export const Route = createFileRoute("/_admin/complaints/")({
 	loaderDeps: ({ search }) => search,
 	loader: async ({ context, deps }) => {
 		await context.queryClient.ensureQueryData(
-			complaintsPageQueryOptions(buildComplaintsListParams(deps)),
+			complaintsQueries.list(buildComplaintsListParams(deps)),
 		);
 	},
 	component: ComplaintsPage,

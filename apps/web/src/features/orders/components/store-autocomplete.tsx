@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Combobox } from "@/components/ui/combobox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { fetchStores, queryKeys } from "@/lib/api";
+import { storesQueries } from "@/features/stores/api";
 
 type StoreAutocompleteProps = {
 	value: string;
@@ -32,10 +32,7 @@ export function StoreAutocomplete({
 	triggerClassName = "h-10 w-full text-sm",
 	allOptionLabel,
 }: StoreAutocompleteProps) {
-	const { data: stores = [], isPending } = useQuery({
-		queryKey: queryKeys.stores,
-		queryFn: fetchStores,
-	});
+	const { data: stores = [], isPending } = useQuery(storesQueries.list());
 	const filteredStores = allowedStoreIds
 		? stores.filter((store) => allowedStoreIds.includes(store.id))
 		: stores;
@@ -58,7 +55,7 @@ export function StoreAutocomplete({
 			onValueChange={onValueChange}
 			loading={isPending}
 			placeholder={placeholder}
-			searchPlaceholder="Search store..."
+			searchPlaceholder="Search stores"
 			emptyText="No store found"
 			disabled={disabled}
 		/>
