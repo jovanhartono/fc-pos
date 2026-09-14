@@ -2,10 +2,6 @@ import type { InferInsertModel } from "drizzle-orm";
 import { eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { customersTable } from "@/db/schema";
-import {
-  hasUnpricedLine,
-  type UnpricedLineState,
-} from "@/schema/unpriced-line";
 
 // Either the pool-backed db or a transaction handle, so find-or-create can run
 // inside an Order transaction (atomic Customer + Order — see ADR-0011) or
@@ -82,10 +78,6 @@ export interface CustomerSummary {
   last_visit_at: string | null;
   lifetime_spend: string;
   paid_orders: number;
-  service_lines: number;
-  unpaid_amount: string;
-  unpaid_orders: number;
-  unpriced_orders: number;
 }
 
 // Lifetime spend is never bucketed by period the way Revenue is: the question
@@ -118,39 +110,6 @@ function findCustomerOrderStats(customerId: number) {
   });
 }
 
-// An unpaid Order that was never cancelled is money the shop is still owed. A
-// customer carries one or two at most, so these come back as rows and the
-// arithmetic happens in JS, where it can be read and tested.
-function findLiveUnpaidOrders(customerId: number) {
-  return db.query.ordersTable.findMany({
-    where: {
-      customer_id: customerId,
-      payment_status: "unpaid",
-      status: { ne: "cancelled" },
-    },
-    columns: { total: true, discount: true },
-    with: { services: { columns: { price: true, status: true } } },
-  });
-}
-
-// The complaint-rate denominator: this person's own treatment lines, minus
-// Rework lines (non-null complaint_id), so a free re-clean never inflates the
-// grievance that created it — ADR-0013. Cancelled lines drop out too: work the
-// shop never did cannot be complained about, and counting it would read a
-// customer whose only three lines were all cancelled as "0 of 3".
-function findCustomerServiceLineCount(customerId: number) {
-  return db.query.ordersServicesTable.findMany({
-    where: {
-      complaint_id: { isNull: true },
-      status: { ne: "cancelled" },
-      order: { customer_id: customerId },
-    },
-    columns: { id: true },
-    extras: { total: sql<number>`(COUNT(*) OVER ())::int`.as("total") },
-    limit: 1,
-  });
-}
-
 function findCustomerComplaintCount(customerId: number) {
   return db.query.complaintsTable.findMany({
     where: { orderService: { order: { customer_id: customerId } } },
@@ -160,42 +119,11 @@ function findCustomerComplaintCount(customerId: number) {
   });
 }
 
-export interface UnpaidOrderState {
-  discount: string;
-  services: UnpricedLineState[];
-  total: string;
-}
-
-// What the customer still owes, and on how many Orders. An Order whose Repair
-// has not been inspected yet has no amount to quote (ADR-0018), so it is
-// counted apart rather than billed at a number nobody agreed to.
-export function summarizeUnpaidOrders(orders: UnpaidOrderState[]) {
-  let unpaid_amount = 0;
-  let unpriced_orders = 0;
-
-  for (const order of orders) {
-    if (hasUnpricedLine(order.services)) {
-      unpriced_orders += 1;
-      continue;
-    }
-
-    unpaid_amount += Number(order.total) - Number(order.discount);
-  }
-
-  return {
-    unpaid_amount: String(unpaid_amount),
-    unpaid_orders: orders.length,
-    unpriced_orders,
-  };
-}
-
 export async function findCustomerSummary(
   customerId: number
 ): Promise<CustomerSummary> {
-  const [orders, unpaid, lines, complaints] = await Promise.all([
+  const [orders, complaints] = await Promise.all([
     findCustomerOrderStats(customerId),
-    findLiveUnpaidOrders(customerId),
-    findCustomerServiceLineCount(customerId),
     findCustomerComplaintCount(customerId),
   ]);
 
@@ -208,8 +136,6 @@ export async function findCustomerSummary(
     last_visit_at: stats?.last_visit_at ?? null,
     lifetime_spend: stats?.lifetime_spend ?? "0",
     paid_orders: stats?.paid_orders ?? 0,
-    service_lines: lines[0]?.total ?? 0,
-    ...summarizeUnpaidOrders(unpaid),
   };
 }
 
