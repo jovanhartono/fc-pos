@@ -34,6 +34,7 @@ const placeOrder = async () => {
     campaign_ids: [],
     customer: { name: "Budi Santoso", phone_number: "+628111222333" },
     discount: 0,
+    intake_channel: "walk_in",
     items: [{ services: [{ id: shop.serviceId }] }],
     payment_method_id: shop.paymentMethodId,
     payment_status: "unpaid",

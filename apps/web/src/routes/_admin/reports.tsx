@@ -37,6 +37,9 @@ const WorkersPanel = lazy(
 const CampaignsPanel = lazy(
 	() => import("@/features/reports/panels/campaigns-panel"),
 );
+const OriginPanel = lazy(
+	() => import("@/features/reports/panels/origin-panel"),
+);
 const AgingQueuePanel = lazy(
 	() => import("@/features/reports/panels/aging-queue-panel"),
 );
@@ -50,6 +53,7 @@ const tabs: ReportTab[] = [
 	{ id: "quality", label: "Quality" },
 	{ id: "workers", label: "Workers" },
 	{ id: "campaigns", label: "Campaigns" },
+	{ id: "origin", label: "Origin" },
 	{ id: "aging-queue", label: "Aging Queue" },
 ];
 
@@ -62,6 +66,7 @@ const tabSchema = z.enum([
 	"quality",
 	"workers",
 	"campaigns",
+	"origin",
 	"aging-queue",
 ]);
 
@@ -130,6 +135,8 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 			return queryClient.ensureQueryData(
 				reportsQueries.campaignEffectiveness(range),
 			);
+		case "origin":
+			return queryClient.ensureQueryData(reportsQueries.originRanking(range));
 		case "aging-queue":
 			return queryClient.ensureQueryData(
 				reportsQueries.agingQueue({ store_id: search.store_id, limit: 50 }),
@@ -172,6 +179,7 @@ const descriptions: Record<Tab, string> = {
 	quality: "Refund volume and root-cause mix",
 	workers: "Services processed and shift productivity",
 	campaigns: "Orders, collected, and discount cost per campaign",
+	origin: "Where courier and shipped-in orders came from",
 	"aging-queue": "Items still in queue, oldest first",
 };
 
@@ -286,6 +294,14 @@ function ReportsPage() {
 					)}
 					{currentTab === "campaigns" && (
 						<CampaignsPanel
+							from={search.from}
+							to={search.to}
+							storeId={search.store_id}
+							granularity={search.granularity}
+						/>
+					)}
+					{currentTab === "origin" && (
+						<OriginPanel
 							from={search.from}
 							to={search.to}
 							storeId={search.store_id}

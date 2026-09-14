@@ -1,5 +1,8 @@
 # Courier role: login-only, excluded by allowlist, no per-order delivery state
 
+> **Amended 2026-09-10:** `collected_by` is no longer what marks how an Order arrived — a third way in (a customer shipping the Items by JNE/J&T) made a two-valued marker impossible. See [Amendment](#amendment-2026-09-10--the-courier-reference-is-no-longer-the-marker) and [ADR-0020](0020-intake-channel-and-origin-postal-code.md). Everything else below stands.
+
+
 Couriers collect dropped-off items from the customer at intake and deliver finished items back after pickup. They log in **only** to open a Shift (attendance) — they do not run the POS, the queue, or money. The operator asked for two things: (1) couriers must not pollute the **worker-productivity report**, and (2) each Order should record **which courier collected it** for accountability (lost-shoe disputes) and delivery-volume reporting. We decided to model couriers as a new **`courier`** `User` role and to add a single nullable **`orders.collected_by`** FK — and deliberately **not** to build a delivery lifecycle, a courier entity, or processing-axis gates.
 
 ## Considered options
@@ -26,3 +29,13 @@ Couriers collect dropped-off items from the customer at intake and deliver finis
 - Couriers clock Shifts, but the only consumer of Shift data today is the worker-only productivity report — so **courier attendance is recorded but surfaced nowhere** until the deferred delivery reporting (P2: orders-list courier filter + per-courier rollups) is built.
 - `collected_by` captures **intake** only. If the business later wants to record which courier *returned* finished items, that is a separate field/decision — this ADR does not cover the return leg.
 - A `courier` who is left store-unscoped for attribution but store-scoped for Shifts is an intentional asymmetry; do not "tidy" it by forcing `collected_by` through `assertStoreAccess`.
+
+## Amendment 2026-09-10 — the courier reference is no longer the marker
+
+This ADR decided that `orders.collected_by` alone says how an Order arrived: non-null means a Courier fetched the Items, null means the customer walked in, and there is deliberately no `is_delivery` boolean beside it. That was right for two ways in. It cannot survive a third.
+
+Customers outside a Store's city now send Items by shipping company. Nobody on payroll collects those, so `collected_by` is null — indistinguishable from a walk-in. The obvious repair, letting a non-null origin location mark the shipped-in case the way the courier reference marks the delivered one, died the moment the operator asked for the customer's postal code on **Courier** pickups as well: once two of three channels carry a location, a location cannot say which channel.
+
+**`orders.intake_channel`** (`walk_in` / `courier` / `shipped`) now answers "how did this arrive"; **`orders.origin_postal_code`** separately answers "where from". A DB CHECK keeps `intake_channel = 'courier'` and a non-null `collected_by` in lockstep, so existing code reading `collected_by IS NOT NULL` as "delivered" still gets the right answer — but new code should read the channel. See [ADR-0020](0020-intake-channel-and-origin-postal-code.md).
+
+What this amendment does **not** touch: the `courier` role itself, the allowlist mechanism that keeps Couriers out of the worker-productivity report, service-layer validation that `collected_by` is an active Courier, the deliberate lack of store-scoping on it, or the decision to model no delivery lifecycle. The return leg stays out of scope in ADR-0020 for the same reason it was out of scope here.

@@ -17,7 +17,7 @@ import {
   orderItemParamSchema,
   orderItemPhotoParamSchema,
   orderServiceParamSchema,
-  PATCHOrderCourierSchema,
+  PATCHOrderIntakeSchema,
   PATCHOrderPaymentSchema,
   PATCHOrderServiceHandlerSchema,
   PATCHOrderServicePriceSchema,
@@ -31,7 +31,7 @@ import {
   POSTOrderRefundSchema,
   PUTOrderDropoffPhotoSchema,
 } from "@/modules/orders/order-admin.schema";
-import { updateOrderCollectedBy } from "@/modules/orders/order-courier.service";
+import { updateOrderIntake } from "@/modules/orders/order-courier.service";
 import { resolveOrderLookup } from "@/modules/orders/order-lookup.service";
 import { updateOrderPayment } from "@/modules/orders/order-payment.service";
 import {
@@ -222,17 +222,19 @@ const app = new Hono<OrderAccessEnv>()
     }
   )
   .patch(
-    "/:id/courier",
+    "/:id/intake",
     idParamSchema,
-    zodValidator("json", PATCHOrderCourierSchema),
+    zodValidator("json", PATCHOrderIntakeSchema),
     async (c) => {
       const user = c.get("jwtPayload");
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
-      const updated = await updateOrderCollectedBy({
-        orderId: id,
+      const updated = await updateOrderIntake({
         collectedBy: body.collected_by,
+        intakeChannel: body.intake_channel,
+        orderId: id,
+        originPostalCode: body.origin_postal_code,
         user,
       });
 
@@ -240,7 +242,7 @@ const app = new Hono<OrderAccessEnv>()
         throw new NotFoundException("Order not found");
       }
 
-      return c.json(success(updated, "Courier updated"));
+      return c.json(success(updated, "Intake updated"));
     }
   )
   .post(

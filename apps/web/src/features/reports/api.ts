@@ -44,6 +44,10 @@ export type CampaignEffectivenessReport = InferResponseType<
 	(typeof rpc.api.admin.reports)["campaign-effectiveness"]["$get"]
 >["data"];
 
+export type OriginRankingReport = InferResponseType<
+	(typeof rpc.api.admin.reports)["origin-ranking"]["$get"]
+>["data"];
+
 export type AgingQueueItem = InferResponseType<
 	(typeof rpc.api.admin.reports)["aging-queue"]["$get"]
 >["data"][number];
@@ -85,6 +89,8 @@ export const reportsKeys = {
 		[...reportsKeys.all, "worker-productivity", query] as const,
 	campaignEffectiveness: (query: FetchReportRangeQuery) =>
 		[...reportsKeys.all, "campaign-effectiveness", query] as const,
+	originRanking: (query: FetchReportRangeQuery) =>
+		[...reportsKeys.all, "origin-ranking", query] as const,
 	agingQueue: (query?: FetchAgingQueueQuery) =>
 		[...reportsKeys.all, "aging-queue", query ?? {}] as const,
 };
@@ -210,6 +216,17 @@ export const reportsQueries = {
 			queryFn: () =>
 				parseSuccessData<CampaignEffectivenessReport>(
 					rpcWithAuth().api.admin.reports["campaign-effectiveness"].$get({
+						query: toRangeQuery(query),
+					}),
+				),
+			staleTime: REPORT_STALE_TIME,
+		}),
+	originRanking: (query: FetchReportRangeQuery) =>
+		queryOptions({
+			queryKey: reportsKeys.originRanking(query),
+			queryFn: () =>
+				parseSuccessData<OriginRankingReport>(
+					rpcWithAuth().api.admin.reports["origin-ranking"].$get({
 						query: toRangeQuery(query),
 					}),
 				),

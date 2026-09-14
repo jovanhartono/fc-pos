@@ -1,4 +1,5 @@
 import type {
+	INTAKE_CHANNELS,
 	POSTOrderPickupEventPresignSchema,
 	POSTOrderPickupEventSchema,
 	POSTOrderSchema,
@@ -136,8 +137,14 @@ export type SetOrderServicePricePayload = {
 	price: string;
 };
 
-export type UpdateOrderCourierPayload = {
+export type IntakeChannel = (typeof INTAKE_CHANNELS)[number];
+
+// How the Items arrived, moved as one fact — the server refuses any partial
+// combination of these three (ADR-0020).
+export type UpdateOrderIntakePayload = {
 	collected_by: number | null;
+	intake_channel: IntakeChannel;
+	origin_postal_code: string | null;
 };
 
 export type CreateOrderRefundPayload = {
@@ -356,12 +363,12 @@ export function setOrderServicePrice(
 	);
 }
 
-export function updateOrderCourier(
+export function updateOrderIntake(
 	orderId: number,
-	payload: UpdateOrderCourierPayload,
+	payload: UpdateOrderIntakePayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].courier.$patch({
+		rpcWithAuth().api.admin.orders[":id"].intake.$patch({
 			param: { id: String(orderId) },
 			json: payload,
 		}),

@@ -71,6 +71,7 @@ export function findOrderDetail(id: number) {
         columns: userRefColumns,
       },
       customer: true,
+      originPostalCode: true,
       paidBy: {
         columns: userRefColumns,
       },
