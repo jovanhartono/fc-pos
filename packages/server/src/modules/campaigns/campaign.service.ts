@@ -150,7 +150,7 @@ function buildCreatePayload(payload: CampaignPayload) {
       starts_at: payload.starts_at ?? null,
       ends_at: payload.ends_at ?? null,
       is_active: payload.is_active,
-      redemption_mode: payload.redemption_mode,
+      redemption_mode: payload.redemption_mode ?? "listed",
       usage_limit,
     };
   }
@@ -167,7 +167,7 @@ function buildCreatePayload(payload: CampaignPayload) {
     starts_at: payload.starts_at ?? null,
     ends_at: payload.ends_at ?? null,
     is_active: payload.is_active,
-    redemption_mode: payload.redemption_mode,
+    redemption_mode: payload.redemption_mode ?? "listed",
     usage_limit,
   };
 }

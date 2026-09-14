@@ -11,18 +11,16 @@ RUN bun install --filter '@fresclean/api' --production --frozen-lockfile
 
 COPY packages/server packages/server
 
-# `bun build` folds process.env.NODE_ENV into a literal, so this has to come
-# before the compile. It picks the database (src/db/index.ts) and the S3 prefix
-# (src/utils/s3.ts), and is frozen once compiled — setting it on the container at
-# runtime does nothing, previews included.
+# NODE_ENV stays set for the bundler's own folding (dev-only warnings, etc);
+# it no longer picks an environment — DATABASE_URL and STORAGE_PREFIX do that.
 ENV NODE_ENV=production
 
 # --bytecode moves JS parsing into this build instead of every cold start. Leave
 # --target at its default bun triple: auth uses Bun.password, which Node lacks.
 RUN bun build --compile --bytecode packages/server/src/index.ts --outfile /app/server
 
-# Fails the build if the fold above ever stops landing on production.
-RUN timeout 30 /app/server 2>&1 | grep -q 'DATABASE_URL_PROD is required'
+# Fails the build if the binary doesn't read its config from the environment.
+RUN timeout 30 /app/server 2>&1 | grep -q 'DATABASE_URL is required'
 
 FROM alpine:3
 
@@ -32,5 +30,4 @@ RUN apk add --no-cache libstdc++ libgcc
 WORKDIR /app
 COPY --from=build /app/server /app/server
 
-ENV NODE_ENV=production
 CMD ["/app/server"]

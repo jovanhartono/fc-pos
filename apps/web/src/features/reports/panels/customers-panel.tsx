@@ -15,7 +15,7 @@ import {
 import { CHART_PALETTE } from "@/features/reports/utils/palette";
 import type { ReportGranularity } from "@/lib/api";
 import { customerAcquisitionQueryOptions } from "@/lib/query-options";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 interface CustomersPanelProps {
 	from: string;
@@ -177,7 +177,7 @@ export const CustomersPanel = ({
 												<span className="truncate">{c.customer_name}</span>
 											</span>
 											<span className="font-mono text-sm tabular-nums">
-												{formatIDRCurrency(String(c.revenue))}
+												{formatMoney(String(c.revenue))}
 											</span>
 										</div>
 										<div className="h-1.5 w-full bg-muted">

@@ -10,7 +10,7 @@ import {
 import { CHART_PALETTE } from "@/features/reports/utils/palette";
 import type { ReportOverview } from "@/lib/api";
 import { reportOverviewQueryOptions } from "@/lib/query-options";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 interface OverviewPanelProps {
 	date: string;
@@ -37,7 +37,7 @@ const CategoryBars = ({
 								{row.category_name}
 							</span>
 							<span className="font-mono text-sm tabular-nums">
-								{formatIDRCurrency(String(row.revenue))}
+								{formatMoney(String(row.revenue))}
 							</span>
 						</div>
 						<div className="h-1.5 w-full bg-muted">
@@ -80,7 +80,7 @@ const TopServicesList = ({
 						</p>
 					</div>
 					<p className="font-mono text-sm tabular-nums">
-						{formatIDRCurrency(String(row.revenue))}
+						{formatMoney(String(row.revenue))}
 					</p>
 				</div>
 			))}
@@ -115,7 +115,7 @@ const BranchBreakdown = ({
 								<span className="truncate">{row.store_name}</span>
 							</span>
 							<span className="font-mono text-sm tabular-nums">
-								{formatIDRCurrency(String(row.revenue))}
+								{formatMoney(String(row.revenue))}
 							</span>
 						</div>
 						<div className="h-1.5 w-full bg-muted">
@@ -158,7 +158,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 			<KpiRow>
 				<KpiCard
 					label="Net revenue"
-					value={formatIDRCurrency(String(overview?.daily.revenue ?? 0))}
+					value={formatMoney(String(overview?.daily.revenue ?? 0))}
 					helper="Paid minus refunded"
 				/>
 				<KpiCard

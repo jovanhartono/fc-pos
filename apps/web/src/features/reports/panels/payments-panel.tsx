@@ -15,7 +15,7 @@ import {
 import { CHART_PALETTE } from "@/features/reports/utils/palette";
 import type { ReportGranularity } from "@/lib/api";
 import { paymentMixQueryOptions } from "@/lib/query-options";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 interface PaymentsPanelProps {
 	from: string;
@@ -73,7 +73,7 @@ export const PaymentsPanel = ({
 				<KpiRow>
 					<KpiCard
 						label="Paid revenue"
-						value={formatIDRCurrency(String(data?.summary.grand_total ?? 0))}
+						value={formatMoney(String(data?.summary.grand_total ?? 0))}
 					/>
 					<KpiCard
 						label="Paid orders"
@@ -91,7 +91,7 @@ export const PaymentsPanel = ({
 				data={data?.series ?? []}
 				granularity={data?.granularity ?? "day"}
 				series={series}
-				valueFormatter={(v) => formatIDRCurrency(String(v))}
+				valueFormatter={(v) => formatMoney(String(v))}
 			/>
 
 			<Card className="border-border/70">
@@ -112,7 +112,7 @@ export const PaymentsPanel = ({
 											{m.payment_method_name}
 										</span>
 										<span className="font-mono text-sm tabular-nums">
-											{formatIDRCurrency(String(m.revenue))}
+											{formatMoney(String(m.revenue))}
 										</span>
 									</div>
 									<div className="h-1.5 w-full bg-muted">

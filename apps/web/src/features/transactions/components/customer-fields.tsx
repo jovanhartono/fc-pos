@@ -1,3 +1,7 @@
+import {
+	isValidPhoneNumber,
+	normalizePhoneNumber,
+} from "@fresclean/api/schema";
 import { CheckCircleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -7,7 +11,6 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import { fetchCustomerByPhone } from "@/lib/api";
-import { isValidPhoneNumber, normalizePhoneNumber } from "@/lib/phone-number";
 import { cn } from "@/lib/utils";
 
 // POS customer entry — two always-visible fields. The cashier enters the phone;

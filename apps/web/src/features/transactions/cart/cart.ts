@@ -1,7 +1,9 @@
 import {
+	applyManualDiscount,
 	type CampaignContribution,
 	type CampaignDiscountInput,
 	type DiscountLine,
+	normalizePhoneNumber,
 	stackCampaignDiscounts,
 } from "@fresclean/api/schema";
 import type { UseFormReturn } from "react-hook-form";
@@ -11,7 +13,6 @@ import type {
 	ResolvedVoucher,
 	Service,
 } from "@/lib/api";
-import { isValidPhoneNumber, normalizePhoneNumber } from "@/lib/phone-number";
 import { parseMoney } from "@/shared/money";
 
 export type ProductCartLine = {
@@ -298,11 +299,10 @@ export const getCartPricing = <C extends CartCampaign>({
 	}));
 	const stacked = stackCampaignDiscounts(subtotal, stackInput, serviceLines);
 	const manualDiscountValue = Number(manualDiscount || 0);
-	// Mirrors resolveDiscount: manual absorbs only what the total has left
-	// after campaigns.
-	const appliedManual = Math.min(
+	const appliedManual = applyManualDiscount(
+		subtotal,
+		stacked.total,
 		manualDiscountValue,
-		Math.max(0, subtotal - stacked.total),
 	);
 	const totalDiscount = stacked.total + appliedManual;
 
@@ -326,15 +326,6 @@ export const countUnpricedServiceLines = (
 	serviceRows.filter(
 		(line) => line.service.price === null && getServiceLinePrice(line) <= 0,
 	).length;
-
-// The cart→payment gate: a customer is ready once they have a name and a phone
-// that parses. Shared by the step tabs, the Continue button, and the Create
-// Order button so all three progression controls enforce the identical rule.
-export const isCustomerReady = (
-	customerName: string,
-	customerPhone: string,
-): boolean =>
-	customerName.trim().length > 0 && isValidPhoneNumber(customerPhone);
 
 export const toOrderPayload = ({
 	customerName,

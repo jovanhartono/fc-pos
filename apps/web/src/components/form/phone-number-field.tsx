@@ -1,7 +1,7 @@
+import { normalizePhoneNumber } from "@fresclean/api/schema";
 import type { CountryCode } from "libphonenumber-js";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { normalizePhoneNumber } from "@/lib/phone-number";
 
 type PhoneNumberFieldProps = {
 	id: string;

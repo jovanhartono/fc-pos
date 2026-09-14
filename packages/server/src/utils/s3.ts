@@ -23,10 +23,14 @@ const MAX_PASSTHROUGH_BYTES = 4_000_000;
 // Dev and production share one bucket, so every key is filed under the environment that wrote
 // it. What this buys: the photo sweep lists only its own environment's prefix, and so can never
 // weigh a production dispute photo against a development database that has never heard of the
-// order it was filed under — and delete it. Derived from the same flag that picks the database
-// in db/index.ts, so the two halves cannot disagree about which environment this is.
-export const STORAGE_ENV_PREFIX =
-  process.env.NODE_ENV === "production" ? "prod/" : "dev/";
+// order it was filed under — and delete it. Set per Vercel environment alongside DATABASE_URL;
+// if the two disagree, the sweep judges one environment's bucket against the other's database.
+// An unset prefix would point the sweep at the old un-prefixed "orders/…" keys.
+const rawStoragePrefix = process.env.STORAGE_PREFIX;
+if (!(rawStoragePrefix && /^(dev|prod)\/$/.test(rawStoragePrefix))) {
+  throw new Error('STORAGE_PREFIX must be "dev/" or "prod/"');
+}
+export const STORAGE_ENV_PREFIX = rawStoragePrefix;
 
 // A scope, not a bare key: lets a save check a client-supplied path against the
 // same folder its presign was issued under, instead of re-deriving it by hand.

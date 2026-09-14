@@ -1,6 +1,6 @@
 import type { FieldErrors } from "react-hook-form";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
-import type { CheckoutStep } from "@/features/transactions/components/checkout-stepper";
+import type { CheckoutStep } from "@/features/transactions/lib/checkout-steps";
 
 // Where the cashier has to go to fix a blocked checkout. "store" is not a
 // checkout step — the picker lives in the catalog behind the sheet, which is
@@ -110,6 +110,12 @@ const SERVER_FAILURE_RULES: {
 		pattern: /campaign can only be applied once/i,
 		target: "payment",
 		action: "Remove the duplicate campaign.",
+	},
+	{
+		pattern:
+			/campaign (not found|.* (is not active|has not started yet|has ended|is not available for store|has reached its usage limit))|order total does not meet minimum/i,
+		target: "payment",
+		action: "Remove the campaign or code, or pick another.",
 	},
 	{
 		pattern: /voucher/i,

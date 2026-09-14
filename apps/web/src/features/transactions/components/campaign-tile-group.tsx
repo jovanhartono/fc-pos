@@ -1,11 +1,11 @@
 import { CheckIcon } from "@phosphor-icons/react";
 import type { Campaign } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 const campaignDiscountLabel = (campaign: Campaign): string => {
 	if (campaign.discount_type === "fixed") {
-		return `-${formatIDRCurrency(String(campaign.discount_value))}`;
+		return `-${formatMoney(String(campaign.discount_value))}`;
 	}
 	if (campaign.discount_type === "percentage") {
 		return `-${campaign.discount_value}%`;

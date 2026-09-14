@@ -23,7 +23,7 @@ import {
 	formatRefundReason,
 	REFUND_REASONS,
 } from "@/lib/status";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 // Cancel is the unpaid, per-line twin of refund (ADR-0008): one deep form —
 // line picker, per-line reason/note, validation, submit — with a shallow
@@ -255,7 +255,7 @@ const OrderLineReversalForm = <R extends string>({
 			return copy.pending;
 		}
 		if (capsByLineKey && totalRefund > 0) {
-			return `Refund ${formatIDRCurrency(String(totalRefund))}`;
+			return `Refund ${formatMoney(String(totalRefund))}`;
 		}
 		return copy.confirm;
 	};
@@ -330,7 +330,7 @@ const OrderLineReversalForm = <R extends string>({
 					<div className="flex items-center justify-between border-t pt-3 text-sm">
 						<span className="text-muted-foreground">Refund total</span>
 						<span className="font-medium font-mono tabular-nums">
-							{formatIDRCurrency(String(totalRefund)) || "Rp0"}
+							{formatMoney(String(totalRefund))}
 						</span>
 					</div>
 				) : null}
@@ -392,7 +392,7 @@ const ReversalItemRow = ({
 						<FieldLabel htmlFor={checkboxId}>{label}</FieldLabel>
 						{amount !== undefined ? (
 							<span className="ml-auto font-mono text-sm tabular-nums">
-								{formatIDRCurrency(String(amount)) || "Rp0"}
+								{formatMoney(String(amount))}
 							</span>
 						) : null}
 					</Field>

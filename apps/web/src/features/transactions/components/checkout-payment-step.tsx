@@ -27,7 +27,7 @@ import {
 	paymentMethodsQueryOptions,
 } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 
 // Step ③ — money. A discount settles once every line is priced (ADR-0018),
 // not once the money arrives, so campaigns/voucher/manual discount are offered
@@ -276,9 +276,7 @@ export const CheckoutPaymentStep = () => {
 						<ReceiptIcon className="size-4 text-muted-foreground" />
 						<span className="text-muted-foreground">Subtotal</span>
 					</div>
-					<span className="font-medium">
-						{formatIDRCurrency(String(subtotal))}
-					</span>
+					<span className="font-medium">{formatMoney(String(subtotal))}</span>
 				</div>
 				{pricing.campaignBreakdown.map(({ campaign, amount }) => (
 					<div
@@ -289,7 +287,7 @@ export const CheckoutPaymentStep = () => {
 							{campaign.code} ({campaign.name})
 						</span>
 						<span className="font-medium text-destructive">
-							-{formatIDRCurrency(String(amount))}
+							-{formatMoney(String(amount))}
 						</span>
 					</div>
 				))}
@@ -301,12 +299,12 @@ export const CheckoutPaymentStep = () => {
 							pricing.manualDiscount > 0 && "text-destructive",
 						)}
 					>
-						-{formatIDRCurrency(String(pricing.manualDiscount))}
+						-{formatMoney(String(pricing.manualDiscount))}
 					</span>
 				</div>
 				<div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-base font-semibold">
 					<span>Total Payment</span>
-					<span>{formatIDRCurrency(String(Math.round(pricing.total)))}</span>
+					<span>{formatMoney(String(Math.round(pricing.total)))}</span>
 				</div>
 			</div>
 		</div>

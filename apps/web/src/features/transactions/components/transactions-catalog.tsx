@@ -19,7 +19,7 @@ import {
 	servicesQueryOptions,
 } from "@/lib/query-options";
 import { cn } from "@/lib/utils";
-import { formatIDRCurrency } from "@/shared/utils";
+import { formatMoney } from "@/shared/money";
 import { useDialog } from "@/stores/dialog-store";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
@@ -307,7 +307,7 @@ export function TransactionsCatalog() {
 										    the workshop inspects the item. */}
 										{item.price === null
 											? "Priced per item"
-											: formatIDRCurrency(String(item.price))}
+											: formatMoney(String(item.price))}
 									</p>
 								</button>
 							</CardContent>
