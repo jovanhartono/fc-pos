@@ -1,6 +1,10 @@
 import "@/index.css";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+	onlineManager,
+	QueryClient,
+	QueryClientProvider,
+} from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { Analytics } from "@vercel/analytics/react";
 import { DetailedError } from "hono/client";
@@ -22,6 +26,9 @@ const ReactQueryDevtools = import.meta.env.DEV
 const queryClient = new QueryClient({
 	defaultOptions: {
 		mutations: {
+			// A payment tapped while offline must fail now, not fire minutes later
+			// when the connection returns and the counter has moved on.
+			networkMode: "always",
 			onSuccess: (response) => {
 				if (
 					typeof response === "object" &&
@@ -33,6 +40,10 @@ const queryClient = new QueryClient({
 				}
 			},
 			onError: (error) => {
+				// The offline banner already says why; a toast on top repeats it.
+				if (!onlineManager.isOnline()) {
+					return;
+				}
 				if (error instanceof DetailedError) {
 					const details = error.detail as
 						| { data?: { message?: string } }
