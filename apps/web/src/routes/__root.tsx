@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { GlobalErrorPage } from "@/components/global-error-page";
 import { NotFoundPage } from "@/components/not-found-page";
+import { OfflineBanner } from "@/components/offline-banner";
 import { GlobalDialog } from "@/components/ui/global-dialog";
 import { GlobalSheet } from "@/components/ui/global-sheet";
 import { Toaster } from "@/components/ui/sonner";
@@ -26,6 +27,7 @@ function RootComponent() {
 				className="pointer-events-auto"
 				closeButton
 			/>
+			<OfflineBanner />
 			<main className="min-h-dvh bg-background text-foreground">
 				<Outlet />
 			</main>
