@@ -8,16 +8,6 @@ export const Route = createFileRoute("/_admin/")({
 	component: HomePage,
 });
 
-const greetingFor = (hour: number) => {
-	if (hour < 11) {
-		return "Good morning";
-	}
-	if (hour < 15) {
-		return "Good afternoon";
-	}
-	return "Good evening";
-};
-
 function HomePage() {
 	const { me } = Route.useRouteContext();
 	const now = dayjs().tz(JAKARTA_TZ);
@@ -25,13 +15,13 @@ function HomePage() {
 	return (
 		<div>
 			<PageHeader
-				title={`${greetingFor(now.hour())}, ${me.name}`}
+				title={`Hello, ${me.name}`}
 				description={`${now.format("dddd, DD MMM YYYY")} · ${me.role}`}
 			/>
 			<div className="grid gap-8">
 				{navGroupsForRole(me.role).map((group) => (
 					<section key={group.label} className="grid gap-3">
-						<h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+						<h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
 							{group.label}
 						</h2>
 						<ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
