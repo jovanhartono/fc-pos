@@ -25,7 +25,7 @@
   field `appliedVouchers: {code, campaign}[]` is now the single home; the
   Zustand `resolvedVoucherEntries` slice and its mirror effects are deleted.
 
-## Architecture-deepening follow-ups (extracted 2026-06-10, source: docs/architecture-deepening.md)
+## Architecture-deepening follow-ups (extracted 2026-06-10)
 
 - [x] **Apply the ADR-0017 Item migration to PROD, then baseline prod onto
   migrations** — closed 2026-09-03. Prod's order-flow tables were wiped as test
@@ -128,3 +128,44 @@
 - [x] **Prod environment separation** (decided, shipped 2026-09-11, PR #118) —
   one bucket, `dev/` / `prod/` key prefixes from `STORAGE_PREFIX`, set per Vercel
   environment alongside `DATABASE_URL`. Seed data has its own `seed/` prefix.
+
+## Architecture-review leftovers (2026-09-12 pass, PRs #118-#125 all merged)
+
+- [ ] **`/track` drags the auth store into its entry chunk** — the page is the
+  one screen nobody signs in for, but it reaches the admin guard and pulls the
+  auth store with it, so a customer checking their order downloads the sign-in
+  code. Separate ticket, not part of the review's PRs.
+
+- [ ] **Tracker rejects a `+62…` phone** — the page already normalises an
+  `08…` number, but a customer who types their number the way their contacts
+  app stores it is turned away at a field that could accept it.
+
+- [ ] **Payments report y-axis label clips at 1280** — the label is cut off at
+  the width most of the office runs, so the axis reads as unlabelled.
+
+## Deferred at the v1 ship review (2026-04-28)
+
+Nothing here is scheduled. Each row waits for its trigger; when one fires, the
+row becomes a real task. D-4 shipped as receipt printing (#107, 2026-09-08) and
+D-16 as Sentry error reporting (#119), so both are off the list.
+
+| ID | Area | Effort | Re-open when |
+|----|------|--------|--------------|
+| D-1 | Printable label | M | Volume threshold |
+| D-2 | Digital disclaimer | L | After D-3 |
+| D-3 | WhatsApp integration | M | Provider picked |
+| D-5 | Photo compression | L | Cost threshold |
+| D-6 | Photos on `/track` | L | Support requests |
+| D-7 | Offline POS | H | Connectivity incidents |
+| D-8 | Per-service discount snapshot | M | Per-service campaigns |
+| D-9 | Dynamic repair pricing | M | Repair revenue growth |
+| D-10 | Campaign stacking cap | L | Discount leakage |
+| D-11 | Partial-refund loophole close | L | Refund flow iteration |
+| D-12 | Multi-branch stock | H | >2 product stores |
+| D-13 | Low-stock alerts | L | After D-12 |
+| D-14 | Priority preemption UX | LM | SLA misses |
+| D-15 | Unclaimed items UI | L | Storage congestion |
+| D-17 | DR backup | M | Compliance |
+| D-18 | Secrets management | LM | Compliance |
+| D-19 | Cancel→refund note link | L | Audit request |
+| D-20 | Financial panel iteration 2 | M | YoY/MoM ask or category trend signal |

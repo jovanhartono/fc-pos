@@ -73,10 +73,9 @@ Always run from the repo root — running from `apps/web` or `packages/server` m
 - `CONTEXT.md` — domain glossary, relationships, flagged ambiguities. Use these terms exactly.
 - `docs/adr/` — Architecture Decision Records. Hard-to-reverse choices with rationale.
 
-## v1 Scope Source of Truth
+## Scope Source of Truth
 
-- `TODO.md` — current lightweight task list
-- `docs/archive/2026-04-28-v1-ship/` — historical v1-ship audits (overcomplexity, production-readiness, deferred D-1..D-19). Frozen reference; do not extend in place.
+- `TODO.md` — the task list, plus the v1 deferred rows and what each one waits for.
 
 ## Detailed Standards
 
