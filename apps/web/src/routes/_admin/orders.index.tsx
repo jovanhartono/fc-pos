@@ -77,11 +77,6 @@ export const Route = createFileRoute("/_admin/orders/")({
 	validateSearch: (search) => ordersSearchSchema.parse(search),
 	loaderDeps: ({ search }) => search,
 	loader: async ({ context, deps }) => {
-		const currentUser = getCurrentUser();
-		// DB-fresh role — JWT claim goes stale on mid-session role changes.
-		const mePromise = currentUser
-			? context.queryClient.ensureQueryData(usersQueries.me())
-			: undefined;
 		const ensureOrders = () =>
 			context.queryClient.ensureQueryData(
 				ordersQueries.list(buildOrdersListParams(deps, deps.storeId)),
@@ -89,14 +84,11 @@ export const Route = createFileRoute("/_admin/orders/")({
 
 		await Promise.all([
 			context.queryClient.ensureQueryData(storesQueries.list()),
-			mePromise,
 			// A storeId in the URL already satisfies the fetch gate.
 			deps.storeId !== undefined ? ensureOrders() : undefined,
 		]);
 
-		const me = await mePromise;
-
-		if (deps.storeId === undefined && me?.role === "admin") {
+		if (deps.storeId === undefined && context.me.role === "admin") {
 			await ensureOrders();
 		}
 	},
