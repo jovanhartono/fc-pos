@@ -10,28 +10,20 @@ import { storesQueries } from "@/features/stores/api";
 import { TransactionsWorkspace } from "@/features/transactions/components/transactions-workspace";
 import { useTransactionsPageBootstrap } from "@/features/transactions/hooks/use-transactions-page";
 import { TransactionsPageProvider } from "@/features/transactions/lib/transactions-context";
-import { usersQueries } from "@/features/users/api";
-import { getCurrentUser } from "@/stores/auth-store";
 
 export const Route = createFileRoute("/_admin/transactions")({
 	loader: async ({ context }) => {
-		const currentUser = getCurrentUser();
-		const mePromise = currentUser
-			? context.queryClient.ensureQueryData(usersQueries.me())
-			: undefined;
-
 		await Promise.all([
 			context.queryClient.ensureQueryData(storesQueries.list()),
 			context.queryClient.ensureQueryData(categoriesQueries.list()),
 			context.queryClient.ensureQueryData(productsQueries.list()),
 			context.queryClient.ensureQueryData(servicesQueries.list()),
 			context.queryClient.ensureQueryData(paymentMethodsQueries.list()),
-			mePromise,
 		]);
 
-		const me = await mePromise;
+		const { me } = context;
 
-		if (me && me.role !== "admin") {
+		if (me.role !== "admin") {
 			const firstStoreId = me.userStores[0]?.store_id;
 
 			if (firstStoreId) {

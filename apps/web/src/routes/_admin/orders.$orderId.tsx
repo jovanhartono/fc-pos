@@ -22,7 +22,6 @@ export const Route = createFileRoute("/_admin/orders/$orderId")({
 		await Promise.all([
 			context.queryClient.ensureQueryData(ordersQueries.detail(id)),
 			context.queryClient.ensureQueryData(paymentMethodsQueries.list()),
-			context.queryClient.ensureQueryData(usersQueries.me()),
 		]);
 	},
 	component: OrderDetailPage,

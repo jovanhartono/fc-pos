@@ -1,31 +1,14 @@
 import {
-	BuildingsIcon,
-	ChartLineIcon,
-	ClockIcon,
-	CreditCardIcon,
-	IdentificationCardIcon,
-	ListIcon,
+	HouseIcon,
 	MonitorIcon,
 	MoonIcon,
-	PackageIcon,
-	ReceiptIcon,
-	ScissorsIcon,
-	ShoppingCartIcon,
 	SignOutIcon,
-	StorefrontIcon,
 	SunIcon,
-	TagIcon,
-	UserGearIcon,
-	WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import {
-	type ComponentType,
-	type PropsWithChildren,
-	useEffect,
-	useState,
-} from "react";
+import { type PropsWithChildren, useEffect, useState } from "react";
+import { type NavItem, navGroupsForRole } from "@/components/app-navigation";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,113 +38,24 @@ import { usersQueries } from "@/features/users/api";
 import { cn } from "@/lib/utils";
 import { getCurrentUser, useAuthStore } from "@/stores/auth-store";
 
-type Role = "admin" | "cashier" | "worker" | "courier";
-type NavItem = {
-	to: string;
-	label: string;
-	icon: ComponentType<{ className?: string; weight?: "duotone" }>;
-	roles: Role[];
-	search?: Record<string, number>;
-};
-
-const workNavigation: NavItem[] = [
-	{
-		to: "/attendance",
-		label: "Attendance",
-		icon: ClockIcon,
-		roles: ["cashier", "worker", "courier"],
-	},
-	{
-		to: "/transactions",
-		label: "Transactions",
-		icon: ShoppingCartIcon,
-		roles: ["admin", "cashier", "worker"],
-	},
-	{
-		to: "/queue",
-		label: "Queue",
-		icon: ScissorsIcon,
-		roles: ["admin", "cashier", "worker"],
-	},
-	{
-		to: "/orders",
-		label: "Orders",
-		icon: ReceiptIcon,
-		roles: ["admin", "cashier", "worker"],
-		search: { page: 1 },
-	},
-	{
-		to: "/complaints",
-		label: "Complaints",
-		icon: WarningCircleIcon,
-		roles: ["admin", "cashier", "worker"],
-		search: { page: 1 },
-	},
-	{
-		to: "/shifts",
-		label: "Shifts",
-		icon: ClockIcon,
-		roles: ["admin"],
-	},
-] as const;
-
-const customersNavigation: NavItem[] = [
-	{
-		to: "/customers",
-		label: "Customers",
-		icon: IdentificationCardIcon,
-		roles: ["admin", "cashier"],
-		search: { page: 1 },
-	},
-	{
-		to: "/campaigns",
-		label: "Campaigns",
-		icon: TagIcon,
-		roles: ["admin", "cashier"],
-		search: { page: 1 },
-	},
-] as const;
-
-const catalogNavigation: NavItem[] = [
-	{ to: "/services", label: "Services", icon: ScissorsIcon, roles: ["admin"] },
-	{ to: "/products", label: "Products", icon: PackageIcon, roles: ["admin"] },
-	{ to: "/categories", label: "Categories", icon: ListIcon, roles: ["admin"] },
-	{
-		to: "/payment-methods",
-		label: "Payment Methods",
-		icon: CreditCardIcon,
-		roles: ["admin"],
-	},
-] as const;
-
-const operationsNavigation: NavItem[] = [
-	{
-		to: "/reports",
-		label: "Reports",
-		icon: ChartLineIcon,
-		roles: ["admin"],
-	},
-	{
-		to: "/users",
-		label: "Users",
-		icon: UserGearIcon,
-		roles: ["admin"],
-		search: { page: 1 },
-	},
-	{ to: "/stores", label: "Stores", icon: StorefrontIcon, roles: ["admin"] },
-] as const;
-
-const NAV_GROUPS = [
-	{ label: "Operations", items: operationsNavigation },
-	{ label: "Work", items: workNavigation },
-	{ label: "Customers", items: customersNavigation },
-	{ label: "Catalog", items: catalogNavigation },
-];
-
 interface AppShellProps extends PropsWithChildren {
 	title: string;
-	description?: string;
 }
+
+// The receipt logo is black type on a solid white block. Multiply hides the
+// white on the light sidebar; invert plus screen does the same in dark mode.
+const BrandLogo = ({ className }: { className?: string }) => (
+	<img
+		src="/receipt-logo.webp"
+		alt="Fresclean"
+		width={2000}
+		height={632}
+		className={cn(
+			"w-auto mix-blend-multiply dark:invert dark:mix-blend-screen",
+			className,
+		)}
+	/>
+);
 
 const FooterThemeButton = () => {
 	const { setTheme } = useTheme();
@@ -213,8 +107,7 @@ function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
 							render={
 								<Link
 									to={item.to}
-									search={item.search}
-									className={cn("text-foreground")}
+									className="text-foreground"
 									activeProps={{
 										"data-active": "true",
 										className: "text-foreground",
@@ -256,29 +149,47 @@ export function AppShell({ title, children }: AppShellProps) {
 		void navigate({ to: "/auth/login" });
 	};
 
-	const allowedGroups = role
-		? NAV_GROUPS.map((group) => ({
-				label: group.label,
-				items: group.items.filter((item) => item.roles.includes(role)),
-			})).filter((group) => group.items.length > 0)
-		: [];
+	const allowedGroups = role ? navGroupsForRole(role) : [];
 
 	return (
 		<SidebarProvider defaultOpen={!startsCollapsed}>
 			<Sidebar collapsible="icon" variant="inset">
 				<SidebarHeader className="flex-row items-center justify-between group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
-					<div className="flex items-center gap-2 px-2 text-sm font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/80">
-						<BuildingsIcon className="size-4" />
-						<span className="group-data-[collapsible=icon]:hidden">
-							Fresclean POS
-						</span>
-					</div>
+					<Link to="/" className="flex items-center px-2" aria-label="Home">
+						<BrandLogo className="h-10 group-data-[collapsible=icon]:hidden" />
+						<img
+							src="/favicon.svg"
+							alt=""
+							className="hidden size-6 dark:invert group-data-[collapsible=icon]:block"
+						/>
+					</Link>
 					<SidebarTrigger className="size-6 shrink-0" />
 				</SidebarHeader>
 
 				<SidebarSeparator />
 
 				<SidebarContent>
+					<SidebarGroup>
+						<SidebarGroupContent>
+							<SidebarMenu>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										render={
+											<Link
+												to="/"
+												className="text-foreground"
+												activeProps={{ "data-active": "true" }}
+											/>
+										}
+										tooltip="Home"
+									>
+										<HouseIcon className="size-4" />
+										<span>Home</span>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+							</SidebarMenu>
+						</SidebarGroupContent>
+					</SidebarGroup>
 					{allowedGroups.map((group) => (
 						<SidebarGroup key={group.label}>
 							<SidebarGroupLabel>{group.label}</SidebarGroupLabel>
@@ -324,9 +235,9 @@ export function AppShell({ title, children }: AppShellProps) {
 			<SidebarInset>
 				<div className="sticky top-0 z-10 flex items-center gap-2 border-b border-sidebar-border/70 bg-background/95 px-3 py-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
 					<SidebarTrigger className="size-9" />
-					<span className="font-semibold text-sm uppercase tracking-[0.18em]">
-						Fresclean POS
-					</span>
+					<Link to="/" aria-label="Home">
+						<BrandLogo className="h-8" />
+					</Link>
 				</div>
 				<section className="overflow-x-clip px-3 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10">
 					{children}

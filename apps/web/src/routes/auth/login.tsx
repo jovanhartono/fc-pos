@@ -9,31 +9,17 @@ import {
 	LoginForm,
 	type LoginFormValues,
 } from "@/features/auth/components/login-form";
-import { getCurrentUser, useAuthStore } from "@/stores/auth-store";
+import { useAuthStore } from "@/stores/auth-store";
 
 const loginSchema = z.object({
 	username: z.string().trim().min(1, "Username is required"),
 	password: z.string().trim().min(1, "Password is required"),
 });
 
-const landingRouteForRole = (role?: string) => {
-	if (role === "worker") {
-		return "/queue" as const;
-	}
-	if (role === "cashier") {
-		return "/transactions" as const;
-	}
-	if (role === "courier") {
-		return "/attendance" as const;
-	}
-	return "/" as const;
-};
-
 export const Route = createFileRoute("/auth/login")({
 	beforeLoad: () => {
 		if (useAuthStore.getState().token) {
-			const user = getCurrentUser();
-			throw redirect({ to: landingRouteForRole(user?.role) });
+			throw redirect({ to: "/" });
 		}
 	},
 	component: LoginPage,
@@ -64,8 +50,7 @@ function LoginPage() {
 		mutationFn: login,
 		onSuccess: (response) => {
 			setToken(response.token);
-			const user = getCurrentUser();
-			void navigate({ to: landingRouteForRole(user?.role) });
+			void navigate({ to: "/" });
 		},
 	});
 
