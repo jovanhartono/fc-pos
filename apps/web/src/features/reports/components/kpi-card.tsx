@@ -1,6 +1,16 @@
-import { ArrowDownIcon, ArrowUpIcon, MinusIcon } from "@phosphor-icons/react";
+import {
+	ArrowDownIcon,
+	ArrowUpIcon,
+	InfoIcon,
+	MinusIcon,
+} from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import type { KpiDelta } from "@/features/reports/api";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +18,7 @@ interface KpiCardProps {
 	label: string;
 	value: ReactNode;
 	helper?: ReactNode;
+	info?: ReactNode;
 	delta?: Pick<KpiDelta, "delta_pct"> | null;
 	comparisonLabel?: string;
 	className?: string;
@@ -53,6 +64,7 @@ export const KpiCard = ({
 	label,
 	value,
 	helper,
+	info,
 	delta,
 	comparisonLabel = "vs previous",
 	className,
@@ -63,8 +75,25 @@ export const KpiCard = ({
 	return (
 		<Card className={cn("border-border/70", className)}>
 			<CardContent className="grid gap-1 p-4">
-				<p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+				<p className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
 					{label}
+					{info ? (
+						// A popover, not a tooltip: the owner checks a customer on a phone
+						// at the counter, and a hover-only tooltip never opens on a tap.
+						<Popover>
+							<PopoverTrigger
+								aria-label={`How ${label} is calculated`}
+								className="text-muted-foreground transition-colors hover:text-foreground"
+								openOnHover
+								delay={100}
+							>
+								<InfoIcon className="size-3.5" />
+							</PopoverTrigger>
+							<PopoverContent align="start" className="w-64">
+								{info}
+							</PopoverContent>
+						</Popover>
+					) : null}
 				</p>
 				<p className="break-all font-mono text-xl font-semibold tabular-nums sm:text-2xl">
 					{value}

@@ -66,7 +66,6 @@ export const Route = createFileRoute("/_admin/campaigns")({
 		Promise.all([
 			context.queryClient.ensureQueryData(campaignsQueries.list()),
 			context.queryClient.ensureQueryData(storesQueries.list()),
-			context.queryClient.ensureQueryData(usersQueries.me()),
 		]),
 	component: CampaignsPage,
 });

@@ -11,6 +11,7 @@ import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { CustomerLink } from "@/features/customers/components/customer-link";
 import {
 	type FetchOrdersQuery,
 	type Order,
@@ -76,11 +77,6 @@ export const Route = createFileRoute("/_admin/orders/")({
 	validateSearch: (search) => ordersSearchSchema.parse(search),
 	loaderDeps: ({ search }) => search,
 	loader: async ({ context, deps }) => {
-		const currentUser = getCurrentUser();
-		// DB-fresh role — JWT claim goes stale on mid-session role changes.
-		const mePromise = currentUser
-			? context.queryClient.ensureQueryData(usersQueries.me())
-			: undefined;
 		const ensureOrders = () =>
 			context.queryClient.ensureQueryData(
 				ordersQueries.list(buildOrdersListParams(deps, deps.storeId)),
@@ -88,14 +84,11 @@ export const Route = createFileRoute("/_admin/orders/")({
 
 		await Promise.all([
 			context.queryClient.ensureQueryData(storesQueries.list()),
-			mePromise,
 			// A storeId in the URL already satisfies the fetch gate.
 			deps.storeId !== undefined ? ensureOrders() : undefined,
 		]);
 
-		const me = await mePromise;
-
-		if (deps.storeId === undefined && me?.role === "admin") {
+		if (deps.storeId === undefined && context.me.role === "admin") {
 			await ensureOrders();
 		}
 	},
@@ -226,9 +219,11 @@ function OrdersPage() {
 					},
 				},
 				cell: ({ row }) => (
-					<span className="truncate font-medium">
-						{row.original.customer_name}
-					</span>
+					<CustomerLink
+						className="truncate"
+						customerId={row.original.customer_id}
+						name={row.original.customer_name}
+					/>
 				),
 			},
 			{

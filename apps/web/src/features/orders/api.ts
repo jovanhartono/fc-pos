@@ -54,6 +54,7 @@ export type FetchOrdersQuery = {
 	limit?: number;
 	offset?: number;
 	search?: string;
+	customer_id?: number;
 	store_id?: number;
 	status?:
 		| "created"

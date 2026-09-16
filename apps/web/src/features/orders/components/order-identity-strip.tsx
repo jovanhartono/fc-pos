@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { OpenComplaintForm } from "@/features/complaints/components/open-complaint-form";
 import { useOpenComplaintMutation } from "@/features/complaints/hooks/useComplaintMutations";
+import { CustomerLink } from "@/features/customers/components/customer-link";
 import type { OrderDetail } from "@/features/orders/api";
 import { OrderCourierForm } from "@/features/orders/components/order-courier-form";
 import {
@@ -72,7 +73,7 @@ export const OrderIdentityStrip = ({
 		totalCount === 0 ? 0 : (fulfillment.picked_up_count / totalCount) * 100;
 
 	const trackingUrl = (() => {
-		const phone = detail.customer?.phone_number ?? "";
+		const phone = detail.customer.phone_number;
 		if (!(detail.code && phone)) {
 			return null;
 		}
@@ -203,8 +204,7 @@ export const OrderIdentityStrip = ({
 		gates.canRefundWholeOrder ||
 		gates.canOpenComplaint;
 	const meta = [
-		detail.customer?.name,
-		detail.customer?.phone_number,
+		detail.customer.phone_number,
 		detail.store?.name,
 		formatOrderDateTime(detail.created_at),
 		detail.collectedBy ? `Courier: ${detail.collectedBy.name}` : null,
@@ -248,7 +248,13 @@ export const OrderIdentityStrip = ({
 								</Badge>
 							) : null}
 						</div>
-						<p className="text-muted-foreground text-sm">{meta}</p>
+						<p className="text-muted-foreground text-sm">
+							<CustomerLink
+								customerId={detail.customer.id}
+								name={detail.customer.name}
+							/>
+							{` · ${meta}`}
+						</p>
 					</div>
 
 					<div className="flex shrink-0 items-center gap-2">

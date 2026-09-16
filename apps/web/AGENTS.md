@@ -25,7 +25,7 @@
 - `lib/` — RPC clients, HTTP helpers, cache events, status maps, shared helpers
 - `routes/` — TanStack Router file-based; thin orchestrators only
 - `shared/` — cross-cutting utils (money, utils)
-- `stores/` — Zustand stores (auth, dialog, sheet, printer, transactions, transaction-preferences)
+- `stores/` — Zustand stores (auth, dialog, sheet, printer, queue-preferences, transactions, transaction-preferences)
 
 ## Forms
 

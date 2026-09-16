@@ -18,7 +18,9 @@ import {
   type OrderRefundStatus,
 } from "@/modules/orders/order-refund-status";
 import { isNumericSearch } from "@/modules/orders/order-search";
+import { summarizeOrderFulfillment } from "@/modules/orders/order-status-machine";
 import { PICKUP_OVERDUE_HOURS } from "@/schema/turnaround";
+import { isUnpricedLine } from "@/schema/unpriced-line";
 import { jakartaDayEnd, jakartaDayStart, jakartaNow } from "@/utils/date";
 
 export type OrderTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -68,12 +70,16 @@ export interface OrderListItem {
   customer_name: string;
   customer_phone: string;
   discount: string;
+  fulfillment: ReturnType<typeof summarizeOrderFulfillment>;
+  has_unpriced_line: boolean;
   id: number;
   notes: string | null;
+  paid_amount: string;
   payment_method_id: number | null;
   payment_method_name: string | null;
   payment_status: "paid" | "unpaid";
   refund_status: OrderRefundStatus;
+  refunded_amount: string;
   status:
     | "created"
     | "processing"
@@ -246,6 +252,39 @@ export async function findOrders(
     countOrders(filters, scopedStoreIds),
   ]);
 
+  const orderIds = rows.map((row) => row.id);
+  const serviceRows =
+    orderIds.length === 0
+      ? []
+      : await db.query.ordersServicesTable.findMany({
+          where: { order_id: { in: orderIds } },
+          columns: {
+            order_id: true,
+            price: true,
+            status: true,
+          },
+        });
+
+  const groupedStatuses = new Map<
+    number,
+    (typeof serviceRows)[number]["status"][]
+  >();
+  const awaitingPrice = new Set<number>();
+
+  for (const row of serviceRows) {
+    if (row.order_id === null) {
+      continue;
+    }
+
+    const current = groupedStatuses.get(row.order_id) ?? [];
+    current.push(row.status);
+    groupedStatuses.set(row.order_id, current);
+
+    if (isUnpricedLine(row)) {
+      awaitingPrice.add(row.order_id);
+    }
+  }
+
   const items: OrderListItem[] = rows.map((row) => ({
     id: row.id,
     code: row.code,
@@ -257,6 +296,9 @@ export async function findOrders(
     }),
     discount: row.discount,
     total: row.total,
+    paid_amount: row.paid_amount,
+    refunded_amount: row.refunded_amount,
+    has_unpriced_line: awaitingPrice.has(row.id),
     notes: row.notes,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -270,6 +312,7 @@ export async function findOrders(
     payment_method_name: row.paymentMethod?.name ?? null,
     created_by: row.created_by,
     updated_by: row.updated_by,
+    fulfillment: summarizeOrderFulfillment(groupedStatuses.get(row.id) ?? []),
   }));
 
   return {

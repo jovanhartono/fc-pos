@@ -23,6 +23,11 @@ type CustomerLookup = InferResponseType<
 	typeof rpc.api.admin.customers.lookup.$get
 >["data"];
 
+// The person plus the money and history behind them. Admin-only (ADR-0021).
+export type CustomerDetail = InferResponseType<
+	(typeof rpc.api.admin.customers)[":id"]["$get"]
+>["data"];
+
 export type FetchCustomersQuery = {
 	limit?: number;
 	offset?: number;
@@ -44,6 +49,7 @@ export const customersKeys = {
 		[...customersKeys.lists(), query ?? {}] as const,
 	byPhone: (phone: string) =>
 		[...customersKeys.all, "by-phone", phone] as const,
+	detail: (id: number) => [...customersKeys.all, "detail", id] as const,
 };
 
 async function fetchCustomersPage(
@@ -70,6 +76,14 @@ function fetchCustomerByPhone(phone: string): Promise<CustomerLookup> {
 	);
 }
 
+function fetchCustomerDetail(id: number): Promise<CustomerDetail> {
+	return parseSuccessData<CustomerDetail>(
+		rpcWithAuth().api.admin.customers[":id"].$get({
+			param: { id: String(id) },
+		}),
+	);
+}
+
 export const customersQueries = {
 	list: (query?: FetchCustomersQuery) =>
 		queryOptions({
@@ -84,6 +98,11 @@ export const customersQueries = {
 			// phone (e.g. after a cart↔payment tab toggle remounts the field) is
 			// instant instead of refetching and flashing the name/badge.
 			staleTime: 5 * 60 * 1000,
+		}),
+	detail: (id: number) =>
+		queryOptions({
+			queryKey: customersKeys.detail(id),
+			queryFn: () => fetchCustomerDetail(id),
 		}),
 };
 

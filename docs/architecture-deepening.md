@@ -1,5 +1,7 @@
 # Architecture Deepening — Frozen Record (complete 2026-06-10)
 
+> Schema notes below say `push:dev` is the workflow. That was true when written; since PR #101 (2026-08-27) the repo ships schema changes as drizzle migrations — see `packages/server/AGENTS.md`.
+
 Record of the `/improve-codebase-architecture` effort (2026-05 → 2026-06).
 All candidates closed: §1–§6 + §8 shipped, §7 deferred with re-open triggers
 (see §7). **Do not resume — there is no pending work here.** This file is the

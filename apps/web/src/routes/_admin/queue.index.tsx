@@ -120,16 +120,8 @@ const queueSearchSchema = z.object({
 
 export const Route = createFileRoute("/_admin/queue/")({
 	validateSearch: (search) => queueSearchSchema.parse(search),
-	loader: async ({ context }) => {
-		const currentUser = getCurrentUser();
-
-		await Promise.all([
-			context.queryClient.ensureQueryData(storesQueries.list()),
-			currentUser
-				? context.queryClient.ensureQueryData(usersQueries.me())
-				: undefined,
-		]);
-	},
+	loader: ({ context }) =>
+		context.queryClient.ensureQueryData(storesQueries.list()),
 	component: QueuePage,
 });
 

@@ -11,6 +11,7 @@ import { TablePagination } from "@/components/table-pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { type Customer, customersQueries } from "@/features/customers/api";
+import { CustomerLink } from "@/features/customers/components/customer-link";
 import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -21,7 +22,7 @@ const customersSearchSchema = z.object({
 	search: z.string().trim().min(1).max(100).optional(),
 });
 
-export const Route = createFileRoute("/_admin/customers")({
+export const Route = createFileRoute("/_admin/customers/")({
 	validateSearch: (search) => customersSearchSchema.parse(search),
 	loaderDeps: ({ search }) => search,
 	loader: ({ context, deps }) =>
@@ -84,6 +85,9 @@ function CustomersPage() {
 			{
 				accessorKey: "name",
 				header: "Name",
+				cell: ({ row }) => (
+					<CustomerLink customerId={row.original.id} name={row.original.name} />
+				),
 			},
 			{
 				accessorKey: "phone_number",

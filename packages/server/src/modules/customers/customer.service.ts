@@ -5,6 +5,7 @@ import {
   countCustomers,
   findCustomerById,
   findCustomerByPhone,
+  findCustomerSummary,
   insertCustomer,
   listCustomers,
   updateCustomerById,
@@ -33,8 +34,17 @@ export async function getCustomers(query?: GetCustomersQuery) {
   };
 }
 
-export function getCustomerById(id: number) {
-  return findCustomerById(id);
+// Powers the customer detail page: the person's columns plus the money and
+// history an admin reads before deciding how to treat them. Admin-only —
+// ADR-0021.
+export async function getCustomerDetail(id: number) {
+  const customer = await findCustomerById(id);
+
+  if (!customer) {
+    return null;
+  }
+
+  return { ...customer, summary: await findCustomerSummary(id) };
 }
 
 // Exact-phone lookup for the POS name-prefill. Phone is identity (UNIQUE), so

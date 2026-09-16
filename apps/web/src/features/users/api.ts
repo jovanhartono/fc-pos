@@ -8,6 +8,7 @@ import {
 	toPaginated,
 	toSearchParams,
 } from "@/lib/http";
+import { REFERENCE_DATA_STALE_TIME } from "@/lib/query-defaults";
 import { type rpc, rpcWithAuth } from "@/lib/rpc";
 
 export type User = InferResponseType<
@@ -67,6 +68,7 @@ export const usersQueries = {
 		queryOptions({
 			queryKey: usersKeys.me(),
 			queryFn: fetchMe,
+			staleTime: REFERENCE_DATA_STALE_TIME,
 		}),
 };
 

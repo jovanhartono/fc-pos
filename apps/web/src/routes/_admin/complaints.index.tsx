@@ -16,6 +16,7 @@ import {
 	type FetchComplaintsQuery,
 } from "@/features/complaints/api";
 import { getComplaintOutcome } from "@/features/complaints/lib/format";
+import { CustomerLink } from "@/features/customers/components/customer-link";
 
 const complaintsSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
@@ -80,6 +81,12 @@ const ComplaintsPage = () => {
 				accessorKey: "customer_name",
 				header: "Customer",
 				meta: { mobileCard: { label: "Customer" } },
+				cell: ({ row }) => (
+					<CustomerLink
+						customerId={row.original.customer_id}
+						name={row.original.customer_name}
+					/>
+				),
 			},
 			{
 				accessorKey: "store_name",

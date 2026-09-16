@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { CustomerLink } from "@/features/customers/components/customer-link";
 import {
 	ordersQueries,
 	type UpdateOrderServiceStatusPayload,
@@ -249,22 +250,21 @@ export function QueueServiceDetail({
 					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
 						<dt className={LABEL_CLASS}>Customer</dt>
 						<dd className="text-sm text-foreground">
-							{detail.customer?.name ?? "-"}
+							<CustomerLink
+								customerId={detail.customer.id}
+								name={detail.customer.name}
+							/>
 						</dd>
 					</div>
 					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
 						<dt className={LABEL_CLASS}>Phone</dt>
 						<dd className="text-sm text-foreground">
-							{detail.customer?.phone_number ? (
-								<a
-									href={`tel:${detail.customer.phone_number}`}
-									className="font-mono underline underline-offset-2 hover:text-muted-foreground"
-								>
-									{detail.customer.phone_number}
-								</a>
-							) : (
-								"-"
-							)}
+							<a
+								href={`tel:${detail.customer.phone_number}`}
+								className="font-mono underline underline-offset-2 hover:text-muted-foreground"
+							>
+								{detail.customer.phone_number}
+							</a>
 						</dd>
 					</div>
 					<div className="col-span-2 grid content-start gap-1 bg-background px-3 py-2.5">
