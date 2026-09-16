@@ -19,13 +19,14 @@ import { OpenComplaintForm } from "@/features/complaints/components/open-complai
 import { useOpenComplaintMutation } from "@/features/complaints/hooks/useComplaintMutations";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import type { OrderDetail } from "@/features/orders/api";
-import { OrderCourierForm } from "@/features/orders/components/order-courier-form";
+import { OrderIntakeForm } from "@/features/orders/components/order-intake-form";
 import {
 	CancelOrderForm,
 	RefundOrderForm,
 } from "@/features/orders/components/order-line-reversal-form";
 import { OrderPickupEventDialog } from "@/features/orders/components/order-pickup-event-dialog";
 import { PaymentStatusBadge } from "@/features/orders/components/payment-status-badge";
+import { formatPostalCodeLabel } from "@/features/orders/components/postal-code-autocomplete";
 import {
 	useCancelOrderMutation,
 	useRefundOrderMutation,
@@ -109,17 +110,24 @@ export const OrderIdentityStrip = ({
 		});
 	};
 
-	const openCourierDialog = () => {
+	const openIntakeDialog = () => {
 		openDialog({
-			title: "Set courier",
+			title: "Set intake",
 			description:
-				"Assign a courier to collect this order, or leave as walk-in.",
+				"How these items reached the store, and where they came from.",
 			contentClassName: "sm:max-w-md",
 			content: () => (
-				<OrderCourierForm
+				<OrderIntakeForm
 					closeDialog={closeDialog}
+					currentChannel={detail.intake_channel}
 					currentCourierId={
 						detail.collected_by ? String(detail.collected_by) : ""
+					}
+					currentPostalCode={detail.origin_postal_code ?? ""}
+					currentPostalCodeLabel={
+						detail.originPostalCode
+							? formatPostalCodeLabel(detail.originPostalCode)
+							: undefined
 					}
 					orderId={orderId}
 				/>
@@ -208,6 +216,8 @@ export const OrderIdentityStrip = ({
 		detail.store?.name,
 		formatOrderDateTime(detail.created_at),
 		detail.collectedBy ? `Courier: ${detail.collectedBy.name}` : null,
+		detail.intake_channel === "shipped" ? "Shipped in" : null,
+		detail.originPostalCode ? `From ${detail.originPostalCode.city}` : null,
 	]
 		.filter(Boolean)
 		.join(" · ");
@@ -288,9 +298,9 @@ export const OrderIdentityStrip = ({
 										</DropdownMenuItem>
 									) : null}
 									{gates.canManageCourier ? (
-										<DropdownMenuItem onClick={openCourierDialog}>
+										<DropdownMenuItem onClick={openIntakeDialog}>
 											<TruckIcon className="size-4" />
-											Set courier
+											Set intake
 										</DropdownMenuItem>
 									) : null}
 									{gates.canOpenComplaint ? (

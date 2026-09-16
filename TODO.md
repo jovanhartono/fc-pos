@@ -1,5 +1,27 @@
 # TODO
 
+## Intake channel + origin postal code (shipped 2026-09-10, ADR-0020)
+
+Built on `worktree-feat-out-of-town-orders`. Everything in
+[ADR-0020](docs/adr/0020-intake-channel-and-origin-postal-code.md) is
+implemented: the `postal_codes` table and the 9,999 reference rows that ship
+with it as a data migration, the `intake_channel` enum with its backfill and
+two CHECK constraints, `orders.origin_postal_code`, the POS picker, the
+order-detail correction dialog, and the Origin reports panel.
+
+- [ ] **Verify both CHECKs landed in prod** — `drift` does not diff CHECK
+  constraints, so query `pg_constraint` for `intake_channel_courier_check` and
+  `walk_in_has_no_origin_check` after migrating.
+
+Deliberately out of scope, decided not forgotten: the return leg (return
+shipping fee, airway bill, pickup with no customer at the counter) and asking
+walk-ins where they came from. See ADR-0020 Consequences.
+
+Known limits of the data, recorded so nobody re-derives them: 69 of 9,999 codes
+straddle two kota/kabupaten and are assigned to whichever holds most of their
+villages; 609 cover several kecamatan, which is why `districts` is display and
+search only and never a grouping key.
+
 ## Report-stack consolidation (from 2026-07-06 simplification grill)
 
 - [x] **Unify "services processed" definition** (done 2026-09-12) — one query in

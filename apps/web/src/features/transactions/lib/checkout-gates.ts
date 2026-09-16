@@ -1,4 +1,5 @@
 import { isValidPhoneNumber } from "@fresclean/api/schema";
+import type { IntakeChannel } from "@/features/orders/api";
 import {
 	CHECKOUT_STEPS,
 	type CheckoutStep,
@@ -7,6 +8,8 @@ import {
 export interface CheckoutGateInput {
 	customerName: string;
 	customerPhone: string;
+	intakeChannel: IntakeChannel;
+	selectedCourierId: string;
 	itemCount: number;
 	hasDropoffPhoto: boolean;
 }
@@ -25,8 +28,18 @@ export const isCustomerReady = (
 ): boolean =>
 	customerName.trim().length > 0 && isValidPhoneNumber(customerPhone);
 
+// A courier order that cannot say which courier fetched the Items is rejected
+// by the database, so the counter has to stop before payment. The origin is
+// deliberately absent — it is optional on every channel.
+export const isCourierNamed = (
+	intakeChannel: IntakeChannel,
+	selectedCourierId: string,
+): boolean => intakeChannel !== "courier" || selectedCourierId !== "";
+
 export const getCheckoutGates = (input: CheckoutGateInput): CheckoutGates => ({
-	customerReady: isCustomerReady(input.customerName, input.customerPhone),
+	customerReady:
+		isCustomerReady(input.customerName, input.customerPhone) &&
+		isCourierNamed(input.intakeChannel, input.selectedCourierId),
 	itemsReady: input.itemCount > 0 && input.hasDropoffPhoto,
 });
 
@@ -72,7 +85,19 @@ export const lockedStepHint = (
 	const steps = locked.map((entry) => entry.label).join(" and ");
 	const verb = locked.length > 1 ? "unlock" : "unlocks";
 	if (!gates.customerReady) {
-		return `${steps} ${verb} once you enter the customer name and phone.`;
+		// Naming only the identity fields would stall a cashier who has already
+		// typed them and is blocked on the courier instead.
+		const missingCustomer = [
+			isCustomerReady(input.customerName, input.customerPhone)
+				? null
+				: "enter the customer name and phone",
+			isCourierNamed(input.intakeChannel, input.selectedCourierId)
+				? null
+				: "pick the courier who collected it",
+		]
+			.filter(Boolean)
+			.join(", and ");
+		return `${steps} ${verb} once you ${missingCustomer}.`;
 	}
 	const missing = [
 		input.itemCount > 0 ? null : "an item",

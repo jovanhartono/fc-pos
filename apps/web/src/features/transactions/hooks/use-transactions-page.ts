@@ -1,4 +1,4 @@
-import { isValidPhoneNumber } from "@fresclean/api/schema";
+import { INTAKE_CHANNELS, isValidPhoneNumber } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -61,6 +61,10 @@ const transactionDraftSchema = z
 		),
 		selectedPaymentMethodId: z.string(),
 		selectedCourierId: z.string(),
+		intakeChannel: z.enum(INTAKE_CHANNELS),
+		// Never required. Plenty of customers cannot recite their kode pos, and
+		// the shop would rather have a blank than a guess (ADR-0020).
+		originPostalCode: z.string(),
 		manualDiscount: z
 			.string()
 			.refine(

@@ -54,6 +54,7 @@ mock.module("@/modules/reports/report-range.service", () => ({
   getCustomerAcquisitionReport: marker("customer-acquisition"),
   getFinancialReport: marker("financial"),
   getOrdersFlowReport: marker("orders-flow"),
+  getOriginRankingReport: marker("origin-ranking"),
   getPaymentMixReport: marker("payment-mix"),
   getRefundTrendReport: marker("refund-trend"),
   getWorkerProductivityReport: marker("worker-productivity"),
@@ -89,6 +90,7 @@ const REPORTS = [
   { path: "/refund-trend", params: "from=2026-08-01&to=2026-08-05" },
   { path: "/worker-productivity", params: "from=2026-08-01&to=2026-08-05" },
   { path: "/campaign-effectiveness", params: "from=2026-08-01&to=2026-08-05" },
+  { path: "/origin-ranking", params: "from=2026-08-01&to=2026-08-05" },
   { path: "/aging-queue", params: "" },
 ];
 

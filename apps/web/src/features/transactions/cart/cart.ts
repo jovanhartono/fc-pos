@@ -8,7 +8,7 @@ import {
 } from "@fresclean/api/schema";
 import type { UseFormReturn } from "react-hook-form";
 import type { ResolvedVoucher } from "@/features/campaigns/api";
-import type { CreateOrderPayload } from "@/features/orders/api";
+import type { CreateOrderPayload, IntakeChannel } from "@/features/orders/api";
 import type { Product } from "@/features/products/api";
 import type { Service } from "@/features/services/api";
 import { parseMoney } from "@/shared/money";
@@ -71,6 +71,8 @@ export type TransactionDraftValues = {
 	appliedVouchers: AppliedVoucher[];
 	selectedPaymentMethodId: string;
 	selectedCourierId: string;
+	intakeChannel: IntakeChannel;
+	originPostalCode: string;
 	manualDiscount: string;
 	notes: string;
 	productCart: ProductCartLine[];
@@ -85,6 +87,8 @@ export const defaultDraftValues: TransactionDraftValues = {
 	appliedVouchers: [],
 	selectedPaymentMethodId: "",
 	selectedCourierId: "",
+	intakeChannel: "walk_in",
+	originPostalCode: "",
 	manualDiscount: "",
 	notes: "",
 	productCart: [],
@@ -333,6 +337,8 @@ export const toOrderPayload = ({
 	appliedVouchers,
 	selectedPaymentMethodId,
 	selectedCourierId,
+	intakeChannel,
+	originPostalCode,
 	manualDiscount,
 	notes,
 	productCart,
@@ -357,7 +363,17 @@ export const toOrderPayload = ({
 		payment_method_id: isPaidAtDropoff
 			? Number(selectedPaymentMethodId)
 			: undefined,
-		collected_by: selectedCourierId ? Number(selectedCourierId) : undefined,
+		collected_by:
+			intakeChannel === "courier" && selectedCourierId
+				? Number(selectedCourierId)
+				: undefined,
+		intake_channel: intakeChannel,
+		// A walk-in customer is at the counter, so there is nothing to record —
+		// and the server rejects an origin on one (ADR-0020).
+		origin_postal_code:
+			intakeChannel !== "walk_in" && originPostalCode
+				? originPostalCode
+				: undefined,
 		payment_status: isPaidAtDropoff ? "paid" : "unpaid",
 		notes: notes.trim() || undefined,
 		products: productCart.map((line) => ({

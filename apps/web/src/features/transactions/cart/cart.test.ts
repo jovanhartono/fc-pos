@@ -297,6 +297,8 @@ describe("toOrderPayload", () => {
 		appliedVouchers: [],
 		selectedPaymentMethodId: "",
 		selectedCourierId: "",
+		intakeChannel: "walk_in",
+		originPostalCode: "",
 		manualDiscount: "",
 		notes: "  ",
 		productCart: [productLine(1, 2)],
@@ -321,6 +323,8 @@ describe("toOrderPayload", () => {
 			discount: "0",
 			payment_method_id: undefined,
 			collected_by: undefined,
+			intake_channel: "walk_in",
+			origin_postal_code: undefined,
 			payment_status: "unpaid",
 			notes: undefined,
 			products: [{ id: 1, qty: 2 }],
@@ -467,5 +471,66 @@ describe("moveCartService", () => {
 		expect(moveCartService(cart, "i1", "a", "gone")).toBeNull();
 		expect(moveCartService(cart, "i1", "missing-line", null)).toBeNull();
 		expect(moveCartService(cart, "i1", "a", "i1")).toBeNull();
+	});
+});
+
+// The server and the database both refuse a channel that disagrees with the
+// courier or the origin beside it (ADR-0020), so the payload has to drop
+// whatever the chosen channel cannot carry rather than send it and get a 400.
+describe("toOrderPayload intake channel", () => {
+	const intakeDraft = (
+		patch: Partial<TransactionDraftValues>,
+	): TransactionDraftValues => ({
+		selectedStoreId: "2",
+		customerName: "Budi",
+		customerPhone: "081234567890",
+		selectedCampaignIds: [],
+		appliedVouchers: [],
+		selectedPaymentMethodId: "",
+		selectedCourierId: "",
+		intakeChannel: "walk_in",
+		originPostalCode: "",
+		manualDiscount: "",
+		notes: "",
+		productCart: [productLine(1, 1)],
+		itemCart: [],
+		...patch,
+	});
+
+	test("a courier order carries its courier", () => {
+		const payload = toOrderPayload(
+			intakeDraft({ intakeChannel: "courier", selectedCourierId: "7" }),
+		);
+		expect(payload.intake_channel).toBe("courier");
+		expect(payload.collected_by).toBe(7);
+	});
+
+	test("a shipped order carries an origin and no courier", () => {
+		const payload = toOrderPayload(
+			intakeDraft({ intakeChannel: "shipped", originPostalCode: "40115" }),
+		);
+		expect(payload.intake_channel).toBe("shipped");
+		expect(payload.collected_by).toBeUndefined();
+		expect(payload.origin_postal_code).toBe("40115");
+	});
+
+	test("a stale courier left over from a channel switch is dropped", () => {
+		const payload = toOrderPayload(
+			intakeDraft({ intakeChannel: "shipped", selectedCourierId: "7" }),
+		);
+		expect(payload.collected_by).toBeUndefined();
+	});
+
+	test("a walk-in sends no origin even if one is left in the draft", () => {
+		const payload = toOrderPayload(
+			intakeDraft({ intakeChannel: "walk_in", originPostalCode: "40115" }),
+		);
+		expect(payload.origin_postal_code).toBeUndefined();
+	});
+
+	test("a shipped order whose origin nobody knew sends none", () => {
+		const payload = toOrderPayload(intakeDraft({ intakeChannel: "shipped" }));
+		expect(payload.intake_channel).toBe("shipped");
+		expect(payload.origin_postal_code).toBeUndefined();
 	});
 });

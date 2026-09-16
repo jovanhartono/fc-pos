@@ -33,6 +33,7 @@ import {
   isCollectableItemStatus,
   summarizeOrderFulfillment,
 } from "@/modules/orders/order-status-machine";
+import { assertPostalCodeExists } from "@/modules/postal-codes/postal-code.service";
 import {
   decrementProductsStock,
   findProducts,
@@ -285,6 +286,10 @@ export async function createOrder(
     await assertActiveCourier(orderPayload.collected_by);
   }
 
+  if (orderPayload.origin_postal_code != null) {
+    await assertPostalCodeExists(orderPayload.origin_postal_code);
+  }
+
   const services = expandOrderServices(items);
 
   const productIds = [...new Set(products.map((item) => item.id))];
@@ -361,6 +366,8 @@ export async function createOrder(
       paid_at: null,
       store_id: store.id,
       collected_by: orderPayload.collected_by ?? null,
+      intake_channel: orderPayload.intake_channel,
+      origin_postal_code: orderPayload.origin_postal_code ?? null,
       created_by: userId,
       updated_by: userId,
     });
