@@ -107,7 +107,7 @@ export function Combobox({
 						<div className="relative border-b border-border/80">
 							<ComboboxPrimitive.Input
 								placeholder={searchPlaceholder}
-								className="h-10 w-full border-0 bg-transparent px-2.5 pr-8 text-xs outline-none placeholder:text-muted-foreground"
+								className="h-10 w-full border-0 bg-transparent px-2.5 pr-8 text-xs pointer-coarse:text-base outline-none placeholder:text-muted-foreground"
 							/>
 							{loading ? (
 								<CircleNotchIcon className="absolute top-1/2 right-2 size-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
