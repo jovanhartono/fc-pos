@@ -31,7 +31,7 @@ import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import { itemPhotoUploader } from "@/features/orders/utils/photo-upload";
 import { onOrderMoved } from "@/lib/cache-events";
-import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
+import { getOrderServiceItemDescriptors } from "@/lib/order-service-item-details";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
@@ -147,7 +147,7 @@ export function QueueServiceDetail({
 			(!canStartWork || status !== "processing"),
 	);
 
-	const itemDetails = getOrderServiceItemDetails(selectedService.item);
+	const itemDescriptors = getOrderServiceItemDescriptors(selectedService.item);
 	const handlerLabel = isHandledByCurrentUser
 		? "You"
 		: isHandledByAnotherWorker
@@ -160,37 +160,27 @@ export function QueueServiceDetail({
 
 	return (
 		<>
-			<div className="mb-5 flex items-start gap-3">
+			<div className="mb-5">
 				<Link
 					to="/queue"
 					search={{ storeId: detail.store?.id }}
-					className="flex size-9 shrink-0 items-center justify-center border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+					className="mb-3 flex size-9 items-center justify-center border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 				>
 					<ArrowLeftIcon className="size-4" weight="bold" />
 				</Link>
-				<div className="min-w-0 flex-1">
+				<div className="min-w-0">
 					{/* Two headlines of equal weight: the job, and the object it is done
 					    to. A worker needs both to pick the right shoe off the rack, so
 					    neither is demoted to small print. The tag is the machine's
-					    handle and reads third, in mono. flex-wrap so a long status badge
-					    drops below a long name on a 390px viewport instead of being
-					    clipped by the section's overflow-x-clip. */}
-					<div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-						<h1 className="text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
-							{selectedService.service?.name ?? "Service"}
-						</h1>
-						<Badge
-							className="mt-1 shrink-0"
-							variant={getOrderServiceStatusBadgeVariant(
-								selectedService.status,
-							)}
-						>
-							{formatOrderServiceStatus(selectedService.status)}
-						</Badge>
-					</div>
-					{itemDetails ? (
-						<p className="text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
-							{itemDetails}
+					    handle and reads third, in mono. */}
+					<h1 className="text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
+						{selectedService.service?.name ?? "Service"}
+					</h1>
+					{itemDescriptors.length > 0 ? (
+						// Separator bound to the descriptor before it, so a wrap on a
+						// 390px screen never starts a line with a stray "·".
+						<p className="mt-1 text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
+							{itemDescriptors.join(" · ")}
 						</p>
 					) : null}
 					<p className="mt-1 break-all font-mono text-sm text-muted-foreground">
@@ -201,11 +191,20 @@ export function QueueServiceDetail({
 
 			<div className="grid gap-5">
 				<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border border-border bg-muted/40 px-3 py-2.5">
-					{selectedService.is_priority ? (
-						<Badge variant="warning">Priority</Badge>
-					) : (
-						<Badge variant="outline">Standard</Badge>
-					)}
+					<div className="flex flex-wrap items-center gap-2">
+						<Badge
+							variant={getOrderServiceStatusBadgeVariant(
+								selectedService.status,
+							)}
+						>
+							{formatOrderServiceStatus(selectedService.status)}
+						</Badge>
+						{selectedService.is_priority ? (
+							<Badge variant="warning">Priority</Badge>
+						) : (
+							<Badge variant="outline">Standard</Badge>
+						)}
+					</div>
 					<p className="text-xs text-muted-foreground">
 						Handler{" "}
 						<span className="font-medium text-foreground">{handlerLabel}</span>
