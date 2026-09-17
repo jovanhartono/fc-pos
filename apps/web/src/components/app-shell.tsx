@@ -1,5 +1,4 @@
 import {
-	HouseIcon,
 	MonitorIcon,
 	MoonIcon,
 	SignOutIcon,
@@ -9,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { type PropsWithChildren, useEffect, useState } from "react";
 import {
+	HOME_NAV_ITEM,
 	type NavItem,
 	navGroupsForRole,
 	tabBarItemsForRole,
@@ -38,6 +38,7 @@ import {
 	SidebarRail,
 	SidebarSeparator,
 	SidebarTrigger,
+	useSidebar,
 } from "@/components/ui/sidebar";
 import { usersQueries } from "@/features/users/api";
 import { cn } from "@/lib/utils";
@@ -106,6 +107,8 @@ const FooterThemeButton = () => {
 };
 
 function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
+	const { setOpenMobile } = useSidebar();
+
 	return (
 		<SidebarMenu>
 			{items.map((item) => {
@@ -118,6 +121,7 @@ function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
 								<Link
 									to={item.to}
 									className="text-foreground"
+									onClick={() => setOpenMobile(false)}
 									activeProps={{
 										"data-active": "true",
 										className: "text-foreground",
@@ -188,23 +192,7 @@ export function AppShell({ title, children }: AppShellProps) {
 				<SidebarContent>
 					<SidebarGroup>
 						<SidebarGroupContent>
-							<SidebarMenu>
-								<SidebarMenuItem>
-									<SidebarMenuButton
-										render={
-											<Link
-												to="/"
-												className="text-foreground"
-												activeProps={{ "data-active": "true" }}
-											/>
-										}
-										tooltip="Home"
-									>
-										<HouseIcon className="size-4" />
-										<span>Home</span>
-									</SidebarMenuButton>
-								</SidebarMenuItem>
-							</SidebarMenu>
+							<SidebarNavLinks items={[HOME_NAV_ITEM]} />
 						</SidebarGroupContent>
 					</SidebarGroup>
 					{allowedGroups.map((group) => (

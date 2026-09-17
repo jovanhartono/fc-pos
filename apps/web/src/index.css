@@ -200,7 +200,15 @@
 	::view-transition-new(root) {
 		animation-duration: 220ms;
 		animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
-		/* The default cross-fade blends the two snapshots; a slide must not. */
+	}
+
+	/* A slide must not blend the two snapshots the way the default cross-fade
+	   does. Two screens at the same level — Orders to Users — get no slide, so
+	   they keep that cross-fade and this must not reach them. */
+	html:active-view-transition-type(push)::view-transition-old(root),
+	html:active-view-transition-type(push)::view-transition-new(root),
+	html:active-view-transition-type(pop)::view-transition-old(root),
+	html:active-view-transition-type(pop)::view-transition-new(root) {
 		mix-blend-mode: normal;
 	}
 

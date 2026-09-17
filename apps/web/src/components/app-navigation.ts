@@ -3,6 +3,7 @@ import {
 	ChartLineIcon,
 	ClockIcon,
 	CreditCardIcon,
+	HouseIcon,
 	IdentificationCardIcon,
 	ListIcon,
 	PackageIcon,
@@ -154,12 +155,21 @@ export const NAV_GROUPS = [
 	{ label: "Catalog", items: catalogNavigation },
 ];
 
-// On a phone the tab bar is the whole navigation, so each role gets the three
-// screens it works from all shift; the rest stays behind More. Admins keep the
-// sidebar — fourteen destinations do not curate down to three.
+export const HOME_NAV_ITEM: NavItem = {
+	to: "/",
+	label: "Home",
+	description: "Everything this role can open",
+	icon: HouseIcon,
+	roles: ["admin", "cashier", "worker", "courier"],
+};
+
+// On a phone the tab bar is the whole navigation. Home leads for every role and
+// lands on the launcher, which already lists the rest; the two screens after it
+// are the ones that role works from all shift.
 const tabBarPaths: Partial<Record<Role, NavItem["to"][]>> = {
-	cashier: ["/transactions", "/queue", "/orders"],
-	worker: ["/queue", "/transactions", "/complaints"],
+	admin: ["/orders", "/reports"],
+	cashier: ["/transactions", "/orders"],
+	worker: ["/queue", "/complaints"],
 };
 
 export const navGroupsForRole = (role: Role) =>
@@ -171,10 +181,15 @@ export const navGroupsForRole = (role: Role) =>
 // Resolved against what the role may already open, so the list above only
 // decides order — never access.
 export const tabBarItemsForRole = (role: Role) => {
+	const paths = tabBarPaths[role];
+	if (!paths) {
+		return [];
+	}
 	const allowed = navGroupsForRole(role).flatMap((group) => group.items);
-	return (tabBarPaths[role] ?? []).flatMap((to) =>
-		allowed.filter((item) => item.to === to),
-	);
+	return [
+		HOME_NAV_ITEM,
+		...paths.flatMap((to) => allowed.filter((item) => item.to === to)),
+	];
 };
 
 const detailTitles: [string, string][] = [
