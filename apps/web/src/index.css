@@ -159,6 +159,9 @@
 	html,
 	body {
 		@apply bg-background font-sans text-foreground antialiased;
+		/* A cashier scrolling an order list who overshoots the top would
+		   otherwise trigger the browser's pull-to-refresh and reload mid-order. */
+		overscroll-behavior: none;
 	}
 
 	html {

@@ -201,7 +201,7 @@ const StatusPlaceholder = () => (
 const LABEL_CLASS =
 	"font-mono text-[11px] uppercase tracking-[0.18em] text-[#2a2922]/70";
 const INPUT_CLASS =
-	"rounded-none border-[#0f1a16]/25 bg-white font-mono text-sm focus-visible:border-[#0f1a16] focus-visible:ring-0";
+	"rounded-none border-[#0f1a16]/25 bg-white font-mono text-sm pointer-coarse:text-base focus-visible:border-[#0f1a16] focus-visible:ring-0";
 
 const TrackOrderPage = () => {
 	const search = Route.useSearch();
