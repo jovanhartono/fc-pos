@@ -8,7 +8,12 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { type PropsWithChildren, useEffect, useState } from "react";
-import { type NavItem, navGroupsForRole } from "@/components/app-navigation";
+import {
+	type NavItem,
+	navGroupsForRole,
+	tabBarItemsForRole,
+} from "@/components/app-navigation";
+import { AppTabBar } from "@/components/app-tab-bar";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +46,11 @@ import { getCurrentUser, useAuthStore } from "@/stores/auth-store";
 interface AppShellProps extends PropsWithChildren {
 	title: string;
 }
+
+// The one pane that scrolls. main.tsx points the router's scroll handling at it
+// by this id, and a rename on one side only would quietly park every opened
+// record halfway down the list it came from.
+export const APP_CONTENT_SCROLL_ID = "app-content";
 
 // The receipt logo is black type on a solid white block. Multiply hides the
 // white on the light sidebar; invert plus screen does the same in dark mode.
@@ -150,9 +160,16 @@ export function AppShell({ title, children }: AppShellProps) {
 	};
 
 	const allowedGroups = role ? navGroupsForRole(role) : [];
+	const tabBarItems = role ? tabBarItemsForRole(role) : [];
 
+	// The shell fills the viewport and only the content pane scrolls, so the
+	// header and the tab bar stay put while a worker flicks through the queue
+	// instead of sliding away with the page.
 	return (
-		<SidebarProvider defaultOpen={!startsCollapsed}>
+		<SidebarProvider
+			className="h-full min-h-0 overflow-hidden"
+			defaultOpen={!startsCollapsed}
+		>
 			<Sidebar collapsible="icon" variant="inset">
 				<SidebarHeader className="flex-row items-center justify-between group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
 					<Link to="/" className="flex items-center px-2" aria-label="Home">
@@ -232,16 +249,25 @@ export function AppShell({ title, children }: AppShellProps) {
 				<SidebarRail />
 			</Sidebar>
 
-			<SidebarInset>
-				<div className="sticky top-0 z-10 flex items-center gap-2 border-b border-sidebar-border/70 bg-background/95 px-3 py-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
+			<SidebarInset
+				className={cn(
+					"min-h-0",
+					tabBarItems.length > 0 && "max-md:[--inset-bottom:0px]",
+				)}
+			>
+				<div className="flex shrink-0 items-center gap-2 border-b border-sidebar-border/70 bg-background px-3 py-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] md:hidden">
 					<SidebarTrigger className="size-9" />
 					<Link to="/" aria-label="Home">
 						<BrandLogo className="h-8" />
 					</Link>
 				</div>
-				<section className="overflow-x-clip px-3 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10">
+				<section
+					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain px-3 py-4 pb-[calc(var(--inset-bottom)+1rem)] sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10"
+					data-scroll-restoration-id={APP_CONTENT_SCROLL_ID}
+				>
 					{children}
 				</section>
+				{tabBarItems.length > 0 ? <AppTabBar items={tabBarItems} /> : null}
 			</SidebarInset>
 		</SidebarProvider>
 	);

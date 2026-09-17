@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { CopyValue } from "@/components/copy-value";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -168,25 +169,29 @@ export function QueueServiceDetail({
 				>
 					<ArrowLeftIcon className="size-4" weight="bold" />
 				</Link>
-				<div className="min-w-0">
-					{/* Two headlines of equal weight: the job, and the object it is done
-					    to. A worker needs both to pick the right shoe off the rack, so
-					    neither is demoted to small print. The tag is the machine's
-					    handle and reads third, in mono. */}
-					<h1 className="text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
-						{selectedService.service?.name ?? "Service"}
-					</h1>
-					{itemDescriptors.length > 0 ? (
-						// Separator bound to the descriptor before it, so a wrap on a
-						// 390px screen never starts a line with a stray "·".
-						<p className="mt-1 text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
-							{itemDescriptors.join(" · ")}
-						</p>
-					) : null}
-					<p className="mt-1 break-all font-mono text-sm text-muted-foreground">
-						{selectedService.item.item_code}
+				{/* Two headlines of equal weight: the job, and the object it is done
+				    to. A worker needs both to pick the right shoe off the rack, so
+				    neither is demoted to small print. The tag is the machine's
+				    handle and reads third, in mono. */}
+				<h1 className="text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
+					{selectedService.service?.name ?? "Service"}
+				</h1>
+				{itemDescriptors.length > 0 ? (
+					// Separator bound to the descriptor before it, so a wrap on a
+					// 390px screen never starts a line with a stray "·".
+					<p className="mt-1 text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
+						{itemDescriptors.join(" · ")}
 					</p>
-				</div>
+				) : null}
+				<CopyValue
+					className="mt-1 text-muted-foreground"
+					label="item tag"
+					value={selectedService.item.item_code}
+				>
+					<span className="break-all font-mono text-sm">
+						{selectedService.item.item_code}
+					</span>
+				</CopyValue>
 			</div>
 
 			<div className="grid gap-5">
@@ -231,13 +236,15 @@ export function QueueServiceDetail({
 					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
 						<dt className={LABEL_CLASS}>Order</dt>
 						<dd>
-							<Link
-								to="/orders/$orderId"
-								params={{ orderId: String(orderId) }}
-								className="font-mono text-sm text-foreground underline underline-offset-2 hover:text-muted-foreground"
-							>
-								{detail.code}
-							</Link>
+							<CopyValue label="order code" value={detail.code}>
+								<Link
+									to="/orders/$orderId"
+									params={{ orderId: String(orderId) }}
+									className="font-mono text-sm text-foreground underline underline-offset-2 hover:text-muted-foreground"
+								>
+									{detail.code}
+								</Link>
+							</CopyValue>
 						</dd>
 					</div>
 					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
@@ -258,12 +265,17 @@ export function QueueServiceDetail({
 					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
 						<dt className={LABEL_CLASS}>Phone</dt>
 						<dd className="text-sm text-foreground">
-							<a
-								href={`tel:${detail.customer.phone_number}`}
-								className="font-mono underline underline-offset-2 hover:text-muted-foreground"
+							<CopyValue
+								label="phone number"
+								value={detail.customer.phone_number}
 							>
-								{detail.customer.phone_number}
-							</a>
+								<a
+									href={`tel:${detail.customer.phone_number}`}
+									className="font-mono underline underline-offset-2 hover:text-muted-foreground"
+								>
+									{detail.customer.phone_number}
+								</a>
+							</CopyValue>
 						</dd>
 					</div>
 					<div className="col-span-2 grid content-start gap-1 bg-background px-3 py-2.5">
@@ -363,7 +375,7 @@ export function QueueServiceDetail({
 				</section>
 			</div>
 
-			<div className="sticky bottom-0 z-10 mt-6 border-t border-border bg-background/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur sm:px-0 sm:pb-3">
+			<div className="sticky bottom-0 z-10 mt-6 border-t border-border bg-background/95 px-3 pb-[calc(var(--inset-bottom)+0.75rem)] pt-3 backdrop-blur sm:px-0 sm:pb-3">
 				{blockerMessage ? (
 					<div className="mb-2 flex items-center gap-2 border border-warning/50 bg-warning/10 px-3 py-2 text-xs font-medium text-foreground">
 						<WarningCircleIcon

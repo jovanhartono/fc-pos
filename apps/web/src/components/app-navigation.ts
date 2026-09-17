@@ -154,11 +154,28 @@ export const NAV_GROUPS = [
 	{ label: "Catalog", items: catalogNavigation },
 ];
 
+// On a phone the tab bar is the whole navigation, so each role gets the three
+// screens it works from all shift; the rest stays behind More. Admins keep the
+// sidebar — fourteen destinations do not curate down to three.
+const tabBarPaths: Partial<Record<Role, NavItem["to"][]>> = {
+	cashier: ["/transactions", "/queue", "/orders"],
+	worker: ["/queue", "/transactions", "/complaints"],
+};
+
 export const navGroupsForRole = (role: Role) =>
 	NAV_GROUPS.map((group) => ({
 		label: group.label,
 		items: group.items.filter((item) => item.roles.includes(role)),
 	})).filter((group) => group.items.length > 0);
+
+// Resolved against what the role may already open, so the list above only
+// decides order — never access.
+export const tabBarItemsForRole = (role: Role) => {
+	const allowed = navGroupsForRole(role).flatMap((group) => group.items);
+	return (tabBarPaths[role] ?? []).flatMap((to) =>
+		allowed.filter((item) => item.to === to),
+	);
+};
 
 const detailTitles: [string, string][] = [
 	["/queue/", "Queue Detail"],

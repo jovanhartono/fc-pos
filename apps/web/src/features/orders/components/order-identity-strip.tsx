@@ -6,6 +6,7 @@ import {
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import { CopyValue } from "@/components/copy-value";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -233,9 +234,11 @@ export const OrderIdentityStrip = ({
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0 space-y-2">
 						<div className="flex flex-wrap items-center gap-2">
-							<h1 className="break-all font-mono font-semibold text-lg tracking-tight sm:text-xl">
-								{detail.code}
-							</h1>
+							<CopyValue label="order code" value={detail.code}>
+								<h1 className="break-all font-mono font-semibold text-lg tracking-tight sm:text-xl">
+									{detail.code}
+								</h1>
+							</CopyValue>
 							<Badge variant={getOrderStatusBadgeVariant(detail.status)}>
 								{formatOrderStatus(detail.status)}
 							</Badge>

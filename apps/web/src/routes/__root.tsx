@@ -31,10 +31,15 @@ function RootComponent() {
 				className="pointer-events-auto"
 				closeButton
 			/>
-			<OfflineBanner />
-			<main className="min-h-dvh bg-background text-foreground">
-				<Outlet />
-			</main>
+			{/* The viewport is claimed here, not in the shell: when the counter
+			    drops offline the banner has to take its height off the app rather
+			    than push it past the bottom of the screen. */}
+			<div className="flex h-dvh flex-col">
+				<OfflineBanner />
+				<main className="min-h-0 flex-1 overflow-auto bg-background text-foreground">
+					<Outlet />
+				</main>
+			</div>
 			<GlobalSheet />
 			<GlobalDialog />
 		</TooltipProvider>

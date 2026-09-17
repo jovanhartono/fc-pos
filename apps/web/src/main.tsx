@@ -11,6 +11,7 @@ import { DetailedError } from "hono/client";
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
+import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
 import { RoutePending } from "@/components/route-pending";
 import { ThemeProvider } from "@/components/theme-provider";
 import { routeTree } from "@/routeTree.gen";
@@ -73,8 +74,34 @@ const router = createRouter({
 	// router's own 30s preload window would shadow it.
 	defaultPreloadStaleTime: 0,
 	defaultPendingComponent: RoutePending,
-	defaultViewTransition: true,
+	// Opening an order and coming back out used to look identical. Tag each
+	// navigation with the direction it went so the two read differently; the
+	// slide itself is in index.css.
+	defaultViewTransition: {
+		types: ({ fromLocation, toLocation }) => {
+			if (!fromLocation) {
+				return [];
+			}
+			const depthOf = (pathname: string) =>
+				pathname.split("/").filter(Boolean).length;
+			const from = depthOf(fromLocation.pathname);
+			const to = depthOf(toLocation.pathname);
+			if (to > from) {
+				return ["push"];
+			}
+			if (to < from) {
+				return ["pop"];
+			}
+			return [];
+		},
+	},
 	scrollRestoration: true,
+	// The page itself no longer scrolls — the shell's content pane does. Without
+	// this, opening an order from halfway down the queue would leave the new page
+	// parked at the old scroll position.
+	scrollToTopSelectors: [
+		`[data-scroll-restoration-id="${APP_CONTENT_SCROLL_ID}"]`,
+	],
 });
 
 declare module "@tanstack/react-router" {
