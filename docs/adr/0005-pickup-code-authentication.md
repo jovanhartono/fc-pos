@@ -75,7 +75,7 @@ Two named CHECK constraints on `orders_services` now enforce both directions:
 ```sql
 -- pre-existing
 CHECK (pickup_event_id IS NULL OR status IN ('picked_up', 'refunded'))
--- added (architecture-deepening §5)
+-- added
 CHECK (status != 'picked_up' OR pickup_event_id IS NOT NULL)
 ```
 
