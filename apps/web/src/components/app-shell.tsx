@@ -243,8 +243,9 @@ export function AppShell({ title, children }: AppShellProps) {
 					tabBarItems.length > 0 && "max-md:[--inset-bottom:0px]",
 				)}
 			>
-				<div className="flex shrink-0 items-center gap-2 border-b border-sidebar-border/70 bg-background px-3 py-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] md:hidden">
-					<SidebarTrigger className="size-9" />
+				{/* No sidebar button up here: the tab bar's More opens the same sheet,
+				    and one of the two was always the wrong one to reach for. */}
+				<div className="flex shrink-0 items-center border-b border-sidebar-border/70 bg-background px-3 py-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] md:hidden">
 					<Link to="/" aria-label="Home">
 						<BrandLogo className="h-8" />
 					</Link>
