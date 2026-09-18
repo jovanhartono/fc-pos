@@ -13,10 +13,13 @@ const tabClassName =
 	"flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[11px] text-muted-foreground leading-none transition-colors data-[active=true]:text-foreground";
 
 export const AppTabBar = ({ items }: AppTabBarProps) => {
-	const { setOpenMobile } = useSidebar();
+	const { openMobile, setOpenMobile } = useSidebar();
 
 	return (
-		<nav className="flex shrink-0 border-sidebar-border/70 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden">
+		<nav
+			aria-label="Primary"
+			className="flex shrink-0 border-sidebar-border/70 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
+		>
 			{items.map((item) => {
 				const Icon = item.icon;
 
@@ -33,6 +36,8 @@ export const AppTabBar = ({ items }: AppTabBarProps) => {
 				);
 			})}
 			<button
+				aria-expanded={openMobile}
+				aria-haspopup="dialog"
 				className={tabClassName}
 				onClick={() => setOpenMobile(true)}
 				type="button"

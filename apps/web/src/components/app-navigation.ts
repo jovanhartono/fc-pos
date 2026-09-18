@@ -164,12 +164,13 @@ export const HOME_NAV_ITEM: NavItem = {
 };
 
 // On a phone the tab bar is the whole navigation. Home leads for every role and
-// lands on the launcher, which already lists the rest; the two screens after it
-// are the ones that role works from all shift.
-const tabBarPaths: Partial<Record<Role, NavItem["to"][]>> = {
+// lands on the launcher, which already lists the rest; the screens after it are
+// the ones that role works from all shift — a courier only ever clocks in.
+const tabBarPaths: Record<Role, NavItem["to"][]> = {
 	admin: ["/orders", "/reports"],
 	cashier: ["/transactions", "/orders"],
 	worker: ["/queue", "/complaints"],
+	courier: ["/attendance"],
 };
 
 export const navGroupsForRole = (role: Role) =>
@@ -181,14 +182,12 @@ export const navGroupsForRole = (role: Role) =>
 // Resolved against what the role may already open, so the list above only
 // decides order — never access.
 export const tabBarItemsForRole = (role: Role) => {
-	const paths = tabBarPaths[role];
-	if (!paths) {
-		return [];
-	}
 	const allowed = navGroupsForRole(role).flatMap((group) => group.items);
 	return [
 		HOME_NAV_ITEM,
-		...paths.flatMap((to) => allowed.filter((item) => item.to === to)),
+		...tabBarPaths[role].flatMap((to) =>
+			allowed.filter((item) => item.to === to),
+		),
 	];
 };
 

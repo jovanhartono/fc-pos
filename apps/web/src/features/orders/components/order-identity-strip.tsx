@@ -234,11 +234,9 @@ export const OrderIdentityStrip = ({
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0 space-y-2">
 						<div className="flex flex-wrap items-center gap-2">
-							<CopyValue label="order code" value={detail.code}>
-								<h1 className="break-all font-mono font-semibold text-lg tracking-tight sm:text-xl">
-									{detail.code}
-								</h1>
-							</CopyValue>
+							<h1 className="break-all font-mono font-semibold text-lg tracking-tight sm:text-xl">
+								<CopyValue label="order code" value={detail.code} />
+							</h1>
 							<Badge variant={getOrderStatusBadgeVariant(detail.status)}>
 								{formatOrderStatus(detail.status)}
 							</Badge>

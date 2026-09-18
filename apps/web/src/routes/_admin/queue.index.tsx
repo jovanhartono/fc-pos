@@ -24,6 +24,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -266,7 +267,15 @@ function QueuePage() {
 					void current.fetchNextPage();
 				}
 			},
-			{ rootMargin: "240px 0px" },
+			{
+				// The scroll lives in the shell's content pane now, and a margin only
+				// counts against the observer's own root — left on the viewport the
+				// worker reaches the end of the queue before the next page loads.
+				root: document.querySelector(
+					`[data-scroll-restoration-id="${APP_CONTENT_SCROLL_ID}"]`,
+				),
+				rootMargin: "240px 0px",
+			},
 		);
 
 		observer.observe(node);
