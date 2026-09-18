@@ -3,6 +3,7 @@ import {
 	ChartLineIcon,
 	ClockIcon,
 	CreditCardIcon,
+	HouseIcon,
 	IdentificationCardIcon,
 	ListIcon,
 	PackageIcon,
@@ -154,11 +155,41 @@ export const NAV_GROUPS = [
 	{ label: "Catalog", items: catalogNavigation },
 ];
 
+export const HOME_NAV_ITEM: NavItem = {
+	to: "/",
+	label: "Home",
+	description: "Everything this role can open",
+	icon: HouseIcon,
+	roles: ["admin", "cashier", "worker", "courier"],
+};
+
+// On a phone the tab bar is the whole navigation. Home leads for every role and
+// lands on the launcher, which already lists the rest; the screens after it are
+// the ones that role works from all shift — a courier only ever clocks in.
+const tabBarPaths: Record<Role, NavItem["to"][]> = {
+	admin: ["/orders", "/reports"],
+	cashier: ["/transactions", "/orders"],
+	worker: ["/queue", "/complaints"],
+	courier: ["/attendance"],
+};
+
 export const navGroupsForRole = (role: Role) =>
 	NAV_GROUPS.map((group) => ({
 		label: group.label,
 		items: group.items.filter((item) => item.roles.includes(role)),
 	})).filter((group) => group.items.length > 0);
+
+// Resolved against what the role may already open, so the list above only
+// decides order — never access.
+export const tabBarItemsForRole = (role: Role) => {
+	const allowed = navGroupsForRole(role).flatMap((group) => group.items);
+	return [
+		HOME_NAV_ITEM,
+		...tabBarPaths[role].flatMap((to) =>
+			allowed.filter((item) => item.to === to),
+		),
+	];
+};
 
 const detailTitles: [string, string][] = [
 	["/queue/", "Queue Detail"],

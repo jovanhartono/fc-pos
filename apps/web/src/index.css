@@ -42,6 +42,10 @@
 	--chart-9: oklch(0.7 0.1 220);
 	--chart-10: oklch(0.72 0.1 340);
 	--radius: 0.625rem;
+	/* The gap above the home indicator, owned by whatever actually sits at the
+	   bottom of the screen: the tab bar when a worker has one, the page itself
+	   otherwise. Anything sticky at the bottom pads by this, not by env(). */
+	--inset-bottom: env(safe-area-inset-bottom);
 	--sidebar: oklch(0.985 0 0);
 	--sidebar-foreground: oklch(0.145 0 0);
 	--sidebar-primary: oklch(0.205 0 0);
@@ -173,5 +177,88 @@
 	a {
 		-webkit-tap-highlight-color: transparent;
 		touch-action: manipulation;
+	}
+
+	/* Press-and-hold on the app's own furniture offered Copy / Look Up, which no
+	   app does. The values staff genuinely copy — an order code, a phone number —
+	   are outside this list and carry a copy button of their own. */
+	button,
+	[role="button"],
+	[data-slot="badge"],
+	[data-slot="label"],
+	nav {
+		-webkit-touch-callout: none;
+		user-select: none;
+	}
+}
+
+/* Opening a record slides it in from the right and backing out slides it away
+   again, so a worker can tell whether they went deeper or came back. The
+   direction is tagged per navigation in main.tsx. */
+@media (prefers-reduced-motion: no-preference) {
+	::view-transition-old(root),
+	::view-transition-new(root) {
+		animation-duration: 220ms;
+		animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+	}
+
+	/* Sliding is a phone gesture. On the counter machine the sidebar stays put
+	   and the page is a panel beside it, so every screen just cross-fades. */
+	@media (width < 48rem) {
+		/* A slide must not blend the two snapshots the way the default cross-fade
+		   does. Two screens at the same level — Orders to Users — get no slide, so
+		   they keep that cross-fade and this must not reach them. */
+		html:active-view-transition-type(push)::view-transition-old(root),
+		html:active-view-transition-type(push)::view-transition-new(root),
+		html:active-view-transition-type(pop)::view-transition-old(root),
+		html:active-view-transition-type(pop)::view-transition-new(root) {
+			mix-blend-mode: normal;
+		}
+
+		html:active-view-transition-type(push)::view-transition-old(root) {
+			animation-name: fc-slide-out-to-left;
+		}
+
+		html:active-view-transition-type(push)::view-transition-new(root) {
+			animation-name: fc-slide-in-from-right;
+		}
+
+		/* Backing out puts the page being left on top, so it uncovers the list
+		   underneath rather than sliding in behind it. */
+		html:active-view-transition-type(pop)::view-transition-old(root) {
+			animation-name: fc-slide-out-to-right;
+			z-index: 1;
+		}
+
+		html:active-view-transition-type(pop)::view-transition-new(root) {
+			animation-name: fc-slide-in-from-left;
+			z-index: 0;
+		}
+	}
+}
+
+@keyframes fc-slide-in-from-right {
+	from {
+		transform: translateX(100%);
+	}
+}
+
+@keyframes fc-slide-out-to-left {
+	to {
+		opacity: 0;
+		transform: translateX(-25%);
+	}
+}
+
+@keyframes fc-slide-in-from-left {
+	from {
+		opacity: 0;
+		transform: translateX(-25%);
+	}
+}
+
+@keyframes fc-slide-out-to-right {
+	to {
+		transform: translateX(100%);
 	}
 }

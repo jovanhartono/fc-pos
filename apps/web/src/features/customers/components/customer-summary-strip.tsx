@@ -1,4 +1,5 @@
 import { PencilSimpleLineIcon } from "@phosphor-icons/react";
+import { CopyValue } from "@/components/copy-value";
 import { Button } from "@/components/ui/button";
 import type { CustomerDetail } from "@/features/customers/api";
 import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
@@ -32,9 +33,9 @@ export const CustomerSummaryStrip = ({
 					<h1 className="font-semibold text-2xl uppercase tracking-tight">
 						{customer.name}
 					</h1>
-					<p className="font-mono text-muted-foreground text-sm tabular-nums">
-						{customer.phone_number}
-						{customer.email ? ` · ${customer.email}` : ""}
+					<p className="flex flex-wrap items-center gap-x-1 font-mono text-muted-foreground text-sm tabular-nums">
+						<CopyValue label="phone number" value={customer.phone_number} />
+						{customer.email ? <span>{`· ${customer.email}`}</span> : null}
 					</p>
 					<p className="text-muted-foreground text-xs">
 						{`Customer since ${dayjs(customer.created_at).format("DD MMM YYYY")} · first seen at ${customer.originStore?.name ?? "—"}`}
