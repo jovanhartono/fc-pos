@@ -202,34 +202,38 @@
 		animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
 	}
 
-	/* A slide must not blend the two snapshots the way the default cross-fade
-	   does. Two screens at the same level — Orders to Users — get no slide, so
-	   they keep that cross-fade and this must not reach them. */
-	html:active-view-transition-type(push)::view-transition-old(root),
-	html:active-view-transition-type(push)::view-transition-new(root),
-	html:active-view-transition-type(pop)::view-transition-old(root),
-	html:active-view-transition-type(pop)::view-transition-new(root) {
-		mix-blend-mode: normal;
-	}
+	/* Sliding is a phone gesture. On the counter machine the sidebar stays put
+	   and the page is a panel beside it, so every screen just cross-fades. */
+	@media (width < 48rem) {
+		/* A slide must not blend the two snapshots the way the default cross-fade
+		   does. Two screens at the same level — Orders to Users — get no slide, so
+		   they keep that cross-fade and this must not reach them. */
+		html:active-view-transition-type(push)::view-transition-old(root),
+		html:active-view-transition-type(push)::view-transition-new(root),
+		html:active-view-transition-type(pop)::view-transition-old(root),
+		html:active-view-transition-type(pop)::view-transition-new(root) {
+			mix-blend-mode: normal;
+		}
 
-	html:active-view-transition-type(push)::view-transition-old(root) {
-		animation-name: fc-slide-out-to-left;
-	}
+		html:active-view-transition-type(push)::view-transition-old(root) {
+			animation-name: fc-slide-out-to-left;
+		}
 
-	html:active-view-transition-type(push)::view-transition-new(root) {
-		animation-name: fc-slide-in-from-right;
-	}
+		html:active-view-transition-type(push)::view-transition-new(root) {
+			animation-name: fc-slide-in-from-right;
+		}
 
-	/* Backing out puts the page being left on top, so it uncovers the list
-	   underneath rather than sliding in behind it. */
-	html:active-view-transition-type(pop)::view-transition-old(root) {
-		animation-name: fc-slide-out-to-right;
-		z-index: 1;
-	}
+		/* Backing out puts the page being left on top, so it uncovers the list
+		   underneath rather than sliding in behind it. */
+		html:active-view-transition-type(pop)::view-transition-old(root) {
+			animation-name: fc-slide-out-to-right;
+			z-index: 1;
+		}
 
-	html:active-view-transition-type(pop)::view-transition-new(root) {
-		animation-name: fc-slide-in-from-left;
-		z-index: 0;
+		html:active-view-transition-type(pop)::view-transition-new(root) {
+			animation-name: fc-slide-in-from-left;
+			z-index: 0;
+		}
 	}
 }
 
