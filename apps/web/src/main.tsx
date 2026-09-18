@@ -82,14 +82,21 @@ const router = createRouter({
 			if (!fromLocation) {
 				return [];
 			}
-			const depthOf = (pathname: string) =>
-				pathname.split("/").filter(Boolean).length;
-			const from = depthOf(fromLocation.pathname);
-			const to = depthOf(toLocation.pathname);
-			if (to > from) {
+			const segmentsOf = (pathname: string) =>
+				pathname.split("/").filter(Boolean);
+			const from = segmentsOf(fromLocation.pathname);
+			const to = segmentsOf(toLocation.pathname);
+			// Only a list and its own record slide — the queue and the item a
+			// worker opens from it. Home is every screen's neighbour, not its
+			// parent, so tapping a tab crosses over instead of sliding.
+			const isChildOf = (child: string[], parent: string[]) =>
+				parent.length > 0 &&
+				child.length > parent.length &&
+				parent.every((segment, index) => child[index] === segment);
+			if (isChildOf(to, from)) {
 				return ["push"];
 			}
-			if (to < from) {
+			if (isChildOf(from, to)) {
 				return ["pop"];
 			}
 			return [];

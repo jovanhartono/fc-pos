@@ -46,8 +46,16 @@ export const CopyValue = ({
 			{children ?? <span>{value}</span>}
 			<Button
 				aria-label={copied ? `${label} copied` : `Copy ${label}`}
-				className="text-muted-foreground pointer-coarse:size-7"
-				icon={copied ? <CheckIcon weight="bold" /> : <CopyIcon />}
+				className="pointer-coarse:size-7"
+				icon={
+					copied ? (
+						<CheckIcon weight="bold" />
+					) : (
+						// Thin strokes at this size read as a smudge next to the order
+						// code a cashier is trying to copy off the screen.
+						<CopyIcon weight="bold" />
+					)
+				}
 				onClick={handleCopy}
 				size="icon-xs"
 				variant="ghost"
