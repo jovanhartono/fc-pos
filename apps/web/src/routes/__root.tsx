@@ -19,6 +19,12 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 	notFoundComponent: NotFoundPage,
 });
 
+// Clears the tab bar, so "Work started" never lands on top of the nav the
+// worker is about to tap.
+const TOUCH_TOAST_OFFSET = {
+	bottom: "calc(env(safe-area-inset-bottom) + 4.25rem)",
+};
+
 function RootComponent() {
 	// Top-right lands on top of the mobile header, and far from the thumb.
 	const isCoarsePointer = useIsCoarsePointer();
@@ -28,13 +34,20 @@ function RootComponent() {
 			<Toaster
 				richColors
 				position={isCoarsePointer ? "bottom-center" : "top-right"}
+				offset={isCoarsePointer ? TOUCH_TOAST_OFFSET : undefined}
+				mobileOffset={isCoarsePointer ? TOUCH_TOAST_OFFSET : undefined}
 				className="pointer-events-auto"
 				closeButton
 			/>
-			<OfflineBanner />
-			<main className="min-h-dvh bg-background text-foreground">
-				<Outlet />
-			</main>
+			{/* The viewport is claimed here, not in the shell: when the counter
+			    drops offline the banner has to take its height off the app rather
+			    than push it past the bottom of the screen. */}
+			<div className="flex h-dvh flex-col">
+				<OfflineBanner />
+				<main className="min-h-0 flex-1 overflow-auto bg-background text-foreground">
+					<Outlet />
+				</main>
+			</div>
 			<GlobalSheet />
 			<GlobalDialog />
 		</TooltipProvider>

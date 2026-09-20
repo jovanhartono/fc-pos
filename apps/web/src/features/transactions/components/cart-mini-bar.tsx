@@ -46,7 +46,7 @@ export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
 		// minimum is the content's minimum width unless told otherwise — so a long
 		// summary label widened the whole page grid past a phone's viewport
 		// instead of truncating.
-		<div className="pointer-events-none sticky bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-40 grid min-w-0 gap-1 px-1">
+		<div className="pointer-events-none sticky bottom-[calc(var(--inset-bottom)+0.75rem)] z-40 grid min-w-0 gap-1 px-1">
 			{/* Says up front why the bar won't open, so the block isn't a dead-end
 			    tap — this hint is the only in-place explanation the cashier gets. */}
 			{hasStore ? null : (

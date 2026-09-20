@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { lazy, Suspense } from "react";
+import { lazy, type PropsWithChildren, Suspense } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
@@ -139,17 +139,6 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 	}
 }
 
-export const Route = createFileRoute("/_admin/reports")({
-	validateSearch: (search) => reportsSearchSchema.parse(search),
-	loaderDeps: ({ search }) => search,
-	loader: ({ context, deps }) =>
-		Promise.all([
-			context.queryClient.ensureQueryData(storesQueries.list()),
-			prefetchForTab(context.queryClient, deps),
-		]),
-	component: ReportsPage,
-});
-
 const PanelSkeleton = () => (
 	<div className="grid gap-6">
 		<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -175,7 +164,10 @@ const descriptions: Record<Tab, string> = {
 	"aging-queue": "Items still in queue, oldest first",
 };
 
-function ReportsPage() {
+// Shared with the pending state at the bottom of this file. Switching tabs
+// re-runs the loader, and a manager on shop wifi was getting the whole page
+// swapped for grey blocks — including the tab strip they had just tapped.
+const ReportsChrome = ({ children }: PropsWithChildren) => {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 
@@ -232,71 +224,100 @@ function ReportsPage() {
 					});
 				}}
 			>
-				<Suspense fallback={<PanelSkeleton />}>
-					{currentTab === "overview" && (
-						<OverviewPanel date={jakartaToday()} storeId={search.store_id} />
-					)}
-					{currentTab === "financial" && (
-						<FinancialPanel
-							from={search.from}
-							to={search.to}
-							storeId={search.store_id}
-							granularity={search.granularity}
-						/>
-					)}
-					{currentTab === "operations" && (
-						<OperationsPanel
-							from={search.from}
-							to={search.to}
-							storeId={search.store_id}
-							granularity={search.granularity}
-						/>
-					)}
-					{currentTab === "payments" && (
-						<PaymentsPanel
-							from={search.from}
-							to={search.to}
-							storeId={search.store_id}
-							granularity={search.granularity}
-						/>
-					)}
-					{currentTab === "customers" && (
-						<CustomersPanel
-							from={search.from}
-							to={search.to}
-							storeId={search.store_id}
-							granularity={search.granularity}
-						/>
-					)}
-					{currentTab === "quality" && (
-						<QualityPanel
-							from={search.from}
-							to={search.to}
-							storeId={search.store_id}
-							granularity={search.granularity}
-						/>
-					)}
-					{currentTab === "workers" && (
-						<WorkersPanel
-							from={search.from}
-							to={search.to}
-							storeId={search.store_id}
-							granularity={search.granularity}
-						/>
-					)}
-					{currentTab === "campaigns" && (
-						<CampaignsPanel
-							from={search.from}
-							to={search.to}
-							storeId={search.store_id}
-							granularity={search.granularity}
-						/>
-					)}
-					{currentTab === "aging-queue" && (
-						<AgingQueuePanel storeId={search.store_id} />
-					)}
-				</Suspense>
+				{children}
 			</ReportShell>
 		</>
 	);
+};
+
+function ReportsPage() {
+	const search = Route.useSearch();
+	const currentTab = search.tab as Tab;
+
+	return (
+		<ReportsChrome>
+			<Suspense fallback={<PanelSkeleton />}>
+				{currentTab === "overview" && (
+					<OverviewPanel date={jakartaToday()} storeId={search.store_id} />
+				)}
+				{currentTab === "financial" && (
+					<FinancialPanel
+						from={search.from}
+						to={search.to}
+						storeId={search.store_id}
+						granularity={search.granularity}
+					/>
+				)}
+				{currentTab === "operations" && (
+					<OperationsPanel
+						from={search.from}
+						to={search.to}
+						storeId={search.store_id}
+						granularity={search.granularity}
+					/>
+				)}
+				{currentTab === "payments" && (
+					<PaymentsPanel
+						from={search.from}
+						to={search.to}
+						storeId={search.store_id}
+						granularity={search.granularity}
+					/>
+				)}
+				{currentTab === "customers" && (
+					<CustomersPanel
+						from={search.from}
+						to={search.to}
+						storeId={search.store_id}
+						granularity={search.granularity}
+					/>
+				)}
+				{currentTab === "quality" && (
+					<QualityPanel
+						from={search.from}
+						to={search.to}
+						storeId={search.store_id}
+						granularity={search.granularity}
+					/>
+				)}
+				{currentTab === "workers" && (
+					<WorkersPanel
+						from={search.from}
+						to={search.to}
+						storeId={search.store_id}
+						granularity={search.granularity}
+					/>
+				)}
+				{currentTab === "campaigns" && (
+					<CampaignsPanel
+						from={search.from}
+						to={search.to}
+						storeId={search.store_id}
+						granularity={search.granularity}
+					/>
+				)}
+				{currentTab === "aging-queue" && (
+					<AgingQueuePanel storeId={search.store_id} />
+				)}
+			</Suspense>
+		</ReportsChrome>
+	);
 }
+
+const ReportsPending = () => (
+	<ReportsChrome>
+		<PanelSkeleton />
+	</ReportsChrome>
+);
+
+export const Route = createFileRoute("/_admin/reports")({
+	validateSearch: (search) => reportsSearchSchema.parse(search),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps }) =>
+		Promise.all([
+			context.queryClient.ensureQueryData(storesQueries.list()),
+			prefetchForTab(context.queryClient, deps),
+		]),
+	component: ReportsPage,
+	pendingComponent: ReportsPending,
+});
