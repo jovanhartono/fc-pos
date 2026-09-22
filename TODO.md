@@ -143,6 +143,29 @@
 - [ ] **Payments report y-axis label clips at 1280** — the label is cut off at
   the width most of the office runs, so the axis reads as unlabelled.
 
+## Clock-in gate follow-ups (shipped 2026-09-22, PR #112)
+
+Left open by [ADR-0020](docs/adr/0020-clock-in-is-refused-outside-3km-unless-the-phone-is-unsure.md).
+
+- [ ] **Auto-closed hours count as worked hours in the worker productivity
+  report** — `fetchShiftMinutes` sums any Shift with a `clock_out_at`, so a
+  worker who forgets to clock out contributes the hours to midnight and reads
+  2.5 services per hour instead of 4.4. `auto_closed` records which rows those
+  are and nothing consults it. Excluded, capped, or just labelled is a product
+  call. Highest value of the three: it changes numbers a manager acts on.
+
+- [ ] **Nobody has measured what a staff phone reports indoors at each branch**
+  — the gate spends the phone's own error margin as benefit of the doubt, so a
+  branch whose counter routinely returns a 4 km circle has an advisory gate,
+  not a real one. Needs one walk per branch with a real phone, precise location
+  on and off.
+
+- [ ] **At 3 km the branch rings overlap** — four pairs sit closer than 6 km in
+  prod, nearest Muara Karang and PIK at 2.48 km. Someone at one counter is
+  inside both rings and only the branch they picked is checked, so attendance
+  filed against the wrong branch is a mistake the gate does not catch. The old
+  1 km ring did.
+
 ## Deferred at the v1 ship review (2026-04-28)
 
 Nothing here is scheduled. Each row waits for its trigger; when one fires, the
