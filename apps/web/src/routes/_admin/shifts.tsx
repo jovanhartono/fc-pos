@@ -107,12 +107,19 @@ function ShiftsPage() {
 				cell: ({ row }) => {
 					const open = !row.original.clock_out_at;
 					return (
-						<Badge variant={open ? "success" : "outline"}>
-							{formatDuration(
-								row.original.clock_in_at,
-								row.original.clock_out_at,
-							)}
-						</Badge>
+						<div className="flex flex-col gap-0.5">
+							<Badge variant={open ? "success" : "outline"}>
+								{formatDuration(
+									row.original.clock_in_at,
+									row.original.clock_out_at,
+								)}
+							</Badge>
+							{row.original.auto_closed ? (
+								<span className="text-amber-600 text-xs dark:text-amber-400">
+									auto-closed
+								</span>
+							) : null}
+						</div>
 					);
 				},
 			},

@@ -24,5 +24,8 @@
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     }
   ],
-  "crons": [{ "path": "/api/internal/photo-sweep", "schedule": "0 20 * * *" }]
+  "crons": [
+    { "path": "/api/internal/photo-sweep", "schedule": "0 20 * * *" },
+    { "path": "/api/internal/close-open-shifts", "schedule": "0 17 * * *" }
+  ]
 }
