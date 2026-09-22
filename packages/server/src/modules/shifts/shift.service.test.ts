@@ -13,12 +13,12 @@ import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
 
 // Clocking in is the shop's attendance record and the source of the hours in
-// the worker-productivity report. ADR-0020 splits the two halves of the
-// location rule and these tests pin that split: sharing a location is
-// mandatory, the distance it reports never refuses the shift. Plus the two
-// halves of a forgotten clock-out: clocking in closes yesterday's row so
-// nobody is locked out, and the midnight sweep spares anyone still on the
-// floor.
+// the worker-productivity report. ADR-0020 turns a worker away only when the
+// phone is sure they are elsewhere, and these tests pin both edges of that:
+// a tight fix from home is refused, a fix too vague to judge is let through.
+// Plus the two halves of a forgotten clock-out: clocking in closes yesterday's
+// row so nobody is locked out, and the midnight sweep spares anyone still on
+// the floor.
 //
 // Both repositories and the store-access gate are doubled; their own contracts
 // are pinned elsewhere.
@@ -104,9 +104,33 @@ afterAll(() => {
 const WORKER = { id: 7, role: "worker" } as unknown as JWTPayload;
 const COURIER = { id: 8, role: "courier" } as unknown as JWTPayload;
 
-// A phone standing at the Kemang counter, and one at a house 3.1 km away.
-const AT_THE_COUNTER = { latitude: -6.261_848, longitude: 106.812_735 };
-const FROM_HOME = { latitude: -6.289_478, longitude: 106.812_735 };
+// Phones due south of the Kemang counter. The accuracy is the radius the phone
+// puts on its own guess: tight outdoors, hundreds of metres indoors, kilometres
+// when the fix came from a cell tower or an IP address.
+const AT_THE_COUNTER = {
+  accuracy_m: 12,
+  latitude: -6.261_848,
+  longitude: 106.812_735,
+};
+// 6.2 km out, and the phone is sure. Nobody can argue with this one.
+const FROM_HOME = {
+  accuracy_m: 18,
+  latitude: -6.317_648,
+  longitude: 106.812_735,
+};
+// 4.1 km out on paper, but the circle is 3.2 km wide, so the counter is inside
+// it. This is the worker indoors on a rainy day, not the worker in bed.
+const FIX_TOO_VAGUE_TO_JUDGE = {
+  accuracy_m: 3200,
+  latitude: -6.298_658,
+  longitude: 106.812_735,
+};
+// 10 km out with the same useless circle: even its near edge is 6.8 km away.
+const FAR_AND_VAGUE = {
+  accuracy_m: 3200,
+  latitude: -6.352_018,
+  longitude: 106.812_735,
+};
 
 beforeEach(() => {
   setSystemTime();
@@ -133,67 +157,57 @@ describe("clockIn location rule", () => {
     expect(shiftState.inserted).toBeUndefined();
   });
 
-  it("records the distance for a worker at the counter", async () => {
-    await clockIn({
-      user: WORKER,
-      storeId: 1,
-      coordinates: AT_THE_COUNTER,
-    });
-
-    expect(shiftState.inserted).toMatchObject({
-      store_id: 1,
-      user_id: 7,
-    });
-    expect(Number(shiftState.inserted?.clock_in_distance_km)).toBeCloseTo(
-      0.03,
-      2
-    );
-  });
-
-  it("opens the shift anyway when the worker is 3.1 km away", async () => {
+  it("opens the shift for a worker at the counter", async () => {
     const shift = await clockIn({
       user: WORKER,
       storeId: 1,
-      coordinates: FROM_HOME,
+      coordinates: AT_THE_COUNTER,
     });
 
-    // The whole point of ADR-0020: the distance is evidence, not a gate.
     expect(shift).toBeDefined();
-    expect(Number(shiftState.inserted?.clock_in_distance_km)).toBeCloseTo(
-      3.1,
-      1
+    // Nothing about where the worker was survives the check.
+    expect(shiftState.inserted).toEqual({ store_id: 1, user_id: 7 });
+  });
+
+  it("turns away a worker 6.2 km from the store", async () => {
+    const error = await captureRejection(
+      clockIn({ user: WORKER, storeId: 1, coordinates: FROM_HOME })
     );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    // The distance belongs in the message: it is what a manager gets quoted.
+    expect((error as Error).message).toContain("6.2 km");
+    expect(shiftState.inserted).toBeUndefined();
+  });
+
+  it("lets a worker in when the fix is too vague to place them", async () => {
+    const shift = await clockIn({
+      user: WORKER,
+      storeId: 1,
+      coordinates: FIX_TOO_VAGUE_TO_JUDGE,
+    });
+
+    // The circle covers the counter, so nobody can say they were not at it.
+    expect(shift).toBeDefined();
+  });
+
+  it("turns away a worker too far for even a vague fix to excuse", async () => {
+    const error = await captureRejection(
+      clockIn({ user: WORKER, storeId: 1, coordinates: FAR_AND_VAGUE })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect(shiftState.inserted).toBeUndefined();
   });
 
   it("measures against the store the worker picked, not the nearest one", async () => {
-    // Standing at Kemang but clocking in against Bintaro, 18 km west.
-    await clockIn({
-      user: WORKER,
-      storeId: 2,
-      coordinates: AT_THE_COUNTER,
-    });
+    // Standing at the Kemang counter but clocking in against Bintaro, 18 km west.
+    const error = await captureRejection(
+      clockIn({ user: WORKER, storeId: 2, coordinates: AT_THE_COUNTER })
+    );
 
     expect(storeState.lookups).toEqual([2]);
-    expect(Number(shiftState.inserted?.clock_in_distance_km)).toBeGreaterThan(
-      15
-    );
-  });
-
-  it("stores the coordinates the phone reported", async () => {
-    await clockIn({
-      user: WORKER,
-      storeId: 1,
-      coordinates: AT_THE_COUNTER,
-    });
-
-    expect(Number(shiftState.inserted?.clock_in_latitude)).toBeCloseTo(
-      AT_THE_COUNTER.latitude,
-      6
-    );
-    expect(Number(shiftState.inserted?.clock_in_longitude)).toBeCloseTo(
-      AT_THE_COUNTER.longitude,
-      6
-    );
+    expect(error).toBeInstanceOf(BadRequestException);
   });
 
   it("never asks a courier for a location", async () => {

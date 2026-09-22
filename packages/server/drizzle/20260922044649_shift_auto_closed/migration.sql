@@ -1,0 +1,1 @@
+ALTER TABLE "shifts" ADD COLUMN "auto_closed" boolean DEFAULT false NOT NULL;

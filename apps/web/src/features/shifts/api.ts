@@ -1,4 +1,4 @@
-import type { Coordinates } from "@fresclean/api/schema";
+import type { ClockInCoordinates } from "@fresclean/api/schema";
 import { queryOptions } from "@tanstack/react-query";
 import { type InferResponseType, parseResponse } from "hono/client";
 import {
@@ -70,7 +70,7 @@ export const shiftsQueries = {
 
 export function clockInShift(payload: {
 	store_id: number;
-	coordinates?: Coordinates;
+	coordinates?: ClockInCoordinates;
 }) {
 	return parseResponse(
 		rpcWithAuth().api.admin.shifts["clock-in"].$post({ json: payload }),

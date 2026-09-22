@@ -6,14 +6,11 @@ import { Button } from "@/components/ui/button";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { clockInShift } from "@/features/shifts/api";
 import { useGeolocation } from "@/features/shifts/hooks/useGeolocation";
-import {
-	formatDistanceKm,
-	isOutOfClockInRange,
-} from "@/features/shifts/lib/distance";
+import { formatDistanceKm } from "@/features/shifts/lib/distance";
 import { type Store, storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
 import { onShiftClocked } from "@/lib/cache-events";
-import { cn } from "@/lib/utils";
+import { readServerErrorMessage } from "@/lib/server-error";
 import { getCurrentUser } from "@/stores/auth-store";
 
 export const PRIMARY_BUTTON =
@@ -33,6 +30,10 @@ export const ClockInControl = () => {
 		mutationKey: ["shift-clock-in"],
 		mutationFn: clockInShift,
 		onSuccess: () => onShiftClocked(queryClient),
+		// Opt out of the global error toast (main.tsx): a worker turned away for
+		// being too far needs the reason on screen while they walk to the store,
+		// not a toast that has gone by the time they look up.
+		onError: () => undefined,
 	});
 
 	// Branches this person is actually assigned to. Preselecting one they are not
@@ -120,8 +121,6 @@ export const ClockInControl = () => {
 	const entry = ranked.find(({ store }) => store.id === Number(storeValue));
 	const selected = entry?.store;
 	const selectedKm = entry?.km;
-	const isOutOfRange =
-		selectedKm !== undefined && isOutOfClockInRange(selectedKm);
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -131,21 +130,9 @@ export const ClockInControl = () => {
 						<span className="font-medium text-sm">
 							{selected.code} · {selected.name}
 						</span>
-						<span
-							className={cn(
-								"text-xs",
-								isOutOfRange
-									? "text-amber-600 dark:text-amber-400"
-									: "text-emerald-600 dark:text-emerald-400",
-							)}
-						>
+						<span className="text-muted-foreground text-xs">
 							{formatDistanceKm(selectedKm)} away
 						</span>
-						{isOutOfRange ? (
-							<span className="text-muted-foreground text-xs">
-								Your manager will see the distance.
-							</span>
-						) : null}
 					</>
 				) : null}
 
@@ -162,13 +149,31 @@ export const ClockInControl = () => {
 						<StoreAutocomplete
 							allowedStoreIds={allowedStoreIds}
 							id="clock-store"
-							onValueChange={setPicked}
+							onValueChange={(value) => {
+								// A worker turned away from Kemang who switches to BSD must not
+								// keep reading the refusal that named Kemang.
+								clockInMutation.reset();
+								setPicked(value);
+							}}
 							required
 							value={storeValue}
 						/>
 					</div>
 				)}
 			</div>
+
+			{clockInMutation.isError ? (
+				<p
+					className="flex items-center justify-center gap-1.5 text-center text-destructive text-xs"
+					role="alert"
+				>
+					<WarningIcon className="size-3.5 shrink-0" />
+					{readServerErrorMessage(
+						clockInMutation.error,
+						"Could not clock you in",
+					)}
+				</p>
+			) : null}
 
 			<Button
 				className={PRIMARY_BUTTON}

@@ -12,12 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { type Shift, shiftsQueries } from "@/features/shifts/api";
-import {
-	formatDistanceKm,
-	isOutOfClockInRange,
-} from "@/features/shifts/lib/distance";
 import { storesQueries } from "@/features/stores/api";
-import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 25;
 
@@ -105,29 +100,6 @@ function ShiftsPage() {
 					row.original.clock_out_at
 						? formatDate(row.original.clock_out_at)
 						: "—",
-			},
-			{
-				id: "distance",
-				header: "Distance",
-				cell: ({ row }) => {
-					const recorded = row.original.clock_in_distance_km;
-					if (recorded === null) {
-						return <span className="text-muted-foreground">—</span>;
-					}
-					const km = Number(recorded);
-					const isOutOfRange = isOutOfClockInRange(km);
-					return (
-						<span
-							className={cn(
-								"tabular-nums",
-								isOutOfRange && "text-amber-600 dark:text-amber-400",
-							)}
-						>
-							{formatDistanceKm(km)}
-							{isOutOfRange ? " · out of range" : ""}
-						</span>
-					);
-				},
 			},
 			{
 				id: "duration",

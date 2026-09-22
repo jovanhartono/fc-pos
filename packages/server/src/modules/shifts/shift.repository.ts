@@ -5,9 +5,6 @@ import type { GetShiftsQuery } from "@/modules/shifts/shift.schema";
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
 
 export interface InsertShiftValues {
-  clock_in_distance_km?: string;
-  clock_in_latitude?: string;
-  clock_in_longitude?: string;
   store_id: number;
   user_id: number;
 }
@@ -99,16 +96,12 @@ export function listShifts({
         lte: query?.to ? jakartaDayEnd(query.to) : undefined,
       },
     },
-    // The distance, never the coordinates. The Shifts page shows an admin how
-    // far each worker was; where each worker's phone was every morning is staff
-    // personal data that has no business travelling to a browser.
     columns: {
       id: true,
       user_id: true,
       store_id: true,
       clock_in_at: true,
       clock_out_at: true,
-      clock_in_distance_km: true,
       auto_closed: true,
     },
     orderBy: { clock_in_at: "desc" },

@@ -3,12 +3,13 @@ import {
   closeOpenShiftsBefore,
   countShifts,
   findOpenShiftByUserId,
-  type InsertShiftValues,
   insertShift,
   listShifts,
   updateShiftClockOutById,
 } from "@/modules/shifts/shift.repository";
 import {
+  CLOCK_IN_RADIUS_KM,
+  type ClockInCoordinates,
   clockInRequiresLocation,
   type GetShiftsQuery,
 } from "@/modules/shifts/shift.schema";
@@ -16,25 +17,25 @@ import { findStoreById } from "@/modules/stores/store.repository";
 import type { JWTPayload } from "@/types";
 import { assertStoreAccess } from "@/utils/authorization";
 import { jakartaDayStart, jakartaNow } from "@/utils/date";
-import { type Coordinates, distanceKm } from "@/utils/geo";
+import { distanceKm } from "@/utils/geo";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 import { isUniqueViolation } from "@/utils/pg-error";
 
-type ShiftLocation = Pick<
-  InsertShiftValues,
-  "clock_in_distance_km" | "clock_in_latitude" | "clock_in_longitude"
->;
-
 // Sharing a location is mandatory for everyone the rule covers: refusing is a
-// choice, and the whole record would be opt-out by one tap on Deny. The
-// distance it produces never refuses the Shift. See ADR-0020.
-async function resolveClockInLocation(
+// choice, and the gate would be opt-out by one tap on Deny.
+//
+// A phone reports a circle, not a point, and `accuracy_m` is that circle's
+// radius. A worker is only turned away when even the near edge of the circle is
+// outside the ring, so a bad indoor fix costs nobody their shift, while someone
+// at home with working GPS has no circle wide enough to reach the branch.
+// Nothing is kept afterwards: the Shift exists, so it passed. See ADR-0020.
+async function assertWithinClockInRadius(
   user: JWTPayload,
   storeId: number,
-  coordinates?: Coordinates
-): Promise<ShiftLocation> {
+  coordinates?: ClockInCoordinates
+) {
   if (!clockInRequiresLocation(user.role)) {
-    return {};
+    return;
   }
 
   if (!coordinates) {
@@ -50,12 +51,13 @@ async function resolveClockInLocation(
     latitude: Number(store.latitude),
     longitude: Number(store.longitude),
   });
+  const nearestPossible = distance - coordinates.accuracy_m / 1000;
 
-  return {
-    clock_in_distance_km: distance.toFixed(3),
-    clock_in_latitude: coordinates.latitude.toFixed(8),
-    clock_in_longitude: coordinates.longitude.toFixed(8),
-  };
+  if (nearestPossible > CLOCK_IN_RADIUS_KM) {
+    throw new BadRequestException(
+      `You are ${distance.toFixed(1)} km from ${store.name}. Clock in once you are at the store.`
+    );
+  }
 }
 
 export async function clockIn({
@@ -65,7 +67,7 @@ export async function clockIn({
 }: {
   user: JWTPayload;
   storeId: number;
-  coordinates?: Coordinates;
+  coordinates?: ClockInCoordinates;
 }) {
   await assertStoreAccess(user, storeId);
 
@@ -83,14 +85,10 @@ export async function clockIn({
     }
   }
 
-  const location = await resolveClockInLocation(user, storeId, coordinates);
+  await assertWithinClockInRadius(user, storeId, coordinates);
 
   try {
-    return await insertShift({
-      user_id: user.id,
-      store_id: storeId,
-      ...location,
-    });
+    return await insertShift({ user_id: user.id, store_id: storeId });
   } catch (error) {
     if (isUniqueViolation(error)) {
       throw new BadRequestException("You already have an open shift", {

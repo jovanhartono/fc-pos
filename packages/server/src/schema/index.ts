@@ -28,6 +28,7 @@ import { POSTProductSchema as _POSTProductSchema } from "@/modules/products/prod
 import { POSTServiceSchema as _POSTServiceSchema } from "@/modules/services/service.schema";
 import {
   CLOCK_IN_RADIUS_KM as _CLOCK_IN_RADIUS_KM,
+  type ClockInCoordinates as _ClockInCoordinates,
   clockInRequiresLocation as _clockInRequiresLocation,
 } from "@/modules/shifts/shift.schema";
 import { POSTStoreSchema as _POSTStoreSchema } from "@/modules/stores/store.schema";
@@ -60,9 +61,10 @@ export const POSTStoreSchema = _POSTStoreSchema;
 export const POSTStoreDeviceSchema = _POSTStoreDeviceSchema;
 export const CLOCK_IN_RADIUS_KM = _CLOCK_IN_RADIUS_KM;
 export const clockInRequiresLocation = _clockInRequiresLocation;
-// The clock-in screen quotes a distance that the row will then be judged on, so
-// it has to measure the same way the server does rather than with a second
-// formula that disagrees near the 1 km line.
+export type ClockInCoordinates = _ClockInCoordinates;
+// The clock-in screen ranks branches by distance to preselect the nearest one.
+// It borrows the server's formula so the branch it offers is the one the server
+// will measure against a moment later.
 export const distanceKm = _distanceKm;
 export type Coordinates = _Coordinates;
 

@@ -7,9 +7,8 @@ export interface Coordinates {
   longitude: number;
 }
 
-// The distance filed against a Shift, which is the number a manager is later
-// shown. It is worked out at clock-in and stored, so an admin correcting a
-// store's pin months later cannot rewrite yesterday's attendance.
+// How far a worker is from the branch they are clocking in against, and the
+// same formula the clock-in screen uses to rank the branches nearest them.
 export function distanceKm(from: Coordinates, to: Coordinates) {
   const deltaLat = toRadians(to.latitude - from.latitude);
   const deltaLon = toRadians(to.longitude - from.longitude);
