@@ -10,7 +10,9 @@ import { useIsFetching, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	Link,
 	type LinkProps,
+	useCanGoBack,
 	useNavigate,
+	useRouter,
 	useRouterState,
 } from "@tanstack/react-router";
 import { type PropsWithChildren, useEffect, useState } from "react";
@@ -59,6 +61,13 @@ interface AppShellProps extends PropsWithChildren {
 // by this id, and a rename on one side only would quietly park every opened
 // record halfway down the list it came from.
 export const APP_CONTENT_SCROLL_ID = "app-content";
+
+// Exported because the layout's pending state has to match it — see
+// `_admin/route.tsx`.
+export const APP_CONTENT_PADDING =
+	"px-3 py-4 sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10";
+
+const APP_CONTENT_CLASS = `flex-1 overflow-y-auto overflow-x-clip overscroll-contain ${APP_CONTENT_PADDING} pb-[calc(var(--inset-bottom)+1rem)]`;
 
 // The receipt logo is black type on a solid white block. Multiply hides the
 // white on the light sidebar; invert plus screen does the same in dark mode.
@@ -153,6 +162,39 @@ const useParentPath = (): LinkProps["to"] | null => {
 	}
 
 	return `/${segments[0]}` as LinkProps["to"];
+};
+
+// Stepping back through history hands the cashier the list exactly as they left
+// it — store, status, page, scroll — because that browser entry still holds the
+// filtered URL. A link to the parent path would drop all of it. Arriving from a
+// tracking link or a fresh tab there is nothing to step back to, so those land
+// on the unfiltered list instead.
+const HeaderBackButton = ({ to }: { to: LinkProps["to"] }) => {
+	const router = useRouter();
+	const canGoBack = useCanGoBack();
+	const icon = <CaretLeftIcon className="size-5" />;
+
+	if (canGoBack) {
+		return (
+			<Button
+				aria-label="Back"
+				icon={icon}
+				onClick={() => router.history.back()}
+				size="icon-lg"
+				variant="ghost"
+			/>
+		);
+	}
+
+	return (
+		<Button
+			aria-label="Back"
+			icon={icon}
+			render={<Link to={to} />}
+			size="icon-lg"
+			variant="ghost"
+		/>
+	);
 };
 
 function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
@@ -297,13 +339,7 @@ export function AppShell({ title, children }: AppShellProps) {
 				    and one of the two was always the wrong one to reach for. */}
 				<div className="flex shrink-0 items-center border-b border-sidebar-border/70 bg-background px-3 py-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] md:hidden">
 					{parentPath ? (
-						<Button
-							aria-label="Back"
-							icon={<CaretLeftIcon className="size-5" />}
-							render={<Link to={parentPath} />}
-							size="icon-lg"
-							variant="ghost"
-						/>
+						<HeaderBackButton to={parentPath} />
 					) : (
 						<Link to="/" aria-label="Home">
 							<BrandLogo className="h-8" />
@@ -312,7 +348,7 @@ export function AppShell({ title, children }: AppShellProps) {
 					<HeaderRefreshButton />
 				</div>
 				<section
-					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain px-3 py-4 pb-[calc(var(--inset-bottom)+1rem)] sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10"
+					className={APP_CONTENT_CLASS}
 					data-scroll-restoration-id={APP_CONTENT_SCROLL_ID}
 				>
 					{children}

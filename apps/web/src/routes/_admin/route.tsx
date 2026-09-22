@@ -5,8 +5,9 @@ import {
 	useLocation,
 } from "@tanstack/react-router";
 import { pageTitleFor } from "@/components/app-navigation";
-import { AppShell } from "@/components/app-shell";
+import { APP_CONTENT_PADDING, AppShell } from "@/components/app-shell";
 import { ErrorCard } from "@/components/global-error-page";
+import { RoutePending } from "@/components/route-pending";
 import { usersQueries } from "@/features/users/api";
 import { requireAuth } from "@/lib/auth";
 
@@ -19,7 +20,21 @@ export const Route = createFileRoute("/_admin")({
 	},
 	component: AdminLayout,
 	errorComponent: AdminErrorComponent,
+	pendingComponent: AdminPendingComponent,
 });
+
+// The shell owns the page gutters and has not rendered yet while the role
+// lookup is in flight, so the first skeleton of the day would otherwise sit
+// flush against both edges of the phone and read as a broken screen. The shell
+// itself is deliberately not rendered here — its nav comes from the same
+// lookup, so it would draw an empty sidebar and pop the tabs in a beat later.
+function AdminPendingComponent() {
+	return (
+		<div className={APP_CONTENT_PADDING}>
+			<RoutePending />
+		</div>
+	);
+}
 
 function AdminErrorComponent(props: ErrorComponentProps) {
 	return (
