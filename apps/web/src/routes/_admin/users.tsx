@@ -1,6 +1,6 @@
 import { PUTUserSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
+import { KeyIcon, PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
@@ -23,10 +23,12 @@ import {
 	usersKeys,
 	usersQueries,
 } from "@/features/users/api";
+import { ResetPasswordForm } from "@/features/users/components/reset-password-form";
 import {
 	UserForm,
 	type UserFormState,
 } from "@/features/users/components/user-form";
+import { useDialog } from "@/stores/dialog-store";
 import { useSheet } from "@/stores/sheet-store";
 
 const PAGE_SIZE = 25;
@@ -91,6 +93,8 @@ function UsersPage() {
 	const search = Route.useSearch();
 	const queryClient = useQueryClient();
 	const { openSheet, closeSheet } = useSheet();
+	const openDialog = useDialog((s) => s.openDialog);
+	const closeDialog = useDialog((s) => s.closeDialog);
 	const [editingUser, setEditingUser] = useState<User | null>(null);
 
 	const handleSearchChange = useCallback(
@@ -262,6 +266,19 @@ function UsersPage() {
 		});
 	}, [form, openSheet, storesQuery.data, resetForm, handleSubmit]);
 
+	const handleResetPassword = useCallback(
+		(user: User) => {
+			openDialog({
+				title: "Reset password",
+				description: `${user.name} · ${user.username}`,
+				content: () => (
+					<ResetPasswordForm userId={user.id} onDone={closeDialog} />
+				),
+			});
+		},
+		[openDialog, closeDialog],
+	);
+
 	const columns = useMemo<DataTableColumnDef<User>[]>(
 		() => [
 			{ accessorKey: "username", header: "Username" },
@@ -299,18 +316,28 @@ function UsersPage() {
 				id: "actions",
 				header: "Actions",
 				cell: ({ row }) => (
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => handleEdit(row.original)}
-						icon={<PencilSimpleLineIcon className="size-4" />}
-					>
-						Edit
-					</Button>
+					<div className="flex flex-wrap gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => handleEdit(row.original)}
+							icon={<PencilSimpleLineIcon className="size-4" />}
+						>
+							Edit
+						</Button>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => handleResetPassword(row.original)}
+							icon={<KeyIcon className="size-4" />}
+						>
+							Reset password
+						</Button>
+					</div>
 				),
 			},
 		],
-		[handleEdit, storeMap],
+		[handleEdit, handleResetPassword, storeMap],
 	);
 
 	return (

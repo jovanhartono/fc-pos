@@ -8,6 +8,7 @@ import {
   listUsers,
   replaceUserStores,
   updateUserById,
+  updateUserPasswordById,
 } from "@/modules/users/user.repository";
 import type { GetUsersQuery } from "@/modules/users/user.schema";
 import type { JWTPayload } from "@/types";
@@ -72,6 +73,23 @@ export async function updateUser({
 
   const { password: _userPassword, ...safeUser } = user;
   return safeUser;
+}
+
+// A worker who forgot their password has no way back in on their own — there is
+// no email on a User to send a link to — so an admin types a new one and tells
+// them. Deliberately does not sign the worker out of a tablet they are already
+// on; turning the User inactive is what cuts a session off. See ADR-0022.
+export async function resetUserPassword({
+  id,
+  password,
+}: {
+  id: number;
+  password: string;
+}) {
+  const passwordHash = await Bun.password.hash(password);
+  const [user] = await updateUserPasswordById(id, passwordHash);
+
+  return user ?? null;
 }
 
 export async function updateUserStores({
