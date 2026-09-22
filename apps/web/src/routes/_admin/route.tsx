@@ -1,3 +1,4 @@
+import { SpinnerGapIcon } from "@phosphor-icons/react";
 import {
 	createFileRoute,
 	type ErrorComponentProps,
@@ -5,11 +6,21 @@ import {
 	useLocation,
 } from "@tanstack/react-router";
 import { pageTitleFor } from "@/components/app-navigation";
-import { APP_CONTENT_PADDING, AppShell } from "@/components/app-shell";
+import { AppShell } from "@/components/app-shell";
 import { ErrorCard } from "@/components/global-error-page";
-import { RoutePending } from "@/components/route-pending";
 import { usersQueries } from "@/features/users/api";
 import { requireAuth } from "@/lib/auth";
+
+// The whole app is booting here, not a page — on the first open of the day the
+// container is cold and nothing is known yet about the screen the cashier is
+// headed for, so a skeleton would be drawing a shape it cannot know. The shell
+// is left out for the same reason: its nav comes from the lookup still in
+// flight, so it would draw an empty sidebar and pop the tabs in a beat later.
+const AdminPendingComponent = () => (
+	<output aria-busy className="grid h-full place-items-center">
+		<SpinnerGapIcon className="size-8 animate-spin text-muted-foreground motion-reduce:animate-none" />
+	</output>
+);
 
 export const Route = createFileRoute("/_admin")({
 	beforeLoad: async ({ context }) => {
@@ -22,19 +33,6 @@ export const Route = createFileRoute("/_admin")({
 	errorComponent: AdminErrorComponent,
 	pendingComponent: AdminPendingComponent,
 });
-
-// The shell owns the page gutters and has not rendered yet while the role
-// lookup is in flight, so the first skeleton of the day would otherwise sit
-// flush against both edges of the phone and read as a broken screen. The shell
-// itself is deliberately not rendered here — its nav comes from the same
-// lookup, so it would draw an empty sidebar and pop the tabs in a beat later.
-function AdminPendingComponent() {
-	return (
-		<div className={APP_CONTENT_PADDING}>
-			<RoutePending />
-		</div>
-	);
-}
 
 function AdminErrorComponent(props: ErrorComponentProps) {
 	return (

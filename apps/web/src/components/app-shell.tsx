@@ -62,13 +62,6 @@ interface AppShellProps extends PropsWithChildren {
 // record halfway down the list it came from.
 export const APP_CONTENT_SCROLL_ID = "app-content";
 
-// Exported because the layout's pending state has to match it — see
-// `_admin/route.tsx`.
-export const APP_CONTENT_PADDING =
-	"px-3 py-4 sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10";
-
-const APP_CONTENT_CLASS = `flex-1 overflow-y-auto overflow-x-clip overscroll-contain ${APP_CONTENT_PADDING} pb-[calc(var(--inset-bottom)+1rem)]`;
-
 // The receipt logo is black type on a solid white block. Multiply hides the
 // white on the light sidebar; invert plus screen does the same in dark mode.
 const BrandLogo = ({ className }: { className?: string }) => (
@@ -348,7 +341,7 @@ export function AppShell({ title, children }: AppShellProps) {
 					<HeaderRefreshButton />
 				</div>
 				<section
-					className={APP_CONTENT_CLASS}
+					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain px-3 py-4 pb-[calc(var(--inset-bottom)+1rem)] sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10"
 					data-scroll-restoration-id={APP_CONTENT_SCROLL_ID}
 				>
 					{children}
