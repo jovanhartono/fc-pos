@@ -1,5 +1,5 @@
 import { clockInRequiresLocation, distanceKm } from "@fresclean/api/schema";
-import { MapPinIcon, SignInIcon, WarningIcon } from "@phosphor-icons/react";
+import { SignInIcon, WarningIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -46,9 +46,9 @@ export const ClockInControl = () => {
 		[meQuery.data],
 	);
 
-	// Closest branch first, measured with the server's own formula so the number
-	// the worker reads is the number that lands on the row a manager later sees.
-	// A courier is never asked for a location, so their list stays unsorted.
+	// Closest branch first, measured with the server's own formula so the branch
+	// offered is the one the server measures against a moment later. A courier is
+	// never asked for a location, so their list stays unsorted.
 	const ranked = useMemo((): { km?: number; store: Store }[] => {
 		const open = (storesQuery.data ?? []).filter(
 			(store) =>
@@ -73,12 +73,8 @@ export const ClockInControl = () => {
 
 	if (status === "locating") {
 		return (
-			<div className="flex flex-col gap-4">
-				<p
-					className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs"
-					role="status"
-				>
-					<MapPinIcon className="size-3.5" />
+			<div className="flex flex-col gap-3">
+				<p className="text-muted-foreground text-xs" role="status">
 					Finding you…
 				</p>
 				<Button className={PRIMARY_BUTTON} disabled loading size="lg">
@@ -91,23 +87,28 @@ export const ClockInControl = () => {
 	if (status === "denied" || status === "unavailable") {
 		return (
 			<div className="flex flex-col gap-3">
-				<div
-					className="flex flex-col items-center gap-1 text-center"
-					role="alert"
-				>
-					<p className="flex items-center gap-1.5 font-medium text-destructive text-xs">
-						<WarningIcon className="size-3.5" />
-						{status === "denied"
-							? "Location is off"
-							: "Couldn't find your location"}
-					</p>
-					<p className="text-muted-foreground text-xs">
-						{status === "denied"
-							? "Turn location on for this site in your browser settings, then try again."
-							: "Wait a moment, then try again."}
+				<div className="flex items-start gap-1.5" role="alert">
+					<WarningIcon className="mt-0.5 size-3.5 shrink-0 text-destructive" />
+					<p className="text-xs">
+						<span className="font-medium text-destructive">
+							{status === "denied"
+								? "Location is off"
+								: "Couldn't find your location"}
+						</span>
+						<br />
+						<span className="text-muted-foreground">
+							{status === "denied"
+								? "Turn it on for this site, then try again."
+								: "Wait a moment, then try again."}
+						</span>
 					</p>
 				</div>
-				<Button onClick={retry} size="sm" variant="outline">
+				<Button
+					className="self-start"
+					onClick={retry}
+					size="sm"
+					variant="outline"
+				>
 					Try again
 				</Button>
 				<Button className={PRIMARY_BUTTON} disabled size="lg">
@@ -123,51 +124,48 @@ export const ClockInControl = () => {
 	const selectedKm = entry?.km;
 
 	return (
-		<div className="flex flex-col gap-4">
-			<div className="flex flex-col items-center gap-1 text-center">
-				{selected && selectedKm !== undefined ? (
-					<>
-						<span className="font-medium text-sm">
-							{selected.code} · {selected.name}
+		<div className="flex flex-col gap-3">
+			{picked === undefined && selected ? (
+				<div className="flex flex-col items-start gap-0.5">
+					<div className="flex w-full items-baseline justify-between gap-3">
+						<span className="truncate font-medium text-sm">
+							{selected.name}
 						</span>
-						<span className="text-muted-foreground text-xs">
-							{formatDistanceKm(selectedKm)} away
-						</span>
-					</>
-				) : null}
-
-				{picked === undefined && selected ? (
+						{selectedKm === undefined ? null : (
+							<span className="shrink-0 text-muted-foreground text-xs tabular-nums">
+								{formatDistanceKm(selectedKm)}
+							</span>
+						)}
+					</div>
 					<button
 						className="text-muted-foreground text-xs underline underline-offset-4"
 						onClick={() => setPicked(storeValue)}
 						type="button"
 					>
-						change store
+						change
 					</button>
-				) : (
-					<div className="w-full text-left">
-						<StoreAutocomplete
-							allowedStoreIds={allowedStoreIds}
-							id="clock-store"
-							onValueChange={(value) => {
-								// A worker turned away from Kemang who switches to BSD must not
-								// keep reading the refusal that named Kemang.
-								clockInMutation.reset();
-								setPicked(value);
-							}}
-							required
-							value={storeValue}
-						/>
-					</div>
-				)}
-			</div>
+				</div>
+			) : (
+				<StoreAutocomplete
+					allowedStoreIds={allowedStoreIds}
+					id="clock-store"
+					onValueChange={(value) => {
+						// A worker turned away from Kemang who switches to BSD must not
+						// keep reading the refusal that named Kemang.
+						clockInMutation.reset();
+						setPicked(value);
+					}}
+					required
+					value={storeValue}
+				/>
+			)}
 
 			{clockInMutation.isError ? (
 				<p
-					className="flex items-center justify-center gap-1.5 text-center text-destructive text-xs"
+					className="flex items-start gap-1.5 text-destructive text-xs"
 					role="alert"
 				>
-					<WarningIcon className="size-3.5 shrink-0" />
+					<WarningIcon className="mt-0.5 size-3.5 shrink-0" />
 					{readServerErrorMessage(
 						clockInMutation.error,
 						"Could not clock you in",
