@@ -1,5 +1,5 @@
 import {
-	ArrowsClockwiseIcon,
+	ArrowClockwiseIcon,
 	CaretLeftIcon,
 	MonitorIcon,
 	MoonIcon,
@@ -134,7 +134,7 @@ const HeaderRefreshButton = () => {
 			aria-label="Refresh"
 			className="ml-auto"
 			icon={
-				<ArrowsClockwiseIcon
+				<ArrowClockwiseIcon
 					className={cn(
 						"size-4",
 						isFetching && "animate-spin motion-reduce:animate-none",
