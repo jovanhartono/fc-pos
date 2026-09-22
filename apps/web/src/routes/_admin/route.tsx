@@ -1,3 +1,4 @@
+import { SpinnerGapIcon } from "@phosphor-icons/react";
 import {
 	createFileRoute,
 	type ErrorComponentProps,
@@ -10,6 +11,17 @@ import { ErrorCard } from "@/components/global-error-page";
 import { usersQueries } from "@/features/users/api";
 import { requireAuth } from "@/lib/auth";
 
+// The whole app is booting here, not a page — on the first open of the day the
+// container is cold and nothing is known yet about the screen the cashier is
+// headed for, so a skeleton would be drawing a shape it cannot know. The shell
+// is left out for the same reason: its nav comes from the lookup still in
+// flight, so it would draw an empty sidebar and pop the tabs in a beat later.
+const AdminPendingComponent = () => (
+	<output aria-busy className="grid h-full place-items-center">
+		<SpinnerGapIcon className="size-8 animate-spin text-muted-foreground motion-reduce:animate-none" />
+	</output>
+);
+
 export const Route = createFileRoute("/_admin")({
 	beforeLoad: async ({ context }) => {
 		requireAuth();
@@ -19,6 +31,7 @@ export const Route = createFileRoute("/_admin")({
 	},
 	component: AdminLayout,
 	errorComponent: AdminErrorComponent,
+	pendingComponent: AdminPendingComponent,
 });
 
 function AdminErrorComponent(props: ErrorComponentProps) {

@@ -1,5 +1,5 @@
 import {
-	ArrowsClockwiseIcon,
+	ArrowClockwiseIcon,
 	CaretLeftIcon,
 	MonitorIcon,
 	MoonIcon,
@@ -10,7 +10,9 @@ import { useIsFetching, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	Link,
 	type LinkProps,
+	useCanGoBack,
 	useNavigate,
+	useRouter,
 	useRouterState,
 } from "@tanstack/react-router";
 import { type PropsWithChildren, useEffect, useState } from "react";
@@ -125,7 +127,7 @@ const HeaderRefreshButton = () => {
 			aria-label="Refresh"
 			className="ml-auto"
 			icon={
-				<ArrowsClockwiseIcon
+				<ArrowClockwiseIcon
 					className={cn(
 						"size-4",
 						isFetching && "animate-spin motion-reduce:animate-none",
@@ -153,6 +155,39 @@ const useParentPath = (): LinkProps["to"] | null => {
 	}
 
 	return `/${segments[0]}` as LinkProps["to"];
+};
+
+// Stepping back through history hands the cashier the list exactly as they left
+// it — store, status, page, scroll — because that browser entry still holds the
+// filtered URL. A link to the parent path would drop all of it. Arriving from a
+// tracking link or a fresh tab there is nothing to step back to, so those land
+// on the unfiltered list instead.
+const HeaderBackButton = ({ to }: { to: LinkProps["to"] }) => {
+	const router = useRouter();
+	const canGoBack = useCanGoBack();
+	const icon = <CaretLeftIcon className="size-5" />;
+
+	if (canGoBack) {
+		return (
+			<Button
+				aria-label="Back"
+				icon={icon}
+				onClick={() => router.history.back()}
+				size="icon-lg"
+				variant="ghost"
+			/>
+		);
+	}
+
+	return (
+		<Button
+			aria-label="Back"
+			icon={icon}
+			render={<Link to={to} />}
+			size="icon-lg"
+			variant="ghost"
+		/>
+	);
 };
 
 function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
@@ -297,13 +332,7 @@ export function AppShell({ title, children }: AppShellProps) {
 				    and one of the two was always the wrong one to reach for. */}
 				<div className="flex shrink-0 items-center border-b border-sidebar-border/70 bg-background px-3 py-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] md:hidden">
 					{parentPath ? (
-						<Button
-							aria-label="Back"
-							icon={<CaretLeftIcon className="size-5" />}
-							render={<Link to={parentPath} />}
-							size="icon-lg"
-							variant="ghost"
-						/>
+						<HeaderBackButton to={parentPath} />
 					) : (
 						<Link to="/" aria-label="Home">
 							<BrandLogo className="h-8" />
