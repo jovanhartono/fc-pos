@@ -111,6 +111,37 @@ const router = createRouter({
 	],
 });
 
+// After a deploy, the new service worker takes over the open app and deletes
+// the old build's files, so the next screen would fail to load. Open it as a
+// fresh page on the new build instead — at a tap, never mid-order.
+let isOldBuild = false;
+if ("serviceWorker" in navigator) {
+	let controller = navigator.serviceWorker.controller;
+	navigator.serviceWorker.addEventListener("controllerchange", () => {
+		// The very first install takes over too, but nothing was deleted then.
+		isOldBuild ||= controller !== null;
+		controller = navigator.serviceWorker.controller;
+	});
+}
+router.history.block({
+	blockerFn: ({ action, nextLocation }) => {
+		if (!isOldBuild) {
+			return false;
+		}
+		if (action === "PUSH") {
+			window.location.assign(nextLocation.href);
+		} else if (action === "REPLACE") {
+			window.location.replace(nextLocation.href);
+		} else {
+			// Back and forward have already moved the address bar.
+			window.location.reload();
+		}
+		// Never settles, so the old build never asks for its deleted files.
+		return new Promise<boolean>(() => undefined);
+	},
+	enableBeforeUnload: false,
+});
+
 declare module "@tanstack/react-router" {
 	interface Register {
 		router: typeof router;

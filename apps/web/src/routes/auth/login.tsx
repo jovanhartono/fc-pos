@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -27,6 +27,7 @@ export const Route = createFileRoute("/auth/login")({
 
 function LoginPage() {
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const setToken = useAuthStore((state) => state.setToken);
 
 	useEffect(() => {
@@ -49,6 +50,9 @@ function LoginPage() {
 		mutationKey: ["login"],
 		mutationFn: login,
 		onSuccess: (response) => {
+			// Whoever signed out of this tablet left their role and screens
+			// cached; without this the next person inherits them.
+			queryClient.clear();
 			setToken(response.token);
 			void navigate({ to: "/" });
 		},
