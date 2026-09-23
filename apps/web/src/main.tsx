@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
 import { RoutePending } from "@/components/route-pending";
 import { ThemeProvider } from "@/components/theme-provider";
-import { waitForPrints } from "@/features/printing/pending-prints";
 import { routeTree } from "@/routeTree.gen";
 
 const ReactQueryDevtools = import.meta.env.DEV
@@ -110,38 +109,6 @@ const router = createRouter({
 	scrollToTopSelectors: [
 		`[data-scroll-restoration-id="${APP_CONTENT_SCROLL_ID}"]`,
 	],
-});
-
-// A deploy's new service worker deletes the open app's old files, so the next
-// screen opens as a fresh page on the new build instead of failing to load.
-let isOldBuild = false;
-if ("serviceWorker" in navigator) {
-	let controller = navigator.serviceWorker.controller;
-	navigator.serviceWorker.addEventListener("controllerchange", () => {
-		// The very first install takes over too, but nothing was deleted then.
-		isOldBuild ||= controller !== null;
-		controller = navigator.serviceWorker.controller;
-	});
-}
-router.history.block({
-	blockerFn: ({ action, nextLocation }) => {
-		if (!isOldBuild) {
-			return false;
-		}
-		void waitForPrints().then(() => {
-			if (action === "PUSH") {
-				window.location.assign(nextLocation.href);
-			} else if (action === "REPLACE") {
-				window.location.replace(nextLocation.href);
-			} else {
-				// Back and forward have already moved the address bar.
-				window.location.reload();
-			}
-		});
-		// Never settles, so the old build never asks for its deleted files.
-		return new Promise<boolean>(() => undefined);
-	},
-	enableBeforeUnload: false,
 });
 
 declare module "@tanstack/react-router" {
