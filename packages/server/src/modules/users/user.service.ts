@@ -8,6 +8,7 @@ import {
   listUsers,
   replaceUserStores,
   updateUserById,
+  updateUserPasswordById,
 } from "@/modules/users/user.repository";
 import type { GetUsersQuery } from "@/modules/users/user.schema";
 import type { JWTPayload } from "@/types";
@@ -72,6 +73,21 @@ export async function updateUser({
 
   const { password: _userPassword, ...safeUser } = user;
   return safeUser;
+}
+
+// Leaves open sessions alone: making the User inactive is what signs them out.
+// See ADR-0022.
+export async function resetUserPassword({
+  id,
+  password,
+}: {
+  id: number;
+  password: string;
+}) {
+  const passwordHash = await Bun.password.hash(password);
+  const [user] = await updateUserPasswordById(id, passwordHash);
+
+  return user ?? null;
 }
 
 export async function updateUserStores({

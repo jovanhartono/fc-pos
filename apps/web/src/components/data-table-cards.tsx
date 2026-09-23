@@ -19,6 +19,7 @@ interface DataTableCardsProps<TData extends RowData> {
 
 interface CardCells<TData extends RowData> {
 	primaryCell?: Cell<DataTableFeatures, TData>;
+	titleEndCells: Cell<DataTableFeatures, TData>[];
 	subtitleCells: Cell<DataTableFeatures, TData>[];
 	eyebrowCells: Cell<DataTableFeatures, TData>[];
 	badgeCells: Cell<DataTableFeatures, TData>[];
@@ -43,6 +44,7 @@ const bucketCardCells = <TData extends RowData>(
 	hiddenIds: Set<string>,
 ): CardCells<TData> => {
 	const buckets: CardCells<TData> = {
+		titleEndCells: [],
 		subtitleCells: [],
 		eyebrowCells: [],
 		badgeCells: [],
@@ -59,6 +61,10 @@ const bucketCardCells = <TData extends RowData>(
 			continue;
 		}
 		const slot = cell.column.columnDef.meta?.mobileCard?.slot;
+		if (slot === "title-end") {
+			buckets.titleEndCells.push(cell);
+			continue;
+		}
 		if (slot === "subtitle") {
 			buckets.subtitleCells.push(cell);
 			continue;
@@ -131,6 +137,7 @@ export const DataTableCards = <TData extends RowData>({
 			{rows.map((row) => {
 				const {
 					primaryCell,
+					titleEndCells,
 					subtitleCells,
 					eyebrowCells,
 					badgeCells,
@@ -201,20 +208,42 @@ export const DataTableCards = <TData extends RowData>({
 						) : null}
 
 						{primaryCell ||
+						titleEndCells.length > 0 ||
 						subtitleCells.length > 0 ||
 						badgeCells.length > 0 ? (
 							<div className="grid gap-2 px-3 py-2.5">
-								{primaryCell ? (
-									<div
-										className={cn(
-											"min-w-0 font-mono font-semibold text-[15px] text-foreground leading-tight tracking-tight",
-											primaryConfig?.className,
-										)}
-									>
-										{flexRender(
-											primaryCell.column.columnDef.cell,
-											primaryCell.getContext(),
-										)}
+								{primaryCell || titleEndCells.length > 0 ? (
+									<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+										{primaryCell ? (
+											<div
+												className={cn(
+													"min-w-0 font-mono font-semibold text-[15px] text-foreground leading-tight tracking-tight",
+													primaryConfig?.className,
+												)}
+											>
+												{flexRender(
+													primaryCell.column.columnDef.cell,
+													primaryCell.getContext(),
+												)}
+											</div>
+										) : null}
+										{titleEndCells.length > 0 ? (
+											<div className="ml-auto flex shrink-0 items-center gap-2">
+												{titleEndCells.map((cell) => (
+													<div
+														key={cell.id}
+														className={
+															cell.column.columnDef.meta?.mobileCard?.className
+														}
+													>
+														{flexRender(
+															cell.column.columnDef.cell,
+															cell.getContext(),
+														)}
+													</div>
+												))}
+											</div>
+										) : null}
 									</div>
 								) : null}
 								{subtitleCells.map((cell) => {

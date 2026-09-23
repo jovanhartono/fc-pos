@@ -1,6 +1,7 @@
 import {
 	ArchiveIcon,
 	ArrowCounterClockwiseIcon,
+	DotsThreeIcon,
 	PencilSimpleLineIcon,
 	PlusIcon,
 	TicketIcon,
@@ -16,6 +17,12 @@ import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
 	type Campaign,
 	campaignsKeys,
@@ -135,12 +142,7 @@ function formatCampaignDiscount(campaign: Campaign) {
 	return formatMoney(String(campaign.discount_value));
 }
 
-function ArchiveCampaignButton({
-	campaign,
-	disabled,
-	isPending,
-	onConfirm,
-}: {
+interface ArchiveCampaignMenuItemProps {
 	campaign: Campaign;
 	disabled: boolean;
 	isPending: boolean;
@@ -148,21 +150,23 @@ function ArchiveCampaignButton({
 		campaignId: number;
 		nextIsActive: boolean;
 	}) => Promise<void>;
-}) {
+}
+
+const ArchiveCampaignMenuItem = ({
+	campaign,
+	disabled,
+	isPending,
+	onConfirm,
+}: ArchiveCampaignMenuItemProps) => {
 	const { openDialog, closeDialog } = useDialog();
 	const isArchived = !campaign.is_active;
 	const label = isArchived ? "Unarchive" : "Archive";
 	const Icon = isArchived ? ArrowCounterClockwiseIcon : ArchiveIcon;
 
 	return (
-		<Button
-			variant="outline"
-			size="sm"
+		<DropdownMenuItem
+			variant={isArchived ? "default" : "destructive"}
 			disabled={disabled || isPending}
-			icon={<Icon className="size-4" />}
-			className={
-				isArchived ? undefined : "text-destructive hover:text-destructive"
-			}
 			onClick={() => {
 				openDialog({
 					title: `${label} campaign?`,
@@ -192,10 +196,11 @@ function ArchiveCampaignButton({
 				});
 			}}
 		>
+			<Icon className="size-4" />
 			{label}
-		</Button>
+		</DropdownMenuItem>
 	);
-}
+};
 
 function CampaignsPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
@@ -370,18 +375,9 @@ function CampaignsPage() {
 			{
 				id: "actions",
 				header: "Actions",
+				meta: { mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
 					<div className="flex gap-2">
-						{row.original.redemption_mode === "code" && (
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => handleOpenVoucherDetail(row.original)}
-								icon={<TicketIcon className="size-4" />}
-							>
-								Codes
-							</Button>
-						)}
 						<Button
 							variant="outline"
 							size="sm"
@@ -391,17 +387,39 @@ function CampaignsPage() {
 						>
 							Edit
 						</Button>
-						<ArchiveCampaignButton
-							campaign={row.original}
-							disabled={!isAdmin}
-							isPending={archiveMutation.isPending}
-							onConfirm={async ({ campaignId, nextIsActive }) => {
-								await archiveMutation.mutateAsync({
-									id: campaignId,
-									is_active: nextIsActive,
-								});
-							}}
-						/>
+						<DropdownMenu>
+							<DropdownMenuTrigger
+								render={
+									<Button
+										aria-label="More actions"
+										icon={<DotsThreeIcon className="size-4" />}
+										size="icon-sm"
+										variant="outline"
+									/>
+								}
+							/>
+							<DropdownMenuContent align="end" className="w-44">
+								{row.original.redemption_mode === "code" && (
+									<DropdownMenuItem
+										onClick={() => handleOpenVoucherDetail(row.original)}
+									>
+										<TicketIcon className="size-4" />
+										Codes
+									</DropdownMenuItem>
+								)}
+								<ArchiveCampaignMenuItem
+									campaign={row.original}
+									disabled={!isAdmin}
+									isPending={archiveMutation.isPending}
+									onConfirm={async ({ campaignId, nextIsActive }) => {
+										await archiveMutation.mutateAsync({
+											id: campaignId,
+											is_active: nextIsActive,
+										});
+									}}
+								/>
+							</DropdownMenuContent>
+						</DropdownMenu>
 					</div>
 				),
 			},

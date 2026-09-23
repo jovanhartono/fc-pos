@@ -154,12 +154,7 @@ import {
 export const isValidPhoneNumber = _isValidPhoneNumber;
 export const normalizePhoneNumber = _normalizePhoneNumber;
 
-const userSchema = z.object({
-  username: z
-    .string("Minimum 5 characters")
-    .trim()
-    .min(5, "Minimum 5 characters"),
-  name: z.string("Name is required").trim().min(1, "Name is required"),
+const passwordPairSchema = z.object({
   password: z
     .string("Minimum 8 characters")
     .trim()
@@ -168,6 +163,27 @@ const userSchema = z.object({
     .string("Minimum 8 characters")
     .trim()
     .min(8, "Minimum 8 characters"),
+});
+
+const matchesConfirmation = (data: {
+  password: string;
+  confirm_password: string;
+}) => data.password === data.confirm_password;
+
+const confirmationMismatch = {
+  error: "Password does not match",
+  path: ["confirm_password"],
+  when: (payload: { value: unknown }) =>
+    passwordPairSchema.safeParse(payload.value).success,
+};
+
+const userSchema = z.object({
+  username: z
+    .string("Minimum 5 characters")
+    .trim()
+    .min(5, "Minimum 5 characters"),
+  name: z.string("Name is required").trim().min(1, "Name is required"),
+  ...passwordPairSchema.shape,
   role: z.literal(
     ["admin", "cashier", "worker", "courier"],
     "Role is required"
@@ -177,21 +193,19 @@ const userSchema = z.object({
 });
 
 export const POSTUserSchema = userSchema.refine(
-  (data) => data.password === data.confirm_password,
-  {
-    error: "Password does not match",
-    path: ["confirm_password"],
-    when: (payload) =>
-      userSchema
-        .pick({ password: true, confirm_password: true })
-        .safeParse(payload.value).success,
-  }
+  matchesConfirmation,
+  confirmationMismatch
 );
 
 export const PUTUserSchema = userSchema.omit({
   password: true,
   confirm_password: true,
 });
+
+export const PUTUserPasswordSchema = passwordPairSchema.refine(
+  matchesConfirmation,
+  confirmationMismatch
+);
 
 export const POSTOrderSchema = z
   .object({

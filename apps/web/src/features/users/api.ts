@@ -1,4 +1,8 @@
-import type { POSTUserSchema, PUTUserSchema } from "@fresclean/api/schema";
+import type {
+	POSTUserSchema,
+	PUTUserPasswordSchema,
+	PUTUserSchema,
+} from "@fresclean/api/schema";
 import { queryOptions } from "@tanstack/react-query";
 import { type InferResponseType, parseResponse } from "hono/client";
 import type { z } from "zod";
@@ -30,6 +34,7 @@ export type UpdateUserPayload = z.infer<typeof PUTUserSchema>;
 export type UpdateUserStoresPayload = {
 	store_ids: number[];
 };
+export type ResetUserPasswordPayload = z.infer<typeof PUTUserPasswordSchema>;
 
 export const usersKeys = {
 	all: ["users"] as const,
@@ -79,6 +84,18 @@ export function createUser(payload: CreateUserPayload) {
 export function updateUser(id: number, payload: UpdateUserPayload) {
 	return parseResponse(
 		rpcWithAuth().api.admin.users[":id"].$put({
+			param: { id: String(id) },
+			json: payload,
+		}),
+	);
+}
+
+export function resetUserPassword(
+	id: number,
+	payload: ResetUserPasswordPayload,
+) {
+	return parseResponse(
+		rpcWithAuth().api.admin.users[":id"].password.$put({
 			param: { id: String(id) },
 			json: payload,
 		}),

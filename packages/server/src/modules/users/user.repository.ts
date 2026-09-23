@@ -134,6 +134,14 @@ export function updateUserById(
     .returning();
 }
 
+export function updateUserPasswordById(id: number, password: string) {
+  return db
+    .update(usersTable)
+    .set({ password })
+    .where(eq(usersTable.id, id))
+    .returning({ id: usersTable.id, name: usersTable.name });
+}
+
 export function replaceUserStores(id: number, storeIds: number[]) {
   return db.transaction(async (tx) => {
     await tx.delete(userStoresTable).where(eq(userStoresTable.user_id, id));

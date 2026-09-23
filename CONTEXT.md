@@ -66,6 +66,10 @@ _Avoid_: Branch, outlet.
 **User**:
 An operator. Role is one of **admin**, **cashier**, **worker**, **courier**. Scoped to one-or-many Stores via `userStores`. Role gates **money and admin operations** only; the OrderService processing axis (queue claim, status updates, detail photos) is open to any staff regardless of role — see [ADR-0004 amendment](docs/adr/0004-role-capabilities-v1.md).
 
+**Password reset**:
+An admin setting a new password for another User, in person. The only way a password ever changes after the User is created — a User cannot change or recover their own, and nothing is sent to them, because a User has no email or phone on record. A reset does not end sessions the User already has open; making the User inactive is what does that. See [ADR-0022](docs/adr/0022-admin-resets-passwords-and-nothing-else-does.md).
+_Avoid_: forgot password, recovery, reset link — none of these exist here.
+
 **Shift**:
 A User's working session at a Store, with `clock_in`/`clock_out`. Used for attendance reporting and revenue-by-shift breakdown in `reports`. Shifts are **attendance-only by design** (reaffirmed 2026-07-06): the business reviews clock-in data, but a Shift deliberately gates nothing operationally — Order creation, pickup, and payment never read shift state. Clocking in **requires** the phone's location and is **refused** more than **3 km** from the Store, unless the phone's own margin of error is wide enough that it cannot place the worker outside that ring. Nothing about the location is stored, and a Courier is exempt from the whole mechanism. A Shift left open is closed automatically at midnight and marked as such. See [ADR-0020](docs/adr/0020-clock-in-is-refused-outside-3km-unless-the-phone-is-unsure.md).
 

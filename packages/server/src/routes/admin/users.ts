@@ -10,10 +10,11 @@ import {
   createUser,
   getUserById,
   getUsers,
+  resetUserPassword,
   updateUser,
   updateUserStores,
 } from "@/modules/users/user.service";
-import { POSTUserSchema, PUTUserSchema } from "@/schema";
+import { POSTUserSchema, PUTUserPasswordSchema, PUTUserSchema } from "@/schema";
 import { idParamSchema } from "@/schema/param";
 import type { AdminEnv } from "@/types/hono";
 import { success } from "@/utils/http";
@@ -79,6 +80,26 @@ const app = new Hono<AdminEnv>()
       }
 
       return c.json(success(user, `Update user ${user.name} success`));
+    }
+  )
+  .put(
+    "/:id/password",
+    idParamSchema,
+    zodValidator("json", PUTUserPasswordSchema),
+    async (c) => {
+      const actor = c.get("jwtPayload");
+      assertCanManageUsers(actor);
+
+      const { id } = c.req.valid("param");
+      const { password } = c.req.valid("json");
+
+      const user = await resetUserPassword({ id, password });
+
+      if (!user) {
+        throw new NotFoundException("User not found");
+      }
+
+      return c.json(success(user, `Password reset for ${user.name}`));
     }
   )
   .put(

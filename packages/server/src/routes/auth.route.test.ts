@@ -77,3 +77,23 @@ describe("logging in with the wrong credentials", () => {
     });
   });
 });
+
+// Saving a password trims it, so a worker whose phone keyboard adds a space
+// after the word must still get in.
+describe("logging in with a stray space around the password", () => {
+  it("signs the worker in", async () => {
+    executeMock.mockResolvedValue({
+      id: 1,
+      name: "Asep",
+      username: "asep",
+      password: await Bun.password.hash("correct-horse"),
+      role: "cashier",
+      can_process_pickup: false,
+      is_active: true,
+    } as UserRow);
+
+    const res = await login("asep", " correct-horse ");
+
+    expect(res.status).toBe(200);
+  });
+});

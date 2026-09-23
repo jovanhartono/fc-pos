@@ -1,6 +1,11 @@
 import { PUTUserSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
+import {
+	DotsThreeIcon,
+	KeyIcon,
+	PencilSimpleLineIcon,
+	PlusIcon,
+} from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
@@ -14,6 +19,12 @@ import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { storesQueries } from "@/features/stores/api";
 import {
 	createUser,
@@ -23,10 +34,12 @@ import {
 	usersKeys,
 	usersQueries,
 } from "@/features/users/api";
+import { ResetPasswordForm } from "@/features/users/components/reset-password-form";
 import {
 	UserForm,
 	type UserFormState,
 } from "@/features/users/components/user-form";
+import { useDialog } from "@/stores/dialog-store";
 import { useSheet } from "@/stores/sheet-store";
 
 const PAGE_SIZE = 25;
@@ -91,6 +104,8 @@ function UsersPage() {
 	const search = Route.useSearch();
 	const queryClient = useQueryClient();
 	const { openSheet, closeSheet } = useSheet();
+	const openDialog = useDialog((s) => s.openDialog);
+	const closeDialog = useDialog((s) => s.closeDialog);
 	const [editingUser, setEditingUser] = useState<User | null>(null);
 
 	const handleSearchChange = useCallback(
@@ -262,6 +277,19 @@ function UsersPage() {
 		});
 	}, [form, openSheet, storesQuery.data, resetForm, handleSubmit]);
 
+	const handleResetPassword = useCallback(
+		(user: User) => {
+			openDialog({
+				title: "Reset password",
+				description: `${user.name} · ${user.username}`,
+				content: () => (
+					<ResetPasswordForm userId={user.id} onDone={closeDialog} />
+				),
+			});
+		},
+		[openDialog, closeDialog],
+	);
+
 	const columns = useMemo<DataTableColumnDef<User>[]>(
 		() => [
 			{ accessorKey: "username", header: "Username" },
@@ -298,19 +326,42 @@ function UsersPage() {
 			{
 				id: "actions",
 				header: "Actions",
+				meta: { mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => handleEdit(row.original)}
-						icon={<PencilSimpleLineIcon className="size-4" />}
-					>
-						Edit
-					</Button>
+					<div className="flex gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => handleEdit(row.original)}
+							icon={<PencilSimpleLineIcon className="size-4" />}
+						>
+							Edit
+						</Button>
+						<DropdownMenu>
+							<DropdownMenuTrigger
+								render={
+									<Button
+										aria-label="More actions"
+										icon={<DotsThreeIcon className="size-4" />}
+										size="icon-sm"
+										variant="outline"
+									/>
+								}
+							/>
+							<DropdownMenuContent align="end" className="w-44">
+								<DropdownMenuItem
+									onClick={() => handleResetPassword(row.original)}
+								>
+									<KeyIcon className="size-4" />
+									Reset password
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</div>
 				),
 			},
 		],
-		[handleEdit, storeMap],
+		[handleEdit, handleResetPassword, storeMap],
 	);
 
 	return (
