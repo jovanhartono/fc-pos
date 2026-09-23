@@ -1,6 +1,7 @@
 import { fetchOrderReceipt } from "@/features/orders/api";
 import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
 import { buildReceiptEscPos } from "./build-receipt";
+import { trackPrint } from "./pending-prints";
 import type { PrintOptions } from "./printer-transport";
 import { webBluetoothTransport } from "./web-bluetooth-transport";
 
@@ -8,10 +9,10 @@ import { webBluetoothTransport } from "./web-bluetooth-transport";
 // RawBT PrinterTransport and assign it here — nothing above this changes.
 const transport = webBluetoothTransport;
 
-export const printOrderReceipt = async (
+const sendReceipt = async (
 	orderId: number,
 	options: Pick<PrintOptions, "allowPairing">,
-): Promise<void> => {
+) => {
 	const receipt = await fetchOrderReceipt(orderId);
 	const trackingUrl = buildTrackingUrl(
 		receipt.code,
@@ -21,4 +22,13 @@ export const printOrderReceipt = async (
 		...options,
 		deviceNames: receipt.store.devices.map((device) => device.name),
 	});
+};
+
+export const printOrderReceipt = (
+	orderId: number,
+	options: Pick<PrintOptions, "allowPairing">,
+): Promise<void> => {
+	const print = sendReceipt(orderId, options);
+	trackPrint(print);
+	return print;
 };
