@@ -5,10 +5,10 @@ import { useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { type Shift, shiftsQueries } from "@/features/shifts/api";
@@ -131,61 +131,59 @@ function ShiftsPage() {
 		<>
 			<PageHeader title="Shifts" />
 			<div className="grid gap-4">
-				<Card>
-					<CardContent>
-						<div className="mb-4 flex flex-wrap items-center gap-2">
-							<StoreAutocomplete
-								id="shifts-store"
-								hideLabel
-								value={search.store_id?.toString() ?? ""}
-								onValueChange={(value) => {
-									void navigate({
-										search: (prev) => ({
-											...prev,
-											page: 1,
-											store_id: value ? Number(value) : undefined,
-										}),
-									});
-								}}
-								allOptionLabel="All stores"
-								placeholder="Filter by store"
-								triggerClassName="h-10 w-max min-w-48 text-sm"
-							/>
-							<DateRangePicker
-								commitOnComplete
-								id="shifts-range"
-								from={search.from}
-								to={search.to}
-								onChange={({ from, to }) => {
-									void navigate({
-										search: (prev) => ({
-											...prev,
-											from: from ?? undefined,
-											page: 1,
-											to: to ?? undefined,
-										}),
-									});
-								}}
-							/>
-						</div>
-						<div className="grid gap-4">
-							<DataTable
-								columns={columns}
-								data={shifts}
-								isLoading={shiftsQuery.isPending}
-							/>
-							<TablePagination
-								meta={shiftsQuery.data?.meta}
-								isLoading={shiftsQuery.isPending}
-								onPageChange={(page) => {
-									void navigate({
-										search: (prev) => ({ ...prev, page }),
-									});
-								}}
-							/>
-						</div>
-					</CardContent>
-				</Card>
+				<ListPanel>
+					<div className="mb-4 flex flex-wrap items-center gap-2">
+						<StoreAutocomplete
+							id="shifts-store"
+							hideLabel
+							value={search.store_id?.toString() ?? ""}
+							onValueChange={(value) => {
+								void navigate({
+									search: (prev) => ({
+										...prev,
+										page: 1,
+										store_id: value ? Number(value) : undefined,
+									}),
+								});
+							}}
+							allOptionLabel="All stores"
+							placeholder="Filter by store"
+							triggerClassName="h-10 w-max min-w-48 text-sm"
+						/>
+						<DateRangePicker
+							commitOnComplete
+							id="shifts-range"
+							from={search.from}
+							to={search.to}
+							onChange={({ from, to }) => {
+								void navigate({
+									search: (prev) => ({
+										...prev,
+										from: from ?? undefined,
+										page: 1,
+										to: to ?? undefined,
+									}),
+								});
+							}}
+						/>
+					</div>
+					<div className="grid gap-4">
+						<DataTable
+							columns={columns}
+							data={shifts}
+							isLoading={shiftsQuery.isPending}
+						/>
+						<TablePagination
+							meta={shiftsQuery.data?.meta}
+							isLoading={shiftsQuery.isPending}
+							onPageChange={(page) => {
+								void navigate({
+									search: (prev) => ({ ...prev, page }),
+								});
+							}}
+						/>
+					</div>
+				</ListPanel>
 			</div>
 		</>
 	);

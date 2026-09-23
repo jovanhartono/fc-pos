@@ -2,6 +2,7 @@ import type {
 	POSTOrderPickupEventPresignSchema,
 	POSTOrderPickupEventSchema,
 	POSTOrderSchema,
+	QUEUE_CATEGORY_MODES,
 } from "@fresclean/api/schema";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { type InferResponseType, parseResponse } from "hono/client";
@@ -84,7 +85,16 @@ export type FetchOrderServiceQueueQuery = {
 		| "cancelled";
 	date_from?: string;
 	date_to?: string;
+	category_id?: number;
+	category_mode?: QueueCategoryMode;
 };
+
+export type QueueCategoryMode = (typeof QUEUE_CATEGORY_MODES)[number];
+
+export type FetchOrderServiceQueueCountsQuery = Pick<
+	FetchOrderServiceQueueQuery,
+	"store_id" | "category_id" | "category_mode"
+>;
 
 export type CreateOrderPayload = z.input<typeof POSTOrderSchema> & {
 	voucher_codes: string[];
@@ -209,8 +219,8 @@ export const ordersKeys = {
 	queues: () => [...ordersKeys.all, "queue"] as const,
 	queue: (query?: FetchOrderServiceQueueQuery) =>
 		[...ordersKeys.queues(), query ?? {}] as const,
-	queueCounts: (storeId?: number) =>
-		[...ordersKeys.queues(), "counts", storeId ?? null] as const,
+	queueCounts: (query: FetchOrderServiceQueueCountsQuery) =>
+		[...ordersKeys.queues(), "counts", query] as const,
 };
 
 async function fetchOrdersPage(
@@ -265,10 +275,12 @@ async function fetchOrderServiceQueuePage(
 	return toPaginated(response);
 }
 
-async function fetchOrderServiceQueueCounts(storeId?: number) {
+async function fetchOrderServiceQueueCounts(
+	query: FetchOrderServiceQueueCountsQuery,
+) {
 	const response = await parseResponse(
 		rpcWithAuth().api.admin.orders.services.queue.counts.$get({
-			query: toSearchParams({ store_id: storeId }),
+			query: toSearchParams(query),
 		}),
 	);
 
@@ -302,10 +314,10 @@ export const ordersQueries = {
 				return nextOffset < lastPage.meta.total ? nextOffset : undefined;
 			},
 		}),
-	queueCounts: (storeId?: number) =>
+	queueCounts: (query: FetchOrderServiceQueueCountsQuery) =>
 		queryOptions({
-			queryKey: ordersKeys.queueCounts(storeId),
-			queryFn: () => fetchOrderServiceQueueCounts(storeId),
+			queryKey: ordersKeys.queueCounts(query),
+			queryFn: () => fetchOrderServiceQueueCounts(query),
 		}),
 };
 

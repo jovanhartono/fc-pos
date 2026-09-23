@@ -7,10 +7,10 @@ import type {
 	DataTableColumnDef,
 	DataTableRow,
 } from "@/components/data-table-features";
+import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
 	type Category,
 	categoriesKeys,
@@ -163,16 +163,14 @@ function CategoriesPage() {
 				}
 			/>
 			<div className="grid gap-4">
-				<Card>
-					<CardContent>
-						<DataTable
-							columns={columns}
-							data={data}
-							isLoading={isPending}
-							sortable
-						/>
-					</CardContent>
-				</Card>
+				<ListPanel>
+					<DataTable
+						columns={columns}
+						data={data}
+						isLoading={isPending}
+						sortable
+					/>
+				</ListPanel>
 			</div>
 		</>
 	);

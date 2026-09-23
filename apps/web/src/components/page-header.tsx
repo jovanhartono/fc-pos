@@ -16,21 +16,16 @@ export function PageHeader({
 }: PageHeaderProps) {
 	return (
 		<div
-			className={cn(
-				"mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
-				className,
-			)}
+			className={cn("mb-6 flex items-center justify-between gap-4", className)}
 		>
-			<div className="grid gap-1">
+			<div className="grid min-w-0 gap-1">
 				<h1 className="text-2xl font-bold tracking-tight">{title}</h1>
 				{description ? (
 					<p className="text-sm text-muted-foreground">{description}</p>
 				) : null}
 			</div>
 			{actions ? (
-				<div className="flex flex-wrap items-center gap-2 sm:shrink-0">
-					{actions}
-				</div>
+				<div className="flex shrink-0 items-center gap-2">{actions}</div>
 			) : null}
 		</div>
 	);

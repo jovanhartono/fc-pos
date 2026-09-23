@@ -9,6 +9,8 @@ type CategoryAutocompleteProps = {
 	disabled?: boolean;
 	required?: boolean;
 	error?: { message?: string };
+	id?: string;
+	allOptionLabel?: string;
 };
 
 export function CategoryAutocomplete({
@@ -17,28 +19,35 @@ export function CategoryAutocomplete({
 	disabled,
 	required,
 	error,
+	id = "entity-category",
+	allOptionLabel,
 }: CategoryAutocompleteProps) {
 	const { data: categories = [], isPending } = useQuery(
 		categoriesQueries.list(),
 	);
 
+	const options = categories.map((category) => ({
+		value: String(category.id),
+		label: category.name,
+	}));
+	if (allOptionLabel) {
+		options.unshift({ value: "", label: allOptionLabel });
+	}
+
 	return (
 		<Field data-invalid={!!error}>
-			<FieldLabel htmlFor="entity-category" asterisk={required}>
+			<FieldLabel htmlFor={id} asterisk={required}>
 				Category
 			</FieldLabel>
 			<Combobox
-				id="entity-category"
+				id={id}
 				required={required}
 				triggerClassName="h-10 w-full text-sm"
-				options={categories.map((category) => ({
-					value: String(category.id),
-					label: category.name,
-				}))}
+				options={options}
 				value={value}
 				onValueChange={onValueChange}
 				loading={isPending}
-				placeholder="Select category"
+				placeholder={allOptionLabel ?? "Select category"}
 				searchPlaceholder="Search categories"
 				emptyText="No category found"
 				disabled={disabled}

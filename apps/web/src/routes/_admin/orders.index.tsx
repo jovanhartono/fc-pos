@@ -6,11 +6,11 @@ import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import {
 	type FetchOrdersQuery,
@@ -296,41 +296,39 @@ function OrdersPage() {
 				}
 			/>
 			<div className="grid gap-4">
-				<Card>
-					<CardContent>
-						<OrderFilters
-							values={search}
-							role={role}
-							userStoreIds={userStoreIds}
-							onChange={handleFilterChange}
-						/>
-						{hasNoStoreAssignment ? (
-							<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-[0.18em]">
-								No store assigned
-							</div>
-						) : (
-							<div className="grid gap-4">
-								<DataTable
-									columns={columns}
-									data={orders}
-									isLoading={ordersQuery.isPending || storesQuery.isPending}
-								/>
-								<TablePagination
-									meta={ordersQuery.data?.meta}
-									isLoading={ordersQuery.isPending}
-									onPageChange={(page) => {
-										void navigate({
-											search: (prev) => ({
-												...prev,
-												page,
-											}),
-										});
-									}}
-								/>
-							</div>
-						)}
-					</CardContent>
-				</Card>
+				<ListPanel>
+					<OrderFilters
+						values={search}
+						role={role}
+						userStoreIds={userStoreIds}
+						onChange={handleFilterChange}
+					/>
+					{hasNoStoreAssignment ? (
+						<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-[0.18em]">
+							No store assigned
+						</div>
+					) : (
+						<div className="grid gap-4">
+							<DataTable
+								columns={columns}
+								data={orders}
+								isLoading={ordersQuery.isPending || storesQuery.isPending}
+							/>
+							<TablePagination
+								meta={ordersQuery.data?.meta}
+								isLoading={ordersQuery.isPending}
+								onPageChange={(page) => {
+									void navigate({
+										search: (prev) => ({
+											...prev,
+											page,
+										}),
+									});
+								}}
+							/>
+						</div>
+					)}
+				</ListPanel>
 			</div>
 		</>
 	);

@@ -1,4 +1,5 @@
 import {
+	QUEUE_CATEGORY_MODES,
 	TURNAROUND_PROMISE_HOURS,
 	WORKSHOP_SERVICE_STATUSES,
 } from "@fresclean/api/schema";
@@ -41,8 +42,10 @@ import {
 	type FetchOrderServiceQueueQuery,
 	lookupQueueTarget,
 	ordersQueries,
+	type QueueCategoryMode,
 	type QueueItem,
 } from "@/features/orders/api";
+import { QueueCategoryFilter } from "@/features/orders/components/queue-category-filter";
 import { QueueStatusTabs } from "@/features/orders/components/queue-status-tabs";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { useBarcodeScanner } from "@/features/orders/hooks/useBarcodeScanner";
@@ -117,6 +120,8 @@ const queueSearchSchema = z.object({
 		.string()
 		.regex(/^\d{4}-\d{2}-\d{2}$/)
 		.optional(),
+	categoryId: z.coerce.number().int().positive().optional(),
+	categoryMode: z.enum(QUEUE_CATEGORY_MODES).optional(),
 });
 
 export const Route = createFileRoute("/_admin/queue/")({
@@ -206,6 +211,20 @@ function QueuePage() {
 		userStoreIds,
 	]);
 
+	const persistedCategory = useQueuePreferencesStore(
+		(state) => state.categoryByUser[currentUserKey],
+	);
+	const setPersistedCategory = useQueuePreferencesStore(
+		(state) => state.setCategory,
+	);
+	// Arriving from the sidebar or a job's back link, the worker lands on their
+	// own rack; picking "All categories" forgets it, so All is a rack too.
+	const selectedCategoryId = search.categoryId ?? persistedCategory?.categoryId;
+	const selectedCategoryMode =
+		(search.categoryId !== undefined
+			? search.categoryMode
+			: persistedCategory?.mode) ?? "only";
+
 	const parsedStoreId = useMemo(() => {
 		if (search.storeId !== undefined) {
 			return search.storeId;
@@ -221,6 +240,10 @@ function QueuePage() {
 	const selectedDateFrom = search.dateFrom;
 	const selectedDateTo = search.dateTo;
 	const selectedSearch = search.search;
+	const categoryQuery =
+		selectedCategoryId !== undefined
+			? { category_id: selectedCategoryId, category_mode: selectedCategoryMode }
+			: {};
 	const queueQueryInput: FetchOrderServiceQueueQuery | undefined =
 		parsedStoreId !== undefined
 			? {
@@ -232,6 +255,7 @@ function QueuePage() {
 						? { date_from: selectedDateFrom }
 						: {}),
 					...(selectedDateTo !== undefined ? { date_to: selectedDateTo } : {}),
+					...categoryQuery,
 				}
 			: undefined;
 
@@ -241,7 +265,7 @@ function QueuePage() {
 	});
 
 	const countsQuery = useQuery({
-		...ordersQueries.queueCounts(parsedStoreId),
+		...ordersQueries.queueCounts({ store_id: parsedStoreId, ...categoryQuery }),
 		enabled: parsedStoreId !== undefined,
 	});
 
@@ -391,6 +415,23 @@ function QueuePage() {
 		});
 	};
 
+	const updateCategoryFilter = (
+		categoryId: number | undefined,
+		mode: QueueCategoryMode,
+	) => {
+		setPersistedCategory(
+			currentUserKey,
+			categoryId === undefined ? undefined : { categoryId, mode },
+		);
+		void navigate({
+			search: (prev) => ({
+				...prev,
+				categoryId,
+				categoryMode: categoryId === undefined ? undefined : mode,
+			}),
+		});
+	};
+
 	// Set by a scan that landed on a multi-treatment tag. Nothing else writes it,
 	// and without a way back the worker stays on a one-card rack — the chips above
 	// keep counting the whole Store, so the counts stop matching the list.
@@ -403,63 +444,16 @@ function QueuePage() {
 
 	const activeFilterCount =
 		(selectedDateFrom || selectedDateTo ? 1 : 0) +
+		(selectedCategoryId !== undefined ? 1 : 0) +
 		(role === "admin" && parsedStoreId !== undefined ? 1 : 0);
 
 	return (
 		<>
 			<PageHeader
 				actions={
-					<div className="flex items-center gap-2">
-						<Badge variant={queueQuery.isLoading ? "secondary" : "outline"}>
-							{`${totalItems} ${totalItems === 1 ? "item" : "items"}`}
-						</Badge>
-						<Dialog onOpenChange={setIsFilterOpen} open={isFilterOpen}>
-							<DialogTrigger
-								render={
-									<Button
-										aria-label="Filters"
-										icon={<FunnelIcon className="size-4" />}
-										type="button"
-										variant="outline"
-									/>
-								}
-							>
-								{activeFilterCount > 0 ? String(activeFilterCount) : null}
-							</DialogTrigger>
-							<DialogContent className="max-w-[calc(100%-1.5rem)] gap-5 p-4 sm:max-w-md">
-								<DialogHeader>
-									<DialogTitle>Filters</DialogTitle>
-								</DialogHeader>
-								<div className="grid gap-4">
-									<StoreAutocomplete
-										allowedStoreIds={
-											role === "admin" ? undefined : userStoreIds
-										}
-										id="queue-store"
-										onValueChange={updateStoreFilter}
-										placeholder="Select store"
-										value={parsedStoreId?.toString() ?? ""}
-									/>
-									<Suspense fallback={<Skeleton className="h-10 w-full" />}>
-										<DateRangePicker
-											commitOnComplete
-											from={selectedDateFrom}
-											onChange={updateDateRangeFilter}
-											onClear={() => updateDateRangeFilter()}
-											to={selectedDateTo}
-										/>
-									</Suspense>
-									<Button
-										className="h-10 pointer-coarse:h-11"
-										onClick={() => setIsFilterOpen(false)}
-										type="button"
-									>
-										Done
-									</Button>
-								</div>
-							</DialogContent>
-						</Dialog>
-					</div>
+					<Badge variant={queueQuery.isLoading ? "secondary" : "outline"}>
+						{`${totalItems} ${totalItems === 1 ? "item" : "items"}`}
+					</Badge>
 				}
 				title="Queue"
 			/>
@@ -516,6 +510,56 @@ function QueuePage() {
 						type="button"
 						variant={scanner.isScanning ? "default" : "outline"}
 					/>
+					<Dialog onOpenChange={setIsFilterOpen} open={isFilterOpen}>
+						<DialogTrigger
+							render={
+								<Button
+									aria-label="Filters"
+									className="h-9 min-w-9 shrink-0"
+									icon={<FunnelIcon className="size-4" />}
+									type="button"
+									variant="outline"
+								/>
+							}
+						>
+							{activeFilterCount > 0 ? String(activeFilterCount) : null}
+						</DialogTrigger>
+						<DialogContent className="max-w-[calc(100%-1.5rem)] gap-5 p-4 sm:max-w-md">
+							<DialogHeader>
+								<DialogTitle>Filters</DialogTitle>
+							</DialogHeader>
+							<div className="grid gap-4">
+								<StoreAutocomplete
+									allowedStoreIds={role === "admin" ? undefined : userStoreIds}
+									id="queue-store"
+									onValueChange={updateStoreFilter}
+									placeholder="Select store"
+									value={parsedStoreId?.toString() ?? ""}
+								/>
+								<QueueCategoryFilter
+									categoryId={selectedCategoryId}
+									mode={selectedCategoryMode}
+									onChange={updateCategoryFilter}
+								/>
+								<Suspense fallback={<Skeleton className="h-10 w-full" />}>
+									<DateRangePicker
+										commitOnComplete
+										from={selectedDateFrom}
+										onChange={updateDateRangeFilter}
+										onClear={() => updateDateRangeFilter()}
+										to={selectedDateTo}
+									/>
+								</Suspense>
+								<Button
+									className="h-10 pointer-coarse:h-11"
+									onClick={() => setIsFilterOpen(false)}
+									type="button"
+								>
+									Done
+								</Button>
+							</div>
+						</DialogContent>
+					</Dialog>
 				</div>
 
 				{scanner.error ? (

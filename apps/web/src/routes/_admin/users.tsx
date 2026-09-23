@@ -14,11 +14,11 @@ import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -375,37 +375,35 @@ function UsersPage() {
 				}
 			/>
 			<div className="grid gap-4">
-				<Card>
-					<CardContent>
-						<DebouncedSearchInput
-							id="users-search"
-							value={search.search ?? ""}
-							onDebouncedChange={handleSearchChange}
-							placeholder="Search by username or name"
-							ariaLabel="Search users"
-							className="mb-4 w-full sm:w-72"
+				<ListPanel>
+					<DebouncedSearchInput
+						id="users-search"
+						value={search.search ?? ""}
+						onDebouncedChange={handleSearchChange}
+						placeholder="Search by username or name"
+						ariaLabel="Search users"
+						className="mb-4 w-full sm:w-72"
+					/>
+					<div className="grid gap-4">
+						<DataTable
+							columns={columns}
+							data={users}
+							isLoading={usersQuery.isPending}
 						/>
-						<div className="grid gap-4">
-							<DataTable
-								columns={columns}
-								data={users}
-								isLoading={usersQuery.isPending}
-							/>
-							<TablePagination
-								meta={usersQuery.data?.meta}
-								isLoading={usersQuery.isPending}
-								onPageChange={(page) => {
-									void navigate({
-										search: (prev) => ({
-											...prev,
-											page,
-										}),
-									});
-								}}
-							/>
-						</div>
-					</CardContent>
-				</Card>
+						<TablePagination
+							meta={usersQuery.data?.meta}
+							isLoading={usersQuery.isPending}
+							onPageChange={(page) => {
+								void navigate({
+									search: (prev) => ({
+										...prev,
+										page,
+									}),
+								});
+							}}
+						/>
+					</div>
+				</ListPanel>
 			</div>
 		</>
 	);

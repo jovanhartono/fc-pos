@@ -13,6 +13,7 @@ import {
 import {
   POSTOrderPickupEventPresignSchema as _POSTOrderPickupEventPresignSchema,
   POSTOrderPickupEventSchema as _POSTOrderPickupEventSchema,
+  QUEUE_CATEGORY_MODES as _QUEUE_CATEGORY_MODES,
 } from "@/modules/orders/order-admin.schema";
 import {
   type DerivedItemStatus as _DerivedItemStatus,
@@ -41,6 +42,7 @@ import {
 export const ORDER_SERVICE_TRANSITIONS = _ORDER_SERVICE_TRANSITIONS;
 export const ORDER_TERMINAL_SERVICE_STATUSES = _ORDER_TERMINAL_SERVICE_STATUSES;
 export const WORKSHOP_SERVICE_STATUSES = _WORKSHOP_SERVICE_STATUSES;
+export const QUEUE_CATEGORY_MODES = _QUEUE_CATEGORY_MODES;
 export type DerivedItemStatus = _DerivedItemStatus;
 export type ItemStatusLine = _ItemStatusLine;
 export const isCollectableItemStatus = _isCollectableItemStatus;

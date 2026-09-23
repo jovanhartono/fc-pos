@@ -9,6 +9,7 @@ import {
 	FieldContent,
 	FieldDescription,
 	FieldError,
+	FieldGroup,
 	FieldLabel,
 	FieldTitle,
 } from "@/components/ui/field";
@@ -45,92 +46,94 @@ export function PaymentMethodForm({
 	useSheetDirtyGuard(form.formState.isDirty);
 
 	return (
-		<form
-			className="grid gap-4 p-4 md:grid-cols-2"
-			onSubmit={form.handleSubmit(handleOnSubmit)}
-		>
-			<Controller
-				name="name"
-				control={form.control}
-				render={({ field, fieldState }) => (
-					<Field data-invalid={fieldState.invalid}>
-						<FieldLabel htmlFor="payment-method-name" asterisk>
-							Name
-						</FieldLabel>
-						<Input
-							{...field}
-							id="payment-method-name"
-							placeholder="e.g. Cash"
-							aria-invalid={fieldState.invalid}
-							disabled={isSubmitting}
-						/>
-						<FieldError errors={[fieldState.error]} />
-					</Field>
-				)}
-			/>
-
-			<Controller
-				name="code"
-				control={form.control}
-				render={({ field, fieldState }) => (
-					<Field data-invalid={fieldState.invalid}>
-						<FieldLabel htmlFor="payment-method-code" asterisk>
-							Code
-						</FieldLabel>
-						<Input
-							{...field}
-							id="payment-method-code"
-							placeholder="e.g. CASH"
-							aria-invalid={fieldState.invalid}
-							disabled={isSubmitting}
-						/>
-						<FieldError errors={[fieldState.error]} />
-					</Field>
-				)}
-			/>
-
-			<Controller
-				name="is_active"
-				control={form.control}
-				render={({ field }) => (
-					<FieldLabel htmlFor="payment-method-active" className="md:col-span-2">
-						<Field orientation="horizontal">
-							<FieldContent>
-								<FieldTitle>Active</FieldTitle>
-								<FieldDescription>
-									Active payment methods can be used at checkout.
-								</FieldDescription>
-							</FieldContent>
-							<Switch
-								id="payment-method-active"
-								checked={field.value}
-								onCheckedChange={(checked) => field.onChange(!!checked)}
+		<form onSubmit={form.handleSubmit(handleOnSubmit)}>
+			<FieldGroup>
+				<Controller
+					name="name"
+					control={form.control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor="payment-method-name" asterisk>
+								Name
+							</FieldLabel>
+							<Input
+								{...field}
+								id="payment-method-name"
+								placeholder="e.g. Cash"
+								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
 							/>
+							<FieldError errors={[fieldState.error]} />
 						</Field>
-					</FieldLabel>
-				)}
-			/>
+					)}
+				/>
 
-			<div className="flex flex-wrap gap-2 md:col-span-2 md:justify-end">
-				{isEditing ? (
+				<Controller
+					name="code"
+					control={form.control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor="payment-method-code" asterisk>
+								Code
+							</FieldLabel>
+							<Input
+								{...field}
+								id="payment-method-code"
+								placeholder="e.g. CASH"
+								aria-invalid={fieldState.invalid}
+								disabled={isSubmitting}
+							/>
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
+				/>
+
+				<Controller
+					name="is_active"
+					control={form.control}
+					render={({ field }) => (
+						<FieldLabel
+							htmlFor="payment-method-active"
+							className="md:col-span-2"
+						>
+							<Field orientation="horizontal">
+								<FieldContent>
+									<FieldTitle>Active</FieldTitle>
+									<FieldDescription>
+										Active payment methods can be used at checkout.
+									</FieldDescription>
+								</FieldContent>
+								<Switch
+									id="payment-method-active"
+									checked={field.value}
+									onCheckedChange={(checked) => field.onChange(!!checked)}
+									disabled={isSubmitting}
+								/>
+							</Field>
+						</FieldLabel>
+					)}
+				/>
+
+				<div className="flex flex-wrap gap-2 md:col-span-2 md:justify-end">
+					{isEditing ? (
+						<Button
+							type="button"
+							variant="outline"
+							onClick={onReset}
+							disabled={isSubmitting}
+						>
+							Cancel edit
+						</Button>
+					) : null}
 					<Button
-						type="button"
-						variant="outline"
-						onClick={onReset}
-						disabled={isSubmitting}
+						type="submit"
+						loading={isSubmitting}
+						icon={<PlusIcon className="size-4" />}
 					>
-						Cancel edit
+						{isEditing ? "Update Method" : "Create Method"}
 					</Button>
-				) : null}
-				<Button
-					type="submit"
-					loading={isSubmitting}
-					icon={<PlusIcon className="size-4" />}
-				>
-					{isEditing ? "Update Method" : "Create Method"}
-				</Button>
-			</div>
+				</div>
+			</FieldGroup>
 		</form>
 	);
 }
