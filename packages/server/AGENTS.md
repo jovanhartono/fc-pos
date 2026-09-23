@@ -40,7 +40,9 @@ else. Two output folders would be two divergent histories describing one schema.
 4. **Read the generated SQL.** A rename drizzle could not infer arrives as
    DROP + ADD, which silently discards the column's data
 5. `bun run migrate:dev`, then `bun run drift:dev` to confirm dev now matches
-   `schema.ts` ("No changes detected")
+   `schema.ts` ("No changes detected"). Any difference makes drift exit 2 with
+   data-loss hints instead. Never pass them: dev is shared, so a table or
+   column your change doesn't touch is another branch's `push:dev` work
 6. Update Zod schemas in the relevant module if needed
 7. Commit `src/db/schema.ts` **and** the new `drizzle/` folder together
 
