@@ -370,6 +370,7 @@ function CampaignsPage() {
 			{
 				id: "actions",
 				header: "Actions",
+				meta: { mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
 					<div className="flex gap-2">
 						{row.original.redemption_mode === "code" && (

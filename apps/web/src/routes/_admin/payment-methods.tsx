@@ -127,6 +127,7 @@ function PaymentMethodsPage() {
 			{
 				id: "actions",
 				header: "Actions",
+				meta: { mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
 					<Button
 						variant="outline"
