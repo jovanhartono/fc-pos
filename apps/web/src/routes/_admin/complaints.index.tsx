@@ -6,10 +6,10 @@ import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import {
 	type ComplaintListItem,
 	complaintsQueries,
@@ -123,33 +123,31 @@ const ComplaintsPage = () => {
 		<>
 			<PageHeader title="Complaints" />
 			<div className="grid gap-4">
-				<Card>
-					<CardContent>
-						<DebouncedSearchInput
-							id="complaints-search"
-							value={search.search ?? ""}
-							onDebouncedChange={handleSearchChange}
-							placeholder="Search order code or customer"
-							ariaLabel="Search complaints"
+				<ListPanel>
+					<DebouncedSearchInput
+						id="complaints-search"
+						value={search.search ?? ""}
+						onDebouncedChange={handleSearchChange}
+						placeholder="Search order code or customer"
+						ariaLabel="Search complaints"
+					/>
+					<div className="mt-4 grid gap-4">
+						<DataTable
+							columns={columns}
+							data={complaints}
+							isLoading={complaintsQuery.isPending}
 						/>
-						<div className="mt-4 grid gap-4">
-							<DataTable
-								columns={columns}
-								data={complaints}
-								isLoading={complaintsQuery.isPending}
-							/>
-							<TablePagination
-								meta={complaintsQuery.data?.meta}
-								isLoading={complaintsQuery.isPending}
-								onPageChange={(page) => {
-									void navigate({
-										search: (prev) => ({ ...prev, page }),
-									});
-								}}
-							/>
-						</div>
-					</CardContent>
-				</Card>
+						<TablePagination
+							meta={complaintsQuery.data?.meta}
+							isLoading={complaintsQuery.isPending}
+							onPageChange={(page) => {
+								void navigate({
+									search: (prev) => ({ ...prev, page }),
+								});
+							}}
+						/>
+					</div>
+				</ListPanel>
 			</div>
 		</>
 	);

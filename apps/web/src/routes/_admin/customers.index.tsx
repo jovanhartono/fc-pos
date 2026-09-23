@@ -6,10 +6,10 @@ import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { type Customer, customersQueries } from "@/features/customers/api";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
@@ -140,37 +140,35 @@ function CustomersPage() {
 				}
 			/>
 			<div className="grid gap-4">
-				<Card>
-					<CardContent>
-						<DebouncedSearchInput
-							id="customers-search"
-							value={search.search ?? ""}
-							onDebouncedChange={handleSearchChange}
-							placeholder="Search by name or phone"
-							ariaLabel="Search customers"
-							className="mb-4 w-full sm:w-72"
+				<ListPanel>
+					<DebouncedSearchInput
+						id="customers-search"
+						value={search.search ?? ""}
+						onDebouncedChange={handleSearchChange}
+						placeholder="Search by name or phone"
+						ariaLabel="Search customers"
+						className="mb-4 w-full sm:w-72"
+					/>
+					<div className="grid gap-4">
+						<DataTable
+							columns={columns}
+							data={customers}
+							isLoading={customersQuery.isPending}
 						/>
-						<div className="grid gap-4">
-							<DataTable
-								columns={columns}
-								data={customers}
-								isLoading={customersQuery.isPending}
-							/>
-							<TablePagination
-								meta={customersQuery.data?.meta}
-								isLoading={customersQuery.isPending}
-								onPageChange={(page) => {
-									void navigate({
-										search: (prev) => ({
-											...prev,
-											page,
-										}),
-									});
-								}}
-							/>
-						</div>
-					</CardContent>
-				</Card>
+						<TablePagination
+							meta={customersQuery.data?.meta}
+							isLoading={customersQuery.isPending}
+							onPageChange={(page) => {
+								void navigate({
+									search: (prev) => ({
+										...prev,
+										page,
+									}),
+								});
+							}}
+						/>
+					</div>
+				</ListPanel>
 			</div>
 		</>
 	);

@@ -13,10 +13,10 @@ import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { SelectField } from "@/components/form/select-field";
+import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -447,37 +447,35 @@ function CampaignsPage() {
 				}
 			/>
 			<div className="grid gap-4">
-				<Card>
-					<CardContent>
-						<div className="mb-4 flex flex-wrap items-center gap-2">
-							<SelectField
-								items={{
-									all: "All status",
-									active: "Active only",
-									expired: "Expired only",
-									archived: "Archived only",
-								}}
-								value={search.status}
-								onValueChange={(value) => {
-									void navigate({
-										search: () => ({
-											status: value as CampaignStatus,
-										}),
-									});
-								}}
-								className="min-w-40 w-max"
-								placeholder="Filter status"
-							/>
-						</div>
-						<DataTable
-							columns={columns}
-							data={campaigns}
-							isLoading={campaignsQuery.isPending || storesQuery.isPending}
-							sortable
-							cardPrimaryColumnId="name"
+				<ListPanel>
+					<div className="mb-4 flex flex-wrap items-center gap-2">
+						<SelectField
+							items={{
+								all: "All status",
+								active: "Active only",
+								expired: "Expired only",
+								archived: "Archived only",
+							}}
+							value={search.status}
+							onValueChange={(value) => {
+								void navigate({
+									search: () => ({
+										status: value as CampaignStatus,
+									}),
+								});
+							}}
+							className="min-w-40 w-max"
+							placeholder="Filter status"
 						/>
-					</CardContent>
-				</Card>
+					</div>
+					<DataTable
+						columns={columns}
+						data={campaigns}
+						isLoading={campaignsQuery.isPending || storesQuery.isPending}
+						sortable
+						cardPrimaryColumnId="name"
+					/>
+				</ListPanel>
 			</div>
 		</>
 	);

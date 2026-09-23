@@ -182,6 +182,26 @@ export async function getMyOrderServices(
     .orderBy(asc(ordersServicesTable.id));
 }
 
+// The artisan reads "Repair only", the deep cleaners "everything except
+// Repair". Tested per treatment before rows fold into objects, so a shoe in
+// for both is on both racks.
+function queueCategoryCondition(
+  query?: Pick<GetOrderServiceQueueQuery, "category_id" | "category_mode">
+) {
+  if (query?.category_id === undefined) {
+    return;
+  }
+
+  const servicesInCategory = db
+    .select({ id: servicesTable.id })
+    .from(servicesTable)
+    .where(eq(servicesTable.category_id, query.category_id));
+
+  return query.category_mode === "except"
+    ? notInArray(ordersServicesTable.service_id, servicesInCategory)
+    : inArray(ordersServicesTable.service_id, servicesInCategory);
+}
+
 // Null means "no branch assigned" — an empty queue, not an unscoped one.
 async function resolveQueueStoreCondition(user: JWTPayload, storeId?: number) {
   const scope = await resolveStoreScope(user, storeId);
@@ -222,6 +242,7 @@ export async function getOrderServiceQueue(
   const conditions = [
     inArray(ordersServicesTable.status, [...WORKSHOP_SERVICE_STATUSES]),
     storeCondition,
+    queueCategoryCondition(normalized),
   ];
 
   if (normalized.status !== undefined) {
@@ -379,8 +400,9 @@ export async function getOrderServiceQueue(
   };
 }
 
-// Branch-scoped only, deliberately: honouring the date range too would just
-// count what is already on screen.
+// Branch- and Category-scoped only, deliberately: honouring the date range too
+// would just count what is already on screen, while the Category picks which
+// rack the worker is standing at.
 export async function getOrderServiceQueueCounts(
   user: JWTPayload,
   query?: GetOrderServiceQueueCountsQuery
@@ -424,7 +446,8 @@ export async function getOrderServiceQueueCounts(
     .where(
       and(
         inArray(ordersServicesTable.status, [...WORKSHOP_SERVICE_STATUSES]),
-        storeCondition
+        storeCondition,
+        queueCategoryCondition(query)
       )
     );
 

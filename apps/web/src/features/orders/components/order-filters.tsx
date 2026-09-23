@@ -149,14 +149,14 @@ export const OrderFilters = ({
 	};
 
 	return (
-		<div className="mb-4 flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
+		<div className="mb-4 flex items-center gap-2 lg:flex-wrap">
 			<DebouncedSearchInput
 				id="orders-search"
 				value={values.search ?? ""}
 				onDebouncedChange={(next) => onChange({ search: next || undefined })}
 				placeholder="Order ID, customer, phone"
 				ariaLabel="Search orders"
-				className="w-full lg:w-72"
+				className="min-w-0 flex-1 lg:w-72 lg:flex-none"
 			/>
 
 			<div className="hidden lg:flex lg:flex-wrap lg:items-center lg:gap-2">
@@ -169,19 +169,20 @@ export const OrderFilters = ({
 				/>
 			</div>
 
-			<div className="lg:hidden">
+			<div className="shrink-0 lg:hidden">
 				<Dialog open={isMobileFilterOpen} onOpenChange={setIsMobileFilterOpen}>
 					<DialogTrigger
 						render={
 							<Button
+								aria-label="Filters"
 								type="button"
 								variant="outline"
-								className="h-10 w-full"
+								className="h-10 min-w-10 pointer-coarse:h-11 pointer-coarse:min-w-11"
 								icon={<FunnelIcon className="size-4" />}
 							/>
 						}
 					>
-						{activeCount > 0 ? `Filters (${activeCount})` : "Filters"}
+						{activeCount > 0 ? String(activeCount) : null}
 					</DialogTrigger>
 					<DialogContent className="gap-5">
 						<DialogHeader>

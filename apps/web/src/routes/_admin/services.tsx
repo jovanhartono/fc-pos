@@ -4,10 +4,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
 	createService,
 	type Service,
@@ -193,17 +193,15 @@ function ServicesPage() {
 				}
 			/>
 			<div className="grid gap-4">
-				<Card>
-					<CardContent>
-						<DataTable
-							columns={columns}
-							data={services}
-							isLoading={isPending}
-							sortable
-							cardPrimaryColumnId="name"
-						/>
-					</CardContent>
-				</Card>
+				<ListPanel>
+					<DataTable
+						columns={columns}
+						data={services}
+						isLoading={isPending}
+						sortable
+						cardPrimaryColumnId="name"
+					/>
+				</ListPanel>
 			</div>
 		</>
 	);

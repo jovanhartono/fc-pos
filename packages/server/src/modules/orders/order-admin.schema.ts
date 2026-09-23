@@ -217,6 +217,15 @@ export const GETMyOrderServicesQuerySchema = z.object({
   include_terminal: z.stringbool().optional().default(false),
 });
 
+export const QUEUE_CATEGORY_MODES = ["only", "except"] as const;
+
+// Without a mode the picked Category means "only", so a bare category_id
+// never silently reads as its opposite.
+const queueCategoryFilterSchema = {
+  category_id: z.coerce.number().int().positive().optional(),
+  category_mode: z.enum(QUEUE_CATEGORY_MODES).optional(),
+};
+
 export const GETOrderServiceQueueQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).optional(),
@@ -226,6 +235,7 @@ export const GETOrderServiceQueueQuerySchema = z
     status: z.enum(orderServiceStatusEnum.enumValues).optional(),
     date_from: dateStringSchema("date_from").optional(),
     date_to: dateStringSchema("date_to").optional(),
+    ...queueCategoryFilterSchema,
   })
   .refine(
     (query) =>
@@ -239,6 +249,7 @@ export const GETOrderServiceQueueQuerySchema = z
 export const GETOrderServiceQueueCountsQuerySchema = z
   .object({
     store_id: z.coerce.number().int().positive().optional(),
+    ...queueCategoryFilterSchema,
   })
   .optional();
 
@@ -298,5 +309,7 @@ export function normalizeOrderServiceQueueQuery(
     status: query?.status,
     date_from: query?.date_from,
     date_to: query?.date_to,
+    category_id: query?.category_id,
+    category_mode: query?.category_mode,
   };
 }
