@@ -3,6 +3,7 @@ import { createInsertSchema } from "drizzle-orm/zod";
 import { Hono } from "hono";
 import { sign } from "hono/jwt";
 import { StatusCodes } from "http-status-codes";
+import { z } from "zod";
 import { db } from "@/db";
 import { usersTable } from "@/db/schema";
 import { ForbiddenException, UnauthorizedException } from "@/http-exceptions";
@@ -10,10 +11,9 @@ import type { JWTPayload } from "@/types/jwt";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-const loginSchema = createInsertSchema(usersTable).pick({
-  username: true,
-  password: true,
-});
+const loginSchema = createInsertSchema(usersTable)
+  .pick({ username: true, password: true })
+  .extend({ password: z.string().trim() });
 
 const findUserByUsernamePrepared = db.query.usersTable
   .findFirst({
