@@ -1,6 +1,11 @@
 import { PUTUserSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { KeyIcon, PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
+import {
+	DotsThreeIcon,
+	KeyIcon,
+	PencilSimpleLineIcon,
+	PlusIcon,
+} from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
@@ -14,6 +19,12 @@ import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { storesQueries } from "@/features/stores/api";
 import {
 	createUser,
@@ -316,7 +327,7 @@ function UsersPage() {
 				id: "actions",
 				header: "Actions",
 				cell: ({ row }) => (
-					<div className="flex flex-wrap gap-2">
+					<div className="flex gap-2">
 						<Button
 							variant="outline"
 							size="sm"
@@ -325,14 +336,26 @@ function UsersPage() {
 						>
 							Edit
 						</Button>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => handleResetPassword(row.original)}
-							icon={<KeyIcon className="size-4" />}
-						>
-							Reset password
-						</Button>
+						<DropdownMenu>
+							<DropdownMenuTrigger
+								render={
+									<Button
+										aria-label="More actions"
+										icon={<DotsThreeIcon className="size-4" />}
+										size="icon-sm"
+										variant="outline"
+									/>
+								}
+							/>
+							<DropdownMenuContent align="end" className="w-44">
+								<DropdownMenuItem
+									onClick={() => handleResetPassword(row.original)}
+								>
+									<KeyIcon className="size-4" />
+									Reset password
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
 					</div>
 				),
 			},
