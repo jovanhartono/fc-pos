@@ -34,15 +34,17 @@ export const ResetPasswordForm = ({
 		mutationKey: ["reset-user-password"],
 		mutationFn: (payload: ResetUserPasswordPayload) =>
 			resetUserPassword(userId, payload),
-		onSuccess: onDone,
 	});
 
 	const isSubmitting = formState.isSubmitting;
 
+	const onSubmit = async (values: ResetUserPasswordPayload) => {
+		await resetMutation.mutateAsync(values);
+		onDone();
+	};
+
 	return (
-		<form
-			onSubmit={handleSubmit((values) => resetMutation.mutateAsync(values))}
-		>
+		<form onSubmit={handleSubmit(onSubmit)}>
 			<FieldGroup>
 				<Controller
 					name="password"

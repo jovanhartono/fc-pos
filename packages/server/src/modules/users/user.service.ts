@@ -75,10 +75,8 @@ export async function updateUser({
   return safeUser;
 }
 
-// A worker who forgot their password has no way back in on their own — there is
-// no email on a User to send a link to — so an admin types a new one and tells
-// them. Deliberately does not sign the worker out of a tablet they are already
-// on; turning the User inactive is what cuts a session off. See ADR-0022.
+// Leaves open sessions alone: making the User inactive is what signs them out.
+// See ADR-0022.
 export async function resetUserPassword({
   id,
   password,
