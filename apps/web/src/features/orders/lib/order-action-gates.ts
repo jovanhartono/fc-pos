@@ -1,4 +1,4 @@
-import { hasUnpricedLine } from "@fresclean/api/schema";
+import { hasUnpricedLine, isComplainableStatus } from "@fresclean/api/schema";
 import type { OrderDetail } from "@/features/orders/api";
 import {
 	flattenOrderLines,
@@ -87,14 +87,12 @@ export const getOrderActionGates = (
 	const cancellableProducts = products.filter(
 		(item) => !item.refunded_at && !item.cancelled_at,
 	);
-	// ADR-0013: a finished line with no complaint yet is complainable — ready
-	// while the customer inspects it at the counter, or already picked up (one
-	// complaint per line, lifetime); rework lines are never re-complained.
+	// ADR-0013: one complaint per line, lifetime; rework lines are never
+	// re-complained.
 	const complaintableServices = services.filter(
 		(service) =>
 			!service.reworkOf &&
-			(service.status === "ready_for_pickup" ||
-				service.status === "picked_up") &&
+			isComplainableStatus(service.status) &&
 			(service.complaints ?? []).length === 0,
 	);
 	const isPaid = detail.payment_status === "paid";

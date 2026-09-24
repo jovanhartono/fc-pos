@@ -4,6 +4,7 @@ import {
   type CampaignDiscountInput,
   computeCampaignContribution,
   type DiscountLine,
+  isBogoSlot,
   orderNetDue,
   stackCampaignDiscounts,
 } from "@/schema/discount";
@@ -211,5 +212,26 @@ describe("orderNetDue", () => {
     expect(
       orderNetDue({ grossTotal: 100_000, discount: 20_000, refunded: 90_000 })
     ).toBe(0);
+  });
+});
+
+describe("isBogoSlot", () => {
+  const cleaning = {
+    complaint_id: null,
+    service: { price: "100000" },
+    status: "queued",
+  };
+
+  it("offers a catalog-priced pair the customer bought", () => {
+    expect(isBogoSlot(cleaning)).toBe(true);
+  });
+
+  it("never offers a Rework, whatever its line reads", () => {
+    expect(isBogoSlot({ ...cleaning, complaint_id: 5 })).toBe(false);
+  });
+
+  it("never offers a Repair or a cancelled line", () => {
+    expect(isBogoSlot({ ...cleaning, service: { price: null } })).toBe(false);
+    expect(isBogoSlot({ ...cleaning, status: "cancelled" })).toBe(false);
   });
 });
