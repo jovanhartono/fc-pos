@@ -204,12 +204,16 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 	// Saved only here, when the admin changes a filter, so opening an old link
 	// or reloading never overwrites what they chose.
 	const applyFilters = (change: ReportFilterValues) => {
-		const filters = toReportFilters({ ...search, ...change });
-		const currentUser = getCurrentUser();
-		if (currentUser) {
-			setFilters(String(currentUser.id), filters);
-		}
-		void navigate({ search: (prev) => ({ tab: prev.tab, ...filters }) });
+		void navigate({
+			search: (prev) => {
+				const filters = toReportFilters({ ...prev, ...change });
+				const currentUser = getCurrentUser();
+				if (currentUser) {
+					setFilters(String(currentUser.id), filters);
+				}
+				return { tab: prev.tab, ...filters };
+			},
+		});
 	};
 
 	return (
