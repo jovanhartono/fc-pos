@@ -19,7 +19,7 @@ const repo = {
   insertedComplaint: undefined as AnyObj | undefined,
   insertedRework: undefined as AnyObj | undefined,
   insertedStatusLogs: [] as Array<{ executor: unknown; values: AnyObj }>,
-  lineReads: [] as [string, unknown][],
+  lineReads: [] as [string, unknown, AnyObj?][],
 };
 
 const rollup = {
@@ -64,8 +64,8 @@ mock.module("@/utils/authorization", () => authorizationDouble(authz));
 
 mock.module("@/modules/complaints/complaint.repository", () => ({
   findComplaintSubjectService: () => Promise.resolve(repo.subject),
-  lockOrderServiceState: (executor: unknown) => {
-    repo.lineReads.push(["locked line", executor]);
+  lockOrderServiceState: (executor: unknown, target: AnyObj) => {
+    repo.lineReads.push(["locked line", executor, target]);
     return Promise.resolve(
       repo.subject && {
         complaint_id: repo.subject.complaint_id,
@@ -108,6 +108,7 @@ const makeSubject = (over: AnyObj = {}) => ({
   complaint_id: null,
   service_id: 3,
   item_id: 21,
+  order_id: 7,
   order: { id: 7, code: "ORD-001", store_id: 1 },
   ...over,
 });
@@ -204,7 +205,7 @@ describe("openComplaint", () => {
     // A ready pair can be picked up or refunded at another till meanwhile.
     await open();
     expect(repo.lineReads).toEqual([
-      ["locked line", TX],
+      ["locked line", TX, { orderId: 7, serviceId: 10 }],
       ["existing complaint", TX],
     ]);
   });
@@ -313,7 +314,9 @@ describe("addRework", () => {
     const line = await add();
 
     expect(line.id).toBe(500);
-    expect(repo.lineReads).toEqual([["locked line", TX]]);
+    expect(repo.lineReads).toEqual([
+      ["locked line", TX, { orderId: 7, serviceId: 10 }],
+    ]);
   });
 
   it("adds another rework round on the same item", async () => {
