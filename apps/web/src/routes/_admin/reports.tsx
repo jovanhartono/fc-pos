@@ -171,14 +171,6 @@ const descriptions: Record<Tab, string> = {
 	"aging-queue": "Items still in queue, oldest first",
 };
 
-const NO_FILTERS: ReportFilterValues = {
-	preset: undefined,
-	from: undefined,
-	to: undefined,
-	store_id: undefined,
-	granularity: undefined,
-};
-
 // Shared with the pending state at the bottom of this file. Switching tabs
 // re-runs the loader, and a manager on shop wifi was getting the whole page
 // swapped for grey blocks — including the tab strip they had just tapped.
@@ -227,9 +219,11 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 							applyFilters({ granularity })
 						}
 						onReset={() =>
-							applyFilters(
-								showRangeFilters ? NO_FILTERS : { store_id: undefined },
-							)
+							applyFilters({
+								...(showRangeFilters && { preset: "30d" }),
+								store_id: undefined,
+								granularity: undefined,
+							})
 						}
 						showRangeFilters={showRangeFilters}
 						showGranularity={showGranularity}

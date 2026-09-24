@@ -82,10 +82,6 @@ describe("withSavedReportFilters", () => {
 		).toBe(search);
 	});
 
-	it("restores nothing after Reset saved no filters", () => {
-		expect(withSavedReportFilters({}, toReportFilters({}))).toEqual({});
-	});
-
 	it("changes nothing when nothing was saved", () => {
 		const search = {};
 		expect(withSavedReportFilters(search, undefined)).toBe(search);
