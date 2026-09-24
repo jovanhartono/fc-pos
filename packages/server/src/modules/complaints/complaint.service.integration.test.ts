@@ -1,9 +1,12 @@
 import "@/test-support/pglite";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { eq } from "drizzle-orm";
 import {
   campaignEligibleServicesTable,
   campaignsTable,
+  complaintsTable,
   itemImagesTable,
+  orderServiceStatusLogsTable,
 } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
@@ -145,11 +148,11 @@ const handOver = (pair: {
   });
 
 // The returned pair photographed at the counter. Dated a second after the
-// complaint: the gate compares to the millisecond, and two inserts inside one
-// test can share one.
-const photographReturnedPair = (itemId: number, complaintAt: Date) =>
+// given moment: the gate compares to the millisecond, and two inserts inside
+// one test can share one.
+const photographReturnedPair = (itemId: number, after: Date) =>
   testDb.insert(itemImagesTable).values({
-    created_at: new Date(complaintAt.getTime() + 1000),
+    created_at: new Date(after.getTime() + 1000),
     image_path: `dev/orders/items/${itemId}/returned.webp`,
     item_id: itemId,
     uploaded_by: shop.cashier.id,
@@ -536,6 +539,89 @@ describe("one rework round at a time", () => {
       [rework.id, "picked_up"],
       [second.id, "queued"],
     ]);
+  });
+});
+
+describe("the photo that starts a rework round", () => {
+  // Puts the complaint, and its first round if it has one, an hour back, so a
+  // photo can be dated between them and a round started now.
+  const openedAnHourAgo = async (complaintId: number, reworkId?: number) => {
+    const anHourAgo = new Date(Date.now() - 3_600_000);
+    await testDb
+      .update(complaintsTable)
+      .set({ created_at: anHourAgo })
+      .where(eq(complaintsTable.id, complaintId));
+    if (reworkId) {
+      await testDb
+        .update(orderServiceStatusLogsTable)
+        .set({ created_at: anHourAgo })
+        .where(eq(orderServiceStatusLogsTable.order_service_id, reworkId));
+    }
+    return anHourAgo;
+  };
+
+  const startRound = (orderId: number, serviceId: number) =>
+    transitionOrderService(db, {
+      by: shop.cashier.id,
+      orderId,
+      serviceId,
+      to: "processing",
+    });
+
+  it("does not take the counter photo for a round started after the pair went home", async () => {
+    const pair = await pairOnTheShelf("paid");
+    const { complaint } = await turnDown(pair.lineId, false);
+    const openedAt = await openedAnHourAgo(complaint.id);
+    await photographReturnedPair(pair.itemId, openedAt);
+    await handOver(pair);
+
+    const rework = await addRework({
+      user: shop.cashier,
+      complaintId: complaint.id,
+    });
+
+    const refused = await captureRejection(startRound(pair.orderId, rework.id));
+    expect((refused as Error).message).toBe(
+      "Add a photo of the returned item before starting the rework"
+    );
+
+    await photographReturnedPair(pair.itemId, new Date());
+    await startRound(pair.orderId, rework.id);
+
+    const [, line] = await readLines(pair.orderId);
+    expect(line.status).toBe("processing");
+  });
+
+  it("needs a new photo for a second round, the first round's photo no longer counting", async () => {
+    const pair = await pairOnTheShelf("paid");
+    const { complaint, rework } = await turnDown(pair.lineId, true);
+    if (!rework) {
+      throw new Error("Complaint opened without its rework");
+    }
+    const openedAt = await openedAnHourAgo(complaint.id, rework.id);
+    await photographReturnedPair(pair.itemId, openedAt);
+    await walkToShelf(pair.orderId, rework.id);
+    await handOver(pair);
+
+    const second = await addRework({
+      user: shop.cashier,
+      complaintId: complaint.id,
+    });
+
+    const before = await getOrderServiceDetail(pair.orderId, second.id);
+    expect(before?.line.has_start_photo).toBe(false);
+    const refused = await captureRejection(startRound(pair.orderId, second.id));
+    expect((refused as Error).message).toBe(
+      "Add a photo of the returned item before starting the rework"
+    );
+
+    await photographReturnedPair(pair.itemId, new Date());
+    const after = await getOrderServiceDetail(pair.orderId, second.id);
+    expect(after?.line.has_start_photo).toBe(true);
+    await startRound(pair.orderId, second.id);
+
+    const lines = await readLines(pair.orderId);
+    expect(lines.at(-1)?.status).toBe("processing");
   });
 });
 

@@ -472,10 +472,7 @@ export async function getOrderDetailById(id: number) {
       // Stated by the server like is_collectable below: the same rule the
       // queued → processing gate runs (ADR-0019), so the UI can explain the
       // gate early without owning a copy of it.
-      has_start_photo: hasStartPhoto(
-        item.images,
-        service.reworkOf?.created_at ?? null
-      ),
+      has_start_photo: hasStartPhoto(item.images, service),
     }));
 
     // Derived on read, never stored — an Item has no status column to drift

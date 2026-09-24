@@ -34,8 +34,8 @@ export interface OrderActionGates {
 // ADR-0012 / ADR-0019: why a queued line cannot start yet, or undefined when
 // it can. The verdict is the server's (`has_start_photo`); this only puts
 // words to it before the button relays a 400. A Rework needs a photo taken
-// after the customer brought the object back — its first-visit photos are
-// there in the gallery but do not count.
+// after its round went on the rack — older photos are there in the gallery
+// but do not count.
 export const startPhotoBlocker = (
 	line: Pick<OrderLine, "status" | "has_start_photo" | "reworkOf">,
 ): string | undefined => {

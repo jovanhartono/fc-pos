@@ -24,10 +24,7 @@ export async function getOrderServiceDetail(
     order,
     line: {
       ...lineFields,
-      has_start_photo: hasStartPhoto(
-        rawImages,
-        line.reworkOf?.created_at ?? null
-      ),
+      has_start_photo: hasStartPhoto(rawImages, line),
       item: { ...itemCard, images },
     },
   };
