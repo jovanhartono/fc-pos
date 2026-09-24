@@ -241,22 +241,23 @@ function ReportsPage() {
 	const currentTab = search.tab as Tab;
 	const currentUser = getCurrentUser();
 	const currentUserKey = currentUser ? String(currentUser.id) : "";
-	const setSavedFilters = useReportPreferencesStore(
-		(state) => state.setFilters,
-	);
 
 	useEffect(() => {
 		if (!currentUserKey) {
 			return;
 		}
-		setSavedFilters(
+		const { filtersByUser, setFilters } = useReportPreferencesStore.getState();
+		setFilters(
 			currentUserKey,
-			toSavedReportFilters({
-				from: search.from,
-				to: search.to,
-				store_id: search.store_id,
-				granularity: search.granularity,
-			}),
+			toSavedReportFilters(
+				{
+					from: search.from,
+					to: search.to,
+					store_id: search.store_id,
+					granularity: search.granularity,
+				},
+				filtersByUser[currentUserKey],
+			),
 		);
 	}, [
 		currentUserKey,
@@ -264,7 +265,6 @@ function ReportsPage() {
 		search.to,
 		search.store_id,
 		search.granularity,
-		setSavedFilters,
 	]);
 
 	return (

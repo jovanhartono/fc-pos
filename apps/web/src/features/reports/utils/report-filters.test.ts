@@ -1,33 +1,17 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, setSystemTime } from "bun:test";
 import {
-	defaultRange,
 	toSavedReportFilters,
 	withSavedReportFilters,
 } from "@/features/reports/utils/report-filters";
-import type { RangePreset } from "@/shared/date-presets";
 
-const september: RangePreset[] = [
-	{ id: "today", label: "Today", from: "2026-09-24", to: "2026-09-24" },
-	{
-		id: "thisMonth",
-		label: "This month",
-		from: "2026-09-01",
-		to: "2026-09-24",
-	},
-];
+// Mid-morning in Jakarta on the given day.
+const onDay = (date: string) => setSystemTime(new Date(`${date}T03:00:00Z`));
 
-const october: RangePreset[] = [
-	{ id: "today", label: "Today", from: "2026-10-02", to: "2026-10-02" },
-	{
-		id: "thisMonth",
-		label: "This month",
-		from: "2026-10-01",
-		to: "2026-10-02",
-	},
-];
+afterEach(() => setSystemTime());
 
 describe("toSavedReportFilters", () => {
 	it("saves a preset range as the preset, not its dates", () => {
+		onDay("2026-09-24");
 		expect(
 			toSavedReportFilters(
 				{
@@ -36,35 +20,50 @@ describe("toSavedReportFilters", () => {
 					store_id: 3,
 					granularity: "week",
 				},
-				september,
+				undefined,
 			),
-		).toEqual({
-			range: { preset: "thisMonth" },
-			storeId: 3,
-			granularity: "week",
-		});
+		).toEqual({ preset: "thisMonth", storeId: 3, granularity: "week" });
 	});
 
 	it("saves a custom range as its dates", () => {
+		onDay("2026-09-24");
 		expect(
-			toSavedReportFilters({ from: "2026-08-03", to: "2026-08-17" }, september),
+			toSavedReportFilters({ from: "2026-08-03", to: "2026-08-17" }, undefined),
 		).toEqual({
-			range: { from: "2026-08-03", to: "2026-08-17" },
+			from: "2026-08-03",
+			to: "2026-08-17",
 			storeId: undefined,
 			granularity: undefined,
 		});
+	});
+
+	it("keeps This month restored on the 1st, when it has Today's dates", () => {
+		onDay("2026-10-01");
+		expect(
+			toSavedReportFilters(
+				{ from: "2026-10-01", to: "2026-10-01" },
+				{ preset: "thisMonth" },
+			).preset,
+		).toBe("thisMonth");
+	});
+
+	it("saves the default range on the 30th as Last 30 days, not This month", () => {
+		onDay("2026-09-30");
+		expect(
+			toSavedReportFilters({ from: "2026-09-01", to: "2026-09-30" }, undefined)
+				.preset,
+		).toBe("30d");
 	});
 });
 
 describe("withSavedReportFilters", () => {
 	it("re-reads a saved preset against today, so This month moves with the calendar", () => {
-		const saved = toSavedReportFilters(
-			{ from: "2026-09-01", to: "2026-09-24", store_id: 3 },
-			september,
-		);
-
+		onDay("2026-10-02");
 		expect(
-			withSavedReportFilters({ tab: "financial" }, saved, october),
+			withSavedReportFilters(
+				{ tab: "financial" },
+				{ preset: "thisMonth", storeId: 3 },
+			),
 		).toEqual({
 			tab: "financial",
 			from: "2026-10-01",
@@ -75,11 +74,11 @@ describe("withSavedReportFilters", () => {
 	});
 
 	it("restores a custom range as the same dates", () => {
+		onDay("2026-10-02");
 		expect(
 			withSavedReportFilters(
 				{},
-				{ range: { from: "2026-08-03", to: "2026-08-17" }, granularity: "day" },
-				october,
+				{ from: "2026-08-03", to: "2026-08-17", granularity: "day" },
 			),
 		).toEqual({
 			from: "2026-08-03",
@@ -92,20 +91,16 @@ describe("withSavedReportFilters", () => {
 	it("leaves a URL that carries a range alone", () => {
 		const search = { from: "2026-07-01", to: "2026-07-31" };
 		expect(
-			withSavedReportFilters(
-				search,
-				{ range: { preset: "today" }, storeId: 3 },
-				october,
-			),
+			withSavedReportFilters(search, { preset: "today", storeId: 3 }),
 		).toBe(search);
 	});
 
 	it("lets a Store in the URL win over the saved one", () => {
+		onDay("2026-10-02");
 		expect(
 			withSavedReportFilters(
 				{ store_id: "5" },
-				{ range: { preset: "today" }, storeId: 3 },
-				october,
+				{ preset: "today", storeId: 3 },
 			),
 		).toEqual({
 			from: "2026-10-02",
@@ -115,23 +110,8 @@ describe("withSavedReportFilters", () => {
 		});
 	});
 
-	it("falls back to the default range when a saved preset no longer exists", () => {
-		expect(
-			withSavedReportFilters(
-				{},
-				// @ts-expect-error a preset id retired after it was saved
-				{ range: { preset: "fortnight" } },
-				october,
-			),
-		).toEqual({
-			...defaultRange(),
-			store_id: undefined,
-			granularity: undefined,
-		});
-	});
-
 	it("changes nothing when nothing was saved", () => {
 		const search = { tab: "quality" };
-		expect(withSavedReportFilters(search, undefined, october)).toBe(search);
+		expect(withSavedReportFilters(search, undefined)).toBe(search);
 	});
 });
