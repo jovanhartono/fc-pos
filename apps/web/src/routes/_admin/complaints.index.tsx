@@ -99,7 +99,7 @@ const ComplaintsPage = () => {
 				meta: { mobileCard: { slot: "badges" } },
 				cell: ({ row }) => {
 					const outcome = getComplaintOutcome({
-						refunded: row.original.subject_status === "refunded",
+						subjectStatus: row.original.subject_status,
 						reworkCount: row.original.rework_count,
 					});
 					return <Badge variant={outcome.variant}>{outcome.label}</Badge>;
