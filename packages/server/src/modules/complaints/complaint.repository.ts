@@ -53,9 +53,8 @@ export function findComplaintSubjectService(serviceId: number) {
   });
 }
 
-// Another till may pick up, cancel or refund this pair meanwhile. A refund holds
-// the Order before the line, so we do too or the two deadlock; only a key share,
-// because a cancel holds the line before it updates the Order.
+// Another cashier may hand over, cancel or refund this pair meanwhile. The Order
+// is held first, as a refund holds it, so the two never wait on each other.
 export async function lockOrderServiceState(
   executor: DbExecutor,
   { orderId, serviceId }: { orderId: number; serviceId: number }
