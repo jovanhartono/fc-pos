@@ -363,9 +363,11 @@ const transitionTo = (executor: DbExecutor, to: OrderServiceStatus) =>
 const makePickupExecutor = ({
   items,
   flipped,
+  calls = [],
 }: {
   items: { id: number; item_code: string; services: AnyLine[] }[];
   flipped?: number[];
+  calls?: string[];
 }) => {
   const handedOver = items
     .flatMap((item) => item.services)
@@ -379,10 +381,27 @@ const makePickupExecutor = ({
 
   return {
     query: {
-      itemsTable: { findMany: () => Promise.resolve(items) },
+      itemsTable: {
+        findMany: () => {
+          calls.push("read items");
+          return Promise.resolve(items);
+        },
+      },
       ordersServicesTable: { findMany: () => Promise.resolve([]) },
       ordersProductsTable: { findMany: () => Promise.resolve([]) },
     },
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          orderBy: () => ({
+            for: () => {
+              calls.push("lock lines");
+              return Promise.resolve([]);
+            },
+          }),
+        }),
+      }),
+    }),
     // The flip carries a new status, the stamp only the event — so the SET
     // itself says which UPDATE this is, and the fake never has to assume the
     // order they run in.
@@ -411,6 +430,23 @@ const pickUp = (executor: DbExecutor, itemIds: number[]) =>
   });
 
 describe("completePickup (ADR-0017: whole objects only)", () => {
+  it("holds the object's lines before judging whether it can go", async () => {
+    // Another cashier may be adding a rework to this pair at the counter.
+    const calls: string[] = [];
+    const executor = makePickupExecutor({
+      calls,
+      items: [
+        {
+          id: 1,
+          item_code: "#ORD-S001",
+          services: [{ id: 5, ...t("ready_for_pickup") }],
+        },
+      ],
+    });
+    await pickUp(executor, [1]);
+    expect(calls).toEqual(["lock lines", "read items"]);
+  });
+
   it("flips every finished treatment on the object, not a chosen subset", async () => {
     const executor = makePickupExecutor({
       items: [
