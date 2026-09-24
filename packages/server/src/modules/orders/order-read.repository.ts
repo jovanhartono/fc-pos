@@ -344,7 +344,8 @@ export function findOrderForLookup(id: number) {
 
 // The customer's own view of their Order. pickup_code rides along so the
 // tracker can reveal it once something is collectable — when, is the tracking
-// service's call, never this read's.
+// service's call, never this read's. No staff notes, the Order's or a status
+// change's: anyone holding the code and the phone number can read this.
 export function findTrackedOrder(code: string, customerId: number) {
   return db.query.ordersTable.findFirst({
     where: {
@@ -358,7 +359,6 @@ export function findTrackedOrder(code: string, customerId: number) {
       payment_status: true,
       discount: true,
       total: true,
-      notes: true,
       pickup_code: true,
       created_at: true,
       completed_at: true,
@@ -401,7 +401,6 @@ export function findTrackedOrder(code: string, customerId: number) {
                   id: true,
                   from_status: true,
                   to_status: true,
-                  note: true,
                   created_at: true,
                 },
               },
