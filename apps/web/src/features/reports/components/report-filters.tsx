@@ -10,14 +10,13 @@ import {
 } from "@/components/ui/popover";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import type { ReportGranularity } from "@/features/reports/api";
-import { defaultRange } from "@/features/reports/utils/report-filters";
+import {
+	DEFAULT_PRESET,
+	rangeLabel,
+} from "@/features/reports/utils/report-filters";
 import { storesQueries } from "@/features/stores/api";
 import { cn } from "@/lib/utils";
-import {
-	type DatePreset,
-	getPresets,
-	matchPreset,
-} from "@/shared/date-presets";
+import type { DatePreset } from "@/shared/date-presets";
 
 interface ReportFiltersProps {
 	from: string;
@@ -64,14 +63,11 @@ export const ReportFilters = ({
 	showRangeFilters = true,
 	showGranularity = true,
 }: ReportFiltersProps) => {
-	const presets = getPresets();
 	const storesQuery = useQuery(storesQueries.list());
 	const stores = storesQuery.data ?? [];
-	const activePreset = matchPreset(presets, from, to, preset);
-	const defaults = defaultRange();
 	const activeStore = stores.find((store) => store.id === storeId);
 
-	const isRangeDefault = from === defaults.from && to === defaults.to;
+	const isRangeDefault = preset === DEFAULT_PRESET;
 	const isStoreDefault = storeId === undefined;
 	const isGranularityDefault = granularity === undefined;
 	const nonDefaultCount =
@@ -83,7 +79,7 @@ export const ReportFilters = ({
 	if (showRangeFilters) {
 		activeBadges.push({
 			id: "range",
-			label: activePreset ? activePreset.label : `${from} → ${to}`,
+			label: rangeLabel({ preset, from, to }),
 		});
 	}
 	activeBadges.push({
@@ -131,6 +127,7 @@ export const ReportFilters = ({
 								from={from}
 								to={to}
 								preset={preset}
+								isPresetKept
 								commitOnComplete
 								onChange={(next) => {
 									if (next.from && next.to) {

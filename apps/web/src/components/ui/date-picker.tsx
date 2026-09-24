@@ -115,6 +115,9 @@ interface DateRangePickerProps {
 	from?: string;
 	to?: string;
 	preset?: DatePreset;
+	// The page saves the tapped preset, so dates picked on the calendar stay
+	// dates even when they match a preset.
+	isPresetKept?: boolean;
 	onChange: (value: {
 		from?: string;
 		to?: string;
@@ -328,6 +331,7 @@ export const DateRangePicker = ({
 	from,
 	to,
 	preset,
+	isPresetKept = false,
 	onChange,
 	onClear,
 	placeholder = "Pick a date range",
@@ -362,7 +366,7 @@ export const DateRangePicker = ({
 	const showClear = Boolean(onClear) && hasValue;
 
 	const presets = useMemo(() => getPresets(), []);
-	const activePreset =
+	const matchedPreset =
 		displayRange?.from && displayRange?.to
 			? matchPreset(
 					presets,
@@ -371,6 +375,8 @@ export const DateRangePicker = ({
 					preset,
 				)
 			: undefined;
+	const activePreset =
+		isPresetKept && matchedPreset?.id !== preset ? undefined : matchedPreset;
 
 	const emitRange = (range: DateRange | undefined) => {
 		onChange({

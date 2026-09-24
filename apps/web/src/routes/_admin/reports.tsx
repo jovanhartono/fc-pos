@@ -15,6 +15,7 @@ import {
 } from "@/features/reports/components/report-shell";
 import {
 	type ReportFilterValues,
+	resetReportFilters,
 	toReportFilters,
 	withPresetRange,
 	withSavedReportFilters,
@@ -172,7 +173,7 @@ const descriptions: Record<Tab, string> = {
 };
 
 // Shared with the pending state at the bottom of this file. Switching tabs
-// re-runs the loader, and a manager on shop wifi was getting the whole page
+// re-runs the loader, and an admin on shop wifi was getting the whole page
 // swapped for grey blocks — including the tab strip they had just tapped.
 const ReportsChrome = ({ children }: PropsWithChildren) => {
 	const navigate = useNavigate({ from: Route.fullPath });
@@ -188,7 +189,7 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 
 	// Saved only here, when the admin changes a filter, so opening an old link
 	// or reloading never overwrites what they chose.
-	const applyFilters = (change: ReportFilterValues) => {
+	const handleFiltersChange = (change: ReportFilterValues) => {
 		void navigate({
 			search: (prev) => {
 				const filters = toReportFilters({ ...prev, ...change });
@@ -211,19 +212,17 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 						from={search.from}
 						to={search.to}
 						preset={search.preset}
-						onRangeChange={applyFilters}
+						onRangeChange={handleFiltersChange}
 						storeId={search.store_id}
-						onStoreChange={(storeId) => applyFilters({ store_id: storeId })}
+						onStoreChange={(storeId) =>
+							handleFiltersChange({ store_id: storeId })
+						}
 						granularity={search.granularity}
 						onGranularityChange={(granularity: ReportGranularity | undefined) =>
-							applyFilters({ granularity })
+							handleFiltersChange({ granularity })
 						}
 						onReset={() =>
-							applyFilters({
-								...(showRangeFilters && { preset: "30d" }),
-								store_id: undefined,
-								granularity: undefined,
-							})
+							handleFiltersChange(resetReportFilters(showRangeFilters))
 						}
 						showRangeFilters={showRangeFilters}
 						showGranularity={showGranularity}
@@ -326,7 +325,7 @@ const ReportsPending = () => (
 );
 
 export const Route = createFileRoute("/_admin/reports")({
-	// Restored before the loader runs, so a manager coming back from the sidebar
+	// Restored before the loader runs, so an admin coming back from the sidebar
 	// waits for their own range once instead of the 30-day default first.
 	validateSearch: (
 		search: ReportFilterValues & { tab?: Tab } & SearchSchemaInput,

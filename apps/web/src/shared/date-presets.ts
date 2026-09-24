@@ -93,6 +93,10 @@ export function getPresets(): RangePreset[] {
 	];
 }
 
+export function getPreset(id: DatePreset): RangePreset {
+	return getPresets().find((preset) => preset.id === id) as RangePreset;
+}
+
 // Two presets can share dates (This month and Today on the 1st), so the one
 // the user tapped names the range when it still fits.
 export function matchPreset(

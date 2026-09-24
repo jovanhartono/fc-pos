@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, setSystemTime } from "bun:test";
 import {
+	rangeLabel,
+	resetReportFilters,
 	toReportFilters,
 	withPresetRange,
 	withSavedReportFilters,
@@ -23,8 +25,7 @@ describe("toReportFilters", () => {
 		).toEqual({ preset: "thisMonth", store_id: 3, granularity: "week" });
 	});
 
-	it("keeps a custom range as its dates, even when they match a preset", () => {
-		onDay("2026-09-30");
+	it("keeps a custom range as its dates", () => {
 		expect(toReportFilters({ from: "2026-09-01", to: "2026-09-30" })).toEqual({
 			from: "2026-09-01",
 			to: "2026-09-30",
@@ -65,6 +66,40 @@ describe("withPresetRange", () => {
 	it("leaves a custom range alone", () => {
 		const search = { from: "2026-08-03", to: "2026-08-17" };
 		expect(withPresetRange(search)).toEqual(search);
+	});
+});
+
+describe("rangeLabel", () => {
+	it("names This month on the 30th, not Last 30 days", () => {
+		onDay("2026-09-30");
+		expect(rangeLabel(withPresetRange({ preset: "thisMonth" }))).toBe(
+			"This month",
+		);
+	});
+
+	it("shows a custom range as its dates, even when they match a preset", () => {
+		onDay("2026-09-30");
+		expect(
+			rangeLabel(withPresetRange({ from: "2026-09-01", to: "2026-09-30" })),
+		).toBe("2026-09-01 → 2026-09-30");
+	});
+});
+
+describe("resetReportFilters", () => {
+	const saved = { preset: "7d", store_id: 3, granularity: "week" } as const;
+
+	it("clears only the Store on a tab that hides the range", () => {
+		expect(toReportFilters({ ...saved, ...resetReportFilters(false) })).toEqual(
+			{ preset: "7d", store_id: undefined, granularity: "week" },
+		);
+	});
+
+	it("returns every filter to its default on a tab that shows the range", () => {
+		expect(toReportFilters({ ...saved, ...resetReportFilters(true) })).toEqual({
+			preset: "30d",
+			store_id: undefined,
+			granularity: undefined,
+		});
 	});
 });
 
