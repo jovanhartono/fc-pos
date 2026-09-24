@@ -340,10 +340,10 @@ export function AppShell({ title, children }: AppShellProps) {
 					)}
 					<HeaderRefreshButton />
 				</div>
-				{/* Below md, queue detail's Hold to Start Work bar rests on the tab
-				    bar; a sticky bar would stop short of this padding. */}
+				{/* Queue detail's Hold to Start Work bar rests on the window bottom
+				    (the tab bar below md); a sticky bar would stop short of this padding. */}
 				<section
-					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain px-3 py-4 pb-[calc(var(--inset-bottom)+1rem)] max-md:has-[[data-bottom-bar]]:pb-0 sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10"
+					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain px-3 py-4 pb-[calc(var(--inset-bottom)+1rem)] has-[[data-bottom-bar]]:pb-0 sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10"
 					data-scroll-restoration-id={APP_CONTENT_SCROLL_ID}
 				>
 					{children}
