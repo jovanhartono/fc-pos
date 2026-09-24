@@ -62,9 +62,17 @@ const ComplaintDetailPage = () => {
 	const subject = detail.orderService;
 	const order = detail.orderService.order;
 	// Refund is the terminal rung (ADR-0013), and a pair runs one round at a time.
+	const hasRoundInWorkshop = detail.reworkLines.some(isInWorkshop);
 	const canRework =
-		isComplainableLine(subject, subject.item.services) &&
-		!detail.reworkLines.some(isInWorkshop);
+		isComplainableLine(subject, subject.item.services) && !hasRoundInWorkshop;
+	const isFinished =
+		subject.status === "ready_for_pickup" || subject.status === "picked_up";
+	let reworkWaitReason: string | undefined;
+	if (!canRework && isFinished) {
+		reworkWaitReason = hasRoundInWorkshop
+			? "A rework is still in the workshop."
+			: "Other work on this item is still in the workshop.";
+	}
 	const outcome = getComplaintOutcome({
 		subjectStatus: subject.status,
 		reworkCount: detail.reworkLines.filter(isReworkedRound).length,
@@ -74,6 +82,7 @@ const ComplaintDetailPage = () => {
 		<>
 			<PageHeader
 				title={`Complaint #${detail.id}`}
+				description={reworkWaitReason}
 				actions={
 					canRework ? (
 						<Button
