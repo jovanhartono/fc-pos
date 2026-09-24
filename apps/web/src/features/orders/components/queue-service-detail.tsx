@@ -178,6 +178,7 @@ export function QueueServiceDetail({
 			!WORKER_BLOCKED_QUEUE_STATUSES.has(status) &&
 			(!canStartWork || status !== "processing"),
 	);
+	const hasActions = canStartWork || actionStatuses.length > 0;
 
 	const itemDescriptors = getOrderServiceItemDescriptors(selectedService.item);
 	const handlerLabel = isHandledByCurrentUser
@@ -406,19 +407,21 @@ export function QueueServiceDetail({
 
 				<section className="grid gap-4 border border-border p-4">
 					<StatusTimeline line={selectedService} orderId={orderId} />
-					<Field>
-						<FieldLabel htmlFor="queue-status-note">Status note</FieldLabel>
-						<Textarea
-							id="queue-status-note"
-							placeholder="Optional status note"
-							value={statusNote}
-							onChange={(event) => setStatusNote(event.target.value)}
-						/>
-					</Field>
+					{hasActions ? (
+						<Field>
+							<FieldLabel htmlFor="queue-status-note">Status note</FieldLabel>
+							<Textarea
+								id="queue-status-note"
+								placeholder="Optional status note"
+								value={statusNote}
+								onChange={(event) => setStatusNote(event.target.value)}
+							/>
+						</Field>
+					) : null}
 				</section>
 			</div>
 
-			{canStartWork || actionStatuses.length > 0 ? (
+			{hasActions ? (
 				<div
 					className="sticky bottom-0 z-10 -mx-3 mt-6 border-t border-border bg-background/95 px-3 pb-[calc(var(--inset-bottom)+0.75rem)] pt-3 backdrop-blur sm:-mx-6 sm:px-6 md:mx-0 md:px-0 md:pb-3"
 					data-bottom-bar

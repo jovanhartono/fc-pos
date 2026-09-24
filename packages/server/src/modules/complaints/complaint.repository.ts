@@ -148,7 +148,8 @@ export async function findComplaints(
         reason: complaintsTable.reason,
         created_at: complaintsTable.created_at,
         // Outcome is derived from the lines (ADR-0013 amendment): the subject
-        // line's status (refunded?) plus whether any rework line points back.
+        // line's status (refunded or cancelled?) plus whether any rework line
+        // points back.
         subject_status: ordersServicesTable.status,
         rework_count: sql<number>`(SELECT count(*)::int FROM orders_services rw WHERE rw.complaint_id = ${complaintsTable.id})`,
         order_id: ordersTable.id,
