@@ -673,8 +673,8 @@ interface QueueRowProps {
 	onOpen: (item: QueueItem, serviceId: number) => void;
 }
 
-// One card per physical object, with every treatment still live on it listed
-// inside (ADR-0017). A pair in for a deep clean, a repaint and leather care
+// One card per physical object, with its live treatments listed inside
+// (ADR-0017) — under a status chip, only the ones in that status. A pair in for a deep clean, a repaint and leather care
 // used to be three separate rows on the rack with nothing saying they were the
 // same shoe — and physics already stops two workers holding it at once.
 const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
