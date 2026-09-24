@@ -9,9 +9,11 @@ import {
   insertComplaint,
   insertOrderServiceStatusLog,
   insertReworkLine,
+  lockOrderServiceState,
 } from "@/modules/complaints/complaint.repository";
 import {
   type GetComplaintsQuery,
+  isComplainableStatus,
   normalizeComplaintListQuery,
   type PostComplaintInput,
 } from "@/modules/complaints/complaint.schema";
@@ -30,14 +32,6 @@ import { buildPaginationMeta } from "@/utils/pagination";
 type SubjectService = NonNullable<
   Awaited<ReturnType<typeof findComplaintSubjectService>>
 >;
-
-// The cashier shows the customer the finished pair before handing it over, so
-// the complaint usually lands at the counter while the line is still ready —
-// and sometimes days after the pair went home (ADR-0013, 2026-09-24).
-const COMPLAINABLE_STATUSES = new Set<SubjectService["status"]>([
-  "ready_for_pickup",
-  "picked_up",
-]);
 
 // A rework is a free OrderService line on the same order (ADR-0013); adding it
 // flips the order rollup back to processing. It is the same physical object
@@ -89,6 +83,18 @@ async function createReworkLine(
   return line;
 }
 
+async function lockComplainableLine(
+  tx: DbExecutor,
+  serviceId: number,
+  refusal: string
+) {
+  const line = await lockOrderServiceState(tx, serviceId);
+  if (!(line && isComplainableStatus(line.status))) {
+    throw new BadRequestException(refusal);
+  }
+  return line;
+}
+
 async function loadComplaintSubject(user: JWTPayload, complaintId: number) {
   const complaint = await findComplaintById(complaintId);
   if (!complaint) {
@@ -101,14 +107,6 @@ async function loadComplaintSubject(user: JWTPayload, complaintId: number) {
   }
 
   await assertStoreAccess(user, subject.order.store_id);
-
-  // Refund is the terminal rung of the ladder (ADR-0013) — no rework once the
-  // original line is refunded or otherwise off the shelf.
-  if (!COMPLAINABLE_STATUSES.has(subject.status)) {
-    throw new BadRequestException(
-      "Cannot add a rework once the original line is no longer ready or picked up"
-    );
-  }
 
   return { complaint, subject };
 }
@@ -127,24 +125,24 @@ export async function openComplaint({
 
   await assertStoreAccess(user, subject.order.store_id);
 
-  if (!COMPLAINABLE_STATUSES.has(subject.status)) {
-    throw new BadRequestException(
+  return db.transaction(async (tx) => {
+    const line = await lockComplainableLine(
+      tx,
+      subject.id,
       "Complaints can only be opened on items that are ready or picked up"
     );
-  }
 
-  // A rework line is itself an OrderService; complaints attach only to real
-  // lines (ADR-0013) so the one-per-line rule and the rate denominator hold.
-  if (subject.complaint_id !== null) {
-    throw new BadRequestException("Cannot open a complaint on a rework line");
-  }
+    // A rework line is itself an OrderService; complaints attach only to real
+    // lines (ADR-0013) so the one-per-line rule and the rate denominator hold.
+    if (line.complaint_id !== null) {
+      throw new BadRequestException("Cannot open a complaint on a rework line");
+    }
 
-  const existing = await findComplaintForService(subject.id);
-  if (existing) {
-    throw new BadRequestException("A complaint already exists for this item");
-  }
+    const existing = await findComplaintForService(tx, subject.id);
+    if (existing) {
+      throw new BadRequestException("A complaint already exists for this item");
+    }
 
-  return db.transaction(async (tx) => {
     const complaint = await insertComplaint(tx, {
       order_service_id: subject.id,
       reason: body.reason,
@@ -172,13 +170,21 @@ export async function addRework({
 }) {
   const { complaint, subject } = await loadComplaintSubject(user, complaintId);
 
-  return db.transaction((tx) =>
-    createReworkLine(tx, {
+  return db.transaction(async (tx) => {
+    // Refund is the terminal rung of the ladder (ADR-0013) — no rework once the
+    // original line is refunded or otherwise off the shelf.
+    await lockComplainableLine(
+      tx,
+      subject.id,
+      "Cannot add a rework once the original line is no longer ready or picked up"
+    );
+
+    return createReworkLine(tx, {
       complaintId: complaint.id,
       subject,
       userId: user.id,
-    })
-  );
+    });
+  });
 }
 
 export async function getComplaintDetail(user: JWTPayload, id: number) {
