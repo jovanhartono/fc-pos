@@ -35,11 +35,17 @@ export function toReportFilters({
 	return { ...range, store_id, granularity };
 }
 
-export function withPresetRange<
-	T extends { preset?: DatePreset; from: string; to: string },
->(search: T): T {
+export function withPresetRange<T extends ReportFilterValues>(search: T) {
 	const preset = getPresets().find(({ id }) => id === search.preset);
-	return preset ? { ...search, from: preset.from, to: preset.to } : search;
+	if (preset) {
+		return { ...search, from: preset.from, to: preset.to };
+	}
+	if (search.from && search.to) {
+		return { ...search, from: search.from, to: search.to };
+	}
+	// A manager who never picked a range reads Last 30 days, and still does
+	// tomorrow after changing only the Store.
+	return { ...search, preset: "30d" as const, ...defaultRange() };
 }
 
 const FILTER_KEYS: (keyof ReportFilterValues)[] = [

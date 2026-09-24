@@ -32,6 +32,15 @@ describe("toReportFilters", () => {
 			granularity: undefined,
 		});
 	});
+
+	it("keeps the default range rolling when only the Store changes", () => {
+		onDay("2026-09-25");
+		expect(toReportFilters({ ...withPresetRange({}), store_id: 3 })).toEqual({
+			preset: "30d",
+			store_id: 3,
+			granularity: undefined,
+		});
+	});
 });
 
 describe("withPresetRange", () => {
@@ -55,7 +64,7 @@ describe("withPresetRange", () => {
 
 	it("leaves a custom range alone", () => {
 		const search = { from: "2026-08-03", to: "2026-08-17" };
-		expect(withPresetRange(search)).toBe(search);
+		expect(withPresetRange(search)).toEqual(search);
 	});
 });
 

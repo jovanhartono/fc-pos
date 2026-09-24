@@ -14,7 +14,6 @@ import {
 	type ReportTab,
 } from "@/features/reports/components/report-shell";
 import {
-	defaultRange,
 	type ReportFilterValues,
 	toReportFilters,
 	withPresetRange,
@@ -87,14 +86,8 @@ const reportsSearchSchema = z
 	.object({
 		tab: tabSchema.catch(() => "overview" as const),
 		preset: z.enum(DATE_PRESETS).optional().catch(undefined),
-		from: z
-			.string()
-			.regex(dateRegex)
-			.catch(() => defaultRange().from),
-		to: z
-			.string()
-			.regex(dateRegex)
-			.catch(() => defaultRange().to),
+		from: z.string().regex(dateRegex).optional().catch(undefined),
+		to: z.string().regex(dateRegex).optional().catch(undefined),
 		store_id: z.coerce.number().int().positive().optional().catch(undefined),
 		granularity: granularitySchema.catch(() => undefined),
 	})
