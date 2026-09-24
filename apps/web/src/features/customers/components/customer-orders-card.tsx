@@ -63,12 +63,7 @@ export const CustomerOrdersCard = ({
 			{
 				accessorKey: "code",
 				header: "Code",
-				meta: {
-					mobileCard: {
-						slot: "title",
-						className: "[&_a]:after:absolute [&_a]:after:inset-0",
-					},
-				},
+				meta: { mobileCard: { slot: "title" } },
 				cell: ({ row }) => (
 					<Link
 						to="/orders/$orderId"
@@ -133,6 +128,10 @@ export const CustomerOrdersCard = ({
 					columns={columns}
 					data={orders}
 					isLoading={ordersQuery.isPending}
+					getCardLink={(order) => ({
+						to: "/orders/$orderId",
+						params: { orderId: String(order.id) },
+					})}
 				/>
 				<TablePagination
 					meta={ordersQuery.data?.meta}
