@@ -8,6 +8,7 @@ import { GlobalSheet } from "@/components/ui/global-sheet";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useIsCoarsePointer } from "@/hooks/use-mobile";
+import { useUpdatePrompt } from "@/hooks/useUpdatePrompt";
 
 export interface RouterContext {
 	queryClient: QueryClient;
@@ -28,6 +29,7 @@ const TOUCH_TOAST_OFFSET = {
 function RootComponent() {
 	// Top-right lands on top of the mobile header, and far from the thumb.
 	const isCoarsePointer = useIsCoarsePointer();
+	useUpdatePrompt();
 
 	return (
 		<TooltipProvider>
