@@ -30,8 +30,11 @@ export async function insertComplaint(
 }
 
 // One complaint per original line, lifetime (ADR-0013 amendment).
-export function findComplaintForService(serviceId: number) {
-  return db.query.complaintsTable.findFirst({
+export function findComplaintForService(
+  executor: DbExecutor,
+  serviceId: number
+) {
+  return executor.query.complaintsTable.findFirst({
     where: { order_service_id: serviceId },
   });
 }
@@ -48,6 +51,23 @@ export function findComplaintSubjectService(serviceId: number) {
     where: { id: serviceId },
     with: { order: { columns: orderRefColumns } },
   });
+}
+
+// A ready pair can be picked up, cancelled or refunded at another till while a
+// complaint is being opened on it.
+export async function lockOrderServiceState(
+  executor: DbExecutor,
+  serviceId: number
+) {
+  const [locked] = await executor
+    .select({
+      complaint_id: ordersServicesTable.complaint_id,
+      status: ordersServicesTable.status,
+    })
+    .from(ordersServicesTable)
+    .where(eq(ordersServicesTable.id, serviceId))
+    .for("update");
+  return locked;
 }
 
 export async function insertReworkLine(

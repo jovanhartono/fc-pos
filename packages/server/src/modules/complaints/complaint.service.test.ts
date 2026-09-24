@@ -19,6 +19,7 @@ const repo = {
   insertedComplaint: undefined as AnyObj | undefined,
   insertedRework: undefined as AnyObj | undefined,
   insertedStatusLogs: [] as Array<{ executor: unknown; values: AnyObj }>,
+  lineReads: [] as [string, unknown][],
 };
 
 const rollup = {
@@ -63,7 +64,19 @@ mock.module("@/utils/authorization", () => authorizationDouble(authz));
 
 mock.module("@/modules/complaints/complaint.repository", () => ({
   findComplaintSubjectService: () => Promise.resolve(repo.subject),
-  findComplaintForService: () => Promise.resolve(repo.existingComplaint),
+  lockOrderServiceState: (executor: unknown) => {
+    repo.lineReads.push(["locked line", executor]);
+    return Promise.resolve(
+      repo.subject && {
+        complaint_id: repo.subject.complaint_id,
+        status: repo.subject.status,
+      }
+    );
+  },
+  findComplaintForService: (executor: unknown) => {
+    repo.lineReads.push(["existing complaint", executor]);
+    return Promise.resolve(repo.existingComplaint);
+  },
   findComplaintById: () => Promise.resolve(repo.complaintById),
   insertComplaint: (_executor: unknown, values: AnyObj) => {
     repo.insertedComplaint = values;
@@ -106,6 +119,7 @@ beforeEach(() => {
   repo.insertedComplaint = undefined;
   repo.insertedRework = undefined;
   repo.insertedStatusLogs = [];
+  repo.lineReads = [];
   rollup.calls = [];
   authz.assertCalls = [];
   authz.storeIds = [];
@@ -184,6 +198,15 @@ describe("openComplaint", () => {
   it("checks store access against the subject's store", async () => {
     await open();
     expect(authz.assertCalls).toEqual([{ userId: 42, storeId: 1 }]);
+  });
+
+  it("checks the line under a lock inside the transaction", async () => {
+    // A ready pair can be picked up or refunded at another till meanwhile.
+    await open();
+    expect(repo.lineReads).toEqual([
+      ["locked line", TX],
+      ["existing complaint", TX],
+    ]);
   });
 
   it("opens a complaint without a rework when start_rework is false", async () => {
@@ -290,6 +313,7 @@ describe("addRework", () => {
     const line = await add();
 
     expect(line.id).toBe(500);
+    expect(repo.lineReads).toEqual([["locked line", TX]]);
   });
 
   it("adds another rework round on the same item", async () => {

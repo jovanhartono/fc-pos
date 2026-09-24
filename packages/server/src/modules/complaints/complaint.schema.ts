@@ -5,6 +5,12 @@ import {
 } from "@/modules/orders/order.schema";
 import { normalizePagination } from "@/utils/pagination";
 
+// A finished line (ADR-0013, 2026-09-24): usually turned down at the counter
+// while still ready, sometimes brought back after it went home.
+export function isComplainableStatus(status: string): boolean {
+  return status === "ready_for_pickup" || status === "picked_up";
+}
+
 // `start_rework` spawns the first free rework line in the same transaction.
 export const POSTComplaintSchema = z.object({
   order_service_id: z.coerce.number().int().positive(),
