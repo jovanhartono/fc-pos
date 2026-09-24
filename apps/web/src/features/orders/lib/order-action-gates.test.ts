@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { OrderDetail } from "@/features/orders/api";
 import type { Me } from "@/features/users/api";
 import { getOrderActionGates, startPhotoBlocker } from "./order-action-gates";
+import type { OrderLine } from "./order-lines";
 
 type ServiceOverrides = Record<string, unknown>;
 
@@ -324,7 +325,10 @@ describe("startPhotoBlocker", () => {
 			startPhotoBlocker({
 				status: "queued",
 				has_start_photo: false,
-				reworkOf: { id: 9, created_at: "2026-09-08T04:00:00.000Z" },
+				reworkOf: {
+					id: 9,
+					created_at: "2026-09-08T04:00:00.000Z",
+				} as OrderLine["reworkOf"],
 			}),
 		).toBe("Photograph the returned item before starting the rework.");
 	});

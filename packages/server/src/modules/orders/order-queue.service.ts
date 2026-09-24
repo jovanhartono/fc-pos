@@ -359,6 +359,7 @@ export async function getOrderServiceQueue(
             handler_name: usersTable.name,
             id: ordersServicesTable.id,
             is_priority: ordersServicesTable.is_priority,
+            is_rework: sql<boolean>`${ordersServicesTable.complaint_id} IS NOT NULL`,
             item_id: ordersServicesTable.item_id,
             service_name: servicesTable.name,
             status: ordersServicesTable.status,

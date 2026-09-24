@@ -26,6 +26,7 @@ import {
 import { HoldToConfirmButton } from "@/features/orders/components/hold-to-confirm-button";
 import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
 import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
+import { ReworkOriginCallout } from "@/features/orders/components/rework-origin-callout";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
@@ -204,6 +205,9 @@ export function QueueServiceDetail({
 						>
 							{formatOrderServiceStatus(selectedService.status)}
 						</Badge>
+						{selectedService.reworkOf ? (
+							<Badge variant="info">Rework</Badge>
+						) : null}
 						{selectedService.is_priority ? (
 							<Badge variant="warning">Priority</Badge>
 						) : (
@@ -215,6 +219,10 @@ export function QueueServiceDetail({
 						<span className="font-medium text-foreground">{handlerLabel}</span>
 					</p>
 				</div>
+
+				{selectedService.reworkOf ? (
+					<ReworkOriginCallout reworkOf={selectedService.reworkOf} />
+				) : null}
 
 				{/* Emerald, the done tone every other screen uses for ready: the
 				    workshop's part is finished, and grey read as a warning. */}
@@ -362,7 +370,7 @@ export function QueueServiceDetail({
 				/>
 
 				<section className="grid gap-4 border border-border p-4">
-					<StatusTimeline logs={selectedService.statusLogs} />
+					<StatusTimeline line={selectedService} orderId={orderId} />
 					<Field>
 						<FieldLabel htmlFor="queue-status-note">Status note</FieldLabel>
 						<Textarea
