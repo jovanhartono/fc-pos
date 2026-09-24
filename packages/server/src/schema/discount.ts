@@ -48,9 +48,8 @@ export interface BogoSlotLine {
   status: string;
 }
 
-// BOGO stays exclusive (ADR-0018): a no-list-price line (Repair) is never a
-// free slot — a misconfigured Campaign must not hand out a repair — and neither
-// is a Rework (ADR-0013), a pair the customer never bought.
+// A free slot is never a Repair with no list price (ADR-0018), nor a Rework,
+// a pair the customer never bought (ADR-0013).
 export const isBogoSlot = (line: BogoSlotLine): boolean =>
   line.status !== "cancelled" &&
   line.service?.price != null &&
