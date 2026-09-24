@@ -11,6 +11,7 @@ import { ordersQueries } from "@/features/orders/api";
 import { OrderReasonCallout } from "@/features/orders/components/order-reason-callout";
 import type { NonTerminalServiceStatus } from "@/features/orders/components/order-service-dialog.types";
 import { OrderServicePriceForm } from "@/features/orders/components/order-service-price-form";
+import { ReworkOriginCallout } from "@/features/orders/components/rework-origin-callout";
 import { ServiceStatusUpdateButton } from "@/features/orders/components/service-status-update-button";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrderMutations";
@@ -24,6 +25,7 @@ import {
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
+import { useSheet } from "@/stores/sheet-store";
 
 const TERMINAL_SERVICE_STATUSES = new Set<string>(
 	ORDER_TERMINAL_SERVICE_STATUSES,
@@ -39,6 +41,7 @@ export const OrderServiceDetail = ({
 	serviceId,
 }: OrderServiceDetailProps) => {
 	const updateStatusMutation = useUpdateServiceStatusMutation(orderId);
+	const closeSheet = useSheet((s) => s.closeSheet);
 
 	// Read the service live from the cached order so status changes made in this
 	// sheet reflect immediately instead of pinning a frozen prop from open time.
@@ -77,7 +80,15 @@ export const OrderServiceDetail = ({
 				<Badge variant={getOrderServiceStatusBadgeVariant(service.status)}>
 					{formatOrderServiceStatus(service.status)}
 				</Badge>
+				{service.reworkOf ? <Badge variant="info">Rework</Badge> : null}
 			</div>
+
+			{service.reworkOf ? (
+				<ReworkOriginCallout
+					onNavigate={closeSheet}
+					reworkOf={service.reworkOf}
+				/>
+			) : null}
 
 			{availableTransitions.length > 0 ? (
 				<div className="grid gap-2">
@@ -146,7 +157,12 @@ export const OrderServiceDetail = ({
 				</OrderReasonCallout>
 			) : null}
 
-			<StatusTimeline logs={service.statusLogs} />
+			<StatusTimeline
+				defaultOpen
+				line={service}
+				onNavigate={closeSheet}
+				orderId={orderId}
+			/>
 		</div>
 	);
 };

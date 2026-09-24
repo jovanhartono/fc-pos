@@ -772,6 +772,11 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 									>
 										{formatOrderServiceStatus(service.status)}
 									</Badge>
+									{service.is_rework ? (
+										<Badge className="px-1.5 py-0 text-[11px]" variant="info">
+											Rework
+										</Badge>
+									) : null}
 									{service.is_priority ? (
 										<Badge
 											className="px-1.5 py-0 text-[11px]"

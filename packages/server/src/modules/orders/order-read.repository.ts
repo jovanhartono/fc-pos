@@ -36,6 +36,53 @@ const orderStateColumns = {
   refunded_amount: true,
 } as const;
 
+// Both ends of a Complaint as a line's own screen shows them (ADR-0013): the
+// rework box names the treatment the customer turned down and who did it, and
+// each timeline carries the other side's events. One shape for the order
+// sheet and queue detail, so the same line reads the same on both.
+const lineComplaintRelations = {
+  // Existence is the only signal; the complaint carries no status (ADR-0013
+  // amendment). At most one per line.
+  complaints: {
+    columns: { id: true, created_at: true, reason: true },
+    limit: 1,
+    orderBy: { id: "asc" },
+    with: {
+      openedBy: { columns: userRefColumns },
+      reworkLines: {
+        columns: { id: true },
+        orderBy: { id: "asc" },
+        with: {
+          // The row written when the round was put on the rack; missing on
+          // reworks from before it was written.
+          statusLogs: {
+            columns: { created_at: true },
+            where: { from_status: { isNull: true } },
+            limit: 1,
+            with: { changedBy: { columns: userRefColumns } },
+          },
+        },
+      },
+    },
+  },
+  reworkOf: {
+    columns: { id: true, created_at: true, reason: true },
+    with: {
+      openedBy: { columns: userRefColumns },
+      orderService: {
+        columns: { id: true },
+        with: {
+          service: { columns: { id: true, name: true } },
+          handler: { columns: userRefColumns },
+          pickupEvent: { columns: { picked_up_at: true } },
+        },
+      },
+      // The first round, which old reworks date by the complaint itself.
+      reworkLines: { columns: { id: true }, orderBy: { id: "asc" }, limit: 1 },
+    },
+  },
+} as const;
+
 export function findOrderState(executor: DbExecutor, id: number) {
   return executor.query.ordersTable.findFirst({
     where: { id },
@@ -114,18 +161,7 @@ export function findOrderDetail(id: number) {
               handler: {
                 columns: userRefColumns,
               },
-              // Complaints opened against this line + (if this line is a
-              // rework) the complaint that spawned it — see ADR-0013.
-              // Existence is the only signal; the complaint carries no status
-              // (ADR-0013 amendment).
-              complaints: {
-                columns: { id: true },
-                limit: 1,
-                orderBy: { id: "asc" },
-              },
-              reworkOf: {
-                columns: { id: true, created_at: true },
-              },
+              ...lineComplaintRelations,
               refundItems: true,
               // Name and list price only — enough for the payment sheet to
               // tell a no-list-price Repair from a priced Service; the shop's
@@ -280,7 +316,7 @@ export function findOrderServiceDetail(orderId: number, serviceId: number) {
       },
       handler: { columns: userRefColumns },
       service: { columns: { id: true, name: true } },
-      reworkOf: { columns: { id: true, created_at: true } },
+      ...lineComplaintRelations,
       statusLogs: {
         with: { changedBy: { columns: userRefColumns } },
         orderBy: { id: "asc" },
