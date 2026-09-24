@@ -423,7 +423,7 @@ export function QueueServiceDetail({
 
 				<section className="grid gap-4 border border-border p-4">
 					<StatusTimeline line={selectedService} orderId={orderId} />
-					{(canStartWork || actionStatuses.length > 0) && (
+					{actionStatuses.length > 0 && (
 						<Field>
 							<FieldLabel htmlFor="queue-status-note">Status note</FieldLabel>
 							<Textarea
