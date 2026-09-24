@@ -1,10 +1,12 @@
 import { ArrowClockwiseIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
+import dayjs from "dayjs";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 
 interface ReworkOriginCalloutProps {
 	reworkOf: {
 		id: number;
+		created_at: string;
 		reason: string;
 		orderService: {
 			service: { name: string } | null;
@@ -22,11 +24,16 @@ export const ReworkOriginCallout = ({
 	onNavigate,
 }: ReworkOriginCalloutProps) => {
 	const original = reworkOf.orderService;
+	// Turned down at the counter, the pair leaves with its rework in one pickup;
+	// that date is the rework's handover, not a first trip home.
+	const firstPickup =
+		original.pickupEvent &&
+		dayjs(original.pickupEvent.picked_up_at).isBefore(reworkOf.created_at)
+			? original.pickupEvent.picked_up_at
+			: null;
 	const firstDoneBy = [
 		`First done by ${original.handler?.name ?? "unassigned"}`,
-		original.pickupEvent
-			? `picked up ${formatOrderDateTime(original.pickupEvent.picked_up_at)}`
-			: null,
+		firstPickup ? `picked up ${formatOrderDateTime(firstPickup)}` : null,
 	]
 		.filter(Boolean)
 		.join(" · ");
