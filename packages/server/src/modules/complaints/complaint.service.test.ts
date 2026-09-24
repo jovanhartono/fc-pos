@@ -202,7 +202,7 @@ describe("openComplaint", () => {
   });
 
   it("checks the line under a lock inside the transaction", async () => {
-    // A ready pair can be picked up or refunded at another till meanwhile.
+    // Another cashier may hand over or refund the ready pair meanwhile.
     await open();
     expect(repo.lineReads).toEqual([
       ["locked line", TX, { orderId: 7, serviceId: 10 }],
