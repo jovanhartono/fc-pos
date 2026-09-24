@@ -674,9 +674,10 @@ interface QueueRowProps {
 }
 
 // One card per physical object, with its live treatments listed inside
-// (ADR-0017) — under a status chip, only the ones in that status. A pair in for a deep clean, a repaint and leather care
-// used to be three separate rows on the rack with nothing saying they were the
-// same shoe — and physics already stops two workers holding it at once.
+// (ADR-0017) — under a status chip, only the ones in that status. A pair in
+// for a deep clean, a repaint and leather care used to be three separate rows
+// on the rack with nothing saying they were the same shoe — and physics
+// already stops two workers holding it at once.
 const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 	const elapsedMs = Math.max(
 		0,
