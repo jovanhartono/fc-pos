@@ -372,9 +372,10 @@ export function QueueServiceDetail({
 				</section>
 			</div>
 
-			{/* On a phone the bar cancels the page's padding, so at the end of the
-			    scroll it rests on the tab bar instead of floating a gap above it. */}
-			<div className="sticky bottom-0 z-10 -mx-3 mt-6 -mb-[calc(var(--inset-bottom)+1rem)] border-t border-border bg-background/95 px-3 pb-[calc(var(--inset-bottom)+0.75rem)] pt-3 backdrop-blur sm:mx-0 sm:mb-0 sm:px-0 sm:pb-3">
+			<div
+				className="sticky bottom-0 z-10 -mx-3 mt-6 border-t border-border bg-background/95 px-3 pb-[calc(var(--inset-bottom)+0.75rem)] pt-3 backdrop-blur sm:mx-0 sm:px-0 sm:pb-3"
+				data-bottom-bar
+			>
 				{blockerMessage ? (
 					<div className="mb-2 flex items-center gap-2 border border-warning/50 bg-warning/10 px-3 py-2 text-xs font-medium text-foreground">
 						<WarningCircleIcon
