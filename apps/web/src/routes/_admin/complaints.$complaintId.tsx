@@ -1,4 +1,7 @@
-import { isComplainableStatus } from "@fresclean/api/schema";
+import {
+	isComplainableStatus,
+	ORDER_TERMINAL_SERVICE_STATUSES,
+} from "@fresclean/api/schema";
 import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -16,6 +19,8 @@ import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
+
+const TERMINAL_STATUSES = new Set<string>(ORDER_TERMINAL_SERVICE_STATUSES);
 
 interface DetailProps {
 	label: string;
@@ -57,8 +62,10 @@ const ComplaintDetailPage = () => {
 
 	const subject = detail.orderService;
 	const order = detail.orderService.order;
-	// Refund is the terminal rung (ADR-0013).
-	const canRework = isComplainableStatus(subject.status);
+	// Refund is the terminal rung (ADR-0013), and a pair runs one round at a time.
+	const canRework =
+		isComplainableStatus(subject.status) &&
+		detail.reworkLines.every((line) => TERMINAL_STATUSES.has(line.status));
 	const outcome = getComplaintOutcome({
 		subjectStatus: subject.status,
 		reworkCount: detail.reworkLines.filter(
