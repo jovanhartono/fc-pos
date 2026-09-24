@@ -15,6 +15,7 @@ const repo = {
   subject: undefined as AnyObj | undefined,
   existingComplaint: undefined as AnyObj | undefined,
   complaintById: undefined as AnyObj | undefined,
+  liveRework: undefined as AnyObj | undefined,
   // captured writes
   insertedComplaint: undefined as AnyObj | undefined,
   insertedRework: undefined as AnyObj | undefined,
@@ -78,6 +79,10 @@ mock.module("@/modules/complaints/complaint.repository", () => ({
     return Promise.resolve(repo.existingComplaint);
   },
   findComplaintById: () => Promise.resolve(repo.complaintById),
+  findLiveReworkLine: (executor: unknown, complaintId: number) => {
+    repo.lineReads.push(["live rework", executor, { complaintId }]);
+    return Promise.resolve(repo.liveRework);
+  },
   insertComplaint: (_executor: unknown, values: AnyObj) => {
     repo.insertedComplaint = values;
     return Promise.resolve({ id: 99, ...values });
@@ -117,6 +122,7 @@ beforeEach(() => {
   repo.subject = makeSubject();
   repo.existingComplaint = undefined;
   repo.complaintById = undefined;
+  repo.liveRework = undefined;
   repo.insertedComplaint = undefined;
   repo.insertedRework = undefined;
   repo.insertedStatusLogs = [];
@@ -316,7 +322,21 @@ describe("addRework", () => {
     expect(line.id).toBe(500);
     expect(repo.lineReads).toEqual([
       ["locked line", TX, { orderId: 7, serviceId: 10 }],
+      ["live rework", TX, { complaintId: 99 }],
     ]);
+  });
+
+  it("refuses a second round while the first is still live", async () => {
+    repo.complaintById = { id: 99, order_service_id: 10 };
+    repo.liveRework = { id: 500 };
+
+    const error = await captureRejection(add());
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "Finish the current rework before starting another"
+    );
+    expect(repo.insertedRework).toBeUndefined();
   });
 
   it("adds another rework round on the same item", async () => {

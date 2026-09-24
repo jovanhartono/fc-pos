@@ -12,7 +12,10 @@ import {
 } from "@/db/schema";
 import type { NormalizedComplaintListQuery } from "@/modules/complaints/complaint.schema";
 import { orderRefColumns } from "@/modules/orders/order-read.repository";
-import type { DbExecutor } from "@/modules/orders/order-status-machine";
+import {
+  type DbExecutor,
+  ORDER_TERMINAL_SERVICE_STATUSES,
+} from "@/modules/orders/order-status-machine";
 
 type ComplaintInsert = typeof complaintsTable.$inferInsert;
 type ReworkLineInsert = typeof ordersServicesTable.$inferInsert;
@@ -74,6 +77,16 @@ export async function lockOrderServiceState(
     .where(eq(ordersServicesTable.id, serviceId))
     .for("update");
   return locked;
+}
+
+export function findLiveReworkLine(executor: DbExecutor, complaintId: number) {
+  return executor.query.ordersServicesTable.findFirst({
+    where: {
+      complaint_id: complaintId,
+      status: { notIn: [...ORDER_TERMINAL_SERVICE_STATUSES] },
+    },
+    columns: { id: true },
+  });
 }
 
 export async function insertReworkLine(

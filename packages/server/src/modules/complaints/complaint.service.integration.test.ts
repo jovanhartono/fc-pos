@@ -506,6 +506,39 @@ describe("the original line cancelled or refunded while its rework is on the rac
   });
 });
 
+describe("one rework round at a time", () => {
+  const addRound = (complaintId: number) =>
+    addRework({ user: shop.cashier, complaintId });
+
+  it("refuses a second round until the first has gone home with the pair", async () => {
+    const pair = await pairOnTheShelf("paid");
+    const { complaint, rework } = await turnDown(pair.lineId, true);
+    if (!rework) {
+      throw new Error("Complaint opened without its rework");
+    }
+
+    const whileQueued = await captureRejection(addRound(complaint.id));
+    expect((whileQueued as Error).message).toBe(
+      "Finish the current rework before starting another"
+    );
+
+    await photographReturnedPair(pair.itemId, complaint.created_at);
+    await walkToShelf(pair.orderId, rework.id);
+    const whileReady = await captureRejection(addRound(complaint.id));
+    expect(whileReady).toBeInstanceOf(BadRequestException);
+
+    await handOver(pair);
+    const second = await addRound(complaint.id);
+
+    const lines = await readLines(pair.orderId);
+    expect(lines.map((line) => [line.id, line.status])).toEqual([
+      [pair.lineId, "picked_up"],
+      [rework.id, "picked_up"],
+      [second.id, "queued"],
+    ]);
+  });
+});
+
 describe("the complaint's outcome", () => {
   it("does not read Reworked when its only rework was cancelled", async () => {
     const pair = await pairOnTheShelf("unpaid");

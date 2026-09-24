@@ -6,6 +6,7 @@ import {
   findComplaintForService,
   findComplaintSubjectService,
   findComplaints,
+  findLiveReworkLine,
   insertComplaint,
   insertOrderServiceStatusLog,
   insertReworkLine,
@@ -181,6 +182,14 @@ export async function addRework({
       subject,
       "Cannot add a rework once the original line is no longer ready or picked up"
     );
+
+    // One pair, one round at a time: a second would put the same shoes on the
+    // rack twice.
+    if (await findLiveReworkLine(tx, complaint.id)) {
+      throw new BadRequestException(
+        "Finish the current rework before starting another"
+      );
+    }
 
     return createReworkLine(tx, {
       complaintId: complaint.id,
