@@ -345,11 +345,10 @@ export async function getOrderServiceQueue(
       .where(whereClause),
   ]);
 
-  // Second pass for the treatments themselves. Deliberately NOT filtered by
-  // the status chip, and it keeps ready siblings: a card claiming to be one
-  // object has to show every live job on it, or a worker filtered to "Queued"
-  // would start a repaint without seeing the clean already done on the same
-  // shoe.
+  // Second pass for the treatments themselves. Under a status chip a card
+  // lists only its jobs in that status: a worker on "Queued" is picking what
+  // to start next, and a repaint already in someone's hands is noise there.
+  // "All" still shows every live job on the object, ready siblings included.
   const services =
     itemRows.length === 0
       ? []
@@ -379,9 +378,11 @@ export async function getOrderServiceQueue(
                 ordersServicesTable.item_id,
                 itemRows.map((item) => item.id)
               ),
-              notInArray(ordersServicesTable.status, [
-                ...ORDER_TERMINAL_SERVICE_STATUSES,
-              ])
+              normalized.status === undefined
+                ? notInArray(ordersServicesTable.status, [
+                    ...ORDER_TERMINAL_SERVICE_STATUSES,
+                  ])
+                : eq(ordersServicesTable.status, normalized.status)
             )
           )
           .orderBy(asc(ordersServicesTable.id));
