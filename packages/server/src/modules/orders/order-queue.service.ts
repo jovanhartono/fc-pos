@@ -345,10 +345,8 @@ export async function getOrderServiceQueue(
       .where(whereClause),
   ]);
 
-  // Second pass for the treatments themselves. Under a status chip a card
-  // lists only its jobs in that status: a worker on "Queued" is picking what
-  // to start next, and a repaint already in someone's hands is noise there.
-  // "All" still shows every live job on the object, ready siblings included.
+  // Second pass for the treatments themselves. A worker on "Queued" is picking
+  // what to start next, so a chip narrows the card; "All" shows every live job.
   const services =
     itemRows.length === 0
       ? []

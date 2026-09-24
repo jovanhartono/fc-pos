@@ -36,13 +36,9 @@ const orderStateColumns = {
   refunded_amount: true,
 } as const;
 
-// Both ends of a Complaint as a line's own screen shows them (ADR-0013): the
-// rework box names the treatment the customer turned down and who did it, and
-// each timeline carries the other side's events. One shape for the order
-// sheet and queue detail, so the same line reads the same on both.
+// Both ends of a Complaint (ADR-0013), one shape for the order sheet and queue
+// detail so the same line reads the same on both.
 const lineComplaintRelations = {
-  // Existence is the only signal; the complaint carries no status (ADR-0013
-  // amendment). At most one per line.
   complaints: {
     columns: { id: true, created_at: true, reason: true },
     limit: 1,
@@ -50,12 +46,11 @@ const lineComplaintRelations = {
     with: {
       openedBy: { columns: userRefColumns },
       reworkLines: {
-        // Status tells queue detail the original pair is back on the rack.
         columns: { id: true, status: true },
         orderBy: { id: "asc" },
         with: {
-          // The row written when the round was put on the rack; missing on
-          // reworks from before it was written.
+          // When the round went on the rack; reworks from before ADR-0013's
+          // 2026-09-24 amendment have none.
           statusLogs: {
             columns: { created_at: true },
             where: { from_status: { isNull: true } },
@@ -78,7 +73,6 @@ const lineComplaintRelations = {
           pickupEvent: { columns: { picked_up_at: true } },
         },
       },
-      // The first round, which old reworks date by the complaint itself.
       reworkLines: { columns: { id: true }, orderBy: { id: "asc" }, limit: 1 },
     },
   },
