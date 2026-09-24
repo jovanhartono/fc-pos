@@ -344,15 +344,17 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 	);
 
 	// BOGO free slots come from catalog-priced lines only (ADR-0018) — a
-	// no-list-price line (Repair) is never given away.
+	// no-list-price line (Repair) is never given away, and a free Rework is no
+	// pair the customer bought. Same rule as the server's bogoSlots.
 	const serviceLines = useMemo(() => {
 		return flattenOrderLines(detail).flatMap((line) => {
 			if (line.status === "cancelled" || line.service === null) {
 				return [];
 			}
-			return line.service.price == null
+			const price = parseMoney(line.price);
+			return line.service.price == null || price === 0
 				? []
-				: [{ price: parseMoney(line.price), service_id: line.service.id }];
+				: [{ price, service_id: line.service.id }];
 		});
 	}, [detail]);
 
