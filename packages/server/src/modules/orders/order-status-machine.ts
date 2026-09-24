@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { DbExecutor } from "@/db";
 import {
   type cancelReasonEnum,
@@ -571,6 +571,20 @@ export async function completePickup(
   input: CompletePickupInput
 ): Promise<{ handedOverIds: number[]; requestedIds: number[] }> {
   const { orderId, itemIds, pickupEventId, by, note } = input;
+
+  // Another cashier may be opening a counter complaint on this pair right now;
+  // holding its lines first makes the check below see the rework it adds.
+  await executor
+    .select({ id: ordersServicesTable.id })
+    .from(ordersServicesTable)
+    .where(
+      and(
+        eq(ordersServicesTable.order_id, orderId),
+        inArray(ordersServicesTable.item_id, itemIds)
+      )
+    )
+    .orderBy(asc(ordersServicesTable.id))
+    .for("update");
 
   const items = await executor.query.itemsTable.findMany({
     where: { order_id: orderId, id: { in: itemIds } },
