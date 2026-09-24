@@ -1,3 +1,4 @@
+import { isComplainableStatus } from "@fresclean/api/schema";
 import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -56,13 +57,13 @@ const ComplaintDetailPage = () => {
 
 	const subject = detail.orderService;
 	const order = detail.orderService.order;
-	// Refund is the terminal rung (ADR-0013) — rework only while the original
-	// pair is still waiting at the counter or already went home.
-	const canRework =
-		subject.status === "ready_for_pickup" || subject.status === "picked_up";
+	// Refund is the terminal rung (ADR-0013).
+	const canRework = isComplainableStatus(subject.status);
 	const outcome = getComplaintOutcome({
 		subjectStatus: subject.status,
-		reworkCount: detail.reworkLines.length,
+		reworkCount: detail.reworkLines.filter(
+			(line) => line.status !== "cancelled",
+		).length,
 	});
 
 	return (

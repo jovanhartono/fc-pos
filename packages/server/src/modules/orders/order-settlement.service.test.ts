@@ -13,6 +13,7 @@ import {
 // suite beside them.
 
 const line = (over: Partial<SettlementLine> = {}): SettlementLine => ({
+  complaint_id: null,
   price: "150000",
   service: { price: "150000" },
   service_id: 21,

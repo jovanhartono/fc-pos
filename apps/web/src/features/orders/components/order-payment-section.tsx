@@ -1,4 +1,8 @@
-import { isDiscountSettled, orderNetDue } from "@fresclean/api/schema";
+import {
+	isBogoSlot,
+	isDiscountSettled,
+	orderNetDue,
+} from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -343,19 +347,13 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 		[campaignsQuery.data, storeId, grossTotal],
 	);
 
-	// BOGO free slots come from catalog-priced lines only (ADR-0018) — a
-	// no-list-price line (Repair) is never given away, and a free Rework is no
-	// pair the customer bought. Same rule as the server's bogoSlots.
+	// The server's own BOGO slot rule, so the preview matches what payment settles.
 	const serviceLines = useMemo(() => {
-		return flattenOrderLines(detail).flatMap((line) => {
-			if (line.status === "cancelled" || line.service === null) {
-				return [];
-			}
-			const price = parseMoney(line.price);
-			return line.service.price == null || price === 0
-				? []
-				: [{ price, service_id: line.service.id }];
-		});
+		return flattenOrderLines(detail).flatMap((line) =>
+			line.service !== null && isBogoSlot(line)
+				? [{ price: parseMoney(line.price), service_id: line.service.id }]
+				: [],
+		);
 	}, [detail]);
 
 	const pricing = useMemo(

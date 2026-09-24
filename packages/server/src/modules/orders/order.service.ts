@@ -312,6 +312,7 @@ export async function createOrder(
   // inspection and whether the line could ever be a BOGO free slot.
   const settlementLines: SettlementLine[] = serviceLines.map(
     ({ item, row: service, price }) => ({
+      complaint_id: null,
       price,
       service: { price: service.price },
       service_id: item.id,
