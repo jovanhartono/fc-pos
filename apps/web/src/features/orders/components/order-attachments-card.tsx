@@ -16,6 +16,7 @@ import {
 import { SinglePhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { orderDropoffPhotoUploader } from "@/features/orders/utils/photo-upload";
+import { cn } from "@/lib/utils";
 
 type PickupEvent = OrderDetail["pickup_events"][number];
 
@@ -50,8 +51,18 @@ export const OrderAttachmentsCard = ({
 	</Card>
 );
 
-const AttachmentLabel = ({ children }: { children: string }) => (
-	<p className="text-muted-foreground text-xs leading-5 font-medium uppercase tracking-wide">
+interface AttachmentLabelProps {
+	children: string;
+	className?: string;
+}
+
+const AttachmentLabel = ({ children, className }: AttachmentLabelProps) => (
+	<p
+		className={cn(
+			"text-muted-foreground text-xs leading-5 font-medium uppercase tracking-wide",
+			className,
+		)}
+	>
 		{children}
 	</p>
 );
@@ -202,14 +213,16 @@ const PickupsAttachment = ({
 			};
 		});
 
+	// Pickup photos sit on the drop-off photo's columns, so the counter compares
+	// what came in and what went out at one size.
 	return (
-		<section className="grid content-start gap-3 md:col-span-2">
-			<AttachmentLabel>Pickups</AttachmentLabel>
+		<section className="grid content-start gap-y-3 md:col-span-2 md:grid-cols-subgrid">
+			<AttachmentLabel className="md:col-span-2">Pickups</AttachmentLabel>
 			<OrderPhotoGallery
 				emptyState={
 					<p className="text-muted-foreground text-sm">No pickups yet</p>
 				}
-				gridClassName="grid-cols-1 gap-6 md:grid-cols-2"
+				gridClassName="grid-cols-1 gap-x-[normal] gap-y-6 md:col-span-2 md:grid-cols-subgrid"
 				items={items}
 				thumbnailImageClassName="aspect-16/10"
 				title="Pickup photo"
