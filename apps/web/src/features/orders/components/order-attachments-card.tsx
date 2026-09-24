@@ -130,8 +130,8 @@ interface DropoffPhotoProps {
 }
 
 // An order has exactly one drop-off photo, so it gets its own tile rather than
-// a seat in the pickup gallery — the counter staff open this
-// to check what came in before the complaint desk argues about it.
+// a seat in the pickup gallery — the counter staff open this to check what
+// came in before the complaint desk argues about it.
 const DropoffPhoto = ({ capturedAt, imageUrl, orderId }: DropoffPhotoProps) => {
 	const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
