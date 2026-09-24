@@ -291,11 +291,14 @@ export const DataTableCards = <TData extends RowData>({
 									const headerLabel = getCellHeaderLabel(cell);
 									const isLeftCol = index % 2 === 0;
 									const isFirstRow = index < 2;
+									const isLoneLastCell =
+										index === detailCells.length - 1 && isLeftCol;
 									return (
 										<div
 											key={cell.id}
 											className={cn(
 												"min-w-0 px-3 py-2",
+												isLoneLastCell && "col-span-2",
 												!isLeftCol && "border-border/70 border-l",
 												!isFirstRow && "border-border/70 border-t",
 												mobileCard?.className,
