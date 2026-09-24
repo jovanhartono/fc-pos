@@ -1,6 +1,7 @@
 import {
-	isComplainableStatus,
-	ORDER_TERMINAL_SERVICE_STATUSES,
+	isComplainableLine,
+	isInWorkshop,
+	isReworkedRound,
 } from "@fresclean/api/schema";
 import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -19,8 +20,6 @@ import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
-
-const TERMINAL_STATUSES = new Set<string>(ORDER_TERMINAL_SERVICE_STATUSES);
 
 interface DetailProps {
 	label: string;
@@ -64,13 +63,11 @@ const ComplaintDetailPage = () => {
 	const order = detail.orderService.order;
 	// Refund is the terminal rung (ADR-0013), and a pair runs one round at a time.
 	const canRework =
-		isComplainableStatus(subject.status) &&
-		detail.reworkLines.every((line) => TERMINAL_STATUSES.has(line.status));
+		isComplainableLine(subject, subject.item.services) &&
+		!detail.reworkLines.some(isInWorkshop);
 	const outcome = getComplaintOutcome({
 		subjectStatus: subject.status,
-		reworkCount: detail.reworkLines.filter(
-			(line) => line.status !== "cancelled",
-		).length,
+		reworkCount: detail.reworkLines.filter(isReworkedRound).length,
 	});
 
 	return (

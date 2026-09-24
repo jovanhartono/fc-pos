@@ -414,18 +414,19 @@ export async function cancelOrder({
     }
   }
 
-  await db.transaction(async (tx) => {
-    if (serviceLines.length > 0) {
-      await cancelOrderServices(tx, {
-        by: user.id,
-        lines: serviceLines.map((line) => ({
-          note: line.note,
-          reason: line.reason,
-          serviceId: line.id,
-        })),
-        orderId,
-      });
-    }
+  const reworkIds = await db.transaction(async (tx) => {
+    const cancelled =
+      serviceLines.length > 0
+        ? await cancelOrderServices(tx, {
+            by: user.id,
+            lines: serviceLines.map((line) => ({
+              note: line.note,
+              reason: line.reason,
+              serviceId: line.id,
+            })),
+            orderId,
+          })
+        : { reworkIds: [] };
 
     await cancelProductLines(tx, productLines, productRowById);
 
@@ -435,10 +436,15 @@ export async function cancelOrder({
     if (order.status !== "cancelled") {
       await revalidateSettledPromo(tx, orderId, user.id);
     }
+
+    return cancelled.reworkIds;
   });
 
   return {
-    cancelled_service_ids: serviceLines.map((line) => line.id),
+    cancelled_service_ids: [
+      ...serviceLines.map((line) => line.id),
+      ...reworkIds,
+    ],
     cancelled_product_ids: productLines.map((line) => line.id),
     order_id: orderId,
   };

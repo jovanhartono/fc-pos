@@ -1,4 +1,4 @@
-import { hasUnpricedLine, isComplainableStatus } from "@fresclean/api/schema";
+import { hasUnpricedLine, isComplainableLine } from "@fresclean/api/schema";
 import type { OrderDetail } from "@/features/orders/api";
 import {
 	flattenOrderLines,
@@ -43,7 +43,7 @@ export const startPhotoBlocker = (
 		return undefined;
 	}
 	return line.reworkOf
-		? "Photograph the returned item before starting the rework."
+		? "Take a new photo of the item before starting this rework."
 		: "Add an item photo before starting work.";
 };
 
@@ -92,7 +92,7 @@ export const getOrderActionGates = (
 	const complaintableServices = services.filter(
 		(service) =>
 			!service.reworkOf &&
-			isComplainableStatus(service.status) &&
+			isComplainableLine(service, service.item.services) &&
 			(service.complaints ?? []).length === 0,
 	);
 	const isPaid = detail.payment_status === "paid";

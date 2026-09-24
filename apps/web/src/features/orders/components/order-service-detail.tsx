@@ -86,7 +86,10 @@ export const OrderServiceDetail = ({
 
 			{service.reworkOf !== null && (
 				<ReworkOriginCallout
-					firstPickupAt={getFirstPickupAt(service.reworkOf, service.statusLogs)}
+					firstPickupAt={getFirstPickupAt(
+						service.reworkOf,
+						service.rework_opened_at,
+					)}
 					onNavigate={closeSheet}
 					reworkOf={service.reworkOf}
 				/>

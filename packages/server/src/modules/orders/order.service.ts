@@ -19,7 +19,10 @@ import {
 } from "@/modules/orders/order.schema";
 import { assertActiveCourier } from "@/modules/orders/order-courier.service";
 import { hasStartPhoto } from "@/modules/orders/order-photo-gate.repository";
-import { findOrderDetail } from "@/modules/orders/order-read.repository";
+import {
+  findOrderDetail,
+  withReworkOpenings,
+} from "@/modules/orders/order-read.repository";
 import { deriveOrderRefundStatus } from "@/modules/orders/order-refund-status";
 import {
   assertDiscountRequestAllowed,
@@ -467,13 +470,16 @@ export async function getOrderDetailById(id: number) {
       ...image,
       image_url: buildMediaUrl(image_path),
     }));
-    const services = item.services.map((service) => ({
-      ...service,
-      // Stated by the server like is_collectable below: the same rule the
-      // queued → processing gate runs (ADR-0019), so the UI can explain the
-      // gate early without owning a copy of it.
-      has_start_photo: hasStartPhoto(item.images, service),
-    }));
+    const services = item.services.map((service) => {
+      const line = { ...service, ...withReworkOpenings(service) };
+      return {
+        ...line,
+        // Stated by the server like is_collectable below: the same rule the
+        // queued → processing gate runs (ADR-0019), so the UI can explain the
+        // gate early without owning a copy of it.
+        has_start_photo: hasStartPhoto(item.images, line),
+      };
+    });
 
     // Derived on read, never stored — an Item has no status column to drift
     // out of step with its treatments (ADR-0017). `is_collectable` is sent

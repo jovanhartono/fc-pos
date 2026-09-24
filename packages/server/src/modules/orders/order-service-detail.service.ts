@@ -1,5 +1,8 @@
 import { hasStartPhoto } from "@/modules/orders/order-photo-gate.repository";
-import { findOrderServiceDetail } from "@/modules/orders/order-read.repository";
+import {
+  findOrderServiceDetail,
+  withReworkOpenings,
+} from "@/modules/orders/order-read.repository";
 import { buildMediaUrl } from "@/utils/s3";
 
 export async function getOrderServiceDetail(
@@ -19,12 +22,13 @@ export async function getOrderServiceDetail(
     ...image,
     image_url: buildMediaUrl(image_path),
   }));
+  const opened = { ...lineFields, ...withReworkOpenings(line) };
 
   return {
     order,
     line: {
-      ...lineFields,
-      has_start_photo: hasStartPhoto(rawImages, line),
+      ...opened,
+      has_start_photo: hasStartPhoto(rawImages, opened),
       item: { ...itemCard, images },
     },
   };

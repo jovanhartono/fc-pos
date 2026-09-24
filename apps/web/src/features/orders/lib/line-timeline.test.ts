@@ -15,6 +15,8 @@ const complaint = {
 	openedBy: cashier,
 };
 
+const notOpened = { rework_opened_at: null, rework_opened_by: null };
+
 const log = (
 	id: number,
 	from_status: string | null,
@@ -35,12 +37,14 @@ describe("a rework line's timeline", () => {
 	it("starts with the round being opened, not a bare Queued", () => {
 		const entries = buildLineTimeline({
 			id: 20,
+			rework_opened_at: "2026-09-22T02:00:00.000Z",
+			rework_opened_by: cashier,
 			statusLogs: [
 				log(1, null, "queued", "2026-09-22T02:00:00.000Z", cashier),
 				log(2, "queued", "processing", "2026-09-22T05:00:00.000Z"),
 			],
 			complaints: [],
-			reworkOf: { ...complaint, reworkLines: [{ id: 11 }] },
+			reworkOf: complaint,
 		});
 
 		expect(entries.map((entry) => [entry.label, entry.at, entry.by])).toEqual([
@@ -50,24 +54,14 @@ describe("a rework line's timeline", () => {
 		expect(entries[0].note).toBe("Sole still stained");
 	});
 
-	it("dates an older first round by the complaint it was opened with", () => {
-		expect(
-			summary({
-				id: 11,
-				statusLogs: [],
-				complaints: [],
-				reworkOf: { ...complaint, reworkLines: [{ id: 11 }] },
-			}),
-		).toEqual([["Rework opened", complaint.created_at, "Cahya", null]]);
-	});
-
-	it("leaves an older later round undated rather than guess", () => {
+	it("leaves a round the server could not date undated", () => {
 		expect(
 			summary({
 				id: 20,
+				...notOpened,
 				statusLogs: [],
 				complaints: [],
-				reworkOf: { ...complaint, reworkLines: [{ id: 11 }] },
+				reworkOf: complaint,
 			}),
 		).toEqual([["Rework opened", null, null, null]]);
 	});
@@ -75,7 +69,6 @@ describe("a rework line's timeline", () => {
 
 describe("the original's first pickup, as a rework reads it", () => {
 	const pickedUpAt = (picked_up_at: string | null) => ({
-		...complaint,
 		orderService: {
 			pickupEvent: picked_up_at === null ? null : { picked_up_at },
 		},
@@ -85,25 +78,27 @@ describe("the original's first pickup, as a rework reads it", () => {
 		// Turned down at the counter with no rework, taken home anyway, and
 		// brought back two days later for the re-clean.
 		expect(
-			getFirstPickupAt(pickedUpAt("2026-09-20T05:00:00.000Z"), [
-				log(1, null, "queued", "2026-09-22T02:00:00.000Z", cashier),
-			]),
+			getFirstPickupAt(
+				pickedUpAt("2026-09-20T05:00:00.000Z"),
+				"2026-09-22T02:00:00.000Z",
+			),
 		).toBe("2026-09-20T05:00:00.000Z");
 	});
 
 	it("is none when the pair only left with its rework", () => {
 		expect(
-			getFirstPickupAt(pickedUpAt("2026-09-24T09:00:00.000Z"), [
-				log(1, null, "queued", complaint.created_at, cashier),
-			]),
+			getFirstPickupAt(
+				pickedUpAt("2026-09-24T09:00:00.000Z"),
+				complaint.created_at,
+			),
 		).toBeNull();
 	});
 
-	it("dates an older round without its opening row by the complaint", () => {
-		expect(getFirstPickupAt(pickedUpAt("2026-09-19T05:00:00.000Z"), [])).toBe(
+	it("keeps the pickup of an undated round, from when complaints came only after one", () => {
+		expect(getFirstPickupAt(pickedUpAt("2026-09-19T05:00:00.000Z"), null)).toBe(
 			"2026-09-19T05:00:00.000Z",
 		);
-		expect(getFirstPickupAt(pickedUpAt(null), [])).toBeNull();
+		expect(getFirstPickupAt(pickedUpAt(null), null)).toBeNull();
 	});
 });
 
@@ -112,6 +107,7 @@ describe("the complained line's timeline", () => {
 		expect(
 			summary({
 				id: 10,
+				...notOpened,
 				statusLogs: [
 					log(
 						1,
@@ -127,11 +123,10 @@ describe("the complained line's timeline", () => {
 						reworkLines: [
 							{
 								id: 11,
-								statusLogs: [
-									{ created_at: complaint.created_at, changedBy: cashier },
-								],
+								rework_opened_at: complaint.created_at,
+								rework_opened_by: cashier,
 							},
-							{ id: 20, statusLogs: [] },
+							{ id: 20, ...notOpened },
 						],
 					},
 				],

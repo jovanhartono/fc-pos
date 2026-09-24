@@ -342,7 +342,7 @@ const makeExecutor = ({
         findFirst: () => Promise.resolve({ created_at: reworkOpenedAt }),
       },
       orderServiceStatusLogsTable: {
-        findMany: () => Promise.resolve([]),
+        findFirst: () => Promise.resolve(undefined),
       },
       ordersProductsTable: {
         findMany: () => Promise.resolve([]),
@@ -689,7 +689,7 @@ describe("transitionOrderService photo gate (ADR-0012, ADR-0019)", () => {
           photosAt: [dropOff],
           reworkOpenedAt: complaintOpened,
         }),
-        "Add a photo of the returned item before starting the rework"
+        "Take a new photo of the item before starting this rework"
       );
     });
 

@@ -15,7 +15,8 @@ const repo = {
   subject: undefined as AnyObj | undefined,
   existingComplaint: undefined as AnyObj | undefined,
   complaintById: undefined as AnyObj | undefined,
-  liveRework: undefined as AnyObj | undefined,
+  // The pair's other lines: sibling treatments and earlier rework rounds.
+  otherItemLines: [] as AnyObj[],
   // captured writes
   insertedComplaint: undefined as AnyObj | undefined,
   insertedRework: undefined as AnyObj | undefined,
@@ -42,7 +43,7 @@ mock.module("@/db", () => ({
   },
 }));
 
-// Spread the real module so the only export we change is recomputeOrderRollup.
+// Spread the real module so the only exports we change are the two writes.
 // transitionOrderService calls recompute via its in-module binding (not this
 // export object), so order-status-machine.test.ts is unaffected by the stub.
 const actualStatusMachine = await import(
@@ -51,6 +52,10 @@ const actualStatusMachine = await import(
 
 mock.module("@/modules/orders/order-status-machine", () => ({
   ...actualStatusMachine,
+  logReworkQueued: (executor: unknown, values: AnyObj) => {
+    repo.insertedStatusLogs.push({ executor, values });
+    return Promise.resolve();
+  },
   recomputeOrderRollup: (
     executor: unknown,
     orderId: number,
@@ -74,15 +79,21 @@ mock.module("@/modules/complaints/complaint.repository", () => ({
       }
     );
   },
+  findItemLines: (executor: unknown, itemId: number) => {
+    repo.lineReads.push(["item lines", executor, { itemId }]);
+    const subject = repo.subject && {
+      complaint_id: repo.subject.complaint_id,
+      status: repo.subject.status,
+    };
+    return Promise.resolve(
+      subject ? [subject, ...repo.otherItemLines] : repo.otherItemLines
+    );
+  },
   findComplaintForService: (executor: unknown) => {
     repo.lineReads.push(["existing complaint", executor]);
     return Promise.resolve(repo.existingComplaint);
   },
   findComplaintById: () => Promise.resolve(repo.complaintById),
-  findLiveReworkLine: (executor: unknown, complaintId: number) => {
-    repo.lineReads.push(["live rework", executor, { complaintId }]);
-    return Promise.resolve(repo.liveRework);
-  },
   insertComplaint: (_executor: unknown, values: AnyObj) => {
     repo.insertedComplaint = values;
     return Promise.resolve({ id: 99, ...values });
@@ -90,10 +101,6 @@ mock.module("@/modules/complaints/complaint.repository", () => ({
   insertReworkLine: (_executor: unknown, values: AnyObj) => {
     repo.insertedRework = values;
     return Promise.resolve({ id: 500, ...values });
-  },
-  insertOrderServiceStatusLog: (executor: unknown, values: AnyObj) => {
-    repo.insertedStatusLogs.push({ executor, values });
-    return Promise.resolve();
   },
   findComplaintDetailById: () => Promise.resolve(undefined),
   findComplaints: () => Promise.resolve({ items: [], total: 0 }),
@@ -122,7 +129,7 @@ beforeEach(() => {
   repo.subject = makeSubject();
   repo.existingComplaint = undefined;
   repo.complaintById = undefined;
-  repo.liveRework = undefined;
+  repo.otherItemLines = [];
   repo.insertedComplaint = undefined;
   repo.insertedRework = undefined;
   repo.insertedStatusLogs = [];
@@ -212,8 +219,23 @@ describe("openComplaint", () => {
     await open();
     expect(repo.lineReads).toEqual([
       ["locked line", TX, { orderId: 7, serviceId: 10 }],
+      ["item lines", TX, { itemId: 21 }],
       ["existing complaint", TX],
     ]);
+  });
+
+  it("waits on a ready line until the rest of the pair is ready too", async () => {
+    repo.subject = makeSubject({ status: "ready_for_pickup" });
+    repo.otherItemLines = [
+      { id: 11, complaint_id: null, status: "processing" },
+    ];
+
+    const error = await captureRejection(open());
+
+    expect((error as Error).message).toBe(
+      "Complaints can only be opened on items that are ready or picked up"
+    );
+    expect(repo.insertedComplaint).toBeUndefined();
   });
 
   it("opens a complaint without a rework when start_rework is false", async () => {
@@ -258,11 +280,9 @@ describe("openComplaint", () => {
       {
         executor: TX,
         values: {
-          order_service_id: 500,
-          from_status: null,
-          to_status: "queued",
-          changed_by: 42,
+          by: 42,
           note: "Rework for complaint #99",
+          serviceId: 500,
         },
       },
     ]);
@@ -322,13 +342,13 @@ describe("addRework", () => {
     expect(line.id).toBe(500);
     expect(repo.lineReads).toEqual([
       ["locked line", TX, { orderId: 7, serviceId: 10 }],
-      ["live rework", TX, { complaintId: 99 }],
+      ["item lines", TX, { itemId: 21 }],
     ]);
   });
 
-  it("refuses a second round while the first is still live", async () => {
+  it("refuses a second round while the first is still in the workshop", async () => {
     repo.complaintById = { id: 99, order_service_id: 10 };
-    repo.liveRework = { id: 500 };
+    repo.otherItemLines = [{ id: 400, complaint_id: 99, status: "qc_reject" }];
 
     const error = await captureRejection(add());
 
@@ -337,6 +357,33 @@ describe("addRework", () => {
       "Finish the current rework before starting another"
     );
     expect(repo.insertedRework).toBeUndefined();
+  });
+
+  it("takes another round while the last one waits ready on the shelf", async () => {
+    // Paid Order: the ready round can be neither cancelled nor refunded, so it
+    // leaves with the next round in one pickup.
+    repo.complaintById = { id: 99, order_service_id: 10 };
+    repo.subject = makeSubject({ status: "ready_for_pickup" });
+    repo.otherItemLines = [
+      { id: 400, complaint_id: 99, status: "ready_for_pickup" },
+    ];
+
+    const line = await add();
+
+    expect(line.id).toBe(500);
+    expect(repo.insertedRework).toMatchObject({ complaint_id: 99 });
+  });
+
+  it("refuses a round on a ready original while another treatment on the pair is in the workshop", async () => {
+    repo.complaintById = { id: 99, order_service_id: 10 };
+    repo.subject = makeSubject({ status: "ready_for_pickup" });
+    repo.otherItemLines = [{ id: 11, complaint_id: null, status: "queued" }];
+
+    const error = await captureRejection(add());
+
+    expect((error as Error).message).toBe(
+      "Finish the other work on this item before starting a rework"
+    );
   });
 
   it("adds another rework round on the same item", async () => {

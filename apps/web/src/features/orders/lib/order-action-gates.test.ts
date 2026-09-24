@@ -299,6 +299,24 @@ describe("complaintable lines (ADR-0013)", () => {
 		expect(gates.complaintableServices.map((s) => s.id)).toEqual([1, 4]);
 		expect(gates.canOpenComplaint).toBe(true);
 	});
+
+	it("holds a ready line back while another treatment on the pair is in the workshop", () => {
+		// The customer at the counter has not been shown the pair yet.
+		const gates = getOrderActionGates(
+			worker,
+			detail({
+				items: [
+					item(false, [
+						service({ id: 1, status: "ready_for_pickup" }),
+						service({ id: 2, status: "processing" }),
+					]),
+				],
+			}),
+		);
+
+		expect(gates.complaintableServices).toEqual([]);
+		expect(gates.canOpenComplaint).toBe(false);
+	});
 });
 
 // ADR-0019: the cashier photographs the object once at drop-off; every
@@ -336,7 +354,7 @@ describe("startPhotoBlocker", () => {
 					created_at: "2026-09-08T04:00:00.000Z",
 				} as OrderLine["reworkOf"],
 			}),
-		).toBe("Photograph the returned item before starting the rework.");
+		).toBe("Take a new photo of the item before starting this rework.");
 	});
 
 	it("is silent once work has started, photos or not", () => {

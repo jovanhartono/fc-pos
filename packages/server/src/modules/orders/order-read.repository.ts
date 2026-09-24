@@ -1,5 +1,6 @@
 import { type DbExecutor, db } from "@/db";
 import { BadRequestException } from "@/http-exceptions";
+import type { OrderServiceStatus } from "@/modules/orders/order-status-machine";
 
 // The tag and descriptors staff and customers read off the physical object
 // (ADR-0017) — the same handful of fields wherever an Item is named.
@@ -77,6 +78,91 @@ const lineComplaintRelations = {
     },
   },
 } as const;
+
+export interface UserRef {
+  id: number;
+  name: string;
+}
+
+interface OpeningLog {
+  changedBy: UserRef | null;
+  created_at: Date;
+}
+
+interface ComplaintOpening {
+  created_at: Date;
+  openedBy: UserRef | null;
+}
+
+export interface ReworkOpening {
+  rework_opened_at: Date | null;
+  rework_opened_by: UserRef | null;
+}
+
+interface LineWithComplaints {
+  complaints: ReadonlyArray<
+    ComplaintOpening & {
+      id: number;
+      reason: string;
+      reworkLines: ReadonlyArray<{
+        id: number;
+        status: OrderServiceStatus;
+        statusLogs: readonly OpeningLog[];
+      }>;
+    }
+  >;
+  id: number;
+  reworkOf:
+    | (ComplaintOpening & { reworkLines: ReadonlyArray<{ id: number }> })
+    | null;
+  statusLogs: ReadonlyArray<OpeningLog & { from_status: string | null }>;
+}
+
+// Rounds from before the rack entry was logged: the first dates from its
+// Complaint, a later one stays blank rather than guess.
+function reworkOpening(
+  log: OpeningLog | undefined,
+  complaint: ComplaintOpening,
+  isFirstRound: boolean
+): ReworkOpening {
+  if (log) {
+    return {
+      rework_opened_at: log.created_at,
+      rework_opened_by: log.changedBy,
+    };
+  }
+  if (isFirstRound) {
+    return {
+      rework_opened_at: complaint.created_at,
+      rework_opened_by: complaint.openedBy,
+    };
+  }
+  return { rework_opened_at: null, rework_opened_by: null };
+}
+
+// When each Rework round went on the rack and who put it there, for the line
+// itself and for every round of its Complaint.
+export function withReworkOpenings(line: LineWithComplaints) {
+  const { reworkOf } = line;
+  const own: ReworkOpening = reworkOf
+    ? reworkOpening(
+        line.statusLogs.find((log) => log.from_status === null),
+        reworkOf,
+        reworkOf.reworkLines[0]?.id === line.id
+      )
+    : { rework_opened_at: null, rework_opened_by: null };
+
+  return {
+    ...own,
+    complaints: line.complaints.map(({ reworkLines, ...complaint }) => ({
+      ...complaint,
+      reworkLines: reworkLines.map(({ statusLogs, ...round }, index) => ({
+        ...round,
+        ...reworkOpening(statusLogs[0], complaint, index === 0),
+      })),
+    })),
+  };
+}
 
 export function findOrderState(executor: DbExecutor, id: number) {
   return executor.query.ordersTable.findFirst({
