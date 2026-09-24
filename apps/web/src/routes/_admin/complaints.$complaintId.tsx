@@ -61,7 +61,7 @@ const ComplaintDetailPage = () => {
 	const canRework =
 		subject.status === "ready_for_pickup" || subject.status === "picked_up";
 	const outcome = getComplaintOutcome({
-		refunded: subject.status === "refunded",
+		subjectStatus: subject.status,
 		reworkCount: detail.reworkLines.length,
 	});
 
