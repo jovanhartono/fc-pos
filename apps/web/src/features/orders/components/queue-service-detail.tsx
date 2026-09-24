@@ -5,6 +5,7 @@ import {
 } from "@fresclean/api/schema";
 import {
 	ArrowClockwiseIcon,
+	ArrowLeftIcon,
 	CaretRightIcon,
 	CheckCircleIcon,
 	ImageSquareIcon,
@@ -32,6 +33,7 @@ import { ReworkOriginCallout } from "@/features/orders/components/rework-origin-
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
+import { getFirstPickupAt } from "@/features/orders/lib/line-timeline";
 import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import { itemPhotoUploader } from "@/features/orders/utils/photo-upload";
 import { onOrderMoved } from "@/lib/cache-events";
@@ -86,6 +88,7 @@ const BackForReworkNote = ({
 function QueueServiceDetailSkeleton() {
 	return (
 		<div className="grid gap-5">
+			<Skeleton className="hidden size-9 md:block" />
 			<Skeleton className="h-8 w-48" />
 			<Skeleton className="h-12 w-full" />
 			<div className="grid gap-3">
@@ -178,7 +181,6 @@ export function QueueServiceDetail({
 			!WORKER_BLOCKED_QUEUE_STATUSES.has(status) &&
 			(!canStartWork || status !== "processing"),
 	);
-	const hasActions = canStartWork || actionStatuses.length > 0;
 
 	const itemDescriptors = getOrderServiceItemDescriptors(selectedService.item);
 	const handlerLabel = isHandledByCurrentUser
@@ -199,6 +201,14 @@ export function QueueServiceDetail({
 	return (
 		<>
 			<div className="mb-5">
+				<Link
+					aria-label="Back to queue"
+					to="/queue"
+					search={{ storeId: detail.store?.id }}
+					className="mb-3 hidden size-9 items-center justify-center border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:flex"
+				>
+					<ArrowLeftIcon className="size-4" weight="bold" />
+				</Link>
 				{/* Two headlines of equal weight: the job, and the object it is done
 				    to. A worker needs both to pick the right shoe off the rack, so
 				    neither is demoted to small print. The tag is the machine's
@@ -234,9 +244,9 @@ export function QueueServiceDetail({
 						>
 							{formatOrderServiceStatus(selectedService.status)}
 						</Badge>
-						{selectedService.reworkOf ? (
+						{selectedService.reworkOf !== null && (
 							<Badge variant="info">Rework</Badge>
-						) : null}
+						)}
 						{selectedService.is_priority ? (
 							<Badge variant="warning">Priority</Badge>
 						) : (
@@ -249,20 +259,26 @@ export function QueueServiceDetail({
 					</p>
 				</div>
 
-				{selectedService.reworkOf ? (
-					<ReworkOriginCallout reworkOf={selectedService.reworkOf} />
-				) : null}
+				{selectedService.reworkOf !== null && (
+					<ReworkOriginCallout
+						firstPickupAt={getFirstPickupAt(
+							selectedService.reworkOf,
+							selectedService.statusLogs,
+						)}
+						reworkOf={selectedService.reworkOf}
+					/>
+				)}
 
-				{isReady && runningRework ? (
+				{isReady && runningRework !== undefined && (
 					<BackForReworkNote
 						orderId={orderId}
 						reworkLineId={runningRework.id}
 					/>
-				) : null}
+				)}
 
 				{/* Emerald, the done tone every other screen uses for ready: the
 				    workshop's part is finished, and grey read as a warning. */}
-				{isReady && !runningRework ? (
+				{isReady && runningRework === undefined && (
 					<div className="flex items-start gap-2 border border-emerald-300/60 bg-emerald-50/70 px-3 py-3 text-emerald-900 text-sm dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
 						<CheckCircleIcon
 							aria-hidden="true"
@@ -274,7 +290,7 @@ export function QueueServiceDetail({
 							at the counter.
 						</p>
 					</div>
-				) : null}
+				)}
 
 				<dl className="grid grid-cols-2 gap-px border border-border bg-border">
 					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
@@ -407,7 +423,7 @@ export function QueueServiceDetail({
 
 				<section className="grid gap-4 border border-border p-4">
 					<StatusTimeline line={selectedService} orderId={orderId} />
-					{hasActions ? (
+					{(canStartWork || actionStatuses.length > 0) && (
 						<Field>
 							<FieldLabel htmlFor="queue-status-note">Status note</FieldLabel>
 							<Textarea
@@ -417,11 +433,11 @@ export function QueueServiceDetail({
 								onChange={(event) => setStatusNote(event.target.value)}
 							/>
 						</Field>
-					) : null}
+					)}
 				</section>
 			</div>
 
-			{hasActions ? (
+			{(canStartWork || actionStatuses.length > 0) && (
 				<div
 					className="sticky bottom-0 z-10 -mx-3 mt-6 border-t border-border bg-background/95 px-3 pb-[calc(var(--inset-bottom)+0.75rem)] pt-3 backdrop-blur sm:-mx-6 sm:px-6 md:mx-0 md:px-0 md:pb-3"
 					data-bottom-bar
@@ -484,7 +500,7 @@ export function QueueServiceDetail({
 						))}
 					</div>
 				</div>
-			) : null}
+			)}
 		</>
 	);
 }

@@ -23,8 +23,6 @@ interface ComplaintRef {
 	openedBy: Person | null;
 }
 
-// The parts of a line both the order sheet and queue detail load, so the same
-// line reads the same on either screen.
 export interface TimelineLine {
 	id: number;
 	statusLogs: StatusLog[];
@@ -66,6 +64,23 @@ const reworkOpening = (
 };
 
 const isOpeningLog = (log: StatusLog) => log.from_status === null;
+
+interface ReworkOrigin {
+	created_at: string;
+	orderService: { pickupEvent: { picked_up_at: string } | null };
+}
+
+// A pair turned down at the counter leaves with its Rework in one pickup, so
+// only a pickup before this round went on the rack was a first trip home.
+export const getFirstPickupAt = (
+	reworkOf: ReworkOrigin,
+	statusLogs: StatusLog[],
+): string | null => {
+	const pickupAt = reworkOf.orderService.pickupEvent?.picked_up_at;
+	const openedAt =
+		statusLogs.find(isOpeningLog)?.created_at ?? reworkOf.created_at;
+	return pickupAt && new Date(pickupAt) < new Date(openedAt) ? pickupAt : null;
+};
 
 export const buildLineTimeline = (line: TimelineLine): TimelineEntry[] => {
 	const entries: TimelineEntry[] = [];

@@ -15,6 +15,7 @@ import { ReworkOriginCallout } from "@/features/orders/components/rework-origin-
 import { ServiceStatusUpdateButton } from "@/features/orders/components/service-status-update-button";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrderMutations";
+import { getFirstPickupAt } from "@/features/orders/lib/line-timeline";
 import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import { findOrderLine } from "@/features/orders/lib/order-lines";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
@@ -80,15 +81,16 @@ export const OrderServiceDetail = ({
 				<Badge variant={getOrderServiceStatusBadgeVariant(service.status)}>
 					{formatOrderServiceStatus(service.status)}
 				</Badge>
-				{service.reworkOf ? <Badge variant="info">Rework</Badge> : null}
+				{service.reworkOf !== null && <Badge variant="info">Rework</Badge>}
 			</div>
 
-			{service.reworkOf ? (
+			{service.reworkOf !== null && (
 				<ReworkOriginCallout
+					firstPickupAt={getFirstPickupAt(service.reworkOf, service.statusLogs)}
 					onNavigate={closeSheet}
 					reworkOf={service.reworkOf}
 				/>
-			) : null}
+			)}
 
 			{availableTransitions.length > 0 ? (
 				<div className="grid gap-2">
@@ -178,9 +180,9 @@ interface ServicePriceSectionProps {
 }
 
 // The line's one price (ADR-0018): blank until agreed with the customer, open
-// to correction by any staff while the order is unpaid, frozen once paid. A
-// Rework's 0 is fixed. A cancelled line shows nothing — nobody owes its number
-// anymore.
+// to correction by any staff while the order is unpaid, frozen once paid, and
+// fixed at 0 on a Rework. A cancelled line shows nothing — nobody owes its
+// number anymore.
 const ServicePriceSection = ({
 	orderId,
 	serviceId,
@@ -204,7 +206,7 @@ const ServicePriceSection = ({
 						{price === null ? "Not set" : formatMoney(price)}
 					</p>
 				</div>
-				{price !== null && !(isOrderPaid || isRework || isCorrecting) ? (
+				{price !== null && !(isOrderPaid || isRework || isCorrecting) && (
 					<Button
 						onClick={() => setIsCorrecting(true)}
 						size="sm"
@@ -213,7 +215,7 @@ const ServicePriceSection = ({
 					>
 						Correct price
 					</Button>
-				) : null}
+				)}
 			</div>
 			{price === null ? (
 				<>
