@@ -51,7 +51,7 @@ export const OrderAttachmentsCard = ({
 );
 
 const AttachmentLabel = ({ children }: { children: string }) => (
-	<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+	<p className="text-muted-foreground text-xs leading-5 font-medium uppercase tracking-wide">
 		{children}
 	</p>
 );
@@ -129,8 +129,8 @@ interface DropoffPhotoProps {
 	orderId: number;
 }
 
-// An order has exactly one drop-off photo, so it gets a full-width hero tile
-// rather than a seat in the pickup thumbnail strip — the counter staff open this
+// An order has exactly one drop-off photo, so it gets its own tile rather than
+// a seat in the pickup gallery — the counter staff open this
 // to check what came in before the complaint desk argues about it.
 const DropoffPhoto = ({ capturedAt, imageUrl, orderId }: DropoffPhotoProps) => {
 	const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -209,7 +209,7 @@ const PickupsAttachment = ({
 				emptyState={
 					<p className="text-muted-foreground text-sm">No pickups yet</p>
 				}
-				gridClassName="grid-cols-2 gap-3 sm:grid-cols-3"
+				gridClassName="grid-cols-1 gap-6 md:grid-cols-2"
 				items={items}
 				thumbnailImageClassName="aspect-16/10"
 				title="Pickup photo"
