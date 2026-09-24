@@ -81,7 +81,29 @@ describe("rangeLabel", () => {
 		onDay("2026-09-30");
 		expect(
 			rangeLabel(withPresetRange({ from: "2026-09-01", to: "2026-09-30" })),
-		).toBe("2026-09-01 → 2026-09-30");
+		).toBe("1–30 Sep");
+	});
+
+	it("names both months when a range crosses one", () => {
+		onDay("2026-10-05");
+		expect(rangeLabel({ from: "2026-09-28", to: "2026-10-03" })).toBe(
+			"28 Sep – 3 Oct",
+		);
+	});
+
+	it("shows a single day once", () => {
+		onDay("2026-09-30");
+		expect(rangeLabel({ from: "2026-09-24", to: "2026-09-24" })).toBe("24 Sep");
+	});
+
+	it("adds the year only when it isn't this year", () => {
+		onDay("2026-01-10");
+		expect(rangeLabel({ from: "2025-09-19", to: "2025-09-24" })).toBe(
+			"19–24 Sep 2025",
+		);
+		expect(rangeLabel({ from: "2025-12-28", to: "2026-01-03" })).toBe(
+			"28 Dec 2025 – 3 Jan",
+		);
 	});
 });
 

@@ -1,5 +1,10 @@
 import type { ReportGranularity } from "@/features/reports/api";
-import { type DatePreset, getPreset } from "@/shared/date-presets";
+import dayjs from "@/lib/dayjs";
+import {
+	type DatePreset,
+	getPreset,
+	jakartaToday,
+} from "@/shared/date-presets";
 
 export const DEFAULT_PRESET: DatePreset = "30d";
 
@@ -38,7 +43,23 @@ export function withPresetRange<T extends ReportFilterValues>(search: T) {
 // Dates the admin picked on the calendar are saved as dates, so they are shown
 // as dates even on a day they match a preset.
 export function rangeLabel({ preset, from, to }: ReportFilterValues): string {
-	return preset ? getPreset(preset).label : `${from} → ${to}`;
+	if (preset) {
+		return getPreset(preset).label;
+	}
+	const start = dayjs(from);
+	const end = dayjs(to);
+	const isThisYear = end.format("YYYY") === jakartaToday().slice(0, 4);
+	const endLabel = end.format(isThisYear ? "D MMM" : "D MMM YYYY");
+	if (start.isSame(end, "day")) {
+		return endLabel;
+	}
+	if (start.isSame(end, "month")) {
+		return `${start.date()}–${endLabel}`;
+	}
+	const startLabel = start.format(
+		start.isSame(end, "year") ? "D MMM" : "D MMM YYYY",
+	);
+	return `${startLabel} – ${endLabel}`;
 }
 
 // Overview and Aging Queue show only the Store, so their Reset leaves the range

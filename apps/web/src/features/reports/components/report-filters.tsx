@@ -94,11 +94,14 @@ export const ReportFilters = ({
 
 	return (
 		<div className="flex flex-wrap items-center gap-2">
-			{activeBadges.map((badge) => (
+			{activeBadges.map((badge, index) => (
 				<Badge
 					key={badge.id}
 					variant="outline"
-					className="h-8 max-w-40 truncate px-2 text-xs"
+					className={cn(
+						"h-8 max-w-40 truncate px-2 text-xs",
+						index > 0 && "hidden sm:inline-flex",
+					)}
 				>
 					{badge.label}
 				</Badge>
