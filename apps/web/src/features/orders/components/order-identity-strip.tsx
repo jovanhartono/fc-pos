@@ -143,6 +143,7 @@ export const OrderIdentityStrip = ({
 					}))}
 					cancellableServices={gates.cancellableServices.map((service) => ({
 						id: service.id,
+						is_rework: Boolean(service.reworkOf),
 						item_code: service.item.item_code,
 						service_name: service.service?.name ?? "Service",
 					}))}
