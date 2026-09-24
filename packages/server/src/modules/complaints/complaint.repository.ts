@@ -3,23 +3,26 @@ import { db } from "@/db";
 import {
   complaintsTable,
   customersTable,
-  orderServiceStatusLogsTable,
+  orderServiceStatusEnum,
   ordersServicesTable,
   ordersTable,
   servicesTable,
   storesTable,
   usersTable,
 } from "@/db/schema";
-import type { NormalizedComplaintListQuery } from "@/modules/complaints/complaint.schema";
-import { orderRefColumns } from "@/modules/orders/order-read.repository";
 import {
-  type DbExecutor,
-  ORDER_TERMINAL_SERVICE_STATUSES,
-} from "@/modules/orders/order-status-machine";
+  isReworkedRound,
+  type NormalizedComplaintListQuery,
+} from "@/modules/complaints/complaint.schema";
+import { orderRefColumns } from "@/modules/orders/order-read.repository";
+import type { DbExecutor } from "@/modules/orders/order-status-machine";
 
 type ComplaintInsert = typeof complaintsTable.$inferInsert;
 type ReworkLineInsert = typeof ordersServicesTable.$inferInsert;
-type StatusLogInsert = typeof orderServiceStatusLogsTable.$inferInsert;
+
+const REWORKED_ROUND_STATUSES = orderServiceStatusEnum.enumValues.filter(
+  (status) => isReworkedRound({ status })
+);
 
 export async function insertComplaint(
   executor: DbExecutor,
@@ -79,13 +82,11 @@ export async function lockOrderServiceState(
   return locked;
 }
 
-export function findLiveReworkLine(executor: DbExecutor, complaintId: number) {
-  return executor.query.ordersServicesTable.findFirst({
-    where: {
-      complaint_id: complaintId,
-      status: { notIn: [...ORDER_TERMINAL_SERVICE_STATUSES] },
-    },
-    columns: { id: true },
+// Every treatment on the pair, its rework rounds included.
+export function findItemLines(executor: DbExecutor, itemId: number) {
+  return executor.query.ordersServicesTable.findMany({
+    where: { item_id: itemId },
+    columns: { complaint_id: true, status: true },
   });
 }
 
@@ -98,13 +99,6 @@ export async function insertReworkLine(
     .values(values)
     .returning();
   return created;
-}
-
-export async function insertOrderServiceStatusLog(
-  executor: DbExecutor,
-  values: StatusLogInsert
-) {
-  await executor.insert(orderServiceStatusLogsTable).values(values);
 }
 
 export function findComplaintDetailById(id: number) {
@@ -126,6 +120,8 @@ export function findComplaintDetailById(id: number) {
               model: true,
               size: true,
             },
+            // Whether the whole pair is ready decides if another round can start.
+            with: { services: { columns: { id: true, status: true } } },
           },
           order: {
             columns: orderRefColumns,
@@ -187,9 +183,9 @@ export async function findComplaints(
         reason: complaintsTable.reason,
         created_at: complaintsTable.created_at,
         // Outcome is derived from the lines (ADR-0013 amendment): the subject
-        // line's status plus its reworks. A cancelled round re-cleaned nothing.
+        // line's status plus its reworks.
         subject_status: ordersServicesTable.status,
-        rework_count: sql<number>`(SELECT count(*)::int FROM orders_services rw WHERE rw.complaint_id = ${complaintsTable.id} AND rw.status <> 'cancelled')`,
+        rework_count: sql<number>`(SELECT count(*)::int FROM orders_services rw WHERE rw.complaint_id = ${complaintsTable.id} AND rw.status IN ${REWORKED_ROUND_STATUSES})`,
         order_id: ordersTable.id,
         order_code: ordersTable.code,
         store_id: ordersTable.store_id,

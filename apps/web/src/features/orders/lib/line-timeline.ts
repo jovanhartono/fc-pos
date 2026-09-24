@@ -4,16 +4,19 @@ interface Person {
 	name: string;
 }
 
-interface OpeningLog {
+interface StatusLog {
+	id: number;
 	created_at: string;
 	changedBy: Person | null;
-}
-
-interface StatusLog extends OpeningLog {
-	id: number;
 	from_status: string | null;
 	to_status: string;
 	note: string | null;
+}
+
+// The server works out when each round went on the rack, and who put it there.
+interface ReworkOpening {
+	rework_opened_at: string | null;
+	rework_opened_by: Person | null;
 }
 
 interface ComplaintRef {
@@ -23,17 +26,13 @@ interface ComplaintRef {
 	openedBy: Person | null;
 }
 
-export interface TimelineLine {
+export interface TimelineLine extends ReworkOpening {
 	id: number;
 	statusLogs: StatusLog[];
 	complaints: (ComplaintRef & {
-		reworkLines: { id: number; statusLogs: OpeningLog[] }[];
+		reworkLines: (ReworkOpening & { id: number })[];
 	})[];
-	reworkOf:
-		| (ComplaintRef & {
-				reworkLines: { id: number }[];
-		  })
-		| null;
+	reworkOf: ComplaintRef | null;
 }
 
 export interface TimelineEntry {
@@ -47,26 +46,7 @@ export interface TimelineEntry {
 	sortAt: string;
 }
 
-// Who put a rework round on the rack, and when. Rounds from before that was
-// logged have no record, except the first — opened with the complaint itself.
-const reworkOpening = (
-	complaint: ComplaintRef,
-	isFirstRound: boolean,
-	log: OpeningLog | undefined,
-) => {
-	if (log) {
-		return { at: log.created_at, by: log.changedBy?.name ?? null };
-	}
-	if (isFirstRound) {
-		return { at: complaint.created_at, by: complaint.openedBy?.name ?? null };
-	}
-	return { at: null, by: null };
-};
-
-const isOpeningLog = (log: StatusLog) => log.from_status === null;
-
 interface ReworkOrigin {
-	created_at: string;
 	orderService: { pickupEvent: { picked_up_at: string } | null };
 }
 
@@ -74,12 +54,13 @@ interface ReworkOrigin {
 // only a pickup before this round went on the rack was a first trip home.
 export const getFirstPickupAt = (
 	reworkOf: ReworkOrigin,
-	statusLogs: StatusLog[],
+	reworkOpenedAt: string | null,
 ): string | null => {
-	const pickupAt = reworkOf.orderService.pickupEvent?.picked_up_at;
-	const openedAt =
-		statusLogs.find(isOpeningLog)?.created_at ?? reworkOf.created_at;
-	return pickupAt && new Date(pickupAt) < new Date(openedAt) ? pickupAt : null;
+	const pickupAt = reworkOf.orderService.pickupEvent?.picked_up_at ?? null;
+	if (pickupAt === null || reworkOpenedAt === null) {
+		return pickupAt;
+	}
+	return new Date(pickupAt) < new Date(reworkOpenedAt) ? pickupAt : null;
 };
 
 export const buildLineTimeline = (line: TimelineLine): TimelineEntry[] => {
@@ -87,22 +68,18 @@ export const buildLineTimeline = (line: TimelineLine): TimelineEntry[] => {
 	const { reworkOf } = line;
 
 	if (reworkOf) {
-		const opening = reworkOpening(
-			reworkOf,
-			reworkOf.reworkLines[0]?.id === line.id,
-			line.statusLogs.find(isOpeningLog),
-		);
 		entries.push({
 			key: "rework-opened",
 			label: "Rework opened",
-			...opening,
+			at: line.rework_opened_at,
+			by: line.rework_opened_by?.name ?? null,
 			note: reworkOf.reason,
-			sortAt: opening.at ?? reworkOf.created_at,
+			sortAt: line.rework_opened_at ?? reworkOf.created_at,
 		});
 	}
 
 	for (const log of line.statusLogs) {
-		if (reworkOf && isOpeningLog(log)) {
+		if (reworkOf && log.from_status === null) {
 			continue;
 		}
 		entries.push({
@@ -124,21 +101,17 @@ export const buildLineTimeline = (line: TimelineLine): TimelineEntry[] => {
 			note: complaint.reason,
 			sortAt: complaint.created_at,
 		});
-		complaint.reworkLines.forEach((rework, index) => {
-			const opening = reworkOpening(
-				complaint,
-				index === 0,
-				rework.statusLogs[0],
-			);
+		for (const rework of complaint.reworkLines) {
 			entries.push({
 				key: `rework-${rework.id}`,
 				label: "Rework started",
-				...opening,
+				at: rework.rework_opened_at,
+				by: rework.rework_opened_by?.name ?? null,
 				note: null,
 				reworkLineId: rework.id,
-				sortAt: opening.at ?? complaint.created_at,
+				sortAt: rework.rework_opened_at ?? complaint.created_at,
 			});
-		});
+		}
 	}
 
 	// Stable, so an undated round stays right after the complaint it follows.

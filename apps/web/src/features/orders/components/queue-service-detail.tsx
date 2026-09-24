@@ -1,7 +1,7 @@
 import {
+	isInWorkshop,
 	ORDER_SERVICE_TRANSITIONS,
 	ORDER_TERMINAL_SERVICE_STATUSES,
-	WORKSHOP_SERVICE_STATUSES,
 } from "@fresclean/api/schema";
 import {
 	ArrowClockwiseIcon,
@@ -50,8 +50,6 @@ import { getCurrentUser } from "@/stores/auth-store";
 const WORKER_BLOCKED_QUEUE_STATUSES = new Set<
 	UpdateOrderServiceStatusPayload["status"]
 >(ORDER_TERMINAL_SERVICE_STATUSES);
-
-const WORKSHOP_STATUSES = new Set<string>(WORKSHOP_SERVICE_STATUSES);
 
 const LABEL_CLASS =
 	"text-[0.65rem] font-medium uppercase tracking-[0.14em] text-muted-foreground";
@@ -196,7 +194,7 @@ export function QueueServiceDetail({
 	// Turned down at the counter: the pair left the pickup shelf for its rework.
 	const runningRework = selectedService.complaints
 		.flatMap((complaint) => complaint.reworkLines)
-		.find((rework) => WORKSHOP_STATUSES.has(rework.status));
+		.find(isInWorkshop);
 
 	return (
 		<>
@@ -263,7 +261,7 @@ export function QueueServiceDetail({
 					<ReworkOriginCallout
 						firstPickupAt={getFirstPickupAt(
 							selectedService.reworkOf,
-							selectedService.statusLogs,
+							selectedService.rework_opened_at,
 						)}
 						reworkOf={selectedService.reworkOf}
 					/>

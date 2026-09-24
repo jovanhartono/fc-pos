@@ -6,7 +6,10 @@ import {
   CampaignUpdatePayloadSchema as _CampaignUpdatePayloadSchema,
 } from "@/modules/campaigns/campaign.schema";
 import { POSTCategorySchema as _POSTCategorySchema } from "@/modules/categories/category.schema";
-import { isComplainableStatus as _isComplainableStatus } from "@/modules/complaints/complaint.schema";
+import {
+  isComplainableLine as _isComplainableLine,
+  isReworkedRound as _isReworkedRound,
+} from "@/modules/complaints/complaint.schema";
 import {
   POSTCustomerSchema as _POSTCustomerSchema,
   PUTCustomerSchema as _PUTCustomerSchema,
@@ -21,6 +24,7 @@ import {
   type ItemStatusLine as _ItemStatusLine,
   isCollectableItemStatus as _isCollectableItemStatus,
   isHandedOverByPickup as _isHandedOverByPickup,
+  isInWorkshop as _isInWorkshop,
   ORDER_SERVICE_TRANSITIONS as _ORDER_SERVICE_TRANSITIONS,
   ORDER_TERMINAL_SERVICE_STATUSES as _ORDER_TERMINAL_SERVICE_STATUSES,
   WORKSHOP_SERVICE_STATUSES as _WORKSHOP_SERVICE_STATUSES,
@@ -48,7 +52,9 @@ export type DerivedItemStatus = _DerivedItemStatus;
 export type ItemStatusLine = _ItemStatusLine;
 export const isCollectableItemStatus = _isCollectableItemStatus;
 export const isHandedOverByPickup = _isHandedOverByPickup;
-export const isComplainableStatus = _isComplainableStatus;
+export const isInWorkshop = _isInWorkshop;
+export const isComplainableLine = _isComplainableLine;
+export const isReworkedRound = _isReworkedRound;
 export const POSTOrderPickupEventPresignSchema =
   _POSTOrderPickupEventPresignSchema;
 export const POSTOrderPickupEventSchema = _POSTOrderPickupEventSchema;

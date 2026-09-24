@@ -1,6 +1,6 @@
 import "@/test-support/pglite";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import {
   campaignEligibleServicesTable,
   campaignsTable,
@@ -190,7 +190,7 @@ describe("a pair turned down at the counter", () => {
       })
     );
     expect((unphotographed as Error).message).toBe(
-      "Add a photo of the returned item before starting the rework"
+      "Take a new photo of the item before starting this rework"
     );
 
     await photographReturnedPair(pair.itemId, complaint.created_at);
@@ -233,6 +233,10 @@ describe("a pair turned down at the counter", () => {
     }
 
     const queueDetail = await getOrderServiceDetail(pair.orderId, rework.id);
+    expect(queueDetail?.line).toMatchObject({
+      rework_opened_at: complaint.created_at,
+      rework_opened_by: { name: "Cahya Cashier" },
+    });
     expect(queueDetail?.line.reworkOf).toMatchObject({
       id: complaint.id,
       openedBy: { name: "Cahya Cashier" },
@@ -255,7 +259,8 @@ describe("a pair turned down at the counter", () => {
         reworkLines: [
           {
             id: rework.id,
-            statusLogs: [{ changedBy: { name: "Cahya Cashier" } }],
+            rework_opened_at: complaint.created_at,
+            rework_opened_by: { name: "Cahya Cashier" },
           },
         ],
       },
@@ -400,7 +405,7 @@ describe("the original line cancelled or refunded while its rework is on the rac
       throw new Error("Complaint opened without its rework");
     }
 
-    await cancelOrder({
+    const cancelled = await cancelOrder({
       body: {
         items: [{ order_service_id: pair.lineId, reason: "customer_request" }],
       },
@@ -408,6 +413,7 @@ describe("the original line cancelled or refunded while its rework is on the rac
       user: shop.cashier,
     });
 
+    expect(cancelled.cancelled_service_ids).toEqual([pair.lineId, rework.id]);
     const [, reworkLine] = await readLines(pair.orderId);
     expect(reworkLine).toMatchObject({
       cancel_note: "Original line cancelled",
@@ -513,7 +519,7 @@ describe("one rework round at a time", () => {
   const addRound = (complaintId: number) =>
     addRework({ user: shop.cashier, complaintId });
 
-  it("refuses a second round until the first has gone home with the pair", async () => {
+  it("refuses a second round while the first is in the workshop", async () => {
     const pair = await pairOnTheShelf("paid");
     const { complaint, rework } = await turnDown(pair.lineId, true);
     if (!rework) {
@@ -524,21 +530,89 @@ describe("one rework round at a time", () => {
     expect((whileQueued as Error).message).toBe(
       "Finish the current rework before starting another"
     );
+    expect(await readLines(pair.orderId)).toHaveLength(2);
+  });
 
+  it("takes another round when the customer turns the re-clean down at the counter, all leaving in one pickup", async () => {
+    // A paid Order: the ready round can be neither cancelled nor refunded, so
+    // it waits on the shelf and goes home with the next one.
+    const pair = await pairOnTheShelf("paid");
+    const { complaint, rework } = await turnDown(pair.lineId, true);
+    if (!rework) {
+      throw new Error("Complaint opened without its rework");
+    }
     await photographReturnedPair(pair.itemId, complaint.created_at);
     await walkToShelf(pair.orderId, rework.id);
-    const whileReady = await captureRejection(addRound(complaint.id));
-    expect(whileReady).toBeInstanceOf(BadRequestException);
 
-    await handOver(pair);
     const second = await addRound(complaint.id);
+    await photographReturnedPair(pair.itemId, new Date());
+    await walkToShelf(pair.orderId, second.id);
+    const event = await handOver(pair);
 
     const lines = await readLines(pair.orderId);
-    expect(lines.map((line) => [line.id, line.status])).toEqual([
-      [pair.lineId, "picked_up"],
-      [rework.id, "picked_up"],
-      [second.id, "queued"],
+    expect(
+      lines.map((line) => [line.id, line.status, line.pickup_event_id])
+    ).toEqual([
+      [pair.lineId, "picked_up", event.id],
+      [rework.id, "picked_up", event.id],
+      [second.id, "picked_up", event.id],
     ]);
+  });
+});
+
+describe("a pair with another treatment still in the workshop", () => {
+  // Deep clean done, the repair on the same pair still queued: the customer
+  // has not been shown the pair yet.
+  const halfDonePair = async () => {
+    const order = await createOrder(shop.admin.id, shop.store, {
+      campaign_ids: [],
+      customer: { name: "Budi Santoso", phone_number: "+628111222333" },
+      discount: 0,
+      items: [
+        {
+          services: [
+            { id: shop.serviceId },
+            { id: shop.repairServiceId, price: 50_000 },
+          ],
+        },
+      ],
+      payment_method_id: shop.paymentMethodId,
+      payment_status: "paid",
+      store_id: shop.store.id,
+      voucher_codes: [],
+    });
+    const [clean, repair] = await readLines(order.id);
+    await addItemPhoto(clean.item_id, shop.cashier.id);
+    await walkToShelf(order.id, clean.id);
+    return { clean, orderId: order.id, repair };
+  };
+
+  it("takes no complaint on the finished treatment until the whole pair is ready", async () => {
+    const { clean, orderId, repair } = await halfDonePair();
+
+    const refused = await captureRejection(turnDown(clean.id, true));
+    expect((refused as Error).message).toBe(
+      "Complaints can only be opened on items that are ready or picked up"
+    );
+    expect(await readLines(orderId)).toHaveLength(2);
+
+    await walkToShelf(orderId, repair.id);
+    const { rework } = await turnDown(clean.id, true);
+    expect(rework?.status).toBe("queued");
+  });
+
+  it("takes no new round on a ready original while another treatment on the pair is back in the workshop", async () => {
+    const { clean, orderId, repair } = await halfDonePair();
+    await walkToShelf(orderId, repair.id);
+    const { complaint } = await turnDown(clean.id, false);
+    await turnDown(repair.id, true);
+
+    const refused = await captureRejection(
+      addRework({ user: shop.cashier, complaintId: complaint.id })
+    );
+    expect((refused as Error).message).toBe(
+      "Finish the other work on this item before starting a rework"
+    );
   });
 });
 
@@ -582,7 +656,7 @@ describe("the photo that starts a rework round", () => {
 
     const refused = await captureRejection(startRound(pair.orderId, rework.id));
     expect((refused as Error).message).toBe(
-      "Add a photo of the returned item before starting the rework"
+      "Take a new photo of the item before starting this rework"
     );
 
     await photographReturnedPair(pair.itemId, new Date());
@@ -612,7 +686,7 @@ describe("the photo that starts a rework round", () => {
     expect(before?.line.has_start_photo).toBe(false);
     const refused = await captureRejection(startRound(pair.orderId, second.id));
     expect((refused as Error).message).toBe(
-      "Add a photo of the returned item before starting the rework"
+      "Take a new photo of the item before starting this rework"
     );
 
     await photographReturnedPair(pair.itemId, new Date());
@@ -622,6 +696,43 @@ describe("the photo that starts a rework round", () => {
 
     const lines = await readLines(pair.orderId);
     expect(lines.at(-1)?.status).toBe("processing");
+  });
+});
+
+describe("when a rework round went on the rack", () => {
+  it("dates rounds from before that was logged by the complaint for the first, and not at all after", async () => {
+    const pair = await pairOnTheShelf("paid");
+    const { complaint, rework } = await turnDown(pair.lineId, true);
+    if (!rework) {
+      throw new Error("Complaint opened without its rework");
+    }
+    await photographReturnedPair(pair.itemId, complaint.created_at);
+    await walkToShelf(pair.orderId, rework.id);
+    const second = await addRework({
+      user: shop.cashier,
+      complaintId: complaint.id,
+    });
+    await testDb
+      .delete(orderServiceStatusLogsTable)
+      .where(isNull(orderServiceStatusLogsTable.from_status));
+
+    const detail = await getOrderDetailById(pair.orderId);
+    const lines = detail?.items[0].services ?? [];
+    expect(lines.map((line) => [line.id, line.rework_opened_at])).toEqual([
+      [pair.lineId, null],
+      [rework.id, complaint.created_at],
+      [second.id, null],
+    ]);
+    expect(
+      lines[0].complaints[0].reworkLines.map((round) => [
+        round.id,
+        round.rework_opened_at,
+        round.rework_opened_by?.name ?? null,
+      ])
+    ).toEqual([
+      [rework.id, complaint.created_at, "Cahya Cashier"],
+      [second.id, null, null],
+    ]);
   });
 });
 
