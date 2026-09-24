@@ -161,8 +161,8 @@ function QueuePage() {
 	const role = meQuery.data?.role;
 
 	// One effect owns the store filter's memory. With a store in the URL,
-	// remember it — however it got there: the filter dialog, a scan, or the back
-	// link from a job. Without one, restore the remembered branch once per
+	// remember it — however it got there: the filter dialog, a scan, or stepping
+	// back from a job. Without one, restore the remembered branch once per
 	// visit, so an explicit clear stays cleared instead of bouncing back.
 	const hasRestoredStoreRef = useRef(false);
 	useEffect(() => {
@@ -217,7 +217,7 @@ function QueuePage() {
 	const setPersistedCategory = useQueuePreferencesStore(
 		(state) => state.setCategory,
 	);
-	// Arriving from the sidebar or a job's back link, the worker lands on their
+	// Arriving from the sidebar or back from a job, the worker lands on their
 	// own rack; picking "All categories" forgets it, so All is a rack too.
 	const selectedCategoryId = search.categoryId ?? persistedCategory?.categoryId;
 	const selectedCategoryMode =

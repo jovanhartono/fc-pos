@@ -3,7 +3,6 @@ import {
 	ORDER_TERMINAL_SERVICE_STATUSES,
 } from "@fresclean/api/schema";
 import {
-	ArrowLeftIcon,
 	CheckCircleIcon,
 	ImageSquareIcon,
 	WarningCircleIcon,
@@ -53,10 +52,7 @@ const LABEL_CLASS =
 function QueueServiceDetailSkeleton() {
 	return (
 		<div className="grid gap-5">
-			<div className="flex items-center gap-3">
-				<Skeleton className="size-9" />
-				<Skeleton className="h-8 w-48" />
-			</div>
+			<Skeleton className="h-8 w-48" />
 			<Skeleton className="h-12 w-full" />
 			<div className="grid gap-3">
 				<Skeleton className="h-5 w-40" />
@@ -163,13 +159,6 @@ export function QueueServiceDetail({
 	return (
 		<>
 			<div className="mb-5">
-				<Link
-					to="/queue"
-					search={{ storeId: detail.store?.id }}
-					className="mb-3 flex size-9 items-center justify-center border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-				>
-					<ArrowLeftIcon className="size-4" weight="bold" />
-				</Link>
 				{/* Two headlines of equal weight: the job, and the object it is done
 				    to. A worker needs both to pick the right shoe off the rack, so
 				    neither is demoted to small print. The tag is the machine's
@@ -383,7 +372,9 @@ export function QueueServiceDetail({
 				</section>
 			</div>
 
-			<div className="sticky bottom-0 z-10 mt-6 border-t border-border bg-background/95 px-3 pb-[calc(var(--inset-bottom)+0.75rem)] pt-3 backdrop-blur sm:px-0 sm:pb-3">
+			{/* On a phone the bar cancels the page's padding, so at the end of the
+			    scroll it rests on the tab bar instead of floating a gap above it. */}
+			<div className="sticky bottom-0 z-10 -mx-3 mt-6 -mb-[calc(var(--inset-bottom)+1rem)] border-t border-border bg-background/95 px-3 pb-[calc(var(--inset-bottom)+0.75rem)] pt-3 backdrop-blur sm:mx-0 sm:mb-0 sm:px-0 sm:pb-3">
 				{blockerMessage ? (
 					<div className="mb-2 flex items-center gap-2 border border-warning/50 bg-warning/10 px-3 py-2 text-xs font-medium text-foreground">
 						<WarningCircleIcon
