@@ -44,10 +44,16 @@ export async function setOrderServicePrice({
 
     const line = await tx.query.ordersServicesTable.findFirst({
       where: { order_id: orderId, id: serviceId },
-      columns: { price: true, status: true },
+      columns: { complaint_id: true, price: true, status: true },
     });
     if (!line) {
       throw new BadRequestException("Order service not found for this order");
+    }
+
+    // A pair turned down at the counter can carry its Rework on a still-unpaid
+    // Order; the re-clean stays free (ADR-0013), so its 0 is not a typo.
+    if (line.complaint_id !== null) {
+      throw new BadRequestException("A rework is free — its price is fixed");
     }
 
     // A cancelled line took the unpaid off-ramp (ADR-0008) — nobody owes its

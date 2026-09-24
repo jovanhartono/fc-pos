@@ -7,6 +7,7 @@ import {
   findComplaintSubjectService,
   findComplaints,
   insertComplaint,
+  insertOrderServiceStatusLog,
   insertReworkLine,
 } from "@/modules/complaints/complaint.repository";
 import {
@@ -30,6 +31,14 @@ type SubjectService = NonNullable<
   Awaited<ReturnType<typeof findComplaintSubjectService>>
 >;
 
+// The cashier shows the customer the finished pair before handing it over, so
+// the complaint usually lands at the counter while the line is still ready —
+// and sometimes days after the pair went home (ADR-0013, 2026-09-24).
+const COMPLAINABLE_STATUSES = new Set<SubjectService["status"]>([
+  "ready_for_pickup",
+  "picked_up",
+]);
+
 // A rework is a free OrderService line on the same order (ADR-0013); adding it
 // flips the order rollup back to processing. It is the same physical object
 // coming back over the counter, so the line reuses the complained Item — same
@@ -52,6 +61,7 @@ async function createReworkLine(
     throw new BadRequestException("Order service is not attached to an order");
   }
 
+  const note = `Rework for complaint #${complaintId}`;
   const line = await insertReworkLine(tx, {
     order_id: order.id,
     item_id: subject.item_id,
@@ -61,7 +71,17 @@ async function createReworkLine(
     is_priority: true,
     status: "queued",
     complaint_id: complaintId,
-    notes: `Rework for complaint #${complaintId}`,
+    notes: note,
+  });
+
+  // A line has no created_at, so this row is the only record of who put a
+  // second or third round on the rack, and when.
+  await insertOrderServiceStatusLog(tx, {
+    order_service_id: line.id,
+    from_status: null,
+    to_status: "queued",
+    changed_by: userId,
+    note,
   });
 
   await recomputeOrderRollup(tx, order.id, userId);
@@ -83,10 +103,10 @@ async function loadComplaintSubject(user: JWTPayload, complaintId: number) {
   await assertStoreAccess(user, subject.order.store_id);
 
   // Refund is the terminal rung of the ladder (ADR-0013) — no rework once the
-  // original line has left picked_up.
-  if (subject.status !== "picked_up") {
+  // original line is refunded or otherwise off the shelf.
+  if (!COMPLAINABLE_STATUSES.has(subject.status)) {
     throw new BadRequestException(
-      "Cannot add a rework once the original line is no longer picked up"
+      "Cannot add a rework once the original line is no longer ready or picked up"
     );
   }
 
@@ -107,9 +127,9 @@ export async function openComplaint({
 
   await assertStoreAccess(user, subject.order.store_id);
 
-  if (subject.status !== "picked_up") {
+  if (!COMPLAINABLE_STATUSES.has(subject.status)) {
     throw new BadRequestException(
-      "Complaints can only be opened on picked-up items"
+      "Complaints can only be opened on items that are ready or picked up"
     );
   }
 

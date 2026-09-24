@@ -66,3 +66,18 @@ This **supersedes** these original Decisions:
 - `addRework` rejects unless the original line is still `picked_up`. Once it is `refunded` (the terminal rung), the ladder is done. This replaces the old "is the Complaint open?" gate and is the fix for finding #2.
 
 The escalation ladder is unchanged in spirit — Rework (0..N) first, admin-only refund of the original line as the terminal rung — but its *position is read from the lines*, not written onto the Complaint. The refund/reversal module stays complaint-agnostic; the `addRework` `picked_up` gate prevents the only incoherent state that decoupling could create. Finding #1 disappears outright: there is no `resolution` field left to lie.
+
+## Amendment 2026-09-24 — a complaint can land at the counter
+
+The model above assumed a Complaint arrives *after* collection. The cashier SOP says otherwise: before handing a pair over, the cashier shows it to the customer and lets them check its condition. When the customer turns it down there, the pair has not been picked up — the line is still `ready_for_pickup`. Refusing the Complaint until after a pickup would force staff to record a handover that did not happen just to log the grievance.
+
+**Decision: a Complaint may be opened on a finished line — `ready_for_pickup` or `picked_up`.** Adding a Rework (with the Complaint, or later from the Complaint page) is allowed on the same two statuses. Everything else still refuses: unfinished work (`queued`, `processing`, `quality_check`, `qc_reject`), a Rework line, a second Complaint on the same line, and a `refunded` or `cancelled` line.
+
+What follows, with no status-machine change:
+
+- **The original line is still never mutated.** A ready line stays `ready_for_pickup` while its Rework runs. The Item is not collectable meanwhile ([ADR-0017](0017-item-groups-order-services.md): you cannot hand back half a shoe), and one pickup event later hands the pair over and flips **both** lines to `picked_up`.
+- **Payment still precedes pickup** ([ADR-0009](0009-payment-precedes-pickup.md)). The Order may still be unpaid at the counter. The ₀ Rework line adds nothing to the total and carries a price, so it never blocks the payment. Because prices are still open to correction on an unpaid Order ([ADR-0018](0018-price-is-known-or-blank-discounts-when-priced.md)), the price desk now refuses a Rework line outright — its 0 is fixed.
+- **Refund stays the terminal rung.** A ready line can be refunded (`ready_for_pickup → refunded` was already legal); after that no further Rework is offered.
+- **Every Rework round is logged when it is put on the rack.** A line has no `created_at`, so each new Rework line gets one `order_service_status_logs` row (`from_status` NULL → `queued`, the acting user, "Rework for complaint #N"). That row is what dates a second or third round on the timelines. No report reads it: every reader of that table filters on `to_status` `processing`, `quality_check` or `qc_reject`. Reworks created before this amendment have no such row; screens date the first round by the Complaint and leave later rounds undated.
+
+This supersedes the 2026-06-30 guard "`addRework` rejects unless the original line is still `picked_up`" and the opening line of this ADR that treats every Complaint as post-collection.
