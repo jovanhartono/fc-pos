@@ -128,7 +128,7 @@ export const OrderServiceDetail = ({
 
 			<ServicePriceSection
 				isOrderPaid={isOrderPaid}
-				isRework={Boolean(service.reworkOf)}
+				isRework={service.reworkOf !== null}
 				orderId={orderId}
 				price={service.price}
 				serviceId={service.id}
