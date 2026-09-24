@@ -18,7 +18,15 @@ const queueServiceParamsSchema = z.object({
 const QueueDetailPage = () => {
 	const { orderId, serviceId } = Route.useParams();
 
-	return <QueueServiceDetail orderId={orderId} serviceId={serviceId} />;
+	// Keyed by line: "Rework started ›" opens one job from another, and a note
+	// typed on the first must not ride along onto the second.
+	return (
+		<QueueServiceDetail
+			key={serviceId}
+			orderId={orderId}
+			serviceId={serviceId}
+		/>
+	);
 };
 
 const QueueServiceRouteError = ({ error, reset }: ErrorComponentProps) => {
