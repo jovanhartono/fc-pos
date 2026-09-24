@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { buildLineTimeline, type TimelineLine } from "./line-timeline";
+import {
+	buildLineTimeline,
+	getFirstPickupAt,
+	type TimelineLine,
+} from "./line-timeline";
 
 const cashier = { name: "Cahya" };
 const worker = { name: "Sari" };
@@ -66,6 +70,40 @@ describe("a rework line's timeline", () => {
 				reworkOf: { ...complaint, reworkLines: [{ id: 11 }] },
 			}),
 		).toEqual([["Rework opened", null, null, null]]);
+	});
+});
+
+describe("the original's first pickup, as a rework reads it", () => {
+	const pickedUpAt = (picked_up_at: string | null) => ({
+		...complaint,
+		orderService: {
+			pickupEvent: picked_up_at === null ? null : { picked_up_at },
+		},
+	});
+
+	it("is the pickup of a pair that went home before this round was opened", () => {
+		// Turned down at the counter with no rework, taken home anyway, and
+		// brought back two days later for the re-clean.
+		expect(
+			getFirstPickupAt(pickedUpAt("2026-09-20T05:00:00.000Z"), [
+				log(1, null, "queued", "2026-09-22T02:00:00.000Z", cashier),
+			]),
+		).toBe("2026-09-20T05:00:00.000Z");
+	});
+
+	it("is none when the pair only left with its rework", () => {
+		expect(
+			getFirstPickupAt(pickedUpAt("2026-09-24T09:00:00.000Z"), [
+				log(1, null, "queued", complaint.created_at, cashier),
+			]),
+		).toBeNull();
+	});
+
+	it("dates an older round without its opening row by the complaint", () => {
+		expect(getFirstPickupAt(pickedUpAt("2026-09-19T05:00:00.000Z"), [])).toBe(
+			"2026-09-19T05:00:00.000Z",
+		);
+		expect(getFirstPickupAt(pickedUpAt(null), [])).toBeNull();
 	});
 });
 
