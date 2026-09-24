@@ -5,21 +5,19 @@ import { ordersKeys } from "@/features/orders/api";
 import { shiftsKeys } from "@/features/shifts/api";
 
 // One call for every write that moves an Order or one of its Items, because the
-// same move lands on four screens: the order itself, the /orders list and its
-// pills, and the /queue strip and its chips. A counter recording a pickup and a
-// worker finishing a shoe each leave the other screen's number wrong, so the
-// site that forgets a screen is the bug — there must only be one site.
+// same move lands on five screens: the order itself, the /orders list and its
+// pills, the /queue strip and its chips, and any Complaint on the line. A
+// counter recording a pickup and a worker finishing a shoe each leave the other
+// screen's number wrong, so the site that forgets a screen is the bug — there
+// must only be one site.
 export const onOrderMoved = (queryClient: QueryClient) =>
-	queryClient.invalidateQueries({ queryKey: ordersKeys.all });
-
-export const onRedemptionSpent = (queryClient: QueryClient) =>
-	queryClient.invalidateQueries({ queryKey: campaignsKeys.all });
-
-export const onLineAdded = (queryClient: QueryClient) =>
 	Promise.all([
 		queryClient.invalidateQueries({ queryKey: complaintsKeys.all }),
 		queryClient.invalidateQueries({ queryKey: ordersKeys.all }),
 	]);
+
+export const onRedemptionSpent = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({ queryKey: campaignsKeys.all });
 
 // Clocking in or out changes the badge on the worker's attendance screen, the
 // week's list under it, and the manager's Shifts table.

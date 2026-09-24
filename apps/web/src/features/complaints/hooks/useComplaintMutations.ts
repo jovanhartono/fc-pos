@@ -4,14 +4,14 @@ import {
 	type OpenComplaintPayload,
 	openComplaint,
 } from "@/features/complaints/api";
-import { onLineAdded } from "@/lib/cache-events";
+import { onOrderMoved } from "@/lib/cache-events";
 
 export const useOpenComplaintMutation = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: (payload: OpenComplaintPayload) => openComplaint(payload),
-		onSuccess: () => onLineAdded(queryClient),
+		onSuccess: () => onOrderMoved(queryClient),
 	});
 };
 
@@ -20,6 +20,6 @@ export const useAddReworkMutation = (complaintId: number) => {
 
 	return useMutation({
 		mutationFn: () => addComplaintRework(complaintId),
-		onSuccess: () => onLineAdded(queryClient),
+		onSuccess: () => onOrderMoved(queryClient),
 	});
 };
