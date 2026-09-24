@@ -341,6 +341,9 @@ const makeExecutor = ({
       complaintsTable: {
         findFirst: () => Promise.resolve({ created_at: reworkOpenedAt }),
       },
+      orderServiceStatusLogsTable: {
+        findMany: () => Promise.resolve([]),
+      },
       ordersProductsTable: {
         findMany: () => Promise.resolve([]),
       },
