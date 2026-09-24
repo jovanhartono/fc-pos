@@ -22,9 +22,7 @@ export const useReportPreferencesStore = create<ReportPreferencesStore>()(
 			name: "report-preferences",
 			// Change ReportFilterValues' shape and you must bump this and add
 			// `migrate`, or every device forgets its Reports filters once.
-			version: 1,
-			// Version 0 was never released and saved the Store as storeId.
-			migrate: () => ({ filtersByUser: {} }),
+			version: 0,
 		},
 	),
 );
