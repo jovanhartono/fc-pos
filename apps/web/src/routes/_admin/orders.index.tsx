@@ -181,6 +181,8 @@ function OrdersPage() {
 				meta: {
 					mobileCard: {
 						slot: "title",
+						// A cashier taps anywhere on the phone card to open the Order.
+						className: "[&_a]:after:absolute [&_a]:after:inset-0",
 					},
 				},
 				cell: ({ row }) => (
@@ -216,6 +218,7 @@ function OrdersPage() {
 				meta: {
 					mobileCard: {
 						slot: "subtitle",
+						className: "[&_a]:relative [&_a]:z-10",
 					},
 				},
 				cell: ({ row }) => (
