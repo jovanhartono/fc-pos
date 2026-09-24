@@ -50,7 +50,8 @@ const lineComplaintRelations = {
     with: {
       openedBy: { columns: userRefColumns },
       reworkLines: {
-        columns: { id: true },
+        // Status tells queue detail the original pair is back on the rack.
+        columns: { id: true, status: true },
         orderBy: { id: "asc" },
         with: {
           // The row written when the round was put on the rack; missing on
