@@ -37,7 +37,7 @@ mock.module("@/utils/s3", () => ({
 // import graph before any module body runs, so a service pulled in up there
 // would hold the shop's real database and the real storage module.
 const { db } = await import("@/db");
-const { addRework, openComplaint } = await import(
+const { addRework, listComplaints, openComplaint } = await import(
   "@/modules/complaints/complaint.service"
 );
 const { createOrder, getOrderDetailById } = await import(
@@ -55,7 +55,7 @@ const { getOrderServiceDetail } = await import(
 const { updateOrderPayment } = await import(
   "@/modules/orders/order-payment.service"
 );
-const { createOrderRefund } = await import(
+const { cancelOrder, createOrderRefund } = await import(
   "@/modules/orders/order-reversal.service"
 );
 const { transitionOrderService } = await import(
@@ -383,5 +383,100 @@ describe("a pair turned down at the counter", () => {
       addRework({ user: shop.cashier, complaintId: complaint.id })
     );
     expect(error).toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe("the original line cancelled or refunded while its rework is on the rack", () => {
+  const rackFor = () =>
+    getOrderServiceQueue(shop.cashier, { store_id: shop.store.id });
+
+  it("cancels the rework with the original on an unpaid Order", async () => {
+    const pair = await pairOnTheShelf("unpaid");
+    const { rework } = await turnDown(pair.lineId, true);
+    if (!rework) {
+      throw new Error("Complaint opened without its rework");
+    }
+
+    await cancelOrder({
+      body: {
+        items: [{ order_service_id: pair.lineId, reason: "customer_request" }],
+      },
+      orderId: pair.orderId,
+      user: shop.cashier,
+    });
+
+    const [, reworkLine] = await readLines(pair.orderId);
+    expect(reworkLine).toMatchObject({
+      cancel_note: "Original line cancelled",
+      cancel_reason: "other",
+      status: "cancelled",
+    });
+    const logs = await testDb.query.orderServiceStatusLogsTable.findMany({
+      where: { order_service_id: rework.id, to_status: "cancelled" },
+    });
+    expect(logs).toMatchObject([
+      {
+        changed_by: shop.cashier.id,
+        from_status: "queued",
+        note: "Original line cancelled",
+      },
+    ]);
+    expect((await rackFor()).items).toEqual([]);
+    const detail = await getOrderDetailById(pair.orderId);
+    expect(detail?.status).toBe("cancelled");
+    expect(detail?.items[0].is_collectable).toBe(false);
+  });
+
+  it("cancels the rework when the original is refunded on a paid Order, and the pair can go home", async () => {
+    const pair = await pairOnTheShelf("paid");
+    const { complaint, rework } = await turnDown(pair.lineId, true);
+    if (!rework) {
+      throw new Error("Complaint opened without its rework");
+    }
+    await photographReturnedPair(pair.itemId, complaint.created_at);
+    await transitionOrderService(db, {
+      by: shop.cashier.id,
+      orderId: pair.orderId,
+      serviceId: rework.id,
+      to: "processing",
+    });
+
+    await createOrderRefund({
+      body: { items: [{ order_service_id: pair.lineId, reason: "damaged" }] },
+      orderId: pair.orderId,
+      user: shop.admin,
+    });
+
+    const lines = await readLines(pair.orderId);
+    expect(lines.map((line) => [line.status, line.cancel_note])).toEqual([
+      ["refunded", null],
+      ["cancelled", "Original line refunded"],
+    ]);
+    expect((await rackFor()).items).toEqual([]);
+    const detail = await getOrderDetailById(pair.orderId);
+    expect(detail?.items[0].is_collectable).toBe(true);
+  });
+});
+
+describe("the complaint's outcome", () => {
+  it("does not read Reworked when its only rework was cancelled", async () => {
+    const pair = await pairOnTheShelf("unpaid");
+    const { rework } = await turnDown(pair.lineId, true);
+    if (!rework) {
+      throw new Error("Complaint opened without its rework");
+    }
+
+    await cancelOrder({
+      body: {
+        items: [{ order_service_id: rework.id, reason: "customer_request" }],
+      },
+      orderId: pair.orderId,
+      user: shop.cashier,
+    });
+
+    const { items } = await listComplaints(shop.admin);
+    expect(items.map((row) => [row.subject_status, row.rework_count])).toEqual([
+      ["ready_for_pickup", 0],
+    ]);
   });
 });

@@ -148,10 +148,9 @@ export async function findComplaints(
         reason: complaintsTable.reason,
         created_at: complaintsTable.created_at,
         // Outcome is derived from the lines (ADR-0013 amendment): the subject
-        // line's status (refunded or cancelled?) plus whether any rework line
-        // points back.
+        // line's status plus its reworks. A cancelled round re-cleaned nothing.
         subject_status: ordersServicesTable.status,
-        rework_count: sql<number>`(SELECT count(*)::int FROM orders_services rw WHERE rw.complaint_id = ${complaintsTable.id})`,
+        rework_count: sql<number>`(SELECT count(*)::int FROM orders_services rw WHERE rw.complaint_id = ${complaintsTable.id} AND rw.status <> 'cancelled')`,
         order_id: ordersTable.id,
         order_code: ordersTable.code,
         store_id: ordersTable.store_id,

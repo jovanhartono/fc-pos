@@ -2,6 +2,7 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { DbExecutor } from "@/db";
 import {
   type cancelReasonEnum,
+  complaintsTable,
   type orderServiceStatusEnum,
   orderServiceStatusLogsTable,
   ordersServicesTable,
@@ -459,6 +460,53 @@ export async function transitionOrderService(
   return moved;
 }
 
+// A free Rework must not keep running once the line it re-cleans is cancelled
+// or refunded (ADR-0013, 2026-09-24). Its 0 moves no money, so it is cancelled
+// even on a paid Order, the one line refund-only does not cover.
+async function cancelLiveReworks(
+  executor: DbExecutor,
+  { by, note, originalIds }: { by: number; note: string; originalIds: number[] }
+) {
+  const reworks = await executor
+    .select({ id: ordersServicesTable.id, status: ordersServicesTable.status })
+    .from(ordersServicesTable)
+    .innerJoin(
+      complaintsTable,
+      eq(ordersServicesTable.complaint_id, complaintsTable.id)
+    )
+    .where(
+      and(
+        inArray(complaintsTable.order_service_id, originalIds),
+        inArray(ordersServicesTable.status, [...WORKSHOP_SERVICE_STATUSES])
+      )
+    )
+    .for("update", { of: ordersServicesTable });
+
+  if (reworks.length === 0) {
+    return;
+  }
+
+  await executor
+    .update(ordersServicesTable)
+    .set({ status: "cancelled", cancel_reason: "other", cancel_note: note })
+    .where(
+      inArray(
+        ordersServicesTable.id,
+        reworks.map((rework) => rework.id)
+      )
+    );
+
+  await executor.insert(orderServiceStatusLogsTable).values(
+    reworks.map((rework) => ({
+      order_service_id: rework.id,
+      from_status: rework.status,
+      to_status: "cancelled" as const,
+      changed_by: by,
+      note,
+    }))
+  );
+}
+
 export interface CancelOrderServiceLine {
   note?: string;
   reason: CancelReason;
@@ -488,6 +536,12 @@ export async function cancelOrderServices(
       to: "cancelled",
     });
   }
+
+  await cancelLiveReworks(executor, {
+    by,
+    note: "Original line cancelled",
+    originalIds: lines.map((line) => line.serviceId),
+  });
 
   await recomputeOrderRollup(executor, orderId, by);
 }
@@ -687,6 +741,12 @@ export async function applyRefundTransition(
       note: item.note,
     }))
   );
+
+  await cancelLiveReworks(executor, {
+    by,
+    note: "Original line refunded",
+    originalIds: serviceIds,
+  });
 
   await recomputeOrderRollup(executor, orderId, by);
 }
