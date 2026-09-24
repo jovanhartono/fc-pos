@@ -140,7 +140,11 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 			);
 		case "aging-queue":
 			return queryClient.ensureQueryData(
-				reportsQueries.agingQueue({ store_id: search.store_id, limit: 50 }),
+				reportsQueries.agingQueue({
+					store_id: search.store_id,
+					limit: 50,
+					offset: 0,
+				}),
 			);
 		default:
 			return Promise.resolve();
@@ -311,7 +315,8 @@ function ReportsPage() {
 					/>
 				)}
 				{currentTab === "aging-queue" && (
-					<AgingQueuePanel storeId={search.store_id} />
+					// A new Store starts again on its first page.
+					<AgingQueuePanel key={search.store_id} storeId={search.store_id} />
 				)}
 			</Suspense>
 		</ReportsChrome>

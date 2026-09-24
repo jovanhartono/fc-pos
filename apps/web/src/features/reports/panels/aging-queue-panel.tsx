@@ -120,7 +120,14 @@ export const AgingQueuePanel = ({ storeId }: AgingQueuePanelProps) => {
 				</p>
 			</div>
 			<div className="lg:border lg:border-border">
-				<DataTable columns={columns} data={items} />
+				<DataTable
+					columns={columns}
+					data={items}
+					getCardLink={(item) => ({
+						to: "/orders/$orderId",
+						params: { orderId: String(item.order_id) },
+					})}
+				/>
 			</div>
 			<div className="flex items-center justify-between gap-3">
 				<p className="text-xs text-muted-foreground">
