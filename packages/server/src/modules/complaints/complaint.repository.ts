@@ -53,12 +53,19 @@ export function findComplaintSubjectService(serviceId: number) {
   });
 }
 
-// A ready pair can be picked up, cancelled or refunded at another till while a
-// complaint is being opened on it.
+// Another till may pick up, cancel or refund this pair meanwhile. A refund holds
+// the Order before the line, so we do too or the two deadlock; only a key share,
+// because a cancel holds the line before it updates the Order.
 export async function lockOrderServiceState(
   executor: DbExecutor,
-  serviceId: number
+  { orderId, serviceId }: { orderId: number; serviceId: number }
 ) {
+  await executor
+    .select({ id: ordersTable.id })
+    .from(ordersTable)
+    .where(eq(ordersTable.id, orderId))
+    .for("key share");
+
   const [locked] = await executor
     .select({
       complaint_id: ordersServicesTable.complaint_id,

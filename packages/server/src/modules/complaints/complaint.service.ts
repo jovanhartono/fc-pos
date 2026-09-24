@@ -85,10 +85,13 @@ async function createReworkLine(
 
 async function lockComplainableLine(
   tx: DbExecutor,
-  serviceId: number,
+  subject: SubjectService,
   refusal: string
 ) {
-  const line = await lockOrderServiceState(tx, serviceId);
+  const line = await lockOrderServiceState(tx, {
+    orderId: subject.order_id,
+    serviceId: subject.id,
+  });
   if (!(line && isComplainableStatus(line.status))) {
     throw new BadRequestException(refusal);
   }
@@ -128,7 +131,7 @@ export async function openComplaint({
   return db.transaction(async (tx) => {
     const line = await lockComplainableLine(
       tx,
-      subject.id,
+      subject,
       "Complaints can only be opened on items that are ready or picked up"
     );
 
@@ -175,7 +178,7 @@ export async function addRework({
     // original line is refunded or otherwise off the shelf.
     await lockComplainableLine(
       tx,
-      subject.id,
+      subject,
       "Cannot add a rework once the original line is no longer ready or picked up"
     );
 
