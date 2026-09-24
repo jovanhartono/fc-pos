@@ -126,6 +126,7 @@ export const OrderServiceDetail = ({
 
 			<ServicePriceSection
 				isOrderPaid={isOrderPaid}
+				isRework={Boolean(service.reworkOf)}
 				orderId={orderId}
 				price={service.price}
 				serviceId={service.id}
@@ -173,17 +174,20 @@ interface ServicePriceSectionProps {
 	price: string | null;
 	status: string;
 	isOrderPaid: boolean;
+	isRework: boolean;
 }
 
 // The line's one price (ADR-0018): blank until agreed with the customer, open
 // to correction by any staff while the order is unpaid, frozen once paid. A
-// cancelled line shows nothing — nobody owes its number anymore.
+// Rework's 0 is fixed. A cancelled line shows nothing — nobody owes its number
+// anymore.
 const ServicePriceSection = ({
 	orderId,
 	serviceId,
 	price,
 	status,
 	isOrderPaid,
+	isRework,
 }: ServicePriceSectionProps) => {
 	const [isCorrecting, setIsCorrecting] = useState(false);
 
@@ -200,7 +204,7 @@ const ServicePriceSection = ({
 						{price === null ? "Not set" : formatMoney(price)}
 					</p>
 				</div>
-				{price !== null && !(isOrderPaid || isCorrecting) ? (
+				{price !== null && !(isOrderPaid || isRework || isCorrecting) ? (
 					<Button
 						onClick={() => setIsCorrecting(true)}
 						size="sm"

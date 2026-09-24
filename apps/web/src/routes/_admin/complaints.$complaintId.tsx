@@ -56,8 +56,10 @@ const ComplaintDetailPage = () => {
 
 	const subject = detail.orderService;
 	const order = detail.orderService.order;
-	// Refund is the terminal rung (ADR-0013) — rework only while picked_up.
-	const canRework = subject.status === "picked_up";
+	// Refund is the terminal rung (ADR-0013) — rework only while the original
+	// pair is still waiting at the counter or already went home.
+	const canRework =
+		subject.status === "ready_for_pickup" || subject.status === "picked_up";
 	const outcome = getComplaintOutcome({
 		refunded: subject.status === "refunded",
 		reworkCount: detail.reworkLines.length,

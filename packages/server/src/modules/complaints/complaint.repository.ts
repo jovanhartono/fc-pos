@@ -3,6 +3,7 @@ import { db } from "@/db";
 import {
   complaintsTable,
   customersTable,
+  orderServiceStatusLogsTable,
   ordersServicesTable,
   ordersTable,
   servicesTable,
@@ -15,6 +16,7 @@ import type { DbExecutor } from "@/modules/orders/order-status-machine";
 
 type ComplaintInsert = typeof complaintsTable.$inferInsert;
 type ReworkLineInsert = typeof ordersServicesTable.$inferInsert;
+type StatusLogInsert = typeof orderServiceStatusLogsTable.$inferInsert;
 
 export async function insertComplaint(
   executor: DbExecutor,
@@ -57,6 +59,13 @@ export async function insertReworkLine(
     .values(values)
     .returning();
   return created;
+}
+
+export async function insertOrderServiceStatusLog(
+  executor: DbExecutor,
+  values: StatusLogInsert
+) {
+  await executor.insert(orderServiceStatusLogsTable).values(values);
 }
 
 export function findComplaintDetailById(id: number) {
