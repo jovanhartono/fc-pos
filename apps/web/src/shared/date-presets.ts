@@ -6,16 +6,19 @@ export function jakartaToday(): string {
 	return dayjs().tz(JAKARTA_TZ).format(WIRE_FORMAT);
 }
 
-export type DatePreset =
-	| "today"
-	| "yesterday"
-	| "thisWeek"
-	| "lastWeek"
-	| "thisMonth"
-	| "lastMonth"
-	| "7d"
-	| "30d"
-	| "90d";
+export const DATE_PRESETS = [
+	"today",
+	"yesterday",
+	"thisWeek",
+	"lastWeek",
+	"thisMonth",
+	"lastMonth",
+	"7d",
+	"30d",
+	"90d",
+] as const;
+
+export type DatePreset = (typeof DATE_PRESETS)[number];
 
 export interface RangePreset {
 	id: DatePreset;
@@ -90,10 +93,14 @@ export function getPresets(): RangePreset[] {
 	];
 }
 
+// Two presets can share dates (This month and Today on the 1st), so the one
+// the user tapped names the range when it still fits.
 export function matchPreset(
 	presets: RangePreset[],
 	from: string,
 	to: string,
+	tapped?: DatePreset,
 ): RangePreset | undefined {
-	return presets.find((p) => p.from === from && p.to === to);
+	const matches = presets.filter((p) => p.from === from && p.to === to);
+	return matches.find((p) => p.id === tapped) ?? matches[0];
 }

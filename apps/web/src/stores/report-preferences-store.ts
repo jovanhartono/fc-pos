@@ -1,10 +1,10 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { SavedReportFilters } from "@/features/reports/utils/report-filters";
+import type { ReportFilterValues } from "@/features/reports/utils/report-filters";
 
 interface ReportPreferencesStore {
-	filtersByUser: Record<string, SavedReportFilters | undefined>;
-	setFilters: (userKey: string, filters: SavedReportFilters) => void;
+	filtersByUser: Record<string, ReportFilterValues | undefined>;
+	setFilters: (userKey: string, filters: ReportFilterValues) => void;
 }
 
 // The range, Store and granularity an admin last read Reports with. They live
@@ -20,9 +20,11 @@ export const useReportPreferencesStore = create<ReportPreferencesStore>()(
 		}),
 		{
 			name: "report-preferences",
-			// Change SavedReportFilters' shape and you must bump this and add
+			// Change ReportFilterValues' shape and you must bump this and add
 			// `migrate`, or every device forgets its Reports filters once.
-			version: 0,
+			version: 1,
+			// Version 0 was never released and saved the Store as storeId.
+			migrate: () => ({ filtersByUser: {} }),
 		},
 	),
 );

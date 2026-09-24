@@ -1,6 +1,10 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { lazy, type PropsWithChildren, Suspense, useEffect } from "react";
+import {
+	createFileRoute,
+	type SearchSchemaInput,
+	useNavigate,
+} from "@tanstack/react-router";
+import { lazy, type PropsWithChildren, Suspense } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
@@ -11,11 +15,13 @@ import {
 } from "@/features/reports/components/report-shell";
 import {
 	defaultRange,
-	toSavedReportFilters,
+	type ReportFilterValues,
+	toReportFilters,
+	withPresetRange,
 	withSavedReportFilters,
 } from "@/features/reports/utils/report-filters";
 import { storesQueries } from "@/features/stores/api";
-import { jakartaToday } from "@/shared/date-presets";
+import { DATE_PRESETS, jakartaToday } from "@/shared/date-presets";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useReportPreferencesStore } from "@/stores/report-preferences-store";
 
@@ -80,6 +86,7 @@ const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 const reportsSearchSchema = z
 	.object({
 		tab: tabSchema.catch(() => "overview" as const),
+		preset: z.enum(DATE_PRESETS).optional().catch(undefined),
 		from: z
 			.string()
 			.regex(dateRegex)
@@ -92,10 +99,11 @@ const reportsSearchSchema = z
 		granularity: granularitySchema.catch(() => undefined),
 	})
 	.transform((value) => {
-		if (value.from > value.to) {
-			return { ...value, from: value.to };
+		const range = withPresetRange(value);
+		if (range.from > range.to) {
+			return { ...range, from: range.to };
 		}
-		return value;
+		return range;
 	});
 
 type ReportsSearch = z.infer<typeof reportsSearchSchema>;
@@ -170,12 +178,21 @@ const descriptions: Record<Tab, string> = {
 	"aging-queue": "Items still in queue, oldest first",
 };
 
+const NO_FILTERS: ReportFilterValues = {
+	preset: undefined,
+	from: undefined,
+	to: undefined,
+	store_id: undefined,
+	granularity: undefined,
+};
+
 // Shared with the pending state at the bottom of this file. Switching tabs
 // re-runs the loader, and a manager on shop wifi was getting the whole page
 // swapped for grey blocks — including the tab strip they had just tapped.
 const ReportsChrome = ({ children }: PropsWithChildren) => {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
+	const setFilters = useReportPreferencesStore((state) => state.setFilters);
 
 	const currentTab = search.tab as Tab;
 
@@ -183,6 +200,17 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 		currentTab !== "overview" && currentTab !== "aging-queue";
 	const showGranularity =
 		currentTab !== "overview" && currentTab !== "aging-queue";
+
+	// Saved only here, when the admin changes a filter, so opening an old link
+	// or reloading never overwrites what they chose.
+	const applyFilters = (change: ReportFilterValues) => {
+		const filters = toReportFilters({ ...search, ...change });
+		const currentUser = getCurrentUser();
+		if (currentUser) {
+			setFilters(String(currentUser.id), filters);
+		}
+		void navigate({ search: (prev) => ({ tab: prev.tab, ...filters }) });
+	};
 
 	return (
 		<>
@@ -193,29 +221,19 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 					<ReportFilters
 						from={search.from}
 						to={search.to}
-						onRangeChange={(range) => {
-							void navigate({
-								search: (prev) => ({
-									...prev,
-									from: range.from,
-									to: range.to,
-								}),
-							});
-						}}
+						preset={search.preset}
+						onRangeChange={applyFilters}
 						storeId={search.store_id}
-						onStoreChange={(storeId) => {
-							void navigate({
-								search: (prev) => ({ ...prev, store_id: storeId }),
-							});
-						}}
+						onStoreChange={(storeId) => applyFilters({ store_id: storeId })}
 						granularity={search.granularity}
-						onGranularityChange={(
-							granularity: ReportGranularity | undefined,
-						) => {
-							void navigate({
-								search: (prev) => ({ ...prev, granularity }),
-							});
-						}}
+						onGranularityChange={(granularity: ReportGranularity | undefined) =>
+							applyFilters({ granularity })
+						}
+						onReset={() =>
+							applyFilters(
+								showRangeFilters ? NO_FILTERS : { store_id: undefined },
+							)
+						}
 						showRangeFilters={showRangeFilters}
 						showGranularity={showGranularity}
 					/>
@@ -239,33 +257,6 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 function ReportsPage() {
 	const search = Route.useSearch();
 	const currentTab = search.tab as Tab;
-	const currentUser = getCurrentUser();
-	const currentUserKey = currentUser ? String(currentUser.id) : "";
-
-	useEffect(() => {
-		if (!currentUserKey) {
-			return;
-		}
-		const { filtersByUser, setFilters } = useReportPreferencesStore.getState();
-		setFilters(
-			currentUserKey,
-			toSavedReportFilters(
-				{
-					from: search.from,
-					to: search.to,
-					store_id: search.store_id,
-					granularity: search.granularity,
-				},
-				filtersByUser[currentUserKey],
-			),
-		);
-	}, [
-		currentUserKey,
-		search.from,
-		search.to,
-		search.store_id,
-		search.granularity,
-	]);
 
 	return (
 		<ReportsChrome>
@@ -344,9 +335,11 @@ const ReportsPending = () => (
 );
 
 export const Route = createFileRoute("/_admin/reports")({
-	// Restored here rather than in the page, so the loader fetches the saved
-	// range once instead of the default range first.
-	validateSearch: (search) => {
+	// Restored before the loader runs, so a manager coming back from the sidebar
+	// waits for their own range once instead of the 30-day default first.
+	validateSearch: (
+		search: ReportFilterValues & { tab?: Tab } & SearchSchemaInput,
+	) => {
 		const currentUser = getCurrentUser();
 		const saved = currentUser
 			? useReportPreferencesStore.getState().filtersByUser[
@@ -356,26 +349,11 @@ export const Route = createFileRoute("/_admin/reports")({
 		return reportsSearchSchema.parse(withSavedReportFilters(search, saved));
 	},
 	loaderDeps: ({ search }) => search,
-	loader: async ({ context, deps }) => {
-		// A remembered Store can be gone since (a reseed renumbers them); reading
-		// it anyway shows zeros under an "All stores" badge.
-		if (deps.store_id !== undefined) {
-			const stores = await context.queryClient.ensureQueryData(
-				storesQueries.list(),
-			);
-			if (!stores.some((store) => store.id === deps.store_id)) {
-				throw redirect({
-					to: "/reports",
-					search: { ...deps, store_id: undefined },
-					replace: true,
-				});
-			}
-		}
-		await Promise.all([
+	loader: ({ context, deps }) =>
+		Promise.all([
 			context.queryClient.ensureQueryData(storesQueries.list()),
 			prefetchForTab(context.queryClient, deps),
-		]);
-	},
+		]),
 	component: ReportsPage,
 	pendingComponent: ReportsPending,
 });

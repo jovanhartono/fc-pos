@@ -4,7 +4,6 @@ import {
 	type DatePreset,
 	getPresets,
 	jakartaToday,
-	matchPreset,
 } from "@/shared/date-presets";
 
 export function defaultRange(): { from: string; to: string } {
@@ -15,56 +14,50 @@ export function defaultRange(): { from: string; to: string } {
 	};
 }
 
-interface ReportFilterValues {
-	from: string;
-	to: string;
+export interface ReportFilterValues {
+	preset?: DatePreset;
+	from?: string;
+	to?: string;
 	store_id?: number;
 	granularity?: ReportGranularity;
 }
 
-export interface SavedReportFilters {
-	preset?: DatePreset;
-	from?: string;
-	to?: string;
-	storeId?: number;
-	granularity?: ReportGranularity;
+// A tapped preset is kept by name, not by its dates, so a manager who reads
+// "Last 7 days" every morning still gets the last 7 days tomorrow.
+export function toReportFilters({
+	preset,
+	from,
+	to,
+	store_id,
+	granularity,
+}: ReportFilterValues): ReportFilterValues {
+	const range = preset ? { preset } : { from, to };
+	return { ...range, store_id, granularity };
 }
 
-// Saved as the preset, not its dates, so a manager who reads "This month" every
-// morning still gets this month once the calendar turns. On the 1st it shares
-// Today's dates, so the preset already saved wins, then the default Last 30 days.
-export function toSavedReportFilters(
-	{ from, to, store_id, granularity }: ReportFilterValues,
-	saved: SavedReportFilters | undefined,
-): SavedReportFilters {
-	const presets = getPresets();
-	const preset =
-		presets.find(
-			(candidate) =>
-				(candidate.id === saved?.preset || candidate.id === "30d") &&
-				candidate.from === from &&
-				candidate.to === to,
-		) ?? matchPreset(presets, from, to);
-	const range = preset ? { preset: preset.id } : { from, to };
-	return { ...range, storeId: store_id, granularity };
+export function withPresetRange<
+	T extends { preset?: DatePreset; from: string; to: string },
+>(search: T): T {
+	const preset = getPresets().find(({ id }) => id === search.preset);
+	return preset ? { ...search, from: preset.from, to: preset.to } : search;
 }
 
-// Every in-app move keeps the range in the URL, so a URL without one is an
-// arrival from the sidebar or a bare link: fill the gaps from what was saved.
-export function withSavedReportFilters(
-	search: Record<string, unknown>,
-	saved: SavedReportFilters | undefined,
-): Record<string, unknown> {
-	if (!saved || search.from !== undefined || search.to !== undefined) {
+const FILTER_KEYS: (keyof ReportFilterValues)[] = [
+	"preset",
+	"from",
+	"to",
+	"store_id",
+	"granularity",
+];
+
+// Every in-app move keeps the filters in the URL, so a URL without any is an
+// arrival from the sidebar or a bare link: show what this admin last read.
+export function withSavedReportFilters<T extends ReportFilterValues>(
+	search: T,
+	saved: ReportFilterValues | undefined,
+): T {
+	if (!saved || FILTER_KEYS.some((key) => search[key] !== undefined)) {
 		return search;
 	}
-
-	const preset = getPresets().find(({ id }) => id === saved.preset);
-	return {
-		from: preset?.from ?? saved.from,
-		to: preset?.to ?? saved.to,
-		store_id: saved.storeId,
-		granularity: saved.granularity,
-		...search,
-	};
+	return { ...search, ...saved };
 }
