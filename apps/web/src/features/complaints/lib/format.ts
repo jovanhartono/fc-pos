@@ -2,7 +2,7 @@ import type { BadgeVariant } from "@/lib/status";
 
 // The Complaint carries no stored status (ADR-0013 amendment) — its outcome is
 // derived from the lines: refunded or cancelled if the original line was,
-// reworked if any rework line points back, else pending.
+// reworked if a rework that was not cancelled points back, else pending.
 interface ComplaintOutcomeInput {
 	subjectStatus: string;
 	reworkCount: number;
@@ -20,8 +20,7 @@ export const getComplaintOutcome = ({
 	if (subjectStatus === "refunded") {
 		return { label: "Refunded", variant: "danger" };
 	}
-	// A pair turned down at the counter on an unpaid Order, and the cashier
-	// cancelled the line instead of reworking it.
+	// Turned down at the counter on an unpaid Order and cancelled, not reworked.
 	if (subjectStatus === "cancelled") {
 		return { label: "Cancelled", variant: "danger" };
 	}
