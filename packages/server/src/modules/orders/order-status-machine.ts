@@ -460,9 +460,9 @@ export async function transitionOrderService(
   return moved;
 }
 
-// A free Rework must not keep running once the line it re-cleans is cancelled
-// or refunded (ADR-0013, 2026-09-24). Its 0 moves no money, so it is cancelled
-// even on a paid Order, the one line refund-only does not cover.
+// A free Rework must not keep running once the pair it re-cleans is cancelled
+// or refunded at the counter (ADR-0013, 2026-09-24). Its 0 moves no money, so
+// it is cancelled even on a paid Order, the one line refund-only does not cover.
 async function cancelLiveReworks(
   executor: DbExecutor,
   { by, note, originalIds }: { by: number; note: string; originalIds: number[] }
@@ -756,10 +756,14 @@ export async function applyRefundTransition(
     }))
   );
 
+  // A pair the customer took home and brought back keeps its Rework running:
+  // that round is how the pair goes home again.
   await cancelLiveReworks(executor, {
     by,
     note: "Original line refunded",
-    originalIds: serviceIds,
+    originalIds: services
+      .filter((service) => service.status !== "picked_up")
+      .map((service) => service.id),
   });
 
   await recomputeOrderRollup(executor, orderId, by);

@@ -456,6 +456,54 @@ describe("the original line cancelled or refunded while its rework is on the rac
     const detail = await getOrderDetailById(pair.orderId);
     expect(detail?.items[0].is_collectable).toBe(true);
   });
+
+  it("keeps the rework of a pair brought back after pickup running through a refund, and it goes home once", async () => {
+    const pair = await pairOnTheShelf("paid");
+    await handOver(pair);
+    const { complaint, rework } = await turnDown(pair.lineId, true);
+    if (!rework) {
+      throw new Error("Complaint opened without its rework");
+    }
+    await photographReturnedPair(pair.itemId, complaint.created_at);
+    await transitionOrderService(db, {
+      by: shop.cashier.id,
+      orderId: pair.orderId,
+      serviceId: rework.id,
+      to: "processing",
+    });
+
+    await createOrderRefund({
+      body: { items: [{ order_service_id: pair.lineId, reason: "damaged" }] },
+      orderId: pair.orderId,
+      user: shop.admin,
+    });
+
+    const [, reworkLine] = await readLines(pair.orderId);
+    expect(reworkLine.status).toBe("processing");
+
+    for (const to of ["quality_check", "ready_for_pickup"] as const) {
+      await transitionOrderService(db, {
+        by: shop.cashier.id,
+        orderId: pair.orderId,
+        serviceId: rework.id,
+        to,
+      });
+    }
+    const ready = await getOrderDetailById(pair.orderId);
+    expect(ready?.items[0].is_collectable).toBe(true);
+
+    const event = await handOver(pair);
+
+    const lines = await readLines(pair.orderId);
+    expect(
+      lines.map((line) => [line.status, line.pickup_event_id === event.id])
+    ).toEqual([
+      ["refunded", false],
+      ["picked_up", true],
+    ]);
+    const home = await getOrderDetailById(pair.orderId);
+    expect(home?.items[0].is_collectable).toBe(false);
+  });
 });
 
 describe("the complaint's outcome", () => {
