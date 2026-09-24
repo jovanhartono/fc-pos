@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { lazy, type PropsWithChildren, Suspense } from "react";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { lazy, type PropsWithChildren, Suspense, useEffect } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
@@ -9,9 +9,15 @@ import {
 	ReportShell,
 	type ReportTab,
 } from "@/features/reports/components/report-shell";
-import { defaultRange } from "@/features/reports/utils/report-filters";
+import {
+	defaultRange,
+	toSavedReportFilters,
+	withSavedReportFilters,
+} from "@/features/reports/utils/report-filters";
 import { storesQueries } from "@/features/stores/api";
 import { jakartaToday } from "@/shared/date-presets";
+import { getCurrentUser } from "@/stores/auth-store";
+import { useReportPreferencesStore } from "@/stores/report-preferences-store";
 
 const OverviewPanel = lazy(
 	() => import("@/features/reports/panels/overview-panel"),
@@ -233,6 +239,33 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 function ReportsPage() {
 	const search = Route.useSearch();
 	const currentTab = search.tab as Tab;
+	const currentUser = getCurrentUser();
+	const currentUserKey = currentUser ? String(currentUser.id) : "";
+	const setSavedFilters = useReportPreferencesStore(
+		(state) => state.setFilters,
+	);
+
+	useEffect(() => {
+		if (!currentUserKey) {
+			return;
+		}
+		setSavedFilters(
+			currentUserKey,
+			toSavedReportFilters({
+				from: search.from,
+				to: search.to,
+				store_id: search.store_id,
+				granularity: search.granularity,
+			}),
+		);
+	}, [
+		currentUserKey,
+		search.from,
+		search.to,
+		search.store_id,
+		search.granularity,
+		setSavedFilters,
+	]);
 
 	return (
 		<ReportsChrome>
@@ -311,13 +344,38 @@ const ReportsPending = () => (
 );
 
 export const Route = createFileRoute("/_admin/reports")({
-	validateSearch: (search) => reportsSearchSchema.parse(search),
+	// Restored here rather than in the page, so the loader fetches the saved
+	// range once instead of the default range first.
+	validateSearch: (search) => {
+		const currentUser = getCurrentUser();
+		const saved = currentUser
+			? useReportPreferencesStore.getState().filtersByUser[
+					String(currentUser.id)
+				]
+			: undefined;
+		return reportsSearchSchema.parse(withSavedReportFilters(search, saved));
+	},
 	loaderDeps: ({ search }) => search,
-	loader: ({ context, deps }) =>
-		Promise.all([
+	loader: async ({ context, deps }) => {
+		// A remembered Store can be gone since (a reseed renumbers them); reading
+		// it anyway shows zeros under an "All stores" badge.
+		if (deps.store_id !== undefined) {
+			const stores = await context.queryClient.ensureQueryData(
+				storesQueries.list(),
+			);
+			if (!stores.some((store) => store.id === deps.store_id)) {
+				throw redirect({
+					to: "/reports",
+					search: { ...deps, store_id: undefined },
+					replace: true,
+				});
+			}
+		}
+		await Promise.all([
 			context.queryClient.ensureQueryData(storesQueries.list()),
 			prefetchForTab(context.queryClient, deps),
-		]),
+		]);
+	},
 	component: ReportsPage,
 	pendingComponent: ReportsPending,
 });
