@@ -1,6 +1,10 @@
 import "@/test-support/pglite";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { itemImagesTable } from "@/db/schema";
+import {
+  campaignEligibleServicesTable,
+  campaignsTable,
+  itemImagesTable,
+} from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
@@ -291,6 +295,58 @@ describe("a pair turned down at the counter", () => {
       where: { id: pair.orderId },
     });
     expect(order?.total).toBe("100000");
+  });
+
+  it("keeps a second-pair-free promo whole when one pair is back for a rework", async () => {
+    // Two pairs on one ticket, one turned down at the counter. The free
+    // re-clean is not a pair the customer bought, so it must not take the
+    // promo's free slot and leave them paying for both.
+    const order = await createOrder(shop.admin.id, shop.store, {
+      campaign_ids: [],
+      customer: { name: "Budi Santoso", phone_number: "+628111222333" },
+      discount: 0,
+      items: [
+        { services: [{ id: shop.serviceId }] },
+        { services: [{ id: shop.serviceId }] },
+      ],
+      payment_method_id: shop.paymentMethodId,
+      payment_status: "unpaid",
+      store_id: shop.store.id,
+      voucher_codes: [],
+    });
+    const [line] = await readLines(order.id);
+    await addItemPhoto(line.item_id, shop.cashier.id);
+    await walkToShelf(order.id, line.id);
+    await turnDown(line.id, true);
+
+    const [campaign] = await testDb
+      .insert(campaignsTable)
+      .values({
+        buy_quantity: 1,
+        code: "PAIR2FREE",
+        created_by: shop.admin.id,
+        discount_type: "buy_n_get_m_free",
+        free_quantity: 1,
+        name: "Second pair free",
+        updated_by: shop.admin.id,
+      })
+      .returning();
+    await testDb
+      .insert(campaignEligibleServicesTable)
+      .values({ campaign_id: campaign.id, service_id: shop.serviceId });
+
+    const paid = await updateOrderPayment({
+      body: {
+        campaign_ids: [campaign.id],
+        discount: 0,
+        payment_method_id: shop.paymentMethodId,
+        voucher_codes: [],
+      },
+      orderId: order.id,
+      user: shop.cashier,
+    });
+
+    expect(paid?.paid_amount).toBe("100000");
   });
 
   it("refuses the pickup of an unpaid Order even once the rework is done", async () => {

@@ -92,12 +92,14 @@ export function assertDiscountRequestAllowed({
 // BOGO stays exclusive (ADR-0018): a no-list-price line (Repair) is never
 // selectable as a buy-one-get-one free slot — a misconfigured Campaign must not
 // hand out a repair as a free item. It keys on the catalog having no list
-// price, not on the line's own number.
+// price, not on the line's own number. A Rework's 0 is not a pair the customer
+// bought, so it would otherwise take the free slot from one they did.
 function bogoSlots(lines: SettlementLine[]) {
   return lines.flatMap((line) =>
     line.status === "cancelled" ||
     line.service_id === null ||
-    line.service?.price == null
+    line.service?.price == null ||
+    Number(line.price) === 0
       ? []
       : [{ price: Number(line.price), service_id: line.service_id }]
   );
