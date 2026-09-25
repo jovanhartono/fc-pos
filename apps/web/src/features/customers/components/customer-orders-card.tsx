@@ -63,6 +63,7 @@ export const CustomerOrdersCard = ({
 			{
 				accessorKey: "code",
 				header: "Code",
+				meta: { mobileCard: { slot: "title" } },
 				cell: ({ row }) => (
 					<Link
 						to="/orders/$orderId"
@@ -76,6 +77,7 @@ export const CustomerOrdersCard = ({
 			{
 				id: "date",
 				header: "Date",
+				meta: { mobileCard: { slot: "eyebrow" } },
 				cell: ({ row }) => (
 					<span className="font-mono text-xs tabular-nums">
 						{dayjs(row.original.created_at).format("DD MMM YYYY")}
@@ -99,6 +101,7 @@ export const CustomerOrdersCard = ({
 			{
 				id: "status",
 				header: "Status",
+				meta: { mobileCard: { slot: "badges" } },
 				cell: ({ row }) => (
 					<Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
 						{formatOrderStatus(row.original.status)}
@@ -108,6 +111,7 @@ export const CustomerOrdersCard = ({
 			{
 				id: "paid",
 				header: () => <span className="block text-right">Paid</span>,
+				meta: { mobileCard: { slot: "footer" } },
 				cell: ({ row }) => <OrderAmountCell order={row.original} />,
 			},
 		],
@@ -124,6 +128,10 @@ export const CustomerOrdersCard = ({
 					columns={columns}
 					data={orders}
 					isLoading={ordersQuery.isPending}
+					getCardLink={(order) => ({
+						to: "/orders/$orderId",
+						params: { orderId: String(order.id) },
+					})}
 				/>
 				<TablePagination
 					meta={ordersQuery.data?.meta}

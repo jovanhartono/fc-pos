@@ -1,17 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { DataTable } from "@/components/data-table";
+import type { DataTableColumnDef } from "@/components/data-table-features";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
-import { reportsQueries } from "@/features/reports/api";
+import { type AgingQueueItem, reportsQueries } from "@/features/reports/api";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
@@ -23,6 +17,68 @@ interface AgingQueuePanelProps {
 }
 
 const PAGE_SIZE = 50;
+
+const columns: DataTableColumnDef<AgingQueueItem>[] = [
+	{
+		id: "item_code",
+		header: "Item code",
+		meta: { mobileCard: { slot: "title" } },
+		cell: ({ row }) => (
+			<Link
+				to="/orders/$orderId"
+				params={{ orderId: String(row.original.order_id) }}
+				className="font-mono underline-offset-4 hover:underline"
+			>
+				{row.original.item_code ?? `#${row.original.id}`}
+			</Link>
+		),
+	},
+	{
+		accessorKey: "service_name",
+		header: "Service",
+		meta: { mobileCard: { slot: "subtitle" } },
+	},
+	{
+		id: "store",
+		header: "Store",
+		meta: { mobileCard: { slot: "eyebrow" } },
+		cell: ({ row }) => (
+			<span className="font-mono text-xs">
+				{row.original.store_code} · {row.original.store_name}
+			</span>
+		),
+	},
+	{
+		accessorKey: "days_waiting",
+		header: "Days waiting",
+		meta: { headerClassName: "text-right", cellClassName: "text-right" },
+		cell: ({ row }) => (
+			<span
+				className={cn(
+					"font-mono tabular-nums",
+					row.original.days_waiting >= 14 && "text-destructive",
+				)}
+			>
+				{row.original.days_waiting}
+			</span>
+		),
+	},
+	{
+		id: "status",
+		header: "Status",
+		meta: { mobileCard: { slot: "badges" } },
+		cell: ({ row }) => (
+			<Badge variant={getOrderServiceStatusBadgeVariant(row.original.status)}>
+				{formatOrderServiceStatus(row.original.status)}
+			</Badge>
+		),
+	},
+	{
+		id: "handler",
+		header: "Handler",
+		cell: ({ row }) => row.original.handler_name ?? "Unassigned",
+	},
+];
 
 export const AgingQueuePanel = ({ storeId }: AgingQueuePanelProps) => {
 	const [offset, setOffset] = useState(0);
@@ -63,54 +119,15 @@ export const AgingQueuePanel = ({ storeId }: AgingQueuePanelProps) => {
 					{total} item{total === 1 ? "" : "s"} not yet picked up — oldest first.
 				</p>
 			</div>
-			<div className="overflow-x-auto border border-border">
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Item code</TableHead>
-							<TableHead>Service</TableHead>
-							<TableHead>Store</TableHead>
-							<TableHead className="text-right">Days waiting</TableHead>
-							<TableHead>Status</TableHead>
-							<TableHead>Handler</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{items.map((row) => (
-							<TableRow key={row.id}>
-								<TableCell className="font-mono">
-									<Link
-										to="/orders/$orderId"
-										params={{ orderId: String(row.order_id) }}
-										className="underline-offset-4 hover:underline"
-									>
-										{row.item_code ?? `#${row.id}`}
-									</Link>
-								</TableCell>
-								<TableCell>{row.service_name}</TableCell>
-								<TableCell className="font-mono text-xs">
-									{row.store_code} · {row.store_name}
-								</TableCell>
-								<TableCell
-									className={cn(
-										"text-right font-mono tabular-nums",
-										row.days_waiting >= 14 && "text-destructive",
-									)}
-								>
-									{row.days_waiting}
-								</TableCell>
-								<TableCell>
-									<Badge
-										variant={getOrderServiceStatusBadgeVariant(row.status)}
-									>
-										{formatOrderServiceStatus(row.status)}
-									</Badge>
-								</TableCell>
-								<TableCell>{row.handler_name ?? "Unassigned"}</TableCell>
-							</TableRow>
-						))}
-					</TableBody>
-				</Table>
+			<div className="lg:border lg:border-border">
+				<DataTable
+					columns={columns}
+					data={items}
+					getCardLink={(item) => ({
+						to: "/orders/$orderId",
+						params: { orderId: String(item.order_id) },
+					})}
+				/>
 			</div>
 			<div className="flex items-center justify-between gap-3">
 				<p className="text-xs text-muted-foreground">

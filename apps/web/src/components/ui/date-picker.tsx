@@ -26,6 +26,7 @@ import { useIsCoarsePointer, useIsMobile } from "@/hooks/use-mobile";
 import dayjs from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
 import {
+	type DatePreset,
 	getPresets,
 	jakartaToday,
 	matchPreset,
@@ -113,7 +114,15 @@ interface DateRangePickerProps {
 	id?: string;
 	from?: string;
 	to?: string;
-	onChange: (value: { from?: string; to?: string }) => void;
+	preset?: DatePreset;
+	// The page saves the tapped preset, so dates picked on the calendar stay
+	// dates even when they match a preset.
+	isPresetKept?: boolean;
+	onChange: (value: {
+		from?: string;
+		to?: string;
+		preset?: DatePreset;
+	}) => void;
 	onClear?: () => void;
 	placeholder?: string;
 	disabled?: boolean;
@@ -321,6 +330,8 @@ export const DateRangePicker = ({
 	id,
 	from,
 	to,
+	preset,
+	isPresetKept = false,
 	onChange,
 	onClear,
 	placeholder = "Pick a date range",
@@ -355,14 +366,17 @@ export const DateRangePicker = ({
 	const showClear = Boolean(onClear) && hasValue;
 
 	const presets = useMemo(() => getPresets(), []);
-	const activePreset =
+	const matchedPreset =
 		displayRange?.from && displayRange?.to
 			? matchPreset(
 					presets,
 					dayjs(displayRange.from).format(WIRE_FORMAT),
 					dayjs(displayRange.to).format(WIRE_FORMAT),
+					preset,
 				)
 			: undefined;
+	const activePreset =
+		isPresetKept && matchedPreset?.id !== preset ? undefined : matchedPreset;
 
 	const emitRange = (range: DateRange | undefined) => {
 		onChange({
@@ -371,12 +385,12 @@ export const DateRangePicker = ({
 		});
 	};
 
-	const handlePresetSelect = (preset: RangePreset) => {
+	const handlePresetSelect = (tapped: RangePreset) => {
 		setDraftRange({
-			from: dayjs(preset.from).toDate(),
-			to: dayjs(preset.to).toDate(),
+			from: dayjs(tapped.from).toDate(),
+			to: dayjs(tapped.to).toDate(),
 		});
-		onChange({ from: preset.from, to: preset.to });
+		onChange({ from: tapped.from, to: tapped.to, preset: tapped.id });
 		setIsOpen(false);
 	};
 

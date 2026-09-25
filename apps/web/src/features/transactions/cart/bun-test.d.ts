@@ -14,7 +14,9 @@ declare module "bun:test" {
 		toBeNull(): void;
 	}
 
+	export const afterEach: (fn: () => void) => void;
 	export const describe: (name: string, fn: () => void) => void;
+	export const setSystemTime: (now?: Date) => void;
 	export const test: TestFn;
 	export const it: TestFn;
 	export const expect: (value: unknown) => Matchers & { not: Matchers };

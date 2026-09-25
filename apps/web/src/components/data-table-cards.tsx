@@ -1,3 +1,4 @@
+import { Link, type LinkProps } from "@tanstack/react-router";
 import {
 	type Cell,
 	flexRender,
@@ -15,6 +16,7 @@ interface DataTableCardsProps<TData extends RowData> {
 	emptyMessage: string;
 	cardPrimaryColumnId?: string;
 	cardHiddenColumnIds?: string[];
+	getCardLink?: (row: TData) => LinkProps;
 }
 
 interface CardCells<TData extends RowData> {
@@ -96,6 +98,7 @@ export const DataTableCards = <TData extends RowData>({
 	emptyMessage,
 	cardPrimaryColumnId,
 	cardHiddenColumnIds,
+	getCardLink,
 }: DataTableCardsProps<TData>) => {
 	if (isLoading) {
 		return (
@@ -131,6 +134,9 @@ export const DataTableCards = <TData extends RowData>({
 	const primaryColumnKey =
 		cardPrimaryColumnId ?? (titleColumn ?? leafColumns[0])?.id ?? "";
 	const hiddenIds = new Set(cardHiddenColumnIds ?? []);
+	// Links and buttons inside the card sit above the whole-card link, so the
+	// customer name on an order card still opens the Customer.
+	const raisedControls = getCardLink && "[&_a]:relative [&_button]:relative";
 
 	return (
 		<div className="grid gap-2 lg:hidden">
@@ -153,8 +159,22 @@ export const DataTableCards = <TData extends RowData>({
 						key={row.id}
 						className="group/card relative grid border border-border bg-background text-sm transition-colors hover:border-foreground/40 hover:bg-muted/20 dark:bg-muted/5"
 					>
+						{getCardLink !== undefined && (
+							<Link
+								{...getCardLink(row.original)}
+								aria-hidden
+								tabIndex={-1}
+								preload={false}
+								className="absolute inset-0"
+							/>
+						)}
 						{hasHeaderStrip ? (
-							<div className="flex items-center justify-between gap-3 border-border/70 border-b px-3 py-1.5">
+							<div
+								className={cn(
+									"flex items-center justify-between gap-3 border-border/70 border-b px-3 py-1.5",
+									raisedControls,
+								)}
+							>
 								<div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
 									{eyebrowCells.map((cell, index) => {
 										const mobileCard = cell.column.columnDef.meta?.mobileCard;
@@ -211,7 +231,7 @@ export const DataTableCards = <TData extends RowData>({
 						titleEndCells.length > 0 ||
 						subtitleCells.length > 0 ||
 						badgeCells.length > 0 ? (
-							<div className="grid gap-2 px-3 py-2.5">
+							<div className={cn("grid gap-2 px-3 py-2.5", raisedControls)}>
 								{primaryCell || titleEndCells.length > 0 ? (
 									<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
 										{primaryCell ? (
@@ -285,17 +305,25 @@ export const DataTableCards = <TData extends RowData>({
 						) : null}
 
 						{detailCells.length > 0 ? (
-							<dl className="grid grid-cols-2 border-border/70 border-t bg-muted/30 dark:bg-muted/10">
+							<dl
+								className={cn(
+									"grid grid-cols-2 border-border/70 border-t bg-muted/30 dark:bg-muted/10",
+									raisedControls,
+								)}
+							>
 								{detailCells.map((cell, index) => {
 									const mobileCard = cell.column.columnDef.meta?.mobileCard;
 									const headerLabel = getCellHeaderLabel(cell);
 									const isLeftCol = index % 2 === 0;
 									const isFirstRow = index < 2;
+									const isLoneLastCell =
+										index === detailCells.length - 1 && isLeftCol;
 									return (
 										<div
 											key={cell.id}
 											className={cn(
 												"min-w-0 px-3 py-2",
+												isLoneLastCell && "col-span-2",
 												!isLeftCol && "border-border/70 border-l",
 												!isFirstRow && "border-border/70 border-t",
 												mobileCard?.className,

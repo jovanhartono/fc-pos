@@ -1,3 +1,4 @@
+import type { LinkProps } from "@tanstack/react-router";
 import {
 	type RowData,
 	type SortingState,
@@ -20,6 +21,7 @@ interface DataTableProps<TData extends RowData> {
 	sortable?: boolean;
 	cardPrimaryColumnId?: string;
 	cardHiddenColumnIds?: string[];
+	getCardLink?: (row: TData) => LinkProps;
 }
 
 export const DataTable = <TData extends RowData>({
@@ -30,6 +32,7 @@ export const DataTable = <TData extends RowData>({
 	sortable = false,
 	cardPrimaryColumnId,
 	cardHiddenColumnIds,
+	getCardLink,
 }: DataTableProps<TData>) => {
 	const [sorting, setSorting] = useState<SortingState>([]);
 	// Sidebar stays expanded until lg, leaving too little width for a real
@@ -54,6 +57,7 @@ export const DataTable = <TData extends RowData>({
 				emptyMessage={emptyMessage}
 				cardPrimaryColumnId={cardPrimaryColumnId}
 				cardHiddenColumnIds={cardHiddenColumnIds}
+				getCardLink={getCardLink}
 			/>
 		);
 	}

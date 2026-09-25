@@ -313,6 +313,10 @@ function OrdersPage() {
 								columns={columns}
 								data={orders}
 								isLoading={ordersQuery.isPending || storesQuery.isPending}
+								getCardLink={(order) => ({
+									to: "/orders/$orderId",
+									params: { orderId: String(order.id) },
+								})}
 							/>
 							<TablePagination
 								meta={ordersQuery.data?.meta}

@@ -10,19 +10,28 @@ import {
 } from "@/components/ui/popover";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import type { ReportGranularity } from "@/features/reports/api";
-import { defaultRange } from "@/features/reports/utils/report-filters";
+import {
+	DEFAULT_PRESET,
+	rangeLabel,
+} from "@/features/reports/utils/report-filters";
 import { storesQueries } from "@/features/stores/api";
 import { cn } from "@/lib/utils";
-import { getPresets, matchPreset } from "@/shared/date-presets";
+import type { DatePreset } from "@/shared/date-presets";
 
 interface ReportFiltersProps {
 	from: string;
 	to: string;
-	onRangeChange: (range: { from: string; to: string }) => void;
+	preset?: DatePreset;
+	onRangeChange: (range: {
+		from: string;
+		to: string;
+		preset?: DatePreset;
+	}) => void;
 	storeId: number | undefined;
 	onStoreChange: (storeId: number | undefined) => void;
 	granularity?: ReportGranularity;
 	onGranularityChange?: (granularity: ReportGranularity | undefined) => void;
+	onReset: () => void;
 	showRangeFilters?: boolean;
 	showGranularity?: boolean;
 }
@@ -44,22 +53,21 @@ const GRANULARITY_OPTIONS: {
 export const ReportFilters = ({
 	from,
 	to,
+	preset,
 	onRangeChange,
 	storeId,
 	onStoreChange,
 	granularity,
 	onGranularityChange,
+	onReset,
 	showRangeFilters = true,
 	showGranularity = true,
 }: ReportFiltersProps) => {
-	const presets = getPresets();
 	const storesQuery = useQuery(storesQueries.list());
 	const stores = storesQuery.data ?? [];
-	const activePreset = matchPreset(presets, from, to);
-	const defaults = defaultRange();
 	const activeStore = stores.find((store) => store.id === storeId);
 
-	const isRangeDefault = from === defaults.from && to === defaults.to;
+	const isRangeDefault = preset === DEFAULT_PRESET;
 	const isStoreDefault = storeId === undefined;
 	const isGranularityDefault = granularity === undefined;
 	const nonDefaultCount =
@@ -71,7 +79,7 @@ export const ReportFilters = ({
 	if (showRangeFilters) {
 		activeBadges.push({
 			id: "range",
-			label: activePreset ? activePreset.label : `${from} → ${to}`,
+			label: rangeLabel({ preset, from, to }),
 		});
 	}
 	activeBadges.push({
@@ -82,23 +90,18 @@ export const ReportFilters = ({
 		activeBadges.push({ id: "granularity", label: granularity });
 	}
 
-	const handleReset = () => {
-		if (showRangeFilters) {
-			onRangeChange(defaults);
-		}
-		onStoreChange(undefined);
-		onGranularityChange?.(undefined);
-	};
-
 	const activeGranularity: ReportGranularity | "auto" = granularity ?? "auto";
 
 	return (
 		<div className="flex flex-wrap items-center gap-2">
-			{activeBadges.map((badge) => (
+			{activeBadges.map((badge, index) => (
 				<Badge
 					key={badge.id}
 					variant="outline"
-					className="h-8 max-w-40 truncate px-2 text-xs"
+					className={cn(
+						"h-8 max-w-40 truncate px-2 text-xs",
+						index > 0 && "hidden sm:inline-flex",
+					)}
 				>
 					{badge.label}
 				</Badge>
@@ -126,10 +129,16 @@ export const ReportFilters = ({
 							<DateRangePicker
 								from={from}
 								to={to}
+								preset={preset}
+								isPresetKept
 								commitOnComplete
 								onChange={(next) => {
 									if (next.from && next.to) {
-										onRangeChange({ from: next.from, to: next.to });
+										onRangeChange({
+											from: next.from,
+											to: next.to,
+											preset: next.preset,
+										});
 									}
 								}}
 							/>
@@ -175,7 +184,7 @@ export const ReportFilters = ({
 					/>
 					{nonDefaultCount > 0 && (
 						<div className="flex justify-end border-border/70 border-t pt-3">
-							<Button variant="ghost" size="sm" onClick={handleReset}>
+							<Button variant="ghost" size="sm" onClick={onReset}>
 								Reset
 							</Button>
 						</div>

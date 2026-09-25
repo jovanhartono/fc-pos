@@ -1,5 +1,9 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	type SearchSchemaInput,
+	useNavigate,
+} from "@tanstack/react-router";
 import { lazy, type PropsWithChildren, Suspense } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
@@ -9,9 +13,17 @@ import {
 	ReportShell,
 	type ReportTab,
 } from "@/features/reports/components/report-shell";
-import { defaultRange } from "@/features/reports/utils/report-filters";
+import {
+	type ReportFilterValues,
+	resetReportFilters,
+	toReportFilters,
+	withPresetRange,
+	withSavedReportFilters,
+} from "@/features/reports/utils/report-filters";
 import { storesQueries } from "@/features/stores/api";
-import { jakartaToday } from "@/shared/date-presets";
+import { DATE_PRESETS, jakartaToday } from "@/shared/date-presets";
+import { getCurrentUser } from "@/stores/auth-store";
+import { useReportPreferencesStore } from "@/stores/report-preferences-store";
 
 const OverviewPanel = lazy(
 	() => import("@/features/reports/panels/overview-panel"),
@@ -74,22 +86,18 @@ const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 const reportsSearchSchema = z
 	.object({
 		tab: tabSchema.catch(() => "overview" as const),
-		from: z
-			.string()
-			.regex(dateRegex)
-			.catch(() => defaultRange().from),
-		to: z
-			.string()
-			.regex(dateRegex)
-			.catch(() => defaultRange().to),
+		preset: z.enum(DATE_PRESETS).optional().catch(undefined),
+		from: z.string().regex(dateRegex).optional().catch(undefined),
+		to: z.string().regex(dateRegex).optional().catch(undefined),
 		store_id: z.coerce.number().int().positive().optional().catch(undefined),
 		granularity: granularitySchema.catch(() => undefined),
 	})
 	.transform((value) => {
-		if (value.from > value.to) {
-			return { ...value, from: value.to };
+		const range = withPresetRange(value);
+		if (range.from > range.to) {
+			return { ...range, from: range.to };
 		}
-		return value;
+		return range;
 	});
 
 type ReportsSearch = z.infer<typeof reportsSearchSchema>;
@@ -132,7 +140,11 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 			);
 		case "aging-queue":
 			return queryClient.ensureQueryData(
-				reportsQueries.agingQueue({ store_id: search.store_id, limit: 50 }),
+				reportsQueries.agingQueue({
+					store_id: search.store_id,
+					limit: 50,
+					offset: 0,
+				}),
 			);
 		default:
 			return Promise.resolve();
@@ -165,11 +177,12 @@ const descriptions: Record<Tab, string> = {
 };
 
 // Shared with the pending state at the bottom of this file. Switching tabs
-// re-runs the loader, and a manager on shop wifi was getting the whole page
+// re-runs the loader, and an admin on shop wifi was getting the whole page
 // swapped for grey blocks — including the tab strip they had just tapped.
 const ReportsChrome = ({ children }: PropsWithChildren) => {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
+	const setFilters = useReportPreferencesStore((state) => state.setFilters);
 
 	const currentTab = search.tab as Tab;
 
@@ -177,6 +190,21 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 		currentTab !== "overview" && currentTab !== "aging-queue";
 	const showGranularity =
 		currentTab !== "overview" && currentTab !== "aging-queue";
+
+	// Saved only here, when the admin changes a filter, so opening an old link
+	// or reloading never overwrites what they chose.
+	const handleFiltersChange = (change: ReportFilterValues) => {
+		void navigate({
+			search: (prev) => {
+				const filters = toReportFilters({ ...prev, ...change });
+				const currentUser = getCurrentUser();
+				if (currentUser) {
+					setFilters(String(currentUser.id), filters);
+				}
+				return { tab: prev.tab, ...filters };
+			},
+		});
+	};
 
 	return (
 		<>
@@ -187,29 +215,19 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 					<ReportFilters
 						from={search.from}
 						to={search.to}
-						onRangeChange={(range) => {
-							void navigate({
-								search: (prev) => ({
-									...prev,
-									from: range.from,
-									to: range.to,
-								}),
-							});
-						}}
+						preset={search.preset}
+						onRangeChange={handleFiltersChange}
 						storeId={search.store_id}
-						onStoreChange={(storeId) => {
-							void navigate({
-								search: (prev) => ({ ...prev, store_id: storeId }),
-							});
-						}}
+						onStoreChange={(storeId) =>
+							handleFiltersChange({ store_id: storeId })
+						}
 						granularity={search.granularity}
-						onGranularityChange={(
-							granularity: ReportGranularity | undefined,
-						) => {
-							void navigate({
-								search: (prev) => ({ ...prev, granularity }),
-							});
-						}}
+						onGranularityChange={(granularity: ReportGranularity | undefined) =>
+							handleFiltersChange({ granularity })
+						}
+						onReset={() =>
+							handleFiltersChange(resetReportFilters(showRangeFilters))
+						}
 						showRangeFilters={showRangeFilters}
 						showGranularity={showGranularity}
 					/>
@@ -297,7 +315,8 @@ function ReportsPage() {
 					/>
 				)}
 				{currentTab === "aging-queue" && (
-					<AgingQueuePanel storeId={search.store_id} />
+					// A new Store starts again on its first page.
+					<AgingQueuePanel key={search.store_id} storeId={search.store_id} />
 				)}
 			</Suspense>
 		</ReportsChrome>
@@ -311,7 +330,19 @@ const ReportsPending = () => (
 );
 
 export const Route = createFileRoute("/_admin/reports")({
-	validateSearch: (search) => reportsSearchSchema.parse(search),
+	// Restored before the loader runs, so an admin coming back from the sidebar
+	// waits for their own range once instead of the 30-day default first.
+	validateSearch: (
+		search: ReportFilterValues & { tab?: Tab } & SearchSchemaInput,
+	) => {
+		const currentUser = getCurrentUser();
+		const saved = currentUser
+			? useReportPreferencesStore.getState().filtersByUser[
+					String(currentUser.id)
+				]
+			: undefined;
+		return reportsSearchSchema.parse(withSavedReportFilters(search, saved));
+	},
 	loaderDeps: ({ search }) => search,
 	loader: ({ context, deps }) =>
 		Promise.all([
