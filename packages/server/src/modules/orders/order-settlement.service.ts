@@ -8,7 +8,7 @@ import type { OrderTx } from "@/modules/orders/order.repository";
 import { resolveDiscount } from "@/modules/orders/order-discount.service";
 import { findOrderState } from "@/modules/orders/order-read.repository";
 import { recomputeOrderRollup } from "@/modules/orders/order-status-machine";
-import type { DiscountSource } from "@/schema/discount";
+import { type DiscountSource, isBogoSlot } from "@/schema/discount";
 import { hasUnpricedLine } from "@/schema/unpriced-line";
 
 // Where a discount settles on an Order (ADR-0018). Four desks reach this —
@@ -18,6 +18,7 @@ import { hasUnpricedLine } from "@/schema/unpriced-line";
 // rather than four times.
 
 export interface SettlementLine {
+  complaint_id: number | null;
   price: string | null;
   service: { price: string | null } | null;
   service_id: number | null;
@@ -89,17 +90,11 @@ export function assertDiscountRequestAllowed({
   }
 }
 
-// BOGO stays exclusive (ADR-0018): a no-list-price line (Repair) is never
-// selectable as a buy-one-get-one free slot — a misconfigured Campaign must not
-// hand out a repair as a free item. It keys on the catalog having no list
-// price, not on the line's own number.
 function bogoSlots(lines: SettlementLine[]) {
   return lines.flatMap((line) =>
-    line.status === "cancelled" ||
-    line.service_id === null ||
-    line.service?.price == null
-      ? []
-      : [{ price: Number(line.price), service_id: line.service_id }]
+    line.service_id !== null && isBogoSlot(line)
+      ? [{ price: Number(line.price), service_id: line.service_id }]
+      : []
   );
 }
 

@@ -30,6 +30,7 @@ interface FakeOrderRow {
 }
 
 interface FakeServiceLine {
+  complaint_id: null;
   price: string | null;
   service: { price: string | null } | null;
   service_id: number;
@@ -308,12 +309,14 @@ describe("updateOrderPayment", () => {
     dbState.order = makeOrder({ total: "350000" });
     dbState.serviceLines = [
       {
+        complaint_id: null,
         price: "150000",
         service: { price: "150000" },
         service_id: 21,
         status: "queued",
       },
       {
+        complaint_id: null,
         price: "200000",
         service: { price: null },
         service_id: 30,
@@ -338,12 +341,14 @@ describe("updateOrderPayment", () => {
     // — not even the 150k it already knows (ADR-0018, ADR-0001).
     dbState.serviceLines = [
       {
+        complaint_id: null,
         price: "150000",
         service: { price: "150000" },
         service_id: 21,
         status: "queued",
       },
       {
+        complaint_id: null,
         price: null,
         service: { price: null },
         service_id: 30,
@@ -366,6 +371,7 @@ describe("updateOrderPayment", () => {
     // A priced repair line is a final number like any other.
     dbState.serviceLines = [
       {
+        complaint_id: null,
         price: "250000",
         service: { price: null },
         service_id: 30,
@@ -384,12 +390,14 @@ describe("updateOrderPayment", () => {
     // money, so the deep clean that stayed must still be collectable.
     dbState.serviceLines = [
       {
+        complaint_id: null,
         price: null,
         service: { price: null },
         service_id: 30,
         status: "cancelled",
       },
       {
+        complaint_id: null,
         price: "150000",
         service: { price: "150000" },
         service_id: 21,

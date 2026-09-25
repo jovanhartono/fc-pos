@@ -1,9 +1,12 @@
 import {
+	isInWorkshop,
 	ORDER_SERVICE_TRANSITIONS,
 	ORDER_TERMINAL_SERVICE_STATUSES,
 } from "@fresclean/api/schema";
 import {
+	ArrowClockwiseIcon,
 	ArrowLeftIcon,
+	CaretRightIcon,
 	CheckCircleIcon,
 	ImageSquareIcon,
 	WarningCircleIcon,
@@ -26,9 +29,11 @@ import {
 import { HoldToConfirmButton } from "@/features/orders/components/hold-to-confirm-button";
 import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
 import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
+import { ReworkOriginCallout } from "@/features/orders/components/rework-origin-callout";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
+import { getFirstPickupAt } from "@/features/orders/lib/line-timeline";
 import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import { itemPhotoUploader } from "@/features/orders/utils/photo-upload";
 import { onOrderMoved } from "@/lib/cache-events";
@@ -49,13 +54,40 @@ const WORKER_BLOCKED_QUEUE_STATUSES = new Set<
 const LABEL_CLASS =
 	"text-[0.65rem] font-medium uppercase tracking-[0.14em] text-muted-foreground";
 
+interface BackForReworkNoteProps {
+	orderId: number;
+	reworkLineId: number;
+}
+
+const BackForReworkNote = ({
+	orderId,
+	reworkLineId,
+}: BackForReworkNoteProps) => (
+	<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border border-border bg-muted/40 px-3 py-3 text-sm">
+		<p className="flex items-center gap-2">
+			<ArrowClockwiseIcon
+				aria-hidden="true"
+				className="size-4 shrink-0 text-muted-foreground"
+				weight="bold"
+			/>
+			Back in for a rework.
+		</p>
+		<Link
+			className="flex w-fit items-center gap-0.5 font-medium text-xs underline underline-offset-2 hover:text-muted-foreground"
+			params={{ orderId, serviceId: reworkLineId }}
+			to="/queue/$orderId/$serviceId"
+		>
+			Open rework
+			<CaretRightIcon aria-hidden="true" className="size-3" />
+		</Link>
+	</div>
+);
+
 function QueueServiceDetailSkeleton() {
 	return (
 		<div className="grid gap-5">
-			<div className="flex items-center gap-3">
-				<Skeleton className="size-9" />
-				<Skeleton className="h-8 w-48" />
-			</div>
+			<Skeleton className="hidden size-9 md:block" />
+			<Skeleton className="h-8 w-48" />
 			<Skeleton className="h-12 w-full" />
 			<div className="grid gap-3">
 				<Skeleton className="h-5 w-40" />
@@ -158,14 +190,20 @@ export function QueueServiceDetail({
 		canStartWork && isHandledByAnotherWorker
 			? `${selectedService.handler?.name ?? "Another worker"} is handling this item — actions are locked for you.`
 			: (photoBlocker ?? null);
+	const isReady = selectedService.status === "ready_for_pickup";
+	// Turned down at the counter: the pair left the pickup shelf for its rework.
+	const runningRework = selectedService.complaints
+		.flatMap((complaint) => complaint.reworkLines)
+		.find(isInWorkshop);
 
 	return (
 		<>
 			<div className="mb-5">
 				<Link
+					aria-label="Back to queue"
 					to="/queue"
 					search={{ storeId: detail.store?.id }}
-					className="mb-3 flex size-9 items-center justify-center border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+					className="mb-3 hidden size-9 items-center justify-center border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:flex"
 				>
 					<ArrowLeftIcon className="size-4" weight="bold" />
 				</Link>
@@ -204,6 +242,9 @@ export function QueueServiceDetail({
 						>
 							{formatOrderServiceStatus(selectedService.status)}
 						</Badge>
+						{selectedService.reworkOf !== null && (
+							<Badge variant="info">Rework</Badge>
+						)}
 						{selectedService.is_priority ? (
 							<Badge variant="warning">Priority</Badge>
 						) : (
@@ -216,9 +257,26 @@ export function QueueServiceDetail({
 					</p>
 				</div>
 
+				{selectedService.reworkOf !== null && (
+					<ReworkOriginCallout
+						firstPickupAt={getFirstPickupAt(
+							selectedService.reworkOf,
+							selectedService.rework_opened_at,
+						)}
+						reworkOf={selectedService.reworkOf}
+					/>
+				)}
+
+				{isReady && runningRework !== undefined && (
+					<BackForReworkNote
+						orderId={orderId}
+						reworkLineId={runningRework.id}
+					/>
+				)}
+
 				{/* Emerald, the done tone every other screen uses for ready: the
 				    workshop's part is finished, and grey read as a warning. */}
-				{selectedService.status === "ready_for_pickup" ? (
+				{isReady && runningRework === undefined && (
 					<div className="flex items-start gap-2 border border-emerald-300/60 bg-emerald-50/70 px-3 py-3 text-emerald-900 text-sm dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
 						<CheckCircleIcon
 							aria-hidden="true"
@@ -230,7 +288,7 @@ export function QueueServiceDetail({
 							at the counter.
 						</p>
 					</div>
-				) : null}
+				)}
 
 				<dl className="grid grid-cols-2 gap-px border border-border bg-border">
 					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
@@ -362,78 +420,85 @@ export function QueueServiceDetail({
 				/>
 
 				<section className="grid gap-4 border border-border p-4">
-					<StatusTimeline logs={selectedService.statusLogs} />
-					<Field>
-						<FieldLabel htmlFor="queue-status-note">Status note</FieldLabel>
-						<Textarea
-							id="queue-status-note"
-							placeholder="Optional status note"
-							value={statusNote}
-							onChange={(event) => setStatusNote(event.target.value)}
-						/>
-					</Field>
+					<StatusTimeline line={selectedService} orderId={orderId} />
+					{actionStatuses.length > 0 && (
+						<Field>
+							<FieldLabel htmlFor="queue-status-note">Status note</FieldLabel>
+							<Textarea
+								id="queue-status-note"
+								placeholder="Optional status note"
+								value={statusNote}
+								onChange={(event) => setStatusNote(event.target.value)}
+							/>
+						</Field>
+					)}
 				</section>
 			</div>
 
-			<div className="sticky bottom-0 z-10 mt-6 border-t border-border bg-background/95 px-3 pb-[calc(var(--inset-bottom)+0.75rem)] pt-3 backdrop-blur sm:px-0 sm:pb-3">
-				{blockerMessage ? (
-					<div className="mb-2 flex items-center gap-2 border border-warning/50 bg-warning/10 px-3 py-2 text-xs font-medium text-foreground">
-						<WarningCircleIcon
-							aria-hidden="true"
-							className="size-4 shrink-0 text-warning"
-							weight="fill"
-						/>
-						{blockerMessage}
-					</div>
-				) : null}
-				<div className="flex flex-col gap-2 sm:flex-row">
-					{canStartWork ? (
-						<HoldToConfirmButton
-							className="h-12 sm:flex-1"
-							disabled={isHandledByAnotherWorker || needsPhotoToStart}
-							loading={updateStatusMutation.isPending}
-							onComplete={() => {
-								updateStatusMutation.mutate(
-									{ serviceId, payload: { status: "processing" } },
-									{ onSuccess: () => toast.success("Work started") },
-								);
-							}}
-						>
-							Hold to Start Work
-						</HoldToConfirmButton>
+			{(canStartWork || actionStatuses.length > 0) && (
+				<div
+					className="sticky bottom-0 z-10 -mx-3 mt-6 border-t border-border bg-background/95 px-3 pb-[calc(var(--inset-bottom)+0.75rem)] pt-3 backdrop-blur sm:-mx-6 sm:px-6 md:mx-0 md:px-0 md:pb-3"
+					data-bottom-bar
+				>
+					{blockerMessage ? (
+						<div className="mb-2 flex items-center gap-2 border border-warning/50 bg-warning/10 px-3 py-2 text-xs font-medium text-foreground">
+							<WarningCircleIcon
+								aria-hidden="true"
+								className="size-4 shrink-0 text-warning"
+								weight="fill"
+							/>
+							{blockerMessage}
+						</div>
 					) : null}
+					<div className="flex flex-col gap-2 sm:flex-row">
+						{canStartWork ? (
+							<HoldToConfirmButton
+								className="h-12 sm:flex-1"
+								disabled={isHandledByAnotherWorker || needsPhotoToStart}
+								loading={updateStatusMutation.isPending}
+								onComplete={() => {
+									updateStatusMutation.mutate(
+										{ serviceId, payload: { status: "processing" } },
+										{ onSuccess: () => toast.success("Work started") },
+									);
+								}}
+							>
+								Hold to Start Work
+							</HoldToConfirmButton>
+						) : null}
 
-					{actionStatuses.map((nextStatus) => (
-						<Button
-							key={nextStatus}
-							type="button"
-							variant="secondary"
-							size="lg"
-							className={cn("h-12 sm:flex-1", canStartWork && "sm:flex-none")}
-							disabled={updateStatusMutation.isPending}
-							onClick={() => {
-								updateStatusMutation.mutate(
-									{
-										serviceId,
-										payload: {
-											status: nextStatus,
-											note: statusNote.trim() || undefined,
+						{actionStatuses.map((nextStatus) => (
+							<Button
+								key={nextStatus}
+								type="button"
+								variant="secondary"
+								size="lg"
+								className={cn("h-12 sm:flex-1", canStartWork && "sm:flex-none")}
+								disabled={updateStatusMutation.isPending}
+								onClick={() => {
+									updateStatusMutation.mutate(
+										{
+											serviceId,
+											payload: {
+												status: nextStatus,
+												note: statusNote.trim() || undefined,
+											},
 										},
-									},
-									{
-										onSuccess: () => {
-											toast.success("Status updated");
-											setStatusNote("");
+										{
+											onSuccess: () => {
+												toast.success("Status updated");
+												setStatusNote("");
+											},
 										},
-									},
-								);
-							}}
-						>
-							{`Set ${formatOrderServiceStatus(nextStatus)}`}
-						</Button>
-					))}
+									);
+								}}
+							>
+								{`Set ${formatOrderServiceStatus(nextStatus)}`}
+							</Button>
+						))}
+					</div>
 				</div>
-			</div>
+			)}
 		</>
 	);
 }

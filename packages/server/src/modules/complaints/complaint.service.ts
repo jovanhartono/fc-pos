@@ -6,16 +6,22 @@ import {
   findComplaintForService,
   findComplaintSubjectService,
   findComplaints,
+  findItemLines,
   insertComplaint,
   insertReworkLine,
+  lockOrderServiceState,
 } from "@/modules/complaints/complaint.repository";
 import {
   type GetComplaintsQuery,
+  isComplainableLine,
+  isComplainableStatus,
   normalizeComplaintListQuery,
   type PostComplaintInput,
 } from "@/modules/complaints/complaint.schema";
 import {
   type DbExecutor,
+  isInWorkshop,
+  logReworkQueued,
   recomputeOrderRollup,
 } from "@/modules/orders/order-status-machine";
 import type { JWTPayload } from "@/types";
@@ -52,6 +58,7 @@ async function createReworkLine(
     throw new BadRequestException("Order service is not attached to an order");
   }
 
+  const note = `Rework for complaint #${complaintId}`;
   const line = await insertReworkLine(tx, {
     order_id: order.id,
     item_id: subject.item_id,
@@ -61,12 +68,23 @@ async function createReworkLine(
     is_priority: true,
     status: "queued",
     complaint_id: complaintId,
-    notes: `Rework for complaint #${complaintId}`,
+    notes: note,
   });
+
+  await logReworkQueued(tx, { by: userId, note, serviceId: line.id });
 
   await recomputeOrderRollup(tx, order.id, userId);
 
   return line;
+}
+
+async function lockSubjectLine(tx: DbExecutor, subject: SubjectService) {
+  const line = await lockOrderServiceState(tx, {
+    orderId: subject.order_id,
+    serviceId: subject.id,
+  });
+  const itemLines = await findItemLines(tx, subject.item_id);
+  return { itemLines, line };
 }
 
 async function loadComplaintSubject(user: JWTPayload, complaintId: number) {
@@ -81,14 +99,6 @@ async function loadComplaintSubject(user: JWTPayload, complaintId: number) {
   }
 
   await assertStoreAccess(user, subject.order.store_id);
-
-  // Refund is the terminal rung of the ladder (ADR-0013) — no rework once the
-  // original line has left picked_up.
-  if (subject.status !== "picked_up") {
-    throw new BadRequestException(
-      "Cannot add a rework once the original line is no longer picked up"
-    );
-  }
 
   return { complaint, subject };
 }
@@ -107,24 +117,25 @@ export async function openComplaint({
 
   await assertStoreAccess(user, subject.order.store_id);
 
-  if (subject.status !== "picked_up") {
-    throw new BadRequestException(
-      "Complaints can only be opened on picked-up items"
-    );
-  }
-
-  // A rework line is itself an OrderService; complaints attach only to real
-  // lines (ADR-0013) so the one-per-line rule and the rate denominator hold.
-  if (subject.complaint_id !== null) {
-    throw new BadRequestException("Cannot open a complaint on a rework line");
-  }
-
-  const existing = await findComplaintForService(subject.id);
-  if (existing) {
-    throw new BadRequestException("A complaint already exists for this item");
-  }
-
   return db.transaction(async (tx) => {
+    const { itemLines, line } = await lockSubjectLine(tx, subject);
+    if (!(line && isComplainableLine(line, itemLines))) {
+      throw new BadRequestException(
+        "Complaints can only be opened on items that are ready or picked up"
+      );
+    }
+
+    // A rework line is itself an OrderService; complaints attach only to real
+    // lines (ADR-0013) so the one-per-line rule and the rate denominator hold.
+    if (line.complaint_id !== null) {
+      throw new BadRequestException("Cannot open a complaint on a rework line");
+    }
+
+    const existing = await findComplaintForService(tx, subject.id);
+    if (existing) {
+      throw new BadRequestException("A complaint already exists for this item");
+    }
+
     const complaint = await insertComplaint(tx, {
       order_service_id: subject.id,
       reason: body.reason,
@@ -152,13 +163,38 @@ export async function addRework({
 }) {
   const { complaint, subject } = await loadComplaintSubject(user, complaintId);
 
-  return db.transaction((tx) =>
-    createReworkLine(tx, {
+  return db.transaction(async (tx) => {
+    // Refund is the terminal rung of the ladder (ADR-0013) — no rework once the
+    // original line is refunded or otherwise off the shelf.
+    const { itemLines, line } = await lockSubjectLine(tx, subject);
+    if (!(line && isComplainableStatus(line.status))) {
+      throw new BadRequestException(
+        "Cannot add a rework once the original line is no longer ready or picked up"
+      );
+    }
+
+    // A round still in the workshop would put the same shoes on the rack twice;
+    // a ready one waits on the shelf and leaves with the next.
+    const rounds = itemLines.filter(
+      (round) => round.complaint_id === complaint.id
+    );
+    if (rounds.some(isInWorkshop)) {
+      throw new BadRequestException(
+        "Finish the current rework before starting another"
+      );
+    }
+    if (!isComplainableLine(line, itemLines)) {
+      throw new BadRequestException(
+        "Finish the other work on this item before starting a rework"
+      );
+    }
+
+    return createReworkLine(tx, {
       complaintId: complaint.id,
       subject,
       userId: user.id,
-    })
-  );
+    });
+  });
 }
 
 export async function getComplaintDetail(user: JWTPayload, id: number) {

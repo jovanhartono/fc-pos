@@ -3,18 +3,26 @@ import { db } from "@/db";
 import {
   complaintsTable,
   customersTable,
+  orderServiceStatusEnum,
   ordersServicesTable,
   ordersTable,
   servicesTable,
   storesTable,
   usersTable,
 } from "@/db/schema";
-import type { NormalizedComplaintListQuery } from "@/modules/complaints/complaint.schema";
+import {
+  isReworkedRound,
+  type NormalizedComplaintListQuery,
+} from "@/modules/complaints/complaint.schema";
 import { orderRefColumns } from "@/modules/orders/order-read.repository";
 import type { DbExecutor } from "@/modules/orders/order-status-machine";
 
 type ComplaintInsert = typeof complaintsTable.$inferInsert;
 type ReworkLineInsert = typeof ordersServicesTable.$inferInsert;
+
+const REWORKED_ROUND_STATUSES = orderServiceStatusEnum.enumValues.filter(
+  (status) => isReworkedRound({ status })
+);
 
 export async function insertComplaint(
   executor: DbExecutor,
@@ -28,8 +36,11 @@ export async function insertComplaint(
 }
 
 // One complaint per original line, lifetime (ADR-0013 amendment).
-export function findComplaintForService(serviceId: number) {
-  return db.query.complaintsTable.findFirst({
+export function findComplaintForService(
+  executor: DbExecutor,
+  serviceId: number
+) {
+  return executor.query.complaintsTable.findFirst({
     where: { order_service_id: serviceId },
   });
 }
@@ -45,6 +56,37 @@ export function findComplaintSubjectService(serviceId: number) {
   return db.query.ordersServicesTable.findFirst({
     where: { id: serviceId },
     with: { order: { columns: orderRefColumns } },
+  });
+}
+
+// Another cashier may hand over, cancel or refund this pair meanwhile. The Order
+// is held first, as a refund holds it, so the two never wait on each other.
+export async function lockOrderServiceState(
+  executor: DbExecutor,
+  { orderId, serviceId }: { orderId: number; serviceId: number }
+) {
+  await executor
+    .select({ id: ordersTable.id })
+    .from(ordersTable)
+    .where(eq(ordersTable.id, orderId))
+    .for("key share");
+
+  const [locked] = await executor
+    .select({
+      complaint_id: ordersServicesTable.complaint_id,
+      status: ordersServicesTable.status,
+    })
+    .from(ordersServicesTable)
+    .where(eq(ordersServicesTable.id, serviceId))
+    .for("update");
+  return locked;
+}
+
+// Every treatment on the pair, its rework rounds included.
+export function findItemLines(executor: DbExecutor, itemId: number) {
+  return executor.query.ordersServicesTable.findMany({
+    where: { item_id: itemId },
+    columns: { complaint_id: true, status: true },
   });
 }
 
@@ -78,6 +120,8 @@ export function findComplaintDetailById(id: number) {
               model: true,
               size: true,
             },
+            // Whether the whole pair is ready decides if another round can start.
+            with: { services: { columns: { id: true, status: true } } },
           },
           order: {
             columns: orderRefColumns,
@@ -139,9 +183,9 @@ export async function findComplaints(
         reason: complaintsTable.reason,
         created_at: complaintsTable.created_at,
         // Outcome is derived from the lines (ADR-0013 amendment): the subject
-        // line's status (refunded?) plus whether any rework line points back.
+        // line's status plus its reworks.
         subject_status: ordersServicesTable.status,
-        rework_count: sql<number>`(SELECT count(*)::int FROM orders_services rw WHERE rw.complaint_id = ${complaintsTable.id})`,
+        rework_count: sql<number>`(SELECT count(*)::int FROM orders_services rw WHERE rw.complaint_id = ${complaintsTable.id} AND rw.status IN ${REWORKED_ROUND_STATUSES})`,
         order_id: ordersTable.id,
         order_code: ordersTable.code,
         store_id: ordersTable.store_id,

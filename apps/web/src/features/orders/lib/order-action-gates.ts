@@ -1,4 +1,4 @@
-import { hasUnpricedLine } from "@fresclean/api/schema";
+import { hasUnpricedLine, isComplainableLine } from "@fresclean/api/schema";
 import type { OrderDetail } from "@/features/orders/api";
 import {
 	flattenOrderLines,
@@ -10,6 +10,7 @@ import type { Me } from "@/features/users/api";
 export interface OrderActionGates {
 	isAdmin: boolean;
 	isPaymentAllowed: boolean;
+	canCollectPayment: boolean;
 	isPickupAllowed: boolean;
 	canManageDropoffPhoto: boolean;
 	canManageCourier: boolean;
@@ -34,8 +35,8 @@ export interface OrderActionGates {
 // ADR-0012 / ADR-0019: why a queued line cannot start yet, or undefined when
 // it can. The verdict is the server's (`has_start_photo`); this only puts
 // words to it before the button relays a 400. A Rework needs a photo taken
-// after the customer brought the object back — its first-visit photos are
-// there in the gallery but do not count.
+// after its round went on the rack — older photos are there in the gallery
+// but do not count.
 export const startPhotoBlocker = (
 	line: Pick<OrderLine, "status" | "has_start_photo" | "reworkOf">,
 ): string | undefined => {
@@ -43,7 +44,7 @@ export const startPhotoBlocker = (
 		return undefined;
 	}
 	return line.reworkOf
-		? "Photograph the returned item before starting the rework."
+		? "Take a new photo of the item before starting this rework."
 		: "Add an item photo before starting work.";
 };
 
@@ -87,15 +88,16 @@ export const getOrderActionGates = (
 	const cancellableProducts = products.filter(
 		(item) => !item.refunded_at && !item.cancelled_at,
 	);
-	// ADR-0013: only picked_up lines with no complaint yet are complainable
-	// (one complaint per line, lifetime); rework lines are never re-complained.
+	// ADR-0013: one complaint per line, lifetime; rework lines are never
+	// re-complained.
 	const complaintableServices = services.filter(
 		(service) =>
 			!service.reworkOf &&
-			service.status === "picked_up" &&
+			isComplainableLine(service, service.item.services) &&
 			(service.complaints ?? []).length === 0,
 	);
 	const isPaid = detail.payment_status === "paid";
+	const hasUnpriced = hasUnpricedLine(services);
 	// ADR-0009: items are ready but the Order is unpaid — explain why pickup is
 	// blocked, and to whom (a pickup-only worker must fetch a cashier to collect).
 	const pickupDisabledReason =
@@ -108,6 +110,13 @@ export const getOrderActionGates = (
 	return {
 		isAdmin,
 		isPaymentAllowed,
+		// A fully cancelled Order owes nothing, and the server refuses to take
+		// payment on it.
+		canCollectPayment:
+			isPaymentAllowed &&
+			!isPaid &&
+			detail.status !== "cancelled" &&
+			!hasUnpriced,
 		isPickupAllowed,
 		canManageDropoffPhoto,
 		canManageCourier,
@@ -127,7 +136,7 @@ export const getOrderActionGates = (
 		canOpenComplaint: complaintableServices.length > 0,
 		// ADR-0018: the same predicate the server's paid transition runs, so the
 		// payment section can explain the block instead of relaying a 400.
-		hasUnpricedLine: hasUnpricedLine(services),
+		hasUnpricedLine: hasUnpriced,
 		complaintableServices,
 		collectableItems,
 		refundableServices,

@@ -7,6 +7,10 @@ import {
 } from "@/modules/campaigns/campaign.schema";
 import { POSTCategorySchema as _POSTCategorySchema } from "@/modules/categories/category.schema";
 import {
+  isComplainableLine as _isComplainableLine,
+  isReworkedRound as _isReworkedRound,
+} from "@/modules/complaints/complaint.schema";
+import {
   POSTCustomerSchema as _POSTCustomerSchema,
   PUTCustomerSchema as _PUTCustomerSchema,
 } from "@/modules/customers/customer.schema";
@@ -20,6 +24,7 @@ import {
   type ItemStatusLine as _ItemStatusLine,
   isCollectableItemStatus as _isCollectableItemStatus,
   isHandedOverByPickup as _isHandedOverByPickup,
+  isInWorkshop as _isInWorkshop,
   ORDER_SERVICE_TRANSITIONS as _ORDER_SERVICE_TRANSITIONS,
   ORDER_TERMINAL_SERVICE_STATUSES as _ORDER_TERMINAL_SERVICE_STATUSES,
   WORKSHOP_SERVICE_STATUSES as _WORKSHOP_SERVICE_STATUSES,
@@ -47,6 +52,9 @@ export type DerivedItemStatus = _DerivedItemStatus;
 export type ItemStatusLine = _ItemStatusLine;
 export const isCollectableItemStatus = _isCollectableItemStatus;
 export const isHandedOverByPickup = _isHandedOverByPickup;
+export const isInWorkshop = _isInWorkshop;
+export const isComplainableLine = _isComplainableLine;
+export const isReworkedRound = _isReworkedRound;
 export const POSTOrderPickupEventPresignSchema =
   _POSTOrderPickupEventPresignSchema;
 export const POSTOrderPickupEventSchema = _POSTOrderPickupEventSchema;
@@ -72,11 +80,13 @@ export type Coordinates = _Coordinates;
 
 import {
   applyManualDiscount as _applyManualDiscount,
+  type BogoSlotLine as _BogoSlotLine,
   type CampaignContribution as _CampaignContribution,
   type CampaignDiscountInput as _CampaignDiscountInput,
   computeCampaignContribution as _computeCampaignContribution,
   type DiscountLine as _DiscountLine,
   type DiscountSource as _DiscountSource,
+  isBogoSlot as _isBogoSlot,
   isDiscountSettled as _isDiscountSettled,
   orderNetDue as _orderNetDue,
   type StackedDiscount as _StackedDiscount,
@@ -95,6 +105,8 @@ export const computeCampaignContribution = _computeCampaignContribution;
 export const stackCampaignDiscounts = _stackCampaignDiscounts;
 export const applyManualDiscount = _applyManualDiscount;
 export const orderNetDue = _orderNetDue;
+export type BogoSlotLine = _BogoSlotLine;
+export const isBogoSlot = _isBogoSlot;
 
 import {
   type CampaignEligibilityContext as _CampaignEligibilityContext,

@@ -15,9 +15,13 @@ const repo = {
   subject: undefined as AnyObj | undefined,
   existingComplaint: undefined as AnyObj | undefined,
   complaintById: undefined as AnyObj | undefined,
+  // The pair's other lines: sibling treatments and earlier rework rounds.
+  otherItemLines: [] as AnyObj[],
   // captured writes
   insertedComplaint: undefined as AnyObj | undefined,
   insertedRework: undefined as AnyObj | undefined,
+  insertedStatusLogs: [] as Array<{ executor: unknown; values: AnyObj }>,
+  lineReads: [] as [string, unknown, AnyObj?][],
 };
 
 const rollup = {
@@ -39,7 +43,7 @@ mock.module("@/db", () => ({
   },
 }));
 
-// Spread the real module so the only export we change is recomputeOrderRollup.
+// Spread the real module so the only exports we change are the two writes.
 // transitionOrderService calls recompute via its in-module binding (not this
 // export object), so order-status-machine.test.ts is unaffected by the stub.
 const actualStatusMachine = await import(
@@ -48,6 +52,10 @@ const actualStatusMachine = await import(
 
 mock.module("@/modules/orders/order-status-machine", () => ({
   ...actualStatusMachine,
+  logReworkQueued: (executor: unknown, values: AnyObj) => {
+    repo.insertedStatusLogs.push({ executor, values });
+    return Promise.resolve();
+  },
   recomputeOrderRollup: (
     executor: unknown,
     orderId: number,
@@ -62,7 +70,29 @@ mock.module("@/utils/authorization", () => authorizationDouble(authz));
 
 mock.module("@/modules/complaints/complaint.repository", () => ({
   findComplaintSubjectService: () => Promise.resolve(repo.subject),
-  findComplaintForService: () => Promise.resolve(repo.existingComplaint),
+  lockOrderServiceState: (executor: unknown, target: AnyObj) => {
+    repo.lineReads.push(["locked line", executor, target]);
+    return Promise.resolve(
+      repo.subject && {
+        complaint_id: repo.subject.complaint_id,
+        status: repo.subject.status,
+      }
+    );
+  },
+  findItemLines: (executor: unknown, itemId: number) => {
+    repo.lineReads.push(["item lines", executor, { itemId }]);
+    const subject = repo.subject && {
+      complaint_id: repo.subject.complaint_id,
+      status: repo.subject.status,
+    };
+    return Promise.resolve(
+      subject ? [subject, ...repo.otherItemLines] : repo.otherItemLines
+    );
+  },
+  findComplaintForService: (executor: unknown) => {
+    repo.lineReads.push(["existing complaint", executor]);
+    return Promise.resolve(repo.existingComplaint);
+  },
   findComplaintById: () => Promise.resolve(repo.complaintById),
   insertComplaint: (_executor: unknown, values: AnyObj) => {
     repo.insertedComplaint = values;
@@ -90,6 +120,7 @@ const makeSubject = (over: AnyObj = {}) => ({
   complaint_id: null,
   service_id: 3,
   item_id: 21,
+  order_id: 7,
   order: { id: 7, code: "ORD-001", store_id: 1 },
   ...over,
 });
@@ -98,8 +129,11 @@ beforeEach(() => {
   repo.subject = makeSubject();
   repo.existingComplaint = undefined;
   repo.complaintById = undefined;
+  repo.otherItemLines = [];
   repo.insertedComplaint = undefined;
   repo.insertedRework = undefined;
+  repo.insertedStatusLogs = [];
+  repo.lineReads = [];
   rollup.calls = [];
   authz.assertCalls = [];
   authz.storeIds = [];
@@ -124,13 +158,37 @@ describe("openComplaint", () => {
     expect((error as Error).message).toBe("Order service not found");
   });
 
-  it("rejects a complaint on an item that is not picked_up", async () => {
+  it("rejects a complaint on work the shop has not finished, or has already settled", async () => {
+    for (const status of [
+      "queued",
+      "processing",
+      "quality_check",
+      "qc_reject",
+      "refunded",
+      "cancelled",
+    ]) {
+      repo.subject = makeSubject({ status });
+      const error = await captureRejection(open());
+      expect(error).toBeInstanceOf(BadRequestException);
+      expect((error as Error).message).toBe(
+        "Complaints can only be opened on items that are ready or picked up"
+      );
+    }
+    expect(repo.insertedComplaint).toBeUndefined();
+  });
+
+  it("opens a complaint at the counter while the customer inspects the ready pair", async () => {
+    // Cashier SOP: the customer checks the pair before taking it, and turns
+    // it down there and then — the line is still ready_for_pickup.
     repo.subject = makeSubject({ status: "ready_for_pickup" });
-    const error = await captureRejection(open());
-    expect(error).toBeInstanceOf(BadRequestException);
-    expect((error as Error).message).toBe(
-      "Complaints can only be opened on picked-up items"
-    );
+
+    const result = await open({ start_rework: true });
+
+    expect(result.complaint.id).toBe(99);
+    expect(repo.insertedRework).toMatchObject({
+      complaint_id: 99,
+      item_id: 21,
+    });
   });
 
   it("rejects opening a complaint on a rework line", async () => {
@@ -154,6 +212,30 @@ describe("openComplaint", () => {
   it("checks store access against the subject's store", async () => {
     await open();
     expect(authz.assertCalls).toEqual([{ userId: 42, storeId: 1 }]);
+  });
+
+  it("checks the line under a lock inside the transaction", async () => {
+    // Another cashier may hand over or refund the ready pair meanwhile.
+    await open();
+    expect(repo.lineReads).toEqual([
+      ["locked line", TX, { orderId: 7, serviceId: 10 }],
+      ["item lines", TX, { itemId: 21 }],
+      ["existing complaint", TX],
+    ]);
+  });
+
+  it("waits on a ready line until the rest of the pair is ready too", async () => {
+    repo.subject = makeSubject({ status: "ready_for_pickup" });
+    repo.otherItemLines = [
+      { id: 11, complaint_id: null, status: "processing" },
+    ];
+
+    const error = await captureRejection(open());
+
+    expect((error as Error).message).toBe(
+      "Complaints can only be opened on items that are ready or picked up"
+    );
+    expect(repo.insertedComplaint).toBeUndefined();
   });
 
   it("opens a complaint without a rework when start_rework is false", async () => {
@@ -189,6 +271,28 @@ describe("openComplaint", () => {
     });
   });
 
+  it("logs who put the rework on the rack, in the same transaction", async () => {
+    // A line has no created_at: without this row a second round added days
+    // later would have no time or name on its timeline.
+    await open({ start_rework: true });
+
+    expect(repo.insertedStatusLogs).toEqual([
+      {
+        executor: TX,
+        values: {
+          by: 42,
+          note: "Rework for complaint #99",
+          serviceId: 500,
+        },
+      },
+    ]);
+  });
+
+  it("writes no status log when the complaint opens without a rework", async () => {
+    await open({ start_rework: false });
+    expect(repo.insertedStatusLogs).toEqual([]);
+  });
+
   it("recomputes the order rollup inside the transaction after a rework", async () => {
     await open({ start_rework: true });
     expect(rollup.calls).toEqual([{ executor: TX, orderId: 7, userId: 42 }]);
@@ -219,13 +323,66 @@ describe("addRework", () => {
     expect((error as Error).message).toBe("Complaint not found");
   });
 
-  it("rejects when the original line is no longer picked_up", async () => {
+  it("rejects once the original line is refunded", async () => {
     repo.complaintById = { id: 99, order_service_id: 10 };
     repo.subject = makeSubject({ status: "refunded" });
     const error = await captureRejection(add());
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Cannot add a rework once the original line is no longer picked up"
+      "Cannot add a rework once the original line is no longer ready or picked up"
+    );
+  });
+
+  it("adds a rework while the original pair still waits at the counter", async () => {
+    repo.complaintById = { id: 99, order_service_id: 10 };
+    repo.subject = makeSubject({ status: "ready_for_pickup" });
+
+    const line = await add();
+
+    expect(line.id).toBe(500);
+    expect(repo.lineReads).toEqual([
+      ["locked line", TX, { orderId: 7, serviceId: 10 }],
+      ["item lines", TX, { itemId: 21 }],
+    ]);
+  });
+
+  it("refuses a second round while the first is still in the workshop", async () => {
+    repo.complaintById = { id: 99, order_service_id: 10 };
+    repo.otherItemLines = [{ id: 400, complaint_id: 99, status: "qc_reject" }];
+
+    const error = await captureRejection(add());
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "Finish the current rework before starting another"
+    );
+    expect(repo.insertedRework).toBeUndefined();
+  });
+
+  it("takes another round while the last one waits ready on the shelf", async () => {
+    // Paid Order: the ready round can be neither cancelled nor refunded, so it
+    // leaves with the next round in one pickup.
+    repo.complaintById = { id: 99, order_service_id: 10 };
+    repo.subject = makeSubject({ status: "ready_for_pickup" });
+    repo.otherItemLines = [
+      { id: 400, complaint_id: 99, status: "ready_for_pickup" },
+    ];
+
+    const line = await add();
+
+    expect(line.id).toBe(500);
+    expect(repo.insertedRework).toMatchObject({ complaint_id: 99 });
+  });
+
+  it("refuses a round on a ready original while another treatment on the pair is in the workshop", async () => {
+    repo.complaintById = { id: 99, order_service_id: 10 };
+    repo.subject = makeSubject({ status: "ready_for_pickup" });
+    repo.otherItemLines = [{ id: 11, complaint_id: null, status: "queued" }];
+
+    const error = await captureRejection(add());
+
+    expect((error as Error).message).toBe(
+      "Finish the other work on this item before starting a rework"
     );
   });
 

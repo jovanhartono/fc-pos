@@ -2,7 +2,7 @@ import "@/test-support/pglite";
 import { beforeEach, expect, it } from "bun:test";
 import { eq } from "drizzle-orm";
 import { categoriesTable, servicesTable } from "@/db/schema";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // The artisan and the deep cleaners work at different speeds, so each reads
@@ -13,9 +13,13 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // Loaded after the swap above, never beside the imports: Bun binds a static
 // import graph before any module body runs, so a service pulled in up there
 // would hold the shop's real database.
+const { db } = await import("@/db");
 const { createOrder } = await import("@/modules/orders/order.service");
 const { getOrderServiceQueue, getOrderServiceQueueCounts } = await import(
   "@/modules/orders/order-queue.service"
+);
+const { transitionOrderService } = await import(
+  "@/modules/orders/order-status-machine"
 );
 
 let shop: Shop;
@@ -103,6 +107,51 @@ it("counts the chips over the same rack the list shows", async () => {
 
   expect(counts.all).toBe(2);
   expect(counts.queued).toBe(2);
+});
+
+it("keeps every live job on the card whatever the status chip", async () => {
+  // The artisan starts the repair on the pair that is also in for a clean. A
+  // worker on "Queued" still sees the repair in hand, so they know the shoe
+  // is on the artisan's bench before walking to the rack.
+  const pair = await testDb.query.itemsTable.findFirst({
+    where: { brand: "clean and repair" },
+    with: { services: true },
+  });
+  const repair = pair?.services.find(
+    (line) => line.service_id === shop.repairServiceId
+  );
+  if (!(pair && repair)) {
+    throw new Error("Fixture pair is missing its repair line");
+  }
+  await addItemPhoto(pair.id, shop.cashier.id);
+  await transitionOrderService(db, {
+    by: shop.cashier.id,
+    orderId: pair.order_id,
+    serviceId: repair.id,
+    to: "processing",
+  });
+
+  const jobsOnPair = async (status?: "queued" | "processing") => {
+    const page = await getOrderServiceQueue(shop.admin, {
+      status,
+      store_id: shop.store.id,
+    });
+    return page.items
+      .find((item) => item.id === pair.id)
+      ?.services.map((line) => `${line.service_name} ${line.status}`);
+  };
+
+  const bothJobs = ["Deep Clean queued", "Repair processing"];
+  expect(await jobsOnPair("queued")).toEqual(bothJobs);
+  expect(await jobsOnPair("processing")).toEqual(bothJobs);
+  expect(await jobsOnPair()).toEqual(bothJobs);
+
+  // The chips still count cards: the pair is one card under each chip.
+  const counts = await getOrderServiceQueueCounts(shop.admin, {
+    store_id: shop.store.id,
+  });
+  expect(counts.queued).toBe(3);
+  expect(counts.processing).toBe(1);
 });
 
 it("shows the whole Store when no Category is picked", async () => {

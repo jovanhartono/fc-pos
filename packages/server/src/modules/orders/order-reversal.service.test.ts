@@ -178,7 +178,7 @@ mock.module("@/modules/orders/order-status-machine", () => ({
   },
   cancelOrderServices: (executor: unknown, input: AnyObj) => {
     machine.serviceCancels.push({ executor, input });
-    return Promise.resolve();
+    return Promise.resolve({ reworkIds: [] });
   },
   recomputeOrderRollup: (
     executor: unknown,

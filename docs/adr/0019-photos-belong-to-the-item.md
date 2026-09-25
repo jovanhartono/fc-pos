@@ -1,5 +1,7 @@
 # Photos belong to the Item
 
+> **Amended 2026-09-25:** a Rework now counts only photos taken after its own round went on the rack, not after its Complaint — see [Amendment](#amendment-2026-09-25--a-rework-counts-photos-taken-after-its-own-round-went-on-the-rack).
+
 [ADR-0012](0012-photo-precedes-processing.md) gated `queued → processing` on a photo per `OrderService`, and [ADR-0017](0017-item-groups-order-services.md) moved identity onto the Item but deliberately left photos on the treatment row — "proof-of-condition before *each* treatment is the intended reading." Shop practice disagrees. The photo is a **before-service record of the object**, taken at drop-off, mainly by the cashier; a worker adds one only on finding a condition worth recording, and nobody photographs a treatment as such. One Item receiving three Services was therefore carrying three disjoint galleries and clearing three separate start-work gates with what was in practice one shot. We decided that photos belong to the **Item**: the gate reads the Item's photos, a Rework counts only photos newer than its Complaint, and after-treatment photos are out of scope.
 
 ## Considered options
@@ -27,3 +29,9 @@
 - **The POS captures no per-Item photo at checkout today.** Cashiers take Item photos from the order detail page after checkout, exactly where they took service photos before. Capturing them inside intake is a follow-up, not part of this decision.
 - **Seed changes shape.** One photo per Item rather than one per treatment line, so every seeded Item clears the gate.
 - **Migration precondition.** `order_service_id` is nullable on the old table. Check both environments for orphan rows before the `NOT NULL` backfill; an orphan cannot be re-parented and has to be dropped by hand.
+
+## Amendment 2026-09-25 — a Rework counts photos taken after its own round went on the rack
+
+"Newer than its Complaint" assumed the Complaint is the moment the pair came back over the counter. Since [ADR-0013](0013-complaint-and-rework-line.md)'s 2026-09-24 amendment a Complaint can open at the counter, before the pair goes home, and one Complaint can run several rounds. Measured from the Complaint, a photo taken at the counter before the customer left, or round 1's photos, would unlock a round started weeks later with no record of the condition the pair came back in.
+
+**Decision: a Rework counts only Item photos taken after this round went on the rack** — its opening `order_service_status_logs` row (`from_status` NULL → `queued`, written when the round is created). A Rework from before those rows were written falls back to its Complaint's `created_at`. Still no new column; the gate, its trigger and its no-override stance are otherwise unchanged. This replaces the Complaint cutoff in the Rework option under *Considered options* and in the `transitionOrderService` decision above.

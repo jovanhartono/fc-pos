@@ -55,7 +55,12 @@ export async function getItemOrThrow(orderId: number, itemId: number) {
 export function findSettlementLines(executor: DbExecutor, orderId: number) {
   return executor.query.ordersServicesTable.findMany({
     where: { order_id: orderId },
-    columns: { price: true, service_id: true, status: true },
+    columns: {
+      complaint_id: true,
+      price: true,
+      service_id: true,
+      status: true,
+    },
     with: {
       service: { columns: { price: true } },
     },

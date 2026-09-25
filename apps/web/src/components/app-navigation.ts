@@ -87,7 +87,7 @@ const workNavigation: NavItem[] = [
 	{
 		to: "/complaints",
 		label: "Complaints",
-		description: "Complaints raised after pickup",
+		description: "Customer complaints and their reworks",
 		icon: WarningCircleIcon,
 		roles: ["admin", "cashier", "worker"],
 	},

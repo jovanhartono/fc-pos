@@ -126,7 +126,7 @@ it("ignores the first visit's photos when starting a rework", async () => {
 
   expect(error).toBeInstanceOf(BadRequestException);
   expect((error as Error).message).toBe(
-    "Add a photo of the returned item before starting the rework"
+    "Take a new photo of the item before starting this rework"
   );
 
   await testDb.insert(itemImagesTable).values({

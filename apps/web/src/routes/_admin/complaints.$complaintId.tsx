@@ -1,3 +1,8 @@
+import {
+	isComplainableLine,
+	isInWorkshop,
+	isReworkedRound,
+} from "@fresclean/api/schema";
 import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -56,17 +61,28 @@ const ComplaintDetailPage = () => {
 
 	const subject = detail.orderService;
 	const order = detail.orderService.order;
-	// Refund is the terminal rung (ADR-0013) — rework only while picked_up.
-	const canRework = subject.status === "picked_up";
+	// Refund is the terminal rung (ADR-0013), and a pair runs one round at a time.
+	const hasRoundInWorkshop = detail.reworkLines.some(isInWorkshop);
+	const canRework =
+		isComplainableLine(subject, subject.item.services) && !hasRoundInWorkshop;
+	const isFinished =
+		subject.status === "ready_for_pickup" || subject.status === "picked_up";
+	let reworkWaitReason: string | undefined;
+	if (!canRework && isFinished) {
+		reworkWaitReason = hasRoundInWorkshop
+			? "A rework is still in the workshop."
+			: "Other work on this item is still in the workshop.";
+	}
 	const outcome = getComplaintOutcome({
-		refunded: subject.status === "refunded",
-		reworkCount: detail.reworkLines.length,
+		subjectStatus: subject.status,
+		reworkCount: detail.reworkLines.filter(isReworkedRound).length,
 	});
 
 	return (
 		<>
 			<PageHeader
 				title={`Complaint #${detail.id}`}
+				description={reworkWaitReason}
 				actions={
 					canRework ? (
 						<Button
