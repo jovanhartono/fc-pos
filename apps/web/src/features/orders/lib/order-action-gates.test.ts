@@ -102,6 +102,29 @@ describe("role gates", () => {
 		);
 	});
 
+	it("offers Collect payment only on an unpaid Order that still owes", () => {
+		const unpaid = { payment_status: "unpaid" };
+		expect(getOrderActionGates(cashier, detail(unpaid)).canCollectPayment).toBe(
+			true,
+		);
+		expect(getOrderActionGates(cashier, detail()).canCollectPayment).toBe(
+			false,
+		);
+		expect(
+			getOrderActionGates(
+				cashier,
+				detail({
+					...unpaid,
+					status: "cancelled",
+					services: [service({ status: "cancelled" })],
+				}),
+			).canCollectPayment,
+		).toBe(false);
+		expect(getOrderActionGates(courier, detail(unpaid)).canCollectPayment).toBe(
+			false,
+		);
+	});
+
 	it("denies everything without a user", () => {
 		const gates = getOrderActionGates(undefined, detail());
 		expect(gates.isAdmin).toBe(false);

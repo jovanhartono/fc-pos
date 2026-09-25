@@ -10,6 +10,7 @@ import type { Me } from "@/features/users/api";
 export interface OrderActionGates {
 	isAdmin: boolean;
 	isPaymentAllowed: boolean;
+	canCollectPayment: boolean;
 	isPickupAllowed: boolean;
 	canManageDropoffPhoto: boolean;
 	canManageCourier: boolean;
@@ -96,6 +97,7 @@ export const getOrderActionGates = (
 			(service.complaints ?? []).length === 0,
 	);
 	const isPaid = detail.payment_status === "paid";
+	const hasUnpriced = hasUnpricedLine(services);
 	// ADR-0009: items are ready but the Order is unpaid — explain why pickup is
 	// blocked, and to whom (a pickup-only worker must fetch a cashier to collect).
 	const pickupDisabledReason =
@@ -108,6 +110,13 @@ export const getOrderActionGates = (
 	return {
 		isAdmin,
 		isPaymentAllowed,
+		// A fully cancelled Order owes nothing, and the server refuses to take
+		// payment on it.
+		canCollectPayment:
+			isPaymentAllowed &&
+			!isPaid &&
+			detail.status !== "cancelled" &&
+			!hasUnpriced,
 		isPickupAllowed,
 		canManageDropoffPhoto,
 		canManageCourier,
@@ -127,7 +136,7 @@ export const getOrderActionGates = (
 		canOpenComplaint: complaintableServices.length > 0,
 		// ADR-0018: the same predicate the server's paid transition runs, so the
 		// payment section can explain the block instead of relaying a 400.
-		hasUnpricedLine: hasUnpricedLine(services),
+		hasUnpricedLine: hasUnpriced,
 		complaintableServices,
 		collectableItems,
 		refundableServices,
