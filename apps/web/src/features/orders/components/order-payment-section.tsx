@@ -60,9 +60,7 @@ export const OrderPaymentSection = ({
 	<Card className="gap-0 overflow-hidden py-0">
 		<OrderSectionHeader
 			action={
-				detail.payment_status !== "paid" &&
-				gates.isPaymentAllowed &&
-				!gates.hasUnpricedLine ? (
+				gates.canCollectPayment ? (
 					<CollectPaymentAction detail={detail} orderId={orderId} />
 				) : null
 			}
