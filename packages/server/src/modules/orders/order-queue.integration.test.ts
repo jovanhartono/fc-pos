@@ -109,10 +109,10 @@ it("counts the chips over the same rack the list shows", async () => {
   expect(counts.queued).toBe(2);
 });
 
-it("lists only the jobs in the picked status on each card", async () => {
+it("keeps every live job on the card whatever the status chip", async () => {
   // The artisan starts the repair on the pair that is also in for a clean. A
-  // worker on "Queued" should see the clean waiting, not the repair already
-  // in hand — and "All" still shows both.
+  // worker on "Queued" still sees the repair in hand, so they know the shoe
+  // is on the artisan's bench before walking to the rack.
   const pair = await testDb.query.itemsTable.findFirst({
     where: { brand: "clean and repair" },
     with: { services: true },
@@ -141,12 +141,10 @@ it("lists only the jobs in the picked status on each card", async () => {
       ?.services.map((line) => `${line.service_name} ${line.status}`);
   };
 
-  expect(await jobsOnPair("queued")).toEqual(["Deep Clean queued"]);
-  expect(await jobsOnPair("processing")).toEqual(["Repair processing"]);
-  expect(await jobsOnPair()).toEqual([
-    "Deep Clean queued",
-    "Repair processing",
-  ]);
+  const bothJobs = ["Deep Clean queued", "Repair processing"];
+  expect(await jobsOnPair("queued")).toEqual(bothJobs);
+  expect(await jobsOnPair("processing")).toEqual(bothJobs);
+  expect(await jobsOnPair()).toEqual(bothJobs);
 
   // The chips still count cards: the pair is one card under each chip.
   const counts = await getOrderServiceQueueCounts(shop.admin, {
