@@ -250,7 +250,10 @@ function OrdersPage() {
 				},
 				cell: ({ row }) => (
 					<div className="flex flex-wrap gap-1">
-						<PaymentStatusBadge status={row.original.payment_status} />
+						{row.original.status === "cancelled" &&
+						row.original.payment_status === "unpaid" ? null : (
+							<PaymentStatusBadge status={row.original.payment_status} />
+						)}
 						{row.original.refund_status !== "none" && (
 							<Badge
 								variant={getRefundStatusBadgeVariant(

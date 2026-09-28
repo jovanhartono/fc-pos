@@ -56,10 +56,11 @@ export function rangeLabel({ preset, from, to }: ReportFilterValues): string {
 	if (start.isSame(end, "month")) {
 		return `${start.date()}–${endLabel}`;
 	}
-	const startLabel = start.format(
-		start.isSame(end, "year") ? "D MMM" : "D MMM YYYY",
-	);
-	return `${startLabel} – ${endLabel}`;
+	// Written out, a range touching another year is too wide for the phone header.
+	if (!(isThisYear && start.isSame(end, "year"))) {
+		return `${start.format("D/M/YY")} – ${end.format("D/M/YY")}`;
+	}
+	return `${start.format("D MMM")} – ${endLabel}`;
 }
 
 // Overview and Aging Queue show only the Store, so their Reset leaves the range

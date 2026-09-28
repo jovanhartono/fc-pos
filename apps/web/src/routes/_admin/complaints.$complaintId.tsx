@@ -9,6 +9,17 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import dayjs from "dayjs";
 import type { ReactNode } from "react";
 import { PageHeader } from "@/components/page-header";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,14 +96,37 @@ const ComplaintDetailPage = () => {
 				description={reworkWaitReason}
 				actions={
 					canRework ? (
-						<Button
-							variant="outline"
-							onClick={() => reworkMutation.mutate()}
-							disabled={reworkMutation.isPending}
-							icon={<ArrowClockwiseIcon className="size-4" />}
-						>
-							Start rework
-						</Button>
+						<AlertDialog>
+							<AlertDialogTrigger
+								render={
+									<Button
+										variant="outline"
+										disabled={reworkMutation.isPending}
+										icon={<ArrowClockwiseIcon className="size-4" />}
+									>
+										Start rework
+									</Button>
+								}
+							/>
+							<AlertDialogContent>
+								<AlertDialogHeader>
+									<AlertDialogTitle>Start a rework?</AlertDialogTitle>
+									<AlertDialogDescription>
+										{subject.service?.name ?? "The service"} on{" "}
+										{subject.item.item_code} goes back on the rack at no charge.
+									</AlertDialogDescription>
+								</AlertDialogHeader>
+								<AlertDialogFooter>
+									<AlertDialogCancel>Cancel</AlertDialogCancel>
+									<AlertDialogAction
+										render={<Button />}
+										onClick={() => reworkMutation.mutate()}
+									>
+										Start rework
+									</AlertDialogAction>
+								</AlertDialogFooter>
+							</AlertDialogContent>
+						</AlertDialog>
 					) : null
 				}
 			/>

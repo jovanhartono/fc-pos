@@ -102,7 +102,10 @@ describe("rangeLabel", () => {
 			"19–24 Sep 2025",
 		);
 		expect(rangeLabel({ from: "2025-12-28", to: "2026-01-03" })).toBe(
-			"28 Dec 2025 – 3 Jan",
+			"28/12/25 – 3/1/26",
+		);
+		expect(rangeLabel({ from: "2025-08-19", to: "2025-09-24" })).toBe(
+			"19/8/25 – 24/9/25",
 		);
 	});
 });
