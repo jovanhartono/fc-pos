@@ -9,17 +9,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import dayjs from "dayjs";
 import type { ReactNode } from "react";
 import { PageHeader } from "@/components/page-header";
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +20,7 @@ import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
+import { useDialog } from "@/stores/dialog-store";
 
 interface DetailProps {
 	label: string;
@@ -54,6 +44,8 @@ const ComplaintDetailPage = () => {
 
 	// 0 until data loads; the rework button only renders after the guard below.
 	const reworkMutation = useAddReworkMutation(id);
+	const openDialog = useDialog((state) => state.openDialog);
+	const closeDialog = useDialog((state) => state.closeDialog);
 
 	const detail = complaintQuery.data;
 
@@ -96,37 +88,34 @@ const ComplaintDetailPage = () => {
 				description={reworkWaitReason}
 				actions={
 					canRework ? (
-						<AlertDialog>
-							<AlertDialogTrigger
-								render={
-									<Button
-										variant="outline"
-										disabled={reworkMutation.isPending}
-										icon={<ArrowClockwiseIcon className="size-4" />}
-									>
-										Start rework
-									</Button>
-								}
-							/>
-							<AlertDialogContent>
-								<AlertDialogHeader>
-									<AlertDialogTitle>Start a rework?</AlertDialogTitle>
-									<AlertDialogDescription>
-										{subject.service?.name ?? "The service"} on{" "}
-										{subject.item.item_code} goes back on the rack at no charge.
-									</AlertDialogDescription>
-								</AlertDialogHeader>
-								<AlertDialogFooter>
-									<AlertDialogCancel>Cancel</AlertDialogCancel>
-									<AlertDialogAction
-										render={<Button />}
-										onClick={() => reworkMutation.mutate()}
-									>
-										Start rework
-									</AlertDialogAction>
-								</AlertDialogFooter>
-							</AlertDialogContent>
-						</AlertDialog>
+						<Button
+							variant="outline"
+							disabled={reworkMutation.isPending}
+							icon={<ArrowClockwiseIcon className="size-4" />}
+							onClick={() =>
+								openDialog({
+									title: "Start a rework?",
+									description: `${subject.service?.name ?? "The service"} on ${subject.item.item_code} goes back on the rack at no charge.`,
+									footer: () => (
+										<>
+											<Button variant="outline" onClick={closeDialog}>
+												Cancel
+											</Button>
+											<Button
+												onClick={() => {
+													closeDialog();
+													reworkMutation.mutate();
+												}}
+											>
+												Start rework
+											</Button>
+										</>
+									),
+								})
+							}
+						>
+							Start rework
+						</Button>
 					) : null
 				}
 			/>

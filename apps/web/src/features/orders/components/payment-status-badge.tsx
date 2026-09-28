@@ -1,16 +1,25 @@
 import { Badge } from "@/components/ui/badge";
-import type { OrderDetail } from "@/features/orders/api";
+import {
+	isCancelledBeforePayment,
+	type OrderPaymentState,
+} from "@/features/orders/lib/order-action-gates";
 import {
 	formatPaymentStatus,
 	getPaymentStatusBadgeVariant,
 } from "@/lib/status";
 
 interface PaymentStatusBadgeProps {
-	status: OrderDetail["payment_status"];
+	order: OrderPaymentState;
 }
 
-export const PaymentStatusBadge = ({ status }: PaymentStatusBadgeProps) => (
-	<Badge variant={getPaymentStatusBadgeVariant(status)}>
-		{formatPaymentStatus(status)}
-	</Badge>
-);
+export const PaymentStatusBadge = ({ order }: PaymentStatusBadgeProps) => {
+	if (isCancelledBeforePayment(order)) {
+		return null;
+	}
+
+	return (
+		<Badge variant={getPaymentStatusBadgeVariant(order.payment_status)}>
+			{formatPaymentStatus(order.payment_status)}
+		</Badge>
+	);
+};

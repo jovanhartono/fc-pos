@@ -96,16 +96,19 @@ describe("rangeLabel", () => {
 		expect(rangeLabel({ from: "2026-09-24", to: "2026-09-24" })).toBe("24 Sep");
 	});
 
-	it("adds the year only when it isn't this year", () => {
-		onDay("2026-01-10");
-		expect(rangeLabel({ from: "2025-09-19", to: "2025-09-24" })).toBe(
-			"19–24 Sep 2025",
+	it("writes a range outside this year as numbers, short enough for a phone", () => {
+		onDay("2026-06-10");
+		expect(rangeLabel({ from: "2025-09-24", to: "2025-09-24" })).toBe(
+			"24/9/25",
 		);
-		expect(rangeLabel({ from: "2025-12-28", to: "2026-01-03" })).toBe(
-			"28/12/25 – 3/1/26",
+		expect(rangeLabel({ from: "2025-09-19", to: "2025-09-24" })).toBe(
+			"19/9/25 – 24/9/25",
 		);
 		expect(rangeLabel({ from: "2025-08-19", to: "2025-09-24" })).toBe(
 			"19/8/25 – 24/9/25",
+		);
+		expect(rangeLabel({ from: "2025-12-20", to: "2026-02-03" })).toBe(
+			"20/12/25 – 3/2/26",
 		);
 	});
 });

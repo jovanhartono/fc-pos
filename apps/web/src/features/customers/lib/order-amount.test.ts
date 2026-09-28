@@ -11,6 +11,7 @@ describe("describeOrderAmount", () => {
 			paid_amount: "800000",
 			payment_status: "paid",
 			refunded_amount: "250000",
+			status: "completed",
 		});
 
 		expect(amount.label).toBe(formatMoney("550000"));
@@ -25,6 +26,7 @@ describe("describeOrderAmount", () => {
 			paid_amount: "250000",
 			payment_status: "paid",
 			refunded_amount: "0",
+			status: "completed",
 		});
 
 		expect(amount.label).toBe(formatMoney("250000"));
@@ -37,6 +39,7 @@ describe("describeOrderAmount", () => {
 			paid_amount: "250000",
 			payment_status: "paid",
 			refunded_amount: "250000",
+			status: "completed",
 		});
 
 		expect(amount.label).toBe(formatMoney("0"));
@@ -49,6 +52,7 @@ describe("describeOrderAmount", () => {
 			paid_amount: "0",
 			payment_status: "unpaid",
 			refunded_amount: "0",
+			status: "processing",
 		});
 
 		expect(amount).toEqual({
@@ -56,6 +60,18 @@ describe("describeOrderAmount", () => {
 			label: "Unpaid",
 			refunded: null,
 		});
+	});
+
+	it("shows nothing owed on an order cancelled before it was paid", () => {
+		const amount = describeOrderAmount({
+			has_unpriced_line: true,
+			paid_amount: "0",
+			payment_status: "unpaid",
+			refunded_amount: "0",
+			status: "cancelled",
+		});
+
+		expect(amount).toEqual({ isPending: true, label: "—", refunded: null });
 	});
 
 	// The bag awaiting inspection: no number has been agreed, and "Rp 0" would
@@ -66,6 +82,7 @@ describe("describeOrderAmount", () => {
 			paid_amount: "0",
 			payment_status: "unpaid",
 			refunded_amount: "0",
+			status: "created",
 		});
 
 		expect(amount.label).toBe("Pending price");

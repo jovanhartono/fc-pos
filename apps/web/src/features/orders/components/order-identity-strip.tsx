@@ -241,10 +241,7 @@ export const OrderIdentityStrip = ({
 							<Badge variant={getOrderStatusBadgeVariant(detail.status)}>
 								{formatOrderStatus(detail.status)}
 							</Badge>
-							{detail.status === "cancelled" &&
-							detail.payment_status === "unpaid" ? null : (
-								<PaymentStatusBadge status={detail.payment_status} />
-							)}
+							<PaymentStatusBadge order={detail} />
 							{detail.refund_status !== "none" ? (
 								<Badge
 									variant={getRefundStatusBadgeVariant(detail.refund_status)}

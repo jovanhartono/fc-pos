@@ -123,6 +123,12 @@ function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
     conditions.push({ payment_status: filters.payment_status });
   }
 
+  // "Unpaid" is the cashier's list of who still owes, and a cancelled Order
+  // owes nothing even though it was never paid.
+  if (filters.payment_status === "unpaid") {
+    conditions.push({ status: { ne: "cancelled" } });
+  }
+
   if (filters.overdue) {
     conditions.push({ status: "ready_for_pickup" });
     // Aged from the shelf, not from intake. A null ready_at drops out of `lt`

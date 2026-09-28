@@ -1,11 +1,21 @@
 import { hasUnpricedLine, isComplainableLine } from "@fresclean/api/schema";
-import type { OrderDetail } from "@/features/orders/api";
+import type { Order, OrderDetail } from "@/features/orders/api";
 import {
 	flattenOrderLines,
 	type OrderItem,
 	type OrderLine,
 } from "@/features/orders/lib/order-lines";
 import type { Me } from "@/features/users/api";
+
+export interface OrderPaymentState {
+	payment_status: Order["payment_status"];
+	status: Order["status"];
+}
+
+// Cancelled before anyone paid: the customer owes nothing, so no screen says
+// Unpaid.
+export const isCancelledBeforePayment = (order: OrderPaymentState) =>
+	order.status === "cancelled" && order.payment_status === "unpaid";
 
 export interface OrderActionGates {
 	isAdmin: boolean;
@@ -110,8 +120,6 @@ export const getOrderActionGates = (
 	return {
 		isAdmin,
 		isPaymentAllowed,
-		// A fully cancelled Order owes nothing, and the server refuses to take
-		// payment on it.
 		canCollectPayment:
 			isPaymentAllowed &&
 			!isPaid &&
