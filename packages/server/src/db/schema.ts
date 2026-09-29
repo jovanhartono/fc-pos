@@ -751,10 +751,10 @@ export const ordersServicesTable = pgTable(
   ]
 );
 
-// A Customer's post-pickup grievance about an OrderService (ADR-0013). The
-// original complained line is `order_service_id`; the free re-clean lines it
-// spawns point back via `orders_services.complaint_id`. picked_up stays
-// terminal — a complaint never mutates the original line.
+// A Customer's grievance about a finished OrderService, at the counter or after
+// pickup (ADR-0013). The original complained line is `order_service_id`; the
+// free re-clean lines it spawns point back via `orders_services.complaint_id`.
+// A complaint never mutates the original line.
 export const complaintsTable = pgTable(
   "complaints",
   {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { OrderDetail } from "@/features/orders/api";
 import type { Me } from "@/features/users/api";
 import { getOrderActionGates, startPhotoBlocker } from "./order-action-gates";
+import type { OrderLine } from "./order-lines";
 
 type ServiceOverrides = Record<string, unknown>;
 
@@ -98,6 +99,29 @@ describe("role gates", () => {
 	it("lets workers manage the drop-off photo", () => {
 		expect(getOrderActionGates(worker, detail()).canManageDropoffPhoto).toBe(
 			true,
+		);
+	});
+
+	it("offers Collect payment only on an unpaid Order that still owes", () => {
+		const unpaid = { payment_status: "unpaid" };
+		expect(getOrderActionGates(cashier, detail(unpaid)).canCollectPayment).toBe(
+			true,
+		);
+		expect(getOrderActionGates(cashier, detail()).canCollectPayment).toBe(
+			false,
+		);
+		expect(
+			getOrderActionGates(
+				cashier,
+				detail({
+					...unpaid,
+					status: "cancelled",
+					services: [service({ status: "cancelled" })],
+				}),
+			).canCollectPayment,
+		).toBe(false);
+		expect(getOrderActionGates(courier, detail(unpaid)).canCollectPayment).toBe(
+			false,
 		);
 	});
 
@@ -276,7 +300,9 @@ describe("order off-ramps (ADR-0008: disjoint by payment_status)", () => {
 });
 
 describe("complaintable lines (ADR-0013)", () => {
-	it("offers only picked_up lines with no complaint that are not reworks", () => {
+	it("offers finished lines with no complaint that are not reworks", () => {
+		// Cashier SOP: the customer inspects the ready pair before taking it,
+		// so a ready line is complainable as well as a picked-up one.
 		const gates = getOrderActionGates(
 			worker,
 			detail({
@@ -285,12 +311,34 @@ describe("complaintable lines (ADR-0013)", () => {
 					service({ id: 2, status: "picked_up", complaints: [{ id: 7 }] }),
 					service({ id: 3, status: "picked_up", reworkOf: { id: 1 } }),
 					service({ id: 4, status: "ready_for_pickup" }),
+					service({ id: 5, status: "quality_check" }),
+					service({ id: 6, status: "refunded" }),
+					service({ id: 7, status: "cancelled" }),
+					service({ id: 8, status: "ready_for_pickup", reworkOf: { id: 1 } }),
 				],
 			}),
 		);
 
-		expect(gates.complaintableServices.map((s) => s.id)).toEqual([1]);
+		expect(gates.complaintableServices.map((s) => s.id)).toEqual([1, 4]);
 		expect(gates.canOpenComplaint).toBe(true);
+	});
+
+	it("holds a ready line back while another treatment on the pair is in the workshop", () => {
+		// The customer at the counter has not been shown the pair yet.
+		const gates = getOrderActionGates(
+			worker,
+			detail({
+				items: [
+					item(false, [
+						service({ id: 1, status: "ready_for_pickup" }),
+						service({ id: 2, status: "processing" }),
+					]),
+				],
+			}),
+		);
+
+		expect(gates.complaintableServices).toEqual([]);
+		expect(gates.canOpenComplaint).toBe(false);
 	});
 });
 
@@ -324,9 +372,12 @@ describe("startPhotoBlocker", () => {
 			startPhotoBlocker({
 				status: "queued",
 				has_start_photo: false,
-				reworkOf: { id: 9, created_at: "2026-09-08T04:00:00.000Z" },
+				reworkOf: {
+					id: 9,
+					created_at: "2026-09-08T04:00:00.000Z",
+				} as OrderLine["reworkOf"],
 			}),
-		).toBe("Photograph the returned item before starting the rework.");
+		).toBe("Take a new photo of the item before starting this rework.");
 	});
 
 	it("is silent once work has started, photos or not", () => {

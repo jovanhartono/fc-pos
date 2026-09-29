@@ -1,5 +1,6 @@
 import { type DbExecutor, db } from "@/db";
 import { BadRequestException } from "@/http-exceptions";
+import type { OrderServiceStatus } from "@/modules/orders/order-status-machine";
 
 // The tag and descriptors staff and customers read off the physical object
 // (ADR-0017) — the same handful of fields wherever an Item is named.
@@ -35,6 +36,133 @@ const orderStateColumns = {
   paid_amount: true,
   refunded_amount: true,
 } as const;
+
+// Both ends of a Complaint (ADR-0013), one shape for the order sheet and queue
+// detail so the same line reads the same on both.
+const lineComplaintRelations = {
+  complaints: {
+    columns: { id: true, created_at: true, reason: true },
+    limit: 1,
+    orderBy: { id: "asc" },
+    with: {
+      openedBy: { columns: userRefColumns },
+      reworkLines: {
+        columns: { id: true, status: true },
+        orderBy: { id: "asc" },
+        with: {
+          // When the round went on the rack; reworks from before ADR-0013's
+          // 2026-09-24 amendment have none.
+          statusLogs: {
+            columns: { created_at: true },
+            where: { from_status: { isNull: true } },
+            limit: 1,
+            with: { changedBy: { columns: userRefColumns } },
+          },
+        },
+      },
+    },
+  },
+  reworkOf: {
+    columns: { id: true, created_at: true, reason: true },
+    with: {
+      openedBy: { columns: userRefColumns },
+      orderService: {
+        columns: { id: true },
+        with: {
+          service: { columns: { id: true, name: true } },
+          handler: { columns: userRefColumns },
+          pickupEvent: { columns: { picked_up_at: true } },
+        },
+      },
+      reworkLines: { columns: { id: true }, orderBy: { id: "asc" }, limit: 1 },
+    },
+  },
+} as const;
+
+export interface UserRef {
+  id: number;
+  name: string;
+}
+
+interface OpeningLog {
+  changedBy: UserRef | null;
+  created_at: Date;
+}
+
+interface ComplaintOpening {
+  created_at: Date;
+  openedBy: UserRef | null;
+}
+
+export interface ReworkOpening {
+  rework_opened_at: Date | null;
+  rework_opened_by: UserRef | null;
+}
+
+interface LineWithComplaints {
+  complaints: ReadonlyArray<
+    ComplaintOpening & {
+      id: number;
+      reason: string;
+      reworkLines: ReadonlyArray<{
+        id: number;
+        status: OrderServiceStatus;
+        statusLogs: readonly OpeningLog[];
+      }>;
+    }
+  >;
+  id: number;
+  reworkOf:
+    | (ComplaintOpening & { reworkLines: ReadonlyArray<{ id: number }> })
+    | null;
+  statusLogs: ReadonlyArray<OpeningLog & { from_status: string | null }>;
+}
+
+// Rounds from before the rack entry was logged: the first dates from its
+// Complaint, a later one stays blank rather than guess.
+function reworkOpening(
+  log: OpeningLog | undefined,
+  complaint: ComplaintOpening,
+  isFirstRound: boolean
+): ReworkOpening {
+  if (log) {
+    return {
+      rework_opened_at: log.created_at,
+      rework_opened_by: log.changedBy,
+    };
+  }
+  if (isFirstRound) {
+    return {
+      rework_opened_at: complaint.created_at,
+      rework_opened_by: complaint.openedBy,
+    };
+  }
+  return { rework_opened_at: null, rework_opened_by: null };
+}
+
+// When each Rework round went on the rack and who put it there, for the line
+// itself and for every round of its Complaint.
+export function withReworkOpenings(line: LineWithComplaints) {
+  const { reworkOf } = line;
+  const own: ReworkOpening = reworkOf
+    ? reworkOpening(
+        line.statusLogs.find((log) => log.from_status === null),
+        reworkOf,
+        reworkOf.reworkLines[0]?.id === line.id
+      )
+    : { rework_opened_at: null, rework_opened_by: null };
+
+  return {
+    ...own,
+    complaints: line.complaints.map(({ reworkLines, ...complaint }) => ({
+      ...complaint,
+      reworkLines: reworkLines.map(({ statusLogs, ...round }, index) => ({
+        ...round,
+        ...reworkOpening(statusLogs[0], complaint, index === 0),
+      })),
+    })),
+  };
+}
 
 export function findOrderState(executor: DbExecutor, id: number) {
   return executor.query.ordersTable.findFirst({
@@ -114,18 +242,7 @@ export function findOrderDetail(id: number) {
               handler: {
                 columns: userRefColumns,
               },
-              // Complaints opened against this line + (if this line is a
-              // rework) the complaint that spawned it — see ADR-0013.
-              // Existence is the only signal; the complaint carries no status
-              // (ADR-0013 amendment).
-              complaints: {
-                columns: { id: true },
-                limit: 1,
-                orderBy: { id: "asc" },
-              },
-              reworkOf: {
-                columns: { id: true, created_at: true },
-              },
+              ...lineComplaintRelations,
               refundItems: true,
               // Name and list price only — enough for the payment sheet to
               // tell a no-list-price Repair from a priced Service; the shop's
@@ -280,7 +397,7 @@ export function findOrderServiceDetail(orderId: number, serviceId: number) {
       },
       handler: { columns: userRefColumns },
       service: { columns: { id: true, name: true } },
-      reworkOf: { columns: { id: true, created_at: true } },
+      ...lineComplaintRelations,
       statusLogs: {
         with: { changedBy: { columns: userRefColumns } },
         orderBy: { id: "asc" },
@@ -307,7 +424,8 @@ export function findOrderForLookup(id: number) {
 
 // The customer's own view of their Order. pickup_code rides along so the
 // tracker can reveal it once something is collectable — when, is the tracking
-// service's call, never this read's.
+// service's call, never this read's. No staff notes, the Order's or a status
+// change's: anyone holding the code and the phone number can read this.
 export function findTrackedOrder(code: string, customerId: number) {
   return db.query.ordersTable.findFirst({
     where: {
@@ -321,7 +439,6 @@ export function findTrackedOrder(code: string, customerId: number) {
       payment_status: true,
       discount: true,
       total: true,
-      notes: true,
       pickup_code: true,
       created_at: true,
       completed_at: true,
@@ -364,7 +481,6 @@ export function findTrackedOrder(code: string, customerId: number) {
                   id: true,
                   from_status: true,
                   to_status: true,
-                  note: true,
                   created_at: true,
                 },
               },

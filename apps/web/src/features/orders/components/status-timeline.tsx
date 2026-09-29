@@ -1,38 +1,84 @@
 import { CaretRightIcon } from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
-import { formatOrderServiceStatus } from "@/lib/status";
+import {
+	buildLineTimeline,
+	type TimelineEntry,
+	type TimelineLine,
+} from "@/features/orders/lib/line-timeline";
 
-type StatusLog = {
-	id: number;
-	to_status: string;
-	created_at: string;
-	changedBy?: { name: string } | null;
-	note?: string | null;
+interface TimelineEntryLabelProps {
+	entry: TimelineEntry;
+	orderId: number;
+	onNavigate?: () => void;
+}
+
+const TimelineEntryLabel = ({
+	entry,
+	orderId,
+	onNavigate,
+}: TimelineEntryLabelProps) => {
+	if (entry.reworkLineId === undefined) {
+		return <p className="font-medium">{entry.label}</p>;
+	}
+
+	return (
+		<Link
+			className="flex w-fit items-center gap-0.5 font-medium underline underline-offset-2 hover:text-muted-foreground"
+			onClick={onNavigate}
+			params={{ orderId, serviceId: entry.reworkLineId }}
+			to="/queue/$orderId/$serviceId"
+		>
+			{entry.label}
+			<CaretRightIcon aria-hidden="true" className="size-3" />
+		</Link>
+	);
 };
 
-export function StatusTimeline({ logs }: { logs: StatusLog[] }) {
+interface StatusTimelineProps {
+	line: TimelineLine;
+	orderId: number;
+	defaultOpen?: boolean;
+	// The order sheet closes itself before a link takes the cashier elsewhere.
+	onNavigate?: () => void;
+}
+
+export const StatusTimeline = ({
+	line,
+	orderId,
+	defaultOpen = false,
+	onNavigate,
+}: StatusTimelineProps) => {
+	const entries = buildLineTimeline(line);
+
 	return (
-		<details className="group">
+		<details className="group" open={defaultOpen}>
 			<summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden [&::marker]:hidden">
 				<CaretRightIcon
 					className="size-4 shrink-0 transition-transform group-open:rotate-90"
 					aria-hidden="true"
 				/>
-				Timeline ({logs.length})
+				Timeline ({entries.length})
 			</summary>
 			<div className="mt-3 grid gap-2 border-l border-border pl-3">
-				{logs.length > 0 ? (
-					logs.map((log) => (
-						<div key={log.id} className="grid gap-1 text-xs">
-							<p className="font-medium">
-								{formatOrderServiceStatus(log.to_status)}
-							</p>
-							<p className="text-muted-foreground">
-								{`${log.changedBy?.name ?? "—"} · ${formatOrderDateTime(log.created_at)}`}
-							</p>
-							{log.note ? (
-								<p className="text-muted-foreground">{log.note}</p>
-							) : null}
+				{entries.length > 0 ? (
+					entries.map((entry) => (
+						<div key={entry.key} className="grid gap-1 text-xs">
+							<TimelineEntryLabel
+								entry={entry}
+								onNavigate={onNavigate}
+								orderId={orderId}
+							/>
+							{(entry.at !== null || entry.by !== null) && (
+								<p className="text-muted-foreground">
+									{[entry.by, entry.at ? formatOrderDateTime(entry.at) : null]
+										.filter(Boolean)
+										.join(" · ")}
+								</p>
+							)}
+							{Boolean(entry.note) && (
+								<p className="text-muted-foreground">{entry.note}</p>
+							)}
 						</div>
 					))
 				) : (
@@ -43,4 +89,4 @@ export function StatusTimeline({ logs }: { logs: StatusLog[] }) {
 			</div>
 		</details>
 	);
-}
+};

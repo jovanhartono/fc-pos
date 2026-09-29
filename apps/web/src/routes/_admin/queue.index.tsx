@@ -44,11 +44,14 @@ import {
 	ordersQueries,
 	type QueueCategoryMode,
 	type QueueItem,
+	type QueueItemService,
 } from "@/features/orders/api";
 import { QueueCategoryFilter } from "@/features/orders/components/queue-category-filter";
 import { QueueStatusTabs } from "@/features/orders/components/queue-status-tabs";
+import { ReworkRoundLabel } from "@/features/orders/components/rework-round-label";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { useBarcodeScanner } from "@/features/orders/hooks/useBarcodeScanner";
+import { groupReworksUnderOriginals } from "@/features/orders/lib/rework-nesting";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
@@ -666,6 +669,76 @@ function QueuePage() {
 	);
 }
 
+interface QueueJobButtonProps {
+	service: QueueItemService;
+	currentUserId?: number;
+	onOpen: () => void;
+}
+
+const QueueJobButton = ({
+	service,
+	currentUserId,
+	onOpen,
+}: QueueJobButtonProps) => {
+	const reworkRound = service.rework_round;
+	const handler =
+		service.handler_id === currentUserId
+			? "Me"
+			: (service.handler_name ??
+				(service.handler_id === null ? null : "Worker"));
+
+	return (
+		<button
+			className={cn(
+				"group grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 px-3 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none",
+				reworkRound !== null && "pt-1 pl-5",
+			)}
+			onClick={onOpen}
+			type="button"
+		>
+			<span className="min-w-0 break-words text-sm">
+				{reworkRound === null ? (
+					service.service_name
+				) : (
+					<>
+						<span aria-hidden="true" className="text-muted-foreground">
+							└{" "}
+						</span>
+						<ReworkRoundLabel
+							round={reworkRound}
+							serviceName={service.service_name}
+						/>
+					</>
+				)}
+			</span>
+			<CaretRightIcon
+				aria-hidden="true"
+				className="row-span-2 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+				weight="bold"
+			/>
+			<span
+				className={cn(
+					"flex min-w-0 flex-wrap items-center gap-1.5 text-muted-foreground text-xs",
+					reworkRound !== null && "pl-4",
+				)}
+			>
+				<Badge
+					className="px-1.5 py-0 text-[11px]"
+					variant={getOrderServiceStatusBadgeVariant(service.status)}
+				>
+					{formatOrderServiceStatus(service.status)}
+				</Badge>
+				{service.is_priority ? (
+					<Badge className="px-1.5 py-0 text-[11px]" variant="warning">
+						Priority
+					</Badge>
+				) : null}
+				{handler ? <span>{handler}</span> : null}
+			</span>
+		</button>
+	);
+};
+
 interface QueueRowProps {
 	item: QueueItem;
 	currentUserId?: number;
@@ -743,49 +816,34 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 			{/* Each treatment is its own target: the worker taps the job they are
 			    about to do, not the object. */}
 			<ul className="grid">
-				{item.services.map((service) => {
-					const handler =
-						service.handler_id === currentUserId
-							? "Me"
-							: (service.handler_name ??
-								(service.handler_id === null ? null : "Worker"));
-
-					return (
-						<li className="min-w-0" key={service.id}>
-							<button
-								className="group grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 border-border/70 border-t px-3 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
-								onClick={() => onOpen(item, service.id)}
-								type="button"
-							>
-								<span className="min-w-0 break-words text-sm">
-									{service.service_name}
-								</span>
-								<CaretRightIcon
-									aria-hidden="true"
-									className="row-span-2 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-									weight="bold"
-								/>
-								<span className="flex min-w-0 flex-wrap items-center gap-1.5 text-muted-foreground text-xs">
-									<Badge
-										className="px-1.5 py-0 text-[11px]"
-										variant={getOrderServiceStatusBadgeVariant(service.status)}
-									>
-										{formatOrderServiceStatus(service.status)}
-									</Badge>
-									{service.is_priority ? (
-										<Badge
-											className="px-1.5 py-0 text-[11px]"
-											variant="warning"
-										>
-											Priority
-										</Badge>
-									) : null}
-									{handler ? <span>{handler}</span> : null}
-								</span>
-							</button>
-						</li>
-					);
-				})}
+				{groupReworksUnderOriginals(
+					item.services,
+					(service) => service.rework_of_line_id,
+				).map(({ original, originalId, reworks }) => (
+					<li className="min-w-0 border-border/70 border-t" key={originalId}>
+						{original ? (
+							<QueueJobButton
+								currentUserId={currentUserId}
+								onOpen={() => onOpen(item, original.id)}
+								service={original}
+							/>
+						) : (
+							// Picked up and brought back: the original is off the rack,
+							// but the worker still needs to know what is being redone.
+							<p className="min-w-0 break-words px-3 pt-2.5 text-sm">
+								{reworks[0]?.rework_of_service_name ?? "Service"}
+							</p>
+						)}
+						{reworks.map((rework) => (
+							<QueueJobButton
+								currentUserId={currentUserId}
+								key={rework.id}
+								onOpen={() => onOpen(item, rework.id)}
+								service={rework}
+							/>
+						))}
+					</li>
+				))}
 			</ul>
 		</article>
 	);

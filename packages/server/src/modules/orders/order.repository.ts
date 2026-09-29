@@ -55,7 +55,12 @@ export async function getItemOrThrow(orderId: number, itemId: number) {
 export function findSettlementLines(executor: DbExecutor, orderId: number) {
   return executor.query.ordersServicesTable.findMany({
     where: { order_id: orderId },
-    columns: { price: true, service_id: true, status: true },
+    columns: {
+      complaint_id: true,
+      price: true,
+      service_id: true,
+      status: true,
+    },
     with: {
       service: { columns: { price: true } },
     },
@@ -116,6 +121,12 @@ function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
 
   if (filters.payment_status) {
     conditions.push({ payment_status: filters.payment_status });
+  }
+
+  // "Unpaid" is the cashier's list of who still owes, and a cancelled Order
+  // owes nothing even though it was never paid.
+  if (filters.payment_status === "unpaid") {
+    conditions.push({ status: { ne: "cancelled" } });
   }
 
   if (filters.overdue) {

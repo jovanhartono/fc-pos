@@ -15,6 +15,7 @@ import type { JWTPayload } from "@/types";
 type AnyObj = Record<string, unknown>;
 
 interface FakeLine {
+  complaint_id: number | null;
   id: number;
   price: string | null;
   status: string;
@@ -137,6 +138,7 @@ afterAll(() => {
 const WORKER = { id: 7, role: "worker" } as unknown as JWTPayload;
 
 const makeLine = (over: Partial<FakeLine> = {}): FakeLine => ({
+  complaint_id: null,
   id: 21,
   price: null,
   status: "processing",
@@ -239,6 +241,20 @@ describe("setOrderServicePrice", () => {
       "Cannot set a price on a cancelled line"
     );
     expect(state.serviceWrites).toHaveLength(0);
+  });
+
+  it("refuses to price a rework on an Order still unpaid at the counter", async () => {
+    // The customer turned the pair down before paying; its re-clean is free.
+    state.line = makeLine({ complaint_id: 5, price: "0", status: "queued" });
+
+    const error = await captureRejection(setPrice(50_000));
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "A rework is free — its price is fixed"
+    );
+    expect(state.serviceWrites).toHaveLength(0);
+    expect(state.logRows).toHaveLength(0);
   });
 
   it("refuses zero — 0 means deliberately free, which is a Rework, not a price", async () => {

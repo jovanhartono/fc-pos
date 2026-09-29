@@ -1,3 +1,4 @@
+import { isInWorkshop, isReworkedRound } from "@fresclean/api/schema";
 import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -11,10 +12,12 @@ import { complaintsQueries } from "@/features/complaints/api";
 import { useAddReworkMutation } from "@/features/complaints/hooks/useComplaintMutations";
 import { getComplaintOutcome } from "@/features/complaints/lib/format";
 import { CustomerLink } from "@/features/customers/components/customer-link";
+import { ReworkRoundLabel } from "@/features/orders/components/rework-round-label";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
+import { useDialog } from "@/stores/dialog-store";
 
 interface DetailProps {
 	label: string;
@@ -38,6 +41,8 @@ const ComplaintDetailPage = () => {
 
 	// 0 until data loads; the rework button only renders after the guard below.
 	const reworkMutation = useAddReworkMutation(id);
+	const openDialog = useDialog((state) => state.openDialog);
+	const closeDialog = useDialog((state) => state.closeDialog);
 
 	const detail = complaintQuery.data;
 
@@ -56,24 +61,54 @@ const ComplaintDetailPage = () => {
 
 	const subject = detail.orderService;
 	const order = detail.orderService.order;
-	// Refund is the terminal rung (ADR-0013) — rework only while picked_up.
-	const canRework = subject.status === "picked_up";
+	// Refund is the terminal rung (ADR-0013), and a Complaint runs one round at
+	// a time.
+	const isFinished =
+		subject.status === "ready_for_pickup" || subject.status === "picked_up";
+	const roundIndex = detail.reworkLines.findIndex(isInWorkshop);
+	const roundInWorkshop = detail.reworkLines[roundIndex];
+	const canRework = isFinished && roundInWorkshop === undefined;
+	const reworkWaitReason =
+		isFinished && roundInWorkshop
+			? `Rework ${roundIndex + 1} is still in the workshop: ${formatOrderServiceStatus(roundInWorkshop.status)}, ${roundInWorkshop.handler?.name ?? "unassigned"}.`
+			: undefined;
 	const outcome = getComplaintOutcome({
-		refunded: subject.status === "refunded",
-		reworkCount: detail.reworkLines.length,
+		subjectStatus: subject.status,
+		reworkCount: detail.reworkLines.filter(isReworkedRound).length,
 	});
 
 	return (
 		<>
 			<PageHeader
 				title={`Complaint #${detail.id}`}
+				description={reworkWaitReason}
 				actions={
 					canRework ? (
 						<Button
 							variant="outline"
-							onClick={() => reworkMutation.mutate()}
 							disabled={reworkMutation.isPending}
 							icon={<ArrowClockwiseIcon className="size-4" />}
+							onClick={() =>
+								openDialog({
+									title: "Start a rework?",
+									description: `${subject.service?.name ?? "The service"} on ${subject.item.item_code} goes back on the rack at no charge.`,
+									footer: () => (
+										<>
+											<Button variant="outline" onClick={closeDialog}>
+												Cancel
+											</Button>
+											<Button
+												onClick={() => {
+													closeDialog();
+													reworkMutation.mutate();
+												}}
+											>
+												Start rework
+											</Button>
+										</>
+									),
+								})
+							}
 						>
 							Start rework
 						</Button>
@@ -149,15 +184,18 @@ const ComplaintDetailPage = () => {
 						) : (
 							// A rework re-treats the complained object, so the tag shown
 							// above is its tag too (ADR-0017) — rounds are told apart by
-							// line number, not by a code of their own.
-							detail.reworkLines.map((line) => (
+							// their number, not by a code of their own.
+							detail.reworkLines.map((line, index) => (
 								<div
 									key={line.id}
 									className="flex flex-wrap items-center justify-between gap-2 border p-3"
 								>
 									<div className="flex flex-col gap-0.5">
 										<span className="text-sm">
-											{line.service?.name ?? "Service"}
+											<ReworkRoundLabel
+												round={index + 1}
+												serviceName={line.service?.name ?? "Service"}
+											/>
 										</span>
 										<span className="text-muted-foreground text-xs">
 											#{line.id} · {line.handler?.name ?? "Unassigned"}

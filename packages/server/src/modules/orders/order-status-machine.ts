@@ -1,7 +1,8 @@
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { DbExecutor } from "@/db";
 import {
   type cancelReasonEnum,
+  complaintsTable,
   type orderServiceStatusEnum,
   orderServiceStatusLogsTable,
   ordersServicesTable,
@@ -42,6 +43,10 @@ export const WORKSHOP_SERVICE_STATUSES = [
   "quality_check",
   "qc_reject",
 ] as const;
+
+export function isInWorkshop(line: { status: string }): boolean {
+  return (WORKSHOP_SERVICE_STATUSES as readonly string[]).includes(line.status);
+}
 
 const ORDER_TERMINAL_SERVICE_STATUS_SET = new Set<OrderServiceStatus>(
   ORDER_TERMINAL_SERVICE_STATUSES
@@ -459,6 +464,64 @@ export async function transitionOrderService(
   return moved;
 }
 
+// A line has no created_at, so this row is the only record of who put a
+// Rework round on the rack, and when (ADR-0013).
+export async function logReworkQueued(
+  executor: DbExecutor,
+  { by, note, serviceId }: { by: number; note: string; serviceId: number }
+) {
+  await executor.insert(orderServiceStatusLogsTable).values({
+    order_service_id: serviceId,
+    from_status: null,
+    to_status: "queued",
+    changed_by: by,
+    note,
+  });
+}
+
+// The pair's original was cancelled or refunded at the counter, so its free
+// re-clean stops too, even on a paid Order (ADR-0013, 2026-09-24).
+async function cancelLiveReworks(
+  executor: DbExecutor,
+  { by, note, originalIds }: { by: number; note: string; originalIds: number[] }
+): Promise<number[]> {
+  const reworks = await executor
+    .select({ id: ordersServicesTable.id, status: ordersServicesTable.status })
+    .from(ordersServicesTable)
+    .innerJoin(
+      complaintsTable,
+      eq(ordersServicesTable.complaint_id, complaintsTable.id)
+    )
+    .where(
+      and(
+        inArray(complaintsTable.order_service_id, originalIds),
+        inArray(ordersServicesTable.status, [...WORKSHOP_SERVICE_STATUSES])
+      )
+    )
+    .for("update", { of: ordersServicesTable });
+
+  const reworkIds = reworks.map((rework) => rework.id);
+  if (reworkIds.length === 0) {
+    return reworkIds;
+  }
+
+  await executor
+    .update(ordersServicesTable)
+    .set({ status: "cancelled", cancel_reason: "other", cancel_note: note })
+    .where(inArray(ordersServicesTable.id, reworkIds));
+
+  await executor.insert(orderServiceStatusLogsTable).values(
+    reworks.map((rework) => ({
+      order_service_id: rework.id,
+      from_status: rework.status,
+      to_status: "cancelled" as const,
+      changed_by: by,
+      note,
+    }))
+  );
+  return reworkIds;
+}
+
 export interface CancelOrderServiceLine {
   note?: string;
   reason: CancelReason;
@@ -476,7 +539,7 @@ export async function cancelOrderServices(
     lines,
     orderId,
   }: { by: number; lines: CancelOrderServiceLine[]; orderId: number }
-): Promise<void> {
+): Promise<{ reworkIds: number[] }> {
   for (const line of lines) {
     await applyServiceTransition(executor, {
       by,
@@ -489,7 +552,15 @@ export async function cancelOrderServices(
     });
   }
 
+  const reworkIds = await cancelLiveReworks(executor, {
+    by,
+    note: "Original line cancelled",
+    originalIds: lines.map((line) => line.serviceId),
+  });
+
   await recomputeOrderRollup(executor, orderId, by);
+
+  return { reworkIds };
 }
 
 export interface CompletePickupInput {
@@ -517,6 +588,20 @@ export async function completePickup(
   input: CompletePickupInput
 ): Promise<{ handedOverIds: number[]; requestedIds: number[] }> {
   const { orderId, itemIds, pickupEventId, by, note } = input;
+
+  // Another cashier may be opening a counter complaint on this pair right now;
+  // holding its lines first makes the check below see the rework it adds.
+  await executor
+    .select({ id: ordersServicesTable.id })
+    .from(ordersServicesTable)
+    .where(
+      and(
+        eq(ordersServicesTable.order_id, orderId),
+        inArray(ordersServicesTable.item_id, itemIds)
+      )
+    )
+    .orderBy(asc(ordersServicesTable.id))
+    .for("update");
 
   const items = await executor.query.itemsTable.findMany({
     where: { order_id: orderId, id: { in: itemIds } },
@@ -687,6 +772,16 @@ export async function applyRefundTransition(
       note: item.note,
     }))
   );
+
+  // A pair the customer took home and brought back keeps its Rework running:
+  // that round is how the pair goes home again.
+  await cancelLiveReworks(executor, {
+    by,
+    note: "Original line refunded",
+    originalIds: services
+      .filter((service) => service.status !== "picked_up")
+      .map((service) => service.id),
+  });
 
   await recomputeOrderRollup(executor, orderId, by);
 }

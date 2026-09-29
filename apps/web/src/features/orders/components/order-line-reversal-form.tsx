@@ -12,6 +12,7 @@ import {
 } from "react-hook-form";
 import { z } from "zod";
 import { SelectField } from "@/components/form/select-field";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -38,6 +39,7 @@ import { formatMoney } from "@/shared/money";
 // the row pickable.
 interface ReversalServiceOption {
 	id: number;
+	is_rework?: boolean;
 	item_code: string;
 	service_name: string;
 }
@@ -134,10 +136,12 @@ const OrderLineReversalForm = <R extends string>({
 			kind: "service" as const,
 			id: service.id,
 			label: `${service.item_code} · ${service.service_name}`,
+			isRework: service.is_rework === true,
 		})),
 		...products.map((product) => ({
 			kind: "product" as const,
 			id: product.id,
+			isRework: false,
 			label: `${product.name} × ${product.qty}`,
 		})),
 	];
@@ -321,6 +325,7 @@ const OrderLineReversalForm = <R extends string>({
 									}
 									disabled={pending}
 									index={index}
+									isRework={line?.isRework === true}
 									label={line?.label ?? `Item #${index + 1}`}
 									reasonItems={reasonItems}
 								/>
@@ -360,6 +365,7 @@ interface ReversalItemRowProps {
 	amount: number | undefined;
 	disabled: boolean;
 	index: number;
+	isRework: boolean;
 	label: string;
 	reasonItems: { value: string; label: string }[];
 }
@@ -368,6 +374,7 @@ const ReversalItemRow = ({
 	amount,
 	disabled,
 	index,
+	isRework,
 	label,
 	reasonItems,
 }: ReversalItemRowProps) => {
@@ -393,6 +400,7 @@ const ReversalItemRow = ({
 							disabled={disabled}
 						/>
 						<FieldLabel htmlFor={checkboxId}>{label}</FieldLabel>
+						{isRework ? <Badge variant="info">Rework</Badge> : null}
 						{amount !== undefined ? (
 							<span className="ml-auto font-mono text-sm tabular-nums">
 								{formatMoney(String(amount))}

@@ -143,6 +143,7 @@ export const OrderIdentityStrip = ({
 					}))}
 					cancellableServices={gates.cancellableServices.map((service) => ({
 						id: service.id,
+						is_rework: Boolean(service.reworkOf),
 						item_code: service.item.item_code,
 						service_name: service.service?.name ?? "Service",
 					}))}
@@ -240,7 +241,7 @@ export const OrderIdentityStrip = ({
 							<Badge variant={getOrderStatusBadgeVariant(detail.status)}>
 								{formatOrderStatus(detail.status)}
 							</Badge>
-							<PaymentStatusBadge status={detail.payment_status} />
+							<PaymentStatusBadge order={detail} />
 							{detail.refund_status !== "none" ? (
 								<Badge
 									variant={getRefundStatusBadgeVariant(detail.refund_status)}

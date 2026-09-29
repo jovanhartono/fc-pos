@@ -159,6 +159,47 @@ it("gates the start-photo flag on the queue's line detail the way the shop does"
   expect(JSON.stringify(afterPhoto)).not.toContain("pickup_code");
 });
 
+it("keeps staff notes out of the tracker", async () => {
+  const order = await createOrder(shop.admin.id, shop.store, {
+    campaign_ids: [],
+    customer: { name: "Budi Santoso", phone_number: CUSTOMER_PHONE },
+    discount: 0,
+    items: [{ services: [{ id: shop.serviceId }] }],
+    notes: "Customer argued about the price",
+    payment_method_id: shop.paymentMethodId,
+    payment_status: "paid",
+    store_id: shop.store.id,
+    voucher_codes: [],
+  });
+  const item = await testDb.query.itemsTable.findFirst({
+    where: { order_id: order.id },
+  });
+  const line = await testDb.query.ordersServicesTable.findFirst({
+    where: { order_id: order.id },
+  });
+  if (!(item && line)) {
+    throw new Error("Order has no item or service line");
+  }
+  await addItemPhoto(item.id, shop.cashier.id);
+  await transitionOrderService(db, {
+    by: shop.cashier.id,
+    note: "Sole glue was already failing",
+    orderId: order.id,
+    serviceId: line.id,
+    to: "processing",
+  });
+
+  const tracked = await getTrackedOrder({
+    code: order.code,
+    phone_number: CUSTOMER_PHONE,
+  });
+
+  const body = JSON.stringify(tracked);
+  expect(body).not.toContain("Customer argued about the price");
+  expect(body).not.toContain("Sole glue was already failing");
+  expect(tracked).not.toHaveProperty("notes");
+});
+
 it("masks the phone number the tracker echoes back", async () => {
   const order = await placeOrder();
 

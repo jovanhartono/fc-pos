@@ -48,18 +48,18 @@ export function rangeLabel({ preset, from, to }: ReportFilterValues): string {
 	}
 	const start = dayjs(from);
 	const end = dayjs(to);
-	const isThisYear = end.format("YYYY") === jakartaToday().slice(0, 4);
-	const endLabel = end.format(isThisYear ? "D MMM" : "D MMM YYYY");
+	const thisYear = Number(jakartaToday().slice(0, 4));
+	const isThisYear = start.year() === thisYear && end.year() === thisYear;
+	// Any date outside this year needs its year, and written out with it the
+	// label no longer fits beside Filters on a phone.
+	const format = isThisYear ? "D MMM" : "D/M/YY";
 	if (start.isSame(end, "day")) {
-		return endLabel;
+		return end.format(format);
 	}
-	if (start.isSame(end, "month")) {
-		return `${start.date()}–${endLabel}`;
+	if (isThisYear && start.isSame(end, "month")) {
+		return `${start.date()}–${end.format(format)}`;
 	}
-	const startLabel = start.format(
-		start.isSame(end, "year") ? "D MMM" : "D MMM YYYY",
-	);
-	return `${startLabel} – ${endLabel}`;
+	return `${start.format(format)} – ${end.format(format)}`;
 }
 
 // Overview and Aging Queue show only the Store, so their Reset leaves the range

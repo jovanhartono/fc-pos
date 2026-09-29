@@ -11,9 +11,11 @@ import { ordersQueries } from "@/features/orders/api";
 import { OrderReasonCallout } from "@/features/orders/components/order-reason-callout";
 import type { NonTerminalServiceStatus } from "@/features/orders/components/order-service-dialog.types";
 import { OrderServicePriceForm } from "@/features/orders/components/order-service-price-form";
+import { ReworkOriginCallout } from "@/features/orders/components/rework-origin-callout";
 import { ServiceStatusUpdateButton } from "@/features/orders/components/service-status-update-button";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrderMutations";
+import { getFirstPickupAt } from "@/features/orders/lib/line-timeline";
 import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import { findOrderLine } from "@/features/orders/lib/order-lines";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
@@ -24,6 +26,7 @@ import {
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
+import { useSheet } from "@/stores/sheet-store";
 
 const TERMINAL_SERVICE_STATUSES = new Set<string>(
 	ORDER_TERMINAL_SERVICE_STATUSES,
@@ -39,6 +42,7 @@ export const OrderServiceDetail = ({
 	serviceId,
 }: OrderServiceDetailProps) => {
 	const updateStatusMutation = useUpdateServiceStatusMutation(orderId);
+	const closeSheet = useSheet((s) => s.closeSheet);
 
 	// Read the service live from the cached order so status changes made in this
 	// sheet reflect immediately instead of pinning a frozen prop from open time.
@@ -77,7 +81,19 @@ export const OrderServiceDetail = ({
 				<Badge variant={getOrderServiceStatusBadgeVariant(service.status)}>
 					{formatOrderServiceStatus(service.status)}
 				</Badge>
+				{service.reworkOf !== null && <Badge variant="info">Rework</Badge>}
 			</div>
+
+			{service.reworkOf !== null && (
+				<ReworkOriginCallout
+					firstPickupAt={getFirstPickupAt(
+						service.reworkOf,
+						service.rework_opened_at,
+					)}
+					onNavigate={closeSheet}
+					reworkOf={service.reworkOf}
+				/>
+			)}
 
 			{availableTransitions.length > 0 ? (
 				<div className="grid gap-2">
@@ -115,6 +131,7 @@ export const OrderServiceDetail = ({
 
 			<ServicePriceSection
 				isOrderPaid={isOrderPaid}
+				isRework={service.reworkOf !== null}
 				orderId={orderId}
 				price={service.price}
 				serviceId={service.id}
@@ -146,7 +163,12 @@ export const OrderServiceDetail = ({
 				</OrderReasonCallout>
 			) : null}
 
-			<StatusTimeline logs={service.statusLogs} />
+			<StatusTimeline
+				defaultOpen
+				line={service}
+				onNavigate={closeSheet}
+				orderId={orderId}
+			/>
 		</div>
 	);
 };
@@ -157,17 +179,20 @@ interface ServicePriceSectionProps {
 	price: string | null;
 	status: string;
 	isOrderPaid: boolean;
+	isRework: boolean;
 }
 
 // The line's one price (ADR-0018): blank until agreed with the customer, open
-// to correction by any staff while the order is unpaid, frozen once paid. A
-// cancelled line shows nothing — nobody owes its number anymore.
+// to correction by any staff while the order is unpaid, frozen once paid, and
+// fixed at 0 on a Rework. A cancelled line shows nothing — nobody owes its
+// number anymore.
 const ServicePriceSection = ({
 	orderId,
 	serviceId,
 	price,
 	status,
 	isOrderPaid,
+	isRework,
 }: ServicePriceSectionProps) => {
 	const [isCorrecting, setIsCorrecting] = useState(false);
 
@@ -184,7 +209,7 @@ const ServicePriceSection = ({
 						{price === null ? "Not set" : formatMoney(price)}
 					</p>
 				</div>
-				{price !== null && !(isOrderPaid || isCorrecting) ? (
+				{price !== null && !(isOrderPaid || isRework || isCorrecting) && (
 					<Button
 						onClick={() => setIsCorrecting(true)}
 						size="sm"
@@ -193,7 +218,7 @@ const ServicePriceSection = ({
 					>
 						Correct price
 					</Button>
-				) : null}
+				)}
 			</div>
 			{price === null ? (
 				<>

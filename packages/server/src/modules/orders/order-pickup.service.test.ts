@@ -63,6 +63,12 @@ const TX = {
     ordersServicesTable: { findMany: () => Promise.resolve([]) },
     ordersProductsTable: { findMany: () => Promise.resolve([]) },
   },
+  // The machine holds the object's lines before it reads them.
+  select: () => ({
+    from: () => ({
+      where: () => ({ orderBy: () => ({ for: () => Promise.resolve([]) }) }),
+    }),
+  }),
   insert: () => ({
     values: (values: AnyObj | AnyObj[]) => {
       if (Array.isArray(values)) {

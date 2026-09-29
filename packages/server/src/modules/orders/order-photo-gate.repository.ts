@@ -1,28 +1,31 @@
 import type { DbExecutor } from "@/db";
 import { BadRequestException } from "@/http-exceptions";
 
-// The photo gate's one rule (ADR-0019). Any live photo on the Item unlocks
-// work on it — unless the line is a Rework, in which case the photo has to
-// postdate the Complaint: the object came back over the counter, and the first
-// visit's photos say nothing about the condition it came back in.
-export function hasStartPhoto(
-  photos: ReadonlyArray<{ created_at: Date }>,
-  reworkOpenedAt: Date | null
-): boolean {
-  return photos.some(
-    (photo) => reworkOpenedAt === null || photo.created_at > reworkOpenedAt
-  );
+interface PhotoGateLine {
+  rework_opened_at: Date | null;
+  reworkOf: { created_at: Date } | null;
 }
 
-// Reads the Item's photos and, for a Rework, the Complaint they must postdate,
-// then applies hasStartPhoto. Takes its executor as a parameter and touches no
-// module-level `db`, so the status machine can import this without pulling in
-// a database connection at load time.
+// ADR-0019: any live photo on the Item starts work on it, but a Rework needs
+// one taken after its round went on the rack. An undated round uses its Complaint.
+export function hasStartPhoto(
+  photos: ReadonlyArray<{ created_at: Date }>,
+  line: PhotoGateLine
+): boolean {
+  if (!line.reworkOf) {
+    return photos.length > 0;
+  }
+  const since = line.rework_opened_at ?? line.reworkOf.created_at;
+  return photos.some((photo) => photo.created_at > since);
+}
+
+// Takes its executor and touches no module-level `db`, so the status machine
+// can import it without opening a database connection.
 export async function assertStartPhoto(
   executor: DbExecutor,
-  line: { item_id: number; complaint_id: number | null }
+  line: { id: number; item_id: number; complaint_id: number | null }
 ) {
-  const [photos, complaint] = await Promise.all([
+  const [photos, complaint, openingLog] = await Promise.all([
     executor.query.itemImagesTable.findMany({
       where: { item_id: line.item_id, deleted_at: { isNull: true } },
       columns: { created_at: true },
@@ -33,11 +36,21 @@ export async function assertStartPhoto(
           columns: { created_at: true },
         })
       : undefined,
+    line.complaint_id
+      ? executor.query.orderServiceStatusLogsTable.findFirst({
+          where: { order_service_id: line.id, from_status: { isNull: true } },
+          columns: { created_at: true },
+        })
+      : undefined,
   ]);
-  if (!hasStartPhoto(photos, complaint?.created_at ?? null)) {
+  const gateLine = {
+    rework_opened_at: openingLog?.created_at ?? null,
+    reworkOf: complaint ?? null,
+  };
+  if (!hasStartPhoto(photos, gateLine)) {
     throw new BadRequestException(
       complaint
-        ? "Add a photo of the returned item before starting the rework"
+        ? "Take a new photo of the item before starting this rework"
         : "Add an item photo before starting work"
     );
   }

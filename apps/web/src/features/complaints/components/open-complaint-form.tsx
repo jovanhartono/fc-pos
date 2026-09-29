@@ -78,7 +78,7 @@ export const OpenComplaintForm = ({
 							<p className="text-sm font-medium">Which service?</p>
 							<div
 								aria-label="Item with complaint"
-								className="grid gap-2 sm:grid-cols-2"
+								className="grid gap-2"
 								role="radiogroup"
 							>
 								{lines.map((line) => (

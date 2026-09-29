@@ -42,6 +42,19 @@ export interface DiscountLine {
   service_id: number;
 }
 
+export interface BogoSlotLine {
+  complaint_id: number | null;
+  service: { price: string | null } | null;
+  status: string;
+}
+
+// A free slot is never a Repair with no list price (ADR-0018), nor a Rework,
+// a pair the customer never bought (ADR-0013).
+export const isBogoSlot = (line: BogoSlotLine): boolean =>
+  line.status !== "cancelled" &&
+  line.service?.price != null &&
+  line.complaint_id === null;
+
 export interface CampaignContribution<T extends CampaignDiscountInput> {
   amount: number;
   campaign: T;

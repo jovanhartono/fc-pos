@@ -1,9 +1,12 @@
+import {
+	isCancelledBeforePayment,
+	type OrderPaymentState,
+} from "@/features/orders/lib/order-action-gates";
 import { formatMoney } from "@/shared/money";
 
-export interface OrderAmountState {
+export interface OrderAmountState extends OrderPaymentState {
 	has_unpriced_line: boolean;
 	paid_amount: string;
-	payment_status: "paid" | "unpaid";
 	refunded_amount: string;
 }
 
@@ -21,6 +24,9 @@ export interface OrderAmountDisplay {
 export const describeOrderAmount = (
 	order: OrderAmountState,
 ): OrderAmountDisplay => {
+	if (isCancelledBeforePayment(order)) {
+		return { isPending: true, label: "—", refunded: null };
+	}
 	if (order.payment_status === "unpaid") {
 		// The Repair the workshop has not inspected yet: there is no agreed
 		// number to show, and "Rp 0" would read as free (ADR-0018).
