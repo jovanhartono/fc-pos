@@ -1,8 +1,6 @@
 import { ArrowClockwiseIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { buttonVariants } from "@/components/ui/button";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
-import { cn } from "@/lib/utils";
 
 interface ReworkOriginCalloutProps {
 	reworkOf: {
@@ -26,6 +24,7 @@ export const ReworkOriginCallout = ({
 	onNavigate,
 }: ReworkOriginCalloutProps) => {
 	const original = reworkOf.orderService;
+	const serviceName = original.service?.name ?? "Service";
 	const firstDoneBy = [
 		`First done by ${original.handler?.name ?? "unassigned"}`,
 		firstPickupAt ? `picked up ${formatOrderDateTime(firstPickupAt)}` : null,
@@ -34,31 +33,32 @@ export const ReworkOriginCallout = ({
 		.join(" · ");
 
 	return (
-		<section className="grid gap-1.5 border border-info/40 bg-info/5 p-3 text-sm">
-			<p className="flex items-center gap-1.5 font-medium">
+		<Link
+			aria-label={`See complaint: rework of ${serviceName}`}
+			className="group grid gap-1.5 border border-info/40 bg-info/5 p-3 text-sm outline-none transition-colors hover:bg-info/10 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+			onClick={onNavigate}
+			params={{ complaintId: String(reworkOf.id) }}
+			// A worker scrolling past the box has not asked for the Complaint.
+			preload={false}
+			to="/complaints/$complaintId"
+		>
+			<span className="flex items-start gap-1.5 font-medium">
 				<ArrowClockwiseIcon
 					aria-hidden="true"
-					className="size-4 shrink-0 text-info"
+					className="mt-0.5 size-4 shrink-0 text-info"
 					weight="bold"
 				/>
-				Rework of {original.service?.name ?? "Service"}
-			</p>
-			<p className="text-muted-foreground text-xs">{firstDoneBy}</p>
+				<span className="min-w-0 flex-1">Rework of {serviceName}</span>
+				<CaretRightIcon
+					aria-hidden="true"
+					className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+					weight="bold"
+				/>
+			</span>
+			<span className="text-muted-foreground text-xs">{firstDoneBy}</span>
 			<blockquote className="whitespace-pre-wrap">
 				“{reworkOf.reason}”
 			</blockquote>
-			<Link
-				className={cn(
-					buttonVariants({ size: "sm", variant: "outline" }),
-					"mt-1 w-fit",
-				)}
-				onClick={onNavigate}
-				params={{ complaintId: String(reworkOf.id) }}
-				to="/complaints/$complaintId"
-			>
-				See complaint
-				<CaretRightIcon aria-hidden="true" />
-			</Link>
-		</section>
+		</Link>
 	);
 };
