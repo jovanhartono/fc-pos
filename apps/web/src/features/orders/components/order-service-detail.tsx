@@ -90,6 +90,7 @@ export const OrderServiceDetail = ({
 						service.reworkOf,
 						service.rework_opened_at,
 					)}
+					onNavigate={closeSheet}
 					reworkOf={service.reworkOf}
 				/>
 			)}

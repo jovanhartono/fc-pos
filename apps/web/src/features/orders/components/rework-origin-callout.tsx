@@ -1,8 +1,12 @@
-import { ArrowClockwiseIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, CaretRightIcon } from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
+import { buttonVariants } from "@/components/ui/button";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
+import { cn } from "@/lib/utils";
 
 interface ReworkOriginCalloutProps {
 	reworkOf: {
+		id: number;
 		reason: string;
 		orderService: {
 			service: { name: string } | null;
@@ -10,6 +14,8 @@ interface ReworkOriginCalloutProps {
 		};
 	};
 	firstPickupAt: string | null;
+	// The order sheet closes itself so the Complaint page is not hidden under it.
+	onNavigate?: () => void;
 }
 
 // The worker needs whose treatment the customer turned down, and why, before
@@ -17,6 +23,7 @@ interface ReworkOriginCalloutProps {
 export const ReworkOriginCallout = ({
 	reworkOf,
 	firstPickupAt,
+	onNavigate,
 }: ReworkOriginCalloutProps) => {
 	const original = reworkOf.orderService;
 	const firstDoneBy = [
@@ -40,6 +47,18 @@ export const ReworkOriginCallout = ({
 			<blockquote className="whitespace-pre-wrap">
 				“{reworkOf.reason}”
 			</blockquote>
+			<Link
+				className={cn(
+					buttonVariants({ size: "sm", variant: "outline" }),
+					"mt-1 w-fit",
+				)}
+				onClick={onNavigate}
+				params={{ complaintId: String(reworkOf.id) }}
+				to="/complaints/$complaintId"
+			>
+				See complaint
+				<CaretRightIcon aria-hidden="true" />
+			</Link>
 		</section>
 	);
 };
