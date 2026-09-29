@@ -120,8 +120,6 @@ export function findComplaintDetailById(id: number) {
               model: true,
               size: true,
             },
-            // Whether the whole pair is ready decides if another round can start.
-            with: { services: { columns: { id: true, status: true } } },
           },
           order: {
             columns: orderRefColumns,

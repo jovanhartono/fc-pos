@@ -9,8 +9,10 @@ import {
   notInArray,
   sql,
 } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import {
+  complaintsTable,
   customersTable,
   itemsTable,
   orderServiceHandlerLogsTable,
@@ -350,6 +352,22 @@ export async function getOrderServiceQueue(
   // object has to show every live job on it, or a worker filtered to "Queued"
   // would start a repaint without seeing the clean already done on the same
   // shoe.
+  // A Rework job sits under the line it redoes, named "Rework 2" for its
+  // round, so the worker sees which treatment the customer turned down.
+  const originalLine = alias(ordersServicesTable, "original_line");
+  const originalService = alias(servicesTable, "original_service");
+  // Counted over every round, not a window over this query: rounds already
+  // picked up are off the card but still came first.
+  const earlierRound = alias(ordersServicesTable, "earlier_round");
+  const roundsSoFar = db
+    .select({ rounds: sql<number>`count(*)::int` })
+    .from(earlierRound)
+    .where(
+      and(
+        eq(earlierRound.complaint_id, ordersServicesTable.complaint_id),
+        lte(earlierRound.id, ordersServicesTable.id)
+      )
+    );
   const services =
     itemRows.length === 0
       ? []
@@ -359,8 +377,12 @@ export async function getOrderServiceQueue(
             handler_name: usersTable.name,
             id: ordersServicesTable.id,
             is_priority: ordersServicesTable.is_priority,
-            is_rework: sql<boolean>`${ordersServicesTable.complaint_id} IS NOT NULL`,
             item_id: ordersServicesTable.item_id,
+            rework_of_line_id: complaintsTable.order_service_id,
+            rework_of_service_name: originalService.name,
+            rework_round: sql<
+              number | null
+            >`CASE WHEN ${ordersServicesTable.complaint_id} IS NULL THEN NULL ELSE (${roundsSoFar}) END`,
             service_name: servicesTable.name,
             status: ordersServicesTable.status,
           })
@@ -372,6 +394,18 @@ export async function getOrderServiceQueue(
           .leftJoin(
             usersTable,
             eq(ordersServicesTable.handler_id, usersTable.id)
+          )
+          .leftJoin(
+            complaintsTable,
+            eq(ordersServicesTable.complaint_id, complaintsTable.id)
+          )
+          .leftJoin(
+            originalLine,
+            eq(complaintsTable.order_service_id, originalLine.id)
+          )
+          .leftJoin(
+            originalService,
+            eq(originalLine.service_id, originalService.id)
           )
           .where(
             and(

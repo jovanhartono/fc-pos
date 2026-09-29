@@ -5,7 +5,6 @@ import {
 } from "@fresclean/api/schema";
 import {
 	ArrowClockwiseIcon,
-	ArrowLeftIcon,
 	CaretRightIcon,
 	CheckCircleIcon,
 	ImageSquareIcon,
@@ -86,7 +85,6 @@ const BackForReworkNote = ({
 function QueueServiceDetailSkeleton() {
 	return (
 		<div className="grid gap-5">
-			<Skeleton className="hidden size-9 md:block" />
 			<Skeleton className="h-8 w-48" />
 			<Skeleton className="h-12 w-full" />
 			<div className="grid gap-3">
@@ -199,14 +197,6 @@ export function QueueServiceDetail({
 	return (
 		<>
 			<div className="mb-5">
-				<Link
-					aria-label="Back to queue"
-					to="/queue"
-					search={{ storeId: detail.store?.id }}
-					className="mb-3 hidden size-9 items-center justify-center border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:flex"
-				>
-					<ArrowLeftIcon className="size-4" weight="bold" />
-				</Link>
 				{/* Two headlines of equal weight: the job, and the object it is done
 				    to. A worker needs both to pick the right shoe off the rack, so
 				    neither is demoted to small print. The tag is the machine's

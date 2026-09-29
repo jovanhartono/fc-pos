@@ -270,10 +270,15 @@ describe("a pair turned down at the counter", () => {
       store_id: shop.store.id,
     });
     expect(
-      rack.items[0].services.map((line) => [line.id, line.is_rework])
+      rack.items[0].services.map((line) => [
+        line.id,
+        line.rework_of_line_id,
+        line.rework_of_service_name,
+        line.rework_round,
+      ])
     ).toEqual([
-      [pair.lineId, false],
-      [rework.id, true],
+      [pair.lineId, null, null, null],
+      [rework.id, pair.lineId, "Deep Clean", 1],
     ]);
 
     // ADR-0016: the claim code stays on the printed receipt only.
@@ -545,6 +550,17 @@ describe("one rework round at a time", () => {
     await walkToShelf(pair.orderId, rework.id);
 
     const second = await addRound(complaint.id);
+    const rack = await getOrderServiceQueue(shop.cashier, {
+      store_id: shop.store.id,
+    });
+    expect(
+      rack.items[0].services.map((line) => [line.id, line.rework_round])
+    ).toEqual([
+      [pair.lineId, null],
+      [rework.id, 1],
+      [second.id, 2],
+    ]);
+
     await photographReturnedPair(pair.itemId, new Date());
     await walkToShelf(pair.orderId, second.id);
     const event = await handOver(pair);
@@ -601,18 +617,17 @@ describe("a pair with another treatment still in the workshop", () => {
     expect(rework?.status).toBe("queued");
   });
 
-  it("takes no new round on a ready original while another treatment on the pair is back in the workshop", async () => {
+  it("starts a round on a ready original while the pair's other treatment is being reworked", async () => {
     const { clean, orderId, repair } = await halfDonePair();
     await walkToShelf(orderId, repair.id);
     const { complaint } = await turnDown(clean.id, false);
     await turnDown(repair.id, true);
 
-    const refused = await captureRejection(
-      addRework({ user: shop.cashier, complaintId: complaint.id })
-    );
-    expect((refused as Error).message).toBe(
-      "Finish the other work on this item before starting a rework"
-    );
+    const round = await addRework({
+      user: shop.cashier,
+      complaintId: complaint.id,
+    });
+    expect(round.status).toBe("queued");
   });
 });
 

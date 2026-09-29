@@ -374,16 +374,15 @@ describe("addRework", () => {
     expect(repo.insertedRework).toMatchObject({ complaint_id: 99 });
   });
 
-  it("refuses a round on a ready original while another treatment on the pair is in the workshop", async () => {
+  it("takes a round on a ready original while other work on the pair is in the workshop", async () => {
     repo.complaintById = { id: 99, order_service_id: 10 };
     repo.subject = makeSubject({ status: "ready_for_pickup" });
     repo.otherItemLines = [{ id: 11, complaint_id: null, status: "queued" }];
 
-    const error = await captureRejection(add());
+    const line = await add();
 
-    expect((error as Error).message).toBe(
-      "Finish the other work on this item before starting a rework"
-    );
+    expect(repo.insertedRework).toMatchObject({ complaint_id: 99 });
+    expect(line.id).toBe(500);
   });
 
   it("adds another rework round on the same item", async () => {

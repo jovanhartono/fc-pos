@@ -8,6 +8,7 @@ import { OrderReasonCallout } from "@/features/orders/components/order-reason-ca
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { OrderServiceRow } from "@/features/orders/components/order-service-row";
 import type { OrderItem } from "@/features/orders/lib/order-lines";
+import { groupReworksUnderOriginals } from "@/features/orders/lib/rework-nesting";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	formatCancelReason,
@@ -134,14 +135,34 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 			</header>
 			<ItemPhotoStrip isAdmin={isAdmin} item={item} orderId={orderId} />
 			<ul className="mx-4 mb-3 divide-y border-l-2 border-border">
-				{item.services.map((service) => (
-					<li key={service.id}>
-						<OrderServiceRow
-							itemCode={item.item_code}
-							itemStatus={item.status}
-							orderId={orderId}
-							service={service}
-						/>
+				{groupReworksUnderOriginals(
+					item.services,
+					(service) => service.reworkOf?.orderService.id ?? null,
+				).map(({ original, originalId, reworks }) => (
+					<li key={originalId}>
+						{original ? (
+							<OrderServiceRow
+								itemCode={item.item_code}
+								itemStatus={item.status}
+								orderId={orderId}
+								service={original}
+							/>
+						) : null}
+						{reworks.length > 0 && (
+							<ul>
+								{reworks.map((rework, index) => (
+									<li key={rework.id}>
+										<OrderServiceRow
+											itemCode={item.item_code}
+											itemStatus={item.status}
+											orderId={orderId}
+											reworkRound={original ? index + 1 : undefined}
+											service={rework}
+										/>
+									</li>
+								))}
+							</ul>
+						)}
 					</li>
 				))}
 			</ul>

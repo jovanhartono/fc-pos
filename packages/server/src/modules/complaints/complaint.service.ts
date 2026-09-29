@@ -183,11 +183,6 @@ export async function addRework({
         "Finish the current rework before starting another"
       );
     }
-    if (!isComplainableLine(line, itemLines)) {
-      throw new BadRequestException(
-        "Finish the other work on this item before starting a rework"
-      );
-    }
 
     return createReworkLine(tx, {
       complaintId: complaint.id,
