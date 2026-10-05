@@ -11,7 +11,7 @@ interface CartColumnProps {
 // The iPad-landscape Cart: always beside the catalog, so the cashier sees which
 // Item the next tap lands on and what it adds up to while upselling.
 export const CartColumn = ({ onOpen }: CartColumnProps) => {
-	const { count, subtotal, itemRows } = useCart();
+	const { count, subtotal, itemRows, productRows } = useCart();
 
 	return (
 		<aside
@@ -30,7 +30,7 @@ export const CartColumn = ({ onOpen }: CartColumnProps) => {
 						Cart is empty.
 					</p>
 				) : (
-					<CartLines showPrices />
+					<CartLines itemRows={itemRows} productRows={productRows} showPrices />
 				)}
 			</div>
 

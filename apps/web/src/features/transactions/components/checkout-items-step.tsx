@@ -31,6 +31,7 @@ import { SinglePhotoCaptureDialog } from "@/features/orders/components/photo-upl
 import {
 	getServiceLinePrice,
 	type ItemCartDisplayLine,
+	isUnpricedServiceLine,
 	type ServiceCartDisplayLine,
 	type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
@@ -211,8 +212,7 @@ const CheckoutTreatmentRow = ({
 	moveTargets,
 }: CheckoutTreatmentRowProps) => {
 	const { removeService, updateServiceField, moveService } = useCartOps();
-	const isUnpriced =
-		line.service.price === null && getServiceLinePrice(line) <= 0;
+	const isUnpriced = isUnpricedServiceLine(line);
 
 	return (
 		<div className="grid gap-2 border-border/70 border-t p-3 first-of-type:border-t-0">

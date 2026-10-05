@@ -17,7 +17,7 @@ interface CartMiniBarProps {
 }
 
 export const CartMiniBar = ({ onOpen }: CartMiniBarProps) => {
-	const { count, subtotal, itemRows } = useCart();
+	const { count, subtotal, itemRows, productRows } = useCart();
 	const [isPeeking, setIsPeeking] = useState(false);
 	// What is on the bill: treatments and products. The objects themselves are
 	// the tray directly above — one chip each — so counting them here again only
@@ -52,7 +52,7 @@ export const CartMiniBar = ({ onOpen }: CartMiniBarProps) => {
 			    cannot bury the catalog the cashier is still tapping. */}
 			{isPeeking ? (
 				<div className="pointer-events-auto max-h-[40dvh] overflow-y-auto overscroll-contain border border-border/70 bg-background/70 px-3 py-2 backdrop-blur-xl">
-					<CartLines />
+					<CartLines itemRows={itemRows} productRows={productRows} />
 				</div>
 			) : null}
 

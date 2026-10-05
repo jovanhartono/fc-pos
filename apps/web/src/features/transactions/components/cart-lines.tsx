@@ -1,23 +1,33 @@
-import { getServiceLinePrice } from "@/features/transactions/cart/cart";
-import { useCart } from "@/features/transactions/cart/useCart";
+import {
+	getServiceLinePrice,
+	type ItemCartDisplayLine,
+	isUnpricedServiceLine,
+	type ProductCartDisplayLine,
+} from "@/features/transactions/cart/cart";
+import { useCartOps } from "@/features/transactions/cart/useCart";
 import { RemoveLineButton } from "@/features/transactions/components/remove-line-button";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { formatMoney, parseMoney } from "@/shared/money";
 
 interface CartLinesProps {
+	// Handed down from the caller's useCart(), as ItemTray's are: a second one
+	// here would rerun the cart derivation on every catalog tap.
+	productRows: ProductCartDisplayLine[];
+	itemRows: ItemCartDisplayLine[];
 	showPrices?: boolean;
 }
 
-// Rendered in the floating bar's peek and the iPad Cart column. Reads the cart
-// itself rather than taking rows as props — the same contract as the checkout's
-// item rows, so no surface can show different lines or remove them differently.
-// Callers gate on count and own the empty state — this renders nothing useful
-// for an empty cart.
+// Rendered in the floating bar's peek and the iPad Cart column. Callers gate on
+// count and own the empty state — this renders nothing useful for an empty cart.
 //
 // The peek is name only: it exists to verify and drop lines before checkout.
 // The column stays open while the cashier upsells, so it carries the prices.
-export const CartLines = ({ showPrices = false }: CartLinesProps) => {
-	const { productRows, itemRows, removeProduct, removeService } = useCart();
+export const CartLines = ({
+	productRows,
+	itemRows,
+	showPrices = false,
+}: CartLinesProps) => {
+	const { removeProduct, removeService } = useCartOps();
 
 	return (
 		<ul className="grid gap-3">
@@ -48,10 +58,7 @@ export const CartLines = ({ showPrices = false }: CartLinesProps) => {
 								{showPrices ? (
 									<LinePrice
 										amount={getServiceLinePrice(line)}
-										isUnpriced={
-											line.service.price === null &&
-											getServiceLinePrice(line) <= 0
-										}
+										isUnpriced={isUnpricedServiceLine(line)}
 									/>
 								) : null}
 								<RemoveLineButton
