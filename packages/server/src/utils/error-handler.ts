@@ -13,10 +13,12 @@ import { reportError } from "@/utils/report-error";
 
 export const errorHandler: ErrorHandler<{
   Variables: JwtVariables<JWTPayload>;
-}> = (err, c) => {
+}> = async (err, c) => {
+  // Awaited because a Vercel function pauses once the response is sent: a
+  // report left running would be lost on exactly the failures we need to see.
   if (err instanceof HTTPException) {
     if (err.status >= StatusCodes.INTERNAL_SERVER_ERROR) {
-      reportError(err, c.req.raw);
+      await reportError(err, c.req.raw);
     }
     return c.json(failure(err.message), err.status);
   }
@@ -39,7 +41,7 @@ export const errorHandler: ErrorHandler<{
 
     const { message, status } = mapPostgresError(dbError);
     if (status >= StatusCodes.INTERNAL_SERVER_ERROR) {
-      reportError(err, c.req.raw);
+      await reportError(err, c.req.raw);
     }
     return c.json(failure(message), status);
   }
@@ -48,7 +50,7 @@ export const errorHandler: ErrorHandler<{
   // so a dropped connection during a customer save would otherwise hand the
   // whole submitted row — or a new user's password hash — back to the browser.
   console.error("unhandled error", request, err);
-  reportError(err, c.req.raw);
+  await reportError(err, c.req.raw);
   return c.json(
     failure("Something went wrong"),
     StatusCodes.INTERNAL_SERVER_ERROR

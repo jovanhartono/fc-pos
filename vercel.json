@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "bunVersion": "1.4.x",
   "services": {
     "web": {
       "root": "apps/web",
@@ -9,9 +10,9 @@
       "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
     },
     "api": {
-      "root": ".",
-      "runtime": "container",
-      "entrypoint": "Dockerfile.vercel"
+      "root": "packages/server",
+      "framework": "hono",
+      "entrypoint": "src/index.ts"
     }
   },
   "rewrites": [
