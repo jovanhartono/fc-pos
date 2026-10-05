@@ -36,7 +36,7 @@ Dev and production share that bucket, so every key is namespaced by the environm
 
 The API's region is set in **Vercel project settings**, not `vercel.json`: `services.*` there takes no `regions` key. Keeping it beside Neon is what makes an order commit a same-region round trip rather than a cross-region one.
 
-The API runs as a plain Bun function, not a Docker container. A container stays up, billing 2 GB of memory, for 5 minutes after every request, so with the counter busy all day it was billed every open hour; a function bills only while a request is running.
+The API is a plain Bun function, not a Docker container: a container bills its memory until 5 quiet minutes pass, which at the counter's pace meant every open hour.
 
 ## Edge protection
 

@@ -16,7 +16,7 @@ const PHOTO_KEY_PREFIX = `${STORAGE_ENV_PREFIX}orders/`;
 // than this — a POS tab across a weekend — loses its photos, and the confirm then fails.
 const SETTLE_HOURS = 24;
 // Deletes go out a few at a time rather than one after another: the bucket is in Jakarta and the
-// container in Singapore, so a long backlog taken in series is minutes the cron spends held open.
+// API in Singapore, so a long backlog taken in series is minutes the cron spends held open.
 // Small enough that a sweep never looks like a burst to S3.
 const DELETE_CONCURRENCY = 10;
 
