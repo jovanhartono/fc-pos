@@ -22,7 +22,7 @@ import { useDialog } from "@/stores/dialog-store";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 export function TransactionsCatalog() {
-	const { isAdmin, visibleStores, handleStoreChange } =
+	const { isAdmin, hasSingleStore, visibleStores, handleStoreChange } =
 		useTransactionsPageContext();
 	const { addProduct, addService } = useCartOps();
 	const openDialog = useDialog((s) => s.openDialog);
@@ -153,16 +153,18 @@ export function TransactionsCatalog() {
 						    and the checkout sheet covers it. */}
 						<Field data-invalid={!!storeError}>
 							<div className="flex gap-2">
-								<StoreAutocomplete
-									hideLabel
-									required
-									value={selectedStoreId}
-									onValueChange={handleStoreChange}
-									allowedStoreIds={visibleStores.map((store) => store.id)}
-									disabled={!isAdmin}
-									triggerClassName="h-10 pointer-coarse:h-11 w-full border-border/70 bg-background text-sm"
-									placeholder="Select store"
-								/>
+								{hasSingleStore ? null : (
+									<StoreAutocomplete
+										hideLabel
+										required
+										value={selectedStoreId}
+										onValueChange={handleStoreChange}
+										allowedStoreIds={visibleStores.map((store) => store.id)}
+										disabled={!isAdmin}
+										triggerClassName="h-10 pointer-coarse:h-11 w-full border-border/70 bg-background text-sm"
+										placeholder="Select store"
+									/>
+								)}
 								<Button
 									type="button"
 									variant="outline"
@@ -184,7 +186,21 @@ export function TransactionsCatalog() {
 									Devices
 								</Button>
 							</div>
-							<FieldError errors={[storeError]} />
+							{/* An admin's first visit has no Store yet. The line is always
+							    held open for them, so the catalog doesn't jump when a Store
+							    is picked or the hint turns into the error. */}
+							{isAdmin && !storeError ? (
+								<p
+									className={cn(
+										"text-muted-foreground text-xs",
+										selectedStoreId && "invisible",
+									)}
+								>
+									Select a store to check out.
+								</p>
+							) : (
+								<FieldError errors={[storeError]} />
+							)}
 						</Field>
 
 						<Field>
@@ -251,7 +267,7 @@ export function TransactionsCatalog() {
 				</CardContent>
 			</Card>
 
-			<div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+			<div className="grid gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
 				{filteredEntries.map((entry) => {
 					// Narrow on entry.kind, never destructure first: pulling kind and
 					// item apart severs the discriminated union and forces casts.
@@ -277,7 +293,9 @@ export function TransactionsCatalog() {
 								<button
 									type="button"
 									className={cn(
-										"flex h-full min-h-22 w-full flex-col gap-2 p-3 text-left outline-none transition active:scale-[0.97] focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
+										// A phone gets one-line rows: the counter scrolls ~50
+										// Services, and the category chip already names the group.
+										"flex h-full min-h-14 w-full items-center gap-3 p-3 text-left outline-none transition active:scale-[0.97] focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 sm:min-h-22 sm:flex-col sm:items-stretch sm:gap-2",
 										isProduct
 											? "hover:bg-muted/30 active:bg-muted/60"
 											: "hover:bg-background/80 active:bg-background/60",
@@ -292,14 +310,14 @@ export function TransactionsCatalog() {
 									aria-label={`Add ${item.name}`}
 								>
 									{categoryName ? (
-										<span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+										<span className="hidden font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:inline">
 											{categoryName}
 										</span>
 									) : null}
-									<p className="line-clamp-2 text-sm font-semibold leading-snug">
+									<p className="line-clamp-2 min-w-0 flex-1 text-sm font-semibold leading-snug sm:flex-initial">
 										{item.name}
 									</p>
-									<p className="mt-auto font-mono text-sm font-semibold tabular-nums">
+									<p className="shrink-0 font-mono text-sm font-semibold tabular-nums sm:mt-auto">
 										{/* No list price (ADR-0018): the cashier keys the number
 										    on the cart line if agreed, or leaves it blank until
 										    the workshop inspects the item. */}

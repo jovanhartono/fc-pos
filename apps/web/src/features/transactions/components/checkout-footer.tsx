@@ -2,8 +2,19 @@ import {
 	ArrowLeftIcon,
 	ArrowRightIcon,
 	CreditCardIcon,
+	TrashIcon,
 } from "@phosphor-icons/react";
+import { useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import { SheetFooter } from "@/components/ui/sheet";
@@ -27,6 +38,7 @@ interface CheckoutFooterProps {
 	step: CheckoutStep;
 	onContinue: () => void;
 	onBack: () => void;
+	onReset: () => void;
 }
 
 // Pinned action bar — total + the step's primary button stay visible while the
@@ -36,16 +48,18 @@ export const CheckoutFooter = ({
 	step,
 	onContinue,
 	onBack,
+	onReset,
 }: CheckoutFooterProps) => {
 	const { submit } = useTransactionsPageContext();
 	const { count, serviceRows } = useCart();
 	const { pricing } = useCheckoutPricing();
 	const form = useFormContext<TransactionDraftValues>();
 	const isSubmitting = form.formState.isSubmitting;
-	const [customerName = "", customerPhone = ""] = useWatch<
-		TransactionDraftValues,
-		["customerName", "customerPhone"]
-	>({ name: ["customerName", "customerPhone"] });
+	const [customerName = "", customerPhone = "", selectedCampaignIds = []] =
+		useWatch<
+			TransactionDraftValues,
+			["customerName", "customerPhone", "selectedCampaignIds"]
+		>({ name: ["customerName", "customerPhone", "selectedCampaignIds"] });
 	const submitError = useTransactionsPageStore((state) => state.submitError);
 	const dropoffPhoto = useTransactionsPageStore((state) => state.dropoffPhoto);
 	const { customerReady, itemsReady } = getCheckoutGates({
@@ -94,12 +108,64 @@ export const CheckoutFooter = ({
 					step={step}
 				/>
 			</div>
-			{itemsHint ? (
-				<p className="text-muted-foreground text-xs" id={ITEMS_HINT_ID}>
-					{itemsHint}
-				</p>
-			) : null}
+			{/* Away from the step buttons: one slip here throws away a Customer's
+			    whole drop-off. */}
+			<div className="flex items-center justify-between gap-3">
+				{itemsHint ? (
+					<p className="text-muted-foreground text-xs" id={ITEMS_HINT_ID}>
+						{itemsHint}
+					</p>
+				) : null}
+				<ResetCartButton
+					disabled={
+						count === 0 &&
+						!customerName &&
+						!customerPhone &&
+						selectedCampaignIds.length === 0 &&
+						!dropoffPhoto
+					}
+					onConfirm={onReset}
+				/>
+			</div>
 		</SheetFooter>
+	);
+};
+
+interface ResetCartButtonProps {
+	disabled: boolean;
+	onConfirm: () => void;
+}
+
+const ResetCartButton = ({ disabled, onConfirm }: ResetCartButtonProps) => {
+	const [isConfirming, setIsConfirming] = useState(false);
+
+	return (
+		<>
+			<Button
+				className="ml-auto h-9 shrink-0 text-muted-foreground"
+				disabled={disabled}
+				icon={<TrashIcon className="size-4" />}
+				onClick={() => setIsConfirming(true)}
+				size="sm"
+				type="button"
+				variant="ghost"
+			>
+				Reset
+			</Button>
+			<AlertDialog onOpenChange={setIsConfirming} open={isConfirming}>
+				<AlertDialogContent className="max-w-xs">
+					<AlertDialogHeader>
+						<AlertDialogTitle>Clear the cart?</AlertDialogTitle>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel className="h-11">Cancel</AlertDialogCancel>
+						<AlertDialogAction className="h-11" onClick={onConfirm}>
+							Clear
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		</>
 	);
 };
 

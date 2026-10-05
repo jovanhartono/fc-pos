@@ -360,10 +360,18 @@ const CheckoutItemCard = ({
 				<h3 className="min-w-0 flex-1 truncate font-medium text-sm">
 					{descriptors ?? "New item"}
 				</h3>
-				<RemoveLineButton
-					label={`Remove item ${itemNumber}`}
+				{/* Words, not the ✕: that one drops a single Service, and the two
+				    looked the same while this one drops everything on the Item. */}
+				<Button
+					aria-label={`Remove item ${itemNumber}`}
+					className="h-9 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
 					onClick={() => removeItem(item.line_id)}
-				/>
+					size="sm"
+					type="button"
+					variant="ghost"
+				>
+					Remove item
+				</Button>
 			</header>
 
 			<div className="grid gap-3 p-3 sm:grid-cols-2">

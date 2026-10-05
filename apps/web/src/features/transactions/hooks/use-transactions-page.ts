@@ -36,6 +36,7 @@ import {
 } from "@/features/transactions/lib/checkout-issues";
 import type { TransactionsPageContextValue } from "@/features/transactions/lib/transactions-context";
 import { usersQueries } from "@/features/users/api";
+import { isSingleStoreUser } from "@/features/users/lib/single-store-user";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useTransactionPreferencesStore } from "@/stores/transaction-preferences-store";
@@ -152,6 +153,7 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 
 	// DB-fresh role — JWT claim goes stale on mid-session role changes.
 	const isAdmin = meQuery.data?.role === "admin";
+	const hasSingleStore = isSingleStoreUser(meQuery.data);
 
 	const visibleStores = useMemo(() => {
 		const stores = storesQuery.data ?? [];
@@ -363,11 +365,12 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 	const pageContext = useMemo<TransactionsPageContextValue>(
 		() => ({
 			isAdmin,
+			hasSingleStore,
 			visibleStores,
 			submit,
 			handleStoreChange,
 		}),
-		[handleStoreChange, isAdmin, submit, visibleStores],
+		[handleStoreChange, hasSingleStore, isAdmin, submit, visibleStores],
 	);
 
 	return { form, isBootstrapping, pageContext };

@@ -1,7 +1,5 @@
-import { TrashIcon } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 import { useWatch } from "react-hook-form";
-import { Button } from "@/components/ui/button";
 import {
 	SheetDescription,
 	SheetHeader,
@@ -39,11 +37,10 @@ export const TransactionsCheckout = () => {
 	const [step, setStep] = useState<CheckoutStep>("customer");
 	const [direction, setDirection] = useState<"forward" | "back">("forward");
 	const dropoffPhoto = useTransactionsPageStore((state) => state.dropoffPhoto);
-	const [customerName = "", customerPhone = "", selectedCampaignIds = []] =
-		useWatch<
-			TransactionDraftValues,
-			["customerName", "customerPhone", "selectedCampaignIds"]
-		>({ name: ["customerName", "customerPhone", "selectedCampaignIds"] });
+	const [customerName = "", customerPhone = ""] = useWatch<
+		TransactionDraftValues,
+		["customerName", "customerPhone"]
+	>({ name: ["customerName", "customerPhone"] });
 
 	const gateInput = {
 		customerName,
@@ -100,38 +97,12 @@ export const TransactionsCheckout = () => {
 				<SheetDescription className="sr-only">
 					Complete customer, items, and payment to create the order.
 				</SheetDescription>
-				<div className="flex flex-row items-center gap-3">
-					<div className="min-w-0 flex-1">
-						<CheckoutStepper
-							current={step}
-							isStepEnabled={isStepEnabled}
-							lockHintId={lockedStepHint ? LOCKED_STEP_HINT_ID : undefined}
-							onSelect={goToStep}
-						/>
-					</div>
-					<Button
-						className="h-11 shrink-0"
-						disabled={
-							count === 0 &&
-							!customerName &&
-							!customerPhone &&
-							selectedCampaignIds.length === 0 &&
-							!dropoffPhoto
-						}
-						icon={<TrashIcon className="size-4" />}
-						onClick={() => {
-							resetCart();
-							// Reset on the Payment step otherwise strands the cashier there
-							// with an empty cart and a disabled Create Order.
-							goToStep("customer");
-						}}
-						size="sm"
-						type="button"
-						variant="outline"
-					>
-						Reset
-					</Button>
-				</div>
+				<CheckoutStepper
+					current={step}
+					isStepEnabled={isStepEnabled}
+					lockHintId={lockedStepHint ? LOCKED_STEP_HINT_ID : undefined}
+					onSelect={goToStep}
+				/>
 				{lockedStepHint ? (
 					<p className="text-muted-foreground text-xs" id={LOCKED_STEP_HINT_ID}>
 						{lockedStepHint}
@@ -160,7 +131,17 @@ export const TransactionsCheckout = () => {
 				</div>
 			</div>
 
-			<CheckoutFooter onBack={goBack} onContinue={goNext} step={step} />
+			<CheckoutFooter
+				onBack={goBack}
+				onContinue={goNext}
+				onReset={() => {
+					resetCart();
+					// Reset on the Payment step otherwise strands the cashier there
+					// with an empty cart and a disabled Create Order.
+					goToStep("customer");
+				}}
+				step={step}
+			/>
 		</div>
 	);
 };

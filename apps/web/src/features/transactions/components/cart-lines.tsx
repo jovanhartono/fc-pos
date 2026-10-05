@@ -1,15 +1,22 @@
+import { getServiceLinePrice } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
 import { RemoveLineButton } from "@/features/transactions/components/remove-line-button";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
+import { formatMoney, parseMoney } from "@/shared/money";
 
-// Rendered in the floating bar's peek. Reads the cart itself rather than
-// taking rows as props — the same contract as the checkout's item rows, so no
-// surface can show different lines or remove them differently. Callers gate on
-// count and own the empty state — this renders nothing useful for an empty cart.
+interface CartLinesProps {
+	showPrices?: boolean;
+}
+
+// Rendered in the floating bar's peek and the iPad Cart column. Reads the cart
+// itself rather than taking rows as props — the same contract as the checkout's
+// item rows, so no surface can show different lines or remove them differently.
+// Callers gate on count and own the empty state — this renders nothing useful
+// for an empty cart.
 //
-// Name only, no price: this list exists to verify and drop lines before
-// checkout; the money lives there.
-export const CartLines = () => {
+// The peek is name only: it exists to verify and drop lines before checkout.
+// The column stays open while the cashier upsells, so it carries the prices.
+export const CartLines = ({ showPrices = false }: CartLinesProps) => {
 	const { productRows, itemRows, removeProduct, removeService } = useCart();
 
 	return (
@@ -38,6 +45,15 @@ export const CartLines = () => {
 								<span className="min-w-0 flex-1 truncate text-xs">
 									{line.service.name}
 								</span>
+								{showPrices ? (
+									<LinePrice
+										amount={getServiceLinePrice(line)}
+										isUnpriced={
+											line.service.price === null &&
+											getServiceLinePrice(line) <= 0
+										}
+									/>
+								) : null}
 								<RemoveLineButton
 									label={`Remove ${line.service.name}`}
 									onClick={() => removeService(item.line_id, line.line_id)}
@@ -62,6 +78,11 @@ export const CartLines = () => {
 								<span className="min-w-0 flex-1 truncate text-xs">
 									{line.qty} × {line.product.name}
 								</span>
+								{showPrices ? (
+									<LinePrice
+										amount={parseMoney(line.product.price) * line.qty}
+									/>
+								) : null}
 								<RemoveLineButton
 									label={`Remove ${line.product.name}`}
 									onClick={() => removeProduct(line.id)}
@@ -72,5 +93,26 @@ export const CartLines = () => {
 				</li>
 			) : null}
 		</ul>
+	);
+};
+
+interface LinePriceProps {
+	amount: number;
+	isUnpriced?: boolean;
+}
+
+// A Repair keyed in without a price (ADR-0018) reads as waiting, not as free.
+const LinePrice = ({ amount, isUnpriced = false }: LinePriceProps) => {
+	if (isUnpriced) {
+		return (
+			<span className="shrink-0 text-muted-foreground text-xs">
+				No price yet
+			</span>
+		);
+	}
+	return (
+		<span className="shrink-0 font-mono text-xs tabular-nums">
+			{formatMoney(amount)}
+		</span>
 	);
 };
