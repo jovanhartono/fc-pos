@@ -80,5 +80,5 @@ Laptop-only, for the drizzle CLI: `DATABASE_URL_DEV` / `DATABASE_URL_PROD`. See 
 ## Docs
 
 - [`AGENTS.md`](AGENTS.md) (`CLAUDE.md` symlinks to it) — repo-wide agent guidance; per-package rules in `packages/server/AGENTS.md` and `apps/web/AGENTS.md`
-- [`CONTEXT.md`](CONTEXT.md) — domain glossary and relationships
+- [`GLOSSARY.md`](GLOSSARY.md) — domain glossary
 - [`docs/adr/`](docs/adr) — architecture decision records

@@ -1,6 +1,6 @@
 # Clock-in is refused outside 3 km, unless the phone is unsure
 
-A Shift's clock-in is refused when the worker is more than **3 km** from the Store it is opened against ([CONTEXT.md](../../CONTEXT.md) — Shift). **Sharing a location is mandatory: no location, no clock-in.** The phone reports a circle rather than a point, and the worker gets the benefit of it: the refusal fires only when the near edge of that circle is still outside the ring. Nothing about the location is stored — a Shift exists, therefore it passed. Couriers are exempt from the whole mechanism. Clock-out is untouched.
+A Shift's clock-in is refused when the worker is more than **3 km** from the Store it is opened against ([GLOSSARY.md](../../GLOSSARY.md) — Shift). **Sharing a location is mandatory: no location, no clock-in.** The phone reports a circle rather than a point, and the worker gets the benefit of it: the refusal fires only when the near edge of that circle is still outside the ring. Nothing about the location is stored — a Shift exists, therefore it passed. Couriers are exempt from the whole mechanism. Clock-out is untouched.
 
 ```
 refuse when:  distance - accuracy > 3 km

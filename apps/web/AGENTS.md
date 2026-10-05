@@ -26,6 +26,7 @@
 - `routes/` — TanStack Router file-based; thin orchestrators only
 - `shared/` — cross-cutting utils (money, utils)
 - `stores/` — Zustand stores (auth, dialog, sheet, printer, queue-preferences, transactions, transaction-preferences)
+- "Transactions" (`features/transactions/`, `/transactions`, `transactions-store.ts`) is the POS's legacy name: say Order or POS in new code, and rename when work touches these files.
 
 ## Forms
 
