@@ -6,8 +6,8 @@ interface PickupProgressItem {
 	status: string;
 }
 
-// A new or unpaid Order has nothing on the shelf yet, and "0 of 2 picked up"
-// there reads as if the Customer was due back already.
+// Until an Item reaches the shelf, "0 of 2 picked up" reads as if the Customer
+// was due back already.
 export const showsPickupProgress = (items: PickupProgressItem[]): boolean =>
 	items.some((item) => item.is_collectable || item.status === "picked_up");
 
