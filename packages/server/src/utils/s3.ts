@@ -225,7 +225,7 @@ export async function optimizeUploadedImage(key: string): Promise<void> {
     // undecodable original instead meant a drop-off photo opened as a broken
     // image for every operator not on Safari — the evidence was silently gone
     // by the time a customer claimed the tear was ours. Note HEIC only reaches
-    // this branch where no OS codec exists, which is the Linux container we
+    // this branch where no OS codec exists, which is the Linux machine we
     // deploy to: the same upload converts fine on a macOS dev machine via
     // ImageIO, so a local success is not evidence HEIC is safe to accept again.
     if ((error as { code?: string }).code?.startsWith("ERR_IMAGE_")) {
