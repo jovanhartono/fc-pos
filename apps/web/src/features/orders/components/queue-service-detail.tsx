@@ -220,6 +220,14 @@ export function QueueServiceDetail({
 						{selectedService.item.item_code}
 					</span>
 				</CopyValue>
+				{selectedService.notes?.trim() ? (
+					<div className="mt-3 border border-border bg-muted/40 px-3 py-2.5">
+						<p className={LABEL_CLASS}>Note</p>
+						<p className="mt-1 text-sm leading-relaxed">
+							{selectedService.notes}
+						</p>
+					</div>
+				) : null}
 			</div>
 
 			<div className="grid gap-5">
