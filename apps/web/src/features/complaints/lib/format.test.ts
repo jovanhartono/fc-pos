@@ -1,5 +1,37 @@
 import { describe, expect, it } from "bun:test";
-import { getComplaintOutcome } from "./format";
+import { formatComplaintItem, getComplaintOutcome } from "./format";
+
+describe("formatComplaintItem", () => {
+	it("reads the tag, then brand, model and colour", () => {
+		expect(
+			formatComplaintItem({
+				item_code: "I001",
+				item_brand: "Nike",
+				item_model: "AF1",
+				item_color: "White",
+			}),
+		).toBe("I001 · Nike AF1 White");
+	});
+
+	it("skips missing parts without stray separators", () => {
+		expect(
+			formatComplaintItem({
+				item_code: "I002",
+				item_brand: null,
+				item_model: "AF1",
+				item_color: " ",
+			}),
+		).toBe("I002 · AF1");
+		expect(
+			formatComplaintItem({
+				item_code: "I003",
+				item_brand: null,
+				item_model: null,
+				item_color: null,
+			}),
+		).toBe("I003");
+	});
+});
 
 describe("getComplaintOutcome", () => {
 	it("reads Cancelled when the cashier cancelled the turned-down line", () => {

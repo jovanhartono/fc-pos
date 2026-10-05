@@ -751,6 +751,57 @@ describe("when a rework round went on the rack", () => {
   });
 });
 
+describe("the Complaints list", () => {
+  it("names the Item each Complaint is about", async () => {
+    // Two pairs on one Order, both turned down: without the Item the two rows
+    // read the same Order code, Service and Customer.
+    const order = await createOrder(shop.admin.id, shop.store, {
+      campaign_ids: [],
+      customer: { name: "Budi Santoso", phone_number: "+628111222333" },
+      discount: 0,
+      items: [
+        {
+          brand: "Nike",
+          color: "White",
+          model: "AF1",
+          services: [{ id: shop.serviceId }],
+        },
+        { brand: "Adidas", services: [{ id: shop.serviceId }] },
+      ],
+      payment_method_id: shop.paymentMethodId,
+      payment_status: "paid",
+      store_id: shop.store.id,
+      voucher_codes: [],
+    });
+    const lines = await testDb.query.ordersServicesTable.findMany({
+      where: { order_id: order.id },
+      orderBy: { id: "asc" },
+    });
+    for (const line of lines) {
+      await addItemPhoto(line.item_id, shop.cashier.id);
+      await walkToShelf(order.id, line.id);
+      await turnDown(line.id, false);
+    }
+
+    const { items } = await listComplaints(shop.admin);
+    const [nike, adidas] = await testDb.query.itemsTable.findMany({
+      where: { order_id: order.id },
+      orderBy: { id: "asc" },
+    });
+    expect(
+      items.map((row) => [
+        row.item_code,
+        row.item_brand,
+        row.item_model,
+        row.item_color,
+      ])
+    ).toEqual([
+      [adidas?.item_code, "Adidas", null, null],
+      [nike?.item_code, "Nike", "AF1", "White"],
+    ]);
+  });
+});
+
 describe("the complaint's outcome", () => {
   it("does not read Reworked when its only rework was cancelled", async () => {
     const pair = await pairOnTheShelf("unpaid");

@@ -1,4 +1,28 @@
+import { getOrderServiceItemDescriptors } from "@/lib/order-service-item-details";
 import type { BadgeVariant } from "@/lib/status";
+
+interface ComplaintItemFields {
+	item_code: string;
+	item_brand: string | null;
+	item_model: string | null;
+	item_color: string | null;
+}
+
+// One Order can carry Complaints on several Items; the tag and descriptors are
+// what tell the rows apart.
+export const formatComplaintItem = ({
+	item_code,
+	item_brand,
+	item_model,
+	item_color,
+}: ComplaintItemFields): string => {
+	const descriptors = getOrderServiceItemDescriptors({
+		brand: item_brand,
+		model: item_model,
+		color: item_color,
+	}).join(" ");
+	return descriptors ? `${item_code} · ${descriptors}` : item_code;
+};
 
 // The Complaint carries no stored status (ADR-0013 amendment) — its outcome is
 // derived from the lines: refunded or cancelled if the original line was,
