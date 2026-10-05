@@ -93,6 +93,12 @@ export const OrderServiceRow = memo(
 							{service.handler.name}
 						</span>
 					) : null}
+					{service.notes?.trim() ? (
+						<span className="block text-pretty text-xs leading-snug">
+							<span className="text-muted-foreground">Note: </span>
+							{service.notes}
+						</span>
+					) : null}
 				</span>
 				<span className="flex shrink-0 flex-col items-end gap-1">
 					<span className="flex flex-wrap justify-end gap-1.5">
@@ -101,7 +107,7 @@ export const OrderServiceRow = memo(
 							<Badge variant="info">Rework</Badge>
 						) : null}
 						{hasComplaint ? <Badge variant="danger">Complaint</Badge> : null}
-						{service.is_priority ? (
+						{service.is_priority && !isRework ? (
 							<Badge variant="warning">Priority</Badge>
 						) : null}
 					</span>

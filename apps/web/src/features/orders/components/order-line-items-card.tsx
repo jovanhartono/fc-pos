@@ -1,4 +1,3 @@
-import { hasUnpricedLine } from "@fresclean/api/schema";
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -8,6 +7,7 @@ import { OrderReasonCallout } from "@/features/orders/components/order-reason-ca
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { OrderServiceRow } from "@/features/orders/components/order-service-row";
 import type { OrderItem } from "@/features/orders/lib/order-lines";
+import { getItemTotalRow } from "@/features/orders/lib/order-sheet";
 import { groupReworksUnderOriginals } from "@/features/orders/lib/rework-nesting";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
@@ -16,7 +16,7 @@ import {
 	formatRefundReason,
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
-import { formatMoney, parseMoney } from "@/shared/money";
+import { formatMoney } from "@/shared/money";
 
 type OrderDetailProduct = OrderDetail["products"][number];
 
@@ -81,26 +81,13 @@ interface ItemBlockProps {
 	isAdmin: boolean;
 }
 
-// What the customer owes for this object. A blank line has no number yet, so
-// the roll-up shows none either: "Rp 60.000" over an unpriced repaint would
-// read as the whole price of the pair.
-const formatItemTotal = (item: OrderItem): string => {
-	if (hasUnpricedLine(item.services)) {
-		return "—";
-	}
-	return formatMoney(
-		item.services
-			.filter((s) => s.status !== "cancelled")
-			.reduce((sum, s) => sum + parseMoney(s.subtotal), 0),
-	);
-};
-
 // One physical object and every treatment sold against it (ADR-0017). The tag
 // and the descriptors are stated once here rather than repeated down each
 // treatment — a pair in for a clean, a repaint and leather care used to read
 // as three unrelated lines with three tag codes.
 const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 	const descriptors = getOrderServiceItemDetails(item);
+	const totalRow = getItemTotalRow(item.services);
 
 	return (
 		<Card className="gap-0 py-0">
@@ -124,14 +111,12 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 						</h3>
 					)}
 				</div>
-				<div className="flex shrink-0 flex-col items-end gap-1">
-					<Badge variant={getOrderServiceStatusBadgeVariant(item.status)}>
-						{formatOrderServiceStatus(item.status)}
-					</Badge>
-					<p className="font-mono text-sm font-semibold tabular-nums">
-						{formatItemTotal(item)}
-					</p>
-				</div>
+				<Badge
+					className="shrink-0"
+					variant={getOrderServiceStatusBadgeVariant(item.status)}
+				>
+					{formatOrderServiceStatus(item.status)}
+				</Badge>
 			</header>
 			<ItemPhotoStrip isAdmin={isAdmin} item={item} orderId={orderId} />
 			<ul className="mx-4 mb-3 divide-y border-l-2 border-border">
@@ -166,6 +151,14 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 					</li>
 				))}
 			</ul>
+			{totalRow ? (
+				<footer className="mx-4 mb-3 flex items-center justify-between gap-3 border-t pt-2.5 text-sm">
+					<span className="text-muted-foreground">Item total</span>
+					<span className="font-mono font-semibold tabular-nums">
+						{totalRow.amount === null ? "—" : formatMoney(totalRow.amount)}
+					</span>
+				</footer>
+			) : null}
 		</Card>
 	);
 };

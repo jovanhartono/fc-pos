@@ -33,6 +33,7 @@ import {
 } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
+import { showsPickupProgress } from "@/features/orders/lib/order-sheet";
 import { buildRefundCaps } from "@/features/orders/lib/refund-preview";
 import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
 import { usePrintReceiptMutation } from "@/features/printing/hooks/usePrintReceipt";
@@ -306,7 +307,7 @@ export const OrderIdentityStrip = ({
 											onClick={openRefundOrderDialog}
 											variant="destructive"
 										>
-											Refund order
+											Refund
 										</DropdownMenuItem>
 									) : null}
 									{gates.canCancelOrder ? (
@@ -325,14 +326,15 @@ export const OrderIdentityStrip = ({
 
 				{renderPickupButton("w-full sm:hidden")}
 
-				{totalCount > 0 ? (
+				{showsPickupProgress(detail.items) ? (
 					<div className="grid gap-1.5">
 						<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
 							<span className="tabular-nums">
+								Items picked up:{" "}
 								<span className="font-medium">
 									{fulfillment.picked_up_count}
 								</span>{" "}
-								of {totalCount} picked up
+								of {totalCount}
 							</span>
 							{fulfillment.remaining_count > 0 ? (
 								<span className="text-muted-foreground tabular-nums">
