@@ -35,7 +35,7 @@ const operationsNavigation: NavItem[] = [
 		to: "/reports",
 		label: "Reports",
 		title: "Daily Report",
-		description: "One day's revenue, items, and orders",
+		description: "Revenue, services and orders by day or range",
 		icon: ChartLineIcon,
 		roles: ["admin"],
 	},
@@ -108,13 +108,6 @@ const customersNavigation: NavItem[] = [
 		icon: IdentificationCardIcon,
 		roles: ["admin", "cashier"],
 	},
-	{
-		to: "/campaigns",
-		label: "Campaigns",
-		description: "Discounts and vouchers, per store",
-		icon: TagIcon,
-		roles: ["admin", "cashier"],
-	},
 ];
 
 const catalogNavigation: NavItem[] = [
@@ -145,6 +138,13 @@ const catalogNavigation: NavItem[] = [
 		description: "How customers can pay",
 		icon: CreditCardIcon,
 		roles: ["admin"],
+	},
+	{
+		to: "/campaigns",
+		label: "Campaigns",
+		description: "Discounts and vouchers, per store",
+		icon: TagIcon,
+		roles: ["admin", "cashier"],
 	},
 ];
 

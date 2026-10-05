@@ -16,6 +16,9 @@ interface OverviewPanelProps {
 	storeId?: number;
 }
 
+const formatServiceCount = (count: number) =>
+	`${numberFormatter.format(count)} ${count === 1 ? "service" : "services"}`;
+
 const CategoryBars = ({
 	categories,
 }: {
@@ -46,7 +49,7 @@ const CategoryBars = ({
 							/>
 						</div>
 						<span className="font-mono text-[11px] text-muted-foreground tabular-nums">
-							{`${numberFormatter.format(row.count)} lines`}
+							{formatServiceCount(row.count)}
 						</span>
 					</div>
 				);
@@ -75,7 +78,7 @@ const TopServicesList = ({
 					<div className="min-w-0">
 						<p className="truncate text-sm font-medium">{row.service_name}</p>
 						<p className="font-mono text-[11px] tabular-nums text-muted-foreground">
-							{`${numberFormatter.format(row.count)} sold`}
+							{formatServiceCount(row.count)}
 						</p>
 					</div>
 					<p className="font-mono text-sm tabular-nums">
@@ -158,7 +161,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 				<KpiCard
 					label="Revenue"
 					value={formatMoney(String(overview?.daily.revenue ?? 0))}
-					helper="Paid minus refunded"
+					helper="Paid today, minus refunds"
 				/>
 				<KpiCard
 					label="Services processed"
@@ -180,10 +183,11 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 			</KpiRow>
 
 			<ChartCard
-				variant="area"
+				variant="bar"
 				title={`Orders in vs out · last ${overview?.trend_days ?? 14} days`}
 				data={trendData}
 				granularity="day"
+				xTickInterval={1}
 				series={[
 					{ key: "orders_in", label: "Orders in", color: CHART_PALETTE[0] },
 					{ key: "orders_out", label: "Orders out", color: CHART_PALETTE[1] },
@@ -195,7 +199,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 				<Card className="border-border/70">
 					<CardHeader>
 						<CardTitle className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-							Gross sales by category
+							Gross sales by category · today
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="p-4 pt-0">
@@ -205,7 +209,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 				<Card className="border-border/70">
 					<CardHeader>
 						<CardTitle className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-							Top services by gross sales
+							Top services by gross sales · today
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="p-4 pt-0">
@@ -217,7 +221,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 			<Card className="border-border/70">
 				<CardHeader>
 					<CardTitle className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-						Revenue by store
+						Revenue by store · today
 					</CardTitle>
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
