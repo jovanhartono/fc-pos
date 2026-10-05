@@ -17,7 +17,7 @@ export interface CampaignEligibilityContext {
   storeId: number;
 }
 
-// Single source of the Campaign "Usable" rules (see CONTEXT.md). The server
+// Single source of the Campaign "Usable" rules (see ADR-0015). The server
 // wraps this in assertCampaignUsable (throws); the POS filters on null.
 export function campaignIneligibilityReason(
   campaign: CampaignEligibilityInput,

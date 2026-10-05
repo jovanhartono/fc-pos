@@ -143,6 +143,12 @@
 - [ ] **Payments report y-axis label clips at 1280** — the label is cut off at
   the width most of the office runs, so the axis reads as unlabelled.
 
+- [ ] **Inactive PaymentMethod, Store and Category are not refused on the
+  server** (found 2026-10-05) — payment and checkout save any
+  `payment_method_id`, and nothing refuses an Order or clock-in at an inactive
+  Store, so a POS tab opened before an admin retired a method can still take a
+  payment with it. Service, Product, User and Campaign are already refused.
+
 ## Clock-in gate follow-ups (shipped 2026-09-22, PR #112)
 
 Left open by [ADR-0020](docs/adr/0020-clock-in-is-refused-outside-3km-unless-the-phone-is-unsure.md).

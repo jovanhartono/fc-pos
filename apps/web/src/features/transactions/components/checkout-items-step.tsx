@@ -63,7 +63,7 @@ const ITEM_FIELDS: ItemFieldSpec[] = [
 
 // Step ② — the goods: review/annotate cart lines, order notes, and the
 // drop-off photo. The photo lives here (with the items it depicts, captured at
-// intake — see CONTEXT.md) and gates the step forward (see CheckoutFooter).
+// intake — see GLOSSARY.md) and gates the step forward (see CheckoutFooter).
 export const CheckoutItemsStep = () => {
 	const { removeProduct, updateProductQty, productRows, itemRows, addItem } =
 		useCart();

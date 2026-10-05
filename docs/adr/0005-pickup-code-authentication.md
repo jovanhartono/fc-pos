@@ -5,8 +5,8 @@ The picked-up transition on an OrderService is gated by a 6-digit `orders.pickup
 ## Flow
 
 1. Order is inserted. A PostgreSQL DB-side default expression on `orders.pickup_code` generates 6 digits at insert time: `lpad(floor(random() * 1000000)::text, 6, '0')`. The server does not explicitly generate the code.
-2. While the Order is not yet `ready_for_pickup`, the code is **not** exposed on the public `/track` page.
-3. When the Order rolls up to `ready_for_pickup`, `/track` reveals the code to the Customer (after their `code + phone_number` match).
+2. While the Order is not yet `ready_for_pickup`, the code is **not** exposed on the public `/track` page. *Amended 2026-10-05 — see below.*
+3. When the Order rolls up to `ready_for_pickup`, `/track` reveals the code to the Customer (after their `code + phone_number` match). *Amended 2026-10-05 — see below.*
 4. Customer reads the code to the cashier in person.
 5. Cashier opens the specific Order in the pickup dialog and enters the code. Server validates `pickup_code` matches **this Order** before recording the OrderPickupEvent and transitioning the relevant OrderServices to `picked_up`.
 
@@ -50,7 +50,7 @@ DB default stays. Reading the schema column tells the whole story in one line.
 
 Original proposal: partial `uniqueIndex` on non-terminal Orders plus retry-on-conflict in the service layer.
 
-Declined because `pickup_code` is **per-Order verification, not cross-Order discovery** (see [CONTEXT.md](../../CONTEXT.md) "Pickup code"). The cashier has already opened a specific Order before entering the code; the server checks the code against **that Order's row only**, never across the table. A duplicate code on another Order is invisible to this validation path.
+Declined because `pickup_code` is **per-Order verification, not cross-Order discovery**. The cashier has already opened a specific Order before entering the code; the server checks the code against **that Order's row only**, never across the table. A duplicate code on another Order is invisible to this validation path.
 
 Birthday math at expected scale:
 
@@ -91,3 +91,7 @@ A data-integrity invariant, not an authentication concern — it belongs in the 
 ## Amendment (2026-07-06)
 
 [ADR-0016](0016-receipt-is-claim-ticket.md) carves one sanctioned exception out of the two amended consequences above: the printed thermal Receipt (produced at drop-off and on reprint) carries the pickup code — the paper is the claim ticket. A dedicated receipt read is the only admin surface allowed to return `pickup_code`; every other admin response keeps the strip, and `/track`'s ready-only reveal is unchanged.
+
+## Amendment 2026-10-05 — /track reveals the code per Item
+
+Steps 2–3 no longer follow the Order's status. `/track` shows the pickup code once **any Item on the Order is Collectable**, and hides it otherwise. That includes a fully refunded pair still on the rack, which is collectable for the reason [ADR-0017](0017-item-groups-order-services.md) gives: its Order rolls up to `completed`, so gating on the Order hid the code for exactly the object a customer is most likely to forget.

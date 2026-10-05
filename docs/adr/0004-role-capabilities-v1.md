@@ -5,6 +5,8 @@ Three roles with disjoint capabilities. Locked for v1; do not blur the lines.
 > **Amended 2026-06-04:** the processing axis is now open to all staff — see [Amendment](#amendment-2026-06-04--processing-axis-open-to-all-staff). Money and admin operations remain role-gated exactly as below.
 >
 > **Amended 2026-09-05:** the POS is open to workers — Create Order and take payment at drop-off — see [Amendment](#amendment-2026-09-05--the-pos-is-open-to-workers). Pickup keeps its per-user flag; refund and admin operations are unchanged.
+>
+> **Amended 2026-10-05:** two standing rules moved here from the glossary, self-QC and device versus role. See [Amendment](#amendment-2026-10-05--self-qc-and-devices).
 
 ## Capabilities
 
@@ -70,7 +72,7 @@ Overlap is partial (`cannot_process`, `other`). Each enum lives on a different t
 - Do not add worker pricing / discount overrides.
 - Do not build an "auto-refund on cancel" cascade — paid-Order cancellation is not a real operation; the admin runs the refund dialog instead.
 - Any UX that initiates reversal must read `payment_status` first to choose the dialog (cancel vs refund). The two off-ramps are not interchangeable.
-- The status conflation between processing axis and terminal-outcome axis (see [CONTEXT.md](../../CONTEXT.md) "OrderService status") is accepted for v1 and recorded for the Order Status Machine refactor.
+- One status column, `orders_services.status`, holds both axes: the processing steps (`queued` through `picked_up`) and the exits (`cancelled`, `refunded`). An exit value hides which processing step the line was in when it left; rebuild that from `order_service_status_logs` when it matters. Accepted for v1; splitting the axes into two columns is recorded for the Order Status Machine refactor.
 
 ## Amendment 2026-06-04 — processing axis open to all staff
 
@@ -111,6 +113,13 @@ Unchanged:
 - **Pickup keeps `can_process_pickup`.** Taking money at drop-off and handing the Item back are different acts: pickup verifies the claim code against the physical object, and the business assigns that trust per person. A worker who rings up an Order may still need to call a flagged colleague to release one. [ADR-0009](0009-payment-precedes-pickup.md)'s "fetch a cashier" consequence is therefore narrower now — it applies to the pickup step only.
 - Refund, reassign handler, manage Campaigns/Users — admin only
 - Courier — login and attendance only ([ADR-0010](0010-courier-role-login-only-excluded-by-allowlist.md)); the two POS asserts share one allow-list of shop roles, so a role added later starts without POS access
-- A worker still lands on the Queue after login; the till is one tap away in the sidebar
+- Every role lands on the Home launcher (`/`, #129) after login; the POS is one tap from there
 
 Lockstep with [ADR-0006](0006-permissions-module-shape.md) holds: the two asserts stay in `permissions.ts` because one role (courier) is still refused — they are not all-✅ rows.
+
+## Amendment 2026-10-05 — self-QC and devices
+
+Both rules stood in the glossary's definitions until it was trimmed to definitions only. Neither is new.
+
+- **Self-QC is allowed (decided 2026-07-06).** In shop practice, someone other than the cleaner does quality check before an Item goes back to the counter. The system deliberately does not enforce it. Who checked can be rebuilt from `order_service_status_logs`. Do not add a "checker ≠ cleaner" guard.
+- **Role decides capability, never device.** Cashiers run the POS on store tablets, workers run the Queue on Android phones, admins use any browser; the device shapes layout and input only.
