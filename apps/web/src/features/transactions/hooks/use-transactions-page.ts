@@ -255,7 +255,7 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 						(error: unknown) => {
 							if (error instanceof NoRegisteredDeviceError) {
 								toast.info("Order created. No Bluetooth device registered", {
-									description: "Use Devices next to the store name to add one.",
+									description: "Use Devices at the top of the POS to add one.",
 								});
 								return;
 							}

@@ -21,10 +21,14 @@ export function TransactionsWorkspace() {
 	// The store scopes everything the checkout reads — campaigns, vouchers, the
 	// order itself — so a storeless checkout can only end in a rejected submit.
 	// Block it at the door: triggering the field raises the picker's own
-	// FieldError up in the catalog, in place of the "Select a store" hint.
+	// FieldError up in the catalog, in place of the "Select a store" hint. A
+	// cashier scrolled down the list would never see it, so bring the picker back.
 	const handleOpenCart = () => {
 		if (!selectedStoreId) {
 			void form.trigger("selectedStoreId");
+			document
+				.getElementById("order-store")
+				?.scrollIntoView({ behavior: "smooth", block: "center" });
 			return;
 		}
 		setCartSheetOpen(true);

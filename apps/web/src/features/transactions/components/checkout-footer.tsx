@@ -108,25 +108,23 @@ export const CheckoutFooter = ({
 					step={step}
 				/>
 			</div>
-			{/* Away from the step buttons: one slip here throws away a Customer's
-			    whole drop-off. */}
-			<div className="flex items-center justify-between gap-3">
-				{itemsHint ? (
-					<p className="text-muted-foreground text-xs" id={ITEMS_HINT_ID}>
-						{itemsHint}
-					</p>
-				) : null}
-				<ResetCartButton
-					disabled={
-						count === 0 &&
-						!customerName &&
-						!customerPhone &&
-						selectedCampaignIds.length === 0 &&
-						!dropoffPhoto
-					}
-					onConfirm={onReset}
-				/>
-			</div>
+			{itemsHint ? (
+				<p className="text-muted-foreground text-xs" id={ITEMS_HINT_ID}>
+					{itemsHint}
+				</p>
+			) : null}
+			{/* Left, under the total, away from the step buttons on the right: one
+			    slip here throws away a Customer's whole drop-off. */}
+			<ResetCartButton
+				disabled={
+					count === 0 &&
+					!customerName &&
+					!customerPhone &&
+					selectedCampaignIds.length === 0 &&
+					!dropoffPhoto
+				}
+				onConfirm={onReset}
+			/>
 		</SheetFooter>
 	);
 };
@@ -142,7 +140,7 @@ const ResetCartButton = ({ disabled, onConfirm }: ResetCartButtonProps) => {
 	return (
 		<>
 			<Button
-				className="ml-auto h-9 shrink-0 text-muted-foreground"
+				className="h-9 self-start text-muted-foreground"
 				disabled={disabled}
 				icon={<TrashIcon className="size-4" />}
 				onClick={() => setIsConfirming(true)}

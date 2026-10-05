@@ -267,7 +267,9 @@ export function TransactionsCatalog() {
 				</CardContent>
 			</Card>
 
-			<div className="grid gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+			{/* From lg the Cart column takes 340px, so columns step up one
+			    breakpoint later than the screen alone would suggest. */}
+			<div className="grid gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 2xl:grid-cols-4">
 				{filteredEntries.map((entry) => {
 					// Narrow on entry.kind, never destructure first: pulling kind and
 					// item apart severs the discriminated union and forces casts.
