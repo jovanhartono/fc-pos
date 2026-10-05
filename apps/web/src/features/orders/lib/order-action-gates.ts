@@ -58,6 +58,31 @@ export const startPhotoBlocker = (
 		: "Add an item photo before starting work.";
 };
 
+// A Rework's photos, newest first, each marked when it was taken at or before
+// the round's cut-off — the same cut-off hasStartPhoto uses on the server, so
+// "Before rework" and the Required badge never disagree.
+export const orderLinePhotos = <Photo extends { created_at: string }>(
+	line: {
+		rework_opened_at: string | null;
+		reworkOf: { created_at: string } | null;
+	},
+	photos: Photo[],
+): (Photo & { isBeforeRework: boolean })[] => {
+	const cutOff = line.reworkOf
+		? new Date(line.rework_opened_at ?? line.reworkOf.created_at).getTime()
+		: null;
+	return photos
+		.map((photo) => ({
+			...photo,
+			isBeforeRework:
+				cutOff !== null && new Date(photo.created_at).getTime() <= cutOff,
+		}))
+		.sort(
+			(a, b) =>
+				new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+		);
+};
+
 // Pure derivation of every role/state gate on the order detail page. `me`
 // must come from /admin/users/me — JWT claims go stale when an admin changes
 // roles mid-session.

@@ -1,7 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import type { OrderDetail } from "@/features/orders/api";
 import type { Me } from "@/features/users/api";
-import { getOrderActionGates, startPhotoBlocker } from "./order-action-gates";
+import {
+	getOrderActionGates,
+	orderLinePhotos,
+	startPhotoBlocker,
+} from "./order-action-gates";
 import type { OrderLine } from "./order-lines";
 
 type ServiceOverrides = Record<string, unknown>;
@@ -388,5 +392,68 @@ describe("startPhotoBlocker", () => {
 				reworkOf: null,
 			}),
 		).toBe(undefined);
+	});
+});
+
+// The caption has to agree with the server's hasStartPhoto: same cut-off, and a
+// photo exactly at it does not count as after.
+describe("orderLinePhotos", () => {
+	const photo = (id: number, created_at: string) => ({ id, created_at });
+	const rework = (rework_opened_at: string | null) => ({
+		rework_opened_at,
+		reworkOf: { created_at: "2026-09-08T04:00:00.000Z" },
+	});
+	const flags = (
+		line: Parameters<typeof orderLinePhotos>[0],
+		photos: ReturnType<typeof photo>[],
+	) => orderLinePhotos(line, photos).map((p) => [p.id, p.isBeforeRework]);
+
+	it("lists the newest photo first", () => {
+		const ids = orderLinePhotos({ rework_opened_at: null, reworkOf: null }, [
+			photo(1, "2026-09-01T00:00:00.000Z"),
+			photo(3, "2026-09-03T00:00:00.000Z"),
+			photo(2, "2026-09-02T00:00:00.000Z"),
+		]).map((p) => p.id);
+		expect(ids).toEqual([3, 2, 1]);
+	});
+
+	it("never flags a photo on an ordinary line", () => {
+		expect(
+			flags({ rework_opened_at: null, reworkOf: null }, [
+				photo(1, "2020-01-01T00:00:00.000Z"),
+			]),
+		).toEqual([[1, false]]);
+	});
+
+	it("cuts at the rack time when the round has one", () => {
+		expect(
+			flags(rework("2026-09-10T00:00:00.000Z"), [
+				photo(1, "2026-09-09T00:00:00.000Z"),
+				photo(2, "2026-09-10T00:00:00.001Z"),
+			]),
+		).toEqual([
+			[2, false],
+			[1, true],
+		]);
+	});
+
+	it("treats a photo exactly at the rack time as before", () => {
+		expect(
+			flags(rework("2026-09-10T00:00:00.000Z"), [
+				photo(1, "2026-09-10T00:00:00.000Z"),
+			]),
+		).toEqual([[1, true]]);
+	});
+
+	it("falls back to when the Rework line was created", () => {
+		expect(
+			flags(rework(null), [
+				photo(1, "2026-09-08T04:00:00.000Z"),
+				photo(2, "2026-09-08T04:00:00.001Z"),
+			]),
+		).toEqual([
+			[2, false],
+			[1, true],
+		]);
 	});
 });
