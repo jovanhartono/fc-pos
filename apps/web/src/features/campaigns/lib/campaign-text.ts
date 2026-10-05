@@ -1,29 +1,26 @@
+import type { Campaign } from "@/features/campaigns/api";
 import { formatMoney } from "@/shared/money";
-
-interface CampaignRedemptionFields {
-	redemption_mode: "listed" | "code";
-	usage_limit: number | null;
-}
-
-interface CampaignDiscountFields {
-	discount_type: "percentage" | "fixed" | "buy_n_get_m_free";
-	discount_value: string | number;
-	max_discount: string | number | null;
-	buy_quantity: number | null;
-	free_quantity: number | null;
-}
 
 export const formatCampaignRedemption = ({
 	redemption_mode,
 	usage_limit,
-}: CampaignRedemptionFields) => {
+}: Pick<Campaign, "redemption_mode" | "usage_limit">) => {
 	if (redemption_mode === "code") {
 		return "Voucher";
 	}
 	return usage_limit == null ? "Listed" : `Listed · limit ${usage_limit}`;
 };
 
-export const formatCampaignDiscount = (campaign: CampaignDiscountFields) => {
+export const formatCampaignDiscount = (
+	campaign: Pick<
+		Campaign,
+		| "discount_type"
+		| "discount_value"
+		| "max_discount"
+		| "buy_quantity"
+		| "free_quantity"
+	>,
+) => {
 	if (campaign.discount_type === "buy_n_get_m_free") {
 		return `Buy ${campaign.buy_quantity ?? "?"} Get ${
 			campaign.free_quantity ?? "?"
@@ -35,7 +32,8 @@ export const formatCampaignDiscount = (campaign: CampaignDiscountFields) => {
 			? `${campaign.discount_value}%`
 			: formatMoney(String(campaign.discount_value));
 
-	return campaign.max_discount
+	// Checkout treats a max of 0 as no cap, so the table must not read "max Rp0".
+	return Number(campaign.max_discount) > 0
 		? `${discount} · max ${formatMoney(String(campaign.max_discount))}`
 		: discount;
 };

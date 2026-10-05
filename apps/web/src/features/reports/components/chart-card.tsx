@@ -18,6 +18,7 @@ import {
 	Scatter,
 	ScatterChart,
 	XAxis,
+	type XAxisProps,
 	YAxis,
 	ZAxis,
 } from "recharts";
@@ -67,8 +68,7 @@ interface AreaProps extends SeriesChartProps {
 
 interface BarProps extends SeriesChartProps {
 	variant: "bar" | "stacked-bar";
-	// 1 labels every other tick at even spacing; the default drops ticks that collide.
-	xTickInterval?: number | "preserveEnd";
+	xTickInterval?: XAxisProps["interval"];
 }
 
 interface SingleCategory {
@@ -312,7 +312,7 @@ const BarVariant = ({
 	series,
 	granularity = "day",
 	variant,
-	xTickInterval = "preserveEnd",
+	xTickInterval,
 	valueFormatter = formatDefault,
 }: BarProps) => {
 	const config = seriesConfig(series);

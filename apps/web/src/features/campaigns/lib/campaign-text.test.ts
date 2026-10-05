@@ -65,6 +65,30 @@ describe("formatCampaignDiscount", () => {
 		).toBe(formatMoney("25000"));
 	});
 
+	test("a fixed discount with a max folds the max in", () => {
+		expect(
+			formatCampaignDiscount({
+				discount_type: "fixed",
+				discount_value: "25000",
+				max_discount: "20000",
+				buy_quantity: null,
+				free_quantity: null,
+			}),
+		).toBe(`${formatMoney("25000")} · max ${formatMoney("20000")}`);
+	});
+
+	test("a max of 0 means no cap, so no max is shown", () => {
+		expect(
+			formatCampaignDiscount({
+				discount_type: "percentage",
+				discount_value: "10",
+				max_discount: "0",
+				buy_quantity: null,
+				free_quantity: null,
+			}),
+		).toBe("10%");
+	});
+
 	test("buy N get M free names both quantities", () => {
 		expect(
 			formatCampaignDiscount({
