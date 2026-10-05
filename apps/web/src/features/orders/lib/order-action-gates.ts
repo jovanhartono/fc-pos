@@ -58,10 +58,12 @@ export const startPhotoBlocker = (
 		: "Add an item photo before starting work.";
 };
 
-// A Rework's photos, newest first, each marked when it was taken at or before
-// the round's cut-off — the same cut-off hasStartPhoto uses on the server, so
-// "Before rework" and the Required badge never disagree.
-export const orderLinePhotos = <Photo extends { created_at: string }>(
+// Same cut-off as the server's hasStartPhoto, so "Before rework" and the
+// Required badge never disagree. Ties go to the higher id: a batch upload can
+// stamp several photos in the same millisecond.
+export const orderLinePhotos = <
+	Photo extends { created_at: string; id: number },
+>(
 	line: {
 		rework_opened_at: string | null;
 		reworkOf: { created_at: string } | null;
@@ -69,18 +71,15 @@ export const orderLinePhotos = <Photo extends { created_at: string }>(
 	photos: Photo[],
 ): (Photo & { isBeforeRework: boolean })[] => {
 	const cutOff = line.reworkOf
-		? new Date(line.rework_opened_at ?? line.reworkOf.created_at).getTime()
+		? Date.parse(line.rework_opened_at ?? line.reworkOf.created_at)
 		: null;
 	return photos
-		.map((photo) => ({
+		.map((photo) => ({ photo, takenAt: Date.parse(photo.created_at) }))
+		.sort((a, b) => b.takenAt - a.takenAt || b.photo.id - a.photo.id)
+		.map(({ photo, takenAt }) => ({
 			...photo,
-			isBeforeRework:
-				cutOff !== null && new Date(photo.created_at).getTime() <= cutOff,
-		}))
-		.sort(
-			(a, b) =>
-				new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-		);
+			isBeforeRework: cutOff !== null && takenAt <= cutOff,
+		}));
 };
 
 // Pure derivation of every role/state gate on the order detail page. `me`

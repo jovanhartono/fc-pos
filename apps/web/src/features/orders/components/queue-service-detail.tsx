@@ -371,8 +371,6 @@ export function QueueServiceDetail({
 					</div>
 
 					<div className="grid gap-3 px-4 pb-4 pt-4">
-						{/* A Rework's Item already carries first-visit photos; the captions
-						    say which ones the Required badge ignores. */}
 						<OrderPhotoGallery
 							items={orderLinePhotos(
 								selectedService,
@@ -386,7 +384,8 @@ export function QueueServiceDetail({
 								) : undefined,
 								download: { kind: "item" as const, id: image.id },
 							}))}
-							gridClassName="flex snap-x gap-2 overflow-x-auto pb-1 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 xl:grid-cols-3 [&>div]:w-24 [&>div]:shrink-0 [&>div]:snap-start md:[&>div]:w-auto"
+							gridClassName="flex snap-x gap-2 overflow-x-auto pb-1 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 xl:grid-cols-3"
+							itemClassName="w-24 shrink-0 snap-start md:w-auto"
 							thumbnailClassName="bg-background"
 							thumbnailImageClassName="aspect-square md:aspect-[5/4]"
 							title={`Photos for ${selectedService.item.item_code}`}

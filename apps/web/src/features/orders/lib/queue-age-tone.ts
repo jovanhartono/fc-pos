@@ -3,8 +3,8 @@ const WARNING_WINDOW_MS = 24 * HOUR_MS;
 
 export type QueueAgeTone = "muted" | "amber" | "red";
 
-// Both thresholds hang off the one turnaround promise: amber from 24h before
-// it, red once the promise is reached. Change the promise and both move.
+// Timed from drop-off, the workshop's clock — not PICKUP_OVERDUE_HOURS, which
+// times the customer's collection from ready_at on a different screen.
 export const getQueueAgeTone = (
 	elapsedMs: number,
 	promiseHours: number,

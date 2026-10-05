@@ -395,8 +395,6 @@ describe("startPhotoBlocker", () => {
 	});
 });
 
-// The caption has to agree with the server's hasStartPhoto: same cut-off, and a
-// photo exactly at it does not count as after.
 describe("orderLinePhotos", () => {
 	const photo = (id: number, created_at: string) => ({ id, created_at });
 	const rework = (rework_opened_at: string | null) => ({
@@ -415,6 +413,14 @@ describe("orderLinePhotos", () => {
 			photo(2, "2026-09-02T00:00:00.000Z"),
 		]).map((p) => p.id);
 		expect(ids).toEqual([3, 2, 1]);
+	});
+
+	it("lists the later upload first when two share a timestamp", () => {
+		const ids = orderLinePhotos({ rework_opened_at: null, reworkOf: null }, [
+			photo(1, "2026-09-01T00:00:00.000Z"),
+			photo(2, "2026-09-01T00:00:00.000Z"),
+		]).map((p) => p.id);
+		expect(ids).toEqual([2, 1]);
 	});
 
 	it("never flags a photo on an ordinary line", () => {
@@ -445,7 +451,7 @@ describe("orderLinePhotos", () => {
 		).toEqual([[1, true]]);
 	});
 
-	it("falls back to when the Rework line was created", () => {
+	it("falls back to when the Complaint was opened", () => {
 		expect(
 			flags(rework(null), [
 				photo(1, "2026-09-08T04:00:00.000Z"),

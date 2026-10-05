@@ -460,6 +460,7 @@ function QueuePage() {
 						autoCapitalize="none"
 						autoCorrect="off"
 						className="min-w-0 flex-1"
+						enterKeyHint="search"
 						spellCheck={false}
 						onChange={(event) => setItemCode(event.target.value)}
 						// Without the pending guard a held Enter fires a second lookup
