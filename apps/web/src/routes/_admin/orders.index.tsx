@@ -23,16 +23,11 @@ import {
 	type OrderFilterValues,
 	PAYMENT_STATUS_VALUES,
 } from "@/features/orders/components/order-filters";
-import { PaymentStatusBadge } from "@/features/orders/components/payment-status-badge";
 import { PickupRadar } from "@/features/orders/components/pickup-radar";
+import { getPaymentBadges } from "@/features/orders/lib/payment-badges";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
-import {
-	formatOrderStatus,
-	formatRefundStatus,
-	getOrderStatusBadgeVariant,
-	getRefundStatusBadgeVariant,
-} from "@/lib/status";
+import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useSheet } from "@/stores/sheet-store";
@@ -165,7 +160,7 @@ function OrdersPage() {
 
 	const handleOpenPickupRadar = useCallback(() => {
 		openSheet({
-			title: "Pickup Radar",
+			title: "Ready for pickup",
 			description: "Orders that can leave the store now.",
 			content: () => (
 				<PickupRadar enabled={canListOrders} storeId={parsedStoreId} />
@@ -250,16 +245,11 @@ function OrdersPage() {
 				},
 				cell: ({ row }) => (
 					<div className="flex flex-wrap gap-1">
-						<PaymentStatusBadge order={row.original} />
-						{row.original.refund_status !== "none" && (
-							<Badge
-								variant={getRefundStatusBadgeVariant(
-									row.original.refund_status,
-								)}
-							>
-								{formatRefundStatus(row.original.refund_status)}
+						{getPaymentBadges(row.original).map((badge) => (
+							<Badge key={badge.label} variant={badge.variant}>
+								{badge.label}
 							</Badge>
-						)}
+						))}
 					</div>
 				),
 			},
@@ -291,7 +281,7 @@ function OrdersPage() {
 						onClick={handleOpenPickupRadar}
 						icon={<CrosshairSimpleIcon className="size-4" />}
 					>
-						Pickup Radar
+						Ready for pickup
 					</Button>
 				}
 			/>
