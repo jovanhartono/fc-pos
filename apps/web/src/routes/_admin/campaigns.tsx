@@ -301,7 +301,11 @@ function CampaignsPage() {
 	const columns = useMemo<DataTableColumnDef<Campaign>[]>(
 		() => [
 			{ accessorKey: "code", header: "Code" },
-			{ accessorKey: "name", header: "Name" },
+			{
+				accessorKey: "name",
+				header: "Name",
+				meta: { cellClassName: "min-w-32 whitespace-normal" },
+			},
 			{
 				id: "discount",
 				header: "Discount",

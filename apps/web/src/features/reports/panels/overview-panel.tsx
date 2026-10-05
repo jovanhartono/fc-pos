@@ -187,7 +187,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 				title={`Orders in vs out · last ${overview?.trend_days ?? 14} days`}
 				data={trendData}
 				granularity="day"
-				xTickInterval={1}
+				xTickInterval="equidistantPreserveStart"
 				series={[
 					{ key: "orders_in", label: "Orders in", color: CHART_PALETTE[0] },
 					{ key: "orders_out", label: "Orders out", color: CHART_PALETTE[1] },
