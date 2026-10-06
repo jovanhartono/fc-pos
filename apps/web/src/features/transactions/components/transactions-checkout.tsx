@@ -1,5 +1,7 @@
+import { TrashIcon } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 import { useWatch } from "react-hook-form";
+import { Button } from "@/components/ui/button";
 import {
 	SheetDescription,
 	SheetHeader,
@@ -22,6 +24,7 @@ import {
 	type CheckoutStep,
 } from "@/features/transactions/lib/checkout-steps";
 import { cn } from "@/lib/utils";
+import { useDialog } from "@/stores/dialog-store";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 // Shared between the hint element and the stepper's aria-describedby so the two
@@ -34,13 +37,16 @@ const LOCKED_STEP_HINT_ID = "checkout-locked-step-hint";
 // remounts on open.
 export const TransactionsCheckout = () => {
 	const { resetCart, count } = useCart();
+	const openDialog = useDialog((state) => state.openDialog);
+	const closeDialog = useDialog((state) => state.closeDialog);
 	const [step, setStep] = useState<CheckoutStep>("customer");
 	const [direction, setDirection] = useState<"forward" | "back">("forward");
 	const dropoffPhoto = useTransactionsPageStore((state) => state.dropoffPhoto);
-	const [customerName = "", customerPhone = ""] = useWatch<
-		TransactionDraftValues,
-		["customerName", "customerPhone"]
-	>({ name: ["customerName", "customerPhone"] });
+	const [customerName = "", customerPhone = "", selectedCampaignIds = []] =
+		useWatch<
+			TransactionDraftValues,
+			["customerName", "customerPhone", "selectedCampaignIds"]
+		>({ name: ["customerName", "customerPhone", "selectedCampaignIds"] });
 
 	const gateInput = {
 		customerName,
@@ -97,12 +103,58 @@ export const TransactionsCheckout = () => {
 				<SheetDescription className="sr-only">
 					Complete customer, items, and payment to create the order.
 				</SheetDescription>
-				<CheckoutStepper
-					current={step}
-					isStepEnabled={isStepEnabled}
-					lockHintId={lockedStepHint ? LOCKED_STEP_HINT_ID : undefined}
-					onSelect={goToStep}
-				/>
+				<div className="flex flex-row items-center gap-3">
+					<div className="min-w-0 flex-1">
+						<CheckoutStepper
+							current={step}
+							isStepEnabled={isStepEnabled}
+							lockHintId={lockedStepHint ? LOCKED_STEP_HINT_ID : undefined}
+							onSelect={goToStep}
+						/>
+					</div>
+					<Button
+						className="h-11 shrink-0"
+						disabled={
+							count === 0 &&
+							!customerName &&
+							!customerPhone &&
+							selectedCampaignIds.length === 0 &&
+							!dropoffPhoto
+						}
+						icon={<TrashIcon className="size-4" />}
+						onClick={() =>
+							openDialog({
+								title: "Clear the cart?",
+								description:
+									"Every Item, the Customer, Campaigns and the drop-off photo are removed.",
+								footer: () => (
+									<>
+										<Button variant="outline" onClick={closeDialog}>
+											Cancel
+										</Button>
+										<Button
+											variant="destructive"
+											onClick={() => {
+												resetCart();
+												// Reset on the Payment step otherwise strands the cashier
+												// there with an empty cart and a disabled Create Order.
+												goToStep("customer");
+												closeDialog();
+											}}
+										>
+											Clear
+										</Button>
+									</>
+								),
+							})
+						}
+						size="sm"
+						type="button"
+						variant="outline"
+					>
+						Reset
+					</Button>
+				</div>
 				{lockedStepHint ? (
 					<p className="text-muted-foreground text-xs" id={LOCKED_STEP_HINT_ID}>
 						{lockedStepHint}
@@ -131,17 +183,7 @@ export const TransactionsCheckout = () => {
 				</div>
 			</div>
 
-			<CheckoutFooter
-				onBack={goBack}
-				onContinue={goNext}
-				onReset={() => {
-					resetCart();
-					// Reset on the Payment step otherwise strands the cashier there
-					// with an empty cart and a disabled Create Order.
-					goToStep("customer");
-				}}
-				step={step}
-			/>
+			<CheckoutFooter onBack={goBack} onContinue={goNext} step={step} />
 		</div>
 	);
 };

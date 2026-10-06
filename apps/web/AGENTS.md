@@ -66,6 +66,11 @@ Every saved/uploaded image rendered anywhere must be clickable and open in `Phot
 - React context for theme, sidebar, scoped state
 - `GlobalDialog`/`GlobalSheet` via Zustand for CRUD modals
 
+## Dialogs
+
+- Every confirm, form-in-a-modal or info dialog opens through `useDialog().openDialog({ title, description, content, footer })`, which `GlobalDialog` renders. Sheets do the same through `useSheet().openSheet`. Copy an existing call: the Campaign Archive confirm (`routes/_admin/campaigns.tsx`) or the order sheet actions (`order-identity-strip.tsx`).
+- Never import `@/components/ui/alert-dialog`. Import `@/components/ui/dialog` directly only for the media dialogs that need their own frame (photo capture, `PhotoLightbox`).
+
 ## Routing
 
 - File-based under `src/routes/`; `_admin` layout with `beforeLoad: requireAuth`

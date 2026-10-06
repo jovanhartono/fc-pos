@@ -34,7 +34,7 @@ export const CheckoutCustomerStep = () => {
 	);
 
 	return (
-		<div className="grid max-w-160 gap-5">
+		<div className="grid gap-5">
 			<CustomerFields />
 			<Controller
 				control={form.control}
