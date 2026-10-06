@@ -1,3 +1,5 @@
+import { CaretRightIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -10,12 +12,7 @@ import type { OrderItem } from "@/features/orders/lib/order-lines";
 import { getItemTotalRow } from "@/features/orders/lib/order-sheet";
 import { groupReworksUnderOriginals } from "@/features/orders/lib/rework-nesting";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
-import {
-	formatCancelReason,
-	formatOrderServiceStatus,
-	formatRefundReason,
-	getOrderServiceStatusBadgeVariant,
-} from "@/lib/status";
+import { formatCancelReason, formatRefundReason } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
 
 type OrderDetailProduct = OrderDetail["products"][number];
@@ -75,6 +72,30 @@ const ProductLine = ({
 	</div>
 );
 
+interface ComplaintLinkRowProps {
+	complaint: { id: number; reason: string };
+}
+
+// The cashier's way from the order to its Complaint, whether or not a Rework
+// has started.
+const ComplaintLinkRow = ({ complaint }: ComplaintLinkRowProps) => (
+	<Link
+		className="group flex items-center gap-1.5 py-2 pr-1 pl-3 text-rose-700 text-xs hover:bg-muted/40 dark:text-rose-300"
+		params={{ complaintId: String(complaint.id) }}
+		to="/complaints/$complaintId"
+	>
+		<WarningCircleIcon aria-hidden="true" className="size-4 shrink-0" />
+		<span className="min-w-0 flex-1 truncate">
+			<span className="font-medium">Complaint #{complaint.id}</span>
+			<span className="text-muted-foreground"> · {complaint.reason}</span>
+		</span>
+		<CaretRightIcon
+			aria-hidden="true"
+			className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+		/>
+	</Link>
+);
+
 interface ItemBlockProps {
 	orderId: number;
 	item: OrderItem;
@@ -91,32 +112,25 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 
 	return (
 		<Card className="gap-0 py-0">
-			<header className="flex items-start justify-between gap-3 px-4 py-3">
-				{/* The object leads, the tag follows: what the cashier says out loud
-				    is "the red New Balance", and the code is how the shelf finds it.
-				    Same order as the queue card and the pickup dialog. */}
-				<div className="min-w-0">
-					{descriptors ? (
-						<>
-							<h3 className="text-pretty font-semibold text-[15px] leading-5">
-								{descriptors}
-							</h3>
-							<p className="break-all font-mono text-muted-foreground text-xs leading-snug">
-								{item.item_code}
-							</p>
-						</>
-					) : (
-						<h3 className="break-all font-mono text-[15px] font-semibold leading-5">
-							{item.item_code}
+			{/* The object leads, the tag follows: what the cashier says out loud
+			    is "the red New Balance", and the code is how the shelf finds it.
+			    Same order as the queue card and the pickup dialog. No status here:
+			    each line below shows its own. */}
+			<header className="min-w-0 px-4 py-3">
+				{descriptors ? (
+					<>
+						<h3 className="text-pretty font-semibold text-[15px] leading-5">
+							{descriptors}
 						</h3>
-					)}
-				</div>
-				<Badge
-					className="shrink-0"
-					variant={getOrderServiceStatusBadgeVariant(item.status)}
-				>
-					{formatOrderServiceStatus(item.status)}
-				</Badge>
+						<p className="break-all font-mono text-muted-foreground text-xs leading-snug">
+							{item.item_code}
+						</p>
+					</>
+				) : (
+					<h3 className="break-all font-mono text-[15px] font-semibold leading-5">
+						{item.item_code}
+					</h3>
+				)}
 			</header>
 			<ItemPhotoStrip isAdmin={isAdmin} item={item} orderId={orderId} />
 			<ul className="mx-4 mb-3 divide-y border-l-2 border-border">
@@ -128,18 +142,19 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 						{original ? (
 							<OrderServiceRow
 								itemCode={item.item_code}
-								itemStatus={item.status}
 								orderId={orderId}
 								service={original}
 							/>
 						) : null}
+						{original?.complaints.map((complaint) => (
+							<ComplaintLinkRow complaint={complaint} key={complaint.id} />
+						))}
 						{reworks.length > 0 && (
 							<ul>
 								{reworks.map((rework, index) => (
 									<li key={rework.id}>
 										<OrderServiceRow
 											itemCode={item.item_code}
-											itemStatus={item.status}
 											orderId={orderId}
 											reworkRound={original ? index + 1 : undefined}
 											service={rework}

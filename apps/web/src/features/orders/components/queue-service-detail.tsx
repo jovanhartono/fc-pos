@@ -201,9 +201,6 @@ export function QueueServiceDetail({
 				    to. A worker needs both to pick the right shoe off the rack, so
 				    neither is demoted to small print. The tag is the machine's
 				    handle and reads third, in mono. */}
-				<h1 className="text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
-					{selectedService.service?.name ?? "Service"}
-				</h1>
 				{itemDescriptors.length > 0 ? (
 					// Separator bound to the descriptor before it, so a wrap on a
 					// 390px screen never starts a line with a stray "·".
@@ -211,6 +208,9 @@ export function QueueServiceDetail({
 						{itemDescriptors.join(" · ")}
 					</p>
 				) : null}
+				<h1 className="text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
+					{selectedService.service?.name ?? "Service"}
+				</h1>
 				<CopyValue
 					className="mt-1 text-muted-foreground"
 					label="item tag"
@@ -244,7 +244,7 @@ export function QueueServiceDetail({
 							<Badge variant="info">Rework</Badge>
 						)}
 						{selectedService.is_priority ? (
-							<Badge variant="warning">Priority</Badge>
+							<Badge variant="priority">Priority</Badge>
 						) : (
 							<Badge variant="outline">Standard</Badge>
 						)}
@@ -418,7 +418,7 @@ export function QueueServiceDetail({
 				/>
 
 				<section className="grid gap-4 border border-border p-4">
-					<StatusTimeline line={selectedService} orderId={orderId} />
+					<StatusTimeline line={selectedService} />
 					{actionStatuses.length > 0 && (
 						<Field>
 							<FieldLabel htmlFor="queue-status-note">Status note</FieldLabel>

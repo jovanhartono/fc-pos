@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { type Order, ordersQueries } from "@/features/orders/api";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
+import { useSheet } from "@/stores/sheet-store";
 
 const RADAR_LIMIT = 50;
 
@@ -74,10 +75,13 @@ function RadarSection({
 }
 
 function RadarRow({ order }: { order: Order }) {
+	const closeSheet = useSheet((s) => s.closeSheet);
+
 	return (
 		<Link
 			to="/orders/$orderId"
 			params={{ orderId: String(order.id) }}
+			onClick={closeSheet}
 			className="group grid grid-cols-[1fr_auto] items-center gap-3 border border-transparent px-2 py-2.5 transition-colors hover:border-border hover:bg-muted/50"
 		>
 			<div className="grid gap-1 overflow-hidden">

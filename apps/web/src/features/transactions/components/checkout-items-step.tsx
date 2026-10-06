@@ -184,7 +184,6 @@ export const CheckoutItemsStep = () => {
 							placeholder="Add notes"
 							value={field.value}
 						/>
-						<FieldDescription>Printed on the Receipt</FieldDescription>
 						<FieldError errors={[fieldState.error]} />
 					</Field>
 				)}
@@ -299,7 +298,6 @@ const CheckoutTreatmentRow = ({
 					placeholder="e.g. No bleach"
 					value={line.notes}
 				/>
-				<FieldDescription>Printed on the Receipt</FieldDescription>
 			</Field>
 
 			{line.service.price === null ? (

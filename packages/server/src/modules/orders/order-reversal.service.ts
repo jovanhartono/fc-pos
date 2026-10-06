@@ -36,6 +36,7 @@ type RefundLineInput = PostOrderRefundInput["items"][number];
 
 interface RefundLine {
   id: number;
+  keepRework?: boolean;
   kind: RefundLineKind;
   note?: string;
   reason: RefundLineInput["reason"];
@@ -46,6 +47,7 @@ function toRefundLine(item: RefundLineInput): RefundLine {
     return {
       kind: "service",
       id: item.order_service_id,
+      keepRework: item.keep_rework,
       note: item.note,
       reason: item.reason,
     };
@@ -241,7 +243,11 @@ export async function createOrderRefund({
 
     const serviceItems = refundItems
       .filter((item) => item.kind === "service")
-      .map((item) => ({ serviceId: item.id, note: item.note }));
+      .map((item) => ({
+        serviceId: item.id,
+        note: item.note,
+        keepRework: item.keepRework,
+      }));
 
     if (serviceItems.length > 0) {
       await applyRefundTransition(tx, {

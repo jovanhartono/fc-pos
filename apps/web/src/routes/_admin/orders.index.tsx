@@ -180,14 +180,19 @@ function OrdersPage() {
 				},
 				cell: ({ row }) => (
 					<div className="flex flex-col gap-0.5">
-						<Link
-							to="/orders/$orderId"
-							params={{ orderId: String(row.original.id) }}
-							className="font-mono font-semibold"
-						>
-							{row.original.code}
-						</Link>
-						<span className="font-mono font-normal text-[11px] text-muted-foreground tabular-nums">
+						<div className="flex gap-x-1">
+							{row.original.has_complaint ? (
+								<span className="text-destructive text-xs">COMPLAINT</span>
+							) : null}
+							<Link
+								to="/orders/$orderId"
+								params={{ orderId: String(row.original.id) }}
+								className="font-mono font-medium"
+							>
+								{row.original.code}
+							</Link>
+						</div>
+						<span className="font-normal text-[11px] text-muted-foreground">
 							{row.original.store_name}
 						</span>
 					</div>
@@ -202,7 +207,9 @@ function OrdersPage() {
 					},
 				},
 				cell: ({ row }) => (
-					<span>{dayjs(row.original.created_at).format("DD MMM HH:mm")}</span>
+					<span>
+						{dayjs(row.original.created_at).format("DD/MM/YYYY HH:mm")}
+					</span>
 				),
 			},
 			{

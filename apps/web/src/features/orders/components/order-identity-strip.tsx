@@ -35,9 +35,13 @@ import type { OrderActionGates } from "@/features/orders/lib/order-action-gates"
 import { showsPickupProgress } from "@/features/orders/lib/order-sheet";
 import { getPaymentBadges } from "@/features/orders/lib/payment-badges";
 import { buildRefundCaps } from "@/features/orders/lib/refund-preview";
+import { findWorkshopRework } from "@/features/orders/lib/refund-rework";
 import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
 import { usePrintReceiptMutation } from "@/features/printing/hooks/usePrintReceipt";
-import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
+import {
+	formatOrderServiceItemDetails,
+	getOrderServiceItemDetails,
+} from "@/lib/order-service-item-details";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 import { useDialog } from "@/stores/dialog-store";
 
@@ -58,6 +62,20 @@ export const OrderIdentityStrip = ({
 	const refundMutation = useRefundOrderMutation();
 	const openComplaintMutation = useOpenComplaintMutation();
 	const printReceiptMutation = usePrintReceiptMutation(orderId);
+
+	// The cancel and refund pickers name the pair ("Nike · AF1 · White") and the
+	// short tag, so the cashier needn't flip back to the order to match codes.
+	const orderPrefix = `${detail.code}-`;
+	const toReversalItem = (
+		item: { item_code: string } & Parameters<
+			typeof getOrderServiceItemDetails
+		>[0],
+	) => ({
+		item_details: getOrderServiceItemDetails(item),
+		item_tag: item.item_code.startsWith(orderPrefix)
+			? item.item_code.slice(orderPrefix.length)
+			: item.item_code,
+	});
 
 	const fulfillment = detail.fulfillment;
 	const totalCount = fulfillment.total_count;
@@ -140,7 +158,7 @@ export const OrderIdentityStrip = ({
 					cancellableServices={gates.cancellableServices.map((service) => ({
 						id: service.id,
 						is_rework: Boolean(service.reworkOf),
-						item_code: service.item.item_code,
+						...toReversalItem(service.item),
 						service_name: service.service?.name ?? "Service",
 					}))}
 					closeDialog={closeDialog}
@@ -166,8 +184,9 @@ export const OrderIdentityStrip = ({
 					}))}
 					refundableServices={gates.refundableServices.map((service) => ({
 						id: service.id,
-						item_code: service.item.item_code,
+						...toReversalItem(service.item),
 						service_name: service.service?.name ?? "Service",
+						workshopRework: findWorkshopRework(service),
 					}))}
 					refundMutation={refundMutation}
 				/>

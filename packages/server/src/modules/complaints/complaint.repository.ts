@@ -141,6 +141,12 @@ export function findComplaintDetailById(id: number) {
         with: {
           service: { columns: { id: true, name: true } },
           handler: { columns: { id: true, name: true } },
+          // When the round reached the status it shows.
+          statusLogs: {
+            columns: { created_at: true },
+            orderBy: { id: "desc" },
+            limit: 1,
+          },
         },
         orderBy: { id: "asc" },
       },

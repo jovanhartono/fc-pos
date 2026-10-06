@@ -729,7 +729,7 @@ const QueueJobButton = ({
 					{formatOrderServiceStatus(service.status)}
 				</Badge>
 				{service.is_priority ? (
-					<Badge className="px-1.5 py-0 text-[11px]" variant="warning">
+					<Badge className="px-1.5 py-0 text-[11px]" variant="priority">
 						Priority
 					</Badge>
 				) : null}
@@ -760,38 +760,18 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 	// Descriptors are optional at intake, so falling back to the tag keeps the
 	// heading from reading "No item details" at full weight.
 	const descriptors = getOrderServiceItemDetails(item);
-	// The order code sits on the line below, so the heading only needs the part
-	// of the tag that tells this object from its siblings. Derived by stripping
-	// the order code the row already carries rather than by knowing where the
-	// dash sits; anything unexpected shows the whole tag. Display only: every
-	// lookup still matches the whole stored string.
-	const orderPrefix = `${item.order_code}-`;
-	const tagSuffix = item.item_code.startsWith(orderPrefix)
-		? item.item_code.slice(orderPrefix.length)
-		: item.item_code;
 
 	return (
 		// min-w-0 at every level down to the truncating text: without it the card's
 		// min-content sizes the auto grid column, and the search field and status
 		// chips above — siblings in that same column — get pushed off screen.
-		<article
-			className={cn(
-				"min-w-0 border border-border bg-background",
-				// An object is urgent if any treatment on it is: the shoe is on the
-				// priority shelf. The edge marks the shoe; the chip on the row below
-				// marks which job carries the promise.
-				item.is_priority && "border-l-4 border-l-amber-500",
-			)}
-		>
+		<article className="min-w-0 border border-border bg-background">
 			<header className="grid min-w-0 gap-0.5 px-3 pt-2.5 pb-2">
 				<h3 className="flex min-w-0 items-baseline gap-2 font-medium text-[15px] leading-snug">
 					{descriptors ? (
-						<>
-							<span className="shrink-0 font-mono text-muted-foreground text-xs tabular-nums">
-								{tagSuffix}
-							</span>
-							<span className="min-w-0 flex-1 break-words">{descriptors}</span>
-						</>
+						<span className="min-w-0 flex-1 wrap-break-word">
+							{descriptors}
+						</span>
 					) : (
 						<span className="min-w-0 flex-1 break-all font-mono">
 							{item.item_code}
@@ -830,7 +810,7 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 						) : (
 							// Picked up and brought back: the original is off the rack,
 							// but the worker still needs to know what is being redone.
-							<p className="min-w-0 break-words px-3 pt-2.5 text-sm">
+							<p className="min-w-0 wrap-break-word px-3 pt-2.5 text-sm">
 								{reworks[0]?.rework_of_service_name ?? "Service"}
 							</p>
 						)}

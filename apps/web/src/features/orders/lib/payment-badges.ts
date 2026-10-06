@@ -38,7 +38,7 @@ export const getPaymentBadges = (order: PaymentBadgeOrder): PaymentBadge[] => {
 		return [
 			payment,
 			{
-				label: "Part refunded",
+				label: "Partial refund",
 				variant: getRefundStatusBadgeVariant("partial"),
 			},
 		];

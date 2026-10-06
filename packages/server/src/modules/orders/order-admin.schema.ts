@@ -179,6 +179,9 @@ export const POSTOrderRefundSchema = z.object({
     .array(
       z
         .object({
+          // ADR-0013 (2026-10-06): a service line's Rework still in the
+          // workshop stops unless the admin keeps it running as a free re-clean.
+          keep_rework: z.boolean().optional(),
           note: z.string().trim().optional(),
           // Plain z.number for the same reason as the cancel schema above.
           order_product_id: z.number().int().positive().nullish(),

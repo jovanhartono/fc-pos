@@ -1,53 +1,18 @@
 import { CaretRightIcon } from "@phosphor-icons/react";
-import { Link } from "@tanstack/react-router";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import {
 	buildLineTimeline,
-	type TimelineEntry,
 	type TimelineLine,
 } from "@/features/orders/lib/line-timeline";
 
-interface TimelineEntryLabelProps {
-	entry: TimelineEntry;
-	orderId: number;
-	onNavigate?: () => void;
-}
-
-const TimelineEntryLabel = ({
-	entry,
-	orderId,
-	onNavigate,
-}: TimelineEntryLabelProps) => {
-	if (entry.reworkLineId === undefined) {
-		return <p className="font-medium">{entry.label}</p>;
-	}
-
-	return (
-		<Link
-			className="flex w-fit items-center gap-0.5 font-medium underline underline-offset-2 hover:text-muted-foreground"
-			onClick={onNavigate}
-			params={{ orderId, serviceId: entry.reworkLineId }}
-			to="/queue/$orderId/$serviceId"
-		>
-			{entry.label}
-			<CaretRightIcon aria-hidden="true" className="size-3" />
-		</Link>
-	);
-};
-
 interface StatusTimelineProps {
 	line: TimelineLine;
-	orderId: number;
 	defaultOpen?: boolean;
-	// The order sheet closes itself before a link takes the cashier elsewhere.
-	onNavigate?: () => void;
 }
 
 export const StatusTimeline = ({
 	line,
-	orderId,
 	defaultOpen = false,
-	onNavigate,
 }: StatusTimelineProps) => {
 	const entries = buildLineTimeline(line);
 
@@ -64,11 +29,7 @@ export const StatusTimeline = ({
 				{entries.length > 0 ? (
 					entries.map((entry) => (
 						<div key={entry.key} className="grid gap-1 text-xs">
-							<TimelineEntryLabel
-								entry={entry}
-								onNavigate={onNavigate}
-								orderId={orderId}
-							/>
+							<p className="font-medium">{entry.label}</p>
 							{(entry.at !== null || entry.by !== null) && (
 								<p className="text-muted-foreground">
 									{[entry.by, entry.at ? formatOrderDateTime(entry.at) : null]

@@ -141,7 +141,7 @@ function ServicesPage() {
 				id: "priority",
 				header: "Queue",
 				cell: ({ row }) => (
-					<Badge variant={row.original.is_priority ? "warning" : "outline"}>
+					<Badge variant={row.original.is_priority ? "priority" : "outline"}>
 						{row.original.is_priority ? "Priority" : "Standard"}
 					</Badge>
 				),

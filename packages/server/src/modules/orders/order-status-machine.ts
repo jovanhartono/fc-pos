@@ -479,12 +479,28 @@ export async function logReworkQueued(
   });
 }
 
-// The pair's original was cancelled or refunded at the counter, so its free
-// re-clean stops too, even on a paid Order (ADR-0013, 2026-09-24).
-async function cancelLiveReworks(
+// The pair's original was cancelled or refunded, so its free re-clean stops
+// too, even on a paid Order (ADR-0013, 2026-09-24). A pair that went home and
+// came back is put on the shelf as is rather than cancelled, or it could never
+// be handed back (ADR-0013, 2026-10-06).
+async function stopLiveReworks(
   executor: DbExecutor,
-  { by, note, originalIds }: { by: number; note: string; originalIds: number[] }
+  {
+    by,
+    note,
+    originalIds,
+    to,
+  }: {
+    by: number;
+    note: string;
+    originalIds: number[];
+    to: "cancelled" | "ready_for_pickup";
+  }
 ): Promise<number[]> {
+  if (originalIds.length === 0) {
+    return [];
+  }
+
   const reworks = await executor
     .select({ id: ordersServicesTable.id, status: ordersServicesTable.status })
     .from(ordersServicesTable)
@@ -507,14 +523,18 @@ async function cancelLiveReworks(
 
   await executor
     .update(ordersServicesTable)
-    .set({ status: "cancelled", cancel_reason: "other", cancel_note: note })
+    .set(
+      to === "cancelled"
+        ? { status: to, cancel_reason: "other", cancel_note: note }
+        : { status: to }
+    )
     .where(inArray(ordersServicesTable.id, reworkIds));
 
   await executor.insert(orderServiceStatusLogsTable).values(
     reworks.map((rework) => ({
       order_service_id: rework.id,
       from_status: rework.status,
-      to_status: "cancelled" as const,
+      to_status: to,
       changed_by: by,
       note,
     }))
@@ -552,10 +572,11 @@ export async function cancelOrderServices(
     });
   }
 
-  const reworkIds = await cancelLiveReworks(executor, {
+  const reworkIds = await stopLiveReworks(executor, {
     by,
     note: "Original line cancelled",
     originalIds: lines.map((line) => line.serviceId),
+    to: "cancelled",
   });
 
   await recomputeOrderRollup(executor, orderId, by);
@@ -702,6 +723,8 @@ export async function completePickup(
 }
 
 export interface RefundTransitionItem {
+  // The admin lets the Rework run on: money back plus a free re-clean.
+  keepRework?: boolean;
   note?: string;
   serviceId: number;
 }
@@ -773,14 +796,26 @@ export async function applyRefundTransition(
     }))
   );
 
-  // A pair the customer took home and brought back keeps its Rework running:
-  // that round is how the pair goes home again.
-  await cancelLiveReworks(executor, {
+  const keptIds = new Set(
+    items.filter((item) => item.keepRework).map((item) => item.serviceId)
+  );
+  const stopped = services.filter((service) => !keptIds.has(service.id));
+  const wentHome = (service: { status: OrderServiceStatus }) =>
+    service.status === "picked_up";
+
+  await stopLiveReworks(executor, {
     by,
     note: "Original line refunded",
-    originalIds: services
-      .filter((service) => service.status !== "picked_up")
+    originalIds: stopped
+      .filter((service) => !wentHome(service))
       .map((service) => service.id),
+    to: "cancelled",
+  });
+  await stopLiveReworks(executor, {
+    by,
+    note: "Original line refunded",
+    originalIds: stopped.filter(wentHome).map((service) => service.id),
+    to: "ready_for_pickup",
   });
 
   await recomputeOrderRollup(executor, orderId, by);

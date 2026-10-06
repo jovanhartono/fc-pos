@@ -41,8 +41,6 @@ export interface TimelineEntry {
 	at: string | null;
 	by: string | null;
 	note: string | null;
-	// Set on the complained line's "Rework started", pointing at that round.
-	reworkLineId?: number;
 	sortAt: string;
 }
 
@@ -108,7 +106,6 @@ export const buildLineTimeline = (line: TimelineLine): TimelineEntry[] => {
 				at: rework.rework_opened_at,
 				by: rework.rework_opened_by?.name ?? null,
 				note: null,
-				reworkLineId: rework.id,
 				sortAt: rework.rework_opened_at ?? complaint.created_at,
 			});
 		}

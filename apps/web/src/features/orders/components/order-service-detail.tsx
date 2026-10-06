@@ -77,7 +77,9 @@ export const OrderServiceDetail = ({
 		<div className="grid gap-5 text-sm">
 			<div className="flex flex-wrap items-center gap-2">
 				{isUnpriced ? <Badge variant="warning">Unpriced</Badge> : null}
-				{service.is_priority ? <Badge variant="warning">Priority</Badge> : null}
+				{service.is_priority ? (
+					<Badge variant="priority">Priority</Badge>
+				) : null}
 				<Badge variant={getOrderServiceStatusBadgeVariant(service.status)}>
 					{formatOrderServiceStatus(service.status)}
 				</Badge>
@@ -163,12 +165,7 @@ export const OrderServiceDetail = ({
 				</OrderReasonCallout>
 			) : null}
 
-			<StatusTimeline
-				defaultOpen
-				line={service}
-				onNavigate={closeSheet}
-				orderId={orderId}
-			/>
+			<StatusTimeline defaultOpen line={service} />
 		</div>
 	);
 };

@@ -15,14 +15,14 @@ describe("getPaymentBadges", () => {
 		).toEqual(["Paid"]);
 	});
 
-	it("shows Paid plus Part refunded on a part refund", () => {
+	it("shows Paid plus Partial refund on a part refund", () => {
 		expect(
 			labels({
 				payment_status: "paid",
 				refund_status: "partial",
 				status: "completed",
 			}),
-		).toEqual(["Paid", "Part refunded"]);
+		).toEqual(["Paid", "Partial refund"]);
 	});
 
 	it("shows only Refunded on a full refund", () => {
