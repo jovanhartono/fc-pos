@@ -233,11 +233,15 @@ export const DataTableCards = <TData extends RowData>({
 						badgeCells.length > 0 ? (
 							<div className={cn("grid gap-2 px-3 py-2.5", raisedControls)}>
 								{primaryCell || titleEndCells.length > 0 ? (
-									<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+									// No wrap: a long Service name wraps beside Edit instead of
+									// pushing Edit down onto a second line of its own.
+									<div className="flex items-start justify-between gap-3">
 										{primaryCell ? (
 											<div
 												className={cn(
-													"min-w-0 font-mono font-semibold text-[15px] text-foreground leading-tight tracking-tight",
+													"min-w-0 flex-1 wrap-break-word font-mono font-semibold text-[15px] text-foreground leading-tight tracking-tight",
+													// Centres the first line on the Edit button beside it.
+													titleEndCells.length > 0 && "pt-1",
 													primaryConfig?.className,
 												)}
 											>

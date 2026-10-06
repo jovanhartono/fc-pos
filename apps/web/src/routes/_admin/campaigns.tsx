@@ -36,6 +36,10 @@ import {
 	type CampaignFormInput,
 } from "@/features/campaigns/components/campaign-form";
 import { VoucherCodesSheet } from "@/features/campaigns/components/voucher-codes-sheet";
+import {
+	formatCampaignDiscount,
+	formatCampaignRedemption,
+} from "@/features/campaigns/lib/campaign-text";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
 import { formatMoney } from "@/shared/money";
@@ -126,20 +130,6 @@ function toCampaignFormInput(campaign: Campaign): CampaignFormInput {
 		eligible_service_ids:
 			campaign.eligibleServices?.map((item) => item.service_id) ?? [],
 	};
-}
-
-function formatCampaignDiscount(campaign: Campaign) {
-	if (campaign.discount_type === "percentage") {
-		return `${campaign.discount_value}%`;
-	}
-
-	if (campaign.discount_type === "buy_n_get_m_free") {
-		return `Buy ${campaign.buy_quantity ?? "?"} Get ${
-			campaign.free_quantity ?? "?"
-		} Free`;
-	}
-
-	return formatMoney(String(campaign.discount_value));
 }
 
 interface ArchiveCampaignMenuItemProps {
@@ -311,7 +301,11 @@ function CampaignsPage() {
 	const columns = useMemo<DataTableColumnDef<Campaign>[]>(
 		() => [
 			{ accessorKey: "code", header: "Code" },
-			{ accessorKey: "name", header: "Name" },
+			{
+				accessorKey: "name",
+				header: "Name",
+				meta: { cellClassName: "min-w-32 whitespace-normal" },
+			},
 			{
 				id: "discount",
 				header: "Discount",
@@ -321,14 +315,6 @@ function CampaignsPage() {
 				accessorKey: "min_order_total",
 				header: "Min Order",
 				cell: ({ row }) => formatMoney(String(row.original.min_order_total)),
-			},
-			{
-				accessorKey: "max_discount",
-				header: "Max Discount",
-				cell: ({ row }) =>
-					row.original.max_discount
-						? formatMoney(String(row.original.max_discount))
-						: "—",
 			},
 			{
 				id: "stores",
@@ -344,19 +330,9 @@ function CampaignsPage() {
 				},
 			},
 			{
-				id: "mode",
-				header: "Mode",
-				cell: ({ row }) => {
-					if (row.original.redemption_mode === "code") {
-						return <Badge variant="info">Voucher</Badge>;
-					}
-					if (row.original.usage_limit != null) {
-						return (
-							<Badge variant="outline">{`Cap ${row.original.usage_limit}`}</Badge>
-						);
-					}
-					return "—";
-				},
+				id: "redemption",
+				header: "Redemption",
+				cell: ({ row }) => formatCampaignRedemption(row.original),
 			},
 			{
 				id: "status",
