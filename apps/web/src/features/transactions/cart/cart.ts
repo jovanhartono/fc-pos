@@ -318,12 +318,12 @@ export const getCartPricing = <C extends CartCampaign>({
 // No-list-price lines left blank at intake. A blank line is normal — the
 // workshop prices it after inspection — so it never blocks checkout; it only
 // blocks paying now, mirroring the server's "no price, no payment" gate.
+export const isUnpricedServiceLine = (line: SubtotalServiceRow): boolean =>
+	line.service.price === null && getServiceLinePrice(line) <= 0;
+
 export const countUnpricedServiceLines = (
 	serviceRows: SubtotalServiceRow[],
-): number =>
-	serviceRows.filter(
-		(line) => line.service.price === null && getServiceLinePrice(line) <= 0,
-	).length;
+): number => serviceRows.filter(isUnpricedServiceLine).length;
 
 export const toOrderPayload = ({
 	customerName,

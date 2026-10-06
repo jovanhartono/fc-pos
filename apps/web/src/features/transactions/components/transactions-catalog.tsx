@@ -145,8 +145,10 @@ export function TransactionsCatalog() {
 
 	return (
 		<div className="grid gap-5">
-			<Card className="border-border/70">
-				<CardContent className="grid gap-4 p-4 sm:p-5">
+			{/* On a phone the card's own padding plus the content's doubled the gap
+			    around the controls; one layer of padding is enough there. */}
+			<Card className="border-border/70 py-0 sm:py-(--card-spacing)">
+				<CardContent className="grid gap-4 p-3 sm:p-5">
 					<div className="grid gap-3">
 						{/* hideLabel returns the bare Combobox, so the error has to be
 						    rendered here — this is the only place the store can be fixed,
@@ -161,7 +163,9 @@ export function TransactionsCatalog() {
 									allowedStoreIds={visibleStores.map((store) => store.id)}
 									disabled={!isAdmin}
 									triggerClassName="h-10 pointer-coarse:h-11 w-full border-border/70 bg-background text-sm"
-									placeholder="Select store"
+									// The empty picker is the hint: no floating note, and no
+									// line that appears and pushes the catalog down.
+									placeholder="Select a store to check out"
 								/>
 								<Button
 									type="button"
@@ -251,7 +255,7 @@ export function TransactionsCatalog() {
 				</CardContent>
 			</Card>
 
-			<div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+			<div className="grid gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
 				{filteredEntries.map((entry) => {
 					// Narrow on entry.kind, never destructure first: pulling kind and
 					// item apart severs the discriminated union and forces casts.
@@ -267,7 +271,7 @@ export function TransactionsCatalog() {
 						<Card
 							key={`${entry.kind}-${item.id}`}
 							className={cn(
-								"overflow-hidden border-border/70 transition-colors",
+								"overflow-hidden border-border/70 py-0 transition-colors sm:py-(--card-spacing)",
 								isProduct
 									? "bg-background hover:border-border"
 									: "bg-muted/20 hover:border-border",
@@ -277,7 +281,9 @@ export function TransactionsCatalog() {
 								<button
 									type="button"
 									className={cn(
-										"flex h-full min-h-22 w-full flex-col gap-2 p-3 text-left outline-none transition active:scale-[0.97] focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
+										// A phone gets one-line rows: the counter scrolls ~50
+										// Services, and the category chip already names the group.
+										"flex h-full min-h-14 w-full items-center gap-3 p-3 text-left outline-none transition active:scale-[0.97] focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 sm:min-h-22 sm:flex-col sm:items-stretch sm:gap-2",
 										isProduct
 											? "hover:bg-muted/30 active:bg-muted/60"
 											: "hover:bg-background/80 active:bg-background/60",
@@ -292,14 +298,14 @@ export function TransactionsCatalog() {
 									aria-label={`Add ${item.name}`}
 								>
 									{categoryName ? (
-										<span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+										<span className="hidden font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:inline">
 											{categoryName}
 										</span>
 									) : null}
-									<p className="line-clamp-2 text-sm font-semibold leading-snug">
+									<p className="line-clamp-2 min-w-0 flex-1 text-sm font-semibold leading-snug sm:flex-initial">
 										{item.name}
 									</p>
-									<p className="mt-auto font-mono text-sm font-semibold tabular-nums">
+									<p className="shrink-0 font-mono text-sm font-semibold tabular-nums sm:mt-auto">
 										{/* No list price (ADR-0018): the cashier keys the number
 										    on the cart line if agreed, or leaves it blank until
 										    the workshop inspects the item. */}

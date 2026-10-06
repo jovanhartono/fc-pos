@@ -13,11 +13,10 @@ import { formatMoney } from "@/shared/money";
 import { pluralize } from "@/shared/utils";
 
 interface CartMiniBarProps {
-	hasStore: boolean;
 	onOpen: () => void;
 }
 
-export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
+export const CartMiniBar = ({ onOpen }: CartMiniBarProps) => {
 	const { count, subtotal, itemRows } = useCart();
 	const [isPeeking, setIsPeeking] = useState(false);
 	// What is on the bill: treatments and products. The objects themselves are
@@ -47,14 +46,6 @@ export const CartMiniBar = ({ hasStore, onOpen }: CartMiniBarProps) => {
 		// summary label widened the whole page grid past a phone's viewport
 		// instead of truncating.
 		<div className="pointer-events-none sticky bottom-[calc(var(--inset-bottom)+0.75rem)] z-40 grid min-w-0 gap-1 px-1">
-			{/* Says up front why the bar won't open, so the block isn't a dead-end
-			    tap — this hint is the only in-place explanation the cashier gets. */}
-			{hasStore ? null : (
-				<p className="pointer-events-auto justify-self-start border border-border/70 bg-background/70 px-2 py-1 text-muted-foreground text-xs backdrop-blur-xl">
-					Select a store to check out.
-				</p>
-			)}
-
 			{/* Peek panel above the bar. Without it, dropping a mis-tapped line means
 			    keying a customer name and phone first, because the lines otherwise
 			    only exist on step two of the checkout. Capped height so an open cart

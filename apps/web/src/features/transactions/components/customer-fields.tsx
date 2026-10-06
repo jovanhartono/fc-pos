@@ -65,7 +65,7 @@ export const CustomerFields = () => {
 	}, [match, form]);
 
 	return (
-		<div className="grid gap-4">
+		<div className="grid gap-4 sm:grid-cols-2">
 			<Controller
 				name="customerPhone"
 				control={form.control}
@@ -98,7 +98,9 @@ export const CustomerFields = () => {
 							    growing when it toggles in (CLS). */}
 							<span
 								className={cn(
-									"flex items-center gap-1 border border-emerald-300/60 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400",
+									// sm:-my-1: beside Phone, a taller label row would drop
+									// this input below the phone input.
+									"flex items-center gap-1 border border-emerald-300/60 bg-emerald-50 px-2 py-0.5 text-xs font-medium sm:-my-1 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400",
 									!isReturning && "invisible",
 								)}
 							>
