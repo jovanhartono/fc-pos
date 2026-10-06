@@ -26,7 +26,6 @@ import {
 	RefundOrderForm,
 } from "@/features/orders/components/order-line-reversal-form";
 import { OrderPickupEventDialog } from "@/features/orders/components/order-pickup-event-dialog";
-import { PaymentStatusBadge } from "@/features/orders/components/payment-status-badge";
 import {
 	useCancelOrderMutation,
 	useRefundOrderMutation,
@@ -34,16 +33,12 @@ import {
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
 import { showsPickupProgress } from "@/features/orders/lib/order-sheet";
+import { getPaymentBadges } from "@/features/orders/lib/payment-badges";
 import { buildRefundCaps } from "@/features/orders/lib/refund-preview";
 import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
 import { usePrintReceiptMutation } from "@/features/printing/hooks/usePrintReceipt";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
-import {
-	formatOrderStatus,
-	formatRefundStatus,
-	getOrderStatusBadgeVariant,
-	getRefundStatusBadgeVariant,
-} from "@/lib/status";
+import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 import { useDialog } from "@/stores/dialog-store";
 
 interface OrderIdentityStripProps {
@@ -242,14 +237,11 @@ export const OrderIdentityStrip = ({
 							<Badge variant={getOrderStatusBadgeVariant(detail.status)}>
 								{formatOrderStatus(detail.status)}
 							</Badge>
-							<PaymentStatusBadge order={detail} />
-							{detail.refund_status !== "none" ? (
-								<Badge
-									variant={getRefundStatusBadgeVariant(detail.refund_status)}
-								>
-									{formatRefundStatus(detail.refund_status)}
+							{getPaymentBadges(detail).map((badge) => (
+								<Badge key={badge.label} variant={badge.variant}>
+									{badge.label}
 								</Badge>
-							) : null}
+							))}
 						</div>
 						<p className="text-muted-foreground text-sm">
 							<CustomerLink

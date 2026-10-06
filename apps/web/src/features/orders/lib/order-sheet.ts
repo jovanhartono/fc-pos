@@ -19,13 +19,16 @@ interface ItemTotalLine {
 }
 
 // One paid Service plus its free Rework is still one price, already on its
-// Line; a total row only adds up two or more sold Services.
+// Line; a total row only adds up two or more sold Services. A refunded one's
+// money went back, so counting it would overstate what the Customer paid.
 export const getItemTotalRow = (
 	services: ItemTotalLine[],
 ): { amount: number | null } | null => {
 	const sold = services.filter(
 		(service) =>
-			service.status !== "cancelled" && service.complaint_id === null,
+			service.status !== "cancelled" &&
+			service.status !== "refunded" &&
+			service.complaint_id === null,
 	);
 	if (sold.length < 2) {
 		return null;

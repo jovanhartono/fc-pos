@@ -224,7 +224,7 @@ export function QueueServiceDetail({
 					<div className="mt-3 border border-border bg-muted/40 px-3 py-2.5">
 						<p className={LABEL_CLASS}>Note</p>
 						<p className="mt-1 text-sm leading-relaxed">
-							{selectedService.notes}
+							{selectedService.notes.trim()}
 						</p>
 					</div>
 				) : null}

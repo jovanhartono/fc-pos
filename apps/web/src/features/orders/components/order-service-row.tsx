@@ -96,7 +96,7 @@ export const OrderServiceRow = memo(
 					{service.notes?.trim() ? (
 						<span className="block text-pretty text-xs leading-snug">
 							<span className="text-muted-foreground">Note: </span>
-							{service.notes}
+							{service.notes.trim()}
 						</span>
 					) : null}
 				</span>

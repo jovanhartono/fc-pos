@@ -65,6 +65,17 @@ describe("getItemTotalRow", () => {
 		).toEqual({ amount: 70000 });
 	});
 
+	it("leaves a refunded Service out of the count and the sum", () => {
+		expect(
+			getItemTotalRow([
+				line(),
+				line({ subtotal: "20000" }),
+				line({ status: "refunded", subtotal: "30000" }),
+			]),
+		).toEqual({ amount: 70000 });
+		expect(getItemTotalRow([line(), line({ status: "refunded" })])).toBeNull();
+	});
+
 	it("has no row for one paid Service plus a free Rework", () => {
 		expect(
 			getItemTotalRow([
