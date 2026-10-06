@@ -22,7 +22,7 @@ import { useDialog } from "@/stores/dialog-store";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 export function TransactionsCatalog() {
-	const { isAdmin, hasSingleStore, visibleStores, handleStoreChange } =
+	const { isAdmin, visibleStores, handleStoreChange } =
 		useTransactionsPageContext();
 	const { addProduct, addService } = useCartOps();
 	const openDialog = useDialog((s) => s.openDialog);
@@ -143,79 +143,71 @@ export function TransactionsCatalog() {
 		[productCart],
 	);
 
-	const devicesButton = (
-		<Button
-			type="button"
-			variant="outline"
-			className="h-10 pointer-coarse:h-11 shrink-0"
-			disabled={!selectedStoreId}
-			icon={<BluetoothIcon className="size-4" />}
-			onClick={() =>
-				openDialog({
-					title: "Bluetooth devices",
-					description: "The POS only prints to devices registered here.",
-					contentClassName: "sm:max-w-md",
-					content: () => (
-						<StoreDevicesDialog storeId={Number(selectedStoreId)} />
-					),
-				})
-			}
-		>
-			Devices
-		</Button>
-	);
-
 	return (
 		<div className="grid gap-5">
-			<Card className="border-border/70">
-				<CardContent className="grid gap-4 p-4 sm:p-5">
+			{/* On a phone the card's own padding plus the content's doubled the gap
+			    around the controls; one layer of padding is enough there. */}
+			<Card className="border-border/70 py-0 sm:py-(--card-spacing)">
+				<CardContent className="grid gap-4 p-3 sm:p-5">
 					<div className="grid gap-3">
-						{hasSingleStore ? null : (
-							// hideLabel returns the bare Combobox, so the error has to be
-							// rendered here — this is the only place the store can be
-							// fixed, and the checkout sheet covers it.
-							<Field data-invalid={!!storeError}>
-								<div className="flex gap-2">
-									<StoreAutocomplete
-										hideLabel
-										required
-										value={selectedStoreId}
-										onValueChange={handleStoreChange}
-										allowedStoreIds={visibleStores.map((store) => store.id)}
-										disabled={!isAdmin}
-										triggerClassName="h-10 pointer-coarse:h-11 w-full border-border/70 bg-background text-sm"
-										// The empty picker is the hint: no floating note, and no
-										// line that appears and pushes the catalog down.
-										placeholder="Select a store to check out"
-									/>
-									{devicesButton}
-								</div>
-								<FieldError errors={[storeError]} />
-							</Field>
-						)}
+						{/* hideLabel returns the bare Combobox, so the error has to be
+						    rendered here — this is the only place the store can be fixed,
+						    and the checkout sheet covers it. */}
+						<Field data-invalid={!!storeError}>
+							<div className="flex gap-2">
+								<StoreAutocomplete
+									hideLabel
+									required
+									value={selectedStoreId}
+									onValueChange={handleStoreChange}
+									allowedStoreIds={visibleStores.map((store) => store.id)}
+									disabled={!isAdmin}
+									triggerClassName="h-10 pointer-coarse:h-11 w-full border-border/70 bg-background text-sm"
+									// The empty picker is the hint: no floating note, and no
+									// line that appears and pushes the catalog down.
+									placeholder="Select a store to check out"
+								/>
+								<Button
+									type="button"
+									variant="outline"
+									className="h-10 pointer-coarse:h-11 shrink-0"
+									disabled={!selectedStoreId}
+									icon={<BluetoothIcon className="size-4" />}
+									onClick={() =>
+										openDialog({
+											title: "Bluetooth devices",
+											description:
+												"The POS only prints to devices registered here.",
+											contentClassName: "sm:max-w-md",
+											content: () => (
+												<StoreDevicesDialog storeId={Number(selectedStoreId)} />
+											),
+										})
+									}
+								>
+									Devices
+								</Button>
+							</div>
+							<FieldError errors={[storeError]} />
+						</Field>
 
 						<Field>
 							<FieldLabel className="sr-only" htmlFor="transaction-search">
 								Search
 							</FieldLabel>
-							<div className="flex gap-2">
-								<div className="relative min-w-0 flex-1">
-									<MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-									<Input
-										ref={searchInputRef}
-										id="transaction-search"
-										value={searchTerm}
-										onChange={(event) => setSearchTerm(event.target.value)}
-										placeholder="Search services or products (press /)"
-										className="border-border/70 bg-background pl-9 pr-10"
-									/>
-									<kbd className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 items-center justify-center border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
-										/
-									</kbd>
-								</div>
-								{/* With no picker to sit beside, Devices joins the search row
-								    instead of standing alone on its own. */}
-								{hasSingleStore ? devicesButton : null}
+							<div className="relative">
+								<MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+								<Input
+									ref={searchInputRef}
+									id="transaction-search"
+									value={searchTerm}
+									onChange={(event) => setSearchTerm(event.target.value)}
+									placeholder="Search services or products (press /)"
+									className="border-border/70 bg-background pl-9 pr-10"
+								/>
+								<kbd className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 items-center justify-center border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
+									/
+								</kbd>
 							</div>
 						</Field>
 

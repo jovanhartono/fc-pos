@@ -3,7 +3,6 @@ import type { Store } from "@/features/stores/api";
 
 export type TransactionsPageContextValue = {
 	isAdmin: boolean;
-	hasSingleStore: boolean;
 	visibleStores: Store[];
 	submit: () => Promise<void>;
 	handleStoreChange: (value: string) => void;
