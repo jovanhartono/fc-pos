@@ -285,7 +285,7 @@ export function TransactionsCatalog() {
 						<Card
 							key={`${entry.kind}-${item.id}`}
 							className={cn(
-								"overflow-hidden border-border/70 transition-colors",
+								"overflow-hidden border-border/70 py-0 transition-colors sm:py-(--card-spacing)",
 								isProduct
 									? "bg-background hover:border-border"
 									: "bg-muted/20 hover:border-border",
