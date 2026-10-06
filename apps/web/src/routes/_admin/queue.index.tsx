@@ -6,7 +6,6 @@ import {
 import {
 	CaretRightIcon,
 	FunnelIcon,
-	MagnifyingGlassIcon,
 	ScanIcon,
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
@@ -51,6 +50,7 @@ import { QueueStatusTabs } from "@/features/orders/components/queue-status-tabs"
 import { ReworkRoundLabel } from "@/features/orders/components/rework-round-label";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { useBarcodeScanner } from "@/features/orders/hooks/useBarcodeScanner";
+import { getQueueAgeTone } from "@/features/orders/lib/queue-age-tone";
 import { groupReworksUnderOriginals } from "@/features/orders/lib/rework-nesting";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
@@ -73,14 +73,6 @@ const DateRangePicker = lazy(() =>
 );
 
 const QUEUE_PAGE_SIZE = 20;
-
-const HOUR_MS = 3_600_000;
-
-// One threshold, not a four-step ramp: an amber-at-24h/red-at-72h scale paints a
-// whole backlog the same colour, and a list where every row is red says nothing.
-// The workshop clock (from drop-off) — not PICKUP_OVERDUE_HOURS, which times
-// the customer's collection from ready_at on a different screen.
-const TURNAROUND_MS = TURNAROUND_PROMISE_HOURS * HOUR_MS;
 
 // One timer for the whole list, not one per row: the queue scrolls to hundreds
 // of rows and each row used to own its own interval, so the clock cost grew
@@ -468,10 +460,11 @@ function QueuePage() {
 						autoCapitalize="none"
 						autoCorrect="off"
 						className="min-w-0 flex-1"
+						enterKeyHint="search"
 						spellCheck={false}
 						onChange={(event) => setItemCode(event.target.value)}
-						// Same guard the Find button carries: without it a held Enter
-						// fires a second lookup over the first and navigates twice.
+						// Without the pending guard a held Enter fires a second lookup
+						// over the first and navigates twice.
 						onKeyDown={(event) => {
 							if (
 								event.key === "Enter" &&
@@ -486,17 +479,6 @@ function QueuePage() {
 						}}
 						placeholder="Item code or order ID"
 						value={itemCode}
-					/>
-					<Button
-						aria-label="Find"
-						disabled={!itemCode.trim() || lookupMutation.isPending}
-						icon={<MagnifyingGlassIcon className="size-4" />}
-						onClick={() => {
-							lookupMutation.mutate({ mode: "manual", value: itemCode.trim() });
-						}}
-						size="icon-lg"
-						type="button"
-						variant="outline"
 					/>
 					<Button
 						aria-label={scanner.isScanning ? "Stop scan" : "Scan tag"}
@@ -728,7 +710,7 @@ const QueueJobButton = ({
 				>
 					{formatOrderServiceStatus(service.status)}
 				</Badge>
-				{service.is_priority ? (
+				{service.is_priority && reworkRound === null ? (
 					<Badge className="px-1.5 py-0 text-[11px]" variant="priority">
 						Priority
 					</Badge>
@@ -755,7 +737,7 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 		0,
 		now - new Date(item.order_created_at).getTime(),
 	);
-	const isBreached = elapsedMs >= TURNAROUND_MS;
+	const ageTone = getQueueAgeTone(elapsedMs, TURNAROUND_PROMISE_HOURS);
 
 	// Descriptors are optional at intake, so falling back to the tag keeps the
 	// heading from reading "No item details" at full weight.
@@ -785,7 +767,8 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 					<span
 						className={cn(
 							"shrink-0 font-mono font-semibold tabular-nums",
-							isBreached && "text-destructive",
+							ageTone === "amber" && "text-amber-600 dark:text-amber-400",
+							ageTone === "red" && "text-destructive",
 						)}
 					>
 						{formatElapsedDuration(elapsedMs)}

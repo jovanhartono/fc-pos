@@ -21,6 +21,7 @@ export type OrderPhotoGalleryItem = {
 type OrderPhotoGalleryProps = {
 	emptyState?: React.ReactNode;
 	gridClassName?: string;
+	itemClassName?: string;
 	items: OrderPhotoGalleryItem[];
 	thumbnailClassName?: string;
 	thumbnailImageClassName?: string;
@@ -30,6 +31,7 @@ type OrderPhotoGalleryProps = {
 export function OrderPhotoGallery({
 	emptyState,
 	gridClassName,
+	itemClassName,
 	items,
 	thumbnailClassName,
 	thumbnailImageClassName,
@@ -70,7 +72,7 @@ export function OrderPhotoGallery({
 				)}
 			>
 				{items.map((item, index) => (
-					<div key={item.id}>
+					<div className={itemClassName} key={item.id}>
 						<button
 							aria-label={`Open ${getPhotoPrimaryLabel(item)} image ${index + 1} of ${imageCount}`}
 							className={cn(

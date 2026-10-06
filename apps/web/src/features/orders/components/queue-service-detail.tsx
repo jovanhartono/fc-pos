@@ -33,7 +33,10 @@ import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { getFirstPickupAt } from "@/features/orders/lib/line-timeline";
-import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
+import {
+	orderLinePhotos,
+	startPhotoBlocker,
+} from "@/features/orders/lib/order-action-gates";
 import { itemPhotoUploader } from "@/features/orders/utils/photo-upload";
 import { onOrderMoved } from "@/lib/cache-events";
 import { getOrderServiceItemDescriptors } from "@/lib/order-service-item-details";
@@ -243,11 +246,13 @@ export function QueueServiceDetail({
 						{selectedService.reworkOf !== null && (
 							<Badge variant="info">Rework</Badge>
 						)}
-						{selectedService.is_priority ? (
-							<Badge variant="priority">Priority</Badge>
-						) : (
-							<Badge variant="outline">Standard</Badge>
-						)}
+						{/* A Rework is always Priority, so the badge says nothing there. */}
+						{selectedService.reworkOf === null &&
+							(selectedService.is_priority ? (
+								<Badge variant="priority">Priority</Badge>
+							) : (
+								<Badge variant="outline">Standard</Badge>
+							))}
 					</div>
 					<p className="text-xs text-muted-foreground">
 						Handler{" "}
@@ -366,41 +371,28 @@ export function QueueServiceDetail({
 					</div>
 
 					<div className="grid gap-3 px-4 pb-4 pt-4">
-						{/* Shown whenever the gate is shut, not only when the gallery is
-						    empty: a Rework's Item already carries first-visit photos, and
-						    the worker needs to hear why those do not count. */}
-						{photoBlocker ? (
-							<div className="flex items-start gap-2.5 border border-dashed border-warning/50 bg-warning/10 px-4 py-3 text-sm">
-								<WarningCircleIcon
-									aria-hidden="true"
-									className="mt-0.5 size-4 shrink-0 text-warning"
-									weight="fill"
-								/>
-								<div className="grid gap-0.5">
-									<p className="font-medium text-foreground">
-										Photo required to start
-									</p>
-									<p className="text-muted-foreground">{photoBlocker}</p>
-								</div>
-							</div>
-						) : null}
 						<OrderPhotoGallery
-							items={selectedService.item.images.map((image) => ({
+							items={orderLinePhotos(
+								selectedService,
+								selectedService.item.images,
+							).map((image) => ({
 								...image,
 								alt:
 									image.note ?? `Photo for ${selectedService.item.item_code}`,
+								caption: image.isBeforeRework ? (
+									<p className="text-muted-foreground text-xs">Before rework</p>
+								) : undefined,
 								download: { kind: "item" as const, id: image.id },
 							}))}
-							gridClassName="grid-cols-2 xl:grid-cols-3"
+							gridClassName="flex snap-x gap-2 overflow-x-auto pb-1 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 xl:grid-cols-3"
+							itemClassName="w-24 shrink-0 snap-start md:w-auto"
 							thumbnailClassName="bg-background"
-							thumbnailImageClassName="aspect-[5/4]"
+							thumbnailImageClassName="aspect-square md:aspect-[5/4]"
 							title={`Photos for ${selectedService.item.item_code}`}
 							emptyState={
-								photoBlocker ? null : (
-									<p className="border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-										No photos.
-									</p>
-								)
+								<p className="border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+									No photos.
+								</p>
 							}
 						/>
 					</div>
