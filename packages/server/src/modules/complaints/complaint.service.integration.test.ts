@@ -471,7 +471,100 @@ describe("the original line cancelled or refunded while its rework is on the rac
     expect(detail?.items[0].is_collectable).toBe(true);
   });
 
-  it("keeps the rework of a pair brought back after pickup running through a refund, and it goes home once", async () => {
+  it("keeps the rework running as a free re-clean when the refund says so, never-left pair", async () => {
+    const pair = await pairOnTheShelf("paid");
+    const { rework } = await turnDown(pair.lineId, true);
+    if (!rework) {
+      throw new Error("Complaint opened without its rework");
+    }
+
+    await createOrderRefund({
+      body: {
+        items: [
+          {
+            keep_rework: true,
+            order_service_id: pair.lineId,
+            reason: "damaged",
+          },
+        ],
+      },
+      orderId: pair.orderId,
+      user: shop.admin,
+    });
+
+    const lines = await readLines(pair.orderId);
+    expect(lines.map((line) => line.status)).toEqual(["refunded", "queued"]);
+    expect((await rackFor()).items).toHaveLength(1);
+  });
+
+  it("puts the rework of a pair brought back after pickup on the shelf as is, and the next pickup takes it home", async () => {
+    const pair = await pairOnTheShelf("paid");
+    await handOver(pair);
+    const { rework } = await turnDown(pair.lineId, true);
+    if (!rework) {
+      throw new Error("Complaint opened without its rework");
+    }
+
+    await createOrderRefund({
+      body: { items: [{ order_service_id: pair.lineId, reason: "damaged" }] },
+      orderId: pair.orderId,
+      user: shop.admin,
+    });
+
+    const [, reworkLine] = await readLines(pair.orderId);
+    expect(reworkLine.status).toBe("ready_for_pickup");
+    const logs = await testDb.query.orderServiceStatusLogsTable.findMany({
+      where: { order_service_id: rework.id, to_status: "ready_for_pickup" },
+    });
+    expect(logs).toMatchObject([
+      {
+        changed_by: shop.admin.id,
+        from_status: "queued",
+        note: "Original line refunded",
+      },
+    ]);
+    expect((await rackFor()).items).toEqual([]);
+    const detail = await getOrderDetailById(pair.orderId);
+    expect(detail?.status).toBe("ready_for_pickup");
+    expect(detail?.ready_at).not.toBeNull();
+    expect(detail?.items[0].is_collectable).toBe(true);
+
+    const event = await handOver(pair);
+
+    const lines = await readLines(pair.orderId);
+    expect(
+      lines.map((line) => [line.status, line.pickup_event_id === event.id])
+    ).toEqual([
+      ["refunded", false],
+      ["picked_up", true],
+    ]);
+  });
+
+  it("leaves a rework already on the shelf alone when the original is refunded", async () => {
+    const pair = await pairOnTheShelf("paid");
+    await handOver(pair);
+    const { complaint, rework } = await turnDown(pair.lineId, true);
+    if (!rework) {
+      throw new Error("Complaint opened without its rework");
+    }
+    await photographReturnedPair(pair.itemId, complaint.created_at);
+    await walkToShelf(pair.orderId, rework.id);
+
+    await createOrderRefund({
+      body: { items: [{ order_service_id: pair.lineId, reason: "damaged" }] },
+      orderId: pair.orderId,
+      user: shop.admin,
+    });
+
+    const [, reworkLine] = await readLines(pair.orderId);
+    expect(reworkLine.status).toBe("ready_for_pickup");
+    const logs = await testDb.query.orderServiceStatusLogsTable.findMany({
+      where: { order_service_id: rework.id },
+    });
+    expect(logs.map((log) => log.note)).not.toContain("Original line refunded");
+  });
+
+  it("keeps the rework of a pair brought back after pickup running when the refund says so, and it goes home once", async () => {
     const pair = await pairOnTheShelf("paid");
     await handOver(pair);
     const { complaint, rework } = await turnDown(pair.lineId, true);
@@ -487,7 +580,15 @@ describe("the original line cancelled or refunded while its rework is on the rac
     });
 
     await createOrderRefund({
-      body: { items: [{ order_service_id: pair.lineId, reason: "damaged" }] },
+      body: {
+        items: [
+          {
+            keep_rework: true,
+            order_service_id: pair.lineId,
+            reason: "damaged",
+          },
+        ],
+      },
       orderId: pair.orderId,
       user: shop.admin,
     });
@@ -747,6 +848,57 @@ describe("when a rework round went on the rack", () => {
     ).toEqual([
       [rework.id, complaint.created_at, "Cahya Cashier"],
       [second.id, null, null],
+    ]);
+  });
+});
+
+describe("the Complaints list", () => {
+  it("names the Item each Complaint is about", async () => {
+    // Two pairs on one Order, both turned down: without the Item the two rows
+    // read the same Order code, Service and Customer.
+    const order = await createOrder(shop.admin.id, shop.store, {
+      campaign_ids: [],
+      customer: { name: "Budi Santoso", phone_number: "+628111222333" },
+      discount: 0,
+      items: [
+        {
+          brand: "Nike",
+          color: "White",
+          model: "AF1",
+          services: [{ id: shop.serviceId }],
+        },
+        { brand: "Adidas", services: [{ id: shop.serviceId }] },
+      ],
+      payment_method_id: shop.paymentMethodId,
+      payment_status: "paid",
+      store_id: shop.store.id,
+      voucher_codes: [],
+    });
+    const lines = await testDb.query.ordersServicesTable.findMany({
+      where: { order_id: order.id },
+      orderBy: { id: "asc" },
+    });
+    for (const line of lines) {
+      await addItemPhoto(line.item_id, shop.cashier.id);
+      await walkToShelf(order.id, line.id);
+      await turnDown(line.id, false);
+    }
+
+    const { items } = await listComplaints(shop.admin);
+    const [nike, adidas] = await testDb.query.itemsTable.findMany({
+      where: { order_id: order.id },
+      orderBy: { id: "asc" },
+    });
+    expect(
+      items.map((row) => [
+        row.item_code,
+        row.item_brand,
+        row.item_model,
+        row.item_color,
+      ])
+    ).toEqual([
+      [adidas?.item_code, "Adidas", null, null],
+      [nike?.item_code, "Nike", "AF1", "White"],
     ]);
   });
 });

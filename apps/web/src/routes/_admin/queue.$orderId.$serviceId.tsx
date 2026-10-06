@@ -18,7 +18,7 @@ const queueServiceParamsSchema = z.object({
 const QueueDetailPage = () => {
 	const { orderId, serviceId } = Route.useParams();
 
-	// Keyed by line: "Rework started ›" opens one job from another, and a note
+	// Keyed by line: "Open rework" opens one job from another, and a note
 	// typed on the first must not ride along onto the second.
 	return (
 		<QueueServiceDetail

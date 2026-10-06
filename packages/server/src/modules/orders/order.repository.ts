@@ -76,6 +76,7 @@ export interface OrderListItem {
   customer_phone: string;
   discount: string;
   fulfillment: ReturnType<typeof summarizeOrderFulfillment>;
+  has_complaint: boolean;
   has_unpriced_line: boolean;
   id: number;
   notes: string | null;
@@ -274,6 +275,7 @@ export async function findOrders(
             price: true,
             status: true,
           },
+          with: { complaints: { columns: { id: true } } },
         });
 
   const groupedStatuses = new Map<
@@ -281,6 +283,7 @@ export async function findOrders(
     (typeof serviceRows)[number]["status"][]
   >();
   const awaitingPrice = new Set<number>();
+  const complained = new Set<number>();
 
   for (const row of serviceRows) {
     if (row.order_id === null) {
@@ -293,6 +296,9 @@ export async function findOrders(
 
     if (isUnpricedLine(row)) {
       awaitingPrice.add(row.order_id);
+    }
+    if (row.complaints.length > 0) {
+      complained.add(row.order_id);
     }
   }
 
@@ -310,6 +316,7 @@ export async function findOrders(
     paid_amount: row.paid_amount,
     refunded_amount: row.refunded_amount,
     has_unpriced_line: awaitingPrice.has(row.id),
+    has_complaint: complained.has(row.id),
     notes: row.notes,
     created_at: row.created_at,
     updated_at: row.updated_at,

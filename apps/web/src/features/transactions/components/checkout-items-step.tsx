@@ -178,7 +178,7 @@ export const CheckoutItemsStep = () => {
 				name="notes"
 				render={({ field, fieldState }) => (
 					<Field data-invalid={fieldState.invalid}>
-						<FieldLabel htmlFor="transaction-notes">Notes</FieldLabel>
+						<FieldLabel htmlFor="transaction-notes">Order note</FieldLabel>
 						<Textarea
 							id="transaction-notes"
 							onChange={field.onChange}
@@ -281,7 +281,9 @@ const CheckoutTreatmentRow = ({
 			</div>
 
 			<Field>
-				<FieldLabel htmlFor={`service-notes-${line.line_id}`}>Notes</FieldLabel>
+				<FieldLabel htmlFor={`service-notes-${line.line_id}`}>
+					Note for the worker
+				</FieldLabel>
 				<Input
 					className="h-11"
 					id={`service-notes-${line.line_id}`}

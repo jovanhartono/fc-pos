@@ -1,4 +1,35 @@
+import { getOrderServiceItemDescriptors } from "@/lib/order-service-item-details";
 import type { BadgeVariant } from "@/lib/status";
+
+interface ComplaintItemFields {
+	order_code: string;
+	item_code: string;
+	item_brand: string | null;
+	item_model: string | null;
+	item_color: string | null;
+}
+
+// One Order can carry Complaints on several Items; the tag and descriptors are
+// what tell the rows apart. The Order code is already on the line above, so
+// the tag shows only its own part, as on the Queue card.
+export const formatComplaintItem = ({
+	order_code,
+	item_code,
+	item_brand,
+	item_model,
+	item_color,
+}: ComplaintItemFields): string => {
+	const orderPrefix = `${order_code}-`;
+	const tag = item_code.startsWith(orderPrefix)
+		? item_code.slice(orderPrefix.length)
+		: item_code;
+	const descriptors = getOrderServiceItemDescriptors({
+		brand: item_brand,
+		model: item_model,
+		color: item_color,
+	}).join(" ");
+	return descriptors ? `${tag} · ${descriptors}` : tag;
+};
 
 // The Complaint carries no stored status (ADR-0013 amendment) — its outcome is
 // derived from the lines: refunded or cancelled if the original line was,

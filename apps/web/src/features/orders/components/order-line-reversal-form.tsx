@@ -22,6 +22,10 @@ import type {
 	CreateOrderRefundPayload,
 } from "@/features/orders/api";
 import {
+	reworkChoiceCaption,
+	type WorkshopRework,
+} from "@/features/orders/lib/refund-rework";
+import {
 	CANCEL_REASONS,
 	formatCancelReason,
 	formatRefundReason,
@@ -36,12 +40,16 @@ import { formatMoney } from "@/shared/money";
 
 // Several treatments can share one tag now (ADR-0017), so the tag alone no
 // longer tells two refundable lines apart — the treatment's name is what makes
-// the row pickable.
+// the row pickable. The pair's brand and model lead, since the cashier
+// remembers "the white AF1", not "I001".
 interface ReversalServiceOption {
 	id: number;
 	is_rework?: boolean;
-	item_code: string;
+	item_details: string | null;
+	item_tag: string;
 	service_name: string;
+	// Refund only: the Rework round still in the workshop under this line.
+	workshopRework?: WorkshopRework;
 }
 
 interface ReversalProductOption {
@@ -56,6 +64,7 @@ type ReversalSubmitItem<R extends string> = (
 ) & {
 	reason: R;
 	note?: string;
+	keep_rework?: boolean;
 };
 
 const buildReversalSchema = (verb: string, reasons: readonly string[]) =>
@@ -68,6 +77,7 @@ const buildReversalSchema = (verb: string, reasons: readonly string[]) =>
 					selected: z.boolean(),
 					reason: z.enum(reasons as [string, ...string[]]),
 					note: z.string().optional(),
+					keep_rework: z.boolean(),
 				}),
 			),
 		})
@@ -135,14 +145,20 @@ const OrderLineReversalForm = <R extends string>({
 		...services.map((service) => ({
 			kind: "service" as const,
 			id: service.id,
-			label: `${service.item_code} · ${service.service_name}`,
+			label: service.item_details ?? service.item_tag,
+			sublabel: service.item_details
+				? `${service.item_tag} · ${service.service_name}`
+				: service.service_name,
 			isRework: service.is_rework === true,
+			workshopRework: service.workshopRework,
 		})),
 		...products.map((product) => ({
 			kind: "product" as const,
 			id: product.id,
 			isRework: false,
 			label: `${product.name} × ${product.qty}`,
+			sublabel: undefined,
+			workshopRework: undefined,
 		})),
 	];
 	const hasBothKinds = services.length > 0 && products.length > 0;
@@ -163,6 +179,7 @@ const OrderLineReversalForm = <R extends string>({
 				selected: false,
 				reason: defaultReason,
 				note: "",
+				keep_rework: false,
 			})),
 		},
 	});
@@ -244,13 +261,15 @@ const OrderLineReversalForm = <R extends string>({
 
 	const onSubmit = async (values: ReversalFormValues) => {
 		const items = values.items
-			.filter((item) => item.selected)
-			.map((item) => ({
+			.map((item, index) => ({ item, line: lines[index] }))
+			.filter(({ item }) => item.selected)
+			.map(({ item, line }) => ({
 				...(item.kind === "service"
 					? { order_service_id: item.id }
 					: { order_product_id: item.id }),
 				reason: item.reason as R,
 				note: item.note?.trim() || undefined,
+				...(line?.workshopRework ? { keep_rework: item.keep_rework } : {}),
 			}));
 
 		await submitItems(items);
@@ -328,6 +347,8 @@ const OrderLineReversalForm = <R extends string>({
 									isRework={line?.isRework === true}
 									label={line?.label ?? `Item #${index + 1}`}
 									reasonItems={reasonItems}
+									sublabel={line?.sublabel}
+									workshopRework={line?.workshopRework}
 								/>
 							</Fragment>
 						);
@@ -368,6 +389,8 @@ interface ReversalItemRowProps {
 	isRework: boolean;
 	label: string;
 	reasonItems: { value: string; label: string }[];
+	sublabel: string | undefined;
+	workshopRework: WorkshopRework | undefined;
 }
 
 const ReversalItemRow = ({
@@ -377,6 +400,8 @@ const ReversalItemRow = ({
 	isRework,
 	label,
 	reasonItems,
+	sublabel,
+	workshopRework,
 }: ReversalItemRowProps) => {
 	const { control, register } = useFormContext<ReversalFormValues>();
 	const selected =
@@ -392,14 +417,24 @@ const ReversalItemRow = ({
 				control={control}
 				name={`items.${index}.selected`}
 				render={({ field }) => (
-					<Field orientation="horizontal">
+					<Field className="items-start" orientation="horizontal">
 						<Checkbox
 							id={checkboxId}
 							checked={field.value}
 							onCheckedChange={(value) => field.onChange(Boolean(value))}
 							disabled={disabled}
 						/>
-						<FieldLabel htmlFor={checkboxId}>{label}</FieldLabel>
+						<FieldLabel
+							className="grid gap-0.5 font-normal"
+							htmlFor={checkboxId}
+						>
+							<span className="font-medium">{label}</span>
+							{sublabel ? (
+								<span className="text-muted-foreground text-xs">
+									{sublabel}
+								</span>
+							) : null}
+						</FieldLabel>
 						{isRework ? <Badge variant="info">Rework</Badge> : null}
 						{amount !== undefined ? (
 							<span className="ml-auto font-mono text-sm tabular-nums">
@@ -409,6 +444,14 @@ const ReversalItemRow = ({
 					</Field>
 				)}
 			/>
+
+			{workshopRework && selected ? (
+				<ReworkChoice
+					disabled={disabled}
+					index={index}
+					workshopRework={workshopRework}
+				/>
+			) : null}
 
 			<Controller
 				control={control}
@@ -441,6 +484,57 @@ const ReversalItemRow = ({
 				)}
 			/>
 		</div>
+	);
+};
+
+const REWORK_CHOICES = [
+	{ keep: false, label: "Stop" },
+	{ keep: true, label: "Keep" },
+] as const;
+
+interface ReworkChoiceProps {
+	disabled: boolean;
+	index: number;
+	workshopRework: WorkshopRework;
+}
+
+const ReworkChoice = ({
+	disabled,
+	index,
+	workshopRework,
+}: ReworkChoiceProps) => {
+	const { control } = useFormContext<ReversalFormValues>();
+
+	return (
+		<Controller
+			control={control}
+			name={`items.${index}.keep_rework`}
+			render={({ field }) => (
+				<div className="grid gap-1">
+					<fieldset className="grid grid-cols-2 gap-2 border-0 p-0">
+						<legend className="sr-only">
+							Rework round {workshopRework.round}
+						</legend>
+						{REWORK_CHOICES.map((choice) => (
+							<Button
+								aria-pressed={field.value === choice.keep}
+								disabled={disabled}
+								key={choice.label}
+								onClick={() => field.onChange(choice.keep)}
+								size="sm"
+								type="button"
+								variant={field.value === choice.keep ? "default" : "outline"}
+							>
+								{choice.label}
+							</Button>
+						))}
+					</fieldset>
+					<p className="text-muted-foreground text-xs">
+						{reworkChoiceCaption(workshopRework, field.value)}
+					</p>
+				</div>
+			)}
+		/>
 	);
 };
 

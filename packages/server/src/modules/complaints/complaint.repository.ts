@@ -3,6 +3,7 @@ import { db } from "@/db";
 import {
   complaintsTable,
   customersTable,
+  itemsTable,
   orderServiceStatusEnum,
   ordersServicesTable,
   ordersTable,
@@ -140,6 +141,12 @@ export function findComplaintDetailById(id: number) {
         with: {
           service: { columns: { id: true, name: true } },
           handler: { columns: { id: true, name: true } },
+          // When the round reached the status it shows.
+          statusLogs: {
+            columns: { created_at: true },
+            orderBy: { id: "desc" },
+            limit: 1,
+          },
         },
         orderBy: { id: "asc" },
       },
@@ -191,6 +198,10 @@ export async function findComplaints(
         customer_id: ordersTable.customer_id,
         customer_name: customersTable.name,
         service_name: servicesTable.name,
+        item_code: itemsTable.item_code,
+        item_brand: itemsTable.brand,
+        item_model: itemsTable.model,
+        item_color: itemsTable.color,
         opened_by_name: usersTable.name,
       })
       .from(complaintsTable)
@@ -201,6 +212,7 @@ export async function findComplaints(
       .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
       .innerJoin(customersTable, eq(ordersTable.customer_id, customersTable.id))
       .innerJoin(storesTable, eq(ordersTable.store_id, storesTable.id))
+      .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
       .leftJoin(
         servicesTable,
         eq(ordersServicesTable.service_id, servicesTable.id)

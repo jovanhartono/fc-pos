@@ -15,7 +15,10 @@ import {
 	complaintsQueries,
 	type FetchComplaintsQuery,
 } from "@/features/complaints/api";
-import { getComplaintOutcome } from "@/features/complaints/lib/format";
+import {
+	formatComplaintItem,
+	getComplaintOutcome,
+} from "@/features/complaints/lib/format";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 
 const complaintsSearchSchema = z.object({
@@ -71,6 +74,7 @@ const ComplaintsPage = () => {
 						>
 							{row.original.order_code}
 						</Link>
+						<span className="text-xs">{formatComplaintItem(row.original)}</span>
 						<span className="text-[11px] text-muted-foreground">
 							{row.original.service_name ?? "—"}
 						</span>

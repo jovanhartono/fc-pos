@@ -386,6 +386,7 @@ export function findOrderServiceDetail(orderId: number, serviceId: number) {
       status: true,
       is_priority: true,
       handler_id: true,
+      notes: true,
     },
     with: {
       order: {

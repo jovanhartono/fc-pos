@@ -271,6 +271,13 @@ describe("openComplaint", () => {
     });
   });
 
+  it("leaves the rework line's note empty for the worker", async () => {
+    // The Rework box already links its Complaint; a machine-written note would
+    // show on every Rework where the worker reads the cashier's notes.
+    await open({ start_rework: true });
+    expect(repo.insertedRework?.notes).toBeUndefined();
+  });
+
   it("logs who put the rework on the rack, in the same transaction", async () => {
     // A line has no created_at: without this row a second round added days
     // later would have no time or name on its timeline.

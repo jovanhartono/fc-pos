@@ -26,23 +26,23 @@ import {
 	RefundOrderForm,
 } from "@/features/orders/components/order-line-reversal-form";
 import { OrderPickupEventDialog } from "@/features/orders/components/order-pickup-event-dialog";
-import { PaymentStatusBadge } from "@/features/orders/components/payment-status-badge";
 import {
 	useCancelOrderMutation,
 	useRefundOrderMutation,
 } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
+import { showsPickupProgress } from "@/features/orders/lib/order-sheet";
+import { getPaymentBadges } from "@/features/orders/lib/payment-badges";
 import { buildRefundCaps } from "@/features/orders/lib/refund-preview";
+import { findWorkshopRework } from "@/features/orders/lib/refund-rework";
 import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
 import { usePrintReceiptMutation } from "@/features/printing/hooks/usePrintReceipt";
-import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
-	formatOrderStatus,
-	formatRefundStatus,
-	getOrderStatusBadgeVariant,
-	getRefundStatusBadgeVariant,
-} from "@/lib/status";
+	formatOrderServiceItemDetails,
+	getOrderServiceItemDetails,
+} from "@/lib/order-service-item-details";
+import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 import { useDialog } from "@/stores/dialog-store";
 
 interface OrderIdentityStripProps {
@@ -62,6 +62,20 @@ export const OrderIdentityStrip = ({
 	const refundMutation = useRefundOrderMutation();
 	const openComplaintMutation = useOpenComplaintMutation();
 	const printReceiptMutation = usePrintReceiptMutation(orderId);
+
+	// The cancel and refund pickers name the pair ("Nike · AF1 · White") and the
+	// short tag, so the cashier needn't flip back to the order to match codes.
+	const orderPrefix = `${detail.code}-`;
+	const toReversalItem = (
+		item: { item_code: string } & Parameters<
+			typeof getOrderServiceItemDetails
+		>[0],
+	) => ({
+		item_details: getOrderServiceItemDetails(item),
+		item_tag: item.item_code.startsWith(orderPrefix)
+			? item.item_code.slice(orderPrefix.length)
+			: item.item_code,
+	});
 
 	const fulfillment = detail.fulfillment;
 	const totalCount = fulfillment.total_count;
@@ -144,7 +158,7 @@ export const OrderIdentityStrip = ({
 					cancellableServices={gates.cancellableServices.map((service) => ({
 						id: service.id,
 						is_rework: Boolean(service.reworkOf),
-						item_code: service.item.item_code,
+						...toReversalItem(service.item),
 						service_name: service.service?.name ?? "Service",
 					}))}
 					closeDialog={closeDialog}
@@ -170,8 +184,9 @@ export const OrderIdentityStrip = ({
 					}))}
 					refundableServices={gates.refundableServices.map((service) => ({
 						id: service.id,
-						item_code: service.item.item_code,
+						...toReversalItem(service.item),
 						service_name: service.service?.name ?? "Service",
+						workshopRework: findWorkshopRework(service),
 					}))}
 					refundMutation={refundMutation}
 				/>
@@ -241,14 +256,11 @@ export const OrderIdentityStrip = ({
 							<Badge variant={getOrderStatusBadgeVariant(detail.status)}>
 								{formatOrderStatus(detail.status)}
 							</Badge>
-							<PaymentStatusBadge order={detail} />
-							{detail.refund_status !== "none" ? (
-								<Badge
-									variant={getRefundStatusBadgeVariant(detail.refund_status)}
-								>
-									{formatRefundStatus(detail.refund_status)}
+							{getPaymentBadges(detail).map((badge) => (
+								<Badge key={badge.label} variant={badge.variant}>
+									{badge.label}
 								</Badge>
-							) : null}
+							))}
 						</div>
 						<p className="text-muted-foreground text-sm">
 							<CustomerLink
@@ -306,7 +318,7 @@ export const OrderIdentityStrip = ({
 											onClick={openRefundOrderDialog}
 											variant="destructive"
 										>
-											Refund order
+											Refund
 										</DropdownMenuItem>
 									) : null}
 									{gates.canCancelOrder ? (
@@ -325,14 +337,15 @@ export const OrderIdentityStrip = ({
 
 				{renderPickupButton("w-full sm:hidden")}
 
-				{totalCount > 0 ? (
+				{showsPickupProgress(detail.items) ? (
 					<div className="grid gap-1.5">
 						<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
 							<span className="tabular-nums">
+								Items picked up:{" "}
 								<span className="font-medium">
 									{fulfillment.picked_up_count}
 								</span>{" "}
-								of {totalCount} picked up
+								of {totalCount}
 							</span>
 							{fulfillment.remaining_count > 0 ? (
 								<span className="text-muted-foreground tabular-nums">

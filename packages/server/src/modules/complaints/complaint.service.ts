@@ -58,7 +58,6 @@ async function createReworkLine(
     throw new BadRequestException("Order service is not attached to an order");
   }
 
-  const note = `Rework for complaint #${complaintId}`;
   const line = await insertReworkLine(tx, {
     order_id: order.id,
     item_id: subject.item_id,
@@ -68,10 +67,13 @@ async function createReworkLine(
     is_priority: true,
     status: "queued",
     complaint_id: complaintId,
-    notes: note,
   });
 
-  await logReworkQueued(tx, { by: userId, note, serviceId: line.id });
+  await logReworkQueued(tx, {
+    by: userId,
+    note: `Rework for complaint #${complaintId}`,
+    serviceId: line.id,
+  });
 
   await recomputeOrderRollup(tx, order.id, userId);
 

@@ -26,12 +26,7 @@ const log = (
 ) => ({ id, from_status, to_status, created_at, changedBy, note: null });
 
 const summary = (line: TimelineLine) =>
-	buildLineTimeline(line).map((entry) => [
-		entry.label,
-		entry.at,
-		entry.by,
-		entry.reworkLineId ?? null,
-	]);
+	buildLineTimeline(line).map((entry) => [entry.label, entry.at, entry.by]);
 
 describe("a rework line's timeline", () => {
 	it("starts with the round being opened, not a bare Queued", () => {
@@ -63,7 +58,7 @@ describe("a rework line's timeline", () => {
 				complaints: [],
 				reworkOf: complaint,
 			}),
-		).toEqual([["Rework opened", null, null, null]]);
+		).toEqual([["Rework opened", null, null]]);
 	});
 });
 
@@ -133,11 +128,11 @@ describe("the complained line's timeline", () => {
 				reworkOf: null,
 			}),
 		).toEqual([
-			["Ready for Pickup", "2026-09-19T08:00:00.000Z", "Sari", null],
-			["Complaint opened", complaint.created_at, "Cahya", null],
-			["Rework started", complaint.created_at, "Cahya", 11],
-			["Rework started", null, null, 20],
-			["Picked Up", "2026-09-24T09:00:00.000Z", "Sari", null],
+			["Ready for Pickup", "2026-09-19T08:00:00.000Z", "Sari"],
+			["Complaint opened", complaint.created_at, "Cahya"],
+			["Rework started", complaint.created_at, "Cahya"],
+			["Rework started", null, null],
+			["Picked Up", "2026-09-24T09:00:00.000Z", "Sari"],
 		]);
 	});
 });

@@ -4,7 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import type { OrderDetail } from "@/features/orders/api";
 import { OrderServiceDetail } from "@/features/orders/components/order-service-detail";
 import { ReworkRoundLabel } from "@/features/orders/components/rework-round-label";
-import { formatOrderServiceStatus } from "@/lib/status";
+import {
+	formatOrderServiceStatus,
+	getOrderServiceStatusBadgeVariant,
+} from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
@@ -18,29 +21,17 @@ interface OrderServiceRowProps {
 	// Item header above, but the sheet still opens under it so a worker knows
 	// which thing on the shelf they are looking at (ADR-0017).
 	itemCode: string;
-	// The object's rolled-up status; a treatment names its own only when it
-	// disagrees with this.
-	itemStatus: string;
 	// Set on a Rework drawn under the line it redoes.
 	reworkRound?: number;
 }
 
 export const OrderServiceRow = memo(
-	({
-		orderId,
-		service,
-		itemCode,
-		itemStatus,
-		reworkRound,
-	}: OrderServiceRowProps) => {
+	({ orderId, service, itemCode, reworkRound }: OrderServiceRowProps) => {
 		const openSheet = useSheet((s) => s.openSheet);
 
 		const serviceName = service.service?.name ?? "Service";
 		const isNestedRework = reworkRound !== undefined;
 		const isRework = Boolean(service.reworkOf);
-		// A line carries at most one complaint, lifetime (ADR-0013 amendment) —
-		// existence is the whole signal; the complaint has no status.
-		const hasComplaint = (service.complaints ?? []).length > 0;
 		// ADR-0018: a blank price holds the whole Order's payment ("no price, no
 		// payment") — the same predicate the server's paid transition runs.
 		const isUnpriced = isUnpricedLine(service);
@@ -81,28 +72,32 @@ export const OrderServiceRow = memo(
 						) : (
 							serviceName
 						)}
-						{service.status === itemStatus ? null : (
-							<span className="text-muted-foreground">
-								{" "}
-								· {formatOrderServiceStatus(service.status)}
-							</span>
-						)}
 					</span>
 					{service.handler?.name ? (
 						<span className="block text-muted-foreground text-xs leading-snug">
 							{service.handler.name}
 						</span>
 					) : null}
+					{service.notes?.trim() ? (
+						<span className="block text-pretty text-xs leading-snug">
+							<span className="text-muted-foreground">Note: </span>
+							{service.notes.trim()}
+						</span>
+					) : null}
 				</span>
 				<span className="flex shrink-0 flex-col items-end gap-1">
 					<span className="flex flex-wrap justify-end gap-1.5">
+						{/* Every line names its own status: the Item's rolled-up one
+						    hid the line's whenever the two agreed. */}
+						<Badge variant={getOrderServiceStatusBadgeVariant(service.status)}>
+							{formatOrderServiceStatus(service.status)}
+						</Badge>
 						{isUnpriced ? <Badge variant="warning">Unpriced</Badge> : null}
 						{isRework && !isNestedRework ? (
 							<Badge variant="info">Rework</Badge>
 						) : null}
-						{hasComplaint ? <Badge variant="danger">Complaint</Badge> : null}
-						{service.is_priority ? (
-							<Badge variant="warning">Priority</Badge>
+						{service.is_priority && !isRework ? (
+							<Badge variant="priority">Priority</Badge>
 						) : null}
 					</span>
 					<span className="font-mono text-sm tabular-nums">
