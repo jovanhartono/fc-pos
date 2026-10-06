@@ -1,4 +1,4 @@
-import { CaretRightIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -80,13 +80,12 @@ interface ComplaintLinkRowProps {
 // has started.
 const ComplaintLinkRow = ({ complaint }: ComplaintLinkRowProps) => (
 	<Link
-		className="group flex items-center gap-1.5 py-2 pr-1 pl-3 text-rose-700 text-xs hover:bg-muted/40 dark:text-rose-300"
+		className="group flex items-center gap-1.5 py-2 pr-1 pl-3 text-xs hover:bg-muted/40"
 		params={{ complaintId: String(complaint.id) }}
 		to="/complaints/$complaintId"
 	>
-		<WarningCircleIcon aria-hidden="true" className="size-4 shrink-0" />
 		<span className="min-w-0 flex-1 truncate">
-			<span className="font-medium">Complaint #{complaint.id}</span>
+			<span className="text-destructive">COMPLAINT #{complaint.id}</span>
 			<span className="text-muted-foreground"> · {complaint.reason}</span>
 		</span>
 		<CaretRightIcon
