@@ -2,9 +2,22 @@ import { describe, expect, it } from "bun:test";
 import { formatComplaintItem, getComplaintOutcome } from "./format";
 
 describe("formatComplaintItem", () => {
+	it("drops the Order code the row already shows from the tag", () => {
+		expect(
+			formatComplaintItem({
+				order_code: "#BSD/03092026/2",
+				item_code: "#BSD/03092026/2-I001",
+				item_brand: "Converse",
+				item_model: "Premium",
+				item_color: "orchid",
+			}),
+		).toBe("I001 · Converse Premium orchid");
+	});
+
 	it("reads the tag, then brand, model and colour", () => {
 		expect(
 			formatComplaintItem({
+				order_code: "#BSD/1",
 				item_code: "I001",
 				item_brand: "Nike",
 				item_model: "AF1",
@@ -16,6 +29,7 @@ describe("formatComplaintItem", () => {
 	it("skips missing parts without stray separators", () => {
 		expect(
 			formatComplaintItem({
+				order_code: "#BSD/1",
 				item_code: "I002",
 				item_brand: null,
 				item_model: "AF1",
@@ -24,6 +38,7 @@ describe("formatComplaintItem", () => {
 		).toBe("I002 · AF1");
 		expect(
 			formatComplaintItem({
+				order_code: "#BSD/1",
 				item_code: "I003",
 				item_brand: null,
 				item_model: null,
