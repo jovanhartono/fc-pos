@@ -1,6 +1,7 @@
 import {
 	ArrowClockwiseIcon,
 	CaretLeftIcon,
+	MagnifyingGlassIcon,
 	MonitorIcon,
 	MoonIcon,
 	SignOutIcon,
@@ -23,6 +24,7 @@ import {
 	tabBarItemsForRole,
 } from "@/components/app-navigation";
 import { AppTabBar } from "@/components/app-tab-bar";
+import { CommandBar } from "@/components/command-bar";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -125,7 +127,6 @@ const HeaderRefreshButton = () => {
 	return (
 		<Button
 			aria-label="Refresh"
-			className="ml-auto"
 			icon={
 				<ArrowClockwiseIcon
 					className={cn(
@@ -243,6 +244,18 @@ export function AppShell({ title, children }: AppShellProps) {
 		document.title = `${title} | Fresclean POS`;
 	}, [title]);
 
+	const [isCommandOpen, setIsCommandOpen] = useState(false);
+	useEffect(() => {
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+				event.preventDefault();
+				setIsCommandOpen((current) => !current);
+			}
+		};
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, []);
+
 	const handleLogout = () => {
 		clearToken();
 		void navigate({ to: "/auth/login" });
@@ -273,6 +286,20 @@ export function AppShell({ title, children }: AppShellProps) {
 				</SidebarHeader>
 
 				<SidebarSeparator />
+
+				<div className="px-2 pt-2 group-data-[collapsible=icon]:hidden">
+					<button
+						type="button"
+						onClick={() => setIsCommandOpen(true)}
+						className="flex h-8 w-full items-center gap-2 border border-sidebar-border bg-background px-2 text-muted-foreground text-xs transition-colors hover:text-foreground"
+					>
+						<MagnifyingGlassIcon className="size-4" />
+						Search or jump to
+						<kbd className="ml-auto border border-b-2 px-1 font-mono text-[10px]">
+							⌘K
+						</kbd>
+					</button>
+				</div>
 
 				<SidebarContent>
 					<SidebarGroup>
@@ -340,7 +367,16 @@ export function AppShell({ title, children }: AppShellProps) {
 							<BrandLogo className="h-8" />
 						</Link>
 					)}
-					<HeaderRefreshButton />
+					<div className="ml-auto flex items-center gap-1">
+						<Button
+							aria-label="Search or jump to"
+							variant="ghost"
+							size="icon"
+							icon={<MagnifyingGlassIcon className="size-4" />}
+							onClick={() => setIsCommandOpen(true)}
+						/>
+						<HeaderRefreshButton />
+					</div>
 				</div>
 				{/* Queue detail's Hold to Start Work bar rests on the window bottom
 				    (the tab bar below md); a sticky bar would stop short of this padding. */}
@@ -352,6 +388,11 @@ export function AppShell({ title, children }: AppShellProps) {
 				</section>
 				{tabBarItems.length > 0 ? <AppTabBar items={tabBarItems} /> : null}
 			</SidebarInset>
+			<CommandBar
+				open={isCommandOpen}
+				onOpenChange={setIsCommandOpen}
+				role={role}
+			/>
 		</SidebarProvider>
 	);
 }
