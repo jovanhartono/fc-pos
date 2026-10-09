@@ -148,9 +148,14 @@ function OrdersPage() {
 	// it opens beside the list.
 	const isWide = !useIsMobile(1024);
 	const splitOrderId = isWide ? search.open : undefined;
+	// Replace, not push: walking twenty Orders with J must not leave twenty
+	// steps for Back to undo before it leaves the page.
 	const handleOpenOrder = useCallback(
 		(orderId: number) => {
-			void navigate({ search: (prev) => ({ ...prev, open: orderId }) });
+			void navigate({
+				search: (prev) => ({ ...prev, open: orderId }),
+				replace: true,
+			});
 		},
 		[navigate],
 	);

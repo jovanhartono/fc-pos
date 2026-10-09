@@ -24,7 +24,7 @@ import {
 	tabBarItemsForRole,
 } from "@/components/app-navigation";
 import { AppTabBar } from "@/components/app-tab-bar";
-import { CommandBar } from "@/components/command-bar";
+import { useOpenCommandBar } from "@/components/command-bar";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -244,17 +244,17 @@ export function AppShell({ title, children }: AppShellProps) {
 		document.title = `${title} | Fresclean POS`;
 	}, [title]);
 
-	const [isCommandOpen, setIsCommandOpen] = useState(false);
+	const openCommandBar = useOpenCommandBar();
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
 				event.preventDefault();
-				setIsCommandOpen((current) => !current);
+				openCommandBar();
 			}
 		};
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, []);
+	}, [openCommandBar]);
 
 	const handleLogout = () => {
 		clearToken();
@@ -290,7 +290,7 @@ export function AppShell({ title, children }: AppShellProps) {
 				<div className="px-2 pt-2 group-data-[collapsible=icon]:hidden">
 					<button
 						type="button"
-						onClick={() => setIsCommandOpen(true)}
+						onClick={openCommandBar}
 						className="flex h-8 w-full items-center gap-2 border border-sidebar-border bg-background px-2 text-muted-foreground text-xs transition-colors hover:text-foreground"
 					>
 						<MagnifyingGlassIcon className="size-4" />
@@ -373,7 +373,7 @@ export function AppShell({ title, children }: AppShellProps) {
 							variant="ghost"
 							size="icon"
 							icon={<MagnifyingGlassIcon className="size-4" />}
-							onClick={() => setIsCommandOpen(true)}
+							onClick={openCommandBar}
 						/>
 						<HeaderRefreshButton />
 					</div>
@@ -381,18 +381,13 @@ export function AppShell({ title, children }: AppShellProps) {
 				{/* Queue detail's Hold to Start Work bar rests on the window bottom
 				    (the tab bar below md); a sticky bar would stop short of this padding. */}
 				<section
-					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain px-3 py-4 pb-[calc(var(--inset-bottom)+1rem)] has-[[data-bottom-bar]]:pb-0 sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10 lg:has-[[data-list-panel]]:flex lg:has-[[data-list-panel]]:flex-col"
+					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain px-3 py-4 pb-[calc(var(--inset-bottom)+1rem)] has-[[data-bottom-bar]]:pb-0 sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10 lg:[@media(min-height:40rem)]:has-[[data-list-panel]]:flex lg:[@media(min-height:40rem)]:has-[[data-list-panel]]:flex-col"
 					data-scroll-restoration-id={APP_CONTENT_SCROLL_ID}
 				>
 					{children}
 				</section>
 				{tabBarItems.length > 0 ? <AppTabBar items={tabBarItems} /> : null}
 			</SidebarInset>
-			<CommandBar
-				open={isCommandOpen}
-				onOpenChange={setIsCommandOpen}
-				role={role}
-			/>
 		</SidebarProvider>
 	);
 }

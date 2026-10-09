@@ -147,12 +147,12 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 	// week as bars, all from the 14-day trend the chart below already draws.
 	const trend = overview?.trend ?? [];
 	type TrendKey = "revenue" | "services_processed" | "orders_in" | "orders_out";
-	// A quiet yesterday has no percentage to compare against, so the line is
-	// left off rather than showing a dash.
+	// A quiet yesterday has no percentage to compare against, and a refund-heavy
+	// one (revenue below zero) would flip the sign, so the line is left off.
 	const vsYesterday = (key: TrendKey) => {
 		const today = trend.at(-1)?.[key];
 		const yesterday = trend.at(-2)?.[key];
-		if (today === undefined || !yesterday) {
+		if (today === undefined || yesterday === undefined || yesterday <= 0) {
 			return null;
 		}
 		return { delta_pct: (today - yesterday) / yesterday };

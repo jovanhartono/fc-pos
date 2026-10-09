@@ -72,7 +72,7 @@ export const DataTableGrid = <TData extends RowData>({
 	useEffect(() => {
 		const search = frameRef.current
 			?.closest("[data-list-panel]")
-			?.querySelector<HTMLInputElement>("input");
+			?.querySelector<HTMLInputElement>("[data-list-search]");
 		setHasSearch(search != null);
 
 		// J/K walk the rows and Enter opens the one in the ring, so a cashier
@@ -98,7 +98,13 @@ export const DataTableGrid = <TData extends RowData>({
 				);
 				return;
 			}
-			if (event.key === "Enter" && focusedIndex >= 0) {
+			// Only when nothing else has focus: Enter on a focused button (Next,
+			// a sort header, a nav link) must still press that button.
+			if (
+				event.key === "Enter" &&
+				focusedIndex >= 0 &&
+				event.target === document.body
+			) {
 				const row = bodyRef.current?.children[focusedIndex];
 				const target = row?.querySelector<HTMLElement>("a, button");
 				if (target) {

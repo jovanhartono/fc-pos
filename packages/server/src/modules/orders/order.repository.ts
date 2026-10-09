@@ -1,4 +1,4 @@
-import type { InferInsertModel } from "drizzle-orm";
+import type { InferInsertModel, SQL } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { type DbExecutor, db } from "@/db";
 import {
@@ -361,29 +361,40 @@ export async function findOrders(
   };
 }
 
+type OrderStatus = (typeof orderStatusEnum.enumValues)[number];
+
+// The Orders page's status tabs: how many Orders each status holds under the
+// other filters the cashier has set. Same trick as countOrders below, one
+// filtered window per status, so it is one round trip and every tab's number
+// matches the page it opens.
+export async function countOrdersByStatus(
+  filters: OrderListFilters,
+  scopedStoreIds?: number[]
+): Promise<Record<OrderStatus, number>> {
+  const statuses = orderStatusEnum.enumValues;
+  const [row] = await db.query.ordersTable.findMany({
+    where: buildOrderWhere({ ...filters, status: undefined }, scopedStoreIds),
+    columns: { id: true },
+    extras: Object.fromEntries(
+      statuses.map((status) => [
+        status,
+        sql<number>`(count(*) filter (where status = ${status}) over ())::int`.as(
+          status
+        ),
+      ])
+    ) as Record<OrderStatus, SQL.Aliased<number>>,
+    limit: 1,
+  });
+  return Object.fromEntries(
+    statuses.map((status) => [status, row?.[status] ?? 0])
+  ) as Record<OrderStatus, number>;
+}
+
 // Postgres does the counting and hands back one row. db.$count() cannot take the
 // relational builder's object `where`, and a second SQL-level where-builder is
 // how a pill's number stops matching the total of the page it opens — so the
 // count rides along on buildOrderWhere itself. The window runs before LIMIT, so
 // the single row carries the count of every match, not of the row returned.
-// The Orders page's status tabs: how many Orders each status holds under the
-// other filters the cashier has set. One small count per status, because the
-// filter is a relational query that cannot be grouped.
-export async function countOrdersByStatus(
-  filters: OrderListFilters,
-  scopedStoreIds?: number[]
-) {
-  const statuses = orderStatusEnum.enumValues;
-  const counts = await Promise.all(
-    statuses.map((status) =>
-      countOrders({ ...filters, status }, scopedStoreIds)
-    )
-  );
-  return Object.fromEntries(
-    statuses.map((status, index) => [status, counts[index] ?? 0])
-  ) as Record<(typeof statuses)[number], number>;
-}
-
 export async function countOrders(
   filters: OrderListFilters,
   scopedStoreIds?: number[]

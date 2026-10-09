@@ -123,7 +123,9 @@ export const CustomerOrdersCard = ({
 			<CardHeader>
 				<CardTitle>Orders</CardTitle>
 			</CardHeader>
-			<CardContent>
+			{/* The pager stays outside the table: the pinned phone pager is built
+			    for list pages, and inside this card it would break out of the box. */}
+			<CardContent className="grid gap-3">
 				<DataTable
 					columns={columns}
 					data={orders}
@@ -132,13 +134,11 @@ export const CustomerOrdersCard = ({
 						to: "/orders/$orderId",
 						params: { orderId: String(order.id) },
 					})}
-					footer={
-						<TablePagination
-							meta={ordersQuery.data?.meta}
-							isLoading={ordersQuery.isPending}
-							onPageChange={onPageChange}
-						/>
-					}
+				/>
+				<TablePagination
+					meta={ordersQuery.data?.meta}
+					isLoading={ordersQuery.isPending}
+					onPageChange={onPageChange}
 				/>
 			</CardContent>
 		</Card>
