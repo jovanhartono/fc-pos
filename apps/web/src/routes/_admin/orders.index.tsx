@@ -23,11 +23,13 @@ import {
 	type OrderFilterValues,
 	PAYMENT_STATUS_VALUES,
 } from "@/features/orders/components/order-filters";
+import { OrderSplitView } from "@/features/orders/components/order-split-view";
 import { OrderStatusTabs } from "@/features/orders/components/order-status-tabs";
 import { PickupRadar } from "@/features/orders/components/pickup-radar";
 import { getPaymentBadges } from "@/features/orders/lib/payment-badges";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
@@ -50,6 +52,8 @@ const ordersSearchSchema = z.object({
 		.regex(/^\d{4}-\d{2}-\d{2}$/)
 		.optional()
 		.catch(undefined),
+	// The Order shown beside the list on a desktop.
+	open: z.coerce.number().int().positive().optional().catch(undefined),
 });
 
 const PAGE_SIZE = 25;
@@ -103,7 +107,8 @@ function buildOrdersListParams(
 
 export const Route = createFileRoute("/_admin/orders/")({
 	validateSearch: (search) => ordersSearchSchema.parse(search),
-	loaderDeps: ({ search }) => search,
+	// Opening an Order beside the list must not re-run the list's loader.
+	loaderDeps: ({ search: { open: _open, ...listSearch } }) => listSearch,
 	loader: async ({ context, deps }) => {
 		const ensureOrders = () =>
 			context.queryClient.ensureQueryData(
@@ -138,6 +143,20 @@ function OrdersPage() {
 		meQuery.data?.userStores?.map((item) => item.store_id) ?? [];
 	// DB-fresh role — JWT claim goes stale on mid-session role changes.
 	const role = meQuery.data?.role;
+
+	// Below lg the list is cards and an Order opens as its own page; from lg up
+	// it opens beside the list.
+	const isWide = !useIsMobile(1024);
+	const splitOrderId = isWide ? search.open : undefined;
+	const handleOpenOrder = useCallback(
+		(orderId: number) => {
+			void navigate({ search: (prev) => ({ ...prev, open: orderId }) });
+		},
+		[navigate],
+	);
+	const handleCloseOrder = useCallback(() => {
+		void navigate({ search: (prev) => ({ ...prev, open: undefined }) });
+	}, [navigate]);
 
 	useEffect(() => {
 		if (!currentUser || search.storeId !== undefined) {
@@ -232,13 +251,23 @@ function OrdersPage() {
 							{row.original.has_complaint ? (
 								<span className="text-destructive text-xs">COMPLAINT</span>
 							) : null}
-							<Link
-								to="/orders/$orderId"
-								params={{ orderId: String(row.original.id) }}
-								className="font-mono font-medium"
-							>
-								{row.original.code}
-							</Link>
+							{isWide ? (
+								<Link
+									from={Route.fullPath}
+									search={(prev) => ({ ...prev, open: row.original.id })}
+									className="font-mono font-medium"
+								>
+									{row.original.code}
+								</Link>
+							) : (
+								<Link
+									to="/orders/$orderId"
+									params={{ orderId: String(row.original.id) }}
+									className="font-mono font-medium"
+								>
+									{row.original.code}
+								</Link>
+							)}
 						</div>
 						<span className="font-normal text-[11px] text-muted-foreground">
 							{row.original.store_name}
@@ -344,7 +373,22 @@ function OrdersPage() {
 				),
 			},
 		],
-		[],
+		[isWide],
+	);
+
+	const pager = (
+		<TablePagination
+			meta={ordersQuery.data?.meta}
+			isLoading={ordersQuery.isPending}
+			onPageChange={(page) => {
+				void navigate({
+					search: (prev) => ({
+						...prev,
+						page,
+					}),
+				});
+			}}
+		/>
 	);
 
 	return (
@@ -377,7 +421,7 @@ function OrdersPage() {
 					<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center text-muted-foreground text-sm">
 						No store assigned
 					</div>
-				) : (
+				) : splitOrderId === undefined ? (
 					<DataTable
 						columns={columns}
 						data={orders}
@@ -386,20 +430,15 @@ function OrdersPage() {
 							to: "/orders/$orderId",
 							params: { orderId: String(order.id) },
 						})}
-						footer={
-							<TablePagination
-								meta={ordersQuery.data?.meta}
-								isLoading={ordersQuery.isPending}
-								onPageChange={(page) => {
-									void navigate({
-										search: (prev) => ({
-											...prev,
-											page,
-										}),
-									});
-								}}
-							/>
-						}
+						footer={pager}
+					/>
+				) : (
+					<OrderSplitView
+						orders={orders}
+						openId={splitOrderId}
+						onSelect={handleOpenOrder}
+						onClose={handleCloseOrder}
+						footer={pager}
 					/>
 				)}
 			</ListPanel>
