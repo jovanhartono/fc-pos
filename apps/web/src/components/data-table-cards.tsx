@@ -270,7 +270,7 @@ export const DataTableCards = <TData extends RowData>({
 								</div>
 							) : null}
 							{subtitleCells.length > 0 ? (
-								<div className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm">
+								<div className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-muted-foreground text-sm">
 									{subtitleCells.map((cell, index) => {
 										const mobileCard = cell.column.columnDef.meta?.mobileCard;
 										return (

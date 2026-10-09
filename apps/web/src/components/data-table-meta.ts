@@ -27,6 +27,8 @@ declare module "@tanstack/react-table" {
 		mobileCard?: MobileCardColumnOptions;
 		// Money columns sit on the right so the thousands line up row to row.
 		align?: "right";
+		// A code cell is mono, a name cell medium weight, on the table and the card.
+		kind?: "code" | "name";
 		// Extra classes for the desktop table th/td (e.g. sticky columns).
 		headerClassName?: string;
 		cellClassName?: string;

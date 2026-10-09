@@ -1,11 +1,16 @@
 import { CrosshairSimpleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import dayjs from "dayjs";
+import {
+	createFileRoute,
+	Link,
+	type LinkProps,
+	useNavigate,
+} from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { DateTimeCell } from "@/components/date-time-cell";
 import { ListPanel } from "@/components/list-panel";
 import { MoneyValue } from "@/components/money-value";
 import { PageHeader } from "@/components/page-header";
@@ -159,6 +164,17 @@ function OrdersPage() {
 		},
 		[navigate],
 	);
+	const orderLink = useCallback(
+		(orderId: number): LinkProps =>
+			isWide
+				? {
+						from: Route.fullPath,
+						search: (prev) => ({ ...prev, open: orderId }),
+						replace: true,
+					}
+				: { to: "/orders/$orderId", params: { orderId: String(orderId) } },
+		[isWide],
+	);
 	const handleCloseOrder = useCallback(() => {
 		void navigate({ search: (prev) => ({ ...prev, open: undefined }) });
 	}, [navigate]);
@@ -256,24 +272,12 @@ function OrdersPage() {
 							{row.original.has_complaint ? (
 								<span className="text-destructive text-xs">COMPLAINT</span>
 							) : null}
-							{isWide ? (
-								<Link
-									from={Route.fullPath}
-									search={(prev) => ({ ...prev, open: row.original.id })}
-									replace
-									className="font-mono font-medium"
-								>
-									{row.original.code}
-								</Link>
-							) : (
-								<Link
-									to="/orders/$orderId"
-									params={{ orderId: String(row.original.id) }}
-									className="font-mono font-medium"
-								>
-									{row.original.code}
-								</Link>
-							)}
+							<Link
+								{...orderLink(row.original.id)}
+								className="font-mono font-medium"
+							>
+								{row.original.code}
+							</Link>
 						</div>
 						<span className="font-normal text-[11px] text-muted-foreground">
 							{row.original.store_name}
@@ -290,22 +294,18 @@ function OrdersPage() {
 					},
 				},
 				cell: ({ row }) => (
-					// One line in the phone card's header strip, two in the table.
-					<div className="flex gap-1.5 lg:flex-col lg:gap-0">
-						<span>{dayjs(row.original.created_at).format("DD/MM/YYYY")}</span>
-						<span className="lg:text-muted-foreground lg:text-xs">
-							{dayjs(row.original.created_at).format("HH:mm")}
-						</span>
-					</div>
+					<DateTimeCell
+						value={row.original.created_at}
+						dateFormat="DD/MM/YYYY"
+					/>
 				),
 			},
 			{
 				accessorKey: "customer_name",
 				header: "Customer",
 				meta: {
-					mobileCard: {
-						slot: "subtitle",
-					},
+					// The one subtitle the counter reads first: the customer's name.
+					mobileCard: { slot: "subtitle", className: "text-foreground" },
 				},
 				cell: ({ row }) => (
 					<div className="flex flex-col">
@@ -375,7 +375,7 @@ function OrdersPage() {
 				cell: ({ row }) => <MoneyValue value={row.original.total} />,
 			},
 		],
-		[isWide],
+		[orderLink],
 	);
 
 	const pager = (
@@ -428,18 +428,7 @@ function OrdersPage() {
 						columns={columns}
 						data={orders}
 						isLoading={ordersQuery.isPending || storesQuery.isPending}
-						getCardLink={(order) =>
-							isWide
-								? {
-										from: Route.fullPath,
-										search: (prev) => ({ ...prev, open: order.id }),
-										replace: true,
-									}
-								: {
-										to: "/orders/$orderId",
-										params: { orderId: String(order.id) },
-									}
-						}
+						getCardLink={(order) => orderLink(order.id)}
 						isRowActive={(order) => order.id === sheetOrderId}
 						footer={pager}
 					/>

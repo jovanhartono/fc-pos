@@ -13,7 +13,7 @@ export const ProductStock = ({ stock }: ProductStockProps) => {
 	}
 	if (stock <= LOW_STOCK) {
 		return (
-			<span className="font-semibold text-amber-700 tabular-nums dark:text-amber-400">
+			<span className="font-semibold text-amber-600 tabular-nums dark:text-amber-400">
 				{`${stock} left`}
 			</span>
 		);

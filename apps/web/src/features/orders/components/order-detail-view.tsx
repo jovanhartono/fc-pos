@@ -45,8 +45,8 @@ interface OrderDetailViewProps {
 	orderId: number;
 }
 
-// The whole Order: the /orders/$id page and the Orders split view's right
-// pane both render this, so the two never drift apart.
+// The whole Order: the /orders/$id page and the Order sheet over the Orders
+// list both render this, so the two never drift apart.
 export const OrderDetailView = ({ orderId }: OrderDetailViewProps) => {
 	// Role/can_process_pickup gates read DB-fresh state via /admin/users/me —
 	// the JWT claims go stale when an admin changes them mid-session.

@@ -113,26 +113,17 @@ function ServicesPage() {
 			{
 				accessorKey: "code",
 				header: "Code",
-				meta: {
-					mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
-				},
-				cell: ({ row }) => (
-					<span className="font-mono">{row.original.code}</span>
-				),
+				meta: { kind: "code", mobileCard: { slot: "subtitle" } },
 			},
 			{
 				accessorKey: "name",
 				header: "Service",
-				cell: ({ row }) => (
-					<span className="font-medium">{row.original.name}</span>
-				),
+				meta: { kind: "name" },
 			},
 			{
 				id: "category",
 				header: "Category",
-				meta: {
-					mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
-				},
+				meta: { mobileCard: { slot: "subtitle" } },
 				cell: ({ row }) => row.original.category?.name ?? "-",
 			},
 			{

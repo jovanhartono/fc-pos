@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { DateTimeCell } from "@/components/date-time-cell";
 import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
@@ -43,19 +44,6 @@ export const Route = createFileRoute("/_admin/shifts")({
 	component: ShiftsPage,
 });
 
-interface DateTimeCellProps {
-	value: Date | string;
-}
-
-const DateTimeCell = ({ value }: DateTimeCellProps) => (
-	<div className="flex gap-1.5 lg:flex-col lg:gap-0">
-		<span>{dayjs(value).format("DD MMM YYYY")}</span>
-		<span className="lg:text-muted-foreground lg:text-xs">
-			{dayjs(value).format("HH:mm")}
-		</span>
-	</div>
-);
-
 const formatDuration = (clockIn: Date | string, clockOut: Date | string) => {
 	const ms = dayjs(clockOut).diff(dayjs(clockIn));
 	const totalMinutes = Math.max(0, Math.floor(ms / 60_000));
@@ -64,18 +52,22 @@ const formatDuration = (clockIn: Date | string, clockOut: Date | string) => {
 	return `${hours}h ${String(minutes).padStart(2, "0")}m`;
 };
 
-interface ShiftDurationProps {
-	shift: Shift;
+interface OpenShiftProps {
+	clockInAt: Date | string;
 }
 
-const OpenShift = ({ shift }: ShiftDurationProps) => (
+const OpenShift = ({ clockInAt }: OpenShiftProps) => (
 	<span className="font-semibold text-emerald-700 dark:text-emerald-400">
 		Open
 		<span className="block font-normal text-muted-foreground text-xs">
-			since {dayjs(shift.clock_in_at).format("HH:mm")}
+			since {dayjs(clockInAt).format("HH:mm")}
 		</span>
 	</span>
 );
+
+interface ShiftDurationProps {
+	shift: Shift;
+}
 
 const ShiftDuration = ({ shift }: ShiftDurationProps) => (
 	<div className="flex flex-col gap-0.5">
@@ -84,7 +76,7 @@ const ShiftDuration = ({ shift }: ShiftDurationProps) => (
 				{formatDuration(shift.clock_in_at, shift.clock_out_at)}
 			</span>
 		) : (
-			<OpenShift shift={shift} />
+			<OpenShift clockInAt={shift.clock_in_at} />
 		)}
 		{shift.auto_closed ? (
 			<span className="text-amber-600 text-xs dark:text-amber-400">

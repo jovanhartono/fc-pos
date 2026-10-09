@@ -110,16 +110,12 @@ function PaymentMethodsPage() {
 			{
 				accessorKey: "name",
 				header: "Payment method",
-				cell: ({ row }) => (
-					<span className="font-medium">{row.original.name}</span>
-				),
+				meta: { kind: "name" },
 			},
 			{
 				accessorKey: "code",
 				header: "Code",
-				cell: ({ row }) => (
-					<span className="font-mono">{row.original.code}</span>
-				),
+				meta: { kind: "code" },
 			},
 			{
 				id: "status",

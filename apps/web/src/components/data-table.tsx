@@ -1,13 +1,16 @@
 import type { LinkProps } from "@tanstack/react-router";
 import {
+	type CellContext,
+	flexRender,
 	type RowData,
 	type SortingState,
 	useTable,
 } from "@tanstack/react-table";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { DataTableCards } from "@/components/data-table-cards";
 import {
 	type DataTableColumnDef,
+	type DataTableFeatures,
 	dataTableFeatures,
 } from "@/components/data-table-features";
 import { DataTableGrid } from "@/components/data-table-grid";
@@ -28,6 +31,31 @@ interface DataTableProps<TData extends RowData> {
 	footer?: ReactNode;
 }
 
+// A code is read character by character, a name is what the eye looks for
+// first. Wrapped once here, so the table and the phone card both get it.
+const KIND_CLASS = { code: "font-mono", name: "font-medium" } as const;
+
+const withKindStyles = <TData extends RowData>(
+	columns: DataTableColumnDef<TData>[],
+) =>
+	columns.map((column): DataTableColumnDef<TData> => {
+		const kind = column.meta?.kind;
+		if (!kind) {
+			return column;
+		}
+		const render = column.cell;
+		return {
+			...column,
+			cell: (context: CellContext<DataTableFeatures, TData, unknown>) => (
+				<span className={KIND_CLASS[kind]}>
+					{render
+						? flexRender(render, context)
+						: String(context.getValue() ?? "")}
+				</span>
+			),
+		};
+	});
+
 export const DataTable = <TData extends RowData>({
 	columns,
 	data,
@@ -47,10 +75,11 @@ export const DataTable = <TData extends RowData>({
 
 	// One instance for both layouts, so a sort picked on the desktop table
 	// survives a tablet rotation into the card list.
+	const styledColumns = useMemo(() => withKindStyles(columns), [columns]);
 	const table = useTable({
 		features: dataTableFeatures,
 		data,
-		columns,
+		columns: styledColumns,
 		state: sortable ? { sorting } : undefined,
 		onSortingChange: sortable ? setSorting : undefined,
 	});

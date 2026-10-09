@@ -295,16 +295,12 @@ function UsersPage() {
 			{
 				accessorKey: "username",
 				header: "Username",
-				cell: ({ row }) => (
-					<span className="font-mono">{row.original.username}</span>
-				),
+				meta: { kind: "code" },
 			},
 			{
 				accessorKey: "name",
 				header: "Name",
-				cell: ({ row }) => (
-					<span className="font-medium">{row.original.name}</span>
-				),
+				meta: { kind: "name" },
 			},
 			{
 				accessorKey: "role",

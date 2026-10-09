@@ -300,17 +300,12 @@ function CampaignsPage() {
 			{
 				accessorKey: "code",
 				header: "Code",
-				meta: {
-					mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
-				},
-				cell: ({ row }) => (
-					<span className="font-mono">{row.original.code}</span>
-				),
+				meta: { kind: "code", mobileCard: { slot: "subtitle" } },
 			},
 			{
 				accessorKey: "name",
 				header: "Name",
-				meta: { cellClassName: "min-w-32 whitespace-normal font-medium" },
+				meta: { cellClassName: "min-w-32 whitespace-normal", kind: "name" },
 			},
 			{
 				id: "discount",
@@ -326,9 +321,7 @@ function CampaignsPage() {
 			{
 				id: "stores",
 				header: "Stores",
-				meta: {
-					mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
-				},
+				meta: { mobileCard: { slot: "subtitle" } },
 				cell: ({ row }) => {
 					if (row.original.stores.length === 0) {
 						return "All Stores";
@@ -342,9 +335,7 @@ function CampaignsPage() {
 			{
 				id: "redemption",
 				header: "Redemption",
-				meta: {
-					mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
-				},
+				meta: { mobileCard: { slot: "subtitle" } },
 				cell: ({ row }) => formatCampaignRedemption(row.original),
 			},
 			{

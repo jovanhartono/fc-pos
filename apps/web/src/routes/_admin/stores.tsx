@@ -108,16 +108,12 @@ function StoresPage() {
 			{
 				accessorKey: "code",
 				header: "Code",
-				cell: ({ row }) => (
-					<span className="font-mono">{row.original.code}</span>
-				),
+				meta: { kind: "code" },
 			},
 			{
 				accessorKey: "name",
 				header: "Store",
-				cell: ({ row }) => (
-					<span className="font-medium">{row.original.name}</span>
-				),
+				meta: { kind: "name" },
 			},
 			{ accessorKey: "phone_number", header: "Phone" },
 			{
