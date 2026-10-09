@@ -97,7 +97,10 @@ function CustomersPage() {
 				accessorKey: "email",
 				header: "Email",
 				cell: ({ row }) => (
-					<span title={row.original.email ?? undefined} className="truncate">
+					<span
+						title={row.original.email ?? undefined}
+						className="truncate text-muted-foreground"
+					>
 						{row.original.email ?? "—"}
 					</span>
 				),

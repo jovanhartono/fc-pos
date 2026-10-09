@@ -107,12 +107,18 @@ function PaymentMethodsPage() {
 
 	const columns = useMemo<DataTableColumnDef<PaymentMethod>[]>(
 		() => [
-			{ accessorKey: "name", header: "Payment method" },
+			{
+				accessorKey: "name",
+				header: "Payment method",
+				cell: ({ row }) => (
+					<span className="font-medium">{row.original.name}</span>
+				),
+			},
 			{
 				accessorKey: "code",
 				header: "Code",
 				cell: ({ row }) => (
-					<span className="font-medium">{row.original.code}</span>
+					<span className="font-mono">{row.original.code}</span>
 				),
 			},
 			{

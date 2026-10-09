@@ -8,7 +8,6 @@ import type { DataTableColumnDef } from "@/components/data-table-features";
 import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
-import { Badge } from "@/components/ui/badge";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { type Shift, shiftsQueries } from "@/features/shifts/api";
@@ -44,8 +43,18 @@ export const Route = createFileRoute("/_admin/shifts")({
 	component: ShiftsPage,
 });
 
-const formatDate = (value: Date | string) =>
-	dayjs(value).format("DD MMM YYYY HH:mm");
+interface DateTimeCellProps {
+	value: Date | string;
+}
+
+const DateTimeCell = ({ value }: DateTimeCellProps) => (
+	<div className="flex gap-1.5 lg:flex-col lg:gap-0">
+		<span>{dayjs(value).format("DD MMM YYYY")}</span>
+		<span className="lg:text-muted-foreground lg:text-xs">
+			{dayjs(value).format("HH:mm")}
+		</span>
+	</div>
+);
 
 const formatDuration = (
 	clockIn: Date | string,
@@ -91,15 +100,17 @@ function ShiftsPage() {
 			{
 				id: "clock_in",
 				header: "Clock in",
-				cell: ({ row }) => formatDate(row.original.clock_in_at),
+				cell: ({ row }) => <DateTimeCell value={row.original.clock_in_at} />,
 			},
 			{
 				id: "clock_out",
 				header: "Clock out",
 				cell: ({ row }) =>
-					row.original.clock_out_at
-						? formatDate(row.original.clock_out_at)
-						: "—",
+					row.original.clock_out_at ? (
+						<DateTimeCell value={row.original.clock_out_at} />
+					) : (
+						"—"
+					),
 			},
 			{
 				id: "duration",
@@ -108,12 +119,21 @@ function ShiftsPage() {
 					const open = !row.original.clock_out_at;
 					return (
 						<div className="flex flex-col gap-0.5">
-							<Badge variant={open ? "success" : "outline"}>
-								{formatDuration(
-									row.original.clock_in_at,
-									row.original.clock_out_at,
-								)}
-							</Badge>
+							{open ? (
+								<span className="font-semibold text-emerald-700 dark:text-emerald-400">
+									Open
+									<span className="block font-normal text-muted-foreground text-xs">
+										since {dayjs(row.original.clock_in_at).format("HH:mm")}
+									</span>
+								</span>
+							) : (
+								<span className="font-semibold tabular-nums">
+									{formatDuration(
+										row.original.clock_in_at,
+										row.original.clock_out_at,
+									)}
+								</span>
+							)}
 							{row.original.auto_closed ? (
 								<span className="text-amber-600 text-xs dark:text-amber-400">
 									auto-closed

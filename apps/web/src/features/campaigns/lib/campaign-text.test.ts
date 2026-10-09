@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { formatMoney } from "@/shared/money";
 import {
-	formatCampaignDiscount,
+	formatCampaignLimits,
 	formatCampaignRedemption,
 } from "./campaign-text";
 
@@ -28,76 +28,25 @@ describe("formatCampaignRedemption", () => {
 	});
 });
 
-describe("formatCampaignDiscount", () => {
-	test("a percentage with a max folds the max in", () => {
+describe("formatCampaignLimits", () => {
+	test("a max and a minimum order share one line", () => {
 		expect(
-			formatCampaignDiscount({
-				discount_type: "percentage",
-				discount_value: "10",
+			formatCampaignLimits({
 				max_discount: "30000",
-				buy_quantity: null,
-				free_quantity: null,
+				min_order_total: "120000",
 			}),
-		).toBe(`10% · max ${formatMoney("30000")}`);
-	});
-
-	test("a percentage without a max is just the percentage", () => {
-		expect(
-			formatCampaignDiscount({
-				discount_type: "percentage",
-				discount_value: "10",
-				max_discount: null,
-				buy_quantity: null,
-				free_quantity: null,
-			}),
-		).toBe("10%");
-	});
-
-	test("a fixed discount is the rupiah amount", () => {
-		expect(
-			formatCampaignDiscount({
-				discount_type: "fixed",
-				discount_value: "25000",
-				max_discount: null,
-				buy_quantity: null,
-				free_quantity: null,
-			}),
-		).toBe(formatMoney("25000"));
-	});
-
-	test("a fixed discount with a max folds the max in", () => {
-		expect(
-			formatCampaignDiscount({
-				discount_type: "fixed",
-				discount_value: "25000",
-				max_discount: "20000",
-				buy_quantity: null,
-				free_quantity: null,
-			}),
-		).toBe(`${formatMoney("25000")} · max ${formatMoney("20000")}`);
+		).toBe(`max ${formatMoney("30000")} · min ${formatMoney("120000")}`);
 	});
 
 	test("a max of 0 means no cap, so no max is shown", () => {
 		expect(
-			formatCampaignDiscount({
-				discount_type: "percentage",
-				discount_value: "10",
-				max_discount: "0",
-				buy_quantity: null,
-				free_quantity: null,
-			}),
-		).toBe("10%");
+			formatCampaignLimits({ max_discount: "0", min_order_total: "75000" }),
+		).toBe(`min ${formatMoney("75000")}`);
 	});
 
-	test("buy N get M free names both quantities", () => {
+	test("no cap and no minimum leaves the line empty", () => {
 		expect(
-			formatCampaignDiscount({
-				discount_type: "buy_n_get_m_free",
-				discount_value: "0",
-				max_discount: null,
-				buy_quantity: 2,
-				free_quantity: 1,
-			}),
-		).toBe("Buy 2 Get 1 Free");
+			formatCampaignLimits({ max_discount: null, min_order_total: "0" }),
+		).toBe("");
 	});
 });

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { ListPanel } from "@/components/list-panel";
+import { MoneyValue } from "@/components/money-value";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,6 @@ import { usersQueries } from "@/features/users/api";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 import { cn } from "@/lib/utils";
-import { formatMoney } from "@/shared/money";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -371,11 +371,7 @@ function OrdersPage() {
 						slot: "footer",
 					},
 				},
-				cell: ({ row }) => (
-					<span className="font-semibold">
-						{formatMoney(row.original.total)}
-					</span>
-				),
+				cell: ({ row }) => <MoneyValue value={row.original.total} />,
 			},
 		],
 		[isWide],

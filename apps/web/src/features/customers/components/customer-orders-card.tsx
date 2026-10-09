@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { MoneyValue } from "@/components/money-value";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +11,6 @@ import { describeOrderAmount } from "@/features/customers/lib/order-amount";
 import { type Order, ordersQueries } from "@/features/orders/api";
 import dayjs from "@/lib/dayjs";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
-import { cn } from "@/lib/utils";
 
 // The route loader prefetches with this same size — two copies that drift
 // would leave the page fetching twice and flashing a skeleton it already had.
@@ -27,14 +27,11 @@ const OrderAmountCell = ({ order }: { order: Order }) => {
 
 	return (
 		<div className="grid gap-0.5 text-right">
-			<span
-				className={cn(
-					"text-sm tabular-nums",
-					amount.isPending && "text-muted-foreground",
-				)}
-			>
-				{amount.label}
-			</span>
+			{amount.net === null ? (
+				<span className="text-muted-foreground text-sm">{amount.label}</span>
+			) : (
+				<MoneyValue className="text-sm" value={amount.net} />
+			)}
 			{amount.refunded ? (
 				<span className="text-[11px] text-destructive tabular-nums">
 					{`refunded ${amount.refunded}`}

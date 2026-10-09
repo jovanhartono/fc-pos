@@ -292,13 +292,27 @@ function UsersPage() {
 
 	const columns = useMemo<DataTableColumnDef<User>[]>(
 		() => [
-			{ accessorKey: "username", header: "Username" },
-			{ accessorKey: "name", header: "Name" },
+			{
+				accessorKey: "username",
+				header: "Username",
+				cell: ({ row }) => (
+					<span className="font-mono">{row.original.username}</span>
+				),
+			},
+			{
+				accessorKey: "name",
+				header: "Name",
+				cell: ({ row }) => (
+					<span className="font-medium">{row.original.name}</span>
+				),
+			},
 			{
 				accessorKey: "role",
 				header: "Role",
 				cell: ({ row }) => (
-					<span className="uppercase">{row.original.role}</span>
+					<span className="text-muted-foreground capitalize">
+						{row.original.role}
+					</span>
 				),
 			},
 			{

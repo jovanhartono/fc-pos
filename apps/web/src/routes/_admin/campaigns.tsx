@@ -31,18 +31,15 @@ import {
 	type UpdateCampaignPayload,
 	updateCampaign,
 } from "@/features/campaigns/api";
+import { CampaignDiscount } from "@/features/campaigns/components/campaign-discount";
 import {
 	CampaignForm,
 	type CampaignFormInput,
 } from "@/features/campaigns/components/campaign-form";
 import { VoucherCodesSheet } from "@/features/campaigns/components/voucher-codes-sheet";
-import {
-	formatCampaignDiscount,
-	formatCampaignRedemption,
-} from "@/features/campaigns/lib/campaign-text";
+import { formatCampaignRedemption } from "@/features/campaigns/lib/campaign-text";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
-import { formatMoney } from "@/shared/money";
 import { useDialog } from "@/stores/dialog-store";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -300,27 +297,38 @@ function CampaignsPage() {
 
 	const columns = useMemo<DataTableColumnDef<Campaign>[]>(
 		() => [
-			{ accessorKey: "code", header: "Code" },
+			{
+				accessorKey: "code",
+				header: "Code",
+				meta: {
+					mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
+				},
+				cell: ({ row }) => (
+					<span className="font-mono">{row.original.code}</span>
+				),
+			},
 			{
 				accessorKey: "name",
 				header: "Name",
-				meta: { cellClassName: "min-w-32 whitespace-normal" },
+				meta: { cellClassName: "min-w-32 whitespace-normal font-medium" },
 			},
 			{
 				id: "discount",
 				header: "Discount",
-				meta: { align: "right" },
-				cell: ({ row }) => formatCampaignDiscount(row.original),
-			},
-			{
-				accessorKey: "min_order_total",
-				header: "Min order",
-				meta: { align: "right" },
-				cell: ({ row }) => formatMoney(String(row.original.min_order_total)),
+				meta: { align: "right", mobileCard: { slot: "badges" } },
+				cell: ({ row }) => (
+					<CampaignDiscount
+						campaign={row.original}
+						isActive={deriveCampaignState(row.original) === "active"}
+					/>
+				),
 			},
 			{
 				id: "stores",
 				header: "Stores",
+				meta: {
+					mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
+				},
 				cell: ({ row }) => {
 					if (row.original.stores.length === 0) {
 						return "All Stores";
@@ -334,11 +342,15 @@ function CampaignsPage() {
 			{
 				id: "redemption",
 				header: "Redemption",
+				meta: {
+					mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
+				},
 				cell: ({ row }) => formatCampaignRedemption(row.original),
 			},
 			{
 				id: "status",
 				header: "Status",
+				meta: { mobileCard: { slot: "badges" } },
 				cell: ({ row }) => {
 					const state = deriveCampaignState(row.original);
 					if (state === "expired") {

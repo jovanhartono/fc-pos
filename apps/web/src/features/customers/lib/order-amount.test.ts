@@ -15,6 +15,7 @@ describe("describeOrderAmount", () => {
 		});
 
 		expect(amount.label).toBe(formatMoney("550000"));
+		expect(amount.net).toBe(550_000);
 		expect(amount.label).not.toBe(formatMoney("800000"));
 		expect(amount.refunded).toBe(formatMoney("250000"));
 		expect(amount.isPending).toBe(false);
@@ -58,6 +59,7 @@ describe("describeOrderAmount", () => {
 		expect(amount).toEqual({
 			isPending: true,
 			label: "Unpaid",
+			net: null,
 			refunded: null,
 		});
 	});
@@ -71,7 +73,12 @@ describe("describeOrderAmount", () => {
 			status: "cancelled",
 		});
 
-		expect(amount).toEqual({ isPending: true, label: "—", refunded: null });
+		expect(amount).toEqual({
+			isPending: true,
+			label: "—",
+			net: null,
+			refunded: null,
+		});
 	});
 
 	// The bag awaiting inspection: no number has been agreed, and "Rp 0" would

@@ -89,11 +89,16 @@ const columns: DataTableColumnDef<Category>[] = [
 	{
 		accessorKey: "name",
 		header: "Category",
+		cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
 	},
 	{
 		accessorKey: "description",
 		header: "Description",
-		cell: ({ row }) => row.original.description ?? "—",
+		cell: ({ row }) => (
+			<span className="text-muted-foreground">
+				{row.original.description ?? "—"}
+			</span>
+		),
 	},
 	{
 		id: "status",

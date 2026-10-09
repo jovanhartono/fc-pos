@@ -5,6 +5,7 @@ import { useCallback, useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { ListPanel } from "@/components/list-panel";
+import { MoneyValue } from "@/components/money-value";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
 	ProductForm,
 	type ProductFormState,
 } from "@/features/products/components/product-form";
+import { ProductStock } from "@/features/products/components/product-stock";
 import { formatMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -115,10 +117,16 @@ function ProductsPage() {
 					mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
 				},
 				cell: ({ row }) => (
-					<span className="font-medium">{row.original.sku}</span>
+					<span className="font-mono">{row.original.sku}</span>
 				),
 			},
-			{ accessorKey: "name", header: "Product" },
+			{
+				accessorKey: "name",
+				header: "Product",
+				cell: ({ row }) => (
+					<span className="font-medium">{row.original.name}</span>
+				),
+			},
 			{
 				id: "category",
 				header: "Category",
@@ -131,15 +139,24 @@ function ProductsPage() {
 				accessorKey: "cogs",
 				header: "COGS",
 				meta: { align: "right" },
-				cell: ({ row }) => formatMoney(String(row.original.cogs)),
+				cell: ({ row }) => (
+					<span className="text-muted-foreground">
+						{formatMoney(String(row.original.cogs))}
+					</span>
+				),
 			},
 			{
 				accessorKey: "price",
 				header: "Price",
 				meta: { align: "right" },
-				cell: ({ row }) => formatMoney(String(row.original.price)),
+				cell: ({ row }) => <MoneyValue value={row.original.price} />,
 			},
-			{ accessorKey: "stock", header: "Stock" },
+			{
+				accessorKey: "stock",
+				header: "Stock",
+				meta: { align: "right", mobileCard: { slot: "badges" } },
+				cell: ({ row }) => <ProductStock stock={row.original.stock} />,
+			},
 			{
 				id: "status",
 				header: "Status",

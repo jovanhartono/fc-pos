@@ -5,6 +5,7 @@ import { useCallback, useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { ListPanel } from "@/components/list-panel";
+import { MoneyValue } from "@/components/money-value";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -116,10 +117,16 @@ function ServicesPage() {
 					mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
 				},
 				cell: ({ row }) => (
-					<span className="font-medium">{row.original.code}</span>
+					<span className="font-mono">{row.original.code}</span>
 				),
 			},
-			{ accessorKey: "name", header: "Service" },
+			{
+				accessorKey: "name",
+				header: "Service",
+				cell: ({ row }) => (
+					<span className="font-medium">{row.original.name}</span>
+				),
+			},
 			{
 				id: "category",
 				header: "Category",
@@ -132,7 +139,11 @@ function ServicesPage() {
 				accessorKey: "cogs",
 				header: "COGS",
 				meta: { align: "right" },
-				cell: ({ row }) => formatMoney(String(row.original.cogs)),
+				cell: ({ row }) => (
+					<span className="text-muted-foreground">
+						{formatMoney(String(row.original.cogs))}
+					</span>
+				),
 			},
 			{
 				accessorKey: "price",
@@ -142,7 +153,7 @@ function ServicesPage() {
 					row.original.price === null ? (
 						<span className="text-muted-foreground">No list price</span>
 					) : (
-						formatMoney(String(row.original.price))
+						<MoneyValue value={row.original.price} />
 					),
 			},
 			{

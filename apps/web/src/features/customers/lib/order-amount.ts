@@ -16,6 +16,8 @@ export interface OrderAmountDisplay {
 	/** True when the row carries no number — style it as absent, not as zero. */
 	isPending: boolean;
 	label: string;
+	/** What the shop kept, as a number; null when the row carries no number. */
+	net: number | null;
 }
 
 // What one Order contributed to this customer's Lifetime spend, read off the
@@ -25,7 +27,7 @@ export const describeOrderAmount = (
 	order: OrderAmountState,
 ): OrderAmountDisplay => {
 	if (isCancelledBeforePayment(order)) {
-		return { isPending: true, label: "—", refunded: null };
+		return { isPending: true, label: "—", net: null, refunded: null };
 	}
 	if (order.payment_status === "unpaid") {
 		// The Repair the workshop has not inspected yet: there is no agreed
@@ -33,6 +35,7 @@ export const describeOrderAmount = (
 		return {
 			isPending: true,
 			label: order.has_unpriced_line ? "Pending price" : "Unpaid",
+			net: null,
 			refunded: null,
 		};
 	}
@@ -43,6 +46,7 @@ export const describeOrderAmount = (
 	return {
 		isPending: false,
 		label: formatMoney(String(net)),
+		net,
 		refunded: refunded > 0 ? formatMoney(order.refunded_amount) : null,
 	};
 };

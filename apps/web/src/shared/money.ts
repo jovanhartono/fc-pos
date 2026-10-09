@@ -16,6 +16,19 @@ export const formatMoney = (
 	value: string | number | null | undefined,
 ): string => IDR.format(parseMoney(value));
 
+// Splits "Rp 60.000" into its symbol and amount, so a list can print the Rp
+// small and let the eye land on the number.
+export const formatMoneyParts = (value: string | number | null | undefined) => {
+	const parts = IDR.formatToParts(parseMoney(value));
+	return {
+		currency: parts.find((part) => part.type === "currency")?.value ?? "",
+		amount: parts
+			.filter((part) => part.type !== "currency" && part.type !== "literal")
+			.map((part) => part.value)
+			.join(""),
+	};
+};
+
 // Formats a currency input's raw digit string as the cashier types, so an
 // empty field stays empty instead of showing "Rp0" before anything is keyed.
 export const formatMoneyInput = (digits: string): string =>
