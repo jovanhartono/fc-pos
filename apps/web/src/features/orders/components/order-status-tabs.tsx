@@ -1,3 +1,4 @@
+import { STRIP_FADE, TAB_STRIP_ROW } from "@/components/chip-strip";
 import type { OrderStatusCounts } from "@/features/orders/api";
 import { ORDER_STATUS_VALUES } from "@/features/orders/components/order-filters";
 import { formatOrderStatus } from "@/lib/status";
@@ -19,9 +20,8 @@ const TABS: { value?: OrderStatus; label: string }[] = [
 	})),
 ];
 
-// The status filter as one row of tabs with counts, so picking Processing is
-// one tap and the cashier sees how many wait in each stage without opening
-// anything. Toggle buttons, not a tablist: there are no tab panels behind them.
+// The cashier sees how many Orders wait in each stage and picks one in a tap.
+// Toggle buttons, not a tablist: there are no tab panels behind them.
 export const OrderStatusTabs = ({
 	value,
 	counts,
@@ -32,9 +32,9 @@ export const OrderStatusTabs = ({
 		: undefined;
 
 	return (
-		<fieldset className="min-w-0 border-0 p-0 [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]">
+		<fieldset className={cn("min-w-0 border-0 p-0", STRIP_FADE)}>
 			<legend className="sr-only">Filter by status</legend>
-			<div className="flex overflow-x-auto pr-8 shadow-[inset_0_-1px_0_var(--border)] [scrollbar-width:none]">
+			<div className={TAB_STRIP_ROW}>
 				{TABS.map((tab) => {
 					const isActive = value === tab.value;
 					const count = tab.value ? counts?.[tab.value] : total;

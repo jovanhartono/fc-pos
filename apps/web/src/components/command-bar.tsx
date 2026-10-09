@@ -13,6 +13,7 @@ import {
 	useState,
 } from "react";
 import { HOME_NAV_ITEM, navGroupsForRole } from "@/components/app-navigation";
+import { KeyHint } from "@/components/key-hint";
 import { Badge } from "@/components/ui/badge";
 import { customersQueries } from "@/features/customers/api";
 import { ordersQueries } from "@/features/orders/api";
@@ -48,11 +49,7 @@ const CommandBarPanel = () => {
 	const [activeIndex, setActiveIndex] = useState(0);
 
 	useEffect(() => {
-		// Cashiers say a phone as 0812…; it is stored as +62812….
-		const timer = setTimeout(() => {
-			const trimmed = query.trim();
-			setTerm(/^0\d+$/.test(trimmed) ? `+62${trimmed.slice(1)}` : trimmed);
-		}, 200);
+		const timer = setTimeout(() => setTerm(query.trim()), 200);
 		return () => clearTimeout(timer);
 	}, [query]);
 
@@ -249,10 +246,10 @@ const CommandBarPanel = () => {
 				)}
 			</div>
 
-			<div className="flex items-center gap-4 border-t px-4 py-2 text-muted-foreground text-xs max-sm:hidden">
-				<span>↑ ↓ move</span>
-				<span>↵ open</span>
-				<span>esc close</span>
+			<div className="flex items-center gap-5 border-t bg-muted/50 px-4 py-1.5 text-muted-foreground text-xs max-sm:hidden">
+				<KeyHint keys={["↑", "↓"]} label="move" />
+				<KeyHint keys={["↵"]} label="open" />
+				<KeyHint keys={["esc"]} label="close" />
 			</div>
 		</>
 	);

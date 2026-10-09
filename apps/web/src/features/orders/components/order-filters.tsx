@@ -108,12 +108,9 @@ export const OrderFilters = ({
 	const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 	const isAdmin = role === "admin";
 
-	// Every field that narrows the list is counted here and cleared by Clear all.
-	// A filter the badge does not count is a filter the cashier cannot see, and
-	// one Clear all skips is a filter they cannot undo — which is how a shared
-	// /orders?status=completed link used to leave someone staring at a short
-	// list with nothing on screen explaining it.
-	// Status shows in its own tabs, always on screen, so it is not counted.
+	// Every filter hidden behind this button is counted here and cleared by
+	// Clear all, or a shared link leaves a short list with nothing on screen
+	// explaining it. Status is not here: its tabs are always on screen.
 	const activeCount =
 		(values.paymentStatus ? 1 : 0) +
 		(values.dateFrom || values.dateTo ? 1 : 0) +

@@ -11,6 +11,8 @@ import {
 import { CHART_PALETTE } from "@/features/reports/utils/palette";
 import { formatMoney } from "@/shared/money";
 
+type TrendKey = "revenue" | "services_processed" | "orders_in" | "orders_out";
+
 interface OverviewPanelProps {
 	date: string;
 	storeId?: number;
@@ -146,7 +148,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 	// Each KPI reads its last day against the one before, and shows the past
 	// week as bars, all from the 14-day trend the chart below already draws.
 	const trend = overview?.trend ?? [];
-	type TrendKey = "revenue" | "services_processed" | "orders_in" | "orders_out";
+	const daily = overview?.daily;
 	// A quiet yesterday has no percentage to compare against, and a refund-heavy
 	// one (revenue below zero) would flip the sign, so the line is left off.
 	const vsYesterday = (key: TrendKey) => {
@@ -157,7 +159,37 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 		}
 		return { delta_pct: (today - yesterday) / yesterday };
 	};
-	const lastWeek = (key: TrendKey) => trend.slice(-7).map((row) => row[key]);
+	const kpis: {
+		key: TrendKey;
+		label: string;
+		helper: string;
+		value: string;
+	}[] = [
+		{
+			key: "revenue",
+			label: "Revenue",
+			helper: "Paid today, minus refunds",
+			value: formatMoney(String(daily?.revenue ?? 0)),
+		},
+		{
+			key: "services_processed",
+			label: "Services processed",
+			helper: "First reached QC",
+			value: numberFormatter.format(daily?.services_processed ?? 0),
+		},
+		{
+			key: "orders_in",
+			label: "Orders in",
+			helper: "Created today",
+			value: numberFormatter.format(daily?.orders_in ?? 0),
+		},
+		{
+			key: "orders_out",
+			label: "Orders out",
+			helper: "Picked up today",
+			value: numberFormatter.format(daily?.orders_out ?? 0),
+		},
+	];
 
 	const trendData = trend.map((row) => ({
 		bucket: row.date,
@@ -174,40 +206,17 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 			</div>
 
 			<KpiRow>
-				<KpiCard
-					label="Revenue"
-					value={formatMoney(String(overview?.daily.revenue ?? 0))}
-					helper="Paid today, minus refunds"
-					delta={vsYesterday("revenue")}
-					comparisonLabel="vs yesterday"
-					spark={lastWeek("revenue")}
-				/>
-				<KpiCard
-					label="Services processed"
-					value={numberFormatter.format(
-						overview?.daily.services_processed ?? 0,
-					)}
-					helper="First reached QC"
-					delta={vsYesterday("services_processed")}
-					comparisonLabel="vs yesterday"
-					spark={lastWeek("services_processed")}
-				/>
-				<KpiCard
-					label="Orders in"
-					value={numberFormatter.format(overview?.daily.orders_in ?? 0)}
-					helper="Created today"
-					delta={vsYesterday("orders_in")}
-					comparisonLabel="vs yesterday"
-					spark={lastWeek("orders_in")}
-				/>
-				<KpiCard
-					label="Orders out"
-					value={numberFormatter.format(overview?.daily.orders_out ?? 0)}
-					helper="Picked up today"
-					delta={vsYesterday("orders_out")}
-					comparisonLabel="vs yesterday"
-					spark={lastWeek("orders_out")}
-				/>
+				{kpis.map((kpi) => (
+					<KpiCard
+						key={kpi.key}
+						label={kpi.label}
+						value={kpi.value}
+						helper={kpi.helper}
+						delta={vsYesterday(kpi.key)}
+						comparisonLabel="vs yesterday"
+						spark={trend.slice(-7).map((row) => row[kpi.key])}
+					/>
+				))}
 			</KpiRow>
 
 			<ChartCard

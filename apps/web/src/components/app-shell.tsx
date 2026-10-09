@@ -25,6 +25,7 @@ import {
 } from "@/components/app-navigation";
 import { AppTabBar } from "@/components/app-tab-bar";
 import { useOpenCommandBar } from "@/components/command-bar";
+import { KeyHint } from "@/components/key-hint";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -295,9 +296,7 @@ export function AppShell({ title, children }: AppShellProps) {
 					>
 						<MagnifyingGlassIcon className="size-4" />
 						Search or jump to
-						<kbd className="ml-auto border border-b-2 px-1 font-mono text-[10px]">
-							⌘K
-						</kbd>
+						<KeyHint keys={["⌘K"]} className="ml-auto" />
 					</button>
 				</div>
 
@@ -351,8 +350,7 @@ export function AppShell({ title, children }: AppShellProps) {
 
 			<SidebarInset
 				className={cn(
-					// min-w-0: a table wider than the window scrolls inside its own
-					// frame instead of widening the page past the sidebar.
+					// A table too wide for the window scrolls in its frame, not the page.
 					"min-h-0 min-w-0",
 					tabBarItems.length > 0 && "max-md:[--inset-bottom:0px]",
 				)}

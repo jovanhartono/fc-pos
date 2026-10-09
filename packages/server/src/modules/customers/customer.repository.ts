@@ -2,6 +2,7 @@ import type { InferInsertModel } from "drizzle-orm";
 import { eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { customersTable } from "@/db/schema";
+import { toStoredPhonePrefix } from "@/schema/phone";
 
 // Either the pool-backed db or a transaction handle, so find-or-create can run
 // inside an Order transaction (atomic Customer + Order — see ADR-0011) or
@@ -16,11 +17,14 @@ interface CustomerFilters {
 
 function buildRelationalWhere(filters: CustomerFilters) {
   if (filters.search) {
-    const searchPattern = `%${filters.search}%`;
     return {
       OR: [
-        { name: { ilike: searchPattern } },
-        { phone_number: { ilike: searchPattern } },
+        { name: { ilike: `%${filters.search}%` } },
+        {
+          phone_number: {
+            ilike: `%${toStoredPhonePrefix(filters.search)}%`,
+          },
+        },
       ],
     };
   }
@@ -28,10 +32,12 @@ function buildRelationalWhere(filters: CustomerFilters) {
 
 function buildCountWhere(filters: CustomerFilters) {
   if (filters.search) {
-    const searchPattern = `%${filters.search}%`;
     return or(
-      ilike(customersTable.name, searchPattern),
-      ilike(customersTable.phone_number, searchPattern)
+      ilike(customersTable.name, `%${filters.search}%`),
+      ilike(
+        customersTable.phone_number,
+        `%${toStoredPhonePrefix(filters.search)}%`
+      )
     );
   }
 }

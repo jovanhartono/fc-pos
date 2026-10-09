@@ -19,7 +19,13 @@ import {
   type OrderRefundStatus,
 } from "@/modules/orders/order-refund-status";
 import { isNumericSearch } from "@/modules/orders/order-search";
-import { summarizeOrderFulfillment } from "@/modules/orders/order-status-machine";
+import {
+  deriveItemStatus,
+  type ItemStatusLine,
+  isCollectableItemStatus,
+  summarizeOrderFulfillment,
+} from "@/modules/orders/order-status-machine";
+import { toStoredPhonePrefix } from "@/schema/phone";
 import { PICKUP_OVERDUE_HOURS } from "@/schema/turnaround";
 import { isUnpricedLine } from "@/schema/unpriced-line";
 import { jakartaDayEnd, jakartaDayStart, jakartaNow } from "@/utils/date";
@@ -184,7 +190,7 @@ function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
         customer: {
           OR: [
             { name: { ilike: loweredSearchPrefix } },
-            { phone_number: { like: searchPrefix } },
+            { phone_number: { like: `${toStoredPhonePrefix(search)}%` } },
           ],
         },
       },
@@ -274,9 +280,9 @@ export async function findOrders(
       : await db.query.ordersServicesTable.findMany({
           where: { order_id: { in: orderIds } },
           columns: {
-            id: true,
             order_id: true,
             item_id: true,
+            pickup_event_id: true,
             price: true,
             status: true,
           },
@@ -289,10 +295,8 @@ export async function findOrders(
   >();
   const awaitingPrice = new Set<number>();
   const complained = new Set<number>();
-  // Per Order, each physical Item and whether all its live treatments are
-  // done, for the list's "2 of 3 ready". A refunded or cancelled line no longer
-  // holds an Item back; an Item with nothing live left is not counted.
-  const itemDone = new Map<number, Map<string, boolean>>();
+  // Per Order, each Item's lines, for the list's "2 of 3 ready".
+  const linesByItem = new Map<number, Map<number, ItemStatusLine[]>>();
 
   for (const row of serviceRows) {
     if (row.order_id === null) {
@@ -303,15 +307,9 @@ export async function findOrders(
     current.push(row.status);
     groupedStatuses.set(row.order_id, current);
 
-    if (row.status !== "refunded" && row.status !== "cancelled") {
-      const items = itemDone.get(row.order_id) ?? new Map<string, boolean>();
-      const itemKey =
-        row.item_id === null ? `line-${row.id}` : String(row.item_id);
-      const isDone =
-        row.status === "ready_for_pickup" || row.status === "picked_up";
-      items.set(itemKey, (items.get(itemKey) ?? true) && isDone);
-      itemDone.set(row.order_id, items);
-    }
+    const items = linesByItem.get(row.order_id) ?? new Map();
+    items.set(row.item_id, [...(items.get(row.item_id) ?? []), row]);
+    linesByItem.set(row.order_id, items);
 
     if (isUnpricedLine(row)) {
       awaitingPrice.add(row.order_id);
@@ -320,6 +318,20 @@ export async function findOrders(
       complained.add(row.order_id);
     }
   }
+
+  // The same rollup the pickup desk uses: an Item is ready once it can leave
+  // the counter (or already has); a cancelled one is not counted at all.
+  const countItems = (orderId: number) => {
+    const statuses = [...(linesByItem.get(orderId)?.values() ?? [])]
+      .map(deriveItemStatus)
+      .filter((status) => status !== "cancelled");
+    return {
+      items_total: statuses.length,
+      items_ready: statuses.filter(
+        (status) => isCollectableItemStatus(status) || status === "picked_up"
+      ).length,
+    };
+  };
 
   const items: OrderListItem[] = rows.map((row) => ({
     id: row.id,
@@ -336,9 +348,7 @@ export async function findOrders(
     refunded_amount: row.refunded_amount,
     has_unpriced_line: awaitingPrice.has(row.id),
     has_complaint: complained.has(row.id),
-    items_total: itemDone.get(row.id)?.size ?? 0,
-    items_ready: [...(itemDone.get(row.id)?.values() ?? [])].filter(Boolean)
-      .length,
+    ...countItems(row.id),
     notes: row.notes,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -363,10 +373,8 @@ export async function findOrders(
 
 type OrderStatus = (typeof orderStatusEnum.enumValues)[number];
 
-// The Orders page's status tabs: how many Orders each status holds under the
-// other filters the cashier has set. Same trick as countOrders below, one
-// filtered window per status, so it is one round trip and every tab's number
-// matches the page it opens.
+// The Orders page's status tabs, counted like countOrders below so each tab's
+// number matches the page it opens, in one round trip.
 export async function countOrdersByStatus(
   filters: OrderListFilters,
   scopedStoreIds?: number[]

@@ -6,11 +6,17 @@ import type { PropsWithChildren } from "react";
 // more this way". Unconditional, not phone-only: whether the strip overflows
 // depends on the container — the expanded sidebar cuts it at 1024 too — and when
 // it does fit the fade lands on empty padding.
+export const STRIP_FADE =
+	"[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]";
+
 export const ChipStripScroller = ({ children }: PropsWithChildren) => (
-	<div className="-mx-1 overflow-x-auto pb-1 [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]">
-		{children}
-	</div>
+	<div className={`-mx-1 overflow-x-auto pb-1 ${STRIP_FADE}`}>{children}</div>
 );
+
+// Underlined tabs on one swipeable row (Reports, Orders statuses), with the
+// same fade and the pr-8 that keeps the last tab clear of it.
+export const TAB_STRIP_ROW =
+	"flex overflow-x-auto pr-8 shadow-[inset_0_-1px_0_var(--border)] [scrollbar-width:none]";
 
 // The row inside the scroller stays with each caller: /queue's chips are a
 // tablist, the catalog's are a fieldset of toggles, and flattening that into one

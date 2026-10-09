@@ -123,8 +123,7 @@ export const CustomerOrdersCard = ({
 			<CardHeader>
 				<CardTitle>Orders</CardTitle>
 			</CardHeader>
-			{/* The pager stays outside the table: the pinned phone pager is built
-			    for list pages, and inside this card it would break out of the box. */}
+			{/* Not the table's footer: the pinned phone pager would break out of the card. */}
 			<CardContent className="grid gap-3">
 				<DataTable
 					columns={columns}

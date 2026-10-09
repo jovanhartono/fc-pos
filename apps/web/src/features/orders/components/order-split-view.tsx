@@ -41,7 +41,8 @@ export const OrderSplitView = ({
 				onClose();
 				return;
 			}
-			if (event.key !== "j" && event.key !== "k") {
+			// One Order per press: a held key would load every Order it passed.
+			if ((event.key !== "j" && event.key !== "k") || event.repeat) {
 				return;
 			}
 			const next = orders[event.key === "j" ? openIndex + 1 : openIndex - 1];
@@ -146,8 +147,7 @@ export const OrderSplitView = ({
 						/>
 					</span>
 				</div>
-				{/* The scroller is a plain block: inside a fixed-height grid the Order's
-				    cards (overflow-hidden) were allowed to shrink to a sliver. */}
+				{/* A plain block, not a grid: a grid squeezed the Order's cards. */}
 				<div className="min-h-0 flex-1 overflow-y-auto p-4">
 					<OrderDetailView orderId={openId} />
 				</div>

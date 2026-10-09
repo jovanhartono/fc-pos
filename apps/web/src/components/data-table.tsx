@@ -22,8 +22,7 @@ interface DataTableProps<TData extends RowData> {
 	cardPrimaryColumnId?: string;
 	cardHiddenColumnIds?: string[];
 	getCardLink?: (row: TData) => LinkProps;
-	// The pager. It sits inside the table frame on desktop and pins above the
-	// tab bar on a phone, so Next is always in reach.
+	// The pager, kept in reach: under the rows on desktop, above the tab bar on a phone.
 	footer?: ReactNode;
 }
 
@@ -65,8 +64,7 @@ export const DataTable = <TData extends RowData>({
 					getCardLink={getCardLink}
 				/>
 				{footer ? (
-					// Pinned to the bottom of the scrolling pane, just above the tab
-					// bar, the same way as the queue's Hold to Start Work bar.
+					// Pinned like the queue's Hold to Start Work bar.
 					<div
 						className="sticky bottom-0 z-10 -mx-3 mt-1 border-t bg-background px-3 pt-2 pb-[calc(var(--inset-bottom)+0.5rem)] sm:-mx-6 sm:px-6 md:-mx-8 md:px-8"
 						data-bottom-bar

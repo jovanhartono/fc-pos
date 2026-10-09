@@ -11,6 +11,7 @@ import {
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { DataTableFeatures } from "@/components/data-table-features";
 import "@/components/data-table-meta";
+import { KeyHint } from "@/components/key-hint";
 import {
 	Table,
 	TableBody,
@@ -30,25 +31,6 @@ interface DataTableGridProps<TData extends RowData> {
 	footer?: ReactNode;
 }
 
-interface KeyHintProps {
-	keys: string[];
-	label: string;
-}
-
-const KeyHint = ({ keys, label }: KeyHintProps) => (
-	<span className="inline-flex items-center gap-1.5">
-		{keys.map((key) => (
-			<kbd
-				key={key}
-				className="inline-grid h-5 min-w-5 place-items-center border border-b-2 bg-background px-1 font-mono text-[11px] text-foreground"
-			>
-				{key}
-			</kbd>
-		))}
-		{label}
-	</span>
-);
-
 export const DataTableGrid = <TData extends RowData>({
 	table,
 	isLoading,
@@ -59,7 +41,6 @@ export const DataTableGrid = <TData extends RowData>({
 	const frameRef = useRef<HTMLDivElement>(null);
 	const bodyRef = useRef<HTMLTableSectionElement>(null);
 	const [focusedIndex, setFocusedIndex] = useState(-1);
-	const [hasSearch, setHasSearch] = useState(false);
 	const rows = table.getRowModel().rows;
 	const rowCount = rows.length;
 
@@ -70,20 +51,20 @@ export const DataTableGrid = <TData extends RowData>({
 	}, [rows]);
 
 	useEffect(() => {
-		const search = frameRef.current
-			?.closest("[data-list-panel]")
-			?.querySelector<HTMLInputElement>("[data-list-search]");
-		setHasSearch(search != null);
-
 		// J/K walk the rows and Enter opens the one in the ring, so a cashier
 		// working down the Ready list never reaches for the mouse.
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (isListKeyBlocked(event)) {
 				return;
 			}
-			if (event.key === "/" && search) {
-				event.preventDefault();
-				search.focus();
+			if (event.key === "/") {
+				const search = frameRef.current
+					?.closest("[data-list-panel]")
+					?.querySelector<HTMLInputElement>("[data-list-search]");
+				if (search) {
+					event.preventDefault();
+					search.focus();
+				}
 				return;
 			}
 			if (rowCount === 0) {
@@ -100,13 +81,10 @@ export const DataTableGrid = <TData extends RowData>({
 			}
 			// Only when nothing else has focus: Enter on a focused button (Next,
 			// a sort header, a nav link) must still press that button.
-			if (
-				event.key === "Enter" &&
-				focusedIndex >= 0 &&
-				event.target === document.body
-			) {
-				const row = bodyRef.current?.children[focusedIndex];
-				const target = row?.querySelector<HTMLElement>("a, button");
+			if (event.key === "Enter" && event.target === document.body) {
+				const target = bodyRef.current?.querySelector<HTMLElement>(
+					"[data-focused] a, [data-focused] button",
+				);
 				if (target) {
 					event.preventDefault();
 					target.click();
@@ -115,7 +93,7 @@ export const DataTableGrid = <TData extends RowData>({
 		};
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [rowCount, focusedIndex]);
+	}, [rowCount]);
 
 	useEffect(() => {
 		if (focusedIndex < 0) {
@@ -128,8 +106,7 @@ export const DataTableGrid = <TData extends RowData>({
 
 	return (
 		// Only the rows scroll, so paging through five pages is five clicks on
-		// Next. The frame shrinks to the space left instead of a guessed height,
-		// which in #97 left rows out of reach.
+		// Next without scrolling back down each time.
 		<div
 			ref={frameRef}
 			className="flex min-h-0 flex-col border border-border bg-background"
@@ -240,7 +217,11 @@ export const DataTableGrid = <TData extends RowData>({
 					<KeyHint keys={["J", "K"]} label="move" />
 					<KeyHint keys={["↵"]} label="open" />
 					{footer ? <KeyHint keys={["[", "]"]} label="page" /> : null}
-					{hasSearch ? <KeyHint keys={["/"]} label="search" /> : null}
+					<KeyHint
+						keys={["/"]}
+						label="search"
+						className="hidden items-center gap-1.5 group-has-[[data-list-search]]/list:inline-flex"
+					/>
 				</div>
 			) : null}
 			{footer ? (

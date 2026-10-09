@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { STRIP_FADE, TAB_STRIP_ROW } from "@/components/chip-strip";
 import { cn } from "@/lib/utils";
 
 export interface ReportTab {
@@ -23,16 +24,9 @@ export const ReportShell = ({
 
 	return (
 		<div className="grid grid-cols-1 gap-6">
-			{/* One row that scrolls sideways, fading at the edge like the POS
-			    chips: nine tabs wrapped onto three lines on a phone. */}
-			<nav
-				aria-label="Reports"
-				className="[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]"
-			>
-				<div
-					role="tablist"
-					className="flex overflow-x-auto pr-8 shadow-[inset_0_-1px_0_var(--border)] [scrollbar-width:none]"
-				>
+			{/* One swipeable row: nine tabs wrapped onto three lines on a phone. */}
+			<nav aria-label="Reports" className={STRIP_FADE}>
+				<div role="tablist" className={TAB_STRIP_ROW}>
 					{tabs.map((tab) => {
 						const isActive = activeTab === tab.id;
 						return (
