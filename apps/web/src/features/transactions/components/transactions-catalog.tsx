@@ -1,4 +1,8 @@
-import { BluetoothIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import {
+	BluetoothIcon,
+	MagnifyingGlassIcon,
+	PlusIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
@@ -12,7 +16,10 @@ import { StoreAutocomplete } from "@/features/orders/components/store-autocomple
 import { StoreDevicesDialog } from "@/features/printing/components/store-devices-dialog";
 import { productsQueries } from "@/features/products/api";
 import { servicesQueries } from "@/features/services/api";
-import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
+import {
+	resolveActiveItemId,
+	type TransactionDraftValues,
+} from "@/features/transactions/cart/cart";
 import { useCartOps } from "@/features/transactions/cart/useCart";
 import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
@@ -143,6 +150,22 @@ export function TransactionsCatalog() {
 		[productCart],
 	);
 
+	// How many times each Service is already on the Item a tap would land on,
+	// so the cashier sees a Deep Clean is in without opening the cart.
+	const itemCart = useWatch({ control, name: "itemCart" }) ?? [];
+	const activeItemPointer = useTransactionsPageStore(
+		(state) => state.activeItemId,
+	);
+	const activeItemServiceCount = useMemo(() => {
+		const activeId = resolveActiveItemId(itemCart, activeItemPointer);
+		const counts = new Map<number, number>();
+		for (const line of itemCart.find((item) => item.line_id === activeId)
+			?.services ?? []) {
+			counts.set(line.id, (counts.get(line.id) ?? 0) + 1);
+		}
+		return counts;
+	}, [itemCart, activeItemPointer]);
+
 	return (
 		<div className="grid gap-5">
 			{/* On a phone the card's own padding plus the content's doubled the gap
@@ -266,24 +289,29 @@ export function TransactionsCatalog() {
 						entry.kind === "product" &&
 						Number(entry.item.stock ?? 0) <= productCount;
 					const categoryName = getEntityCategoryName(item, categoryMap);
+					const inCartCount =
+						entry.kind === "product"
+							? productCount
+							: (activeItemServiceCount.get(item.id) ?? 0);
 
 					return (
 						<Card
 							key={`${entry.kind}-${item.id}`}
 							className={cn(
-								"overflow-hidden border-border/70 py-0 transition-colors sm:py-(--card-spacing)",
+								"overflow-hidden border-border/70 py-0 transition-colors",
 								isProduct
 									? "bg-background hover:border-border"
 									: "bg-muted/20 hover:border-border",
+								inCartCount > 0 && "ring-2 ring-foreground",
 							)}
 						>
-							<CardContent className="p-0">
+							<CardContent className="h-full p-0">
 								<button
 									type="button"
 									className={cn(
 										// A phone gets one-line rows: the counter scrolls ~50
 										// Services, and the category chip already names the group.
-										"flex h-full min-h-14 w-full items-center gap-3 p-3 text-left outline-none transition active:scale-[0.97] focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 sm:min-h-22 sm:flex-col sm:items-stretch sm:gap-2",
+										"flex h-full min-h-14 w-full items-center gap-3 p-3 text-left outline-none transition active:scale-[0.97] focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 sm:flex-col sm:items-stretch sm:gap-1.5",
 										isProduct
 											? "hover:bg-muted/30 active:bg-muted/60"
 											: "hover:bg-background/80 active:bg-background/60",
@@ -305,14 +333,39 @@ export function TransactionsCatalog() {
 									<p className="line-clamp-2 min-w-0 flex-1 text-sm font-semibold leading-snug sm:flex-initial">
 										{item.name}
 									</p>
-									<p className="shrink-0 text-sm font-semibold tabular-nums sm:mt-auto">
-										{/* No list price (ADR-0018): the cashier keys the number
-										    on the cart line if agreed, or leaves it blank until
-										    the workshop inspects the item. */}
-										{item.price === null
-											? "Priced per item"
-											: formatMoney(String(item.price))}
-									</p>
+									{/* Price and the add square share the last line, so a tile is
+									    only as tall as its name needs. */}
+									<span className="flex shrink-0 items-center justify-between gap-2 sm:mt-auto sm:pt-1">
+										<span
+											className={cn(
+												"text-sm font-semibold tabular-nums",
+												item.price === null &&
+													"font-medium text-muted-foreground",
+											)}
+										>
+											{/* No list price (ADR-0018): the cashier keys the number
+											    on the cart line if agreed, or leaves it blank until
+											    the workshop inspects the item. */}
+											{item.price === null
+												? "Priced per item"
+												: formatMoney(String(item.price))}
+										</span>
+										<span
+											aria-hidden="true"
+											className={cn(
+												"grid size-7 shrink-0 place-items-center border text-xs font-semibold tabular-nums max-sm:order-first",
+												inCartCount > 0
+													? "border-foreground bg-foreground text-background"
+													: "border-border/70 bg-background max-sm:hidden",
+											)}
+										>
+											{inCartCount > 0 ? (
+												inCartCount
+											) : (
+												<PlusIcon className="size-3.5" weight="bold" />
+											)}
+										</span>
+									</span>
 								</button>
 							</CardContent>
 						</Card>
