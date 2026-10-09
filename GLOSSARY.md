@@ -133,6 +133,10 @@ The stage an OrderService is at: queued, processing, quality check, QC reject, r
 **Quality check**:
 An inspection of an Item before it goes back to the counter, done in shop practice by someone other than the person who cleaned it.
 
+**QC reject**:
+Sending an Item back from quality check because the work is not good enough, with a note saying what is wrong. Every one counts, even when the Item passes on the next try.
+_Avoid_: Rework (that belongs to a Complaint), kickback, redo
+
 **Collectable**:
 Said of an Item still in the shop with no work left on it: every OrderService is ready for pickup, cancelled or refunded, and not all of them are cancelled.
 
@@ -197,6 +201,17 @@ _Avoid_: Revenue, total
 **Lifetime spend**:
 What one Customer has paid across all of their Orders, minus refunds.
 _Avoid_: Total spend, customer revenue, lifetime value, LTV, total
+
+**Day close**:
+The recap of one Store's money for one day, by PaymentMethod, that a cashier checks against the card terminal's settlement slip before going home.
+_Avoid_: Closing shift (a Shift is one User's attendance), end of day, cash-up
+
+**First-pass rate**:
+The share of OrderServices that passed quality check on the first try, with no QC reject. Rework lines left out.
+
+**Self-check**:
+A quality check passed by the same person who did the work on that Item, against shop practice.
+_Avoid_: Own QC, self-QC
 
 **Services processed**:
 The number of OrderServices that reached quality check for the first time.

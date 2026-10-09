@@ -12,6 +12,11 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover";
 import type { KpiDelta } from "@/features/reports/api";
+import {
+	type DeltaAs,
+	formatKpiDeltaChange,
+	kpiDeltaChange,
+} from "@/features/reports/utils/kpi-delta";
 import { cn } from "@/lib/utils";
 
 interface KpiCardProps {
@@ -19,8 +24,10 @@ interface KpiCardProps {
 	value: ReactNode;
 	helper?: ReactNode;
 	info?: ReactNode;
-	delta?: Pick<KpiDelta, "delta_pct"> | null;
+	delta?: KpiDelta | null;
+	deltaAs?: DeltaAs;
 	comparisonLabel?: string;
+	isLowerBetter?: boolean;
 	// The last few days, oldest first; the last bar is the day on the card.
 	spark?: number[];
 	className?: string;
@@ -50,38 +57,29 @@ const SparkBars = ({ values }: SparkBarsProps) => {
 
 const TONE_BY_SIGN = {
 	"-1": {
-		sign: "",
 		tone: "text-destructive",
 		Icon: ArrowDownIcon,
 	},
 	"0": {
-		sign: "±",
 		tone: "text-muted-foreground",
 		Icon: MinusIcon,
 	},
 	"1": {
-		sign: "+",
 		tone: "text-success",
 		Icon: ArrowUpIcon,
 	},
 } as const;
 
-const toneForPct = (pct: number | null | undefined) => {
-	if (pct === null || pct === undefined) {
-		return {
-			sign: "",
-			tone: "text-muted-foreground",
-			Icon: MinusIcon,
-		} as const;
+const toneForChange = (change: number | null, isLowerBetter: boolean) => {
+	if (change === null) {
+		return TONE_BY_SIGN["0"];
 	}
-	return TONE_BY_SIGN[Math.sign(pct).toString() as "-1" | "0" | "1"];
-};
-
-const formatDeltaPct = (pct: number | null, sign: string): string => {
-	if (pct === null) {
-		return "—";
+	const base = TONE_BY_SIGN[Math.sign(change).toString() as "-1" | "0" | "1"];
+	// More QC rejects or Complaints than last period is bad news, so it reads red.
+	if (isLowerBetter && change !== 0) {
+		return { ...base, tone: change > 0 ? "text-destructive" : "text-success" };
 	}
-	return `${sign}${(pct * 100).toFixed(1)}%`;
+	return base;
 };
 
 export const KpiCard = ({
@@ -90,16 +88,17 @@ export const KpiCard = ({
 	helper,
 	info,
 	delta,
+	deltaAs = "percent",
 	comparisonLabel = "vs previous",
+	isLowerBetter = false,
 	spark,
 	className,
 }: KpiCardProps) => {
-	const pct = delta?.delta_pct;
-	const hasDelta = delta !== undefined && delta !== null;
-	const { sign, tone, Icon } = toneForPct(pct);
+	const change = delta ? kpiDeltaChange(delta, deltaAs) : null;
+	const { tone, Icon } = toneForChange(change, isLowerBetter);
 	return (
 		<Card className={cn("border-border/70 py-0", className)}>
-			<CardContent className="grid gap-1 p-3 sm:p-4">
+			<CardContent className="grid min-w-0 gap-1 p-3 sm:p-4">
 				<p className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
 					{label}
 					{info ? (
@@ -126,15 +125,15 @@ export const KpiCard = ({
 					</p>
 					{spark && spark.length > 1 ? <SparkBars values={spark} /> : null}
 				</div>
-				{hasDelta ? (
+				{delta ? (
 					<p
 						className={cn(
-							"flex items-center gap-1 text-[11px] tabular-nums",
+							"flex items-start gap-1 text-[11px] tabular-nums",
 							tone,
 						)}
 					>
-						<Icon className="size-3" weight="bold" />
-						{`${formatDeltaPct(pct ?? null, sign)} ${comparisonLabel}`}
+						<Icon className="mt-0.5 size-3 shrink-0" weight="bold" />
+						{`${formatKpiDeltaChange(change, deltaAs)} ${comparisonLabel}`}
 					</p>
 				) : null}
 				{helper ? (

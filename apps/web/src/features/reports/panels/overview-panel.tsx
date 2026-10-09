@@ -157,7 +157,11 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 		if (today === undefined || yesterday === undefined || yesterday <= 0) {
 			return null;
 		}
-		return { delta_pct: (today - yesterday) / yesterday };
+		return {
+			current: today,
+			previous: yesterday,
+			delta_pct: (today - yesterday) / yesterday,
+		};
 	};
 	const kpis: {
 		key: TrendKey;

@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { type AgingQueueItem, reportsQueries } from "@/features/reports/api";
+import { ItemCodeLink } from "@/features/reports/components/item-code-link";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
@@ -24,13 +24,9 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 		header: "Item code",
 		meta: { mobileCard: { slot: "title" } },
 		cell: ({ row }) => (
-			<Link
-				to="/orders/$orderId"
-				params={{ orderId: String(row.original.order_id) }}
-				className="font-mono underline-offset-4 hover:underline"
-			>
+			<ItemCodeLink orderId={row.original.order_id}>
 				{row.original.item_code ?? `#${row.original.id}`}
-			</Link>
+			</ItemCodeLink>
 		),
 	},
 	{

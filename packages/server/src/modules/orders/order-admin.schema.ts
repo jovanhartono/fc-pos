@@ -92,6 +92,16 @@ export const PATCHOrderServiceStatusSchema = z
     status: z.enum(orderServiceStatusEnum.enumValues),
   })
   .superRefine((value, ctx) => {
+    // The Quality report lists every QC reject with its reason, so the owner
+    // can see what keeps going wrong; a blank one tells them nothing.
+    if (value.status === "qc_reject" && !value.note) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Say what's wrong",
+        path: ["note"],
+      });
+      return;
+    }
     if (value.status !== "cancelled") {
       return;
     }

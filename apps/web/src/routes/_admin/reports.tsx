@@ -7,7 +7,11 @@ import {
 import { lazy, type PropsWithChildren, Suspense } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
-import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
+import {
+	QC_REJECTS_PREVIEW_SIZE,
+	type ReportGranularity,
+	reportsQueries,
+} from "@/features/reports/api";
 import { ReportFilters } from "@/features/reports/components/report-filters";
 import {
 	ReportShell,
@@ -128,8 +132,23 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 			return queryClient.ensureQueryData(
 				reportsQueries.customerAcquisition(range),
 			);
-		case "quality":
-			return queryClient.ensureQueryData(reportsQueries.refundTrend(range));
+		case "quality": {
+			const qualityRange = {
+				from: search.from,
+				to: search.to,
+				store_id: search.store_id,
+			};
+			return Promise.all([
+				queryClient.ensureQueryData(reportsQueries.quality(qualityRange)),
+				queryClient.ensureQueryData(
+					reportsQueries.qcRejects({
+						...qualityRange,
+						limit: QC_REJECTS_PREVIEW_SIZE,
+						offset: 0,
+					}),
+				),
+			]);
+		}
 		case "workers":
 			return queryClient.ensureQueryData(
 				reportsQueries.workerProductivity(range),
@@ -153,7 +172,7 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 
 const PanelSkeleton = () => (
 	<div className="grid gap-6">
-		<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+		<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
 			<div className="h-24 animate-pulse bg-muted/40" />
 			<div className="h-24 animate-pulse bg-muted/40" />
 			<div className="h-24 animate-pulse bg-muted/40" />
@@ -170,7 +189,7 @@ const descriptions: Record<Tab, string> = {
 	operations: "Dropoff and pickup volume over time",
 	payments: "Collected share per payment method",
 	customers: "Acquisition and retention trends",
-	quality: "Refund volume and root-cause mix",
+	quality: "QC rejects, first-pass rate and Complaints",
 	workers: "Services processed and shift productivity",
 	campaigns: "Orders, collected, and discount cost per campaign",
 	"aging-queue": "Items still in queue, oldest first",
@@ -189,7 +208,9 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 	const showRangeFilters =
 		currentTab !== "overview" && currentTab !== "aging-queue";
 	const showGranularity =
-		currentTab !== "overview" && currentTab !== "aging-queue";
+		currentTab !== "overview" &&
+		currentTab !== "aging-queue" &&
+		currentTab !== "quality";
 
 	// Saved only here, when the admin changes a filter, so opening an old link
 	// or reloading never overwrites what they chose.
@@ -295,7 +316,6 @@ function ReportsPage() {
 						from={search.from}
 						to={search.to}
 						storeId={search.store_id}
-						granularity={search.granularity}
 					/>
 				)}
 				{currentTab === "workers" && (

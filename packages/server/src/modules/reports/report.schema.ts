@@ -28,19 +28,34 @@ export const granularitySchema = z
   .optional();
 export type ReportGranularity = NonNullable<z.infer<typeof granularitySchema>>;
 
+const reportRangeFields = {
+  from: dateStringSchema("from"),
+  to: dateStringSchema("to"),
+  store_id: storeIdQuerySchema.optional(),
+};
+
+const fromNotAfterTo = (value: { from: string; to: string }) =>
+  value.from <= value.to;
+const fromNotAfterToIssue = {
+  error: "from must be before or equal to to",
+  path: ["from"],
+};
+
 export const GETReportRangeQuerySchema = z
-  .object({
-    from: dateStringSchema("from"),
-    to: dateStringSchema("to"),
-    store_id: storeIdQuerySchema.optional(),
-    granularity: granularitySchema,
-  })
-  .refine((value) => value.from <= value.to, {
-    error: "from must be before or equal to to",
-    path: ["from"],
-  });
+  .object({ ...reportRangeFields, granularity: granularitySchema })
+  .refine(fromNotAfterTo, fromNotAfterToIssue);
 
 export type GetReportRangeQuery = z.infer<typeof GETReportRangeQuerySchema>;
+
+export const GETQcRejectsQuerySchema = z
+  .object({
+    ...reportRangeFields,
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+    offset: z.coerce.number().int().min(0).optional(),
+  })
+  .refine(fromNotAfterTo, fromNotAfterToIssue);
+
+export type GetQcRejectsQuery = z.infer<typeof GETQcRejectsQuerySchema>;
 
 export const GETAgingQueueQuerySchema = z.object({
   store_id: storeIdQuerySchema.optional(),

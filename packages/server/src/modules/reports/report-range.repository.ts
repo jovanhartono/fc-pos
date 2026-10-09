@@ -41,6 +41,10 @@ import {
   timeWindow,
 } from "@/modules/reports/money-basis";
 import {
+  cleanerOfRound,
+  qualityCheckInRange,
+} from "@/modules/reports/quality.repository";
+import {
   type DateRange,
   type Granularity,
   jakartaBucketExpr,
@@ -547,7 +551,7 @@ export async function findRepeatCustomerStats({ range, storeId }: RangeArgs) {
   };
 }
 
-// ───────────────────────── Refund trend (R5) ─────────────────────────
+// ───────────────────────── Refunds (Financial) ─────────────────────────
 
 export async function listRefundAmountSeries({
   range,
@@ -575,41 +579,6 @@ export async function listRefundAmountSeries({
     bucket: row.bucket,
     amount: Number(row.amount),
     refunds: Number(row.refunds),
-  }));
-}
-
-export async function listRefundReasonSeries({
-  range,
-  storeId,
-  granularity,
-}: SeriesRangeArgs) {
-  const bucket = jakartaBucketExpr(orderRefundsTable.created_at, granularity);
-  const conditions = [
-    ...timeWindow(orderRefundsTable.created_at, range),
-    storeScope(ordersTable.store_id, storeId),
-  ];
-
-  const rows = await db
-    .select({
-      bucket,
-      reason: orderRefundItemsTable.reason,
-      amount: sumMoney(orderRefundItemsTable.amount),
-      items: sql<number>`COUNT(*)::int`,
-    })
-    .from(orderRefundItemsTable)
-    .innerJoin(
-      orderRefundsTable,
-      eq(orderRefundItemsTable.order_refund_id, orderRefundsTable.id)
-    )
-    .innerJoin(ordersTable, eq(orderRefundsTable.order_id, ordersTable.id))
-    .where(and(...conditions))
-    .groupBy(bucket, orderRefundItemsTable.reason);
-
-  return rows.map((row) => ({
-    bucket: row.bucket,
-    reason: row.reason,
-    amount: Number(row.amount),
-    items: Number(row.items),
   }));
 }
 
@@ -684,34 +653,28 @@ function fetchShiftMinutes(range: DateRange, storeId?: number) {
     .groupBy(shiftsTable.user_id);
 }
 
-function fetchReworkCounts(
-  reworkLog: ReturnType<
+// A pair Bayu redid after Adi's round was sent back is Bayu's next check, not
+// Adi's: each check goes to the round's cleaner, as the Quality tab names them.
+function fetchQcCheckCleaners(
+  qcCheckLog: ReturnType<
     typeof alias<typeof orderServiceStatusLogsTable, string>
   >,
   range: DateRange,
   storeId?: number
 ) {
-  // A redo is recorded as the inspector sending the line back — arriving at
-  // qc_reject. Counting the return to processing instead misses every redo,
-  // because there is no direct quality_check → processing move.
-  const conditions = [
-    eq(reworkLog.to_status, "qc_reject"),
-    ...timeWindow(reworkLog.created_at, range),
-    storeScope(ordersTable.store_id, storeId),
-  ];
   return db
     .select({
-      order_service_id: reworkLog.order_service_id,
-      rework_count: sql<number>`COUNT(*)::int`,
+      order_service_id: qcCheckLog.order_service_id,
+      cleaner_id: sql<number | null>`${cleanerOfRound(qcCheckLog)}`,
+      is_reject: sql<boolean>`${eq(qcCheckLog.to_status, "qc_reject")}`,
     })
-    .from(reworkLog)
+    .from(qcCheckLog)
     .innerJoin(
       ordersServicesTable,
-      eq(reworkLog.order_service_id, ordersServicesTable.id)
+      eq(qcCheckLog.order_service_id, ordersServicesTable.id)
     )
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
-    .where(and(...conditions))
-    .groupBy(reworkLog.order_service_id);
+    .where(qualityCheckInRange(qcCheckLog, { range, storeId }));
 }
 
 function fetchWorkerUsers() {
@@ -729,7 +692,11 @@ function aggregatePerWorker(
   attributionRows: Array<{ worker_id: number; order_service_id: number }>,
   processed: Array<{ order_service_id: number }>,
   refunds: Array<{ order_service_id: number; refunds: number }>,
-  reworks: Array<{ order_service_id: number; rework_count: number }>
+  qcChecks: Array<{
+    order_service_id: number;
+    cleaner_id: number | null;
+    is_reject: boolean;
+  }>
 ) {
   const attribution = new Map<number, number>();
   for (const row of attributionRows) {
@@ -751,18 +718,27 @@ function aggregatePerWorker(
       refundMap.set(worker, (refundMap.get(worker) ?? 0) + Number(row.refunds));
     }
   }
-  const reworkTotals = new Map<number, { items: number; events: number }>();
-  for (const row of reworks) {
-    const worker = attribution.get(row.order_service_id);
-    if (worker === undefined) {
+  const qcTotals = new Map<
+    number,
+    { checks: number; events: number; lines: Set<number> }
+  >();
+  for (const row of qcChecks) {
+    if (row.cleaner_id === null) {
       continue;
     }
-    const entry = reworkTotals.get(worker) ?? { items: 0, events: 0 };
-    entry.items += 1;
-    entry.events += Number(row.rework_count);
-    reworkTotals.set(worker, entry);
+    const entry = qcTotals.get(row.cleaner_id) ?? {
+      checks: 0,
+      events: 0,
+      lines: new Set<number>(),
+    };
+    entry.checks += 1;
+    if (row.is_reject) {
+      entry.events += 1;
+      entry.lines.add(row.order_service_id);
+    }
+    qcTotals.set(row.cleaner_id, entry);
   }
-  return { processedMap, refundMap, reworkTotals };
+  return { processedMap, refundMap, qcTotals };
 }
 
 export async function listWorkerProductivityRows({
@@ -773,13 +749,13 @@ export async function listWorkerProductivityRows({
     orderServiceStatusLogsTable,
     "processing_attribution"
   );
-  const reworkLog = alias(orderServiceStatusLogsTable, "rework_log");
+  const qcCheckLog = alias(orderServiceStatusLogsTable, "qc_check_log");
 
-  const [processed, refunds, shiftRows, reworks, workers] = await Promise.all([
+  const [processed, refunds, shiftRows, qcChecks, workers] = await Promise.all([
     listServicesProcessed({ range, storeId }),
     fetchRefundsPerItem(range, storeId),
     fetchShiftMinutes(range, storeId),
-    fetchReworkCounts(reworkLog, range, storeId),
+    fetchQcCheckCleaners(qcCheckLog, range, storeId),
     fetchWorkerUsers(),
   ]);
 
@@ -790,9 +766,6 @@ export async function listWorkerProductivityRows({
   for (const row of refunds) {
     terminalItemIds.add(row.order_service_id);
   }
-  for (const row of reworks) {
-    terminalItemIds.add(row.order_service_id);
-  }
 
   const attributionRows = await fetchAttribution(
     processingLog,
@@ -800,11 +773,11 @@ export async function listWorkerProductivityRows({
     storeId
   );
 
-  const { processedMap, refundMap, reworkTotals } = aggregatePerWorker(
+  const { processedMap, refundMap, qcTotals } = aggregatePerWorker(
     attributionRows,
     processed,
     refunds,
-    reworks
+    qcChecks
   );
 
   const minutesMap = new Map<number, number>();
@@ -812,29 +785,44 @@ export async function listWorkerProductivityRows({
     minutesMap.set(row.user_id, Number(row.minutes));
   }
 
-  return workers
+  const rows = workers
     .map((worker) => {
       const servicesProcessed = processedMap.get(worker.id) ?? 0;
       const refundItems = refundMap.get(worker.id) ?? 0;
       const minutes = minutesMap.get(worker.id) ?? 0;
       const hours = minutes / 60;
       const servicesPerHour = hours > 0 ? servicesProcessed / hours : 0;
-      const rework = reworkTotals.get(worker.id) ?? { items: 0, events: 0 };
-      const reworkRate =
-        servicesProcessed > 0 ? rework.items / servicesProcessed : 0;
+      const qc = qcTotals.get(worker.id);
+      const qcChecked = qc?.checks ?? 0;
+      const qcRejectEvents = qc?.events ?? 0;
+      const qcRejectRate = qcChecked > 0 ? qcRejectEvents / qcChecked : 0;
       return {
         user_id: worker.id,
         user_name: worker.name,
         services_processed: servicesProcessed,
         refund_items: refundItems,
-        rework_items: rework.items,
-        rework_events: rework.events,
-        rework_rate: Number(reworkRate.toFixed(4)),
+        qc_checks: qcChecked,
+        qc_reject_items: qc?.lines.size ?? 0,
+        qc_reject_events: qcRejectEvents,
+        qc_reject_rate: Number(qcRejectRate.toFixed(4)),
         shift_minutes: minutes,
         services_per_hour: Number(servicesPerHour.toFixed(2)),
       };
     })
     .sort((a, b) => b.services_processed - a.services_processed);
+
+  // A pair sent back in two cleaners' rounds is on both their rows but is one
+  // service sent back for the shop.
+  const qcRejects = qcChecks.filter((row) => row.is_reject);
+  const qcRejectItems = new Set(qcRejects.map((row) => row.order_service_id))
+    .size;
+
+  return {
+    rows,
+    qc_checks: qcChecks.length,
+    qc_rejects: qcRejects.length,
+    qc_reject_items: qcRejectItems,
+  };
 }
 
 // ───────────────────────── Campaign effectiveness (R8) ─────────────────────────

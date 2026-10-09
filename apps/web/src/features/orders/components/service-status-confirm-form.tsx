@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import type {
 	NonTerminalServiceStatus,
@@ -19,11 +20,13 @@ export const ServiceStatusConfirmForm = ({
 	updateStatusMutation,
 	closeDialog,
 }: ServiceStatusConfirmFormProps) => {
+	const noteId = useId();
 	const [note, setNote] = useState("");
 	const isPending = updateStatusMutation.isPending;
+	const isReject = nextStatus === "qc_reject";
+	const trimmed = note.trim();
 
 	const handleConfirm = async () => {
-		const trimmed = note.trim();
 		await updateStatusMutation.mutateAsync({
 			serviceId,
 			payload: {
@@ -36,17 +39,32 @@ export const ServiceStatusConfirmForm = ({
 
 	return (
 		<div className="flex flex-col gap-4">
-			<Textarea
-				placeholder="Optional status note"
-				value={note}
-				onChange={(event) => setNote(event.target.value)}
-			/>
+			{isReject ? (
+				<Field>
+					<FieldLabel htmlFor={noteId}>What's wrong?</FieldLabel>
+					<Textarea
+						id={noteId}
+						placeholder="e.g. stain on toe box"
+						value={note}
+						onChange={(event) => setNote(event.target.value)}
+					/>
+				</Field>
+			) : (
+				<Textarea
+					placeholder="Optional status note"
+					value={note}
+					onChange={(event) => setNote(event.target.value)}
+				/>
+			)}
 			<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
 				<Button variant="outline" onClick={closeDialog}>
 					Go back
 				</Button>
-				<Button disabled={isPending} onClick={handleConfirm}>
-					{isPending ? "Saving…" : "Confirm Update"}
+				<Button
+					disabled={isPending || (isReject && !trimmed)}
+					onClick={handleConfirm}
+				>
+					{isPending ? "Saving…" : isReject ? "Reject" : "Confirm Update"}
 				</Button>
 			</div>
 		</div>

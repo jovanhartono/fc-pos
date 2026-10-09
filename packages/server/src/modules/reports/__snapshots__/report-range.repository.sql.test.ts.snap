@@ -262,19 +262,6 @@ exports[`what each money report asks Postgres for one store asks the same questi
 ]
 `;
 
-exports[`what each money report asks Postgres for one store asks the same question for refund reasons 1`] = `
-[
-  {
-    "params": [
-      "2026-07-31T17:00:00.000Z",
-      "2026-08-31T17:00:00.000Z",
-      3,
-    ],
-    "sql": "select to_char("order_refunds"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "order_refund_items"."reason", COALESCE(SUM("order_refund_items"."amount"), 0), COUNT(*)::int from "order_refund_items" inner join "order_refunds" on "order_refund_items"."order_refund_id" = "order_refunds"."id" inner join "orders" on "order_refunds"."order_id" = "orders"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2) and ("orders"."store_id" = $3)) group by to_char("order_refunds"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "order_refund_items"."reason"",
-  },
-]
-`;
-
 exports[`what each money report asks Postgres for one store asks the same question for worker productivity 1`] = `
 [
   {
@@ -305,12 +292,17 @@ exports[`what each money report asks Postgres for one store asks the same questi
   },
   {
     "params": [
+      "processing",
+      1,
+      "qc_reject",
+      "quality_check",
+      "ready_for_pickup",
       "qc_reject",
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select "rework_log"."order_service_id", COUNT(*)::int from "order_service_status_logs" "rework_log" inner join "orders_services" on "rework_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("rework_log"."to_status" = $1) and ("rework_log"."created_at" >= $2) and ("rework_log"."created_at" < $3) and ("orders"."store_id" = $4)) group by "rework_log"."order_service_id"",
+    "sql": "select "qc_check_log"."order_service_id", (select "changed_by" from "order_service_status_logs" "clean_log" where (("clean_log"."order_service_id" = "qc_check_log"."order_service_id") and ("clean_log"."to_status" = $1) and ("clean_log"."created_at" <= "qc_check_log"."created_at")) order by "clean_log"."created_at" desc, "clean_log"."id" desc limit $2), "qc_check_log"."to_status" = $3 from "order_service_status_logs" "qc_check_log" inner join "orders_services" on "qc_check_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("qc_check_log"."from_status" = $4) and ("qc_check_log"."to_status" in ($5, $6)) and ("qc_check_log"."created_at" >= $7) and ("qc_check_log"."created_at" < $8) and ("orders"."store_id" = $9))",
   },
   {
     "params": [
@@ -584,18 +576,6 @@ exports[`what each money report asks Postgres for the whole company asks the sam
 ]
 `;
 
-exports[`what each money report asks Postgres for the whole company asks the same question for refund reasons 1`] = `
-[
-  {
-    "params": [
-      "2026-07-31T17:00:00.000Z",
-      "2026-08-31T17:00:00.000Z",
-    ],
-    "sql": "select to_char("order_refunds"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "order_refund_items"."reason", COALESCE(SUM("order_refund_items"."amount"), 0), COUNT(*)::int from "order_refund_items" inner join "order_refunds" on "order_refund_items"."order_refund_id" = "order_refunds"."id" inner join "orders" on "order_refunds"."order_id" = "orders"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2)) group by to_char("order_refunds"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "order_refund_items"."reason"",
-  },
-]
-`;
-
 exports[`what each money report asks Postgres for the whole company asks the same question for worker productivity 1`] = `
 [
   {
@@ -623,11 +603,16 @@ exports[`what each money report asks Postgres for the whole company asks the sam
   },
   {
     "params": [
+      "processing",
+      1,
+      "qc_reject",
+      "quality_check",
+      "ready_for_pickup",
       "qc_reject",
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select "rework_log"."order_service_id", COUNT(*)::int from "order_service_status_logs" "rework_log" inner join "orders_services" on "rework_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("rework_log"."to_status" = $1) and ("rework_log"."created_at" >= $2) and ("rework_log"."created_at" < $3)) group by "rework_log"."order_service_id"",
+    "sql": "select "qc_check_log"."order_service_id", (select "changed_by" from "order_service_status_logs" "clean_log" where (("clean_log"."order_service_id" = "qc_check_log"."order_service_id") and ("clean_log"."to_status" = $1) and ("clean_log"."created_at" <= "qc_check_log"."created_at")) order by "clean_log"."created_at" desc, "clean_log"."id" desc limit $2), "qc_check_log"."to_status" = $3 from "order_service_status_logs" "qc_check_log" inner join "orders_services" on "qc_check_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("qc_check_log"."from_status" = $4) and ("qc_check_log"."to_status" in ($5, $6)) and ("qc_check_log"."created_at" >= $7) and ("qc_check_log"."created_at" < $8))",
   },
   {
     "params": [

@@ -32,9 +32,17 @@ export type CustomerAcquisitionReport = InferResponseType<
 	(typeof rpc.api.admin.reports)["customer-acquisition"]["$get"]
 >["data"];
 
-export type RefundTrendReport = InferResponseType<
-	(typeof rpc.api.admin.reports)["refund-trend"]["$get"]
+export type QualityReport = InferResponseType<
+	typeof rpc.api.admin.reports.quality.$get
 >["data"];
+
+export type QcRejectItem = InferResponseType<
+	(typeof rpc.api.admin.reports)["qc-rejects"]["$get"]
+>["data"][number];
+
+// The Quality tab's first page and the loader's prefetch must ask for the same
+// page, or every visit refetches.
+export const QC_REJECTS_PREVIEW_SIZE = 10;
 
 export type WorkerProductivityReport = InferResponseType<
 	(typeof rpc.api.admin.reports)["worker-productivity"]["$get"]
@@ -61,6 +69,14 @@ export type FetchReportRangeQuery = {
 	granularity?: ReportGranularity;
 };
 
+export interface FetchQcRejectsQuery {
+	from: string;
+	to: string;
+	store_id?: number;
+	limit?: number;
+	offset?: number;
+}
+
 export interface FetchAgingQueueQuery {
 	store_id?: number;
 	limit?: number;
@@ -79,8 +95,10 @@ export const reportsKeys = {
 		[...reportsKeys.all, "payment-mix", query] as const,
 	customerAcquisition: (query: FetchReportRangeQuery) =>
 		[...reportsKeys.all, "customer-acquisition", query] as const,
-	refundTrend: (query: FetchReportRangeQuery) =>
-		[...reportsKeys.all, "refund-trend", query] as const,
+	quality: (query: FetchReportRangeQuery) =>
+		[...reportsKeys.all, "quality", query] as const,
+	qcRejects: (query: FetchQcRejectsQuery) =>
+		[...reportsKeys.all, "qc-rejects", query] as const,
 	workerProductivity: (query: FetchReportRangeQuery) =>
 		[...reportsKeys.all, "worker-productivity", query] as const,
 	campaignEffectiveness: (query: FetchReportRangeQuery) =>
@@ -126,6 +144,20 @@ async function fetchAgingQueueReport(
 				limit: query?.limit,
 				offset: query?.offset,
 			}),
+		}),
+	);
+	return toPaginated(response);
+}
+
+async function fetchQcRejectsReport(
+	query: FetchQcRejectsQuery,
+): Promise<PaginatedData<QcRejectItem>> {
+	const response = await parseResponse(
+		rpcWithAuth().api.admin.reports["qc-rejects"].$get({
+			query: {
+				...toRangeQuery(query),
+				...toSearchParams({ limit: query.limit, offset: query.offset }),
+			},
 		}),
 	);
 	return toPaginated(response);
@@ -182,15 +214,21 @@ export const reportsQueries = {
 				),
 			staleTime: REPORT_STALE_TIME,
 		}),
-	refundTrend: (query: FetchReportRangeQuery) =>
+	quality: (query: FetchReportRangeQuery) =>
 		queryOptions({
-			queryKey: reportsKeys.refundTrend(query),
+			queryKey: reportsKeys.quality(query),
 			queryFn: () =>
-				parseSuccessData<RefundTrendReport>(
-					rpcWithAuth().api.admin.reports["refund-trend"].$get({
+				parseSuccessData<QualityReport>(
+					rpcWithAuth().api.admin.reports.quality.$get({
 						query: toRangeQuery(query),
 					}),
 				),
+			staleTime: REPORT_STALE_TIME,
+		}),
+	qcRejects: (query: FetchQcRejectsQuery) =>
+		queryOptions({
+			queryKey: reportsKeys.qcRejects(query),
+			queryFn: () => fetchQcRejectsReport(query),
 			staleTime: REPORT_STALE_TIME,
 		}),
 	workerProductivity: (query: FetchReportRangeQuery) =>

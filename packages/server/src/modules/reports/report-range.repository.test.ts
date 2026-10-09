@@ -48,7 +48,7 @@ const only = () => {
   return queries[0];
 };
 
-// report-range.repository.sql.test.ts snapshots all 23 statements in full, so
+// report-range.repository.sql.test.ts snapshots all 22 statements in full, so
 // what each query asks Postgres is pinned there. These two stay behind as the
 // tripwire for a blind `--update-snapshots`: the paid window and the store filter
 // are the two rules that decide what counts as takings, and a regenerated

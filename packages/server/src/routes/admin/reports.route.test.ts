@@ -55,8 +55,15 @@ mock.module("@/modules/reports/report-range.service", () => ({
   getFinancialReport: marker("financial"),
   getOrdersFlowReport: marker("orders-flow"),
   getPaymentMixReport: marker("payment-mix"),
-  getRefundTrendReport: marker("refund-trend"),
   getWorkerProductivityReport: marker("worker-productivity"),
+}));
+
+mock.module("@/modules/reports/quality.service", () => ({
+  getQualityReport: marker("quality"),
+  getQcRejectsReport: (query: { store_id?: number } = {}) => {
+    produced.push({ report: "qc-rejects", storeId: query.store_id });
+    return Promise.resolve({ items: [], meta: {} });
+  },
 }));
 
 const reportsRoutes = (await import("@/routes/admin/reports")).default;
@@ -86,7 +93,8 @@ const REPORTS = [
   { path: "/orders-flow", params: "from=2026-08-01&to=2026-08-05" },
   { path: "/payment-mix", params: "from=2026-08-01&to=2026-08-05" },
   { path: "/customer-acquisition", params: "from=2026-08-01&to=2026-08-05" },
-  { path: "/refund-trend", params: "from=2026-08-01&to=2026-08-05" },
+  { path: "/quality", params: "from=2026-08-01&to=2026-08-05" },
+  { path: "/qc-rejects", params: "from=2026-08-01&to=2026-08-05&limit=10" },
   { path: "/worker-productivity", params: "from=2026-08-01&to=2026-08-05" },
   { path: "/campaign-effectiveness", params: "from=2026-08-01&to=2026-08-05" },
   { path: "/aging-queue", params: "" },
@@ -164,6 +172,24 @@ describe("a store the gate cannot read", () => {
     expect(res.status).toBe(400);
     expect(produced).toEqual([]);
   });
+});
+
+describe("paging through the QC rejects", () => {
+  const refused = [
+    "from=2026-08-01&to=2026-08-05&limit=201",
+    "from=2026-08-01&to=2026-08-05&limit=0",
+    "from=2026-08-01&to=2026-08-05&offset=-1",
+    "from=2026-08-05&to=2026-08-01",
+  ];
+
+  for (const params of refused) {
+    it(`refuses ${params}`, async () => {
+      const res = await call("/qc-rejects", params);
+
+      expect(res.status).toBe(400);
+      expect(produced).toEqual([]);
+    });
+  }
 });
 
 describe("what the gate covers and what it leaves alone", () => {

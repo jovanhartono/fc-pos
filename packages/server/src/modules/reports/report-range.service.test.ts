@@ -33,7 +33,6 @@ const answers = {
   paymentMix: noRows(),
   products: noRows(),
   productsCogs: noRows(),
-  refundReasons: noRows(),
   refunds: noRows(),
   services: noRows(),
   servicesCogs: noRows(),
@@ -52,14 +51,11 @@ const figureOf = (sql: string): keyof typeof answers => {
     return "servicesCogs";
   }
   if (sql.includes('SUM("order_refunds"."total_amount")')) {
-    // The refund trend and the per-store refund rows hand back the same money
+    // The daily refund bars and the per-store refund rows hand back the same money
     // off the same column; only the grouping says which panel asked.
     return sql.includes('group by "orders"."store_id"')
       ? "storeRefunds"
       : "refunds";
-  }
-  if (sql.includes('SUM("order_refund_items"."amount")')) {
-    return "refundReasons";
   }
   if (sql.includes('SUM("discount")')) {
     return "discount";
@@ -95,8 +91,9 @@ mock.module("@/db", () => ({
   }),
 }));
 
-const { getFinancialReport, getPaymentMixReport, getRefundTrendReport } =
-  await import("@/modules/reports/report-range.service");
+const { getFinancialReport, getPaymentMixReport } = await import(
+  "@/modules/reports/report-range.service"
+);
 
 const financial = () => getFinancialReport({ from: FROM, to: TO });
 
@@ -444,40 +441,6 @@ describe("how the shop was paid", () => {
       { bucket: "2026-08-02", pm_1: 0, pm_2: 0 },
       { bucket: "2026-08-03", pm_1: 200_000, pm_2: 0 },
     ]);
-  });
-});
-
-describe("what the shop handed back", () => {
-  it("totals the refunds by reason and leaves untouched reasons at zero", async () => {
-    answers.refundReasons.now = [
-      ["2026-08-03", "damaged", "50000", 1],
-      ["2026-08-03", "lost", "25000", 1],
-    ];
-
-    const report = await getRefundTrendReport({ from: FROM, to: TO });
-
-    expect(report.summary.total_amount).toBe(75_000);
-    expect(report.summary.total_refunds).toBe(1);
-    expect(report.summary.reason_totals).toEqual({
-      damaged: { amount: 50_000, items: 1 },
-      lost: { amount: 25_000, items: 1 },
-      cannot_process: { amount: 0, items: 0 },
-      other: { amount: 0, items: 0 },
-    });
-    expect(report.reason_series[2]).toEqual({
-      bucket: "2026-08-03",
-      damaged: 50_000,
-      lost: 25_000,
-      cannot_process: 0,
-      other: 0,
-    });
-    expect(report.reason_series[0]).toEqual({
-      bucket: "2026-08-01",
-      damaged: 0,
-      lost: 0,
-      cannot_process: 0,
-      other: 0,
-    });
   });
 });
 

@@ -19,7 +19,6 @@ import {
   listProductsCogsSeries,
   listProductsGrossSalesSeries,
   listRefundAmountSeries,
-  listRefundReasonSeries,
   listReturningCustomerOrdersSeries,
   listServicesCogsSeries,
   listServicesGrossSalesSeries,
@@ -55,7 +54,7 @@ interface ReportContext {
   to: string;
 }
 
-function buildContext(query: GetReportRangeQuery): ReportContext {
+export function buildContext(query: GetReportRangeQuery): ReportContext {
   const granularity =
     query.granularity ?? pickGranularity(query.from, query.to);
   const buckets = enumerateBuckets(query.from, query.to, granularity);
@@ -84,7 +83,7 @@ function kpi<T extends number>(current: T, previous: T): KpiDelta<T> {
   };
 }
 
-function buildDeltas<T extends object>(
+export function buildDeltas<T extends object>(
   current: T,
   previous: T
 ): ComparableSummary<T>["deltas"] {
@@ -759,78 +758,15 @@ function customerSummary(
   };
 }
 
-// ───────────────────────── Refund trend ─────────────────────────
-
-export async function getRefundTrendReport(query: GetReportRangeQuery) {
-  const ctx = buildContext(query);
-  const range = getJakartaRange(ctx.from, ctx.to);
-  const storeId = ctx.store_id ?? undefined;
-
-  const [amounts, reasons] = await Promise.all([
-    listRefundAmountSeries({ range, storeId, granularity: ctx.granularity }),
-    listRefundReasonSeries({ range, storeId, granularity: ctx.granularity }),
-  ]);
-
-  const amountMap = indexBy(amounts);
-  const series = ctx.buckets.map((bucket) => ({
-    bucket,
-    amount: amountMap.get(bucket)?.amount ?? 0,
-    refunds: amountMap.get(bucket)?.refunds ?? 0,
-  }));
-
-  const reasonKeys = ["damaged", "cannot_process", "lost", "other"] as const;
-  const reasonBucketMap = new Map<string, Record<string, number>>();
-  for (const row of reasons) {
-    const bucketRow = reasonBucketMap.get(row.bucket) ?? {};
-    bucketRow[row.reason] = (bucketRow[row.reason] ?? 0) + row.amount;
-    reasonBucketMap.set(row.bucket, bucketRow);
-  }
-  const reasonSeries = ctx.buckets.map((bucket) => {
-    const row = reasonBucketMap.get(bucket) ?? {};
-    const filled: Record<string, number | string> = { bucket };
-    for (const reason of reasonKeys) {
-      filled[reason] = row[reason] ?? 0;
-    }
-    return filled;
-  });
-
-  const reasonTotals: Record<string, { amount: number; items: number }> = {
-    damaged: { amount: 0, items: 0 },
-    cannot_process: { amount: 0, items: 0 },
-    lost: { amount: 0, items: 0 },
-    other: { amount: 0, items: 0 },
-  };
-  for (const row of reasons) {
-    reasonTotals[row.reason].amount += row.amount;
-    reasonTotals[row.reason].items += row.items;
-  }
-
-  const grandTotal = series.reduce((s, r) => s + r.amount, 0);
-  const totalRefunds = series.reduce((s, r) => s + r.refunds, 0);
-
-  return {
-    from: ctx.from,
-    to: ctx.to,
-    store_id: ctx.store_id,
-    granularity: ctx.granularity,
-    series,
-    reason_series: reasonSeries,
-    reason_keys: reasonKeys.map((key) => ({ key, label: key })),
-    summary: {
-      total_amount: grandTotal,
-      total_refunds: totalRefunds,
-      reason_totals: reasonTotals,
-    },
-  };
-}
-
 // ───────────────────────── Worker productivity ─────────────────────────
 
 interface WorkerSummary {
   avg_services_per_hour: number;
-  rework_rate: number;
+  qc_reject_rate: number;
+  total_qc_checks: number;
+  total_qc_reject_items: number;
+  total_qc_rejects: number;
   total_refund_items: number;
-  total_rework_items: number;
   total_services_processed: number;
   worker_count: number;
 }
@@ -840,13 +776,13 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
 
-  const [rows, prevRows] = await Promise.all([
+  const [workers, prevWorkers] = await Promise.all([
     listWorkerProductivityRows({ range, storeId }),
     listWorkerProductivityRows({ range: ctx.previous.range, storeId }),
   ]);
 
-  const current = summariseWorkers(rows);
-  const previous = summariseWorkers(prevRows);
+  const current = summariseWorkers(workers);
+  const previous = summariseWorkers(prevWorkers);
 
   return {
     from: ctx.from,
@@ -854,7 +790,7 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
     store_id: ctx.store_id,
     granularity: ctx.granularity,
     previous: { from: ctx.previous.from, to: ctx.previous.to },
-    workers: rows,
+    workers: workers.rows,
     summary: {
       current,
       previous,
@@ -863,22 +799,27 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
   };
 }
 
-function summariseWorkers(
-  rows: Awaited<ReturnType<typeof listWorkerProductivityRows>>
-): WorkerSummary {
+function summariseWorkers({
+  rows,
+  qc_checks: totalQcChecks,
+  qc_rejects: totalQcRejects,
+  qc_reject_items: totalQcRejectItems,
+}: Awaited<ReturnType<typeof listWorkerProductivityRows>>): WorkerSummary {
   const active = rows.filter(
-    (r) => r.services_processed > 0 || r.shift_minutes > 0 || r.rework_items > 0
+    (r) =>
+      r.services_processed > 0 || r.shift_minutes > 0 || r.qc_reject_items > 0
   );
   const totalProcessed = active.reduce((s, r) => s + r.services_processed, 0);
   const totalRefunds = active.reduce((s, r) => s + r.refund_items, 0);
-  const totalRework = active.reduce((s, r) => s + r.rework_items, 0);
   const totalHours = active.reduce((s, r) => s + r.shift_minutes / 60, 0);
   return {
     worker_count: active.length,
     total_services_processed: totalProcessed,
     total_refund_items: totalRefunds,
-    total_rework_items: totalRework,
-    rework_rate: totalProcessed > 0 ? totalRework / totalProcessed : 0,
+    total_qc_checks: totalQcChecks,
+    total_qc_rejects: totalQcRejects,
+    total_qc_reject_items: totalQcRejectItems,
+    qc_reject_rate: totalQcChecks > 0 ? totalQcRejects / totalQcChecks : 0,
     avg_services_per_hour: totalHours > 0 ? totalProcessed / totalHours : 0,
   };
 }
