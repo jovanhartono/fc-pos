@@ -143,7 +143,7 @@ export const DataTableGrid = <TData extends RowData>({
 									<TableHead
 										key={header.id}
 										className={cn(
-											"sticky top-0 z-10 h-9 bg-muted px-3 font-medium text-muted-foreground text-xs",
+											"sticky top-0 z-10 h-9 bg-muted font-medium text-muted-foreground text-xs first:pl-3 last:pr-3",
 											isRight && "text-right",
 											header.column.columnDef.meta?.headerClassName,
 										)}
@@ -206,7 +206,7 @@ export const DataTableGrid = <TData extends RowData>({
 									<TableCell
 										key={cell.id}
 										className={cn(
-											"px-3 py-3",
+											"py-3 first:pl-3 last:pr-3",
 											cell.column.columnDef.meta?.align === "right" &&
 												"text-right tabular-nums",
 											cell.column.columnDef.meta?.cellClassName,

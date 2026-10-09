@@ -12,7 +12,7 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
-import { formatOrderStatus, formatPaymentStatus } from "@/lib/status";
+import { formatPaymentStatus } from "@/lib/status";
 
 export const ORDER_STATUS_VALUES = [
 	"created",
@@ -43,16 +43,8 @@ interface OrderFiltersProps {
 	onChange: (patch: Partial<OrderFilterValues>) => void;
 }
 
-// "" is the all-stores/statuses sentinel — selecting it maps back to undefined.
-const STATUS_ITEMS: Record<string, string> = {
-	"": "All statuses",
-	created: formatOrderStatus("created"),
-	processing: formatOrderStatus("processing"),
-	ready_for_pickup: formatOrderStatus("ready_for_pickup"),
-	completed: formatOrderStatus("completed"),
-	cancelled: formatOrderStatus("cancelled"),
-};
-
+// "" is the all-payments sentinel — selecting it maps back to undefined. Status
+// is not here: it has its own row of tabs above the filters.
 const PAYMENT_ITEMS: Record<string, string> = {
 	"": "All payments",
 	paid: formatPaymentStatus("paid"),
@@ -82,17 +74,6 @@ const FilterControls = ({
 			allOptionLabel={role === "admin" ? "All stores" : undefined}
 			placeholder="Filter by store"
 			triggerClassName="h-10 w-full lg:w-max lg:min-w-40"
-		/>
-		<SelectField
-			id={`${idPrefix}-status`}
-			aria-label="Filter by order status"
-			items={STATUS_ITEMS}
-			value={values.status ?? ""}
-			onValueChange={(value) =>
-				onChange({ status: (value || undefined) as OrderStatusFilter })
-			}
-			placeholder="All statuses"
-			className="w-full lg:w-max lg:min-w-40"
 		/>
 		<SelectField
 			id={`${idPrefix}-payment`}
@@ -132,15 +113,14 @@ export const OrderFilters = ({
 	// one Clear all skips is a filter they cannot undo — which is how a shared
 	// /orders?status=completed link used to leave someone staring at a short
 	// list with nothing on screen explaining it.
+	// Status shows in its own tabs, always on screen, so it is not counted.
 	const activeCount =
-		(values.status ? 1 : 0) +
 		(values.paymentStatus ? 1 : 0) +
 		(values.dateFrom || values.dateTo ? 1 : 0) +
 		(isAdmin && values.storeId ? 1 : 0);
 
 	const handleClearAll = () => {
 		onChange({
-			status: undefined,
 			paymentStatus: undefined,
 			dateFrom: undefined,
 			dateTo: undefined,

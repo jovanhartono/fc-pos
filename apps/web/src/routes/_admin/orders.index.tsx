@@ -23,11 +23,13 @@ import {
 	type OrderFilterValues,
 	PAYMENT_STATUS_VALUES,
 } from "@/features/orders/components/order-filters";
+import { OrderStatusTabs } from "@/features/orders/components/order-status-tabs";
 import { PickupRadar } from "@/features/orders/components/pickup-radar";
 import { getPaymentBadges } from "@/features/orders/lib/payment-badges";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useSheet } from "@/stores/sheet-store";
@@ -51,6 +53,37 @@ const ordersSearchSchema = z.object({
 });
 
 const PAGE_SIZE = 25;
+
+interface ItemsReadyProps {
+	ready: number;
+	total: number;
+}
+
+// How many of the Order's pairs are finished, so the counter sees "2 of 3"
+// before the customer asks whether everything is done.
+const ItemsReady = ({ ready, total }: ItemsReadyProps) => {
+	if (total === 0) {
+		return <span className="text-muted-foreground max-lg:hidden">—</span>;
+	}
+	const isDone = ready === total;
+	return (
+		<div className="grid w-20 gap-1">
+			<span className="text-xs tabular-nums">
+				{`${ready} of ${total}`}
+				<span className="lg:hidden"> ready</span>
+			</span>
+			<span className="h-1 bg-muted">
+				<span
+					className={cn(
+						"block h-full",
+						isDone ? "bg-success" : "bg-foreground",
+					)}
+					style={{ width: `${(ready / total) * 100}%` }}
+				/>
+			</span>
+		</div>
+	);
+};
 
 function buildOrdersListParams(
 	filters: OrderFilterValues & { page: number },
@@ -151,6 +184,21 @@ function OrdersPage() {
 		enabled: canListOrders,
 	});
 
+	// The same filters minus status and paging, so each tab shows what picking
+	// it would list.
+	const statusCountsQuery = useQuery({
+		...ordersQueries.statusCounts(
+			orderQuery && {
+				search: orderQuery.search,
+				store_id: orderQuery.store_id,
+				payment_status: orderQuery.payment_status,
+				date_from: orderQuery.date_from,
+				date_to: orderQuery.date_to,
+			},
+		),
+		enabled: canListOrders,
+	});
+
 	const hasNoStoreAssignment =
 		role !== "admin" && meQuery.isSuccess && userStoreIds.length === 0;
 
@@ -238,6 +286,17 @@ function OrdersPage() {
 				),
 			},
 			{
+				id: "items_ready",
+				header: "Items ready",
+				meta: { mobileCard: { slot: "badges" } },
+				cell: ({ row }) => (
+					<ItemsReady
+						ready={row.original.items_ready}
+						total={row.original.items_total}
+					/>
+				),
+			},
+			{
 				accessorKey: "status",
 				header: "Fulfillment",
 				meta: {
@@ -303,6 +362,11 @@ function OrdersPage() {
 				}
 			/>
 			<ListPanel>
+				<OrderStatusTabs
+					value={search.status}
+					counts={statusCountsQuery.data}
+					onValueChange={(status) => handleFilterChange({ status })}
+				/>
 				<OrderFilters
 					values={search}
 					role={role}

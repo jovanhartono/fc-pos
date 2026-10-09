@@ -5,6 +5,7 @@ import { ordersTable } from "@/db/schema";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { resolveOrCreateCustomer } from "@/modules/customers/customer.service";
 import {
+  countOrdersByStatus,
   findOrders,
   insertItems,
   insertOrder,
@@ -220,6 +221,18 @@ async function resolveOrderScopedStoreIds(user: JWTPayload, storeId?: number) {
     default:
       return unhandledStoreScope(scope);
   }
+}
+
+export async function getOrderStatusCounts(
+  query: GetOrdersQuery,
+  user: JWTPayload
+) {
+  const normalized = normalizeOrderListQuery(query);
+  const scopedStoreIds = await resolveOrderScopedStoreIds(
+    user,
+    normalized.store_id
+  );
+  return countOrdersByStatus(normalized, scopedStoreIds);
 }
 
 export async function listOrders(query?: GetOrdersQuery, user?: JWTPayload) {

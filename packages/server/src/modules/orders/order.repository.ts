@@ -4,6 +4,7 @@ import { type DbExecutor, db } from "@/db";
 import {
   itemsTable,
   orderCountersTable,
+  orderStatusEnum,
   ordersProductsTable,
   ordersServicesTable,
   ordersTable,
@@ -79,6 +80,8 @@ export interface OrderListItem {
   has_complaint: boolean;
   has_unpriced_line: boolean;
   id: number;
+  items_ready: number;
+  items_total: number;
   notes: string | null;
   paid_amount: string;
   payment_method_id: number | null;
@@ -271,7 +274,9 @@ export async function findOrders(
       : await db.query.ordersServicesTable.findMany({
           where: { order_id: { in: orderIds } },
           columns: {
+            id: true,
             order_id: true,
+            item_id: true,
             price: true,
             status: true,
           },
@@ -284,6 +289,10 @@ export async function findOrders(
   >();
   const awaitingPrice = new Set<number>();
   const complained = new Set<number>();
+  // Per Order, each physical Item and whether all its live treatments are
+  // done, for the list's "2 of 3 ready". A refunded or cancelled line no longer
+  // holds an Item back; an Item with nothing live left is not counted.
+  const itemDone = new Map<number, Map<string, boolean>>();
 
   for (const row of serviceRows) {
     if (row.order_id === null) {
@@ -293,6 +302,16 @@ export async function findOrders(
     const current = groupedStatuses.get(row.order_id) ?? [];
     current.push(row.status);
     groupedStatuses.set(row.order_id, current);
+
+    if (row.status !== "refunded" && row.status !== "cancelled") {
+      const items = itemDone.get(row.order_id) ?? new Map<string, boolean>();
+      const itemKey =
+        row.item_id === null ? `line-${row.id}` : String(row.item_id);
+      const isDone =
+        row.status === "ready_for_pickup" || row.status === "picked_up";
+      items.set(itemKey, (items.get(itemKey) ?? true) && isDone);
+      itemDone.set(row.order_id, items);
+    }
 
     if (isUnpricedLine(row)) {
       awaitingPrice.add(row.order_id);
@@ -317,6 +336,9 @@ export async function findOrders(
     refunded_amount: row.refunded_amount,
     has_unpriced_line: awaitingPrice.has(row.id),
     has_complaint: complained.has(row.id),
+    items_total: itemDone.get(row.id)?.size ?? 0,
+    items_ready: [...(itemDone.get(row.id)?.values() ?? [])].filter(Boolean)
+      .length,
     notes: row.notes,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -344,6 +366,24 @@ export async function findOrders(
 // how a pill's number stops matching the total of the page it opens — so the
 // count rides along on buildOrderWhere itself. The window runs before LIMIT, so
 // the single row carries the count of every match, not of the row returned.
+// The Orders page's status tabs: how many Orders each status holds under the
+// other filters the cashier has set. One small count per status, because the
+// filter is a relational query that cannot be grouped.
+export async function countOrdersByStatus(
+  filters: OrderListFilters,
+  scopedStoreIds?: number[]
+) {
+  const statuses = orderStatusEnum.enumValues;
+  const counts = await Promise.all(
+    statuses.map((status) =>
+      countOrders({ ...filters, status }, scopedStoreIds)
+    )
+  );
+  return Object.fromEntries(
+    statuses.map((status, index) => [status, counts[index] ?? 0])
+  ) as Record<(typeof statuses)[number], number>;
+}
+
 export async function countOrders(
   filters: OrderListFilters,
   scopedStoreIds?: number[]

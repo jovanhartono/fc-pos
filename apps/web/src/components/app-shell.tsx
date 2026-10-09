@@ -324,7 +324,9 @@ export function AppShell({ title, children }: AppShellProps) {
 
 			<SidebarInset
 				className={cn(
-					"min-h-0",
+					// min-w-0: a table wider than the window scrolls inside its own
+					// frame instead of widening the page past the sidebar.
+					"min-h-0 min-w-0",
 					tabBarItems.length > 0 && "max-md:[--inset-bottom:0px]",
 				)}
 			>

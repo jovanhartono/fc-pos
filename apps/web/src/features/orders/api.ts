@@ -28,6 +28,10 @@ export type OrderReceipt = InferResponseType<
 	(typeof rpc.api.admin.orders)[":id"]["receipt"]["$get"]
 >["data"];
 
+export type OrderStatusCounts = InferResponseType<
+	typeof rpc.api.admin.orders.counts.$get
+>["data"];
+
 export type OrderServiceQueueCounts = InferResponseType<
 	typeof rpc.api.admin.orders.services.queue.counts.$get
 >["data"];
@@ -213,6 +217,9 @@ export const ordersKeys = {
 	lists: () => [...ordersKeys.all, "list"] as const,
 	list: (query?: FetchOrdersQuery) =>
 		[...ordersKeys.lists(), query ?? {}] as const,
+	// Under lists(), so anything that refreshes the list refreshes its tabs.
+	statusCounts: (query?: FetchOrdersQuery) =>
+		[...ordersKeys.lists(), "status-counts", query ?? {}] as const,
 	detail: (id: number) => [...ordersKeys.all, "detail", id] as const,
 	orderService: (orderId: number, serviceId: number) =>
 		[...ordersKeys.all, "service", orderId, serviceId] as const,
@@ -236,6 +243,17 @@ async function fetchOrdersPage(
 	);
 
 	return toPaginated(response);
+}
+
+async function fetchOrderStatusCounts(query?: FetchOrdersQuery) {
+	const response = await parseResponse(
+		rpcWithAuth().api.admin.orders.counts.$get({
+			query:
+				query && Object.keys(query).length > 0 ? toSearchParams(query) : {},
+		}),
+	);
+
+	return response.data;
 }
 
 export function fetchOrderDetail(id: number) {
@@ -292,6 +310,11 @@ export const ordersQueries = {
 		queryOptions({
 			queryKey: ordersKeys.list(query),
 			queryFn: () => fetchOrdersPage(query),
+		}),
+	statusCounts: (query?: FetchOrdersQuery) =>
+		queryOptions({
+			queryKey: ordersKeys.statusCounts(query),
+			queryFn: () => fetchOrderStatusCounts(query),
 		}),
 	detail: (id: number) =>
 		queryOptions({
