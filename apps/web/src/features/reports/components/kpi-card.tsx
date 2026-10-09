@@ -21,8 +21,32 @@ interface KpiCardProps {
 	info?: ReactNode;
 	delta?: Pick<KpiDelta, "delta_pct"> | null;
 	comparisonLabel?: string;
+	// The last few days, oldest first; the last bar is the day on the card.
+	spark?: number[];
 	className?: string;
 }
+
+interface SparkBarsProps {
+	values: number[];
+}
+
+const SparkBars = ({ values }: SparkBarsProps) => {
+	const max = Math.max(...values, 1);
+	return (
+		<span aria-hidden="true" className="flex h-7 shrink-0 items-end gap-0.5">
+			{values.map((value, index) => (
+				<span
+					key={index}
+					className={cn(
+						"w-1.5",
+						index === values.length - 1 ? "bg-foreground" : "bg-border",
+					)}
+					style={{ height: `${Math.max((value / max) * 100, 6)}%` }}
+				/>
+			))}
+		</span>
+	);
+};
 
 const TONE_BY_SIGN = {
 	"-1": {
@@ -67,14 +91,15 @@ export const KpiCard = ({
 	info,
 	delta,
 	comparisonLabel = "vs previous",
+	spark,
 	className,
 }: KpiCardProps) => {
 	const pct = delta?.delta_pct;
 	const hasDelta = delta !== undefined && delta !== null;
 	const { sign, tone, Icon } = toneForPct(pct);
 	return (
-		<Card className={cn("border-border/70", className)}>
-			<CardContent className="grid gap-1 p-4">
+		<Card className={cn("border-border/70 py-0", className)}>
+			<CardContent className="grid gap-1 p-3 sm:p-4">
 				<p className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
 					{label}
 					{info ? (
@@ -95,9 +120,12 @@ export const KpiCard = ({
 						</Popover>
 					) : null}
 				</p>
-				<p className="break-all text-xl font-semibold tabular-nums sm:text-2xl">
-					{value}
-				</p>
+				<div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+					<p className="break-all text-lg font-semibold tabular-nums sm:text-2xl">
+						{value}
+					</p>
+					{spark && spark.length > 1 ? <SparkBars values={spark} /> : null}
+				</div>
 				{hasDelta ? (
 					<p
 						className={cn(
@@ -122,7 +150,8 @@ interface KpiRowProps {
 }
 
 export const KpiRow = ({ children }: KpiRowProps) => (
-	<div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+	// Two across on a phone, so all four of today's numbers fit above the chart.
+	<div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
 		{children}
 	</div>
 );

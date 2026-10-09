@@ -22,9 +22,17 @@ export const ReportShell = ({
 	const panelId = `reports-panel-${activeTab}`;
 
 	return (
-		<div className="grid gap-6">
-			<nav aria-label="Reports" className="border-border border-b">
-				<div role="tablist" className="-mb-px flex flex-wrap">
+		<div className="grid grid-cols-1 gap-6">
+			{/* One row that scrolls sideways, fading at the edge like the POS
+			    chips: nine tabs wrapped onto three lines on a phone. */}
+			<nav
+				aria-label="Reports"
+				className="[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]"
+			>
+				<div
+					role="tablist"
+					className="flex overflow-x-auto pr-8 shadow-[inset_0_-1px_0_var(--border)] [scrollbar-width:none]"
+				>
 					{tabs.map((tab) => {
 						const isActive = activeTab === tab.id;
 						return (
@@ -38,7 +46,7 @@ export const ReportShell = ({
 								tabIndex={isActive ? 0 : -1}
 								onClick={() => onTabChange(tab.id)}
 								className={cn(
-									"relative px-4 py-3 text-sm transition-colors",
+									"relative shrink-0 whitespace-nowrap px-4 py-3 text-sm transition-colors",
 									"border-b-2",
 									isActive
 										? "border-foreground font-semibold text-foreground"

@@ -143,7 +143,23 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 	);
 	const overview = overviewQuery.data;
 
-	const trendData = (overview?.trend ?? []).map((row) => ({
+	// Each KPI reads its last day against the one before, and shows the past
+	// week as bars, all from the 14-day trend the chart below already draws.
+	const trend = overview?.trend ?? [];
+	type TrendKey = "revenue" | "services_processed" | "orders_in" | "orders_out";
+	// A quiet yesterday has no percentage to compare against, so the line is
+	// left off rather than showing a dash.
+	const vsYesterday = (key: TrendKey) => {
+		const today = trend.at(-1)?.[key];
+		const yesterday = trend.at(-2)?.[key];
+		if (today === undefined || !yesterday) {
+			return null;
+		}
+		return { delta_pct: (today - yesterday) / yesterday };
+	};
+	const lastWeek = (key: TrendKey) => trend.slice(-7).map((row) => row[key]);
+
+	const trendData = trend.map((row) => ({
 		bucket: row.date,
 		orders_in: row.orders_in,
 		orders_out: row.orders_out,
@@ -162,6 +178,9 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 					label="Revenue"
 					value={formatMoney(String(overview?.daily.revenue ?? 0))}
 					helper="Paid today, minus refunds"
+					delta={vsYesterday("revenue")}
+					comparisonLabel="vs yesterday"
+					spark={lastWeek("revenue")}
 				/>
 				<KpiCard
 					label="Services processed"
@@ -169,16 +188,25 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 						overview?.daily.services_processed ?? 0,
 					)}
 					helper="First reached QC"
+					delta={vsYesterday("services_processed")}
+					comparisonLabel="vs yesterday"
+					spark={lastWeek("services_processed")}
 				/>
 				<KpiCard
 					label="Orders in"
 					value={numberFormatter.format(overview?.daily.orders_in ?? 0)}
 					helper="Created today"
+					delta={vsYesterday("orders_in")}
+					comparisonLabel="vs yesterday"
+					spark={lastWeek("orders_in")}
 				/>
 				<KpiCard
 					label="Orders out"
 					value={numberFormatter.format(overview?.daily.orders_out ?? 0)}
 					helper="Picked up today"
+					delta={vsYesterday("orders_out")}
+					comparisonLabel="vs yesterday"
+					spark={lastWeek("orders_out")}
 				/>
 			</KpiRow>
 
@@ -188,6 +216,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 				data={trendData}
 				granularity="day"
 				xTickInterval="equidistantPreserveStart"
+				highlightLatest
 				series={[
 					{ key: "orders_in", label: "Orders in", color: CHART_PALETTE[0] },
 					{ key: "orders_out", label: "Orders out", color: CHART_PALETTE[1] },

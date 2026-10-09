@@ -69,6 +69,9 @@ interface AreaProps extends SeriesChartProps {
 interface BarProps extends SeriesChartProps {
 	variant: "bar" | "stacked-bar";
 	xTickInterval?: XAxisProps["interval"];
+	// Earlier buckets fade so the last one (today) reads first, and the legend
+	// carries each series' total for the whole range.
+	highlightLatest?: boolean;
 }
 
 interface SingleCategory {
@@ -314,6 +317,7 @@ const BarVariant = ({
 	variant,
 	xTickInterval,
 	valueFormatter = formatDefault,
+	highlightLatest = false,
 }: BarProps) => {
 	const config = seriesConfig(series);
 	const stacked = variant === "stacked-bar";
@@ -387,14 +391,38 @@ const BarVariant = ({
 								fill={s.color}
 								stackId={stacked ? "stack" : undefined}
 								radius={stacked ? 0 : [2, 2, 0, 0]}
-							/>
+							>
+								{highlightLatest
+									? data.map((row, index) => (
+											<Cell
+												key={String(row.bucket)}
+												fillOpacity={index === data.length - 1 ? 1 : 0.35}
+											/>
+										))
+									: null}
+							</Bar>
 						))}
-						{series.length > 1 ? (
+						{series.length > 1 && !highlightLatest ? (
 							<ChartLegend content={<ChartLegendContent />} />
 						) : null}
 					</BarChart>
 				</ChartContainer>
 			)}
+			{highlightLatest && !isEmpty ? (
+				<div className="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-3 text-xs">
+					{series.map((s) => (
+						<span key={s.key} className="flex items-center gap-1.5">
+							<span className="size-2" style={{ backgroundColor: s.color }} />
+							{s.label}
+							<span className="font-semibold tabular-nums">
+								{valueFormatter(
+									data.reduce((sum, row) => sum + Number(row[s.key] ?? 0), 0),
+								)}
+							</span>
+						</span>
+					))}
+				</div>
+			) : null}
 		</Shell>
 	);
 };
