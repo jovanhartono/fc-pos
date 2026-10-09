@@ -53,8 +53,7 @@ const WORKER_BLOCKED_QUEUE_STATUSES = new Set<
 	UpdateOrderServiceStatusPayload["status"]
 >(ORDER_TERMINAL_SERVICE_STATUSES);
 
-const LABEL_CLASS =
-	"text-[0.65rem] font-medium uppercase tracking-[0.14em] text-muted-foreground";
+const LABEL_CLASS = "text-xs font-medium text-muted-foreground";
 
 interface BackForReworkNoteProps {
 	orderId: number;
@@ -332,7 +331,7 @@ export function QueueServiceDetail({
 							>
 								<a
 									href={`tel:${detail.customer.phone_number}`}
-									className="font-mono underline underline-offset-2 hover:text-muted-foreground"
+									className="tabular-nums underline underline-offset-2 hover:text-muted-foreground"
 								>
 									{detail.customer.phone_number}
 								</a>

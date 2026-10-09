@@ -313,7 +313,7 @@ function CampaignsPage() {
 			},
 			{
 				accessorKey: "min_order_total",
-				header: "Min Order",
+				header: "Min order",
 				cell: ({ row }) => formatMoney(String(row.original.min_order_total)),
 			},
 			{

@@ -108,7 +108,7 @@ export const QualityPanel = ({
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+					<CardTitle className="text-sm font-semibold text-foreground">
 						Reason breakdown
 					</CardTitle>
 				</CardHeader>
@@ -124,7 +124,7 @@ export const QualityPanel = ({
 											<span className="truncate text-sm font-medium">
 												{REASON_LABELS[reason]}
 											</span>
-											<span className="font-mono text-sm tabular-nums">
+											<span className="text-sm tabular-nums">
 												{formatMoney(String(totals.amount))}
 											</span>
 										</div>
@@ -134,7 +134,7 @@ export const QualityPanel = ({
 												style={{ width: `${share * 100}%` }}
 											/>
 										</div>
-										<div className="flex items-center justify-between font-mono text-[11px] tabular-nums text-muted-foreground">
+										<div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
 											<span>{`${numberFormatter.format(totals.items)} items`}</span>
 											<span>{percentFormatter.format(share)}</span>
 										</div>

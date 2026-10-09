@@ -36,8 +36,7 @@ interface ReportFiltersProps {
 	showGranularity?: boolean;
 }
 
-const FIELD_LABEL =
-	"font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground";
+const FIELD_LABEL = "text-[13px] font-medium text-muted-foreground";
 
 const GRANULARITY_OPTIONS: {
 	id: ReportGranularity | "auto";

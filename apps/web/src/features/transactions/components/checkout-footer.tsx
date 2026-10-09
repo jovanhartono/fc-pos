@@ -76,7 +76,7 @@ export const CheckoutFooter = ({
 			{submitError ? <FieldError>{submitError}</FieldError> : null}
 			<div className="flex items-center justify-between gap-3">
 				<div className="grid gap-0.5">
-					<span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+					<span className="text-[13px] font-medium text-muted-foreground">
 						Total
 					</span>
 					<span className="text-base font-semibold">

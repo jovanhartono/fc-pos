@@ -38,7 +38,7 @@ const CategoryBars = ({
 							<span className="truncate text-sm font-medium">
 								{row.category_name}
 							</span>
-							<span className="font-mono text-sm tabular-nums">
+							<span className="text-sm tabular-nums">
 								{formatMoney(String(row.gross_sales))}
 							</span>
 						</div>
@@ -48,7 +48,7 @@ const CategoryBars = ({
 								style={{ width: `${pct}%` }}
 							/>
 						</div>
-						<span className="font-mono text-[11px] text-muted-foreground tabular-nums">
+						<span className="text-[11px] text-muted-foreground tabular-nums">
 							{formatServiceCount(row.count)}
 						</span>
 					</div>
@@ -77,11 +77,11 @@ const TopServicesList = ({
 				>
 					<div className="min-w-0">
 						<p className="truncate text-sm font-medium">{row.service_name}</p>
-						<p className="font-mono text-[11px] tabular-nums text-muted-foreground">
+						<p className="text-[11px] tabular-nums text-muted-foreground">
 							{formatServiceCount(row.count)}
 						</p>
 					</div>
-					<p className="font-mono text-sm tabular-nums">
+					<p className="text-sm tabular-nums">
 						{formatMoney(String(row.gross_sales))}
 					</p>
 				</div>
@@ -111,12 +111,12 @@ const BranchBreakdown = ({
 					<div key={row.store_id} className="grid gap-1">
 						<div className="flex items-center justify-between gap-2">
 							<span className="flex items-center gap-2 truncate text-sm font-medium">
-								<span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+								<span className="font-mono text-[11px] uppercase text-muted-foreground">
 									{row.store_code}
 								</span>
 								<span className="truncate">{row.store_name}</span>
 							</span>
-							<span className="font-mono text-sm tabular-nums">
+							<span className="text-sm tabular-nums">
 								{formatMoney(String(row.revenue))}
 							</span>
 						</div>
@@ -126,7 +126,7 @@ const BranchBreakdown = ({
 								style={{ width: `${pct}%` }}
 							/>
 						</div>
-						<div className="flex items-center justify-between font-mono text-[11px] tabular-nums text-muted-foreground">
+						<div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
 							<span>{`${row.orders_in} in · ${row.orders_out} out`}</span>
 							<span>{percentFormatter.format(share)}</span>
 						</div>
@@ -152,7 +152,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 	return (
 		<div className="grid gap-6">
 			<div className="flex items-end justify-between gap-3">
-				<p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+				<p className="text-[13px] font-medium text-muted-foreground">
 					{`Snapshot · ${dayjs(date).format("MMM D, YYYY")}`}
 				</p>
 			</div>
@@ -198,7 +198,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 			<div className="grid gap-3 xl:grid-cols-2">
 				<Card className="border-border/70">
 					<CardHeader>
-						<CardTitle className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+						<CardTitle className="text-sm font-semibold text-foreground">
 							Gross sales by category · today
 						</CardTitle>
 					</CardHeader>
@@ -208,7 +208,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 				</Card>
 				<Card className="border-border/70">
 					<CardHeader>
-						<CardTitle className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+						<CardTitle className="text-sm font-semibold text-foreground">
 							Top services by gross sales · today
 						</CardTitle>
 					</CardHeader>
@@ -220,7 +220,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+					<CardTitle className="text-sm font-semibold text-foreground">
 						Revenue by store · today
 					</CardTitle>
 				</CardHeader>

@@ -43,7 +43,7 @@ const ErrorCard = ({ error, reset }: ErrorComponentProps) => {
 
 			<CardContent className="grid gap-3">
 				<div className="grid gap-1">
-					<div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+					<div className="text-xs font-medium text-muted-foreground">
 						Details
 					</div>
 					<pre className="max-h-56 overflow-auto border bg-muted/50 px-3 py-2 text-[11px] leading-5 whitespace-pre-wrap break-words">

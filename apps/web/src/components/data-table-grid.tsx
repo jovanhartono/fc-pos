@@ -46,7 +46,7 @@ export const DataTableGrid = <TData extends RowData>({
 							<TableHead
 								key={header.id}
 								className={cn(
-									"sticky top-0 z-10 h-9 bg-muted font-medium font-mono text-[10px] text-muted-foreground uppercase tracking-[0.18em]",
+									"sticky top-0 z-10 h-9 bg-muted font-medium text-muted-foreground text-xs",
 									header.column.columnDef.meta?.headerClassName,
 								)}
 							>
@@ -55,9 +55,7 @@ export const DataTableGrid = <TData extends RowData>({
 										type="button"
 										onClick={header.column.getToggleSortingHandler()}
 										className={cn(
-											// Browsers force text-transform:none on <button>, so restate
-											// uppercase here to match the non-sortable plain-text headers.
-											"flex items-center gap-1 uppercase transition-colors hover:text-foreground",
+											"flex items-center gap-1 transition-colors hover:text-foreground",
 											sortState && "text-foreground",
 										)}
 									>
@@ -93,7 +91,7 @@ export const DataTableGrid = <TData extends RowData>({
 				<TableRow>
 					<TableCell
 						colSpan={table.getAllLeafColumns().length || 1}
-						className="h-20 text-center font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-[0.18em] md:h-24"
+						className="h-20 text-center text-muted-foreground text-sm md:h-24"
 					>
 						Loading…
 					</TableCell>
@@ -118,7 +116,7 @@ export const DataTableGrid = <TData extends RowData>({
 				<TableRow>
 					<TableCell
 						colSpan={table.getAllLeafColumns().length || 1}
-						className="h-20 text-center font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-[0.18em] md:h-24"
+						className="h-20 text-center text-muted-foreground text-sm md:h-24"
 					>
 						{emptyMessage}
 					</TableCell>

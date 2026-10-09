@@ -172,7 +172,7 @@ function OrdersPage() {
 		() => [
 			{
 				accessorKey: "code",
-				header: "Order Code",
+				header: "Order code",
 				meta: {
 					mobileCard: {
 						slot: "title",
@@ -200,7 +200,7 @@ function OrdersPage() {
 			},
 			{
 				id: "created_at",
-				header: "Created At",
+				header: "Created at",
 				meta: {
 					mobileCard: {
 						slot: "eyebrow",
@@ -269,7 +269,7 @@ function OrdersPage() {
 					},
 				},
 				cell: ({ row }) => (
-					<div className="text-right font-mono font-medium tabular-nums">
+					<div className="text-right font-medium tabular-nums">
 						{formatMoney(row.original.total)}
 					</div>
 				),
@@ -301,7 +301,7 @@ function OrdersPage() {
 						onChange={handleFilterChange}
 					/>
 					{hasNoStoreAssignment ? (
-						<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-[0.18em]">
+						<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center text-muted-foreground text-sm">
 							No store assigned
 						</div>
 					) : (

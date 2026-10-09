@@ -95,7 +95,7 @@ export const PaymentsPanel = ({
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+					<CardTitle className="text-sm font-semibold text-foreground">
 						Mix share
 					</CardTitle>
 				</CardHeader>
@@ -110,7 +110,7 @@ export const PaymentsPanel = ({
 										<span className="truncate text-sm font-medium">
 											{m.payment_method_name}
 										</span>
-										<span className="font-mono text-sm tabular-nums">
+										<span className="text-sm tabular-nums">
 											{formatMoney(String(m.collected))}
 										</span>
 									</div>
@@ -120,7 +120,7 @@ export const PaymentsPanel = ({
 											style={{ width: `${m.share * 100}%` }}
 										/>
 									</div>
-									<div className="flex items-center justify-between font-mono text-[11px] tabular-nums text-muted-foreground">
+									<div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
 										<span>{`${m.orders} orders`}</span>
 										<span>{percentFormatter.format(m.share)}</span>
 									</div>

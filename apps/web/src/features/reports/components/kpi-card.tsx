@@ -75,7 +75,7 @@ export const KpiCard = ({
 	return (
 		<Card className={cn("border-border/70", className)}>
 			<CardContent className="grid gap-1 p-4">
-				<p className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+				<p className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
 					{label}
 					{info ? (
 						// A popover, not a tooltip: the owner checks a customer on a phone
@@ -95,13 +95,13 @@ export const KpiCard = ({
 						</Popover>
 					) : null}
 				</p>
-				<p className="break-all font-mono text-xl font-semibold tabular-nums sm:text-2xl">
+				<p className="break-all text-xl font-semibold tabular-nums sm:text-2xl">
 					{value}
 				</p>
 				{hasDelta ? (
 					<p
 						className={cn(
-							"flex items-center gap-1 font-mono text-[11px] tabular-nums",
+							"flex items-center gap-1 text-[11px] tabular-nums",
 							tone,
 						)}
 					>

@@ -29,14 +29,14 @@ const OrderAmountCell = ({ order }: { order: Order }) => {
 		<div className="grid gap-0.5 text-right">
 			<span
 				className={cn(
-					"font-mono text-sm tabular-nums",
+					"text-sm tabular-nums",
 					amount.isPending && "text-muted-foreground",
 				)}
 			>
 				{amount.label}
 			</span>
 			{amount.refunded ? (
-				<span className="font-mono text-[11px] text-destructive tabular-nums">
+				<span className="text-[11px] text-destructive tabular-nums">
 					{`refunded ${amount.refunded}`}
 				</span>
 			) : null}
@@ -79,7 +79,7 @@ export const CustomerOrdersCard = ({
 				header: "Date",
 				meta: { mobileCard: { slot: "eyebrow" } },
 				cell: ({ row }) => (
-					<span className="font-mono text-xs tabular-nums">
+					<span className="text-xs tabular-nums">
 						{dayjs(row.original.created_at).format("DD MMM YYYY")}
 					</span>
 				),
@@ -93,7 +93,7 @@ export const CustomerOrdersCard = ({
 				id: "items",
 				header: "Items",
 				cell: ({ row }) => (
-					<span className="font-mono tabular-nums">
+					<span className="tabular-nums">
 						{row.original.fulfillment.total_count}
 					</span>
 				),

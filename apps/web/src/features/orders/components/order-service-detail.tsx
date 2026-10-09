@@ -202,7 +202,7 @@ const ServicePriceSection = ({
 			<div className="flex items-center justify-between gap-3">
 				<div>
 					<p className="text-muted-foreground text-xs">Price</p>
-					<p className="mt-0.5 font-mono font-medium tabular-nums">
+					<p className="mt-0.5 font-medium tabular-nums">
 						{price === null ? "Not set" : formatMoney(price)}
 					</p>
 				</div>

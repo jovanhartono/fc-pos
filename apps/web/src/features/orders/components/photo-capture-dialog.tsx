@@ -29,7 +29,7 @@ const TopChrome = () => {
 			</button>
 
 			{!state.isShooting && state.photoCount > 1 ? (
-				<p className="justify-self-center font-mono text-xs text-white/70 tabular-nums">
+				<p className="justify-self-center text-xs text-white/70 tabular-nums">
 					{state.activeIndex + 1} / {state.photoCount}
 				</p>
 			) : (

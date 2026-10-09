@@ -22,9 +22,7 @@ export const OrderReasonCallout = ({
 			className,
 		)}
 	>
-		<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-			{label}
-		</p>
+		<p className="text-muted-foreground text-xs font-medium">{label}</p>
 		{reason ? <p className="mt-1 text-sm font-medium">{reason}</p> : null}
 		{note ? <p className="text-muted-foreground mt-1 text-sm">{note}</p> : null}
 		{children}

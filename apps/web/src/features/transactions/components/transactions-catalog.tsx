@@ -225,7 +225,7 @@ export function TransactionsCatalog() {
 										variant={activeCategory === "all" ? "default" : "outline"}
 									>
 										All
-										<span className="font-mono font-semibold tabular-nums">
+										<span className="font-semibold tabular-nums">
 											{catalogEntries.length}
 										</span>
 									</Button>
@@ -242,7 +242,7 @@ export function TransactionsCatalog() {
 												variant={isActive ? "default" : "outline"}
 											>
 												{category.name}
-												<span className="font-mono font-semibold tabular-nums">
+												<span className="font-semibold tabular-nums">
 													{category.count}
 												</span>
 											</Button>
@@ -298,14 +298,14 @@ export function TransactionsCatalog() {
 									aria-label={`Add ${item.name}`}
 								>
 									{categoryName ? (
-										<span className="hidden font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:inline">
+										<span className="hidden text-xs font-medium text-muted-foreground sm:inline">
 											{categoryName}
 										</span>
 									) : null}
 									<p className="line-clamp-2 min-w-0 flex-1 text-sm font-semibold leading-snug sm:flex-initial">
 										{item.name}
 									</p>
-									<p className="shrink-0 font-mono text-sm font-semibold tabular-nums sm:mt-auto">
+									<p className="shrink-0 text-sm font-semibold tabular-nums sm:mt-auto">
 										{/* No list price (ADR-0018): the cashier keys the number
 										    on the cart line if agreed, or leaves it blank until
 										    the workshop inspects the item. */}

@@ -104,7 +104,7 @@ function CustomersPage() {
 			},
 			{
 				id: "origin_store",
-				header: "Origin Store",
+				header: "Origin store",
 				cell: ({ row }) => row.original.originStore?.name ?? "—",
 			},
 			{

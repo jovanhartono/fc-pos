@@ -332,7 +332,7 @@ const OrderLineReversalForm = <R extends string>({
 						return (
 							<Fragment key={field.id}>
 								{showKindHeader ? (
-									<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+									<p className="text-muted-foreground text-xs font-medium">
 										{line?.kind === "product" ? "Products" : "Services"}
 									</p>
 								) : null}
@@ -358,7 +358,7 @@ const OrderLineReversalForm = <R extends string>({
 				{capsByLineKey ? (
 					<div className="flex items-center justify-between border-t pt-3 text-sm">
 						<span className="text-muted-foreground">Refund total</span>
-						<span className="font-medium font-mono tabular-nums">
+						<span className="font-medium tabular-nums">
 							{formatMoney(String(totalRefund))}
 						</span>
 					</div>
@@ -437,7 +437,7 @@ const ReversalItemRow = ({
 						</FieldLabel>
 						{isRework ? <Badge variant="info">Rework</Badge> : null}
 						{amount !== undefined ? (
-							<span className="ml-auto font-mono text-sm tabular-nums">
+							<span className="ml-auto text-sm tabular-nums">
 								{formatMoney(String(amount))}
 							</span>
 						) : null}

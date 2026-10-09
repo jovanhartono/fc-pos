@@ -153,7 +153,7 @@ export const CustomersPanel = ({
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+					<CardTitle className="text-sm font-semibold text-foreground">
 						Top spenders
 					</CardTitle>
 				</CardHeader>
@@ -173,7 +173,7 @@ export const CustomersPanel = ({
 									<div key={c.customer_id} className="grid gap-1">
 										<div className="flex items-center justify-between gap-2">
 											<span className="flex items-center gap-2 truncate text-sm font-medium">
-												<span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+												<span className="text-[13px] font-medium text-muted-foreground tabular-nums">
 													{`#${idx + 1}`}
 												</span>
 												<CustomerLink
@@ -182,7 +182,7 @@ export const CustomersPanel = ({
 													name={c.customer_name}
 												/>
 											</span>
-											<span className="font-mono text-sm tabular-nums">
+											<span className="text-sm tabular-nums">
 												{formatMoney(String(c.collected))}
 											</span>
 										</div>
@@ -192,7 +192,7 @@ export const CustomersPanel = ({
 												style={{ width: `${pct}%` }}
 											/>
 										</div>
-										<div className="flex items-center justify-between font-mono text-[11px] tabular-nums text-muted-foreground">
+										<div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
 											<span>{c.customer_phone}</span>
 											<span>{`${numberFormatter.format(c.orders)} orders`}</span>
 										</div>

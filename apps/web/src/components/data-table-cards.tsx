@@ -121,7 +121,7 @@ export const DataTableCards = <TData extends RowData>({
 
 	if (rows.length === 0) {
 		return (
-			<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-[0.18em] lg:hidden">
+			<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center text-muted-foreground text-sm lg:hidden">
 				{emptyMessage}
 			</div>
 		);
@@ -190,7 +190,7 @@ export const DataTableCards = <TData extends RowData>({
 												) : null}
 												<span
 													className={cn(
-														"font-medium font-mono text-[10px] text-muted-foreground uppercase tracking-[0.18em]",
+														"font-medium text-muted-foreground text-xs",
 														mobileCard?.className,
 													)}
 												>
@@ -211,7 +211,7 @@ export const DataTableCards = <TData extends RowData>({
 												<div
 													key={cell.id}
 													className={cn(
-														"font-mono font-semibold text-foreground text-sm tabular-nums",
+														"font-semibold text-foreground text-sm tabular-nums",
 														mobileCard?.className,
 													)}
 												>
@@ -239,7 +239,7 @@ export const DataTableCards = <TData extends RowData>({
 										{primaryCell ? (
 											<div
 												className={cn(
-													"min-w-0 flex-1 wrap-break-word font-mono font-semibold text-[15px] text-foreground leading-tight tracking-tight",
+													"min-w-0 flex-1 wrap-break-word font-semibold text-[15px] text-foreground leading-tight tracking-tight",
 													// Centres the first line on the Edit button beside it.
 													titleEndCells.length > 0 && "pt-1",
 													primaryConfig?.className,
@@ -335,7 +335,7 @@ export const DataTableCards = <TData extends RowData>({
 										>
 											<dt
 												className={cn(
-													"font-medium font-mono text-[10px] text-muted-foreground uppercase tracking-[0.18em]",
+													"font-medium text-muted-foreground text-xs",
 													mobileCard?.labelClassName,
 												)}
 											>

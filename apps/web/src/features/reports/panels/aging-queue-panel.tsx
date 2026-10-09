@@ -43,7 +43,7 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 		header: "Store",
 		meta: { mobileCard: { slot: "eyebrow" } },
 		cell: ({ row }) => (
-			<span className="font-mono text-xs">
+			<span className="text-xs">
 				{row.original.store_code} · {row.original.store_name}
 			</span>
 		),
@@ -55,7 +55,7 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 		cell: ({ row }) => (
 			<span
 				className={cn(
-					"font-mono tabular-nums",
+					"tabular-nums",
 					row.original.days_waiting >= 14 && "text-destructive",
 				)}
 			>

@@ -372,9 +372,7 @@ export const OrderIdentityStrip = ({
 
 				{detail.notes?.trim() ? (
 					<div className="border bg-muted/30 p-3">
-						<p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-							Notes
-						</p>
+						<p className="text-muted-foreground text-xs font-medium">Notes</p>
 						<p className="mt-1 text-sm leading-relaxed">{detail.notes}</p>
 					</div>
 				) : null}

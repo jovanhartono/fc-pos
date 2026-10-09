@@ -766,7 +766,7 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 					</span>
 					<span
 						className={cn(
-							"shrink-0 font-mono font-semibold tabular-nums",
+							"shrink-0 font-semibold tabular-nums",
 							ageTone === "amber" && "text-amber-600 dark:text-amber-400",
 							ageTone === "red" && "text-destructive",
 						)}

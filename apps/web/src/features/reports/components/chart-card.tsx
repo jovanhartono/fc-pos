@@ -135,7 +135,7 @@ const Shell = ({
 	<Card className={cn("border-border/70", className)}>
 		<CardHeader className="flex flex-row items-start justify-between gap-3">
 			<div className="grid gap-1">
-				<CardTitle className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+				<CardTitle className="text-sm font-semibold text-foreground">
 					{title}
 				</CardTitle>
 				{description ? (
@@ -271,7 +271,7 @@ const AreaVariant = ({
 											<span className="text-muted-foreground">
 												{config[name as string]?.label ?? name}
 											</span>
-											<span className="font-mono font-medium text-foreground tabular-nums">
+											<span className="font-medium text-foreground tabular-nums">
 												{valueFormatter(Number(value))}
 											</span>
 										</div>
@@ -372,7 +372,7 @@ const BarVariant = ({
 											<span className="text-muted-foreground">
 												{config[name as string]?.label ?? name}
 											</span>
-											<span className="font-mono font-medium text-foreground tabular-nums">
+											<span className="font-medium text-foreground tabular-nums">
 												{valueFormatter(Number(value))}
 											</span>
 										</div>
@@ -437,7 +437,7 @@ const PieVariant = ({
 									formatter={(value, name) => (
 										<div className="flex flex-1 items-center justify-between gap-3">
 											<span className="text-muted-foreground">{name}</span>
-											<span className="font-mono font-medium text-foreground tabular-nums">
+											<span className="font-medium text-foreground tabular-nums">
 												{valueFormatter(Number(value))}
 											</span>
 										</div>
@@ -510,7 +510,7 @@ const RadarVariant = ({
 											<span className="text-muted-foreground">
 												{config[name as string]?.label ?? name}
 											</span>
-											<span className="font-mono font-medium text-foreground tabular-nums">
+											<span className="font-medium text-foreground tabular-nums">
 												{valueFormatter(Number(value))}
 											</span>
 										</div>
@@ -586,7 +586,7 @@ const RadialVariant = ({
 									formatter={(value, name) => (
 										<div className="flex flex-1 items-center justify-between gap-3">
 											<span className="text-muted-foreground">{name}</span>
-											<span className="font-mono font-medium text-foreground tabular-nums">
+											<span className="font-medium text-foreground tabular-nums">
 												{valueFormatter(Number(value))}
 											</span>
 										</div>
