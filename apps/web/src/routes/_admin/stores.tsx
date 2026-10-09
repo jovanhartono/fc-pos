@@ -160,17 +160,15 @@ function StoresPage() {
 					</>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<DataTable
-						columns={columns}
-						data={stores}
-						isLoading={isPending}
-						sortable
-						cardPrimaryColumnId="name"
-					/>
-				</ListPanel>
-			</div>
+			<ListPanel>
+				<DataTable
+					columns={columns}
+					data={stores}
+					isLoading={isPending}
+					sortable
+					cardPrimaryColumnId="name"
+				/>
+			</ListPanel>
 		</>
 	);
 }

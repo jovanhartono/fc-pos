@@ -123,7 +123,7 @@ export const CustomerOrdersCard = ({
 			<CardHeader>
 				<CardTitle>Orders</CardTitle>
 			</CardHeader>
-			<CardContent className="grid gap-4">
+			<CardContent>
 				<DataTable
 					columns={columns}
 					data={orders}
@@ -132,11 +132,13 @@ export const CustomerOrdersCard = ({
 						to: "/orders/$orderId",
 						params: { orderId: String(order.id) },
 					})}
-				/>
-				<TablePagination
-					meta={ordersQuery.data?.meta}
-					isLoading={ordersQuery.isPending}
-					onPageChange={onPageChange}
+					footer={
+						<TablePagination
+							meta={ordersQuery.data?.meta}
+							isLoading={ordersQuery.isPending}
+							onPageChange={onPageChange}
+						/>
+					}
 				/>
 			</CardContent>
 		</Card>

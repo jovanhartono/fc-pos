@@ -130,49 +130,47 @@ function ShiftsPage() {
 	return (
 		<>
 			<PageHeader title="Shifts" />
-			<div className="grid gap-4">
-				<ListPanel>
-					<div className="mb-4 flex flex-wrap items-center gap-2">
-						<StoreAutocomplete
-							id="shifts-store"
-							hideLabel
-							value={search.store_id?.toString() ?? ""}
-							onValueChange={(value) => {
-								void navigate({
-									search: (prev) => ({
-										...prev,
-										page: 1,
-										store_id: value ? Number(value) : undefined,
-									}),
-								});
-							}}
-							allOptionLabel="All stores"
-							placeholder="Filter by store"
-							triggerClassName="h-10 w-max min-w-48 text-sm"
-						/>
-						<DateRangePicker
-							commitOnComplete
-							id="shifts-range"
-							from={search.from}
-							to={search.to}
-							onChange={({ from, to }) => {
-								void navigate({
-									search: (prev) => ({
-										...prev,
-										from: from ?? undefined,
-										page: 1,
-										to: to ?? undefined,
-									}),
-								});
-							}}
-						/>
-					</div>
-					<div className="grid gap-4">
-						<DataTable
-							columns={columns}
-							data={shifts}
-							isLoading={shiftsQuery.isPending}
-						/>
+			<ListPanel>
+				<div className="flex flex-wrap items-center gap-2">
+					<StoreAutocomplete
+						id="shifts-store"
+						hideLabel
+						value={search.store_id?.toString() ?? ""}
+						onValueChange={(value) => {
+							void navigate({
+								search: (prev) => ({
+									...prev,
+									page: 1,
+									store_id: value ? Number(value) : undefined,
+								}),
+							});
+						}}
+						allOptionLabel="All stores"
+						placeholder="Filter by store"
+						triggerClassName="h-10 w-max min-w-48 text-sm"
+					/>
+					<DateRangePicker
+						commitOnComplete
+						id="shifts-range"
+						from={search.from}
+						to={search.to}
+						onChange={({ from, to }) => {
+							void navigate({
+								search: (prev) => ({
+									...prev,
+									from: from ?? undefined,
+									page: 1,
+									to: to ?? undefined,
+								}),
+							});
+						}}
+					/>
+				</div>
+				<DataTable
+					columns={columns}
+					data={shifts}
+					isLoading={shiftsQuery.isPending}
+					footer={
 						<TablePagination
 							meta={shiftsQuery.data?.meta}
 							isLoading={shiftsQuery.isPending}
@@ -182,9 +180,9 @@ function ShiftsPage() {
 								});
 							}}
 						/>
-					</div>
-				</ListPanel>
-			</div>
+					}
+				/>
+			</ListPanel>
 		</>
 	);
 }

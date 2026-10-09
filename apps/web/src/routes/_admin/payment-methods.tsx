@@ -161,16 +161,14 @@ function PaymentMethodsPage() {
 					</>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<DataTable
-						columns={columns}
-						data={paymentMethods}
-						isLoading={isPending}
-						sortable
-					/>
-				</ListPanel>
-			</div>
+			<ListPanel>
+				<DataTable
+					columns={columns}
+					data={paymentMethods}
+					isLoading={isPending}
+					sortable
+				/>
+			</ListPanel>
 		</>
 	);
 }

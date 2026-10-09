@@ -139,22 +139,20 @@ function CustomersPage() {
 					</Button>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<DebouncedSearchInput
-						id="customers-search"
-						value={search.search ?? ""}
-						onDebouncedChange={handleSearchChange}
-						placeholder="Search by name or phone"
-						ariaLabel="Search customers"
-						className="mb-4 w-full sm:w-72"
-					/>
-					<div className="grid gap-4">
-						<DataTable
-							columns={columns}
-							data={customers}
-							isLoading={customersQuery.isPending}
-						/>
+			<ListPanel>
+				<DebouncedSearchInput
+					id="customers-search"
+					value={search.search ?? ""}
+					onDebouncedChange={handleSearchChange}
+					placeholder="Search by name or phone"
+					ariaLabel="Search customers"
+					className="w-full sm:w-72"
+				/>
+				<DataTable
+					columns={columns}
+					data={customers}
+					isLoading={customersQuery.isPending}
+					footer={
 						<TablePagination
 							meta={customersQuery.data?.meta}
 							isLoading={customersQuery.isPending}
@@ -167,9 +165,9 @@ function CustomersPage() {
 								});
 							}}
 						/>
-					</div>
-				</ListPanel>
-			</div>
+					}
+				/>
+			</ListPanel>
 		</>
 	);
 }

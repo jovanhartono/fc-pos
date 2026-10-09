@@ -111,6 +111,9 @@ function ProductsPage() {
 			{
 				accessorKey: "sku",
 				header: "SKU",
+				meta: {
+					mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
+				},
 				cell: ({ row }) => (
 					<span className="font-medium">{row.original.sku}</span>
 				),
@@ -119,22 +122,28 @@ function ProductsPage() {
 			{
 				id: "category",
 				header: "Category",
+				meta: {
+					mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
+				},
 				cell: ({ row }) => row.original.category?.name ?? "-",
 			},
 			{
 				accessorKey: "cogs",
 				header: "COGS",
+				meta: { align: "right" },
 				cell: ({ row }) => formatMoney(String(row.original.cogs)),
 			},
 			{
 				accessorKey: "price",
 				header: "Price",
+				meta: { align: "right" },
 				cell: ({ row }) => formatMoney(String(row.original.price)),
 			},
 			{ accessorKey: "stock", header: "Stock" },
 			{
 				id: "status",
 				header: "Status",
+				meta: { mobileCard: { slot: "badges" } },
 				cell: ({ row }) => (
 					<Badge variant={row.original.is_active ? "success" : "danger"}>
 						{row.original.is_active ? "Active" : "Inactive"}
@@ -178,17 +187,15 @@ function ProductsPage() {
 					</>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<DataTable
-						columns={columns}
-						data={products}
-						isLoading={isPending}
-						sortable
-						cardPrimaryColumnId="name"
-					/>
-				</ListPanel>
-			</div>
+			<ListPanel>
+				<DataTable
+					columns={columns}
+					data={products}
+					isLoading={isPending}
+					sortable
+					cardPrimaryColumnId="name"
+				/>
+			</ListPanel>
 		</>
 	);
 }

@@ -207,9 +207,13 @@ function OrdersPage() {
 					},
 				},
 				cell: ({ row }) => (
-					<span>
-						{dayjs(row.original.created_at).format("DD/MM/YYYY HH:mm")}
-					</span>
+					// One line in the phone card's header strip, two in the table.
+					<div className="flex gap-1.5 lg:flex-col lg:gap-0">
+						<span>{dayjs(row.original.created_at).format("DD/MM/YYYY")}</span>
+						<span className="lg:text-muted-foreground lg:text-xs">
+							{dayjs(row.original.created_at).format("HH:mm")}
+						</span>
+					</div>
 				),
 			},
 			{
@@ -221,11 +225,16 @@ function OrdersPage() {
 					},
 				},
 				cell: ({ row }) => (
-					<CustomerLink
-						className="truncate"
-						customerId={row.original.customer_id}
-						name={row.original.customer_name}
-					/>
+					<div className="flex flex-col">
+						<CustomerLink
+							className="truncate"
+							customerId={row.original.customer_id}
+							name={row.original.customer_name}
+						/>
+						<span className="text-muted-foreground text-xs tabular-nums">
+							{row.original.customer_phone}
+						</span>
+					</div>
 				),
 			},
 			{
@@ -262,16 +271,17 @@ function OrdersPage() {
 			},
 			{
 				id: "total",
-				header: () => <div className="text-right">Total</div>,
+				header: "Total",
 				meta: {
+					align: "right",
 					mobileCard: {
 						slot: "footer",
 					},
 				},
 				cell: ({ row }) => (
-					<div className="text-right font-medium tabular-nums">
+					<span className="font-semibold">
 						{formatMoney(row.original.total)}
-					</div>
+					</span>
 				),
 			},
 		],
@@ -292,29 +302,27 @@ function OrdersPage() {
 					</Button>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<OrderFilters
-						values={search}
-						role={role}
-						userStoreIds={userStoreIds}
-						onChange={handleFilterChange}
-					/>
-					{hasNoStoreAssignment ? (
-						<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center text-muted-foreground text-sm">
-							No store assigned
-						</div>
-					) : (
-						<div className="grid gap-4">
-							<DataTable
-								columns={columns}
-								data={orders}
-								isLoading={ordersQuery.isPending || storesQuery.isPending}
-								getCardLink={(order) => ({
-									to: "/orders/$orderId",
-									params: { orderId: String(order.id) },
-								})}
-							/>
+			<ListPanel>
+				<OrderFilters
+					values={search}
+					role={role}
+					userStoreIds={userStoreIds}
+					onChange={handleFilterChange}
+				/>
+				{hasNoStoreAssignment ? (
+					<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center text-muted-foreground text-sm">
+						No store assigned
+					</div>
+				) : (
+					<DataTable
+						columns={columns}
+						data={orders}
+						isLoading={ordersQuery.isPending || storesQuery.isPending}
+						getCardLink={(order) => ({
+							to: "/orders/$orderId",
+							params: { orderId: String(order.id) },
+						})}
+						footer={
 							<TablePagination
 								meta={ordersQuery.data?.meta}
 								isLoading={ordersQuery.isPending}
@@ -327,10 +335,10 @@ function OrdersPage() {
 									});
 								}}
 							/>
-						</div>
-					)}
-				</ListPanel>
-			</div>
+						}
+					/>
+				)}
+			</ListPanel>
 		</>
 	);
 }

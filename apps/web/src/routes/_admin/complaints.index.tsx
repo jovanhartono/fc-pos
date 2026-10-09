@@ -126,21 +126,19 @@ const ComplaintsPage = () => {
 	return (
 		<>
 			<PageHeader title="Complaints" />
-			<div className="grid gap-4">
-				<ListPanel>
-					<DebouncedSearchInput
-						id="complaints-search"
-						value={search.search ?? ""}
-						onDebouncedChange={handleSearchChange}
-						placeholder="Search order code or customer"
-						ariaLabel="Search complaints"
-					/>
-					<div className="mt-4 grid gap-4">
-						<DataTable
-							columns={columns}
-							data={complaints}
-							isLoading={complaintsQuery.isPending}
-						/>
+			<ListPanel>
+				<DebouncedSearchInput
+					id="complaints-search"
+					value={search.search ?? ""}
+					onDebouncedChange={handleSearchChange}
+					placeholder="Search order code or customer"
+					ariaLabel="Search complaints"
+				/>
+				<DataTable
+					columns={columns}
+					data={complaints}
+					isLoading={complaintsQuery.isPending}
+					footer={
 						<TablePagination
 							meta={complaintsQuery.data?.meta}
 							isLoading={complaintsQuery.isPending}
@@ -150,9 +148,9 @@ const ComplaintsPage = () => {
 								});
 							}}
 						/>
-					</div>
-				</ListPanel>
-			</div>
+					}
+				/>
+			</ListPanel>
 		</>
 	);
 };

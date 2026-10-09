@@ -309,11 +309,13 @@ function CampaignsPage() {
 			{
 				id: "discount",
 				header: "Discount",
+				meta: { align: "right" },
 				cell: ({ row }) => formatCampaignDiscount(row.original),
 			},
 			{
 				accessorKey: "min_order_total",
 				header: "Min order",
+				meta: { align: "right" },
 				cell: ({ row }) => formatMoney(String(row.original.min_order_total)),
 			},
 			{
@@ -422,37 +424,35 @@ function CampaignsPage() {
 					</>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<div className="mb-4 flex flex-wrap items-center gap-2">
-						<SelectField
-							items={{
-								all: "All status",
-								active: "Active only",
-								expired: "Expired only",
-								archived: "Archived only",
-							}}
-							value={search.status}
-							onValueChange={(value) => {
-								void navigate({
-									search: () => ({
-										status: value as CampaignStatus,
-									}),
-								});
-							}}
-							className="min-w-40 w-max"
-							placeholder="Filter status"
-						/>
-					</div>
-					<DataTable
-						columns={columns}
-						data={campaigns}
-						isLoading={campaignsQuery.isPending || storesQuery.isPending}
-						sortable
-						cardPrimaryColumnId="name"
+			<ListPanel>
+				<div className="flex flex-wrap items-center gap-2">
+					<SelectField
+						items={{
+							all: "All status",
+							active: "Active only",
+							expired: "Expired only",
+							archived: "Archived only",
+						}}
+						value={search.status}
+						onValueChange={(value) => {
+							void navigate({
+								search: () => ({
+									status: value as CampaignStatus,
+								}),
+							});
+						}}
+						className="min-w-40 w-max"
+						placeholder="Filter status"
 					/>
-				</ListPanel>
-			</div>
+				</div>
+				<DataTable
+					columns={columns}
+					data={campaigns}
+					isLoading={campaignsQuery.isPending || storesQuery.isPending}
+					sortable
+					cardPrimaryColumnId="name"
+				/>
+			</ListPanel>
 		</>
 	);
 }

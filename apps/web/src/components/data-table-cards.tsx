@@ -227,136 +227,130 @@ export const DataTableCards = <TData extends RowData>({
 							</div>
 						) : null}
 
-						{primaryCell ||
-						titleEndCells.length > 0 ||
-						subtitleCells.length > 0 ||
-						badgeCells.length > 0 ? (
-							<div className={cn("grid gap-2 px-3 py-2.5", raisedControls)}>
-								{primaryCell || titleEndCells.length > 0 ? (
-									// No wrap: a long Service name wraps beside Edit instead of
-									// pushing Edit down onto a second line of its own.
-									<div className="flex items-start justify-between gap-3">
-										{primaryCell ? (
-											<div
-												className={cn(
-													"min-w-0 flex-1 wrap-break-word font-semibold text-[15px] text-foreground leading-tight tracking-tight",
-													// Centres the first line on the Edit button beside it.
-													titleEndCells.length > 0 && "pt-1",
-													primaryConfig?.className,
-												)}
-											>
-												{flexRender(
-													primaryCell.column.columnDef.cell,
-													primaryCell.getContext(),
-												)}
-											</div>
-										) : null}
-										{titleEndCells.length > 0 ? (
-											<div className="ml-auto flex shrink-0 items-center gap-2">
-												{titleEndCells.map((cell) => (
-													<div
-														key={cell.id}
-														className={
-															cell.column.columnDef.meta?.mobileCard?.className
-														}
-													>
-														{flexRender(
-															cell.column.columnDef.cell,
-															cell.getContext(),
-														)}
-													</div>
-												))}
-											</div>
-										) : null}
-									</div>
-								) : null}
-								{subtitleCells.map((cell) => {
-									const mobileCard = cell.column.columnDef.meta?.mobileCard;
-									return (
+						<div className={cn("grid gap-2 px-3 py-2.5", raisedControls)}>
+							{primaryCell || titleEndCells.length > 0 ? (
+								// No wrap: a long Service name wraps beside Edit instead of
+								// pushing Edit down onto a second line of its own.
+								<div className="flex items-start justify-between gap-3">
+									{primaryCell ? (
 										<div
-											className={cn("min-w-0 text-sm", mobileCard?.className)}
-											key={cell.id}
+											className={cn(
+												"min-w-0 flex-1 wrap-break-word font-semibold text-[15px] text-foreground leading-tight tracking-tight",
+												// Centres the first line on the Edit button beside it.
+												titleEndCells.length > 0 && "pt-1",
+												primaryConfig?.className,
+											)}
 										>
 											{flexRender(
-												cell.column.columnDef.cell,
-												cell.getContext(),
+												primaryCell.column.columnDef.cell,
+												primaryCell.getContext(),
 											)}
 										</div>
-									);
-								})}
-								{badgeCells.length > 0 ? (
-									<div className="flex flex-wrap items-center gap-1">
-										{badgeCells.map((cell) => {
-											const mobileCard = cell.column.columnDef.meta?.mobileCard;
-											return (
+									) : null}
+									{titleEndCells.length > 0 ? (
+										<div className="ml-auto flex shrink-0 items-center gap-2">
+											{titleEndCells.map((cell) => (
 												<div
 													key={cell.id}
-													className={cn(
-														"flex flex-wrap gap-1",
-														mobileCard?.className,
-													)}
+													className={
+														cell.column.columnDef.meta?.mobileCard?.className
+													}
 												>
 													{flexRender(
 														cell.column.columnDef.cell,
 														cell.getContext(),
 													)}
 												</div>
-											);
-										})}
-									</div>
-								) : null}
-							</div>
-						) : null}
-
-						{detailCells.length > 0 ? (
-							<dl
-								className={cn(
-									"grid grid-cols-2 border-border/70 border-t bg-muted/30 dark:bg-muted/10",
-									raisedControls,
-								)}
-							>
-								{detailCells.map((cell, index) => {
-									const mobileCard = cell.column.columnDef.meta?.mobileCard;
-									const headerLabel = getCellHeaderLabel(cell);
-									const isLeftCol = index % 2 === 0;
-									const isFirstRow = index < 2;
-									const isLoneLastCell =
-										index === detailCells.length - 1 && isLeftCol;
-									return (
-										<div
-											key={cell.id}
-											className={cn(
-												"min-w-0 px-3 py-2",
-												isLoneLastCell && "col-span-2",
-												!isLeftCol && "border-border/70 border-l",
-												!isFirstRow && "border-border/70 border-t",
-												mobileCard?.className,
-											)}
-										>
-											<dt
+											))}
+										</div>
+									) : null}
+								</div>
+							) : null}
+							{subtitleCells.length > 0 ? (
+								<div className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm">
+									{subtitleCells.map((cell, index) => {
+										const mobileCard = cell.column.columnDef.meta?.mobileCard;
+										return (
+											<Fragment key={cell.id}>
+												{index > 0 ? (
+													<span
+														aria-hidden="true"
+														className="text-muted-foreground"
+													>
+														·
+													</span>
+												) : null}
+												<div className={cn("min-w-0", mobileCard?.className)}>
+													{flexRender(
+														cell.column.columnDef.cell,
+														cell.getContext(),
+													)}
+												</div>
+											</Fragment>
+										);
+									})}
+								</div>
+							) : null}
+							{detailCells.length > 0 ? (
+								// Label and value side by side, wrapping as the line fills,
+								// so a catalog card is a few lines tall, not a grid of boxes.
+								<dl className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+									{detailCells.map((cell) => {
+										const mobileCard = cell.column.columnDef.meta?.mobileCard;
+										return (
+											<div
+												key={cell.id}
 												className={cn(
-													"font-medium text-muted-foreground text-xs",
-													mobileCard?.labelClassName,
+													"flex min-w-0 items-center gap-1.5",
+													mobileCard?.className,
 												)}
 											>
-												{headerLabel}
-											</dt>
-											<dd
+												<dt
+													className={cn(
+														"text-muted-foreground text-xs",
+														mobileCard?.labelClassName,
+													)}
+												>
+													{getCellHeaderLabel(cell)}
+												</dt>
+												<dd
+													className={cn(
+														"min-w-0 truncate font-medium text-foreground text-sm",
+														mobileCard?.valueClassName,
+													)}
+												>
+													{flexRender(
+														cell.column.columnDef.cell,
+														cell.getContext(),
+													)}
+												</dd>
+											</div>
+										);
+									})}
+								</dl>
+							) : null}
+							{badgeCells.length > 0 ? (
+								<div className="flex flex-wrap items-center gap-1">
+									{badgeCells.map((cell) => {
+										const mobileCard = cell.column.columnDef.meta?.mobileCard;
+										return (
+											<div
+												key={cell.id}
 												className={cn(
-													"mt-0.5 min-w-0 truncate font-medium text-foreground text-sm",
-													mobileCard?.valueClassName,
+													"flex flex-wrap gap-1",
+													mobileCard?.className,
 												)}
 											>
 												{flexRender(
 													cell.column.columnDef.cell,
 													cell.getContext(),
 												)}
-											</dd>
-										</div>
-									);
-								})}
-							</dl>
-						) : null}
+											</div>
+										);
+									})}
+								</div>
+							) : null}
+						</div>
 					</article>
 				);
 			})}

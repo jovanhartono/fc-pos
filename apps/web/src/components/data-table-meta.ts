@@ -25,6 +25,8 @@ declare module "@tanstack/react-table" {
 		TValue extends CellData = CellData,
 	> {
 		mobileCard?: MobileCardColumnOptions;
+		// Money columns sit on the right so the thousands line up row to row.
+		align?: "right";
 		// Extra classes for the desktop table th/td (e.g. sticky columns).
 		headerClassName?: string;
 		cellClassName?: string;

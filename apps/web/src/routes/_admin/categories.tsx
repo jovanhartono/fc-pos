@@ -162,16 +162,14 @@ function CategoriesPage() {
 					</>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<DataTable
-						columns={columns}
-						data={data}
-						isLoading={isPending}
-						sortable
-					/>
-				</ListPanel>
-			</div>
+			<ListPanel>
+				<DataTable
+					columns={columns}
+					data={data}
+					isLoading={isPending}
+					sortable
+				/>
+			</ListPanel>
 		</>
 	);
 }

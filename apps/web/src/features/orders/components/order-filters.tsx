@@ -149,7 +149,7 @@ export const OrderFilters = ({
 	};
 
 	return (
-		<div className="mb-4 flex items-center gap-2 lg:flex-wrap">
+		<div className="flex items-center gap-2 lg:flex-wrap">
 			<DebouncedSearchInput
 				id="orders-search"
 				value={values.search ?? ""}

@@ -4,7 +4,7 @@ import {
 	type SortingState,
 	useTable,
 } from "@tanstack/react-table";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { DataTableCards } from "@/components/data-table-cards";
 import {
 	type DataTableColumnDef,
@@ -22,6 +22,9 @@ interface DataTableProps<TData extends RowData> {
 	cardPrimaryColumnId?: string;
 	cardHiddenColumnIds?: string[];
 	getCardLink?: (row: TData) => LinkProps;
+	// The pager. It sits inside the table frame on desktop and pins above the
+	// tab bar on a phone, so Next is always in reach.
+	footer?: ReactNode;
 }
 
 export const DataTable = <TData extends RowData>({
@@ -33,6 +36,7 @@ export const DataTable = <TData extends RowData>({
 	cardPrimaryColumnId,
 	cardHiddenColumnIds,
 	getCardLink,
+	footer,
 }: DataTableProps<TData>) => {
 	const [sorting, setSorting] = useState<SortingState>([]);
 	// Sidebar stays expanded until lg, leaving too little width for a real
@@ -51,14 +55,26 @@ export const DataTable = <TData extends RowData>({
 
 	if (isCardView) {
 		return (
-			<DataTableCards
-				table={table}
-				isLoading={isLoading}
-				emptyMessage={emptyMessage}
-				cardPrimaryColumnId={cardPrimaryColumnId}
-				cardHiddenColumnIds={cardHiddenColumnIds}
-				getCardLink={getCardLink}
-			/>
+			<>
+				<DataTableCards
+					table={table}
+					isLoading={isLoading}
+					emptyMessage={emptyMessage}
+					cardPrimaryColumnId={cardPrimaryColumnId}
+					cardHiddenColumnIds={cardHiddenColumnIds}
+					getCardLink={getCardLink}
+				/>
+				{footer ? (
+					// Pinned to the bottom of the scrolling pane, just above the tab
+					// bar, the same way as the queue's Hold to Start Work bar.
+					<div
+						className="sticky bottom-0 z-10 -mx-3 mt-1 border-t bg-background px-3 pt-2 pb-[calc(var(--inset-bottom)+0.5rem)] sm:-mx-6 sm:px-6 md:-mx-8 md:px-8"
+						data-bottom-bar
+					>
+						{footer}
+					</div>
+				) : null}
+			</>
 		);
 	}
 
@@ -68,6 +84,7 @@ export const DataTable = <TData extends RowData>({
 			isLoading={isLoading}
 			emptyMessage={emptyMessage}
 			sortable={sortable}
+			footer={footer}
 		/>
 	);
 };

@@ -374,22 +374,20 @@ function UsersPage() {
 					</Button>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<DebouncedSearchInput
-						id="users-search"
-						value={search.search ?? ""}
-						onDebouncedChange={handleSearchChange}
-						placeholder="Search by username or name"
-						ariaLabel="Search users"
-						className="mb-4 w-full sm:w-72"
-					/>
-					<div className="grid gap-4">
-						<DataTable
-							columns={columns}
-							data={users}
-							isLoading={usersQuery.isPending}
-						/>
+			<ListPanel>
+				<DebouncedSearchInput
+					id="users-search"
+					value={search.search ?? ""}
+					onDebouncedChange={handleSearchChange}
+					placeholder="Search by username or name"
+					ariaLabel="Search users"
+					className="w-full sm:w-72"
+				/>
+				<DataTable
+					columns={columns}
+					data={users}
+					isLoading={usersQuery.isPending}
+					footer={
 						<TablePagination
 							meta={usersQuery.data?.meta}
 							isLoading={usersQuery.isPending}
@@ -402,9 +400,9 @@ function UsersPage() {
 								});
 							}}
 						/>
-					</div>
-				</ListPanel>
-			</div>
+					}
+				/>
+			</ListPanel>
 		</>
 	);
 }

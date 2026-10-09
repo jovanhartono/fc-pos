@@ -112,6 +112,9 @@ function ServicesPage() {
 			{
 				accessorKey: "code",
 				header: "Code",
+				meta: {
+					mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
+				},
 				cell: ({ row }) => (
 					<span className="font-medium">{row.original.code}</span>
 				),
@@ -120,16 +123,21 @@ function ServicesPage() {
 			{
 				id: "category",
 				header: "Category",
+				meta: {
+					mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
+				},
 				cell: ({ row }) => row.original.category?.name ?? "-",
 			},
 			{
 				accessorKey: "cogs",
 				header: "COGS",
+				meta: { align: "right" },
 				cell: ({ row }) => formatMoney(String(row.original.cogs)),
 			},
 			{
 				accessorKey: "price",
 				header: "Price",
+				meta: { align: "right" },
 				cell: ({ row }) =>
 					row.original.price === null ? (
 						<span className="text-muted-foreground">No list price</span>
@@ -140,6 +148,7 @@ function ServicesPage() {
 			{
 				id: "priority",
 				header: "Queue",
+				meta: { mobileCard: { slot: "badges" } },
 				cell: ({ row }) => (
 					<Badge variant={row.original.is_priority ? "priority" : "outline"}>
 						{row.original.is_priority ? "Priority" : "Standard"}
@@ -149,6 +158,7 @@ function ServicesPage() {
 			{
 				id: "status",
 				header: "Status",
+				meta: { mobileCard: { slot: "badges" } },
 				cell: ({ row }) => (
 					<Badge variant={row.original.is_active ? "success" : "danger"}>
 						{row.original.is_active ? "Active" : "Inactive"}
@@ -192,17 +202,15 @@ function ServicesPage() {
 					</>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<DataTable
-						columns={columns}
-						data={services}
-						isLoading={isPending}
-						sortable
-						cardPrimaryColumnId="name"
-					/>
-				</ListPanel>
-			</div>
+			<ListPanel>
+				<DataTable
+					columns={columns}
+					data={services}
+					isLoading={isPending}
+					sortable
+					cardPrimaryColumnId="name"
+				/>
+			</ListPanel>
 		</>
 	);
 }
