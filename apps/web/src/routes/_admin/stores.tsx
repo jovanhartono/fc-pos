@@ -119,6 +119,7 @@ function StoresPage() {
 			{
 				id: "status",
 				header: "Status",
+				meta: { mobileCard: { slot: "status" } },
 				cell: ({ row }) => (
 					<Badge variant={row.original.is_active ? "success" : "danger"}>
 						{row.original.is_active ? "Active" : "Inactive"}
@@ -132,12 +133,12 @@ function StoresPage() {
 				cell: ({ row }) => (
 					<Button
 						variant="outline"
-						size="sm"
+						size="icon-sm"
+						aria-label="Edit"
+						title="Edit"
 						onClick={() => handleOpenEditSheet(row.original)}
 						icon={<PencilSimpleLineIcon className="size-4" />}
-					>
-						Edit
-					</Button>
+					/>
 				),
 			},
 		],

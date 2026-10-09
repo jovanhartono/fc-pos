@@ -33,7 +33,12 @@ interface DataTableProps<TData extends RowData> {
 
 // A code is read character by character, a name is what the eye looks for
 // first. Wrapped once here, so the table and the phone card both get it.
-const KIND_CLASS = { code: "font-mono", name: "font-medium" } as const;
+// The lg: limits stop one long name or description widening the whole table.
+const KIND_CLASS = {
+	code: "font-mono",
+	name: "font-medium lg:inline-block lg:min-w-40 lg:max-w-64 lg:whitespace-normal lg:wrap-break-word",
+	text: "lg:block lg:max-w-72 lg:truncate",
+} as const;
 
 const withKindStyles = <TData extends RowData>(
 	columns: DataTableColumnDef<TData>[],
@@ -46,13 +51,19 @@ const withKindStyles = <TData extends RowData>(
 		const render = column.cell;
 		return {
 			...column,
-			cell: (context: CellContext<DataTableFeatures, TData, unknown>) => (
-				<span className={KIND_CLASS[kind]}>
-					{render
-						? flexRender(render, context)
-						: String(context.getValue() ?? "")}
-				</span>
-			),
+			cell: (context: CellContext<DataTableFeatures, TData, unknown>) => {
+				const value = context.getValue();
+				return (
+					<span
+						className={KIND_CLASS[kind]}
+						title={
+							kind === "text" && typeof value === "string" ? value : undefined
+						}
+					>
+						{render ? flexRender(render, context) : String(value ?? "")}
+					</span>
+				);
+			},
 		};
 	});
 

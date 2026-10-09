@@ -85,6 +85,7 @@ function CustomersPage() {
 			{
 				accessorKey: "name",
 				header: "Name",
+				meta: { kind: "name" },
 				cell: ({ row }) => (
 					<CustomerLink customerId={row.original.id} name={row.original.name} />
 				),
@@ -96,11 +97,9 @@ function CustomersPage() {
 			{
 				accessorKey: "email",
 				header: "Email",
+				meta: { kind: "text", mobileCard: { omitWhenEmpty: true } },
 				cell: ({ row }) => (
-					<span
-						title={row.original.email ?? undefined}
-						className="truncate text-muted-foreground"
-					>
+					<span className="text-muted-foreground">
 						{row.original.email ?? "—"}
 					</span>
 				),
@@ -117,12 +116,12 @@ function CustomersPage() {
 				cell: ({ row }) => (
 					<Button
 						variant="outline"
-						size="sm"
+						size="icon-sm"
+						aria-label="Edit"
+						title="Edit"
 						onClick={() => handleOpenEditSheet(row.original)}
 						icon={<PencilSimpleLineIcon className="size-4" />}
-					>
-						Edit
-					</Button>
+					/>
 				),
 			},
 		],

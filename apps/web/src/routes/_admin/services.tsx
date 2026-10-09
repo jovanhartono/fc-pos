@@ -174,12 +174,12 @@ function ServicesPage() {
 				cell: ({ row }) => (
 					<Button
 						variant="outline"
-						size="sm"
+						size="icon-sm"
+						aria-label="Edit"
+						title="Edit"
 						onClick={() => handleOpenEditSheet(row.original)}
 						icon={<PencilSimpleLineIcon className="size-4" />}
-					>
-						Edit
-					</Button>
+					/>
 				),
 			},
 		],

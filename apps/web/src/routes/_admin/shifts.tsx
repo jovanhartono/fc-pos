@@ -1,3 +1,4 @@
+import { type Icon, SignInIcon, SignOutIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import dayjs from "dayjs";
@@ -65,6 +66,18 @@ const OpenShift = ({ clockInAt }: OpenShiftProps) => (
 	</span>
 );
 
+interface ClockLabelProps {
+	icon: Icon;
+	text: string;
+}
+
+const ClockLabel = ({ icon: LabelIcon, text }: ClockLabelProps) => (
+	<>
+		<LabelIcon aria-hidden className="size-4" />
+		<span className="sr-only">{text}</span>
+	</>
+);
+
 interface ShiftDurationProps {
 	shift: Shift;
 }
@@ -98,11 +111,15 @@ function ShiftsPage() {
 				id: "user",
 				header: "Worker",
 				cell: ({ row }) => (
-					<div className="flex flex-col">
+					<div className="flex flex-col lg:max-w-56 lg:whitespace-normal">
 						<span className="font-medium">
 							{row.original.user?.name ?? `User #${row.original.user_id}`}
+							{/* The card has no Store column, so the store rides on the name. */}
+							<span className="ml-1.5 font-mono font-normal text-muted-foreground text-xs lg:hidden">
+								{row.original.store?.code}
+							</span>
 						</span>
-						<span className="text-muted-foreground text-xs">
+						<span className="font-normal text-muted-foreground text-xs">
 							{row.original.user?.role ?? ""}
 						</span>
 					</div>
@@ -111,16 +128,27 @@ function ShiftsPage() {
 			{
 				id: "store",
 				header: "Store",
+				meta: { mobileCard: { slot: "hidden" } },
 				cell: ({ row }) => row.original.store?.code ?? "-",
 			},
 			{
 				id: "clock_in",
 				header: "Clock in",
+				meta: {
+					mobileCard: {
+						label: <ClockLabel icon={SignInIcon} text="Clock in" />,
+					},
+				},
 				cell: ({ row }) => <DateTimeCell value={row.original.clock_in_at} />,
 			},
 			{
 				id: "clock_out",
 				header: "Clock out",
+				meta: {
+					mobileCard: {
+						label: <ClockLabel icon={SignOutIcon} text="Clock out" />,
+					},
+				},
 				cell: ({ row }) =>
 					row.original.clock_out_at ? (
 						<DateTimeCell value={row.original.clock_out_at} />
@@ -131,6 +159,7 @@ function ShiftsPage() {
 			{
 				id: "duration",
 				header: "Duration",
+				meta: { mobileCard: { slot: "title-end", className: "text-right" } },
 				cell: ({ row }) => <ShiftDuration shift={row.original} />,
 			},
 		],

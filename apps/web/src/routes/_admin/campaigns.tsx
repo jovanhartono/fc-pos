@@ -1,7 +1,6 @@
 import {
 	ArchiveIcon,
 	ArrowCounterClockwiseIcon,
-	DotsThreeIcon,
 	PencilSimpleLineIcon,
 	PlusIcon,
 	TicketIcon,
@@ -17,12 +16,6 @@ import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
 	type Campaign,
 	campaignsKeys,
@@ -129,7 +122,7 @@ function toCampaignFormInput(campaign: Campaign): CampaignFormInput {
 	};
 }
 
-interface ArchiveCampaignMenuItemProps {
+interface ArchiveCampaignButtonProps {
 	campaign: Campaign;
 	disabled: boolean;
 	isPending: boolean;
@@ -139,20 +132,24 @@ interface ArchiveCampaignMenuItemProps {
 	}) => Promise<void>;
 }
 
-const ArchiveCampaignMenuItem = ({
+const ArchiveCampaignButton = ({
 	campaign,
 	disabled,
 	isPending,
 	onConfirm,
-}: ArchiveCampaignMenuItemProps) => {
+}: ArchiveCampaignButtonProps) => {
 	const { openDialog, closeDialog } = useDialog();
 	const isArchived = !campaign.is_active;
 	const label = isArchived ? "Unarchive" : "Archive";
 	const Icon = isArchived ? ArrowCounterClockwiseIcon : ArchiveIcon;
 
 	return (
-		<DropdownMenuItem
-			variant={isArchived ? "default" : "destructive"}
+		<Button
+			variant="outline"
+			size="icon-sm"
+			aria-label={label}
+			title={label}
+			icon={<Icon className="size-4" />}
 			disabled={disabled || isPending}
 			onClick={() => {
 				openDialog({
@@ -182,10 +179,7 @@ const ArchiveCampaignMenuItem = ({
 					),
 				});
 			}}
-		>
-			<Icon className="size-4" />
-			{label}
-		</DropdownMenuItem>
+		/>
 	);
 };
 
@@ -341,7 +335,7 @@ function CampaignsPage() {
 			{
 				id: "status",
 				header: "Status",
-				meta: { mobileCard: { slot: "badges" } },
+				meta: { mobileCard: { slot: "status" } },
 				cell: ({ row }) => {
 					const state = deriveCampaignState(row.original);
 					if (state === "expired") {
@@ -361,46 +355,34 @@ function CampaignsPage() {
 					<div className="flex gap-2">
 						<Button
 							variant="outline"
-							size="sm"
+							size="icon-sm"
+							aria-label="Edit"
+							title="Edit"
 							disabled={!isAdmin}
 							onClick={() => handleOpenEditSheet(row.original)}
 							icon={<PencilSimpleLineIcon className="size-4" />}
-						>
-							Edit
-						</Button>
-						<DropdownMenu>
-							<DropdownMenuTrigger
-								render={
-									<Button
-										aria-label="More actions"
-										icon={<DotsThreeIcon className="size-4" />}
-										size="icon-sm"
-										variant="outline"
-									/>
-								}
+						/>
+						{row.original.redemption_mode === "code" && (
+							<Button
+								variant="outline"
+								size="icon-sm"
+								aria-label="Codes"
+								title="Codes"
+								onClick={() => handleOpenVoucherDetail(row.original)}
+								icon={<TicketIcon className="size-4" />}
 							/>
-							<DropdownMenuContent align="end" className="w-44">
-								{row.original.redemption_mode === "code" && (
-									<DropdownMenuItem
-										onClick={() => handleOpenVoucherDetail(row.original)}
-									>
-										<TicketIcon className="size-4" />
-										Codes
-									</DropdownMenuItem>
-								)}
-								<ArchiveCampaignMenuItem
-									campaign={row.original}
-									disabled={!isAdmin}
-									isPending={archiveMutation.isPending}
-									onConfirm={async ({ campaignId, nextIsActive }) => {
-										await archiveMutation.mutateAsync({
-											id: campaignId,
-											is_active: nextIsActive,
-										});
-									}}
-								/>
-							</DropdownMenuContent>
-						</DropdownMenu>
+						)}
+						<ArchiveCampaignButton
+							campaign={row.original}
+							disabled={!isAdmin}
+							isPending={archiveMutation.isPending}
+							onConfirm={async ({ campaignId, nextIsActive }) => {
+								await archiveMutation.mutateAsync({
+									id: campaignId,
+									is_active: nextIsActive,
+								});
+							}}
+						/>
 					</div>
 				),
 			},

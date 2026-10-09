@@ -5,7 +5,7 @@ import {
 	type RowData,
 	type Table as TanstackTable,
 } from "@tanstack/react-table";
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import type { DataTableFeatures } from "@/components/data-table-features";
 import "@/components/data-table-meta";
 import { cn } from "@/lib/utils";
@@ -26,13 +26,14 @@ interface CardCells<TData extends RowData> {
 	subtitleCells: Cell<DataTableFeatures, TData>[];
 	eyebrowCells: Cell<DataTableFeatures, TData>[];
 	badgeCells: Cell<DataTableFeatures, TData>[];
+	statusCells: Cell<DataTableFeatures, TData>[];
 	footerCells: Cell<DataTableFeatures, TData>[];
 	detailCells: Cell<DataTableFeatures, TData>[];
 }
 
 const getCellHeaderLabel = <TData extends RowData>(
 	cell: Cell<DataTableFeatures, TData>,
-): string => {
+): ReactNode => {
 	const mobileCard = cell.column.columnDef.meta?.mobileCard;
 	if (mobileCard?.label) {
 		return mobileCard.label;
@@ -51,6 +52,7 @@ const bucketCardCells = <TData extends RowData>(
 		subtitleCells: [],
 		eyebrowCells: [],
 		badgeCells: [],
+		statusCells: [],
 		footerCells: [],
 		detailCells: [],
 	};
@@ -63,7 +65,11 @@ const bucketCardCells = <TData extends RowData>(
 		if (hiddenIds.has(cell.column.id)) {
 			continue;
 		}
-		const slot = cell.column.columnDef.meta?.mobileCard?.slot;
+		const mobileCard = cell.column.columnDef.meta?.mobileCard;
+		if (mobileCard?.omitWhenEmpty && !cell.getValue()) {
+			continue;
+		}
+		const slot = mobileCard?.slot;
 		if (slot === "title-end") {
 			buckets.titleEndCells.push(cell);
 			continue;
@@ -78,6 +84,10 @@ const bucketCardCells = <TData extends RowData>(
 		}
 		if (slot === "badges") {
 			buckets.badgeCells.push(cell);
+			continue;
+		}
+		if (slot === "status") {
+			buckets.statusCells.push(cell);
 			continue;
 		}
 		if (slot === "footer") {
@@ -141,7 +151,9 @@ export const DataTableCards = <TData extends RowData>({
 	const raisedControls = getCardLink && "[&_a]:relative [&_button]:relative";
 
 	return (
-		<div className="grid gap-2 lg:hidden">
+		// grid-cols-1 on each grid here caps it at the screen's width, so a long
+		// description or name truncates instead of pushing Edit off the edge.
+		<div className="grid grid-cols-1 gap-2 lg:hidden">
 			{rows.map((row) => {
 				const {
 					primaryCell,
@@ -149,18 +161,30 @@ export const DataTableCards = <TData extends RowData>({
 					subtitleCells,
 					eyebrowCells,
 					badgeCells,
+					statusCells,
 					footerCells,
 					detailCells,
 				} = bucketCardCells(row.getAllCells(), primaryColumnKey, hiddenIds);
 				const primaryConfig = primaryCell?.column.columnDef.meta?.mobileCard;
 				const hasHeaderStrip =
 					eyebrowCells.length > 0 || footerCells.length > 0;
+				const status =
+					statusCells.length > 0 ? (
+						<div className="flex shrink-0 flex-wrap justify-end gap-1">
+							{statusCells.map((cell) => (
+								<Fragment key={cell.id}>
+									{flexRender(cell.column.columnDef.cell, cell.getContext())}
+								</Fragment>
+							))}
+						</div>
+					) : null;
+				const hasBadgeRow = badgeCells.length > 0;
 
 				return (
 					<article
 						key={row.id}
 						data-state={isRowActive?.(row.original) ? "selected" : undefined}
-						className="group/card relative grid border border-border bg-background text-sm transition-colors hover:border-foreground/40 hover:bg-muted/20 data-[state=selected]:bg-muted data-[state=selected]:shadow-[inset_2px_0_0_var(--foreground)] dark:bg-muted/5"
+						className="group/card relative grid grid-cols-1 border border-border bg-background text-sm transition-colors hover:border-foreground/40 hover:bg-muted/20 data-[state=selected]:bg-muted data-[state=selected]:shadow-[inset_2px_0_0_var(--foreground)] dark:bg-muted/5"
 					>
 						{getCardLink !== undefined && (
 							<Link
@@ -230,7 +254,12 @@ export const DataTableCards = <TData extends RowData>({
 							</div>
 						) : null}
 
-						<div className={cn("grid gap-2 px-3 py-2.5", raisedControls)}>
+						<div
+							className={cn(
+								"grid grid-cols-1 gap-2 px-3 py-2.5",
+								raisedControls,
+							)}
+						>
 							{primaryCell || titleEndCells.length > 0 ? (
 								// No wrap: a long Service name wraps beside Edit instead of
 								// pushing Edit down onto a second line of its own.
@@ -270,7 +299,7 @@ export const DataTableCards = <TData extends RowData>({
 								</div>
 							) : null}
 							{subtitleCells.length > 0 ? (
-								<div className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-muted-foreground text-sm">
+								<div className="flex min-w-0 flex-wrap items-center gap-x-1.5 wrap-break-word text-muted-foreground text-sm">
 									{subtitleCells.map((cell, index) => {
 										const mobileCard = cell.column.columnDef.meta?.mobileCard;
 										return (
@@ -297,62 +326,69 @@ export const DataTableCards = <TData extends RowData>({
 							{detailCells.length > 0 ? (
 								// Label and value side by side, wrapping as the line fills,
 								// so a catalog card is a few lines tall, not a grid of boxes.
-								<dl className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-									{detailCells.map((cell) => {
-										const mobileCard = cell.column.columnDef.meta?.mobileCard;
-										return (
-											<div
-												key={cell.id}
-												className={cn(
-													"flex min-w-0 items-center gap-1.5",
-													mobileCard?.className,
-												)}
-											>
-												<dt
+								<div className="flex items-end justify-between gap-3">
+									<dl className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5">
+										{detailCells.map((cell) => {
+											const mobileCard = cell.column.columnDef.meta?.mobileCard;
+											return (
+												<div
+													key={cell.id}
 													className={cn(
-														"text-muted-foreground text-xs",
-														mobileCard?.labelClassName,
+														"flex min-w-0 items-center gap-1.5",
+														mobileCard?.className,
 													)}
 												>
-													{getCellHeaderLabel(cell)}
-												</dt>
-												<dd
+													<dt
+														className={cn(
+															"text-muted-foreground text-xs",
+															mobileCard?.labelClassName,
+														)}
+													>
+														{getCellHeaderLabel(cell)}
+													</dt>
+													<dd
+														className={cn(
+															"min-w-0 truncate font-medium text-foreground text-sm",
+															mobileCard?.valueClassName,
+														)}
+													>
+														{flexRender(
+															cell.column.columnDef.cell,
+															cell.getContext(),
+														)}
+													</dd>
+												</div>
+											);
+										})}
+									</dl>
+									{!hasBadgeRow && status}
+								</div>
+							) : null}
+							{hasBadgeRow ? (
+								<div className="flex items-end justify-between gap-3">
+									<div className="flex min-w-0 flex-wrap items-center gap-1">
+										{badgeCells.map((cell) => {
+											const mobileCard = cell.column.columnDef.meta?.mobileCard;
+											return (
+												<div
+													key={cell.id}
 													className={cn(
-														"min-w-0 truncate font-medium text-foreground text-sm",
-														mobileCard?.valueClassName,
+														"flex flex-wrap gap-1",
+														mobileCard?.className,
 													)}
 												>
 													{flexRender(
 														cell.column.columnDef.cell,
 														cell.getContext(),
 													)}
-												</dd>
-											</div>
-										);
-									})}
-								</dl>
-							) : null}
-							{badgeCells.length > 0 ? (
-								<div className="flex flex-wrap items-center gap-1">
-									{badgeCells.map((cell) => {
-										const mobileCard = cell.column.columnDef.meta?.mobileCard;
-										return (
-											<div
-												key={cell.id}
-												className={cn(
-													"flex flex-wrap gap-1",
-													mobileCard?.className,
-												)}
-											>
-												{flexRender(
-													cell.column.columnDef.cell,
-													cell.getContext(),
-												)}
-											</div>
-										);
-									})}
+												</div>
+											);
+										})}
+									</div>
+									{status}
 								</div>
 							) : null}
+							{!hasBadgeRow && detailCells.length === 0 && status}
 						</div>
 					</article>
 				);

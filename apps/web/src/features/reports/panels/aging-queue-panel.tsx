@@ -36,7 +36,7 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 	{
 		accessorKey: "service_name",
 		header: "Service",
-		meta: { mobileCard: { slot: "subtitle" } },
+		meta: { kind: "text", mobileCard: { slot: "subtitle" } },
 	},
 	{
 		id: "store",
@@ -74,8 +74,9 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 		),
 	},
 	{
-		id: "handler",
+		accessorKey: "handler_name",
 		header: "Handler",
+		meta: { kind: "text" },
 		cell: ({ row }) => row.original.handler_name ?? "Unassigned",
 	},
 ];

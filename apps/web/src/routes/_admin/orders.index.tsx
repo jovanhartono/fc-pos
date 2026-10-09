@@ -308,9 +308,9 @@ function OrdersPage() {
 					mobileCard: { slot: "subtitle", className: "text-foreground" },
 				},
 				cell: ({ row }) => (
-					<div className="flex flex-col">
+					<div className="flex flex-col lg:max-w-56">
 						<CustomerLink
-							className="truncate"
+							className="truncate lg:whitespace-normal lg:wrap-break-word"
 							customerId={row.original.customer_id}
 							name={row.original.customer_name}
 						/>
@@ -336,7 +336,7 @@ function OrdersPage() {
 				header: "Fulfillment",
 				meta: {
 					mobileCard: {
-						slot: "badges",
+						slot: "status",
 					},
 				},
 				cell: ({ row }) => (
@@ -350,7 +350,7 @@ function OrdersPage() {
 				header: "Payment",
 				meta: {
 					mobileCard: {
-						slot: "badges",
+						slot: "status",
 					},
 				},
 				cell: ({ row }) => (

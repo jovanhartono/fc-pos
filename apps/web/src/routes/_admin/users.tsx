@@ -1,11 +1,6 @@
 import { PUTUserSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-	DotsThreeIcon,
-	KeyIcon,
-	PencilSimpleLineIcon,
-	PlusIcon,
-} from "@phosphor-icons/react";
+import { KeyIcon, PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
@@ -19,12 +14,6 @@ import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { storesQueries } from "@/features/stores/api";
 import {
 	createUser,
@@ -312,15 +301,6 @@ function UsersPage() {
 				),
 			},
 			{
-				id: "status",
-				header: "Status",
-				cell: ({ row }) => (
-					<Badge variant={row.original.is_active ? "success" : "danger"}>
-						{row.original.is_active ? "Active" : "Inactive"}
-					</Badge>
-				),
-			},
-			{
 				id: "stores",
 				header: "Stores",
 				cell: ({ row }) =>
@@ -334,6 +314,16 @@ function UsersPage() {
 						: "—",
 			},
 			{
+				id: "status",
+				header: "Status",
+				meta: { mobileCard: { slot: "status" } },
+				cell: ({ row }) => (
+					<Badge variant={row.original.is_active ? "success" : "danger"}>
+						{row.original.is_active ? "Active" : "Inactive"}
+					</Badge>
+				),
+			},
+			{
 				id: "actions",
 				header: "Actions",
 				meta: { mobileCard: { slot: "title-end" } },
@@ -341,32 +331,20 @@ function UsersPage() {
 					<div className="flex gap-2">
 						<Button
 							variant="outline"
-							size="sm"
+							size="icon-sm"
+							aria-label="Edit"
+							title="Edit"
 							onClick={() => handleEdit(row.original)}
 							icon={<PencilSimpleLineIcon className="size-4" />}
-						>
-							Edit
-						</Button>
-						<DropdownMenu>
-							<DropdownMenuTrigger
-								render={
-									<Button
-										aria-label="More actions"
-										icon={<DotsThreeIcon className="size-4" />}
-										size="icon-sm"
-										variant="outline"
-									/>
-								}
-							/>
-							<DropdownMenuContent align="end" className="w-44">
-								<DropdownMenuItem
-									onClick={() => handleResetPassword(row.original)}
-								>
-									<KeyIcon className="size-4" />
-									Reset password
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
+						/>
+						<Button
+							variant="outline"
+							size="icon-sm"
+							aria-label="Reset password"
+							title="Reset password"
+							onClick={() => handleResetPassword(row.original)}
+							icon={<KeyIcon className="size-4" />}
+						/>
 					</div>
 				),
 			},

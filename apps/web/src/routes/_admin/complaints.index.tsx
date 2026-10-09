@@ -66,7 +66,7 @@ const ComplaintsPage = () => {
 				header: "Complaint",
 				meta: { mobileCard: { slot: "title" } },
 				cell: ({ row }) => (
-					<div className="flex flex-col gap-0.5">
+					<div className="flex flex-col gap-0.5 lg:max-w-64 lg:whitespace-normal">
 						<Link
 							to="/complaints/$complaintId"
 							params={{ complaintId: String(row.original.id) }}
@@ -84,7 +84,7 @@ const ComplaintsPage = () => {
 			{
 				accessorKey: "customer_name",
 				header: "Customer",
-				meta: { mobileCard: { label: "Customer" } },
+				meta: { kind: "name", mobileCard: { label: "Customer" } },
 				cell: ({ row }) => (
 					<CustomerLink
 						customerId={row.original.customer_id}
