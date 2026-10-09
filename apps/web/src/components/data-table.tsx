@@ -22,6 +22,8 @@ interface DataTableProps<TData extends RowData> {
 	cardPrimaryColumnId?: string;
 	cardHiddenColumnIds?: string[];
 	getCardLink?: (row: TData) => LinkProps;
+	// The row whose record is open beside the list.
+	isRowActive?: (row: TData) => boolean;
 	// The pager, kept in reach: under the rows on desktop, above the tab bar on a phone.
 	footer?: ReactNode;
 }
@@ -35,6 +37,7 @@ export const DataTable = <TData extends RowData>({
 	cardPrimaryColumnId,
 	cardHiddenColumnIds,
 	getCardLink,
+	isRowActive,
 	footer,
 }: DataTableProps<TData>) => {
 	const [sorting, setSorting] = useState<SortingState>([]);
@@ -62,6 +65,7 @@ export const DataTable = <TData extends RowData>({
 					cardPrimaryColumnId={cardPrimaryColumnId}
 					cardHiddenColumnIds={cardHiddenColumnIds}
 					getCardLink={getCardLink}
+					isRowActive={isRowActive}
 				/>
 				{footer ? (
 					// Pinned like the queue's Hold to Start Work bar.
@@ -82,6 +86,7 @@ export const DataTable = <TData extends RowData>({
 			isLoading={isLoading}
 			emptyMessage={emptyMessage}
 			sortable={sortable}
+			isRowActive={isRowActive}
 			footer={footer}
 		/>
 	);

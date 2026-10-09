@@ -28,6 +28,7 @@ interface DataTableGridProps<TData extends RowData> {
 	isLoading?: boolean;
 	emptyMessage: string;
 	sortable: boolean;
+	isRowActive?: (row: TData) => boolean;
 	footer?: ReactNode;
 }
 
@@ -36,6 +37,7 @@ export const DataTableGrid = <TData extends RowData>({
 	isLoading,
 	emptyMessage,
 	sortable,
+	isRowActive,
 	footer,
 }: DataTableGridProps<TData>) => {
 	const frameRef = useRef<HTMLDivElement>(null);
@@ -49,6 +51,17 @@ export const DataTableGrid = <TData extends RowData>({
 	useEffect(() => {
 		setFocusedIndex(-1);
 	}, [rows]);
+
+	// While a row is open beside the list, its fill is the only marker; on
+	// close the ring is waiting on it, so J carries on from the last one opened.
+	const activeIndex = isRowActive
+		? rows.findIndex((row) => isRowActive(row.original))
+		: -1;
+	useEffect(() => {
+		if (activeIndex >= 0) {
+			setFocusedIndex(activeIndex);
+		}
+	}, [activeIndex]);
 
 	useEffect(() => {
 		// J/K walk the rows and Enter opens the one in the ring, so a cashier
@@ -182,8 +195,11 @@ export const DataTableGrid = <TData extends RowData>({
 						rows.map((row, index) => (
 							<TableRow
 								key={row.id}
-								data-focused={index === focusedIndex || undefined}
-								className="scroll-mt-9 border-border/60 data-focused:bg-muted/60 data-focused:outline-2 data-focused:outline-foreground data-focused:-outline-offset-2"
+								data-focused={
+									(activeIndex < 0 && index === focusedIndex) || undefined
+								}
+								data-state={index === activeIndex ? "selected" : undefined}
+								className="scroll-mt-9 border-border/60 data-focused:bg-muted/60 data-focused:outline-2 data-focused:outline-foreground data-focused:-outline-offset-2 data-[state=selected]:[&>td:first-child]:shadow-[inset_2px_0_0_var(--foreground)]"
 							>
 								{row.getAllCells().map((cell) => (
 									<TableCell

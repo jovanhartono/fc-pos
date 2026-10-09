@@ -17,6 +17,7 @@ interface DataTableCardsProps<TData extends RowData> {
 	cardPrimaryColumnId?: string;
 	cardHiddenColumnIds?: string[];
 	getCardLink?: (row: TData) => LinkProps;
+	isRowActive?: (row: TData) => boolean;
 }
 
 interface CardCells<TData extends RowData> {
@@ -99,6 +100,7 @@ export const DataTableCards = <TData extends RowData>({
 	cardPrimaryColumnId,
 	cardHiddenColumnIds,
 	getCardLink,
+	isRowActive,
 }: DataTableCardsProps<TData>) => {
 	if (isLoading) {
 		return (
@@ -157,7 +159,8 @@ export const DataTableCards = <TData extends RowData>({
 				return (
 					<article
 						key={row.id}
-						className="group/card relative grid border border-border bg-background text-sm transition-colors hover:border-foreground/40 hover:bg-muted/20 dark:bg-muted/5"
+						data-state={isRowActive?.(row.original) ? "selected" : undefined}
+						className="group/card relative grid border border-border bg-background text-sm transition-colors hover:border-foreground/40 hover:bg-muted/20 data-[state=selected]:bg-muted data-[state=selected]:shadow-[inset_2px_0_0_var(--foreground)] dark:bg-muted/5"
 					>
 						{getCardLink !== undefined && (
 							<Link

@@ -23,7 +23,7 @@ import {
 	type OrderFilterValues,
 	PAYMENT_STATUS_VALUES,
 } from "@/features/orders/components/order-filters";
-import { OrderSplitView } from "@/features/orders/components/order-split-view";
+import { OrderSheet } from "@/features/orders/components/order-sheet";
 import { OrderStatusTabs } from "@/features/orders/components/order-status-tabs";
 import { PickupRadar } from "@/features/orders/components/pickup-radar";
 import { getPaymentBadges } from "@/features/orders/lib/payment-badges";
@@ -52,7 +52,7 @@ const ordersSearchSchema = z.object({
 		.regex(/^\d{4}-\d{2}-\d{2}$/)
 		.optional()
 		.catch(undefined),
-	// The Order shown beside the list on a desktop.
+	// The Order open in the sheet over the list, on a tablet or desktop.
 	open: z.coerce.number().int().positive().optional().catch(undefined),
 });
 
@@ -144,10 +144,10 @@ function OrdersPage() {
 	// DB-fresh role — JWT claim goes stale on mid-session role changes.
 	const role = meQuery.data?.role;
 
-	// Below lg the list is cards and an Order opens as its own page; from lg up
-	// it opens beside the list.
-	const isWide = !useIsMobile(1024);
-	const splitOrderId = isWide ? search.open : undefined;
+	// A phone opens an Order as its own page; a tablet or desktop opens it in a
+	// sheet over the list.
+	const isWide = !useIsMobile();
+	const sheetOrderId = isWide ? search.open : undefined;
 	// Replace, not push: walking twenty Orders with J must not leave twenty
 	// steps for Back to undo before it leaves the page.
 	const handleOpenOrder = useCallback(
@@ -426,27 +426,36 @@ function OrdersPage() {
 					<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center text-muted-foreground text-sm">
 						No store assigned
 					</div>
-				) : splitOrderId === undefined ? (
+				) : (
 					<DataTable
 						columns={columns}
 						data={orders}
 						isLoading={ordersQuery.isPending || storesQuery.isPending}
-						getCardLink={(order) => ({
-							to: "/orders/$orderId",
-							params: { orderId: String(order.id) },
-						})}
-						footer={pager}
-					/>
-				) : (
-					<OrderSplitView
-						orders={orders}
-						openId={splitOrderId}
-						onSelect={handleOpenOrder}
-						onClose={handleCloseOrder}
+						getCardLink={(order) =>
+							isWide
+								? {
+										from: Route.fullPath,
+										search: (prev) => ({ ...prev, open: order.id }),
+										replace: true,
+									}
+								: {
+										to: "/orders/$orderId",
+										params: { orderId: String(order.id) },
+									}
+						}
+						isRowActive={(order) => order.id === sheetOrderId}
 						footer={pager}
 					/>
 				)}
 			</ListPanel>
+			{sheetOrderId === undefined ? null : (
+				<OrderSheet
+					orders={orders}
+					openId={sheetOrderId}
+					onSelect={handleOpenOrder}
+					onClose={handleCloseOrder}
+				/>
+			)}
 		</>
 	);
 }
