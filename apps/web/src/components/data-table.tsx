@@ -34,9 +34,13 @@ interface DataTableProps<TData extends RowData> {
 // A code is read character by character, a name is what the eye looks for
 // first. Wrapped once here, so the table and the phone card both get it.
 // The lg: limits stop one long name or description widening the whole table.
+// Exported for cells that stack a name over a second line, where kind would bold both.
+export const WRAP_NAME_CLASS =
+	"lg:max-w-64 lg:whitespace-normal lg:wrap-break-word";
+
 const KIND_CLASS = {
 	code: "font-mono",
-	name: "font-medium lg:inline-block lg:min-w-40 lg:max-w-64 lg:whitespace-normal lg:wrap-break-word",
+	name: `font-medium lg:inline-block lg:min-w-40 ${WRAP_NAME_CLASS}`,
 	text: "lg:block lg:max-w-72 lg:truncate",
 } as const;
 

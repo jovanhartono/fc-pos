@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
-import { DataTable } from "@/components/data-table";
+import { DataTable, WRAP_NAME_CLASS } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DateTimeCell } from "@/components/date-time-cell";
 import { ListPanel } from "@/components/list-panel";
@@ -308,9 +308,9 @@ function OrdersPage() {
 					mobileCard: { slot: "subtitle", className: "text-foreground" },
 				},
 				cell: ({ row }) => (
-					<div className="flex flex-col lg:max-w-56">
+					<div className={cn("flex flex-col", WRAP_NAME_CLASS)}>
 						<CustomerLink
-							className="truncate lg:whitespace-normal lg:wrap-break-word"
+							className="truncate lg:whitespace-normal"
 							customerId={row.original.customer_id}
 							name={row.original.customer_name}
 						/>

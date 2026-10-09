@@ -299,7 +299,7 @@ function CampaignsPage() {
 			{
 				accessorKey: "name",
 				header: "Name",
-				meta: { cellClassName: "min-w-32 whitespace-normal", kind: "name" },
+				meta: { kind: "name" },
 			},
 			{
 				id: "discount",
@@ -362,7 +362,9 @@ function CampaignsPage() {
 							onClick={() => handleOpenEditSheet(row.original)}
 							icon={<PencilSimpleLineIcon className="size-4" />}
 						/>
-						{row.original.redemption_mode === "code" && (
+						{/* An empty slot on listed campaigns keeps Archive in the same
+						spot on every row, so a quick click never archives by mistake. */}
+						{row.original.redemption_mode === "code" ? (
 							<Button
 								variant="outline"
 								size="icon-sm"
@@ -371,6 +373,8 @@ function CampaignsPage() {
 								onClick={() => handleOpenVoucherDetail(row.original)}
 								icon={<TicketIcon className="size-4" />}
 							/>
+						) : (
+							<span aria-hidden className="size-7 shrink-0" />
 						)}
 						<ArchiveCampaignButton
 							campaign={row.original}

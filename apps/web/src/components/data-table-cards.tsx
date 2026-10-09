@@ -66,8 +66,11 @@ const bucketCardCells = <TData extends RowData>(
 			continue;
 		}
 		const mobileCard = cell.column.columnDef.meta?.mobileCard;
-		if (mobileCard?.omitWhenEmpty && !cell.getValue()) {
-			continue;
+		if (mobileCard?.omitWhenEmpty) {
+			const value = cell.getValue();
+			if (value === null || value === "") {
+				continue;
+			}
 		}
 		const slot = mobileCard?.slot;
 		if (slot === "title-end") {
@@ -168,16 +171,15 @@ export const DataTableCards = <TData extends RowData>({
 				const primaryConfig = primaryCell?.column.columnDef.meta?.mobileCard;
 				const hasHeaderStrip =
 					eyebrowCells.length > 0 || footerCells.length > 0;
-				const status =
-					statusCells.length > 0 ? (
-						<div className="flex shrink-0 flex-wrap justify-end gap-1">
-							{statusCells.map((cell) => (
-								<Fragment key={cell.id}>
-									{flexRender(cell.column.columnDef.cell, cell.getContext())}
-								</Fragment>
-							))}
-						</div>
-					) : null;
+				const status = statusCells.length > 0 && (
+					<div className="ml-auto flex min-w-0 flex-wrap justify-end gap-1">
+						{statusCells.map((cell) => (
+							<Fragment key={cell.id}>
+								{flexRender(cell.column.columnDef.cell, cell.getContext())}
+							</Fragment>
+						))}
+					</div>
+				);
 				const hasBadgeRow = badgeCells.length > 0;
 
 				return (
@@ -365,7 +367,9 @@ export const DataTableCards = <TData extends RowData>({
 								</div>
 							) : null}
 							{hasBadgeRow ? (
-								<div className="flex items-end justify-between gap-3">
+								// Wraps, so an Order's three status badges drop under its
+								// fixed-width Items ready bar instead of overlapping it.
+								<div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1.5">
 									<div className="flex min-w-0 flex-wrap items-center gap-1">
 										{badgeCells.map((cell) => {
 											const mobileCard = cell.column.columnDef.meta?.mobileCard;

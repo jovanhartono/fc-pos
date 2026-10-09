@@ -4,7 +4,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import dayjs from "dayjs";
 import { useMemo } from "react";
 import { z } from "zod";
-import { DataTable } from "@/components/data-table";
+import { DataTable, WRAP_NAME_CLASS } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DateTimeCell } from "@/components/date-time-cell";
 import { ListPanel } from "@/components/list-panel";
@@ -14,6 +14,7 @@ import { DateRangePicker } from "@/components/ui/date-picker";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { type Shift, shiftsQueries } from "@/features/shifts/api";
 import { storesQueries } from "@/features/stores/api";
+import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 25;
 
@@ -111,7 +112,7 @@ function ShiftsPage() {
 				id: "user",
 				header: "Worker",
 				cell: ({ row }) => (
-					<div className="flex flex-col lg:max-w-56 lg:whitespace-normal">
+					<div className={cn("flex flex-col", WRAP_NAME_CLASS)}>
 						<span className="font-medium">
 							{row.original.user?.name ?? `User #${row.original.user_id}`}
 							{/* The card has no Store column, so the store rides on the name. */}
@@ -119,7 +120,7 @@ function ShiftsPage() {
 								{row.original.store?.code}
 							</span>
 						</span>
-						<span className="font-normal text-muted-foreground text-xs">
+						<span className="text-muted-foreground text-xs">
 							{row.original.user?.role ?? ""}
 						</span>
 					</div>
@@ -159,7 +160,10 @@ function ShiftsPage() {
 			{
 				id: "duration",
 				header: "Duration",
-				meta: { mobileCard: { slot: "title-end", className: "text-right" } },
+				// pt-1 matches the card title, which drops 4px to line up with Edit buttons.
+				meta: {
+					mobileCard: { slot: "title-end", className: "pt-1 text-right" },
+				},
 				cell: ({ row }) => <ShiftDuration shift={row.original} />,
 			},
 		],

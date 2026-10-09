@@ -3,7 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import dayjs from "dayjs";
 import { useMemo } from "react";
 import { z } from "zod";
-import { DataTable } from "@/components/data-table";
+import { DataTable, WRAP_NAME_CLASS } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
 import { ListPanel } from "@/components/list-panel";
@@ -20,6 +20,7 @@ import {
 	getComplaintOutcome,
 } from "@/features/complaints/lib/format";
 import { CustomerLink } from "@/features/customers/components/customer-link";
+import { cn } from "@/lib/utils";
 
 const complaintsSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
@@ -66,7 +67,7 @@ const ComplaintsPage = () => {
 				header: "Complaint",
 				meta: { mobileCard: { slot: "title" } },
 				cell: ({ row }) => (
-					<div className="flex flex-col gap-0.5 lg:max-w-64 lg:whitespace-normal">
+					<div className={cn("flex flex-col gap-0.5", WRAP_NAME_CLASS)}>
 						<Link
 							to="/complaints/$complaintId"
 							params={{ complaintId: String(row.original.id) }}
