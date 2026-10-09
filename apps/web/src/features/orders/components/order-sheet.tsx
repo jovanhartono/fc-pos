@@ -81,15 +81,6 @@ export const OrderSheet = ({
 		};
 	}, [orders, openIndex, onSelect, onClose]);
 
-	useEffect(() => {
-		if (openIndex < 0) {
-			return;
-		}
-		document
-			.querySelector('[data-list-panel] [data-state="selected"]')
-			?.scrollIntoView({ block: "nearest" });
-	}, [openIndex]);
-
 	return (
 		// At least 36rem wide for the Order, and 11rem of the list left beside it
 		// when the window has room for both; a narrow tablet covers the list.

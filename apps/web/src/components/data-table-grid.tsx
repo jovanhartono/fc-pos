@@ -46,17 +46,18 @@ export const DataTableGrid = <TData extends RowData>({
 	const rows = table.getRowModel().rows;
 	const rowCount = rows.length;
 
-	// A new page or filter is a new list; the ring starts over above it.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: reset on new rows
-	useEffect(() => {
-		setFocusedIndex(-1);
-	}, [rows]);
-
 	// While a row is open beside the list, its fill is the only marker; on
 	// close the ring is waiting on it, so J carries on from the last one opened.
 	const activeIndex = isRowActive
 		? rows.findIndex((row) => isRowActive(row.original))
 		: -1;
+
+	// A new page or filter is a new list; the ring starts over above it, or on
+	// the open row when a payment in the sheet refreshed the same list.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reset on new rows
+	useEffect(() => {
+		setFocusedIndex(activeIndex);
+	}, [rows]);
 	useEffect(() => {
 		if (activeIndex >= 0) {
 			setFocusedIndex(activeIndex);

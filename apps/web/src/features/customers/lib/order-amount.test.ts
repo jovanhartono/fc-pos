@@ -18,7 +18,6 @@ describe("describeOrderAmount", () => {
 		expect(amount.net).toBe(550_000);
 		expect(amount.label).not.toBe(formatMoney("800000"));
 		expect(amount.refunded).toBe(formatMoney("250000"));
-		expect(amount.isPending).toBe(false);
 	});
 
 	it("says nothing about refunds on an order that kept its money", () => {
@@ -57,7 +56,6 @@ describe("describeOrderAmount", () => {
 		});
 
 		expect(amount).toEqual({
-			isPending: true,
 			label: "Unpaid",
 			net: null,
 			refunded: null,
@@ -74,7 +72,6 @@ describe("describeOrderAmount", () => {
 		});
 
 		expect(amount).toEqual({
-			isPending: true,
 			label: "—",
 			net: null,
 			refunded: null,
@@ -93,6 +90,6 @@ describe("describeOrderAmount", () => {
 		});
 
 		expect(amount.label).toBe("Pending price");
-		expect(amount.isPending).toBe(true);
+		expect(amount.net).toBeNull();
 	});
 });

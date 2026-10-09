@@ -13,10 +13,9 @@ export interface OrderAmountState extends OrderPaymentState {
 export interface OrderAmountDisplay {
 	/** Secondary line, present only when money went back out. */
 	refunded: string | null;
-	/** True when the row carries no number — style it as absent, not as zero. */
-	isPending: boolean;
 	label: string;
-	/** What the shop kept, as a number; null when the row carries no number. */
+	/** What the shop kept; null when the row carries no number — show the label
+	 * as absent, not as zero. */
 	net: number | null;
 }
 
@@ -27,13 +26,12 @@ export const describeOrderAmount = (
 	order: OrderAmountState,
 ): OrderAmountDisplay => {
 	if (isCancelledBeforePayment(order)) {
-		return { isPending: true, label: "—", net: null, refunded: null };
+		return { label: "—", net: null, refunded: null };
 	}
 	if (order.payment_status === "unpaid") {
 		// The Repair the workshop has not inspected yet: there is no agreed
 		// number to show, and "Rp 0" would read as free (ADR-0018).
 		return {
-			isPending: true,
 			label: order.has_unpriced_line ? "Pending price" : "Unpaid",
 			net: null,
 			refunded: null,
@@ -44,7 +42,6 @@ export const describeOrderAmount = (
 	const net = Number(order.paid_amount) - refunded;
 
 	return {
-		isPending: false,
 		label: formatMoney(String(net)),
 		net,
 		refunded: refunded > 0 ? formatMoney(order.refunded_amount) : null,

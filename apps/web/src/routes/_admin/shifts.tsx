@@ -56,19 +56,43 @@ const DateTimeCell = ({ value }: DateTimeCellProps) => (
 	</div>
 );
 
-const formatDuration = (
-	clockIn: Date | string,
-	clockOut: Date | string | null,
-) => {
-	if (!clockOut) {
-		return "Open";
-	}
+const formatDuration = (clockIn: Date | string, clockOut: Date | string) => {
 	const ms = dayjs(clockOut).diff(dayjs(clockIn));
 	const totalMinutes = Math.max(0, Math.floor(ms / 60_000));
 	const hours = Math.floor(totalMinutes / 60);
 	const minutes = totalMinutes % 60;
 	return `${hours}h ${String(minutes).padStart(2, "0")}m`;
 };
+
+interface ShiftDurationProps {
+	shift: Shift;
+}
+
+const OpenShift = ({ shift }: ShiftDurationProps) => (
+	<span className="font-semibold text-emerald-700 dark:text-emerald-400">
+		Open
+		<span className="block font-normal text-muted-foreground text-xs">
+			since {dayjs(shift.clock_in_at).format("HH:mm")}
+		</span>
+	</span>
+);
+
+const ShiftDuration = ({ shift }: ShiftDurationProps) => (
+	<div className="flex flex-col gap-0.5">
+		{shift.clock_out_at ? (
+			<span className="font-semibold tabular-nums">
+				{formatDuration(shift.clock_in_at, shift.clock_out_at)}
+			</span>
+		) : (
+			<OpenShift shift={shift} />
+		)}
+		{shift.auto_closed ? (
+			<span className="text-amber-600 text-xs dark:text-amber-400">
+				auto-closed
+			</span>
+		) : null}
+	</div>
+);
 
 function ShiftsPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
@@ -115,33 +139,7 @@ function ShiftsPage() {
 			{
 				id: "duration",
 				header: "Duration",
-				cell: ({ row }) => {
-					const open = !row.original.clock_out_at;
-					return (
-						<div className="flex flex-col gap-0.5">
-							{open ? (
-								<span className="font-semibold text-emerald-700 dark:text-emerald-400">
-									Open
-									<span className="block font-normal text-muted-foreground text-xs">
-										since {dayjs(row.original.clock_in_at).format("HH:mm")}
-									</span>
-								</span>
-							) : (
-								<span className="font-semibold tabular-nums">
-									{formatDuration(
-										row.original.clock_in_at,
-										row.original.clock_out_at,
-									)}
-								</span>
-							)}
-							{row.original.auto_closed ? (
-								<span className="text-amber-600 text-xs dark:text-amber-400">
-									auto-closed
-								</span>
-							) : null}
-						</div>
-					);
-				},
+				cell: ({ row }) => <ShiftDuration shift={row.original} />,
 			},
 		],
 		[],

@@ -260,6 +260,7 @@ function OrdersPage() {
 								<Link
 									from={Route.fullPath}
 									search={(prev) => ({ ...prev, open: row.original.id })}
+									replace
 									className="font-mono font-medium"
 								>
 									{row.original.code}
