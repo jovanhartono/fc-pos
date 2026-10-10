@@ -56,7 +56,7 @@ export const WorkersPanel = ({
 	const maxOf = (pick: (w: Worker) => number) =>
 		topWorkers.reduce((m, w) => Math.max(m, pick(w)), 0);
 	const maxRefund = maxOf((w) => w.refund_items);
-	const maxRework = maxOf((w) => w.rework_items);
+	const maxQcRejects = maxOf((w) => w.qc_reject_events);
 	const maxSph = maxOf((w) => w.services_per_hour);
 	const norm = (val: number, max: number) =>
 		max === 0 ? 0 : Math.round((val / max) * 100);
@@ -64,7 +64,8 @@ export const WorkersPanel = ({
 	const radarData = topWorkers.map((w) => ({
 		worker: w.user_name,
 		services: norm(w.services_processed, maxServices),
-		rework: maxRework === 0 ? 0 : 100 - norm(w.rework_items, maxRework),
+		quality:
+			maxQcRejects === 0 ? 0 : 100 - norm(w.qc_reject_events, maxQcRejects),
 		refunds: maxRefund === 0 ? 0 : 100 - norm(w.refund_items, maxRefund),
 		speed: norm(w.services_per_hour, maxSph),
 	}));
@@ -74,11 +75,11 @@ export const WorkersPanel = ({
 			return;
 		}
 		const lines: string[] = [
-			"Worker productivity,User ID,Name,Services processed,Refund items,Rework items,Rework rate,Shift minutes,Services per hour",
+			"Worker productivity,User ID,Name,Services processed,Refund items,QC rejects,QC checks,QC reject rate,Shift minutes,Services per hour",
 		];
 		for (const w of workers) {
 			lines.push(
-				`Worker productivity,${w.user_id},${escapeCsv(w.user_name)},${w.services_processed},${w.refund_items},${w.rework_items},${w.rework_rate},${w.shift_minutes},${w.services_per_hour}`,
+				`Worker productivity,${w.user_id},${escapeCsv(w.user_name)},${w.services_processed},${w.refund_items},${w.qc_reject_events},${w.qc_checks},${w.qc_reject_rate},${w.shift_minutes},${w.services_per_hour}`,
 			);
 		}
 		downloadCsv(
@@ -106,10 +107,12 @@ export const WorkersPanel = ({
 						helper="First reached QC"
 					/>
 					<KpiCard
-						label="Rework rate"
-						value={percentFormatter.format(summary?.rework_rate ?? 0)}
-						delta={deltas?.rework_rate}
-						helper={`${numberFormatter.format(summary?.total_rework_items ?? 0)} services with QC kickback`}
+						label="QC reject rate"
+						value={percentFormatter.format(summary?.qc_reject_rate ?? 0)}
+						delta={deltas?.qc_reject_rate}
+						deltaAs="points"
+						isLowerBetter
+						helper={`${numberFormatter.format(summary?.total_qc_rejects ?? 0)} of ${numberFormatter.format(summary?.total_qc_checks ?? 0)} ${summary?.total_qc_checks === 1 ? "check" : "checks"} sent back`}
 					/>
 					<KpiCard
 						label="Avg services/hour"
@@ -123,13 +126,13 @@ export const WorkersPanel = ({
 			<ChartCard
 				variant="radar"
 				title="Worker profile · top 6"
-				description="Scored against the top performer. Refunds and rework count against."
+				description="Scored against the top performer. Refunds and QC rejects count against."
 				data={radarData}
 				categoryKey="worker"
 				series={[
 					{ key: "services", label: "Services", color: CHART_PALETTE[0] },
 					{ key: "speed", label: "Speed", color: CHART_PALETTE[1] },
-					{ key: "rework", label: "Quality", color: CHART_PALETTE[2] },
+					{ key: "quality", label: "Quality", color: CHART_PALETTE[2] },
 					{ key: "refunds", label: "Refund-free", color: CHART_PALETTE[4] },
 				]}
 				valueFormatter={(v) => `${v}`}
@@ -156,7 +159,7 @@ export const WorkersPanel = ({
 									<div key={w.user_id} className="grid gap-1">
 										<div className="flex items-center justify-between gap-2">
 											<span className="flex items-center gap-1.5 truncate text-sm font-medium">
-												{w.rework_items > 0 ? (
+												{w.qc_reject_events > 0 ? (
 													<WarningIcon
 														className="size-3 text-destructive"
 														weight="fill"
@@ -177,7 +180,7 @@ export const WorkersPanel = ({
 										<div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
 											<span>{`${hours.toFixed(1)}h worked`}</span>
 											<span>{`${w.services_per_hour} services/hr`}</span>
-											<span>{`${w.rework_items} rework`}</span>
+											<span>{`${w.qc_reject_events} QC rejects`}</span>
 											<span>{`${w.refund_items} refunded`}</span>
 										</div>
 									</div>

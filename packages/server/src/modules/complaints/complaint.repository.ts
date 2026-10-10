@@ -4,7 +4,6 @@ import {
   complaintsTable,
   customersTable,
   itemsTable,
-  orderServiceStatusEnum,
   ordersServicesTable,
   ordersTable,
   servicesTable,
@@ -12,18 +11,14 @@ import {
   usersTable,
 } from "@/db/schema";
 import {
-  isReworkedRound,
   type NormalizedComplaintListQuery,
+  REWORKED_ROUND_STATUSES,
 } from "@/modules/complaints/complaint.schema";
 import { orderRefColumns } from "@/modules/orders/order-read.repository";
 import type { DbExecutor } from "@/modules/orders/order-status-machine";
 
 type ComplaintInsert = typeof complaintsTable.$inferInsert;
 type ReworkLineInsert = typeof ordersServicesTable.$inferInsert;
-
-const REWORKED_ROUND_STATUSES = orderServiceStatusEnum.enumValues.filter(
-  (status) => isReworkedRound({ status })
-);
 
 export async function insertComplaint(
   executor: DbExecutor,

@@ -1,5 +1,46 @@
 import { describe, expect, it } from "bun:test";
-import { POSTItemPhotoPresignSchema } from "@/modules/orders/order-admin.schema";
+import {
+  PATCHOrderServiceStatusSchema,
+  POSTItemPhotoPresignSchema,
+} from "@/modules/orders/order-admin.schema";
+
+describe("PATCHOrderServiceStatusSchema", () => {
+  // The checker sends a pair back from quality check; the owner reads the
+  // reason on the Quality report, so a reject with no reason is refused.
+  const refusal = (body: Record<string, unknown>) => {
+    const result = PATCHOrderServiceStatusSchema.safeParse(body);
+    return result.success
+      ? null
+      : result.error.issues.map((issue) => [issue.path, issue.message]);
+  };
+
+  it("refuses a QC reject with no note", () => {
+    expect(refusal({ status: "qc_reject" })).toEqual([
+      [["note"], "Say what's wrong"],
+    ]);
+  });
+
+  it("refuses a QC reject whose note is only spaces", () => {
+    expect(refusal({ status: "qc_reject", note: "   " })).toEqual([
+      [["note"], "Say what's wrong"],
+    ]);
+  });
+
+  it("takes a QC reject that says what is wrong", () => {
+    expect(
+      PATCHOrderServiceStatusSchema.parse({
+        status: "qc_reject",
+        note: " stain on toe box ",
+      })
+    ).toEqual({ status: "qc_reject", note: "stain on toe box" });
+  });
+
+  it("still lets every other move go without a note", () => {
+    for (const status of ["processing", "quality_check", "ready_for_pickup"]) {
+      expect(refusal({ status })).toBeNull();
+    }
+  });
+});
 
 describe("POSTItemPhotoPresignSchema", () => {
   it("rejects HEIC now that the counter phone converts before upload", () => {

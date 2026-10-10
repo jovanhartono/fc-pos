@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { orderServiceStatusEnum } from "@/db/schema";
 import {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
@@ -28,6 +29,10 @@ export function isComplainableLine(
 export function isReworkedRound(round: { status: string }): boolean {
   return round.status !== "cancelled";
 }
+
+export const REWORKED_ROUND_STATUSES = orderServiceStatusEnum.enumValues.filter(
+  (status) => isReworkedRound({ status })
+);
 
 // `start_rework` spawns the first free rework line in the same transaction.
 export const POSTComplaintSchema = z.object({

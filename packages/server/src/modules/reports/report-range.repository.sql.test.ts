@@ -167,11 +167,6 @@ const QUERIES: [string, Query][] = [
       repo.listRefundAmountSeries({ granularity: DAY, range: AUGUST, storeId }),
   ],
   [
-    "refund reasons",
-    (storeId) =>
-      repo.listRefundReasonSeries({ granularity: DAY, range: AUGUST, storeId }),
-  ],
-  [
     "worker productivity",
     (storeId) => repo.listWorkerProductivityRows({ range: AUGUST, storeId }),
   ],

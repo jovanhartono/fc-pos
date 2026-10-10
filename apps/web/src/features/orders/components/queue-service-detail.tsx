@@ -415,7 +415,11 @@ export function QueueServiceDetail({
 							<FieldLabel htmlFor="queue-status-note">Status note</FieldLabel>
 							<Textarea
 								id="queue-status-note"
-								placeholder="Optional status note"
+								placeholder={
+									actionStatuses.includes("qc_reject")
+										? "Needed to reject, e.g. stain on toe box"
+										: "Optional status note"
+								}
 								value={statusNote}
 								onChange={(event) => setStatusNote(event.target.value)}
 							/>
@@ -463,7 +467,10 @@ export function QueueServiceDetail({
 								variant="secondary"
 								size="lg"
 								className={cn("h-12 sm:flex-1", canStartWork && "sm:flex-none")}
-								disabled={updateStatusMutation.isPending}
+								disabled={
+									updateStatusMutation.isPending ||
+									(nextStatus === "qc_reject" && !statusNote.trim())
+								}
 								onClick={() => {
 									updateStatusMutation.mutate(
 										{

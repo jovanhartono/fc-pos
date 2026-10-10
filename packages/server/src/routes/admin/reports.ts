@@ -3,7 +3,12 @@ import { createMiddleware } from "hono/factory";
 import { BadRequestException } from "@/http-exceptions";
 import { assertIsAdmin } from "@/modules/permissions/permissions";
 import {
+  getQcRejectsReport,
+  getQualityReport,
+} from "@/modules/reports/quality.service";
+import {
   GETAgingQueueQuerySchema,
+  GETQcRejectsQuerySchema,
   GETReportOverviewQuerySchema,
   GETReportRangeQuerySchema,
   storeIdQuerySchema,
@@ -18,7 +23,6 @@ import {
   getFinancialReport,
   getOrdersFlowReport,
   getPaymentMixReport,
-  getRefundTrendReport,
   getWorkerProductivityReport,
 } from "@/modules/reports/report-range.service";
 import type { AdminEnv } from "@/types/hono";
@@ -96,11 +100,19 @@ const app = new Hono<AdminEnv>()
     }
   )
   .get(
-    "/refund-trend",
+    "/quality",
     zodValidator("query", GETReportRangeQuerySchema),
     async (c) => {
-      const data = await getRefundTrendReport(c.req.valid("query"));
+      const data = await getQualityReport(c.req.valid("query"));
       return c.json(success(data));
+    }
+  )
+  .get(
+    "/qc-rejects",
+    zodValidator("query", GETQcRejectsQuerySchema),
+    async (c) => {
+      const result = await getQcRejectsReport(c.req.valid("query"));
+      return c.json(success(result.items, undefined, result.meta));
     }
   )
   .get(
