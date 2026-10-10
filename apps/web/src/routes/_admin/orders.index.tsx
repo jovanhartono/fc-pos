@@ -1,12 +1,18 @@
 import { CrosshairSimpleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import dayjs from "dayjs";
+import {
+	createFileRoute,
+	Link,
+	type LinkProps,
+	useNavigate,
+} from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
-import { DataTable } from "@/components/data-table";
+import { DataTable, WRAP_NAME_CLASS } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { DateTimeCell } from "@/components/date-time-cell";
 import { ListPanel } from "@/components/list-panel";
+import { MoneyValue } from "@/components/money-value";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
@@ -23,12 +29,15 @@ import {
 	type OrderFilterValues,
 	PAYMENT_STATUS_VALUES,
 } from "@/features/orders/components/order-filters";
+import { OrderSheet } from "@/features/orders/components/order-sheet";
+import { OrderStatusTabs } from "@/features/orders/components/order-status-tabs";
 import { PickupRadar } from "@/features/orders/components/pickup-radar";
 import { getPaymentBadges } from "@/features/orders/lib/payment-badges";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
-import { formatMoney } from "@/shared/money";
+import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -48,9 +57,42 @@ const ordersSearchSchema = z.object({
 		.regex(/^\d{4}-\d{2}-\d{2}$/)
 		.optional()
 		.catch(undefined),
+	// The Order open in the sheet over the list, on a tablet or desktop.
+	open: z.coerce.number().int().positive().optional().catch(undefined),
 });
 
 const PAGE_SIZE = 25;
+
+interface ItemsReadyProps {
+	ready: number;
+	total: number;
+}
+
+// How many of the Order's pairs are finished, so the counter sees "2 of 3"
+// before the customer asks whether everything is done.
+const ItemsReady = ({ ready, total }: ItemsReadyProps) => {
+	if (total === 0) {
+		return <span className="text-muted-foreground max-lg:hidden">—</span>;
+	}
+	const isDone = ready === total;
+	return (
+		<div className="grid w-20 gap-1">
+			<span className="text-xs tabular-nums">
+				{`${ready} of ${total}`}
+				<span className="lg:hidden"> ready</span>
+			</span>
+			<span className="h-1 bg-muted">
+				<span
+					className={cn(
+						"block h-full",
+						isDone ? "bg-success" : "bg-foreground",
+					)}
+					style={{ width: `${(ready / total) * 100}%` }}
+				/>
+			</span>
+		</div>
+	);
+};
 
 function buildOrdersListParams(
 	filters: OrderFilterValues & { page: number },
@@ -70,7 +112,8 @@ function buildOrdersListParams(
 
 export const Route = createFileRoute("/_admin/orders/")({
 	validateSearch: (search) => ordersSearchSchema.parse(search),
-	loaderDeps: ({ search }) => search,
+	// Opening an Order beside the list must not re-run the list's loader.
+	loaderDeps: ({ search: { open: _open, ...listSearch } }) => listSearch,
 	loader: async ({ context, deps }) => {
 		const ensureOrders = () =>
 			context.queryClient.ensureQueryData(
@@ -105,6 +148,36 @@ function OrdersPage() {
 		meQuery.data?.userStores?.map((item) => item.store_id) ?? [];
 	// DB-fresh role — JWT claim goes stale on mid-session role changes.
 	const role = meQuery.data?.role;
+
+	// A phone opens an Order as its own page; a tablet or desktop opens it in a
+	// sheet over the list.
+	const isWide = !useIsMobile();
+	const sheetOrderId = isWide ? search.open : undefined;
+	// Replace, not push: walking twenty Orders with J must not leave twenty
+	// steps for Back to undo before it leaves the page.
+	const handleOpenOrder = useCallback(
+		(orderId: number) => {
+			void navigate({
+				search: (prev) => ({ ...prev, open: orderId }),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+	const orderLink = useCallback(
+		(orderId: number): LinkProps =>
+			isWide
+				? {
+						from: Route.fullPath,
+						search: (prev) => ({ ...prev, open: orderId }),
+						replace: true,
+					}
+				: { to: "/orders/$orderId", params: { orderId: String(orderId) } },
+		[isWide],
+	);
+	const handleCloseOrder = useCallback(() => {
+		void navigate({ search: (prev) => ({ ...prev, open: undefined }) });
+	}, [navigate]);
 
 	useEffect(() => {
 		if (!currentUser || search.storeId !== undefined) {
@@ -151,6 +224,21 @@ function OrdersPage() {
 		enabled: canListOrders,
 	});
 
+	// The same filters minus status and paging, so each tab shows what picking
+	// it would list.
+	const statusCountsQuery = useQuery({
+		...ordersQueries.statusCounts(
+			orderQuery && {
+				search: orderQuery.search,
+				store_id: orderQuery.store_id,
+				payment_status: orderQuery.payment_status,
+				date_from: orderQuery.date_from,
+				date_to: orderQuery.date_to,
+			},
+		),
+		enabled: canListOrders,
+	});
+
 	const hasNoStoreAssignment =
 		role !== "admin" && meQuery.isSuccess && userStoreIds.length === 0;
 
@@ -172,7 +260,7 @@ function OrdersPage() {
 		() => [
 			{
 				accessorKey: "code",
-				header: "Order Code",
+				header: "Order code",
 				meta: {
 					mobileCard: {
 						slot: "title",
@@ -185,8 +273,7 @@ function OrdersPage() {
 								<span className="text-destructive text-xs">COMPLAINT</span>
 							) : null}
 							<Link
-								to="/orders/$orderId"
-								params={{ orderId: String(row.original.id) }}
+								{...orderLink(row.original.id)}
 								className="font-mono font-medium"
 							>
 								{row.original.code}
@@ -200,31 +287,47 @@ function OrdersPage() {
 			},
 			{
 				id: "created_at",
-				header: "Created At",
+				header: "Created at",
 				meta: {
 					mobileCard: {
 						slot: "eyebrow",
 					},
 				},
 				cell: ({ row }) => (
-					<span>
-						{dayjs(row.original.created_at).format("DD/MM/YYYY HH:mm")}
-					</span>
+					<DateTimeCell
+						value={row.original.created_at}
+						dateFormat="DD/MM/YYYY"
+					/>
 				),
 			},
 			{
 				accessorKey: "customer_name",
 				header: "Customer",
 				meta: {
-					mobileCard: {
-						slot: "subtitle",
-					},
+					// The one subtitle the counter reads first: the customer's name.
+					mobileCard: { slot: "subtitle", className: "text-foreground" },
 				},
 				cell: ({ row }) => (
-					<CustomerLink
-						className="truncate"
-						customerId={row.original.customer_id}
-						name={row.original.customer_name}
+					<div className={cn("flex flex-col", WRAP_NAME_CLASS)}>
+						<CustomerLink
+							className="truncate lg:whitespace-normal"
+							customerId={row.original.customer_id}
+							name={row.original.customer_name}
+						/>
+						<span className="text-muted-foreground text-xs tabular-nums">
+							{row.original.customer_phone}
+						</span>
+					</div>
+				),
+			},
+			{
+				id: "items_ready",
+				header: "Items ready",
+				meta: { mobileCard: { slot: "badges" } },
+				cell: ({ row }) => (
+					<ItemsReady
+						ready={row.original.items_ready}
+						total={row.original.items_total}
 					/>
 				),
 			},
@@ -233,7 +336,7 @@ function OrdersPage() {
 				header: "Fulfillment",
 				meta: {
 					mobileCard: {
-						slot: "badges",
+						slot: "status",
 					},
 				},
 				cell: ({ row }) => (
@@ -247,7 +350,7 @@ function OrdersPage() {
 				header: "Payment",
 				meta: {
 					mobileCard: {
-						slot: "badges",
+						slot: "status",
 					},
 				},
 				cell: ({ row }) => (
@@ -262,20 +365,32 @@ function OrdersPage() {
 			},
 			{
 				id: "total",
-				header: () => <div className="text-right">Total</div>,
+				header: "Total",
 				meta: {
+					align: "right",
 					mobileCard: {
 						slot: "footer",
 					},
 				},
-				cell: ({ row }) => (
-					<div className="text-right font-mono font-medium tabular-nums">
-						{formatMoney(row.original.total)}
-					</div>
-				),
+				cell: ({ row }) => <MoneyValue value={row.original.total} />,
 			},
 		],
-		[],
+		[orderLink],
+	);
+
+	const pager = (
+		<TablePagination
+			meta={ordersQuery.data?.meta}
+			isLoading={ordersQuery.isPending}
+			onPageChange={(page) => {
+				void navigate({
+					search: (prev) => ({
+						...prev,
+						page,
+					}),
+				});
+			}}
+		/>
 	);
 
 	return (
@@ -292,45 +407,41 @@ function OrdersPage() {
 					</Button>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<OrderFilters
-						values={search}
-						role={role}
-						userStoreIds={userStoreIds}
-						onChange={handleFilterChange}
+			<ListPanel>
+				<OrderStatusTabs
+					value={search.status}
+					counts={statusCountsQuery.data}
+					onValueChange={(status) => handleFilterChange({ status })}
+				/>
+				<OrderFilters
+					values={search}
+					role={role}
+					userStoreIds={userStoreIds}
+					onChange={handleFilterChange}
+				/>
+				{hasNoStoreAssignment ? (
+					<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center text-muted-foreground text-sm">
+						No store assigned
+					</div>
+				) : (
+					<DataTable
+						columns={columns}
+						data={orders}
+						isLoading={ordersQuery.isPending || storesQuery.isPending}
+						getCardLink={(order) => orderLink(order.id)}
+						isRowActive={(order) => order.id === sheetOrderId}
+						footer={pager}
 					/>
-					{hasNoStoreAssignment ? (
-						<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-[0.18em]">
-							No store assigned
-						</div>
-					) : (
-						<div className="grid gap-4">
-							<DataTable
-								columns={columns}
-								data={orders}
-								isLoading={ordersQuery.isPending || storesQuery.isPending}
-								getCardLink={(order) => ({
-									to: "/orders/$orderId",
-									params: { orderId: String(order.id) },
-								})}
-							/>
-							<TablePagination
-								meta={ordersQuery.data?.meta}
-								isLoading={ordersQuery.isPending}
-								onPageChange={(page) => {
-									void navigate({
-										search: (prev) => ({
-											...prev,
-											page,
-										}),
-									});
-								}}
-							/>
-						</div>
-					)}
-				</ListPanel>
-			</div>
+				)}
+			</ListPanel>
+			{sheetOrderId === undefined ? null : (
+				<OrderSheet
+					orders={orders}
+					openId={sheetOrderId}
+					onSelect={handleOpenOrder}
+					onClose={handleCloseOrder}
+				/>
+			)}
 		</>
 	);
 }

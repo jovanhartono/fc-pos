@@ -59,7 +59,7 @@ interface AttachmentLabelProps {
 const AttachmentLabel = ({ children, className }: AttachmentLabelProps) => (
 	<p
 		className={cn(
-			"text-muted-foreground text-xs leading-5 font-medium uppercase tracking-wide",
+			"text-muted-foreground text-xs leading-5 font-medium",
 			className,
 		)}
 	>

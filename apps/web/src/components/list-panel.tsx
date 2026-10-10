@@ -1,14 +1,13 @@
 import type { ReactNode } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 
 interface ListPanelProps {
 	children: ReactNode;
 }
 
-// Below lg every row is already its own bordered card, so a box around the
-// list only takes width away from them on a phone.
+// No box around the list. On a tall desktop window the table fills the height
+// under the filters; on a short one the page scrolls, so no row is out of reach.
 export const ListPanel = ({ children }: ListPanelProps) => (
-	<Card className="max-lg:bg-transparent max-lg:py-0 max-lg:ring-0">
-		<CardContent className="max-lg:px-0">{children}</CardContent>
-	</Card>
+	<section data-list-panel className="group/list flex min-h-0 flex-col gap-3">
+		{children}
+	</section>
 );

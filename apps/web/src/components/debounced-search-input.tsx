@@ -63,6 +63,8 @@ export function DebouncedSearchInput({
 		<div className={cn("relative flex items-center", className)}>
 			<MagnifyingGlassIcon className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
 			<Input
+				// What the lists' "/" shortcut jumps to.
+				data-list-search
 				id={id}
 				value={internalValue}
 				onChange={(event) => handleChange(event.target.value)}

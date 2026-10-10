@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { STRIP_FADE, TAB_STRIP_ROW } from "@/components/chip-strip";
 import { cn } from "@/lib/utils";
 
 export interface ReportTab {
@@ -22,9 +23,10 @@ export const ReportShell = ({
 	const panelId = `reports-panel-${activeTab}`;
 
 	return (
-		<div className="grid gap-6">
-			<nav aria-label="Reports" className="border-border border-b">
-				<div role="tablist" className="-mb-px flex flex-wrap">
+		<div className="grid grid-cols-1 gap-6">
+			{/* One swipeable row: nine tabs wrapped onto three lines on a phone. */}
+			<nav aria-label="Reports" className={STRIP_FADE}>
+				<div role="tablist" className={TAB_STRIP_ROW}>
 					{tabs.map((tab) => {
 						const isActive = activeTab === tab.id;
 						return (
@@ -38,7 +40,7 @@ export const ReportShell = ({
 								tabIndex={isActive ? 0 : -1}
 								onClick={() => onTabChange(tab.id)}
 								className={cn(
-									"relative px-4 py-3 text-sm transition-colors",
+									"relative shrink-0 whitespace-nowrap px-4 py-3 text-sm transition-colors",
 									"border-b-2",
 									isActive
 										? "border-foreground font-semibold text-foreground"

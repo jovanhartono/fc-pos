@@ -54,7 +54,7 @@ export const ItemTray = ({ itemRows }: ItemTrayProps) => {
 						>
 							{/* Caption says what the number counts, so "Item 2" cannot be
 							    misread as a quantity beside the treatment count. */}
-							<span className="font-mono text-[10px] uppercase leading-none tracking-wide opacity-70">
+							<span className="text-[11px] font-medium leading-none opacity-70">
 								Item {itemNumber}
 							</span>
 							<span className="flex items-baseline gap-1.5 text-sm leading-none">

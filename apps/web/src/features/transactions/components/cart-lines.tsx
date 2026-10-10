@@ -20,7 +20,7 @@ export const CartLines = () => {
 			{itemRows.map((item, itemIndex) => (
 				<li className="grid gap-1" key={item.line_id}>
 					<p className="flex items-baseline gap-1.5 text-xs">
-						<span className="font-mono uppercase tracking-wide text-muted-foreground">
+						<span className="text-[13px] font-medium text-muted-foreground">
 							Item {itemIndex + 1}
 						</span>
 						<span className="min-w-0 truncate font-medium">
@@ -50,7 +50,7 @@ export const CartLines = () => {
 
 			{productRows.length > 0 ? (
 				<li className="grid gap-1">
-					<p className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
+					<p className="text-[13px] font-medium text-muted-foreground">
 						Products
 					</p>
 					<ul className="grid gap-1.5 border-border/70 border-l-2 pl-3">

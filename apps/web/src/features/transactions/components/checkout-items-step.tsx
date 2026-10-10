@@ -223,11 +223,11 @@ const CheckoutTreatmentRow = ({
 				<span className="min-w-0 flex-1 text-sm">{line.service.name}</span>
 				<span className="flex shrink-0 items-center gap-2">
 					{isUnpriced ? (
-						<span className="border border-warning/50 bg-warning/10 px-1.5 font-mono text-[10px] text-warning">
+						<span className="border border-warning/50 bg-warning/10 px-1.5 text-[10px] text-warning">
 							No price yet
 						</span>
 					) : null}
-					<span className="font-mono text-sm font-semibold tabular-nums">
+					<span className="text-sm font-semibold tabular-nums">
 						{formatMoney(getServiceLinePrice(line))}
 					</span>
 					{/* The recovery for a tap that landed on the wrong shoe: carry the
@@ -255,7 +255,7 @@ const CheckoutTreatmentRow = ({
 											moveService(itemId, line.line_id, item.line_id)
 										}
 									>
-										<span className="font-mono tabular-nums">{itemNumber}</span>
+										<span className="tabular-nums">{itemNumber}</span>
 										<span className="max-w-40 truncate">
 											{getOrderServiceItemDetails(item) ?? "New item"}
 										</span>

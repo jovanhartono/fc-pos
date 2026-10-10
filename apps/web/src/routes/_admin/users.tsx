@@ -1,11 +1,6 @@
 import { PUTUserSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-	DotsThreeIcon,
-	KeyIcon,
-	PencilSimpleLineIcon,
-	PlusIcon,
-} from "@phosphor-icons/react";
+import { KeyIcon, PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
@@ -19,12 +14,6 @@ import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { storesQueries } from "@/features/stores/api";
 import {
 	createUser,
@@ -292,22 +281,23 @@ function UsersPage() {
 
 	const columns = useMemo<DataTableColumnDef<User>[]>(
 		() => [
-			{ accessorKey: "username", header: "Username" },
-			{ accessorKey: "name", header: "Name" },
+			{
+				accessorKey: "username",
+				header: "Username",
+				meta: { kind: "code" },
+			},
+			{
+				accessorKey: "name",
+				header: "Name",
+				meta: { kind: "name" },
+			},
 			{
 				accessorKey: "role",
 				header: "Role",
 				cell: ({ row }) => (
-					<span className="uppercase">{row.original.role}</span>
-				),
-			},
-			{
-				id: "status",
-				header: "Status",
-				cell: ({ row }) => (
-					<Badge variant={row.original.is_active ? "success" : "danger"}>
-						{row.original.is_active ? "Active" : "Inactive"}
-					</Badge>
+					<span className="text-muted-foreground capitalize">
+						{row.original.role}
+					</span>
 				),
 			},
 			{
@@ -324,6 +314,16 @@ function UsersPage() {
 						: "—",
 			},
 			{
+				id: "status",
+				header: "Status",
+				meta: { mobileCard: { slot: "status" } },
+				cell: ({ row }) => (
+					<Badge variant={row.original.is_active ? "success" : "danger"}>
+						{row.original.is_active ? "Active" : "Inactive"}
+					</Badge>
+				),
+			},
+			{
 				id: "actions",
 				header: "Actions",
 				meta: { mobileCard: { slot: "title-end" } },
@@ -331,32 +331,20 @@ function UsersPage() {
 					<div className="flex gap-2">
 						<Button
 							variant="outline"
-							size="sm"
+							size="icon-sm"
+							aria-label="Edit"
+							title="Edit"
 							onClick={() => handleEdit(row.original)}
 							icon={<PencilSimpleLineIcon className="size-4" />}
-						>
-							Edit
-						</Button>
-						<DropdownMenu>
-							<DropdownMenuTrigger
-								render={
-									<Button
-										aria-label="More actions"
-										icon={<DotsThreeIcon className="size-4" />}
-										size="icon-sm"
-										variant="outline"
-									/>
-								}
-							/>
-							<DropdownMenuContent align="end" className="w-44">
-								<DropdownMenuItem
-									onClick={() => handleResetPassword(row.original)}
-								>
-									<KeyIcon className="size-4" />
-									Reset password
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
+						/>
+						<Button
+							variant="outline"
+							size="icon-sm"
+							aria-label="Reset password"
+							title="Reset password"
+							onClick={() => handleResetPassword(row.original)}
+							icon={<KeyIcon className="size-4" />}
+						/>
 					</div>
 				),
 			},
@@ -374,22 +362,20 @@ function UsersPage() {
 					</Button>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<DebouncedSearchInput
-						id="users-search"
-						value={search.search ?? ""}
-						onDebouncedChange={handleSearchChange}
-						placeholder="Search by username or name"
-						ariaLabel="Search users"
-						className="mb-4 w-full sm:w-72"
-					/>
-					<div className="grid gap-4">
-						<DataTable
-							columns={columns}
-							data={users}
-							isLoading={usersQuery.isPending}
-						/>
+			<ListPanel>
+				<DebouncedSearchInput
+					id="users-search"
+					value={search.search ?? ""}
+					onDebouncedChange={handleSearchChange}
+					placeholder="Search by username or name"
+					ariaLabel="Search users"
+					className="w-full sm:w-72"
+				/>
+				<DataTable
+					columns={columns}
+					data={users}
+					isLoading={usersQuery.isPending}
+					footer={
 						<TablePagination
 							meta={usersQuery.data?.meta}
 							isLoading={usersQuery.isPending}
@@ -402,9 +388,9 @@ function UsersPage() {
 								});
 							}}
 						/>
-					</div>
-				</ListPanel>
-			</div>
+					}
+				/>
+			</ListPanel>
 		</>
 	);
 }

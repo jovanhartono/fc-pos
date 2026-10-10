@@ -33,7 +33,7 @@ export const CustomerSummaryStrip = ({
 					<h1 className="font-semibold text-2xl uppercase tracking-tight">
 						{customer.name}
 					</h1>
-					<p className="flex flex-wrap items-center gap-x-1 font-mono text-muted-foreground text-sm tabular-nums">
+					<p className="flex flex-wrap items-center gap-x-1 text-muted-foreground text-sm tabular-nums">
 						<CopyValue label="phone number" value={customer.phone_number} />
 						{customer.email ? <span>{`· ${customer.email}`}</span> : null}
 					</p>

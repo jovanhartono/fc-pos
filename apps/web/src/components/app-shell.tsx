@@ -1,6 +1,7 @@
 import {
 	ArrowClockwiseIcon,
 	CaretLeftIcon,
+	MagnifyingGlassIcon,
 	MonitorIcon,
 	MoonIcon,
 	SignOutIcon,
@@ -23,6 +24,8 @@ import {
 	tabBarItemsForRole,
 } from "@/components/app-navigation";
 import { AppTabBar } from "@/components/app-tab-bar";
+import { useOpenCommandBar } from "@/components/command-bar";
+import { KeyHint } from "@/components/key-hint";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -125,7 +128,6 @@ const HeaderRefreshButton = () => {
 	return (
 		<Button
 			aria-label="Refresh"
-			className="ml-auto"
 			icon={
 				<ArrowClockwiseIcon
 					className={cn(
@@ -243,6 +245,18 @@ export function AppShell({ title, children }: AppShellProps) {
 		document.title = `${title} | Fresclean POS`;
 	}, [title]);
 
+	const openCommandBar = useOpenCommandBar();
+	useEffect(() => {
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+				event.preventDefault();
+				openCommandBar();
+			}
+		};
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [openCommandBar]);
+
 	const handleLogout = () => {
 		clearToken();
 		void navigate({ to: "/auth/login" });
@@ -273,6 +287,18 @@ export function AppShell({ title, children }: AppShellProps) {
 				</SidebarHeader>
 
 				<SidebarSeparator />
+
+				<div className="px-2 pt-2 group-data-[collapsible=icon]:hidden">
+					<button
+						type="button"
+						onClick={openCommandBar}
+						className="flex h-8 w-full items-center gap-2 border border-sidebar-border bg-background px-2 text-muted-foreground text-xs transition-colors hover:text-foreground"
+					>
+						<MagnifyingGlassIcon className="size-4" />
+						Search or jump to
+						<KeyHint keys={["⌘K"]} className="ml-auto" />
+					</button>
+				</div>
 
 				<SidebarContent>
 					<SidebarGroup>
@@ -324,7 +350,8 @@ export function AppShell({ title, children }: AppShellProps) {
 
 			<SidebarInset
 				className={cn(
-					"min-h-0",
+					// A table too wide for the window scrolls in its frame, not the page.
+					"min-h-0 min-w-0",
 					tabBarItems.length > 0 && "max-md:[--inset-bottom:0px]",
 				)}
 			>
@@ -338,12 +365,21 @@ export function AppShell({ title, children }: AppShellProps) {
 							<BrandLogo className="h-8" />
 						</Link>
 					)}
-					<HeaderRefreshButton />
+					<div className="ml-auto flex items-center gap-1">
+						<Button
+							aria-label="Search or jump to"
+							variant="ghost"
+							size="icon"
+							icon={<MagnifyingGlassIcon className="size-4" />}
+							onClick={openCommandBar}
+						/>
+						<HeaderRefreshButton />
+					</div>
 				</div>
 				{/* Queue detail's Hold to Start Work bar rests on the window bottom
 				    (the tab bar below md); a sticky bar would stop short of this padding. */}
 				<section
-					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain px-3 py-4 pb-[calc(var(--inset-bottom)+1rem)] has-[[data-bottom-bar]]:pb-0 sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10"
+					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain px-3 py-4 pb-[calc(var(--inset-bottom)+1rem)] has-[[data-bottom-bar]]:pb-0 sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10 lg:[@media(min-height:40rem)]:has-[[data-list-panel]]:flex lg:[@media(min-height:40rem)]:has-[[data-list-panel]]:flex-col"
 					data-scroll-restoration-id={APP_CONTENT_SCROLL_ID}
 				>
 					{children}

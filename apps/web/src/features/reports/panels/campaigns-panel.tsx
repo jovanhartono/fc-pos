@@ -88,7 +88,7 @@ export const CampaignsPanel = ({
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+					<CardTitle className="text-sm font-semibold text-foreground">
 						Campaign leaderboard
 					</CardTitle>
 				</CardHeader>
@@ -109,12 +109,12 @@ export const CampaignsPanel = ({
 									<div key={c.campaign_id} className="grid gap-1">
 										<div className="flex items-center justify-between gap-2">
 											<span className="flex items-center gap-2 truncate text-sm font-medium">
-												<span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+												<span className="font-mono text-[11px] uppercase text-muted-foreground">
 													{c.campaign_code}
 												</span>
 												<span className="truncate">{c.campaign_name}</span>
 											</span>
-											<span className="flex items-center gap-3 font-mono text-sm tabular-nums">
+											<span className="flex items-center gap-3 text-sm tabular-nums">
 												<span className="text-muted-foreground">
 													{`${numberFormatter.format(c.orders)} orders`}
 												</span>
@@ -127,7 +127,7 @@ export const CampaignsPanel = ({
 												style={{ width: `${pct}%` }}
 											/>
 										</div>
-										<div className="flex items-center justify-between font-mono text-[11px] tabular-nums text-muted-foreground">
+										<div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
 											<span>{formatMoney(String(c.collected))}</span>
 											<span>
 												{`discount ${formatMoney(String(c.discount_cost))} · ${percentFormatter.format(discountRate)}`}

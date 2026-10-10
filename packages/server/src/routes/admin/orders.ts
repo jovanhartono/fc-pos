@@ -7,6 +7,7 @@ import { GETOrdersQuerySchema } from "@/modules/orders/order.schema";
 import {
   createOrder,
   getOrderDetailById,
+  getOrderStatusCounts,
   listOrders,
 } from "@/modules/orders/order.service";
 import {
@@ -111,6 +112,14 @@ const app = new Hono<OrderAccessEnv>()
     const { items, meta } = await listOrders(query, user);
 
     return c.json(success(items, undefined, meta));
+  })
+  // Same filters as the list; the status filter itself is ignored, because the
+  // tabs show every status at once.
+  .get("/counts", zodValidator("query", GETOrdersQuerySchema), async (c) => {
+    const query = c.req.valid("query");
+    const user = c.get("jwtPayload");
+
+    return c.json(success(await getOrderStatusCounts(query, user)));
   })
   .get(
     "/services/queue",

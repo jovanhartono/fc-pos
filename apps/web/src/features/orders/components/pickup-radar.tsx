@@ -58,9 +58,7 @@ function RadarSection({
 	return (
 		<div className="grid gap-2">
 			<div className="flex items-center gap-2 border-b border-border pb-2">
-				<p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-					{label}
-				</p>
+				<p className="text-[13px] font-medium text-muted-foreground">{label}</p>
 				<span className="inline-flex h-4 min-w-4 items-center justify-center bg-foreground px-1 text-[10px] font-semibold tabular-nums text-background">
 					{count}
 				</span>
@@ -100,7 +98,7 @@ function RadarRow({ order }: { order: Order }) {
 				</div>
 			</div>
 			<div className="flex items-center gap-3">
-				<p className="font-mono text-xs text-muted-foreground">
+				<p className="text-xs text-muted-foreground tabular-nums">
 					{formatMoney(order.total)}
 				</p>
 				<ArrowRightIcon className="size-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />

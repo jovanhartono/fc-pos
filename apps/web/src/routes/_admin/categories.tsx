@@ -76,12 +76,12 @@ const CategoriesActions = ({ row }: { row: DataTableRow<Category> }) => {
 	return (
 		<Button
 			variant="outline"
-			size="sm"
+			size="icon-sm"
+			aria-label="Edit"
+			title="Edit"
 			onClick={() => handleOpenEditSheet(row.original)}
 			icon={<PencilSimpleLineIcon className="size-4" />}
-		>
-			Edit
-		</Button>
+		/>
 	);
 };
 
@@ -89,15 +89,29 @@ const columns: DataTableColumnDef<Category>[] = [
 	{
 		accessorKey: "name",
 		header: "Category",
+		meta: { kind: "name" },
 	},
 	{
 		accessorKey: "description",
 		header: "Description",
-		cell: ({ row }) => row.original.description ?? "—",
+		meta: {
+			kind: "text",
+			mobileCard: {
+				slot: "subtitle",
+				className: "line-clamp-2",
+				omitWhenEmpty: true,
+			},
+		},
+		cell: ({ row }) => (
+			<span className="text-muted-foreground">
+				{row.original.description ?? "—"}
+			</span>
+		),
 	},
 	{
 		id: "status",
 		header: "Status",
+		meta: { mobileCard: { slot: "badges" } },
 		cell: ({ row }) => (
 			<Badge variant={row.original.is_active ? "success" : "danger"}>
 				{row.original.is_active ? "Active" : "Inactive"}
@@ -162,16 +176,14 @@ function CategoriesPage() {
 					</>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<DataTable
-						columns={columns}
-						data={data}
-						isLoading={isPending}
-						sortable
-					/>
-				</ListPanel>
-			</div>
+			<ListPanel>
+				<DataTable
+					columns={columns}
+					data={data}
+					isLoading={isPending}
+					sortable
+				/>
+			</ListPanel>
 		</>
 	);
 }

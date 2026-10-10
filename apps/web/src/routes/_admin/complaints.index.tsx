@@ -3,7 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import dayjs from "dayjs";
 import { useMemo } from "react";
 import { z } from "zod";
-import { DataTable } from "@/components/data-table";
+import { DataTable, WRAP_NAME_CLASS } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
 import { ListPanel } from "@/components/list-panel";
@@ -20,6 +20,7 @@ import {
 	getComplaintOutcome,
 } from "@/features/complaints/lib/format";
 import { CustomerLink } from "@/features/customers/components/customer-link";
+import { cn } from "@/lib/utils";
 
 const complaintsSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
@@ -66,7 +67,7 @@ const ComplaintsPage = () => {
 				header: "Complaint",
 				meta: { mobileCard: { slot: "title" } },
 				cell: ({ row }) => (
-					<div className="flex flex-col gap-0.5">
+					<div className={cn("flex flex-col gap-0.5", WRAP_NAME_CLASS)}>
 						<Link
 							to="/complaints/$complaintId"
 							params={{ complaintId: String(row.original.id) }}
@@ -84,7 +85,7 @@ const ComplaintsPage = () => {
 			{
 				accessorKey: "customer_name",
 				header: "Customer",
-				meta: { mobileCard: { label: "Customer" } },
+				meta: { kind: "name", mobileCard: { label: "Customer" } },
 				cell: ({ row }) => (
 					<CustomerLink
 						customerId={row.original.customer_id}
@@ -126,21 +127,19 @@ const ComplaintsPage = () => {
 	return (
 		<>
 			<PageHeader title="Complaints" />
-			<div className="grid gap-4">
-				<ListPanel>
-					<DebouncedSearchInput
-						id="complaints-search"
-						value={search.search ?? ""}
-						onDebouncedChange={handleSearchChange}
-						placeholder="Search order code or customer"
-						ariaLabel="Search complaints"
-					/>
-					<div className="mt-4 grid gap-4">
-						<DataTable
-							columns={columns}
-							data={complaints}
-							isLoading={complaintsQuery.isPending}
-						/>
+			<ListPanel>
+				<DebouncedSearchInput
+					id="complaints-search"
+					value={search.search ?? ""}
+					onDebouncedChange={handleSearchChange}
+					placeholder="Search order code or customer"
+					ariaLabel="Search complaints"
+				/>
+				<DataTable
+					columns={columns}
+					data={complaints}
+					isLoading={complaintsQuery.isPending}
+					footer={
 						<TablePagination
 							meta={complaintsQuery.data?.meta}
 							isLoading={complaintsQuery.isPending}
@@ -150,9 +149,9 @@ const ComplaintsPage = () => {
 								});
 							}}
 						/>
-					</div>
-				</ListPanel>
-			</div>
+					}
+				/>
+			</ListPanel>
 		</>
 	);
 };

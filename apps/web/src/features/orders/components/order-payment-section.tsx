@@ -211,7 +211,7 @@ interface ToCollectLineProps {
 const ToCollectLine = ({ amount }: ToCollectLineProps) => (
 	<div className="flex items-center justify-between gap-4 text-sm font-medium">
 		<span>To collect</span>
-		<span className="font-mono tabular-nums">{formatMoney(amount)}</span>
+		<span className="tabular-nums">{formatMoney(amount)}</span>
 	</div>
 );
 
@@ -459,7 +459,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 								<dt className="text-muted-foreground">
 									{campaign.code} ({campaign.name})
 								</dt>
-								<dd className="font-mono text-destructive">
+								<dd className="text-destructive tabular-nums">
 									-{formatMoney(amount)}
 								</dd>
 							</div>
@@ -467,7 +467,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 						{pricing.manualDiscount > 0 ? (
 							<div className="flex justify-between gap-4">
 								<dt className="text-muted-foreground">Manual Discount</dt>
-								<dd className="font-mono text-destructive">
+								<dd className="text-destructive tabular-nums">
 									-{formatMoney(pricing.manualDiscount)}
 								</dd>
 							</div>

@@ -17,9 +17,11 @@ mock.module("@/db", () => ({
   }),
 }));
 
-const { countServicesProcessed, listServicesProcessed } = await import(
-  "@/modules/reports/services-processed"
-);
+const {
+  countServicesProcessed,
+  listServicesProcessed,
+  servicesProcessedTrendSeries,
+} = await import("@/modules/reports/services-processed");
 
 // August 2026 as Jakarta sees it: opens 01 Aug 00:00 WIB, closes the instant
 // 01 Sep 00:00 WIB begins.
@@ -93,5 +95,21 @@ describe("the day's processed count", () => {
 
   it("answers nothing processed with a zero, not a blank", async () => {
     expect(await countServicesProcessed({ range: AUGUST })).toBe(0);
+  });
+});
+
+describe("processed per day, for the Overview's week of bars", () => {
+  it("files each line under the Jakarta day it first passed inspection", async () => {
+    rowQueue.push([
+      ["2026-08-01", 3],
+      ["2026-08-02", 5],
+    ]);
+
+    expect(await servicesProcessedTrendSeries({ range: AUGUST })).toEqual([
+      { day: "2026-08-01", services_processed: 3 },
+      { day: "2026-08-02", services_processed: 5 },
+    ]);
+    expect(only().sql).toContain(PER_LINE);
+    expect(only().sql).toContain('"processed_at" AT TIME ZONE');
   });
 });

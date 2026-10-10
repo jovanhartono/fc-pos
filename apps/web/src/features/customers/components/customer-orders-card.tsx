@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { MoneyValue } from "@/components/money-value";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +11,6 @@ import { describeOrderAmount } from "@/features/customers/lib/order-amount";
 import { type Order, ordersQueries } from "@/features/orders/api";
 import dayjs from "@/lib/dayjs";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
-import { cn } from "@/lib/utils";
 
 // The route loader prefetches with this same size — two copies that drift
 // would leave the page fetching twice and flashing a skeleton it already had.
@@ -27,16 +27,13 @@ const OrderAmountCell = ({ order }: { order: Order }) => {
 
 	return (
 		<div className="grid gap-0.5 text-right">
-			<span
-				className={cn(
-					"font-mono text-sm tabular-nums",
-					amount.isPending && "text-muted-foreground",
-				)}
-			>
-				{amount.label}
-			</span>
+			{amount.net === null ? (
+				<span className="text-muted-foreground text-sm">{amount.label}</span>
+			) : (
+				<MoneyValue className="text-sm" value={amount.net} />
+			)}
 			{amount.refunded ? (
-				<span className="font-mono text-[11px] text-destructive tabular-nums">
+				<span className="text-[11px] text-destructive tabular-nums">
 					{`refunded ${amount.refunded}`}
 				</span>
 			) : null}
@@ -79,7 +76,7 @@ export const CustomerOrdersCard = ({
 				header: "Date",
 				meta: { mobileCard: { slot: "eyebrow" } },
 				cell: ({ row }) => (
-					<span className="font-mono text-xs tabular-nums">
+					<span className="text-xs tabular-nums">
 						{dayjs(row.original.created_at).format("DD MMM YYYY")}
 					</span>
 				),
@@ -93,7 +90,7 @@ export const CustomerOrdersCard = ({
 				id: "items",
 				header: "Items",
 				cell: ({ row }) => (
-					<span className="font-mono tabular-nums">
+					<span className="tabular-nums">
 						{row.original.fulfillment.total_count}
 					</span>
 				),
@@ -123,7 +120,8 @@ export const CustomerOrdersCard = ({
 			<CardHeader>
 				<CardTitle>Orders</CardTitle>
 			</CardHeader>
-			<CardContent className="grid gap-4">
+			{/* Not the table's footer: the pinned phone pager would break out of the card. */}
+			<CardContent className="grid gap-3">
 				<DataTable
 					columns={columns}
 					data={orders}

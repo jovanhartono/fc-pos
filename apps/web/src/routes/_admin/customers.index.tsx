@@ -85,6 +85,7 @@ function CustomersPage() {
 			{
 				accessorKey: "name",
 				header: "Name",
+				meta: { kind: "name" },
 				cell: ({ row }) => (
 					<CustomerLink customerId={row.original.id} name={row.original.name} />
 				),
@@ -96,15 +97,16 @@ function CustomersPage() {
 			{
 				accessorKey: "email",
 				header: "Email",
+				meta: { kind: "text", mobileCard: { omitWhenEmpty: true } },
 				cell: ({ row }) => (
-					<span title={row.original.email ?? undefined} className="truncate">
+					<span className="text-muted-foreground">
 						{row.original.email ?? "—"}
 					</span>
 				),
 			},
 			{
 				id: "origin_store",
-				header: "Origin Store",
+				header: "Origin store",
 				cell: ({ row }) => row.original.originStore?.name ?? "—",
 			},
 			{
@@ -114,12 +116,12 @@ function CustomersPage() {
 				cell: ({ row }) => (
 					<Button
 						variant="outline"
-						size="sm"
+						size="icon-sm"
+						aria-label="Edit"
+						title="Edit"
 						onClick={() => handleOpenEditSheet(row.original)}
 						icon={<PencilSimpleLineIcon className="size-4" />}
-					>
-						Edit
-					</Button>
+					/>
 				),
 			},
 		],
@@ -139,22 +141,20 @@ function CustomersPage() {
 					</Button>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<DebouncedSearchInput
-						id="customers-search"
-						value={search.search ?? ""}
-						onDebouncedChange={handleSearchChange}
-						placeholder="Search by name or phone"
-						ariaLabel="Search customers"
-						className="mb-4 w-full sm:w-72"
-					/>
-					<div className="grid gap-4">
-						<DataTable
-							columns={columns}
-							data={customers}
-							isLoading={customersQuery.isPending}
-						/>
+			<ListPanel>
+				<DebouncedSearchInput
+					id="customers-search"
+					value={search.search ?? ""}
+					onDebouncedChange={handleSearchChange}
+					placeholder="Search by name or phone"
+					ariaLabel="Search customers"
+					className="w-full sm:w-72"
+				/>
+				<DataTable
+					columns={columns}
+					data={customers}
+					isLoading={customersQuery.isPending}
+					footer={
 						<TablePagination
 							meta={customersQuery.data?.meta}
 							isLoading={customersQuery.isPending}
@@ -167,9 +167,9 @@ function CustomersPage() {
 								});
 							}}
 						/>
-					</div>
-				</ListPanel>
-			</div>
+					}
+				/>
+			</ListPanel>
 		</>
 	);
 }

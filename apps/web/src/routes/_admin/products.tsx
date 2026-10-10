@@ -5,6 +5,7 @@ import { useCallback, useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { ListPanel } from "@/components/list-panel";
+import { MoneyValue } from "@/components/money-value";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
 	ProductForm,
 	type ProductFormState,
 } from "@/features/products/components/product-form";
+import { ProductStock } from "@/features/products/components/product-stock";
 import { formatMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -111,30 +113,45 @@ function ProductsPage() {
 			{
 				accessorKey: "sku",
 				header: "SKU",
-				cell: ({ row }) => (
-					<span className="font-medium">{row.original.sku}</span>
-				),
+				meta: { kind: "code", mobileCard: { slot: "subtitle" } },
 			},
-			{ accessorKey: "name", header: "Product" },
+			{
+				accessorKey: "name",
+				header: "Product",
+				meta: { kind: "name" },
+			},
 			{
 				id: "category",
 				header: "Category",
+				meta: { mobileCard: { slot: "subtitle" } },
 				cell: ({ row }) => row.original.category?.name ?? "-",
 			},
 			{
 				accessorKey: "cogs",
 				header: "COGS",
-				cell: ({ row }) => formatMoney(String(row.original.cogs)),
+				meta: { align: "right" },
+				cell: ({ row }) => (
+					<span className="text-muted-foreground">
+						{formatMoney(String(row.original.cogs))}
+					</span>
+				),
 			},
 			{
 				accessorKey: "price",
 				header: "Price",
-				cell: ({ row }) => formatMoney(String(row.original.price)),
+				meta: { align: "right" },
+				cell: ({ row }) => <MoneyValue value={row.original.price} />,
 			},
-			{ accessorKey: "stock", header: "Stock" },
+			{
+				accessorKey: "stock",
+				header: "Stock",
+				meta: { align: "right", mobileCard: { slot: "badges" } },
+				cell: ({ row }) => <ProductStock stock={row.original.stock} />,
+			},
 			{
 				id: "status",
 				header: "Status",
+				meta: { mobileCard: { slot: "status" } },
 				cell: ({ row }) => (
 					<Badge variant={row.original.is_active ? "success" : "danger"}>
 						{row.original.is_active ? "Active" : "Inactive"}
@@ -148,12 +165,12 @@ function ProductsPage() {
 				cell: ({ row }) => (
 					<Button
 						variant="outline"
-						size="sm"
+						size="icon-sm"
+						aria-label="Edit"
+						title="Edit"
 						onClick={() => handleOpenEditSheet(row.original)}
 						icon={<PencilSimpleLineIcon className="size-4" />}
-					>
-						Edit
-					</Button>
+					/>
 				),
 			},
 		],
@@ -178,17 +195,15 @@ function ProductsPage() {
 					</>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<DataTable
-						columns={columns}
-						data={products}
-						isLoading={isPending}
-						sortable
-						cardPrimaryColumnId="name"
-					/>
-				</ListPanel>
-			</div>
+			<ListPanel>
+				<DataTable
+					columns={columns}
+					data={products}
+					isLoading={isPending}
+					sortable
+					cardPrimaryColumnId="name"
+				/>
+			</ListPanel>
 		</>
 	);
 }

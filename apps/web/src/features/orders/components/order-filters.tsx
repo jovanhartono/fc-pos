@@ -12,7 +12,7 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
-import { formatOrderStatus, formatPaymentStatus } from "@/lib/status";
+import { formatPaymentStatus } from "@/lib/status";
 
 export const ORDER_STATUS_VALUES = [
 	"created",
@@ -43,16 +43,8 @@ interface OrderFiltersProps {
 	onChange: (patch: Partial<OrderFilterValues>) => void;
 }
 
-// "" is the all-stores/statuses sentinel — selecting it maps back to undefined.
-const STATUS_ITEMS: Record<string, string> = {
-	"": "All statuses",
-	created: formatOrderStatus("created"),
-	processing: formatOrderStatus("processing"),
-	ready_for_pickup: formatOrderStatus("ready_for_pickup"),
-	completed: formatOrderStatus("completed"),
-	cancelled: formatOrderStatus("cancelled"),
-};
-
+// "" is the all-payments sentinel — selecting it maps back to undefined. Status
+// is not here: it has its own row of tabs above the filters.
 const PAYMENT_ITEMS: Record<string, string> = {
 	"": "All payments",
 	paid: formatPaymentStatus("paid"),
@@ -82,17 +74,6 @@ const FilterControls = ({
 			allOptionLabel={role === "admin" ? "All stores" : undefined}
 			placeholder="Filter by store"
 			triggerClassName="h-10 w-full lg:w-max lg:min-w-40"
-		/>
-		<SelectField
-			id={`${idPrefix}-status`}
-			aria-label="Filter by order status"
-			items={STATUS_ITEMS}
-			value={values.status ?? ""}
-			onValueChange={(value) =>
-				onChange({ status: (value || undefined) as OrderStatusFilter })
-			}
-			placeholder="All statuses"
-			className="w-full lg:w-max lg:min-w-40"
 		/>
 		<SelectField
 			id={`${idPrefix}-payment`}
@@ -127,20 +108,16 @@ export const OrderFilters = ({
 	const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 	const isAdmin = role === "admin";
 
-	// Every field that narrows the list is counted here and cleared by Clear all.
-	// A filter the badge does not count is a filter the cashier cannot see, and
-	// one Clear all skips is a filter they cannot undo — which is how a shared
-	// /orders?status=completed link used to leave someone staring at a short
-	// list with nothing on screen explaining it.
+	// Every filter hidden behind this button is counted here and cleared by
+	// Clear all, or a shared link leaves a short list with nothing on screen
+	// explaining it. Status is not here: its tabs are always on screen.
 	const activeCount =
-		(values.status ? 1 : 0) +
 		(values.paymentStatus ? 1 : 0) +
 		(values.dateFrom || values.dateTo ? 1 : 0) +
 		(isAdmin && values.storeId ? 1 : 0);
 
 	const handleClearAll = () => {
 		onChange({
-			status: undefined,
 			paymentStatus: undefined,
 			dateFrom: undefined,
 			dateTo: undefined,
@@ -149,7 +126,7 @@ export const OrderFilters = ({
 	};
 
 	return (
-		<div className="mb-4 flex items-center gap-2 lg:flex-wrap">
+		<div className="flex items-center gap-2 lg:flex-wrap">
 			<DebouncedSearchInput
 				id="orders-search"
 				value={values.search ?? ""}

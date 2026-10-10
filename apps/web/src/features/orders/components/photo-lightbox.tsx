@@ -191,7 +191,7 @@ export const PhotoLightbox = ({
 							</p>
 						</div>
 						<div className="flex shrink-0 items-center gap-3 text-xs text-white/70">
-							<p className="font-mono tabular-nums">
+							<p className="tabular-nums">
 								{activeCaption?.indexLabel ?? "0 / 0"}
 							</p>
 							{activeItem ? (

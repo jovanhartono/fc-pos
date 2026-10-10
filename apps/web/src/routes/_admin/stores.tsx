@@ -108,15 +108,18 @@ function StoresPage() {
 			{
 				accessorKey: "code",
 				header: "Code",
-				cell: ({ row }) => (
-					<span className="font-medium">{row.original.code}</span>
-				),
+				meta: { kind: "code" },
 			},
-			{ accessorKey: "name", header: "Store" },
+			{
+				accessorKey: "name",
+				header: "Store",
+				meta: { kind: "name" },
+			},
 			{ accessorKey: "phone_number", header: "Phone" },
 			{
 				id: "status",
 				header: "Status",
+				meta: { mobileCard: { slot: "status" } },
 				cell: ({ row }) => (
 					<Badge variant={row.original.is_active ? "success" : "danger"}>
 						{row.original.is_active ? "Active" : "Inactive"}
@@ -130,12 +133,12 @@ function StoresPage() {
 				cell: ({ row }) => (
 					<Button
 						variant="outline"
-						size="sm"
+						size="icon-sm"
+						aria-label="Edit"
+						title="Edit"
 						onClick={() => handleOpenEditSheet(row.original)}
 						icon={<PencilSimpleLineIcon className="size-4" />}
-					>
-						Edit
-					</Button>
+					/>
 				),
 			},
 		],
@@ -160,17 +163,15 @@ function StoresPage() {
 					</>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<DataTable
-						columns={columns}
-						data={stores}
-						isLoading={isPending}
-						sortable
-						cardPrimaryColumnId="name"
-					/>
-				</ListPanel>
-			</div>
+			<ListPanel>
+				<DataTable
+					columns={columns}
+					data={stores}
+					isLoading={isPending}
+					sortable
+					cardPrimaryColumnId="name"
+				/>
+			</ListPanel>
 		</>
 	);
 }

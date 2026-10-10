@@ -5,7 +5,7 @@ import {
 	type RowData,
 	type Table as TanstackTable,
 } from "@tanstack/react-table";
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import type { DataTableFeatures } from "@/components/data-table-features";
 import "@/components/data-table-meta";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ interface DataTableCardsProps<TData extends RowData> {
 	cardPrimaryColumnId?: string;
 	cardHiddenColumnIds?: string[];
 	getCardLink?: (row: TData) => LinkProps;
+	isRowActive?: (row: TData) => boolean;
 }
 
 interface CardCells<TData extends RowData> {
@@ -25,13 +26,14 @@ interface CardCells<TData extends RowData> {
 	subtitleCells: Cell<DataTableFeatures, TData>[];
 	eyebrowCells: Cell<DataTableFeatures, TData>[];
 	badgeCells: Cell<DataTableFeatures, TData>[];
+	statusCells: Cell<DataTableFeatures, TData>[];
 	footerCells: Cell<DataTableFeatures, TData>[];
 	detailCells: Cell<DataTableFeatures, TData>[];
 }
 
 const getCellHeaderLabel = <TData extends RowData>(
 	cell: Cell<DataTableFeatures, TData>,
-): string => {
+): ReactNode => {
 	const mobileCard = cell.column.columnDef.meta?.mobileCard;
 	if (mobileCard?.label) {
 		return mobileCard.label;
@@ -50,6 +52,7 @@ const bucketCardCells = <TData extends RowData>(
 		subtitleCells: [],
 		eyebrowCells: [],
 		badgeCells: [],
+		statusCells: [],
 		footerCells: [],
 		detailCells: [],
 	};
@@ -62,7 +65,14 @@ const bucketCardCells = <TData extends RowData>(
 		if (hiddenIds.has(cell.column.id)) {
 			continue;
 		}
-		const slot = cell.column.columnDef.meta?.mobileCard?.slot;
+		const mobileCard = cell.column.columnDef.meta?.mobileCard;
+		if (mobileCard?.omitWhenEmpty) {
+			const value = cell.getValue();
+			if (value === null || value === "") {
+				continue;
+			}
+		}
+		const slot = mobileCard?.slot;
 		if (slot === "title-end") {
 			buckets.titleEndCells.push(cell);
 			continue;
@@ -77,6 +87,10 @@ const bucketCardCells = <TData extends RowData>(
 		}
 		if (slot === "badges") {
 			buckets.badgeCells.push(cell);
+			continue;
+		}
+		if (slot === "status") {
+			buckets.statusCells.push(cell);
 			continue;
 		}
 		if (slot === "footer") {
@@ -99,6 +113,7 @@ export const DataTableCards = <TData extends RowData>({
 	cardPrimaryColumnId,
 	cardHiddenColumnIds,
 	getCardLink,
+	isRowActive,
 }: DataTableCardsProps<TData>) => {
 	if (isLoading) {
 		return (
@@ -121,7 +136,7 @@ export const DataTableCards = <TData extends RowData>({
 
 	if (rows.length === 0) {
 		return (
-			<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-[0.18em] lg:hidden">
+			<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center text-muted-foreground text-sm lg:hidden">
 				{emptyMessage}
 			</div>
 		);
@@ -139,7 +154,9 @@ export const DataTableCards = <TData extends RowData>({
 	const raisedControls = getCardLink && "[&_a]:relative [&_button]:relative";
 
 	return (
-		<div className="grid gap-2 lg:hidden">
+		// grid-cols-1 on each grid here caps it at the screen's width, so a long
+		// description or name truncates instead of pushing Edit off the edge.
+		<div className="grid grid-cols-1 gap-2 lg:hidden">
 			{rows.map((row) => {
 				const {
 					primaryCell,
@@ -147,17 +164,29 @@ export const DataTableCards = <TData extends RowData>({
 					subtitleCells,
 					eyebrowCells,
 					badgeCells,
+					statusCells,
 					footerCells,
 					detailCells,
 				} = bucketCardCells(row.getAllCells(), primaryColumnKey, hiddenIds);
 				const primaryConfig = primaryCell?.column.columnDef.meta?.mobileCard;
 				const hasHeaderStrip =
 					eyebrowCells.length > 0 || footerCells.length > 0;
+				const status = statusCells.length > 0 && (
+					<div className="ml-auto flex min-w-0 flex-wrap justify-end gap-1">
+						{statusCells.map((cell) => (
+							<Fragment key={cell.id}>
+								{flexRender(cell.column.columnDef.cell, cell.getContext())}
+							</Fragment>
+						))}
+					</div>
+				);
+				const hasBadgeRow = badgeCells.length > 0;
 
 				return (
 					<article
 						key={row.id}
-						className="group/card relative grid border border-border bg-background text-sm transition-colors hover:border-foreground/40 hover:bg-muted/20 dark:bg-muted/5"
+						data-state={isRowActive?.(row.original) ? "selected" : undefined}
+						className="group/card relative grid grid-cols-1 border border-border bg-background text-sm transition-colors hover:border-foreground/40 hover:bg-muted/20 data-[state=selected]:bg-muted data-[state=selected]:shadow-[inset_2px_0_0_var(--foreground)] dark:bg-muted/5"
 					>
 						{getCardLink !== undefined && (
 							<Link
@@ -190,7 +219,7 @@ export const DataTableCards = <TData extends RowData>({
 												) : null}
 												<span
 													className={cn(
-														"font-medium font-mono text-[10px] text-muted-foreground uppercase tracking-[0.18em]",
+														"font-medium text-muted-foreground text-xs",
 														mobileCard?.className,
 													)}
 												>
@@ -211,7 +240,7 @@ export const DataTableCards = <TData extends RowData>({
 												<div
 													key={cell.id}
 													className={cn(
-														"font-mono font-semibold text-foreground text-sm tabular-nums",
+														"font-semibold text-foreground text-sm tabular-nums",
 														mobileCard?.className,
 													)}
 												>
@@ -227,65 +256,121 @@ export const DataTableCards = <TData extends RowData>({
 							</div>
 						) : null}
 
-						{primaryCell ||
-						titleEndCells.length > 0 ||
-						subtitleCells.length > 0 ||
-						badgeCells.length > 0 ? (
-							<div className={cn("grid gap-2 px-3 py-2.5", raisedControls)}>
-								{primaryCell || titleEndCells.length > 0 ? (
-									// No wrap: a long Service name wraps beside Edit instead of
-									// pushing Edit down onto a second line of its own.
-									<div className="flex items-start justify-between gap-3">
-										{primaryCell ? (
-											<div
-												className={cn(
-													"min-w-0 flex-1 wrap-break-word font-mono font-semibold text-[15px] text-foreground leading-tight tracking-tight",
-													// Centres the first line on the Edit button beside it.
-													titleEndCells.length > 0 && "pt-1",
-													primaryConfig?.className,
-												)}
-											>
-												{flexRender(
-													primaryCell.column.columnDef.cell,
-													primaryCell.getContext(),
-												)}
-											</div>
-										) : null}
-										{titleEndCells.length > 0 ? (
-											<div className="ml-auto flex shrink-0 items-center gap-2">
-												{titleEndCells.map((cell) => (
-													<div
-														key={cell.id}
-														className={
-															cell.column.columnDef.meta?.mobileCard?.className
-														}
+						<div
+							className={cn(
+								"grid grid-cols-1 gap-2 px-3 py-2.5",
+								raisedControls,
+							)}
+						>
+							{primaryCell || titleEndCells.length > 0 ? (
+								// No wrap: a long Service name wraps beside Edit instead of
+								// pushing Edit down onto a second line of its own.
+								<div className="flex items-start justify-between gap-3">
+									{primaryCell ? (
+										<div
+											className={cn(
+												"min-w-0 flex-1 wrap-break-word font-semibold text-[15px] text-foreground leading-tight tracking-tight",
+												// Centres the first line on the Edit button beside it.
+												titleEndCells.length > 0 && "pt-1",
+												primaryConfig?.className,
+											)}
+										>
+											{flexRender(
+												primaryCell.column.columnDef.cell,
+												primaryCell.getContext(),
+											)}
+										</div>
+									) : null}
+									{titleEndCells.length > 0 ? (
+										<div className="ml-auto flex shrink-0 items-center gap-2">
+											{titleEndCells.map((cell) => (
+												<div
+													key={cell.id}
+													className={
+														cell.column.columnDef.meta?.mobileCard?.className
+													}
+												>
+													{flexRender(
+														cell.column.columnDef.cell,
+														cell.getContext(),
+													)}
+												</div>
+											))}
+										</div>
+									) : null}
+								</div>
+							) : null}
+							{subtitleCells.length > 0 ? (
+								<div className="flex min-w-0 flex-wrap items-center gap-x-1.5 wrap-break-word text-muted-foreground text-sm">
+									{subtitleCells.map((cell, index) => {
+										const mobileCard = cell.column.columnDef.meta?.mobileCard;
+										return (
+											<Fragment key={cell.id}>
+												{index > 0 ? (
+													<span
+														aria-hidden="true"
+														className="text-muted-foreground"
+													>
+														·
+													</span>
+												) : null}
+												<div className={cn("min-w-0", mobileCard?.className)}>
+													{flexRender(
+														cell.column.columnDef.cell,
+														cell.getContext(),
+													)}
+												</div>
+											</Fragment>
+										);
+									})}
+								</div>
+							) : null}
+							{detailCells.length > 0 ? (
+								// Label and value side by side, wrapping as the line fills,
+								// so a catalog card is a few lines tall, not a grid of boxes.
+								<div className="flex items-end justify-between gap-3">
+									<dl className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5">
+										{detailCells.map((cell) => {
+											const mobileCard = cell.column.columnDef.meta?.mobileCard;
+											return (
+												<div
+													key={cell.id}
+													className={cn(
+														"flex min-w-0 items-center gap-1.5",
+														mobileCard?.className,
+													)}
+												>
+													<dt
+														className={cn(
+															"text-muted-foreground text-xs",
+															mobileCard?.labelClassName,
+														)}
+													>
+														{getCellHeaderLabel(cell)}
+													</dt>
+													<dd
+														className={cn(
+															"min-w-0 truncate font-medium text-foreground text-sm",
+															mobileCard?.valueClassName,
+														)}
 													>
 														{flexRender(
 															cell.column.columnDef.cell,
 															cell.getContext(),
 														)}
-													</div>
-												))}
-											</div>
-										) : null}
-									</div>
-								) : null}
-								{subtitleCells.map((cell) => {
-									const mobileCard = cell.column.columnDef.meta?.mobileCard;
-									return (
-										<div
-											className={cn("min-w-0 text-sm", mobileCard?.className)}
-											key={cell.id}
-										>
-											{flexRender(
-												cell.column.columnDef.cell,
-												cell.getContext(),
-											)}
-										</div>
-									);
-								})}
-								{badgeCells.length > 0 ? (
-									<div className="flex flex-wrap items-center gap-1">
+													</dd>
+												</div>
+											);
+										})}
+									</dl>
+									{!hasBadgeRow && status}
+								</div>
+							) : null}
+							{hasBadgeRow ? (
+								// Wraps, so an Order's three status badges drop under its
+								// fixed-width Items ready bar instead of overlapping it.
+								<div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1.5">
+									<div className="flex min-w-0 flex-wrap items-center gap-1">
 										{badgeCells.map((cell) => {
 											const mobileCard = cell.column.columnDef.meta?.mobileCard;
 											return (
@@ -304,59 +389,11 @@ export const DataTableCards = <TData extends RowData>({
 											);
 										})}
 									</div>
-								) : null}
-							</div>
-						) : null}
-
-						{detailCells.length > 0 ? (
-							<dl
-								className={cn(
-									"grid grid-cols-2 border-border/70 border-t bg-muted/30 dark:bg-muted/10",
-									raisedControls,
-								)}
-							>
-								{detailCells.map((cell, index) => {
-									const mobileCard = cell.column.columnDef.meta?.mobileCard;
-									const headerLabel = getCellHeaderLabel(cell);
-									const isLeftCol = index % 2 === 0;
-									const isFirstRow = index < 2;
-									const isLoneLastCell =
-										index === detailCells.length - 1 && isLeftCol;
-									return (
-										<div
-											key={cell.id}
-											className={cn(
-												"min-w-0 px-3 py-2",
-												isLoneLastCell && "col-span-2",
-												!isLeftCol && "border-border/70 border-l",
-												!isFirstRow && "border-border/70 border-t",
-												mobileCard?.className,
-											)}
-										>
-											<dt
-												className={cn(
-													"font-medium font-mono text-[10px] text-muted-foreground uppercase tracking-[0.18em]",
-													mobileCard?.labelClassName,
-												)}
-											>
-												{headerLabel}
-											</dt>
-											<dd
-												className={cn(
-													"mt-0.5 min-w-0 truncate font-medium text-foreground text-sm",
-													mobileCard?.valueClassName,
-												)}
-											>
-												{flexRender(
-													cell.column.columnDef.cell,
-													cell.getContext(),
-												)}
-											</dd>
-										</div>
-									);
-								})}
-							</dl>
-						) : null}
+									{status}
+								</div>
+							) : null}
+							{!hasBadgeRow && detailCells.length === 0 && status}
+						</div>
 					</article>
 				);
 			})}

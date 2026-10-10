@@ -47,7 +47,7 @@ const ProductLine = ({
 					{formatMoney(product.price)} × {product.qty}
 				</p>
 			</div>
-			<p className="shrink-0 font-mono text-sm tabular-nums">
+			<p className="shrink-0 text-sm tabular-nums">
 				{formatMoney(product.subtotal)}
 			</p>
 		</div>
@@ -168,7 +168,7 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 			{totalRow ? (
 				<footer className="mx-4 mb-3 flex items-center justify-between gap-3 border-t pt-2.5 text-sm">
 					<span className="text-muted-foreground">Item total</span>
-					<span className="font-mono font-semibold tabular-nums">
+					<span className="font-semibold tabular-nums">
 						{totalRow.amount === null ? "—" : formatMoney(totalRow.amount)}
 					</span>
 				</footer>

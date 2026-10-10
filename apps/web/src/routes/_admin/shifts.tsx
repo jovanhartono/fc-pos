@@ -1,18 +1,20 @@
+import { type Icon, SignInIcon, SignOutIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import dayjs from "dayjs";
 import { useMemo } from "react";
 import { z } from "zod";
-import { DataTable } from "@/components/data-table";
+import { DataTable, WRAP_NAME_CLASS } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { DateTimeCell } from "@/components/date-time-cell";
 import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
-import { Badge } from "@/components/ui/badge";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { type Shift, shiftsQueries } from "@/features/shifts/api";
 import { storesQueries } from "@/features/stores/api";
+import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 25;
 
@@ -44,22 +46,59 @@ export const Route = createFileRoute("/_admin/shifts")({
 	component: ShiftsPage,
 });
 
-const formatDate = (value: Date | string) =>
-	dayjs(value).format("DD MMM YYYY HH:mm");
-
-const formatDuration = (
-	clockIn: Date | string,
-	clockOut: Date | string | null,
-) => {
-	if (!clockOut) {
-		return "Open";
-	}
+const formatDuration = (clockIn: Date | string, clockOut: Date | string) => {
 	const ms = dayjs(clockOut).diff(dayjs(clockIn));
 	const totalMinutes = Math.max(0, Math.floor(ms / 60_000));
 	const hours = Math.floor(totalMinutes / 60);
 	const minutes = totalMinutes % 60;
 	return `${hours}h ${String(minutes).padStart(2, "0")}m`;
 };
+
+interface OpenShiftProps {
+	clockInAt: Date | string;
+}
+
+const OpenShift = ({ clockInAt }: OpenShiftProps) => (
+	<span className="font-semibold text-emerald-700 dark:text-emerald-400">
+		Open
+		<span className="block font-normal text-muted-foreground text-xs">
+			since {dayjs(clockInAt).format("HH:mm")}
+		</span>
+	</span>
+);
+
+interface ClockLabelProps {
+	icon: Icon;
+	text: string;
+}
+
+const ClockLabel = ({ icon: LabelIcon, text }: ClockLabelProps) => (
+	<>
+		<LabelIcon aria-hidden className="size-4" />
+		<span className="sr-only">{text}</span>
+	</>
+);
+
+interface ShiftDurationProps {
+	shift: Shift;
+}
+
+const ShiftDuration = ({ shift }: ShiftDurationProps) => (
+	<div className="flex flex-col gap-0.5">
+		{shift.clock_out_at ? (
+			<span className="font-semibold tabular-nums">
+				{formatDuration(shift.clock_in_at, shift.clock_out_at)}
+			</span>
+		) : (
+			<OpenShift clockInAt={shift.clock_in_at} />
+		)}
+		{shift.auto_closed ? (
+			<span className="text-amber-600 text-xs dark:text-amber-400">
+				auto-closed
+			</span>
+		) : null}
+	</div>
+);
 
 function ShiftsPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
@@ -73,9 +112,13 @@ function ShiftsPage() {
 				id: "user",
 				header: "Worker",
 				cell: ({ row }) => (
-					<div className="flex flex-col">
+					<div className={cn("flex flex-col", WRAP_NAME_CLASS)}>
 						<span className="font-medium">
 							{row.original.user?.name ?? `User #${row.original.user_id}`}
+							{/* The card has no Store column, so the store rides on the name. */}
+							<span className="ml-1.5 font-mono font-normal text-muted-foreground text-xs lg:hidden">
+								{row.original.store?.code}
+							</span>
 						</span>
 						<span className="text-muted-foreground text-xs">
 							{row.original.user?.role ?? ""}
@@ -86,42 +129,42 @@ function ShiftsPage() {
 			{
 				id: "store",
 				header: "Store",
+				meta: { mobileCard: { slot: "hidden" } },
 				cell: ({ row }) => row.original.store?.code ?? "-",
 			},
 			{
 				id: "clock_in",
 				header: "Clock in",
-				cell: ({ row }) => formatDate(row.original.clock_in_at),
+				meta: {
+					mobileCard: {
+						label: <ClockLabel icon={SignInIcon} text="Clock in" />,
+					},
+				},
+				cell: ({ row }) => <DateTimeCell value={row.original.clock_in_at} />,
 			},
 			{
 				id: "clock_out",
 				header: "Clock out",
+				meta: {
+					mobileCard: {
+						label: <ClockLabel icon={SignOutIcon} text="Clock out" />,
+					},
+				},
 				cell: ({ row }) =>
-					row.original.clock_out_at
-						? formatDate(row.original.clock_out_at)
-						: "—",
+					row.original.clock_out_at ? (
+						<DateTimeCell value={row.original.clock_out_at} />
+					) : (
+						"—"
+					),
 			},
 			{
 				id: "duration",
 				header: "Duration",
-				cell: ({ row }) => {
-					const open = !row.original.clock_out_at;
-					return (
-						<div className="flex flex-col gap-0.5">
-							<Badge variant={open ? "success" : "outline"}>
-								{formatDuration(
-									row.original.clock_in_at,
-									row.original.clock_out_at,
-								)}
-							</Badge>
-							{row.original.auto_closed ? (
-								<span className="text-amber-600 text-xs dark:text-amber-400">
-									auto-closed
-								</span>
-							) : null}
-						</div>
-					);
+				// pt-1 matches the card title, which drops 4px to line up with Edit buttons.
+				meta: {
+					mobileCard: { slot: "title-end", className: "pt-1 text-right" },
 				},
+				cell: ({ row }) => <ShiftDuration shift={row.original} />,
 			},
 		],
 		[],
@@ -130,49 +173,47 @@ function ShiftsPage() {
 	return (
 		<>
 			<PageHeader title="Shifts" />
-			<div className="grid gap-4">
-				<ListPanel>
-					<div className="mb-4 flex flex-wrap items-center gap-2">
-						<StoreAutocomplete
-							id="shifts-store"
-							hideLabel
-							value={search.store_id?.toString() ?? ""}
-							onValueChange={(value) => {
-								void navigate({
-									search: (prev) => ({
-										...prev,
-										page: 1,
-										store_id: value ? Number(value) : undefined,
-									}),
-								});
-							}}
-							allOptionLabel="All stores"
-							placeholder="Filter by store"
-							triggerClassName="h-10 w-max min-w-48 text-sm"
-						/>
-						<DateRangePicker
-							commitOnComplete
-							id="shifts-range"
-							from={search.from}
-							to={search.to}
-							onChange={({ from, to }) => {
-								void navigate({
-									search: (prev) => ({
-										...prev,
-										from: from ?? undefined,
-										page: 1,
-										to: to ?? undefined,
-									}),
-								});
-							}}
-						/>
-					</div>
-					<div className="grid gap-4">
-						<DataTable
-							columns={columns}
-							data={shifts}
-							isLoading={shiftsQuery.isPending}
-						/>
+			<ListPanel>
+				<div className="flex flex-wrap items-center gap-2">
+					<StoreAutocomplete
+						id="shifts-store"
+						hideLabel
+						value={search.store_id?.toString() ?? ""}
+						onValueChange={(value) => {
+							void navigate({
+								search: (prev) => ({
+									...prev,
+									page: 1,
+									store_id: value ? Number(value) : undefined,
+								}),
+							});
+						}}
+						allOptionLabel="All stores"
+						placeholder="Filter by store"
+						triggerClassName="h-10 w-max min-w-48 text-sm"
+					/>
+					<DateRangePicker
+						commitOnComplete
+						id="shifts-range"
+						from={search.from}
+						to={search.to}
+						onChange={({ from, to }) => {
+							void navigate({
+								search: (prev) => ({
+									...prev,
+									from: from ?? undefined,
+									page: 1,
+									to: to ?? undefined,
+								}),
+							});
+						}}
+					/>
+				</div>
+				<DataTable
+					columns={columns}
+					data={shifts}
+					isLoading={shiftsQuery.isPending}
+					footer={
 						<TablePagination
 							meta={shiftsQuery.data?.meta}
 							isLoading={shiftsQuery.isPending}
@@ -182,9 +223,9 @@ function ShiftsPage() {
 								});
 							}}
 						/>
-					</div>
-				</ListPanel>
-			</div>
+					}
+				/>
+			</ListPanel>
 		</>
 	);
 }

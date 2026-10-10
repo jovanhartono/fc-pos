@@ -5,6 +5,7 @@ import { useCallback, useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { ListPanel } from "@/components/list-panel";
+import { MoneyValue } from "@/components/money-value";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -112,34 +113,44 @@ function ServicesPage() {
 			{
 				accessorKey: "code",
 				header: "Code",
-				cell: ({ row }) => (
-					<span className="font-medium">{row.original.code}</span>
-				),
+				meta: { kind: "code", mobileCard: { slot: "subtitle" } },
 			},
-			{ accessorKey: "name", header: "Service" },
+			{
+				accessorKey: "name",
+				header: "Service",
+				meta: { kind: "name" },
+			},
 			{
 				id: "category",
 				header: "Category",
+				meta: { mobileCard: { slot: "subtitle" } },
 				cell: ({ row }) => row.original.category?.name ?? "-",
 			},
 			{
 				accessorKey: "cogs",
 				header: "COGS",
-				cell: ({ row }) => formatMoney(String(row.original.cogs)),
+				meta: { align: "right" },
+				cell: ({ row }) => (
+					<span className="text-muted-foreground">
+						{formatMoney(String(row.original.cogs))}
+					</span>
+				),
 			},
 			{
 				accessorKey: "price",
 				header: "Price",
+				meta: { align: "right" },
 				cell: ({ row }) =>
 					row.original.price === null ? (
 						<span className="text-muted-foreground">No list price</span>
 					) : (
-						formatMoney(String(row.original.price))
+						<MoneyValue value={row.original.price} />
 					),
 			},
 			{
 				id: "priority",
 				header: "Queue",
+				meta: { mobileCard: { slot: "badges" } },
 				cell: ({ row }) => (
 					<Badge variant={row.original.is_priority ? "priority" : "outline"}>
 						{row.original.is_priority ? "Priority" : "Standard"}
@@ -149,6 +160,7 @@ function ServicesPage() {
 			{
 				id: "status",
 				header: "Status",
+				meta: { mobileCard: { slot: "badges" } },
 				cell: ({ row }) => (
 					<Badge variant={row.original.is_active ? "success" : "danger"}>
 						{row.original.is_active ? "Active" : "Inactive"}
@@ -162,12 +174,12 @@ function ServicesPage() {
 				cell: ({ row }) => (
 					<Button
 						variant="outline"
-						size="sm"
+						size="icon-sm"
+						aria-label="Edit"
+						title="Edit"
 						onClick={() => handleOpenEditSheet(row.original)}
 						icon={<PencilSimpleLineIcon className="size-4" />}
-					>
-						Edit
-					</Button>
+					/>
 				),
 			},
 		],
@@ -192,17 +204,15 @@ function ServicesPage() {
 					</>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<DataTable
-						columns={columns}
-						data={services}
-						isLoading={isPending}
-						sortable
-						cardPrimaryColumnId="name"
-					/>
-				</ListPanel>
-			</div>
+			<ListPanel>
+				<DataTable
+					columns={columns}
+					data={services}
+					isLoading={isPending}
+					sortable
+					cardPrimaryColumnId="name"
+				/>
+			</ListPanel>
 		</>
 	);
 }

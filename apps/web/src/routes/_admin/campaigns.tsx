@@ -1,7 +1,6 @@
 import {
 	ArchiveIcon,
 	ArrowCounterClockwiseIcon,
-	DotsThreeIcon,
 	PencilSimpleLineIcon,
 	PlusIcon,
 	TicketIcon,
@@ -18,12 +17,6 @@ import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
 	type Campaign,
 	campaignsKeys,
 	campaignsQueries,
@@ -31,18 +24,15 @@ import {
 	type UpdateCampaignPayload,
 	updateCampaign,
 } from "@/features/campaigns/api";
+import { CampaignDiscount } from "@/features/campaigns/components/campaign-discount";
 import {
 	CampaignForm,
 	type CampaignFormInput,
 } from "@/features/campaigns/components/campaign-form";
 import { VoucherCodesSheet } from "@/features/campaigns/components/voucher-codes-sheet";
-import {
-	formatCampaignDiscount,
-	formatCampaignRedemption,
-} from "@/features/campaigns/lib/campaign-text";
+import { formatCampaignRedemption } from "@/features/campaigns/lib/campaign-text";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
-import { formatMoney } from "@/shared/money";
 import { useDialog } from "@/stores/dialog-store";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -132,7 +122,7 @@ function toCampaignFormInput(campaign: Campaign): CampaignFormInput {
 	};
 }
 
-interface ArchiveCampaignMenuItemProps {
+interface ArchiveCampaignButtonProps {
 	campaign: Campaign;
 	disabled: boolean;
 	isPending: boolean;
@@ -142,20 +132,24 @@ interface ArchiveCampaignMenuItemProps {
 	}) => Promise<void>;
 }
 
-const ArchiveCampaignMenuItem = ({
+const ArchiveCampaignButton = ({
 	campaign,
 	disabled,
 	isPending,
 	onConfirm,
-}: ArchiveCampaignMenuItemProps) => {
+}: ArchiveCampaignButtonProps) => {
 	const { openDialog, closeDialog } = useDialog();
 	const isArchived = !campaign.is_active;
 	const label = isArchived ? "Unarchive" : "Archive";
 	const Icon = isArchived ? ArrowCounterClockwiseIcon : ArchiveIcon;
 
 	return (
-		<DropdownMenuItem
-			variant={isArchived ? "default" : "destructive"}
+		<Button
+			variant="outline"
+			size="icon-sm"
+			aria-label={label}
+			title={label}
+			icon={<Icon className="size-4" />}
 			disabled={disabled || isPending}
 			onClick={() => {
 				openDialog({
@@ -185,10 +179,7 @@ const ArchiveCampaignMenuItem = ({
 					),
 				});
 			}}
-		>
-			<Icon className="size-4" />
-			{label}
-		</DropdownMenuItem>
+		/>
 	);
 };
 
@@ -300,25 +291,31 @@ function CampaignsPage() {
 
 	const columns = useMemo<DataTableColumnDef<Campaign>[]>(
 		() => [
-			{ accessorKey: "code", header: "Code" },
+			{
+				accessorKey: "code",
+				header: "Code",
+				meta: { kind: "code", mobileCard: { slot: "subtitle" } },
+			},
 			{
 				accessorKey: "name",
 				header: "Name",
-				meta: { cellClassName: "min-w-32 whitespace-normal" },
+				meta: { kind: "name" },
 			},
 			{
 				id: "discount",
 				header: "Discount",
-				cell: ({ row }) => formatCampaignDiscount(row.original),
-			},
-			{
-				accessorKey: "min_order_total",
-				header: "Min Order",
-				cell: ({ row }) => formatMoney(String(row.original.min_order_total)),
+				meta: { align: "right", mobileCard: { slot: "badges" } },
+				cell: ({ row }) => (
+					<CampaignDiscount
+						campaign={row.original}
+						isActive={deriveCampaignState(row.original) === "active"}
+					/>
+				),
 			},
 			{
 				id: "stores",
 				header: "Stores",
+				meta: { mobileCard: { slot: "subtitle" } },
 				cell: ({ row }) => {
 					if (row.original.stores.length === 0) {
 						return "All Stores";
@@ -332,11 +329,13 @@ function CampaignsPage() {
 			{
 				id: "redemption",
 				header: "Redemption",
+				meta: { mobileCard: { slot: "subtitle" } },
 				cell: ({ row }) => formatCampaignRedemption(row.original),
 			},
 			{
 				id: "status",
 				header: "Status",
+				meta: { mobileCard: { slot: "status" } },
 				cell: ({ row }) => {
 					const state = deriveCampaignState(row.original);
 					if (state === "expired") {
@@ -356,46 +355,38 @@ function CampaignsPage() {
 					<div className="flex gap-2">
 						<Button
 							variant="outline"
-							size="sm"
+							size="icon-sm"
+							aria-label="Edit"
+							title="Edit"
 							disabled={!isAdmin}
 							onClick={() => handleOpenEditSheet(row.original)}
 							icon={<PencilSimpleLineIcon className="size-4" />}
-						>
-							Edit
-						</Button>
-						<DropdownMenu>
-							<DropdownMenuTrigger
-								render={
-									<Button
-										aria-label="More actions"
-										icon={<DotsThreeIcon className="size-4" />}
-										size="icon-sm"
-										variant="outline"
-									/>
-								}
+						/>
+						{/* An empty slot on listed campaigns keeps Archive in the same
+						spot on every row, so a quick click never archives by mistake. */}
+						{row.original.redemption_mode === "code" ? (
+							<Button
+								variant="outline"
+								size="icon-sm"
+								aria-label="Codes"
+								title="Codes"
+								onClick={() => handleOpenVoucherDetail(row.original)}
+								icon={<TicketIcon className="size-4" />}
 							/>
-							<DropdownMenuContent align="end" className="w-44">
-								{row.original.redemption_mode === "code" && (
-									<DropdownMenuItem
-										onClick={() => handleOpenVoucherDetail(row.original)}
-									>
-										<TicketIcon className="size-4" />
-										Codes
-									</DropdownMenuItem>
-								)}
-								<ArchiveCampaignMenuItem
-									campaign={row.original}
-									disabled={!isAdmin}
-									isPending={archiveMutation.isPending}
-									onConfirm={async ({ campaignId, nextIsActive }) => {
-										await archiveMutation.mutateAsync({
-											id: campaignId,
-											is_active: nextIsActive,
-										});
-									}}
-								/>
-							</DropdownMenuContent>
-						</DropdownMenu>
+						) : (
+							<span aria-hidden className="size-7 shrink-0" />
+						)}
+						<ArchiveCampaignButton
+							campaign={row.original}
+							disabled={!isAdmin}
+							isPending={archiveMutation.isPending}
+							onConfirm={async ({ campaignId, nextIsActive }) => {
+								await archiveMutation.mutateAsync({
+									id: campaignId,
+									is_active: nextIsActive,
+								});
+							}}
+						/>
 					</div>
 				),
 			},
@@ -422,37 +413,35 @@ function CampaignsPage() {
 					</>
 				}
 			/>
-			<div className="grid gap-4">
-				<ListPanel>
-					<div className="mb-4 flex flex-wrap items-center gap-2">
-						<SelectField
-							items={{
-								all: "All status",
-								active: "Active only",
-								expired: "Expired only",
-								archived: "Archived only",
-							}}
-							value={search.status}
-							onValueChange={(value) => {
-								void navigate({
-									search: () => ({
-										status: value as CampaignStatus,
-									}),
-								});
-							}}
-							className="min-w-40 w-max"
-							placeholder="Filter status"
-						/>
-					</div>
-					<DataTable
-						columns={columns}
-						data={campaigns}
-						isLoading={campaignsQuery.isPending || storesQuery.isPending}
-						sortable
-						cardPrimaryColumnId="name"
+			<ListPanel>
+				<div className="flex flex-wrap items-center gap-2">
+					<SelectField
+						items={{
+							all: "All status",
+							active: "Active only",
+							expired: "Expired only",
+							archived: "Archived only",
+						}}
+						value={search.status}
+						onValueChange={(value) => {
+							void navigate({
+								search: () => ({
+									status: value as CampaignStatus,
+								}),
+							});
+						}}
+						className="min-w-40 w-max"
+						placeholder="Filter status"
 					/>
-				</ListPanel>
-			</div>
+				</div>
+				<DataTable
+					columns={columns}
+					data={campaigns}
+					isLoading={campaignsQuery.isPending || storesQuery.isPending}
+					sortable
+					cardPrimaryColumnId="name"
+				/>
+			</ListPanel>
 		</>
 	);
 }

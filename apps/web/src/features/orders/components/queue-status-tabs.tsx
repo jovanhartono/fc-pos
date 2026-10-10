@@ -48,9 +48,7 @@ export const QueueStatusTabs = ({
 					>
 						{status.label}
 						{count === undefined ? null : (
-							<span className="font-mono font-semibold tabular-nums">
-								{count}
-							</span>
+							<span className="font-semibold tabular-nums">{count}</span>
 						)}
 					</Button>
 				);

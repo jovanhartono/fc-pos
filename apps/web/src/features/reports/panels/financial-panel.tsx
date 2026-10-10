@@ -243,9 +243,7 @@ const PanelSectionTitle = ({ title, meta }: PanelSectionTitleProps) => (
 				{title}
 			</p>
 			{meta ? (
-				<p className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
-					{meta}
-				</p>
+				<p className="text-[13px] font-medium text-muted-foreground">{meta}</p>
 			) : null}
 		</div>
 	</div>
@@ -360,7 +358,7 @@ const RevenueLineChart = ({ series, granularity }: RevenueLineChartProps) => {
 	}
 	return (
 		<div className="grid gap-2">
-			<div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px] uppercase tracking-widest text-foreground/70">
+			<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-medium text-muted-foreground">
 				<span className="flex items-center gap-1.5">
 					<span
 						className="h-0.5 w-3"
@@ -413,7 +411,7 @@ const RevenueLineChart = ({ series, granularity }: RevenueLineChartProps) => {
 										<span className="text-muted-foreground">
 											{LINE_CHART_CONFIG[name as string]?.label ?? name}
 										</span>
-										<span className="font-mono font-medium text-foreground tabular-nums">
+										<span className="font-medium text-foreground tabular-nums">
 											{formatMoney(String(Number(value)))}
 										</span>
 									</div>
@@ -749,17 +747,17 @@ const StatStrip = ({ title, cells }: StatStripProps) => (
 						)}
 						key={cell.label}
 					>
-						<p className="font-mono text-[10px] uppercase tracking-widest text-foreground/70">
+						<p className="text-[13px] font-medium text-muted-foreground">
 							{cell.label}
 						</p>
-						<p className="break-all font-mono text-base font-semibold tabular-nums">
+						<p className="break-all text-base font-semibold tabular-nums">
 							{cell.isPercent
 								? percentFormatter.format(cell.value)
 								: formatIDRShort(cell.value)}
 						</p>
 						<p
 							className={cn(
-								"flex items-center gap-1 font-mono text-[11px] tabular-nums",
+								"flex items-center gap-1 text-[11px] tabular-nums",
 								tone.tone,
 							)}
 						>
@@ -860,9 +858,7 @@ const KpiStrip = ({ data, storeId }: KpiStripProps) => {
 		return (
 			<Card className="border-border/70">
 				<CardContent className="grid h-30 place-items-center p-5 sm:p-6">
-					<p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-						Loading totals…
-					</p>
+					<p className="text-sm text-muted-foreground">Loading totals…</p>
 				</CardContent>
 			</Card>
 		);
@@ -885,15 +881,15 @@ const KpiStrip = ({ data, storeId }: KpiStripProps) => {
 								)}
 								key={cell.label}
 							>
-								<p className="font-mono text-[10px] uppercase tracking-widest text-foreground/70">
+								<p className="text-[13px] font-medium text-muted-foreground">
 									{cell.label}
 								</p>
-								<p className="break-all font-mono text-base font-semibold tabular-nums">
+								<p className="break-all text-base font-semibold tabular-nums">
 									{cell.value}
 								</p>
 								<p
 									className={cn(
-										"flex items-center gap-1 font-mono text-[11px] tabular-nums",
+										"flex items-center gap-1 text-[11px] tabular-nums",
 										cell.tone.tone,
 									)}
 								>
@@ -950,16 +946,16 @@ const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
 				</div>
 
 				{isEmpty ? (
-					<p className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+					<p className="text-sm text-muted-foreground">
 						{"// no category gross sales in range"}
 					</p>
 				) : (
 					<div className="overflow-x-auto">
-						<table className="w-full border-separate border-spacing-0 font-mono text-[11px] tabular-nums">
+						<table className="w-full border-separate border-spacing-0 text-[11px] tabular-nums">
 							<thead>
 								<tr>
 									<th
-										className="sticky left-0 z-10 bg-card px-2 py-1.5 text-left text-[11px] uppercase tracking-widest text-foreground/70"
+										className="sticky left-0 z-10 bg-card px-2 py-1.5 text-left text-xs font-medium text-muted-foreground"
 										scope="col"
 									>
 										Store
@@ -968,7 +964,7 @@ const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
 										<MatrixHeaderCell column={col} key={col.category_id} />
 									))}
 									<th
-										className="border-l border-border/40 px-2 py-1.5 text-right text-[11px] uppercase tracking-widest text-foreground/70"
+										className="border-l border-border/40 px-2 py-1.5 text-right text-xs font-medium text-muted-foreground"
 										scope="col"
 									>
 										Total
@@ -989,7 +985,7 @@ const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
 							<tfoot>
 								<tr>
 									<th
-										className="sticky left-0 z-10 border-t border-border/40 bg-card px-2 py-2 text-left text-[11px] uppercase tracking-widest text-foreground/70"
+										className="sticky left-0 z-10 border-t border-border/40 bg-card px-2 py-2 text-left text-xs font-medium text-muted-foreground"
 										scope="row"
 									>
 										Total
@@ -1012,7 +1008,7 @@ const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
 				)}
 
 				{omittedStores > 0 ? (
-					<p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+					<p className="text-[13px] font-medium text-muted-foreground">
 						{`(+${omittedStores} store${omittedStores === 1 ? "" : "s"} not shown)`}
 					</p>
 				) : null}
@@ -1027,7 +1023,7 @@ interface MatrixModeToggleProps {
 }
 
 const MatrixModeToggle = ({ mode, onChange }: MatrixModeToggleProps) => (
-	<div className="inline-flex shrink-0 border border-border/60 font-mono text-[11px]">
+	<div className="inline-flex shrink-0 border border-border/60 text-[11px]">
 		<button
 			aria-pressed={mode === "share"}
 			className={cn(
@@ -1063,7 +1059,7 @@ interface MatrixHeaderCellProps {
 
 const MatrixHeaderCell = ({ column }: MatrixHeaderCellProps) => (
 	<th
-		className="min-w-28 px-3 py-2 text-center align-bottom text-[11px] uppercase tracking-wide text-foreground/70"
+		className="min-w-28 px-3 py-2 text-center align-bottom text-xs font-medium text-muted-foreground"
 		scope="col"
 		title={column.label}
 	>
@@ -1091,7 +1087,7 @@ const MatrixBranchRow = ({
 			className="sticky left-0 z-10 border-t border-border/40 bg-card px-2 py-2 text-left align-top group-hover:bg-muted/40"
 			scope="row"
 		>
-			<span className="block text-[10px] uppercase tracking-widest text-muted-foreground">
+			<span className="block text-[10px] uppercase text-muted-foreground">
 				{row.store_code}
 			</span>
 			<span className="block max-w-35 truncate text-foreground">
@@ -1201,12 +1197,12 @@ const BranchList = ({ rows, max }: BranchListProps) => {
 							<div className="grid gap-1" key={row.store_id}>
 								<div className="flex items-center justify-between gap-2">
 									<span className="flex min-w-0 items-center gap-2 truncate text-sm font-medium">
-										<span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+										<span className="font-mono text-[11px] uppercase text-muted-foreground">
 											{row.store_code}
 										</span>
 										<span className="truncate">{row.store_name}</span>
 									</span>
-									<span className="font-mono text-sm tabular-nums">
+									<span className="text-sm tabular-nums">
 										{formatIDRShort(row.revenue)}
 									</span>
 								</div>
@@ -1216,7 +1212,7 @@ const BranchList = ({ rows, max }: BranchListProps) => {
 										style={{ width: `${widthPct}%` }}
 									/>
 								</div>
-								<div className="flex flex-wrap items-center gap-x-3 font-mono text-[11px] tabular-nums text-muted-foreground">
+								<div className="flex flex-wrap items-center gap-x-3 text-[11px] tabular-nums text-muted-foreground">
 									<span>{`${row.orders.toLocaleString("id-ID")} orders`}</span>
 									<span aria-hidden>·</span>
 									<span>{`AOV ${formatIDRShort(aov)}`}</span>

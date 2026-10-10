@@ -36,17 +36,17 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 					<>
 						<div className="flex justify-between gap-4">
 							<dt className="text-muted-foreground">Services</dt>
-							<dd className="font-mono">{formatMoney(servicesSubtotal)}</dd>
+							<dd className="tabular-nums">{formatMoney(servicesSubtotal)}</dd>
 						</div>
 						<div className="flex justify-between gap-4">
 							<dt className="text-muted-foreground">Products</dt>
-							<dd className="font-mono">{formatMoney(productsSubtotal)}</dd>
+							<dd className="tabular-nums">{formatMoney(productsSubtotal)}</dd>
 						</div>
 					</>
 				) : null}
 				<div className="flex justify-between gap-4">
 					<dt className="text-muted-foreground">Subtotal</dt>
-					<dd className="font-mono">{formatMoney(detail.total)}</dd>
+					<dd className="tabular-nums">{formatMoney(detail.total)}</dd>
 				</div>
 				{detail.campaigns.map((row) => (
 					<div className="flex justify-between gap-4" key={row.id}>
@@ -59,7 +59,7 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 								</span>
 							) : null}
 						</dt>
-						<dd className="font-mono text-destructive">
+						<dd className="text-destructive tabular-nums">
 							-{formatMoney(row.applied_amount)}
 						</dd>
 					</div>
@@ -73,7 +73,9 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 							? "Manual discount"
 							: "Discount total"}
 					</dt>
-					<dd className={cn("font-mono", discount > 0 && "text-destructive")}>
+					<dd
+						className={cn("tabular-nums", discount > 0 && "text-destructive")}
+					>
 						{discount > 0 ? `-${formatMoney(discount)}` : formatMoney(0)}
 					</dd>
 				</div>
@@ -82,12 +84,12 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 			<dl className="grid gap-1.5 text-sm tabular-nums">
 				<div className="flex justify-between gap-4 font-medium">
 					<dt>Net</dt>
-					<dd className="font-mono">{formatMoney(net)}</dd>
+					<dd className="tabular-nums">{formatMoney(net)}</dd>
 				</div>
 				{refunded > 0 ? (
 					<div className="flex justify-between gap-4 text-destructive">
 						<dt>Refunded</dt>
-						<dd className="font-mono">-{formatMoney(refunded)}</dd>
+						<dd className="tabular-nums">-{formatMoney(refunded)}</dd>
 					</div>
 				) : null}
 			</dl>

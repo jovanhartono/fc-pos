@@ -137,7 +137,7 @@ export const WorkersPanel = ({
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+					<CardTitle className="text-sm font-semibold text-foreground">
 						Worker leaderboard
 					</CardTitle>
 				</CardHeader>
@@ -164,7 +164,7 @@ export const WorkersPanel = ({
 												) : null}
 												{w.user_name}
 											</span>
-											<span className="font-mono text-sm tabular-nums">
+											<span className="text-sm tabular-nums">
 												{`${numberFormatter.format(w.services_processed)} services`}
 											</span>
 										</div>
@@ -174,7 +174,7 @@ export const WorkersPanel = ({
 												style={{ width: `${pct}%` }}
 											/>
 										</div>
-										<div className="flex items-center justify-between font-mono text-[11px] tabular-nums text-muted-foreground">
+										<div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
 											<span>{`${hours.toFixed(1)}h worked`}</span>
 											<span>{`${w.services_per_hour} services/hr`}</span>
 											<span>{`${w.rework_items} rework`}</span>

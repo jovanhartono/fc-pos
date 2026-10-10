@@ -1,9 +1,10 @@
-import type { InferInsertModel } from "drizzle-orm";
+import type { InferInsertModel, SQL } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { type DbExecutor, db } from "@/db";
 import {
   itemsTable,
   orderCountersTable,
+  orderStatusEnum,
   ordersProductsTable,
   ordersServicesTable,
   ordersTable,
@@ -18,7 +19,13 @@ import {
   type OrderRefundStatus,
 } from "@/modules/orders/order-refund-status";
 import { isNumericSearch } from "@/modules/orders/order-search";
-import { summarizeOrderFulfillment } from "@/modules/orders/order-status-machine";
+import {
+  deriveItemStatus,
+  type ItemStatusLine,
+  isCollectableItemStatus,
+  summarizeOrderFulfillment,
+} from "@/modules/orders/order-status-machine";
+import { toStoredPhonePrefix } from "@/schema/phone";
 import { PICKUP_OVERDUE_HOURS } from "@/schema/turnaround";
 import { isUnpricedLine } from "@/schema/unpriced-line";
 import { jakartaDayEnd, jakartaDayStart, jakartaNow } from "@/utils/date";
@@ -79,6 +86,8 @@ export interface OrderListItem {
   has_complaint: boolean;
   has_unpriced_line: boolean;
   id: number;
+  items_ready: number;
+  items_total: number;
   notes: string | null;
   paid_amount: string;
   payment_method_id: number | null;
@@ -181,7 +190,7 @@ function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
         customer: {
           OR: [
             { name: { ilike: loweredSearchPrefix } },
-            { phone_number: { like: searchPrefix } },
+            { phone_number: { like: `${toStoredPhonePrefix(search)}%` } },
           ],
         },
       },
@@ -272,6 +281,8 @@ export async function findOrders(
           where: { order_id: { in: orderIds } },
           columns: {
             order_id: true,
+            item_id: true,
+            pickup_event_id: true,
             price: true,
             status: true,
           },
@@ -284,6 +295,8 @@ export async function findOrders(
   >();
   const awaitingPrice = new Set<number>();
   const complained = new Set<number>();
+  // Per Order, each Item's lines, for the list's "2 of 3 ready".
+  const linesByItem = new Map<number, Map<number, ItemStatusLine[]>>();
 
   for (const row of serviceRows) {
     if (row.order_id === null) {
@@ -294,6 +307,10 @@ export async function findOrders(
     current.push(row.status);
     groupedStatuses.set(row.order_id, current);
 
+    const items = linesByItem.get(row.order_id) ?? new Map();
+    items.set(row.item_id, [...(items.get(row.item_id) ?? []), row]);
+    linesByItem.set(row.order_id, items);
+
     if (isUnpricedLine(row)) {
       awaitingPrice.add(row.order_id);
     }
@@ -301,6 +318,20 @@ export async function findOrders(
       complained.add(row.order_id);
     }
   }
+
+  // The same rollup the pickup desk uses: an Item is ready once it can leave
+  // the counter (or already has); a cancelled one is not counted at all.
+  const countItems = (orderId: number) => {
+    const statuses = [...(linesByItem.get(orderId)?.values() ?? [])]
+      .map(deriveItemStatus)
+      .filter((status) => status !== "cancelled");
+    return {
+      items_total: statuses.length,
+      items_ready: statuses.filter(
+        (status) => isCollectableItemStatus(status) || status === "picked_up"
+      ).length,
+    };
+  };
 
   const items: OrderListItem[] = rows.map((row) => ({
     id: row.id,
@@ -317,6 +348,7 @@ export async function findOrders(
     refunded_amount: row.refunded_amount,
     has_unpriced_line: awaitingPrice.has(row.id),
     has_complaint: complained.has(row.id),
+    ...countItems(row.id),
     notes: row.notes,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -337,6 +369,33 @@ export async function findOrders(
     items,
     total,
   };
+}
+
+type OrderStatus = (typeof orderStatusEnum.enumValues)[number];
+
+// The Orders page's status tabs, counted like countOrders below so each tab's
+// number matches the page it opens, in one round trip.
+export async function countOrdersByStatus(
+  filters: OrderListFilters,
+  scopedStoreIds?: number[]
+): Promise<Record<OrderStatus, number>> {
+  const statuses = orderStatusEnum.enumValues;
+  const [row] = await db.query.ordersTable.findMany({
+    where: buildOrderWhere({ ...filters, status: undefined }, scopedStoreIds),
+    columns: { id: true },
+    extras: Object.fromEntries(
+      statuses.map((status) => [
+        status,
+        sql<number>`(count(*) filter (where status = ${status}) over ())::int`.as(
+          status
+        ),
+      ])
+    ) as Record<OrderStatus, SQL.Aliased<number>>,
+    limit: 1,
+  });
+  return Object.fromEntries(
+    statuses.map((status) => [status, row?.[status] ?? 0])
+  ) as Record<OrderStatus, number>;
 }
 
 // Postgres does the counting and hands back one row. db.$count() cannot take the

@@ -6,6 +6,7 @@ import {
   ordersTable,
 } from "@/db/schema";
 import { type RangeArgs, storeScope } from "@/modules/reports/money-basis";
+import { JAKARTA_TZ_SQL } from "@/modules/reports/report-range.util";
 
 // A treatment is processed the first time it reaches quality check, and counts
 // once. A line checked in July and sent back for a redo in August is July's
@@ -43,6 +44,26 @@ export function listServicesProcessed({ range, storeId }: RangeArgs) {
     )
     .groupBy(orderServiceStatusLogsTable.order_service_id)
     .having(and(gte(firstReachedQc, from), lt(firstReachedQc, to)));
+}
+
+// Same rule as the count, one row per Jakarta day, for the Overview's
+// "vs yesterday" line and its seven-day bars.
+export async function servicesProcessedTrendSeries(args: RangeArgs) {
+  const processed = listServicesProcessed(args).as("services_processed");
+  const dayExpr = sql<string>`to_char(${processed.processed_at} AT TIME ZONE ${JAKARTA_TZ_SQL}, 'YYYY-MM-DD')`;
+
+  const rows = await db
+    .select({
+      day: dayExpr,
+      services_processed: sql<number>`COUNT(*)::int`,
+    })
+    .from(processed)
+    .groupBy(dayExpr);
+
+  return rows.map((row) => ({
+    day: row.day,
+    services_processed: Number(row.services_processed),
+  }));
 }
 
 export async function countServicesProcessed(args: RangeArgs) {

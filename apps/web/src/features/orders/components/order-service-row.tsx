@@ -100,7 +100,7 @@ export const OrderServiceRow = memo(
 							<Badge variant="priority">Priority</Badge>
 						) : null}
 					</span>
-					<span className="font-mono text-sm tabular-nums">
+					<span className="text-sm tabular-nums">
 						{/* A blank line has no subtotal yet — "Rp 0" would read as
 						    deliberately free (a Rework), which it is not. */}
 						{isUnpriced ? "—" : formatMoney(service.subtotal)}

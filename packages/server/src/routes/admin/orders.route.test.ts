@@ -70,6 +70,7 @@ const marker = (name: string) => () => {
 mock.module("@/modules/orders/order.service", () => ({
   createOrder: marker("createOrder"),
   getOrderDetailById: marker("getOrderDetailById"),
+  getOrderStatusCounts: marker("getOrderStatusCounts"),
   listOrders: () => {
     reached.push("listOrders");
     return Promise.resolve({ items: [], meta: {} });
@@ -226,6 +227,16 @@ describe("what the gate leaves alone", () => {
 
     expect(res.status).toBe(200);
     expect(reached).toContain("listOrders");
+    expect(orderAccessCalls).toEqual([]);
+  });
+
+  it("does not ask which order the status tab counts belong to", async () => {
+    // /orders/counts has the shape of an order id; reading it as order "counts"
+    // would take the Orders page's tabs down.
+    const res = await call("/counts?payment_status=unpaid");
+
+    expect(res.status).toBe(200);
+    expect(reached).toContain("getOrderStatusCounts");
     expect(orderAccessCalls).toEqual([]);
   });
 

@@ -99,7 +99,7 @@ function AttendancePage() {
 					) : currentShift ? (
 						<>
 							<div className="grid gap-0.5">
-								<span className="font-mono font-semibold text-5xl tabular-nums">
+								<span className="font-semibold text-5xl tabular-nums">
 									{formatElapsed(new Date(currentShift.clock_in_at), now)}
 								</span>
 								<span className="text-muted-foreground text-xs">
@@ -126,7 +126,7 @@ function AttendancePage() {
 				</section>
 
 				<section className="grid gap-2">
-					<h2 className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.18em]">
+					<h2 className="text-[13px] font-medium text-muted-foreground tabular-nums">
 						{dayjs(weekRange.from).format("DD MMM")} –{" "}
 						{dayjs(weekRange.to).format("DD MMM")}
 					</h2>

@@ -36,14 +36,14 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 	{
 		accessorKey: "service_name",
 		header: "Service",
-		meta: { mobileCard: { slot: "subtitle" } },
+		meta: { kind: "text", mobileCard: { slot: "subtitle" } },
 	},
 	{
 		id: "store",
 		header: "Store",
 		meta: { mobileCard: { slot: "eyebrow" } },
 		cell: ({ row }) => (
-			<span className="font-mono text-xs">
+			<span className="text-xs">
 				{row.original.store_code} · {row.original.store_name}
 			</span>
 		),
@@ -55,7 +55,7 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 		cell: ({ row }) => (
 			<span
 				className={cn(
-					"font-mono tabular-nums",
+					"tabular-nums",
 					row.original.days_waiting >= 14 && "text-destructive",
 				)}
 			>
@@ -74,8 +74,9 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 		),
 	},
 	{
-		id: "handler",
+		accessorKey: "handler_name",
 		header: "Handler",
+		meta: { kind: "text" },
 		cell: ({ row }) => row.original.handler_name ?? "Unassigned",
 	},
 ];

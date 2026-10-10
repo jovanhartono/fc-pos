@@ -23,7 +23,10 @@ import {
   getJakartaDayRange,
   shiftDate,
 } from "@/modules/reports/report-range.util";
-import { countServicesProcessed } from "@/modules/reports/services-processed";
+import {
+  countServicesProcessed,
+  servicesProcessedTrendSeries,
+} from "@/modules/reports/services-processed";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 
 export async function getDailyReport(query: GetDailyReportQuery) {
@@ -66,6 +69,7 @@ export async function getReportOverview(query: GetReportOverviewQuery) {
     ordersOutTrend,
     paidTrend,
     refundsTrend,
+    processedTrend,
     categories,
     topServices,
     perStore,
@@ -75,6 +79,7 @@ export async function getReportOverview(query: GetReportOverviewQuery) {
     ordersOutTrendSeries({ range: trendRange, storeId }),
     paidTrendSeries({ range: trendRange, storeId }),
     refundsTrendSeries({ range: trendRange, storeId }),
+    servicesProcessedTrendSeries({ range: trendRange, storeId }),
     categoryGrossSalesForRange({ range: dayRange, storeId }),
     topServicesForRange({ range: dayRange, storeId }),
     perStoreForRange({ range: dayRange }),
@@ -86,6 +91,9 @@ export async function getReportOverview(query: GetReportOverviewQuery) {
   const refundedByDay = new Map(
     refundsTrend.map((row) => [row.day, row.refunded])
   );
+  const processedByDay = new Map(
+    processedTrend.map((row) => [row.day, row.services_processed])
+  );
 
   const trend = Array.from({ length: trendDays }, (_, index) => {
     const day = shiftDate(trendStartDate, index);
@@ -94,6 +102,7 @@ export async function getReportOverview(query: GetReportOverviewQuery) {
       orders_in: ordersInByDay.get(day)?.orders_in ?? 0,
       orders_out: ordersOutByDay.get(day)?.orders_out ?? 0,
       revenue: revenue(paidByDay.get(day) ?? 0, refundedByDay.get(day) ?? 0),
+      services_processed: processedByDay.get(day) ?? 0,
     };
   });
 
