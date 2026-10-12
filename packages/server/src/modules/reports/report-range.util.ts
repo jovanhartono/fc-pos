@@ -79,6 +79,7 @@ export function bucketFormat(granularity: Granularity): string {
   return "YYYY";
 }
 
+// jakartaDayOf is the JS twin of the day bucket; change the two together.
 export function jakartaBucketExpr(column: PgColumn, granularity: Granularity) {
   const fmt = sql.raw(`'${bucketFormat(granularity)}'`);
   return sql<string>`to_char(${column} AT TIME ZONE ${JAKARTA_TZ_SQL}, ${fmt})`;
@@ -117,6 +118,13 @@ export function enumerateDays(from: string, to: string): string[] {
   return out;
 }
 
+// The Monday on or before a day.
+export function weekStartOf(day: string): string {
+  const [y, m, d] = day.split("-").map(Number);
+  const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return shiftDate(day, -((weekday + 6) % 7));
+}
+
 export function dayToBucket(day: string, granularity: Granularity): string {
   if (granularity === "day") {
     return day;
@@ -137,6 +145,26 @@ export function indexBy<T extends { bucket: string }>(rows: T[]) {
   }
   return map;
 }
+
+// The Jakarta calendar day an instant falls on.
+export function jakartaDayOf(instant: Date): string {
+  return formatYmd(
+    new Date(instant.getTime() + JAKARTA_OFFSET_MINUTES * 60_000)
+  );
+}
+
+// Same answer as Postgres' percentile_cont: p of the way along the sorted
+// values, interpolating between the two either side.
+export function percentile(values: number[], p: number): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const position = (sorted.length - 1) * p;
+  const below = Math.floor(position);
+  const above = Math.ceil(position);
+  return sorted[below] + (sorted[above] - sorted[below]) * (position - below);
+}
+
+export const rate = (part: number, whole: number) =>
+  whole > 0 ? Number((part / whole).toFixed(4)) : 0;
 
 export function deltaPct(current: number, previous: number): number | null {
   if (previous === 0) {

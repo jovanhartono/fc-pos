@@ -15,7 +15,7 @@ import {
   buildContext,
   buildDeltas,
 } from "@/modules/reports/report-range.service";
-import { getJakartaRange } from "@/modules/reports/report-range.util";
+import { getJakartaRange, rate } from "@/modules/reports/report-range.util";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 
 interface QualitySummary {
@@ -33,9 +33,6 @@ interface QualitySummary {
 
 type CohortLine = Awaited<ReturnType<typeof listQualityCohort>>[number];
 type ComplaintOutcome = "reworked" | "refunded" | "cancelled" | "pending";
-
-const rate = (part: number, whole: number) =>
-  whole > 0 ? Number((part / whole).toFixed(4)) : 0;
 
 async function qualityFor(args: RangeArgs) {
   const [cohort, checkers] = await Promise.all([

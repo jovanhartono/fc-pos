@@ -54,6 +54,7 @@ import { getQueueAgeTone } from "@/features/orders/lib/queue-age-tone";
 import { groupReworksUnderOriginals } from "@/features/orders/lib/rework-nesting";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
+import { useMinuteClock } from "@/hooks/useMinuteClock";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { readServerErrorMessage } from "@/lib/server-error";
 import {
@@ -73,20 +74,6 @@ const DateRangePicker = lazy(() =>
 );
 
 const QUEUE_PAGE_SIZE = 20;
-
-// One timer for the whole list, not one per row: the queue scrolls to hundreds
-// of rows and each row used to own its own interval, so the clock cost grew
-// with the backlog and every row ticked on its own drifting phase.
-function useMinuteClock(): number {
-	const [now, setNow] = useState(() => Date.now());
-
-	useEffect(() => {
-		const interval = setInterval(() => setNow(Date.now()), 60_000);
-		return () => clearInterval(interval);
-	}, []);
-
-	return now;
-}
 
 function formatElapsedDuration(ms: number): string {
 	const totalMinutes = Math.floor(ms / 60_000);

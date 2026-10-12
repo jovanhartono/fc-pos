@@ -47,6 +47,17 @@ export const GETReportRangeQuerySchema = z
 
 export type GetReportRangeQuery = z.infer<typeof GETReportRangeQuerySchema>;
 
+export const GETWorkerDetailQuerySchema = z
+  .object({
+    from: dateStringSchema("from"),
+    to: dateStringSchema("to"),
+    store_id: storeIdQuerySchema,
+    user_id: z.coerce.number().int().positive(),
+  })
+  .refine(fromNotAfterTo, fromNotAfterToIssue);
+
+export type GetWorkerDetailQuery = z.infer<typeof GETWorkerDetailQuerySchema>;
+
 export const GETQcRejectsQuerySchema = z
   .object({
     ...reportRangeFields,

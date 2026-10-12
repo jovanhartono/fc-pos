@@ -168,7 +168,21 @@ const QUERIES: [string, Query][] = [
   ],
   [
     "worker productivity",
-    (storeId) => repo.listWorkerProductivityRows({ range: AUGUST, storeId }),
+    (storeId) => repo.listWorkerActivity({ range: AUGUST, storeId }),
+  ],
+  [
+    "worker productivity headline",
+    (storeId) => repo.listWorkerSummaryActivity({ range: AUGUST, storeId }),
+  ],
+  [
+    "worker QC checks",
+    (storeId) =>
+      repo.listQcChecksOfCleaner({ range: AUGUST, storeId, userId: 7 }),
+  ],
+  ["worker Complaint items", () => repo.listComplaintItems([11, 12])],
+  [
+    "worker live activity",
+    (storeId) => repo.listWorkerLiveActivity({ range: AUGUST, storeId }),
   ],
   [
     "campaign effectiveness",

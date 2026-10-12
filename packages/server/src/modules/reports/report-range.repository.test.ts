@@ -26,7 +26,7 @@ const {
   listPaymentMixSeries,
   listRefundAmountSeries,
   listServicesGrossSalesSeries,
-  listWorkerProductivityRows,
+  listWorkerActivity,
 } = await import("@/modules/reports/report-range.repository");
 
 // August 2026 as Jakarta sees it: opens 01 Aug 00:00 WIB, closes the instant
@@ -48,8 +48,9 @@ const only = () => {
   return queries[0];
 };
 
-// report-range.repository.sql.test.ts snapshots all 22 statements in full, so
-// what each query asks Postgres is pinned there. These two stay behind as the
+// report-range.repository.sql.test.ts snapshots all 33 statements in full, for
+// one store and for the whole company, so what each query asks Postgres is
+// pinned there. These two stay behind as the
 // tripwire for a blind `--update-snapshots`: the paid window and the store filter
 // are the two rules that decide what counts as takings, and a regenerated
 // snapshot would record them wrong just as happily as right.
@@ -76,20 +77,15 @@ describe("which orders count as takings", () => {
     expect(only().params).toContain(KEMANG);
   });
 
-  it("keeps the worker who finished an item to the store it was finished at", async () => {
-    // Who worked on an item is only asked once the report knows which items
-    // finished, so with no finished items the question is never put to Postgres
-    // and the snapshots never see it. One finished item makes it run.
-    rowQueue.push([[42]]);
+  it("keeps a worker's days worked to the Store they clocked in at", async () => {
+    // A row's Services follow the Order's Store but its clock-in days follow the
+    // Shift's: someone lent to Kemang for a day is counted on Kemang's row.
+    await listWorkerActivity({ range: AUGUST, storeId: KEMANG });
 
-    await listWorkerProductivityRows({ range: AUGUST, storeId: KEMANG });
+    const shifts = queries.find((query) => query.sql.includes('from "shifts"'));
 
-    const attribution = queries.find((query) =>
-      query.sql.includes('distinct on ("processing_attribution"')
-    );
-
-    expect(attribution?.sql).toContain('"orders"."store_id" = $');
-    expect(attribution?.params).toContain(KEMANG);
+    expect(shifts?.sql).toContain('"shifts"."store_id" = $');
+    expect(shifts?.params).toContain(KEMANG);
   });
 });
 

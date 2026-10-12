@@ -69,6 +69,10 @@ _Avoid_: Delivery guy, driver, rider
 **Shift**:
 A User's attendance at a Store, from clock-in to clock-out. It permits nothing and blocks nothing.
 
+**Day worked**:
+One person doing bench work at one Store on one day: they clocked in there, or started, sent to QC or checked an Item there. Two Shifts, or a Shift and a move, on the same day at the same Store are one Day worked.
+_Avoid_: Shift-day, man-day, workday, attendance day
+
 **Password reset**:
 An admin setting a new password for another User in person, the only way a password ever changes.
 _Avoid_: Forgot password, recovery, reset link

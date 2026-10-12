@@ -151,7 +151,11 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 		}
 		case "workers":
 			return queryClient.ensureQueryData(
-				reportsQueries.workerProductivity(range),
+				reportsQueries.workerProductivity({
+					from: search.from,
+					to: search.to,
+					store_id: search.store_id,
+				}),
 			);
 		case "campaigns":
 			return queryClient.ensureQueryData(
@@ -190,32 +194,21 @@ const descriptions: Record<Tab, string> = {
 	payments: "Collected share per payment method",
 	customers: "Acquisition and retention trends",
 	quality: "QC rejects, first-pass rate and Complaints",
-	workers: "Services processed and shift productivity",
+	workers: "Services processed per worker and day worked",
 	campaigns: "Orders, collected, and discount cost per campaign",
 	"aging-queue": "Items still in queue, oldest first",
 };
 
-// Shared with the pending state at the bottom of this file. Switching tabs
-// re-runs the loader, and an admin on shop wifi was getting the whole page
-// swapped for grey blocks — including the tab strip they had just tapped.
-const ReportsChrome = ({ children }: PropsWithChildren) => {
+// Saved only here, when the admin changes a filter, so opening an old link
+// or reloading never overwrites what they chose.
+const useFiltersChange = () => {
 	const navigate = useNavigate({ from: Route.fullPath });
-	const search = Route.useSearch();
 	const setFilters = useReportPreferencesStore((state) => state.setFilters);
-
-	const currentTab = search.tab as Tab;
-
-	const showRangeFilters =
-		currentTab !== "overview" && currentTab !== "aging-queue";
-	const showGranularity =
-		currentTab !== "overview" &&
-		currentTab !== "aging-queue" &&
-		currentTab !== "quality";
-
-	// Saved only here, when the admin changes a filter, so opening an old link
-	// or reloading never overwrites what they chose.
-	const handleFiltersChange = (change: ReportFilterValues) => {
+	return (change: ReportFilterValues) => {
 		void navigate({
+			// A Store picked from a table header far down the page keeps the
+			// owner where they were reading.
+			resetScroll: false,
 			search: (prev) => {
 				const filters = toReportFilters({ ...prev, ...change });
 				const currentUser = getCurrentUser();
@@ -226,6 +219,25 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 			},
 		});
 	};
+};
+
+// Shared with the pending state at the bottom of this file. Switching tabs
+// re-runs the loader, and an admin on shop wifi was getting the whole page
+// swapped for grey blocks — including the tab strip they had just tapped.
+const ReportsChrome = ({ children }: PropsWithChildren) => {
+	const navigate = useNavigate({ from: Route.fullPath });
+	const search = Route.useSearch();
+	const handleFiltersChange = useFiltersChange();
+
+	const currentTab = search.tab as Tab;
+
+	const showRangeFilters =
+		currentTab !== "overview" && currentTab !== "aging-queue";
+	const showGranularity =
+		currentTab !== "overview" &&
+		currentTab !== "aging-queue" &&
+		currentTab !== "quality" &&
+		currentTab !== "workers";
 
 	return (
 		<>
@@ -271,6 +283,7 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 
 function ReportsPage() {
 	const search = Route.useSearch();
+	const handleFiltersChange = useFiltersChange();
 	const currentTab = search.tab as Tab;
 
 	return (
@@ -323,7 +336,9 @@ function ReportsPage() {
 						from={search.from}
 						to={search.to}
 						storeId={search.store_id}
-						granularity={search.granularity}
+						onStoreChange={(storeId) =>
+							handleFiltersChange({ store_id: storeId })
+						}
 					/>
 				)}
 				{currentTab === "campaigns" && (

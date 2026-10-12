@@ -55,6 +55,7 @@ mock.module("@/modules/reports/report-range.service", () => ({
   getFinancialReport: marker("financial"),
   getOrdersFlowReport: marker("orders-flow"),
   getPaymentMixReport: marker("payment-mix"),
+  getWorkerDetailReport: marker("worker-detail"),
   getWorkerProductivityReport: marker("worker-productivity"),
 }));
 
@@ -96,6 +97,7 @@ const REPORTS = [
   { path: "/quality", params: "from=2026-08-01&to=2026-08-05" },
   { path: "/qc-rejects", params: "from=2026-08-01&to=2026-08-05&limit=10" },
   { path: "/worker-productivity", params: "from=2026-08-01&to=2026-08-05" },
+  { path: "/worker-detail", params: "from=2026-08-01&to=2026-08-05&user_id=7" },
   { path: "/campaign-effectiveness", params: "from=2026-08-01&to=2026-08-05" },
   { path: "/aging-queue", params: "" },
 ];
@@ -190,6 +192,33 @@ describe("paging through the QC rejects", () => {
       expect(produced).toEqual([]);
     });
   }
+});
+
+describe("a worker's detail page", () => {
+  const dated = "from=2026-08-01&to=2026-08-05";
+  const refused = [
+    `${dated}&user_id=7`,
+    `${dated}&store_id=1`,
+    `${dated}&store_id=1&user_id=0`,
+    `${dated}&store_id=1&user_id=abc`,
+    "from=2026-08-05&to=2026-08-01&store_id=1&user_id=7",
+  ];
+
+  for (const params of refused) {
+    it(`refuses ${params}`, async () => {
+      const res = await call("/worker-detail", params);
+
+      expect(res.status).toBe(400);
+      expect(produced).toEqual([]);
+    });
+  }
+
+  it("reports on the named Store and person", async () => {
+    const res = await call("/worker-detail", `${dated}&store_id=1&user_id=7`);
+
+    expect(res.status).toBe(200);
+    expect(produced).toEqual([{ report: "worker-detail", storeId: KEMANG }]);
+  });
 });
 
 describe("what the gate covers and what it leaves alone", () => {

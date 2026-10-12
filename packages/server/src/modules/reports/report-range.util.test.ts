@@ -17,6 +17,8 @@ import {
   enumerateDays,
   getJakartaDayRange,
   getJakartaRange,
+  jakartaDayOf,
+  percentile,
   pickGranularity,
   shiftDate,
 } from "@/modules/reports/report-range.util";
@@ -139,6 +141,37 @@ describe("deltaPct", () => {
   it("returns null when the previous period had no sales", () => {
     // A store's first month must never show Infinity% growth on the card.
     expect(deltaPct(50_000, 0)).toBeNull();
+  });
+});
+
+describe("jakartaDayOf", () => {
+  it("files a 06:30 clock-in under that Jakarta morning, not the UTC day before", () => {
+    expect(jakartaDayOf(new Date("2026-08-01T06:30:00+07:00"))).toBe(
+      "2026-08-01"
+    );
+    expect(jakartaDayOf(new Date("2026-08-01T23:59:00+07:00"))).toBe(
+      "2026-08-01"
+    );
+  });
+});
+
+describe("percentile", () => {
+  // A worker's Services on each of their days worked, quietest first.
+  const days = [0, 3, 5, 6, 10];
+
+  it("reads the middle day straight off an odd count", () => {
+    expect(percentile(days, 0.5)).toBe(5);
+  });
+
+  it("interpolates between days the way Postgres' percentile_cont does", () => {
+    expect(percentile(days, 0.25)).toBe(3);
+    expect(percentile(days, 0.75)).toBe(6);
+    expect(percentile([1, 2, 3, 4], 0.5)).toBe(2.5);
+    expect(percentile([1, 2, 3, 4], 0.25)).toBe(1.75);
+  });
+
+  it("sorts the days itself", () => {
+    expect(percentile([10, 0, 6, 3, 5], 0.75)).toBe(6);
   });
 });
 

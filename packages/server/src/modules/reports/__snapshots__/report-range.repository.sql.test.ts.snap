@@ -266,13 +266,22 @@ exports[`what each money report asks Postgres for one store asks the same questi
 [
   {
     "params": [
+      "processing",
+      1,
+      "quality_check",
+      "ready_for_pickup",
+      1,
+      "quality_check",
+      "ready_for_pickup",
       "quality_check",
       "2026-08-31T17:00:00.000Z",
       3,
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
+      "queued",
+      "processing",
     ],
-    "sql": "select "order_service_status_logs"."order_service_id", MIN("order_service_status_logs"."created_at") as "processed_at" from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."to_status" = $1) and ("order_service_status_logs"."created_at" < $2) and ("orders"."store_id" = $3)) group by "order_service_status_logs"."order_service_id" having ((MIN("order_service_status_logs"."created_at") >= $4) and (MIN("order_service_status_logs"."created_at") < $5))",
+    "sql": "select distinct on ("processed"."order_service_id") "processed"."order_service_id", "processed"."processed_at", "start_log"."changed_by", "orders"."store_id", "orders_services"."service_id", "services"."name", (select (select "changed_by" from "order_service_status_logs" "clean_log" where (("clean_log"."order_service_id" = "pass_log"."order_service_id") and ("clean_log"."to_status" = $1) and ("clean_log"."created_at" <= "pass_log"."created_at")) order by "clean_log"."created_at" desc, "clean_log"."id" desc limit $2) from "order_service_status_logs" "pass_log" where (("pass_log"."order_service_id" = "orders_services"."id") and ("pass_log"."from_status" = $3) and ("pass_log"."to_status" = $4)) order by "pass_log"."created_at" asc, "pass_log"."id" asc limit $5), ("orders_services"."complaint_id" is not null), exists (select "id" from "order_service_status_logs" "pass_log" where (("pass_log"."order_service_id" = "orders_services"."id") and ("pass_log"."from_status" = $6) and ("pass_log"."to_status" = $7))), exists (select "id" from "complaints" where "complaints"."order_service_id" = "orders_services"."id") from (select "order_service_status_logs"."order_service_id", MIN("order_service_status_logs"."created_at") as "processed_at" from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."to_status" = $8) and ("order_service_status_logs"."created_at" < $9) and ("orders"."store_id" = $10)) group by "order_service_status_logs"."order_service_id" having ((MIN("order_service_status_logs"."created_at") >= $11) and (MIN("order_service_status_logs"."created_at") < $12))) "processed" inner join "orders_services" on "processed"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" left join "services" on "orders_services"."service_id" = "services"."id" left join "order_service_status_logs" "start_log" on (("start_log"."order_service_id" = "orders_services"."id") and ("start_log"."from_status" = $13) and ("start_log"."to_status" = $14)) order by "processed"."order_service_id", "start_log"."created_at" desc",
   },
   {
     "params": [
@@ -280,15 +289,19 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select "order_refund_items"."order_service_id", COUNT(DISTINCT "order_refund_items"."id")::int from "order_refund_items" inner join "order_refunds" on "order_refund_items"."order_refund_id" = "order_refunds"."id" inner join "orders" on "order_refunds"."order_id" = "orders"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2) and (("order_refund_items"."order_service_id" is not null)) and ("orders"."store_id" = $3)) group by "order_refund_items"."order_service_id"",
+    "sql": "select "user_id", "store_id", "clock_in_at", "clock_out_at" from "shifts" where (("shifts"."clock_in_at" >= $1) and ("shifts"."clock_in_at" < $2) and ("shifts"."store_id" = $3))",
   },
   {
     "params": [
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
+      "processing",
+      "quality_check",
+      "qc_reject",
+      "ready_for_pickup",
       3,
     ],
-    "sql": "select "user_id", COALESCE(SUM(EXTRACT(EPOCH FROM ("clock_out_at" - "clock_in_at")) / 60), 0)::int from "shifts" where ((("shifts"."clock_out_at" is not null)) and ("shifts"."clock_in_at" >= $1) and ("shifts"."clock_in_at" < $2) and ("shifts"."store_id" = $3)) group by "shifts"."user_id"",
+    "sql": "select "order_service_status_logs"."changed_by", "orders"."store_id", to_char(("order_service_status_logs"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."created_at" >= $1) and ("order_service_status_logs"."created_at" < $2) and ("order_service_status_logs"."to_status" in ($3, $4, $5, $6)) and ("orders"."store_id" = $7)) group by "order_service_status_logs"."changed_by", "orders"."store_id", to_char(("order_service_status_logs"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
   {
     "params": [
@@ -302,13 +315,122 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select "qc_check_log"."order_service_id", (select "changed_by" from "order_service_status_logs" "clean_log" where (("clean_log"."order_service_id" = "qc_check_log"."order_service_id") and ("clean_log"."to_status" = $1) and ("clean_log"."created_at" <= "qc_check_log"."created_at")) order by "clean_log"."created_at" desc, "clean_log"."id" desc limit $2), "qc_check_log"."to_status" = $3 from "order_service_status_logs" "qc_check_log" inner join "orders_services" on "qc_check_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("qc_check_log"."from_status" = $4) and ("qc_check_log"."to_status" in ($5, $6)) and ("qc_check_log"."created_at" >= $7) and ("qc_check_log"."created_at" < $8) and ("orders"."store_id" = $9))",
+    "sql": "select "cleaner_id", "store_id", COUNT(*)::int, (COUNT(*) FILTER (WHERE "checks"."is_reject"))::int from (select (select "changed_by" from "order_service_status_logs" "clean_log" where (("clean_log"."order_service_id" = "qc_check_log"."order_service_id") and ("clean_log"."to_status" = $1) and ("clean_log"."created_at" <= "qc_check_log"."created_at")) order by "clean_log"."created_at" desc, "clean_log"."id" desc limit $2) as "cleaner_id", "orders"."store_id", "qc_check_log"."to_status" = $3 as "is_reject" from "order_service_status_logs" "qc_check_log" inner join "orders_services" on "qc_check_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("qc_check_log"."from_status" = $4) and ("qc_check_log"."to_status" in ($5, $6)) and ("qc_check_log"."created_at" >= $7) and ("qc_check_log"."created_at" < $8) and ("orders"."store_id" = $9))) "checks" group by "checks"."cleaner_id", "checks"."store_id"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for worker productivity headline 1`] = `
+[
+  {
+    "params": [
+      "quality_check",
+      "ready_for_pickup",
+      "quality_check",
+      "2026-08-31T17:00:00.000Z",
+      3,
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      "queued",
+      "processing",
+    ],
+    "sql": "select distinct on ("processed"."order_service_id") "processed"."order_service_id", "processed"."processed_at", "start_log"."changed_by", "orders"."store_id", ("orders_services"."complaint_id" is not null), exists (select "id" from "order_service_status_logs" "pass_log" where (("pass_log"."order_service_id" = "orders_services"."id") and ("pass_log"."from_status" = $1) and ("pass_log"."to_status" = $2))), exists (select "id" from "complaints" where "complaints"."order_service_id" = "orders_services"."id") from (select "order_service_status_logs"."order_service_id", MIN("order_service_status_logs"."created_at") as "processed_at" from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."to_status" = $3) and ("order_service_status_logs"."created_at" < $4) and ("orders"."store_id" = $5)) group by "order_service_status_logs"."order_service_id" having ((MIN("order_service_status_logs"."created_at") >= $6) and (MIN("order_service_status_logs"."created_at") < $7))) "processed" inner join "orders_services" on "processed"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" left join "services" on "orders_services"."service_id" = "services"."id" left join "order_service_status_logs" "start_log" on (("start_log"."order_service_id" = "orders_services"."id") and ("start_log"."from_status" = $8) and ("start_log"."to_status" = $9)) order by "processed"."order_service_id", "start_log"."created_at" desc",
   },
   {
     "params": [
-      "worker",
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
     ],
-    "sql": "select "id", "name", "role" from "users" where "users"."role" = $1",
+    "sql": "select "user_id", "store_id", "clock_in_at", "clock_out_at" from "shifts" where (("shifts"."clock_in_at" >= $1) and ("shifts"."clock_in_at" < $2) and ("shifts"."store_id" = $3))",
+  },
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      "processing",
+      "quality_check",
+      "qc_reject",
+      "ready_for_pickup",
+      3,
+    ],
+    "sql": "select "order_service_status_logs"."changed_by", "orders"."store_id", to_char(("order_service_status_logs"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."created_at" >= $1) and ("order_service_status_logs"."created_at" < $2) and ("order_service_status_logs"."to_status" in ($3, $4, $5, $6)) and ("orders"."store_id" = $7)) group by "order_service_status_logs"."changed_by", "orders"."store_id", to_char(("order_service_status_logs"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+  {
+    "params": [
+      "processing",
+      1,
+      "qc_reject",
+      "quality_check",
+      "ready_for_pickup",
+      "qc_reject",
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select "cleaner_id", "store_id", COUNT(*)::int, (COUNT(*) FILTER (WHERE "checks"."is_reject"))::int from (select (select "changed_by" from "order_service_status_logs" "clean_log" where (("clean_log"."order_service_id" = "qc_check_log"."order_service_id") and ("clean_log"."to_status" = $1) and ("clean_log"."created_at" <= "qc_check_log"."created_at")) order by "clean_log"."created_at" desc, "clean_log"."id" desc limit $2) as "cleaner_id", "orders"."store_id", "qc_check_log"."to_status" = $3 as "is_reject" from "order_service_status_logs" "qc_check_log" inner join "orders_services" on "qc_check_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("qc_check_log"."from_status" = $4) and ("qc_check_log"."to_status" in ($5, $6)) and ("qc_check_log"."created_at" >= $7) and ("qc_check_log"."created_at" < $8) and ("orders"."store_id" = $9))) "checks" group by "checks"."cleaner_id", "checks"."store_id"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for worker QC checks 1`] = `
+[
+  {
+    "params": [
+      "qc_reject",
+      "quality_check",
+      "ready_for_pickup",
+      "qc_reject",
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+      "processing",
+      1,
+      7,
+    ],
+    "sql": "select "qc_check_log"."created_at", "qc_check_log"."to_status" = $1, "qc_check_log"."note", "orders"."id", "orders_services"."id", "items"."item_code", "orders_services"."service_id", "services"."name" from "order_service_status_logs" "qc_check_log" inner join "orders_services" on "qc_check_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" inner join "items" on "orders_services"."item_id" = "items"."id" left join "services" on "orders_services"."service_id" = "services"."id" where (((("qc_check_log"."from_status" = $2) and ("qc_check_log"."to_status" in ($3, $4)) and ("qc_check_log"."created_at" >= $5) and ("qc_check_log"."created_at" < $6) and ("orders"."store_id" = $7))) and (((select "changed_by" from "order_service_status_logs" "clean_log" where (("clean_log"."order_service_id" = "qc_check_log"."order_service_id") and ("clean_log"."to_status" = $8) and ("clean_log"."created_at" <= "qc_check_log"."created_at")) order by "clean_log"."created_at" desc, "clean_log"."id" desc limit $9)) = $10)) order by "qc_check_log"."created_at" desc, "qc_check_log"."id" desc",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for worker Complaint items 1`] = `
+[
+  {
+    "params": [
+      11,
+      12,
+    ],
+    "sql": "select "complaints"."id", "complaints"."created_at", "complaints"."reason", "orders_services"."order_id", "orders_services"."id", "items"."item_code" from "complaints" inner join "orders_services" on "complaints"."order_service_id" = "orders_services"."id" inner join "items" on "orders_services"."item_id" = "items"."id" where "complaints"."order_service_id" in ($1, $2)",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for worker live activity 1`] = `
+[
+  {
+    "params": [
+      "processing",
+      3,
+    ],
+    "sql": "select "orders_services"."handler_id", "orders"."store_id", COUNT(*)::int from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders_services"."status" = $1) and (("orders_services"."handler_id" is not null)) and ("orders"."store_id" = $2)) group by "orders_services"."handler_id", "orders"."store_id"",
+  },
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      "processing",
+      "quality_check",
+      "qc_reject",
+      "ready_for_pickup",
+      3,
+    ],
+    "sql": "select "order_service_status_logs"."changed_by", "orders"."store_id", MAX("order_service_status_logs"."created_at") from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."created_at" >= $1) and ("order_service_status_logs"."created_at" < $2) and ("order_service_status_logs"."to_status" in ($3, $4, $5, $6)) and ("orders"."store_id" = $7)) group by "order_service_status_logs"."changed_by", "orders"."store_id"",
+  },
+  {
+    "params": [
+      3,
+    ],
+    "sql": "select "user_id", "store_id", "clock_in_at", "clock_out_at" from "shifts" where ((("shifts"."clock_out_at" is null)) and ("shifts"."store_id" = $1))",
   },
 ]
 `;
@@ -580,26 +702,39 @@ exports[`what each money report asks Postgres for the whole company asks the sam
 [
   {
     "params": [
+      "processing",
+      1,
+      "quality_check",
+      "ready_for_pickup",
+      1,
+      "quality_check",
+      "ready_for_pickup",
       "quality_check",
       "2026-08-31T17:00:00.000Z",
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
+      "queued",
+      "processing",
     ],
-    "sql": "select "order_service_status_logs"."order_service_id", MIN("order_service_status_logs"."created_at") as "processed_at" from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."to_status" = $1) and ("order_service_status_logs"."created_at" < $2)) group by "order_service_status_logs"."order_service_id" having ((MIN("order_service_status_logs"."created_at") >= $3) and (MIN("order_service_status_logs"."created_at") < $4))",
+    "sql": "select distinct on ("processed"."order_service_id") "processed"."order_service_id", "processed"."processed_at", "start_log"."changed_by", "orders"."store_id", "orders_services"."service_id", "services"."name", (select (select "changed_by" from "order_service_status_logs" "clean_log" where (("clean_log"."order_service_id" = "pass_log"."order_service_id") and ("clean_log"."to_status" = $1) and ("clean_log"."created_at" <= "pass_log"."created_at")) order by "clean_log"."created_at" desc, "clean_log"."id" desc limit $2) from "order_service_status_logs" "pass_log" where (("pass_log"."order_service_id" = "orders_services"."id") and ("pass_log"."from_status" = $3) and ("pass_log"."to_status" = $4)) order by "pass_log"."created_at" asc, "pass_log"."id" asc limit $5), ("orders_services"."complaint_id" is not null), exists (select "id" from "order_service_status_logs" "pass_log" where (("pass_log"."order_service_id" = "orders_services"."id") and ("pass_log"."from_status" = $6) and ("pass_log"."to_status" = $7))), exists (select "id" from "complaints" where "complaints"."order_service_id" = "orders_services"."id") from (select "order_service_status_logs"."order_service_id", MIN("order_service_status_logs"."created_at") as "processed_at" from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."to_status" = $8) and ("order_service_status_logs"."created_at" < $9)) group by "order_service_status_logs"."order_service_id" having ((MIN("order_service_status_logs"."created_at") >= $10) and (MIN("order_service_status_logs"."created_at") < $11))) "processed" inner join "orders_services" on "processed"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" left join "services" on "orders_services"."service_id" = "services"."id" left join "order_service_status_logs" "start_log" on (("start_log"."order_service_id" = "orders_services"."id") and ("start_log"."from_status" = $12) and ("start_log"."to_status" = $13)) order by "processed"."order_service_id", "start_log"."created_at" desc",
   },
   {
     "params": [
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select "order_refund_items"."order_service_id", COUNT(DISTINCT "order_refund_items"."id")::int from "order_refund_items" inner join "order_refunds" on "order_refund_items"."order_refund_id" = "order_refunds"."id" inner join "orders" on "order_refunds"."order_id" = "orders"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2) and (("order_refund_items"."order_service_id" is not null))) group by "order_refund_items"."order_service_id"",
+    "sql": "select "user_id", "store_id", "clock_in_at", "clock_out_at" from "shifts" where (("shifts"."clock_in_at" >= $1) and ("shifts"."clock_in_at" < $2))",
   },
   {
     "params": [
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
+      "processing",
+      "quality_check",
+      "qc_reject",
+      "ready_for_pickup",
     ],
-    "sql": "select "user_id", COALESCE(SUM(EXTRACT(EPOCH FROM ("clock_out_at" - "clock_in_at")) / 60), 0)::int from "shifts" where ((("shifts"."clock_out_at" is not null)) and ("shifts"."clock_in_at" >= $1) and ("shifts"."clock_in_at" < $2)) group by "shifts"."user_id"",
+    "sql": "select "order_service_status_logs"."changed_by", "orders"."store_id", to_char(("order_service_status_logs"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."created_at" >= $1) and ("order_service_status_logs"."created_at" < $2) and ("order_service_status_logs"."to_status" in ($3, $4, $5, $6))) group by "order_service_status_logs"."changed_by", "orders"."store_id", to_char(("order_service_status_logs"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
   {
     "params": [
@@ -612,13 +747,113 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select "qc_check_log"."order_service_id", (select "changed_by" from "order_service_status_logs" "clean_log" where (("clean_log"."order_service_id" = "qc_check_log"."order_service_id") and ("clean_log"."to_status" = $1) and ("clean_log"."created_at" <= "qc_check_log"."created_at")) order by "clean_log"."created_at" desc, "clean_log"."id" desc limit $2), "qc_check_log"."to_status" = $3 from "order_service_status_logs" "qc_check_log" inner join "orders_services" on "qc_check_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("qc_check_log"."from_status" = $4) and ("qc_check_log"."to_status" in ($5, $6)) and ("qc_check_log"."created_at" >= $7) and ("qc_check_log"."created_at" < $8))",
+    "sql": "select "cleaner_id", "store_id", COUNT(*)::int, (COUNT(*) FILTER (WHERE "checks"."is_reject"))::int from (select (select "changed_by" from "order_service_status_logs" "clean_log" where (("clean_log"."order_service_id" = "qc_check_log"."order_service_id") and ("clean_log"."to_status" = $1) and ("clean_log"."created_at" <= "qc_check_log"."created_at")) order by "clean_log"."created_at" desc, "clean_log"."id" desc limit $2) as "cleaner_id", "orders"."store_id", "qc_check_log"."to_status" = $3 as "is_reject" from "order_service_status_logs" "qc_check_log" inner join "orders_services" on "qc_check_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("qc_check_log"."from_status" = $4) and ("qc_check_log"."to_status" in ($5, $6)) and ("qc_check_log"."created_at" >= $7) and ("qc_check_log"."created_at" < $8))) "checks" group by "checks"."cleaner_id", "checks"."store_id"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for worker productivity headline 1`] = `
+[
+  {
+    "params": [
+      "quality_check",
+      "ready_for_pickup",
+      "quality_check",
+      "2026-08-31T17:00:00.000Z",
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      "queued",
+      "processing",
+    ],
+    "sql": "select distinct on ("processed"."order_service_id") "processed"."order_service_id", "processed"."processed_at", "start_log"."changed_by", "orders"."store_id", ("orders_services"."complaint_id" is not null), exists (select "id" from "order_service_status_logs" "pass_log" where (("pass_log"."order_service_id" = "orders_services"."id") and ("pass_log"."from_status" = $1) and ("pass_log"."to_status" = $2))), exists (select "id" from "complaints" where "complaints"."order_service_id" = "orders_services"."id") from (select "order_service_status_logs"."order_service_id", MIN("order_service_status_logs"."created_at") as "processed_at" from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."to_status" = $3) and ("order_service_status_logs"."created_at" < $4)) group by "order_service_status_logs"."order_service_id" having ((MIN("order_service_status_logs"."created_at") >= $5) and (MIN("order_service_status_logs"."created_at") < $6))) "processed" inner join "orders_services" on "processed"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" left join "services" on "orders_services"."service_id" = "services"."id" left join "order_service_status_logs" "start_log" on (("start_log"."order_service_id" = "orders_services"."id") and ("start_log"."from_status" = $7) and ("start_log"."to_status" = $8)) order by "processed"."order_service_id", "start_log"."created_at" desc",
   },
   {
     "params": [
-      "worker",
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select "id", "name", "role" from "users" where "users"."role" = $1",
+    "sql": "select "user_id", "store_id", "clock_in_at", "clock_out_at" from "shifts" where (("shifts"."clock_in_at" >= $1) and ("shifts"."clock_in_at" < $2))",
+  },
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      "processing",
+      "quality_check",
+      "qc_reject",
+      "ready_for_pickup",
+    ],
+    "sql": "select "order_service_status_logs"."changed_by", "orders"."store_id", to_char(("order_service_status_logs"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."created_at" >= $1) and ("order_service_status_logs"."created_at" < $2) and ("order_service_status_logs"."to_status" in ($3, $4, $5, $6))) group by "order_service_status_logs"."changed_by", "orders"."store_id", to_char(("order_service_status_logs"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+  },
+  {
+    "params": [
+      "processing",
+      1,
+      "qc_reject",
+      "quality_check",
+      "ready_for_pickup",
+      "qc_reject",
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select "cleaner_id", "store_id", COUNT(*)::int, (COUNT(*) FILTER (WHERE "checks"."is_reject"))::int from (select (select "changed_by" from "order_service_status_logs" "clean_log" where (("clean_log"."order_service_id" = "qc_check_log"."order_service_id") and ("clean_log"."to_status" = $1) and ("clean_log"."created_at" <= "qc_check_log"."created_at")) order by "clean_log"."created_at" desc, "clean_log"."id" desc limit $2) as "cleaner_id", "orders"."store_id", "qc_check_log"."to_status" = $3 as "is_reject" from "order_service_status_logs" "qc_check_log" inner join "orders_services" on "qc_check_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("qc_check_log"."from_status" = $4) and ("qc_check_log"."to_status" in ($5, $6)) and ("qc_check_log"."created_at" >= $7) and ("qc_check_log"."created_at" < $8))) "checks" group by "checks"."cleaner_id", "checks"."store_id"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for worker QC checks 1`] = `
+[
+  {
+    "params": [
+      "qc_reject",
+      "quality_check",
+      "ready_for_pickup",
+      "qc_reject",
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      "processing",
+      1,
+      7,
+    ],
+    "sql": "select "qc_check_log"."created_at", "qc_check_log"."to_status" = $1, "qc_check_log"."note", "orders"."id", "orders_services"."id", "items"."item_code", "orders_services"."service_id", "services"."name" from "order_service_status_logs" "qc_check_log" inner join "orders_services" on "qc_check_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" inner join "items" on "orders_services"."item_id" = "items"."id" left join "services" on "orders_services"."service_id" = "services"."id" where (((("qc_check_log"."from_status" = $2) and ("qc_check_log"."to_status" in ($3, $4)) and ("qc_check_log"."created_at" >= $5) and ("qc_check_log"."created_at" < $6))) and (((select "changed_by" from "order_service_status_logs" "clean_log" where (("clean_log"."order_service_id" = "qc_check_log"."order_service_id") and ("clean_log"."to_status" = $7) and ("clean_log"."created_at" <= "qc_check_log"."created_at")) order by "clean_log"."created_at" desc, "clean_log"."id" desc limit $8)) = $9)) order by "qc_check_log"."created_at" desc, "qc_check_log"."id" desc",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for worker Complaint items 1`] = `
+[
+  {
+    "params": [
+      11,
+      12,
+    ],
+    "sql": "select "complaints"."id", "complaints"."created_at", "complaints"."reason", "orders_services"."order_id", "orders_services"."id", "items"."item_code" from "complaints" inner join "orders_services" on "complaints"."order_service_id" = "orders_services"."id" inner join "items" on "orders_services"."item_id" = "items"."id" where "complaints"."order_service_id" in ($1, $2)",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for worker live activity 1`] = `
+[
+  {
+    "params": [
+      "processing",
+    ],
+    "sql": "select "orders_services"."handler_id", "orders"."store_id", COUNT(*)::int from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders_services"."status" = $1) and (("orders_services"."handler_id" is not null))) group by "orders_services"."handler_id", "orders"."store_id"",
+  },
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      "processing",
+      "quality_check",
+      "qc_reject",
+      "ready_for_pickup",
+    ],
+    "sql": "select "order_service_status_logs"."changed_by", "orders"."store_id", MAX("order_service_status_logs"."created_at") from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."created_at" >= $1) and ("order_service_status_logs"."created_at" < $2) and ("order_service_status_logs"."to_status" in ($3, $4, $5, $6))) group by "order_service_status_logs"."changed_by", "orders"."store_id"",
+  },
+  {
+    "params": [],
+    "sql": "select "user_id", "store_id", "clock_in_at", "clock_out_at" from "shifts" where ("shifts"."clock_out_at" is null)",
   },
 ]
 `;

@@ -48,6 +48,13 @@ export type WorkerProductivityReport = InferResponseType<
 	(typeof rpc.api.admin.reports)["worker-productivity"]["$get"]
 >["data"];
 
+// One person at one Store; someone who works at two Stores has two rows.
+export type WorkerRow = WorkerProductivityReport["workers"][number];
+
+export type WorkerDetailReport = InferResponseType<
+	(typeof rpc.api.admin.reports)["worker-detail"]["$get"]
+>["data"];
+
 export type CampaignEffectivenessReport = InferResponseType<
 	(typeof rpc.api.admin.reports)["campaign-effectiveness"]["$get"]
 >["data"];
@@ -68,6 +75,13 @@ export type FetchReportRangeQuery = {
 	store_id?: number;
 	granularity?: ReportGranularity;
 };
+
+export interface FetchWorkerDetailQuery {
+	from: string;
+	to: string;
+	store_id: number;
+	user_id: number;
+}
 
 export interface FetchQcRejectsQuery {
 	from: string;
@@ -101,6 +115,8 @@ export const reportsKeys = {
 		[...reportsKeys.all, "qc-rejects", query] as const,
 	workerProductivity: (query: FetchReportRangeQuery) =>
 		[...reportsKeys.all, "worker-productivity", query] as const,
+	workerDetail: (query: FetchWorkerDetailQuery) =>
+		[...reportsKeys.all, "worker-detail", query] as const,
 	campaignEffectiveness: (query: FetchReportRangeQuery) =>
 		[...reportsKeys.all, "campaign-effectiveness", query] as const,
 	agingQueue: (query?: FetchAgingQueueQuery) =>
@@ -238,6 +254,24 @@ export const reportsQueries = {
 				parseSuccessData<WorkerProductivityReport>(
 					rpcWithAuth().api.admin.reports["worker-productivity"].$get({
 						query: toRangeQuery(query),
+					}),
+				),
+			staleTime: REPORT_STALE_TIME,
+			// Today's view is who is on the floor and what is in their hands now.
+			refetchInterval: (q) => (q.state.data?.is_today ? 60_000 : false),
+		}),
+	workerDetail: (query: FetchWorkerDetailQuery) =>
+		queryOptions({
+			queryKey: reportsKeys.workerDetail(query),
+			queryFn: () =>
+				parseSuccessData<WorkerDetailReport>(
+					rpcWithAuth().api.admin.reports["worker-detail"].$get({
+						query: {
+							from: query.from,
+							to: query.to,
+							store_id: String(query.store_id),
+							user_id: String(query.user_id),
+						},
 					}),
 				),
 			staleTime: REPORT_STALE_TIME,
