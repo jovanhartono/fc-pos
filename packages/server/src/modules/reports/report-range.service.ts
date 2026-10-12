@@ -1,7 +1,9 @@
+import { NotFoundException } from "@/http-exceptions";
 import { revenue } from "@/modules/reports/money-basis";
 import type {
   ComparableSummary,
   GetReportRangeQuery,
+  GetWorkerDetailQuery,
   KpiDelta,
 } from "@/modules/reports/report.schema";
 import {
@@ -11,6 +13,7 @@ import {
   listCampaignEffectivenessRows,
   listCategoryGrossSalesSeries,
   listCollectedSeries,
+  listComplaintItems,
   listNewCustomersSeries,
   listOrderDiscountSeries,
   listOrdersInSeries,
@@ -18,25 +21,37 @@ import {
   listPaymentMixSeries,
   listProductsCogsSeries,
   listProductsGrossSalesSeries,
+  listQcChecksOfCleaner,
   listRefundAmountSeries,
   listReturningCustomerOrdersSeries,
   listServicesCogsSeries,
   listServicesGrossSalesSeries,
   listStoreCategoryGrossSalesRows,
   listStoreCollectedRows,
+  listStoreNames,
   listStoreRefundRows,
   listTopCustomers,
-  listWorkerProductivityRows,
+  listUserNames,
+  listWorkerActivity,
+  listWorkerLiveActivity,
+  listWorkerSummaryActivity,
 } from "@/modules/reports/report-range.repository";
 import {
+  daysBetween,
   deltaPct,
   derivePreviousRange,
   enumerateBuckets,
+  enumerateDays,
   type Granularity,
   getJakartaRange,
   indexBy,
+  jakartaDayOf,
+  percentile,
   pickGranularity,
+  rate,
+  weekStartOf,
 } from "@/modules/reports/report-range.util";
+import { jakartaNow } from "@/utils/date";
 
 interface PeriodWindow {
   buckets: string[];
@@ -761,28 +776,366 @@ function customerSummary(
 // ───────────────────────── Worker productivity ─────────────────────────
 
 interface WorkerSummary {
-  avg_services_per_hour: number;
+  complaint_cohort: number;
+  complaint_rate: number;
+  complaints: number;
+  daily_p25: number | null;
+  daily_p75: number | null;
+  days_worked: number;
+  people: number;
+  per_day_worked: number;
+  qc_checks: number;
   qc_reject_rate: number;
-  total_qc_checks: number;
-  total_qc_reject_items: number;
-  total_qc_rejects: number;
-  total_refund_items: number;
-  total_services_processed: number;
-  worker_count: number;
+  qc_rejects: number;
+  services_processed: number;
+}
+
+type WorkerActivity = Awaited<ReturnType<typeof listWorkerActivity>>;
+type ActivityLine = WorkerActivity["lines"][number];
+type WorkerSummaryActivity = Awaited<
+  ReturnType<typeof listWorkerSummaryActivity>
+>;
+type WorkerLiveActivity = Awaited<ReturnType<typeof listWorkerLiveActivity>>;
+
+interface ShiftTimes {
+  clock_in_at: Date;
+  clock_out_at: Date | null;
+}
+
+interface WorkerTally {
+  complaint_cohort: number;
+  complaints: number;
+  // Jakarta days they clocked in or moved an Item through the bench.
+  days_worked: Set<string>;
+  in_hand: number;
+  last_move_at: Date | null;
+  latest_shift: ShiftTimes | null;
+  // Services they started, by the Jakarta day each first reached QC.
+  processed_by_day: Map<string, number>;
+  qc_checks: number;
+  qc_rejects: number;
+  services_processed: number;
+  store_id: number;
+  user_id: number;
+}
+
+// Below this many days worked a spread is one or two days talking.
+const MIN_SPREAD_DAYS = 5;
+// Past two months a bar per day is too thin to read, so the bars go weekly.
+const MAX_DAILY_BAR_DAYS = 62;
+
+const round = (value: number, places: number) => Number(value.toFixed(places));
+
+const workerKey = (userId: number, storeId: number) => `${userId}:${storeId}`;
+
+function sumBy<T>(rows: T[], pick: (row: T) => number) {
+  return rows.reduce((sum, row) => sum + pick(row), 0);
+}
+
+const noteLatestShift = (tally: WorkerTally, shift: ShiftTimes) => {
+  if (
+    !tally.latest_shift ||
+    shift.clock_in_at > tally.latest_shift.clock_in_at
+  ) {
+    tally.latest_shift = shift;
+  }
+};
+
+function tallyWorkers(
+  { lines, shifts, moveDays, qcChecks }: WorkerSummaryActivity,
+  roleOf: (userId: number) => string | undefined,
+  live: WorkerLiveActivity | null = null
+) {
+  const tallies = new Map<string, WorkerTally>();
+  const tallyFor = (userId: number, storeId: number) => {
+    const key = workerKey(userId, storeId);
+    const existing = tallies.get(key);
+    if (existing) {
+      return existing;
+    }
+    const created: WorkerTally = {
+      complaint_cohort: 0,
+      complaints: 0,
+      days_worked: new Set(),
+      in_hand: 0,
+      last_move_at: null,
+      latest_shift: null,
+      processed_by_day: new Map(),
+      qc_checks: 0,
+      qc_rejects: 0,
+      services_processed: 0,
+      store_id: storeId,
+      user_id: userId,
+    };
+    tallies.set(key, created);
+    return created;
+  };
+
+  for (const line of lines) {
+    if (line.started_by !== null) {
+      const tally = tallyFor(line.started_by, line.store_id);
+      const day = jakartaDayOf(line.processed_at);
+      tally.services_processed += 1;
+      tally.processed_by_day.set(
+        day,
+        (tally.processed_by_day.get(day) ?? 0) + 1
+      );
+    }
+  }
+  for (const row of qcChecks) {
+    if (row.cleaner_id !== null) {
+      const tally = tallyFor(row.cleaner_id, row.store_id);
+      tally.qc_checks += row.checks;
+      tally.qc_rejects += row.rejects;
+    }
+  }
+  // Today, someone with Items in hand is on the floor even before anything
+  // they started reaches QC.
+  for (const row of live?.inHand ?? []) {
+    tallyFor(row.user_id, row.store_id).in_hand = row.in_hand;
+  }
+
+  // A cashier clocked in to run the counter is not a day at the bench: her Shift
+  // and moves count only at a Store where she started, cleaned or holds an Item.
+  const benchKeys = new Set(
+    [...tallies.values()]
+      .filter(
+        (tally) =>
+          tally.services_processed > 0 ||
+          tally.qc_checks > 0 ||
+          tally.in_hand > 0
+      )
+      .map((tally) => workerKey(tally.user_id, tally.store_id))
+  );
+  const didBenchWork = (row: { store_id: number; user_id: number }) =>
+    roleOf(row.user_id) === "worker" ||
+    benchKeys.has(workerKey(row.user_id, row.store_id));
+
+  for (const shift of shifts.filter(didBenchWork)) {
+    const tally = tallyFor(shift.user_id, shift.store_id);
+    tally.days_worked.add(jakartaDayOf(shift.clock_in_at));
+    noteLatestShift(tally, shift);
+  }
+  // Workers who rarely clock in still have days at the bench.
+  for (const move of moveDays.filter(didBenchWork)) {
+    tallyFor(move.user_id, move.store_id).days_worked.add(move.day);
+  }
+  for (const shift of (live?.openShifts ?? []).filter(didBenchWork)) {
+    noteLatestShift(tallyFor(shift.user_id, shift.store_id), shift);
+  }
+  for (const row of (live?.lastMoves ?? []).filter(didBenchWork)) {
+    tallyFor(row.user_id, row.store_id).last_move_at = row.last_move_at;
+  }
+  return [...tallies.values()];
+}
+
+// Only onto rows that already exist: an Item Bayu cleaned and Citra passed on
+// 1 Sep must not give Bayu an August row with nothing else on it.
+function tallyComplaints(
+  tallies: WorkerTally[],
+  lines: WorkerActivity["lines"]
+) {
+  const byKey = new Map(
+    tallies.map((tally) => [workerKey(tally.user_id, tally.store_id), tally])
+  );
+  for (const line of lines) {
+    if (line.is_rework || line.passed_cleaner_id === null) {
+      continue;
+    }
+    const tally = byKey.get(workerKey(line.passed_cleaner_id, line.store_id));
+    if (tally) {
+      tally.complaint_cohort += 1;
+      tally.complaints += line.has_complaint ? 1 : 0;
+    }
+  }
+}
+
+// The same days the bars show: every day worked or with a Service finished.
+// 0 is a day worked where nothing they started reached QC.
+const dailyCounts = (tally: WorkerTally) =>
+  [...new Set([...tally.days_worked, ...tally.processed_by_day.keys()])].map(
+    (day) => tally.processed_by_day.get(day) ?? 0
+  );
+
+function dailySpread(counts: number[]) {
+  if (counts.length < MIN_SPREAD_DAYS) {
+    return null;
+  }
+  return {
+    p25: round(percentile(counts, 0.25), 2),
+    p75: round(percentile(counts, 0.75), 2),
+  };
+}
+
+function dailyBuckets(from: string, to: string) {
+  const bucket: "day" | "week" =
+    daysBetween(from, to) <= MAX_DAILY_BAR_DAYS ? "day" : "week";
+  const bucketOf = (day: string) => (bucket === "day" ? day : weekStartOf(day));
+  const labels = [...new Set(enumerateDays(from, to).map(bucketOf))];
+  return { bucket, bucketOf, labels };
+}
+
+// Only Services started by someone with a day worked count towards the rate:
+// a cashier who started one Item with no day at the bench has nothing to divide by.
+function perDayWorked(tallies: WorkerTally[]) {
+  const staffed = tallies.filter((tally) => tally.days_worked.size > 0);
+  const daysWorked = sumBy(staffed, (tally) => tally.days_worked.size);
+  const services = sumBy(staffed, (tally) => tally.services_processed);
+  return daysWorked > 0 ? round(services / daysWorked, 2) : null;
+}
+
+function summariseWorkers(
+  activity: WorkerSummaryActivity,
+  tallies: WorkerTally[]
+): WorkerSummary {
+  const spread = dailySpread(tallies.flatMap(dailyCounts));
+  const qcChecks = sumBy(activity.qcChecks, (row) => row.checks);
+  const qcRejects = sumBy(activity.qcChecks, (row) => row.rejects);
+  const passed = activity.lines.filter(
+    (line) => !line.is_rework && line.passed
+  );
+  const complaints = passed.filter((line) => line.has_complaint).length;
+  return {
+    complaints,
+    complaint_cohort: passed.length,
+    complaint_rate: rate(complaints, passed.length),
+    services_processed: activity.lines.length,
+    days_worked: sumBy(tallies, (tally) => tally.days_worked.size),
+    people: new Set(
+      tallies.filter((t) => t.days_worked.size > 0).map((t) => t.user_id)
+    ).size,
+    per_day_worked: perDayWorked(tallies) ?? 0,
+    daily_p25: spread?.p25 ?? null,
+    daily_p75: spread?.p75 ?? null,
+    qc_checks: qcChecks,
+    qc_rejects: qcRejects,
+    qc_reject_rate: rate(qcRejects, qcChecks),
+  };
+}
+
+function groupByService(lines: ActivityLine[]) {
+  const byService = new Map<
+    number,
+    { service_id: number; service_name: string; lines: ActivityLine[] }
+  >();
+  for (const line of lines) {
+    const serviceId = line.service_id ?? 0;
+    const group = byService.get(serviceId) ?? {
+      service_id: serviceId,
+      service_name: line.service_name ?? "Unknown",
+      lines: [],
+    };
+    group.lines.push(line);
+    byService.set(serviceId, group);
+  }
+  return [...byService.values()];
+}
+
+type ServiceGroup = ReturnType<typeof groupByService>[number];
+
+function buildServicesMatrix(byService: ServiceGroup[]) {
+  const services: {
+    service_id: number;
+    service_name: string;
+    total: number;
+  }[] = [];
+  const cells: {
+    user_id: number;
+    store_id: number;
+    service_id: number;
+    count: number;
+  }[] = [];
+  for (const { service_id, service_name, lines } of byService) {
+    const byWorker = new Map<string, (typeof cells)[number]>();
+    for (const line of lines) {
+      if (line.started_by === null) {
+        continue;
+      }
+      const key = workerKey(line.started_by, line.store_id);
+      const cell = byWorker.get(key) ?? {
+        user_id: line.started_by,
+        store_id: line.store_id,
+        service_id,
+        count: 0,
+      };
+      cell.count += 1;
+      byWorker.set(key, cell);
+    }
+    const workerCells = [...byWorker.values()];
+    const total = sumBy(workerCells, (cell) => cell.count);
+    if (total > 0) {
+      services.push({ service_id, service_name, total });
+      cells.push(...workerCells);
+    }
+  }
+  return {
+    services: services.sort(
+      (a, b) =>
+        b.total - a.total || a.service_name.localeCompare(b.service_name)
+    ),
+    cells,
+  };
 }
 
 export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
   const ctx = buildContext(query);
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
+  const today = jakartaNow().format("YYYY-MM-DD");
+  const isToday = ctx.from === today && ctx.to === today;
 
-  const [workers, prevWorkers] = await Promise.all([
-    listWorkerProductivityRows({ range, storeId }),
-    listWorkerProductivityRows({ range: ctx.previous.range, storeId }),
+  const [activity, prevActivity, live, users, stores] = await Promise.all([
+    listWorkerActivity({ range, storeId }),
+    listWorkerSummaryActivity({ range: ctx.previous.range, storeId }),
+    isToday ? listWorkerLiveActivity({ range, storeId }) : null,
+    listUserNames(),
+    listStoreNames(),
   ]);
+  const userById = new Map(users.map((user) => [user.id, user]));
+  const storeName = new Map(stores.map((store) => [store.id, store.name]));
+  const roleOf = (userId: number) => userById.get(userId)?.role;
 
-  const current = summariseWorkers(workers);
-  const previous = summariseWorkers(prevWorkers);
+  const tallies = tallyWorkers(activity, roleOf, live);
+  tallyComplaints(tallies, activity.lines);
+  const current = summariseWorkers(activity, tallies);
+  const previous = summariseWorkers(
+    prevActivity,
+    tallyWorkers(prevActivity, roleOf)
+  );
+
+  const workers = tallies
+    .map((tally) => {
+      const user = userById.get(tally.user_id);
+      return {
+        user_id: tally.user_id,
+        user_name: user?.name ?? "Unknown",
+        role: user?.role ?? "unknown",
+        store_id: tally.store_id,
+        store_name: storeName.get(tally.store_id) ?? "Unknown",
+        services_processed: tally.services_processed,
+        days_worked: tally.days_worked.size,
+        per_day_worked: perDayWorked([tally]),
+        qc_checks: tally.qc_checks,
+        qc_rejects: tally.qc_rejects,
+        complaints: tally.complaints,
+        complaint_cohort: tally.complaint_cohort,
+        live: live
+          ? {
+              clock_in_at: tally.latest_shift?.clock_in_at ?? null,
+              clock_out_at: tally.latest_shift?.clock_out_at ?? null,
+              in_hand: tally.in_hand,
+              last_move_at: tally.last_move_at,
+            }
+          : null,
+      };
+    })
+    .sort(
+      (a, b) =>
+        a.store_name.localeCompare(b.store_name) ||
+        b.services_processed - a.services_processed ||
+        a.user_name.localeCompare(b.user_name)
+    );
+  const byService = groupByService(activity.lines);
 
   return {
     from: ctx.from,
@@ -790,37 +1143,235 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
     store_id: ctx.store_id,
     granularity: ctx.granularity,
     previous: { from: ctx.previous.from, to: ctx.previous.to },
-    workers: workers.rows,
+    is_today: isToday,
     summary: {
       current,
       previous,
       deltas: buildDeltas(current, previous),
     } satisfies ComparableSummary<WorkerSummary>,
+    workers,
+    services_matrix: buildServicesMatrix(byService),
   };
 }
 
-function summariseWorkers({
-  rows,
-  qc_checks: totalQcChecks,
-  qc_rejects: totalQcRejects,
-  qc_reject_items: totalQcRejectItems,
-}: Awaited<ReturnType<typeof listWorkerProductivityRows>>): WorkerSummary {
-  const active = rows.filter(
-    (r) =>
-      r.services_processed > 0 || r.shift_minutes > 0 || r.qc_reject_items > 0
+interface ServiceCount {
+  count: number;
+  service_id: number;
+  service_name: string;
+}
+
+const byCountThenName = (a: ServiceCount, b: ServiceCount) =>
+  b.count - a.count || a.service_name.localeCompare(b.service_name);
+
+function countByService(lines: ActivityLine[]): ServiceCount[] {
+  return groupByService(lines)
+    .map(({ service_id, service_name, lines: group }) => ({
+      service_id,
+      service_name,
+      count: group.length,
+    }))
+    .sort(byCountThenName);
+}
+
+function groupChecksByService(
+  checks: Awaited<ReturnType<typeof listQcChecksOfCleaner>>
+) {
+  const byService = new Map<
+    number,
+    {
+      service_id: number;
+      service_name: string;
+      rejects: number;
+      checks: number;
+      items: {
+        order_id: number;
+        order_service_id: number;
+        item_code: string;
+        rejected_at: string;
+        note: string | null;
+      }[];
+    }
+  >();
+  // Newest first, so each Service's items come out newest first too.
+  for (const check of checks) {
+    const serviceId = check.service_id ?? 0;
+    const group = byService.get(serviceId) ?? {
+      service_id: serviceId,
+      service_name: check.service_name ?? "Unknown",
+      rejects: 0,
+      checks: 0,
+      items: [],
+    };
+    group.checks += 1;
+    if (check.is_reject) {
+      group.rejects += 1;
+      group.items.push({
+        order_id: check.order_id,
+        order_service_id: check.order_service_id,
+        item_code: check.item_code,
+        rejected_at: check.checked_at.toISOString(),
+        note: check.note,
+      });
+    }
+    byService.set(serviceId, group);
+  }
+  return [...byService.values()]
+    .filter((group) => group.rejects > 0)
+    .sort(
+      (a, b) =>
+        b.rejects - a.rejects || a.service_name.localeCompare(b.service_name)
+    );
+}
+
+function groupComplaintsByService(
+  cohort: ActivityLine[],
+  complaintItems: Awaited<ReturnType<typeof listComplaintItems>>
+) {
+  const itemByLine = new Map(
+    complaintItems.map((item) => [item.order_service_id, item])
   );
-  const totalProcessed = active.reduce((s, r) => s + r.services_processed, 0);
-  const totalRefunds = active.reduce((s, r) => s + r.refund_items, 0);
-  const totalHours = active.reduce((s, r) => s + r.shift_minutes / 60, 0);
+  return groupByService(cohort)
+    .map(({ service_id, service_name, lines }) => ({
+      service_id,
+      service_name,
+      complaints: lines.filter((line) => line.has_complaint).length,
+      finished: lines.length,
+      items: lines
+        .flatMap((line) => itemByLine.get(line.order_service_id) ?? [])
+        .sort(
+          (a, b) =>
+            b.created_at.getTime() - a.created_at.getTime() ||
+            b.complaint_id - a.complaint_id
+        )
+        .map((item) => ({
+          complaint_id: item.complaint_id,
+          order_id: item.order_id,
+          order_service_id: item.order_service_id,
+          item_code: item.item_code,
+          opened_at: item.created_at.toISOString(),
+          reason: item.reason,
+        })),
+    }))
+    .filter((group) => group.complaints > 0)
+    .sort(
+      (a, b) =>
+        b.complaints - a.complaints ||
+        a.service_name.localeCompare(b.service_name)
+    );
+}
+
+// One Store, one person: the page behind a row of the Workers tab. Everything
+// is built from the same tallies as that row, so the two never disagree.
+export async function getWorkerDetailReport(query: GetWorkerDetailQuery) {
+  const { from, to, store_id: storeId, user_id: userId } = query;
+  const range = getJakartaRange(from, to);
+  // Same Today rule as the row: an Item in hand counts as a day at the bench.
+  const today = jakartaNow().format("YYYY-MM-DD");
+  const isToday = from === today && to === today;
+
+  const [activity, live, checks, users, stores] = await Promise.all([
+    listWorkerActivity({ range, storeId }),
+    isToday ? listWorkerLiveActivity({ range, storeId }) : null,
+    listQcChecksOfCleaner({ range, storeId, userId }),
+    listUserNames(),
+    listStoreNames(),
+  ]);
+  const userById = new Map(users.map((candidate) => [candidate.id, candidate]));
+  const storeName = new Map(stores.map((store) => [store.id, store.name]));
+  const user = userById.get(userId);
+  if (!user) {
+    throw new NotFoundException("User not found");
+  }
+  const roleOf = (id: number) => userById.get(id)?.role;
+
+  const tallies = tallyWorkers(activity, roleOf, live);
+  tallyComplaints(tallies, activity.lines);
+  const tally = tallies.find((t) => t.user_id === userId);
+
+  const { bucket, bucketOf, labels } = dailyBuckets(from, to);
+  const bucketTotals = (t: WorkerTally) => {
+    const processed = new Map<string, number>();
+    for (const [day, count] of t.processed_by_day) {
+      const label = bucketOf(day);
+      processed.set(label, (processed.get(label) ?? 0) + count);
+    }
+    return { processed, worked: new Set([...t.days_worked].map(bucketOf)) };
+  };
+
+  const myWorked = new Set([...(tally?.days_worked ?? [])].map(bucketOf));
+  const colleagues = tallies
+    .filter((t) => roleOf(t.user_id) === "worker")
+    .map(bucketTotals);
+  const myLines = activity.lines.filter((line) => line.started_by === userId);
+  const myLinesByBucket = new Map<string, typeof myLines>();
+  for (const line of myLines) {
+    const label = bucketOf(jakartaDayOf(line.processed_at));
+    const group = myLinesByBucket.get(label);
+    if (group) {
+      group.push(line);
+    } else {
+      myLinesByBucket.set(label, [line]);
+    }
+  }
+  const buckets = labels.map((label) => {
+    const inBucket = myLinesByBucket.get(label) ?? [];
+    const worked = myWorked.has(label);
+    const crew = colleagues.filter(
+      (c) => c.worked.has(label) || (c.processed.get(label) ?? 0) > 0
+    );
+    return {
+      label,
+      worked,
+      total: inBucket.length > 0 || worked ? inBucket.length : null,
+      services: countByService(inBucket),
+      store_average:
+        crew.length > 0
+          ? round(
+              sumBy(crew, (c) => c.processed.get(label) ?? 0) / crew.length,
+              2
+            )
+          : null,
+    };
+  });
+
+  const qcRejects = groupChecksByService(checks);
+
+  // Same cohort and same guard as tallyComplaints: no row, no Complaints.
+  const cohort = tally
+    ? activity.lines.filter(
+        (line) => !line.is_rework && line.passed_cleaner_id === userId
+      )
+    : [];
+  const complained = cohort.filter((line) => line.has_complaint);
+  const complaintItems =
+    complained.length > 0
+      ? await listComplaintItems(
+          complained.map((line) => line.order_service_id)
+        )
+      : [];
+
   return {
-    worker_count: active.length,
-    total_services_processed: totalProcessed,
-    total_refund_items: totalRefunds,
-    total_qc_checks: totalQcChecks,
-    total_qc_rejects: totalQcRejects,
-    total_qc_reject_items: totalQcRejectItems,
-    qc_reject_rate: totalQcChecks > 0 ? totalQcRejects / totalQcChecks : 0,
-    avg_services_per_hour: totalHours > 0 ? totalProcessed / totalHours : 0,
+    from,
+    to,
+    store_id: storeId,
+    store_name: storeName.get(storeId) ?? "Unknown",
+    user_id: userId,
+    user_name: user.name,
+    role: user.role,
+    bucket,
+    facts: {
+      days_worked: tally?.days_worked.size ?? 0,
+      services_processed: tally?.services_processed ?? 0,
+      per_day_worked: tally ? perDayWorked([tally]) : null,
+      qc_checks: tally?.qc_checks ?? 0,
+      qc_rejects: tally?.qc_rejects ?? 0,
+      complaints: tally?.complaints ?? 0,
+      complaint_cohort: tally?.complaint_cohort ?? 0,
+    },
+    buckets,
+    services: countByService(myLines),
+    qc_rejects: qcRejects,
+    complaints: groupComplaintsByService(cohort, complaintItems),
   };
 }
 

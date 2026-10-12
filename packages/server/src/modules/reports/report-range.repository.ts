@@ -4,20 +4,23 @@ import {
   count,
   desc,
   eq,
+  exists,
   inArray,
   isNotNull,
+  isNull,
   lt,
   sql,
 } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { alias, type SelectedFields } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import {
   campaignsTable,
   categoriesTable,
+  complaintsTable,
   customersTable,
+  itemsTable,
   orderCampaignsTable,
   orderPickupEventsTable,
-  orderRefundItemsTable,
   orderRefundsTable,
   orderServiceStatusLogsTable,
   ordersProductsTable,
@@ -584,89 +587,159 @@ export async function listRefundAmountSeries({
 
 // ───────────────────────── Worker productivity (R7) ─────────────────────────
 
-async function fetchAttribution(
-  processingLog: ReturnType<
-    typeof alias<typeof orderServiceStatusLogsTable, string>
-  >,
-  orderServiceIds: number[],
-  storeId?: number
+const startLog = alias(orderServiceStatusLogsTable, "start_log");
+const passLog = alias(orderServiceStatusLogsTable, "pass_log");
+const qcCheckLog = alias(orderServiceStatusLogsTable, "qc_check_log");
+
+// Every Service processed in the stretch, credited to whoever started it.
+function listProcessedLines<TDetail extends SelectedFields>(
+  { range, storeId }: RangeArgs,
+  detail: TDetail
 ) {
-  if (orderServiceIds.length === 0) {
-    return [];
-  }
-  const conditions = [
-    eq(processingLog.to_status, "processing"),
-    eq(processingLog.from_status, "queued"),
-    inArray(processingLog.order_service_id, orderServiceIds),
-    storeScope(ordersTable.store_id, storeId),
-  ];
-  return await db
-    .selectDistinctOn([processingLog.order_service_id], {
-      worker_id: processingLog.changed_by,
-      order_service_id: processingLog.order_service_id,
+  const processed = listServicesProcessed({ range, storeId }).as("processed");
+  return db
+    .selectDistinctOn([processed.order_service_id], {
+      order_service_id: processed.order_service_id,
+      processed_at: processed.processed_at,
+      started_by: startLog.changed_by,
+      store_id: ordersTable.store_id,
+      ...detail,
     })
-    .from(processingLog)
+    .from(processed)
     .innerJoin(
       ordersServicesTable,
-      eq(processingLog.order_service_id, ordersServicesTable.id)
+      eq(processed.order_service_id, ordersServicesTable.id)
     )
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
-    .where(and(...conditions))
-    .orderBy(processingLog.order_service_id, desc(processingLog.created_at));
-}
-
-function fetchRefundsPerItem(range: DateRange, storeId?: number) {
-  const conditions = [
-    ...timeWindow(orderRefundsTable.created_at, range),
-    // product refund lines have no handler; worker attribution is service-only
-    isNotNull(orderRefundItemsTable.order_service_id),
-    storeScope(ordersTable.store_id, storeId),
-  ];
-  return db
-    .select({
-      order_service_id: sql<number>`${orderRefundItemsTable.order_service_id}`,
-      refunds: sql<number>`COUNT(DISTINCT ${orderRefundItemsTable.id})::int`,
-    })
-    .from(orderRefundItemsTable)
-    .innerJoin(
-      orderRefundsTable,
-      eq(orderRefundItemsTable.order_refund_id, orderRefundsTable.id)
+    .leftJoin(
+      servicesTable,
+      eq(ordersServicesTable.service_id, servicesTable.id)
     )
-    .innerJoin(ordersTable, eq(orderRefundsTable.order_id, ordersTable.id))
-    .where(and(...conditions))
-    .groupBy(orderRefundItemsTable.order_service_id);
+    .leftJoin(
+      startLog,
+      and(
+        eq(startLog.order_service_id, ordersServicesTable.id),
+        eq(startLog.from_status, "queued"),
+        eq(startLog.to_status, "processing")
+      )
+    )
+    .orderBy(processed.order_service_id, desc(startLog.created_at));
 }
 
-function fetchShiftMinutes(range: DateRange, storeId?: number) {
-  const conditions = [
-    isNotNull(shiftsTable.clock_out_at),
-    ...timeWindow(shiftsTable.clock_in_at, range),
-    storeScope(shiftsTable.store_id, storeId),
-  ];
+// What the Complaint rate needs from every line, this stretch or the last.
+function complaintFlags() {
+  return {
+    is_rework: sql<boolean>`${isNotNull(ordersServicesTable.complaint_id)}`,
+    passed: sql<boolean>`${exists(
+      db
+        .select({ id: passLog.id })
+        .from(passLog)
+        .where(
+          and(
+            eq(passLog.order_service_id, ordersServicesTable.id),
+            eq(passLog.from_status, "quality_check"),
+            eq(passLog.to_status, "ready_for_pickup")
+          )
+        )
+    )}`,
+    has_complaint: sql<boolean>`${exists(
+      db
+        .select({ id: complaintsTable.id })
+        .from(complaintsTable)
+        .where(eq(complaintsTable.order_service_id, ordersServicesTable.id))
+    )}`,
+  };
+}
+
+// What the rows need beyond the headline. Once the line has passed QC, a
+// Complaint about it belongs to whoever cleaned the round that passed, not to
+// whoever started it.
+function lineDetail() {
+  const firstPass = db
+    .select({ cleaner_id: sql`${cleanerOfRound(passLog)}` })
+    .from(passLog)
+    .where(
+      and(
+        eq(passLog.order_service_id, ordersServicesTable.id),
+        eq(passLog.from_status, "quality_check"),
+        eq(passLog.to_status, "ready_for_pickup")
+      )
+    )
+    .orderBy(asc(passLog.created_at), asc(passLog.id))
+    .limit(1);
+
+  return {
+    service_id: ordersServicesTable.service_id,
+    service_name: servicesTable.name,
+    passed_cleaner_id: sql<number | null>`${firstPass}`,
+    ...complaintFlags(),
+  };
+}
+
+function listShiftsInRange({ range, storeId }: RangeArgs) {
   return db
     .select({
       user_id: shiftsTable.user_id,
-      minutes: sql<number>`COALESCE(SUM(EXTRACT(EPOCH FROM (${shiftsTable.clock_out_at} - ${shiftsTable.clock_in_at})) / 60), 0)::int`,
+      store_id: shiftsTable.store_id,
+      clock_in_at: shiftsTable.clock_in_at,
+      clock_out_at: shiftsTable.clock_out_at,
     })
     .from(shiftsTable)
-    .where(and(...conditions))
-    .groupBy(shiftsTable.user_id);
+    .where(
+      and(
+        ...timeWindow(shiftsTable.clock_in_at, range),
+        storeScope(shiftsTable.store_id, storeId)
+      )
+    );
+}
+
+const BENCH_STATUSES = [
+  "processing",
+  "quality_check",
+  "qc_reject",
+  "ready_for_pickup",
+] as const;
+
+// Days a person moved an Item through the bench, at the Order's Store. Workers
+// who rarely clock in still show a day worked. Pickups, refunds and cancels are
+// the counter's work, so they are left out. The day is cut at Jakarta midnight
+// here rather than with jakartaBucketExpr.
+function listBenchMoveDays({ range, storeId }: RangeArgs) {
+  const day = sql<string>`to_char((${orderServiceStatusLogsTable.created_at} AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')`;
+  return db
+    .select({
+      user_id: orderServiceStatusLogsTable.changed_by,
+      store_id: ordersTable.store_id,
+      day,
+    })
+    .from(orderServiceStatusLogsTable)
+    .innerJoin(
+      ordersServicesTable,
+      eq(orderServiceStatusLogsTable.order_service_id, ordersServicesTable.id)
+    )
+    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .where(
+      and(
+        ...timeWindow(orderServiceStatusLogsTable.created_at, range),
+        inArray(orderServiceStatusLogsTable.to_status, BENCH_STATUSES),
+        storeScope(ordersTable.store_id, storeId)
+      )
+    )
+    .groupBy(orderServiceStatusLogsTable.changed_by, ordersTable.store_id, day);
 }
 
 // A pair Bayu redid after Adi's round was sent back is Bayu's next check, not
 // Adi's: each check goes to the round's cleaner, as the Quality tab names them.
-function fetchQcCheckCleaners(
-  qcCheckLog: ReturnType<
-    typeof alias<typeof orderServiceStatusLogsTable, string>
-  >,
-  range: DateRange,
-  storeId?: number
-) {
-  return db
+function listQcChecksByCleaner({ range, storeId }: RangeArgs) {
+  const checks = db
     .select({
-      order_service_id: qcCheckLog.order_service_id,
-      cleaner_id: sql<number | null>`${cleanerOfRound(qcCheckLog)}`,
-      is_reject: sql<boolean>`${eq(qcCheckLog.to_status, "qc_reject")}`,
+      cleaner_id: sql<number | null>`${cleanerOfRound(qcCheckLog)}`.as(
+        "cleaner_id"
+      ),
+      store_id: ordersTable.store_id,
+      is_reject: sql<boolean>`${eq(qcCheckLog.to_status, "qc_reject")}`.as(
+        "is_reject"
+      ),
     })
     .from(qcCheckLog)
     .innerJoin(
@@ -674,155 +747,171 @@ function fetchQcCheckCleaners(
       eq(qcCheckLog.order_service_id, ordersServicesTable.id)
     )
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
-    .where(qualityCheckInRange(qcCheckLog, { range, storeId }));
-}
+    .where(qualityCheckInRange(qcCheckLog, { range, storeId }))
+    .as("checks");
 
-function fetchWorkerUsers() {
   return db
     .select({
-      id: usersTable.id,
-      name: usersTable.name,
-      role: usersTable.role,
+      cleaner_id: checks.cleaner_id,
+      store_id: checks.store_id,
+      checks: sql<number>`COUNT(*)::int`,
+      rejects: sql<number>`(COUNT(*) FILTER (WHERE ${checks.is_reject}))::int`,
     })
-    .from(usersTable)
-    .where(eq(usersTable.role, "worker"));
+    .from(checks)
+    .groupBy(checks.cleaner_id, checks.store_id);
 }
 
-function aggregatePerWorker(
-  attributionRows: Array<{ worker_id: number; order_service_id: number }>,
-  processed: Array<{ order_service_id: number }>,
-  refunds: Array<{ order_service_id: number; refunds: number }>,
-  qcChecks: Array<{
-    order_service_id: number;
-    cleaner_id: number | null;
-    is_reject: boolean;
-  }>
+async function listActivity<TDetail extends SelectedFields>(
+  args: RangeArgs,
+  detail: TDetail
 ) {
-  const attribution = new Map<number, number>();
-  for (const row of attributionRows) {
-    if (!attribution.has(row.order_service_id)) {
-      attribution.set(row.order_service_id, row.worker_id);
-    }
-  }
-  const processedMap = new Map<number, number>();
-  for (const row of processed) {
-    const worker = attribution.get(row.order_service_id);
-    if (worker !== undefined) {
-      processedMap.set(worker, (processedMap.get(worker) ?? 0) + 1);
-    }
-  }
-  const refundMap = new Map<number, number>();
-  for (const row of refunds) {
-    const worker = attribution.get(row.order_service_id);
-    if (worker !== undefined) {
-      refundMap.set(worker, (refundMap.get(worker) ?? 0) + Number(row.refunds));
-    }
-  }
-  const qcTotals = new Map<
-    number,
-    { checks: number; events: number; lines: Set<number> }
-  >();
-  for (const row of qcChecks) {
-    if (row.cleaner_id === null) {
-      continue;
-    }
-    const entry = qcTotals.get(row.cleaner_id) ?? {
-      checks: 0,
-      events: 0,
-      lines: new Set<number>(),
-    };
-    entry.checks += 1;
-    if (row.is_reject) {
-      entry.events += 1;
-      entry.lines.add(row.order_service_id);
-    }
-    qcTotals.set(row.cleaner_id, entry);
-  }
-  return { processedMap, refundMap, qcTotals };
+  const [lines, shifts, moveDays, qcChecks] = await Promise.all([
+    listProcessedLines(args, detail),
+    listShiftsInRange(args),
+    listBenchMoveDays(args),
+    listQcChecksByCleaner(args),
+  ]);
+  return { lines, shifts, moveDays, qcChecks };
 }
 
-export async function listWorkerProductivityRows({
+export const listWorkerActivity = (args: RangeArgs) =>
+  listActivity(args, lineDetail());
+
+// The previous stretch only feeds the headline comparison, so it skips the
+// Service names and cleaner lookups that the rows need.
+export const listWorkerSummaryActivity = (args: RangeArgs) =>
+  listActivity(args, complaintFlags());
+
+// Every QC check on rounds this person cleaned at one Store, newest first: the
+// detail page's QC rejects and each Service's check count come from these.
+export async function listQcChecksOfCleaner({
   range,
   storeId,
-}: RangeArgs) {
-  const processingLog = alias(
-    orderServiceStatusLogsTable,
-    "processing_attribution"
-  );
-  const qcCheckLog = alias(orderServiceStatusLogsTable, "qc_check_log");
-
-  const [processed, refunds, shiftRows, qcChecks, workers] = await Promise.all([
-    listServicesProcessed({ range, storeId }),
-    fetchRefundsPerItem(range, storeId),
-    fetchShiftMinutes(range, storeId),
-    fetchQcCheckCleaners(qcCheckLog, range, storeId),
-    fetchWorkerUsers(),
-  ]);
-
-  const terminalItemIds = new Set<number>();
-  for (const row of processed) {
-    terminalItemIds.add(row.order_service_id);
-  }
-  for (const row of refunds) {
-    terminalItemIds.add(row.order_service_id);
-  }
-
-  const attributionRows = await fetchAttribution(
-    processingLog,
-    [...terminalItemIds],
-    storeId
-  );
-
-  const { processedMap, refundMap, qcTotals } = aggregatePerWorker(
-    attributionRows,
-    processed,
-    refunds,
-    qcChecks
-  );
-
-  const minutesMap = new Map<number, number>();
-  for (const row of shiftRows) {
-    minutesMap.set(row.user_id, Number(row.minutes));
-  }
-
-  const rows = workers
-    .map((worker) => {
-      const servicesProcessed = processedMap.get(worker.id) ?? 0;
-      const refundItems = refundMap.get(worker.id) ?? 0;
-      const minutes = minutesMap.get(worker.id) ?? 0;
-      const hours = minutes / 60;
-      const servicesPerHour = hours > 0 ? servicesProcessed / hours : 0;
-      const qc = qcTotals.get(worker.id);
-      const qcChecked = qc?.checks ?? 0;
-      const qcRejectEvents = qc?.events ?? 0;
-      const qcRejectRate = qcChecked > 0 ? qcRejectEvents / qcChecked : 0;
-      return {
-        user_id: worker.id,
-        user_name: worker.name,
-        services_processed: servicesProcessed,
-        refund_items: refundItems,
-        qc_checks: qcChecked,
-        qc_reject_items: qc?.lines.size ?? 0,
-        qc_reject_events: qcRejectEvents,
-        qc_reject_rate: Number(qcRejectRate.toFixed(4)),
-        shift_minutes: minutes,
-        services_per_hour: Number(servicesPerHour.toFixed(2)),
-      };
+  userId,
+}: RangeArgs & { userId: number }) {
+  return await db
+    .select({
+      checked_at: qcCheckLog.created_at,
+      is_reject: sql<boolean>`${eq(qcCheckLog.to_status, "qc_reject")}`,
+      note: qcCheckLog.note,
+      order_id: ordersTable.id,
+      order_service_id: ordersServicesTable.id,
+      item_code: itemsTable.item_code,
+      service_id: ordersServicesTable.service_id,
+      service_name: servicesTable.name,
     })
-    .sort((a, b) => b.services_processed - a.services_processed);
+    .from(qcCheckLog)
+    .innerJoin(
+      ordersServicesTable,
+      eq(qcCheckLog.order_service_id, ordersServicesTable.id)
+    )
+    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
+    .leftJoin(
+      servicesTable,
+      eq(ordersServicesTable.service_id, servicesTable.id)
+    )
+    .where(
+      and(
+        qualityCheckInRange(qcCheckLog, { range, storeId }),
+        eq(sql`(${cleanerOfRound(qcCheckLog)})`, userId)
+      )
+    )
+    .orderBy(desc(qcCheckLog.created_at), desc(qcCheckLog.id));
+}
 
-  // A pair sent back in two cleaners' rounds is on both their rows but is one
-  // service sent back for the shop.
-  const qcRejects = qcChecks.filter((row) => row.is_reject);
-  const qcRejectItems = new Set(qcRejects.map((row) => row.order_service_id))
-    .size;
+export function listComplaintItems(orderServiceIds: number[]) {
+  return db
+    .select({
+      complaint_id: complaintsTable.id,
+      created_at: complaintsTable.created_at,
+      reason: complaintsTable.reason,
+      order_id: ordersServicesTable.order_id,
+      order_service_id: ordersServicesTable.id,
+      item_code: itemsTable.item_code,
+    })
+    .from(complaintsTable)
+    .innerJoin(
+      ordersServicesTable,
+      eq(complaintsTable.order_service_id, ordersServicesTable.id)
+    )
+    .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
+    .where(inArray(complaintsTable.order_service_id, orderServiceIds));
+}
 
-  return {
-    rows,
-    qc_checks: qcChecks.length,
-    qc_rejects: qcRejects.length,
-    qc_reject_items: qcRejectItems,
-  };
+export async function listWorkerLiveActivity({ range, storeId }: RangeArgs) {
+  const [inHand, lastMoves, openShifts] = await Promise.all([
+    db
+      .select({
+        user_id: sql<number>`${ordersServicesTable.handler_id}`,
+        store_id: ordersTable.store_id,
+        in_hand: sql<number>`COUNT(*)::int`,
+      })
+      .from(ordersServicesTable)
+      .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+      .where(
+        and(
+          eq(ordersServicesTable.status, "processing"),
+          isNotNull(ordersServicesTable.handler_id),
+          storeScope(ordersTable.store_id, storeId)
+        )
+      )
+      .groupBy(ordersServicesTable.handler_id, ordersTable.store_id),
+    db
+      .select({
+        user_id: orderServiceStatusLogsTable.changed_by,
+        store_id: ordersTable.store_id,
+        last_move_at:
+          sql`MAX(${orderServiceStatusLogsTable.created_at})`.mapWith(
+            orderServiceStatusLogsTable.created_at
+          ),
+      })
+      .from(orderServiceStatusLogsTable)
+      .innerJoin(
+        ordersServicesTable,
+        eq(orderServiceStatusLogsTable.order_service_id, ordersServicesTable.id)
+      )
+      .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+      .where(
+        and(
+          ...timeWindow(orderServiceStatusLogsTable.created_at, range),
+          // A cashier's pickup is not bench work, so it is no "last move".
+          inArray(orderServiceStatusLogsTable.to_status, BENCH_STATUSES),
+          storeScope(ordersTable.store_id, storeId)
+        )
+      )
+      .groupBy(orderServiceStatusLogsTable.changed_by, ordersTable.store_id),
+    // Still on the floor, even from a clock-in before today.
+    db
+      .select({
+        user_id: shiftsTable.user_id,
+        store_id: shiftsTable.store_id,
+        clock_in_at: shiftsTable.clock_in_at,
+        clock_out_at: shiftsTable.clock_out_at,
+      })
+      .from(shiftsTable)
+      .where(
+        and(
+          isNull(shiftsTable.clock_out_at),
+          storeScope(shiftsTable.store_id, storeId)
+        )
+      ),
+  ]);
+  return { inHand, lastMoves, openShifts };
+}
+
+// Both tables are a shop's worth of rows, so the report reads them whole
+// alongside its other queries rather than waiting to learn which ids it needs.
+export function listUserNames() {
+  return db
+    .select({ id: usersTable.id, name: usersTable.name, role: usersTable.role })
+    .from(usersTable);
+}
+
+export function listStoreNames() {
+  return db
+    .select({ id: storesTable.id, name: storesTable.name })
+    .from(storesTable);
 }
 
 // ───────────────────────── Campaign effectiveness (R8) ─────────────────────────

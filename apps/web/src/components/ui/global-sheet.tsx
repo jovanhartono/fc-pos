@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { useSheet } from "@/stores/sheet-store";
 
 export function GlobalSheet() {
-	const { open, title, description, content } = useSheet(
+	const { open, title, description, content, size, back } = useSheet(
 		(state) => state.sheetState,
 	);
 	const closeSheet = useSheet((state) => state.closeSheet);
@@ -45,9 +45,24 @@ export function GlobalSheet() {
 	return (
 		<>
 			<Sheet open={open} onOpenChange={handleOpenChange}>
-				<SheetContent side="right" className="w-full overflow-y-auto">
+				<SheetContent
+					side="right"
+					className={cn(
+						"w-full overflow-y-auto",
+						size === "wide" && "data-[side=right]:sm:max-w-[820px]",
+					)}
+				>
 					{title || description ? (
 						<SheetHeader>
+							{back ? (
+								<button
+									type="button"
+									onClick={back.onClick}
+									className="justify-self-start text-left text-muted-foreground text-sm hover:text-foreground"
+								>
+									{`← ${back.label}`}
+								</button>
+							) : null}
 							{title ? <SheetTitle>{title}</SheetTitle> : null}
 							<SheetDescription
 								className={cn({

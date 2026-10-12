@@ -23,6 +23,10 @@ import { ExportButton } from "@/features/reports/components/export-button";
 import { ItemCodeLink } from "@/features/reports/components/item-code-link";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import {
+	ReportSection,
+	ReportSkeleton,
+} from "@/features/reports/components/report-section";
+import {
 	csvFilename,
 	downloadCsv,
 	escapeCsv,
@@ -50,14 +54,8 @@ type RangeQuery = Pick<FetchQcRejectsQuery, "from" | "to" | "store_id">;
 const PAGE_SIZE = 50;
 const EXPORT_PAGE_SIZE = 200;
 
-const HEADING_CLASS =
-	"flex items-center gap-2 text-sm font-semibold text-foreground";
 // Shown on phone cards only; the desktop table carries the same facts in columns.
 const CARD_ONLY = { headerClassName: "hidden", cellClassName: "hidden" };
-const NUMERIC = {
-	headerClassName: "text-right",
-	cellClassName: "text-right tabular-nums",
-};
 
 const OUTCOMES = ["reworked", "refunded", "cancelled", "pending"] as const;
 
@@ -179,14 +177,14 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 	{
 		id: "processed",
 		header: "Processed",
-		meta: { ...NUMERIC, mobileCard: { slot: "hidden" } },
+		meta: { align: "right", mobileCard: { slot: "hidden" } },
 		cell: ({ row }) => numberFormatter.format(row.original.processed),
 	},
 	{
 		id: "first_pass",
 		header: "First-pass",
 		meta: {
-			...NUMERIC,
+			align: "right",
 			mobileCard: { slot: "title-end", className: "tabular-nums" },
 		},
 		cell: ({ row }) => percentFormatter.format(row.original.first_pass_rate),
@@ -194,13 +192,13 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 	{
 		id: "sent_back",
 		header: "Sent back",
-		meta: { ...NUMERIC, mobileCard: { slot: "hidden" } },
+		meta: { align: "right", mobileCard: { slot: "hidden" } },
 		cell: ({ row }) => numberFormatter.format(row.original.sent_back),
 	},
 	{
 		id: "complaints",
 		header: "Complaints",
-		meta: { ...NUMERIC, mobileCard: { slot: "hidden" } },
+		meta: { align: "right", mobileCard: { slot: "hidden" } },
 		cell: ({ row }) => numberFormatter.format(row.original.complaints),
 	},
 	{
@@ -233,31 +231,31 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 	{
 		id: "checks",
 		header: "Checks",
-		meta: { ...NUMERIC, mobileCard: { slot: "hidden" } },
+		meta: { align: "right", mobileCard: { slot: "hidden" } },
 		cell: ({ row }) => numberFormatter.format(row.original.checks),
 	},
 	{
 		id: "rejects",
 		header: "Rejected",
-		meta: { ...NUMERIC, mobileCard: { slot: "hidden" } },
+		meta: { align: "right", mobileCard: { slot: "hidden" } },
 		cell: ({ row }) => numberFormatter.format(row.original.rejects),
 	},
 	{
 		id: "reject_rate",
 		header: "Reject rate",
-		meta: { ...NUMERIC, mobileCard: { slot: "hidden" } },
+		meta: { align: "right", mobileCard: { slot: "hidden" } },
 		cell: ({ row }) => percentFormatter.format(row.original.reject_rate),
 	},
 	{
 		id: "self_check_rate",
 		header: "Self-checked",
-		meta: { ...NUMERIC, mobileCard: { slot: "hidden" } },
+		meta: { align: "right", mobileCard: { slot: "hidden" } },
 		cell: ({ row }) => percentFormatter.format(row.original.self_check_rate),
 	},
 	{
 		id: "complaints_after",
 		header: "Complaints after",
-		meta: { ...NUMERIC, mobileCard: { slot: "hidden" } },
+		meta: { align: "right", mobileCard: { slot: "hidden" } },
 		cell: ({ row }) => numberFormatter.format(row.original.complaints_after),
 	},
 	{
@@ -303,7 +301,7 @@ const damagedLostColumns: DataTableColumnDef<DamagedLostRow>[] = [
 	{
 		id: "amount",
 		header: "Amount",
-		meta: { ...NUMERIC, mobileCard: { slot: "footer" } },
+		meta: { align: "right", mobileCard: { slot: "footer" } },
 		cell: ({ row }) => formatMoney(row.original.amount),
 	},
 	{
@@ -312,25 +310,6 @@ const damagedLostColumns: DataTableColumnDef<DamagedLostRow>[] = [
 		cell: ({ row }) => <LongText text={row.original.note} />,
 	},
 ];
-
-interface ReportSectionProps {
-	id: string;
-	title: ReactNode;
-	aside?: ReactNode;
-	children: ReactNode;
-}
-
-const ReportSection = ({ id, title, aside, children }: ReportSectionProps) => (
-	<section aria-labelledby={id} className="grid gap-3">
-		<div className="flex min-h-8 items-center justify-between gap-3">
-			<h2 id={id} className={HEADING_CLASS}>
-				{title}
-			</h2>
-			{aside}
-		</div>
-		{children}
-	</section>
-);
 
 interface QcRejectsSectionProps {
 	range: RangeQuery;
@@ -555,17 +534,6 @@ const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
 	return lines.join("\n");
 };
 
-const QualitySkeleton = () => (
-	<div className="grid gap-6">
-		<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-			{Array.from({ length: 4 }, (_, index) => (
-				<div key={index} className="h-24 animate-pulse bg-muted/40" />
-			))}
-		</div>
-		<div className="h-48 animate-pulse bg-muted/40" />
-	</div>
-);
-
 interface QualitySectionsProps {
 	range: RangeQuery;
 }
@@ -587,7 +555,7 @@ const QualitySections = ({ range }: QualitySectionsProps) => {
 	});
 
 	if (!data) {
-		return <QualitySkeleton />;
+		return <ReportSkeleton />;
 	}
 
 	const { current, deltas } = data.summary;

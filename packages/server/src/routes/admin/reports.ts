@@ -11,6 +11,7 @@ import {
   GETQcRejectsQuerySchema,
   GETReportOverviewQuerySchema,
   GETReportRangeQuerySchema,
+  GETWorkerDetailQuerySchema,
   storeIdQuerySchema,
 } from "@/modules/reports/report.schema";
 import {
@@ -23,6 +24,7 @@ import {
   getFinancialReport,
   getOrdersFlowReport,
   getPaymentMixReport,
+  getWorkerDetailReport,
   getWorkerProductivityReport,
 } from "@/modules/reports/report-range.service";
 import type { AdminEnv } from "@/types/hono";
@@ -120,6 +122,14 @@ const app = new Hono<AdminEnv>()
     zodValidator("query", GETReportRangeQuerySchema),
     async (c) => {
       const data = await getWorkerProductivityReport(c.req.valid("query"));
+      return c.json(success(data));
+    }
+  )
+  .get(
+    "/worker-detail",
+    zodValidator("query", GETWorkerDetailQuerySchema),
+    async (c) => {
+      const data = await getWorkerDetailReport(c.req.valid("query"));
       return c.json(success(data));
     }
   )

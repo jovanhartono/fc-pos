@@ -65,6 +65,18 @@
 	--chart-8: oklch(0.74 0.09 35);
 	--chart-9: oklch(0.7 0.1 220);
 	--chart-10: oklch(0.72 0.1 340);
+	--tone-good: oklch(0.95 0.045 155);
+	--tone-good-foreground: oklch(0.42 0.1 155);
+	--tone-warn: oklch(0.95 0.06 85);
+	--tone-warn-foreground: oklch(0.47 0.1 70);
+	--tone-bad: oklch(0.94 0.04 20);
+	--tone-bad-foreground: oklch(0.5 0.16 22);
+	--tone-neutral: oklch(0.96 0 0);
+	--tone-neutral-foreground: oklch(0.145 0 0);
+	--soft-bar: oklch(0.72 0.11 260);
+	--soft-bar-track: oklch(0.95 0.01 260);
+	--chart-other: oklch(0.92 0.005 260);
+	--chart-average: oklch(0.42 0.06 260);
 	--radius: 0.625rem;
 	/* The gap above the home indicator, owned by whatever actually sits at the
 	   bottom of the screen: the tab bar when a worker has one, the page itself
@@ -115,6 +127,18 @@
 	--chart-8: oklch(0.7 0.1 35);
 	--chart-9: oklch(0.66 0.11 220);
 	--chart-10: oklch(0.68 0.11 340);
+	--tone-good: oklch(0.3 0.05 155);
+	--tone-good-foreground: oklch(0.82 0.1 155);
+	--tone-warn: oklch(0.32 0.05 85);
+	--tone-warn-foreground: oklch(0.85 0.1 85);
+	--tone-bad: oklch(0.3 0.06 20);
+	--tone-bad-foreground: oklch(0.8 0.12 22);
+	--tone-neutral: oklch(0.3 0 0);
+	--tone-neutral-foreground: oklch(0.985 0 0);
+	--soft-bar: oklch(0.72 0.11 260);
+	--soft-bar-track: oklch(0.3 0.01 260);
+	--chart-other: oklch(0.38 0.01 260);
+	--chart-average: oklch(0.86 0.04 260);
 	--sidebar: oklch(0.205 0 0);
 	--sidebar-foreground: oklch(0.985 0 0);
 	--sidebar-primary: oklch(0.488 0.243 264.376);
@@ -146,6 +170,16 @@
 	--color-chart-3: var(--chart-3);
 	--color-chart-2: var(--chart-2);
 	--color-chart-1: var(--chart-1);
+	--color-tone-good: var(--tone-good);
+	--color-tone-good-foreground: var(--tone-good-foreground);
+	--color-tone-warn: var(--tone-warn);
+	--color-tone-warn-foreground: var(--tone-warn-foreground);
+	--color-tone-bad: var(--tone-bad);
+	--color-tone-bad-foreground: var(--tone-bad-foreground);
+	--color-tone-neutral: var(--tone-neutral);
+	--color-tone-neutral-foreground: var(--tone-neutral-foreground);
+	--color-soft-bar: var(--soft-bar);
+	--color-soft-bar-track: var(--soft-bar-track);
 	--color-ring: var(--ring);
 	--color-input: var(--input);
 	--color-border: var(--border);

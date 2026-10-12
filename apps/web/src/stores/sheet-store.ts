@@ -5,15 +5,25 @@ type RenderNode = () => ReactNode;
 
 type SheetState = {
 	open: boolean;
-	title: string | null;
+	title: ReactNode;
 	description: string | null;
 	content: RenderNode | null;
+	size: SheetSize;
+	back: SheetBack | null;
 };
 
+type SheetSize = "wide" | undefined;
+
+// A sheet opened from another sheet, like an Item's from a worker's, offers
+// the way back above its title.
+type SheetBack = { label: string; onClick: () => void };
+
 type OpenSheetPayload = {
-	title?: string | null;
+	title?: ReactNode;
 	description?: string | null;
 	content: RenderNode;
+	size?: SheetSize;
+	back?: SheetBack;
 };
 
 type SheetStore = {
@@ -30,6 +40,8 @@ const defaultState: SheetState = {
 	title: null,
 	description: null,
 	content: null,
+	size: undefined,
+	back: null,
 };
 
 export const useSheet = create<SheetStore>((set) => ({
@@ -42,12 +54,14 @@ export const useSheet = create<SheetStore>((set) => ({
 				open,
 			},
 		})),
-	openSheet: ({ title = null, description = null, content }) =>
+	openSheet: ({ title = null, description = null, content, size, back }) =>
 		set({
 			sheetState: {
 				title,
 				description,
 				content,
+				size,
+				back: back ?? null,
 				open: true,
 			},
 			isDirty: false,

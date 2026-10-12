@@ -9,10 +9,6 @@ import {
 	Pie,
 	PieChart,
 	PolarAngleAxis,
-	PolarGrid,
-	PolarRadiusAxis,
-	Radar,
-	RadarChart,
 	RadialBar,
 	RadialBarChart,
 	Scatter,
@@ -87,14 +83,6 @@ interface PieDonutProps extends ShellProps {
 	showLabels?: boolean;
 }
 
-interface RadarProps extends ShellProps {
-	variant: "radar";
-	data: Array<Record<string, number | string>>;
-	series: ChartSeries[];
-	categoryKey: string;
-	valueFormatter?: (value: number) => string;
-}
-
 interface RadialProps extends ShellProps {
 	variant: "radial";
 	data: SingleCategory[];
@@ -120,7 +108,6 @@ export type ChartCardProps =
 	| AreaProps
 	| BarProps
 	| PieDonutProps
-	| RadarProps
 	| RadialProps
 	| ScatterProps;
 
@@ -180,8 +167,6 @@ export const ChartCard = (props: ChartCardProps) => {
 		case "pie":
 		case "donut":
 			return <PieVariant {...props} />;
-		case "radar":
-			return <RadarVariant {...props} />;
 		case "radial":
 			return <RadialVariant {...props} />;
 		case "scatter":
@@ -490,74 +475,6 @@ const PieVariant = ({
 						</Pie>
 						<ChartLegend content={<ChartLegendContent />} />
 					</PieChart>
-				</ChartContainer>
-			)}
-		</Shell>
-	);
-};
-
-const RadarVariant = ({
-	title,
-	description,
-	className,
-	action,
-	emptyState,
-	height = 320,
-	data,
-	series,
-	categoryKey,
-	valueFormatter = formatDefault,
-}: RadarProps) => {
-	const config = seriesConfig(series);
-	const isEmpty = data.length === 0;
-	return (
-		<Shell
-			title={title}
-			description={description}
-			className={className}
-			action={action}
-		>
-			{isEmpty ? (
-				<Empty>{emptyState}</Empty>
-			) : (
-				<ChartContainer
-					config={config}
-					className="aspect-auto w-full"
-					style={{ height }}
-				>
-					<RadarChart data={data}>
-						<PolarGrid gridType="polygon" />
-						<PolarAngleAxis dataKey={categoryKey} tick={{ fontSize: 11 }} />
-						<PolarRadiusAxis tick={{ fontSize: 10 }} />
-						<ChartTooltip
-							cursor={false}
-							content={
-								<ChartTooltipContent
-									formatter={(value, name) => (
-										<div className="flex flex-1 items-center justify-between gap-3">
-											<span className="text-muted-foreground">
-												{config[name as string]?.label ?? name}
-											</span>
-											<span className="font-medium text-foreground tabular-nums">
-												{valueFormatter(Number(value))}
-											</span>
-										</div>
-									)}
-								/>
-							}
-						/>
-						{series.map((s) => (
-							<Radar
-								key={s.key}
-								dataKey={s.key}
-								stroke={s.color}
-								fill={s.color}
-								fillOpacity={0.25}
-								strokeWidth={2}
-							/>
-						))}
-						<ChartLegend content={<ChartLegendContent />} />
-					</RadarChart>
 				</ChartContainer>
 			)}
 		</Shell>

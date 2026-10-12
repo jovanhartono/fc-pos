@@ -12,8 +12,9 @@ import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
 
-// Clocking in is the shop's attendance record and the source of the hours in
-// the worker-productivity report. ADR-0020 turns a worker away only when the
+// Clocking in is the shop's attendance record and the source of one source of
+// the days worked in the Workers report, which counts days, not hours, so an
+// auto-closed Shift no longer skews it. ADR-0020 turns a worker away only when the
 // phone is sure they are elsewhere, and these tests pin both edges of that:
 // a tight fix from home is refused, a fix too vague to judge is let through.
 // Plus the two halves of a forgotten clock-out: clocking in closes yesterday's

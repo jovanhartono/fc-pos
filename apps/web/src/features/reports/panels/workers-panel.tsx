@@ -1,195 +1,172 @@
-import { WarningIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
-	type ReportGranularity,
 	reportsQueries,
 	type WorkerProductivityReport,
+	type WorkerRow,
 } from "@/features/reports/api";
-import { ChartCard } from "@/features/reports/components/chart-card";
+import { AllStoresButton } from "@/features/reports/components/all-stores-button";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import {
-	csvFilename,
-	downloadCsv,
-	escapeCsv,
-} from "@/features/reports/utils/csv";
+	ReportSection,
+	ReportSkeleton,
+} from "@/features/reports/components/report-section";
+import { ServicesByWorker } from "@/features/reports/components/services-by-worker";
+import { useOpenWorkerSheet } from "@/features/reports/components/worker-sheet";
+import {
+	RangeWorkersTable,
+	TodayWorkersTable,
+} from "@/features/reports/components/workers-table";
+import { csvFilename, downloadCsv } from "@/features/reports/utils/csv";
 import {
 	numberFormatter,
+	oneDecimalFormatter,
 	percentFormatter,
 } from "@/features/reports/utils/format";
-import { CHART_PALETTE } from "@/features/reports/utils/palette";
+import { buildWorkersCsv } from "@/features/reports/utils/workers-report";
 
 interface WorkersPanelProps {
 	from: string;
 	to: string;
 	storeId?: number;
-	granularity?: ReportGranularity;
+	// Undefined is All stores.
+	onStoreChange: (storeId: number | undefined) => void;
 }
 
-type Worker = WorkerProductivityReport["workers"][number];
+const perDayWorkedHelper = (
+	summary: WorkerProductivityReport["summary"]["current"],
+) => {
+	if (summary.days_worked === 0) {
+		return "No days worked in range";
+	}
+	if (summary.daily_p25 === null || summary.daily_p75 === null) {
+		return "per person per day";
+	}
+	return `most days ${Math.round(summary.daily_p25)}–${Math.round(summary.daily_p75)}`;
+};
 
 export const WorkersPanel = ({
 	from,
 	to,
 	storeId,
-	granularity,
+	onStoreChange,
 }: WorkersPanelProps) => {
 	const query = useQuery(
-		reportsQueries.workerProductivity({
-			from,
-			to,
-			store_id: storeId,
-			granularity,
-		}),
+		reportsQueries.workerProductivity({ from, to, store_id: storeId }),
 	);
+	const openWorkerSheet = useOpenWorkerSheet();
 	const data = query.data;
-	const summary = data?.summary.current;
-	const deltas = data?.summary.deltas;
-	const workers: Worker[] = data?.workers ?? [];
-	const maxServices = workers.reduce(
-		(m, w) => Math.max(m, w.services_processed),
-		0,
-	);
 
-	const topWorkers = workers.slice(0, 6);
-	const maxOf = (pick: (w: Worker) => number) =>
-		topWorkers.reduce((m, w) => Math.max(m, pick(w)), 0);
-	const maxRefund = maxOf((w) => w.refund_items);
-	const maxQcRejects = maxOf((w) => w.qc_reject_events);
-	const maxSph = maxOf((w) => w.services_per_hour);
-	const norm = (val: number, max: number) =>
-		max === 0 ? 0 : Math.round((val / max) * 100);
+	if (query.isPending) {
+		return <ReportSkeleton />;
+	}
+	if (!data) {
+		return (
+			<div className="flex items-center gap-3 text-muted-foreground text-sm">
+				Couldn't load the Workers report.
+				<Button variant="outline" size="sm" onClick={() => query.refetch()}>
+					Retry
+				</Button>
+			</div>
+		);
+	}
 
-	const radarData = topWorkers.map((w) => ({
-		worker: w.user_name,
-		services: norm(w.services_processed, maxServices),
-		quality:
-			maxQcRejects === 0 ? 0 : 100 - norm(w.qc_reject_events, maxQcRejects),
-		refunds: maxRefund === 0 ? 0 : 100 - norm(w.refund_items, maxRefund),
-		speed: norm(w.services_per_hour, maxSph),
-	}));
-
-	const handleExport = () => {
-		if (!data) {
-			return;
-		}
-		const lines: string[] = [
-			"Worker productivity,User ID,Name,Services processed,Refund items,QC rejects,QC checks,QC reject rate,Shift minutes,Services per hour",
-		];
-		for (const w of workers) {
-			lines.push(
-				`Worker productivity,${w.user_id},${escapeCsv(w.user_name)},${w.services_processed},${w.refund_items},${w.qc_reject_events},${w.qc_checks},${w.qc_reject_rate},${w.shift_minutes},${w.services_per_hour}`,
-			);
-		}
+	const { current, deltas } = data.summary;
+	const isAllStores = storeId === undefined;
+	const hasDaysWorked = current.days_worked > 0;
+	// Part of today against all of yesterday would read as a drop every morning.
+	const shownDeltas = data.is_today ? null : deltas;
+	const handleExport = () =>
 		downloadCsv(
 			csvFilename("worker-productivity", data.from, data.to, data.store_id),
-			lines.join("\n"),
+			buildWorkersCsv(data),
 		);
-	};
+	// A new range opens its own busiest Store.
+	const tableKey = `${data.from}:${data.to}:${data.workers.length > 0}`;
+	const allStoresLink = isAllStores ? null : (
+		<AllStoresButton onClick={() => onStoreChange(undefined)} />
+	);
+	const handleOpen = (row: WorkerRow) =>
+		openWorkerSheet({
+			from: data.from,
+			to: data.to,
+			storeId: row.store_id,
+			storeName: row.store_name,
+			userId: row.user_id,
+			userName: row.user_name,
+			role: row.role,
+		});
 
 	return (
 		<div className="grid gap-6">
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<KpiRow>
 					<KpiCard
-						label="Workers"
-						value={numberFormatter.format(summary?.worker_count ?? 0)}
-						delta={deltas?.worker_count}
-						helper="Users with role worker"
-					/>
-					<KpiCard
 						label="Services processed"
-						value={numberFormatter.format(
-							summary?.total_services_processed ?? 0,
-						)}
-						delta={deltas?.total_services_processed}
+						value={numberFormatter.format(current.services_processed)}
+						delta={shownDeltas?.services_processed ?? null}
 						helper="First reached QC"
 					/>
 					<KpiCard
-						label="QC reject rate"
-						value={percentFormatter.format(summary?.qc_reject_rate ?? 0)}
-						delta={deltas?.qc_reject_rate}
-						deltaAs="points"
-						isLowerBetter
-						helper={`${numberFormatter.format(summary?.total_qc_rejects ?? 0)} of ${numberFormatter.format(summary?.total_qc_checks ?? 0)} ${summary?.total_qc_checks === 1 ? "check" : "checks"} sent back`}
+						label="Per day worked"
+						value={
+							hasDaysWorked
+								? oneDecimalFormatter.format(current.per_day_worked)
+								: "—"
+						}
+						delta={hasDaysWorked ? (shownDeltas?.per_day_worked ?? null) : null}
+						helper={perDayWorkedHelper(current)}
 					/>
 					<KpiCard
-						label="Avg services/hour"
-						value={(summary?.avg_services_per_hour ?? 0).toFixed(2)}
-						delta={deltas?.avg_services_per_hour}
+						label="QC reject rate"
+						value={percentFormatter.format(current.qc_reject_rate)}
+						delta={shownDeltas?.qc_reject_rate ?? null}
+						deltaAs="points"
+						isLowerBetter
+						helper={`${numberFormatter.format(current.qc_rejects)} of ${numberFormatter.format(current.qc_checks)} ${current.qc_checks === 1 ? "check" : "checks"} sent back`}
+					/>
+					<KpiCard
+						label="Complaint rate"
+						value={percentFormatter.format(current.complaint_rate)}
+						delta={shownDeltas?.complaint_rate ?? null}
+						deltaAs="points"
+						isLowerBetter
+						helper={`${numberFormatter.format(current.complaints)} of ${numberFormatter.format(current.complaint_cohort)} finished came back`}
 					/>
 				</KpiRow>
-				<ExportButton disabled={!data} onClick={handleExport} />
+				<ExportButton onClick={handleExport} />
 			</div>
 
-			<ChartCard
-				variant="radar"
-				title="Worker profile · top 6"
-				description="Scored against the top performer. Refunds and QC rejects count against."
-				data={radarData}
-				categoryKey="worker"
-				series={[
-					{ key: "services", label: "Services", color: CHART_PALETTE[0] },
-					{ key: "speed", label: "Speed", color: CHART_PALETTE[1] },
-					{ key: "quality", label: "Quality", color: CHART_PALETTE[2] },
-					{ key: "refunds", label: "Refund-free", color: CHART_PALETTE[4] },
-				]}
-				valueFormatter={(v) => `${v}`}
-			/>
+			<ReportSection id="workers-rows" title="Workers" aside={allStoresLink}>
+				{data.is_today ? (
+					<TodayWorkersTable
+						key={tableKey}
+						workers={data.workers}
+						isAllStores={isAllStores}
+						onOpen={handleOpen}
+					/>
+				) : (
+					<RangeWorkersTable
+						key={tableKey}
+						workers={data.workers}
+						isAllStores={isAllStores}
+						onOpen={handleOpen}
+					/>
+				)}
+			</ReportSection>
 
-			<Card className="border-border/70">
-				<CardHeader>
-					<CardTitle className="text-sm font-semibold text-foreground">
-						Worker leaderboard
-					</CardTitle>
-				</CardHeader>
-				<CardContent className="p-4 pt-0">
-					{workers.length === 0 ? (
-						<p className="text-sm text-muted-foreground">No worker activity</p>
-					) : (
-						<div className="grid gap-3">
-							{workers.map((w) => {
-								const pct =
-									maxServices === 0
-										? 0
-										: (w.services_processed / maxServices) * 100;
-								const hours = w.shift_minutes / 60;
-								return (
-									<div key={w.user_id} className="grid gap-1">
-										<div className="flex items-center justify-between gap-2">
-											<span className="flex items-center gap-1.5 truncate text-sm font-medium">
-												{w.qc_reject_events > 0 ? (
-													<WarningIcon
-														className="size-3 text-destructive"
-														weight="fill"
-													/>
-												) : null}
-												{w.user_name}
-											</span>
-											<span className="text-sm tabular-nums">
-												{`${numberFormatter.format(w.services_processed)} services`}
-											</span>
-										</div>
-										<div className="h-1.5 w-full bg-muted">
-											<div
-												className="h-full bg-foreground"
-												style={{ width: `${pct}%` }}
-											/>
-										</div>
-										<div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
-											<span>{`${hours.toFixed(1)}h worked`}</span>
-											<span>{`${w.services_per_hour} services/hr`}</span>
-											<span>{`${w.qc_reject_events} QC rejects`}</span>
-											<span>{`${w.refund_items} refunded`}</span>
-										</div>
-									</div>
-								);
-							})}
-						</div>
-					)}
-				</CardContent>
-			</Card>
+			<ReportSection
+				id="workers-services"
+				title="Services by worker"
+				aside={allStoresLink}
+			>
+				<ServicesByWorker
+					data={data}
+					isAllStores={isAllStores}
+					onStoreChange={onStoreChange}
+				/>
+			</ReportSection>
 		</div>
 	);
 };
