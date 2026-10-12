@@ -8,7 +8,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."subtotal"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."subtotal"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -21,7 +21,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."subtotal"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."subtotal"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -34,7 +34,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."cogs_snapshot"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."cogs_snapshot"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -47,7 +47,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."cogs_snapshot"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."cogs_snapshot"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -60,7 +60,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select to_char("paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("discount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("discount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -73,7 +73,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select to_char("paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("paid_amount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("paid_amount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -112,7 +112,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "categories"."id", "categories"."name", COALESCE(SUM("orders_services"."subtotal"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" inner join "services" on "orders_services"."service_id" = "services"."id" inner join "categories" on "services"."category_id" = "categories"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "categories"."id", "categories"."name"",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "categories"."id", "categories"."name", COALESCE(SUM("orders_services"."subtotal"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" inner join "services" on "orders_services"."service_id" = "services"."id" inner join "categories" on "services"."category_id" = "categories"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "categories"."id", "categories"."name"",
   },
 ]
 `;
@@ -138,7 +138,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select to_char("created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(*)::int from "orders" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2) and ("orders"."store_id" = $3)) group by to_char("orders"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(*)::int from "orders" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2) and ("orders"."store_id" = $3)) group by to_char(("orders"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -151,7 +151,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select to_char("order_pickup_events"."picked_up_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(DISTINCT "order_pickup_events"."order_id")::int from "order_pickup_events" inner join "orders" on "order_pickup_events"."order_id" = "orders"."id" where (("order_pickup_events"."picked_up_at" >= $1) and ("order_pickup_events"."picked_up_at" < $2) and ("orders"."store_id" = $3)) group by to_char("order_pickup_events"."picked_up_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("order_pickup_events"."picked_up_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(DISTINCT "order_pickup_events"."order_id")::int from "order_pickup_events" inner join "orders" on "order_pickup_events"."order_id" = "orders"."id" where (("order_pickup_events"."picked_up_at" >= $1) and ("order_pickup_events"."picked_up_at" < $2) and ("orders"."store_id" = $3)) group by to_char(("order_pickup_events"."picked_up_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -179,7 +179,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "orders"."payment_method_id", "payment_methods"."name", COALESCE(SUM("orders"."paid_amount"), 0), COUNT(*)::int from "orders" left join "payment_methods" on "orders"."payment_method_id" = "payment_methods"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "orders"."payment_method_id", "payment_methods"."name"",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "orders"."payment_method_id", "payment_methods"."name", COALESCE(SUM("orders"."paid_amount"), 0), COUNT(*)::int from "orders" left join "payment_methods" on "orders"."payment_method_id" = "payment_methods"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "orders"."payment_method_id", "payment_methods"."name"",
   },
 ]
 `;
@@ -192,7 +192,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select to_char("created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(*)::int from "customers" where (("customers"."created_at" >= $1) and ("customers"."created_at" < $2) and ("customers"."origin_store_id" = $3)) group by to_char("customers"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("customers"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(*)::int from "customers" where (("customers"."created_at" >= $1) and ("customers"."created_at" < $2) and ("customers"."origin_store_id" = $3)) group by to_char(("customers"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -205,7 +205,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select to_char("orders"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "customers"."created_at", COUNT(*)::int from "orders" inner join "customers" on "orders"."customer_id" = "customers"."id" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2) and (("orders"."customer_id" is not null)) and ("orders"."store_id" = $3)) group by to_char("orders"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "customers"."id", "customers"."created_at"",
+    "sql": "select to_char(("orders"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "customers"."created_at", COUNT(*)::int from "orders" inner join "customers" on "orders"."customer_id" = "customers"."id" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2) and (("orders"."customer_id" is not null)) and ("orders"."store_id" = $3)) group by to_char(("orders"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "customers"."id", "customers"."created_at"",
   },
 ]
 `;
@@ -257,7 +257,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select to_char("order_refunds"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("order_refunds"."total_amount"), 0), COUNT(DISTINCT "order_refunds"."id")::int from "order_refunds" inner join "orders" on "order_refunds"."order_id" = "orders"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2) and ("orders"."store_id" = $3)) group by to_char("order_refunds"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("order_refunds"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("order_refunds"."total_amount"), 0), COUNT(DISTINCT "order_refunds"."id")::int from "order_refunds" inner join "orders" on "order_refunds"."order_id" = "orders"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2) and ("orders"."store_id" = $3)) group by to_char(("order_refunds"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -463,7 +463,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."subtotal"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."subtotal"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -475,7 +475,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."subtotal"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."subtotal"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -487,7 +487,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."cogs_snapshot"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."cogs_snapshot"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -499,7 +499,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."cogs_snapshot"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."cogs_snapshot"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -511,7 +511,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select to_char("paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("discount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("discount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -523,7 +523,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select to_char("paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("paid_amount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("paid_amount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -559,7 +559,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "categories"."id", "categories"."name", COALESCE(SUM("orders_services"."subtotal"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" inner join "services" on "orders_services"."service_id" = "services"."id" inner join "categories" on "services"."category_id" = "categories"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "categories"."id", "categories"."name"",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "categories"."id", "categories"."name", COALESCE(SUM("orders_services"."subtotal"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" inner join "services" on "orders_services"."service_id" = "services"."id" inner join "categories" on "services"."category_id" = "categories"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "categories"."id", "categories"."name"",
   },
 ]
 `;
@@ -583,7 +583,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select to_char("created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(*)::int from "orders" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2)) group by to_char("orders"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(*)::int from "orders" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2)) group by to_char(("orders"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -595,7 +595,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select to_char("order_pickup_events"."picked_up_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(DISTINCT "order_pickup_events"."order_id")::int from "order_pickup_events" inner join "orders" on "order_pickup_events"."order_id" = "orders"."id" where (("order_pickup_events"."picked_up_at" >= $1) and ("order_pickup_events"."picked_up_at" < $2)) group by to_char("order_pickup_events"."picked_up_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("order_pickup_events"."picked_up_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(DISTINCT "order_pickup_events"."order_id")::int from "order_pickup_events" inner join "orders" on "order_pickup_events"."order_id" = "orders"."id" where (("order_pickup_events"."picked_up_at" >= $1) and ("order_pickup_events"."picked_up_at" < $2)) group by to_char(("order_pickup_events"."picked_up_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -621,7 +621,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "orders"."payment_method_id", "payment_methods"."name", COALESCE(SUM("orders"."paid_amount"), 0), COUNT(*)::int from "orders" left join "payment_methods" on "orders"."payment_method_id" = "payment_methods"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "orders"."payment_method_id", "payment_methods"."name"",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "orders"."payment_method_id", "payment_methods"."name", COALESCE(SUM("orders"."paid_amount"), 0), COUNT(*)::int from "orders" left join "payment_methods" on "orders"."payment_method_id" = "payment_methods"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "orders"."payment_method_id", "payment_methods"."name"",
   },
 ]
 `;
@@ -633,7 +633,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select to_char("created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(*)::int from "customers" where (("customers"."created_at" >= $1) and ("customers"."created_at" < $2)) group by to_char("customers"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("customers"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(*)::int from "customers" where (("customers"."created_at" >= $1) and ("customers"."created_at" < $2)) group by to_char(("customers"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -645,7 +645,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select to_char("orders"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "customers"."created_at", COUNT(*)::int from "orders" inner join "customers" on "orders"."customer_id" = "customers"."id" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2) and (("orders"."customer_id" is not null))) group by to_char("orders"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "customers"."id", "customers"."created_at"",
+    "sql": "select to_char(("orders"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "customers"."created_at", COUNT(*)::int from "orders" inner join "customers" on "orders"."customer_id" = "customers"."id" where (("orders"."created_at" >= $1) and ("orders"."created_at" < $2) and (("orders"."customer_id" is not null))) group by to_char(("orders"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), "customers"."id", "customers"."created_at"",
   },
 ]
 `;
@@ -693,7 +693,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select to_char("order_refunds"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("order_refunds"."total_amount"), 0), COUNT(DISTINCT "order_refunds"."id")::int from "order_refunds" inner join "orders" on "order_refunds"."order_id" = "orders"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2)) group by to_char("order_refunds"."created_at" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("order_refunds"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("order_refunds"."total_amount"), 0), COUNT(DISTINCT "order_refunds"."id")::int from "order_refunds" inner join "orders" on "order_refunds"."order_id" = "orders"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2)) group by to_char(("order_refunds"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;

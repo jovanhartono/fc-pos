@@ -702,10 +702,9 @@ const BENCH_STATUSES = [
 
 // Days a person moved an Item through the bench, at the Order's Store. Workers
 // who rarely clock in still show a day worked. Pickups, refunds and cancels are
-// the counter's work, so they are left out. The day is cut at Jakarta midnight
-// here rather than with jakartaBucketExpr.
+// the counter's work, so they are left out.
 function listBenchMoveDays({ range, storeId }: RangeArgs) {
-  const day = sql<string>`to_char((${orderServiceStatusLogsTable.created_at} AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')`;
+  const day = jakartaBucketExpr(orderServiceStatusLogsTable.created_at, "day");
   return db
     .select({
       user_id: orderServiceStatusLogsTable.changed_by,

@@ -103,7 +103,7 @@ describe("grouping takings into chart bars", () => {
     it(`cuts ${granularity} bars at Jakarta midnight`, async () => {
       await listServicesGrossSalesSeries({ range: AUGUST, granularity });
 
-      const expr = `to_char("orders"."paid_at" AT TIME ZONE 'Asia/Jakarta', '${fmt}')`;
+      const expr = `to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', '${fmt}')`;
       expect(only().sql).toContain(`select ${expr},`);
       expect(only().sql).toContain(`group by ${expr}`);
     });
