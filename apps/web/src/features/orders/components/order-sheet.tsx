@@ -13,7 +13,7 @@ import { OrderDetailView } from "@/features/orders/components/order-detail-view"
 import { isListKeyBlocked } from "@/lib/list-keys";
 
 interface OrderSheetProps {
-	orders: Order[];
+	orders: Pick<Order, "id">[];
 	openId: number;
 	onSelect: (orderId: number) => void;
 	onClose: () => void;

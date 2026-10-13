@@ -1,14 +1,53 @@
 import { Link } from "@tanstack/react-router";
 import type { CounterPickupShelf } from "@/features/counter/api";
 import { formatDays, whatsappUrl } from "@/features/counter/lib/format";
-import { pluralize } from "@/shared/utils";
+import { cn, pluralize } from "@/shared/utils";
+
+interface ShelfOrderLinkProps {
+	customerName: string;
+	isWide: boolean;
+	orderId: number;
+}
+
+const ShelfOrderLink = ({
+	customerName,
+	isWide,
+	orderId,
+}: ShelfOrderLinkProps) => {
+	const className = "min-w-0 truncate hover:underline";
+	if (isWide) {
+		return (
+			<Link
+				className={className}
+				from="/counter"
+				replace
+				search={(prev) => ({ ...prev, open: orderId })}
+			>
+				{customerName}
+			</Link>
+		);
+	}
+	return (
+		<Link
+			className={className}
+			params={{ orderId: String(orderId) }}
+			to="/orders/$orderId"
+		>
+			{customerName}
+		</Link>
+	);
+};
 
 interface PickupShelfSectionProps {
+	isWide: boolean;
+	openOrderId?: number;
 	shelf: CounterPickupShelf;
 	storeId: number;
 }
 
 export const PickupShelfSection = ({
+	isWide,
+	openOrderId,
 	shelf,
 	storeId,
 }: PickupShelfSectionProps) => (
@@ -27,16 +66,17 @@ export const PickupShelfSection = ({
 				<ul>
 					{shelf.oldest.map((order) => (
 						<li
-							className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 border-border border-t px-3 py-2 first:border-t-0 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:gap-x-4"
+							className={cn(
+								"grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 border-border border-t px-3 py-2 first:border-t-0 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:gap-x-4",
+								order.order_id === openOrderId && "bg-muted",
+							)}
 							key={order.order_id}
 						>
-							<Link
-								className="min-w-0 truncate hover:underline"
-								params={{ orderId: String(order.order_id) }}
-								to="/orders/$orderId"
-							>
-								{order.customer_name}
-							</Link>
+							<ShelfOrderLink
+								customerName={order.customer_name}
+								isWide={isWide}
+								orderId={order.order_id}
+							/>
 							<span className="text-right text-muted-foreground text-sm tabular-nums whitespace-nowrap sm:order-last">
 								{`ready ${formatDays(order.ready_days)}`}
 							</span>

@@ -5,6 +5,8 @@ import { storesQueries } from "@/features/stores/api";
 
 const counterSearchSchema = z.object({
 	storeId: z.coerce.number().int().positive().optional().catch(undefined),
+	// The shelf Order open in the sheet, on a tablet or desktop.
+	open: z.coerce.number().int().positive().optional().catch(undefined),
 });
 
 const CounterRoute = () => {

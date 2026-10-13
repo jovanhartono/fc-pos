@@ -1,12 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useCallback } from "react";
 import { PageHeader } from "@/components/page-header";
 import { counterQueries } from "@/features/counter/api";
 import { NeedsALookSection } from "@/features/counter/components/needs-a-look-section";
 import { PickupShelfSection } from "@/features/counter/components/pickup-shelf-section";
 import { WorkshopSection } from "@/features/counter/components/workshop-section";
+import { OrderSheet } from "@/features/orders/components/order-sheet";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface CounterPageProps {
 	onStoreChange: (storeId: number) => void;
@@ -19,6 +23,24 @@ interface CounterBodyProps {
 
 const CounterBody = ({ storeId }: CounterBodyProps) => {
 	const { data, isPending, isError } = useQuery(counterQueries.detail(storeId));
+	const { open } = useSearch({ from: "/_admin/counter" });
+	const navigate = useNavigate({ from: "/counter" });
+	// Same as the Orders list: a phone opens an Order as its own page, a
+	// tablet or desktop opens it in a sheet over the Counter.
+	const isWide = !useIsMobile();
+
+	const handleOpenOrder = useCallback(
+		(orderId: number) => {
+			void navigate({
+				search: (prev) => ({ ...prev, open: orderId }),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+	const handleCloseOrder = useCallback(() => {
+		void navigate({ search: (prev) => ({ ...prev, open: undefined }) });
+	}, [navigate]);
 
 	if (isPending) {
 		return <p className="text-muted-foreground">Loading…</p>;
@@ -27,11 +49,28 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 		return <p className="text-destructive">Could not load the Counter.</p>;
 	}
 
+	const shelfOrders = data.pickup_shelf.oldest.map((order) => ({
+		id: order.order_id,
+	}));
+
 	return (
 		<div className="grid gap-6">
 			<WorkshopSection categories={data.categories} />
-			<PickupShelfSection shelf={data.pickup_shelf} storeId={storeId} />
+			<PickupShelfSection
+				isWide={isWide}
+				openOrderId={isWide ? open : undefined}
+				shelf={data.pickup_shelf}
+				storeId={storeId}
+			/>
 			<NeedsALookSection counter={data} />
+			{isWide && open !== undefined ? (
+				<OrderSheet
+					onClose={handleCloseOrder}
+					onSelect={handleOpenOrder}
+					openId={open}
+					orders={shelfOrders}
+				/>
+			) : null}
 		</div>
 	);
 };
