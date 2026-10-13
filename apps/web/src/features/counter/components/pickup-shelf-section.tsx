@@ -16,7 +16,7 @@ const ShelfOrderLink = ({
 }: ShelfOrderLinkProps) => {
 	// Closing the sheet hands focus back here; the row shows it, not a box.
 	const className =
-		"min-w-0 justify-self-start truncate outline-none hover:underline focus-visible:underline";
+		"min-w-0 truncate outline-none hover:underline focus-visible:underline";
 	if (isWide) {
 		return (
 			<Link
