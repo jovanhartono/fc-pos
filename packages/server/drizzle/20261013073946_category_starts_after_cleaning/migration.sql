@@ -1,0 +1,1 @@
+ALTER TABLE "categories" ADD COLUMN "starts_after_cleaning" boolean DEFAULT false NOT NULL;

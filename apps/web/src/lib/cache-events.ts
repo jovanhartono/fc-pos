@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { campaignsKeys } from "@/features/campaigns/api";
 import { complaintsKeys } from "@/features/complaints/api";
+import { counterKeys } from "@/features/counter/api";
 import { ordersKeys } from "@/features/orders/api";
 import { shiftsKeys } from "@/features/shifts/api";
 
@@ -13,6 +14,7 @@ import { shiftsKeys } from "@/features/shifts/api";
 export const onOrderMoved = (queryClient: QueryClient) =>
 	Promise.all([
 		queryClient.invalidateQueries({ queryKey: complaintsKeys.all }),
+		queryClient.invalidateQueries({ queryKey: counterKeys.all }),
 		queryClient.invalidateQueries({ queryKey: ordersKeys.all }),
 	]);
 

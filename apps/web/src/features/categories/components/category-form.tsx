@@ -23,6 +23,7 @@ const defaultForm: CategoryFormState = {
 	name: "",
 	description: "",
 	is_active: true,
+	starts_after_cleaning: false,
 };
 
 type CategoryFormProps = {
@@ -105,6 +106,30 @@ export function CategoryForm({
 								</FieldContent>
 								<Switch
 									id="category-active"
+									checked={field.value}
+									onCheckedChange={(checked) => field.onChange(!!checked)}
+									disabled={isSubmitting}
+								/>
+							</Field>
+						</FieldLabel>
+					)}
+				/>
+
+				<Controller
+					name="starts_after_cleaning"
+					control={form.control}
+					render={({ field }) => (
+						<FieldLabel htmlFor="category-starts-after-cleaning">
+							<Field orientation="horizontal">
+								<FieldContent>
+									<FieldTitle>Starts after cleaning</FieldTitle>
+									<FieldDescription>
+										Work waits until the Item is cleaned, like Repaint. The
+										Counter adds its days on top of the clean.
+									</FieldDescription>
+								</FieldContent>
+								<Switch
+									id="category-starts-after-cleaning"
 									checked={field.value}
 									onCheckedChange={(checked) => field.onChange(!!checked)}
 									disabled={isSubmitting}

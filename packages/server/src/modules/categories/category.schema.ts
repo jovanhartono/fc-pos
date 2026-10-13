@@ -7,6 +7,7 @@ export const POSTCategorySchema = z.object({
   name: varcharSchema("name"),
   description: textSchema("Description").nullish(),
   is_active: isActiveSchema,
+  starts_after_cleaning: z.boolean().optional().default(false),
 });
 export const PUTCategorySchema = createUpdateSchema(categoriesTable);
 

@@ -16,6 +16,7 @@ import { Route as AdminIndexRouteImport } from "./routes/_admin/index";
 import { Route as AdminAttendanceRouteImport } from "./routes/_admin/attendance";
 import { Route as AdminCampaignsRouteImport } from "./routes/_admin/campaigns";
 import { Route as AdminCategoriesRouteImport } from "./routes/_admin/categories";
+import { Route as AdminCounterRouteImport } from "./routes/_admin/counter";
 import { Route as AdminPaymentMethodsRouteImport } from "./routes/_admin/payment-methods";
 import { Route as AdminProductsRouteImport } from "./routes/_admin/products";
 import { Route as AdminReportsRouteImport } from "./routes/_admin/reports";
@@ -66,6 +67,11 @@ const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
 const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
   id: "/categories",
   path: "/categories",
+  getParentRoute: () => AdminRouteRoute,
+} as any);
+const AdminCounterRoute = AdminCounterRouteImport.update({
+  id: "/counter",
+  path: "/counter",
   getParentRoute: () => AdminRouteRoute,
 } as any);
 const AdminPaymentMethodsRoute = AdminPaymentMethodsRouteImport.update({
@@ -164,6 +170,7 @@ export interface FileRoutesByFullPath {
   "/attendance": typeof AdminAttendanceRoute;
   "/campaigns": typeof AdminCampaignsRoute;
   "/categories": typeof AdminCategoriesRoute;
+  "/counter": typeof AdminCounterRoute;
   "/payment-methods": typeof AdminPaymentMethodsRoute;
   "/products": typeof AdminProductsRoute;
   "/reports": typeof AdminReportsRoute;
@@ -188,6 +195,7 @@ export interface FileRoutesByTo {
   "/attendance": typeof AdminAttendanceRoute;
   "/campaigns": typeof AdminCampaignsRoute;
   "/categories": typeof AdminCategoriesRoute;
+  "/counter": typeof AdminCounterRoute;
   "/payment-methods": typeof AdminPaymentMethodsRoute;
   "/products": typeof AdminProductsRoute;
   "/reports": typeof AdminReportsRoute;
@@ -215,6 +223,7 @@ export interface FileRoutesById {
   "/_admin/attendance": typeof AdminAttendanceRoute;
   "/_admin/campaigns": typeof AdminCampaignsRoute;
   "/_admin/categories": typeof AdminCategoriesRoute;
+  "/_admin/counter": typeof AdminCounterRoute;
   "/_admin/payment-methods": typeof AdminPaymentMethodsRoute;
   "/_admin/products": typeof AdminProductsRoute;
   "/_admin/reports": typeof AdminReportsRoute;
@@ -243,6 +252,7 @@ export interface FileRouteTypes {
     | "/attendance"
     | "/campaigns"
     | "/categories"
+    | "/counter"
     | "/payment-methods"
     | "/products"
     | "/reports"
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | "/attendance"
     | "/campaigns"
     | "/categories"
+    | "/counter"
     | "/payment-methods"
     | "/products"
     | "/reports"
@@ -293,6 +304,7 @@ export interface FileRouteTypes {
     | "/_admin/attendance"
     | "/_admin/campaigns"
     | "/_admin/categories"
+    | "/_admin/counter"
     | "/_admin/payment-methods"
     | "/_admin/products"
     | "/_admin/reports"
@@ -369,6 +381,13 @@ declare module "@tanstack/react-router" {
       path: "/categories";
       fullPath: "/categories";
       preLoaderRoute: typeof AdminCategoriesRouteImport;
+      parentRoute: typeof AdminRouteRoute;
+    };
+    "/_admin/counter": {
+      id: "/_admin/counter";
+      path: "/counter";
+      fullPath: "/counter";
+      preLoaderRoute: typeof AdminCounterRouteImport;
       parentRoute: typeof AdminRouteRoute;
     };
     "/_admin/payment-methods": {
@@ -497,6 +516,7 @@ interface AdminRouteRouteChildren {
   AdminAttendanceRoute: typeof AdminAttendanceRoute;
   AdminCampaignsRoute: typeof AdminCampaignsRoute;
   AdminCategoriesRoute: typeof AdminCategoriesRoute;
+  AdminCounterRoute: typeof AdminCounterRoute;
   AdminPaymentMethodsRoute: typeof AdminPaymentMethodsRoute;
   AdminProductsRoute: typeof AdminProductsRoute;
   AdminReportsRoute: typeof AdminReportsRoute;
@@ -520,6 +540,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAttendanceRoute: AdminAttendanceRoute,
   AdminCampaignsRoute: AdminCampaignsRoute,
   AdminCategoriesRoute: AdminCategoriesRoute,
+  AdminCounterRoute: AdminCounterRoute,
   AdminPaymentMethodsRoute: AdminPaymentMethodsRoute,
   AdminProductsRoute: AdminProductsRoute,
   AdminReportsRoute: AdminReportsRoute,
