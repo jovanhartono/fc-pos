@@ -21,6 +21,7 @@ const ShelfOrderLink = ({
 				className={className}
 				from="/counter"
 				replace
+				resetScroll={false}
 				search={(prev) => ({ ...prev, open: orderId })}
 			>
 				{customerName}

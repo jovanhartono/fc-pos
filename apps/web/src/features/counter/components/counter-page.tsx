@@ -29,17 +29,23 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 	// tablet or desktop opens it in a sheet over the Counter.
 	const isWide = !useIsMobile();
 
+	// The Counter scrolls as a whole page, so opening or closing the sheet
+	// must not jump the cashier back to the top of it.
 	const handleOpenOrder = useCallback(
 		(orderId: number) => {
 			void navigate({
 				search: (prev) => ({ ...prev, open: orderId }),
 				replace: true,
+				resetScroll: false,
 			});
 		},
 		[navigate],
 	);
 	const handleCloseOrder = useCallback(() => {
-		void navigate({ search: (prev) => ({ ...prev, open: undefined }) });
+		void navigate({
+			search: (prev) => ({ ...prev, open: undefined }),
+			resetScroll: false,
+		});
 	}, [navigate]);
 
 	if (isPending) {
