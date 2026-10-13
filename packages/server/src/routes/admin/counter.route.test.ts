@@ -1,0 +1,94 @@
+import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { Hono } from "hono";
+import { ForbiddenException } from "@/http-exceptions";
+import type { JWTPayload } from "@/types";
+import { errorHandler } from "@/utils/error-handler";
+
+const KEMANG = 1;
+const BINTARO = 2;
+
+mock.module("@/utils/authorization", () => ({
+  assertStoreAccess: (user: JWTPayload, storeId: number) => {
+    if (user.role !== "admin" && storeId !== KEMANG) {
+      throw new ForbiddenException("You do not have access to this store");
+    }
+    return Promise.resolve();
+  },
+}));
+
+const asked: number[] = [];
+
+mock.module("@/modules/counter/counter.service", () => ({
+  getCounter: (storeId: number) => {
+    asked.push(storeId);
+    return Promise.resolve({ categories: [] });
+  },
+}));
+
+const counterRoutes = (await import("@/routes/admin/counter")).default;
+
+let who: JWTPayload;
+
+const as = (role: JWTPayload["role"]): JWTPayload => ({
+  can_process_pickup: false,
+  id: 7,
+  name: "Asep",
+  role,
+  username: "asep",
+});
+
+const app = new Hono<{ Variables: { jwtPayload: JWTPayload } }>()
+  .use("*", async (c, next) => {
+    c.set("jwtPayload", who);
+    await next();
+  })
+  .route("/counter", counterRoutes);
+
+app.onError(errorHandler);
+
+const call = (path: string) => app.request(`/counter${path}`);
+
+beforeEach(() => {
+  asked.length = 0;
+  who = as("cashier");
+});
+
+describe("who may read the Counter", () => {
+  it("answers shop staff for their own Store", async () => {
+    for (const role of ["admin", "cashier", "worker"] as const) {
+      who = as(role);
+      const res = await call(`?store_id=${KEMANG}`);
+
+      expect(res.status).toBe(200);
+    }
+    expect(asked).toEqual([KEMANG, KEMANG, KEMANG]);
+  });
+
+  it("refuses a courier", async () => {
+    who = as("courier");
+    const res = await call(`?store_id=${KEMANG}`);
+
+    expect(res.status).toBe(403);
+    expect(asked).toEqual([]);
+  });
+
+  it("refuses a cashier asking about another Store", async () => {
+    const res = await call(`?store_id=${BINTARO}`);
+
+    expect(res.status).toBe(403);
+    expect(asked).toEqual([]);
+  });
+
+  it("lets an admin read any Store", async () => {
+    who = as("admin");
+    const res = await call(`?store_id=${BINTARO}`);
+
+    expect(res.status).toBe(200);
+  });
+
+  it("needs a Store", async () => {
+    const res = await call("");
+
+    expect(res.status).toBe(400);
+  });
+});

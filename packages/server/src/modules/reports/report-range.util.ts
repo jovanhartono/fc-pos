@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 
 const JAKARTA_OFFSET_MINUTES = 7 * 60;
-const DAY_MS = 86_400_000;
+export const DAY_MS = 86_400_000;
 
 export const JAKARTA_TZ_SQL = sql.raw(`'Asia/Jakarta'`);
 

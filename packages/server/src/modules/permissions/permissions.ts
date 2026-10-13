@@ -41,6 +41,12 @@ export function assertCanCreateOrder(user: JWTPayload) {
   }
 }
 
+export function assertCanViewCounter(user: JWTPayload) {
+  if (!POS_ROLES.has(user.role)) {
+    throw new ForbiddenException("Only shop staff can view the counter");
+  }
+}
+
 export function assertCanProcessPayment(user: JWTPayload) {
   if (!POS_ROLES.has(user.role)) {
     throw new ForbiddenException("Only shop staff can process payment");

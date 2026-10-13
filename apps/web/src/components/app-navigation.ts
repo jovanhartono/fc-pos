@@ -1,5 +1,6 @@
 import type { JWTPayload } from "@fresclean/api/types";
 import {
+	CashRegisterIcon,
 	ChartLineIcon,
 	ClockIcon,
 	CreditCardIcon,
@@ -56,6 +57,14 @@ const operationsNavigation: NavItem[] = [
 ];
 
 const workNavigation: NavItem[] = [
+	{
+		to: "/counter",
+		label: "Counter",
+		description:
+			"The Store right now: workshop, pickup shelf, what needs a look",
+		icon: CashRegisterIcon,
+		roles: ["admin", "cashier", "worker"],
+	},
 	{
 		to: "/attendance",
 		label: "Attendance",

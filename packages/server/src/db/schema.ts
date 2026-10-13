@@ -124,6 +124,10 @@ export const categoriesTable = pgTable("categories", {
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   is_active: boolean("is_active").notNull().default(false),
+  // Repaint, Repair and the like: the work starts once the Item is clean.
+  starts_after_cleaning: boolean("starts_after_cleaning")
+    .notNull()
+    .default(false),
 });
 
 export const productsTable = pgTable(

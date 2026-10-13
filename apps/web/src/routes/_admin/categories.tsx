@@ -59,6 +59,7 @@ const CategoriesActions = ({ row }: { row: DataTableRow<Category> }) => {
 						name: category.name,
 						description: category.description ?? "",
 						is_active: category.is_active,
+						starts_after_cleaning: category.starts_after_cleaning,
 					}}
 					handleOnSubmit={async (values) => {
 						await updateMutation.mutateAsync({

@@ -97,6 +97,13 @@ const CATEGORY_PRESETS = [
   { key: "retail", name: "Retail Product" },
 ] as const;
 
+const AFTER_CLEAN_CATEGORY_KEYS = new Set([
+  "repaint",
+  "repair",
+  "sole_protector",
+  "addons",
+]);
+
 // Prices in IDR (rupiah). COGS approximated per service type.
 const SERVICE_PRESETS = [
   // Deep Clean
@@ -956,6 +963,7 @@ async function seedCatalog(adminId: number) {
         name: category.name,
         description: faker.lorem.sentence(),
         is_active: true,
+        starts_after_cleaning: AFTER_CLEAN_CATEGORY_KEYS.has(category.key),
       }))
     )
     .returning({

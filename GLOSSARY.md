@@ -19,7 +19,11 @@ A physical good sold alongside Services, such as laces or a brush.
 _Avoid_: Merchandise, add-on
 
 **Category**:
-A grouping of Services and Products that reports break figures down by.
+A grouping of Services and Products that reports break figures down by. Each Service Category is also a lane of work: cleaners and artisans take the Categories they do, so Items are not worked first-in-first-out across the whole Store.
+
+**After-clean Category**:
+A Category whose work starts only once the Item's cleaning is done, such as Repaint, Repair, Sole Protector and Add-Ons. An Item with no cleaning Service starts on it straight away.
+_Avoid_: Artisan category (Add-Ons are done by cleaners)
 
 **Active**:
 Whether a Service, Product, Category, PaymentMethod, Store, User or Campaign may be used in day-to-day work.
@@ -105,6 +109,10 @@ The one User currently responsible for an OrderService.
 
 **Priority**:
 A mark on an OrderService that moves it up the Queue and changes nothing else.
+
+**Stuck Item**:
+A queued Item that could have been started but was passed over by more than a day's work: more newer Items in the same Category, without Priority, were started ahead of it than that Category finishes in a day. A Repaint still waiting for its Item's clean cannot be stuck. No day limit is involved, because cleaners and artisans each work their own Categories at their own pace.
+_Avoid_: Overdue, late
 
 **Unpriced line**:
 An OrderService whose price is not known yet, usually a Repair waiting for inspection. Distinct from a line priced at 0, which is free on purpose.
@@ -221,6 +229,10 @@ _Avoid_: Own QC, self-QC
 The number of OrderServices that reached quality check for the first time.
 _Avoid_: Items processed, items completed
 
+**Ready estimate**:
+How long a new Item will wait in one Category, quoted at the counter as "about X–Y days": the Category's waiting OrderServices divided by its Services processed per day over the Store's last 7 open days. A slow Category such as Repair looks further back, open day by open day, until it has 7 checks, up to 4 weeks; with fewer it gets no quote. A day with no quality check at the Store at all (a public holiday) is not an open day; a quiet day for one Category still counts. After-clean Categories add their days on top of the clean.
+_Avoid_: ETA, queue estimate, turnaround (turnaround is measured afterwards, from drop-off to ready)
+
 ### Screens
 
 **POS**:
@@ -231,7 +243,11 @@ _Avoid_: Transactions (the screen's legacy route and folder name only), till
 The draft a staff member builds in the POS. It becomes an Order only at checkout.
 
 **Queue**:
-The list of OrderServices waiting for work at a Store, priority first and then oldest first.
+The list of Items waiting for work at a Store, priority first and then oldest first. Filtered by Category, an Item with Services in two Categories shows on both.
+
+**Counter**:
+The screen showing one Store's state right now, for everyone who works there: waiting work and the ready estimate per Category, Orders ready for pickup waiting for their Customer, and what needs a look. The Day close sits beside it for cashiers.
+_Avoid_: Dashboard (Home only launches pages), Today page
 
 **Aging queue**:
 A report listing every OrderService not yet picked up, cancelled or refunded, oldest first.
