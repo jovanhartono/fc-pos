@@ -14,10 +14,10 @@ export interface CounterCategory {
   category_id: number;
   estimate: CounterEstimate | null;
   in_progress: number;
-  // One Item can be both not started and in progress in a Category.
+  // One Item can be both queued and in progress in a Category.
   items_waiting: number;
   name: string;
-  not_started: number;
+  queued: number;
 }
 
 export interface CounterShelfOrder {

@@ -112,7 +112,7 @@ function buildCategories(lines: WaitingLine[], paces: Map<number, number>) {
         in_progress: distinctItems(categoryLines, ["processing", "qc_reject"]),
         items_waiting: new Set(categoryLines.map((line) => line.item_id)).size,
         name: categoryLines[0].category_name,
-        not_started: distinctItems(categoryLines, ["queued"]),
+        queued: distinctItems(categoryLines, ["queued"]),
       };
     })
     .sort(

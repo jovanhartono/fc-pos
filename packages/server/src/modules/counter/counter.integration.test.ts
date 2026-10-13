@@ -272,7 +272,7 @@ describe("the workshop rows", () => {
       estimate: { days_high: 5, days_low: 4 },
       in_progress: 2,
       items_waiting: 3,
-      not_started: 1,
+      queued: 1,
     });
   });
 

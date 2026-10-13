@@ -41,7 +41,7 @@ const CategoryRow = ({ category }: CategoryRowProps) => (
 			<QuoteText category={category} />
 		</span>
 		<span className="text-muted-foreground text-xs tabular-nums">
-			{category.not_started} not started · {category.in_progress} in progress
+			{category.queued} queued · {category.in_progress} in progress
 		</span>
 	</li>
 );
