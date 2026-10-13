@@ -14,7 +14,9 @@ const ShelfOrderLink = ({
 	isWide,
 	orderId,
 }: ShelfOrderLinkProps) => {
-	const className = "min-w-0 truncate hover:underline";
+	// Closing the sheet hands focus back here; the row shows it, not a box.
+	const className =
+		"min-w-0 justify-self-start truncate outline-none hover:underline focus-visible:underline";
 	if (isWide) {
 		return (
 			<Link
@@ -68,7 +70,7 @@ export const PickupShelfSection = ({
 					{shelf.oldest.map((order) => (
 						<li
 							className={cn(
-								"grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 border-border border-t px-3 py-2 first:border-t-0 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:gap-x-4",
+								"grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 border-border border-t px-3 py-2 first:border-t-0 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:gap-x-4 has-[a:focus-visible]:bg-muted",
 								order.order_id === openOrderId && "bg-muted",
 							)}
 							key={order.order_id}
