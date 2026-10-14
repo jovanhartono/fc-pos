@@ -156,21 +156,6 @@ exports[`what each money report asks Postgres for one store asks the same questi
 ]
 `;
 
-exports[`what each money report asks Postgres for one store asks the same question for distinct handlers 1`] = `
-[
-  {
-    "params": [
-      "2026-07-31T17:00:00.000Z",
-      "2026-08-31T17:00:00.000Z",
-      "processing",
-      "queued",
-      3,
-    ],
-    "sql": "select COUNT(DISTINCT "order_service_status_logs"."changed_by")::int from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."created_at" >= $1) and ("order_service_status_logs"."created_at" < $2) and ("order_service_status_logs"."to_status" = $3) and ("order_service_status_logs"."from_status" = $4) and ("orders"."store_id" = $5))",
-  },
-]
-`;
-
 exports[`what each money report asks Postgres for one store asks the same question for payment mix 1`] = `
 [
   {
@@ -596,20 +581,6 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-08-31T17:00:00.000Z",
     ],
     "sql": "select to_char(("order_pickup_events"."picked_up_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COUNT(DISTINCT "order_pickup_events"."order_id")::int from "order_pickup_events" inner join "orders" on "order_pickup_events"."order_id" = "orders"."id" where (("order_pickup_events"."picked_up_at" >= $1) and ("order_pickup_events"."picked_up_at" < $2)) group by to_char(("order_pickup_events"."picked_up_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
-  },
-]
-`;
-
-exports[`what each money report asks Postgres for the whole company asks the same question for distinct handlers 1`] = `
-[
-  {
-    "params": [
-      "2026-07-31T17:00:00.000Z",
-      "2026-08-31T17:00:00.000Z",
-      "processing",
-      "queued",
-    ],
-    "sql": "select COUNT(DISTINCT "order_service_status_logs"."changed_by")::int from "order_service_status_logs" inner join "orders_services" on "order_service_status_logs"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("order_service_status_logs"."created_at" >= $1) and ("order_service_status_logs"."created_at" < $2) and ("order_service_status_logs"."to_status" = $3) and ("order_service_status_logs"."from_status" = $4))",
   },
 ]
 `;

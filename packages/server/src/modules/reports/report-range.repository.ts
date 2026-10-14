@@ -343,29 +343,6 @@ export async function listOrdersOutSeries({
   }));
 }
 
-export async function findDistinctHandlerCount({ range, storeId }: RangeArgs) {
-  const conditions = [
-    ...timeWindow(orderServiceStatusLogsTable.created_at, range),
-    eq(orderServiceStatusLogsTable.to_status, "processing"),
-    eq(orderServiceStatusLogsTable.from_status, "queued"),
-    storeScope(ordersTable.store_id, storeId),
-  ];
-
-  const [row] = await db
-    .select({
-      handlers: sql<number>`COUNT(DISTINCT ${orderServiceStatusLogsTable.changed_by})::int`,
-    })
-    .from(orderServiceStatusLogsTable)
-    .innerJoin(
-      ordersServicesTable,
-      eq(orderServiceStatusLogsTable.order_service_id, ordersServicesTable.id)
-    )
-    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
-    .where(and(...conditions));
-
-  return Number(row?.handlers ?? 0);
-}
-
 // ───────────────────────── Payment mix (R3) ─────────────────────────
 
 export async function listPaymentMixSeries({

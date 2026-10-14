@@ -30,6 +30,8 @@ interface KpiCardProps {
 	isLowerBetter?: boolean;
 	// The last few days, oldest first; the last bar is the day on the card.
 	spark?: number[];
+	// A small square in a chart's colour, so the card is that chart's key.
+	swatch?: string;
 	className?: string;
 }
 
@@ -92,6 +94,7 @@ export const KpiCard = ({
 	comparisonLabel = "vs previous",
 	isLowerBetter = false,
 	spark,
+	swatch,
 	className,
 }: KpiCardProps) => {
 	const change = delta ? kpiDeltaChange(delta, deltaAs) : null;
@@ -100,6 +103,13 @@ export const KpiCard = ({
 		<Card className={cn("border-border/70 py-0", className)}>
 			<CardContent className="grid min-w-0 gap-1 p-3 sm:p-4">
 				<p className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
+					{swatch !== undefined && (
+						<span
+							aria-hidden="true"
+							className="mr-0.5 size-2 shrink-0"
+							style={{ backgroundColor: swatch }}
+						/>
+					)}
 					{label}
 					{info ? (
 						// A popover, not a tooltip: the owner checks a customer on a phone

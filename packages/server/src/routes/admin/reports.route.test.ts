@@ -59,6 +59,10 @@ mock.module("@/modules/reports/report-range.service", () => ({
   getWorkerProductivityReport: marker("worker-productivity"),
 }));
 
+mock.module("@/modules/reports/turnaround.service", () => ({
+  getTurnaroundReport: marker("turnaround"),
+}));
+
 mock.module("@/modules/reports/quality.service", () => ({
   getQualityReport: marker("quality"),
   getQcRejectsReport: (query: { store_id?: number } = {}) => {
@@ -94,6 +98,7 @@ const REPORTS = [
   { path: "/orders-flow", params: "from=2026-08-01&to=2026-08-05" },
   { path: "/payment-mix", params: "from=2026-08-01&to=2026-08-05" },
   { path: "/customer-acquisition", params: "from=2026-08-01&to=2026-08-05" },
+  { path: "/turnaround", params: "from=2026-08-01&to=2026-08-05" },
   { path: "/quality", params: "from=2026-08-01&to=2026-08-05" },
   { path: "/qc-rejects", params: "from=2026-08-01&to=2026-08-05&limit=10" },
   { path: "/worker-productivity", params: "from=2026-08-01&to=2026-08-05" },

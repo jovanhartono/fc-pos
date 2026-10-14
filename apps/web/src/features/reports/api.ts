@@ -24,6 +24,10 @@ export type OrdersFlowReport = InferResponseType<
 	(typeof rpc.api.admin.reports)["orders-flow"]["$get"]
 >["data"];
 
+export type TurnaroundReport = InferResponseType<
+	typeof rpc.api.admin.reports.turnaround.$get
+>["data"];
+
 export type PaymentMixReport = InferResponseType<
 	(typeof rpc.api.admin.reports)["payment-mix"]["$get"]
 >["data"];
@@ -105,6 +109,12 @@ export const reportsKeys = {
 		[...reportsKeys.all, "financial", query] as const,
 	ordersFlow: (query: FetchReportRangeQuery) =>
 		[...reportsKeys.all, "orders-flow", query] as const,
+	turnaround: (query: FetchReportRangeQuery) =>
+		[
+			...reportsKeys.all,
+			"turnaround",
+			{ ...query, granularity: undefined },
+		] as const,
 	paymentMix: (query: FetchReportRangeQuery) =>
 		[...reportsKeys.all, "payment-mix", query] as const,
 	customerAcquisition: (query: FetchReportRangeQuery) =>
@@ -204,6 +214,17 @@ export const reportsQueries = {
 				parseSuccessData<OrdersFlowReport>(
 					rpcWithAuth().api.admin.reports["orders-flow"].$get({
 						query: toRangeQuery(query),
+					}),
+				),
+			staleTime: REPORT_STALE_TIME,
+		}),
+	turnaround: (query: FetchReportRangeQuery) =>
+		queryOptions({
+			queryKey: reportsKeys.turnaround(query),
+			queryFn: () =>
+				parseSuccessData<TurnaroundReport>(
+					rpcWithAuth().api.admin.reports.turnaround.$get({
+						query: toRangeQuery({ ...query, granularity: undefined }),
 					}),
 				),
 			staleTime: REPORT_STALE_TIME,

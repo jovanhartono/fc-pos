@@ -3,13 +3,18 @@ import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
+import { TurnaroundSection } from "@/features/reports/components/turnaround-section";
 import {
 	csvFilename,
 	downloadCsv,
 	escapeCsv,
 } from "@/features/reports/utils/csv";
 import { numberFormatter } from "@/features/reports/utils/format";
-import { CHART_PALETTE } from "@/features/reports/utils/palette";
+import {
+	ORDERS_IN_COLOR,
+	ORDERS_OUT_COLOR,
+} from "@/features/reports/utils/palette";
+import { longDuration } from "@/features/reports/utils/turnaround";
 
 interface OperationsPanelProps {
 	from: string;
@@ -27,9 +32,14 @@ export const OperationsPanel = ({
 	const query = useQuery(
 		reportsQueries.ordersFlow({ from, to, store_id: storeId, granularity }),
 	);
+	const turnaroundQuery = useQuery(
+		reportsQueries.turnaround({ from, to, store_id: storeId, granularity }),
+	);
+	const turnaround = turnaroundQuery.data;
 	const data = query.data;
 	const summary = data?.summary.current;
 	const deltas = data?.summary.deltas;
+	const readyWithin = turnaround?.rows[0]?.p75 ?? null;
 
 	const handleExport = () => {
 		if (!data) {
@@ -51,12 +61,6 @@ export const OperationsPanel = ({
 			`Totals,Orders out,${summary?.orders_out_total ?? 0},${prev.orders_out_total}`,
 		);
 		lines.push(`Totals,Net flow,${summary?.net_flow ?? 0},${prev.net_flow}`);
-		lines.push(
-			`Totals,Distinct handlers,${summary?.distinct_handlers ?? 0},${prev.distinct_handlers}`,
-		);
-		lines.push(
-			`Totals,Throughput/handler,${summary?.throughput_per_handler ?? 0},${prev.throughput_per_handler}`,
-		);
 		downloadCsv(
 			csvFilename("orders-flow", data.from, data.to, data.store_id),
 			lines.join("\n"),
@@ -69,21 +73,17 @@ export const OperationsPanel = ({
 				<KpiRow>
 					<KpiCard
 						label="Orders in"
+						swatch={ORDERS_IN_COLOR}
 						value={numberFormatter.format(summary?.orders_in_total ?? 0)}
 						delta={deltas?.orders_in_total}
 						helper="Dropped off in range"
 					/>
 					<KpiCard
 						label="Orders out"
+						swatch={ORDERS_OUT_COLOR}
 						value={numberFormatter.format(summary?.orders_out_total ?? 0)}
 						delta={deltas?.orders_out_total}
 						helper="Picked up in range"
-					/>
-					<KpiCard
-						label="Throughput / handler"
-						value={(summary?.throughput_per_handler ?? 0).toFixed(2)}
-						delta={deltas?.throughput_per_handler}
-						helper={`${summary?.distinct_handlers ?? 0} handlers in range`}
 					/>
 					<KpiCard
 						label="Net flow"
@@ -91,21 +91,34 @@ export const OperationsPanel = ({
 						delta={deltas?.net_flow}
 						helper="Positive = backlog growing"
 					/>
+					<KpiCard
+						label="Ready within"
+						value={readyWithin === null ? "–" : longDuration(readyWithin)}
+						helper="p75, drop-off to ready"
+					/>
 				</KpiRow>
 				<ExportButton disabled={!data} onClick={handleExport} />
 			</div>
 
 			<ChartCard
-				variant="stacked-bar"
+				variant="bar"
+				hideLegend
 				title="Order dropoff vs pickup"
 				data={data?.series ?? []}
 				granularity={data?.granularity ?? "day"}
 				series={[
-					{ key: "orders_in", label: "Orders in", color: CHART_PALETTE[0] },
-					{ key: "orders_out", label: "Orders out", color: CHART_PALETTE[1] },
+					{ key: "orders_in", label: "Orders in", color: ORDERS_IN_COLOR },
+					{ key: "orders_out", label: "Orders out", color: ORDERS_OUT_COLOR },
 				]}
 				valueFormatter={(v) => numberFormatter.format(v)}
 			/>
+
+			{turnaround !== undefined && <TurnaroundSection report={turnaround} />}
+			{turnaroundQuery.status === "error" && (
+				<p className="text-muted-foreground text-sm">
+					Could not load Turnaround.
+				</p>
+			)}
 		</div>
 	);
 };

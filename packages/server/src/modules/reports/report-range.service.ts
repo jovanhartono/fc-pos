@@ -8,7 +8,6 @@ import type {
 } from "@/modules/reports/report.schema";
 import {
   findCumulativeCustomersBefore,
-  findDistinctHandlerCount,
   findRepeatCustomerStats,
   listCampaignEffectivenessRows,
   listCategoryGrossSalesSeries,
@@ -490,11 +489,9 @@ function summariseFinancial(raw: {
 // ───────────────────────── Orders flow ─────────────────────────
 
 interface OrdersFlowSummary {
-  distinct_handlers: number;
   net_flow: number;
   orders_in_total: number;
   orders_out_total: number;
-  throughput_per_handler: number;
 }
 
 export async function getOrdersFlowReport(query: GetReportRangeQuery) {
@@ -502,23 +499,20 @@ export async function getOrdersFlowReport(query: GetReportRangeQuery) {
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
 
-  const [ordersIn, ordersOut, prevIn, prevOut, handlers, prevHandlers] =
-    await Promise.all([
-      listOrdersInSeries({ range, storeId, granularity: ctx.granularity }),
-      listOrdersOutSeries({ range, storeId, granularity: ctx.granularity }),
-      listOrdersInSeries({
-        range: ctx.previous.range,
-        storeId,
-        granularity: ctx.granularity,
-      }),
-      listOrdersOutSeries({
-        range: ctx.previous.range,
-        storeId,
-        granularity: ctx.granularity,
-      }),
-      findDistinctHandlerCount({ range, storeId }),
-      findDistinctHandlerCount({ range: ctx.previous.range, storeId }),
-    ]);
+  const [ordersIn, ordersOut, prevIn, prevOut] = await Promise.all([
+    listOrdersInSeries({ range, storeId, granularity: ctx.granularity }),
+    listOrdersOutSeries({ range, storeId, granularity: ctx.granularity }),
+    listOrdersInSeries({
+      range: ctx.previous.range,
+      storeId,
+      granularity: ctx.granularity,
+    }),
+    listOrdersOutSeries({
+      range: ctx.previous.range,
+      storeId,
+      granularity: ctx.granularity,
+    }),
+  ]);
 
   const inMap = indexBy(ordersIn);
   const outMap = indexBy(ordersOut);
@@ -528,8 +522,8 @@ export async function getOrdersFlowReport(query: GetReportRangeQuery) {
     orders_out: outMap.get(bucket)?.orders_out ?? 0,
   }));
 
-  const summary = ordersFlowSummaryFrom(ordersIn, ordersOut, handlers);
-  const prevSummary = ordersFlowSummaryFrom(prevIn, prevOut, prevHandlers);
+  const summary = ordersFlowSummaryFrom(ordersIn, ordersOut);
+  const prevSummary = ordersFlowSummaryFrom(prevIn, prevOut);
 
   return {
     from: ctx.from,
@@ -548,8 +542,7 @@ export async function getOrdersFlowReport(query: GetReportRangeQuery) {
 
 function ordersFlowSummaryFrom(
   ordersIn: { orders_in: number }[],
-  ordersOut: { orders_out: number }[],
-  handlers: number
+  ordersOut: { orders_out: number }[]
 ): OrdersFlowSummary {
   const inTotal = ordersIn.reduce((s, r) => s + r.orders_in, 0);
   const outTotal = ordersOut.reduce((s, r) => s + r.orders_out, 0);
@@ -557,8 +550,6 @@ function ordersFlowSummaryFrom(
     orders_in_total: inTotal,
     orders_out_total: outTotal,
     net_flow: inTotal - outTotal,
-    distinct_handlers: handlers,
-    throughput_per_handler: handlers > 0 ? outTotal / handlers : 0,
   };
 }
 

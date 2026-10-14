@@ -126,10 +126,6 @@ const QUERIES: [string, Query][] = [
       repo.listOrdersOutSeries({ granularity: DAY, range: AUGUST, storeId }),
   ],
   [
-    "distinct handlers",
-    (storeId) => repo.findDistinctHandlerCount({ range: AUGUST, storeId }),
-  ],
-  [
     "payment mix",
     (storeId) =>
       repo.listPaymentMixSeries({ granularity: DAY, range: AUGUST, storeId }),

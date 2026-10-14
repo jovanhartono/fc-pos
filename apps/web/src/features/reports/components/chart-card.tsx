@@ -68,6 +68,8 @@ interface BarProps extends SeriesChartProps {
 	// Earlier buckets fade so the last one (today) reads first, and the legend
 	// carries each series' total for the whole range.
 	highlightLatest?: boolean;
+	// For a chart whose key sits elsewhere, such as swatches on its KPI cards.
+	hideLegend?: boolean;
 }
 
 interface SingleCategory {
@@ -303,6 +305,7 @@ const BarVariant = ({
 	xTickInterval,
 	valueFormatter = formatDefault,
 	highlightLatest = false,
+	hideLegend = false,
 }: BarProps) => {
 	const config = seriesConfig(series);
 	const stacked = variant === "stacked-bar";
@@ -387,7 +390,7 @@ const BarVariant = ({
 									: null}
 							</Bar>
 						))}
-						{series.length > 1 && !highlightLatest ? (
+						{series.length > 1 && !highlightLatest && !hideLegend ? (
 							<ChartLegend content={<ChartLegendContent />} />
 						) : null}
 					</BarChart>
