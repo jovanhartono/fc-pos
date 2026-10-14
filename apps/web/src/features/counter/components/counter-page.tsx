@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback } from "react";
+import { STRIP_FADE, TAB_STRIP_ROW } from "@/components/chip-strip";
 import { PageHeader } from "@/components/page-header";
 import { counterQueries } from "@/features/counter/api";
+import { DayCloseTab } from "@/features/counter/components/day-close/day-close-tab";
 import { NeedsALookSection } from "@/features/counter/components/needs-a-look-section";
 import { PickupShelfSection } from "@/features/counter/components/pickup-shelf-section";
 import { WorkshopSection } from "@/features/counter/components/workshop-section";
@@ -11,11 +13,57 @@ import { StoreAutocomplete } from "@/features/orders/components/store-autocomple
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
+
+export type CounterTab = "now" | "day-close";
+
+const TABS: { id: CounterTab; label: string }[] = [
+	{ id: "now", label: "Now" },
+	{ id: "day-close", label: "Day close" },
+];
 
 interface CounterPageProps {
+	date?: string;
+	onDateChange: (date: string | undefined) => void;
 	onStoreChange: (storeId: number) => void;
+	onTabChange: (tab: CounterTab) => void;
 	storeId?: number;
+	tab: CounterTab;
 }
+
+interface CounterTabsProps {
+	activeTab: CounterTab;
+	onTabChange: (tab: CounterTab) => void;
+}
+
+const CounterTabs = ({ activeTab, onTabChange }: CounterTabsProps) => (
+	<nav aria-label="Counter" className={STRIP_FADE}>
+		<div className={TAB_STRIP_ROW} role="tablist">
+			{TABS.map((tab) => {
+				const isActive = activeTab === tab.id;
+				return (
+					<button
+						aria-selected={isActive}
+						className={cn(
+							"relative shrink-0 whitespace-nowrap border-b-2 px-4 py-3 font-medium text-sm transition-colors",
+							isActive
+								? "border-foreground text-foreground"
+								: "border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+						)}
+						id={`counter-tab-${tab.id}`}
+						key={tab.id}
+						onClick={() => onTabChange(tab.id)}
+						role="tab"
+						tabIndex={isActive ? 0 : -1}
+						type="button"
+					>
+						{tab.label}
+					</button>
+				);
+			})}
+		</div>
+	</nav>
+);
 
 interface CounterBodyProps {
 	storeId: number;
@@ -83,7 +131,38 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 	);
 };
 
-export const CounterPage = ({ onStoreChange, storeId }: CounterPageProps) => {
+interface CounterPanelProps {
+	date?: string;
+	isDayClose: boolean;
+	onDateChange: (date: string | undefined) => void;
+	storeId: number;
+}
+
+const CounterPanel = ({
+	date,
+	isDayClose,
+	onDateChange,
+	storeId,
+}: CounterPanelProps) =>
+	isDayClose ? (
+		<DayCloseTab
+			date={date}
+			key={storeId}
+			onDateChange={onDateChange}
+			storeId={storeId}
+		/>
+	) : (
+		<CounterBody key={storeId} storeId={storeId} />
+	);
+
+export const CounterPage = ({
+	date,
+	onDateChange,
+	onStoreChange,
+	onTabChange,
+	storeId,
+	tab,
+}: CounterPageProps) => {
 	const { data: me } = useQuery(usersQueries.me());
 	const { data: stores = [] } = useQuery(storesQueries.list());
 
@@ -96,6 +175,19 @@ export const CounterPage = ({ onStoreChange, storeId }: CounterPageProps) => {
 			? storeId
 			: firstStoreId;
 	const hasPicker = isAdmin || ownStoreIds.length > 1;
+	// Workers keep the Now content only, even from a ?tab=day-close link.
+	const canSeeDayClose = me?.role === "admin" || me?.role === "cashier";
+	const activeTab = canSeeDayClose ? tab : "now";
+	const panel = selectedStoreId ? (
+		<CounterPanel
+			date={date}
+			isDayClose={activeTab === "day-close"}
+			onDateChange={onDateChange}
+			storeId={selectedStoreId}
+		/>
+	) : (
+		<p className="text-muted-foreground">No Store.</p>
+	);
 
 	return (
 		<>
@@ -119,11 +211,22 @@ export const CounterPage = ({ onStoreChange, storeId }: CounterPageProps) => {
 				}
 				title="Counter"
 			/>
-			{selectedStoreId ? (
-				<CounterBody key={selectedStoreId} storeId={selectedStoreId} />
-			) : (
-				<p className="text-muted-foreground">No Store.</p>
-			)}
+			<div className="grid gap-6">
+				{canSeeDayClose ? (
+					<CounterTabs activeTab={activeTab} onTabChange={onTabChange} />
+				) : null}
+				{canSeeDayClose ? (
+					<div
+						aria-labelledby={`counter-tab-${activeTab}`}
+						id="counter-panel"
+						role="tabpanel"
+					>
+						{panel}
+					</div>
+				) : (
+					panel
+				)}
+			</div>
 		</>
 	);
 };

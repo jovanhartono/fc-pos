@@ -215,7 +215,7 @@ What one Customer has paid across all of their Orders, minus refunds.
 _Avoid_: Total spend, customer revenue, lifetime value, LTV, total
 
 **Day close**:
-The recap of one Store's money for one day, by PaymentMethod, that a cashier checks against the card terminal's settlement slip before going home.
+The recap of one Store's day: its money by PaymentMethod, which a cashier checks against each card terminal's settlement slip before going home, then what was dropped off, picked up and left unpaid that day. Money counts on the day it is paid, so it does not follow the day's Orders: some of it pays for Orders dropped off earlier.
 _Avoid_: Closing shift (a Shift is one User's attendance), end of day, cash-up
 
 **First-pass rate**:

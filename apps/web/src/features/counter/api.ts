@@ -1,7 +1,8 @@
-import type { Counter } from "@fresclean/api/types";
+import type { Counter, DayClose } from "@fresclean/api/types";
 import { queryOptions } from "@tanstack/react-query";
 import { parseResponse } from "hono/client";
 import { rpcWithAuth } from "@/lib/rpc";
+import { jakartaToday } from "@/shared/date-presets";
 
 export type {
 	Counter,
@@ -11,17 +12,35 @@ export type {
 	CounterQcReject,
 	CounterStuckItem,
 	CounterWorkshop,
+	DayClose,
+	DayCloseCategory,
+	DayCloseCollected,
+	DayCloseMethod,
+	DayCloseOrder,
+	DayClosePayment,
+	DayCloseRefund,
 } from "@fresclean/api/types";
 
 export const counterKeys = {
 	all: ["counter"] as const,
 	detail: (storeId: number) => [...counterKeys.all, storeId] as const,
+	dayClose: (storeId: number, date: string) =>
+		[...counterKeys.detail(storeId), "day-close", date] as const,
 };
 
 async function fetchCounter(storeId: number): Promise<Counter> {
 	const response = await parseResponse(
 		rpcWithAuth().api.admin.counter.$get({
 			query: { store_id: String(storeId) },
+		}),
+	);
+	return response.data;
+}
+
+async function fetchDayClose(storeId: number, date: string): Promise<DayClose> {
+	const response = await parseResponse(
+		rpcWithAuth().api.admin.counter["day-close"].$get({
+			query: { store_id: String(storeId), date },
 		}),
 	);
 	return response.data;
@@ -35,5 +54,12 @@ export const counterQueries = {
 			queryKey: counterKeys.detail(storeId),
 			queryFn: () => fetchCounter(storeId),
 			refetchInterval: 60_000,
+		}),
+	// Today's close grows with every payment; a past day never changes.
+	dayClose: (storeId: number, date: string) =>
+		queryOptions({
+			queryKey: counterKeys.dayClose(storeId, date),
+			queryFn: () => fetchDayClose(storeId, date),
+			refetchInterval: date === jakartaToday() ? 60_000 : false,
 		}),
 };
