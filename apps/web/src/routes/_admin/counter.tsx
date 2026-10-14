@@ -12,6 +12,9 @@ const counterSearchSchema = z.object({
 	date: z
 		.string()
 		.regex(/^\d{4}-\d{2}-\d{2}$/)
+		.refine((date) =>
+			new Date(`${date}T00:00:00Z`).toISOString().startsWith(date),
+		)
 		.optional()
 		.catch(undefined),
 });

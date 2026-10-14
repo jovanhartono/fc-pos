@@ -80,25 +80,29 @@ export function listRefundReasons(refundIds: number[]) {
 export function listDroppedOffOrders(storeId: number, range: DateRange) {
   return db
     .select({
+      cancelled_at: ordersTable.cancelled_at,
       code: ordersTable.code,
       created_at: ordersTable.created_at,
       discount: ordersTable.discount,
       items: sql<number>`COUNT(${itemsTable.id})::int`,
+      method_name: paymentMethodsTable.name,
       order_id: ordersTable.id,
       paid_at: ordersTable.paid_at,
-      payment_method_id: ordersTable.payment_method_id,
-      status: ordersTable.status,
       total: ordersTable.total,
     })
     .from(ordersTable)
     .leftJoin(itemsTable, eq(itemsTable.order_id, ordersTable.id))
+    .leftJoin(
+      paymentMethodsTable,
+      eq(ordersTable.payment_method_id, paymentMethodsTable.id)
+    )
     .where(
       and(
         eq(ordersTable.store_id, storeId),
         ...timeWindow(ordersTable.created_at, range)
       )
     )
-    .groupBy(ordersTable.id)
+    .groupBy(ordersTable.id, paymentMethodsTable.id)
     .orderBy(asc(ordersTable.created_at), asc(ordersTable.id));
 }
 

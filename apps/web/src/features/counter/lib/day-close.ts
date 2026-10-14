@@ -1,8 +1,6 @@
 import type { DayCloseMethod } from "@/features/counter/api";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 
-export const NO_PAYMENT_METHOD = "No PaymentMethod";
-
 const SLIP_SEPARATOR = " - ";
 
 // "QRIS - EDC BCA" is the QRIS line on the EDC BCA slip. A name without the
@@ -31,26 +29,18 @@ export interface SlipGroup {
 	slip: string;
 }
 
-// Groups follow the order the server sent the methods in.
 export const groupBySlip = (methods: DayCloseMethod[]): SlipGroup[] => {
-	const groups = new Map<string, SlipGroup>();
+	const bySlip = new Map<string, MethodLine[]>();
 	for (const method of methods) {
 		const { slip, line } = splitMethodName(method.name);
-		const group = groups.get(slip) ?? {
-			slip,
-			amount: 0,
-			payments: 0,
-			lines: [],
-			isSingle: false,
-		};
-		group.amount += method.amount;
-		group.payments += method.payments;
-		group.lines.push({ ...method, line });
-		groups.set(slip, group);
+		bySlip.set(slip, [...(bySlip.get(slip) ?? []), { ...method, line }]);
 	}
-	return [...groups.values()].map((group) => ({
-		...group,
-		isSingle: group.lines.length === 1 && group.lines[0].line === group.slip,
+	return [...bySlip.entries()].map(([slip, lines]) => ({
+		slip,
+		amount: lines.reduce((sum, line) => sum + line.amount, 0),
+		payments: lines.reduce((sum, line) => sum + line.payments, 0),
+		lines,
+		isSingle: lines.length === 1 && lines[0].line === slip,
 	}));
 };
 

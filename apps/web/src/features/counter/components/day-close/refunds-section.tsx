@@ -1,11 +1,9 @@
-import { Link } from "@tanstack/react-router";
 import type { DayClose, DayCloseRefund } from "@/features/counter/api";
-import { ORDER_CODE_CLASS } from "@/features/counter/components/day-close/payments-sheet-content";
+import { OrderCodeLink } from "@/features/counter/components/day-close/order-code-link";
 import {
 	formatClock,
 	formatDayLong,
 	formatDayShort,
-	NO_PAYMENT_METHOD,
 } from "@/features/counter/lib/day-close";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatRefundReason } from "@/lib/status";
@@ -21,26 +19,10 @@ interface RefundsSheetContentProps {
 const reasonsOf = (refund: DayCloseRefund) =>
 	refund.reasons.map(formatRefundReason).join(", ");
 
-const methodOf = (refund: DayCloseRefund, date: string) => {
-	const name = refund.payment_method_name ?? NO_PAYMENT_METHOD;
-	return refund.paid_day && refund.paid_day !== date
-		? `${name} on ${formatDayShort(refund.paid_day)}`
-		: name;
-};
-
-interface RefundCodeProps {
-	refund: DayCloseRefund;
-}
-
-const RefundCode = ({ refund }: RefundCodeProps) => (
-	<Link
-		className={ORDER_CODE_CLASS}
-		params={{ orderId: String(refund.order_id) }}
-		to="/orders/$orderId"
-	>
-		{refund.order_code}
-	</Link>
-);
+const methodOf = (refund: DayCloseRefund, date: string) =>
+	refund.paid_day && refund.paid_day !== date
+		? `${refund.payment_method_name} on ${formatDayShort(refund.paid_day)}`
+		: refund.payment_method_name;
 
 const RefundsSheetContent = ({ date, refunds }: RefundsSheetContentProps) => {
 	const isMobile = useIsMobile();
@@ -53,7 +35,7 @@ const RefundsSheetContent = ({ date, refunds }: RefundsSheetContentProps) => {
 						className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 border-border border-b py-2.5"
 						key={`${refund.order_id}-${refund.refunded_at}`}
 					>
-						<RefundCode refund={refund} />
+						<OrderCodeLink code={refund.order_code} orderId={refund.order_id} />
 						<span className="tabular-nums">{formatMoney(refund.amount)}</span>
 						<span className="col-span-full text-muted-foreground text-xs">
 							{[
@@ -91,7 +73,10 @@ const RefundsSheetContent = ({ date, refunds }: RefundsSheetContentProps) => {
 							{formatClock(refund.refunded_at)}
 						</td>
 						<td className="py-2 pr-3">
-							<RefundCode refund={refund} />
+							<OrderCodeLink
+								code={refund.order_code}
+								orderId={refund.order_id}
+							/>
 						</td>
 						<td className="py-2 pr-3">{reasonsOf(refund)}</td>
 						<td className="py-2 pr-3">{methodOf(refund, date)}</td>

@@ -272,8 +272,8 @@ describe("what was dropped off", () => {
       amount: 200_000,
       is_paid: false,
       items: 2,
+      is_cancelled: false,
       paid_day: null,
-      status: "created",
     });
   });
 
@@ -289,27 +289,42 @@ describe("what was dropped off", () => {
     expect(row(same.orderId)).toMatchObject({
       is_paid: true,
       paid_day: null,
-      payment_method_id: shop.paymentMethodId,
+      payment_method_name: "Cash",
     });
     expect(row(later.orderId)).toMatchObject({
       is_paid: false,
       paid_day: "2026-10-01",
-      payment_method_id: null,
+      payment_method_name: null,
     });
     expect(row(none.orderId)?.is_paid).toBe(false);
   });
 
-  it("counts a cancelled Order as dropped off but not as unpaid", async () => {
-    const cancelled = await place();
+  const cancelAt = async (orderId: number, local: string) => {
     await testDb
       .update(ordersTable)
-      .set({ status: "cancelled" })
-      .where(eq(ordersTable.id, cancelled.orderId));
+      .set({ cancelled_at: jkt(local), status: "cancelled" })
+      .where(eq(ordersTable.id, orderId));
+  };
+
+  it("counts a cancelled Order as dropped off but not as unpaid", async () => {
+    const cancelled = await place();
+    await cancelAt(cancelled.orderId, `${DAY}T15:00`);
 
     const { dropped_off, unpaid } = await closeOf();
 
     expect(dropped_off.orders).toBe(1);
+    expect(dropped_off.order_list[0]?.is_cancelled).toBe(true);
     expect(unpaid).toEqual({ amount: 0, orders: 0 });
+  });
+
+  it("keeps an Order cancelled on a later day as unpaid on its own day", async () => {
+    const order = await place();
+    await cancelAt(order.orderId, "2026-10-02T10:00");
+
+    const { dropped_off, unpaid } = await closeOf();
+
+    expect(dropped_off.order_list[0]?.is_cancelled).toBe(false);
+    expect(unpaid).toEqual({ amount: 100_000, orders: 1 });
   });
 
   it("still calls an Order unpaid when it was paid only the next day", async () => {

@@ -1,10 +1,9 @@
-import type { DayClose, DayClosePayment } from "@/features/counter/api";
+import type { DayClose } from "@/features/counter/api";
 import { PaymentsSheetContent } from "@/features/counter/components/day-close/payments-sheet-content";
 import {
 	formatDayLong,
 	groupBySlip,
 	type MethodLine,
-	NO_PAYMENT_METHOD,
 	splitMethodName,
 } from "@/features/counter/lib/day-close";
 import { cn } from "@/lib/utils";
@@ -47,16 +46,7 @@ export const MethodsSection = ({ data }: MethodsSectionProps) => {
 	const openSheet = useSheet((s) => s.openSheet);
 	const groups = groupBySlip(data.methods);
 
-	const methodName = (payment: DayClosePayment) =>
-		data.methods.find(
-			(method) => method.payment_method_id === payment.payment_method_id,
-		)?.name ?? NO_PAYMENT_METHOD;
-
-	const openPayments = (
-		title: string,
-		lines: MethodLine[],
-		hasSeveralLines: boolean,
-	) => {
+	const openPayments = (title: string, lines: MethodLine[]) => {
 		const ids = new Set(lines.map((line) => line.payment_method_id));
 		const payments = data.payments.filter((payment) =>
 			ids.has(payment.payment_method_id),
@@ -70,8 +60,8 @@ export const MethodsSection = ({ data }: MethodsSectionProps) => {
 				<PaymentsSheetContent
 					date={data.date}
 					lineOf={
-						hasSeveralLines
-							? (payment) => splitMethodName(methodName(payment)).line
+						lines.length > 1
+							? (payment) => splitMethodName(payment.payment_method_name).line
 							: null
 					}
 					payments={payments}
@@ -80,21 +70,15 @@ export const MethodsSection = ({ data }: MethodsSectionProps) => {
 		});
 	};
 
-	if (groups.length === 0) {
-		return (
-			<section className="grid gap-2.5">
-				<h2 className="font-medium text-[15px]">By PaymentMethod</h2>
-				<p className="border border-border px-3 py-2 text-muted-foreground">
-					No payments this day.
-				</p>
-			</section>
-		);
-	}
-
 	return (
 		<section className="grid gap-2.5">
 			<h2 className="font-medium text-[15px]">By PaymentMethod</h2>
 			<div className="border border-border">
+				{groups.length === 0 ? (
+					<p className="px-3 py-2 text-muted-foreground">
+						No payments this day.
+					</p>
+				) : null}
 				{groups.map((group) => (
 					<div
 						className="border-border border-t first:border-t-0"
@@ -104,9 +88,7 @@ export const MethodsSection = ({ data }: MethodsSectionProps) => {
 							amount={group.amount}
 							className="border-t-0 font-medium"
 							label={group.slip}
-							onClick={() =>
-								openPayments(group.slip, group.lines, group.lines.length > 1)
-							}
+							onClick={() => openPayments(group.slip, group.lines)}
 							payments={group.payments}
 						/>
 						{group.isSingle
@@ -117,21 +99,23 @@ export const MethodsSection = ({ data }: MethodsSectionProps) => {
 										className="pl-7"
 										key={line.payment_method_id ?? "none"}
 										label={line.line}
-										onClick={() => openPayments(line.name, [line], false)}
+										onClick={() => openPayments(line.name, [line])}
 										payments={line.payments}
 									/>
 								))}
 					</div>
 				))}
-				<div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3.5 border-border border-t bg-muted/40 px-3 py-2 font-medium tabular-nums">
-					<span>Total</span>
-					<span className="min-w-[4.5ch] text-right font-normal text-muted-foreground">
-						{data.collected.payments}
-					</span>
-					<span className="text-right">
-						{formatMoney(data.collected.amount)}
-					</span>
-				</div>
+				{groups.length > 0 ? (
+					<div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3.5 border-border border-t bg-muted/40 px-3 py-2 font-medium tabular-nums">
+						<span>Total</span>
+						<span className="min-w-[4.5ch] text-right font-normal text-muted-foreground">
+							{data.collected.payments}
+						</span>
+						<span className="text-right">
+							{formatMoney(data.collected.amount)}
+						</span>
+					</div>
+				) : null}
 			</div>
 		</section>
 	);

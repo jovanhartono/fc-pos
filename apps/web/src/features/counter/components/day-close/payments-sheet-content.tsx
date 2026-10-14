@@ -1,11 +1,8 @@
-import { Link } from "@tanstack/react-router";
 import type { DayClosePayment } from "@/features/counter/api";
+import { OrderCodeLink } from "@/features/counter/components/day-close/order-code-link";
 import { formatClock, formatDayShort } from "@/features/counter/lib/day-close";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatMoney } from "@/shared/money";
-
-export const ORDER_CODE_CLASS =
-	"font-mono text-xs underline underline-offset-2";
 
 interface PaymentsSheetContentProps {
 	date: string;
@@ -31,13 +28,7 @@ interface OrderCellProps {
 
 const OrderCell = ({ date, payment }: OrderCellProps) => (
 	<>
-		<Link
-			className={ORDER_CODE_CLASS}
-			params={{ orderId: String(payment.order_id) }}
-			to="/orders/$orderId"
-		>
-			{payment.order_code}
-		</Link>
+		<OrderCodeLink code={payment.order_code} orderId={payment.order_id} />
 		{payment.created_day === date ? null : (
 			<EarlierTag createdDay={payment.created_day} />
 		)}

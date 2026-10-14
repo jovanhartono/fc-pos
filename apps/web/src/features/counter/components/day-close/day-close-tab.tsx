@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { counterQueries } from "@/features/counter/api";
 import { CollectedSection } from "@/features/counter/components/day-close/collected-section";
 import { DayRow } from "@/features/counter/components/day-close/day-row";
@@ -18,7 +19,12 @@ export const DayCloseTab = ({
 	onDateChange,
 	storeId,
 }: DayCloseTabProps) => {
-	const today = jakartaToday();
+	const [today, setToday] = useState(jakartaToday);
+	// An iPad left on today's close past midnight moves on to the new day.
+	useEffect(() => {
+		const timer = setInterval(() => setToday(jakartaToday()), 60_000);
+		return () => clearInterval(timer);
+	}, []);
 	// A date after today, from a hand-edited link, falls back to today.
 	const day = date && date < today ? date : today;
 	const { data, isPending, isError } = useQuery(
@@ -27,7 +33,7 @@ export const DayCloseTab = ({
 
 	return (
 		<div className="grid max-w-[720px] gap-5 text-sm">
-			<DayRow date={day} onDateChange={onDateChange} />
+			<DayRow date={day} onDateChange={onDateChange} today={today} />
 			{isPending ? <p className="text-muted-foreground">Loading…</p> : null}
 			{isError ? (
 				<p className="text-destructive">Could not load the day close.</p>

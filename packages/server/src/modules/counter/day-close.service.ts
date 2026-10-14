@@ -15,6 +15,7 @@ import type {
   DayCloseTotal,
 } from "@/modules/counter/day-close.schema";
 import {
+  type DateRange,
   getJakartaDayRange,
   jakartaDayOf,
 } from "@/modules/reports/report-range.util";
@@ -26,7 +27,6 @@ const total = (rows: { amount: number }[]): DayCloseTotal => ({
   payments: rows.length,
 });
 
-// Methods in id order, the one with no method last.
 const byMethodId = (a: DayCloseMethod, b: DayCloseMethod) =>
   (a.payment_method_id ?? Number.POSITIVE_INFINITY) -
   (b.payment_method_id ?? Number.POSITIVE_INFINITY);
@@ -45,8 +45,8 @@ function buildCategories(
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 
-// A closed day never changes after the fact: an Order paid on a later day was
-// still unpaid when this day closed.
+// A closed day never changes after the fact: an Order paid or cancelled on a
+// later day was still unpaid when this day closed.
 function buildOrderList(
   rows: Awaited<ReturnType<typeof listDroppedOffOrders>>,
   dayEnd: Date
@@ -56,21 +56,18 @@ function buildOrderList(
     return {
       amount: Number(row.total) - Number(row.discount),
       created_at: row.created_at.toISOString(),
+      is_cancelled: row.cancelled_at !== null && row.cancelled_at < dayEnd,
       is_paid: isPaid,
       items: row.items,
       order_code: row.code,
       order_id: row.order_id,
       paid_day: row.paid_at && !isPaid ? jakartaDayOf(row.paid_at) : null,
-      payment_method_id: isPaid ? row.payment_method_id : null,
-      status: row.status,
+      payment_method_name: isPaid ? (row.method_name ?? NO_METHOD) : null,
     };
   });
 }
 
-async function buildRefunds(
-  storeId: number,
-  range: ReturnType<typeof getJakartaDayRange>
-) {
+async function buildRefunds(storeId: number, range: DateRange) {
   const refunds = await listRefundsInDay(storeId, range);
   const reasons =
     refunds.length > 0
@@ -83,7 +80,7 @@ async function buildRefunds(
     order_code: refund.order_code,
     order_id: refund.order_id,
     paid_day: refund.paid_at ? jakartaDayOf(refund.paid_at) : null,
-    payment_method_name: refund.method_name,
+    payment_method_name: refund.method_name ?? NO_METHOD,
     reasons: (reasonsByRefund.get(refund.refund_id) ?? []).map(
       (row) => row.reason
     ),
@@ -112,12 +109,11 @@ export async function getDayClose(
   const payments = paidOrders.map((order) => ({
     amount: Number(order.amount),
     created_day: jakartaDayOf(order.created_at),
-    method_name: order.method_name ?? NO_METHOD,
     order_code: order.code,
     order_id: order.order_id,
-    // paidOrderWindow already filters on paid_at being set.
     paid_at: (order.paid_at as Date).toISOString(),
     payment_method_id: order.payment_method_id,
+    payment_method_name: order.method_name ?? NO_METHOD,
     recorded_by: order.recorded_by,
   }));
 
@@ -126,14 +122,14 @@ export async function getDayClose(
   ]
     .map(([paymentMethodId, rows]) => ({
       ...total(rows),
-      name: rows[0].method_name,
+      name: rows[0].payment_method_name,
       payment_method_id: paymentMethodId,
     }))
     .sort(byMethodId);
 
   const orderList = buildOrderList(droppedOff, range.end);
   const unpaid = orderList.filter(
-    (order) => !(order.is_paid || order.status === "cancelled")
+    (order) => !(order.is_paid || order.is_cancelled)
   );
 
   return {
@@ -153,7 +149,7 @@ export async function getDayClose(
       services: services.reduce((sum, line) => sum + line.count, 0),
     },
     methods,
-    payments: payments.map(({ method_name: _name, ...payment }) => payment),
+    payments,
     picked_up: pickedUp,
     refunds,
     unpaid: {

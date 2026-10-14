@@ -3,7 +3,11 @@ import type { refundReasonEnum } from "@/db/schema";
 import { dateStringSchema } from "@/schema/common";
 
 export const GETDayCloseQuerySchema = z.object({
-  date: dateStringSchema("date"),
+  // A hand-edited link like 2026-02-31 would otherwise roll into March.
+  date: dateStringSchema("date").refine(
+    (date) => new Date(`${date}T00:00:00Z`).toISOString().startsWith(date),
+    "date is not a real day"
+  ),
   store_id: z.coerce.number().int().positive(),
 });
 
@@ -31,6 +35,7 @@ export interface DayClosePayment {
   order_id: number;
   paid_at: string;
   payment_method_id: number | null;
+  payment_method_name: string;
   recorded_by: string | null;
 }
 
@@ -39,7 +44,7 @@ export interface DayCloseRefund {
   order_code: string;
   order_id: number;
   paid_day: string | null;
-  payment_method_name: string | null;
+  payment_method_name: string;
   reasons: (typeof refundReasonEnum.enumValues)[number][];
   refunded_at: string;
 }
@@ -63,13 +68,13 @@ export interface DayCloseProductLine {
 export interface DayCloseOrder {
   amount: number;
   created_at: string;
+  is_cancelled: boolean;
   is_paid: boolean;
   items: number;
   order_code: string;
   order_id: number;
   paid_day: string | null;
-  payment_method_id: number | null;
-  status: string;
+  payment_method_name: string | null;
 }
 
 export interface DayCloseDroppedOff {

@@ -43,6 +43,7 @@ const CounterTabs = ({ activeTab, onTabChange }: CounterTabsProps) => (
 				const isActive = activeTab === tab.id;
 				return (
 					<button
+						aria-controls="counter-panel"
 						aria-selected={isActive}
 						className={cn(
 							"relative shrink-0 whitespace-nowrap border-b-2 px-4 py-3 font-medium text-sm transition-colors",
@@ -54,7 +55,6 @@ const CounterTabs = ({ activeTab, onTabChange }: CounterTabsProps) => (
 						key={tab.id}
 						onClick={() => onTabChange(tab.id)}
 						role="tab"
-						tabIndex={isActive ? 0 : -1}
 						type="button"
 					>
 						{tab.label}
@@ -131,30 +131,6 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 	);
 };
 
-interface CounterPanelProps {
-	date?: string;
-	isDayClose: boolean;
-	onDateChange: (date: string | undefined) => void;
-	storeId: number;
-}
-
-const CounterPanel = ({
-	date,
-	isDayClose,
-	onDateChange,
-	storeId,
-}: CounterPanelProps) =>
-	isDayClose ? (
-		<DayCloseTab
-			date={date}
-			key={storeId}
-			onDateChange={onDateChange}
-			storeId={storeId}
-		/>
-	) : (
-		<CounterBody key={storeId} storeId={storeId} />
-	);
-
 export const CounterPage = ({
 	date,
 	onDateChange,
@@ -178,16 +154,20 @@ export const CounterPage = ({
 	// Workers keep the Now content only, even from a ?tab=day-close link.
 	const canSeeDayClose = me?.role === "admin" || me?.role === "cashier";
 	const activeTab = canSeeDayClose ? tab : "now";
-	const panel = selectedStoreId ? (
-		<CounterPanel
-			date={date}
-			isDayClose={activeTab === "day-close"}
-			onDateChange={onDateChange}
-			storeId={selectedStoreId}
-		/>
-	) : (
-		<p className="text-muted-foreground">No Store.</p>
-	);
+	let panel = <p className="text-muted-foreground">No Store.</p>;
+	if (selectedStoreId) {
+		panel =
+			activeTab === "day-close" ? (
+				<DayCloseTab
+					date={date}
+					key={selectedStoreId}
+					onDateChange={onDateChange}
+					storeId={selectedStoreId}
+				/>
+			) : (
+				<CounterBody key={selectedStoreId} storeId={selectedStoreId} />
+			);
+	}
 
 	return (
 		<>
@@ -213,16 +193,16 @@ export const CounterPage = ({
 			/>
 			<div className="grid gap-6">
 				{canSeeDayClose ? (
-					<CounterTabs activeTab={activeTab} onTabChange={onTabChange} />
-				) : null}
-				{canSeeDayClose ? (
-					<div
-						aria-labelledby={`counter-tab-${activeTab}`}
-						id="counter-panel"
-						role="tabpanel"
-					>
-						{panel}
-					</div>
+					<>
+						<CounterTabs activeTab={activeTab} onTabChange={onTabChange} />
+						<div
+							aria-labelledby={`counter-tab-${activeTab}`}
+							id="counter-panel"
+							role="tabpanel"
+						>
+							{panel}
+						</div>
+					</>
 				) : (
 					panel
 				)}

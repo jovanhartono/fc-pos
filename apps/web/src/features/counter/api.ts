@@ -1,6 +1,7 @@
 import type { Counter, DayClose } from "@fresclean/api/types";
 import { queryOptions } from "@tanstack/react-query";
 import { parseResponse } from "hono/client";
+import { REPORT_STALE_TIME } from "@/lib/query-defaults";
 import { rpcWithAuth } from "@/lib/rpc";
 import { jakartaToday } from "@/shared/date-presets";
 
@@ -56,10 +57,13 @@ export const counterQueries = {
 			refetchInterval: 60_000,
 		}),
 	// Today's close grows with every payment; a past day never changes.
-	dayClose: (storeId: number, date: string) =>
-		queryOptions({
+	dayClose: (storeId: number, date: string) => {
+		const isToday = date === jakartaToday();
+		return queryOptions({
 			queryKey: counterKeys.dayClose(storeId, date),
 			queryFn: () => fetchDayClose(storeId, date),
-			refetchInterval: date === jakartaToday() ? 60_000 : false,
-		}),
+			refetchInterval: isToday ? 60_000 : false,
+			staleTime: isToday ? 0 : REPORT_STALE_TIME,
+		});
+	},
 };
