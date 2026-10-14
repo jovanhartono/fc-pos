@@ -34,7 +34,7 @@ Both services run in Singapore — `ap-southeast-1`, Vercel region `sin1` — as
 
 Dev and production share that bucket, so every key is namespaced by the environment that wrote it: `dev/orders/…` or `prod/orders/…`, from `STORAGE_ENV_PREFIX` in `src/utils/s3.ts`. It reads `STORAGE_PREFIX`, set per Vercel environment alongside `DATABASE_URL` — the two must agree, or the photo sweep judges one environment's bucket against the other's database. Seed data has its own `seed/` prefix and is outside both.
 
-The API's region is set in **Vercel project settings**, not `vercel.json`: `services.*` there takes no `regions` key. Keeping it beside Neon is what makes an order commit a same-region round trip rather than a cross-region one.
+The API's region is pinned by the top-level `"regions": ["sin1"]` in `vercel.json`, matching the project setting; `services.*` takes no `regions` key of its own. A project without it falls back to `iad1`. Keeping it beside Neon is what makes an order commit a same-region round trip rather than a cross-region one.
 
 The API is a plain Bun function, not a Docker container: a container bills its memory until 5 quiet minutes pass, which at the counter's pace meant every open hour.
 

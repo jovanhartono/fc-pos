@@ -25,7 +25,7 @@ const app = new Hono()
     const result = await sweepOrphanedOrderPhotos();
     // Vercel's cron history keeps the status code, not the body. Without this the count is lost.
     console.info(
-      `photo-sweep: deleted ${result.deleted} of ${result.scanned} scanned`
+      `photo-sweep: deleted ${result.deleted} of ${result.scanned} scanned (${process.env.VERCEL_REGION})`
     );
 
     return c.json(success(result));
@@ -37,7 +37,7 @@ const app = new Hono()
 
     const result = await closeForgottenShifts();
     console.info(
-      `close-open-shifts: closed ${result.closed} at ${result.cutoff.toISOString()}`
+      `close-open-shifts: closed ${result.closed} at ${result.cutoff.toISOString()} (${process.env.VERCEL_REGION})`
     );
 
     return c.json(success(result));
