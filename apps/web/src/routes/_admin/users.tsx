@@ -3,8 +3,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { KeyIcon, PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useMemo, useState } from "react";
-import { FormProvider, type SubmitHandler, useForm } from "react-hook-form";
+import { useCallback, useMemo } from "react";
+import { FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
@@ -95,7 +95,6 @@ function UsersPage() {
 	const { openSheet, closeSheet } = useSheet();
 	const openDialog = useDialog((s) => s.openDialog);
 	const closeDialog = useDialog((s) => s.closeDialog);
-	const [editingUser, setEditingUser] = useState<User | null>(null);
 
 	const handleSearchChange = useCallback(
 		(next: string) => {
@@ -131,7 +130,6 @@ function UsersPage() {
 
 	const resetForm = useCallback(() => {
 		form.reset(defaultForm);
-		setEditingUser(null);
 		closeSheet();
 	}, [form, closeSheet]);
 
@@ -157,8 +155,10 @@ function UsersPage() {
 			updateUserStores(id, { store_ids }),
 	});
 
-	const handleSubmit: SubmitHandler<UserFormState> = useCallback(
-		async (values) => {
+	// The sheet keeps the handler it opened with, so the edited User travels with
+	// it; read from state, it named the previous User and saved onto the wrong row.
+	const saveUser = useCallback(
+		async (values: UserFormState, editingUser: User | null) => {
 			if (editingUser) {
 				const payload: Parameters<typeof updateUser>[1] = {
 					username: values.username,
@@ -209,7 +209,6 @@ function UsersPage() {
 		},
 		[
 			createMutation,
-			editingUser,
 			form,
 			queryClient,
 			resetForm,
@@ -220,7 +219,6 @@ function UsersPage() {
 
 	const handleEdit = useCallback(
 		(user: User) => {
-			setEditingUser(user);
 			form.reset({
 				username: user.username,
 				name: user.name,
@@ -236,7 +234,7 @@ function UsersPage() {
 				content: () => (
 					<FormProvider {...form}>
 						<UserForm
-							onSubmit={handleSubmit}
+							onSubmit={(values) => saveUser(values, user)}
 							isEditing={true}
 							stores={storesQuery.data ?? []}
 							onReset={resetForm}
@@ -245,18 +243,17 @@ function UsersPage() {
 				),
 			});
 		},
-		[form, openSheet, storesQuery.data, resetForm, handleSubmit],
+		[form, openSheet, storesQuery.data, resetForm, saveUser],
 	);
 
 	const handleCreate = useCallback(() => {
-		setEditingUser(null);
 		form.reset(defaultForm);
 		openSheet({
 			title: "Add User",
 			content: () => (
 				<FormProvider {...form}>
 					<UserForm
-						onSubmit={handleSubmit}
+						onSubmit={(values) => saveUser(values, null)}
 						isEditing={false}
 						stores={storesQuery.data ?? []}
 						onReset={resetForm}
@@ -264,7 +261,7 @@ function UsersPage() {
 				</FormProvider>
 			),
 		});
-	}, [form, openSheet, storesQuery.data, resetForm, handleSubmit]);
+	}, [form, openSheet, storesQuery.data, resetForm, saveUser]);
 
 	const handleResetPassword = useCallback(
 		(user: User) => {

@@ -1,7 +1,6 @@
 import { and, eq, gte, isNull, lt, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { shiftsTable } from "@/db/schema";
-import { JAKARTA_TZ_SQL } from "@/modules/reports/report-range.util";
 import {
   FORGOTTEN_SHIFT_HOURS,
   type GetShiftsQuery,
@@ -28,7 +27,7 @@ export function insertShift(values: InsertShiftValues) {
 // no overtime nobody worked (ADR-0025). Cron, clock-in and clock-out share it.
 export function closeOpenShiftsBefore(cutoff: Date, userId?: number) {
   // The SQL twin of jakartaDayStart(clock-in) + 1 day; timestamps are UTC wall clock.
-  const nextMidnight = sql`((date_trunc('day', (${shiftsTable.clock_in_at} AT TIME ZONE 'UTC') AT TIME ZONE ${JAKARTA_TZ_SQL}) + interval '1 day') AT TIME ZONE ${JAKARTA_TZ_SQL}) AT TIME ZONE 'UTC'`;
+  const nextMidnight = sql`((date_trunc('day', (${shiftsTable.clock_in_at} AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta') + interval '1 day') AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'UTC'`;
   return db
     .update(shiftsTable)
     .set({
