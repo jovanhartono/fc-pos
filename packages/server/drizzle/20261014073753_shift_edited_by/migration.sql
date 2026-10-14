@@ -1,0 +1,2 @@
+ALTER TABLE "shifts" ADD COLUMN "edited_by" integer;--> statement-breakpoint
+ALTER TABLE "shifts" ADD CONSTRAINT "shifts_edited_by_users_id_fkey" FOREIGN KEY ("edited_by") REFERENCES "users"("id") ON DELETE SET NULL;

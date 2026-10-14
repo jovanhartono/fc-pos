@@ -424,12 +424,15 @@ export const userStoresTable = pgTable(
 export const shiftsTable = pgTable(
   "shifts",
   {
-    // A worker who goes home without clocking out gets closed at midnight
-    // instead of being locked out of tomorrow's shift.
+    // A Forgotten clock-out, closed for the worker with a guessed ten hours.
     auto_closed: boolean("auto_closed").default(false).notNull(),
     clock_in_at: timestamp("clock_in_at").defaultNow().notNull(),
     clock_out_at: timestamp("clock_out_at"),
     created_at: timestamp("created_at").defaultNow().notNull(),
+    // Overtime is paid from these times, so a hand-corrected Shift says who did it.
+    edited_by: integer("edited_by").references(() => usersTable.id, {
+      onDelete: "set null",
+    }),
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     store_id: integer("store_id")
       .references(() => storesTable.id, { onDelete: "restrict" })

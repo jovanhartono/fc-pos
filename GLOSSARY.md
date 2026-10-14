@@ -73,6 +73,10 @@ _Avoid_: Delivery guy, driver, rider
 **Shift**:
 A User's attendance at a Store, from clock-in to clock-out. It permits nothing and blocks nothing.
 
+**Forgotten clock-out**:
+A Shift still open after midnight, which nobody works to; it is closed for the User ten hours after clock-in, or at that midnight if sooner, until an admin enters the real time.
+_Avoid_: Auto-close, stale shift, open shift
+
 **Day worked**:
 One person doing bench work at one Store on one day: they clocked in there, or started, sent to QC or checked an Item there. Two Shifts, or a Shift and a move, on the same day at the same Store are one Day worked.
 _Avoid_: Shift-day, man-day, workday, attendance day

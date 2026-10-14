@@ -29,7 +29,9 @@ export const ClockInControl = () => {
 	const clockInMutation = useMutation({
 		mutationKey: ["shift-clock-in"],
 		mutationFn: clockInShift,
-		onSuccess: () => onShiftClocked(queryClient),
+		// onSettled, not onSuccess, so the global toast still shows "you forgot to
+		// clock out" when yesterday was cut to ten hours.
+		onSettled: () => onShiftClocked(queryClient),
 		// Opt out of the global error toast (main.tsx): a worker turned away for
 		// being too far needs the reason on screen while they walk to the store,
 		// not a toast that has gone by the time they look up.

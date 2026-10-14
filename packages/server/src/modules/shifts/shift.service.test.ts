@@ -17,9 +17,8 @@ import type { JWTPayload } from "@/types";
 // auto-closed Shift no longer skews it. ADR-0020 turns a worker away only when the
 // phone is sure they are elsewhere, and these tests pin both edges of that:
 // a tight fix from home is refused, a fix too vague to judge is let through.
-// Plus the two halves of a forgotten clock-out: clocking in closes yesterday's
-// row so nobody is locked out, and the midnight sweep spares anyone still on
-// the floor.
+// Plus a Forgotten clock-out: clocking in closes yesterday's row so nobody is
+// locked out, and tells the worker it happened.
 //
 // Both repositories and the store-access gate are doubled; their own contracts
 // are pinned elsewhere.
@@ -33,12 +32,16 @@ const storeState = {
 };
 
 const shiftState = {
-  openShift: undefined as { id: number } | undefined,
+  openShift: undefined as { id: number; clock_out_at: null } | undefined,
   inserted: undefined as Record<string, unknown> | undefined,
   closedBefore: undefined as Date | undefined,
   closedCount: 0,
-  // Rows the guarded update closed: 0 when the open shift started today.
-  staleClosed: 0,
+  // Rows the guarded update closed: none when the open shift started today.
+  staleClosed: [] as {
+    auto_closed: boolean;
+    clock_in_at: Date;
+    clock_out_at: Date;
+  }[],
   staleCutoff: undefined as Date | undefined,
 };
 
@@ -80,12 +83,14 @@ mock.module("@/modules/shifts/shift.repository", () => ({
   closeOpenShiftsBefore: (cutoff: Date, userId?: number) => {
     if (userId === undefined) {
       shiftState.closedBefore = cutoff;
-      return Promise.resolve(shiftState.closedCount);
+      return Promise.resolve(
+        Array.from({ length: shiftState.closedCount }, (_, id) => ({ id }))
+      );
     }
     shiftState.staleCutoff = cutoff;
     return Promise.resolve(shiftState.staleClosed);
   },
-  findOpenShiftByUserId: () => Promise.resolve(shiftState.openShift),
+  findLatestShiftByUserId: () => Promise.resolve(shiftState.openShift),
   insertShift: (values: Record<string, unknown>) => {
     shiftState.inserted = values;
     return Promise.resolve({ id: 99, ...values });
@@ -144,7 +149,7 @@ beforeEach(() => {
   shiftState.inserted = undefined;
   shiftState.closedBefore = undefined;
   shiftState.closedCount = 0;
-  shiftState.staleClosed = 0;
+  shiftState.staleClosed = [];
   shiftState.staleCutoff = undefined;
   membership.storeIds = [1, 2];
 });
@@ -230,8 +235,8 @@ describe("clockIn location rule", () => {
   });
 
   it("still refuses a shift already opened today", async () => {
-    shiftState.openShift = { id: 5 };
-    shiftState.staleClosed = 0;
+    shiftState.openShift = { id: 5, clock_out_at: null };
+    shiftState.staleClosed = [];
 
     const error = await captureRejection(
       clockIn({ user: WORKER, storeId: 1, coordinates: AT_THE_COUNTER })
@@ -247,19 +252,27 @@ describe("clockIn location rule", () => {
 describe("clockIn closes a forgotten shift instead of locking the worker out", () => {
   it("opens today's shift once yesterday's row is closed", async () => {
     setSystemTime(new Date("2026-09-09T01:00:00.000Z")); // 08:00 Jakarta
-    shiftState.openShift = { id: 5 };
-    shiftState.staleClosed = 1;
+    shiftState.openShift = { id: 5, clock_out_at: null };
+    shiftState.staleClosed = [
+      {
+        auto_closed: true,
+        clock_in_at: new Date("2026-09-08T01:30:00.000Z"), // 08:30 Jakarta
+        clock_out_at: new Date("2026-09-08T11:30:00.000Z"), // 18:30 Jakarta
+      },
+    ];
 
-    const shift = await clockIn({
+    const { shift, message } = await clockIn({
       user: WORKER,
       storeId: 1,
       coordinates: AT_THE_COUNTER,
     });
 
     expect(shift).toBeDefined();
+    expect(message).toBe(
+      "Clocked in. You forgot to clock out on 8 Sep. Shift closed at 18:30."
+    );
     expect(shiftState.inserted).toMatchObject({ store_id: 1, user_id: 7 });
-    // Yesterday's row is closed at the day boundary, so the hours stay on the
-    // day they were worked rather than running into this morning.
+    // Any row opened before this morning is a Forgotten clock-out.
     expect(shiftState.staleCutoff?.toISOString()).toBe(
       "2026-09-08T17:00:00.000Z"
     );
@@ -285,17 +298,15 @@ describe("closeForgottenShifts", () => {
     expect(result.cutoff).toEqual(shiftState.closedBefore as Date);
   });
 
-  it("spares yesterday, so a 22:30 late close is left on the floor", async () => {
+  it("reaches every Shift opened before the midnight it fires at", async () => {
     // Half a minute past midnight Jakarta on 9 September, when the cron fires.
     setSystemTime(new Date("2026-09-08T17:00:30.000Z"));
 
     await closeForgottenShifts();
 
-    // Start of 8 September Jakarta. Both the 00:02 early delivery and last
-    // night's 22:30 late close clocked in after this instant, so neither is in
-    // the sweep's reach.
+    // Nobody works past midnight, so all of 8 September is in reach.
     expect(shiftState.closedBefore?.toISOString()).toBe(
-      "2026-09-07T17:00:00.000Z"
+      "2026-09-08T17:00:00.000Z"
     );
   });
 });
