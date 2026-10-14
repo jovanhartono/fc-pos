@@ -1,13 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useCallback } from "react";
-import { STRIP_FADE, TAB_STRIP_ROW } from "@/components/chip-strip";
+import { type ReactNode, useCallback } from "react";
 import { PageHeader } from "@/components/page-header";
 import { counterQueries } from "@/features/counter/api";
 import { DayCloseTab } from "@/features/counter/components/day-close/day-close-tab";
-import { NeedsALookSection } from "@/features/counter/components/needs-a-look-section";
+import { DayRow } from "@/features/counter/components/day-close/day-row";
+import {
+	PendingComplaintsSection,
+	PendingQcRejectsSection,
+} from "@/features/counter/components/pending-sections";
 import { PickupShelfSection } from "@/features/counter/components/pickup-shelf-section";
 import { WorkshopSection } from "@/features/counter/components/workshop-section";
+import { useJakartaToday } from "@/features/counter/hooks/useJakartaToday";
 import { OrderSheet } from "@/features/orders/components/order-sheet";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { storesQueries } from "@/features/stores/api";
@@ -15,11 +19,11 @@ import { usersQueries } from "@/features/users/api";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
-export type CounterTab = "now" | "day-close";
+export type CounterTab = "status" | "summary";
 
 const TABS: { id: CounterTab; label: string }[] = [
-	{ id: "now", label: "Now" },
-	{ id: "day-close", label: "Day close" },
+	{ id: "status", label: "Status" },
+	{ id: "summary", label: "Summary" },
 ];
 
 interface CounterPageProps {
@@ -32,37 +36,43 @@ interface CounterPageProps {
 }
 
 interface CounterTabsProps {
+	actions?: ReactNode;
 	activeTab: CounterTab;
 	onTabChange: (tab: CounterTab) => void;
 }
 
-const CounterTabs = ({ activeTab, onTabChange }: CounterTabsProps) => (
-	<nav aria-label="Counter" className={STRIP_FADE}>
-		<div className={TAB_STRIP_ROW} role="tablist">
-			{TABS.map((tab) => {
-				const isActive = activeTab === tab.id;
-				return (
-					<button
-						aria-controls="counter-panel"
-						aria-selected={isActive}
-						className={cn(
-							"relative shrink-0 whitespace-nowrap border-b-2 px-4 py-3 font-medium text-sm transition-colors",
-							isActive
-								? "border-foreground text-foreground"
-								: "border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground",
-						)}
-						id={`counter-tab-${tab.id}`}
-						key={tab.id}
-						onClick={() => onTabChange(tab.id)}
-						role="tab"
-						type="button"
-					>
-						{tab.label}
-					</button>
-				);
-			})}
-		</div>
-	</nav>
+// Two tabs never overflow, so the row has room for the Summary's day on the
+// right without scrolling.
+const CounterTabs = ({ actions, activeTab, onTabChange }: CounterTabsProps) => (
+	<div className="flex items-center justify-between gap-2 shadow-[inset_0_-1px_0_var(--border)]">
+		<nav aria-label="Counter">
+			<div className="flex" role="tablist">
+				{TABS.map((tab) => {
+					const isActive = activeTab === tab.id;
+					return (
+						<button
+							aria-controls="counter-panel"
+							aria-selected={isActive}
+							className={cn(
+								"relative shrink-0 whitespace-nowrap border-b-2 px-4 py-3 font-medium text-sm transition-colors max-sm:px-2.5",
+								isActive
+									? "border-foreground text-foreground"
+									: "border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+							)}
+							id={`counter-tab-${tab.id}`}
+							key={tab.id}
+							onClick={() => onTabChange(tab.id)}
+							role="tab"
+							type="button"
+						>
+							{tab.label}
+						</button>
+					);
+				})}
+			</div>
+		</nav>
+		{actions}
+	</div>
 );
 
 interface CounterBodyProps {
@@ -118,7 +128,8 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 				shelf={data.pickup_shelf}
 				storeId={storeId}
 			/>
-			<NeedsALookSection counter={data} />
+			<PendingComplaintsSection complaints={data.complaints} />
+			<PendingQcRejectsSection rejects={data.qc_rejects} />
 			{isWide && open !== undefined ? (
 				<OrderSheet
 					onClose={handleCloseOrder}
@@ -151,22 +162,26 @@ export const CounterPage = ({
 			? storeId
 			: firstStoreId;
 	const hasPicker = isAdmin || ownStoreIds.length > 1;
-	// Workers keep the Now content only, even from a ?tab=day-close link.
+	// Workers keep the Status content only, even from a ?tab=summary link.
 	const canSeeDayClose = me?.role === "admin" || me?.role === "cashier";
-	const activeTab = canSeeDayClose ? tab : "now";
+	const activeTab = canSeeDayClose ? tab : "status";
+	const today = useJakartaToday();
+	// A date after today, from a hand-edited link, falls back to today.
+	const day = date && date < today ? date : today;
+	const isSummary = activeTab === "summary" && selectedStoreId !== undefined;
+
 	let panel = <p className="text-muted-foreground">No Store.</p>;
 	if (selectedStoreId) {
-		panel =
-			activeTab === "day-close" ? (
-				<DayCloseTab
-					date={date}
-					key={selectedStoreId}
-					onDateChange={onDateChange}
-					storeId={selectedStoreId}
-				/>
-			) : (
-				<CounterBody key={selectedStoreId} storeId={selectedStoreId} />
-			);
+		panel = isSummary ? (
+			<DayCloseTab
+				day={day}
+				key={selectedStoreId}
+				storeId={selectedStoreId}
+				today={today}
+			/>
+		) : (
+			<CounterBody key={selectedStoreId} storeId={selectedStoreId} />
+		);
 	}
 
 	return (
@@ -194,7 +209,20 @@ export const CounterPage = ({
 			<div className="grid gap-6">
 				{canSeeDayClose ? (
 					<>
-						<CounterTabs activeTab={activeTab} onTabChange={onTabChange} />
+						<CounterTabs
+							actions={
+								isSummary ? (
+									<DayRow
+										date={day}
+										onDateChange={onDateChange}
+										storeId={selectedStoreId}
+										today={today}
+									/>
+								) : null
+							}
+							activeTab={activeTab}
+							onTabChange={onTabChange}
+						/>
 						<div
 							aria-labelledby={`counter-tab-${activeTab}`}
 							id="counter-panel"

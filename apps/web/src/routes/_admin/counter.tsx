@@ -7,8 +7,8 @@ const counterSearchSchema = z.object({
 	storeId: z.coerce.number().int().positive().optional().catch(undefined),
 	// The shelf Order open in the sheet, on a tablet or desktop.
 	open: z.coerce.number().int().positive().optional().catch(undefined),
-	tab: z.enum(["now", "day-close"]).catch("now"),
-	// The Day close day; today when absent.
+	tab: z.enum(["status", "summary"]).catch("status"),
+	// The Summary's day; today when absent.
 	date: z
 		.string()
 		.regex(/^\d{4}-\d{2}-\d{2}$/)

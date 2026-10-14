@@ -1,5 +1,5 @@
 import type { Counter, DayClose } from "@fresclean/api/types";
-import { queryOptions } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { parseResponse } from "hono/client";
 import { REPORT_STALE_TIME } from "@/lib/query-defaults";
 import { rpcWithAuth } from "@/lib/rpc";
@@ -11,7 +11,6 @@ export type {
 	CounterComplaint,
 	CounterPickupShelf,
 	CounterQcReject,
-	CounterStuckItem,
 	CounterWorkshop,
 	DayClose,
 	DayCloseCategory,
@@ -19,6 +18,7 @@ export type {
 	DayCloseMethod,
 	DayCloseOrder,
 	DayClosePayment,
+	DayClosePickedUpOrder,
 	DayCloseRefund,
 } from "@fresclean/api/types";
 
@@ -64,6 +64,7 @@ export const counterQueries = {
 			queryFn: () => fetchDayClose(storeId, date),
 			refetchInterval: isToday ? 60_000 : false,
 			staleTime: isToday ? 0 : REPORT_STALE_TIME,
+			placeholderData: keepPreviousData,
 		});
 	},
 };

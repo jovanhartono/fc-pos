@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { groupBySlip, splitMethodName } from "./day-close";
+import { formatDayLabel, groupBySlip, splitMethodName } from "./day-close";
 
 const method = (name: string, payments: number, amount: number) => ({
 	name,
@@ -47,5 +47,12 @@ describe("groupBySlip", () => {
 	it("keeps a lone line under a different slip name as a group", () => {
 		const [group] = groupBySlip([method("QRIS - EDC BCA", 1, 10)]);
 		expect(group.isSingle).toBe(false);
+	});
+});
+
+describe("formatDayLabel", () => {
+	it("says Today's for today and the short date for a past day", () => {
+		expect(formatDayLabel("2026-10-14", "2026-10-14")).toBe("Today's");
+		expect(formatDayLabel("2026-10-12", "2026-10-14")).toBe("12 Oct");
 	});
 });

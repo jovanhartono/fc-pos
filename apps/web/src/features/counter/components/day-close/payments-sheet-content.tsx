@@ -1,7 +1,12 @@
 import type { DayClosePayment } from "@/features/counter/api";
-import { OrderCodeLink } from "@/features/counter/components/day-close/order-code-link";
-import { formatClock, formatDayShort } from "@/features/counter/lib/day-close";
+import { EarlierTag } from "@/features/counter/components/day-close/earlier-tag";
+import {
+	OrderCode,
+	OrderRow,
+} from "@/features/counter/components/day-close/order-row";
+import { formatClock } from "@/features/counter/lib/day-close";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
 interface PaymentsSheetContentProps {
@@ -10,30 +15,6 @@ interface PaymentsSheetContentProps {
 	lineOf: ((payment: DayClosePayment) => string) | null;
 	payments: DayClosePayment[];
 }
-
-interface EarlierTagProps {
-	createdDay: string;
-}
-
-const EarlierTag = ({ createdDay }: EarlierTagProps) => (
-	<span className="ml-1.5 whitespace-nowrap bg-warning/15 px-1.5 text-foreground text-xs">
-		Order from {formatDayShort(createdDay)}
-	</span>
-);
-
-interface OrderCellProps {
-	date: string;
-	payment: DayClosePayment;
-}
-
-const OrderCell = ({ date, payment }: OrderCellProps) => (
-	<>
-		<OrderCodeLink code={payment.order_code} orderId={payment.order_id} />
-		{payment.created_day === date ? null : (
-			<EarlierTag createdDay={payment.created_day} />
-		)}
-	</>
-);
 
 export const PaymentsSheetContent = ({
 	date,
@@ -46,12 +27,15 @@ export const PaymentsSheetContent = ({
 		return (
 			<ul>
 				{payments.map((payment) => (
-					<li
-						className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 border-border border-b py-2.5"
+					<OrderRow
+						className="grid-cols-[minmax(0,1fr)_auto] gap-y-0.5"
+						code={payment.order_code}
 						key={payment.order_id}
+						orderId={payment.order_id}
 					>
 						<span>
-							<OrderCell date={date} payment={payment} />
+							<OrderCode code={payment.order_code} />
+							<EarlierTag createdDay={payment.created_day} date={date} />
 						</span>
 						<span className="tabular-nums">{formatMoney(payment.amount)}</span>
 						<span className="col-span-full text-muted-foreground text-xs">
@@ -63,40 +47,51 @@ export const PaymentsSheetContent = ({
 								.filter(Boolean)
 								.join(" · ")}
 						</span>
-					</li>
+					</OrderRow>
 				))}
 			</ul>
 		);
 	}
 
+	const columns = lineOf
+		? "grid-cols-[3rem_minmax(0,1fr)_7rem_9rem_7rem]"
+		: "grid-cols-[3rem_minmax(0,1fr)_9rem_7rem]";
+
 	return (
-		<table className="w-full text-sm">
-			<thead className="text-left text-muted-foreground text-xs">
-				<tr className="border-border border-b">
-					<th className="py-2 pr-3 font-normal">Time</th>
-					<th className="py-2 pr-3 font-normal">Order</th>
-					{lineOf ? <th className="py-2 pr-3 font-normal">Method</th> : null}
-					<th className="py-2 pr-3 font-normal">Recorded by</th>
-					<th className="py-2 text-right font-normal">Amount</th>
-				</tr>
-			</thead>
-			<tbody>
+		<>
+			<div
+				className={cn(
+					"grid gap-x-3 border-border border-b px-2 py-2 text-muted-foreground text-xs",
+					columns,
+				)}
+			>
+				<span>Time</span>
+				<span>Order</span>
+				{lineOf ? <span>Method</span> : null}
+				<span>Recorded by</span>
+				<span className="text-right">Amount</span>
+			</div>
+			<ul className="text-sm">
 				{payments.map((payment) => (
-					<tr className="border-border border-b" key={payment.order_id}>
-						<td className="py-2 pr-3 tabular-nums">
-							{formatClock(payment.paid_at)}
-						</td>
-						<td className="py-2 pr-3">
-							<OrderCell date={date} payment={payment} />
-						</td>
-						{lineOf ? <td className="py-2 pr-3">{lineOf(payment)}</td> : null}
-						<td className="py-2 pr-3">{payment.recorded_by ?? "–"}</td>
-						<td className="py-2 text-right tabular-nums">
+					<OrderRow
+						className={columns}
+						code={payment.order_code}
+						key={payment.order_id}
+						orderId={payment.order_id}
+					>
+						<span className="tabular-nums">{formatClock(payment.paid_at)}</span>
+						<span>
+							<OrderCode code={payment.order_code} />
+							<EarlierTag createdDay={payment.created_day} date={date} />
+						</span>
+						{lineOf ? <span>{lineOf(payment)}</span> : null}
+						<span>{payment.recorded_by ?? "–"}</span>
+						<span className="text-right tabular-nums">
 							{formatMoney(payment.amount)}
-						</td>
-					</tr>
+						</span>
+					</OrderRow>
 				))}
-			</tbody>
-		</table>
+			</ul>
+		</>
 	);
 };

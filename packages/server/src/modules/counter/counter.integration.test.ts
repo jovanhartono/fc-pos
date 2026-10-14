@@ -151,30 +151,6 @@ const steadyWeek = async (perDay: number, serviceId = shop.serviceId) => {
 const waiting = async (count: number, serviceId = shop.serviceId) =>
   setStatus(await placeLines(shop.store, count, serviceId), "queued");
 
-// A line the workshop took from the queue on a later day than its Order.
-const startedFor = async (createdAt: Date, isPriority = false) => {
-  const [line] = await placeLines(shop.store, 1, shop.serviceId, createdAt);
-  await testDb
-    .update(ordersServicesTable)
-    .set({ is_priority: isPriority, status: "processing" })
-    .where(eq(ordersServicesTable.id, line.lineId));
-  await logChange(line, {
-    at: jkt("2026-09-28T09:00"),
-    from: "queued",
-    to: "processing",
-  });
-};
-
-// A line of the given Service, taken from the queue at a time of the test's choosing.
-const startedAt = async (serviceId: number, createdAt: Date, at: Date) => {
-  const [line] = await placeLines(shop.store, 1, serviceId, createdAt);
-  await setStatus([line], "processing");
-  await logChange(line, { at, from: "queued", to: "processing" });
-};
-
-const OLD_ORDER = jkt("2026-09-10T09:00");
-const NEWER_ORDER = jkt("2026-09-20T09:00");
-
 const counterOf = async (storeId = shop.store.id) => getCounter(storeId, NOW);
 
 const categoryRow = async (name: string) =>
@@ -427,159 +403,6 @@ describe("the pace", () => {
   });
 });
 
-describe("Stuck Items", () => {
-  // Footwear clears 1 a day, so a Footwear line passed over by 2 newer ones
-  // has waited more than a day's work.
-  beforeEach(() => steadyWeek(1));
-
-  it("flags a queued line that 2 newer lines in its Category overtook", async () => {
-    const [line] = await placeLines(shop.store, 1, shop.serviceId, OLD_ORDER);
-    await setStatus([line], "queued");
-    await startedFor(NEWER_ORDER);
-    await startedFor(NEWER_ORDER);
-
-    expect((await counterOf()).stuck).toEqual([
-      {
-        category: "Footwear",
-        item_code: expect.any(String),
-        newer_started: 2,
-        order_id: line.orderId,
-        order_service_id: line.lineId,
-        waiting_days: 20,
-      },
-    ]);
-  });
-
-  it("does not flag a line when only as many went first as the Category does in a day", async () => {
-    const [line] = await placeLines(shop.store, 1, shop.serviceId, OLD_ORDER);
-    await setStatus([line], "queued");
-    await startedFor(NEWER_ORDER);
-
-    expect((await counterOf()).stuck).toEqual([]);
-  });
-
-  it("leaves out Priority lines, on either side", async () => {
-    const [waitingLine, priorityLine] = await placeLines(
-      shop.store,
-      2,
-      shop.serviceId,
-      OLD_ORDER
-    );
-    await setStatus([waitingLine, priorityLine], "queued");
-    await testDb
-      .update(ordersServicesTable)
-      .set({ is_priority: true })
-      .where(eq(ordersServicesTable.id, priorityLine.lineId));
-    // Priority jumps the queue by design, so these overtook nobody.
-    await startedFor(NEWER_ORDER, true);
-    await startedFor(NEWER_ORDER, true);
-    await startedFor(NEWER_ORDER);
-
-    expect((await counterOf()).stuck).toEqual([]);
-
-    await startedFor(NEWER_ORDER);
-
-    expect(
-      (await counterOf()).stuck.map((item) => item.order_service_id)
-    ).toEqual([waitingLine.lineId]);
-  });
-
-  it("does not count lines from an older Order as newer", async () => {
-    const [line] = await placeLines(shop.store, 1, shop.serviceId, NEWER_ORDER);
-    await setStatus([line], "queued");
-    await startedFor(OLD_ORDER);
-    await startedFor(OLD_ORDER);
-
-    expect((await counterOf()).stuck).toEqual([]);
-  });
-
-  it("only counts Repaints started after its Item's clean was done", async () => {
-    for (const day of [23, 24, 25, 26, 27, 28, 29]) {
-      await clearedOn(`2026-09-${day}`, 1, repaintServiceId);
-    }
-    const [[clean, repaint]] = await placeOrder(
-      shop.store,
-      [{ serviceIds: [shop.serviceId, repaintServiceId] }],
-      OLD_ORDER
-    );
-    await setStatus([clean], "ready_for_pickup");
-    await setStatus([repaint], "queued");
-    await reachQc(clean, jkt("2026-09-29T10:00"));
-    // Started while this Repaint was still waiting for its clean.
-    await startedAt(repaintServiceId, NEWER_ORDER, jkt("2026-09-28T09:00"));
-    await startedAt(repaintServiceId, NEWER_ORDER, jkt("2026-09-28T09:00"));
-
-    expect((await counterOf()).stuck).toEqual([]);
-
-    await startedAt(repaintServiceId, NEWER_ORDER, jkt("2026-09-29T15:00"));
-    await startedAt(repaintServiceId, NEWER_ORDER, jkt("2026-09-29T15:00"));
-
-    expect(
-      (await counterOf()).stuck.map((item) => item.order_service_id)
-    ).toEqual([repaint.lineId]);
-  });
-
-  it("keeps a Repaint waiting for its Item's clean out, but flags a Repaint-only Item", async () => {
-    for (const day of [23, 24, 25, 26, 27, 28, 29]) {
-      await clearedOn(`2026-09-${day}`, 1, repaintServiceId);
-    }
-    const [[, cleanAndRepaint], [repaintOnly]] = await placeOrder(
-      shop.store,
-      [
-        { serviceIds: [shop.serviceId, repaintServiceId] },
-        { serviceIds: [repaintServiceId] },
-      ],
-      OLD_ORDER
-    );
-    await setStatus([cleanAndRepaint, repaintOnly], "queued");
-    for (let index = 0; index < 2; index++) {
-      const [line] = await placeLines(
-        shop.store,
-        1,
-        repaintServiceId,
-        NEWER_ORDER
-      );
-      await setStatus([line], "processing");
-      await logChange(line, {
-        at: jkt("2026-09-28T09:00"),
-        from: "queued",
-        to: "processing",
-      });
-    }
-
-    const stuck = (await counterOf()).stuck.map(
-      (item) => item.order_service_id
-    );
-
-    expect(stuck).toEqual([repaintOnly.lineId]);
-  });
-
-  it("flags nothing in a Category with no quote", async () => {
-    const [line] = await placeLines(shop.store, 1, repaintServiceId, OLD_ORDER);
-    await setStatus([line], "queued");
-    await startedFor(NEWER_ORDER);
-
-    expect((await counterOf()).stuck).toEqual([]);
-  });
-
-  it("lists the longest waiting first", async () => {
-    const [younger] = await placeLines(
-      shop.store,
-      1,
-      shop.serviceId,
-      jkt("2026-09-12T09:00")
-    );
-    const [older] = await placeLines(shop.store, 1, shop.serviceId, OLD_ORDER);
-    await setStatus([younger, older], "queued");
-    await startedFor(NEWER_ORDER);
-    await startedFor(NEWER_ORDER);
-
-    expect(
-      (await counterOf()).stuck.map((item) => item.order_service_id)
-    ).toEqual([older.lineId, younger.lineId]);
-  });
-});
-
 describe("QC rejects waiting", () => {
   it("carries the latest reject note and how long ago it was", async () => {
     const [line] = await placeLines(shop.store, 1);
@@ -707,15 +530,12 @@ describe("days are Jakarta calendar days", () => {
   const lastNight = jkt("2026-09-29T20:00");
 
   it("says 1 day for something from last evening in every list", async () => {
-    await steadyWeek(1);
-
-    const [waitingLine, reject, complained, onShelf] = await placeLines(
+    const [reject, complained, onShelf] = await placeLines(
       shop.store,
-      4,
+      3,
       shop.serviceId,
       lastNight
     );
-    await setStatus([waitingLine], "queued");
     await setStatus([reject], "qc_reject");
     await setStatus([complained, onShelf], "ready_for_pickup");
     await logChange(reject, {
@@ -733,21 +553,9 @@ describe("days are Jakarta calendar days", () => {
       .update(ordersTable)
       .set({ ready_at: lastNight, status: "ready_for_pickup" })
       .where(eq(ordersTable.id, onShelf.orderId));
-    // Two lines that joined the queue after it went first.
-    await startedAt(
-      shop.serviceId,
-      jkt("2026-09-29T21:00"),
-      jkt("2026-09-29T22:00")
-    );
-    await startedAt(
-      shop.serviceId,
-      jkt("2026-09-29T21:00"),
-      jkt("2026-09-29T22:00")
-    );
 
     const counter = await counterOf();
 
-    expect(counter.stuck.map((item) => item.waiting_days)).toEqual([1]);
     expect(counter.qc_rejects.map((item) => item.days)).toEqual([1]);
     expect(counter.complaints.map((item) => item.days)).toEqual([1]);
     expect(

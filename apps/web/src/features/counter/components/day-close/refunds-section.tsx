@@ -1,5 +1,10 @@
 import type { DayClose, DayCloseRefund } from "@/features/counter/api";
-import { OrderCodeLink } from "@/features/counter/components/day-close/order-code-link";
+import { CountBadge } from "@/features/counter/components/day-close/count-badge";
+import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
+import {
+	OrderCode,
+	OrderRow,
+} from "@/features/counter/components/day-close/order-row";
 import {
 	formatClock,
 	formatDayLong,
@@ -10,6 +15,8 @@ import { formatRefundReason } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
 import { pluralize } from "@/shared/utils";
 import { useSheet } from "@/stores/sheet-store";
+
+const COLUMNS = "grid-cols-[3rem_10rem_minmax(0,1fr)_minmax(0,1fr)_7rem]";
 
 interface RefundsSheetContentProps {
 	date: string;
@@ -31,11 +38,13 @@ const RefundsSheetContent = ({ date, refunds }: RefundsSheetContentProps) => {
 		return (
 			<ul>
 				{refunds.map((refund) => (
-					<li
-						className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 border-border border-b py-2.5"
+					<OrderRow
+						className="grid-cols-[minmax(0,1fr)_auto] gap-y-0.5"
+						code={refund.order_code}
 						key={`${refund.order_id}-${refund.refunded_at}`}
+						orderId={refund.order_id}
 					>
-						<OrderCodeLink code={refund.order_code} orderId={refund.order_id} />
+						<OrderCode code={refund.order_code} />
 						<span className="tabular-nums">{formatMoney(refund.amount)}</span>
 						<span className="col-span-full text-muted-foreground text-xs">
 							{[
@@ -46,47 +55,44 @@ const RefundsSheetContent = ({ date, refunds }: RefundsSheetContentProps) => {
 								.filter(Boolean)
 								.join(" · ")}
 						</span>
-					</li>
+					</OrderRow>
 				))}
 			</ul>
 		);
 	}
 
 	return (
-		<table className="w-full text-sm">
-			<thead className="text-left text-muted-foreground text-xs">
-				<tr className="border-border border-b">
-					<th className="py-2 pr-3 font-normal">Time</th>
-					<th className="py-2 pr-3 font-normal">Order</th>
-					<th className="py-2 pr-3 font-normal">Reason</th>
-					<th className="py-2 pr-3 font-normal">Paid with</th>
-					<th className="py-2 text-right font-normal">Amount</th>
-				</tr>
-			</thead>
-			<tbody>
+		<>
+			<div
+				className={`grid gap-x-3 border-border border-b px-2 py-2 text-muted-foreground text-xs ${COLUMNS}`}
+			>
+				<span>Time</span>
+				<span>Order</span>
+				<span>Reason</span>
+				<span>Paid with</span>
+				<span className="text-right">Amount</span>
+			</div>
+			<ul className="text-sm">
 				{refunds.map((refund) => (
-					<tr
-						className="border-border border-b"
+					<OrderRow
+						className={COLUMNS}
+						code={refund.order_code}
 						key={`${refund.order_id}-${refund.refunded_at}`}
+						orderId={refund.order_id}
 					>
-						<td className="py-2 pr-3 tabular-nums">
+						<span className="tabular-nums">
 							{formatClock(refund.refunded_at)}
-						</td>
-						<td className="py-2 pr-3">
-							<OrderCodeLink
-								code={refund.order_code}
-								orderId={refund.order_id}
-							/>
-						</td>
-						<td className="py-2 pr-3">{reasonsOf(refund)}</td>
-						<td className="py-2 pr-3">{methodOf(refund, date)}</td>
-						<td className="py-2 text-right tabular-nums">
+						</span>
+						<OrderCode code={refund.order_code} />
+						<span>{reasonsOf(refund)}</span>
+						<span>{methodOf(refund, date)}</span>
+						<span className="text-right tabular-nums">
 							{formatMoney(refund.amount)}
-						</td>
-					</tr>
+						</span>
+					</OrderRow>
 				))}
-			</tbody>
-		</table>
+			</ul>
+		</>
 	);
 };
 
@@ -110,12 +116,7 @@ export const RefundsSection = ({ data }: RefundsSectionProps) => {
 
 	return (
 		<section className="grid gap-2.5">
-			<h2 className="font-medium text-[15px]">
-				Refunds{" "}
-				<span className="font-normal text-muted-foreground">
-					· not taken off the totals above
-				</span>
-			</h2>
+			<h2 className="font-medium text-base">Refunds</h2>
 			<div className="border border-border">
 				{data.refunds.length === 0 ? (
 					<p className="px-3 py-2 text-muted-foreground">
@@ -127,8 +128,14 @@ export const RefundsSection = ({ data }: RefundsSectionProps) => {
 						onClick={handleOpen}
 						type="button"
 					>
-						<span>Refunds · {data.refunds.length}</span>
-						<span>{formatMoney(total)}</span>
+						<span>
+							Refunds
+							<CountBadge count={data.refunds.length} />
+						</span>
+						<span>
+							{formatMoney(total)}
+							<OpenArrow />
+						</span>
 					</button>
 				)}
 			</div>

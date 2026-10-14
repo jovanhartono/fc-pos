@@ -1,6 +1,6 @@
 import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import {
   complaintsTable,
   orderPickupEventsTable,
@@ -310,21 +310,23 @@ describe("what was dropped off", () => {
     const cancelled = await place();
     await cancelAt(cancelled.orderId, `${DAY}T15:00`);
 
-    const { dropped_off, unpaid } = await closeOf();
+    const { dropped_off } = await closeOf();
 
     expect(dropped_off.orders).toBe(1);
     expect(dropped_off.order_list[0]?.is_cancelled).toBe(true);
-    expect(unpaid).toEqual({ amount: 0, orders: 0 });
   });
 
   it("keeps an Order cancelled on a later day as unpaid on its own day", async () => {
     const order = await place();
     await cancelAt(order.orderId, "2026-10-02T10:00");
 
-    const { dropped_off, unpaid } = await closeOf();
+    const { dropped_off } = await closeOf();
 
-    expect(dropped_off.order_list[0]?.is_cancelled).toBe(false);
-    expect(unpaid).toEqual({ amount: 100_000, orders: 1 });
+    expect(dropped_off.order_list[0]).toMatchObject({
+      amount: 100_000,
+      is_cancelled: false,
+      is_paid: false,
+    });
   });
 
   it("still calls an Order unpaid when it was paid only the next day", async () => {
@@ -334,7 +336,11 @@ describe("what was dropped off", () => {
     await place({ createdAt: "2026-09-29T10:00" });
     await place({ createdAt: "2026-09-29T10:00", paidAt: `${DAY}T09:00` });
 
-    expect((await closeOf()).unpaid).toEqual({ amount: 180_000, orders: 2 });
+    const { order_list } = (await closeOf()).dropped_off;
+    expect(order_list.map((order) => order.is_paid)).toEqual([false, false]);
+    expect(order_list.reduce((sum, order) => sum + order.amount, 0)).toBe(
+      180_000
+    );
   });
 });
 
@@ -375,6 +381,34 @@ describe("what was picked up", () => {
     }
     await place({ store: bintaro });
 
-    expect((await closeOf()).picked_up).toEqual({ items: 2, orders: 1 });
+    expect((await closeOf()).picked_up).toMatchObject({ items: 2, orders: 1 });
+  });
+
+  it("lists an Order dropped off earlier with only the Items collected this day", async () => {
+    const order = await place({ createdAt: "2026-09-25T10:00", items: 3 });
+    const [pickup] = await testDb
+      .insert(orderPickupEventsTable)
+      .values({
+        image_path: "pickups/part.jpg",
+        order_id: order.orderId,
+        picked_up_at: jkt(`${DAY}T15:00`),
+        picked_up_by: shop.admin.id,
+      })
+      .returning();
+    // A part pickup: the Customer takes 2 of 3 shoes home.
+    await testDb
+      .update(ordersServicesTable)
+      .set({ pickup_event_id: pickup.id, status: "picked_up" })
+      .where(inArray(ordersServicesTable.id, order.lineIds.slice(0, 2)));
+
+    expect((await closeOf()).picked_up.order_list).toEqual([
+      {
+        created_day: "2026-09-25",
+        items: 2,
+        order_code: expect.any(String),
+        order_id: order.orderId,
+        picked_up_at: jkt(`${DAY}T15:00`).toISOString(),
+      },
+    ]);
   });
 });

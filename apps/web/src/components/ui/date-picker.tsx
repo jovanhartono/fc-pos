@@ -3,6 +3,7 @@ import {
 	CaretLeftIcon,
 	CaretRightIcon,
 	CheckIcon,
+	CircleNotchIcon,
 	XIcon,
 } from "@phosphor-icons/react";
 import { type ReactElement, useEffect, useMemo, useState } from "react";
@@ -45,6 +46,10 @@ interface DatePickerProps {
 	min?: string;
 	max?: string;
 	className?: string;
+	displayFormat?: string;
+	// Swaps the calendar icon for a spinner while the page behind fetches the
+	// picked day, so the old day stays readable until the new one arrives.
+	isLoading?: boolean;
 }
 
 export const DatePicker = ({
@@ -56,6 +61,8 @@ export const DatePicker = ({
 	min,
 	max,
 	className,
+	displayFormat = DISPLAY_FORMAT,
+	isLoading,
 }: DatePickerProps) => {
 	const [isOpen, setIsOpen] = useState(false);
 	const selected = value ? dayjs(value).toDate() : undefined;
@@ -85,13 +92,20 @@ export const DatePicker = ({
 							!value && "text-muted-foreground",
 							className,
 						)}
-						icon={<CalendarBlankIcon className="size-4" />}
+						aria-busy={isLoading || undefined}
+						icon={
+							isLoading ? (
+								<CircleNotchIcon className="size-4 animate-spin" />
+							) : (
+								<CalendarBlankIcon className="size-4" />
+							)
+						}
 					/>
 				}
 			>
 				<span className="truncate">
 					{/* biome-ignore lint/suspicious/noLeakedRender: placeholder is a string prop, so no 0 or NaN can reach the DOM */}
-					{value ? dayjs(value).format(DISPLAY_FORMAT) : placeholder}
+					{value ? dayjs(value).format(displayFormat) : placeholder}
 				</span>
 			</PopoverTrigger>
 			<PopoverContent align="start" className="w-auto p-0">

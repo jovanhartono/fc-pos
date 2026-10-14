@@ -1,9 +1,9 @@
 import {
-  findPickedUpCounts,
   listDroppedOffOrders,
   listDroppedOffProducts,
   listDroppedOffServices,
   listPaidOrders,
+  listPickedUpOrders,
   listRefundReasons,
   listRefundsInDay,
 } from "@/modules/counter/day-close.repository";
@@ -103,7 +103,7 @@ export async function getDayClose(
       listDroppedOffOrders(storeId, range),
       listDroppedOffServices(storeId, range),
       listDroppedOffProducts(storeId, range),
-      findPickedUpCounts(storeId, range),
+      listPickedUpOrders(storeId, range),
     ]);
 
   const payments = paidOrders.map((order) => ({
@@ -128,9 +128,13 @@ export async function getDayClose(
     .sort(byMethodId);
 
   const orderList = buildOrderList(droppedOff, range.end);
-  const unpaid = orderList.filter(
-    (order) => !(order.is_paid || order.is_cancelled)
-  );
+  const pickedUpList = pickedUp.map((order) => ({
+    created_day: jakartaDayOf(order.created_at),
+    items: order.items,
+    order_code: order.code,
+    order_id: order.order_id,
+    picked_up_at: (order.picked_up_at as Date).toISOString(),
+  }));
 
   return {
     collected: {
@@ -150,11 +154,11 @@ export async function getDayClose(
     },
     methods,
     payments,
-    picked_up: pickedUp,
-    refunds,
-    unpaid: {
-      amount: unpaid.reduce((sum, order) => sum + order.amount, 0),
-      orders: unpaid.length,
+    picked_up: {
+      items: pickedUpList.reduce((sum, order) => sum + order.items, 0),
+      order_list: pickedUpList,
+      orders: pickedUpList.length,
     },
+    refunds,
   };
 }

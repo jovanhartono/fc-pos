@@ -1,4 +1,4 @@
-import { and, asc, countDistinct, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, max, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   categoriesTable,
@@ -157,34 +157,29 @@ export function listDroppedOffProducts(storeId: number, range: DateRange) {
 }
 
 // A part pickup counts as the Order picked up that day.
-export async function findPickedUpCounts(storeId: number, range: DateRange) {
-  const pickupInDay = and(
-    eq(ordersTable.store_id, storeId),
-    ...timeWindow(orderPickupEventsTable.picked_up_at, range)
-  );
+export function listPickedUpOrders(storeId: number, range: DateRange) {
+  const lastPickupAt = max(orderPickupEventsTable.picked_up_at);
 
-  const [[orders], [items]] = await Promise.all([
-    db
-      .select({ count: countDistinct(orderPickupEventsTable.order_id) })
-      .from(orderPickupEventsTable)
-      .innerJoin(
-        ordersTable,
-        eq(orderPickupEventsTable.order_id, ordersTable.id)
+  return db
+    .select({
+      code: ordersTable.code,
+      created_at: ordersTable.created_at,
+      items: sql<number>`COUNT(DISTINCT ${ordersServicesTable.item_id})::int`,
+      order_id: ordersTable.id,
+      picked_up_at: lastPickupAt,
+    })
+    .from(orderPickupEventsTable)
+    .innerJoin(ordersTable, eq(orderPickupEventsTable.order_id, ordersTable.id))
+    .leftJoin(
+      ordersServicesTable,
+      eq(ordersServicesTable.pickup_event_id, orderPickupEventsTable.id)
+    )
+    .where(
+      and(
+        eq(ordersTable.store_id, storeId),
+        ...timeWindow(orderPickupEventsTable.picked_up_at, range)
       )
-      .where(pickupInDay),
-    db
-      .select({ count: countDistinct(ordersServicesTable.item_id) })
-      .from(ordersServicesTable)
-      .innerJoin(
-        orderPickupEventsTable,
-        eq(ordersServicesTable.pickup_event_id, orderPickupEventsTable.id)
-      )
-      .innerJoin(
-        ordersTable,
-        eq(orderPickupEventsTable.order_id, ordersTable.id)
-      )
-      .where(pickupInDay),
-  ]);
-
-  return { items: items?.count ?? 0, orders: orders?.count ?? 0 };
+    )
+    .groupBy(ordersTable.id)
+    .orderBy(asc(lastPickupAt), asc(ordersTable.id));
 }

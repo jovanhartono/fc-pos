@@ -1,4 +1,6 @@
 import type { DayClose } from "@/features/counter/api";
+import { CountBadge } from "@/features/counter/components/day-close/count-badge";
+import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
 import { PaymentsSheetContent } from "@/features/counter/components/day-close/payments-sheet-content";
 import {
 	formatDayLong,
@@ -12,11 +14,19 @@ import { pluralize } from "@/shared/utils";
 import { useSheet } from "@/stores/sheet-store";
 
 const ROW =
-	"grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-x-3.5 border-border border-t px-3 py-2 text-left tabular-nums first:border-t-0 hover:bg-muted";
+	"grid w-full grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3.5 px-3 py-2 text-left tabular-nums hover:bg-muted";
+
+const ROW_KIND = {
+	plain: "",
+	// A slip with lines matches the terminal's settlement slip, so it is the
+	// only shaded row; its lines hang off a rule underneath.
+	slip: "bg-muted/70 font-medium",
+	line: "ml-4 w-[calc(100%-1rem)] border-border border-l-2 py-1.5 pl-3.5 text-[13.5px] text-muted-foreground",
+};
 
 interface MethodRowProps {
 	amount: number;
-	className?: string;
+	kind: keyof typeof ROW_KIND;
 	label: string;
 	onClick: () => void;
 	payments: number;
@@ -24,17 +34,20 @@ interface MethodRowProps {
 
 const MethodRow = ({
 	amount,
-	className,
+	kind,
 	label,
 	onClick,
 	payments,
 }: MethodRowProps) => (
-	<button className={cn(ROW, className)} onClick={onClick} type="button">
-		<span>{label}</span>
-		<span className="min-w-[4.5ch] text-right text-muted-foreground">
-			{payments}
+	<button className={cn(ROW, ROW_KIND[kind])} onClick={onClick} type="button">
+		<span>
+			{label}
+			<CountBadge count={payments} />
 		</span>
-		<span className="text-right">{formatMoney(amount)}</span>
+		<span className="text-right">
+			{formatMoney(amount)}
+			<OpenArrow />
+		</span>
 	</button>
 );
 
@@ -72,7 +85,7 @@ export const MethodsSection = ({ data }: MethodsSectionProps) => {
 
 	return (
 		<section className="grid gap-2.5">
-			<h2 className="font-medium text-[15px]">By PaymentMethod</h2>
+			<h2 className="font-medium text-base">By PaymentMethod</h2>
 			<div className="border border-border">
 				{groups.length === 0 ? (
 					<p className="px-3 py-2 text-muted-foreground">
@@ -86,7 +99,7 @@ export const MethodsSection = ({ data }: MethodsSectionProps) => {
 					>
 						<MethodRow
 							amount={group.amount}
-							className="border-t-0 font-medium"
+							kind={group.isSingle ? "plain" : "slip"}
 							label={group.slip}
 							onClick={() => openPayments(group.slip, group.lines)}
 							payments={group.payments}
@@ -96,7 +109,7 @@ export const MethodsSection = ({ data }: MethodsSectionProps) => {
 							: group.lines.map((line) => (
 									<MethodRow
 										amount={line.amount}
-										className="pl-7"
+										kind="line"
 										key={line.payment_method_id ?? "none"}
 										label={line.line}
 										onClick={() => openPayments(line.name, [line])}
@@ -105,17 +118,6 @@ export const MethodsSection = ({ data }: MethodsSectionProps) => {
 								))}
 					</div>
 				))}
-				{groups.length > 0 ? (
-					<div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3.5 border-border border-t bg-muted/40 px-3 py-2 font-medium tabular-nums">
-						<span>Total</span>
-						<span className="min-w-[4.5ch] text-right font-normal text-muted-foreground">
-							{data.collected.payments}
-						</span>
-						<span className="text-right">
-							{formatMoney(data.collected.amount)}
-						</span>
-					</div>
-				) : null}
 			</div>
 		</section>
 	);

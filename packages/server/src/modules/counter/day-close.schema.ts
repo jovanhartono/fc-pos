@@ -87,13 +87,17 @@ export interface DayCloseDroppedOff {
   services: number;
 }
 
-export interface DayCloseUnpaid {
-  amount: number;
-  orders: number;
+export interface DayClosePickedUpOrder {
+  created_day: string;
+  items: number;
+  order_code: string;
+  order_id: number;
+  picked_up_at: string;
 }
 
 export interface DayClosePickedUp {
   items: number;
+  order_list: DayClosePickedUpOrder[];
   orders: number;
 }
 
@@ -105,5 +109,4 @@ export interface DayClose {
   payments: DayClosePayment[];
   picked_up: DayClosePickedUp;
   refunds: DayCloseRefund[];
-  unpaid: DayCloseUnpaid;
 }

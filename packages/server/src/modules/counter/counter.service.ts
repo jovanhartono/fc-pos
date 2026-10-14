@@ -1,17 +1,14 @@
 import {
   findFirstOrderCreatedAt,
-  listCleaningDoneAt,
   listLatestQcRejects,
   listPickupShelf,
   listProcessedByCategory,
-  listStartedLines,
   listUndecidedComplaints,
   listWaitingLines,
 } from "@/modules/counter/counter.repository";
 import type {
   Counter,
   CounterCategory,
-  CounterStuckItem,
   CounterWorkshop,
 } from "@/modules/counter/counter.schema";
 import {
@@ -26,7 +23,6 @@ const MIN_HISTORY_DAYS = 14;
 const PACE_WINDOW_DAYS = 28;
 const PACE_OPEN_DAYS = 7;
 const PACE_MIN_CHECKS = 7;
-const STARTED_LOOKBACK_DAYS = 60;
 const SHELF_LIMIT = 10;
 type WaitingLine = Awaited<ReturnType<typeof listWaitingLines>>[number];
 
@@ -128,90 +124,6 @@ function buildCategories(lines: WaitingLine[], paces: Map<number, number>) {
     );
 }
 
-// Passed over by more than a day's work in its own Category (ADR-0024).
-async function buildStuck(
-  storeId: number,
-  lines: WaitingLine[],
-  paces: Map<number, number>,
-  now: Date
-) {
-  // A Repaint waiting for its Item's clean is not stuck, it is not startable.
-  const itemsInCleaning = new Set(
-    lines
-      .filter((line) => !line.starts_after_cleaning)
-      .map((line) => line.item_id)
-  );
-  const candidates = lines.filter(
-    (line) =>
-      line.status === "queued" &&
-      !line.is_priority &&
-      paces.has(line.category_id) &&
-      !(line.starts_after_cleaning && itemsInCleaning.has(line.item_id))
-  );
-  if (candidates.length === 0) {
-    return [];
-  }
-
-  // Capped so an Item forgotten for months does not pull in every start since.
-  const oldest = Math.max(
-    now.getTime() - STARTED_LOOKBACK_DAYS * DAY_MS,
-    Math.min(...candidates.map((line) => line.order_created_at.getTime()))
-  );
-  const afterCleanItemIds = candidates
-    .filter((line) => line.starts_after_cleaning)
-    .map((line) => line.item_id);
-  const [cleaningDoneRows, started] = await Promise.all([
-    afterCleanItemIds.length > 0 ? listCleaningDoneAt(afterCleanItemIds) : [],
-    listStartedLines(storeId, new Date(oldest)),
-  ]);
-  const cleaningDone = new Map(
-    cleaningDoneRows.map((row) => [row.item_id, row.done_at])
-  );
-  const startedByCategory = Map.groupBy(started, (row) => row.category_id);
-
-  // Repaints started while this one still waited for its clean did not pass
-  // it over, so only starts after its clean was done count.
-  const withSince = candidates.map((line) => {
-    const doneAt = line.starts_after_cleaning
-      ? cleaningDone.get(line.item_id)
-      : undefined;
-    return {
-      line,
-      since:
-        doneAt && doneAt > line.order_created_at
-          ? doneAt
-          : line.order_created_at,
-    };
-  });
-
-  const stuckByItem = new Map<string, CounterStuckItem>();
-  for (const { line, since } of withSince) {
-    const newerStarted = (startedByCategory.get(line.category_id) ?? []).filter(
-      (other) =>
-        other.order_created_at > line.order_created_at &&
-        other.started_at >= since
-    ).length;
-    const key = `${line.category_id}:${line.item_id}`;
-    if (
-      newerStarted > (paces.get(line.category_id) ?? 0) &&
-      newerStarted > (stuckByItem.get(key)?.newer_started ?? 0)
-    ) {
-      stuckByItem.set(key, {
-        category: line.category_name,
-        item_code: line.item_code,
-        newer_started: newerStarted,
-        order_id: line.order_id,
-        order_service_id: line.line_id,
-        waiting_days: daysSince(line.order_created_at, now),
-      });
-    }
-  }
-
-  return [...stuckByItem.values()].sort(
-    (a, b) => b.waiting_days - a.waiting_days
-  );
-}
-
 async function buildQcRejects(lines: WaitingLine[], now: Date) {
   const rejected = lines.filter((line) => line.status === "qc_reject");
   if (rejected.length === 0) {
@@ -251,10 +163,7 @@ export async function getCounter(
     listPickupShelf(storeId),
   ]);
 
-  const [stuck, qcRejects] = await Promise.all([
-    buildStuck(storeId, lines, paces, now),
-    buildQcRejects(lines, now),
-  ]);
+  const qcRejects = await buildQcRejects(lines, now);
 
   return {
     categories: buildCategories(lines, paces),
@@ -277,7 +186,6 @@ export async function getCounter(
       orders: shelf.length,
     },
     qc_rejects: qcRejects,
-    stuck,
     // Whole Items, so a shoe with a clean and a Repaint counts once.
     workshop: countStages(lines),
   };

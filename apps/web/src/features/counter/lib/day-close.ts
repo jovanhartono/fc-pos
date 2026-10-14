@@ -44,10 +44,16 @@ export const groupBySlip = (methods: DayCloseMethod[]): SlipGroup[] => {
 	}));
 };
 
-export const formatDayShort = (day: string) => dayjs(day).format("D MMM");
+export const DAY_SHORT = "D MMM";
+export const DAY_LONG = "ddd, D MMM YYYY";
 
-export const formatDayLong = (day: string) =>
-	dayjs(day).format("ddd, D MMM YYYY");
+export const formatDayShort = (day: string) => dayjs(day).format(DAY_SHORT);
+
+// "Today's Payments" on today, "12 Oct Payments" on a past day.
+export const formatDayLabel = (day: string, today: string) =>
+	day === today ? "Today's" : formatDayShort(day);
+
+export const formatDayLong = (day: string) => dayjs(day).format(DAY_LONG);
 
 export const formatClock = (iso: string) =>
 	dayjs(iso).tz(JAKARTA_TZ).format("HH:mm");
