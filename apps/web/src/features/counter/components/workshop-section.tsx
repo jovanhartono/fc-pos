@@ -5,6 +5,7 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover";
 import type { CounterCategory, CounterWorkshop } from "@/features/counter/api";
+import { pluralize } from "@/shared/utils";
 
 const MAX_QUOTED_ROWS = 6;
 
@@ -146,7 +147,8 @@ export const WorkshopSection = ({
 				{categories.length > 0 && (
 					<span className="font-normal text-muted-foreground tabular-nums">
 						{" "}
-						· {workshop.queued} queued · {workshop.in_progress} in progress
+						· {pluralize(workshop.queued, "Item")} queued ·{" "}
+						{workshop.in_progress} in progress
 					</span>
 				)}
 			</h2>
