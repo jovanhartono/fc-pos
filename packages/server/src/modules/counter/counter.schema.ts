@@ -14,7 +14,6 @@ export interface CounterCategory {
   category_id: number;
   estimate: CounterEstimate | null;
   in_progress: number;
-  // One Item can be both queued and in progress in a Category.
   items_waiting: number;
   name: string;
   queued: number;
@@ -60,10 +59,13 @@ export interface CounterStuckItem {
   waiting_days: number;
 }
 
+export type CounterWorkshop = Pick<CounterCategory, "in_progress" | "queued">;
+
 export interface Counter {
   categories: CounterCategory[];
   complaints: CounterComplaint[];
   pickup_shelf: CounterPickupShelf;
   qc_rejects: CounterQcReject[];
   stuck: CounterStuckItem[];
+  workshop: CounterWorkshop;
 }

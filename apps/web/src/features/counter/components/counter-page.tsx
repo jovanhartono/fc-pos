@@ -61,7 +61,7 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 
 	return (
 		<div className="grid gap-6">
-			<WorkshopSection categories={data.categories} />
+			<WorkshopSection categories={data.categories} workshop={data.workshop} />
 			<PickupShelfSection
 				isWide={isWide}
 				openOrderId={isWide ? open : undefined}

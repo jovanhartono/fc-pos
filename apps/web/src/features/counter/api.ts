@@ -10,6 +10,7 @@ export type {
 	CounterPickupShelf,
 	CounterQcReject,
 	CounterStuckItem,
+	CounterWorkshop,
 } from "@fresclean/api/types";
 
 export const counterKeys = {

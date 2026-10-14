@@ -4,7 +4,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import type { CounterCategory } from "@/features/counter/api";
+import type { CounterCategory, CounterWorkshop } from "@/features/counter/api";
 
 const MAX_QUOTED_ROWS = 6;
 
@@ -128,16 +128,28 @@ const CategoryBox = ({ categories, heading }: CategoryBoxProps) => {
 
 interface WorkshopSectionProps {
 	categories: CounterCategory[];
+	workshop: CounterWorkshop;
 }
 
-export const WorkshopSection = ({ categories }: WorkshopSectionProps) => {
+export const WorkshopSection = ({
+	categories,
+	workshop,
+}: WorkshopSectionProps) => {
 	// The server already sends the busiest Category first.
 	const cleaning = categories.filter((category) => !category.after_clean);
 	const afterClean = categories.filter((category) => category.after_clean);
 
 	return (
 		<section className="grid gap-2.5">
-			<h2 className="font-semibold text-[15px]">Workshop now</h2>
+			<h2 className="font-semibold text-[15px]">
+				Workshop now
+				{categories.length > 0 && (
+					<span className="font-normal text-muted-foreground tabular-nums">
+						{" "}
+						· {workshop.queued} queued · {workshop.in_progress} in progress
+					</span>
+				)}
+			</h2>
 			{categories.length === 0 ? (
 				<p className="text-muted-foreground">Nothing waiting.</p>
 			) : null}
