@@ -52,6 +52,7 @@ export interface DayCloseRefund {
 export interface DayCloseServiceCount {
   count: number;
   name: string;
+  service_id: number;
 }
 
 export interface DayCloseCategory {
@@ -62,6 +63,7 @@ export interface DayCloseCategory {
 
 export interface DayCloseProductLine {
   name: string;
+  product_id: number;
   qty: number;
 }
 

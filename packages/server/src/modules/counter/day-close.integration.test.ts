@@ -265,7 +265,9 @@ describe("what was dropped off", () => {
       {
         count: 2,
         name: "Footwear",
-        services: [{ count: 2, name: "Deep Clean" }],
+        services: [
+          { count: 2, name: "Deep Clean", service_id: shop.serviceId },
+        ],
       },
     ]);
     expect(dropped_off.order_list[0]).toMatchObject({

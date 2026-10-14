@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { OrderDetailView } from "@/features/orders/components/order-detail-view";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -28,7 +28,21 @@ export const OrderRow = ({
 		className,
 	);
 
-	const handleOpen = () => {
+	const handleOpen = (event: MouseEvent<HTMLAnchorElement>) => {
+		if (isMobile) {
+			closeSheet();
+			return;
+		}
+		// A cmd- or middle-click still opens the Order in a new tab.
+		if (
+			event.metaKey ||
+			event.ctrlKey ||
+			event.shiftKey ||
+			event.button !== 0
+		) {
+			return;
+		}
+		event.preventDefault();
 		const list = useSheet.getState().sheetState;
 		openSheet({
 			// The Order's own header already shows its code.
@@ -44,20 +58,14 @@ export const OrderRow = ({
 
 	return (
 		<li className="border-border border-b">
-			{isMobile ? (
-				<Link
-					className={rowClass}
-					onClick={closeSheet}
-					params={{ orderId: String(orderId) }}
-					to="/orders/$orderId"
-				>
-					{children}
-				</Link>
-			) : (
-				<button className={rowClass} onClick={handleOpen} type="button">
-					{children}
-				</button>
-			)}
+			<Link
+				className={rowClass}
+				onClick={handleOpen}
+				params={{ orderId: String(orderId) }}
+				to="/orders/$orderId"
+			>
+				{children}
+			</Link>
 		</li>
 	);
 };

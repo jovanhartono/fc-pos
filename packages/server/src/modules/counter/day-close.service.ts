@@ -39,7 +39,11 @@ function buildCategories(
       count: lines.reduce((sum, line) => sum + line.count, 0),
       name,
       services: lines
-        .map((line) => ({ count: line.count, name: line.service }))
+        .map((line) => ({
+          count: line.count,
+          name: line.service,
+          service_id: line.service_id,
+        }))
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
     }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));

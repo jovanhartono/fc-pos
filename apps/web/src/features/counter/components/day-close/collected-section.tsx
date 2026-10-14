@@ -75,7 +75,9 @@ export const CollectedSection = ({
 				<div aria-hidden="true" className="flex h-2.5 bg-muted">
 					<span
 						className={RECEIVED_BG}
-						style={{ width: `${(collected.amount / expected) * 100}%` }}
+						style={{
+							width: `${expected > 0 ? (collected.amount / expected) * 100 : 0}%`,
+						}}
 					/>
 					<span className={`flex-1 ${UNPAID_BG}`} />
 				</div>

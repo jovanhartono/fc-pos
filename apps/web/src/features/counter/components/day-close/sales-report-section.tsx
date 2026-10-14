@@ -9,7 +9,8 @@ import { useSheet } from "@/stores/sheet-store";
 
 interface CountGroupProps {
 	count: number;
-	lines: { count: number; name: string }[];
+	// Two Services or Products can share a name, so rows go by their id.
+	lines: { count: number; id: number; name: string }[];
 	title: string;
 }
 
@@ -25,7 +26,7 @@ const CountGroup = ({ count, lines, title }: CountGroupProps) => (
 		{lines.map((line) => (
 			<div
 				className="flex justify-between gap-3 border-border border-t py-1.5 pr-3 pl-7 text-[13.5px] text-muted-foreground"
-				key={line.name}
+				key={line.id}
 			>
 				<span>{line.name}</span>
 				<span className="text-foreground/80 tabular-nums">{line.count}</span>
@@ -86,14 +87,19 @@ export const SalesReportSection = ({
 				>
 					<span className="font-medium tabular-nums">{summary}</span>
 					<span className="whitespace-nowrap text-muted-foreground">
-						All Orders ›
+						All Orders
+						<OpenArrow />
 					</span>
 				</button>
 				{dropped.categories.map((category) => (
 					<CountGroup
 						count={category.count}
 						key={category.name}
-						lines={category.services}
+						lines={category.services.map((line) => ({
+							count: line.count,
+							id: line.service_id,
+							name: line.name,
+						}))}
 						title={category.name}
 					/>
 				))}
@@ -102,6 +108,7 @@ export const SalesReportSection = ({
 						count={dropped.products}
 						lines={dropped.product_lines.map((line) => ({
 							count: line.qty,
+							id: line.product_id,
 							name: line.name,
 						}))}
 						title="Products"

@@ -30,17 +30,19 @@ const PaymentCell = ({ order }: PaymentCellProps) => {
 	if (order.is_paid) {
 		return <span>{order.payment_method_name}</span>;
 	}
-	if (order.paid_day) {
-		return (
-			<Badge variant={getPaymentStatusBadgeVariant("paid")}>
-				Paid {formatDayShort(order.paid_day)}
-			</Badge>
-		);
-	}
+	// Paid on a later day: still unpaid when this day closed, so it keeps the
+	// Unpaid badge and the later date sits beside it.
 	return (
-		<Badge variant={getPaymentStatusBadgeVariant("unpaid")}>
-			{formatPaymentStatus("unpaid")}
-		</Badge>
+		<span className="inline-flex items-baseline gap-1.5">
+			<Badge variant={getPaymentStatusBadgeVariant("unpaid")}>
+				{formatPaymentStatus("unpaid")}
+			</Badge>
+			{order.paid_day ? (
+				<span className="whitespace-nowrap text-muted-foreground text-xs">
+					paid {formatDayShort(order.paid_day)}
+				</span>
+			) : null}
+		</span>
 	);
 };
 

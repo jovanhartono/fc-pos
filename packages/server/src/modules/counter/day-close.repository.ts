@@ -113,6 +113,7 @@ export function listDroppedOffServices(storeId: number, range: DateRange) {
       category: categoriesTable.name,
       count: sql<number>`COUNT(*)::int`,
       service: servicesTable.name,
+      service_id: servicesTable.id,
     })
     .from(ordersServicesTable)
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
@@ -138,6 +139,7 @@ export function listDroppedOffProducts(storeId: number, range: DateRange) {
   return db
     .select({
       name: productsTable.name,
+      product_id: productsTable.id,
       qty: sql<number>`SUM(${ordersProductsTable.qty})::int`,
     })
     .from(ordersProductsTable)
