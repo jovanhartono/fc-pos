@@ -9,6 +9,9 @@ import {
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
 
 export interface InsertShiftValues {
+  clock_in_at?: Date;
+  clock_out_at?: Date;
+  edited_by?: number;
   store_id: number;
   user_id: number;
 }
@@ -86,14 +89,14 @@ export function findOverlappingShift({
   clockIn,
   clockOut,
 }: {
-  shiftId: number;
+  shiftId?: number;
   userId: number;
   clockIn: Date;
   clockOut: Date;
 }) {
   return db.query.shiftsTable.findFirst({
     where: {
-      id: { ne: shiftId },
+      id: shiftId === undefined ? undefined : { ne: shiftId },
       user_id: userId,
       clock_in_at: { lt: clockOut },
       OR: [

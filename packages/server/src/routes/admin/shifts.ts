@@ -4,10 +4,12 @@ import {
   GETShiftsQuerySchema,
   PATCHShiftSchema,
   POSTClockInSchema,
+  POSTShiftSchema,
 } from "@/modules/shifts/shift.schema";
 import {
   clockIn,
   clockOut,
+  createShift,
   getCurrentShift,
   getShifts,
   updateShift,
@@ -47,6 +49,11 @@ const app = new Hono<AdminEnv>()
     const user = c.get("jwtPayload");
     const { shift, message } = await clockOut(user);
     return c.json(success(shift, message));
+  })
+  .post("/", zodValidator("json", POSTShiftSchema), async (c) => {
+    const user = c.get("jwtPayload");
+    const shift = await createShift({ user, body: c.req.valid("json") });
+    return c.json(success(shift, "Shift added"), StatusCodes.CREATED);
   })
   .patch(
     "/:id",

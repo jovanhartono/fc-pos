@@ -9,7 +9,7 @@ import {
   setSystemTime,
 } from "bun:test";
 import { eq, sql } from "drizzle-orm";
-import { shiftsTable } from "@/db/schema";
+import { shiftsTable, storesTable } from "@/db/schema";
 import { BadRequestException, ForbiddenException } from "@/http-exceptions";
 import { PATCHShiftSchema } from "@/modules/shifts/shift.schema";
 import { captureRejection } from "@/test-support/capture-rejection";
@@ -21,9 +21,8 @@ import type { JWTPayload } from "@/types";
 // forgotten one gets a normal ten-hour day, capped at midnight, until an admin
 // enters the real time (ADR-0025).
 
-const { clockIn, clockOut, closeForgottenShifts, updateShift } = await import(
-  "@/modules/shifts/shift.service"
-);
+const { clockIn, clockOut, closeForgottenShifts, createShift, updateShift } =
+  await import("@/modules/shifts/shift.service");
 
 const jkt = (local: string) => new Date(`${local}:00+07:00`);
 
@@ -284,6 +283,102 @@ describe("updateShift", () => {
 
     expect(error).toBeInstanceOf(ForbiddenException);
     expect((await reload(shift.id)).edited_by).toBeNull();
+  });
+});
+
+describe("createShift", () => {
+  const admin = () => asUser(shop.admin.id, "admin");
+  const day = {
+    clock_in_at: jkt("2026-10-12T08:00"),
+    clock_out_at: jkt("2026-10-12T18:00"),
+  };
+
+  it("records today's work after yesterday's Shift was the one tapped out", async () => {
+    await openShift(shop.cashier.id, jkt("2026-10-11T08:00"));
+    setSystemTime(jkt("2026-10-12T18:30"));
+    await clockOut(asUser(shop.cashier.id));
+
+    const shift = await createShift({
+      user: admin(),
+      body: { ...day, store_id: shop.store.id, user_id: shop.cashier.id },
+    });
+
+    const saved = await reload(shift.id);
+    expect(saved.clock_out_at).toEqual(day.clock_out_at);
+    expect(saved.auto_closed).toBe(false);
+    expect(saved.edited_by).toBe(shop.admin.id);
+  });
+
+  it("refuses a store that has closed", async () => {
+    setSystemTime(jkt("2026-10-12T18:30"));
+    await testDb
+      .update(storesTable)
+      .set({ is_active: false })
+      .where(eq(storesTable.id, shop.store.id));
+
+    const error = await captureRejection(
+      createShift({
+        user: admin(),
+        body: { ...day, store_id: shop.store.id, user_id: shop.cashier.id },
+      })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+  });
+
+  it("refuses a store the worker is not assigned to", async () => {
+    setSystemTime(jkt("2026-10-12T18:30"));
+    const [elsewhere] = await testDb
+      .insert(storesTable)
+      .values({
+        address: "Jl. Bintaro 1",
+        code: "BTR",
+        is_active: true,
+        latitude: "-6.30",
+        longitude: "106.65",
+        name: "Fresclean Bintaro",
+        phone_number: "+622100000000",
+      })
+      .returning();
+
+    const error = await captureRejection(
+      createShift({
+        user: admin(),
+        body: { ...day, store_id: elsewhere.id, user_id: shop.cashier.id },
+      })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+  });
+
+  it("refuses a day the worker already has a Shift on", async () => {
+    await openShift(shop.cashier.id, jkt("2026-10-12T09:00"), {
+      auto_closed: false,
+      clock_out_at: jkt("2026-10-12T17:00"),
+    });
+    setSystemTime(jkt("2026-10-12T18:30"));
+
+    const error = await captureRejection(
+      createShift({
+        user: admin(),
+        body: { ...day, store_id: shop.store.id, user_id: shop.cashier.id },
+      })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+  });
+
+  it("is for admins only", async () => {
+    setSystemTime(jkt("2026-10-12T18:30"));
+
+    const error = await captureRejection(
+      createShift({
+        user: asUser(shop.cashier.id),
+        body: { ...day, store_id: shop.store.id, user_id: shop.cashier.id },
+      })
+    );
+
+    expect(error).toBeInstanceOf(ForbiddenException);
   });
 });
 

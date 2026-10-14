@@ -20,8 +20,10 @@ import {
   clockInRequiresLocation,
   type GetShiftsQuery,
   type PatchShiftBody,
+  type PostShiftBody,
 } from "@/modules/shifts/shift.schema";
 import { findStoreById } from "@/modules/stores/store.repository";
+import { findUserDetailById } from "@/modules/users/user.repository";
 import type { JWTPayload } from "@/types";
 import { assertStoreAccess } from "@/utils/authorization";
 import { JAKARTA_TZ, jakartaDayStart, jakartaNow } from "@/utils/date";
@@ -154,21 +156,67 @@ export async function updateShift({
     throw new NotFoundException("Shift does not exist");
   }
 
-  if (body.clock_out_at > new Date()) {
+  await assertShiftTimesFree({ ...body, userId: shift.user_id, shiftId });
+
+  return updateShiftTimesById(shiftId, { ...body, edited_by: user.id });
+}
+
+// Today's work when yesterday's forgotten Shift was the one tapped out, so the
+// worker never clocked in today (ADR-0025).
+export async function createShift({
+  user,
+  body,
+}: {
+  user: JWTPayload;
+  body: PostShiftBody;
+}) {
+  assertIsAdmin(user);
+
+  const [worker, store] = await Promise.all([
+    findUserDetailById(body.user_id),
+    findStoreById(body.store_id),
+  ]);
+  if (!(worker?.is_active && worker.role !== "admin")) {
+    throw new BadRequestException("Pick an active cashier, worker or courier");
+  }
+  if (!store?.is_active) {
+    throw new BadRequestException("Pick an active store");
+  }
+  if (!worker.userStores.some(({ store_id }) => store_id === store.id)) {
+    throw new BadRequestException(
+      `${worker.name} is not assigned to that store`
+    );
+  }
+
+  await assertShiftTimesFree({ ...body, userId: worker.id });
+
+  return insertShift({ ...body, edited_by: user.id });
+}
+
+async function assertShiftTimesFree({
+  userId,
+  shiftId,
+  clock_in_at,
+  clock_out_at,
+}: {
+  userId: number;
+  shiftId?: number;
+  clock_in_at: Date;
+  clock_out_at: Date;
+}) {
+  if (clock_out_at > new Date()) {
     throw new BadRequestException("Clock out cannot be in the future");
   }
 
   const overlap = await findOverlappingShift({
     shiftId,
-    userId: shift.user_id,
-    clockIn: body.clock_in_at,
-    clockOut: body.clock_out_at,
+    userId,
+    clockIn: clock_in_at,
+    clockOut: clock_out_at,
   });
   if (overlap) {
     throw new BadRequestException("These times overlap another shift");
   }
-
-  return updateShiftTimesById(shiftId, { ...body, edited_by: user.id });
 }
 
 function todayStart() {

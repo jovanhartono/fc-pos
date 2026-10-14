@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -82,10 +81,7 @@ function AttendancePage() {
 	const clockOutMut = useMutation({
 		mutationKey: ["shift-clock-out"],
 		mutationFn: clockOutShift,
-		onSuccess: (response) => {
-			toast.success(response.message);
-			return onShiftClocked(queryClient);
-		},
+		onSettled: () => onShiftClocked(queryClient),
 	});
 
 	const weekShifts = shiftsQuery.data?.items ?? [];

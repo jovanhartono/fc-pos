@@ -86,6 +86,15 @@ export interface UpdateShiftPayload {
 	clock_out_at: string;
 }
 
+export interface CreateShiftPayload extends UpdateShiftPayload {
+	store_id: number;
+	user_id: number;
+}
+
+export function createShift(payload: CreateShiftPayload) {
+	return parseResponse(rpcWithAuth().api.admin.shifts.$post({ json: payload }));
+}
+
 export function updateShift(id: number, payload: UpdateShiftPayload) {
 	return parseResponse(
 		rpcWithAuth().api.admin.shifts[":id"].$patch({

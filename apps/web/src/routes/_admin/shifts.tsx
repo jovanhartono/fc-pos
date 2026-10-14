@@ -1,6 +1,7 @@
 import {
 	type Icon,
 	PencilSimpleLineIcon,
+	PlusIcon,
 	SignInIcon,
 	SignOutIcon,
 } from "@phosphor-icons/react";
@@ -20,6 +21,7 @@ import { DateRangePicker } from "@/components/ui/date-picker";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { type Shift, shiftsQueries } from "@/features/shifts/api";
 import { EditShiftForm } from "@/features/shifts/components/edit-shift-form";
+import { NewShiftForm } from "@/features/shifts/components/new-shift-form";
 import { storesQueries } from "@/features/stores/api";
 import { cn } from "@/lib/utils";
 import { useDialog } from "@/stores/dialog-store";
@@ -132,6 +134,13 @@ function ShiftsPage() {
 		[openDialog, closeDialog],
 	);
 
+	const handleCreate = () => {
+		openDialog({
+			title: "New shift",
+			content: () => <NewShiftForm onDone={closeDialog} />,
+		});
+	};
+
 	const columns = useMemo<DataTableColumnDef<Shift>[]>(
 		() => [
 			{
@@ -213,7 +222,14 @@ function ShiftsPage() {
 
 	return (
 		<>
-			<PageHeader title="Shifts" />
+			<PageHeader
+				title="Shifts"
+				actions={
+					<Button icon={<PlusIcon className="size-4" />} onClick={handleCreate}>
+						New shift
+					</Button>
+				}
+			/>
 			<ListPanel>
 				<div className="flex flex-wrap items-center gap-2">
 					<StoreAutocomplete
