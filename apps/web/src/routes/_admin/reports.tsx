@@ -125,7 +125,10 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 		case "financial":
 			return queryClient.ensureQueryData(reportsQueries.financial(range));
 		case "operations":
-			return queryClient.ensureQueryData(reportsQueries.ordersFlow(range));
+			return Promise.all([
+				queryClient.ensureQueryData(reportsQueries.ordersFlow(range)),
+				queryClient.ensureQueryData(reportsQueries.turnaround(range)),
+			]);
 		case "payments":
 			return queryClient.ensureQueryData(reportsQueries.paymentMix(range));
 		case "customers":

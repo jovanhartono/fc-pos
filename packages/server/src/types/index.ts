@@ -6,6 +6,7 @@ export type {
   CounterPickupShelf,
   CounterQcReject,
   CounterStuckItem,
+  CounterWorkshop,
 } from "@/modules/counter/counter.schema";
 export type {
   ComparableSummary,

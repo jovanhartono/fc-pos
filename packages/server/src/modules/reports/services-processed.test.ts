@@ -110,6 +110,8 @@ describe("processed per day, for the Overview's week of bars", () => {
       { day: "2026-08-02", services_processed: 5 },
     ]);
     expect(only().sql).toContain(PER_LINE);
-    expect(only().sql).toContain('"processed_at" AT TIME ZONE');
+    expect(only().sql).toContain(
+      `"processed_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta'`
+    );
   });
 });

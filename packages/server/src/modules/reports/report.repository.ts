@@ -23,7 +23,7 @@ import {
 } from "@/modules/reports/money-basis";
 import {
   type DateRange,
-  JAKARTA_TZ_SQL,
+  jakartaBucketExpr,
 } from "@/modules/reports/report-range.util";
 
 export async function sumDailyPaid({
@@ -133,7 +133,7 @@ export async function ordersInTrendSeries({
     conditions.push(eq(ordersTable.store_id, storeId));
   }
 
-  const dayExpr = sql<string>`to_char(${ordersTable.created_at} AT TIME ZONE ${JAKARTA_TZ_SQL}, 'YYYY-MM-DD')`;
+  const dayExpr = jakartaBucketExpr(ordersTable.created_at, "day");
 
   const rows = await db
     .select({
@@ -165,7 +165,7 @@ export async function paidTrendSeries({
     conditions.push(eq(ordersTable.store_id, storeId));
   }
 
-  const dayExpr = sql<string>`to_char(${ordersTable.paid_at} AT TIME ZONE ${JAKARTA_TZ_SQL}, 'YYYY-MM-DD')`;
+  const dayExpr = jakartaBucketExpr(ordersTable.paid_at, "day");
 
   const rows = await db
     .select({
@@ -197,7 +197,7 @@ export async function refundsTrendSeries({
     conditions.push(eq(ordersTable.store_id, storeId));
   }
 
-  const dayExpr = sql<string>`to_char(${orderRefundsTable.created_at} AT TIME ZONE ${JAKARTA_TZ_SQL}, 'YYYY-MM-DD')`;
+  const dayExpr = jakartaBucketExpr(orderRefundsTable.created_at, "day");
 
   const rows = await db
     .select({
@@ -230,7 +230,7 @@ export async function ordersOutTrendSeries({
     conditions.push(eq(ordersTable.store_id, storeId));
   }
 
-  const dayExpr = sql<string>`to_char(${orderPickupEventsTable.picked_up_at} AT TIME ZONE ${JAKARTA_TZ_SQL}, 'YYYY-MM-DD')`;
+  const dayExpr = jakartaBucketExpr(orderPickupEventsTable.picked_up_at, "day");
 
   const rows = await db
     .select({

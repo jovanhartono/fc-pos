@@ -3,9 +3,8 @@
 // and gap-free bucket enumeration. A one-day drift moves money between
 // business days; an ISO-week mismatch with Postgres to_char('IYYY-IW') dumps
 // New Year revenue into a phantom week. Everything runs real — no mocks.
-// jakartaBucketExpr is deliberately untested (it needs a live PgColumn);
-// its drift risk is pinned via the bucketFormat contract and the ISO-week
-// agreement tests instead.
+// jakartaBucketExpr runs against a database in
+// report-day-buckets.integration.test.ts.
 import { describe, expect, it } from "bun:test";
 import {
   bucketFormat,

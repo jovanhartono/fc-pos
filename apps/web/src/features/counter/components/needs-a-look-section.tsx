@@ -173,7 +173,7 @@ export const NeedsALookSection = ({ counter }: NeedsALookSectionProps) => {
 
 	return (
 		<section className="grid gap-2.5">
-			<h2 className="font-semibold text-[15px]">Needs a look</h2>
+			<h2 className="font-medium text-[15px]">Needs a look</h2>
 			{isEmpty ? (
 				<p className="text-muted-foreground">Nothing needs a look.</p>
 			) : (

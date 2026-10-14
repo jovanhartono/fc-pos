@@ -343,29 +343,6 @@ export async function listOrdersOutSeries({
   }));
 }
 
-export async function findDistinctHandlerCount({ range, storeId }: RangeArgs) {
-  const conditions = [
-    ...timeWindow(orderServiceStatusLogsTable.created_at, range),
-    eq(orderServiceStatusLogsTable.to_status, "processing"),
-    eq(orderServiceStatusLogsTable.from_status, "queued"),
-    storeScope(ordersTable.store_id, storeId),
-  ];
-
-  const [row] = await db
-    .select({
-      handlers: sql<number>`COUNT(DISTINCT ${orderServiceStatusLogsTable.changed_by})::int`,
-    })
-    .from(orderServiceStatusLogsTable)
-    .innerJoin(
-      ordersServicesTable,
-      eq(orderServiceStatusLogsTable.order_service_id, ordersServicesTable.id)
-    )
-    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
-    .where(and(...conditions));
-
-  return Number(row?.handlers ?? 0);
-}
-
 // ───────────────────────── Payment mix (R3) ─────────────────────────
 
 export async function listPaymentMixSeries({
@@ -702,10 +679,9 @@ const BENCH_STATUSES = [
 
 // Days a person moved an Item through the bench, at the Order's Store. Workers
 // who rarely clock in still show a day worked. Pickups, refunds and cancels are
-// the counter's work, so they are left out. The day is cut at Jakarta midnight
-// here rather than with jakartaBucketExpr.
+// the counter's work, so they are left out.
 function listBenchMoveDays({ range, storeId }: RangeArgs) {
-  const day = sql<string>`to_char((${orderServiceStatusLogsTable.created_at} AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')`;
+  const day = jakartaBucketExpr(orderServiceStatusLogsTable.created_at, "day");
   return db
     .select({
       user_id: orderServiceStatusLogsTable.changed_by,

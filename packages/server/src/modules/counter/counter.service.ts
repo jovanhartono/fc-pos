@@ -12,6 +12,7 @@ import type {
   Counter,
   CounterCategory,
   CounterStuckItem,
+  CounterWorkshop,
 } from "@/modules/counter/counter.schema";
 import {
   DAY_MS,
@@ -89,12 +90,19 @@ async function getCategoryPaces(storeId: number, now: Date) {
   return paces;
 }
 
-const distinctItems = (lines: WaitingLine[], statuses: string[]) =>
-  new Set(
+// Each Item once: a shoe being cleaned while its Repaint waits is in progress,
+// so queued + in progress is the number of shoes in the workshop.
+const countStages = (lines: WaitingLine[]): CounterWorkshop => {
+  const inProgress = new Set(
+    lines.filter((line) => line.status !== "queued").map((line) => line.item_id)
+  );
+  const queued = new Set(
     lines
-      .filter((line) => statuses.includes(line.status))
+      .filter((line) => !inProgress.has(line.item_id))
       .map((line) => line.item_id)
-  ).size;
+  );
+  return { in_progress: inProgress.size, queued: queued.size };
+};
 
 function buildCategories(lines: WaitingLine[], paces: Map<number, number>) {
   return [...Map.groupBy(lines, (line) => line.category_id).entries()]
@@ -109,10 +117,9 @@ function buildCategories(lines: WaitingLine[], paces: Map<number, number>) {
         after_clean: categoryLines[0].starts_after_cleaning,
         category_id: categoryId,
         estimate: low === null ? null : { days_high: low + 1, days_low: low },
-        in_progress: distinctItems(categoryLines, ["processing", "qc_reject"]),
+        ...countStages(categoryLines),
         items_waiting: new Set(categoryLines.map((line) => line.item_id)).size,
         name: categoryLines[0].category_name,
-        queued: distinctItems(categoryLines, ["queued"]),
       };
     })
     .sort(
@@ -271,5 +278,7 @@ export async function getCounter(
     },
     qc_rejects: qcRejects,
     stuck,
+    // Whole Items, so a shoe with a clean and a Repaint counts once.
+    workshop: countStages(lines),
   };
 }

@@ -276,6 +276,18 @@ describe("the workshop rows", () => {
     });
   });
 
+  it("totals each Item once across Categories, in progress before queued", async () => {
+    const [[bothQueued, repaintQueued], [cleaning, repaintWaiting]] =
+      await placeOrder(shop.store, [
+        { serviceIds: [shop.serviceId, repaintServiceId] },
+        { serviceIds: [shop.serviceId, repaintServiceId] },
+      ]);
+    await setStatus([bothQueued, repaintQueued, repaintWaiting], "queued");
+    await setStatus([cleaning], "processing");
+
+    expect((await counterOf()).workshop).toEqual({ in_progress: 1, queued: 1 });
+  });
+
   it("lists only Categories with something waiting, flagged when they start after cleaning", async () => {
     await steadyWeek(1);
     await waiting(1, repaintServiceId);

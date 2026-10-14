@@ -55,7 +55,7 @@ export const PickupShelfSection = ({
 	storeId,
 }: PickupShelfSectionProps) => (
 	<section className="grid gap-2.5">
-		<h2 className="font-semibold text-[15px]">
+		<h2 className="font-medium text-[15px]">
 			Pickup shelf
 			<span className="font-normal text-muted-foreground">
 				{" "}

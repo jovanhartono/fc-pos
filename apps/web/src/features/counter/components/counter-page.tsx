@@ -49,10 +49,12 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 	}, [navigate]);
 
 	if (isPending) {
-		return <p className="text-muted-foreground">Loading…</p>;
+		return <p className="text-muted-foreground text-sm">Loading…</p>;
 	}
 	if (isError) {
-		return <p className="text-destructive">Could not load the Counter.</p>;
+		return (
+			<p className="text-destructive text-sm">Could not load the Counter.</p>
+		);
 	}
 
 	const shelfOrders = data.pickup_shelf.oldest.map((order) => ({
@@ -60,8 +62,8 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 	}));
 
 	return (
-		<div className="grid gap-6">
-			<WorkshopSection categories={data.categories} />
+		<div className="grid gap-6 text-sm">
+			<WorkshopSection categories={data.categories} workshop={data.workshop} />
 			<PickupShelfSection
 				isWide={isWide}
 				openOrderId={isWide ? open : undefined}

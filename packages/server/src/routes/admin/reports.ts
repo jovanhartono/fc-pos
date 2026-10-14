@@ -27,6 +27,7 @@ import {
   getWorkerDetailReport,
   getWorkerProductivityReport,
 } from "@/modules/reports/report-range.service";
+import { getTurnaroundReport } from "@/modules/reports/turnaround.service";
 import type { AdminEnv } from "@/types/hono";
 import { assertStoreAccess } from "@/utils/authorization";
 import { success } from "@/utils/http";
@@ -106,6 +107,14 @@ const app = new Hono<AdminEnv>()
     zodValidator("query", GETReportRangeQuerySchema),
     async (c) => {
       const data = await getQualityReport(c.req.valid("query"));
+      return c.json(success(data));
+    }
+  )
+  .get(
+    "/turnaround",
+    zodValidator("query", GETReportRangeQuerySchema),
+    async (c) => {
+      const data = await getTurnaroundReport(c.req.valid("query"));
       return c.json(success(data));
     }
   )

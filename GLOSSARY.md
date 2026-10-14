@@ -230,8 +230,12 @@ The number of OrderServices that reached quality check for the first time.
 _Avoid_: Items processed, items completed
 
 **Ready estimate**:
-How long a new Item will wait in one Category, quoted at the counter as "about X–Y days": the Category's waiting OrderServices divided by its Services processed per day over the Store's last 7 open days. A slow Category such as Repair looks further back, open day by open day, until it has 7 checks, up to 4 weeks; with fewer it gets no quote. A day with no quality check at the Store at all (a public holiday) is not an open day; a quiet day for one Category still counts. After-clean Categories add their days on top of the clean.
+How long a new Item will wait in one Category, shown on the Counter as "est. X–Y days": the Category's waiting OrderServices divided by its Services processed per day over the Store's last 7 open days. A slow Category such as Repair looks further back, open day by open day, until it has 7 checks, up to 4 weeks; with fewer it gets no quote. A day with no quality check at the Store at all (a public holiday) is not an open day; a quiet day for one Category still counts. After-clean Categories add their days on top of the clean.
 _Avoid_: ETA, queue estimate, turnaround (turnaround is measured afterwards, from drop-off to ready)
+
+**Turnaround**:
+The time from an Item's drop-off until it is ready for pickup, measured afterwards. An Item counts once it is ready, on the day its last OrderService became ready; Reworks, cancelled and refunded lines are left out. Shown as p75, p90 and p99 per Category, with the wait before work starts (Queued) split from the work itself (In progress); that split uses only the lines of the Items counted, so an Item with a line still in the workshop feeds neither.
+_Avoid_: Lead time, cycle time, ETA (the Ready estimate is quoted beforehand)
 
 ### Screens
 
