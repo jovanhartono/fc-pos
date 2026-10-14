@@ -54,7 +54,7 @@ export const TurnaroundSection = ({ report }: TurnaroundSectionProps) => {
 			<div className="min-w-0 border">
 				<div className="min-w-0 px-3 pt-3 pb-1">
 					<p className="mb-1 font-medium">{row.name}</p>
-					<TurnaroundDotChart dots={dots} key={row.name} row={row} />
+					<TurnaroundDotChart dots={dots} row={row} />
 				</div>
 				<TurnaroundBreakdown
 					breakdown={row.breakdown}

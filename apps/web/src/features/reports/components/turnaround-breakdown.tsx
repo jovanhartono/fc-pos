@@ -21,12 +21,17 @@ export const TurnaroundBreakdown = ({
 				</span>
 			</p>
 			{queued === null || inProgress === null ? (
-				<span
-					className="w-fit cursor-help border-b border-dotted text-[13px] text-muted-foreground"
-					title={`Needs ${minItems} Services in the range`}
-				>
-					Not enough data
-				</span>
+				// Same height as the bar and its labels, so picking a thin
+				// Category doesn't move the table below.
+				<>
+					<div className="h-2.5 bg-muted" />
+					<span
+						className="w-fit cursor-help text-[13px] text-muted-foreground underline decoration-dotted underline-offset-2"
+						title={`Needs ${minItems} Services in the range`}
+					>
+						Not enough data
+					</span>
+				</>
 			) : (
 				<>
 					<div className="flex h-2.5">

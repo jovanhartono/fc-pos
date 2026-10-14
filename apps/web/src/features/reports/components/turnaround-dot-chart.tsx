@@ -53,6 +53,13 @@ const useElementWidth = () => {
 export const TurnaroundDotChart = ({ dots, row }: TurnaroundDotChartProps) => {
 	const { ref, width } = useElementWidth();
 	const [hover, setHover] = useState<HoverState | null>(null);
+	// Switching Category keeps the chart mounted, so the page doesn't jump; an
+	// open tooltip would point at another Item, so it closes.
+	const [shownDots, setShownDots] = useState(dots);
+	if (shownDots !== dots) {
+		setShownDots(dots);
+		setHover(null);
+	}
 	useEffect(() => {
 		const hide = () => setHover(null);
 		const hideOutside = (event: PointerEvent) => {
