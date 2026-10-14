@@ -1,8 +1,13 @@
-import { type Icon, SignInIcon, SignOutIcon } from "@phosphor-icons/react";
+import {
+	type Icon,
+	PencilSimpleLineIcon,
+	SignInIcon,
+	SignOutIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import dayjs from "dayjs";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { DataTable, WRAP_NAME_CLASS } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
@@ -10,11 +15,14 @@ import { DateTimeCell } from "@/components/date-time-cell";
 import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
+import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { type Shift, shiftsQueries } from "@/features/shifts/api";
+import { EditShiftForm } from "@/features/shifts/components/edit-shift-form";
 import { storesQueries } from "@/features/stores/api";
 import { cn } from "@/lib/utils";
+import { useDialog } from "@/stores/dialog-store";
 
 const PAGE_SIZE = 25;
 
@@ -97,6 +105,11 @@ const ShiftDuration = ({ shift }: ShiftDurationProps) => (
 				auto-closed
 			</span>
 		) : null}
+		{shift.editedBy ? (
+			<span className="text-muted-foreground text-xs">
+				edited by {shift.editedBy.name}
+			</span>
+		) : null}
 	</div>
 );
 
@@ -105,6 +118,19 @@ function ShiftsPage() {
 	const search = Route.useSearch();
 	const shiftsQuery = useQuery(shiftsQueries.list(buildShiftsQuery(search)));
 	const shifts = shiftsQuery.data?.items ?? [];
+	const openDialog = useDialog((s) => s.openDialog);
+	const closeDialog = useDialog((s) => s.closeDialog);
+
+	const handleEdit = useCallback(
+		(shift: Shift) => {
+			openDialog({
+				title: "Edit shift",
+				description: `${shift.user?.name ?? `User #${shift.user_id}`} · ${shift.store?.code ?? ""}`,
+				content: () => <EditShiftForm shift={shift} onDone={closeDialog} />,
+			});
+		},
+		[openDialog, closeDialog],
+	);
 
 	const columns = useMemo<DataTableColumnDef<Shift>[]>(
 		() => [
@@ -166,8 +192,23 @@ function ShiftsPage() {
 				},
 				cell: ({ row }) => <ShiftDuration shift={row.original} />,
 			},
+			{
+				id: "actions",
+				header: "Actions",
+				meta: { mobileCard: { slot: "title-end" } },
+				cell: ({ row }) => (
+					<Button
+						variant="outline"
+						size="icon-sm"
+						aria-label="Edit"
+						title="Edit"
+						onClick={() => handleEdit(row.original)}
+						icon={<PencilSimpleLineIcon className="size-4" />}
+					/>
+				),
+			},
 		],
-		[],
+		[handleEdit],
 	);
 
 	return (

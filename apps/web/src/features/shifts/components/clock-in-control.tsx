@@ -2,6 +2,7 @@ import { clockInRequiresLocation, distanceKm } from "@fresclean/api/schema";
 import { SignInIcon, WarningIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
 import { clockInShift } from "@/features/shifts/api";
@@ -29,7 +30,11 @@ export const ClockInControl = () => {
 	const clockInMutation = useMutation({
 		mutationKey: ["shift-clock-in"],
 		mutationFn: clockInShift,
-		onSuccess: () => onShiftClocked(queryClient),
+		onSuccess: (response) => {
+			// Carries "you forgot to clock out" when yesterday was cut to ten hours.
+			toast.success(response.message);
+			return onShiftClocked(queryClient);
+		},
 		// Opt out of the global error toast (main.tsx): a worker turned away for
 		// being too far needs the reason on screen while they walk to the store,
 		// not a toast that has gone by the time they look up.

@@ -43,7 +43,16 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.ordersTable.created_by,
     }),
     pickupEventsPickedUp: r.many.orderPickupEventsTable(),
-    shifts: r.many.shiftsTable(),
+    shifts: r.many.shiftsTable({
+      from: r.usersTable.id,
+      to: r.shiftsTable.user_id,
+      alias: "shift_user",
+    }),
+    shiftsEdited: r.many.shiftsTable({
+      from: r.usersTable.id,
+      to: r.shiftsTable.edited_by,
+      alias: "shift_edited_by",
+    }),
     userStores: r.many.userStoresTable(),
   },
 
@@ -451,6 +460,12 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.shiftsTable.user_id,
       to: r.usersTable.id,
       optional: false,
+      alias: "shift_user",
+    }),
+    editedBy: r.one.usersTable({
+      from: r.shiftsTable.edited_by,
+      to: r.usersTable.id,
+      alias: "shift_edited_by",
     }),
   },
 }));

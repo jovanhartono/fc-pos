@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import {
   GETShiftsQuerySchema,
+  PATCHShiftSchema,
   POSTClockInSchema,
 } from "@/modules/shifts/shift.schema";
 import {
@@ -9,7 +10,9 @@ import {
   clockOut,
   getCurrentShift,
   getShifts,
+  updateShift,
 } from "@/modules/shifts/shift.service";
+import { idParamSchema } from "@/schema/param";
 import type { AdminEnv } from "@/types/hono";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
@@ -32,18 +35,32 @@ const app = new Hono<AdminEnv>()
     const user = c.get("jwtPayload");
     const body = c.req.valid("json");
 
-    const shift = await clockIn({
+    const { shift, message } = await clockIn({
       user,
       storeId: body.store_id,
       coordinates: body.coordinates,
     });
 
-    return c.json(success(shift, "Clocked in"), StatusCodes.CREATED);
+    return c.json(success(shift, message), StatusCodes.CREATED);
   })
   .post("/clock-out", async (c) => {
     const user = c.get("jwtPayload");
-    const shift = await clockOut(user);
-    return c.json(success(shift, "Clocked out"));
-  });
+    const { shift, message } = await clockOut(user);
+    return c.json(success(shift, message));
+  })
+  .patch(
+    "/:id",
+    idParamSchema,
+    zodValidator("json", PATCHShiftSchema),
+    async (c) => {
+      const user = c.get("jwtPayload");
+      const shift = await updateShift({
+        user,
+        shiftId: c.req.valid("param").id,
+        body: c.req.valid("json"),
+      });
+      return c.json(success(shift, "Shift updated"));
+    }
+  );
 
 export default app;

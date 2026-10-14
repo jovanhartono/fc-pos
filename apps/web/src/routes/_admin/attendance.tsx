@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -81,7 +82,10 @@ function AttendancePage() {
 	const clockOutMut = useMutation({
 		mutationKey: ["shift-clock-out"],
 		mutationFn: clockOutShift,
-		onSuccess: () => onShiftClocked(queryClient),
+		onSuccess: (response) => {
+			toast.success(response.message);
+			return onShiftClocked(queryClient);
+		},
 	});
 
 	const weekShifts = shiftsQuery.data?.items ?? [];
@@ -155,6 +159,11 @@ const ShiftRow = ({ shift }: { shift: Shift }) => (
 		<span className="flex-1 truncate text-sm tabular-nums">
 			{dayjs(shift.clock_in_at).format("HH:mm")} –{" "}
 			{shift.clock_out_at ? dayjs(shift.clock_out_at).format("HH:mm") : "…"}
+			{shift.auto_closed ? (
+				<span className="ml-1.5 text-amber-600 text-xs dark:text-amber-400">
+					auto-closed
+				</span>
+			) : null}
 		</span>
 		<span className="shrink-0 text-muted-foreground text-xs">
 			{shift.store?.code ?? "—"}

@@ -34,6 +34,34 @@ export type ClockInCoordinates = NonNullable<
   z.infer<typeof POSTClockInSchema>["coordinates"]
 >;
 
+// The shop's normal day. A Forgotten clock-out is closed this long after
+// clock-in, so it pays no overtime until an admin enters the real time.
+export const FORGOTTEN_SHIFT_HOURS = 10;
+
+// Longer than this is a typo, not a day's work.
+const MAX_SHIFT_HOURS = 24;
+
+// Strict ISO strings, no coercion: `null` coerces to 1970 and would pass.
+const shiftTime = z.iso.datetime().transform((value) => new Date(value));
+
+export const PATCHShiftSchema = z
+  .object({ clock_in_at: shiftTime, clock_out_at: shiftTime })
+  .refine((body) => body.clock_out_at > body.clock_in_at, {
+    message: "Clock out must be after clock in",
+    path: ["clock_out_at"],
+  })
+  .refine(
+    (body) =>
+      body.clock_out_at.getTime() - body.clock_in_at.getTime() <=
+      MAX_SHIFT_HOURS * 3_600_000,
+    {
+      message: `A shift cannot be longer than ${MAX_SHIFT_HOURS} hours`,
+      path: ["clock_out_at"],
+    }
+  );
+
+export type PatchShiftBody = z.infer<typeof PATCHShiftSchema>;
+
 export const GETShiftsQuerySchema = z
   .object({
     from: dateStringSchema("from").optional(),

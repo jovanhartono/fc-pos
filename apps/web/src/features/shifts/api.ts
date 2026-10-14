@@ -80,3 +80,17 @@ export function clockInShift(payload: {
 export function clockOutShift() {
 	return parseResponse(rpcWithAuth().api.admin.shifts["clock-out"].$post());
 }
+
+export interface UpdateShiftPayload {
+	clock_in_at: string;
+	clock_out_at: string;
+}
+
+export function updateShift(id: number, payload: UpdateShiftPayload) {
+	return parseResponse(
+		rpcWithAuth().api.admin.shifts[":id"].$patch({
+			param: { id: String(id) },
+			json: payload,
+		}),
+	);
+}

@@ -1,7 +1,11 @@
-import { and, eq, gte, isNull, lt, lte } from "drizzle-orm";
+import { and, eq, gte, isNull, lt, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { shiftsTable } from "@/db/schema";
-import type { GetShiftsQuery } from "@/modules/shifts/shift.schema";
+import { JAKARTA_TZ_SQL } from "@/modules/reports/report-range.util";
+import {
+  FORGOTTEN_SHIFT_HOURS,
+  type GetShiftsQuery,
+} from "@/modules/shifts/shift.schema";
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
 
 export interface InsertShiftValues {
@@ -17,14 +21,17 @@ export function insertShift(values: InsertShiftValues) {
     .then((rows) => rows[0]);
 }
 
-// A worker who went home without clocking out. Closing at the day boundary
-// keeps the hours on the day they were worked and frees them to clock in again.
-// The nightly sweep passes no user; a worker clocking in passes their own id to
-// clear just their row, and both must file the close the same way.
+// A Forgotten clock-out gets a normal day, capped at midnight, so payroll pays
+// no overtime nobody worked (ADR-0025). Cron, clock-in and clock-out share it.
 export function closeOpenShiftsBefore(cutoff: Date, userId?: number) {
+  // The SQL twin of jakartaDayStart(clock-in) + 1 day; timestamps are UTC wall clock.
+  const nextMidnight = sql`((date_trunc('day', (${shiftsTable.clock_in_at} AT TIME ZONE 'UTC') AT TIME ZONE ${JAKARTA_TZ_SQL}) + interval '1 day') AT TIME ZONE ${JAKARTA_TZ_SQL}) AT TIME ZONE 'UTC'`;
   return db
     .update(shiftsTable)
-    .set({ clock_out_at: cutoff, auto_closed: true })
+    .set({
+      clock_out_at: sql`LEAST(${shiftsTable.clock_in_at} + make_interval(hours => ${FORGOTTEN_SHIFT_HOURS}), ${nextMidnight})`,
+      auto_closed: true,
+    })
     .where(
       and(
         isNull(shiftsTable.clock_out_at),
@@ -32,8 +39,7 @@ export function closeOpenShiftsBefore(cutoff: Date, userId?: number) {
         userId === undefined ? undefined : eq(shiftsTable.user_id, userId)
       )
     )
-    .returning({ id: shiftsTable.id })
-    .then((rows) => rows.length);
+    .returning();
 }
 
 export function findOpenShiftByUserId(userId: number) {
@@ -50,10 +56,61 @@ export function findOpenShiftByUserId(userId: number) {
   });
 }
 
-export function updateShiftClockOutById(shiftId: number) {
+export function updateOpenShiftClockOutByUserId(userId: number) {
   return db
     .update(shiftsTable)
     .set({ clock_out_at: new Date() })
+    .where(
+      and(eq(shiftsTable.user_id, userId), isNull(shiftsTable.clock_out_at))
+    )
+    .returning()
+    .then((rows) => rows[0] ?? null);
+}
+
+export function findShiftById(shiftId: number) {
+  return db.query.shiftsTable.findFirst({ where: { id: shiftId } });
+}
+
+export function findLatestShiftByUserId(userId: number) {
+  return db.query.shiftsTable.findFirst({
+    where: { user_id: userId },
+    orderBy: { clock_in_at: "desc" },
+  });
+}
+
+// Another Shift of the same worker sharing any moment with [clockIn, clockOut).
+// An open Shift runs on with no end.
+export function findOverlappingShift({
+  shiftId,
+  userId,
+  clockIn,
+  clockOut,
+}: {
+  shiftId: number;
+  userId: number;
+  clockIn: Date;
+  clockOut: Date;
+}) {
+  return db.query.shiftsTable.findFirst({
+    where: {
+      id: { ne: shiftId },
+      user_id: userId,
+      clock_in_at: { lt: clockOut },
+      OR: [
+        { clock_out_at: { isNull: true } },
+        { clock_out_at: { gt: clockIn } },
+      ],
+    },
+  });
+}
+
+export function updateShiftTimesById(
+  shiftId: number,
+  values: { clock_in_at: Date; clock_out_at: Date; edited_by: number }
+) {
+  return db
+    .update(shiftsTable)
+    .set({ ...values, auto_closed: false })
     .where(eq(shiftsTable.id, shiftId))
     .returning()
     .then((rows) => rows[0] ?? null);
@@ -106,6 +163,9 @@ export function listShifts({
     },
     orderBy: { clock_in_at: "desc" },
     with: {
+      editedBy: {
+        columns: { id: true, name: true },
+      },
       store: {
         columns: { id: true, code: true, name: true },
       },

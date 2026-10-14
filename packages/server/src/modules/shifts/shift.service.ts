@@ -1,22 +1,30 @@
+import dayjs from "dayjs";
+import type { shiftsTable } from "@/db/schema";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
+import { assertIsAdmin } from "@/modules/permissions/permissions";
 import {
   closeOpenShiftsBefore,
   countShifts,
+  findLatestShiftByUserId,
   findOpenShiftByUserId,
+  findOverlappingShift,
+  findShiftById,
   insertShift,
   listShifts,
-  updateShiftClockOutById,
+  updateOpenShiftClockOutByUserId,
+  updateShiftTimesById,
 } from "@/modules/shifts/shift.repository";
 import {
   CLOCK_IN_RADIUS_KM,
   type ClockInCoordinates,
   clockInRequiresLocation,
   type GetShiftsQuery,
+  type PatchShiftBody,
 } from "@/modules/shifts/shift.schema";
 import { findStoreById } from "@/modules/stores/store.repository";
 import type { JWTPayload } from "@/types";
 import { assertStoreAccess } from "@/utils/authorization";
-import { jakartaDayStart, jakartaNow } from "@/utils/date";
+import { JAKARTA_TZ, jakartaDayStart, jakartaNow } from "@/utils/date";
 import { distanceKm } from "@/utils/geo";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 import { isUniqueViolation } from "@/utils/pg-error";
@@ -71,24 +79,29 @@ export async function clockIn({
 }) {
   await assertStoreAccess(user, storeId);
 
-  const existing = await findOpenShiftByUserId(user.id);
-  if (existing) {
-    // Yesterday's forgotten clock-out must not cost a worker their morning: the
-    // nightly sweep is best-effort and behind a shared secret, so waiting on it
-    // is what locks someone out at 07:00. A shift opened today still conflicts.
-    const healed = await closeOpenShiftsBefore(
-      jakartaDayStart(jakartaNow().toDate()),
-      user.id
-    );
-    if (healed === 0) {
-      throw new BadRequestException("You already have an open shift");
-    }
+  const latest = await findLatestShiftByUserId(user.id);
+  const stillOpen = latest !== undefined && latest.clock_out_at === null;
+  // Yesterday's forgotten clock-out must not cost a worker their morning: the
+  // nightly sweep is best-effort and behind a shared secret, so waiting on it
+  // is what locks someone out at 07:00. A shift opened today still conflicts.
+  const [closedNow] = stillOpen
+    ? await closeOpenShiftsBefore(todayStart(), user.id)
+    : [];
+  if (stillOpen && !closedNow) {
+    throw new BadRequestException("You already have an open shift");
   }
+  const previous = closedNow ?? latest;
 
   await assertWithinClockInRadius(user, storeId, coordinates);
 
   try {
-    return await insertShift({ user_id: user.id, store_id: storeId });
+    const shift = await insertShift({ user_id: user.id, store_id: storeId });
+    // Usually the cron closed it overnight, so this is the worker's only
+    // chance to hear their day was cut to ten hours.
+    const message = previous?.auto_closed
+      ? `Clocked in. ${forgottenClockOutNote(previous)}`
+      : "Clocked in";
+    return { shift, message };
   } catch (error) {
     if (isUniqueViolation(error)) {
       throw new BadRequestException("You already have an open shift", {
@@ -100,22 +113,73 @@ export async function clockIn({
 }
 
 export async function clockOut(user: JWTPayload) {
-  const open = await findOpenShiftByUserId(user.id);
-  if (!open) {
-    throw new NotFoundException("No open shift to close");
+  // Tapped the morning after: without this the 08:00 start and today's tap
+  // become one 30-hour Shift. See ADR-0025.
+  const [forgotten] = await closeOpenShiftsBefore(todayStart(), user.id);
+  if (forgotten) {
+    return { shift: forgotten, message: forgottenClockOutNote(forgotten) };
   }
 
-  return updateShiftClockOutById(open.id);
+  const shift = await updateOpenShiftClockOutByUserId(user.id);
+  if (!shift) {
+    throw new NotFoundException("No open shift to close");
+  }
+  return { shift, message: "Clocked out" };
 }
 
-// Reaches back a full day, because someone who clocked in at 22:30 for a late
-// close is still on the floor when this fires at midnight; their row closes
-// tomorrow night, or when they next clock in.
+// Nobody works past midnight, so every Shift still open now is a Forgotten
+// clock-out (ADR-0025).
 export async function closeForgottenShifts() {
-  const cutoff = jakartaDayStart(jakartaNow().subtract(1, "day").toDate());
-  const closed = await closeOpenShiftsBefore(cutoff);
+  const cutoff = todayStart();
+  const closed = (await closeOpenShiftsBefore(cutoff)).length;
 
   return { closed, cutoff };
+}
+
+// An admin entering the real hours, usually overtime a worker forgot to clock
+// out of. Payroll reads these times, so the Shift records who changed them.
+export async function updateShift({
+  user,
+  shiftId,
+  body,
+}: {
+  user: JWTPayload;
+  shiftId: number;
+  body: PatchShiftBody;
+}) {
+  assertIsAdmin(user);
+
+  const shift = await findShiftById(shiftId);
+  if (!shift) {
+    throw new NotFoundException("Shift does not exist");
+  }
+
+  if (body.clock_out_at > new Date()) {
+    throw new BadRequestException("Clock out cannot be in the future");
+  }
+
+  const overlap = await findOverlappingShift({
+    shiftId,
+    userId: shift.user_id,
+    clockIn: body.clock_in_at,
+    clockOut: body.clock_out_at,
+  });
+  if (overlap) {
+    throw new BadRequestException("These times overlap another shift");
+  }
+
+  return updateShiftTimesById(shiftId, { ...body, edited_by: user.id });
+}
+
+function todayStart() {
+  return jakartaDayStart(jakartaNow().toDate());
+}
+
+function forgottenClockOutNote(
+  shift: Pick<typeof shiftsTable.$inferSelect, "clock_in_at" | "clock_out_at">
+) {
+  const at = (date: Date | null) => dayjs(date).tz(JAKARTA_TZ);
+  return `You forgot to clock out on ${at(shift.clock_in_at).format("D MMM")}. Shift closed at ${at(shift.clock_out_at).format("HH:mm")}.`;
 }
 
 export function getCurrentShift(user: JWTPayload) {
