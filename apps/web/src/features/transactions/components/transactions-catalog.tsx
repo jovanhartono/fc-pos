@@ -184,7 +184,7 @@ export function TransactionsCatalog() {
 									value={selectedStoreId}
 									onValueChange={handleStoreChange}
 									allowedStoreIds={visibleStores.map((store) => store.id)}
-									disabled={!isAdmin}
+									disabled={!isAdmin && visibleStores.length < 2}
 									triggerClassName="h-10 pointer-coarse:h-11 w-full border-border/70 bg-background text-sm"
 									// The empty picker is the hint: no floating note, and no
 									// line that appears and pushes the catalog down.
