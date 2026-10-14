@@ -30,7 +30,7 @@ const QuoteText = ({ category }: CategoryRowProps) => {
 	}
 	return (
 		<>
-			about <strong className="font-semibold">{range}</strong>
+			est. <strong className="font-semibold">{range}</strong>
 		</>
 	);
 };
@@ -143,7 +143,7 @@ export const WorkshopSection = ({
 	return (
 		<section className="grid gap-2.5">
 			<h2 className="font-semibold text-[15px]">
-				Workshop now
+				Ready estimate
 				{categories.length > 0 && (
 					<span className="font-normal text-muted-foreground tabular-nums">
 						{" "}
