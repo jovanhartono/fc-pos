@@ -21,7 +21,7 @@ const QuoteText = ({ category }: CategoryRowProps) => {
 	if (category.after_clean) {
 		return (
 			<>
-				<strong className="font-semibold">+{range}</strong>
+				<strong className="font-medium">+{range}</strong>
 				<span className="block text-muted-foreground text-xs">
 					after the clean
 				</span>
@@ -30,7 +30,7 @@ const QuoteText = ({ category }: CategoryRowProps) => {
 	}
 	return (
 		<>
-			est. <strong className="font-semibold">{range}</strong>
+			est. <strong className="font-medium">{range}</strong>
 		</>
 	);
 };
@@ -38,7 +38,7 @@ const QuoteText = ({ category }: CategoryRowProps) => {
 const CategoryRow = ({ category }: CategoryRowProps) => (
 	<li className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-0.5 border-border border-t px-3 py-2.5 first:border-t-0">
 		<span className="font-medium">{category.name}</span>
-		<span className="row-span-2 text-right whitespace-nowrap tabular-nums">
+		<span className="row-span-2 text-right text-sm whitespace-nowrap tabular-nums">
 			<QuoteText category={category} />
 		</span>
 		<span className="text-muted-foreground text-xs tabular-nums">
