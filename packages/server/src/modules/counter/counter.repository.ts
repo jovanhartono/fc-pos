@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, min, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, min, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   categoriesTable,
@@ -49,11 +49,9 @@ export function listWaitingLines(storeId: number) {
     .select({
       category_id: categoriesTable.id,
       category_name: categoriesTable.name,
-      is_priority: ordersServicesTable.is_priority,
       item_code: itemsTable.item_code,
       item_id: ordersServicesTable.item_id,
       line_id: ordersServicesTable.id,
-      order_created_at: ordersTable.created_at,
       order_id: ordersTable.id,
       starts_after_cleaning: categoriesTable.starts_after_cleaning,
       status: ordersServicesTable.status,
@@ -75,78 +73,6 @@ export function listWaitingLines(storeId: number) {
         inArray(ordersServicesTable.status, [...WAITING_STATUSES])
       )
     );
-}
-
-// Non-Priority lines started from the queue since `since`, for the "newer
-// went first" count.
-export function listStartedLines(storeId: number, since: Date) {
-  return db
-    .select({
-      category_id: servicesTable.category_id,
-      order_created_at: ordersTable.created_at,
-      started_at: orderServiceStatusLogsTable.created_at,
-    })
-    .from(ordersServicesTable)
-    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
-    .innerJoin(
-      servicesTable,
-      eq(ordersServicesTable.service_id, servicesTable.id)
-    )
-    .innerJoin(
-      orderServiceStatusLogsTable,
-      eq(orderServiceStatusLogsTable.order_service_id, ordersServicesTable.id)
-    )
-    .where(
-      and(
-        eq(ordersTable.store_id, storeId),
-        eq(ordersServicesTable.is_priority, false),
-        eq(orderServiceStatusLogsTable.from_status, "queued"),
-        eq(orderServiceStatusLogsTable.to_status, "processing"),
-        gte(orderServiceStatusLogsTable.created_at, since)
-      )
-    );
-}
-
-// When each Item's cleaning was last finished: the latest first quality check
-// across its cleaning lines. An after-clean line could not start before then.
-export function listCleaningDoneAt(itemIds: number[]) {
-  const firstChecks = db
-    .select({
-      checked_at: min(orderServiceStatusLogsTable.created_at).as("checked_at"),
-      item_id: ordersServicesTable.item_id,
-    })
-    .from(ordersServicesTable)
-    .innerJoin(
-      servicesTable,
-      eq(ordersServicesTable.service_id, servicesTable.id)
-    )
-    .innerJoin(
-      categoriesTable,
-      eq(servicesTable.category_id, categoriesTable.id)
-    )
-    .innerJoin(
-      orderServiceStatusLogsTable,
-      eq(orderServiceStatusLogsTable.order_service_id, ordersServicesTable.id)
-    )
-    .where(
-      and(
-        inArray(ordersServicesTable.item_id, itemIds),
-        eq(categoriesTable.starts_after_cleaning, false),
-        eq(orderServiceStatusLogsTable.to_status, "quality_check")
-      )
-    )
-    .groupBy(ordersServicesTable.id, ordersServicesTable.item_id)
-    .as("first_checks");
-
-  return db
-    .select({
-      done_at: sql<Date>`MAX(${firstChecks.checked_at})`.mapWith(
-        orderServiceStatusLogsTable.created_at
-      ),
-      item_id: firstChecks.item_id,
-    })
-    .from(firstChecks)
-    .groupBy(firstChecks.item_id);
 }
 
 // The latest QC reject on each line: when, and the note the checker left.

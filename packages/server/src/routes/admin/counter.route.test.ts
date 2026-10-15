@@ -25,6 +25,13 @@ mock.module("@/modules/counter/counter.service", () => ({
   },
 }));
 
+mock.module("@/modules/counter/day-close.service", () => ({
+  getDayClose: (storeId: number) => {
+    asked.push(storeId);
+    return Promise.resolve({ date: "2026-09-30" });
+  },
+}));
+
 const counterRoutes = (await import("@/routes/admin/counter")).default;
 
 let who: JWTPayload;
@@ -90,5 +97,35 @@ describe("who may read the Counter", () => {
     const res = await call("");
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe("who may read the day close", () => {
+  const path = (storeId: number) =>
+    `/day-close?store_id=${storeId}&date=2026-09-30`;
+
+  it("answers admin and cashier for their own Store", async () => {
+    for (const role of ["admin", "cashier"] as const) {
+      who = as(role);
+      expect((await call(path(KEMANG))).status).toBe(200);
+    }
+    expect(asked).toEqual([KEMANG, KEMANG]);
+  });
+
+  it("refuses a worker and a courier", async () => {
+    for (const role of ["worker", "courier"] as const) {
+      who = as(role);
+      expect((await call(path(KEMANG))).status).toBe(403);
+    }
+    expect(asked).toEqual([]);
+  });
+
+  it("refuses a cashier asking about another Store", async () => {
+    expect((await call(path(BINTARO))).status).toBe(403);
+    expect(asked).toEqual([]);
+  });
+
+  it("needs a date", async () => {
+    expect((await call(`/day-close?store_id=${KEMANG}`)).status).toBe(400);
   });
 });

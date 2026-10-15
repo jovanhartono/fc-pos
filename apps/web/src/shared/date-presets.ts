@@ -1,6 +1,6 @@
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 
-const WIRE_FORMAT = "YYYY-MM-DD";
+export const WIRE_FORMAT = "YYYY-MM-DD";
 
 export function jakartaToday(): string {
 	return dayjs().tz(JAKARTA_TZ).format(WIRE_FORMAT);

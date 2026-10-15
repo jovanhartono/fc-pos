@@ -27,7 +27,7 @@ interface OrderServiceRowProps {
 
 export const OrderServiceRow = memo(
 	({ orderId, service, itemCode, reworkRound }: OrderServiceRowProps) => {
-		const openSheet = useSheet((s) => s.openSheet);
+		const openNestedSheet = useSheet((s) => s.openNestedSheet);
 
 		const serviceName = service.service?.name ?? "Service";
 		const isNestedRework = reworkRound !== undefined;
@@ -37,7 +37,7 @@ export const OrderServiceRow = memo(
 		const isUnpriced = isUnpricedLine(service);
 
 		const handleClick = () => {
-			openSheet({
+			openNestedSheet({
 				title: itemCode,
 				description: serviceName,
 				content: () => (

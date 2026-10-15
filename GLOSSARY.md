@@ -114,10 +114,6 @@ The one User currently responsible for an OrderService.
 **Priority**:
 A mark on an OrderService that moves it up the Queue and changes nothing else.
 
-**Stuck Item**:
-A queued Item that could have been started but was passed over by more than a day's work: more newer Items in the same Category, without Priority, were started ahead of it than that Category finishes in a day. A Repaint still waiting for its Item's clean cannot be stuck. No day limit is involved, because cleaners and artisans each work their own Categories at their own pace.
-_Avoid_: Overdue, late
-
 **Unpriced line**:
 An OrderService whose price is not known yet, usually a Repair waiting for inspection. Distinct from a line priced at 0, which is free on purpose.
 
@@ -219,7 +215,7 @@ What one Customer has paid across all of their Orders, minus refunds.
 _Avoid_: Total spend, customer revenue, lifetime value, LTV, total
 
 **Day close**:
-The recap of one Store's money for one day, by PaymentMethod, that a cashier checks against the card terminal's settlement slip before going home.
+The recap of one Store's day: its money by PaymentMethod, which a cashier checks against each card terminal's settlement slip before going home, then what was dropped off, picked up and left unpaid that day. Money counts on the day it is paid, so it does not follow the day's Orders: some of it pays for Orders dropped off earlier.
 _Avoid_: Closing shift (a Shift is one User's attendance), end of day, cash-up
 
 **First-pass rate**:
@@ -254,7 +250,7 @@ The draft a staff member builds in the POS. It becomes an Order only at checkout
 The list of Items waiting for work at a Store, priority first and then oldest first. Filtered by Category, an Item with Services in two Categories shows on both.
 
 **Counter**:
-The screen showing one Store's state right now, for everyone who works there: waiting work and the ready estimate per Category, Orders ready for pickup waiting for their Customer, and what needs a look. The Day close sits beside it for cashiers.
+The screen showing one Store's state right now, for everyone who works there: waiting work and the ready estimate per Category, Orders ready for pickup waiting for their Customer, and the Complaints and QC rejects still pending. The Day close sits beside it for cashiers.
 _Avoid_: Dashboard (Home only launches pages), Today page
 
 **Aging queue**:

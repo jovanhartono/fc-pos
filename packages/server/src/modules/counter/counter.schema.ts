@@ -50,15 +50,6 @@ export interface CounterComplaint {
   reason: string | null;
 }
 
-export interface CounterStuckItem {
-  category: string;
-  item_code: string;
-  newer_started: number;
-  order_id: number;
-  order_service_id: number;
-  waiting_days: number;
-}
-
 export type CounterWorkshop = Pick<CounterCategory, "in_progress" | "queued">;
 
 export interface Counter {
@@ -66,6 +57,5 @@ export interface Counter {
   complaints: CounterComplaint[];
   pickup_shelf: CounterPickupShelf;
   qc_rejects: CounterQcReject[];
-  stuck: CounterStuckItem[];
   workshop: CounterWorkshop;
 }

@@ -13,3 +13,5 @@ The Counter tells a customer "about X–Y days". We quote each Category on its o
 - **One Store-wide quote** (the first design, October 2026). Dropped once it was clear that work runs in lanes.
 - **"How long recent Orders took"** (turnaround). Rejected because it only notices a rush, such as 121 Services arriving in two days, after the customers have already waited.
 - **A day threshold for stuck Items.** Rejected: X days is normal for one Store and late for another. A Stuck Item is one passed over in its own Category by more than that Category's day of work instead. "Any newer Item went first" flagged 57 lines at CR6 and mostly noise at FGS. Fixed thresholds wait for the Settings menu (#159).
+
+Update 2026-10-14: Stuck Items were removed from the Counter; the owner found the list confusing.

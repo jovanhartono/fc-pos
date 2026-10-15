@@ -5,9 +5,23 @@ export type {
   CounterEstimate,
   CounterPickupShelf,
   CounterQcReject,
-  CounterStuckItem,
   CounterWorkshop,
 } from "@/modules/counter/counter.schema";
+export type {
+  DayClose,
+  DayCloseCategory,
+  DayCloseCollected,
+  DayCloseDroppedOff,
+  DayCloseMethod,
+  DayCloseOrder,
+  DayClosePayment,
+  DayClosePickedUp,
+  DayClosePickedUpOrder,
+  DayCloseProductLine,
+  DayCloseRefund,
+  DayCloseServiceCount,
+  DayCloseTotal,
+} from "@/modules/counter/day-close.schema";
 export type {
   ComparableSummary,
   KpiDelta,
