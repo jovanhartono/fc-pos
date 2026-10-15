@@ -10,6 +10,7 @@ type SheetState = {
 	content: RenderNode | null;
 	size: SheetSize;
 	back: SheetBack | null;
+	backLabel: string | null;
 };
 
 type SheetSize = "wide" | undefined;
@@ -24,6 +25,9 @@ type OpenSheetPayload = {
 	content: RenderNode;
 	size?: SheetSize;
 	back?: SheetBack;
+	// What a sheet opened over this one calls it in its back link, when the
+	// title is not plain text (an Order's title is hidden behind its own header).
+	backLabel?: string;
 };
 
 type SheetStore = {
@@ -31,6 +35,11 @@ type SheetStore = {
 	isDirty: boolean;
 	setOpen: (open: boolean) => void;
 	openSheet: (payload: OpenSheetPayload) => void;
+	// Opens over the sheet already showing, with a back link to it; with none
+	// open it is a plain openSheet.
+	openNestedSheet: (payload: OpenSheetPayload) => void;
+	// After a save: back to the sheet underneath, or close when there is none.
+	goBack: () => void;
 	closeSheet: () => void;
 	setDirty: (dirty: boolean) => void;
 };
@@ -42,9 +51,10 @@ const defaultState: SheetState = {
 	content: null,
 	size: undefined,
 	back: null,
+	backLabel: null,
 };
 
-export const useSheet = create<SheetStore>((set) => ({
+export const useSheet = create<SheetStore>((set, get) => ({
 	sheetState: defaultState,
 	isDirty: false,
 	setOpen: (open) =>
@@ -54,7 +64,14 @@ export const useSheet = create<SheetStore>((set) => ({
 				open,
 			},
 		})),
-	openSheet: ({ title = null, description = null, content, size, back }) =>
+	openSheet: ({
+		title = null,
+		description = null,
+		content,
+		size,
+		back,
+		backLabel,
+	}) =>
 		set({
 			sheetState: {
 				title,
@@ -62,10 +79,35 @@ export const useSheet = create<SheetStore>((set) => ({
 				content,
 				size,
 				back: back ?? null,
+				backLabel: backLabel ?? null,
 				open: true,
 			},
 			isDirty: false,
 		}),
+	openNestedSheet: (payload) => {
+		const below = get().sheetState;
+		if (!below.open) {
+			get().openSheet(payload);
+			return;
+		}
+		get().openSheet({
+			...payload,
+			back: {
+				label:
+					below.backLabel ??
+					(typeof below.title === "string" ? below.title : "Back"),
+				onClick: () => set({ sheetState: below, isDirty: false }),
+			},
+		});
+	},
+	goBack: () => {
+		const { back } = get().sheetState;
+		if (back) {
+			back.onClick();
+			return;
+		}
+		get().closeSheet();
+	},
 	closeSheet: () => {
 		set((state) => ({
 			sheetState: {

@@ -21,7 +21,7 @@ export const OrderRow = ({
 	orderId,
 }: OrderRowProps) => {
 	const isMobile = useIsMobile();
-	const openSheet = useSheet((s) => s.openSheet);
+	const openNestedSheet = useSheet((s) => s.openNestedSheet);
 	const closeSheet = useSheet((s) => s.closeSheet);
 	const rowClass = cn(
 		"grid w-full items-baseline gap-x-3 px-2 py-2.5 text-left hover:bg-muted",
@@ -43,15 +43,11 @@ export const OrderRow = ({
 			return;
 		}
 		event.preventDefault();
-		const list = useSheet.getState().sheetState;
-		openSheet({
+		openNestedSheet({
 			// The Order's own header already shows its code.
 			title: <span className="sr-only">{code}</span>,
+			backLabel: code,
 			size: "wide",
-			back: {
-				label: String(list.title),
-				onClick: () => useSheet.setState({ sheetState: list }),
-			},
 			content: () => <OrderDetailView orderId={orderId} />,
 		});
 	};

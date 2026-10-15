@@ -98,14 +98,14 @@ export const CollectedSection = ({
 				<div className={SUB_LINE}>
 					<span>{dayLabel} Orders</span>
 					<span className="text-right">
-						{formatMoney(collected.this_day.amount)}
+						{formatMoney(collected.this_day)}
 						{hasUnpaid ? <OpenArrow className="invisible" /> : null}
 					</span>
 				</div>
 				<div className={SUB_LINE}>
 					<span>Earlier Orders</span>
 					<span className="text-right">
-						{formatMoney(collected.earlier.amount)}
+						{formatMoney(collected.earlier)}
 						{hasUnpaid ? <OpenArrow className="invisible" /> : null}
 					</span>
 				</div>

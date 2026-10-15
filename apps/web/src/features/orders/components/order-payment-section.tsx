@@ -115,7 +115,7 @@ const CollectPaymentAction = ({
 	orderId,
 	detail,
 }: CollectPaymentActionProps) => {
-	const openSheet = useSheet((s) => s.openSheet);
+	const openNestedSheet = useSheet((s) => s.openNestedSheet);
 	// ADR-0018: a discount that settled at drop-off is printed on the Receipt
 	// the customer holds, and the server refuses a second one. That desk gets a
 	// form with no discount controls at all rather than fields that can only 400.
@@ -124,7 +124,7 @@ const CollectPaymentAction = ({
 	return (
 		<Button
 			onClick={() =>
-				openSheet({
+				openNestedSheet({
 					title: "Collect payment",
 					description: detail.code,
 					content: () =>
@@ -228,7 +228,7 @@ const SettledDiscountPaymentForm = ({
 	orderId,
 	detail,
 }: SettledDiscountPaymentFormProps) => {
-	const closeSheet = useSheet((s) => s.closeSheet);
+	const goBack = useSheet((s) => s.goBack);
 	const paymentMutation = useOrderPaymentMutation(orderId);
 	const form = useForm<z.infer<typeof paymentMethodSchema>>({
 		resolver: zodResolver(paymentMethodSchema),
@@ -253,7 +253,7 @@ const SettledDiscountPaymentForm = ({
 							voucher_codes: [],
 							discount: "0",
 						},
-						{ onSuccess: () => closeSheet() },
+						{ onSuccess: () => goBack() },
 					);
 				})}
 			>
@@ -309,7 +309,7 @@ interface CollectPaymentFormProps {
 // already settled shows the printed total instead: the server refuses a
 // second claim.
 const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
-	const closeSheet = useSheet((s) => s.closeSheet);
+	const goBack = useSheet((s) => s.goBack);
 	const campaignsQuery = useQuery(
 		campaignsQueries.list({
 			store_id: detail.store_id ?? undefined,
@@ -397,7 +397,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 							voucher_codes: values.vouchers.map((entry) => entry.code),
 							discount: values.discount || "0",
 						},
-						{ onSuccess: () => closeSheet() },
+						{ onSuccess: () => goBack() },
 					);
 				})}
 			>

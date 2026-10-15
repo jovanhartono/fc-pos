@@ -142,9 +142,9 @@ export async function getDayClose(
 
   return {
     collected: {
-      ...total(payments),
-      earlier: total(payments.filter((p) => p.created_day !== date)),
-      this_day: total(payments.filter((p) => p.created_day === date)),
+      amount: total(payments).amount,
+      earlier: total(payments.filter((p) => p.created_day !== date)).amount,
+      this_day: total(payments.filter((p) => p.created_day === date)).amount,
     },
     date,
     dropped_off: {

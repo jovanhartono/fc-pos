@@ -130,7 +130,7 @@ describe("the money collected", () => {
 
     const { collected, payments } = await closeOf();
 
-    expect(collected.payments).toBe(1);
+    expect(payments).toHaveLength(1);
     expect(collected.amount).toBe(100_000);
     expect(payments.map((p) => p.recorded_by)).toEqual(["Cahya Cashier"]);
   });
@@ -143,8 +143,8 @@ describe("the money collected", () => {
     const { collected, payments } = await closeOf();
 
     expect(collected.amount).toBe(400_000);
-    expect(collected.this_day).toEqual({ amount: 300_000, payments: 2 });
-    expect(collected.earlier).toEqual({ amount: 100_000, payments: 1 });
+    expect(collected.this_day).toBe(300_000);
+    expect(collected.earlier).toBe(100_000);
     expect(payments.at(-1)?.created_day).toBe("2026-09-28");
   });
 
@@ -227,8 +227,8 @@ describe("the money collected", () => {
     await place({ paidAt: `${DAY}T10:00` });
     await place({ paidAt: `${DAY}T10:00`, store: bintaro });
 
-    expect((await closeOf()).collected.payments).toBe(1);
-    expect((await closeOf(bintaro)).collected.payments).toBe(1);
+    expect((await closeOf()).payments).toHaveLength(1);
+    expect((await closeOf(bintaro)).payments).toHaveLength(1);
   });
 });
 

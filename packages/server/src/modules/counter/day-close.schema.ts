@@ -16,9 +16,10 @@ export interface DayCloseTotal {
   payments: number;
 }
 
-export interface DayCloseCollected extends DayCloseTotal {
-  earlier: DayCloseTotal;
-  this_day: DayCloseTotal;
+export interface DayCloseCollected {
+  amount: number;
+  earlier: number;
+  this_day: number;
 }
 
 export interface DayCloseMethod {
