@@ -5,16 +5,10 @@ import {
 	OrderCode,
 	OrderRow,
 } from "@/features/counter/components/day-close/order-row";
-import {
-	formatClock,
-	formatDayLong,
-	formatDayShort,
-} from "@/features/counter/lib/day-close";
+import { formatClock, formatDayShort } from "@/features/counter/lib/day-close";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatRefundReason } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
-import { pluralize } from "@/shared/utils";
-import { useSheet } from "@/stores/sheet-store";
 
 const COLUMNS = "grid-cols-[3rem_10rem_minmax(0,1fr)_minmax(0,1fr)_7rem]";
 
@@ -31,7 +25,10 @@ const methodOf = (refund: DayCloseRefund, date: string) =>
 		? `${refund.payment_method_name} on ${formatDayShort(refund.paid_day)}`
 		: refund.payment_method_name;
 
-const RefundsSheetContent = ({ date, refunds }: RefundsSheetContentProps) => {
+export const RefundsSheetContent = ({
+	date,
+	refunds,
+}: RefundsSheetContentProps) => {
 	const isMobile = useIsMobile();
 
 	if (isMobile) {
@@ -98,21 +95,11 @@ const RefundsSheetContent = ({ date, refunds }: RefundsSheetContentProps) => {
 
 interface RefundsSectionProps {
 	data: DayClose;
+	onOpen: (list: string) => void;
 }
 
-export const RefundsSection = ({ data }: RefundsSectionProps) => {
-	const openSheet = useSheet((s) => s.openSheet);
+export const RefundsSection = ({ data, onOpen }: RefundsSectionProps) => {
 	const total = data.refunds.reduce((sum, refund) => sum + refund.amount, 0);
-
-	const handleOpen = () =>
-		openSheet({
-			title: "Refunds",
-			description: `${formatDayLong(data.date)} · ${pluralize(data.refunds.length, "refund")} · ${formatMoney(total)}`,
-			size: "wide",
-			content: () => (
-				<RefundsSheetContent date={data.date} refunds={data.refunds} />
-			),
-		});
 
 	return (
 		<section className="grid gap-2.5">
@@ -125,7 +112,7 @@ export const RefundsSection = ({ data }: RefundsSectionProps) => {
 				) : (
 					<button
 						className="flex w-full items-baseline justify-between gap-3.5 px-3 py-2 text-left tabular-nums hover:bg-muted"
-						onClick={handleOpen}
+						onClick={() => onOpen("refunds")}
 						type="button"
 					>
 						<span>

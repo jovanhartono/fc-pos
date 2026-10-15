@@ -1,4 +1,4 @@
-import type { DayCloseMethod } from "@/features/counter/api";
+import type { DayClose, DayCloseMethod } from "@/features/counter/api";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 
 const SLIP_SEPARATOR = " - ";
@@ -43,6 +43,13 @@ export const groupBySlip = (methods: DayCloseMethod[]): SlipGroup[] => {
 		isSingle: lines.length === 1 && lines[0].line === slip,
 	}));
 };
+
+// is_paid is as of the day's close, so an Order paid the next day still counts
+// here as money the day was owed.
+export const unpaidOrdersOf = (data: DayClose) =>
+	data.dropped_off.order_list.filter(
+		(order) => !(order.is_paid || order.is_cancelled),
+	);
 
 export const DAY_SHORT = "D MMM";
 export const DAY_LONG = "ddd, D MMM YYYY";

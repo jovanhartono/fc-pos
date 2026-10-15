@@ -1,11 +1,7 @@
 import { CaretRightIcon } from "@phosphor-icons/react";
 import type { DayClose } from "@/features/counter/api";
 import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
-import { OrdersSheetContent } from "@/features/counter/components/day-close/orders-sheet-content";
-import { PickedUpSheetContent } from "@/features/counter/components/day-close/picked-up-sheet-content";
-import { formatDayLong } from "@/features/counter/lib/day-close";
 import { pluralize } from "@/shared/utils";
-import { useSheet } from "@/stores/sheet-store";
 
 interface CountGroupProps {
 	count: number;
@@ -37,34 +33,14 @@ const CountGroup = ({ count, lines, title }: CountGroupProps) => (
 
 interface SalesReportSectionProps {
 	data: DayClose;
-	dayLabel: string;
+	onOpen: (list: string) => void;
 }
 
 export const SalesReportSection = ({
 	data,
-	dayLabel,
+	onOpen,
 }: SalesReportSectionProps) => {
-	const openSheet = useSheet((s) => s.openSheet);
 	const { dropped_off: dropped, picked_up: picked } = data;
-	const ordersTitle = `${dayLabel} Orders`;
-
-	const handleOpenOrders = () =>
-		openSheet({
-			title: ordersTitle,
-			description: `${formatDayLong(data.date)} · ${pluralize(dropped.orders, "Order")}`,
-			size: "wide",
-			content: () => <OrdersSheetContent orders={dropped.order_list} />,
-		});
-
-	const handleOpenPickedUp = () =>
-		openSheet({
-			title: "Picked up",
-			description: `${formatDayLong(data.date)} · ${pluralize(picked.orders, "Order")} · ${pluralize(picked.items, "Item")}`,
-			size: "wide",
-			content: () => (
-				<PickedUpSheetContent date={data.date} orders={picked.order_list} />
-			),
-		});
 
 	const summary = [
 		pluralize(dropped.orders, "Order"),
@@ -82,7 +58,7 @@ export const SalesReportSection = ({
 			<div className="border border-border">
 				<button
 					className="flex w-full items-baseline justify-between gap-3 px-3 py-2.5 text-left hover:bg-muted"
-					onClick={handleOpenOrders}
+					onClick={() => onOpen("orders")}
 					type="button"
 				>
 					<span className="font-medium tabular-nums">{summary}</span>
@@ -118,7 +94,7 @@ export const SalesReportSection = ({
 			<button
 				className="flex w-full items-baseline justify-between gap-3 border border-border px-3 py-2.5 text-left enabled:hover:bg-muted"
 				disabled={picked.orders === 0}
-				onClick={handleOpenPickedUp}
+				onClick={() => onOpen("picked-up")}
 				type="button"
 			>
 				<span className="text-muted-foreground">Picked up</span>

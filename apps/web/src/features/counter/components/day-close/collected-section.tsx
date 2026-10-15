@@ -1,16 +1,14 @@
 import type { DayClose } from "@/features/counter/api";
 import { CountBadge } from "@/features/counter/components/day-close/count-badge";
 import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
-import { OrdersSheetContent } from "@/features/counter/components/day-close/orders-sheet-content";
-import { formatDayLong } from "@/features/counter/lib/day-close";
+import { unpaidOrdersOf } from "@/features/counter/lib/day-close";
 import { formatMoney } from "@/shared/money";
-import { pluralize } from "@/shared/utils";
-import { useSheet } from "@/stores/sheet-store";
 
 interface CollectedSectionProps {
 	data: DayClose;
 	dayLabel: string;
 	isToday: boolean;
+	onOpen: (list: string) => void;
 }
 
 const LINE = "grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3";
@@ -35,29 +33,16 @@ export const CollectedSection = ({
 	data,
 	dayLabel,
 	isToday,
+	onOpen,
 }: CollectedSectionProps) => {
-	const openSheet = useSheet((s) => s.openSheet);
 	const { collected } = data;
-	// is_paid is as of the day's close, so an Order paid the next day still
-	// counts here as money the day was owed.
-	const unpaidOrders = data.dropped_off.order_list.filter(
-		(order) => !(order.is_paid || order.is_cancelled),
-	);
+	const unpaidOrders = unpaidOrdersOf(data);
 	const unpaidAmount = unpaidOrders.reduce(
 		(sum, order) => sum + order.amount,
 		0,
 	);
 	const hasUnpaid = unpaidOrders.length > 0;
 	const expected = collected.amount + unpaidAmount;
-
-	const handleOpenUnpaid = () => {
-		openSheet({
-			title: "Unpaid Orders",
-			description: `${formatDayLong(data.date)} · ${pluralize(unpaidOrders.length, "Order")} · ${formatMoney(unpaidAmount)}`,
-			size: "wide",
-			content: () => <OrdersSheetContent orders={unpaidOrders} />,
-		});
-	};
 
 	return (
 		<section className="grid gap-2.5 border border-border p-3.5 tabular-nums">
@@ -112,7 +97,7 @@ export const CollectedSection = ({
 				{hasUnpaid ? (
 					<button
 						className={`${LINE} -mx-2.5 px-2.5 py-1.5 text-left hover:bg-muted`}
-						onClick={handleOpenUnpaid}
+						onClick={() => onOpen("unpaid")}
 						type="button"
 					>
 						<span>

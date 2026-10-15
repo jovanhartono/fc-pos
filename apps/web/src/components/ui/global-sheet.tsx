@@ -19,12 +19,17 @@ import { cn } from "@/lib/utils";
 import { useSheet } from "@/stores/sheet-store";
 
 export function GlobalSheet() {
-	const { open, title, description, content, size, back } = useSheet(
+	const { open, title, description, content, size, back, onClose } = useSheet(
 		(state) => state.sheetState,
 	);
 	const closeSheet = useSheet((state) => state.closeSheet);
 	const isDirty = useSheet((state) => state.isDirty);
 	const [confirmOpen, setConfirmOpen] = useState(false);
+
+	const dismiss = () => {
+		onClose?.();
+		closeSheet();
+	};
 
 	const handleOpenChange = (nextOpen: boolean) => {
 		if (nextOpen) {
@@ -34,12 +39,12 @@ export function GlobalSheet() {
 			setConfirmOpen(true);
 			return;
 		}
-		closeSheet();
+		dismiss();
 	};
 
 	const handleDiscard = () => {
 		setConfirmOpen(false);
-		closeSheet();
+		dismiss();
 	};
 
 	return (

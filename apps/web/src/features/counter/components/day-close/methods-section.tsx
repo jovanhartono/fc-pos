@@ -1,17 +1,9 @@
 import type { DayClose } from "@/features/counter/api";
 import { CountBadge } from "@/features/counter/components/day-close/count-badge";
 import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
-import { PaymentsSheetContent } from "@/features/counter/components/day-close/payments-sheet-content";
-import {
-	formatDayLong,
-	groupBySlip,
-	type MethodLine,
-	splitMethodName,
-} from "@/features/counter/lib/day-close";
+import { groupBySlip } from "@/features/counter/lib/day-close";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
-import { pluralize } from "@/shared/utils";
-import { useSheet } from "@/stores/sheet-store";
 
 const ROW =
 	"grid w-full grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3.5 px-3 py-2 text-left tabular-nums hover:bg-muted";
@@ -53,35 +45,11 @@ const MethodRow = ({
 
 interface MethodsSectionProps {
 	data: DayClose;
+	onOpen: (list: string) => void;
 }
 
-export const MethodsSection = ({ data }: MethodsSectionProps) => {
-	const openSheet = useSheet((s) => s.openSheet);
+export const MethodsSection = ({ data, onOpen }: MethodsSectionProps) => {
 	const groups = groupBySlip(data.methods);
-
-	const openPayments = (title: string, lines: MethodLine[]) => {
-		const ids = new Set(lines.map((line) => line.payment_method_id));
-		const payments = data.payments.filter((payment) =>
-			ids.has(payment.payment_method_id),
-		);
-		const total = payments.reduce((sum, payment) => sum + payment.amount, 0);
-		openSheet({
-			title,
-			description: `${formatDayLong(data.date)} · ${pluralize(payments.length, "payment")} · ${formatMoney(total)}`,
-			size: "wide",
-			content: () => (
-				<PaymentsSheetContent
-					date={data.date}
-					lineOf={
-						lines.length > 1
-							? (payment) => splitMethodName(payment.payment_method_name).line
-							: null
-					}
-					payments={payments}
-				/>
-			),
-		});
-	};
 
 	return (
 		<section className="grid gap-2.5">
@@ -101,7 +69,7 @@ export const MethodsSection = ({ data }: MethodsSectionProps) => {
 							amount={group.amount}
 							kind={group.isSingle ? "plain" : "slip"}
 							label={group.slip}
-							onClick={() => openPayments(group.slip, group.lines)}
+							onClick={() => onOpen(`method:${group.slip}`)}
 							payments={group.payments}
 						/>
 						{group.isSingle
@@ -112,7 +80,7 @@ export const MethodsSection = ({ data }: MethodsSectionProps) => {
 										kind="line"
 										key={line.payment_method_id ?? "none"}
 										label={line.line}
-										onClick={() => openPayments(line.name, [line])}
+										onClick={() => onOpen(`method:${line.name}`)}
 										payments={line.payments}
 									/>
 								))}

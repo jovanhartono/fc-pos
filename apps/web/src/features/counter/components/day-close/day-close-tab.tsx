@@ -1,10 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { counterQueries } from "@/features/counter/api";
 import { CollectedSection } from "@/features/counter/components/day-close/collected-section";
+import { daySheet } from "@/features/counter/components/day-close/day-sheets";
 import { MethodsSection } from "@/features/counter/components/day-close/methods-section";
 import { RefundsSection } from "@/features/counter/components/day-close/refunds-section";
 import { SalesReportSection } from "@/features/counter/components/day-close/sales-report-section";
 import { formatDayLabel } from "@/features/counter/lib/day-close";
+import { useSheet } from "@/stores/sheet-store";
 
 interface DayCloseTabProps {
 	day: string;
@@ -16,6 +20,31 @@ interface DayCloseTabProps {
 // button's icon spins.
 export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 	const { data, isError } = useQuery(counterQueries.dayClose(storeId, day));
+	const { list } = useSearch({ from: "/_admin/counter" });
+	const navigate = useNavigate({ from: "/counter" });
+
+	const setList = (next: string | undefined) =>
+		navigate({
+			search: (prev) => ({ ...prev, list: next }),
+			replace: true,
+			resetScroll: false,
+		});
+
+	// A phone that went into an Order from a list comes back to the same list.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: only a new list or day reopens the sheet
+	useEffect(() => {
+		if (!(list && data) || useSheet.getState().sheetState.open) {
+			return;
+		}
+		const sheet = daySheet(list, data, formatDayLabel(data.date, today));
+		if (!sheet) {
+			void setList(undefined);
+			return;
+		}
+		useSheet
+			.getState()
+			.openSheet({ ...sheet, onClose: () => void setList(undefined) });
+	}, [list, data]);
 
 	if (!data) {
 		return isError ? (
@@ -34,10 +63,11 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 				data={data}
 				dayLabel={dayLabel}
 				isToday={data.date === today}
+				onOpen={setList}
 			/>
-			<MethodsSection data={data} />
-			<RefundsSection data={data} />
-			<SalesReportSection data={data} dayLabel={dayLabel} />
+			<MethodsSection data={data} onOpen={setList} />
+			<RefundsSection data={data} onOpen={setList} />
+			<SalesReportSection data={data} onOpen={setList} />
 		</div>
 	);
 };

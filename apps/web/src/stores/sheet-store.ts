@@ -11,6 +11,7 @@ type SheetState = {
 	size: SheetSize;
 	back: SheetBack | null;
 	backLabel: string | null;
+	onClose: (() => void) | null;
 };
 
 type SheetSize = "wide" | undefined;
@@ -19,7 +20,7 @@ type SheetSize = "wide" | undefined;
 // the way back above its title.
 type SheetBack = { label: string; onClick: () => void };
 
-type OpenSheetPayload = {
+export type OpenSheetPayload = {
 	title?: ReactNode;
 	description?: string | null;
 	content: RenderNode;
@@ -28,6 +29,9 @@ type OpenSheetPayload = {
 	// What a sheet opened over this one calls it in its back link, when the
 	// title is not plain text (an Order's title is hidden behind its own header).
 	backLabel?: string;
+	// When the person closes the sheet, not when code closes it to leave the
+	// page; a sheet opened over this one inherits it.
+	onClose?: () => void;
 };
 
 type SheetStore = {
@@ -52,6 +56,7 @@ const defaultState: SheetState = {
 	size: undefined,
 	back: null,
 	backLabel: null,
+	onClose: null,
 };
 
 export const useSheet = create<SheetStore>((set, get) => ({
@@ -71,6 +76,7 @@ export const useSheet = create<SheetStore>((set, get) => ({
 		size,
 		back,
 		backLabel,
+		onClose,
 	}) =>
 		set({
 			sheetState: {
@@ -80,6 +86,7 @@ export const useSheet = create<SheetStore>((set, get) => ({
 				size,
 				back: back ?? null,
 				backLabel: backLabel ?? null,
+				onClose: onClose ?? null,
 				open: true,
 			},
 			isDirty: false,
@@ -91,6 +98,7 @@ export const useSheet = create<SheetStore>((set, get) => ({
 			return;
 		}
 		get().openSheet({
+			onClose: below.onClose ?? undefined,
 			...payload,
 			back: {
 				label:

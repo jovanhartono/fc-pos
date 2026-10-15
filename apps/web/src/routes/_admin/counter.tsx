@@ -17,6 +17,9 @@ const counterSearchSchema = z.object({
 		)
 		.optional()
 		.catch(undefined),
+	// The Summary list open in the sheet, so a phone's back from an Order
+	// lands on it again.
+	list: z.string().optional().catch(undefined),
 });
 
 const CounterRoute = () => {
