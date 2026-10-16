@@ -114,9 +114,18 @@ interface FindOrdersResult {
   total: number;
 }
 
+// A collected or cancelled Order has nobody left to tell, so it is neither
+// notified nor waiting for a notice.
+const CLOSED_ORDER_STATUSES = ["completed", "cancelled"] as const;
+const isOpenOrder = (status: string) =>
+  !(CLOSED_ORDER_STATUSES as readonly string[]).includes(status);
+
 const NOTIFIED_FILTER = {
-  yes: { pickupNotices: true },
-  no: { NOT: { pickupNotices: true } },
+  yes: { pickupNotices: true, status: { notIn: [...CLOSED_ORDER_STATUSES] } },
+  no: {
+    NOT: { pickupNotices: true },
+    status: { notIn: [...CLOSED_ORDER_STATUSES] },
+  },
 } as const;
 
 function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
@@ -347,7 +356,7 @@ export async function findOrders(
     refunded_amount: row.refunded_amount,
     has_unpriced_line: awaitingPrice.has(row.id),
     has_complaint: complained.has(row.id),
-    notified: row.pickupNotices.length > 0,
+    notified: row.pickupNotices.length > 0 && isOpenOrder(row.status),
     ...countItems(row.id),
     notes: row.notes,
     created_at: row.created_at,

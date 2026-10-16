@@ -101,4 +101,39 @@ describe("the notified list filter", () => {
       [waiting.id, false],
     ]);
   });
+
+  it("leaves collected and cancelled Orders out of both lists", async () => {
+    const collected = await dropOff("Budi");
+    const cancelled = await dropOff("Rina Wati");
+    await markReady(collected.id);
+    await markReady(cancelled.id);
+    await createOrderPickupNotice({
+      orderId: collected.id,
+      user: shop.cashier,
+    });
+    await testDb
+      .update(ordersTable)
+      .set({ status: "completed" })
+      .where(eq(ordersTable.id, collected.id));
+    await testDb
+      .update(ordersTable)
+      .set({ status: "cancelled" })
+      .where(eq(ordersTable.id, cancelled.id));
+
+    const list = (value?: "yes" | "no") =>
+      findOrders({
+        limit: 10,
+        notified: value,
+        offset: 0,
+        sort_by: "id",
+        sort_order: "asc",
+      });
+
+    expect((await list("yes")).items).toHaveLength(0);
+    expect((await list("no")).items).toHaveLength(0);
+    expect((await list()).items.map((order) => order.notified)).toEqual([
+      false,
+      false,
+    ]);
+  });
 });

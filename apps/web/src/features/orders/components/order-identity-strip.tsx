@@ -236,6 +236,11 @@ export const OrderIdentityStrip = ({
 
 	const lastNotice = detail.last_pickup_notice;
 	const canNotify = detail.status === "ready_for_pickup";
+	// A collected or cancelled Order has nobody left to tell.
+	const shownNotice =
+		detail.status === "completed" || detail.status === "cancelled"
+			? null
+			: lastNotice;
 	const renderNotifyButton = (className: string) =>
 		canNotify ? (
 			<Button
@@ -295,11 +300,11 @@ export const OrderIdentityStrip = ({
 							/>
 							{` · ${meta}`}
 						</p>
-						{lastNotice ? (
+						{shownNotice ? (
 							<p className="text-sm">
 								<NotifiedLabel />
 								<span className="text-muted-foreground">
-									{` · ${formatNoticeTime(lastNotice.sent_at)} · ${lastNotice.sent_by_name}`}
+									{` · ${formatNoticeTime(shownNotice.sent_at)} · ${shownNotice.sent_by_name}`}
 								</span>
 							</p>
 						) : null}
