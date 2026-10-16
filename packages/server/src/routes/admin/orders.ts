@@ -46,6 +46,7 @@ import {
   createOrderPickupEvent,
   createOrderPickupEventPresign,
 } from "@/modules/orders/order-pickup.service";
+import { createOrderPickupNotice } from "@/modules/orders/order-pickup-notice.service";
 import { setOrderServicePrice } from "@/modules/orders/order-price.service";
 import {
   getMyOrderServices,
@@ -291,6 +292,14 @@ const app = new Hono<OrderAccessEnv>()
       );
     }
   )
+  .post("/:id/pickup-notices", idParamSchema, async (c) => {
+    const user = c.get("jwtPayload");
+    const { id } = c.req.valid("param");
+
+    await createOrderPickupNotice({ orderId: id, user });
+
+    return c.json(success(null, "Pickup notice recorded"), StatusCodes.CREATED);
+  })
   .get("/:id/services/:serviceId", orderServiceParamSchema, async (c) => {
     const { id, serviceId } = c.req.valid("param");
 

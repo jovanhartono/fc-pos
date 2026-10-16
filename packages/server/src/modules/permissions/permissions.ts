@@ -54,6 +54,12 @@ export function assertCanViewDayClose(user: JWTPayload) {
   }
 }
 
+export function assertCanSendPickupNotice(user: JWTPayload) {
+  if (!POS_ROLES.has(user.role)) {
+    throw new ForbiddenException("Only shop staff can send pickup notices");
+  }
+}
+
 export function assertCanProcessPayment(user: JWTPayload) {
   if (!POS_ROLES.has(user.role)) {
     throw new ForbiddenException("Only shop staff can process payment");

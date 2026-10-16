@@ -23,7 +23,9 @@ import {
 	type Order,
 	ordersQueries,
 } from "@/features/orders/api";
+import { NotifiedLabel } from "@/features/orders/components/notified-label";
 import {
+	NOTIFIED_VALUES,
 	ORDER_STATUS_VALUES,
 	OrderFilters,
 	type OrderFilterValues,
@@ -47,6 +49,7 @@ const ordersSearchSchema = z.object({
 	storeId: z.coerce.number().int().positive().optional().catch(undefined),
 	status: z.enum(ORDER_STATUS_VALUES).optional().catch(undefined),
 	paymentStatus: z.enum(PAYMENT_STATUS_VALUES).optional().catch(undefined),
+	notified: z.enum(NOTIFIED_VALUES).optional().catch(undefined),
 	dateFrom: z
 		.string()
 		.regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -105,6 +108,7 @@ function buildOrdersListParams(
 		...(storeId !== undefined ? { store_id: storeId } : {}),
 		...(filters.status ? { status: filters.status } : {}),
 		...(filters.paymentStatus ? { payment_status: filters.paymentStatus } : {}),
+		...(filters.notified ? { notified: filters.notified } : {}),
 		...(filters.dateFrom ? { date_from: filters.dateFrom } : {}),
 		...(filters.dateTo ? { date_to: filters.dateTo } : {}),
 	};
@@ -232,6 +236,7 @@ function OrdersPage() {
 				search: orderQuery.search,
 				store_id: orderQuery.store_id,
 				payment_status: orderQuery.payment_status,
+				notified: orderQuery.notified,
 				date_from: orderQuery.date_from,
 				date_to: orderQuery.date_to,
 			},
@@ -305,18 +310,33 @@ function OrdersPage() {
 				header: "Customer",
 				meta: {
 					// The one subtitle the counter reads first: the customer's name.
-					mobileCard: { slot: "subtitle", className: "text-foreground" },
+					mobileCard: { slot: "subtitle", className: "flex-1 text-foreground" },
 				},
 				cell: ({ row }) => (
-					<div className={cn("flex flex-col", WRAP_NAME_CLASS)}>
-						<CustomerLink
-							className="truncate lg:whitespace-normal"
-							customerId={row.original.customer_id}
-							name={row.original.customer_name}
-						/>
-						<span className="text-muted-foreground text-xs tabular-nums">
-							{row.original.customer_phone}
-						</span>
+					<div
+						className={cn(
+							"flex items-start justify-between gap-3 lg:block",
+							WRAP_NAME_CLASS,
+						)}
+					>
+						<div className="min-w-0 flex-1">
+							<span className="lg:flex lg:items-baseline lg:gap-x-1.5">
+								<CustomerLink
+									className="min-w-0"
+									customerId={row.original.customer_id}
+									name={row.original.customer_name}
+								/>
+								{row.original.notified ? (
+									<NotifiedLabel className="shrink-0 max-lg:hidden" />
+								) : null}
+							</span>{" "}
+							<span className="whitespace-nowrap text-muted-foreground text-xs tabular-nums lg:block">
+								{row.original.customer_phone}
+							</span>
+						</div>
+						{row.original.notified ? (
+							<NotifiedLabel className="shrink-0 leading-5 lg:hidden" />
+						) : null}
 					</div>
 				),
 			},

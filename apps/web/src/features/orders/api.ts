@@ -68,6 +68,7 @@ export type FetchOrdersQuery = {
 		| "completed"
 		| "cancelled";
 	payment_status?: "paid" | "unpaid";
+	notified?: "yes" | "no";
 	overdue?: boolean;
 	date_from?: string;
 	date_to?: string;
@@ -221,6 +222,7 @@ export const ordersKeys = {
 	statusCounts: (query?: FetchOrdersQuery) =>
 		[...ordersKeys.lists(), "status-counts", query ?? {}] as const,
 	detail: (id: number) => [...ordersKeys.all, "detail", id] as const,
+	receipt: (id: number) => [...ordersKeys.detail(id), "receipt"] as const,
 	orderService: (orderId: number, serviceId: number) =>
 		[...ordersKeys.all, "service", orderId, serviceId] as const,
 	queues: () => [...ordersKeys.all, "queue"] as const,
@@ -320,6 +322,11 @@ export const ordersQueries = {
 		queryOptions({
 			queryKey: ordersKeys.detail(id),
 			queryFn: () => fetchOrderDetail(id),
+		}),
+	receipt: (id: number) =>
+		queryOptions({
+			queryKey: ordersKeys.receipt(id),
+			queryFn: () => fetchOrderReceipt(id),
 		}),
 	orderService: (orderId: number, serviceId: number) =>
 		queryOptions({
@@ -515,6 +522,14 @@ export function createOrderPickupEvent(
 		rpcWithAuth().api.admin.orders[":id"]["pickup-events"].$post({
 			param: { id: String(orderId) },
 			json: payload,
+		}),
+	);
+}
+
+export function createOrderPickupNotice(orderId: number) {
+	return parseResponse(
+		rpcWithAuth().api.admin.orders[":id"]["pickup-notices"].$post({
+			param: { id: String(orderId) },
 		}),
 	);
 }

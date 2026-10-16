@@ -5,6 +5,7 @@ import {
   complaintsTable,
   customersTable,
   itemsTable,
+  orderPickupNoticesTable,
   orderServiceStatusLogsTable,
   ordersServicesTable,
   ordersTable,
@@ -145,6 +146,7 @@ export function listPickupShelf(storeId: number) {
       customer_name: customersTable.name,
       customer_phone: customersTable.phone_number,
       items: sql<number>`COUNT(DISTINCT ${ordersServicesTable.item_id})::int`,
+      notified: sql<boolean>`EXISTS (SELECT 1 FROM ${orderPickupNoticesTable} WHERE ${orderPickupNoticesTable.order_id} = ${ordersTable.id})`,
       order_id: ordersTable.id,
       ready_at: ordersTable.ready_at,
     })

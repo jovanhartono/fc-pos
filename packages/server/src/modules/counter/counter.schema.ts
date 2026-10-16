@@ -23,6 +23,7 @@ export interface CounterShelfOrder {
   customer_name: string;
   customer_phone: string;
   items: number;
+  notified: boolean;
   order_id: number;
   ready_days: number;
 }

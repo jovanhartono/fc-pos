@@ -125,8 +125,11 @@ export const useSheet = create<SheetStore>((set, get) => ({
 			isDirty: false,
 		}));
 
+		// Waits for the slide-out, but leaves alone a sheet opened in the meantime.
 		setTimeout(() => {
-			set({ sheetState: defaultState });
+			if (!get().sheetState.open) {
+				set({ sheetState: defaultState });
+			}
 		}, 200);
 	},
 	setDirty: (dirty) => set({ isDirty: dirty }),

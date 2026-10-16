@@ -32,6 +32,7 @@ export interface DayCloseMethod {
 export interface DayClosePayment {
   amount: number;
   created_day: string;
+  customer_name: string;
   order_code: string;
   order_id: number;
   paid_at: string;
@@ -42,6 +43,7 @@ export interface DayClosePayment {
 
 export interface DayCloseRefund {
   amount: number;
+  customer_name: string;
   order_code: string;
   order_id: number;
   paid_day: string | null;
@@ -71,6 +73,7 @@ export interface DayCloseProductLine {
 export interface DayCloseOrder {
   amount: number;
   created_at: string;
+  customer_name: string;
   is_cancelled: boolean;
   is_paid: boolean;
   items: number;
@@ -92,7 +95,10 @@ export interface DayCloseDroppedOff {
 
 export interface DayClosePickedUpOrder {
   created_day: string;
+  customer_name: string;
   items: number;
+  items_picked_by_day: number;
+  items_total: number;
   order_code: string;
   order_id: number;
   picked_up_at: string;

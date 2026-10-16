@@ -17,6 +17,7 @@ export const GETOrdersQuerySchema = z
 
     // Not a status of its own: ready_for_pickup aged past the shelf window.
     overdue: z.stringbool().optional(),
+    notified: z.enum(["yes", "no"]).optional(),
 
     customer_id: z.coerce.number().int().positive().optional(),
     store_id: z.coerce.number().int().positive().optional(),
@@ -60,6 +61,7 @@ export interface NormalizedOrderListQuery {
   date_from?: string;
   date_to?: string;
   limit: number;
+  notified?: ParsedOrdersQuery["notified"];
   offset: number;
   overdue?: boolean;
   payment_method_id?: number;
@@ -91,6 +93,7 @@ export function normalizeOrderListQuery(
     status: query?.status,
     payment_status: query?.payment_status,
     overdue: query?.overdue,
+    notified: query?.notified,
     customer_id: query?.customer_id,
     store_id: query?.store_id,
     created_by: query?.created_by,

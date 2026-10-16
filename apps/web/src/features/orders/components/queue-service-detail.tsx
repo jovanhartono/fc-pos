@@ -9,6 +9,7 @@ import {
 	CheckCircleIcon,
 	ImageSquareIcon,
 	WarningCircleIcon,
+	WhatsappLogoIcon,
 } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -22,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import {
+	type OrderServiceDetail,
 	ordersQueries,
 	type UpdateOrderServiceStatusPayload,
 } from "@/features/orders/api";
@@ -30,6 +32,7 @@ import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gall
 import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { ReworkOriginCallout } from "@/features/orders/components/rework-origin-callout";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
+import { useNotifyCustomer } from "@/features/orders/hooks/useNotifyCustomer";
 import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { getFirstPickupAt } from "@/features/orders/lib/line-timeline";
@@ -37,6 +40,7 @@ import {
 	orderLinePhotos,
 	startPhotoBlocker,
 } from "@/features/orders/lib/order-action-gates";
+import { formatNoticeTime } from "@/features/orders/lib/pickup-notice";
 import { itemPhotoUploader } from "@/features/orders/utils/photo-upload";
 import { onOrderMoved } from "@/lib/cache-events";
 import { getOrderServiceItemDescriptors } from "@/lib/order-service-item-details";
@@ -83,6 +87,73 @@ const BackForReworkNote = ({
 		</Link>
 	</div>
 );
+
+const READY_NOTE_CLASS =
+	"border border-emerald-300/60 bg-emerald-50/70 px-3 py-3 text-emerald-900 text-sm dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200";
+
+const ReadyIcon = () => (
+	<CheckCircleIcon
+		aria-hidden="true"
+		className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+		weight="fill"
+	/>
+);
+
+interface ReadyNoteProps {
+	order: OrderServiceDetail["order"];
+}
+
+const ReadyNote = ({ order }: ReadyNoteProps) => {
+	const notifyCustomer = useNotifyCustomer(order.id);
+	const lastNotice = order.last_pickup_notice;
+	const isOrderReady = order.status === "ready_for_pickup";
+
+	if (isOrderReady && !lastNotice) {
+		return (
+			<div className={cn("grid gap-3", READY_NOTE_CLASS)}>
+				<p className="flex items-start gap-2">
+					<ReadyIcon />
+					<span>
+						<strong>All Items ready.</strong> Notify {order.customer.name}.
+					</span>
+				</p>
+				<Button
+					className="h-12 w-full"
+					icon={<WhatsappLogoIcon className="size-4" />}
+					onClick={() =>
+						notifyCustomer({
+							customerName: order.customer.name,
+							phone: order.customer.phone_number,
+							lastNotice: null,
+						})
+					}
+					type="button"
+					variant="success"
+				>
+					Notify
+				</Button>
+			</div>
+		);
+	}
+
+	return (
+		<div className={cn("flex items-start gap-2", READY_NOTE_CLASS)}>
+			<ReadyIcon />
+			{isOrderReady && lastNotice ? (
+				<p>
+					<strong>Ready.</strong> {order.customer.name} was notified{" "}
+					{formatNoticeTime(lastNotice.sent_at)}. Waiting for pickup at the
+					counter.
+				</p>
+			) : (
+				<p>
+					<strong>Ready.</strong> Waiting for the cashier to complete pickup at
+					the counter.
+				</p>
+			)}
+		</div>
+	);
+};
 
 function QueueServiceDetailSkeleton() {
 	return (
@@ -278,19 +349,7 @@ export function QueueServiceDetail({
 
 				{/* Emerald, the done tone every other screen uses for ready: the
 				    workshop's part is finished, and grey read as a warning. */}
-				{isReady && runningRework === undefined && (
-					<div className="flex items-start gap-2 border border-emerald-300/60 bg-emerald-50/70 px-3 py-3 text-emerald-900 text-sm dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
-						<CheckCircleIcon
-							aria-hidden="true"
-							className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
-							weight="fill"
-						/>
-						<p>
-							<strong>Ready.</strong> Waiting for the cashier to complete pickup
-							at the counter.
-						</p>
-					</div>
-				)}
+				{isReady && runningRework === undefined && <ReadyNote order={detail} />}
 
 				<dl className="grid grid-cols-2 gap-px border border-border bg-border">
 					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
@@ -338,7 +397,20 @@ export function QueueServiceDetail({
 							</CopyValue>
 						</dd>
 					</div>
-					<div className="col-span-2 grid content-start gap-1 bg-background px-3 py-2.5">
+					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
+						<dt className={LABEL_CLASS}>Items ready</dt>
+						<dd
+							className={cn(
+								"text-sm tabular-nums",
+								detail.items_ready === detail.items_total
+									? "text-emerald-700 dark:text-emerald-400"
+									: "text-foreground",
+							)}
+						>
+							{detail.items_ready}/{detail.items_total}
+						</dd>
+					</div>
+					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
 						<dt className={LABEL_CLASS}>Received</dt>
 						<dd className="text-sm text-foreground">
 							{formatOrderDateTime(detail.created_at)}

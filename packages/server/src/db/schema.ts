@@ -806,6 +806,21 @@ export const orderPickupEventsTable = pgTable(
   ]
 );
 
+export const orderPickupNoticesTable = pgTable(
+  "order_pickup_notices",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    order_id: integer("order_id")
+      .references(() => ordersTable.id, { onDelete: "cascade" })
+      .notNull(),
+    sent_at: timestamp("sent_at").defaultNow().notNull(),
+    sent_by: integer("sent_by")
+      .references(() => usersTable.id)
+      .notNull(),
+  },
+  (table) => [index("order_pickup_notices_order_idx").on(table.order_id)]
+);
+
 // The before-service record of an object: taken at drop-off, shared by every
 // treatment on the Item, and what the queued → processing gate reads
 // (ADR-0012, ADR-0019). Hung off the Item rather than the treatment row

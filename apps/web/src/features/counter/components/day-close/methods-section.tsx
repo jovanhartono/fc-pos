@@ -1,19 +1,20 @@
 import type { DayClose } from "@/features/counter/api";
 import { CountBadge } from "@/features/counter/components/day-close/count-badge";
 import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
+import { AMOUNT_TONE } from "@/features/counter/components/day-close/order-row";
 import { groupBySlip } from "@/features/counter/lib/day-close";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
 const ROW =
-	"grid w-full grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3.5 px-3 py-2 text-left tabular-nums hover:bg-muted";
+	"grid w-full grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3.5 px-3 py-2.5 text-left tabular-nums hover:bg-muted";
 
 const ROW_KIND = {
 	plain: "",
 	// A slip with lines matches the terminal's settlement slip, so it is the
 	// only shaded row; its lines hang off a rule underneath.
 	slip: "bg-muted/70 font-medium",
-	line: "ml-4 w-[calc(100%-1rem)] border-border border-l-2 py-1.5 pl-3.5 text-[13.5px] text-muted-foreground",
+	line: "ml-4 w-[calc(100%-1rem)] border-border border-l-2 py-1.5 pl-3.5 text-sm",
 };
 
 interface MethodRowProps {
@@ -36,7 +37,7 @@ const MethodRow = ({
 			{label}
 			<CountBadge count={payments} />
 		</span>
-		<span className="text-right">
+		<span className={cn("text-right", AMOUNT_TONE.paid)}>
 			{formatMoney(amount)}
 			<OpenArrow />
 		</span>
@@ -56,9 +57,7 @@ export const MethodsSection = ({ data, onOpen }: MethodsSectionProps) => {
 			<h2 className="font-medium text-base">By PaymentMethod</h2>
 			<div className="border border-border">
 				{groups.length === 0 ? (
-					<p className="px-3 py-2 text-muted-foreground">
-						No payments this day.
-					</p>
+					<p className="px-3 py-2.5">No payments this day.</p>
 				) : null}
 				{groups.map((group) => (
 					<div

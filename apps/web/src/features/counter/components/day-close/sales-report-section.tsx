@@ -21,11 +21,11 @@ const CountGroup = ({ count, lines, title }: CountGroupProps) => (
 		</summary>
 		{lines.map((line) => (
 			<div
-				className="flex justify-between gap-3 border-border border-t py-1.5 pr-3 pl-7 text-[13.5px] text-muted-foreground"
+				className="flex justify-between gap-3 border-border border-t py-1.5 pr-3 pl-7 text-sm"
 				key={line.id}
 			>
 				<span>{line.name}</span>
-				<span className="text-foreground/80 tabular-nums">{line.count}</span>
+				<span className="tabular-nums">{line.count}</span>
 			</div>
 		))}
 	</details>
@@ -50,6 +50,8 @@ export const SalesReportSection = ({
 	]
 		.filter(Boolean)
 		.join(" · ");
+	const hasLines =
+		dropped.categories.length > 0 || dropped.product_lines.length > 0;
 	const pickedUp = `${pluralize(picked.orders, "Order")} · ${pluralize(picked.items, "Item")}`;
 
 	return (
@@ -62,11 +64,17 @@ export const SalesReportSection = ({
 					type="button"
 				>
 					<span className="font-medium tabular-nums">{summary}</span>
-					<span className="whitespace-nowrap text-muted-foreground">
+					<span className="whitespace-nowrap">
 						All Orders
 						<OpenArrow />
 					</span>
 				</button>
+				{hasLines ? (
+					<div className="flex justify-between gap-3 border-border border-t bg-muted px-3 py-2 font-medium text-xs">
+						<span>Sold</span>
+						<span>Qty</span>
+					</div>
+				) : null}
 				{dropped.categories.map((category) => (
 					<CountGroup
 						count={category.count}
@@ -97,7 +105,7 @@ export const SalesReportSection = ({
 				onClick={() => onOpen("picked-up")}
 				type="button"
 			>
-				<span className="text-muted-foreground">Picked up</span>
+				<span>Picked up</span>
 				<span className="tabular-nums">
 					{pickedUp}
 					{picked.orders > 0 ? <OpenArrow /> : null}

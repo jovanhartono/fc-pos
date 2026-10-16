@@ -406,11 +406,42 @@ describe("what was picked up", () => {
     expect((await closeOf()).picked_up.order_list).toEqual([
       {
         created_day: "2026-09-25",
+        customer_name: "Budi Santoso",
         items: 2,
+        items_picked_by_day: 2,
+        items_total: 3,
         order_code: expect.any(String),
         order_id: order.orderId,
         picked_up_at: jkt(`${DAY}T15:00`).toISOString(),
       },
     ]);
+  });
+
+  it("keeps a day's picked-up count fixed after the rest is collected later", async () => {
+    const order = await place({ items: 2 });
+    for (const [index, at] of [`${DAY}T15:00`, "2026-10-02T11:00"].entries()) {
+      const [pickup] = await testDb
+        .insert(orderPickupEventsTable)
+        .values({
+          image_path: "pickups/part.jpg",
+          order_id: order.orderId,
+          picked_up_at: jkt(at),
+          picked_up_by: shop.admin.id,
+        })
+        .returning();
+      await testDb
+        .update(ordersServicesTable)
+        .set({ pickup_event_id: pickup.id, status: "picked_up" })
+        .where(eq(ordersServicesTable.id, order.lineIds[index]));
+    }
+
+    const counts = async (date: string) => {
+      const [row] = (await getDayClose(shop.store.id, date)).picked_up
+        .order_list;
+      return [row?.items_picked_by_day, row?.items_total];
+    };
+
+    expect(await counts(DAY)).toEqual([1, 2]);
+    expect(await counts("2026-10-02")).toEqual([2, 2]);
   });
 });
