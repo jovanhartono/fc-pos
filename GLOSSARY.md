@@ -152,6 +152,10 @@ _Avoid_: Rework (that belongs to a Complaint), kickback, redo
 **Collectable**:
 Said of an Item still in the shop with no work left on it: every OrderService is ready for pickup, cancelled or refunded, and not all of them are cancelled.
 
+**Pickup notice**:
+A WhatsApp message from the Store's phone telling the Customer their Order is ready to collect, sent only once every Item still in the shop is Collectable. It counts as sent the moment staff open it in WhatsApp. An Order can have several, such as a resend after a Rework; once one is sent, the Order counts as notified.
+_Avoid_: Notification, reminder, WA blast
+
 **OrderPickupEvent**:
 One handover of Items back to the Customer. An Order can have several.
 

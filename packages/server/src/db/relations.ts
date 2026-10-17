@@ -43,6 +43,7 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.ordersTable.created_by,
     }),
     pickupEventsPickedUp: r.many.orderPickupEventsTable(),
+    pickupNoticesSent: r.many.orderPickupNoticesTable(),
     shifts: r.many.shiftsTable({
       from: r.usersTable.id,
       to: r.shiftsTable.user_id,
@@ -210,6 +211,7 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.paymentMethodsTable.id,
     }),
     pickupEvents: r.many.orderPickupEventsTable(),
+    pickupNotices: r.many.orderPickupNoticesTable(),
     refunds: r.many.orderRefundsTable(),
     products: r.many.ordersProductsTable(),
     items: r.many.itemsTable(),
@@ -327,6 +329,19 @@ export const relations = defineRelations(schema, (r) => ({
       optional: false,
     }),
     services: r.many.ordersServicesTable(),
+  },
+
+  orderPickupNoticesTable: {
+    order: r.one.ordersTable({
+      from: r.orderPickupNoticesTable.order_id,
+      to: r.ordersTable.id,
+      optional: false,
+    }),
+    sentBy: r.one.usersTable({
+      from: r.orderPickupNoticesTable.sent_by,
+      to: r.usersTable.id,
+      optional: false,
+    }),
   },
 
   itemImagesTable: {

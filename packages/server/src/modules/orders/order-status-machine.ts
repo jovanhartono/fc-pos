@@ -231,6 +231,20 @@ export function isItemCollectable(services: ItemStatusLine[]): boolean {
   return isCollectableItemStatus(deriveItemStatus(services));
 }
 
+// The "2 of 3 ready" pair, one entry per Item: ready once it can leave the
+// counter (or already has); a cancelled one is not counted at all.
+export function countItemsReady(items: ItemStatusLine[][]) {
+  const statuses = items
+    .map(deriveItemStatus)
+    .filter((status) => status !== "cancelled");
+  return {
+    items_total: statuses.length,
+    items_ready: statuses.filter(
+      (status) => isCollectableItemStatus(status) || status === "picked_up"
+    ).length,
+  };
+}
+
 // Does this treatment leave the shop when the desk hands its object over?
 // The finished ones do, and so do the ones refunded before anyone came for the
 // pair — the shop still owes those back. A cancelled treatment does not: the

@@ -79,6 +79,25 @@ const lineComplaintRelations = {
   },
 } as const;
 
+// The newest Pickup notice only: the Order counts as notified once any exists.
+const latestPickupNoticeRelation = {
+  pickupNotices: {
+    columns: { sent_at: true },
+    orderBy: { sent_at: "desc", id: "desc" },
+    limit: 1,
+    with: { sentBy: { columns: { name: true } } },
+  },
+} as const;
+
+export function toLastPickupNotice(
+  notices: ReadonlyArray<{ sent_at: Date; sentBy: { name: string } }>
+) {
+  const [latest] = notices;
+  return latest
+    ? { sent_at: latest.sent_at, sent_by_name: latest.sentBy.name }
+    : null;
+}
+
 export interface UserRef {
   id: number;
   name: string;
@@ -211,6 +230,7 @@ export function findOrderDetail(id: number) {
         },
         orderBy: { picked_up_at: "asc" },
       },
+      ...latestPickupNoticeRelation,
       products: {
         with: {
           product: true,
@@ -390,10 +410,20 @@ export function findOrderServiceDetail(orderId: number, serviceId: number) {
     },
     with: {
       order: {
-        columns: { id: true, code: true, created_at: true },
+        columns: {
+          id: true,
+          code: true,
+          created_at: true,
+          status: true,
+        },
         with: {
           store: { columns: { id: true, code: true } },
           customer: { columns: { id: true, name: true, phone_number: true } },
+          ...latestPickupNoticeRelation,
+          // Every line on the Order, for the "2 of 3 ready" the notice waits on.
+          services: {
+            columns: { item_id: true, pickup_event_id: true, status: true },
+          },
         },
       },
       handler: { columns: userRefColumns },

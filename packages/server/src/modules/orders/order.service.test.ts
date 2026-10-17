@@ -1018,6 +1018,7 @@ describe("getOrderDetailById", () => {
       refunded_amount: "0",
       dropoff_photo_path: null,
       pickupEvents: [],
+      pickupNotices: [],
       items: [],
     };
 

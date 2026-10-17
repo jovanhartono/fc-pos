@@ -185,6 +185,7 @@ const HeaderBackButton = ({ to }: { to: LinkProps["to"] }) => {
 		<Button
 			aria-label="Back"
 			icon={icon}
+			nativeButton={false}
 			render={<Link to={to} />}
 			size="icon-lg"
 			variant="ghost"

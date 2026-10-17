@@ -12,7 +12,7 @@ interface CollectedSectionProps {
 }
 
 const LINE = "grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3";
-const SUB_LINE = `${LINE} pl-[18px] text-[13px] text-muted-foreground`;
+const SUB_LINE = `${LINE} pl-[18px] text-sm`;
 const RECEIVED_BG = "bg-emerald-500/80 dark:bg-emerald-600/80";
 const UNPAID_BG = "bg-rose-400/80 dark:bg-rose-500/60";
 

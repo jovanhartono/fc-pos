@@ -180,6 +180,7 @@ export async function getCounter(
         customer_name: order.customer_name,
         customer_phone: order.customer_phone,
         items: order.items,
+        notified: order.notified,
         order_id: order.order_id,
         ready_days: order.ready_at ? daysSince(order.ready_at, now) : 0,
       })),

@@ -22,6 +22,7 @@ import { assertActiveCourier } from "@/modules/orders/order-courier.service";
 import { hasStartPhoto } from "@/modules/orders/order-photo-gate.repository";
 import {
   findOrderDetail,
+  toLastPickupNotice,
   withReworkOpenings,
 } from "@/modules/orders/order-read.repository";
 import { deriveOrderRefundStatus } from "@/modules/orders/order-refund-status";
@@ -475,6 +476,7 @@ export async function getOrderDetailById(id: number) {
     dropoff_photo_path: dropoffPhotoPath,
     pickup_code: _pickup_code,
     pickupEvents: _pickupEvents,
+    pickupNotices,
     ...detailWithoutInternals
   } = detail;
 
@@ -525,6 +527,7 @@ export async function getOrderDetailById(id: number) {
       picked_up_at: event.picked_up_at,
       picked_up_by: event.pickedUpBy,
     })),
+    last_pickup_notice: toLastPickupNotice(pickupNotices),
     items,
     // Item statuses, not treatment rows: the strip's "n of M picked up" counts
     // objects handed back (ADR-0017).

@@ -2,6 +2,7 @@ import {
   listDroppedOffOrders,
   listDroppedOffProducts,
   listDroppedOffServices,
+  listOrderLinesWithPickup,
   listPaidOrders,
   listPickedUpOrders,
   listRefundReasons,
@@ -12,8 +13,10 @@ import type {
   DayCloseCategory,
   DayCloseMethod,
   DayCloseOrder,
+  DayClosePickedUpOrder,
   DayCloseTotal,
 } from "@/modules/counter/day-close.schema";
+import { countItemsReady } from "@/modules/orders/order-status-machine";
 import {
   type DateRange,
   getJakartaDayRange,
@@ -60,6 +63,7 @@ function buildOrderList(
     return {
       amount: Number(row.total) - Number(row.discount),
       created_at: row.created_at.toISOString(),
+      customer_name: row.customer_name,
       is_cancelled: row.cancelled_at !== null && row.cancelled_at < dayEnd,
       is_paid: isPaid,
       items: row.items,
@@ -81,6 +85,7 @@ async function buildRefunds(storeId: number, range: DateRange) {
 
   return refunds.map((refund) => ({
     amount: Number(refund.amount),
+    customer_name: refund.customer_name,
     order_code: refund.order_code,
     order_id: refund.order_id,
     paid_day: refund.paid_at ? jakartaDayOf(refund.paid_at) : null,
@@ -90,6 +95,42 @@ async function buildRefunds(storeId: number, range: DateRange) {
     ),
     refunded_at: refund.refunded_at.toISOString(),
   }));
+}
+
+// "2 of 3 picked up" as it stood when the day closed, so a past day reads the
+// same after the Customer collects the rest.
+async function buildPickedUpList(
+  rows: Awaited<ReturnType<typeof listPickedUpOrders>>,
+  dayEnd: Date
+): Promise<DayClosePickedUpOrder[]> {
+  const lines =
+    rows.length > 0
+      ? await listOrderLinesWithPickup(rows.map((row) => row.order_id))
+      : [];
+  const itemsByOrder = Map.groupBy(lines, (line) => line.order_id);
+
+  return rows.map((order) => {
+    const items = [
+      ...Map.groupBy(
+        itemsByOrder.get(order.order_id) ?? [],
+        (line) => line.item_id
+      ).values(),
+    ];
+    return {
+      created_day: jakartaDayOf(order.created_at),
+      customer_name: order.customer_name,
+      items: order.items,
+      items_picked_by_day: items.filter((itemLines) =>
+        itemLines.some(
+          (line) => line.picked_up_at !== null && line.picked_up_at < dayEnd
+        )
+      ).length,
+      items_total: countItemsReady(items).items_total,
+      order_code: order.code,
+      order_id: order.order_id,
+      picked_up_at: (order.picked_up_at as Date).toISOString(),
+    };
+  });
 }
 
 // One Store's closing summary for one Jakarta day, to check the money against
@@ -113,6 +154,7 @@ export async function getDayClose(
   const payments = paidOrders.map((order) => ({
     amount: Number(order.amount),
     created_day: jakartaDayOf(order.created_at),
+    customer_name: order.customer_name,
     order_code: order.code,
     order_id: order.order_id,
     paid_at: (order.paid_at as Date).toISOString(),
@@ -132,13 +174,7 @@ export async function getDayClose(
     .sort(byMethodId);
 
   const orderList = buildOrderList(droppedOff, range.end);
-  const pickedUpList = pickedUp.map((order) => ({
-    created_day: jakartaDayOf(order.created_at),
-    items: order.items,
-    order_code: order.code,
-    order_id: order.order_id,
-    picked_up_at: (order.picked_up_at as Date).toISOString(),
-  }));
+  const pickedUpList = await buildPickedUpList(pickedUp, range.end);
 
   return {
     collected: {

@@ -54,7 +54,8 @@ export function GlobalSheet() {
 					side="right"
 					className={cn(
 						"w-full overflow-y-auto",
-						size === "wide" && "data-[side=right]:sm:max-w-[820px]",
+						size === "wide" &&
+							"data-[side=right]:w-full data-[side=right]:sm:max-w-[820px]",
 					)}
 				>
 					{title || description ? (

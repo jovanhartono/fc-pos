@@ -1,6 +1,9 @@
+import { WhatsappLogoIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import type { CounterPickupShelf } from "@/features/counter/api";
-import { formatDays, whatsappUrl } from "@/features/counter/lib/format";
+import { formatDays } from "@/features/counter/lib/format";
+import { NotifiedLabel } from "@/features/orders/components/notified-label";
+import { useNotifyCustomer } from "@/features/orders/hooks/useNotifyCustomer";
 import { cn, pluralize } from "@/shared/utils";
 
 interface ShelfOrderLinkProps {
@@ -38,6 +41,34 @@ const ShelfOrderLink = ({
 		>
 			{customerName}
 		</Link>
+	);
+};
+
+interface ShelfNotifyActionProps {
+	order: CounterPickupShelf["oldest"][number];
+}
+
+const ShelfNotifyAction = ({ order }: ShelfNotifyActionProps) => {
+	const notifyCustomer = useNotifyCustomer(order.order_id);
+
+	if (order.notified) {
+		return <NotifiedLabel className="justify-self-end" />;
+	}
+	return (
+		<button
+			className="inline-flex items-center gap-1 justify-self-end font-medium text-emerald-700 text-sm whitespace-nowrap hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+			onClick={() =>
+				notifyCustomer({
+					customerName: order.customer_name,
+					phone: order.customer_phone,
+					lastNotice: null,
+				})
+			}
+			type="button"
+		>
+			<WhatsappLogoIcon aria-hidden="true" className="size-4" />
+			Notify
+		</button>
 	);
 };
 
@@ -86,14 +117,7 @@ export const PickupShelfSection = ({
 							<span className="text-muted-foreground text-sm tabular-nums whitespace-nowrap">
 								{pluralize(order.items, "Item")}
 							</span>
-							<a
-								className="justify-self-end text-sm text-success underline underline-offset-2 whitespace-nowrap"
-								href={whatsappUrl(order.customer_phone)}
-								rel="noreferrer"
-								target="_blank"
-							>
-								WhatsApp
-							</a>
+							<ShelfNotifyAction order={order} />
 						</li>
 					))}
 				</ul>

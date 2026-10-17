@@ -20,9 +20,8 @@ import {
 } from "@/modules/orders/order-refund-status";
 import { isNumericSearch } from "@/modules/orders/order-search";
 import {
-  deriveItemStatus,
+  countItemsReady,
   type ItemStatusLine,
-  isCollectableItemStatus,
   summarizeOrderFulfillment,
 } from "@/modules/orders/order-status-machine";
 import { toStoredPhonePrefix } from "@/schema/phone";
@@ -89,6 +88,7 @@ export interface OrderListItem {
   items_ready: number;
   items_total: number;
   notes: string | null;
+  notified: boolean;
   paid_amount: string;
   payment_method_id: number | null;
   payment_method_name: string | null;
@@ -113,6 +113,11 @@ interface FindOrdersResult {
   items: OrderListItem[];
   total: number;
 }
+
+const NOTIFIED_FILTER = {
+  yes: { pickupNotices: true },
+  no: { NOT: { pickupNotices: true } },
+} as const;
 
 function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
   const conditions: Record<string, unknown>[] = [];
@@ -149,6 +154,10 @@ function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
         lt: jakartaNow().subtract(PICKUP_OVERDUE_HOURS, "hour").toDate(),
       },
     });
+  }
+
+  if (filters.notified) {
+    conditions.push(NOTIFIED_FILTER[filters.notified]);
   }
 
   if (filters.store_id) {
@@ -258,6 +267,7 @@ export async function findOrders(
             name: true,
           },
         },
+        pickupNotices: { columns: { id: true }, limit: 1 },
       },
       where: buildOrderWhere(filters, scopedStoreIds),
       orderBy:
@@ -319,19 +329,8 @@ export async function findOrders(
     }
   }
 
-  // The same rollup the pickup desk uses: an Item is ready once it can leave
-  // the counter (or already has); a cancelled one is not counted at all.
-  const countItems = (orderId: number) => {
-    const statuses = [...(linesByItem.get(orderId)?.values() ?? [])]
-      .map(deriveItemStatus)
-      .filter((status) => status !== "cancelled");
-    return {
-      items_total: statuses.length,
-      items_ready: statuses.filter(
-        (status) => isCollectableItemStatus(status) || status === "picked_up"
-      ).length,
-    };
-  };
+  const countItems = (orderId: number) =>
+    countItemsReady([...(linesByItem.get(orderId)?.values() ?? [])]);
 
   const items: OrderListItem[] = rows.map((row) => ({
     id: row.id,
@@ -348,6 +347,7 @@ export async function findOrders(
     refunded_amount: row.refunded_amount,
     has_unpriced_line: awaitingPrice.has(row.id),
     has_complaint: complained.has(row.id),
+    notified: row.pickupNotices.length > 0,
     ...countItems(row.id),
     notes: row.notes,
     created_at: row.created_at,

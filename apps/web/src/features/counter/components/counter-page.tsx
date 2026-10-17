@@ -102,6 +102,7 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 	const handleCloseOrder = useCallback(() => {
 		void navigate({
 			search: (prev) => ({ ...prev, open: undefined }),
+			replace: true,
 			resetScroll: false,
 		});
 	}, [navigate]);

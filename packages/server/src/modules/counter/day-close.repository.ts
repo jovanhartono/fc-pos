@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, max, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   categoriesTable,
+  customersTable,
   itemsTable,
   orderPickupEventsTable,
   orderRefundItemsTable,
@@ -23,6 +24,7 @@ export function listPaidOrders(storeId: number, range: DateRange) {
       amount: ordersTable.paid_amount,
       code: ordersTable.code,
       created_at: ordersTable.created_at,
+      customer_name: customersTable.name,
       method_name: paymentMethodsTable.name,
       order_id: ordersTable.id,
       paid_at: ordersTable.paid_at,
@@ -30,6 +32,7 @@ export function listPaidOrders(storeId: number, range: DateRange) {
       recorded_by: usersTable.name,
     })
     .from(ordersTable)
+    .innerJoin(customersTable, eq(ordersTable.customer_id, customersTable.id))
     .leftJoin(
       paymentMethodsTable,
       eq(ordersTable.payment_method_id, paymentMethodsTable.id)
@@ -43,6 +46,7 @@ export function listRefundsInDay(storeId: number, range: DateRange) {
   return db
     .select({
       amount: orderRefundsTable.total_amount,
+      customer_name: customersTable.name,
       method_name: paymentMethodsTable.name,
       order_code: ordersTable.code,
       order_id: ordersTable.id,
@@ -52,6 +56,7 @@ export function listRefundsInDay(storeId: number, range: DateRange) {
     })
     .from(orderRefundsTable)
     .innerJoin(ordersTable, eq(orderRefundsTable.order_id, ordersTable.id))
+    .innerJoin(customersTable, eq(ordersTable.customer_id, customersTable.id))
     .leftJoin(
       paymentMethodsTable,
       eq(ordersTable.payment_method_id, paymentMethodsTable.id)
@@ -83,6 +88,7 @@ export function listDroppedOffOrders(storeId: number, range: DateRange) {
       cancelled_at: ordersTable.cancelled_at,
       code: ordersTable.code,
       created_at: ordersTable.created_at,
+      customer_name: customersTable.name,
       discount: ordersTable.discount,
       items: sql<number>`COUNT(${itemsTable.id})::int`,
       method_name: paymentMethodsTable.name,
@@ -91,6 +97,7 @@ export function listDroppedOffOrders(storeId: number, range: DateRange) {
       total: ordersTable.total,
     })
     .from(ordersTable)
+    .innerJoin(customersTable, eq(ordersTable.customer_id, customersTable.id))
     .leftJoin(itemsTable, eq(itemsTable.order_id, ordersTable.id))
     .leftJoin(
       paymentMethodsTable,
@@ -102,7 +109,7 @@ export function listDroppedOffOrders(storeId: number, range: DateRange) {
         ...timeWindow(ordersTable.created_at, range)
       )
     )
-    .groupBy(ordersTable.id, paymentMethodsTable.id)
+    .groupBy(ordersTable.id, customersTable.id, paymentMethodsTable.id)
     .orderBy(asc(ordersTable.created_at), asc(ordersTable.id));
 }
 
@@ -166,12 +173,14 @@ export function listPickedUpOrders(storeId: number, range: DateRange) {
     .select({
       code: ordersTable.code,
       created_at: ordersTable.created_at,
+      customer_name: customersTable.name,
       items: sql<number>`COUNT(DISTINCT ${ordersServicesTable.item_id})::int`,
       order_id: ordersTable.id,
       picked_up_at: lastPickupAt,
     })
     .from(orderPickupEventsTable)
     .innerJoin(ordersTable, eq(orderPickupEventsTable.order_id, ordersTable.id))
+    .innerJoin(customersTable, eq(ordersTable.customer_id, customersTable.id))
     .leftJoin(
       ordersServicesTable,
       eq(ordersServicesTable.pickup_event_id, orderPickupEventsTable.id)
@@ -182,6 +191,23 @@ export function listPickedUpOrders(storeId: number, range: DateRange) {
         ...timeWindow(orderPickupEventsTable.picked_up_at, range)
       )
     )
-    .groupBy(ordersTable.id)
+    .groupBy(ordersTable.id, customersTable.id)
     .orderBy(asc(lastPickupAt), asc(ordersTable.id));
+}
+
+export function listOrderLinesWithPickup(orderIds: number[]) {
+  return db
+    .select({
+      item_id: ordersServicesTable.item_id,
+      order_id: ordersServicesTable.order_id,
+      picked_up_at: orderPickupEventsTable.picked_up_at,
+      pickup_event_id: ordersServicesTable.pickup_event_id,
+      status: ordersServicesTable.status,
+    })
+    .from(ordersServicesTable)
+    .leftJoin(
+      orderPickupEventsTable,
+      eq(ordersServicesTable.pickup_event_id, orderPickupEventsTable.id)
+    )
+    .where(inArray(ordersServicesTable.order_id, orderIds));
 }

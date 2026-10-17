@@ -4,6 +4,7 @@ import {
 	PrinterIcon,
 	TruckIcon,
 	WarningCircleIcon,
+	WhatsappLogoIcon,
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { CopyValue } from "@/components/copy-value";
@@ -20,12 +21,14 @@ import { OpenComplaintForm } from "@/features/complaints/components/open-complai
 import { useOpenComplaintMutation } from "@/features/complaints/hooks/useComplaintMutations";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import type { OrderDetail } from "@/features/orders/api";
+import { NotifiedLabel } from "@/features/orders/components/notified-label";
 import { OrderCourierForm } from "@/features/orders/components/order-courier-form";
 import {
 	CancelOrderForm,
 	RefundOrderForm,
 } from "@/features/orders/components/order-line-reversal-form";
 import { OrderPickupEventDialog } from "@/features/orders/components/order-pickup-event-dialog";
+import { useNotifyCustomer } from "@/features/orders/hooks/useNotifyCustomer";
 import {
 	useCancelOrderMutation,
 	useRefundOrderMutation,
@@ -34,6 +37,7 @@ import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
 import { showsPickupProgress } from "@/features/orders/lib/order-sheet";
 import { getPaymentBadges } from "@/features/orders/lib/payment-badges";
+import { formatNoticeTime } from "@/features/orders/lib/pickup-notice";
 import { buildRefundCaps } from "@/features/orders/lib/refund-preview";
 import { findWorkshopRework } from "@/features/orders/lib/refund-rework";
 import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
@@ -62,6 +66,7 @@ export const OrderIdentityStrip = ({
 	const refundMutation = useRefundOrderMutation();
 	const openComplaintMutation = useOpenComplaintMutation();
 	const printReceiptMutation = usePrintReceiptMutation(orderId);
+	const notifyCustomer = useNotifyCustomer(orderId);
 
 	// The cancel and refund pickers name the pair ("Nike · AF1 · White") and the
 	// short tag, so the cashier needn't flip back to the order to match codes.
@@ -229,6 +234,27 @@ export const OrderIdentityStrip = ({
 		.filter(Boolean)
 		.join(" · ");
 
+	const lastNotice = detail.last_pickup_notice;
+	const canNotify = detail.status === "ready_for_pickup";
+	const renderNotifyButton = (className: string) =>
+		canNotify ? (
+			<Button
+				className={className}
+				icon={<WhatsappLogoIcon className="size-4" />}
+				onClick={() =>
+					notifyCustomer({
+						customerName: detail.customer.name,
+						phone: detail.customer.phone_number,
+						lastNotice,
+					})
+				}
+				type="button"
+				variant={lastNotice ? "outline-success" : "success"}
+			>
+				{lastNotice ? "Notify again" : "Notify"}
+			</Button>
+		) : null;
+
 	const renderPickupButton = (className: string) =>
 		collectableCount > 0 ? (
 			<Button
@@ -269,9 +295,18 @@ export const OrderIdentityStrip = ({
 							/>
 							{` · ${meta}`}
 						</p>
+						{lastNotice ? (
+							<p className="text-sm">
+								<NotifiedLabel />
+								<span className="text-muted-foreground">
+									{` · ${formatNoticeTime(lastNotice.sent_at)} · ${lastNotice.sent_by_name}`}
+								</span>
+							</p>
+						) : null}
 					</div>
 
 					<div className="flex shrink-0 items-center gap-2">
+						{renderNotifyButton("hidden sm:inline-flex")}
 						{renderPickupButton("hidden sm:inline-flex")}
 						<Button
 							icon={<PrinterIcon className="size-4" />}
@@ -335,7 +370,12 @@ export const OrderIdentityStrip = ({
 					</div>
 				</div>
 
-				{renderPickupButton("w-full sm:hidden")}
+				{canNotify || collectableCount > 0 ? (
+					<div className="flex gap-2 sm:hidden">
+						{renderNotifyButton("flex-1")}
+						{renderPickupButton("flex-1")}
+					</div>
+				) : null}
 
 				{showsPickupProgress(detail.items) ? (
 					<div className="grid gap-1.5">

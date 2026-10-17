@@ -24,14 +24,18 @@ export const ORDER_STATUS_VALUES = [
 
 export const PAYMENT_STATUS_VALUES = ["paid", "unpaid"] as const;
 
+export const NOTIFIED_VALUES = ["yes", "no"] as const;
+
 type OrderStatusFilter = (typeof ORDER_STATUS_VALUES)[number];
 type PaymentStatusFilter = (typeof PAYMENT_STATUS_VALUES)[number];
+type NotifiedFilter = (typeof NOTIFIED_VALUES)[number];
 
 export interface OrderFilterValues {
 	search?: string;
 	storeId?: number;
 	status?: OrderStatusFilter;
 	paymentStatus?: PaymentStatusFilter;
+	notified?: NotifiedFilter;
 	dateFrom?: string;
 	dateTo?: string;
 }
@@ -49,6 +53,12 @@ const PAYMENT_ITEMS: Record<string, string> = {
 	"": "All payments",
 	paid: formatPaymentStatus("paid"),
 	unpaid: formatPaymentStatus("unpaid"),
+};
+
+const NOTIFIED_ITEMS: Record<string, string> = {
+	"": "All notices",
+	yes: "Notified",
+	no: "Not notified",
 };
 
 interface FilterControlsProps extends OrderFiltersProps {
@@ -86,6 +96,17 @@ const FilterControls = ({
 			placeholder="All payments"
 			className="w-full lg:w-max lg:min-w-40"
 		/>
+		<SelectField
+			id={`${idPrefix}-notified`}
+			aria-label="Filter by pickup notice"
+			items={NOTIFIED_ITEMS}
+			value={values.notified ?? ""}
+			onValueChange={(value) =>
+				onChange({ notified: (value || undefined) as NotifiedFilter })
+			}
+			placeholder="All notices"
+			className="w-full lg:w-max lg:min-w-40"
+		/>
 		<DateRangePicker
 			id={`${idPrefix}-date`}
 			resetOnSelect
@@ -113,12 +134,14 @@ export const OrderFilters = ({
 	// explaining it. Status is not here: its tabs are always on screen.
 	const activeCount =
 		(values.paymentStatus ? 1 : 0) +
+		(values.notified ? 1 : 0) +
 		(values.dateFrom || values.dateTo ? 1 : 0) +
 		(isAdmin && values.storeId ? 1 : 0);
 
 	const handleClearAll = () => {
 		onChange({
 			paymentStatus: undefined,
+			notified: undefined,
 			dateFrom: undefined,
 			dateTo: undefined,
 			...(isAdmin ? { storeId: undefined } : {}),

@@ -66,7 +66,12 @@ export const daySheet = (
 				title: "Unpaid Orders",
 				description: `${day} · ${pluralize(orders.length, "Order")} · ${formatMoney(sum(orders))}`,
 				size: "wide",
-				content: () => <OrdersSheetContent orders={orders} />,
+				content: () => (
+					<OrdersSheetContent
+						emptyText="Nothing unpaid this day."
+						orders={orders}
+					/>
+				),
 			};
 		}
 		case "orders":
@@ -74,7 +79,12 @@ export const daySheet = (
 				title: `${dayLabel} Orders`,
 				description: `${day} · ${pluralize(dropped.orders, "Order")}`,
 				size: "wide",
-				content: () => <OrdersSheetContent orders={dropped.order_list} />,
+				content: () => (
+					<OrdersSheetContent
+						emptyText="No Orders dropped off this day."
+						orders={dropped.order_list}
+					/>
+				),
 			};
 		case "picked-up":
 			return {
