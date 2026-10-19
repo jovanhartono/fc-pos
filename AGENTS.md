@@ -52,6 +52,7 @@ in-process limiter would reset with it — no in-process limiter is by design:
 `vercel.json` `crons` → HTTP GET to the production URL, routed through the `/api/(.*)` rewrite to the API. **Schedules are UTC only**, so a Jakarta time is written 7 hours earlier: `0 20 * * *` is 03:00 Jakarta.
 
 - `/api/internal/photo-sweep` — deletes order photos no order points at. The counter uploads a photo before the batch is confirmed, so an abandoned batch leaves the file behind with nothing filed against it. Compares its own environment's prefix to the database each run and ignores anything under 24h old. No per-run cap — a backlog clears in one pass. Delivery is best-effort: Vercel may skip or repeat a run, which is safe here. Needs `s3:ListBucket` on the bucket; the object-level rights the presign flow uses are not enough, and without it every run fails with AccessDenied.
+- `/api/internal/close-open-shifts` — closes yesterday's Forgotten clock-outs at 00:00 Jakarta (ADR-0025). Best-effort like the sweep: the next Clock in or Clock out closes one the same way, so a skipped run locks nobody out.
 
 ## RPC / Type Sharing
 

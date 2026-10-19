@@ -25,7 +25,7 @@
 - `lib/` — RPC clients, HTTP helpers, cache events, status maps, shared helpers
 - `routes/` — TanStack Router file-based; thin orchestrators only
 - `shared/` — cross-cutting utils (money, utils)
-- `stores/` — Zustand stores (auth, dialog, sheet, printer, queue-preferences, transactions, transaction-preferences)
+- `stores/` — Zustand stores, one `<name>-store.ts` each
 - "Transactions" (`features/transactions/`, `/transactions`, `transactions-store.ts`) is the POS's legacy name: say Order or POS in new code, and rename when work touches these files.
 
 ## Forms
@@ -76,7 +76,7 @@ Every saved/uploaded image rendered anywhere must be clickable and open in `Phot
 - File-based under `src/routes/`; `_admin` layout with `beforeLoad: requireAuth`
 - Search params validated with Zod via `validateSearch`
 - `Route.useSearch()` / `Route.useParams()` in components
-- After renaming/creating a route file, run `bun run generate-routes` before type-check. If `FileRoutesByPath` still errors, run type-check again — `tsc -b` incremental cache sometimes lags one pass.
+- `bun run type-check` regenerates the route tree before `tsc -b`, so a new or renamed route file needs no separate step.
 
 ## Dates
 
