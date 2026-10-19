@@ -14,7 +14,7 @@
 - Use `src/utils/http.ts` helpers (`success()`, `failure()`) for responses.
 - **Tests**: run them through `bun run test`, which passes `--isolate`. `*.integration.test.ts` files swap `@/db` (and sometimes `@/utils/s3`) for the whole module registry, so a bare `bun test <file>` drops the isolation and lets those mocks leak into every other file in the run.
 - Export types/schemas for web via package exports (`schema`, `rpc`, `types`) — no deep internal imports from `@fresclean/web`.
-- **Date query params**: `dateStringSchema()` requires `YYYY-MM-DD` — never send `.toISOString()`. Used on shifts, reports, daily-report endpoints.
+- **Date query params**: `dateStringSchema()` requires `YYYY-MM-DD` — never send `.toISOString()`.
 - **Timezone**: all `dayjs()` calls that compute day/week/month boundaries or format date strings must use `.tz("Asia/Jakarta")`. Bootstrap `utc` + `timezone` plugins at server entry. Use `src/utils/date.ts` helpers (`jakartaNow`, `jakartaDayStart`, `jakartaDayEnd`) — do NOT inline `dayjs().startOf("day")`. Reports bucket days in SQL through `jakartaBucketExpr`; never write a bare `AT TIME ZONE 'Asia/Jakarta'` (columns hold UTC wall time); orders/repositories must match via dayjs TZ. Exempt: `modules/reports/report-range.util.ts` deliberately skips the dayjs helpers and computes bucket boundaries with fixed-offset arithmetic (WIB is UTC+7, no DST), so its JS bucket labels match Postgres' own `to_char(… AT TIME ZONE …)` bucketing exactly.
 
 ## Database

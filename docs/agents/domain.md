@@ -7,7 +7,7 @@ How the engineering skills should consume this repo's domain documentation when 
 - **`GLOSSARY.md`** at the repo root: one glossary covers both `packages/server` and `apps/web`.
 - **`docs/adr/`**: read ADRs that touch the area you're about to work in. The rules behind each glossary term live here, not in the glossary.
 
-If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) extends them when terms or decisions actually get resolved.
+The `/domain-modeling` skill extends them when terms or decisions get resolved.
 
 ## Use the glossary's vocabulary
 
