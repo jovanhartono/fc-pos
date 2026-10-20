@@ -122,7 +122,7 @@ const HeaderRefreshButton = () => {
 				/>
 			}
 			onClick={() => queryClient.invalidateQueries()}
-			size="icon-lg"
+			size="icon"
 			variant="ghost"
 		/>
 	);
@@ -160,7 +160,7 @@ const HeaderBackButton = ({ to }: { to: LinkProps["to"] }) => {
 				aria-label="Back"
 				icon={icon}
 				onClick={() => router.history.back()}
-				size="icon-lg"
+				size="icon"
 				variant="ghost"
 			/>
 		);
@@ -172,7 +172,7 @@ const HeaderBackButton = ({ to }: { to: LinkProps["to"] }) => {
 			icon={icon}
 			nativeButton={false}
 			render={<Link to={to} />}
-			size="icon-lg"
+			size="icon"
 			variant="ghost"
 		/>
 	);
@@ -361,7 +361,7 @@ export function AppShell({ title, children }: AppShellProps) {
 				{/* Queue detail's Hold to Start Work bar rests on the window bottom
 				    (the tab bar below md); a sticky bar would stop short of this padding. */}
 				<section
-					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain [scrollbar-gutter:stable] px-3 pt-[calc(var(--app-header,0px)+0.75rem)] pb-[calc(var(--inset-bottom)+0.75rem)] has-[[data-bottom-bar]]:pb-0 sm:px-4 sm:pt-[calc(var(--app-header,0px)+1rem)] sm:pb-[calc(var(--inset-bottom)+1rem)] lg:px-6 has-[[data-list-panel]]:flex has-[[data-list-panel]]:flex-col"
+					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain [scrollbar-gutter:stable] [--page-top:0.75rem] [--page-x:0.75rem] px-(--page-x) pt-[calc(var(--app-header,0px)+var(--page-top))] pb-[calc(var(--inset-bottom)+0.75rem)] has-[[data-bottom-bar]]:pb-0 sm:[--page-top:1rem] sm:[--page-x:1rem] sm:pb-[calc(var(--inset-bottom)+1rem)] lg:[--page-x:1.5rem] has-[[data-list-panel]]:flex has-[[data-list-panel]]:flex-col"
 					data-scroll-restoration-id={APP_CONTENT_SCROLL_ID}
 				>
 					{children}

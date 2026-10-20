@@ -23,3 +23,8 @@ export const isListKeyBlocked = (
 	}
 	return document.querySelector(dialogs) !== null;
 };
+
+// A cmd-, ctrl-, shift- or middle-click opens the link in a new tab instead.
+export const isPlainLeftClick = (
+	event: Pick<MouseEvent, "metaKey" | "ctrlKey" | "shiftKey" | "button">,
+) => !(event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0);

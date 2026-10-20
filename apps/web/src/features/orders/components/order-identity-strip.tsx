@@ -8,7 +8,6 @@ import {
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { CopyValue } from "@/components/copy-value";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -22,6 +21,7 @@ import { useOpenComplaintMutation } from "@/features/complaints/hooks/useComplai
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import type { OrderDetail } from "@/features/orders/api";
 import { NotifiedLabel } from "@/features/orders/components/notified-label";
+import { OrderBadges } from "@/features/orders/components/order-badges";
 import { OrderCourierForm } from "@/features/orders/components/order-courier-form";
 import {
 	CancelOrderForm,
@@ -36,7 +36,6 @@ import {
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
 import { showsPickupProgress } from "@/features/orders/lib/order-sheet";
-import { getPaymentBadges } from "@/features/orders/lib/payment-badges";
 import { formatNoticeTime } from "@/features/orders/lib/pickup-notice";
 import { buildRefundCaps } from "@/features/orders/lib/refund-preview";
 import { findWorkshopRework } from "@/features/orders/lib/refund-rework";
@@ -46,7 +45,6 @@ import {
 	formatOrderServiceItemDetails,
 	getOrderServiceItemDetails,
 } from "@/lib/order-service-item-details";
-import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { useDialog } from "@/stores/dialog-store";
 
@@ -280,14 +278,7 @@ export const OrderIdentityStrip = ({
 							<h1 className="break-all font-medium text-title-3 tracking-tight tabular-nums sm:text-title-2 compact:text-title-3">
 								<CopyValue label="order code" value={detail.code} />
 							</h1>
-							<Badge variant={getOrderStatusBadgeVariant(detail.status)}>
-								{formatOrderStatus(detail.status)}
-							</Badge>
-							{getPaymentBadges(detail).map((badge) => (
-								<Badge key={badge.label} variant={badge.variant}>
-									{badge.label}
-								</Badge>
-							))}
+							<OrderBadges order={detail} />
 						</div>
 
 						<div className="flex shrink-0 items-center gap-2">

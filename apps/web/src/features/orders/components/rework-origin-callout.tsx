@@ -1,6 +1,7 @@
 import { ArrowClockwiseIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
+import { isPlainLeftClick } from "@/lib/list-keys";
 
 interface ReworkOriginCalloutProps {
 	reworkOf: {
@@ -37,17 +38,10 @@ export const ReworkOriginCallout = ({
 			aria-label={`See complaint: rework of ${serviceName}`}
 			className="group grid gap-1.5 rounded-md border border-info/40 bg-info/5 p-3 text-body outline-none transition-colors hover:bg-info/10 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
 			onClick={(event) => {
-				// A cmd- or middle-click opens the Complaint in a new tab and
-				// leaves the Order open here.
-				if (
-					event.metaKey ||
-					event.ctrlKey ||
-					event.shiftKey ||
-					event.button !== 0
-				) {
-					return;
+				// A new-tab click leaves the Order open here.
+				if (isPlainLeftClick(event)) {
+					onNavigate?.();
 				}
-				onNavigate?.();
 			}}
 			params={{ complaintId: String(reworkOf.id) }}
 			// A worker scrolling past the box has not asked for the Complaint.

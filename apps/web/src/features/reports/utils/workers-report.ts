@@ -7,6 +7,7 @@ import { escapeCsv } from "@/features/reports/utils/csv";
 import {
 	fixedPercentFormatter,
 	numberFormatter,
+	pluralCount,
 } from "@/features/reports/utils/format";
 import dayjs from "@/lib/dayjs";
 
@@ -167,9 +168,6 @@ export interface Flag {
 	after: string;
 }
 
-const servicesText = (count: number) =>
-	`${numberFormatter.format(count)} ${count === 1 ? "Service" : "Services"}`;
-
 export const needsALook = (rows: WorkerRow[], now: number): Flag[] =>
 	rows.flatMap((row) => {
 		const { live } = row;
@@ -182,7 +180,7 @@ export const needsALook = (rows: WorkerRow[], now: number): Flag[] =>
 			flags.push({
 				key: `${key}:clock-in`,
 				row,
-				before: `${servicesText(live.services_today)} today, ${inHand} — `,
+				before: `${pluralCount(live.services_today, "Service")} today, ${inHand} — `,
 				problem: "not clocked in",
 				after: "",
 			});
@@ -198,7 +196,7 @@ export const needsALook = (rows: WorkerRow[], now: number): Flag[] =>
 				key: `${key}:idle`,
 				row,
 				before: `on shift ${durationText(shiftMinutes)}, `,
-				problem: `${servicesText(0)} today`,
+				problem: `${pluralCount(0, "Service")} today`,
 				after: "",
 			});
 		}

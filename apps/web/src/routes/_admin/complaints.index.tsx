@@ -2,7 +2,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { z } from "zod";
-import { DataTable, WRAP_NAME_CLASS } from "@/components/data-table";
+import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
 import { ListPanel } from "@/components/list-panel";
@@ -21,7 +21,6 @@ import {
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import { OrderListRow } from "@/features/orders/components/order-list-row";
 import { formatListDate } from "@/lib/dayjs";
-import { cn } from "@/lib/utils";
 
 const complaintsSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
@@ -80,7 +79,7 @@ const ComplaintsPage = () => {
 				id: "complaint",
 				header: "Complaint",
 				cell: ({ row }) => (
-					<div className={cn("flex flex-col gap-0.5", WRAP_NAME_CLASS)}>
+					<div className="flex flex-col gap-0.5">
 						<Link
 							to="/complaints/$complaintId"
 							params={{ complaintId: String(row.original.id) }}
@@ -156,7 +155,7 @@ const ComplaintsPage = () => {
 					filterKey={JSON.stringify(search)}
 					renderCard={(complaint) => (
 						<OrderListRow
-							className="rounded-none border-0 px-4"
+							className="rounded-none"
 							hasCaret={false}
 							details={[complaint.order_code, formatComplaintItem(complaint)]}
 							end={

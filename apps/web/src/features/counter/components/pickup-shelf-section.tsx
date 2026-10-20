@@ -45,7 +45,7 @@ const ShelfRow = ({ isActive, isWide, order }: ShelfRowProps) => {
 	const rowProps = {
 		action: order.notified ? undefined : <ShelfNotifyAction order={order} />,
 		badges: order.notified ? <NotifiedLabel /> : undefined,
-		className: "rounded-none border-0 px-3",
+		className: "rounded-none px-3",
 		details: [
 			`ready ${formatDays(order.ready_days)}`,
 			pluralize(order.items, "Item"),

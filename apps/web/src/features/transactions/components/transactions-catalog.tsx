@@ -2,7 +2,11 @@ import { BluetoothIcon, PlusIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { CHIP_STRIP_ROW, ChipStripScroller } from "@/components/chip-strip";
+import {
+	CHIP_CLASS,
+	CHIP_STRIP_ROW,
+	ChipStripScroller,
+} from "@/components/chip-strip";
 import { SearchInput } from "@/components/search-input";
 import { StickyControls } from "@/components/sticky-controls";
 import { Button } from "@/components/ui/button";
@@ -225,12 +229,12 @@ export function TransactionsCatalog() {
 						    only ever says "All". */}
 				{categoryOptions.length > 1 ? (
 					<ChipStripScroller>
-						<fieldset className={cn(CHIP_STRIP_ROW, "border-0 p-0")}>
+						<fieldset className={CHIP_STRIP_ROW}>
 							<legend className="sr-only">Filter by category</legend>
 							<Button
 								aria-pressed={activeCategory === "all"}
 								className={cn(
-									"h-9 gap-1.5 rounded-full border-0 px-3.5 text-body font-medium pointer-coarse:h-10",
+									CHIP_CLASS,
 									activeCategory !== "all" && "text-foreground",
 								)}
 								onClick={() => setActiveCategory("all")}
@@ -253,10 +257,7 @@ export function TransactionsCatalog() {
 								return (
 									<Button
 										aria-pressed={isActive}
-										className={cn(
-											"h-9 gap-1.5 rounded-full border-0 px-3.5 text-body font-medium pointer-coarse:h-10",
-											!isActive && "text-foreground",
-										)}
+										className={cn(CHIP_CLASS, !isActive && "text-foreground")}
 										key={category.id}
 										onClick={() => setActiveCategory(category.id)}
 										type="button"

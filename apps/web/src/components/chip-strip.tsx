@@ -17,11 +17,13 @@ export const ChipStripScroller = ({ children }: PropsWithChildren) => (
 	</div>
 );
 
-// The row inside the scroller stays with each caller: /queue's chips are a
-// tablist, the catalog's are a fieldset of toggles, and flattening that into one
-// element would trade the screen reader's answer for a shared wrapper. Only the
-// measurements travel — pr-8 is what keeps the last chip clear of the fade.
+// The POS catalog builds its own row of category chips and the POS skeleton
+// draws placeholders, so the measurements are shared — pr-8 is what keeps the
+// last chip clear of the fade.
 export const CHIP_STRIP_ROW = "flex min-w-max gap-2 px-1 pr-8";
+
+export const CHIP_CLASS =
+	"h-9 gap-1.5 rounded-full border-0 px-3.5 font-medium text-body pointer-coarse:h-10";
 
 interface StatusChip<TValue extends string> {
 	count?: number;
@@ -46,17 +48,14 @@ export const StatusChipStrip = <TValue extends string>({
 	<ChipStripScroller>
 		{/* Toggle buttons, not tabs: tablist semantics promise arrow-key roving
 		    and tabpanels these filter chips don't have. */}
-		<fieldset className={cn(CHIP_STRIP_ROW, "border-0 p-0")}>
+		<fieldset className={CHIP_STRIP_ROW}>
 			<legend className="sr-only">{legend}</legend>
 			{chips.map((chip) => {
 				const isActive = value === chip.value;
 				return (
 					<Button
 						aria-pressed={isActive}
-						className={cn(
-							"h-9 gap-1.5 rounded-full border-0 px-3.5 font-medium text-body pointer-coarse:h-10",
-							!isActive && "text-foreground",
-						)}
+						className={cn(CHIP_CLASS, !isActive && "text-foreground")}
 						key={chip.value}
 						onClick={() => onValueChange(chip.value)}
 						type="button"

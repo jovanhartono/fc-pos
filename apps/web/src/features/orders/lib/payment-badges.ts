@@ -10,7 +10,7 @@ import {
 	getRefundStatusBadgeVariant,
 } from "@/lib/status";
 
-interface PaymentBadgeOrder extends OrderPaymentState {
+export interface PaymentBadgeOrder extends OrderPaymentState {
 	refund_status: Order["refund_status"];
 }
 

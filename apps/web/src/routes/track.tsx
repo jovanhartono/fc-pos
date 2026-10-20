@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { BrandLogo } from "@/components/brand-logo";
+import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ import {
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { pluralize } from "@/shared/utils";
 
 const trackSearchSchema = z.object({
 	code: z.string().trim().min(1).max(32).optional(),
@@ -80,8 +82,6 @@ const CARD_CLASS = "rounded-lg bg-card shadow-[0_1px_3px_rgb(0_0_0/0.05)]";
 const SECTION_LABEL_CLASS = "-mb-3 mx-4 text-subhead text-muted-foreground";
 const FIELD_INPUT_CLASS =
 	"h-auto pointer-coarse:h-auto rounded-none border-0 bg-transparent px-0 py-0.5 text-title-3 pointer-coarse:text-title-3 tabular-nums placeholder:text-muted-foreground/50 focus-visible:ring-0 dark:bg-transparent";
-const SKELETON_CLASS =
-	"inline-block h-[0.8em] animate-pulse rounded-sm bg-soft-bar-track align-middle";
 
 interface StatusCardProps {
 	stageIndex: number;
@@ -124,7 +124,7 @@ const StatusCard = ({
 				</p>
 			) : (
 				<p className="text-headline">
-					{pendingCount} {pendingCount === 1 ? "Item" : "Items"} in progress.
+					{pluralize(pendingCount, "Item")} in progress.
 				</p>
 			)}
 			{isAllReady && pickupCode ? (
@@ -169,15 +169,15 @@ const StatusPlaceholder = () => (
 	<div className="grid gap-5" aria-busy="true">
 		<div className="px-1 pt-1">
 			<p className="font-bold text-title-1 leading-tight">
-				<span className={cn(SKELETON_CLASS, "w-56")} />
+				<TextSkeleton className="w-56" />
 			</p>
 			<p className="mt-0.5 text-headline">
-				<span className={cn(SKELETON_CLASS, "w-48")} />
+				<TextSkeleton className="w-48" />
 			</p>
 		</div>
 		<section className={cn(CARD_CLASS, "p-4")}>
 			<p className="text-headline">
-				<span className={cn(SKELETON_CLASS, "w-40")} />
+				<TextSkeleton className="w-40" />
 			</p>
 			<ol className="mt-4 grid grid-cols-4 gap-1.5">
 				{STAGES.map((label) => (
@@ -192,10 +192,10 @@ const StatusPlaceholder = () => (
 		<section className={CARD_CLASS}>
 			<div className="ml-4 grid gap-1.5 py-3 pr-4">
 				<p className="font-medium text-headline">
-					<span className={cn(SKELETON_CLASS, "w-52")} />
+					<TextSkeleton className="w-52" />
 				</p>
 				<p className="text-body">
-					<span className={cn(SKELETON_CLASS, "w-40")} />
+					<TextSkeleton className="w-40" />
 				</p>
 			</div>
 		</section>

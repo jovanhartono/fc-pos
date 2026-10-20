@@ -23,26 +23,37 @@ export const StickyControls = ({
 		if (!(bar && pane)) {
 			return;
 		}
-		const update = () => {
-			const stuckAt =
-				pane.getBoundingClientRect().top +
+		let offset = 0;
+		const measure = () => {
+			offset =
 				Number.parseFloat(getComputedStyle(pane).paddingTop) +
 				Number.parseFloat(getComputedStyle(bar).top);
+		};
+		const update = () => {
+			const stuckAt = pane.getBoundingClientRect().top + offset;
 			bar.toggleAttribute(
 				"data-stuck",
 				pane.scrollTop > 0 && bar.getBoundingClientRect().top <= stuckAt + 0.5,
 			);
 		};
-		update();
+		const handleResize = () => {
+			measure();
+			update();
+		};
+		handleResize();
 		pane.addEventListener("scroll", update, { passive: true });
-		return () => pane.removeEventListener("scroll", update);
+		window.addEventListener("resize", handleResize);
+		return () => {
+			pane.removeEventListener("scroll", update);
+			window.removeEventListener("resize", handleResize);
+		};
 	}, []);
 
 	return (
 		<div
 			ref={ref}
 			className={cn(
-				"sticky -top-3 z-40 -mx-3 -my-2 bg-frost px-3 py-2 backdrop-blur-xl backdrop-saturate-150 transition-shadow data-stuck:shadow-[0_0.5px_0_var(--border)] sm:-top-4 sm:-mx-4 sm:px-4 lg:-mx-6 lg:px-6",
+				"page-bleed sticky -top-(--page-top) z-40 -my-2 bg-frost py-2 backdrop-blur-xl backdrop-saturate-150 transition-shadow data-stuck:shadow-[0_0.5px_0_var(--border)]",
 				className,
 			)}
 		>

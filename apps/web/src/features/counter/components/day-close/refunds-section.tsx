@@ -8,7 +8,6 @@ import {
 	AmountCell,
 	OrderList,
 	OrderRow,
-	Tag,
 } from "@/features/counter/components/day-close/order-row";
 import { formatClock, formatDayShort } from "@/features/counter/lib/day-close";
 import { formatRefundReason } from "@/lib/status";
@@ -33,7 +32,7 @@ const PaidWith = ({ date, refund }: PaidWithProps) => (
 			<Badge variant="secondary">{refund.payment_method_name}</Badge>
 		) : null}
 		{refund.paid_day && refund.paid_day !== date ? (
-			<Tag tone="amber">Paid {formatDayShort(refund.paid_day)}</Tag>
+			<Badge variant="warning">Paid {formatDayShort(refund.paid_day)}</Badge>
 		) : null}
 	</>
 );

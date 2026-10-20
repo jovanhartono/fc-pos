@@ -19,6 +19,7 @@ import {
   listOrdersInSeries,
   listOrdersOutSeries,
   listPaymentMixSeries,
+  listProcessedLineStarts,
   listProductsCogsSeries,
   listProductsGrossSalesSeries,
   listQcChecksOfCleaner,
@@ -935,6 +936,7 @@ function tallyWorkers(
 function addLiveActivity(
   rangeTallies: WorkerTally[],
   live: WorkerLiveActivity,
+  processedToday: Pick<ActivityLine, "started_by" | "store_id">[],
   roleOf: (userId: number) => string | undefined
 ) {
   const tallies = new Map(
@@ -947,7 +949,7 @@ function addLiveActivity(
   for (const row of live.inHand) {
     tallyFor(row.user_id, row.store_id).in_hand = row.in_hand;
   }
-  for (const line of live.processedToday) {
+  for (const line of processedToday) {
     if (line.started_by !== null) {
       tallyFor(line.started_by, line.store_id).services_today += 1;
     }
@@ -1128,13 +1130,16 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
   const today = jakartaNow().format("YYYY-MM-DD");
   const isToday = ctx.from === today && ctx.to === today;
 
-  const [activity, prevActivity, live, users, stores] = await Promise.all([
-    listWorkerActivity({ range, storeId }),
-    listWorkerSummaryActivity({ range: ctx.previous.range, storeId }),
-    listWorkerLiveActivity({ range: getJakartaRange(today, today), storeId }),
-    listUserNames(),
-    listStoreNames(),
-  ]);
+  const todayRange = getJakartaRange(today, today);
+  const [activity, prevActivity, live, linesToday, users, stores] =
+    await Promise.all([
+      listWorkerActivity({ range, storeId }),
+      listWorkerSummaryActivity({ range: ctx.previous.range, storeId }),
+      listWorkerLiveActivity({ range: todayRange, storeId }),
+      isToday ? null : listProcessedLineStarts({ range: todayRange, storeId }),
+      listUserNames(),
+      listStoreNames(),
+    ]);
   const userById = new Map(users.map((user) => [user.id, user]));
   const storeName = new Map(stores.map((store) => [store.id, store.name]));
   const roleOf = (userId: number) => userById.get(userId)?.role;
@@ -1147,7 +1152,12 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
     tallyWorkers(prevActivity, roleOf)
   );
 
-  const workers = addLiveActivity(tallies, live, roleOf)
+  const workers = addLiveActivity(
+    tallies,
+    live,
+    linesToday ?? activity.lines,
+    roleOf
+  )
     .map((tally) => {
       const user = userById.get(tally.user_id);
       return {

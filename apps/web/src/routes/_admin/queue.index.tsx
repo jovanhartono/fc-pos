@@ -72,6 +72,7 @@ import {
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { pluralize } from "@/shared/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useQueuePreferencesStore } from "@/stores/queue-preferences-store";
 
@@ -276,9 +277,9 @@ function QueuePage() {
 	// them as a fresh list with a fade, rather than the same cards sliding to
 	// new places.
 	const queueKey = JSON.stringify(queueQueryInput ?? null);
-	const shownQueueKeyRef = useRef(queueKey);
-	if (!queueQuery.isPlaceholderData) {
-		shownQueueKeyRef.current = queueKey;
+	const [shownQueueKey, setShownQueueKey] = useState(queueKey);
+	if (!queueQuery.isPlaceholderData && shownQueueKey !== queueKey) {
+		setShownQueueKey(queueKey);
 	}
 
 	const queueQueryRef = useRef(queueQuery);
@@ -471,7 +472,7 @@ function QueuePage() {
 						variant={totalItems === undefined ? "secondary" : "outline"}
 					>
 						<span className={cn(totalItems === undefined && "invisible")}>
-							{`${totalItems ?? 0} ${totalItems === 1 ? "item" : "items"}`}
+							{pluralize(totalItems ?? 0, "item")}
 						</span>
 					</Badge>
 				}
@@ -517,7 +518,7 @@ function QueuePage() {
 
 								void scanner.start();
 							}}
-							size="icon-lg"
+							size="icon"
 							type="button"
 							variant={scanner.isScanning ? "default" : "outline"}
 						/>
@@ -526,8 +527,9 @@ function QueuePage() {
 								render={
 									<Button
 										aria-label="Filters"
-										className="relative size-9 shrink-0 rounded-full border-0 bg-secondary hover:bg-muted-foreground/20"
+										className="relative"
 										icon={<FunnelIcon className="size-4" />}
+										size="icon"
 										type="button"
 										variant="outline"
 									/>
@@ -640,7 +642,7 @@ function QueuePage() {
 								CONTENT_FADE,
 								staleFade(queueQuery.isPlaceholderData),
 							)}
-							key={shownQueueKeyRef.current}
+							key={shownQueueKey}
 						>
 							{queueItems.map((item) => (
 								<QueueRow

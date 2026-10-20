@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
-import { DataTable, WRAP_NAME_CLASS } from "@/components/data-table";
+import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { EmptyState } from "@/components/empty-state";
 import { ListPanel } from "@/components/list-panel";
@@ -25,6 +25,7 @@ import {
 	ordersQueries,
 } from "@/features/orders/api";
 import { NotifiedLabel } from "@/features/orders/components/notified-label";
+import { PaymentBadges } from "@/features/orders/components/order-badges";
 import {
 	NOTIFIED_VALUES,
 	ORDER_STATUS_VALUES,
@@ -36,7 +37,6 @@ import { OrderPhoneRow } from "@/features/orders/components/order-phone-row";
 import { OrderStatusTabs } from "@/features/orders/components/order-status-tabs";
 import { PickupRadar } from "@/features/orders/components/pickup-radar";
 import { useOrderSheet } from "@/features/orders/hooks/useOrderSheet";
-import { getPaymentBadges } from "@/features/orders/lib/payment-badges";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -324,7 +324,7 @@ function OrdersPage() {
 				accessorKey: "customer_name",
 				header: "Customer",
 				cell: ({ row }) => (
-					<div className={WRAP_NAME_CLASS}>
+					<div>
 						<span className="flex items-baseline gap-x-1.5">
 							<CustomerLink
 								className="line-clamp-2 min-w-0"
@@ -368,11 +368,7 @@ function OrdersPage() {
 				meta: { headerClassName: "w-32" },
 				cell: ({ row }) => (
 					<div className="flex flex-wrap gap-1">
-						{getPaymentBadges(row.original).map((badge) => (
-							<Badge key={badge.label} variant={badge.variant}>
-								{badge.label}
-							</Badge>
-						))}
+						<PaymentBadges order={row.original} />
 					</div>
 				),
 			},

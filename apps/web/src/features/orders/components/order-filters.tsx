@@ -180,7 +180,8 @@ export const OrderFilters = ({
 								aria-label="Filters"
 								type="button"
 								variant="outline"
-								className="relative size-9 rounded-full border-0 bg-secondary hover:bg-muted-foreground/20 pointer-coarse:size-11"
+								size="icon"
+								className="relative"
 								icon={<FunnelIcon className="size-4" />}
 							/>
 						}

@@ -1,5 +1,9 @@
 export const numberFormatter = new Intl.NumberFormat("en-ID");
 
+// "1,204 checks", "1 check".
+export const pluralCount = (count: number, word: string) =>
+	`${numberFormatter.format(count)} ${word}${count === 1 ? "" : "s"}`;
+
 export const oneDecimalFormatter = new Intl.NumberFormat("en-ID", {
 	minimumFractionDigits: 1,
 	maximumFractionDigits: 1,

@@ -47,15 +47,17 @@ function TabsList({
 	...props
 }: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) {
 	const listRef = useRef<HTMLDivElement>(null);
+	const shownActiveRef = useRef<HTMLElement | null>(null);
 
 	// A phone shows four of the nine Reports tabs; a link that opens Workers
 	// would otherwise leave the open tab scrolled out of sight.
 	useEffect(() => {
 		const list = listRef.current;
 		const active = list?.querySelector<HTMLElement>("[data-active]");
-		if (!(list && active)) {
+		if (!(list && active) || active === shownActiveRef.current) {
 			return;
 		}
+		shownActiveRef.current = active;
 		const start = active.offsetLeft;
 		// The pill strip fades its last 2rem, so a tab under the fade counts as hidden.
 		const end = start + active.offsetWidth + 32;

@@ -129,9 +129,7 @@ const Shell = ({
 	<Card className={cn("border-border/70", className)}>
 		<CardHeader className="flex flex-row items-start justify-between gap-3">
 			<div className="grid gap-1">
-				<CardTitle className="text-headline font-semibold text-foreground">
-					{title}
-				</CardTitle>
+				<CardTitle>{title}</CardTitle>
 				{description ? (
 					<p className="text-footnote text-muted-foreground">{description}</p>
 				) : null}

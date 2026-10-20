@@ -498,7 +498,7 @@ export function QueueServiceDetail({
 
 			{(canStartWork || actionStatuses.length > 0) && (
 				<div
-					className="sticky bottom-0 z-10 -mx-3 mt-6 border-t border-border bg-background/95 px-3 pb-[calc(var(--inset-bottom)+0.75rem)] pt-3 backdrop-blur sm:-mx-6 sm:px-6 md:mx-0 md:px-0 md:pb-3"
+					className="page-bleed sticky bottom-0 z-10 mt-6 border-t border-border bg-background/95 pb-[calc(var(--inset-bottom)+0.75rem)] pt-3 backdrop-blur md:mx-0 md:px-0 md:pb-3"
 					data-bottom-bar
 				>
 					{blockerMessage ? (

@@ -1,4 +1,4 @@
-import { Tag } from "@/features/counter/components/day-close/order-row";
+import { Badge } from "@/components/ui/badge";
 import { formatDayShort } from "@/features/counter/lib/day-close";
 
 interface EarlierTagProps {
@@ -8,5 +8,5 @@ interface EarlierTagProps {
 
 export const EarlierTag = ({ createdDay, date }: EarlierTagProps) =>
 	createdDay === date ? null : (
-		<Tag tone="amber">Order from {formatDayShort(createdDay)}</Tag>
+		<Badge variant="warning">Order from {formatDayShort(createdDay)}</Badge>
 	);

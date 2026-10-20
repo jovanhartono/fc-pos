@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { type ReactNode, useCallback } from "react";
+import { type ReactNode, useCallback, useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Section } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
@@ -119,13 +119,17 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 		});
 	}, [navigate]);
 
+	const oldest = data?.pickup_shelf.oldest;
+	const sheetOrders = useMemo(
+		() => oldest?.map((order) => ({ id: order.order_id })) ?? [],
+		[oldest],
+	);
 	useOrderSheet({
 		isReady: data !== undefined,
 		onClose: handleCloseOrder,
 		onSelect: handleOpenOrder,
 		openId: isWide ? open : undefined,
-		orders:
-			data?.pickup_shelf.oldest.map((order) => ({ id: order.order_id })) ?? [],
+		orders: sheetOrders,
 	});
 
 	if (isPending) {

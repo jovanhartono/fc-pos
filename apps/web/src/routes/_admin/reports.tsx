@@ -4,7 +4,7 @@ import {
 	type SearchSchemaInput,
 	useNavigate,
 } from "@tanstack/react-router";
-import { type PropsWithChildren, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -174,12 +174,17 @@ const descriptions: Record<Tab, string> = {
 	"aging-queue": "Items still in queue, oldest first",
 };
 
-// Saved only here, when the admin changes a filter, so opening an old link
-// or reloading never overwrites what they chose.
-const useFiltersChange = () => {
+function ReportsPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
+	const search = Route.useSearch();
 	const setFilters = useReportPreferencesStore((state) => state.setFilters);
-	return (change: ReportFilterValues) => {
+	const [exportSlot, setExportSlot] = useState<HTMLDivElement | null>(null);
+
+	const currentTab = search.tab as Tab;
+
+	// Saved only here, when the admin changes a filter, so opening an old link
+	// or reloading never overwrites what they chose.
+	const handleFiltersChange = (change: ReportFilterValues) => {
 		void navigate({
 			// A Store picked from a table header far down the page keeps the
 			// owner where they were reading.
@@ -194,15 +199,6 @@ const useFiltersChange = () => {
 			},
 		});
 	};
-};
-
-const ReportsChrome = ({ children }: PropsWithChildren) => {
-	const navigate = useNavigate({ from: Route.fullPath });
-	const search = Route.useSearch();
-	const handleFiltersChange = useFiltersChange();
-	const [exportSlot, setExportSlot] = useState<HTMLDivElement | null>(null);
-
-	const currentTab = search.tab as Tab;
 
 	const showRangeFilters =
 		currentTab !== "overview" && currentTab !== "aging-queue";
@@ -256,84 +252,72 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 					});
 				}}
 			>
-				{children}
+				{currentTab === "overview" && (
+					<OverviewPanel date={jakartaToday()} storeId={search.store_id} />
+				)}
+				{currentTab === "financial" && (
+					<FinancialPanel
+						from={search.from}
+						to={search.to}
+						storeId={search.store_id}
+						granularity={search.granularity}
+					/>
+				)}
+				{currentTab === "operations" && (
+					<OperationsPanel
+						from={search.from}
+						to={search.to}
+						storeId={search.store_id}
+						granularity={search.granularity}
+					/>
+				)}
+				{currentTab === "payments" && (
+					<PaymentsPanel
+						from={search.from}
+						to={search.to}
+						storeId={search.store_id}
+						granularity={search.granularity}
+					/>
+				)}
+				{currentTab === "customers" && (
+					<CustomersPanel
+						from={search.from}
+						to={search.to}
+						storeId={search.store_id}
+						granularity={search.granularity}
+					/>
+				)}
+				{currentTab === "quality" && (
+					<QualityPanel
+						from={search.from}
+						to={search.to}
+						storeId={search.store_id}
+					/>
+				)}
+				{currentTab === "workers" && (
+					<WorkersPanel
+						from={search.from}
+						to={search.to}
+						storeId={search.store_id}
+						onStoreChange={(storeId) =>
+							handleFiltersChange({ store_id: storeId })
+						}
+					/>
+				)}
+				{currentTab === "campaigns" && (
+					<CampaignsPanel
+						from={search.from}
+						to={search.to}
+						storeId={search.store_id}
+						granularity={search.granularity}
+					/>
+				)}
+				{currentTab === "aging-queue" && (
+					// A new Store starts again on its first page.
+					<AgingQueuePanel key={search.store_id} storeId={search.store_id} />
+				)}
 			</ReportShell>
 		</ExportSlotContext.Provider>
-	);
-};
-
-function ReportsPage() {
-	const search = Route.useSearch();
-	const handleFiltersChange = useFiltersChange();
-	const currentTab = search.tab as Tab;
-
-	return (
-		<ReportsChrome>
-			{currentTab === "overview" && (
-				<OverviewPanel date={jakartaToday()} storeId={search.store_id} />
-			)}
-			{currentTab === "financial" && (
-				<FinancialPanel
-					from={search.from}
-					to={search.to}
-					storeId={search.store_id}
-					granularity={search.granularity}
-				/>
-			)}
-			{currentTab === "operations" && (
-				<OperationsPanel
-					from={search.from}
-					to={search.to}
-					storeId={search.store_id}
-					granularity={search.granularity}
-				/>
-			)}
-			{currentTab === "payments" && (
-				<PaymentsPanel
-					from={search.from}
-					to={search.to}
-					storeId={search.store_id}
-					granularity={search.granularity}
-				/>
-			)}
-			{currentTab === "customers" && (
-				<CustomersPanel
-					from={search.from}
-					to={search.to}
-					storeId={search.store_id}
-					granularity={search.granularity}
-				/>
-			)}
-			{currentTab === "quality" && (
-				<QualityPanel
-					from={search.from}
-					to={search.to}
-					storeId={search.store_id}
-				/>
-			)}
-			{currentTab === "workers" && (
-				<WorkersPanel
-					from={search.from}
-					to={search.to}
-					storeId={search.store_id}
-					onStoreChange={(storeId) =>
-						handleFiltersChange({ store_id: storeId })
-					}
-				/>
-			)}
-			{currentTab === "campaigns" && (
-				<CampaignsPanel
-					from={search.from}
-					to={search.to}
-					storeId={search.store_id}
-					granularity={search.granularity}
-				/>
-			)}
-			{currentTab === "aging-queue" && (
-				// A new Store starts again on its first page.
-				<AgingQueuePanel key={search.store_id} storeId={search.store_id} />
-			)}
-		</ReportsChrome>
 	);
 }
 

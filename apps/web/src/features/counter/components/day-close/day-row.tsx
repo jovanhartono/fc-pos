@@ -36,7 +36,7 @@ export const DayRow = ({ date, onDateChange, storeId, today }: DayRowProps) => {
 				className={ARROW_CLASS}
 				icon={<CaretLeftIcon className="size-4" />}
 				onClick={() => handlePick(step(-1))}
-				size="icon-lg"
+				size="icon"
 				type="button"
 				variant="outline"
 			/>
@@ -55,7 +55,7 @@ export const DayRow = ({ date, onDateChange, storeId, today }: DayRowProps) => {
 				disabled={isToday}
 				icon={<CaretRightIcon className="size-4" />}
 				onClick={() => handlePick(step(1))}
-				size="icon-lg"
+				size="icon"
 				type="button"
 				variant="outline"
 			/>

@@ -32,7 +32,8 @@ export const ReportShell = ({
 			aria-label="Reports"
 			variant="pill"
 			className={cn(
-				"-mx-3 flex w-auto max-w-none px-3 pr-8 sm:-mx-4 sm:px-4 sm:pr-8 lg:-mx-6 lg:px-6 lg:pr-8",
+				// pl again: the pill list's own p-0 outranks the bleed's padding.
+				"page-bleed flex w-auto max-w-none pr-8 pl-(--page-x)",
 				STRIP_FADE,
 			)}
 		>

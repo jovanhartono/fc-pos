@@ -34,19 +34,18 @@ const buttonVariants = cva(
 				icon: "size-9 rounded-full pointer-coarse:size-11",
 				"icon-xs": "size-6 rounded-full [&_svg:not([class*='size-'])]:size-3",
 				"icon-sm": "size-7 rounded-full",
-				"icon-lg": "size-9 rounded-full pointer-coarse:size-11",
 			},
 		},
 		compoundVariants: [
 			{
 				variant: "outline",
-				size: ["icon", "icon-xs", "icon-sm", "icon-lg"],
+				size: ["icon", "icon-xs", "icon-sm"],
 				className:
 					"border-transparent bg-secondary hover:bg-muted-foreground/20 aria-expanded:bg-muted-foreground/20 dark:border-transparent dark:bg-secondary dark:hover:bg-muted-foreground/30 dark:aria-expanded:bg-muted-foreground/30",
 			},
 			{
 				variant: "ghost",
-				size: ["icon", "icon-xs", "icon-sm", "icon-lg"],
+				size: ["icon", "icon-xs", "icon-sm"],
 				className:
 					"hover:bg-secondary aria-expanded:bg-secondary dark:hover:bg-secondary",
 			},

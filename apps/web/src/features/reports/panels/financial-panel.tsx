@@ -326,7 +326,7 @@ const RevenueLineChart = ({ series, granularity }: RevenueLineChartProps) => {
 											{LINE_CHART_CONFIG[name as string]?.label ?? name}
 										</span>
 										<span className="font-medium text-foreground tabular-nums">
-											{formatMoney(String(Number(value)))}
+											{formatMoney(Number(value))}
 										</span>
 									</div>
 								)}
@@ -676,8 +676,18 @@ interface KpiStripProps {
 	storeId?: number;
 }
 
+// In the order the cells below are built.
+const TOTAL_LABELS = [
+	"Collected",
+	"Revenue",
+	"Margin",
+	"Orders",
+	"AOV",
+	"COGS",
+	"Refund rate",
+];
+
 interface KpiCellModel {
-	label: string;
 	value: string;
 	change: number | null;
 	deltaAs?: DeltaAs;
@@ -700,39 +710,32 @@ const KpiStrip = ({ data, storeId }: KpiStripProps) => {
 		const prevRefundRate = safeRatio(prev.refunds, prev.collected);
 		return [
 			{
-				label: "Collected",
 				value: compactMoney(summary.collected),
 				change: pctChange(deltas.collected?.delta_pct),
 			},
 			{
-				label: "Revenue",
 				value: compactMoney(summary.revenue),
 				change: pctChange(deltas.revenue?.delta_pct),
 			},
 			{
-				label: "Margin",
 				value: percentFormatter.format(summary.margin),
 				change: (summary.margin - prev.margin) * 100,
 				deltaAs: "points",
 			},
 			{
-				label: "Orders",
 				value: totalOrders.toLocaleString("id-ID"),
 				change: null,
 			},
 			{
-				label: "AOV",
 				value: compactMoney(aov),
 				change: null,
 			},
 			{
-				label: "COGS",
 				value: compactMoney(summary.cogs),
 				change: pctChange(deltas.cogs?.delta_pct),
 				isLowerBetter: true,
 			},
 			{
-				label: "Refund rate",
 				value: percentFormatter.format(refundRate),
 				change: (refundRate - prevRefundRate) * 100,
 				deltaAs: "points",
@@ -747,7 +750,6 @@ const KpiStrip = ({ data, storeId }: KpiStripProps) => {
 
 	// While the totals load, the same seven cells carry their labels and a bar
 	// for each number, so the charts below never move when the numbers land.
-	const labels = data ? cells.map((cell) => cell.label) : TOTAL_LABELS;
 
 	return (
 		<Card className="border-border/70 py-0">
@@ -761,8 +763,8 @@ const KpiStrip = ({ data, storeId }: KpiStripProps) => {
 					/>
 				</div>
 				<div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7">
-					{labels.map((label, idx) => {
-						const cell = data ? cells[idx] : undefined;
+					{TOTAL_LABELS.map((label, idx) => {
+						const cell = cells[idx];
 						return (
 							<div
 								className={cn(
@@ -796,16 +798,6 @@ const KpiStrip = ({ data, storeId }: KpiStripProps) => {
 		</Card>
 	);
 };
-
-const TOTAL_LABELS = [
-	"Collected",
-	"Revenue",
-	"Margin",
-	"Orders",
-	"AOV",
-	"COGS",
-	"Refund rate",
-];
 
 type StoreCategoryMatrix = FinancialReport["store_category_matrix"];
 type MatrixColumn = StoreCategoryMatrix["columns"][number];
@@ -1039,7 +1031,7 @@ const MatrixCell = ({
 	const isInverted = opacity > 0.35;
 	const branchShare = branchTotal > 0 ? cellShare : 0;
 	const grandShare = grandTotal > 0 ? cellGrossSales / grandTotal : 0;
-	const tooltip = `${storeCode} ${storeName} · ${columnLabel}\nRp ${cellGrossSales.toLocaleString("id-ID")} · ${fixedPercentFormatter.format(branchShare)} of branch · ${fixedPercentFormatter.format(grandShare)} of total`;
+	const tooltip = `${storeCode} ${storeName} · ${columnLabel}\n${formatMoney(cellGrossSales)} ·${fixedPercentFormatter.format(branchShare)} of branch · ${fixedPercentFormatter.format(grandShare)} of total`;
 
 	const display =
 		cellGrossSales === 0

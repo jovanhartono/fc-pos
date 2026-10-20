@@ -5,7 +5,6 @@ import {
 	type AmountTone,
 	OrderList,
 	OrderRow,
-	Tag,
 } from "@/features/counter/components/day-close/order-row";
 import { formatClock, formatDayShort } from "@/features/counter/lib/day-close";
 import {
@@ -39,7 +38,7 @@ const PaymentBadges = ({ order }: PaymentBadgesProps) => {
 				{formatPaymentStatus("unpaid")}
 			</Badge>
 			{order.paid_day ? (
-				<Tag tone="green">Paid {formatDayShort(order.paid_day)}</Tag>
+				<Badge variant="success">Paid {formatDayShort(order.paid_day)}</Badge>
 			) : null}
 		</>
 	);

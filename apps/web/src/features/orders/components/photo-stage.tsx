@@ -634,7 +634,7 @@ export const PhotoStage = ({
 						className="absolute top-1/2 left-3 z-10 hidden size-11 -translate-y-1/2 bg-black/45 text-white hover:bg-black/60 hover:text-white active:-translate-y-1/2! md:inline-flex"
 						icon={<ArrowLeftIcon className="size-5" aria-hidden="true" />}
 						onClick={showPrevious}
-						size="icon-lg"
+						size="icon"
 						type="button"
 						variant="outline"
 					/>
@@ -643,7 +643,7 @@ export const PhotoStage = ({
 						className="absolute top-1/2 right-3 z-10 hidden size-11 -translate-y-1/2 bg-black/45 text-white hover:bg-black/60 hover:text-white active:-translate-y-1/2! md:inline-flex"
 						icon={<ArrowRightIcon className="size-5" aria-hidden="true" />}
 						onClick={showNext}
-						size="icon-lg"
+						size="icon"
 						type="button"
 						variant="outline"
 					/>

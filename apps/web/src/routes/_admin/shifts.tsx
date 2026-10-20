@@ -9,7 +9,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import dayjs from "dayjs";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
-import { DataTable, WRAP_NAME_CLASS } from "@/components/data-table";
+import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DateTimeCell } from "@/components/date-time-cell";
 import { EditRowButton } from "@/components/edit-row-button";
@@ -23,7 +23,6 @@ import { type Shift, shiftsQueries } from "@/features/shifts/api";
 import { EditShiftForm } from "@/features/shifts/components/edit-shift-form";
 import { NewShiftForm } from "@/features/shifts/components/new-shift-form";
 import { storesQueries } from "@/features/stores/api";
-import { cn } from "@/lib/utils";
 import { useDialog } from "@/stores/dialog-store";
 
 const PAGE_SIZE = 25;
@@ -158,7 +157,7 @@ function ShiftsPage() {
 				id: "user",
 				header: "Worker",
 				cell: ({ row }) => (
-					<div className={cn("flex flex-col text-subhead", WRAP_NAME_CLASS)}>
+					<div className="flex flex-col text-subhead">
 						<span className="font-medium text-body">
 							{row.original.user?.name ?? `User #${row.original.user_id}`}
 							{/* The card has no Store column, so the store rides on the name. */}

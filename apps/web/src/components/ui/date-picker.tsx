@@ -207,7 +207,7 @@ const DateRangeSheet = ({
 							<Button
 								type="button"
 								variant="ghost"
-								size="icon-lg"
+								size="icon"
 								aria-label="Back to presets"
 								onClick={() => setIsPickingCustom(false)}
 								icon={<CaretLeftIcon className="size-4" />}

@@ -754,6 +754,11 @@ async function listActivity<TDetail extends SelectedFields>(
 export const listWorkerActivity = (args: RangeArgs) =>
   listActivity(args, lineDetail());
 
+// Who started each Service processed in the stretch, and nothing else.
+export async function listProcessedLineStarts(args: RangeArgs) {
+  return await listProcessedLines(args, {});
+}
+
 // The previous stretch only feeds the headline comparison, so it skips the
 // Service names and cleaner lookups that the rows need.
 export const listWorkerSummaryActivity = (args: RangeArgs) =>
@@ -838,7 +843,7 @@ export function listItemsInHand({ storeId }: Pick<RangeArgs, "storeId">) {
 // The "right now" half of the Workers tab, whatever stretch the rest covers:
 // `range` is today.
 export async function listWorkerLiveActivity({ range, storeId }: RangeArgs) {
-  const [inHand, lastMoves, shifts, processedToday] = await Promise.all([
+  const [inHand, lastMoves, shifts] = await Promise.all([
     listItemsInHand({ storeId }),
     db
       .select({
@@ -883,9 +888,8 @@ export async function listWorkerLiveActivity({ range, storeId }: RangeArgs) {
           storeScope(shiftsTable.store_id, storeId)
         )
       ),
-    listProcessedLines({ range, storeId }, {}),
   ]);
-  return { inHand, lastMoves, shifts, processedToday };
+  return { inHand, lastMoves, shifts };
 }
 
 // Both tables are a shop's worth of rows, so the report reads them whole

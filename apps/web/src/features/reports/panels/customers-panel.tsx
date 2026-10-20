@@ -154,9 +154,7 @@ export const CustomersPanel = ({
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle className="text-headline font-semibold text-foreground">
-						Top spenders
-					</CardTitle>
+					<CardTitle>Top spenders</CardTitle>
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					{topCustomers.length === 0 ? (

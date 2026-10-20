@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
 import { OrderListRow } from "@/features/orders/components/order-list-row";
 import { useOpenNestedOrder } from "@/features/orders/hooks/useOpenNestedOrder";
 import { cn } from "@/lib/utils";
@@ -28,7 +27,7 @@ export const OrderRow = ({
 		<li>
 			<OrderListRow
 				badges={badges}
-				className="-mx-2 border-0"
+				className="-mx-2 px-2"
 				details={[code, ...details]}
 				end={end}
 				onClick={handleOpen}
@@ -78,18 +77,4 @@ export const AmountCell = ({ amount, tone }: AmountCellProps) => (
 		{tone === "refund" ? "−" : null}
 		{formatMoney(amount)}
 	</span>
-);
-
-const TAG_VARIANT = {
-	green: "success",
-	amber: "warning",
-} as const;
-
-interface TagProps {
-	children: ReactNode;
-	tone: keyof typeof TAG_VARIANT;
-}
-
-export const Tag = ({ children, tone }: TagProps) => (
-	<Badge variant={TAG_VARIANT[tone]}>{children}</Badge>
 );

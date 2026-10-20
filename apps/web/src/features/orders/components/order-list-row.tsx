@@ -1,10 +1,10 @@
 import { CaretRightIcon } from "@phosphor-icons/react";
 import { createLink } from "@tanstack/react-router";
 import type { ComponentPropsWithRef, ReactNode } from "react";
-import { cn } from "@/shared/utils";
+import { cn } from "@/lib/utils";
 
 const ROW =
-	"grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-transparent px-2 py-2.5 transition-colors hover:border-border hover:bg-muted/50";
+	"grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md px-4 py-2.5 transition-colors hover:bg-muted/50";
 
 interface OrderListRowAnchorProps
 	extends Omit<ComponentPropsWithRef<"a">, "title"> {
@@ -56,7 +56,7 @@ const OrderListRowAnchor = ({
 				className={cn(
 					ROW,
 					"outline-none focus-visible:bg-muted",
-					isActive && "bg-muted hover:bg-muted",
+					isActive && "bg-primary/10 hover:bg-primary/10",
 					className,
 				)}
 			>
@@ -76,7 +76,7 @@ const OrderListRowAnchor = ({
 			className={cn(
 				ROW,
 				"relative has-[a:focus-visible]:bg-muted",
-				isActive && "bg-muted hover:bg-muted",
+				isActive && "bg-primary/10 hover:bg-primary/10",
 				className,
 			)}
 		>

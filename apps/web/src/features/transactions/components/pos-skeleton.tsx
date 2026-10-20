@@ -1,4 +1,8 @@
-import { CHIP_STRIP_ROW, ChipStripScroller } from "@/components/chip-strip";
+import {
+	CHIP_CLASS,
+	CHIP_STRIP_ROW,
+	ChipStripScroller,
+} from "@/components/chip-strip";
 import { StickyControls } from "@/components/sticky-controls";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,10 +24,7 @@ export const PosSkeleton = () => (
 			<ChipStripScroller>
 				<div className={CHIP_STRIP_ROW}>
 					{CHIP_WIDTHS.map((width) => (
-						<Skeleton
-							className={cn("h-9 rounded-full pointer-coarse:h-10", width)}
-							key={width}
-						/>
+						<Skeleton className={cn(CHIP_CLASS, width)} key={width} />
 					))}
 				</div>
 			</ChipStripScroller>

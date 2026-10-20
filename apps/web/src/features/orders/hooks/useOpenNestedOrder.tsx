@@ -1,6 +1,7 @@
 import type { MouseEvent } from "react";
-import { OrderDetailView } from "@/features/orders/components/order-detail-view";
+import { orderSheetPayload } from "@/features/orders/hooks/useOrderSheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { isPlainLeftClick } from "@/lib/list-keys";
 import { useSheet } from "@/stores/sheet-store";
 
 // A row in a sheet's list of Orders. A phone opens the Order's own page,
@@ -16,21 +17,10 @@ export const useOpenNestedOrder = (orderId: number, code: string) => {
 			closeSheet();
 			return;
 		}
-		// A cmd- or middle-click still opens the Order in a new tab.
-		if (
-			event.metaKey ||
-			event.ctrlKey ||
-			event.shiftKey ||
-			event.button !== 0
-		) {
+		if (!isPlainLeftClick(event)) {
 			return;
 		}
 		event.preventDefault();
-		openNestedSheet({
-			// The Order's own header already shows its code.
-			title: <span className="sr-only">{code}</span>,
-			backLabel: code,
-			content: () => <OrderDetailView orderId={orderId} />,
-		});
+		openNestedSheet(orderSheetPayload(orderId, code));
 	};
 };

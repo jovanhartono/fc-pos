@@ -43,9 +43,9 @@ export const CustomerSummarySkeleton = () => (
 				Edit
 			</Button>
 		</header>
-		<KpiRow>
+		<KpiRow isPending>
 			{KPI_LABELS.map((label) => (
-				<KpiCard key={label} label={label} value={<TextSkeleton />} />
+				<KpiCard key={label} label={label} value={null} />
 			))}
 		</KpiRow>
 	</section>

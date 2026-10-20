@@ -19,6 +19,13 @@ interface UseOrderSheetOptions {
 	orders: { code?: string; id: number }[];
 }
 
+export const orderSheetPayload = (orderId: number, code: string) => ({
+	// The Order's own header already shows its code.
+	title: <span className="sr-only">{code}</span>,
+	backLabel: code,
+	content: () => <OrderDetailView orderId={orderId} />,
+});
+
 // The URL's ?open= drives the global sheet: a tablet or desktop opens the
 // Order over the list, walks to the next one in place, and leaving the page
 // closes it.
@@ -43,11 +50,8 @@ export const useOrderSheet = ({
 		}
 		const code = orders.find((order) => order.id === openId)?.code ?? "Order";
 		useSheet.getState().openSheet({
-			// The Order's own header already shows its code.
-			title: <span className="sr-only">{code}</span>,
-			backLabel: code,
+			...orderSheetPayload(openId, code),
 			actions: <OrderWalk onSelect={onSelect} openId={openId} />,
-			content: () => <OrderDetailView orderId={openId} />,
 			onClose,
 		});
 	}, [openId, isReady]);

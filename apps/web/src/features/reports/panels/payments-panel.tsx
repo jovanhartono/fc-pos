@@ -100,9 +100,7 @@ export const PaymentsPanel = ({
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle className="text-headline font-semibold text-foreground">
-						Mix share
-					</CardTitle>
+					<CardTitle>Mix share</CardTitle>
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					{(data?.summary.methods ?? []).length === 0 ? (

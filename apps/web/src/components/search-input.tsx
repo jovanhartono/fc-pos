@@ -16,10 +16,7 @@ export const SearchInput = ({
 }: SearchInputProps) => (
 	<div className={cn("relative flex items-center", className)}>
 		<MagnifyingGlassIcon className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
-		<Input
-			{...props}
-			className={cn("w-full min-w-0 pl-9", end && "pr-9", inputClassName)}
-		/>
+		<Input {...props} className={cn("w-full min-w-0 pl-9", inputClassName)} />
 		{end}
 	</div>
 );

@@ -51,12 +51,9 @@ interface DataTableProps<TData extends RowData> {
 // first. Wrapped once here, so the table and the phone card both get it.
 // On the table a long name or description wraps inside its column's fixed
 // width and stops at two lines, so one long value never makes its row taller.
-// Exported for cells that stack a name over a second line, where kind would bold both.
-export const WRAP_NAME_CLASS = "lg:wrap-break-word";
-
 const KIND_CLASS = {
 	code: "tabular-nums",
-	name: `font-medium lg:line-clamp-2 ${WRAP_NAME_CLASS}`,
+	name: "font-medium lg:line-clamp-2",
 	text: "lg:line-clamp-2",
 } as const;
 
@@ -160,7 +157,7 @@ export const DataTable = <TData extends RowData>({
 				{footer ? (
 					// Pinned like the queue's Hold to Start Work bar.
 					<div
-						className="sticky bottom-0 z-10 -mx-3 mt-1 border-t bg-background px-3 pt-2 pb-[calc(var(--inset-bottom)+0.5rem)] sm:-mx-6 sm:px-6 md:-mx-8 md:px-8"
+						className="page-bleed sticky bottom-0 z-10 mt-1 border-t bg-background pt-2 pb-[calc(var(--inset-bottom)+0.5rem)]"
 						data-bottom-bar
 					>
 						{footer}

@@ -252,9 +252,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 			<div className="grid gap-3 xl:grid-cols-2">
 				<Card className="border-border/70">
 					<CardHeader>
-						<CardTitle className="text-headline font-semibold text-foreground">
-							Gross sales by category · today
-						</CardTitle>
+						<CardTitle>Gross sales by category · today</CardTitle>
 					</CardHeader>
 					<CardContent className="p-4 pt-0">
 						<CategoryBars categories={overview?.categories ?? []} />
@@ -262,9 +260,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 				</Card>
 				<Card className="border-border/70">
 					<CardHeader>
-						<CardTitle className="text-headline font-semibold text-foreground">
-							Top services by gross sales · today
-						</CardTitle>
+						<CardTitle>Top services by gross sales · today</CardTitle>
 					</CardHeader>
 					<CardContent className="p-4 pt-0">
 						<TopServicesList services={overview?.top_services ?? []} />
@@ -274,9 +270,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle className="text-headline font-semibold text-foreground">
-						Revenue by store · today
-					</CardTitle>
+					<CardTitle>Revenue by store · today</CardTitle>
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					<BranchBreakdown perStore={overview?.per_store ?? []} />

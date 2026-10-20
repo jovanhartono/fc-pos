@@ -13,6 +13,7 @@ import {
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { pluralize } from "@/shared/utils";
 
 interface AgingQueuePanelProps {
 	storeId?: number;
@@ -124,7 +125,7 @@ export const AgingQueuePanel = ({ storeId }: AgingQueuePanelProps) => {
 					{query.isPending ? (
 						<TextSkeleton className="w-64" />
 					) : (
-						`${total} item${total === 1 ? "" : "s"} not yet picked up — oldest first.`
+						`${pluralize(total, "item")} not yet picked up — oldest first.`
 					)}
 				</p>
 			</div>

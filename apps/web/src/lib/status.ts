@@ -9,9 +9,7 @@ export type BadgeVariant =
 	| "danger"
 	| "warning"
 	| "info"
-	| "outline"
-	| "outline-success"
-	| "outline-danger";
+	| "outline";
 
 const cancelReasonLabels: Record<OrderCancelReason, string> = {
 	customer_request: "Customer Request",
@@ -86,7 +84,7 @@ const orderServiceStatusLabels = {
 export function getPaymentStatusBadgeVariant(
 	status: keyof typeof paymentStatusLabels,
 ): BadgeVariant {
-	return status === "paid" ? "outline-success" : "outline-danger";
+	return status === "paid" ? "success" : "danger";
 }
 
 export function formatPaymentStatus(status: keyof typeof paymentStatusLabels) {

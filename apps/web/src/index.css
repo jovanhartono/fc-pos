@@ -291,6 +291,13 @@
 	font-weight: var(--font-weight-medium);
 }
 
+/* A bar that runs across the page's side padding to the pane's edges, its
+   content still in line with the page. --page-x is set on the app shell. */
+@utility page-bleed {
+	margin-inline: calc(var(--page-x) * -1);
+	padding-inline: var(--page-x);
+}
+
 @layer base {
 	* {
 		@apply border-border outline-ring/50;

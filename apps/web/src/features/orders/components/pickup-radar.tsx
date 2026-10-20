@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
+import { MoneyValue } from "@/components/money-value";
 import { Skeleton } from "@/components/ui/skeleton";
 import { type Order, ordersQueries } from "@/features/orders/api";
 import { OrderListRow } from "@/features/orders/components/order-list-row";
 import { useOpenNestedOrder } from "@/features/orders/hooks/useOpenNestedOrder";
 import { CONTENT_FADE } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
-import { formatMoney } from "@/shared/money";
 
 const RADAR_LIMIT = 50;
 const SKELETON_ROW_COUNT = 8;
@@ -83,13 +83,9 @@ const RadarRow = ({ order }: RadarRowProps) => {
 
 	return (
 		<OrderListRow
-			className="rounded-none border-0 px-4"
+			className="rounded-none"
 			details={[order.code, order.store_name]}
-			end={
-				<p className="font-medium text-body text-foreground tabular-nums">
-					{formatMoney(order.total)}
-				</p>
-			}
+			end={<MoneyValue className="text-body" value={order.total} />}
 			onClick={handleOpen}
 			params={{ orderId: String(order.id) }}
 			title={order.customer_name}
