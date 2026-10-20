@@ -33,7 +33,7 @@ export const CampaignTileGroup = ({
 }: CampaignTileGroupProps) => {
 	if (!hasStore) {
 		return (
-			<p className="text-muted-foreground text-sm">
+			<p className="text-muted-foreground text-body">
 				Select store first to load campaigns
 			</p>
 		);
@@ -41,7 +41,7 @@ export const CampaignTileGroup = ({
 
 	if (eligibleCampaigns.length === 0) {
 		return (
-			<p className="text-muted-foreground text-sm">No campaigns available</p>
+			<p className="text-muted-foreground text-body">No campaigns available</p>
 		);
 	}
 
@@ -81,9 +81,9 @@ const CampaignTile = ({
 }: CampaignTileProps) => (
 	<label
 		className={cn(
-			"flex min-h-12 cursor-pointer items-center justify-between gap-2 border px-3 py-2 text-left transition active:scale-[0.97] has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50",
+			"flex min-h-12 cursor-pointer items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left transition active:scale-[0.97] has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50",
 			isSelected
-				? "border-emerald-300/60 bg-emerald-50/70 text-foreground dark:border-emerald-800 dark:bg-emerald-950/30"
+				? "border-success/40 bg-tone-good text-foreground"
 				: "border-border/70 text-foreground/80 hover:border-border hover:bg-muted/40",
 		)}
 	>
@@ -94,13 +94,11 @@ const CampaignTile = ({
 			type="checkbox"
 		/>
 		<span className="flex flex-col">
-			<span className="font-medium text-sm">{code}</span>
+			<span className="font-medium text-body">{code}</span>
 			<span
 				className={cn(
-					"text-[11px]",
-					isSelected
-						? "text-emerald-700 dark:text-emerald-400"
-						: "text-muted-foreground",
+					"text-caption",
+					isSelected ? "text-tone-good-foreground" : "text-muted-foreground",
 				)}
 			>
 				{discountLabel}
@@ -108,7 +106,7 @@ const CampaignTile = ({
 		</span>
 		{isSelected ? (
 			<CheckIcon
-				className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+				className="size-4 shrink-0 text-tone-good-foreground"
 				weight="bold"
 			/>
 		) : null}

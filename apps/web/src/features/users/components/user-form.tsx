@@ -1,25 +1,22 @@
-import { PlusIcon } from "@phosphor-icons/react";
 import {
 	Controller,
 	type SubmitHandler,
 	useFormContext,
 } from "react-hook-form";
 import { SelectField } from "@/components/form/select-field";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+	SHEET_FORM_GRID,
+	SheetFormActions,
+} from "@/components/form/sheet-form-actions";
+import { SwitchList, SwitchRow } from "@/components/form/switch-list";
 import {
 	Field,
-	FieldContent,
-	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
-	FieldLegend,
-	FieldSet,
-	FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
+import { StoreChecklist } from "@/features/stores/components/store-checklist";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
 export type UserFormState = {
@@ -52,7 +49,7 @@ export function UserForm({
 
 	return (
 		<form onSubmit={handleSubmit(onSubmit)}>
-			<FieldGroup>
+			<FieldGroup className={SHEET_FORM_GRID}>
 				<Controller
 					name="username"
 					control={control}
@@ -122,7 +119,7 @@ export function UserForm({
 							render={({ field, fieldState }) => (
 								<Field data-invalid={fieldState.invalid}>
 									<FieldLabel htmlFor="user-confirm-password" asterisk>
-										Confirm Password
+										Confirm password
 									</FieldLabel>
 									<Input
 										{...field}
@@ -143,7 +140,7 @@ export function UserForm({
 					name="role"
 					control={control}
 					render={({ field, fieldState }) => (
-						<Field data-invalid={fieldState.invalid}>
+						<Field className="col-span-full" data-invalid={fieldState.invalid}>
 							<FieldLabel htmlFor="user-role">Role</FieldLabel>
 							<SelectField
 								id="user-role"
@@ -158,7 +155,7 @@ export function UserForm({
 									field.onChange(value as UserFormState["role"])
 								}
 								disabled={isSubmitting}
-								className="w-full text-sm"
+								className="w-full text-body"
 								placeholder="Select role"
 							/>
 							<FieldError errors={[fieldState.error]} />
@@ -167,98 +164,54 @@ export function UserForm({
 				/>
 
 				<Controller
-					name="is_active"
-					control={control}
-					render={({ field }) => (
-						<FieldLabel htmlFor="user-active" className="md:col-span-2">
-							<Field orientation="horizontal">
-								<FieldContent>
-									<FieldTitle>Active</FieldTitle>
-								</FieldContent>
-								<Switch
-									id="user-active"
-									checked={field.value}
-									onCheckedChange={(checked) => field.onChange(!!checked)}
-									disabled={isSubmitting}
-								/>
-							</Field>
-						</FieldLabel>
-					)}
-				/>
-
-				<Controller
-					name="can_process_pickup"
-					control={control}
-					render={({ field }) => (
-						<FieldLabel htmlFor="user-pickup" className="md:col-span-2">
-							<Field orientation="horizontal">
-								<FieldContent>
-									<FieldTitle>Can process pickup</FieldTitle>
-									<FieldDescription>Allow pickup processing.</FieldDescription>
-								</FieldContent>
-								<Switch
-									id="user-pickup"
-									checked={field.value}
-									onCheckedChange={(checked) => field.onChange(!!checked)}
-									disabled={isSubmitting}
-								/>
-							</Field>
-						</FieldLabel>
-					)}
-				/>
-
-				<Controller
 					name="store_ids"
 					control={control}
 					render={({ field }) => (
-						<FieldSet className="border p-2">
-							<FieldLegend variant="label">Assigned Stores</FieldLegend>
-							<FieldGroup>
-								{stores.map((store) => (
-									<Field key={store.id} orientation="horizontal">
-										<Checkbox
-											id={`user-store-${store.id}`}
-											checked={field.value.includes(store.id)}
-											onCheckedChange={(value) => {
-												if (value) {
-													field.onChange([...field.value, store.id]);
-													return;
-												}
-												field.onChange(
-													field.value.filter((v) => v !== store.id),
-												);
-											}}
-											disabled={isSubmitting}
-										/>
-										<FieldLabel htmlFor={`user-store-${store.id}`}>
-											{store.name}
-										</FieldLabel>
-									</Field>
-								))}
-							</FieldGroup>
-						</FieldSet>
+						<StoreChecklist
+							disabled={isSubmitting}
+							idPrefix="user-store"
+							onChange={field.onChange}
+							stores={stores}
+							value={field.value}
+						/>
 					)}
 				/>
 
-				<div className="flex flex-wrap gap-2 md:col-span-2 md:justify-end">
-					{isEditing ? (
-						<Button
-							type="button"
-							variant="outline"
-							onClick={onReset}
-							disabled={isSubmitting}
-						>
-							Cancel edit
-						</Button>
-					) : null}
-					<Button
-						type="submit"
-						loading={isSubmitting}
-						icon={<PlusIcon className="size-4" />}
-					>
-						{isEditing ? "Update User" : "Create User"}
-					</Button>
-				</div>
+				<SwitchList>
+					<Controller
+						name="is_active"
+						control={control}
+						render={({ field }) => (
+							<SwitchRow
+								checked={field.value}
+								disabled={isSubmitting}
+								id="user-active"
+								onCheckedChange={field.onChange}
+								title="Active"
+							/>
+						)}
+					/>
+					<Controller
+						name="can_process_pickup"
+						control={control}
+						render={({ field }) => (
+							<SwitchRow
+								checked={field.value}
+								disabled={isSubmitting}
+								id="user-pickup"
+								onCheckedChange={field.onChange}
+								title="Can process pickup"
+							/>
+						)}
+					/>
+				</SwitchList>
+
+				<SheetFormActions
+					addLabel="Add user"
+					isEditing={isEditing}
+					isSubmitting={isSubmitting}
+					onCancel={onReset}
+				/>
 			</FieldGroup>
 		</form>
 	);

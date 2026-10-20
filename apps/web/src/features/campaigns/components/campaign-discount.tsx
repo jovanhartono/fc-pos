@@ -45,14 +45,17 @@ export const CampaignDiscount = ({
 		<span
 			className={cn(
 				"font-semibold",
-				isActive
-					? "text-emerald-700 dark:text-emerald-400"
-					: "text-muted-foreground",
+				isActive ? "text-tone-good-foreground" : "text-muted-foreground",
 			)}
 		>
 			<DiscountHeadline campaign={campaign} />
 			{limits && (
-				<span className="block font-normal text-muted-foreground text-xs">
+				<span
+					className={cn(
+						"block font-normal text-footnote",
+						isActive && "text-foreground",
+					)}
+				>
 					{limits}
 				</span>
 			)}

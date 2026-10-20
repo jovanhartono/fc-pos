@@ -1,13 +1,14 @@
-import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
+import { ActiveBadge } from "@/components/active-badge";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { EditRowButton } from "@/components/edit-row-button";
 import { ListPanel } from "@/components/list-panel";
 import { MoneyValue } from "@/components/money-value";
 import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	createProduct,
@@ -35,7 +36,6 @@ function ProductsPage() {
 	const { openSheet, closeSheet } = useSheet();
 
 	const { data: products = [], isPending } = useQuery(productsQueries.list());
-	const productCount = products.length;
 
 	const createMutation = useMutation({
 		mutationKey: ["create-product"],
@@ -64,7 +64,7 @@ function ProductsPage() {
 	const handleOpenEditSheet = useCallback(
 		(product: Product) => {
 			openSheet({
-				title: "Edit Product",
+				title: "Edit product",
 				content: () => (
 					<ProductForm
 						defaultValues={{
@@ -95,7 +95,7 @@ function ProductsPage() {
 
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
-			title: "Add Product",
+			title: "Add product",
 			content: () => (
 				<ProductForm
 					handleOnSubmit={async (values: ProductFormState) => {
@@ -130,11 +130,7 @@ function ProductsPage() {
 				accessorKey: "cogs",
 				header: "COGS",
 				meta: { align: "right" },
-				cell: ({ row }) => (
-					<span className="text-muted-foreground">
-						{formatMoney(String(row.original.cogs))}
-					</span>
-				),
+				cell: ({ row }) => formatMoney(String(row.original.cogs)),
 			},
 			{
 				accessorKey: "price",
@@ -152,25 +148,14 @@ function ProductsPage() {
 				id: "status",
 				header: "Status",
 				meta: { mobileCard: { slot: "status" } },
-				cell: ({ row }) => (
-					<Badge variant={row.original.is_active ? "success" : "danger"}>
-						{row.original.is_active ? "Active" : "Inactive"}
-					</Badge>
-				),
+				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 			},
 			{
 				id: "actions",
 				header: "Actions",
 				meta: { mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
-					<Button
-						variant="outline"
-						size="icon-sm"
-						aria-label="Edit"
-						title="Edit"
-						onClick={() => handleOpenEditSheet(row.original)}
-						icon={<PencilSimpleLineIcon className="size-4" />}
-					/>
+					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),
 			},
 		],
@@ -181,27 +166,25 @@ function ProductsPage() {
 		<>
 			<PageHeader
 				title="Products"
+				count={isPending ? undefined : products.length}
 				actions={
-					<>
-						<Badge
-							variant={isPending ? "secondary" : "outline"}
-						>{`${productCount} items`}</Badge>
-						<Button
-							onClick={handleOpenCreateSheet}
-							icon={<PlusIcon className="size-4" />}
-						>
-							Add Product
-						</Button>
-					</>
+					<Button
+						onClick={handleOpenCreateSheet}
+						icon={<PlusIcon className="size-4" />}
+					>
+						Add product
+					</Button>
 				}
 			/>
 			<ListPanel>
 				<DataTable
 					columns={columns}
 					data={products}
+					isCardGrouped
 					isLoading={isPending}
 					sortable
 					cardPrimaryColumnId="name"
+					emptyMessage="No products."
 				/>
 			</ListPanel>
 		</>

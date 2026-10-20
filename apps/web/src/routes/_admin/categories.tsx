@@ -1,15 +1,16 @@
-import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback } from "react";
+import { ActiveBadge } from "@/components/active-badge";
 import { DataTable } from "@/components/data-table";
 import type {
 	DataTableColumnDef,
 	DataTableRow,
 } from "@/components/data-table-features";
+import { EditRowButton } from "@/components/edit-row-button";
 import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	type Category,
@@ -51,7 +52,7 @@ const CategoriesActions = ({ row }: { row: DataTableRow<Category> }) => {
 
 	const handleOpenEditSheet = (category: Category) => {
 		openSheet({
-			title: "Edit Category",
+			title: "Edit category",
 			description: `Editing ID ${category.id}`,
 			content: () => (
 				<CategoryForm
@@ -74,16 +75,7 @@ const CategoriesActions = ({ row }: { row: DataTableRow<Category> }) => {
 		});
 	};
 
-	return (
-		<Button
-			variant="outline"
-			size="icon-sm"
-			aria-label="Edit"
-			title="Edit"
-			onClick={() => handleOpenEditSheet(row.original)}
-			icon={<PencilSimpleLineIcon className="size-4" />}
-		/>
-	);
+	return <EditRowButton onClick={() => handleOpenEditSheet(row.original)} />;
 };
 
 const columns: DataTableColumnDef<Category>[] = [
@@ -103,21 +95,13 @@ const columns: DataTableColumnDef<Category>[] = [
 				omitWhenEmpty: true,
 			},
 		},
-		cell: ({ row }) => (
-			<span className="text-muted-foreground">
-				{row.original.description ?? "—"}
-			</span>
-		),
+		cell: ({ row }) => row.original.description ?? "—",
 	},
 	{
 		id: "status",
 		header: "Status",
-		meta: { mobileCard: { slot: "badges" } },
-		cell: ({ row }) => (
-			<Badge variant={row.original.is_active ? "success" : "danger"}>
-				{row.original.is_active ? "Active" : "Inactive"}
-			</Badge>
-		),
+		meta: { mobileCard: { slot: "status" } },
+		cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 	},
 	{
 		id: "actions",
@@ -132,7 +116,6 @@ function CategoriesPage() {
 	const { openSheet, closeSheet } = useSheet();
 
 	const { data = [], isPending } = useQuery(categoriesQueries.list());
-	const categoryCount = data.length;
 
 	const createMutation = useMutation({
 		mutationKey: ["create-category"],
@@ -145,7 +128,7 @@ function CategoriesPage() {
 
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
-			title: "Add Category",
+			title: "Add category",
 			description: "Create a new category",
 			content: () => (
 				<CategoryForm
@@ -163,26 +146,24 @@ function CategoriesPage() {
 		<>
 			<PageHeader
 				title="Categories"
+				count={isPending ? undefined : data.length}
 				actions={
-					<>
-						<Badge
-							variant={isPending ? "secondary" : "outline"}
-						>{`${categoryCount} items`}</Badge>
-						<Button
-							onClick={handleOpenCreateSheet}
-							icon={<PlusIcon className="size-4" />}
-						>
-							Add Category
-						</Button>
-					</>
+					<Button
+						onClick={handleOpenCreateSheet}
+						icon={<PlusIcon className="size-4" />}
+					>
+						Add category
+					</Button>
 				}
 			/>
 			<ListPanel>
 				<DataTable
 					columns={columns}
 					data={data}
+					isCardGrouped
 					isLoading={isPending}
 					sortable
+					emptyMessage="No categories."
 				/>
 			</ListPanel>
 		</>

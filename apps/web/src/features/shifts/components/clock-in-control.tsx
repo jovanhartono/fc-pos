@@ -3,7 +3,7 @@ import { SignInIcon, WarningIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import { StoreSelect } from "@/features/orders/components/store-select";
 import { clockInShift } from "@/features/shifts/api";
 import { useGeolocation } from "@/features/shifts/hooks/useGeolocation";
 import { formatDistanceKm } from "@/features/shifts/lib/distance";
@@ -13,8 +13,7 @@ import { onShiftClocked } from "@/lib/cache-events";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { getCurrentUser } from "@/stores/auth-store";
 
-export const PRIMARY_BUTTON =
-	"h-16 w-full font-semibold text-base uppercase tracking-[0.18em]";
+export const PRIMARY_BUTTON = "h-16 w-full font-semibold text-headline";
 
 export const ClockInControl = () => {
 	const queryClient = useQueryClient();
@@ -76,7 +75,7 @@ export const ClockInControl = () => {
 	if (status === "locating") {
 		return (
 			<div className="flex flex-col gap-3">
-				<p className="text-muted-foreground text-xs" role="status">
+				<p className="text-muted-foreground text-footnote" role="status">
 					Finding you…
 				</p>
 				<Button className={PRIMARY_BUTTON} disabled loading size="lg">
@@ -91,7 +90,7 @@ export const ClockInControl = () => {
 			<div className="flex flex-col gap-3">
 				<div className="flex items-start gap-1.5" role="alert">
 					<WarningIcon className="mt-0.5 size-3.5 shrink-0 text-destructive" />
-					<p className="text-xs">
+					<p className="text-subhead">
 						<span className="font-medium text-destructive">
 							{status === "denied"
 								? "Location is off"
@@ -105,12 +104,7 @@ export const ClockInControl = () => {
 						</span>
 					</p>
 				</div>
-				<Button
-					className="self-start"
-					onClick={retry}
-					size="sm"
-					variant="outline"
-				>
+				<Button className="self-start" onClick={retry} variant="outline">
 					Try again
 				</Button>
 				<Button className={PRIMARY_BUTTON} disabled size="lg">
@@ -130,25 +124,25 @@ export const ClockInControl = () => {
 			{picked === undefined && selected ? (
 				<div className="flex flex-col items-start gap-0.5">
 					<div className="flex w-full items-baseline justify-between gap-3">
-						<span className="truncate font-medium text-sm">
+						<span className="truncate font-medium text-body">
 							{selected.name}
 						</span>
 						{selectedKm === undefined ? null : (
-							<span className="shrink-0 text-muted-foreground text-xs tabular-nums">
+							<span className="shrink-0 text-muted-foreground text-footnote tabular-nums">
 								{formatDistanceKm(selectedKm)}
 							</span>
 						)}
 					</div>
 					<button
-						className="text-muted-foreground text-xs underline underline-offset-4"
+						className="text-link text-subhead"
 						onClick={() => setPicked(storeValue)}
 						type="button"
 					>
-						change
+						Change
 					</button>
 				</div>
 			) : (
-				<StoreAutocomplete
+				<StoreSelect
 					allowedStoreIds={allowedStoreIds}
 					id="clock-store"
 					onValueChange={(value) => {
@@ -164,7 +158,7 @@ export const ClockInControl = () => {
 
 			{clockInMutation.isError ? (
 				<p
-					className="flex items-start gap-1.5 text-destructive text-xs"
+					className="flex items-start gap-1.5 text-destructive text-subhead"
 					role="alert"
 				>
 					<WarningIcon className="mt-0.5 size-3.5 shrink-0" />

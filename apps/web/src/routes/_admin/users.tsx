@@ -1,18 +1,19 @@
 import { PUTUserSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { KeyIcon, PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
+import { KeyIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
+import { ActiveBadge } from "@/components/active-badge";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { EditRowButton } from "@/components/edit-row-button";
 import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { storesQueries } from "@/features/stores/api";
 import {
@@ -230,7 +231,7 @@ function UsersPage() {
 				store_ids: user.userStores.map((item) => item.store_id),
 			});
 			openSheet({
-				title: "Edit User",
+				title: "Edit user",
 				content: () => (
 					<FormProvider {...form}>
 						<UserForm
@@ -249,7 +250,7 @@ function UsersPage() {
 	const handleCreate = useCallback(() => {
 		form.reset(defaultForm);
 		openSheet({
-			title: "Add User",
+			title: "Add user",
 			content: () => (
 				<FormProvider {...form}>
 					<UserForm
@@ -281,7 +282,7 @@ function UsersPage() {
 			{
 				accessorKey: "username",
 				header: "Username",
-				meta: { kind: "code" },
+				meta: { kind: "code", mobileCard: { slot: "subtitle" } },
 			},
 			{
 				accessorKey: "name",
@@ -291,15 +292,15 @@ function UsersPage() {
 			{
 				accessorKey: "role",
 				header: "Role",
+				meta: { mobileCard: { slot: "subtitle" } },
 				cell: ({ row }) => (
-					<span className="text-muted-foreground capitalize">
-						{row.original.role}
-					</span>
+					<span className="capitalize">{row.original.role}</span>
 				),
 			},
 			{
 				id: "stores",
 				header: "Stores",
+				meta: { mobileCard: { slot: "subtitle" } },
 				cell: ({ row }) =>
 					row.original.userStores.length > 0
 						? row.original.userStores
@@ -314,11 +315,7 @@ function UsersPage() {
 				id: "status",
 				header: "Status",
 				meta: { mobileCard: { slot: "status" } },
-				cell: ({ row }) => (
-					<Badge variant={row.original.is_active ? "success" : "danger"}>
-						{row.original.is_active ? "Active" : "Inactive"}
-					</Badge>
-				),
+				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 			},
 			{
 				id: "actions",
@@ -326,14 +323,7 @@ function UsersPage() {
 				meta: { mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
 					<div className="flex gap-2">
-						<Button
-							variant="outline"
-							size="icon-sm"
-							aria-label="Edit"
-							title="Edit"
-							onClick={() => handleEdit(row.original)}
-							icon={<PencilSimpleLineIcon className="size-4" />}
-						/>
+						<EditRowButton onClick={() => handleEdit(row.original)} />
 						<Button
 							variant="outline"
 							size="icon-sm"
@@ -353,9 +343,10 @@ function UsersPage() {
 		<>
 			<PageHeader
 				title="Users"
+				count={usersQuery.data?.meta.total}
 				actions={
 					<Button icon={<PlusIcon className="size-4" />} onClick={handleCreate}>
-						Add User
+						Add user
 					</Button>
 				}
 			/>
@@ -371,7 +362,12 @@ function UsersPage() {
 				<DataTable
 					columns={columns}
 					data={users}
+					isCardGrouped
 					isLoading={usersQuery.isPending}
+					cardPrimaryColumnId="name"
+					emptyMessage={
+						search.search ? `No users match "${search.search}".` : "No users."
+					}
 					footer={
 						<TablePagination
 							meta={usersQuery.data?.meta}

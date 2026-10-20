@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { PhoneNumberField } from "@/components/form/phone-number-field";
+import { Badge } from "@/components/ui/badge";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { customersQueries } from "@/features/customers/api";
@@ -96,17 +97,18 @@ export const CustomerFields = () => {
 							{/* Always mounted; hidden until the lookup confirms a returning
 							    customer. Reserving the badge's height keeps the row from
 							    growing when it toggles in (CLS). */}
-							<span
+							<Badge
+								variant="success"
 								className={cn(
 									// sm:-my-1: beside Phone, a taller label row would drop
 									// this input below the phone input.
-									"flex items-center gap-1 border border-emerald-300/60 bg-emerald-50 px-2 py-0.5 text-xs font-medium sm:-my-1 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400",
+									"sm:-my-1",
 									!isReturning && "invisible",
 								)}
 							>
-								<CheckCircleIcon className="size-3.5" weight="fill" />
+								<CheckCircleIcon weight="fill" />
 								Existing customer
-							</span>
+							</Badge>
 						</div>
 						<Input
 							id="customer-name"

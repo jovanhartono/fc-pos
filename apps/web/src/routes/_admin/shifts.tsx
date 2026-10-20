@@ -1,6 +1,5 @@
 import {
 	type Icon,
-	PencilSimpleLineIcon,
 	PlusIcon,
 	SignInIcon,
 	SignOutIcon,
@@ -13,12 +12,13 @@ import { z } from "zod";
 import { DataTable, WRAP_NAME_CLASS } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DateTimeCell } from "@/components/date-time-cell";
+import { EditRowButton } from "@/components/edit-row-button";
 import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-picker";
-import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import { StoreSelect } from "@/features/orders/components/store-select";
 import { type Shift, shiftsQueries } from "@/features/shifts/api";
 import { EditShiftForm } from "@/features/shifts/components/edit-shift-form";
 import { NewShiftForm } from "@/features/shifts/components/new-shift-form";
@@ -69,9 +69,9 @@ interface OpenShiftProps {
 }
 
 const OpenShift = ({ clockInAt }: OpenShiftProps) => (
-	<span className="font-semibold text-emerald-700 dark:text-emerald-400">
+	<span className="font-medium text-tone-good-foreground">
 		Open
-		<span className="block font-normal text-muted-foreground text-xs">
+		<span className="block font-normal text-foreground">
 			since {dayjs(clockInAt).format("HH:mm")}
 		</span>
 	</span>
@@ -94,21 +94,21 @@ interface ShiftDurationProps {
 }
 
 const ShiftDuration = ({ shift }: ShiftDurationProps) => (
-	<div className="flex flex-col gap-0.5">
+	<div className="flex flex-col gap-0.5 text-subhead">
 		{shift.clock_out_at ? (
-			<span className="font-semibold tabular-nums">
+			<span className="font-medium tabular-nums">
 				{formatDuration(shift.clock_in_at, shift.clock_out_at)}
 			</span>
 		) : (
 			<OpenShift clockInAt={shift.clock_in_at} />
 		)}
 		{shift.auto_closed ? (
-			<span className="text-amber-600 text-xs dark:text-amber-400">
+			<span className="text-tone-warn-foreground text-footnote">
 				auto-closed
 			</span>
 		) : null}
 		{shift.editedBy ? (
-			<span className="text-muted-foreground text-xs">
+			<span className="text-muted-foreground text-footnote">
 				edited by {shift.editedBy.name}
 			</span>
 		) : null}
@@ -147,15 +147,15 @@ function ShiftsPage() {
 				id: "user",
 				header: "Worker",
 				cell: ({ row }) => (
-					<div className={cn("flex flex-col", WRAP_NAME_CLASS)}>
-						<span className="font-medium">
+					<div className={cn("flex flex-col text-subhead", WRAP_NAME_CLASS)}>
+						<span className="font-medium text-body">
 							{row.original.user?.name ?? `User #${row.original.user_id}`}
 							{/* The card has no Store column, so the store rides on the name. */}
-							<span className="ml-1.5 font-mono font-normal text-muted-foreground text-xs lg:hidden">
+							<span className="ml-1.5 font-normal text-subhead tabular-nums lg:hidden">
 								{row.original.store?.code}
 							</span>
 						</span>
-						<span className="text-muted-foreground text-xs">
+						<span className="font-normal capitalize">
 							{row.original.user?.role ?? ""}
 						</span>
 					</div>
@@ -165,7 +165,11 @@ function ShiftsPage() {
 				id: "store",
 				header: "Store",
 				meta: { mobileCard: { slot: "hidden" } },
-				cell: ({ row }) => row.original.store?.code ?? "-",
+				cell: ({ row }) => (
+					<span className="text-subhead">
+						{row.original.store?.code ?? "-"}
+					</span>
+				),
 			},
 			{
 				id: "clock_in",
@@ -173,9 +177,14 @@ function ShiftsPage() {
 				meta: {
 					mobileCard: {
 						label: <ClockLabel icon={SignInIcon} text="Clock in" />,
+						valueClassName: "font-normal",
 					},
 				},
-				cell: ({ row }) => <DateTimeCell value={row.original.clock_in_at} />,
+				cell: ({ row }) => (
+					<div className="text-subhead">
+						<DateTimeCell value={row.original.clock_in_at} />
+					</div>
+				),
 			},
 			{
 				id: "clock_out",
@@ -183,14 +192,18 @@ function ShiftsPage() {
 				meta: {
 					mobileCard: {
 						label: <ClockLabel icon={SignOutIcon} text="Clock out" />,
+						valueClassName: "font-normal",
 					},
 				},
-				cell: ({ row }) =>
-					row.original.clock_out_at ? (
-						<DateTimeCell value={row.original.clock_out_at} />
-					) : (
-						"—"
-					),
+				cell: ({ row }) => (
+					<div className="text-subhead">
+						{row.original.clock_out_at ? (
+							<DateTimeCell value={row.original.clock_out_at} />
+						) : (
+							"—"
+						)}
+					</div>
+				),
 			},
 			{
 				id: "duration",
@@ -206,14 +219,7 @@ function ShiftsPage() {
 				header: "Actions",
 				meta: { mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
-					<Button
-						variant="outline"
-						size="icon-sm"
-						aria-label="Edit"
-						title="Edit"
-						onClick={() => handleEdit(row.original)}
-						icon={<PencilSimpleLineIcon className="size-4" />}
-					/>
+					<EditRowButton onClick={() => handleEdit(row.original)} />
 				),
 			},
 		],
@@ -232,7 +238,7 @@ function ShiftsPage() {
 			/>
 			<ListPanel>
 				<div className="flex flex-wrap items-center gap-2">
-					<StoreAutocomplete
+					<StoreSelect
 						id="shifts-store"
 						hideLabel
 						value={search.store_id?.toString() ?? ""}
@@ -247,7 +253,7 @@ function ShiftsPage() {
 						}}
 						allOptionLabel="All stores"
 						placeholder="Filter by store"
-						triggerClassName="h-10 w-max min-w-48 text-sm"
+						triggerClassName="sm:w-60"
 					/>
 					<DateRangePicker
 						commitOnComplete

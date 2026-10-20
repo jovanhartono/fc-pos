@@ -76,10 +76,10 @@ export const CheckoutFooter = ({
 			{submitError ? <FieldError>{submitError}</FieldError> : null}
 			<div className="flex items-center justify-between gap-3">
 				<div className="grid gap-0.5">
-					<span className="text-[13px] font-medium text-muted-foreground">
+					<span className="text-subhead font-medium text-muted-foreground">
 						Total
 					</span>
-					<span className="text-base font-semibold">
+					<span className="text-headline font-semibold">
 						{formatMoney(String(Math.round(pricing.total)))}
 					</span>
 				</div>
@@ -95,7 +95,7 @@ export const CheckoutFooter = ({
 				/>
 			</div>
 			{itemsHint ? (
-				<p className="text-muted-foreground text-xs" id={ITEMS_HINT_ID}>
+				<p className="text-muted-foreground text-footnote" id={ITEMS_HINT_ID}>
 					{itemsHint}
 				</p>
 			) : null}

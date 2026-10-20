@@ -25,7 +25,9 @@ import {
 import { toast } from "sonner";
 import { z } from "zod";
 import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
+import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { StickyControls } from "@/components/sticky-controls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +37,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -48,7 +51,7 @@ import {
 import { QueueCategoryFilter } from "@/features/orders/components/queue-category-filter";
 import { QueueStatusTabs } from "@/features/orders/components/queue-status-tabs";
 import { ReworkRoundLabel } from "@/features/orders/components/rework-round-label";
-import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import { StoreSelect } from "@/features/orders/components/store-select";
 import { useBarcodeScanner } from "@/features/orders/hooks/useBarcodeScanner";
 import { getQueueAgeTone } from "@/features/orders/lib/queue-age-tone";
 import { groupReworksUnderOriginals } from "@/features/orders/lib/rework-nesting";
@@ -441,148 +444,156 @@ function QueuePage() {
 			/>
 
 			<div className="grid gap-3">
-				<div className="flex items-center gap-2">
-					<Input
-						aria-label="Find by item code, order ID, or line ID"
-						autoCapitalize="none"
-						autoCorrect="off"
-						className="min-w-0 flex-1"
-						enterKeyHint="search"
-						spellCheck={false}
-						onChange={(event) => setItemCode(event.target.value)}
-						// Without the pending guard a held Enter fires a second lookup
-						// over the first and navigates twice.
-						onKeyDown={(event) => {
-							if (
-								event.key === "Enter" &&
-								itemCode.trim() &&
-								!lookupMutation.isPending
-							) {
-								lookupMutation.mutate({
-									mode: "manual",
-									value: itemCode.trim(),
-								});
-							}
-						}}
-						placeholder="Item code or order ID"
-						value={itemCode}
-					/>
-					<Button
-						aria-label={scanner.isScanning ? "Stop scan" : "Scan tag"}
-						icon={<ScanIcon className="size-4" />}
-						onClick={() => {
-							if (scanner.isScanning) {
-								scanner.stop();
-								return;
-							}
-
-							void scanner.start();
-						}}
-						size="icon-lg"
-						type="button"
-						variant={scanner.isScanning ? "default" : "outline"}
-					/>
-					<Dialog onOpenChange={setIsFilterOpen} open={isFilterOpen}>
-						<DialogTrigger
-							render={
-								<Button
-									aria-label="Filters"
-									className="h-9 min-w-9 shrink-0"
-									icon={<FunnelIcon className="size-4" />}
-									type="button"
-									variant="outline"
-								/>
-							}
-						>
-							{activeFilterCount > 0 ? String(activeFilterCount) : null}
-						</DialogTrigger>
-						<DialogContent className="max-w-[calc(100%-1.5rem)] gap-5 p-4 sm:max-w-md">
-							<DialogHeader>
-								<DialogTitle>Filters</DialogTitle>
-							</DialogHeader>
-							<div className="grid gap-4">
-								<StoreAutocomplete
-									allowedStoreIds={role === "admin" ? undefined : userStoreIds}
-									id="queue-store"
-									onValueChange={updateStoreFilter}
-									placeholder="Select store"
-									value={parsedStoreId?.toString() ?? ""}
-								/>
-								<QueueCategoryFilter
-									categoryId={selectedCategoryId}
-									mode={selectedCategoryMode}
-									onChange={updateCategoryFilter}
-								/>
-								<Suspense fallback={<Skeleton className="h-10 w-full" />}>
-									<DateRangePicker
-										commitOnComplete
-										from={selectedDateFrom}
-										onChange={updateDateRangeFilter}
-										onClear={() => updateDateRangeFilter()}
-										to={selectedDateTo}
-									/>
-								</Suspense>
-								<Button
-									className="h-10 pointer-coarse:h-11"
-									onClick={() => setIsFilterOpen(false)}
-									type="button"
-								>
-									Done
-								</Button>
-							</div>
-						</DialogContent>
-					</Dialog>
-				</div>
-
-				{scanner.error ? (
-					<div className="flex items-center gap-2 text-destructive text-sm">
-						<WarningCircleIcon className="size-4" weight="fill" />
-						<span>{scanner.error}</span>
-					</div>
-				) : null}
-
-				{scanner.isScanning ? (
-					<video
-						autoPlay
-						className="aspect-video w-full border border-border object-cover"
-						muted
-						playsInline
-						ref={scanner.videoRef}
-					/>
-				) : null}
-
-				{selectedSearch ? (
-					<div className="flex min-w-0 items-center gap-2 border border-dashed border-border px-3 py-2 text-sm">
-						<span className="min-w-0 flex-1 truncate text-muted-foreground">
-							Showing <span className="font-mono">{selectedSearch}</span> only
-						</span>
+				<StickyControls className="grid gap-3">
+					<div className="flex items-center gap-2">
+						<Input
+							aria-label="Find by item code, order ID, or line ID"
+							autoCapitalize="none"
+							autoCorrect="off"
+							className="min-w-0 flex-1"
+							enterKeyHint="search"
+							spellCheck={false}
+							onChange={(event) => setItemCode(event.target.value)}
+							// Without the pending guard a held Enter fires a second lookup
+							// over the first and navigates twice.
+							onKeyDown={(event) => {
+								if (
+									event.key === "Enter" &&
+									itemCode.trim() &&
+									!lookupMutation.isPending
+								) {
+									lookupMutation.mutate({
+										mode: "manual",
+										value: itemCode.trim(),
+									});
+								}
+							}}
+							placeholder="Item code or order ID"
+							value={itemCode}
+						/>
 						<Button
-							onClick={clearSearchFilter}
-							size="sm"
-							type="button"
-							variant="outline"
-						>
-							Clear
-						</Button>
-					</div>
-				) : null}
+							aria-label={scanner.isScanning ? "Stop scan" : "Scan tag"}
+							icon={<ScanIcon className="size-4" />}
+							onClick={() => {
+								if (scanner.isScanning) {
+									scanner.stop();
+									return;
+								}
 
-				{/* Hidden while a scanned tag pins the list to one object: the counts
+								void scanner.start();
+							}}
+							size="icon-lg"
+							type="button"
+							variant={scanner.isScanning ? "default" : "outline"}
+						/>
+						<Dialog onOpenChange={setIsFilterOpen} open={isFilterOpen}>
+							<DialogTrigger
+								render={
+									<Button
+										aria-label="Filters"
+										className="h-9 min-w-9 shrink-0 rounded-full border-0 bg-secondary hover:bg-muted-foreground/20"
+										icon={<FunnelIcon className="size-4" />}
+										type="button"
+										variant="outline"
+									/>
+								}
+							>
+								{activeFilterCount > 0 ? String(activeFilterCount) : null}
+							</DialogTrigger>
+							<DialogContent className="max-w-[calc(100%-1.5rem)] gap-5 p-4 sm:max-w-md">
+								<DialogHeader>
+									<DialogTitle>Filters</DialogTitle>
+								</DialogHeader>
+								<div className="grid gap-4">
+									<StoreSelect
+										allowedStoreIds={
+											role === "admin" ? undefined : userStoreIds
+										}
+										id="queue-store"
+										onValueChange={updateStoreFilter}
+										placeholder="Select store"
+										value={parsedStoreId?.toString() ?? ""}
+									/>
+									<QueueCategoryFilter
+										categoryId={selectedCategoryId}
+										mode={selectedCategoryMode}
+										onChange={updateCategoryFilter}
+									/>
+									<Field>
+										<FieldLabel htmlFor="queue-date">Date</FieldLabel>
+										<Suspense fallback={<Skeleton className="h-9 w-full" />}>
+											<DateRangePicker
+												commitOnComplete
+												from={selectedDateFrom}
+												fullWidth
+												id="queue-date"
+												onChange={updateDateRangeFilter}
+												onClear={() => updateDateRangeFilter()}
+												to={selectedDateTo}
+											/>
+										</Suspense>
+									</Field>
+									<Button
+										className="h-10 pointer-coarse:h-11"
+										onClick={() => setIsFilterOpen(false)}
+										type="button"
+									>
+										Done
+									</Button>
+								</div>
+							</DialogContent>
+						</Dialog>
+					</div>
+
+					{scanner.error ? (
+						<div className="flex items-center gap-2 text-destructive text-body">
+							<WarningCircleIcon className="size-4" weight="fill" />
+							<span>{scanner.error}</span>
+						</div>
+					) : null}
+
+					{scanner.isScanning ? (
+						<video
+							autoPlay
+							className="aspect-video w-full rounded-lg object-cover"
+							muted
+							playsInline
+							ref={scanner.videoRef}
+						/>
+					) : null}
+
+					{selectedSearch ? (
+						<div className="flex min-w-0 items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-body">
+							<span className="min-w-0 flex-1 truncate text-muted-foreground">
+								Showing <span className="tabular-nums">{selectedSearch}</span>{" "}
+								only
+							</span>
+							<Button
+								onClick={clearSearchFilter}
+								size="sm"
+								type="button"
+								variant="outline"
+							>
+								Clear
+							</Button>
+						</div>
+					) : null}
+
+					{/* Hidden while a scanned tag pins the list to one object: the counts
 				    describe the whole Store, and chips saying "47" over a one-card
 				    list are lying. They come back with Clear. */}
-				{!selectedSearch && (
-					<QueueStatusTabs
-						counts={countsQuery.data}
-						onValueChange={updateStatusFilter}
-						value={selectedStatus ?? "all"}
-					/>
-				)}
+					{!selectedSearch && (
+						<QueueStatusTabs
+							counts={countsQuery.data}
+							onValueChange={updateStatusFilter}
+							value={selectedStatus ?? "all"}
+						/>
+					)}
+				</StickyControls>
 
 				<section className="grid min-w-0 gap-2">
 					{role === "admin" && parsedStoreId === undefined ? (
-						<div className="border border-dashed border-border px-4 py-8 text-center text-muted-foreground text-sm">
-							Select a store
-						</div>
+						<EmptyState>Select a store</EmptyState>
 					) : null}
 
 					{queueItems.map((item) => (
@@ -600,16 +611,13 @@ function QueuePage() {
 					{queueQuery.isLoading ? (
 						<div className="grid gap-2">
 							{Array.from({ length: 6 }, (_, index) => (
-								<div
-									className="h-20 animate-pulse border border-border bg-muted/40"
-									key={index}
-								/>
+								<Skeleton className="h-20 rounded-lg" key={index} />
 							))}
 						</div>
 					) : null}
 
 					{queueQuery.isError ? (
-						<div className="border border-destructive/30 bg-destructive/5 px-4 py-3 text-destructive text-sm">
+						<div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-destructive text-body">
 							{queueQuery.error instanceof Error
 								? queueQuery.error.message
 								: "Failed to load the queue."}
@@ -620,15 +628,13 @@ function QueuePage() {
 					!queueQuery.isError &&
 					queueItems.length === 0 &&
 					parsedStoreId !== undefined ? (
-						<div className="border border-dashed border-border px-4 py-8 text-center text-muted-foreground text-sm">
-							No items.
-						</div>
+						<EmptyState>No items.</EmptyState>
 					) : null}
 
 					<div className="h-6" ref={loadMoreRef} />
 
 					{queueQuery.isFetchingNextPage ? (
-						<p className="text-center text-muted-foreground text-sm">
+						<p className="text-center text-muted-foreground text-body">
 							Loading…
 						</p>
 					) : null}
@@ -665,7 +671,7 @@ const QueueJobButton = ({
 			onClick={onOpen}
 			type="button"
 		>
-			<span className="min-w-0 break-words text-sm">
+			<span className="min-w-0 break-words text-body">
 				{reworkRound === null ? (
 					service.service_name
 				) : (
@@ -687,20 +693,15 @@ const QueueJobButton = ({
 			/>
 			<span
 				className={cn(
-					"flex min-w-0 flex-wrap items-center gap-1.5 text-muted-foreground text-xs",
+					"flex min-w-0 flex-wrap items-center gap-1.5 text-subhead",
 					reworkRound !== null && "pl-4",
 				)}
 			>
-				<Badge
-					className="px-1.5 py-0 text-[11px]"
-					variant={getOrderServiceStatusBadgeVariant(service.status)}
-				>
+				<Badge variant={getOrderServiceStatusBadgeVariant(service.status)}>
 					{formatOrderServiceStatus(service.status)}
 				</Badge>
 				{service.is_priority && reworkRound === null ? (
-					<Badge className="px-1.5 py-0 text-[11px]" variant="priority">
-						Priority
-					</Badge>
+					<Badge variant="priority">Priority</Badge>
 				) : null}
 				{handler ? <span>{handler}</span> : null}
 			</span>
@@ -734,27 +735,27 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 		// min-w-0 at every level down to the truncating text: without it the card's
 		// min-content sizes the auto grid column, and the search field and status
 		// chips above — siblings in that same column — get pushed off screen.
-		<article className="min-w-0 border border-border bg-background">
+		<article className="min-w-0 overflow-hidden rounded-lg border bg-card">
 			<header className="grid min-w-0 gap-0.5 px-3 pt-2.5 pb-2">
-				<h3 className="flex min-w-0 items-baseline gap-2 font-medium text-[15px] leading-snug">
+				<h3 className="flex min-w-0 items-baseline gap-2 font-medium text-headline leading-snug">
 					{descriptors ? (
 						<span className="min-w-0 flex-1 wrap-break-word">
 							{descriptors}
 						</span>
 					) : (
-						<span className="min-w-0 flex-1 break-all font-mono">
+						<span className="min-w-0 flex-1 break-all tabular-nums">
 							{item.item_code}
 						</span>
 					)}
 				</h3>
-				<p className="flex min-w-0 items-baseline gap-2 text-muted-foreground text-xs">
+				<p className="flex min-w-0 items-baseline gap-2 text-subhead">
 					<span className="min-w-0 flex-1 truncate">
 						{item.order_code} · {item.customer_name}
 					</span>
 					<span
 						className={cn(
 							"shrink-0 font-semibold tabular-nums",
-							ageTone === "amber" && "text-amber-600 dark:text-amber-400",
+							ageTone === "amber" && "text-tone-warn-foreground",
 							ageTone === "red" && "text-destructive",
 						)}
 					>
@@ -780,7 +781,7 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 						) : (
 							// Picked up and brought back: the original is off the rack,
 							// but the worker still needs to know what is being redone.
-							<p className="min-w-0 wrap-break-word px-3 pt-2.5 text-sm">
+							<p className="min-w-0 wrap-break-word px-3 pt-2.5 text-body">
 								{reworks[0]?.rework_of_service_name ?? "Service"}
 							</p>
 						)}

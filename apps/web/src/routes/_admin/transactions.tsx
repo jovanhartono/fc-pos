@@ -46,7 +46,7 @@ function TransactionsPage() {
 		return (
 			<div className="grid gap-4">
 				<Card>
-					<CardContent className="py-8 text-sm text-muted-foreground">
+					<CardContent className="py-8 text-body text-muted-foreground">
 						Loading POS workspace...
 					</CardContent>
 				</Card>

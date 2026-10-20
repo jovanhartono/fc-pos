@@ -1,18 +1,12 @@
 import type { DayClosePickedUpOrder } from "@/features/counter/api";
 import { EarlierTag } from "@/features/counter/components/day-close/earlier-tag";
 import {
-	OrderCustomer,
 	OrderList,
 	OrderRow,
-	PhoneRowContent,
-	TimeCell,
 } from "@/features/counter/components/day-close/order-row";
 import { formatClock } from "@/features/counter/lib/day-close";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { pluralize } from "@/shared/utils";
-
-const COLUMNS = "grid-cols-[3.5rem_minmax(0,1fr)_6rem_5rem]";
 
 interface PickedProgressProps {
 	picked: number;
@@ -26,17 +20,17 @@ const PickedProgress = ({ picked, total }: PickedProgressProps) => {
 		<span className="grid w-20 gap-1 justify-self-end">
 			<span
 				className={cn(
-					"text-xs tabular-nums",
-					isDone && "text-emerald-700 dark:text-emerald-300",
+					"text-footnote tabular-nums",
+					isDone && "text-tone-good-foreground",
 				)}
 			>
 				{picked}/{total}
 			</span>
-			<span className="h-1 bg-muted">
+			<span className="h-1.5 overflow-hidden rounded-full bg-soft-bar-track">
 				<span
 					className={cn(
-						"block h-full",
-						isDone ? "bg-success" : "bg-foreground",
+						"block h-full rounded-full",
+						isDone ? "bg-success" : "bg-primary",
 					)}
 					style={{ width: `${(picked / total) * 100}%` }}
 				/>
@@ -53,63 +47,29 @@ interface PickedUpSheetContentProps {
 export const PickedUpSheetContent = ({
 	date,
 	orders,
-}: PickedUpSheetContentProps) => {
-	const isMobile = useIsMobile();
-
-	return (
-		<OrderList
-			columns={COLUMNS}
-			emptyText="Nothing picked up this day."
-			headings={["Time", "Customer", "This pickup", "Picked up"]}
-			isEmpty={orders.length === 0}
-		>
-			{orders.map((order) => {
-				const progress = (
+}: PickedUpSheetContentProps) => (
+	<OrderList
+		emptyText="Nothing picked up this day."
+		isEmpty={orders.length === 0}
+	>
+		{orders.map((order) => (
+			<OrderRow
+				badges={<EarlierTag createdDay={order.created_day} date={date} />}
+				code={order.order_code}
+				customerName={order.customer_name}
+				details={[
+					formatClock(order.picked_up_at),
+					pluralize(order.items, "Item"),
+				]}
+				end={
 					<PickedProgress
 						picked={order.items_picked_by_day}
 						total={order.items_total}
 					/>
-				);
-				const earlier = (
-					<EarlierTag createdDay={order.created_day} date={date} />
-				);
-				return (
-					<OrderRow
-						columns={COLUMNS}
-						code={order.order_code}
-						key={order.order_id}
-						orderId={order.order_id}
-					>
-						{isMobile ? (
-							<PhoneRowContent
-								customerName={order.customer_name}
-								value={progress}
-							>
-								<span>{formatClock(order.picked_up_at)}</span>
-								<span>
-									<span className="font-mono">{order.order_code}</span>
-									{earlier}
-								</span>
-								<span>{pluralize(order.items, "Item")}</span>
-							</PhoneRowContent>
-						) : (
-							<>
-								<TimeCell at={order.picked_up_at} />
-								<OrderCustomer
-									code={order.order_code}
-									customerName={order.customer_name}
-								>
-									{earlier}
-								</OrderCustomer>
-								<span className="whitespace-nowrap tabular-nums">
-									{pluralize(order.items, "Item")}
-								</span>
-								{progress}
-							</>
-						)}
-					</OrderRow>
-				);
-			})}
-		</OrderList>
-	);
-};
+				}
+				key={order.order_id}
+				orderId={order.order_id}
+			/>
+		))}
+	</OrderList>
+);

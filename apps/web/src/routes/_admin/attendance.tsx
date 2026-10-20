@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	clockOutShift,
 	type Shift,
@@ -89,20 +90,20 @@ function AttendancePage() {
 	return (
 		<>
 			<PageHeader title="Attendance" />
-			<div className="mx-auto grid w-full max-w-md gap-8">
+			<div className="grid w-full gap-8">
 				<section className="grid gap-3">
 					{currentShiftPending ? (
 						<>
-							<span className="h-12 w-40 animate-pulse bg-muted" />
-							<span className="h-16 w-full animate-pulse bg-muted" />
+							<Skeleton className="h-12 w-40" />
+							<Skeleton className="h-16 w-full" />
 						</>
 					) : currentShift ? (
 						<>
 							<div className="grid gap-0.5">
-								<span className="font-semibold text-5xl tabular-nums">
+								<span className="font-semibold text-large-title tabular-nums">
 									{formatElapsed(new Date(currentShift.clock_in_at), now)}
 								</span>
-								<span className="text-muted-foreground text-xs">
+								<span className="text-muted-foreground text-footnote">
 									Since {dayjs(currentShift.clock_in_at).format("HH:mm")}
 									{currentShift.store?.code
 										? ` · ${currentShift.store.code}`
@@ -126,14 +127,14 @@ function AttendancePage() {
 				</section>
 
 				<section className="grid gap-2">
-					<h2 className="text-[13px] font-medium text-muted-foreground tabular-nums">
+					<h2 className="text-subhead font-medium text-muted-foreground tabular-nums">
 						{dayjs(weekRange.from).format("DD MMM")} –{" "}
 						{dayjs(weekRange.to).format("DD MMM")}
 					</h2>
 					{shiftsQuery.isPending ? (
-						<p className="text-muted-foreground text-sm">Loading…</p>
+						<p className="text-muted-foreground text-body">Loading…</p>
 					) : weekShifts.length === 0 ? (
-						<p className="text-muted-foreground text-sm">No shifts yet.</p>
+						<p className="text-muted-foreground text-body">No shifts yet.</p>
 					) : (
 						<ul className="divide-y border-y">
 							{weekShifts.map((shift) => (
@@ -149,22 +150,22 @@ function AttendancePage() {
 
 const ShiftRow = ({ shift }: { shift: Shift }) => (
 	<li className="flex items-baseline justify-between gap-3 py-2.5">
-		<span className="w-14 shrink-0 text-muted-foreground text-xs">
+		<span className="w-14 shrink-0 text-muted-foreground text-footnote">
 			{dayjs(shift.clock_in_at).format("ddd DD")}
 		</span>
-		<span className="flex-1 truncate text-sm tabular-nums">
+		<span className="flex-1 truncate text-body tabular-nums">
 			{dayjs(shift.clock_in_at).format("HH:mm")} –{" "}
 			{shift.clock_out_at ? dayjs(shift.clock_out_at).format("HH:mm") : "…"}
 			{shift.auto_closed ? (
-				<span className="ml-1.5 text-amber-600 text-xs dark:text-amber-400">
+				<span className="ml-1.5 text-tone-warn-foreground text-footnote">
 					auto-closed
 				</span>
 			) : null}
 		</span>
-		<span className="shrink-0 text-muted-foreground text-xs">
+		<span className="shrink-0 text-muted-foreground text-footnote">
 			{shift.store?.code ?? "—"}
 		</span>
-		<span className="w-16 shrink-0 text-right text-sm tabular-nums">
+		<span className="w-16 shrink-0 text-right text-body tabular-nums">
 			{shift.clock_out_at
 				? formatDuration(shift.clock_in_at, shift.clock_out_at)
 				: null}

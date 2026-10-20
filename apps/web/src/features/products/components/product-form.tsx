@@ -1,21 +1,20 @@
 import { POSTProductSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PlusIcon } from "@phosphor-icons/react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { CurrencyInput } from "@/components/form/currency-input";
-import { Button } from "@/components/ui/button";
+import {
+	SHEET_FORM_GRID,
+	SheetFormActions,
+} from "@/components/form/sheet-form-actions";
+import { SwitchList, SwitchRow } from "@/components/form/switch-list";
 import {
 	Field,
-	FieldContent,
-	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
-	FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { CategoryAutocomplete } from "@/features/orders/components/category-autocomplete";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
@@ -68,7 +67,7 @@ export function ProductForm({
 
 	return (
 		<form onSubmit={form.handleSubmit(handleOnSubmit)}>
-			<FieldGroup>
+			<FieldGroup className={SHEET_FORM_GRID}>
 				<Controller
 					name="name"
 					control={form.control}
@@ -113,13 +112,15 @@ export function ProductForm({
 					name="category_id"
 					control={form.control}
 					render={({ field, fieldState }) => (
-						<CategoryAutocomplete
-							value={field.value ? String(field.value) : ""}
-							onValueChange={(value) => field.onChange(Number(value))}
-							required
-							disabled={isSubmitting}
-							error={fieldState.error}
-						/>
+						<div className="col-span-full">
+							<CategoryAutocomplete
+								value={field.value ? String(field.value) : ""}
+								onValueChange={(value) => field.onChange(Number(value))}
+								required
+								disabled={isSubmitting}
+								error={fieldState.error}
+							/>
+						</div>
 					)}
 				/>
 
@@ -169,7 +170,7 @@ export function ProductForm({
 					name="description"
 					control={form.control}
 					render={({ field, fieldState }) => (
-						<Field data-invalid={fieldState.invalid} className="md:col-span-2">
+						<Field data-invalid={fieldState.invalid} className="col-span-full">
 							<FieldLabel htmlFor="product-description">Description</FieldLabel>
 							<Input
 								{...field}
@@ -226,48 +227,28 @@ export function ProductForm({
 					)}
 				/>
 
-				<Controller
-					name="is_active"
-					control={form.control}
-					render={({ field }) => (
-						<FieldLabel htmlFor="product-active" className="md:col-span-2">
-							<Field orientation="horizontal">
-								<FieldContent>
-									<FieldTitle>Active</FieldTitle>
-									<FieldDescription>
-										Active products will be available throughout the app.
-									</FieldDescription>
-								</FieldContent>
-								<Switch
-									id="product-active"
-									checked={field.value}
-									onCheckedChange={(checked) => field.onChange(!!checked)}
-									disabled={isSubmitting}
-								/>
-							</Field>
-						</FieldLabel>
-					)}
-				/>
+				<SwitchList>
+					<Controller
+						name="is_active"
+						control={form.control}
+						render={({ field }) => (
+							<SwitchRow
+								checked={field.value}
+								disabled={isSubmitting}
+								id="product-active"
+								onCheckedChange={field.onChange}
+								title="Active"
+							/>
+						)}
+					/>
+				</SwitchList>
 
-				<div className="flex flex-wrap gap-2 md:col-span-2 md:justify-end">
-					{isEditing ? (
-						<Button
-							type="button"
-							variant="outline"
-							onClick={onReset}
-							disabled={isSubmitting}
-						>
-							Cancel edit
-						</Button>
-					) : null}
-					<Button
-						type="submit"
-						loading={isSubmitting}
-						icon={<PlusIcon className="size-4" />}
-					>
-						{isEditing ? "Update Product" : "Create Product"}
-					</Button>
-				</div>
+				<SheetFormActions
+					addLabel="Add product"
+					isEditing={isEditing}
+					isSubmitting={isSubmitting}
+					onCancel={onReset}
+				/>
 			</FieldGroup>
 		</form>
 	);

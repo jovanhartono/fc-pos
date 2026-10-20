@@ -1,12 +1,13 @@
-import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
+import { ActiveBadge } from "@/components/active-badge";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { EditRowButton } from "@/components/edit-row-button";
 import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	createPaymentMethod,
@@ -34,7 +35,6 @@ function PaymentMethodsPage() {
 	const { data: paymentMethods = [], isPending } = useQuery(
 		paymentMethodsQueries.list(),
 	);
-	const paymentMethodCount = paymentMethods.length;
 
 	const createMutation = useMutation({
 		mutationKey: ["create-payment-method"],
@@ -67,7 +67,7 @@ function PaymentMethodsPage() {
 	const handleOpenEditSheet = useCallback(
 		(paymentMethod: PaymentMethod) => {
 			openSheet({
-				title: "Edit Payment Method",
+				title: "Edit payment method",
 				content: () => (
 					<PaymentMethodForm
 						defaultValues={{
@@ -92,7 +92,7 @@ function PaymentMethodsPage() {
 
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
-			title: "Add Payment Method",
+			title: "Add payment method",
 			content: () => (
 				<PaymentMethodForm
 					handleOnSubmit={async (values: PaymentMethodFormState) => {
@@ -121,25 +121,14 @@ function PaymentMethodsPage() {
 				id: "status",
 				header: "Status",
 				meta: { mobileCard: { slot: "status" } },
-				cell: ({ row }) => (
-					<Badge variant={row.original.is_active ? "success" : "danger"}>
-						{row.original.is_active ? "Active" : "Inactive"}
-					</Badge>
-				),
+				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 			},
 			{
 				id: "actions",
 				header: "Actions",
 				meta: { mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
-					<Button
-						variant="outline"
-						size="icon-sm"
-						aria-label="Edit"
-						title="Edit"
-						onClick={() => handleOpenEditSheet(row.original)}
-						icon={<PencilSimpleLineIcon className="size-4" />}
-					/>
+					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),
 			},
 		],
@@ -149,27 +138,25 @@ function PaymentMethodsPage() {
 	return (
 		<>
 			<PageHeader
-				title="Payment Methods"
+				title="Payment methods"
+				count={isPending ? undefined : paymentMethods.length}
 				actions={
-					<>
-						<Badge
-							variant={isPending ? "secondary" : "outline"}
-						>{`${paymentMethodCount} items`}</Badge>
-						<Button
-							onClick={handleOpenCreateSheet}
-							icon={<PlusIcon className="size-4" />}
-						>
-							Add Method
-						</Button>
-					</>
+					<Button
+						onClick={handleOpenCreateSheet}
+						icon={<PlusIcon className="size-4" />}
+					>
+						Add method
+					</Button>
 				}
 			/>
 			<ListPanel>
 				<DataTable
 					columns={columns}
 					data={paymentMethods}
+					isCardGrouped
 					isLoading={isPending}
 					sortable
+					emptyMessage="No payment methods."
 				/>
 			</ListPanel>
 		</>

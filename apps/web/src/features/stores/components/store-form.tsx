@@ -1,21 +1,20 @@
 import { POSTStoreSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PlusIcon } from "@phosphor-icons/react";
 import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
 import { PhoneNumberField } from "@/components/form/phone-number-field";
-import { Button } from "@/components/ui/button";
+import {
+	SHEET_FORM_GRID,
+	SheetFormActions,
+} from "@/components/form/sheet-form-actions";
+import { SwitchList, SwitchRow } from "@/components/form/switch-list";
 import {
 	Field,
-	FieldContent,
-	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
-	FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
@@ -55,7 +54,7 @@ export function StoreForm({
 
 	return (
 		<form onSubmit={form.handleSubmit(handleOnSubmit)}>
-			<FieldGroup>
+			<FieldGroup className={SHEET_FORM_GRID}>
 				<Controller
 					name="code"
 					control={form.control}
@@ -98,23 +97,25 @@ export function StoreForm({
 					name="phone_number"
 					control={form.control}
 					render={({ field, fieldState }) => (
-						<PhoneNumberField
-							id="store-phone"
-							label="Phone"
-							value={field.value}
-							placeholder="e.g. +628123456789"
-							onValueChange={field.onChange}
-							disabled={isSubmitting}
-							required
-							error={fieldState.error}
-						/>
+						<div className="col-span-full">
+							<PhoneNumberField
+								id="store-phone"
+								label="Phone"
+								value={field.value}
+								placeholder="e.g. +628123456789"
+								onValueChange={field.onChange}
+								disabled={isSubmitting}
+								required
+								error={fieldState.error}
+							/>
+						</div>
 					)}
 				/>
 				<Controller
 					name="address"
 					control={form.control}
 					render={({ field, fieldState }) => (
-						<Field data-invalid={fieldState.invalid} className="md:col-span-2">
+						<Field data-invalid={fieldState.invalid} className="col-span-full">
 							<FieldLabel htmlFor="store-address" asterisk>
 								Address
 							</FieldLabel>
@@ -175,47 +176,27 @@ export function StoreForm({
 						</Field>
 					)}
 				/>
-				<Controller
-					name="is_active"
-					control={form.control}
-					render={({ field }) => (
-						<FieldLabel htmlFor="store-active">
-							<Field orientation="horizontal">
-								<FieldContent>
-									<FieldTitle>Active</FieldTitle>
-									<FieldDescription>
-										Active store will be shown in the app.
-									</FieldDescription>
-								</FieldContent>
-								<Switch
-									id="store-active"
-									checked={field.value}
-									onCheckedChange={(checked) => field.onChange(!!checked)}
-									disabled={isSubmitting}
-								/>
-							</Field>
-						</FieldLabel>
-					)}
+				<SwitchList>
+					<Controller
+						name="is_active"
+						control={form.control}
+						render={({ field }) => (
+							<SwitchRow
+								checked={field.value}
+								disabled={isSubmitting}
+								id="store-active"
+								onCheckedChange={field.onChange}
+								title="Active"
+							/>
+						)}
+					/>
+				</SwitchList>
+				<SheetFormActions
+					addLabel="Add store"
+					isEditing={isEditing}
+					isSubmitting={isSubmitting}
+					onCancel={onReset}
 				/>
-				<div className="flex flex-wrap gap-2 md:col-span-2 md:justify-end">
-					{isEditing ? (
-						<Button
-							type="button"
-							variant="outline"
-							onClick={onReset}
-							disabled={isSubmitting}
-						>
-							Cancel edit
-						</Button>
-					) : null}
-					<Button
-						type="submit"
-						loading={isSubmitting}
-						icon={<PlusIcon className="size-4" />}
-					>
-						{isEditing ? "Update Store" : "Create Store"}
-					</Button>
-				</div>
 			</FieldGroup>
 		</form>
 	);

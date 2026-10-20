@@ -1,12 +1,13 @@
-import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
+import { ActiveBadge } from "@/components/active-badge";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { EditRowButton } from "@/components/edit-row-button";
 import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	createStore,
@@ -32,7 +33,6 @@ function StoresPage() {
 	const { openSheet, closeSheet } = useSheet();
 
 	const { data: stores = [], isPending } = useQuery(storesQueries.list());
-	const storeCount = stores.length;
 
 	const createMutation = useMutation({
 		mutationKey: ["create-store"],
@@ -61,7 +61,7 @@ function StoresPage() {
 	const handleOpenEditSheet = useCallback(
 		(store: Store) => {
 			openSheet({
-				title: "Edit Store",
+				title: "Edit store",
 				content: () => (
 					<StoreForm
 						defaultValues={{
@@ -90,7 +90,7 @@ function StoresPage() {
 
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
-			title: "Add Store",
+			title: "Add store",
 			content: () => (
 				<StoreForm
 					handleOnSubmit={async (values: StoreFormState) => {
@@ -120,25 +120,14 @@ function StoresPage() {
 				id: "status",
 				header: "Status",
 				meta: { mobileCard: { slot: "status" } },
-				cell: ({ row }) => (
-					<Badge variant={row.original.is_active ? "success" : "danger"}>
-						{row.original.is_active ? "Active" : "Inactive"}
-					</Badge>
-				),
+				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 			},
 			{
 				id: "actions",
 				header: "Actions",
 				meta: { mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
-					<Button
-						variant="outline"
-						size="icon-sm"
-						aria-label="Edit"
-						title="Edit"
-						onClick={() => handleOpenEditSheet(row.original)}
-						icon={<PencilSimpleLineIcon className="size-4" />}
-					/>
+					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),
 			},
 		],
@@ -149,27 +138,25 @@ function StoresPage() {
 		<>
 			<PageHeader
 				title="Stores"
+				count={isPending ? undefined : stores.length}
 				actions={
-					<>
-						<Badge
-							variant={isPending ? "secondary" : "outline"}
-						>{`${storeCount} items`}</Badge>
-						<Button
-							onClick={handleOpenCreateSheet}
-							icon={<PlusIcon className="size-4" />}
-						>
-							Add Store
-						</Button>
-					</>
+					<Button
+						onClick={handleOpenCreateSheet}
+						icon={<PlusIcon className="size-4" />}
+					>
+						Add store
+					</Button>
 				}
 			/>
 			<ListPanel>
 				<DataTable
 					columns={columns}
 					data={stores}
+					isCardGrouped
 					isLoading={isPending}
 					sortable
 					cardPrimaryColumnId="name"
+					emptyMessage="No stores."
 				/>
 			</ListPanel>
 		</>

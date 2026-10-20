@@ -1,18 +1,15 @@
-import {
-	BluetoothIcon,
-	MagnifyingGlassIcon,
-	PlusIcon,
-} from "@phosphor-icons/react";
+import { BluetoothIcon, PlusIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { CHIP_STRIP_ROW, ChipStripScroller } from "@/components/chip-strip";
+import { SearchInput } from "@/components/search-input";
+import { StickyControls } from "@/components/sticky-controls";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { categoriesQueries } from "@/features/categories/api";
-import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import { StoreSelect } from "@/features/orders/components/store-select";
 import { StoreDevicesDialog } from "@/features/printing/components/store-devices-dialog";
 import { productsQueries } from "@/features/products/api";
 import { servicesQueries } from "@/features/services/api";
@@ -168,122 +165,127 @@ export function TransactionsCatalog() {
 
 	return (
 		<div className="grid gap-5">
-			{/* On a phone the card's own padding plus the content's doubled the gap
-			    around the controls; one layer of padding is enough there. */}
-			<Card className="border-border/70 py-0 sm:py-(--card-spacing)">
-				<CardContent className="grid gap-4 p-3 sm:p-5">
-					<div className="grid gap-3">
-						{/* hideLabel returns the bare Combobox, so the error has to be
+			<StickyControls className="grid gap-3">
+				{/* hideLabel returns the bare Combobox, so the error has to be
 						    rendered here — this is the only place the store can be fixed,
 						    and the checkout sheet covers it. */}
-						<Field data-invalid={!!storeError}>
-							<div className="flex gap-2">
-								<StoreAutocomplete
-									hideLabel
-									required
-									value={selectedStoreId}
-									onValueChange={handleStoreChange}
-									allowedStoreIds={visibleStores.map((store) => store.id)}
-									disabled={!isAdmin && visibleStores.length < 2}
-									triggerClassName="h-10 pointer-coarse:h-11 w-full border-border/70 bg-background text-sm"
-									// The empty picker is the hint: no floating note, and no
-									// line that appears and pushes the catalog down.
-									placeholder="Select a store to check out"
-								/>
-								<Button
-									type="button"
-									variant="outline"
-									className="h-10 pointer-coarse:h-11 shrink-0"
-									disabled={!selectedStoreId}
-									icon={<BluetoothIcon className="size-4" />}
-									onClick={() =>
-										openDialog({
-											title: "Bluetooth devices",
-											description:
-												"The POS only prints to devices registered here.",
-											contentClassName: "sm:max-w-md",
-											content: () => (
-												<StoreDevicesDialog storeId={Number(selectedStoreId)} />
-											),
-										})
-									}
-								>
-									Devices
-								</Button>
-							</div>
-							<FieldError errors={[storeError]} />
-						</Field>
+				<Field data-invalid={!!storeError}>
+					<div className="flex gap-2">
+						<StoreSelect
+							hideLabel
+							required
+							value={selectedStoreId}
+							onValueChange={handleStoreChange}
+							allowedStoreIds={visibleStores.map((store) => store.id)}
+							disabled={!isAdmin && visibleStores.length < 2}
+							triggerClassName="min-w-0"
+							// The empty picker is the hint: no floating note, and no
+							// line that appears and pushes the catalog down.
+							placeholder="Select a store to check out"
+						/>
+						<Button
+							type="button"
+							variant="outline"
+							className="shrink-0"
+							disabled={!selectedStoreId}
+							icon={<BluetoothIcon className="size-4" />}
+							onClick={() =>
+								openDialog({
+									title: "Bluetooth devices",
+									description:
+										"The POS only prints to devices registered here.",
+									contentClassName: "sm:max-w-md",
+									content: () => (
+										<StoreDevicesDialog storeId={Number(selectedStoreId)} />
+									),
+								})
+							}
+						>
+							Devices
+						</Button>
+					</div>
+					<FieldError errors={[storeError]} />
+				</Field>
 
-						<Field>
-							<FieldLabel className="sr-only" htmlFor="transaction-search">
-								Search
-							</FieldLabel>
-							<div className="relative">
-								<MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-								<Input
-									ref={searchInputRef}
-									id="transaction-search"
-									value={searchTerm}
-									onChange={(event) => setSearchTerm(event.target.value)}
-									placeholder="Search services or products (press /)"
-									className="border-border/70 bg-background pl-9 pr-10"
-								/>
-								<kbd className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 items-center justify-center border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
-									/
-								</kbd>
-							</div>
-						</Field>
+				<Field>
+					<FieldLabel className="sr-only" htmlFor="transaction-search">
+						Search
+					</FieldLabel>
+					<SearchInput
+						ref={searchInputRef}
+						id="transaction-search"
+						value={searchTerm}
+						onChange={(event) => setSearchTerm(event.target.value)}
+						placeholder="Search services or products"
+						inputClassName="border-border/70 bg-background"
+					/>
+				</Field>
 
-						{/* Hidden when the catalog has one category, because then the strip
+				{/* Hidden when the catalog has one category, because then the strip
 						    only ever says "All". */}
-						{categoryOptions.length > 1 ? (
-							<ChipStripScroller>
-								<fieldset className={cn(CHIP_STRIP_ROW, "border-0 p-0")}>
-									<legend className="sr-only">Filter by category</legend>
+				{categoryOptions.length > 1 ? (
+					<ChipStripScroller>
+						<fieldset className={cn(CHIP_STRIP_ROW, "border-0 p-0")}>
+							<legend className="sr-only">Filter by category</legend>
+							<Button
+								aria-pressed={activeCategory === "all"}
+								className={cn(
+									"h-9 gap-1.5 rounded-full border-0 px-3.5 text-body font-medium pointer-coarse:h-10",
+									activeCategory !== "all" && "text-foreground",
+								)}
+								onClick={() => setActiveCategory("all")}
+								type="button"
+								variant={activeCategory === "all" ? "default" : "secondary"}
+							>
+								All
+								<span
+									className={cn(
+										"font-normal tabular-nums",
+										activeCategory === "all" ? "opacity-80" : "opacity-60",
+									)}
+								>
+									{catalogEntries.length}
+								</span>
+							</Button>
+							{categoryOptions.map((category) => {
+								const isActive = activeCategory === category.id;
+
+								return (
 									<Button
-										aria-pressed={activeCategory === "all"}
-										className="h-11 gap-1.5 px-3 text-sm"
-										onClick={() => setActiveCategory("all")}
+										aria-pressed={isActive}
+										className={cn(
+											"h-9 gap-1.5 rounded-full border-0 px-3.5 text-body font-medium pointer-coarse:h-10",
+											!isActive && "text-foreground",
+										)}
+										key={category.id}
+										onClick={() => setActiveCategory(category.id)}
 										type="button"
-										variant={activeCategory === "all" ? "default" : "outline"}
+										variant={isActive ? "default" : "secondary"}
 									>
-										All
-										<span className="font-semibold tabular-nums">
-											{catalogEntries.length}
+										{category.name}
+										<span
+											className={cn(
+												"font-normal tabular-nums",
+												isActive ? "opacity-80" : "opacity-60",
+											)}
+										>
+											{category.count}
 										</span>
 									</Button>
-									{categoryOptions.map((category) => {
-										const isActive = activeCategory === category.id;
+								);
+							})}
+						</fieldset>
+					</ChipStripScroller>
+				) : null}
+			</StickyControls>
 
-										return (
-											<Button
-												aria-pressed={isActive}
-												className="h-11 gap-1.5 px-3 text-sm"
-												key={category.id}
-												onClick={() => setActiveCategory(category.id)}
-												type="button"
-												variant={isActive ? "default" : "outline"}
-											>
-												{category.name}
-												<span className="font-semibold tabular-nums">
-													{category.count}
-												</span>
-											</Button>
-										);
-									})}
-								</fieldset>
-							</ChipStripScroller>
-						) : null}
-					</div>
-				</CardContent>
-			</Card>
-
-			<div className="grid gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+			{/* A phone gets one grouped list, as in iOS Settings: ~50 separate
+			    boxes made the counter scroll twice as far. */}
+			<div className="grid overflow-hidden rounded-lg border bg-card empty:hidden sm:grid-cols-2 sm:gap-3 sm:overflow-visible sm:rounded-none sm:border-0 sm:bg-transparent md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
 				{filteredEntries.map((entry) => {
 					// Narrow on entry.kind, never destructure first: pulling kind and
 					// item apart severs the discriminated union and forces casts.
 					const { item } = entry;
-					const isProduct = entry.kind === "product";
 					const productCount = productCartQtyById.get(item.id) ?? 0;
 					const isOutOfStock =
 						entry.kind === "product" &&
@@ -298,11 +300,9 @@ export function TransactionsCatalog() {
 						<Card
 							key={`${entry.kind}-${item.id}`}
 							className={cn(
-								"overflow-hidden border-border/70 py-0 transition-colors",
-								isProduct
-									? "bg-background hover:border-border"
-									: "bg-muted/20 hover:border-border",
-								inCartCount > 0 && "ring-2 ring-foreground",
+								"overflow-hidden bg-card py-0 transition-colors max-sm:rounded-none max-sm:border-0 max-sm:border-b max-sm:last:border-b-0 sm:border-border/70 sm:hover:border-border",
+								inCartCount > 0 &&
+									"bg-primary/[0.06] sm:ring-2 sm:ring-primary",
 							)}
 						>
 							<CardContent className="h-full p-0">
@@ -312,9 +312,7 @@ export function TransactionsCatalog() {
 										// A phone gets one-line rows: the counter scrolls ~50
 										// Services, and the category chip already names the group.
 										"flex h-full min-h-14 w-full items-center gap-3 p-3 text-left outline-none transition active:scale-[0.97] focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 sm:flex-col sm:items-stretch sm:gap-1.5",
-										isProduct
-											? "hover:bg-muted/30 active:bg-muted/60"
-											: "hover:bg-background/80 active:bg-background/60",
+										"hover:bg-muted/30 active:bg-muted/60",
 										isOutOfStock && "cursor-not-allowed opacity-50",
 									)}
 									onClick={() =>
@@ -326,11 +324,11 @@ export function TransactionsCatalog() {
 									aria-label={`Add ${item.name}`}
 								>
 									{categoryName ? (
-										<span className="hidden text-xs font-medium text-muted-foreground sm:inline">
+										<span className="hidden text-footnote font-medium text-muted-foreground sm:inline">
 											{categoryName}
 										</span>
 									) : null}
-									<p className="line-clamp-2 min-w-0 flex-1 text-sm font-semibold leading-snug sm:flex-initial">
+									<p className="line-clamp-2 min-w-0 flex-1 text-body font-medium leading-snug sm:flex-initial">
 										{item.name}
 									</p>
 									{/* Price and the add square share the last line, so a tile is
@@ -338,9 +336,8 @@ export function TransactionsCatalog() {
 									<span className="flex shrink-0 items-center justify-between gap-2 sm:mt-auto sm:pt-1">
 										<span
 											className={cn(
-												"text-sm font-semibold tabular-nums",
-												item.price === null &&
-													"font-medium text-muted-foreground",
+												"text-body font-medium tabular-nums",
+												item.price === null && "text-muted-foreground",
 											)}
 										>
 											{/* No list price (ADR-0018): the cashier keys the number
@@ -353,10 +350,10 @@ export function TransactionsCatalog() {
 										<span
 											aria-hidden="true"
 											className={cn(
-												"grid size-7 shrink-0 place-items-center border text-xs font-semibold tabular-nums max-sm:order-first",
+												"grid size-7 shrink-0 place-items-center rounded-full text-footnote font-medium tabular-nums max-sm:order-first",
 												inCartCount > 0
-													? "border-foreground bg-foreground text-background"
-													: "border-border/70 bg-background max-sm:hidden",
+													? "bg-primary text-primary-foreground"
+													: "bg-secondary max-sm:hidden",
 											)}
 										>
 											{inCartCount > 0 ? (
@@ -375,7 +372,7 @@ export function TransactionsCatalog() {
 
 			{filteredEntries.length === 0 ? (
 				<Card>
-					<CardContent className="py-12 text-center text-sm text-muted-foreground">
+					<CardContent className="py-12 text-center text-body text-muted-foreground">
 						No items.
 					</CardContent>
 				</Card>

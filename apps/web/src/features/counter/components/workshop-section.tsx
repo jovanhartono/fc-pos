@@ -1,4 +1,5 @@
 import { CaretRightIcon, InfoIcon } from "@phosphor-icons/react";
+import { Section } from "@/components/section";
 import {
 	Popover,
 	PopoverContent,
@@ -22,7 +23,7 @@ const QuoteText = ({ category }: CategoryRowProps) => {
 		return (
 			<>
 				<strong className="font-medium">+{range}</strong>
-				<span className="block text-muted-foreground text-xs">
+				<span className="block text-muted-foreground text-footnote">
 					after the clean
 				</span>
 			</>
@@ -41,7 +42,7 @@ const CategoryRow = ({ category }: CategoryRowProps) => (
 		<span className="row-span-2 text-right whitespace-nowrap tabular-nums">
 			<QuoteText category={category} />
 		</span>
-		<span className="text-muted-foreground text-xs tabular-nums">
+		<span className="text-muted-foreground text-footnote tabular-nums">
 			{category.queued} queued · {category.in_progress} in progress
 		</span>
 	</li>
@@ -53,7 +54,7 @@ interface NotEnoughDataProps {
 
 // A popover, not a tooltip: a tap on a phone never opens a hover tooltip.
 const NotEnoughData = ({ categories }: NotEnoughDataProps) => (
-	<p className="border-border border-t px-3 py-2.5 text-muted-foreground text-xs leading-relaxed first:border-t-0">
+	<p className="border-border border-t px-3 py-2.5 text-muted-foreground text-footnote leading-relaxed first:border-t-0">
 		<Popover>
 			<PopoverTrigger
 				className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-4"
@@ -94,9 +95,9 @@ const CategoryBox = ({ categories, heading }: CategoryBoxProps) => {
 	const folded = quoted.slice(MAX_QUOTED_ROWS);
 
 	return (
-		<div className="border border-border">
+		<div className="overflow-hidden rounded-lg border bg-card">
 			{heading ? (
-				<h3 className="bg-muted px-3 py-1.5 font-medium text-muted-foreground text-xs">
+				<h3 className="bg-muted px-3 py-1.5 font-medium text-muted-foreground text-footnote">
 					{heading}
 				</h3>
 			) : null}
@@ -141,22 +142,21 @@ export const WorkshopSection = ({
 	const afterClean = categories.filter((category) => category.after_clean);
 
 	return (
-		<section className="grid gap-2.5">
-			<h2 className="font-medium text-[15px]">
-				Ready estimate
-				{categories.length > 0 && (
-					<span className="font-normal text-muted-foreground tabular-nums">
-						{" "}
-						· {pluralize(workshop.queued, "Item")} queued ·{" "}
-						{workshop.in_progress} in progress
-					</span>
-				)}
-			</h2>
-			{categories.length === 0 ? (
-				<p className="text-muted-foreground">Nothing waiting.</p>
+		<Section
+			count={
+				categories.length > 0
+					? `${pluralize(workshop.queued, "Item")} queued · ${workshop.in_progress} in progress`
+					: null
+			}
+			empty="Nothing waiting."
+			title="Ready estimate"
+		>
+			{categories.length > 0 ? (
+				<>
+					<CategoryBox categories={cleaning} />
+					<CategoryBox categories={afterClean} heading="After the clean" />
+				</>
 			) : null}
-			<CategoryBox categories={cleaning} />
-			<CategoryBox categories={afterClean} heading="After the clean" />
-		</section>
+		</Section>
 	);
 };

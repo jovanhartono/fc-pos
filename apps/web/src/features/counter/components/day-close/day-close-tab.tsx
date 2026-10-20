@@ -59,7 +59,7 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 	const dayLabel = formatDayLabel(data.date, today);
 
 	return (
-		<div className="grid max-w-[720px] gap-5 text-sm">
+		<div className="grid gap-5 text-body">
 			{isError ? (
 				<p className="text-destructive">Could not refresh the day close.</p>
 			) : null}

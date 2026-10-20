@@ -74,7 +74,7 @@ export const VoucherCodeEntry = ({
 				<Input
 					aria-invalid={resolveMutation.isError || undefined}
 					autoCapitalize="characters"
-					className="font-mono uppercase"
+					className="uppercase tabular-nums placeholder:normal-case placeholder:tracking-normal"
 					disabled={storeId === undefined}
 					id="voucher-code"
 					onChange={(event) => {
@@ -89,7 +89,7 @@ export const VoucherCodeEntry = ({
 							handleApply();
 						}
 					}}
-					placeholder="Enter voucher code"
+					placeholder="Voucher code"
 					value={code}
 				/>
 				<Button
@@ -118,9 +118,9 @@ export const VoucherCodeEntry = ({
 				<ul className="flex flex-wrap gap-1.5">
 					{appliedVouchers.map((entry) => (
 						<li key={entry.code}>
-							<span className="inline-flex items-center gap-1.5 border border-input bg-muted/40 pr-0 pl-2 text-xs">
+							<span className="inline-flex items-center gap-1.5 overflow-hidden rounded-sm border border-input bg-muted/40 pr-0 pl-2 text-footnote">
 								<span className="font-medium">{entry.campaign.name}</span>
-								<span className="font-mono text-muted-foreground">
+								<span className="text-muted-foreground tabular-nums">
 									{entry.code}
 								</span>
 								<Button

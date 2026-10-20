@@ -10,6 +10,7 @@ import { DetailedError } from "hono/client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -69,13 +70,20 @@ function getStageIndex(items: TrackItem[]): number {
 
 // Same map as the POS badges, drawn as a coloured word instead of a chip.
 const SERVICE_STATUS_TEXT: Record<string, string> = {
-	success: "text-emerald-700",
-	danger: "text-rose-700",
-	warning: "text-amber-700",
-	info: "text-sky-700",
+	success: "text-tone-good-foreground",
+	danger: "text-tone-bad-foreground",
+	warning: "text-tone-warn-foreground",
+	info: "text-tone-info-foreground",
 };
 
-interface StatusBlockProps {
+const CARD_CLASS = "rounded-lg bg-card shadow-[0_1px_3px_rgb(0_0_0/0.05)]";
+const SECTION_LABEL_CLASS = "-mb-3 mx-4 text-subhead text-muted-foreground";
+const FIELD_INPUT_CLASS =
+	"h-auto pointer-coarse:h-auto rounded-none border-0 bg-transparent px-0 py-0.5 text-title-3 pointer-coarse:text-title-3 tabular-nums placeholder:text-muted-foreground/50 focus-visible:ring-0 dark:bg-transparent";
+const SKELETON_CLASS =
+	"inline-block h-[0.8em] animate-pulse rounded-sm bg-soft-bar-track align-middle";
+
+interface StatusCardProps {
 	stageIndex: number;
 	isCancelled: boolean;
 	readyCount: number;
@@ -83,20 +91,20 @@ interface StatusBlockProps {
 	pickupCode: string | null;
 }
 
-const StatusBlock = ({
+const StatusCard = ({
 	stageIndex,
 	isCancelled,
 	readyCount,
 	pendingCount,
 	pickupCode,
-}: StatusBlockProps) => {
+}: StatusCardProps) => {
 	const isAllReady = pendingCount > 0 && readyCount === pendingCount;
 	const isAllDone = stageIndex >= STAGES.length;
 
 	if (isCancelled) {
 		return (
-			<section className="border-red-700 border-l-[6px] py-1 pl-4">
-				<p className="text-[15px] text-[#0f1a16]">
+			<section className={cn(CARD_CLASS, "p-4")}>
+				<p className="font-medium text-headline text-tone-bad-foreground">
 					Order cancelled. Contact the store.
 				</p>
 			</section>
@@ -104,60 +112,45 @@ const StatusBlock = ({
 	}
 
 	return (
-		<section
-			className={cn(
-				"grid gap-4 border-l-[6px] py-1 pl-4",
-				isAllReady ? "border-emerald-600" : "border-[#0f1a16]",
+		<section className={cn(CARD_CLASS, "p-4")}>
+			{isAllDone ? (
+				<p className="text-headline">Everything has been collected.</p>
+			) : isAllReady ? (
+				<p className="text-headline">Show this code at the counter.</p>
+			) : readyCount > 0 ? (
+				<p className="text-headline">
+					{readyCount} of {pendingCount} Items done. Collect them now with code{" "}
+					<span className="font-bold tabular-nums">{pickupCode}</span>.
+				</p>
+			) : (
+				<p className="text-headline">
+					{pendingCount} {pendingCount === 1 ? "Item" : "Items"} in progress.
+				</p>
 			)}
-		>
-			<div className="grid gap-1">
-				{isAllDone ? (
-					<p className="text-[15px] text-[#0f1a16]">
-						Everything has been collected.
-					</p>
-				) : isAllReady ? (
-					<p className="text-[15px] text-[#0f1a16]">
-						Show this code at the counter.
-					</p>
-				) : readyCount > 0 ? (
-					<p className="text-[15px] text-[#0f1a16]">
-						{readyCount} of {pendingCount} Items done. Collect them now with
-						code{" "}
-						<span className="font-mono font-bold text-[#0f1a16] tabular-nums">
-							{pickupCode}
-						</span>
-						.
-					</p>
-				) : (
-					<p className="text-[15px] text-[#0f1a16]">
-						{pendingCount} {pendingCount === 1 ? "Item" : "Items"} in progress.
-					</p>
-				)}
-			</div>
 			{isAllReady && pickupCode ? (
-				<p className="font-mono text-3xl font-bold tracking-[0.25em] text-[#0f1a16] tabular-nums">
+				<p className="mt-2.5 mb-0.5 font-bold text-large-title tracking-[0.12em] tabular-nums">
 					{pickupCode}
 				</p>
 			) : null}
-			<ol className="grid grid-cols-4 gap-1.5">
+			<ol className="mt-4 grid grid-cols-4 gap-1.5">
 				{STAGES.map((label, index) => {
 					const isActive = isAllDone || isAllReady || stageIndex >= index;
 					return (
 						<li key={label} className="grid gap-1.5">
 							<span
 								className={cn(
-									"h-1.5",
+									"h-1.5 rounded-full",
 									isActive
 										? isAllReady
-											? "bg-emerald-600"
-											: "bg-[#0f1a16]"
-										: "bg-[#0f1a16]/15",
+											? "bg-success"
+											: "bg-primary"
+										: "bg-soft-bar-track",
 								)}
 							/>
 							<span
 								className={cn(
-									"font-mono text-[10px] uppercase tracking-[0.18em]",
-									isActive ? "text-[#0f1a16]" : "text-[#2a2922]/50",
+									"text-footnote",
+									isActive ? "text-foreground" : "text-muted-foreground",
 								)}
 							>
 								{label}
@@ -170,38 +163,44 @@ const StatusBlock = ({
 	);
 };
 
-// Same footprint as the loaded card so a link opened straight from WhatsApp
-// does not flash the search form before the order appears.
+// Same structure as the loaded page so a link opened straight from WhatsApp
+// does not flash the search form or jump when the order appears.
 const StatusPlaceholder = () => (
-	<div className="grid gap-8" aria-busy="true">
-		<section className="grid gap-4 border-[#0f1a16]/20 border-l-[6px] py-1 pl-4">
-			<div className="grid gap-2">
-				<span className="h-6 w-28 animate-pulse bg-[#0f1a16]/10" />
-				<span className="h-4 w-56 animate-pulse bg-[#0f1a16]/10" />
-			</div>
-			<ol className="grid grid-cols-4 gap-1.5">
+	<div className="grid gap-5" aria-busy="true">
+		<div className="px-1 pt-1">
+			<p className="font-bold text-title-1 leading-tight">
+				<span className={cn(SKELETON_CLASS, "w-56")} />
+			</p>
+			<p className="mt-0.5 text-headline">
+				<span className={cn(SKELETON_CLASS, "w-48")} />
+			</p>
+		</div>
+		<section className={cn(CARD_CLASS, "p-4")}>
+			<p className="text-headline">
+				<span className={cn(SKELETON_CLASS, "w-40")} />
+			</p>
+			<ol className="mt-4 grid grid-cols-4 gap-1.5">
 				{STAGES.map((label) => (
 					<li key={label} className="grid gap-1.5">
-						<span className="h-1.5 bg-[#0f1a16]/10" />
-						<span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#2a2922]/50">
-							{label}
-						</span>
+						<span className="h-1.5 rounded-full bg-soft-bar-track" />
+						<span className="text-muted-foreground text-footnote">{label}</span>
 					</li>
 				))}
 			</ol>
 		</section>
-		<section className="grid gap-2">
-			<span className="h-6 w-44 animate-pulse bg-[#0f1a16]/10" />
-			<span className="h-4 w-60 animate-pulse bg-[#0f1a16]/10" />
-			<span className="h-4 w-32 animate-pulse bg-[#0f1a16]/10" />
+		<p className={SECTION_LABEL_CLASS}>Items</p>
+		<section className={CARD_CLASS}>
+			<div className="ml-4 grid gap-1.5 py-3 pr-4">
+				<p className="font-medium text-headline">
+					<span className={cn(SKELETON_CLASS, "w-52")} />
+				</p>
+				<p className="text-body">
+					<span className={cn(SKELETON_CLASS, "w-40")} />
+				</p>
+			</div>
 		</section>
 	</div>
 );
-
-const LABEL_CLASS =
-	"font-mono text-[11px] uppercase tracking-[0.18em] text-[#2a2922]/70";
-const INPUT_CLASS =
-	"rounded-none border-[#0f1a16]/25 bg-white font-mono text-sm pointer-coarse:text-base focus-visible:border-[#0f1a16] focus-visible:ring-0";
 
 const TrackOrderPage = () => {
 	const search = Route.useSearch();
@@ -280,21 +279,29 @@ const TrackOrderPage = () => {
 	const storePhoneE164 = trackData?.store.phone_number?.replace(/\D/g, "");
 
 	return (
-		<div className="flex min-h-dvh flex-col bg-white text-[#2a2922]">
-			<header className="border-b border-[#0f1a16]/10">
-				<div className="mx-auto max-w-xl px-5 py-4">
-					<p className="font-bold text-[13px] tracking-[0.18em] text-[#0f1a16]">
-						FRESCLEAN
-					</p>
+		<div className="flex min-h-dvh flex-col bg-muted text-foreground">
+			<header className="sticky top-0 z-10 bg-frost shadow-[0_0.5px_0_var(--border)] backdrop-blur-xl backdrop-saturate-150">
+				<div className="mx-auto max-w-md px-5 py-2.5">
+					<BrandLogo className="h-8" />
 				</div>
 			</header>
 
-			<main className="mx-auto w-full max-w-xl flex-1 px-5 py-8">
+			<main className="mx-auto w-full max-w-md flex-1 px-4 pt-5 pb-8">
 				{submitted && trackQuery.isPending ? (
 					<StatusPlaceholder />
 				) : trackData ? (
-					<div className="grid gap-8">
-						<StatusBlock
+					<div className="grid gap-5">
+						<div className="px-1 pt-1">
+							<h1 className="font-bold text-title-1 leading-tight tabular-nums">
+								{trackData.code}
+							</h1>
+							<p className="mt-0.5 text-headline">
+								{trackData.customer.name} ·{" "}
+								<span className="tabular-nums">{submitted?.phone}</span>
+							</p>
+						</div>
+
+						<StatusCard
 							stageIndex={getStageIndex(items)}
 							isCancelled={trackData.status === "cancelled"}
 							readyCount={readyCount}
@@ -302,63 +309,48 @@ const TrackOrderPage = () => {
 							pickupCode={trackData.pickup_code}
 						/>
 
-						<section className="grid gap-1">
-							<h1 className="font-mono text-xl font-semibold tracking-tight text-[#0f1a16]">
-								{trackData.code}
-							</h1>
-							<p className="text-[15px] text-[#0f1a16]">
-								{trackData.customer.name} ·{" "}
-								<span className="font-mono">{submitted?.phone}</span>
-							</p>
-							<p className="text-sm text-[#2a2922]/80">
-								{trackData.store.name}
-							</p>
-						</section>
-
-						<section className="grid gap-3">
-							<h2 className={LABEL_CLASS}>Items · {items.length}</h2>
-							{/* One block per object handed over, its treatments beneath
-							    (ADR-0017): "your shoe: clean done, repaint in progress",
-							    never the same shoe listed three times. */}
-							<ul className="grid">
-								{items.map((item) => (
-									<li
-										key={item.id}
-										className="grid gap-2 border-t border-[#0f1a16]/15 py-4"
-									>
-										<p className="font-semibold text-[15px] text-[#0f1a16]">
-											{formatOrderServiceItemDetails(item)}
-										</p>
-										<ul className="grid gap-1.5 text-sm">
-											{item.services.map((service) => (
-												<li
-													key={service.id}
-													className="flex items-center justify-between gap-3"
+						<h2 className={SECTION_LABEL_CLASS}>Items · {items.length}</h2>
+						{/* One block per object handed over, its treatments beneath
+						    (ADR-0017): "your shoe: clean done, repaint in progress",
+						    never the same shoe listed three times. */}
+						<ul className={CARD_CLASS}>
+							{items.map((item) => (
+								<li
+									key={item.id}
+									className="ml-4 grid gap-1.5 border-border py-3 pr-4 not-first:border-t"
+								>
+									<p className="font-medium text-headline">
+										{formatOrderServiceItemDetails(item)}
+									</p>
+									<ul className="grid gap-1.5 text-body">
+										{item.services.map((service) => (
+											<li
+												key={service.id}
+												className="flex justify-between gap-3"
+											>
+												<span className="min-w-0 text-balance">
+													{service.service?.name ?? "Service"}
+												</span>
+												<span
+													className={cn(
+														"shrink-0 font-medium",
+														SERVICE_STATUS_TEXT[
+															getOrderServiceStatusBadgeVariant(service.status)
+														] ?? "text-muted-foreground",
+													)}
 												>
-													<span className="min-w-0 text-[#0f1a16]">
-														{service.service?.name ?? "Service"}
-													</span>
-													<span
-														className={cn(
-															"shrink-0",
-															SERVICE_STATUS_TEXT[
-																getOrderServiceStatusBadgeVariant(
-																	service.status,
-																)
-															] ?? "text-[#2a2922]/80",
-														)}
-													>
-														{formatOrderServiceStatus(service.status)}
-													</span>
-												</li>
-											))}
-										</ul>
-									</li>
-								))}
-							</ul>
-						</section>
+													{formatOrderServiceStatus(service.status)}
+												</span>
+											</li>
+										))}
+									</ul>
+								</li>
+							))}
+						</ul>
 
-						<div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#0f1a16]/15 pt-6">
+						<h2 className={SECTION_LABEL_CLASS}>Store</h2>
+						<section className={cn(CARD_CLASS, "grid gap-3.5 p-4")}>
+							<p className="font-medium">{trackData.store.name}</p>
 							<a
 								href={
 									storePhoneE164
@@ -367,19 +359,20 @@ const TrackOrderPage = () => {
 								}
 								target="_blank"
 								rel="noreferrer"
-								className="inline-flex items-center gap-2 bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
+								className="flex h-12 items-center justify-center gap-2 rounded-full bg-whatsapp font-semibold text-headline text-white"
 							>
-								<WhatsappLogoIcon className="size-4" weight="fill" />
-								WhatsApp {trackData.store.name}
+								<WhatsappLogoIcon className="size-[18px]" weight="fill" />
+								WhatsApp
 							</a>
-							<button
-								type="button"
-								onClick={handleReset}
-								className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#0f1a16] underline-offset-4 hover:underline"
-							>
-								Track another
-							</button>
-						</div>
+						</section>
+
+						<button
+							type="button"
+							onClick={handleReset}
+							className="justify-self-center p-2 text-headline text-link"
+						>
+							Track another order
+						</button>
 					</div>
 				) : (
 					<form
@@ -389,42 +382,56 @@ const TrackOrderPage = () => {
 							handleTrack();
 						}}
 					>
-						<h1 className="font-semibold text-2xl tracking-tight text-[#0f1a16]">
+						<h1 className="mx-1 mt-1 font-bold text-title-1 leading-tight">
 							Track order
 						</h1>
-						<Field data-invalid={!!formError}>
-							<FieldLabel htmlFor="track-code" className={LABEL_CLASS}>
-								Order code
-							</FieldLabel>
-							<Input
-								id="track-code"
-								placeholder="#ABC/06032026/1"
-								value={code}
-								onChange={(event) => setCode(event.target.value)}
-								className={cn(INPUT_CLASS, "uppercase")}
-							/>
-						</Field>
-						<Field data-invalid={!!formError}>
-							<FieldLabel htmlFor="track-phone" className={LABEL_CLASS}>
-								WhatsApp number
-							</FieldLabel>
-							<Input
-								id="track-phone"
-								type="tel"
-								inputMode="tel"
-								placeholder="08123456789"
-								value={phone}
-								onChange={(event) => setPhone(event.target.value)}
-								className={INPUT_CLASS}
-							/>
-						</Field>
+						<div className={cn(CARD_CLASS, "overflow-hidden")}>
+							<Field
+								data-invalid={!!formError}
+								className="ml-4 w-auto gap-0.5 py-2.5 pr-4"
+							>
+								<FieldLabel
+									htmlFor="track-code"
+									className="text-muted-foreground text-footnote"
+								>
+									Order code
+								</FieldLabel>
+								<Input
+									id="track-code"
+									placeholder="#KMG/19102026/2"
+									value={code}
+									onChange={(event) => setCode(event.target.value)}
+									className={cn(FIELD_INPUT_CLASS, "uppercase")}
+								/>
+							</Field>
+							<Field
+								data-invalid={!!formError}
+								className="ml-4 w-auto gap-0.5 border-border border-t py-2.5 pr-4"
+							>
+								<FieldLabel
+									htmlFor="track-phone"
+									className="text-muted-foreground text-footnote"
+								>
+									WhatsApp number
+								</FieldLabel>
+								<Input
+									id="track-phone"
+									type="tel"
+									inputMode="tel"
+									placeholder="0812 3456 789"
+									value={phone}
+									onChange={(event) => setPhone(event.target.value)}
+									className={FIELD_INPUT_CLASS}
+								/>
+							</Field>
+						</div>
 						{formError ? (
 							<FieldError errors={[{ message: formError }]} />
 						) : null}
 						<Button
 							type="submit"
 							disabled={isLoading}
-							className="h-10 pointer-coarse:h-11 rounded-none bg-[#0f1a16] text-xs font-semibold uppercase tracking-[0.18em] text-white hover:bg-[#2a2922] disabled:opacity-60"
+							className="h-12 pointer-coarse:h-12 w-full rounded-full bg-primary font-semibold text-headline text-primary-foreground"
 						>
 							{isLoading ? "Searching…" : "Track"}
 						</Button>

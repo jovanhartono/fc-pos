@@ -25,7 +25,10 @@ export const CheckoutStepper = ({
 	const currentIndex = CHECKOUT_STEPS.findIndex((step) => step.key === current);
 
 	return (
-		<nav aria-label="Checkout steps" className="flex items-stretch gap-1">
+		<nav
+			aria-label="Checkout steps"
+			className="flex items-stretch gap-0.5 rounded-lg bg-secondary p-0.5"
+		>
 			{CHECKOUT_STEPS.map((step, index) => {
 				const isCurrent = step.key === current;
 				const isComplete = index < currentIndex;
@@ -42,11 +45,12 @@ export const CheckoutStepper = ({
 						aria-describedby={isLocked ? lockHintId : undefined}
 						aria-disabled={isLocked || undefined}
 						className={cn(
-							"flex min-h-11 flex-1 items-center justify-center gap-2 border px-2 text-xs font-medium outline-none transition focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
+							"flex min-h-9 flex-1 items-center justify-center gap-2 rounded-md px-2 font-medium text-subhead outline-none transition focus-visible:ring-2 focus-visible:ring-ring/50 pointer-coarse:min-h-10",
 							isCurrent
-								? "border-foreground bg-foreground text-background"
-								: "border-border/70 text-foreground/60 hover:bg-muted/40",
-							isLocked && "cursor-not-allowed opacity-40 hover:bg-transparent",
+								? "bg-primary text-primary-foreground"
+								: "text-foreground hover:bg-background/60",
+							isLocked &&
+								"cursor-not-allowed text-muted-foreground hover:bg-transparent",
 						)}
 						key={step.key}
 						onClick={() => {
@@ -58,8 +62,10 @@ export const CheckoutStepper = ({
 					>
 						<span
 							className={cn(
-								"flex size-5 shrink-0 items-center justify-center border text-[11px] tabular-nums",
-								isCurrent ? "border-background/40" : "border-border/60",
+								"flex size-5 shrink-0 items-center justify-center rounded-full text-caption tabular-nums",
+								isCurrent
+									? "bg-primary-foreground/25"
+									: "bg-muted-foreground/15",
 							)}
 						>
 							{isComplete ? (

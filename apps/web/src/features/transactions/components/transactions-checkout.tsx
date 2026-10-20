@@ -156,7 +156,10 @@ export const TransactionsCheckout = () => {
 					</Button>
 				</div>
 				{lockedStepHint ? (
-					<p className="text-muted-foreground text-xs" id={LOCKED_STEP_HINT_ID}>
+					<p
+						className="text-muted-foreground text-footnote"
+						id={LOCKED_STEP_HINT_ID}
+					>
 						{lockedStepHint}
 					</p>
 				) : null}

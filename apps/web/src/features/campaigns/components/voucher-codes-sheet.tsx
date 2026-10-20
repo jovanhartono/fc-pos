@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { campaignsQueries, type VoucherCode } from "@/features/campaigns/api";
+import dayjs from "@/lib/dayjs";
+import { cn } from "@/lib/utils";
 
 interface VoucherCodesSheetProps {
 	campaignId: number;
@@ -23,28 +25,29 @@ const handleCopyCode = async (code: string) => {
 	}
 };
 
-const VoucherCodeRow = ({ code }: VoucherCodeRowProps) => {
-	const isRedeemed = code.redeemed_at !== null;
-
-	return (
-		<li className="flex items-center justify-between gap-2 border-b px-1 py-2 last:border-b-0">
-			<span className="min-w-0 break-all font-mono text-sm">{code.code}</span>
-			<div className="flex shrink-0 items-center gap-2">
-				<Badge variant={isRedeemed ? "secondary" : "outline-success"}>
-					{isRedeemed ? "Redeemed" : "Unused"}
+// Unused is how every code starts, so only a redeemed one carries a badge.
+const VoucherCodeRow = ({ code }: VoucherCodeRowProps) => (
+	<li className="flex items-center justify-between gap-2 px-3 py-2">
+		<span className="min-w-0 break-all text-body tabular-nums">
+			{code.code}
+		</span>
+		<div className="flex shrink-0 items-center gap-2">
+			{code.redeemed_at === null ? null : (
+				<Badge variant="secondary">
+					Redeemed {dayjs(code.redeemed_at).format("D MMM")}
 				</Badge>
-				<Button
-					aria-label={`Copy code ${code.code}`}
-					icon={<CopyIcon className="size-4" />}
-					onClick={() => handleCopyCode(code.code)}
-					size="icon"
-					type="button"
-					variant="ghost"
-				/>
-			</div>
-		</li>
-	);
-};
+			)}
+			<Button
+				aria-label={`Copy code ${code.code}`}
+				icon={<CopyIcon className="size-4" />}
+				onClick={() => handleCopyCode(code.code)}
+				size="icon"
+				type="button"
+				variant="ghost"
+			/>
+		</div>
+	</li>
+);
 
 export const VoucherCodesSheet = ({ campaignId }: VoucherCodesSheetProps) => {
 	const { data, isLoading, isError } = useQuery(
@@ -62,26 +65,36 @@ export const VoucherCodesSheet = ({ campaignId }: VoucherCodesSheetProps) => {
 
 	if (isError || !data) {
 		return (
-			<p className="text-muted-foreground text-sm">Failed to load codes.</p>
+			<p className="text-muted-foreground text-body">Failed to load codes.</p>
 		);
 	}
 
 	if (data.codes.length === 0) {
-		return <p className="text-muted-foreground text-sm">No codes yet</p>;
+		return <p className="text-muted-foreground text-body">No codes yet</p>;
 	}
+
+	const isAllRedeemed = data.redeemed === data.total;
 
 	return (
 		<div className="grid gap-4">
-			<header className="flex items-baseline gap-2 text-sm">
-				<span className="font-medium tabular-nums">
-					{data.redeemed} of {data.total} redeemed
+			<header className="grid gap-2">
+				<span className="font-medium text-body tabular-nums">
+					{data.redeemed}/{data.total} redeemed
 				</span>
-				<span className="text-muted-foreground tabular-nums">
-					{data.remaining} remaining
-				</span>
+				<div className="h-1.5 overflow-hidden rounded-full bg-soft-bar-track">
+					<div
+						className={cn(
+							"h-full rounded-full",
+							isAllRedeemed ? "bg-success" : "bg-primary",
+						)}
+						style={{
+							width: `${data.total ? (data.redeemed / data.total) * 100 : 0}%`,
+						}}
+					/>
+				</div>
 			</header>
 
-			<ul className="border">
+			<ul className="divide-y overflow-hidden rounded-lg border bg-card">
 				{data.codes.map((code) => (
 					<VoucherCodeRow code={code} key={code.id} />
 				))}

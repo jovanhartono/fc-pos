@@ -1,9 +1,11 @@
-import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
+import { ActiveBadge } from "@/components/active-badge";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { EditRowButton } from "@/components/edit-row-button";
 import { ListPanel } from "@/components/list-panel";
 import { MoneyValue } from "@/components/money-value";
 import { PageHeader } from "@/components/page-header";
@@ -34,7 +36,6 @@ function ServicesPage() {
 	const { openSheet, closeSheet } = useSheet();
 
 	const { data: services = [], isPending } = useQuery(servicesQueries.list());
-	const serviceCount = services.length;
 
 	const createMutation = useMutation({
 		mutationKey: ["create-service"],
@@ -63,7 +64,7 @@ function ServicesPage() {
 	const handleOpenEditSheet = useCallback(
 		(service: Service) => {
 			openSheet({
-				title: "Edit Service",
+				title: "Edit service",
 				content: () => (
 					<ServiceForm
 						defaultValues={{
@@ -95,7 +96,7 @@ function ServicesPage() {
 
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
-			title: "Add Service",
+			title: "Add service",
 			content: () => (
 				<ServiceForm
 					handleOnSubmit={async (values: ServiceFormSubmitValues) => {
@@ -130,11 +131,7 @@ function ServicesPage() {
 				accessorKey: "cogs",
 				header: "COGS",
 				meta: { align: "right" },
-				cell: ({ row }) => (
-					<span className="text-muted-foreground">
-						{formatMoney(String(row.original.cogs))}
-					</span>
-				),
+				cell: ({ row }) => formatMoney(String(row.original.cogs)),
 			},
 			{
 				accessorKey: "price",
@@ -150,36 +147,24 @@ function ServicesPage() {
 			{
 				id: "priority",
 				header: "Queue",
-				meta: { mobileCard: { slot: "badges" } },
-				cell: ({ row }) => (
-					<Badge variant={row.original.is_priority ? "priority" : "outline"}>
-						{row.original.is_priority ? "Priority" : "Standard"}
-					</Badge>
-				),
+				meta: { mobileCard: { slot: "status" } },
+				cell: ({ row }) =>
+					row.original.is_priority ? (
+						<Badge variant="priority">Priority</Badge>
+					) : null,
 			},
 			{
 				id: "status",
 				header: "Status",
-				meta: { mobileCard: { slot: "badges" } },
-				cell: ({ row }) => (
-					<Badge variant={row.original.is_active ? "success" : "danger"}>
-						{row.original.is_active ? "Active" : "Inactive"}
-					</Badge>
-				),
+				meta: { mobileCard: { slot: "status" } },
+				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 			},
 			{
 				id: "actions",
 				header: "Actions",
 				meta: { mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
-					<Button
-						variant="outline"
-						size="icon-sm"
-						aria-label="Edit"
-						title="Edit"
-						onClick={() => handleOpenEditSheet(row.original)}
-						icon={<PencilSimpleLineIcon className="size-4" />}
-					/>
+					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),
 			},
 		],
@@ -190,27 +175,25 @@ function ServicesPage() {
 		<>
 			<PageHeader
 				title="Services"
+				count={isPending ? undefined : services.length}
 				actions={
-					<>
-						<Badge
-							variant={isPending ? "secondary" : "outline"}
-						>{`${serviceCount} items`}</Badge>
-						<Button
-							onClick={handleOpenCreateSheet}
-							icon={<PlusIcon className="size-4" />}
-						>
-							Add Service
-						</Button>
-					</>
+					<Button
+						onClick={handleOpenCreateSheet}
+						icon={<PlusIcon className="size-4" />}
+					>
+						Add service
+					</Button>
 				}
 			/>
 			<ListPanel>
 				<DataTable
 					columns={columns}
 					data={services}
+					isCardGrouped
 					isLoading={isPending}
 					sortable
 					cardPrimaryColumnId="name"
+					emptyMessage="No services."
 				/>
 			</ListPanel>
 		</>

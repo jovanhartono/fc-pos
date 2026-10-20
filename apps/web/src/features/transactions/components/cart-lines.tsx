@@ -19,8 +19,8 @@ export const CartLines = () => {
 			    customer only handed over once (ADR-0017). */}
 			{itemRows.map((item, itemIndex) => (
 				<li className="grid gap-1" key={item.line_id}>
-					<p className="flex items-baseline gap-1.5 text-xs">
-						<span className="text-[13px] font-medium text-muted-foreground">
+					<p className="flex items-baseline gap-1.5 text-footnote">
+						<span className="text-subhead font-medium text-muted-foreground">
 							Item {itemIndex + 1}
 						</span>
 						<span className="min-w-0 truncate font-medium">
@@ -29,13 +29,13 @@ export const CartLines = () => {
 					</p>
 					<ul className="grid gap-1.5 border-border/70 border-l-2 pl-3">
 						{item.services.length === 0 ? (
-							<li className="text-muted-foreground text-xs">
+							<li className="text-muted-foreground text-footnote">
 								No treatments yet
 							</li>
 						) : null}
 						{item.services.map((line) => (
 							<li className="flex items-center gap-2" key={line.line_id}>
-								<span className="min-w-0 flex-1 truncate text-xs">
+								<span className="min-w-0 flex-1 truncate text-footnote">
 									{line.service.name}
 								</span>
 								<RemoveLineButton
@@ -50,7 +50,7 @@ export const CartLines = () => {
 
 			{productRows.length > 0 ? (
 				<li className="grid gap-1">
-					<p className="text-[13px] font-medium text-muted-foreground">
+					<p className="text-subhead font-medium text-muted-foreground">
 						Products
 					</p>
 					<ul className="grid gap-1.5 border-border/70 border-l-2 pl-3">
@@ -59,7 +59,7 @@ export const CartLines = () => {
 								className="flex items-center gap-2"
 								key={`product-${line.id}`}
 							>
-								<span className="min-w-0 flex-1 truncate text-xs">
+								<span className="min-w-0 flex-1 truncate text-footnote">
 									{line.qty} × {line.product.name}
 								</span>
 								<RemoveLineButton

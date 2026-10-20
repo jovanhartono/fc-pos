@@ -10,7 +10,7 @@ import {
 	FieldGroup,
 	FieldLabel,
 } from "@/components/ui/field";
-import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import { StoreSelect } from "@/features/orders/components/store-select";
 import { createShift, shiftsKeys } from "@/features/shifts/api";
 import {
 	checkClockOutAfterClockIn,
@@ -119,7 +119,7 @@ export const NewShiftForm = ({ onDone }: NewShiftFormProps) => {
 						name="store_id"
 						control={form.control}
 						render={({ field, fieldState }) => (
-							<StoreAutocomplete
+							<StoreSelect
 								id="new-shift-store"
 								required
 								allowedStoreIds={workerStoreIds}
