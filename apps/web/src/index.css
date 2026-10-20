@@ -331,8 +331,10 @@
 			corner-shape: superellipse(1.4);
 		}
 
-		/* Pills and avatars stay true capsules and circles. */
-		[class*="rounded-full"] {
+		/* Pills and avatars stay true capsules and circles. A whole-word match, so
+		   a segment that is only round in the pill strip keeps the squircle. */
+		[class~="rounded-full"],
+		[data-variant="pill"] > [data-slot="tabs-trigger"] {
 			corner-shape: round;
 		}
 	}

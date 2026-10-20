@@ -119,7 +119,7 @@ export function Combobox({
 								<ComboboxPrimitive.Item
 									key={item.value}
 									value={item}
-									className="relative flex min-h-7 w-full cursor-default items-center gap-2 rounded-[6px] py-1 pr-8 pl-2 text-subhead outline-hidden select-none pointer-coarse:min-h-11 data-highlighted:bg-secondary pointer-fine:data-highlighted:bg-primary pointer-fine:data-highlighted:text-primary-foreground pointer-fine:data-highlighted:**:text-primary-foreground data-disabled:pointer-events-none data-disabled:opacity-50"
+									className="relative flex min-h-7 w-full cursor-default items-center gap-2 rounded-[calc(var(--radius)-4px)] py-1 pr-8 pl-2 text-subhead outline-hidden select-none pointer-coarse:min-h-11 data-highlighted:bg-secondary pointer-fine:data-highlighted:bg-primary pointer-fine:data-highlighted:text-primary-foreground pointer-fine:data-highlighted:**:text-primary-foreground data-disabled:pointer-events-none data-disabled:opacity-50"
 								>
 									<span className="truncate">{item.label}</span>
 									<ComboboxPrimitive.ItemIndicator className="pointer-events-none absolute right-2 flex size-4 items-center justify-center text-primary">
