@@ -5,7 +5,16 @@
 ## UI Preferences
 
 - Terse, operational copy. No marketing/guiding prose. Short labels and empty states.
-- Rigid, squared-off UI — avoid `rounded-*` unless component requires it.
+- Apple-style look: white page (`bg-background`), content on white rounded cards with a hairline border (`rounded-lg border bg-card`), controls `rounded-sm` and white (`bg-background`) even inside a card, Inter. Colours come from the iOS system palette tokens in `src/index.css` — never hard-code a hex in a component.
+- Selection is Apple blue, never black: a selected card gets `ring-2 ring-primary bg-primary/[0.06]`, a selected button or step `bg-primary text-primary-foreground`, a count a `rounded-full bg-primary` pill.
+- Chips and filter strips are pills: `rounded-full bg-secondary`, the selected one `bg-primary`; a count inside is regular weight at 60% opacity.
+- Options that all fit at 390px with no scrolling and no counts use the segmented control (blue selected segment); anything that would scroll, carries counts, or comes from data (POS categories) uses the pill strip.
+- Bars (progress, sparklines, leaderboards) are thin and rounded: `h-1.5 rounded-full`, track `bg-soft-bar-track`, fill `bg-primary`, `bg-success` when complete.
+- Type comes from one Apple scale in `src/index.css`: `text-caption` 11, `text-footnote` 12, `text-subhead` 13, `text-body` 14, `text-headline` 15, `text-title-3` 17, `text-title-2` 20, `text-title-1` 26, `text-large-title` 34, plus `text-field` (16px, a field on touch so iOS doesn't zoom) — never a pixel size or Tailwind's default sizes. A new name goes in `cn()`'s list in `src/shared/utils.ts` too.
+- Controls share one height: `h-9` on desktop, `pointer-coarse:h-11` on touch, `text-subhead` text. A call site sets its own height only for a deliberate exception, and then sets the `pointer-coarse:` height too.
+- Badges are `rounded-full` with soft tinted fills and no border; pick a `Badge` variant rather than building a chip by hand. Tabs use the shadcn `Tabs` (iOS segmented control).
+- A list row that opens a record opens from anywhere on it: pass `getRowLink` to `DataTable`, and its title stays black. A link to somewhere else — the customer on an order, a code in a sheet — is blue with `text-link`.
+- A list of Orders that isn't a table uses `OrderListRow`: customer name on line 1 (customers remember their name, not their code), the code leading line 2. Codes are Inter with `tabular-nums`, never mono.
 - Phosphor icons with `Icon` suffix (e.g. `StarIcon`).
 - Dense filters → dialogs/sheets on small screens; tabs for high-frequency filters.
 - Match existing visual language; no decorative styling changes.
@@ -36,7 +45,7 @@ react-hook-form + zodResolver + useMutation for every form.
 - Pair every form with `useMutation`. Global `QueryClient` handles success/error toasts — only add `onSuccess`/`onError` for invalidation, close sheet, navigate, or to opt out of the global toast when the component already reports the same failure/success with more context (e.g. `onError: () => undefined` when a form surfaces its own error with a fix-it action). `onSuccess`/`onError` set on a mutation fully replace the global default's version of that callback rather than composing with it — that's the mechanism this opt-out relies on.
 - Use `Field`, `FieldLabel`, `FieldError` from `@/components/ui/field`. `Controller` for non-native inputs. `useFieldArray` for lists. `useWatch` for derived values.
 - Schemas from `@fresclean/api/schema` or local to the feature. Do not re-implement the server's field builders.
-- `StoreAutocomplete` (`features/orders/components/`) reused across features. For filter UIs pass `allOptionLabel="All stores"` — prepends `{ value: "", label }` sentinel so `""` = unscoped.
+- `StoreSelect` (`features/orders/components/`) reused across features. For filter UIs pass `allOptionLabel="All stores"` — prepends `{ value: "", label }` sentinel so `""` = unscoped.
 
 ## Photos
 
@@ -69,6 +78,7 @@ Every saved/uploaded image rendered anywhere must be clickable and open in `Phot
 ## Dialogs
 
 - Every confirm, form-in-a-modal or info dialog opens through `useDialog().openDialog({ title, description, content, footer })`, which `GlobalDialog` renders. Sheets do the same through `useSheet().openSheet`. Copy an existing call: the Campaign Archive confirm (`routes/_admin/campaigns.tsx`) or the order sheet actions (`order-identity-strip.tsx`).
+- An Order opens as its full page (`/orders/$orderId`) or in the global sheet (`useOrderSheet`, `useOpenNestedOrder`), never a side pane.
 - There is no AlertDialog, so don't add one back with the shadcn CLI. A destructive confirm is `openDialog` with Cancel plus a destructive button in `footer`. Import `@/components/ui/dialog` directly only for the media dialogs that need their own frame (photo capture, `PhotoLightbox`).
 
 ## Routing
