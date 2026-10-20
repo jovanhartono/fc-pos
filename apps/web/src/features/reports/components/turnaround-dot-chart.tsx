@@ -138,7 +138,12 @@ export const TurnaroundDotChart = ({ dots, row }: TurnaroundDotChartProps) => {
 		: false;
 
 	return (
-		<div ref={ref} className="relative min-w-0">
+		<div ref={ref} className="@container relative min-w-0">
+			{/* The chart's own height (plot plus day labels) before its width is
+			    measured, so the table under it doesn't drop a beat later. */}
+			{width === 0 && (
+				<div aria-hidden className="h-[186px] @min-[30rem]:h-[226px]" />
+			)}
 			{width > 0 && (
 				<>
 					<svg

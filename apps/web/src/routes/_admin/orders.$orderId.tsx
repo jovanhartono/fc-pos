@@ -20,6 +20,10 @@ export const Route = createFileRoute("/_admin/orders/$orderId")({
 		]);
 	},
 	component: OrderDetailPage,
+	// Past a second, the page draws its own Order-shaped skeleton, not the
+	// generic placeholder.
+	pendingComponent: OrderDetailPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function OrderDetailPage() {

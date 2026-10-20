@@ -1,12 +1,13 @@
 import { CrosshairSimpleIcon } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	Link,
 	type LinkProps,
+	redirect,
 	useNavigate,
 } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { DataTable, WRAP_NAME_CLASS } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
@@ -113,27 +114,65 @@ function buildOrdersListParams(
 	};
 }
 
+// The same filters minus status and paging, so each tab shows what picking
+// it would list.
+const toStatusCountsParams = (query: FetchOrdersQuery): FetchOrdersQuery => ({
+	search: query.search,
+	store_id: query.store_id,
+	payment_status: query.payment_status,
+	notified: query.notified,
+	date_from: query.date_from,
+	date_to: query.date_to,
+});
+
 export const Route = createFileRoute("/_admin/orders/")({
 	validateSearch: (search) => ordersSearchSchema.parse(search),
+	// A cashier or worker only sees their own store's Orders, so the store is
+	// picked before the page draws instead of the list loading twice.
+	beforeLoad: ({ context, search }) => {
+		const firstStoreId = context.me.userStores?.[0]?.store_id;
+		if (
+			context.me.role !== "admin" &&
+			search.storeId === undefined &&
+			firstStoreId !== undefined
+		) {
+			throw redirect({
+				to: "/orders",
+				search: { ...search, storeId: firstStoreId },
+				replace: true,
+			});
+		}
+	},
 	// Opening an Order in the sheet over the list must not re-run the list's loader.
 	loaderDeps: ({ search: { open: _open, ...listSearch } }) => listSearch,
-	loader: async ({ context, deps }) => {
-		const ensureOrders = () =>
-			context.queryClient.ensureQueryData(
-				ordersQueries.list(buildOrdersListParams(deps, deps.storeId)),
-			);
+	loader: async ({ context, deps, cause }) => {
+		// A new filter, page or search keeps the list on screen and swaps the rows
+		// in place; only opening the page waits for them.
+		if (cause === "stay") {
+			return;
+		}
+		const canListOrders =
+			deps.storeId !== undefined || context.me.role === "admin";
+		const listParams = buildOrdersListParams(deps, deps.storeId);
 
 		await Promise.all([
 			context.queryClient.ensureQueryData(storesQueries.list()),
-			// A storeId in the URL already satisfies the fetch gate.
-			deps.storeId !== undefined ? ensureOrders() : undefined,
+			canListOrders
+				? context.queryClient.ensureQueryData(ordersQueries.list(listParams))
+				: undefined,
+			canListOrders
+				? context.queryClient.ensureQueryData(
+						ordersQueries.statusCounts(toStatusCountsParams(listParams)),
+					)
+				: undefined,
 		]);
-
-		if (deps.storeId === undefined && context.me.role === "admin") {
-			await ensureOrders();
-		}
 	},
 	component: OrdersPage,
+	// Past a second, the page itself draws with skeleton rows instead of a
+	// generic placeholder that looks nothing like it.
+	pendingComponent: OrdersPage,
+	// Bundled with the page it reuses; split apart, it points at nothing.
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function OrdersPage() {
@@ -185,27 +224,6 @@ function OrdersPage() {
 		});
 	}, [navigate]);
 
-	useEffect(() => {
-		if (!currentUser || search.storeId !== undefined) {
-			return;
-		}
-
-		if (role === "admin") {
-			return;
-		}
-
-		if (userStoreIds.length > 0) {
-			void navigate({
-				search: (prev) => ({
-					...prev,
-					page: prev.page ?? 1,
-					storeId: userStoreIds[0],
-				}),
-				replace: true,
-			});
-		}
-	}, [currentUser, navigate, role, search.storeId, userStoreIds]);
-
 	const handleFilterChange = useCallback(
 		(patch: Partial<OrderFilterValues>) => {
 			void navigate({
@@ -228,22 +246,16 @@ function OrdersPage() {
 	const ordersQuery = useQuery({
 		...ordersQueries.list(orderQuery),
 		enabled: canListOrders,
+		placeholderData: keepPreviousData,
 	});
 
-	// The same filters minus status and paging, so each tab shows what picking
-	// it would list.
+	// The last numbers stay on the chips until the new ones land.
 	const statusCountsQuery = useQuery({
 		...ordersQueries.statusCounts(
-			orderQuery && {
-				search: orderQuery.search,
-				store_id: orderQuery.store_id,
-				payment_status: orderQuery.payment_status,
-				notified: orderQuery.notified,
-				date_from: orderQuery.date_from,
-				date_to: orderQuery.date_to,
-			},
+			orderQuery && toStatusCountsParams(orderQuery),
 		),
 		enabled: canListOrders,
+		placeholderData: keepPreviousData,
 	});
 
 	const hasNoStoreAssignment =
@@ -276,6 +288,7 @@ function OrdersPage() {
 			{
 				accessorKey: "code",
 				header: "Order code",
+				meta: { headerClassName: "w-40" },
 				cell: ({ row }) => (
 					<div className="flex flex-col gap-0.5">
 						<div className="flex gap-x-1">
@@ -300,6 +313,7 @@ function OrdersPage() {
 			{
 				id: "created_at",
 				header: "Created at",
+				meta: { headerClassName: "w-32" },
 				cell: ({ row }) => (
 					<span className="whitespace-nowrap tabular-nums">
 						{formatListDate(row.original.created_at)}
@@ -313,7 +327,7 @@ function OrdersPage() {
 					<div className={WRAP_NAME_CLASS}>
 						<span className="flex items-baseline gap-x-1.5">
 							<CustomerLink
-								className="min-w-0"
+								className="line-clamp-2 min-w-0"
 								customerId={row.original.customer_id}
 								name={row.original.customer_name}
 							/>
@@ -330,6 +344,7 @@ function OrdersPage() {
 			{
 				id: "items_ready",
 				header: "Items ready",
+				meta: { headerClassName: "w-24" },
 				cell: ({ row }) => (
 					<ItemsReady
 						ready={row.original.items_ready}
@@ -340,6 +355,7 @@ function OrdersPage() {
 			{
 				accessorKey: "status",
 				header: "Fulfillment",
+				meta: { headerClassName: "w-32" },
 				cell: ({ row }) => (
 					<Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
 						{formatOrderStatus(row.original.status)}
@@ -349,6 +365,7 @@ function OrdersPage() {
 			{
 				accessorKey: "payment_status",
 				header: "Payment",
+				meta: { headerClassName: "w-32" },
 				cell: ({ row }) => (
 					<div className="flex flex-wrap gap-1">
 						{getPaymentBadges(row.original).map((badge) => (
@@ -362,7 +379,7 @@ function OrdersPage() {
 			{
 				id: "total",
 				header: "Total",
-				meta: { align: "right" },
+				meta: { align: "right", headerClassName: "w-28" },
 				cell: ({ row }) => <MoneyValue value={row.original.total} />,
 			},
 		],
@@ -417,6 +434,8 @@ function OrdersPage() {
 						columns={columns}
 						data={orders}
 						isLoading={ordersQuery.isPending || storesQuery.isPending}
+						isStale={ordersQuery.isPlaceholderData}
+						filterKey={JSON.stringify(orderQuery)}
 						getRowLink={(order) => orderLink(order.id)}
 						isRowActive={(order) => order.id === sheetOrderId}
 						renderCard={(order) => (

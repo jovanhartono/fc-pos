@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ExportButton } from "@/features/reports/components/export-button";
@@ -13,6 +13,8 @@ import {
 	oneDecimalFormatter,
 	percentFormatter,
 } from "@/features/reports/utils/format";
+import { staleFade } from "@/lib/content-fade";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
 interface CampaignsPanelProps {
@@ -28,14 +30,15 @@ export const CampaignsPanel = ({
 	storeId,
 	granularity,
 }: CampaignsPanelProps) => {
-	const query = useQuery(
-		reportsQueries.campaignEffectiveness({
+	const query = useQuery({
+		...reportsQueries.campaignEffectiveness({
 			from,
 			to,
 			store_id: storeId,
 			granularity,
 		}),
-	);
+		placeholderData: keepPreviousData,
+	});
 	const data = query.data;
 	const campaigns = data?.campaigns ?? [];
 	const maxOrders = campaigns.reduce((m, c) => Math.max(m, c.orders), 0);
@@ -63,9 +66,9 @@ export const CampaignsPanel = ({
 	const roi = totalDiscount > 0 ? totalCollected / totalDiscount : 0;
 
 	return (
-		<div className="grid gap-6">
+		<div className={cn("grid gap-6", staleFade(query.isPlaceholderData))}>
 			<ExportButton disabled={!data} onClick={handleExport} />
-			<KpiRow>
+			<KpiRow isPending={!data}>
 				<KpiCard
 					label="Campaigns used"
 					value={numberFormatter.format(campaigns.length)}

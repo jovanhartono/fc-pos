@@ -27,22 +27,26 @@ export const QueueCategoryFilter = ({
 			}
 			value={categoryId?.toString() ?? ""}
 		/>
-		{categoryId !== undefined && (
-			<fieldset className="grid grid-cols-2 gap-2 border-0 p-0">
-				<legend className="sr-only">Show or hide this category</legend>
-				{MODE_ITEMS.map((item) => (
-					<Button
-						aria-pressed={mode === item.value}
-						className="h-10 pointer-coarse:h-11"
-						key={item.value}
-						onClick={() => onChange(categoryId, item.value)}
-						type="button"
-						variant={mode === item.value ? "default" : "outline"}
-					>
-						{item.label}
-					</Button>
-				))}
-			</fieldset>
-		)}
+		{/* Always drawn, disabled until a category is picked, so picking one
+		    doesn't push the Date field down under the worker's finger. */}
+		<fieldset
+			className="grid grid-cols-2 gap-2 border-0 p-0"
+			disabled={categoryId === undefined}
+		>
+			<legend className="sr-only">Show or hide this category</legend>
+			{MODE_ITEMS.map((item) => (
+				<Button
+					aria-pressed={mode === item.value}
+					className="h-10 pointer-coarse:h-11"
+					disabled={categoryId === undefined}
+					key={item.value}
+					onClick={() => onChange(categoryId, item.value)}
+					type="button"
+					variant={mode === item.value ? "default" : "outline"}
+				>
+					{item.label}
+				</Button>
+			))}
+		</fieldset>
 	</div>
 );

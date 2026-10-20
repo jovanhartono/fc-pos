@@ -9,8 +9,13 @@ import {
 	ScanIcon,
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import {
+	keepPreviousData,
+	useInfiniteQuery,
+	useMutation,
+	useQuery,
+} from "@tanstack/react-query";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { DetailedError } from "hono/client";
 import {
 	lazy,
@@ -26,6 +31,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
+import { FilterCountBadge } from "@/components/filter-count-badge";
 import { PageHeader } from "@/components/page-header";
 import { StickyControls } from "@/components/sticky-controls";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +64,7 @@ import { groupReworksUnderOriginals } from "@/features/orders/lib/rework-nesting
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
 import { useMinuteClock } from "@/hooks/useMinuteClock";
+import { CONTENT_FADE, staleFade } from "@/lib/content-fade";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { readServerErrorMessage } from "@/lib/server-error";
 import {
@@ -111,9 +118,46 @@ const queueSearchSchema = z.object({
 
 export const Route = createFileRoute("/_admin/queue/")({
 	validateSearch: (search) => queueSearchSchema.parse(search),
+	// The worker's rack is picked before the page draws, so the chips and the
+	// Filters badge don't redraw a beat after arriving. The remembered branch is
+	// restored only on arrival, so an explicit clear stays cleared.
+	beforeLoad: ({ context, search, cause }) => {
+		if (search.storeId !== undefined || cause === "preload") {
+			return;
+		}
+		const { me } = context;
+		const userStoreIds = me.userStores.map((item) => item.store_id);
+		const currentUser = getCurrentUser();
+		const persistedStoreId = currentUser
+			? useQueuePreferencesStore.getState().storeIdByUser[
+					String(currentUser.id)
+				]
+			: undefined;
+		// Only a branch this worker may still see — one moved between branches
+		// since must not land on the old rack.
+		const restoredStoreId =
+			cause === "enter" &&
+			persistedStoreId !== undefined &&
+			(me.role === "admin" || userStoreIds.includes(persistedStoreId))
+				? persistedStoreId
+				: undefined;
+		// A worker always has a rack; only an admin may look at none.
+		const storeId =
+			restoredStoreId ?? (me.role === "admin" ? undefined : userStoreIds[0]);
+		if (storeId !== undefined) {
+			throw redirect({
+				to: "/queue",
+				search: { ...search, storeId },
+				replace: true,
+			});
+		}
+	},
 	loader: ({ context }) =>
 		context.queryClient.ensureQueryData(storesQueries.list()),
 	component: QueuePage,
+	// Past a second, the page itself draws with skeleton cards.
+	pendingComponent: QueuePage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function QueuePage() {
@@ -145,55 +189,22 @@ function QueuePage() {
 	// DB-fresh role — JWT claim goes stale on mid-session role changes.
 	const role = meQuery.data?.role;
 
-	// One effect owns the store filter's memory. With a store in the URL,
-	// remember it — however it got there: the filter dialog, a scan, or the back
-	// link from a job. Without one, restore the remembered branch once per
-	// visit, so an explicit clear stays cleared instead of bouncing back.
-	const hasRestoredStoreRef = useRef(false);
+	// With a store in the URL, remember it — however it got there: the filter
+	// dialog, a scan, or the back link from a job. beforeLoad restores it.
 	useEffect(() => {
-		if (!currentUser || role === undefined) {
-			return;
-		}
-
-		if (search.storeId !== undefined) {
-			if (search.storeId !== persistedStoreId) {
-				setPersistedStoreId(currentUserKey, search.storeId);
-			}
-			return;
-		}
-
-		if (!hasRestoredStoreRef.current) {
-			hasRestoredStoreRef.current = true;
-			// Only a branch this worker may still see — one moved between branches
-			// since must not land on the old rack.
-			if (
-				persistedStoreId !== undefined &&
-				(role === "admin" || userStoreIds.includes(persistedStoreId))
-			) {
-				void navigate({
-					search: (prev) => ({ ...prev, storeId: persistedStoreId }),
-					replace: true,
-				});
-				return;
-			}
-		}
-
-		// A worker always has a rack; only an admin may look at none.
-		if (role !== "admin" && userStoreIds.length > 0) {
-			void navigate({
-				search: (prev) => ({ ...prev, storeId: userStoreIds[0] }),
-				replace: true,
-			});
+		if (
+			currentUser &&
+			search.storeId !== undefined &&
+			search.storeId !== persistedStoreId
+		) {
+			setPersistedStoreId(currentUserKey, search.storeId);
 		}
 	}, [
 		currentUser,
 		currentUserKey,
-		navigate,
 		persistedStoreId,
-		role,
 		search.storeId,
 		setPersistedStoreId,
-		userStoreIds,
 	]);
 
 	const persistedCategory = useQueuePreferencesStore(
@@ -244,15 +255,31 @@ function QueuePage() {
 				}
 			: undefined;
 
+	// A new status, date or category keeps the last cards and counts up, faded,
+	// until the new ones land, instead of blinking to skeletons and empty chips.
+	// An admin who clears the store gets "Select a store", not the last store's rack.
+	const keepLastRack =
+		parsedStoreId === undefined ? undefined : keepPreviousData;
 	const queueQuery = useInfiniteQuery({
 		...ordersQueries.queue(queueQueryInput),
 		enabled: parsedStoreId !== undefined,
+		placeholderData: keepLastRack,
 	});
 
 	const countsQuery = useQuery({
 		...ordersQueries.queueCounts({ store_id: parsedStoreId, ...categoryQuery }),
 		enabled: parsedStoreId !== undefined,
+		placeholderData: keepLastRack,
 	});
+
+	// The cards on screen belong to this filter. A new filter's cards replace
+	// them as a fresh list with a fade, rather than the same cards sliding to
+	// new places.
+	const queueKey = JSON.stringify(queueQueryInput ?? null);
+	const shownQueueKeyRef = useRef(queueKey);
+	if (!queueQuery.isPlaceholderData) {
+		shownQueueKeyRef.current = queueKey;
+	}
 
 	const queueQueryRef = useRef(queueQuery);
 	useEffect(() => {
@@ -354,7 +381,7 @@ function QueuePage() {
 
 	const queueItems =
 		queueQuery.data?.pages.flatMap((page) => page.items) ?? ([] as QueueItem[]);
-	const totalItems = queueQuery.data?.pages[0]?.meta.total ?? 0;
+	const totalItems = queueQuery.data?.pages[0]?.meta.total;
 
 	const navigateToQueueDetail = useCallback(
 		(item: QueueItem, serviceId: number) => {
@@ -436,8 +463,16 @@ function QueuePage() {
 		<>
 			<PageHeader
 				actions={
-					<Badge variant={queueQuery.isLoading ? "secondary" : "outline"}>
-						{`${totalItems} ${totalItems === 1 ? "item" : "items"}`}
+					// Sized for "999 items", so the count landing never moves the title
+					// row; the label starts at the left, so "6 items" becoming "14 items"
+					// grows rightward instead of sliding.
+					<Badge
+						className="min-w-[9ch] justify-start tabular-nums"
+						variant={totalItems === undefined ? "secondary" : "outline"}
+					>
+						<span className={cn(totalItems === undefined && "invisible")}>
+							{`${totalItems ?? 0} ${totalItems === 1 ? "item" : "items"}`}
+						</span>
 					</Badge>
 				}
 				title="Queue"
@@ -491,14 +526,16 @@ function QueuePage() {
 								render={
 									<Button
 										aria-label="Filters"
-										className="h-9 min-w-9 shrink-0 rounded-full border-0 bg-secondary hover:bg-muted-foreground/20"
+										className="relative size-9 shrink-0 rounded-full border-0 bg-secondary hover:bg-muted-foreground/20"
 										icon={<FunnelIcon className="size-4" />}
 										type="button"
 										variant="outline"
 									/>
 								}
 							>
-								{activeFilterCount > 0 ? String(activeFilterCount) : null}
+								{activeFilterCount > 0 ? (
+									<FilterCountBadge count={activeFilterCount} />
+								) : null}
 							</DialogTrigger>
 							<DialogContent className="max-w-[calc(100%-1.5rem)] gap-5 p-4 sm:max-w-md">
 								<DialogHeader>
@@ -596,25 +633,30 @@ function QueuePage() {
 						<EmptyState>Select a store</EmptyState>
 					) : null}
 
-					{queueItems.map((item) => (
-						<QueueRow
-							currentUserId={currentUser?.id}
-							item={item}
-							key={item.id}
-							now={now}
-							onOpen={navigateToQueueDetail}
-						/>
-					))}
-
-					{/* isLoading, never isPending: with no store picked this query is
-					    disabled, and a disabled query stays pending forever. */}
-					{queueQuery.isLoading ? (
-						<div className="grid gap-2">
-							{Array.from({ length: 6 }, (_, index) => (
-								<Skeleton className="h-20 rounded-lg" key={index} />
+					{queueItems.length > 0 ? (
+						<div
+							className={cn(
+								"grid min-w-0 gap-2",
+								CONTENT_FADE,
+								staleFade(queueQuery.isPlaceholderData),
+							)}
+							key={shownQueueKeyRef.current}
+						>
+							{queueItems.map((item) => (
+								<QueueRow
+									currentUserId={currentUser?.id}
+									item={item}
+									key={item.id}
+									now={now}
+									onOpen={navigateToQueueDetail}
+								/>
 							))}
 						</div>
 					) : null}
+
+					{/* isLoading, never isPending: with no store picked this query is
+					    disabled, and a disabled query stays pending forever. */}
+					{queueQuery.isLoading ? <QueueSkeleton /> : null}
 
 					{queueQuery.isError ? (
 						<div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-destructive text-body">
@@ -643,6 +685,24 @@ function QueuePage() {
 		</>
 	);
 }
+
+// A card's shape: the Item over its Order line, then one job row.
+const QueueSkeleton = () => (
+	<div aria-hidden className="grid gap-2">
+		{Array.from({ length: 6 }, (_, index) => (
+			<div className="overflow-hidden rounded-lg border bg-card" key={index}>
+				<div className="grid gap-0.5 px-3 pt-2.5 pb-2">
+					<Skeleton className="my-0.5 h-4 w-1/2" />
+					<Skeleton className="my-0.5 h-3.5 w-2/3" />
+				</div>
+				<div className="grid gap-1 border-border/70 border-t px-3 py-2.5">
+					<Skeleton className="my-0.5 h-4 w-2/5" />
+					<Skeleton className="my-0.5 h-3.5 w-1/4" />
+				</div>
+			</div>
+		))}
+	</div>
+);
 
 interface QueueJobButtonProps {
 	service: QueueItemService;

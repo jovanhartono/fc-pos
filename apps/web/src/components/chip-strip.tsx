@@ -63,16 +63,18 @@ export const StatusChipStrip = <TValue extends string>({
 						variant={isActive ? "default" : "secondary"}
 					>
 						{chip.label}
-						{chip.count === undefined ? null : (
-							<span
-								className={cn(
-									"font-normal tabular-nums",
-									isActive ? "opacity-80" : "opacity-60",
-								)}
-							>
-								{chip.count}
-							</span>
-						)}
+						{/* The count keeps a 4-digit slot even before it loads, so a
+						    chip never grows or shrinks and its neighbours never slide.
+						    Inter's table digits run a little wider than 1ch each. */}
+						<span
+							className={cn(
+								"min-w-[4.25ch] text-left font-normal tabular-nums",
+								isActive ? "opacity-80" : "opacity-60",
+								chip.count === undefined && "invisible",
+							)}
+						>
+							{chip.count ?? 0}
+						</span>
 					</Button>
 				);
 			})}

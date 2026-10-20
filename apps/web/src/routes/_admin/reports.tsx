@@ -4,7 +4,7 @@ import {
 	type SearchSchemaInput,
 	useNavigate,
 } from "@tanstack/react-router";
-import { lazy, type PropsWithChildren, Suspense, useState } from "react";
+import { type PropsWithChildren, useState } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -18,7 +18,17 @@ import {
 	ReportShell,
 	type ReportTab,
 } from "@/features/reports/components/report-shell";
-import { ReportSkeleton } from "@/features/reports/components/report-skeleton";
+// Bundled with the page rather than loaded per tab: a tab's first open used to
+// blank the page under a placeholder while its code arrived.
+import { AgingQueuePanel } from "@/features/reports/panels/aging-queue-panel";
+import { CampaignsPanel } from "@/features/reports/panels/campaigns-panel";
+import { CustomersPanel } from "@/features/reports/panels/customers-panel";
+import { FinancialPanel } from "@/features/reports/panels/financial-panel";
+import { OperationsPanel } from "@/features/reports/panels/operations-panel";
+import { OverviewPanel } from "@/features/reports/panels/overview-panel";
+import { PaymentsPanel } from "@/features/reports/panels/payments-panel";
+import { QualityPanel } from "@/features/reports/panels/quality-panel";
+import { WorkersPanel } from "@/features/reports/panels/workers-panel";
 import {
 	type ReportFilterValues,
 	resetReportFilters,
@@ -30,34 +40,6 @@ import { storesQueries } from "@/features/stores/api";
 import { DATE_PRESETS, jakartaToday } from "@/shared/date-presets";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useReportPreferencesStore } from "@/stores/report-preferences-store";
-
-const OverviewPanel = lazy(
-	() => import("@/features/reports/panels/overview-panel"),
-);
-const FinancialPanel = lazy(
-	() => import("@/features/reports/panels/financial-panel"),
-);
-const OperationsPanel = lazy(
-	() => import("@/features/reports/panels/operations-panel"),
-);
-const PaymentsPanel = lazy(
-	() => import("@/features/reports/panels/payments-panel"),
-);
-const CustomersPanel = lazy(
-	() => import("@/features/reports/panels/customers-panel"),
-);
-const QualityPanel = lazy(
-	() => import("@/features/reports/panels/quality-panel"),
-);
-const WorkersPanel = lazy(
-	() => import("@/features/reports/panels/workers-panel"),
-);
-const CampaignsPanel = lazy(
-	() => import("@/features/reports/panels/campaigns-panel"),
-);
-const AgingQueuePanel = lazy(
-	() => import("@/features/reports/panels/aging-queue-panel"),
-);
 
 const tabs: ReportTab[] = [
 	{ id: "overview", label: "Overview" },
@@ -181,7 +163,8 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 
 const descriptions: Record<Tab, string> = {
 	overview: "Today's revenue, throughput, and order flow.",
-	financial: "Gross sales, revenue, COGS, margin, and store performance",
+	// One line on a phone like the rest, so switching tabs never moves the strip.
+	financial: "Sales, revenue, COGS, margin and stores",
 	operations: "Dropoff and pickup volume over time",
 	payments: "Collected share per payment method",
 	customers: "Acquisition and retention trends",
@@ -213,9 +196,6 @@ const useFiltersChange = () => {
 	};
 };
 
-// Shared with the pending state at the bottom of this file. Switching tabs
-// re-runs the loader, and an admin on shop wifi was getting the whole page
-// swapped for grey blocks — including the tab strip they had just tapped.
 const ReportsChrome = ({ children }: PropsWithChildren) => {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
@@ -258,7 +238,12 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 							showRangeFilters={showRangeFilters}
 							showGranularity={showGranularity}
 						/>
-						<div ref={setExportSlot} className="contents" />
+						{/* Held open on every tab, even those without an Export, so
+						    the filter button beside it never slides. */}
+						<div
+							ref={setExportSlot}
+							className="flex w-9 shrink-0 pointer-coarse:w-11"
+						/>
 					</>
 				}
 			/>
@@ -284,81 +269,73 @@ function ReportsPage() {
 
 	return (
 		<ReportsChrome>
-			<Suspense fallback={<ReportSkeleton />}>
-				{currentTab === "overview" && (
-					<OverviewPanel date={jakartaToday()} storeId={search.store_id} />
-				)}
-				{currentTab === "financial" && (
-					<FinancialPanel
-						from={search.from}
-						to={search.to}
-						storeId={search.store_id}
-						granularity={search.granularity}
-					/>
-				)}
-				{currentTab === "operations" && (
-					<OperationsPanel
-						from={search.from}
-						to={search.to}
-						storeId={search.store_id}
-						granularity={search.granularity}
-					/>
-				)}
-				{currentTab === "payments" && (
-					<PaymentsPanel
-						from={search.from}
-						to={search.to}
-						storeId={search.store_id}
-						granularity={search.granularity}
-					/>
-				)}
-				{currentTab === "customers" && (
-					<CustomersPanel
-						from={search.from}
-						to={search.to}
-						storeId={search.store_id}
-						granularity={search.granularity}
-					/>
-				)}
-				{currentTab === "quality" && (
-					<QualityPanel
-						from={search.from}
-						to={search.to}
-						storeId={search.store_id}
-					/>
-				)}
-				{currentTab === "workers" && (
-					<WorkersPanel
-						from={search.from}
-						to={search.to}
-						storeId={search.store_id}
-						onStoreChange={(storeId) =>
-							handleFiltersChange({ store_id: storeId })
-						}
-					/>
-				)}
-				{currentTab === "campaigns" && (
-					<CampaignsPanel
-						from={search.from}
-						to={search.to}
-						storeId={search.store_id}
-						granularity={search.granularity}
-					/>
-				)}
-				{currentTab === "aging-queue" && (
-					// A new Store starts again on its first page.
-					<AgingQueuePanel key={search.store_id} storeId={search.store_id} />
-				)}
-			</Suspense>
+			{currentTab === "overview" && (
+				<OverviewPanel date={jakartaToday()} storeId={search.store_id} />
+			)}
+			{currentTab === "financial" && (
+				<FinancialPanel
+					from={search.from}
+					to={search.to}
+					storeId={search.store_id}
+					granularity={search.granularity}
+				/>
+			)}
+			{currentTab === "operations" && (
+				<OperationsPanel
+					from={search.from}
+					to={search.to}
+					storeId={search.store_id}
+					granularity={search.granularity}
+				/>
+			)}
+			{currentTab === "payments" && (
+				<PaymentsPanel
+					from={search.from}
+					to={search.to}
+					storeId={search.store_id}
+					granularity={search.granularity}
+				/>
+			)}
+			{currentTab === "customers" && (
+				<CustomersPanel
+					from={search.from}
+					to={search.to}
+					storeId={search.store_id}
+					granularity={search.granularity}
+				/>
+			)}
+			{currentTab === "quality" && (
+				<QualityPanel
+					from={search.from}
+					to={search.to}
+					storeId={search.store_id}
+				/>
+			)}
+			{currentTab === "workers" && (
+				<WorkersPanel
+					from={search.from}
+					to={search.to}
+					storeId={search.store_id}
+					onStoreChange={(storeId) =>
+						handleFiltersChange({ store_id: storeId })
+					}
+				/>
+			)}
+			{currentTab === "campaigns" && (
+				<CampaignsPanel
+					from={search.from}
+					to={search.to}
+					storeId={search.store_id}
+					granularity={search.granularity}
+				/>
+			)}
+			{currentTab === "aging-queue" && (
+				// A new Store starts again on its first page.
+				<AgingQueuePanel key={search.store_id} storeId={search.store_id} />
+			)}
 		</ReportsChrome>
 	);
 }
-
-const ReportsPending = () => (
-	<ReportsChrome>
-		<ReportSkeleton />
-	</ReportsChrome>
-);
 
 export const Route = createFileRoute("/_admin/reports")({
 	// Restored before the loader runs, so an admin coming back from the sidebar
@@ -375,11 +352,20 @@ export const Route = createFileRoute("/_admin/reports")({
 		return reportsSearchSchema.parse(withSavedReportFilters(search, saved));
 	},
 	loaderDeps: ({ search }) => search,
-	loader: ({ context, deps }) =>
-		Promise.all([
+	// A new tab or filter never waits here: the admin keeps the page they were
+	// reading, faded, until the new numbers land in place.
+	loader: async ({ context, deps, cause }) => {
+		if (cause === "stay") {
+			// A failed fetch is shown by the panel itself.
+			prefetchForTab(context.queryClient, deps).catch(() => undefined);
+			return;
+		}
+		await Promise.all([
 			context.queryClient.ensureQueryData(storesQueries.list()),
 			prefetchForTab(context.queryClient, deps),
-		]),
+		]);
+	},
 	component: ReportsPage,
-	pendingComponent: ReportsPending,
+	pendingComponent: ReportsPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });

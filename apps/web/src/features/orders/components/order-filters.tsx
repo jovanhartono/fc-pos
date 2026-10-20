@@ -1,6 +1,7 @@
 import { FunnelIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { FilterCountBadge } from "@/components/filter-count-badge";
 import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-picker";
@@ -179,12 +180,12 @@ export const OrderFilters = ({
 								aria-label="Filters"
 								type="button"
 								variant="outline"
-								className="h-9 min-w-9 rounded-full border-0 bg-secondary hover:bg-muted-foreground/20 pointer-coarse:h-11 pointer-coarse:min-w-11"
+								className="relative size-9 rounded-full border-0 bg-secondary hover:bg-muted-foreground/20 pointer-coarse:size-11"
 								icon={<FunnelIcon className="size-4" />}
 							/>
 						}
 					>
-						{activeCount > 0 ? String(activeCount) : null}
+						{activeCount > 0 ? <FilterCountBadge count={activeCount} /> : null}
 					</DialogTrigger>
 					<DialogContent className="gap-5">
 						<DialogHeader>

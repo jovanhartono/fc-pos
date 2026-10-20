@@ -91,10 +91,12 @@ export const ReportFilters = ({
 		<Popover>
 			<PopoverTrigger
 				render={
+					// One width whatever the summary says, so picking a Store or
+					// switching tabs never slides the button along the header.
 					<Button
 						variant="outline"
 						icon={<FunnelSimpleIcon />}
-						className="min-w-0"
+						className="w-44 min-w-0 justify-start sm:w-64"
 					>
 						<span className="truncate">{summary}</span>
 					</Button>

@@ -1,7 +1,12 @@
 import { PUTUserSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { KeyIcon, PlusIcon } from "@phosphor-icons/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	keepPreviousData,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 import { FormProvider, useForm } from "react-hook-form";
@@ -42,8 +47,13 @@ const usersSearchSchema = z.object({
 export const Route = createFileRoute("/_admin/users")({
 	validateSearch: (search) => usersSearchSchema.parse(search),
 	loaderDeps: ({ search }) => search,
-	loader: ({ context, deps }) =>
-		Promise.all([
+	loader: async ({ context, deps, cause }) => {
+		// Typing a search or paging keeps the page up, the search box focused,
+		// and swaps the rows in place.
+		if (cause === "stay") {
+			return;
+		}
+		await Promise.all([
 			context.queryClient.ensureQueryData(
 				usersQueries.list({
 					limit: PAGE_SIZE,
@@ -52,8 +62,12 @@ export const Route = createFileRoute("/_admin/users")({
 				}),
 			),
 			context.queryClient.ensureQueryData(storesQueries.list()),
-		]),
+		]);
+	},
 	component: UsersPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: UsersPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 const userFormSchema = PUTUserSchema.extend({
@@ -115,13 +129,14 @@ function UsersPage() {
 		defaultValues: defaultForm,
 	});
 
-	const usersQuery = useQuery(
-		usersQueries.list({
+	const usersQuery = useQuery({
+		...usersQueries.list({
 			limit: PAGE_SIZE,
 			offset: (search.page - 1) * PAGE_SIZE,
 			...(search.search ? { search: search.search } : {}),
 		}),
-	);
+		placeholderData: keepPreviousData,
+	});
 	const users = usersQuery.data?.items ?? [];
 	const storesQuery = useQuery(storesQueries.list());
 	const storeMap = useMemo(
@@ -282,7 +297,11 @@ function UsersPage() {
 			{
 				accessorKey: "username",
 				header: "Username",
-				meta: { kind: "code", mobileCard: { slot: "subtitle" } },
+				meta: {
+					kind: "code",
+					headerClassName: "w-40",
+					mobileCard: { slot: "subtitle" },
+				},
 			},
 			{
 				accessorKey: "name",
@@ -292,7 +311,7 @@ function UsersPage() {
 			{
 				accessorKey: "role",
 				header: "Role",
-				meta: { mobileCard: { slot: "subtitle" } },
+				meta: { headerClassName: "w-28", mobileCard: { slot: "subtitle" } },
 				cell: ({ row }) => (
 					<span className="capitalize">{row.original.role}</span>
 				),
@@ -300,7 +319,7 @@ function UsersPage() {
 			{
 				id: "stores",
 				header: "Stores",
-				meta: { mobileCard: { slot: "subtitle" } },
+				meta: { headerClassName: "w-48", mobileCard: { slot: "subtitle" } },
 				cell: ({ row }) =>
 					row.original.userStores.length > 0
 						? row.original.userStores
@@ -314,13 +333,13 @@ function UsersPage() {
 			{
 				id: "status",
 				header: "Status",
-				meta: { mobileCard: { slot: "status" } },
+				meta: { headerClassName: "w-28", mobileCard: { slot: "status" } },
 				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 			},
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { mobileCard: { slot: "title-end" } },
+				meta: { headerClassName: "w-28", mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
 					<div className="flex gap-2">
 						<EditRowButton onClick={() => handleEdit(row.original)} />
@@ -363,7 +382,10 @@ function UsersPage() {
 					columns={columns}
 					data={users}
 					isCardGrouped
+					skeletonCardClassName="h-19"
 					isLoading={usersQuery.isPending}
+					isStale={usersQuery.isPlaceholderData}
+					filterKey={JSON.stringify(search)}
 					cardPrimaryColumnId="name"
 					emptyMessage={
 						search.search ? `No users match "${search.search}".` : "No users."

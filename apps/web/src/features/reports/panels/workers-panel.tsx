@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Section } from "@/components/section";
 import { Button } from "@/components/ui/button";
 import { reportsQueries, type WorkerRow } from "@/features/reports/api";
@@ -20,6 +20,8 @@ import {
 	buildWorkersCsv,
 	outOf,
 } from "@/features/reports/utils/workers-report";
+import { staleFade } from "@/lib/content-fade";
+import { cn } from "@/lib/utils";
 
 interface WorkersPanelProps {
 	from: string;
@@ -35,9 +37,10 @@ export const WorkersPanel = ({
 	storeId,
 	onStoreChange,
 }: WorkersPanelProps) => {
-	const query = useQuery(
-		reportsQueries.workerProductivity({ from, to, store_id: storeId }),
-	);
+	const query = useQuery({
+		...reportsQueries.workerProductivity({ from, to, store_id: storeId }),
+		placeholderData: keepPreviousData,
+	});
 	const openWorkerSheet = useOpenWorkerSheet();
 	const data = query.data;
 
@@ -82,7 +85,7 @@ export const WorkersPanel = ({
 		});
 
 	return (
-		<div className="grid gap-6">
+		<div className={cn("grid gap-6", staleFade(query.isPlaceholderData))}>
 			<ExportButton onClick={handleExport} />
 			<KpiRow>
 				<KpiCard

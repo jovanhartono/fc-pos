@@ -48,6 +48,7 @@ type SheetStore = {
 	// After a save: back to the sheet underneath, or close when there is none.
 	goBack: () => void;
 	closeSheet: () => void;
+	clearClosedSheet: () => void;
 	setDirty: (dirty: boolean) => void;
 };
 
@@ -122,21 +123,20 @@ export const useSheet = create<SheetStore>((set, get) => ({
 		}
 		get().closeSheet();
 	},
-	closeSheet: () => {
+	closeSheet: () =>
 		set((state) => ({
 			sheetState: {
 				...state.sheetState,
 				open: false,
 			},
 			isDirty: false,
-		}));
-
-		// Waits for the slide-out, but leaves alone a sheet opened in the meantime.
-		setTimeout(() => {
-			if (!get().sheetState.open) {
-				set({ sheetState: defaultState });
-			}
-		}, 200);
+		})),
+	// Called once the slide-out has finished, so the header stays on the panel
+	// all the way out; leaves alone a sheet opened in the meantime.
+	clearClosedSheet: () => {
+		if (!get().sheetState.open) {
+			set({ sheetState: defaultState });
+		}
 	},
 	setDirty: (dirty) => set({ isDirty: dirty }),
 }));

@@ -42,7 +42,8 @@ export const Section = ({
 	children,
 }: SectionProps) => (
 	<section aria-labelledby={id} className="grid min-w-0 gap-2.5">
-		<div className="flex items-center justify-between gap-3">
+		{/* As tall as a small button, so a "Show all" that comes and goes never moves the rows below. */}
+		<div className="flex min-h-7 items-center justify-between gap-3">
 			<SectionTitle count={count} id={id} title={title} />
 			{aside}
 		</div>

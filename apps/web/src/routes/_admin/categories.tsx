@@ -29,6 +29,9 @@ export const Route = createFileRoute("/_admin/categories")({
 	loader: ({ context }) =>
 		context.queryClient.ensureQueryData(categoriesQueries.list()),
 	component: CategoriesPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: CategoriesPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 const CategoriesActions = ({ row }: { row: DataTableRow<Category> }) => {
@@ -82,7 +85,7 @@ const columns: DataTableColumnDef<Category>[] = [
 	{
 		accessorKey: "name",
 		header: "Category",
-		meta: { kind: "name" },
+		meta: { kind: "name", headerClassName: "w-64" },
 	},
 	{
 		accessorKey: "description",
@@ -100,13 +103,13 @@ const columns: DataTableColumnDef<Category>[] = [
 	{
 		id: "status",
 		header: "Status",
-		meta: { mobileCard: { slot: "status" } },
+		meta: { headerClassName: "w-24", mobileCard: { slot: "status" } },
 		cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 	},
 	{
 		id: "actions",
 		header: "Actions",
-		meta: { mobileCard: { slot: "title-end" } },
+		meta: { headerClassName: "w-20", mobileCard: { slot: "title-end" } },
 		cell: ({ row }) => <CategoriesActions row={row} />,
 	},
 ];
@@ -161,6 +164,7 @@ function CategoriesPage() {
 					columns={columns}
 					data={data}
 					isCardGrouped
+					skeletonCardClassName="h-24"
 					isLoading={isPending}
 					sortable
 					emptyMessage="No categories."

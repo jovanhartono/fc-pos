@@ -76,6 +76,9 @@ export const Route = createFileRoute("/_admin/campaigns")({
 			context.queryClient.ensureQueryData(storesQueries.list()),
 		]),
 	component: CampaignsPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: CampaignsPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 const defaultCampaignForm: CampaignFormInput = {
@@ -301,7 +304,11 @@ function CampaignsPage() {
 			{
 				accessorKey: "code",
 				header: "Code",
-				meta: { kind: "code", mobileCard: { slot: "subtitle" } },
+				meta: {
+					kind: "code",
+					headerClassName: "w-36",
+					mobileCard: { slot: "subtitle" },
+				},
 			},
 			{
 				accessorKey: "name",
@@ -311,7 +318,11 @@ function CampaignsPage() {
 			{
 				id: "discount",
 				header: "Discount",
-				meta: { align: "right", mobileCard: { slot: "badges" } },
+				meta: {
+					align: "right",
+					headerClassName: "w-32",
+					mobileCard: { slot: "badges" },
+				},
 				cell: ({ row }) => (
 					<CampaignDiscount
 						campaign={row.original}
@@ -322,7 +333,7 @@ function CampaignsPage() {
 			{
 				id: "stores",
 				header: "Stores",
-				meta: { mobileCard: { slot: "subtitle" } },
+				meta: { headerClassName: "w-40", mobileCard: { slot: "subtitle" } },
 				cell: ({ row }) => {
 					if (row.original.stores.length === 0) {
 						return "All stores";
@@ -336,13 +347,13 @@ function CampaignsPage() {
 			{
 				id: "redemption",
 				header: "Redemption",
-				meta: { mobileCard: { slot: "subtitle" } },
+				meta: { headerClassName: "w-32", mobileCard: { slot: "subtitle" } },
 				cell: ({ row }) => formatCampaignRedemption(row.original),
 			},
 			{
 				id: "status",
 				header: "Status",
-				meta: { mobileCard: { slot: "status" } },
+				meta: { headerClassName: "w-28", mobileCard: { slot: "status" } },
 				cell: ({ row }) => {
 					const state = deriveCampaignState(row.original);
 					if (state === "expired") {
@@ -357,7 +368,7 @@ function CampaignsPage() {
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { mobileCard: { slot: "title-end" } },
+				meta: { headerClassName: "w-32", mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
 					<div className="flex gap-2">
 						<EditRowButton
@@ -429,7 +440,9 @@ function CampaignsPage() {
 				<DataTable
 					columns={columns}
 					data={campaigns}
+					filterKey={search.status}
 					isCardGrouped
+					skeletonCardClassName="h-30"
 					isLoading={campaignsQuery.isPending || storesQuery.isPending}
 					sortable
 					cardPrimaryColumnId="name"

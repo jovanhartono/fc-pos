@@ -1,10 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
 import { type Order, ordersQueries } from "@/features/orders/api";
 import { OrderListRow } from "@/features/orders/components/order-list-row";
 import { useOpenNestedOrder } from "@/features/orders/hooks/useOpenNestedOrder";
+import { CONTENT_FADE } from "@/lib/content-fade";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
 const RADAR_LIMIT = 50;
+const SKELETON_ROW_COUNT = 8;
 
 interface PickupRadarProps {
 	enabled: boolean;
@@ -24,16 +28,43 @@ export const PickupRadar = ({ enabled, storeId }: PickupRadarProps) => {
 	});
 	const readyOrders = readyQuery.data?.items ?? [];
 
+	// Rows shaped like the ready Orders, not "No pickups", while the rack loads.
+	if (readyQuery.isPending && enabled) {
+		return (
+			<ul
+				aria-hidden
+				className="divide-y divide-border overflow-hidden rounded-lg border bg-card"
+			>
+				{Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
+					<li key={index} className="grid gap-0.5 px-4 py-3">
+						<Skeleton className="my-0.5 h-4 w-2/3" />
+						<Skeleton className="my-0.5 h-3 w-1/3" />
+					</li>
+				))}
+			</ul>
+		);
+	}
+
 	if (readyOrders.length === 0) {
 		return (
-			<p className="py-12 text-center text-body text-muted-foreground">
+			<p
+				className={cn(
+					"py-12 text-center text-body text-muted-foreground",
+					CONTENT_FADE,
+				)}
+			>
 				No pickups right now.
 			</p>
 		);
 	}
 
 	return (
-		<ul className="divide-y divide-border overflow-hidden rounded-lg border bg-card">
+		<ul
+			className={cn(
+				"divide-y divide-border overflow-hidden rounded-lg border bg-card",
+				CONTENT_FADE,
+			)}
+		>
 			{readyOrders.map((order) => (
 				<li key={order.id}>
 					<RadarRow order={order} />

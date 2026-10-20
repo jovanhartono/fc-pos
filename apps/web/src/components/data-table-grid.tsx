@@ -12,6 +12,7 @@ import {
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { DataTableFeatures } from "@/components/data-table-features";
 import "@/components/data-table-meta";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
 	TableBody,
@@ -20,12 +21,17 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { CONTENT_FADE, staleFade } from "@/lib/content-fade";
 import { isListKeyBlocked } from "@/lib/list-keys";
 import { cn } from "@/lib/utils";
 
 interface DataTableGridProps<TData extends RowData> {
 	table: TanstackTable<DataTableFeatures, TData>;
 	isLoading?: boolean;
+	isStale?: boolean;
+	resultSet?: string;
+	skeletonRowCount?: number;
+	skeletonLines?: 1 | 2 | "wrapped";
 	emptyMessage: string;
 	sortable: boolean;
 	getRowLink?: (row: TData) => LinkProps;
@@ -38,9 +44,15 @@ interface DataTableGridProps<TData extends RowData> {
 const RAISED_CONTROLS =
 	"[&_a:not([data-row-link])]:relative [&_button]:relative";
 
+const SKELETON_ROW_COUNT = 10;
+
 export const DataTableGrid = <TData extends RowData>({
 	table,
 	isLoading,
+	isStale,
+	resultSet,
+	skeletonRowCount = SKELETON_ROW_COUNT,
+	skeletonLines = 2,
 	emptyMessage,
 	sortable,
 	getRowLink,
@@ -125,16 +137,28 @@ export const DataTableGrid = <TData extends RowData>({
 		});
 	}, [focusedIndex]);
 
+	const columnCount = table.getAllLeafColumns().length || 1;
+
 	return (
 		// Only the rows scroll, so paging through five pages is five clicks on
-		// Next without scrolling back down each time.
+		// Next without scrolling back down each time. The frame fills the page
+		// and the pager stays at its foot, whatever number of rows a filter returns.
 		<div
 			ref={frameRef}
-			className="flex min-h-0 flex-col overflow-hidden rounded-lg border bg-card"
+			className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card"
 		>
-			<Table containerClassName="min-h-0 overflow-auto">
-				{/* Column names over no rows read as a broken box, so an empty list is just its message. */}
-				<TableHeader className={cn(!isLoading && rowCount === 0 && "hidden")}>
+			{/* Fixed columns: each column's width is set once on the column, so a
+			    new page or filter never slides the columns sideways. */}
+			<Table
+				className="table-fixed"
+				containerClassName="min-h-0 flex-1 overflow-auto"
+			>
+				{/* Column names over no rows read as a broken box, so an empty list
+				    hides them but keeps their row, and its message sits where the
+				    first row would. */}
+				<TableHeader
+					className={cn(!isLoading && rowCount === 0 && "invisible")}
+				>
 					{table.getHeaderGroups().map((headerGroup) => (
 						<TableRow
 							key={headerGroup.id}
@@ -190,16 +214,42 @@ export const DataTableGrid = <TData extends RowData>({
 						</TableRow>
 					))}
 				</TableHeader>
-				<TableBody ref={bodyRef}>
+				<TableBody
+					key={isLoading ? "loading" : `rows:${resultSet}`}
+					ref={bodyRef}
+					className={cn(!isLoading && CONTENT_FADE, staleFade(isStale))}
+				>
 					{isLoading ? (
-						<TableRow>
-							<TableCell
-								colSpan={table.getAllLeafColumns().length || 1}
-								className="h-20 text-center text-muted-foreground text-body md:h-24"
+						Array.from({ length: skeletonRowCount }, (_, rowIndex) => (
+							<TableRow
+								key={rowIndex}
+								aria-hidden
+								className="border-border/60 hover:bg-transparent"
 							>
-								Loading…
-							</TableCell>
-						</TableRow>
+								{Array.from({ length: columnCount }, (_, cellIndex) => (
+									<TableCell
+										key={cellIndex}
+										className="py-3 first:pl-3 last:pr-3"
+									>
+										{/* Two lines, the height of a code over its store or a name over its phone. */}
+										{skeletonLines === 2 ? (
+											<div className="grid gap-0.5">
+												<Skeleton className="my-0.5 h-3.5 w-3/4" />
+												<Skeleton className="my-0.5 h-2.5 w-1/2" />
+											</div>
+										) : skeletonLines === "wrapped" ? (
+											// An Item code wrapped over two lines of the table's text.
+											<div className="grid">
+												<Skeleton className="my-0.75 h-3 w-3/4" />
+												<Skeleton className="my-0.75 h-3 w-1/2" />
+											</div>
+										) : (
+											<Skeleton className="my-0.5 h-5 w-3/4" />
+										)}
+									</TableCell>
+								))}
+							</TableRow>
+						))
 					) : rows.length ? (
 						rows.map((row, index) => (
 							<TableRow
@@ -217,7 +267,7 @@ export const DataTableGrid = <TData extends RowData>({
 									<TableCell
 										key={cell.id}
 										className={cn(
-											"py-3 first:pl-3 last:pr-3",
+											"wrap-break-word whitespace-normal py-3 first:pl-3 last:pr-3",
 											cell.column.columnDef.meta?.align === "right" &&
 												"text-right tabular-nums",
 											getRowLink && RAISED_CONTROLS,
@@ -242,7 +292,7 @@ export const DataTableGrid = <TData extends RowData>({
 					) : (
 						<TableRow>
 							<TableCell
-								colSpan={table.getAllLeafColumns().length || 1}
+								colSpan={columnCount}
 								className="h-20 text-center text-body md:h-24"
 							>
 								{emptyMessage}

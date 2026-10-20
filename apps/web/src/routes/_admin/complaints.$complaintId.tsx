@@ -6,12 +6,14 @@ import dayjs from "dayjs";
 import type { ReactNode } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { TextSkeleton } from "@/components/text-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { complaintsQueries } from "@/features/complaints/api";
 import { useAddReworkMutation } from "@/features/complaints/hooks/useComplaintMutations";
 import { getComplaintOutcome } from "@/features/complaints/lib/format";
 import { CustomerLink } from "@/features/customers/components/customer-link";
+import { CONTENT_FADE } from "@/lib/content-fade";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	formatOrderServiceStatus,
@@ -44,13 +46,15 @@ const ComplaintDetailPage = () => {
 
 	const detail = complaintQuery.data;
 
+	if (complaintQuery.isPending) {
+		return <ComplaintDetailSkeleton />;
+	}
+
 	if (!detail?.orderService?.order) {
 		return (
 			<>
 				<PageHeader title="Complaint" />
-				<EmptyState>
-					{complaintQuery.isPending ? "Loading…" : "Complaint not found"}
-				</EmptyState>
+				<EmptyState>Complaint not found</EmptyState>
 			</>
 		);
 	}
@@ -76,8 +80,9 @@ const ComplaintDetailPage = () => {
 	const serviceName = subject.service?.name ?? "Service";
 
 	return (
-		<>
+		<div className={CONTENT_FADE}>
 			<PageHeader
+				className={HEADER_HEIGHT}
 				title={`Complaint #${detail.id}`}
 				description={reworkWaitReason}
 				actions={
@@ -222,9 +227,44 @@ const ComplaintDetailPage = () => {
 					)}
 				</section>
 			</div>
-		</>
+		</div>
 	);
 };
+
+const SKELETON_FACTS = ["Item", "Service", "Order", "Customer"];
+
+// As tall as the Start rework button, shown or not, so the page under the
+// header sits at one height.
+const HEADER_HEIGHT = "min-h-9 pointer-coarse:min-h-11";
+
+// The page's own header, quote, facts and rounds heading with the values
+// greyed, so each block lands where its shell was.
+const ComplaintDetailSkeleton = () => (
+	<div aria-hidden>
+		<PageHeader className={HEADER_HEIGHT} title="Complaint" />
+		<div className="grid gap-8">
+			<section className="grid gap-3">
+				<p className="text-body">
+					<TextSkeleton className="w-56" />
+				</p>
+				<p className="text-title-3 leading-snug">
+					<TextSkeleton className="w-3/4" />
+				</p>
+			</section>
+			<dl className="grid grid-cols-2 gap-x-6 gap-y-4 border-y py-4 lg:grid-cols-4">
+				{SKELETON_FACTS.map((label) => (
+					<Fact key={label} label={label}>
+						<TextSkeleton className="w-28" />
+						<span className="text-footnote">
+							<TextSkeleton className="w-16" />
+						</span>
+					</Fact>
+				))}
+			</dl>
+			<h2 className="font-medium text-body">Rework rounds</h2>
+		</div>
+	</div>
+);
 
 export const Route = createFileRoute("/_admin/complaints/$complaintId")({
 	loader: async ({ context, params }) => {
@@ -237,4 +277,7 @@ export const Route = createFileRoute("/_admin/complaints/$complaintId")({
 		await context.queryClient.ensureQueryData(complaintsQueries.detail(id));
 	},
 	component: ComplaintDetailPage,
+	// Past a second, the page draws its own skeleton, not the generic placeholder.
+	pendingComponent: ComplaintDetailPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });

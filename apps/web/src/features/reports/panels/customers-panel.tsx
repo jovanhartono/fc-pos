@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
@@ -15,6 +15,8 @@ import {
 	percentFormatter,
 } from "@/features/reports/utils/format";
 import { CHART_PALETTE } from "@/features/reports/utils/palette";
+import { staleFade } from "@/lib/content-fade";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
 interface CustomersPanelProps {
@@ -30,14 +32,15 @@ export const CustomersPanel = ({
 	storeId,
 	granularity,
 }: CustomersPanelProps) => {
-	const query = useQuery(
-		reportsQueries.customerAcquisition({
+	const query = useQuery({
+		...reportsQueries.customerAcquisition({
 			from,
 			to,
 			store_id: storeId,
 			granularity,
 		}),
-	);
+		placeholderData: keepPreviousData,
+	});
 	const data = query.data;
 	const summary = data?.summary.current;
 	const deltas = data?.summary.deltas;
@@ -83,19 +86,19 @@ export const CustomersPanel = ({
 	const cumulativeEnd = summary?.cumulative_end ?? 0;
 
 	return (
-		<div className="grid gap-6">
+		<div className={cn("grid gap-6", staleFade(query.isPlaceholderData))}>
 			<ExportButton disabled={!data} onClick={handleExport} />
-			<KpiRow>
+			<KpiRow isPending={!data}>
 				<KpiCard
 					label="New customers"
 					value={numberFormatter.format(summary?.new_customers ?? 0)}
-					delta={deltas?.new_customers}
+					delta={deltas?.new_customers ?? null}
 					helper="Registered in range"
 				/>
 				<KpiCard
 					label="Cumulative total"
 					value={numberFormatter.format(cumulativeEnd)}
-					delta={deltas?.cumulative_end}
+					delta={deltas?.cumulative_end ?? null}
 					helper="All-time, end of range"
 				/>
 				<KpiCard
@@ -103,13 +106,13 @@ export const CustomersPanel = ({
 					value={numberFormatter.format(
 						summary?.active_customers_in_range ?? 0,
 					)}
-					delta={deltas?.active_customers_in_range}
+					delta={deltas?.active_customers_in_range ?? null}
 					helper="Placed ≥1 order"
 				/>
 				<KpiCard
 					label="Repeat rate"
 					value={percentFormatter.format(summary?.repeat_rate ?? 0)}
-					delta={deltas?.repeat_rate}
+					delta={deltas?.repeat_rate ?? null}
 					helper="Active with >1 order"
 				/>
 			</KpiRow>

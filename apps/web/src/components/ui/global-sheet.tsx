@@ -23,6 +23,7 @@ export function GlobalSheet() {
 	const { open, title, description, content, size, back, actions, onClose } =
 		useSheet((state) => state.sheetState);
 	const closeSheet = useSheet((state) => state.closeSheet);
+	const clearClosedSheet = useSheet((state) => state.clearClosedSheet);
 	const isDirty = useSheet((state) => state.isDirty);
 	const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -49,7 +50,15 @@ export function GlobalSheet() {
 
 	return (
 		<>
-			<Sheet open={open} onOpenChange={handleOpenChange}>
+			<Sheet
+				open={open}
+				onOpenChange={handleOpenChange}
+				onOpenChangeComplete={(isOpen) => {
+					if (!isOpen) {
+						clearClosedSheet();
+					}
+				}}
+			>
 				<SheetContent
 					side="right"
 					className={cn(

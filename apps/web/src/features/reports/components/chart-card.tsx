@@ -142,12 +142,21 @@ const Shell = ({
 	</Card>
 );
 
-const Empty = ({ children }: { children?: ReactNode }) =>
-	children ?? (
-		<div className="flex h-44 items-center justify-center text-body text-muted-foreground">
-			No data in range.
-		</div>
-	);
+interface EmptyProps {
+	children?: ReactNode;
+	height: number;
+}
+
+// As tall as the chart it stands in for, so the cards below stay put while a
+// report loads (no rows yet) and when a range turns out empty.
+const Empty = ({ children, height }: EmptyProps) => (
+	<div
+		className="flex items-center justify-center text-body text-muted-foreground"
+		style={{ height }}
+	>
+		{children ?? "No data in range."}
+	</div>
+);
 
 const seriesConfig = (series: ChartSeries[]): ChartConfig =>
 	series.reduce<ChartConfig>((acc, s) => {
@@ -211,7 +220,7 @@ const AreaVariant = ({
 			action={action}
 		>
 			{isEmpty ? (
-				<Empty>{emptyState}</Empty>
+				<Empty height={height}>{emptyState}</Empty>
 			) : (
 				<ChartContainer
 					config={config}
@@ -331,7 +340,7 @@ const BarVariant = ({
 			action={action}
 		>
 			{isEmpty ? (
-				<Empty>{emptyState}</Empty>
+				<Empty height={height}>{emptyState}</Empty>
 			) : (
 				<ChartContainer
 					config={config}
@@ -422,6 +431,13 @@ const BarVariant = ({
 					))}
 				</div>
 			) : null}
+			{/* While the range loads the totals row isn't there yet; holding its
+			    line keeps the cards below from dropping when it arrives. */}
+			{highlightLatest && isEmpty ? (
+				<p aria-hidden className="invisible pt-3 text-footnote">
+					{" "}
+				</p>
+			) : null}
 		</Shell>
 	);
 };
@@ -449,7 +465,7 @@ const PieVariant = ({
 			action={action}
 		>
 			{isEmpty ? (
-				<Empty>{emptyState}</Empty>
+				<Empty height={height}>{emptyState}</Empty>
 			) : (
 				<ChartContainer
 					config={config}
@@ -516,7 +532,7 @@ const RadialVariant = ({
 			action={action}
 		>
 			{isEmpty ? (
-				<Empty>{emptyState}</Empty>
+				<Empty height={height}>{emptyState}</Empty>
 			) : (
 				<ChartContainer
 					config={config}
@@ -594,7 +610,7 @@ const ScatterVariant = ({
 			action={action}
 		>
 			{isEmpty ? (
-				<Empty>{emptyState}</Empty>
+				<Empty height={height}>{emptyState}</Empty>
 			) : (
 				<ChartContainer
 					config={config}

@@ -28,11 +28,15 @@ export function PageHeader({
 		>
 			<h1 className="col-start-1 row-start-1 text-title-1 font-bold tracking-tight">
 				{title}
-				{count === undefined ? null : (
-					<span className="ml-2.5 font-normal text-muted-foreground text-title-3 leading-none tabular-nums">
-						{count}
-					</span>
-				)}
+				{/* Drawn hidden until the count loads, so the title line never changes when it lands. */}
+				<span
+					className={cn(
+						"ml-2.5 font-normal text-muted-foreground text-title-3 leading-none tabular-nums",
+						count === undefined && "invisible",
+					)}
+				>
+					{count ?? 0}
+				</span>
 			</h1>
 			{description ? (
 				<p className="col-span-2 row-start-2 text-body text-muted-foreground sm:col-span-1">

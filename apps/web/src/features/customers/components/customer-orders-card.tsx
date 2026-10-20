@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { DataTable } from "@/components/data-table";
@@ -46,13 +46,15 @@ export const CustomerOrdersCard = ({
 	onPageChange,
 	page,
 }: CustomerOrdersCardProps) => {
-	const ordersQuery = useQuery(
-		ordersQueries.list({
+	const ordersQuery = useQuery({
+		...ordersQueries.list({
 			customer_id: customerId,
 			limit: CUSTOMER_ORDERS_PAGE_SIZE,
 			offset: (page - 1) * CUSTOMER_ORDERS_PAGE_SIZE,
 		}),
-	);
+		// The last page stays up, faded, until the next one lands.
+		placeholderData: keepPreviousData,
+	});
 	const orders = ordersQuery.data?.items ?? [];
 
 	const columns = useMemo<DataTableColumnDef<Order>[]>(
@@ -60,7 +62,7 @@ export const CustomerOrdersCard = ({
 			{
 				accessorKey: "code",
 				header: "Code",
-				meta: { mobileCard: { slot: "title" } },
+				meta: { headerClassName: "w-36", mobileCard: { slot: "title" } },
 				cell: ({ row }) => (
 					<Link
 						to="/orders/$orderId"
@@ -74,7 +76,7 @@ export const CustomerOrdersCard = ({
 			{
 				id: "date",
 				header: "Date",
-				meta: { mobileCard: { slot: "eyebrow" } },
+				meta: { headerClassName: "w-32", mobileCard: { slot: "eyebrow" } },
 				cell: ({ row }) => (
 					<span className="whitespace-nowrap tabular-nums">
 						{formatListDate(row.original.created_at)}
@@ -89,6 +91,7 @@ export const CustomerOrdersCard = ({
 			{
 				id: "items",
 				header: "Items",
+				meta: { headerClassName: "w-20" },
 				cell: ({ row }) => (
 					<span className="tabular-nums">
 						{row.original.fulfillment.total_count}
@@ -98,7 +101,7 @@ export const CustomerOrdersCard = ({
 			{
 				id: "status",
 				header: "Status",
-				meta: { mobileCard: { slot: "badges" } },
+				meta: { headerClassName: "w-36", mobileCard: { slot: "badges" } },
 				cell: ({ row }) => (
 					<Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
 						{formatOrderStatus(row.original.status)}
@@ -108,7 +111,7 @@ export const CustomerOrdersCard = ({
 			{
 				id: "paid",
 				header: () => <span className="block text-right">Paid</span>,
-				meta: { mobileCard: { slot: "footer" } },
+				meta: { headerClassName: "w-36", mobileCard: { slot: "footer" } },
 				cell: ({ row }) => <OrderAmountCell order={row.original} />,
 			},
 		],
@@ -116,21 +119,26 @@ export const CustomerOrdersCard = ({
 	);
 
 	return (
-		<section className="grid gap-3">
+		<section className="flex min-h-0 flex-1 flex-col gap-3">
 			<SectionTitle title="Orders" />
 			<DataTable
 				columns={columns}
 				data={orders}
 				isLoading={ordersQuery.isPending}
+				isStale={ordersQuery.isPlaceholderData}
+				filterKey={String(page)}
+				skeletonLines={1}
 				getRowLink={(order) => ({
 					to: "/orders/$orderId",
 					params: { orderId: String(order.id) },
 				})}
-			/>
-			<TablePagination
-				meta={ordersQuery.data?.meta}
-				isLoading={ordersQuery.isPending}
-				onPageChange={onPageChange}
+				footer={
+					<TablePagination
+						meta={ordersQuery.data?.meta}
+						isLoading={ordersQuery.isPending}
+						onPageChange={onPageChange}
+					/>
+				}
 			/>
 		</section>
 	);

@@ -4,7 +4,8 @@ import {
 	InfoIcon,
 	MinusIcon,
 } from "@phosphor-icons/react";
-import type { ReactNode } from "react";
+import { createContext, type ReactNode, useContext } from "react";
+import { TextSkeleton } from "@/components/text-skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import {
 	Popover,
@@ -34,6 +35,8 @@ interface KpiCardProps {
 	swatch?: string;
 	className?: string;
 }
+
+const KpiPendingContext = createContext(false);
 
 interface SparkBarsProps {
 	values: number[];
@@ -124,6 +127,8 @@ export const KpiCard = ({
 	swatch,
 	className,
 }: KpiCardProps) => {
+	const isPending = useContext(KpiPendingContext);
+	const shownValue = isPending ? <TextSkeleton className="w-24" /> : value;
 	return (
 		<Card className={cn("border-border/70 py-0", className)}>
 			<CardContent className="grid min-w-0 gap-1 p-3 sm:p-4">
@@ -154,7 +159,9 @@ export const KpiCard = ({
 						</Popover>
 					) : null}
 				</p>
-				<div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+				{/* As tall as the larger value size, so a long Rupiah stepping down
+				    a size or a card still loading keeps the row's height. */}
+				<div className="flex min-h-7 flex-wrap items-end justify-between gap-x-3 gap-y-1 sm:min-h-8">
 					{/* A month of Rupiah ("Rp 240.909.849") steps down a size rather
 					    than breaking mid-number onto a second line. */}
 					<p
@@ -163,12 +170,17 @@ export const KpiCard = ({
 							typeof value === "string" && value.length > 11
 								? "text-headline sm:text-title-2"
 								: "text-title-3 sm:text-title-1",
+							// After the size, which would otherwise reset it.
+							"leading-7 sm:leading-8",
 						)}
 					>
-						{value}
+						{shownValue}
 					</p>
 					{spark && spark.length > 1 ? <SparkBars values={spark} /> : null}
 				</div>
+				{/* null is a comparison with nothing to compare yet (still loading,
+				    or a quiet last period): the line stays, blank, so the cards
+				    don't shrink and grow back. */}
 				{delta ? (
 					<DeltaLine
 						change={kpiDeltaChange(delta, deltaAs)}
@@ -176,6 +188,11 @@ export const KpiCard = ({
 						deltaAs={deltaAs}
 						isLowerBetter={isLowerBetter}
 					/>
+				) : null}
+				{delta === null ? (
+					<p aria-hidden className="invisible text-subhead">
+						{" "}
+					</p>
 				) : null}
 				{helper ? (
 					<p className="text-muted-foreground text-footnote">{helper}</p>
@@ -187,11 +204,16 @@ export const KpiCard = ({
 
 interface KpiRowProps {
 	children: ReactNode;
+	// The report is still loading: each card keeps its label and draws a bar
+	// where its number will be.
+	isPending?: boolean;
 }
 
-export const KpiRow = ({ children }: KpiRowProps) => (
-	// Two across on a phone, so all four of today's numbers fit above the chart.
-	<div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-		{children}
-	</div>
+export const KpiRow = ({ children, isPending = false }: KpiRowProps) => (
+	<KpiPendingContext.Provider value={isPending}>
+		{/* Two across on a phone, so all four of today's numbers fit above the chart. */}
+		<div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+			{children}
+		</div>
+	</KpiPendingContext.Provider>
 );

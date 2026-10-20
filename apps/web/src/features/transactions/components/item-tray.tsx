@@ -65,7 +65,9 @@ export const ItemTray = ({ itemRows }: ItemTrayProps) => {
 								<span className="max-w-36 truncate">
 									{descriptors ?? "New item"}
 								</span>
-								<span className="text-footnote opacity-70">
+								{/* Room for "9 services", so a tap that adds one doesn't
+								    widen the chip and push + Item along. */}
+								<span className="min-w-[8ch] text-footnote opacity-70">
 									{pluralize(item.services.length, "service")}
 								</span>
 							</span>

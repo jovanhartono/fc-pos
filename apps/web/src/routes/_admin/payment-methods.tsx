@@ -26,6 +26,9 @@ export const Route = createFileRoute("/_admin/payment-methods")({
 	loader: ({ context }) =>
 		context.queryClient.ensureQueryData(paymentMethodsQueries.list()),
 	component: PaymentMethodsPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: PaymentMethodsPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function PaymentMethodsPage() {
@@ -115,18 +118,18 @@ function PaymentMethodsPage() {
 			{
 				accessorKey: "code",
 				header: "Code",
-				meta: { kind: "code" },
+				meta: { kind: "code", headerClassName: "w-40" },
 			},
 			{
 				id: "status",
 				header: "Status",
-				meta: { mobileCard: { slot: "status" } },
+				meta: { headerClassName: "w-24", mobileCard: { slot: "status" } },
 				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 			},
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { mobileCard: { slot: "title-end" } },
+				meta: { headerClassName: "w-20", mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
 					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),
@@ -154,6 +157,7 @@ function PaymentMethodsPage() {
 					columns={columns}
 					data={paymentMethods}
 					isCardGrouped
+					skeletonCardClassName="h-19"
 					isLoading={isPending}
 					sortable
 					emptyMessage="No payment methods."

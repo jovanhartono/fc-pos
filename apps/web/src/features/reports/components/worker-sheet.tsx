@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { Section } from "@/components/section";
+import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrderServiceDetail } from "@/features/orders/components/order-service-detail";
@@ -29,7 +30,9 @@ import {
 	outOf,
 	splitTopServices,
 } from "@/features/reports/utils/workers-report";
+import { CONTENT_FADE } from "@/lib/content-fade";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
+import { cn } from "@/lib/utils";
 import { pluralize } from "@/shared/utils";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -290,6 +293,8 @@ interface WorkerSheetContentProps {
 	target: WorkerSheetTarget;
 }
 
+const FACT_LABELS = ["Days worked", "Services", "Per day worked", "QC rejects"];
+
 const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
 	const query = useQuery(
 		reportsQueries.workerDetail({
@@ -301,15 +306,25 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
 	);
 	const data = query.data;
 
+	// The real tiles, headings and chart frame with bars for the numbers, so
+	// nothing in the sheet moves when the worker's numbers land.
 	if (query.isPending) {
 		return (
-			<div className="grid gap-4">
+			<div aria-hidden className="grid gap-5">
 				<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-					{Array.from({ length: 4 }, (_, index) => (
-						<Skeleton key={index} className="h-16" />
+					{FACT_LABELS.map((label) => (
+						<KpiCard key={label} label={label} value={<TextSkeleton />} />
 					))}
 				</div>
-				<Skeleton className="h-64" />
+				<Section title="Services each day">
+					<Skeleton className="h-64 w-full" />
+				</Section>
+				<Section
+					title="Services worked"
+					count={<TextSkeleton className="w-28" />}
+				>
+					<Skeleton className="h-40 w-full rounded-lg" />
+				</Section>
 			</div>
 		);
 	}
@@ -329,7 +344,7 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
 	const topIds = top.map((s) => s.service_id);
 
 	return (
-		<div className="grid gap-5">
+		<div className={cn("grid gap-5", CONTENT_FADE)}>
 			<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
 				<KpiCard
 					label="Days worked"

@@ -1,5 +1,5 @@
 import { PlusIcon } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
@@ -26,15 +26,24 @@ const customersSearchSchema = z.object({
 export const Route = createFileRoute("/_admin/customers/")({
 	validateSearch: (search) => customersSearchSchema.parse(search),
 	loaderDeps: ({ search }) => search,
-	loader: ({ context, deps }) =>
-		context.queryClient.ensureQueryData(
+	loader: async ({ context, deps, cause }) => {
+		// Typing a search or paging keeps the page up, the search box focused,
+		// and swaps the rows in place; only opening the page waits for them.
+		if (cause === "stay") {
+			return;
+		}
+		await context.queryClient.ensureQueryData(
 			customersQueries.list({
 				limit: PAGE_SIZE,
 				offset: (deps.page - 1) * PAGE_SIZE,
 				...(deps.search ? { search: deps.search } : {}),
 			}),
-		),
+		);
+	},
 	component: CustomersPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: CustomersPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function CustomersPage() {
@@ -57,13 +66,14 @@ function CustomersPage() {
 		[navigate],
 	);
 
-	const customersQuery = useQuery(
-		customersQueries.list({
+	const customersQuery = useQuery({
+		...customersQueries.list({
 			limit: PAGE_SIZE,
 			offset: (search.page - 1) * PAGE_SIZE,
 			...(search.search ? { search: search.search } : {}),
 		}),
-	);
+		placeholderData: keepPreviousData,
+	});
 	const customers = customersQuery.data?.items ?? [];
 
 	const handleOpenEditSheet = useCallback(
@@ -94,6 +104,7 @@ function CustomersPage() {
 				accessorKey: "phone_number",
 				header: "Phone",
 				meta: {
+					headerClassName: "w-36",
 					mobileCard: {
 						slot: "subtitle",
 						className: "text-foreground text-subhead tabular-nums",
@@ -103,7 +114,11 @@ function CustomersPage() {
 			{
 				accessorKey: "email",
 				header: "Email",
-				meta: { kind: "text", mobileCard: { slot: "hidden" } },
+				meta: {
+					kind: "text",
+					headerClassName: "w-64",
+					mobileCard: { slot: "hidden" },
+				},
 				cell: ({ row }) => (
 					<span className="text-muted-foreground">
 						{row.original.email ?? "—"}
@@ -114,6 +129,7 @@ function CustomersPage() {
 				id: "origin_store",
 				header: "Origin store",
 				meta: {
+					headerClassName: "w-40",
 					mobileCard: {
 						slot: "subtitle",
 						className: "text-foreground text-subhead",
@@ -124,7 +140,7 @@ function CustomersPage() {
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { mobileCard: { slot: "title-end" } },
+				meta: { headerClassName: "w-24", mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
 					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),
@@ -168,7 +184,10 @@ function CustomersPage() {
 							: undefined
 					}
 					isCardGrouped
+					skeletonCardClassName="h-19"
 					isLoading={customersQuery.isPending}
+					isStale={customersQuery.isPlaceholderData}
+					filterKey={JSON.stringify(search)}
 					footer={
 						<TablePagination
 							meta={customersQuery.data?.meta}

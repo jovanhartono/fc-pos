@@ -1,7 +1,12 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { ordersQueries } from "@/features/orders/api";
 import { OrderDetailView } from "@/features/orders/components/order-detail-view";
 import { OrderWalk } from "@/features/orders/components/order-walk";
 import { useSheet } from "@/stores/sheet-store";
+
+// A neighbour fetched this recently isn't fetched again on every list refresh.
+const NEIGHBOUR_STALE_TIME = 30_000;
 
 interface UseOrderSheetOptions {
 	// The list has loaded, so the sheet can count the Order's place in it.
@@ -43,6 +48,24 @@ export const useOrderSheet = ({
 			onClose,
 		});
 	}, [openId, isReady]);
+
+	// The Orders either side of the open one are fetched ahead, so a cashier
+	// walking the list with J/K lands on a filled Order, not a skeleton.
+	const queryClient = useQueryClient();
+	useEffect(() => {
+		if (openId === undefined) {
+			return;
+		}
+		const index = orders.findIndex((order) => order.id === openId);
+		for (const neighbour of [orders[index - 1], orders[index + 1]]) {
+			if (index >= 0 && neighbour) {
+				void queryClient.prefetchQuery({
+					...ordersQueries.detail(neighbour.id),
+					staleTime: NEIGHBOUR_STALE_TIME,
+				});
+			}
+		}
+	}, [openId, orders, queryClient]);
 
 	const isOpen = openId !== undefined;
 	useEffect(() => {

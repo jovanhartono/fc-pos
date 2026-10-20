@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useMemo, useState } from "react";
 import {
@@ -11,6 +11,7 @@ import {
 	YAxis,
 } from "recharts";
 import { SectionTitle } from "@/components/section";
+import { TextSkeleton } from "@/components/text-skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import {
 	type ChartConfig,
@@ -42,6 +43,7 @@ import {
 	bucketToTooltipLabel,
 } from "@/features/reports/utils/granularity";
 import type { DeltaAs } from "@/features/reports/utils/kpi-delta";
+import { staleFade } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
@@ -76,9 +78,10 @@ export const FinancialPanel = ({
 	storeId,
 	granularity,
 }: FinancialPanelProps) => {
-	const query = useQuery(
-		reportsQueries.financial({ from, to, store_id: storeId, granularity }),
-	);
+	const query = useQuery({
+		...reportsQueries.financial({ from, to, store_id: storeId, granularity }),
+		placeholderData: keepPreviousData,
+	});
 	const data = query.data;
 	const storeBreakdown = data?.store_breakdown ?? [];
 	const storeMax = storeBreakdown.reduce((m, r) => Math.max(m, r.revenue), 0);
@@ -145,7 +148,7 @@ export const FinancialPanel = ({
 	};
 
 	return (
-		<div className="grid gap-6">
+		<div className={cn("grid gap-6", staleFade(query.isPlaceholderData))}>
 			<KpiStrip data={data} storeId={storeId} />
 			<ExportButton disabled={!data} onClick={handleExport} />
 			<RevenueBreakdownCard data={data} />
@@ -252,38 +255,46 @@ const RevenueLineChart = ({ series, granularity }: RevenueLineChartProps) => {
 			(row) =>
 				row.gross_sales === 0 && row.collected === 0 && row.revenue === 0,
 		);
+	// The key stays up while the range loads, so the chart doesn't push the
+	// figures under it down when the sales arrive.
+	const legend = (
+		<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-subhead font-medium text-muted-foreground">
+			<span className="flex items-center gap-1.5">
+				<span
+					className="h-0.5 w-3"
+					style={{ backgroundColor: GROSS_COLOR, opacity: 0.6 }}
+				/>
+				Gross
+			</span>
+			<span className="flex items-center gap-1.5">
+				<span
+					className="h-0.5 w-3"
+					style={{ backgroundColor: COLLECTED_COLOR }}
+				/>
+				Collected
+			</span>
+			<span className="flex items-center gap-1.5">
+				<span
+					className="h-0.5 w-3"
+					style={{ backgroundColor: REVENUE_COLOR }}
+				/>
+				Revenue
+			</span>
+		</div>
+	);
 	if (isEmpty) {
 		return (
-			<div className="flex h-60 items-center justify-center rounded-md border border-border/40 text-body text-muted-foreground">
-				No sales in range.
+			<div className="grid gap-2">
+				{legend}
+				<div className="flex h-60 items-center justify-center rounded-md border border-border/40 text-body text-muted-foreground">
+					No sales in range.
+				</div>
 			</div>
 		);
 	}
 	return (
 		<div className="grid gap-2">
-			<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-subhead font-medium text-muted-foreground">
-				<span className="flex items-center gap-1.5">
-					<span
-						className="h-0.5 w-3"
-						style={{ backgroundColor: GROSS_COLOR, opacity: 0.6 }}
-					/>
-					Gross
-				</span>
-				<span className="flex items-center gap-1.5">
-					<span
-						className="h-0.5 w-3"
-						style={{ backgroundColor: COLLECTED_COLOR }}
-					/>
-					Collected
-				</span>
-				<span className="flex items-center gap-1.5">
-					<span
-						className="h-0.5 w-3"
-						style={{ backgroundColor: REVENUE_COLOR }}
-					/>
-					Revenue
-				</span>
-			</div>
+			{legend}
 			<ChartContainer
 				className="h-60 min-h-60 min-w-0 w-full aspect-auto"
 				config={LINE_CHART_CONFIG}
@@ -734,49 +745,67 @@ const KpiStrip = ({ data, storeId }: KpiStripProps) => {
 		? formatPreviousRangeLabel(data.previous.from, data.previous.to)
 		: "";
 
-	if (!data) {
-		return (
-			<Card className="border-border/70 py-0">
-				<CardContent className="grid h-30 place-items-center p-4">
-					<p className="text-body text-muted-foreground">Loading totals…</p>
-				</CardContent>
-			</Card>
-		);
-	}
+	// While the totals load, the same seven cells carry their labels and a bar
+	// for each number, so the charts below never move when the numbers land.
+	const labels = data ? cells.map((cell) => cell.label) : TOTAL_LABELS;
 
 	return (
 		<Card className="border-border/70 py-0">
 			<CardContent className="grid gap-0 p-0">
 				<div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
-					<SectionTitle count={`vs ${previousLabel}`} title="Totals" />
+					<SectionTitle
+						count={
+							data ? `vs ${previousLabel}` : <TextSkeleton className="w-32" />
+						}
+						title="Totals"
+					/>
 				</div>
 				<div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7">
-					{cells.map((cell, idx) => (
-						<div
-							className={cn(
-								"grid gap-1 px-4 py-4",
-								idx > 0 && "xl:border-l xl:border-border/40",
-							)}
-							key={cell.label}
-						>
-							<p className="text-subhead font-medium text-muted-foreground">
-								{cell.label}
-							</p>
-							<p className="break-all text-headline font-semibold tabular-nums">
-								{cell.value}
-							</p>
-							<DeltaLine
-								change={cell.change}
-								deltaAs={cell.deltaAs}
-								isLowerBetter={cell.isLowerBetter}
-							/>
-						</div>
-					))}
+					{labels.map((label, idx) => {
+						const cell = data ? cells[idx] : undefined;
+						return (
+							<div
+								className={cn(
+									"grid gap-1 px-4 py-4",
+									idx > 0 && "xl:border-l xl:border-border/40",
+								)}
+								key={label}
+							>
+								<p className="text-subhead font-medium text-muted-foreground">
+									{label}
+								</p>
+								<p className="break-all text-headline font-semibold tabular-nums">
+									{cell ? cell.value : <TextSkeleton />}
+								</p>
+								{cell ? (
+									<DeltaLine
+										change={cell.change}
+										deltaAs={cell.deltaAs}
+										isLowerBetter={cell.isLowerBetter}
+									/>
+								) : (
+									<p className="text-subhead">
+										<TextSkeleton className="w-16" />
+									</p>
+								)}
+							</div>
+						);
+					})}
 				</div>
 			</CardContent>
 		</Card>
 	);
 };
+
+const TOTAL_LABELS = [
+	"Collected",
+	"Revenue",
+	"Margin",
+	"Orders",
+	"AOV",
+	"COGS",
+	"Refund rate",
+];
 
 type StoreCategoryMatrix = FinancialReport["store_category_matrix"];
 type MatrixColumn = StoreCategoryMatrix["columns"][number];

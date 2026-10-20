@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { z } from "zod";
@@ -58,9 +58,10 @@ const ComplaintsPage = () => {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 
-	const complaintsQuery = useQuery(
-		complaintsQueries.list(buildComplaintsListParams(search)),
-	);
+	const complaintsQuery = useQuery({
+		...complaintsQueries.list(buildComplaintsListParams(search)),
+		placeholderData: keepPreviousData,
+	});
 	const complaints = complaintsQuery.data?.items ?? [];
 
 	const handleSearchChange = (next: string) => {
@@ -99,7 +100,7 @@ const ComplaintsPage = () => {
 			{
 				accessorKey: "customer_name",
 				header: "Customer",
-				meta: { kind: "name" },
+				meta: { kind: "name", headerClassName: "w-56" },
 				cell: ({ row }) => (
 					<CustomerLink
 						customerId={row.original.customer_id}
@@ -110,15 +111,18 @@ const ComplaintsPage = () => {
 			{
 				accessorKey: "store_name",
 				header: "Store",
+				meta: { headerClassName: "w-40" },
 			},
 			{
 				id: "outcome",
 				header: "Outcome",
+				meta: { headerClassName: "w-36" },
 				cell: ({ row }) => <ComplaintOutcomeBadge complaint={row.original} />,
 			},
 			{
 				id: "opened",
 				header: () => <div className="text-right">Opened</div>,
+				meta: { headerClassName: "w-32" },
 				cell: ({ row }) => (
 					<div className="whitespace-nowrap text-right text-muted-foreground tabular-nums">
 						{formatListDate(row.original.created_at)}
@@ -148,6 +152,8 @@ const ComplaintsPage = () => {
 						params: { complaintId: String(complaint.id) },
 					})}
 					isLoading={complaintsQuery.isPending}
+					isStale={complaintsQuery.isPlaceholderData}
+					filterKey={JSON.stringify(search)}
 					renderCard={(complaint) => (
 						<OrderListRow
 							className="rounded-none border-0 px-4"
@@ -186,10 +192,17 @@ const ComplaintsPage = () => {
 export const Route = createFileRoute("/_admin/complaints/")({
 	validateSearch: (search) => complaintsSearchSchema.parse(search),
 	loaderDeps: ({ search }) => search,
-	loader: async ({ context, deps }) => {
+	loader: async ({ context, deps, cause }) => {
+		// Typing a search or paging keeps the page up and swaps the rows in place.
+		if (cause === "stay") {
+			return;
+		}
 		await context.queryClient.ensureQueryData(
 			complaintsQueries.list(buildComplaintsListParams(deps)),
 		);
 	},
 	component: ComplaintsPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: ComplaintsPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });

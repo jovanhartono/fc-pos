@@ -155,14 +155,18 @@ export const TransactionsCheckout = () => {
 						Reset
 					</Button>
 				</div>
-				{lockedStepHint ? (
-					<p
-						className="text-muted-foreground text-footnote"
-						id={LOCKED_STEP_HINT_ID}
-					>
-						{lockedStepHint}
-					</p>
-				) : null}
+				{/* Kept as a blank line once every step opens, so filling in the
+				    Customer doesn't pull the step's form up under the cashier's tap.
+				    Two lines on a phone, where the longest hint wraps. */}
+				<p
+					className={cn(
+						"text-muted-foreground text-footnote max-sm:min-h-8",
+						!lockedStepHint && "invisible",
+					)}
+					id={LOCKED_STEP_HINT_ID}
+				>
+					{lockedStepHint || " "}
+				</p>
 			</SheetHeader>
 
 			<div className="min-h-0 flex-1 overflow-y-auto">

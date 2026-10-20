@@ -11,11 +11,19 @@ import type { DataTableFeatures } from "@/components/data-table-features";
 import "@/components/data-table-meta";
 import { EmptyState } from "@/components/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CONTENT_FADE, staleFade } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
+
+// Enough to fill a phone screen, so the list doesn't grow under the thumb when rows land.
+const SKELETON_CARD_COUNT = 8;
 
 interface DataTableCardsProps<TData extends RowData> {
 	table: TanstackTable<DataTableFeatures, TData>;
 	isLoading?: boolean;
+	isStale?: boolean;
+	resultSet?: string;
+	skeletonRowCount?: number;
+	skeletonCardClassName?: string;
 	emptyMessage: string;
 	cardPrimaryColumnId?: string;
 	cardHiddenColumnIds?: string[];
@@ -117,6 +125,10 @@ const bucketCardCells = <TData extends RowData>(
 export const DataTableCards = <TData extends RowData>({
 	table,
 	isLoading,
+	isStale,
+	resultSet,
+	skeletonRowCount = SKELETON_CARD_COUNT,
+	skeletonCardClassName,
 	emptyMessage,
 	cardPrimaryColumnId,
 	cardHiddenColumnIds,
@@ -128,25 +140,40 @@ export const DataTableCards = <TData extends RowData>({
 	if (isLoading) {
 		return (
 			<div
+				aria-hidden
 				className={cn(
 					"grid gap-2 lg:hidden",
 					isGrouped && "gap-0 overflow-hidden rounded-lg border bg-card",
 				)}
 			>
-				{Array.from({ length: 3 }, (_, index) => (
-					<div
-						key={index}
-						className={cn(
-							"relative grid h-32 grid-rows-[auto_1fr_auto] gap-3 overflow-hidden rounded-lg border bg-card p-3",
-							isGrouped && "rounded-none border-0 px-4",
-							isGrouped && GROUPED_ROW_CLASS,
-						)}
-					>
-						<Skeleton className="h-4 w-1/3" />
-						<Skeleton className="h-5 w-2/3" />
-						<Skeleton className="h-4 w-1/2" />
-					</div>
-				))}
+				{Array.from({ length: skeletonRowCount }, (_, index) =>
+					isGrouped ? (
+						// A grouped row is a name over a code line, like an Order row.
+						<div
+							key={index}
+							className={cn(
+								"relative grid content-start gap-0.5 px-4 py-3",
+								GROUPED_ROW_CLASS,
+								skeletonCardClassName,
+							)}
+						>
+							<Skeleton className="my-0.5 h-4 w-2/3" />
+							<Skeleton className="my-0.5 h-3.5 w-1/3" />
+						</div>
+					) : (
+						<div
+							key={index}
+							className={cn(
+								"relative grid h-32 grid-rows-[auto_1fr_auto] gap-3 overflow-hidden rounded-lg border bg-card p-3",
+								skeletonCardClassName,
+							)}
+						>
+							<Skeleton className="h-4 w-1/3" />
+							<Skeleton className="h-5 w-2/3" />
+							<Skeleton className="h-4 w-1/2" />
+						</div>
+					),
+				)}
 			</div>
 		);
 	}
@@ -155,7 +182,12 @@ export const DataTableCards = <TData extends RowData>({
 
 	if (rows.length === 0) {
 		return (
-			<EmptyState className="rounded-lg border bg-card text-body text-foreground lg:hidden">
+			<EmptyState
+				className={cn(
+					"rounded-lg border bg-card text-body text-foreground lg:hidden",
+					CONTENT_FADE,
+				)}
+			>
 				{emptyMessage}
 			</EmptyState>
 		);
@@ -163,7 +195,14 @@ export const DataTableCards = <TData extends RowData>({
 
 	if (renderCard) {
 		return (
-			<ul className="divide-y divide-border overflow-hidden rounded-lg border bg-card lg:hidden">
+			<ul
+				key={resultSet}
+				className={cn(
+					"divide-y divide-border overflow-hidden rounded-lg border bg-card lg:hidden",
+					CONTENT_FADE,
+					staleFade(isStale),
+				)}
+			>
 				{rows.map((row) => (
 					<li key={row.id}>{renderCard(row.original)}</li>
 				))}
@@ -188,9 +227,12 @@ export const DataTableCards = <TData extends RowData>({
 		// grid-cols-1 on each grid here caps it at the screen's width, so a long
 		// description or name truncates instead of pushing Edit off the edge.
 		<div
+			key={resultSet}
 			className={cn(
 				"grid grid-cols-1 gap-2 lg:hidden",
 				isGrouped && "gap-0 overflow-hidden rounded-lg border bg-card",
+				CONTENT_FADE,
+				staleFade(isStale),
 			)}
 		>
 			{rows.map((row) => {

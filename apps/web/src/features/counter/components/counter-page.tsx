@@ -2,6 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { type ReactNode, useCallback } from "react";
 import { PageHeader } from "@/components/page-header";
+import { Section } from "@/components/section";
+import { TextSkeleton } from "@/components/text-skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { counterQueries } from "@/features/counter/api";
 import { DayCloseTab } from "@/features/counter/components/day-close/day-close-tab";
@@ -54,6 +57,36 @@ const CounterTabs = ({ actions }: CounterTabsProps) => (
 	</div>
 );
 
+// A store's Status as it usually opens: two workshop Categories, then the
+// top of the pickup shelf.
+const CounterBodySkeleton = () => (
+	<div aria-hidden className="grid gap-6 text-body">
+		<Section title="Ready estimate">
+			<ul className="overflow-hidden rounded-lg border bg-card">
+				{Array.from({ length: 2 }, (_, index) => (
+					<li
+						className="grid gap-y-0.5 border-border border-t px-3 py-2.5 first:border-t-0"
+						key={index}
+					>
+						<TextSkeleton className="w-28" />
+						<TextSkeleton className="w-36 text-footnote" />
+					</li>
+				))}
+			</ul>
+		</Section>
+		<Section title="Pickup shelf">
+			<ul className="divide-y divide-border overflow-hidden rounded-lg border bg-card">
+				{Array.from({ length: 6 }, (_, index) => (
+					<li className="grid gap-0.5 px-3 py-3" key={index}>
+						<Skeleton className="my-0.5 h-4 w-40" />
+						<Skeleton className="my-0.5 h-3 w-28" />
+					</li>
+				))}
+			</ul>
+		</Section>
+	</div>
+);
+
 interface CounterBodyProps {
 	storeId: number;
 }
@@ -96,7 +129,7 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 	});
 
 	if (isPending) {
-		return <p className="text-muted-foreground text-body">Loading…</p>;
+		return <CounterBodySkeleton />;
 	}
 	if (isError) {
 		return (
@@ -128,7 +161,8 @@ export const CounterPage = ({
 	tab,
 }: CounterPageProps) => {
 	const { data: me } = useQuery(usersQueries.me());
-	const { data: stores = [] } = useQuery(storesQueries.list());
+	const storesQuery = useQuery(storesQueries.list());
+	const stores = storesQuery.data ?? [];
 
 	const isAdmin = me?.role === "admin";
 	const ownStoreIds = me?.userStores.map((item) => item.store_id) ?? [];
@@ -147,7 +181,11 @@ export const CounterPage = ({
 	const day = date && date < today ? date : today;
 	const isSummary = activeTab === "summary" && selectedStoreId !== undefined;
 
-	let panel = <p className="text-muted-foreground">No Store.</p>;
+	let panel = storesQuery.isPending ? (
+		<CounterBodySkeleton />
+	) : (
+		<p className="text-muted-foreground">No Store.</p>
+	);
 	if (selectedStoreId) {
 		panel = isSummary ? (
 			<DayCloseTab

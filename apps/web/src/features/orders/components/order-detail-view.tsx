@@ -1,22 +1,63 @@
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/components/empty-state";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ordersQueries } from "@/features/orders/api";
 import { OrderAttachmentsCard } from "@/features/orders/components/order-attachments-card";
 import { OrderIdentityStrip } from "@/features/orders/components/order-identity-strip";
 import { OrderLineItemsCard } from "@/features/orders/components/order-line-items-card";
 import { OrderPaymentSection } from "@/features/orders/components/order-payment-section";
+import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { useRefreshOrder } from "@/features/orders/hooks/useOrderMutations";
 import { getOrderActionGates } from "@/features/orders/lib/order-action-gates";
 import { usersQueries } from "@/features/users/api";
+import { CONTENT_FADE } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
 
+interface SkeletonSectionProps {
+	cardClassName: string;
+	title: string;
+}
+
+// The real section heading over a card the height a one-Item Order draws.
+const SkeletonSection = ({ cardClassName, title }: SkeletonSectionProps) => (
+	<section className="grid gap-3">
+		<OrderSectionHeader>{title}</OrderSectionHeader>
+		<Card className={cn("gap-3 p-4", cardClassName)}>
+			<Skeleton className="my-0.5 h-4 w-1/2" />
+			<Skeleton className="my-0.5 h-3.5 w-1/3" />
+		</Card>
+	</section>
+);
+
+// Laid out like a new one-Item Order, so the cards land where their shells
+// were. Sized by the Order's own width: a phone page, the sheet over a list,
+// and the full desktop page each draw it a little differently.
 const OrderDetailSkeleton = () => (
-	<div className="grid gap-4">
-		<Skeleton className="h-28 w-full" />
-		<Skeleton className="h-64 w-full" />
-		<Skeleton className="h-52 w-full" />
-		<Skeleton className="h-64 w-full" />
+	<div aria-hidden className="@container/order">
+		<Card className="mb-4 h-33.5 sm:mb-6 @md/order:h-24 @3xl/order:h-24.5">
+			<CardContent className="grid gap-2">
+				<div className="flex items-center justify-between gap-3">
+					<Skeleton className="h-6 w-44 sm:h-7" />
+					<Skeleton className="h-9 w-20 rounded-sm pointer-coarse:h-11" />
+				</div>
+				<Skeleton className="my-0.5 h-4 w-56" />
+			</CardContent>
+		</Card>
+		<div className="grid gap-3 sm:gap-4">
+			<SkeletonSection
+				cardClassName="h-116 @md/order:h-111.25 @3xl/order:h-113"
+				title="Items"
+			/>
+			<SkeletonSection
+				cardClassName="h-36.75 @md/order:h-34.75 @3xl/order:h-36.75"
+				title="Payment"
+			/>
+			<SkeletonSection
+				cardClassName="h-70 @md/order:h-70.5 @3xl/order:h-74.75"
+				title="Attachments"
+			/>
+		</div>
 	</div>
 );
 
@@ -89,7 +130,7 @@ export const OrderDetailView = ({ orderId }: OrderDetailViewProps) => {
 	const gates = getOrderActionGates(meQuery.data, detail);
 
 	return (
-		<div className="@container/order">
+		<div className={cn("@container/order", CONTENT_FADE)}>
 			<OrderIdentityStrip detail={detail} gates={gates} orderId={orderId} />
 
 			<div className="grid gap-3 sm:gap-4">

@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { FormProvider } from "react-hook-form";
-import { Card, CardContent } from "@/components/ui/card";
 import { campaignsQueries } from "@/features/campaigns/api";
 import { categoriesQueries } from "@/features/categories/api";
 import { paymentMethodsQueries } from "@/features/payment-methods/api";
 import { productsQueries } from "@/features/products/api";
 import { servicesQueries } from "@/features/services/api";
 import { storesQueries } from "@/features/stores/api";
+import { PosSkeleton } from "@/features/transactions/components/pos-skeleton";
 import { TransactionsWorkspace } from "@/features/transactions/components/transactions-workspace";
 import { useTransactionsPageBootstrap } from "@/features/transactions/hooks/use-transactions-page";
 import { TransactionsPageProvider } from "@/features/transactions/lib/transactions-context";
@@ -37,21 +37,16 @@ export const Route = createFileRoute("/_admin/transactions")({
 		}
 	},
 	component: TransactionsPage,
+	// Past a second, the POS's outline instead of the generic placeholder.
+	pendingComponent: PosSkeleton,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function TransactionsPage() {
 	const { form, isBootstrapping, pageContext } = useTransactionsPageBootstrap();
 
 	if (isBootstrapping) {
-		return (
-			<div className="grid gap-4">
-				<Card>
-					<CardContent className="py-8 text-body text-muted-foreground">
-						Loading POS workspace...
-					</CardContent>
-				</Card>
-			</div>
-		);
+		return <PosSkeleton />;
 	}
 
 	return (

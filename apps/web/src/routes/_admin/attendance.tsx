@@ -12,7 +12,9 @@ import {
 	shiftsQueries,
 } from "@/features/shifts/api";
 import {
+	CLOCK_STATUS_SLOT,
 	ClockInControl,
+	ClockSkeleton,
 	PRIMARY_BUTTON,
 } from "@/features/shifts/components/clock-in-control";
 import { useCurrentShift } from "@/features/shifts/hooks/useCurrentShift";
@@ -35,6 +37,9 @@ export const Route = createFileRoute("/_admin/attendance")({
 	loader: ({ context }) =>
 		context.queryClient.ensureQueryData(storesQueries.list()),
 	component: AttendancePage,
+	// Past a second, the page itself draws with its clock skeleton.
+	pendingComponent: AttendancePage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 const formatElapsed = (start: Date, now: Date) => {
@@ -60,6 +65,8 @@ function AttendancePage() {
 	const queryClient = useQueryClient();
 	const { data: currentShift, isPending: currentShiftPending } =
 		useCurrentShift();
+	// Clock in names the nearest branch, so it waits for the branch list too.
+	const storesQuery = useQuery(storesQueries.list());
 	const [now, setNow] = useState(() => new Date());
 
 	const weekRange = useMemo(() => currentWeekRange(), []);
@@ -92,14 +99,11 @@ function AttendancePage() {
 			<PageHeader title="Attendance" />
 			<div className="grid w-full gap-8">
 				<section className="grid gap-3">
-					{currentShiftPending ? (
-						<>
-							<Skeleton className="h-12 w-40" />
-							<Skeleton className="h-16 w-full" />
-						</>
+					{currentShiftPending || storesQuery.isPending ? (
+						<ClockSkeleton />
 					) : currentShift ? (
 						<>
-							<div className="grid gap-0.5">
+							<div className={CLOCK_STATUS_SLOT}>
 								<span className="font-semibold text-large-title tabular-nums">
 									{formatElapsed(new Date(currentShift.clock_in_at), now)}
 								</span>
@@ -132,7 +136,13 @@ function AttendancePage() {
 						{dayjs(weekRange.to).format("DD MMM")}
 					</h2>
 					{shiftsQuery.isPending ? (
-						<p className="text-muted-foreground text-body">Loading…</p>
+						<ul aria-hidden className="divide-y border-y">
+							{Array.from({ length: 3 }, (_, index) => (
+								<li className="py-2.5" key={index}>
+									<Skeleton className="my-0.5 h-4 w-full" />
+								</li>
+							))}
+						</ul>
 					) : weekShifts.length === 0 ? (
 						<p className="text-muted-foreground text-body">No shifts yet.</p>
 					) : (

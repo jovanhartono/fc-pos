@@ -64,10 +64,12 @@ export const CartMiniBar = ({ onOpen }: CartMiniBarProps) => {
 				{/* min-w-0 + shrink: a mixed cart's label ("2 items · 2 treatments ·
 				    1 product") is wider than a phone has room for beside Check out.
 				    Without it this row's minimum width is the sum of both buttons,
-				    and the page grid stretches past the viewport to fit it. */}
+				    and the page grid stretches past the viewport to fit it. A fixed
+				    share of the row, so "1 service" becoming "2 services" never
+				    slides Check out. */}
 				<Button
 					aria-expanded={isPeeking}
-					className="h-14 min-w-0 shrink gap-2 bg-transparent"
+					className="h-14 min-w-0 shrink basis-2/5 justify-start gap-2 bg-transparent"
 					onClick={() => setIsPeeking((open) => !open)}
 					size="lg"
 					type="button"

@@ -29,6 +29,9 @@ export const Route = createFileRoute("/_admin/services")({
 	loader: ({ context }) =>
 		context.queryClient.ensureQueryData(servicesQueries.list()),
 	component: ServicesPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: ServicesPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function ServicesPage() {
@@ -114,7 +117,11 @@ function ServicesPage() {
 			{
 				accessorKey: "code",
 				header: "Code",
-				meta: { kind: "code", mobileCard: { slot: "subtitle" } },
+				meta: {
+					kind: "code",
+					headerClassName: "w-28",
+					mobileCard: { slot: "subtitle" },
+				},
 			},
 			{
 				accessorKey: "name",
@@ -124,19 +131,19 @@ function ServicesPage() {
 			{
 				id: "category",
 				header: "Category",
-				meta: { mobileCard: { slot: "subtitle" } },
+				meta: { headerClassName: "w-36", mobileCard: { slot: "subtitle" } },
 				cell: ({ row }) => row.original.category?.name ?? "-",
 			},
 			{
 				accessorKey: "cogs",
 				header: "COGS",
-				meta: { align: "right" },
+				meta: { align: "right", headerClassName: "w-28" },
 				cell: ({ row }) => formatMoney(String(row.original.cogs)),
 			},
 			{
 				accessorKey: "price",
 				header: "Price",
-				meta: { align: "right" },
+				meta: { align: "right", headerClassName: "w-28" },
 				cell: ({ row }) =>
 					row.original.price === null ? (
 						<span className="text-muted-foreground">No list price</span>
@@ -147,7 +154,7 @@ function ServicesPage() {
 			{
 				id: "priority",
 				header: "Queue",
-				meta: { mobileCard: { slot: "status" } },
+				meta: { headerClassName: "w-24", mobileCard: { slot: "status" } },
 				cell: ({ row }) =>
 					row.original.is_priority ? (
 						<Badge variant="priority">Priority</Badge>
@@ -156,13 +163,13 @@ function ServicesPage() {
 			{
 				id: "status",
 				header: "Status",
-				meta: { mobileCard: { slot: "status" } },
+				meta: { headerClassName: "w-24", mobileCard: { slot: "status" } },
 				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 			},
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { mobileCard: { slot: "title-end" } },
+				meta: { headerClassName: "w-20", mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
 					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),
@@ -190,6 +197,7 @@ function ServicesPage() {
 					columns={columns}
 					data={services}
 					isCardGrouped
+					skeletonCardClassName="h-26"
 					isLoading={isPending}
 					sortable
 					cardPrimaryColumnId="name"

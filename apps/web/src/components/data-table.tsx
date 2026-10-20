@@ -20,6 +20,17 @@ interface DataTableProps<TData extends RowData> {
 	columns: DataTableColumnDef<TData>[];
 	data: TData[];
 	isLoading?: boolean;
+	// The rows on screen belong to the last filter or page; the new ones are on their way.
+	isStale?: boolean;
+	// The filter and page the rows answer; a new one draws new rows.
+	filterKey?: string;
+	// How many placeholder rows to draw, when the rows coming are known.
+	skeletonRowCount?: number;
+	// The height of a typical phone card, so the placeholders are the cards' size.
+	skeletonCardClassName?: string;
+	// Desktop placeholder rows are a name over a smaller line, unless every row
+	// is one line, or two wrapped lines of the table's own text.
+	skeletonLines?: 1 | 2 | "wrapped";
 	emptyMessage?: string;
 	sortable?: boolean;
 	cardPrimaryColumnId?: string;
@@ -38,15 +49,15 @@ interface DataTableProps<TData extends RowData> {
 
 // A code is read character by character, a name is what the eye looks for
 // first. Wrapped once here, so the table and the phone card both get it.
-// The lg: limits stop one long name or description widening the whole table.
+// On the table a long name or description wraps inside its column's fixed
+// width and stops at two lines, so one long value never makes its row taller.
 // Exported for cells that stack a name over a second line, where kind would bold both.
-export const WRAP_NAME_CLASS =
-	"lg:max-w-64 lg:whitespace-normal lg:wrap-break-word";
+export const WRAP_NAME_CLASS = "lg:wrap-break-word";
 
 const KIND_CLASS = {
 	code: "tabular-nums",
-	name: `font-medium lg:inline-block lg:min-w-40 ${WRAP_NAME_CLASS}`,
-	text: "lg:block lg:max-w-72 lg:truncate",
+	name: `font-medium lg:line-clamp-2 ${WRAP_NAME_CLASS}`,
+	text: "lg:line-clamp-2",
 } as const;
 
 const withKindStyles = <TData extends RowData>(
@@ -80,6 +91,11 @@ export const DataTable = <TData extends RowData>({
 	columns,
 	data,
 	isLoading,
+	isStale,
+	filterKey,
+	skeletonRowCount,
+	skeletonCardClassName,
+	skeletonLines,
 	emptyMessage = "Nothing here.",
 	sortable = false,
 	cardPrimaryColumnId,
@@ -91,6 +107,13 @@ export const DataTable = <TData extends RowData>({
 	footer,
 }: DataTableProps<TData>) => {
 	const [sorting, setSorting] = useState<SortingState>([]);
+	// When a cashier's new filter lands, its rows are drawn fresh rather than the
+	// last filter's rows moved to new places, which the browser counts as the page
+	// jumping. The faded rows still answer the last filter; a refresh keeps its rows.
+	const [resultSet, setResultSet] = useState(filterKey);
+	if (!isStale && resultSet !== filterKey) {
+		setResultSet(filterKey);
+	}
 	// Sidebar stays expanded until lg, leaving too little width for a real
 	// table at tablet — render the card layout up to lg instead of md.
 	const isCardView = useIsMobile(1024);
@@ -102,6 +125,12 @@ export const DataTable = <TData extends RowData>({
 		features: dataTableFeatures,
 		data,
 		columns: styledColumns,
+		// Rows keyed by their record, so a filter that drops one campaign doesn't
+		// pour the next campaign into its card and resize it.
+		getRowId: (row, index) =>
+			typeof row === "object" && row !== null && "id" in row
+				? String(row.id)
+				: String(index),
 		state: sortable ? { sorting } : undefined,
 		onSortingChange: sortable ? setSorting : undefined,
 	});
@@ -109,17 +138,25 @@ export const DataTable = <TData extends RowData>({
 	if (isCardView) {
 		return (
 			<>
-				<DataTableCards
-					table={table}
-					isLoading={isLoading}
-					emptyMessage={emptyMessage}
-					cardPrimaryColumnId={cardPrimaryColumnId}
-					cardHiddenColumnIds={cardHiddenColumnIds}
-					getCardLink={getRowLink}
-					isGrouped={isCardGrouped || renderCard !== undefined}
-					renderCard={renderCard}
-					isRowActive={isRowActive}
-				/>
+				{/* Grows to the foot of the list, so the pager rests at the bottom of
+				    the screen however few cards a filter returns. */}
+				<div className="flex-1">
+					<DataTableCards
+						table={table}
+						isLoading={isLoading}
+						isStale={isStale}
+						resultSet={resultSet}
+						skeletonRowCount={skeletonRowCount}
+						skeletonCardClassName={skeletonCardClassName}
+						emptyMessage={emptyMessage}
+						cardPrimaryColumnId={cardPrimaryColumnId}
+						cardHiddenColumnIds={cardHiddenColumnIds}
+						getCardLink={getRowLink}
+						isGrouped={isCardGrouped || renderCard !== undefined}
+						renderCard={renderCard}
+						isRowActive={isRowActive}
+					/>
+				</div>
 				{footer ? (
 					// Pinned like the queue's Hold to Start Work bar.
 					<div
@@ -137,6 +174,10 @@ export const DataTable = <TData extends RowData>({
 		<DataTableGrid
 			table={table}
 			isLoading={isLoading}
+			isStale={isStale}
+			resultSet={resultSet}
+			skeletonRowCount={skeletonRowCount}
+			skeletonLines={skeletonLines}
 			emptyMessage={emptyMessage}
 			sortable={sortable}
 			getRowLink={getRowLink}

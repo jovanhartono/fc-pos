@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
@@ -15,6 +15,7 @@ import {
 	percentFormatter,
 } from "@/features/reports/utils/format";
 import { topFourColor } from "@/features/reports/utils/palette";
+import { staleFade } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
@@ -31,9 +32,10 @@ export const PaymentsPanel = ({
 	storeId,
 	granularity,
 }: PaymentsPanelProps) => {
-	const query = useQuery(
-		reportsQueries.paymentMix({ from, to, store_id: storeId, granularity }),
-	);
+	const query = useQuery({
+		...reportsQueries.paymentMix({ from, to, store_id: storeId, granularity }),
+		placeholderData: keepPreviousData,
+	});
 	const data = query.data;
 
 	// Methods arrive biggest first, in the same order as the Mix share list, so
@@ -71,9 +73,9 @@ export const PaymentsPanel = ({
 	};
 
 	return (
-		<div className="grid gap-6">
+		<div className={cn("grid gap-6", staleFade(query.isPlaceholderData))}>
 			<ExportButton disabled={!data} onClick={handleExport} />
-			<KpiRow>
+			<KpiRow isPending={!data}>
 				<KpiCard
 					label="Collected"
 					value={formatMoney(String(data?.summary.grand_total ?? 0))}

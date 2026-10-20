@@ -16,6 +16,7 @@ import { useCheckoutPricing } from "@/features/transactions/hooks/useCheckoutPri
 import { getCheckoutGates } from "@/features/transactions/lib/checkout-gates";
 import type { CheckoutStep } from "@/features/transactions/lib/checkout-steps";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
@@ -94,11 +95,17 @@ export const CheckoutFooter = ({
 					step={step}
 				/>
 			</div>
-			{itemsHint ? (
-				<p className="text-muted-foreground text-footnote" id={ITEMS_HINT_ID}>
-					{itemsHint}
-				</p>
-			) : null}
+			{/* Always one line tall, blank when there is nothing to say, so moving
+			    between steps or taking the photo never shifts the Total and buttons. */}
+			<p
+				className={cn(
+					"text-muted-foreground text-footnote",
+					!itemsHint && "invisible",
+				)}
+				id={ITEMS_HINT_ID}
+			>
+				{itemsHint || " "}
+			</p>
 		</SheetFooter>
 	);
 };

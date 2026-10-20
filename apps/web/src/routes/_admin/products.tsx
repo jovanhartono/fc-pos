@@ -29,6 +29,9 @@ export const Route = createFileRoute("/_admin/products")({
 	loader: ({ context }) =>
 		context.queryClient.ensureQueryData(productsQueries.list()),
 	component: ProductsPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: ProductsPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function ProductsPage() {
@@ -113,7 +116,11 @@ function ProductsPage() {
 			{
 				accessorKey: "sku",
 				header: "SKU",
-				meta: { kind: "code", mobileCard: { slot: "subtitle" } },
+				meta: {
+					kind: "code",
+					headerClassName: "w-28",
+					mobileCard: { slot: "subtitle" },
+				},
 			},
 			{
 				accessorKey: "name",
@@ -123,37 +130,41 @@ function ProductsPage() {
 			{
 				id: "category",
 				header: "Category",
-				meta: { mobileCard: { slot: "subtitle" } },
+				meta: { headerClassName: "w-36", mobileCard: { slot: "subtitle" } },
 				cell: ({ row }) => row.original.category?.name ?? "-",
 			},
 			{
 				accessorKey: "cogs",
 				header: "COGS",
-				meta: { align: "right" },
+				meta: { align: "right", headerClassName: "w-28" },
 				cell: ({ row }) => formatMoney(String(row.original.cogs)),
 			},
 			{
 				accessorKey: "price",
 				header: "Price",
-				meta: { align: "right" },
+				meta: { align: "right", headerClassName: "w-28" },
 				cell: ({ row }) => <MoneyValue value={row.original.price} />,
 			},
 			{
 				accessorKey: "stock",
 				header: "Stock",
-				meta: { align: "right", mobileCard: { slot: "badges" } },
+				meta: {
+					align: "right",
+					headerClassName: "w-24",
+					mobileCard: { slot: "badges" },
+				},
 				cell: ({ row }) => <ProductStock stock={row.original.stock} />,
 			},
 			{
 				id: "status",
 				header: "Status",
-				meta: { mobileCard: { slot: "status" } },
+				meta: { headerClassName: "w-24", mobileCard: { slot: "status" } },
 				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 			},
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { mobileCard: { slot: "title-end" } },
+				meta: { headerClassName: "w-20", mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
 					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),
@@ -181,6 +192,7 @@ function ProductsPage() {
 					columns={columns}
 					data={products}
 					isCardGrouped
+					skeletonCardClassName="h-33"
 					isLoading={isPending}
 					sortable
 					cardPrimaryColumnId="name"

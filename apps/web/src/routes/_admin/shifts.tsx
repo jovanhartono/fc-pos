@@ -4,7 +4,7 @@ import {
 	SignInIcon,
 	SignOutIcon,
 } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import dayjs from "dayjs";
 import { useCallback, useMemo } from "react";
@@ -46,14 +46,22 @@ const buildShiftsQuery = (search: z.infer<typeof shiftsSearchSchema>) => ({
 export const Route = createFileRoute("/_admin/shifts")({
 	validateSearch: (search) => shiftsSearchSchema.parse(search),
 	loaderDeps: ({ search }) => search,
-	loader: ({ context, deps }) =>
-		Promise.all([
+	loader: async ({ context, deps, cause }) => {
+		// Paging or a new store or range keeps the page up and swaps the rows.
+		if (cause === "stay") {
+			return;
+		}
+		await Promise.all([
 			context.queryClient.ensureQueryData(
 				shiftsQueries.list(buildShiftsQuery(deps)),
 			),
 			context.queryClient.ensureQueryData(storesQueries.list()),
-		]),
+		]);
+	},
 	component: ShiftsPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: ShiftsPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 const formatDuration = (clockIn: Date | string, clockOut: Date | string) => {
@@ -118,7 +126,10 @@ const ShiftDuration = ({ shift }: ShiftDurationProps) => (
 function ShiftsPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
-	const shiftsQuery = useQuery(shiftsQueries.list(buildShiftsQuery(search)));
+	const shiftsQuery = useQuery({
+		...shiftsQueries.list(buildShiftsQuery(search)),
+		placeholderData: keepPreviousData,
+	});
 	const shifts = shiftsQuery.data?.items ?? [];
 	const openDialog = useDialog((s) => s.openDialog);
 	const closeDialog = useDialog((s) => s.closeDialog);
@@ -164,7 +175,7 @@ function ShiftsPage() {
 			{
 				id: "store",
 				header: "Store",
-				meta: { mobileCard: { slot: "hidden" } },
+				meta: { headerClassName: "w-24", mobileCard: { slot: "hidden" } },
 				cell: ({ row }) => (
 					<span className="text-subhead">
 						{row.original.store?.code ?? "-"}
@@ -175,6 +186,7 @@ function ShiftsPage() {
 				id: "clock_in",
 				header: "Clock in",
 				meta: {
+					headerClassName: "w-40",
 					mobileCard: {
 						label: <ClockLabel icon={SignInIcon} text="Clock in" />,
 						valueClassName: "font-normal",
@@ -190,6 +202,7 @@ function ShiftsPage() {
 				id: "clock_out",
 				header: "Clock out",
 				meta: {
+					headerClassName: "w-40",
 					mobileCard: {
 						label: <ClockLabel icon={SignOutIcon} text="Clock out" />,
 						valueClassName: "font-normal",
@@ -210,6 +223,7 @@ function ShiftsPage() {
 				header: "Duration",
 				// pt-1 matches the card title, which drops 4px to line up with Edit buttons.
 				meta: {
+					headerClassName: "w-36",
 					mobileCard: { slot: "title-end", className: "pt-1 text-right" },
 				},
 				cell: ({ row }) => <ShiftDuration shift={row.original} />,
@@ -217,7 +231,7 @@ function ShiftsPage() {
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { mobileCard: { slot: "title-end" } },
+				meta: { headerClassName: "w-24", mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
 					<EditRowButton onClick={() => handleEdit(row.original)} />
 				),
@@ -276,6 +290,9 @@ function ShiftsPage() {
 					columns={columns}
 					data={shifts}
 					isLoading={shiftsQuery.isPending}
+					isStale={shiftsQuery.isPlaceholderData}
+					filterKey={JSON.stringify(search)}
+					skeletonCardClassName="h-22.5"
 					footer={
 						<TablePagination
 							meta={shiftsQuery.data?.meta}

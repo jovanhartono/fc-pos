@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ReportOverview, reportsQueries } from "@/features/reports/api";
@@ -12,6 +12,8 @@ import {
 	ORDERS_IN_COLOR,
 	ORDERS_OUT_COLOR,
 } from "@/features/reports/utils/palette";
+import { staleFade } from "@/lib/content-fade";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
 type TrendKey = "revenue" | "services_processed" | "orders_in" | "orders_out";
@@ -147,9 +149,10 @@ const BranchBreakdown = ({
 };
 
 export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
-	const overviewQuery = useQuery(
-		reportsQueries.overview({ date, store_id: storeId, trend_days: 14 }),
-	);
+	const overviewQuery = useQuery({
+		...reportsQueries.overview({ date, store_id: storeId, trend_days: 14 }),
+		placeholderData: keepPreviousData,
+	});
 	const overview = overviewQuery.data;
 
 	// Each KPI reads its last day against the one before, and shows the past
@@ -209,14 +212,16 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 	}));
 
 	return (
-		<div className="grid gap-6">
+		<div
+			className={cn("grid gap-6", staleFade(overviewQuery.isPlaceholderData))}
+		>
 			<div className="flex items-end justify-between gap-3">
 				<p className="text-subhead font-medium text-muted-foreground">
 					{`Snapshot · ${dayjs(date).format("MMM D, YYYY")}`}
 				</p>
 			</div>
 
-			<KpiRow>
+			<KpiRow isPending={!overview}>
 				{kpis.map((kpi) => (
 					<KpiCard
 						key={kpi.key}

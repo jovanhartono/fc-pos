@@ -8,6 +8,8 @@ import { MethodsSection } from "@/features/counter/components/day-close/methods-
 import { RefundsSection } from "@/features/counter/components/day-close/refunds-section";
 import { SalesReportSection } from "@/features/counter/components/day-close/sales-report-section";
 import { formatDayLabel } from "@/features/counter/lib/day-close";
+import { CONTENT_FADE, staleFade } from "@/lib/content-fade";
+import { cn } from "@/lib/utils";
 import { useSheet } from "@/stores/sheet-store";
 
 interface DayCloseTabProps {
@@ -19,7 +21,9 @@ interface DayCloseTabProps {
 // While another day loads, the last one stays on screen; only the date
 // button's icon spins.
 export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
-	const { data, isError } = useQuery(counterQueries.dayClose(storeId, day));
+	const { data, isError, isPlaceholderData } = useQuery(
+		counterQueries.dayClose(storeId, day),
+	);
 	const { list } = useSearch({ from: "/_admin/counter" });
 	const navigate = useNavigate({ from: "/counter" });
 
@@ -58,8 +62,17 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 
 	const dayLabel = formatDayLabel(data.date, today);
 
+	// Each day is drawn fresh and fades in over the last one, faded while it
+	// loads, instead of the last day's sections stretching into the new day's.
 	return (
-		<div className="grid gap-5 text-body">
+		<div
+			className={cn(
+				"grid gap-5 text-body",
+				CONTENT_FADE,
+				staleFade(isPlaceholderData),
+			)}
+			key={data.date}
+		>
 			{isError ? (
 				<p className="text-destructive">Could not refresh the day close.</p>
 			) : null}
