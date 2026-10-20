@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layout Shift Audit</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#f5f5f7; --card:#fff; --fg:#1d1d1f; --muted:#6e6e73; --border:#e5e5ea; --primary:#0071e3; --soft:#f2f2f7;
+          --red:#d70015; --red-bg:#fdecea; --orange:#b25000; --orange-bg:#fff4e5; --green:#1a7f37; --green-bg:#e8f8ec; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#000; --card:#1c1c1e; --fg:#f5f5f7; --muted:#98989d; --border:#38383a; --soft:#2c2c2e;
+    --red:#ff6961; --red-bg:#3a1414; --orange:#ffb340; --orange-bg:#3a2a10; --green:#30d158; --green-bg:#0f2e18; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/20px Inter, system-ui, sans-serif; letter-spacing:-0.006em; }
+  main { max-width:1040px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:34px; line-height:41px; font-weight:700; letter-spacing:-0.021em; margin:0 0 6px; }
+  h2 { font-size:20px; line-height:25px; font-weight:600; letter-spacing:-0.021em; margin:40px 0 4px; }
+  h3 { font-size:15px; line-height:20px; font-weight:600; margin:0; }
+  .lead { color:var(--muted); font-size:15px; line-height:22px; margin:0; max-width:720px; }
+  .meta { color:var(--muted); font-size:12px; margin-top:10px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; }
+  .kpis { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; margin-top:24px; }
+  .kpi .v { font-size:26px; line-height:32px; font-weight:700; letter-spacing:-0.021em; font-variant-numeric:tabular-nums; }
+  .kpi .l { color:var(--muted); font-size:13px; }
+  .note { margin-top:16px; background:var(--orange-bg); border-radius:12px; padding:12px 14px; font-size:13px; line-height:19px; }
+  .note b { font-weight:600; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 12px; }
+  .top { display:grid; gap:8px; }
+  .top .row { display:grid; grid-template-columns:64px minmax(0,1fr) auto; gap:12px; align-items:center; }
+  .score { font-variant-numeric:tabular-nums; font-weight:600; font-size:13px; padding:2px 8px; border-radius:999px; justify-self:end; white-space:nowrap; }
+  .s-bad { background:var(--red-bg); color:var(--red); }
+  .s-mid { background:var(--orange-bg); color:var(--orange); }
+  .s-low { background:var(--soft); color:var(--muted); }
+  .s-zero { background:var(--soft); color:var(--muted); }
+  .id { font-weight:600; font-variant-numeric:tabular-nums; color:var(--muted); font-size:13px; }
+  .group { margin-top:12px; }
+  .group-head { display:flex; justify-content:space-between; gap:12px; align-items:baseline; }
+  .group-head .why { color:var(--muted); font-size:13px; margin:4px 0 0; max-width:760px; }
+  .fix { margin:10px 0 0; padding:10px 12px; background:var(--soft); border-radius:10px; font-size:13px; line-height:19px; }
+  .fix b { font-weight:600; }
+  table { width:100%; border-collapse:collapse; margin-top:12px; table-layout:fixed; }
+  th, td { text-align:left; vertical-align:top; padding:8px 8px; border-top:1px solid var(--border); font-size:13px; line-height:18px; }
+  th { color:var(--muted); font-weight:500; border-top:0; }
+  td.n { white-space:nowrap; }
+  col.c-id { width:52px; } col.c-where { width:22%; } col.c-score { width:96px; }
+  .where { font-weight:500; }
+  .when { color:var(--muted); display:block; margin-top:2px; }
+  .file { color:var(--muted); font-size:12px; display:block; margin-top:4px; word-break:break-word; }
+  .clean { columns:2; column-gap:24px; margin:8px 0 0; padding-left:18px; font-size:13px; line-height:20px; }
+  .status { display:inline-block; font-size:12px; font-weight:500; padding:2px 8px; border-radius:999px; background:var(--soft); color:var(--muted); }
+  @media (width < 760px) {
+    h1 { font-size:26px; line-height:32px; }
+    .kpis { grid-template-columns:repeat(2, minmax(0,1fr)); }
+    .clean { columns:1; }
+    table, thead, tbody, tr, td { display:block; width:100%; }
+    colgroup, thead { display:none; }
+    tr { border-top:1px solid var(--border); padding:10px 0; }
+    td { border:0; padding:2px 0; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Layout shift audit</h1>
+  <p class="lead">Every place where content jumps, blinks or slides after it has appeared, across all pages, at 1280 and 390 wide, with fast and slow loads. Measured on 2026-10-20 on the dev app before any fix.</p>
+  <p class="meta">Three measuring agents · Chrome's layout-shift recorder plus before/after positions of every element · slow loads made by holding each API reply 1–2.5s</p>
+
+  <div class="kpis">
+    <div class="card kpi"><div class="v">47</div><div class="l">findings</div></div>
+    <div class="card kpi"><div class="v">0.548</div><div class="l">worst score (Counter Summary, phone)</div></div>
+    <div class="card kpi"><div class="v">5</div><div class="l">above Google's 0.1 "poor" line</div></div>
+    <div class="card kpi"><div class="v">15</div><div class="l">score 0 but still blink</div></div>
+  </div>
+
+  <div class="note"><b>The score misses the worst blinks.</b> Chrome only counts elements that <i>move</i>. When a whole page is swapped for a grey placeholder and back, nothing moves, so it scores 0, yet that is the most visible flash in the app. Those findings are listed with a score of 0 and a description of what you see.</div>
+
+  <h2>Worst five by score</h2>
+  <p class="sub">0.1 and above is "poor" by Google's measure. Zero is the goal.</p>
+  <div class="card top">
+    <div class="row"><span class="id">W1</span><span><b>Counter Summary, changing the day</b> — every section below the totals jumps up or down when the new day's rows arrive (phone)</span><span class="score s-bad">0.548</span></div>
+    <div class="row"><span class="id">W2</span><span><b>Same, on desktop</b></span><span class="score s-bad">0.338</span></div>
+    <div class="row"><span class="id">O6</span><span><b>Orders, empty result and back</b> — Cancelled (0) hides the column names; going back to All throws the pager 500px down</span><span class="score s-bad">0.228</span></div>
+    <div class="row"><span class="id">R1</span><span><b>Reports, Overview ↔ Financial</b> — Financial's description wraps to two lines on a phone, so everything below drops 20px</span><span class="score s-bad">0.127</span></div>
+    <div class="row"><span class="id">R2</span><span><b>Reports Quality, "Show all" QC rejects</b> — 45 rows land seconds after the click and push the pager off screen</span><span class="score s-bad">0.120</span></div>
+  </div>
+
+  <h2>By cause</h2>
+  <p class="sub">Most findings share a handful of causes. Fixing a cause fixes every finding under it.</p>
+
+  <!-- 1 -->
+  <section class="card group">
+    <div class="group-head"><h3>1. Slow loads swap the whole page for a grey placeholder</h3><span class="status">biggest blink</span></div>
+    <p class="why">On list pages, every filter, search, chip or page change re-runs the route's loader and waits for it. After one second the router replaces the entire page — title, filters, the search box you're typing in, the table — with the same three grey blocks, then swaps the page back. On prod's slower database this happens often.</p>
+    <table><colgroup><col class="c-id"><col class="c-where"><col><col class="c-score"></colgroup>
+      <thead><tr><th>ID</th><th>Where</th><th>What you see</th><th>Score</th></tr></thead>
+      <tbody>
+        <tr><td class="id">O1</td><td><span class="where">Orders, Complaints, Customers, Customer and Complaint pages, Order page</span><span class="when">any filter / search / chip / page change, or opening one</span></td><td>Page → grey blocks → page. Customers search box loses focus mid-typing.<span class="file">main.tsx:76, route-pending.tsx, loaders in orders.index / complaints.index / customers.index / customers.$customerId / complaints.$complaintId / orders.$orderId</span></td><td class="n"><span class="score s-zero">0</span></td></tr>
+        <tr><td class="id">O7</td><td><span class="where">Orders as a cashier or worker</span><span class="when">first visit</span></td><td>Two different placeholders in a row (3 tall cards, then grey blocks) before the list, because the Store is added to the URL after the first paint.<span class="file">orders.index.tsx:120-135, :188-207</span></td><td class="n"><span class="score s-low">0.003</span></td></tr>
+        <tr><td class="id">O9</td><td><span class="where">Order, Customer and Complaint pages</span><span class="when">opening one</span></td><td>The grey blocks have a title bar the Order page doesn't have, and match none of these layouts.<span class="file">route-pending.tsx</span></td><td class="n"><span class="score s-zero">0</span></td></tr>
+        <tr><td class="id">W10</td><td><span class="where">Shifts</span><span class="when">next page, Store or date filter</span></td><td>Whole page → grey blocks → page.<span class="file">shifts.tsx:48-55</span></td><td class="n"><span class="score s-zero">0</span></td></tr>
+        <tr><td class="id">V2</td><td><span class="where">Reports, every tab</span><span class="when">tab switch or filter change</span></td><td>About 1,950px of content replaced by a 436px placeholder, then back.<span class="file">reports.tsx:357-384</span></td><td class="n"><span class="score s-zero">0</span></td></tr>
+        <tr><td class="id">V3</td><td><span class="where">Services, Products, Categories, Payment methods, Campaigns, Users, Stores</span><span class="when">opening from the sidebar</span></td><td>Grey blocks with no Add button or count, and an extra 112px box where the table starts.<span class="file">route-pending.tsx; each route's loader</span></td><td class="n"><span class="score s-zero">0</span></td></tr>
+        <tr><td class="id">V4</td><td><span class="where">Users</span><span class="when">typing in search</span></td><td>Page swaps out and back; the search box loses focus.<span class="file">users.tsx:42-56</span></td><td class="n"><span class="score s-zero">0</span></td></tr>
+      </tbody>
+    </table>
+    <p class="fix"><b>Fix:</b> wait for data only on the first visit. On a filter or page change, keep the page up and the old rows on screen (dimmed) until the new rows arrive, then fade them in. Pages that still need a placeholder on first visit get one shaped like the real page.</p>
+  </section>
+
+  <!-- 2 -->
+  <section class="card group">
+    <div class="group-head"><h3>2. Chip counts vanish and come back</h3><span class="status">the blink you noticed</span></div>
+    <p class="why">When a filter changes, the counts in the status chips disappear for one round trip, so every chip shrinks, then grows back when the numbers land. Every chip to its right slides each time. On first load the counts arrive after the chips, so they widen once.</p>
+    <table><colgroup><col class="c-id"><col class="c-where"><col><col class="c-score"></colgroup>
+      <thead><tr><th>ID</th><th>Where</th><th>What you see</th><th>Score</th></tr></thead>
+      <tbody>
+        <tr><td class="id">O2</td><td><span class="where">Orders</span><span class="when">Store, payment, notice, date or search change</span></td><td>"All 1521 · Created 16…" becomes "All · Created…" for 1–2s; "Completed" slides 90px.<span class="file">orders.index.tsx:235-247, chip-strip.tsx:66-75</span></td><td class="n"><span class="score s-low">0.0034</span></td></tr>
+        <tr><td class="id">O3</td><td><span class="where">Orders</span><span class="when">first load</span></td><td>List paints first; counts land up to 1.5s later and widen every chip.<span class="file">orders.index.tsx:120-135</span></td><td class="n"><span class="score s-mid">0.0109</span></td></tr>
+        <tr><td class="id">O13</td><td><span class="where">Orders, phone filters</span><span class="when">picking a filter</span></td><td>The Filters button gains a "1" and gets wider, squeezing the search box; chips blink as in O2.<span class="file">order-filters.tsx:174-188</span></td><td class="n"><span class="score s-mid">0.0198</span></td></tr>
+        <tr><td class="id">W3</td><td><span class="where">Queue</span><span class="when">Category filter change</span></td><td>Chips lose counts and slide 15–24px; "23 items" → "0 items" → "21 items".<span class="file">queue.index.tsx:252, chip-strip.tsx:66</span></td><td class="n"><span class="score s-low">0.0009</span></td></tr>
+        <tr><td class="id">W4</td><td><span class="where">Queue</span><span class="when">first load</span></td><td>Counts arrive after the chips; the items badge and Filters button change width.<span class="file">queue.index.tsx:160-174, :439-440, :501</span></td><td class="n"><span class="score s-low">0.0028</span></td></tr>
+        <tr><td class="id">W5</td><td><span class="where">Queue</span><span class="when">status chip change</span></td><td>The list turns into 6 short grey bars for about 2s; the badge reads "0 items" meanwhile.<span class="file">queue.index.tsx:247, :609-618</span></td><td class="n"><span class="score s-zero">≈0</span></td></tr>
+        <tr><td class="id">R9</td><td><span class="where">Categories</span><span class="when">opening</span></td><td>The count after the title nudges 1px.<span class="file">page-header.tsx:30-36</span></td><td class="n"><span class="score s-low">0.0002</span></td></tr>
+      </tbody>
+    </table>
+    <p class="fix"><b>Fix:</b> keep the old numbers until the new ones land, load the counts together with the list, and give each count a fixed slot so a chip is the same width with 0, 16 or 1265 in it.</p>
+  </section>
+
+  <!-- 3 -->
+  <section class="card group">
+    <div class="group-head"><h3>3. Tables resize their columns and move the pager</h3></div>
+    <p class="why">Each column's width is worked out from the rows on screen, so every new page or filter re-sizes the columns and everything slides sideways. An empty result also hides the column names and pulls the pager up; a full list then throws it back down.</p>
+    <table><colgroup><col class="c-id"><col class="c-where"><col><col class="c-score"></colgroup>
+      <thead><tr><th>ID</th><th>Where</th><th>What you see</th><th>Score</th></tr></thead>
+      <tbody>
+        <tr><td class="id">O6</td><td><span class="where">Orders (every table)</span><span class="when">empty result, then back</span></td><td>Column names vanish on Cancelled (0); back to All, the pager jumps from 317px to 838px.<span class="file">data-table-grid.tsx:131-137, :254-256</span></td><td class="n"><span class="score s-bad">0.228</span></td></tr>
+        <tr><td class="id">O5</td><td><span class="where">Orders, Customers, Complaints, Customer page</span><span class="when">page, chip or filter change</span></td><td>Customer column 212 → 235px wide; status column moves 30px.<span class="file">data-table-grid.tsx:135-252</span></td><td class="n"><span class="score s-mid">0.0258</span></td></tr>
+        <tr><td class="id">R8</td><td><span class="where">Campaigns</span><span class="when">All / Active / Expired / Archived</span></td><td>Columns re-size; Expired (empty) lifts the message 36px; phone cards change height.<span class="file">data-table-grid.tsx:135-137</span></td><td class="n"><span class="score s-mid">0.0091</span></td></tr>
+        <tr><td class="id">R2</td><td><span class="where">Reports · Quality</span><span class="when">"Show all" QC rejects</span></td><td>45 rows land 1–5s after the click and push the pager off screen.<span class="file">quality-panel.tsx:327-371</span></td><td class="n"><span class="score s-bad">0.120</span></td></tr>
+        <tr><td class="id">R3</td><td><span class="where">Reports · Quality</span><span class="when">"Show all" click</span></td><td>The section heading row shrinks 8px when its button goes away.<span class="file">section.tsx:45</span></td><td class="n"><span class="score s-mid">0.0138</span></td></tr>
+        <tr><td class="id">V1</td><td><span class="where">Reports · Aging Queue</span><span class="when">next or previous page</span></td><td>A 50-row list (8,160px on a phone) collapses to 6 grey bars with no pager, then the next page; the page scrolls back to the top.<span class="file">aging-queue-panel.tsx:83-100</span></td><td class="n"><span class="score s-zero">0</span></td></tr>
+      </tbody>
+    </table>
+    <p class="fix"><b>Fix (agreed):</b> fixed column widths with one flexible column; text wraps to 2 lines, then ends in "…". Keep the column names and the pager in place for empty results. Loading rows are two lines tall, like real rows.</p>
+  </section>
+
+  <!-- 4 -->
+  <section class="card group">
+    <div class="group-head"><h3>4. Placeholders don't match what replaces them</h3></div>
+    <p class="why">Where a grey placeholder is shown, it has a different shape from the real content, so the content lands in a different spot. Every placeholder in the app was checked; none matched.</p>
+    <table><colgroup><col class="c-id"><col class="c-where"><col><col class="c-score"></colgroup>
+      <thead><tr><th>ID</th><th>Where</th><th>What you see</th><th>Score</th></tr></thead>
+      <tbody>
+        <tr><td class="id">O8</td><td><span class="where">Order sheet</span><span class="when">opening, and every J / K step</span></td><td>Items, Payment and Attachments land 10–124px from their placeholder blocks, on every step.<span class="file">order-detail-view.tsx:14-21</span></td><td class="n"><span class="score s-zero">0</span></td></tr>
+        <tr><td class="id">O10</td><td><span class="where">Ready for pickup sheet</span><span class="when">opening, not yet loaded</span></td><td>Says "No pickups right now." while loading, then a 50-row list appears.<span class="file">pickup-radar.tsx:16-33</span></td><td class="n"><span class="score s-zero">0</span></td></tr>
+        <tr><td class="id">W8</td><td><span class="where">Attendance</span><span class="when">opening</span></td><td>Three different heights in a row (loading, finding you, result) push the week list up 32px, then down 96px.<span class="file">attendance.tsx:95-99, clock-in-control.tsx:75-86</span></td><td class="n"><span class="score s-mid">0.0272</span></td></tr>
+        <tr><td class="id">V5</td><td><span class="where">Reports · Workers, worker sheet</span><span class="when">opening</span></td><td>Tiles, chart and table start lower than their placeholders.<span class="file">worker-sheet.tsx:304-314</span></td><td class="n"><span class="score s-zero">0</span></td></tr>
+        <tr><td class="id">R7</td><td><span class="where">Reports · Overview</span><span class="when">opening (seen once in 6)</span></td><td>KPI cards shrank 18px and grew back; cause not confirmed.<span class="file">kpi-card.tsx:157-182</span></td><td class="n"><span class="score s-mid">0.0481</span></td></tr>
+      </tbody>
+    </table>
+    <p class="fix"><b>Fix (agreed):</b> placeholders drawn from the real layout (same cards, same heights), and the swap to real content is a short fade, Instagram-style: opacity only, never movement, and an instant swap for anyone with "reduce motion" turned on.</p>
+  </section>
+
+  <!-- 5 -->
+  <section class="card group">
+    <div class="group-head"><h3>5. Counter Summary rebuilds in place on a new day</h3><span class="status">highest score</span></div>
+    <p class="why">The previous day stays on screen while the new day loads. When it lands, different row counts push every section below up or down at once.</p>
+    <table><colgroup><col class="c-id"><col class="c-where"><col><col class="c-score"></colgroup>
+      <thead><tr><th>ID</th><th>Where</th><th>What you see</th><th>Score</th></tr></thead>
+      <tbody>
+        <tr><td class="id">W1</td><td><span class="where">Counter · Summary, phone</span><span class="when">previous / next day, date picker</span></td><td>"By payment method" grows 72 → 195px; Refunds and Sales report drop 200px.<span class="file">counter/api.ts:67, day-close-tab.tsx:53-76</span></td><td class="n"><span class="score s-bad">0.548</span></td></tr>
+        <tr><td class="id">W2</td><td><span class="where">Counter · Summary, desktop</span><span class="when">same</span></td><td>Same, plus the big "Rp" total changes width and moves the unpaid bar.<span class="file">same</span></td><td class="n"><span class="score s-bad">0.338</span></td></tr>
+      </tbody>
+    </table>
+    <p class="fix"><b>Fix:</b> fade the old day out and the new day in as a fresh block, not a re-flow; fixed-width totals.</p>
+  </section>
+
+  <!-- 6 -->
+  <section class="card group">
+    <div class="group-head"><h3>6. The text font loads late</h3></div>
+    <p class="why">The page first paints in the system font, then Inter swaps in and text re-wraps. Inter is only requested after the startup spinner, which has no text, so the swap always lands after the content is up.</p>
+    <table><colgroup><col class="c-id"><col class="c-where"><col><col class="c-score"></colgroup>
+      <thead><tr><th>ID</th><th>Where</th><th>What you see</th><th>Score</th></tr></thead>
+      <tbody>
+        <tr><td class="id">W6</td><td><span class="where">Queue job page, phone</span><span class="when">cold open / app launch</span></td><td>The title wraps one more line in Inter; the body drops 33px.<span class="file">index.css:7-15, index.html</span></td><td class="n"><span class="score s-mid">0.0255</span></td></tr>
+        <tr><td class="id">W7</td><td><span class="where">POS</span><span class="when">cold open</span></td><td>Catalog rows move 7px; one tile name wraps to 2 lines and pushes the row below 20px.</td><td class="n"><span class="score s-low">0.0027</span></td></tr>
+        <tr><td class="id">O4</td><td><span class="where">Orders, Order, Complaint, Customer pages</span><span class="when">cold open</span></td><td>Table columns shift 1–4px.</td><td class="n"><span class="score s-low">0.0003</span></td></tr>
+        <tr><td class="id">R6</td><td><span class="where">Reports and catalog pages</span><span class="when">cold open</span></td><td>Reports tabs widen 1–2px and slide up to 10px.</td><td class="n"><span class="score s-low">0.0002</span></td></tr>
+      </tbody>
+    </table>
+    <p class="fix"><b>Fix:</b> ask for the font up front (preload) and make the fallback font the same size as Inter. The hand-written Latin-only font setup stays.</p>
+  </section>
+
+  <!-- 7 -->
+  <section class="card group">
+    <div class="group-head"><h3>7. Controls that change size with their text</h3></div>
+    <p class="why">A button or line whose width or height follows its text moves its neighbours whenever the text changes.</p>
+    <table><colgroup><col class="c-id"><col class="c-where"><col><col class="c-score"></colgroup>
+      <thead><tr><th>ID</th><th>Where</th><th>What you see</th><th>Score</th></tr></thead>
+      <tbody>
+        <tr><td class="id">R1</td><td><span class="where">Reports, phone</span><span class="when">Overview ↔ Financial</span></td><td>Financial's description wraps to 2 lines; everything below drops 20px.<span class="file">reports.tsx:182-192, page-header.tsx</span></td><td class="n"><span class="score s-bad">0.127</span></td></tr>
+        <tr><td class="id">R4</td><td><span class="where">Reports, tabs with Export</span><span class="when">opening or switching tabs</span></td><td>Export appears late and shoves the filter button 44px left.<span class="file">export-button.tsx:16-33, reports.tsx:261</span></td><td class="n"><span class="score s-low">0.0013</span></td></tr>
+        <tr><td class="id">R5</td><td><span class="where">Reports</span><span class="when">Store / range / granularity change</span></td><td>The filter button's label ("Last 7 days · KMG · Week") changes its width.<span class="file">report-filters.tsx:78-101</span></td><td class="n"><span class="score s-low">0.0014</span></td></tr>
+        <tr><td class="id">W11</td><td><span class="where">POS</span><span class="when">adding a second service</span></td><td>"1 service" → "2 services" moves the Check out button 10px.<span class="file">cart-mini-bar.tsx:70-94</span></td><td class="n"><span class="score s-low">0.0003</span></td></tr>
+        <tr><td class="id">W12</td><td><span class="where">POS checkout</span><span class="when">Customer ↔ Items step</span></td><td>A hint line appears and the footer grows 24px.<span class="file">checkout-footer.tsx, checkout-stepper.tsx</span></td><td class="n"><span class="score s-zero">0</span></td></tr>
+        <tr><td class="id">W13</td><td><span class="where">POS checkout</span><span class="when">typing a known customer's phone</span></td><td>Category chips behind the sheet jiggle 1–11px (likely a scrollbar toggling).<span class="file">checkout-customer-step.tsx, chip-strip.tsx</span></td><td class="n"><span class="score s-low">0.0004</span></td></tr>
+      </tbody>
+    </table>
+    <p class="fix"><b>Fix:</b> fixed widths or reserved space for these labels, and a hint line that is always there (empty when not needed).</p>
+  </section>
+
+  <!-- 8 -->
+  <section class="card group">
+    <div class="group-head"><h3>8. Sheet header pops off while closing</h3></div>
+    <p class="why">The sheet clears its contents on a 200ms timer, the same length as its slide-out, so the header (‹ › arrows, "Order N of M") disappears in the last frames while the sheet is still visible.</p>
+    <table><colgroup><col class="c-id"><col class="c-where"><col><col class="c-score"></colgroup>
+      <thead><tr><th>ID</th><th>Where</th><th>What you see</th><th>Score</th></tr></thead>
+      <tbody>
+        <tr><td class="id">O11</td><td><span class="where">Order sheet</span><span class="when">closing (Esc / ×)</span></td><td>The body jumps up 59px mid-slide.<span class="file">sheet-store.ts:125-139, global-sheet.tsx:61-83</span></td><td class="n"><span class="score s-mid">0.0201</span></td></tr>
+        <tr><td class="id">W9</td><td><span class="where">Counter, Order from the Pickup shelf</span><span class="when">closing</span></td><td>Same.</td><td class="n"><span class="score s-mid">0.0193</span></td></tr>
+        <tr><td class="id">O12</td><td><span class="where">Order sheet → Collect payment</span><span class="when">opening the nested sheet</span></td><td>A back-link row appears and the content drops 54px.</td><td class="n"><span class="score s-mid">0.0175</span></td></tr>
+      </tbody>
+    </table>
+    <p class="fix"><b>Fix:</b> clear the sheet only after the slide-out has finished; one header height for normal and nested sheets.</p>
+  </section>
+
+  <h2>Already clean</h2>
+  <p class="sub">Measured and found steady (score 0, nothing visibly moving).</p>
+  <div class="card">
+    <ul class="clean">
+      <li>Login, Home, the Track page</li>
+      <li>Counter Status tab, Store change, Summary sheets</li>
+      <li>POS category chips, search, Store pick, checkout open/close</li>
+      <li>Queue filters dialog, date picker, job page by link</li>
+      <li>Orders and Order sheet refreshing when you come back to the tab</li>
+      <li>Ready for pickup sheet once loaded</li>
+      <li>Order photo thumbnails (fixed size, no jump when the image loads)</li>
+      <li>Reports Operations, Payments, Customers, Workers, Campaigns tab switches</li>
+      <li>Shifts and Attendance refreshing</li>
+    </ul>
+  </div>
+
+  <h2>Not measured</h2>
+  <div class="card">
+    <ul class="clean">
+      <li>Attendance's ready and clock-in states: the test browser can't share a location</li>
+      <li>POS Payment step: needs a drop-off photo, and S3 refuses uploads from the test address</li>
+      <li>Start Work and Notify: they write real data</li>
+      <li>Touch-screen heights: the test browser reports a mouse, not a finger</li>
+      <li>Track page with a real Order: needs a customer's phone number</li>
+    </ul>
+  </div>
+
+  <h2>Status</h2>
+  <div class="card">
+    <p style="margin:0">A fix covering all eight causes is running now: one agent fixes, a second reviews, and a third re-measures every finding above. This page shows the numbers <b>before</b> the fix; the re-measure will report before vs after for each ID.</p>
+  </div>
+</main>
+</body>
+</html>
