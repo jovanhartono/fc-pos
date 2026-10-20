@@ -4,12 +4,12 @@ import { useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { MoneyValue } from "@/components/money-value";
+import { SectionTitle } from "@/components/section";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { describeOrderAmount } from "@/features/customers/lib/order-amount";
 import { type Order, ordersQueries } from "@/features/orders/api";
-import dayjs from "@/lib/dayjs";
+import { formatListDate } from "@/lib/dayjs";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 
 // The route loader prefetches with this same size — two copies that drift
@@ -28,12 +28,12 @@ const OrderAmountCell = ({ order }: { order: Order }) => {
 	return (
 		<div className="grid gap-0.5 text-right">
 			{amount.net === null ? (
-				<span className="text-muted-foreground text-sm">{amount.label}</span>
+				<span className="text-muted-foreground text-body">{amount.label}</span>
 			) : (
-				<MoneyValue className="text-sm" value={amount.net} />
+				<MoneyValue className="text-body" value={amount.net} />
 			)}
 			{amount.refunded ? (
-				<span className="text-[11px] text-destructive tabular-nums">
+				<span className="text-caption text-destructive tabular-nums">
 					{`refunded ${amount.refunded}`}
 				</span>
 			) : null}
@@ -65,7 +65,7 @@ export const CustomerOrdersCard = ({
 					<Link
 						to="/orders/$orderId"
 						params={{ orderId: String(row.original.id) }}
-						className="font-mono font-semibold"
+						className="font-medium tabular-nums"
 					>
 						{row.original.code}
 					</Link>
@@ -76,8 +76,8 @@ export const CustomerOrdersCard = ({
 				header: "Date",
 				meta: { mobileCard: { slot: "eyebrow" } },
 				cell: ({ row }) => (
-					<span className="text-xs tabular-nums">
-						{dayjs(row.original.created_at).format("DD MMM YYYY")}
+					<span className="whitespace-nowrap tabular-nums">
+						{formatListDate(row.original.created_at)}
 					</span>
 				),
 			},
@@ -116,27 +116,22 @@ export const CustomerOrdersCard = ({
 	);
 
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Orders</CardTitle>
-			</CardHeader>
-			{/* Not the table's footer: the pinned phone pager would break out of the card. */}
-			<CardContent className="grid gap-3">
-				<DataTable
-					columns={columns}
-					data={orders}
-					isLoading={ordersQuery.isPending}
-					getCardLink={(order) => ({
-						to: "/orders/$orderId",
-						params: { orderId: String(order.id) },
-					})}
-				/>
-				<TablePagination
-					meta={ordersQuery.data?.meta}
-					isLoading={ordersQuery.isPending}
-					onPageChange={onPageChange}
-				/>
-			</CardContent>
-		</Card>
+		<section className="grid gap-3">
+			<SectionTitle title="Orders" />
+			<DataTable
+				columns={columns}
+				data={orders}
+				isLoading={ordersQuery.isPending}
+				getRowLink={(order) => ({
+					to: "/orders/$orderId",
+					params: { orderId: String(order.id) },
+				})}
+			/>
+			<TablePagination
+				meta={ordersQuery.data?.meta}
+				isLoading={ordersQuery.isPending}
+				onPageChange={onPageChange}
+			/>
+		</section>
 	);
 };

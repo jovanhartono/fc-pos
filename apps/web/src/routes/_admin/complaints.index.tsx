@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import dayjs from "dayjs";
 import { useMemo } from "react";
 import { z } from "zod";
 import { DataTable, WRAP_NAME_CLASS } from "@/components/data-table";
@@ -20,6 +19,8 @@ import {
 	getComplaintOutcome,
 } from "@/features/complaints/lib/format";
 import { CustomerLink } from "@/features/customers/components/customer-link";
+import { OrderListRow } from "@/features/orders/components/order-list-row";
+import { formatListDate } from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
 
 const complaintsSearchSchema = z.object({
@@ -40,6 +41,18 @@ function buildComplaintsListParams(
 		...(search.search ? { search: search.search } : {}),
 	};
 }
+
+interface ComplaintOutcomeBadgeProps {
+	complaint: ComplaintListItem;
+}
+
+const ComplaintOutcomeBadge = ({ complaint }: ComplaintOutcomeBadgeProps) => {
+	const outcome = getComplaintOutcome({
+		subjectStatus: complaint.subject_status,
+		reworkCount: complaint.rework_count,
+	});
+	return <Badge variant={outcome.variant}>{outcome.label}</Badge>;
+};
 
 const ComplaintsPage = () => {
 	const navigate = useNavigate({ from: Route.fullPath });
@@ -65,18 +78,19 @@ const ComplaintsPage = () => {
 			{
 				id: "complaint",
 				header: "Complaint",
-				meta: { mobileCard: { slot: "title" } },
 				cell: ({ row }) => (
 					<div className={cn("flex flex-col gap-0.5", WRAP_NAME_CLASS)}>
 						<Link
 							to="/complaints/$complaintId"
 							params={{ complaintId: String(row.original.id) }}
-							className="font-mono font-semibold"
+							className="font-medium tabular-nums"
 						>
 							{row.original.order_code}
 						</Link>
-						<span className="text-xs">{formatComplaintItem(row.original)}</span>
-						<span className="text-[11px] text-muted-foreground">
+						<span className="text-subhead">
+							{formatComplaintItem(row.original)}
+						</span>
+						<span className="text-subhead">
 							{row.original.service_name ?? "—"}
 						</span>
 					</div>
@@ -85,7 +99,7 @@ const ComplaintsPage = () => {
 			{
 				accessorKey: "customer_name",
 				header: "Customer",
-				meta: { kind: "name", mobileCard: { label: "Customer" } },
+				meta: { kind: "name" },
 				cell: ({ row }) => (
 					<CustomerLink
 						customerId={row.original.customer_id}
@@ -96,27 +110,18 @@ const ComplaintsPage = () => {
 			{
 				accessorKey: "store_name",
 				header: "Store",
-				meta: { mobileCard: { slot: "eyebrow" } },
 			},
 			{
 				id: "outcome",
 				header: "Outcome",
-				meta: { mobileCard: { slot: "badges" } },
-				cell: ({ row }) => {
-					const outcome = getComplaintOutcome({
-						subjectStatus: row.original.subject_status,
-						reworkCount: row.original.rework_count,
-					});
-					return <Badge variant={outcome.variant}>{outcome.label}</Badge>;
-				},
+				cell: ({ row }) => <ComplaintOutcomeBadge complaint={row.original} />,
 			},
 			{
 				id: "opened",
 				header: () => <div className="text-right">Opened</div>,
-				meta: { mobileCard: { slot: "footer" } },
 				cell: ({ row }) => (
-					<div className="text-right text-muted-foreground tabular-nums">
-						{dayjs(row.original.created_at).format("DD MMM HH:mm")}
+					<div className="whitespace-nowrap text-right text-muted-foreground tabular-nums">
+						{formatListDate(row.original.created_at)}
 					</div>
 				),
 			},
@@ -138,7 +143,29 @@ const ComplaintsPage = () => {
 				<DataTable
 					columns={columns}
 					data={complaints}
+					getRowLink={(complaint) => ({
+						to: "/complaints/$complaintId",
+						params: { complaintId: String(complaint.id) },
+					})}
 					isLoading={complaintsQuery.isPending}
+					renderCard={(complaint) => (
+						<OrderListRow
+							className="rounded-none border-0 px-4"
+							hasCaret={false}
+							details={[complaint.order_code, formatComplaintItem(complaint)]}
+							end={
+								<div className="grid justify-items-end gap-1">
+									<span className="whitespace-nowrap text-subhead tabular-nums">
+										{formatListDate(complaint.created_at)}
+									</span>
+									<ComplaintOutcomeBadge complaint={complaint} />
+								</div>
+							}
+							params={{ complaintId: String(complaint.id) }}
+							title={complaint.customer_name}
+							to="/complaints/$complaintId"
+						/>
+					)}
 					footer={
 						<TablePagination
 							meta={complaintsQuery.data?.meta}

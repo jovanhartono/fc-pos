@@ -31,6 +31,7 @@ import { uploadFileToPresignedUrl } from "@/lib/http";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { formatOrderServiceStatus } from "@/lib/status";
+import { cn } from "@/lib/utils";
 
 type PickupDialogContextValue = {
 	orderId: number;
@@ -242,7 +243,7 @@ const PickupCodeField = memo(() => {
 
 	return (
 		<div className="space-y-2">
-			<p className="text-sm font-medium">
+			<p className="text-body font-medium">
 				Pickup code{" "}
 				<span className="text-muted-foreground">(6 digits, from customer)</span>
 			</p>
@@ -256,12 +257,12 @@ const PickupCodeField = memo(() => {
 				containerClassName="justify-start"
 			>
 				<InputOTPGroup>
-					<InputOTPSlot index={0} className="size-11 text-base" />
-					<InputOTPSlot index={1} className="size-11 text-base" />
-					<InputOTPSlot index={2} className="size-11 text-base" />
-					<InputOTPSlot index={3} className="size-11 text-base" />
-					<InputOTPSlot index={4} className="size-11 text-base" />
-					<InputOTPSlot index={5} className="size-11 text-base" />
+					<InputOTPSlot index={0} className="size-11 text-headline" />
+					<InputOTPSlot index={1} className="size-11 text-headline" />
+					<InputOTPSlot index={2} className="size-11 text-headline" />
+					<InputOTPSlot index={3} className="size-11 text-headline" />
+					<InputOTPSlot index={4} className="size-11 text-headline" />
+					<InputOTPSlot index={5} className="size-11 text-headline" />
 				</InputOTPGroup>
 			</InputOTP>
 		</div>
@@ -280,7 +281,7 @@ const PickupServiceList = memo(() => {
 
 	if (collectableItems.length === 0) {
 		return (
-			<p className="text-muted-foreground border bg-muted/30 px-3 py-4 text-sm">
+			<p className="text-muted-foreground rounded-md border bg-muted/30 px-3 py-4 text-body">
 				Nothing is ready for pickup yet.
 			</p>
 		);
@@ -289,8 +290,11 @@ const PickupServiceList = memo(() => {
 	return (
 		<div className="space-y-2">
 			<div className="flex items-center justify-between gap-2">
-				<p className="text-sm font-medium">
-					Collecting {selectedIds.size} of {collectableItems.length}
+				<p className="text-body font-medium">
+					Collecting{" "}
+					<span className="tabular-nums">
+						{selectedIds.size}/{collectableItems.length}
+					</span>
 				</p>
 				<div className="flex gap-1.5">
 					<Button type="button" size="sm" variant="outline" onClick={selectAll}>
@@ -335,7 +339,7 @@ const PickupItemRow = memo(
 			<li>
 				<label
 					htmlFor={id}
-					className="flex min-h-11 cursor-pointer items-center gap-3 border bg-card px-3 py-2.5 text-sm"
+					className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border bg-card px-3 py-2.5 text-body"
 				>
 					<Checkbox
 						id={id}
@@ -349,7 +353,7 @@ const PickupItemRow = memo(
 							{details ?? item.item_code}
 						</span>
 						{details ? (
-							<p className="font-mono text-[11px] text-muted-foreground">
+							<p className="text-caption text-muted-foreground tabular-nums">
 								{item.item_code}
 							</p>
 						) : null}
@@ -359,7 +363,7 @@ const PickupItemRow = memo(
 						    still crosses the counter, and it carries the same danger badge it
 						    earns everywhere else — the one fact that changes what the cashier
 						    hands over must not be small print. */}
-						<p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-muted-foreground text-xs">
+						<p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-muted-foreground text-footnote">
 							{item.services.filter(isHandedOverByPickup).map((treatment) => (
 								<span
 									className="inline-flex items-center gap-1"
@@ -388,7 +392,7 @@ const PickupPhotoField = memo(() => {
 
 	return (
 		<div className="space-y-2">
-			<p className="text-sm font-medium">
+			<p className="text-body font-medium">
 				Pickup photo <span className="text-muted-foreground">(required)</span>
 			</p>
 
@@ -396,7 +400,12 @@ const PickupPhotoField = memo(() => {
 			    file picker, and review (see PhotoUpload mandate in AGENTS.md). */}
 			<button
 				aria-label={previewUrl ? "Retake pickup photo" : "Add pickup photo"}
-				className="relative flex aspect-4/3 w-full items-center justify-center overflow-hidden border bg-black sm:aspect-16/10"
+				className={cn(
+					"relative flex w-full items-center justify-center overflow-hidden rounded-md border",
+					previewUrl
+						? "aspect-4/3 bg-black sm:aspect-16/10"
+						: "h-36 border-dashed bg-secondary",
+				)}
 				onClick={() => setIsCameraOpen(true)}
 				type="button"
 			>
@@ -407,14 +416,14 @@ const PickupPhotoField = memo(() => {
 							className="size-full object-contain"
 							src={previewUrl}
 						/>
-						<span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2 text-center text-white text-xs">
+						<span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2 text-center text-white text-footnote">
 							Tap to retake
 						</span>
 					</>
 				) : (
-					<div className="flex flex-col items-center justify-center gap-2 text-white/70">
-						<CameraIcon className="size-8 opacity-60" />
-						<span className="text-sm">Add pickup photo</span>
+					<div className="flex flex-col items-center justify-center gap-2 text-primary">
+						<CameraIcon className="size-8" />
+						<span className="font-medium text-body">Add pickup photo</span>
 					</div>
 				)}
 			</button>

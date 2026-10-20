@@ -1,4 +1,5 @@
 import { isUnpricedLine } from "@fresclean/api/schema";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
 import type { OrderDetail } from "@/features/orders/api";
@@ -49,8 +50,8 @@ export const OrderServiceRow = memo(
 		return (
 			<button
 				className={cn(
-					"flex w-full items-start gap-3 py-2.5 pr-1 pl-3 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none",
-					isNestedRework && "pt-1 pl-5",
+					"-mx-2 flex w-[calc(100%+1rem)] items-start gap-2 rounded-md px-2 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none",
+					isNestedRework && "pt-1",
 				)}
 				onClick={handleClick}
 				type="button"
@@ -58,35 +59,22 @@ export const OrderServiceRow = memo(
 				{isNestedRework ? (
 					<span
 						aria-hidden="true"
-						className="text-muted-foreground text-sm leading-5"
+						className="text-muted-foreground text-body leading-5 compact:text-subhead"
 					>
 						└
 					</span>
 				) : null}
-				<span className="min-w-0 flex-1 space-y-1">
-					{/* leading-5 matches the 20px badge line across the row, so the
-					    service name and the subtotal below share a center. */}
-					<span className="block text-sm leading-5">
+				{/* On a phone the badges drop to their own line, so a long
+				    treatment name gets the full width instead of wrapping. */}
+				<span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1">
+					<span className="text-body leading-5 compact:text-subhead max-sm:col-span-2">
 						{isNestedRework ? (
 							<ReworkRoundLabel round={reworkRound} serviceName={serviceName} />
 						) : (
 							serviceName
 						)}
 					</span>
-					{service.handler?.name ? (
-						<span className="block text-muted-foreground text-xs leading-snug">
-							{service.handler.name}
-						</span>
-					) : null}
-					{service.notes?.trim() ? (
-						<span className="block text-pretty text-xs leading-snug">
-							<span className="text-muted-foreground">Note: </span>
-							{service.notes.trim()}
-						</span>
-					) : null}
-				</span>
-				<span className="flex shrink-0 flex-col items-end gap-1">
-					<span className="flex flex-wrap justify-end gap-1.5">
+					<span className="flex flex-wrap justify-end gap-1.5 max-sm:order-last max-sm:col-span-2 max-sm:justify-start">
 						{/* Every line names its own status: the Item's rolled-up one
 						    hid the line's whenever the two agreed. */}
 						<Badge variant={getOrderServiceStatusBadgeVariant(service.status)}>
@@ -100,11 +88,24 @@ export const OrderServiceRow = memo(
 							<Badge variant="priority">Priority</Badge>
 						) : null}
 					</span>
-					<span className="text-sm tabular-nums">
+					<span className="min-w-0 text-foreground text-subhead leading-snug">
+						{service.handler?.name}
+					</span>
+					<span className="flex items-center gap-1 justify-self-end text-body tabular-nums compact:text-subhead">
 						{/* A blank line has no subtotal yet — "Rp 0" would read as
 						    deliberately free (a Rework), which it is not. */}
 						{isUnpriced ? "—" : formatMoney(service.subtotal)}
+						<CaretRightIcon
+							aria-hidden="true"
+							className="size-3.5 text-muted-foreground/50 sm:hidden"
+						/>
 					</span>
+					{service.notes?.trim() ? (
+						<span className="col-span-2 text-pretty text-subhead leading-snug">
+							<span className="text-muted-foreground">Note: </span>
+							{service.notes.trim()}
+						</span>
+					) : null}
 				</span>
 			</button>
 		);

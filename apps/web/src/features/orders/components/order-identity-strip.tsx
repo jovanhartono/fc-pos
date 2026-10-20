@@ -47,6 +47,7 @@ import {
 	getOrderServiceItemDetails,
 } from "@/lib/order-service-item-details";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
+import { cn } from "@/lib/utils";
 import { useDialog } from "@/stores/dialog-store";
 
 interface OrderIdentityStripProps {
@@ -209,7 +210,7 @@ export const OrderIdentityStrip = ({
 					closeDialog={closeDialog}
 					lines={gates.complaintableServices.map((service) => ({
 						id: service.id,
-						itemCode: service.item.item_code,
+						itemCode: toReversalItem(service.item).item_tag,
 						serviceName: service.service?.name ?? "Service",
 						details: formatOrderServiceItemDetails(service.item),
 					}))}
@@ -273,10 +274,10 @@ export const OrderIdentityStrip = ({
 	return (
 		<Card className="mb-4 sm:mb-6">
 			<CardContent className="grid gap-4">
-				<div className="flex items-start justify-between gap-3">
-					<div className="min-w-0 space-y-2">
-						<div className="flex flex-wrap items-center gap-2">
-							<h1 className="break-all font-mono font-semibold text-lg tracking-tight sm:text-xl">
+				<div className="grid gap-2">
+					<div className="flex items-start justify-between gap-3">
+						<div className="flex min-w-0 flex-wrap items-center gap-2">
+							<h1 className="break-all font-medium text-title-3 tracking-tight tabular-nums sm:text-title-2 compact:text-title-3">
 								<CopyValue label="order code" value={detail.code} />
 							</h1>
 							<Badge variant={getOrderStatusBadgeVariant(detail.status)}>
@@ -288,86 +289,86 @@ export const OrderIdentityStrip = ({
 								</Badge>
 							))}
 						</div>
-						<p className="text-muted-foreground text-sm">
-							<CustomerLink
-								customerId={detail.customer.id}
-								name={detail.customer.name}
-							/>
-							{` · ${meta}`}
-						</p>
-						{lastNotice ? (
-							<p className="text-sm">
-								<NotifiedLabel />
-								<span className="text-muted-foreground">
-									{` · ${formatNoticeTime(lastNotice.sent_at)} · ${lastNotice.sent_by_name}`}
-								</span>
-							</p>
-						) : null}
-					</div>
 
-					<div className="flex shrink-0 items-center gap-2">
-						{renderNotifyButton("hidden sm:inline-flex")}
-						{renderPickupButton("hidden sm:inline-flex")}
-						<Button
-							icon={<PrinterIcon className="size-4" />}
-							loading={printReceiptMutation.isPending}
-							onClick={() => printReceiptMutation.mutate()}
-							type="button"
-							variant="outline"
-						>
-							Print
-						</Button>
-						{hasMenu ? (
-							<DropdownMenu>
-								<DropdownMenuTrigger
-									render={
-										<Button
-											aria-label="More actions"
-											icon={<DotsThreeVerticalIcon className="size-4" />}
-											size="icon"
-											variant="outline"
-										/>
-									}
-								/>
-								<DropdownMenuContent align="end" className="w-40">
-									{trackingUrl ? (
-										<DropdownMenuItem onClick={handleCopyTrackingLink}>
-											<LinkSimpleIcon className="size-4" />
-											Copy tracking link
-										</DropdownMenuItem>
-									) : null}
-									{gates.canManageCourier ? (
-										<DropdownMenuItem onClick={openCourierDialog}>
-											<TruckIcon className="size-4" />
-											Set courier
-										</DropdownMenuItem>
-									) : null}
-									{gates.canOpenComplaint ? (
-										<DropdownMenuItem onClick={openComplaintDialog}>
-											<WarningCircleIcon className="size-4" />
-											Open complaint
-										</DropdownMenuItem>
-									) : null}
-									{gates.canRefundWholeOrder ? (
-										<DropdownMenuItem
-											onClick={openRefundOrderDialog}
-											variant="destructive"
-										>
-											Refund
-										</DropdownMenuItem>
-									) : null}
-									{gates.canCancelOrder ? (
-										<DropdownMenuItem
-											onClick={openCancelOrderDialog}
-											variant="destructive"
-										>
-											Cancel order
-										</DropdownMenuItem>
-									) : null}
-								</DropdownMenuContent>
-							</DropdownMenu>
-						) : null}
+						<div className="flex shrink-0 items-center gap-2">
+							{renderNotifyButton("hidden sm:inline-flex")}
+							{renderPickupButton("hidden sm:inline-flex")}
+							<Button
+								icon={<PrinterIcon className="size-4" />}
+								loading={printReceiptMutation.isPending}
+								onClick={() => printReceiptMutation.mutate()}
+								type="button"
+								variant="outline"
+							>
+								Print
+							</Button>
+							{hasMenu ? (
+								<DropdownMenu>
+									<DropdownMenuTrigger
+										render={
+											<Button
+												aria-label="More actions"
+												icon={<DotsThreeVerticalIcon className="size-4" />}
+												size="icon"
+												variant="outline"
+											/>
+										}
+									/>
+									<DropdownMenuContent align="end" className="w-40">
+										{trackingUrl ? (
+											<DropdownMenuItem onClick={handleCopyTrackingLink}>
+												<LinkSimpleIcon className="size-4" />
+												Copy tracking link
+											</DropdownMenuItem>
+										) : null}
+										{gates.canManageCourier ? (
+											<DropdownMenuItem onClick={openCourierDialog}>
+												<TruckIcon className="size-4" />
+												Set courier
+											</DropdownMenuItem>
+										) : null}
+										{gates.canOpenComplaint ? (
+											<DropdownMenuItem onClick={openComplaintDialog}>
+												<WarningCircleIcon className="size-4" />
+												Open complaint
+											</DropdownMenuItem>
+										) : null}
+										{gates.canRefundWholeOrder ? (
+											<DropdownMenuItem
+												onClick={openRefundOrderDialog}
+												variant="destructive"
+											>
+												Refund
+											</DropdownMenuItem>
+										) : null}
+										{gates.canCancelOrder ? (
+											<DropdownMenuItem
+												onClick={openCancelOrderDialog}
+												variant="destructive"
+											>
+												Cancel order
+											</DropdownMenuItem>
+										) : null}
+									</DropdownMenuContent>
+								</DropdownMenu>
+							) : null}
+						</div>
 					</div>
+					<p className="text-muted-foreground text-body compact:text-subhead">
+						<CustomerLink
+							customerId={detail.customer.id}
+							name={detail.customer.name}
+						/>
+						{` · ${meta}`}
+					</p>
+					{lastNotice ? (
+						<p className="text-body compact:text-subhead">
+							<NotifiedLabel />
+							<span className="text-muted-foreground">
+								{` · ${formatNoticeTime(lastNotice.sent_at)} · ${lastNotice.sent_by_name}`}
+							</span>
+						</p>
+					) : null}
 				</div>
 
 				{canNotify || collectableCount > 0 ? (
@@ -379,13 +380,9 @@ export const OrderIdentityStrip = ({
 
 				{showsPickupProgress(detail.items) ? (
 					<div className="grid gap-1.5">
-						<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+						<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body compact:text-subhead">
 							<span className="tabular-nums">
-								Items picked up:{" "}
-								<span className="font-medium">
-									{fulfillment.picked_up_count}
-								</span>{" "}
-								of {totalCount}
+								Picked up {fulfillment.picked_up_count}/{totalCount}
 							</span>
 							{fulfillment.remaining_count > 0 ? (
 								<span className="text-muted-foreground tabular-nums">
@@ -393,15 +390,18 @@ export const OrderIdentityStrip = ({
 								</span>
 							) : null}
 						</div>
-						<div className="h-1.5 w-full max-w-md overflow-hidden bg-muted">
+						<div className="h-1.5 w-full max-w-md overflow-hidden rounded-full bg-soft-bar-track">
 							<div
-								className="h-full bg-primary transition-[width] duration-300"
+								className={cn(
+									"h-full rounded-full transition-[width] duration-300",
+									progressWidth === 100 ? "bg-success" : "bg-primary",
+								)}
 								style={{ width: `${progressWidth}%` }}
 							/>
 						</div>
 						{collectableCount > 0 && !gates.canOpenPickup ? (
 							<p
-								className="text-muted-foreground text-xs leading-relaxed"
+								className="text-muted-foreground text-footnote leading-relaxed"
 								id="pickup-disabled-reason"
 							>
 								{gates.pickupDisabledReason ?? "Pickup unavailable."}
@@ -411,9 +411,13 @@ export const OrderIdentityStrip = ({
 				) : null}
 
 				{detail.notes?.trim() ? (
-					<div className="border bg-muted/30 p-3">
-						<p className="text-muted-foreground text-xs font-medium">Notes</p>
-						<p className="mt-1 text-sm leading-relaxed">{detail.notes}</p>
+					<div className="rounded-md border bg-muted/30 p-3">
+						<p className="text-muted-foreground text-footnote font-medium">
+							Notes
+						</p>
+						<p className="mt-1 text-body leading-relaxed compact:text-subhead">
+							{detail.notes}
+						</p>
 					</div>
 				) : null}
 			</CardContent>

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { EmptyState } from "@/components/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ordersQueries } from "@/features/orders/api";
 import { OrderAttachmentsCard } from "@/features/orders/components/order-attachments-card";
@@ -8,6 +9,7 @@ import { OrderPaymentSection } from "@/features/orders/components/order-payment-
 import { useRefreshOrder } from "@/features/orders/hooks/useOrderMutations";
 import { getOrderActionGates } from "@/features/orders/lib/order-action-gates";
 import { usersQueries } from "@/features/users/api";
+import { cn } from "@/lib/utils";
 
 const OrderDetailSkeleton = () => (
 	<div className="grid gap-4">
@@ -29,24 +31,25 @@ export const OrderDetailMessage = ({
 	title,
 	tone,
 }: OrderDetailMessageProps) => (
-	<div
-		className={
-			tone === "error"
-				? "grid gap-1 border border-destructive/40 bg-destructive/5 p-6 text-sm"
-				: "grid gap-1 border border-border/70 bg-muted/30 p-6 text-sm"
-		}
-	>
-		<p className="font-medium">{title}</p>
-		<p className="text-muted-foreground">{description}</p>
-	</div>
+	<EmptyState>
+		<p
+			className={cn(
+				"font-medium text-foreground",
+				tone === "error" && "text-destructive",
+			)}
+		>
+			{title}
+		</p>
+		<p>{description}</p>
+	</EmptyState>
 );
 
 interface OrderDetailViewProps {
 	orderId: number;
 }
 
-// The whole Order: the /orders/$id page and the Order sheet over the Orders
-// list both render this, so the two never drift apart.
+// The whole Order: the /orders/$id page and the global sheet both render
+// this, so the two never drift apart.
 export const OrderDetailView = ({ orderId }: OrderDetailViewProps) => {
 	// Role/can_process_pickup gates read DB-fresh state via /admin/users/me —
 	// the JWT claims go stale when an admin changes them mid-session.
@@ -86,7 +89,7 @@ export const OrderDetailView = ({ orderId }: OrderDetailViewProps) => {
 	const gates = getOrderActionGates(meQuery.data, detail);
 
 	return (
-		<>
+		<div className="@container/order">
 			<OrderIdentityStrip detail={detail} gates={gates} orderId={orderId} />
 
 			<div className="grid gap-3 sm:gap-4">
@@ -105,6 +108,6 @@ export const OrderDetailView = ({ orderId }: OrderDetailViewProps) => {
 					pickupEvents={detail.pickup_events}
 				/>
 			</div>
-		</>
+		</div>
 	);
 };

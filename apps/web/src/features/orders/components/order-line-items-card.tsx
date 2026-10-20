@@ -29,7 +29,7 @@ const ProductLine = ({
 	product: OrderDetailProduct;
 	refund?: RefundInfo;
 }) => (
-	<div className="border-t px-4 py-3 text-sm">
+	<div className="px-4 py-3 text-body compact:text-subhead">
 		<div className="flex items-start justify-between gap-4">
 			<div className="min-w-0">
 				<div className="flex flex-wrap items-center gap-1.5">
@@ -43,11 +43,11 @@ const ProductLine = ({
 						<Badge variant="danger">Cancelled</Badge>
 					) : null}
 				</div>
-				<p className="text-muted-foreground text-xs tabular-nums">
+				<p className="text-foreground text-subhead tabular-nums">
 					{formatMoney(product.price)} × {product.qty}
 				</p>
 			</div>
-			<p className="shrink-0 text-sm tabular-nums">
+			<p className="shrink-0 text-body tabular-nums compact:text-subhead">
 				{formatMoney(product.subtotal)}
 			</p>
 		</div>
@@ -80,7 +80,7 @@ interface ComplaintLinkRowProps {
 // has started.
 const ComplaintLinkRow = ({ complaint }: ComplaintLinkRowProps) => (
 	<Link
-		className="group flex items-center gap-1.5 py-2 pr-1 pl-3 text-xs hover:bg-muted/40"
+		className="group -mx-2 flex items-center gap-1.5 rounded-md px-2 py-2 text-subhead hover:bg-muted/40"
 		params={{ complaintId: String(complaint.id) }}
 		to="/complaints/$complaintId"
 	>
@@ -118,21 +118,21 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 			<header className="min-w-0 px-4 py-3">
 				{descriptors ? (
 					<>
-						<h3 className="text-pretty font-semibold text-[15px] leading-5">
+						<h3 className="text-pretty font-medium text-headline leading-5 compact:text-body">
 							{descriptors}
 						</h3>
-						<p className="break-all font-mono text-muted-foreground text-xs leading-snug">
+						<p className="break-all text-foreground text-subhead leading-snug tabular-nums">
 							{item.item_code}
 						</p>
 					</>
 				) : (
-					<h3 className="break-all font-mono text-[15px] font-semibold leading-5">
+					<h3 className="break-all font-medium text-headline leading-5 tabular-nums compact:text-body">
 						{item.item_code}
 					</h3>
 				)}
 			</header>
 			<ItemPhotoStrip isAdmin={isAdmin} item={item} orderId={orderId} />
-			<ul className="mx-4 mb-3 divide-y border-l-2 border-border">
+			<ul className="mx-4 mb-1 divide-y border-t">
 				{groupReworksUnderOriginals(
 					item.services,
 					(service) => service.reworkOf?.orderService.id ?? null,
@@ -166,9 +166,9 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 				))}
 			</ul>
 			{totalRow ? (
-				<footer className="mx-4 mb-3 flex items-center justify-between gap-3 border-t pt-2.5 text-sm">
+				<footer className="mx-4 mb-3 flex items-center justify-between gap-3 border-t pt-2.5 text-body compact:text-subhead">
 					<span className="text-muted-foreground">Item total</span>
-					<span className="font-semibold tabular-nums">
+					<span className="font-medium tabular-nums">
 						{totalRow.amount === null ? "—" : formatMoney(totalRow.amount)}
 					</span>
 				</footer>
@@ -211,9 +211,7 @@ export const OrderLineItemsCard = ({
 			    section says nothing the Products card below does not. */}
 			{items.length > 0 ? (
 				<section className="grid gap-3">
-					<h2 className="text-foreground text-sm font-semibold">
-						Items · {items.length}
-					</h2>
+					<OrderSectionHeader>Items · {items.length}</OrderSectionHeader>
 					{items.map((item) => (
 						<ItemBlock
 							isAdmin={isAdmin}
@@ -226,16 +224,18 @@ export const OrderLineItemsCard = ({
 			) : null}
 
 			{products.length > 0 ? (
-				<Card className="gap-0 overflow-hidden py-0">
+				<section className="grid gap-3">
 					<OrderSectionHeader>Products</OrderSectionHeader>
-					{products.map((item) => (
-						<ProductLine
-							key={item.id}
-							product={item}
-							refund={refundByProductId.get(item.id)}
-						/>
-					))}
-				</Card>
+					<Card className="gap-0 divide-y overflow-hidden py-0">
+						{products.map((item) => (
+							<ProductLine
+								key={item.id}
+								product={item}
+								refund={refundByProductId.get(item.id)}
+							/>
+						))}
+					</Card>
+				</section>
 			) : null}
 		</div>
 	);

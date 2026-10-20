@@ -1,4 +1,4 @@
-import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
@@ -6,13 +6,14 @@ import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { EditRowButton } from "@/components/edit-row-button";
 import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Button } from "@/components/ui/button";
 import { type Customer, customersQueries } from "@/features/customers/api";
-import { CustomerLink } from "@/features/customers/components/customer-link";
 import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
+import { getCurrentUser } from "@/stores/auth-store";
 import { useSheet } from "@/stores/sheet-store";
 
 const PAGE_SIZE = 25;
@@ -40,6 +41,8 @@ function CustomersPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 	const { openSheet } = useSheet();
+	// Same rule as CustomerLink: the detail page is admin-only (ADR-0021).
+	const isAdmin = getCurrentUser()?.role === "admin";
 
 	const handleSearchChange = useCallback(
 		(next: string) => {
@@ -66,7 +69,7 @@ function CustomersPage() {
 	const handleOpenEditSheet = useCallback(
 		(customer: Customer) => {
 			openSheet({
-				title: "Edit Customer",
+				title: "Edit customer",
 				content: () => <CustomerSheetContent editingCustomer={customer} />,
 			});
 		},
@@ -75,7 +78,7 @@ function CustomersPage() {
 
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
-			title: "Add Customer",
+			title: "Add customer",
 			content: () => <CustomerSheetContent />,
 		});
 	}, [openSheet]);
@@ -86,18 +89,21 @@ function CustomersPage() {
 				accessorKey: "name",
 				header: "Name",
 				meta: { kind: "name" },
-				cell: ({ row }) => (
-					<CustomerLink customerId={row.original.id} name={row.original.name} />
-				),
 			},
 			{
 				accessorKey: "phone_number",
 				header: "Phone",
+				meta: {
+					mobileCard: {
+						slot: "subtitle",
+						className: "text-foreground text-subhead tabular-nums",
+					},
+				},
 			},
 			{
 				accessorKey: "email",
 				header: "Email",
-				meta: { kind: "text", mobileCard: { omitWhenEmpty: true } },
+				meta: { kind: "text", mobileCard: { slot: "hidden" } },
 				cell: ({ row }) => (
 					<span className="text-muted-foreground">
 						{row.original.email ?? "—"}
@@ -107,6 +113,12 @@ function CustomersPage() {
 			{
 				id: "origin_store",
 				header: "Origin store",
+				meta: {
+					mobileCard: {
+						slot: "subtitle",
+						className: "text-foreground text-subhead",
+					},
+				},
 				cell: ({ row }) => row.original.originStore?.name ?? "—",
 			},
 			{
@@ -114,14 +126,7 @@ function CustomersPage() {
 				header: "Actions",
 				meta: { mobileCard: { slot: "title-end" } },
 				cell: ({ row }) => (
-					<Button
-						variant="outline"
-						size="icon-sm"
-						aria-label="Edit"
-						title="Edit"
-						onClick={() => handleOpenEditSheet(row.original)}
-						icon={<PencilSimpleLineIcon className="size-4" />}
-					/>
+					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),
 			},
 		],
@@ -137,7 +142,7 @@ function CustomersPage() {
 						onClick={handleOpenCreateSheet}
 						icon={<PlusIcon className="size-4" />}
 					>
-						Add Customer
+						Add customer
 					</Button>
 				}
 			/>
@@ -153,6 +158,16 @@ function CustomersPage() {
 				<DataTable
 					columns={columns}
 					data={customers}
+					getRowLink={
+						isAdmin
+							? (customer) => ({
+									to: "/customers/$customerId",
+									params: { customerId: String(customer.id) },
+									search: { page: 1 },
+								})
+							: undefined
+					}
+					isCardGrouped
 					isLoading={customersQuery.isPending}
 					footer={
 						<TablePagination

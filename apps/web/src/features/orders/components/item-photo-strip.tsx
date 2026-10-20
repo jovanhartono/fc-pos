@@ -16,7 +16,7 @@ import { getCurrentUser } from "@/stores/auth-store";
 
 const TILE_CLASS = "size-12 shrink-0 sm:size-20";
 const TILE_BUTTON_CLASS =
-	"block overflow-hidden border border-border bg-muted transition-[border-color,box-shadow] hover:border-ring focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50";
+	"block overflow-hidden rounded-sm border border-border bg-muted transition-[border-color,box-shadow] hover:border-ring focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50";
 
 // A busy pair can carry twenty-odd shots. The strip stays one row so every
 // Item card is the same height and the treatments stay under the header;
@@ -98,7 +98,7 @@ export const ItemPhotoStrip = ({
 					className={cn(
 						TILE_CLASS,
 						TILE_BUTTON_CLASS,
-						"grid place-items-center font-medium text-muted-foreground text-sm tabular-nums",
+						"grid place-items-center font-medium text-muted-foreground text-body tabular-nums",
 					)}
 					onClick={() => setLightboxIndex(visibleTiles)}
 					type="button"
@@ -110,7 +110,7 @@ export const ItemPhotoStrip = ({
 				aria-label={`Add photo for ${item.item_code}`}
 				className={cn(
 					TILE_CLASS,
-					"grid place-items-center border border-dashed border-border text-muted-foreground transition-colors hover:border-ring hover:text-foreground focus-visible:border-ring focus-visible:outline-none",
+					"grid place-items-center rounded-sm border border-dashed border-border text-muted-foreground transition-colors hover:border-ring hover:text-foreground focus-visible:border-ring focus-visible:outline-none",
 				)}
 				onClick={() => setIsUploadOpen(true)}
 				type="button"
@@ -118,7 +118,7 @@ export const ItemPhotoStrip = ({
 				<PlusIcon aria-hidden="true" className="size-5" />
 			</button>
 			{images.length === 0 ? (
-				<p className="text-muted-foreground text-xs">
+				<p className="text-muted-foreground text-footnote">
 					{photoBlocker ?? "No photos yet"}
 				</p>
 			) : null}

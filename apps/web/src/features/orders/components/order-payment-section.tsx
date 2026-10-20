@@ -57,7 +57,7 @@ export const OrderPaymentSection = ({
 	detail,
 	gates,
 }: OrderPaymentSectionProps) => (
-	<Card className="gap-0 overflow-hidden py-0">
+	<section className="grid gap-3">
 		<OrderSectionHeader
 			action={
 				gates.canCollectPayment ? (
@@ -67,11 +67,11 @@ export const OrderPaymentSection = ({
 		>
 			Payment
 		</OrderSectionHeader>
-		<div className="border-t">
+		<Card className="gap-0 overflow-hidden py-0">
 			<OrderMoneySummary detail={detail} />
-		</div>
-		<PaymentDetails detail={detail} gates={gates} />
-	</Card>
+			<PaymentDetails detail={detail} gates={gates} />
+		</Card>
+	</section>
 );
 
 // Payment status itself is shown in the header status chip (OrderIdentityStrip),
@@ -96,7 +96,7 @@ const PaymentDetails = ({
 		return (
 			<>
 				<Separator />
-				<p className="px-4 py-4 text-muted-foreground text-sm">
+				<p className="px-4 py-4 text-muted-foreground text-body compact:text-subhead">
 					A line has no price yet. Set it from the item's detail, then collect
 					payment.
 				</p>
@@ -144,7 +144,7 @@ const CollectPaymentAction = ({
 };
 
 const PaidDetails = ({ detail }: { detail: OrderDetail }) => (
-	<dl className="grid gap-2 px-4 py-4 text-sm">
+	<dl className="grid gap-2 px-4 py-4 text-body compact:text-subhead">
 		<div className="flex items-center justify-between gap-4">
 			<dt className="text-muted-foreground">Method</dt>
 			<dd className="font-medium">{detail.paymentMethod?.name ?? "—"}</dd>
@@ -209,7 +209,7 @@ interface ToCollectLineProps {
 }
 
 const ToCollectLine = ({ amount }: ToCollectLineProps) => (
-	<div className="flex items-center justify-between gap-4 text-sm font-medium">
+	<div className="flex items-center justify-between gap-4 text-body font-medium">
 		<span>To collect</span>
 		<span className="tabular-nums">{formatMoney(amount)}</span>
 	</div>
@@ -259,10 +259,10 @@ const SettledDiscountPaymentForm = ({
 			>
 				{/* Same emerald as a captured drop-off photo: settled is a done state,
 				    not a warning. The breakdown itself is on the page under this sheet. */}
-				<p className="flex items-start gap-2 border border-emerald-300/60 bg-emerald-50/70 px-3 py-2.5 text-emerald-900 text-sm dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
+				<p className="flex items-start gap-2 rounded-md border border-success/40 bg-tone-good px-3 py-2.5 text-foreground text-body">
 					<CheckCircleIcon
 						aria-hidden="true"
-						className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+						className="mt-0.5 size-4 shrink-0 text-tone-good-foreground"
 						weight="fill"
 					/>
 					<span>
@@ -440,7 +440,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
 							<FieldLabel htmlFor="collect-payment-discount">
-								Manual Discount
+								Manual discount
 							</FieldLabel>
 							<CurrencyInput
 								id="collect-payment-discount"
@@ -453,7 +453,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 				/>
 
 				{pricing.totalDiscount > 0 ? (
-					<dl className="grid gap-1.5 text-sm tabular-nums">
+					<dl className="grid gap-1.5 text-body tabular-nums">
 						{pricing.campaignBreakdown.map(({ campaign, amount }) => (
 							<div className="flex justify-between gap-4" key={campaign.id}>
 								<dt className="text-muted-foreground">
@@ -466,7 +466,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 						))}
 						{pricing.manualDiscount > 0 ? (
 							<div className="flex justify-between gap-4">
-								<dt className="text-muted-foreground">Manual Discount</dt>
+								<dt className="text-muted-foreground">Manual discount</dt>
 								<dd className="text-destructive tabular-nums">
 									-{formatMoney(pricing.manualDiscount)}
 								</dd>

@@ -1,9 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
-import { Combobox } from "@/components/ui/combobox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { storesQueries } from "@/features/stores/api";
+import { cn } from "@/lib/utils";
 
-type StoreAutocompleteProps = {
+interface StoreSelectProps {
 	value: string;
 	onValueChange: (value: string) => void;
 	allowedStoreIds?: number[];
@@ -16,9 +23,9 @@ type StoreAutocompleteProps = {
 	placeholder?: string;
 	triggerClassName?: string;
 	allOptionLabel?: string;
-};
+}
 
-export function StoreAutocomplete({
+export const StoreSelect = ({
 	value,
 	onValueChange,
 	allowedStoreIds,
@@ -29,10 +36,10 @@ export function StoreAutocomplete({
 	id = "order-store",
 	error,
 	placeholder = "Select store",
-	triggerClassName = "h-10 w-full text-sm",
+	triggerClassName,
 	allOptionLabel,
-}: StoreAutocompleteProps) {
-	const { data: stores = [], isPending } = useQuery(storesQueries.list());
+}: StoreSelectProps) => {
+	const { data: stores = [] } = useQuery(storesQueries.list());
 	const filteredStores = allowedStoreIds
 		? stores.filter((store) => allowedStoreIds.includes(store.id))
 		: stores;
@@ -45,24 +52,40 @@ export function StoreAutocomplete({
 		options.unshift({ value: "", label: allOptionLabel });
 	}
 
-	const combobox = (
-		<Combobox
-			id={id}
-			required={required}
-			triggerClassName={triggerClassName}
-			options={options}
+	const select = (
+		<Select
 			value={value}
 			onValueChange={onValueChange}
-			loading={isPending}
-			placeholder={placeholder}
-			searchPlaceholder="Search stores"
-			emptyText="No store found"
 			disabled={disabled}
-		/>
+			required={required}
+		>
+			<SelectTrigger
+				id={id}
+				className={cn(
+					"w-full",
+					allOptionLabel && "data-placeholder:text-foreground",
+					triggerClassName,
+				)}
+			>
+				<SelectValue>
+					{(current: string) =>
+						options.find((option) => option.value === current)?.label ??
+						placeholder
+					}
+				</SelectValue>
+			</SelectTrigger>
+			<SelectContent className="w-max min-w-(--anchor-width) max-w-(--available-width)">
+				{options.map((option) => (
+					<SelectItem key={option.value} value={option.value}>
+						{option.label}
+					</SelectItem>
+				))}
+			</SelectContent>
+		</Select>
 	);
 
 	if (hideLabel) {
-		return combobox;
+		return select;
 	}
 
 	return (
@@ -70,8 +93,8 @@ export function StoreAutocomplete({
 			<FieldLabel htmlFor={id} asterisk={required}>
 				{label}
 			</FieldLabel>
-			{combobox}
+			<div>{select}</div>
 			<FieldError errors={[error]} />
 		</Field>
 	);
-}
+};

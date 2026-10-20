@@ -1,11 +1,8 @@
-import { ArrowRightIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { Badge } from "@/components/ui/badge";
 import { type Order, ordersQueries } from "@/features/orders/api";
-import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
+import { OrderListRow } from "@/features/orders/components/order-list-row";
+import { useOpenNestedOrder } from "@/features/orders/hooks/useOpenNestedOrder";
 import { formatMoney } from "@/shared/money";
-import { useSheet } from "@/stores/sheet-store";
 
 const RADAR_LIMIT = 50;
 
@@ -29,80 +26,43 @@ export const PickupRadar = ({ enabled, storeId }: PickupRadarProps) => {
 
 	if (readyOrders.length === 0) {
 		return (
-			<p className="py-12 text-center text-sm text-muted-foreground">
+			<p className="py-12 text-center text-body text-muted-foreground">
 				No pickups right now.
 			</p>
 		);
 	}
 
 	return (
-		<div className="grid gap-6">
-			<RadarSection
-				label="Ready"
-				count={readyOrders.length}
-				orders={readyOrders}
-			/>
-		</div>
+		<ul className="divide-y divide-border overflow-hidden rounded-lg border bg-card">
+			{readyOrders.map((order) => (
+				<li key={order.id}>
+					<RadarRow order={order} />
+				</li>
+			))}
+		</ul>
 	);
 };
 
-function RadarSection({
-	count,
-	label,
-	orders,
-}: {
-	count: number;
-	label: string;
-	orders: Order[];
-}) {
-	return (
-		<div className="grid gap-2">
-			<div className="flex items-center gap-2 border-b border-border pb-2">
-				<p className="text-[13px] font-medium text-muted-foreground">{label}</p>
-				<span className="inline-flex h-4 min-w-4 items-center justify-center bg-foreground px-1 text-[10px] font-semibold tabular-nums text-background">
-					{count}
-				</span>
-			</div>
-			<div className="grid gap-1">
-				{orders.map((order) => (
-					<RadarRow key={order.id} order={order} />
-				))}
-			</div>
-		</div>
-	);
+interface RadarRowProps {
+	order: Order;
 }
 
-function RadarRow({ order }: { order: Order }) {
-	const closeSheet = useSheet((s) => s.closeSheet);
+const RadarRow = ({ order }: RadarRowProps) => {
+	const handleOpen = useOpenNestedOrder(order.id, order.code);
 
 	return (
-		<Link
-			to="/orders/$orderId"
-			params={{ orderId: String(order.id) }}
-			onClick={closeSheet}
-			className="group grid grid-cols-[1fr_auto] items-center gap-3 border border-transparent px-2 py-2.5 transition-colors hover:border-border hover:bg-muted/50"
-		>
-			<div className="grid gap-1 overflow-hidden">
-				<div className="flex items-center gap-2">
-					<p className="truncate font-mono text-sm font-medium text-foreground">
-						{order.code}
-					</p>
-					<Badge variant={getOrderStatusBadgeVariant(order.status)}>
-						{formatOrderStatus(order.status)}
-					</Badge>
-				</div>
-				<div className="flex items-center gap-3 text-xs text-muted-foreground">
-					<span>{order.customer_name}</span>
-					<span className="text-border">/</span>
-					<span>{order.store_name}</span>
-				</div>
-			</div>
-			<div className="flex items-center gap-3">
-				<p className="text-xs text-muted-foreground tabular-nums">
+		<OrderListRow
+			className="rounded-none border-0 px-4"
+			details={[order.code, order.store_name]}
+			end={
+				<p className="font-medium text-body text-foreground tabular-nums">
 					{formatMoney(order.total)}
 				</p>
-				<ArrowRightIcon className="size-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
-			</div>
-		</Link>
+			}
+			onClick={handleOpen}
+			params={{ orderId: String(order.id) }}
+			title={order.customer_name}
+			to="/orders/$orderId"
+		/>
 	);
-}
+};

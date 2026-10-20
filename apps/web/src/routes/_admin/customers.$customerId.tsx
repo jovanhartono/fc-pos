@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { customersQueries } from "@/features/customers/api";
 import {
@@ -37,13 +37,7 @@ const CustomerDetailPage = () => {
 	}
 
 	if (!customerQuery.data) {
-		return (
-			<Card>
-				<CardContent className="py-10 text-center text-muted-foreground text-sm">
-					Customer not found
-				</CardContent>
-			</Card>
-		);
+		return <EmptyState>Customer not found</EmptyState>;
 	}
 
 	return (

@@ -107,6 +107,9 @@ const buildReversalSchema = (verb: string, reasons: readonly string[]) =>
 
 type ReversalFormValues = z.infer<ReturnType<typeof buildReversalSchema>>;
 
+const kindLabel = (kind: "service" | "product" | undefined) =>
+	kind === "product" ? "Products" : "Services";
+
 interface ReversalCopy {
 	verb: string;
 	confirm: string;
@@ -293,8 +296,8 @@ const OrderLineReversalForm = <R extends string>({
 				onSubmit={form.handleSubmit(onSubmit)}
 			>
 				<div className="flex flex-wrap items-center justify-between gap-2">
-					<p className="text-muted-foreground text-sm">
-						Select lines to {copy.verb} and choose a reason for each.
+					<p className="font-medium text-muted-foreground text-subhead">
+						{hasBothKinds ? kindLabel(lines[0]?.kind) : null}
 					</p>
 					<div className="flex gap-2">
 						<Button
@@ -319,21 +322,23 @@ const OrderLineReversalForm = <R extends string>({
 				</div>
 
 				{itemsRootMessage ? (
-					<p className="text-destructive text-xs">{itemsRootMessage}</p>
+					<p className="text-destructive text-footnote">{itemsRootMessage}</p>
 				) : null}
 
 				<div className="grid max-h-[50vh] gap-3 overflow-y-auto pr-1">
 					{fields.map((field, index) => {
 						const line = lines[index];
+						// The first kind's label sits beside Select all above the list.
 						const showKindHeader =
 							hasBothKinds &&
-							(index === 0 || lines[index - 1]?.kind !== line?.kind);
+							index > 0 &&
+							lines[index - 1]?.kind !== line?.kind;
 
 						return (
 							<Fragment key={field.id}>
 								{showKindHeader ? (
-									<p className="text-muted-foreground text-xs font-medium">
-										{line?.kind === "product" ? "Products" : "Services"}
+									<p className="font-medium text-muted-foreground text-subhead">
+										{kindLabel(line?.kind)}
 									</p>
 								) : null}
 								<ReversalItemRow
@@ -356,7 +361,7 @@ const OrderLineReversalForm = <R extends string>({
 				</div>
 
 				{capsByLineKey ? (
-					<div className="flex items-center justify-between border-t pt-3 text-sm">
+					<div className="flex items-center justify-between border-t pt-3 text-body">
 						<span className="text-muted-foreground">Refund total</span>
 						<span className="font-medium tabular-nums">
 							{formatMoney(String(totalRefund))}
@@ -406,13 +411,12 @@ const ReversalItemRow = ({
 	const { control, register } = useFormContext<ReversalFormValues>();
 	const selected =
 		useWatch({ control, name: `items.${index}.selected` }) ?? false;
-	const inputsDisabled = disabled || !selected;
 	// Only one reversal dialog mounts at a time (single GlobalDialog slot), so
 	// a static prefix is safe and keeps ids decoupled from display copy.
 	const checkboxId = `reversal-item-${index}`;
 
 	return (
-		<div className="grid gap-2 border p-3">
+		<div className="grid gap-2 rounded-md border p-3">
 			<Controller
 				control={control}
 				name={`items.${index}.selected`}
@@ -428,16 +432,14 @@ const ReversalItemRow = ({
 							className="grid gap-0.5 font-normal"
 							htmlFor={checkboxId}
 						>
-							<span className="font-medium">{label}</span>
+							<span className="font-medium text-body">{label}</span>
 							{sublabel ? (
-								<span className="text-muted-foreground text-xs">
-									{sublabel}
-								</span>
+								<span className="text-foreground text-subhead">{sublabel}</span>
 							) : null}
 						</FieldLabel>
 						{isRework ? <Badge variant="info">Rework</Badge> : null}
 						{amount !== undefined ? (
-							<span className="ml-auto text-sm tabular-nums">
+							<span className="ml-auto text-body tabular-nums">
 								{formatMoney(String(amount))}
 							</span>
 						) : null}
@@ -453,36 +455,40 @@ const ReversalItemRow = ({
 				/>
 			) : null}
 
-			<Controller
-				control={control}
-				name={`items.${index}.reason`}
-				render={({ field }) => (
-					<SelectField
-						items={reasonItems}
-						value={field.value}
-						onValueChange={field.onChange}
-						disabled={inputsDisabled}
-						placeholder="Select reason"
-						className="w-full"
+			{selected ? (
+				<>
+					<Controller
+						control={control}
+						name={`items.${index}.reason`}
+						render={({ field }) => (
+							<SelectField
+								items={reasonItems}
+								value={field.value}
+								onValueChange={field.onChange}
+								disabled={disabled}
+								placeholder="Select reason"
+								className="w-full"
+							/>
+						)}
 					/>
-				)}
-			/>
 
-			<Controller
-				control={control}
-				name={`items.${index}.note`}
-				render={({ fieldState }) => (
-					<Field data-invalid={fieldState.invalid}>
-						<Textarea
-							placeholder="Reason note"
-							disabled={inputsDisabled}
-							aria-invalid={fieldState.invalid}
-							{...register(`items.${index}.note`)}
-						/>
-						<FieldError errors={[fieldState.error]} />
-					</Field>
-				)}
-			/>
+					<Controller
+						control={control}
+						name={`items.${index}.note`}
+						render={({ fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<Textarea
+									placeholder="Reason note"
+									disabled={disabled}
+									aria-invalid={fieldState.invalid}
+									{...register(`items.${index}.note`)}
+								/>
+								<FieldError errors={[fieldState.error]} />
+							</Field>
+						)}
+					/>
+				</>
+			) : null}
 		</div>
 	);
 };
@@ -529,7 +535,7 @@ const ReworkChoice = ({
 							</Button>
 						))}
 					</fieldset>
-					<p className="text-muted-foreground text-xs">
+					<p className="text-muted-foreground text-footnote">
 						{reworkChoiceCaption(workshopRework, field.value)}
 					</p>
 				</div>

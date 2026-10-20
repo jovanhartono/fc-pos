@@ -1,7 +1,6 @@
 import { Separator } from "@/components/ui/separator";
 import type { OrderDetail } from "@/features/orders/api";
 import { flattenOrderLines } from "@/features/orders/lib/order-lines";
-import { cn } from "@/lib/utils";
 import { formatMoney, parseMoney } from "@/shared/money";
 
 interface OrderMoneySummaryProps {
@@ -31,7 +30,7 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 
 	return (
 		<div className="px-4 py-4">
-			<dl className="grid gap-1.5 text-sm tabular-nums">
+			<dl className="grid gap-1.5 text-body tabular-nums compact:text-subhead">
 				{showSubtotalBreakdown ? (
 					<>
 						<div className="flex justify-between gap-4">
@@ -64,24 +63,24 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 						</dd>
 					</div>
 				))}
-				<div className="flex justify-between gap-4">
-					{/* Campaigns name themselves in the rows above; a manual discount
-					    has no row of its own, so the total line says where it came
-					    from rather than leaving the cashier to guess. */}
-					<dt className="text-muted-foreground">
-						{detail.discount_source === "manual"
-							? "Manual discount"
-							: "Discount total"}
-					</dt>
-					<dd
-						className={cn("tabular-nums", discount > 0 && "text-destructive")}
-					>
-						{discount > 0 ? `-${formatMoney(discount)}` : formatMoney(0)}
-					</dd>
-				</div>
+				{discount > 0 ? (
+					<div className="flex justify-between gap-4">
+						{/* Campaigns name themselves in the rows above; a manual discount
+						    has no row of its own, so the total line says where it came
+						    from rather than leaving the cashier to guess. */}
+						<dt className="text-muted-foreground">
+							{detail.discount_source === "manual"
+								? "Manual discount"
+								: "Discount total"}
+						</dt>
+						<dd className="text-destructive tabular-nums">
+							-{formatMoney(discount)}
+						</dd>
+					</div>
+				) : null}
 			</dl>
 			<Separator className="my-2.5" />
-			<dl className="grid gap-1.5 text-sm tabular-nums">
+			<dl className="grid gap-1.5 text-body tabular-nums compact:text-subhead">
 				<div className="flex justify-between gap-4 font-medium">
 					<dt>Net</dt>
 					<dd className="tabular-nums">{formatMoney(net)}</dd>

@@ -21,7 +21,7 @@ export const CustomerSummaryStrip = ({
 
 	const handleEdit = () => {
 		openSheet({
-			title: "Edit Customer",
+			title: "Edit customer",
 			content: () => <CustomerSheetContent editingCustomer={customer} />,
 		});
 	};
@@ -30,14 +30,14 @@ export const CustomerSummaryStrip = ({
 		<section className="grid gap-4">
 			<header className="flex flex-wrap items-start justify-between gap-3">
 				<div className="grid gap-1">
-					<h1 className="font-semibold text-2xl uppercase tracking-tight">
+					<h1 className="font-medium text-title-1 tracking-tight">
 						{customer.name}
 					</h1>
-					<p className="flex flex-wrap items-center gap-x-1 text-muted-foreground text-sm tabular-nums">
+					<p className="flex flex-wrap items-center gap-x-1 text-muted-foreground text-body tabular-nums">
 						<CopyValue label="phone number" value={customer.phone_number} />
 						{customer.email ? <span>{`· ${customer.email}`}</span> : null}
 					</p>
-					<p className="text-muted-foreground text-xs">
+					<p className="text-muted-foreground text-footnote">
 						{`Customer since ${dayjs(customer.created_at).format("DD MMM YYYY")} · first seen at ${customer.originStore?.name ?? "—"}`}
 					</p>
 				</div>

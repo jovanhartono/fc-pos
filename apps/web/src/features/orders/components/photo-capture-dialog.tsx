@@ -29,7 +29,7 @@ const TopChrome = () => {
 			</button>
 
 			{!state.isShooting && state.photoCount > 1 ? (
-				<p className="justify-self-center text-xs text-white/70 tabular-nums">
+				<p className="justify-self-center text-footnote text-white/70 tabular-nums">
 					{state.activeIndex + 1} / {state.photoCount}
 				</p>
 			) : (
@@ -39,7 +39,7 @@ const TopChrome = () => {
 			<div className="justify-self-end">
 				{meta.badgeLabel ? (
 					<Badge
-						className="border-white/40 bg-transparent text-white"
+						className="border border-white/40 bg-transparent text-white"
 						variant="outline"
 					>
 						{meta.badgeLabel}

@@ -1,9 +1,7 @@
 import { WORKSHOP_SERVICE_STATUSES } from "@fresclean/api/schema";
-import { CHIP_STRIP_ROW, ChipStripScroller } from "@/components/chip-strip";
-import { Button } from "@/components/ui/button";
+import { StatusChipStrip } from "@/components/chip-strip";
 import type { OrderServiceQueueCounts } from "@/features/orders/api";
 import { formatOrderServiceStatus } from "@/lib/status";
-import { cn } from "@/lib/utils";
 
 const STATUS_TAB_ITEMS: {
 	value: "all" | (typeof WORKSHOP_SERVICE_STATUSES)[number];
@@ -27,32 +25,13 @@ export const QueueStatusTabs = ({
 	counts,
 	onValueChange,
 }: QueueStatusTabsProps) => (
-	<ChipStripScroller>
-		{/* Toggle buttons, not tabs: tablist semantics promise arrow-key roving
-		    and tabpanels these filter chips don't have. Matches the catalog's
-		    category strip. */}
-		<fieldset className={cn(CHIP_STRIP_ROW, "border-0 p-0")}>
-			<legend className="sr-only">Filter by status</legend>
-			{STATUS_TAB_ITEMS.map((status) => {
-				const isActive = value === status.value;
-				const count = counts?.[status.value];
-
-				return (
-					<Button
-						aria-pressed={isActive}
-						className="h-11 gap-1.5 px-3 text-sm"
-						key={status.value}
-						onClick={() => onValueChange(status.value)}
-						type="button"
-						variant={isActive ? "default" : "outline"}
-					>
-						{status.label}
-						{count === undefined ? null : (
-							<span className="font-semibold tabular-nums">{count}</span>
-						)}
-					</Button>
-				);
-			})}
-		</fieldset>
-	</ChipStripScroller>
+	<StatusChipStrip
+		chips={STATUS_TAB_ITEMS.map((status) => ({
+			...status,
+			count: counts?.[status.value],
+		}))}
+		legend="Filter by status"
+		onValueChange={onValueChange}
+		value={value}
+	/>
 );

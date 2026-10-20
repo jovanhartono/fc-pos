@@ -3,7 +3,6 @@ import { CheckIcon } from "@phosphor-icons/react";
 import type { UseMutationResult } from "@tanstack/react-query";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -75,7 +74,7 @@ export const OpenComplaintForm = ({
 					name="order_service_id"
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<p className="text-sm font-medium">Which service?</p>
+							<p className="text-body font-medium">Which service?</p>
 							<div
 								aria-label="Item with complaint"
 								className="grid gap-2"
@@ -165,9 +164,8 @@ interface ComplaintLineCardProps {
 
 // A real (visually hidden) radio input wrapped by the styled card: native
 // radiogroup semantics and keyboard behavior, with the full card as the touch
-// target. Sibling treatments on one object share a tag (ADR-0017), so the
-// service name leads and the tag rides in the badge — three lines on one
-// shoe differ by treatment, not by code.
+// target. Same shape as the Refund and Cancel pickers: the pair leads, then
+// the short tag and the treatment.
 const ComplaintLineCard = ({
 	disabled,
 	isSelected,
@@ -176,9 +174,9 @@ const ComplaintLineCard = ({
 }: ComplaintLineCardProps) => (
 	<label
 		className={cn(
-			"flex cursor-pointer items-start justify-between gap-3 border px-3 py-2.5 text-left transition active:scale-[0.99] has-[:focus-visible]:border-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50",
+			"flex cursor-pointer items-start justify-between gap-3 rounded-md border px-3 py-2.5 text-left transition active:scale-[0.99] has-[:focus-visible]:border-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50",
 			isSelected
-				? "border-foreground ring-1 ring-foreground"
+				? "border-transparent bg-primary/[0.06] ring-2 ring-primary"
 				: "border-border/70 hover:border-border hover:bg-muted/40",
 			disabled && "cursor-not-allowed opacity-60",
 		)}
@@ -192,15 +190,11 @@ const ComplaintLineCard = ({
 			type="radio"
 			value={line.id}
 		/>
-		<span className="min-w-0 flex-1 space-y-1">
-			<span className="flex items-center gap-2">
-				<span className="truncate font-medium text-sm">{line.serviceName}</span>
-				<Badge className="shrink-0 font-mono" variant="outline">
-					{line.itemCode}
-				</Badge>
-			</span>
-			<span className="block text-muted-foreground text-xs">
-				{line.details}
+		<span className="grid min-w-0 flex-1 gap-0.5">
+			<span className="font-medium text-body">{line.details}</span>
+			<span className="text-foreground text-subhead">
+				<span className="tabular-nums">{line.itemCode}</span> ·{" "}
+				{line.serviceName}
 			</span>
 		</span>
 		{isSelected ? (

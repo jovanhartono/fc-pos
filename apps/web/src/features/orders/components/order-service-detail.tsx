@@ -51,7 +51,7 @@ export const OrderServiceDetail = ({
 
 	if (!service) {
 		return (
-			<p className="text-muted-foreground text-sm">
+			<p className="text-muted-foreground text-body">
 				This item is no longer part of the order.
 			</p>
 		);
@@ -74,7 +74,7 @@ export const OrderServiceDetail = ({
 	const isUnpriced = isUnpricedLine(service);
 
 	return (
-		<div className="grid gap-5 text-sm">
+		<div className="grid gap-5 text-body">
 			<div className="flex flex-wrap items-center gap-2">
 				{isUnpriced ? <Badge variant="warning">Unpriced</Badge> : null}
 				{service.is_priority ? (
@@ -111,20 +111,22 @@ export const OrderServiceDetail = ({
 						))}
 					</div>
 					{photoBlocker ? (
-						<p className="text-muted-foreground text-xs">{photoBlocker}</p>
+						<p className="text-muted-foreground text-footnote">
+							{photoBlocker}
+						</p>
 					) : null}
 				</div>
 			) : null}
 
 			<dl className="grid gap-3 sm:grid-cols-2">
 				<div>
-					<dt className="text-muted-foreground text-xs">Item</dt>
+					<dt className="text-muted-foreground text-footnote">Item</dt>
 					<dd className="mt-0.5 font-medium">
 						{formatOrderServiceItemDetails(service.item)}
 					</dd>
 				</div>
 				<div>
-					<dt className="text-muted-foreground text-xs">Handler</dt>
+					<dt className="text-muted-foreground text-footnote">Handler</dt>
 					<dd className="mt-0.5 font-medium">
 						{service.handler?.name ?? "Unassigned"}
 					</dd>
@@ -150,7 +152,7 @@ export const OrderServiceDetail = ({
 
 			{service.status === "refunded" && service.refundItems.length > 0 ? (
 				<OrderReasonCallout label="Refund reason">
-					<ul className="mt-1 grid gap-1 text-sm">
+					<ul className="mt-1 grid gap-1 text-body">
 						{service.refundItems.map((item) => (
 							<li key={item.id}>
 								<span className="font-medium">
@@ -198,10 +200,10 @@ const ServicePriceSection = ({
 	}
 
 	return (
-		<div className="grid gap-3 border border-border/70 p-3">
+		<div className="grid gap-3 rounded-md border border-border/70 p-3">
 			<div className="flex items-center justify-between gap-3">
 				<div>
-					<p className="text-muted-foreground text-xs">Price</p>
+					<p className="text-muted-foreground text-footnote">Price</p>
 					<p className="mt-0.5 font-medium tabular-nums">
 						{price === null ? "Not set" : formatMoney(price)}
 					</p>
@@ -219,7 +221,7 @@ const ServicePriceSection = ({
 			</div>
 			{price === null ? (
 				<>
-					<p className="text-muted-foreground text-xs">
+					<p className="text-muted-foreground text-footnote">
 						Agree the price with the customer, then set it here — the order
 						can't be paid until every line is priced.
 					</p>

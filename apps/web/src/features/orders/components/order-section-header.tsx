@@ -5,12 +5,16 @@ interface OrderSectionHeaderProps {
 	action?: ReactNode;
 }
 
+// The title above a section's card, the same for Items, Products, Payment and
+// Attachments.
 export const OrderSectionHeader = ({
 	children,
 	action,
 }: OrderSectionHeaderProps) => (
-	<div className="flex items-center justify-between px-4 py-2.5">
-		<p className="text-foreground text-sm font-semibold">{children}</p>
+	<div className="flex min-h-7 items-center justify-between gap-3">
+		<h2 className="font-medium text-body text-foreground compact:text-subhead">
+			{children}
+		</h2>
 		{action}
 	</div>
 );
