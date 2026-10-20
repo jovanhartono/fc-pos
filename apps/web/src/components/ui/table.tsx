@@ -17,7 +17,7 @@ function Table({
 		>
 			<table
 				data-slot="table"
-				className={cn("w-full caption-bottom text-xs", className)}
+				className={cn("w-full caption-bottom text-subhead", className)}
 				{...props}
 			/>
 		</div>
@@ -103,7 +103,7 @@ function TableCaption({
 	return (
 		<caption
 			data-slot="table-caption"
-			className={cn("mt-4 text-xs text-muted-foreground", className)}
+			className={cn("mt-4 text-footnote text-muted-foreground", className)}
 			{...props}
 		/>
 	);

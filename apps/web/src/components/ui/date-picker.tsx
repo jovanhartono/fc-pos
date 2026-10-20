@@ -47,6 +47,8 @@ interface DatePickerProps {
 	max?: string;
 	className?: string;
 	displayFormat?: string;
+	// "right" makes a form field read like the Select triggers beside it.
+	iconLocation?: "left" | "right";
 	// Swaps the calendar icon for a spinner while the page behind fetches the
 	// picked day, so the old day stays readable until the new one arrives.
 	isLoading?: boolean;
@@ -62,6 +64,7 @@ export const DatePicker = ({
 	max,
 	className,
 	displayFormat = DISPLAY_FORMAT,
+	iconLocation = "left",
 	isLoading,
 }: DatePickerProps) => {
 	const [isOpen, setIsOpen] = useState(false);
@@ -88,11 +91,12 @@ export const DatePicker = ({
 						variant="outline"
 						disabled={disabled}
 						className={cn(
-							"h-10 pointer-coarse:h-11 justify-start font-normal",
+							"h-9 pointer-coarse:h-11 justify-start font-normal",
 							!value && "text-muted-foreground",
 							className,
 						)}
 						aria-busy={isLoading || undefined}
+						iconLocation={iconLocation}
 						icon={
 							isLoading ? (
 								<CircleNotchIcon className="size-4 animate-spin" />
@@ -144,6 +148,7 @@ interface DateRangePickerProps {
 	className?: string;
 	resetOnSelect?: boolean;
 	commitOnComplete?: boolean;
+	fullWidth?: boolean;
 }
 
 interface DateRangeViewProps {
@@ -160,7 +165,7 @@ interface DateRangeViewProps {
 	resetOnSelect: boolean;
 }
 
-const SHEET_ROW = "h-11 w-full justify-between px-4 text-sm font-normal";
+const SHEET_ROW = "h-11 w-full justify-between px-4 text-body font-normal";
 
 const DateRangeSheet = ({
 	trigger,
@@ -209,7 +214,7 @@ const DateRangeSheet = ({
 							/>
 							<SheetTitle>Custom range</SheetTitle>
 						</SheetHeader>
-						<div className="shrink-0 border-b px-4 py-3 text-sm">
+						<div className="shrink-0 border-b px-4 py-3 text-body">
 							{draftRange?.from
 								? dayjs(draftRange.from).format(DISPLAY_FORMAT)
 								: "Start"}
@@ -314,9 +319,9 @@ const DateRangePopover = ({
 								key={preset.id}
 								onClick={() => onPresetSelect(preset)}
 								className={cn(
-									"border px-2 py-1 text-xs sm:py-1.5 sm:text-left",
+									"rounded-[6px] border px-2 py-1 text-footnote sm:py-1.5 sm:text-left",
 									activePreset?.id === preset.id
-										? "border-foreground bg-foreground text-background"
+										? "border-primary bg-primary text-primary-foreground"
 										: "border-border/70 text-muted-foreground hover:text-foreground",
 								)}
 							>
@@ -354,6 +359,7 @@ export const DateRangePicker = ({
 	className,
 	resetOnSelect = false,
 	commitOnComplete = false,
+	fullWidth = false,
 }: DateRangePickerProps) => {
 	const selectedFromProps = useMemo<DateRange | undefined>(() => {
 		if (!(from || to)) {
@@ -432,7 +438,8 @@ export const DateRangePicker = ({
 				variant="outline"
 				disabled={disabled}
 				className={cn(
-					"h-10 pointer-coarse:h-11 justify-start font-normal",
+					"h-9 pointer-coarse:h-11 justify-start font-normal",
+					fullWidth && "w-full",
 					!hasValue && "text-muted-foreground",
 					showClear && "pr-9",
 					className,
@@ -482,7 +489,7 @@ export const DateRangePicker = ({
 	}
 
 	return (
-		<div className="relative inline-flex w-fit">
+		<div className={cn("relative inline-flex w-fit", fullWidth && "w-full")}>
 			{picker}
 			{showClear ? (
 				<button

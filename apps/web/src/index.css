@@ -5,23 +5,11 @@
    worker precaches every one on install, so a counter tablet downloads ~100KB
    of alphabets no receipt or order screen will ever print. */
 @font-face {
-	font-family: "Geist Variable";
+	font-family: "Inter Variable";
 	font-style: normal;
 	font-display: swap;
 	font-weight: 100 900;
-	src: url("@fontsource-variable/geist/files/geist-latin-wght-normal.woff2")
-		format("woff2-variations");
-	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-		U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191,
-		U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-	font-family: "JetBrains Mono Variable";
-	font-style: normal;
-	font-display: swap;
-	font-weight: 100 800;
-	src: url("@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2")
+	src: url("@fontsource-variable/inter/files/inter-latin-wght-normal.woff2")
 		format("woff2-variations");
 	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
 		U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191,
@@ -30,129 +18,156 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* An Order opened in the sheet on a laptop reads at sheet size; the phone and the full page keep theirs. */
+@custom-variant compact {
+	@media (width >= 40rem) {
+		@container order (width < 42rem) {
+			@slot;
+		}
+	}
+}
+
+/* Apple's system colours on a white page: cards are white too, told apart by a
+   hairline border; blue for actions, green and red for good and bad. */
 :root {
-	--background: oklch(1 0 0);
-	--foreground: oklch(0.145 0 0);
-	--card: oklch(1 0 0);
-	--card-foreground: oklch(0.145 0 0);
-	--popover: oklch(1 0 0);
-	--popover-foreground: oklch(0.145 0 0);
-	--primary: oklch(0.205 0 0);
-	--primary-foreground: oklch(0.985 0 0);
-	--secondary: oklch(0.97 0 0);
-	--secondary-foreground: oklch(0.205 0 0);
-	--muted: oklch(0.97 0 0);
-	--muted-foreground: oklch(0.556 0 0);
-	--accent: oklch(0.97 0 0);
-	--accent-foreground: oklch(0.205 0 0);
-	--destructive: oklch(0.58 0.22 27);
-	--success: oklch(0.72 0.18 150);
-	--success-foreground: oklch(0.985 0 0);
-	--warning: oklch(0.82 0.16 80);
-	--warning-foreground: oklch(0.145 0 0);
-	--info: oklch(0.62 0.12 235);
-	--info-foreground: oklch(0.985 0 0);
-	--border: oklch(0.922 0 0);
-	--input: oklch(0.922 0 0);
-	--ring: oklch(0.708 0 0);
-	--chart-1: oklch(0.646 0.222 41.116);
-	--chart-2: oklch(0.6 0.118 184.704);
-	--chart-3: oklch(0.398 0.07 227.392);
-	--chart-4: oklch(0.828 0.189 84.429);
-	--chart-5: oklch(0.769 0.188 70.08);
-	--chart-6: oklch(0.7 0.1 300);
-	--chart-7: oklch(0.72 0.1 140);
-	--chart-8: oklch(0.74 0.09 35);
-	--chart-9: oklch(0.7 0.1 220);
-	--chart-10: oklch(0.72 0.1 340);
-	--tone-good: oklch(0.95 0.045 155);
-	--tone-good-foreground: oklch(0.42 0.1 155);
-	--tone-warn: oklch(0.95 0.06 85);
-	--tone-warn-foreground: oklch(0.47 0.1 70);
-	--tone-bad: oklch(0.94 0.04 20);
-	--tone-bad-foreground: oklch(0.5 0.16 22);
-	--tone-neutral: oklch(0.96 0 0);
-	--tone-neutral-foreground: oklch(0.145 0 0);
-	--soft-bar: oklch(0.72 0.11 260);
-	--soft-bar-track: oklch(0.95 0.01 260);
-	--chart-other: oklch(0.92 0.005 260);
-	--chart-average: oklch(0.42 0.06 260);
-	--radius: 0.625rem;
-	/* The gap above the home indicator, owned by whatever actually sits at the
-	   bottom of the screen: the tab bar when a worker has one, the page itself
-	   otherwise. Anything sticky at the bottom pads by this, not by env(). */
+	--background: #ffffff;
+	--foreground: #1c1c1e;
+	--card: #ffffff;
+	--card-foreground: #1c1c1e;
+	--popover: #ffffff;
+	--popover-foreground: #1c1c1e;
+	--primary: #007aff;
+	--primary-foreground: #ffffff;
+	--secondary: rgb(118 118 128 / 0.12);
+	--secondary-foreground: #1c1c1e;
+	--muted: #f5f5f7;
+	--muted-foreground: #6e6e73;
+	--accent: rgb(118 118 128 / 0.12);
+	--accent-foreground: #1c1c1e;
+	--destructive: #ff3b30;
+	--success: #34c759;
+	--success-foreground: #ffffff;
+	--warning: #ff9500;
+	--warning-foreground: #ffffff;
+	--info: #007aff;
+	--info-foreground: #ffffff;
+	--border: #e5e5ea;
+	--input: #d1d1d6;
+	--ring: #007aff;
+	--chart-1: #007aff;
+	--chart-2: #34c759;
+	--chart-3: #ff9500;
+	--chart-4: #af52de;
+	--chart-5: #30b0c7;
+	--chart-6: #5856d6;
+	--chart-7: #00c7be;
+	--chart-8: #ff2d55;
+	--chart-9: #ffcc00;
+	--chart-10: #a2845e;
+	--tone-good: rgb(52 199 89 / 0.14);
+	--tone-good-foreground: #248a3d;
+	--tone-warn: rgb(255 149 0 / 0.16);
+	--tone-warn-foreground: #c93400;
+	--tone-bad: rgb(255 59 48 / 0.12);
+	--tone-bad-foreground: #d70015;
+	--tone-neutral: rgb(118 118 128 / 0.12);
+	--tone-neutral-foreground: #1c1c1e;
+	--tone-info: rgb(0 122 255 / 0.12);
+	--tone-info-foreground: #0062cc;
+	--tone-priority: rgb(88 86 214 / 0.14);
+	--tone-priority-foreground: #4b49c4;
+	--soft-bar: rgb(0 122 255 / 0.55);
+	--soft-bar-track: #e5e5ea;
+	--chart-other: #e5e5ea;
+	--chart-average: #3c3c43;
+	--frost: rgb(255 255 255 / 0.72);
+	--glass: rgb(246 246 248 / 0.85);
+	--link: #0066cc;
+	/* WhatsApp's own #25d366 fails white text, so the customer's contact button
+	   uses a darker green that reads. */
+	--whatsapp: #1a7f37;
+	--radius: 0.75rem;
+	/* What covers the bottom of the screen: the home indicator, plus the tab bar
+	   when a worker has one, since the page scrolls under it. Anything sticky at
+	   the bottom pads by this, not by env(). */
 	--inset-bottom: env(safe-area-inset-bottom);
-	--sidebar: oklch(0.985 0 0);
-	--sidebar-foreground: oklch(0.145 0 0);
-	--sidebar-primary: oklch(0.205 0 0);
-	--sidebar-primary-foreground: oklch(0.985 0 0);
-	--sidebar-accent: oklch(0.97 0 0);
-	--sidebar-accent-foreground: oklch(0.205 0 0);
-	--sidebar-border: oklch(0.922 0 0);
-	--sidebar-ring: oklch(0.708 0 0);
+	--sidebar: #ffffff;
+	--sidebar-foreground: #1c1c1e;
+	--sidebar-primary: #007aff;
+	--sidebar-primary-foreground: #ffffff;
+	--sidebar-accent: rgb(118 118 128 / 0.12);
+	--sidebar-accent-foreground: #1c1c1e;
+	--sidebar-border: #e5e5ea;
+	--sidebar-ring: #007aff;
 }
 
 .dark {
-	--background: oklch(0.145 0 0);
-	--foreground: oklch(0.985 0 0);
-	--card: oklch(0.205 0 0);
-	--card-foreground: oklch(0.985 0 0);
-	--popover: oklch(0.205 0 0);
-	--popover-foreground: oklch(0.985 0 0);
-	--primary: oklch(0.87 0 0);
-	--primary-foreground: oklch(0.205 0 0);
-	--secondary: oklch(0.269 0 0);
-	--secondary-foreground: oklch(0.985 0 0);
-	--muted: oklch(0.269 0 0);
-	--muted-foreground: oklch(0.708 0 0);
-	--accent: oklch(0.371 0 0);
-	--accent-foreground: oklch(0.985 0 0);
-	--destructive: oklch(0.704 0.191 22.216);
-	--success: oklch(0.76 0.16 150);
-	--success-foreground: oklch(0.145 0 0);
-	--warning: oklch(0.85 0.18 80);
-	--warning-foreground: oklch(0.145 0 0);
-	--info: oklch(0.7 0.13 235);
-	--info-foreground: oklch(0.985 0 0);
-	--border: oklch(1 0 0 / 10%);
-	--input: oklch(1 0 0 / 15%);
-	--ring: oklch(0.556 0 0);
-	--chart-1: oklch(0.488 0.243 264.376);
-	--chart-2: oklch(0.696 0.17 162.48);
-	--chart-3: oklch(0.769 0.188 70.08);
-	--chart-4: oklch(0.627 0.265 303.9);
-	--chart-5: oklch(0.645 0.246 16.439);
-	--chart-6: oklch(0.65 0.11 300);
-	--chart-7: oklch(0.68 0.11 140);
-	--chart-8: oklch(0.7 0.1 35);
-	--chart-9: oklch(0.66 0.11 220);
-	--chart-10: oklch(0.68 0.11 340);
-	--tone-good: oklch(0.3 0.05 155);
-	--tone-good-foreground: oklch(0.82 0.1 155);
-	--tone-warn: oklch(0.32 0.05 85);
-	--tone-warn-foreground: oklch(0.85 0.1 85);
-	--tone-bad: oklch(0.3 0.06 20);
-	--tone-bad-foreground: oklch(0.8 0.12 22);
-	--tone-neutral: oklch(0.3 0 0);
-	--tone-neutral-foreground: oklch(0.985 0 0);
-	--soft-bar: oklch(0.72 0.11 260);
-	--soft-bar-track: oklch(0.3 0.01 260);
-	--chart-other: oklch(0.38 0.01 260);
-	--chart-average: oklch(0.86 0.04 260);
-	--sidebar: oklch(0.205 0 0);
-	--sidebar-foreground: oklch(0.985 0 0);
-	--sidebar-primary: oklch(0.488 0.243 264.376);
-	--sidebar-primary-foreground: oklch(0.985 0 0);
-	--sidebar-accent: oklch(0.269 0 0);
-	--sidebar-accent-foreground: oklch(0.985 0 0);
-	--sidebar-border: oklch(1 0 0 / 10%);
-	--sidebar-ring: oklch(0.556 0 0);
+	--background: #000000;
+	--foreground: #ffffff;
+	--card: #1c1c1e;
+	--card-foreground: #ffffff;
+	--popover: #2c2c2e;
+	--popover-foreground: #ffffff;
+	--primary: #0a84ff;
+	--primary-foreground: #ffffff;
+	--secondary: rgb(118 118 128 / 0.24);
+	--secondary-foreground: #ffffff;
+	--muted: #2c2c2e;
+	--muted-foreground: #98989f;
+	--accent: rgb(118 118 128 / 0.24);
+	--accent-foreground: #ffffff;
+	--destructive: #ff453a;
+	--success: #30d158;
+	--success-foreground: #000000;
+	--warning: #ff9f0a;
+	--warning-foreground: #000000;
+	--info: #0a84ff;
+	--info-foreground: #ffffff;
+	--border: #38383a;
+	--input: #48484a;
+	--ring: #0a84ff;
+	--chart-1: #0a84ff;
+	--chart-2: #30d158;
+	--chart-3: #ff9f0a;
+	--chart-4: #bf5af2;
+	--chart-5: #40c8e0;
+	--chart-6: #5e5ce6;
+	--chart-7: #66d4cf;
+	--chart-8: #ff375f;
+	--chart-9: #ffd60a;
+	--chart-10: #ac8e68;
+	--tone-good: rgb(48 209 88 / 0.18);
+	--tone-good-foreground: #30d158;
+	--tone-warn: rgb(255 159 10 / 0.18);
+	--tone-warn-foreground: #ff9f0a;
+	--tone-bad: rgb(255 69 58 / 0.18);
+	--tone-bad-foreground: #ff6961;
+	--tone-neutral: rgb(118 118 128 / 0.24);
+	--tone-neutral-foreground: #ffffff;
+	--tone-info: rgb(10 132 255 / 0.18);
+	--tone-info-foreground: #409cff;
+	--tone-priority: rgb(94 92 230 / 0.22);
+	--tone-priority-foreground: #a5a4ff;
+	--soft-bar: rgb(10 132 255 / 0.7);
+	--soft-bar-track: #38383a;
+	--chart-other: #48484a;
+	--chart-average: #ebebf5;
+	--frost: rgb(22 22 24 / 0.72);
+	--glass: rgb(44 44 46 / 0.85);
+	--link: #2997ff;
+	--whatsapp: #1a7f37;
+	--sidebar: #1c1c1e;
+	--sidebar-foreground: #ffffff;
+	--sidebar-primary: #0a84ff;
+	--sidebar-primary-foreground: #ffffff;
+	--sidebar-accent: rgb(118 118 128 / 0.24);
+	--sidebar-accent-foreground: #ffffff;
+	--sidebar-border: #38383a;
+	--sidebar-ring: #0a84ff;
 }
 
 @theme inline {
-	--font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
-	--font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
-	--color-sidebar-ring: var(--sidebar-ring);
+	--font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;	--color-sidebar-ring: var(--sidebar-ring);
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
 	--color-sidebar-accent: var(--sidebar-accent);
@@ -178,8 +193,15 @@
 	--color-tone-bad-foreground: var(--tone-bad-foreground);
 	--color-tone-neutral: var(--tone-neutral);
 	--color-tone-neutral-foreground: var(--tone-neutral-foreground);
+	--color-tone-info: var(--tone-info);
+	--color-tone-info-foreground: var(--tone-info-foreground);
+	--color-tone-priority: var(--tone-priority);
+	--color-tone-priority-foreground: var(--tone-priority-foreground);
 	--color-soft-bar: var(--soft-bar);
 	--color-soft-bar-track: var(--soft-bar-track);
+	--color-frost: var(--frost);
+	--color-glass: var(--glass);
+	--color-whatsapp: var(--whatsapp);
 	--color-ring: var(--ring);
 	--color-input: var(--input);
 	--color-border: var(--border);
@@ -204,13 +226,56 @@
 	--color-card: var(--card);
 	--color-foreground: var(--foreground);
 	--color-background: var(--background);
-	--radius-sm: calc(var(--radius) - 4px);
-	--radius-md: calc(var(--radius) - 2px);
+	--radius-sm: calc(var(--radius) * 2 / 3);
+	--radius-md: calc(var(--radius) * 5 / 6);
 	--radius-lg: var(--radius);
-	--radius-xl: calc(var(--radius) + 4px);
-	--radius-2xl: calc(var(--radius) + 8px);
-	--radius-3xl: calc(var(--radius) + 12px);
-	--radius-4xl: calc(var(--radius) + 16px);
+	--radius-xl: calc(var(--radius) * 4 / 3);
+	--radius-2xl: calc(var(--radius) * 5 / 3);
+	--radius-3xl: calc(var(--radius) * 2);
+	--radius-4xl: calc(var(--radius) * 7 / 3);
+}
+
+/* Screens pick a named style, never a pixel size. */
+@theme {
+	--text-*: initial;
+	--text-caption: 11px;
+	--text-caption--line-height: 14px;
+	--text-caption--letter-spacing: 0.006em;
+	--text-footnote: 12px;
+	--text-footnote--line-height: 16px;
+	--text-footnote--letter-spacing: 0em;
+	--text-subhead: 13px;
+	--text-subhead--line-height: 18px;
+	--text-subhead--letter-spacing: -0.003em;
+	--text-body: 14px;
+	--text-body--line-height: 20px;
+	--text-body--letter-spacing: -0.006em;
+	--text-headline: 15px;
+	--text-headline--line-height: 20px;
+	--text-headline--letter-spacing: -0.009em;
+	--text-title-3: 17px;
+	--text-title-3--line-height: 22px;
+	--text-title-3--letter-spacing: -0.017em;
+	--text-title-2: 20px;
+	--text-title-2--line-height: 25px;
+	--text-title-2--letter-spacing: -0.021em;
+	--text-title-1: 26px;
+	--text-title-1--line-height: 32px;
+	--text-title-1--letter-spacing: -0.021em;
+	--text-large-title: 34px;
+	--text-large-title--line-height: 41px;
+	--text-large-title--letter-spacing: -0.021em;
+	/* A field on a phone stays at 16px, or iOS zooms in when the cashier taps it. */
+	--text-field: 16px;
+	--text-field--line-height: 24px;
+	--text-field--letter-spacing: -0.011em;
+}
+
+/* A link to somewhere other than its row, like the customer on an order. A
+   row's own title stays black, since the whole row already opens it. */
+@utility text-link {
+	color: var(--link);
+	font-weight: var(--font-weight-medium);
 }
 
 @layer base {
@@ -221,6 +286,7 @@
 	html,
 	body {
 		@apply bg-background font-sans text-foreground antialiased;
+		letter-spacing: -0.011em;
 		/* A cashier scrolling an order list who overshoots the top would
 		   otherwise trigger the browser's pull-to-refresh and reload mid-order. */
 		overscroll-behavior: none;
@@ -228,6 +294,12 @@
 
 	html {
 		-webkit-text-size-adjust: 100%;
+	}
+
+	/* Every card on a page is `rounded-lg border bg-card`; a faint lift off the
+	   white page reaches them all from here. */
+	.rounded-lg.border.bg-card {
+		box-shadow: 0 1px 3px rgb(0 0 0 / 0.05);
 	}
 
 	button,
@@ -248,6 +320,36 @@
 		-webkit-touch-callout: none;
 		user-select: none;
 	}
+
+	/* Apple's continuous corners. A squircle reads smaller than a round corner,
+	   so the radii grow with it; a browser without corner-shape (iPhone Safari
+	   today) keeps the old radii rather than rounder plain corners. */
+	@supports (corner-shape: superellipse(1.4)) {
+		*,
+		::before,
+		::after {
+			corner-shape: superellipse(1.4);
+		}
+
+		/* Pills and avatars stay true capsules and circles. */
+		[class*="rounded-full"] {
+			corner-shape: round;
+		}
+	}
+}
+
+/* Outside the layer, or the plain :root --radius above would win. */
+@supports (corner-shape: superellipse(1.4)) {
+	:root {
+		--radius: 0.975rem;
+	}
+}
+
+/* Dark mode, like iOS: a grey panel on black, no outline, no shadow. Outside
+   the layers so a screen's own `border-border/70` can't bring the outline back. */
+.dark .rounded-lg.border.bg-card {
+	border-color: transparent;
+	box-shadow: none;
 }
 
 /* Opening a record slides it in from the right and backing out slides it away

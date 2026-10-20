@@ -1,3 +1,4 @@
+import { CaretLeftIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,9 +20,8 @@ import { cn } from "@/lib/utils";
 import { useSheet } from "@/stores/sheet-store";
 
 export function GlobalSheet() {
-	const { open, title, description, content, size, back, onClose } = useSheet(
-		(state) => state.sheetState,
-	);
+	const { open, title, description, content, size, back, actions, onClose } =
+		useSheet((state) => state.sheetState);
 	const closeSheet = useSheet((state) => state.closeSheet);
 	const isDirty = useSheet((state) => state.isDirty);
 	const [confirmOpen, setConfirmOpen] = useState(false);
@@ -53,20 +53,22 @@ export function GlobalSheet() {
 				<SheetContent
 					side="right"
 					className={cn(
-						"w-full overflow-y-auto",
+						"w-full overflow-hidden",
 						size === "wide" &&
 							"data-[side=right]:w-full data-[side=right]:sm:max-w-[820px]",
 					)}
 				>
 					{title || description ? (
-						<SheetHeader>
+						<SheetHeader className="shrink-0 border-b">
+							{actions ? <div className="pr-8">{actions}</div> : null}
 							{back ? (
 								<button
 									type="button"
 									onClick={back.onClick}
-									className="justify-self-start text-left text-muted-foreground text-sm hover:text-foreground"
+									className="-ml-1 flex h-9 items-center gap-0.5 justify-self-start text-left text-body text-link hover:opacity-80 pointer-coarse:h-11"
 								>
-									{`← ${back.label}`}
+									<CaretLeftIcon className="size-4.5 shrink-0" />
+									{back.label}
 								</button>
 							) : null}
 							{title ? <SheetTitle>{title}</SheetTitle> : null}
@@ -79,18 +81,23 @@ export function GlobalSheet() {
 							</SheetDescription>
 						</SheetHeader>
 					) : null}
-					<div className="p-4">{content ? content() : null}</div>
+					<div className="min-h-0 flex-1 overflow-y-auto p-4">
+						{content ? content() : null}
+					</div>
 				</SheetContent>
 			</Sheet>
 			<Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-				<DialogContent showCloseButton={false} className="sm:max-w-sm">
-					<DialogHeader>
+				<DialogContent
+					showCloseButton={false}
+					className="max-w-[320px] gap-4 rounded-2xl px-4.5 pt-5 pb-4 text-center sm:max-w-[320px]"
+				>
+					<DialogHeader className="text-balance text-center">
 						<DialogTitle>Discard unsaved changes?</DialogTitle>
-						<DialogDescription>
+						<DialogDescription className="text-subhead">
 							You have unsaved edits. Closing will lose them.
 						</DialogDescription>
 					</DialogHeader>
-					<DialogFooter>
+					<DialogFooter className="grid grid-cols-2 gap-2 *:w-full pointer-fine:*:h-10">
 						<Button
 							type="button"
 							variant="outline"
