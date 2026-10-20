@@ -1,5 +1,6 @@
 import "@/index.css";
 
+import interLatinUrl from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 import {
 	onlineManager,
 	QueryClient,
@@ -15,6 +16,16 @@ import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
 import { RoutePending } from "@/components/route-pending";
 import { ThemeProvider } from "@/components/theme-provider";
 import { routeTree } from "@/routeTree.gen";
+
+// The boot spinner has no text, so without this Inter is only requested once
+// the first screen has painted, and every line reflows when it lands.
+const fontPreload = document.createElement("link");
+fontPreload.rel = "preload";
+fontPreload.as = "font";
+fontPreload.type = "font/woff2";
+fontPreload.crossOrigin = "anonymous";
+fontPreload.href = interLatinUrl;
+document.head.append(fontPreload);
 
 const ReactQueryDevtools = import.meta.env.DEV
 	? lazy(() =>

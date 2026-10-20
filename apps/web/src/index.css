@@ -16,6 +16,17 @@
 		U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* Arial stretched to Inter's size, so the first paint on a cold open takes
+   the same room and nothing moves when Inter arrives. */
+@font-face {
+	font-family: "Inter Fallback";
+	src: local("Arial"), local("Helvetica");
+	size-adjust: 107.12%;
+	ascent-override: 90.44%;
+	descent-override: 22.52%;
+	line-gap-override: 0%;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /* An Order opened in the sheet on a laptop reads at sheet size; the phone and the full page keep theirs. */
@@ -167,7 +178,9 @@
 }
 
 @theme inline {
-	--font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;	--color-sidebar-ring: var(--sidebar-ring);
+	--font-sans:
+		"Inter Variable", "Inter Fallback", ui-sans-serif, system-ui, sans-serif;
+	--color-sidebar-ring: var(--sidebar-ring);
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
 	--color-sidebar-accent: var(--sidebar-accent);
