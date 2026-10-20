@@ -1,7 +1,7 @@
-import { MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
+import { XIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
+import { SearchInput } from "@/components/search-input";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 export interface DebouncedSearchInputProps {
@@ -60,29 +60,29 @@ export function DebouncedSearchInput({
 	};
 
 	return (
-		<div className={cn("relative flex items-center", className)}>
-			<MagnifyingGlassIcon className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
-			<Input
-				// What the lists' "/" shortcut jumps to.
-				data-list-search
-				id={id}
-				value={internalValue}
-				onChange={(event) => handleChange(event.target.value)}
-				placeholder={placeholder}
-				aria-label={ariaLabel}
-				className={cn("w-full min-w-0 pl-9 pr-9", inputClassName)}
-			/>
-			{internalValue ? (
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon-sm"
-					aria-label="Clear search"
-					icon={<XIcon className="size-4" />}
-					className="absolute right-1"
-					onClick={handleClear}
-				/>
-			) : null}
-		</div>
+		<SearchInput
+			// What the lists' "/" shortcut jumps to.
+			data-list-search
+			id={id}
+			value={internalValue}
+			onChange={(event) => handleChange(event.target.value)}
+			placeholder={placeholder}
+			aria-label={ariaLabel}
+			className={className}
+			inputClassName={cn("pr-9", inputClassName)}
+			end={
+				internalValue ? (
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon-sm"
+						aria-label="Clear search"
+						icon={<XIcon className="size-4" />}
+						className="absolute right-1"
+						onClick={handleClear}
+					/>
+				) : null
+			}
+		/>
 	);
 }

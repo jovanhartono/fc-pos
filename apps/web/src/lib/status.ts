@@ -59,9 +59,9 @@ const paymentStatusLabels = {
 } as const;
 
 const refundStatusLabels = {
-	full: "Fully Refunded",
-	none: "No Refund",
-	partial: "Partially Refunded",
+	full: "Fully refunded",
+	none: "No refund",
+	partial: "Partially refunded",
 } as const;
 
 const orderStatusLabels = {
@@ -69,17 +69,17 @@ const orderStatusLabels = {
 	completed: "Completed",
 	created: "Created",
 	processing: "Processing",
-	ready_for_pickup: "Ready for Pickup",
+	ready_for_pickup: "Ready for pickup",
 } as const;
 
 const orderServiceStatusLabels = {
 	cancelled: "Cancelled",
-	picked_up: "Picked Up",
-	processing: "In Progress",
-	qc_reject: "QC Rejected",
-	quality_check: "Quality Check",
+	picked_up: "Picked up",
+	processing: "In progress",
+	qc_reject: "QC rejected",
+	quality_check: "Quality check",
 	queued: "Queued",
-	ready_for_pickup: "Ready for Pickup",
+	ready_for_pickup: "Ready for pickup",
 	refunded: "Refunded",
 } as const;
 

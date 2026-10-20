@@ -45,7 +45,7 @@ export function TablePagination({
 
 	return (
 		<div className="flex items-center justify-between gap-3">
-			<p className="text-muted-foreground text-xs tabular-nums">
+			<p className="text-muted-foreground text-footnote tabular-nums">
 				<span className="max-sm:hidden">Showing </span>
 				{`${from}-${to} of ${meta.total}`}
 			</p>
@@ -60,7 +60,7 @@ export function TablePagination({
 				>
 					Prev
 				</Button>
-				<span className="min-w-16 text-center text-muted-foreground text-xs tabular-nums">
+				<span className="min-w-16 text-center text-muted-foreground text-footnote tabular-nums">
 					<span className="max-sm:hidden">Page </span>
 					{`${currentPage} / ${totalPages}`}
 				</span>

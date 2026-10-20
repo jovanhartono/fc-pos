@@ -13,7 +13,6 @@ import {
 	useState,
 } from "react";
 import { HOME_NAV_ITEM, navGroupsForRole } from "@/components/app-navigation";
-import { KeyHint } from "@/components/key-hint";
 import { Badge } from "@/components/ui/badge";
 import { customersQueries } from "@/features/customers/api";
 import { ordersQueries } from "@/features/orders/api";
@@ -105,10 +104,10 @@ const CommandBarPanel = () => {
 				key: `order-${order.id}`,
 				group: "Orders",
 				icon: ReceiptIcon,
-				label: order.code,
-				meta: order.customer_name,
+				label: order.customer_name,
+				meta: order.code,
 				status: order.status,
-				// On a desktop the Order opens beside the list; on a phone, as its
+				// On a desktop the Order opens in the sheet over the list; on a phone, as its
 				// own page.
 				target: isWide
 					? { to: "/orders", search: { page: 1, open: order.id } }
@@ -158,13 +157,13 @@ const CommandBarPanel = () => {
 					onKeyDown={handleKeyDown}
 					placeholder="Phone, name, Order code or page"
 					aria-label="Search or jump to"
-					className="h-full min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
+					className="h-full min-w-0 flex-1 bg-transparent text-field outline-none placeholder:text-muted-foreground"
 				/>
 			</label>
 
 			<div className="max-h-[60vh] overflow-y-auto py-1 max-sm:max-h-none">
 				{results.length === 0 ? (
-					<p className="px-4 py-6 text-center text-muted-foreground text-sm">
+					<p className="px-4 py-6 text-center text-muted-foreground text-body">
 						{isSearching ? "Searching…" : "Nothing matches."}
 					</p>
 				) : (
@@ -177,13 +176,14 @@ const CommandBarPanel = () => {
 						}
 						return (
 							<section key={group} className="py-1">
-								<h3 className="px-4 pt-1.5 pb-1 text-muted-foreground text-xs">
+								<h3 className="px-4 pt-1.5 pb-1 text-muted-foreground text-footnote">
 									{group}
 								</h3>
 								<ul>
 									{groupResults.map((result) => {
 										const isActive = results[safeIndex] === result;
 										const Icon = result.icon;
+										const isOrder = result.group === "Orders";
 										return (
 											<li key={result.key}>
 												<button
@@ -193,38 +193,42 @@ const CommandBarPanel = () => {
 														setActiveIndex(results.indexOf(result))
 													}
 													className={cn(
-														"flex h-10 w-full items-center gap-3 px-4 text-left text-sm max-sm:h-12",
-														isActive && "bg-foreground text-background",
+														"flex h-10 w-full items-center gap-3 px-4 text-left text-body max-sm:h-12",
+														isOrder && "h-14 max-sm:h-14",
+														isActive && "bg-primary/10",
 													)}
 												>
 													<Icon
 														className={cn(
 															"size-4 shrink-0",
 															isActive
-																? "text-background/70"
+																? "text-primary"
 																: "text-muted-foreground",
 														)}
 													/>
+													{/* A cashier hunting an Order by phone scans for the
+													    customer's name, so it leads and the code sits under it. */}
 													<span
 														className={cn(
-															"shrink-0 font-medium",
-															result.group === "Orders" && "font-mono",
+															"flex min-w-0 gap-x-3",
+															isOrder ? "flex-col" : "items-baseline",
 														)}
 													>
-														{result.label}
-													</span>
-													{result.meta ? (
-														<span
-															className={cn(
-																"min-w-0 truncate text-xs tabular-nums",
-																isActive
-																	? "text-background/70"
-																	: "text-muted-foreground",
-															)}
-														>
-															{result.meta}
+														<span className="shrink-0 truncate font-medium">
+															{result.label}
 														</span>
-													) : null}
+														{result.meta ? (
+															<span
+																className={cn(
+																	"min-w-0 truncate text-subhead tabular-nums",
+																	result.group === "Pages" &&
+																		"text-muted-foreground",
+																)}
+															>
+																{result.meta}
+															</span>
+														) : null}
+													</span>
 													{result.status ? (
 														<Badge
 															className="ml-auto"
@@ -244,12 +248,6 @@ const CommandBarPanel = () => {
 						);
 					})
 				)}
-			</div>
-
-			<div className="flex items-center gap-5 border-t bg-muted/50 px-4 py-1.5 text-muted-foreground text-xs max-sm:hidden">
-				<KeyHint keys={["↑", "↓"]} label="move" />
-				<KeyHint keys={["↵"]} label="open" />
-				<KeyHint keys={["esc"]} label="close" />
 			</div>
 		</>
 	);

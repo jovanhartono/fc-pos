@@ -46,11 +46,11 @@ export const SelectField = ({
 			}));
 
 	// Touch targets: trigger size already grows the closed control, but popup
-	// rows stay at the dense ~32px/text-xs default. On `lg` (touch/iPad pickers)
+	// rows stay at the dense ~32px/text-footnote default. On `lg` (touch/iPad pickers)
 	// bump each row to the 44px HIG minimum so options are tappable, not just
 	// the trigger. Scoped to this instance — the shared SelectItem stays dense
 	// for tables and filters.
-	const itemClassName = size === "lg" ? "min-h-11 py-2.5 text-sm" : undefined;
+	const itemClassName = size === "lg" ? "min-h-11 py-2.5 text-body" : undefined;
 
 	return (
 		<Select

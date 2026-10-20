@@ -11,6 +11,7 @@ type SheetState = {
 	size: SheetSize;
 	back: SheetBack | null;
 	backLabel: string | null;
+	actions: ReactNode;
 	onClose: (() => void) | null;
 };
 
@@ -29,6 +30,8 @@ export type OpenSheetPayload = {
 	// What a sheet opened over this one calls it in its back link, when the
 	// title is not plain text (an Order's title is hidden behind its own header).
 	backLabel?: string;
+	// A row at the top of the header, like the Orders list's previous/next.
+	actions?: ReactNode;
 	// When the person closes the sheet, not when code closes it to leave the
 	// page; a sheet opened over this one inherits it.
 	onClose?: () => void;
@@ -56,6 +59,7 @@ const defaultState: SheetState = {
 	size: undefined,
 	back: null,
 	backLabel: null,
+	actions: null,
 	onClose: null,
 };
 
@@ -76,6 +80,7 @@ export const useSheet = create<SheetStore>((set, get) => ({
 		size,
 		back,
 		backLabel,
+		actions = null,
 		onClose,
 	}) =>
 		set({
@@ -86,6 +91,7 @@ export const useSheet = create<SheetStore>((set, get) => ({
 				size,
 				back: back ?? null,
 				backLabel: backLabel ?? null,
+				actions,
 				onClose: onClose ?? null,
 				open: true,
 			},

@@ -3,6 +3,7 @@ import {
 	CaretUpDownIcon,
 	CaretUpIcon,
 } from "@phosphor-icons/react";
+import { Link, type LinkProps } from "@tanstack/react-router";
 import {
 	flexRender,
 	type RowData,
@@ -11,7 +12,6 @@ import {
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { DataTableFeatures } from "@/components/data-table-features";
 import "@/components/data-table-meta";
-import { KeyHint } from "@/components/key-hint";
 import {
 	Table,
 	TableBody,
@@ -28,15 +28,22 @@ interface DataTableGridProps<TData extends RowData> {
 	isLoading?: boolean;
 	emptyMessage: string;
 	sortable: boolean;
+	getRowLink?: (row: TData) => LinkProps;
 	isRowActive?: (row: TData) => boolean;
 	footer?: ReactNode;
 }
+
+// Links and buttons in a cell sit above the whole-row link, so the customer
+// name on an order row still opens the Customer.
+const RAISED_CONTROLS =
+	"[&_a:not([data-row-link])]:relative [&_button]:relative";
 
 export const DataTableGrid = <TData extends RowData>({
 	table,
 	isLoading,
 	emptyMessage,
 	sortable,
+	getRowLink,
 	isRowActive,
 	footer,
 }: DataTableGridProps<TData>) => {
@@ -46,7 +53,7 @@ export const DataTableGrid = <TData extends RowData>({
 	const rows = table.getRowModel().rows;
 	const rowCount = rows.length;
 
-	// While a row is open beside the list, its fill is the only marker; on
+	// While a row is open in the sheet over the list, its fill is the only marker; on
 	// close the ring is waiting on it, so J carries on from the last one opened.
 	const activeIndex = isRowActive
 		? rows.findIndex((row) => isRowActive(row.original))
@@ -123,14 +130,15 @@ export const DataTableGrid = <TData extends RowData>({
 		// Next without scrolling back down each time.
 		<div
 			ref={frameRef}
-			className="flex min-h-0 flex-col border border-border bg-background"
+			className="flex min-h-0 flex-col overflow-hidden rounded-lg border bg-card"
 		>
 			<Table containerClassName="min-h-0 overflow-auto">
-				<TableHeader>
+				{/* Column names over no rows read as a broken box, so an empty list is just its message. */}
+				<TableHeader className={cn(!isLoading && rowCount === 0 && "hidden")}>
 					{table.getHeaderGroups().map((headerGroup) => (
 						<TableRow
 							key={headerGroup.id}
-							className="border-border hover:bg-muted"
+							className="border-border hover:bg-transparent"
 						>
 							{headerGroup.headers.map((header) => {
 								const canSort = sortable && header.column.getCanSort();
@@ -140,7 +148,7 @@ export const DataTableGrid = <TData extends RowData>({
 									<TableHead
 										key={header.id}
 										className={cn(
-											"sticky top-0 z-10 h-9 bg-muted font-medium text-muted-foreground text-xs first:pl-3 last:pr-3",
+											"sticky top-0 z-10 h-9 bg-card font-medium text-muted-foreground text-subhead shadow-[inset_0_-1px_0_var(--border)] first:pl-3 last:pr-3",
 											isRight && "text-right",
 											header.column.columnDef.meta?.headerClassName,
 										)}
@@ -187,7 +195,7 @@ export const DataTableGrid = <TData extends RowData>({
 						<TableRow>
 							<TableCell
 								colSpan={table.getAllLeafColumns().length || 1}
-								className="h-20 text-center text-muted-foreground text-sm md:h-24"
+								className="h-20 text-center text-muted-foreground text-body md:h-24"
 							>
 								Loading…
 							</TableCell>
@@ -200,18 +208,32 @@ export const DataTableGrid = <TData extends RowData>({
 									(activeIndex < 0 && index === focusedIndex) || undefined
 								}
 								data-state={index === activeIndex ? "selected" : undefined}
-								className="scroll-mt-9 border-border/60 data-focused:bg-muted/60 data-focused:outline-2 data-focused:outline-foreground data-focused:-outline-offset-2 data-[state=selected]:[&>td:first-child]:shadow-[inset_2px_0_0_var(--foreground)]"
+								className={cn(
+									"scroll-mt-9 border-border/60 data-focused:bg-muted/60 data-focused:outline-2 data-focused:outline-primary data-focused:-outline-offset-2 data-[state=selected]:bg-primary/10",
+									getRowLink && "relative cursor-pointer",
+								)}
 							>
-								{row.getAllCells().map((cell) => (
+								{row.getAllCells().map((cell, cellIndex) => (
 									<TableCell
 										key={cell.id}
 										className={cn(
 											"py-3 first:pl-3 last:pr-3",
 											cell.column.columnDef.meta?.align === "right" &&
 												"text-right tabular-nums",
+											getRowLink && RAISED_CONTROLS,
 											cell.column.columnDef.meta?.cellClassName,
 										)}
 									>
+										{getRowLink && cellIndex === 0 ? (
+											<Link
+												{...getRowLink(row.original)}
+												aria-hidden
+												tabIndex={-1}
+												preload={false}
+												data-row-link
+												className="absolute inset-0"
+											/>
+										) : null}
 										{flexRender(cell.column.columnDef.cell, cell.getContext())}
 									</TableCell>
 								))}
@@ -221,7 +243,7 @@ export const DataTableGrid = <TData extends RowData>({
 						<TableRow>
 							<TableCell
 								colSpan={table.getAllLeafColumns().length || 1}
-								className="h-20 text-center text-muted-foreground text-sm md:h-24"
+								className="h-20 text-center text-body md:h-24"
 							>
 								{emptyMessage}
 							</TableCell>
@@ -229,18 +251,6 @@ export const DataTableGrid = <TData extends RowData>({
 					)}
 				</TableBody>
 			</Table>
-			{rowCount > 0 ? (
-				<div className="flex shrink-0 items-center gap-5 border-t bg-muted/50 px-3 py-1.5 text-muted-foreground text-xs">
-					<KeyHint keys={["J", "K"]} label="move" />
-					<KeyHint keys={["↵"]} label="open" />
-					{footer ? <KeyHint keys={["[", "]"]} label="page" /> : null}
-					<KeyHint
-						keys={["/"]}
-						label="search"
-						className="hidden items-center gap-1.5 group-has-[[data-list-search]]/list:inline-flex"
-					/>
-				</div>
-			) : null}
 			{footer ? (
 				<div className="shrink-0 border-t px-3 py-2">{footer}</div>
 			) : null}

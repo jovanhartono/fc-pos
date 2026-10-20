@@ -14,4 +14,13 @@ dayjs.extend(relativeTime);
 
 export const JAKARTA_TZ = "Asia/Jakarta";
 
+// One date shape for every list: "19 Oct 15:09", with the year only once it
+// is not this year's.
+export const formatListDate = (value: Date | string) => {
+	const date = dayjs(value);
+	return date.format(
+		date.year() === dayjs().year() ? "D MMM HH:mm" : "D MMM YYYY HH:mm",
+	);
+};
+
 export default dayjs;

@@ -1,3 +1,4 @@
+import { CaretRightIcon } from "@phosphor-icons/react";
 import { Link, type LinkProps } from "@tanstack/react-router";
 import {
 	type Cell,
@@ -8,6 +9,8 @@ import {
 import { Fragment, type ReactNode } from "react";
 import type { DataTableFeatures } from "@/components/data-table-features";
 import "@/components/data-table-meta";
+import { EmptyState } from "@/components/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface DataTableCardsProps<TData extends RowData> {
@@ -18,7 +21,12 @@ interface DataTableCardsProps<TData extends RowData> {
 	cardHiddenColumnIds?: string[];
 	getCardLink?: (row: TData) => LinkProps;
 	isRowActive?: (row: TData) => boolean;
+	isGrouped?: boolean;
+	renderCard?: (row: TData) => ReactNode;
 }
+
+const GROUPED_ROW_CLASS =
+	"not-first:before:pointer-events-none not-first:before:absolute not-first:before:top-0 not-first:before:right-0 not-first:before:left-4 not-first:before:border-border not-first:before:border-t";
 
 interface CardCells<TData extends RowData> {
 	primaryCell?: Cell<DataTableFeatures, TData>;
@@ -114,18 +122,29 @@ export const DataTableCards = <TData extends RowData>({
 	cardHiddenColumnIds,
 	getCardLink,
 	isRowActive,
+	isGrouped,
+	renderCard,
 }: DataTableCardsProps<TData>) => {
 	if (isLoading) {
 		return (
-			<div className="grid gap-2 lg:hidden">
+			<div
+				className={cn(
+					"grid gap-2 lg:hidden",
+					isGrouped && "gap-0 overflow-hidden rounded-lg border bg-card",
+				)}
+			>
 				{Array.from({ length: 3 }, (_, index) => (
 					<div
 						key={index}
-						className="grid h-32 animate-pulse grid-rows-[auto_1fr_auto] border border-border bg-muted/30"
+						className={cn(
+							"relative grid h-32 grid-rows-[auto_1fr_auto] gap-3 overflow-hidden rounded-lg border bg-card p-3",
+							isGrouped && "rounded-none border-0 px-4",
+							isGrouped && GROUPED_ROW_CLASS,
+						)}
 					>
-						<div className="h-7 border-border/70 border-b bg-muted/50" />
-						<div className="m-3 h-5 w-2/3 bg-muted/60" />
-						<div className="h-10 border-border/70 border-t bg-muted/40" />
+						<Skeleton className="h-4 w-1/3" />
+						<Skeleton className="h-5 w-2/3" />
+						<Skeleton className="h-4 w-1/2" />
 					</div>
 				))}
 			</div>
@@ -136,9 +155,19 @@ export const DataTableCards = <TData extends RowData>({
 
 	if (rows.length === 0) {
 		return (
-			<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center text-muted-foreground text-sm lg:hidden">
+			<EmptyState className="rounded-lg border bg-card text-body text-foreground lg:hidden">
 				{emptyMessage}
-			</div>
+			</EmptyState>
+		);
+	}
+
+	if (renderCard) {
+		return (
+			<ul className="divide-y divide-border overflow-hidden rounded-lg border bg-card lg:hidden">
+				{rows.map((row) => (
+					<li key={row.id}>{renderCard(row.original)}</li>
+				))}
+			</ul>
 		);
 	}
 
@@ -152,11 +181,18 @@ export const DataTableCards = <TData extends RowData>({
 	// Links and buttons inside the card sit above the whole-card link, so the
 	// customer name on an order card still opens the Customer.
 	const raisedControls = getCardLink && "[&_a]:relative [&_button]:relative";
+	const hasCaret = isGrouped && getCardLink !== undefined;
+	const rowPadding = isGrouped ? "px-4" : "px-3";
 
 	return (
 		// grid-cols-1 on each grid here caps it at the screen's width, so a long
 		// description or name truncates instead of pushing Edit off the edge.
-		<div className="grid grid-cols-1 gap-2 lg:hidden">
+		<div
+			className={cn(
+				"grid grid-cols-1 gap-2 lg:hidden",
+				isGrouped && "gap-0 overflow-hidden rounded-lg border bg-card",
+			)}
+		>
 			{rows.map((row) => {
 				const {
 					primaryCell,
@@ -181,12 +217,22 @@ export const DataTableCards = <TData extends RowData>({
 					</div>
 				);
 				const hasBadgeRow = badgeCells.length > 0;
+				// A User card is name over "handle · role · stores", so an Inactive
+				// badge ends that second line instead of adding a third.
+				const isStatusOnSubtitle =
+					!hasBadgeRow && detailCells.length === 0 && subtitleCells.length > 0;
 
 				return (
 					<article
 						key={row.id}
 						data-state={isRowActive?.(row.original) ? "selected" : undefined}
-						className="group/card relative grid grid-cols-1 border border-border bg-background text-sm transition-colors hover:border-foreground/40 hover:bg-muted/20 data-[state=selected]:bg-muted data-[state=selected]:shadow-[inset_2px_0_0_var(--foreground)] dark:bg-muted/5"
+						className={cn(
+							"group/card relative grid grid-cols-1 overflow-hidden bg-card text-body transition-colors hover:bg-muted/20",
+							isGrouped
+								? cn("data-[state=selected]:bg-primary/10", GROUPED_ROW_CLASS)
+								: "rounded-lg border data-[state=selected]:bg-primary/[0.06] data-[state=selected]:ring-2! data-[state=selected]:ring-primary",
+							hasCaret && "grid-cols-[minmax(0,1fr)_auto]",
+						)}
 					>
 						{getCardLink !== undefined && (
 							<Link
@@ -200,7 +246,8 @@ export const DataTableCards = <TData extends RowData>({
 						{hasHeaderStrip ? (
 							<div
 								className={cn(
-									"flex items-center justify-between gap-3 border-border/70 border-b px-3 py-1.5",
+									"col-start-1 flex items-center justify-between gap-3 border-border/70 border-b py-1.5",
+									rowPadding,
 									raisedControls,
 								)}
 							>
@@ -212,14 +259,14 @@ export const DataTableCards = <TData extends RowData>({
 												{index > 0 ? (
 													<span
 														aria-hidden="true"
-														className="text-[10px] text-border"
+														className="text-caption text-border"
 													>
 														/
 													</span>
 												) : null}
 												<span
 													className={cn(
-														"font-medium text-muted-foreground text-xs",
+														"font-medium text-muted-foreground text-footnote",
 														mobileCard?.className,
 													)}
 												>
@@ -240,7 +287,7 @@ export const DataTableCards = <TData extends RowData>({
 												<div
 													key={cell.id}
 													className={cn(
-														"font-semibold text-foreground text-sm tabular-nums",
+														"font-semibold text-foreground text-body tabular-nums",
 														mobileCard?.className,
 													)}
 												>
@@ -258,7 +305,8 @@ export const DataTableCards = <TData extends RowData>({
 
 						<div
 							className={cn(
-								"grid grid-cols-1 gap-2 px-3 py-2.5",
+								"col-start-1 grid grid-cols-1 gap-2 py-2.5",
+								rowPadding,
 								raisedControls,
 							)}
 						>
@@ -269,7 +317,7 @@ export const DataTableCards = <TData extends RowData>({
 									{primaryCell ? (
 										<div
 											className={cn(
-												"min-w-0 flex-1 wrap-break-word font-semibold text-[15px] text-foreground leading-tight tracking-tight",
+												"min-w-0 flex-1 wrap-break-word font-medium text-headline text-foreground leading-tight tracking-tight",
 												// Centres the first line on the Edit button beside it.
 												titleEndCells.length > 0 && "pt-1",
 												primaryConfig?.className,
@@ -301,28 +349,31 @@ export const DataTableCards = <TData extends RowData>({
 								</div>
 							) : null}
 							{subtitleCells.length > 0 ? (
-								<div className="flex min-w-0 flex-wrap items-center gap-x-1.5 wrap-break-word text-muted-foreground text-sm">
-									{subtitleCells.map((cell, index) => {
-										const mobileCard = cell.column.columnDef.meta?.mobileCard;
-										return (
-											<Fragment key={cell.id}>
-												{index > 0 ? (
-													<span
-														aria-hidden="true"
-														className="text-muted-foreground"
-													>
-														·
-													</span>
-												) : null}
-												<div className={cn("min-w-0", mobileCard?.className)}>
-													{flexRender(
-														cell.column.columnDef.cell,
-														cell.getContext(),
-													)}
-												</div>
-											</Fragment>
-										);
-									})}
+								<div className="flex items-center justify-between gap-3">
+									<div className="flex min-w-0 flex-wrap items-center gap-x-1.5 wrap-break-word text-muted-foreground text-body">
+										{subtitleCells.map((cell, index) => {
+											const mobileCard = cell.column.columnDef.meta?.mobileCard;
+											return (
+												<Fragment key={cell.id}>
+													{index > 0 ? (
+														<span
+															aria-hidden="true"
+															className="text-muted-foreground"
+														>
+															·
+														</span>
+													) : null}
+													<div className={cn("min-w-0", mobileCard?.className)}>
+														{flexRender(
+															cell.column.columnDef.cell,
+															cell.getContext(),
+														)}
+													</div>
+												</Fragment>
+											);
+										})}
+									</div>
+									{isStatusOnSubtitle ? status : null}
 								</div>
 							) : null}
 							{detailCells.length > 0 ? (
@@ -342,7 +393,7 @@ export const DataTableCards = <TData extends RowData>({
 												>
 													<dt
 														className={cn(
-															"text-muted-foreground text-xs",
+															"text-muted-foreground text-footnote",
 															mobileCard?.labelClassName,
 														)}
 													>
@@ -350,7 +401,7 @@ export const DataTableCards = <TData extends RowData>({
 													</dt>
 													<dd
 														className={cn(
-															"min-w-0 truncate font-medium text-foreground text-sm",
+															"min-w-0 truncate font-medium text-foreground text-body",
 															mobileCard?.valueClassName,
 														)}
 													>
@@ -392,8 +443,16 @@ export const DataTableCards = <TData extends RowData>({
 									{status}
 								</div>
 							) : null}
-							{!hasBadgeRow && detailCells.length === 0 && status}
+							{!(hasBadgeRow || isStatusOnSubtitle) &&
+								detailCells.length === 0 &&
+								status}
 						</div>
+						{hasCaret ? (
+							<CaretRightIcon
+								aria-hidden
+								className="col-start-2 row-span-2 row-start-1 mr-4 size-3.5 self-center text-muted-foreground/50"
+							/>
+						) : null}
 					</article>
 				);
 			})}

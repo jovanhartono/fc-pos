@@ -24,8 +24,13 @@ interface DataTableProps<TData extends RowData> {
 	sortable?: boolean;
 	cardPrimaryColumnId?: string;
 	cardHiddenColumnIds?: string[];
-	getCardLink?: (row: TData) => LinkProps;
-	// The row whose record is open beside the list.
+	// Opens the record from anywhere on its row or card.
+	getRowLink?: (row: TData) => LinkProps;
+	// Phone rows share one card; for lists of one-line records, not Orders.
+	isCardGrouped?: boolean;
+	// Phone rows the page draws itself, inside one grouped card.
+	renderCard?: (row: TData) => ReactNode;
+	// The row whose record is open in the sheet over the list.
 	isRowActive?: (row: TData) => boolean;
 	// The pager, kept in reach: under the rows on desktop, above the tab bar on a phone.
 	footer?: ReactNode;
@@ -39,7 +44,7 @@ export const WRAP_NAME_CLASS =
 	"lg:max-w-64 lg:whitespace-normal lg:wrap-break-word";
 
 const KIND_CLASS = {
-	code: "font-mono",
+	code: "tabular-nums",
 	name: `font-medium lg:inline-block lg:min-w-40 ${WRAP_NAME_CLASS}`,
 	text: "lg:block lg:max-w-72 lg:truncate",
 } as const;
@@ -75,11 +80,13 @@ export const DataTable = <TData extends RowData>({
 	columns,
 	data,
 	isLoading,
-	emptyMessage = "No data found",
+	emptyMessage = "Nothing here.",
 	sortable = false,
 	cardPrimaryColumnId,
 	cardHiddenColumnIds,
-	getCardLink,
+	getRowLink,
+	isCardGrouped,
+	renderCard,
 	isRowActive,
 	footer,
 }: DataTableProps<TData>) => {
@@ -108,7 +115,9 @@ export const DataTable = <TData extends RowData>({
 					emptyMessage={emptyMessage}
 					cardPrimaryColumnId={cardPrimaryColumnId}
 					cardHiddenColumnIds={cardHiddenColumnIds}
-					getCardLink={getCardLink}
+					getCardLink={getRowLink}
+					isGrouped={isCardGrouped || renderCard !== undefined}
+					renderCard={renderCard}
 					isRowActive={isRowActive}
 				/>
 				{footer ? (
@@ -130,6 +139,7 @@ export const DataTable = <TData extends RowData>({
 			isLoading={isLoading}
 			emptyMessage={emptyMessage}
 			sortable={sortable}
+			getRowLink={getRowLink}
 			isRowActive={isRowActive}
 			footer={footer}
 		/>
