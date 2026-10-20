@@ -285,5 +285,3 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 		</div>
 	);
 };
-
-export default OverviewPanel;

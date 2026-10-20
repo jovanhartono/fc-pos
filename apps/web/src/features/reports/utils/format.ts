@@ -19,11 +19,13 @@ const upToOneDecimal = new Intl.NumberFormat("en-ID", {
 export const compactNumber = (value: number): string => {
 	const abs = Math.abs(value);
 	const sign = value < 0 ? "-" : "";
-	if (abs >= 1_000_000) {
+	const thousands = Math.round(abs / 1000);
+	// Rp 999.800 rounds to 1.000 rb, which should read 1 jt.
+	if (abs >= 1_000_000 || thousands >= 1000) {
 		return `${sign}${upToOneDecimal.format(abs / 1_000_000)} jt`;
 	}
 	if (abs >= 1000) {
-		return `${sign}${upToOneDecimal.format(Math.round(abs / 1000))} rb`;
+		return `${sign}${numberFormatter.format(thousands)} rb`;
 	}
 	return `${sign}${numberFormatter.format(Math.round(abs))}`;
 };

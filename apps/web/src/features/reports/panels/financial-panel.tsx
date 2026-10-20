@@ -1128,5 +1128,3 @@ const BranchList = ({ rows, max }: BranchListProps) => {
 		</Card>
 	);
 };
-
-export default FinancialPanel;

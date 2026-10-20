@@ -695,5 +695,3 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 		</div>
 	);
 };
-
-export default QualityPanel;

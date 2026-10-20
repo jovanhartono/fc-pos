@@ -13,6 +13,7 @@ import {
   listCategoryGrossSalesSeries,
   listCollectedSeries,
   listComplaintItems,
+  listItemsInHand,
   listNewCustomersSeries,
   listOrderDiscountSeries,
   listOrdersInSeries,
@@ -951,15 +952,18 @@ function addLiveActivity(
       tallyFor(line.started_by, line.store_id).services_today += 1;
     }
   }
-  const isAtBench = benchWorkCheck(
+  // Today's work only, so a cashier who cleaned a pair last Tuesday is not "on"
+  // at the bench just because the owner picked Last 7 days.
+  const movedToday = new Set(
+    live.lastMoves.map((row) => workerKey(row.user_id, row.store_id))
+  );
+  const busyToday = benchWorkCheck(
     tallies,
     roleOf,
-    (tally) =>
-      tally.services_processed > 0 ||
-      tally.qc_checks > 0 ||
-      tally.in_hand > 0 ||
-      tally.services_today > 0
+    (tally) => tally.in_hand > 0 || tally.services_today > 0
   );
+  const isAtBench = (row: { store_id: number; user_id: number }) =>
+    movedToday.has(workerKey(row.user_id, row.store_id)) || busyToday(row);
   for (const shift of live.shifts.filter(isAtBench)) {
     noteLatestShift(tallyFor(shift.user_id, shift.store_id), shift);
   }
@@ -1308,9 +1312,9 @@ export async function getWorkerDetailReport(query: GetWorkerDetailQuery) {
   const today = jakartaNow().format("YYYY-MM-DD");
   const isToday = from === today && to === today;
 
-  const [activity, live, checks, users, stores] = await Promise.all([
+  const [activity, inHand, checks, users, stores] = await Promise.all([
     listWorkerActivity({ range, storeId }),
-    isToday ? listWorkerLiveActivity({ range, storeId }) : null,
+    isToday ? listItemsInHand({ storeId }) : [],
     listQcChecksOfCleaner({ range, storeId, userId }),
     listUserNames(),
     listStoreNames(),
@@ -1323,7 +1327,7 @@ export async function getWorkerDetailReport(query: GetWorkerDetailQuery) {
   }
   const roleOf = (id: number) => userById.get(id)?.role;
 
-  const tallies = tallyWorkers(activity, roleOf, live?.inHand);
+  const tallies = tallyWorkers(activity, roleOf, inHand);
   tallyComplaints(tallies, activity.lines);
   const tally = tallies.find((t) => t.user_id === userId);
 

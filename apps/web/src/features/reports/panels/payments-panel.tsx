@@ -153,5 +153,3 @@ export const PaymentsPanel = ({
 		</div>
 	);
 };
-
-export default PaymentsPanel;

@@ -7,10 +7,10 @@ import { Link } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { isListKeyBlocked } from "@/lib/list-keys";
+import { useOrderWalkStore } from "@/stores/order-walk-store";
 
 interface OrderWalkProps {
 	openId: number;
-	orders: { id: number }[];
 	onSelect: (orderId: number) => void;
 }
 
@@ -30,10 +30,11 @@ const OTHER_DIALOGS = '[role="dialog"]:not([data-slot="sheet-content"])';
 
 // A cashier going down the list steps from one Order to the next inside the
 // sheet, without closing it and finding the next row.
-export const OrderWalk = ({ openId, orders, onSelect }: OrderWalkProps) => {
+export const OrderWalk = ({ openId, onSelect }: OrderWalkProps) => {
+	const orders = useOrderWalkStore((s) => s.orders);
 	const openIndex = orders.findIndex((order) => order.id === openId);
 	const previous = orders[openIndex - 1];
-	const next = orders[openIndex + 1];
+	const next = openIndex >= 0 ? orders[openIndex + 1] : undefined;
 
 	useEffect(() => {
 		// Ahead of the table's own J and K, which would move its ring instead.
@@ -51,7 +52,7 @@ export const OrderWalk = ({ openId, orders, onSelect }: OrderWalkProps) => {
 			event.preventDefault();
 			event.stopImmediatePropagation();
 			// One Order per press: a held key would load every Order it passed.
-			if (event.repeat) {
+			if (event.repeat || openIndex < 0) {
 				return;
 			}
 			const target = orders[openIndex + step];

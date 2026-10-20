@@ -207,5 +207,3 @@ export const CustomersPanel = ({
 		</div>
 	);
 };
-
-export default CustomersPanel;

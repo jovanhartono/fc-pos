@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { ordersQueries } from "@/features/orders/api";
 import { OrderDetailView } from "@/features/orders/components/order-detail-view";
 import { OrderWalk } from "@/features/orders/components/order-walk";
+import { useOrderWalkStore } from "@/stores/order-walk-store";
 import { useSheet } from "@/stores/sheet-store";
 
 // A neighbour fetched this recently isn't fetched again on every list refresh.
@@ -28,6 +29,10 @@ export const useOrderSheet = ({
 	openId,
 	orders,
 }: UseOrderSheetOptions) => {
+	useEffect(() => {
+		useOrderWalkStore.setState({ orders });
+	}, [orders]);
+
 	// Re-opening an open sheet only swaps what it shows, so walking doesn't
 	// slide it out and in. A list refetch must not, or it would throw away a
 	// payment form opened over the Order.
@@ -41,9 +46,7 @@ export const useOrderSheet = ({
 			// The Order's own header already shows its code.
 			title: <span className="sr-only">{code}</span>,
 			backLabel: code,
-			actions: (
-				<OrderWalk onSelect={onSelect} openId={openId} orders={orders} />
-			),
+			actions: <OrderWalk onSelect={onSelect} openId={openId} />,
 			content: () => <OrderDetailView orderId={openId} />,
 			onClose,
 		});

@@ -147,5 +147,3 @@ export const CampaignsPanel = ({
 		</div>
 	);
 };
-
-export default CampaignsPanel;

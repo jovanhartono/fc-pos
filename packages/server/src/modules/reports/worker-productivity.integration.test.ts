@@ -1179,6 +1179,53 @@ describe("the Workers report for today", () => {
     });
   });
 
+  it("keeps a cashier's Shift off the bench on a week where she cleaned a pair days ago", async () => {
+    // She cleaned one pair two days ago and only runs the counter today.
+    const { earlier } = await placeOrder(shop.store, [
+      { brand: "earlier", serviceId: shop.serviceId },
+    ]);
+    await log(earlier.lineId, [
+      ["queued", "processing", shop.cashier.id, at(-40)],
+      ["processing", "quality_check", shop.cashier.id, at(-39)],
+    ]);
+    await clockIn(shop.cashier.id, shop.store.id, at(3), null);
+
+    const report = await getWorkerProductivityReport({
+      from: shiftDate(today, -6),
+      to: today,
+      store_id: shop.store.id,
+    });
+
+    expect(
+      report.workers.find((row) => row.user_id === shop.cashier.id)?.live
+    ).toEqual(expect.objectContaining({ clock_in_at: null }));
+  });
+
+  it("puts a cashier who checked a pair today on shift whatever the stretch", async () => {
+    const { checked } = await placeOrder(shop.store, [
+      { brand: "checked", serviceId: shop.serviceId },
+    ]);
+    await log(checked.lineId, [
+      ["queued", "processing", adi, at(-40)],
+      ["processing", "quality_check", adi, at(-39)],
+      ["quality_check", "ready_for_pickup", shop.cashier.id, at(4)],
+    ]);
+    await clockIn(shop.cashier.id, shop.store.id, at(3), null);
+
+    for (const from of [today, shiftDate(today, -30)]) {
+      const report = await getWorkerProductivityReport({
+        from,
+        to: today,
+        store_id: shop.store.id,
+      });
+      expect(
+        report.workers.find((row) => row.user_id === shop.cashier.id)?.live
+      ).toEqual(
+        expect.objectContaining({ clock_in_at: at(3), last_move_at: at(4) })
+      );
+    }
+  });
+
   it("gives no last move to someone whose last bench move was before today", async () => {
     const { checked } = await placeOrder(shop.store, [
       { brand: "checked", serviceId: shop.serviceId },

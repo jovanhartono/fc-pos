@@ -203,6 +203,29 @@ describe("Needs a look", () => {
 				}),
 			),
 		).toEqual([]);
+		// Doing QC checks: no Services of their own, but a recent move.
+		expect(
+			flagText(
+				worker({
+					live: {
+						...quiet,
+						clock_in_at: since(355),
+						last_move_at: since(5),
+					},
+				}),
+			),
+		).toEqual([]);
+		expect(
+			flagText(
+				worker({
+					live: {
+						...quiet,
+						clock_in_at: since(355),
+						last_move_at: since(NEEDS_A_LOOK.idleShiftMinutes + 1),
+					},
+				}),
+			),
+		).toEqual(["on shift 5h 55m, [0 Services today]"]);
 	});
 
 	it("flags more Items in hand than the limit", () => {

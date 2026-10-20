@@ -187,9 +187,12 @@ export const needsALook = (rows: WorkerRow[], now: number): Flag[] =>
 				after: "",
 			});
 		}
+		// A person doing QC checks all morning finishes no Services but still moves Items.
 		if (
 			live.services_today === 0 &&
-			shiftMinutes > NEEDS_A_LOOK.idleShiftMinutes
+			shiftMinutes > NEEDS_A_LOOK.idleShiftMinutes &&
+			(live.last_move_at === null ||
+				minutesSince(live.last_move_at, now) > NEEDS_A_LOOK.idleShiftMinutes)
 		) {
 			flags.push({
 				key: `${key}:idle`,

@@ -147,5 +147,3 @@ export const WorkersPanel = ({
 		</div>
 	);
 };
-
-export default WorkersPanel;

@@ -129,5 +129,3 @@ export const OperationsPanel = ({
 		</div>
 	);
 };
-
-export default OperationsPanel;

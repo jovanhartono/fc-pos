@@ -174,5 +174,3 @@ export const AgingQueuePanel = ({ storeId }: AgingQueuePanelProps) => {
 		</div>
 	);
 };
-
-export default AgingQueuePanel;

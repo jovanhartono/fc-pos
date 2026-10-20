@@ -816,26 +816,30 @@ export function listComplaintItems(orderServiceIds: number[]) {
     .where(inArray(complaintsTable.order_service_id, orderServiceIds));
 }
 
+export function listItemsInHand({ storeId }: Pick<RangeArgs, "storeId">) {
+  return db
+    .select({
+      user_id: sql<number>`${ordersServicesTable.handler_id}`,
+      store_id: ordersTable.store_id,
+      in_hand: sql<number>`COUNT(*)::int`,
+    })
+    .from(ordersServicesTable)
+    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .where(
+      and(
+        eq(ordersServicesTable.status, "processing"),
+        isNotNull(ordersServicesTable.handler_id),
+        storeScope(ordersTable.store_id, storeId)
+      )
+    )
+    .groupBy(ordersServicesTable.handler_id, ordersTable.store_id);
+}
+
 // The "right now" half of the Workers tab, whatever stretch the rest covers:
 // `range` is today.
 export async function listWorkerLiveActivity({ range, storeId }: RangeArgs) {
   const [inHand, lastMoves, shifts, processedToday] = await Promise.all([
-    db
-      .select({
-        user_id: sql<number>`${ordersServicesTable.handler_id}`,
-        store_id: ordersTable.store_id,
-        in_hand: sql<number>`COUNT(*)::int`,
-      })
-      .from(ordersServicesTable)
-      .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
-      .where(
-        and(
-          eq(ordersServicesTable.status, "processing"),
-          isNotNull(ordersServicesTable.handler_id),
-          storeScope(ordersTable.store_id, storeId)
-        )
-      )
-      .groupBy(ordersServicesTable.handler_id, ordersTable.store_id),
+    listItemsInHand({ storeId }),
     db
       .select({
         user_id: orderServiceStatusLogsTable.changed_by,
