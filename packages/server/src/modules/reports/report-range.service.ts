@@ -806,6 +806,7 @@ interface WorkerTally {
   qc_checks: number;
   qc_rejects: number;
   services_processed: number;
+  services_today: number;
   store_id: number;
   user_id: number;
 }
@@ -832,13 +833,8 @@ const noteLatestShift = (tally: WorkerTally, shift: ShiftTimes) => {
   }
 };
 
-function tallyWorkers(
-  { lines, shifts, moveDays, qcChecks }: WorkerSummaryActivity,
-  roleOf: (userId: number) => string | undefined,
-  live: WorkerLiveActivity | null = null
-) {
-  const tallies = new Map<string, WorkerTally>();
-  const tallyFor = (userId: number, storeId: number) => {
+const tallyLookup =
+  (tallies: Map<string, WorkerTally>) => (userId: number, storeId: number) => {
     const key = workerKey(userId, storeId);
     const existing = tallies.get(key);
     if (existing) {
@@ -855,12 +851,40 @@ function tallyWorkers(
       qc_checks: 0,
       qc_rejects: 0,
       services_processed: 0,
+      services_today: 0,
       store_id: storeId,
       user_id: userId,
     };
     tallies.set(key, created);
     return created;
   };
+
+// A cashier clocked in to run the counter is not at the bench: her Shift and
+// moves count only at a Store where she started, cleaned or holds an Item.
+const benchWorkCheck = (
+  tallies: Map<string, WorkerTally>,
+  roleOf: (userId: number) => string | undefined,
+  isBench: (tally: WorkerTally) => boolean
+) => {
+  const benchKeys = new Set(
+    [...tallies.values()]
+      .filter(isBench)
+      .map((tally) => workerKey(tally.user_id, tally.store_id))
+  );
+  return (row: { store_id: number; user_id: number }) =>
+    roleOf(row.user_id) === "worker" ||
+    benchKeys.has(workerKey(row.user_id, row.store_id));
+};
+
+// `inHand` is passed only for Today: an Item in hand then counts as a day at
+// the bench, while an older stretch's figures never move with what happens now.
+function tallyWorkers(
+  { lines, shifts, moveDays, qcChecks }: WorkerSummaryActivity,
+  roleOf: (userId: number) => string | undefined,
+  inHand: WorkerLiveActivity["inHand"] = []
+) {
+  const tallies = new Map<string, WorkerTally>();
+  const tallyFor = tallyLookup(tallies);
 
   for (const line of lines) {
     if (line.started_by !== null) {
@@ -882,39 +906,64 @@ function tallyWorkers(
   }
   // Today, someone with Items in hand is on the floor even before anything
   // they started reaches QC.
-  for (const row of live?.inHand ?? []) {
+  for (const row of inHand) {
     tallyFor(row.user_id, row.store_id).in_hand = row.in_hand;
   }
 
-  // A cashier clocked in to run the counter is not a day at the bench: her Shift
-  // and moves count only at a Store where she started, cleaned or holds an Item.
-  const benchKeys = new Set(
-    [...tallies.values()]
-      .filter(
-        (tally) =>
-          tally.services_processed > 0 ||
-          tally.qc_checks > 0 ||
-          tally.in_hand > 0
-      )
-      .map((tally) => workerKey(tally.user_id, tally.store_id))
+  const didBenchWork = benchWorkCheck(
+    tallies,
+    roleOf,
+    (tally) =>
+      tally.services_processed > 0 || tally.qc_checks > 0 || tally.in_hand > 0
   );
-  const didBenchWork = (row: { store_id: number; user_id: number }) =>
-    roleOf(row.user_id) === "worker" ||
-    benchKeys.has(workerKey(row.user_id, row.store_id));
-
   for (const shift of shifts.filter(didBenchWork)) {
-    const tally = tallyFor(shift.user_id, shift.store_id);
-    tally.days_worked.add(jakartaDayOf(shift.clock_in_at));
-    noteLatestShift(tally, shift);
+    tallyFor(shift.user_id, shift.store_id).days_worked.add(
+      jakartaDayOf(shift.clock_in_at)
+    );
   }
   // Workers who rarely clock in still have days at the bench.
   for (const move of moveDays.filter(didBenchWork)) {
     tallyFor(move.user_id, move.store_id).days_worked.add(move.day);
   }
-  for (const shift of (live?.openShifts ?? []).filter(didBenchWork)) {
+  return [...tallies.values()];
+}
+
+// What each person is doing right now, on every stretch: the owner looking at
+// last week still sees who is on the floor. Someone busy today with nothing in
+// the stretch gets a row of their own.
+function addLiveActivity(
+  rangeTallies: WorkerTally[],
+  live: WorkerLiveActivity,
+  roleOf: (userId: number) => string | undefined
+) {
+  const tallies = new Map(
+    rangeTallies.map((tally) => [
+      workerKey(tally.user_id, tally.store_id),
+      tally,
+    ])
+  );
+  const tallyFor = tallyLookup(tallies);
+  for (const row of live.inHand) {
+    tallyFor(row.user_id, row.store_id).in_hand = row.in_hand;
+  }
+  for (const line of live.processedToday) {
+    if (line.started_by !== null) {
+      tallyFor(line.started_by, line.store_id).services_today += 1;
+    }
+  }
+  const isAtBench = benchWorkCheck(
+    tallies,
+    roleOf,
+    (tally) =>
+      tally.services_processed > 0 ||
+      tally.qc_checks > 0 ||
+      tally.in_hand > 0 ||
+      tally.services_today > 0
+  );
+  for (const shift of live.shifts.filter(isAtBench)) {
     noteLatestShift(tallyFor(shift.user_id, shift.store_id), shift);
   }
-  for (const row of (live?.lastMoves ?? []).filter(didBenchWork)) {
+  for (const row of live.lastMoves.filter(isAtBench)) {
     tallyFor(row.user_id, row.store_id).last_move_at = row.last_move_at;
   }
   return [...tallies.values()];
@@ -1078,7 +1127,7 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
   const [activity, prevActivity, live, users, stores] = await Promise.all([
     listWorkerActivity({ range, storeId }),
     listWorkerSummaryActivity({ range: ctx.previous.range, storeId }),
-    isToday ? listWorkerLiveActivity({ range, storeId }) : null,
+    listWorkerLiveActivity({ range: getJakartaRange(today, today), storeId }),
     listUserNames(),
     listStoreNames(),
   ]);
@@ -1086,7 +1135,7 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
   const storeName = new Map(stores.map((store) => [store.id, store.name]));
   const roleOf = (userId: number) => userById.get(userId)?.role;
 
-  const tallies = tallyWorkers(activity, roleOf, live);
+  const tallies = tallyWorkers(activity, roleOf, isToday ? live.inHand : []);
   tallyComplaints(tallies, activity.lines);
   const current = summariseWorkers(activity, tallies);
   const previous = summariseWorkers(
@@ -1094,7 +1143,7 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
     tallyWorkers(prevActivity, roleOf)
   );
 
-  const workers = tallies
+  const workers = addLiveActivity(tallies, live, roleOf)
     .map((tally) => {
       const user = userById.get(tally.user_id);
       return {
@@ -1110,14 +1159,13 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
         qc_rejects: tally.qc_rejects,
         complaints: tally.complaints,
         complaint_cohort: tally.complaint_cohort,
-        live: live
-          ? {
-              clock_in_at: tally.latest_shift?.clock_in_at ?? null,
-              clock_out_at: tally.latest_shift?.clock_out_at ?? null,
-              in_hand: tally.in_hand,
-              last_move_at: tally.last_move_at,
-            }
-          : null,
+        live: {
+          clock_in_at: tally.latest_shift?.clock_in_at ?? null,
+          clock_out_at: tally.latest_shift?.clock_out_at ?? null,
+          in_hand: tally.in_hand,
+          last_move_at: tally.last_move_at,
+          services_today: tally.services_today,
+        },
       };
     })
     .sort(
@@ -1275,7 +1323,7 @@ export async function getWorkerDetailReport(query: GetWorkerDetailQuery) {
   }
   const roleOf = (id: number) => userById.get(id)?.role;
 
-  const tallies = tallyWorkers(activity, roleOf, live);
+  const tallies = tallyWorkers(activity, roleOf, live?.inHand);
   tallyComplaints(tallies, activity.lines);
   const tally = tallies.find((t) => t.user_id === userId);
 

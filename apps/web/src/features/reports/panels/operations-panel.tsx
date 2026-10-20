@@ -69,36 +69,34 @@ export const OperationsPanel = ({
 
 	return (
 		<div className="grid gap-6">
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-				<KpiRow>
-					<KpiCard
-						label="Orders in"
-						swatch={ORDERS_IN_COLOR}
-						value={numberFormatter.format(summary?.orders_in_total ?? 0)}
-						delta={deltas?.orders_in_total}
-						helper="Dropped off in range"
-					/>
-					<KpiCard
-						label="Orders out"
-						swatch={ORDERS_OUT_COLOR}
-						value={numberFormatter.format(summary?.orders_out_total ?? 0)}
-						delta={deltas?.orders_out_total}
-						helper="Picked up in range"
-					/>
-					<KpiCard
-						label="Net flow"
-						value={numberFormatter.format(summary?.net_flow ?? 0)}
-						delta={deltas?.net_flow}
-						helper="Positive = backlog growing"
-					/>
-					<KpiCard
-						label="Ready within"
-						value={readyWithin === null ? "–" : longDuration(readyWithin)}
-						helper="p75, drop-off to ready"
-					/>
-				</KpiRow>
-				<ExportButton disabled={!data} onClick={handleExport} />
-			</div>
+			<ExportButton disabled={!data} onClick={handleExport} />
+			<KpiRow>
+				<KpiCard
+					label="Orders in"
+					swatch={ORDERS_IN_COLOR}
+					value={numberFormatter.format(summary?.orders_in_total ?? 0)}
+					delta={deltas?.orders_in_total}
+					helper="Dropped off in range"
+				/>
+				<KpiCard
+					label="Orders out"
+					swatch={ORDERS_OUT_COLOR}
+					value={numberFormatter.format(summary?.orders_out_total ?? 0)}
+					delta={deltas?.orders_out_total}
+					helper="Picked up in range"
+				/>
+				<KpiCard
+					label="Net flow"
+					value={numberFormatter.format(summary?.net_flow ?? 0)}
+					delta={deltas?.net_flow}
+					helper="Positive = backlog growing"
+				/>
+				<KpiCard
+					label="Ready within"
+					value={readyWithin === null ? "–" : longDuration(readyWithin)}
+					helper="p75, drop-off to ready"
+				/>
+			</KpiRow>
 
 			<ChartCard
 				variant="bar"
@@ -115,7 +113,7 @@ export const OperationsPanel = ({
 
 			{turnaround !== undefined && <TurnaroundSection report={turnaround} />}
 			{turnaroundQuery.status === "error" && (
-				<p className="text-muted-foreground text-sm">
+				<p className="text-muted-foreground text-body">
 					Could not load Turnaround.
 				</p>
 			)}

@@ -1,4 +1,3 @@
-import { ArrowDownIcon, ArrowUpIcon, MinusIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useMemo, useState } from "react";
@@ -11,6 +10,7 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
+import { SectionTitle } from "@/components/section";
 import { Card, CardContent } from "@/components/ui/card";
 import {
 	type ChartConfig,
@@ -25,16 +25,23 @@ import {
 	reportsQueries,
 } from "@/features/reports/api";
 import { ExportButton } from "@/features/reports/components/export-button";
+import { DeltaLine } from "@/features/reports/components/kpi-card";
 import {
 	csvFilename,
 	downloadCsv,
 	escapeCsv,
 } from "@/features/reports/utils/csv";
-import { percentFormatter } from "@/features/reports/utils/format";
+import {
+	compactMoney,
+	compactNumber,
+	fixedPercentFormatter,
+	percentFormatter,
+} from "@/features/reports/utils/format";
 import {
 	bucketToLabel,
 	bucketToTooltipLabel,
 } from "@/features/reports/utils/granularity";
+import type { DeltaAs } from "@/features/reports/utils/kpi-delta";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
@@ -48,84 +55,11 @@ interface FinancialPanelProps {
 type SummaryCurrent = FinancialReport["summary"]["current"];
 type FinancialBucket = FinancialReport["series"][number];
 
-const TONE_BY_SIGN = {
-	"-1": {
-		tone: "text-destructive",
-		stripe: "bg-destructive",
-		Icon: ArrowDownIcon,
-	},
-	"0": {
-		tone: "text-muted-foreground",
-		stripe: "bg-muted-foreground/40",
-		Icon: MinusIcon,
-	},
-	"1": {
-		tone: "text-success",
-		stripe: "bg-success",
-		Icon: ArrowUpIcon,
-	},
-} as const;
-
-const NEUTRAL_TONE = {
-	tone: "text-muted-foreground",
-	stripe: "bg-muted-foreground/40",
-	Icon: MinusIcon,
-} as const;
-
-const toneForPct = (pct: number | null | undefined, invert = false) => {
-	if (pct === null || pct === undefined) {
-		return NEUTRAL_TONE;
-	}
-	const directional = invert ? -pct : pct;
-	return TONE_BY_SIGN[Math.sign(directional).toString() as "-1" | "0" | "1"];
-};
-
-const formatDeltaPct = (pct: number | null | undefined): string => {
-	if (pct === null || pct === undefined) {
-		return "—";
-	}
-	const sign = pct > 0 ? "+" : "";
-	return `${sign}${(pct * 100).toFixed(1)}%`;
-};
-
-const formatDeltaPp = (curr: number, prev: number): string => {
-	const diff = (curr - prev) * 100;
-	const sign = diff > 0 ? "+" : "";
-	return `${sign}${diff.toFixed(1)}pp`;
-};
+const pctChange = (pct: number | null | undefined): number | null =>
+	pct === null || pct === undefined ? null : pct * 100;
 
 const safeRatio = (num: number, denom: number): number =>
 	denom > 0 ? num / denom : 0;
-
-const formatIDRShort = (v: number): string => {
-	const abs = Math.abs(v);
-	const sign = v < 0 ? "-" : "";
-	if (abs >= 1_000_000_000) {
-		return `${sign}Rp ${(abs / 1_000_000_000).toFixed(2)}B`;
-	}
-	if (abs >= 1_000_000) {
-		return `${sign}Rp ${(abs / 1_000_000).toFixed(2)}M`;
-	}
-	if (abs >= 1_000) {
-		return `${sign}Rp ${(abs / 1_000).toFixed(0)}K`;
-	}
-	return `${sign}Rp ${abs.toFixed(0)}`;
-};
-
-const formatAxisShort = (v: number): string => {
-	const abs = Math.abs(v);
-	const sign = v < 0 ? "-" : "";
-	if (abs >= 1_000_000_000) {
-		return `${sign}${(abs / 1_000_000_000).toFixed(1)}B`;
-	}
-	if (abs >= 1_000_000) {
-		return `${sign}${(abs / 1_000_000).toFixed(1)}M`;
-	}
-	if (abs >= 1_000) {
-		return `${sign}${(abs / 1_000).toFixed(0)}K`;
-	}
-	return `${sign}${abs.toFixed(0)}`;
-};
 
 const formatPreviousRangeLabel = (from: string, to: string): string => {
 	const f = dayjs(from);
@@ -213,11 +147,8 @@ export const FinancialPanel = ({
 	return (
 		<div className="grid gap-6">
 			<KpiStrip data={data} storeId={storeId} />
-			<RevenueBreakdownCard
-				data={data}
-				exportDisabled={!data}
-				onExport={handleExport}
-			/>
+			<ExportButton disabled={!data} onClick={handleExport} />
+			<RevenueBreakdownCard data={data} />
 			<BranchCategoryMatrix data={data} />
 			<BranchList rows={storeBreakdown} max={storeMax} />
 		</div>
@@ -226,44 +157,16 @@ export const FinancialPanel = ({
 
 interface RevenueBreakdownCardProps {
 	data: FinancialReport | undefined;
-	exportDisabled: boolean;
-	onExport: () => void;
 }
 
-interface PanelSectionTitleProps {
-	title: string;
-	meta?: string;
-}
-
-const PanelSectionTitle = ({ title, meta }: PanelSectionTitleProps) => (
-	<div className="flex min-w-0 items-start gap-2">
-		<span className="mt-0.5 h-4 w-1 shrink-0 bg-foreground" aria-hidden />
-		<div className="grid min-w-0 gap-0.5">
-			<p className="text-sm font-semibold leading-none text-foreground">
-				{title}
-			</p>
-			{meta ? (
-				<p className="text-[13px] font-medium text-muted-foreground">{meta}</p>
-			) : null}
-		</div>
-	</div>
-);
-
-const RevenueBreakdownCard = ({
-	data,
-	exportDisabled,
-	onExport,
-}: RevenueBreakdownCardProps) => {
+const RevenueBreakdownCard = ({ data }: RevenueBreakdownCardProps) => {
 	const summary = data?.summary.current;
 	const deltas = data?.summary.deltas;
 
 	return (
-		<Card className="border-border/70">
-			<CardContent className="grid gap-5 p-5 sm:p-6">
-				<div className="flex items-center justify-between">
-					<PanelSectionTitle title="Gross sales → Gross profit" />
-					<ExportButton disabled={exportDisabled} onClick={onExport} />
-				</div>
+		<Card className="border-border/70 py-0">
+			<CardContent className="grid gap-5 p-4">
+				<SectionTitle title="Gross sales → Gross profit" />
 
 				<RevenueLineChart
 					series={data?.series ?? []}
@@ -327,9 +230,9 @@ const RevenueBreakdownCard = ({
 	);
 };
 
-const GROSS_COLOR = "#94A3B8";
-const COLLECTED_COLOR = "#3B82F6";
-const REVENUE_COLOR = "#22C55E";
+const GROSS_COLOR = "var(--muted-foreground)";
+const COLLECTED_COLOR = "var(--chart-1)";
+const REVENUE_COLOR = "var(--chart-2)";
 
 const LINE_CHART_CONFIG: ChartConfig = {
 	gross_sales: { label: "Gross sales", color: GROSS_COLOR },
@@ -351,14 +254,14 @@ const RevenueLineChart = ({ series, granularity }: RevenueLineChartProps) => {
 		);
 	if (isEmpty) {
 		return (
-			<div className="flex h-60 items-center justify-center border border-border/40 text-sm text-muted-foreground">
+			<div className="flex h-60 items-center justify-center rounded-md border border-border/40 text-body text-muted-foreground">
 				No sales in range.
 			</div>
 		);
 	}
 	return (
 		<div className="grid gap-2">
-			<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-medium text-muted-foreground">
+			<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-subhead font-medium text-muted-foreground">
 				<span className="flex items-center gap-1.5">
 					<span
 						className="h-0.5 w-3"
@@ -398,7 +301,7 @@ const RevenueLineChart = ({ series, granularity }: RevenueLineChartProps) => {
 					/>
 					<YAxis
 						axisLine={false}
-						tickFormatter={(v: number) => formatAxisShort(v)}
+						tickFormatter={(v: number) => compactNumber(v)}
 						tickLine={false}
 						tickMargin={8}
 						width={56}
@@ -483,14 +386,18 @@ interface SankeyLinkRenderProps {
 
 const SankeyFlow = ({ summary }: SankeyFlowProps) => {
 	const sectionLabel = (
-		<PanelSectionTitle meta="green retained · red deductions" title="Flow" />
+		<SectionTitle
+			as="h3"
+			count="green retained · red deductions"
+			title="Flow"
+		/>
 	);
 
 	if (!summary || summary.gross_sales <= 0) {
 		return (
 			<div className="grid gap-2">
 				{sectionLabel}
-				<div className="flex h-60 items-center justify-center border border-border/40 text-sm text-muted-foreground">
+				<div className="flex h-60 items-center justify-center rounded-md border border-border/40 text-body text-muted-foreground">
 					No sales to flow.
 				</div>
 			</div>
@@ -609,7 +516,7 @@ const SankeyFlow = ({ summary }: SankeyFlowProps) => {
 		return (
 			<div className="grid gap-2">
 				{sectionLabel}
-				<div className="flex h-60 items-center justify-center border border-border/40 text-sm text-muted-foreground">
+				<div className="flex h-60 items-center justify-center rounded-md border border-border/40 text-body text-muted-foreground">
 					No sales to flow.
 				</div>
 			</div>
@@ -694,19 +601,11 @@ const SankeyNode = ({
 				y={y}
 			/>
 			<text fontSize={11} x={labelX} y={labelY - 1}>
-				<tspan
-					fill={datum.labelTone}
-					fontFamily="ui-monospace, SFMono-Regular, monospace"
-				>
-					{datum.name}
-				</tspan>
+				<tspan fill={datum.labelTone}>{datum.name}</tspan>
 			</text>
 			<text fontSize={11} fontWeight={600} x={labelX} y={labelY + 12}>
-				<tspan
-					fill="var(--foreground)"
-					fontFamily="ui-monospace, SFMono-Regular, monospace"
-				>
-					{formatIDRShort(datum.displayValue)}
+				<tspan className="tabular-nums" fill="var(--foreground)">
+					{compactMoney(datum.displayValue)}
 				</tspan>
 			</text>
 		</g>
@@ -728,47 +627,35 @@ interface StatStripProps {
 
 const StatStrip = ({ title, cells }: StatStripProps) => (
 	<div className="grid gap-3">
-		<PanelSectionTitle title={title} />
+		<SectionTitle as="h3" title={title} />
 		<div
 			className={cn(
 				"grid grid-cols-2",
 				cells.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4",
 			)}
 		>
-			{cells.map((cell, idx) => {
-				const pct = cell.delta?.delta_pct;
-				const tone = toneForPct(pct, cell.invertDelta);
-				const Icon = tone.Icon;
-				return (
-					<div
-						className={cn(
-							"grid gap-1 px-3 py-2 sm:px-4",
-							idx > 0 && "lg:border-l lg:border-border/40",
-						)}
-						key={cell.label}
-					>
-						<p className="text-[13px] font-medium text-muted-foreground">
-							{cell.label}
-						</p>
-						<p className="break-all text-base font-semibold tabular-nums">
-							{cell.isPercent
-								? percentFormatter.format(cell.value)
-								: formatIDRShort(cell.value)}
-						</p>
-						<p
-							className={cn(
-								"flex items-center gap-1 text-[11px] tabular-nums",
-								tone.tone,
-							)}
-						>
-							{pct === null || pct === undefined ? null : (
-								<Icon className="size-2.5" weight="bold" />
-							)}
-							{formatDeltaPct(pct)}
-						</p>
-					</div>
-				);
-			})}
+			{cells.map((cell, idx) => (
+				<div
+					className={cn(
+						"grid gap-1 px-3 py-2 sm:px-4",
+						idx > 0 && "lg:border-l lg:border-border/40",
+					)}
+					key={cell.label}
+				>
+					<p className="text-subhead font-medium text-muted-foreground">
+						{cell.label}
+					</p>
+					<p className="break-all text-headline font-semibold tabular-nums">
+						{cell.isPercent
+							? percentFormatter.format(cell.value)
+							: compactMoney(cell.value)}
+					</p>
+					<DeltaLine
+						change={pctChange(cell.delta?.delta_pct)}
+						isLowerBetter={cell.invertDelta}
+					/>
+				</div>
+			))}
 		</div>
 	</div>
 );
@@ -778,13 +665,12 @@ interface KpiStripProps {
 	storeId?: number;
 }
 
-type ToneSpec = ReturnType<typeof toneForPct>;
-
 interface KpiCellModel {
 	label: string;
 	value: string;
-	delta: string;
-	tone: ToneSpec;
+	change: number | null;
+	deltaAs?: DeltaAs;
+	isLowerBetter?: boolean;
 }
 
 const KpiStrip = ({ data, storeId }: KpiStripProps) => {
@@ -801,51 +687,45 @@ const KpiStrip = ({ data, storeId }: KpiStripProps) => {
 		const aov = safeRatio(summary.collected, totalOrders);
 		const refundRate = safeRatio(summary.refunds, summary.collected);
 		const prevRefundRate = safeRatio(prev.refunds, prev.collected);
-		const marginPp = summary.margin - prev.margin;
-		const refundRateDiff = refundRate - prevRefundRate;
-
 		return [
 			{
 				label: "Collected",
-				value: formatIDRShort(summary.collected),
-				delta: formatDeltaPct(deltas.collected?.delta_pct),
-				tone: toneForPct(deltas.collected?.delta_pct),
+				value: compactMoney(summary.collected),
+				change: pctChange(deltas.collected?.delta_pct),
 			},
 			{
 				label: "Revenue",
-				value: formatIDRShort(summary.revenue),
-				delta: formatDeltaPct(deltas.revenue?.delta_pct),
-				tone: toneForPct(deltas.revenue?.delta_pct),
+				value: compactMoney(summary.revenue),
+				change: pctChange(deltas.revenue?.delta_pct),
 			},
 			{
 				label: "Margin",
 				value: percentFormatter.format(summary.margin),
-				delta: formatDeltaPp(summary.margin, prev.margin),
-				tone: toneForPct(marginPp),
+				change: (summary.margin - prev.margin) * 100,
+				deltaAs: "points",
 			},
 			{
 				label: "Orders",
 				value: totalOrders.toLocaleString("id-ID"),
-				delta: "—",
-				tone: NEUTRAL_TONE,
+				change: null,
 			},
 			{
 				label: "AOV",
-				value: formatIDRShort(aov),
-				delta: "—",
-				tone: NEUTRAL_TONE,
+				value: compactMoney(aov),
+				change: null,
 			},
 			{
 				label: "COGS",
-				value: formatIDRShort(summary.cogs),
-				delta: formatDeltaPct(deltas.cogs?.delta_pct),
-				tone: toneForPct(deltas.cogs?.delta_pct, true),
+				value: compactMoney(summary.cogs),
+				change: pctChange(deltas.cogs?.delta_pct),
+				isLowerBetter: true,
 			},
 			{
 				label: "Refund rate",
 				value: percentFormatter.format(refundRate),
-				delta: formatDeltaPp(refundRate, prevRefundRate),
-				tone: toneForPct(refundRateDiff, true),
+				change: (refundRate - prevRefundRate) * 100,
+				deltaAs: "points",
+				isLowerBetter: true,
 			},
 		];
 	}, [data, storeId]);
@@ -856,51 +736,42 @@ const KpiStrip = ({ data, storeId }: KpiStripProps) => {
 
 	if (!data) {
 		return (
-			<Card className="border-border/70">
-				<CardContent className="grid h-30 place-items-center p-5 sm:p-6">
-					<p className="text-sm text-muted-foreground">Loading totals…</p>
+			<Card className="border-border/70 py-0">
+				<CardContent className="grid h-30 place-items-center p-4">
+					<p className="text-body text-muted-foreground">Loading totals…</p>
 				</CardContent>
 			</Card>
 		);
 	}
 
 	return (
-		<Card className="border-border/70">
+		<Card className="border-border/70 py-0">
 			<CardContent className="grid gap-0 p-0">
-				<div className="flex items-center justify-between border-b border-border/40 px-4 py-2">
-					<PanelSectionTitle meta={`vs ${previousLabel}`} title="Totals" />
+				<div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+					<SectionTitle count={`vs ${previousLabel}`} title="Totals" />
 				</div>
 				<div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7">
-					{cells.map((cell, idx) => {
-						const Icon = cell.tone.Icon;
-						return (
-							<div
-								className={cn(
-									"grid gap-1 px-4 py-4",
-									idx > 0 && "xl:border-l xl:border-border/40",
-								)}
-								key={cell.label}
-							>
-								<p className="text-[13px] font-medium text-muted-foreground">
-									{cell.label}
-								</p>
-								<p className="break-all text-base font-semibold tabular-nums">
-									{cell.value}
-								</p>
-								<p
-									className={cn(
-										"flex items-center gap-1 text-[11px] tabular-nums",
-										cell.tone.tone,
-									)}
-								>
-									{cell.delta === "—" ? null : (
-										<Icon className="size-2.5" weight="bold" />
-									)}
-									{cell.delta}
-								</p>
-							</div>
-						);
-					})}
+					{cells.map((cell, idx) => (
+						<div
+							className={cn(
+								"grid gap-1 px-4 py-4",
+								idx > 0 && "xl:border-l xl:border-border/40",
+							)}
+							key={cell.label}
+						>
+							<p className="text-subhead font-medium text-muted-foreground">
+								{cell.label}
+							</p>
+							<p className="break-all text-headline font-semibold tabular-nums">
+								{cell.value}
+							</p>
+							<DeltaLine
+								change={cell.change}
+								deltaAs={cell.deltaAs}
+								isLowerBetter={cell.isLowerBetter}
+							/>
+						</div>
+					))}
 				</div>
 			</CardContent>
 		</Card>
@@ -935,27 +806,27 @@ const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
 	const isEmpty = rows.length === 0 || grandTotal === 0;
 
 	return (
-		<Card className="border-border/70">
-			<CardContent className="grid gap-3 p-5 sm:p-6">
+		<Card className="border-border/70 py-0">
+			<CardContent className="grid gap-3 p-4">
 				<div className="flex items-start justify-between gap-3">
-					<PanelSectionTitle
-						meta={`${mode === "share" ? "share within store" : "gross sales (Rp)"} · top ${columns.length} categor${columns.length === 1 ? "y" : "ies"}`}
+					<SectionTitle
+						count={`${mode === "share" ? "share within store" : "gross sales (Rp)"} · top ${columns.length} categor${columns.length === 1 ? "y" : "ies"}`}
 						title="Store × Category"
 					/>
 					<MatrixModeToggle mode={mode} onChange={setMode} />
 				</div>
 
 				{isEmpty ? (
-					<p className="text-sm text-muted-foreground">
+					<p className="text-body text-muted-foreground">
 						{"// no category gross sales in range"}
 					</p>
 				) : (
 					<div className="overflow-x-auto">
-						<table className="w-full border-separate border-spacing-0 text-[11px] tabular-nums">
+						<table className="w-full border-separate border-spacing-0 text-subhead tabular-nums">
 							<thead>
 								<tr>
 									<th
-										className="sticky left-0 z-10 bg-card px-2 py-1.5 text-left text-xs font-medium text-muted-foreground"
+										className="sticky left-0 z-10 bg-card px-2 py-1.5 text-left text-subhead font-medium text-muted-foreground"
 										scope="col"
 									>
 										Store
@@ -964,7 +835,7 @@ const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
 										<MatrixHeaderCell column={col} key={col.category_id} />
 									))}
 									<th
-										className="border-l border-border/40 px-2 py-1.5 text-right text-xs font-medium text-muted-foreground"
+										className="border-l border-border/40 px-2 py-1.5 text-right text-subhead font-medium text-muted-foreground"
 										scope="col"
 									>
 										Total
@@ -985,7 +856,7 @@ const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
 							<tfoot>
 								<tr>
 									<th
-										className="sticky left-0 z-10 border-t border-border/40 bg-card px-2 py-2 text-left text-xs font-medium text-muted-foreground"
+										className="sticky left-0 z-10 border-t border-border/40 bg-card px-2 py-2 text-left text-subhead font-medium text-muted-foreground"
 										scope="row"
 									>
 										Total
@@ -995,11 +866,11 @@ const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
 											className="border-t border-border/40 px-2 py-2 text-center font-semibold"
 											key={col.category_id}
 										>
-											{formatIDRShort(columnTotals[idx] ?? 0)}
+											{compactMoney(columnTotals[idx] ?? 0)}
 										</td>
 									))}
 									<td className="border-l border-t border-border/40 px-2 py-2 text-right font-semibold">
-										{formatIDRShort(grandTotal)}
+										{compactMoney(grandTotal)}
 									</td>
 								</tr>
 							</tfoot>
@@ -1008,7 +879,7 @@ const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
 				)}
 
 				{omittedStores > 0 ? (
-					<p className="text-[13px] font-medium text-muted-foreground">
+					<p className="text-subhead font-medium text-muted-foreground">
 						{`(+${omittedStores} store${omittedStores === 1 ? "" : "s"} not shown)`}
 					</p>
 				) : null}
@@ -1023,13 +894,13 @@ interface MatrixModeToggleProps {
 }
 
 const MatrixModeToggle = ({ mode, onChange }: MatrixModeToggleProps) => (
-	<div className="inline-flex shrink-0 border border-border/60 text-[11px]">
+	<div className="inline-flex shrink-0 rounded-[9px] bg-secondary p-0.5 text-subhead">
 		<button
 			aria-pressed={mode === "share"}
 			className={cn(
-				"px-2.5 py-1",
+				"rounded-[7px] px-2.5 py-1",
 				mode === "share"
-					? "bg-foreground text-background"
+					? "bg-primary text-primary-foreground"
 					: "text-muted-foreground hover:text-foreground",
 			)}
 			onClick={() => onChange("share")}
@@ -1040,9 +911,9 @@ const MatrixModeToggle = ({ mode, onChange }: MatrixModeToggleProps) => (
 		<button
 			aria-pressed={mode === "amount"}
 			className={cn(
-				"border-l border-border/60 px-2.5 py-1",
+				"rounded-[7px] px-2.5 py-1",
 				mode === "amount"
-					? "bg-foreground text-background"
+					? "bg-primary text-primary-foreground"
 					: "text-muted-foreground hover:text-foreground",
 			)}
 			onClick={() => onChange("amount")}
@@ -1059,7 +930,7 @@ interface MatrixHeaderCellProps {
 
 const MatrixHeaderCell = ({ column }: MatrixHeaderCellProps) => (
 	<th
-		className="min-w-28 px-3 py-2 text-center align-bottom text-xs font-medium text-muted-foreground"
+		className="min-w-28 px-3 py-2 text-center align-bottom text-subhead font-medium text-muted-foreground"
 		scope="col"
 		title={column.label}
 	>
@@ -1087,9 +958,7 @@ const MatrixBranchRow = ({
 			className="sticky left-0 z-10 border-t border-border/40 bg-card px-2 py-2 text-left align-top group-hover:bg-muted/40"
 			scope="row"
 		>
-			<span className="block text-[10px] uppercase text-muted-foreground">
-				{row.store_code}
-			</span>
+			<span className="block tabular-nums">{row.store_code}</span>
 			<span className="block max-w-35 truncate text-foreground">
 				{row.store_name}
 			</span>
@@ -1111,7 +980,7 @@ const MatrixBranchRow = ({
 			);
 		})}
 		<td className="border-l border-t border-border/40 px-2 py-2 text-right font-semibold group-hover:bg-muted/40">
-			{formatIDRShort(row.total)}
+			{compactMoney(row.total)}
 		</td>
 	</tr>
 );
@@ -1139,17 +1008,16 @@ const MatrixCell = ({
 }: MatrixCellProps) => {
 	const opacity = cellGrossSales === 0 ? 0 : Math.max(0.05, cellShare ** 0.7);
 	const isInverted = opacity > 0.35;
-	const branchSharePct = branchTotal > 0 ? cellShare * 100 : 0;
-	const grandSharePct =
-		grandTotal > 0 ? (cellGrossSales / grandTotal) * 100 : 0;
-	const tooltip = `${storeCode} ${storeName} · ${columnLabel}\nRp ${cellGrossSales.toLocaleString("id-ID")} · ${branchSharePct.toFixed(1)}% of branch · ${grandSharePct.toFixed(1)}% of total`;
+	const branchShare = branchTotal > 0 ? cellShare : 0;
+	const grandShare = grandTotal > 0 ? cellGrossSales / grandTotal : 0;
+	const tooltip = `${storeCode} ${storeName} · ${columnLabel}\nRp ${cellGrossSales.toLocaleString("id-ID")} · ${fixedPercentFormatter.format(branchShare)} of branch · ${fixedPercentFormatter.format(grandShare)} of total`;
 
 	const display =
 		cellGrossSales === 0
 			? "·"
 			: mode === "share"
 				? `${Math.round(cellShare * 100)}%`
-				: formatIDRShort(cellGrossSales);
+				: compactMoney(cellGrossSales);
 
 	return (
 		<td
@@ -1159,12 +1027,12 @@ const MatrixCell = ({
 			<div
 				aria-hidden
 				className="absolute inset-0"
-				style={{ backgroundColor: "var(--foreground)", opacity }}
+				style={{ backgroundColor: "var(--primary)", opacity }}
 			/>
 			<span
 				className={cn(
 					"relative",
-					isInverted ? "text-background" : "text-foreground",
+					isInverted ? "text-primary-foreground" : "text-foreground",
 					cellGrossSales === 0 && "text-muted-foreground",
 				)}
 			>
@@ -1186,37 +1054,41 @@ const BranchList = ({ rows, max }: BranchListProps) => {
 		return null;
 	}
 	return (
-		<Card className="border-border/70">
-			<CardContent className="grid gap-4 p-5 sm:p-6">
-				<PanelSectionTitle title="Store leaderboard" />
-				<div className="grid gap-3">
+		<Card className="border-border/70 py-0">
+			<CardContent className="grid gap-4 p-4">
+				<SectionTitle title="Store leaderboard" />
+				<div className="grid grid-cols-1 gap-3">
 					{rows.map((row) => {
 						const widthPct = max === 0 ? 0 : (row.revenue / max) * 100;
 						const aov = safeRatio(row.revenue, row.orders);
 						return (
 							<div className="grid gap-1" key={row.store_id}>
 								<div className="flex items-center justify-between gap-2">
-									<span className="flex min-w-0 items-center gap-2 truncate text-sm font-medium">
-										<span className="font-mono text-[11px] uppercase text-muted-foreground">
+									<span className="flex min-w-0 items-center gap-2 truncate text-body font-medium">
+										<span className="font-normal text-subhead tabular-nums">
 											{row.store_code}
 										</span>
 										<span className="truncate">{row.store_name}</span>
 									</span>
-									<span className="text-sm tabular-nums">
-										{formatIDRShort(row.revenue)}
+									<span className="text-body tabular-nums">
+										{compactMoney(row.revenue)}
 									</span>
 								</div>
-								<div className="h-1.5 w-full bg-muted">
+								<div className="h-1.5 w-full overflow-hidden rounded-full bg-soft-bar-track">
 									<div
-										className="h-full bg-foreground"
+										className="h-full rounded-full bg-primary"
 										style={{ width: `${widthPct}%` }}
 									/>
 								</div>
-								<div className="flex flex-wrap items-center gap-x-3 text-[11px] tabular-nums text-muted-foreground">
+								<div className="flex flex-wrap items-center gap-x-3 text-subhead tabular-nums">
 									<span>{`${row.orders.toLocaleString("id-ID")} orders`}</span>
-									<span aria-hidden>·</span>
-									<span>{`AOV ${formatIDRShort(aov)}`}</span>
-									<span aria-hidden>·</span>
+									<span aria-hidden className="text-muted-foreground">
+										·
+									</span>
+									<span>{`AOV ${compactMoney(aov)}`}</span>
+									<span aria-hidden className="text-muted-foreground">
+										·
+									</span>
 									<span>{`${percentFormatter.format(row.share)} share`}</span>
 								</div>
 							</div>

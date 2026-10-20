@@ -9,6 +9,7 @@ import type { LinkProps } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { Section } from "@/components/section";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,10 +23,7 @@ import {
 import { ExportButton } from "@/features/reports/components/export-button";
 import { ItemCodeLink } from "@/features/reports/components/item-code-link";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
-import {
-	ReportSection,
-	ReportSkeleton,
-} from "@/features/reports/components/report-section";
+import { ReportSkeleton } from "@/features/reports/components/report-skeleton";
 import {
 	csvFilename,
 	downloadCsv,
@@ -115,7 +113,10 @@ const itemLineColumns = <
 	{
 		id: "service_name",
 		header: "Service",
-		meta: { mobileCard: { slot: "subtitle" } },
+		meta: {
+			cellClassName: "min-w-36 whitespace-normal",
+			mobileCard: { slot: "subtitle" },
+		},
 		cell: ({ row }) => row.original.service_name ?? "—",
 	},
 ];
@@ -153,8 +154,13 @@ const qcRejectColumns: DataTableColumnDef<QcRejectItem>[] = [
 	{
 		id: "reason",
 		header: "Reason",
-		meta: { mobileCard: { slot: "subtitle" } },
-		cell: ({ row }) => <LongText text={row.original.reason} />,
+		// The owner reads why an Item went back, so the reason wraps instead
+		// of being cut at the card edge.
+		meta: {
+			cellClassName: "min-w-48 whitespace-normal",
+			mobileCard: { slot: "subtitle" },
+		},
+		cell: ({ row }) => row.original.reason || "—",
 	},
 	{
 		id: "card_people",
@@ -329,18 +335,10 @@ const QcRejectsSection = ({ range }: QcRejectsSectionProps) => {
 	const total = query.data?.meta.total ?? 0;
 
 	return (
-		<ReportSection
+		<Section
 			id="quality-qc-rejects"
-			title={
-				<>
-					QC rejects
-					{query.data ? (
-						<span className="text-foreground tabular-nums">
-							{numberFormatter.format(total)}
-						</span>
-					) : null}
-				</>
-			}
+			title="QC rejects"
+			count={query.data ? numberFormatter.format(total) : null}
 			aside={
 				!isShowingAll &&
 				total > PREVIEW_SIZE && (
@@ -355,13 +353,13 @@ const QcRejectsSection = ({ range }: QcRejectsSectionProps) => {
 				)
 			}
 		>
-			<div className="lg:border lg:border-border">
+			<div className="lg:overflow-hidden lg:rounded-lg lg:bg-card">
 				<DataTable
 					columns={qcRejectColumns}
 					data={query.data?.items ?? []}
 					isLoading={query.isPending}
 					emptyMessage="No QC rejects in range."
-					getCardLink={orderCardLink}
+					getRowLink={orderCardLink}
 				/>
 			</div>
 			{isShowingAll ? (
@@ -371,7 +369,7 @@ const QcRejectsSection = ({ range }: QcRejectsSectionProps) => {
 					onPageChange={(page) => setOffset((page - 1) * PAGE_SIZE)}
 				/>
 			) : null}
-		</ReportSection>
+		</Section>
 	);
 };
 
@@ -387,17 +385,17 @@ const CaughtBar = ({ label, count, processed, children }: CaughtBarProps) => {
 	return (
 		<li className="grid gap-1">
 			<div className="flex items-center justify-between gap-2">
-				<span className="truncate text-sm font-medium">{label}</span>
-				<span className="flex items-center gap-3 text-sm tabular-nums">
+				<span className="truncate text-body font-medium">{label}</span>
+				<span className="flex items-center gap-3 text-body tabular-nums">
 					<span>{numberFormatter.format(count)}</span>
 					<span className="w-14 text-right text-muted-foreground">
 						{percentFormatter.format(share)}
 					</span>
 				</span>
 			</div>
-			<div className="h-1.5 w-full bg-muted">
+			<div className="h-1.5 w-full overflow-hidden rounded-full bg-soft-bar-track">
 				<div
-					className="h-full bg-foreground"
+					className="h-full rounded-full bg-primary"
 					style={{ width: `${share * 100}%` }}
 				/>
 			</div>
@@ -418,8 +416,8 @@ const CaughtSection = ({ summary, outcomes }: CaughtSectionProps) => {
 		.join(" · ");
 
 	return (
-		<ReportSection id="quality-caught" title="Where mistakes were caught">
-			<ul className="grid gap-3 border border-border p-4">
+		<Section id="quality-caught" title="Where mistakes were caught">
+			<ul className="grid gap-3 rounded-lg border bg-card p-4">
 				<CaughtBar
 					label="Services processed"
 					count={processed}
@@ -441,13 +439,11 @@ const CaughtSection = ({ summary, outcomes }: CaughtSectionProps) => {
 					processed={processed}
 				>
 					{outcomeLine && (
-						<p className="text-[11px] tabular-nums text-muted-foreground">
-							{outcomeLine}
-						</p>
+						<p className="text-subhead tabular-nums">{outcomeLine}</p>
 					)}
 				</CaughtBar>
 			</ul>
-		</ReportSection>
+		</Section>
 	);
 };
 
@@ -562,75 +558,73 @@ const QualitySections = ({ range }: QualitySectionsProps) => {
 
 	return (
 		<>
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-				<KpiRow>
-					<KpiCard
-						label="First-pass rate"
-						value={percentFormatter.format(current.first_pass_rate)}
-						delta={deltas.first_pass_rate}
-						deltaAs="points"
-					/>
-					<KpiCard
-						label="QC rejects"
-						value={numberFormatter.format(current.qc_rejects)}
-						delta={deltas.qc_rejects}
-						isLowerBetter
-					/>
-					<KpiCard
-						label="Complaint rate"
-						value={percentFormatter.format(current.complaint_rate)}
-						delta={deltas.complaint_rate}
-						deltaAs="points"
-						helper="so far"
-						isLowerBetter
-					/>
-					<KpiCard
-						label="Self-checked"
-						value={percentFormatter.format(current.self_check_rate)}
-						delta={deltas.self_check_rate}
-						deltaAs="points"
-						helper="of passes"
-						isLowerBetter
-					/>
-				</KpiRow>
-				<ExportButton
-					disabled={exportMutation.isPending}
-					onClick={() => exportMutation.mutate(data)}
+			<ExportButton
+				disabled={exportMutation.isPending}
+				onClick={() => exportMutation.mutate(data)}
+			/>
+			<KpiRow>
+				<KpiCard
+					label="First-pass rate"
+					value={percentFormatter.format(current.first_pass_rate)}
+					delta={deltas.first_pass_rate}
+					deltaAs="points"
 				/>
-			</div>
+				<KpiCard
+					label="QC rejects"
+					value={numberFormatter.format(current.qc_rejects)}
+					delta={deltas.qc_rejects}
+					isLowerBetter
+				/>
+				<KpiCard
+					label="Complaint rate"
+					value={percentFormatter.format(current.complaint_rate)}
+					delta={deltas.complaint_rate}
+					deltaAs="points"
+					helper="so far"
+					isLowerBetter
+				/>
+				<KpiCard
+					label="Self-checked"
+					value={percentFormatter.format(current.self_check_rate)}
+					delta={deltas.self_check_rate}
+					deltaAs="points"
+					helper="of passes"
+					isLowerBetter
+				/>
+			</KpiRow>
 
 			<CaughtSection summary={current} outcomes={data.complaint_outcomes} />
 
-			<ReportSection id="quality-by-service" title="By Service">
-				<div className="lg:border lg:border-border">
+			<Section id="quality-by-service" title="By Service">
+				<div className="lg:overflow-hidden lg:rounded-lg lg:bg-card">
 					<DataTable
 						columns={serviceColumns}
 						data={data.by_service}
 						emptyMessage="No Services processed in range."
 					/>
 				</div>
-			</ReportSection>
+			</Section>
 
-			<ReportSection id="quality-by-checker" title="Quality checks by person">
-				<div className="lg:border lg:border-border">
+			<Section id="quality-by-checker" title="Quality checks by person">
+				<div className="lg:overflow-hidden lg:rounded-lg lg:bg-card">
 					<DataTable
 						columns={checkerColumns}
 						data={data.by_checker}
 						emptyMessage="No quality checks in range."
 					/>
 				</div>
-			</ReportSection>
+			</Section>
 
-			<ReportSection id="quality-damaged-lost" title="Damaged & lost">
-				<div className="lg:border lg:border-border">
+			<Section id="quality-damaged-lost" title="Damaged & lost">
+				<div className="lg:overflow-hidden lg:rounded-lg lg:bg-card">
 					<DataTable
 						columns={damagedLostColumns}
 						data={data.damaged_lost}
 						emptyMessage="None in range."
-						getCardLink={orderCardLink}
+						getRowLink={orderCardLink}
 					/>
 				</div>
-			</ReportSection>
+			</Section>
 		</>
 	);
 };

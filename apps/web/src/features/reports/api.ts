@@ -278,8 +278,8 @@ export const reportsQueries = {
 					}),
 				),
 			staleTime: REPORT_STALE_TIME,
-			// Today's view is who is on the floor and what is in their hands now.
-			refetchInterval: (q) => (q.state.data?.is_today ? 60_000 : false),
+			// Shift, In hand and Last move show who is on the floor right now, on any range.
+			refetchInterval: 60_000,
 		}),
 	workerDetail: (query: FetchWorkerDetailQuery) =>
 		queryOptions({

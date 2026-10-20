@@ -8,7 +8,10 @@ import {
 	numberFormatter,
 	percentFormatter,
 } from "@/features/reports/utils/format";
-import { CHART_PALETTE } from "@/features/reports/utils/palette";
+import {
+	ORDERS_IN_COLOR,
+	ORDERS_OUT_COLOR,
+} from "@/features/reports/utils/palette";
 import { formatMoney } from "@/shared/money";
 
 type TrendKey = "revenue" | "services_processed" | "orders_in" | "orders_out";
@@ -28,29 +31,29 @@ const CategoryBars = ({
 }) => {
 	const max = categories.reduce((m, row) => Math.max(m, row.gross_sales), 0);
 	if (categories.length === 0) {
-		return <p className="text-sm text-muted-foreground">No sales today</p>;
+		return <p className="text-body text-muted-foreground">No sales today</p>;
 	}
 	return (
-		<div className="grid gap-2">
+		<div className="grid grid-cols-1 gap-2">
 			{categories.map((row) => {
 				const pct = max === 0 ? 0 : (row.gross_sales / max) * 100;
 				return (
 					<div key={row.category_id} className="grid gap-1">
 						<div className="flex items-center justify-between gap-2">
-							<span className="truncate text-sm font-medium">
+							<span className="truncate text-body font-medium">
 								{row.category_name}
 							</span>
-							<span className="text-sm tabular-nums">
+							<span className="text-body tabular-nums">
 								{formatMoney(String(row.gross_sales))}
 							</span>
 						</div>
-						<div className="h-1.5 w-full bg-muted">
+						<div className="h-1.5 w-full overflow-hidden rounded-full bg-soft-bar-track">
 							<div
-								className="h-full bg-foreground"
+								className="h-full rounded-full bg-primary"
 								style={{ width: `${pct}%` }}
 							/>
 						</div>
-						<span className="text-[11px] text-muted-foreground tabular-nums">
+						<span className="text-subhead tabular-nums">
 							{formatServiceCount(row.count)}
 						</span>
 					</div>
@@ -67,23 +70,23 @@ const TopServicesList = ({
 }) => {
 	if (services.length === 0) {
 		return (
-			<p className="text-sm text-muted-foreground">No services sold today</p>
+			<p className="text-body text-muted-foreground">No services sold today</p>
 		);
 	}
 	return (
-		<div className="grid gap-2">
+		<div className="grid grid-cols-1 gap-2">
 			{services.map((row) => (
 				<div
 					key={row.service_id}
 					className="flex items-center justify-between gap-3 border-b border-border/40 py-2 last:border-0"
 				>
 					<div className="min-w-0">
-						<p className="truncate text-sm font-medium">{row.service_name}</p>
-						<p className="text-[11px] tabular-nums text-muted-foreground">
+						<p className="truncate text-body font-medium">{row.service_name}</p>
+						<p className="text-subhead tabular-nums">
 							{formatServiceCount(row.count)}
 						</p>
 					</div>
-					<p className="text-sm tabular-nums">
+					<p className="text-body tabular-nums">
 						{formatMoney(String(row.gross_sales))}
 					</p>
 				</div>
@@ -101,35 +104,39 @@ const BranchBreakdown = ({
 	const max = perStore.reduce((m, r) => Math.max(m, r.revenue), 0);
 	if (perStore.length === 0) {
 		return (
-			<p className="text-sm text-muted-foreground">No store activity today</p>
+			<p className="text-body text-muted-foreground">No store activity today</p>
 		);
 	}
 	return (
-		<div className="grid gap-3">
+		<div className="grid grid-cols-1 gap-3">
 			{perStore.map((row) => {
 				const pct = max === 0 ? 0 : (row.revenue / max) * 100;
 				const share = total === 0 ? 0 : row.revenue / total;
 				return (
 					<div key={row.store_id} className="grid gap-1">
 						<div className="flex items-center justify-between gap-2">
-							<span className="flex items-center gap-2 truncate text-sm font-medium">
-								<span className="font-mono text-[11px] uppercase text-muted-foreground">
+							<span className="flex items-center gap-2 truncate text-body font-medium">
+								<span className="font-normal text-subhead tabular-nums">
 									{row.store_code}
 								</span>
 								<span className="truncate">{row.store_name}</span>
 							</span>
-							<span className="text-sm tabular-nums">
+							<span className="text-body tabular-nums">
 								{formatMoney(String(row.revenue))}
 							</span>
 						</div>
-						<div className="h-1.5 w-full bg-muted">
+						<div className="h-1.5 w-full overflow-hidden rounded-full bg-soft-bar-track">
 							<div
-								className="h-full bg-foreground"
+								className="h-full rounded-full bg-primary"
 								style={{ width: `${pct}%` }}
 							/>
 						</div>
-						<div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
-							<span>{`${row.orders_in} in · ${row.orders_out} out`}</span>
+						<div className="flex flex-wrap items-center justify-between gap-x-3 text-subhead tabular-nums">
+							<span>
+								{`${row.orders_in} in `}
+								<span className="text-muted-foreground">·</span>
+								{` ${row.orders_out} out`}
+							</span>
 							<span>{percentFormatter.format(share)}</span>
 						</div>
 					</div>
@@ -204,7 +211,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 	return (
 		<div className="grid gap-6">
 			<div className="flex items-end justify-between gap-3">
-				<p className="text-[13px] font-medium text-muted-foreground">
+				<p className="text-subhead font-medium text-muted-foreground">
 					{`Snapshot · ${dayjs(date).format("MMM D, YYYY")}`}
 				</p>
 			</div>
@@ -231,8 +238,8 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 				xTickInterval="equidistantPreserveStart"
 				highlightLatest
 				series={[
-					{ key: "orders_in", label: "Orders in", color: CHART_PALETTE[0] },
-					{ key: "orders_out", label: "Orders out", color: CHART_PALETTE[1] },
+					{ key: "orders_in", label: "Orders in", color: ORDERS_IN_COLOR },
+					{ key: "orders_out", label: "Orders out", color: ORDERS_OUT_COLOR },
 				]}
 				valueFormatter={(v) => numberFormatter.format(v)}
 			/>
@@ -240,7 +247,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 			<div className="grid gap-3 xl:grid-cols-2">
 				<Card className="border-border/70">
 					<CardHeader>
-						<CardTitle className="text-sm font-semibold text-foreground">
+						<CardTitle className="text-headline font-semibold text-foreground">
 							Gross sales by category · today
 						</CardTitle>
 					</CardHeader>
@@ -250,7 +257,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 				</Card>
 				<Card className="border-border/70">
 					<CardHeader>
-						<CardTitle className="text-sm font-semibold text-foreground">
+						<CardTitle className="text-headline font-semibold text-foreground">
 							Top services by gross sales · today
 						</CardTitle>
 					</CardHeader>
@@ -262,7 +269,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle className="text-sm font-semibold text-foreground">
+					<CardTitle className="text-headline font-semibold text-foreground">
 						Revenue by store · today
 					</CardTitle>
 				</CardHeader>

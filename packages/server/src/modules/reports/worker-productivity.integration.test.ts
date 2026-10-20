@@ -335,7 +335,14 @@ describe("the Workers report over August", () => {
         qc_rejects: 1,
         complaints: 0,
         complaint_cohort: 1,
-        live: null,
+        // Right now, not in August: the 4 August Shift he never closed.
+        live: {
+          clock_in_at: jkt("2026-08-04T08:00"),
+          clock_out_at: null,
+          in_hand: 0,
+          last_move_at: null,
+          services_today: 0,
+        },
       })
     );
     // Nothing he started reached QC on 4 or 5 August.
@@ -1029,6 +1036,7 @@ describe("the Workers report for today", () => {
       clock_out_at: null,
       in_hand: 1,
       last_move_at: at(5),
+      services_today: 1,
     });
   });
 
@@ -1066,6 +1074,7 @@ describe("the Workers report for today", () => {
           clock_out_at: null,
           in_hand: 2,
           last_move_at: null,
+          services_today: 0,
         },
       })
     );
@@ -1084,6 +1093,7 @@ describe("the Workers report for today", () => {
           clock_out_at: null,
           in_hand: 0,
           last_move_at: null,
+          services_today: 0,
         },
       })
     );
@@ -1115,7 +1125,7 @@ describe("the Workers report for today", () => {
     const report = await todayAtKemang();
 
     expect(
-      report.workers.find((row) => row.user_id === adi)?.live?.last_move_at
+      report.workers.find((row) => row.user_id === adi)?.live.last_move_at
     ).toEqual(at(5));
   });
 
@@ -1141,14 +1151,91 @@ describe("the Workers report for today", () => {
     expect(facts.days_worked).toBe(1);
   });
 
-  it("leaves the live view out of any stretch longer than today", async () => {
+  it("shows the live view on a week too, Services today apart from the week's", async () => {
+    // Adi also finished a pair yesterday evening.
+    const { yesterday } = await placeOrder(shop.store, [
+      { brand: "yesterday", serviceId: shop.serviceId },
+    ]);
+    await log(yesterday.lineId, [
+      ["queued", "processing", adi, at(-6)],
+      ["processing", "quality_check", adi, at(-5)],
+    ]);
+
     const report = await getWorkerProductivityReport({
-      from: shiftDate(today, -1),
+      from: shiftDate(today, -6),
+      to: today,
+      store_id: shop.store.id,
+    });
+    const row = report.workers.find((r) => r.user_id === adi);
+
+    expect(report.is_today).toBe(false);
+    expect(row?.services_processed).toBe(2);
+    expect(row?.live).toEqual({
+      clock_in_at: at(3),
+      clock_out_at: null,
+      in_hand: 1,
+      last_move_at: at(5),
+      services_today: 1,
+    });
+  });
+
+  it("gives no last move to someone whose last bench move was before today", async () => {
+    const { checked } = await placeOrder(shop.store, [
+      { brand: "checked", serviceId: shop.serviceId },
+    ]);
+    await log(checked.lineId, [
+      ["quality_check", "ready_for_pickup", citra, at(-5)],
+    ]);
+
+    const report = await getWorkerProductivityReport({
+      from: shiftDate(today, -6),
       to: today,
       store_id: shop.store.id,
     });
 
-    expect(report.is_today).toBe(false);
-    expect(report.workers.map((row) => row.live)).toEqual([null]);
+    expect(report.workers.find((row) => row.user_id === citra)).toEqual(
+      expect.objectContaining({
+        days_worked: 1,
+        live: expect.objectContaining({ last_move_at: null }),
+      })
+    );
+  });
+
+  it("lists someone busy today on a stretch that ended yesterday, with nothing in it", async () => {
+    const yesterday = shiftDate(today, -1);
+    const report = await getWorkerProductivityReport({
+      from: yesterday,
+      to: yesterday,
+      store_id: shop.store.id,
+    });
+
+    expect(report.workers).toEqual([
+      expect.objectContaining({
+        user_id: adi,
+        services_processed: 0,
+        days_worked: 0,
+        live: {
+          clock_in_at: at(3),
+          clock_out_at: null,
+          in_hand: 1,
+          last_move_at: at(5),
+          services_today: 1,
+        },
+      }),
+    ]);
+    // Today's work never reaches yesterday's figures.
+    expect(report.summary.current).toEqual(
+      expect.objectContaining({ services_processed: 0, days_worked: 0 })
+    );
+  });
+
+  it("shows a Shift clocked out today, so a worker who went home is not one who never clocked in", async () => {
+    await clockIn(bayu, shop.store.id, at(1), at(4));
+
+    const report = await todayAtKemang();
+
+    expect(report.workers.find((row) => row.user_id === bayu)?.live).toEqual(
+      expect.objectContaining({ clock_in_at: at(1), clock_out_at: at(4) })
+    );
   });
 });

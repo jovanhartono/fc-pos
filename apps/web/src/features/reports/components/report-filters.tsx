@@ -1,6 +1,5 @@
 import { FunnelSimpleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import {
@@ -8,14 +7,14 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StoreSelect } from "@/features/orders/components/store-select";
 import type { ReportGranularity } from "@/features/reports/api";
 import {
 	DEFAULT_PRESET,
 	rangeLabel,
 } from "@/features/reports/utils/report-filters";
 import { storesQueries } from "@/features/stores/api";
-import { cn } from "@/lib/utils";
 import type { DatePreset } from "@/shared/date-presets";
 
 interface ReportFiltersProps {
@@ -36,7 +35,7 @@ interface ReportFiltersProps {
 	showGranularity?: boolean;
 }
 
-const FIELD_LABEL = "text-[13px] font-medium text-muted-foreground";
+const FIELD_LABEL = "text-subhead font-medium text-muted-foreground";
 
 const GRANULARITY_OPTIONS: {
 	id: ReportGranularity | "auto";
@@ -74,122 +73,96 @@ export const ReportFilters = ({
 		(isStoreDefault ? 0 : 1) +
 		(showGranularity && !isGranularityDefault ? 1 : 0);
 
-	const activeBadges: { id: string; label: string }[] = [];
-	if (showRangeFilters) {
-		activeBadges.push({
-			id: "range",
-			label: rangeLabel({ preset, from, to }),
-		});
-	}
-	activeBadges.push({
-		id: "store",
-		label: activeStore ? activeStore.code : "All stores",
-	});
-	if (showGranularity && granularity) {
-		activeBadges.push({ id: "granularity", label: granularity });
-	}
+	// The button reads what the report shows, so the filter state is never a
+	// second row of look-alike pills that do nothing when tapped.
+	const summary = [
+		showRangeFilters ? rangeLabel({ preset, from, to }) : null,
+		activeStore ? activeStore.code : "All stores",
+		showGranularity && granularity
+			? GRANULARITY_OPTIONS.find((option) => option.id === granularity)?.label
+			: null,
+	]
+		.filter(Boolean)
+		.join(" · ");
 
 	const activeGranularity: ReportGranularity | "auto" = granularity ?? "auto";
 
 	return (
-		<div className="flex flex-wrap items-center gap-2">
-			{activeBadges.map((badge, index) => (
-				<Badge
-					key={badge.id}
-					variant="outline"
-					className={cn(
-						"h-8 max-w-40 truncate px-2 text-xs",
-						index > 0 && "hidden sm:inline-flex",
-					)}
-				>
-					{badge.label}
-				</Badge>
-			))}
-			<Popover>
-				<PopoverTrigger
-					render={
-						<Button variant="outline" icon={<FunnelSimpleIcon />}>
-							Filters
-							{nonDefaultCount > 0 && (
-								<span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center bg-foreground px-1 text-[10px] font-semibold text-background">
-									{nonDefaultCount}
-								</span>
-							)}
-						</Button>
+		<Popover>
+			<PopoverTrigger
+				render={
+					<Button
+						variant="outline"
+						icon={<FunnelSimpleIcon />}
+						className="min-w-0"
+					>
+						<span className="truncate">{summary}</span>
+					</Button>
+				}
+			/>
+			<PopoverContent
+				align="end"
+				className="w-[min(20rem,calc(100vw-2rem))] gap-4 p-4"
+			>
+				{showRangeFilters ? (
+					<div className="grid gap-2">
+						<span className={FIELD_LABEL}>Range</span>
+						<DateRangePicker
+							from={from}
+							to={to}
+							preset={preset}
+							isPresetKept
+							commitOnComplete
+							onChange={(next) => {
+								if (next.from && next.to) {
+									onRangeChange({
+										from: next.from,
+										to: next.to,
+										preset: next.preset,
+									});
+								}
+							}}
+						/>
+					</div>
+				) : null}
+				{showGranularity && onGranularityChange ? (
+					<div className="grid gap-2">
+						<span className={FIELD_LABEL}>Granularity</span>
+						<Tabs
+							value={activeGranularity}
+							onValueChange={(value) =>
+								onGranularityChange(
+									value === "auto" ? undefined : (value as ReportGranularity),
+								)
+							}
+						>
+							<TabsList aria-label="Granularity" className="w-full">
+								{GRANULARITY_OPTIONS.map((option) => (
+									<TabsTrigger key={option.id} value={option.id}>
+										{option.label}
+									</TabsTrigger>
+								))}
+							</TabsList>
+						</Tabs>
+					</div>
+				) : null}
+				<StoreSelect
+					id="reports-store"
+					label="Store"
+					value={storeId !== undefined ? String(storeId) : ""}
+					onValueChange={(next) =>
+						onStoreChange(next ? Number(next) : undefined)
 					}
+					allOptionLabel="All stores"
 				/>
-				<PopoverContent
-					align="end"
-					className="w-[min(20rem,calc(100vw-2rem))] gap-4 p-4"
-				>
-					{showRangeFilters ? (
-						<div className="grid gap-2">
-							<span className={FIELD_LABEL}>Range</span>
-							<DateRangePicker
-								from={from}
-								to={to}
-								preset={preset}
-								isPresetKept
-								commitOnComplete
-								onChange={(next) => {
-									if (next.from && next.to) {
-										onRangeChange({
-											from: next.from,
-											to: next.to,
-											preset: next.preset,
-										});
-									}
-								}}
-							/>
-						</div>
-					) : null}
-					{showGranularity && onGranularityChange ? (
-						<div className="grid gap-2">
-							<span className={FIELD_LABEL}>Granularity</span>
-							<div className="grid grid-cols-5 gap-1">
-								{GRANULARITY_OPTIONS.map((option) => {
-									const isActive = activeGranularity === option.id;
-									return (
-										<button
-											type="button"
-											key={option.id}
-											onClick={() =>
-												onGranularityChange(
-													option.id === "auto" ? undefined : option.id,
-												)
-											}
-											className={cn(
-												"border px-1 py-1.5 text-[11px]",
-												isActive
-													? "border-foreground bg-foreground text-background"
-													: "border-border/70 text-muted-foreground hover:text-foreground",
-											)}
-										>
-											{option.label}
-										</button>
-									);
-								})}
-							</div>
-						</div>
-					) : null}
-					<StoreAutocomplete
-						id="reports-store"
-						label="Store"
-						value={storeId !== undefined ? String(storeId) : ""}
-						onValueChange={(next) =>
-							onStoreChange(next ? Number(next) : undefined)
-						}
-						allOptionLabel="All stores"
-					/>
-					{nonDefaultCount > 0 && (
-						<div className="flex justify-end border-border/70 border-t pt-3">
-							<Button variant="ghost" size="sm" onClick={onReset}>
-								Reset
-							</Button>
-						</div>
-					)}
-				</PopoverContent>
-			</Popover>
-		</div>
+				{nonDefaultCount > 0 && (
+					<div className="flex justify-end border-border/70 border-t pt-3">
+						<Button variant="ghost" size="sm" onClick={onReset}>
+							Reset
+						</Button>
+					</div>
+				)}
+			</PopoverContent>
+		</Popover>
 	);
 };

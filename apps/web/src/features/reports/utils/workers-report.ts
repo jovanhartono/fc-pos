@@ -13,6 +13,7 @@ import dayjs from "@/lib/dayjs";
 type MatrixCell = WorkerProductivityReport["services_matrix"]["cells"][number];
 type DetailBucket = WorkerDetailReport["buckets"][number];
 type DetailService = WorkerDetailReport["services"][number];
+type Live = WorkerRow["live"];
 
 // The owner will set these lines in Settings (GitHub issue #159); until then a
 // QC reject or Complaint chip is coloured from this one block.
@@ -118,6 +119,97 @@ export const groupByStore = (rows: WorkerRow[]): StoreGroup[] => {
 
 export const workerKey = (userId: number, storeId: number) =>
 	`${userId}:${storeId}`;
+
+// "5m", "1h", "5h 55m", and "9d 3h" for a Shift someone forgot to close.
+export const durationText = (minutes: number) => {
+	if (minutes < 60) {
+		return `${minutes}m`;
+	}
+	if (minutes >= 24 * 60) {
+		const hoursLeft = Math.floor((minutes % (24 * 60)) / 60);
+		const days = `${Math.floor(minutes / (24 * 60))}d`;
+		return hoursLeft === 0 ? days : `${days} ${hoursLeft}h`;
+	}
+	const rest = minutes % 60;
+	const hours = `${Math.floor(minutes / 60)}h`;
+	return rest === 0 ? hours : `${hours} ${rest}m`;
+};
+
+const minutesSince = (value: string, now: number) =>
+	Math.max(0, dayjs(now).diff(dayjs(value), "minute"));
+
+export const sinceText = (value: string | null, now: number) =>
+	value ? durationText(minutesSince(value, now)) : "—";
+
+// The server sends the open Shift, or else the last one clocked in today.
+export const openShiftSince = (live: Live) =>
+	live.clock_out_at === null ? live.clock_in_at : null;
+
+// Moved Items or finished Services today with no Shift today at all.
+export const isMissingClockIn = (live: Live) =>
+	live.clock_in_at === null &&
+	(live.services_today > 0 || live.last_move_at !== null);
+
+// The owner will set these in Settings (GitHub issue #159), like WORKER_TONES.
+export const NEEDS_A_LOOK = {
+	// On shift this long with nothing reaching QC today.
+	idleShiftMinutes: 120,
+	// More Items in hand than one person can be working on.
+	maxInHand: 20,
+} as const;
+
+export interface Flag {
+	key: string;
+	row: WorkerRow;
+	// Plain text either side of the part shown in red.
+	before: string;
+	problem: string;
+	after: string;
+}
+
+const servicesText = (count: number) =>
+	`${numberFormatter.format(count)} ${count === 1 ? "Service" : "Services"}`;
+
+export const needsALook = (rows: WorkerRow[], now: number): Flag[] =>
+	rows.flatMap((row) => {
+		const { live } = row;
+		const key = workerKey(row.user_id, row.store_id);
+		const inHand = `${numberFormatter.format(live.in_hand)} in hand`;
+		const openSince = openShiftSince(live);
+		const shiftMinutes = openSince ? minutesSince(openSince, now) : 0;
+		const flags: Flag[] = [];
+		if (isMissingClockIn(live)) {
+			flags.push({
+				key: `${key}:clock-in`,
+				row,
+				before: `${servicesText(live.services_today)} today, ${inHand} — `,
+				problem: "not clocked in",
+				after: "",
+			});
+		}
+		if (
+			live.services_today === 0 &&
+			shiftMinutes > NEEDS_A_LOOK.idleShiftMinutes
+		) {
+			flags.push({
+				key: `${key}:idle`,
+				row,
+				before: `on shift ${durationText(shiftMinutes)}, `,
+				problem: `${servicesText(0)} today`,
+				after: "",
+			});
+		}
+		if (live.in_hand > NEEDS_A_LOOK.maxInHand) {
+			flags.push({
+				key: `${key}:in-hand`,
+				row,
+				before: "",
+				problem: inHand,
+				after: `, ${numberFormatter.format(live.services_today)} reached QC today`,
+			});
+		}
+		return flags;
+	});
 
 const cellKey = (userId: number, storeId: number, serviceId: number) =>
 	`${workerKey(userId, storeId)}:${serviceId}`;

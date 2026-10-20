@@ -4,7 +4,7 @@ import {
 	type SearchSchemaInput,
 	useNavigate,
 } from "@tanstack/react-router";
-import { lazy, type PropsWithChildren, Suspense } from "react";
+import { lazy, type PropsWithChildren, Suspense, useState } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -12,11 +12,13 @@ import {
 	type ReportGranularity,
 	reportsQueries,
 } from "@/features/reports/api";
+import { ExportSlotContext } from "@/features/reports/components/export-button";
 import { ReportFilters } from "@/features/reports/components/report-filters";
 import {
 	ReportShell,
 	type ReportTab,
 } from "@/features/reports/components/report-shell";
+import { ReportSkeleton } from "@/features/reports/components/report-skeleton";
 import {
 	type ReportFilterValues,
 	resetReportFilters,
@@ -177,19 +179,6 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 	}
 }
 
-const PanelSkeleton = () => (
-	<div className="grid gap-6">
-		<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-			<div className="h-24 animate-pulse bg-muted/40" />
-			<div className="h-24 animate-pulse bg-muted/40" />
-			<div className="h-24 animate-pulse bg-muted/40" />
-			<div className="h-24 animate-pulse bg-muted/40" />
-		</div>
-		<div className="h-[320px] animate-pulse bg-muted/40" />
-		<div className="h-[320px] animate-pulse bg-muted/40" />
-	</div>
-);
-
 const descriptions: Record<Tab, string> = {
 	overview: "Today's revenue, throughput, and order flow.",
 	financial: "Gross sales, revenue, COGS, margin, and store performance",
@@ -231,6 +220,7 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 	const handleFiltersChange = useFiltersChange();
+	const [exportSlot, setExportSlot] = useState<HTMLDivElement | null>(null);
 
 	const currentTab = search.tab as Tab;
 
@@ -243,30 +233,33 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 		currentTab !== "workers";
 
 	return (
-		<>
+		<ExportSlotContext.Provider value={exportSlot}>
 			<PageHeader
 				title="Reports"
 				description={descriptions[currentTab]}
 				actions={
-					<ReportFilters
-						from={search.from}
-						to={search.to}
-						preset={search.preset}
-						onRangeChange={handleFiltersChange}
-						storeId={search.store_id}
-						onStoreChange={(storeId) =>
-							handleFiltersChange({ store_id: storeId })
-						}
-						granularity={search.granularity}
-						onGranularityChange={(granularity: ReportGranularity | undefined) =>
-							handleFiltersChange({ granularity })
-						}
-						onReset={() =>
-							handleFiltersChange(resetReportFilters(showRangeFilters))
-						}
-						showRangeFilters={showRangeFilters}
-						showGranularity={showGranularity}
-					/>
+					<>
+						<ReportFilters
+							from={search.from}
+							to={search.to}
+							preset={search.preset}
+							onRangeChange={handleFiltersChange}
+							storeId={search.store_id}
+							onStoreChange={(storeId) =>
+								handleFiltersChange({ store_id: storeId })
+							}
+							granularity={search.granularity}
+							onGranularityChange={(
+								granularity: ReportGranularity | undefined,
+							) => handleFiltersChange({ granularity })}
+							onReset={() =>
+								handleFiltersChange(resetReportFilters(showRangeFilters))
+							}
+							showRangeFilters={showRangeFilters}
+							showGranularity={showGranularity}
+						/>
+						<div ref={setExportSlot} className="contents" />
+					</>
 				}
 			/>
 			<ReportShell
@@ -280,7 +273,7 @@ const ReportsChrome = ({ children }: PropsWithChildren) => {
 			>
 				{children}
 			</ReportShell>
-		</>
+		</ExportSlotContext.Provider>
 	);
 };
 
@@ -291,7 +284,7 @@ function ReportsPage() {
 
 	return (
 		<ReportsChrome>
-			<Suspense fallback={<PanelSkeleton />}>
+			<Suspense fallback={<ReportSkeleton />}>
 				{currentTab === "overview" && (
 					<OverviewPanel date={jakartaToday()} storeId={search.store_id} />
 				)}
@@ -363,7 +356,7 @@ function ReportsPage() {
 
 const ReportsPending = () => (
 	<ReportsChrome>
-		<PanelSkeleton />
+		<ReportSkeleton />
 	</ReportsChrome>
 );
 

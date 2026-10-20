@@ -4,13 +4,27 @@ import {
 	axisTickLabels,
 	buildChartRows,
 	complaintTone,
+	durationText,
 	groupByStore,
+	isMissingClockIn,
+	NEEDS_A_LOOK,
+	needsALook,
+	openShiftSince,
 	outOf,
 	qcText,
 	qcTone,
+	sinceText,
 	splitTopServices,
 	totalsOf,
 } from "@/features/reports/utils/workers-report";
+
+const quiet: WorkerRow["live"] = {
+	clock_in_at: null,
+	clock_out_at: null,
+	in_hand: 0,
+	last_move_at: null,
+	services_today: 0,
+};
 
 const worker = (overrides: Partial<WorkerRow>): WorkerRow =>
 	({
@@ -26,7 +40,7 @@ const worker = (overrides: Partial<WorkerRow>): WorkerRow =>
 		qc_rejects: 0,
 		complaints: 0,
 		complaint_cohort: 0,
-		live: null,
+		live: quiet,
 		...overrides,
 	}) as WorkerRow;
 
@@ -97,6 +111,135 @@ describe("Store totals", () => {
 		]);
 		expect(groups.map((g) => g.store_name)).toEqual(["BSD", "Kemang"]);
 		expect(groups[1].rows).toHaveLength(2);
+	});
+});
+
+describe("right now", () => {
+	const now = new Date("2026-10-19T10:00:00+07:00").getTime();
+	const at = (local: string) => `2026-10-19T${local}:00+07:00`;
+	const live = (overrides: Partial<WorkerRow["live"]>) => ({
+		...quiet,
+		...overrides,
+	});
+
+	it("is on shift only while a Shift is open", () => {
+		expect(openShiftSince(live({ clock_in_at: at("08:00") }))).toBe(
+			at("08:00"),
+		);
+		expect(
+			openShiftSince(
+				live({ clock_in_at: at("08:00"), clock_out_at: at("09:00") }),
+			),
+		).toBeNull();
+	});
+
+	it("misses a clock-in only for someone who worked today with no Shift today", () => {
+		expect(isMissingClockIn(live({ services_today: 1 }))).toBe(true);
+		expect(isMissingClockIn(live({ last_move_at: at("09:00") }))).toBe(true);
+		// Went home after a Shift today.
+		expect(
+			isMissingClockIn(
+				live({
+					services_today: 1,
+					clock_in_at: at("07:00"),
+					clock_out_at: at("09:00"),
+				}),
+			),
+		).toBe(false);
+		// Items in hand from an earlier day are not work today.
+		expect(isMissingClockIn(live({ in_hand: 3 }))).toBe(false);
+	});
+
+	it("says how long since the last move", () => {
+		expect(sinceText(at("09:59"), now)).toBe("1m");
+		expect(sinceText(at("08:00"), now)).toBe("2h");
+		expect(sinceText(at("04:05"), now)).toBe("5h 55m");
+		expect(sinceText(null, now)).toBe("—");
+	});
+
+	it("counts a forgotten Shift in days", () => {
+		expect(durationText(219 * 60 + 30)).toBe("9d 3h");
+		expect(durationText(48 * 60)).toBe("2d");
+	});
+});
+
+describe("Needs a look", () => {
+	const now = new Date("2026-10-19T14:00:00+07:00").getTime();
+	const flagText = (row: WorkerRow) =>
+		needsALook([row], now).map(
+			({ before, problem, after }) => `${before}[${problem}]${after}`,
+		);
+
+	it("flags work today with no Shift", () => {
+		expect(
+			flagText(
+				worker({
+					live: { ...quiet, services_today: 10, in_hand: 10 },
+				}),
+			),
+		).toEqual(["10 Services today, 10 in hand — [not clocked in]"]);
+	});
+
+	it("flags an open Shift past the idle limit with nothing reaching QC today", () => {
+		const since = (minutes: number) =>
+			new Date(now - minutes * 60_000).toISOString();
+		expect(
+			flagText(worker({ live: { ...quiet, clock_in_at: since(355) } })),
+		).toEqual(["on shift 5h 55m, [0 Services today]"]);
+		expect(
+			flagText(
+				worker({
+					live: {
+						...quiet,
+						clock_in_at: since(NEEDS_A_LOOK.idleShiftMinutes),
+					},
+				}),
+			),
+		).toEqual([]);
+		expect(
+			flagText(
+				worker({
+					live: { ...quiet, clock_in_at: since(355), services_today: 1 },
+				}),
+			),
+		).toEqual([]);
+	});
+
+	it("flags more Items in hand than the limit", () => {
+		const shift = new Date(now - 60 * 60_000).toISOString();
+		expect(
+			flagText(
+				worker({
+					live: {
+						...quiet,
+						clock_in_at: shift,
+						in_hand: 39,
+						services_today: 14,
+					},
+				}),
+			),
+		).toEqual(["[39 in hand], 14 reached QC today"]);
+		expect(
+			flagText(
+				worker({
+					live: {
+						...quiet,
+						clock_in_at: shift,
+						in_hand: NEEDS_A_LOOK.maxInHand,
+						services_today: 1,
+					},
+				}),
+			),
+		).toEqual([]);
+	});
+
+	it("gives a person with two problems two lines", () => {
+		expect(
+			flagText(worker({ live: { ...quiet, in_hand: 25, services_today: 1 } })),
+		).toEqual([
+			"1 Service today, 25 in hand — [not clocked in]",
+			"[25 in hand], 1 reached QC today",
+		]);
 	});
 });
 

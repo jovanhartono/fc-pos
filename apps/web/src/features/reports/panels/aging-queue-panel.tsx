@@ -4,6 +4,7 @@ import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { type AgingQueueItem, reportsQueries } from "@/features/reports/api";
 import { ItemCodeLink } from "@/features/reports/components/item-code-link";
 import {
@@ -39,7 +40,7 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 		header: "Store",
 		meta: { mobileCard: { slot: "eyebrow" } },
 		cell: ({ row }) => (
-			<span className="text-xs">
+			<span className="text-footnote">
 				{row.original.store_code} · {row.original.store_name}
 			</span>
 		),
@@ -92,10 +93,7 @@ export const AgingQueuePanel = ({ storeId }: AgingQueuePanelProps) => {
 		return (
 			<div className="grid gap-2">
 				{Array.from({ length: 6 }, (_, index) => (
-					<div
-						key={index}
-						className="h-12 animate-pulse border border-border bg-muted/40"
-					/>
+					<Skeleton key={index} className="h-12 rounded-lg" />
 				))}
 			</div>
 		);
@@ -103,7 +101,7 @@ export const AgingQueuePanel = ({ storeId }: AgingQueuePanelProps) => {
 
 	if (items.length === 0) {
 		return (
-			<div className="border border-border bg-muted/20 p-8 text-center text-sm text-muted-foreground">
+			<div className="rounded-lg border bg-card p-8 text-center text-body text-muted-foreground">
 				Nothing waiting. Queue is clear.
 			</div>
 		);
@@ -112,22 +110,22 @@ export const AgingQueuePanel = ({ storeId }: AgingQueuePanelProps) => {
 	return (
 		<div className="grid gap-4">
 			<div className="flex items-center justify-between gap-3">
-				<p className="text-sm text-muted-foreground">
+				<p className="text-body text-muted-foreground">
 					{total} item{total === 1 ? "" : "s"} not yet picked up — oldest first.
 				</p>
 			</div>
-			<div className="lg:border lg:border-border">
+			<div className="lg:overflow-hidden lg:rounded-lg lg:bg-card">
 				<DataTable
 					columns={columns}
 					data={items}
-					getCardLink={(item) => ({
+					getRowLink={(item) => ({
 						to: "/orders/$orderId",
 						params: { orderId: String(item.order_id) },
 					})}
 				/>
 			</div>
 			<div className="flex items-center justify-between gap-3">
-				<p className="text-xs text-muted-foreground">
+				<p className="text-footnote text-muted-foreground">
 					Showing {offset + 1}–{offset + items.length} of {total}
 				</p>
 				<div className="flex gap-2">

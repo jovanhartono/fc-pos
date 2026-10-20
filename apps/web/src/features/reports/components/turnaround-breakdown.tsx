@@ -14,7 +14,7 @@ export const TurnaroundBreakdown = ({
 	const { queued_p75: queued, in_progress_p75: inProgress } = breakdown;
 	return (
 		<div className="grid gap-1.5 border-t px-3 pt-2.5 pb-3">
-			<p className="text-[13px] font-medium">
+			<p className="text-subhead font-medium">
 				Turnaround breakdown{" "}
 				<span className="font-normal text-muted-foreground">
 					· p75 per Service
@@ -26,7 +26,7 @@ export const TurnaroundBreakdown = ({
 				<>
 					<div className="h-2.5 bg-muted" />
 					<span
-						className="w-fit cursor-help text-[13px] text-muted-foreground underline decoration-dotted underline-offset-2"
+						className="w-fit cursor-help text-subhead text-muted-foreground underline decoration-dotted underline-offset-2"
 						title={`Needs ${minItems} Services in the range`}
 					>
 						Not enough data
@@ -46,7 +46,7 @@ export const TurnaroundBreakdown = ({
 							style={{ backgroundColor: TURNAROUND_COLORS.inProgress }}
 						/>
 					</div>
-					<div className="flex justify-between gap-3 text-[13px]">
+					<div className="flex justify-between gap-3 text-subhead">
 						<span className="flex items-center gap-1.5">
 							<span
 								className="size-2"

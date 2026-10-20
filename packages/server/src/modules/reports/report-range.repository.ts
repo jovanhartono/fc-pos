@@ -9,6 +9,7 @@ import {
   isNotNull,
   isNull,
   lt,
+  or,
   sql,
 } from "drizzle-orm";
 import { alias, type SelectedFields } from "drizzle-orm/pg-core";
@@ -815,8 +816,10 @@ export function listComplaintItems(orderServiceIds: number[]) {
     .where(inArray(complaintsTable.order_service_id, orderServiceIds));
 }
 
+// The "right now" half of the Workers tab, whatever stretch the rest covers:
+// `range` is today.
 export async function listWorkerLiveActivity({ range, storeId }: RangeArgs) {
-  const [inHand, lastMoves, openShifts] = await Promise.all([
+  const [inHand, lastMoves, shifts, processedToday] = await Promise.all([
     db
       .select({
         user_id: sql<number>`${ordersServicesTable.handler_id}`,
@@ -857,7 +860,8 @@ export async function listWorkerLiveActivity({ range, storeId }: RangeArgs) {
         )
       )
       .groupBy(orderServiceStatusLogsTable.changed_by, ordersTable.store_id),
-    // Still on the floor, even from a clock-in before today.
+    // Still on the floor, even from a clock-in before today, or clocked in
+    // and out today: someone working with neither never clocked in.
     db
       .select({
         user_id: shiftsTable.user_id,
@@ -868,12 +872,16 @@ export async function listWorkerLiveActivity({ range, storeId }: RangeArgs) {
       .from(shiftsTable)
       .where(
         and(
-          isNull(shiftsTable.clock_out_at),
+          or(
+            isNull(shiftsTable.clock_out_at),
+            and(...timeWindow(shiftsTable.clock_in_at, range))
+          ),
           storeScope(shiftsTable.store_id, storeId)
         )
       ),
+    listProcessedLines({ range, storeId }, {}),
   ]);
-  return { inHand, lastMoves, openShifts };
+  return { inHand, lastMoves, shifts, processedToday };
 }
 
 // Both tables are a shop's worth of rows, so the report reads them whole

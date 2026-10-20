@@ -10,10 +10,12 @@ import {
 	escapeCsv,
 } from "@/features/reports/utils/csv";
 import {
+	compactMoney,
 	numberFormatter,
 	percentFormatter,
 } from "@/features/reports/utils/format";
-import { CHART_PALETTE } from "@/features/reports/utils/palette";
+import { topFourColor } from "@/features/reports/utils/palette";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
 interface PaymentsPanelProps {
@@ -34,10 +36,12 @@ export const PaymentsPanel = ({
 	);
 	const data = query.data;
 
+	// Methods arrive biggest first, in the same order as the Mix share list, so
+	// the list doubles as the chart's key.
 	const series = (data?.method_keys ?? []).map((m, idx) => ({
 		key: m.key,
 		label: m.label,
-		color: CHART_PALETTE[idx % CHART_PALETTE.length],
+		color: topFourColor(idx),
 	}));
 
 	const handleExport = () => {
@@ -68,21 +72,18 @@ export const PaymentsPanel = ({
 
 	return (
 		<div className="grid gap-6">
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-				<KpiRow>
-					<KpiCard
-						label="Collected"
-						value={formatMoney(String(data?.summary.grand_total ?? 0))}
-					/>
-					<KpiCard
-						label="Paid orders"
-						value={numberFormatter.format(data?.summary.total_orders ?? 0)}
-					/>
-					<KpiCard label="Methods" value={data?.summary.methods.length ?? 0} />
-					<KpiCard label="Granularity" value={data?.granularity ?? "—"} />
-				</KpiRow>
-				<ExportButton disabled={!data} onClick={handleExport} />
-			</div>
+			<ExportButton disabled={!data} onClick={handleExport} />
+			<KpiRow>
+				<KpiCard
+					label="Collected"
+					value={formatMoney(String(data?.summary.grand_total ?? 0))}
+				/>
+				<KpiCard
+					label="Paid orders"
+					value={numberFormatter.format(data?.summary.total_orders ?? 0)}
+				/>
+				<KpiCard label="Methods" value={data?.summary.methods.length ?? 0} />
+			</KpiRow>
 
 			<ChartCard
 				variant="stacked-bar"
@@ -91,36 +92,53 @@ export const PaymentsPanel = ({
 				granularity={data?.granularity ?? "day"}
 				series={series}
 				valueFormatter={(v) => formatMoney(String(v))}
+				axisFormatter={compactMoney}
+				hideLegend
 			/>
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle className="text-sm font-semibold text-foreground">
+					<CardTitle className="text-headline font-semibold text-foreground">
 						Mix share
 					</CardTitle>
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					{(data?.summary.methods ?? []).length === 0 ? (
-						<p className="text-sm text-muted-foreground">No paid orders</p>
+						<p className="text-body text-muted-foreground">No paid orders</p>
 					) : (
-						<div className="grid gap-3">
-							{data?.summary.methods.map((m) => (
+						<div className="grid grid-cols-1 gap-3">
+							{data?.summary.methods.map((m, idx) => (
 								<div key={m.payment_method_id} className="grid gap-1">
 									<div className="flex items-center justify-between gap-2">
-										<span className="truncate text-sm font-medium">
-											{m.payment_method_name}
+										<span className="flex min-w-0 items-center gap-2 text-body font-medium">
+											<span
+												aria-hidden="true"
+												className="size-2 shrink-0 rounded-full"
+												style={{ backgroundColor: topFourColor(idx) }}
+											/>
+											<span className="truncate">{m.payment_method_name}</span>
 										</span>
-										<span className="text-sm tabular-nums">
+										<span className="text-body tabular-nums">
 											{formatMoney(String(m.collected))}
 										</span>
 									</div>
-									<div className="h-1.5 w-full bg-muted">
+									<div className="h-1.5 w-full overflow-hidden rounded-full bg-soft-bar-track">
+										{/* The chart's grey would vanish into the grey track. */}
 										<div
-											className="h-full bg-foreground"
-											style={{ width: `${m.share * 100}%` }}
+											className={cn(
+												"h-full rounded-full",
+												idx >= 4 && "opacity-50",
+											)}
+											style={{
+												width: `${m.share * 100}%`,
+												backgroundColor:
+													idx < 4
+														? topFourColor(idx)
+														: "var(--muted-foreground)",
+											}}
 										/>
 									</div>
-									<div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
+									<div className="flex flex-wrap items-center justify-between gap-x-3 text-subhead tabular-nums">
 										<span>{`${m.orders} orders`}</span>
 										<span>{percentFormatter.format(m.share)}</span>
 									</div>

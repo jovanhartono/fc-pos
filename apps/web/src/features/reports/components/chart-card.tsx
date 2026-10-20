@@ -56,6 +56,8 @@ interface SeriesChartProps extends ShellProps {
 	granularity?: ReportGranularity;
 	stacked?: boolean;
 	valueFormatter?: (value: number) => string;
+	// The y-axis can read "Rp 18 jt" while the tooltip keeps the exact Rupiah.
+	axisFormatter?: (value: number) => string;
 }
 
 interface AreaProps extends SeriesChartProps {
@@ -127,11 +129,11 @@ const Shell = ({
 	<Card className={cn("border-border/70", className)}>
 		<CardHeader className="flex flex-row items-start justify-between gap-3">
 			<div className="grid gap-1">
-				<CardTitle className="text-sm font-semibold text-foreground">
+				<CardTitle className="text-headline font-semibold text-foreground">
 					{title}
 				</CardTitle>
 				{description ? (
-					<p className="text-xs text-muted-foreground">{description}</p>
+					<p className="text-footnote text-muted-foreground">{description}</p>
 				) : null}
 			</div>
 			{action}
@@ -142,7 +144,7 @@ const Shell = ({
 
 const Empty = ({ children }: { children?: ReactNode }) =>
 	children ?? (
-		<div className="flex h-44 items-center justify-center text-sm text-muted-foreground">
+		<div className="flex h-44 items-center justify-center text-body text-muted-foreground">
 			No data in range.
 		</div>
 	);
@@ -190,6 +192,7 @@ const AreaVariant = ({
 	granularity = "day",
 	stacked = false,
 	valueFormatter = formatDefault,
+	axisFormatter,
 }: AreaProps) => {
 	const config = seriesConfig(series);
 	const isEmpty =
@@ -246,8 +249,10 @@ const AreaVariant = ({
 							tickLine={false}
 							axisLine={false}
 							tickMargin={8}
-							width={60}
-							tickFormatter={(v: number) => valueFormatter(v)}
+							width="auto"
+							tickFormatter={(v: number) =>
+								(axisFormatter ?? valueFormatter)(v)
+							}
 						/>
 						<ChartTooltip
 							cursor={false}
@@ -304,6 +309,7 @@ const BarVariant = ({
 	variant,
 	xTickInterval,
 	valueFormatter = formatDefault,
+	axisFormatter,
 	highlightLatest = false,
 	hideLegend = false,
 }: BarProps) => {
@@ -349,8 +355,10 @@ const BarVariant = ({
 							tickLine={false}
 							axisLine={false}
 							tickMargin={8}
-							width={60}
-							tickFormatter={(v: number) => valueFormatter(v)}
+							width="auto"
+							tickFormatter={(v: number) =>
+								(axisFormatter ?? valueFormatter)(v)
+							}
 						/>
 						<ChartTooltip
 							cursor={false}
@@ -397,10 +405,13 @@ const BarVariant = ({
 				</ChartContainer>
 			)}
 			{highlightLatest && !isEmpty ? (
-				<div className="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-3 text-xs">
+				<div className="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-3 text-footnote">
 					{series.map((s) => (
 						<span key={s.key} className="flex items-center gap-1.5">
-							<span className="size-2" style={{ backgroundColor: s.color }} />
+							<span
+								className="size-2 rounded-full"
+								style={{ backgroundColor: s.color }}
+							/>
 							{s.label}
 							<span className="font-semibold tabular-nums">
 								{valueFormatter(

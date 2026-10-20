@@ -1,19 +1,20 @@
+import { oneDecimalFormatter } from "@/features/reports/utils/format";
 import dayjs from "@/lib/dayjs";
 
 const HOURS_PER_DAY = 24;
 const MIN_AXIS_DAYS = 3;
 
-// Chart and table: "22h" under two days, then "6.9d".
+// Chart and table: "22h" under two days, then "6,9d".
 export const shortDuration = (hours: number) =>
 	hours < 48
 		? `${Math.round(hours)}h`
-		: `${(hours / HOURS_PER_DAY).toFixed(1)}d`;
+		: `${oneDecimalFormatter.format(hours / HOURS_PER_DAY)}d`;
 
-// KPI, definition line, tooltip, breakdown: "22 hours" / "6.9 days".
+// KPI, definition line, tooltip, breakdown: "22 hours" / "6,9 days".
 export const longDuration = (hours: number) =>
 	hours < 48
 		? `${Math.round(hours)} hours`
-		: `${(hours / HOURS_PER_DAY).toFixed(1)} days`;
+		: `${oneDecimalFormatter.format(hours / HOURS_PER_DAY)} days`;
 
 export const shortDay = (day: string) => dayjs(day).format("D MMM");
 
