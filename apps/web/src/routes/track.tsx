@@ -26,7 +26,9 @@ import { pluralize } from "@/shared/utils";
 
 const trackSearchSchema = z.object({
 	code: z.string().trim().min(1).max(32).optional(),
-	phone: z.string().trim().min(1).max(20).optional(),
+	// The router reads ?phone=628121000107 as a number; a WhatsApp link with
+	// the phone in that form must still open the Order.
+	phone: z.coerce.string().trim().min(1).max(20).optional(),
 });
 
 const HELP_WHATSAPP = "https://wa.me/6281290033232";

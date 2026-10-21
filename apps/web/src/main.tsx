@@ -89,7 +89,12 @@ const router = createRouter({
 	// navigation with the direction it went so the two read differently; the
 	// slide itself is in index.css.
 	defaultViewTransition: {
-		types: ({ fromLocation, toLocation }) => {
+		types: ({ fromLocation, toLocation, pathChanged }) => {
+			// Same screen, new search: J in the Order sheet must swap to the next
+			// Order outright, not fade the two through each other.
+			if (!pathChanged) {
+				return false;
+			}
 			if (!fromLocation) {
 				return [];
 			}

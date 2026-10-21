@@ -46,6 +46,20 @@ const RAISED_CONTROLS =
 
 const SKELETON_ROW_COUNT = 10;
 
+// A column with no width of its own (the Customer on Orders) takes what the
+// fixed ones leave; below this the table scrolls sideways in its frame
+// instead, so a 1024px screen with the sidebar open never squeezes it away.
+const FLEX_COLUMN_MIN_REM = 10;
+
+const tableMinWidthRem = (headerClassNames: (string | undefined)[]) =>
+	headerClassNames.reduce((sum, className = "") => {
+		if (/(?:^|\s)hidden(?:\s|$)/.test(className)) {
+			return sum;
+		}
+		const width = className.match(/(?:^|\s)w-(\d+)(?:\s|$)/);
+		return sum + (width ? Number(width[1]) / 4 : FLEX_COLUMN_MIN_REM);
+	}, 0);
+
 export const DataTableGrid = <TData extends RowData>({
 	table,
 	isLoading,
@@ -138,6 +152,11 @@ export const DataTableGrid = <TData extends RowData>({
 	}, [focusedIndex]);
 
 	const columnCount = table.getAllLeafColumns().length || 1;
+	const minWidthRem = tableMinWidthRem(
+		table
+			.getAllLeafColumns()
+			.map((column) => column.columnDef.meta?.headerClassName),
+	);
 
 	return (
 		// Only the rows scroll, so paging through five pages is five clicks on
@@ -152,6 +171,7 @@ export const DataTableGrid = <TData extends RowData>({
 			<Table
 				className="table-fixed"
 				containerClassName="min-h-0 flex-1 overflow-auto"
+				style={{ minWidth: `${minWidthRem}rem` }}
 			>
 				{/* Column names over no rows read as a broken box, so an empty list
 				    hides them but keeps their row, and its message sits where the

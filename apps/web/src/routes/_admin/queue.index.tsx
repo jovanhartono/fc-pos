@@ -466,15 +466,18 @@ function QueuePage() {
 				actions={
 					// Sized for "999 items", so the count landing never moves the title
 					// row; the label starts at the left, so "6 items" becoming "14 items"
-					// grows rightward instead of sliding.
-					<Badge
-						className="min-w-[9ch] justify-start tabular-nums"
-						variant={totalItems === undefined ? "secondary" : "outline"}
-					>
-						<span className={cn(totalItems === undefined && "invisible")}>
-							{pluralize(totalItems ?? 0, "item")}
-						</span>
-					</Badge>
+					// grows rightward instead of sliding. An admin with no Store picked
+					// has no rack to count, so no count shows at all.
+					parsedStoreId !== undefined && (
+						<Badge
+							className="min-w-[9ch] justify-start tabular-nums"
+							variant={totalItems === undefined ? "secondary" : "outline"}
+						>
+							<span className={cn(totalItems === undefined && "invisible")}>
+								{pluralize(totalItems ?? 0, "item")}
+							</span>
+						</Badge>
+					)
 				}
 				title="Queue"
 			/>
