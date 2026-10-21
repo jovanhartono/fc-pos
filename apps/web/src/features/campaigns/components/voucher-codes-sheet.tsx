@@ -1,4 +1,5 @@
-import { CopyIcon } from "@phosphor-icons/react";
+import { Copy01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +40,7 @@ const VoucherCodeRow = ({ code }: VoucherCodeRowProps) => (
 			)}
 			<Button
 				aria-label={`Copy code ${code.code}`}
-				icon={<CopyIcon className="size-4" />}
+				icon={<HugeiconsIcon icon={Copy01Icon} className="size-4" />}
 				onClick={() => handleCopyCode(code.code)}
 				size="icon"
 				type="button"

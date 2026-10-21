@@ -3,7 +3,8 @@ import {
 	isCollectableItemStatus,
 	normalizePhoneNumber,
 } from "@fresclean/api/schema";
-import { WhatsappLogoIcon } from "@phosphor-icons/react";
+import { WhatsappIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { DetailedError } from "hono/client";
@@ -363,7 +364,7 @@ const TrackOrderPage = () => {
 								rel="noreferrer"
 								className="flex h-12 items-center justify-center gap-2 rounded-full bg-whatsapp font-semibold text-headline text-white"
 							>
-								<WhatsappLogoIcon className="size-[18px]" weight="fill" />
+								<HugeiconsIcon icon={WhatsappIcon} className="size-[18px]" />
 								WhatsApp
 							</a>
 						</section>

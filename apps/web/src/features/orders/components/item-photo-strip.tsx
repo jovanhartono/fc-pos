@@ -1,4 +1,5 @@
-import { PlusIcon } from "@phosphor-icons/react";
+import { Add01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -124,7 +125,7 @@ export const ItemPhotoStrip = ({
 				onClick={() => setIsUploadOpen(true)}
 				type="button"
 			>
-				<PlusIcon aria-hidden="true" className="size-5" />
+				<HugeiconsIcon icon={Add01Icon} aria-hidden="true" className="size-5" />
 			</button>
 			{images.length === 0 ? (
 				<p className="text-muted-foreground text-footnote">

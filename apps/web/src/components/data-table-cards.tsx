@@ -1,4 +1,5 @@
-import { CaretRightIcon } from "@phosphor-icons/react";
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Link, type LinkProps } from "@tanstack/react-router";
 import {
 	type Cell,
@@ -507,7 +508,8 @@ export const DataTableCards = <TData extends RowData>({
 								status}
 						</div>
 						{hasCaret ? (
-							<CaretRightIcon
+							<HugeiconsIcon
+								icon={ArrowRight01Icon}
 								aria-hidden
 								className="col-start-2 row-span-2 row-start-1 mr-4 size-3.5 self-center text-muted-foreground/50"
 							/>

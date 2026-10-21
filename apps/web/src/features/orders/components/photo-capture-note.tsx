@@ -1,4 +1,5 @@
-import { PencilSimpleLineIcon } from "@phosphor-icons/react";
+import { PencilEdit02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Textarea } from "@/components/ui/textarea";
 import { usePhotoCapture } from "@/features/orders/components/photo-capture-context";
 import { cn } from "@/lib/utils";
@@ -28,7 +29,11 @@ export const PhotoCaptureNoteToggle = () => {
 			onClick={actions.toggleNote}
 			type="button"
 		>
-			<PencilSimpleLineIcon className="size-5" aria-hidden="true" />
+			<HugeiconsIcon
+				icon={PencilEdit02Icon}
+				className="size-5"
+				aria-hidden="true"
+			/>
 			{hasNote && !state.isNoteOpen ? (
 				<span className="absolute top-2 right-2 size-1.5 bg-white" />
 			) : null}

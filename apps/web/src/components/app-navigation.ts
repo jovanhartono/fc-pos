@@ -1,23 +1,25 @@
 import type { JWTPayload } from "@fresclean/api/types";
 import {
-	CashRegisterIcon,
-	ChartLineIcon,
-	ClockIcon,
-	CreditCardIcon,
-	HouseIcon,
-	IdentificationCardIcon,
-	ListIcon,
+	Analytics01Icon,
+	CalendarClockIcon,
+	Cashier02Icon,
+	DiscountTag01Icon,
+	FingerPrintScanIcon,
+	GridViewIcon,
+	Home03Icon,
+	Invoice01Icon,
+	MessageCircleWarningIcon,
 	PackageIcon,
-	ReceiptIcon,
-	ScissorsIcon,
-	ShoppingCartIcon,
-	StorefrontIcon,
-	TagIcon,
-	UserGearIcon,
-	WarningCircleIcon,
-} from "@phosphor-icons/react";
+	ShoppingCart01Icon,
+	Store01Icon,
+	Task01Icon,
+	ToolsIcon,
+	UserMultipleIcon,
+	UserSettings01Icon,
+	Wallet01Icon,
+} from "@hugeicons/core-free-icons";
+import type { IconSvgElement } from "@hugeicons/react";
 import type { LinkProps } from "@tanstack/react-router";
-import type { ComponentType } from "react";
 
 export type Role = JWTPayload["role"];
 
@@ -27,7 +29,7 @@ export type NavItem = {
 	// Page heading when it differs from the sidebar label.
 	title?: string;
 	description: string;
-	icon: ComponentType<{ className?: string }>;
+	icon: IconSvgElement;
 	roles: Role[];
 };
 
@@ -37,21 +39,21 @@ const operationsNavigation: NavItem[] = [
 		label: "Reports",
 		title: "Daily Report",
 		description: "Revenue, services and orders by day or range",
-		icon: ChartLineIcon,
+		icon: Analytics01Icon,
 		roles: ["admin"],
 	},
 	{
 		to: "/users",
 		label: "Users",
 		description: "Staff accounts and roles",
-		icon: UserGearIcon,
+		icon: UserSettings01Icon,
 		roles: ["admin"],
 	},
 	{
 		to: "/stores",
 		label: "Stores",
 		description: "Shop locations and their details",
-		icon: StorefrontIcon,
+		icon: Store01Icon,
 		roles: ["admin"],
 	},
 ];
@@ -62,49 +64,49 @@ const workNavigation: NavItem[] = [
 		label: "Counter",
 		description:
 			"The Store right now: workshop, pickup shelf, what needs a look",
-		icon: CashRegisterIcon,
+		icon: Cashier02Icon,
 		roles: ["admin", "cashier", "worker"],
 	},
 	{
 		to: "/attendance",
 		label: "Attendance",
 		description: "Clock in, clock out, and see your recent shifts",
-		icon: ClockIcon,
+		icon: FingerPrintScanIcon,
 		roles: ["cashier", "worker", "courier"],
 	},
 	{
 		to: "/transactions",
 		label: "Transactions",
 		description: "Take an order and collect payment",
-		icon: ShoppingCartIcon,
+		icon: ShoppingCart01Icon,
 		roles: ["admin", "cashier", "worker"],
 	},
 	{
 		to: "/queue",
 		label: "Queue",
 		description: "Items waiting for work, most urgent first",
-		icon: ScissorsIcon,
+		icon: Task01Icon,
 		roles: ["admin", "cashier", "worker"],
 	},
 	{
 		to: "/orders",
 		label: "Orders",
 		description: "Past orders and what was paid",
-		icon: ReceiptIcon,
+		icon: Invoice01Icon,
 		roles: ["admin", "cashier", "worker"],
 	},
 	{
 		to: "/complaints",
 		label: "Complaints",
 		description: "Customer complaints and their reworks",
-		icon: WarningCircleIcon,
+		icon: MessageCircleWarningIcon,
 		roles: ["admin", "cashier", "worker"],
 	},
 	{
 		to: "/shifts",
 		label: "Shifts",
 		description: "Who clocked in and out, and when",
-		icon: ClockIcon,
+		icon: CalendarClockIcon,
 		roles: ["admin"],
 	},
 ];
@@ -114,7 +116,7 @@ const customersNavigation: NavItem[] = [
 		to: "/customers",
 		label: "Customers",
 		description: "Names, phones, and addresses",
-		icon: IdentificationCardIcon,
+		icon: UserMultipleIcon,
 		roles: ["admin", "cashier"],
 	},
 ];
@@ -124,7 +126,7 @@ const catalogNavigation: NavItem[] = [
 		to: "/services",
 		label: "Services",
 		description: "The work the shop does, and list prices",
-		icon: ScissorsIcon,
+		icon: ToolsIcon,
 		roles: ["admin"],
 	},
 	{
@@ -138,21 +140,21 @@ const catalogNavigation: NavItem[] = [
 		to: "/categories",
 		label: "Categories",
 		description: "Groups for services and products",
-		icon: ListIcon,
+		icon: GridViewIcon,
 		roles: ["admin"],
 	},
 	{
 		to: "/payment-methods",
 		label: "Payment methods",
 		description: "How customers can pay",
-		icon: CreditCardIcon,
+		icon: Wallet01Icon,
 		roles: ["admin"],
 	},
 	{
 		to: "/campaigns",
 		label: "Campaigns",
 		description: "Discounts and vouchers, per store",
-		icon: TagIcon,
+		icon: DiscountTag01Icon,
 		roles: ["admin", "cashier"],
 	},
 ];
@@ -168,7 +170,7 @@ export const HOME_NAV_ITEM: NavItem = {
 	to: "/",
 	label: "Home",
 	description: "Everything this role can open",
-	icon: HouseIcon,
+	icon: Home03Icon,
 	roles: ["admin", "cashier", "worker", "courier"],
 };
 

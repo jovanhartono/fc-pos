@@ -1,4 +1,5 @@
-import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
+import { ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { type ComponentProps, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -29,11 +30,11 @@ export const PasswordInput = ({ className, ...props }: PasswordInputProps) => {
 				aria-pressed={isRevealed}
 				className="absolute top-1/2 right-0 flex h-full w-10 -translate-y-1/2 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50"
 			>
-				{isRevealed ? (
-					<EyeSlashIcon aria-hidden="true" className="size-4" />
-				) : (
-					<EyeIcon aria-hidden="true" className="size-4" />
-				)}
+				<HugeiconsIcon
+					icon={isRevealed ? ViewOffIcon : ViewIcon}
+					aria-hidden="true"
+					className="size-4"
+				/>
 			</button>
 		</div>
 	);

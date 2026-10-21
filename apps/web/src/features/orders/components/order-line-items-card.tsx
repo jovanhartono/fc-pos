@@ -1,4 +1,5 @@
-import { CaretRightIcon } from "@phosphor-icons/react";
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { TextSkeleton } from "@/components/text-skeleton";
@@ -101,7 +102,8 @@ const ComplaintLinkRow = ({ complaint }: ComplaintLinkRowProps) => (
 			<span className="text-destructive">COMPLAINT #{complaint.id}</span>
 			<span className="text-muted-foreground"> · {complaint.reason}</span>
 		</span>
-		<CaretRightIcon
+		<HugeiconsIcon
+			icon={ArrowRight01Icon}
 			aria-hidden="true"
 			className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
 		/>

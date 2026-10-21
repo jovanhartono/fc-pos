@@ -1,5 +1,6 @@
 import { isUnpricedLine } from "@fresclean/api/schema";
-import { CaretRightIcon } from "@phosphor-icons/react";
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { memo } from "react";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -118,7 +119,8 @@ export const OrderServiceRow = memo(
 						{/* A blank line has no subtotal yet — "Rp 0" would read as
 						    deliberately free (a Rework), which it is not. */}
 						{isUnpriced ? "—" : formatMoney(service.subtotal)}
-						<CaretRightIcon
+						<HugeiconsIcon
+							icon={ArrowRight01Icon}
 							aria-hidden="true"
 							className="size-3.5 text-muted-foreground/50 sm:hidden"
 						/>

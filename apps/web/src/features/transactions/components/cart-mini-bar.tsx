@@ -1,8 +1,9 @@
 import {
-	CaretDownIcon,
-	CaretUpIcon,
-	ShoppingCartIcon,
-} from "@phosphor-icons/react";
+	ArrowDown01Icon,
+	ArrowUp01Icon,
+	ShoppingCart01Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { countCartTreatments } from "@/features/transactions/cart/cart";
@@ -75,13 +76,13 @@ export const CartMiniBar = ({ onOpen }: CartMiniBarProps) => {
 					type="button"
 					variant="outline"
 				>
-					<ShoppingCartIcon className="size-5" />
+					<HugeiconsIcon icon={ShoppingCart01Icon} className="size-5" />
 					<span className="min-w-0 truncate font-medium">{summaryLabel}</span>
-					{isPeeking ? (
-						<CaretDownIcon aria-hidden="true" className="size-4" />
-					) : (
-						<CaretUpIcon aria-hidden="true" className="size-4" />
-					)}
+					<HugeiconsIcon
+						icon={isPeeking ? ArrowDown01Icon : ArrowUp01Icon}
+						aria-hidden="true"
+						className="size-4"
+					/>
 				</Button>
 				<Button
 					className="h-14 flex-1 shrink-0 justify-between gap-3 active:scale-100"

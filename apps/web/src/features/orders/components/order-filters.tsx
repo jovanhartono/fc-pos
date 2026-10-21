@@ -1,4 +1,5 @@
-import { FunnelIcon } from "@phosphor-icons/react";
+import { FilterIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
 import { FilterCountBadge } from "@/components/filter-count-badge";
@@ -182,7 +183,7 @@ export const OrderFilters = ({
 								variant="outline"
 								size="icon"
 								className="relative"
-								icon={<FunnelIcon className="size-4" />}
+								icon={<HugeiconsIcon icon={FilterIcon} className="size-4" />}
 							/>
 						}
 					>

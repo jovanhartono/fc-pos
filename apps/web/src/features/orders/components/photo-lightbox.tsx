@@ -1,10 +1,11 @@
 import {
-	CheckIcon,
-	DownloadSimpleIcon,
-	ImageSquareIcon,
-	TrashIcon,
-	XIcon,
-} from "@phosphor-icons/react";
+	Cancel01Icon,
+	Delete02Icon,
+	Download04Icon,
+	Image02Icon,
+	Tick02Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -169,13 +170,21 @@ export const PhotoLightbox = ({
 								onClick={() => onOpenChange(false)}
 								type="button"
 							>
-								<XIcon className="size-5" aria-hidden="true" />
+								<HugeiconsIcon
+									icon={Cancel01Icon}
+									className="size-5"
+									aria-hidden="true"
+								/>
 							</button>
 						</PhotoStage>
 					) : (
 						<div className="relative flex min-h-0 flex-1 items-center justify-center">
 							<div className="grid place-items-center gap-2 px-6 py-12 text-center text-body text-white/72">
-								<ImageSquareIcon className="size-6" aria-hidden="true" />
+								<HugeiconsIcon
+									icon={Image02Icon}
+									className="size-6"
+									aria-hidden="true"
+								/>
 								<p>No image selected</p>
 							</div>
 						</div>
@@ -211,7 +220,11 @@ export const PhotoLightbox = ({
 												onClick={handleDelete}
 												type="button"
 											>
-												<CheckIcon aria-hidden="true" className="size-4" />
+												<HugeiconsIcon
+													icon={Tick02Icon}
+													aria-hidden="true"
+													className="size-4"
+												/>
 											</button>
 											<button
 												aria-label="Cancel delete"
@@ -220,7 +233,11 @@ export const PhotoLightbox = ({
 												onClick={() => setIsConfirmingDelete(false)}
 												type="button"
 											>
-												<XIcon aria-hidden="true" className="size-4" />
+												<HugeiconsIcon
+													icon={Cancel01Icon}
+													aria-hidden="true"
+													className="size-4"
+												/>
 											</button>
 										</>
 									) : (
@@ -233,7 +250,8 @@ export const PhotoLightbox = ({
 												title="Save image"
 												type="button"
 											>
-												<DownloadSimpleIcon
+												<HugeiconsIcon
+													icon={Download04Icon}
 													aria-hidden="true"
 													className="size-4"
 												/>
@@ -246,7 +264,11 @@ export const PhotoLightbox = ({
 													title="Delete photo"
 													type="button"
 												>
-													<TrashIcon aria-hidden="true" className="size-4" />
+													<HugeiconsIcon
+														icon={Delete02Icon}
+														aria-hidden="true"
+														className="size-4"
+													/>
 												</button>
 											) : null}
 										</>

@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckIcon } from "@phosphor-icons/react";
+import { Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import type { UseMutationResult } from "@tanstack/react-query";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -198,7 +199,11 @@ const ComplaintLineCard = ({
 			</span>
 		</span>
 		{isSelected ? (
-			<CheckIcon className="mt-0.5 size-4 shrink-0" weight="bold" />
+			<HugeiconsIcon
+				icon={Tick02Icon}
+				className="mt-0.5 size-4 shrink-0"
+				strokeWidth={2}
+			/>
 		) : null}
 	</label>
 );

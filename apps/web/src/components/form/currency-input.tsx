@@ -1,4 +1,5 @@
-import { MoneyIcon } from "@phosphor-icons/react";
+import { Money03Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -28,7 +29,10 @@ export function CurrencyInput({
 
 	return (
 		<div className={cn("relative", className)}>
-			<MoneyIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+			<HugeiconsIcon
+				icon={Money03Icon}
+				className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+			/>
 			<Input
 				id={id}
 				type="text"

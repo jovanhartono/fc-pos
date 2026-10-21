@@ -15,7 +15,7 @@
 - Badges are `rounded-full` with soft tinted fills and no border; pick a `Badge` variant rather than building a chip by hand. Tabs use the shadcn `Tabs` (iOS segmented control).
 - A list row that opens a record opens from anywhere on it: pass `getRowLink` to `DataTable`, and its title stays black. A link to somewhere else — the customer on an order, a code in a sheet — is blue with `text-link`.
 - A list of Orders that isn't a table uses `OrderListRow`: customer name on line 1 (customers remember their name, not their code), the code leading line 2. Codes are Inter with `tabular-nums`, never mono.
-- Phosphor icons with `Icon` suffix (e.g. `StarIcon`).
+- Hugeicons, free Stroke Rounded set: `<HugeiconsIcon icon={Search01Icon} />`, icons from `@hugeicons/core-free-icons`. Add a `size-*` class only where no parent sizes the svg; Button, Badge, menus and Select already do. Pick the icon that fits the place, not the nearest name match. There is no filled style, so the active tab is shown by its blue colour alone.
 - Dense filters → dialogs/sheets on small screens; tabs for high-frequency filters.
 - Match existing visual language; no decorative styling changes.
 

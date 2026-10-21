@@ -1,4 +1,5 @@
-import { CaretRightIcon } from "@phosphor-icons/react";
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { createLink } from "@tanstack/react-router";
 import type { ComponentPropsWithRef, ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -43,7 +44,8 @@ const OrderListRowAnchor = ({
 		</div>
 	);
 	const caret = hasCaret ? (
-		<CaretRightIcon
+		<HugeiconsIcon
+			icon={ArrowRight01Icon}
 			aria-hidden="true"
 			className="size-3.5 shrink-0 text-muted-foreground/50"
 		/>

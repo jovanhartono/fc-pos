@@ -1,9 +1,10 @@
 import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox";
 import {
-	CaretDownIcon,
-	CheckIcon,
-	CircleNotchIcon,
-} from "@phosphor-icons/react";
+	ArrowDown01Icon,
+	Loading03Icon,
+	Tick02Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo } from "react";
 
 import { cn } from "@/lib/utils";
@@ -85,9 +86,15 @@ export function Combobox({
 					<ComboboxPrimitive.Value placeholder={placeholder} />
 				</span>
 				{loading ? (
-					<CircleNotchIcon className="size-4 animate-spin text-muted-foreground" />
+					<HugeiconsIcon
+						icon={Loading03Icon}
+						className="size-4 animate-spin text-muted-foreground"
+					/>
 				) : (
-					<CaretDownIcon className="size-4 text-muted-foreground" />
+					<HugeiconsIcon
+						icon={ArrowDown01Icon}
+						className="size-4 text-muted-foreground"
+					/>
 				)}
 			</ComboboxPrimitive.Trigger>
 
@@ -110,7 +117,10 @@ export function Combobox({
 								className="h-10 w-full border-0 bg-transparent px-2.5 pr-8 text-subhead pointer-coarse:text-field outline-none placeholder:text-muted-foreground"
 							/>
 							{loading ? (
-								<CircleNotchIcon className="absolute top-1/2 right-2 size-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
+								<HugeiconsIcon
+									icon={Loading03Icon}
+									className="absolute top-1/2 right-2 size-3.5 -translate-y-1/2 animate-spin text-muted-foreground"
+								/>
 							) : null}
 						</div>
 
@@ -123,7 +133,7 @@ export function Combobox({
 								>
 									<span className="truncate">{item.label}</span>
 									<ComboboxPrimitive.ItemIndicator className="pointer-events-none absolute right-2 flex size-4 items-center justify-center text-primary">
-										<CheckIcon className="size-3.5" />
+										<HugeiconsIcon icon={Tick02Icon} className="size-3.5" />
 									</ComboboxPrimitive.ItemIndicator>
 								</ComboboxPrimitive.Item>
 							)}

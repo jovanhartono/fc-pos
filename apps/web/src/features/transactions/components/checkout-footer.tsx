@@ -1,8 +1,9 @@
 import {
-	ArrowLeftIcon,
-	ArrowRightIcon,
+	ArrowLeft02Icon,
+	ArrowRight02Icon,
 	CreditCardIcon,
-} from "@phosphor-icons/react";
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
@@ -138,7 +139,7 @@ const CheckoutStepActions = ({
 			<Button
 				className="h-11"
 				disabled={!customerReady}
-				icon={<ArrowRightIcon className="size-4" />}
+				icon={<HugeiconsIcon icon={ArrowRight02Icon} className="size-4" />}
 				onClick={onContinue}
 				size="lg"
 				type="button"
@@ -153,7 +154,7 @@ const CheckoutStepActions = ({
 			<div className="flex items-center gap-2">
 				<Button
 					className="h-11"
-					icon={<ArrowLeftIcon className="size-4" />}
+					icon={<HugeiconsIcon icon={ArrowLeft02Icon} className="size-4" />}
 					onClick={onBack}
 					size="lg"
 					type="button"
@@ -165,7 +166,7 @@ const CheckoutStepActions = ({
 					aria-describedby={photoHintId}
 					className="h-11"
 					disabled={!itemsReady}
-					icon={<ArrowRightIcon className="size-4" />}
+					icon={<HugeiconsIcon icon={ArrowRight02Icon} className="size-4" />}
 					onClick={onContinue}
 					size="lg"
 					type="button"
@@ -181,7 +182,7 @@ const CheckoutStepActions = ({
 			<Button
 				className="h-11"
 				disabled={isSubmitting}
-				icon={<ArrowLeftIcon className="size-4" />}
+				icon={<HugeiconsIcon icon={ArrowLeft02Icon} className="size-4" />}
 				onClick={onBack}
 				size="lg"
 				type="button"
@@ -192,7 +193,7 @@ const CheckoutStepActions = ({
 			<Button
 				className="h-11"
 				disabled={!(customerReady && itemsReady)}
-				icon={<CreditCardIcon className="size-4" />}
+				icon={<HugeiconsIcon icon={CreditCardIcon} className="size-4" />}
 				loading={isSubmitting}
 				loadingText="Creating order..."
 				onClick={onSubmit}

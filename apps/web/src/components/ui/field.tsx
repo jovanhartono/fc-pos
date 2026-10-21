@@ -1,4 +1,5 @@
-import { AsteriskIcon } from "@phosphor-icons/react";
+import { AsteriskIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { cva, type VariantProps } from "class-variance-authority";
 import type * as React from "react";
 import { useMemo } from "react";
@@ -115,10 +116,11 @@ function FieldLabel({
 		>
 			{children}
 			{asterisk ? (
-				<AsteriskIcon
+				<HugeiconsIcon
+					icon={AsteriskIcon}
 					aria-hidden="true"
 					className="size-2 text-destructive"
-					weight="bold"
+					strokeWidth={2}
 				/>
 			) : null}
 		</Label>

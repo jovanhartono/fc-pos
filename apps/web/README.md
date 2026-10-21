@@ -6,7 +6,7 @@ Admin web dashboard for Fresclean. React 19 + Vite + TypeScript.
 - **Data:** TanStack Query + typed RPC client from `@fresclean/api`
 - **Forms:** react-hook-form + Zod (`zodResolver`)
 - **State:** Zustand
-- **UI:** shadcn (base-lyra), Base UI, Phosphor Icons, Tailwind CSS v4
+- **UI:** shadcn (base-lyra), Base UI, Hugeicons, Tailwind CSS v4
 
 ## Commands
 

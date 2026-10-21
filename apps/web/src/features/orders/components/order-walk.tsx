@@ -1,8 +1,9 @@
 import {
-	ArrowSquareOutIcon,
-	CaretLeftIcon,
-	CaretRightIcon,
-} from "@phosphor-icons/react";
+	ArrowLeft01Icon,
+	ArrowRight01Icon,
+	LinkSquare02Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -70,7 +71,7 @@ export const OrderWalk = ({ openId, onSelect }: OrderWalkProps) => {
 				variant="ghost"
 				size="icon"
 				aria-label="Previous Order"
-				icon={<CaretLeftIcon className="size-4" />}
+				icon={<HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />}
 				disabled={!previous}
 				onClick={() => previous && onSelect(previous.id)}
 			/>
@@ -78,7 +79,7 @@ export const OrderWalk = ({ openId, onSelect }: OrderWalkProps) => {
 				variant="ghost"
 				size="icon"
 				aria-label="Next Order"
-				icon={<CaretRightIcon className="size-4" />}
+				icon={<HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />}
 				disabled={!next}
 				onClick={() => next && onSelect(next.id)}
 			/>
@@ -91,7 +92,7 @@ export const OrderWalk = ({ openId, onSelect }: OrderWalkProps) => {
 				variant="ghost"
 				size="sm"
 				className="ml-auto"
-				icon={<ArrowSquareOutIcon className="size-4" />}
+				icon={<HugeiconsIcon icon={LinkSquare02Icon} className="size-4" />}
 				render={
 					<Link to="/orders/$orderId" params={{ orderId: String(openId) }} />
 				}

@@ -1,4 +1,5 @@
-import { SpinnerGapIcon } from "@phosphor-icons/react";
+import { Loading03Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
 	createFileRoute,
 	type ErrorComponentProps,
@@ -18,7 +19,10 @@ import { requireAuth } from "@/lib/auth";
 // flight, so it would draw an empty sidebar and pop the tabs in a beat later.
 const AdminPendingComponent = () => (
 	<output aria-busy className="grid h-full place-items-center">
-		<SpinnerGapIcon className="size-8 animate-spin text-muted-foreground motion-reduce:animate-none" />
+		<HugeiconsIcon
+			icon={Loading03Icon}
+			className="size-8 animate-spin text-muted-foreground motion-reduce:animate-none"
+		/>
 	</output>
 );
 

@@ -1,8 +1,9 @@
 import {
-	ArrowUUpLeftIcon,
-	HouseIcon,
-	MapPinSimpleAreaIcon,
-} from "@phosphor-icons/react";
+	ArrowTurnBackwardIcon,
+	Home03Icon,
+	Location01Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,10 @@ const NotFoundPage = () => {
 	return (
 		<div className="grid min-h-dvh place-items-center bg-background px-4 py-10">
 			<div className="grid w-full max-w-md justify-items-center gap-3 text-center">
-				<MapPinSimpleAreaIcon className="size-10 text-muted-foreground" />
+				<HugeiconsIcon
+					icon={Location01Icon}
+					className="size-10 text-muted-foreground"
+				/>
 				<h1 className="font-bold text-title-2">Page not found</h1>
 				<p className="text-headline">
 					This page does not exist. Check the address or go back.
@@ -35,14 +39,14 @@ const NotFoundPage = () => {
 					<Button
 						variant="outline"
 						onClick={handleBack}
-						icon={<ArrowUUpLeftIcon />}
+						icon={<HugeiconsIcon icon={ArrowTurnBackwardIcon} />}
 					>
 						Go back
 					</Button>
 					<Button
 						nativeButton={false}
 						render={<Link to="/" />}
-						icon={<HouseIcon />}
+						icon={<HugeiconsIcon icon={Home03Icon} />}
 					>
 						Home
 					</Button>

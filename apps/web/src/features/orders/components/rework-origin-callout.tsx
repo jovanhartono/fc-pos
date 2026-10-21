@@ -1,4 +1,5 @@
-import { ArrowClockwiseIcon, CaretRightIcon } from "@phosphor-icons/react";
+import { ArrowRight01Icon, ReloadIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { isPlainLeftClick } from "@/lib/list-keys";
@@ -49,16 +50,18 @@ export const ReworkOriginCallout = ({
 			to="/complaints/$complaintId"
 		>
 			<span className="flex items-start gap-1.5 font-medium">
-				<ArrowClockwiseIcon
+				<HugeiconsIcon
+					icon={ReloadIcon}
 					aria-hidden="true"
 					className="mt-0.5 size-4 shrink-0 text-info"
-					weight="bold"
+					strokeWidth={2}
 				/>
 				<span className="min-w-0 flex-1">Rework of {serviceName}</span>
-				<CaretRightIcon
+				<HugeiconsIcon
+					icon={ArrowRight01Icon}
 					aria-hidden="true"
 					className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-					weight="bold"
+					strokeWidth={2}
 				/>
 			</span>
 			<span className="text-muted-foreground text-footnote">{firstDoneBy}</span>

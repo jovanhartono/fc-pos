@@ -1,4 +1,5 @@
-import { CaretRightIcon } from "@phosphor-icons/react";
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { SectionTitle } from "@/components/section";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import {
@@ -20,7 +21,8 @@ export const StatusTimeline = ({
 	return (
 		<details className="group" open={defaultOpen}>
 			<summary className="flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden [&::marker]:hidden">
-				<CaretRightIcon
+				<HugeiconsIcon
+					icon={ArrowRight01Icon}
 					className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
 					aria-hidden="true"
 				/>

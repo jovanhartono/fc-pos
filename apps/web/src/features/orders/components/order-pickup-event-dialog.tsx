@@ -1,5 +1,6 @@
 import { isHandedOverByPickup } from "@fresclean/api/schema";
-import { CameraIcon } from "@phosphor-icons/react";
+import { Camera01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
 	createContext,
@@ -422,7 +423,7 @@ const PickupPhotoField = memo(() => {
 					</>
 				) : (
 					<div className="flex flex-col items-center justify-center gap-2 text-primary">
-						<CameraIcon className="size-8" />
+						<HugeiconsIcon icon={Camera01Icon} className="size-8" />
 						<span className="font-medium text-body">Add pickup photo</span>
 					</div>
 				)}

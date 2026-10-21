@@ -1,4 +1,5 @@
-import { TrashIcon } from "@phosphor-icons/react";
+import { Delete02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useRef, useState } from "react";
 import { useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -121,7 +122,7 @@ export const TransactionsCheckout = () => {
 							selectedCampaignIds.length === 0 &&
 							!dropoffPhoto
 						}
-						icon={<TrashIcon className="size-4" />}
+						icon={<HugeiconsIcon icon={Delete02Icon} className="size-4" />}
 						onClick={() =>
 							openDialog({
 								title: "Clear the cart?",

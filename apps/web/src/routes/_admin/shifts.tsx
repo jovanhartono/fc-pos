@@ -1,9 +1,9 @@
 import {
-	type Icon,
-	PlusIcon,
-	SignInIcon,
-	SignOutIcon,
-} from "@phosphor-icons/react";
+	Add01Icon,
+	Login03Icon,
+	Logout03Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import dayjs from "dayjs";
@@ -78,13 +78,13 @@ const OpenShift = ({ clockInAt }: OpenShiftProps) => (
 );
 
 interface ClockLabelProps {
-	icon: Icon;
+	icon: IconSvgElement;
 	text: string;
 }
 
-const ClockLabel = ({ icon: LabelIcon, text }: ClockLabelProps) => (
+const ClockLabel = ({ icon, text }: ClockLabelProps) => (
 	<>
-		<LabelIcon aria-hidden className="size-4" />
+		<HugeiconsIcon aria-hidden className="size-4" icon={icon} />
 		<span className="sr-only">{text}</span>
 	</>
 );
@@ -186,7 +186,7 @@ function ShiftsPage() {
 				meta: {
 					width: { percent: 16, minRem: 6.5 },
 					mobileCard: {
-						label: <ClockLabel icon={SignInIcon} text="Clock in" />,
+						label: <ClockLabel icon={Login03Icon} text="Clock in" />,
 						valueClassName: "font-normal",
 					},
 				},
@@ -202,7 +202,7 @@ function ShiftsPage() {
 				meta: {
 					width: { percent: 16, minRem: 6.5 },
 					mobileCard: {
-						label: <ClockLabel icon={SignOutIcon} text="Clock out" />,
+						label: <ClockLabel icon={Logout03Icon} text="Clock out" />,
 						valueClassName: "font-normal",
 					},
 				},
@@ -248,7 +248,10 @@ function ShiftsPage() {
 				count={shiftsQuery.data?.meta.total}
 				countNoun="shift"
 				actions={
-					<Button icon={<PlusIcon className="size-4" />} onClick={handleCreate}>
+					<Button
+						icon={<HugeiconsIcon className="size-4" icon={Add01Icon} />}
+						onClick={handleCreate}
+					>
 						New shift
 					</Button>
 				}

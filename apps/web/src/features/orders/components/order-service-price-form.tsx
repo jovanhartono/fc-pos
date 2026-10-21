@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckIcon } from "@phosphor-icons/react";
+import { Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { CurrencyInput } from "@/components/form/currency-input";
@@ -78,7 +79,7 @@ export const OrderServicePriceForm = ({
 			/>
 			<Button
 				size="lg"
-				icon={<CheckIcon className="size-4" />}
+				icon={<HugeiconsIcon icon={Tick02Icon} className="size-4" />}
 				loading={priceMutation.isPending}
 				type="submit"
 			>

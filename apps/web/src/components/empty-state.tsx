@@ -1,17 +1,17 @@
-import type { Icon } from "@phosphor-icons/react";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {
 	children: ReactNode;
-	icon?: Icon;
+	icon?: IconSvgElement;
 	action?: ReactNode;
 	className?: string;
 }
 
 export const EmptyState = ({
 	children,
-	icon: IconComponent,
+	icon,
 	action,
 	className,
 }: EmptyStateProps) => (
@@ -21,7 +21,9 @@ export const EmptyState = ({
 			className,
 		)}
 	>
-		{IconComponent ? <IconComponent aria-hidden className="size-10" /> : null}
+		{icon ? (
+			<HugeiconsIcon aria-hidden className="size-10" icon={icon} />
+		) : null}
 		<div>{children}</div>
 		{action}
 	</div>

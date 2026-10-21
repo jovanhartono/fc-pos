@@ -1,9 +1,10 @@
 import {
-	ArrowDownIcon,
-	ArrowUpIcon,
-	InfoIcon,
-	MinusIcon,
-} from "@phosphor-icons/react";
+	ArrowDown02Icon,
+	ArrowUp02Icon,
+	InformationCircleIcon,
+	MinusSignIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { createContext, type ReactNode, useContext } from "react";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Card, CardContent } from "@/components/ui/card";
@@ -63,15 +64,15 @@ const SparkBars = ({ values }: SparkBarsProps) => {
 const TONE_BY_SIGN = {
 	"-1": {
 		tone: "text-destructive",
-		Icon: ArrowDownIcon,
+		icon: ArrowDown02Icon,
 	},
 	"0": {
 		tone: "text-muted-foreground",
-		Icon: MinusIcon,
+		icon: MinusSignIcon,
 	},
 	"1": {
 		tone: "text-success",
-		Icon: ArrowUpIcon,
+		icon: ArrowUp02Icon,
 	},
 } as const;
 
@@ -101,13 +102,17 @@ export const DeltaLine = ({
 	comparisonLabel,
 }: DeltaLineProps) => {
 	const rounded = change === null ? null : Math.round(change * 10) / 10 || 0;
-	const { tone, Icon } = toneForChange(rounded, isLowerBetter);
+	const { tone, icon } = toneForChange(rounded, isLowerBetter);
 	const text = formatKpiDeltaChange(rounded, deltaAs);
 	const line = comparisonLabel ? `${text} ${comparisonLabel}` : text;
 	return (
 		<p className={cn("flex items-start gap-1 text-subhead tabular-nums", tone)}>
 			{rounded === null ? null : (
-				<Icon className="mt-0.5 size-3.5 shrink-0" weight="bold" />
+				<HugeiconsIcon
+					className="mt-0.5 size-3.5 shrink-0"
+					icon={icon}
+					strokeWidth={2}
+				/>
 			)}
 			{line}
 		</p>
@@ -151,7 +156,10 @@ export const KpiCard = ({
 								openOnHover
 								delay={100}
 							>
-								<InfoIcon className="size-3.5" />
+								<HugeiconsIcon
+									icon={InformationCircleIcon}
+									className="size-3.5"
+								/>
 							</PopoverTrigger>
 							<PopoverContent align="start" className="w-64">
 								{info}

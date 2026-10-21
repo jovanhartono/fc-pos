@@ -1,5 +1,7 @@
 /** biome-ignore-all lint/a11y/noLabelWithoutControl: <reusable component> */
-import { AsteriskIcon } from "@phosphor-icons/react";
+
+import { AsteriskIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import type * as React from "react";
 
 import { cn } from "@/lib/utils";
@@ -21,7 +23,11 @@ function Label({
 		>
 			{children}
 			{asterisk ? (
-				<AsteriskIcon aria-hidden="true" className="size-2 text-destructive" />
+				<HugeiconsIcon
+					icon={AsteriskIcon}
+					aria-hidden="true"
+					className="size-2 text-destructive"
+				/>
 			) : null}
 		</label>
 	);

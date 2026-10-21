@@ -1,4 +1,5 @@
-import { WhatsappLogoIcon } from "@phosphor-icons/react";
+import { WhatsappIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
 import { Section } from "@/components/section";
 import type { CounterPickupShelf } from "@/features/counter/api";
@@ -29,7 +30,11 @@ const ShelfNotifyAction = ({ order }: ShelfNotifyActionProps) => {
 			}
 			type="button"
 		>
-			<WhatsappLogoIcon aria-hidden="true" className="size-4" />
+			<HugeiconsIcon
+				icon={WhatsappIcon}
+				aria-hidden="true"
+				className="size-4"
+			/>
 			Notify
 		</button>
 	);

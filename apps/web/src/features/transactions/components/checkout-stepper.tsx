@@ -1,4 +1,5 @@
-import { CheckIcon } from "@phosphor-icons/react";
+import { Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
 	CHECKOUT_STEPS,
 	type CheckoutStep,
@@ -69,7 +70,11 @@ export const CheckoutStepper = ({
 							)}
 						>
 							{isComplete ? (
-								<CheckIcon className="size-3" weight="bold" />
+								<HugeiconsIcon
+									icon={Tick02Icon}
+									className="size-3"
+									strokeWidth={2}
+								/>
 							) : (
 								index + 1
 							)}

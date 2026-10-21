@@ -1,4 +1,5 @@
-import { SignOutIcon } from "@phosphor-icons/react";
+import { Logout03Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import dayjs from "dayjs";
@@ -109,7 +110,7 @@ function AttendancePage() {
 							</div>
 							<Button
 								className={PRIMARY_BUTTON}
-								icon={<SignOutIcon className="size-5" weight="duotone" />}
+								icon={<HugeiconsIcon icon={Logout03Icon} className="size-5" />}
 								loading={clockOutMut.isPending}
 								onClick={() => clockOutMut.mutate()}
 								size="lg"

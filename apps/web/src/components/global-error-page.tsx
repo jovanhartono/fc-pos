@@ -1,8 +1,9 @@
 import {
-	ArrowClockwiseIcon,
-	HouseIcon,
-	WarningCircleIcon,
-} from "@phosphor-icons/react";
+	AlertCircleIcon,
+	Home03Icon,
+	ReloadIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { type ErrorComponentProps, Link } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,10 @@ const ErrorCard = ({ error, reset }: ErrorComponentProps) => {
 	const message = getErrorMessage(error);
 	return (
 		<div className="grid w-full max-w-md justify-items-center gap-3 text-center">
-			<WarningCircleIcon className="size-10 text-destructive" />
+			<HugeiconsIcon
+				icon={AlertCircleIcon}
+				className="size-10 text-destructive"
+			/>
 			<h1 className="font-bold text-title-2">Application error</h1>
 			<p className="text-headline">
 				Something broke on this screen. Retry, or go home.
@@ -36,14 +40,14 @@ const ErrorCard = ({ error, reset }: ErrorComponentProps) => {
 				</pre>
 			) : null}
 			<div className="mt-1 flex flex-wrap justify-center gap-2">
-				<Button onClick={reset} icon={<ArrowClockwiseIcon />}>
+				<Button onClick={reset} icon={<HugeiconsIcon icon={ReloadIcon} />}>
 					Retry
 				</Button>
 				<Button
 					variant="outline"
 					nativeButton={false}
 					render={<Link to="/" />}
-					icon={<HouseIcon />}
+					icon={<HugeiconsIcon icon={Home03Icon} />}
 				>
 					Home
 				</Button>

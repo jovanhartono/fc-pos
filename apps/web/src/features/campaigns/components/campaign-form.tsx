@@ -3,7 +3,8 @@ import {
 	type CampaignRedemptionMode,
 } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { XIcon } from "@phosphor-icons/react";
+import { Cancel01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
 	Controller,
 	FormProvider,
@@ -235,7 +236,7 @@ const CampaignDateField = ({ name, label }: CampaignDateFieldProps) => {
 								onClick={() => field.onChange(null)}
 								type="button"
 							>
-								<XIcon className="size-4" />
+								<HugeiconsIcon icon={Cancel01Icon} className="size-4" />
 							</button>
 						) : null}
 					</div>

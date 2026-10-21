@@ -1,8 +1,9 @@
 import {
-	CaretDownIcon,
-	CaretUpDownIcon,
-	CaretUpIcon,
-} from "@phosphor-icons/react";
+	ArrowDown01Icon,
+	ArrowUp01Icon,
+	UnfoldMoreIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Link, type LinkProps } from "@tanstack/react-router";
 import {
 	flexRender,
@@ -217,13 +218,22 @@ export const DataTableGrid = <TData extends RowData>({
 													header.getContext(),
 												)}
 												{sortState === "asc" ? (
-													<CaretUpIcon className="size-3" weight="bold" />
+													<HugeiconsIcon
+														icon={ArrowUp01Icon}
+														className="size-3"
+														strokeWidth={2}
+													/>
 												) : sortState === "desc" ? (
-													<CaretDownIcon className="size-3" weight="bold" />
+													<HugeiconsIcon
+														icon={ArrowDown01Icon}
+														className="size-3"
+														strokeWidth={2}
+													/>
 												) : (
-													<CaretUpDownIcon
+													<HugeiconsIcon
+														icon={UnfoldMoreIcon}
 														className="size-3 opacity-50"
-														weight="bold"
+														strokeWidth={2}
 													/>
 												)}
 											</button>

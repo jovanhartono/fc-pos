@@ -1,4 +1,5 @@
-import { PlusIcon } from "@phosphor-icons/react";
+import { Add01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
@@ -161,7 +162,7 @@ function CustomersPage() {
 				actions={
 					<Button
 						onClick={handleOpenCreateSheet}
-						icon={<PlusIcon className="size-4" />}
+						icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
 					>
 						Add customer
 					</Button>

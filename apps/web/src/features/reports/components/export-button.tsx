@@ -1,4 +1,5 @@
-import { DownloadSimpleIcon } from "@phosphor-icons/react";
+import { Download04Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { createContext, useContext } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,7 @@ export const ExportButton = ({ disabled, onClick }: ExportButtonProps) => {
 			// Square and outlined like the Filters button beside it.
 			className="w-9 px-0 pointer-coarse:w-11"
 			aria-label="Export CSV"
-			icon={<DownloadSimpleIcon />}
+			icon={<HugeiconsIcon icon={Download04Icon} />}
 		/>,
 		slot,
 	);

@@ -1,5 +1,10 @@
 import { campaignIneligibilityReason } from "@fresclean/api/schema";
-import { CheckIcon, ReceiptIcon, StorefrontIcon } from "@phosphor-icons/react";
+import {
+	Invoice01Icon,
+	Store01Icon,
+	Tick02Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
@@ -265,14 +270,20 @@ export const CheckoutPaymentStep = () => {
 			<div className="grid gap-3 rounded-md border border-border/70 p-4">
 				<div className="flex items-center justify-between gap-3 text-body">
 					<div className="flex items-center gap-2">
-						<StorefrontIcon className="size-4 text-muted-foreground" />
+						<HugeiconsIcon
+							icon={Store01Icon}
+							className="size-4 text-muted-foreground"
+						/>
 						<span className="text-muted-foreground">Store</span>
 					</div>
 					<span className="font-medium">{selectedStore?.name ?? "-"}</span>
 				</div>
 				<div className="flex items-center justify-between gap-3 text-body">
 					<div className="flex items-center gap-2">
-						<ReceiptIcon className="size-4 text-muted-foreground" />
+						<HugeiconsIcon
+							icon={Invoice01Icon}
+							className="size-4 text-muted-foreground"
+						/>
 						<span className="text-muted-foreground">Subtotal</span>
 					</div>
 					<span className="font-medium">{formatMoney(String(subtotal))}</span>
@@ -368,7 +379,11 @@ const PaymentMethodTile = ({
 			) : null}
 		</span>
 		{isSelected ? (
-			<CheckIcon className="size-4 shrink-0" weight="bold" />
+			<HugeiconsIcon
+				icon={Tick02Icon}
+				className="size-4 shrink-0"
+				strokeWidth={2}
+			/>
 		) : null}
 	</label>
 );

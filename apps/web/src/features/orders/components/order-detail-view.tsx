@@ -1,4 +1,5 @@
-import { ArrowLeftIcon } from "@phosphor-icons/react";
+import { ArrowLeft02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { EmptyState } from "@/components/empty-state";
@@ -93,7 +94,7 @@ export const OrderNotFound = () => {
 		<EmptyState
 			action={
 				<Button
-					icon={<ArrowLeftIcon className="size-4" />}
+					icon={<HugeiconsIcon icon={ArrowLeft02Icon} className="size-4" />}
 					nativeButton={false}
 					render={<Link search={{ page: 1 }} to="/orders" />}
 					variant="outline"

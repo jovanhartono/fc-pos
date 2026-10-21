@@ -1,4 +1,5 @@
-import { CheckIcon, CopyIcon } from "@phosphor-icons/react";
+import { Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -48,13 +49,12 @@ export const CopyValue = ({
 				aria-label={copied ? `${label} copied` : `Copy ${label}`}
 				className="pointer-coarse:size-7"
 				icon={
-					copied ? (
-						<CheckIcon weight="bold" />
-					) : (
-						// Thin strokes at this size read as a smudge next to the order
-						// code a cashier is trying to copy off the screen.
-						<CopyIcon weight="bold" />
-					)
+					// Thin strokes at this size read as a smudge next to the order
+					// code a cashier is trying to copy off the screen.
+					<HugeiconsIcon
+						icon={copied ? Tick02Icon : Copy01Icon}
+						strokeWidth={2}
+					/>
 				}
 				onClick={handleCopy}
 				size="icon-xs"

@@ -1,4 +1,5 @@
-import { CaretRightIcon } from "@phosphor-icons/react";
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Section } from "@/components/section";
 import type { DayClose } from "@/features/counter/api";
 import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
@@ -15,7 +16,10 @@ const CountGroup = ({ count, lines, title }: CountGroupProps) => (
 	<details className="group border-border border-t" open>
 		<summary className="flex cursor-pointer list-none items-center justify-between gap-3 bg-muted/50 px-3 py-2 font-medium hover:bg-muted [&::-webkit-details-marker]:hidden">
 			<span className="flex items-center gap-1.5">
-				<CaretRightIcon className="size-3 text-muted-foreground transition-transform group-open:rotate-90" />
+				<HugeiconsIcon
+					icon={ArrowRight01Icon}
+					className="size-3 text-muted-foreground transition-transform group-open:rotate-90"
+				/>
 				{title}
 			</span>
 			<span className="tabular-nums">{count}</span>

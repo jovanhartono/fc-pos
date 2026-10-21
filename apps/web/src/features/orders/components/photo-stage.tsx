@@ -1,4 +1,5 @@
-import { ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react";
+import { ArrowLeft02Icon, ArrowRight02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import type * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -632,7 +633,13 @@ export const PhotoStage = ({
 					<Button
 						aria-label="Show previous photo"
 						className="absolute top-1/2 left-3 z-10 hidden size-11 -translate-y-1/2 bg-black/45 text-white hover:bg-black/60 hover:text-white active:-translate-y-1/2! md:inline-flex"
-						icon={<ArrowLeftIcon className="size-5" aria-hidden="true" />}
+						icon={
+							<HugeiconsIcon
+								icon={ArrowLeft02Icon}
+								className="size-5"
+								aria-hidden="true"
+							/>
+						}
 						onClick={showPrevious}
 						size="icon"
 						type="button"
@@ -641,7 +648,13 @@ export const PhotoStage = ({
 					<Button
 						aria-label="Show next photo"
 						className="absolute top-1/2 right-3 z-10 hidden size-11 -translate-y-1/2 bg-black/45 text-white hover:bg-black/60 hover:text-white active:-translate-y-1/2! md:inline-flex"
-						icon={<ArrowRightIcon className="size-5" aria-hidden="true" />}
+						icon={
+							<HugeiconsIcon
+								icon={ArrowRight02Icon}
+								className="size-5"
+								aria-hidden="true"
+							/>
+						}
 						onClick={showNext}
 						size="icon"
 						type="button"
