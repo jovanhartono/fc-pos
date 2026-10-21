@@ -1,6 +1,8 @@
 import type {
 	WorkerDetailReport,
+	WorkerLiveRow,
 	WorkerProductivityReport,
+	WorkerRangeRow,
 	WorkerRow,
 } from "@/features/reports/api";
 import { escapeCsv } from "@/features/reports/utils/csv";
@@ -67,10 +69,14 @@ export interface WorkerTotals {
 	complaintCohort: number;
 }
 
+// A row there only for what someone is doing today has nothing in the range.
+const hasRangeWork = (row: WorkerRangeRow) =>
+	row.days_worked > 0 || row.services_processed > 0 || row.qc_checks > 0;
+
 // Only Services started by someone with a day worked count towards the rate.
-export const totalsOf = (rows: WorkerRow[]): WorkerTotals => {
+export const totalsOf = (rows: WorkerRangeRow[]): WorkerTotals => {
 	const totals: WorkerTotals = {
-		people: rows.length,
+		people: rows.filter(hasRangeWork).length,
 		services: 0,
 		perDayWorked: null,
 		qcRejects: 0,
@@ -95,16 +101,18 @@ export const totalsOf = (rows: WorkerRow[]): WorkerTotals => {
 	return totals;
 };
 
-interface StoreGroup {
+interface StoreGroup<T> {
 	store_id: number;
 	store_name: string;
-	rows: WorkerRow[];
+	rows: T[];
 	totals: WorkerTotals;
 }
 
 // Busiest Store first, so the owner opens the one that matters most.
-export const groupByStore = (rows: WorkerRow[]): StoreGroup[] => {
-	const byStore = new Map<number, WorkerRow[]>();
+export const groupByStore = <T extends WorkerRangeRow>(
+	rows: T[],
+): StoreGroup<T>[] => {
+	const byStore = new Map<number, T[]>();
 	for (const row of rows) {
 		byStore.set(row.store_id, [...(byStore.get(row.store_id) ?? []), row]);
 	}
@@ -120,6 +128,50 @@ export const groupByStore = (rows: WorkerRow[]): StoreGroup[] => {
 
 export const workerKey = (userId: number, storeId: number) =>
 	`${userId}:${storeId}`;
+
+const OFF_THE_FLOOR: Live = {
+	clock_in_at: null,
+	clock_out_at: null,
+	in_hand: 0,
+	last_move_at: null,
+	services_today: 0,
+};
+
+const NOTHING_IN_RANGE = {
+	services_processed: 0,
+	days_worked: 0,
+	per_day_worked: null,
+	qc_checks: 0,
+	qc_rejects: 0,
+	complaints: 0,
+	complaint_cohort: 0,
+};
+
+// The owner looking at last week still sees who is on the floor now, so
+// someone busy today with nothing in the range gets a row of their own.
+export const withLive = (
+	rangeRows: WorkerRangeRow[],
+	liveRows: WorkerLiveRow[] = [],
+): WorkerRow[] => {
+	const liveByKey = new Map(
+		liveRows.map((row) => [workerKey(row.user_id, row.store_id), row]),
+	);
+	const rows: WorkerRow[] = rangeRows.map((row) => {
+		const key = workerKey(row.user_id, row.store_id);
+		const live = liveByKey.get(key)?.live ?? OFF_THE_FLOOR;
+		liveByKey.delete(key);
+		return { ...row, live };
+	});
+	for (const row of liveByKey.values()) {
+		rows.push({ ...row, ...NOTHING_IN_RANGE });
+	}
+	return rows.sort(
+		(a, b) =>
+			a.store_name.localeCompare(b.store_name) ||
+			b.services_processed - a.services_processed ||
+			a.user_name.localeCompare(b.user_name),
+	);
+};
 
 // How long since a last move: "5m", "1h", "5h 55m", "9d 3h".
 export const durationText = (minutes: number) => {

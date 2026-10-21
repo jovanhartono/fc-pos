@@ -4,6 +4,7 @@ import type {
   ComparableSummary,
   GetReportRangeQuery,
   GetWorkerDetailQuery,
+  GetWorkerLiveQuery,
   KpiDelta,
 } from "@/modules/reports/report.schema";
 import {
@@ -930,21 +931,14 @@ function tallyWorkers(
   return [...tallies.values()];
 }
 
-// What each person is doing right now, on every stretch: the owner looking at
-// last week still sees who is on the floor. Someone busy today with nothing in
-// the stretch gets a row of their own.
-function addLiveActivity(
-  rangeTallies: WorkerTally[],
+// What each person is doing right now, whatever stretch the rest of the tab
+// covers: the owner looking at last week still sees who is on the floor.
+function tallyLiveActivity(
   live: WorkerLiveActivity,
   processedToday: Pick<ActivityLine, "started_by" | "store_id">[],
   roleOf: (userId: number) => string | undefined
 ) {
-  const tallies = new Map(
-    rangeTallies.map((tally) => [
-      workerKey(tally.user_id, tally.store_id),
-      tally,
-    ])
-  );
+  const tallies = new Map<string, WorkerTally>();
   const tallyFor = tallyLookup(tallies);
   for (const row of live.inHand) {
     tallyFor(row.user_id, row.store_id).in_hand = row.in_hand;
@@ -1130,21 +1124,18 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
   const today = jakartaNow().format("YYYY-MM-DD");
   const isToday = ctx.from === today && ctx.to === today;
 
-  const todayRange = getJakartaRange(today, today);
-  const [activity, prevActivity, live, linesToday, users, stores] =
-    await Promise.all([
-      listWorkerActivity({ range, storeId }),
-      listWorkerSummaryActivity({ range: ctx.previous.range, storeId }),
-      listWorkerLiveActivity({ range: todayRange, storeId }),
-      isToday ? null : listProcessedLineStarts({ range: todayRange, storeId }),
-      listUserNames(),
-      listStoreNames(),
-    ]);
+  const [activity, prevActivity, inHand, users, stores] = await Promise.all([
+    listWorkerActivity({ range, storeId }),
+    listWorkerSummaryActivity({ range: ctx.previous.range, storeId }),
+    isToday ? listItemsInHand({ storeId }) : [],
+    listUserNames(),
+    listStoreNames(),
+  ]);
   const userById = new Map(users.map((user) => [user.id, user]));
   const storeName = new Map(stores.map((store) => [store.id, store.name]));
   const roleOf = (userId: number) => userById.get(userId)?.role;
 
-  const tallies = tallyWorkers(activity, roleOf, isToday ? live.inHand : []);
+  const tallies = tallyWorkers(activity, roleOf, inHand);
   tallyComplaints(tallies, activity.lines);
   const current = summariseWorkers(activity, tallies);
   const previous = summariseWorkers(
@@ -1152,12 +1143,7 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
     tallyWorkers(prevActivity, roleOf)
   );
 
-  const workers = addLiveActivity(
-    tallies,
-    live,
-    linesToday ?? activity.lines,
-    roleOf
-  )
+  const workers = tallies
     .map((tally) => {
       const user = userById.get(tally.user_id);
       return {
@@ -1173,13 +1159,6 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
         qc_rejects: tally.qc_rejects,
         complaints: tally.complaints,
         complaint_cohort: tally.complaint_cohort,
-        live: {
-          clock_in_at: tally.latest_shift?.clock_in_at ?? null,
-          clock_out_at: tally.latest_shift?.clock_out_at ?? null,
-          in_hand: tally.in_hand,
-          last_move_at: tally.last_move_at,
-          services_today: tally.services_today,
-        },
       };
     })
     .sort(
@@ -1205,6 +1184,40 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
     workers,
     services_matrix: buildServicesMatrix(byService),
   };
+}
+
+// Who is on the floor right now, apart from the range report so the Workers tab
+// can ask every minute on Last 30 days without rescanning the month each time.
+export async function getWorkerLiveReport({ store_id }: GetWorkerLiveQuery) {
+  const today = jakartaNow().format("YYYY-MM-DD");
+  const todayRange = getJakartaRange(today, today);
+  const [live, linesToday, users, stores] = await Promise.all([
+    listWorkerLiveActivity({ range: todayRange, storeId: store_id }),
+    listProcessedLineStarts({ range: todayRange, storeId: store_id }),
+    listUserNames(),
+    listStoreNames(),
+  ]);
+  const userById = new Map(users.map((user) => [user.id, user]));
+  const storeName = new Map(stores.map((store) => [store.id, store.name]));
+  const roleOf = (userId: number) => userById.get(userId)?.role;
+
+  return tallyLiveActivity(live, linesToday, roleOf).map((tally) => {
+    const user = userById.get(tally.user_id);
+    return {
+      user_id: tally.user_id,
+      user_name: user?.name ?? "Unknown",
+      role: user?.role ?? "unknown",
+      store_id: tally.store_id,
+      store_name: storeName.get(tally.store_id) ?? "Unknown",
+      live: {
+        clock_in_at: tally.latest_shift?.clock_in_at ?? null,
+        clock_out_at: tally.latest_shift?.clock_out_at ?? null,
+        in_hand: tally.in_hand,
+        last_move_at: tally.last_move_at,
+        services_today: tally.services_today,
+      },
+    };
+  });
 }
 
 interface ServiceCount {

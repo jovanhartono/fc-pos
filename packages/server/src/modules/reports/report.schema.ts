@@ -76,6 +76,12 @@ export const GETAgingQueueQuerySchema = z.object({
 
 export type GetAgingQueueQuery = z.infer<typeof GETAgingQueueQuerySchema>;
 
+export const GETWorkerLiveQuerySchema = z.object({
+  store_id: storeIdQuerySchema.optional(),
+});
+
+export type GetWorkerLiveQuery = z.infer<typeof GETWorkerLiveQuerySchema>;
+
 export interface KpiDelta<T = number> {
   current: T;
   delta_pct: number | null;

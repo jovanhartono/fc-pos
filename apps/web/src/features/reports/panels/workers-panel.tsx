@@ -1,4 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { Section } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import {
 import {
 	buildWorkersCsv,
 	outOf,
+	withLive,
 } from "@/features/reports/utils/workers-report";
 import { staleFade } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
@@ -42,8 +44,18 @@ export const WorkersPanel = ({
 		...reportsQueries.workerProductivity({ from, to, store_id: storeId }),
 		placeholderData: keepPreviousData,
 	});
+	const liveQuery = useQuery({
+		...reportsQueries.workerLive({ store_id: storeId }),
+		placeholderData: keepPreviousData,
+	});
 	const openWorkerSheet = useOpenWorkerSheet();
 	const data = query.data;
+	const workers = useMemo(
+		() => (data ? withLive(data.workers, liveQuery.data) : []),
+		[data, liveQuery.data],
+	);
+	// A failed live view still shows the range, just with nobody on the floor.
+	const isReady = data && !liveQuery.isPending;
 
 	if (!query.isPending && !data) {
 		return (
@@ -89,7 +101,12 @@ export const WorkersPanel = ({
 	};
 
 	return (
-		<div className={cn("grid gap-6", staleFade(query.isPlaceholderData))}>
+		<div
+			className={cn(
+				"grid gap-6",
+				staleFade(query.isPlaceholderData || liveQuery.isPlaceholderData),
+			)}
+		>
 			<ExportButton disabled={!data} onClick={handleExport} />
 			<KpiRow isPending={!data}>
 				<KpiCard
@@ -137,15 +154,15 @@ export const WorkersPanel = ({
 				/>
 			</KpiRow>
 
-			{data ? (
+			{isReady ? (
 				<>
-					<NeedsALook workers={data.workers} />
+					<NeedsALook workers={workers} />
 
 					<Section id="workers-rows" title="Workers" aside={allStoresLink}>
 						<WorkersTable
 							// A new range opens its own busiest Store.
-							key={`${data.from}:${data.to}:${data.workers.length > 0}`}
-							workers={data.workers}
+							key={`${data.from}:${data.to}:${workers.length > 0}`}
+							workers={workers}
 							isAllStores={isAllStores}
 							isToday={data.is_today}
 							onOpen={handleOpen}

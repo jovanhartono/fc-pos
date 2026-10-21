@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { WorkerRow } from "@/features/reports/api";
+import type {
+	WorkerLiveRow,
+	WorkerRangeRow,
+	WorkerRow,
+} from "@/features/reports/api";
 import {
 	axisTickLabels,
 	buildChartRows,
@@ -16,6 +20,7 @@ import {
 	sinceText,
 	splitTopServices,
 	totalsOf,
+	withLive,
 } from "@/features/reports/utils/workers-report";
 import { formatShiftLength } from "@/lib/dayjs";
 
@@ -98,6 +103,14 @@ describe("Store totals", () => {
 		expect(totals.perDayWorked).toBe(6);
 	});
 
+	it("does not count someone shown only for what they are doing today", () => {
+		const onTheFloor = worker({
+			user_id: 4,
+			live: { ...quiet, in_hand: 3, services_today: 1 },
+		});
+		expect(totalsOf([...rows, onTheFloor]).people).toBe(3);
+	});
+
 	it("has no rate when nobody worked a day", () => {
 		expect(
 			totalsOf([worker({ services_processed: 3 })]).perDayWorked,
@@ -112,6 +125,69 @@ describe("Store totals", () => {
 		]);
 		expect(groups.map((g) => g.store_name)).toEqual(["BSD", "Kemang"]);
 		expect(groups[1].rows).toHaveLength(2);
+	});
+});
+
+describe("the range joined with who is on the floor", () => {
+	const rangeRow = (overrides: Partial<WorkerRangeRow>): WorkerRangeRow => {
+		const { live: _, ...row } = worker(overrides);
+		return row;
+	};
+	const liveRow = (
+		overrides: Partial<WorkerLiveRow>,
+		live: Partial<WorkerRow["live"]>,
+	): WorkerLiveRow => ({
+		user_id: 1,
+		user_name: "Ani",
+		role: "worker",
+		store_id: 1,
+		store_name: "Kemang",
+		live: { ...quiet, ...live },
+		...overrides,
+	});
+
+	it("puts each person's live figures on their range row", () => {
+		const rows = withLive(
+			[rangeRow({ services_processed: 12 })],
+			[liveRow({}, { in_hand: 2 })],
+		);
+		expect(rows).toEqual([
+			worker({ services_processed: 12, live: { ...quiet, in_hand: 2 } }),
+		]);
+	});
+
+	it("leaves a range row off the floor when nothing is happening now", () => {
+		expect(withLive([rangeRow({})], [])[0].live).toEqual(quiet);
+	});
+
+	it("keeps the same person at another Store apart", () => {
+		const rows = withLive(
+			[rangeRow({ services_processed: 5 })],
+			[liveRow({ store_id: 2, store_name: "BSD" }, { in_hand: 1 })],
+		);
+		expect(rows.map((row) => [row.store_name, row.live.in_hand])).toEqual([
+			["BSD", 1],
+			["Kemang", 0],
+		]);
+	});
+
+	it("adds someone busy today with nothing in the range, after the busy rows", () => {
+		const rows = withLive(
+			[rangeRow({ user_id: 1, user_name: "Ani", services_processed: 4 })],
+			[liveRow({ user_id: 2, user_name: "Adi" }, { services_today: 1 })],
+		);
+		expect(rows.map((row) => row.user_name)).toEqual(["Ani", "Adi"]);
+		expect(rows[1]).toEqual(
+			worker({
+				user_id: 2,
+				user_name: "Adi",
+				live: { ...quiet, services_today: 1 },
+			}),
+		);
+	});
+
+	it("shows the range alone while the live view has not loaded", () => {
+		expect(withLive([rangeRow({})])).toHaveLength(1);
 	});
 });
 

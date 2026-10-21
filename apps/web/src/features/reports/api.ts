@@ -52,8 +52,16 @@ export type WorkerProductivityReport = InferResponseType<
 	(typeof rpc.api.admin.reports)["worker-productivity"]["$get"]
 >["data"];
 
+export type WorkerRangeRow = WorkerProductivityReport["workers"][number];
+
+export type WorkerLiveRow = InferResponseType<
+	(typeof rpc.api.admin.reports)["worker-live"]["$get"]
+>["data"][number];
+
 // One person at one Store; someone who works at two Stores has two rows.
-export type WorkerRow = WorkerProductivityReport["workers"][number];
+export interface WorkerRow extends WorkerRangeRow {
+	live: WorkerLiveRow["live"];
+}
 
 export type WorkerDetailReport = InferResponseType<
 	(typeof rpc.api.admin.reports)["worker-detail"]["$get"]
@@ -85,6 +93,10 @@ export interface FetchWorkerDetailQuery {
 	to: string;
 	store_id: number;
 	user_id: number;
+}
+
+export interface FetchWorkerLiveQuery {
+	store_id?: number;
 }
 
 export interface FetchQcRejectsQuery {
@@ -125,6 +137,8 @@ export const reportsKeys = {
 		[...reportsKeys.all, "qc-rejects", query] as const,
 	workerProductivity: (query: FetchReportRangeQuery) =>
 		[...reportsKeys.all, "worker-productivity", query] as const,
+	workerLive: (query: FetchWorkerLiveQuery) =>
+		[...reportsKeys.all, "worker-live", query] as const,
 	workerDetail: (query: FetchWorkerDetailQuery) =>
 		[...reportsKeys.all, "worker-detail", query] as const,
 	campaignEffectiveness: (query: FetchReportRangeQuery) =>
@@ -278,9 +292,22 @@ export const reportsQueries = {
 					}),
 				),
 			staleTime: REPORT_STALE_TIME,
-			// Today's view is who is on the floor and what is in their hands now.
-			// A longer stretch would rescan every day of it each minute, so it doesn't.
+			// Today's Services keep coming in. A longer stretch would rescan every
+			// day of it each minute, so it doesn't; workerLive keeps the floor current.
 			refetchInterval: (q) => (q.state.data?.is_today ? 60_000 : false),
+		}),
+	workerLive: (query: FetchWorkerLiveQuery) =>
+		queryOptions({
+			queryKey: reportsKeys.workerLive(query),
+			queryFn: () =>
+				parseSuccessData<WorkerLiveRow[]>(
+					rpcWithAuth().api.admin.reports["worker-live"].$get({
+						query: toSearchParams({ store_id: query.store_id }),
+					}),
+				),
+			staleTime: REPORT_STALE_TIME,
+			// Who is on the floor now, on every date range: today's handful of rows.
+			refetchInterval: 60_000,
 		}),
 	workerDetail: (query: FetchWorkerDetailQuery) =>
 		queryOptions({

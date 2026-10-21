@@ -56,6 +56,7 @@ mock.module("@/modules/reports/report-range.service", () => ({
   getOrdersFlowReport: marker("orders-flow"),
   getPaymentMixReport: marker("payment-mix"),
   getWorkerDetailReport: marker("worker-detail"),
+  getWorkerLiveReport: marker("worker-live"),
   getWorkerProductivityReport: marker("worker-productivity"),
 }));
 
@@ -90,8 +91,8 @@ const app = new Hono<{ Variables: { jwtPayload: JWTPayload } }>()
 
 app.onError(errorHandler);
 
-// Every report is dated except the aging queue, which asks what is still on the
-// rack right now.
+// Every report is dated except the aging queue and who is on the floor, which
+// ask what is happening right now.
 const REPORTS = [
   { path: "/overview", params: "date=2026-08-05" },
   { path: "/financial", params: "from=2026-08-01&to=2026-08-05" },
@@ -102,6 +103,7 @@ const REPORTS = [
   { path: "/quality", params: "from=2026-08-01&to=2026-08-05" },
   { path: "/qc-rejects", params: "from=2026-08-01&to=2026-08-05&limit=10" },
   { path: "/worker-productivity", params: "from=2026-08-01&to=2026-08-05" },
+  { path: "/worker-live", params: "" },
   { path: "/worker-detail", params: "from=2026-08-01&to=2026-08-05&user_id=7" },
   { path: "/campaign-effectiveness", params: "from=2026-08-01&to=2026-08-05" },
   { path: "/aging-queue", params: "" },
