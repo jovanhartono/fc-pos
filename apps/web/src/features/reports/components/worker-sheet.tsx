@@ -11,7 +11,7 @@ import {
 	reportsQueries,
 	type WorkerDetailReport,
 } from "@/features/reports/api";
-import { KpiCard } from "@/features/reports/components/kpi-card";
+import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import {
 	ComplaintsChip,
 	QcChip,
@@ -311,11 +311,11 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
 	if (query.isPending) {
 		return (
 			<div aria-hidden className="grid gap-5">
-				<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+				<KpiRow isPending>
 					{FACT_LABELS.map((label) => (
-						<KpiCard key={label} label={label} value={<TextSkeleton />} />
+						<KpiCard key={label} label={label} value={null} />
 					))}
-				</div>
+				</KpiRow>
 				<Section title="Services each day">
 					<Skeleton className="h-64 w-full" />
 				</Section>
@@ -345,7 +345,7 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
 
 	return (
 		<div className={cn("grid gap-5", CONTENT_FADE)}>
-			<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+			<KpiRow>
 				<KpiCard
 					label="Days worked"
 					value={numberFormatter.format(facts.days_worked)}
@@ -366,7 +366,7 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
 					label="QC rejects"
 					value={outOf(facts.qc_rejects, facts.qc_checks)}
 				/>
-			</div>
+			</KpiRow>
 
 			<Section title="Services each day">
 				<WorkerServicesChart data={data} topIds={topIds} />
