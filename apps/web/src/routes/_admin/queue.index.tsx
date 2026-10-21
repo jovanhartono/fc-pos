@@ -67,7 +67,7 @@ import { usersQueries } from "@/features/users/api";
 import { useMinuteClock } from "@/hooks/useMinuteClock";
 import { CONTENT_FADE, staleFade } from "@/lib/content-fade";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
-import { readServerErrorMessage } from "@/lib/server-error";
+import { isNotFoundError, readServerErrorMessage } from "@/lib/server-error";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
@@ -103,7 +103,7 @@ const queueSearchSchema = z.object({
 	status: z.enum(WORKSHOP_SERVICE_STATUSES).optional(),
 	// Set when a scanned tag turns out to have several treatments open on it:
 	// the rack narrows to that one object so the worker can say which job they
-	// are starting (ADR-0017).
+	// are starting (ADR-0017). A typed customer name or phone sets it too.
 	search: z.string().min(1).optional(),
 	dateFrom: z
 		.string()
@@ -351,9 +351,18 @@ function QueuePage() {
 				},
 			});
 		},
-		onError: (error: Error) => {
-			// A missing tag (404) and another Store's Order (403) read the same
-			// to the search box: nothing here matched.
+		onError: (error: Error, { mode, value }) => {
+			// Not a tag or an ID, so a worker typing a regular's name or phone
+			// gets the rack narrowed to that customer's items.
+			if (mode === "manual" && isNotFoundError(error)) {
+				void navigate({
+					search: (prev) => ({ ...prev, search: value, status: undefined }),
+				});
+				return;
+			}
+
+			// A scanned tag that is missing (404) and another Store's Order (403)
+			// read the same: nothing here matched.
 			const isNotMatched =
 				error instanceof DetailedError &&
 				(error.statusCode === 404 || error.statusCode === 403);
@@ -439,8 +448,8 @@ function QueuePage() {
 		});
 	};
 
-	// Set by a scan that landed on a multi-treatment tag. Nothing else writes it,
-	// and without a way back the worker stays on a one-card rack.
+	// Set by a scan that landed on a multi-treatment tag, or a customer search.
+	// Without a way back the worker stays on a narrowed rack.
 	const clearSearchFilter = () => {
 		setItemCode("");
 		void navigate({
@@ -462,7 +471,7 @@ function QueuePage() {
 				<StickyControls className="grid gap-3">
 					<div className="flex items-center gap-2">
 						<Input
-							aria-label="Find by item code, order ID, or line ID"
+							aria-label="Find by item code, order code, order ID, line ID, or customer"
 							autoCapitalize="none"
 							autoCorrect="off"
 							className="min-w-0 flex-1"
@@ -483,7 +492,7 @@ function QueuePage() {
 									});
 								}
 							}}
-							placeholder="Item code or order ID"
+							placeholder="Item code, order code, or customer"
 							value={itemCode}
 						/>
 						<Button
@@ -599,8 +608,8 @@ function QueuePage() {
 						</div>
 					) : null}
 
-					{/* Hidden while a scanned tag pins the list to one object; they come
-					    back with Clear. */}
+					{/* Hidden while a scan or customer search narrows the list; they
+					    come back with Clear. */}
 					{!selectedSearch && (
 						<QueueStatusTabs
 							onValueChange={updateStatusFilter}

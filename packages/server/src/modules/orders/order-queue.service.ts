@@ -40,6 +40,7 @@ import {
   WORKSHOP_SERVICE_STATUSES,
 } from "@/modules/orders/order-status-machine";
 import { assertCanReassignHandler } from "@/modules/permissions/permissions";
+import { toStoredPhonePrefix } from "@/schema/phone";
 import type { JWTPayload } from "@/types";
 import type { OrderService } from "@/types/entity";
 import { resolveStoreScope, unhandledStoreScope } from "@/utils/authorization";
@@ -257,6 +258,8 @@ export async function getOrderServiceQueue(
     const searchConditions = [
       sql`LOWER(${ordersTable.code}) LIKE ${loweredSearchPrefix}`,
       sql`LOWER(${itemsTable.item_code}) LIKE ${loweredSearchPrefix}`,
+      sql`LOWER(${customersTable.name}) LIKE ${loweredSearchPrefix}`,
+      sql`${customersTable.phone_number} LIKE ${`${toStoredPhonePrefix(search)}%`}`,
     ];
 
     if (isNumericSearch(search)) {
@@ -344,6 +347,7 @@ export async function getOrderServiceQueue(
       .from(ordersServicesTable)
       .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
       .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+      .innerJoin(customersTable, eq(ordersTable.customer_id, customersTable.id))
       .where(whereClause),
   ]);
 
