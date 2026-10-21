@@ -22,7 +22,7 @@ const getErrorMessage = (error: unknown): string => {
 	}
 };
 
-const ErrorCard = ({ error, reset }: ErrorComponentProps) => {
+const ErrorCard = ({ error }: ErrorComponentProps) => {
 	const message = getErrorMessage(error);
 	return (
 		<div className="grid w-full max-w-md justify-items-center gap-3 text-center">
@@ -40,7 +40,10 @@ const ErrorCard = ({ error, reset }: ErrorComponentProps) => {
 				</pre>
 			) : null}
 			<div className="mt-1 flex flex-wrap justify-center gap-2">
-				<Button onClick={reset} icon={<HugeiconsIcon icon={ReloadIcon} />}>
+				<Button
+					onClick={() => window.location.reload()}
+					icon={<HugeiconsIcon icon={ReloadIcon} />}
+				>
 					Retry
 				</Button>
 				<Button
