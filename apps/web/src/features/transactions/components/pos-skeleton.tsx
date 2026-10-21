@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-const CHIP_WIDTHS = ["w-17", "w-26", "w-30", "w-24", "w-22", "w-32"];
+const CHIP_WIDTHS = ["w-11", "w-22", "w-26", "w-20", "w-19", "w-28"];
 const TILE_COUNT = 12;
 
 // The POS as it opens: store and search rows, the category chips, then the

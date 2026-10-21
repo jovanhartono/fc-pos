@@ -127,21 +127,17 @@ export function TransactionsCatalog() {
 		[activeCategory, catalogEntries, categoryMap, searchValue],
 	);
 
-	// Counted off the whole catalog, never the search-narrowed list: a pill set
+	// Taken off the whole catalog, never the search-narrowed list: a pill set
 	// that shrinks as you type can drop the pill you are filtering by.
 	const categoryOptions = useMemo(() => {
-		const byId = new Map<number, { id: number; name: string; count: number }>();
+		const byId = new Map<number, { id: number; name: string }>();
 		for (const { item } of catalogEntries) {
-			const seen = byId.get(item.category_id);
-			if (seen) {
-				seen.count += 1;
-				continue;
+			if (!byId.has(item.category_id)) {
+				byId.set(item.category_id, {
+					id: item.category_id,
+					name: getEntityCategoryName(item, categoryMap),
+				});
 			}
-			byId.set(item.category_id, {
-				id: item.category_id,
-				name: getEntityCategoryName(item, categoryMap),
-				count: 1,
-			});
 		}
 		return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
 	}, [categoryMap, catalogEntries]);
@@ -242,14 +238,6 @@ export function TransactionsCatalog() {
 								variant={activeCategory === "all" ? "default" : "secondary"}
 							>
 								All
-								<span
-									className={cn(
-										"font-normal tabular-nums",
-										activeCategory === "all" ? "opacity-80" : "opacity-60",
-									)}
-								>
-									{catalogEntries.length}
-								</span>
 							</Button>
 							{categoryOptions.map((category) => {
 								const isActive = activeCategory === category.id;
@@ -264,14 +252,6 @@ export function TransactionsCatalog() {
 										variant={isActive ? "default" : "secondary"}
 									>
 										{category.name}
-										<span
-											className={cn(
-												"font-normal tabular-nums",
-												isActive ? "opacity-80" : "opacity-60",
-											)}
-										>
-											{category.count}
-										</span>
 									</Button>
 								);
 							})}
