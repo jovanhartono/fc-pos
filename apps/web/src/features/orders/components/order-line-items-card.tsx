@@ -139,11 +139,7 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 				).map(({ original, originalId, reworks }) => (
 					<li key={originalId}>
 						{original ? (
-							<OrderServiceRow
-								itemCode={item.item_code}
-								orderId={orderId}
-								service={original}
-							/>
+							<OrderServiceRow orderId={orderId} service={original} />
 						) : null}
 						{original?.complaints.map((complaint) => (
 							<ComplaintLinkRow complaint={complaint} key={complaint.id} />
@@ -153,7 +149,6 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 								{reworks.map((rework, index) => (
 									<li key={rework.id}>
 										<OrderServiceRow
-											itemCode={item.item_code}
 											orderId={orderId}
 											reworkRound={original ? index + 1 : undefined}
 											service={rework}

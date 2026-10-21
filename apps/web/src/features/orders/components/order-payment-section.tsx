@@ -126,7 +126,6 @@ const CollectPaymentAction = ({
 			onClick={() =>
 				openNestedSheet({
 					title: "Collect payment",
-					description: detail.code,
 					content: () =>
 						isSettled ? (
 							<SettledDiscountPaymentForm detail={detail} orderId={orderId} />

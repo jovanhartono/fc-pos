@@ -18,16 +18,12 @@ type OrderServiceRowService = OrderDetail["items"][number]["services"][number];
 interface OrderServiceRowProps {
 	orderId: number;
 	service: OrderServiceRowService;
-	// The tag of the object this treatment is applied to. Rendered once on the
-	// Item header above, but the sheet still opens under it so a worker knows
-	// which thing on the shelf they are looking at (ADR-0017).
-	itemCode: string;
 	// Set on a Rework drawn under the line it redoes.
 	reworkRound?: number;
 }
 
 export const OrderServiceRow = memo(
-	({ orderId, service, itemCode, reworkRound }: OrderServiceRowProps) => {
+	({ orderId, service, reworkRound }: OrderServiceRowProps) => {
 		const openNestedSheet = useSheet((s) => s.openNestedSheet);
 
 		const serviceName = service.service?.name ?? "Service";
@@ -39,8 +35,7 @@ export const OrderServiceRow = memo(
 
 		const handleClick = () => {
 			openNestedSheet({
-				title: itemCode,
-				description: serviceName,
+				title: serviceName,
 				content: () => (
 					<OrderServiceDetail orderId={orderId} serviceId={service.id} />
 				),

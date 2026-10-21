@@ -26,6 +26,10 @@ export function GlobalSheet() {
 	const clearClosedSheet = useSheet((state) => state.clearClosedSheet);
 	const isDirty = useSheet((state) => state.isDirty);
 	const [confirmOpen, setConfirmOpen] = useState(false);
+	// A plain title with nothing under it; an Order's own title is hidden, and
+	// an Item opened from a worker's sheet keeps its two lines.
+	const titleInBackRow =
+		Boolean(back) && typeof title === "string" && !description && !actions;
 
 	const dismiss = () => {
 		onClose?.();
@@ -70,9 +74,17 @@ export function GlobalSheet() {
 					{title || description ? (
 						<SheetHeader className="shrink-0 border-b">
 							{/* O12: one row for both, so an Order opened over another sheet
-							    keeps the same header height as one opened from the list. */}
+							    keeps the same header height as one opened from the list.
+							    A titled sheet over another (Collect payment over an Order)
+							    puts its title on that row too, so its body starts where
+							    the Order's did; mb-0.5 stands in for the Order's hidden title. */}
 							{back || actions ? (
-								<div className="flex items-center gap-2 pr-8">
+								<div
+									className={cn(
+										"flex items-center gap-2 pr-8",
+										titleInBackRow && "mb-0.5",
+									)}
+								>
 									{back ? (
 										<button
 											type="button"
@@ -83,12 +95,27 @@ export function GlobalSheet() {
 											{back.label}
 										</button>
 									) : null}
+									{titleInBackRow ? (
+										<>
+											<span
+												aria-hidden
+												className="shrink-0 text-muted-foreground"
+											>
+												·
+											</span>
+											<SheetTitle className="min-w-0 truncate">
+												{title}
+											</SheetTitle>
+										</>
+									) : null}
 									{actions ? (
 										<div className="min-w-0 flex-1">{actions}</div>
 									) : null}
 								</div>
 							) : null}
-							{title ? <SheetTitle>{title}</SheetTitle> : null}
+							{title && !titleInBackRow ? (
+								<SheetTitle>{title}</SheetTitle>
+							) : null}
 							<SheetDescription
 								className={cn({
 									"sr-only": !description,
