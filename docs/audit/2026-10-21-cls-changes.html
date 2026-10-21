@@ -75,6 +75,8 @@
   .list .v { font-variant-numeric:tabular-nums; color:var(--muted); white-space:nowrap; }
   .list .done { display:inline-block; font-weight:600; font-size:12px; line-height:16px; padding:2px 8px; border-radius:999px; background:var(--green-bg); color:var(--green); }
   .list .fix { display:block; color:var(--muted); margin-top:2px; }
+  .answer { margin-top:12px; background:var(--green-bg); border-radius:10px; padding:10px 12px; font-size:13px; line-height:19px; }
+  .answer b { font-weight:600; color:var(--green); }
   .note { margin-top:16px; background:var(--soft); border-radius:12px; padding:12px 14px; font-size:13px; line-height:19px; max-width:760px; }
   @media (width < 760px) {
     h1 { font-size:26px; line-height:32px; }
@@ -98,8 +100,8 @@
   <div class="kpis">
     <div class="card kpi"><div class="v">40</div><div class="l">findings in the audit</div></div>
     <div class="card kpi"><div class="v">39</div><div class="l">fixed, in 17 changes below</div></div>
-    <div class="card kpi"><div class="v">1</div><div class="l">waiting on you (nested sheet header)</div></div>
-    <div class="card kpi"><div class="v">0.548 → 0.006</div><div class="l">worst score, before → now (now = the one waiting on you)</div></div>
+    <div class="card kpi"><div class="v">0</div><div class="l">waiting on you (O12 answered: B, built)</div></div>
+    <div class="card kpi"><div class="v">0.548 → 0</div><div class="l">worst score, before → now (after O12 and S1)</div></div>
   </div>
 
   <div class="card index">
@@ -119,7 +121,7 @@
       <li><span class="n">13</span><a href="#c13">POS checkout hint lines always take their room</a></li>
       <li><span class="n">14</span><a href="#c14">Inter loads early, stand-in font sized to match</a></li>
       <li><span class="n">15</span><a href="#c15">Sheets keep their content while sliding out</a></li>
-      <li><span class="n">16</span><a href="#c16">Scrollbar space always kept</a></li>
+      <li><span class="n">16</span><a href="#c16">Scrollbar space always kept (reverted)</a></li>
       <li><span class="n">17</span><a href="#c17">A new filter draws fresh rows</a></li>
     </ol>
   </div>
@@ -537,7 +539,7 @@
     </div>
     <p class="files">Files: components/app-shell.tsx. Audit id W13.</p>
     <p class="cost"><b>Trade-off:</b> on Windows, or a Mac set to always show scroll bars, a strip about 15px wide sits empty on the right of every page, even one that doesn't scroll. Macs with default settings and phones show no difference.</p>
-    <p class="reply">Reply: <code>keep / change / revert 16</code></p>
+    <p class="answer"><b>Reverted.</b> The space is no longer kept (87a87c0). With always-visible scroll bars, a page that becomes long enough to scroll narrows by the bar's width again (0.0004).</p>
   </section>
 
   <section class="card change" id="c17">
@@ -555,7 +557,7 @@
 
   <!-- ============ WAITING ============ -->
   <h2>Waiting on you</h2>
-  <p class="sub">One finding was left alone because it needs a design call.</p>
+  <p class="sub">One finding was left alone because it needed a design call. Answered: B.</p>
   <section class="card change" id="o12">
     <div class="head"><span class="num">O12</span><div><h3>Nested sheet header grows a row</h3><p class="where">Order sheet on a laptop → Collect payment (any nested sheet)</p></div><span class="score" style="background:var(--orange-bg);color:var(--orange)">0.021</span></div>
     <div class="bn">
@@ -581,14 +583,14 @@
       <div class="opt"><h4>C. Slide the nested sheet in as a panel</h4>Collect payment slides in over the Order like an iPhone push, so the new header reads as a new screen, not a jump. Most work, and adds an animation.</div>
     </div>
     <p class="files">Files: components/ui/global-sheet.tsx (header), features/transactions/components/campaign-tile-group.tsx (campaigns). Score 0.0033 counted + 0.0176 counted as your click on a laptop.</p>
-    <p class="reply">Reply: <code>O12 A / B / C</code></p>
+    <p class="answer"><b>B chosen, built</b> (1ba566c). The back link and the sheet's actions share one row the same height as the arrows row. An Order opened over Ready for pickup now has a 59px header, the same as one opened from the list. Campaigns hold one tile's height (126px) while loading, empty or filled. Opening Collect payment counts 0 at 1280 and 390. Still open: Collect payment shows its title and the Order code under the back link, so its header is 101px against the Order's 59px (counted as your click, 0.0136).</p>
   </section>
 
   <!-- ============ STILL NOT ZERO ============ -->
   <h2>Still not zero</h2>
   <p class="sub">What the re-measure and the cleanup check still found. "Your tap" means Chrome files the movement under the tap that caused it and doesn't count it.</p>
   <div class="card list">
-    <div class="row"><span class="id">S1</span><span>Collect payment: campaigns box grows 94 → 126px when the list lands (with O12 above).</span><span class="v">0.003 laptop · 0.006 phone</span></div>
+    <div class="row"><span class="id">S1</span><span>Collect payment: campaigns box grows 94 → 126px when the list lands (with O12 above).<span class="fix">Fixed with O12: the box is one tile tall in every state.</span></span><span class="v"><span class="done">Fixed</span></span></div>
     <div class="row"><span class="id">S2</span><span>J/K between Orders with different numbers of Items: Products and Payment sections move (card 6).</span><span class="v">0.013, your key</span></div>
     <div class="row"><span class="id">S3</span><span>POS on a phone, first Service added: the tapped catalog row grows 56 → 62.5px as the count circle makes the name wrap; the cart caret moves 10px from "1 service" to "2 services".</span><span class="v">0.005, your tap</span></div>
     <div class="row"><span class="id">S4</span><span>Reports Quality "Show all": the table grows from 5 to 50 rows at the tap and pushes the cards below out of view. Real tap 0; only a scripted click counts it.</span><span class="v">0, scripted 0.029</span></div>
