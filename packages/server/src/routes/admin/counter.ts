@@ -3,10 +3,7 @@ import { GETCounterQuerySchema } from "@/modules/counter/counter.schema";
 import { getCounter } from "@/modules/counter/counter.service";
 import { GETDayCloseQuerySchema } from "@/modules/counter/day-close.schema";
 import { getDayClose } from "@/modules/counter/day-close.service";
-import {
-  assertCanViewCounter,
-  assertCanViewDayClose,
-} from "@/modules/permissions/permissions";
+import { assertCanViewCounter } from "@/modules/permissions/permissions";
 import type { AdminEnv } from "@/types/hono";
 import { assertStoreAccess } from "@/utils/authorization";
 import { success } from "@/utils/http";
@@ -26,7 +23,8 @@ const app = new Hono<AdminEnv>()
     zodValidator("query", GETDayCloseQuerySchema),
     async (c) => {
       const user = c.get("jwtPayload");
-      assertCanViewDayClose(user);
+      // Every worker, not only the one covering the cashier at the PIK booth (ADR-0004).
+      assertCanViewCounter(user);
       const { date, store_id } = c.req.valid("query");
       await assertStoreAccess(user, store_id);
 

@@ -254,7 +254,7 @@ The draft a staff member builds in the POS. It becomes an Order only at checkout
 The list of Items waiting for work at a Store, priority first and then oldest first. Filtered by Category, an Item with Services in two Categories shows on both.
 
 **Counter**:
-The screen showing one Store's state right now, for everyone who works there: waiting work and the ready estimate per Category, Orders ready for pickup waiting for their Customer, and the Complaints and QC rejects still pending. The Day close sits beside it for cashiers.
+The screen showing one Store's state right now, for everyone who works there: waiting work and the ready estimate per Category, Orders ready for pickup waiting for their Customer, and the Complaints and QC rejects still pending. The Day close sits beside it.
 _Avoid_: Dashboard (Home only launches pages), Today page
 
 **Aging queue**:

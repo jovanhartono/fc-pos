@@ -177,13 +177,10 @@ export const CounterPage = ({
 			? storeId
 			: firstStoreId;
 	const hasPicker = isAdmin || ownStoreIds.length > 1;
-	// Workers keep the Status content only, even from a ?tab=summary link.
-	const canSeeDayClose = me?.role === "admin" || me?.role === "cashier";
-	const activeTab = canSeeDayClose ? tab : "status";
 	const today = useJakartaToday();
 	// A date after today, from a hand-edited link, falls back to today.
 	const day = date && date < today ? date : today;
-	const isSummary = activeTab === "summary" && selectedStoreId !== undefined;
+	const isSummary = tab === "summary" && selectedStoreId !== undefined;
 
 	let panel = storesQuery.isPending ? (
 		<CounterBodySkeleton />
@@ -226,29 +223,25 @@ export const CounterPage = ({
 				className="max-sm:grid-cols-1 max-sm:gap-y-3 max-sm:[&>div]:col-start-1 max-sm:[&>div]:row-start-2"
 				title="Counter"
 			/>
-			{canSeeDayClose ? (
-				<Tabs
-					className="grid gap-6"
-					onValueChange={(value: CounterTab) => onTabChange(value)}
-					value={activeTab}
-				>
-					<CounterTabs
-						actions={
-							isSummary ? (
-								<DayRow
-									date={day}
-									onDateChange={onDateChange}
-									storeId={selectedStoreId}
-									today={today}
-								/>
-							) : null
-						}
-					/>
-					<TabsContent value={activeTab}>{panel}</TabsContent>
-				</Tabs>
-			) : (
-				<div className="grid gap-6">{panel}</div>
-			)}
+			<Tabs
+				className="grid gap-6"
+				onValueChange={(value: CounterTab) => onTabChange(value)}
+				value={tab}
+			>
+				<CounterTabs
+					actions={
+						isSummary ? (
+							<DayRow
+								date={day}
+								onDateChange={onDateChange}
+								storeId={selectedStoreId}
+								today={today}
+							/>
+						) : null
+					}
+				/>
+				<TabsContent value={tab}>{panel}</TabsContent>
+			</Tabs>
 		</>
 	);
 };
