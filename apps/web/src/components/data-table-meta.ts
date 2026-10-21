@@ -37,8 +37,9 @@ declare module "@tanstack/react-table" {
 		mobileCard?: MobileCardColumnOptions;
 		// Money columns sit on the right so the thousands line up row to row.
 		align?: "right";
-		// A code cell is mono, a name cell medium weight, on the table and the card.
-		// On the table a long name wraps and long text is cut to one line.
+		// A code cell keeps its digits in line, a name cell is medium weight, on the
+		// table and the card. On the table a long name or text wraps to two lines,
+		// then ends in "…".
 		kind?: "code" | "name" | "text";
 		// The column's share of the table on a wide screen, and the narrowest it
 		// gets before the table scrolls sideways instead.
