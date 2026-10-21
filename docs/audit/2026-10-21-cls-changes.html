@@ -73,6 +73,8 @@
   .list .row:first-child { border-top:0; }
   .list .id { color:var(--muted); font-weight:600; font-variant-numeric:tabular-nums; }
   .list .v { font-variant-numeric:tabular-nums; color:var(--muted); white-space:nowrap; }
+  .list .done { display:inline-block; font-weight:600; font-size:12px; line-height:16px; padding:2px 8px; border-radius:999px; background:var(--green-bg); color:var(--green); }
+  .list .fix { display:block; color:var(--muted); margin-top:2px; }
   .note { margin-top:16px; background:var(--soft); border-radius:12px; padding:12px 14px; font-size:13px; line-height:19px; max-width:760px; }
   @media (width < 760px) {
     h1 { font-size:26px; line-height:32px; }
@@ -340,10 +342,10 @@
         <a href="2026-10-21-cls-changes/walkFast-1280-a120.webp" target="_blank"><img src="2026-10-21-cls-changes/walkFast-1280-a120.webp" width="520" height="377" alt="" loading="lazy"><span class="t">0.2s</span></a>
         <a href="2026-10-21-cls-changes/walkFast-1280-a400.webp" target="_blank"><img src="2026-10-21-cls-changes/walkFast-1280-a400.webp" width="520" height="377" alt="" loading="lazy"><span class="t">0.4s</span></a>
       </div></div>
-      <figcaption>Order sheet, pressing J on the first Order. The close-up has no slow reply: in the first frame the two Orders show through each other.</figcaption>
+      <figcaption>Order sheet, pressing J on the first Order. The close-up has no slow reply: in the first frame the two Orders show through each other (taken before the F4 fix).</figcaption>
     </figure>
     <p class="files">Files: features/orders/hooks/useOrderSheet.tsx. Audit id O8.</p>
-    <p class="cost"><b>Trade-off:</b> opening an Order in the sheet now asks for two more Orders (kept for 30s). For a frame or two the old and new Order overlap, as in the close-up. Sections still move when the two Orders have different numbers of Items (0.013, counted as your key press).</p>
+    <p class="cost"><b>Trade-off:</b> opening an Order in the sheet now asks for two more Orders (kept for 30s). The overlap in the close-up is fixed (F4): the next Order now replaces the old one in a single frame. Sections still move when the two Orders have different numbers of Items (0.013, counted as your key press).</p>
     <p class="reply">Reply: <code>keep / change / revert 6</code></p>
   </section>
 
@@ -366,7 +368,7 @@
         <a href="2026-10-21-cls-changes/queue-390-a2500.webp" target="_blank"><img src="2026-10-21-cls-changes/queue-390-a2500.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">2.5s</span></a>
         <a href="2026-10-21-cls-changes/queue-390-a8000.webp" target="_blank"><img src="2026-10-21-cls-changes/queue-390-a8000.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">loaded</span></a>
       </div></div>
-      <figcaption>Orders → Queue as admin on a phone. The admin has no saved Store, so both end on "Select a store"; a worker with a Store gets the cards. Note the chips: one fewer fits (card 10), and with no Store the count badge stays a grey bar (F8).</figcaption>
+      <figcaption>Orders → Queue as admin on a phone. The admin has no saved Store, so both end on "Select a store"; a worker with a Store gets the cards. Note the chips: one fewer fits (card 10), and with no Store the count badge stays a grey bar (F8, since fixed: with no Store there is no badge).</figcaption>
     </figure>
     <p class="files">Files: routes/_admin/queue.index.tsx, features/orders/components/queue-category-filter.tsx. Audit ids W3, W4, W5.</p>
     <p class="cost"><b>Trade-off:</b> none seen. A review bug was fixed on the way: an admin who cleared the Store kept seeing the last Store's cards dimmed under "Select a store".</p>
@@ -403,7 +405,7 @@
     <div class="head"><span class="num">9</span><div><h3>Fixed table columns, names cut at two lines</h3><p class="where">Every table on a laptop: Orders, Complaints, Shifts, Customers, catalog pages, Reports tables</p></div><span class="score">0.014 → 0</span></div>
     <div class="bn">
       <div><b>Before</b>Columns sized themselves to each page's text, so Next or a filter slid them sideways.</div>
-      <div><b>Now</b>Each column has a set width and one column (Customer, Service, Name…) takes the rest. Long text wraps to two lines, then ends in "…".</div>
+      <div><b>Now</b>Each column has a set width and one column (Customer, Service, Name…) takes the rest, never less than 160px; when that doesn't fit, the table scrolls sideways inside its frame. Long text wraps to two lines, then ends in "…".</div>
     </div>
     <figure>
       <div class="strip"><span>Before</span><div class="frames two">
@@ -414,10 +416,10 @@
         <a href="2026-10-21-cls-changes/table-a1280.webp" target="_blank"><img src="2026-10-21-cls-changes/table-a1280.webp" width="1000" height="879" alt="" loading="lazy"><span class="t">1280 wide</span></a>
         <a href="2026-10-21-cls-changes/table-a1024.webp" target="_blank"><img src="2026-10-21-cls-changes/table-a1024.webp" width="768" height="800" alt="Customer column gone at 1024 with the sidebar open" loading="lazy"><span class="t">1024 wide, sidebar open</span></a>
       </div></div>
-      <figcaption>Orders at rest. At 1024 the sidebar starts closed; these were taken after opening it.</figcaption>
+      <figcaption>Orders at rest. At 1024 the sidebar starts closed; these were taken after opening it. The "Now" 1024 frame is from before the F2 fix: Customer now keeps 160px and the table scrolls sideways.</figcaption>
     </figure>
     <p class="files">Files: components/data-table-grid.tsx, data-table.tsx, and the column widths in routes/_admin/orders.index, complaints.index, shifts, customers.index, services, products, categories, payment-methods, campaigns, users, stores, plus customer-orders-card.tsx, quality-panel.tsx and aging-queue-panel.tsx. Audit id O5.</p>
-    <p class="cost"><b>Trade-off:</b> long names are cut at two lines on a laptop. <b>Problem found:</b> when the content area is narrower than the table (1024 wide with the sidebar opened), the Customer column shrinks to nothing: names disappear, phone numbers spill under Items ready and Total is cut off. Before, every column stayed visible.</p>
+    <p class="cost"><b>Trade-off:</b> long names are cut at two lines on a laptop. At 1024 with the sidebar open, Orders, Complaints, Customers, Shifts, Users, Campaigns, Services, Products and the Reports tables are wider than their frame and scroll sideways. <b>Problem found, now fixed (F2):</b> the Customer column used to shrink to nothing there, names gone and Total cut off.</p>
     <p class="reply">Reply: <code>keep / change / revert 9</code></p>
   </section>
 
@@ -600,16 +602,16 @@
 
   <!-- ============ FOUND ============ -->
   <h2>Found along the way</h2>
-  <p class="sub">Not layout shift, but seen while testing. None are fixed.</p>
+  <p class="sub">Not layout shift, but seen while testing. F1, F2, F3, F4 and F8 are fixed; the rest are open.</p>
   <div class="card list">
-    <div class="row"><span class="id">F1</span><span><b>/track crashes on an all-digit phone in the address.</b> A link with phone=628121000107 is read as a number, fails the page's check and shows "Application error". A phone starting with 0 works.</span><span class="v">routes/track.tsx</span></div>
-    <div class="row"><span class="id">F2</span><span><b>Orders table loses the Customer column at 1024 wide with the sidebar open</b> (card 9). Caused by the fixed columns.</span><span class="v">data-table-grid.tsx</span></div>
-    <div class="row"><span class="id">F3</span><span><b>Chip rows start 4px left of the content</b> on Orders, Queue and the POS catalog, and their outline chips start 4px to the right of the real ones. The strip's own padding (and the room for its fade) is overridden.</span><span class="v">chip-strip.tsx</span></div>
-    <div class="row"><span class="id">F4</span><span><b>J/K shows two Orders over each other</b> for a frame or two (card 6 close-up).</span><span class="v">useOrderSheet.tsx</span></div>
+    <div class="row"><span class="id">F1</span><span><b>/track crashes on an all-digit phone in the address.</b> A link with phone=628121000107 is read as a number, fails the page's check and shows "Application error". A phone starting with 0 works.<span class="fix">Fixed: the page reads the phone as text whatever it looks like; 08… still becomes +628…. routes/track.tsx</span></span><span class="v"><span class="done">Fixed</span></span></div>
+    <div class="row"><span class="id">F2</span><span><b>Orders table loses the Customer column at 1024 wide with the sidebar open</b> (card 9). Caused by the fixed columns.<span class="fix">Fixed: a column without its own width keeps at least 160px and the table scrolls sideways inside its frame. Same for every other table that didn't fit at 1024 with the sidebar open. data-table-grid.tsx</span></span><span class="v"><span class="done">Fixed</span></span></div>
+    <div class="row"><span class="id">F3</span><span><b>Chip rows start 4px left of the content</b> on Orders, Queue and the POS catalog, and their outline chips start 4px to the right of the real ones. The strip's own padding (and the room for its fade) is overridden.<span class="fix">Already fixed in e8262dc: the padding is no longer overridden, and the first chip lines up with the title (280px at 1280, 12px at 390). chip-strip.tsx</span></span><span class="v"><span class="done">Fixed</span></span></div>
+    <div class="row"><span class="id">F4</span><span><b>J/K shows two Orders over each other</b> for a frame or two (card 6 close-up).<span class="fix">Fixed: the page cross-fade ran on every J/K step. It now runs only when the page itself changes, so the next Order replaces the old one at once. main.tsx</span></span><span class="v"><span class="done">Fixed</span></span></div>
     <div class="row"><span class="id">F5</span><span><b>The open row in lists is now light blue</b> (Orders, Counter shelf). Changed in the cleanup pass, not in the redesign you approved.</span><span class="v">order-list-row.tsx</span></div>
     <div class="row"><span class="id">F6</span><span><b>Orders list stayed dimmed for over a minute</b> once, after Cancelled was tapped right after a search clear, Next and Prev. Not repeated in two tries.</span><span class="v">not reproduced</span></div>
     <div class="row"><span class="id">F7</span><span><b>Reports worker sheet</b> still has its own loading cards; switching to the shared row would show 2 columns instead of 4 between 640 and 1023px wide.</span><span class="v">worker-sheet.tsx</span></div>
-    <div class="row"><span class="id">F8</span><span><b>Queue with no Store picked</b> shows a grey loading bar where "N items" goes, and it never resolves (it used to say "0 items").</span><span class="v">queue.index.tsx</span></div>
+    <div class="row"><span class="id">F8</span><span><b>Queue with no Store picked</b> shows a grey loading bar where "N items" goes, and it never resolves (it used to say "0 items").<span class="fix">Fixed: with no Store there is no count at all; with a Store the slot is kept, so nothing moves. queue.index.tsx</span></span><span class="v"><span class="done">Fixed</span></span></div>
     <div class="row"><span class="id">F9</span><span><b>POS showed "No items." briefly</b> once in a production build on a phone; probably the offline cache, not confirmed.</span><span class="v">unconfirmed</span></div>
   </div>
 </main>
