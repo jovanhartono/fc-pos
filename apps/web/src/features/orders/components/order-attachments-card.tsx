@@ -1,6 +1,8 @@
 import { CameraIcon } from "@phosphor-icons/react";
 import { type ReactNode, useState } from "react";
+import { TextSkeleton } from "@/components/text-skeleton";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { OrderDetail } from "@/features/orders/api";
 import {
 	OrderPhotoGallery,
@@ -29,6 +31,35 @@ const TILE_GRID =
 
 const EMPTY_TILE =
 	"flex aspect-square w-full items-center justify-center rounded-md border bg-muted text-muted-foreground";
+
+// A drop-off photo with its time and Replace button, beside the pickup tile.
+export const OrderAttachmentsSkeleton = () => (
+	<section className="grid gap-3">
+		<OrderSectionHeader>Attachments</OrderSectionHeader>
+		<Card className="gap-4 p-4 text-body">
+			<div className={TILE_GRID}>
+				{["Drop-off", "Pickup"].map((label) => (
+					<div className="grid content-start gap-1.5" key={label}>
+						<AttachmentLabel>{label}</AttachmentLabel>
+						<Skeleton className="aspect-square w-full rounded-md" />
+						<TileCaption
+							line1={
+								label === "Drop-off" ? (
+									<TextSkeleton className="w-32" />
+								) : undefined
+							}
+							line2={
+								<span className="inline-flex h-9 items-center pointer-coarse:h-11">
+									<TextSkeleton className="w-28" />
+								</span>
+							}
+						/>
+					</div>
+				))}
+			</div>
+		</Card>
+	</section>
+);
 
 interface OrderAttachmentsCardProps {
 	order: DropoffOrder;
@@ -82,7 +113,7 @@ const AttachmentLabel = ({ children }: AttachmentLabelProps) => (
 );
 
 interface TileCaptionProps {
-	line1?: string;
+	line1?: ReactNode;
 	line2: ReactNode;
 }
 

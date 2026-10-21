@@ -2,6 +2,7 @@ import { PlusIcon } from "@phosphor-icons/react";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { deleteItemPhoto } from "@/features/orders/api";
 import { PhotoLightbox } from "@/features/orders/components/photo-lightbox";
 import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
@@ -14,7 +15,10 @@ import { readServerErrorMessage } from "@/lib/server-error";
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 
+const STRIP_CLASS = "flex items-center gap-2 px-4 pb-3";
 const TILE_CLASS = "size-12 shrink-0 sm:size-20";
+const ADD_TILE_CLASS =
+	"grid place-items-center rounded-sm border border-dashed border-border text-muted-foreground transition-colors hover:border-ring hover:text-foreground focus-visible:border-ring focus-visible:outline-none";
 const TILE_BUTTON_CLASS =
 	"block overflow-hidden rounded-sm border border-border bg-muted transition-[border-color,box-shadow] hover:border-ring focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50";
 
@@ -23,6 +27,14 @@ const TILE_BUTTON_CLASS =
 // the rest is one swipe away in the viewer. Four photos plus the overflow and
 // add tiles is what a 390px card fits without clipping.
 const VISIBLE_TILES = { phone: 4, desktop: 5 };
+
+// One photo and the add tile, the strip most Items carry.
+export const ItemPhotoStripSkeleton = () => (
+	<div className={STRIP_CLASS}>
+		<Skeleton className={TILE_CLASS} />
+		<div className={cn(TILE_CLASS, ADD_TILE_CLASS)} />
+	</div>
+);
 
 interface ItemPhotoStripProps {
 	orderId: number;
@@ -72,7 +84,7 @@ export const ItemPhotoStrip = ({
 	const hiddenCount = images.length - visible.length;
 
 	return (
-		<div className="flex items-center gap-2 px-4 pb-3">
+		<div className={STRIP_CLASS}>
 			{visible.map((image, index) => (
 				<button
 					aria-label={`Open photo ${index + 1} of ${images.length}`}
@@ -108,10 +120,7 @@ export const ItemPhotoStrip = ({
 			) : null}
 			<button
 				aria-label={`Add photo for ${item.item_code}`}
-				className={cn(
-					TILE_CLASS,
-					"grid place-items-center rounded-sm border border-dashed border-border text-muted-foreground transition-colors hover:border-ring hover:text-foreground focus-visible:border-ring focus-visible:outline-none",
-				)}
+				className={cn(TILE_CLASS, ADD_TILE_CLASS)}
 				onClick={() => setIsUploadOpen(true)}
 				type="button"
 			>

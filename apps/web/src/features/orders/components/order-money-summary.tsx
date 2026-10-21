@@ -1,7 +1,33 @@
+import { TextSkeleton } from "@/components/text-skeleton";
 import { Separator } from "@/components/ui/separator";
 import type { OrderDetail } from "@/features/orders/api";
 import { flattenOrderLines } from "@/features/orders/lib/order-lines";
 import { formatMoney, parseMoney } from "@/shared/money";
+
+const MONEY_LIST = "grid gap-1.5 text-body tabular-nums compact:text-subhead";
+
+// Subtotal over Net, the bill of an Order with no discount.
+export const OrderMoneySummarySkeleton = () => (
+	<div className="px-4 py-4">
+		<dl className={MONEY_LIST}>
+			<div className="flex justify-between gap-4">
+				<dt className="text-muted-foreground">Subtotal</dt>
+				<dd>
+					<TextSkeleton />
+				</dd>
+			</div>
+		</dl>
+		<Separator className="my-2.5" />
+		<dl className={MONEY_LIST}>
+			<div className="flex justify-between gap-4 font-medium">
+				<dt>Net</dt>
+				<dd>
+					<TextSkeleton />
+				</dd>
+			</div>
+		</dl>
+	</div>
+);
 
 interface OrderMoneySummaryProps {
 	detail: OrderDetail;
@@ -30,7 +56,7 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 
 	return (
 		<div className="px-4 py-4">
-			<dl className="grid gap-1.5 text-body tabular-nums compact:text-subhead">
+			<dl className={MONEY_LIST}>
 				{showSubtotalBreakdown ? (
 					<>
 						<div className="flex justify-between gap-4">
@@ -80,7 +106,7 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 				) : null}
 			</dl>
 			<Separator className="my-2.5" />
-			<dl className="grid gap-1.5 text-body tabular-nums compact:text-subhead">
+			<dl className={MONEY_LIST}>
 				<div className="flex justify-between gap-4 font-medium">
 					<dt>Net</dt>
 					<dd className="tabular-nums">{formatMoney(net)}</dd>

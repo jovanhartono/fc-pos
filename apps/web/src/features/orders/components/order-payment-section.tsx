@@ -17,6 +17,7 @@ import {
 import { z } from "zod";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { SelectField } from "@/components/form/select-field";
+import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -29,7 +30,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { campaignsQueries } from "@/features/campaigns/api";
 import type { OrderDetail } from "@/features/orders/api";
-import { OrderMoneySummary } from "@/features/orders/components/order-money-summary";
+import {
+	OrderMoneySummary,
+	OrderMoneySummarySkeleton,
+} from "@/features/orders/components/order-money-summary";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { useOrderPaymentMutation } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
@@ -70,6 +74,30 @@ export const OrderPaymentSection = ({
 		<Card className="gap-0 overflow-hidden py-0">
 			<OrderMoneySummary detail={detail} />
 			<PaymentDetails detail={detail} gates={gates} />
+		</Card>
+	</section>
+);
+
+const PAID_LIST = "grid gap-2 px-4 py-4 text-body compact:text-subhead";
+const PAID_ROW = "flex items-center justify-between gap-4";
+
+// A paid Order's bill and how it was paid, the shape most open Orders show.
+export const OrderPaymentSkeleton = () => (
+	<section className="grid gap-3">
+		<OrderSectionHeader>Payment</OrderSectionHeader>
+		<Card className="gap-0 overflow-hidden py-0">
+			<OrderMoneySummarySkeleton />
+			<Separator />
+			<dl className={PAID_LIST}>
+				{["Method", "Paid at", "Marked by"].map((label) => (
+					<div className={PAID_ROW} key={label}>
+						<dt className="text-muted-foreground">{label}</dt>
+						<dd>
+							<TextSkeleton className="w-24" />
+						</dd>
+					</div>
+				))}
+			</dl>
 		</Card>
 	</section>
 );
@@ -143,19 +171,19 @@ const CollectPaymentAction = ({
 };
 
 const PaidDetails = ({ detail }: { detail: OrderDetail }) => (
-	<dl className="grid gap-2 px-4 py-4 text-body compact:text-subhead">
-		<div className="flex items-center justify-between gap-4">
+	<dl className={PAID_LIST}>
+		<div className={PAID_ROW}>
 			<dt className="text-muted-foreground">Method</dt>
 			<dd className="font-medium">{detail.paymentMethod?.name ?? "—"}</dd>
 		</div>
 		{detail.paid_at ? (
-			<div className="flex items-center justify-between gap-4">
+			<div className={PAID_ROW}>
 				<dt className="text-muted-foreground">Paid at</dt>
 				<dd className="tabular-nums">{formatOrderDateTime(detail.paid_at)}</dd>
 			</div>
 		) : null}
 		{detail.paidBy ? (
-			<div className="flex items-center justify-between gap-4">
+			<div className={PAID_ROW}>
 				<dt className="text-muted-foreground">Marked by</dt>
 				<dd className="font-medium">{detail.paidBy.name}</dd>
 			</div>
@@ -271,11 +299,7 @@ const SettledDiscountPaymentForm = ({
 				</p>
 				<ToCollectLine amount={toCollect} />
 				<PaymentMethodField />
-				<Button
-					size="lg"
-					loading={paymentMutation.isPending}
-					type="submit"
-				>
+				<Button size="lg" loading={paymentMutation.isPending} type="submit">
 					Mark as paid
 				</Button>
 			</form>
@@ -476,11 +500,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 				) : null}
 				<ToCollectLine amount={toCollect} />
 				<PaymentMethodField />
-				<Button
-					size="lg"
-					loading={paymentMutation.isPending}
-					type="submit"
-				>
+				<Button size="lg" loading={paymentMutation.isPending} type="submit">
 					Mark as paid
 				</Button>
 			</form>

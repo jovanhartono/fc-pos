@@ -1,13 +1,20 @@
 import { CaretRightIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
+import { TextSkeleton } from "@/components/text-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import type { OrderDetail, OrderRefundReason } from "@/features/orders/api";
-import { ItemPhotoStrip } from "@/features/orders/components/item-photo-strip";
+import {
+	ItemPhotoStrip,
+	ItemPhotoStripSkeleton,
+} from "@/features/orders/components/item-photo-strip";
 import { OrderReasonCallout } from "@/features/orders/components/order-reason-callout";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
-import { OrderServiceRow } from "@/features/orders/components/order-service-row";
+import {
+	OrderServiceRow,
+	OrderServiceRowSkeleton,
+} from "@/features/orders/components/order-service-row";
 import type { OrderItem } from "@/features/orders/lib/order-lines";
 import { getItemTotalRow } from "@/features/orders/lib/order-sheet";
 import { groupReworksUnderOriginals } from "@/features/orders/lib/rework-nesting";
@@ -16,6 +23,12 @@ import { formatCancelReason, formatRefundReason } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
 
 type OrderDetailProduct = OrderDetail["products"][number];
+
+const ITEM_NAME =
+	"text-pretty font-medium text-headline leading-5 compact:text-body";
+const ITEM_CODE =
+	"break-all text-foreground text-subhead leading-snug tabular-nums";
+const SERVICE_LIST = "mx-4 mb-1 divide-y border-t";
 
 interface RefundInfo {
 	reason: OrderRefundReason;
@@ -118,12 +131,8 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 			<header className="min-w-0 px-4 py-3">
 				{descriptors ? (
 					<>
-						<h3 className="text-pretty font-medium text-headline leading-5 compact:text-body">
-							{descriptors}
-						</h3>
-						<p className="break-all text-foreground text-subhead leading-snug tabular-nums">
-							{item.item_code}
-						</p>
+						<h3 className={ITEM_NAME}>{descriptors}</h3>
+						<p className={ITEM_CODE}>{item.item_code}</p>
 					</>
 				) : (
 					<h3 className="break-all font-medium text-headline leading-5 tabular-nums compact:text-body">
@@ -132,7 +141,7 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 				)}
 			</header>
 			<ItemPhotoStrip isAdmin={isAdmin} item={item} orderId={orderId} />
-			<ul className="mx-4 mb-1 divide-y border-t">
+			<ul className={SERVICE_LIST}>
 				{groupReworksUnderOriginals(
 					item.services,
 					(service) => service.reworkOf?.orderService.id ?? null,
@@ -171,6 +180,29 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 		</Card>
 	);
 };
+
+// One Item with one treatment, what most Orders at the counter carry.
+export const OrderItemsSkeleton = () => (
+	<section className="grid gap-3">
+		<OrderSectionHeader>Items</OrderSectionHeader>
+		<Card className="gap-0 py-0">
+			<header className="min-w-0 px-4 py-3">
+				<h3 className={ITEM_NAME}>
+					<TextSkeleton className="w-48" />
+				</h3>
+				<p className={ITEM_CODE}>
+					<TextSkeleton className="w-28" />
+				</p>
+			</header>
+			<ItemPhotoStripSkeleton />
+			<ul className={SERVICE_LIST}>
+				<li>
+					<OrderServiceRowSkeleton />
+				</li>
+			</ul>
+		</Card>
+	</section>
+);
 
 interface OrderLineItemsCardProps {
 	orderId: number;
