@@ -164,7 +164,9 @@ function ServicesPage() {
 				cell: ({ row }) =>
 					row.original.is_priority ? (
 						<Badge variant="priority">Priority</Badge>
-					) : null,
+					) : (
+						<Badge variant="outline">Standard</Badge>
+					),
 			},
 			{
 				id: "status",
@@ -210,7 +212,7 @@ function ServicesPage() {
 					columns={columns}
 					data={services}
 					isCardGrouped
-					skeletonCardClassName="h-26"
+					skeletonCardClassName="h-32.5"
 					isLoading={isPending}
 					sortable
 					cardPrimaryColumnId="name"

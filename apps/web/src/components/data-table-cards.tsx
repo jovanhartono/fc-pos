@@ -257,7 +257,8 @@ export const DataTableCards = <TData extends RowData>({
 				const hasHeaderStrip =
 					eyebrowCells.length > 0 || footerCells.length > 0;
 				const status = statusCells.length > 0 && (
-					<div className="ml-auto flex min-w-0 flex-wrap justify-end gap-1">
+					// One line: a Service's queue and Active badges read as a pair.
+					<div className="ml-auto flex shrink-0 justify-end gap-1">
 						{statusCells.map((cell) => (
 							<Fragment key={cell.id}>
 								{flexRender(cell.column.columnDef.cell, cell.getContext())}
