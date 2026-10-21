@@ -1,11 +1,10 @@
-import { PlusIcon } from "@phosphor-icons/react";
 import {
 	Controller,
 	type SubmitHandler,
 	useFormContext,
 } from "react-hook-form";
 import { PhoneNumberField } from "@/components/form/phone-number-field";
-import { Button } from "@/components/ui/button";
+import { SheetFormActions } from "@/components/form/sheet-form-actions";
 import {
 	Field,
 	FieldError,
@@ -14,7 +13,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import { StoreSelect } from "@/features/orders/components/store-select";
 
 export type CustomerFormState = {
 	name: string;
@@ -120,9 +119,9 @@ export const CustomerForm = ({
 					name="origin_store_id"
 					control={control}
 					render={({ field, fieldState }) => (
-						<StoreAutocomplete
+						<StoreSelect
 							id="customer-origin-store"
-							label="Origin Store"
+							label="Origin store"
 							value={field.value ? String(field.value) : ""}
 							onValueChange={(value) =>
 								field.onChange(value ? Number(value) : undefined)
@@ -133,28 +132,12 @@ export const CustomerForm = ({
 					)}
 				/>
 
-				<div className="flex flex-wrap items-center gap-2 md:col-span-2 md:justify-end">
-					{isEditing ? (
-						<Button
-							type="button"
-							variant="outline"
-							onClick={onReset}
-							disabled={isSubmitting}
-						>
-							Cancel edit
-						</Button>
-					) : null}
-					<Button
-						type="submit"
-						loading={isSubmitting}
-						loadingText={
-							isEditing ? "Updating customer..." : "Creating customer..."
-						}
-					>
-						<PlusIcon className="size-4" />
-						{isEditing ? "Update Customer" : "Create Customer"}
-					</Button>
-				</div>
+				<SheetFormActions
+					addLabel="Add customer"
+					isEditing={isEditing}
+					isSubmitting={isSubmitting}
+					onCancel={onReset}
+				/>
 			</FieldGroup>
 		</form>
 	);

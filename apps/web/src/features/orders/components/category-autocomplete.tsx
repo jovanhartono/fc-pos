@@ -42,7 +42,7 @@ export function CategoryAutocomplete({
 			<Combobox
 				id={id}
 				required={required}
-				triggerClassName="h-10 w-full text-sm"
+				triggerClassName="w-full"
 				options={options}
 				value={value}
 				onValueChange={onValueChange}

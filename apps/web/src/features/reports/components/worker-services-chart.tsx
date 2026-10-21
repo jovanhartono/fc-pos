@@ -11,6 +11,10 @@ import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import type { WorkerDetailReport } from "@/features/reports/api";
 import { oneDecimalFormatter } from "@/features/reports/utils/format";
 import {
+	CHART_OTHER_COLOR,
+	topFourColor,
+} from "@/features/reports/utils/palette";
+import {
 	axisTickLabels,
 	buildChartRows,
 	type ChartRow,
@@ -18,19 +22,12 @@ import {
 import dayjs from "@/lib/dayjs";
 import { pluralize } from "@/shared/utils";
 
-// Soft colours for the worker's biggest Services; everything else is grey.
-const SERVICE_COLORS = [
-	"oklch(0.76 0.11 255)",
-	"oklch(0.84 0.09 170)",
-	"oklch(0.87 0.1 80)",
-	"oklch(0.8 0.1 350)",
-];
-const OTHER_COLOR = "var(--chart-other)";
 const AVERAGE_COLOR = "var(--chart-average)";
 
+// The worker's biggest Services in colour; everything else is grey.
 export const serviceColor = (topIds: number[], serviceId: number) => {
 	const index = topIds.indexOf(serviceId);
-	return index === -1 ? OTHER_COLOR : SERVICE_COLORS[index];
+	return index === -1 ? CHART_OTHER_COLOR : topFourColor(index);
 };
 
 const bucketTitle = (label: string, bucket: WorkerDetailReport["bucket"]) =>
@@ -56,7 +53,7 @@ const BucketTip = ({ row, topIds, bucket, maxWidth }: BucketTipProps) => {
 	);
 	return (
 		<div
-			className="border border-border bg-background px-2.5 py-2 text-xs shadow-lg"
+			className="border border-border bg-background px-2.5 py-2 text-footnote shadow-lg"
 			style={{ maxWidth }}
 		>
 			<p className="font-medium">{bucketTitle(row.label, bucket)}</p>
@@ -74,7 +71,7 @@ const BucketTip = ({ row, topIds, bucket, maxWidth }: BucketTipProps) => {
 					<li key={service.service_id} className="flex items-center gap-2">
 						<span
 							aria-hidden="true"
-							className="size-2.5 shrink-0"
+							className="size-2 shrink-0 rounded-full"
 							style={{
 								backgroundColor: serviceColor(topIds, service.service_id),
 							}}
@@ -165,14 +162,14 @@ export const WorkerServicesChart = ({
 							key={id}
 							dataKey={(row: ChartRow) => row.slices[index]}
 							stackId="services"
-							fill={SERVICE_COLORS[index]}
+							fill={topFourColor(index)}
 							isAnimationActive={false}
 						/>
 					))}
 					<Bar
 						dataKey="other"
 						stackId="services"
-						fill={OTHER_COLOR}
+						fill={CHART_OTHER_COLOR}
 						isAnimationActive={false}
 					/>
 					<Line

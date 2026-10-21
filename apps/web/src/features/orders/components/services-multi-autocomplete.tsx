@@ -85,7 +85,7 @@ export const ServicesMultiAutocomplete = ({
 							tabIndex={disabled ? -1 : 0}
 							aria-disabled={disabled}
 							className={cn(
-								"flex h-auto min-h-10 w-full cursor-pointer items-center justify-between gap-2 border border-input bg-background px-3 py-2 text-left text-sm",
+								"flex h-auto min-h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-sm border border-input bg-background px-3 py-2 text-left text-body",
 								"aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
 							)}
 						/>
@@ -123,10 +123,10 @@ export const ServicesMultiAutocomplete = ({
 				</PopoverTrigger>
 				<PopoverContent
 					align="start"
-					className="w-(--radix-popover-trigger-width) max-h-72 overflow-y-auto p-0"
+					className="w-(--anchor-width) max-h-72 overflow-y-auto p-0"
 				>
 					{selectableServices.length === 0 ? (
-						<p className="p-3 text-muted-foreground text-sm">
+						<p className="p-3 text-muted-foreground text-body">
 							No services available
 						</p>
 					) : (
@@ -147,10 +147,10 @@ export const ServicesMultiAutocomplete = ({
 												tabIndex={-1}
 											/>
 											<div className="flex flex-col">
-												<span className="text-sm font-medium">
+												<span className="text-body font-medium">
 													{service.code}
 												</span>
-												<span className="text-muted-foreground text-xs">
+												<span className="text-muted-foreground text-footnote">
 													{service.name}
 												</span>
 											</div>

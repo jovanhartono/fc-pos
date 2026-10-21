@@ -1,7 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { type ReactNode, useCallback } from "react";
+import { type ReactNode, useCallback, useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
+import { Section } from "@/components/section";
+import { TextSkeleton } from "@/components/text-skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { counterQueries } from "@/features/counter/api";
 import { DayCloseTab } from "@/features/counter/components/day-close/day-close-tab";
 import { DayRow } from "@/features/counter/components/day-close/day-row";
@@ -12,12 +16,11 @@ import {
 import { PickupShelfSection } from "@/features/counter/components/pickup-shelf-section";
 import { WorkshopSection } from "@/features/counter/components/workshop-section";
 import { useJakartaToday } from "@/features/counter/hooks/useJakartaToday";
-import { OrderSheet } from "@/features/orders/components/order-sheet";
-import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import { StoreSelect } from "@/features/orders/components/store-select";
+import { useOrderSheet } from "@/features/orders/hooks/useOrderSheet";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { cn } from "@/lib/utils";
 
 export type CounterTab = "status" | "summary";
 
@@ -37,41 +40,50 @@ interface CounterPageProps {
 
 interface CounterTabsProps {
 	actions?: ReactNode;
-	activeTab: CounterTab;
-	onTabChange: (tab: CounterTab) => void;
 }
 
 // Two tabs never overflow, so the row has room for the Summary's day on the
 // right without scrolling.
-const CounterTabs = ({ actions, activeTab, onTabChange }: CounterTabsProps) => (
-	<div className="flex items-center justify-between gap-2 shadow-[inset_0_-1px_0_var(--border)]">
-		<nav aria-label="Counter">
-			<div className="flex" role="tablist">
-				{TABS.map((tab) => {
-					const isActive = activeTab === tab.id;
-					return (
-						<button
-							aria-controls="counter-panel"
-							aria-selected={isActive}
-							className={cn(
-								"relative shrink-0 whitespace-nowrap border-b-2 px-4 py-3 font-medium text-sm transition-colors max-sm:px-2.5",
-								isActive
-									? "border-foreground text-foreground"
-									: "border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground",
-							)}
-							id={`counter-tab-${tab.id}`}
-							key={tab.id}
-							onClick={() => onTabChange(tab.id)}
-							role="tab"
-							type="button"
-						>
-							{tab.label}
-						</button>
-					);
-				})}
-			</div>
-		</nav>
+const CounterTabs = ({ actions }: CounterTabsProps) => (
+	<div className="flex items-center justify-between gap-2">
+		<TabsList aria-label="Counter">
+			{TABS.map((tab) => (
+				<TabsTrigger key={tab.id} value={tab.id}>
+					{tab.label}
+				</TabsTrigger>
+			))}
+		</TabsList>
 		{actions}
+	</div>
+);
+
+// A store's Status as it usually opens: two workshop Categories, then the
+// top of the pickup shelf.
+const CounterBodySkeleton = () => (
+	<div aria-hidden className="grid gap-6 text-body">
+		<Section title="Ready estimate">
+			<ul className="overflow-hidden rounded-lg border bg-card">
+				{Array.from({ length: 2 }, (_, index) => (
+					<li
+						className="grid gap-y-0.5 border-border border-t px-3 py-2.5 first:border-t-0"
+						key={index}
+					>
+						<TextSkeleton className="w-28" />
+						<TextSkeleton className="w-36 text-footnote" />
+					</li>
+				))}
+			</ul>
+		</Section>
+		<Section title="Pickup shelf">
+			<ul className="divide-y divide-border overflow-hidden rounded-lg border bg-card">
+				{Array.from({ length: 6 }, (_, index) => (
+					<li className="grid gap-0.5 px-3 py-3" key={index}>
+						<Skeleton className="my-0.5 h-4 w-40" />
+						<Skeleton className="my-0.5 h-3 w-28" />
+					</li>
+				))}
+			</ul>
+		</Section>
 	</div>
 );
 
@@ -107,21 +119,30 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 		});
 	}, [navigate]);
 
+	const oldest = data?.pickup_shelf.oldest;
+	const sheetOrders = useMemo(
+		() => oldest?.map((order) => ({ id: order.order_id })) ?? [],
+		[oldest],
+	);
+	useOrderSheet({
+		isReady: data !== undefined,
+		onClose: handleCloseOrder,
+		onSelect: handleOpenOrder,
+		openId: isWide ? open : undefined,
+		orders: sheetOrders,
+	});
+
 	if (isPending) {
-		return <p className="text-muted-foreground text-sm">Loading…</p>;
+		return <CounterBodySkeleton />;
 	}
 	if (isError) {
 		return (
-			<p className="text-destructive text-sm">Could not load the Counter.</p>
+			<p className="text-destructive text-body">Could not load the Counter.</p>
 		);
 	}
 
-	const shelfOrders = data.pickup_shelf.oldest.map((order) => ({
-		id: order.order_id,
-	}));
-
 	return (
-		<div className="grid gap-6 text-sm">
+		<div className="grid gap-6 text-body">
 			<WorkshopSection categories={data.categories} workshop={data.workshop} />
 			<PickupShelfSection
 				isWide={isWide}
@@ -131,14 +152,6 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 			/>
 			<PendingComplaintsSection complaints={data.complaints} />
 			<PendingQcRejectsSection rejects={data.qc_rejects} />
-			{isWide && open !== undefined ? (
-				<OrderSheet
-					onClose={handleCloseOrder}
-					onSelect={handleOpenOrder}
-					openId={open}
-					orders={shelfOrders}
-				/>
-			) : null}
 		</div>
 	);
 };
@@ -152,7 +165,8 @@ export const CounterPage = ({
 	tab,
 }: CounterPageProps) => {
 	const { data: me } = useQuery(usersQueries.me());
-	const { data: stores = [] } = useQuery(storesQueries.list());
+	const storesQuery = useQuery(storesQueries.list());
+	const stores = storesQuery.data ?? [];
 
 	const isAdmin = me?.role === "admin";
 	const ownStoreIds = me?.userStores.map((item) => item.store_id) ?? [];
@@ -171,7 +185,11 @@ export const CounterPage = ({
 	const day = date && date < today ? date : today;
 	const isSummary = activeTab === "summary" && selectedStoreId !== undefined;
 
-	let panel = <p className="text-muted-foreground">No Store.</p>;
+	let panel = storesQuery.isPending ? (
+		<CounterBodySkeleton />
+	) : (
+		<p className="text-muted-foreground">No Store.</p>
+	);
 	if (selectedStoreId) {
 		panel = isSummary ? (
 			<DayCloseTab
@@ -190,52 +208,47 @@ export const CounterPage = ({
 			<PageHeader
 				actions={
 					hasPicker ? (
-						<div className="w-56 max-sm:w-44">
-							<StoreAutocomplete
-								allowedStoreIds={isAdmin ? undefined : ownStoreIds}
-								hideLabel
-								id="counter-store"
-								onValueChange={(value) => {
-									if (value) {
-										onStoreChange(Number(value));
-									}
-								}}
-								value={selectedStoreId ? String(selectedStoreId) : ""}
-							/>
-						</div>
+						<StoreSelect
+							allowedStoreIds={isAdmin ? undefined : ownStoreIds}
+							hideLabel
+							id="counter-store"
+							triggerClassName="sm:w-60"
+							onValueChange={(value) => {
+								if (value) {
+									onStoreChange(Number(value));
+								}
+							}}
+							value={selectedStoreId ? String(selectedStoreId) : ""}
+						/>
 					) : null
 				}
+				// On a phone the full Store name gets its own row under the title.
+				className="max-sm:grid-cols-1 max-sm:gap-y-3 max-sm:[&>div]:col-start-1 max-sm:[&>div]:row-start-2"
 				title="Counter"
 			/>
-			<div className="grid gap-6">
-				{canSeeDayClose ? (
-					<>
-						<CounterTabs
-							actions={
-								isSummary ? (
-									<DayRow
-										date={day}
-										onDateChange={onDateChange}
-										storeId={selectedStoreId}
-										today={today}
-									/>
-								) : null
-							}
-							activeTab={activeTab}
-							onTabChange={onTabChange}
-						/>
-						<div
-							aria-labelledby={`counter-tab-${activeTab}`}
-							id="counter-panel"
-							role="tabpanel"
-						>
-							{panel}
-						</div>
-					</>
-				) : (
-					panel
-				)}
-			</div>
+			{canSeeDayClose ? (
+				<Tabs
+					className="grid gap-6"
+					onValueChange={(value: CounterTab) => onTabChange(value)}
+					value={activeTab}
+				>
+					<CounterTabs
+						actions={
+							isSummary ? (
+								<DayRow
+									date={day}
+									onDateChange={onDateChange}
+									storeId={selectedStoreId}
+									today={today}
+								/>
+							) : null
+						}
+					/>
+					<TabsContent value={activeTab}>{panel}</TabsContent>
+				</Tabs>
+			) : (
+				<div className="grid gap-6">{panel}</div>
+			)}
 		</>
 	);
 };

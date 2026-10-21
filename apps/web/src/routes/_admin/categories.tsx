@@ -1,15 +1,16 @@
-import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback } from "react";
+import { ActiveBadge } from "@/components/active-badge";
 import { DataTable } from "@/components/data-table";
 import type {
 	DataTableColumnDef,
 	DataTableRow,
 } from "@/components/data-table-features";
+import { EditRowButton } from "@/components/edit-row-button";
 import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	type Category,
@@ -28,6 +29,9 @@ export const Route = createFileRoute("/_admin/categories")({
 	loader: ({ context }) =>
 		context.queryClient.ensureQueryData(categoriesQueries.list()),
 	component: CategoriesPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: CategoriesPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 const CategoriesActions = ({ row }: { row: DataTableRow<Category> }) => {
@@ -51,7 +55,7 @@ const CategoriesActions = ({ row }: { row: DataTableRow<Category> }) => {
 
 	const handleOpenEditSheet = (category: Category) => {
 		openSheet({
-			title: "Edit Category",
+			title: "Edit category",
 			description: `Editing ID ${category.id}`,
 			content: () => (
 				<CategoryForm
@@ -74,55 +78,45 @@ const CategoriesActions = ({ row }: { row: DataTableRow<Category> }) => {
 		});
 	};
 
-	return (
-		<Button
-			variant="outline"
-			size="icon-sm"
-			aria-label="Edit"
-			title="Edit"
-			onClick={() => handleOpenEditSheet(row.original)}
-			icon={<PencilSimpleLineIcon className="size-4" />}
-		/>
-	);
+	return <EditRowButton onClick={() => handleOpenEditSheet(row.original)} />;
 };
 
 const columns: DataTableColumnDef<Category>[] = [
 	{
 		accessorKey: "name",
 		header: "Category",
-		meta: { kind: "name" },
+		meta: { kind: "name", width: { percent: 24, minRem: 7 } },
 	},
 	{
 		accessorKey: "description",
 		header: "Description",
 		meta: {
 			kind: "text",
+			width: { percent: 52, minRem: 10 },
 			mobileCard: {
 				slot: "subtitle",
 				className: "line-clamp-2",
 				omitWhenEmpty: true,
 			},
 		},
-		cell: ({ row }) => (
-			<span className="text-muted-foreground">
-				{row.original.description ?? "—"}
-			</span>
-		),
+		cell: ({ row }) => row.original.description ?? "—",
 	},
 	{
 		id: "status",
 		header: "Status",
-		meta: { mobileCard: { slot: "badges" } },
-		cell: ({ row }) => (
-			<Badge variant={row.original.is_active ? "success" : "danger"}>
-				{row.original.is_active ? "Active" : "Inactive"}
-			</Badge>
-		),
+		meta: {
+			width: { percent: 12, minRem: 4.5 },
+			mobileCard: { slot: "status" },
+		},
+		cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 	},
 	{
 		id: "actions",
 		header: "Actions",
-		meta: { mobileCard: { slot: "title-end" } },
+		meta: {
+			width: { percent: 12, minRem: 4.5 },
+			mobileCard: { slot: "title-end" },
+		},
 		cell: ({ row }) => <CategoriesActions row={row} />,
 	},
 ];
@@ -132,7 +126,6 @@ function CategoriesPage() {
 	const { openSheet, closeSheet } = useSheet();
 
 	const { data = [], isPending } = useQuery(categoriesQueries.list());
-	const categoryCount = data.length;
 
 	const createMutation = useMutation({
 		mutationKey: ["create-category"],
@@ -145,7 +138,7 @@ function CategoriesPage() {
 
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
-			title: "Add Category",
+			title: "Add category",
 			description: "Create a new category",
 			content: () => (
 				<CategoryForm
@@ -163,26 +156,27 @@ function CategoriesPage() {
 		<>
 			<PageHeader
 				title="Categories"
+				count={isPending ? undefined : data.length}
+				countNoun="category"
+				countNounPlural="categories"
 				actions={
-					<>
-						<Badge
-							variant={isPending ? "secondary" : "outline"}
-						>{`${categoryCount} items`}</Badge>
-						<Button
-							onClick={handleOpenCreateSheet}
-							icon={<PlusIcon className="size-4" />}
-						>
-							Add Category
-						</Button>
-					</>
+					<Button
+						onClick={handleOpenCreateSheet}
+						icon={<PlusIcon className="size-4" />}
+					>
+						Add category
+					</Button>
 				}
 			/>
 			<ListPanel>
 				<DataTable
 					columns={columns}
 					data={data}
+					isCardGrouped
+					skeletonCardClassName="h-24"
 					isLoading={isPending}
 					sortable
+					emptyMessage="No categories."
 				/>
 			</ListPanel>
 		</>

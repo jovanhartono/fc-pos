@@ -1,13 +1,20 @@
 import { CaretRightIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
+import { TextSkeleton } from "@/components/text-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import type { OrderDetail, OrderRefundReason } from "@/features/orders/api";
-import { ItemPhotoStrip } from "@/features/orders/components/item-photo-strip";
+import {
+	ItemPhotoStrip,
+	ItemPhotoStripSkeleton,
+} from "@/features/orders/components/item-photo-strip";
 import { OrderReasonCallout } from "@/features/orders/components/order-reason-callout";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
-import { OrderServiceRow } from "@/features/orders/components/order-service-row";
+import {
+	OrderServiceRow,
+	OrderServiceRowSkeleton,
+} from "@/features/orders/components/order-service-row";
 import type { OrderItem } from "@/features/orders/lib/order-lines";
 import { getItemTotalRow } from "@/features/orders/lib/order-sheet";
 import { groupReworksUnderOriginals } from "@/features/orders/lib/rework-nesting";
@@ -16,6 +23,12 @@ import { formatCancelReason, formatRefundReason } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
 
 type OrderDetailProduct = OrderDetail["products"][number];
+
+const ITEM_NAME =
+	"text-pretty font-medium text-headline leading-5 compact:text-body";
+const ITEM_CODE =
+	"break-all text-foreground text-subhead leading-snug tabular-nums";
+const SERVICE_LIST = "mx-4 mb-1 divide-y border-t";
 
 interface RefundInfo {
 	reason: OrderRefundReason;
@@ -29,7 +42,7 @@ const ProductLine = ({
 	product: OrderDetailProduct;
 	refund?: RefundInfo;
 }) => (
-	<div className="border-t px-4 py-3 text-sm">
+	<div className="px-4 py-3 text-body compact:text-subhead">
 		<div className="flex items-start justify-between gap-4">
 			<div className="min-w-0">
 				<div className="flex flex-wrap items-center gap-1.5">
@@ -43,11 +56,11 @@ const ProductLine = ({
 						<Badge variant="danger">Cancelled</Badge>
 					) : null}
 				</div>
-				<p className="text-muted-foreground text-xs tabular-nums">
+				<p className="text-foreground text-subhead tabular-nums">
 					{formatMoney(product.price)} × {product.qty}
 				</p>
 			</div>
-			<p className="shrink-0 text-sm tabular-nums">
+			<p className="shrink-0 text-body tabular-nums compact:text-subhead">
 				{formatMoney(product.subtotal)}
 			</p>
 		</div>
@@ -80,7 +93,7 @@ interface ComplaintLinkRowProps {
 // has started.
 const ComplaintLinkRow = ({ complaint }: ComplaintLinkRowProps) => (
 	<Link
-		className="group flex items-center gap-1.5 py-2 pr-1 pl-3 text-xs hover:bg-muted/40"
+		className="group -mx-2 flex items-center gap-1.5 rounded-md px-2 py-2 text-subhead hover:bg-muted/40"
 		params={{ complaintId: String(complaint.id) }}
 		to="/complaints/$complaintId"
 	>
@@ -118,32 +131,24 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 			<header className="min-w-0 px-4 py-3">
 				{descriptors ? (
 					<>
-						<h3 className="text-pretty font-semibold text-[15px] leading-5">
-							{descriptors}
-						</h3>
-						<p className="break-all font-mono text-muted-foreground text-xs leading-snug">
-							{item.item_code}
-						</p>
+						<h3 className={ITEM_NAME}>{descriptors}</h3>
+						<p className={ITEM_CODE}>{item.item_code}</p>
 					</>
 				) : (
-					<h3 className="break-all font-mono text-[15px] font-semibold leading-5">
+					<h3 className="break-all font-medium text-headline leading-5 tabular-nums compact:text-body">
 						{item.item_code}
 					</h3>
 				)}
 			</header>
 			<ItemPhotoStrip isAdmin={isAdmin} item={item} orderId={orderId} />
-			<ul className="mx-4 mb-3 divide-y border-l-2 border-border">
+			<ul className={SERVICE_LIST}>
 				{groupReworksUnderOriginals(
 					item.services,
 					(service) => service.reworkOf?.orderService.id ?? null,
 				).map(({ original, originalId, reworks }) => (
 					<li key={originalId}>
 						{original ? (
-							<OrderServiceRow
-								itemCode={item.item_code}
-								orderId={orderId}
-								service={original}
-							/>
+							<OrderServiceRow orderId={orderId} service={original} />
 						) : null}
 						{original?.complaints.map((complaint) => (
 							<ComplaintLinkRow complaint={complaint} key={complaint.id} />
@@ -153,7 +158,6 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 								{reworks.map((rework, index) => (
 									<li key={rework.id}>
 										<OrderServiceRow
-											itemCode={item.item_code}
 											orderId={orderId}
 											reworkRound={original ? index + 1 : undefined}
 											service={rework}
@@ -166,9 +170,9 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 				))}
 			</ul>
 			{totalRow ? (
-				<footer className="mx-4 mb-3 flex items-center justify-between gap-3 border-t pt-2.5 text-sm">
+				<footer className="mx-4 mb-3 flex items-center justify-between gap-3 border-t pt-2.5 text-body compact:text-subhead">
 					<span className="text-muted-foreground">Item total</span>
-					<span className="font-semibold tabular-nums">
+					<span className="font-medium tabular-nums">
 						{totalRow.amount === null ? "—" : formatMoney(totalRow.amount)}
 					</span>
 				</footer>
@@ -176,6 +180,29 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 		</Card>
 	);
 };
+
+// One Item with one treatment, what most Orders at the counter carry.
+export const OrderItemsSkeleton = () => (
+	<section className="grid gap-3">
+		<OrderSectionHeader>Items</OrderSectionHeader>
+		<Card className="gap-0 py-0">
+			<header className="min-w-0 px-4 py-3">
+				<h3 className={ITEM_NAME}>
+					<TextSkeleton className="w-48" />
+				</h3>
+				<p className={ITEM_CODE}>
+					<TextSkeleton className="w-28" />
+				</p>
+			</header>
+			<ItemPhotoStripSkeleton />
+			<ul className={SERVICE_LIST}>
+				<li>
+					<OrderServiceRowSkeleton />
+				</li>
+			</ul>
+		</Card>
+	</section>
+);
 
 interface OrderLineItemsCardProps {
 	orderId: number;
@@ -211,9 +238,7 @@ export const OrderLineItemsCard = ({
 			    section says nothing the Products card below does not. */}
 			{items.length > 0 ? (
 				<section className="grid gap-3">
-					<h2 className="text-foreground text-sm font-semibold">
-						Items · {items.length}
-					</h2>
+					<OrderSectionHeader>Items · {items.length}</OrderSectionHeader>
 					{items.map((item) => (
 						<ItemBlock
 							isAdmin={isAdmin}
@@ -226,16 +251,18 @@ export const OrderLineItemsCard = ({
 			) : null}
 
 			{products.length > 0 ? (
-				<Card className="gap-0 overflow-hidden py-0">
+				<section className="grid gap-3">
 					<OrderSectionHeader>Products</OrderSectionHeader>
-					{products.map((item) => (
-						<ProductLine
-							key={item.id}
-							product={item}
-							refund={refundByProductId.get(item.id)}
-						/>
-					))}
-				</Card>
+					<Card className="gap-0 divide-y overflow-hidden py-0">
+						{products.map((item) => (
+							<ProductLine
+								key={item.id}
+								product={item}
+								refund={refundByProductId.get(item.id)}
+							/>
+						))}
+					</Card>
+				</section>
 			) : null}
 		</div>
 	);

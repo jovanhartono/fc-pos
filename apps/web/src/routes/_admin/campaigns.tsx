@@ -1,7 +1,6 @@
 import {
 	ArchiveIcon,
 	ArrowCounterClockwiseIcon,
-	PencilSimpleLineIcon,
 	PlusIcon,
 	TicketIcon,
 } from "@phosphor-icons/react";
@@ -11,11 +10,12 @@ import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
-import { SelectField } from "@/components/form/select-field";
+import { EditRowButton } from "@/components/edit-row-button";
 import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
 	type Campaign,
 	campaignsKeys,
@@ -49,6 +49,13 @@ const campaignsSearchSchema = z.object({
 
 type CampaignStatus = (typeof CAMPAIGN_STATUS_OPTIONS)[number];
 
+const STATUS_TABS: { value: CampaignStatus; label: string }[] = [
+	{ value: "all", label: "All" },
+	{ value: "active", label: "Active" },
+	{ value: "expired", label: "Expired" },
+	{ value: "archived", label: "Archived" },
+];
+
 function deriveCampaignState(
 	campaign: Campaign,
 ): Exclude<CampaignStatus, "all"> {
@@ -69,6 +76,9 @@ export const Route = createFileRoute("/_admin/campaigns")({
 			context.queryClient.ensureQueryData(storesQueries.list()),
 		]),
 	component: CampaignsPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: CampaignsPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 const defaultCampaignForm: CampaignFormInput = {
@@ -241,7 +251,7 @@ function CampaignsPage() {
 
 	const handleOpenCreateSheet = () => {
 		openSheet({
-			title: "Add Campaign",
+			title: "Add campaign",
 			content: () => (
 				<CampaignForm
 					defaultValues={defaultCampaignForm}
@@ -259,7 +269,7 @@ function CampaignsPage() {
 	const handleOpenEditSheet = useCallback(
 		(campaign: Campaign) => {
 			openSheet({
-				title: "Edit Campaign",
+				title: "Edit campaign",
 				content: () => (
 					<CampaignForm
 						defaultValues={toCampaignFormInput(campaign)}
@@ -282,7 +292,7 @@ function CampaignsPage() {
 	const handleOpenVoucherDetail = useCallback(
 		(campaign: Campaign) => {
 			openSheet({
-				title: `Voucher Codes — ${campaign.code}`,
+				title: `Voucher codes · ${campaign.code}`,
 				content: () => <VoucherCodesSheet campaignId={campaign.id} />,
 			});
 		},
@@ -294,17 +304,25 @@ function CampaignsPage() {
 			{
 				accessorKey: "code",
 				header: "Code",
-				meta: { kind: "code", mobileCard: { slot: "subtitle" } },
+				meta: {
+					kind: "code",
+					width: { percent: 14, minRem: 8.25 },
+					mobileCard: { slot: "subtitle" },
+				},
 			},
 			{
 				accessorKey: "name",
 				header: "Name",
-				meta: { kind: "name" },
+				meta: { kind: "name", width: { percent: 24, minRem: 9 } },
 			},
 			{
 				id: "discount",
 				header: "Discount",
-				meta: { align: "right", mobileCard: { slot: "badges" } },
+				meta: {
+					align: "right",
+					width: { percent: 18, minRem: 6 },
+					mobileCard: { slot: "badges" },
+				},
 				cell: ({ row }) => (
 					<CampaignDiscount
 						campaign={row.original}
@@ -315,10 +333,13 @@ function CampaignsPage() {
 			{
 				id: "stores",
 				header: "Stores",
-				meta: { mobileCard: { slot: "subtitle" } },
+				meta: {
+					width: { percent: 12, minRem: 7 },
+					mobileCard: { slot: "subtitle" },
+				},
 				cell: ({ row }) => {
 					if (row.original.stores.length === 0) {
-						return "All Stores";
+						return "All stores";
 					}
 
 					return row.original.stores
@@ -329,13 +350,19 @@ function CampaignsPage() {
 			{
 				id: "redemption",
 				header: "Redemption",
-				meta: { mobileCard: { slot: "subtitle" } },
+				meta: {
+					width: { percent: 10, minRem: 5.75 },
+					mobileCard: { slot: "subtitle" },
+				},
 				cell: ({ row }) => formatCampaignRedemption(row.original),
 			},
 			{
 				id: "status",
 				header: "Status",
-				meta: { mobileCard: { slot: "status" } },
+				meta: {
+					width: { percent: 9, minRem: 5.25 },
+					mobileCard: { slot: "status" },
+				},
 				cell: ({ row }) => {
 					const state = deriveCampaignState(row.original);
 					if (state === "expired") {
@@ -350,17 +377,15 @@ function CampaignsPage() {
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { mobileCard: { slot: "title-end" } },
+				meta: {
+					width: { percent: 13, minRem: 7.5 },
+					mobileCard: { slot: "title-end" },
+				},
 				cell: ({ row }) => (
 					<div className="flex gap-2">
-						<Button
-							variant="outline"
-							size="icon-sm"
-							aria-label="Edit"
-							title="Edit"
+						<EditRowButton
 							disabled={!isAdmin}
 							onClick={() => handleOpenEditSheet(row.original)}
-							icon={<PencilSimpleLineIcon className="size-4" />}
 						/>
 						{/* An empty slot on listed campaigns keeps Archive in the same
 						spot on every row, so a quick click never archives by mistake. */}
@@ -398,48 +423,47 @@ function CampaignsPage() {
 		<>
 			<PageHeader
 				title="Campaigns"
+				count={campaignsQuery.isPending ? undefined : campaigns.length}
+				countNoun="campaign"
 				actions={
-					<>
-						<Badge variant={campaignsQuery.isPending ? "secondary" : "outline"}>
-							{`${campaigns.length} items`}
-						</Badge>
-						<Button
-							onClick={handleOpenCreateSheet}
-							disabled={!isAdmin}
-							icon={<PlusIcon className="size-4" />}
-						>
-							Add Campaign
-						</Button>
-					</>
+					<Button
+						onClick={handleOpenCreateSheet}
+						disabled={!isAdmin}
+						icon={<PlusIcon className="size-4" />}
+					>
+						Add campaign
+					</Button>
 				}
 			/>
 			<ListPanel>
-				<div className="flex flex-wrap items-center gap-2">
-					<SelectField
-						items={{
-							all: "All status",
-							active: "Active only",
-							expired: "Expired only",
-							archived: "Archived only",
-						}}
-						value={search.status}
-						onValueChange={(value) => {
-							void navigate({
-								search: () => ({
-									status: value as CampaignStatus,
-								}),
-							});
-						}}
-						className="min-w-40 w-max"
-						placeholder="Filter status"
-					/>
-				</div>
+				<Tabs
+					value={search.status}
+					onValueChange={(status: CampaignStatus) => {
+						void navigate({ search: () => ({ status }) });
+					}}
+				>
+					<TabsList aria-label="Filter by status">
+						{STATUS_TABS.map((tab) => (
+							<TabsTrigger key={tab.value} value={tab.value}>
+								{tab.label}
+							</TabsTrigger>
+						))}
+					</TabsList>
+				</Tabs>
 				<DataTable
 					columns={columns}
 					data={campaigns}
+					filterKey={search.status}
+					isCardGrouped
+					skeletonCardClassName="h-30"
 					isLoading={campaignsQuery.isPending || storesQuery.isPending}
 					sortable
 					cardPrimaryColumnId="name"
+					emptyMessage={
+						search.status === "all"
+							? "No campaigns."
+							: `No ${search.status} campaigns.`
+					}
 				/>
 			</ListPanel>
 		</>

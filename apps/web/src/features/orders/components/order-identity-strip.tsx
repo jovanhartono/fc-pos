@@ -8,7 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { CopyValue } from "@/components/copy-value";
-import { Badge } from "@/components/ui/badge";
+import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -17,11 +17,13 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { OpenComplaintForm } from "@/features/complaints/components/open-complaint-form";
 import { useOpenComplaintMutation } from "@/features/complaints/hooks/useComplaintMutations";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import type { OrderDetail } from "@/features/orders/api";
 import { NotifiedLabel } from "@/features/orders/components/notified-label";
+import { OrderBadges } from "@/features/orders/components/order-badges";
 import { OrderCourierForm } from "@/features/orders/components/order-courier-form";
 import {
 	CancelOrderForm,
@@ -36,7 +38,6 @@ import {
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
 import { showsPickupProgress } from "@/features/orders/lib/order-sheet";
-import { getPaymentBadges } from "@/features/orders/lib/payment-badges";
 import { formatNoticeTime } from "@/features/orders/lib/pickup-notice";
 import { buildRefundCaps } from "@/features/orders/lib/refund-preview";
 import { findWorkshopRework } from "@/features/orders/lib/refund-rework";
@@ -46,8 +47,42 @@ import {
 	formatOrderServiceItemDetails,
 	getOrderServiceItemDetails,
 } from "@/lib/order-service-item-details";
-import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
+import { cn } from "@/lib/utils";
 import { useDialog } from "@/stores/dialog-store";
+
+const CODE_HEADING =
+	"break-all font-medium text-title-3 tracking-tight tabular-nums sm:text-title-2 compact:text-title-3";
+const META_LINE = "text-muted-foreground text-body compact:text-subhead";
+
+// The header while the Order loads: the code, two status pills, Print and the
+// menu in grey, so the sections under it start where they will stay.
+export const OrderIdentityStripSkeleton = () => (
+	<Card className="mb-4 sm:mb-6">
+		<CardContent className="grid gap-4">
+			<div className="grid gap-2">
+				<div className="flex items-start justify-between gap-3">
+					<div className="flex min-w-0 flex-wrap items-center gap-2">
+						<h1 className={cn(CODE_HEADING, "inline-flex items-center gap-1")}>
+							<TextSkeleton className="w-36" />
+							<span className="size-6 pointer-coarse:size-7" />
+						</h1>
+						<Skeleton className="h-5 w-16 rounded-full" />
+						<Skeleton className="h-5 w-12 rounded-full" />
+					</div>
+					<div className="flex shrink-0 items-center gap-2">
+						<Skeleton className="h-9 w-20 pointer-coarse:h-11" />
+						<Skeleton className="size-9 rounded-full pointer-coarse:size-11" />
+					</div>
+				</div>
+				{/* A phone wraps the customer, phone, Store and date onto two lines. */}
+				<p className={META_LINE}>
+					<TextSkeleton className="w-full sm:w-96" />
+					<TextSkeleton className="w-24 sm:hidden" />
+				</p>
+			</div>
+		</CardContent>
+	</Card>
+);
 
 interface OrderIdentityStripProps {
 	orderId: number;
@@ -209,7 +244,7 @@ export const OrderIdentityStrip = ({
 					closeDialog={closeDialog}
 					lines={gates.complaintableServices.map((service) => ({
 						id: service.id,
-						itemCode: service.item.item_code,
+						itemCode: toReversalItem(service.item).item_tag,
 						serviceName: service.service?.name ?? "Service",
 						details: formatOrderServiceItemDetails(service.item),
 					}))}
@@ -273,101 +308,94 @@ export const OrderIdentityStrip = ({
 	return (
 		<Card className="mb-4 sm:mb-6">
 			<CardContent className="grid gap-4">
-				<div className="flex items-start justify-between gap-3">
-					<div className="min-w-0 space-y-2">
-						<div className="flex flex-wrap items-center gap-2">
-							<h1 className="break-all font-mono font-semibold text-lg tracking-tight sm:text-xl">
+				<div className="grid gap-2">
+					<div className="flex items-start justify-between gap-3">
+						<div className="flex min-w-0 flex-wrap items-center gap-2">
+							<h1 className={CODE_HEADING}>
 								<CopyValue label="order code" value={detail.code} />
 							</h1>
-							<Badge variant={getOrderStatusBadgeVariant(detail.status)}>
-								{formatOrderStatus(detail.status)}
-							</Badge>
-							{getPaymentBadges(detail).map((badge) => (
-								<Badge key={badge.label} variant={badge.variant}>
-									{badge.label}
-								</Badge>
-							))}
+							<OrderBadges order={detail} />
 						</div>
-						<p className="text-muted-foreground text-sm">
-							<CustomerLink
-								customerId={detail.customer.id}
-								name={detail.customer.name}
-							/>
-							{` · ${meta}`}
-						</p>
-						{lastNotice ? (
-							<p className="text-sm">
-								<NotifiedLabel />
-								<span className="text-muted-foreground">
-									{` · ${formatNoticeTime(lastNotice.sent_at)} · ${lastNotice.sent_by_name}`}
-								</span>
-							</p>
-						) : null}
-					</div>
 
-					<div className="flex shrink-0 items-center gap-2">
-						{renderNotifyButton("hidden sm:inline-flex")}
-						{renderPickupButton("hidden sm:inline-flex")}
-						<Button
-							icon={<PrinterIcon className="size-4" />}
-							loading={printReceiptMutation.isPending}
-							onClick={() => printReceiptMutation.mutate()}
-							type="button"
-							variant="outline"
-						>
-							Print
-						</Button>
-						{hasMenu ? (
-							<DropdownMenu>
-								<DropdownMenuTrigger
-									render={
-										<Button
-											aria-label="More actions"
-											icon={<DotsThreeVerticalIcon className="size-4" />}
-											size="icon"
-											variant="outline"
-										/>
-									}
-								/>
-								<DropdownMenuContent align="end" className="w-40">
-									{trackingUrl ? (
-										<DropdownMenuItem onClick={handleCopyTrackingLink}>
-											<LinkSimpleIcon className="size-4" />
-											Copy tracking link
-										</DropdownMenuItem>
-									) : null}
-									{gates.canManageCourier ? (
-										<DropdownMenuItem onClick={openCourierDialog}>
-											<TruckIcon className="size-4" />
-											Set courier
-										</DropdownMenuItem>
-									) : null}
-									{gates.canOpenComplaint ? (
-										<DropdownMenuItem onClick={openComplaintDialog}>
-											<WarningCircleIcon className="size-4" />
-											Open complaint
-										</DropdownMenuItem>
-									) : null}
-									{gates.canRefundWholeOrder ? (
-										<DropdownMenuItem
-											onClick={openRefundOrderDialog}
-											variant="destructive"
-										>
-											Refund
-										</DropdownMenuItem>
-									) : null}
-									{gates.canCancelOrder ? (
-										<DropdownMenuItem
-											onClick={openCancelOrderDialog}
-											variant="destructive"
-										>
-											Cancel order
-										</DropdownMenuItem>
-									) : null}
-								</DropdownMenuContent>
-							</DropdownMenu>
-						) : null}
+						<div className="flex shrink-0 items-center gap-2">
+							{renderNotifyButton("hidden sm:inline-flex")}
+							{renderPickupButton("hidden sm:inline-flex")}
+							<Button
+								icon={<PrinterIcon className="size-4" />}
+								loading={printReceiptMutation.isPending}
+								onClick={() => printReceiptMutation.mutate()}
+								type="button"
+								variant="outline"
+							>
+								Print
+							</Button>
+							{hasMenu ? (
+								<DropdownMenu>
+									<DropdownMenuTrigger
+										render={
+											<Button
+												aria-label="More actions"
+												icon={<DotsThreeVerticalIcon className="size-4" />}
+												size="icon"
+												variant="outline"
+											/>
+										}
+									/>
+									<DropdownMenuContent align="end" className="w-40">
+										{trackingUrl ? (
+											<DropdownMenuItem onClick={handleCopyTrackingLink}>
+												<LinkSimpleIcon className="size-4" />
+												Copy tracking link
+											</DropdownMenuItem>
+										) : null}
+										{gates.canManageCourier ? (
+											<DropdownMenuItem onClick={openCourierDialog}>
+												<TruckIcon className="size-4" />
+												Set courier
+											</DropdownMenuItem>
+										) : null}
+										{gates.canOpenComplaint ? (
+											<DropdownMenuItem onClick={openComplaintDialog}>
+												<WarningCircleIcon className="size-4" />
+												Open complaint
+											</DropdownMenuItem>
+										) : null}
+										{gates.canRefundWholeOrder ? (
+											<DropdownMenuItem
+												onClick={openRefundOrderDialog}
+												variant="destructive"
+											>
+												Refund
+											</DropdownMenuItem>
+										) : null}
+										{gates.canCancelOrder ? (
+											<DropdownMenuItem
+												onClick={openCancelOrderDialog}
+												variant="destructive"
+											>
+												Cancel order
+											</DropdownMenuItem>
+										) : null}
+									</DropdownMenuContent>
+								</DropdownMenu>
+							) : null}
+						</div>
 					</div>
+					<p className={META_LINE}>
+						<CustomerLink
+							customerId={detail.customer.id}
+							name={detail.customer.name}
+						/>
+						{` · ${meta}`}
+					</p>
+					{lastNotice ? (
+						<p className="text-body compact:text-subhead">
+							<NotifiedLabel />
+							<span className="text-muted-foreground">
+								{` · ${formatNoticeTime(lastNotice.sent_at)} · ${lastNotice.sent_by_name}`}
+							</span>
+						</p>
+					) : null}
 				</div>
 
 				{canNotify || collectableCount > 0 ? (
@@ -379,13 +407,9 @@ export const OrderIdentityStrip = ({
 
 				{showsPickupProgress(detail.items) ? (
 					<div className="grid gap-1.5">
-						<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+						<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body compact:text-subhead">
 							<span className="tabular-nums">
-								Items picked up:{" "}
-								<span className="font-medium">
-									{fulfillment.picked_up_count}
-								</span>{" "}
-								of {totalCount}
+								Picked up {fulfillment.picked_up_count}/{totalCount}
 							</span>
 							{fulfillment.remaining_count > 0 ? (
 								<span className="text-muted-foreground tabular-nums">
@@ -393,15 +417,18 @@ export const OrderIdentityStrip = ({
 								</span>
 							) : null}
 						</div>
-						<div className="h-1.5 w-full max-w-md overflow-hidden bg-muted">
+						<div className="h-1.5 w-full max-w-md overflow-hidden rounded-full bg-soft-bar-track">
 							<div
-								className="h-full bg-primary transition-[width] duration-300"
+								className={cn(
+									"h-full rounded-full transition-[width] duration-300",
+									progressWidth === 100 ? "bg-success" : "bg-primary",
+								)}
 								style={{ width: `${progressWidth}%` }}
 							/>
 						</div>
 						{collectableCount > 0 && !gates.canOpenPickup ? (
 							<p
-								className="text-muted-foreground text-xs leading-relaxed"
+								className="text-muted-foreground text-footnote leading-relaxed"
 								id="pickup-disabled-reason"
 							>
 								{gates.pickupDisabledReason ?? "Pickup unavailable."}
@@ -411,9 +438,13 @@ export const OrderIdentityStrip = ({
 				) : null}
 
 				{detail.notes?.trim() ? (
-					<div className="border bg-muted/30 p-3">
-						<p className="text-muted-foreground text-xs font-medium">Notes</p>
-						<p className="mt-1 text-sm leading-relaxed">{detail.notes}</p>
+					<div className="rounded-md border bg-muted/30 p-3">
+						<p className="text-muted-foreground text-footnote font-medium">
+							Notes
+						</p>
+						<p className="mt-1 text-body leading-relaxed compact:text-subhead">
+							{detail.notes}
+						</p>
 					</div>
 				) : null}
 			</CardContent>

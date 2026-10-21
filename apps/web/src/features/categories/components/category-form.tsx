@@ -1,20 +1,16 @@
 import { POSTCategorySchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PlusIcon } from "@phosphor-icons/react";
 import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
-import { Button } from "@/components/ui/button";
+import { SheetFormActions } from "@/components/form/sheet-form-actions";
+import { SwitchList, SwitchRow } from "@/components/form/switch-list";
 import {
 	Field,
-	FieldContent,
-	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
-	FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
 export type CategoryFormState = z.infer<typeof POSTCategorySchema>;
@@ -75,7 +71,7 @@ export function CategoryForm({
 					name="description"
 					control={form.control}
 					render={({ field, fieldState }) => (
-						<Field data-invalid={fieldState.invalid} className="md:col-span-2">
+						<Field data-invalid={fieldState.invalid}>
 							<FieldLabel htmlFor="category-description">
 								Description
 							</FieldLabel>
@@ -92,72 +88,42 @@ export function CategoryForm({
 					)}
 				/>
 
-				<Controller
-					name="is_active"
-					control={form.control}
-					render={({ field }) => (
-						<FieldLabel htmlFor="category-active">
-							<Field orientation="horizontal">
-								<FieldContent>
-									<FieldTitle>Category Status</FieldTitle>
-									<FieldDescription>
-										Active category will be shown in the app.
-									</FieldDescription>
-								</FieldContent>
-								<Switch
-									id="category-active"
-									checked={field.value}
-									onCheckedChange={(checked) => field.onChange(!!checked)}
-									disabled={isSubmitting}
-								/>
-							</Field>
-						</FieldLabel>
-					)}
-				/>
+				<SwitchList>
+					<Controller
+						name="is_active"
+						control={form.control}
+						render={({ field }) => (
+							<SwitchRow
+								checked={field.value}
+								disabled={isSubmitting}
+								id="category-active"
+								onCheckedChange={field.onChange}
+								title="Active"
+							/>
+						)}
+					/>
+					<Controller
+						name="starts_after_cleaning"
+						control={form.control}
+						render={({ field }) => (
+							<SwitchRow
+								checked={!!field.value}
+								description="Work waits until the Item is cleaned, like Repaint. The Counter adds its days on top of the clean."
+								disabled={isSubmitting}
+								id="category-starts-after-cleaning"
+								onCheckedChange={field.onChange}
+								title="Starts after cleaning"
+							/>
+						)}
+					/>
+				</SwitchList>
 
-				<Controller
-					name="starts_after_cleaning"
-					control={form.control}
-					render={({ field }) => (
-						<FieldLabel htmlFor="category-starts-after-cleaning">
-							<Field orientation="horizontal">
-								<FieldContent>
-									<FieldTitle>Starts after cleaning</FieldTitle>
-									<FieldDescription>
-										Work waits until the Item is cleaned, like Repaint. The
-										Counter adds its days on top of the clean.
-									</FieldDescription>
-								</FieldContent>
-								<Switch
-									id="category-starts-after-cleaning"
-									checked={field.value}
-									onCheckedChange={(checked) => field.onChange(!!checked)}
-									disabled={isSubmitting}
-								/>
-							</Field>
-						</FieldLabel>
-					)}
+				<SheetFormActions
+					addLabel="Add category"
+					isEditing={isEditing}
+					isSubmitting={isSubmitting}
+					onCancel={onReset}
 				/>
-
-				<div className="flex flex-wrap gap-2 md:col-span-2 md:justify-end">
-					{isEditing ? (
-						<Button
-							type="button"
-							variant="outline"
-							onClick={onReset}
-							disabled={isSubmitting}
-						>
-							Cancel edit
-						</Button>
-					) : null}
-					<Button
-						type="submit"
-						loading={isSubmitting}
-						icon={<PlusIcon className="size-4" />}
-					>
-						{isEditing ? "Update Category" : "Create Category"}
-					</Button>
-				</div>
 			</FieldGroup>
 		</form>
 	);

@@ -7,7 +7,7 @@ interface NotifiedLabelProps {
 export const NotifiedLabel = ({ className }: NotifiedLabelProps) => (
 	<span
 		className={cn(
-			"whitespace-nowrap text-emerald-700 text-xs dark:text-emerald-400",
+			"whitespace-nowrap text-tone-good-foreground text-footnote",
 			className,
 		)}
 	>

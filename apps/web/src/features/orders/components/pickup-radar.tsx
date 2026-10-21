@@ -1,13 +1,14 @@
-import { ArrowRightIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { Badge } from "@/components/ui/badge";
+import { MoneyValue } from "@/components/money-value";
+import { Skeleton } from "@/components/ui/skeleton";
 import { type Order, ordersQueries } from "@/features/orders/api";
-import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
-import { formatMoney } from "@/shared/money";
-import { useSheet } from "@/stores/sheet-store";
+import { OrderListRow } from "@/features/orders/components/order-list-row";
+import { useOpenNestedOrder } from "@/features/orders/hooks/useOpenNestedOrder";
+import { CONTENT_FADE } from "@/lib/content-fade";
+import { cn } from "@/lib/utils";
 
 const RADAR_LIMIT = 50;
+const SKELETON_ROW_COUNT = 8;
 
 interface PickupRadarProps {
 	enabled: boolean;
@@ -26,83 +27,67 @@ export const PickupRadar = ({ enabled, storeId }: PickupRadarProps) => {
 		enabled,
 	});
 	const readyOrders = readyQuery.data?.items ?? [];
+	const openOrder = useOpenNestedOrder();
+
+	// Rows shaped like the ready Orders, not "No pickups", while the rack loads.
+	if (readyQuery.isPending && enabled) {
+		return (
+			<ul
+				aria-hidden
+				className="divide-y divide-border overflow-hidden rounded-lg border bg-card"
+			>
+				{Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
+					<li key={index} className="grid gap-0.5 px-4 py-3">
+						<Skeleton className="my-0.5 h-4 w-2/3" />
+						<Skeleton className="my-0.5 h-3 w-1/3" />
+					</li>
+				))}
+			</ul>
+		);
+	}
 
 	if (readyOrders.length === 0) {
 		return (
-			<p className="py-12 text-center text-sm text-muted-foreground">
+			<p
+				className={cn(
+					"py-12 text-center text-body text-muted-foreground",
+					CONTENT_FADE,
+				)}
+			>
 				No pickups right now.
 			</p>
 		);
 	}
 
 	return (
-		<div className="grid gap-6">
-			<RadarSection
-				label="Ready"
-				count={readyOrders.length}
-				orders={readyOrders}
-			/>
-		</div>
+		<ul
+			className={cn(
+				"divide-y divide-border overflow-hidden rounded-lg border bg-card",
+				CONTENT_FADE,
+			)}
+		>
+			{readyOrders.map((order) => (
+				<li key={order.id}>
+					<RadarRow onOpen={openOrder} order={order} />
+				</li>
+			))}
+		</ul>
 	);
 };
 
-function RadarSection({
-	count,
-	label,
-	orders,
-}: {
-	count: number;
-	label: string;
-	orders: Order[];
-}) {
-	return (
-		<div className="grid gap-2">
-			<div className="flex items-center gap-2 border-b border-border pb-2">
-				<p className="text-[13px] font-medium text-muted-foreground">{label}</p>
-				<span className="inline-flex h-4 min-w-4 items-center justify-center bg-foreground px-1 text-[10px] font-semibold tabular-nums text-background">
-					{count}
-				</span>
-			</div>
-			<div className="grid gap-1">
-				{orders.map((order) => (
-					<RadarRow key={order.id} order={order} />
-				))}
-			</div>
-		</div>
-	);
+interface RadarRowProps {
+	order: Order;
+	onOpen: ReturnType<typeof useOpenNestedOrder>;
 }
 
-function RadarRow({ order }: { order: Order }) {
-	const closeSheet = useSheet((s) => s.closeSheet);
-
-	return (
-		<Link
-			to="/orders/$orderId"
-			params={{ orderId: String(order.id) }}
-			onClick={closeSheet}
-			className="group grid grid-cols-[1fr_auto] items-center gap-3 border border-transparent px-2 py-2.5 transition-colors hover:border-border hover:bg-muted/50"
-		>
-			<div className="grid gap-1 overflow-hidden">
-				<div className="flex items-center gap-2">
-					<p className="truncate font-mono text-sm font-medium text-foreground">
-						{order.code}
-					</p>
-					<Badge variant={getOrderStatusBadgeVariant(order.status)}>
-						{formatOrderStatus(order.status)}
-					</Badge>
-				</div>
-				<div className="flex items-center gap-3 text-xs text-muted-foreground">
-					<span>{order.customer_name}</span>
-					<span className="text-border">/</span>
-					<span>{order.store_name}</span>
-				</div>
-			</div>
-			<div className="flex items-center gap-3">
-				<p className="text-xs text-muted-foreground tabular-nums">
-					{formatMoney(order.total)}
-				</p>
-				<ArrowRightIcon className="size-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
-			</div>
-		</Link>
-	);
-}
+const RadarRow = ({ order, onOpen }: RadarRowProps) => (
+	<OrderListRow
+		className="rounded-none"
+		details={[order.code, order.store_name]}
+		end={<MoneyValue className="text-body" value={order.total} />}
+		onClick={(event) => onOpen(event, order.id, order.code)}
+		params={{ orderId: String(order.id) }}
+		title={order.customer_name}
+		to="/orders/$orderId"
+	/>
+);

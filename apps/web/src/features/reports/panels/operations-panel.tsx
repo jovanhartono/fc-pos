@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
 import { ExportButton } from "@/features/reports/components/export-button";
@@ -15,6 +15,8 @@ import {
 	ORDERS_OUT_COLOR,
 } from "@/features/reports/utils/palette";
 import { longDuration } from "@/features/reports/utils/turnaround";
+import { staleFade } from "@/lib/content-fade";
+import { cn } from "@/lib/utils";
 
 interface OperationsPanelProps {
 	from: string;
@@ -29,12 +31,14 @@ export const OperationsPanel = ({
 	storeId,
 	granularity,
 }: OperationsPanelProps) => {
-	const query = useQuery(
-		reportsQueries.ordersFlow({ from, to, store_id: storeId, granularity }),
-	);
-	const turnaroundQuery = useQuery(
-		reportsQueries.turnaround({ from, to, store_id: storeId, granularity }),
-	);
+	const query = useQuery({
+		...reportsQueries.ordersFlow({ from, to, store_id: storeId, granularity }),
+		placeholderData: keepPreviousData,
+	});
+	const turnaroundQuery = useQuery({
+		...reportsQueries.turnaround({ from, to, store_id: storeId, granularity }),
+		placeholderData: keepPreviousData,
+	});
 	const turnaround = turnaroundQuery.data;
 	const data = query.data;
 	const summary = data?.summary.current;
@@ -68,37 +72,40 @@ export const OperationsPanel = ({
 	};
 
 	return (
-		<div className="grid gap-6">
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-				<KpiRow>
-					<KpiCard
-						label="Orders in"
-						swatch={ORDERS_IN_COLOR}
-						value={numberFormatter.format(summary?.orders_in_total ?? 0)}
-						delta={deltas?.orders_in_total}
-						helper="Dropped off in range"
-					/>
-					<KpiCard
-						label="Orders out"
-						swatch={ORDERS_OUT_COLOR}
-						value={numberFormatter.format(summary?.orders_out_total ?? 0)}
-						delta={deltas?.orders_out_total}
-						helper="Picked up in range"
-					/>
-					<KpiCard
-						label="Net flow"
-						value={numberFormatter.format(summary?.net_flow ?? 0)}
-						delta={deltas?.net_flow}
-						helper="Positive = backlog growing"
-					/>
-					<KpiCard
-						label="Ready within"
-						value={readyWithin === null ? "–" : longDuration(readyWithin)}
-						helper="p75, drop-off to ready"
-					/>
-				</KpiRow>
-				<ExportButton disabled={!data} onClick={handleExport} />
-			</div>
+		<div
+			className={cn(
+				"grid gap-6",
+				staleFade(query.isPlaceholderData || turnaroundQuery.isPlaceholderData),
+			)}
+		>
+			<ExportButton disabled={!data} onClick={handleExport} />
+			<KpiRow isPending={!data}>
+				<KpiCard
+					label="Orders in"
+					swatch={ORDERS_IN_COLOR}
+					value={numberFormatter.format(summary?.orders_in_total ?? 0)}
+					delta={deltas?.orders_in_total ?? null}
+					helper="Dropped off in range"
+				/>
+				<KpiCard
+					label="Orders out"
+					swatch={ORDERS_OUT_COLOR}
+					value={numberFormatter.format(summary?.orders_out_total ?? 0)}
+					delta={deltas?.orders_out_total ?? null}
+					helper="Picked up in range"
+				/>
+				<KpiCard
+					label="Net flow"
+					value={numberFormatter.format(summary?.net_flow ?? 0)}
+					delta={deltas?.net_flow ?? null}
+					helper="Positive = backlog growing"
+				/>
+				<KpiCard
+					label="Ready within"
+					value={readyWithin === null ? "–" : longDuration(readyWithin)}
+					helper="p75, drop-off to ready"
+				/>
+			</KpiRow>
 
 			<ChartCard
 				variant="bar"
@@ -115,12 +122,10 @@ export const OperationsPanel = ({
 
 			{turnaround !== undefined && <TurnaroundSection report={turnaround} />}
 			{turnaroundQuery.status === "error" && (
-				<p className="text-muted-foreground text-sm">
+				<p className="text-muted-foreground text-body">
 					Could not load Turnaround.
 				</p>
 			)}
 		</div>
 	);
 };
-
-export default OperationsPanel;

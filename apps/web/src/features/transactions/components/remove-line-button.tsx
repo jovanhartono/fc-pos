@@ -13,11 +13,11 @@ interface RemoveLineButtonProps {
 export const RemoveLineButton = ({ label, onClick }: RemoveLineButtonProps) => (
 	<Button
 		aria-label={label}
-		className="relative size-7 shrink-0 border-destructive/50 bg-destructive/10 text-destructive before:absolute before:-inset-2 before:content-[''] hover:border-destructive hover:bg-destructive/20 hover:text-destructive"
+		className="relative size-7 shrink-0 before:absolute before:-inset-2 before:content-['']"
 		icon={<XIcon className="size-3.5" />}
 		onClick={onClick}
 		size="icon-xs"
 		type="button"
-		variant="outline"
+		variant="destructive"
 	/>
 );

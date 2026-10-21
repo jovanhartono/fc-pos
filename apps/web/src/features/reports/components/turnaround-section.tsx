@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Section } from "@/components/section";
 import type { TurnaroundReport } from "@/features/reports/api";
 import { TurnaroundBreakdown } from "@/features/reports/components/turnaround-breakdown";
 import { TurnaroundDotChart } from "@/features/reports/components/turnaround-dot-chart";
@@ -27,31 +28,18 @@ export const TurnaroundSection = ({ report }: TurnaroundSectionProps) => {
 			: indexed.filter(({ item }) => item.categories.includes(rowName));
 	}, [report.items, report.rows, rowName]);
 	if (!all || all.items === 0) {
-		return (
-			<section className="grid gap-2.5">
-				<h2 className="font-semibold text-[15px]">Turnaround</h2>
-				<p className="text-muted-foreground text-sm">
-					No Items ready in this range.
-				</p>
-			</section>
-		);
+		return <Section empty="No Items ready in this range." title="Turnaround" />;
 	}
 
 	return (
-		<section className="grid min-w-0 gap-2.5">
-			<h2 className="font-semibold text-[15px]">
-				Turnaround{" "}
-				<span className="font-normal text-muted-foreground">
-					· {all.items} Items ready
-				</span>
-			</h2>
-			<p className="-mt-1 text-[13px] text-muted-foreground">
+		<Section count={`${all.items} Items ready`} title="Turnaround">
+			<p className="-mt-1 text-subhead text-muted-foreground">
 				Drop-off to ready for pickup.
 				{all.p90 === null
 					? ""
 					: ` p90 ${longDuration(all.p90)} means 9 in 10 Items were ready within ${longDuration(all.p90)}.`}
 			</p>
-			<div className="min-w-0 border">
+			<div className="min-w-0 overflow-hidden rounded-lg border bg-card">
 				<div className="min-w-0 px-3 pt-3 pb-1">
 					<p className="mb-1 font-medium">{row.name}</p>
 					<TurnaroundDotChart dots={dots} row={row} />
@@ -60,9 +48,9 @@ export const TurnaroundSection = ({ report }: TurnaroundSectionProps) => {
 					breakdown={row.breakdown}
 					minItems={report.min_items}
 				/>
-				<table className="w-full border-collapse tabular-nums">
+				<table className="w-full border-collapse text-subhead tabular-nums">
 					<thead>
-						<tr className="bg-muted text-muted-foreground text-xs">
+						<tr className="border-t text-muted-foreground">
 							<th
 								className="px-2 py-2 text-left font-medium sm:px-3"
 								scope="col"
@@ -95,7 +83,7 @@ export const TurnaroundSection = ({ report }: TurnaroundSectionProps) => {
 							<tr
 								className={cn(
 									"relative border-t hover:bg-muted",
-									r.name === row.name && "bg-sky-50 hover:bg-sky-50",
+									r.name === row.name && "bg-info/10 hover:bg-info/10",
 								)}
 								key={r.name}
 							>
@@ -140,6 +128,6 @@ export const TurnaroundSection = ({ report }: TurnaroundSectionProps) => {
 					</tbody>
 				</table>
 			</div>
-		</section>
+		</Section>
 	);
 };

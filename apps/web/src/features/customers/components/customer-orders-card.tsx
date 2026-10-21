@@ -1,15 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { MoneyValue } from "@/components/money-value";
+import { SectionTitle } from "@/components/section";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { describeOrderAmount } from "@/features/customers/lib/order-amount";
 import { type Order, ordersQueries } from "@/features/orders/api";
-import dayjs from "@/lib/dayjs";
+import { formatListDate } from "@/lib/dayjs";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 
 // The route loader prefetches with this same size — two copies that drift
@@ -28,12 +28,12 @@ const OrderAmountCell = ({ order }: { order: Order }) => {
 	return (
 		<div className="grid gap-0.5 text-right">
 			{amount.net === null ? (
-				<span className="text-muted-foreground text-sm">{amount.label}</span>
+				<span className="text-muted-foreground text-body">{amount.label}</span>
 			) : (
-				<MoneyValue className="text-sm" value={amount.net} />
+				<MoneyValue className="text-body" value={amount.net} />
 			)}
 			{amount.refunded ? (
-				<span className="text-[11px] text-destructive tabular-nums">
+				<span className="text-caption text-destructive tabular-nums">
 					{`refunded ${amount.refunded}`}
 				</span>
 			) : null}
@@ -46,13 +46,15 @@ export const CustomerOrdersCard = ({
 	onPageChange,
 	page,
 }: CustomerOrdersCardProps) => {
-	const ordersQuery = useQuery(
-		ordersQueries.list({
+	const ordersQuery = useQuery({
+		...ordersQueries.list({
 			customer_id: customerId,
 			limit: CUSTOMER_ORDERS_PAGE_SIZE,
 			offset: (page - 1) * CUSTOMER_ORDERS_PAGE_SIZE,
 		}),
-	);
+		// The last page stays up, faded, until the next one lands.
+		placeholderData: keepPreviousData,
+	});
 	const orders = ordersQuery.data?.items ?? [];
 
 	const columns = useMemo<DataTableColumnDef<Order>[]>(
@@ -60,12 +62,15 @@ export const CustomerOrdersCard = ({
 			{
 				accessorKey: "code",
 				header: "Code",
-				meta: { mobileCard: { slot: "title" } },
+				meta: {
+					width: { percent: 17, minRem: 9.25 },
+					mobileCard: { slot: "title" },
+				},
 				cell: ({ row }) => (
 					<Link
 						to="/orders/$orderId"
 						params={{ orderId: String(row.original.id) }}
-						className="font-mono font-semibold"
+						className="font-medium tabular-nums"
 					>
 						{row.original.code}
 					</Link>
@@ -74,21 +79,26 @@ export const CustomerOrdersCard = ({
 			{
 				id: "date",
 				header: "Date",
-				meta: { mobileCard: { slot: "eyebrow" } },
+				meta: {
+					width: { percent: 13, minRem: 6.5 },
+					mobileCard: { slot: "eyebrow" },
+				},
 				cell: ({ row }) => (
-					<span className="text-xs tabular-nums">
-						{dayjs(row.original.created_at).format("DD MMM YYYY")}
+					<span className="whitespace-nowrap tabular-nums">
+						{formatListDate(row.original.created_at)}
 					</span>
 				),
 			},
 			{
 				id: "store",
 				header: "Store",
+				meta: { width: { percent: 26, minRem: 6.5 } },
 				cell: ({ row }) => row.original.store_name,
 			},
 			{
 				id: "items",
 				header: "Items",
+				meta: { width: { percent: 9, minRem: 3.5 } },
 				cell: ({ row }) => (
 					<span className="tabular-nums">
 						{row.original.fulfillment.total_count}
@@ -98,7 +108,10 @@ export const CustomerOrdersCard = ({
 			{
 				id: "status",
 				header: "Status",
-				meta: { mobileCard: { slot: "badges" } },
+				meta: {
+					width: { percent: 18, minRem: 8.25 },
+					mobileCard: { slot: "badges" },
+				},
 				cell: ({ row }) => (
 					<Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
 						{formatOrderStatus(row.original.status)}
@@ -108,7 +121,10 @@ export const CustomerOrdersCard = ({
 			{
 				id: "paid",
 				header: () => <span className="block text-right">Paid</span>,
-				meta: { mobileCard: { slot: "footer" } },
+				meta: {
+					width: { percent: 17, minRem: 6.5 },
+					mobileCard: { slot: "footer" },
+				},
 				cell: ({ row }) => <OrderAmountCell order={row.original} />,
 			},
 		],
@@ -116,27 +132,27 @@ export const CustomerOrdersCard = ({
 	);
 
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Orders</CardTitle>
-			</CardHeader>
-			{/* Not the table's footer: the pinned phone pager would break out of the card. */}
-			<CardContent className="grid gap-3">
-				<DataTable
-					columns={columns}
-					data={orders}
-					isLoading={ordersQuery.isPending}
-					getCardLink={(order) => ({
-						to: "/orders/$orderId",
-						params: { orderId: String(order.id) },
-					})}
-				/>
-				<TablePagination
-					meta={ordersQuery.data?.meta}
-					isLoading={ordersQuery.isPending}
-					onPageChange={onPageChange}
-				/>
-			</CardContent>
-		</Card>
+		<section className="flex min-h-0 flex-1 flex-col gap-3">
+			<SectionTitle title="Orders" />
+			<DataTable
+				columns={columns}
+				data={orders}
+				isLoading={ordersQuery.isPending}
+				isStale={ordersQuery.isPlaceholderData}
+				filterKey={String(page)}
+				skeletonLines={1}
+				getRowLink={(order) => ({
+					to: "/orders/$orderId",
+					params: { orderId: String(order.id) },
+				})}
+				footer={
+					<TablePagination
+						meta={ordersQuery.data?.meta}
+						isLoading={ordersQuery.isPending}
+						onPageChange={onPageChange}
+					/>
+				}
+			/>
+		</section>
 	);
 };

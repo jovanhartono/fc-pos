@@ -3,6 +3,7 @@ import {
 	CaretUpDownIcon,
 	CaretUpIcon,
 } from "@phosphor-icons/react";
+import { Link, type LinkProps } from "@tanstack/react-router";
 import {
 	flexRender,
 	type RowData,
@@ -10,8 +11,8 @@ import {
 } from "@tanstack/react-table";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { DataTableFeatures } from "@/components/data-table-features";
-import "@/components/data-table-meta";
-import { KeyHint } from "@/components/key-hint";
+import type { ColumnWidth } from "@/components/data-table-meta";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
 	TableBody,
@@ -20,33 +21,67 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { CONTENT_FADE, staleFade } from "@/lib/content-fade";
 import { isListKeyBlocked } from "@/lib/list-keys";
 import { cn } from "@/lib/utils";
 
 interface DataTableGridProps<TData extends RowData> {
 	table: TanstackTable<DataTableFeatures, TData>;
 	isLoading?: boolean;
+	isStale?: boolean;
+	resultSet?: string;
+	skeletonRowCount?: number;
+	skeletonLines?: 1 | 2 | "wrapped";
 	emptyMessage: string;
 	sortable: boolean;
+	getRowLink?: (row: TData) => LinkProps;
+	onRowOpen?: (row: TData) => void;
+	isInsideCard?: boolean;
 	isRowActive?: (row: TData) => boolean;
 	footer?: ReactNode;
 }
 
+// Links and buttons in a cell sit above the whole-row link, so the customer
+// name on an order row still opens the Customer.
+const RAISED_CONTROLS =
+	"[&_a:not([data-row-link])]:relative [&_button:not([data-row-link])]:relative";
+
+const SKELETON_ROW_COUNT = 10;
+
+// Spare room on a wide screen goes to every column by its share, not all to
+// the Customer. The table stops shrinking once one column is at its minimum
+// and scrolls sideways in its frame, so a 1024px screen with the sidebar open
+// never squeezes a column away.
+const tableMinWidthRem = (widths: (ColumnWidth | undefined)[]) =>
+	widths.reduce(
+		(widest, width) =>
+			width ? Math.max(widest, (width.minRem * 100) / width.percent) : widest,
+		0,
+	);
+
 export const DataTableGrid = <TData extends RowData>({
 	table,
 	isLoading,
+	isStale,
+	resultSet,
+	skeletonRowCount = SKELETON_ROW_COUNT,
+	skeletonLines = 2,
 	emptyMessage,
 	sortable,
+	getRowLink,
+	onRowOpen,
+	isInsideCard,
 	isRowActive,
 	footer,
 }: DataTableGridProps<TData>) => {
+	const isRowOpenable = getRowLink !== undefined || onRowOpen !== undefined;
 	const frameRef = useRef<HTMLDivElement>(null);
 	const bodyRef = useRef<HTMLTableSectionElement>(null);
 	const [focusedIndex, setFocusedIndex] = useState(-1);
 	const rows = table.getRowModel().rows;
 	const rowCount = rows.length;
 
-	// While a row is open beside the list, its fill is the only marker; on
+	// While a row is open in the sheet over the list, its fill is the only marker; on
 	// close the ring is waiting on it, so J carries on from the last one opened.
 	const activeIndex = isRowActive
 		? rows.findIndex((row) => isRowActive(row.original))
@@ -118,29 +153,51 @@ export const DataTableGrid = <TData extends RowData>({
 		});
 	}, [focusedIndex]);
 
+	const columnCount = table.getAllLeafColumns().length || 1;
+	const minWidthRem = tableMinWidthRem(
+		table.getAllLeafColumns().map((column) => column.columnDef.meta?.width),
+	);
+
 	return (
 		// Only the rows scroll, so paging through five pages is five clicks on
-		// Next without scrolling back down each time.
+		// Next without scrolling back down each time. The frame fills the page
+		// and the pager stays at its foot, whatever number of rows a filter returns.
 		<div
 			ref={frameRef}
-			className="flex min-h-0 flex-col border border-border bg-background"
+			className={cn(
+				"flex min-h-0 flex-1 flex-col overflow-hidden bg-card",
+				!isInsideCard && "rounded-lg border",
+			)}
 		>
-			<Table containerClassName="min-h-0 overflow-auto">
-				<TableHeader>
+			{/* Fixed columns: each column's width is set once on the column, so a
+			    new page or filter never slides the columns sideways. */}
+			<Table
+				className="table-fixed"
+				containerClassName="min-h-0 flex-1 overflow-auto"
+				style={{ minWidth: `${minWidthRem}rem` }}
+			>
+				{/* Column names over no rows read as a broken box, so an empty list
+				    hides them but keeps their row, and its message sits where the
+				    first row would. */}
+				<TableHeader
+					className={cn(!isLoading && rowCount === 0 && "invisible")}
+				>
 					{table.getHeaderGroups().map((headerGroup) => (
 						<TableRow
 							key={headerGroup.id}
-							className="border-border hover:bg-muted"
+							className="border-border hover:bg-transparent"
 						>
 							{headerGroup.headers.map((header) => {
 								const canSort = sortable && header.column.getCanSort();
 								const sortState = header.column.getIsSorted();
 								const isRight = header.column.columnDef.meta?.align === "right";
+								const width = header.column.columnDef.meta?.width;
 								return (
 									<TableHead
 										key={header.id}
+										style={width ? { width: `${width.percent}%` } : undefined}
 										className={cn(
-											"sticky top-0 z-10 h-9 bg-muted font-medium text-muted-foreground text-xs first:pl-3 last:pr-3",
+											"sticky top-0 z-10 h-9 bg-card font-medium text-muted-foreground text-subhead shadow-[inset_0_-1px_0_var(--border)] first:pl-3 last:pr-3",
 											isRight && "text-right",
 											header.column.columnDef.meta?.headerClassName,
 										)}
@@ -182,16 +239,42 @@ export const DataTableGrid = <TData extends RowData>({
 						</TableRow>
 					))}
 				</TableHeader>
-				<TableBody ref={bodyRef}>
+				<TableBody
+					key={isLoading ? "loading" : `rows:${resultSet}`}
+					ref={bodyRef}
+					className={cn(!isLoading && CONTENT_FADE, staleFade(isStale))}
+				>
 					{isLoading ? (
-						<TableRow>
-							<TableCell
-								colSpan={table.getAllLeafColumns().length || 1}
-								className="h-20 text-center text-muted-foreground text-sm md:h-24"
+						Array.from({ length: skeletonRowCount }, (_, rowIndex) => (
+							<TableRow
+								key={rowIndex}
+								aria-hidden
+								className="border-border/60 hover:bg-transparent"
 							>
-								Loading…
-							</TableCell>
-						</TableRow>
+								{Array.from({ length: columnCount }, (_, cellIndex) => (
+									<TableCell
+										key={cellIndex}
+										className="py-3 first:pl-3 last:pr-3"
+									>
+										{/* Two lines, the height of a code over its store or a name over its phone. */}
+										{skeletonLines === 2 ? (
+											<div className="grid gap-0.5">
+												<Skeleton className="my-0.5 h-3.5 w-3/4" />
+												<Skeleton className="my-0.5 h-2.5 w-1/2" />
+											</div>
+										) : skeletonLines === "wrapped" ? (
+											// An Item code wrapped over two lines of the table's text.
+											<div className="grid">
+												<Skeleton className="my-0.75 h-3 w-3/4" />
+												<Skeleton className="my-0.75 h-3 w-1/2" />
+											</div>
+										) : (
+											<Skeleton className="my-0.5 h-5 w-3/4" />
+										)}
+									</TableCell>
+								))}
+							</TableRow>
+						))
 					) : rows.length ? (
 						rows.map((row, index) => (
 							<TableRow
@@ -200,18 +283,42 @@ export const DataTableGrid = <TData extends RowData>({
 									(activeIndex < 0 && index === focusedIndex) || undefined
 								}
 								data-state={index === activeIndex ? "selected" : undefined}
-								className="scroll-mt-9 border-border/60 data-focused:bg-muted/60 data-focused:outline-2 data-focused:outline-foreground data-focused:-outline-offset-2 data-[state=selected]:[&>td:first-child]:shadow-[inset_2px_0_0_var(--foreground)]"
+								className={cn(
+									"scroll-mt-9 border-border/60 data-focused:bg-muted/60 data-focused:outline-2 data-focused:outline-primary data-focused:-outline-offset-2 data-[state=selected]:bg-primary/10",
+									isRowOpenable && "relative cursor-pointer",
+								)}
 							>
-								{row.getAllCells().map((cell) => (
+								{row.getAllCells().map((cell, cellIndex) => (
 									<TableCell
 										key={cell.id}
 										className={cn(
-											"py-3 first:pl-3 last:pr-3",
+											"wrap-break-word whitespace-normal py-3 first:pl-3 last:pr-3",
 											cell.column.columnDef.meta?.align === "right" &&
 												"text-right tabular-nums",
+											isRowOpenable && RAISED_CONTROLS,
 											cell.column.columnDef.meta?.cellClassName,
 										)}
 									>
+										{getRowLink && cellIndex === 0 ? (
+											<Link
+												{...getRowLink(row.original)}
+												aria-hidden
+												tabIndex={-1}
+												preload={false}
+												data-row-link
+												className="absolute inset-0"
+											/>
+										) : null}
+										{onRowOpen && !getRowLink && cellIndex === 0 ? (
+											<button
+												type="button"
+												aria-hidden
+												tabIndex={-1}
+												data-row-link
+												onClick={() => onRowOpen(row.original)}
+												className="absolute inset-0"
+											/>
+										) : null}
 										{flexRender(cell.column.columnDef.cell, cell.getContext())}
 									</TableCell>
 								))}
@@ -220,8 +327,8 @@ export const DataTableGrid = <TData extends RowData>({
 					) : (
 						<TableRow>
 							<TableCell
-								colSpan={table.getAllLeafColumns().length || 1}
-								className="h-20 text-center text-muted-foreground text-sm md:h-24"
+								colSpan={columnCount}
+								className="h-20 text-center text-body md:h-24"
 							>
 								{emptyMessage}
 							</TableCell>
@@ -229,18 +336,6 @@ export const DataTableGrid = <TData extends RowData>({
 					)}
 				</TableBody>
 			</Table>
-			{rowCount > 0 ? (
-				<div className="flex shrink-0 items-center gap-5 border-t bg-muted/50 px-3 py-1.5 text-muted-foreground text-xs">
-					<KeyHint keys={["J", "K"]} label="move" />
-					<KeyHint keys={["↵"]} label="open" />
-					{footer ? <KeyHint keys={["[", "]"]} label="page" /> : null}
-					<KeyHint
-						keys={["/"]}
-						label="search"
-						className="hidden items-center gap-1.5 group-has-[[data-list-search]]/list:inline-flex"
-					/>
-				</div>
-			) : null}
 			{footer ? (
 				<div className="shrink-0 border-t px-3 py-2">{footer}</div>
 			) : null}

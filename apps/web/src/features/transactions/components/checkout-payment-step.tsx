@@ -190,7 +190,7 @@ export const CheckoutPaymentStep = () => {
 							))}
 						</div>
 						{paymentBlocked ? (
-							<p className="text-muted-foreground text-xs">
+							<p className="text-muted-foreground text-footnote">
 								A line has no price yet — the order goes out unpaid and is
 								collected once every line is priced.
 							</p>
@@ -211,6 +211,7 @@ export const CheckoutPaymentStep = () => {
 								<CampaignTileGroup
 									eligibleCampaigns={eligibleCampaigns}
 									hasStore={selectedStoreNumber !== undefined}
+									isLoading={campaignsQuery.isLoading}
 									onToggle={(campaignId) =>
 										field.onChange(
 											field.value.includes(campaignId)
@@ -242,7 +243,7 @@ export const CheckoutPaymentStep = () => {
 						render={({ field, fieldState }) => (
 							<Field data-invalid={fieldState.invalid}>
 								<FieldLabel htmlFor="transaction-discount">
-									Manual Discount
+									Manual discount
 								</FieldLabel>
 								<CurrencyInput
 									id="transaction-discount"
@@ -255,21 +256,21 @@ export const CheckoutPaymentStep = () => {
 					/>
 				</>
 			) : (
-				<p className="text-muted-foreground text-sm">
+				<p className="text-muted-foreground text-body">
 					A line has no price yet — campaigns, voucher codes and manual discount
 					are entered once every item is priced.
 				</p>
 			)}
 
-			<div className="grid gap-3 border border-border/70 p-4">
-				<div className="flex items-center justify-between gap-3 text-sm">
+			<div className="grid gap-3 rounded-md border border-border/70 p-4">
+				<div className="flex items-center justify-between gap-3 text-body">
 					<div className="flex items-center gap-2">
 						<StorefrontIcon className="size-4 text-muted-foreground" />
 						<span className="text-muted-foreground">Store</span>
 					</div>
 					<span className="font-medium">{selectedStore?.name ?? "-"}</span>
 				</div>
-				<div className="flex items-center justify-between gap-3 text-sm">
+				<div className="flex items-center justify-between gap-3 text-body">
 					<div className="flex items-center gap-2">
 						<ReceiptIcon className="size-4 text-muted-foreground" />
 						<span className="text-muted-foreground">Subtotal</span>
@@ -278,7 +279,7 @@ export const CheckoutPaymentStep = () => {
 				</div>
 				{pricing.campaignBreakdown.map(({ campaign, amount }) => (
 					<div
-						className="flex items-center justify-between gap-3 text-sm"
+						className="flex items-center justify-between gap-3 text-body"
 						key={campaign.id}
 					>
 						<span className="text-muted-foreground">
@@ -289,8 +290,8 @@ export const CheckoutPaymentStep = () => {
 						</span>
 					</div>
 				))}
-				<div className="flex items-center justify-between gap-3 text-sm">
-					<span className="text-muted-foreground">Manual Discount</span>
+				<div className="flex items-center justify-between gap-3 text-body">
+					<span className="text-muted-foreground">Manual discount</span>
 					<span
 						className={cn(
 							"font-medium",
@@ -300,7 +301,7 @@ export const CheckoutPaymentStep = () => {
 						-{formatMoney(String(pricing.manualDiscount))}
 					</span>
 				</div>
-				<div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-base font-semibold">
+				<div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-headline font-semibold">
 					<span>Total Payment</span>
 					<span>{formatMoney(String(Math.round(pricing.total)))}</span>
 				</div>
@@ -336,9 +337,9 @@ const PaymentMethodTile = ({
 }: PaymentMethodTileProps) => (
 	<label
 		className={cn(
-			"flex min-h-12 cursor-pointer items-center justify-between gap-2 border px-3 py-2 text-left transition active:scale-[0.97] has-[:focus-visible]:border-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50",
+			"flex min-h-12 cursor-pointer items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left transition active:scale-[0.97] has-[:focus-visible]:border-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50",
 			isSelected
-				? "border-foreground bg-foreground text-background"
+				? "border-primary bg-primary text-primary-foreground"
 				: "border-border/70 text-foreground/80 hover:border-border hover:bg-muted/40",
 			disabled &&
 				"cursor-not-allowed opacity-50 hover:border-border/70 hover:bg-transparent active:scale-100",
@@ -354,12 +355,12 @@ const PaymentMethodTile = ({
 			value={value}
 		/>
 		<span className="flex flex-col">
-			<span className="text-sm font-medium">{label}</span>
+			<span className="text-body font-medium">{label}</span>
 			{hint ? (
 				<span
 					className={cn(
-						"text-[11px]",
-						isSelected ? "text-background/70" : "text-muted-foreground",
+						"text-caption",
+						isSelected ? "text-primary-foreground/70" : "text-muted-foreground",
 					)}
 				>
 					{hint}

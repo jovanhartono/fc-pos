@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
@@ -15,6 +15,8 @@ import {
 	percentFormatter,
 } from "@/features/reports/utils/format";
 import { CHART_PALETTE } from "@/features/reports/utils/palette";
+import { staleFade } from "@/lib/content-fade";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
 interface CustomersPanelProps {
@@ -30,14 +32,15 @@ export const CustomersPanel = ({
 	storeId,
 	granularity,
 }: CustomersPanelProps) => {
-	const query = useQuery(
-		reportsQueries.customerAcquisition({
+	const query = useQuery({
+		...reportsQueries.customerAcquisition({
 			from,
 			to,
 			store_id: storeId,
 			granularity,
 		}),
-	);
+		placeholderData: keepPreviousData,
+	});
 	const data = query.data;
 	const summary = data?.summary.current;
 	const deltas = data?.summary.deltas;
@@ -83,38 +86,36 @@ export const CustomersPanel = ({
 	const cumulativeEnd = summary?.cumulative_end ?? 0;
 
 	return (
-		<div className="grid gap-6">
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-				<KpiRow>
-					<KpiCard
-						label="New customers"
-						value={numberFormatter.format(summary?.new_customers ?? 0)}
-						delta={deltas?.new_customers}
-						helper="Registered in range"
-					/>
-					<KpiCard
-						label="Cumulative total"
-						value={numberFormatter.format(cumulativeEnd)}
-						delta={deltas?.cumulative_end}
-						helper="All-time, end of range"
-					/>
-					<KpiCard
-						label="Active customers"
-						value={numberFormatter.format(
-							summary?.active_customers_in_range ?? 0,
-						)}
-						delta={deltas?.active_customers_in_range}
-						helper="Placed ≥1 order"
-					/>
-					<KpiCard
-						label="Repeat rate"
-						value={percentFormatter.format(summary?.repeat_rate ?? 0)}
-						delta={deltas?.repeat_rate}
-						helper="Active with >1 order"
-					/>
-				</KpiRow>
-				<ExportButton disabled={!data} onClick={handleExport} />
-			</div>
+		<div className={cn("grid gap-6", staleFade(query.isPlaceholderData))}>
+			<ExportButton disabled={!data} onClick={handleExport} />
+			<KpiRow isPending={!data}>
+				<KpiCard
+					label="New customers"
+					value={numberFormatter.format(summary?.new_customers ?? 0)}
+					delta={deltas?.new_customers ?? null}
+					helper="Registered in range"
+				/>
+				<KpiCard
+					label="Cumulative total"
+					value={numberFormatter.format(cumulativeEnd)}
+					delta={deltas?.cumulative_end ?? null}
+					helper="All-time, end of range"
+				/>
+				<KpiCard
+					label="Active customers"
+					value={numberFormatter.format(
+						summary?.active_customers_in_range ?? 0,
+					)}
+					delta={deltas?.active_customers_in_range ?? null}
+					helper="Placed ≥1 order"
+				/>
+				<KpiCard
+					label="Repeat rate"
+					value={percentFormatter.format(summary?.repeat_rate ?? 0)}
+					delta={deltas?.repeat_rate ?? null}
+					helper="Active with >1 order"
+				/>
+			</KpiRow>
 
 			<ChartCard
 				variant="area"
@@ -153,17 +154,15 @@ export const CustomersPanel = ({
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle className="text-sm font-semibold text-foreground">
-						Top spenders
-					</CardTitle>
+					<CardTitle>Top spenders</CardTitle>
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					{topCustomers.length === 0 ? (
-						<p className="text-sm text-muted-foreground">
+						<p className="text-body text-muted-foreground">
 							No paid orders in range.
 						</p>
 					) : (
-						<div className="grid gap-3">
+						<div className="grid grid-cols-1 gap-3">
 							{topCustomers.map((c, idx) => {
 								const pct =
 									maxTopCollected === 0
@@ -172,8 +171,8 @@ export const CustomersPanel = ({
 								return (
 									<div key={c.customer_id} className="grid gap-1">
 										<div className="flex items-center justify-between gap-2">
-											<span className="flex items-center gap-2 truncate text-sm font-medium">
-												<span className="text-[13px] font-medium text-muted-foreground tabular-nums">
+											<span className="flex items-center gap-2 truncate text-body font-medium">
+												<span className="text-subhead font-medium text-muted-foreground tabular-nums">
 													{`#${idx + 1}`}
 												</span>
 												<CustomerLink
@@ -182,17 +181,17 @@ export const CustomersPanel = ({
 													name={c.customer_name}
 												/>
 											</span>
-											<span className="text-sm tabular-nums">
+											<span className="text-body tabular-nums">
 												{formatMoney(String(c.collected))}
 											</span>
 										</div>
-										<div className="h-1.5 w-full bg-muted">
+										<div className="h-1.5 w-full overflow-hidden rounded-full bg-soft-bar-track">
 											<div
-												className="h-full bg-foreground"
+												className="h-full rounded-full bg-primary"
 												style={{ width: `${pct}%` }}
 											/>
 										</div>
-										<div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
+										<div className="flex flex-wrap items-center justify-between gap-x-3 text-subhead tabular-nums">
 											<span>{c.customer_phone}</span>
 											<span>{`${numberFormatter.format(c.orders)} orders`}</span>
 										</div>
@@ -206,5 +205,3 @@ export const CustomersPanel = ({
 		</div>
 	);
 };
-
-export default CustomersPanel;

@@ -1,18 +1,24 @@
 import { PUTUserSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { KeyIcon, PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { KeyIcon, PlusIcon } from "@phosphor-icons/react";
+import {
+	keepPreviousData,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
+import { ActiveBadge } from "@/components/active-badge";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { EditRowButton } from "@/components/edit-row-button";
 import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { storesQueries } from "@/features/stores/api";
 import {
@@ -41,8 +47,13 @@ const usersSearchSchema = z.object({
 export const Route = createFileRoute("/_admin/users")({
 	validateSearch: (search) => usersSearchSchema.parse(search),
 	loaderDeps: ({ search }) => search,
-	loader: ({ context, deps }) =>
-		Promise.all([
+	loader: async ({ context, deps, cause }) => {
+		// Typing a search or paging keeps the page up, the search box focused,
+		// and swaps the rows in place.
+		if (cause === "stay") {
+			return;
+		}
+		await Promise.all([
 			context.queryClient.ensureQueryData(
 				usersQueries.list({
 					limit: PAGE_SIZE,
@@ -51,8 +62,12 @@ export const Route = createFileRoute("/_admin/users")({
 				}),
 			),
 			context.queryClient.ensureQueryData(storesQueries.list()),
-		]),
+		]);
+	},
 	component: UsersPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: UsersPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 const userFormSchema = PUTUserSchema.extend({
@@ -114,13 +129,14 @@ function UsersPage() {
 		defaultValues: defaultForm,
 	});
 
-	const usersQuery = useQuery(
-		usersQueries.list({
+	const usersQuery = useQuery({
+		...usersQueries.list({
 			limit: PAGE_SIZE,
 			offset: (search.page - 1) * PAGE_SIZE,
 			...(search.search ? { search: search.search } : {}),
 		}),
-	);
+		placeholderData: keepPreviousData,
+	});
 	const users = usersQuery.data?.items ?? [];
 	const storesQuery = useQuery(storesQueries.list());
 	const storeMap = useMemo(
@@ -230,7 +246,7 @@ function UsersPage() {
 				store_ids: user.userStores.map((item) => item.store_id),
 			});
 			openSheet({
-				title: "Edit User",
+				title: "Edit user",
 				content: () => (
 					<FormProvider {...form}>
 						<UserForm
@@ -249,7 +265,7 @@ function UsersPage() {
 	const handleCreate = useCallback(() => {
 		form.reset(defaultForm);
 		openSheet({
-			title: "Add User",
+			title: "Add user",
 			content: () => (
 				<FormProvider {...form}>
 					<UserForm
@@ -281,25 +297,35 @@ function UsersPage() {
 			{
 				accessorKey: "username",
 				header: "Username",
-				meta: { kind: "code" },
+				meta: {
+					kind: "code",
+					width: { percent: 16, minRem: 7 },
+					mobileCard: { slot: "subtitle" },
+				},
 			},
 			{
 				accessorKey: "name",
 				header: "Name",
-				meta: { kind: "name" },
+				meta: { kind: "name", width: { percent: 30, minRem: 9 } },
 			},
 			{
 				accessorKey: "role",
 				header: "Role",
+				meta: {
+					width: { percent: 11, minRem: 4.5 },
+					mobileCard: { slot: "subtitle" },
+				},
 				cell: ({ row }) => (
-					<span className="text-muted-foreground capitalize">
-						{row.original.role}
-					</span>
+					<span className="capitalize">{row.original.role}</span>
 				),
 			},
 			{
 				id: "stores",
 				header: "Stores",
+				meta: {
+					width: { percent: 21, minRem: 9.5 },
+					mobileCard: { slot: "subtitle" },
+				},
 				cell: ({ row }) =>
 					row.original.userStores.length > 0
 						? row.original.userStores
@@ -313,27 +339,22 @@ function UsersPage() {
 			{
 				id: "status",
 				header: "Status",
-				meta: { mobileCard: { slot: "status" } },
-				cell: ({ row }) => (
-					<Badge variant={row.original.is_active ? "success" : "danger"}>
-						{row.original.is_active ? "Active" : "Inactive"}
-					</Badge>
-				),
+				meta: {
+					width: { percent: 11, minRem: 4.5 },
+					mobileCard: { slot: "status" },
+				},
+				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 			},
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { mobileCard: { slot: "title-end" } },
+				meta: {
+					width: { percent: 11, minRem: 5.5 },
+					mobileCard: { slot: "title-end" },
+				},
 				cell: ({ row }) => (
 					<div className="flex gap-2">
-						<Button
-							variant="outline"
-							size="icon-sm"
-							aria-label="Edit"
-							title="Edit"
-							onClick={() => handleEdit(row.original)}
-							icon={<PencilSimpleLineIcon className="size-4" />}
-						/>
+						<EditRowButton onClick={() => handleEdit(row.original)} />
 						<Button
 							variant="outline"
 							size="icon-sm"
@@ -353,9 +374,11 @@ function UsersPage() {
 		<>
 			<PageHeader
 				title="Users"
+				count={usersQuery.data?.meta.total}
+				countNoun="user"
 				actions={
 					<Button icon={<PlusIcon className="size-4" />} onClick={handleCreate}>
-						Add User
+						Add user
 					</Button>
 				}
 			/>
@@ -371,7 +394,15 @@ function UsersPage() {
 				<DataTable
 					columns={columns}
 					data={users}
+					isCardGrouped
+					skeletonCardClassName="h-19"
 					isLoading={usersQuery.isPending}
+					isStale={usersQuery.isPlaceholderData}
+					filterKey={JSON.stringify(search)}
+					cardPrimaryColumnId="name"
+					emptyMessage={
+						search.search ? `No users match "${search.search}".` : "No users."
+					}
 					footer={
 						<TablePagination
 							meta={usersQuery.data?.meta}

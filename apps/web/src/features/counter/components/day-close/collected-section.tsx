@@ -1,5 +1,5 @@
+import { Badge } from "@/components/ui/badge";
 import type { DayClose } from "@/features/counter/api";
-import { CountBadge } from "@/features/counter/components/day-close/count-badge";
 import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
 import { unpaidOrdersOf } from "@/features/counter/lib/day-close";
 import { formatMoney } from "@/shared/money";
@@ -12,18 +12,18 @@ interface CollectedSectionProps {
 }
 
 const LINE = "grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3";
-const SUB_LINE = `${LINE} pl-[18px] text-sm`;
-const RECEIVED_BG = "bg-emerald-500/80 dark:bg-emerald-600/80";
-const UNPAID_BG = "bg-rose-400/80 dark:bg-rose-500/60";
+const SUB_LINE = `${LINE} pl-4 text-body`;
+const RECEIVED_BG = "bg-success";
+const UNPAID_BG = "bg-destructive/70";
 
-interface KeySquareProps {
+interface KeyDotProps {
 	className: string;
 }
 
-const KeySquare = ({ className }: KeySquareProps) => (
+const KeyDot = ({ className }: KeyDotProps) => (
 	<span
 		aria-hidden="true"
-		className={`mr-2 inline-block size-2.5 ${className}`}
+		className={`mr-2 inline-block size-2 rounded-full align-middle ${className}`}
 	/>
 );
 
@@ -45,36 +45,36 @@ export const CollectedSection = ({
 	const expected = collected.amount + unpaidAmount;
 
 	return (
-		<section className="grid gap-2.5 border border-border p-3.5 tabular-nums">
+		<section className="grid gap-2.5 rounded-lg border bg-card p-3.5 tabular-nums">
 			<div className={LINE}>
 				<span>
 					{hasUnpaid
 						? `Expected for ${isToday ? "today" : dayLabel}`
 						: "Received"}
 				</span>
-				<span className="text-right font-medium text-2xl">
+				<span className="text-right font-medium text-title-1">
 					{formatMoney(expected)}
 				</span>
 			</div>
 			{hasUnpaid ? (
-				<div aria-hidden="true" className="flex h-2.5 bg-muted">
+				<div aria-hidden="true" className="flex h-1.5 gap-0.5">
 					<span
-						className={RECEIVED_BG}
+						className={`rounded-full ${RECEIVED_BG}`}
 						style={{
 							width: `${expected > 0 ? (collected.amount / expected) * 100 : 0}%`,
 						}}
 					/>
-					<span className={`flex-1 ${UNPAID_BG}`} />
+					<span className={`flex-1 rounded-full ${UNPAID_BG}`} />
 				</div>
 			) : null}
 			<div className="grid gap-1.5">
 				{hasUnpaid ? (
 					<div className={LINE}>
 						<span>
-							<KeySquare className={RECEIVED_BG} />
+							<KeyDot className={RECEIVED_BG} />
 							Received
 						</span>
-						<span className="text-right font-medium text-emerald-700 dark:text-emerald-300">
+						<span className="text-right font-medium text-tone-good-foreground">
 							{formatMoney(collected.amount)}
 							<OpenArrow className="invisible" />
 						</span>
@@ -96,16 +96,18 @@ export const CollectedSection = ({
 				</div>
 				{hasUnpaid ? (
 					<button
-						className={`${LINE} -mx-2.5 px-2.5 py-1.5 text-left hover:bg-muted`}
+						className={`${LINE} -mx-2.5 rounded-md px-2.5 py-1.5 text-left hover:bg-muted`}
 						onClick={() => onOpen("unpaid")}
 						type="button"
 					>
 						<span>
-							<KeySquare className={UNPAID_BG} />
+							<KeyDot className={UNPAID_BG} />
 							Unpaid
-							<CountBadge count={unpaidOrders.length} />
+							<Badge className="ml-2 align-top tabular-nums" variant="outline">
+								{unpaidOrders.length}
+							</Badge>
 						</span>
-						<span className="text-right font-medium text-rose-700 dark:text-rose-300">
+						<span className="text-right font-medium text-tone-bad-foreground">
 							{formatMoney(unpaidAmount)}
 							<OpenArrow />
 						</span>

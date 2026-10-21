@@ -5,18 +5,22 @@ import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	clockOutShift,
 	type Shift,
 	shiftsQueries,
 } from "@/features/shifts/api";
 import {
+	CLOCK_STATUS_SLOT,
 	ClockInControl,
+	ClockSkeleton,
 	PRIMARY_BUTTON,
 } from "@/features/shifts/components/clock-in-control";
 import { useCurrentShift } from "@/features/shifts/hooks/useCurrentShift";
 import { storesQueries } from "@/features/stores/api";
 import { onShiftClocked } from "@/lib/cache-events";
+import { formatShiftLength } from "@/lib/dayjs";
 import { getCurrentUser } from "@/stores/auth-store";
 
 const currentWeekRange = () => {
@@ -34,6 +38,9 @@ export const Route = createFileRoute("/_admin/attendance")({
 	loader: ({ context }) =>
 		context.queryClient.ensureQueryData(storesQueries.list()),
 	component: AttendancePage,
+	// Past a second, the page itself draws with its clock skeleton.
+	pendingComponent: AttendancePage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 const formatElapsed = (start: Date, now: Date) => {
@@ -46,19 +53,13 @@ const formatElapsed = (start: Date, now: Date) => {
 	return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 };
 
-const formatDuration = (clockIn: string, clockOut: string) => {
-	const totalMinutes = Math.max(
-		0,
-		Math.floor(dayjs(clockOut).diff(dayjs(clockIn)) / 60_000),
-	);
-	return `${Math.floor(totalMinutes / 60)}h ${String(totalMinutes % 60).padStart(2, "0")}m`;
-};
-
 function AttendancePage() {
 	const user = getCurrentUser();
 	const queryClient = useQueryClient();
 	const { data: currentShift, isPending: currentShiftPending } =
 		useCurrentShift();
+	// Clock in names the nearest branch, so it waits for the branch list too.
+	const storesQuery = useQuery(storesQueries.list());
 	const [now, setNow] = useState(() => new Date());
 
 	const weekRange = useMemo(() => currentWeekRange(), []);
@@ -89,20 +90,17 @@ function AttendancePage() {
 	return (
 		<>
 			<PageHeader title="Attendance" />
-			<div className="mx-auto grid w-full max-w-md gap-8">
+			<div className="grid w-full gap-8">
 				<section className="grid gap-3">
-					{currentShiftPending ? (
-						<>
-							<span className="h-12 w-40 animate-pulse bg-muted" />
-							<span className="h-16 w-full animate-pulse bg-muted" />
-						</>
+					{currentShiftPending || storesQuery.isPending ? (
+						<ClockSkeleton />
 					) : currentShift ? (
 						<>
-							<div className="grid gap-0.5">
-								<span className="font-semibold text-5xl tabular-nums">
+							<div className={CLOCK_STATUS_SLOT}>
+								<span className="font-semibold text-large-title tabular-nums">
 									{formatElapsed(new Date(currentShift.clock_in_at), now)}
 								</span>
-								<span className="text-muted-foreground text-xs">
+								<span className="text-muted-foreground text-footnote">
 									Since {dayjs(currentShift.clock_in_at).format("HH:mm")}
 									{currentShift.store?.code
 										? ` · ${currentShift.store.code}`
@@ -126,14 +124,20 @@ function AttendancePage() {
 				</section>
 
 				<section className="grid gap-2">
-					<h2 className="text-[13px] font-medium text-muted-foreground tabular-nums">
+					<h2 className="text-subhead font-medium text-muted-foreground tabular-nums">
 						{dayjs(weekRange.from).format("DD MMM")} –{" "}
 						{dayjs(weekRange.to).format("DD MMM")}
 					</h2>
 					{shiftsQuery.isPending ? (
-						<p className="text-muted-foreground text-sm">Loading…</p>
+						<ul aria-hidden className="divide-y border-y">
+							{Array.from({ length: 3 }, (_, index) => (
+								<li className="py-2.5" key={index}>
+									<Skeleton className="my-0.5 h-4 w-full" />
+								</li>
+							))}
+						</ul>
 					) : weekShifts.length === 0 ? (
-						<p className="text-muted-foreground text-sm">No shifts yet.</p>
+						<p className="text-muted-foreground text-body">No shifts yet.</p>
 					) : (
 						<ul className="divide-y border-y">
 							{weekShifts.map((shift) => (
@@ -149,24 +153,26 @@ function AttendancePage() {
 
 const ShiftRow = ({ shift }: { shift: Shift }) => (
 	<li className="flex items-baseline justify-between gap-3 py-2.5">
-		<span className="w-14 shrink-0 text-muted-foreground text-xs">
+		<span className="w-14 shrink-0 text-muted-foreground text-footnote">
 			{dayjs(shift.clock_in_at).format("ddd DD")}
 		</span>
-		<span className="flex-1 truncate text-sm tabular-nums">
+		<span className="flex-1 truncate text-body tabular-nums">
 			{dayjs(shift.clock_in_at).format("HH:mm")} –{" "}
 			{shift.clock_out_at ? dayjs(shift.clock_out_at).format("HH:mm") : "…"}
 			{shift.auto_closed ? (
-				<span className="ml-1.5 text-amber-600 text-xs dark:text-amber-400">
+				<span className="ml-1.5 text-tone-warn-foreground text-footnote">
 					auto-closed
 				</span>
 			) : null}
 		</span>
-		<span className="shrink-0 text-muted-foreground text-xs">
+		<span className="shrink-0 text-muted-foreground text-footnote">
 			{shift.store?.code ?? "—"}
 		</span>
-		<span className="w-16 shrink-0 text-right text-sm tabular-nums">
+		<span className="w-16 shrink-0 text-right text-body tabular-nums">
 			{shift.clock_out_at
-				? formatDuration(shift.clock_in_at, shift.clock_out_at)
+				? formatShiftLength(
+						dayjs(shift.clock_out_at).diff(shift.clock_in_at, "minute"),
+					)
 				: null}
 		</span>
 	</li>

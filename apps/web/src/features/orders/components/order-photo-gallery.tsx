@@ -15,6 +15,7 @@ export type OrderPhotoGalleryItem = {
 	download?: PhotoDownloadRef;
 	id: number;
 	image_url: string;
+	label?: React.ReactNode;
 	note?: string | null;
 };
 
@@ -73,10 +74,11 @@ export function OrderPhotoGallery({
 			>
 				{items.map((item, index) => (
 					<div className={itemClassName} key={item.id}>
+						{item.label ? <div className="mb-1.5">{item.label}</div> : null}
 						<button
 							aria-label={`Open ${getPhotoPrimaryLabel(item)} image ${index + 1} of ${imageCount}`}
 							className={cn(
-								"block w-full overflow-hidden border border-border bg-muted transition-[border-color,box-shadow] hover:border-ring focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
+								"block w-full overflow-hidden rounded-md border border-border bg-muted transition-[border-color,box-shadow] hover:border-ring focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
 								thumbnailClassName,
 							)}
 							onClick={() => openAtIndex(index)}

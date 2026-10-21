@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sheet Header Options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap" rel="stylesheet">
+<style>
+/* Tokens copied from apps/web/src/index.css */
+:root {
+	--background: #ffffff;
+	--foreground: #1c1c1e;
+	--card: #ffffff;
+	--popover: #ffffff;
+	--sheet: var(--popover);
+	--primary: #007aff;
+	--secondary: rgb(118 118 128 / 0.12);
+	--muted: #f5f5f7;
+	--muted-foreground: #6e6e73;
+	--border: #e5e5ea;
+	--link: #0066cc;
+	--tone-warn: rgb(255 149 0 / 0.16);
+	--tone-warn-foreground: #c93400;
+	--tone-good: rgb(52 199 89 / 0.14);
+	--tone-good-foreground: #248a3d;
+	--warning: #ff9500;
+	--radius: 12px;
+	--canvas: var(--muted);
+	--shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+	color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--background: #000000;
+		--foreground: #ffffff;
+		--card: #1c1c1e;
+		--popover: #2c2c2e;
+		--sheet: var(--background);
+		--primary: #0a84ff;
+		--secondary: rgb(118 118 128 / 0.24);
+		--muted: #2c2c2e;
+		--muted-foreground: #98989f;
+		--border: #38383a;
+		--link: #2997ff;
+		--tone-warn: rgb(255 159 10 / 0.18);
+		--tone-warn-foreground: #ff9f0a;
+		--tone-good: rgb(48 209 88 / 0.18);
+		--tone-good-foreground: #30d158;
+		--warning: #ff9f0a;
+		--canvas: var(--card);
+		--shadow-lg: none;
+		color-scheme: dark;
+	}
+}
+:root[data-theme="dark"] {
+	--background: #000000;
+	--foreground: #ffffff;
+	--card: #1c1c1e;
+	--popover: #2c2c2e;
+	--sheet: var(--background);
+	--primary: #0a84ff;
+	--secondary: rgb(118 118 128 / 0.24);
+	--muted: #2c2c2e;
+	--muted-foreground: #98989f;
+	--border: #38383a;
+	--link: #2997ff;
+	--tone-warn: rgb(255 159 10 / 0.18);
+	--tone-warn-foreground: #ff9f0a;
+	--tone-good: rgb(48 209 88 / 0.18);
+	--tone-good-foreground: #30d158;
+	--warning: #ff9f0a;
+	--canvas: var(--card);
+	--shadow-lg: none;
+	color-scheme: dark;
+}
+@supports (corner-shape: superellipse(1.4)) {
+	:root { --radius: 15.6px; }
+	*, ::before, ::after { corner-shape: superellipse(1.4); }
+	.pill { corner-shape: round; }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+	margin: 0;
+	background: var(--background);
+	color: var(--foreground);
+	font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+	font-size: 14px; line-height: 20px; letter-spacing: -0.006em;
+	font-feature-settings: "cv11";
+}
+.tnum { font-variant-numeric: tabular-nums; }
+main { max-width: 1320px; margin: 0 auto; padding: 32px 24px 64px; }
+@media (max-width: 640px) { main { padding: 20px 16px 48px; } }
+
+/* Type scale */
+.t-caption { font-size: 11px; line-height: 14px; letter-spacing: 0.006em; }
+.t-footnote { font-size: 12px; line-height: 16px; }
+.t-subhead { font-size: 13px; line-height: 18px; letter-spacing: -0.003em; }
+.t-body { font-size: 14px; line-height: 20px; letter-spacing: -0.006em; }
+.t-title3 { font-size: 17px; line-height: 22px; letter-spacing: -0.017em; }
+.t-title2 { font-size: 20px; line-height: 25px; letter-spacing: -0.021em; }
+.t-title1 { font-size: 26px; line-height: 32px; letter-spacing: -0.021em; }
+.muted { color: var(--muted-foreground); }
+
+h1.page { margin: 0; font-size: 26px; line-height: 32px; letter-spacing: -0.021em; font-weight: 700; }
+.lede { margin: 6px 0 0; max-width: 760px; }
+.controls { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0 8px; align-items: center; }
+.seg { display: inline-flex; padding: 2px; border-radius: calc(var(--radius) * 2 / 3); background: var(--secondary); }
+.seg button {
+	appearance: none; border: 0; background: transparent; color: var(--foreground);
+	font: inherit; font-size: 13px; line-height: 18px; font-weight: 500;
+	height: 32px; padding: 0 14px; border-radius: calc(var(--radius) * 2 / 3 - 2px); cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--primary); color: #fff; }
+.check { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; line-height: 18px; }
+
+table.sum { border-collapse: collapse; margin: 16px 0 6px; width: 100%; max-width: 760px; }
+table.sum th, table.sum td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+table.sum th { font-weight: 500; font-size: 12px; line-height: 16px; color: var(--muted-foreground); }
+table.sum td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wrap-table { overflow-x: auto; }
+.rec { margin: 12px 0 0; padding: 12px 16px; border-radius: var(--radius); background: var(--canvas); max-width: 760px; }
+
+section.opt { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); }
+section.opt > h2 { margin: 0; font-size: 20px; line-height: 25px; letter-spacing: -0.021em; font-weight: 600; }
+section.opt > h2 .tag { font-size: 13px; line-height: 18px; font-weight: 500; color: var(--muted-foreground); margin-left: 6px; }
+section.opt > p { margin: 6px 0 0; max-width: 760px; }
+.metrics { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 0; }
+.pill { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12px; line-height: 16px; font-weight: 500; background: var(--secondary); font-variant-numeric: tabular-nums; }
+.pill.warn { background: var(--tone-warn); color: var(--tone-warn-foreground); }
+.pill.good { background: var(--tone-good); color: var(--tone-good-foreground); }
+.reply { margin-top: 16px; font-weight: 500; }
+
+.canvas { margin-top: 16px; padding: 20px; border-radius: var(--radius); background: var(--canvas); }
+@media (max-width: 640px) { .canvas { padding: 12px; } }
+.canvas h3 { margin: 0 0 10px; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--muted-foreground); }
+.canvas h3 + .stage { margin-bottom: 24px; }
+.canvas .stage:last-child { margin-bottom: 0; }
+.stage { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.fit { max-width: 100%; }
+.cap { font-size: 12px; line-height: 16px; color: var(--muted-foreground); margin: 0 0 6px; }
+
+/* A sheet frame drawn at its real CSS size, scaled down only when the viewer is narrow */
+.frame {
+	position: relative; overflow: hidden; background: var(--sheet); color: var(--foreground);
+	border: 1px solid var(--border); box-shadow: var(--shadow-lg);
+	display: flex; flex-direction: column; transform-origin: top left;
+}
+.frame.desk { width: 577px; height: 720px; border-radius: calc(var(--radius) * 4 / 3) 0 0 calc(var(--radius) * 4 / 3); border-right: 0; }
+.frame.phone { width: 391px; height: 760px; border-right: 0; }
+.frame .body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.frame .body::-webkit-scrollbar { display: none; }
+.frame img { display: block; width: 100%; height: auto; }
+.frame .shot { position: relative; }
+
+/* Sheet header, as GlobalSheet renders it: p-4, gap-0.5, border-b */
+.sh { flex-shrink: 0; display: flex; flex-direction: column; gap: 2px; padding: 16px; border-bottom: 1px solid var(--border); }
+.sh .row { display: flex; align-items: center; gap: 8px; padding-right: 32px; min-height: 24px; min-width: 0; }
+.sh .gap0 { height: 0; }
+.back {
+	appearance: none; border: 0; background: none; padding: 0; cursor: pointer; font: inherit;
+	margin: -6px 0 -6px -4px; height: 36px; display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0;
+	color: var(--link); font-weight: 500; font-size: 14px; line-height: 20px; letter-spacing: -0.006em; font-variant-numeric: tabular-nums;
+}
+.back svg { width: 18px; height: 18px; flex-shrink: 0; }
+.back:hover { opacity: 0.8; }
+.st { margin: 0; font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: -0.006em; color: var(--foreground); }
+.inrow-title { min-width: 0; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--foreground); }
+.inrow-title.trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sep { color: var(--muted-foreground); flex-shrink: 0; }
+.x {
+	position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: calc(var(--radius) * 5 / 6 - 4px);
+	display: grid; place-items: center; background: none; border: 0; color: var(--foreground); cursor: pointer; padding: 0;
+}
+.x:hover { background: var(--secondary); }
+.x svg { width: 16px; height: 16px; }
+.walk { display: flex; align-items: center; gap: 4px; margin: -6px 0 -6px -8px; color: var(--muted-foreground); font-size: 12px; line-height: 16px; flex: 1; min-width: 0; }
+.walk .ib { width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center; }
+.walk .ib svg { width: 16px; height: 16px; }
+.walk .full { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; height: 36px; font-weight: 500; }
+.walk .full svg { width: 16px; height: 16px; }
+.large { margin: 0; padding: 16px 16px 0; font-size: 26px; line-height: 32px; letter-spacing: -0.021em; font-weight: 700; }
+.fadein { opacity: 0; transition: opacity 150ms; }
+.frame.scrolled .fadein { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .fadein { transition: none; } }
+
+/* Spots on a screenshot that open or close the nested sheet */
+.hot { position: absolute; border: 0; background: transparent; cursor: pointer; border-radius: calc(var(--radius) * 2 / 3); padding: 0; }
+.hot.cue { box-shadow: 0 0 0 2px var(--primary); }
+.hot:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Guide: where the Order's body starts, and how far the nested one moved */
+.guide { position: absolute; left: 0; right: 0; pointer-events: none; z-index: 2; }
+.guide.line { height: 0; border-top: 1px dashed var(--primary); }
+.guide.band { background: var(--tone-warn); border-bottom: 1px solid var(--warning); }
+.guide .lab {
+	position: absolute; right: 56px; top: 50%; transform: translateY(-50%);
+	font-size: 11px; line-height: 14px; font-weight: 600; font-variant-numeric: tabular-nums;
+	color: var(--tone-warn-foreground); background: var(--sheet); padding: 1px 6px; border-radius: 999px;
+}
+.guide.line .lab { color: var(--primary); }
+body.noguides .guide { display: none; }
+
+.stress { display: flex; flex-direction: column; gap: 12px; }
+.stress .frame.phone { height: auto; box-shadow: none; }
+.stress .note { font-size: 12px; line-height: 16px; color: var(--muted-foreground); margin: 4px 0 0; }
+footer { margin-top: 48px; color: var(--muted-foreground); font-size: 12px; line-height: 16px; }
+</style>
+</head>
+<body>
+<main>
+	<h1 class="page">Sheet header options</h1>
+	<p class="lede muted">A sheet opened over an Order sheet: Collect payment, or a Service. Real seeded Order <span class="tnum" style="color:var(--foreground)">#BSD/19102026/11</span> on the dev app, 21 Oct. NOW is a screenshot; A, B and C are drawn in HTML with the app's tokens over the real sheet body. Click the back link or ✕ in a nested sheet to step back to the Order, and the blue-ringed button to open it again.</p>
+
+	<div class="controls">
+		<div class="seg" role="group" aria-label="Sheet">
+			<button type="button" data-tab="pay" aria-pressed="true">Collect payment</button>
+			<button type="button" data-tab="svc" aria-pressed="false">Service</button>
+		</div>
+		<div class="seg" role="group" aria-label="Theme">
+			<button type="button" data-theme-btn="light">Light</button>
+			<button type="button" data-theme-btn="dark">Dark</button>
+		</div>
+		<label class="check"><input type="checkbox" id="guides" checked> Guides</label>
+	</div>
+
+	<div class="wrap-table">
+	<table class="sum">
+		<thead><tr><th>Option</th><th>Header at 1280</th><th>Body jump from the Order sheet (59)</th><th>Header at 390</th><th>Jump from the Order page's bar (52)</th></tr></thead>
+		<tbody>
+			<tr><td>NOW · back link, title, code again</td><td class="n">100.5px</td><td class="n">+41.5px</td><td class="n">74.5px</td><td class="n">+22.5px</td></tr>
+			<tr><td>A · back link, title</td><td class="n">79px</td><td class="n">+20px</td><td class="n">53px</td><td class="n">+1px</td></tr>
+			<tr><td>B · title on the back-link row</td><td class="n">59px</td><td class="n">0</td><td class="n">59px</td><td class="n">+7px</td></tr>
+			<tr><td>C · large title in the body <span class="muted">(extra idea)</span></td><td class="n">59px</td><td class="n">0 (form starts 48px lower, scrolls away)</td><td class="n">59px</td><td class="n">+7px (+48px title)</td></tr>
+		</tbody>
+	</table>
+	</div>
+	<p class="t-footnote muted" style="margin:0;max-width:760px">Heights measured in the dev app (NOW) and on this page (A–C) with a mouse. On a touch screen every back-link row is 8px taller (h-11), and so is the Order sheet's, so the jumps stay the same. At 390 the nested sheet covers the whole page, so the phone jump is less visible than the 1280 one, where the sheet stays in place and only its body moves.</p>
+
+	<p class="rec"><strong>Recommendation: A.</strong> It removes the only line that says nothing new (the code is already in the back link) and keeps the title on its own line, so it never sits beside a code or gets cut off at 390; the cost is a 20px drop at 1280 that B would avoid.</p>
+
+	<div id="options"></div>
+
+	<footer>Screens: dev app at localhost:4173, admin, Order #BSD/19102026/11 (id 1520), 1280×900 and 390×844 at 2×. Code: components/ui/global-sheet.tsx, features/orders/components/order-payment-section.tsx (Collect payment), order-service-row.tsx (Service).</footer>
+</main>
+
+<script>
+const DIR = "2026-10-21-sheet-header-options/";
+const ORDER = "#BSD/19102026/11";
+const SVC = "Deep Clean Waist / Sling / Hand Bag";
+const ITEM = "#BSD/19102026/11-I001";
+
+const ICON = {
+	left: '<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"/></svg>',
+	right: '<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"/></svg>',
+	x: '<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></svg>',
+	out: '<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224,104a8,8,0,0,1-16,0V59.32l-66.33,66.34a8,8,0,0,1-11.32-11.32L196.68,48H152a8,8,0,0,1,0-16h64a8,8,0,0,1,8,8Zm-40,24a8,8,0,0,0-8,8v72H48V80h72a8,8,0,0,0,0-16H48A16,16,0,0,0,32,80V208a16,16,0,0,0,16,16H176a16,16,0,0,0,16-16V136A8,8,0,0,0,184,128Z"/></svg>',
+};
+
+// Where the opening button sits on each Order screenshot, in CSS px of that image.
+const SPOT = {
+	desk: { pay: [445, 618, 113, 24], svc: [16, 341, 543, 46] },
+	phone: { pay: [264, 684, 113, 24], svc: [12, 386, 366, 46] },
+};
+// Header heights per option, measured; [desk, phone]
+const HEADER = { now: [100.5, 74.5], a: [79, 53], b: [59, 59], c: [59, 59] };
+const REF = { desk: 59, phone: 52 };
+
+let tab = "pay";
+let theme = "light";
+const img = (name) => `${DIR}${theme}-${name}.webp`;
+const title = () => (tab === "pay" ? "Collect payment" : SVC);
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
+const back = () => `<button type="button" class="back" data-act="back">${ICON.left}<span>${ORDER}</span></button>`;
+const close = (act) => `<button type="button" class="x" data-act="${act}" aria-label="Close">${ICON.x}</button>`;
+
+const nestedHeader = (opt, size) => {
+	const hasBack = size === "desk";
+	const t = esc(title());
+	if (opt === "a") {
+		return `<div class="sh">${hasBack ? `<div class="row">${back()}</div>` : ""}<h2 class="st">${t}</h2></div>`;
+	}
+	if (opt === "b") {
+		const lead = hasBack ? `${back()}<span class="sep" aria-hidden="true">·</span>` : "";
+		return `<div class="sh"><div class="row">${lead}<h2 class="st inrow-title">${t}</h2></div><div class="gap0"></div></div>`;
+	}
+	// c: the Order's own one-row header; the small title fades in once the large one scrolls away
+	const lead = hasBack ? `${back()}<span class="sep fadein" aria-hidden="true">·</span>` : "";
+	return `<div class="sh"><div class="row">${lead}<span class="inrow-title trunc fadein" aria-hidden="true">${t}</span></div><div class="gap0"></div></div>`;
+};
+
+const orderView = (size) => {
+	if (size === "desk") {
+		const [x, y, w, h] = SPOT.desk[tab];
+		return `<div class="sh"><div class="row"><div class="walk"><span class="ib">${ICON.left}</span><span class="ib">${ICON.right}</span><span class="tnum" style="margin-left:4px">Order 2 of 25</span><span class="full">${ICON.out}Open full page</span></div></div><div class="gap0"></div></div>${close("none")}
+			<div class="body"><div class="shot"><img src="${img("order-body-1280")}" alt="Order ${ORDER} sheet body" width="575" height="841"><button type="button" class="hot cue" data-act="open" aria-label="Open ${esc(title())}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"></button></div></div>`;
+	}
+	const [x, y, w, h] = SPOT.phone[tab];
+	return `<div class="body"><div class="shot"><img src="${img("orderpage-390")}" alt="Order ${ORDER} page on a phone" width="390" height="844"><button type="button" class="hot cue" data-act="open" aria-label="Open ${esc(title())}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"></button></div></div>`;
+};
+
+const nestedView = (opt, size) => {
+	const sfx = size === "desk" ? "1280" : "390";
+	if (opt === "now") {
+		// The real screen, header included; spots over its back link or close button.
+		const hit = size === "desk"
+			? `<button type="button" class="hot" data-act="back" aria-label="Back to ${ORDER}" style="left:12px;top:14px;width:150px;height:28px"></button>`
+			: `<button type="button" class="hot" data-act="back" aria-label="Close" style="right:12px;top:10px;width:32px;height:32px"></button>`;
+		return `<div class="body"><div class="shot"><img src="${img(`now-${tab}-${sfx}`)}" alt="Current ${esc(title())} sheet" width="${size === "desk" ? 575 : 389}">${hit}</div></div>`;
+	}
+	const large = opt === "c" ? `<h1 class="large">${esc(title())}</h1>` : "";
+	const pad = opt === "c" ? ' style="min-height:calc(100% + 80px)"' : "";
+	return `${nestedHeader(opt, size)}${close(size === "desk" ? "back" : "back")}<div class="body"><div${pad}>${large}<img src="${img(`${tab}-body-${sfx}`)}" alt="${esc(title())} body" width="${size === "desk" ? 575 : 389}"></div></div>`;
+};
+
+const guides = (opt, size, view) => {
+	const ref = REF[size];
+	if (view === "order") {
+		return `<div class="guide line" style="top:${ref}px"><span class="lab">body starts ${ref}px</span></div>`;
+	}
+	const h = HEADER[opt][size === "desk" ? 0 : 1];
+	const d = +(h - ref).toFixed(1);
+	if (d <= 0) {
+		return `<div class="guide line" style="top:${ref}px"><span class="lab">no jump</span></div>`;
+	}
+	return `<div class="guide band" style="top:${ref}px;height:${d}px"><span class="lab">+${d}px</span></div>`;
+};
+
+const frameHTML = (opt, size, view) =>
+	`${view === "order" ? orderView(size) : nestedView(opt, size)}${guides(opt, size, view)}`;
+
+const makeFrame = (opt, size, view, fixed) => {
+	const el = document.createElement("div");
+	el.className = `frame ${size}`;
+	el.dataset.opt = opt;
+	el.dataset.size = size;
+	el.dataset.view = view;
+	if (fixed) el.dataset.fixed = "1";
+	el.innerHTML = frameHTML(opt, size, view);
+	return el;
+};
+
+const wrapFit = (frame, caption) => {
+	const fit = document.createElement("div");
+	fit.className = "fit";
+	const cap = document.createElement("p");
+	cap.className = "cap";
+	cap.textContent = caption;
+	const box = document.createElement("div");
+	box.className = "box";
+	box.append(frame);
+	fit.append(cap, box);
+	return fit;
+};
+
+const OPTS = [
+	{ id: "now", name: "NOW", tag: "", text: () => tab === "pay"
+		? `Back link, then the title, then the Order code a second time. The real screen.`
+		: `Back link, then the Item code, then the treatment. The real screen.` },
+	{ id: "a", name: "A", tag: "drop the description", text: () => tab === "pay"
+		? `Back link and title; the line that repeats the Order code goes.`
+		: `Back link and the treatment as the title. The Item code leaves the header; it is on the Order's Item card one step back.` },
+	{ id: "b", name: "B", tag: "title on the back-link row", text: () =>
+		`The title joins the back link on one row, the same 59px as the Order sheet, so the body does not move at 1280. A long title has to be cut or wrapped, see the 390 row test below.` },
+	{ id: "c", name: "C", tag: "large title in the body · extra idea", text: () =>
+		`The header keeps only the back-link row (59px, like the Order sheet); the title becomes a large title at the top of the body that scrolls away, and a small one fades into the row once it has. No sheet in the app does this yet, and at 390 the bar is left holding only ✕.` },
+];
+
+const metricPills = (id) => {
+	const [d, p] = HEADER[id];
+	const dj = +(d - REF.desk).toFixed(1);
+	const pj = +(p - REF.phone).toFixed(1);
+	const cls = (n) => (n > 2 ? "warn" : "good");
+	return `<span class="pill">1280 header ${d}px</span><span class="pill ${cls(dj)}">body jump ${dj > 0 ? "+" : ""}${dj}px</span><span class="pill">390 header ${p}px</span><span class="pill ${cls(pj)}">390 jump +${pj}px</span>`;
+};
+
+const stressRows = () => {
+	const rows = [
+		{ t: "Collect payment", cls: "", note: "Fits: 59px." },
+		{ t: SVC, cls: "trunc", note: "Cut off: 59px, but the title loses its end." },
+		{ t: SVC, cls: "", note: "Wrapped: the title takes a second line, 75px, and the row no longer matches the Order's." },
+	];
+	return rows.map((r) => `<div class="fit"><div class="box"><div class="frame phone"><div class="sh"><div class="row">${back()}<span class="sep" aria-hidden="true">·</span><h2 class="st inrow-title ${r.cls}">${esc(r.t)}</h2></div><div class="gap0"></div></div>${close("none")}</div></div><p class="note">${r.note}</p></div>`).join("");
+};
+
+const render = () => {
+	const root = document.getElementById("options");
+	root.innerHTML = "";
+	for (const o of OPTS) {
+		const s = document.createElement("section");
+		s.className = "opt";
+		s.innerHTML = `<h2>${o.name}${o.tag ? `<span class="tag">${o.tag}</span>` : ""}</h2><p>${o.text()}</p><div class="metrics">${metricPills(o.id)}</div>`;
+		const canvas = document.createElement("div");
+		canvas.className = "canvas";
+		const d = document.createElement("div");
+		d.className = "stage";
+		d.append(
+			wrapFit(makeFrame(o.id, "desk", "order", true), "1280 · Order sheet (576 wide)"),
+			wrapFit(makeFrame(o.id, "desk", "nested"), `1280 · ${title()} over it`),
+		);
+		const p = document.createElement("div");
+		p.className = "stage";
+		p.append(
+			wrapFit(makeFrame(o.id, "phone", "order", true), "390 · Order page"),
+			wrapFit(makeFrame(o.id, "phone", "nested"), `390 · ${title()}`),
+		);
+		const h1 = document.createElement("h3");
+		h1.textContent = "1280 — the step from the Order sheet";
+		const h2 = document.createElement("h3");
+		h2.textContent = "390 — the step from the Order page";
+		canvas.append(h1, d, h2, p);
+		if (o.id === "b") {
+			const h3 = document.createElement("h3");
+			h3.textContent = "390 row test — when a sheet sits underneath (e.g. a worker's sheet in Reports, then an Item), the back link and a long title share 357px";
+			h3.style.marginTop = "24px";
+			const st = document.createElement("div");
+			st.className = "stage stress";
+			st.innerHTML = stressRows();
+			canvas.append(h3, st);
+		}
+		s.append(canvas);
+		const r = document.createElement("p");
+		r.className = "reply";
+		r.textContent = "Reply: A / B / C";
+		s.append(r);
+		root.append(s);
+	}
+	fitAll();
+};
+
+// Draw frames at true size; shrink a frame only when the viewer is narrower than it.
+const fitAll = () => {
+	for (const fit of document.querySelectorAll(".fit")) {
+		const frame = fit.querySelector(".frame");
+		const box = fit.querySelector(".box");
+		const natural = frame.classList.contains("desk") ? 577 : 391;
+		const stage = fit.parentElement;
+		const z = Math.min(1, stage.clientWidth / natural);
+		frame.style.transform = z < 1 ? `scale(${z})` : "";
+		box.style.width = `${natural * z}px`;
+		box.style.height = `${frame.offsetHeight * z}px`;
+	}
+};
+
+document.addEventListener("click", (e) => {
+	const btn = e.target.closest("[data-act]");
+	if (!btn) return;
+	const frame = btn.closest(".frame");
+	const act = btn.dataset.act;
+	if (!frame || act === "none") return;
+	const pair = frame.closest(".stage").querySelectorAll(".frame:not([data-fixed])")[0];
+	const target = frame.dataset.fixed ? pair : frame;
+	if (!target) return;
+	if (act === "back") target.dataset.view = "order";
+	if (act === "open") target.dataset.view = "nested";
+	target.classList.remove("scrolled");
+	target.innerHTML = frameHTML(target.dataset.opt, target.dataset.size, target.dataset.view);
+});
+
+document.addEventListener("scroll", (e) => {
+	const body = e.target;
+	if (!(body instanceof Element) || !body.classList.contains("body")) return;
+	const frame = body.closest(".frame");
+	if (frame?.dataset.opt === "c") frame.classList.toggle("scrolled", body.scrollTop > 28);
+}, true);
+
+const setTheme = (t) => {
+	theme = t;
+	document.documentElement.dataset.theme = t;
+	for (const b of document.querySelectorAll("[data-theme-btn]")) b.setAttribute("aria-pressed", String(b.dataset.themeBtn === t));
+	try { localStorage.setItem("sho-theme", t); } catch {}
+	render();
+};
+for (const b of document.querySelectorAll("[data-theme-btn]")) b.addEventListener("click", () => setTheme(b.dataset.themeBtn));
+for (const b of document.querySelectorAll("[data-tab]")) b.addEventListener("click", () => {
+	tab = b.dataset.tab;
+	for (const x of document.querySelectorAll("[data-tab]")) x.setAttribute("aria-pressed", String(x === b));
+	render();
+});
+document.getElementById("guides").addEventListener("change", (e) => document.body.classList.toggle("noguides", !e.target.checked));
+window.addEventListener("resize", fitAll);
+
+let saved = null;
+try { saved = localStorage.getItem("sho-theme"); } catch {}
+setTheme(saved || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+</script>
+</body>
+</html>

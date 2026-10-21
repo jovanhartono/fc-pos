@@ -14,7 +14,7 @@ export const DateTimeCell = ({
 	return (
 		<div className="flex gap-1.5 lg:flex-col lg:gap-0">
 			<span>{date.format(dateFormat)}</span>
-			<span className="lg:text-muted-foreground lg:text-xs">
+			<span className="lg:text-muted-foreground lg:text-footnote">
 				{date.format("HH:mm")}
 			</span>
 		</div>

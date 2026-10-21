@@ -1,5 +1,6 @@
+import { Section } from "@/components/section";
+import { Badge } from "@/components/ui/badge";
 import type { DayClose } from "@/features/counter/api";
-import { CountBadge } from "@/features/counter/components/day-close/count-badge";
 import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
 import { AMOUNT_TONE } from "@/features/counter/components/day-close/order-row";
 import { groupBySlip } from "@/features/counter/lib/day-close";
@@ -14,7 +15,7 @@ const ROW_KIND = {
 	// A slip with lines matches the terminal's settlement slip, so it is the
 	// only shaded row; its lines hang off a rule underneath.
 	slip: "bg-muted/70 font-medium",
-	line: "ml-4 w-[calc(100%-1rem)] border-border border-l-2 py-1.5 pl-3.5 text-sm",
+	line: "ml-4 w-[calc(100%-1rem)] border-border border-l-2 py-1.5 pl-3.5 text-body",
 };
 
 interface MethodRowProps {
@@ -35,7 +36,9 @@ const MethodRow = ({
 	<button className={cn(ROW, ROW_KIND[kind])} onClick={onClick} type="button">
 		<span>
 			{label}
-			<CountBadge count={payments} />
+			<Badge className="ml-2 align-top tabular-nums" variant="outline">
+				{payments}
+			</Badge>
 		</span>
 		<span className={cn("text-right", AMOUNT_TONE.paid)}>
 			{formatMoney(amount)}
@@ -53,9 +56,8 @@ export const MethodsSection = ({ data, onOpen }: MethodsSectionProps) => {
 	const groups = groupBySlip(data.methods);
 
 	return (
-		<section className="grid gap-2.5">
-			<h2 className="font-medium text-base">By PaymentMethod</h2>
-			<div className="border border-border">
+		<Section title="By payment method">
+			<div className="overflow-hidden rounded-lg border bg-card">
 				{groups.length === 0 ? (
 					<p className="px-3 py-2.5">No payments this day.</p>
 				) : null}
@@ -86,6 +88,6 @@ export const MethodsSection = ({ data, onOpen }: MethodsSectionProps) => {
 					</div>
 				))}
 			</div>
-		</section>
+		</Section>
 	);
 };

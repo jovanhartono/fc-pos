@@ -1,6 +1,10 @@
 // List shortcuts stay quiet while someone is typing or a dialog or sheet is
 // open, so J in a customer's name never moves the list underneath.
-export const isListKeyBlocked = (event: KeyboardEvent) => {
+// The Order sheet passes `dialogs` so the sheet it sits in doesn't block it.
+export const isListKeyBlocked = (
+	event: KeyboardEvent,
+	dialogs = '[role="dialog"]',
+) => {
 	if (
 		event.defaultPrevented ||
 		event.metaKey ||
@@ -17,5 +21,10 @@ export const isListKeyBlocked = (event: KeyboardEvent) => {
 	) {
 		return true;
 	}
-	return document.querySelector('[role="dialog"]') !== null;
+	return document.querySelector(dialogs) !== null;
 };
+
+// A cmd-, ctrl-, shift- or middle-click opens the link in a new tab instead.
+export const isPlainLeftClick = (
+	event: Pick<MouseEvent, "metaKey" | "ctrlKey" | "shiftKey" | "button">,
+) => !(event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0);

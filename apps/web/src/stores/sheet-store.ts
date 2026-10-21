@@ -11,6 +11,7 @@ type SheetState = {
 	size: SheetSize;
 	back: SheetBack | null;
 	backLabel: string | null;
+	actions: ReactNode;
 	onClose: (() => void) | null;
 };
 
@@ -29,6 +30,8 @@ export type OpenSheetPayload = {
 	// What a sheet opened over this one calls it in its back link, when the
 	// title is not plain text (an Order's title is hidden behind its own header).
 	backLabel?: string;
+	// A row at the top of the header, like the Orders list's previous/next.
+	actions?: ReactNode;
 	// When the person closes the sheet, not when code closes it to leave the
 	// page; a sheet opened over this one inherits it.
 	onClose?: () => void;
@@ -45,6 +48,7 @@ type SheetStore = {
 	// After a save: back to the sheet underneath, or close when there is none.
 	goBack: () => void;
 	closeSheet: () => void;
+	clearClosedSheet: () => void;
 	setDirty: (dirty: boolean) => void;
 };
 
@@ -56,6 +60,7 @@ const defaultState: SheetState = {
 	size: undefined,
 	back: null,
 	backLabel: null,
+	actions: null,
 	onClose: null,
 };
 
@@ -76,6 +81,7 @@ export const useSheet = create<SheetStore>((set, get) => ({
 		size,
 		back,
 		backLabel,
+		actions = null,
 		onClose,
 	}) =>
 		set({
@@ -86,6 +92,7 @@ export const useSheet = create<SheetStore>((set, get) => ({
 				size,
 				back: back ?? null,
 				backLabel: backLabel ?? null,
+				actions,
 				onClose: onClose ?? null,
 				open: true,
 			},
@@ -116,21 +123,20 @@ export const useSheet = create<SheetStore>((set, get) => ({
 		}
 		get().closeSheet();
 	},
-	closeSheet: () => {
+	closeSheet: () =>
 		set((state) => ({
 			sheetState: {
 				...state.sheetState,
 				open: false,
 			},
 			isDirty: false,
-		}));
-
-		// Waits for the slide-out, but leaves alone a sheet opened in the meantime.
-		setTimeout(() => {
-			if (!get().sheetState.open) {
-				set({ sheetState: defaultState });
-			}
-		}, 200);
+		})),
+	// Called once the slide-out has finished, so the header stays on the panel
+	// all the way out; leaves alone a sheet opened in the meantime.
+	clearClosedSheet: () => {
+		if (!get().sheetState.open) {
+			set({ sheetState: defaultState });
+		}
 	},
 	setDirty: (dirty) => set({ isDirty: dirty }),
 }));

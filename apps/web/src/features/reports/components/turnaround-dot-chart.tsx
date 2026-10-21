@@ -138,7 +138,12 @@ export const TurnaroundDotChart = ({ dots, row }: TurnaroundDotChartProps) => {
 		: false;
 
 	return (
-		<div ref={ref} className="relative min-w-0">
+		<div ref={ref} className="@container relative min-w-0">
+			{/* The chart's own height (plot plus day labels) before its width is
+			    measured, so the table under it doesn't drop a beat later. */}
+			{width === 0 && (
+				<div aria-hidden className="h-[186px] @min-[30rem]:h-[226px]" />
+			)}
 			{width > 0 && (
 				<>
 					<svg
@@ -164,16 +169,11 @@ export const TurnaroundDotChart = ({ dots, row }: TurnaroundDotChartProps) => {
 							<circle
 								cx={p.x}
 								cy={p.y}
-								fill={
-									p.over
-										? "none"
-										: i === hover?.dot
-											? TURNAROUND_COLORS.dotStrong
-											: TURNAROUND_COLORS.dot
-								}
+								fill={p.over ? "none" : TURNAROUND_COLORS.dot}
+								fillOpacity={i === hover?.dot ? 1 : 0.45}
 								key={`${p.item.ready_day}-${i}`}
 								r={p.over ? 3.2 : 3}
-								stroke={p.over ? TURNAROUND_COLORS.dotStrong : "none"}
+								stroke={p.over ? TURNAROUND_COLORS.dot : "none"}
 							/>
 						))}
 						{PERCENTILE_KEYS.map(([key, color], n) => {
@@ -235,7 +235,7 @@ export const TurnaroundDotChart = ({ dots, row }: TurnaroundDotChartProps) => {
 			)}
 			{hover !== null && hovered !== null && (
 				<div
-					className="pointer-events-none fixed z-50 max-w-64 border bg-popover px-2.5 py-2 text-[12.5px] text-popover-foreground shadow-lg"
+					className="pointer-events-none fixed z-50 max-w-64 rounded-md border bg-popover px-2.5 py-2 text-footnote text-popover-foreground shadow-lg"
 					style={{
 						left: flip ? hover.left - 10 : hover.left + 10,
 						top: hover.top,

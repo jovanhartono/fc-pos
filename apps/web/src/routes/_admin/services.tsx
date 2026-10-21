@@ -1,9 +1,11 @@
-import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
+import { ActiveBadge } from "@/components/active-badge";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { EditRowButton } from "@/components/edit-row-button";
 import { ListPanel } from "@/components/list-panel";
 import { MoneyValue } from "@/components/money-value";
 import { PageHeader } from "@/components/page-header";
@@ -27,6 +29,9 @@ export const Route = createFileRoute("/_admin/services")({
 	loader: ({ context }) =>
 		context.queryClient.ensureQueryData(servicesQueries.list()),
 	component: ServicesPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: ServicesPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function ServicesPage() {
@@ -34,7 +39,6 @@ function ServicesPage() {
 	const { openSheet, closeSheet } = useSheet();
 
 	const { data: services = [], isPending } = useQuery(servicesQueries.list());
-	const serviceCount = services.length;
 
 	const createMutation = useMutation({
 		mutationKey: ["create-service"],
@@ -63,7 +67,7 @@ function ServicesPage() {
 	const handleOpenEditSheet = useCallback(
 		(service: Service) => {
 			openSheet({
-				title: "Edit Service",
+				title: "Edit service",
 				content: () => (
 					<ServiceForm
 						defaultValues={{
@@ -95,7 +99,7 @@ function ServicesPage() {
 
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
-			title: "Add Service",
+			title: "Add service",
 			content: () => (
 				<ServiceForm
 					handleOnSubmit={async (values: ServiceFormSubmitValues) => {
@@ -113,33 +117,36 @@ function ServicesPage() {
 			{
 				accessorKey: "code",
 				header: "Code",
-				meta: { kind: "code", mobileCard: { slot: "subtitle" } },
+				meta: {
+					kind: "code",
+					width: { percent: 8, minRem: 4.5 },
+					mobileCard: { slot: "subtitle" },
+				},
 			},
 			{
 				accessorKey: "name",
 				header: "Service",
-				meta: { kind: "name" },
+				meta: { kind: "name", width: { percent: 32, minRem: 9 } },
 			},
 			{
 				id: "category",
 				header: "Category",
-				meta: { mobileCard: { slot: "subtitle" } },
+				meta: {
+					width: { percent: 11, minRem: 6.25 },
+					mobileCard: { slot: "subtitle" },
+				},
 				cell: ({ row }) => row.original.category?.name ?? "-",
 			},
 			{
 				accessorKey: "cogs",
 				header: "COGS",
-				meta: { align: "right" },
-				cell: ({ row }) => (
-					<span className="text-muted-foreground">
-						{formatMoney(String(row.original.cogs))}
-					</span>
-				),
+				meta: { align: "right", width: { percent: 11, minRem: 5.75 } },
+				cell: ({ row }) => formatMoney(String(row.original.cogs)),
 			},
 			{
 				accessorKey: "price",
 				header: "Price",
-				meta: { align: "right" },
+				meta: { align: "right", width: { percent: 11, minRem: 6.25 } },
 				cell: ({ row }) =>
 					row.original.price === null ? (
 						<span className="text-muted-foreground">No list price</span>
@@ -148,38 +155,32 @@ function ServicesPage() {
 					),
 			},
 			{
-				id: "priority",
-				header: "Queue",
-				meta: { mobileCard: { slot: "badges" } },
-				cell: ({ row }) => (
-					<Badge variant={row.original.is_priority ? "priority" : "outline"}>
-						{row.original.is_priority ? "Priority" : "Standard"}
-					</Badge>
-				),
-			},
-			{
 				id: "status",
 				header: "Status",
-				meta: { mobileCard: { slot: "badges" } },
+				meta: {
+					width: { percent: 18, minRem: 9.5 },
+					mobileCard: { slot: "status" },
+				},
 				cell: ({ row }) => (
-					<Badge variant={row.original.is_active ? "success" : "danger"}>
-						{row.original.is_active ? "Active" : "Inactive"}
-					</Badge>
+					<span className="flex items-center gap-1.5">
+						{row.original.is_priority ? (
+							<Badge variant="priority">Priority</Badge>
+						) : (
+							<Badge variant="outline">Standard</Badge>
+						)}
+						<ActiveBadge isActive={row.original.is_active} />
+					</span>
 				),
 			},
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { mobileCard: { slot: "title-end" } },
+				meta: {
+					width: { percent: 9, minRem: 4.5 },
+					mobileCard: { slot: "title-end" },
+				},
 				cell: ({ row }) => (
-					<Button
-						variant="outline"
-						size="icon-sm"
-						aria-label="Edit"
-						title="Edit"
-						onClick={() => handleOpenEditSheet(row.original)}
-						icon={<PencilSimpleLineIcon className="size-4" />}
-					/>
+					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),
 			},
 		],
@@ -190,27 +191,27 @@ function ServicesPage() {
 		<>
 			<PageHeader
 				title="Services"
+				count={isPending ? undefined : services.length}
+				countNoun="service"
 				actions={
-					<>
-						<Badge
-							variant={isPending ? "secondary" : "outline"}
-						>{`${serviceCount} items`}</Badge>
-						<Button
-							onClick={handleOpenCreateSheet}
-							icon={<PlusIcon className="size-4" />}
-						>
-							Add Service
-						</Button>
-					</>
+					<Button
+						onClick={handleOpenCreateSheet}
+						icon={<PlusIcon className="size-4" />}
+					>
+						Add service
+					</Button>
 				}
 			/>
 			<ListPanel>
 				<DataTable
 					columns={columns}
 					data={services}
+					isCardGrouped
+					skeletonCardClassName="h-32.5"
 					isLoading={isPending}
 					sortable
 					cardPrimaryColumnId="name"
+					emptyMessage="No services."
 				/>
 			</ListPanel>
 		</>

@@ -174,7 +174,7 @@ export const PhotoLightbox = ({
 						</PhotoStage>
 					) : (
 						<div className="relative flex min-h-0 flex-1 items-center justify-center">
-							<div className="grid place-items-center gap-2 px-6 py-12 text-center text-sm text-white/72">
+							<div className="grid place-items-center gap-2 px-6 py-12 text-center text-body text-white/72">
 								<ImageSquareIcon className="size-6" aria-hidden="true" />
 								<p>No image selected</p>
 							</div>
@@ -183,14 +183,14 @@ export const PhotoLightbox = ({
 
 					<div className="flex items-center justify-between gap-3 border-t border-white/10 bg-zinc-950 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)_+_0.75rem)] text-white">
 						<div className="grid gap-1">
-							<p className="text-sm font-medium">
+							<p className="text-body font-medium">
 								{activeCaption?.primary ?? "Attachment"}
 							</p>
-							<p className="text-xs text-white/70">
+							<p className="text-footnote text-white/70">
 								{activeCaption?.secondary ?? "No metadata"}
 							</p>
 						</div>
-						<div className="flex shrink-0 items-center gap-3 text-xs text-white/70">
+						<div className="flex shrink-0 items-center gap-3 text-footnote text-white/70">
 							<p className="tabular-nums">
 								{activeCaption?.indexLabel ?? "0 / 0"}
 							</p>

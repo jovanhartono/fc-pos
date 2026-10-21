@@ -6,13 +6,6 @@ import {
 import { type ErrorComponentProps, Link } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
 
 const getErrorMessage = (error: unknown): string => {
 	if (error instanceof Error) {
@@ -29,44 +22,33 @@ const getErrorMessage = (error: unknown): string => {
 };
 
 const ErrorCard = ({ error, reset }: ErrorComponentProps) => {
+	const message = getErrorMessage(error);
 	return (
-		<Card className="w-full max-w-xl">
-			<CardHeader className="border-b pb-4">
-				<CardTitle className="flex items-center gap-2 text-sm">
-					<WarningCircleIcon className="size-4 text-destructive" />
-					Application error
-				</CardTitle>
-				<CardDescription>
-					Something broke on this screen. Retry, or go home.
-				</CardDescription>
-			</CardHeader>
-
-			<CardContent className="grid gap-3">
-				<div className="grid gap-1">
-					<div className="text-xs font-medium text-muted-foreground">
-						Details
-					</div>
-					<pre className="max-h-56 overflow-auto border bg-muted/50 px-3 py-2 text-[11px] leading-5 whitespace-pre-wrap break-words">
-						{getErrorMessage(error)}
-					</pre>
-				</div>
-
-				<div className="flex flex-wrap gap-2">
-					<Button size="sm" onClick={reset} icon={<ArrowClockwiseIcon />}>
-						Retry
-					</Button>
-					<Button
-						size="sm"
-						variant="outline"
-						nativeButton={false}
-						render={<Link to="/" />}
-						icon={<HouseIcon />}
-					>
-						Home
-					</Button>
-				</div>
-			</CardContent>
-		</Card>
+		<div className="grid w-full max-w-md justify-items-center gap-3 text-center">
+			<WarningCircleIcon className="size-10 text-destructive" />
+			<h1 className="font-bold text-title-2">Application error</h1>
+			<p className="text-headline">
+				Something broke on this screen. Retry, or go home.
+			</p>
+			{message ? (
+				<pre className="max-h-56 w-full overflow-auto whitespace-pre-wrap break-words rounded-lg bg-secondary px-3 py-2 text-left font-sans text-subhead tabular-nums">
+					{message}
+				</pre>
+			) : null}
+			<div className="mt-1 flex flex-wrap justify-center gap-2">
+				<Button onClick={reset} icon={<ArrowClockwiseIcon />}>
+					Retry
+				</Button>
+				<Button
+					variant="outline"
+					nativeButton={false}
+					render={<Link to="/" />}
+					icon={<HouseIcon />}
+				>
+					Home
+				</Button>
+			</div>
+		</div>
 	);
 };
 

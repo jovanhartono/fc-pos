@@ -77,7 +77,7 @@ export const OrderServicePriceForm = ({
 				)}
 			/>
 			<Button
-				className="h-10 pointer-coarse:h-11"
+				size="lg"
 				icon={<CheckIcon className="size-4" />}
 				loading={priceMutation.isPending}
 				type="submit"

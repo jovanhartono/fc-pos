@@ -1,29 +1,29 @@
 import {
 	type Icon,
-	PencilSimpleLineIcon,
 	PlusIcon,
 	SignInIcon,
 	SignOutIcon,
 } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import dayjs from "dayjs";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
-import { DataTable, WRAP_NAME_CLASS } from "@/components/data-table";
+import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DateTimeCell } from "@/components/date-time-cell";
+import { EditRowButton } from "@/components/edit-row-button";
 import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-picker";
-import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import { StoreSelect } from "@/features/orders/components/store-select";
 import { type Shift, shiftsQueries } from "@/features/shifts/api";
 import { EditShiftForm } from "@/features/shifts/components/edit-shift-form";
 import { NewShiftForm } from "@/features/shifts/components/new-shift-form";
 import { storesQueries } from "@/features/stores/api";
-import { cn } from "@/lib/utils";
+import { formatShiftLength } from "@/lib/dayjs";
 import { useDialog } from "@/stores/dialog-store";
 
 const PAGE_SIZE = 25;
@@ -46,32 +46,32 @@ const buildShiftsQuery = (search: z.infer<typeof shiftsSearchSchema>) => ({
 export const Route = createFileRoute("/_admin/shifts")({
 	validateSearch: (search) => shiftsSearchSchema.parse(search),
 	loaderDeps: ({ search }) => search,
-	loader: ({ context, deps }) =>
-		Promise.all([
+	loader: async ({ context, deps, cause }) => {
+		// Paging or a new store or range keeps the page up and swaps the rows.
+		if (cause === "stay") {
+			return;
+		}
+		await Promise.all([
 			context.queryClient.ensureQueryData(
 				shiftsQueries.list(buildShiftsQuery(deps)),
 			),
 			context.queryClient.ensureQueryData(storesQueries.list()),
-		]),
+		]);
+	},
 	component: ShiftsPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: ShiftsPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
-
-const formatDuration = (clockIn: Date | string, clockOut: Date | string) => {
-	const ms = dayjs(clockOut).diff(dayjs(clockIn));
-	const totalMinutes = Math.max(0, Math.floor(ms / 60_000));
-	const hours = Math.floor(totalMinutes / 60);
-	const minutes = totalMinutes % 60;
-	return `${hours}h ${String(minutes).padStart(2, "0")}m`;
-};
 
 interface OpenShiftProps {
 	clockInAt: Date | string;
 }
 
 const OpenShift = ({ clockInAt }: OpenShiftProps) => (
-	<span className="font-semibold text-emerald-700 dark:text-emerald-400">
+	<span className="font-medium text-tone-good-foreground">
 		Open
-		<span className="block font-normal text-muted-foreground text-xs">
+		<span className="block font-normal text-foreground">
 			since {dayjs(clockInAt).format("HH:mm")}
 		</span>
 	</span>
@@ -94,21 +94,23 @@ interface ShiftDurationProps {
 }
 
 const ShiftDuration = ({ shift }: ShiftDurationProps) => (
-	<div className="flex flex-col gap-0.5">
+	<div className="flex flex-col gap-0.5 text-subhead">
 		{shift.clock_out_at ? (
-			<span className="font-semibold tabular-nums">
-				{formatDuration(shift.clock_in_at, shift.clock_out_at)}
+			<span className="font-medium tabular-nums">
+				{formatShiftLength(
+					dayjs(shift.clock_out_at).diff(shift.clock_in_at, "minute"),
+				)}
 			</span>
 		) : (
 			<OpenShift clockInAt={shift.clock_in_at} />
 		)}
 		{shift.auto_closed ? (
-			<span className="text-amber-600 text-xs dark:text-amber-400">
+			<span className="text-tone-warn-foreground text-footnote">
 				auto-closed
 			</span>
 		) : null}
 		{shift.editedBy ? (
-			<span className="text-muted-foreground text-xs">
+			<span className="text-muted-foreground text-footnote">
 				edited by {shift.editedBy.name}
 			</span>
 		) : null}
@@ -118,7 +120,10 @@ const ShiftDuration = ({ shift }: ShiftDurationProps) => (
 function ShiftsPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
-	const shiftsQuery = useQuery(shiftsQueries.list(buildShiftsQuery(search)));
+	const shiftsQuery = useQuery({
+		...shiftsQueries.list(buildShiftsQuery(search)),
+		placeholderData: keepPreviousData,
+	});
 	const shifts = shiftsQuery.data?.items ?? [];
 	const openDialog = useDialog((s) => s.openDialog);
 	const closeDialog = useDialog((s) => s.closeDialog);
@@ -146,16 +151,17 @@ function ShiftsPage() {
 			{
 				id: "user",
 				header: "Worker",
+				meta: { width: { percent: 33, minRem: 9 } },
 				cell: ({ row }) => (
-					<div className={cn("flex flex-col", WRAP_NAME_CLASS)}>
-						<span className="font-medium">
+					<div className="flex flex-col text-subhead">
+						<span className="font-medium text-body">
 							{row.original.user?.name ?? `User #${row.original.user_id}`}
 							{/* The card has no Store column, so the store rides on the name. */}
-							<span className="ml-1.5 font-mono font-normal text-muted-foreground text-xs lg:hidden">
+							<span className="ml-1.5 font-normal text-subhead tabular-nums lg:hidden">
 								{row.original.store?.code}
 							</span>
 						</span>
-						<span className="text-muted-foreground text-xs">
+						<span className="font-normal capitalize">
 							{row.original.user?.role ?? ""}
 						</span>
 					</div>
@@ -164,39 +170,58 @@ function ShiftsPage() {
 			{
 				id: "store",
 				header: "Store",
-				meta: { mobileCard: { slot: "hidden" } },
-				cell: ({ row }) => row.original.store?.code ?? "-",
+				meta: {
+					width: { percent: 10, minRem: 4 },
+					mobileCard: { slot: "hidden" },
+				},
+				cell: ({ row }) => (
+					<span className="text-subhead">
+						{row.original.store?.code ?? "-"}
+					</span>
+				),
 			},
 			{
 				id: "clock_in",
 				header: "Clock in",
 				meta: {
+					width: { percent: 16, minRem: 6.5 },
 					mobileCard: {
 						label: <ClockLabel icon={SignInIcon} text="Clock in" />,
+						valueClassName: "font-normal",
 					},
 				},
-				cell: ({ row }) => <DateTimeCell value={row.original.clock_in_at} />,
+				cell: ({ row }) => (
+					<div className="text-subhead">
+						<DateTimeCell value={row.original.clock_in_at} />
+					</div>
+				),
 			},
 			{
 				id: "clock_out",
 				header: "Clock out",
 				meta: {
+					width: { percent: 16, minRem: 6.5 },
 					mobileCard: {
 						label: <ClockLabel icon={SignOutIcon} text="Clock out" />,
+						valueClassName: "font-normal",
 					},
 				},
-				cell: ({ row }) =>
-					row.original.clock_out_at ? (
-						<DateTimeCell value={row.original.clock_out_at} />
-					) : (
-						"—"
-					),
+				cell: ({ row }) => (
+					<div className="text-subhead">
+						{row.original.clock_out_at ? (
+							<DateTimeCell value={row.original.clock_out_at} />
+						) : (
+							"—"
+						)}
+					</div>
+				),
 			},
 			{
 				id: "duration",
 				header: "Duration",
 				// pt-1 matches the card title, which drops 4px to line up with Edit buttons.
 				meta: {
+					width: { percent: 15, minRem: 6 },
 					mobileCard: { slot: "title-end", className: "pt-1 text-right" },
 				},
 				cell: ({ row }) => <ShiftDuration shift={row.original} />,
@@ -204,16 +229,12 @@ function ShiftsPage() {
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { mobileCard: { slot: "title-end" } },
+				meta: {
+					width: { percent: 10, minRem: 4.5 },
+					mobileCard: { slot: "title-end" },
+				},
 				cell: ({ row }) => (
-					<Button
-						variant="outline"
-						size="icon-sm"
-						aria-label="Edit"
-						title="Edit"
-						onClick={() => handleEdit(row.original)}
-						icon={<PencilSimpleLineIcon className="size-4" />}
-					/>
+					<EditRowButton onClick={() => handleEdit(row.original)} />
 				),
 			},
 		],
@@ -224,6 +245,8 @@ function ShiftsPage() {
 		<>
 			<PageHeader
 				title="Shifts"
+				count={shiftsQuery.data?.meta.total}
+				countNoun="shift"
 				actions={
 					<Button icon={<PlusIcon className="size-4" />} onClick={handleCreate}>
 						New shift
@@ -232,7 +255,7 @@ function ShiftsPage() {
 			/>
 			<ListPanel>
 				<div className="flex flex-wrap items-center gap-2">
-					<StoreAutocomplete
+					<StoreSelect
 						id="shifts-store"
 						hideLabel
 						value={search.store_id?.toString() ?? ""}
@@ -247,7 +270,7 @@ function ShiftsPage() {
 						}}
 						allOptionLabel="All stores"
 						placeholder="Filter by store"
-						triggerClassName="h-10 w-max min-w-48 text-sm"
+						triggerClassName="sm:w-60"
 					/>
 					<DateRangePicker
 						commitOnComplete
@@ -270,6 +293,9 @@ function ShiftsPage() {
 					columns={columns}
 					data={shifts}
 					isLoading={shiftsQuery.isPending}
+					isStale={shiftsQuery.isPlaceholderData}
+					filterKey={JSON.stringify(search)}
+					skeletonCardClassName="h-22.5"
 					footer={
 						<TablePagination
 							meta={shiftsQuery.data?.meta}

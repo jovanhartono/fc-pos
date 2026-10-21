@@ -99,7 +99,7 @@ export function HoldToConfirmButton({
 		<Button
 			type="button"
 			className={cn(
-				"relative touch-none overflow-hidden [-webkit-touch-callout:none]",
+				"relative touch-none overflow-hidden [-webkit-touch-callout:none] active:scale-100 active:opacity-100",
 				className,
 			)}
 			disabled={disabled || loading}

@@ -14,10 +14,10 @@ describe("durations", () => {
 	it("switches from hours to days at 48 hours", () => {
 		expect(shortDuration(22.4)).toBe("22h");
 		expect(shortDuration(47.4)).toBe("47h");
-		expect(shortDuration(165.6)).toBe("6.9d");
+		expect(shortDuration(165.6)).toBe("6,9d");
 		expect(longDuration(22)).toBe("22 hours");
-		expect(longDuration(48)).toBe("2.0 days");
-		expect(longDuration(165.6)).toBe("6.9 days");
+		expect(longDuration(48)).toBe("2,0 days");
+		expect(longDuration(165.6)).toBe("6,9 days");
 	});
 
 	it("labels a day without a leading zero", () => {

@@ -20,12 +20,32 @@ interface DataTableProps<TData extends RowData> {
 	columns: DataTableColumnDef<TData>[];
 	data: TData[];
 	isLoading?: boolean;
+	// The rows on screen belong to the last filter or page; the new ones are on their way.
+	isStale?: boolean;
+	// The filter and page the rows answer; a new one draws new rows.
+	filterKey?: string;
+	// How many placeholder rows to draw, when the rows coming are known.
+	skeletonRowCount?: number;
+	// The height of a typical phone card, so the placeholders are the cards' size.
+	skeletonCardClassName?: string;
+	// Desktop placeholder rows are a name over a smaller line, unless every row
+	// is one line, or two wrapped lines of the table's own text.
+	skeletonLines?: 1 | 2 | "wrapped";
 	emptyMessage?: string;
 	sortable?: boolean;
 	cardPrimaryColumnId?: string;
 	cardHiddenColumnIds?: string[];
-	getCardLink?: (row: TData) => LinkProps;
-	// The row whose record is open beside the list.
+	// Opens the record from anywhere on its row or card.
+	getRowLink?: (row: TData) => LinkProps;
+	// Same, for a record that opens in a sheet and has no page of its own.
+	onRowOpen?: (row: TData) => void;
+	// Drawn inside a card that already has the border, like a Store's group.
+	isInsideCard?: boolean;
+	// Phone rows share one card; for lists of one-line records, not Orders.
+	isCardGrouped?: boolean;
+	// Phone rows the page draws itself, inside one grouped card.
+	renderCard?: (row: TData) => ReactNode;
+	// The row whose record is open in the sheet over the list.
 	isRowActive?: (row: TData) => boolean;
 	// The pager, kept in reach: under the rows on desktop, above the tab bar on a phone.
 	footer?: ReactNode;
@@ -33,15 +53,12 @@ interface DataTableProps<TData extends RowData> {
 
 // A code is read character by character, a name is what the eye looks for
 // first. Wrapped once here, so the table and the phone card both get it.
-// The lg: limits stop one long name or description widening the whole table.
-// Exported for cells that stack a name over a second line, where kind would bold both.
-export const WRAP_NAME_CLASS =
-	"lg:max-w-64 lg:whitespace-normal lg:wrap-break-word";
-
+// On the table a long name or description wraps inside its column's fixed
+// width and stops at two lines, so one long value never makes its row taller.
 const KIND_CLASS = {
-	code: "font-mono",
-	name: `font-medium lg:inline-block lg:min-w-40 ${WRAP_NAME_CLASS}`,
-	text: "lg:block lg:max-w-72 lg:truncate",
+	code: "tabular-nums",
+	name: "font-medium lg:line-clamp-2",
+	text: "lg:line-clamp-2",
 } as const;
 
 const withKindStyles = <TData extends RowData>(
@@ -75,15 +92,31 @@ export const DataTable = <TData extends RowData>({
 	columns,
 	data,
 	isLoading,
-	emptyMessage = "No data found",
+	isStale,
+	filterKey,
+	skeletonRowCount,
+	skeletonCardClassName,
+	skeletonLines,
+	emptyMessage = "Nothing here.",
 	sortable = false,
 	cardPrimaryColumnId,
 	cardHiddenColumnIds,
-	getCardLink,
+	getRowLink,
+	onRowOpen,
+	isInsideCard,
+	isCardGrouped,
+	renderCard,
 	isRowActive,
 	footer,
 }: DataTableProps<TData>) => {
 	const [sorting, setSorting] = useState<SortingState>([]);
+	// When a cashier's new filter lands, its rows are drawn fresh rather than the
+	// last filter's rows moved to new places, which the browser counts as the page
+	// jumping. The faded rows still answer the last filter; a refresh keeps its rows.
+	const [resultSet, setResultSet] = useState(filterKey);
+	if (!isStale && resultSet !== filterKey) {
+		setResultSet(filterKey);
+	}
 	// Sidebar stays expanded until lg, leaving too little width for a real
 	// table at tablet — render the card layout up to lg instead of md.
 	const isCardView = useIsMobile(1024);
@@ -95,6 +128,12 @@ export const DataTable = <TData extends RowData>({
 		features: dataTableFeatures,
 		data,
 		columns: styledColumns,
+		// Rows keyed by their record, so a filter that drops one campaign doesn't
+		// pour the next campaign into its card and resize it.
+		getRowId: (row, index) =>
+			typeof row === "object" && row !== null && "id" in row
+				? String(row.id)
+				: String(index),
 		state: sortable ? { sorting } : undefined,
 		onSortingChange: sortable ? setSorting : undefined,
 	});
@@ -102,19 +141,31 @@ export const DataTable = <TData extends RowData>({
 	if (isCardView) {
 		return (
 			<>
-				<DataTableCards
-					table={table}
-					isLoading={isLoading}
-					emptyMessage={emptyMessage}
-					cardPrimaryColumnId={cardPrimaryColumnId}
-					cardHiddenColumnIds={cardHiddenColumnIds}
-					getCardLink={getCardLink}
-					isRowActive={isRowActive}
-				/>
+				{/* Grows to the foot of the list, so the pager rests at the bottom of
+				    the screen however few cards a filter returns. */}
+				<div className="flex-1">
+					<DataTableCards
+						table={table}
+						isLoading={isLoading}
+						isStale={isStale}
+						resultSet={resultSet}
+						skeletonRowCount={skeletonRowCount}
+						skeletonCardClassName={skeletonCardClassName}
+						emptyMessage={emptyMessage}
+						cardPrimaryColumnId={cardPrimaryColumnId}
+						cardHiddenColumnIds={cardHiddenColumnIds}
+						getCardLink={getRowLink}
+						onCardOpen={onRowOpen}
+						isInsideCard={isInsideCard}
+						isGrouped={isCardGrouped || renderCard !== undefined}
+						renderCard={renderCard}
+						isRowActive={isRowActive}
+					/>
+				</div>
 				{footer ? (
 					// Pinned like the queue's Hold to Start Work bar.
 					<div
-						className="sticky bottom-0 z-10 -mx-3 mt-1 border-t bg-background px-3 pt-2 pb-[calc(var(--inset-bottom)+0.5rem)] sm:-mx-6 sm:px-6 md:-mx-8 md:px-8"
+						className="page-bleed sticky bottom-0 z-10 mt-1 border-t bg-background pt-2 pb-[calc(var(--inset-bottom)+0.5rem)]"
 						data-bottom-bar
 					>
 						{footer}
@@ -128,8 +179,15 @@ export const DataTable = <TData extends RowData>({
 		<DataTableGrid
 			table={table}
 			isLoading={isLoading}
+			isStale={isStale}
+			resultSet={resultSet}
+			skeletonRowCount={skeletonRowCount}
+			skeletonLines={skeletonLines}
 			emptyMessage={emptyMessage}
 			sortable={sortable}
+			getRowLink={getRowLink}
+			onRowOpen={onRowOpen}
+			isInsideCard={isInsideCard}
 			isRowActive={isRowActive}
 			footer={footer}
 		/>

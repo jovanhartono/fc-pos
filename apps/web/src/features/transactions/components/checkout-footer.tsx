@@ -16,6 +16,7 @@ import { useCheckoutPricing } from "@/features/transactions/hooks/useCheckoutPri
 import { getCheckoutGates } from "@/features/transactions/lib/checkout-gates";
 import type { CheckoutStep } from "@/features/transactions/lib/checkout-steps";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
@@ -76,10 +77,10 @@ export const CheckoutFooter = ({
 			{submitError ? <FieldError>{submitError}</FieldError> : null}
 			<div className="flex items-center justify-between gap-3">
 				<div className="grid gap-0.5">
-					<span className="text-[13px] font-medium text-muted-foreground">
+					<span className="text-subhead font-medium text-muted-foreground">
 						Total
 					</span>
-					<span className="text-base font-semibold">
+					<span className="text-headline font-semibold">
 						{formatMoney(String(Math.round(pricing.total)))}
 					</span>
 				</div>
@@ -94,11 +95,17 @@ export const CheckoutFooter = ({
 					step={step}
 				/>
 			</div>
-			{itemsHint ? (
-				<p className="text-muted-foreground text-xs" id={ITEMS_HINT_ID}>
-					{itemsHint}
-				</p>
-			) : null}
+			{/* Always one line tall, blank when there is nothing to say, so moving
+			    between steps or taking the photo never shifts the Total and buttons. */}
+			<p
+				className={cn(
+					"text-muted-foreground text-footnote",
+					!itemsHint && "invisible",
+				)}
+				id={ITEMS_HINT_ID}
+			>
+				{itemsHint || " "}
+			</p>
 		</SheetFooter>
 	);
 };

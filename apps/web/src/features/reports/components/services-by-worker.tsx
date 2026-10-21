@@ -14,13 +14,21 @@ import { cn } from "@/lib/utils";
 // Long Service names get the pinned first column, capped and wrapping on a
 // phone so the number columns keep room and scroll sideways behind it.
 const SERVICE_CLASS =
-	"sticky left-0 z-10 min-w-34 max-w-34 bg-background px-3 py-2 text-left font-medium shadow-[inset_-1px_0_0_var(--color-border)] sm:max-w-none sm:min-w-44";
+	"sticky left-0 z-10 min-w-34 max-w-34 bg-card px-3 py-2 text-left font-medium shadow-[inset_-1px_0_0_var(--color-border)] sm:max-w-none sm:min-w-44";
 const CELL_CLASS = "min-w-18 whitespace-nowrap px-3 py-2 text-right align-top";
 const HEAD_CLASS =
-	"sticky top-0 z-10 bg-muted px-3 py-2 font-medium text-muted-foreground";
+	"sticky top-0 z-10 bg-card px-3 py-2 font-medium text-muted-foreground shadow-[inset_0_-1px_0_var(--color-border)]";
 // The Total row stays in view while a long list of Services scrolls on desktop.
 const TOTAL_CLASS =
-	"sticky bottom-0 z-10 bg-background shadow-[inset_0_1px_0_var(--color-border)]";
+	"sticky bottom-0 z-10 bg-card shadow-[inset_0_1px_0_var(--color-border)]";
+
+// Busier cells read darker, so the owner spots who does what at a glance.
+const shade = (value: number, max: number) =>
+	value > 0 && max > 0
+		? {
+				background: `color-mix(in srgb, var(--primary) ${6 + (22 * value) / max}%, transparent)`,
+			}
+		: undefined;
 
 interface MatrixColumn {
 	key: string;
@@ -42,7 +50,7 @@ const StoreHeader = ({ code, name, onSelect }: StoreHeaderProps) => (
 		title={name}
 		aria-label={name}
 		onClick={onSelect}
-		className="inline-flex items-center gap-0.5 whitespace-nowrap font-medium hover:text-foreground"
+		className="inline-flex items-center gap-0.5 whitespace-nowrap font-medium text-primary"
 	>
 		{code}
 		<CaretRightIcon aria-hidden="true" className="size-3 shrink-0" />
@@ -69,7 +77,7 @@ export const ServicesByWorker = ({
 	const { services, cells } = data.services_matrix;
 	if (services.length === 0) {
 		return (
-			<p className="text-muted-foreground text-sm">
+			<p className="text-muted-foreground text-body">
 				No Services processed in range.
 			</p>
 		);
@@ -112,11 +120,17 @@ export const ServicesByWorker = ({
 					total: rowTotal(w.user_id, w.store_id),
 				}));
 	const grandTotal = services.reduce((sum, s) => sum + s.total, 0);
+	const maxCell = Math.max(
+		0,
+		...services.flatMap((service) =>
+			columns.map((column) => column.count(service.service_id)),
+		),
+	);
 	const headClass = cn(HEAD_CLASS, "min-w-18 text-right align-bottom");
 
 	return (
-		<div className="overflow-x-auto border border-border lg:max-h-[26rem] lg:overflow-y-auto">
-			<table className="w-full border-collapse text-xs tabular-nums">
+		<div className="overflow-auto rounded-lg border bg-card lg:max-h-[26rem]">
+			<table className="w-full border-collapse text-subhead tabular-nums">
 				<thead>
 					<tr className="border-border border-b">
 						<th scope="col" className={cn(SERVICE_CLASS, HEAD_CLASS, "z-20")}>
@@ -141,7 +155,11 @@ export const ServicesByWorker = ({
 							{columns.map((column) => {
 								const value = column.count(service.service_id);
 								return (
-									<td key={column.key} className={CELL_CLASS}>
+									<td
+										key={column.key}
+										className={CELL_CLASS}
+										style={shade(value, maxCell)}
+									>
 										{value === 0 ? (
 											<span className="text-muted-foreground">–</span>
 										) : (
@@ -157,7 +175,7 @@ export const ServicesByWorker = ({
 					))}
 				</tbody>
 				<tfoot>
-					<tr className="font-semibold">
+					<tr className="font-medium">
 						<th scope="row" className={cn(SERVICE_CLASS, TOTAL_CLASS, "z-20")}>
 							Total
 						</th>

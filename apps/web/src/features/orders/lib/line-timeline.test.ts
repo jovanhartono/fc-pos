@@ -44,7 +44,7 @@ describe("a rework line's timeline", () => {
 
 		expect(entries.map((entry) => [entry.label, entry.at, entry.by])).toEqual([
 			["Rework opened", "2026-09-22T02:00:00.000Z", "Cahya"],
-			["In Progress", "2026-09-22T05:00:00.000Z", "Sari"],
+			["In progress", "2026-09-22T05:00:00.000Z", "Sari"],
 		]);
 		expect(entries[0].note).toBe("Sole still stained");
 	});
@@ -128,11 +128,11 @@ describe("the complained line's timeline", () => {
 				reworkOf: null,
 			}),
 		).toEqual([
-			["Ready for Pickup", "2026-09-19T08:00:00.000Z", "Sari"],
+			["Ready for pickup", "2026-09-19T08:00:00.000Z", "Sari"],
 			["Complaint opened", complaint.created_at, "Cahya"],
 			["Rework started", complaint.created_at, "Cahya"],
 			["Rework started", null, null],
-			["Picked Up", "2026-09-24T09:00:00.000Z", "Sari"],
+			["Picked up", "2026-09-24T09:00:00.000Z", "Sari"],
 		]);
 	});
 });

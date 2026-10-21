@@ -1,4 +1,5 @@
 import { CaretRightIcon } from "@phosphor-icons/react";
+import { Section } from "@/components/section";
 import type { DayClose } from "@/features/counter/api";
 import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
 import { pluralize } from "@/shared/utils";
@@ -21,7 +22,7 @@ const CountGroup = ({ count, lines, title }: CountGroupProps) => (
 		</summary>
 		{lines.map((line) => (
 			<div
-				className="flex justify-between gap-3 border-border border-t py-1.5 pr-3 pl-7 text-sm"
+				className="flex justify-between gap-3 border-border border-t py-1.5 pr-3 pl-7 text-body"
 				key={line.id}
 			>
 				<span>{line.name}</span>
@@ -55,9 +56,8 @@ export const SalesReportSection = ({
 	const pickedUp = `${pluralize(picked.orders, "Order")} · ${pluralize(picked.items, "Item")}`;
 
 	return (
-		<section className="grid gap-2.5">
-			<h2 className="font-medium text-base">Sales Report</h2>
-			<div className="border border-border">
+		<Section title="Sales report">
+			<div className="overflow-hidden rounded-lg border bg-card">
 				<button
 					className="flex w-full items-baseline justify-between gap-3 px-3 py-2.5 text-left hover:bg-muted"
 					onClick={() => onOpen("orders")}
@@ -70,7 +70,7 @@ export const SalesReportSection = ({
 					</span>
 				</button>
 				{hasLines ? (
-					<div className="flex justify-between gap-3 border-border border-t bg-muted px-3 py-2 font-medium text-xs">
+					<div className="flex justify-between gap-3 border-border border-t bg-muted px-3 py-2 font-medium text-footnote">
 						<span>Sold</span>
 						<span>Qty</span>
 					</div>
@@ -100,7 +100,7 @@ export const SalesReportSection = ({
 				) : null}
 			</div>
 			<button
-				className="flex w-full items-baseline justify-between gap-3 border border-border px-3 py-2.5 text-left enabled:hover:bg-muted"
+				className="flex w-full items-baseline justify-between gap-3 rounded-lg border bg-card px-3 py-2.5 text-left enabled:hover:bg-muted"
 				disabled={picked.orders === 0}
 				onClick={() => onOpen("picked-up")}
 				type="button"
@@ -111,6 +111,6 @@ export const SalesReportSection = ({
 					{picked.orders > 0 ? <OpenArrow /> : null}
 				</span>
 			</button>
-		</section>
+		</Section>
 	);
 };

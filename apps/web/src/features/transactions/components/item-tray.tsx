@@ -6,6 +6,7 @@ import {
 } from "@/features/transactions/cart/cart";
 import { useCartOps } from "@/features/transactions/cart/useCart";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
+import { cn } from "@/lib/utils";
 import { pluralize } from "@/shared/utils";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
@@ -35,7 +36,7 @@ export const ItemTray = ({ itemRows }: ItemTrayProps) => {
 	}
 
 	return (
-		<fieldset className="pointer-events-auto flex min-w-0 gap-1 overflow-x-auto border-0 bg-background/40 p-1 backdrop-blur-xl">
+		<fieldset className="pointer-events-auto flex w-fit min-w-0 max-w-full gap-1 overflow-x-auto rounded-lg border border-border/70 bg-glass p-1 shadow-sm backdrop-blur-xl backdrop-saturate-[1.8]">
 			<legend className="sr-only">Items on the counter</legend>
 			{itemRows.map((item, index) => {
 				const isActive = item.line_id === activeItemId;
@@ -47,21 +48,26 @@ export const ItemTray = ({ itemRows }: ItemTrayProps) => {
 					<span className="flex shrink-0" key={item.line_id}>
 						<Button
 							aria-pressed={isActive}
-							className="h-14 flex-col items-start gap-0.5 px-3 text-left"
+							className={cn(
+								"h-14 pointer-coarse:h-14 flex-col items-start gap-0.5 px-3 text-left",
+								isActive && isEmpty && "rounded-r-none",
+							)}
 							onClick={() => setActiveItem(item.line_id)}
 							type="button"
 							variant={isActive ? "default" : "outline"}
 						>
 							{/* Caption says what the number counts, so "Item 2" cannot be
 							    misread as a quantity beside the treatment count. */}
-							<span className="text-[11px] font-medium leading-none opacity-70">
+							<span className="text-caption font-medium leading-none opacity-70">
 								Item {itemNumber}
 							</span>
-							<span className="flex items-baseline gap-1.5 text-sm leading-none">
+							<span className="flex items-baseline gap-1.5 text-body leading-none">
 								<span className="max-w-36 truncate">
 									{descriptors ?? "New item"}
 								</span>
-								<span className="text-xs opacity-70">
+								{/* Room for "9 services", so a tap that adds one doesn't
+								    widen the chip and push + Item along. */}
+								<span className="min-w-[8ch] text-footnote opacity-70">
 									{pluralize(item.services.length, "service")}
 								</span>
 							</span>
@@ -72,7 +78,7 @@ export const ItemTray = ({ itemRows }: ItemTrayProps) => {
 						{isActive && isEmpty ? (
 							<Button
 								aria-label={`Remove item ${itemNumber}`}
-								className="h-14 w-10 border-l-0"
+								className="h-14 pointer-coarse:h-14 w-10 rounded-l-none border-l-0"
 								icon={<XIcon className="size-4" />}
 								onClick={() => removeItem(item.line_id)}
 								type="button"
@@ -83,7 +89,7 @@ export const ItemTray = ({ itemRows }: ItemTrayProps) => {
 				);
 			})}
 			<Button
-				className="h-14 shrink-0 gap-1 px-3 text-sm"
+				className="h-14 pointer-coarse:h-14 shrink-0 gap-1 px-3 text-body"
 				icon={<PlusIcon className="size-4" />}
 				onClick={addItem}
 				type="button"

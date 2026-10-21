@@ -3,7 +3,7 @@ import {
 	type CampaignRedemptionMode,
 } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PlusIcon } from "@phosphor-icons/react";
+import { XIcon } from "@phosphor-icons/react";
 import {
 	Controller,
 	FormProvider,
@@ -15,24 +15,26 @@ import {
 import type { z } from "zod";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { SelectField } from "@/components/form/select-field";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+	SHEET_FORM_GRID,
+	SheetFormActions,
+} from "@/components/form/sheet-form-actions";
+import { SwitchList, SwitchRow } from "@/components/form/switch-list";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
 	Field,
-	FieldContent,
 	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
-	FieldLegend,
-	FieldSet,
 	FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import type { CampaignPayload } from "@/features/campaigns/api";
 import { ServicesMultiAutocomplete } from "@/features/orders/components/services-multi-autocomplete";
+import { StoreChecklist } from "@/features/stores/components/store-checklist";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
+import { cn } from "@/lib/utils";
 
 type CampaignDiscountType = CampaignPayload["discount_type"];
 
@@ -72,7 +74,7 @@ const REQUIRED_FIELD_LABELS: Partial<Record<keyof CampaignFormInput, string>> =
 		discount_value: "Discount value",
 		eligible_service_ids: "At least one eligible service",
 		free_quantity: "Free quantity",
-		min_order_total: "Min order total",
+		min_order_total: "Min Order total",
 		name: "Name",
 	};
 
@@ -102,7 +104,7 @@ const DISCOUNT_TYPE_OPTIONS: { value: CampaignDiscountType; label: string }[] =
 	[
 		{ value: "fixed", label: "Fixed" },
 		{ value: "percentage", label: "Percentage" },
-		{ value: "buy_n_get_m_free", label: "Buy N Get M Free" },
+		{ value: "buy_n_get_m_free", label: "Buy N get M free" },
 	];
 
 const REDEMPTION_MODE_OPTIONS: {
@@ -124,8 +126,8 @@ const UsageLimitField = () => {
 			control={control}
 			name="usage_limit"
 			render={({ field, fieldState }) => (
-				<Field data-invalid={fieldState.invalid}>
-					<FieldLabel htmlFor="campaign-usage-limit">Usage Limit</FieldLabel>
+				<Field className="col-span-full" data-invalid={fieldState.invalid}>
+					<FieldLabel htmlFor="campaign-usage-limit">Usage limit</FieldLabel>
 					<Input
 						aria-invalid={fieldState.invalid}
 						disabled={isSubmitting}
@@ -161,9 +163,9 @@ const CodeCountField = () => {
 			control={control}
 			name="code_count"
 			render={({ field, fieldState }) => (
-				<Field data-invalid={fieldState.invalid}>
+				<Field className="col-span-full" data-invalid={fieldState.invalid}>
 					<FieldLabel htmlFor="campaign-code-count" asterisk>
-						Code Count
+						Code count
 					</FieldLabel>
 					<Input
 						aria-invalid={fieldState.invalid}
@@ -187,6 +189,63 @@ const CodeCountField = () => {
 	);
 };
 
+interface CampaignDateFieldProps {
+	name: "starts_at" | "ends_at";
+	label: string;
+}
+
+// A Campaign runs whole days: it starts at the first minute of its Starts day and
+// ends at the last minute of its Ends day, so "Ends 31 Oct" still gives the
+// discount to a customer paying that evening.
+const DAY_TIME = { starts_at: "00:00", ends_at: "23:59" } as const;
+
+const CampaignDateField = ({ name, label }: CampaignDateFieldProps) => {
+	const {
+		control,
+		formState: { isSubmitting },
+	} = useFormContext<CampaignFormInput>();
+	const startsAt = useWatch({ control, name: "starts_at" });
+	const id = `campaign-${name.replace("_", "-")}`;
+
+	return (
+		<Controller
+			control={control}
+			name={name}
+			render={({ field, fieldState }) => (
+				<Field data-invalid={fieldState.invalid}>
+					<FieldLabel htmlFor={id}>{label}</FieldLabel>
+					<div className="relative">
+						<DatePicker
+							className={cn("w-full justify-between", field.value && "pr-9")}
+							disabled={isSubmitting}
+							iconLocation="right"
+							id={id}
+							min={name === "ends_at" ? startsAt?.slice(0, 10) : undefined}
+							onChange={(date) =>
+								field.onChange(date ? `${date}T${DAY_TIME[name]}` : null)
+							}
+							placeholder="Not set"
+							value={field.value?.slice(0, 10)}
+						/>
+						{field.value ? (
+							<button
+								aria-label={`Clear ${label}`}
+								className="absolute inset-y-0 right-0 flex w-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+								disabled={isSubmitting}
+								onClick={() => field.onChange(null)}
+								type="button"
+							>
+								<XIcon className="size-4" />
+							</button>
+						) : null}
+					</div>
+					<FieldError errors={[fieldState.error]} />
+				</Field>
+			)}
+		/>
+	);
+};
+
 const FixedDiscountFields = () => {
 	const { control } = useFormContext<CampaignFormInput>();
 
@@ -198,7 +257,7 @@ const FixedDiscountFields = () => {
 				render={({ field, fieldState }) => (
 					<Field data-invalid={fieldState.invalid}>
 						<FieldLabel htmlFor="campaign-discount-value" asterisk>
-							Discount Value
+							Discount value
 						</FieldLabel>
 						<CurrencyInput
 							id="campaign-discount-value"
@@ -217,7 +276,7 @@ const FixedDiscountFields = () => {
 				render={({ field, fieldState }) => (
 					<Field data-invalid={fieldState.invalid}>
 						<FieldLabel htmlFor="campaign-max-discount">
-							Max Discount
+							Max discount
 						</FieldLabel>
 						<CurrencyInput
 							id="campaign-max-discount"
@@ -244,7 +303,7 @@ const PercentageDiscountFields = () => {
 				render={({ field, fieldState }) => (
 					<Field data-invalid={fieldState.invalid}>
 						<FieldLabel htmlFor="campaign-discount-value" asterisk>
-							Discount Value
+							Discount value
 						</FieldLabel>
 						<Input
 							{...field}
@@ -265,7 +324,7 @@ const PercentageDiscountFields = () => {
 				render={({ field, fieldState }) => (
 					<Field data-invalid={fieldState.invalid}>
 						<FieldLabel htmlFor="campaign-max-discount">
-							Max Discount
+							Max discount
 						</FieldLabel>
 						<CurrencyInput
 							id="campaign-max-discount"
@@ -292,7 +351,7 @@ const BogoDiscountFields = () => {
 				render={({ field, fieldState }) => (
 					<Field data-invalid={fieldState.invalid}>
 						<FieldLabel htmlFor="campaign-buy-quantity" asterisk>
-							Buy Quantity
+							Buy quantity
 						</FieldLabel>
 						<Input
 							id="campaign-buy-quantity"
@@ -317,7 +376,7 @@ const BogoDiscountFields = () => {
 				render={({ field, fieldState }) => (
 					<Field data-invalid={fieldState.invalid}>
 						<FieldLabel htmlFor="campaign-free-quantity" asterisk>
-							Free Quantity
+							Free quantity
 						</FieldLabel>
 						<Input
 							id="campaign-free-quantity"
@@ -340,9 +399,9 @@ const BogoDiscountFields = () => {
 				name="eligible_service_ids"
 				control={control}
 				render={({ field, fieldState }) => (
-					<Field data-invalid={fieldState.invalid} className="md:col-span-2">
+					<Field data-invalid={fieldState.invalid} className="col-span-full">
 						<FieldLabel htmlFor="campaign-eligible-services" asterisk>
-							Eligible Services
+							Eligible services
 						</FieldLabel>
 						<ServicesMultiAutocomplete
 							id="campaign-eligible-services"
@@ -402,7 +461,7 @@ export const CampaignForm = ({
 	return (
 		<FormProvider {...form}>
 			<form onSubmit={form.handleSubmit(handleOnSubmit)}>
-				<FieldGroup>
+				<FieldGroup className={SHEET_FORM_GRID}>
 					<Controller
 						name="code"
 						control={form.control}
@@ -444,9 +503,9 @@ export const CampaignForm = ({
 					/>
 
 					{isEditing ? (
-						<Field>
-							<FieldTitle>Redemption Mode</FieldTitle>
-							<p className="text-sm">
+						<Field className="col-span-full">
+							<FieldTitle>Redemption mode</FieldTitle>
+							<p className="text-body">
 								{isVoucher ? "Voucher (codes)" : "Listed"}
 							</p>
 							<FieldDescription>
@@ -458,9 +517,12 @@ export const CampaignForm = ({
 							name="redemption_mode"
 							control={form.control}
 							render={({ field, fieldState }) => (
-								<Field data-invalid={fieldState.invalid}>
+								<Field
+									className="col-span-full"
+									data-invalid={fieldState.invalid}
+								>
 									<FieldLabel htmlFor="campaign-redemption-mode" asterisk>
-										Redemption Mode
+										Redemption mode
 									</FieldLabel>
 									<SelectField
 										disabled={isSubmitting}
@@ -486,9 +548,16 @@ export const CampaignForm = ({
 						name="discount_type"
 						control={form.control}
 						render={({ field, fieldState }) => (
-							<Field data-invalid={fieldState.invalid}>
+							<Field
+								// Buy N get M free brings two quantities of its own, so its
+								// type takes the whole row and the quantities pair up below.
+								className={cn(
+									discountType === "buy_n_get_m_free" && "col-span-full",
+								)}
+								data-invalid={fieldState.invalid}
+							>
 								<FieldLabel htmlFor="campaign-discount-type" asterisk>
-									Discount Type
+									Discount type
 								</FieldLabel>
 								<SelectField
 									id="campaign-discount-type"
@@ -513,7 +582,7 @@ export const CampaignForm = ({
 						render={({ field, fieldState }) => (
 							<Field data-invalid={fieldState.invalid}>
 								<FieldLabel htmlFor="campaign-min-order" asterisk>
-									Min Order Total
+									Min Order total
 								</FieldLabel>
 								<CurrencyInput
 									id="campaign-min-order"
@@ -531,135 +600,47 @@ export const CampaignForm = ({
 					{isVoucher && !isEditing && <CodeCountField />}
 					{!isVoucher && <UsageLimitField />}
 
-					<Controller
-						name="starts_at"
-						control={form.control}
-						render={({ field, fieldState }) => (
-							<Field data-invalid={fieldState.invalid}>
-								<FieldLabel htmlFor="campaign-starts-at">Starts At</FieldLabel>
-								<Input
-									{...field}
-									id="campaign-starts-at"
-									type="datetime-local"
-									aria-invalid={fieldState.invalid}
-									disabled={isSubmitting}
-									onChange={(event) =>
-										field.onChange(event.target.value || null)
-									}
-									value={field.value ?? ""}
-								/>
-								<FieldError errors={[fieldState.error]} />
-							</Field>
-						)}
-					/>
+					<CampaignDateField label="Starts" name="starts_at" />
+					<CampaignDateField label="Ends" name="ends_at" />
 
-					<Controller
-						name="ends_at"
-						control={form.control}
-						render={({ field, fieldState }) => (
-							<Field data-invalid={fieldState.invalid}>
-								<FieldLabel htmlFor="campaign-ends-at">Ends At</FieldLabel>
-								<Input
-									{...field}
-									id="campaign-ends-at"
-									type="datetime-local"
-									aria-invalid={fieldState.invalid}
-									disabled={isSubmitting}
-									onChange={(event) =>
-										field.onChange(event.target.value || null)
-									}
-									value={field.value ?? ""}
-								/>
-								<FieldError errors={[fieldState.error]} />
-							</Field>
-						)}
-					/>
-
+					{/* None ticked = every store, the Campaign default. */}
 					<Controller
 						name="store_ids"
 						control={form.control}
 						render={({ field }) => (
-							<FieldSet className="border p-2">
-								<FieldLegend variant="label">
-									Stores (empty = all stores)
-								</FieldLegend>
-								<FieldGroup>
-									{stores.map((store) => {
-										const checked = field.value.includes(store.id);
-										return (
-											<Field
-												orientation="horizontal"
-												key={store.id}
-												className="flex items-center gap-2 text-sm"
-											>
-												<Checkbox
-													id={`campaign-store-${store.id}`}
-													checked={checked}
-													onCheckedChange={(value) => {
-														if (value) {
-															field.onChange([...field.value, store.id]);
-															return;
-														}
-
-														field.onChange(
-															field.value.filter((id) => id !== store.id),
-														);
-													}}
-													disabled={isSubmitting}
-												/>
-												<FieldLabel htmlFor={`campaign-store-${store.id}`}>
-													{store.name}
-												</FieldLabel>
-											</Field>
-										);
-									})}
-								</FieldGroup>
-							</FieldSet>
-						)}
-					/>
-
-					<Controller
-						name="is_active"
-						control={form.control}
-						render={({ field }) => (
-							<FieldLabel htmlFor="campaign-active" className="md:col-span-2">
-								<Field orientation="horizontal">
-									<FieldContent>
-										<FieldTitle>Active</FieldTitle>
-										<FieldDescription>
-											Active campaigns can be applied during checkout.
-										</FieldDescription>
-									</FieldContent>
-									<Switch
-										id="campaign-active"
-										checked={field.value}
-										onCheckedChange={(checked) => field.onChange(!!checked)}
-										disabled={isSubmitting}
-									/>
-								</Field>
-							</FieldLabel>
-						)}
-					/>
-
-					<div className="flex flex-wrap gap-2 md:col-span-2 md:justify-end">
-						{isEditing ? (
-							<Button
-								type="button"
-								variant="outline"
-								onClick={onReset}
+							<StoreChecklist
 								disabled={isSubmitting}
-							>
-								Cancel edit
-							</Button>
-						) : null}
-						<Button
-							type="submit"
-							loading={isSubmitting}
-							icon={<PlusIcon className="size-4" />}
-						>
-							{isEditing ? "Update Campaign" : "Create Campaign"}
-						</Button>
-					</div>
+								idPrefix="campaign-store"
+								onChange={field.onChange}
+								stores={stores}
+								value={field.value}
+							/>
+						)}
+					/>
+
+					<SwitchList>
+						<Controller
+							name="is_active"
+							control={form.control}
+							render={({ field }) => (
+								<SwitchRow
+									checked={field.value}
+									description="Active campaigns can be applied during checkout."
+									disabled={isSubmitting}
+									id="campaign-active"
+									onCheckedChange={field.onChange}
+									title="Active"
+								/>
+							)}
+						/>
+					</SwitchList>
+
+					<SheetFormActions
+						addLabel="Add campaign"
+						isEditing={isEditing}
+						isSubmitting={isSubmitting}
+						onCancel={onReset}
+					/>
 				</FieldGroup>
 			</form>
 		</FormProvider>

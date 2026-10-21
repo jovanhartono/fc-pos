@@ -1,4 +1,5 @@
 import type { KpiDelta } from "@/features/reports/api";
+import { oneDecimalFormatter } from "@/features/reports/utils/format";
 
 export type DeltaAs = "percent" | "points";
 
@@ -29,5 +30,5 @@ export const formatKpiDeltaChange = (
 	} else if (change === 0) {
 		sign = "±";
 	}
-	return `${sign}${change.toFixed(1)}${deltaAs === "points" ? " pts" : "%"}`;
+	return `${sign}${oneDecimalFormatter.format(change)}${deltaAs === "points" ? " pts" : "%"}`;
 };

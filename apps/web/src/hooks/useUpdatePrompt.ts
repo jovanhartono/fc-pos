@@ -14,6 +14,7 @@ export const useUpdatePrompt = () => {
 		}
 		toast("Update ready", {
 			duration: Number.POSITIVE_INFINITY,
+			closeButton: true,
 			action: { label: "Reload", onClick: () => void updateServiceWorker() },
 		});
 	}, [needRefresh, updateServiceWorker]);

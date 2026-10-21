@@ -50,7 +50,7 @@ const ReviewSquare = () => {
 				src={lastPhoto.previewUrl}
 			/>
 			{state.photoCount > 1 ? (
-				<span className="absolute top-0 right-0 grid size-5 place-items-center bg-white text-[0.625rem] font-medium text-black tabular-nums">
+				<span className="absolute top-0 right-0 grid size-5 place-items-center bg-white text-caption font-medium text-black tabular-nums">
 					{state.photoCount}
 				</span>
 			) : null}
@@ -122,7 +122,7 @@ const EmptyControls = () => {
 	return (
 		<div className="flex h-14 items-center gap-2">
 			<button
-				className="flex h-14 flex-1 items-center justify-center gap-2 bg-white font-semibold text-base text-black transition hover:bg-white/90 disabled:opacity-40"
+				className="flex h-14 flex-1 items-center justify-center gap-2 rounded-full bg-white font-medium text-headline text-black transition hover:bg-white/90 disabled:opacity-40"
 				disabled={state.isBusy}
 				onClick={() => void actions.openCamera()}
 				type="button"
@@ -133,7 +133,7 @@ const EmptyControls = () => {
 
 			<button
 				aria-label="Upload from device"
-				className="grid size-14 place-items-center border border-white/30 bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
+				className="grid size-14 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25 disabled:opacity-40"
 				disabled={state.isBusy}
 				onClick={actions.openFileInput}
 				type="button"
@@ -172,7 +172,7 @@ const ReviewControls = () => {
 		<>
 			<div className="flex h-12 items-center gap-2">
 				<button
-					className="flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2.5 font-medium text-sm text-white transition hover:bg-white/20 disabled:opacity-40"
+					className="flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2.5 font-medium text-body text-white transition hover:bg-white/20 disabled:opacity-40"
 					disabled={state.isBusy}
 					onClick={() => void actions.openCamera()}
 					type="button"
@@ -191,7 +191,7 @@ const ReviewControls = () => {
 			<PhotoCaptureNoteField />
 
 			<Button
-				className="h-14 w-full bg-white font-semibold text-base text-black hover:bg-white/90"
+				className="h-14 w-full bg-white font-semibold text-headline text-black hover:bg-white/90"
 				type="button"
 				disabled={state.isBusy}
 				loading={state.isBusy}

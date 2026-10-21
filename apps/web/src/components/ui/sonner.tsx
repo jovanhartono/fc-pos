@@ -14,23 +14,24 @@ const Toaster = ({ ...props }: ToasterProps) => {
 			theme="system"
 			className="toaster group"
 			icons={{
-				success: <CheckCircleIcon className="size-4" />,
+				success: <CheckCircleIcon className="size-4 text-success" />,
 				info: <InfoIcon className="size-4" />,
 				warning: <WarningCircleIcon className="size-4" />,
-				error: <XCircleIcon className="size-4" />,
+				error: <XCircleIcon className="size-4 text-destructive" />,
 				loading: <SpinnerGapIcon className="size-4 animate-spin" />,
 			}}
 			style={
 				{
-					"--normal-bg": "var(--popover)",
+					"--normal-bg": "color-mix(in srgb, var(--popover) 85%, transparent)",
 					"--normal-text": "var(--popover-foreground)",
-					"--normal-border": "var(--border)",
-					"--border-radius": "var(--radius)",
+					"--normal-border": "transparent",
+					"--border-radius": "20px",
 				} as CSSProperties
 			}
 			toastOptions={{
 				classNames: {
-					toast: "cn-toast",
+					toast:
+						"cn-toast border-0! shadow-[0_8px_24px_rgb(0_0_0/0.12)]! backdrop-blur-xl backdrop-saturate-150",
 				},
 			}}
 			{...props}

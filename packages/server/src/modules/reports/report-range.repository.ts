@@ -9,6 +9,7 @@ import {
   isNotNull,
   isNull,
   lt,
+  or,
   sql,
 } from "drizzle-orm";
 import { alias, type SelectedFields } from "drizzle-orm/pg-core";
@@ -753,6 +754,11 @@ async function listActivity<TDetail extends SelectedFields>(
 export const listWorkerActivity = (args: RangeArgs) =>
   listActivity(args, lineDetail());
 
+// Who started each Service processed in the stretch, and nothing else.
+export async function listProcessedLineStarts(args: RangeArgs) {
+  return await listProcessedLines(args, {});
+}
+
 // The previous stretch only feeds the headline comparison, so it skips the
 // Service names and cleaner lookups that the rows need.
 export const listWorkerSummaryActivity = (args: RangeArgs) =>
@@ -815,24 +821,30 @@ export function listComplaintItems(orderServiceIds: number[]) {
     .where(inArray(complaintsTable.order_service_id, orderServiceIds));
 }
 
-export async function listWorkerLiveActivity({ range, storeId }: RangeArgs) {
-  const [inHand, lastMoves, openShifts] = await Promise.all([
-    db
-      .select({
-        user_id: sql<number>`${ordersServicesTable.handler_id}`,
-        store_id: ordersTable.store_id,
-        in_hand: sql<number>`COUNT(*)::int`,
-      })
-      .from(ordersServicesTable)
-      .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
-      .where(
-        and(
-          eq(ordersServicesTable.status, "processing"),
-          isNotNull(ordersServicesTable.handler_id),
-          storeScope(ordersTable.store_id, storeId)
-        )
+export function listItemsInHand({ storeId }: Pick<RangeArgs, "storeId">) {
+  return db
+    .select({
+      user_id: sql<number>`${ordersServicesTable.handler_id}`,
+      store_id: ordersTable.store_id,
+      in_hand: sql<number>`COUNT(*)::int`,
+    })
+    .from(ordersServicesTable)
+    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .where(
+      and(
+        eq(ordersServicesTable.status, "processing"),
+        isNotNull(ordersServicesTable.handler_id),
+        storeScope(ordersTable.store_id, storeId)
       )
-      .groupBy(ordersServicesTable.handler_id, ordersTable.store_id),
+    )
+    .groupBy(ordersServicesTable.handler_id, ordersTable.store_id);
+}
+
+// The "right now" half of the Workers tab, whatever stretch the rest covers:
+// `range` is today.
+export async function listWorkerLiveActivity({ range, storeId }: RangeArgs) {
+  const [inHand, lastMoves, shifts] = await Promise.all([
+    listItemsInHand({ storeId }),
     db
       .select({
         user_id: orderServiceStatusLogsTable.changed_by,
@@ -857,7 +869,8 @@ export async function listWorkerLiveActivity({ range, storeId }: RangeArgs) {
         )
       )
       .groupBy(orderServiceStatusLogsTable.changed_by, ordersTable.store_id),
-    // Still on the floor, even from a clock-in before today.
+    // Still on the floor, even from a clock-in before today, or clocked in
+    // and out today: someone working with neither never clocked in.
     db
       .select({
         user_id: shiftsTable.user_id,
@@ -868,12 +881,15 @@ export async function listWorkerLiveActivity({ range, storeId }: RangeArgs) {
       .from(shiftsTable)
       .where(
         and(
-          isNull(shiftsTable.clock_out_at),
+          or(
+            isNull(shiftsTable.clock_out_at),
+            and(...timeWindow(shiftsTable.clock_in_at, range))
+          ),
           storeScope(shiftsTable.store_id, storeId)
         )
       ),
   ]);
-  return { inHand, lastMoves, openShifts };
+  return { inHand, lastMoves, shifts };
 }
 
 // Both tables are a shop's worth of rows, so the report reads them whole

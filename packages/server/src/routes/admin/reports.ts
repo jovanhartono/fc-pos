@@ -12,6 +12,7 @@ import {
   GETReportOverviewQuerySchema,
   GETReportRangeQuerySchema,
   GETWorkerDetailQuerySchema,
+  GETWorkerLiveQuerySchema,
   storeIdQuerySchema,
 } from "@/modules/reports/report.schema";
 import {
@@ -25,6 +26,7 @@ import {
   getOrdersFlowReport,
   getPaymentMixReport,
   getWorkerDetailReport,
+  getWorkerLiveReport,
   getWorkerProductivityReport,
 } from "@/modules/reports/report-range.service";
 import { getTurnaroundReport } from "@/modules/reports/turnaround.service";
@@ -131,6 +133,14 @@ const app = new Hono<AdminEnv>()
     zodValidator("query", GETReportRangeQuerySchema),
     async (c) => {
       const data = await getWorkerProductivityReport(c.req.valid("query"));
+      return c.json(success(data));
+    }
+  )
+  .get(
+    "/worker-live",
+    zodValidator("query", GETWorkerLiveQuerySchema),
+    async (c) => {
+      const data = await getWorkerLiveReport(c.req.valid("query"));
       return c.json(success(data));
     }
   )

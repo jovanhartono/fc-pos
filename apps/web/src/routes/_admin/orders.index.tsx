@@ -1,16 +1,17 @@
 import { CrosshairSimpleIcon } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	Link,
 	type LinkProps,
+	redirect,
 	useNavigate,
 } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { z } from "zod";
-import { DataTable, WRAP_NAME_CLASS } from "@/components/data-table";
+import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
-import { DateTimeCell } from "@/components/date-time-cell";
+import { EmptyState } from "@/components/empty-state";
 import { ListPanel } from "@/components/list-panel";
 import { MoneyValue } from "@/components/money-value";
 import { PageHeader } from "@/components/page-header";
@@ -24,6 +25,7 @@ import {
 	ordersQueries,
 } from "@/features/orders/api";
 import { NotifiedLabel } from "@/features/orders/components/notified-label";
+import { PaymentBadges } from "@/features/orders/components/order-badges";
 import {
 	NOTIFIED_VALUES,
 	ORDER_STATUS_VALUES,
@@ -31,13 +33,14 @@ import {
 	type OrderFilterValues,
 	PAYMENT_STATUS_VALUES,
 } from "@/features/orders/components/order-filters";
-import { OrderSheet } from "@/features/orders/components/order-sheet";
+import { OrderPhoneRow } from "@/features/orders/components/order-phone-row";
 import { OrderStatusTabs } from "@/features/orders/components/order-status-tabs";
 import { PickupRadar } from "@/features/orders/components/pickup-radar";
-import { getPaymentBadges } from "@/features/orders/lib/payment-badges";
+import { useOrderSheet } from "@/features/orders/hooks/useOrderSheet";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { formatListDate } from "@/lib/dayjs";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
@@ -71,24 +74,21 @@ interface ItemsReadyProps {
 	total: number;
 }
 
-// How many of the Order's pairs are finished, so the counter sees "2 of 3"
+// How many of the Order's pairs are finished, so the counter sees "2/3"
 // before the customer asks whether everything is done.
 const ItemsReady = ({ ready, total }: ItemsReadyProps) => {
 	if (total === 0) {
-		return <span className="text-muted-foreground max-lg:hidden">—</span>;
+		return <span className="text-muted-foreground">—</span>;
 	}
 	const isDone = ready === total;
 	return (
 		<div className="grid w-20 gap-1">
-			<span className="text-xs tabular-nums">
-				{`${ready} of ${total}`}
-				<span className="lg:hidden"> ready</span>
-			</span>
-			<span className="h-1 bg-muted">
+			<span className="text-subhead tabular-nums">{`${ready}/${total}`}</span>
+			<span className="h-1.5 overflow-hidden rounded-full bg-soft-bar-track">
 				<span
 					className={cn(
-						"block h-full",
-						isDone ? "bg-success" : "bg-foreground",
+						"block h-full rounded-full",
+						isDone ? "bg-success" : "bg-primary",
 					)}
 					style={{ width: `${(ready / total) * 100}%` }}
 				/>
@@ -116,25 +116,47 @@ function buildOrdersListParams(
 
 export const Route = createFileRoute("/_admin/orders/")({
 	validateSearch: (search) => ordersSearchSchema.parse(search),
-	// Opening an Order beside the list must not re-run the list's loader.
+	// A cashier or worker only sees their own store's Orders, so the store is
+	// picked before the page draws instead of the list loading twice.
+	beforeLoad: ({ context, search }) => {
+		const firstStoreId = context.me.userStores?.[0]?.store_id;
+		if (
+			context.me.role !== "admin" &&
+			search.storeId === undefined &&
+			firstStoreId !== undefined
+		) {
+			throw redirect({
+				to: "/orders",
+				search: { ...search, storeId: firstStoreId },
+				replace: true,
+			});
+		}
+	},
+	// Opening an Order in the sheet over the list must not re-run the list's loader.
 	loaderDeps: ({ search: { open: _open, ...listSearch } }) => listSearch,
-	loader: async ({ context, deps }) => {
-		const ensureOrders = () =>
-			context.queryClient.ensureQueryData(
-				ordersQueries.list(buildOrdersListParams(deps, deps.storeId)),
-			);
+	loader: async ({ context, deps, cause }) => {
+		// A new filter, page or search keeps the list on screen and swaps the rows
+		// in place; only opening the page waits for them.
+		if (cause === "stay") {
+			return;
+		}
+		const canListOrders =
+			deps.storeId !== undefined || context.me.role === "admin";
+		const listParams = buildOrdersListParams(deps, deps.storeId);
 
 		await Promise.all([
 			context.queryClient.ensureQueryData(storesQueries.list()),
-			// A storeId in the URL already satisfies the fetch gate.
-			deps.storeId !== undefined ? ensureOrders() : undefined,
+			canListOrders
+				? context.queryClient.ensureQueryData(ordersQueries.list(listParams))
+				: undefined,
 		]);
-
-		if (deps.storeId === undefined && context.me.role === "admin") {
-			await ensureOrders();
-		}
 	},
 	component: OrdersPage,
+	// Past a second, the page itself draws with skeleton rows instead of a
+	// generic placeholder that looks nothing like it.
+	pendingComponent: OrdersPage,
+	// Bundled with the page it reuses; split apart, it points at nothing.
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function OrdersPage() {
@@ -180,29 +202,11 @@ function OrdersPage() {
 		[isWide],
 	);
 	const handleCloseOrder = useCallback(() => {
-		void navigate({ search: (prev) => ({ ...prev, open: undefined }) });
+		void navigate({
+			search: (prev) => ({ ...prev, open: undefined }),
+			replace: true,
+		});
 	}, [navigate]);
-
-	useEffect(() => {
-		if (!currentUser || search.storeId !== undefined) {
-			return;
-		}
-
-		if (role === "admin") {
-			return;
-		}
-
-		if (userStoreIds.length > 0) {
-			void navigate({
-				search: (prev) => ({
-					...prev,
-					page: prev.page ?? 1,
-					storeId: userStoreIds[0],
-				}),
-				replace: true,
-			});
-		}
-	}, [currentUser, navigate, role, search.storeId, userStoreIds]);
 
 	const handleFilterChange = useCallback(
 		(patch: Partial<OrderFilterValues>) => {
@@ -226,22 +230,7 @@ function OrdersPage() {
 	const ordersQuery = useQuery({
 		...ordersQueries.list(orderQuery),
 		enabled: canListOrders,
-	});
-
-	// The same filters minus status and paging, so each tab shows what picking
-	// it would list.
-	const statusCountsQuery = useQuery({
-		...ordersQueries.statusCounts(
-			orderQuery && {
-				search: orderQuery.search,
-				store_id: orderQuery.store_id,
-				payment_status: orderQuery.payment_status,
-				notified: orderQuery.notified,
-				date_from: orderQuery.date_from,
-				date_to: orderQuery.date_to,
-			},
-		),
-		enabled: canListOrders,
+		placeholderData: keepPreviousData,
 	});
 
 	const hasNoStoreAssignment =
@@ -250,6 +239,14 @@ function OrdersPage() {
 	const openSheet = useSheet((state) => state.openSheet);
 
 	const orders = ordersQuery.data?.items ?? [];
+
+	useOrderSheet({
+		isReady: ordersQuery.data !== undefined,
+		onClose: handleCloseOrder,
+		onSelect: handleOpenOrder,
+		openId: sheetOrderId,
+		orders,
+	});
 
 	const handleOpenPickupRadar = useCallback(() => {
 		openSheet({
@@ -266,25 +263,23 @@ function OrdersPage() {
 			{
 				accessorKey: "code",
 				header: "Order code",
-				meta: {
-					mobileCard: {
-						slot: "title",
-					},
-				},
+				meta: { width: { percent: 16, minRem: 9 } },
 				cell: ({ row }) => (
 					<div className="flex flex-col gap-0.5">
 						<div className="flex gap-x-1">
 							{row.original.has_complaint ? (
-								<span className="text-destructive text-xs">COMPLAINT</span>
+								<span className="text-destructive text-footnote">
+									COMPLAINT
+								</span>
 							) : null}
 							<Link
 								{...orderLink(row.original.id)}
-								className="font-mono font-medium"
+								className="font-medium tabular-nums"
 							>
 								{row.original.code}
 							</Link>
 						</div>
-						<span className="font-normal text-[11px] text-muted-foreground">
+						<span className="font-normal text-caption text-muted-foreground">
 							{row.original.store_name}
 						</span>
 					</div>
@@ -293,57 +288,39 @@ function OrdersPage() {
 			{
 				id: "created_at",
 				header: "Created at",
-				meta: {
-					mobileCard: {
-						slot: "eyebrow",
-					},
-				},
+				meta: { width: { percent: 11, minRem: 6.25 } },
 				cell: ({ row }) => (
-					<DateTimeCell
-						value={row.original.created_at}
-						dateFormat="DD/MM/YYYY"
-					/>
+					<span className="whitespace-nowrap tabular-nums">
+						{formatListDate(row.original.created_at)}
+					</span>
 				),
 			},
 			{
 				accessorKey: "customer_name",
 				header: "Customer",
-				meta: {
-					// The one subtitle the counter reads first: the customer's name.
-					mobileCard: { slot: "subtitle", className: "flex-1 text-foreground" },
-				},
+				meta: { width: { percent: 25, minRem: 9 } },
 				cell: ({ row }) => (
-					<div
-						className={cn(
-							"flex items-start justify-between gap-3 lg:block",
-							WRAP_NAME_CLASS,
-						)}
-					>
-						<div className="min-w-0 flex-1">
-							<span className="lg:flex lg:items-baseline lg:gap-x-1.5">
-								<CustomerLink
-									className="min-w-0"
-									customerId={row.original.customer_id}
-									name={row.original.customer_name}
-								/>
-								{row.original.notified ? (
-									<NotifiedLabel className="shrink-0 max-lg:hidden" />
-								) : null}
-							</span>{" "}
-							<span className="whitespace-nowrap text-muted-foreground text-xs tabular-nums lg:block">
-								{row.original.customer_phone}
-							</span>
-						</div>
-						{row.original.notified ? (
-							<NotifiedLabel className="shrink-0 leading-5 lg:hidden" />
-						) : null}
+					<div>
+						<span className="flex items-baseline gap-x-1.5">
+							<CustomerLink
+								className="line-clamp-2 min-w-0"
+								customerId={row.original.customer_id}
+								name={row.original.customer_name}
+							/>
+							{row.original.notified ? (
+								<NotifiedLabel className="shrink-0" />
+							) : null}
+						</span>
+						<span className="block whitespace-nowrap text-muted-foreground text-footnote tabular-nums">
+							{row.original.customer_phone}
+						</span>
 					</div>
 				),
 			},
 			{
 				id: "items_ready",
 				header: "Items ready",
-				meta: { mobileCard: { slot: "badges" } },
+				meta: { width: { percent: 11, minRem: 6 } },
 				cell: ({ row }) => (
 					<ItemsReady
 						ready={row.original.items_ready}
@@ -354,11 +331,7 @@ function OrdersPage() {
 			{
 				accessorKey: "status",
 				header: "Fulfillment",
-				meta: {
-					mobileCard: {
-						slot: "status",
-					},
-				},
+				meta: { width: { percent: 14, minRem: 8 } },
 				cell: ({ row }) => (
 					<Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
 						{formatOrderStatus(row.original.status)}
@@ -368,30 +341,17 @@ function OrdersPage() {
 			{
 				accessorKey: "payment_status",
 				header: "Payment",
-				meta: {
-					mobileCard: {
-						slot: "status",
-					},
-				},
+				meta: { width: { percent: 11, minRem: 6.25 } },
 				cell: ({ row }) => (
 					<div className="flex flex-wrap gap-1">
-						{getPaymentBadges(row.original).map((badge) => (
-							<Badge key={badge.label} variant={badge.variant}>
-								{badge.label}
-							</Badge>
-						))}
+						<PaymentBadges order={row.original} />
 					</div>
 				),
 			},
 			{
 				id: "total",
 				header: "Total",
-				meta: {
-					align: "right",
-					mobileCard: {
-						slot: "footer",
-					},
-				},
+				meta: { align: "right", width: { percent: 12, minRem: 6.5 } },
 				cell: ({ row }) => <MoneyValue value={row.original.total} />,
 			},
 		],
@@ -430,7 +390,6 @@ function OrdersPage() {
 			<ListPanel>
 				<OrderStatusTabs
 					value={search.status}
-					counts={statusCountsQuery.data}
 					onValueChange={(status) => handleFilterChange({ status })}
 				/>
 				<OrderFilters
@@ -440,28 +399,27 @@ function OrdersPage() {
 					onChange={handleFilterChange}
 				/>
 				{hasNoStoreAssignment ? (
-					<div className="border border-dashed border-border bg-muted/20 px-6 py-10 text-center text-muted-foreground text-sm">
-						No store assigned
-					</div>
+					<EmptyState>No store assigned</EmptyState>
 				) : (
 					<DataTable
 						columns={columns}
 						data={orders}
 						isLoading={ordersQuery.isPending || storesQuery.isPending}
-						getCardLink={(order) => orderLink(order.id)}
+						isStale={ordersQuery.isPlaceholderData}
+						filterKey={JSON.stringify(orderQuery)}
+						getRowLink={(order) => orderLink(order.id)}
 						isRowActive={(order) => order.id === sheetOrderId}
+						renderCard={(order) => (
+							<OrderPhoneRow
+								isActive={order.id === sheetOrderId}
+								link={orderLink(order.id)}
+								order={order}
+							/>
+						)}
 						footer={pager}
 					/>
 				)}
 			</ListPanel>
-			{sheetOrderId === undefined ? null : (
-				<OrderSheet
-					orders={orders}
-					openId={sheetOrderId}
-					onSelect={handleOpenOrder}
-					onClose={handleCloseOrder}
-				/>
-			)}
 		</>
 	);
 }

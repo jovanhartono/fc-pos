@@ -28,14 +28,6 @@ export type OrderReceipt = InferResponseType<
 	(typeof rpc.api.admin.orders)[":id"]["receipt"]["$get"]
 >["data"];
 
-export type OrderStatusCounts = InferResponseType<
-	typeof rpc.api.admin.orders.counts.$get
->["data"];
-
-export type OrderServiceQueueCounts = InferResponseType<
-	typeof rpc.api.admin.orders.services.queue.counts.$get
->["data"];
-
 // The queue's line-detail screen: one line plus enough of its Order to label
 // it (ADR-0016: no pickup_code here — that stays on the Order detail).
 export type OrderServiceDetail = InferResponseType<
@@ -95,11 +87,6 @@ export type FetchOrderServiceQueueQuery = {
 };
 
 export type QueueCategoryMode = (typeof QUEUE_CATEGORY_MODES)[number];
-
-export type FetchOrderServiceQueueCountsQuery = Pick<
-	FetchOrderServiceQueueQuery,
-	"store_id" | "category_id" | "category_mode"
->;
 
 export type CreateOrderPayload = z.input<typeof POSTOrderSchema> & {
 	voucher_codes: string[];
@@ -218,9 +205,6 @@ export const ordersKeys = {
 	lists: () => [...ordersKeys.all, "list"] as const,
 	list: (query?: FetchOrdersQuery) =>
 		[...ordersKeys.lists(), query ?? {}] as const,
-	// Under lists(), so anything that refreshes the list refreshes its tabs.
-	statusCounts: (query?: FetchOrdersQuery) =>
-		[...ordersKeys.lists(), "status-counts", query ?? {}] as const,
 	detail: (id: number) => [...ordersKeys.all, "detail", id] as const,
 	receipt: (id: number) => [...ordersKeys.detail(id), "receipt"] as const,
 	orderService: (orderId: number, serviceId: number) =>
@@ -228,8 +212,6 @@ export const ordersKeys = {
 	queues: () => [...ordersKeys.all, "queue"] as const,
 	queue: (query?: FetchOrderServiceQueueQuery) =>
 		[...ordersKeys.queues(), query ?? {}] as const,
-	queueCounts: (query: FetchOrderServiceQueueCountsQuery) =>
-		[...ordersKeys.queues(), "counts", query] as const,
 };
 
 async function fetchOrdersPage(
@@ -245,17 +227,6 @@ async function fetchOrdersPage(
 	);
 
 	return toPaginated(response);
-}
-
-async function fetchOrderStatusCounts(query?: FetchOrdersQuery) {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.orders.counts.$get({
-			query:
-				query && Object.keys(query).length > 0 ? toSearchParams(query) : {},
-		}),
-	);
-
-	return response.data;
 }
 
 export function fetchOrderDetail(id: number) {
@@ -295,28 +266,11 @@ async function fetchOrderServiceQueuePage(
 	return toPaginated(response);
 }
 
-async function fetchOrderServiceQueueCounts(
-	query: FetchOrderServiceQueueCountsQuery,
-) {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.orders.services.queue.counts.$get({
-			query: toSearchParams(query),
-		}),
-	);
-
-	return response.data;
-}
-
 export const ordersQueries = {
 	list: (query?: FetchOrdersQuery) =>
 		queryOptions({
 			queryKey: ordersKeys.list(query),
 			queryFn: () => fetchOrdersPage(query),
-		}),
-	statusCounts: (query?: FetchOrdersQuery) =>
-		queryOptions({
-			queryKey: ordersKeys.statusCounts(query),
-			queryFn: () => fetchOrderStatusCounts(query),
 		}),
 	detail: (id: number) =>
 		queryOptions({
@@ -343,11 +297,6 @@ export const ordersQueries = {
 				const nextOffset = lastPage.meta.offset + lastPage.meta.limit;
 				return nextOffset < lastPage.meta.total ? nextOffset : undefined;
 			},
-		}),
-	queueCounts: (query: FetchOrderServiceQueueCountsQuery) =>
-		queryOptions({
-			queryKey: ordersKeys.queueCounts(query),
-			queryFn: () => fetchOrderServiceQueueCounts(query),
 		}),
 };
 

@@ -9,9 +9,11 @@ import type { LinkProps } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { Section } from "@/components/section";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	type FetchQcRejectsQuery,
 	QC_REJECTS_PREVIEW_SIZE as PREVIEW_SIZE,
@@ -23,10 +25,6 @@ import { ExportButton } from "@/features/reports/components/export-button";
 import { ItemCodeLink } from "@/features/reports/components/item-code-link";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import {
-	ReportSection,
-	ReportSkeleton,
-} from "@/features/reports/components/report-section";
-import {
 	csvFilename,
 	downloadCsv,
 	escapeCsv,
@@ -34,8 +32,11 @@ import {
 import {
 	numberFormatter,
 	percentFormatter,
+	pluralCount,
 } from "@/features/reports/utils/format";
+import { staleFade } from "@/lib/content-fade";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
 interface QualityPanelProps {
@@ -69,8 +70,6 @@ const formatWhen = (value: string) =>
 const formatDay = (value: string) =>
 	dayjs(value).tz(JAKARTA_TZ).format("D MMM YYYY");
 const shareOf = (part: number, whole: number) => (whole > 0 ? part / whole : 0);
-const plural = (count: number, word: string) =>
-	`${numberFormatter.format(count)} ${word}${count === 1 ? "" : "s"}`;
 
 interface LongTextProps {
 	text: string | null;
@@ -105,7 +104,10 @@ const itemLineColumns = <
 	{
 		id: "item_code",
 		header: "Item code",
-		meta: { mobileCard: { slot: "title" } },
+		meta: {
+			width: { percent: 17, minRem: 8 },
+			mobileCard: { slot: "title" },
+		},
 		cell: ({ row }) => (
 			<ItemCodeLink orderId={row.original.order_id}>
 				{row.original.item_code}
@@ -115,7 +117,10 @@ const itemLineColumns = <
 	{
 		id: "service_name",
 		header: "Service",
-		meta: { mobileCard: { slot: "subtitle" } },
+		meta: {
+			width: { percent: 20, minRem: 8 },
+			mobileCard: { slot: "subtitle" },
+		},
 		cell: ({ row }) => row.original.service_name ?? "—",
 	},
 ];
@@ -132,6 +137,7 @@ const qcRejectColumns: DataTableColumnDef<QcRejectItem>[] = [
 		id: "rejected_at",
 		header: "When",
 		meta: {
+			width: { percent: 11, minRem: 6.25 },
 			cellClassName: "whitespace-nowrap tabular-nums",
 			mobileCard: { slot: "hidden" },
 		},
@@ -141,20 +147,23 @@ const qcRejectColumns: DataTableColumnDef<QcRejectItem>[] = [
 	{
 		id: "cleaned_by",
 		header: "Cleaned by",
-		meta: { mobileCard: { slot: "hidden" } },
+		meta: { width: { percent: 14, minRem: 7 }, mobileCard: { slot: "hidden" } },
 		cell: ({ row }) => row.original.cleaned_by_name ?? "—",
 	},
 	{
 		id: "rejected_by",
 		header: "Rejected by",
-		meta: { mobileCard: { slot: "hidden" } },
+		meta: { width: { percent: 14, minRem: 7 }, mobileCard: { slot: "hidden" } },
 		cell: ({ row }) => row.original.rejected_by_name,
 	},
 	{
 		id: "reason",
 		header: "Reason",
-		meta: { mobileCard: { slot: "subtitle" } },
-		cell: ({ row }) => <LongText text={row.original.reason} />,
+		meta: {
+			width: { percent: 24, minRem: 8 },
+			mobileCard: { slot: "subtitle" },
+		},
+		cell: ({ row }) => row.original.reason || "—",
 	},
 	{
 		id: "card_people",
@@ -172,12 +181,16 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 	{
 		accessorKey: "service_name",
 		header: "Service",
-		meta: { mobileCard: { slot: "title" } },
+		meta: { width: { percent: 40, minRem: 9 }, mobileCard: { slot: "title" } },
 	},
 	{
 		id: "processed",
 		header: "Processed",
-		meta: { align: "right", mobileCard: { slot: "hidden" } },
+		meta: {
+			align: "right",
+			width: { percent: 15, minRem: 5.5 },
+			mobileCard: { slot: "hidden" },
+		},
 		cell: ({ row }) => numberFormatter.format(row.original.processed),
 	},
 	{
@@ -185,6 +198,7 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 		header: "First-pass",
 		meta: {
 			align: "right",
+			width: { percent: 15, minRem: 5.5 },
 			mobileCard: { slot: "title-end", className: "tabular-nums" },
 		},
 		cell: ({ row }) => percentFormatter.format(row.original.first_pass_rate),
@@ -192,13 +206,21 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 	{
 		id: "sent_back",
 		header: "Sent back",
-		meta: { align: "right", mobileCard: { slot: "hidden" } },
+		meta: {
+			align: "right",
+			width: { percent: 15, minRem: 5.5 },
+			mobileCard: { slot: "hidden" },
+		},
 		cell: ({ row }) => numberFormatter.format(row.original.sent_back),
 	},
 	{
 		id: "complaints",
 		header: "Complaints",
-		meta: { align: "right", mobileCard: { slot: "hidden" } },
+		meta: {
+			align: "right",
+			width: { percent: 15, minRem: 5.5 },
+			mobileCard: { slot: "hidden" },
+		},
 		cell: ({ row }) => numberFormatter.format(row.original.complaints),
 	},
 	{
@@ -209,7 +231,7 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 			mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
 		},
 		cell: ({ row }) =>
-			`${numberFormatter.format(row.original.processed)} done · ${numberFormatter.format(row.original.sent_back)} sent back · ${plural(row.original.complaints, "complaint")}`,
+			`${numberFormatter.format(row.original.processed)} done · ${numberFormatter.format(row.original.sent_back)} sent back · ${pluralCount(row.original.complaints, "complaint")}`,
 	},
 ];
 
@@ -217,7 +239,7 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 	{
 		accessorKey: "user_name",
 		header: "Checked by",
-		meta: { mobileCard: { slot: "title" } },
+		meta: { width: { percent: 30, minRem: 9 }, mobileCard: { slot: "title" } },
 	},
 	{
 		id: "card_checks",
@@ -226,36 +248,56 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 			...CARD_ONLY,
 			mobileCard: { slot: "title-end", className: "tabular-nums" },
 		},
-		cell: ({ row }) => plural(row.original.checks, "check"),
+		cell: ({ row }) => pluralCount(row.original.checks, "check"),
 	},
 	{
 		id: "checks",
 		header: "Checks",
-		meta: { align: "right", mobileCard: { slot: "hidden" } },
+		meta: {
+			align: "right",
+			width: { percent: 13, minRem: 4.5 },
+			mobileCard: { slot: "hidden" },
+		},
 		cell: ({ row }) => numberFormatter.format(row.original.checks),
 	},
 	{
 		id: "rejects",
 		header: "Rejected",
-		meta: { align: "right", mobileCard: { slot: "hidden" } },
+		meta: {
+			align: "right",
+			width: { percent: 13, minRem: 5 },
+			mobileCard: { slot: "hidden" },
+		},
 		cell: ({ row }) => numberFormatter.format(row.original.rejects),
 	},
 	{
 		id: "reject_rate",
 		header: "Reject rate",
-		meta: { align: "right", mobileCard: { slot: "hidden" } },
+		meta: {
+			align: "right",
+			width: { percent: 13, minRem: 5.5 },
+			mobileCard: { slot: "hidden" },
+		},
 		cell: ({ row }) => percentFormatter.format(row.original.reject_rate),
 	},
 	{
 		id: "self_check_rate",
 		header: "Self-checked",
-		meta: { align: "right", mobileCard: { slot: "hidden" } },
+		meta: {
+			align: "right",
+			width: { percent: 14, minRem: 6.5 },
+			mobileCard: { slot: "hidden" },
+		},
 		cell: ({ row }) => percentFormatter.format(row.original.self_check_rate),
 	},
 	{
 		id: "complaints_after",
 		header: "Complaints after",
-		meta: { align: "right", mobileCard: { slot: "hidden" } },
+		meta: {
+			align: "right",
+			width: { percent: 17, minRem: 7.75 },
+			mobileCard: { slot: "hidden" },
+		},
 		cell: ({ row }) => numberFormatter.format(row.original.complaints_after),
 	},
 	{
@@ -282,6 +324,7 @@ const damagedLostColumns: DataTableColumnDef<DamagedLostRow>[] = [
 		id: "refunded_at",
 		header: "Date",
 		meta: {
+			width: { percent: 11, minRem: 6.25 },
 			cellClassName: "whitespace-nowrap tabular-nums",
 			mobileCard: { slot: "hidden" },
 		},
@@ -291,7 +334,7 @@ const damagedLostColumns: DataTableColumnDef<DamagedLostRow>[] = [
 	{
 		id: "reason",
 		header: "Reason",
-		meta: { mobileCard: { slot: "badges" } },
+		meta: { width: { percent: 11, minRem: 6 }, mobileCard: { slot: "badges" } },
 		cell: ({ row }) => (
 			<Badge variant={row.original.reason === "lost" ? "danger" : "warning"}>
 				{DAMAGED_LOST_LABELS[row.original.reason]}
@@ -301,12 +344,17 @@ const damagedLostColumns: DataTableColumnDef<DamagedLostRow>[] = [
 	{
 		id: "amount",
 		header: "Amount",
-		meta: { align: "right", mobileCard: { slot: "footer" } },
+		meta: {
+			align: "right",
+			width: { percent: 11, minRem: 6 },
+			mobileCard: { slot: "footer" },
+		},
 		cell: ({ row }) => formatMoney(row.original.amount),
 	},
 	{
 		id: "note",
 		header: "Note",
+		meta: { width: { percent: 30, minRem: 8 } },
 		cell: ({ row }) => <LongText text={row.original.note} />,
 	},
 ];
@@ -327,20 +375,19 @@ const QcRejectsSection = ({ range }: QcRejectsSectionProps) => {
 		placeholderData: keepPreviousData,
 	});
 	const total = query.data?.meta.total ?? 0;
+	// "Show all" grows the list from 10 to 50 at the tap, drawn as placeholder
+	// rows, so the pager isn't shoved off screen seconds later.
+	const expectedRows = isShowingAll
+		? Math.min(Math.max(total - offset, 0), PAGE_SIZE)
+		: PREVIEW_SIZE;
+	const isGrowing =
+		query.isPlaceholderData && (query.data?.items.length ?? 0) < expectedRows;
 
 	return (
-		<ReportSection
+		<Section
 			id="quality-qc-rejects"
-			title={
-				<>
-					QC rejects
-					{query.data ? (
-						<span className="text-foreground tabular-nums">
-							{numberFormatter.format(total)}
-						</span>
-					) : null}
-				</>
-			}
+			title="QC rejects"
+			count={query.data ? numberFormatter.format(total) : null}
 			aside={
 				!isShowingAll &&
 				total > PREVIEW_SIZE && (
@@ -355,13 +402,17 @@ const QcRejectsSection = ({ range }: QcRejectsSectionProps) => {
 				)
 			}
 		>
-			<div className="lg:border lg:border-border">
+			<div className="lg:overflow-hidden lg:rounded-lg lg:bg-card">
 				<DataTable
 					columns={qcRejectColumns}
 					data={query.data?.items ?? []}
-					isLoading={query.isPending}
+					isLoading={query.isPending || isGrowing}
+					isStale={query.isPlaceholderData}
+					filterKey={JSON.stringify({ range, isShowingAll, offset })}
+					skeletonRowCount={expectedRows}
+					skeletonLines="wrapped"
 					emptyMessage="No QC rejects in range."
-					getCardLink={orderCardLink}
+					getRowLink={orderCardLink}
 				/>
 			</div>
 			{isShowingAll ? (
@@ -371,7 +422,7 @@ const QcRejectsSection = ({ range }: QcRejectsSectionProps) => {
 					onPageChange={(page) => setOffset((page - 1) * PAGE_SIZE)}
 				/>
 			) : null}
-		</ReportSection>
+		</Section>
 	);
 };
 
@@ -387,17 +438,17 @@ const CaughtBar = ({ label, count, processed, children }: CaughtBarProps) => {
 	return (
 		<li className="grid gap-1">
 			<div className="flex items-center justify-between gap-2">
-				<span className="truncate text-sm font-medium">{label}</span>
-				<span className="flex items-center gap-3 text-sm tabular-nums">
+				<span className="truncate text-body font-medium">{label}</span>
+				<span className="flex items-center gap-3 text-body tabular-nums">
 					<span>{numberFormatter.format(count)}</span>
 					<span className="w-14 text-right text-muted-foreground">
 						{percentFormatter.format(share)}
 					</span>
 				</span>
 			</div>
-			<div className="h-1.5 w-full bg-muted">
+			<div className="h-1.5 w-full overflow-hidden rounded-full bg-soft-bar-track">
 				<div
-					className="h-full bg-foreground"
+					className="h-full rounded-full bg-primary"
 					style={{ width: `${share * 100}%` }}
 				/>
 			</div>
@@ -418,8 +469,8 @@ const CaughtSection = ({ summary, outcomes }: CaughtSectionProps) => {
 		.join(" · ");
 
 	return (
-		<ReportSection id="quality-caught" title="Where mistakes were caught">
-			<ul className="grid gap-3 border border-border p-4">
+		<Section id="quality-caught" title="Where mistakes were caught">
+			<ul className="grid gap-3 rounded-lg border bg-card p-4">
 				<CaughtBar
 					label="Services processed"
 					count={processed}
@@ -441,13 +492,11 @@ const CaughtSection = ({ summary, outcomes }: CaughtSectionProps) => {
 					processed={processed}
 				>
 					{outcomeLine && (
-						<p className="text-[11px] tabular-nums text-muted-foreground">
-							{outcomeLine}
-						</p>
+						<p className="text-subhead tabular-nums">{outcomeLine}</p>
 					)}
 				</CaughtBar>
 			</ul>
-		</ReportSection>
+		</Section>
 	);
 };
 
@@ -540,7 +589,10 @@ interface QualitySectionsProps {
 
 const QualitySections = ({ range }: QualitySectionsProps) => {
 	const queryClient = useQueryClient();
-	const query = useQuery(reportsQueries.quality(range));
+	const query = useQuery({
+		...reportsQueries.quality(range),
+		placeholderData: keepPreviousData,
+	});
 	const data = query.data;
 	const exportMutation = useMutation({
 		mutationFn: async (report: QualityReport) => ({
@@ -554,84 +606,88 @@ const QualitySections = ({ range }: QualitySectionsProps) => {
 			),
 	});
 
-	if (!data) {
-		return <ReportSkeleton />;
-	}
-
-	const { current, deltas } = data.summary;
+	const current = data?.summary.current;
+	const deltas = data?.summary.deltas;
 
 	return (
-		<>
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-				<KpiRow>
-					<KpiCard
-						label="First-pass rate"
-						value={percentFormatter.format(current.first_pass_rate)}
-						delta={deltas.first_pass_rate}
-						deltaAs="points"
-					/>
-					<KpiCard
-						label="QC rejects"
-						value={numberFormatter.format(current.qc_rejects)}
-						delta={deltas.qc_rejects}
-						isLowerBetter
-					/>
-					<KpiCard
-						label="Complaint rate"
-						value={percentFormatter.format(current.complaint_rate)}
-						delta={deltas.complaint_rate}
-						deltaAs="points"
-						helper="so far"
-						isLowerBetter
-					/>
-					<KpiCard
-						label="Self-checked"
-						value={percentFormatter.format(current.self_check_rate)}
-						delta={deltas.self_check_rate}
-						deltaAs="points"
-						helper="of passes"
-						isLowerBetter
-					/>
-				</KpiRow>
-				<ExportButton
-					disabled={exportMutation.isPending}
-					onClick={() => exportMutation.mutate(data)}
+		<div className={cn("grid gap-6", staleFade(query.isPlaceholderData))}>
+			<ExportButton
+				disabled={!data || exportMutation.isPending}
+				onClick={() => data && exportMutation.mutate(data)}
+			/>
+			<KpiRow isPending={!data}>
+				<KpiCard
+					label="First-pass rate"
+					value={percentFormatter.format(current?.first_pass_rate ?? 0)}
+					delta={deltas?.first_pass_rate ?? null}
+					deltaAs="points"
 				/>
-			</div>
+				<KpiCard
+					label="QC rejects"
+					value={numberFormatter.format(current?.qc_rejects ?? 0)}
+					delta={deltas?.qc_rejects ?? null}
+					isLowerBetter
+				/>
+				<KpiCard
+					label="Complaint rate"
+					value={percentFormatter.format(current?.complaint_rate ?? 0)}
+					delta={deltas?.complaint_rate ?? null}
+					deltaAs="points"
+					helper="so far"
+					isLowerBetter
+				/>
+				<KpiCard
+					label="Self-checked"
+					value={percentFormatter.format(current?.self_check_rate ?? 0)}
+					delta={deltas?.self_check_rate ?? null}
+					deltaAs="points"
+					helper="of passes"
+					isLowerBetter
+				/>
+			</KpiRow>
 
-			<CaughtSection summary={current} outcomes={data.complaint_outcomes} />
-
-			<ReportSection id="quality-by-service" title="By Service">
-				<div className="lg:border lg:border-border">
-					<DataTable
-						columns={serviceColumns}
-						data={data.by_service}
-						emptyMessage="No Services processed in range."
+			{data ? (
+				<>
+					<CaughtSection
+						summary={data.summary.current}
+						outcomes={data.complaint_outcomes}
 					/>
-				</div>
-			</ReportSection>
 
-			<ReportSection id="quality-by-checker" title="Quality checks by person">
-				<div className="lg:border lg:border-border">
-					<DataTable
-						columns={checkerColumns}
-						data={data.by_checker}
-						emptyMessage="No quality checks in range."
-					/>
-				</div>
-			</ReportSection>
+					<Section id="quality-by-service" title="By Service">
+						<div className="lg:overflow-hidden lg:rounded-lg lg:bg-card">
+							<DataTable
+								columns={serviceColumns}
+								data={data.by_service}
+								emptyMessage="No Services processed in range."
+							/>
+						</div>
+					</Section>
 
-			<ReportSection id="quality-damaged-lost" title="Damaged & lost">
-				<div className="lg:border lg:border-border">
-					<DataTable
-						columns={damagedLostColumns}
-						data={data.damaged_lost}
-						emptyMessage="None in range."
-						getCardLink={orderCardLink}
-					/>
-				</div>
-			</ReportSection>
-		</>
+					<Section id="quality-by-checker" title="Quality checks by person">
+						<div className="lg:overflow-hidden lg:rounded-lg lg:bg-card">
+							<DataTable
+								columns={checkerColumns}
+								data={data.by_checker}
+								emptyMessage="No quality checks in range."
+							/>
+						</div>
+					</Section>
+
+					<Section id="quality-damaged-lost" title="Damaged & lost">
+						<div className="lg:overflow-hidden lg:rounded-lg lg:bg-card">
+							<DataTable
+								columns={damagedLostColumns}
+								data={data.damaged_lost}
+								emptyMessage="None in range."
+								getRowLink={orderCardLink}
+							/>
+						</div>
+					</Section>
+				</>
+			) : (
+				<Skeleton className="h-80 rounded-lg" />
+			)}
+		</div>
 	);
 };
 
@@ -645,5 +701,3 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 		</div>
 	);
 };
-
-export default QualityPanel;

@@ -57,7 +57,7 @@ export const PhotoCaptureStage = () => {
 			{state.isBusy ? (
 				<div
 					aria-live="polite"
-					className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/70 text-sm text-white"
+					className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/70 text-body text-white"
 					role="status"
 				>
 					<CircleNotchIcon className="size-7 animate-spin" />
@@ -66,7 +66,7 @@ export const PhotoCaptureStage = () => {
 			) : null}
 
 			{state.camera.error ? (
-				<div className="absolute inset-x-4 bottom-4 flex items-start gap-2 border border-destructive/40 bg-destructive px-3 py-2 text-sm text-destructive-foreground">
+				<div className="absolute inset-x-4 bottom-4 flex items-start gap-2 border border-destructive/40 bg-destructive px-3 py-2 text-body text-destructive-foreground">
 					<WarningCircleIcon className="mt-0.5 size-4 shrink-0" weight="fill" />
 					<span>{state.camera.error}</span>
 				</div>

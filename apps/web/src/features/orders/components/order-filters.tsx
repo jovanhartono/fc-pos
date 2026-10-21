@@ -1,6 +1,7 @@
 import { FunnelIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { FilterCountBadge } from "@/components/filter-count-badge";
 import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-picker";
@@ -11,7 +12,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import { StoreSelect } from "@/features/orders/components/store-select";
 import { formatPaymentStatus } from "@/lib/status";
 
 export const ORDER_STATUS_VALUES = [
@@ -63,6 +64,7 @@ const NOTIFIED_ITEMS: Record<string, string> = {
 
 interface FilterControlsProps extends OrderFiltersProps {
 	idPrefix: string;
+	isStacked?: boolean;
 }
 
 const FilterControls = ({
@@ -71,9 +73,10 @@ const FilterControls = ({
 	userStoreIds,
 	onChange,
 	idPrefix,
+	isStacked,
 }: FilterControlsProps) => (
 	<>
-		<StoreAutocomplete
+		<StoreSelect
 			id={`${idPrefix}-store`}
 			hideLabel
 			value={values.storeId?.toString() ?? ""}
@@ -83,7 +86,7 @@ const FilterControls = ({
 			allowedStoreIds={role === "admin" ? undefined : userStoreIds}
 			allOptionLabel={role === "admin" ? "All stores" : undefined}
 			placeholder="Filter by store"
-			triggerClassName="h-10 w-full lg:w-max lg:min-w-40"
+			triggerClassName={isStacked ? undefined : "w-60"}
 		/>
 		<SelectField
 			id={`${idPrefix}-payment`}
@@ -94,7 +97,7 @@ const FilterControls = ({
 				onChange({ paymentStatus: (value || undefined) as PaymentStatusFilter })
 			}
 			placeholder="All payments"
-			className="w-full lg:w-max lg:min-w-40"
+			className="w-full data-placeholder:text-foreground lg:w-max lg:min-w-40"
 		/>
 		<SelectField
 			id={`${idPrefix}-notified`}
@@ -105,7 +108,7 @@ const FilterControls = ({
 				onChange({ notified: (value || undefined) as NotifiedFilter })
 			}
 			placeholder="All notices"
-			className="w-full lg:w-max lg:min-w-40"
+			className="w-full data-placeholder:text-foreground lg:w-max lg:min-w-40"
 		/>
 		<DateRangePicker
 			id={`${idPrefix}-date`}
@@ -115,7 +118,7 @@ const FilterControls = ({
 			to={values.dateTo}
 			onChange={({ from, to }) => onChange({ dateFrom: from, dateTo: to })}
 			onClear={() => onChange({ dateFrom: undefined, dateTo: undefined })}
-			className="w-full lg:w-max"
+			fullWidth={isStacked}
 		/>
 	</>
 );
@@ -177,12 +180,13 @@ export const OrderFilters = ({
 								aria-label="Filters"
 								type="button"
 								variant="outline"
-								className="h-10 min-w-10 pointer-coarse:h-11 pointer-coarse:min-w-11"
+								size="icon"
+								className="relative"
 								icon={<FunnelIcon className="size-4" />}
 							/>
 						}
 					>
-						{activeCount > 0 ? String(activeCount) : null}
+						{activeCount > 0 ? <FilterCountBadge count={activeCount} /> : null}
 					</DialogTrigger>
 					<DialogContent className="gap-5">
 						<DialogHeader>
@@ -191,6 +195,7 @@ export const OrderFilters = ({
 						<div className="grid gap-4">
 							<FilterControls
 								idPrefix="orders-mobile"
+								isStacked
 								values={values}
 								role={role}
 								userStoreIds={userStoreIds}

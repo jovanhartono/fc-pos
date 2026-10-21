@@ -12,6 +12,7 @@ import {
 	storesKeys,
 	storesQueries,
 } from "@/features/stores/api";
+import { cn } from "@/lib/utils";
 
 interface StoreDevicesDialogProps {
 	storeId: number;
@@ -59,22 +60,24 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 	});
 
 	const devices = devicesQuery.data ?? [];
+	// With nothing registered, registering is the only thing to do here.
+	const isEmpty = devicesQuery.isSuccess && devices.length === 0;
 
 	return (
 		<div className="grid gap-4">
-			{devicesQuery.isSuccess && devices.length === 0 && (
-				<p className="text-muted-foreground text-sm">
+			{isEmpty ? (
+				<p className="pt-2 text-center text-body">
 					No devices yet. Printing is off until one is registered.
 				</p>
-			)}
+			) : null}
 			{devices.length > 0 && (
-				<ul className="divide-y border">
+				<ul className="divide-y overflow-hidden rounded-md border">
 					{devices.map((device) => (
 						<li
 							key={device.id}
 							className="flex items-center justify-between gap-3 px-3 py-2"
 						>
-							<div className="grid text-sm">
+							<div className="grid text-body">
 								<span className="font-medium">{device.name}</span>
 								{device.label ? (
 									<span className="text-muted-foreground">{device.label}</span>
@@ -96,7 +99,8 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 
 			{pendingName === null ? (
 				<Button
-					variant="outline"
+					variant={isEmpty ? "default" : "outline"}
+					className={cn(isEmpty && "justify-self-center")}
 					loading={pairMutation.isPending}
 					icon={<BluetoothIcon className="size-4" />}
 					onClick={() => pairMutation.mutate()}
@@ -105,7 +109,7 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 				</Button>
 			) : (
 				<form
-					className="grid gap-3 border p-3"
+					className="grid gap-3 rounded-md border p-3"
 					onSubmit={(event) => {
 						event.preventDefault();
 						registerMutation.mutate({
@@ -114,7 +118,7 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 						});
 					}}
 				>
-					<p className="text-sm">
+					<p className="text-body">
 						Connected to <span className="font-medium">{pendingName}</span>
 					</p>
 					<Field>

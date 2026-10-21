@@ -1,5 +1,6 @@
 import "@/index.css";
 
+import interLatinUrl from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 import {
 	onlineManager,
 	QueryClient,
@@ -15,6 +16,16 @@ import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
 import { RoutePending } from "@/components/route-pending";
 import { ThemeProvider } from "@/components/theme-provider";
 import { routeTree } from "@/routeTree.gen";
+
+// The boot spinner has no text, so without this Inter is only requested once
+// the first screen has painted, and every line reflows when it lands.
+const fontPreload = document.createElement("link");
+fontPreload.rel = "preload";
+fontPreload.as = "font";
+fontPreload.type = "font/woff2";
+fontPreload.crossOrigin = "anonymous";
+fontPreload.href = interLatinUrl;
+document.head.append(fontPreload);
 
 const ReactQueryDevtools = import.meta.env.DEV
 	? lazy(() =>
@@ -78,7 +89,12 @@ const router = createRouter({
 	// navigation with the direction it went so the two read differently; the
 	// slide itself is in index.css.
 	defaultViewTransition: {
-		types: ({ fromLocation, toLocation }) => {
+		types: ({ fromLocation, toLocation, pathChanged }) => {
+			// Same screen, new search: J in the Order sheet must swap to the next
+			// Order outright, not fade the two through each other.
+			if (!pathChanged) {
+				return false;
+			}
 			if (!fromLocation) {
 				return [];
 			}

@@ -16,6 +16,8 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CopyValue } from "@/components/copy-value";
+import { EmptyState } from "@/components/empty-state";
+import { SectionTitle } from "@/components/section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -57,7 +59,7 @@ const WORKER_BLOCKED_QUEUE_STATUSES = new Set<
 	UpdateOrderServiceStatusPayload["status"]
 >(ORDER_TERMINAL_SERVICE_STATUSES);
 
-const LABEL_CLASS = "text-xs font-medium text-muted-foreground";
+const LABEL_CLASS = "text-footnote font-medium text-muted-foreground";
 
 interface BackForReworkNoteProps {
 	orderId: number;
@@ -68,7 +70,7 @@ const BackForReworkNote = ({
 	orderId,
 	reworkLineId,
 }: BackForReworkNoteProps) => (
-	<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border border-border bg-muted/40 px-3 py-3 text-sm">
+	<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border bg-card px-3 py-3 text-body">
 		<p className="flex items-center gap-2">
 			<ArrowClockwiseIcon
 				aria-hidden="true"
@@ -78,7 +80,7 @@ const BackForReworkNote = ({
 			Back in for a rework.
 		</p>
 		<Link
-			className="flex w-fit items-center gap-0.5 font-medium text-xs underline underline-offset-2 hover:text-muted-foreground"
+			className="flex w-fit items-center gap-0.5 text-footnote text-link"
 			params={{ orderId, serviceId: reworkLineId }}
 			to="/queue/$orderId/$serviceId"
 		>
@@ -89,12 +91,12 @@ const BackForReworkNote = ({
 );
 
 const READY_NOTE_CLASS =
-	"border border-emerald-300/60 bg-emerald-50/70 px-3 py-3 text-emerald-900 text-sm dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200";
+	"rounded-lg border border-success/40 bg-tone-good px-3 py-3 text-foreground text-body";
 
 const ReadyIcon = () => (
 	<CheckCircleIcon
 		aria-hidden="true"
-		className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+		className="mt-0.5 size-4 shrink-0 text-tone-good-foreground"
 		weight="fill"
 	/>
 );
@@ -181,26 +183,25 @@ export function QueueServiceDetailMessage({
 	onRetry?: () => void;
 }) {
 	return (
-		<div
-			className={cn(
-				"grid gap-1 border border-border/70 bg-muted/30 p-6 text-sm",
-				tone === "error" && "border-destructive/40 bg-destructive/5",
-			)}
+		<EmptyState
+			action={
+				onRetry ? (
+					<Button type="button" variant="outline" onClick={onRetry}>
+						Retry
+					</Button>
+				) : undefined
+			}
 		>
-			<p className="font-medium">{title}</p>
-			<p className="text-muted-foreground">{description}</p>
-			{onRetry ? (
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					className="mt-2 w-fit"
-					onClick={onRetry}
-				>
-					Retry
-				</Button>
-			) : null}
-		</div>
+			<p
+				className={cn(
+					"font-medium text-foreground",
+					tone === "error" && "text-destructive",
+				)}
+			>
+				{title}
+			</p>
+			<p>{description}</p>
+		</EmptyState>
 	);
 }
 
@@ -277,11 +278,11 @@ export function QueueServiceDetail({
 				{itemDescriptors.length > 0 ? (
 					// Separator bound to the descriptor before it, so a wrap on a
 					// 390px screen never starts a line with a stray "·".
-					<p className="mt-1 text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
+					<p className="mt-1 text-pretty font-bold text-title-1 leading-tight tracking-tight">
 						{itemDescriptors.join(" · ")}
 					</p>
 				) : null}
-				<h1 className="text-pretty font-bold text-[1.5rem] leading-tight tracking-tight">
+				<h1 className="text-pretty font-bold text-title-1 leading-tight tracking-tight">
 					{selectedService.service?.name ?? "Service"}
 				</h1>
 				<CopyValue
@@ -289,14 +290,14 @@ export function QueueServiceDetail({
 					label="item tag"
 					value={selectedService.item.item_code}
 				>
-					<span className="break-all font-mono text-sm">
+					<span className="break-all text-body tabular-nums">
 						{selectedService.item.item_code}
 					</span>
 				</CopyValue>
 				{selectedService.notes?.trim() ? (
-					<div className="mt-3 border border-border bg-muted/40 px-3 py-2.5">
+					<div className="mt-3 rounded-lg border bg-card px-3 py-2.5">
 						<p className={LABEL_CLASS}>Note</p>
-						<p className="mt-1 text-sm leading-relaxed">
+						<p className="mt-1 text-body leading-relaxed">
 							{selectedService.notes.trim()}
 						</p>
 					</div>
@@ -304,7 +305,7 @@ export function QueueServiceDetail({
 			</div>
 
 			<div className="grid gap-5">
-				<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border border-border bg-muted/40 px-3 py-2.5">
+				<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg border bg-card px-3 py-2.5">
 					<div className="flex flex-wrap items-center gap-2">
 						<Badge
 							variant={getOrderServiceStatusBadgeVariant(
@@ -324,7 +325,7 @@ export function QueueServiceDetail({
 								<Badge variant="outline">Standard</Badge>
 							))}
 					</div>
-					<p className="text-xs text-muted-foreground">
+					<p className="text-footnote text-muted-foreground">
 						Handler{" "}
 						<span className="font-medium text-foreground">{handlerLabel}</span>
 					</p>
@@ -351,84 +352,81 @@ export function QueueServiceDetail({
 				    workshop's part is finished, and grey read as a warning. */}
 				{isReady && runningRework === undefined && <ReadyNote order={detail} />}
 
-				<dl className="grid grid-cols-2 gap-px border border-border bg-border">
-					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
+				<dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border">
+					<div className="grid content-start gap-1 bg-card px-3 py-2.5">
 						<dt className={LABEL_CLASS}>Order</dt>
 						<dd>
 							<CopyValue label="order code" value={detail.code}>
 								<Link
 									to="/orders/$orderId"
 									params={{ orderId: String(orderId) }}
-									className="font-mono text-sm text-foreground underline underline-offset-2 hover:text-muted-foreground"
+									className="text-body text-link tabular-nums"
 								>
 									{detail.code}
 								</Link>
 							</CopyValue>
 						</dd>
 					</div>
-					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
+					<div className="grid content-start gap-1 bg-card px-3 py-2.5">
 						<dt className={LABEL_CLASS}>Store</dt>
-						<dd className="text-sm text-foreground">
+						<dd className="text-body text-foreground">
 							{detail.store?.code ?? "-"}
 						</dd>
 					</div>
-					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
+					<div className="grid content-start gap-1 bg-card px-3 py-2.5">
 						<dt className={LABEL_CLASS}>Customer</dt>
-						<dd className="text-sm text-foreground">
+						<dd className="text-body text-foreground">
 							<CustomerLink
 								customerId={detail.customer.id}
 								name={detail.customer.name}
 							/>
 						</dd>
 					</div>
-					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
+					<div className="grid content-start gap-1 bg-card px-3 py-2.5">
 						<dt className={LABEL_CLASS}>Phone</dt>
-						<dd className="text-sm text-foreground">
+						<dd className="text-body text-foreground">
 							<CopyValue
 								label="phone number"
 								value={detail.customer.phone_number}
 							>
 								<a
 									href={`tel:${detail.customer.phone_number}`}
-									className="tabular-nums underline underline-offset-2 hover:text-muted-foreground"
+									className="text-link tabular-nums"
 								>
 									{detail.customer.phone_number}
 								</a>
 							</CopyValue>
 						</dd>
 					</div>
-					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
+					<div className="grid content-start gap-1 bg-card px-3 py-2.5">
 						<dt className={LABEL_CLASS}>Items ready</dt>
 						<dd
 							className={cn(
-								"text-sm tabular-nums",
+								"text-body tabular-nums",
 								detail.items_ready === detail.items_total
-									? "text-emerald-700 dark:text-emerald-400"
+									? "text-tone-good-foreground"
 									: "text-foreground",
 							)}
 						>
 							{detail.items_ready}/{detail.items_total}
 						</dd>
 					</div>
-					<div className="grid content-start gap-1 bg-background px-3 py-2.5">
+					<div className="grid content-start gap-1 bg-card px-3 py-2.5">
 						<dt className={LABEL_CLASS}>Received</dt>
-						<dd className="text-sm text-foreground">
+						<dd className="text-body text-foreground">
 							{formatOrderDateTime(detail.created_at)}
 						</dd>
 					</div>
 				</dl>
 
-				<section className="border border-border bg-background">
+				<section className="overflow-hidden rounded-lg border bg-card">
 					<div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
 						<div className="flex items-center gap-2">
-							<p className={LABEL_CLASS}>Photos</p>
-							{needsPhotoToStart ? (
-								<Badge variant="warning">Required</Badge>
-							) : selectedService.item.images.length > 0 ? (
-								<Badge variant="secondary">
-									{selectedService.item.images.length}
-								</Badge>
-							) : null}
+							<SectionTitle
+								count={selectedService.item.images.length || undefined}
+								title="Photos"
+							/>
+							{needsPhotoToStart && <Badge variant="warning">Required</Badge>}
 						</div>
 
 						<Button
@@ -451,20 +449,18 @@ export function QueueServiceDetail({
 								alt:
 									image.note ?? `Photo for ${selectedService.item.item_code}`,
 								caption: image.isBeforeRework ? (
-									<p className="text-muted-foreground text-xs">Before rework</p>
+									<p className="text-muted-foreground text-footnote">
+										Before rework
+									</p>
 								) : undefined,
 								download: { kind: "item" as const, id: image.id },
 							}))}
 							gridClassName="flex snap-x gap-2 overflow-x-auto pb-1 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 xl:grid-cols-3"
 							itemClassName="w-24 shrink-0 snap-start md:w-auto"
-							thumbnailClassName="bg-background"
+							thumbnailClassName="bg-card"
 							thumbnailImageClassName="aspect-square md:aspect-[5/4]"
 							title={`Photos for ${selectedService.item.item_code}`}
-							emptyState={
-								<p className="border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-									No photos.
-								</p>
-							}
+							emptyState={<EmptyState>No photos.</EmptyState>}
 						/>
 					</div>
 				</section>
@@ -480,7 +476,7 @@ export function QueueServiceDetail({
 					}}
 				/>
 
-				<section className="grid gap-4 border border-border p-4">
+				<section className="grid gap-4 rounded-lg border bg-card p-4">
 					<StatusTimeline line={selectedService} />
 					{actionStatuses.length > 0 && (
 						<Field>
@@ -502,11 +498,11 @@ export function QueueServiceDetail({
 
 			{(canStartWork || actionStatuses.length > 0) && (
 				<div
-					className="sticky bottom-0 z-10 -mx-3 mt-6 border-t border-border bg-background/95 px-3 pb-[calc(var(--inset-bottom)+0.75rem)] pt-3 backdrop-blur sm:-mx-6 sm:px-6 md:mx-0 md:px-0 md:pb-3"
+					className="page-bleed sticky bottom-0 z-10 mt-6 border-t border-border bg-background/95 pb-[calc(var(--inset-bottom)+0.75rem)] pt-3 backdrop-blur md:mx-0 md:px-0 md:pb-3"
 					data-bottom-bar
 				>
 					{blockerMessage ? (
-						<div className="mb-2 flex items-center gap-2 border border-warning/50 bg-warning/10 px-3 py-2 text-xs font-medium text-foreground">
+						<div className="mb-2 flex items-center gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-footnote font-medium text-foreground">
 							<WarningCircleIcon
 								aria-hidden="true"
 								className="size-4 shrink-0 text-warning"
@@ -536,7 +532,7 @@ export function QueueServiceDetail({
 							<Button
 								key={nextStatus}
 								type="button"
-								variant="secondary"
+								variant={nextStatus === "qc_reject" ? "secondary" : "default"}
 								size="lg"
 								className={cn("h-12 sm:flex-1", canStartWork && "sm:flex-none")}
 								disabled={

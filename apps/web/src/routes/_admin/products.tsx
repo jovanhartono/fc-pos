@@ -1,13 +1,14 @@
-import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
+import { ActiveBadge } from "@/components/active-badge";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { EditRowButton } from "@/components/edit-row-button";
 import { ListPanel } from "@/components/list-panel";
 import { MoneyValue } from "@/components/money-value";
 import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	createProduct,
@@ -28,6 +29,9 @@ export const Route = createFileRoute("/_admin/products")({
 	loader: ({ context }) =>
 		context.queryClient.ensureQueryData(productsQueries.list()),
 	component: ProductsPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: ProductsPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function ProductsPage() {
@@ -35,7 +39,6 @@ function ProductsPage() {
 	const { openSheet, closeSheet } = useSheet();
 
 	const { data: products = [], isPending } = useQuery(productsQueries.list());
-	const productCount = products.length;
 
 	const createMutation = useMutation({
 		mutationKey: ["create-product"],
@@ -64,7 +67,7 @@ function ProductsPage() {
 	const handleOpenEditSheet = useCallback(
 		(product: Product) => {
 			openSheet({
-				title: "Edit Product",
+				title: "Edit product",
 				content: () => (
 					<ProductForm
 						defaultValues={{
@@ -95,7 +98,7 @@ function ProductsPage() {
 
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
-			title: "Add Product",
+			title: "Add product",
 			content: () => (
 				<ProductForm
 					handleOnSubmit={async (values: ProductFormState) => {
@@ -113,64 +116,66 @@ function ProductsPage() {
 			{
 				accessorKey: "sku",
 				header: "SKU",
-				meta: { kind: "code", mobileCard: { slot: "subtitle" } },
+				meta: {
+					kind: "code",
+					width: { percent: 16, minRem: 9 },
+					mobileCard: { slot: "subtitle" },
+				},
 			},
 			{
 				accessorKey: "name",
 				header: "Product",
-				meta: { kind: "name" },
+				meta: { kind: "name", width: { percent: 24, minRem: 9 } },
 			},
 			{
 				id: "category",
 				header: "Category",
-				meta: { mobileCard: { slot: "subtitle" } },
+				meta: {
+					width: { percent: 13, minRem: 6.5 },
+					mobileCard: { slot: "subtitle" },
+				},
 				cell: ({ row }) => row.original.category?.name ?? "-",
 			},
 			{
 				accessorKey: "cogs",
 				header: "COGS",
-				meta: { align: "right" },
-				cell: ({ row }) => (
-					<span className="text-muted-foreground">
-						{formatMoney(String(row.original.cogs))}
-					</span>
-				),
+				meta: { align: "right", width: { percent: 10, minRem: 5.5 } },
+				cell: ({ row }) => formatMoney(String(row.original.cogs)),
 			},
 			{
 				accessorKey: "price",
 				header: "Price",
-				meta: { align: "right" },
+				meta: { align: "right", width: { percent: 10, minRem: 5.5 } },
 				cell: ({ row }) => <MoneyValue value={row.original.price} />,
 			},
 			{
 				accessorKey: "stock",
 				header: "Stock",
-				meta: { align: "right", mobileCard: { slot: "badges" } },
+				meta: {
+					align: "right",
+					width: { percent: 9, minRem: 4.5 },
+					mobileCard: { slot: "badges" },
+				},
 				cell: ({ row }) => <ProductStock stock={row.original.stock} />,
 			},
 			{
 				id: "status",
 				header: "Status",
-				meta: { mobileCard: { slot: "status" } },
-				cell: ({ row }) => (
-					<Badge variant={row.original.is_active ? "success" : "danger"}>
-						{row.original.is_active ? "Active" : "Inactive"}
-					</Badge>
-				),
+				meta: {
+					width: { percent: 9, minRem: 4.5 },
+					mobileCard: { slot: "status" },
+				},
+				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 			},
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { mobileCard: { slot: "title-end" } },
+				meta: {
+					width: { percent: 9, minRem: 4.5 },
+					mobileCard: { slot: "title-end" },
+				},
 				cell: ({ row }) => (
-					<Button
-						variant="outline"
-						size="icon-sm"
-						aria-label="Edit"
-						title="Edit"
-						onClick={() => handleOpenEditSheet(row.original)}
-						icon={<PencilSimpleLineIcon className="size-4" />}
-					/>
+					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),
 			},
 		],
@@ -181,27 +186,27 @@ function ProductsPage() {
 		<>
 			<PageHeader
 				title="Products"
+				count={isPending ? undefined : products.length}
+				countNoun="product"
 				actions={
-					<>
-						<Badge
-							variant={isPending ? "secondary" : "outline"}
-						>{`${productCount} items`}</Badge>
-						<Button
-							onClick={handleOpenCreateSheet}
-							icon={<PlusIcon className="size-4" />}
-						>
-							Add Product
-						</Button>
-					</>
+					<Button
+						onClick={handleOpenCreateSheet}
+						icon={<PlusIcon className="size-4" />}
+					>
+						Add product
+					</Button>
 				}
 			/>
 			<ListPanel>
 				<DataTable
 					columns={columns}
 					data={products}
+					isCardGrouped
+					skeletonCardClassName="h-33"
 					isLoading={isPending}
 					sortable
 					cardPrimaryColumnId="name"
+					emptyMessage="No products."
 				/>
 			</ListPanel>
 		</>

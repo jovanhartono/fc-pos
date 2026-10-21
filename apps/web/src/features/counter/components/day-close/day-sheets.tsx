@@ -30,7 +30,6 @@ const methodSheet = (data: DayClose, title: string) => {
 	return {
 		title,
 		description: `${formatDayLong(data.date)} · ${pluralize(payments.length, "payment")} · ${formatMoney(sum(payments))}`,
-		size: "wide",
 		content: () => (
 			<PaymentsSheetContent
 				date={data.date}
@@ -65,7 +64,6 @@ export const daySheet = (
 			return {
 				title: "Unpaid Orders",
 				description: `${day} · ${pluralize(orders.length, "Order")} · ${formatMoney(sum(orders))}`,
-				size: "wide",
 				content: () => (
 					<OrdersSheetContent
 						emptyText="Nothing unpaid this day."
@@ -78,7 +76,6 @@ export const daySheet = (
 			return {
 				title: `${dayLabel} Orders`,
 				description: `${day} · ${pluralize(dropped.orders, "Order")}`,
-				size: "wide",
 				content: () => (
 					<OrdersSheetContent
 						emptyText="No Orders dropped off this day."
@@ -90,7 +87,6 @@ export const daySheet = (
 			return {
 				title: "Picked up",
 				description: `${day} · ${pluralize(picked.orders, "Order")} · ${pluralize(picked.items, "Item")}`,
-				size: "wide",
 				content: () => (
 					<PickedUpSheetContent date={data.date} orders={picked.order_list} />
 				),
@@ -99,7 +95,6 @@ export const daySheet = (
 			return {
 				title: "Refunds",
 				description: `${day} · ${pluralize(data.refunds.length, "refund")} · ${formatMoney(sum(data.refunds))}`,
-				size: "wide",
 				content: () => (
 					<RefundsSheetContent date={data.date} refunds={data.refunds} />
 				),

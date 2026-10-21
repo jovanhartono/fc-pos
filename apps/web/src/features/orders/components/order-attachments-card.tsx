@@ -1,8 +1,8 @@
 import { CameraIcon } from "@phosphor-icons/react";
-import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { type ReactNode, useState } from "react";
+import { TextSkeleton } from "@/components/text-skeleton";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { OrderDetail } from "@/features/orders/api";
 import {
 	OrderPhotoGallery,
@@ -16,7 +16,6 @@ import {
 import { SinglePhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { orderDropoffPhotoUploader } from "@/features/orders/utils/photo-upload";
-import { cn } from "@/lib/utils";
 
 type PickupEvent = OrderDetail["pickup_events"][number];
 
@@ -24,6 +23,43 @@ type DropoffOrder = Pick<
 	OrderDetail,
 	"id" | "created_at" | "dropoff_photo_url" | "dropoff_photo_uploaded_at"
 >;
+
+// Square tiles of one size at every width: two to a row on a phone, more on
+// the full page.
+const TILE_GRID =
+	"grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-x-3 gap-y-4";
+
+const EMPTY_TILE =
+	"flex aspect-square w-full items-center justify-center rounded-md border bg-muted text-muted-foreground";
+
+// A drop-off photo with its time and Replace button, beside the pickup tile.
+export const OrderAttachmentsSkeleton = () => (
+	<section className="grid gap-3">
+		<OrderSectionHeader>Attachments</OrderSectionHeader>
+		<Card className="gap-4 p-4 text-body">
+			<div className={TILE_GRID}>
+				{["Drop-off", "Pickup"].map((label) => (
+					<div className="grid content-start gap-1.5" key={label}>
+						<AttachmentLabel>{label}</AttachmentLabel>
+						<Skeleton className="aspect-square w-full rounded-md" />
+						<TileCaption
+							line1={
+								label === "Drop-off" ? (
+									<TextSkeleton className="w-32" />
+								) : undefined
+							}
+							line2={
+								<span className="inline-flex h-9 items-center pointer-coarse:h-11">
+									<TextSkeleton className="w-28" />
+								</span>
+							}
+						/>
+					</div>
+				))}
+			</div>
+		</Card>
+	</section>
+);
 
 interface OrderAttachmentsCardProps {
 	order: DropoffOrder;
@@ -37,34 +73,55 @@ export const OrderAttachmentsCard = ({
 	canManageDropoff,
 	onUploaded,
 	pickupEvents,
-}: OrderAttachmentsCardProps) => (
-	<Card className="gap-0 overflow-hidden py-0">
-		<OrderSectionHeader>Attachments</OrderSectionHeader>
-		<div className="grid gap-6 border-t p-4 md:grid-cols-3">
-			<DropoffAttachment
-				canManage={canManageDropoff}
-				onUploaded={onUploaded}
-				order={order}
-			/>
-			<PickupsAttachment pickupEvents={pickupEvents} />
-		</div>
-	</Card>
-);
+}: OrderAttachmentsCardProps) => {
+	const pickupItems = toPickupItems(pickupEvents);
+	// One pickup sits beside the drop-off so the counter compares what came in
+	// with what went out; a split collection gets its own row of pickups.
+	const hasManyPickups = pickupItems.length > 1;
+
+	return (
+		<section className="grid gap-3">
+			<OrderSectionHeader>Attachments</OrderSectionHeader>
+			<Card className="gap-4 p-4 text-body">
+				<div className={TILE_GRID}>
+					<DropoffAttachment
+						canManage={canManageDropoff}
+						onUploaded={onUploaded}
+						order={order}
+					/>
+					{hasManyPickups ? null : <PickupTiles items={pickupItems} />}
+				</div>
+				{hasManyPickups ? (
+					<div className="grid gap-1.5">
+						<AttachmentLabel>Pickups</AttachmentLabel>
+						<div className={TILE_GRID}>
+							<PickupTiles items={pickupItems} />
+						</div>
+					</div>
+				) : null}
+			</Card>
+		</section>
+	);
+};
 
 interface AttachmentLabelProps {
 	children: string;
-	className?: string;
 }
 
-const AttachmentLabel = ({ children, className }: AttachmentLabelProps) => (
-	<p
-		className={cn(
-			"text-muted-foreground text-xs leading-5 font-medium",
-			className,
-		)}
-	>
-		{children}
-	</p>
+const AttachmentLabel = ({ children }: AttachmentLabelProps) => (
+	<p className="font-medium text-muted-foreground text-subhead">{children}</p>
+);
+
+interface TileCaptionProps {
+	line1?: ReactNode;
+	line2: ReactNode;
+}
+
+const TileCaption = ({ line1, line2 }: TileCaptionProps) => (
+	<div className="grid gap-0.5 text-subhead">
+		{line1 ? <p className="font-medium tabular-nums">{line1}</p> : null}
+		<div>{line2}</div>
+	</div>
 );
 
 interface DropoffAttachmentProps {
@@ -81,17 +138,10 @@ const DropoffAttachment = ({
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 
 	const photoUrl = order.dropoff_photo_url;
-	const isSaved = Boolean(photoUrl);
 
 	return (
-		<section className="grid content-start gap-3">
-			<div className="flex items-center justify-between gap-2">
-				<AttachmentLabel>Drop-off</AttachmentLabel>
-				<Badge variant={isSaved ? "secondary" : "outline"}>
-					{isSaved ? "Saved" : "Missing"}
-				</Badge>
-			</div>
-
+		<section className="grid content-start gap-1.5">
+			<AttachmentLabel>Drop-off</AttachmentLabel>
 			{photoUrl ? (
 				<DropoffPhoto
 					capturedAt={order.dropoff_photo_uploaded_at ?? order.created_at}
@@ -99,29 +149,28 @@ const DropoffAttachment = ({
 					orderId={order.id}
 				/>
 			) : (
-				<div className="flex aspect-16/10 flex-col items-center justify-center gap-2 border bg-muted px-4 text-center text-muted-foreground">
-					<CameraIcon className="size-8 opacity-50" />
-					<p className="text-sm">No drop-off photo yet</p>
+				<div className={EMPTY_TILE}>
+					<CameraIcon aria-hidden="true" className="size-8 opacity-50" />
 				</div>
 			)}
-
-			{order.dropoff_photo_uploaded_at ? (
-				<p className="text-muted-foreground text-xs">
-					Uploaded {formatOrderDateTime(order.dropoff_photo_uploaded_at)}
-				</p>
-			) : null}
-
-			<Button
-				className="h-11 w-full"
-				disabled={!canManage}
-				icon={<CameraIcon className="size-4" />}
-				onClick={() => setIsDialogOpen(true)}
-				type="button"
-				variant="outline"
-			>
-				{isSaved ? "Replace photo" : "Upload photo"}
-			</Button>
-
+			<TileCaption
+				line1={
+					order.dropoff_photo_uploaded_at
+						? formatOrderDateTime(order.dropoff_photo_uploaded_at)
+						: undefined
+				}
+				line2={
+					<button
+						className="inline-flex h-9 items-center gap-1.5 text-link disabled:text-muted-foreground pointer-coarse:h-11"
+						disabled={!canManage}
+						onClick={() => setIsDialogOpen(true)}
+						type="button"
+					>
+						<CameraIcon aria-hidden="true" className="size-4" />
+						{photoUrl ? "Replace photo" : "Upload photo"}
+					</button>
+				}
+			/>
 			<SinglePhotoUploadDialog
 				badgeLabel="Drop-off"
 				onOpenChange={setIsDialogOpen}
@@ -159,18 +208,18 @@ const DropoffPhoto = ({ capturedAt, imageUrl, orderId }: DropoffPhotoProps) => {
 		<div>
 			<button
 				aria-label="Open drop-off photo"
-				className="block w-full overflow-hidden border border-border bg-muted transition-[border-color,box-shadow] hover:border-ring focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+				className="block w-full overflow-hidden rounded-md border border-border bg-muted transition-[border-color,box-shadow] hover:border-ring focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
 				onClick={() => setIsLightboxOpen(true)}
 				type="button"
 			>
 				<img
 					alt={item.alt}
-					className="aspect-16/10 w-full bg-muted object-cover"
+					className="aspect-square w-full bg-muted object-cover"
 					decoding="async"
-					height={400}
+					height={480}
 					loading="lazy"
 					src={imageUrl}
-					width={640}
+					width={480}
 				/>
 			</button>
 
@@ -184,27 +233,18 @@ const DropoffPhoto = ({ capturedAt, imageUrl, orderId }: DropoffPhotoProps) => {
 	);
 };
 
-const PickupsAttachment = ({
-	pickupEvents,
-}: {
-	pickupEvents: PickupEvent[];
-}) => {
-	// Pickup photos are required at capture, so every event carries an image;
-	// the gallery owns the thumbnail grid + lightbox, the caption keeps the
-	// at-a-glance "when / by whom" audit trail this section is the only home for.
-	const items: OrderPhotoGalleryItem[] = pickupEvents
+// Pickup photos are required at capture, so every event carries an image; the
+// caption keeps the "when / by whom" audit trail this section is the only
+// home for.
+const toPickupItems = (pickupEvents: PickupEvent[]): OrderPhotoGalleryItem[] =>
+	pickupEvents
 		.filter((event) => Boolean(event.image_url))
 		.map((event) => {
 			const pickedUpAt = formatOrderDateTime(event.picked_up_at);
 			const pickedUpBy = event.picked_up_by?.name ?? "unknown operator";
 			return {
 				alt: `Pickup on ${pickedUpAt} by ${pickedUpBy}`,
-				caption: (
-					<div className="grid gap-0.5">
-						<p className="font-medium text-sm leading-tight">{pickedUpAt}</p>
-						<p className="text-muted-foreground text-xs">by {pickedUpBy}</p>
-					</div>
-				),
+				caption: <TileCaption line1={pickedUpAt} line2={`by ${pickedUpBy}`} />,
 				created_at: event.picked_up_at,
 				download: { kind: "pickup" as const, id: event.id },
 				id: event.id,
@@ -213,20 +253,29 @@ const PickupsAttachment = ({
 			};
 		});
 
-	// Pickup photos sit on the drop-off photo's columns, so the counter compares
-	// what came in and what went out at one size.
-	return (
-		<section className="grid content-start gap-y-3 md:col-span-2 md:grid-cols-subgrid">
-			<AttachmentLabel className="md:col-span-2">Pickups</AttachmentLabel>
-			<OrderPhotoGallery
-				emptyState={
-					<p className="text-muted-foreground text-sm">No pickups yet</p>
-				}
-				gridClassName="grid-cols-1 gap-x-[normal] gap-y-6 md:col-span-2 md:grid-cols-subgrid"
-				items={items}
-				thumbnailImageClassName="aspect-16/10"
-				title="Pickup photo"
-			/>
-		</section>
-	);
-};
+interface PickupTilesProps {
+	items: OrderPhotoGalleryItem[];
+}
+
+// The tiles land on the caller's grid, beside the drop-off or on a row of
+// their own.
+const PickupTiles = ({ items }: PickupTilesProps) => (
+	<OrderPhotoGallery
+		emptyState={
+			<section className="grid content-start gap-1.5">
+				<AttachmentLabel>Pickup</AttachmentLabel>
+				<div className={EMPTY_TILE}>
+					<CameraIcon aria-hidden="true" className="size-8 opacity-50" />
+				</div>
+				<TileCaption line2="No pickups yet" />
+			</section>
+		}
+		gridClassName="contents"
+		items={
+			items.length === 1
+				? [{ ...items[0], label: <AttachmentLabel>Pickup</AttachmentLabel> }]
+				: items
+		}
+		title="Pickup photo"
+	/>
+);

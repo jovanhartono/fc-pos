@@ -1,18 +1,19 @@
-import { PencilSimpleLineIcon, PlusIcon } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { PlusIcon } from "@phosphor-icons/react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { EditRowButton } from "@/components/edit-row-button";
 import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Button } from "@/components/ui/button";
 import { type Customer, customersQueries } from "@/features/customers/api";
-import { CustomerLink } from "@/features/customers/components/customer-link";
 import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
+import { getCurrentUser } from "@/stores/auth-store";
 import { useSheet } from "@/stores/sheet-store";
 
 const PAGE_SIZE = 25;
@@ -25,21 +26,32 @@ const customersSearchSchema = z.object({
 export const Route = createFileRoute("/_admin/customers/")({
 	validateSearch: (search) => customersSearchSchema.parse(search),
 	loaderDeps: ({ search }) => search,
-	loader: ({ context, deps }) =>
-		context.queryClient.ensureQueryData(
+	loader: async ({ context, deps, cause }) => {
+		// Typing a search or paging keeps the page up, the search box focused,
+		// and swaps the rows in place; only opening the page waits for them.
+		if (cause === "stay") {
+			return;
+		}
+		await context.queryClient.ensureQueryData(
 			customersQueries.list({
 				limit: PAGE_SIZE,
 				offset: (deps.page - 1) * PAGE_SIZE,
 				...(deps.search ? { search: deps.search } : {}),
 			}),
-		),
+		);
+	},
 	component: CustomersPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: CustomersPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function CustomersPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 	const { openSheet } = useSheet();
+	// Same rule as CustomerLink: the detail page is admin-only (ADR-0021).
+	const isAdmin = getCurrentUser()?.role === "admin";
 
 	const handleSearchChange = useCallback(
 		(next: string) => {
@@ -54,19 +66,20 @@ function CustomersPage() {
 		[navigate],
 	);
 
-	const customersQuery = useQuery(
-		customersQueries.list({
+	const customersQuery = useQuery({
+		...customersQueries.list({
 			limit: PAGE_SIZE,
 			offset: (search.page - 1) * PAGE_SIZE,
 			...(search.search ? { search: search.search } : {}),
 		}),
-	);
+		placeholderData: keepPreviousData,
+	});
 	const customers = customersQuery.data?.items ?? [];
 
 	const handleOpenEditSheet = useCallback(
 		(customer: Customer) => {
 			openSheet({
-				title: "Edit Customer",
+				title: "Edit customer",
 				content: () => <CustomerSheetContent editingCustomer={customer} />,
 			});
 		},
@@ -75,7 +88,7 @@ function CustomersPage() {
 
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
-			title: "Add Customer",
+			title: "Add customer",
 			content: () => <CustomerSheetContent />,
 		});
 	}, [openSheet]);
@@ -85,19 +98,27 @@ function CustomersPage() {
 			{
 				accessorKey: "name",
 				header: "Name",
-				meta: { kind: "name" },
-				cell: ({ row }) => (
-					<CustomerLink customerId={row.original.id} name={row.original.name} />
-				),
+				meta: { kind: "name", width: { percent: 31, minRem: 9 } },
 			},
 			{
 				accessorKey: "phone_number",
 				header: "Phone",
+				meta: {
+					width: { percent: 15, minRem: 7.5 },
+					mobileCard: {
+						slot: "subtitle",
+						className: "text-foreground text-subhead tabular-nums",
+					},
+				},
 			},
 			{
 				accessorKey: "email",
 				header: "Email",
-				meta: { kind: "text", mobileCard: { omitWhenEmpty: true } },
+				meta: {
+					kind: "text",
+					width: { percent: 28, minRem: 10 },
+					mobileCard: { slot: "hidden" },
+				},
 				cell: ({ row }) => (
 					<span className="text-muted-foreground">
 						{row.original.email ?? "—"}
@@ -107,21 +128,24 @@ function CustomersPage() {
 			{
 				id: "origin_store",
 				header: "Origin store",
+				meta: {
+					width: { percent: 18, minRem: 8.5 },
+					mobileCard: {
+						slot: "subtitle",
+						className: "text-foreground text-subhead",
+					},
+				},
 				cell: ({ row }) => row.original.originStore?.name ?? "—",
 			},
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { mobileCard: { slot: "title-end" } },
+				meta: {
+					width: { percent: 8, minRem: 4.5 },
+					mobileCard: { slot: "title-end" },
+				},
 				cell: ({ row }) => (
-					<Button
-						variant="outline"
-						size="icon-sm"
-						aria-label="Edit"
-						title="Edit"
-						onClick={() => handleOpenEditSheet(row.original)}
-						icon={<PencilSimpleLineIcon className="size-4" />}
-					/>
+					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),
 			},
 		],
@@ -132,12 +156,14 @@ function CustomersPage() {
 		<>
 			<PageHeader
 				title="Customers"
+				count={customersQuery.data?.meta.total}
+				countNoun="customer"
 				actions={
 					<Button
 						onClick={handleOpenCreateSheet}
 						icon={<PlusIcon className="size-4" />}
 					>
-						Add Customer
+						Add customer
 					</Button>
 				}
 			/>
@@ -153,7 +179,20 @@ function CustomersPage() {
 				<DataTable
 					columns={columns}
 					data={customers}
+					getRowLink={
+						isAdmin
+							? (customer) => ({
+									to: "/customers/$customerId",
+									params: { customerId: String(customer.id) },
+									search: { page: 1 },
+								})
+							: undefined
+					}
+					isCardGrouped
+					skeletonCardClassName="h-19"
 					isLoading={customersQuery.isPending}
+					isStale={customersQuery.isPlaceholderData}
+					filterKey={JSON.stringify(search)}
 					footer={
 						<TablePagination
 							meta={customersQuery.data?.meta}

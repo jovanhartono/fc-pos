@@ -21,7 +21,7 @@ export const CustomerLink = ({
 
 	return (
 		<Link
-			className={cn("font-medium hover:underline", className)}
+			className={cn("text-link", className)}
 			params={{ customerId: String(customerId) }}
 			// The name sits in every order row, so a cursor sweeping the column
 			// would otherwise preload a detail page and its orders per row.

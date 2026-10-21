@@ -1,20 +1,43 @@
+import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Link } from "@tanstack/react-router";
+import { EmptyState } from "@/components/empty-state";
+import { Button } from "@/components/ui/button";
 import { ordersQueries } from "@/features/orders/api";
-import { OrderAttachmentsCard } from "@/features/orders/components/order-attachments-card";
-import { OrderIdentityStrip } from "@/features/orders/components/order-identity-strip";
-import { OrderLineItemsCard } from "@/features/orders/components/order-line-items-card";
-import { OrderPaymentSection } from "@/features/orders/components/order-payment-section";
+import {
+	OrderAttachmentsCard,
+	OrderAttachmentsSkeleton,
+} from "@/features/orders/components/order-attachments-card";
+import {
+	OrderIdentityStrip,
+	OrderIdentityStripSkeleton,
+} from "@/features/orders/components/order-identity-strip";
+import {
+	OrderItemsSkeleton,
+	OrderLineItemsCard,
+} from "@/features/orders/components/order-line-items-card";
+import {
+	OrderPaymentSection,
+	OrderPaymentSkeleton,
+} from "@/features/orders/components/order-payment-section";
 import { useRefreshOrder } from "@/features/orders/hooks/useOrderMutations";
 import { getOrderActionGates } from "@/features/orders/lib/order-action-gates";
 import { usersQueries } from "@/features/users/api";
+import { CONTENT_FADE } from "@/lib/content-fade";
+import { isNotFoundError } from "@/lib/server-error";
+import { cn } from "@/lib/utils";
+import { useSheet } from "@/stores/sheet-store";
 
+// A paid one-Item Order drawn from the real section shells, so each card is
+// already its loaded height at every width and nothing moves when it lands.
 const OrderDetailSkeleton = () => (
-	<div className="grid gap-4">
-		<Skeleton className="h-28 w-full" />
-		<Skeleton className="h-64 w-full" />
-		<Skeleton className="h-52 w-full" />
-		<Skeleton className="h-64 w-full" />
+	<div aria-hidden className="@container/order">
+		<OrderIdentityStripSkeleton />
+		<div className="grid gap-3 sm:gap-4">
+			<OrderItemsSkeleton />
+			<OrderPaymentSkeleton />
+			<OrderAttachmentsSkeleton />
+		</div>
 	</div>
 );
 
@@ -29,33 +52,84 @@ export const OrderDetailMessage = ({
 	title,
 	tone,
 }: OrderDetailMessageProps) => (
-	<div
-		className={
-			tone === "error"
-				? "grid gap-1 border border-destructive/40 bg-destructive/5 p-6 text-sm"
-				: "grid gap-1 border border-border/70 bg-muted/30 p-6 text-sm"
-		}
-	>
-		<p className="font-medium">{title}</p>
-		<p className="text-muted-foreground">{description}</p>
-	</div>
+	<EmptyState>
+		<p
+			className={cn(
+				"font-medium text-foreground",
+				tone === "error" && "text-destructive",
+			)}
+		>
+			{title}
+		</p>
+		<p>{description}</p>
+	</EmptyState>
 );
+
+// An old or mistyped link to an Order that doesn't exist; Retry can't help,
+// so the way out is back to the list. In the sheet that is closing it, so a
+// cashier on the Counter stays there and a filtered list keeps its filters.
+export const OrderNotFound = () => {
+	const isInSheet = useSheet((s) => s.sheetState.open);
+	const onClose = useSheet((s) => s.sheetState.onClose);
+	const closeSheet = useSheet((s) => s.closeSheet);
+	if (isInSheet) {
+		const handleClose = () => {
+			onClose?.();
+			closeSheet();
+		};
+		return (
+			<EmptyState
+				action={
+					<Button onClick={handleClose} variant="outline">
+						Close
+					</Button>
+				}
+			>
+				Order not found.
+			</EmptyState>
+		);
+	}
+	return (
+		<EmptyState
+			action={
+				<Button
+					icon={<ArrowLeftIcon className="size-4" />}
+					nativeButton={false}
+					render={<Link search={{ page: 1 }} to="/orders" />}
+					variant="outline"
+				>
+					Back to Orders
+				</Button>
+			}
+		>
+			Order not found.
+		</EmptyState>
+	);
+};
 
 interface OrderDetailViewProps {
 	orderId: number;
 }
 
-// The whole Order: the /orders/$id page and the Order sheet over the Orders
-// list both render this, so the two never drift apart.
+// The whole Order: the /orders/$id page and the global sheet both render
+// this, so the two never drift apart.
 export const OrderDetailView = ({ orderId }: OrderDetailViewProps) => {
 	// Role/can_process_pickup gates read DB-fresh state via /admin/users/me —
 	// the JWT claims go stale when an admin changes them mid-session.
 	const meQuery = useQuery(usersQueries.me());
-	const detailQuery = useQuery(ordersQueries.detail(orderId));
+	const detailQuery = useQuery({
+		...ordersQueries.detail(orderId),
+		// A missing Order stays missing; asking again only holds the skeleton up.
+		retry: (failureCount, error) => !isNotFoundError(error) && failureCount < 3,
+	});
 	const refreshOrder = useRefreshOrder();
 
 	if (detailQuery.isPending) {
 		return <OrderDetailSkeleton />;
+	}
+
+	if (isNotFoundError(detailQuery.error)) {
+		return <OrderNotFound />;
 	}
 
 	if (detailQuery.isError) {
@@ -86,7 +160,7 @@ export const OrderDetailView = ({ orderId }: OrderDetailViewProps) => {
 	const gates = getOrderActionGates(meQuery.data, detail);
 
 	return (
-		<>
+		<div className={cn("@container/order", CONTENT_FADE)}>
 			<OrderIdentityStrip detail={detail} gates={gates} orderId={orderId} />
 
 			<div className="grid gap-3 sm:gap-4">
@@ -105,6 +179,6 @@ export const OrderDetailView = ({ orderId }: OrderDetailViewProps) => {
 					pickupEvents={detail.pickup_events}
 				/>
 			</div>
-		</>
+		</div>
 	);
 };

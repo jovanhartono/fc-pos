@@ -1,21 +1,20 @@
 import { POSTServiceSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PlusIcon } from "@phosphor-icons/react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { CurrencyInput } from "@/components/form/currency-input";
-import { Button } from "@/components/ui/button";
+import {
+	SHEET_FORM_GRID,
+	SheetFormActions,
+} from "@/components/form/sheet-form-actions";
+import { SwitchList, SwitchRow } from "@/components/form/switch-list";
 import {
 	Field,
-	FieldContent,
-	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
-	FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { CategoryAutocomplete } from "@/features/orders/components/category-autocomplete";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
@@ -92,18 +91,20 @@ export function ServiceForm({
 				handleOnSubmit({ ...rest, price: no_list_price ? null : price }),
 			)}
 		>
-			<FieldGroup>
+			<FieldGroup className={SHEET_FORM_GRID}>
 				<Controller
 					control={form.control}
 					name="category_id"
 					render={({ field, fieldState }) => (
-						<CategoryAutocomplete
-							disabled={isSubmitting}
-							error={fieldState.error}
-							onValueChange={(value) => field.onChange(Number(value))}
-							required
-							value={field.value ? String(field.value) : ""}
-						/>
+						<div className="col-span-full">
+							<CategoryAutocomplete
+								disabled={isSubmitting}
+								error={fieldState.error}
+								onValueChange={(value) => field.onChange(Number(value))}
+								required
+								value={field.value ? String(field.value) : ""}
+							/>
+						</div>
 					)}
 				/>
 
@@ -151,7 +152,7 @@ export function ServiceForm({
 					control={form.control}
 					name="description"
 					render={({ field, fieldState }) => (
-						<Field className="md:col-span-2" data-invalid={fieldState.invalid}>
+						<Field className="col-span-full" data-invalid={fieldState.invalid}>
 							<FieldLabel htmlFor="service-description">Description</FieldLabel>
 							<Input
 								{...field}
@@ -210,104 +211,62 @@ export function ServiceForm({
 					/>
 				)}
 
-				<Controller
-					control={form.control}
-					name="no_list_price"
-					render={({ field }) => (
-						<FieldLabel
-							htmlFor="service-no-list-price"
-							className="md:col-span-2"
-						>
-							<Field orientation="horizontal">
-								<FieldContent>
-									<FieldTitle>No list price</FieldTitle>
-									<FieldDescription>
-										Priced per item (e.g. Repair) — keyed at drop-off if agreed,
-										or left blank until inspection.
-									</FieldDescription>
-								</FieldContent>
-								<Switch
-									checked={field.value}
-									disabled={isSubmitting}
-									id="service-no-list-price"
-									onCheckedChange={(checked) => {
-										field.onChange(!!checked);
-										if (checked) {
-											form.setValue("price", "", { shouldValidate: true });
-										}
-									}}
-								/>
-							</Field>
-						</FieldLabel>
-					)}
-				/>
+				<SwitchList>
+					<Controller
+						control={form.control}
+						name="no_list_price"
+						render={({ field }) => (
+							<SwitchRow
+								checked={field.value}
+								description="Priced per item (e.g. Repair) — keyed at drop-off if agreed, or left blank until inspection."
+								disabled={isSubmitting}
+								id="service-no-list-price"
+								onCheckedChange={(checked) => {
+									field.onChange(checked);
+									if (checked) {
+										form.setValue("price", "", { shouldValidate: true });
+									}
+								}}
+								title="No list price"
+							/>
+						)}
+					/>
+					<Controller
+						control={form.control}
+						name="is_priority"
+						render={({ field }) => (
+							<SwitchRow
+								checked={!!field.value}
+								description="New shoe-service items created from this service will enter the Queue as priority by default."
+								disabled={isSubmitting}
+								id="service-priority"
+								onCheckedChange={field.onChange}
+								title="Priority by default"
+							/>
+						)}
+					/>
+					<Controller
+						control={form.control}
+						name="is_active"
+						render={({ field }) => (
+							<SwitchRow
+								checked={field.value}
+								description="Active services can be selected when creating orders."
+								disabled={isSubmitting}
+								id="service-active"
+								onCheckedChange={field.onChange}
+								title="Active"
+							/>
+						)}
+					/>
+				</SwitchList>
 
-				<Controller
-					control={form.control}
-					name="is_priority"
-					render={({ field }) => (
-						<FieldLabel htmlFor="service-priority" className="md:col-span-2">
-							<Field orientation="horizontal">
-								<FieldContent>
-									<FieldTitle>Priority by default</FieldTitle>
-									<FieldDescription>
-										New shoe-service items created from this service will enter
-										the Queue as priority by default.
-									</FieldDescription>
-								</FieldContent>
-								<Switch
-									checked={field.value}
-									disabled={isSubmitting}
-									id="service-priority"
-									onCheckedChange={(checked) => field.onChange(!!checked)}
-								/>
-							</Field>
-						</FieldLabel>
-					)}
+				<SheetFormActions
+					addLabel="Add service"
+					isEditing={isEditing}
+					isSubmitting={isSubmitting}
+					onCancel={onReset}
 				/>
-
-				<Controller
-					control={form.control}
-					name="is_active"
-					render={({ field }) => (
-						<FieldLabel htmlFor="service-active" className="md:col-span-2">
-							<Field orientation="horizontal">
-								<FieldContent>
-									<FieldTitle>Active</FieldTitle>
-									<FieldDescription>
-										Active services can be selected when creating orders.
-									</FieldDescription>
-								</FieldContent>
-								<Switch
-									checked={field.value}
-									disabled={isSubmitting}
-									id="service-active"
-									onCheckedChange={(checked) => field.onChange(!!checked)}
-								/>
-							</Field>
-						</FieldLabel>
-					)}
-				/>
-
-				<div className="flex flex-wrap gap-2 md:col-span-2 md:justify-end">
-					{isEditing ? (
-						<Button
-							disabled={isSubmitting}
-							onClick={onReset}
-							type="button"
-							variant="outline"
-						>
-							Cancel edit
-						</Button>
-					) : null}
-					<Button
-						icon={<PlusIcon className="size-4" />}
-						loading={isSubmitting}
-						type="submit"
-					>
-						{isEditing ? "Update Service" : "Create Service"}
-					</Button>
-				</div>
 			</FieldGroup>
 		</form>
 	);

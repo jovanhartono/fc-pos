@@ -1,18 +1,22 @@
 import type {
 	WorkerDetailReport,
+	WorkerLiveRow,
 	WorkerProductivityReport,
+	WorkerRangeRow,
 	WorkerRow,
 } from "@/features/reports/api";
 import { escapeCsv } from "@/features/reports/utils/csv";
 import {
 	fixedPercentFormatter,
 	numberFormatter,
+	pluralCount,
 } from "@/features/reports/utils/format";
-import dayjs from "@/lib/dayjs";
+import dayjs, { formatShiftLength } from "@/lib/dayjs";
 
 type MatrixCell = WorkerProductivityReport["services_matrix"]["cells"][number];
 type DetailBucket = WorkerDetailReport["buckets"][number];
 type DetailService = WorkerDetailReport["services"][number];
+type Live = WorkerRow["live"];
 
 // The owner will set these lines in Settings (GitHub issue #159); until then a
 // QC reject or Complaint chip is coloured from this one block.
@@ -65,10 +69,14 @@ export interface WorkerTotals {
 	complaintCohort: number;
 }
 
+// A row there only for what someone is doing today has nothing in the range.
+const hasRangeWork = (row: WorkerRangeRow) =>
+	row.days_worked > 0 || row.services_processed > 0 || row.qc_checks > 0;
+
 // Only Services started by someone with a day worked count towards the rate.
-export const totalsOf = (rows: WorkerRow[]): WorkerTotals => {
+export const totalsOf = (rows: WorkerRangeRow[]): WorkerTotals => {
 	const totals: WorkerTotals = {
-		people: rows.length,
+		people: rows.filter(hasRangeWork).length,
 		services: 0,
 		perDayWorked: null,
 		qcRejects: 0,
@@ -93,16 +101,18 @@ export const totalsOf = (rows: WorkerRow[]): WorkerTotals => {
 	return totals;
 };
 
-interface StoreGroup {
+interface StoreGroup<T> {
 	store_id: number;
 	store_name: string;
-	rows: WorkerRow[];
+	rows: T[];
 	totals: WorkerTotals;
 }
 
 // Busiest Store first, so the owner opens the one that matters most.
-export const groupByStore = (rows: WorkerRow[]): StoreGroup[] => {
-	const byStore = new Map<number, WorkerRow[]>();
+export const groupByStore = <T extends WorkerRangeRow>(
+	rows: T[],
+): StoreGroup<T>[] => {
+	const byStore = new Map<number, T[]>();
 	for (const row of rows) {
 		byStore.set(row.store_id, [...(byStore.get(row.store_id) ?? []), row]);
 	}
@@ -118,6 +128,141 @@ export const groupByStore = (rows: WorkerRow[]): StoreGroup[] => {
 
 export const workerKey = (userId: number, storeId: number) =>
 	`${userId}:${storeId}`;
+
+const OFF_THE_FLOOR: Live = {
+	clock_in_at: null,
+	clock_out_at: null,
+	in_hand: 0,
+	last_move_at: null,
+	services_today: 0,
+};
+
+const NOTHING_IN_RANGE = {
+	services_processed: 0,
+	days_worked: 0,
+	per_day_worked: null,
+	qc_checks: 0,
+	qc_rejects: 0,
+	complaints: 0,
+	complaint_cohort: 0,
+};
+
+// The owner looking at last week still sees who is on the floor now, so
+// someone busy today with nothing in the range gets a row of their own.
+export const withLive = (
+	rangeRows: WorkerRangeRow[],
+	liveRows: WorkerLiveRow[] = [],
+): WorkerRow[] => {
+	const liveByKey = new Map(
+		liveRows.map((row) => [workerKey(row.user_id, row.store_id), row]),
+	);
+	const rows: WorkerRow[] = rangeRows.map((row) => {
+		const key = workerKey(row.user_id, row.store_id);
+		const live = liveByKey.get(key)?.live ?? OFF_THE_FLOOR;
+		liveByKey.delete(key);
+		return { ...row, live };
+	});
+	for (const row of liveByKey.values()) {
+		rows.push({ ...row, ...NOTHING_IN_RANGE });
+	}
+	return rows.sort(
+		(a, b) =>
+			a.store_name.localeCompare(b.store_name) ||
+			b.services_processed - a.services_processed ||
+			a.user_name.localeCompare(b.user_name),
+	);
+};
+
+// How long since a last move: "5m", "1h", "5h 55m", "9d 3h".
+export const durationText = (minutes: number) => {
+	if (minutes < 60) {
+		return `${minutes}m`;
+	}
+	if (minutes >= 24 * 60) {
+		const hoursLeft = Math.floor((minutes % (24 * 60)) / 60);
+		const days = `${Math.floor(minutes / (24 * 60))}d`;
+		return hoursLeft === 0 ? days : `${days} ${hoursLeft}h`;
+	}
+	const rest = minutes % 60;
+	const hours = `${Math.floor(minutes / 60)}h`;
+	return rest === 0 ? hours : `${hours} ${rest}m`;
+};
+
+const minutesSince = (value: string, now: number) =>
+	Math.max(0, dayjs(now).diff(dayjs(value), "minute"));
+
+export const sinceText = (value: string | null, now: number) =>
+	value ? durationText(minutesSince(value, now)) : "—";
+
+// The server sends the open Shift, or else the last one clocked in today.
+export const openShiftSince = (live: Live) =>
+	live.clock_out_at === null ? live.clock_in_at : null;
+
+// Moved Items or finished Services today with no Shift today at all.
+export const isMissingClockIn = (live: Live) =>
+	live.clock_in_at === null &&
+	(live.services_today > 0 || live.last_move_at !== null);
+
+// The owner will set these in Settings (GitHub issue #159), like WORKER_TONES.
+export const NEEDS_A_LOOK = {
+	// On shift this long with nothing reaching QC today.
+	idleShiftMinutes: 120,
+	// More Items in hand than one person can be working on.
+	maxInHand: 20,
+} as const;
+
+export interface Flag {
+	key: string;
+	row: WorkerRow;
+	// Plain text either side of the part shown in red.
+	before: string;
+	problem: string;
+	after: string;
+}
+
+export const needsALook = (rows: WorkerRow[], now: number): Flag[] =>
+	rows.flatMap((row) => {
+		const { live } = row;
+		const key = workerKey(row.user_id, row.store_id);
+		const inHand = `${numberFormatter.format(live.in_hand)} in hand`;
+		const openSince = openShiftSince(live);
+		const shiftMinutes = openSince ? minutesSince(openSince, now) : 0;
+		const flags: Flag[] = [];
+		if (isMissingClockIn(live)) {
+			flags.push({
+				key: `${key}:clock-in`,
+				row,
+				before: `${pluralCount(live.services_today, "Service")} today, ${inHand} — `,
+				problem: "not clocked in",
+				after: "",
+			});
+		}
+		// A person doing QC checks all morning finishes no Services but still moves Items.
+		if (
+			live.services_today === 0 &&
+			shiftMinutes > NEEDS_A_LOOK.idleShiftMinutes &&
+			(live.last_move_at === null ||
+				minutesSince(live.last_move_at, now) > NEEDS_A_LOOK.idleShiftMinutes)
+		) {
+			flags.push({
+				key: `${key}:idle`,
+				row,
+				before: `on shift ${formatShiftLength(shiftMinutes)}, `,
+				problem: `${pluralCount(0, "Service")} today`,
+				after: "",
+			});
+		}
+		if (live.in_hand > NEEDS_A_LOOK.maxInHand) {
+			flags.push({
+				key: `${key}:in-hand`,
+				row,
+				before: "",
+				problem: inHand,
+				after: `, ${numberFormatter.format(live.services_today)} reached QC today`,
+			});
+		}
+		return flags;
+	});
 
 const cellKey = (userId: number, storeId: number, serviceId: number) =>
 	`${workerKey(userId, storeId)}:${serviceId}`;

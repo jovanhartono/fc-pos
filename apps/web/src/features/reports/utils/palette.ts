@@ -1,15 +1,15 @@
-// Orders in is green and Orders out is red, soft enough to sit side by side.
-export const ORDERS_IN_COLOR = "oklch(0.74 0.12 150)";
-export const ORDERS_OUT_COLOR = "oklch(0.72 0.12 25)";
+// Orders in is green and Orders out is red on every tab, so a colour never
+// swaps meaning between Overview and Operations.
+export const ORDERS_IN_COLOR = "var(--chart-2)";
+export const ORDERS_OUT_COLOR = "var(--destructive)";
 
 export const TURNAROUND_COLORS = {
-	dot: "oklch(0.7 0.09 240 / 0.55)",
-	dotStrong: "oklch(0.55 0.13 240)",
-	p75: "oklch(0.62 0.1 160)",
-	p90: "oklch(0.68 0.11 75)",
-	p99: "oklch(0.62 0.13 25)",
-	queued: "oklch(0.85 0.09 75)",
-	inProgress: "oklch(0.8 0.07 240)",
+	dot: "var(--chart-1)",
+	p75: "var(--tone-good-foreground)",
+	p90: "var(--tone-warn-foreground)",
+	p99: "var(--tone-bad-foreground)",
+	queued: "var(--warning)",
+	inProgress: "var(--chart-1)",
 } as const;
 
 export const PERCENTILE_KEYS = [
@@ -30,3 +30,10 @@ export const CHART_PALETTE = [
 	"var(--chart-9)",
 	"var(--chart-10)",
 ] as const;
+
+export const CHART_OTHER_COLOR = "var(--chart-other)";
+
+// A stacked chart colours its four biggest series and greys the rest, so the
+// owner reads four stripes a day instead of a rainbow.
+export const topFourColor = (index: number) =>
+	index < 4 ? CHART_PALETTE[index] : CHART_OTHER_COLOR;

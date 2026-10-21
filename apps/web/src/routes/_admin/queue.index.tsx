@@ -9,8 +9,13 @@ import {
 	ScanIcon,
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import {
+	keepPreviousData,
+	useInfiniteQuery,
+	useMutation,
+	useQuery,
+} from "@tanstack/react-query";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { DetailedError } from "hono/client";
 import {
 	lazy,
@@ -25,7 +30,10 @@ import {
 import { toast } from "sonner";
 import { z } from "zod";
 import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
+import { EmptyState } from "@/components/empty-state";
+import { FilterCountBadge } from "@/components/filter-count-badge";
 import { PageHeader } from "@/components/page-header";
+import { StickyControls } from "@/components/sticky-controls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +43,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -48,13 +57,14 @@ import {
 import { QueueCategoryFilter } from "@/features/orders/components/queue-category-filter";
 import { QueueStatusTabs } from "@/features/orders/components/queue-status-tabs";
 import { ReworkRoundLabel } from "@/features/orders/components/rework-round-label";
-import { StoreAutocomplete } from "@/features/orders/components/store-autocomplete";
+import { StoreSelect } from "@/features/orders/components/store-select";
 import { useBarcodeScanner } from "@/features/orders/hooks/useBarcodeScanner";
 import { getQueueAgeTone } from "@/features/orders/lib/queue-age-tone";
 import { groupReworksUnderOriginals } from "@/features/orders/lib/rework-nesting";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
 import { useMinuteClock } from "@/hooks/useMinuteClock";
+import { CONTENT_FADE, staleFade } from "@/lib/content-fade";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { readServerErrorMessage } from "@/lib/server-error";
 import {
@@ -108,9 +118,46 @@ const queueSearchSchema = z.object({
 
 export const Route = createFileRoute("/_admin/queue/")({
 	validateSearch: (search) => queueSearchSchema.parse(search),
+	// The worker's rack is picked before the page draws, so the chips and the
+	// Filters badge don't redraw a beat after arriving. The remembered branch is
+	// restored only on arrival, so an explicit clear stays cleared.
+	beforeLoad: ({ context, search, cause }) => {
+		if (search.storeId !== undefined || cause === "preload") {
+			return;
+		}
+		const { me } = context;
+		const userStoreIds = me.userStores.map((item) => item.store_id);
+		const currentUser = getCurrentUser();
+		const persistedStoreId = currentUser
+			? useQueuePreferencesStore.getState().storeIdByUser[
+					String(currentUser.id)
+				]
+			: undefined;
+		// Only a branch this worker may still see — one moved between branches
+		// since must not land on the old rack.
+		const restoredStoreId =
+			cause === "enter" &&
+			persistedStoreId !== undefined &&
+			(me.role === "admin" || userStoreIds.includes(persistedStoreId))
+				? persistedStoreId
+				: undefined;
+		// A worker always has a rack; only an admin may look at none.
+		const storeId =
+			restoredStoreId ?? (me.role === "admin" ? undefined : userStoreIds[0]);
+		if (storeId !== undefined) {
+			throw redirect({
+				to: "/queue",
+				search: { ...search, storeId },
+				replace: true,
+			});
+		}
+	},
 	loader: ({ context }) =>
 		context.queryClient.ensureQueryData(storesQueries.list()),
 	component: QueuePage,
+	// Past a second, the page itself draws with skeleton cards.
+	pendingComponent: QueuePage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function QueuePage() {
@@ -142,55 +189,22 @@ function QueuePage() {
 	// DB-fresh role — JWT claim goes stale on mid-session role changes.
 	const role = meQuery.data?.role;
 
-	// One effect owns the store filter's memory. With a store in the URL,
-	// remember it — however it got there: the filter dialog, a scan, or the back
-	// link from a job. Without one, restore the remembered branch once per
-	// visit, so an explicit clear stays cleared instead of bouncing back.
-	const hasRestoredStoreRef = useRef(false);
+	// With a store in the URL, remember it — however it got there: the filter
+	// dialog, a scan, or the back link from a job. beforeLoad restores it.
 	useEffect(() => {
-		if (!currentUser || role === undefined) {
-			return;
-		}
-
-		if (search.storeId !== undefined) {
-			if (search.storeId !== persistedStoreId) {
-				setPersistedStoreId(currentUserKey, search.storeId);
-			}
-			return;
-		}
-
-		if (!hasRestoredStoreRef.current) {
-			hasRestoredStoreRef.current = true;
-			// Only a branch this worker may still see — one moved between branches
-			// since must not land on the old rack.
-			if (
-				persistedStoreId !== undefined &&
-				(role === "admin" || userStoreIds.includes(persistedStoreId))
-			) {
-				void navigate({
-					search: (prev) => ({ ...prev, storeId: persistedStoreId }),
-					replace: true,
-				});
-				return;
-			}
-		}
-
-		// A worker always has a rack; only an admin may look at none.
-		if (role !== "admin" && userStoreIds.length > 0) {
-			void navigate({
-				search: (prev) => ({ ...prev, storeId: userStoreIds[0] }),
-				replace: true,
-			});
+		if (
+			currentUser &&
+			search.storeId !== undefined &&
+			search.storeId !== persistedStoreId
+		) {
+			setPersistedStoreId(currentUserKey, search.storeId);
 		}
 	}, [
 		currentUser,
 		currentUserKey,
-		navigate,
 		persistedStoreId,
-		role,
 		search.storeId,
 		setPersistedStoreId,
-		userStoreIds,
 	]);
 
 	const persistedCategory = useQueuePreferencesStore(
@@ -241,15 +255,25 @@ function QueuePage() {
 				}
 			: undefined;
 
+	// A new status, date or category keeps the last cards and count up, faded,
+	// until the new ones land, instead of blinking to skeletons and an empty title.
+	// An admin who clears the store gets "Select a store", not the last store's rack.
+	const keepLastRack =
+		parsedStoreId === undefined ? undefined : keepPreviousData;
 	const queueQuery = useInfiniteQuery({
 		...ordersQueries.queue(queueQueryInput),
 		enabled: parsedStoreId !== undefined,
+		placeholderData: keepLastRack,
 	});
 
-	const countsQuery = useQuery({
-		...ordersQueries.queueCounts({ store_id: parsedStoreId, ...categoryQuery }),
-		enabled: parsedStoreId !== undefined,
-	});
+	// The cards on screen belong to this filter. A new filter's cards replace
+	// them as a fresh list with a fade, rather than the same cards sliding to
+	// new places.
+	const queueKey = JSON.stringify(queueQueryInput ?? null);
+	const [shownQueueKey, setShownQueueKey] = useState(queueKey);
+	if (!queueQuery.isPlaceholderData && shownQueueKey !== queueKey) {
+		setShownQueueKey(queueKey);
+	}
 
 	const queueQueryRef = useRef(queueQuery);
 	useEffect(() => {
@@ -351,7 +375,7 @@ function QueuePage() {
 
 	const queueItems =
 		queueQuery.data?.pages.flatMap((page) => page.items) ?? ([] as QueueItem[]);
-	const totalItems = queueQuery.data?.pages[0]?.meta.total ?? 0;
+	const totalItems = queueQuery.data?.pages[0]?.meta.total;
 
 	const navigateToQueueDetail = useCallback(
 		(item: QueueItem, serviceId: number) => {
@@ -415,8 +439,7 @@ function QueuePage() {
 	};
 
 	// Set by a scan that landed on a multi-treatment tag. Nothing else writes it,
-	// and without a way back the worker stays on a one-card rack — the chips above
-	// keep counting the whole Store, so the counts stop matching the list.
+	// and without a way back the worker stays on a one-card rack.
 	const clearSearchFilter = () => {
 		setItemCode("");
 		void navigate({
@@ -431,185 +454,190 @@ function QueuePage() {
 
 	return (
 		<>
-			<PageHeader
-				actions={
-					<Badge variant={queueQuery.isLoading ? "secondary" : "outline"}>
-						{`${totalItems} ${totalItems === 1 ? "item" : "items"}`}
-					</Badge>
-				}
-				title="Queue"
-			/>
+			{/* An admin with no Store picked has no rack, so no count shows. */}
+			<PageHeader count={totalItems} countNoun="item" title="Queue" />
 
 			<div className="grid gap-3">
-				<div className="flex items-center gap-2">
-					<Input
-						aria-label="Find by item code, order ID, or line ID"
-						autoCapitalize="none"
-						autoCorrect="off"
-						className="min-w-0 flex-1"
-						enterKeyHint="search"
-						spellCheck={false}
-						onChange={(event) => setItemCode(event.target.value)}
-						// Without the pending guard a held Enter fires a second lookup
-						// over the first and navigates twice.
-						onKeyDown={(event) => {
-							if (
-								event.key === "Enter" &&
-								itemCode.trim() &&
-								!lookupMutation.isPending
-							) {
-								lookupMutation.mutate({
-									mode: "manual",
-									value: itemCode.trim(),
-								});
-							}
-						}}
-						placeholder="Item code or order ID"
-						value={itemCode}
-					/>
-					<Button
-						aria-label={scanner.isScanning ? "Stop scan" : "Scan tag"}
-						icon={<ScanIcon className="size-4" />}
-						onClick={() => {
-							if (scanner.isScanning) {
-								scanner.stop();
-								return;
-							}
-
-							void scanner.start();
-						}}
-						size="icon-lg"
-						type="button"
-						variant={scanner.isScanning ? "default" : "outline"}
-					/>
-					<Dialog onOpenChange={setIsFilterOpen} open={isFilterOpen}>
-						<DialogTrigger
-							render={
-								<Button
-									aria-label="Filters"
-									className="h-9 min-w-9 shrink-0"
-									icon={<FunnelIcon className="size-4" />}
-									type="button"
-									variant="outline"
-								/>
-							}
-						>
-							{activeFilterCount > 0 ? String(activeFilterCount) : null}
-						</DialogTrigger>
-						<DialogContent className="max-w-[calc(100%-1.5rem)] gap-5 p-4 sm:max-w-md">
-							<DialogHeader>
-								<DialogTitle>Filters</DialogTitle>
-							</DialogHeader>
-							<div className="grid gap-4">
-								<StoreAutocomplete
-									allowedStoreIds={role === "admin" ? undefined : userStoreIds}
-									id="queue-store"
-									onValueChange={updateStoreFilter}
-									placeholder="Select store"
-									value={parsedStoreId?.toString() ?? ""}
-								/>
-								<QueueCategoryFilter
-									categoryId={selectedCategoryId}
-									mode={selectedCategoryMode}
-									onChange={updateCategoryFilter}
-								/>
-								<Suspense fallback={<Skeleton className="h-10 w-full" />}>
-									<DateRangePicker
-										commitOnComplete
-										from={selectedDateFrom}
-										onChange={updateDateRangeFilter}
-										onClear={() => updateDateRangeFilter()}
-										to={selectedDateTo}
-									/>
-								</Suspense>
-								<Button
-									className="h-10 pointer-coarse:h-11"
-									onClick={() => setIsFilterOpen(false)}
-									type="button"
-								>
-									Done
-								</Button>
-							</div>
-						</DialogContent>
-					</Dialog>
-				</div>
-
-				{scanner.error ? (
-					<div className="flex items-center gap-2 text-destructive text-sm">
-						<WarningCircleIcon className="size-4" weight="fill" />
-						<span>{scanner.error}</span>
-					</div>
-				) : null}
-
-				{scanner.isScanning ? (
-					<video
-						autoPlay
-						className="aspect-video w-full border border-border object-cover"
-						muted
-						playsInline
-						ref={scanner.videoRef}
-					/>
-				) : null}
-
-				{selectedSearch ? (
-					<div className="flex min-w-0 items-center gap-2 border border-dashed border-border px-3 py-2 text-sm">
-						<span className="min-w-0 flex-1 truncate text-muted-foreground">
-							Showing <span className="font-mono">{selectedSearch}</span> only
-						</span>
+				<StickyControls className="grid gap-3">
+					<div className="flex items-center gap-2">
+						<Input
+							aria-label="Find by item code, order ID, or line ID"
+							autoCapitalize="none"
+							autoCorrect="off"
+							className="min-w-0 flex-1"
+							enterKeyHint="search"
+							spellCheck={false}
+							onChange={(event) => setItemCode(event.target.value)}
+							// Without the pending guard a held Enter fires a second lookup
+							// over the first and navigates twice.
+							onKeyDown={(event) => {
+								if (
+									event.key === "Enter" &&
+									itemCode.trim() &&
+									!lookupMutation.isPending
+								) {
+									lookupMutation.mutate({
+										mode: "manual",
+										value: itemCode.trim(),
+									});
+								}
+							}}
+							placeholder="Item code or order ID"
+							value={itemCode}
+						/>
 						<Button
-							onClick={clearSearchFilter}
-							size="sm"
+							aria-label={scanner.isScanning ? "Stop scan" : "Scan tag"}
+							icon={<ScanIcon className="size-4" />}
+							onClick={() => {
+								if (scanner.isScanning) {
+									scanner.stop();
+									return;
+								}
+
+								void scanner.start();
+							}}
+							size="icon"
 							type="button"
-							variant="outline"
-						>
-							Clear
-						</Button>
+							variant={scanner.isScanning ? "default" : "outline"}
+						/>
+						<Dialog onOpenChange={setIsFilterOpen} open={isFilterOpen}>
+							<DialogTrigger
+								render={
+									<Button
+										aria-label="Filters"
+										className="relative"
+										icon={<FunnelIcon className="size-4" />}
+										size="icon"
+										type="button"
+										variant="outline"
+									/>
+								}
+							>
+								{activeFilterCount > 0 ? (
+									<FilterCountBadge count={activeFilterCount} />
+								) : null}
+							</DialogTrigger>
+							<DialogContent className="max-w-[calc(100%-1.5rem)] gap-5 p-4 sm:max-w-md">
+								<DialogHeader>
+									<DialogTitle>Filters</DialogTitle>
+								</DialogHeader>
+								<div className="grid gap-4">
+									<StoreSelect
+										allowedStoreIds={
+											role === "admin" ? undefined : userStoreIds
+										}
+										id="queue-store"
+										onValueChange={updateStoreFilter}
+										placeholder="Select store"
+										value={parsedStoreId?.toString() ?? ""}
+									/>
+									<QueueCategoryFilter
+										categoryId={selectedCategoryId}
+										mode={selectedCategoryMode}
+										onChange={updateCategoryFilter}
+									/>
+									<Field>
+										<FieldLabel htmlFor="queue-date">Date</FieldLabel>
+										<Suspense fallback={<Skeleton className="h-9 w-full" />}>
+											<DateRangePicker
+												commitOnComplete
+												from={selectedDateFrom}
+												fullWidth
+												id="queue-date"
+												onChange={updateDateRangeFilter}
+												onClear={() => updateDateRangeFilter()}
+												to={selectedDateTo}
+											/>
+										</Suspense>
+									</Field>
+									<Button
+										onClick={() => setIsFilterOpen(false)}
+										size="lg"
+										type="button"
+									>
+										Done
+									</Button>
+								</div>
+							</DialogContent>
+						</Dialog>
 					</div>
-				) : null}
 
-				{/* Hidden while a scanned tag pins the list to one object: the counts
-				    describe the whole Store, and chips saying "47" over a one-card
-				    list are lying. They come back with Clear. */}
-				{!selectedSearch && (
-					<QueueStatusTabs
-						counts={countsQuery.data}
-						onValueChange={updateStatusFilter}
-						value={selectedStatus ?? "all"}
-					/>
-				)}
-
-				<section className="grid min-w-0 gap-2">
-					{role === "admin" && parsedStoreId === undefined ? (
-						<div className="border border-dashed border-border px-4 py-8 text-center text-muted-foreground text-sm">
-							Select a store
+					{scanner.error ? (
+						<div className="flex items-center gap-2 text-destructive text-body">
+							<WarningCircleIcon className="size-4" weight="fill" />
+							<span>{scanner.error}</span>
 						</div>
 					) : null}
 
-					{queueItems.map((item) => (
-						<QueueRow
-							currentUserId={currentUser?.id}
-							item={item}
-							key={item.id}
-							now={now}
-							onOpen={navigateToQueueDetail}
+					{scanner.isScanning ? (
+						<video
+							autoPlay
+							className="aspect-video w-full rounded-lg object-cover"
+							muted
+							playsInline
+							ref={scanner.videoRef}
 						/>
-					))}
+					) : null}
 
-					{/* isLoading, never isPending: with no store picked this query is
-					    disabled, and a disabled query stays pending forever. */}
-					{queueQuery.isLoading ? (
-						<div className="grid gap-2">
-							{Array.from({ length: 6 }, (_, index) => (
-								<div
-									className="h-20 animate-pulse border border-border bg-muted/40"
-									key={index}
+					{selectedSearch ? (
+						<div className="flex min-w-0 items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-body">
+							<span className="min-w-0 flex-1 truncate text-muted-foreground">
+								Showing <span className="tabular-nums">{selectedSearch}</span>{" "}
+								only
+							</span>
+							<Button
+								onClick={clearSearchFilter}
+								size="sm"
+								type="button"
+								variant="outline"
+							>
+								Clear
+							</Button>
+						</div>
+					) : null}
+
+					{/* Hidden while a scanned tag pins the list to one object; they come
+					    back with Clear. */}
+					{!selectedSearch && (
+						<QueueStatusTabs
+							onValueChange={updateStatusFilter}
+							value={selectedStatus ?? "all"}
+						/>
+					)}
+				</StickyControls>
+
+				<section className="grid min-w-0 gap-2">
+					{role === "admin" && parsedStoreId === undefined ? (
+						<EmptyState>Select a store</EmptyState>
+					) : null}
+
+					{queueItems.length > 0 ? (
+						<div
+							className={cn(
+								"grid min-w-0 gap-2",
+								CONTENT_FADE,
+								staleFade(queueQuery.isPlaceholderData),
+							)}
+							key={shownQueueKey}
+						>
+							{queueItems.map((item) => (
+								<QueueRow
+									currentUserId={currentUser?.id}
+									item={item}
+									key={item.id}
+									now={now}
+									onOpen={navigateToQueueDetail}
 								/>
 							))}
 						</div>
 					) : null}
 
+					{/* isLoading, never isPending: with no store picked this query is
+					    disabled, and a disabled query stays pending forever. */}
+					{queueQuery.isLoading ? <QueueSkeleton /> : null}
+
 					{queueQuery.isError ? (
-						<div className="border border-destructive/30 bg-destructive/5 px-4 py-3 text-destructive text-sm">
+						<div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-destructive text-body">
 							{queueQuery.error instanceof Error
 								? queueQuery.error.message
 								: "Failed to load the queue."}
@@ -620,15 +648,13 @@ function QueuePage() {
 					!queueQuery.isError &&
 					queueItems.length === 0 &&
 					parsedStoreId !== undefined ? (
-						<div className="border border-dashed border-border px-4 py-8 text-center text-muted-foreground text-sm">
-							No items.
-						</div>
+						<EmptyState>No items.</EmptyState>
 					) : null}
 
 					<div className="h-6" ref={loadMoreRef} />
 
 					{queueQuery.isFetchingNextPage ? (
-						<p className="text-center text-muted-foreground text-sm">
+						<p className="text-center text-muted-foreground text-body">
 							Loading…
 						</p>
 					) : null}
@@ -637,6 +663,24 @@ function QueuePage() {
 		</>
 	);
 }
+
+// A card's shape: the Item over its Order line, then one job row.
+const QueueSkeleton = () => (
+	<div aria-hidden className="grid gap-2">
+		{Array.from({ length: 6 }, (_, index) => (
+			<div className="overflow-hidden rounded-lg border bg-card" key={index}>
+				<div className="grid gap-0.5 px-3 pt-2.5 pb-2">
+					<Skeleton className="my-0.5 h-4 w-1/2" />
+					<Skeleton className="my-0.5 h-3.5 w-2/3" />
+				</div>
+				<div className="grid gap-1 border-border/70 border-t px-3 py-2.5">
+					<Skeleton className="my-0.5 h-4 w-2/5" />
+					<Skeleton className="my-0.5 h-3.5 w-1/4" />
+				</div>
+			</div>
+		))}
+	</div>
+);
 
 interface QueueJobButtonProps {
 	service: QueueItemService;
@@ -665,7 +709,7 @@ const QueueJobButton = ({
 			onClick={onOpen}
 			type="button"
 		>
-			<span className="min-w-0 break-words text-sm">
+			<span className="min-w-0 break-words text-body">
 				{reworkRound === null ? (
 					service.service_name
 				) : (
@@ -687,20 +731,15 @@ const QueueJobButton = ({
 			/>
 			<span
 				className={cn(
-					"flex min-w-0 flex-wrap items-center gap-1.5 text-muted-foreground text-xs",
+					"flex min-w-0 flex-wrap items-center gap-1.5 text-subhead",
 					reworkRound !== null && "pl-4",
 				)}
 			>
-				<Badge
-					className="px-1.5 py-0 text-[11px]"
-					variant={getOrderServiceStatusBadgeVariant(service.status)}
-				>
+				<Badge variant={getOrderServiceStatusBadgeVariant(service.status)}>
 					{formatOrderServiceStatus(service.status)}
 				</Badge>
 				{service.is_priority && reworkRound === null ? (
-					<Badge className="px-1.5 py-0 text-[11px]" variant="priority">
-						Priority
-					</Badge>
+					<Badge variant="priority">Priority</Badge>
 				) : null}
 				{handler ? <span>{handler}</span> : null}
 			</span>
@@ -734,27 +773,27 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 		// min-w-0 at every level down to the truncating text: without it the card's
 		// min-content sizes the auto grid column, and the search field and status
 		// chips above — siblings in that same column — get pushed off screen.
-		<article className="min-w-0 border border-border bg-background">
+		<article className="min-w-0 overflow-hidden rounded-lg border bg-card">
 			<header className="grid min-w-0 gap-0.5 px-3 pt-2.5 pb-2">
-				<h3 className="flex min-w-0 items-baseline gap-2 font-medium text-[15px] leading-snug">
+				<h3 className="flex min-w-0 items-baseline gap-2 font-medium text-headline leading-snug">
 					{descriptors ? (
 						<span className="min-w-0 flex-1 wrap-break-word">
 							{descriptors}
 						</span>
 					) : (
-						<span className="min-w-0 flex-1 break-all font-mono">
+						<span className="min-w-0 flex-1 break-all tabular-nums">
 							{item.item_code}
 						</span>
 					)}
 				</h3>
-				<p className="flex min-w-0 items-baseline gap-2 text-muted-foreground text-xs">
+				<p className="flex min-w-0 items-baseline gap-2 text-subhead">
 					<span className="min-w-0 flex-1 truncate">
 						{item.order_code} · {item.customer_name}
 					</span>
 					<span
 						className={cn(
 							"shrink-0 font-semibold tabular-nums",
-							ageTone === "amber" && "text-amber-600 dark:text-amber-400",
+							ageTone === "amber" && "text-tone-warn-foreground",
 							ageTone === "red" && "text-destructive",
 						)}
 					>
@@ -780,7 +819,7 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 						) : (
 							// Picked up and brought back: the original is off the rack,
 							// but the worker still needs to know what is being redone.
-							<p className="min-w-0 wrap-break-word px-3 pt-2.5 text-sm">
+							<p className="min-w-0 wrap-break-word px-3 pt-2.5 text-body">
 								{reworks[0]?.rework_of_service_name ?? "Service"}
 							</p>
 						)}

@@ -34,12 +34,10 @@ function RootComponent() {
 	return (
 		<TooltipProvider>
 			<Toaster
-				richColors
 				position={isCoarsePointer ? "bottom-center" : "top-right"}
 				offset={isCoarsePointer ? TOUCH_TOAST_OFFSET : undefined}
 				mobileOffset={isCoarsePointer ? TOUCH_TOAST_OFFSET : undefined}
 				className="pointer-events-auto"
-				closeButton
 			/>
 			{/* The viewport is claimed here, not in the shell: when the counter
 			    drops offline the banner has to take its height off the app rather

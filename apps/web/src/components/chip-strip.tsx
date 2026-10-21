@@ -1,4 +1,6 @@
 import type { PropsWithChildren } from "react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 // A row of chips that outgrows its container — /queue's six statuses and the POS
 // catalog's ten categories both do. The mask fades the last chip out instead of
@@ -10,16 +12,58 @@ export const STRIP_FADE =
 	"[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]";
 
 export const ChipStripScroller = ({ children }: PropsWithChildren) => (
-	<div className={`-mx-1 overflow-x-auto pb-1 ${STRIP_FADE}`}>{children}</div>
+	<div className={`-m-1 shrink-0 overflow-x-auto py-1 ${STRIP_FADE}`}>
+		{children}
+	</div>
 );
 
-// Underlined tabs on one swipeable row (Reports, Orders statuses), with the
-// same fade and the pr-8 that keeps the last tab clear of it.
-export const TAB_STRIP_ROW =
-	"flex overflow-x-auto pr-8 shadow-[inset_0_-1px_0_var(--border)] [scrollbar-width:none]";
-
-// The row inside the scroller stays with each caller: /queue's chips are a
-// tablist, the catalog's are a fieldset of toggles, and flattening that into one
-// element would trade the screen reader's answer for a shared wrapper. Only the
-// measurements travel — pr-8 is what keeps the last chip clear of the fade.
+// The POS catalog builds its own row of category chips and the POS skeleton
+// draws placeholders, so the measurements are shared — pr-8 is what keeps the
+// last chip clear of the fade.
 export const CHIP_STRIP_ROW = "flex min-w-max gap-2 px-1 pr-8";
+
+export const CHIP_CLASS =
+	"h-9 gap-1.5 rounded-full border-0 px-3.5 font-medium text-body pointer-coarse:h-10";
+
+interface StatusChip<TValue extends string> {
+	label: string;
+	value: TValue;
+}
+
+interface StatusChipStripProps<TValue extends string> {
+	chips: StatusChip<TValue>[];
+	legend: string;
+	onValueChange: (value: TValue) => void;
+	value: TValue;
+}
+
+// The status filter on /queue and /orders, so the two read as one product.
+export const StatusChipStrip = <TValue extends string>({
+	chips,
+	legend,
+	onValueChange,
+	value,
+}: StatusChipStripProps<TValue>) => (
+	<ChipStripScroller>
+		{/* Toggle buttons, not tabs: tablist semantics promise arrow-key roving
+		    and tabpanels these filter chips don't have. */}
+		<fieldset className={CHIP_STRIP_ROW}>
+			<legend className="sr-only">{legend}</legend>
+			{chips.map((chip) => {
+				const isActive = value === chip.value;
+				return (
+					<Button
+						aria-pressed={isActive}
+						className={cn(CHIP_CLASS, !isActive && "text-foreground")}
+						key={chip.value}
+						onClick={() => onValueChange(chip.value)}
+						type="button"
+						variant={isActive ? "default" : "secondary"}
+					>
+						{chip.label}
+					</Button>
+				);
+			})}
+		</fieldset>
+	</ChipStripScroller>
+);

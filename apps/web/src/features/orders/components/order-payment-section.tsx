@@ -17,6 +17,7 @@ import {
 import { z } from "zod";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { SelectField } from "@/components/form/select-field";
+import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -29,7 +30,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { campaignsQueries } from "@/features/campaigns/api";
 import type { OrderDetail } from "@/features/orders/api";
-import { OrderMoneySummary } from "@/features/orders/components/order-money-summary";
+import {
+	OrderMoneySummary,
+	OrderMoneySummarySkeleton,
+} from "@/features/orders/components/order-money-summary";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { useOrderPaymentMutation } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
@@ -57,7 +61,7 @@ export const OrderPaymentSection = ({
 	detail,
 	gates,
 }: OrderPaymentSectionProps) => (
-	<Card className="gap-0 overflow-hidden py-0">
+	<section className="grid gap-3">
 		<OrderSectionHeader
 			action={
 				gates.canCollectPayment ? (
@@ -67,11 +71,35 @@ export const OrderPaymentSection = ({
 		>
 			Payment
 		</OrderSectionHeader>
-		<div className="border-t">
+		<Card className="gap-0 overflow-hidden py-0">
 			<OrderMoneySummary detail={detail} />
-		</div>
-		<PaymentDetails detail={detail} gates={gates} />
-	</Card>
+			<PaymentDetails detail={detail} gates={gates} />
+		</Card>
+	</section>
+);
+
+const PAID_LIST = "grid gap-2 px-4 py-4 text-body compact:text-subhead";
+const PAID_ROW = "flex items-center justify-between gap-4";
+
+// A paid Order's bill and how it was paid, the shape most open Orders show.
+export const OrderPaymentSkeleton = () => (
+	<section className="grid gap-3">
+		<OrderSectionHeader>Payment</OrderSectionHeader>
+		<Card className="gap-0 overflow-hidden py-0">
+			<OrderMoneySummarySkeleton />
+			<Separator />
+			<dl className={PAID_LIST}>
+				{["Method", "Paid at", "Marked by"].map((label) => (
+					<div className={PAID_ROW} key={label}>
+						<dt className="text-muted-foreground">{label}</dt>
+						<dd>
+							<TextSkeleton className="w-24" />
+						</dd>
+					</div>
+				))}
+			</dl>
+		</Card>
+	</section>
 );
 
 // Payment status itself is shown in the header status chip (OrderIdentityStrip),
@@ -96,7 +124,7 @@ const PaymentDetails = ({
 		return (
 			<>
 				<Separator />
-				<p className="px-4 py-4 text-muted-foreground text-sm">
+				<p className="px-4 py-4 text-muted-foreground text-body compact:text-subhead">
 					A line has no price yet. Set it from the item's detail, then collect
 					payment.
 				</p>
@@ -126,7 +154,6 @@ const CollectPaymentAction = ({
 			onClick={() =>
 				openNestedSheet({
 					title: "Collect payment",
-					description: detail.code,
 					content: () =>
 						isSettled ? (
 							<SettledDiscountPaymentForm detail={detail} orderId={orderId} />
@@ -144,19 +171,19 @@ const CollectPaymentAction = ({
 };
 
 const PaidDetails = ({ detail }: { detail: OrderDetail }) => (
-	<dl className="grid gap-2 px-4 py-4 text-sm">
-		<div className="flex items-center justify-between gap-4">
+	<dl className={PAID_LIST}>
+		<div className={PAID_ROW}>
 			<dt className="text-muted-foreground">Method</dt>
 			<dd className="font-medium">{detail.paymentMethod?.name ?? "—"}</dd>
 		</div>
 		{detail.paid_at ? (
-			<div className="flex items-center justify-between gap-4">
+			<div className={PAID_ROW}>
 				<dt className="text-muted-foreground">Paid at</dt>
 				<dd className="tabular-nums">{formatOrderDateTime(detail.paid_at)}</dd>
 			</div>
 		) : null}
 		{detail.paidBy ? (
-			<div className="flex items-center justify-between gap-4">
+			<div className={PAID_ROW}>
 				<dt className="text-muted-foreground">Marked by</dt>
 				<dd className="font-medium">{detail.paidBy.name}</dd>
 			</div>
@@ -209,7 +236,7 @@ interface ToCollectLineProps {
 }
 
 const ToCollectLine = ({ amount }: ToCollectLineProps) => (
-	<div className="flex items-center justify-between gap-4 text-sm font-medium">
+	<div className="flex items-center justify-between gap-4 text-body font-medium">
 		<span>To collect</span>
 		<span className="tabular-nums">{formatMoney(amount)}</span>
 	</div>
@@ -259,10 +286,10 @@ const SettledDiscountPaymentForm = ({
 			>
 				{/* Same emerald as a captured drop-off photo: settled is a done state,
 				    not a warning. The breakdown itself is on the page under this sheet. */}
-				<p className="flex items-start gap-2 border border-emerald-300/60 bg-emerald-50/70 px-3 py-2.5 text-emerald-900 text-sm dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
+				<p className="flex items-start gap-2 rounded-md border border-success/40 bg-tone-good px-3 py-2.5 text-foreground text-body">
 					<CheckCircleIcon
 						aria-hidden="true"
-						className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+						className="mt-0.5 size-4 shrink-0 text-tone-good-foreground"
 						weight="fill"
 					/>
 					<span>
@@ -272,11 +299,7 @@ const SettledDiscountPaymentForm = ({
 				</p>
 				<ToCollectLine amount={toCollect} />
 				<PaymentMethodField />
-				<Button
-					className="h-10 pointer-coarse:h-11"
-					loading={paymentMutation.isPending}
-					type="submit"
-				>
+				<Button size="lg" loading={paymentMutation.isPending} type="submit">
 					Mark as paid
 				</Button>
 			</form>
@@ -410,6 +433,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 							<CampaignTileGroup
 								eligibleCampaigns={eligibleCampaigns}
 								hasStore={storeId !== undefined}
+								isLoading={campaignsQuery.isPending}
 								onToggle={(campaignId) =>
 									field.onChange(
 										field.value.includes(campaignId)
@@ -440,7 +464,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
 							<FieldLabel htmlFor="collect-payment-discount">
-								Manual Discount
+								Manual discount
 							</FieldLabel>
 							<CurrencyInput
 								id="collect-payment-discount"
@@ -453,7 +477,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 				/>
 
 				{pricing.totalDiscount > 0 ? (
-					<dl className="grid gap-1.5 text-sm tabular-nums">
+					<dl className="grid gap-1.5 text-body tabular-nums">
 						{pricing.campaignBreakdown.map(({ campaign, amount }) => (
 							<div className="flex justify-between gap-4" key={campaign.id}>
 								<dt className="text-muted-foreground">
@@ -466,7 +490,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 						))}
 						{pricing.manualDiscount > 0 ? (
 							<div className="flex justify-between gap-4">
-								<dt className="text-muted-foreground">Manual Discount</dt>
+								<dt className="text-muted-foreground">Manual discount</dt>
 								<dd className="text-destructive tabular-nums">
 									-{formatMoney(pricing.manualDiscount)}
 								</dd>
@@ -476,11 +500,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 				) : null}
 				<ToCollectLine amount={toCollect} />
 				<PaymentMethodField />
-				<Button
-					className="h-10 pointer-coarse:h-11"
-					loading={paymentMutation.isPending}
-					type="submit"
-				>
+				<Button size="lg" loading={paymentMutation.isPending} type="submit">
 					Mark as paid
 				</Button>
 			</form>

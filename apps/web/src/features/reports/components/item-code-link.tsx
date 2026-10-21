@@ -10,7 +10,7 @@ export const ItemCodeLink = ({ orderId, children }: ItemCodeLinkProps) => (
 	<Link
 		to="/orders/$orderId"
 		params={{ orderId: String(orderId) }}
-		className="font-mono underline-offset-4 hover:underline"
+		className="underline-offset-4 tabular-nums hover:underline"
 	>
 		{children}
 	</Link>

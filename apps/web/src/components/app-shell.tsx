@@ -24,8 +24,8 @@ import {
 	tabBarItemsForRole,
 } from "@/components/app-navigation";
 import { AppTabBar } from "@/components/app-tab-bar";
+import { BrandLogo } from "@/components/brand-logo";
 import { useOpenCommandBar } from "@/components/command-bar";
-import { KeyHint } from "@/components/key-hint";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,21 +64,6 @@ interface AppShellProps extends PropsWithChildren {
 // by this id, and a rename on one side only would quietly park every opened
 // record halfway down the list it came from.
 export const APP_CONTENT_SCROLL_ID = "app-content";
-
-// The receipt logo is black type on a solid white block. Multiply hides the
-// white on the light sidebar; invert plus screen does the same in dark mode.
-const BrandLogo = ({ className }: { className?: string }) => (
-	<img
-		src="/receipt-logo.webp"
-		alt="Fresclean"
-		width={2000}
-		height={632}
-		className={cn(
-			"w-auto mix-blend-multiply dark:invert dark:mix-blend-screen",
-			className,
-		)}
-	/>
-);
 
 const FooterThemeButton = () => {
 	const { setTheme } = useTheme();
@@ -137,7 +122,7 @@ const HeaderRefreshButton = () => {
 				/>
 			}
 			onClick={() => queryClient.invalidateQueries()}
-			size="icon-lg"
+			size="icon"
 			variant="ghost"
 		/>
 	);
@@ -175,7 +160,7 @@ const HeaderBackButton = ({ to }: { to: LinkProps["to"] }) => {
 				aria-label="Back"
 				icon={icon}
 				onClick={() => router.history.back()}
-				size="icon-lg"
+				size="icon"
 				variant="ghost"
 			/>
 		);
@@ -187,7 +172,7 @@ const HeaderBackButton = ({ to }: { to: LinkProps["to"] }) => {
 			icon={icon}
 			nativeButton={false}
 			render={<Link to={to} />}
-			size="icon-lg"
+			size="icon"
 			variant="ghost"
 		/>
 	);
@@ -274,7 +259,7 @@ export function AppShell({ title, children }: AppShellProps) {
 			className="h-full min-h-0 overflow-hidden"
 			defaultOpen={!startsCollapsed}
 		>
-			<Sidebar collapsible="icon" variant="inset">
+			<Sidebar collapsible="icon" variant="sidebar">
 				<SidebarHeader className="flex-row items-center justify-between group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
 					<Link to="/" className="flex items-center px-2" aria-label="Home">
 						<BrandLogo className="h-10 group-data-[collapsible=icon]:hidden" />
@@ -293,11 +278,10 @@ export function AppShell({ title, children }: AppShellProps) {
 					<button
 						type="button"
 						onClick={openCommandBar}
-						className="flex h-8 w-full items-center gap-2 border border-sidebar-border bg-background px-2 text-muted-foreground text-xs transition-colors hover:text-foreground"
+						className="flex h-9 w-full items-center gap-2 rounded-sm bg-secondary px-2.5 text-muted-foreground text-subhead transition-colors hover:text-foreground"
 					>
 						<MagnifyingGlassIcon className="size-4" />
-						Search or jump to
-						<KeyHint keys={["⌘K"]} className="ml-auto" />
+						Search
 					</button>
 				</div>
 
@@ -317,32 +301,25 @@ export function AppShell({ title, children }: AppShellProps) {
 					))}
 				</SidebarContent>
 
-				<SidebarFooter>
-					<div className="border border-sidebar-border/70 bg-background group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent">
-						<div className="flex items-center gap-2.5 px-2.5 py-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0">
-							<div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-								<p className="truncate font-medium text-sm leading-tight">
-									{user?.name ?? "Unknown User"}
-								</p>
-							</div>
-							<div className="flex shrink-0 items-center gap-0.5 group-data-[collapsible=icon]:flex-col">
-								<FooterThemeButton />
-								<Button
-									variant="ghost"
-									size="icon-sm"
-									aria-label="Logout"
-									onClick={handleLogout}
-									icon={<SignOutIcon className="size-4" />}
-								/>
-							</div>
-						</div>
-						<div className="flex items-center justify-between border-sidebar-border/70 border-t px-2.5 py-1.5 group-data-[collapsible=icon]:hidden">
-							<span className="text-[10px] text-muted-foreground uppercase tracking-[0.18em]">
-								Role
-							</span>
-							<span className="font-semibold text-[10px] uppercase tracking-[0.18em]">
+				<SidebarFooter className="border-sidebar-border border-t">
+					<div className="flex items-center gap-2.5 px-2 py-1 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0">
+						<div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+							<p className="truncate font-medium text-body leading-tight">
+								{user?.name ?? "Unknown User"}
+							</p>
+							<p className="truncate text-subhead capitalize leading-tight">
 								{role ?? "—"}
-							</span>
+							</p>
+						</div>
+						<div className="flex shrink-0 items-center gap-0.5 group-data-[collapsible=icon]:flex-col">
+							<FooterThemeButton />
+							<Button
+								variant="ghost"
+								size="icon-sm"
+								aria-label="Logout"
+								onClick={handleLogout}
+								icon={<SignOutIcon className="size-4" />}
+							/>
 						</div>
 					</div>
 				</SidebarFooter>
@@ -353,12 +330,16 @@ export function AppShell({ title, children }: AppShellProps) {
 				className={cn(
 					// A table too wide for the window scrolls in its frame, not the page.
 					"min-h-0 min-w-0",
-					tabBarItems.length > 0 && "max-md:[--inset-bottom:0px]",
+					// Header and tab bar float over the page so it scrolls under the
+					// frosted glass; these are the heights the page pads itself by.
+					"max-md:[--app-header:calc(env(safe-area-inset-top)+3.25rem)] max-md:pointer-coarse:[--app-header:calc(env(safe-area-inset-top)+3.75rem)]",
+					tabBarItems.length > 0 &&
+						"max-md:[--inset-bottom:calc(env(safe-area-inset-bottom)+3.25rem)]",
 				)}
 			>
 				{/* No sidebar button up here: the tab bar's More opens the same sheet,
 				    and one of the two was always the wrong one to reach for. */}
-				<div className="flex shrink-0 items-center border-b border-sidebar-border/70 bg-background px-3 py-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] md:hidden">
+				<div className="absolute inset-x-0 top-0 z-50 flex h-(--app-header) items-center bg-frost px-3 pt-[env(safe-area-inset-top)] shadow-[0_0.5px_0_var(--border)] backdrop-blur-xl backdrop-saturate-150 md:hidden">
 					{parentPath ? (
 						<HeaderBackButton to={parentPath} />
 					) : (
@@ -380,7 +361,7 @@ export function AppShell({ title, children }: AppShellProps) {
 				{/* Queue detail's Hold to Start Work bar rests on the window bottom
 				    (the tab bar below md); a sticky bar would stop short of this padding. */}
 				<section
-					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain px-3 py-4 pb-[calc(var(--inset-bottom)+1rem)] has-[[data-bottom-bar]]:pb-0 sm:px-6 sm:py-5 md:px-8 md:py-6 lg:px-10 lg:[@media(min-height:40rem)]:has-[[data-list-panel]]:flex lg:[@media(min-height:40rem)]:has-[[data-list-panel]]:flex-col"
+					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain [--page-top:0.75rem] [--page-x:0.75rem] px-(--page-x) pt-[calc(var(--app-header,0px)+var(--page-top))] pb-[calc(var(--inset-bottom)+0.75rem)] has-[[data-bottom-bar]]:pb-0 sm:[--page-top:1rem] sm:[--page-x:1rem] sm:pb-[calc(var(--inset-bottom)+1rem)] lg:[--page-x:1.5rem] has-[[data-list-panel]]:flex has-[[data-list-panel]]:flex-col"
 					data-scroll-restoration-id={APP_CONTENT_SCROLL_ID}
 				>
 					{children}

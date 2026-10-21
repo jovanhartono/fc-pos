@@ -1,28 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/empty-state";
+import { ListPanel } from "@/components/list-panel";
 import { customersQueries } from "@/features/customers/api";
 import {
 	CUSTOMER_ORDERS_PAGE_SIZE,
 	CustomerOrdersCard,
 } from "@/features/customers/components/customer-orders-card";
-import { CustomerSummaryStrip } from "@/features/customers/components/customer-summary-strip";
+import {
+	CustomerSummarySkeleton,
+	CustomerSummaryStrip,
+} from "@/features/customers/components/customer-summary-strip";
 import { ordersQueries } from "@/features/orders/api";
+import { CONTENT_FADE } from "@/lib/content-fade";
 import { getCurrentUser } from "@/stores/auth-store";
 
 const customerDetailSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
 });
-
-const CustomerDetailSkeleton = () => (
-	<div className="grid gap-4">
-		<Skeleton className="h-28 w-full" />
-		<Skeleton className="h-24 w-full" />
-		<Skeleton className="h-72 w-full" />
-	</div>
-);
 
 const CustomerDetailPage = () => {
 	const { customerId } = Route.useParams();
@@ -32,31 +28,31 @@ const CustomerDetailPage = () => {
 
 	const customerQuery = useQuery(customersQueries.detail(id));
 
-	if (customerQuery.isPending) {
-		return <CustomerDetailSkeleton />;
+	if (!(customerQuery.isPending || customerQuery.data)) {
+		return <EmptyState>Customer not found</EmptyState>;
 	}
 
-	if (!customerQuery.data) {
-		return (
-			<Card>
-				<CardContent className="py-10 text-center text-muted-foreground text-sm">
-					Customer not found
-				</CardContent>
-			</Card>
-		);
-	}
-
+	// A list page like /orders, so the Orders pager stays at the page foot
+	// when the last page holds two Orders.
 	return (
-		<div className="grid gap-4">
-			<CustomerSummaryStrip customer={customerQuery.data} />
+		<ListPanel className="gap-4">
+			{customerQuery.data ? (
+				<div className={CONTENT_FADE}>
+					<CustomerSummaryStrip customer={customerQuery.data} />
+				</div>
+			) : (
+				<CustomerSummarySkeleton />
+			)}
 			<CustomerOrdersCard
+				// Another Customer never borrows the last one's Orders while theirs load.
+				key={id}
 				customerId={id}
 				page={page}
 				onPageChange={(next) =>
 					navigate({ search: (prev) => ({ ...prev, page: next }) })
 				}
 			/>
-		</div>
+		</ListPanel>
 	);
 };
 
@@ -71,10 +67,11 @@ export const Route = createFileRoute("/_admin/customers/$customerId")({
 			throw redirect({ to: "/customers", search: { page: 1 } });
 		}
 	},
-	loader: async ({ context, params, deps }) => {
+	loader: async ({ context, params, deps, cause }) => {
 		const id = Number(params.customerId);
 
-		if (!(Number.isInteger(id) && id > 0)) {
+		// Paging through the Customer's Orders keeps the page up and swaps the rows.
+		if (!(Number.isInteger(id) && id > 0) || cause === "stay") {
 			return;
 		}
 
@@ -90,4 +87,7 @@ export const Route = createFileRoute("/_admin/customers/$customerId")({
 		]);
 	},
 	component: CustomerDetailPage,
+	// Past a second, the page draws its own skeleton, not the generic placeholder.
+	pendingComponent: CustomerDetailPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });

@@ -1,4 +1,5 @@
 import { CheckIcon } from "@phosphor-icons/react";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { Campaign } from "@/features/campaigns/api";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
@@ -17,8 +18,14 @@ interface CampaignTileGroupProps {
 	eligibleCampaigns: Campaign[];
 	selectedIds: string[];
 	hasStore: boolean;
+	isLoading: boolean;
 	onToggle: (campaignId: string) => void;
 }
+
+// Every state is one tile tall, so the form below doesn't jump when a
+// cashier opens Collect payment and the campaigns arrive.
+const EMPTY_CLASS =
+	"flex min-h-13 items-center text-muted-foreground text-body";
 
 // Shared campaign picker (ADR-0018: a discount settles once every line is
 // priced) — used by the POS checkout step and the order page's
@@ -29,20 +36,23 @@ export const CampaignTileGroup = ({
 	eligibleCampaigns,
 	selectedIds,
 	hasStore,
+	isLoading,
 	onToggle,
 }: CampaignTileGroupProps) => {
 	if (!hasStore) {
+		return <p className={EMPTY_CLASS}>Select store first to load campaigns</p>;
+	}
+
+	if (isLoading) {
 		return (
-			<p className="text-muted-foreground text-sm">
-				Select store first to load campaigns
-			</p>
+			<div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+				<Skeleton className="h-13" />
+			</div>
 		);
 	}
 
 	if (eligibleCampaigns.length === 0) {
-		return (
-			<p className="text-muted-foreground text-sm">No campaigns available</p>
-		);
+		return <p className={EMPTY_CLASS}>No campaigns available</p>;
 	}
 
 	return (
@@ -81,9 +91,9 @@ const CampaignTile = ({
 }: CampaignTileProps) => (
 	<label
 		className={cn(
-			"flex min-h-12 cursor-pointer items-center justify-between gap-2 border px-3 py-2 text-left transition active:scale-[0.97] has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50",
+			"flex min-h-12 cursor-pointer items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left transition active:scale-[0.97] has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50",
 			isSelected
-				? "border-emerald-300/60 bg-emerald-50/70 text-foreground dark:border-emerald-800 dark:bg-emerald-950/30"
+				? "border-success/40 bg-tone-good text-foreground"
 				: "border-border/70 text-foreground/80 hover:border-border hover:bg-muted/40",
 		)}
 	>
@@ -94,13 +104,11 @@ const CampaignTile = ({
 			type="checkbox"
 		/>
 		<span className="flex flex-col">
-			<span className="font-medium text-sm">{code}</span>
+			<span className="font-medium text-body">{code}</span>
 			<span
 				className={cn(
-					"text-[11px]",
-					isSelected
-						? "text-emerald-700 dark:text-emerald-400"
-						: "text-muted-foreground",
+					"text-caption",
+					isSelected ? "text-tone-good-foreground" : "text-muted-foreground",
 				)}
 			>
 				{discountLabel}
@@ -108,7 +116,7 @@ const CampaignTile = ({
 		</span>
 		{isSelected ? (
 			<CheckIcon
-				className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+				className="size-4 shrink-0 text-tone-good-foreground"
 				weight="bold"
 			/>
 		) : null}

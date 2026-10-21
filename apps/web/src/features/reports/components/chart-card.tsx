@@ -56,6 +56,8 @@ interface SeriesChartProps extends ShellProps {
 	granularity?: ReportGranularity;
 	stacked?: boolean;
 	valueFormatter?: (value: number) => string;
+	// The y-axis can read "Rp 18 jt" while the tooltip keeps the exact Rupiah.
+	axisFormatter?: (value: number) => string;
 }
 
 interface AreaProps extends SeriesChartProps {
@@ -127,11 +129,9 @@ const Shell = ({
 	<Card className={cn("border-border/70", className)}>
 		<CardHeader className="flex flex-row items-start justify-between gap-3">
 			<div className="grid gap-1">
-				<CardTitle className="text-sm font-semibold text-foreground">
-					{title}
-				</CardTitle>
+				<CardTitle>{title}</CardTitle>
 				{description ? (
-					<p className="text-xs text-muted-foreground">{description}</p>
+					<p className="text-footnote text-muted-foreground">{description}</p>
 				) : null}
 			</div>
 			{action}
@@ -140,12 +140,21 @@ const Shell = ({
 	</Card>
 );
 
-const Empty = ({ children }: { children?: ReactNode }) =>
-	children ?? (
-		<div className="flex h-44 items-center justify-center text-sm text-muted-foreground">
-			No data in range.
-		</div>
-	);
+interface EmptyProps {
+	children?: ReactNode;
+	height: number;
+}
+
+// As tall as the chart it stands in for, so the cards below stay put while a
+// report loads (no rows yet) and when a range turns out empty.
+const Empty = ({ children, height }: EmptyProps) => (
+	<div
+		className="flex items-center justify-center text-body text-muted-foreground"
+		style={{ height }}
+	>
+		{children ?? "No data in range."}
+	</div>
+);
 
 const seriesConfig = (series: ChartSeries[]): ChartConfig =>
 	series.reduce<ChartConfig>((acc, s) => {
@@ -190,6 +199,7 @@ const AreaVariant = ({
 	granularity = "day",
 	stacked = false,
 	valueFormatter = formatDefault,
+	axisFormatter,
 }: AreaProps) => {
 	const config = seriesConfig(series);
 	const isEmpty =
@@ -208,7 +218,7 @@ const AreaVariant = ({
 			action={action}
 		>
 			{isEmpty ? (
-				<Empty>{emptyState}</Empty>
+				<Empty height={height}>{emptyState}</Empty>
 			) : (
 				<ChartContainer
 					config={config}
@@ -246,8 +256,10 @@ const AreaVariant = ({
 							tickLine={false}
 							axisLine={false}
 							tickMargin={8}
-							width={60}
-							tickFormatter={(v: number) => valueFormatter(v)}
+							width="auto"
+							tickFormatter={(v: number) =>
+								(axisFormatter ?? valueFormatter)(v)
+							}
 						/>
 						<ChartTooltip
 							cursor={false}
@@ -304,6 +316,7 @@ const BarVariant = ({
 	variant,
 	xTickInterval,
 	valueFormatter = formatDefault,
+	axisFormatter,
 	highlightLatest = false,
 	hideLegend = false,
 }: BarProps) => {
@@ -325,7 +338,7 @@ const BarVariant = ({
 			action={action}
 		>
 			{isEmpty ? (
-				<Empty>{emptyState}</Empty>
+				<Empty height={height}>{emptyState}</Empty>
 			) : (
 				<ChartContainer
 					config={config}
@@ -349,8 +362,10 @@ const BarVariant = ({
 							tickLine={false}
 							axisLine={false}
 							tickMargin={8}
-							width={60}
-							tickFormatter={(v: number) => valueFormatter(v)}
+							width="auto"
+							tickFormatter={(v: number) =>
+								(axisFormatter ?? valueFormatter)(v)
+							}
 						/>
 						<ChartTooltip
 							cursor={false}
@@ -397,10 +412,13 @@ const BarVariant = ({
 				</ChartContainer>
 			)}
 			{highlightLatest && !isEmpty ? (
-				<div className="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-3 text-xs">
+				<div className="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-3 text-footnote">
 					{series.map((s) => (
 						<span key={s.key} className="flex items-center gap-1.5">
-							<span className="size-2" style={{ backgroundColor: s.color }} />
+							<span
+								className="size-2 rounded-full"
+								style={{ backgroundColor: s.color }}
+							/>
 							{s.label}
 							<span className="font-semibold tabular-nums">
 								{valueFormatter(
@@ -410,6 +428,13 @@ const BarVariant = ({
 						</span>
 					))}
 				</div>
+			) : null}
+			{/* While the range loads the totals row isn't there yet; holding its
+			    line keeps the cards below from dropping when it arrives. */}
+			{highlightLatest && isEmpty ? (
+				<p aria-hidden className="invisible pt-3 text-footnote">
+					{" "}
+				</p>
 			) : null}
 		</Shell>
 	);
@@ -438,7 +463,7 @@ const PieVariant = ({
 			action={action}
 		>
 			{isEmpty ? (
-				<Empty>{emptyState}</Empty>
+				<Empty height={height}>{emptyState}</Empty>
 			) : (
 				<ChartContainer
 					config={config}
@@ -505,7 +530,7 @@ const RadialVariant = ({
 			action={action}
 		>
 			{isEmpty ? (
-				<Empty>{emptyState}</Empty>
+				<Empty height={height}>{emptyState}</Empty>
 			) : (
 				<ChartContainer
 					config={config}
@@ -583,7 +608,7 @@ const ScatterVariant = ({
 			action={action}
 		>
 			{isEmpty ? (
-				<Empty>{emptyState}</Empty>
+				<Empty height={height}>{emptyState}</Empty>
 			) : (
 				<ChartContainer
 					config={config}

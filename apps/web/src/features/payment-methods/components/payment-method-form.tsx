@@ -1,20 +1,19 @@
 import { POSTPaymentMethodSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PlusIcon } from "@phosphor-icons/react";
 import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
-import { Button } from "@/components/ui/button";
+import {
+	SHEET_FORM_GRID,
+	SheetFormActions,
+} from "@/components/form/sheet-form-actions";
+import { SwitchList, SwitchRow } from "@/components/form/switch-list";
 import {
 	Field,
-	FieldContent,
-	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
-	FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
 export type PaymentMethodFormState = z.infer<typeof POSTPaymentMethodSchema>;
@@ -47,7 +46,7 @@ export function PaymentMethodForm({
 
 	return (
 		<form onSubmit={form.handleSubmit(handleOnSubmit)}>
-			<FieldGroup>
+			<FieldGroup className={SHEET_FORM_GRID}>
 				<Controller
 					name="name"
 					control={form.control}
@@ -88,51 +87,29 @@ export function PaymentMethodForm({
 					)}
 				/>
 
-				<Controller
-					name="is_active"
-					control={form.control}
-					render={({ field }) => (
-						<FieldLabel
-							htmlFor="payment-method-active"
-							className="md:col-span-2"
-						>
-							<Field orientation="horizontal">
-								<FieldContent>
-									<FieldTitle>Active</FieldTitle>
-									<FieldDescription>
-										Active payment methods can be used at checkout.
-									</FieldDescription>
-								</FieldContent>
-								<Switch
-									id="payment-method-active"
-									checked={field.value}
-									onCheckedChange={(checked) => field.onChange(!!checked)}
-									disabled={isSubmitting}
-								/>
-							</Field>
-						</FieldLabel>
-					)}
-				/>
+				<SwitchList>
+					<Controller
+						name="is_active"
+						control={form.control}
+						render={({ field }) => (
+							<SwitchRow
+								checked={field.value}
+								description="Active payment methods can be used at checkout."
+								disabled={isSubmitting}
+								id="payment-method-active"
+								onCheckedChange={field.onChange}
+								title="Active"
+							/>
+						)}
+					/>
+				</SwitchList>
 
-				<div className="flex flex-wrap gap-2 md:col-span-2 md:justify-end">
-					{isEditing ? (
-						<Button
-							type="button"
-							variant="outline"
-							onClick={onReset}
-							disabled={isSubmitting}
-						>
-							Cancel edit
-						</Button>
-					) : null}
-					<Button
-						type="submit"
-						loading={isSubmitting}
-						icon={<PlusIcon className="size-4" />}
-					>
-						{isEditing ? "Update Method" : "Create Method"}
-					</Button>
-				</div>
+				<SheetFormActions
+					addLabel="Add payment method"
+					isEditing={isEditing}
+					isSubmitting={isSubmitting}
+					onCancel={onReset}
+				/>
 			</FieldGroup>
 		</form>
 	);

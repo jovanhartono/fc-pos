@@ -9,7 +9,9 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
+import { EmptyState } from "@/components/empty-state";
 import { CurrencyInput } from "@/components/form/currency-input";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -84,20 +86,18 @@ export const CheckoutItemsStep = () => {
 
 			<div className="grid gap-3">
 				{productRows.length === 0 && itemRows.length === 0 ? (
-					<div className="border border-dashed border-border p-4 text-sm text-muted-foreground">
-						Cart is empty.
-					</div>
+					<EmptyState>Cart is empty.</EmptyState>
 				) : null}
 
 				{productRows.map((line) => (
 					<div
-						className="grid gap-3 border border-border/70 p-3"
+						className="grid gap-3 rounded-md border border-border/70 p-3"
 						key={`product-${line.id}`}
 					>
 						<div className="flex items-center justify-between gap-3">
 							<div>
-								<p className="text-sm font-medium">{line.product.name}</p>
-								<p className="text-xs text-muted-foreground">
+								<p className="text-body font-medium">{line.product.name}</p>
+								<p className="text-footnote text-muted-foreground">
 									Product | {getEntityCategoryName(line.product, categoryMap)}
 								</p>
 							</div>
@@ -124,7 +124,7 @@ export const CheckoutItemsStep = () => {
 								>
 									-
 								</Button>
-								<div className="min-w-10 text-center text-sm font-medium">
+								<div className="min-w-10 text-center text-body font-medium">
 									{line.qty}
 								</div>
 								<Button
@@ -145,7 +145,7 @@ export const CheckoutItemsStep = () => {
 									+
 								</Button>
 							</div>
-							<p className="text-sm font-semibold">
+							<p className="text-body font-semibold">
 								{formatMoney(parseMoney(line.product.price) * line.qty)}
 							</p>
 						</div>
@@ -162,12 +162,7 @@ export const CheckoutItemsStep = () => {
 				))}
 
 				{itemRows.length > 0 ? (
-					<Button
-						className="h-11"
-						onClick={addItem}
-						type="button"
-						variant="outline"
-					>
+					<Button onClick={addItem} type="button" variant="outline">
 						+ New item
 					</Button>
 				) : null}
@@ -215,19 +210,15 @@ const CheckoutTreatmentRow = ({
 	const isUnpriced = isUnpricedServiceLine(line);
 
 	return (
-		<div className="grid gap-2 border-border/70 border-t p-3 first-of-type:border-t-0">
+		<div className="grid gap-2 border-border/70 border-t p-3">
 			<div className="flex items-start gap-3">
 				{/* Wraps rather than truncates: service names run to 30+ characters
 				    and the price column leaves this one ~130px on a phone, so
 				    truncating cut every line down to "Deep Clea…". */}
-				<span className="min-w-0 flex-1 text-sm">{line.service.name}</span>
+				<span className="min-w-0 flex-1 text-body">{line.service.name}</span>
 				<span className="flex shrink-0 items-center gap-2">
-					{isUnpriced ? (
-						<span className="border border-warning/50 bg-warning/10 px-1.5 text-[10px] text-warning">
-							No price yet
-						</span>
-					) : null}
-					<span className="text-sm font-semibold tabular-nums">
+					{isUnpriced ? <Badge variant="warning">No price yet</Badge> : null}
+					<span className="text-body font-semibold tabular-nums">
 						{formatMoney(getServiceLinePrice(line))}
 					</span>
 					{/* The recovery for a tap that landed on the wrong shoe: carry the
@@ -285,7 +276,6 @@ const CheckoutTreatmentRow = ({
 					Note for the worker
 				</FieldLabel>
 				<Input
-					className="h-11"
 					id={`service-notes-${line.line_id}`}
 					onChange={(event) =>
 						updateServiceField(
@@ -334,11 +324,9 @@ interface CheckoutItemCardProps {
 	itemNumber: number;
 }
 
-// One physical object and everything sold against it (ADR-0017). Three bands:
-// a shaded header naming the object, its descriptors, then the treatments inset
-// under a rail — so the eye reads parent and children rather than one flat run
-// of hairlines. Which card the next catalog tap lands on is chosen in the tray,
-// where the catalog is; this sheet has nothing to point at.
+// One physical object and everything sold against it (ADR-0017): its name and
+// descriptors, then one row per treatment. Which card the next catalog tap
+// lands on is chosen in the tray, where the catalog is.
 const CheckoutItemCard = ({
 	allItems,
 	item,
@@ -357,9 +345,9 @@ const CheckoutItemCard = ({
 	const canMove = moveTargets.length > 0 || item.services.length > 1;
 
 	return (
-		<article className="border border-border/70">
-			<header className="flex items-center gap-3 bg-muted/40 px-3 py-2">
-				<h3 className="min-w-0 flex-1 truncate font-medium text-sm">
+		<article className="overflow-hidden rounded-md border border-border/70">
+			<header className="flex items-center gap-3 px-3 pt-2">
+				<h3 className="min-w-0 flex-1 truncate font-medium text-body">
 					{descriptors ?? "New item"}
 				</h3>
 				{/* Words, not the ✕: that one drops a single Service, and the two
@@ -383,7 +371,6 @@ const CheckoutItemCard = ({
 							{field.label}
 						</FieldLabel>
 						<Input
-							className="h-11"
 							id={`item-${field.key}-${item.line_id}`}
 							onChange={(event) =>
 								updateItemField(item.line_id, field.key, event.target.value)
@@ -395,12 +382,9 @@ const CheckoutItemCard = ({
 				))}
 			</div>
 
-			<section
-				aria-label={`Treatments on item ${itemNumber}`}
-				className="mx-3 mb-3 border border-border/70 border-l-2 border-l-foreground/40"
-			>
+			<section aria-label={`Treatments on item ${itemNumber}`}>
 				{item.services.length === 0 ? (
-					<p className="px-3 py-2.5 text-muted-foreground text-xs">
+					<p className="border-border/70 border-t px-3 py-2.5 text-muted-foreground text-footnote">
 						Tap a service to add it here
 					</p>
 				) : null}
@@ -448,29 +432,29 @@ const CheckoutDropoffPhotoField = () => {
 			    emerald = captured. Color carries the state, so no separate label. */}
 			<div
 				className={cn(
-					"flex items-center justify-between gap-3 border p-3 text-sm",
+					"flex items-center justify-between gap-3 rounded-md border p-3 text-body",
 					hasPhoto
-						? "border-emerald-300/60 bg-emerald-50/70 dark:border-emerald-800 dark:bg-emerald-950/30"
-						: "border-amber-300/70 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-950/30",
+						? "border-success/40 bg-tone-good"
+						: "border-warning/40 bg-tone-warn",
 				)}
 			>
 				<div className="flex items-center gap-2">
 					{hasPhoto ? (
 						<CheckCircleIcon
 							aria-hidden="true"
-							className="size-5 shrink-0 text-emerald-600 dark:text-emerald-400"
+							className="size-5 shrink-0 text-tone-good-foreground"
 							weight="fill"
 						/>
 					) : (
 						<WarningIcon
 							aria-hidden="true"
-							className="size-5 shrink-0 text-amber-600 dark:text-amber-400"
+							className="size-5 shrink-0 text-tone-warn-foreground"
 							weight="fill"
 						/>
 					)}
 					<div>
 						<p className="font-medium">Drop-off photo</p>
-						<p className="text-xs text-muted-foreground">
+						<p className="text-footnote text-muted-foreground">
 							{hasPhoto ? "Captured" : "Required · capture items at intake"}
 						</p>
 					</div>
@@ -479,20 +463,18 @@ const CheckoutDropoffPhotoField = () => {
 				{hasPhoto ? (
 					<div className="flex items-center gap-2">
 						<Button
-							className="h-11 shrink-0"
+							className="shrink-0"
 							icon={<EyeIcon className="size-4" />}
 							onClick={() => setIsLightboxOpen(true)}
-							size="sm"
 							type="button"
 							variant="outline"
 						>
 							Preview photo
 						</Button>
 						<Button
-							className="h-11 shrink-0"
+							className="shrink-0"
 							icon={<CameraIcon className="size-4" />}
 							onClick={() => setIsDialogOpen(true)}
-							size="sm"
 							type="button"
 							variant="outline"
 						>
@@ -501,10 +483,9 @@ const CheckoutDropoffPhotoField = () => {
 					</div>
 				) : (
 					<Button
-						className="h-11 shrink-0"
+						className="shrink-0"
 						icon={<CameraIcon className="size-4" />}
 						onClick={() => setIsDialogOpen(true)}
-						size="sm"
 						type="button"
 						variant="outline"
 					>

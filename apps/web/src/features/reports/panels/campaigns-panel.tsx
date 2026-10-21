@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ExportButton } from "@/features/reports/components/export-button";
@@ -10,8 +10,11 @@ import {
 } from "@/features/reports/utils/csv";
 import {
 	numberFormatter,
+	oneDecimalFormatter,
 	percentFormatter,
 } from "@/features/reports/utils/format";
+import { staleFade } from "@/lib/content-fade";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
 interface CampaignsPanelProps {
@@ -27,14 +30,15 @@ export const CampaignsPanel = ({
 	storeId,
 	granularity,
 }: CampaignsPanelProps) => {
-	const query = useQuery(
-		reportsQueries.campaignEffectiveness({
+	const query = useQuery({
+		...reportsQueries.campaignEffectiveness({
 			from,
 			to,
 			store_id: storeId,
 			granularity,
 		}),
-	);
+		placeholderData: keepPreviousData,
+	});
 	const data = query.data;
 	const campaigns = data?.campaigns ?? [];
 	const maxOrders = campaigns.reduce((m, c) => Math.max(m, c.orders), 0);
@@ -62,43 +66,39 @@ export const CampaignsPanel = ({
 	const roi = totalDiscount > 0 ? totalCollected / totalDiscount : 0;
 
 	return (
-		<div className="grid gap-6">
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-				<KpiRow>
-					<KpiCard
-						label="Campaigns used"
-						value={numberFormatter.format(campaigns.length)}
-					/>
-					<KpiCard
-						label="Orders w/ campaign"
-						value={numberFormatter.format(data?.summary.orders ?? 0)}
-					/>
-					<KpiCard
-						label="Collected"
-						value={formatMoney(String(totalCollected))}
-					/>
-					<KpiCard
-						label="Discount cost"
-						value={formatMoney(String(totalDiscount))}
-						helper={`ROI ${roi.toFixed(2)}×`}
-					/>
-				</KpiRow>
-				<ExportButton disabled={!data} onClick={handleExport} />
-			</div>
+		<div className={cn("grid gap-6", staleFade(query.isPlaceholderData))}>
+			<ExportButton disabled={!data} onClick={handleExport} />
+			<KpiRow isPending={!data}>
+				<KpiCard
+					label="Campaigns used"
+					value={numberFormatter.format(campaigns.length)}
+				/>
+				<KpiCard
+					label="Orders w/ campaign"
+					value={numberFormatter.format(data?.summary.orders ?? 0)}
+				/>
+				<KpiCard
+					label="Collected"
+					value={formatMoney(String(totalCollected))}
+				/>
+				<KpiCard
+					label="Discount cost"
+					value={formatMoney(String(totalDiscount))}
+					helper={`ROI ${oneDecimalFormatter.format(roi)}×`}
+				/>
+			</KpiRow>
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle className="text-sm font-semibold text-foreground">
-						Campaign leaderboard
-					</CardTitle>
+					<CardTitle>Campaign leaderboard</CardTitle>
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					{campaigns.length === 0 ? (
-						<p className="text-sm text-muted-foreground">
+						<p className="text-body text-muted-foreground">
 							No campaigns redeemed.
 						</p>
 					) : (
-						<div className="grid gap-3">
+						<div className="grid grid-cols-1 gap-3">
 							{campaigns.map((c) => {
 								const pct = maxOrders === 0 ? 0 : (c.orders / maxOrders) * 100;
 								const discountRate =
@@ -106,31 +106,33 @@ export const CampaignsPanel = ({
 								const campaignRoi =
 									c.discount_cost > 0 ? c.collected / c.discount_cost : 0;
 								return (
-									<div key={c.campaign_id} className="grid gap-1">
+									<div key={c.campaign_id} className="grid grid-cols-1 gap-1">
 										<div className="flex items-center justify-between gap-2">
-											<span className="flex items-center gap-2 truncate text-sm font-medium">
-												<span className="font-mono text-[11px] uppercase text-muted-foreground">
+											<span className="flex min-w-0 items-center gap-2 text-body font-medium">
+												<span className="font-normal text-subhead tabular-nums">
 													{c.campaign_code}
 												</span>
 												<span className="truncate">{c.campaign_name}</span>
 											</span>
-											<span className="flex items-center gap-3 text-sm tabular-nums">
+											<span className="flex shrink-0 items-center gap-3 whitespace-nowrap text-body tabular-nums">
 												<span className="text-muted-foreground">
 													{`${numberFormatter.format(c.orders)} orders`}
 												</span>
-												<span>{`${campaignRoi.toFixed(2)}×`}</span>
+												<span>{`${oneDecimalFormatter.format(campaignRoi)}×`}</span>
 											</span>
 										</div>
-										<div className="h-1.5 w-full bg-muted">
+										<div className="h-1.5 w-full overflow-hidden rounded-full bg-soft-bar-track">
 											<div
-												className="h-full bg-foreground"
+												className="h-full rounded-full bg-primary"
 												style={{ width: `${pct}%` }}
 											/>
 										</div>
-										<div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
+										<div className="flex flex-wrap items-center justify-between gap-x-3 text-subhead tabular-nums">
 											<span>{formatMoney(String(c.collected))}</span>
 											<span>
-												{`discount ${formatMoney(String(c.discount_cost))} · ${percentFormatter.format(discountRate)}`}
+												{`discount ${formatMoney(String(c.discount_cost))} `}
+												<span className="text-muted-foreground">·</span>
+												{` ${percentFormatter.format(discountRate)}`}
 											</span>
 										</div>
 									</div>
@@ -143,5 +145,3 @@ export const CampaignsPanel = ({
 		</div>
 	);
 };
-
-export default CampaignsPanel;

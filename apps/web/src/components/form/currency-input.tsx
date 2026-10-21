@@ -2,7 +2,7 @@ import { MoneyIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { formatMoneyInput } from "@/shared/money";
+import { formatMoney, formatMoneyInput } from "@/shared/money";
 import { getNumericValue } from "@/shared/utils";
 
 type CurrencyInputProps = {
@@ -19,7 +19,7 @@ export function CurrencyInput({
 	id,
 	value,
 	onValueChange,
-	placeholder = "Rp0",
+	placeholder = formatMoney(0),
 	disabled,
 	required,
 	className,

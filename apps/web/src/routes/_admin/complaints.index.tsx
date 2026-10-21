@@ -1,9 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import dayjs from "dayjs";
 import { useMemo } from "react";
 import { z } from "zod";
-import { DataTable, WRAP_NAME_CLASS } from "@/components/data-table";
+import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
 import { ListPanel } from "@/components/list-panel";
@@ -20,7 +19,8 @@ import {
 	getComplaintOutcome,
 } from "@/features/complaints/lib/format";
 import { CustomerLink } from "@/features/customers/components/customer-link";
-import { cn } from "@/lib/utils";
+import { OrderListRow } from "@/features/orders/components/order-list-row";
+import { formatListDate } from "@/lib/dayjs";
 
 const complaintsSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
@@ -41,13 +41,26 @@ function buildComplaintsListParams(
 	};
 }
 
+interface ComplaintOutcomeBadgeProps {
+	complaint: ComplaintListItem;
+}
+
+const ComplaintOutcomeBadge = ({ complaint }: ComplaintOutcomeBadgeProps) => {
+	const outcome = getComplaintOutcome({
+		subjectStatus: complaint.subject_status,
+		reworkCount: complaint.rework_count,
+	});
+	return <Badge variant={outcome.variant}>{outcome.label}</Badge>;
+};
+
 const ComplaintsPage = () => {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 
-	const complaintsQuery = useQuery(
-		complaintsQueries.list(buildComplaintsListParams(search)),
-	);
+	const complaintsQuery = useQuery({
+		...complaintsQueries.list(buildComplaintsListParams(search)),
+		placeholderData: keepPreviousData,
+	});
 	const complaints = complaintsQuery.data?.items ?? [];
 
 	const handleSearchChange = (next: string) => {
@@ -65,18 +78,20 @@ const ComplaintsPage = () => {
 			{
 				id: "complaint",
 				header: "Complaint",
-				meta: { mobileCard: { slot: "title" } },
+				meta: { width: { percent: 34, minRem: 10 } },
 				cell: ({ row }) => (
-					<div className={cn("flex flex-col gap-0.5", WRAP_NAME_CLASS)}>
+					<div className="flex flex-col gap-0.5">
 						<Link
 							to="/complaints/$complaintId"
 							params={{ complaintId: String(row.original.id) }}
-							className="font-mono font-semibold"
+							className="font-medium tabular-nums"
 						>
 							{row.original.order_code}
 						</Link>
-						<span className="text-xs">{formatComplaintItem(row.original)}</span>
-						<span className="text-[11px] text-muted-foreground">
+						<span className="text-subhead">
+							{formatComplaintItem(row.original)}
+						</span>
+						<span className="text-subhead">
 							{row.original.service_name ?? "—"}
 						</span>
 					</div>
@@ -85,7 +100,7 @@ const ComplaintsPage = () => {
 			{
 				accessorKey: "customer_name",
 				header: "Customer",
-				meta: { kind: "name", mobileCard: { label: "Customer" } },
+				meta: { kind: "name", width: { percent: 22, minRem: 8.5 } },
 				cell: ({ row }) => (
 					<CustomerLink
 						customerId={row.original.customer_id}
@@ -96,27 +111,21 @@ const ComplaintsPage = () => {
 			{
 				accessorKey: "store_name",
 				header: "Store",
-				meta: { mobileCard: { slot: "eyebrow" } },
+				meta: { width: { percent: 18, minRem: 8 } },
 			},
 			{
 				id: "outcome",
 				header: "Outcome",
-				meta: { mobileCard: { slot: "badges" } },
-				cell: ({ row }) => {
-					const outcome = getComplaintOutcome({
-						subjectStatus: row.original.subject_status,
-						reworkCount: row.original.rework_count,
-					});
-					return <Badge variant={outcome.variant}>{outcome.label}</Badge>;
-				},
+				meta: { width: { percent: 13, minRem: 6 } },
+				cell: ({ row }) => <ComplaintOutcomeBadge complaint={row.original} />,
 			},
 			{
 				id: "opened",
 				header: () => <div className="text-right">Opened</div>,
-				meta: { mobileCard: { slot: "footer" } },
+				meta: { width: { percent: 13, minRem: 7 } },
 				cell: ({ row }) => (
-					<div className="text-right text-muted-foreground tabular-nums">
-						{dayjs(row.original.created_at).format("DD MMM HH:mm")}
+					<div className="whitespace-nowrap text-right text-muted-foreground tabular-nums">
+						{formatListDate(row.original.created_at)}
 					</div>
 				),
 			},
@@ -126,7 +135,11 @@ const ComplaintsPage = () => {
 
 	return (
 		<>
-			<PageHeader title="Complaints" />
+			<PageHeader
+				count={complaintsQuery.data?.meta.total}
+				countNoun="complaint"
+				title="Complaints"
+			/>
 			<ListPanel>
 				<DebouncedSearchInput
 					id="complaints-search"
@@ -138,7 +151,31 @@ const ComplaintsPage = () => {
 				<DataTable
 					columns={columns}
 					data={complaints}
+					getRowLink={(complaint) => ({
+						to: "/complaints/$complaintId",
+						params: { complaintId: String(complaint.id) },
+					})}
 					isLoading={complaintsQuery.isPending}
+					isStale={complaintsQuery.isPlaceholderData}
+					filterKey={JSON.stringify(search)}
+					renderCard={(complaint) => (
+						<OrderListRow
+							className="rounded-none"
+							hasCaret={false}
+							details={[complaint.order_code, formatComplaintItem(complaint)]}
+							end={
+								<div className="grid justify-items-end gap-1">
+									<span className="whitespace-nowrap text-subhead tabular-nums">
+										{formatListDate(complaint.created_at)}
+									</span>
+									<ComplaintOutcomeBadge complaint={complaint} />
+								</div>
+							}
+							params={{ complaintId: String(complaint.id) }}
+							title={complaint.customer_name}
+							to="/complaints/$complaintId"
+						/>
+					)}
 					footer={
 						<TablePagination
 							meta={complaintsQuery.data?.meta}
@@ -159,10 +196,17 @@ const ComplaintsPage = () => {
 export const Route = createFileRoute("/_admin/complaints/")({
 	validateSearch: (search) => complaintsSearchSchema.parse(search),
 	loaderDeps: ({ search }) => search,
-	loader: async ({ context, deps }) => {
+	loader: async ({ context, deps, cause }) => {
+		// Typing a search or paging keeps the page up and swaps the rows in place.
+		if (cause === "stay") {
+			return;
+		}
 		await context.queryClient.ensureQueryData(
 			complaintsQueries.list(buildComplaintsListParams(deps)),
 		);
 	},
 	component: ComplaintsPage,
+	// Past a second, the page itself draws with skeleton rows.
+	pendingComponent: ComplaintsPage,
+	codeSplitGroupings: [["component", "pendingComponent"]],
 });

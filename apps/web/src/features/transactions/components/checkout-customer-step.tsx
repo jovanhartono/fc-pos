@@ -45,14 +45,13 @@ export const CheckoutCustomerStep = () => {
 							Collected by courier
 						</FieldLabel>
 						<SelectField
-							className="w-full text-sm"
+							className="w-full"
 							id="transaction-courier"
 							items={courierOptions}
 							onValueChange={(value) =>
 								field.onChange(value === "none" ? "" : value)
 							}
 							placeholder="Walk-in (no courier)"
-							size="lg"
 							value={field.value || "none"}
 						/>
 						<FieldError errors={[fieldState.error]} />
