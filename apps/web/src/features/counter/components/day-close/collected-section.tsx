@@ -1,5 +1,5 @@
+import { Badge } from "@/components/ui/badge";
 import type { DayClose } from "@/features/counter/api";
-import { CountBadge } from "@/features/counter/components/day-close/count-badge";
 import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
 import { unpaidOrdersOf } from "@/features/counter/lib/day-close";
 import { formatMoney } from "@/shared/money";
@@ -103,7 +103,9 @@ export const CollectedSection = ({
 						<span>
 							<KeyDot className={UNPAID_BG} />
 							Unpaid
-							<CountBadge count={unpaidOrders.length} />
+							<Badge className="ml-2 align-top tabular-nums" variant="outline">
+								{unpaidOrders.length}
+							</Badge>
 						</span>
 						<span className="text-right font-medium text-tone-bad-foreground">
 							{formatMoney(unpaidAmount)}

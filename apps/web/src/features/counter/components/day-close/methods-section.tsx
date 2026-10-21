@@ -1,6 +1,6 @@
 import { Section } from "@/components/section";
+import { Badge } from "@/components/ui/badge";
 import type { DayClose } from "@/features/counter/api";
-import { CountBadge } from "@/features/counter/components/day-close/count-badge";
 import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
 import { AMOUNT_TONE } from "@/features/counter/components/day-close/order-row";
 import { groupBySlip } from "@/features/counter/lib/day-close";
@@ -36,7 +36,9 @@ const MethodRow = ({
 	<button className={cn(ROW, ROW_KIND[kind])} onClick={onClick} type="button">
 		<span>
 			{label}
-			<CountBadge count={payments} />
+			<Badge className="ml-2 align-top tabular-nums" variant="outline">
+				{payments}
+			</Badge>
 		</span>
 		<span className={cn("text-right", AMOUNT_TONE.paid)}>
 			{formatMoney(amount)}

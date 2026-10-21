@@ -1,7 +1,6 @@
 import { Section } from "@/components/section";
 import { Badge } from "@/components/ui/badge";
 import type { DayClose, DayCloseRefund } from "@/features/counter/api";
-import { CountBadge } from "@/features/counter/components/day-close/count-badge";
 import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
 import {
 	AMOUNT_TONE,
@@ -77,7 +76,9 @@ export const RefundsSection = ({ data, onOpen }: RefundsSectionProps) => {
 					>
 						<span>
 							Refunds
-							<CountBadge count={data.refunds.length} />
+							<Badge className="ml-2 align-top tabular-nums" variant="outline">
+								{data.refunds.length}
+							</Badge>
 						</span>
 						<span className={AMOUNT_TONE.refund}>
 							{"−"}
