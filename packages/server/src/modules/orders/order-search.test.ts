@@ -14,8 +14,8 @@ describe("isNumericSearch", () => {
     expect(isNumericSearch("#JKT/20260801/12-S001")).toBe(false);
   });
 
-  it("a customer phone prefix is all digits, so it also passes the id gate — pre-existing behavior the shared rule keeps", () => {
-    expect(isNumericSearch("0812")).toBe(true);
+  it("keeps a customer phone prefix out of the id match — a worker typing '0812' wants the regular, not Order 812", () => {
+    expect(isNumericSearch("0812")).toBe(false);
   });
 
   it("rejects the empty string so an all-optional filter never turns into an id match", () => {
