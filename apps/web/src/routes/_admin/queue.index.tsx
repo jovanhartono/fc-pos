@@ -470,7 +470,7 @@ function QueuePage() {
 				<StickyControls className="grid gap-3">
 					<div className="flex items-center gap-2">
 						<Input
-							aria-label="Find by item code, order ID, line ID, or customer"
+							aria-label="Find by item code, order code, order ID, line ID, or customer"
 							autoCapitalize="none"
 							autoCorrect="off"
 							className="min-w-0 flex-1"
@@ -491,7 +491,7 @@ function QueuePage() {
 									});
 								}
 							}}
-							placeholder="Item code, order ID, or customer"
+							placeholder="Item code, order code, or customer"
 							value={itemCode}
 						/>
 						<Button
