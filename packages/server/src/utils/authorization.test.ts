@@ -3,10 +3,8 @@ import { ForbiddenException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
 
-// One question every list screen asks: which branches may this person see? The
-// answer depends only on who is asking and whether they named a branch, so the
-// fake database here is just the `user_stores` sheet — the branches this staff
-// member is rostered at.
+// Which Stores may this person see? The answer depends only on who asks and
+// whether they named a Store, so the fake database is just `user_stores`.
 const roster = {
   storeIds: [] as number[],
 };
@@ -50,7 +48,7 @@ const staff = (id: number, role: JWTPayload["role"]): JWTPayload => ({
   username: `staff-${id}`,
 });
 
-// Sari works the counter at Kemang (store 1); Pak Rudi runs all six branches.
+// Sari works the counter at Kemang (store 1); Pak Rudi runs all six Stores.
 const CASHIER = staff(9, "cashier");
 const ADMIN = staff(1, "admin");
 
@@ -62,11 +60,11 @@ beforeEach(() => {
 });
 
 describe("resolveStoreScope", () => {
-  it("hands an admin who named no branch the whole company", async () => {
+  it("hands an admin who named no Store the whole company", async () => {
     expect(await resolveStoreScope(ADMIN)).toEqual({ kind: "all" });
   });
 
-  it("fences a cashier who named no branch to the branches they are rostered at", async () => {
+  it("fences a cashier who named no Store to the Stores they are rostered at", async () => {
     roster.storeIds = [KEMANG, BINTARO];
 
     expect(await resolveStoreScope(CASHIER)).toEqual({
@@ -75,22 +73,22 @@ describe("resolveStoreScope", () => {
     });
   });
 
-  it("leaves a new hire not yet rostered anywhere with no branch at all", async () => {
+  it("leaves a new hire not yet rostered anywhere with no Store at all", async () => {
     // An empty roster is not permission to see everything — it is a staff
-    // account waiting to be assigned to a branch.
+    // account waiting to be assigned to a Store.
     roster.storeIds = [];
 
     expect(await resolveStoreScope(CASHIER)).toEqual({ kind: "none" });
   });
 
-  it("lets a cashier open the branch they work at", async () => {
+  it("lets a cashier open the Store they work at", async () => {
     expect(await resolveStoreScope(CASHIER, KEMANG)).toEqual({
       kind: "one",
       storeId: KEMANG,
     });
   });
 
-  it("refuses a cashier the branch they do not work at", async () => {
+  it("refuses a cashier the Store they do not work at", async () => {
     // Sari at Kemang must never reach a Bintaro order, however she asks.
     const error = await captureRejection(resolveStoreScope(CASHIER, BINTARO));
 
@@ -101,8 +99,8 @@ describe("resolveStoreScope", () => {
     );
   });
 
-  it("lets an admin open a branch they are not rostered at", async () => {
-    // Admins are on nobody's roster; naming a branch still narrows them to it.
+  it("lets an admin open a Store they are not rostered at", async () => {
+    // Admins are on nobody's roster; naming a Store still narrows them to it.
     roster.storeIds = [];
 
     expect(await resolveStoreScope(ADMIN, BINTARO)).toEqual({

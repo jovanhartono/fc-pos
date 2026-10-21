@@ -17,9 +17,8 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // take turns cleaning and checking; some pairs pass first time, some are sent
 // back at QC and redone, some come back from the Customer as a Complaint.
 
-// Loaded after the swap above, never beside the imports: Bun binds a static
-// import graph before any module body runs, so a service pulled in up there
-// would hold the shop's real database.
+// Loaded after the swap above: a static import would bind the shop's real
+// database before the mock runs.
 const { createOrder } = await import("@/modules/orders/order.service");
 const { getQualityReport, getQcRejectsReport } = await import(
   "@/modules/reports/quality.service"
@@ -392,9 +391,8 @@ describe("the Quality report", () => {
   });
 
   it("counts a pair sent back after the range as sent back, but not its QC reject", async () => {
-    // Checked on 30 August, rejected the instant September opened: the pair
-    // is August's work that has been sent back so far, while the reject
-    // itself belongs to September.
+    // Checked on 30 August, rejected as September opened: August's work, but
+    // September's QC reject.
     const report = await kemangAugust();
     const rejects = await getQcRejectsReport({
       ...AUGUST,

@@ -33,10 +33,8 @@ export const ORDER_TERMINAL_SERVICE_STATUSES = [
   "cancelled",
 ] as const;
 
-// The statuses a workshop still has to act on. `ready_for_pickup` is live but
-// not workshop work: the treatment is finished and the object is the counter's
-// until the customer collects it, so the queue does not list it and the chips
-// do not count it.
+// Statuses the workshop still has to act on. `ready_for_pickup` is left out: the
+// Item waits at the counter for the Customer, so the Queue neither lists nor counts it.
 export const WORKSHOP_SERVICE_STATUSES = [
   "queued",
   "processing",
@@ -81,18 +79,9 @@ export interface OrderFulfillmentSummary {
   total_count: number;
 }
 
-// Takes one status per thing being counted. The order detail hands it Item
-// statuses, because "2 of 4 picked up" is read at the counter as objects on
-// the shelf — a pair booked for a clean and a repaint is one thing to hand
-// back, not two. The list rollup still hands it treatment statuses; nothing
-// reads its counts today.
-//
-// The counts measure the handover, not the workshop: `total_count` is what
-// will ever go home (a cancelled one never does, so it is left out — otherwise
-// an order with one cancelled pair reads "2 of 3" forever after the customer
-// left with everything), `picked_up_count` is what already has, and
-// `remaining_count` is the gap, whether that is still being worked on or a
-// refunded pair waiting on the shelf.
+// One status per thing counted. The Order detail passes Item statuses, so a pair
+// booked for a clean and a repaint counts once at the counter. Cancelled ones are
+// left out, or the Order would read "2 of 3" forever after the Customer took everything.
 export function summarizeOrderFulfillment(
   statuses: OrderServiceStatus[]
 ): OrderFulfillmentSummary {
@@ -123,10 +112,7 @@ export function summarizeOrderFulfillment(
   };
 }
 
-// How far along the live treatments are, with nothing said about what the
-// ending is called. This is the part an Order and an Item genuinely share —
-// including the subtle rule that a cancelled line is not evidence anyone
-// started — so it lives here once and each aggregate names its own endings.
+// The progress rule an Order and an Item share; each names its own endings.
 type TreatmentWorkPhase =
   | "nothing_started"
   | "in_progress"
@@ -146,11 +132,8 @@ function classifyTreatmentWork(
   if (active.every((item) => item.status === "ready_for_pickup")) {
     return "all_ready";
   }
-  // Has anything actually been worked on? A cancelled line is work the shop
-  // will never do, so it is no evidence that anyone started — the customer who
-  // dropped the treatment at the counter must still see the rest of the rack as
-  // untouched. Every other terminal line (picked_up, refunded) IS evidence:
-  // that work happened and left.
+  // A cancelled line is no sign anyone started: the Customer who dropped one
+  // treatment must still see the rest as untouched. Picked-up or refunded lines do count.
   if (
     services.some(
       (item) => item.status !== "queued" && item.status !== "cancelled"
@@ -161,19 +144,15 @@ function classifyTreatmentWork(
   return "nothing_started";
 }
 
-// A treatment as the Item rollup needs to see it. `pickup_event_id` is not
-// decoration here — it is the only record of whether this treatment's object
-// physically went out the door, and the schema keeps it honest: the column is
-// NULL unless the row is picked_up or refunded, and never NULL on picked_up.
+// `pickup_event_id` is the only record of whether the Item physically left the
+// shop. The schema allows it only on picked_up or refunded, and requires it on picked_up.
 export interface ItemStatusLine {
   pickup_event_id: number | null;
   status: OrderServiceStatus;
 }
 
-// What an Item is doing, rolled up from the treatments applied to it. Derived
-// on read and never stored: an Item is only ever loaded beside its own
-// treatments, so a column would be a second copy of the truth with nothing to
-// gain from it. See ADR-0017.
+// Worked out on read, never stored: an Item always loads with its own lines, so a
+// column would be a second copy of the truth (ADR-0017).
 export type DerivedItemStatus =
   | "queued"
   | "processing"
@@ -197,12 +176,9 @@ export function deriveItemStatus(
     return "queued";
   }
 
-  // Nothing live is left, and unlike an Order — which only has to say whether
-  // money settled — an Item status is a claim about where the physical object
-  // is. So the endings split three ways, and the pickup event is what tells
-  // them apart: a pair refunded at the counter while it was still queued never
-  // moved off the rack, and calling that picked_up would tell the customer on
-  // /track that they are holding shoes still sitting in the shop.
+  // An Item status says where the object is, so the pickup event splits the
+  // endings: a pair refunded while still queued never left the rack, and calling
+  // it picked_up would tell the Customer on /track the shoes are already home.
   if (services.length === 0) {
     return "queued";
   }
@@ -215,14 +191,9 @@ export function deriveItemStatus(
   return "refunded";
 }
 
-// You cannot hand back half an object: an Item leaves the counter only once
-// every treatment still live on it is ready. A cancelled sibling does not hold
-// the object hostage — the shop is never going to do that work.
-//
-// `refunded` is the object nobody ever touched: the money went back over the
-// counter while the pair sat queued, and the pair is still the customer's to
-// take home. It has no live treatment left that could ever turn ready, so
-// without this branch the desk could never record handing it back at all.
+// An Item leaves only once every live line on it is ready. `refunded` is a pair
+// refunded while it sat queued: still the Customer's to take home, and without it
+// the counter could never record handing it back.
 export function isCollectableItemStatus(status: DerivedItemStatus): boolean {
   return status === "ready_for_pickup" || status === "refunded";
 }
@@ -245,15 +216,9 @@ export function countItemsReady(items: ItemStatusLine[][]) {
   };
 }
 
-// Does this treatment leave the shop when the desk hands its object over?
-// The finished ones do, and so do the ones refunded before anyone came for the
-// pair — the shop still owes those back. A cancelled treatment does not: the
-// work was called off, and the schema refuses it a pickup event. One already
-// carrying an event went out on an earlier handover.
-//
-// Exported through `@fresclean/api/schema` so the pickup dialog lists exactly
-// the rows this will act on, rather than the client keeping its own copy of
-// the rule (the same seam ADR-0018's `hasUnpricedLine` uses).
+// Lines that leave with the Item at pickup: finished ones, and ones refunded
+// before the Customer came back. Exported so the pickup dialog lists exactly these
+// rows instead of keeping its own copy of the rule (as ADR-0018's `hasUnpricedLine`).
 export function isHandedOverByPickup(line: ItemStatusLine): boolean {
   return (
     line.status === "ready_for_pickup" ||
@@ -265,7 +230,7 @@ export function deriveOrderStatus(
   services: { status: OrderServiceStatus }[],
   products: { cancelled_at: Date | null }[]
 ): DerivedOrderStatus {
-  // Live work comes only from services (products have no processing axis).
+  // Products have no workshop status, so only services count as live work.
   const phase = classifyTreatmentWork(services);
 
   if (phase === "all_ready") {
@@ -278,7 +243,6 @@ export function deriveOrderStatus(
     return "created";
   }
 
-  // No live services: roll up over every terminal line — services and products.
   if (services.length + products.length === 0) {
     return "created";
   }
@@ -296,10 +260,8 @@ export function deriveOrderStatus(
   return "completed";
 }
 
-// What the customer still owes. Cancelled work drops off the bill — the shop
-// never did it. Refunded work stays on: it was done and handed over, and the
-// refund is already recorded on the order, so dropping it here would take the
-// same money off twice.
+// Cancelled work drops off the bill; refunded work stays, because the Refund is
+// already recorded on the Order and dropping it here would take the money off twice.
 export function billableOrderTotal(
   services: { status: OrderServiceStatus; subtotal: string | null }[],
   products: { cancelled_at: Date | null; subtotal: string | null }[]
@@ -314,12 +276,9 @@ export function billableOrderTotal(
   return serviceTotal + productTotal;
 }
 
-// When the shelf clock should read from, given where the order just landed.
-// coalesce rather than a fresh now(): a rollup fired by a price edit or a
-// payment must not push the clock forward, or an order sitting uncollected for a
-// week would never surface as overdue. Null on any other status, so a qc_reject
-// sending the Item back to the workshop restarts the wait from the day the
-// customer is next told to come.
+// coalesce, not now(): a price edit or payment on an uncollected Order must not
+// restart its shelf clock, or a week-old Order would never show as overdue. Null
+// otherwise, so work sent back to the workshop starts a fresh wait once ready again.
 export function nextReadyAt(status: DerivedOrderStatus) {
   return status === "ready_for_pickup"
     ? sql`coalesce(${ordersTable.ready_at}, now())`
@@ -353,9 +312,8 @@ export async function recomputeOrderRollup(
       cancelled_at: nextStatus === "cancelled" ? new Date() : null,
       ready_at: nextReadyAt(nextStatus),
       total: nextTotal.toString(),
-      // A promo the customer already earned stays (ADR-0015), but it can
-      // never be worth more than what is left to pay, so on a mostly
-      // cancelled order it shrinks to fit.
+      // An earned promo stays (ADR-0015) but never exceeds what is left to
+      // pay, so on a mostly cancelled Order it shrinks to fit.
       discount: sql`least(${ordersTable.discount}, ${nextTotal})`,
       updated_by: updatedBy,
     })
@@ -372,10 +330,8 @@ export interface TransitionOrderServiceInput {
   to: OrderServiceStatus;
 }
 
-// The move itself, without the Order-level rollup: the line's own guarded flip
-// and its timeline entry. Split out so a desk voiding six lines at once leaves
-// the Order's status and amount due recomputed once at the end rather than
-// after every line.
+// Without the Order rollup, so cancelling six lines at once recomputes the Order
+// once at the end.
 async function applyServiceTransition(
   executor: DbExecutor,
   input: TransitionOrderServiceInput
@@ -562,10 +518,8 @@ export interface CancelOrderServiceLine {
   serviceId: number;
 }
 
-// The counter drops several treatments off one ticket in a single tap. Each
-// line is voided under its own guard, and the Order's status and amount due are
-// worked out once at the end — a per-line rollup would have the customer's bill
-// jump six times on the way to the number they are actually told.
+// The counter cancels several lines on one Order in a single tap; the Order is
+// worked out once at the end so the Customer's bill does not jump six times.
 export async function cancelOrderServices(
   executor: DbExecutor,
   {
@@ -606,18 +560,11 @@ export interface CompletePickupInput {
   pickupEventId: number;
 }
 
-// Objects leave the counter, treatments do not — so the unit here is the Item,
-// and which of its rows take part is worked out from the Item rather than
-// trusted from the caller. ADR-0017's "you cannot hand back half an object"
-// then holds for anyone who reaches this, not just the pickup desk, and the
-// read happens inside the caller's transaction: resolving siblings outside it
-// would let a rework queued a moment earlier slip past the check.
-//
-// Two kinds of row leave with the object. The finished ones flip to picked_up.
-// The ones refunded before the customer ever came back have no status left to
-// move — the shop still owes them the pair — so they only take the stamp
-// saying which handover took them out. A cancelled sibling takes neither: the
-// shop never did that work, and the schema refuses it a pickup event.
+// Which lines go is worked out from the Item here, inside the caller's
+// transaction, so "no handing back half an object" (ADR-0017) holds for every
+// caller and a Rework queued a moment earlier cannot slip past.
+// Finished lines flip to picked_up; lines refunded before the Customer came back
+// only get the pickup stamp.
 export async function completePickup(
   executor: DbExecutor,
   input: CompletePickupInput
@@ -715,10 +662,8 @@ export async function completePickup(
     return { handedOverIds, requestedIds };
   }
 
-  // Only the flips get a log line. A stamped row did not change status, and a
-  // refunded → refunded entry would render on the line's timeline as a
-  // transition that never happened; the pickup event itself is the record of
-  // when that pair went back and who handed it over.
+  // Only flipped lines get a log row: refunded → refunded would show on the
+  // timeline as a change that never happened. The pickup event records the handover.
   if (flipIds.length > 0) {
     await executor.insert(orderServiceStatusLogsTable).values(
       flipIds.map((serviceId) => ({

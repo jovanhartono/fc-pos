@@ -2,10 +2,8 @@ import type { FieldErrors } from "react-hook-form";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import type { CheckoutStep } from "@/features/transactions/lib/checkout-steps";
 
-// Where the cashier has to go to fix a blocked checkout. "store" is not a
-// checkout step — the picker lives in the catalog behind the sheet, which is
-// why its FieldError alone was never enough. null means we know what failed but
-// not which step owns it (an unrecognized server reason).
+// "store" is not a step: the Store picker sits behind the checkout sheet, so its
+// own error was never seen. null is a server reason with no known step.
 export type CheckoutIssueTarget = CheckoutStep | "store";
 
 export interface CheckoutIssue {
@@ -13,8 +11,8 @@ export interface CheckoutIssue {
 	message: string;
 }
 
-// Every draft field mapped to the place that owns it. Keyed by the full draft
-// type so a new field can't be added without deciding where its error surfaces.
+// Keyed by the whole draft, so a new field can't be added without deciding
+// where its error shows.
 const FIELD_TARGETS: Record<keyof TransactionDraftValues, CheckoutIssueTarget> =
 	{
 		selectedStoreId: "store",
@@ -30,8 +28,8 @@ const FIELD_TARGETS: Record<keyof TransactionDraftValues, CheckoutIssueTarget> =
 		manualDiscount: "payment",
 	};
 
-// Fix order, not declaration order: a missing store leaves the payment step with
-// no campaigns and no store name, so it is always reported first.
+// Fix order: a missing Store leaves the payment step with no Campaigns and no
+// Store name, so it is always reported first.
 const TARGET_ORDER: CheckoutIssueTarget[] = [
 	"store",
 	"customer",
@@ -39,9 +37,8 @@ const TARGET_ORDER: CheckoutIssueTarget[] = [
 	"payment",
 ];
 
-// RHF hangs array errors off both the array itself (superRefine issues) and its
-// entries — and since ADR-0017 those entries nest one level deeper again
-// (itemCart[2].services[0].price), so a message can sit at any depth.
+// Form errors hang off a list and its entries, and since ADR-0017 Services nest
+// inside Items, so a message can sit at any depth.
 const firstMessage = (error: unknown): string | undefined => {
 	if (!error || typeof error !== "object") {
 		return undefined;
@@ -62,8 +59,6 @@ const firstMessage = (error: unknown): string | undefined => {
 	return undefined;
 };
 
-// The blocked-submit report: which fields failed, worded as the cashier's next
-// move, ordered by where they go to make it.
 export const collectCheckoutIssues = (
 	errors: FieldErrors<TransactionDraftValues>,
 ): CheckoutIssue[] => {
@@ -93,9 +88,8 @@ export const collectCheckoutIssues = (
 export const summarizeCheckoutIssues = (issues: CheckoutIssue[]): string =>
 	issues.map((issue) => issue.message).join(" ");
 
-// The server's reasons already read well and name the offending product or code;
-// what they lack is the next move and the step that owns it. Keep the reason
-// verbatim and append the action.
+// The server's reasons already name the Product or code at fault; they only
+// lack the next move, so it is appended to the reason as sent.
 const SERVER_FAILURE_RULES: {
 	pattern: RegExp;
 	target: CheckoutIssueTarget;
@@ -133,8 +127,8 @@ const SERVER_FAILURE_RULES: {
 		action: "Pick another courier, or Walk-in.",
 	},
 	{
-		// A keyed 0 on a repair line: zero means deliberately free (a Rework),
-		// never "not priced yet" — that is a blank (ADR-0018).
+		// A typed 0 on a Repair: zero means free on purpose (a Rework), never
+		// "not priced yet", which is a blank (ADR-0018).
 		pattern: /price must be greater than zero/i,
 		target: "items",
 		action:
@@ -152,13 +146,10 @@ export const describeServerFailure = (message: string): CheckoutIssue => {
 		entry.pattern.test(message),
 	);
 	if (!rule) {
-		// Pass an unrecognized reason through untouched rather than flatten it into
-		// something generic — the server's own wording is still the best
-		// information we have, and guessing a step would misdirect the fix.
+		// An unknown reason goes through as worded; guessing a step would send
+		// the cashier to the wrong place.
 		return { target: null, message };
 	}
-	// Server reasons arrive unpunctuated, so they need closing before the action is
-	// appended, or the two run together into one sentence.
 	const reason = /[!.?]$/.test(message) ? message : `${message}.`;
 	return { target: rule.target, message: `${reason} ${rule.action}` };
 };

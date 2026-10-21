@@ -35,10 +35,8 @@ export function lineRefundCap({
   return Math.max(0, refundableGross - alreadyRefunded);
 }
 
-// Allocate each line's remaining cap as whole rupiah. Fractional caps are
-// floored, then the rounded grand total's leftover units are handed out by
-// largest remainder (ties: kind, then lower id — deterministic) so the
-// amounts always sum to the rounded total.
+// Whole rupiah per line: floor each cap, then hand the leftover to the largest
+// remainders (ties: kind, then lower id) so the lines sum to the rounded total.
 export function allocateRefund<T extends RefundLineRef>({
   capsByLineKey,
   lines,

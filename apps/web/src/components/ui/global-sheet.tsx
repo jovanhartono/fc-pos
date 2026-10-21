@@ -74,11 +74,9 @@ export function GlobalSheet() {
 				>
 					{title || description ? (
 						<SheetHeader className="shrink-0 border-b">
-							{/* O12: one row for both, so an Order opened over another sheet
-							    keeps the same header height as one opened from the list.
-							    A titled sheet over another (Collect payment over an Order)
-							    puts its title on that row too, so its body starts where
-							    the Order's did; mb-0.5 stands in for the Order's hidden title. */}
+							{/* O12: one row for both, so a sheet opened over another (an Order,
+							    Collect payment) keeps the header height and its body starts where
+							    the one below did; mb-0.5 stands in for the Order's hidden title. */}
 							{back || actions ? (
 								<div
 									className={cn(

@@ -48,7 +48,7 @@ interface ReworkOrigin {
 	orderService: { pickupEvent: { picked_up_at: string } | null };
 }
 
-// A pair turned down at the counter leaves with its Rework in one pickup, so
+// An Item turned down at the counter leaves with its Rework in one pickup, so
 // only a pickup before this round went on the rack was a first trip home.
 export const getFirstPickupAt = (
 	reworkOf: ReworkOrigin,

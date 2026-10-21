@@ -9,9 +9,8 @@ interface ComplaintItemFields {
 	item_color: string | null;
 }
 
-// One Order can carry Complaints on several Items; the tag and descriptors are
-// what tell the rows apart. The Order code is already on the line above, so
-// the tag shows only its own part, as on the Queue card.
+// One Order can carry Complaints on several Items, so the tag and descriptors
+// tell rows apart; the Order code is already on the line above, as on the Queue card.
 export const formatComplaintItem = ({
 	order_code,
 	item_code,

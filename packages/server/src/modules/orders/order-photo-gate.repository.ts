@@ -7,7 +7,7 @@ interface PhotoGateLine {
 }
 
 // ADR-0019: any live photo on the Item starts work on it, but a Rework needs
-// one taken after its round went on the rack. An undated round uses its Complaint.
+// one taken after its round was queued. An undated round uses its Complaint.
 export function hasStartPhoto(
   photos: ReadonlyArray<{ created_at: Date }>,
   line: PhotoGateLine
@@ -19,8 +19,8 @@ export function hasStartPhoto(
   return photos.some((photo) => photo.created_at > since);
 }
 
-// Takes its executor and touches no module-level `db`, so the status machine
-// can import it without opening a database connection.
+// No module-level `db`, so the status machine can import it without opening a
+// database connection.
 export async function assertStartPhoto(
   executor: DbExecutor,
   line: { id: number; item_id: number; complaint_id: number | null }

@@ -61,8 +61,8 @@ export async function getCampaigns(query?: GetCampaignsQuery) {
   const campaigns = await listCampaigns({
     is_active: query?.is_active,
     store_id: query?.store_id,
-    // POS queries with is_active:true — exclude vouchers from that list so
-    // code-mode campaigns never surface as selectable tiles.
+    // The POS asks for active Campaigns; a Voucher must never show there as a
+    // tile anyone could tap without its code.
     redemption_mode: query?.is_active === true ? "listed" : undefined,
   });
 
@@ -77,11 +77,8 @@ export async function getCampaignById(id: number) {
   return markExpired(campaign, new Date());
 }
 
-// Resolve a bearer voucher code to its owning campaign, shaped EXACTLY like a
-// listCampaigns row (nested stores + eligibleServices, is_expired via
-// markExpired). The code comes back beside the campaign rather than on it, so no
-// response shape can carry it and no caller has to remember to strip it;
-// createOrder pairs the two to claim the code inside the order transaction.
+// The Voucher code comes back beside the Campaign, not on it, so no response
+// can leak a spendable code to someone who never typed it.
 export async function resolveVoucherCode(
   executor: DbExecutor,
   code: string,
@@ -133,7 +130,6 @@ export async function resolveVoucherCode(
 }
 
 function buildCreatePayload(payload: CampaignPayload) {
-  // usage_limit only applies to listed campaigns (mode-exclusivity CHECK).
   const usage_limit =
     payload.redemption_mode === "code" ? null : (payload.usage_limit ?? null);
 
@@ -184,8 +180,7 @@ interface UpdateWritePayload {
   min_order_total?: string;
   name?: string;
   starts_at?: Date | null;
-  // redemption_mode and code_count are immutable after create — never in this
-  // list, so they can never be written on update.
+  // No redemption_mode or code_count: a Voucher's codes are fixed at creation.
   usage_limit?: number | null;
 }
 
@@ -253,7 +248,6 @@ export async function createCampaign({
     actorId: user.id,
     storeIds,
     serviceIds,
-    // Only code-mode campaigns mint a bearer-code batch.
     codeCount:
       payload.redemption_mode === "code"
         ? (payload.code_count ?? undefined)
@@ -332,15 +326,13 @@ export async function getUsableCampaigns(
     campaignIds
   );
 
-  // Missing-id check FIRST so "not found" wins over "wrong mode".
   const foundIds = new Set(campaigns.map((item) => item.id));
   const missing = campaignIds.filter((id) => !foundIds.has(id));
   if (missing.length > 0) {
     throw new NotFoundException(`Campaign not found: ${missing.join(", ")}`);
   }
 
-  // Reject code-mode campaigns sent via campaign_ids — they must go through
-  // voucher_codes so a bearer code is claimed atomically.
+  // A Voucher picked by id would skip claiming its single-use code.
   const codeModes = campaigns.filter(
     (campaign) => campaign.redemption_mode === "code"
   );

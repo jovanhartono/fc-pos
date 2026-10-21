@@ -7,10 +7,7 @@ import {
   type SettlementLine,
 } from "@/modules/orders/order-settlement.service";
 
-// The three gates every desk runs before a discount can settle on an Order
-// (ADR-0018). They read nothing but the lines in front of them, so this suite
-// needs no database; what they do once they pass is pinned by the integration
-// suite beside them.
+// The checks every screen runs before a discount settles on an Order (ADR-0018).
 
 const line = (over: Partial<SettlementLine> = {}): SettlementLine => ({
   complaint_id: null,
@@ -21,8 +18,7 @@ const line = (over: Partial<SettlementLine> = {}): SettlementLine => ({
   ...over,
 });
 
-// The bag the workshop has not opened yet: no catalog price to fall back on and
-// no agreed number.
+// A Repair not yet inspected: no list price and no agreed price.
 const BLANK_REPAIR = line({ price: null, service: { price: null } });
 
 const NO_PROMO = { campaign_ids: [], discount: 0, voucher_codes: [] };
@@ -51,8 +47,8 @@ describe("assertLinePrice", () => {
 
 describe("assertPayable", () => {
   it("refuses the whole Order while one line is still blank", () => {
-    // Deep clean 150k plus a bag repair nobody has priced. The shop takes no
-    // money at all until the number is agreed — payment is binary (ADR-0001).
+    // Deep clean plus an unpriced Repair: no money at all until the price is
+    // agreed, since there is no part payment (ADR-0001).
     expectRefusal(
       () => assertPayable([line(), BLANK_REPAIR]),
       "Order has an unpriced line — set its price before collecting payment"
@@ -60,8 +56,8 @@ describe("assertPayable", () => {
   });
 
   it("ignores a blank line the counter already cancelled", () => {
-    // The customer heard the quote and walked; that line took the unpaid
-    // off-ramp (ADR-0008) and no longer holds the deep clean's money hostage.
+    // The Customer heard the quote and declined; the cancelled Repair no
+    // longer holds up payment for the deep clean (ADR-0008).
     expect(() =>
       assertPayable([line(), { ...BLANK_REPAIR, status: "cancelled" }])
     ).not.toThrow();
@@ -76,9 +72,8 @@ describe("assertPayable", () => {
 
 describe("assertDiscountRequestAllowed", () => {
   it("bounces a voucher while any line is still blank", () => {
-    // The failure ADR-0018 exists to make impossible: a repair guessed at 200k
-    // clears a 250k minimum, the bearer code is spent, and inspection then puts
-    // the repair at 80k.
+    // ADR-0018: a Repair guessed at 200k clears a 250k minimum, the Voucher
+    // code is spent, then inspection prices it at 80k.
     expectRefusal(
       () =>
         assertDiscountRequestAllowed({
@@ -103,9 +98,8 @@ describe("assertDiscountRequestAllowed", () => {
   });
 
   it("refuses a second promo once one is printed on the Receipt", () => {
-    // The cashier keys the campaign again at pickup because the customer
-    // produces a receipt they assume carries no discount. Stacking it would
-    // double the money off and burn another code.
+    // A cashier re-applies the Campaign at pickup; stacking it would double
+    // the discount and spend another code.
     expectRefusal(
       () =>
         assertDiscountRequestAllowed({

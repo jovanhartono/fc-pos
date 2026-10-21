@@ -1,9 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { POSTOrderSchema } from "@/schema";
 
-// Minimal valid order: one object with one treatment on it, a valid E.164
-// phone, unpaid (so no payment method is required). Only voucher_codes varies
-// per test.
+// Minimal valid Order: one Item with one Service, unpaid so no PaymentMethod
+// is needed. Only voucher_codes varies per test.
 const baseOrder = {
   customer: { name: "Budi", phone_number: "+6281234567890" },
   store_id: 1,
@@ -46,7 +45,7 @@ describe("POSTOrderSchema — voucher_codes", () => {
   });
 });
 
-// ADR-0017: the counter drops off objects and sells treatments against them.
+// ADR-0017: the counter takes in Items and sells Services on them.
 describe("POSTOrderSchema — items", () => {
   it("takes one pair sold three treatments as a single object", () => {
     const result = POSTOrderSchema.safeParse({

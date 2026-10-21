@@ -21,9 +21,8 @@ import { jakartaNow } from "@/utils/date";
 // Bayu and Citra clean at Kemang; Bayu also covers Bintaro; the admin starts
 // the odd pair herself.
 
-// Loaded after the swap above, never beside the imports: Bun binds a static
-// import graph before any module body runs, so a service pulled in up there
-// would hold the shop's real database.
+// Loaded after the swap above: a static import would bind the shop's real
+// database before the mock runs.
 const { createOrder } = await import("@/modules/orders/order.service");
 const {
   getWorkerDetailReport,

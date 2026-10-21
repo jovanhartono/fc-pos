@@ -2,24 +2,18 @@ import { z } from "zod";
 import { dateStringSchema } from "@/schema/common";
 import type { JWTPayload } from "@/types";
 
-// Outside this, the clock-in is refused. Wide on purpose: a worker who lives
-// near their branch is not the problem, and the number has to be one nobody can
-// argue with when a manager quotes it back to them. See ADR-0020.
+// Wide on purpose: a worker who lives near their Store is not the problem, and a
+// manager quoting it back must be beyond argument (ADR-0020).
 export const CLOCK_IN_RADIUS_KM = 3;
 
-// A Courier collects and delivers between Stores all day, so their phone is
-// never near the branch they clock against. Asking would flag them every
-// morning and teach everyone to ignore the flag. Both the server and the
-// clock-in screen read this, so it is stated once.
+// A Courier is on the road all day, never near the Store they clock in at.
+// The clock-in screen reads this too.
 export const clockInRequiresLocation = (role: JWTPayload["role"]) =>
   role !== "courier";
 
 export const POSTClockInSchema = z.object({
-  // One optional group, so a body that shares half a location cannot get through.
-  // Numbers only, no coercion: `null` and `""` coerce to 0, which would place a
-  // worker at the Gulf of Guinea while looking like no location was shared.
-  // `accuracy_m` is how wide the phone says its own guess is, and a worker is
-  // given the benefit of it.
+  // One group, so half a location cannot get through. No coercion: `null` and
+  // `""` coerce to 0, which would place a worker in the Gulf of Guinea.
   coordinates: z
     .object({
       accuracy_m: z.number().min(0, "Invalid accuracy"),

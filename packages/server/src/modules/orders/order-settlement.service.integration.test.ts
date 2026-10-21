@@ -6,15 +6,11 @@ import { captureRejection } from "@/test-support/capture-rejection";
 import { type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
-// A Repair's number from blank to settled, against a real Postgres. The gates
-// are pinned by the unit suite beside this one; what needs real rows is
-// everything downstream of them — the rollup that decides what is still owed,
-// the bearer code leaving and re-entering circulation, and the shelf.
+// A Repair from unpriced to settled on real rows: what is still owed, and a
+// Voucher code being spent and handed back.
 
-// Loaded after the swap above, never beside the imports: Bun binds a static
-// import graph before any module body runs, so a service pulled in up there
-// would hold the shop's real database — and its module-level prepared
-// statements would already be pointing at it.
+// Imported after the swap above: a static import would bind the shop's real
+// database, prepared statements included, before the swap runs.
 const { createOrder } = await import("@/modules/orders/order.service");
 const { updateOrderPayment } = await import(
   "@/modules/orders/order-payment.service"
@@ -94,7 +90,6 @@ const readCampaign = (campaignId: number) =>
 const readVoucherCode = () =>
   testDb.query.campaignCodesTable.findFirst({ where: { code: VOUCHER_CODE } });
 
-// A listed promo the cashier ticks off the POS tile grid.
 const addListedCampaign = async () => {
   const [campaign] = await testDb
     .insert(campaignsTable)
@@ -113,8 +108,6 @@ const addListedCampaign = async () => {
   return campaign;
 };
 
-// A Voucher: one bearer code the customer carries in, worth 100.000 on an
-// Order of at least 250.000.
 const addVoucher = async () => {
   const [campaign] = await testDb
     .insert(campaignsTable)
@@ -144,9 +137,8 @@ beforeEach(async () => {
 
 describe("a Repair that still needs inspecting", () => {
   it("takes no money for the Order at all until its number is agreed", async () => {
-    // Deep clean 100.000 plus a bag nobody has opened. The customer comes back
-    // to collect and the cashier taps collect — the shop will not take the
-    // 100.000 it already knows while the bag's number is still unknown.
+    // Deep clean plus an uninspected Repair: the shop won't take the known
+    // 100.000 while the Repair's price is still unknown.
     const order = await checkout({
       services: [shop.serviceId],
       withRepair: true,
@@ -162,9 +154,8 @@ describe("a Repair that still needs inspecting", () => {
   });
 
   it("turns the customer's voucher away rather than settle it on a guess", async () => {
-    // The slip is in the bag with the items. Claiming it now would spend a
-    // bearer code against a total nobody can compute yet, and inspection could
-    // then put the Order under the voucher's minimum.
+    // Spending the code now bets on a total nobody knows; inspection could then
+    // put the Order under the Voucher's minimum.
     await addVoucher();
 
     const error = await captureRejection(
@@ -183,9 +174,8 @@ describe("a Repair that still needs inspecting", () => {
   });
 
   it("settles the promo at the desk once the workshop has keyed the number", async () => {
-    // The bag came back at 250.000, agreed over WhatsApp. Now every line has a
-    // number, so the campaign base is the whole 350.000 and the promo can
-    // finally settle — at payment, because it could not settle at drop-off.
+    // The Repair is agreed at 250.000 over WhatsApp, so the Campaign settles on
+    // the whole 350.000 at payment, since it could not at drop-off.
     const campaign = await addListedCampaign();
     const order = await checkout({
       services: [shop.serviceId],
@@ -213,10 +203,8 @@ describe("a Repair that still needs inspecting", () => {
 
 describe("a price corrected downward", () => {
   it("voids the printed promo and puts the voucher code back in circulation", async () => {
-    // The cashier keyed 210.000 for the repair at drop-off, the voucher settled
-    // against a 310.000 Order, and the customer walked out with a Receipt
-    // showing 100.000 off. Teardown then says 10.000 — a 110.000 Order holding
-    // a "min 250.000" discount would leave the shop collecting 10.000.
+    // The Repair was keyed at 210.000 and the Voucher settled on 310.000;
+    // inspection says 10.000, and a 110.000 Order can't keep a min-250.000 discount.
     await addVoucher();
     const order = await checkout({
       repairPrice: 210_000,
@@ -251,17 +239,15 @@ describe("a price corrected downward", () => {
 
 describe("cancelling every line", () => {
   it("hands the campaign slot back exactly once, however many lines were voided", async () => {
-    // Two pairs on one ticket, both dropped. The promo slot goes back to the
-    // pool once — a release per voided line would credit the shop's remaining
-    // stock of that promo twice and let a later customer over the cap.
+    // Two Items on one Order, both cancelled: one release per Line would hand
+    // back the Usage limit twice and let a later Customer over the cap.
     const campaign = await addListedCampaign();
     const order = await checkout({
       campaignIds: [campaign.id],
       services: [shop.serviceId, shop.serviceId],
     });
 
-    // A second customer down the road holds a slot on the same promo, so a
-    // double release shows up as their slot disappearing too.
+    // A second Customer holds a slot too, so a double release shows up here.
     await checkout({
       campaignIds: [campaign.id],
       services: [shop.serviceId],
@@ -287,9 +273,7 @@ describe("cancelling every line", () => {
 
 describe("a retail-only sale", () => {
   it("takes both lines of the same shoe tree off the shelf", async () => {
-    // The cashier adds two shoe trees, then three more as a separate tap. Five
-    // leave the shelf — taking one line's word for it would sell stock the shop
-    // does not have.
+    // Two shoe trees, then three more as a separate tap: five leave the shelf.
     const order = await checkout({
       products: [
         { id: shop.productId, qty: 2 },
@@ -308,8 +292,8 @@ describe("a retail-only sale", () => {
   });
 
   it("refuses the sale when the two lines together outrun the shelf", async () => {
-    // Ten in stock, six plus six on the tab. Checking each line on its own
-    // would let both pass and leave the shelf at minus two.
+    // Ten in stock, six plus six in the Cart: checked line by line, both pass
+    // and the shelf goes to minus two.
     const error = await captureRejection(
       checkout({
         products: [

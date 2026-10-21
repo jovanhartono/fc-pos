@@ -3,7 +3,7 @@ interface ReworkRoundLabelProps {
 	serviceName: string;
 }
 
-// Drawn under the line it redoes, so the eye takes the treatment from the row
+// Drawn under the line it redoes, so the eye takes the Service from the row
 // above; a screen reader, which cannot, hears it spelled out.
 export const ReworkRoundLabel = ({
 	round,

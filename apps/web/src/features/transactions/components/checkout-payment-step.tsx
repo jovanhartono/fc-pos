@@ -32,11 +32,8 @@ import { useTransactionsPageContext } from "@/features/transactions/lib/transact
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
-// Step ③ — money. A discount settles once every line is priced (ADR-0018),
-// not once the money arrives, so campaigns/voucher/manual discount are offered
-// whenever the cart is fully priced — including for a customer paying at
-// pickup, whose Receipt then prints the discount they were promised. A cart
-// still carrying an unpriced line defers them to the order page.
+// A discount settles once every line is priced, not once money arrives
+// (ADR-0018), so a Customer paying at pickup still gets it on the Receipt.
 export const CheckoutPaymentStep = () => {
 	const { visibleStores } = useTransactionsPageContext();
 	const { subtotal, pricing } = useCheckoutPricing();
@@ -73,18 +70,12 @@ export const CheckoutPaymentStep = () => {
 		enabled: selectedStoreNumber !== undefined,
 	});
 
-	// ADR-0018: no price, no payment. A blank repair line makes the Order
-	// unpayable at drop-off, so every tender except "Pay later" locks instead
-	// of bouncing at submit. The same blank line is what defers the promo
-	// (ADR-0018 amended): once every line is priced the discount may settle
-	// here, whether the customer pays now or sends a driver and pays at pickup.
+	// ADR-0018: no price, no payment. A blank Repair locks every method except
+	// "Pay later", and moves discounts to the Order page.
 	const unpricedCount = countUnpricedServiceLines(serviceRows);
 	const isFullyPriced = unpricedCount === 0;
 	const paymentBlocked = !isFullyPriced;
 
-	// Only campaigns whose rules pass for the current store + the cart total —
-	// at drop-off payment every line is priced (blank lines lock the tender),
-	// so the total is the campaign base (ADR-0018).
 	const eligibleCampaigns = useMemo(
 		() =>
 			filterEligibleCampaigns(campaignsQuery.data, {
@@ -94,8 +85,8 @@ export const CheckoutPaymentStep = () => {
 		[campaignsQuery.data, selectedStoreNumber, subtotal],
 	);
 
-	// Drop any selected campaign that stopped being eligible (e.g. the cart total
-	// fell below its minimum) so a stale id can't ride along to submit.
+	// A cashier who removes a line can drop the total below a picked Campaign's
+	// minimum; it is unpicked rather than sent.
 	useEffect(() => {
 		if (selectedStoreNumber === undefined || campaignsQuery.isPending) {
 			return;
@@ -110,10 +101,7 @@ export const CheckoutPaymentStep = () => {
 		}
 	}, [eligibleCampaigns, selectedStoreNumber, campaignsQuery.isPending, form]);
 
-	// Drop any applied voucher that stopped being eligible (e.g. the cart total
-	// fell below its minimum). Mirrors the listed-campaign prune above: a
-	// silently zeroed code would otherwise ride to submit and hard-fail the
-	// whole order.
+	// Same for a Voucher code, or it would fail the whole Order at checkout.
 	useEffect(() => {
 		if (selectedStoreNumber === undefined) {
 			return;
@@ -132,8 +120,8 @@ export const CheckoutPaymentStep = () => {
 		}
 	}, [appliedVouchers, subtotal, selectedStoreNumber, form]);
 
-	// A blank line added after a tender was picked must clear it — the draft
-	// would otherwise submit as paid and hard-fail at the server gate.
+	// A blank line added after a method was picked clears it, or the Order
+	// would go in as paid and fail at the server.
 	useEffect(() => {
 		if (!paymentBlocked) {
 			return;
@@ -143,11 +131,8 @@ export const CheckoutPaymentStep = () => {
 		}
 	}, [paymentBlocked, form]);
 
-	// A blank line carries no discount (ADR-0018 amended): adding an unpriced
-	// repair to a cart that already has promos on it clears them the moment the
-	// line lands — visibly, with the deferral sentence in the section's place,
-	// never silently at submit time. Switching to "Pay later" no longer clears
-	// anything: a promo on a fully priced Order survives to the Receipt.
+	// ADR-0018 amended: adding a blank Repair clears discounts on screen at
+	// once, never silently at checkout. "Pay later" alone clears nothing.
 	useEffect(() => {
 		if (isFullyPriced) {
 			return;
@@ -171,10 +156,8 @@ export const CheckoutPaymentStep = () => {
 				render={({ field, fieldState }) => (
 					<FieldSet className="gap-2" data-invalid={fieldState.invalid}>
 						<FieldLegend variant="label">Payment</FieldLegend>
-						{/* Method = "how the money arrived". Picking one marks the order
-						    paid; "Pay later" (empty) leaves it unpaid. No separate
-						    paid/unpaid toggle — the selection carries both. A native
-						    fieldset/legend names the group for SR users. */}
+						{/* No paid/unpaid toggle: picking a method marks the Order paid,
+						    "Pay later" leaves it unpaid. */}
 						<div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
 							<PaymentMethodTile
 								hint="Unpaid"
@@ -321,8 +304,6 @@ export const CheckoutPaymentStep = () => {
 	);
 };
 
-// Shared radio group name so the tiles are mutually exclusive at the DOM level
-// and get native arrow-key navigation.
 const PAYMENT_METHOD_RADIO_NAME = "checkout-payment-method";
 
 interface PaymentMethodTileProps {
@@ -334,10 +315,6 @@ interface PaymentMethodTileProps {
 	onSelect: () => void;
 }
 
-// A real (visually hidden) radio input wrapped by the styled tile label: native
-// radiogroup semantics and keyboard behavior, with the full tile as the touch
-// target. Selection styling is driven by isSelected; focus ring shows via the
-// label's :has(:focus-visible).
 const PaymentMethodTile = ({
 	label,
 	hint,

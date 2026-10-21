@@ -48,8 +48,7 @@ const JAKARTA_OFFSET_MS = 7 * HOUR_MS;
 // Of the first checks, the share that ends in a QC reject.
 const QC_REJECT_RATE = 0.065;
 
-// Crockford base32 (no 0/O/1/I/L) — mirrors the minting alphabet in
-// campaign.repository.ts. Seeded voucher codes are bearer single-use secrets.
+// Same alphabet campaign.repository.ts mints Voucher codes with (no 0/O/1/I/L).
 const CROCKFORD_CHARSET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
 const VOUCHER_CODE_LENGTH = 8;
 
@@ -104,9 +103,8 @@ const AFTER_CLEAN_CATEGORY_KEYS = new Set([
   "addons",
 ]);
 
-// Prices in IDR (rupiah). COGS approximated per service type.
+// COGS are rough guesses per kind of Service.
 const SERVICE_PRESETS = [
-  // Deep Clean
   {
     code: "DCS",
     name: "Deep Clean Standard (Shoes / Hat)",
@@ -117,8 +115,8 @@ const SERVICE_PRESETS = [
   {
     code: "DCE",
     name: "Deep Clean Express (6h to 24h)",
-    // The two express services are the shop's priority lane: a treatment sold
-    // from them jumps the queue, so the seed needs some on the rack to show it.
+    // The two express Services jump the Queue, so the seed needs some on the
+    // rack to show it.
     is_priority: true,
     categoryKey: "deep_clean",
     price: 90_000,
@@ -160,7 +158,6 @@ const SERVICE_PRESETS = [
     cogs: 27_000,
   },
 
-  // Leather Care
   {
     code: "LCS",
     name: "Leather Care Standard",
@@ -183,7 +180,6 @@ const SERVICE_PRESETS = [
     cogs: 30_000,
   },
 
-  // Suede Care
   {
     code: "SCC",
     name: "Suede Care Complete (Suede / Nubuck)",
@@ -192,7 +188,6 @@ const SERVICE_PRESETS = [
     cogs: 30_000,
   },
 
-  // Helmet
   {
     code: "HLM",
     name: "Helmet Half / Full Face",
@@ -201,7 +196,6 @@ const SERVICE_PRESETS = [
     cogs: 16_000,
   },
 
-  // Sole Protector
   {
     code: "SPI",
     name: "Sole Protector Items Only",
@@ -217,7 +211,6 @@ const SERVICE_PRESETS = [
     cogs: 90_000,
   },
 
-  // Repaint
   {
     code: "RPB",
     name: "Repaint Full Body",
@@ -261,7 +254,6 @@ const SERVICE_PRESETS = [
     cogs: 50_000,
   },
 
-  // Repair (6 Mo. Warranty)
   {
     code: "RGM",
     name: "Repair Minor Reglue",
@@ -361,7 +353,6 @@ const SERVICE_PRESETS = [
     cogs: 80_000,
   },
 
-  // Add-Ons
   {
     code: "AWT",
     name: "Add-On Whitening (Canvas)",
@@ -405,7 +396,6 @@ const SERVICE_PRESETS = [
     cogs: 12_000,
   },
 
-  // Express
   {
     code: "EXP",
     name: "Express Skip the Line",
@@ -510,7 +500,7 @@ interface DraftServiceLine {
   cogs: number;
   handler_id: number | null;
   handler_logs: DraftHandlerLog[];
-  // Same rule as createOrder: a treatment inherits its Service's lane.
+  // Same rule as createOrder: a line inherits its Service's Priority.
   is_priority: boolean;
   notes: string | null;
   price: number;
@@ -519,10 +509,8 @@ interface DraftServiceLine {
   status_logs: DraftStatusLog[];
 }
 
-// One physical object over the counter (ADR-0017). The tag, the descriptors
-// the cashier reads off it, and the drop-off photo of its condition belong
-// here (ADR-0019); each treatment sold against it keeps its own status,
-// handler and price.
+// ADR-0017, ADR-0019: the tag, descriptors and Item photos belong to the Item;
+// each line on it keeps its own status, Handler and price.
 interface DraftItem {
   brand: string;
   color: string;
@@ -537,11 +525,8 @@ interface DraftItem {
   treatments: DraftServiceLine[];
 }
 
-// How often the next treatment is an upsell on the object already on the
-// counter rather than a new object. The shop's most common flow is a pair
-// arriving for a deep clean and leaving as deep clean + repaint + leather
-// care, so this is deliberately high enough that the grouped queue and the
-// pickup gate both get realistic data to work against.
+// High on purpose: a shoe that comes in for a deep clean often leaves with a
+// repaint and leather care too, which the grouped Queue and pickup need to see.
 const UPSELL_ON_SAME_ITEM_CHANCE = 0.45;
 
 interface DraftProductLine {
@@ -724,8 +709,7 @@ function chooseDiscount(
   discount_source: DiscountSource;
 } {
   const eligible = campaigns.filter((campaign) => {
-    // Vouchers (code-mode) are bearer, per-code single-use — never auto-applied
-    // to a seeded order. Only listed campaigns show up in the POS discount pool.
+    // Vouchers are redeemed by code, so only listed Campaigns go on seeded Orders.
     if (campaign.redemption_mode === "code") {
       return false;
     }
@@ -868,8 +852,7 @@ async function seedUsers(stores: StoreRow[]) {
         password: passwordHash,
       },
       {
-        // Designated backup cashier — may process pickups while the cashier
-        // is on holiday, even though their day-job is on the production line.
+        // Backup cashier: hands Items over while the cashier is on holiday.
         username: `worker.${lowerCode}.1`,
         name: faker.person.fullName(),
         role: "worker",
@@ -888,9 +871,7 @@ async function seedUsers(stores: StoreRow[]) {
     );
   }
 
-  // Two roaming couriers — collect items at intake, deliver finished items
-  // back. They log in only to clock a Shift; excluded from the worker
-  // productivity report by allowlist (see ADR-0010).
+  // Couriers sign in only to clock in, and stay off the workers report (ADR-0010).
   userRows.push(
     {
       username: "courier.1",
@@ -936,7 +917,7 @@ async function seedUsers(stores: StoreRow[]) {
     }
   }
 
-  // Couriers roam — assign to every store so they can clock a Shift anywhere.
+  // Couriers roam, so they can clock in at any Store.
   for (const username of ["courier.1", "courier.2"]) {
     const courier = userByUsername.get(username);
     if (!courier) {
@@ -1109,9 +1090,8 @@ async function seedCatalog(adminId: number) {
       scope_codes: ["BKS"],
     },
     {
-      // Voucher campaign — bearer, per-code single-use. usage_limit MUST stay
-      // null (campaign_mode_exclusivity_check: code-mode forbids a global cap).
-      // Codes are minted after insert (VOUCHER_CODE_COUNT rows).
+      // usage_limit must stay null: a Voucher has no Usage limit
+      // (campaign_mode_exclusivity_check).
       code: "VIP_LAUNCH",
       name: "VIP Launch Voucher",
       discount_type: "percentage" as const,
@@ -1159,8 +1139,6 @@ async function seedCatalog(adminId: number) {
       redemption_mode: campaignsTable.redemption_mode,
     });
 
-  // Mint bearer codes for every voucher (code-mode) campaign. Codes are unique
-  // per the campaign_codes_code_uidx; the Set guards intra-seed collisions.
   const voucherCampaigns = campaigns.filter(
     (campaign) => campaign.redemption_mode === "code"
   );
@@ -1240,8 +1218,6 @@ function seedCustomers(
   });
 }
 
-// ───────────────────────── Time ─────────────────────────
-
 // Jakarta calendar days as whole numbers (day 0 is Thursday 1970-01-01), so a
 // "day" never depends on the timezone of the machine running the seed.
 function jakartaDayNumber(at: number): number {
@@ -1267,8 +1243,6 @@ function chunked<T>(rows: T[], size: number): T[][] {
   }
   return chunks;
 }
-
-// ───────────────────────── Shifts ─────────────────────────
 
 type ShiftInsert = typeof shiftsTable.$inferInsert;
 type OrderServiceInsert = typeof ordersServicesTable.$inferInsert;
@@ -1435,8 +1409,6 @@ function pickOnShift(
   }
   return spans.at(-1)?.lo ?? null;
 }
-
-// ───────────────────────── Work on the Services ─────────────────────────
 
 // How long a Service sits between starting and first reaching quality check.
 // Express is the same-day lane; Repair and Repaint take days.
@@ -1625,7 +1597,7 @@ function planRedo(
     return;
   }
   // Nobody could take it for over a day: say it passed rather than leave an
-  // old pair stuck at qc_reject.
+  // old Item stuck at qc_reject.
   if (rejectedAt + 30 * HOUR_MS < ctx.now) {
     const last = work.events.at(-1);
     if (last) {
@@ -1812,8 +1784,6 @@ function planInHandLines(crew: Crew, ctx: PlanContext): AnchoredLine[] {
   return lines;
 }
 
-// ───────────────────────── Orders ─────────────────────────
-
 interface PlannedOrder {
   cashierId: number;
   createdAt: number;
@@ -1975,8 +1945,8 @@ function groupIntoItems(
   const items: DraftItem[] = [];
   for (const line of lines) {
     const last = items.at(-1);
-    // A cashier upsells the object already on the counter. A cancelled line is
-    // never one of the treatments on an object that stayed.
+    // A cashier upsells the Item already on the counter. A cancelled line never
+    // shares an Item with lines that stayed.
     if (
       last &&
       line.status !== "cancelled" &&
@@ -1997,8 +1967,7 @@ function groupIntoItems(
         "Traveler",
         "Urban",
       ]),
-      // The cashier's one drop-off shot of the object, which unlocks every
-      // treatment on it (ADR-0019).
+      // The Item photo that lets work start on every line of it (ADR-0019).
       photos: [
         {
           created_at: new Date(createdAt + randInt(1, 12) * MINUTE_MS),
@@ -2041,9 +2010,8 @@ function toCounterHours(at: number, now: number): number {
   return Math.min(inHours, now - randInt(1, 5) * MINUTE_MS);
 }
 
-// After the checks, the cashier hands finished objects over (whole object at
-// once, ADR-0017) or, rarely, refunds a lone treatment. Both are logged against
-// the cashier, never the worker.
+// After the checks, the cashier hands finished Items over whole (ADR-0017) or,
+// rarely, refunds one line. Both are logged against the cashier, not the worker.
 function settleItems(items: DraftItem[], cashierId: number, now: number) {
   const pickedUp: DraftServiceLine[] = [];
   const refunded: Array<{ at: number; line: DraftServiceLine }> = [];
@@ -2505,7 +2473,7 @@ async function insertDrafts(drafts: DraftOrder[], now: number) {
       const itemId = requireId(itemIds, item.item_code);
       return item.photos.map((photo, photoIndex) => ({
         created_at: photo.created_at,
-        // Mirrors the live key layout, keyed by the object's row id (ADR-0019).
+        // Mirrors the live key layout, keyed by the Item's row id (ADR-0019).
         image_path: `seed/orders/${sanitizeForS3(draft.code)}/items/${itemId}/item-${photoIndex + 1}.jpg`,
         item_id: itemId,
         note: photo.note,
@@ -2560,7 +2528,7 @@ async function insertDrafts(drafts: DraftOrder[], now: number) {
     );
   }
 
-  // A handful of Customers came back about a pair they collected at least two
+  // A handful of Customers came back about an Item they collected at least two
   // days ago.
   const complaintCandidates = drafts.flatMap((draft) => {
     const { pickup } = draft;

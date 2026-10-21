@@ -4,9 +4,8 @@ import { createContext, useContext } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 
-// The page header's spot beside Filters. Each tab owns its own CSV, so the
-// button renders inside the tab and lands up there, in the same place on
-// every tab instead of wherever that tab's layout had room.
+// Each tab owns its CSV, but the button lands in the page header beside Filters,
+// so the admin finds Export in the same place on every tab.
 export const ExportSlotContext = createContext<HTMLElement | null>(null);
 
 interface ExportButtonProps {

@@ -2,8 +2,8 @@ import { type DbExecutor, db } from "@/db";
 import { BadRequestException } from "@/http-exceptions";
 import type { OrderServiceStatus } from "@/modules/orders/order-status-machine";
 
-// The tag and descriptors staff and customers read off the physical object
-// (ADR-0017) — the same handful of fields wherever an Item is named.
+// The Item code and descriptors, the same fields wherever an Item is named
+// (ADR-0017).
 export const itemCardColumns = {
   id: true,
   item_code: true,
@@ -13,11 +13,10 @@ export const itemCardColumns = {
   size: true,
 } as const;
 
-// Who did it: the name a screen prints beside an event, never the login.
+// The name printed beside an event, never the login.
 export const userRefColumns = { id: true, name: true } as const;
 
-// An Order named from somewhere else: enough to label it and to check the
-// staff member works at the store that took it in.
+// Enough to label an Order and check the staff member works at its Store.
 export const orderRefColumns = {
   id: true,
   code: true,
@@ -26,8 +25,7 @@ export const orderRefColumns = {
   payment_status: true,
 } as const;
 
-// What the money and status desks read before they write. Never pickup_code:
-// only the printed Receipt carries it (ADR-0016).
+// Never pickup_code: only the printed Receipt carries it (ADR-0016).
 const orderStateColumns = {
   ...orderRefColumns,
   total: true,
@@ -37,8 +35,8 @@ const orderStateColumns = {
   refunded_amount: true,
 } as const;
 
-// Both ends of a Complaint (ADR-0013), one shape for the order sheet and queue
-// detail so the same line reads the same on both.
+// Both ends of a Complaint (ADR-0013), one shape so a line reads the same on the
+// Order sheet and the Queue detail.
 const lineComplaintRelations = {
   complaints: {
     columns: { id: true, created_at: true, reason: true },
@@ -50,7 +48,7 @@ const lineComplaintRelations = {
         columns: { id: true, status: true },
         orderBy: { id: "asc" },
         with: {
-          // When the round went on the rack; reworks from before ADR-0013's
+          // When the round was queued; Reworks from before ADR-0013's
           // 2026-09-24 amendment have none.
           statusLogs: {
             columns: { created_at: true },
@@ -137,8 +135,8 @@ interface LineWithComplaints {
   statusLogs: ReadonlyArray<OpeningLog & { from_status: string | null }>;
 }
 
-// Rounds from before the rack entry was logged: the first dates from its
-// Complaint, a later one stays blank rather than guess.
+// Rounds from before queuing was logged: the first takes its Complaint's date, a
+// later one stays blank rather than guess.
 function reworkOpening(
   log: OpeningLog | undefined,
   complaint: ComplaintOpening,
@@ -159,8 +157,6 @@ function reworkOpening(
   return { rework_opened_at: null, rework_opened_by: null };
 }
 
-// When each Rework round went on the rack and who put it there, for the line
-// itself and for every round of its Complaint.
 export function withReworkOpenings(line: LineWithComplaints) {
   const { reworkOf } = line;
   const own: ReworkOpening = reworkOf
@@ -188,7 +184,7 @@ export function findOrderState(executor: DbExecutor, id: number) {
     where: { id },
     columns: orderStateColumns,
     with: {
-      // The store code a promo is validated against at the payment desk.
+      // A promo is checked against the Store code at payment.
       store: { columns: { code: true } },
     },
   });
@@ -245,14 +241,11 @@ export function findOrderDetail(id: number) {
         },
         orderBy: { id: "asc" },
       },
-      // The Order's objects, each carrying the treatments applied to it
-      // (ADR-0017). The counter and the workshop both work object-first, so
-      // this is the shape the wire carries; anything that genuinely works
-      // per-treatment flattens it back.
+      // Items with their lines nested (ADR-0017): the counter and the workshop
+      // both work Item-first.
       items: {
         with: {
-          // The object's before-service photos, shared by every treatment on
-          // it (ADR-0019).
+          // Item photos, shared by every line on the Item (ADR-0019).
           images: {
             where: { deleted_at: { isNull: true } },
             orderBy: { id: "asc" },
@@ -264,9 +257,8 @@ export function findOrderDetail(id: number) {
               },
               ...lineComplaintRelations,
               refundItems: true,
-              // Name and list price only — enough for the payment sheet to
-              // tell a no-list-price Repair from a priced Service; the shop's
-              // cost base stays off the wire.
+              // No cost: the shop's costs stay off the screen. The list price
+              // tells a Repair from a priced Service.
               service: { columns: { id: true, name: true, price: true } },
               statusLogs: {
                 with: {
@@ -287,9 +279,8 @@ export function findOrderDetail(id: number) {
   });
 }
 
-// The single read allowed to hand pickup_code to an admin response (ADR-0016:
-// the printed receipt is the claim ticket). Kept textually separate from
-// findOrderDetail, whose service strips the code (ADR-0005).
+// The only staff read that returns pickup_code, since the printed Receipt is the
+// Customer's proof (ADR-0016). Kept apart from findOrderDetail (ADR-0005).
 export function findOrderReceipt(id: number) {
   return db.query.ordersTable.findFirst({
     where: { id },
@@ -306,8 +297,8 @@ export function findOrderReceipt(id: number) {
       pickup_code: true,
     },
     with: {
-      // devices are not printed. The POS only offers these registered Bluetooth
-      // names, so a receipt never comes out at another store.
+      // devices are not printed: the POS offers only these printers, so a
+      // Receipt never comes out at another Store.
       store: {
         columns: {
           name: true,
@@ -349,9 +340,8 @@ export function findOrderReceipt(id: number) {
         },
         orderBy: { id: "asc" },
       },
-      // The struk prints one header per physical object — tag + descriptors
-      // once — with each treatment sold against it as a sub-line beneath
-      // (ADR-0017). One upsold pair is one header, three priced lines.
+      // The Receipt prints one header per Item with its lines beneath
+      // (ADR-0017).
       items: {
         columns: itemCardColumns,
         with: {
@@ -396,8 +386,7 @@ export function findOrderReceipt(id: number) {
   });
 }
 
-// The queue's line-detail screen: one line plus enough of its Order to label
-// it, never the whole Order (ADR-0016: no pickup_code here).
+// The Queue's line detail: never the whole Order (ADR-0016: no pickup_code).
 export function findOrderServiceDetail(orderId: number, serviceId: number) {
   return db.query.ordersServicesTable.findFirst({
     where: { id: serviceId, order_id: orderId },
@@ -453,10 +442,8 @@ export function findOrderForLookup(id: number) {
   });
 }
 
-// The customer's own view of their Order. pickup_code rides along so the
-// tracker can reveal it once something is collectable — when, is the tracking
-// service's call, never this read's. No staff notes, the Order's or a status
-// change's: anyone holding the code and the phone number can read this.
+// The Customer's tracking page. The tracking service decides when to show
+// pickup_code. No staff notes: anyone with the code and phone number can read this.
 export function findTrackedOrder(code: string, customerId: number) {
   return db.query.ordersTable.findFirst({
     where: {
@@ -484,18 +471,16 @@ export function findTrackedOrder(code: string, customerId: number) {
           phone_number: true,
         },
       },
-      // Grouped by the object the customer handed over (ADR-0017), so the
-      // tracking page reads "your shoe: clean done, repaint in progress"
-      // rather than listing the same shoe three times.
+      // Grouped by Item (ADR-0017), so the page shows one shoe with its lines
+      // rather than the same shoe three times.
       items: {
         columns: itemCardColumns,
         with: {
           services: {
             columns: {
               id: true,
-              // Read only to tell a pair that was refunded and collected
-              // from one that was refunded and is still on our rack. It is
-              // an internal id and is stripped again in the service.
+              // Tells a refunded pair already collected from one still in the
+              // shop; stripped again in the service.
               pickup_event_id: true,
               status: true,
             },

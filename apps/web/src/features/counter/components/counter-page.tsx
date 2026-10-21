@@ -57,7 +57,7 @@ const CounterTabs = ({ actions }: CounterTabsProps) => (
 	</div>
 );
 
-// A store's Status as it usually opens: two workshop Categories, then the
+// A Store's Status as it usually opens: two workshop Categories, then the
 // top of the pickup shelf.
 const CounterBodySkeleton = () => (
 	<div aria-hidden className="grid gap-6 text-body">

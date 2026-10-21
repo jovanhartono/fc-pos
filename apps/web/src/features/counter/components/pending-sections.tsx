@@ -5,8 +5,6 @@ import { formatDays } from "@/features/counter/lib/format";
 import { OrderListRow } from "@/features/orders/components/order-list-row";
 import { pluralize } from "@/shared/utils";
 
-// The Pickup shelf's row: the Item code, the reason under it, and how long it
-// has waited on the right.
 const ROW_CLASS = "rounded-none px-3 tabular-nums";
 
 interface PendingSectionProps {

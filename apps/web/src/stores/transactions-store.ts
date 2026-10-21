@@ -10,9 +10,8 @@ type TransactionsPageUiState = {
 	// re-renders the checkout field, not the whole catalog.
 	dropoffPhoto: File | null;
 	// Which Item card a catalog tap lands on (ADR-0017). The cashier works one
-	// object at a time — put the shoe down, sell it a clean, upsell a repaint —
-	// so taps follow the thing on the counter rather than asking every time.
-	// Transient like the photo above: it never reaches the server.
+	// Item at a time — put the shoe down, sell it a clean, upsell a repaint — so
+	// taps follow the Item on the counter. Never reaches the server.
 	activeItemId: string | null;
 };
 

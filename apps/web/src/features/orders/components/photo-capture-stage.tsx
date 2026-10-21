@@ -46,7 +46,6 @@ const StageSurface = () => {
 	);
 };
 
-/** Live feed, reviewed still, or empty hint. */
 export const PhotoCaptureStage = () => {
 	const { meta, state } = usePhotoCapture();
 
@@ -54,11 +53,8 @@ export const PhotoCaptureStage = () => {
 		<div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
 			<StageSurface />
 
-			{/* Picking from the gallery before any photo exists leaves nothing on screen to hang
-			    a spinner off — the only feedback was the picker icon dimming, which read as a
-			    dead button and got retapped. The stage carries it instead, so every mode shows
-			    it, and the confirm button is free to stay narrow enough to sit beside the
-			    shutter without "Uploading 4 of 5..." growing into it. */}
+			{/* A first gallery pick only dimmed the picker icon, which read as dead and
+			    got retapped; progress shows on the stage instead. */}
 			{state.isBusy ? (
 				<div
 					aria-live="polite"

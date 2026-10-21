@@ -97,7 +97,7 @@ const TopServicesList = ({
 	);
 };
 
-const BranchBreakdown = ({
+const StoreBreakdown = ({
 	perStore,
 }: {
 	perStore: ReportOverview["per_store"];
@@ -273,7 +273,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 					<CardTitle>Revenue by store · today</CardTitle>
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
-					<BranchBreakdown perStore={overview?.per_store ?? []} />
+					<StoreBreakdown perStore={overview?.per_store ?? []} />
 				</CardContent>
 			</Card>
 		</div>

@@ -181,10 +181,8 @@ interface ServicePriceSectionProps {
 	isRework: boolean;
 }
 
-// The line's one price (ADR-0018): blank until agreed with the customer, open
-// to correction by any staff while the order is unpaid, frozen once paid, and
-// fixed at 0 on a Rework. A cancelled line shows nothing — nobody owes its
-// number anymore.
+// ADR-0018: blank until agreed with the Customer, open to any staff while the
+// Order is unpaid, frozen once paid, and 0 on a Rework.
 const ServicePriceSection = ({
 	orderId,
 	serviceId,

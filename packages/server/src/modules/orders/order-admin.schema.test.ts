@@ -5,8 +5,8 @@ import {
 } from "@/modules/orders/order-admin.schema";
 
 describe("PATCHOrderServiceStatusSchema", () => {
-  // The checker sends a pair back from quality check; the owner reads the
-  // reason on the Quality report, so a reject with no reason is refused.
+  // The owner reads each QC reject's note on the Quality report, so a reject
+  // with no note is refused.
   const refusal = (body: Record<string, unknown>) => {
     const result = PATCHOrderServiceStatusSchema.safeParse(body);
     return result.success
@@ -44,8 +44,8 @@ describe("PATCHOrderServiceStatusSchema", () => {
 
 describe("POSTItemPhotoPresignSchema", () => {
   it("rejects HEIC now that the counter phone converts before upload", () => {
-    // An accepted HEIC used to reach the bucket unconverted and open as a
-    // broken image when the operator pulled it up against a damage claim.
+    // An accepted HEIC used to be stored unconverted and open as a broken
+    // image when staff pulled it up against a damage claim.
     expect(
       POSTItemPhotoPresignSchema.safeParse({
         content_type: "image/heic",

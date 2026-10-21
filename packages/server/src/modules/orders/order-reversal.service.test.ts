@@ -13,14 +13,8 @@ import type {
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
 
-// The reversal desk: refund hands cash back on a PAID order line by line;
-// cancel voids lines on an UNPAID order, putting products back on the shelf
-// and freeing any voucher the order had spent (ADR-0008 / ADR-0015). These
-// tests pin the wiring from DB rows through per-line caps to the money writes,
-// and the exactly-once voucher release on a full cancel. The cap/allocation
-// arithmetic stays real (refund-allocation.test.ts owns it), as does the
-// permission gate; the DB, status machine, stock repository, and redemption
-// release are doubled at their seams and only their invocations asserted.
+// A Refund returns money on a paid Order; a Cancellation takes Lines off an
+// unpaid one, restocking Products and freeing its Voucher codes (ADR-0008, ADR-0015).
 
 type AnyObj = Record<string, unknown>;
 
@@ -35,18 +29,15 @@ interface InsertCall {
 }
 
 const state = {
-  order: undefined as AnyObj | undefined, // db.query.ordersTable.findFirst
-  serviceRows: [] as AnyObj[], // db.query.ordersServicesTable.findMany
-  productRows: [] as AnyObj[], // db.query.ordersProductsTable.findMany
-  refundedRows: [] as AnyObj[], // prior-refund SUM rows (db.select chain)
-  postCancelStatus: undefined as string | undefined, // tx re-read after cancel
-  // Same tx re-read. Unpaid by default, matching makeUnpaidOrder; cases that
-  // care about the promo-minimum recheck set a total and some minimums too.
+  order: undefined as AnyObj | undefined,
+  serviceRows: [] as AnyObj[],
+  productRows: [] as AnyObj[],
+  refundedRows: [] as AnyObj[],
+  postCancelStatus: undefined as string | undefined,
   postCancelPaymentStatus: "unpaid" as string,
   postCancelTotal: "0" as string | null,
-  casResults: [] as { id: number }[][], // queued CAS update outcomes, in order
-  // Refund's status flip is doubled by default; the concurrency case runs the
-  // real one to exercise its compare-and-set.
+  casResults: [] as { id: number }[][],
+  // Only the two-tabs race case runs the real refund transition.
   realRefundTransition: false as boolean,
 };
 
@@ -60,8 +51,7 @@ const updateBuilder = (table: unknown) => ({
   set: (values: AnyObj) => {
     writes.updates.push({ set: values, table });
     return {
-      // Drizzle's builder is awaitable mid-chain AND continuable via
-      // .returning() — a real Promise with the method attached mirrors that.
+      // Drizzle's builder can be awaited or continued with .returning().
       where: () =>
         Object.assign(Promise.resolve(undefined), {
           returning: () =>
@@ -80,7 +70,6 @@ const insertBuilder = (table: unknown) => ({
   },
 });
 
-// Doubles for the reads refund makes under the order lock.
 const selectBuilder = () => ({
   from: () => ({
     where: () => ({
@@ -100,8 +89,6 @@ const fakeTx = {
   select: selectBuilder,
   query: {
     ordersTable: {
-      // Cancel re-reads the order after voiding its lines; refund reads it for
-      // the per-line caps.
       findFirst: () =>
         Promise.resolve(
           state.postCancelStatus == null
@@ -131,9 +118,7 @@ mock.module("@/db", () => ({
       ordersProductsTable: {
         findMany: () => Promise.resolve(state.productRows),
       },
-      // The real product.repository (captured below for the spread mock)
-      // builds a prepared statement at module scope; give it something inert
-      // to chain on so the import does not explode.
+      // product.repository prepares a statement on import.
       productsTable: {
         findFirst: () => ({
           prepare: () => ({ execute: () => Promise.resolve(undefined) }),
@@ -147,10 +132,8 @@ mock.module("@/db", () => ({
   },
 }));
 
-// Spread the real modules so only the seams under observation are replaced,
-// and restore the actuals in afterAll — other test files pin these modules'
-// internals for real and must not inherit the stubs (mock.module is
-// process-global for the whole run).
+// mock.module is global to the run, so afterAll restores the real modules
+// for the test files that use them.
 const machine = {
   refundTransitions: [] as { executor: unknown; input: AnyObj }[],
   serviceCancels: [] as { executor: unknown; input: AnyObj }[],
@@ -161,8 +144,7 @@ const actualStatusMachine = await import(
   "@/modules/orders/order-status-machine"
 );
 
-// Held before the module is mocked: mock.module rewrites the live namespace,
-// so reading it off the namespace inside the double would call the double.
+// Held before mocking: read later off the namespace, it would be the double.
 const realApplyRefundTransition = actualStatusMachine.applyRefundTransition;
 
 mock.module("@/modules/orders/order-status-machine", () => ({
@@ -205,9 +187,6 @@ mock.module("@/modules/campaigns/campaign-redemption.service", () => ({
     redemption.releaseCalls.push({ executor, orderId });
     return Promise.resolve();
   },
-  // What the void rule does with a breached minimum is pinned in
-  // campaign-redemption.service.test.ts; cancelling is only responsible for
-  // deciding whether to ask, and with which total.
   voidCampaignsBelowMinimum: (
     _tx: unknown,
     orderId: number,
@@ -252,13 +231,9 @@ const { cancelOrder, createOrderRefund } = await import(
   "@/modules/orders/order-reversal.service"
 );
 
-// Refund is admin-only and cancel admits admin too, so one user covers both
-// desks; the role matrix itself is pinned in permissions tests.
 const ADMIN = { id: 42, role: "admin" } as unknown as JWTPayload;
 
-// The refunded_amount increment is written as a SQL template ("refunded_amount
-// + N"); the interpolated amount sits in queryChunks as a plain number, so dig
-// it out to pin what actually lands in the ledger.
+// refunded_amount is written as SQL "refunded_amount + N"; this pulls out N.
 const sqlNumberChunks = (value: unknown): number[] => {
   const chunks = (value as { queryChunks?: unknown[] }).queryChunks ?? [];
   return chunks.filter((chunk): chunk is number => typeof chunk === "number");
@@ -278,8 +253,7 @@ const cancel = (items: AnyObj[]) =>
     user: ADMIN,
   });
 
-// Postgres numerics arrive as strings — fixtures feed strings so the service's
-// Number() coercion stays under test.
+// Strings, because Postgres numerics arrive as strings.
 const makePaidOrder = (over: AnyObj = {}) => ({
   id: 1,
   payment_status: "paid",
@@ -320,9 +294,8 @@ beforeEach(() => {
 
 describe("createOrderRefund", () => {
   it("returns exactly what the customer paid for a whole wash on a discounted order", async () => {
-    // Rp100.000 wash bought with a Rp10.000 promo: the customer paid 90.000.
-    // Returning the sticker price would hand the shop's discount back in cash;
-    // the ledger, the refund record, and the status flip must all say 90.000.
+    // A Rp100.000 clean paid at 90.000 after a discount refunds 90.000, not
+    // the list price, or the discount goes back out in cash.
     state.order = makePaidOrder();
     state.serviceRows = [{ id: 10, subtotal: "100000" }];
 
@@ -359,7 +332,7 @@ describe("createOrderRefund", () => {
       },
     ]);
 
-    // The garment itself must flip to refunded so it cannot be handed out.
+    // The OrderService becomes refunded so it cannot be handed out.
     expect(machine.refundTransitions).toEqual([
       {
         executor: fakeTx,
@@ -373,9 +346,8 @@ describe("createOrderRefund", () => {
   });
 
   it("refuses a refund larger than the cash still held for the order", async () => {
-    // Two Rp50.000 washes; the customer paid 60.000 up front and already got
-    // 20.000 back. The line's cap says 50.000 is returnable, but the counter only
-    // holds 40.000 of their money — paying out would refund cash never received.
+    // The Line could return 50.000, but only 40.000 of the Customer's money is
+    // left after an earlier Refund.
     state.order = makePaidOrder({
       paid_amount: "60000",
       refunded_amount: "20000",
@@ -394,16 +366,13 @@ describe("createOrderRefund", () => {
     expect((error as Error).message).toBe(
       "Refund exceeds remaining paid amount for this order"
     );
-    // The guard runs inside the transaction, so nothing is written to unwind.
     expect(writes.updates).toHaveLength(0);
     expect(writes.inserts).toHaveLength(0);
   });
 
   it("pays out only the remainder on a second refund of the same shirt", async () => {
-    // The shirt already got Rp40.000 back last week. Its discounted worth is
-    // 45.000 (50.000 gross minus its share of the 10.000 promo), so a second
-    // visit can only claim the 5.000 still outstanding — the prior-refund SUM
-    // row arrives as a string and must land on the right line.
+    // Worth 45.000 after its share of the discount, 40.000 already refunded:
+    // a second Refund pays only the 5.000 left.
     state.order = makePaidOrder({ refunded_amount: "40000" });
     state.serviceRows = [
       { id: 10, subtotal: "50000" },
@@ -423,11 +392,8 @@ describe("createOrderRefund", () => {
   });
 
   it("stamps the bottle refunded so no later cancel can restock it", async () => {
-    // Rp30.000 detergent bottle refunded in full. Beyond moving the cash, the
-    // row must be stamped refunded_at — that stamp is the only thing later
-    // gates trust (no second refund, no cancel-after-refund putting a
-    // paid-out bottle back on the shelf). Cash out without the stamp quietly
-    // re-arms both double-outs.
+    // refunded_at is what later blocks a second Refund, or a Cancellation that
+    // would restock a Product already paid back.
     state.order = makePaidOrder({
       discount: "0",
       total: "30000",
@@ -444,14 +410,12 @@ describe("createOrderRefund", () => {
     const stamp = writes.updates.find((u) => u.table === ordersProductsTable);
     expect(stamp?.set.refunded_at).toBeInstanceOf(Date);
 
-    // A bottle refund never flips any garment's status.
     expect(machine.refundTransitions).toHaveLength(0);
   });
 
   it("never refunds a product line that already took an off-ramp", async () => {
-    // The detergent bottle was refunded on a previous visit and its row is
-    // stamped refunded_at. Arithmetic would still show Rp30.000 of headroom,
-    // but the stamp is authoritative — paying again is double cash out.
+    // The amounts would still allow 30.000, but refunded_at wins: paying again
+    // is money out twice.
     state.order = makePaidOrder({ discount: "0", total: "30000" });
     state.productRows = [
       {
@@ -475,9 +439,8 @@ describe("createOrderRefund", () => {
   });
 
   it("refuses the second of two refunds racing for the same pair of shoes", async () => {
-    // An admin has the order open on two tabs and submits both. The first
-    // flip lands; the second finds nothing left to flip and must not pay out
-    // a second time.
+    // An admin submits the same Refund from two tabs; the second must not pay
+    // out again.
     state.order = makePaidOrder();
     state.serviceRows = [
       { id: 10, subtotal: "100000", status: "ready_for_pickup" },
@@ -496,9 +459,6 @@ describe("createOrderRefund", () => {
   });
 
   it("rejects a double-tapped line before touching the order", async () => {
-    // A cashier double-taps submit and the same shirt arrives twice in one
-    // request — paying it out twice is straight money lost. Rejected before
-    // any lookup or write.
     const error = await captureRejection(
       refund([
         { order_service_id: 10, reason: "damaged" },
@@ -514,8 +474,6 @@ describe("createOrderRefund", () => {
   });
 
   it("rejects an item that points at no line at all", async () => {
-    // An item naming neither a service nor a product could only pay out
-    // against nothing; rejected before any lookup or write.
     const error = await captureRejection(refund([{ reason: "damaged" }]));
 
     expect(error).toBeInstanceOf(BadRequestException);
@@ -528,11 +486,8 @@ describe("createOrderRefund", () => {
 
 describe("cancelOrder", () => {
   it("restores stock, recomputes the rollup, and frees the voucher when the last line dies", async () => {
-    // Unpaid order whose only live line is 3 detergent bottles. Cancelling it
-    // puts the 3 bottles back on the shelf, folds the void into the order
-    // rollup, and — because the whole order is now cancelled — releases the
-    // campaign redemption so the customer's voucher is spendable again
-    // (ADR-0015).
+    // Cancelling the last Line restocks it and, with the whole Order now
+    // cancelled, frees the Customer's Voucher code again (ADR-0015).
     state.order = makeUnpaidOrder();
     state.productRows = [
       { id: 30, qty: 3, product_id: 12, refunded_at: null, cancelled_at: null },
@@ -564,9 +519,8 @@ describe("cancelOrder", () => {
   });
 
   it("hands every voided treatment to the cancel seam in one go", async () => {
-    // The customer drops two of the three treatments on one ticket. Both go to
-    // the seam together so the amount due lands on the number they are told
-    // once, instead of stepping down line by line on the way there.
+    // The Customer drops two OrderServices at once; both cancel together so
+    // the amount due changes once, not Line by Line.
     state.order = makeUnpaidOrder();
     state.postCancelStatus = "processing";
 
@@ -599,10 +553,8 @@ describe("cancelOrder", () => {
   });
 
   it("does not release the voucher again when the order was already cancelled", async () => {
-    // The order arrived at the desk already cancelled; a straggler line gets
-    // voided after the fact. The post-tx status still reads "cancelled", but
-    // the redemption was released the first time — releasing again would mint
-    // the customer a second free voucher use.
+    // The Order was already cancelled and its Voucher code freed; freeing it
+    // again would give the Customer a second use.
     state.order = makeUnpaidOrder({ status: "cancelled" });
     state.productRows = [
       { id: 30, qty: 1, product_id: 12, refunded_at: null, cancelled_at: null },
@@ -615,10 +567,8 @@ describe("cancelOrder", () => {
   });
 
   it("keeps the voucher locked while other lines are still in the wash", async () => {
-    // Multi-line ticket: the customer drops one detergent bottle but their
-    // wash stays in the machine, so the order re-reads as "processing" after
-    // the void. The voucher still funds the surviving lines — releasing it
-    // now would let the customer spend it a second time on top of this order.
+    // The Customer drops one Product but the clean goes on; the Voucher code
+    // still covers what is left, so freeing it would allow a second use.
     state.order = makeUnpaidOrder();
     state.productRows = [
       { id: 30, qty: 1, product_id: 12, refunded_at: null, cancelled_at: null },
@@ -627,19 +577,13 @@ describe("cancelOrder", () => {
 
     await cancel([{ order_product_id: 30, reason: "customer_request" }]);
 
-    // The dropped bottle still goes back on the shelf...
     expect(stock.calls).toEqual([{ executor: fakeTx, productId: 12, qty: 1 }]);
-    // ...but the redemption stays attached to the still-live order.
     expect(redemption.releaseCalls).toHaveLength(0);
   });
 
   it("re-checks the promo minimum against what survives a partial cancel", async () => {
-    // Rp360.000 of work cleared a "min Rp250.000" promo at drop-off and the
-    // discount is printed on the receipt the driver carried away. The customer
-    // then drops items until only Rp110.000 is left. A Rp250.000-minimum
-    // discount on a Rp110.000 bill is not a promise the shop can defend at the
-    // counter — on a fixed-amount campaign it would hand back most of what is
-    // left to pay — so the surviving total goes back to the void rule.
+    // A "min Rp250.000" Campaign settled at drop-off; after Cancellations only
+    // Rp110.000 is left, so the minimum is checked again.
     state.order = makeUnpaidOrder();
     state.productRows = [
       { id: 30, qty: 1, product_id: 12, refunded_at: null, cancelled_at: null },
@@ -652,17 +596,12 @@ describe("cancelOrder", () => {
     expect(redemption.voidCalls).toEqual([
       { orderId: 5, billableTotal: 110_000 },
     ]);
-    // A partial cancel never releases outright — that is the void rule's call
-    // to make once it has compared the total against the minimums.
     expect(redemption.releaseCalls).toHaveLength(0);
   });
 
   it("leaves the promo alone when payment won the race against the cancel", async () => {
-    // One staff member voids a line while another collects at the pickup desk.
-    // The order was unpaid when the cancel started, so the pre-check let it
-    // through, but the tender landed first. That money moved against the
-    // printed total, so the promo was earned (ADR-0015) and taking it back now
-    // would mean asking for more than the customer already paid.
+    // A cashier collected payment mid-Cancellation; the discount was earned
+    // (ADR-0015), so the Customer is not asked for more afterwards.
     state.order = makeUnpaidOrder();
     state.productRows = [
       { id: 30, qty: 1, product_id: 12, refunded_at: null, cancelled_at: null },
@@ -678,9 +617,8 @@ describe("cancelOrder", () => {
   });
 
   it("lets the loser of a concurrent cancel fail before touching stock", async () => {
-    // Two staff cancel the same bottle at once. The pre-check saw it live, but
-    // the winner stamped it first, so the loser's CAS update matches nothing.
-    // Restoring stock anyway would count the same bottle back in twice.
+    // Two staff cancel the same Product at once; restocking for the loser
+    // would count it back in twice.
     state.order = makeUnpaidOrder();
     state.productRows = [
       { id: 31, qty: 2, product_id: 12, refunded_at: null, cancelled_at: null },
@@ -699,8 +637,7 @@ describe("cancelOrder", () => {
   });
 
   it("refuses to cancel a line the shop already refunded", async () => {
-    // Refund means money moved; a cancel on top would also restore stock for a
-    // bottle whose cash already went back. Rejected before any write.
+    // Its money already went back; cancelling would also restock it.
     state.order = makeUnpaidOrder();
     state.productRows = [
       {
@@ -724,8 +661,6 @@ describe("cancelOrder", () => {
   });
 
   it("refuses a line that does not belong to this order", async () => {
-    // A stale tab submits a line id from another order; voiding it here would
-    // restore stock against the wrong ticket. Rejected before any write.
     state.order = makeUnpaidOrder();
     state.productRows = [];
 

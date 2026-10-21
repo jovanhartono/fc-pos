@@ -14,8 +14,6 @@ const usersById: Record<number, SeedUser> = {
   3: { id: 3, role: "worker", is_active: true },
 };
 
-// Mock the repository before importing the service so assertActiveCourier
-// exercises its branching without touching the database.
 mock.module("@/modules/users/user.repository", () => ({
   findUserById: (id: number) => Promise.resolve(usersById[id]),
 }));

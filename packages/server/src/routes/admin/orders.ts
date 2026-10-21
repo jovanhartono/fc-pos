@@ -77,18 +77,13 @@ interface OrderAccessEnv {
   };
 }
 
-// The id is read the way the handlers below validate it, not as plain digits.
-// /orders/+123 and /orders/%20123 both reach a handler as order 123, so a gate
-// that recognised only digits would wave them through unchecked.
+// Read the way the handlers validate it: /orders/+123 and /orders/%20123 both
+// reach a handler as Order 123, and a digits-only gate would wave them through.
 const orderIdParam = z.coerce.number().int().positive();
 
-// Every screen that opens a single order — the ticket, its receipt, its photos,
-// its refund — has to prove the person works at that branch: a cashier at Kemang
-// can never open a Bintaro order. One gate covers all of them, because the way
-// this leaks is a new /orders/:id screen whose author forgot line one.
-//
-// A path that is not an order id passes through untouched: the workshop queue at
-// /orders/services/queue is not order "services", and does its own branch check.
+// A cashier at Kemang must never open a Bintaro Order. One gate for every
+// /orders/:id screen, so a new one cannot forget the check. Paths that are not an
+// Order id, such as /orders/services/queue, pass through and check the Store themselves.
 const requireOrderAccess = createMiddleware<OrderAccessEnv>(async (c, next) => {
   const orderId = orderIdParam.safeParse(c.req.param("id"));
 

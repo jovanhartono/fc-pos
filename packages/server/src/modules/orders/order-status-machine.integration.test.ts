@@ -10,13 +10,11 @@ import { captureRejection } from "@/test-support/capture-rejection";
 import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
-// The photo gate against a real Postgres (ADR-0012, ADR-0019): whether the
-// workshop may start on an object depends on rows in two tables and how their
-// timestamps sit against each other, which is exactly what a double flattens.
+// The photo gate (ADR-0012, ADR-0019): whether the workshop may start on an
+// Item hangs on two tables' timestamps, which a fake would flatten.
 
-// Loaded after the swap above, never beside the imports: Bun binds a static
-// import graph before any module body runs, so a service pulled in up there
-// would hold the shop's real database.
+// Imported after the swap above: a static import would bind the shop's real
+// database before the swap runs.
 const { db } = await import("@/db");
 const { createOrder } = await import("@/modules/orders/order.service");
 const { transitionOrderService } = await import(

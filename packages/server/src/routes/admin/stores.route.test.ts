@@ -121,7 +121,7 @@ describe("registering a Bluetooth device from the POS", () => {
   });
 });
 
-// The list and the removal are the same branch question as the registration,
+// The list and the removal are the same Store question as the registration,
 // and each handler asks it for itself — so each one is tested for itself.
 describe("reading and removing another store's devices", () => {
   it("refuses to list them", async () => {
@@ -131,7 +131,7 @@ describe("reading and removing another store's devices", () => {
 
   it("refuses to remove one", async () => {
     expect((await removeDevice(BINTARO, 1)).status).toBe(403);
-    // Kemang clears the branch check; the store has no such device to remove.
+    // Kemang clears the Store check; the Store has no such device to remove.
     expect((await removeDevice(KEMANG, 1)).status).toBe(404);
   });
 });
@@ -167,9 +167,8 @@ const setStoreStatusAs = (user: JWTPayload) =>
     body: JSON.stringify({ is_active: true }),
   });
 
-// Opening a Store or changing its details is an admin decision — see the
-// ADR-0004 row this task added. Registering the printer at the counter is not,
-// so a cashier keeps that door open even though the Store edit doors closed.
+// Opening or editing a Store is an admin decision (ADR-0004). Registering the
+// printer at the counter is not, so a cashier keeps that one.
 describe("admin-only store writes", () => {
   it("refuses a cashier's new store", async () => {
     expect((await createStoreAs(asep)).status).toBe(403);

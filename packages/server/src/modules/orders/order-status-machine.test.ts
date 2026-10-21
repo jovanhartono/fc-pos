@@ -28,14 +28,12 @@ const s = (status: OrderServiceStatus) => ({ status });
 
 const PICKUP_EVENT = 9;
 
-// A treatment as the Item rollup reads it — the second argument is the whole
-// question there, so every test states it: an id means this row went out the
-// door on that handover, null means it is still on our rack.
+// pickup_event_id set = this OrderService left the shop on that handover;
+// null = the Item is still here.
 const t = (
   status: OrderServiceStatus,
   pickup_event_id: number | null = null
 ) => ({ pickup_event_id, status });
-// product line state: cancelled vs active/refunded (only cancellation affects rollup)
 const p = (cancelled = false) => ({
   cancelled_at: cancelled ? new Date() : null,
 });
@@ -59,7 +57,6 @@ describe("deriveOrderStatus", () => {
   });
 
   it("treats a refunded (not cancelled) product as real activity -> 'completed'", () => {
-    // refunded product lines carry refunded_at, not cancelled_at
     expect(deriveOrderStatus([], [p()])).toBe("completed");
   });
 
@@ -91,10 +88,8 @@ describe("deriveOrderStatus", () => {
   });
 
   it("stays 'created' when the only non-queued line was cancelled at the counter", () => {
-    // The customer dropped one treatment off the ticket before anyone touched
-    // the rack. Nothing has been worked on, so the order has not started —
-    // reading the cancellation as progress tells the customer the shop is
-    // cleaning a shoe that is still sitting untouched.
+    // A Cancellation before any work is not progress; reading it as such tells
+    // the Customer the shop is cleaning an Item nobody has touched.
     expect(deriveOrderStatus([s("cancelled"), s("queued")], [])).toBe(
       "created"
     );
@@ -104,8 +99,7 @@ describe("deriveOrderStatus", () => {
   });
 
   it("returns 'processing' when a line was delivered and the rest are queued", () => {
-    // Unlike a cancellation, a picked-up or refunded line is work that really
-    // happened, so the order is genuinely under way.
+    // Unlike a Cancellation, a picked-up or refunded Line is real progress.
     expect(deriveOrderStatus([s("picked_up"), s("queued")], [])).toBe(
       "processing"
     );
@@ -133,16 +127,14 @@ describe("deriveOrderStatus", () => {
   });
 });
 
-// ADR-0017. An Item has no status column: what it is doing is read off the
-// treatments applied to it, so there is nothing to drift.
+// ADR-0017: an Item has no status column; it is read off its OrderServices.
 describe("deriveItemStatus", () => {
   it("reads as queued while the pair is still waiting to be started", () => {
     expect(deriveItemStatus([t("queued"), t("queued")])).toBe("queued");
   });
 
   it("reads as processing the moment any one treatment is under way", () => {
-    // Three jobs on one shoe: the object is in the workshop as soon as the
-    // first worker picks it up, whatever the other two are doing.
+    // The Item is in the workshop once any one of its OrderServices starts.
     expect(deriveItemStatus([t("queued"), t("processing"), t("queued")])).toBe(
       "processing"
     );
@@ -155,22 +147,20 @@ describe("deriveItemStatus", () => {
     expect(
       deriveItemStatus([t("ready_for_pickup"), t("ready_for_pickup")])
     ).toBe("ready_for_pickup");
-    // One still in the workshop keeps the whole object off the shelf.
     expect(deriveItemStatus([t("ready_for_pickup"), t("processing")])).toBe(
       "processing"
     );
   });
 
   it("ignores a cancelled sibling when the rest are done", () => {
-    // Work the shop is never going to do must not strand the object.
     expect(deriveItemStatus([t("ready_for_pickup"), t("cancelled")])).toBe(
       "ready_for_pickup"
     );
   });
 
   it("still reads as queued when a cancelled treatment is the only thing that moved", () => {
-    // The shoe is on the rack untouched. This status is what the customer sees
-    // on /track, so calling it processing promises work nobody has started.
+    // The Customer sees this on /track; "processing" would promise work
+    // nobody has started.
     expect(deriveItemStatus([t("cancelled"), t("queued")])).toBe("queued");
   });
 
@@ -179,18 +169,15 @@ describe("deriveItemStatus", () => {
     expect(
       deriveItemStatus([t("picked_up", PICKUP_EVENT), t("refunded")])
     ).toBe("picked_up");
-    // Collected first, refunded afterwards at the counter: the row is refunded
-    // but it still points at the handover that took the pair home.
+    // Collected, then refunded: it still points at the handover that took it.
     expect(
       deriveItemStatus([t("refunded", PICKUP_EVENT), t("cancelled")])
     ).toBe("picked_up");
   });
 
   it("reads as refunded when the money went back but the pair never did", () => {
-    // Paid up front, changed their mind while it sat queued. Money settled,
-    // nothing called off — the Order rollup calls that completed — but the
-    // shoes are on our rack, and /track must not tell the customer they are
-    // holding them.
+    // Refunded while queued: the Order reads completed, but the Item is still
+    // here, and /track must not tell the Customer they have it.
     expect(deriveItemStatus([t("refunded")])).toBe("refunded");
     expect(deriveItemStatus([t("refunded"), t("cancelled")])).toBe("refunded");
   });
@@ -213,9 +200,8 @@ describe("isItemCollectable", () => {
   });
 
   it("lets a refunded pair go home even though nothing was done to it", () => {
-    // The refund settled the money, not the object. Without this the pair has
-    // no treatment left that could ever turn ready, so the desk could never
-    // record giving it back and it would sit on the rack for good.
+    // A Refund settles the money, not the Item; otherwise nothing could ever
+    // turn ready and it would sit on the shelf for good.
     expect(isItemCollectable([t("refunded")])).toBe(true);
     expect(isItemCollectable([t("refunded"), t("cancelled")])).toBe(true);
   });
@@ -228,8 +214,7 @@ describe("isItemCollectable", () => {
   });
 
   it("refuses an object with nothing left to hand over", () => {
-    // Already collected, so re-scanning the tag must not mint a second
-    // handover for a shoe that is out of the shop.
+    // Re-scanning a collected Item's tag must not record a second handover.
     expect(isItemCollectable([t("picked_up", PICKUP_EVENT)])).toBe(false);
     expect(isItemCollectable([t("refunded", PICKUP_EVENT)])).toBe(false);
     expect(isItemCollectable([])).toBe(false);
@@ -306,12 +291,8 @@ describe("isTerminalOrderServiceStatus", () => {
   });
 });
 
-// transitionOrderService takes its DB handle as a parameter, so a hand-rolled
-// fake executor exercises the photo gate without a database. The fluent
-// update/insert stubs only need to satisfy the write + rollup path that runs
-// once the gate passes. Photos hang off the Item the line belongs to
-// (ADR-0019); a reworkOpenedAt marks the line as a Rework of a Complaint
-// opened at that moment.
+// Item photos belong to the Item (ADR-0019); reworkOpenedAt makes the line a
+// Rework line of a Complaint opened at that moment.
 const makeExecutor = ({
   serviceStatus,
   photosAt = [],
@@ -359,10 +340,8 @@ const makeExecutor = ({
 const transitionTo = (executor: DbExecutor, to: OrderServiceStatus) =>
   transitionOrderService(executor, { orderId: 1, serviceId: 1, to, by: 1 });
 
-// The pickup desk hands over whole objects, so completePickup resolves an
-// Item's own treatments rather than trusting a list of line ids. `flipped` is
-// what the guarded UPDATE won — set it short to stand in for another cashier
-// getting there first.
+// Pickup hands over whole Items. Set `flipped` short to stand in for another
+// cashier getting there first.
 const makePickupExecutor = ({
   items,
   flipped,
@@ -405,9 +384,7 @@ const makePickupExecutor = ({
         }),
       }),
     }),
-    // The flip carries a new status, the stamp only the event — so the SET
-    // itself says which UPDATE this is, and the fake never has to assume the
-    // order they run in.
+    // A status in the SET marks the status update, else it is the event stamp.
     update: () => ({
       set: (values: { status?: OrderServiceStatus }) => ({
         where: () => ({
@@ -434,7 +411,7 @@ const pickUp = (executor: DbExecutor, itemIds: number[]) =>
 
 describe("completePickup (ADR-0017: whole objects only)", () => {
   it("holds the object's lines before judging whether it can go", async () => {
-    // Another cashier may be adding a rework to this pair at the counter.
+    // Another cashier may be adding a Rework line to this Item at the counter.
     const calls: string[] = [];
     const executor = makePickupExecutor({
       calls,
@@ -470,8 +447,7 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
   });
 
   it("refuses a shoe whose repaint is still wet", async () => {
-    // The rule lives here rather than at the desk, so any future caller — a
-    // courier hand-off, a bulk release — inherits it.
+    // Kept here, not in the pickup screen, so a Courier hand-off inherits it.
     const executor = makePickupExecutor({
       items: [
         {
@@ -534,10 +510,8 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
   });
 
   it("gives back a pair that was refunded before anyone came for it", async () => {
-    // Paid up front, refunded at the counter while it sat queued, and the
-    // customer still wants their shoes. Nothing flips — a refunded row has no
-    // status left to move — but the object leaves, so the row is stamped with
-    // the handover that took it.
+    // Refunded while queued, but the Customer still takes the Item home: the
+    // status stays, and the row records the handover.
     const executor = makePickupExecutor({
       items: [
         {
@@ -554,9 +528,8 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
   });
 
   it("hands over the finished treatment and the refunded one together", async () => {
-    // One shoe, clean done and repaint refunded. It is a single object across
-    // the counter, so both rows record the same handover even though only the
-    // clean changes status.
+    // Clean done, repaint refunded: one Item across the counter, so both rows
+    // record the same handover.
     const executor = makePickupExecutor({
       items: [
         {
@@ -576,8 +549,6 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
   });
 
   it("refuses a refunded pair the customer has already taken home", async () => {
-    // Same rule as a collected shoe: the row already points at a handover, so
-    // re-scanning the tag must not mint a second one.
     const executor = makePickupExecutor({
       items: [
         {
@@ -598,7 +569,7 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
     );
   });
 
-  it("refuses an object that lives on someone else's ticket", async () => {
+  it("refuses an Item that lives on someone else's Order", async () => {
     const executor = makePickupExecutor({ items: [] });
     let error: unknown;
     try {
@@ -612,8 +583,7 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
   });
 
   it("reports a short flip so the caller can roll the handover back", async () => {
-    // Two counters serving the same order: the guarded UPDATE wins fewer rows
-    // than it asked for, and the desk turns that into a rollback.
+    // Two cashiers hand over the same Order; the loser rolls back.
     const executor = makePickupExecutor({
       items: [
         {
@@ -655,8 +625,7 @@ describe("transitionOrderService photo gate (ADR-0012, ADR-0019)", () => {
     );
   });
 
-  // The cashier photographs the pair once at drop-off; that single shot
-  // unlocks the deep clean and the repaint upsold on the same shoe alike.
+  // One Item photo at drop-off unlocks every Service on that Item.
   it("allows queued -> processing on the cashier's drop-off shot of the object", async () => {
     const executor = makeExecutor({
       serviceStatus: "queued",
@@ -676,9 +645,8 @@ describe("transitionOrderService photo gate (ADR-0012, ADR-0019)", () => {
     });
   });
 
-  // A customer brings the pair back a week later complaining. The photos from
-  // its first visit say nothing about the state it came back in, so the Rework
-  // waits for a fresh one.
+  // A Complaint brings the Item back; first-visit photos say nothing about its
+  // state now, so the Rework waits for a fresh one.
   describe("a Rework of a complained pair", () => {
     const complaintOpened = new Date("2026-09-08T04:00:00Z");
 
@@ -718,9 +686,7 @@ describe("billableOrderTotal", () => {
   });
 
   it("drops a cancelled repair so the counter stops asking for it", () => {
-    // Customer brings in a deep clean and a bag repair, hears the 200k quote
-    // and says no. Staff cancel that line before any money changes hands, so
-    // only the deep clean is left to collect.
+    // The Customer declines a 200k Repair quote before paying.
     expect(
       billableOrderTotal(
         [svc("queued", "60000"), svc("cancelled", "200000")],
@@ -730,9 +696,8 @@ describe("billableOrderTotal", () => {
   });
 
   it("keeps a refunded line on the bill", () => {
-    // The shop cleaned the shoes, handed them back, and later returned the
-    // money. That sale still happened, and the refund is recorded on the
-    // order, so taking it off here too would count it twice.
+    // The Refund is already recorded on the Order; dropping the Line here too
+    // would count it twice.
     expect(billableOrderTotal([svc("refunded", "60000")], [])).toBe(60_000);
   });
 
@@ -754,8 +719,8 @@ describe("billableOrderTotal", () => {
 
 describe("summarizeOrderFulfillment", () => {
   it("counts ready_for_pickup, picked_up, terminal, and active", () => {
-    // Five pairs dropped off, one cancelled at the counter: the customer will
-    // only ever leave with four, one of which they already have.
+    // Five dropped off, one cancelled: the Customer will leave with four, one
+    // already collected.
     const summary = summarizeOrderFulfillment([
       "ready_for_pickup",
       "ready_for_pickup",
@@ -772,8 +737,7 @@ describe("summarizeOrderFulfillment", () => {
   });
 
   it("keeps a refunded pair still on the shelf in the remaining count", () => {
-    // Refunded while queued, customer not yet back for it: the shop still owes
-    // the pair, so the bar must not read complete.
+    // Refunded but not yet collected: the shop still holds the Item.
     const summary = summarizeOrderFulfillment(["picked_up", "refunded"]);
     expect(summary.total_count).toBe(2);
     expect(summary.picked_up_count).toBe(1);
@@ -798,10 +762,8 @@ describe("summarizeOrderFulfillment", () => {
 
 describe("nextReadyAt shelf clock", () => {
   it("does not restart the wait when a rollup finds the order still on the shelf", () => {
-    // Editing a repair price or taking payment recomputes the order. Stamping
-    // the current time here would push the shelf clock forward every time, and
-    // a pair nobody has collected in a week would never reach the Overdue pill.
-    // A plain Date is exactly that regression, so reject one.
+    // Pricing or payment recomputes the Order; stamping now would reset the
+    // clock, and an uncollected Item would never show Overdue.
     const readyAt = nextReadyAt("ready_for_pickup");
 
     expect(readyAt).not.toBeInstanceOf(Date);
@@ -809,8 +771,7 @@ describe("nextReadyAt shelf clock", () => {
   });
 
   it("clears the shelf clock when work reopens", () => {
-    // A failed quality check sends the Item back to the workshop. The customer
-    // cannot collect it, so the wait starts over when it returns to the shelf.
+    // After a QC reject the wait starts over when the Item returns.
     expect(nextReadyAt("processing")).toBeNull();
     expect(nextReadyAt("created")).toBeNull();
   });

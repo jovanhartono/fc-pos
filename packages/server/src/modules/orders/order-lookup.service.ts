@@ -54,11 +54,9 @@ export async function resolveOrderLookup(
 
   await assertStoreAccess(user, item.order.store_id);
 
-  // The single-live-treatment rule: an Item with exactly one open line sends
-  // the worker straight to it. Zero open lines shows its Order — the
-  // customer is here to collect, not to start work. More than one names the
-  // Item code instead, so the web filters the queue to it and lets the
-  // worker pick.
+  // One open line: straight to it. None: its Order, since the Customer is here
+  // to collect. Several: the Item code, so the Queue filters to it and the
+  // worker picks.
   const liveServiceId = item.services.length === 1 ? item.services[0].id : null;
 
   return {

@@ -34,9 +34,8 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 			resetScroll: false,
 		});
 
-	// A phone that went into an Order from a list comes back to the same list.
-	// A cashier pressing Back off a list expects it gone, not left over
-	// whichever tab Back lands on.
+	// A phone that went into an Order from a list comes back to the same list;
+	// Back off the list itself closes it rather than leaving it over another tab.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: only a new list or day reopens the sheet
 	useEffect(() => {
 		if (!(list && data) || useSheet.getState().sheetState.open) {

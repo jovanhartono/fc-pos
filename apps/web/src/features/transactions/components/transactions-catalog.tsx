@@ -96,10 +96,8 @@ export function TransactionsCatalog() {
 		return () => window.removeEventListener("keydown", handleKeydown);
 	}, []);
 
-	// One catalog: services and retail products in the same grid, with the
-	// products' single "Retail Product" category as just another pill. The
-	// Services / Add-ons toggle this replaces made the pills mode-scoped and
-	// made search silently skip whichever half was inactive.
+	// Services and Products share one grid: the old Services / Add-ons toggle
+	// made search silently skip whichever half was hidden.
 	const catalogEntries = useMemo(
 		() => [
 			...services.map((item) => ({ kind: "service" as const, item })),
@@ -168,7 +166,7 @@ export function TransactionsCatalog() {
 		<div className="grid gap-5">
 			<StickyControls className="grid gap-3">
 				{/* hideLabel returns the bare Combobox, so the error has to be
-						    rendered here — this is the only place the store can be fixed,
+						    rendered here — this is the only place the Store can be fixed,
 						    and the checkout sheet covers it. */}
 				<Field data-invalid={!!storeError}>
 					<div className="flex gap-2">
@@ -322,9 +320,9 @@ export function TransactionsCatalog() {
 												item.price === null && "text-muted-foreground",
 											)}
 										>
-											{/* No list price (ADR-0018): the cashier keys the number
-											    on the cart line if agreed, or leaves it blank until
-											    the workshop inspects the item. */}
+											{/* No list price (ADR-0018): the cashier types the agreed
+											    price on the Cart line, or leaves it blank until the
+											    workshop inspects the Item. */}
 											{item.price === null
 												? "Priced per item"
 												: formatMoney(String(item.price))}

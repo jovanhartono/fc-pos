@@ -115,8 +115,6 @@ export function buildDeltas<T extends object>(
   return deltas as ComparableSummary<T>["deltas"];
 }
 
-// ───────────────────────── Financial ─────────────────────────
-
 interface FinancialSummary {
   cogs: number;
   collected: number;
@@ -254,7 +252,6 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
   const summary = summariseFinancial(current);
   const prevSummary = summariseFinancial(previous);
 
-  // Category treemap
   const categoryTotals = new Map<
     number,
     { category_id: number; category_name: string; gross_sales: number }
@@ -315,7 +312,8 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     }))
     .sort((a, b) => b.revenue - a.revenue);
 
-  // Store × Category matrix: global top N columns, "Other" collapses rest
+  // One top-N Category list across all Stores, so every Store row has the same
+  // columns.
   const STORE_CATEGORY_TOP_N = 6;
   const STORE_CATEGORY_MAX_STORES = 12;
   const OTHER_CATEGORY_ID = -1;
@@ -489,8 +487,6 @@ function summariseFinancial(raw: {
   };
 }
 
-// ───────────────────────── Orders flow ─────────────────────────
-
 interface OrdersFlowSummary {
   net_flow: number;
   orders_in_total: number;
@@ -555,8 +551,6 @@ function ordersFlowSummaryFrom(
     net_flow: inTotal - outTotal,
   };
 }
-
-// ───────────────────────── Payment mix ─────────────────────────
 
 export async function getPaymentMixReport(query: GetReportRangeQuery) {
   const ctx = buildContext(query);
@@ -638,8 +632,6 @@ export async function getPaymentMixReport(query: GetReportRangeQuery) {
     summary,
   };
 }
-
-// ───────────────────────── Customer acquisition ─────────────────────────
 
 interface CustomerSummary {
   active_customers_in_range: number;
@@ -766,8 +758,6 @@ function customerSummary(
         : 0,
   };
 }
-
-// ───────────────────────── Worker productivity ─────────────────────────
 
 interface WorkerSummary {
   complaint_cohort: number;
@@ -1440,8 +1430,6 @@ export async function getWorkerDetailReport(query: GetWorkerDetailQuery) {
     complaints: groupComplaintsByService(cohort, complaintItems),
   };
 }
-
-// ───────────────────────── Campaign effectiveness ─────────────────────────
 
 export async function getCampaignEffectivenessReport(
   query: GetReportRangeQuery

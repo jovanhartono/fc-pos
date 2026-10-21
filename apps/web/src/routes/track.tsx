@@ -41,10 +41,9 @@ interface TrackItem {
 
 const STAGES = ["Received", "Cleaning", "QC", "Ready"] as const;
 
-// The rail follows the objects, not the money. The Order rollup says
-// "completed" for a refunded pair still on our rack (ADR-0008 — the money is
-// settled), and reading it here painted all four stages done for a shoe the
-// customer still has to come and get.
+// The rail follows the Items, not the money. The Order says "completed" for a
+// refunded Item still on our rack (ADR-0008), which showed all four stages done
+// for a shoe the customer still has to come and get.
 function getItemStageIndex(item: TrackItem): number {
 	if (isCollectableItemStatus(item.status)) {
 		return 3;
@@ -63,7 +62,7 @@ function isPendingItem(item: TrackItem) {
 }
 
 // Customers come once for everything, so the rail sits where the slowest
-// Item sits. Nothing pending — a products-only order, or every object already
+// Item sits. Nothing pending — a products-only Order, or every Item already
 // collected — reads as done rather than sitting on "Received".
 function getStageIndex(items: TrackItem[]): number {
 	const pending = items.filter(isPendingItem);
@@ -167,7 +166,7 @@ const StatusCard = ({
 };
 
 // Same structure as the loaded page so a link opened straight from WhatsApp
-// does not flash the search form or jump when the order appears.
+// does not flash the search form or jump when the Order appears.
 const StatusPlaceholder = () => (
 	<div className="grid gap-5" aria-busy="true">
 		<div className="px-1 pt-1">
@@ -212,8 +211,8 @@ const TrackOrderPage = () => {
 	const [code, setCode] = useState(search.code ?? "");
 	const [phone, setPhone] = useState(search.phone ?? "");
 	const [formError, setFormError] = useState<string | null>(null);
-	// The URL is the source of truth for which order is open, so Back after
-	// "Track another" brings the order straight back.
+	// The URL decides which Order is open, so Back after "Track another" brings
+	// the Order straight back.
 	const submitted =
 		search.code && search.phone
 			? { code: search.code, phone: normalizePhoneNumber(search.phone) }
@@ -313,7 +312,7 @@ const TrackOrderPage = () => {
 						/>
 
 						<h2 className={SECTION_LABEL_CLASS}>Items · {items.length}</h2>
-						{/* One block per object handed over, its treatments beneath
+						{/* One block per Item handed over, its Services beneath
 						    (ADR-0017): "your shoe: clean done, repaint in progress",
 						    never the same shoe listed three times. */}
 						<ul className={CARD_CLASS}>

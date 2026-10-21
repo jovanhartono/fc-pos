@@ -8,10 +8,8 @@ import {
 import { type RangeArgs, storeScope } from "@/modules/reports/money-basis";
 import { jakartaBucketExpr } from "@/modules/reports/report-range.util";
 
-// A treatment is processed the first time it reaches quality check, and counts
-// once. A line checked in July and sent back for a redo in August is July's
-// work, so the stretch is tested against that first check rather than against
-// every log row the redo left behind.
+// Counted once, at its first quality check: a line checked in July and sent
+// back in August is July's work.
 export function listServicesProcessed({ range, storeId }: RangeArgs) {
   const firstReachedQc =
     sql`MIN(${orderServiceStatusLogsTable.created_at})`.mapWith(

@@ -5,14 +5,11 @@ import { categoriesTable, servicesTable } from "@/db/schema";
 import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
-// The artisan and the deep cleaners work at different speeds, so each reads
-// the rack split by Category: "Repair only" or "everything except Repair".
-// A shoe carrying both kinds of work has to be on both racks, or one of the two
-// workers never learns it is waiting for them.
+// The artisan reads the Queue as "Repair only", the cleaners as "everything
+// except Repair"; an Item with both must show on both, or one never sees it.
 
-// Loaded after the swap above, never beside the imports: Bun binds a static
-// import graph before any module body runs, so a service pulled in up there
-// would hold the shop's real database.
+// Imported after the swap above: a static import would bind the shop's real
+// database before the swap runs.
 const { db } = await import("@/db");
 const { createOrder } = await import("@/modules/orders/order.service");
 const { getOrderServiceQueue, getOrderServiceQueueCounts } = await import(
@@ -110,9 +107,8 @@ it("counts the chips over the same rack the list shows", async () => {
 });
 
 it("keeps every live job on the card whatever the status chip", async () => {
-  // The artisan starts the repair on the pair that is also in for a clean. A
-  // worker on "Queued" still sees the repair in hand, so they know the shoe
-  // is on the artisan's bench before walking to the rack.
+  // The artisan starts the Repair on an Item also in for a clean; a cleaner on
+  // "Queued" still sees it, so they know the Item is on the artisan's bench.
   const pair = await testDb.query.itemsTable.findFirst({
     where: { brand: "clean and repair" },
     with: { services: true },
@@ -146,7 +142,7 @@ it("keeps every live job on the card whatever the status chip", async () => {
   expect(await jobsOnPair("processing")).toEqual(bothJobs);
   expect(await jobsOnPair()).toEqual(bothJobs);
 
-  // The chips still count cards: the pair is one card under each chip.
+  // The chips still count cards: the Item is one card under each chip.
   const counts = await getOrderServiceQueueCounts(shop.admin, {
     store_id: shop.store.id,
   });

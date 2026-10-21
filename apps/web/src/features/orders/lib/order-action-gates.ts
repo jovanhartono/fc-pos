@@ -12,7 +12,7 @@ export interface OrderPaymentState {
 	status: Order["status"];
 }
 
-// Cancelled before anyone paid: the customer owes nothing, so no screen says
+// Cancelled before anyone paid: the Customer owes nothing, so no screen says
 // Unpaid.
 export const isCancelledBeforePayment = (order: OrderPaymentState) =>
 	order.status === "cancelled" && order.payment_status === "unpaid";
@@ -33,8 +33,8 @@ export interface OrderActionGates {
 	// Order's move to paid.
 	hasUnpricedLine: boolean;
 	complaintableServices: OrderLine[];
-	// ADR-0017: what can actually leave the counter is an object, not a
-	// treatment — you cannot hand back half a shoe.
+	// ADR-0017: what leaves the counter is an Item, not an OrderService; half a
+	// shoe can't be handed back.
 	collectableItems: OrderItem[];
 	refundableServices: OrderLine[];
 	refundableProducts: OrderDetail["products"];
@@ -42,11 +42,8 @@ export interface OrderActionGates {
 	cancellableProducts: OrderDetail["products"];
 }
 
-// ADR-0012 / ADR-0019: why a queued line cannot start yet, or undefined when
-// it can. The verdict is the server's (`has_start_photo`); this only puts
-// words to it before the button relays a 400. A Rework needs a photo taken
-// after its round went on the rack — older photos are there in the gallery
-// but do not count.
+// ADR-0012 / ADR-0019: words for the server's `has_start_photo` verdict. A
+// Rework needs a photo taken after its round went on the rack.
 export const startPhotoBlocker = (
 	line: Pick<OrderLine, "status" | "has_start_photo" | "reworkOf">,
 ): string | undefined => {
@@ -82,9 +79,8 @@ export const orderLinePhotos = <
 		}));
 };
 
-// Pure derivation of every role/state gate on the order detail page. `me`
-// must come from /admin/users/me — JWT claims go stale when an admin changes
-// roles mid-session.
+// `me` must come from /admin/users/me: an admin can change roles mid-session
+// and the login token would still carry the old ones.
 export const getOrderActionGates = (
 	me: Me | undefined,
 	detail: OrderDetail,
@@ -106,8 +102,8 @@ export const getOrderActionGates = (
 		(item) => item.is_collectable,
 	);
 	const refundableServices = services.filter(
-		// Rework lines are free (₀) — never refundable. Escalation refunds the
-		// original complained line, not its rework (ADR-0013).
+		// Rework lines are free, so never refundable; escalation refunds the
+		// original line (ADR-0013).
 		(service) =>
 			!service.reworkOf && !["refunded", "cancelled"].includes(service.status),
 	);
@@ -132,7 +128,7 @@ export const getOrderActionGates = (
 	);
 	const isPaid = detail.payment_status === "paid";
 	const hasUnpriced = hasUnpricedLine(services);
-	// ADR-0009: items are ready but the Order is unpaid — explain why pickup is
+	// ADR-0009: Items are ready but the Order is unpaid — explain why pickup is
 	// blocked, and to whom (a pickup-only worker must fetch a cashier to collect).
 	const pickupDisabledReason =
 		collectableItems.length > 0 && !isPaid

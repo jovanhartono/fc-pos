@@ -38,8 +38,7 @@ export const useUpdateServiceStatusMutation = (orderId: number) => {
 	});
 };
 
-// ADR-0018: any staff may set or correct a line's price — the oversight is
-// the server-side price log (who keyed what, from what), not a role gate.
+// ADR-0018: any staff may set or correct a price; the price log is the oversight.
 export const useSetServicePriceMutation = (orderId: number) => {
 	const refreshOrder = useRefreshOrder();
 
@@ -64,9 +63,8 @@ export const useOrderPaymentMutation = (orderId: number) => {
 	return useMutation({
 		mutationFn: (payload: UpdateOrderPaymentPayload) =>
 			updateOrderPayment(orderId, payload),
-		// Settling at pickup is where the campaigns and voucher slips finally get
-		// spent, so a capped promo that just hit its limit stops offering itself
-		// at the next checkout.
+		// Campaigns and Vouchers get spent here, so one that just hit its Usage
+		// limit stops showing at the next checkout.
 		onSuccess: async () => {
 			await Promise.all([refreshOrder(), onRedemptionSpent(queryClient)]);
 		},

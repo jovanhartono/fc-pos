@@ -14,14 +14,13 @@ import {
 	type ZoomTransform,
 } from "./photo-zoom";
 
-// Counter phone held upright, and a garment shot that letterboxes into it exactly —
-// the only geometry where the photo has slack on both axes, so a clamp never hides a
-// broken anchor.
+// Counter phone held upright, and a photo that letterboxes into it exactly: slack on
+// both axes, so a clamp never hides a broken anchor.
 const upright = { height: 800, width: 400 };
 const uprightGarment = { height: 2000, width: 1000 };
 const uprightFitted = fittedSize(upright, uprightGarment);
 
-/** Which spot on the garment sits under a point on the glass, in unzoomed photo pixels. */
+/** Which spot on the Item sits under a point on the glass, in unzoomed photo pixels. */
 const spotUnderFinger = (transform: ZoomTransform, glass: Point): Point => ({
 	x: (glass.x - transform.offsetX) / transform.scale,
 	y: (glass.y - transform.offsetY) / transform.scale,
@@ -294,8 +293,7 @@ describe("double tap", () => {
 		const zoomed = doubleTapZoom(resetTransform(), tap, upright, uprightFitted);
 
 		expect(zoomed.scale).toBe(DOUBLE_TAP_SCALE);
-		// The constant itself has to magnify, or the double tap does nothing and the operator
-		// is left arguing about a mark he cannot show.
+		// Or the double tap does nothing and staff can't show the Customer the mark.
 		expect(zoomed.scale).toBeGreaterThan(MIN_SCALE);
 		expectSameSpot(before, spotUnderFinger(zoomed, tap));
 	});

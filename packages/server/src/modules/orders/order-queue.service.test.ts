@@ -6,16 +6,9 @@ import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
 
-// The workshop-floor queue: a worker scans a garment's tag to claim it and start
-// work, and staff nudge items between stations from the status dropdown. Two
-// invariants live here rather than in the status machine: an item already on a
-// colleague's rack cannot be grabbed mid-wash (two people handling one garment
-// is how garments get lost), and the terminal exits — picked_up / cancelled /
-// refunded — are blocked on this generic endpoint so a garment can only leave
-// the shop through the audited pickup, cancel, and refund desks that guard the
-// money. The DB is a fake row-lock transaction that captures writes;
-// transitionOrderService is stubbed (legality and the photo gate are already
-// pinned in order-status-machine.test.ts). The claim/guard logic stays real.
+// A worker scans an Item's tag to claim it. An Item a colleague is handling
+// can't be grabbed (two Handlers is how Items get lost), and picked up,
+// cancelled and refunded go only through their own audited screens.
 type AnyObj = Record<string, unknown>;
 
 interface CapturedWrite {
@@ -30,8 +23,6 @@ const dbState = {
   inserts: [] as CapturedWrite[],
 };
 
-// The one transaction handle every test shares: select().for("update") hands
-// back whatever row the test locked, and writes are captured for assertions.
 const TX = {
   select: () => ({
     from: () => ({
@@ -58,10 +49,8 @@ const TX = {
 
 mock.module("@/db", () => ({
   db: {
-    // order-queue.service (and order.repository in its import graph) build
-    // prepared tag lookups at module load — without these stubs the import
-    // itself would dial the database. The tag lookup hangs off items now that
-    // a code names an object rather than a treatment (ADR-0017).
+    // Tag lookups are prepared on import; without these the import itself
+    // would reach the database.
     query: {
       itemsTable: {
         findFirst: () => ({
@@ -78,8 +67,7 @@ mock.module("@/db", () => ({
       dbState.transactions += 1;
       return cb(TX);
     },
-    // The list queries need a live 3-join builder; the guard tests below must
-    // short-circuit before ever getting here, so reaching select() is a bug.
+    // The guard tests below must stop before the list query runs.
     select: () => {
       throw new Error("queue list query reached the database");
     },
@@ -92,10 +80,7 @@ const authz = {
 
 mock.module("@/utils/authorization", () => authorizationDouble(authz));
 
-// Spread the real machine and stub only transitionOrderService: which moves are
-// legal is order-status-machine.test.ts's job; here we pin only what the queue
-// hands it. The actual module is restored in afterAll because that suite runs
-// the machine for real.
+// Restored in afterAll, since order-status-machine.test.ts runs the real one.
 const actualStatusMachine = await import(
   "@/modules/orders/order-status-machine"
 );
@@ -128,7 +113,7 @@ const {
   updateOrderServiceStatus,
 } = await import("@/modules/orders/order-queue.service");
 
-// Sari, ironing staff — the one holding the barcode scanner.
+// Sari, the cleaner holding the scanner.
 const WORKER = { id: 9, role: "worker" } as unknown as JWTPayload;
 const ADMIN = { id: 1, role: "admin" } as unknown as JWTPayload;
 
@@ -155,9 +140,8 @@ const scan = () =>
 
 describe("startOrderServiceWork", () => {
   it("blocks scanning an item already on a colleague's rack", async () => {
-    // Budi (id 7) claimed this shirt an hour ago and it is mid-wash. Sari's
-    // scan must bounce — silently stealing the claim would leave two people
-    // working one garment and nobody accountable for it.
+    // Budi (id 7) is mid-clean on this Item; Sari's scan must not steal it
+    // and leave nobody accountable.
     dbState.lockedRows = [makeLockedRow({ handler_id: 7, status: "queued" })];
 
     const error = await captureRejection(scan());
@@ -174,12 +158,10 @@ describe("startOrderServiceWork", () => {
   it("claims an unowned queued item: handler flips to the scanner and the claim is logged", async () => {
     const result = await scan();
 
-    // The claim itself: the shirt now belongs to Sari's rack.
     expect(dbState.updates).toEqual([
       { table: ordersServicesTable, values: { handler_id: 9 } },
     ]);
-    // The audit row: if the shirt goes missing, this log says who took it
-    // off the shelf and that nobody held it before.
+    // If the Item goes missing, this log says who took it off the shelf.
     expect(dbState.inserts).toEqual([
       {
         table: orderServiceHandlerLogsTable,
@@ -192,8 +174,7 @@ describe("startOrderServiceWork", () => {
         },
       },
     ]);
-    // Claim and status flip ride the same row-lock transaction, so a crash
-    // can never leave a claimed shirt still marked queued.
+    // One transaction, so a crash never leaves a claimed Item still queued.
     expect(machine.calls).toHaveLength(1);
     expect(machine.calls[0]?.executor).toBe(TX);
     expect(machine.calls[0]?.input).toEqual({
@@ -212,8 +193,7 @@ describe("startOrderServiceWork", () => {
   });
 
   it("re-scanning your own item transitions without rewriting the claim", async () => {
-    // Sari scans the same tag twice (double beep at the shelf). The item is
-    // already hers — a second claim row would fake a hand-off in the audit log.
+    // A double beep at the shelf must not log a fake hand-off.
     dbState.lockedRows = [makeLockedRow({ handler_id: 9 })];
 
     const result = await scan();
@@ -225,8 +205,7 @@ describe("startOrderServiceWork", () => {
   });
 
   it("rejects a scan whose tag belongs to a different order before any write", async () => {
-    // The scanned service id exists but hangs off another customer's order —
-    // starting work here would process the wrong customer's garment.
+    // The OrderService belongs to another Customer's Order.
     dbState.lockedRows = [];
 
     const error = await captureRejection(scan());
@@ -246,10 +225,8 @@ const patchStatus = (body: PatchOrderServiceStatusInput) =>
 
 describe("updateOrderServiceStatus", () => {
   it("refuses picked_up before even opening a transaction", async () => {
-    // A cashier trying to mark a shirt picked_up from the dropdown would skip
-    // the pickup desk's paid-before-pickup check — the garment could walk out
-    // unpaid. The gate fires before any transaction so there is no window to
-    // race past it.
+    // Marking picked up from the dropdown would skip the paid-before-pickup
+    // check and let an unpaid Item walk out.
     const error = await captureRejection(patchStatus({ status: "picked_up" }));
 
     expect(error).toBeInstanceOf(ForbiddenException);
@@ -260,8 +237,6 @@ describe("updateOrderServiceStatus", () => {
   });
 
   it("refuses cancelled and refunded — money-moving exits stay on audited endpoints", async () => {
-    // Cancel and refund adjust what the customer owes or gets back; letting
-    // the dropdown reach those states would move money with no audit trail.
     for (const status of ["cancelled", "refunded"] as const) {
       const error = await captureRejection(patchStatus({ status }));
       expect(error).toBeInstanceOf(ForbiddenException);
@@ -274,9 +249,8 @@ describe("updateOrderServiceStatus", () => {
   });
 
   it("auto-assigns the acting user when pushing someone else's qc_reject back to processing", async () => {
-    // QC bounced Budi's ironing job, Budi went home, and Sari picks the redo
-    // up from the reject shelf. Restarting the work must move the claim to
-    // her — otherwise the redo would still show on Budi's rack.
+    // Budi's work got a QC reject and he went home; Sari restarts it, so it
+    // must leave Budi's list and become hers.
     dbState.lockedRows = [
       makeLockedRow({ status: "qc_reject", handler_id: 7 }),
     ];
@@ -309,8 +283,7 @@ describe("updateOrderServiceStatus", () => {
   });
 
   it("leaves the handler untouched on a non-claim transition", async () => {
-    // Sari sends Budi's finished shirt to quality check for him. Passing an
-    // item along is not taking it over — the wash stays credited to Budi.
+    // Sari sends Budi's finished Item to quality check; the work stays Budi's.
     dbState.lockedRows = [
       makeLockedRow({ status: "processing", handler_id: 7 }),
     ];
@@ -324,9 +297,6 @@ describe("updateOrderServiceStatus", () => {
   });
 
   it("trims a whitespace-only cancel note to null before it reaches the transition", async () => {
-    // A stray spacebar in the cancel-note box must not persist as a "filled"
-    // note — blank means blank. The item is already on Sari's rack, so this
-    // claim transition also writes no redundant hand-off log.
     dbState.lockedRows = [makeLockedRow({ status: "queued", handler_id: 9 })];
 
     await patchStatus({ status: "processing", cancel_note: "   " });
@@ -341,13 +311,9 @@ describe("updateOrderServiceStatus", () => {
   });
 });
 
-// Only the pre-query guards are pinned for the two list endpoints; the fake
-// db.select throws, so each passing test proves the guard short-circuited
-// before the database.
 describe("getOrderServiceQueue", () => {
   it("requires admins to pick a store before the queue query runs", async () => {
-    // An admin sees every store; an unscoped queue would dump the whole
-    // company's floor into one list nobody can work from.
+    // An unscoped Queue would mix every Store into one list nobody can work.
     const error = await captureRejection(getOrderServiceQueue(ADMIN));
 
     expect(error).toBeInstanceOf(BadRequestException);
@@ -357,8 +323,7 @@ describe("getOrderServiceQueue", () => {
   });
 
   it("hands a worker with no store memberships an empty page, not the company queue", async () => {
-    // A just-created account not yet assigned to a branch must see nothing —
-    // an empty membership list is not permission to see everything.
+    // A new User with no Store yet sees nothing, not everything.
     authz.storeIds = [];
 
     const result = await getOrderServiceQueue(WORKER);
@@ -372,10 +337,8 @@ describe("getOrderServiceQueue", () => {
 
 describe("updateOrderServiceHandler", () => {
   it("records the handler it took the garment from under the same lock it writes", async () => {
-    // Two supervisors reassigning one garment at the same moment: whoever
-    // commits second must log Sari as the previous handler, not the handler the
-    // first one saw. Reading it outside the lock forks the trail, and the trail
-    // is what the shop follows when an item cannot be found.
+    // Two admins reassign one Item at once; the second must log the real
+    // previous Handler, since the trail is how a lost Item is found.
     dbState.lockedRows = [
       makeLockedRow({ handler_id: 9, status: "processing" }),
     ];
@@ -407,7 +370,6 @@ describe("updateOrderServiceHandler", () => {
   });
 
   it("refuses a reassignment for a garment that is not on this order", async () => {
-    // A mistyped order number must not move a garment belonging to someone else.
     dbState.lockedRows = [];
 
     const error = await captureRejection(

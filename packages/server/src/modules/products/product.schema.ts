@@ -37,8 +37,8 @@ export const POSTProductSchema = z.object({
   cogs: currencySchema("COGS"),
   price: currencySchema("Price"),
 });
-// Editing a price is the same money boundary as creating one, so it gets the
-// same guard — otherwise "1.500" reaches the column as one and a half rupiah.
+// Same price check as create: otherwise an edit to "1.500" saves one and a half
+// rupiah.
 export const PUTProductSchema = createUpdateSchema(productsTable).extend({
   cogs: currencySchema("COGS").optional(),
   price: currencySchema("Price").optional(),

@@ -7,8 +7,8 @@ export interface Coordinates {
   longitude: number;
 }
 
-// How far a worker is from the branch they are clocking in against, and the
-// same formula the clock-in screen uses to rank the branches nearest them.
+// How far a worker is from the Store they are clocking in against, and the
+// same formula the clock-in screen uses to rank the Stores nearest them.
 export function distanceKm(from: Coordinates, to: Coordinates) {
   const deltaLat = toRadians(to.latitude - from.latitude);
   const deltaLon = toRadians(to.longitude - from.longitude);

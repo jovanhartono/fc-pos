@@ -47,7 +47,6 @@ export function findComplaintById(id: number) {
   });
 }
 
-// The complained line plus the order context needed to spawn a rework.
 export function findComplaintSubjectService(serviceId: number) {
   return db.query.ordersServicesTable.findFirst({
     where: { id: serviceId },
@@ -55,7 +54,7 @@ export function findComplaintSubjectService(serviceId: number) {
   });
 }
 
-// Another cashier may hand over, cancel or refund this pair meanwhile. The Order
+// Another cashier may hand over, cancel or refund this Item meanwhile. The Order
 // is held first, as a refund holds it, so the two never wait on each other.
 export async function lockOrderServiceState(
   executor: DbExecutor,
@@ -78,7 +77,7 @@ export async function lockOrderServiceState(
   return locked;
 }
 
-// Every treatment on the pair, its rework rounds included.
+// Every OrderService on the Item, Rework lines included.
 export function findItemLines(executor: DbExecutor, itemId: number) {
   return executor.query.ordersServicesTable.findMany({
     where: { item_id: itemId },
@@ -104,9 +103,8 @@ export function findComplaintDetailById(id: number) {
       orderService: {
         with: {
           service: { columns: { id: true, name: true } },
-          // The tag and descriptors staff read off the returning object live on
-          // the shared Item, not the line (ADR-0017). Rework lines reuse this
-          // same Item, so exposing it once here covers them too.
+          // The Item code and descriptors live on the Item, which Rework lines
+          // share, so this covers them too (ADR-0017).
           item: {
             columns: {
               id: true,

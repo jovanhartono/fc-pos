@@ -52,9 +52,7 @@ interface DataTableProps<TData extends RowData> {
 }
 
 // A code is read character by character, a name is what the eye looks for
-// first. Wrapped once here, so the table and the phone card both get it.
-// On the table a long name or description wraps inside its column's fixed
-// width and stops at two lines, so one long value never makes its row taller.
+// first. On the table a long value stops at two lines, so its row never grows.
 const KIND_CLASS = {
 	code: "tabular-nums",
 	name: "font-medium lg:line-clamp-2",
@@ -110,9 +108,8 @@ export const DataTable = <TData extends RowData>({
 	footer,
 }: DataTableProps<TData>) => {
 	const [sorting, setSorting] = useState<SortingState>([]);
-	// When a cashier's new filter lands, its rows are drawn fresh rather than the
-	// last filter's rows moved to new places, which the browser counts as the page
-	// jumping. The faded rows still answer the last filter; a refresh keeps its rows.
+	// A cashier's new filter draws fresh rows instead of moving the old ones,
+	// which the browser counts as the page jumping. A refresh keeps its rows.
 	const [resultSet, setResultSet] = useState(filterKey);
 	if (!isStale && resultSet !== filterKey) {
 		setResultSet(filterKey);
@@ -128,8 +125,8 @@ export const DataTable = <TData extends RowData>({
 		features: dataTableFeatures,
 		data,
 		columns: styledColumns,
-		// Rows keyed by their record, so a filter that drops one campaign doesn't
-		// pour the next campaign into its card and resize it.
+		// Rows keyed by their record, so a filter that drops one Campaign doesn't
+		// pour the next Campaign into its card and resize it.
 		getRowId: (row, index) =>
 			typeof row === "object" && row !== null && "id" in row
 				? String(row.id)

@@ -168,29 +168,29 @@ describe("the workshop queue is not an order", () => {
   });
 });
 
-describe("opening one order is checked against the branch", () => {
-  it("checks the branch before handing over a ticket", async () => {
+describe("opening one order is checked against the Store", () => {
+  it("checks the Store before handing over an Order", async () => {
     const res = await call("/123");
 
     expect(res.status).toBe(200);
     expect(orderAccessCalls).toEqual([{ userId: 7, orderId: 123 }]);
   });
 
-  it("checks the branch before printing a receipt", async () => {
+  it("checks the Store before printing a receipt", async () => {
     const res = await call("/123/receipt");
 
     expect(res.status).toBe(200);
     expect(orderAccessCalls).toEqual([{ userId: 7, orderId: 123 }]);
   });
 
-  it("checks the branch before touching a single garment on the ticket", async () => {
+  it("checks the Store before touching a single Item on the Order", async () => {
     const res = await call("/123/services/45/start", "POST");
 
     expect(res.status).toBe(200);
     expect(orderAccessCalls).toEqual([{ userId: 7, orderId: 123 }]);
   });
 
-  it("charges the counter one branch check per ticket, not two", async () => {
+  it("charges the counter one Store check per Order, not two", async () => {
     // A second registration matching the bare /orders/:id would re-run the gate
     // and double the lookup on the most-opened screen in the shop.
     await call("/123");
@@ -199,14 +199,14 @@ describe("opening one order is checked against the branch", () => {
   });
 });
 
-describe("a ticket dressed up to look like another branch's", () => {
+describe("an Order dressed up to look like another Store's", () => {
   // The counter reads the id after coercion, so /orders/+123 and /orders/%20123
   // both open order 123. A gate that only recognises plain digits would wave
-  // these through and hand a Bintaro ticket to a Kemang cashier.
+  // these through and hand a Bintaro Order to a Kemang cashier.
   const disguises = ["/+123", "/%20123", "/123%20", "/%09123", "/1e3", "/0123"];
 
   for (const disguise of disguises) {
-    it(`still checks the branch for ${disguise}`, async () => {
+    it(`still checks the Store for ${disguise}`, async () => {
       const res = await call(disguise);
 
       expect(res.status).toBe(200);
@@ -241,7 +241,7 @@ describe("what the gate leaves alone", () => {
   });
 
   it("does not ask which order a brand-new order belongs to", async () => {
-    // The order does not exist yet; its branch is checked from the body instead.
+    // The Order does not exist yet; its Store is checked from the body instead.
     const res = await app.request("/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -268,7 +268,7 @@ describe("what the gate leaves alone", () => {
 });
 
 describe("opening one line on an Order", () => {
-  it("checks the branch before handing over the line", async () => {
+  it("checks the Store before handing over the line", async () => {
     const res = await call("/123/services/45");
 
     expect(res.status).toBe(200);
@@ -282,7 +282,7 @@ describe("opening one line on an Order", () => {
     expect(res.status).toBe(404);
   });
 
-  it("refuses a line on an Order from another branch before asking the line service", async () => {
+  it("refuses a line on an Order from another Store before asking the line service", async () => {
     const res = await call("/777/services/45");
 
     expect(res.status).toBe(403);
@@ -301,7 +301,7 @@ describe("looking an Order up from the queue's search box", () => {
 });
 
 describe("an order the cashier may not have", () => {
-  it("says the ticket does not exist before it says whose branch it is", async () => {
+  it("says the Order does not exist before it says whose Store it is", async () => {
     // 404 before 403: an order nobody wrote is missing, not forbidden.
     const res = await call("/999");
 
@@ -309,7 +309,7 @@ describe("an order the cashier may not have", () => {
     expect(orderAccessCalls).toEqual([{ userId: 7, orderId: 999 }]);
   });
 
-  it("refuses a ticket that belongs to another branch", async () => {
+  it("refuses an Order that belongs to another Store", async () => {
     const res = await call("/777");
 
     expect(res.status).toBe(403);

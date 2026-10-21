@@ -38,10 +38,8 @@ export const GETOrdersQuerySchema = z
       path: ["date_from"],
     }
   )
-  // overdue already pins status to ready_for_pickup, so pairing it with any
-  // other status asks for orders that cannot exist. Answering that with an empty
-  // list would read as "nothing on the shelf is late" — the one thing the caller
-  // must not conclude from a query the shelf never got asked.
+  // overdue with any other status would return an empty list, which would read
+  // as "nothing on the shelf is late" when the shelf was never checked.
   .refine(
     (query) =>
       !(query.overdue && query.status) || query.status === "ready_for_pickup",

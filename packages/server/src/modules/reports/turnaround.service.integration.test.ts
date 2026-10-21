@@ -17,9 +17,8 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // workshop picks each Item up two hours later, so what varies is when each
 // Item became ready.
 
-// Loaded after the swap above, never beside the imports: Bun binds a static
-// import graph before any module body runs, so a service pulled in up there
-// would hold the shop's real database.
+// Loaded after the swap above: a static import would bind the shop's real
+// database before the mock runs.
 const { createOrder } = await import("@/modules/orders/order.service");
 const { getTurnaroundReport, TURNAROUND_MIN_ITEMS } = await import(
   "@/modules/reports/turnaround.service"
@@ -163,7 +162,7 @@ const seedAugust = async () => {
 
   const odd = await placeOrder(shop.store, [
     // Shoes plus a bag strap: one Item in two Categories, ready with the
-    // slower treatment, 72 hours in.
+    // slower Service, 72 hours in.
     { brand: "combo", serviceIds: [cleanId, bagCleanId] },
     { brand: "bag", serviceIds: [bagCleanId] },
     { brand: "early", serviceIds: [bagCleanId] },

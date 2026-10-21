@@ -25,10 +25,8 @@ export function assertCanReassignHandler(user: JWTPayload) {
   assertIsAdmin(user);
 }
 
-// The POS is open to every shop role since the 2026-09-05 amendment of
-// ADR-0004: a worker rings up a drop-off when the counter is unstaffed. A
-// courier only ever clocks in (ADR-0010), so they stay outside. Kept as an
-// allow-list so a role added later starts without POS access.
+// A worker rings up a drop-off when no cashier is at the counter (ADR-0004);
+// a Courier only clocks in (ADR-0010). A role added later starts without POS.
 const POS_ROLES: ReadonlySet<JWTPayload["role"]> = new Set([
   "admin",
   "cashier",
@@ -72,9 +70,8 @@ export function assertCanProcessPickup(user: JWTPayload) {
   }
 }
 
-// Processing-axis capabilities (self-assign, status updates during processing,
-// service detail photos) are open to all staff and have no assert — see
-// ADR-0004 amendment 2026-06-04. This module lists restricted capabilities only.
+// Workshop work (taking a job, moving its status, Item photos) is open to all
+// staff and has no check here (ADR-0004).
 
 export function assertCanCancelOrderService(
   user: JWTPayload,

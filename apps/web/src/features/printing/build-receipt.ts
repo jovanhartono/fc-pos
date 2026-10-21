@@ -14,9 +14,8 @@ const FOOTER_DISCLAIMER =
 	"Barang tidak diambil lebih dari 30 hari di luar tanggung jawab kami. " +
 	"Kerusakan bawaan sesuai persetujuan saat serah terima.";
 
-// Measure and pad on the ASCII-coerced text — escpos.text() coerces before
-// encoding, so raw .length would drift from the printed column count whenever
-// a field holds a char that NFKD expands ("½"→"12") or drops ("—"→"").
+// Pad the ASCII text the printer actually gets: a "½" or "—" in a field changes
+// length once coerced, which would push the price column out of line.
 const row = (leftRaw: string, rightRaw: string): string => {
 	const left = toPrintableAscii(leftRaw);
 	const right = toPrintableAscii(rightRaw);
@@ -33,9 +32,8 @@ const wrap = (text: string, indent = ""): string[] => {
 	const limit = WIDTH - indent.length;
 	let current = "";
 	for (const word of toPrintableAscii(text).split(/\s+/)) {
-		// A token wider than the line (URL, long reference code) has no
-		// whitespace to break on — hard-split it, filling the current line
-		// first, so no line ever exceeds WIDTH and loses its indent.
+		// A URL or long code in a note has no space to break on, so it is cut
+		// to fit, or it would run past the paper edge and lose its indent.
 		let piece = word;
 		while (piece.length > 0) {
 			const candidate = current ? `${current} ${piece}` : piece;
@@ -83,7 +81,7 @@ export const buildReceiptEscPos = (
 	const b = new EscPosBuilder();
 	b.init();
 
-	// Header: the wordmark already says Fresclean, so the store is identified by
+	// Header: the wordmark already says Fresclean, so the Store is identified by
 	// its address and phone only.
 	b.align("center");
 	if (RECEIPT_LOGO) {
@@ -95,7 +93,6 @@ export const buildReceiptEscPos = (
 	b.line(receipt.store.phone_number);
 	b.line(DIVIDER);
 
-	// Order identity
 	b.align("left");
 	b.line(infoRow("No. Order", receipt.code));
 	b.line(
@@ -106,18 +103,16 @@ export const buildReceiptEscPos = (
 	b.line(infoRow("Telepon", receipt.customer.phone_number));
 	b.line(DIVIDER);
 
-	// Line items — one header per physical object, its treatments beneath
-	// (ADR-0017): an upsold pair prints its tag and descriptors once, not
-	// once per treatment sold against it.
+	// One header per Item, its Services beneath (ADR-0017): a pair sold three
+	// Services prints its tag and details once, not three times.
 	if (receipt.items.length > 0) {
 		b.bold(true).line("LAYANAN").bold(false);
 		for (const [index, item] of receipt.items.entries()) {
 			if (index > 0) {
 				b.line();
 			}
-			// The bold row is what the counter's eye lands on to find one pair
-			// of shoes among five on the same receipt; an Item logged without
-			// brand or model has only its tag to be found by.
+			// The bold row is how the counter finds one pair among five on a
+			// Receipt; an Item logged without brand or model has only its tag.
 			const details = getOrderServiceItemDetails(item);
 			b.bold(true)
 				.lines(wrap(details ?? item.item_code))
@@ -126,8 +121,8 @@ export const buildReceiptEscPos = (
 				b.line(item.item_code);
 			}
 			for (const line of item.services) {
-				// Reprints happen after lines can be voided (ADR-0016 sanctions
-				// reprints) — an unmarked voided line reads as a live claim.
+				// A reprint can come after a line is cancelled or refunded (ADR-0016);
+				// unmarked, it would read as work still owed to the Customer.
 				const voided =
 					line.status === "cancelled"
 						? " (BATAL)"
@@ -165,7 +160,6 @@ export const buildReceiptEscPos = (
 	}
 	b.line(DIVIDER);
 
-	// Totals
 	b.line(row("Subtotal", money(receipt.total)));
 	for (const entry of receipt.campaigns) {
 		const label = entry.campaign
@@ -191,16 +185,16 @@ export const buildReceiptEscPos = (
 	}
 	b.line(DIVIDER);
 
-	// Notes — the customer's instruction for the treatment, so it sits with the
-	// order rather than stranded under the QR where nobody reads it.
+	// The Customer's note is an instruction for the work, so it sits with the
+	// Order rather than stranded under the QR where nobody reads it.
 	const notes = receipt.notes?.trim();
 	if (notes) {
 		b.lines(wrap(`Catatan: ${notes}`));
 		b.line(DIVIDER);
 	}
 
-	// Pickup code — the claim ticket (ADR-0016). A cancelled Order has nothing
-	// to claim, so it gets no live-looking code.
+	// Pickup code (ADR-0016). A cancelled Order has nothing to claim, so it gets
+	// no live-looking code.
 	b.align("center");
 	if (!isCancelled) {
 		b.line("KODE PENGAMBILAN");
@@ -211,11 +205,9 @@ export const buildReceiptEscPos = (
 		b.feed(1);
 	}
 
-	// Tracking QR
 	b.qr(trackingUrl);
 	b.line("Scan untuk cek status order");
 
-	// Footer
 	b.line(DIVIDER);
 	b.line(FOOTER_THANKS);
 	b.align("left").lines(wrap(FOOTER_DISCLAIMER));

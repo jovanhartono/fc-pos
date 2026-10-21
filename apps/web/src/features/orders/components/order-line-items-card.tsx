@@ -116,20 +116,16 @@ interface ItemBlockProps {
 	isAdmin: boolean;
 }
 
-// One physical object and every treatment sold against it (ADR-0017). The tag
-// and the descriptors are stated once here rather than repeated down each
-// treatment — a pair in for a clean, a repaint and leather care used to read
-// as three unrelated lines with three tag codes.
+// One Item and every OrderService on it (ADR-0017), so a shoe in for a clean,
+// a repaint and leather care no longer reads as three unrelated lines.
 const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 	const descriptors = getOrderServiceItemDetails(item);
 	const totalRow = getItemTotalRow(item.services);
 
 	return (
 		<Card className="gap-0 py-0">
-			{/* The object leads, the tag follows: what the cashier says out loud
-			    is "the red New Balance", and the code is how the shelf finds it.
-			    Same order as the queue card and the pickup dialog. No status here:
-			    each line below shows its own. */}
+			{/* The Item leads, the tag follows: the cashier says "the red New
+			    Balance", the shelf finds it by code. Each line shows its own status. */}
 			<header className="min-w-0 px-4 py-3">
 				{descriptors ? (
 					<>
@@ -183,7 +179,7 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 	);
 };
 
-// One Item with one treatment, what most Orders at the counter carry.
+// One Item with one Service, what most Orders at the counter carry.
 export const OrderItemsSkeleton = () => (
 	<section className="grid gap-3">
 		<OrderSectionHeader>Items</OrderSectionHeader>

@@ -33,9 +33,8 @@ export const POSTServiceSchema = z.object({
     ),
 
   cogs: currencySchema("COGS"),
-  // null = no list price (ADR-0018): the Service is priced per Item (Repair),
-  // at intake or after the workshop's inspection. Deliberately not price 0 —
-  // that already means deliberately free.
+  // null is a Repair priced per Item after inspection (ADR-0018); 0 means free
+  // on purpose.
   price: currencySchema("Price").nullable(),
 
   name: varcharSchema("Name"),
@@ -43,8 +42,8 @@ export const POSTServiceSchema = z.object({
   is_active: isActiveSchema,
   is_priority: z.boolean().default(false),
 });
-// Editing a price is the same money boundary as creating one, so it gets the
-// same guard — otherwise "1.500" reaches the column as one and a half rupiah.
+// Same price check as create: otherwise an edit to "1.500" saves one and a half
+// rupiah.
 export const PUTServiceSchema = createUpdateSchema(servicesTable).extend({
   cogs: currencySchema("COGS").optional(),
   price: currencySchema("Price").nullable().optional(),

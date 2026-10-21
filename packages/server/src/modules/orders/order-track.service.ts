@@ -6,8 +6,8 @@ import {
   isCollectableItemStatus,
 } from "@/modules/orders/order-status-machine";
 
-// The page is open to anyone with the Order code and a phone number, so the
-// number it echoes back has to be unusable as a credential on the next try.
+// Anyone with the Order code and a phone number can open the page, so the
+// number shown back must not work as a login on the next try.
 function maskPhoneNumber(phone: string) {
   const suffix = phone.slice(-4);
   return `******${suffix}`;
@@ -20,8 +20,7 @@ export async function getTrackedOrder({
   code: string;
   phone_number: string;
 }) {
-  // One message for an unknown phone and for a code that is not this
-  // customer's, so guessing one tells nothing about the other.
+  // One message for both failures, so guessing one tells nothing about the other.
   const customer = await findCustomerIdByPhone(phone_number);
 
   if (!customer) {
@@ -37,12 +36,9 @@ export async function getTrackedOrder({
   const orderCustomer = order.customer;
   const { pickup_code, ...orderWithoutPickupCode } = order;
 
-  // Derived here rather than on the page: the rollup now turns on
-  // whether a pickup event ever took the object out, and that is a
-  // shop-internal id no tracking page should be handed. Each treatment
-  // is rebuilt field by field rather than spread-minus-the-id, so the
-  // next column selected to feed a derivation has to be named here
-  // before it can reach a customer.
+  // Item status is worked out here because it needs the shop-internal pickup
+  // event id. Lines are rebuilt field by field so no new column reaches the
+  // Customer without being named here.
   const items = order.items.map(({ services, ...item }) => ({
     ...item,
     status: deriveItemStatus(services),
@@ -57,11 +53,9 @@ export async function getTrackedOrder({
   return {
     ...orderWithoutPickupCode,
     items,
-    // Shown while anything is still on the rack to collect — which
-    // includes a fully refunded pair the customer never came back for.
-    // The Order rollup says "completed" there (the money is settled,
-    // ADR-0008), so gating on it hid the code for exactly the object
-    // most likely to be forgotten.
+    // Shown while anything is left to collect, including a refunded pair the
+    // Customer never came back for. The Order reads "completed" then (ADR-0008),
+    // so checking the Order would hide the code for that forgotten pair.
     pickup_code: items.some((item) => isCollectableItemStatus(item.status))
       ? pickup_code
       : null,

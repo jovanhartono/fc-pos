@@ -5,17 +5,12 @@ import { captureRejection } from "@/test-support/capture-rejection";
 import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
-// The pickup desk against a real Postgres. What the fake-based suite beside
-// this one cannot show is the rollback: the photographed handover and the
-// flip to picked_up are one transaction, so an Item that has already left the
-// counter leaves no second event behind.
+// The handover and the move to picked_up are one transaction, so an Item that
+// already left the counter leaves no second OrderPickupEvent behind.
 
-// Dev and production file into one bucket under their own prefix, so every key
-// the desk issues or accepts carries one.
 const STORAGE_ENV_PREFIX = "dev/";
 
-// Captured before the mock below replaces the module: pure key/scope logic with
-// no S3 or DB of their own, so the real implementation runs here rather than a copy of it.
+// Taken before the mock replaces the module, so the real key checks run here.
 const { assertPhotoKeyUnder, newPhotoKey } = await import("@/utils/s3");
 
 mock.module("@/utils/s3", () => ({
@@ -31,9 +26,8 @@ mock.module("@/utils/s3", () => ({
   optimizeUploadedImage: () => Promise.resolve(),
 }));
 
-// Loaded after both swaps above, never beside the imports: Bun binds a static
-// import graph before any module body runs, so a service pulled in up there
-// would hold the shop's real database and the real storage module.
+// Imported after both swaps above: a static import would bind the real
+// database and storage before the swaps run.
 const { db } = await import("@/db");
 const { createOrder } = await import("@/modules/orders/order.service");
 const { createOrderPickupEvent } = await import(
@@ -57,8 +51,8 @@ const placeOrder = (paymentStatus: "paid" | "unpaid") =>
     voucher_codes: [],
   });
 
-// Walk the one treatment on the Order all the way to the shelf, the way the
-// workshop does: photograph the object, start it, pass QC.
+// Walk the Order's one OrderService to the shelf the way the workshop does:
+// Item photo, start, pass quality check.
 const readyForPickup = async (orderId: number) => {
   const item = await testDb.query.itemsTable.findFirst({
     where: { order_id: orderId },

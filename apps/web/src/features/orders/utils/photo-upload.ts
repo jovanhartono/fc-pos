@@ -19,18 +19,14 @@ export interface UploadPhotoInput {
 	file: File;
 	contentType: PhotoContentType;
 	note?: string;
-	// Cancels the bytes mid-flight, for a push that started when the photo was staged. A shot the
-	// operator retakes stops competing with its replacement for the uplink, and leaves nothing
-	// behind in the bucket — a cancelled upload is never stored.
+	// A photo staff retake stops competing with its replacement for the uplink
+	// and leaves nothing in the bucket.
 	signal?: AbortSignal;
 }
 
 /**
- * Uploading a photo is two jobs with very different costs, so a batch keeps them apart.
- * `pushBytes` is the slow one: the file itself over shop 4G. `commit` is the small request that
- * files it against the order and decides the row id the gallery sorts on. Split, a caller can
- * send the next photo's bytes while the current one is being filed, without letting two commits
- * race and shuffle a before/after pair.
+ * `pushBytes` is the slow trip over shop 4G; `commit` saves it against the Order. Split so the
+ * next photo uploads while this one saves, without two saves shuffling a before/after pair.
  */
 export interface PhotoUploader {
 	commit: (key: string, input: UploadPhotoInput) => Promise<void>;
@@ -38,10 +34,8 @@ export interface PhotoUploader {
 }
 
 /**
- * The key to commit, for a photo whose upload may already have started when it was staged. One
- * that died in between — dropped 4G, the phone carried out of range — is sent again rather than
- * failing the whole batch. One that succeeded is never sent twice: that would leave a second copy
- * of the same evidence in the bucket.
+ * An early upload that died on 4G is sent again rather than failing the batch; one that
+ * succeeded is never sent twice, or the bucket holds a second copy.
  */
 export const resolveUploadedKey = async (
 	uploader: PhotoUploader,
@@ -100,7 +94,7 @@ export const orderDropoffPhotoUploader = (orderId: number): PhotoUploader => ({
 	},
 });
 
-// The drop-off photo is a single column on the order, so it is always one photo and the
+// The Drop-off photo is a single column on the Order, so it is always one photo and the
 // POS uploads it straight after checkout rather than through the dialog.
 export const uploadOrderDropoffPhoto = async (
 	orderId: number,

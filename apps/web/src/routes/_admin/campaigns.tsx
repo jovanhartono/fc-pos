@@ -388,7 +388,7 @@ function CampaignsPage() {
 							disabled={!isAdmin}
 							onClick={() => handleOpenEditSheet(row.original)}
 						/>
-						{/* An empty slot on listed campaigns keeps Archive in the same
+						{/* An empty slot on listed Campaigns keeps Archive in the same
 						spot on every row, so a quick click never archives by mistake. */}
 						{row.original.redemption_mode === "code" ? (
 							<Button

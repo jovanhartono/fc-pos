@@ -2,12 +2,8 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { drizzle } from "drizzle-orm/pg-proxy";
 import type { DateRange } from "@/modules/reports/report-range.util";
 
-// The overview page answers "how did today go". A pg-proxy driver stands in for
-// the database: Drizzle builds the real statement, we capture it and answer
-// with rows we chose. Nothing connects.
-//
-// pg-proxy speaks the raw wire shape, so a fake row is a positional array in
-// the order the query selects its columns — not a named object.
+// A fake row is a positional array in the query's column order, not a named
+// object: pg-proxy speaks the raw wire shape.
 
 const queries: { params: unknown[]; sql: string }[] = [];
 const rowQueue: unknown[][] = [];
@@ -43,9 +39,7 @@ const only = () => {
 };
 
 describe("which orders the overview panels count", () => {
-  // Work written up on Saturday and paid for on Monday is Monday's money.
-  // Counting it on the day the Order was opened put sales into a day whose
-  // takings never included them.
+  // Work dropped off on Saturday and paid for on Monday is Monday's money.
   it("counts a category's sales on the day the counter took the money", async () => {
     await categoryGrossSalesForRange({ range: SATURDAY });
 

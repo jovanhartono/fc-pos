@@ -101,10 +101,8 @@ export const useBarcodeScanner = (
 
 		const detector = new detectorConstructor();
 		let frameId: number | null = null;
-		// A worker who taps Stop Scan and Scan Tag again on a tag that will not read can
-		// do it inside one decode, and starting clears cancelRef. Without a flag this
-		// loop owns, that decode resolves into a frame the new session cannot cancel and
-		// two detectors then read every frame off the same video for the rest of the shift.
+		// A worker retapping Scan Tag mid-decode would otherwise leave two detectors
+		// reading every frame for the rest of the shift.
 		let alive = true;
 
 		const detect = async () => {

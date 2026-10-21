@@ -49,10 +49,9 @@ const RAISED_CONTROLS =
 
 const SKELETON_ROW_COUNT = 10;
 
-// Spare room on a wide screen goes to every column by its share, not all to
-// the Customer. The table stops shrinking once one column is at its minimum
-// and scrolls sideways in its frame, so a 1024px screen with the sidebar open
-// never squeezes a column away.
+// Spare room goes to every column by its share, not all to the Customer. Once a
+// column hits its minimum the table scrolls sideways, so a 1024px screen with the
+// sidebar open never squeezes a column away.
 const tableMinWidthRem = (widths: (ColumnWidth | undefined)[]) =>
 	widths.reduce(
 		(widest, width) =>
@@ -161,8 +160,7 @@ export const DataTableGrid = <TData extends RowData>({
 
 	return (
 		// Only the rows scroll, so paging through five pages is five clicks on
-		// Next without scrolling back down each time. The frame fills the page
-		// and the pager stays at its foot, whatever number of rows a filter returns.
+		// Next without scrolling back down each time.
 		<div
 			ref={frameRef}
 			className={cn(

@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { NotFoundException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 
-// Nothing here touches a database: the reveal rule and the mask are the whole
-// subject, so the two reads the service makes are handed back as fixtures.
 mock.module("@/db", () => ({ db: {} }));
 
 const state = {
@@ -91,9 +89,8 @@ describe("phone number", () => {
 });
 
 describe("lookup", () => {
-  // The code and the phone are the only credential pair, so a wrong phone and
-  // a code belonging to someone else answer the same way — otherwise the page
-  // confirms which of the two the guesser got right.
+  // A wrong phone and someone else's Order code answer alike, or the tracking
+  // page tells a guesser which half they got right.
   it("answers the same way for an unknown phone number and a foreign code", async () => {
     state.customer = undefined;
     const unknownPhone = await captureRejection(track());

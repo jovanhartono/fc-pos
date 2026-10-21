@@ -3,9 +3,8 @@ import { beforeEach, expect, it, mock } from "bun:test";
 import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
-// The three Order reads against a real Postgres, checked for the one thing a
-// column list gets wrong silently: who is allowed to see the pickup code, the
-// six digits that release someone's shoes at the counter (ADR-0005/0016).
+// Who may see the Pickup code, the six digits that release a Customer's Items
+// at the counter (ADR-0005/0016).
 
 mock.module("@/utils/s3", () => ({
   STORAGE_ENV_PREFIX: "dev/",
@@ -19,9 +18,8 @@ mock.module("@/utils/s3", () => ({
   optimizeUploadedImage: () => Promise.resolve(),
 }));
 
-// Loaded after both swaps above, never beside the imports: Bun binds a static
-// import graph before any module body runs, so a service pulled in up there
-// would hold the shop's real database and the real storage module.
+// Imported after both swaps above: a static import would bind the real
+// database and storage before the swaps run.
 const { db } = await import("@/db");
 const { createOrder, getOrderDetailById } = await import(
   "@/modules/orders/order.service"
@@ -55,8 +53,8 @@ const placeOrder = () =>
     voucher_codes: [],
   });
 
-// Walk the one treatment on the Order to the shelf, the way the workshop does:
-// photograph the object, start it, pass QC.
+// Walk the Order's one OrderService to the shelf the way the workshop does:
+// Item photo, start, pass quality check.
 const putOnTheShelf = async (orderId: number) => {
   const item = await testDb.query.itemsTable.findFirst({
     where: { order_id: orderId },
@@ -105,8 +103,8 @@ it("keeps the pickup code out of the admin order detail", async () => {
 
   expect(detail).not.toBeNull();
   expect(detail).not.toHaveProperty("pickup_code");
-  // The bucket key and the raw handover rows are shop-internal; the detail
-  // sends a photo URL and a shaped pickup_events list instead.
+  // Storage keys and raw handover rows stay internal; the detail sends a photo
+  // URL and pickup_events instead.
   expect(detail).not.toHaveProperty("dropoff_photo_path");
   expect(detail).not.toHaveProperty("pickupEvents");
 });

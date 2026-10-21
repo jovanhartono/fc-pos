@@ -101,9 +101,9 @@ function formatElapsedDuration(ms: number): string {
 const queueSearchSchema = z.object({
 	storeId: z.coerce.number().int().positive().optional(),
 	status: z.enum(WORKSHOP_SERVICE_STATUSES).optional(),
-	// Set when a scanned tag turns out to have several treatments open on it:
-	// the rack narrows to that one object so the worker can say which job they
-	// are starting (ADR-0017). A typed customer name or phone sets it too.
+	// Set when a scanned tag has several Services open on it: the rack narrows to
+	// that one Item so the worker can say which one they are starting (ADR-0017).
+	// A typed customer name or phone sets it too.
 	search: z.string().min(1).optional(),
 	dateFrom: z
 		.string()
@@ -120,7 +120,7 @@ const queueSearchSchema = z.object({
 export const Route = createFileRoute("/_admin/queue/")({
 	validateSearch: (search) => queueSearchSchema.parse(search),
 	// The worker's rack is picked before the page draws, so the chips and the
-	// Filters badge don't redraw a beat after arriving. The remembered branch is
+	// Filters badge don't redraw a beat after arriving. The remembered Store is
 	// restored only on arrival, so an explicit clear stays cleared.
 	beforeLoad: ({ context, search, cause }) => {
 		if (search.storeId !== undefined || cause === "preload") {
@@ -134,7 +134,7 @@ export const Route = createFileRoute("/_admin/queue/")({
 					String(currentUser.id)
 				]
 			: undefined;
-		// Only a branch this worker may still see — one moved between branches
+		// Only a Store this worker may still see — one moved between Stores
 		// since must not land on the old rack.
 		const restoredStoreId =
 			cause === "enter" &&
@@ -190,8 +190,8 @@ function QueuePage() {
 	// DB-fresh role — JWT claim goes stale on mid-session role changes.
 	const role = meQuery.data?.role;
 
-	// With a store in the URL, remember it — however it got there: the filter
-	// dialog, a scan, or the back link from a job. beforeLoad restores it.
+	// With a Store in the URL, remember it — however it got there: the filter
+	// dialog, a scan, or a line's back link. beforeLoad restores it.
 	useEffect(() => {
 		if (
 			currentUser &&
@@ -214,7 +214,7 @@ function QueuePage() {
 	const setPersistedCategory = useQueuePreferencesStore(
 		(state) => state.setCategory,
 	);
-	// Arriving from the sidebar or a job's back link, the worker lands on their
+	// Arriving from the sidebar or a line's back link, the worker lands on their
 	// own rack; picking "All categories" forgets it, so All is a rack too.
 	const selectedCategoryId = search.categoryId ?? persistedCategory?.categoryId;
 	const selectedCategoryMode =
@@ -256,9 +256,8 @@ function QueuePage() {
 				}
 			: undefined;
 
-	// A new status, date or category keeps the last cards and count up, faded,
-	// until the new ones land, instead of blinking to skeletons and an empty title.
-	// An admin who clears the store gets "Select a store", not the last store's rack.
+	// A new status, date or Category keeps the last cards and count up, faded,
+	// until the new ones land. An admin who clears the Store gets "Select a store".
 	const keepLastRack =
 		parsedStoreId === undefined ? undefined : keepPreviousData;
 	const queueQuery = useInfiniteQuery({
@@ -267,9 +266,8 @@ function QueuePage() {
 		placeholderData: keepLastRack,
 	});
 
-	// The cards on screen belong to this filter. A new filter's cards replace
-	// them as a fresh list with a fade, rather than the same cards sliding to
-	// new places.
+	// A new filter's cards come in as a fresh list with a fade, rather than the
+	// same cards sliding to new places.
 	const queueKey = JSON.stringify(queueQueryInput ?? null);
 	const [shownQueueKey, setShownQueueKey] = useState(queueKey);
 	if (!queueQuery.isPlaceholderData && shownQueueKey !== queueKey) {
@@ -299,8 +297,7 @@ function QueuePage() {
 				}
 			},
 			{
-				// The scroll lives in the shell's content pane now, and a margin only
-				// counts against the observer's own root — left on the viewport the
+				// Watched against the shell's scrolling pane, not the window, or the
 				// worker reaches the end of the queue before the next page loads.
 				root: document.querySelector(
 					`[data-scroll-restoration-id="${APP_CONTENT_SCROLL_ID}"]`,
@@ -329,7 +326,7 @@ function QueuePage() {
 				return;
 			}
 
-			// Several lines open on the one object: show its card and let the
+			// Several lines open on the one Item: show its card and let the
 			// worker say which one they are starting.
 			const itemCode = result.item_code;
 			if (itemCode !== null) {
@@ -353,7 +350,7 @@ function QueuePage() {
 		},
 		onError: (error: Error, { mode, value }) => {
 			// Not a tag or an ID, so a worker typing a regular's name or phone
-			// gets the rack narrowed to that customer's items.
+			// gets the rack narrowed to that customer's Items.
 			if (mode === "manual" && isNotFoundError(error)) {
 				void navigate({
 					search: (prev) => ({ ...prev, search: value, status: undefined }),
@@ -448,7 +445,7 @@ function QueuePage() {
 		});
 	};
 
-	// Set by a scan that landed on a multi-treatment tag, or a customer search.
+	// Set by a scan of a tag with several Services open, or a customer search.
 	// Without a way back the worker stays on a narrowed rack.
 	const clearSearchFilter = () => {
 		setItemCode("");
@@ -676,7 +673,7 @@ function QueuePage() {
 	);
 }
 
-// A card's shape: the Item over its Order line, then one job row.
+// A card's shape: the Item over its Order line, then one Service row.
 const QueueSkeleton = () => (
 	<div aria-hidden className="grid gap-2">
 		{Array.from({ length: 6 }, (_, index) => (
@@ -767,10 +764,10 @@ interface QueueRowProps {
 	onOpen: (item: QueueItem, serviceId: number) => void;
 }
 
-// One card per physical object, with every treatment still live on it listed
-// inside (ADR-0017). A pair in for a deep clean, a repaint and leather care
-// used to be three separate rows on the rack with nothing saying they were the
-// same shoe — and physics already stops two workers holding it at once.
+// One card per Item, with every Service still open on it listed inside
+// (ADR-0017). A shoe in for a deep clean, a repaint and leather care used to be
+// three rows on the rack with nothing saying they were the same shoe. No lock
+// needed: two workers can't hold one shoe at once.
 const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 	const elapsedMs = Math.max(
 		0,
@@ -815,8 +812,8 @@ const QueueRow = memo(({ item, currentUserId, now, onOpen }: QueueRowProps) => {
 				</p>
 			</header>
 
-			{/* Each treatment is its own target: the worker taps the job they are
-			    about to do, not the object. */}
+			{/* Each Service is its own target: the worker taps the one they are
+			    about to do, not the Item. */}
 			<ul className="grid">
 				{groupReworksUnderOriginals(
 					item.services,

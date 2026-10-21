@@ -36,10 +36,8 @@ import { cn } from "@/lib/utils";
 
 type PickupDialogContextValue = {
 	orderId: number;
-	// The cashier hands back objects, so an object is what gets ticked here —
-	// never one treatment on it (ADR-0017). The server takes the same unit,
-	// which is what makes a half-collected shoe unexpressible rather than
-	// merely rejected.
+	// The cashier hands back whole Items, never one OrderService on one
+	// (ADR-0017); the server takes the same unit, so half a shoe can't leave.
 	collectableItems: OrderItem[];
 	selectedIds: Set<number>;
 	toggleItem: (itemId: number) => void;
@@ -94,10 +92,8 @@ export const OrderPickupEventDialog = ({
 }: OrderPickupEventDialogProps) => {
 	const queryClient = useQueryClient();
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(
-		// Only the ready ones start ticked. A refunded pair is collectable too,
-		// but it is the row most likely to be wrong by default — a customer
-		// collecting one pair walked out with two unless the cashier read the
-		// small print. Handing it back stays one deliberate tap.
+		// Only ready Items start ticked. A refunded Item is Collectable too, but
+		// ticking it by default let a Customer collecting one pair leave with two.
 		() =>
 			new Set(
 				collectableItems
@@ -175,9 +171,7 @@ export const OrderPickupEventDialog = ({
 		},
 		onSuccess: async () => {
 			toast.success("Pickup recorded");
-			// A collected Item leaves the workshop queue and the ready-for-pickup
-			// shelf both — the /queue chips and the /orders pills each hold a number
-			// this hand-off just changed.
+			// A collected Item changes the counts on both /queue and /orders.
 			await onOrderMoved(queryClient);
 			closeDialog();
 		},
@@ -348,8 +342,7 @@ const PickupItemRow = memo(
 						onCheckedChange={() => onToggle(item.id)}
 					/>
 					<div className="min-w-0 flex-1">
-						{/* What the cashier says out loud leads; the tag is the machine's
-						    handle and reads second, in mono like every other screen. */}
+						{/* What the cashier says out loud leads; the Item code reads second. */}
 						<span className="block font-medium leading-snug">
 							{details ?? item.item_code}
 						</span>
@@ -358,12 +351,8 @@ const PickupItemRow = memo(
 								{item.item_code}
 							</p>
 						) : null}
-						{/* Exactly the rows the pickup will act on — the same predicate the
-						    server partitions with, so a change to what a handover covers can
-						    never leave the cashier reading out the wrong list. A refunded one
-						    still crosses the counter, and it carries the same danger badge it
-						    earns everywhere else — the one fact that changes what the cashier
-						    hands over must not be small print. */}
+						{/* Same rule the server uses for what a pickup covers. A refunded
+						    line keeps its red badge: it changes what the cashier hands over. */}
 						<p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-muted-foreground text-footnote">
 							{item.services.filter(isHandedOverByPickup).map((treatment) => (
 								<span

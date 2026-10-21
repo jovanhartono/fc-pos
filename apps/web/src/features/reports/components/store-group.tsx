@@ -16,7 +16,7 @@ interface StoreGroupProps {
 	children: ReactNode;
 }
 
-// One closed row per Store, so the owner opens the branch they came for.
+// One closed row per Store, so the owner opens the Store they came for.
 export const StoreGroup = ({
 	storeName,
 	totals,

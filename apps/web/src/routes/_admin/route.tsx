@@ -12,11 +12,9 @@ import { ErrorCard } from "@/components/global-error-page";
 import { usersQueries } from "@/features/users/api";
 import { requireAuth } from "@/lib/auth";
 
-// The whole app is booting here, not a page — on the first open of the day the
-// container is cold and nothing is known yet about the screen the cashier is
-// headed for, so a skeleton would be drawing a shape it cannot know. The shell
-// is left out for the same reason: its nav comes from the lookup still in
-// flight, so it would draw an empty sidebar and pop the tabs in a beat later.
+// The whole app is booting, not a page: on the day's first open nothing is known
+// yet about the cashier's screen, and the shell's nav waits on the same lookup,
+// so a skeleton or an empty sidebar would draw the wrong shape.
 const AdminPendingComponent = () => (
 	<output aria-busy className="grid h-full place-items-center">
 		<HugeiconsIcon

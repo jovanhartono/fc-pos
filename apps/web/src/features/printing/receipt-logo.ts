@@ -1,9 +1,8 @@
 import type { RasterBitmap } from "./escpos";
 
-// 1-bit raster of the Fresclean wordmark for the receipt header (GS v 0).
-// Generated from public/receipt-logo.webp by `bun run generate-receipt-logo` — edit the
-// logo and rerun, never this file. Base64 keeps 6768 bytes to
-// one reviewable line instead of 6768 array entries.
+// 1-bit raster of the Fresclean wordmark for the Receipt header (GS v 0).
+// Generated from public/receipt-logo.webp by `bun run generate-receipt-logo`:
+// edit the logo and rerun, never this file.
 const WIDTH_BYTES = 72;
 const HEIGHT = 94;
 const DATA_BASE64 =

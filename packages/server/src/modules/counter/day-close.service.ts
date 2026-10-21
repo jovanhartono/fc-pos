@@ -133,9 +133,8 @@ async function buildPickedUpList(
   });
 }
 
-// One Store's closing summary for one Jakarta day, to check the money against
-// the card-terminal slips. Refunds stay on their own line: a refund records no
-// PaymentMethod, so subtracting it from a method would be a guess.
+// Refunds stay on their own line: a Refund records no PaymentMethod, so taking
+// it off one would be a guess against the card-terminal slips.
 export async function getDayClose(
   storeId: number,
   date: string

@@ -39,7 +39,7 @@ import { cn } from "@/lib/utils";
 
 type CampaignDiscountType = CampaignPayload["discount_type"];
 
-// What the sheet holds while a promo is being filled in. Shape only — every
+// What the sheet holds while a Campaign is being filled in. Shape only — every
 // rule about it lives in the server's CampaignPayloadSchema.
 export interface CampaignFormInput {
 	code: string;
@@ -85,7 +85,7 @@ const MAX_LENGTH_MESSAGES: Partial<Record<keyof CampaignFormInput, string>> = {
 };
 
 // The API wording for a box left blank or overfilled reads like a stack trace;
-// the staff setting up a promo get a plain sentence instead.
+// the admin setting up a Campaign gets a plain sentence instead.
 const campaignFieldMessages: z.core.$ZodErrorMap = (issue) => {
 	const field = String(issue.path?.[0]) as keyof CampaignFormInput;
 
@@ -195,9 +195,8 @@ interface CampaignDateFieldProps {
 	label: string;
 }
 
-// A Campaign runs whole days: it starts at the first minute of its Starts day and
-// ends at the last minute of its Ends day, so "Ends 31 Oct" still gives the
-// discount to a customer paying that evening.
+// A Campaign runs whole days, so "Ends 31 Oct" still gives the discount to a
+// Customer paying that evening.
 const DAY_TIME = { starts_at: "00:00", ends_at: "23:59" } as const;
 
 const CampaignDateField = ({ name, label }: CampaignDateFieldProps) => {

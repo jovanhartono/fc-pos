@@ -11,11 +11,9 @@ import { recomputeOrderRollup } from "@/modules/orders/order-status-machine";
 import { type DiscountSource, isBogoSlot } from "@/schema/discount";
 import { hasUnpricedLine } from "@/schema/unpriced-line";
 
-// Where a discount settles on an Order (ADR-0018). Four desks reach this —
-// the counter at drop-off, the pickup desk at payment, the workshop keying a
-// Repair's price, and the desk voiding lines — and each of them can move the
-// number the customer was promised, so the gates and the claim live here once
-// rather than four times.
+// Where a discount settles on an Order (ADR-0018). Drop-off, payment, Repair
+// pricing and cancelling lines can all move the Customer's total, so the rules
+// live here once.
 
 export interface SettlementLine {
   complaint_id: number | null;
@@ -25,7 +23,6 @@ export interface SettlementLine {
   status: string;
 }
 
-// What a cashier is asking for, exactly as the POS sends it.
 export interface DiscountRequest {
   campaign_ids: number[];
   discount: number;
@@ -37,17 +34,15 @@ export interface SettledDiscount {
   discountSource: DiscountSource;
 }
 
-// Zero is not a price: 0 already means deliberately free — a Rework line
-// (ADR-0013) — and "not priced yet" is a blank, not a keyed zero.
+// 0 already means a free Rework line (ADR-0013); "not priced yet" is blank.
 export function assertLinePrice(price: number): void {
   if (price <= 0) {
     throw new BadRequestException("Price must be greater than zero");
   }
 }
 
-// No price, no payment (ADR-0018). A blank line is a Repair the workshop has
-// not inspected yet, and payment is binary (ADR-0001), so the whole Order
-// waits — the lines the counter already knows included.
+// No price, no payment (ADR-0018). Payment is all or nothing (ADR-0001), so one
+// uninspected Repair holds up the whole Order.
 export function assertPayable(lines: SettlementLine[]): void {
   if (hasUnpricedLine(lines)) {
     throw new BadRequestException(
@@ -56,11 +51,8 @@ export function assertPayable(lines: SettlementLine[]): void {
   }
 }
 
-// A promo settled against a guessed Repair price is the failure ADR-0018 makes
-// impossible, so a blank line turns one away outright. And once a discount has
-// settled, its amount is printed on the Receipt the customer is holding and its
-// voucher code is out of circulation — keying a second one would spend the code
-// twice and hand back a different number than the paper says.
+// No promo against a guessed Repair price (ADR-0018). Once settled, the discount
+// is on the Customer's Receipt; a second one would spend the Voucher code twice.
 export function assertDiscountRequestAllowed({
   hasBlankLine,
   isSettled,
@@ -98,10 +90,8 @@ function bogoSlots(lines: SettlementLine[]) {
   );
 }
 
-// Attaching is claiming: the voucher code leaves circulation and the usage slot
-// is taken the moment the discount goes on the Receipt, because that Receipt is
-// what the customer will hold the shop to. An Order whose promo already settled
-// skips the desk entirely — resolving again would spend the code a second time.
+// The Voucher code and Usage limit slot are claimed as soon as the discount is on
+// the Receipt, since the Customer holds the shop to it. Already settled → skip.
 export async function settleDiscount(
   tx: OrderTx,
   {
@@ -142,12 +132,9 @@ export async function settleDiscount(
   return { discountAmount, discountSource };
 }
 
-// Every path that lowers an unpaid Order's bill ends here: a line cancelled, a
-// price corrected down. A fully cancelled Order never economically happened, so
-// its redemptions go back in the pool (ADR-0015); one that survives but no
-// longer clears the minimum its promo was granted against loses the promo, or a
-// "100k off, min 250k" rides an Order shrunk to 160k and hands back most of
-// what is left to pay.
+// After a cancel or a lowered price on an unpaid Order. A fully cancelled Order
+// gives its redemptions back (ADR-0015); one under its promo's minimum loses it,
+// or "100k off, min 250k" would stay on a 160k Order.
 export async function revalidateSettledPromo(
   tx: OrderTx,
   orderId: number,

@@ -71,9 +71,8 @@ const queueRelationColumns = {
   },
 } as const;
 
-// Scanning a tag now finds an object, not a job: one code can front several
-// treatments (ADR-0017). Its live treatments come back with it so the caller
-// can send a worker straight to the only open one, or make them choose.
+// One Item code can cover several lines (ADR-0017). Its live lines come back with
+// it so a worker who scans the tag goes straight to the only open one, or chooses.
 const getItemByItemCodePrepared = db.query.itemsTable
   .findFirst({
     where: { item_code: { eq: sql.placeholder("item_code") } },
@@ -86,8 +85,6 @@ const getItemByItemCodePrepared = db.query.itemsTable
           status: true,
         },
       },
-      // A tag on the shelf points at work still to do, so terminal treatments
-      // are filtered in the query rather than fetched and dropped.
       services: {
         columns: {
           id: true,
@@ -138,20 +135,17 @@ export async function getMyOrderServices(
     case "some":
       conditions.push(inArray(ordersTable.store_id, scope.storeIds));
       break;
-    // A worker with no branch yet has no rack to show.
     case "none":
       return [];
-    // An admin who named no branch sees their own items across every branch —
-    // this is one person's rack, so it is never the whole company's floor.
+    // An admin who picked no Store sees their own lines across every Store.
     case "all":
       break;
     default:
       return unhandledStoreScope(scope);
   }
 
-  // Stays one row per treatment: this is the rack of jobs one worker is
-  // holding, not the shelf of objects waiting. The Item's tag and descriptors
-  // ride along so the row can still name what is in their hands (ADR-0017).
+  // One row per line, not per Item: these are the lines one worker is holding
+  // (ADR-0017).
   return db
     .select({
       brand: itemsTable.brand,
@@ -185,9 +179,8 @@ export async function getMyOrderServices(
     .orderBy(asc(ordersServicesTable.id));
 }
 
-// The artisan reads "Repair only", the deep cleaners "everything except
-// Repair". Tested per treatment before rows fold into objects, so a shoe in
-// for both is on both racks.
+// The repairer reads "Repair only", the cleaners "everything except Repair".
+// Checked per line, so a shoe in for both shows on both Queues.
 function queueCategoryCondition(
   query?: Pick<GetOrderServiceQueueQuery, "category_id" | "category_mode">
 ) {
@@ -205,7 +198,7 @@ function queueCategoryCondition(
     : inArray(ordersServicesTable.service_id, servicesInCategory);
 }
 
-// Null means "no branch assigned" — an empty queue, not an unscoped one.
+// Null means "no Store assigned": an empty Queue, not every Store's.
 async function resolveQueueStoreCondition(user: JWTPayload, storeId?: number) {
   const scope = await resolveStoreScope(user, storeId);
 
@@ -240,8 +233,6 @@ export async function getOrderServiceQueue(
     };
   }
 
-  // An object is on the rack while something on it still needs the workshop.
-  // One whose every live treatment is ready belongs to the counter, not here.
   const conditions = [
     inArray(ordersServicesTable.status, [...WORKSHOP_SERVICE_STATUSES]),
     storeCondition,
@@ -286,9 +277,8 @@ export async function getOrderServiceQueue(
 
   const whereClause = and(...conditions);
 
-  // The page unit is the object, not the treatment (ADR-0017). Paginating
-  // treatments and grouping in the browser would split one shoe's card across
-  // a page boundary — two half-cards for one object on the shelf.
+  // Pages count Items, not lines (ADR-0017), or one shoe's card could split
+  // across two pages.
   const [itemRows, countRows] = await Promise.all([
     db
       .select({
@@ -306,8 +296,7 @@ export async function getOrderServiceQueue(
         store_code: storesTable.code,
         store_id: storesTable.id,
         store_name: storesTable.name,
-        // An object is urgent if any treatment on it is: the shoe is on the
-        // priority shelf, not one of the three jobs written against it.
+        // An Item is Priority if any line on it is.
         is_priority: sql<boolean>`bool_or(${ordersServicesTable.is_priority})`,
       })
       .from(ordersServicesTable)
@@ -316,8 +305,8 @@ export async function getOrderServiceQueue(
       .innerJoin(storesTable, eq(ordersTable.store_id, storesTable.id))
       .innerJoin(customersTable, eq(ordersTable.customer_id, customersTable.id))
       .where(whereClause)
-      // Grouped by the customer's id, not their name: the id is the PK, so the
-      // name rides along as a dependent column and the hash key stays narrow.
+      // Grouped by the Customer's id, not name: the id is the primary key, so the
+      // name comes along without widening the grouping.
       .groupBy(
         customersTable.id,
         itemsTable.id,
@@ -351,17 +340,14 @@ export async function getOrderServiceQueue(
       .where(whereClause),
   ]);
 
-  // Second pass for the treatments themselves. Deliberately NOT filtered by
-  // the status chip, and it keeps ready siblings: a card claiming to be one
-  // object has to show every live job on it, or a worker filtered to "Queued"
-  // would start a repaint without seeing the clean already done on the same
-  // shoe.
-  // A Rework job sits under the line it redoes, named "Rework 2" for its
-  // round, so the worker sees which treatment the customer turned down.
+  // Not filtered by the status chip, and ready lines stay: a worker filtered to
+  // "Queued" must still see the clean already done before starting a repaint.
+  // A Rework line sits under the line it redoes as "Rework 2", so the worker sees
+  // which treatment the Customer turned down.
   const originalLine = alias(ordersServicesTable, "original_line");
   const originalService = alias(servicesTable, "original_service");
-  // Counted over every round, not a window over this query: rounds already
-  // picked up are off the card but still came first.
+  // Counted over every round: rounds already picked up are off the card but
+  // still came first.
   const earlierRound = alias(ordersServicesTable, "earlier_round");
   const roundsSoFar = db
     .select({ rounds: sql<number>`count(*)::int` })
@@ -426,10 +412,8 @@ export async function getOrderServiceQueue(
 
   const servicesByItem = Map.groupBy(services, (service) => service.item_id);
 
-  // Deliberately no rolled-up Item status here. The card shows a badge per
-  // treatment — which is what a worker acts on — and deriving one from this
-  // page's non-terminal rows would disagree with the order detail, which rolls
-  // up over every sibling including the cancelled ones.
+  // No Item status here: built from live lines only, it would disagree with the
+  // Order detail, which also counts cancelled ones.
   return {
     items: itemRows.map((item) => ({
       ...item,
@@ -439,9 +423,8 @@ export async function getOrderServiceQueue(
   };
 }
 
-// Branch- and Category-scoped only, deliberately: honouring the date range too
-// would just count what is already on screen, while the Category picks which
-// rack the worker is standing at.
+// Store and Category only: the date range would just count what is already on
+// screen, while the Category is the Queue the worker is standing at.
 export async function getOrderServiceQueueCounts(
   user: JWTPayload,
   query?: GetOrderServiceQueueCountsQuery
@@ -451,7 +434,6 @@ export async function getOrderServiceQueueCounts(
     query?.store_id
   );
 
-  // A worker with no branch yet: an empty rack, not the company's.
   if (storeCondition === null) {
     return {
       all: 0,
@@ -462,13 +444,9 @@ export async function getOrderServiceQueueCounts(
     };
   }
 
-  // Counts objects, not treatments, because the queue below lists objects — a
-  // chip reading 12 has to open onto 12 cards. One shoe with a clean queued and
-  // a repaint in progress is therefore counted under both chips, and the chips
-  // legitimately sum to more than `all`: they are filters, not a partition.
-  // Every chip in one pass. Named by hand rather than mapped over the enum: a
-  // new workshop status must be given a chip on purpose rather than counted
-  // into nothing.
+  // Counts Items, so a chip reading 12 opens onto 12 cards. A shoe with a clean
+  // queued and a repaint in progress counts under both, so chips can sum past `all`.
+  // Named by hand so a new workshop status gets a chip on purpose.
   const chip = (status: OrderService["status"]) =>
     sql<number>`count(DISTINCT ${ordersServicesTable.item_id}) FILTER (WHERE ${ordersServicesTable.status} = ${status})`;
 
@@ -505,8 +483,7 @@ interface ClaimHandlerInput {
   user: JWTPayload;
 }
 
-// Two scanners can hit the same tag at once, and only one of them may end up
-// holding the garment.
+// Two workers can scan the same tag at once; only one may end up holding the Item.
 async function lockOrderServiceOrThrow(
   tx: OrderTx,
   orderId: number,
@@ -530,9 +507,8 @@ async function lockOrderServiceOrThrow(
   return locked;
 }
 
-// The hand-off log is what the shop reads when a garment goes missing. Picking up
-// an item you already hold changes nothing — a second row would invent a hand-off
-// that never happened.
+// The shop reads the hand-off log when an Item goes missing, so taking one you
+// already hold must not log a hand-off that never happened.
 async function claimHandler(
   tx: OrderTx,
   { lockedOrderService, note, user }: ClaimHandlerInput
@@ -616,9 +592,8 @@ export async function updateOrderServiceHandler({
   assertCanReassignHandler(user);
 
   await db.transaction(async (tx) => {
-    // Who held the garment has to be read under the lock: two managers
-    // reassigning at once would otherwise both log the same previous handler,
-    // and the trail could no longer say who to ask when an item goes missing.
+    // Read under the lock: two admins reassigning at once would both log the same
+    // previous Handler, and the trail could not say who to ask when an Item goes missing.
     const orderService = await lockOrderServiceOrThrow(tx, orderId, serviceId);
 
     await tx
@@ -663,8 +638,8 @@ export async function updateOrderServiceStatus({
   const fromStatus = await db.transaction(async (tx) => {
     const locked = await lockOrderServiceOrThrow(tx, orderId, serviceId);
 
-    // Restarting work on a queued or QC-rejected item means the person doing it
-    // now owns it — the worker who dropped it may have gone home.
+    // Whoever restarts a queued or QC-rejected line now holds it; the worker who
+    // left it may have gone home.
     const isClaimTransition =
       (locked.status === "queued" || locked.status === "qc_reject") &&
       body.status === "processing";

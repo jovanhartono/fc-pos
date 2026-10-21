@@ -12,19 +12,13 @@ import { pluralize } from "@/shared/utils";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 interface ItemTrayProps {
-	// Handed down from the mini bar, which already derives the cart for its own
-	// label — a second useCart() here would run the whole derivation chain twice
-	// on every catalog tap. Ops come from useCartOps for the same reason: it
-	// subscribes to nothing.
+	// Handed down from the mini bar: a second useCart() here would work the
+	// Cart out twice on every catalog tap.
 	itemRows: ItemCartDisplayLine[];
 }
 
-// The pointer a catalog tap lands on, made visible on the screen where the
-// tapping happens. Without it, three shoes each needing a Deep Clean became
-// one shoe with three Deep Cleans: the only "+ item" lived two steps into the
-// checkout sheet, so the natural gesture produced the wrong order (ADR-0017).
-// This is also the only place the pointer is chosen — the checkout sheet has
-// no catalog in view, so a marker there had nothing to point at.
+// Shows which Item the next catalog tap lands on (ADR-0017). Without it, three
+// shoes each needing a Deep Clean became one shoe with three Deep Cleans.
 export const ItemTray = ({ itemRows }: ItemTrayProps) => {
 	const { setActiveItem, addItem, removeItem } = useCartOps();
 	const activeItemId = resolveActiveItemId(
@@ -57,8 +51,8 @@ export const ItemTray = ({ itemRows }: ItemTrayProps) => {
 							type="button"
 							variant={isActive ? "default" : "outline"}
 						>
-							{/* Caption says what the number counts, so "Item 2" cannot be
-							    misread as a quantity beside the treatment count. */}
+							{/* "Item 2", so the number can't be misread as a quantity
+							    beside the Service count. */}
 							<span className="text-caption font-medium leading-none opacity-70">
 								Item {itemNumber}
 							</span>
@@ -73,9 +67,8 @@ export const ItemTray = ({ itemRows }: ItemTrayProps) => {
 								</span>
 							</span>
 						</Button>
-						{/* Only the card that was just opened by mistake can be closed
-						    from here — one with lines is removed in the checkout sheet,
-						    where those lines are in view. */}
+						{/* Only an empty card opened by mistake closes here; one with
+						    lines is removed in checkout, where the lines are in view. */}
 						{isActive && isEmpty ? (
 							<Button
 								aria-label={`Remove item ${itemNumber}`}

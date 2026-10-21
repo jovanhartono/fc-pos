@@ -12,11 +12,8 @@ function assertCronCaller(authorization?: string) {
   }
 }
 
-// Endpoints only the scheduler calls. Not under /admin: the caller is a cron job holding a shared
-// secret, not a signed-in member of staff.
-//
-// A GET that deletes, because a GET is the only thing Vercel's scheduler issues. Harmless to
-// repeat — a second run finds nothing left to take.
+// Called by Vercel's scheduler with a shared secret, not by signed-in staff, so not under /admin.
+// A GET that deletes because a GET is all the scheduler sends; a repeat finds nothing to take.
 const app = new Hono()
   .get("/photo-sweep", async (c) => {
     // An open sweep endpoint could be pointed at the shop's dispute evidence.

@@ -1,5 +1,5 @@
 // Read-only. A store's pin decides who may clock in there (ADR-0020), so a
-// fat-fingered edit locks that branch's whole team out until someone notices.
+// fat-fingered edit locks that Store's whole team out until someone notices.
 // Run before shipping the gate and after any coordinate edit.
 //
 // From packages/server, against either environment:
@@ -8,7 +8,7 @@ import { Pool } from "@neondatabase/serverless";
 import { CLOCK_IN_RADIUS_KM } from "@/modules/shifts/shift.schema";
 import { distanceKm } from "@/utils/geo";
 
-// Rough box around Indonesia. A pin outside it is a typo, not a branch.
+// Rough box around Indonesia. A pin outside it is a typo, not a Store.
 const BOUNDS = { east: 141, north: 6, south: -11, west: 95 };
 
 const env = process.argv[2] === "prod" ? "PROD" : "DEV";
@@ -78,7 +78,7 @@ try {
         { latitude: Number(b.latitude), longitude: Number(b.longitude) }
       );
       // Inside both rings, a worker at either counter can open a Shift against
-      // the wrong branch, and the gate cannot tell them apart.
+      // the wrong Store, and the gate cannot tell them apart.
       if (km < 2 * CLOCK_IN_RADIUS_KM) {
         overlaps += 1;
         console.log(`  ${a.code} - ${b.code}: ${km.toFixed(2)} km`);

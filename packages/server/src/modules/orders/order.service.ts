@@ -55,9 +55,8 @@ function formatOrderCode(storeCode: string, dateStr: string, sequence: number) {
   return `#${storeCode}/${dateStr}/${sequence}`;
 }
 
-// One treatment, plus which object on the counter it was sold against.
-// `item_index` points into the Items array of the same payload — the objects
-// have no ids yet, so position is the only handle until they are inserted.
+// `item_index` points into the payload's Items array: they have no ids until
+// inserted, so position is the only handle.
 interface ExpandedServiceItem {
   id: number;
   is_priority?: boolean;
@@ -66,8 +65,6 @@ interface ExpandedServiceItem {
   price?: number;
 }
 
-// Only the flattening is real work: the payload's Items already carry exactly
-// the descriptors buildItemRows needs, so they travel as-is.
 function expandOrderServices(
   payloadItems: z.infer<typeof POSTOrderSchema>["items"] = []
 ): ExpandedServiceItem[] {
@@ -95,9 +92,9 @@ interface CatalogLine<TItem, TRow> {
   row: TRow;
 }
 
-// A POS tab stays open for hours and the POS only hides retired items on screen, so
-// the basket is matched against the live catalog here — before the transaction,
-// so a doomed order never burns a daily order number.
+// The POS stays open for hours and only hides retired catalog entries on screen,
+// so the Cart is checked against the live catalog here, before a daily Order
+// number is used up.
 function resolveCatalogLines<
   TItem extends { id: number },
   TRow extends { id: number; is_active: boolean },
@@ -134,12 +131,9 @@ function resolveCatalogLines<
   return lines;
 }
 
-// The price seam (ADR-0018). A catalog-priced Service always snapshots the
-// catalog row and silently drops anything the browser sent — the POS can
-// never set a normal Service's price. A no-list-price Service (Repair) has
-// nothing to snapshot: the cashier's number is kept when the price is already
-// agreed at drop-off, and the line stays blank (NULL) when the workshop still
-// has to inspect the Item — the price is keyed later and payment waits on it.
+// ADR-0018: a catalog-priced Service always takes the catalog price, whatever the
+// POS sent. A Repair keeps the cashier's agreed price, or stays blank until the
+// workshop inspects the Item, and payment waits on it.
 function resolveServiceLinePrice(
   item: ExpandedServiceItem,
   service: DbService
@@ -161,8 +155,8 @@ type PricedServiceLine = CatalogLine<ExpandedServiceItem, DbService> & {
   price: string | null;
 };
 
-// The tag is minted per object, not per treatment: a pair in for a deep clean,
-// a repaint and leather care carries one code, not three (ADR-0017).
+// One Item code per Item, not per line: a pair in for a clean and a repaint
+// carries one code (ADR-0017).
 function buildItemRows({
   code,
   items,
@@ -175,9 +169,8 @@ function buildItemRows({
   return items.map((item, index) => ({
     brand: item.brand,
     color: item.color,
-    // I for Item, the unit of work since ADR-0017. Tags minted before that
-    // carry -S and stay valid: nothing parses the suffix — every lookup
-    // matches the stored string.
+    // Tags printed before ADR-0017 end in -S and still work: lookups match the
+    // stored string, nothing parses the suffix.
     item_code: `${code}-I${String(index + 1).padStart(3, "0")}`,
     model: item.model,
     order_id: orderId,
@@ -206,8 +199,8 @@ function buildOrderServiceRows({
   }));
 }
 
-// As the repository wants it: undefined means "do not narrow further", [] means
-// nothing at all. Confusing the two shows one account every branch's orders.
+// undefined means "do not narrow further", [] means nothing at all. Mixing them
+// up shows one account every Store's Orders.
 async function resolveOrderScopedStoreIds(user: JWTPayload, storeId?: number) {
   const scope = await resolveStoreScope(user, storeId);
 
@@ -250,9 +243,8 @@ export async function listOrders(query?: GetOrdersQuery, user?: JWTPayload) {
   };
 }
 
-// Two lines of the same SKU on one tab are two bottles off the shelf, so the
-// quantities are summed per product before the shelf is asked — otherwise the
-// last bottle sells twice.
+// Two lines of the same Product are summed before stock is checked, or the last
+// bottle sells twice.
 async function reserveBasketStock(
   tx: OrderTx,
   productLines: CatalogLine<OrderProductInput, DbProduct>[]
@@ -319,14 +311,13 @@ export async function createOrder(
     dbServices
   ).map((line) => ({
     ...line,
-    // Priced before the transaction — a keyed zero on a Repair line must
-    // bounce here, not after a daily order number has been burned.
+    // A zero typed on a Repair line must be refused before a daily Order number
+    // is used up.
     price: resolveServiceLinePrice(line.item, line.row),
   }));
 
-  // The settlement desk's view of the basket: the line's own number beside the
-  // catalog's, which is what says whether a blank is a Repair awaiting
-  // inspection and whether the line could ever be a BOGO free slot.
+  // The line's price beside the catalog's tells a Repair awaiting inspection
+  // apart, and whether the line could be a BOGO free slot.
   const settlementLines: SettlementLine[] = serviceLines.map(
     ({ item, row: service, price }) => ({
       complaint_id: null,
@@ -385,15 +376,12 @@ export async function createOrder(
 
     await reserveBasketStock(tx, productLines);
 
-    // Objects before treatments: a treatment row cannot exist until the object
-    // it is applied to has an id to point at.
     const itemRows = buildItemRows({ code, items, orderId });
     const insertedItems = await insertItems(tx, itemRows);
     const itemIdByCode = new Map(
       insertedItems.map((row) => [row.item_code, row.id])
     );
-    // Positional again from here, but the positions come from a join on the
-    // unique tag rather than from RETURNING's row order.
+    // Matched by Item code, not by the order rows come back in.
     const itemIds = itemRows.map((row) => {
       const id = itemIdByCode.get(row.item_code);
       if (id === undefined) {
@@ -426,10 +414,8 @@ export async function createOrder(
 
     const grossTotal = serviceSubtotal + productSubtotal;
 
-    // ADR-0018: the discount desk runs once every line is priced — the gate
-    // above — whether or not the tender arrives now. An Order still carrying a
-    // blank line asked for nothing and settles nothing here; its slip rides
-    // along to the payment desk.
+    // ADR-0018: discounts settle once every line is priced, paid now or not. An
+    // Order with a blank line settles nothing here; that waits for payment.
     const { discountAmount, discountSource } = await settleDiscount(tx, {
       grossTotal,
       lines: settlementLines,
@@ -453,8 +439,7 @@ export async function createOrder(
       })
       .where(eq(ordersTable.id, orderId));
 
-    // Money leaves as a string here to match every order read, so the POS
-    // reads one shape whether it just made the order or fetched it back.
+    // Strings, like every Order read, so the POS sees one shape.
     return {
       code,
       id: orderId,
@@ -489,19 +474,14 @@ export async function getOrderDetailById(id: number) {
       const line = { ...service, ...withReworkOpenings(service) };
       return {
         ...line,
-        // Stated by the server like is_collectable below: the same rule the
-        // queued → processing gate runs (ADR-0019), so the UI can explain the
-        // gate early without owning a copy of it.
+        // The same rule the start-work photo check runs (ADR-0019), so the UI
+        // can warn early without its own copy.
         has_start_photo: hasStartPhoto(item.images, line),
       };
     });
 
-    // Derived on read, never stored — an Item has no status column to drift
-    // out of step with its treatments (ADR-0017). `is_collectable` is sent
-    // rather than left to the client because the rule is the server's to
-    // state: an object goes home when every live treatment on it is ready,
-    // and also when there is no live treatment left because the counter
-    // refunded it before anyone came back for the pair.
+    // `is_collectable` comes from the server so the client never keeps its own
+    // copy of the pickup rule (ADR-0017).
     const status = deriveItemStatus(services);
 
     return {
@@ -529,8 +509,7 @@ export async function getOrderDetailById(id: number) {
     })),
     last_pickup_notice: toLastPickupNotice(pickupNotices),
     items,
-    // Item statuses, not treatment rows: the strip's "n of M picked up" counts
-    // objects handed back (ADR-0017).
+    // Item statuses, not lines: "n of M picked up" counts Items (ADR-0017).
     fulfillment: summarizeOrderFulfillment(items.map((item) => item.status)),
   };
 }

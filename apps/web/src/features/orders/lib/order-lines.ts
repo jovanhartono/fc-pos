@@ -3,11 +3,8 @@ export type OrderItem = OrderDetail["items"][number];
 
 export type OrderLine = OrderItem["services"][number] & { item: OrderItem };
 
-// The order detail arrives grouped by object, because that is how the counter
-// and the workshop both think (ADR-0017). Refunding, cancelling and
-// complaining are still genuinely per-treatment though, so those surfaces
-// flatten it here — each line keeping a handle on the object it belongs to,
-// since the tag and the descriptors live there now.
+// The Order detail arrives grouped by Item (ADR-0017), but Refunds,
+// Cancellations and Complaints are per OrderService, so those screens flatten it.
 export const flattenOrderLines = (detail: OrderDetail): OrderLine[] =>
 	(detail.items ?? []).flatMap((item) =>
 		item.services.map((service) => ({ ...service, item })),

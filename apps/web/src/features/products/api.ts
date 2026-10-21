@@ -9,9 +9,8 @@ export type Product = InferResponseType<
 	typeof rpc.api.admin.products.$get
 >["data"][number];
 
-// Money crosses the wire as the digit string the currency field produced; the
-// server is what turns it into a number. So these payloads are the schema's
-// input side, not its parsed output.
+// Prices travel as the digit string the price field typed and the server turns
+// them into numbers, so payloads take the schema's input side.
 export type CreateProductPayload = z.input<typeof POSTProductSchema>;
 export type UpdateProductPayload = z.input<typeof POSTProductSchema>;
 

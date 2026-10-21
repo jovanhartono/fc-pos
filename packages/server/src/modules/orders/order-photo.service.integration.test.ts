@@ -7,12 +7,9 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // Saving an Item photo against a real Postgres: the row lands, and the
 // queued -> processing gate (ADR-0012) reads it back and unlocks.
 
-// Dev and production file into one bucket under their own prefix, so every key
-// the counter issues or accepts carries one.
 const STORAGE_ENV_PREFIX = "dev/";
 
-// Captured before the mock below replaces the module: pure key/scope logic with
-// no S3 or DB of their own, so the real implementation runs here rather than a copy of it.
+// Taken before the mock replaces the module, so the real key checks run here.
 const { assertPhotoKeyUnder, newPhotoKey } = await import("@/utils/s3");
 
 mock.module("@/utils/s3", () => ({
@@ -28,9 +25,8 @@ mock.module("@/utils/s3", () => ({
   optimizeUploadedImage: () => Promise.resolve(),
 }));
 
-// Loaded after the swap above, never beside the imports: Bun binds a static
-// import graph before any module body runs, so a service pulled in up there
-// would hold the real storage module.
+// Imported after the swap above: a static import would bind the real storage
+// module before the swap runs.
 const { db } = await import("@/db");
 const { createOrder } = await import("@/modules/orders/order.service");
 const { saveItemPhoto } = await import("@/modules/orders/order-photo.service");

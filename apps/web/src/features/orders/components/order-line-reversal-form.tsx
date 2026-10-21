@@ -33,15 +33,11 @@ import {
 } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
 
-// Cancel is the unpaid, per-line twin of refund (ADR-0008): one deep form —
-// line picker, per-line reason/note, validation, submit — with a shallow
-// config per off-ramp. The refund config additionally carries line caps to
-// preview the exact amounts the server will book.
+// Cancellation is the unpaid twin of Refund (ADR-0008), so both share this
+// form; Refund also previews the exact amounts the server will book.
 
-// Several treatments can share one tag now (ADR-0017), so the tag alone no
-// longer tells two refundable lines apart — the treatment's name is what makes
-// the row pickable. The pair's brand and model lead, since the cashier
-// remembers "the white AF1", not "I001".
+// Several OrderServices share one tag (ADR-0017), so the Service name tells
+// lines apart; brand and model lead, as the cashier remembers "the white AF1".
 interface ReversalServiceOption {
 	id: number;
 	is_rework?: boolean;
@@ -126,9 +122,7 @@ interface OrderLineReversalFormProps<R extends string> {
 	reasons: readonly R[];
 	services: ReversalServiceOption[];
 	submitItems: (items: ReversalSubmitItem<R>[]) => Promise<unknown>;
-	// Refund only: remaining refundable rupiah per lineKey. Presence turns on
-	// the per-line amount preview, the running total, and the amount-bearing
-	// submit label.
+	// Refund only: what each line can still refund; turns on the amount preview.
 	capsByLineKey?: Map<string, number>;
 }
 
@@ -187,17 +181,13 @@ const OrderLineReversalForm = <R extends string>({
 		},
 	});
 	const { fields } = useFieldArray({ control: form.control, name: "items" });
-	// The dialog store renders a closure captured at open time, so the isPending
-	// prop is a frozen snapshot of the mutation result. isSubmitting comes from
-	// this form's own state and reliably disables re-submits while the mutation
-	// promise is in flight.
+	// isPending is frozen when the dialog opens, so the form's own isSubmitting
+	// is what stops a cashier's double tap from submitting twice.
 	const pending = isPending || form.formState.isSubmitting;
 	const watchedItems = useWatch({
 		control: form.control,
 		name: "items",
-		// Refund only: the whole-array watch feeds previewAmounts/totalRefund,
-		// both dead without caps. Disabling it spares the cancel dialog a full
-		// re-render per keystroke.
+		// Refund only: spares the cancel dialog a re-render per keystroke.
 		disabled: !capsByLineKey,
 	});
 	// Amounts come from the same allocateRefund the server runs at submit.

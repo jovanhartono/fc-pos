@@ -25,10 +25,7 @@ interface InsertCall {
   table: unknown;
 }
 
-// A fake OrderTx that scripts each update(...).set().where().returning() to
-// resolve with the next entry of updateResults (in call order), records every
-// update/insert/delete, serves orderCampaigns rows to query...findMany(), and
-// answers the select().from().innerJoin().where() that reads campaign minimums.
+// Each update resolves with the next entry of updateResults, in call order.
 function makeTx({
   updateResults = [],
   orderCampaigns = [],
@@ -201,16 +198,12 @@ describe("releaseRedemptions", () => {
   });
 });
 
-// A promo settles at drop-off once every line is priced (ADR-0018), so the
-// customer walks out holding a Receipt with a discount on it. What is left to
-// defend is the minimum that promo was granted against: an unpaid Order can
-// still shrink — a line is cancelled, or a price is corrected down — and a
-// fixed-amount promo on a shrunken Order is free money.
+// An unpaid Order can still shrink after Settling (ADR-0018), and a
+// fixed-amount Campaign on an Order under its minimum is free money.
 describe("voidCampaignsBelowMinimum", () => {
   it("releases and detaches every promo once the total drops under a minimum", async () => {
-    // "100k off, min 250k" printed on a 360k Order; teardown killed one Item
-    // and 110k is left. The code goes back on the shelf, the promo comes off
-    // the Order, and the discount is zeroed — the cashier re-keys at pickup.
+    // "100k off, min 250k" on a 360k Order; one Item is cancelled and 110k is
+    // left. The code becomes spendable again and the cashier re-keys at pickup.
     const { tx, updates, deletes } = makeTx({
       campaignMinimums: [{ minOrderTotal: "250000" }],
       orderCampaigns: [{ id: 1, campaign_id: 3, code_id: 42 }],
@@ -228,8 +221,7 @@ describe("voidCampaignsBelowMinimum", () => {
   });
 
   it("leaves a promo that still clears its minimum exactly", async () => {
-    // 250k against a 250k bar still qualifies — the bar is a floor, not a
-    // threshold to beat. The printed number stands.
+    // 250k against a 250k minimum still qualifies: the minimum is a floor.
     const { tx, updates, deletes } = makeTx({
       campaignMinimums: [{ minOrderTotal: "250000" }],
       orderCampaigns: [{ id: 1, campaign_id: 3, code_id: 42 }],
@@ -242,9 +234,8 @@ describe("voidCampaignsBelowMinimum", () => {
   });
 
   it("voids all promos when only one of several minimums is breached", async () => {
-    // Two stacked promos, bars at 100k and 250k. 150k clears one and misses
-    // the other; recomputing a stacked discount around the hole is the money
-    // bug, so both come off and the counter re-applies what still qualifies.
+    // Two stacked Campaigns, minimums 100k and 250k, at 150k: both come off and
+    // the cashier re-applies what still qualifies.
     const { tx, deletes } = makeTx({
       campaignMinimums: [
         { minOrderTotal: "100000" },
@@ -259,8 +250,6 @@ describe("voidCampaignsBelowMinimum", () => {
   });
 
   it("does nothing for an order carrying no promo at all", async () => {
-    // The ordinary shrink: no discount was ever attached, so a cancel or a
-    // price correction must not touch the order's discount columns.
     const { tx, updates, deletes } = makeTx();
 
     await voidCampaignsBelowMinimum(tx, 7, 0);

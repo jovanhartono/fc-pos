@@ -47,11 +47,8 @@ export const currencySchema = (field: string) =>
     .refine((value) => !value.includes("-"), `${field} cannot be negative`)
     .transform(parseIndonesianCurrency);
 
-// The same discount desk runs at drop-off (POST /orders, paid now) and at
-// pickup (PATCH /orders/:id/payment) — ADR-0018 resolves discounts at
-// whichever of the two is the payment moment. One definition per field keeps
-// the two contracts from drifting: both reject a double-ticked campaign and a
-// twice-scanned voucher slip instead of quietly deduping one side.
+// Discounts settle at drop-off or at pickup, whichever is paid (ADR-0018). One
+// definition keeps both refusing a double-ticked Campaign or a twice-scanned Voucher code.
 export const campaignIdsSchema = z
   .array(z.number().int().positive())
   .default([])
@@ -60,8 +57,7 @@ export const campaignIdsSchema = z
     "Duplicate campaign IDs are not allowed"
   );
 
-// Bearer voucher codes. Normalized to uppercase per element so the whole
-// downstream (service claim, repo lookup) receives already-canonical codes.
+// Uppercased here so the claim and the lookup only ever see one spelling.
 export const voucherCodesSchema = z
   .array(
     z

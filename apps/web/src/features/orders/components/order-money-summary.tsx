@@ -38,8 +38,7 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 	const net = parseMoney(detail.total) - discount;
 	const refunded = parseMoney(detail.refunded_amount);
 
-	// Money is charged per treatment, not per object, so this flattens across
-	// the Items to add the bill up (ADR-0017).
+	// Money is charged per OrderService, not per Item (ADR-0017).
 	const serviceLines = flattenOrderLines(detail);
 	const servicesSubtotal = serviceLines.reduce(
 		(sum, service) => sum + parseMoney(service.subtotal),
@@ -91,9 +90,8 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 				))}
 				{discount > 0 ? (
 					<div className="flex justify-between gap-4">
-						{/* Campaigns name themselves in the rows above; a manual discount
-						    has no row of its own, so the total line says where it came
-						    from rather than leaving the cashier to guess. */}
+						{/* A manual discount has no row of its own, so the total line
+						    names it for the cashier. */}
 						<dt className="text-muted-foreground">
 							{detail.discount_source === "manual"
 								? "Manual discount"

@@ -26,7 +26,7 @@ const LINE_BADGES =
 const LINE_PRICE =
 	"flex items-center gap-1 justify-self-end text-body tabular-nums compact:text-subhead";
 
-// One treatment while the Order loads: name, status pill and price.
+// One OrderService while the Order loads: name, status pill and price.
 export const OrderServiceRowSkeleton = () => (
 	<div className="flex py-2.5">
 		<span className={LINE_GRID}>
@@ -89,7 +89,7 @@ export const OrderServiceRow = memo(
 					</span>
 				) : null}
 				{/* On a phone the badges drop to their own line, so a long
-				    treatment name gets the full width instead of wrapping. */}
+				    Service name gets the full width instead of wrapping. */}
 				<span className={LINE_GRID}>
 					<span className={LINE_NAME}>
 						{isNestedRework ? (

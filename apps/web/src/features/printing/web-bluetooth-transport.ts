@@ -47,10 +47,9 @@ async function findWritableCharacteristic(
 	return null;
 }
 
-// Chromium never rejects gatt.connect() for an off/out-of-range device — the
-// promise stays pending until the device advertises again (crbug.com/666377).
-// Unbounded, one dead connect would wedge the serialized print queue for the
-// whole session, so cap the wait and cancel the pending request on timeout.
+// Chrome never fails a connect to a printer that is off or out of range; it waits
+// until the printer shows up again (crbug.com/666377). Uncapped, one dead
+// connect would hold up every later print for the rest of the session.
 const CONNECT_TIMEOUT_MS = 10_000;
 
 async function connect(device: BluetoothDevice): Promise<ConnectedPrinter> {
@@ -82,9 +81,8 @@ async function connect(device: BluetoothDevice): Promise<ConnectedPrinter> {
 	device.addEventListener(
 		"gattserverdisconnected",
 		() => {
-			// An admin carries a laptop to another store and pairs that printer
-			// while the old one is still connected. When the old printer drops
-			// off later, it must not make us forget the new one.
+			// An admin pairs another Store's printer while the old one is still
+			// connected; the old one dropping off later must not forget the new one.
 			if (cached?.device === device) {
 				cached = null;
 			}
@@ -107,8 +105,8 @@ async function findGrantedDevice(
 	return devices.find((device) => device.id === deviceId) ?? null;
 }
 
-// The printer this laptop last used may belong to the store next door, so it
-// only counts if this store registered it.
+// The printer this laptop last used may belong to the Store next door, so it
+// only counts if this Store registered it.
 const isRegistered = (device: BluetoothDevice, deviceNames: string[]) =>
 	device.name !== undefined && deviceNames.includes(device.name);
 
@@ -132,17 +130,15 @@ async function resolvePrinter({
 		const known = cached?.device ?? (await findGrantedDevice(deviceId));
 		if (known && isRegistered(known, deviceNames)) {
 			if (!allowPairing) {
-				// Auto-print: a paired-but-unreachable printer is a real fault
-				// (off, out of range) — let it throw instead of degrading to
-				// "not paired".
+				// Auto-print: a paired printer that is off or out of range is a real
+				// fault, so it throws rather than reading as "not paired".
 				return await connect(known);
 			}
 			try {
 				return await connect(known);
 			} catch {
-				// Manual print is a pairing gesture: a failing known device must
-				// not block re-pairing forever (mis-picked device, replaced
-				// printer) — fall through to the picker instead.
+				// A manual print can re-pair, so a wrongly picked or replaced
+				// printer that fails falls through to the picker.
 			}
 		}
 	}
@@ -151,9 +147,8 @@ async function resolvePrinter({
 		throw new PrinterNotPairedError();
 	}
 
-	// If we are still connected to a printer here, it is another store's. These
-	// printers accept one connection at a time, so staying connected would stop
-	// that store's cashier from printing.
+	// A printer still connected here is another Store's, and it takes one
+	// connection at a time: staying on it would stop that cashier printing.
 	cached?.device.gatt?.disconnect();
 
 	const device = await navigator.bluetooth.requestDevice({
@@ -165,9 +160,8 @@ async function resolvePrinter({
 	return printer;
 }
 
-// Registration from the POS: the cashier picks from every nearby device, and we
-// connect once to prove it is real and in range before the store saves its
-// name. Nothing is printed.
+// Registering a printer: the cashier picks from every nearby device, and one
+// connect proves it is in range before the Store saves its name. Nothing prints.
 export async function pairBluetoothDevice(): Promise<string> {
 	if (!navigator.bluetooth) {
 		throw new Error("Bluetooth is not available in this browser");
@@ -181,12 +175,9 @@ export async function pairBluetoothDevice(): Promise<string> {
 		throw new Error("This device has no Bluetooth name and cannot be saved");
 	}
 
-	// This chooser lists every nearby device, so what comes out of it must not
-	// become the printer this counter prints to — a manual print from the
-	// filtered chooser settles that. Registering Kasir 2's printer from Kasir
-	// 1's laptop would otherwise send Kasir 1's next receipt across the shop.
-	// The printer is handed straight back as well: these boards take one
-	// connection at a time.
+	// Not this counter's printer yet: registering Kasir 2's printer from Kasir 1's
+	// laptop would send Kasir 1's next Receipt across the shop. It is handed
+	// straight back too, since these boards take one connection at a time.
 	const inUse = cached;
 	await connect(device);
 	cached = inUse;
@@ -213,9 +204,8 @@ async function printNow(data: Uint8Array, options: PrintOptions) {
 	}
 }
 
-// Prints share one characteristic — interleaved chunk loops (auto-print
-// racing a manual reprint) would garble two byte streams on the paper, so
-// every print queues behind the previous one.
+// An auto-print racing a manual reprint would mix two Receipts on the paper,
+// so every print waits for the one before.
 let printQueue: Promise<void> = Promise.resolve();
 
 export const webBluetoothTransport: PrinterTransport = {

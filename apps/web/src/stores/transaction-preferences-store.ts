@@ -33,12 +33,9 @@ export const useTransactionPreferencesStore =
 			}),
 			{
 				name: "transaction-preferences",
-				// Which store the POS defaults to. Change the shape of
-				// selectedStoreIdByUser and you must bump this and add `migrate`, or
-				// zustand hands the new code the old shape and the POS quietly opens
-				// on the wrong store. Bumping it on its own is not free: with no
-				// migrate, zustand discards the stored state, so every device forgets
-				// its store once.
+				// Which Store the POS opens on. Change selectedStoreIdByUser's shape
+				// and you must bump this and add `migrate`, or the POS quietly opens on
+				// the wrong Store; a bump with no migrate makes every device forget it once.
 				version: 0,
 			},
 		),

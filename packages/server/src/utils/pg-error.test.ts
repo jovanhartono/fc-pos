@@ -6,7 +6,7 @@ const PHONE = "+628123456789";
 
 describe("mapPostgresError", () => {
   it("tells the counter the customer is already on file without printing the other customer's number", () => {
-    // Two branches take the same walk-in on the same day. Postgres reports the
+    // Two Stores take the same walk-in on the same day. Postgres reports the
     // clash by quoting the number it found, and that number belongs to whoever
     // registered first — it must not reach the screen of whoever tried second.
     const { message, status } = mapPostgresError({

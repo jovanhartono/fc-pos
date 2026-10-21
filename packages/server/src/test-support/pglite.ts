@@ -6,13 +6,9 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { relations } from "@/db/relations";
 
-// A throwaway Postgres in this process, built by replaying the real `./drizzle/`
-// ledger. What it buys a suite over a hand-written double: the schema the shop
-// actually runs on — foreign keys, identity columns, decimals coming back as
-// strings — and the SQL the services write themselves, such as the rollup that
-// decides an Order's status and what is still owed on it.
-// Import this module FIRST in an integration suite: the swap below runs before
-// this file's first await, so nothing under test can reach the real `@/db`.
+// A throwaway Postgres built from the real `./drizzle/` ledger, so a suite runs
+// the shop's real schema and SQL, such as the rollup behind an Order's status.
+// Import it FIRST in an integration suite, so nothing under test reaches the real `@/db`.
 const client = new PGlite();
 
 export const testDb = drizzle({ client, relations });

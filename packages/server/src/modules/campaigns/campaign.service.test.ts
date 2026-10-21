@@ -3,14 +3,8 @@ import type { DbExecutor } from "@/db";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 
-// The service passes its executor straight through to the repository, so a pair
-// of in-memory doubles drives resolveVoucherCode (findCampaignByCode) and
-// getUsableCampaigns (findCampaignsByIdsWithEligibility) through every branch
-// without touching a database. Tests mutate `repo` to shape each response.
 type AnyObj = Record<string, unknown>;
 
-// The doubled repository never reads it; the checkout's transaction handle is
-// what travels here for real.
 const EXECUTOR = {} as DbExecutor;
 
 const repo = {
@@ -18,9 +12,8 @@ const repo = {
   byIds: [] as AnyObj[],
 };
 
-// bun's mock.module is process-global, so spread the real repository and
-// override only the two reads under test — otherwise the partial mock strips
-// the module's other exports for every test file that loads it.
+// mock.module is process-wide: spread the real repository, or every other test
+// file that loads it loses its remaining exports.
 const actualRepo = await import("@/modules/campaigns/campaign.repository");
 
 mock.module("@/modules/campaigns/campaign.repository", () => ({
@@ -33,8 +26,6 @@ const { resolveVoucherCode, getUsableCampaigns } = await import(
   "@/modules/campaigns/campaign.service"
 );
 
-// A code-mode campaign shaped like the nested findCampaignByCode row's
-// `campaign` (stores/eligibleServices nested, discount columns present).
 const makeVoucherCampaign = (over: AnyObj = {}) => ({
   id: 7,
   code: "VIP",
@@ -124,7 +115,6 @@ describe("resolveVoucherCode", () => {
   });
 });
 
-// findCampaignsByIdsWithEligibility rows carry stores + eligibleServices.
 const makeListedRow = (over: AnyObj = {}) => ({
   id: 1,
   code: "SAVE10",
@@ -164,7 +154,6 @@ describe("getUsableCampaigns", () => {
   });
 
   it("checks the missing id before the wrong-mode rule", async () => {
-    // A code-mode row present, but another id missing: not-found must win.
     repo.byIds = [makeListedRow({ id: 9, redemption_mode: "code" })];
     const error = await captureRejection(call([9, 42]));
     expect(error).toBeInstanceOf(NotFoundException);

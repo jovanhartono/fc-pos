@@ -4,8 +4,7 @@ import {
   CampaignUpdatePayloadSchema,
 } from "@/modules/campaigns/campaign.schema";
 
-// Minimal valid fixed-discount campaign. A missing redemption_mode reads as
-// listed, so the base fixture is a listed campaign that mints no codes.
+// No redemption_mode reads as listed, so this base mints no codes.
 const baseCreate = {
   code: "SAVE10",
   name: "Save 10k",
@@ -97,7 +96,6 @@ describe("CampaignUpdatePayloadSchema — immutable redemption fields", () => {
   });
 
   it("rejects redemption_mode — mode is fixed at create", () => {
-    // .strict() surfaces the immutable field as an unrecognized key.
     expect(
       CampaignUpdatePayloadSchema.safeParse({ redemption_mode: "code" }).success
     ).toBe(false);

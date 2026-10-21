@@ -284,7 +284,7 @@
 	--text-field--letter-spacing: -0.011em;
 }
 
-/* A link to somewhere other than its row, like the customer on an order. A
+/* A link to somewhere other than its row, like the customer on an Order. A
    row's own title stays black, since the whole row already opens it. */
 @utility text-link {
 	color: var(--link);
@@ -307,7 +307,7 @@
 	body {
 		@apply bg-background font-sans text-foreground antialiased;
 		letter-spacing: -0.011em;
-		/* A cashier scrolling an order list who overshoots the top would
+		/* A cashier scrolling an Order list who overshoots the top would
 		   otherwise trigger the browser's pull-to-refresh and reload mid-order. */
 		overscroll-behavior: none;
 	}
@@ -330,7 +330,7 @@
 	}
 
 	/* Press-and-hold on the app's own furniture offered Copy / Look Up, which no
-	   app does. The values staff genuinely copy — an order code, a phone number —
+	   app does. The values staff genuinely copy — an Order code, a phone number —
 	   are outside this list and carry a copy button of their own. */
 	button,
 	[role="button"],
@@ -387,9 +387,8 @@
 	/* Sliding is a phone gesture. On the counter machine the sidebar stays put
 	   and the page is a panel beside it, so every screen just cross-fades. */
 	@media (width < 48rem) {
-		/* A slide must not blend the two snapshots the way the default cross-fade
-		   does. Two screens at the same level — Orders to Users — get no slide, so
-		   they keep that cross-fade and this must not reach them. */
+		/* A slide must not blend the two screens like the default cross-fade, but
+		   screens at the same level (Orders to Users) keep that cross-fade. */
 		html:active-view-transition-type(push)::view-transition-old(root),
 		html:active-view-transition-type(push)::view-transition-new(root),
 		html:active-view-transition-type(pop)::view-transition-old(root),

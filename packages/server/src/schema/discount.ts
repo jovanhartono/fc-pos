@@ -1,7 +1,5 @@
-// Where an Order's discount was settled. ADR-0018: once a promo or manual
-// discount has settled — every line priced, the amount printed on the Receipt
-// the customer holds — no desk may claim another; the server refuses and the
-// payment form offers no discount controls. "none" is the only unsettled state.
+// ADR-0018: once a discount has settled and is printed on the Customer's
+// Receipt, no other may be claimed. "none" is the only unsettled state.
 export type DiscountSource = "none" | "manual" | "campaign";
 
 export const isDiscountSettled = (source: DiscountSource): boolean =>
@@ -48,8 +46,8 @@ export interface BogoSlotLine {
   status: string;
 }
 
-// A free slot is never a Repair with no list price (ADR-0018), nor a Rework,
-// a pair the customer never bought (ADR-0013).
+// A free slot is never a Repair with no list price (ADR-0018), nor a Rework
+// line the Customer never bought (ADR-0013).
 export const isBogoSlot = (line: BogoSlotLine): boolean =>
   line.status !== "cancelled" &&
   line.service?.price != null &&

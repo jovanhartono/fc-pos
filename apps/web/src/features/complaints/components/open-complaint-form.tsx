@@ -152,8 +152,6 @@ export const OpenComplaintForm = ({
 	);
 };
 
-// Shared radio group name so the cards are mutually exclusive at the DOM level
-// and get native arrow-key navigation.
 const COMPLAINT_LINE_RADIO_NAME = "complaint-line";
 
 interface ComplaintLineCardProps {
@@ -163,10 +161,8 @@ interface ComplaintLineCardProps {
 	onSelect: () => void;
 }
 
-// A real (visually hidden) radio input wrapped by the styled card: native
-// radiogroup semantics and keyboard behavior, with the full card as the touch
-// target. Same shape as the Refund and Cancel pickers: the pair leads, then
-// the short tag and the treatment.
+// A hidden real radio inside the card, so the whole card is the tap target.
+// Laid out like the Refund and Cancel pickers: the Item, its tag, then the Service.
 const ComplaintLineCard = ({
 	disabled,
 	isSelected,
