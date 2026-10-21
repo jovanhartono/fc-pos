@@ -4,7 +4,7 @@ import {
 	useFormContext,
 } from "react-hook-form";
 import { PhoneNumberField } from "@/components/form/phone-number-field";
-import { Button } from "@/components/ui/button";
+import { SheetFormActions } from "@/components/form/sheet-form-actions";
 import {
 	Field,
 	FieldError,
@@ -132,29 +132,12 @@ export const CustomerForm = ({
 					)}
 				/>
 
-				<div className="grid gap-2 md:col-span-2">
-					<Button
-						size="lg"
-						type="submit"
-						loading={isSubmitting}
-						loadingText={
-							isEditing ? "Saving changes..." : "Creating customer..."
-						}
-					>
-						{isEditing ? "Save changes" : "Create customer"}
-					</Button>
-					{isEditing ? (
-						<Button
-							size="lg"
-							type="button"
-							variant="outline"
-							onClick={onReset}
-							disabled={isSubmitting}
-						>
-							Cancel edit
-						</Button>
-					) : null}
-				</div>
+				<SheetFormActions
+					addLabel="Add customer"
+					isEditing={isEditing}
+					isSubmitting={isSubmitting}
+					onCancel={onReset}
+				/>
 			</FieldGroup>
 		</form>
 	);

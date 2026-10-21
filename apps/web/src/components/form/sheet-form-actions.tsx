@@ -13,8 +13,10 @@ interface SheetFormActionsProps {
 	addLabel: string;
 }
 
-// Pinned to the bottom of the sheet like its header, so Save is in reach at the
-// top of an eleven-field Campaign form without scrolling for it.
+// Pinned to the bottom of the sheet, so Save is in reach at the top of an
+// eleven-field Campaign form without scrolling for it; the fields scroll under
+// the same frost as the Queue's sticky bar. Adding has no Cancel: the sheet's
+// ✕ is the way out.
 export const SheetFormActions = ({
 	isEditing,
 	isSubmitting,
@@ -23,20 +25,21 @@ export const SheetFormActions = ({
 }: SheetFormActionsProps) => {
 	const submitLabel = isEditing ? "Save" : addLabel;
 	return (
-		<div className="sticky -bottom-4 z-10 col-span-full -mx-4 -mb-4 flex justify-end gap-2 border-t bg-popover px-4 pt-3 pb-[calc(var(--inset-bottom)+0.75rem)] dark:bg-background">
+		<div className="sticky -bottom-4 z-10 col-span-full -mx-4 -mb-4 grid gap-2 bg-frost px-4 pt-3 pb-[calc(var(--inset-bottom)+0.75rem)] backdrop-blur-xl backdrop-saturate-150">
+			<Button loading={isSubmitting} size="lg" type="submit">
+				{submitLabel}
+			</Button>
 			{isEditing ? (
 				<Button
 					disabled={isSubmitting}
 					onClick={onCancel}
+					size="lg"
 					type="button"
-					variant="outline"
+					variant="ghost"
 				>
 					Cancel
 				</Button>
 			) : null}
-			<Button loading={isSubmitting} type="submit">
-				{submitLabel}
-			</Button>
 		</div>
 	);
 };
