@@ -26,7 +26,6 @@ export const CHIP_CLASS =
 	"h-9 gap-1.5 rounded-full border-0 px-3.5 font-medium text-body pointer-coarse:h-10";
 
 interface StatusChip<TValue extends string> {
-	count?: number;
 	label: string;
 	value: TValue;
 }
@@ -62,18 +61,6 @@ export const StatusChipStrip = <TValue extends string>({
 						variant={isActive ? "default" : "secondary"}
 					>
 						{chip.label}
-						{/* The count keeps a 4-digit slot even before it loads, so a
-						    chip never grows or shrinks and its neighbours never slide.
-						    Inter's table digits run a little wider than 1ch each. */}
-						<span
-							className={cn(
-								"min-w-[4.25ch] text-left font-normal tabular-nums",
-								isActive ? "opacity-80" : "opacity-60",
-								chip.count === undefined && "invisible",
-							)}
-						>
-							{chip.count ?? 0}
-						</span>
 					</Button>
 				);
 			})}

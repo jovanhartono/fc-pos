@@ -32,10 +32,6 @@ export type OrderStatusCounts = InferResponseType<
 	typeof rpc.api.admin.orders.counts.$get
 >["data"];
 
-export type OrderServiceQueueCounts = InferResponseType<
-	typeof rpc.api.admin.orders.services.queue.counts.$get
->["data"];
-
 // The queue's line-detail screen: one line plus enough of its Order to label
 // it (ADR-0016: no pickup_code here — that stays on the Order detail).
 export type OrderServiceDetail = InferResponseType<
@@ -95,11 +91,6 @@ export type FetchOrderServiceQueueQuery = {
 };
 
 export type QueueCategoryMode = (typeof QUEUE_CATEGORY_MODES)[number];
-
-export type FetchOrderServiceQueueCountsQuery = Pick<
-	FetchOrderServiceQueueQuery,
-	"store_id" | "category_id" | "category_mode"
->;
 
 export type CreateOrderPayload = z.input<typeof POSTOrderSchema> & {
 	voucher_codes: string[];
@@ -228,8 +219,6 @@ export const ordersKeys = {
 	queues: () => [...ordersKeys.all, "queue"] as const,
 	queue: (query?: FetchOrderServiceQueueQuery) =>
 		[...ordersKeys.queues(), query ?? {}] as const,
-	queueCounts: (query: FetchOrderServiceQueueCountsQuery) =>
-		[...ordersKeys.queues(), "counts", query] as const,
 };
 
 async function fetchOrdersPage(
@@ -295,18 +284,6 @@ async function fetchOrderServiceQueuePage(
 	return toPaginated(response);
 }
 
-async function fetchOrderServiceQueueCounts(
-	query: FetchOrderServiceQueueCountsQuery,
-) {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.orders.services.queue.counts.$get({
-			query: toSearchParams(query),
-		}),
-	);
-
-	return response.data;
-}
-
 export const ordersQueries = {
 	list: (query?: FetchOrdersQuery) =>
 		queryOptions({
@@ -343,11 +320,6 @@ export const ordersQueries = {
 				const nextOffset = lastPage.meta.offset + lastPage.meta.limit;
 				return nextOffset < lastPage.meta.total ? nextOffset : undefined;
 			},
-		}),
-	queueCounts: (query: FetchOrderServiceQueueCountsQuery) =>
-		queryOptions({
-			queryKey: ordersKeys.queueCounts(query),
-			queryFn: () => fetchOrderServiceQueueCounts(query),
 		}),
 };
 

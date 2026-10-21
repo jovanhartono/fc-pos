@@ -35,7 +35,7 @@ export function PageHeader({
 						count === undefined && "invisible",
 					)}
 				>
-					{count ?? 0}
+					{(count ?? 0).toLocaleString("en-ID")}
 				</span>
 			</h1>
 			{description ? (

@@ -1,5 +1,4 @@
 import { StatusChipStrip } from "@/components/chip-strip";
-import type { OrderStatusCounts } from "@/features/orders/api";
 import { ORDER_STATUS_VALUES } from "@/features/orders/components/order-filters";
 import { formatOrderStatus } from "@/lib/status";
 
@@ -7,7 +6,6 @@ type OrderStatus = (typeof ORDER_STATUS_VALUES)[number];
 
 interface OrderStatusTabsProps {
 	value?: OrderStatus;
-	counts?: OrderStatusCounts;
 	onValueChange: (value?: OrderStatus) => void;
 }
 
@@ -21,25 +19,15 @@ const TABS: { value: OrderStatus | typeof ALL; label: string }[] = [
 	})),
 ];
 
-// The cashier sees how many Orders wait in each stage and picks one in a tap.
+// The cashier picks a stage in a tap; how many it holds reads in the title.
 export const OrderStatusTabs = ({
 	value,
-	counts,
 	onValueChange,
-}: OrderStatusTabsProps) => {
-	const total = counts
-		? Object.values(counts).reduce((sum, count) => sum + count, 0)
-		: undefined;
-
-	return (
-		<StatusChipStrip
-			chips={TABS.map((tab) => ({
-				...tab,
-				count: tab.value === ALL ? total : counts?.[tab.value],
-			}))}
-			legend="Filter by status"
-			onValueChange={(next) => onValueChange(next === ALL ? undefined : next)}
-			value={value ?? ALL}
-		/>
-	);
-};
+}: OrderStatusTabsProps) => (
+	<StatusChipStrip
+		chips={TABS}
+		legend="Filter by status"
+		onValueChange={(next) => onValueChange(next === ALL ? undefined : next)}
+		value={value ?? ALL}
+	/>
+);

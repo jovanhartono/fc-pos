@@ -72,7 +72,6 @@ import {
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
 import { cn } from "@/lib/utils";
-import { pluralize } from "@/shared/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useQueuePreferencesStore } from "@/stores/queue-preferences-store";
 
@@ -256,19 +255,13 @@ function QueuePage() {
 				}
 			: undefined;
 
-	// A new status, date or category keeps the last cards and counts up, faded,
-	// until the new ones land, instead of blinking to skeletons and empty chips.
+	// A new status, date or category keeps the last cards and count up, faded,
+	// until the new ones land, instead of blinking to skeletons and an empty title.
 	// An admin who clears the store gets "Select a store", not the last store's rack.
 	const keepLastRack =
 		parsedStoreId === undefined ? undefined : keepPreviousData;
 	const queueQuery = useInfiniteQuery({
 		...ordersQueries.queue(queueQueryInput),
-		enabled: parsedStoreId !== undefined,
-		placeholderData: keepLastRack,
-	});
-
-	const countsQuery = useQuery({
-		...ordersQueries.queueCounts({ store_id: parsedStoreId, ...categoryQuery }),
 		enabled: parsedStoreId !== undefined,
 		placeholderData: keepLastRack,
 	});
@@ -446,8 +439,7 @@ function QueuePage() {
 	};
 
 	// Set by a scan that landed on a multi-treatment tag. Nothing else writes it,
-	// and without a way back the worker stays on a one-card rack — the chips above
-	// keep counting the whole Store, so the counts stop matching the list.
+	// and without a way back the worker stays on a one-card rack.
 	const clearSearchFilter = () => {
 		setItemCode("");
 		void navigate({
@@ -462,25 +454,8 @@ function QueuePage() {
 
 	return (
 		<>
-			<PageHeader
-				actions={
-					// Sized for "999 items", so the count landing never moves the title
-					// row; the label starts at the left, so "6 items" becoming "14 items"
-					// grows rightward instead of sliding. An admin with no Store picked
-					// has no rack to count, so no count shows at all.
-					parsedStoreId !== undefined && (
-						<Badge
-							className="min-w-[9ch] justify-start tabular-nums"
-							variant={totalItems === undefined ? "secondary" : "outline"}
-						>
-							<span className={cn(totalItems === undefined && "invisible")}>
-								{pluralize(totalItems ?? 0, "item")}
-							</span>
-						</Badge>
-					)
-				}
-				title="Queue"
-			/>
+			{/* An admin with no Store picked has no rack, so no count shows. */}
+			<PageHeader count={totalItems} title="Queue" />
 
 			<div className="grid gap-3">
 				<StickyControls className="grid gap-3">
@@ -621,12 +596,10 @@ function QueuePage() {
 						</div>
 					) : null}
 
-					{/* Hidden while a scanned tag pins the list to one object: the counts
-				    describe the whole Store, and chips saying "47" over a one-card
-				    list are lying. They come back with Clear. */}
+					{/* Hidden while a scanned tag pins the list to one object; they come
+					    back with Clear. */}
 					{!selectedSearch && (
 						<QueueStatusTabs
-							counts={countsQuery.data}
 							onValueChange={updateStatusFilter}
 							value={selectedStatus ?? "all"}
 						/>

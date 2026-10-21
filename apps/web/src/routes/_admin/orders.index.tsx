@@ -114,8 +114,8 @@ function buildOrdersListParams(
 	};
 }
 
-// The same filters minus status and paging, so each tab shows what picking
-// it would list.
+// The same filters minus status and paging, so each stage's count is what
+// picking its chip would list.
 const toStatusCountsParams = (query: FetchOrdersQuery): FetchOrdersQuery => ({
 	search: query.search,
 	store_id: query.store_id,
@@ -249,7 +249,8 @@ function OrdersPage() {
 		placeholderData: keepPreviousData,
 	});
 
-	// The last numbers stay on the chips until the new ones land.
+	// Every stage is counted at once, so tapping a chip changes the title's
+	// number straight away; a new filter keeps the last number until its own lands.
 	const statusCountsQuery = useQuery({
 		...ordersQueries.statusCounts(
 			orderQuery && toStatusCountsParams(orderQuery),
@@ -257,6 +258,12 @@ function OrdersPage() {
 		enabled: canListOrders,
 		placeholderData: keepPreviousData,
 	});
+	const statusCounts = statusCountsQuery.data;
+	const matchingCount =
+		statusCounts &&
+		(search.status
+			? statusCounts[search.status]
+			: Object.values(statusCounts).reduce((sum, count) => sum + count, 0));
 
 	const hasNoStoreAssignment =
 		role !== "admin" && meQuery.isSuccess && userStoreIds.length === 0;
@@ -402,6 +409,7 @@ function OrdersPage() {
 		<>
 			<PageHeader
 				title="Orders"
+				count={matchingCount}
 				actions={
 					<Button
 						variant="outline"
@@ -415,7 +423,6 @@ function OrdersPage() {
 			<ListPanel>
 				<OrderStatusTabs
 					value={search.status}
-					counts={statusCountsQuery.data}
 					onValueChange={(status) => handleFilterChange({ status })}
 				/>
 				<OrderFilters
