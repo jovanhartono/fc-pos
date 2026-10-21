@@ -461,6 +461,7 @@
         <a href="2026-10-21-cls-changes/title-count-390.webp" target="_blank"><img src="2026-10-21-cls-changes/title-count-390.webp" width="520" height="293" alt="Queue 23 on a phone" loading="lazy"><span class="t">Queue on a phone</span></a>
       </div></div>
     </figure>
+    <p class="answer"><b>Decided 2026-10-21: counts as badges, built</b> (01fdf49, 408638e, 570d78f). A page count is the soft grey "N items" badge beside the title ("41 services", "1 category"), with its slot held while the number loads; on a phone a long title puts it on the next line. Orders has no count at all: the pager under the list already says it, so the title number and its counts request are gone (the server's order counts endpoint is now unused). The POS category chips and their placeholders have no counts either. Queue keeps its badge, and still shows none with no Store picked. Measured 0 at 1280 and 390.</p>
     <p class="reply">Reply: <code>keep / change / revert 10</code></p>
   </section>
 
@@ -601,6 +602,7 @@
     </div>
     <p class="files">Files: components/ui/global-sheet.tsx (header), features/transactions/components/campaign-tile-group.tsx (campaigns). Score 0.0033 counted + 0.0176 counted as your click on a laptop.</p>
     <p class="answer"><b>B chosen, built</b> (1ba566c). The back link and the sheet's actions share one row the same height as the arrows row. An Order opened over Ready for pickup now has a 59px header, the same as one opened from the list. Campaigns hold one tile's height (126px) while loading, empty or filled. Opening Collect payment counts 0 at 1280 and 390. Still open: Collect payment shows its title and the Order code under the back link, so its header is 101px against the Order's 59px (counted as your click, 0.0136).</p>
+    <p class="answer"><b>B built for both, 2026-10-21</b> (b1016d4). Collect payment and a Service opened over an Order put their title on the back-link row ("‹ #BSD/19102026/11 · Collect payment") with no line under it, so both headers are 59px like the Order sheet, 67px on touch, and the body starts at the same place. A long Service name ends in "…". On a phone, opened from the Order page with nothing to go back to, the header is one 53px title row. The Service sheet's title is now the Service name alone; the Item code it carried is on the Order behind it.</p>
   </section>
 
   <!-- ============ STILL NOT ZERO ============ -->
