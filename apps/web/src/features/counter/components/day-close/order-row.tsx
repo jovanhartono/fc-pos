@@ -21,7 +21,7 @@ export const OrderRow = ({
 	end,
 	orderId,
 }: OrderRowProps) => {
-	const handleOpen = useOpenNestedOrder(orderId, code);
+	const openOrder = useOpenNestedOrder();
 
 	return (
 		<li>
@@ -30,7 +30,7 @@ export const OrderRow = ({
 				className="-mx-2 px-2"
 				details={[code, ...details]}
 				end={end}
-				onClick={handleOpen}
+				onClick={(event) => openOrder(event, orderId, code)}
 				params={{ orderId: String(orderId) }}
 				title={customerName}
 				to="/orders/$orderId"

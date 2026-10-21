@@ -6,13 +6,17 @@ import { useSheet } from "@/stores/sheet-store";
 
 // A row in a sheet's list of Orders. A phone opens the Order's own page,
 // whose back button returns to the list. A desktop opens it over the list,
-// with a link back to that list.
-export const useOpenNestedOrder = (orderId: number, code: string) => {
+// with a link back to that list. Called once per list, not once per row.
+export const useOpenNestedOrder = () => {
 	const isMobile = useIsMobile();
 	const openNestedSheet = useSheet((s) => s.openNestedSheet);
 	const closeSheet = useSheet((s) => s.closeSheet);
 
-	return (event: MouseEvent<HTMLAnchorElement>) => {
+	return (
+		event: MouseEvent<HTMLAnchorElement>,
+		orderId: number,
+		code: string,
+	) => {
 		if (isMobile) {
 			closeSheet();
 			return;

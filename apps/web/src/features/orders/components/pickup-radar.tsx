@@ -27,6 +27,7 @@ export const PickupRadar = ({ enabled, storeId }: PickupRadarProps) => {
 		enabled,
 	});
 	const readyOrders = readyQuery.data?.items ?? [];
+	const openOrder = useOpenNestedOrder();
 
 	// Rows shaped like the ready Orders, not "No pickups", while the rack loads.
 	if (readyQuery.isPending && enabled) {
@@ -67,7 +68,7 @@ export const PickupRadar = ({ enabled, storeId }: PickupRadarProps) => {
 		>
 			{readyOrders.map((order) => (
 				<li key={order.id}>
-					<RadarRow order={order} />
+					<RadarRow onOpen={openOrder} order={order} />
 				</li>
 			))}
 		</ul>
@@ -76,20 +77,17 @@ export const PickupRadar = ({ enabled, storeId }: PickupRadarProps) => {
 
 interface RadarRowProps {
 	order: Order;
+	onOpen: ReturnType<typeof useOpenNestedOrder>;
 }
 
-const RadarRow = ({ order }: RadarRowProps) => {
-	const handleOpen = useOpenNestedOrder(order.id, order.code);
-
-	return (
-		<OrderListRow
-			className="rounded-none"
-			details={[order.code, order.store_name]}
-			end={<MoneyValue className="text-body" value={order.total} />}
-			onClick={handleOpen}
-			params={{ orderId: String(order.id) }}
-			title={order.customer_name}
-			to="/orders/$orderId"
-		/>
-	);
-};
+const RadarRow = ({ order, onOpen }: RadarRowProps) => (
+	<OrderListRow
+		className="rounded-none"
+		details={[order.code, order.store_name]}
+		end={<MoneyValue className="text-body" value={order.total} />}
+		onClick={(event) => onOpen(event, order.id, order.code)}
+		params={{ orderId: String(order.id) }}
+		title={order.customer_name}
+		to="/orders/$orderId"
+	/>
+);
