@@ -422,6 +422,16 @@
     </figure>
     <p class="files">Files: components/data-table-grid.tsx, data-table.tsx, and the column widths in routes/_admin/orders.index, complaints.index, shifts, customers.index, services, products, categories, payment-methods, campaigns, users, stores, plus customer-orders-card.tsx, quality-panel.tsx and aging-queue-panel.tsx. Audit id O5.</p>
     <p class="cost"><b>Trade-off:</b> long names are cut at two lines on a laptop. At 1024 with the sidebar open, Orders, Complaints, Customers, Shifts, Users, Campaigns, Services, Products and the Reports tables are wider than their frame and scroll sideways. <b>Problem found, now fixed (F2):</b> the Customer column used to shrink to nothing there, names gone and Total cut off.</p>
+    <p class="answer"><b>Percentage widths chosen, built</b> (971ce70). Every column has a share of the table that adds up to 100% and its own minimum, so spare room on a wide screen goes to every column instead of all to Customer. Customer on Orders: 222px at 1280 before, 244px now; at 1920 it is 420px instead of about 860px. The table stops shrinking once one column reaches its minimum (Orders at 914px) and then scrolls sideways in its frame: at 1024 with the sidebar open Orders still scrolls, with it closed (926px) no table scrolls. Shares were tuned on the seeded data: at 1280 no table scrolls, no cell overflows, and Services now fits every name on one line. Campaigns' Discount and the Item codes on Quality and Aging Queue still wrap at 1280, because those tables' text is wider than the 974px there; the Item codes fit from 1440. Next or a filter still moves nothing, since the widths come from the columns, not the rows.</p>
+    <figure>
+      <div class="strip"><span>Built</span><div class="frames">
+        <a href="2026-10-21-cls-changes/table-p1280.webp" target="_blank"><img src="2026-10-21-cls-changes/table-p1280.webp" width="1000" height="703" alt="Orders at 1280" loading="lazy"><span class="t">1280 wide</span></a>
+        <a href="2026-10-21-cls-changes/table-p1440.webp" target="_blank"><img src="2026-10-21-cls-changes/table-p1440.webp" width="1000" height="625" alt="Orders at 1440" loading="lazy"><span class="t">1440 wide</span></a>
+        <a href="2026-10-21-cls-changes/table-p1920.webp" target="_blank"><img src="2026-10-21-cls-changes/table-p1920.webp" width="1000" height="469" alt="Orders at 1920" loading="lazy"><span class="t">1920 wide</span></a>
+        <a href="2026-10-21-cls-changes/table-p1024.webp" target="_blank"><img src="2026-10-21-cls-changes/table-p1024.webp" width="768" height="675" alt="Orders at 1024 with the sidebar open, scrolling sideways" loading="lazy"><span class="t">1024 wide, sidebar open</span></a>
+      </div></div>
+      <figcaption>Orders with the percentage widths. At 1024 with the sidebar open the table is 914px in a 718px frame and scrolls sideways.</figcaption>
+    </figure>
     <p class="reply">Reply: <code>keep / change / revert 9</code></p>
   </section>
 
@@ -444,6 +454,13 @@
     </figure>
     <p class="files">Files: components/chip-strip.tsx, filter-count-badge.tsx, features/orders/components/order-filters.tsx, routes/_admin/queue.index.tsx, reports.tsx, features/reports/components/report-filters.tsx, features/transactions/components/cart-mini-bar.tsx, item-tray.tsx. Audit ids O3, O13, R4, R5, W3, W5, W11.</p>
     <p class="cost"><b>Trade-off:</b> chips are a little wider (room for four digits), so on a phone the Queue shows three chips before the fade instead of four. A 36px empty slot sits beside the filter on Reports tabs that have no Export. The Reports filter is fixed width, so on a phone a long label is cut: "Last 30 days · All st…" (see card 11), and "All stores" sits left in a wide button.</p>
+    <p class="answer"><b>Counts moved into the page title, built</b> (cfb68a5). The Orders and Queue chips show their label only, with no count slot, so the chip trade-off above is gone. On Orders the title reads "Orders 1.521" on All and "Orders 16" on Created: every stage is counted in one go, so the number changes the moment a chip is tapped, and a new filter keeps the last number until its own lands. On Queue the title count replaces the "N items" badge and is the number of cards listed, so it follows the date range and a scanned tag; with no Store picked there is no count. Chip changes measured 0 on both pages at 1280 and 390. The Queue's separate count request went with the chip counts; the server's queue counts endpoint is now unused.</p>
+    <figure>
+      <div class="strip"><span>Built</span><div class="frames two">
+        <a href="2026-10-21-cls-changes/title-count-1280.webp" target="_blank"><img src="2026-10-21-cls-changes/title-count-1280.webp" width="1000" height="203" alt="Orders 16 with Created picked" loading="lazy"><span class="t">Orders, Created</span></a>
+        <a href="2026-10-21-cls-changes/title-count-390.webp" target="_blank"><img src="2026-10-21-cls-changes/title-count-390.webp" width="520" height="293" alt="Queue 23 on a phone" loading="lazy"><span class="t">Queue on a phone</span></a>
+      </div></div>
+    </figure>
     <p class="reply">Reply: <code>keep / change / revert 10</code></p>
   </section>
 
