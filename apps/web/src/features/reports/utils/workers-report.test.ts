@@ -17,6 +17,7 @@ import {
 	splitTopServices,
 	totalsOf,
 } from "@/features/reports/utils/workers-report";
+import { formatShiftLength } from "@/lib/dayjs";
 
 const quiet: WorkerRow["live"] = {
 	clock_in_at: null,
@@ -157,9 +158,19 @@ describe("right now", () => {
 		expect(sinceText(null, now)).toBe("—");
 	});
 
-	it("counts a forgotten Shift in days", () => {
+	it("counts a last move from days ago in days", () => {
 		expect(durationText(219 * 60 + 30)).toBe("9d 3h");
 		expect(durationText(48 * 60)).toBe("2d");
+	});
+
+	it("writes a Shift's length the way Shifts and Attendance do", () => {
+		expect(formatShiftLength(45)).toBe("45m");
+		expect(formatShiftLength(60)).toBe("1h 00m");
+		expect(formatShiftLength(5 * 60 + 5)).toBe("5h 05m");
+		expect(formatShiftLength(8 * 60)).toBe("8h 00m");
+		// A forgotten Shift, in days.
+		expect(formatShiftLength(50 * 60)).toBe("2d 2h");
+		expect(formatShiftLength(48 * 60)).toBe("2d");
 	});
 });
 
@@ -186,6 +197,12 @@ describe("Needs a look", () => {
 		expect(
 			flagText(worker({ live: { ...quiet, clock_in_at: since(355) } })),
 		).toEqual(["on shift 5h 55m, [0 Services today]"]);
+		expect(
+			flagText(worker({ live: { ...quiet, clock_in_at: since(305) } })),
+		).toEqual(["on shift 5h 05m, [0 Services today]"]);
+		expect(
+			flagText(worker({ live: { ...quiet, clock_in_at: since(50 * 60) } })),
+		).toEqual(["on shift 2d 2h, [0 Services today]"]);
 		expect(
 			flagText(
 				worker({

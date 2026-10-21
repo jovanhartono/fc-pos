@@ -23,6 +23,7 @@ import { type Shift, shiftsQueries } from "@/features/shifts/api";
 import { EditShiftForm } from "@/features/shifts/components/edit-shift-form";
 import { NewShiftForm } from "@/features/shifts/components/new-shift-form";
 import { storesQueries } from "@/features/stores/api";
+import { formatShiftLength } from "@/lib/dayjs";
 import { useDialog } from "@/stores/dialog-store";
 
 const PAGE_SIZE = 25;
@@ -63,14 +64,6 @@ export const Route = createFileRoute("/_admin/shifts")({
 	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
-const formatDuration = (clockIn: Date | string, clockOut: Date | string) => {
-	const ms = dayjs(clockOut).diff(dayjs(clockIn));
-	const totalMinutes = Math.max(0, Math.floor(ms / 60_000));
-	const hours = Math.floor(totalMinutes / 60);
-	const minutes = totalMinutes % 60;
-	return `${hours}h ${String(minutes).padStart(2, "0")}m`;
-};
-
 interface OpenShiftProps {
 	clockInAt: Date | string;
 }
@@ -104,7 +97,9 @@ const ShiftDuration = ({ shift }: ShiftDurationProps) => (
 	<div className="flex flex-col gap-0.5 text-subhead">
 		{shift.clock_out_at ? (
 			<span className="font-medium tabular-nums">
-				{formatDuration(shift.clock_in_at, shift.clock_out_at)}
+				{formatShiftLength(
+					dayjs(shift.clock_out_at).diff(shift.clock_in_at, "minute"),
+				)}
 			</span>
 		) : (
 			<OpenShift clockInAt={shift.clock_in_at} />

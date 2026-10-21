@@ -9,7 +9,7 @@ import {
 	numberFormatter,
 	pluralCount,
 } from "@/features/reports/utils/format";
-import dayjs from "@/lib/dayjs";
+import dayjs, { formatShiftLength } from "@/lib/dayjs";
 
 type MatrixCell = WorkerProductivityReport["services_matrix"]["cells"][number];
 type DetailBucket = WorkerDetailReport["buckets"][number];
@@ -121,7 +121,7 @@ export const groupByStore = (rows: WorkerRow[]): StoreGroup[] => {
 export const workerKey = (userId: number, storeId: number) =>
 	`${userId}:${storeId}`;
 
-// "5m", "1h", "5h 55m", and "9d 3h" for a Shift someone forgot to close.
+// How long since a last move: "5m", "1h", "5h 55m", "9d 3h".
 export const durationText = (minutes: number) => {
 	if (minutes < 60) {
 		return `${minutes}m`;
@@ -195,7 +195,7 @@ export const needsALook = (rows: WorkerRow[], now: number): Flag[] =>
 			flags.push({
 				key: `${key}:idle`,
 				row,
-				before: `on shift ${durationText(shiftMinutes)}, `,
+				before: `on shift ${formatShiftLength(shiftMinutes)}, `,
 				problem: `${pluralCount(0, "Service")} today`,
 				after: "",
 			});

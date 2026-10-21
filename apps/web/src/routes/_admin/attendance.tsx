@@ -20,6 +20,7 @@ import {
 import { useCurrentShift } from "@/features/shifts/hooks/useCurrentShift";
 import { storesQueries } from "@/features/stores/api";
 import { onShiftClocked } from "@/lib/cache-events";
+import { formatShiftLength } from "@/lib/dayjs";
 import { getCurrentUser } from "@/stores/auth-store";
 
 const currentWeekRange = () => {
@@ -50,14 +51,6 @@ const formatElapsed = (start: Date, now: Date) => {
 	const seconds = totalSeconds % 60;
 	const pad = (n: number) => String(n).padStart(2, "0");
 	return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-};
-
-const formatDuration = (clockIn: string, clockOut: string) => {
-	const totalMinutes = Math.max(
-		0,
-		Math.floor(dayjs(clockOut).diff(dayjs(clockIn)) / 60_000),
-	);
-	return `${Math.floor(totalMinutes / 60)}h ${String(totalMinutes % 60).padStart(2, "0")}m`;
 };
 
 function AttendancePage() {
@@ -177,7 +170,9 @@ const ShiftRow = ({ shift }: { shift: Shift }) => (
 		</span>
 		<span className="w-16 shrink-0 text-right text-body tabular-nums">
 			{shift.clock_out_at
-				? formatDuration(shift.clock_in_at, shift.clock_out_at)
+				? formatShiftLength(
+						dayjs(shift.clock_out_at).diff(shift.clock_in_at, "minute"),
+					)
 				: null}
 		</span>
 	</li>
