@@ -1,5 +1,8 @@
 import { DetailedError } from "hono/client";
 
+export const isNotFoundError = (error: unknown) =>
+	error instanceof DetailedError && error.statusCode === 404;
+
 // hono's parseResponse throws a DetailedError whose own message is just the
 // status line ("400 Bad Request"); the server's reason rides in detail.data as
 // { success: false, message }. Without this unwrap the user reads the status.

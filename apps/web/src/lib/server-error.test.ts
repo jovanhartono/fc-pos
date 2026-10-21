@@ -1,6 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import { DetailedError } from "hono/client";
-import { readServerErrorMessage } from "./server-error";
+import { isNotFoundError, readServerErrorMessage } from "./server-error";
+
+describe("isNotFoundError", () => {
+	test("a link to an Order that doesn't exist is not found, not broken", () => {
+		expect(
+			isNotFoundError(new DetailedError("404 Not Found", { statusCode: 404 })),
+		).toBe(true);
+	});
+
+	test("another Store's Order or a server fault keeps the error screen", () => {
+		expect(
+			isNotFoundError(new DetailedError("403 Forbidden", { statusCode: 403 })),
+		).toBe(false);
+		expect(isNotFoundError(new Error("Failed to fetch"))).toBe(false);
+	});
+});
 
 describe("readServerErrorMessage", () => {
 	test("a rejected request reads as the server's reason, not the status line", () => {
