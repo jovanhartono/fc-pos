@@ -78,6 +78,7 @@ const ComplaintsPage = () => {
 			{
 				id: "complaint",
 				header: "Complaint",
+				meta: { width: { percent: 34, minRem: 10 } },
 				cell: ({ row }) => (
 					<div className="flex flex-col gap-0.5">
 						<Link
@@ -99,7 +100,7 @@ const ComplaintsPage = () => {
 			{
 				accessorKey: "customer_name",
 				header: "Customer",
-				meta: { kind: "name", headerClassName: "w-56" },
+				meta: { kind: "name", width: { percent: 22, minRem: 8.5 } },
 				cell: ({ row }) => (
 					<CustomerLink
 						customerId={row.original.customer_id}
@@ -110,18 +111,18 @@ const ComplaintsPage = () => {
 			{
 				accessorKey: "store_name",
 				header: "Store",
-				meta: { headerClassName: "w-40" },
+				meta: { width: { percent: 18, minRem: 8 } },
 			},
 			{
 				id: "outcome",
 				header: "Outcome",
-				meta: { headerClassName: "w-36" },
+				meta: { width: { percent: 13, minRem: 6 } },
 				cell: ({ row }) => <ComplaintOutcomeBadge complaint={row.original} />,
 			},
 			{
 				id: "opened",
 				header: () => <div className="text-right">Opened</div>,
-				meta: { headerClassName: "w-32" },
+				meta: { width: { percent: 13, minRem: 7 } },
 				cell: ({ row }) => (
 					<div className="whitespace-nowrap text-right text-muted-foreground tabular-nums">
 						{formatListDate(row.original.created_at)}

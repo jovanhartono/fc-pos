@@ -111,28 +111,34 @@ function StoresPage() {
 			{
 				accessorKey: "code",
 				header: "Code",
-				meta: { kind: "code", headerClassName: "w-28" },
+				meta: { kind: "code", width: { percent: 14, minRem: 4.5 } },
 			},
 			{
 				accessorKey: "name",
 				header: "Store",
-				meta: { kind: "name" },
+				meta: { kind: "name", width: { percent: 40, minRem: 8.5 } },
 			},
 			{
 				accessorKey: "phone_number",
 				header: "Phone",
-				meta: { headerClassName: "w-40" },
+				meta: { width: { percent: 22, minRem: 7 } },
 			},
 			{
 				id: "status",
 				header: "Status",
-				meta: { headerClassName: "w-24", mobileCard: { slot: "status" } },
+				meta: {
+					width: { percent: 12, minRem: 4.5 },
+					mobileCard: { slot: "status" },
+				},
 				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 			},
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { headerClassName: "w-20", mobileCard: { slot: "title-end" } },
+				meta: {
+					width: { percent: 12, minRem: 4.5 },
+					mobileCard: { slot: "title-end" },
+				},
 				cell: ({ row }) => (
 					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),

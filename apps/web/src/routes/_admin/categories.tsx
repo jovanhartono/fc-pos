@@ -85,13 +85,14 @@ const columns: DataTableColumnDef<Category>[] = [
 	{
 		accessorKey: "name",
 		header: "Category",
-		meta: { kind: "name", headerClassName: "w-64" },
+		meta: { kind: "name", width: { percent: 24, minRem: 7 } },
 	},
 	{
 		accessorKey: "description",
 		header: "Description",
 		meta: {
 			kind: "text",
+			width: { percent: 52, minRem: 10 },
 			mobileCard: {
 				slot: "subtitle",
 				className: "line-clamp-2",
@@ -103,13 +104,19 @@ const columns: DataTableColumnDef<Category>[] = [
 	{
 		id: "status",
 		header: "Status",
-		meta: { headerClassName: "w-24", mobileCard: { slot: "status" } },
+		meta: {
+			width: { percent: 12, minRem: 4.5 },
+			mobileCard: { slot: "status" },
+		},
 		cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 	},
 	{
 		id: "actions",
 		header: "Actions",
-		meta: { headerClassName: "w-20", mobileCard: { slot: "title-end" } },
+		meta: {
+			width: { percent: 12, minRem: 4.5 },
+			mobileCard: { slot: "title-end" },
+		},
 		cell: ({ row }) => <CategoriesActions row={row} />,
 	},
 ];

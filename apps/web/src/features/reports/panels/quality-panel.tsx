@@ -104,7 +104,10 @@ const itemLineColumns = <
 	{
 		id: "item_code",
 		header: "Item code",
-		meta: { headerClassName: "w-32", mobileCard: { slot: "title" } },
+		meta: {
+			width: { percent: 17, minRem: 8 },
+			mobileCard: { slot: "title" },
+		},
 		cell: ({ row }) => (
 			<ItemCodeLink orderId={row.original.order_id}>
 				{row.original.item_code}
@@ -114,7 +117,10 @@ const itemLineColumns = <
 	{
 		id: "service_name",
 		header: "Service",
-		meta: { headerClassName: "w-44", mobileCard: { slot: "subtitle" } },
+		meta: {
+			width: { percent: 20, minRem: 8 },
+			mobileCard: { slot: "subtitle" },
+		},
 		cell: ({ row }) => row.original.service_name ?? "—",
 	},
 ];
@@ -131,7 +137,7 @@ const qcRejectColumns: DataTableColumnDef<QcRejectItem>[] = [
 		id: "rejected_at",
 		header: "When",
 		meta: {
-			headerClassName: "w-32",
+			width: { percent: 11, minRem: 6.25 },
 			cellClassName: "whitespace-nowrap tabular-nums",
 			mobileCard: { slot: "hidden" },
 		},
@@ -141,19 +147,22 @@ const qcRejectColumns: DataTableColumnDef<QcRejectItem>[] = [
 	{
 		id: "cleaned_by",
 		header: "Cleaned by",
-		meta: { headerClassName: "w-36", mobileCard: { slot: "hidden" } },
+		meta: { width: { percent: 14, minRem: 7 }, mobileCard: { slot: "hidden" } },
 		cell: ({ row }) => row.original.cleaned_by_name ?? "—",
 	},
 	{
 		id: "rejected_by",
 		header: "Rejected by",
-		meta: { headerClassName: "w-36", mobileCard: { slot: "hidden" } },
+		meta: { width: { percent: 14, minRem: 7 }, mobileCard: { slot: "hidden" } },
 		cell: ({ row }) => row.original.rejected_by_name,
 	},
 	{
 		id: "reason",
 		header: "Reason",
-		meta: { mobileCard: { slot: "subtitle" } },
+		meta: {
+			width: { percent: 24, minRem: 8 },
+			mobileCard: { slot: "subtitle" },
+		},
 		cell: ({ row }) => row.original.reason || "—",
 	},
 	{
@@ -172,14 +181,14 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 	{
 		accessorKey: "service_name",
 		header: "Service",
-		meta: { mobileCard: { slot: "title" } },
+		meta: { width: { percent: 40, minRem: 9 }, mobileCard: { slot: "title" } },
 	},
 	{
 		id: "processed",
 		header: "Processed",
 		meta: {
 			align: "right",
-			headerClassName: "w-28",
+			width: { percent: 15, minRem: 5.5 },
 			mobileCard: { slot: "hidden" },
 		},
 		cell: ({ row }) => numberFormatter.format(row.original.processed),
@@ -189,7 +198,7 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 		header: "First-pass",
 		meta: {
 			align: "right",
-			headerClassName: "w-28",
+			width: { percent: 15, minRem: 5.5 },
 			mobileCard: { slot: "title-end", className: "tabular-nums" },
 		},
 		cell: ({ row }) => percentFormatter.format(row.original.first_pass_rate),
@@ -199,7 +208,7 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 		header: "Sent back",
 		meta: {
 			align: "right",
-			headerClassName: "w-28",
+			width: { percent: 15, minRem: 5.5 },
 			mobileCard: { slot: "hidden" },
 		},
 		cell: ({ row }) => numberFormatter.format(row.original.sent_back),
@@ -209,7 +218,7 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 		header: "Complaints",
 		meta: {
 			align: "right",
-			headerClassName: "w-28",
+			width: { percent: 15, minRem: 5.5 },
 			mobileCard: { slot: "hidden" },
 		},
 		cell: ({ row }) => numberFormatter.format(row.original.complaints),
@@ -230,7 +239,7 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 	{
 		accessorKey: "user_name",
 		header: "Checked by",
-		meta: { mobileCard: { slot: "title" } },
+		meta: { width: { percent: 30, minRem: 9 }, mobileCard: { slot: "title" } },
 	},
 	{
 		id: "card_checks",
@@ -246,7 +255,7 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 		header: "Checks",
 		meta: {
 			align: "right",
-			headerClassName: "w-28",
+			width: { percent: 13, minRem: 4.5 },
 			mobileCard: { slot: "hidden" },
 		},
 		cell: ({ row }) => numberFormatter.format(row.original.checks),
@@ -256,7 +265,7 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 		header: "Rejected",
 		meta: {
 			align: "right",
-			headerClassName: "w-28",
+			width: { percent: 13, minRem: 5 },
 			mobileCard: { slot: "hidden" },
 		},
 		cell: ({ row }) => numberFormatter.format(row.original.rejects),
@@ -266,7 +275,7 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 		header: "Reject rate",
 		meta: {
 			align: "right",
-			headerClassName: "w-28",
+			width: { percent: 13, minRem: 5.5 },
 			mobileCard: { slot: "hidden" },
 		},
 		cell: ({ row }) => percentFormatter.format(row.original.reject_rate),
@@ -276,7 +285,7 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 		header: "Self-checked",
 		meta: {
 			align: "right",
-			headerClassName: "w-28",
+			width: { percent: 14, minRem: 6.5 },
 			mobileCard: { slot: "hidden" },
 		},
 		cell: ({ row }) => percentFormatter.format(row.original.self_check_rate),
@@ -286,7 +295,7 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 		header: "Complaints after",
 		meta: {
 			align: "right",
-			headerClassName: "w-36",
+			width: { percent: 17, minRem: 7.75 },
 			mobileCard: { slot: "hidden" },
 		},
 		cell: ({ row }) => numberFormatter.format(row.original.complaints_after),
@@ -315,7 +324,7 @@ const damagedLostColumns: DataTableColumnDef<DamagedLostRow>[] = [
 		id: "refunded_at",
 		header: "Date",
 		meta: {
-			headerClassName: "w-32",
+			width: { percent: 11, minRem: 6.25 },
 			cellClassName: "whitespace-nowrap tabular-nums",
 			mobileCard: { slot: "hidden" },
 		},
@@ -325,7 +334,7 @@ const damagedLostColumns: DataTableColumnDef<DamagedLostRow>[] = [
 	{
 		id: "reason",
 		header: "Reason",
-		meta: { headerClassName: "w-28", mobileCard: { slot: "badges" } },
+		meta: { width: { percent: 11, minRem: 6 }, mobileCard: { slot: "badges" } },
 		cell: ({ row }) => (
 			<Badge variant={row.original.reason === "lost" ? "danger" : "warning"}>
 				{DAMAGED_LOST_LABELS[row.original.reason]}
@@ -337,7 +346,7 @@ const damagedLostColumns: DataTableColumnDef<DamagedLostRow>[] = [
 		header: "Amount",
 		meta: {
 			align: "right",
-			headerClassName: "w-32",
+			width: { percent: 11, minRem: 6 },
 			mobileCard: { slot: "footer" },
 		},
 		cell: ({ row }) => formatMoney(row.original.amount),
@@ -345,6 +354,7 @@ const damagedLostColumns: DataTableColumnDef<DamagedLostRow>[] = [
 	{
 		id: "note",
 		header: "Note",
+		meta: { width: { percent: 30, minRem: 8 } },
 		cell: ({ row }) => <LongText text={row.original.note} />,
 	},
 ];

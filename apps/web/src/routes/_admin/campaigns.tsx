@@ -306,21 +306,21 @@ function CampaignsPage() {
 				header: "Code",
 				meta: {
 					kind: "code",
-					headerClassName: "w-36",
+					width: { percent: 14, minRem: 8.25 },
 					mobileCard: { slot: "subtitle" },
 				},
 			},
 			{
 				accessorKey: "name",
 				header: "Name",
-				meta: { kind: "name" },
+				meta: { kind: "name", width: { percent: 24, minRem: 9 } },
 			},
 			{
 				id: "discount",
 				header: "Discount",
 				meta: {
 					align: "right",
-					headerClassName: "w-32",
+					width: { percent: 18, minRem: 6 },
 					mobileCard: { slot: "badges" },
 				},
 				cell: ({ row }) => (
@@ -333,7 +333,10 @@ function CampaignsPage() {
 			{
 				id: "stores",
 				header: "Stores",
-				meta: { headerClassName: "w-40", mobileCard: { slot: "subtitle" } },
+				meta: {
+					width: { percent: 12, minRem: 7 },
+					mobileCard: { slot: "subtitle" },
+				},
 				cell: ({ row }) => {
 					if (row.original.stores.length === 0) {
 						return "All stores";
@@ -347,13 +350,19 @@ function CampaignsPage() {
 			{
 				id: "redemption",
 				header: "Redemption",
-				meta: { headerClassName: "w-32", mobileCard: { slot: "subtitle" } },
+				meta: {
+					width: { percent: 10, minRem: 5.75 },
+					mobileCard: { slot: "subtitle" },
+				},
 				cell: ({ row }) => formatCampaignRedemption(row.original),
 			},
 			{
 				id: "status",
 				header: "Status",
-				meta: { headerClassName: "w-28", mobileCard: { slot: "status" } },
+				meta: {
+					width: { percent: 9, minRem: 5.25 },
+					mobileCard: { slot: "status" },
+				},
 				cell: ({ row }) => {
 					const state = deriveCampaignState(row.original);
 					if (state === "expired") {
@@ -368,7 +377,10 @@ function CampaignsPage() {
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { headerClassName: "w-32", mobileCard: { slot: "title-end" } },
+				meta: {
+					width: { percent: 13, minRem: 7.5 },
+					mobileCard: { slot: "title-end" },
+				},
 				cell: ({ row }) => (
 					<div className="flex gap-2">
 						<EditRowButton

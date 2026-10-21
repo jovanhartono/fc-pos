@@ -98,13 +98,13 @@ function CustomersPage() {
 			{
 				accessorKey: "name",
 				header: "Name",
-				meta: { kind: "name" },
+				meta: { kind: "name", width: { percent: 31, minRem: 9 } },
 			},
 			{
 				accessorKey: "phone_number",
 				header: "Phone",
 				meta: {
-					headerClassName: "w-36",
+					width: { percent: 15, minRem: 7.5 },
 					mobileCard: {
 						slot: "subtitle",
 						className: "text-foreground text-subhead tabular-nums",
@@ -116,7 +116,7 @@ function CustomersPage() {
 				header: "Email",
 				meta: {
 					kind: "text",
-					headerClassName: "w-64",
+					width: { percent: 28, minRem: 10 },
 					mobileCard: { slot: "hidden" },
 				},
 				cell: ({ row }) => (
@@ -129,7 +129,7 @@ function CustomersPage() {
 				id: "origin_store",
 				header: "Origin store",
 				meta: {
-					headerClassName: "w-40",
+					width: { percent: 18, minRem: 8.5 },
 					mobileCard: {
 						slot: "subtitle",
 						className: "text-foreground text-subhead",
@@ -140,7 +140,10 @@ function CustomersPage() {
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { headerClassName: "w-24", mobileCard: { slot: "title-end" } },
+				meta: {
+					width: { percent: 8, minRem: 4.5 },
+					mobileCard: { slot: "title-end" },
+				},
 				cell: ({ row }) => (
 					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),

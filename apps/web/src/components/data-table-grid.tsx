@@ -11,7 +11,7 @@ import {
 } from "@tanstack/react-table";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { DataTableFeatures } from "@/components/data-table-features";
-import "@/components/data-table-meta";
+import type { ColumnWidth } from "@/components/data-table-meta";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
@@ -46,19 +46,16 @@ const RAISED_CONTROLS =
 
 const SKELETON_ROW_COUNT = 10;
 
-// A column with no width of its own (the Customer on Orders) takes what the
-// fixed ones leave; below this the table scrolls sideways in its frame
-// instead, so a 1024px screen with the sidebar open never squeezes it away.
-const FLEX_COLUMN_MIN_REM = 10;
-
-const tableMinWidthRem = (headerClassNames: (string | undefined)[]) =>
-	headerClassNames.reduce((sum, className = "") => {
-		if (/(?:^|\s)hidden(?:\s|$)/.test(className)) {
-			return sum;
-		}
-		const width = className.match(/(?:^|\s)w-(\d+)(?:\s|$)/);
-		return sum + (width ? Number(width[1]) / 4 : FLEX_COLUMN_MIN_REM);
-	}, 0);
+// Spare room on a wide screen goes to every column by its share, not all to
+// the Customer. The table stops shrinking once one column is at its minimum
+// and scrolls sideways in its frame, so a 1024px screen with the sidebar open
+// never squeezes a column away.
+const tableMinWidthRem = (widths: (ColumnWidth | undefined)[]) =>
+	widths.reduce(
+		(widest, width) =>
+			width ? Math.max(widest, (width.minRem * 100) / width.percent) : widest,
+		0,
+	);
 
 export const DataTableGrid = <TData extends RowData>({
 	table,
@@ -153,9 +150,7 @@ export const DataTableGrid = <TData extends RowData>({
 
 	const columnCount = table.getAllLeafColumns().length || 1;
 	const minWidthRem = tableMinWidthRem(
-		table
-			.getAllLeafColumns()
-			.map((column) => column.columnDef.meta?.headerClassName),
+		table.getAllLeafColumns().map((column) => column.columnDef.meta?.width),
 	);
 
 	return (
@@ -188,9 +183,11 @@ export const DataTableGrid = <TData extends RowData>({
 								const canSort = sortable && header.column.getCanSort();
 								const sortState = header.column.getIsSorted();
 								const isRight = header.column.columnDef.meta?.align === "right";
+								const width = header.column.columnDef.meta?.width;
 								return (
 									<TableHead
 										key={header.id}
+										style={width ? { width: `${width.percent}%` } : undefined}
 										className={cn(
 											"sticky top-0 z-10 h-9 bg-card font-medium text-muted-foreground text-subhead shadow-[inset_0_-1px_0_var(--border)] first:pl-3 last:pr-3",
 											isRight && "text-right",

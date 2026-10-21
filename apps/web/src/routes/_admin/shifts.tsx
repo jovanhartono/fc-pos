@@ -156,6 +156,7 @@ function ShiftsPage() {
 			{
 				id: "user",
 				header: "Worker",
+				meta: { width: { percent: 33, minRem: 9 } },
 				cell: ({ row }) => (
 					<div className="flex flex-col text-subhead">
 						<span className="font-medium text-body">
@@ -174,7 +175,10 @@ function ShiftsPage() {
 			{
 				id: "store",
 				header: "Store",
-				meta: { headerClassName: "w-24", mobileCard: { slot: "hidden" } },
+				meta: {
+					width: { percent: 10, minRem: 4 },
+					mobileCard: { slot: "hidden" },
+				},
 				cell: ({ row }) => (
 					<span className="text-subhead">
 						{row.original.store?.code ?? "-"}
@@ -185,7 +189,7 @@ function ShiftsPage() {
 				id: "clock_in",
 				header: "Clock in",
 				meta: {
-					headerClassName: "w-40",
+					width: { percent: 16, minRem: 6.5 },
 					mobileCard: {
 						label: <ClockLabel icon={SignInIcon} text="Clock in" />,
 						valueClassName: "font-normal",
@@ -201,7 +205,7 @@ function ShiftsPage() {
 				id: "clock_out",
 				header: "Clock out",
 				meta: {
-					headerClassName: "w-40",
+					width: { percent: 16, minRem: 6.5 },
 					mobileCard: {
 						label: <ClockLabel icon={SignOutIcon} text="Clock out" />,
 						valueClassName: "font-normal",
@@ -222,7 +226,7 @@ function ShiftsPage() {
 				header: "Duration",
 				// pt-1 matches the card title, which drops 4px to line up with Edit buttons.
 				meta: {
-					headerClassName: "w-36",
+					width: { percent: 15, minRem: 6 },
 					mobileCard: { slot: "title-end", className: "pt-1 text-right" },
 				},
 				cell: ({ row }) => <ShiftDuration shift={row.original} />,
@@ -230,7 +234,10 @@ function ShiftsPage() {
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { headerClassName: "w-24", mobileCard: { slot: "title-end" } },
+				meta: {
+					width: { percent: 10, minRem: 4.5 },
+					mobileCard: { slot: "title-end" },
+				},
 				cell: ({ row }) => (
 					<EditRowButton onClick={() => handleEdit(row.original)} />
 				),

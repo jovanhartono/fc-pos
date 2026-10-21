@@ -299,19 +299,22 @@ function UsersPage() {
 				header: "Username",
 				meta: {
 					kind: "code",
-					headerClassName: "w-40",
+					width: { percent: 16, minRem: 7 },
 					mobileCard: { slot: "subtitle" },
 				},
 			},
 			{
 				accessorKey: "name",
 				header: "Name",
-				meta: { kind: "name" },
+				meta: { kind: "name", width: { percent: 30, minRem: 9 } },
 			},
 			{
 				accessorKey: "role",
 				header: "Role",
-				meta: { headerClassName: "w-28", mobileCard: { slot: "subtitle" } },
+				meta: {
+					width: { percent: 11, minRem: 4.5 },
+					mobileCard: { slot: "subtitle" },
+				},
 				cell: ({ row }) => (
 					<span className="capitalize">{row.original.role}</span>
 				),
@@ -319,7 +322,10 @@ function UsersPage() {
 			{
 				id: "stores",
 				header: "Stores",
-				meta: { headerClassName: "w-48", mobileCard: { slot: "subtitle" } },
+				meta: {
+					width: { percent: 21, minRem: 9.5 },
+					mobileCard: { slot: "subtitle" },
+				},
 				cell: ({ row }) =>
 					row.original.userStores.length > 0
 						? row.original.userStores
@@ -333,13 +339,19 @@ function UsersPage() {
 			{
 				id: "status",
 				header: "Status",
-				meta: { headerClassName: "w-28", mobileCard: { slot: "status" } },
+				meta: {
+					width: { percent: 11, minRem: 4.5 },
+					mobileCard: { slot: "status" },
+				},
 				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 			},
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { headerClassName: "w-28", mobileCard: { slot: "title-end" } },
+				meta: {
+					width: { percent: 11, minRem: 5.5 },
+					mobileCard: { slot: "title-end" },
+				},
 				cell: ({ row }) => (
 					<div className="flex gap-2">
 						<EditRowButton onClick={() => handleEdit(row.original)} />

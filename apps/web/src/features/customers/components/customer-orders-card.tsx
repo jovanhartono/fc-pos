@@ -62,7 +62,10 @@ export const CustomerOrdersCard = ({
 			{
 				accessorKey: "code",
 				header: "Code",
-				meta: { headerClassName: "w-36", mobileCard: { slot: "title" } },
+				meta: {
+					width: { percent: 17, minRem: 9.25 },
+					mobileCard: { slot: "title" },
+				},
 				cell: ({ row }) => (
 					<Link
 						to="/orders/$orderId"
@@ -76,7 +79,10 @@ export const CustomerOrdersCard = ({
 			{
 				id: "date",
 				header: "Date",
-				meta: { headerClassName: "w-32", mobileCard: { slot: "eyebrow" } },
+				meta: {
+					width: { percent: 13, minRem: 6.5 },
+					mobileCard: { slot: "eyebrow" },
+				},
 				cell: ({ row }) => (
 					<span className="whitespace-nowrap tabular-nums">
 						{formatListDate(row.original.created_at)}
@@ -86,12 +92,13 @@ export const CustomerOrdersCard = ({
 			{
 				id: "store",
 				header: "Store",
+				meta: { width: { percent: 26, minRem: 6.5 } },
 				cell: ({ row }) => row.original.store_name,
 			},
 			{
 				id: "items",
 				header: "Items",
-				meta: { headerClassName: "w-20" },
+				meta: { width: { percent: 9, minRem: 3.5 } },
 				cell: ({ row }) => (
 					<span className="tabular-nums">
 						{row.original.fulfillment.total_count}
@@ -101,7 +108,10 @@ export const CustomerOrdersCard = ({
 			{
 				id: "status",
 				header: "Status",
-				meta: { headerClassName: "w-36", mobileCard: { slot: "badges" } },
+				meta: {
+					width: { percent: 18, minRem: 8.25 },
+					mobileCard: { slot: "badges" },
+				},
 				cell: ({ row }) => (
 					<Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
 						{formatOrderStatus(row.original.status)}
@@ -111,7 +121,10 @@ export const CustomerOrdersCard = ({
 			{
 				id: "paid",
 				header: () => <span className="block text-right">Paid</span>,
-				meta: { headerClassName: "w-36", mobileCard: { slot: "footer" } },
+				meta: {
+					width: { percent: 17, minRem: 6.5 },
+					mobileCard: { slot: "footer" },
+				},
 				cell: ({ row }) => <OrderAmountCell order={row.original} />,
 			},
 		],

@@ -113,23 +113,29 @@ function PaymentMethodsPage() {
 			{
 				accessorKey: "name",
 				header: "Payment method",
-				meta: { kind: "name" },
+				meta: { kind: "name", width: { percent: 50, minRem: 9 } },
 			},
 			{
 				accessorKey: "code",
 				header: "Code",
-				meta: { kind: "code", headerClassName: "w-40" },
+				meta: { kind: "code", width: { percent: 26, minRem: 4.5 } },
 			},
 			{
 				id: "status",
 				header: "Status",
-				meta: { headerClassName: "w-24", mobileCard: { slot: "status" } },
+				meta: {
+					width: { percent: 12, minRem: 4.5 },
+					mobileCard: { slot: "status" },
+				},
 				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 			},
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { headerClassName: "w-20", mobileCard: { slot: "title-end" } },
+				meta: {
+					width: { percent: 12, minRem: 4.5 },
+					mobileCard: { slot: "title-end" },
+				},
 				cell: ({ row }) => (
 					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),

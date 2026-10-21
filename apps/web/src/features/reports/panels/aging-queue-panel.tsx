@@ -25,7 +25,7 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 	{
 		id: "item_code",
 		header: "Item code",
-		meta: { headerClassName: "w-32", mobileCard: { slot: "title" } },
+		meta: { width: { percent: 17, minRem: 8 }, mobileCard: { slot: "title" } },
 		cell: ({ row }) => (
 			<ItemCodeLink orderId={row.original.order_id}>
 				{row.original.item_code ?? `#${row.original.id}`}
@@ -35,12 +35,19 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 	{
 		accessorKey: "service_name",
 		header: "Service",
-		meta: { kind: "text", mobileCard: { slot: "subtitle" } },
+		meta: {
+			kind: "text",
+			width: { percent: 24, minRem: 8 },
+			mobileCard: { slot: "subtitle" },
+		},
 	},
 	{
 		id: "store",
 		header: "Store",
-		meta: { headerClassName: "w-48", mobileCard: { slot: "eyebrow" } },
+		meta: {
+			width: { percent: 17, minRem: 8 },
+			mobileCard: { slot: "eyebrow" },
+		},
 		cell: ({ row }) => (
 			<span className="text-footnote">
 				{row.original.store_code} · {row.original.store_name}
@@ -50,7 +57,11 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 	{
 		accessorKey: "days_waiting",
 		header: "Days waiting",
-		meta: { headerClassName: "w-32 text-right", cellClassName: "text-right" },
+		meta: {
+			width: { percent: 11, minRem: 6.25 },
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+		},
 		cell: ({ row }) => (
 			<span
 				className={cn(
@@ -65,7 +76,10 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 	{
 		id: "status",
 		header: "Status",
-		meta: { headerClassName: "w-36", mobileCard: { slot: "badges" } },
+		meta: {
+			width: { percent: 14, minRem: 8 },
+			mobileCard: { slot: "badges" },
+		},
 		cell: ({ row }) => (
 			<Badge variant={getOrderServiceStatusBadgeVariant(row.original.status)}>
 				{formatOrderServiceStatus(row.original.status)}
@@ -75,7 +89,7 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 	{
 		accessorKey: "handler_name",
 		header: "Handler",
-		meta: { kind: "text", headerClassName: "w-40" },
+		meta: { kind: "text", width: { percent: 17, minRem: 7 } },
 		cell: ({ row }) => row.original.handler_name ?? "Unassigned",
 	},
 ];

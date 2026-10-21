@@ -118,31 +118,34 @@ function ProductsPage() {
 				header: "SKU",
 				meta: {
 					kind: "code",
-					headerClassName: "w-36",
+					width: { percent: 16, minRem: 9 },
 					mobileCard: { slot: "subtitle" },
 				},
 			},
 			{
 				accessorKey: "name",
 				header: "Product",
-				meta: { kind: "name" },
+				meta: { kind: "name", width: { percent: 24, minRem: 9 } },
 			},
 			{
 				id: "category",
 				header: "Category",
-				meta: { headerClassName: "w-36", mobileCard: { slot: "subtitle" } },
+				meta: {
+					width: { percent: 13, minRem: 6.5 },
+					mobileCard: { slot: "subtitle" },
+				},
 				cell: ({ row }) => row.original.category?.name ?? "-",
 			},
 			{
 				accessorKey: "cogs",
 				header: "COGS",
-				meta: { align: "right", headerClassName: "w-28" },
+				meta: { align: "right", width: { percent: 10, minRem: 5.5 } },
 				cell: ({ row }) => formatMoney(String(row.original.cogs)),
 			},
 			{
 				accessorKey: "price",
 				header: "Price",
-				meta: { align: "right", headerClassName: "w-28" },
+				meta: { align: "right", width: { percent: 10, minRem: 5.5 } },
 				cell: ({ row }) => <MoneyValue value={row.original.price} />,
 			},
 			{
@@ -150,7 +153,7 @@ function ProductsPage() {
 				header: "Stock",
 				meta: {
 					align: "right",
-					headerClassName: "w-24",
+					width: { percent: 9, minRem: 4.5 },
 					mobileCard: { slot: "badges" },
 				},
 				cell: ({ row }) => <ProductStock stock={row.original.stock} />,
@@ -158,13 +161,19 @@ function ProductsPage() {
 			{
 				id: "status",
 				header: "Status",
-				meta: { headerClassName: "w-24", mobileCard: { slot: "status" } },
+				meta: {
+					width: { percent: 9, minRem: 4.5 },
+					mobileCard: { slot: "status" },
+				},
 				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 			},
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { headerClassName: "w-20", mobileCard: { slot: "title-end" } },
+				meta: {
+					width: { percent: 9, minRem: 4.5 },
+					mobileCard: { slot: "title-end" },
+				},
 				cell: ({ row }) => (
 					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),

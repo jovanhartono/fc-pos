@@ -23,6 +23,11 @@ interface MobileCardColumnOptions {
 	valueClassName?: string;
 }
 
+export interface ColumnWidth {
+	percent: number;
+	minRem: number;
+}
+
 declare module "@tanstack/react-table" {
 	interface ColumnMeta<
 		in out TFeatures extends TableFeatures,
@@ -35,6 +40,9 @@ declare module "@tanstack/react-table" {
 		// A code cell is mono, a name cell medium weight, on the table and the card.
 		// On the table a long name wraps and long text is cut to one line.
 		kind?: "code" | "name" | "text";
+		// The column's share of the table on a wide screen, and the narrowest it
+		// gets before the table scrolls sideways instead.
+		width?: ColumnWidth;
 		// Extra classes for the desktop table th/td (e.g. sticky columns).
 		headerClassName?: string;
 		cellClassName?: string;

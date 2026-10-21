@@ -119,31 +119,34 @@ function ServicesPage() {
 				header: "Code",
 				meta: {
 					kind: "code",
-					headerClassName: "w-28",
+					width: { percent: 8, minRem: 4.5 },
 					mobileCard: { slot: "subtitle" },
 				},
 			},
 			{
 				accessorKey: "name",
 				header: "Service",
-				meta: { kind: "name" },
+				meta: { kind: "name", width: { percent: 32, minRem: 9 } },
 			},
 			{
 				id: "category",
 				header: "Category",
-				meta: { headerClassName: "w-36", mobileCard: { slot: "subtitle" } },
+				meta: {
+					width: { percent: 11, minRem: 6.25 },
+					mobileCard: { slot: "subtitle" },
+				},
 				cell: ({ row }) => row.original.category?.name ?? "-",
 			},
 			{
 				accessorKey: "cogs",
 				header: "COGS",
-				meta: { align: "right", headerClassName: "w-28" },
+				meta: { align: "right", width: { percent: 11, minRem: 5.75 } },
 				cell: ({ row }) => formatMoney(String(row.original.cogs)),
 			},
 			{
 				accessorKey: "price",
 				header: "Price",
-				meta: { align: "right", headerClassName: "w-28" },
+				meta: { align: "right", width: { percent: 11, minRem: 6.25 } },
 				cell: ({ row }) =>
 					row.original.price === null ? (
 						<span className="text-muted-foreground">No list price</span>
@@ -154,7 +157,10 @@ function ServicesPage() {
 			{
 				id: "priority",
 				header: "Queue",
-				meta: { headerClassName: "w-24", mobileCard: { slot: "status" } },
+				meta: {
+					width: { percent: 9, minRem: 4.75 },
+					mobileCard: { slot: "status" },
+				},
 				cell: ({ row }) =>
 					row.original.is_priority ? (
 						<Badge variant="priority">Priority</Badge>
@@ -163,13 +169,19 @@ function ServicesPage() {
 			{
 				id: "status",
 				header: "Status",
-				meta: { headerClassName: "w-24", mobileCard: { slot: "status" } },
+				meta: {
+					width: { percent: 9, minRem: 5 },
+					mobileCard: { slot: "status" },
+				},
 				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 			},
 			{
 				id: "actions",
 				header: "Actions",
-				meta: { headerClassName: "w-20", mobileCard: { slot: "title-end" } },
+				meta: {
+					width: { percent: 9, minRem: 4.5 },
+					mobileCard: { slot: "title-end" },
+				},
 				cell: ({ row }) => (
 					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 				),

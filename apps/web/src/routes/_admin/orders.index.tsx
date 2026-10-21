@@ -288,7 +288,7 @@ function OrdersPage() {
 			{
 				accessorKey: "code",
 				header: "Order code",
-				meta: { headerClassName: "w-40" },
+				meta: { width: { percent: 16, minRem: 9 } },
 				cell: ({ row }) => (
 					<div className="flex flex-col gap-0.5">
 						<div className="flex gap-x-1">
@@ -313,7 +313,7 @@ function OrdersPage() {
 			{
 				id: "created_at",
 				header: "Created at",
-				meta: { headerClassName: "w-32" },
+				meta: { width: { percent: 11, minRem: 6.25 } },
 				cell: ({ row }) => (
 					<span className="whitespace-nowrap tabular-nums">
 						{formatListDate(row.original.created_at)}
@@ -323,6 +323,7 @@ function OrdersPage() {
 			{
 				accessorKey: "customer_name",
 				header: "Customer",
+				meta: { width: { percent: 25, minRem: 9 } },
 				cell: ({ row }) => (
 					<div>
 						<span className="flex items-baseline gap-x-1.5">
@@ -344,7 +345,7 @@ function OrdersPage() {
 			{
 				id: "items_ready",
 				header: "Items ready",
-				meta: { headerClassName: "w-24" },
+				meta: { width: { percent: 11, minRem: 6 } },
 				cell: ({ row }) => (
 					<ItemsReady
 						ready={row.original.items_ready}
@@ -355,7 +356,7 @@ function OrdersPage() {
 			{
 				accessorKey: "status",
 				header: "Fulfillment",
-				meta: { headerClassName: "w-32" },
+				meta: { width: { percent: 14, minRem: 8 } },
 				cell: ({ row }) => (
 					<Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
 						{formatOrderStatus(row.original.status)}
@@ -365,7 +366,7 @@ function OrdersPage() {
 			{
 				accessorKey: "payment_status",
 				header: "Payment",
-				meta: { headerClassName: "w-32" },
+				meta: { width: { percent: 11, minRem: 6.25 } },
 				cell: ({ row }) => (
 					<div className="flex flex-wrap gap-1">
 						<PaymentBadges order={row.original} />
@@ -375,7 +376,7 @@ function OrdersPage() {
 			{
 				id: "total",
 				header: "Total",
-				meta: { align: "right", headerClassName: "w-28" },
+				meta: { align: "right", width: { percent: 12, minRem: 6.5 } },
 				cell: ({ row }) => <MoneyValue value={row.original.total} />,
 			},
 		],
