@@ -27,6 +27,7 @@ function Label({
 					icon={AsteriskIcon}
 					aria-hidden="true"
 					className="size-2 text-destructive"
+					strokeWidth={2}
 				/>
 			) : null}
 		</label>

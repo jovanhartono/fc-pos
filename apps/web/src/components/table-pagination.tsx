@@ -56,7 +56,7 @@ export function TablePagination({
 					variant="outline"
 					size="sm"
 					disabled={!canGoBack}
-					icon={<HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />}
+					icon={<HugeiconsIcon icon={ArrowLeft01Icon} />}
 					onClick={() => onPageChange(currentPage - 1)}
 				>
 					Prev
@@ -72,7 +72,7 @@ export function TablePagination({
 					variant="outline"
 					size="sm"
 					disabled={!canGoForward}
-					icon={<HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />}
+					icon={<HugeiconsIcon icon={ArrowRight01Icon} />}
 					iconLocation="right"
 					onClick={() => onPageChange(currentPage + 1)}
 				>

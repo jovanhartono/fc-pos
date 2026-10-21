@@ -92,7 +92,7 @@ export const OrderWalk = ({ openId, onSelect }: OrderWalkProps) => {
 				variant="ghost"
 				size="sm"
 				className="ml-auto"
-				icon={<HugeiconsIcon icon={LinkSquare02Icon} className="size-4" />}
+				icon={<HugeiconsIcon icon={LinkSquare02Icon} />}
 				render={
 					<Link to="/orders/$orderId" params={{ orderId: String(openId) }} />
 				}

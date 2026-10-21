@@ -1,5 +1,3 @@
-import { AsteriskIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { cva, type VariantProps } from "class-variance-authority";
 import type * as React from "react";
 import { useMemo } from "react";
@@ -99,11 +97,9 @@ function FieldContent({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 function FieldLabel({
-	asterisk = false,
-	children,
 	className,
 	...props
-}: React.ComponentProps<typeof Label> & { asterisk?: boolean }) {
+}: React.ComponentProps<typeof Label>) {
 	return (
 		<Label
 			data-slot="field-label"
@@ -113,17 +109,7 @@ function FieldLabel({
 				className,
 			)}
 			{...props}
-		>
-			{children}
-			{asterisk ? (
-				<HugeiconsIcon
-					icon={AsteriskIcon}
-					aria-hidden="true"
-					className="size-2 text-destructive"
-					strokeWidth={2}
-				/>
-			) : null}
-		</Label>
+		/>
 	);
 }
 

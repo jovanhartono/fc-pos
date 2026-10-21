@@ -83,7 +83,7 @@ const LineSheetContent = ({ orderId, serviceId }: LineSheetContentProps) => {
 				variant="outline"
 				size="sm"
 				className="justify-self-start"
-				icon={<HugeiconsIcon icon={LinkSquare02Icon} className="size-4" />}
+				icon={<HugeiconsIcon icon={LinkSquare02Icon} />}
 				render={
 					<Link
 						to="/orders/$orderId"
