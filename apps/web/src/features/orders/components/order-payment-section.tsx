@@ -4,7 +4,8 @@ import {
 	orderNetDue,
 } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircleIcon } from "@phosphor-icons/react";
+import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import {
@@ -287,10 +288,10 @@ const SettledDiscountPaymentForm = ({
 				{/* Same emerald as a captured drop-off photo: settled is a done state,
 				    not a warning. The breakdown itself is on the page under this sheet. */}
 				<p className="flex items-start gap-2 rounded-md border border-success/40 bg-tone-good px-3 py-2.5 text-foreground text-body">
-					<CheckCircleIcon
+					<HugeiconsIcon
+						icon={CheckmarkCircle02Icon}
 						aria-hidden="true"
 						className="mt-0.5 size-4 shrink-0 text-tone-good-foreground"
-						weight="fill"
 					/>
 					<span>
 						Discount of <strong>{formatMoney(discount)}</strong> settled at

@@ -1,4 +1,5 @@
-import { PencilSimpleLineIcon } from "@phosphor-icons/react";
+import { PencilEdit02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@/components/ui/button";
 
 interface EditRowButtonProps {
@@ -14,6 +15,6 @@ export const EditRowButton = ({ onClick, disabled }: EditRowButtonProps) => (
 		title="Edit"
 		disabled={disabled}
 		onClick={onClick}
-		icon={<PencilSimpleLineIcon className="size-4" />}
+		icon={<HugeiconsIcon icon={PencilEdit02Icon} className="size-4" />}
 	/>
 );

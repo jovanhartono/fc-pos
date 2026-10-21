@@ -1,4 +1,5 @@
-import { CaretDownIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowDown01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -110,7 +111,7 @@ export const ServicesMultiAutocomplete = ({
 											className="hover:text-destructive"
 											aria-label={`Remove ${service.code}`}
 										>
-											<XIcon className="size-3" />
+											<HugeiconsIcon icon={Cancel01Icon} className="size-3" />
 										</button>
 									) : null}
 								</Badge>
@@ -119,7 +120,10 @@ export const ServicesMultiAutocomplete = ({
 							<span className="text-muted-foreground">{placeholder}</span>
 						)}
 					</div>
-					<CaretDownIcon className="size-4 shrink-0 opacity-50" />
+					<HugeiconsIcon
+						icon={ArrowDown01Icon}
+						className="size-4 shrink-0 opacity-50"
+					/>
 				</PopoverTrigger>
 				<PopoverContent
 					align="start"

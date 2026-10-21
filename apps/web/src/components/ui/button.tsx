@@ -1,5 +1,6 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
-import { CircleNotchIcon } from "@phosphor-icons/react";
+import { Loading03Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { cva, type VariantProps } from "class-variance-authority";
 import type * as React from "react";
 import { useWebHaptics } from "web-haptics/react";
@@ -119,7 +120,12 @@ function Button({
 		>
 			{loading ? (
 				<>
-					{spinner ?? <CircleNotchIcon className="size-4 animate-spin" />}
+					{spinner ?? (
+						<HugeiconsIcon
+							icon={Loading03Icon}
+							className="size-4 animate-spin"
+						/>
+					)}
 					{loadingText ?? children}
 				</>
 			) : (

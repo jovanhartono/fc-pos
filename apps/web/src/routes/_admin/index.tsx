@@ -1,3 +1,4 @@
+import { HugeiconsIcon } from "@hugeicons/react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { navGroupsForRole } from "@/components/app-navigation";
 import { PageHeader } from "@/components/page-header";
@@ -25,27 +26,24 @@ function HomePage() {
 							{group.label}
 						</h2>
 						<ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-							{group.items.map((item) => {
-								const Icon = item.icon;
-								return (
-									<li key={item.to}>
-										<Card className="h-full py-0 transition-colors hover:bg-primary/[0.04]">
-											<Link
-												to={item.to}
-												className="flex h-full flex-col gap-2 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-											>
-												<span className="flex items-center gap-2 font-medium text-body">
-													<Icon className="size-5" />
-													{item.label}
-												</span>
-												<span className="text-foreground/80 text-subhead">
-													{item.description}
-												</span>
-											</Link>
-										</Card>
-									</li>
-								);
-							})}
+							{group.items.map((item) => (
+								<li key={item.to}>
+									<Card className="h-full py-0 transition-colors hover:bg-primary/[0.04]">
+										<Link
+											to={item.to}
+											className="flex h-full flex-col gap-2 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+										>
+											<span className="flex items-center gap-2 font-medium text-body">
+												<HugeiconsIcon className="size-5" icon={item.icon} />
+												{item.label}
+											</span>
+											<span className="text-foreground/80 text-subhead">
+												{item.description}
+											</span>
+										</Link>
+									</Card>
+								</li>
+							))}
 						</ul>
 					</section>
 				))}

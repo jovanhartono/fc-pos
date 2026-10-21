@@ -1,4 +1,5 @@
-import { CaretRightIcon } from "@phosphor-icons/react";
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { DataTable } from "@/components/data-table";
@@ -229,7 +230,8 @@ const columnsFor = (
 			header: () => <span className="sr-only">Open</span>,
 			meta: { width: { percent: 4, minRem: 1.75 } },
 			cell: () => (
-				<CaretRightIcon
+				<HugeiconsIcon
+					icon={ArrowRight01Icon}
 					aria-hidden="true"
 					className="size-3.5 text-muted-foreground"
 				/>
@@ -278,7 +280,8 @@ const WorkerCard = ({ row, now, onOpen }: WorkerCardProps) => (
 					{row.services_processed === 1 ? "Service" : "Services"}
 				</span>
 			</span>
-			<CaretRightIcon
+			<HugeiconsIcon
+				icon={ArrowRight01Icon}
 				aria-hidden="true"
 				className="size-3.5 self-center text-muted-foreground"
 			/>

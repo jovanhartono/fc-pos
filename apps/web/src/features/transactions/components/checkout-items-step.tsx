@@ -1,11 +1,12 @@
 import {
-	ArrowsLeftRightIcon,
-	CameraIcon,
-	CheckCircleIcon,
-	EyeIcon,
-	PlusIcon,
-	WarningIcon,
-} from "@phosphor-icons/react";
+	Add01Icon,
+	Alert02Icon,
+	ArrowLeftRightIcon,
+	Camera01Icon,
+	CheckmarkCircle02Icon,
+	ViewIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
@@ -231,7 +232,12 @@ const CheckoutTreatmentRow = ({
 									<Button
 										aria-label={`Move ${line.service.name} to another item`}
 										className="relative size-7 before:absolute before:-inset-2 before:content-['']"
-										icon={<ArrowsLeftRightIcon className="size-3.5" />}
+										icon={
+											<HugeiconsIcon
+												icon={ArrowLeftRightIcon}
+												className="size-3.5"
+											/>
+										}
 										size="icon-xs"
 										type="button"
 										variant="outline"
@@ -258,7 +264,7 @@ const CheckoutTreatmentRow = ({
 								<DropdownMenuItem
 									onClick={() => moveService(itemId, line.line_id, null)}
 								>
-									<PlusIcon className="size-4" />
+									<HugeiconsIcon icon={Add01Icon} className="size-4" />
 									Split to a new item
 								</DropdownMenuItem>
 							</DropdownMenuContent>
@@ -440,16 +446,16 @@ const CheckoutDropoffPhotoField = () => {
 			>
 				<div className="flex items-center gap-2">
 					{hasPhoto ? (
-						<CheckCircleIcon
+						<HugeiconsIcon
+							icon={CheckmarkCircle02Icon}
 							aria-hidden="true"
 							className="size-5 shrink-0 text-tone-good-foreground"
-							weight="fill"
 						/>
 					) : (
-						<WarningIcon
+						<HugeiconsIcon
+							icon={Alert02Icon}
 							aria-hidden="true"
 							className="size-5 shrink-0 text-tone-warn-foreground"
-							weight="fill"
 						/>
 					)}
 					<div>
@@ -464,7 +470,7 @@ const CheckoutDropoffPhotoField = () => {
 					<div className="flex items-center gap-2">
 						<Button
 							className="shrink-0"
-							icon={<EyeIcon className="size-4" />}
+							icon={<HugeiconsIcon icon={ViewIcon} className="size-4" />}
 							onClick={() => setIsLightboxOpen(true)}
 							type="button"
 							variant="outline"
@@ -473,7 +479,7 @@ const CheckoutDropoffPhotoField = () => {
 						</Button>
 						<Button
 							className="shrink-0"
-							icon={<CameraIcon className="size-4" />}
+							icon={<HugeiconsIcon icon={Camera01Icon} className="size-4" />}
 							onClick={() => setIsDialogOpen(true)}
 							type="button"
 							variant="outline"
@@ -484,7 +490,7 @@ const CheckoutDropoffPhotoField = () => {
 				) : (
 					<Button
 						className="shrink-0"
-						icon={<CameraIcon className="size-4" />}
+						icon={<HugeiconsIcon icon={Camera01Icon} className="size-4" />}
 						onClick={() => setIsDialogOpen(true)}
 						type="button"
 						variant="outline"

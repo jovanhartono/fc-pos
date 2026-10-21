@@ -1,6 +1,7 @@
 import { PUTUserSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { KeyIcon, PlusIcon } from "@phosphor-icons/react";
+import { Add01Icon, ResetPasswordIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
 	keepPreviousData,
 	useMutation,
@@ -361,7 +362,9 @@ function UsersPage() {
 							aria-label="Reset password"
 							title="Reset password"
 							onClick={() => handleResetPassword(row.original)}
-							icon={<KeyIcon className="size-4" />}
+							icon={
+								<HugeiconsIcon icon={ResetPasswordIcon} className="size-4" />
+							}
 						/>
 					</div>
 				),
@@ -377,7 +380,10 @@ function UsersPage() {
 				count={usersQuery.data?.meta.total}
 				countNoun="user"
 				actions={
-					<Button icon={<PlusIcon className="size-4" />} onClick={handleCreate}>
+					<Button
+						icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
+						onClick={handleCreate}
+					>
 						Add user
 					</Button>
 				}

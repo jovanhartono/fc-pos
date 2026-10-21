@@ -1,4 +1,5 @@
-import { BluetoothIcon, TrashIcon } from "@phosphor-icons/react";
+import { BluetoothIcon, Delete02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -90,7 +91,7 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 								disabled={removeMutation.isPending}
 								onClick={() => removeMutation.mutate(device.id)}
 							>
-								<TrashIcon className="size-4" />
+								<HugeiconsIcon icon={Delete02Icon} className="size-4" />
 							</Button>
 						</li>
 					))}
@@ -102,7 +103,7 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 					variant={isEmpty ? "default" : "outline"}
 					className={cn(isEmpty && "justify-self-center")}
 					loading={pairMutation.isPending}
-					icon={<BluetoothIcon className="size-4" />}
+					icon={<HugeiconsIcon icon={BluetoothIcon} className="size-4" />}
 					onClick={() => pairMutation.mutate()}
 				>
 					Register device

@@ -2,7 +2,8 @@ import {
 	isValidPhoneNumber,
 	normalizePhoneNumber,
 } from "@fresclean/api/schema";
-import { CheckCircleIcon } from "@phosphor-icons/react";
+import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
@@ -106,7 +107,7 @@ export const CustomerFields = () => {
 									!isReturning && "invisible",
 								)}
 							>
-								<CheckCircleIcon weight="fill" />
+								<HugeiconsIcon icon={CheckmarkCircle02Icon} />
 								Existing customer
 							</Badge>
 						</div>

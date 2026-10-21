@@ -1,4 +1,5 @@
-import { BluetoothIcon, PlusIcon } from "@phosphor-icons/react";
+import { Add01Icon, BluetoothIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
@@ -188,7 +189,7 @@ export function TransactionsCatalog() {
 							variant="outline"
 							className="shrink-0"
 							disabled={!selectedStoreId}
-							icon={<BluetoothIcon className="size-4" />}
+							icon={<HugeiconsIcon icon={BluetoothIcon} className="size-4" />}
 							onClick={() =>
 								openDialog({
 									title: "Bluetooth devices",
@@ -340,7 +341,11 @@ export function TransactionsCatalog() {
 											{inCartCount > 0 ? (
 												inCartCount
 											) : (
-												<PlusIcon className="size-3.5" weight="bold" />
+												<HugeiconsIcon
+													icon={Add01Icon}
+													className="size-3.5"
+													strokeWidth={2}
+												/>
 											)}
 										</span>
 									</span>

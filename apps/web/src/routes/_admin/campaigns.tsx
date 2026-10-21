@@ -1,9 +1,10 @@
 import {
-	ArchiveIcon,
-	ArrowCounterClockwiseIcon,
-	PlusIcon,
-	TicketIcon,
-} from "@phosphor-icons/react";
+	Add01Icon,
+	Archive02Icon,
+	ArchiveRestoreIcon,
+	Coupon01Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
@@ -151,7 +152,7 @@ const ArchiveCampaignButton = ({
 	const { openDialog, closeDialog } = useDialog();
 	const isArchived = !campaign.is_active;
 	const label = isArchived ? "Unarchive" : "Archive";
-	const Icon = isArchived ? ArrowCounterClockwiseIcon : ArchiveIcon;
+	const icon = isArchived ? ArchiveRestoreIcon : Archive02Icon;
 
 	return (
 		<Button
@@ -159,7 +160,7 @@ const ArchiveCampaignButton = ({
 			size="icon-sm"
 			aria-label={label}
 			title={label}
-			icon={<Icon className="size-4" />}
+			icon={<HugeiconsIcon className="size-4" icon={icon} />}
 			disabled={disabled || isPending}
 			onClick={() => {
 				openDialog({
@@ -396,7 +397,7 @@ function CampaignsPage() {
 								aria-label="Codes"
 								title="Codes"
 								onClick={() => handleOpenVoucherDetail(row.original)}
-								icon={<TicketIcon className="size-4" />}
+								icon={<HugeiconsIcon icon={Coupon01Icon} className="size-4" />}
 							/>
 						) : (
 							<span aria-hidden className="size-7 shrink-0" />
@@ -429,7 +430,7 @@ function CampaignsPage() {
 					<Button
 						onClick={handleOpenCreateSheet}
 						disabled={!isAdmin}
-						icon={<PlusIcon className="size-4" />}
+						icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
 					>
 						Add campaign
 					</Button>

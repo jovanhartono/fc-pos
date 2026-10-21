@@ -4,13 +4,13 @@ import {
 	ORDER_TERMINAL_SERVICE_STATUSES,
 } from "@fresclean/api/schema";
 import {
-	ArrowClockwiseIcon,
-	CaretRightIcon,
-	CheckCircleIcon,
-	ImageSquareIcon,
-	WarningCircleIcon,
-	WhatsappLogoIcon,
-} from "@phosphor-icons/react";
+	AlertCircleIcon,
+	ArrowRight01Icon,
+	CheckmarkCircle02Icon,
+	Image02Icon,
+	ReloadIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { WhatsappIcon } from "@/components/whatsapp-icon";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import {
 	type OrderServiceDetail,
@@ -72,10 +73,11 @@ const BackForReworkNote = ({
 }: BackForReworkNoteProps) => (
 	<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border bg-card px-3 py-3 text-body">
 		<p className="flex items-center gap-2">
-			<ArrowClockwiseIcon
+			<HugeiconsIcon
+				icon={ReloadIcon}
 				aria-hidden="true"
 				className="size-4 shrink-0 text-muted-foreground"
-				weight="bold"
+				strokeWidth={2}
 			/>
 			Back in for a rework.
 		</p>
@@ -85,7 +87,11 @@ const BackForReworkNote = ({
 			to="/queue/$orderId/$serviceId"
 		>
 			Open rework
-			<CaretRightIcon aria-hidden="true" className="size-3" />
+			<HugeiconsIcon
+				icon={ArrowRight01Icon}
+				aria-hidden="true"
+				className="size-3"
+			/>
 		</Link>
 	</div>
 );
@@ -94,10 +100,10 @@ const READY_NOTE_CLASS =
 	"rounded-lg border border-success/40 bg-tone-good px-3 py-3 text-foreground text-body";
 
 const ReadyIcon = () => (
-	<CheckCircleIcon
+	<HugeiconsIcon
+		icon={CheckmarkCircle02Icon}
 		aria-hidden="true"
 		className="mt-0.5 size-4 shrink-0 text-tone-good-foreground"
-		weight="fill"
 	/>
 );
 
@@ -121,7 +127,7 @@ const ReadyNote = ({ order }: ReadyNoteProps) => {
 				</p>
 				<Button
 					className="h-12 w-full"
-					icon={<WhatsappLogoIcon className="size-4" />}
+					icon={<HugeiconsIcon icon={WhatsappIcon} className="size-4" />}
 					onClick={() =>
 						notifyCustomer({
 							customerName: order.customer.name,
@@ -432,7 +438,7 @@ export function QueueServiceDetail({
 						<Button
 							type="button"
 							variant="outline"
-							icon={<ImageSquareIcon className="size-4" />}
+							icon={<HugeiconsIcon icon={Image02Icon} className="size-4" />}
 							onClick={() => setIsPhotoDialogOpen(true)}
 						>
 							Add photo
@@ -503,10 +509,10 @@ export function QueueServiceDetail({
 				>
 					{blockerMessage ? (
 						<div className="mb-2 flex items-center gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-footnote font-medium text-foreground">
-							<WarningCircleIcon
+							<HugeiconsIcon
+								icon={AlertCircleIcon}
 								aria-hidden="true"
 								className="size-4 shrink-0 text-warning"
-								weight="fill"
 							/>
 							{blockerMessage}
 						</div>

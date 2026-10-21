@@ -1,4 +1,5 @@
-import { CrosshairSimpleIcon } from "@phosphor-icons/react";
+import { PackageDeliveredIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
@@ -381,7 +382,9 @@ function OrdersPage() {
 					<Button
 						variant="outline"
 						onClick={handleOpenPickupRadar}
-						icon={<CrosshairSimpleIcon className="size-4" />}
+						icon={
+							<HugeiconsIcon icon={PackageDeliveredIcon} className="size-4" />
+						}
 					>
 						Ready for pickup
 					</Button>

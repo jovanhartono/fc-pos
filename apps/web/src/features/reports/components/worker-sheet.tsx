@@ -1,4 +1,5 @@
-import { ArrowSquareOutIcon } from "@phosphor-icons/react";
+import { LinkSquare02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useCallback } from "react";
@@ -82,7 +83,7 @@ const LineSheetContent = ({ orderId, serviceId }: LineSheetContentProps) => {
 				variant="outline"
 				size="sm"
 				className="justify-self-start"
-				icon={<ArrowSquareOutIcon className="size-4" />}
+				icon={<HugeiconsIcon icon={LinkSquare02Icon} />}
 				render={
 					<Link
 						to="/orders/$orderId"

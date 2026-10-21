@@ -1,17 +1,12 @@
 import {
-	MagnifyingGlassIcon,
-	ReceiptIcon,
+	Invoice01Icon,
+	Search01Icon,
 	UserIcon,
-} from "@phosphor-icons/react";
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { type NavigateOptions, useNavigate } from "@tanstack/react-router";
-import {
-	type ComponentType,
-	type KeyboardEvent,
-	useCallback,
-	useEffect,
-	useState,
-} from "react";
+import { type KeyboardEvent, useCallback, useEffect, useState } from "react";
 import { HOME_NAV_ITEM, navGroupsForRole } from "@/components/app-navigation";
 import { Badge } from "@/components/ui/badge";
 import { customersQueries } from "@/features/customers/api";
@@ -25,7 +20,7 @@ import { useDialog } from "@/stores/dialog-store";
 interface CommandResult {
 	key: string;
 	group: "Pages" | "Customers" | "Orders";
-	icon: ComponentType<{ className?: string }>;
+	icon: IconSvgElement;
 	label: string;
 	meta?: string;
 	status?: Parameters<typeof formatOrderStatus>[0];
@@ -103,7 +98,7 @@ const CommandBarPanel = () => {
 		? (ordersQuery.data?.items ?? []).map((order) => ({
 				key: `order-${order.id}`,
 				group: "Orders",
-				icon: ReceiptIcon,
+				icon: Invoice01Icon,
 				label: order.customer_name,
 				meta: order.code,
 				status: order.status,
@@ -145,7 +140,10 @@ const CommandBarPanel = () => {
 	return (
 		<>
 			<label className="flex h-13 items-center gap-3 border-b pr-12 pl-4">
-				<MagnifyingGlassIcon className="size-4.5 shrink-0 text-muted-foreground" />
+				<HugeiconsIcon
+					icon={Search01Icon}
+					className="size-4.5 shrink-0 text-muted-foreground"
+				/>
 				<input
 					// biome-ignore lint/a11y/noAutofocus: the bar opens to be typed into
 					autoFocus
@@ -182,7 +180,6 @@ const CommandBarPanel = () => {
 								<ul>
 									{groupResults.map((result) => {
 										const isActive = results[safeIndex] === result;
-										const Icon = result.icon;
 										const isOrder = result.group === "Orders";
 										return (
 											<li key={result.key}>
@@ -198,7 +195,8 @@ const CommandBarPanel = () => {
 														isActive && "bg-primary/10",
 													)}
 												>
-													<Icon
+													<HugeiconsIcon
+														icon={result.icon}
 														className={cn(
 															"size-4 shrink-0",
 															isActive

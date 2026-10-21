@@ -1,4 +1,5 @@
-import { FunnelSimpleIcon } from "@phosphor-icons/react";
+import { FilterHorizontalIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-picker";
@@ -95,7 +96,7 @@ export const ReportFilters = ({
 					// switching tabs never slides the button along the header.
 					<Button
 						variant="outline"
-						icon={<FunnelSimpleIcon />}
+						icon={<HugeiconsIcon icon={FilterHorizontalIcon} />}
 						className="w-44 min-w-0 justify-start sm:w-64"
 					>
 						<span className="truncate">{summary}</span>

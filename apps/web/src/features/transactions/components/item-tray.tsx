@@ -1,4 +1,5 @@
-import { PlusIcon, XIcon } from "@phosphor-icons/react";
+import { Add01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@/components/ui/button";
 import {
 	type ItemCartDisplayLine,
@@ -79,7 +80,7 @@ export const ItemTray = ({ itemRows }: ItemTrayProps) => {
 							<Button
 								aria-label={`Remove item ${itemNumber}`}
 								className="h-14 pointer-coarse:h-14 w-10 rounded-l-none border-l-0"
-								icon={<XIcon className="size-4" />}
+								icon={<HugeiconsIcon icon={Cancel01Icon} className="size-4" />}
 								onClick={() => removeItem(item.line_id)}
 								type="button"
 								variant="outline"
@@ -90,7 +91,7 @@ export const ItemTray = ({ itemRows }: ItemTrayProps) => {
 			})}
 			<Button
 				className="h-14 pointer-coarse:h-14 shrink-0 gap-1 px-3 text-body"
-				icon={<PlusIcon className="size-4" />}
+				icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
 				onClick={addItem}
 				type="button"
 				variant="outline"

@@ -1,4 +1,5 @@
-import { CaretRightIcon } from "@phosphor-icons/react";
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import type { ReactNode } from "react";
 import { BadCount } from "@/features/reports/components/tone-chip";
 import {
@@ -27,7 +28,8 @@ export const StoreGroup = ({
 		open={isOpenAtStart}
 	>
 		<summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-body [&::-webkit-details-marker]:hidden">
-			<CaretRightIcon
+			<HugeiconsIcon
+				icon={ArrowRight01Icon}
 				aria-hidden="true"
 				className="size-3.5 text-muted-foreground transition-transform group-open:rotate-90"
 			/>

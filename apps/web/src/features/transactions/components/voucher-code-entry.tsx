@@ -1,4 +1,5 @@
-import { TicketIcon, XIcon } from "@phosphor-icons/react";
+import { Cancel01Icon, Coupon01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -95,7 +96,7 @@ export const VoucherCodeEntry = ({
 				<Button
 					size="lg"
 					disabled={!canApply}
-					icon={<TicketIcon />}
+					icon={<HugeiconsIcon icon={Coupon01Icon} />}
 					loading={resolveMutation.isPending}
 					onClick={handleApply}
 					type="button"
@@ -126,7 +127,7 @@ export const VoucherCodeEntry = ({
 								<Button
 									aria-label={`Remove voucher ${entry.code}`}
 									className="size-11"
-									icon={<XIcon />}
+									icon={<HugeiconsIcon icon={Cancel01Icon} />}
 									onClick={() =>
 										onChange(
 											appliedVouchers.filter(

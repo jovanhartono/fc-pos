@@ -1,4 +1,5 @@
-import { DotsThreeIcon, IconContext } from "@phosphor-icons/react";
+import { MoreHorizontalIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
 import type { NavItem } from "@/components/app-navigation";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -20,29 +21,17 @@ export const AppTabBar = ({ items }: AppTabBarProps) => {
 			aria-label="Primary"
 			className="absolute inset-x-0 bottom-0 z-50 flex h-(--inset-bottom) bg-frost pb-[env(safe-area-inset-bottom)] shadow-[0_-0.5px_0_var(--border)] backdrop-blur-xl backdrop-saturate-150 md:hidden"
 		>
-			{items.map((item) => {
-				const Icon = item.icon;
-
-				return (
-					<Link
-						activeProps={{ "data-active": "true" }}
-						className={tabClassName}
-						key={item.to}
-						to={item.to}
-					>
-						{({ isActive }) => (
-							<>
-								<IconContext.Provider
-									value={{ weight: isActive ? "fill" : "regular" }}
-								>
-									<Icon className="size-5" />
-								</IconContext.Provider>
-								<span>{item.label}</span>
-							</>
-						)}
-					</Link>
-				);
-			})}
+			{items.map((item) => (
+				<Link
+					activeProps={{ "data-active": "true" }}
+					className={tabClassName}
+					key={item.to}
+					to={item.to}
+				>
+					<HugeiconsIcon className="size-5" icon={item.icon} />
+					<span>{item.label}</span>
+				</Link>
+			))}
 			<button
 				aria-expanded={openMobile}
 				aria-haspopup="dialog"
@@ -50,7 +39,7 @@ export const AppTabBar = ({ items }: AppTabBarProps) => {
 				onClick={() => setOpenMobile(true)}
 				type="button"
 			>
-				<DotsThreeIcon className="size-5" />
+				<HugeiconsIcon className="size-5" icon={MoreHorizontalIcon} />
 				<span>More</span>
 			</button>
 		</nav>

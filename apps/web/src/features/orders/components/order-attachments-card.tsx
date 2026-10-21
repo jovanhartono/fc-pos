@@ -1,4 +1,5 @@
-import { CameraIcon } from "@phosphor-icons/react";
+import { Camera01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { type ReactNode, useState } from "react";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Card } from "@/components/ui/card";
@@ -150,7 +151,11 @@ const DropoffAttachment = ({
 				/>
 			) : (
 				<div className={EMPTY_TILE}>
-					<CameraIcon aria-hidden="true" className="size-8 opacity-50" />
+					<HugeiconsIcon
+						icon={Camera01Icon}
+						aria-hidden="true"
+						className="size-8 opacity-50"
+					/>
 				</div>
 			)}
 			<TileCaption
@@ -166,7 +171,11 @@ const DropoffAttachment = ({
 						onClick={() => setIsDialogOpen(true)}
 						type="button"
 					>
-						<CameraIcon aria-hidden="true" className="size-4" />
+						<HugeiconsIcon
+							icon={Camera01Icon}
+							aria-hidden="true"
+							className="size-4"
+						/>
 						{photoUrl ? "Replace photo" : "Upload photo"}
 					</button>
 				}
@@ -265,7 +274,11 @@ const PickupTiles = ({ items }: PickupTilesProps) => (
 			<section className="grid content-start gap-1.5">
 				<AttachmentLabel>Pickup</AttachmentLabel>
 				<div className={EMPTY_TILE}>
-					<CameraIcon aria-hidden="true" className="size-8 opacity-50" />
+					<HugeiconsIcon
+						icon={Camera01Icon}
+						aria-hidden="true"
+						className="size-8 opacity-50"
+					/>
 				</div>
 				<TileCaption line2="No pickups yet" />
 			</section>

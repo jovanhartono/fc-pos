@@ -1,11 +1,11 @@
 import {
-	DotsThreeVerticalIcon,
-	LinkSimpleIcon,
+	AlertCircleIcon,
+	CopyLinkIcon,
+	DeliveryTruck01Icon,
+	MoreVerticalIcon,
 	PrinterIcon,
-	TruckIcon,
-	WarningCircleIcon,
-	WhatsappLogoIcon,
-} from "@phosphor-icons/react";
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "sonner";
 import { CopyValue } from "@/components/copy-value";
 import { TextSkeleton } from "@/components/text-skeleton";
@@ -18,6 +18,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WhatsappIcon } from "@/components/whatsapp-icon";
 import { OpenComplaintForm } from "@/features/complaints/components/open-complaint-form";
 import { useOpenComplaintMutation } from "@/features/complaints/hooks/useComplaintMutations";
 import { CustomerLink } from "@/features/customers/components/customer-link";
@@ -275,7 +276,7 @@ export const OrderIdentityStrip = ({
 		canNotify ? (
 			<Button
 				className={className}
-				icon={<WhatsappLogoIcon className="size-4" />}
+				icon={<HugeiconsIcon icon={WhatsappIcon} className="size-4" />}
 				onClick={() =>
 					notifyCustomer({
 						customerName: detail.customer.name,
@@ -321,7 +322,7 @@ export const OrderIdentityStrip = ({
 							{renderNotifyButton("hidden sm:inline-flex")}
 							{renderPickupButton("hidden sm:inline-flex")}
 							<Button
-								icon={<PrinterIcon className="size-4" />}
+								icon={<HugeiconsIcon icon={PrinterIcon} className="size-4" />}
 								loading={printReceiptMutation.isPending}
 								onClick={() => printReceiptMutation.mutate()}
 								type="button"
@@ -335,7 +336,12 @@ export const OrderIdentityStrip = ({
 										render={
 											<Button
 												aria-label="More actions"
-												icon={<DotsThreeVerticalIcon className="size-4" />}
+												icon={
+													<HugeiconsIcon
+														icon={MoreVerticalIcon}
+														className="size-4"
+													/>
+												}
 												size="icon"
 												variant="outline"
 											/>
@@ -344,19 +350,25 @@ export const OrderIdentityStrip = ({
 									<DropdownMenuContent align="end" className="w-40">
 										{trackingUrl ? (
 											<DropdownMenuItem onClick={handleCopyTrackingLink}>
-												<LinkSimpleIcon className="size-4" />
+												<HugeiconsIcon icon={CopyLinkIcon} className="size-4" />
 												Copy tracking link
 											</DropdownMenuItem>
 										) : null}
 										{gates.canManageCourier ? (
 											<DropdownMenuItem onClick={openCourierDialog}>
-												<TruckIcon className="size-4" />
+												<HugeiconsIcon
+													icon={DeliveryTruck01Icon}
+													className="size-4"
+												/>
 												Set courier
 											</DropdownMenuItem>
 										) : null}
 										{gates.canOpenComplaint ? (
 											<DropdownMenuItem onClick={openComplaintDialog}>
-												<WarningCircleIcon className="size-4" />
+												<HugeiconsIcon
+													icon={AlertCircleIcon}
+													className="size-4"
+												/>
 												Open complaint
 											</DropdownMenuItem>
 										) : null}

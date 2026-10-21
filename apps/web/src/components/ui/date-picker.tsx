@@ -1,11 +1,12 @@
 import {
-	CalendarBlankIcon,
-	CaretLeftIcon,
-	CaretRightIcon,
-	CheckIcon,
-	CircleNotchIcon,
-	XIcon,
-} from "@phosphor-icons/react";
+	ArrowLeft01Icon,
+	ArrowRight01Icon,
+	Calendar03Icon,
+	Cancel01Icon,
+	Loading03Icon,
+	Tick02Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { type ReactElement, useEffect, useMemo, useState } from "react";
 import type { DateRange, Matcher } from "react-day-picker";
 import { Button } from "@/components/ui/button";
@@ -99,9 +100,12 @@ export const DatePicker = ({
 						iconLocation={iconLocation}
 						icon={
 							isLoading ? (
-								<CircleNotchIcon className="size-4 animate-spin" />
+								<HugeiconsIcon
+									icon={Loading03Icon}
+									className="size-4 animate-spin"
+								/>
 							) : (
-								<CalendarBlankIcon className="size-4" />
+								<HugeiconsIcon icon={Calendar03Icon} className="size-4" />
 							)
 						}
 					/>
@@ -210,7 +214,9 @@ const DateRangeSheet = ({
 								size="icon"
 								aria-label="Back to presets"
 								onClick={() => setIsPickingCustom(false)}
-								icon={<CaretLeftIcon className="size-4" />}
+								icon={
+									<HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+								}
 							/>
 							<SheetTitle>Custom range</SheetTitle>
 						</SheetHeader>
@@ -263,7 +269,11 @@ const DateRangeSheet = ({
 								>
 									{preset.label}
 									{activePreset?.id === preset.id ? (
-										<CheckIcon className="size-4" weight="bold" />
+										<HugeiconsIcon
+											icon={Tick02Icon}
+											className="size-4"
+											strokeWidth={2}
+										/>
 									) : null}
 								</Button>
 							))}
@@ -275,7 +285,10 @@ const DateRangeSheet = ({
 							className={cn(SHEET_ROW, "shrink-0 border-t border-border/70")}
 						>
 							Custom range
-							<CaretRightIcon className="size-4 text-muted-foreground" />
+							<HugeiconsIcon
+								icon={ArrowRight01Icon}
+								className="size-4 text-muted-foreground"
+							/>
 						</Button>
 					</>
 				)}
@@ -444,7 +457,7 @@ export const DateRangePicker = ({
 					showClear && "pr-9",
 					className,
 				)}
-				icon={<CalendarBlankIcon className="size-4" />}
+				icon={<HugeiconsIcon icon={Calendar03Icon} className="size-4" />}
 			/>
 		),
 		label,
@@ -498,7 +511,7 @@ export const DateRangePicker = ({
 					onClick={onClear}
 					className="absolute inset-y-0 right-0 flex w-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
 				>
-					<XIcon className="size-4" />
+					<HugeiconsIcon icon={Cancel01Icon} className="size-4" />
 				</button>
 			) : null}
 		</div>

@@ -1,4 +1,5 @@
-import { WifiSlashIcon } from "@phosphor-icons/react";
+import { WifiOff01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useOnline } from "@/hooks/use-online";
 
 export const OfflineBanner = () => {
@@ -8,7 +9,7 @@ export const OfflineBanner = () => {
 	}
 	return (
 		<output className="sticky top-0 z-50 flex items-center justify-center gap-2 border-b bg-destructive px-4 py-2 text-destructive-foreground text-body">
-			<WifiSlashIcon className="size-4" weight="bold" />
+			<HugeiconsIcon icon={WifiOff01Icon} className="size-4" strokeWidth={2} />
 			No internet connection.
 		</output>
 	);

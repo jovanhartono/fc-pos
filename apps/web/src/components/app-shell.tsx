@@ -1,12 +1,13 @@
 import {
-	ArrowClockwiseIcon,
-	CaretLeftIcon,
-	MagnifyingGlassIcon,
-	MonitorIcon,
-	MoonIcon,
-	SignOutIcon,
-	SunIcon,
-} from "@phosphor-icons/react";
+	ArrowLeft01Icon,
+	ComputerIcon,
+	Logout03Icon,
+	Moon02Icon,
+	ReloadIcon,
+	Search01Icon,
+	Sun03Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useIsFetching, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	Link,
@@ -78,8 +79,14 @@ const FooterThemeButton = () => {
 						aria-label="Toggle theme"
 						icon={
 							<span className="relative size-4">
-								<SunIcon className="absolute inset-0 size-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-								<MoonIcon className="absolute inset-0 size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+								<HugeiconsIcon
+									icon={Sun03Icon}
+									className="absolute inset-0 size-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"
+								/>
+								<HugeiconsIcon
+									icon={Moon02Icon}
+									className="absolute inset-0 size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"
+								/>
 							</span>
 						}
 					/>
@@ -87,15 +94,15 @@ const FooterThemeButton = () => {
 			/>
 			<DropdownMenuContent align="end" side="top">
 				<DropdownMenuItem onClick={() => setTheme("light")}>
-					<SunIcon className="size-4" />
+					<HugeiconsIcon icon={Sun03Icon} className="size-4" />
 					Light
 				</DropdownMenuItem>
 				<DropdownMenuItem onClick={() => setTheme("dark")}>
-					<MoonIcon className="size-4" />
+					<HugeiconsIcon icon={Moon02Icon} className="size-4" />
 					Dark
 				</DropdownMenuItem>
 				<DropdownMenuItem onClick={() => setTheme("system")}>
-					<MonitorIcon className="size-4" />
+					<HugeiconsIcon icon={ComputerIcon} className="size-4" />
 					System
 				</DropdownMenuItem>
 			</DropdownMenuContent>
@@ -114,7 +121,8 @@ const HeaderRefreshButton = () => {
 		<Button
 			aria-label="Refresh"
 			icon={
-				<ArrowClockwiseIcon
+				<HugeiconsIcon
+					icon={ReloadIcon}
 					className={cn(
 						"size-4",
 						isFetching && "animate-spin motion-reduce:animate-none",
@@ -152,7 +160,7 @@ const useParentPath = (): LinkProps["to"] | null => {
 const HeaderBackButton = ({ to }: { to: LinkProps["to"] }) => {
 	const router = useRouter();
 	const canGoBack = useCanGoBack();
-	const icon = <CaretLeftIcon className="size-5" />;
+	const icon = <HugeiconsIcon icon={ArrowLeft01Icon} className="size-5" />;
 
 	if (canGoBack) {
 		return (
@@ -183,31 +191,27 @@ function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
 
 	return (
 		<SidebarMenu>
-			{items.map((item) => {
-				const Icon = item.icon;
-
-				return (
-					<SidebarMenuItem key={item.to}>
-						<SidebarMenuButton
-							render={
-								<Link
-									to={item.to}
-									className="text-foreground"
-									onClick={() => setOpenMobile(false)}
-									activeProps={{
-										"data-active": "true",
-										className: "text-foreground",
-									}}
-								/>
-							}
-							tooltip={item.label}
-						>
-							<Icon className="size-4" />
-							<span>{item.label}</span>
-						</SidebarMenuButton>
-					</SidebarMenuItem>
-				);
-			})}
+			{items.map((item) => (
+				<SidebarMenuItem key={item.to}>
+					<SidebarMenuButton
+						render={
+							<Link
+								to={item.to}
+								className="text-foreground"
+								onClick={() => setOpenMobile(false)}
+								activeProps={{
+									"data-active": "true",
+									className: "text-foreground",
+								}}
+							/>
+						}
+						tooltip={item.label}
+					>
+						<HugeiconsIcon className="size-4" icon={item.icon} />
+						<span>{item.label}</span>
+					</SidebarMenuButton>
+				</SidebarMenuItem>
+			))}
 		</SidebarMenu>
 	);
 }
@@ -280,7 +284,7 @@ export function AppShell({ title, children }: AppShellProps) {
 						onClick={openCommandBar}
 						className="flex h-9 w-full items-center gap-2 rounded-sm bg-secondary px-2.5 text-muted-foreground text-subhead transition-colors hover:text-foreground"
 					>
-						<MagnifyingGlassIcon className="size-4" />
+						<HugeiconsIcon icon={Search01Icon} className="size-4" />
 						Search
 					</button>
 				</div>
@@ -318,7 +322,7 @@ export function AppShell({ title, children }: AppShellProps) {
 								size="icon-sm"
 								aria-label="Logout"
 								onClick={handleLogout}
-								icon={<SignOutIcon className="size-4" />}
+								icon={<HugeiconsIcon icon={Logout03Icon} className="size-4" />}
 							/>
 						</div>
 					</div>
@@ -352,7 +356,7 @@ export function AppShell({ title, children }: AppShellProps) {
 							aria-label="Search or jump to"
 							variant="ghost"
 							size="icon"
-							icon={<MagnifyingGlassIcon className="size-4" />}
+							icon={<HugeiconsIcon icon={Search01Icon} className="size-4" />}
 							onClick={openCommandBar}
 						/>
 						<HeaderRefreshButton />

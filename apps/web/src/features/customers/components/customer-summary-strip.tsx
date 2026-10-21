@@ -1,4 +1,5 @@
-import { PencilSimpleLineIcon } from "@phosphor-icons/react";
+import { PencilEdit02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { CopyValue } from "@/components/copy-value";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,7 @@ export const CustomerSummarySkeleton = () => (
 			</div>
 			<Button
 				disabled
-				icon={<PencilSimpleLineIcon className="size-4" />}
+				icon={<HugeiconsIcon icon={PencilEdit02Icon} className="size-4" />}
 				variant="outline"
 			>
 				Edit
@@ -87,7 +88,7 @@ export const CustomerSummaryStrip = ({
 				<Button
 					variant="outline"
 					onClick={handleEdit}
-					icon={<PencilSimpleLineIcon className="size-4" />}
+					icon={<HugeiconsIcon icon={PencilEdit02Icon} className="size-4" />}
 				>
 					Edit
 				</Button>

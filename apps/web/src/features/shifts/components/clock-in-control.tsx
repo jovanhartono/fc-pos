@@ -1,5 +1,6 @@
 import { clockInRequiresLocation, distanceKm } from "@fresclean/api/schema";
-import { SignInIcon, WarningIcon } from "@phosphor-icons/react";
+import { Alert02Icon, Login03Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { TextSkeleton } from "@/components/text-skeleton";
@@ -115,7 +116,10 @@ export const ClockInControl = () => {
 			<div className="flex flex-col gap-3" key="refused">
 				<div className={CLOCK_STATUS_SLOT}>
 					<div className="flex items-start gap-1.5" role="alert">
-						<WarningIcon className="mt-0.5 size-3.5 shrink-0 text-destructive" />
+						<HugeiconsIcon
+							icon={Alert02Icon}
+							className="mt-0.5 size-3.5 shrink-0 text-destructive"
+						/>
 						<p className="text-subhead">
 							<span className="font-medium text-destructive">
 								{status === "denied"
@@ -190,7 +194,10 @@ export const ClockInControl = () => {
 					className="flex items-start gap-1.5 text-destructive text-subhead"
 					role="alert"
 				>
-					<WarningIcon className="mt-0.5 size-3.5 shrink-0" />
+					<HugeiconsIcon
+						icon={Alert02Icon}
+						className="mt-0.5 size-3.5 shrink-0"
+					/>
 					{readServerErrorMessage(
 						clockInMutation.error,
 						"Could not clock you in",
@@ -201,7 +208,7 @@ export const ClockInControl = () => {
 			<Button
 				className={PRIMARY_BUTTON}
 				disabled={!storeValue}
-				icon={<SignInIcon className="size-5" weight="duotone" />}
+				icon={<HugeiconsIcon icon={Login03Icon} className="size-5" />}
 				loading={clockInMutation.isPending}
 				onClick={() =>
 					clockInMutation.mutate({

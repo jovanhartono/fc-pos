@@ -1,4 +1,5 @@
-import { CaretLeftIcon } from "@phosphor-icons/react";
+import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,7 +92,10 @@ export function GlobalSheet() {
 											onClick={back.onClick}
 											className="-my-1.5 -ml-1 flex h-9 shrink-0 items-center gap-0.5 text-left text-body text-link hover:opacity-80 pointer-coarse:h-11"
 										>
-											<CaretLeftIcon className="size-4.5 shrink-0" />
+											<HugeiconsIcon
+												icon={ArrowLeft01Icon}
+												className="size-4.5 shrink-0"
+											/>
 											{back.label}
 										</button>
 									) : null}

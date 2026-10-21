@@ -1,10 +1,11 @@
 import {
-	CameraIcon,
-	CheckIcon,
-	CircleNotchIcon,
-	ImageSquareIcon,
-	TrashIcon,
-} from "@phosphor-icons/react";
+	Camera01Icon,
+	Delete02Icon,
+	Image02Icon,
+	Loading03Icon,
+	Tick02Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@/components/ui/button";
 import { usePhotoCapture } from "@/features/orders/components/photo-capture-context";
 import {
@@ -23,7 +24,7 @@ const GalleryPickerButton = () => {
 			onClick={actions.openFileInput}
 			type="button"
 		>
-			<ImageSquareIcon className="size-5" aria-hidden="true" />
+			<HugeiconsIcon icon={Image02Icon} className="size-5" aria-hidden="true" />
 		</button>
 	);
 };
@@ -79,9 +80,13 @@ const ShutterTrailingSlot = () => {
 			type="button"
 		>
 			{state.isBusy ? (
-				<CircleNotchIcon className="size-6 animate-spin" />
+				<HugeiconsIcon icon={Loading03Icon} className="size-6 animate-spin" />
 			) : (
-				<CheckIcon className="size-7" aria-hidden="true" />
+				<HugeiconsIcon
+					icon={Tick02Icon}
+					className="size-7"
+					aria-hidden="true"
+				/>
 			)}
 		</button>
 	);
@@ -127,7 +132,11 @@ const EmptyControls = () => {
 				onClick={() => void actions.openCamera()}
 				type="button"
 			>
-				<CameraIcon className="size-5" aria-hidden="true" />
+				<HugeiconsIcon
+					icon={Camera01Icon}
+					className="size-5"
+					aria-hidden="true"
+				/>
 				Open camera
 			</button>
 
@@ -138,7 +147,11 @@ const EmptyControls = () => {
 				onClick={actions.openFileInput}
 				type="button"
 			>
-				<ImageSquareIcon className="size-6" aria-hidden="true" />
+				<HugeiconsIcon
+					icon={Image02Icon}
+					className="size-6"
+					aria-hidden="true"
+				/>
 			</button>
 		</div>
 	);
@@ -160,7 +173,11 @@ const RemovePhotoButton = () => {
 			onClick={() => actions.removePhoto(selectedPhoto.id)}
 			type="button"
 		>
-			<TrashIcon className="size-5" aria-hidden="true" />
+			<HugeiconsIcon
+				icon={Delete02Icon}
+				className="size-5"
+				aria-hidden="true"
+			/>
 		</button>
 	);
 };
@@ -177,7 +194,11 @@ const ReviewControls = () => {
 					onClick={() => void actions.openCamera()}
 					type="button"
 				>
-					<CameraIcon className="size-4" aria-hidden="true" />
+					<HugeiconsIcon
+						icon={Camera01Icon}
+						className="size-4"
+						aria-hidden="true"
+					/>
 					{meta.labels.cameraButton}
 				</button>
 

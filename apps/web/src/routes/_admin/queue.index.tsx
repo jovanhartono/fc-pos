@@ -4,11 +4,12 @@ import {
 	WORKSHOP_SERVICE_STATUSES,
 } from "@fresclean/api/schema";
 import {
-	CaretRightIcon,
-	FunnelIcon,
-	ScanIcon,
-	WarningCircleIcon,
-} from "@phosphor-icons/react";
+	AlertCircleIcon,
+	ArrowRight01Icon,
+	FilterIcon,
+	QrCodeScanIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
 	keepPreviousData,
 	useInfiniteQuery,
@@ -487,7 +488,7 @@ function QueuePage() {
 						/>
 						<Button
 							aria-label={scanner.isScanning ? "Stop scan" : "Scan tag"}
-							icon={<ScanIcon className="size-4" />}
+							icon={<HugeiconsIcon icon={QrCodeScanIcon} className="size-4" />}
 							onClick={() => {
 								if (scanner.isScanning) {
 									scanner.stop();
@@ -506,7 +507,9 @@ function QueuePage() {
 									<Button
 										aria-label="Filters"
 										className="relative"
-										icon={<FunnelIcon className="size-4" />}
+										icon={
+											<HugeiconsIcon icon={FilterIcon} className="size-4" />
+										}
 										size="icon"
 										type="button"
 										variant="outline"
@@ -564,7 +567,7 @@ function QueuePage() {
 
 					{scanner.error ? (
 						<div className="flex items-center gap-2 text-destructive text-body">
-							<WarningCircleIcon className="size-4" weight="fill" />
+							<HugeiconsIcon icon={AlertCircleIcon} className="size-4" />
 							<span>{scanner.error}</span>
 						</div>
 					) : null}
@@ -724,10 +727,11 @@ const QueueJobButton = ({
 					</>
 				)}
 			</span>
-			<CaretRightIcon
+			<HugeiconsIcon
+				icon={ArrowRight01Icon}
 				aria-hidden="true"
 				className="row-span-2 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-				weight="bold"
+				strokeWidth={2}
 			/>
 			<span
 				className={cn(

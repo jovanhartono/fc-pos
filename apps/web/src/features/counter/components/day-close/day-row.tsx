@@ -1,4 +1,5 @@
-import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
+import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -34,7 +35,7 @@ export const DayRow = ({ date, onDateChange, storeId, today }: DayRowProps) => {
 			<Button
 				aria-label="Previous day"
 				className={ARROW_CLASS}
-				icon={<CaretLeftIcon className="size-4" />}
+				icon={<HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />}
 				onClick={() => handlePick(step(-1))}
 				size="icon"
 				type="button"
@@ -53,7 +54,7 @@ export const DayRow = ({ date, onDateChange, storeId, today }: DayRowProps) => {
 				aria-label="Next day"
 				className={ARROW_CLASS}
 				disabled={isToday}
-				icon={<CaretRightIcon className="size-4" />}
+				icon={<HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />}
 				onClick={() => handlePick(step(1))}
 				size="icon"
 				type="button"

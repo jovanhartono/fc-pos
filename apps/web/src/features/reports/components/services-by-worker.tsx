@@ -1,4 +1,5 @@
-import { CaretRightIcon } from "@phosphor-icons/react";
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import type { WorkerProductivityReport } from "@/features/reports/api";
@@ -53,7 +54,11 @@ const StoreHeader = ({ code, name, onSelect }: StoreHeaderProps) => (
 		className="inline-flex items-center gap-0.5 whitespace-nowrap font-medium text-primary"
 	>
 		{code}
-		<CaretRightIcon aria-hidden="true" className="size-3 shrink-0" />
+		<HugeiconsIcon
+			icon={ArrowRight01Icon}
+			aria-hidden="true"
+			className="size-3 shrink-0"
+		/>
 	</button>
 );
 

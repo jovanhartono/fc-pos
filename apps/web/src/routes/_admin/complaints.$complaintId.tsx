@@ -1,5 +1,6 @@
 import { isInWorkshop, isReworkedRound } from "@fresclean/api/schema";
-import { ArrowClockwiseIcon, CaretRightIcon } from "@phosphor-icons/react";
+import { ArrowRight01Icon, ReloadIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import dayjs from "dayjs";
@@ -90,7 +91,7 @@ const ComplaintDetailPage = () => {
 						<Button
 							variant="outline"
 							disabled={reworkMutation.isPending}
-							icon={<ArrowClockwiseIcon className="size-4" />}
+							icon={<HugeiconsIcon icon={ReloadIcon} className="size-4" />}
 							onClick={() =>
 								openDialog({
 									title: "Start a rework?",
@@ -205,7 +206,8 @@ const ComplaintDetailPage = () => {
 											>
 												{formatOrderServiceStatus(line.status)}
 											</Badge>
-											<CaretRightIcon
+											<HugeiconsIcon
+												icon={ArrowRight01Icon}
 												aria-hidden="true"
 												className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:order-last"
 											/>

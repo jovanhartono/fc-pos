@@ -1,4 +1,5 @@
-import { CheckIcon } from "@phosphor-icons/react";
+import { Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Campaign } from "@/features/campaigns/api";
 import { cn } from "@/lib/utils";
@@ -115,9 +116,10 @@ const CampaignTile = ({
 			</span>
 		</span>
 		{isSelected ? (
-			<CheckIcon
+			<HugeiconsIcon
+				icon={Tick02Icon}
 				className="size-4 shrink-0 text-tone-good-foreground"
-				weight="bold"
+				strokeWidth={2}
 			/>
 		) : null}
 	</label>

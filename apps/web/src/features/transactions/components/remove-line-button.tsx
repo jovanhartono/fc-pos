@@ -1,4 +1,5 @@
-import { XIcon } from "@phosphor-icons/react";
+import { Cancel01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@/components/ui/button";
 
 interface RemoveLineButtonProps {
@@ -14,7 +15,7 @@ export const RemoveLineButton = ({ label, onClick }: RemoveLineButtonProps) => (
 	<Button
 		aria-label={label}
 		className="relative size-7 shrink-0 before:absolute before:-inset-2 before:content-['']"
-		icon={<XIcon className="size-3.5" />}
+		icon={<HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />}
 		onClick={onClick}
 		size="icon-xs"
 		type="button"

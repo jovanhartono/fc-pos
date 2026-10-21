@@ -1,4 +1,5 @@
-import { XIcon } from "@phosphor-icons/react";
+import { Cancel01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useRef, useState } from "react";
 import { SearchInput } from "@/components/search-input";
 import { Button } from "@/components/ui/button";
@@ -77,7 +78,7 @@ export function DebouncedSearchInput({
 						variant="ghost"
 						size="icon-sm"
 						aria-label="Clear search"
-						icon={<XIcon className="size-4" />}
+						icon={<HugeiconsIcon icon={Cancel01Icon} className="size-4" />}
 						className="absolute right-1"
 						onClick={handleClear}
 					/>

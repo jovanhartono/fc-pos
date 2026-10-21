@@ -1,4 +1,5 @@
-import { XIcon } from "@phosphor-icons/react";
+import { Cancel01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Badge } from "@/components/ui/badge";
 import {
 	Dialog,
@@ -25,7 +26,11 @@ const TopChrome = () => {
 				onClick={() => actions.onOpenChange(false)}
 				type="button"
 			>
-				<XIcon className="size-5" aria-hidden="true" />
+				<HugeiconsIcon
+					icon={Cancel01Icon}
+					className="size-5"
+					aria-hidden="true"
+				/>
 			</button>
 
 			{!state.isShooting && state.photoCount > 1 ? (

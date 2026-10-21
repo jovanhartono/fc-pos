@@ -1,4 +1,8 @@
-import { CaretRightIcon, InfoIcon } from "@phosphor-icons/react";
+import {
+	ArrowRight01Icon,
+	InformationCircleIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Section } from "@/components/section";
 import {
 	Popover,
@@ -62,7 +66,11 @@ const NotEnoughData = ({ categories }: NotEnoughDataProps) => (
 				openOnHover
 			>
 				Not enough data
-				<InfoIcon aria-hidden="true" className="size-3.5" />
+				<HugeiconsIcon
+					icon={InformationCircleIcon}
+					aria-hidden="true"
+					className="size-3.5"
+				/>
 			</PopoverTrigger>
 			<PopoverContent align="start" className="w-64">
 				A quote needs at least 7 finished in the last 4 weeks the Store was
@@ -109,7 +117,8 @@ const CategoryBox = ({ categories, heading }: CategoryBoxProps) => {
 			{folded.length > 0 ? (
 				<details className="group border-border border-t">
 					<summary className="flex cursor-pointer list-none items-center gap-1 px-3 py-2.5 font-medium [&::-webkit-details-marker]:hidden">
-						<CaretRightIcon
+						<HugeiconsIcon
+							icon={ArrowRight01Icon}
 							aria-hidden="true"
 							className="size-3.5 text-muted-foreground transition-transform group-open:rotate-90"
 						/>

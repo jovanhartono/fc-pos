@@ -1,8 +1,9 @@
-import { WhatsappLogoIcon } from "@phosphor-icons/react";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { WhatsappIcon } from "@/components/whatsapp-icon";
 import {
 	createOrderPickupNotice,
 	type OrderDetail,
@@ -59,7 +60,7 @@ const NotifyCustomerFooter = ({
 			) : (
 				<Button
 					disabled={!receiptQuery.data}
-					icon={<WhatsappLogoIcon className="size-4" />}
+					icon={<HugeiconsIcon icon={WhatsappIcon} className="size-4" />}
 					loading={receiptQuery.isPending}
 					onClick={() => {
 						if (confirmedRef.current || !receiptQuery.data) {

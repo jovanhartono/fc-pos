@@ -1,4 +1,5 @@
-import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
+import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import type { PaginationMeta } from "@/lib/http";
@@ -55,7 +56,7 @@ export function TablePagination({
 					variant="outline"
 					size="sm"
 					disabled={!canGoBack}
-					icon={<CaretLeftIcon className="size-4" />}
+					icon={<HugeiconsIcon icon={ArrowLeft01Icon} />}
 					onClick={() => onPageChange(currentPage - 1)}
 				>
 					Prev
@@ -71,7 +72,7 @@ export function TablePagination({
 					variant="outline"
 					size="sm"
 					disabled={!canGoForward}
-					icon={<CaretRightIcon className="size-4" />}
+					icon={<HugeiconsIcon icon={ArrowRight01Icon} />}
 					iconLocation="right"
 					onClick={() => onPageChange(currentPage + 1)}
 				>
