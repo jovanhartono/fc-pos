@@ -158,16 +158,16 @@ Left open by [ADR-0020](docs/adr/0020-clock-in-is-refused-outside-3km-unless-the
   hours, so a worker who forgets to clock out no longer skews it. `auto_closed`
   records which rows those are and nothing consults it.
 
-- [ ] **Nobody has measured what a staff phone reports indoors at each branch**
+- [ ] **Nobody has measured what a staff phone reports indoors at each Store**
   — the gate spends the phone's own error margin as benefit of the doubt, so a
-  branch whose counter routinely returns a 4 km circle has an advisory gate,
-  not a real one. Needs one walk per branch with a real phone, precise location
+  Store whose counter routinely returns a 4 km circle has an advisory gate,
+  not a real one. Needs one walk per Store with a real phone, precise location
   on and off.
 
-- [ ] **At 3 km the branch rings overlap** — four pairs sit closer than 6 km in
+- [ ] **At 3 km the Store rings overlap** — four pairs sit closer than 6 km in
   prod, nearest Muara Karang and PIK at 2.48 km. Someone at one counter is
-  inside both rings and only the branch they picked is checked, so attendance
-  filed against the wrong branch is a mistake the gate does not catch. The old
+  inside both rings and only the Store they picked is checked, so attendance
+  filed against the wrong Store is a mistake the gate does not catch. The old
   1 km ring did.
 
 ## Ops reports follow-ups (2026-10-12)
@@ -200,7 +200,7 @@ D-16 as Sentry error reporting (#119), so both are off the list.
 | D-9 | Dynamic repair pricing | M | Repair revenue growth |
 | D-10 | Campaign stacking cap | L | Discount leakage |
 | D-11 | Partial-refund loophole close | L | Refund flow iteration |
-| D-12 | Multi-branch stock | H | >2 product stores |
+| D-12 | Multi-Store stock | H | >2 product stores |
 | D-13 | Low-stock alerts | L | After D-12 |
 | D-14 | Priority preemption UX | LM | SLA misses |
 | D-15 | Unclaimed items UI | L | Storage congestion |

@@ -117,7 +117,7 @@ describe("createPhotoDownloadUrl", () => {
     );
   });
 
-  it("asks the same branch question as opening the order, so a Kemang cashier gets no Bintaro photo", async () => {
+  it("asks the same Store question as opening the order, so a Kemang cashier gets no Bintaro photo", async () => {
     await createPhotoDownloadUrl({
       body: { kind: "item", id: 31 },
       user: cashier,

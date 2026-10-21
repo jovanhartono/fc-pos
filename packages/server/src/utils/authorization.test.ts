@@ -60,11 +60,11 @@ beforeEach(() => {
 });
 
 describe("resolveStoreScope", () => {
-  it("hands an admin who named no branch the whole company", async () => {
+  it("hands an admin who named no Store the whole company", async () => {
     expect(await resolveStoreScope(ADMIN)).toEqual({ kind: "all" });
   });
 
-  it("fences a cashier who named no branch to the branches they are rostered at", async () => {
+  it("fences a cashier who named no Store to the Stores they are rostered at", async () => {
     roster.storeIds = [KEMANG, BINTARO];
 
     expect(await resolveStoreScope(CASHIER)).toEqual({
@@ -73,7 +73,7 @@ describe("resolveStoreScope", () => {
     });
   });
 
-  it("leaves a new hire not yet rostered anywhere with no branch at all", async () => {
+  it("leaves a new hire not yet rostered anywhere with no Store at all", async () => {
     // An empty roster is not permission to see everything — it is a staff
     // account waiting to be assigned to a Store.
     roster.storeIds = [];
@@ -81,14 +81,14 @@ describe("resolveStoreScope", () => {
     expect(await resolveStoreScope(CASHIER)).toEqual({ kind: "none" });
   });
 
-  it("lets a cashier open the branch they work at", async () => {
+  it("lets a cashier open the Store they work at", async () => {
     expect(await resolveStoreScope(CASHIER, KEMANG)).toEqual({
       kind: "one",
       storeId: KEMANG,
     });
   });
 
-  it("refuses a cashier the branch they do not work at", async () => {
+  it("refuses a cashier the Store they do not work at", async () => {
     // Sari at Kemang must never reach a Bintaro order, however she asks.
     const error = await captureRejection(resolveStoreScope(CASHIER, BINTARO));
 
@@ -99,7 +99,7 @@ describe("resolveStoreScope", () => {
     );
   });
 
-  it("lets an admin open a branch they are not rostered at", async () => {
+  it("lets an admin open a Store they are not rostered at", async () => {
     // Admins are on nobody's roster; naming a Store still narrows them to it.
     roster.storeIds = [];
 

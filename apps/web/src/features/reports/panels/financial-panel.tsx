@@ -152,8 +152,8 @@ export const FinancialPanel = ({
 			<KpiStrip data={data} storeId={storeId} />
 			<ExportButton disabled={!data} onClick={handleExport} />
 			<RevenueBreakdownCard data={data} />
-			<BranchCategoryMatrix data={data} />
-			<BranchList rows={storeBreakdown} max={storeMax} />
+			<StoreCategoryMatrixCard data={data} />
+			<StoreLeaderboard rows={storeBreakdown} max={storeMax} />
 		</div>
 	);
 };
@@ -803,13 +803,13 @@ type StoreCategoryMatrix = FinancialReport["store_category_matrix"];
 type MatrixColumn = StoreCategoryMatrix["columns"][number];
 type MatrixRow = StoreCategoryMatrix["rows"][number];
 
-interface BranchCategoryMatrixProps {
+interface StoreCategoryMatrixCardProps {
 	data: FinancialReport | undefined;
 }
 
 type MatrixDisplayMode = "share" | "amount";
 
-const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
+const StoreCategoryMatrixCard = ({ data }: StoreCategoryMatrixCardProps) => {
 	const [mode, setMode] = useState<MatrixDisplayMode>("share");
 	const matrix = data?.store_category_matrix;
 	const columns = matrix?.columns ?? [];
@@ -865,7 +865,7 @@ const BranchCategoryMatrix = ({ data }: BranchCategoryMatrixProps) => {
 							</thead>
 							<tbody>
 								{rows.map((row) => (
-									<MatrixBranchRow
+									<MatrixStoreRow
 										columns={columns}
 										grandTotal={grandTotal}
 										key={row.store_id}
@@ -961,19 +961,19 @@ const MatrixHeaderCell = ({ column }: MatrixHeaderCellProps) => (
 	</th>
 );
 
-interface MatrixBranchRowProps {
+interface MatrixStoreRowProps {
 	row: MatrixRow;
 	columns: MatrixColumn[];
 	grandTotal: number;
 	mode: MatrixDisplayMode;
 }
 
-const MatrixBranchRow = ({
+const MatrixStoreRow = ({
 	row,
 	columns,
 	grandTotal,
 	mode,
-}: MatrixBranchRowProps) => (
+}: MatrixStoreRowProps) => (
 	<tr className="group">
 		<th
 			className="sticky left-0 z-10 border-t border-border/40 bg-card px-2 py-2 text-left align-top group-hover:bg-muted/40"
@@ -988,7 +988,7 @@ const MatrixBranchRow = ({
 			const cell = row.cells.find((c) => c.category_id === col.category_id);
 			return (
 				<MatrixCell
-					branchTotal={row.total}
+					storeTotal={row.total}
 					cellGrossSales={cell?.gross_sales ?? 0}
 					cellShare={cell?.share ?? 0}
 					columnLabel={col.label}
@@ -1009,7 +1009,7 @@ const MatrixBranchRow = ({
 interface MatrixCellProps {
 	cellShare: number;
 	cellGrossSales: number;
-	branchTotal: number;
+	storeTotal: number;
 	grandTotal: number;
 	columnLabel: string;
 	storeCode: string;
@@ -1020,7 +1020,7 @@ interface MatrixCellProps {
 const MatrixCell = ({
 	cellShare,
 	cellGrossSales,
-	branchTotal,
+	storeTotal,
 	grandTotal,
 	columnLabel,
 	storeCode,
@@ -1029,9 +1029,9 @@ const MatrixCell = ({
 }: MatrixCellProps) => {
 	const opacity = cellGrossSales === 0 ? 0 : Math.max(0.05, cellShare ** 0.7);
 	const isInverted = opacity > 0.35;
-	const branchShare = branchTotal > 0 ? cellShare : 0;
+	const storeShare = storeTotal > 0 ? cellShare : 0;
 	const grandShare = grandTotal > 0 ? cellGrossSales / grandTotal : 0;
-	const tooltip = `${storeCode} ${storeName} · ${columnLabel}\n${formatMoney(cellGrossSales)} ·${fixedPercentFormatter.format(branchShare)} of branch · ${fixedPercentFormatter.format(grandShare)} of total`;
+	const tooltip = `${storeCode} ${storeName} · ${columnLabel}\n${formatMoney(cellGrossSales)} ·${fixedPercentFormatter.format(storeShare)} of store ·${fixedPercentFormatter.format(grandShare)} of total`;
 
 	const display =
 		cellGrossSales === 0
@@ -1063,14 +1063,14 @@ const MatrixCell = ({
 	);
 };
 
-type BranchRow = FinancialReport["store_breakdown"][number];
+type StoreBreakdownRow = FinancialReport["store_breakdown"][number];
 
-interface BranchListProps {
-	rows: BranchRow[];
+interface StoreLeaderboardProps {
+	rows: StoreBreakdownRow[];
 	max: number;
 }
 
-const BranchList = ({ rows, max }: BranchListProps) => {
+const StoreLeaderboard = ({ rows, max }: StoreLeaderboardProps) => {
 	if (rows.length === 0) {
 		return null;
 	}
