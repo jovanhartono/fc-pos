@@ -37,7 +37,9 @@ export function PageHeader({
 		>
 			{/* A phone too narrow for the title, badge and actions puts the badge
 			    under the title, lined up with it. */}
-			<h1 className="col-start-1 row-start-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-title-1 font-bold tracking-tight">
+			{/* As tall as a button, so a page with no actions puts its title and
+			    list at the same height as one with an Add button. */}
+			<h1 className="col-start-1 row-start-1 flex min-h-9 flex-wrap items-center gap-x-2.5 gap-y-1 text-title-1 font-bold tracking-tight pointer-coarse:min-h-11">
 				{title}
 				{/* Drawn hidden until the count loads, so the title line never changes when it lands. */}
 				{countNoun ? (
