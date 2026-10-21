@@ -69,16 +69,24 @@ export function GlobalSheet() {
 				>
 					{title || description ? (
 						<SheetHeader className="shrink-0 border-b">
-							{actions ? <div className="pr-8">{actions}</div> : null}
-							{back ? (
-								<button
-									type="button"
-									onClick={back.onClick}
-									className="-ml-1 flex h-9 items-center gap-0.5 justify-self-start text-left text-body text-link hover:opacity-80 pointer-coarse:h-11"
-								>
-									<CaretLeftIcon className="size-4.5 shrink-0" />
-									{back.label}
-								</button>
+							{/* O12: one row for both, so an Order opened over another sheet
+							    keeps the same header height as one opened from the list. */}
+							{back || actions ? (
+								<div className="flex items-center gap-2 pr-8">
+									{back ? (
+										<button
+											type="button"
+											onClick={back.onClick}
+											className="-my-1.5 -ml-1 flex h-9 shrink-0 items-center gap-0.5 text-left text-body text-link hover:opacity-80 pointer-coarse:h-11"
+										>
+											<CaretLeftIcon className="size-4.5 shrink-0" />
+											{back.label}
+										</button>
+									) : null}
+									{actions ? (
+										<div className="min-w-0 flex-1">{actions}</div>
+									) : null}
+								</div>
 							) : null}
 							{title ? <SheetTitle>{title}</SheetTitle> : null}
 							<SheetDescription

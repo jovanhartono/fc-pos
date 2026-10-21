@@ -362,7 +362,7 @@ function CampaignsPage() {
 					if (state === "archived") {
 						return <Badge variant="secondary">Archived</Badge>;
 					}
-					return null;
+					return <Badge variant="success">Active</Badge>;
 				},
 			},
 			{

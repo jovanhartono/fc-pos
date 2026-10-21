@@ -1,4 +1,5 @@
 import { CheckIcon } from "@phosphor-icons/react";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { Campaign } from "@/features/campaigns/api";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
@@ -17,8 +18,14 @@ interface CampaignTileGroupProps {
 	eligibleCampaigns: Campaign[];
 	selectedIds: string[];
 	hasStore: boolean;
+	isLoading: boolean;
 	onToggle: (campaignId: string) => void;
 }
+
+// Every state is one tile tall, so the form below doesn't jump when a
+// cashier opens Collect payment and the campaigns arrive.
+const EMPTY_CLASS =
+	"flex min-h-13 items-center text-muted-foreground text-body";
 
 // Shared campaign picker (ADR-0018: a discount settles once every line is
 // priced) — used by the POS checkout step and the order page's
@@ -29,20 +36,23 @@ export const CampaignTileGroup = ({
 	eligibleCampaigns,
 	selectedIds,
 	hasStore,
+	isLoading,
 	onToggle,
 }: CampaignTileGroupProps) => {
 	if (!hasStore) {
+		return <p className={EMPTY_CLASS}>Select store first to load campaigns</p>;
+	}
+
+	if (isLoading) {
 		return (
-			<p className="text-muted-foreground text-body">
-				Select store first to load campaigns
-			</p>
+			<div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+				<Skeleton className="h-13" />
+			</div>
 		);
 	}
 
 	if (eligibleCampaigns.length === 0) {
-		return (
-			<p className="text-muted-foreground text-body">No campaigns available</p>
-		);
+		return <p className={EMPTY_CLASS}>No campaigns available</p>;
 	}
 
 	return (

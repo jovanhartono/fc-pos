@@ -118,7 +118,7 @@ function ProductsPage() {
 				header: "SKU",
 				meta: {
 					kind: "code",
-					headerClassName: "w-28",
+					headerClassName: "w-36",
 					mobileCard: { slot: "subtitle" },
 				},
 			},

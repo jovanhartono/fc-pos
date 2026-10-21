@@ -211,6 +211,7 @@ export const CheckoutPaymentStep = () => {
 								<CampaignTileGroup
 									eligibleCampaigns={eligibleCampaigns}
 									hasStore={selectedStoreNumber !== undefined}
+									isLoading={campaignsQuery.isLoading}
 									onToggle={(campaignId) =>
 										field.onChange(
 											field.value.includes(campaignId)

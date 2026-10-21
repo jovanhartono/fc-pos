@@ -410,6 +410,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 							<CampaignTileGroup
 								eligibleCampaigns={eligibleCampaigns}
 								hasStore={storeId !== undefined}
+								isLoading={campaignsQuery.isPending}
 								onToggle={(campaignId) =>
 									field.onChange(
 										field.value.includes(campaignId)
