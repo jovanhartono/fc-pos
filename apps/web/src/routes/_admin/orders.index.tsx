@@ -114,17 +114,6 @@ function buildOrdersListParams(
 	};
 }
 
-// The same filters minus status and paging, so each stage's count is what
-// picking its chip would list.
-const toStatusCountsParams = (query: FetchOrdersQuery): FetchOrdersQuery => ({
-	search: query.search,
-	store_id: query.store_id,
-	payment_status: query.payment_status,
-	notified: query.notified,
-	date_from: query.date_from,
-	date_to: query.date_to,
-});
-
 export const Route = createFileRoute("/_admin/orders/")({
 	validateSearch: (search) => ordersSearchSchema.parse(search),
 	// A cashier or worker only sees their own store's Orders, so the store is
@@ -159,11 +148,6 @@ export const Route = createFileRoute("/_admin/orders/")({
 			context.queryClient.ensureQueryData(storesQueries.list()),
 			canListOrders
 				? context.queryClient.ensureQueryData(ordersQueries.list(listParams))
-				: undefined,
-			canListOrders
-				? context.queryClient.ensureQueryData(
-						ordersQueries.statusCounts(toStatusCountsParams(listParams)),
-					)
 				: undefined,
 		]);
 	},
@@ -248,22 +232,6 @@ function OrdersPage() {
 		enabled: canListOrders,
 		placeholderData: keepPreviousData,
 	});
-
-	// Every stage is counted at once, so tapping a chip changes the title's
-	// number straight away; a new filter keeps the last number until its own lands.
-	const statusCountsQuery = useQuery({
-		...ordersQueries.statusCounts(
-			orderQuery && toStatusCountsParams(orderQuery),
-		),
-		enabled: canListOrders,
-		placeholderData: keepPreviousData,
-	});
-	const statusCounts = statusCountsQuery.data;
-	const matchingCount =
-		statusCounts &&
-		(search.status
-			? statusCounts[search.status]
-			: Object.values(statusCounts).reduce((sum, count) => sum + count, 0));
 
 	const hasNoStoreAssignment =
 		role !== "admin" && meQuery.isSuccess && userStoreIds.length === 0;
@@ -409,8 +377,6 @@ function OrdersPage() {
 		<>
 			<PageHeader
 				title="Orders"
-				count={matchingCount}
-				countNoun="order"
 				actions={
 					<Button
 						variant="outline"
