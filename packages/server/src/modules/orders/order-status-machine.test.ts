@@ -569,7 +569,7 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
     );
   });
 
-  it("refuses an object that lives on someone else's ticket", async () => {
+  it("refuses an Item that lives on someone else's Order", async () => {
     const executor = makePickupExecutor({ items: [] });
     let error: unknown;
     try {
