@@ -915,11 +915,11 @@ interface MatrixModeToggleProps {
 }
 
 const MatrixModeToggle = ({ mode, onChange }: MatrixModeToggleProps) => (
-	<div className="inline-flex shrink-0 rounded-[9px] bg-secondary p-0.5 text-subhead">
+	<div className="inline-flex shrink-0 rounded-sm bg-secondary p-0.5 text-subhead">
 		<button
 			aria-pressed={mode === "share"}
 			className={cn(
-				"rounded-[7px] px-2.5 py-1",
+				"rounded-[calc(var(--radius-sm)-2px)] px-2.5 py-1",
 				mode === "share"
 					? "bg-primary text-primary-foreground"
 					: "text-muted-foreground hover:text-foreground",
@@ -932,7 +932,7 @@ const MatrixModeToggle = ({ mode, onChange }: MatrixModeToggleProps) => (
 		<button
 			aria-pressed={mode === "amount"}
 			className={cn(
-				"rounded-[7px] px-2.5 py-1",
+				"rounded-[calc(var(--radius-sm)-2px)] px-2.5 py-1",
 				mode === "amount"
 					? "bg-primary text-primary-foreground"
 					: "text-muted-foreground hover:text-foreground",

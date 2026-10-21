@@ -319,7 +319,7 @@ const DateRangePopover = ({
 								key={preset.id}
 								onClick={() => onPresetSelect(preset)}
 								className={cn(
-									"rounded-[6px] border px-2 py-1 text-footnote sm:py-1.5 sm:text-left",
+									"rounded-[calc(var(--radius)-6px)] border px-2 py-1 sm:rounded-[calc(var(--radius)-8px)] text-footnote sm:py-1.5 sm:text-left",
 									activePreset?.id === preset.id
 										? "border-primary bg-primary text-primary-foreground"
 										: "border-border/70 text-muted-foreground hover:text-foreground",
