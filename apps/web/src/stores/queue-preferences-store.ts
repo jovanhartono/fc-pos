@@ -14,9 +14,8 @@ type QueuePreferencesStore = {
 	setCategory: (userKey: string, category?: QueueCategoryPreference) => void;
 };
 
-// Which branch's rack a worker last looked at. The queue reads its store from
-// the URL, so leaving the page and coming back through the sidebar arrived
-// with no store and reset the filter every time.
+// Which Store's rack a worker last looked at. The queue reads its Store from
+// the URL, so coming back through the sidebar reset the filter every time.
 export const useQueuePreferencesStore = create<QueuePreferencesStore>()(
 	persist(
 		(set) => ({

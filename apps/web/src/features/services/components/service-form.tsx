@@ -28,8 +28,8 @@ const serviceFormResolverSchema = z
 		// The server parses money into a number for itself, but the API still takes
 		// the digit string the currency field types out — keep the form in that shape.
 		cogs: POSTServiceSchema.shape.cogs.transform(String),
-		// "No list price" (ADR-0018: quoted per Item at intake, e.g. Repair) is a
-		// form-only switch; it becomes price: null at the API boundary.
+		// "No list price" (ADR-0018, e.g. Repair) lives on the form only; the API
+		// gets price: null.
 		no_list_price: z.boolean(),
 		price: z.string(),
 	})

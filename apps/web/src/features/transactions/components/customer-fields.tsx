@@ -15,18 +15,15 @@ import { customersQueries } from "@/features/customers/api";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import { cn } from "@/lib/utils";
 
-// POS customer entry — two always-visible fields. The cashier enters the phone;
-// a debounced exact lookup prefills + locks the name when that phone already
-// exists (returning), or leaves it open to type (new). No id is resolved here —
-// the server find-or-creates by phone at checkout. See ADR-0011.
+// A returning Customer's phone fills and locks the name; a new one types it.
+// The server finds or creates the Customer by phone at checkout (ADR-0011).
 export const CustomerFields = () => {
 	const form = useFormContext<TransactionDraftValues>();
 	const [phone = ""] = useWatch<TransactionDraftValues, ["customerPhone"]>({
 		name: ["customerPhone"],
 	});
 
-	// Only look up once the input is a valid phone; partial numbers never match
-	// the stored E.164 form, so querying them is pure noise.
+	// A half-typed number can never match a stored phone, so it isn't looked up.
 	const [lookupPhone, setLookupPhone] = useState("");
 	useEffect(() => {
 		const timeoutId = window.setTimeout(() => {
@@ -42,15 +39,12 @@ export const CustomerFields = () => {
 		enabled: lookupPhone.length > 0,
 	});
 
-	// Exact-phone lookup returns the Customer or null directly — phone is
-	// identity, so no client-side disambiguation needed.
 	const match = lookupQuery.data ?? null;
 
 	const isReturning = match !== null;
 
-	// Sync the name field to the lookup: fill+lock once per matched phone, clear
-	// once when the match goes away. Keyed by phone so a refetch returning the
-	// same customer doesn't clobber on every render.
+	// Filled once per matched phone, so a refetch doesn't overwrite the name on
+	// every render.
 	const appliedPhoneRef = useRef<string | null>(null);
 	useEffect(() => {
 		if (match) {
@@ -87,17 +81,14 @@ export const CustomerFields = () => {
 				control={form.control}
 				render={({ field, fieldState }) => (
 					<Field data-invalid={fieldState.invalid}>
-						{/* Status lives in the label row, not below the input — the lookup
-						    resolves async, and inserting a line under the field shifted the
-						    whole cart (CLS). The label row has fixed height, so the badge
-						    toggles in place. */}
+						{/* In the label row, not below the input: a line appearing under
+						    the field once the lookup returned shifted the whole Cart. */}
 						<div className="flex items-center gap-2">
 							<FieldLabel htmlFor="customer-name" asterisk>
 								Name
 							</FieldLabel>
-							{/* Always mounted; hidden until the lookup confirms a returning
-							    customer. Reserving the badge's height keeps the row from
-							    growing when it toggles in (CLS). */}
+							{/* Always mounted, so the row keeps its height when a returning
+							    Customer's badge appears. */}
 							<Badge
 								variant="success"
 								className={cn(

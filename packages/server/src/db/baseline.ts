@@ -1,15 +1,9 @@
-// One-time: adopt drizzle migrations on a database whose schema was built by
-// `push` and therefore has no migration history.
-//
-// The baseline migration is a full CREATE TABLE snapshot of a schema that
-// already exists, so it must be RECORDED WITHOUT BEING RUN. This marks it
-// applied; every migration after it runs normally via `migrate:<env>`.
+// One-time: marks the baseline migration applied WITHOUT RUNNING IT, on a
+// database `push` already built. Refuses once a named migration is recorded, so
+// it can never skip a real change.
 //
 //   bun run src/db/baseline.ts dev
 //   bun run src/db/baseline.ts prod
-//
-// Safe to re-run: it refuses once the ledger holds a named migration, so it can
-// only ever be used for the baseline and never to skip a real change.
 
 import { Pool } from "@neondatabase/serverless";
 import { readMigrationFiles } from "drizzle-orm/migrator";
@@ -29,9 +23,8 @@ if (!connectionString) {
   process.exit(1);
 }
 
-// Drizzle's own reader, deliberately — it derives the name, the sha256 and the
-// folder timestamp exactly the way `migrate` will when it decides what to skip.
-// Recomputing any of that here is how a baseline ends up not matching.
+// Drizzle's own reader, so the name and hash match what `migrate` computes when
+// it decides what to skip.
 const local = readMigrationFiles({ migrationsFolder: MIGRATIONS_FOLDER });
 if (local.length === 0) {
   console.error(`no migrations found in ${MIGRATIONS_FOLDER}`);
@@ -71,10 +64,8 @@ try {
     process.exit(1);
   }
 
-  // Rows written before the `name` column existed. `migrate` ignores them
-  // (it filters name IS NULL), but they describe a history that was abandoned
-  // for `push` years ago, and leaving them in the ledger we now trust invites
-  // someone to read them as real.
+  // Push-era rows with no `name`. `migrate` ignores them, but left in the
+  // ledger someone would read them as real history.
   const orphaned = await pool.query(
     `DELETE FROM ${LEDGER} WHERE name IS NULL RETURNING id`
   );

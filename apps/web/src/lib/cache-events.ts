@@ -5,12 +5,9 @@ import { counterKeys } from "@/features/counter/api";
 import { ordersKeys } from "@/features/orders/api";
 import { shiftsKeys } from "@/features/shifts/api";
 
-// One call for every write that moves an Order or one of its Items, because the
-// same move lands on five screens: the order itself, the /orders list and its
-// pills, the /queue strip and its chips, and any Complaint on the line. A
-// counter recording a pickup and a worker finishing a shoe each leave the other
-// screen's number wrong, so the site that forgets a screen is the bug — there
-// must only be one site.
+// One call for every write that moves an Order or its Items: the move shows on
+// the Order, /orders, /queue, their chips and any Complaint. A caller that forgot
+// one would leave the counter or a worker reading a stale number.
 export const onOrderMoved = (queryClient: QueryClient) =>
 	Promise.all([
 		queryClient.invalidateQueries({ queryKey: complaintsKeys.all }),

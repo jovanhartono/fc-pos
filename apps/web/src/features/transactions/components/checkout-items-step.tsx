@@ -52,12 +52,8 @@ interface ItemFieldSpec {
 	placeholder: string;
 }
 
-// Free-text descriptors the cashier reads off the object at the counter. They
-// describe one physical thing, so they are typed once per Item however many
-// treatments get sold against it (ADR-0017).
-// Same order as getOrderServiceItemDescriptors reads them back — brand, model,
-// colour, size. The cashier types the tag in the order every other screen and
-// the printed receipt will show it.
+// Typed once per Item however many Services it gets (ADR-0017), in the order
+// every other screen and the Receipt show them.
 const ITEM_FIELDS: ItemFieldSpec[] = [
 	{ key: "brand", label: "Brand", placeholder: "e.g. Adidas" },
 	{ key: "model", label: "Model", placeholder: "e.g. Yeezy" },
@@ -65,9 +61,6 @@ const ITEM_FIELDS: ItemFieldSpec[] = [
 	{ key: "size", label: "Size", placeholder: "e.g. 42" },
 ];
 
-// Step ② — the goods: review/annotate cart lines, order notes, and the
-// drop-off photo. The photo lives here (with the items it depicts, captured at
-// intake — see GLOSSARY.md) and gates the step forward (see CheckoutFooter).
 export const CheckoutItemsStep = () => {
 	const { removeProduct, updateProductQty, productRows, itemRows, addItem } =
 		useCart();
@@ -213,18 +206,16 @@ const CheckoutTreatmentRow = ({
 	return (
 		<div className="grid gap-2 border-border/70 border-t p-3">
 			<div className="flex items-start gap-3">
-				{/* Wraps rather than truncates: service names run to 30+ characters
-				    and the price column leaves this one ~130px on a phone, so
-				    truncating cut every line down to "Deep Clea…". */}
+				{/* Wraps rather than truncates: on a phone, truncating cut every
+				    Service name down to "Deep Clea…". */}
 				<span className="min-w-0 flex-1 text-body">{line.service.name}</span>
 				<span className="flex shrink-0 items-center gap-2">
 					{isUnpriced ? <Badge variant="warning">No price yet</Badge> : null}
 					<span className="text-body font-semibold tabular-nums">
 						{formatMoney(getServiceLinePrice(line))}
 					</span>
-					{/* The recovery for a tap that landed on the wrong shoe: carry the
-					    line — notes and negotiated price included — instead of delete,
-					    re-add, retype. */}
+					{/* For a tap that landed on the wrong shoe: moves the line with its
+					    notes and agreed price, so nothing is retyped. */}
 					{canMove ? (
 						<DropdownMenu>
 							<DropdownMenuTrigger
@@ -258,9 +249,8 @@ const CheckoutTreatmentRow = ({
 										</span>
 									</DropdownMenuItem>
 								))}
-								{/* A verb, because a card without descriptors is labelled
-								    "New item" above it, and two entries with one label and
-								    two outcomes is a menu nobody can read. */}
+								{/* A verb, because a blank card above is already labelled
+								    "New item" and two entries can't share one label. */}
 								<DropdownMenuItem
 									onClick={() => moveService(itemId, line.line_id, null)}
 								>
@@ -322,17 +312,15 @@ const CheckoutTreatmentRow = ({
 };
 
 interface CheckoutItemCardProps {
-	// Every card on the counter, from the step that already derived them. A
-	// useCart() down here would re-derive the whole cart once per card on every
-	// keystroke in a notes field.
+	// Passed down, since a useCart() per card would rework the whole Cart on
+	// every keystroke in a notes field.
 	allItems: ItemCartDisplayLine[];
 	item: ItemCartDisplayLine;
 	itemNumber: number;
 }
 
-// One physical object and everything sold against it (ADR-0017): its name and
-// descriptors, then one row per treatment. Which card the next catalog tap
-// lands on is chosen in the tray, where the catalog is.
+// One Item and its Services (ADR-0017). Which card the next catalog tap lands
+// on is chosen in the tray, where the catalog is.
 const CheckoutItemCard = ({
 	allItems,
 	item,
@@ -340,11 +328,8 @@ const CheckoutItemCard = ({
 }: CheckoutItemCardProps) => {
 	const { removeItem, updateItemField } = useCartOps();
 	const descriptors = getOrderServiceItemDetails(item);
-	// Where a treatment on this card could go instead, numbered by cart position
-	// so the menu matches the card numbers on screen. Moving is only meaningful
-	// when there is somewhere to go: another card, or off a card holding more
-	// than the one line — a lone treatment on the only card would just be
-	// renumbering itself.
+	// Numbered by Cart position so the menu matches the cards on screen. A lone
+	// Service on the only card has nowhere to go, so it gets no Move.
 	const moveTargets: MoveTarget[] = allItems
 		.map((other, index) => ({ item: other, itemNumber: index + 1 }))
 		.filter((target) => target.item.line_id !== item.line_id);
@@ -420,8 +405,8 @@ const CheckoutDropoffPhotoField = () => {
 	useEffect(() => {
 		if (!dropoffPhoto) {
 			setPreviewUrl(null);
-			// Photo was cleared (e.g. Reset) — close the preview too, or the lightbox
-			// stays "open" and re-pops the moment the next photo is captured.
+			// After Reset, a lightbox left open would pop up again over the next
+			// Customer's drop-off photo.
 			setIsLightboxOpen(false);
 			return;
 		}
@@ -434,8 +419,7 @@ const CheckoutDropoffPhotoField = () => {
 
 	return (
 		<>
-			{/* Status section, not a preview: amber = required-but-missing,
-			    emerald = captured. Color carries the state, so no separate label. */}
+			{/* Colour carries the state (amber missing, green taken), so no label. */}
 			<div
 				className={cn(
 					"flex items-center justify-between gap-3 rounded-md border p-3 text-body",

@@ -25,9 +25,8 @@ export async function updateOrderPayment({
 }) {
   assertCanProcessPayment(user);
 
-  // Everything the desk decides on is read inside the transaction that books
-  // the money, so a price keyed between the read and the write cannot leave the
-  // customer paying a number that no longer matches their lines.
+  // Read inside the transaction, so a price set mid-payment cannot leave the
+  // Customer paying a total that no longer matches their lines.
   return await db.transaction(async (tx) => {
     const order = await findOrderState(tx, orderId);
 
@@ -48,8 +47,6 @@ export async function updateOrderPayment({
     const lines = await findSettlementLines(tx, orderId);
     assertPayable(lines);
 
-    // Every line is priced by the time this runs, so only a promo that already
-    // settled at drop-off can still turn a second one away.
     const isSettledAtDropoff = isDiscountSettled(order.discount_source);
     assertDiscountRequestAllowed({
       hasBlankLine: false,
@@ -59,9 +56,8 @@ export async function updateOrderPayment({
 
     const grossTotal = Number(order.total ?? 0);
 
-    // For an Order whose promo settled at drop-off this desk only books the
-    // tender — the stored amount is what the Receipt says. Otherwise the promo
-    // settles here, and its claims commit or roll back with the payment.
+    // A promo settled at drop-off keeps the amount on the Receipt; otherwise it
+    // settles here and its claims stand or fall with the payment.
     const { discountAmount, discountSource } = await settleDiscount(tx, {
       grossTotal,
       lines,
@@ -83,9 +79,8 @@ export async function updateOrderPayment({
       refunded: Number(order.refunded_amount),
     });
 
-    // CAS on payment_status: two cashiers tapping collect at once must not
-    // both book the money — the loser's transaction rolls back, and with it
-    // any voucher its discount desk claimed.
+    // Two cashiers tapping collect at once must not both book the money; the
+    // loser rolls back, Voucher claim included.
     const rows = await tx
       .update(ordersTable)
       .set({

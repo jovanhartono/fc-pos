@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { MAX_UPLOAD_DIMENSION, normalizeImageFile } from "./normalize-image";
 
 interface CounterPhone {
-	/** null stands for a phone with no codec for what the operator picked. */
+	/** null stands for a phone with no codec for what staff picked. */
 	decodes: { height: number; width: number } | null;
 	/** Types this phone's canvas can really encode. Safari has no WebP encoder. */
 	encodes: string[];

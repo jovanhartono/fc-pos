@@ -5,8 +5,6 @@ interface OrderSectionHeaderProps {
 	action?: ReactNode;
 }
 
-// The title above a section's card, the same for Items, Products, Payment and
-// Attachments.
 export const OrderSectionHeader = ({
 	children,
 	action,

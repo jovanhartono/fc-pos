@@ -27,9 +27,8 @@ interface OrderServicePriceFormProps {
 	onSuccess?: () => void;
 }
 
-// ADR-0018: setting or correcting a line's price is open to any staff — the
-// oversight is the server-side price log (who keyed what, from what), not a
-// role gate. Payment freezes prices; the server refuses this after paid.
+// ADR-0018: any staff may set or correct a price; the server's price log is
+// the oversight, not a role. Payment freezes prices.
 export const OrderServicePriceForm = ({
 	orderId,
 	serviceId,
@@ -45,10 +44,8 @@ export const OrderServicePriceForm = ({
 	return (
 		<form
 			className="grid gap-3"
-			// mutate, not mutateAsync: if someone else priced or cancelled this
-			// line first, the global handler shows the server's reason. Awaiting
-			// it here throws instead, leaving staff with a spinner that stops
-			// and no message.
+			// mutate, not mutateAsync: if someone priced or cancelled this line
+			// first, staff see the server's reason, not a spinner that just stops.
 			onSubmit={form.handleSubmit((values) => {
 				priceMutation.mutate(
 					{

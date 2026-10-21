@@ -59,11 +59,8 @@ const ReviewSquare = () => {
 	);
 };
 
-/* Finish the batch from where a document scanner puts it: bottom-right, beside the shot
-   count, both a thumb's width from the shutter. Squared off rather than round, so a white
-   circle beside the shutter is never mistaken for a second one. The picker gives up the
-   slot once a shot exists — mid-batch gallery picks are rare, and it is still one tap
-   behind the review square. */
+/* Bottom-right like a document scanner, squared off so it is never mistaken for a
+   second shutter. The picker gives up the slot once a photo exists. */
 const ShutterTrailingSlot = () => {
 	const { actions, meta, state } = usePhotoCapture();
 
@@ -118,9 +115,8 @@ const ShutterControls = () => {
 	);
 };
 
-// Nothing captured yet, so there is only one thing to do: the camera takes the width and
-// the fill that the confirm button takes once there is something to confirm, and the
-// picker sits beside it as the exception it is.
+// Nothing captured yet: the camera takes the width and fill the confirm button
+// gets later.
 const EmptyControls = () => {
 	const { actions, state } = usePhotoCapture();
 

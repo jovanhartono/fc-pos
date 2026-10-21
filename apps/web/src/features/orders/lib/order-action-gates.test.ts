@@ -25,9 +25,8 @@ const product = (over: Record<string, unknown> = {}) => ({
 	...over,
 });
 
-// One object per treatment — the pre-ADR-0017 reading of a service line, which
-// is what most of these gates are about. Tests that care about grouping build
-// `items` themselves.
+// One Item per OrderService, the pre-ADR-0017 shape most of these gates are
+// about. Tests that care about grouping build `items` themselves.
 const detail = ({
 	services,
 	...over
@@ -50,12 +49,8 @@ const detail = ({
 		...over,
 	}) as unknown as OrderDetail;
 
-// An object carrying several treatments, collectable only when every live one
-// is finished (ADR-0017).
-// `is_collectable` is passed in, never derived here. The server owns that rule
-// and it is subtler than it looks — a cancelled sibling does NOT hold the object
-// back — so a fixture that re-derived it would happily pin the opposite of what
-// the API ships and still go green.
+// An Item with several OrderServices (ADR-0017). `is_collectable` is passed in:
+// the server owns that rule (a cancelled sibling does NOT hold the Item back).
 const item = (
 	is_collectable: boolean,
 	services: ServiceOverrides[],
@@ -89,9 +84,8 @@ describe("role gates", () => {
 	});
 
 	it("grants pickup to counter roles and flagged workers only", () => {
-		// Taking payment and handing the Item back stay separate gates: a
-		// worker who can ring up a drop-off still needs the pickup flag, the
-		// same rule assertCanProcessPickup enforces on the server.
+		// Payment and handing the Item back stay separate gates: a worker who
+		// can take payment still needs the pickup flag, as on the server.
 		expect(getOrderActionGates(cashier, detail()).isPickupAllowed).toBe(true);
 		expect(getOrderActionGates(pickupWorker, detail()).isPickupAllowed).toBe(
 			true,
@@ -232,8 +226,8 @@ describe("canOpenPickup (ADR-0009: payment precedes pickup)", () => {
 	});
 
 	it("will not hand back a shoe whose repaint is still wet", () => {
-		// ADR-0017: one object, two treatments, and only one of them finished —
-		// the counter has nothing it can give the customer.
+		// ADR-0017: one Item, two OrderServices, only one finished: the counter
+		// has nothing to give the Customer.
 		const gates = getOrderActionGates(
 			cashier,
 			detail({
@@ -305,8 +299,8 @@ describe("order off-ramps (ADR-0008: disjoint by payment_status)", () => {
 
 describe("complaintable lines (ADR-0013)", () => {
 	it("offers finished lines with no complaint that are not reworks", () => {
-		// Cashier SOP: the customer inspects the ready pair before taking it,
-		// so a ready line is complainable as well as a picked-up one.
+		// Cashier SOP: the Customer inspects the ready Item before taking it,
+		// so a ready line can draw a Complaint as well as a picked-up one.
 		const gates = getOrderActionGates(
 			worker,
 			detail({
@@ -328,7 +322,7 @@ describe("complaintable lines (ADR-0013)", () => {
 	});
 
 	it("holds a ready line back while another treatment on the pair is in the workshop", () => {
-		// The customer at the counter has not been shown the pair yet.
+		// The Customer at the counter has not been shown the Item yet.
 		const gates = getOrderActionGates(
 			worker,
 			detail({
@@ -346,10 +340,8 @@ describe("complaintable lines (ADR-0013)", () => {
 	});
 });
 
-// ADR-0019: the cashier photographs the object once at drop-off; every
-// treatment sold on it starts off that shot. A Rework is the exception — the
-// customer brought the pair back, so the first-visit photos say nothing about
-// the state it returned in.
+// ADR-0019: one Item photo at drop-off covers every OrderService on it. A Rework
+// is the exception: the Item came back, so first-visit photos say nothing.
 describe("startPhotoBlocker", () => {
 	it("says nothing once the object has a usable photo", () => {
 		expect(

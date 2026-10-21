@@ -16,9 +16,8 @@ export interface CheckoutGates {
 	itemsReady: boolean;
 }
 
-// The cart→payment gate: a customer is ready once they have a name and a phone
-// that parses. Shared by the step tabs, the Continue button, and the Create
-// Order button so all three progression controls enforce the identical rule.
+// Shared by the step tabs, Continue and Create Order so all three apply the
+// same rule.
 export const isCustomerReady = (
 	customerName: string,
 	customerPhone: string,
@@ -30,10 +29,8 @@ export const getCheckoutGates = (input: CheckoutGateInput): CheckoutGates => ({
 	itemsReady: input.itemCount > 0 && input.hasDropoffPhoto,
 });
 
-// The current step and any earlier one are always reachable — going back to
-// fix a field is never blocked. A later step is reachable only when its entry
-// gate passes, so the tabs can't skip ahead with an incomplete customer or a
-// missing photo.
+// Going back to fix a field is never blocked; the tabs can't skip ahead with an
+// incomplete Customer or a missing photo.
 export const isStepReachable = (
 	gates: CheckoutGates,
 	current: CheckoutStep,
@@ -49,8 +46,6 @@ export const isStepReachable = (
 	if (target === "payment") {
 		return gates.customerReady && gates.itemsReady;
 	}
-	// Only "items" can reach here — "customer" is always at or before the
-	// current step and already returned above.
 	return gates.customerReady;
 };
 

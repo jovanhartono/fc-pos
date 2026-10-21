@@ -6,15 +6,11 @@ import { captureRejection } from "@/test-support/capture-rejection";
 import { type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
-// The reversal desk end to end. The fake-based suite beside this one pins the
-// arithmetic; here the caps are read back off real rows, so what a refund
-// leaves behind — the line's own state, the Order rollup, the money columns —
-// is the shop's schema answering rather than a double agreeing with itself.
+// What a Refund leaves behind, read back off real rows: the Line's state, the
+// Order rollup and the money columns.
 
-// Loaded after the swap above, never beside the imports: Bun binds a static
-// import graph before any module body runs, so a service pulled in up there
-// would hold the shop's real database — and its module-level prepared
-// statements would already be pointing at it.
+// Imported after the swap above: a static import would bind the shop's real
+// database, prepared statements included, before the swap runs.
 const { createOrder } = await import("@/modules/orders/order.service");
 const { cancelOrder, createOrderRefund } = await import(
   "@/modules/orders/order-reversal.service"

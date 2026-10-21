@@ -18,8 +18,8 @@ interface ReworkOriginCalloutProps {
 	onNavigate?: () => void;
 }
 
-// The worker needs whose treatment the customer turned down, and why, before
-// redoing it.
+// The worker needs which OrderService the Customer turned down, and why,
+// before redoing it.
 export const ReworkOriginCallout = ({
 	reworkOf,
 	firstPickupAt,

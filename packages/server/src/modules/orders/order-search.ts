@@ -1,13 +1,9 @@
-// An all-digits query is a bare id typed straight off a screen or ticket —
-// order codes and item codes always carry the "#STORE/" prefix, so digits
-// alone can't be a code prefix. Both order search and the queue search use
-// this to decide whether to also match order/line ids exactly. Ids never start
-// with 0, so "0812…" is a customer's phone, not Order 812.
+// All digits is a bare id typed off a screen, since codes start with "#STORE/".
+// Ids never start with 0, so "0812…" is a Customer's phone, not Order 812.
 const numericSearchRegex = /^[1-9]\d*$/;
 
-// Postgres' int4 columns (order and line ids) top out here; a longer
-// all-digit string is a barcode, not an id, and casting it would 500 instead
-// of falling through to the item-code lookup.
+// Ids top out here; a longer number is a barcode, and matching it as an id would
+// crash the search instead of falling through to the Item code.
 const MAX_INT4 = 2_147_483_647;
 
 export function isNumericSearch(search: string): boolean {

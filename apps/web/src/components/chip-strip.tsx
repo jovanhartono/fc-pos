@@ -2,12 +2,9 @@ import type { PropsWithChildren } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// A row of chips that outgrows its container — /queue's six statuses and the POS
-// catalog's ten categories both do. The mask fades the last chip out instead of
-// slicing it mid-word, which read as a broken layout rather than as "there is
-// more this way". Unconditional, not phone-only: whether the strip overflows
-// depends on the container — the expanded sidebar cuts it at 1024 too — and when
-// it does fit the fade lands on empty padding.
+// /queue's statuses and the POS Categories outgrow their row; a chip cut mid-word
+// looked broken, the fade reads as "more this way". Always on, since the open
+// sidebar cuts the row even on a laptop.
 export const STRIP_FADE =
 	"[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]";
 
@@ -17,9 +14,8 @@ export const ChipStripScroller = ({ children }: PropsWithChildren) => (
 	</div>
 );
 
-// The POS catalog builds its own row of category chips and the POS skeleton
-// draws placeholders, so the measurements are shared — pr-8 is what keeps the
-// last chip clear of the fade.
+// Shared with the POS Category row and its skeleton; pr-8 keeps the last chip
+// clear of the fade.
 export const CHIP_STRIP_ROW = "flex min-w-max gap-2 px-1 pr-8";
 
 export const CHIP_CLASS =

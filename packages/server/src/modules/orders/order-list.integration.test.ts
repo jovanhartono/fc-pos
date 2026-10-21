@@ -5,9 +5,8 @@ import { ordersServicesTable, ordersTable } from "@/db/schema";
 import { type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
-// Loaded after the swap above, never beside the imports: Bun binds a static
-// import graph before any module body runs, so a service pulled in up there
-// would hold the shop's real database.
+// Imported after the swap above: a static import would bind the shop's real
+// database before the swap runs.
 const { createOrder } = await import("@/modules/orders/order.service");
 const { countOrdersByStatus, findOrders } = await import(
   "@/modules/orders/order.repository"
@@ -91,7 +90,7 @@ it("counts a pair as ready only when all its live treatments are", async () => {
     throw new Error("expected three lines");
   }
 
-  // The Nike is done; the Coach still has one treatment in the workshop.
+  // The Nike is done; the Coach still has one OrderService in the workshop.
   await testDb
     .update(ordersServicesTable)
     .set({ status: "ready_for_pickup" })
@@ -103,7 +102,7 @@ it("counts a pair as ready only when all its live treatments are", async () => {
   let [row] = (await listAll()).items;
   expect([row?.items_ready, row?.items_total]).toEqual([1, 2]);
 
-  // A refunded treatment no longer holds the Coach back.
+  // A refunded OrderService no longer holds the Coach back.
   await testDb
     .update(ordersServicesTable)
     .set({ status: "refunded" })

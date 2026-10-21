@@ -30,9 +30,8 @@ type WaitingLine = Awaited<ReturnType<typeof listWaitingLines>>[number];
 const daysSince = (at: Date, now: Date) =>
   Math.max(0, daysBetween(jakartaDayOf(at), jakartaDayOf(now)) - 1);
 
-// The pace each Category can be quoted at, per open day. A Category with no
-// entry gets no quote: "ready in 42 days" off two checks is a guess, and the
-// counter promises what it says to a customer standing there.
+// A Category with no pace gets no quote: "ready in 42 days" off two checks is a
+// guess, and the cashier promises it to the Customer standing there.
 async function getCategoryPaces(storeId: number, now: Date) {
   const paces = new Map<number, number>();
 

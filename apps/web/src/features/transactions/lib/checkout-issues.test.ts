@@ -41,8 +41,8 @@ describe("collectCheckoutIssues", () => {
 	});
 
 	test("an empty cart points at the items step", () => {
-		// The cart-total rule reports on productCart even when the cashier was
-		// adding services, so both carts have to resolve to the same step.
+		// The empty-Cart rule reports on productCart even when the cashier was
+		// adding Services, so both have to point at the same step.
 		const issues = collectCheckoutIssues(
 			errors({
 				productCart: {
@@ -60,9 +60,8 @@ describe("collectCheckoutIssues", () => {
 	});
 
 	test("finds a message nested under one object's treatment, not just on the cart", () => {
-		// ADR-0017 put a level between the cart and the treatment, so the walk
-		// has to reach `itemCart[1].services[0].price` — a message stranded down
-		// there would leave the footer saying only "check the cart".
+		// ADR-0017 put the Item between the Cart and its Services; a message missed
+		// down there would leave the footer saying only "check the cart".
 		const issues = collectCheckoutIssues(
 			errors({
 				itemCart: [undefined, { services: [{ price: { message: "Price?" } }] }],

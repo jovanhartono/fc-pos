@@ -132,9 +132,8 @@ async function getOrderLineRefundCaps(
     }),
     ...productRows.map((row): [string, number] => {
       const key = lineKey("product", row.id);
-      // rounding residue can leave a fractional cap after a whole-line refund;
-      // refunded_at/cancelled_at are authoritative — a line that already took an
-      // off-ramp (refund or unpaid cancel, ADR-0008) is never refundable again
+      // Rounding can leave a few rupiah after a whole-line refund; a line already
+      // refunded or cancelled (ADR-0008) is never refundable again.
       return [
         key,
         row.refunded_at || row.cancelled_at ? 0 : lineCap(key, row.subtotal),
@@ -305,9 +304,7 @@ interface CancelProductRow {
   refunded_at: Date | null;
 }
 
-// Void the given product lines inside the cancel transaction. CAS on the still-
-// open markers (mirrors transitionOrderService): only one concurrent cancel
-// wins, so stock is restored exactly once.
+// Only one of two simultaneous cancels wins, so stock is put back exactly once.
 async function cancelProductLines(
   tx: OrderTx,
   productLines: CancelLine[],
@@ -344,18 +341,10 @@ async function cancelProductLines(
   }
 }
 
-// Cancel is the unpaid, per-line twin of refund (ADR-0008): staff pick which
-// service and product lines to void. No money moves; cancelled product lines
-// restore stock. The Order rollup is recomputed from the resulting line states.
-// ADR-0018: a promo settled at drop-off is printed on the Receipt the
-// customer carries away, so the shop honours it for as long as the Order still
-// clears the bar it was granted under. Cancel items and it may stop clearing:
-// holding a "min Rp250.000" discount on a Rp110.000 Order is not a promise
-// anyone can defend at the counter, and on a fixed-amount campaign it would
-// hand back most of what is left to pay. The minimum is the minimum, whoever
-// asked for the cancellation. Paid Orders are untouched — that money already
-// moved, and an earned promo stays (ADR-0015); there the discount only shrinks
-// to fit the smaller bill.
+// Cancellation is the unpaid twin of a Refund (ADR-0008): no money moves, and
+// cancelled Products go back on the shelf. A promo stays only while the Order
+// still clears its minimum (ADR-0018); on a paid Order it stays and only shrinks
+// to fit (ADR-0015).
 export async function cancelOrder({
   orderId,
   body,
@@ -436,9 +425,9 @@ export async function cancelOrder({
 
     await cancelProductLines(tx, productLines, productRowById);
 
-    // Gate on the pre-loaded status: an Order voided once already handed its
-    // redemptions back, and releasing them again would mint the customer a
-    // second free voucher use (ADR-0015).
+    // Status read before the cancel: an Order already cancelled gave its
+    // redemptions back, and doing it again would hand the Customer a second
+    // free Voucher use (ADR-0015).
     if (order.status !== "cancelled") {
       await revalidateSettledPromo(tx, orderId, user.id);
     }

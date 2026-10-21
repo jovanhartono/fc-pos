@@ -74,9 +74,7 @@ export async function seedShop() {
     .values({ is_active: true, name: "Footwear" })
     .returning();
 
-  // Deep Clean reads its price off the catalog; Repair is the one Service with
-  // no list price, so what it costs is agreed per Item after inspection
-  // (ADR-0018).
+  // Repair has no list price; it is agreed per Item after inspection (ADR-0018).
   const [service, repair] = await testDb
     .insert(servicesTable)
     .values([
@@ -125,7 +123,7 @@ export async function seedShop() {
 
 export type Shop = Awaited<ReturnType<typeof seedShop>>;
 
-// The drop-off photo, filed straight onto the Item: the presign/upload round
+// The Item photo, filed straight onto the Item: the presign/upload round
 // trip is S3's business, and the gates under test only read the row.
 export async function addItemPhoto(itemId: number, uploadedBy: number) {
   const [photo] = await testDb

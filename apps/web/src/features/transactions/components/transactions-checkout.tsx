@@ -28,14 +28,10 @@ import { cn } from "@/lib/utils";
 import { useDialog } from "@/stores/dialog-store";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
-// Shared between the hint element and the stepper's aria-describedby so the two
-// can't drift apart.
 const LOCKED_STEP_HINT_ID = "checkout-locked-step-hint";
 
-// Three-step POS checkout: Customer → Items → Payment. Body scrolls; the total +
-// primary action live in a pinned footer so they stay reachable on the iPad
-// sheet. Step is local state and resets to "customer" each time the sheet
-// remounts on open.
+// The total and main button sit in a pinned footer so they stay reachable in
+// the sheet on the iPad.
 export const TransactionsCheckout = () => {
 	const { resetCart, count } = useCart();
 	const openDialog = useDialog((state) => state.openDialog);
@@ -60,7 +56,7 @@ export const TransactionsCheckout = () => {
 	const stepIndex = CHECKOUT_STEPS.findIndex((entry) => entry.key === step);
 
 	// The gate the footer's Continue enforces too, so the tabs can't skip ahead
-	// with an incomplete customer or a missing photo.
+	// with an incomplete Customer or a missing photo.
 	const isStepEnabled = (target: CheckoutStep) =>
 		isStepReachable(gates, step, target);
 
@@ -68,9 +64,7 @@ export const TransactionsCheckout = () => {
 
 	const headingRef = useRef<HTMLHeadingElement>(null);
 
-	// Direction is a consequence of the navigation action — set alongside the
-	// step so the slide animation always matches the move, with no dependence on
-	// render timing.
+	// Direction is set with the step so the slide always matches the move.
 	const goToStep = (next: CheckoutStep) => {
 		if (!isStepEnabled(next)) {
 			return;
@@ -78,10 +72,8 @@ export const TransactionsCheckout = () => {
 		const nextIndex = CHECKOUT_STEPS.findIndex((entry) => entry.key === next);
 		setDirection(nextIndex >= stepIndex ? "forward" : "back");
 		setStep(next);
-		// Once the new step paints, move focus to its heading so keyboard /
-		// screen-reader users land in the panel instead of staying on the control
-		// they just pressed. Only navigation calls this, so the initial open (where
-		// the Sheet handles focus) is untouched.
+		// A screen reader lands in the new step, not on the button just pressed;
+		// on first open the Sheet places focus itself.
 		requestAnimationFrame(() => headingRef.current?.focus());
 	};
 	const goNext = () => {
@@ -172,8 +164,7 @@ export const TransactionsCheckout = () => {
 
 			<div className="min-h-0 flex-1 overflow-y-auto">
 				<div className="grid gap-5 p-4">
-					{/* Programmatic focus target + heading for the active step — sr-only
-					    because the stepper already shows the labels visually. */}
+					{/* Hidden: the stepper already shows the step's name. */}
 					<h2 className="sr-only" ref={headingRef} tabIndex={-1}>
 						{CHECKOUT_STEPS[stepIndex]?.label}
 					</h2>
@@ -200,7 +191,6 @@ interface CheckoutStepBodyProps {
 	step: CheckoutStep;
 }
 
-// Module-level so it isn't redefined each render (no remount of the step body).
 const CheckoutStepBody = ({ step }: CheckoutStepBodyProps) => {
 	if (step === "customer") {
 		return <CheckoutCustomerStep />;

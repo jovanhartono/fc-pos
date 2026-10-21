@@ -33,7 +33,7 @@ interface CampaignWritePayload {
   usage_limit?: number | null;
 }
 
-// Crockford base32: excludes 0/O/1/I/L — money-bearing bearer secret.
+// No 0/O/1/I/L, so a Voucher code read off paper is not mistyped at the POS.
 const CROCKFORD_CHARSET = "23456789ABCDEFGHJKMNPQRSTVWXYZ"; // 30 chars
 const CODE_LENGTH = 8;
 // Rejection-sample floor: 240 = floor(256/30)*30 — eliminates modulo bias.
@@ -46,7 +46,7 @@ export function generateCrockfordCode(): string {
     const bytes = crypto.getRandomValues(new Uint8Array(CODE_LENGTH * 2));
     for (const b of bytes) {
       if (b >= CROCKFORD_SAMPLE_FLOOR) {
-        continue; // reject to eliminate modulo bias
+        continue;
       }
       result.push(CROCKFORD_CHARSET[b % 30]);
       if (result.length === CODE_LENGTH) {
@@ -73,10 +73,8 @@ export async function mintCampaignCodes(
     const candidates = Array.from({ length: remaining }, () =>
       generateCrockfordCode()
     );
-    // ON CONFLICT DO NOTHING so a rare code collision silently skips that row
-    // rather than raising 23505 — which, inside the enclosing campaign-create
-    // transaction, would poison the tx and make any retry fail with 25P02.
-    // Only the shortfall (codes that collided) is retried with a fresh batch.
+    // A duplicate-code error would abort the whole campaign-create transaction
+    // (25P02 on retry), so collisions are skipped and only the shortfall retried.
     const inserted = await tx
       .insert(campaignCodesTable)
       .values(candidates.map((code) => ({ campaign_id: campaignId, code })))
@@ -187,8 +185,6 @@ export function findCampaignByCode(executor: DbExecutor, code: string) {
 }
 
 export function findCampaignByIdWithCodes(id: number) {
-  // The /:id/codes route reads only redemption_mode + codes, so skip the
-  // stores/eligibleServices joins the general campaign lookups carry.
   return db.query.campaignsTable.findFirst({
     where: { id },
     with: {
@@ -423,8 +419,6 @@ export function findOrderCampaignsByOrderId(tx: OrderTx, orderId: number) {
   });
 }
 
-// The minimum each promo on this Order was granted against — needed when lines
-// are cancelled and the Order may no longer clear the bar it qualified under.
 export function findOrderCampaignMinimums(tx: OrderTx, orderId: number) {
   return tx
     .select({ minOrderTotal: campaignsTable.min_order_total })

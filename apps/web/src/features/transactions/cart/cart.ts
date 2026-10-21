@@ -24,16 +24,13 @@ export type ServiceCartLine = {
 	line_id: string;
 	id: number;
 	notes: string;
-	// ADR-0018: only read for a no-list-price Service (Repair) — the agreed
-	// price if the customer already knows it, "" when the workshop still has
-	// to inspect. The server ignores it on catalog-priced Services.
+	// ADR-0018: only read for a Repair, the price agreed with the Customer or ""
+	// while the workshop still has to inspect it.
 	price: string;
 };
 
-// One physical object on the counter and the treatments sold against it
-// (ADR-0017). The descriptors are typed once here — the everyday flow is a
-// pair arriving for a deep clean and leaving as deep clean + repaint + leather
-// care, and the cashier should not describe the same shoe three times.
+// One Item and the Services sold for it (ADR-0017): a pair sold three Services
+// is described once, not once per Service.
 export type ItemCartLine = {
 	line_id: string;
 	brand: string;
@@ -55,9 +52,8 @@ export type ItemCartDisplayLine = Omit<ItemCartLine, "services"> & {
 	services: ServiceCartDisplayLine[];
 };
 
-// A voucher the cashier has resolved (validated + previewed) but not yet
-// committed. The code string rides in the checkout payload's voucher_codes;
-// the campaign shape feeds the checkout pricing preview.
+// A Voucher code the cashier has checked and previewed, not yet redeemed until
+// the Order is placed.
 export interface AppliedVoucher {
 	code: string;
 	campaign: ResolvedVoucher;
@@ -109,14 +105,9 @@ export const createEmptyItem = (): ItemCartLine => ({
 	services: [],
 });
 
-// The recovery for a catalog tap that landed on the wrong object: three shoes
-// on the counter each needing a Deep Clean used to become one shoe with three
-// Deep Cleans, and the only way back was delete + re-add + retype the notes and
-// the negotiated price. Moving carries the whole line. `toItemId: null` splits
-// it onto a fresh card, and the result names that card so the caller can make
-// it the active one without guessing at its position. Returns null when there
-// is nothing valid to do — a vanished source, target, or line must be a no-op,
-// never a dropped line.
+// Fixes a catalog tap that landed on the wrong Item (three shoes each needing a
+// Deep Clean becoming one shoe with three) without retyping notes or price.
+// `toItemId: null` splits it onto a new card; null back means nothing moved.
 export const moveCartService = (
 	cart: ItemCartLine[],
 	fromItemId: string,
@@ -158,10 +149,8 @@ export const moveCartService = (
 	};
 };
 
-// Which card a catalog tap lands on. Resolved from the cart on every read
-// rather than kept in step with it: a pointer at a card that is gone falls back
-// to the last one still on the counter, so no writer of `itemCart` has to
-// remember to re-point it (ADR-0017).
+// Which card a catalog tap lands on (ADR-0017). Worked out on every read, so a
+// removed card falls back to the last one left and nothing has to re-point it.
 export const resolveActiveItemId = (
 	items: { line_id: string }[],
 	pointer: string | null,
@@ -170,10 +159,8 @@ export const resolveActiveItemId = (
 		? pointer
 		: (items.at(-1)?.line_id ?? null);
 
-// Single source of truth for clearing the POS draft — used by both the Reset
-// button (useCartOps) and the post-checkout reset (page bootstrap). Keeps cart,
-// submit error, and the held drop-off photo from drifting; they previously
-// lived in two near-duplicate resets and the photo was missed on one path.
+// Both the Reset button and the reset after checkout clear through here: two
+// copies once let the drop-off photo carry over to the next Customer's Order.
 export const resetTransactionDraft = (
 	form: UseFormReturn<TransactionDraftValues>,
 	{ setSubmitError, setDropoffPhoto }: TransactionResetActions,
@@ -211,10 +198,8 @@ export const enrichServiceCart = <S extends { id: number }>(
 		return service ? [{ ...line, service }] : [];
 	});
 
-// Every card the cashier opened stays on the counter, treatments or not: a
-// fresh "+ New item" has none yet, and pulling the last treatment off one is a
-// mid-correction, not a delete. Empty cards are dropped on the way to the wire
-// (toOrderPayload), which is the only place it costs anything.
+// A card with no Services stays: a new one has none yet, and taking the last
+// Service off one is a correction, not a delete. toOrderPayload drops it.
 export const enrichItemCart = <S extends { id: number }>(
 	items: ItemCartLine[],
 	serviceMap: Map<number, S>,
@@ -224,10 +209,8 @@ export const enrichItemCart = <S extends { id: number }>(
 		services: enrichServiceCart(item.services, serviceMap),
 	}));
 
-// The one price a service line has: the catalog snapshot, or — when the
-// catalog carries none (Repair, ADR-0018) — whatever the cashier keyed.
-// A blank keyed price reads as 0 here: the line adds nothing to the total
-// until it is priced, exactly what the drop-off receipt should show.
+// A Repair (ADR-0018) takes whatever the cashier typed; left blank it adds 0
+// until priced, which is what the drop-off Receipt should show.
 export const getServiceLinePrice = (line: {
 	price: string;
 	service: { price: string | number | null };
@@ -250,14 +233,13 @@ export const getCartSubtotal = (
 		0,
 	) + serviceRows.reduce((total, line) => total + getServiceLinePrice(line), 0);
 
-// What actually counts as a sellable line: an object with nothing being done
-// to it is a correction in progress, not an intake. Shared with the draft
-// schema's "cart is empty" refine so the two can never disagree.
+// An Item with no Service is a correction in progress, not a drop-off. Shared
+// with the draft schema's "cart is empty" check so the two never disagree.
 export const countCartTreatments = (itemCart: ItemCartLine[]): number =>
 	itemCart.reduce((sum, item) => sum + item.services.length, 0);
 
-// Counts treatments, not objects: the badge answers "how many things are on
-// this bill", and an upsold pair is three of them.
+// Counts Services, not Items: the badge answers "how many things are being
+// sold", and an upsold pair is three of them.
 export const getCartCount = (
 	productCart: ProductCartLine[],
 	itemCart: ItemCartLine[],
@@ -283,8 +265,8 @@ export const getCartPricing = <C extends CartCampaign>({
 	serviceLines,
 	manualDiscount,
 }: {
-	// ADR-0018: a discount settles once every line price is final — so the
-	// Campaign base is simply the order total.
+	// ADR-0018: a discount settles once every line price is final, so the
+	// Campaign base is simply the Order total.
 	subtotal: number;
 	campaigns: C[];
 	serviceLines: DiscountLine[];
@@ -315,9 +297,8 @@ export const getCartPricing = <C extends CartCampaign>({
 	};
 };
 
-// No-list-price lines left blank at intake. A blank line is normal — the
-// workshop prices it after inspection — so it never blocks checkout; it only
-// blocks paying now, mirroring the server's "no price, no payment" gate.
+// A Repair left blank at drop-off is normal, so it never blocks checkout; it
+// only blocks paying now, as the server does.
 export const isUnpricedServiceLine = (line: SubtotalServiceRow): boolean =>
 	line.service.price === null && getServiceLinePrice(line) <= 0;
 
@@ -338,7 +319,6 @@ export const toOrderPayload = ({
 	productCart,
 	itemCart,
 }: TransactionDraftValues): CreateOrderPayload => {
-	// A picked method means money arrives now; no method means pay-later.
 	const isPaidAtDropoff = selectedPaymentMethodId !== "";
 
 	return {
@@ -347,10 +327,8 @@ export const toOrderPayload = ({
 			phone_number: normalizePhoneNumber(customerPhone),
 		},
 		store_id: Number(selectedStoreId),
-		// Sent as drafted: when the cashier switches to Pay later, the payment
-		// step already clears these fields on screen — and a promo that still
-		// slips onto an unpaid order (a stale tab) gets the server's loud 400,
-		// never a silent strip the customer would discover at pickup (ADR-0018).
+		// Sent as drafted: a Campaign left on an unpaid Order (a stale tab) gets
+		// the server's 400, not a silent strip the Customer finds at pickup (ADR-0018).
 		campaign_ids: selectedCampaignIds.map((id) => Number(id)),
 		voucher_codes: appliedVouchers.map((entry) => entry.code.trim()),
 		discount: manualDiscount || "0",
@@ -364,9 +342,8 @@ export const toOrderPayload = ({
 			id: line.id,
 			qty: line.qty,
 		})),
-		// One entry per object on the counter, the treatments sold for it nested
-		// inside (ADR-0017). An object with nothing being done to it is not an
-		// intake, so it never reaches the wire.
+		// One entry per Item, its Services nested inside (ADR-0017). An Item with
+		// no Service is not a drop-off, so it is left out.
 		items: itemCart
 			.filter((item) => item.services.length > 0)
 			.map((item) => ({
@@ -377,9 +354,6 @@ export const toOrderPayload = ({
 				services: item.services.map((line) => ({
 					id: line.id,
 					notes: line.notes.trim() || undefined,
-					// Only meaningful on a no-list-price line — blank means the
-					// workshop prices it after inspection. The server ignores it
-					// for catalog-priced Services (ADR-0018).
 					price: line.price.trim() || undefined,
 				})),
 			})),

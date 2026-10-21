@@ -30,9 +30,8 @@ import {
   optimizeUploadedImage,
 } from "@/utils/s3";
 
-// Item photos are keyed by the object, not the treatment (ADR-0019). Photos
-// filed before that change keep their `services/{serviceId}/` keys — the sweep
-// protects whatever path the database holds, so nothing is moved.
+// Keyed by Item (ADR-0019). Older photos keep their `services/{serviceId}/` keys;
+// the sweep protects whatever path the database holds, so nothing is moved.
 export async function createItemPhotoPresign({
   orderId,
   itemId,
@@ -186,9 +185,8 @@ export async function saveOrderDropoffPhoto({
   };
 }
 
-// Order codes read `#JKT/20260907/12`, and item codes carry that plus `-I001`. Neither survives
-// as a filename — `/` is a folder, `#` a fragment — so both are flattened to the characters
-// every OS and the Content-Disposition header agree on.
+// Codes like `#JKT/20260907/12-I001` break as filenames (`/` is a folder, `#` a
+// fragment), so they are flattened to safe characters.
 const UNSAFE_FILENAME_CHARS = /[^A-Za-z0-9._-]+/g;
 
 function toFilenameSlug(code: string) {
@@ -197,14 +195,13 @@ function toFilenameSlug(code: string) {
 
 const KEY_EXTENSION = /\.([A-Za-z0-9]{1,5})$/;
 
-// Uploads are stored under extension-less keys and are always WebP (optimizeUploadedImage);
-// seed photos keep the `.jpg` they were filed with, so a key that says what it is wins.
+// Uploads have no extension and are always WebP; seed photos keep their `.jpg`.
 function extensionOf(key: string) {
   return KEY_EXTENSION.exec(key)?.[1].toLowerCase() ?? "webp";
 }
 
-// A link that saves the photo as a file, for the operator putting a dispute pack together.
-// Same rule as opening the order: the person has to work at that branch.
+// For staff saving photos for a dispute. Same rule as opening the Order: they must
+// work at that Store.
 export async function createPhotoDownloadUrl({
   body,
   user,

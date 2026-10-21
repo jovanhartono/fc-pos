@@ -3,10 +3,8 @@ import type { OrderDetail } from "@/features/orders/api";
 import { flattenOrderLines } from "@/features/orders/lib/order-lines";
 import { parseMoney } from "@/shared/money";
 
-// Client-side mirror of the server's per-line refund caps, built from the same
-// pure math (lineRefundCap) over the same inputs the server reads from the DB
-// (line gross, order gross, order discount, already-refunded sums) — so the
-// dialog preview always matches what the server books.
+// Same refund-cap math and inputs as the server, so the Refund dialog's
+// preview always matches what the server books.
 export const buildRefundCaps = (detail: OrderDetail): Map<string, number> => {
 	const grossTotal = parseMoney(detail.total);
 	const orderDiscount = parseMoney(detail.discount);

@@ -28,7 +28,7 @@ describe("findWorkshopRework", () => {
 		});
 	});
 
-	// A round already on the shelf goes home with the pair; nothing to choose.
+	// A round already on the shelf goes home with the Item; nothing to choose.
 	it("finds nothing when no round is in the workshop", () => {
 		expect(findWorkshopRework(line("picked_up", ["ready_for_pickup"]))).toBe(
 			undefined,

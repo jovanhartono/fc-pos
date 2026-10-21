@@ -202,7 +202,7 @@ describe("opening one order is checked against the branch", () => {
 describe("a ticket dressed up to look like another branch's", () => {
   // The counter reads the id after coercion, so /orders/+123 and /orders/%20123
   // both open order 123. A gate that only recognises plain digits would wave
-  // these through and hand a Bintaro ticket to a Kemang cashier.
+  // these through and hand a Bintaro Order to a Kemang cashier.
   const disguises = ["/+123", "/%20123", "/123%20", "/%09123", "/1e3", "/0123"];
 
   for (const disguise of disguises) {
@@ -241,7 +241,7 @@ describe("what the gate leaves alone", () => {
   });
 
   it("does not ask which order a brand-new order belongs to", async () => {
-    // The order does not exist yet; its branch is checked from the body instead.
+    // The Order does not exist yet; its Store is checked from the body instead.
     const res = await app.request("/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

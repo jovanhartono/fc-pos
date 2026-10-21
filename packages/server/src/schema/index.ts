@@ -72,8 +72,8 @@ export const POSTStoreDeviceSchema = _POSTStoreDeviceSchema;
 export const CLOCK_IN_RADIUS_KM = _CLOCK_IN_RADIUS_KM;
 export const clockInRequiresLocation = _clockInRequiresLocation;
 export type ClockInCoordinates = _ClockInCoordinates;
-// The clock-in screen ranks branches by distance to preselect the nearest one.
-// It borrows the server's formula so the branch it offers is the one the server
+// The clock-in screen ranks Stores by distance to preselect the nearest one.
+// It borrows the server's formula so the Store it offers is the one the server
 // will measure against a moment later.
 export const distanceKm = _distanceKm;
 export type Coordinates = _Coordinates;
@@ -243,10 +243,8 @@ export const POSTOrderSchema = z
         )
       )
       .optional(),
-    // One entry per physical object on the counter, with the treatments sold
-    // for it nested inside. ADR-0017: the descriptors and the tag describe the
-    // object, so the cashier types them once no matter how many treatments the
-    // upsell ends up adding.
+    // One entry per Item with its Services nested inside, so the cashier types
+    // the tag and descriptors once however many Services are added (ADR-0017).
     items: z
       .array(
         z.object(
@@ -262,18 +260,15 @@ export const POSTOrderSchema = z
                     id: z.number("Service is required"),
                     is_priority: z.boolean().optional(),
                     notes: z.string().optional(),
-                    // ADR-0018: only read for a no-list-price Service (Repair)
-                    // — sent when the price is already agreed at drop-off, left
-                    // out when the workshop still has to inspect the Item.
-                    // createOrder ignores it for any catalog-priced Service:
-                    // the browser can never set a normal Service's price.
+                    // ADR-0018: read only for a Repair whose price is agreed at
+                    // drop-off. Ignored for catalog-priced Services, so the
+                    // browser can never set their price.
                     price: currencySchema("Price").optional(),
                   },
                   "Service is required"
                 )
               )
-              // An object with no treatment is not an intake — nothing would
-              // ever be done to it and nothing would price it.
+              // An Item with no Service would never be worked on or priced.
               .min(1, "Every item needs at least one service"),
           },
           "Item is required"

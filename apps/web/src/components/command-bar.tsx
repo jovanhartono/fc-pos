@@ -30,7 +30,7 @@ interface CommandResult {
 const MIN_SEARCH_LENGTH = 2;
 const RESULT_LIMIT = 5;
 
-// One box for "where is that pair": a returning customer at the counter reads
+// One box for "where is my Order": a returning customer at the counter reads
 // out their phone, the cashier types four digits and lands on the Order.
 // Pages are listed too, so it doubles as the way to jump anywhere.
 const CommandBarPanel = () => {

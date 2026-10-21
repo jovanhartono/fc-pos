@@ -2,14 +2,8 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { drizzle } from "drizzle-orm/pg-proxy";
 import type { DateRange } from "@/modules/reports/report-range.util";
 
-// Every takings figure on the reports page is a SUM inside Postgres, so the
-// question these tests answer is not "what did the shop earn" but "which rows
-// did we ask Postgres to add up, and from which column". A pg-proxy driver
-// stands in for the database: Drizzle still builds the real statement, we
-// capture it, and hand back rows we chose. Nothing connects.
-//
-// pg-proxy speaks the raw wire shape, so a fake row is a positional array in
-// the order the query selects its columns — not a named object.
+// A fake row is a positional array in the query's column order, not a named
+// object: pg-proxy speaks the raw wire shape.
 
 const queries: { params: unknown[]; sql: string }[] = [];
 const rowQueue: unknown[][] = [];
@@ -48,12 +42,8 @@ const only = () => {
   return queries[0];
 };
 
-// report-range.repository.sql.test.ts snapshots all 33 statements in full, for
-// one store and for the whole company, so what each query asks Postgres is
-// pinned there. These two stay behind as the
-// tripwire for a blind `--update-snapshots`: the paid window and the store filter
-// are the two rules that decide what counts as takings, and a regenerated
-// snapshot would record them wrong just as happily as right.
+// The snapshots in report-range.repository.sql.test.ts pin every statement;
+// these guard the two takings rules against a blind `--update-snapshots`.
 describe("which orders count as takings", () => {
   it("counts a stretch from the moment the counter took the money", async () => {
     // >= on the closing instant would bill the 1st of September twice, once to

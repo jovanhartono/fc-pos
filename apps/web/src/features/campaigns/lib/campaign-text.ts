@@ -11,7 +11,7 @@ export const formatCampaignRedemption = ({
 	return usage_limit == null ? "Listed" : `Listed · limit ${usage_limit}`;
 };
 
-// The grey line under a campaign's discount. Checkout treats a max or a
+// The grey line under a Campaign's discount. Checkout treats a max or a
 // minimum of 0 as none, so the list must not read "max Rp 0".
 export const formatCampaignLimits = (
 	campaign: Pick<Campaign, "max_discount" | "min_order_total">,

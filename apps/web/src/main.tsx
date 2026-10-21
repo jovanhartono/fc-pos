@@ -85,9 +85,8 @@ const router = createRouter({
 	// router's own 30s preload window would shadow it.
 	defaultPreloadStaleTime: 0,
 	defaultPendingComponent: RoutePending,
-	// Opening an order and coming back out used to look identical. Tag each
-	// navigation with the direction it went so the two read differently; the
-	// slide itself is in index.css.
+	// Opening an Order and coming back out used to look identical, so each
+	// navigation carries its direction; the slide itself is in index.css.
 	defaultViewTransition: {
 		types: ({ fromLocation, toLocation, pathChanged }) => {
 			// Same screen, new search: J in the Order sheet must swap to the next
@@ -102,7 +101,7 @@ const router = createRouter({
 				pathname.split("/").filter(Boolean);
 			const from = segmentsOf(fromLocation.pathname);
 			const to = segmentsOf(toLocation.pathname);
-			// Only a list and its own record slide — the queue and the item a
+			// Only a list and its own record slide — the queue and the Item a
 			// worker opens from it. Home is every screen's neighbour, not its
 			// parent, so tapping a tab crosses over instead of sliding.
 			const isChildOf = (child: string[], parent: string[]) =>
@@ -119,9 +118,8 @@ const router = createRouter({
 		},
 	},
 	scrollRestoration: true,
-	// The page itself no longer scrolls — the shell's content pane does. Without
-	// this, opening an order from halfway down the queue would leave the new page
-	// parked at the old scroll position.
+	// Only the shell's content pane scrolls. Without this, opening an Order from
+	// halfway down the queue would leave the new page parked halfway down.
 	scrollToTopSelectors: [
 		`[data-scroll-restoration-id="${APP_CONTENT_SCROLL_ID}"]`,
 	],

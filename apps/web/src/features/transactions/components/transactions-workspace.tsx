@@ -12,11 +12,8 @@ export function TransactionsWorkspace() {
 	const selectedStoreId =
 		useWatch({ control: form.control, name: "selectedStoreId" }) ?? "";
 
-	// The store scopes everything the checkout reads — campaigns, vouchers, the
-	// order itself — so a storeless checkout can only end in a rejected submit.
-	// Block it at the door: triggering the field raises the picker's own
-	// FieldError up in the catalog. A cashier scrolled down the list would never
-	// see it, so bring the picker back into view.
+	// Checkout without a Store can only fail, so the picker shows its error and
+	// scrolls back into view for a cashier scrolled down the catalog.
 	const handleOpenCart = () => {
 		if (!selectedStoreId) {
 			void form.trigger("selectedStoreId");
@@ -35,9 +32,8 @@ export function TransactionsWorkspace() {
 				<CartMiniBar onOpen={handleOpenCart} />
 			</div>
 			<Sheet onOpenChange={setCartSheetOpen} open={cartSheetOpen}>
-				{/* Bottom at every width, never a right drawer: the item rows lay their
-				    descriptor fields out in two columns and the stepper needs the room,
-				    and a right sheet caps at max-w-sm. */}
+				{/* Bottom at every width: the Item fields' two columns and the stepper
+				    don't fit a right sheet, which caps at max-w-sm. */}
 				<SheetContent
 					className="data-[side=bottom]:h-[92dvh]"
 					showCloseButton={false}

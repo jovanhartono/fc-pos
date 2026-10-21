@@ -13,7 +13,7 @@ export function isComplainableStatus(status: string): boolean {
   return status === "ready_for_pickup" || status === "picked_up";
 }
 
-// The customer at the counter is shown the whole pair, so a ready line waits
+// The Customer at the counter is shown the whole Item, so a ready line waits
 // until nothing else on its Item is still in the workshop.
 export function isComplainableLine(
   line: { status: string },

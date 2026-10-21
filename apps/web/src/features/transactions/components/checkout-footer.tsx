@@ -21,8 +21,6 @@ import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
-// Shared between the hint element and the Continue button's aria-describedby so
-// the two can't drift apart.
 const ITEMS_HINT_ID = "checkout-items-hint";
 
 interface CheckoutFooterProps {
@@ -31,9 +29,6 @@ interface CheckoutFooterProps {
 	onBack: () => void;
 }
 
-// Pinned action bar — total + the step's primary button stay visible while the
-// step body scrolls above. Self-sources everything from the form/cart/pricing
-// hooks; only step + onContinue/onBack are owned by the orchestrator.
 export const CheckoutFooter = ({
 	step,
 	onContinue,
@@ -57,9 +52,8 @@ export const CheckoutFooter = ({
 		hasDropoffPhoto: !!dropoffPhoto,
 	});
 
-	// Leaving the Items step needs only the drop-off photo (captured there).
-	// A blank price is normal (ADR-0018) — it never blocks checkout, it only
-	// blocks paying now, so the hint states the consequence without gating.
+	// A blank Repair price is normal (ADR-0018): the hint warns it blocks paying
+	// now without stopping checkout.
 	const unpricedCount = countUnpricedServiceLines(serviceRows);
 	const itemsHint =
 		step === "items" && count > 0
@@ -122,8 +116,6 @@ interface CheckoutStepActionsProps {
 	photoHintId?: string;
 }
 
-// One button set per step. Early returns instead of a nested ternary keep each
-// variant readable and lint-clean.
 const CheckoutStepActions = ({
 	step,
 	onContinue,

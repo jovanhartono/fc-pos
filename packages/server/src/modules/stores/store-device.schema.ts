@@ -2,10 +2,8 @@ import { z } from "zod";
 import { optionalVarcharSchema } from "@/schema/common";
 import { idNumberSchema } from "@/schema/param";
 
-// The name is kept exactly as the printer announces itself, spaces and all.
-// Printing looks for that name letter for letter, so tidying it up here would
-// leave a device on the list that the POS can never find again. The label is
-// typed by the cashier, so that one is tidied.
+// The name stays exactly as the printer announces itself: the POS finds the
+// printer letter for letter, so a trimmed name could never print.
 export const POSTStoreDeviceSchema = z.object({
   name: z
     .string({ error: "Device name is required" })

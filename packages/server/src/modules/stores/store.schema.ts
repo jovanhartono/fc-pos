@@ -38,10 +38,8 @@ export const POSTStoreSchema = z.object({
   is_active: isActiveSchema,
 });
 
-// The generated update schema takes any number for a coordinate. A store's pin
-// now decides who may clock in there, so an admin fat-fingering an edit would
-// lock that branch's whole team out until someone noticed. Same bounds the
-// create form has always had.
+// The Store's pin decides who may clock in there, so an admin's typo in an
+// edit would lock the whole team out. Same bounds as create.
 export const PUTStoreSchema = createUpdateSchema(storesTable).extend({
   latitude: POSTStoreSchema.shape.latitude.optional(),
   longitude: POSTStoreSchema.shape.longitude.optional(),

@@ -103,9 +103,8 @@ export const OrderPaymentSkeleton = () => (
 	</section>
 );
 
-// Payment status itself is shown in the header status chip (OrderIdentityStrip),
-// so this section adds only the extra detail — how it was paid, or why it
-// cannot be collected yet — and renders nothing when there is neither.
+// Payment status already shows in the header chip, so this adds only how it
+// was paid or why it can't be collected yet.
 const PaymentDetails = ({
 	detail,
 	gates,
@@ -118,9 +117,8 @@ const PaymentDetails = ({
 			</>
 		);
 	}
-	// ADR-0018: no price, no payment. The server refuses the paid transition
-	// while a live line is unpriced — say so here instead of offering a
-	// Collect payment button that can only 400.
+	// ADR-0018: no price, no payment. Say so rather than offer a Collect payment
+	// button the server would refuse.
 	if (gates.hasUnpricedLine) {
 		return (
 			<>
@@ -145,9 +143,8 @@ const CollectPaymentAction = ({
 	detail,
 }: CollectPaymentActionProps) => {
 	const openNestedSheet = useSheet((s) => s.openNestedSheet);
-	// ADR-0018: a discount that settled at drop-off is printed on the Receipt
-	// the customer holds, and the server refuses a second one. That desk gets a
-	// form with no discount controls at all rather than fields that can only 400.
+	// ADR-0018: a discount settled at drop-off is already on the Customer's
+	// Receipt and the server refuses a second, so that form has no discount fields.
 	const isSettled = isDiscountSettled(detail.discount_source);
 
 	return (
@@ -196,8 +193,6 @@ const paymentMethodSchema = z.object({
 	paymentMethodId: z.string().min(1, "Payment method is required"),
 });
 
-// The tender picker both payment forms end with. Reads the form through
-// context so neither form threads control/errors down to it.
 const PaymentMethodField = () => {
 	const { control } = useFormContext<z.infer<typeof paymentMethodSchema>>();
 	const paymentMethodsQuery = useQuery(paymentMethodsQueries.list());
@@ -248,10 +243,8 @@ interface SettledDiscountPaymentFormProps {
 	detail: OrderDetail;
 }
 
-// The Order whose discount settled at drop-off (ADR-0018): the amount is
-// already on the Receipt, so this desk only books the tender. No campaign
-// tiles, no voucher box, no manual discount — the server would refuse every
-// one of them, and the cashier had no way to know that from the form.
+// ADR-0018: the discount is already on the Receipt, so this form only books
+// the PaymentMethod.
 const SettledDiscountPaymentForm = ({
 	orderId,
 	detail,
@@ -308,10 +301,8 @@ const SettledDiscountPaymentForm = ({
 	);
 };
 
-// The only rule the form enforces is that a tender was picked. The rest are
-// declared, not validated: the tile group and voucher entry only emit entries
-// the server already vetted, and CurrencyInput cannot produce a negative —
-// the server clamps the discount regardless.
+// Only the PaymentMethod is checked: the Campaign and Voucher pickers emit
+// only what the server vetted, and the server clamps the discount anyway.
 const collectPaymentSchema = paymentMethodSchema.extend({
 	campaignIds: z.array(z.string()),
 	vouchers: z.array(z.custom<AppliedVoucher>()),
@@ -325,13 +316,8 @@ interface CollectPaymentFormProps {
 	detail: OrderDetail;
 }
 
-// ADR-0018: this desk settles the discount for the Order that came in
-// unpriced — the Repair whose number only landed after inspection, so there
-// was nothing to settle at drop-off. Campaigns, codes, and a manual discount
-// ride the payment PATCH. Every line is priced by now (the unpriced gate
-// above), so the order total is the campaign base. An Order whose discount
-// already settled shows the printed total instead: the server refuses a
-// second claim.
+// ADR-0018: an Order that came in unpriced, like a Repair priced after
+// inspection, settles its discounts here with the payment.
 const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 	const goBack = useSheet((s) => s.goBack);
 	const campaignsQuery = useQuery(

@@ -30,7 +30,7 @@ describe("groupReworksUnderOriginals", () => {
 		]);
 	});
 
-	// The queue after the pair went home: the original is off the rack.
+	// The queue after the Item went home: the original is off the rack.
 	it("keeps a rework whose original is not listed, under that original's id", () => {
 		expect(
 			group([

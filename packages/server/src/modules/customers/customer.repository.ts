@@ -4,9 +4,7 @@ import { db } from "@/db";
 import { customersTable } from "@/db/schema";
 import { toStoredPhonePrefix } from "@/schema/phone";
 
-// Either the pool-backed db or a transaction handle, so find-or-create can run
-// inside an Order transaction (atomic Customer + Order — see ADR-0011) or
-// standalone.
+// A transaction handle lets the Customer and Order commit together (ADR-0011).
 export type CustomerExecutor =
   | typeof db
   | Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -102,10 +100,8 @@ function findCustomerOrderStats(customerId: number) {
         sql<number>`(COUNT(*) FILTER (WHERE payment_status = 'paid') OVER ())::int`.as(
           "paid_orders"
         ),
-      // Raw SQL skips drizzle's timestamp mapper, so the instant has to carry
-      // its own Z. Without it the browser reads the stored UTC as Jakarta time
-      // and "last visit" lands seven hours before the newest Order listed
-      // underneath it.
+      // Raw SQL skips drizzle's date handling: without the Z the browser reads
+      // UTC as Jakarta time and "last visit" lands seven hours early.
       last_visit_at: sql<
         string | null
       >`to_char(MAX(created_at) OVER (), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`.as(
@@ -133,8 +129,7 @@ export async function findCustomerSummary(
     findCustomerComplaintCount(customerId),
   ]);
 
-  // A customer with no Orders yet gets no row back — the window had nothing to
-  // report itself on.
+  // A Customer with no Orders yet gets no row back.
   const [stats] = orders;
 
   return {

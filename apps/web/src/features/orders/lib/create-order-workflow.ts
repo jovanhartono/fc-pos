@@ -33,14 +33,10 @@ export async function handleCreatedOrderSuccess({
 	const orderId = getCreatedOrderId(created);
 
 	await Promise.all([
-		// A new order is an item on the workshop floor and a row in every count
-		// the /orders pills show, so All and Today are wrong the moment this
-		// returns unless the whole set is dropped.
+		// A new Order changes every count on /orders and the Queue.
 		onOrderMoved(queryClient),
-		// A redeemed voucher / bumped listed-campaign redeemed_count changes what's
-		// eligible at the next checkout — refresh campaigns so a capped promo that
-		// just hit its limit stops showing as selectable and the voucher-codes
-		// sheet reflects the new redemption.
+		// A spent Voucher code or Campaign changes what's Usable at the next
+		// checkout, so one that just hit its Usage limit stops showing.
 		onRedemptionSpent(queryClient),
 	]);
 

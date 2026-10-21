@@ -19,7 +19,7 @@ interface StoreDevicesDialogProps {
 	storeId: number;
 }
 
-// Registered Bluetooth devices for one store. Registering opens Chrome's full
+// Registered Bluetooth devices for one Store. Registering opens Chrome's full
 // device list once; after that the POS only ever offers what is listed here.
 export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 	const queryClient = useQueryClient();

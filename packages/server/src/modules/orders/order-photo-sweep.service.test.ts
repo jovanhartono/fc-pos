@@ -1,6 +1,5 @@
-// The sweep is the only thing that deletes a customer's photo without a person asking it to, so
-// what these guard is mostly restraint: it takes the litter an abandoned batch leaves behind, and
-// nothing that a dispute might still be argued from.
+// The sweep deletes photos with nobody asking, so it may take only what an
+// abandoned batch left behind, never a photo a Complaint might still need.
 
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { s3 } from "bun";
@@ -11,7 +10,6 @@ const hoursAgo = (hours: number) =>
 
 let referenced = new Set<string>();
 
-// Stand in for the repository so the sweep's judgement can be exercised without a database.
 mock.module("@/modules/orders/order-photo.repository", () => ({
   listReferencedPhotoKeys: () => Promise.resolve(referenced),
 }));
@@ -21,7 +19,6 @@ const { sweepOrphanedOrderPhotos } = await import(
 );
 const { STORAGE_ENV_PREFIX } = await import("@/utils/s3");
 
-// Where this environment files its photos, and where a test's keys have to live to be seen.
 const own = (suffix: string) => `${STORAGE_ENV_PREFIX}orders/${suffix}`;
 
 interface StoredRow {
@@ -29,11 +26,8 @@ interface StoredRow {
   lastModified?: string;
 }
 
-/**
- * Stands in for the bucket, paging the way S3 does once a shop has more than a page of photos,
- * and honouring the requested prefix the way S3 does — which is what keeps the other
- * environment's photos out of a sweep's reach while the two share a bucket.
- */
+// Honours the prefix the way S3 does, which is what keeps the other
+// environment's photos out of the sweep's reach in the shared bucket.
 const stubBucket = (objects: StoredRow[], pageSize = 1000) => {
   const calls = {
     deleted: [] as string[],
@@ -112,7 +106,7 @@ describe("sweepOrphanedOrderPhotos", () => {
     ]);
     restore = undo;
 
-    // Not "considered and spared" — never listed. The scan count is what proves it.
+    // Never listed, not listed and spared: the scan count proves it.
     expect(await sweepOrphanedOrderPhotos()).toMatchObject({
       deleted: 0,
       scanned: 0,

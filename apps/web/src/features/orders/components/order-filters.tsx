@@ -49,8 +49,7 @@ interface OrderFiltersProps {
 	onChange: (patch: Partial<OrderFilterValues>) => void;
 }
 
-// "" is the all-payments sentinel — selecting it maps back to undefined. Status
-// is not here: it has its own row of tabs above the filters.
+// "" means all payments and maps back to undefined.
 const PAYMENT_ITEMS: Record<string, string> = {
 	"": "All payments",
 	paid: formatPaymentStatus("paid"),

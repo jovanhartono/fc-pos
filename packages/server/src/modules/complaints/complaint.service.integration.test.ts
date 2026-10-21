@@ -13,10 +13,8 @@ import { captureRejection } from "@/test-support/capture-rejection";
 import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
-// The counter SOP against a real Postgres: the cashier shows the customer the
-// finished pair before handing it over, and the customer turns it down there
-// and then. The complaint lands on a line that is still ready_for_pickup, the
-// pair goes back to the workshop, and it leaves only once the re-clean is done.
+// The cashier shows the Customer the finished pair before handing it over; a
+// pair turned down goes back to the workshop and leaves only once re-cleaned.
 
 const STORAGE_ENV_PREFIX = "dev/";
 
@@ -36,9 +34,8 @@ mock.module("@/utils/s3", () => ({
   optimizeUploadedImage: () => Promise.resolve(),
 }));
 
-// Loaded after both swaps above, never beside the imports: Bun binds a static
-// import graph before any module body runs, so a service pulled in up there
-// would hold the shop's real database and the real storage module.
+// Loaded after the swaps above: a static import would bind the shop's real
+// database and storage before any mock runs.
 const { db } = await import("@/db");
 const { addRework, listComplaints, openComplaint } = await import(
   "@/modules/complaints/complaint.service"
@@ -147,9 +144,8 @@ const handOver = (pair: {
     user: shop.cashier,
   });
 
-// The returned pair photographed at the counter. Dated a second after the
-// given moment: the gate compares to the millisecond, and two inserts inside
-// one test can share one.
+// Dated a second later: the photo check compares to the millisecond, and two
+// inserts in one test can share one.
 const photographReturnedPair = (itemId: number, after: Date) =>
   testDb.insert(itemImagesTable).values({
     created_at: new Date(after.getTime() + 1000),
@@ -281,7 +277,7 @@ describe("a pair turned down at the counter", () => {
       [rework.id, pair.lineId, "Deep Clean", 1],
     ]);
 
-    // ADR-0016: the claim code stays on the printed receipt only.
+    // ADR-0016: the Pickup code stays on the printed Receipt only.
     expect(JSON.stringify([queueDetail, detail])).not.toContain("pickup_code");
   });
 
@@ -311,9 +307,8 @@ describe("a pair turned down at the counter", () => {
   });
 
   it("keeps a second-pair-free promo whole when one pair is back for a rework", async () => {
-    // Two pairs on one ticket, one turned down at the counter. The free
-    // re-clean is not a pair the customer bought, so it must not take the
-    // promo's free slot and leave them paying for both.
+    // Two pairs on one Order, one turned down: the free Rework line must not
+    // take the Campaign's free slot and leave the Customer paying for both.
     const order = await createOrder(shop.admin.id, shop.store, {
       campaign_ids: [],
       customer: { name: "Budi Santoso", phone_number: "+628111222333" },

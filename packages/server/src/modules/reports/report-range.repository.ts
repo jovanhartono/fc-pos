@@ -76,8 +76,6 @@ async function sumByBucket(
     .groupBy(bucket);
 }
 
-// ───────────────────────── Gross sales trend (R1) ─────────────────────────
-
 export async function listServicesGrossSalesSeries(args: SeriesRangeArgs) {
   const rows = await sumByBucket(ordersServicesTable, "subtotal", args);
   return rows.map((row) => ({
@@ -94,8 +92,6 @@ export async function listProductsGrossSalesSeries(args: SeriesRangeArgs) {
   }));
 }
 
-// ───────────────────────── COGS (Financial) ─────────────────────────
-
 export async function listServicesCogsSeries(args: SeriesRangeArgs) {
   const rows = await sumByBucket(ordersServicesTable, "cogs_snapshot", args);
   return rows.map((row) => ({ bucket: row.bucket, cogs: Number(row.total) }));
@@ -105,8 +101,6 @@ export async function listProductsCogsSeries(args: SeriesRangeArgs) {
   const rows = await sumByBucket(ordersProductsTable, "cogs_snapshot", args);
   return rows.map((row) => ({ bucket: row.bucket, cogs: Number(row.total) }));
 }
-
-// ───────────────────────── Discount (Financial) ─────────────────────────
 
 export async function listOrderDiscountSeries({
   range,
@@ -129,8 +123,6 @@ export async function listOrderDiscountSeries({
   }));
 }
 
-// ───────────────────────── Collected (Financial) ─────────────────────────
-
 export async function listCollectedSeries({
   range,
   storeId,
@@ -151,8 +143,6 @@ export async function listCollectedSeries({
     collected: Number(row.collected),
   }));
 }
-
-// ───────────────────────── Store takings (store donut) ─────────────────────────
 
 export async function listStoreCollectedRows({ range, storeId }: RangeArgs) {
   const rows = await db
@@ -205,8 +195,6 @@ export async function listStoreRefundRows({ range, storeId }: RangeArgs) {
   }));
 }
 
-// ───────────────────────── Category trend (R6) ─────────────────────────
-
 export async function listCategoryGrossSalesSeries({
   range,
   storeId,
@@ -240,8 +228,6 @@ export async function listCategoryGrossSalesSeries({
     gross_sales: Number(row.gross_sales),
   }));
 }
-
-// ───────────────────────── Store × Category gross sales ─────────────────────────
 
 export async function listStoreCategoryGrossSalesRows({
   range,
@@ -285,8 +271,6 @@ export async function listStoreCategoryGrossSalesRows({
     gross_sales: Number(row.gross_sales),
   }));
 }
-
-// ───────────────────────── Orders flow (R2) ─────────────────────────
 
 export async function listOrdersInSeries({
   range,
@@ -344,8 +328,6 @@ export async function listOrdersOutSeries({
   }));
 }
 
-// ───────────────────────── Payment mix (R3) ─────────────────────────
-
 export async function listPaymentMixSeries({
   range,
   storeId,
@@ -376,8 +358,6 @@ export async function listPaymentMixSeries({
     orders: Number(row.orders),
   }));
 }
-
-// ───────────────────────── Customer acquisition (R4) ─────────────────────────
 
 export async function listNewCustomersSeries({
   range,
@@ -532,8 +512,6 @@ export async function findRepeatCustomerStats({ range, storeId }: RangeArgs) {
   };
 }
 
-// ───────────────────────── Refunds (Financial) ─────────────────────────
-
 export async function listRefundAmountSeries({
   range,
   storeId,
@@ -562,8 +540,6 @@ export async function listRefundAmountSeries({
     refunds: Number(row.refunds),
   }));
 }
-
-// ───────────────────────── Worker productivity (R7) ─────────────────────────
 
 const startLog = alias(orderServiceStatusLogsTable, "start_log");
 const passLog = alias(orderServiceStatusLogsTable, "pass_log");
@@ -754,7 +730,6 @@ async function listActivity<TDetail extends SelectedFields>(
 export const listWorkerActivity = (args: RangeArgs) =>
   listActivity(args, lineDetail());
 
-// Who started each Service processed in the stretch, and nothing else.
 export async function listProcessedLineStarts(args: RangeArgs) {
   return await listProcessedLines(args, {});
 }
@@ -906,14 +881,12 @@ export function listStoreNames() {
     .from(storesTable);
 }
 
-// ───────────────────────── Campaign effectiveness (R8) ─────────────────────────
-
 export async function listCampaignEffectivenessRows({
   range,
   storeId,
 }: RangeArgs) {
-  // What a promo cost and what it brought in have to be counted over the same
-  // orders, or the discount is charged against a different set of takings.
+  // A Campaign's cost and what it brought in are counted over the same Orders,
+  // or the discount is charged against different takings.
   const window = paidOrderWindow({ range, storeId });
 
   const discountRows = await db

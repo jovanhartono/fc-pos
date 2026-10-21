@@ -45,12 +45,7 @@ export interface PhotoStageItem {
 
 interface PhotoStageProps {
 	activeIndex: number;
-	/**
-	 * Caller-specific overlay chrome, absolutely positioned inside the gesture surface
-	 * alongside the navigation arrows. Anything interactive here must be a real
-	 * `<button>` — that is what the surface tests for before claiming a touch as a
-	 * gesture.
-	 */
+	/** Anything interactive here must be a real `<button>`: the surface checks for one before claiming a touch. */
 	children?: React.ReactNode;
 	className?: string;
 	items: PhotoStageItem[];
@@ -58,10 +53,8 @@ interface PhotoStageProps {
 }
 
 /**
- * The photo surface an operator argues over with a customer: pinch or double-tap to put
- * a torn thread under a finger, drag to move around it, swipe to the next shot. Shared
- * by the saved-photo lightbox and the review step of the capture dialog so a shot behaves
- * the same before and after it is uploaded.
+ * The photo staff and a Customer argue over: pinch onto a torn thread, swipe to the next.
+ * Shared by the lightbox and capture review so a photo behaves the same before and after upload.
  */
 export const PhotoStage = ({
 	activeIndex,
@@ -73,9 +66,8 @@ export const PhotoStage = ({
 	const [transform, setTransform] = useState<ZoomTransform>(resetTransform);
 	const transformRef = useRef(transform);
 	const frameRef = useRef(0);
-	// The dialog popup mounts in a later commit than the one that flips `open`, so a ref
-	// read inside an effect is still null and the gesture listeners would never attach —
-	// pinch was dead on every freshly opened lightbox. State makes the node a dependency.
+	// The popup mounts a commit after `open` flips, so a ref was still null in the
+	// effect and pinch was dead on every freshly opened lightbox.
 	const [surfaceNode, setSurfaceNode] = useState<HTMLDivElement | null>(null);
 	const stageRef = useRef<HTMLDivElement>(null);
 	const contentRef = useRef<HTMLDivElement>(null);
@@ -115,9 +107,8 @@ export const PhotoStage = ({
 			cancelAnimationFrame(frameRef.current);
 			frameRef.current = 0;
 		}
-		// React skips the style write when the string matches its last render, but a pinch
-		// may have already put a different one on the node — without this the photo stays
-		// zoomed while state says fitted, and the next garment opens inside that zoom.
+		// React skips a style write matching its last render, but a pinch may have
+		// changed the node; without this the next photo opens inside the old zoom.
 		if (contentRef.current) {
 			contentRef.current.style.transform = toCssTransform(next);
 		}
@@ -141,10 +132,8 @@ export const PhotoStage = ({
 		});
 	}, []);
 
-	// Every route into another photo — swipe, arrow key, desktop arrow, last-shot square — has
-	// to drop the previous zoom, or the next garment opens inside it. Adjusted during render
-	// rather than from an effect so the fitted photo is what first paints. A wheel zoom can
-	// still leave one uncommitted frame on the node, which its own pending commit flushes.
+	// Every way to another photo drops the previous zoom, or the next opens inside
+	// it. Done during render so the fitted photo is what first paints.
 	const [zoomedIndex, setZoomedIndex] = useState(activeIndex);
 	if (zoomedIndex !== activeIndex) {
 		setZoomedIndex(activeIndex);
@@ -167,10 +156,8 @@ export const PhotoStage = ({
 		onIndexChange(activeIndex === imageCount - 1 ? 0 : activeIndex + 1);
 	};
 
-	// A swipe resolves on pointerup, long after render, so the listeners read the current
-	// photo and navigation from here instead of taking them as effect dependencies. As deps
-	// they tore down and re-attached all six listeners on every photo change — mid-gesture,
-	// on the surface the operator still had fingers on.
+	// Listeners read the current photo from here: as effect deps they re-attached on
+	// every photo change, mid-gesture, under the fingers of whoever was pinching.
 	const latestRef = useRef({ activeId, canNavigate, showNext, showPrevious });
 	useEffect(() => {
 		latestRef.current = { activeId, canNavigate, showNext, showPrevious };
@@ -456,7 +443,7 @@ export const PhotoStage = ({
 
 		const handleUp = (event: PointerEvent) => dropPointer(event, true);
 		// A stolen touch — Control Centre swipe, incoming call — drops the finger but keeps
-		// the operator's place on the tear.
+		// the place on the tear.
 		const handleAbort = (event: PointerEvent) => dropPointer(event, false);
 
 		let wheelCommit: ReturnType<typeof setTimeout> | undefined;
@@ -514,12 +501,9 @@ export const PhotoStage = ({
 		};
 	}, [applyTransform, commitTransform, resetPointerState, surfaceNode]);
 
-	// A mouse cannot swipe — a drag on the desk machine is a pan, never a page turn — so on
-	// a counter PC the arrow keys and the arrows above are the only way through a batch.
-	// Bound on the document rather than the surface because the surface is not focusable and
-	// nothing would reach it; both callers are full-screen dialogs that trap focus, so this
-	// never fires against the rest of the admin. Text fields are exempt or the note in the
-	// capture dialog could not be edited without the photo changing under it.
+	// A mouse can't swipe, so on a counter PC the arrow keys are the way through a
+	// batch. On the document since the surface can't take focus; text fields are
+	// exempt so typing the capture note never changes the photo.
 	useEffect(() => {
 		const owner = surfaceNode?.ownerDocument;
 		if (!owner) {
@@ -568,7 +552,7 @@ export const PhotoStage = ({
 		};
 	}, [surfaceNode]);
 
-	// Turning the phone to show the customer resizes the stage under a zoomed photo, and the
+	// Turning the phone to show the Customer resizes the stage under a zoomed photo, and the
 	// offsets it was panned to can now sit entirely outside it — a blank screen mid-dispute.
 	useEffect(() => {
 		if (!surfaceNode) {
@@ -603,7 +587,7 @@ export const PhotoStage = ({
 			className={cn(
 				"relative flex min-h-0 flex-1 items-center justify-center [touch-action:none]",
 				// Only from the breakpoint the arrows appear at — a phone gives the whole
-				// width to the garment and turns pages with a swipe.
+				// width to the photo and turns pages with a swipe.
 				canNavigate && "md:px-14",
 				className,
 			)}

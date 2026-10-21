@@ -24,7 +24,7 @@ export async function createService(
   const [service] = await insertService({
     ...payload,
     cogs: payload.cogs.toString(),
-    // null = no list price (Repair) — stored as NULL, never coerced to "0".
+    // A Repair has no list price; "0" would make it free.
     price: payload.price === null ? null : payload.price.toString(),
   });
   return service;

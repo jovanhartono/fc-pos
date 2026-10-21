@@ -1,11 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { distanceKm } from "@/utils/geo";
 
-// The number the Shifts page shows a manager when it says a worker clocked in
-// 3.1 km from the branch. Pinned against the Kemang store's real pin, because
-// the interesting distances here are small: tens of metres at the counter,
-// where a formula that is only right at continental scale would read as a
-// worker who left the shop.
+// Pinned against Kemang's real location because the distances that matter are
+// tens of metres: a formula only right at continental scale would show a
+// worker at the counter as having left the shop.
 const KEMANG = { latitude: -6.261_578, longitude: 106.812_735 };
 
 // 6371 km * 1 degree in radians. One degree of latitude, anywhere.

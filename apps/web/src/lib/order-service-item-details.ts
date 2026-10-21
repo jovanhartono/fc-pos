@@ -6,8 +6,8 @@ type ServiceItemDetails = {
 };
 
 // One field order for every surface that names an Item — the cart line, the
-// checkout row, the queue row. Two screens listing the same shoe as
-// "Nike · Black · Yeezy" and "Nike · Yeezy · Black" read as two different items.
+// checkout row, the queue row. Two screens listing the same Item as
+// "Nike · Black · Yeezy" and "Nike · Yeezy · Black" read as two different Items.
 export function getOrderServiceItemDescriptors({
 	brand,
 	model,

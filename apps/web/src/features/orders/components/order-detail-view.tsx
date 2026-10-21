@@ -115,8 +115,8 @@ interface OrderDetailViewProps {
 // The whole Order: the /orders/$id page and the global sheet both render
 // this, so the two never drift apart.
 export const OrderDetailView = ({ orderId }: OrderDetailViewProps) => {
-	// Role/can_process_pickup gates read DB-fresh state via /admin/users/me —
-	// the JWT claims go stale when an admin changes them mid-session.
+	// Read roles fresh: an admin can change them mid-session and the login
+	// token would still carry the old ones.
 	const meQuery = useQuery(usersQueries.me());
 	const detailQuery = useQuery({
 		...ordersQueries.detail(orderId),

@@ -7,12 +7,9 @@ import {
 import type { ResolvedCampaignRow } from "@/modules/campaigns/campaign-redemption.service";
 import { applyManualDiscount, stackCampaignDiscounts } from "@/schema/discount";
 
-// The checkout discount desk: the promos a cashier ticked plus the voucher slips a
-// customer handed over become the rows that claim a redemption inside the order
-// transaction. Deliberately touches no repository — every lookup it needs comes
-// through campaign.service — so the money arithmetic here is testable without a
-// database. The executor rides all the way down so the eligibility reads run on
-// the same transaction that will claim the codes.
+// No repository calls here, so the discount maths is testable without a database.
+// The executor is passed down so eligibility is read in the transaction that
+// claims the Voucher codes.
 
 export interface ResolvedDiscount {
   campaignRows: ResolvedCampaignRow[];
@@ -43,10 +40,8 @@ export async function resolveDiscount(
   const manual = Math.max(0, manualDiscount);
 
   if (campaignIds.length === 0 && voucherCodes.length === 0) {
-    // No promo here, but the cap still applies: a hand-keyed discount can
-    // never take more off than the whole order costs — an over-typed number
-    // clamps to a free order instead of a negative one. The POS caps it the
-    // same way, so the order matches what the cashier saw on screen.
+    // A typed discount never exceeds the Order total, matching the cap the
+    // cashier saw in the POS.
     const appliedManual = Math.min(manual, grossTotal);
     return {
       discountAmount: appliedManual,
@@ -65,19 +60,14 @@ export async function resolveDiscount(
         })
       : [];
 
-  // Resolve vouchers — each call validates eligibility and returns the campaign
-  // (shaped like a listCampaigns item, nested eligibleServices) paired with the
-  // code, which is claimed inside the tx.
   const resolvedVouchers = await Promise.all(
     voucherCodes.map((code) =>
       resolveVoucherCode(executor, code, { storeId, storeCode, grossTotal })
     )
   );
 
-  // order_campaigns is unique on (order_id, campaign_id): a campaign may apply at
-  // most once per order. Two voucher codes from the same campaign — or a voucher
-  // whose campaign is also listed — would otherwise collide on the DB constraint
-  // mid-checkout (and clobber the claimed code_id). Reject up front instead.
+  // A Campaign applies once per Order. Two Voucher codes from one Campaign, or a
+  // Voucher whose Campaign is also ticked, would hit the unique key mid-checkout.
   const allCampaignIds = [
     ...campaigns.map((campaign) => campaign.id),
     ...resolvedVouchers.map(({ campaign }) => campaign.id),
@@ -91,8 +81,6 @@ export async function resolveDiscount(
     );
   }
 
-  // campaign_id is unique per order (the check above), so the code can be looked
-  // up by campaign after stacking instead of riding along through it.
   const voucherCodeByCampaignId = new Map(
     resolvedVouchers.map(({ campaign, voucherCode }) => [
       campaign.id,
@@ -100,9 +88,6 @@ export async function resolveDiscount(
     ])
   );
 
-  // Normalize both sources to the flat stackCampaignDiscounts input shape.
-  // Listed campaigns already expose eligible_service_ids; vouchers expose the
-  // nested eligibleServices -> service_id, which we flatten here.
   const stackInput = [
     ...campaigns,
     ...resolvedVouchers.map(({ campaign }) => ({
@@ -119,11 +104,9 @@ export async function resolveDiscount(
     lines
   );
 
-  // Only campaigns that actually contributed a discount are claimed and logged.
-  // stackCampaignDiscounts emits a zero-amount entry for every campaign it could
-  // not apply (a voucher stacked after the order total was already fully
-  // discounted, or a BOGO with no eligible line). Redeeming those would burn a
-  // single-use bearer code or a usage-limit slot for no benefit.
+  // A Campaign that took nothing off (Order already fully discounted, or a BOGO
+  // with no eligible line) is not claimed, or it would burn a Voucher code or a
+  // Usage limit slot for nothing.
   const campaignRows: ResolvedCampaignRow[] = breakdown
     .filter(({ amount }) => amount > 0)
     .map(({ campaign, amount }) => {

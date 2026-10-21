@@ -248,9 +248,8 @@ export async function ordersOutTrendSeries({
   }));
 }
 
-// Counted on the day the counter took the money, like every other takings
-// figure. Counting on the day the Order was written up put a line the customer
-// pays for tomorrow into today's panel.
+// Counted on the day the money was taken: by Order date, a line the Customer
+// pays for tomorrow landed in today's panel.
 export async function categoryGrossSalesForRange({
   range,
   storeId,
@@ -454,8 +453,7 @@ export async function listAgingQueue({
       servicesTable,
       eq(ordersServicesTable.service_id, servicesTable.id)
     )
-    // The tag the worker reads off the shelf belongs to the physical object,
-    // not the treatment line (ADR-0017).
+    // The Item code lives on the Item, not the OrderService (ADR-0017).
     .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
     .leftJoin(usersTable, eq(ordersServicesTable.handler_id, usersTable.id))
     .where(buildAgingQueueWhere(filters))

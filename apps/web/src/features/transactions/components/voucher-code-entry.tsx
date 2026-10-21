@@ -12,9 +12,8 @@ import { readServerErrorMessage } from "@/lib/server-error";
 interface VoucherCodeEntryProps {
 	storeId: number | undefined;
 	subtotal: number;
-	// Controlled, so both hosts can use it: the POS checkout stores vouchers in
-	// its draft form, the order page's collect-payment form in its own (ADR-0018:
-	// a discount settles at whichever desk first sees every line priced).
+	// Controlled: POS checkout keeps Voucher codes in its draft, the Order page's
+	// Collect payment in its own form (ADR-0018).
 	appliedVouchers: AppliedVoucher[];
 	onChange: (next: AppliedVoucher[]) => void;
 }
@@ -35,10 +34,8 @@ export const VoucherCodeEntry = ({
 				gross_total: subtotal,
 			}),
 		onSuccess: (campaign, voucherCode) => {
-			// One voucher per campaign per order (the server enforces the same via
-			// order_campaigns' unique constraint): drop any existing entry for this
-			// code OR this campaign before adding, so the same campaign can't be
-			// applied twice and double-count in the price preview.
+			// One Voucher code per Campaign per Order, as the server enforces, so a
+			// Campaign can't count twice in the price preview.
 			onChange([
 				...appliedVouchers.filter(
 					(entry) =>

@@ -36,11 +36,8 @@ type SubjectService = NonNullable<
   Awaited<ReturnType<typeof findComplaintSubjectService>>
 >;
 
-// A rework is a free OrderService line on the same order (ADR-0013); adding it
-// flips the order rollup back to processing. It is the same physical object
-// coming back over the counter, so the line reuses the complained Item — same
-// tag, same descriptors — and the Item stops being collectable until the
-// re-clean is ready (ADR-0017).
+// The same shoes come back over the counter, so the Rework line reuses the
+// complained Item and its tag (ADR-0013, ADR-0017).
 async function createReworkLine(
   tx: DbExecutor,
   {
@@ -127,8 +124,8 @@ export async function openComplaint({
       );
     }
 
-    // A rework line is itself an OrderService; complaints attach only to real
-    // lines (ADR-0013) so the one-per-line rule and the rate denominator hold.
+    // Complaints attach only to lines the Customer paid for (ADR-0013), or the
+    // one-per-line rule and the Complaint rate break.
     if (line.complaint_id !== null) {
       throw new BadRequestException("Cannot open a complaint on a rework line");
     }
@@ -214,17 +211,15 @@ export async function listComplaints(
   let scopedStoreIds: number[] | undefined;
 
   switch (scope.kind) {
-    // Complaints are the branch's own returns desk — a cashier reviewing them
-    // sees the branches they work at, never another branch's grievances.
+    // A cashier sees the Complaints of the Stores they work at, never another's.
     case "some":
       scopedStoreIds = scope.storeIds;
       break;
-    // A staff account not yet assigned to a branch: nothing, not everything.
+    // A User not yet assigned to a Store sees nothing, not everything.
     case "none":
       scopedStoreIds = [];
       break;
-    // An admin reviews every branch, and a named branch is already the
-    // store_id filter the query carries.
+    // A named Store is already the query's store_id filter.
     case "all":
     case "one":
       break;

@@ -16,7 +16,7 @@ export interface PrintOptions {
 	// Pairing opens a browser device picker, which requires a user gesture —
 	// only the manual print path may allow it.
 	allowPairing: boolean;
-	// Bluetooth names the store registered from the POS. Only these appear in
+	// Bluetooth names the Store registered from the POS. Only these appear in
 	// the picker, so the cashier cannot print to a stray device.
 	deviceNames: string[];
 }

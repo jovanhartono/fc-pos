@@ -3,17 +3,8 @@ import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
 
-// The pickup desk handover: a customer reads out the receipt's 6-digit pickup
-// code, the cashier photographs the objects leaving the counter, and only then
-// do the selected Items flip to picked_up. These tests pin the desk's hard
-// gates — full payment before anything leaves (ADR-0009), the per-order pickup
-// code as proof the person at the counter placed this order (ADR-0005) — plus
-// the one-transaction guarantee that a concurrent double-pickup rolls the
-// photographed event back out. The cashier chooses objects, never treatments.
-// The DB and S3 (presign/optimize/CDN URL) are doubled; the permission check,
-// every gate in between, and the status machine itself stay real — so the
-// whole-object rule is genuinely exercised through the desk here as well as
-// unit-pinned in order-status-machine.test.ts.
+// The Customer gives the Pickup code, the cashier takes the Pickup photo, and
+// only then do the chosen Items leave: paid first (ADR-0009), code as proof (ADR-0005).
 
 type AnyObj = Record<string, unknown>;
 
@@ -28,9 +19,8 @@ const EVENT_ID = 77;
 const state = {
   order: undefined as AnyObj | undefined,
   items: [] as CandidateItem[],
-  // undefined → the flip succeeds for every requested id (no concurrent race)
+  // undefined = no other cashier got there first
   flippedIds: undefined as number[] | undefined,
-  // captured reads/writes
   orderReads: [] as AnyObj[],
   itemReads: [] as AnyObj[],
   insertedEvent: undefined as AnyObj | undefined,
@@ -43,10 +33,8 @@ const s3Calls = {
   optimized: [] as string[],
 };
 
-// Sentinel transaction handle. The REAL status machine runs against it, so the
-// whole-object rule is exercised here rather than doubled away — and the flip
-// provably runs on the same transaction as the event insert, which is what
-// makes the rollback guarantee real.
+// The real status machine runs on this, so the pickup and the event share one
+// transaction and roll back together.
 const TX = {
   query: {
     itemsTable: {
@@ -59,11 +47,9 @@ const TX = {
         );
       },
     },
-    // The rollup after the flip re-reads the order; nothing here asserts on it.
     ordersServicesTable: { findMany: () => Promise.resolve([]) },
     ordersProductsTable: { findMany: () => Promise.resolve([]) },
   },
-  // The machine holds the object's lines before it reads them.
   select: () => ({
     from: () => ({
       where: () => ({ orderBy: () => ({ for: () => Promise.resolve([]) }) }),
@@ -77,7 +63,6 @@ const TX = {
       }
       state.insertedEvent = values;
       return Object.assign(Promise.resolve(), {
-        // id + picked_up_at are DB defaults the real insert hands back.
         returning: () =>
           Promise.resolve([{ id: EVENT_ID, picked_up_at: new Date() }]),
       });
@@ -96,7 +81,6 @@ const TX = {
   }),
 };
 
-// What the guarded UPDATE would win: every treatment already on the shelf.
 const readyServiceIds = () =>
   state.items.flatMap((item) =>
     item.services
@@ -133,13 +117,9 @@ mock.module("@/db", () => ({
   },
 }));
 
-// Dev and production file into the same bucket under their own prefix, so every key the desk
-// issues or accepts carries one. Pinned rather than derived: what these tests care about is that
-// the presign and the image-path gate agree on it.
 const STORAGE_ENV_PREFIX = "dev/";
 
-// Captured before the mock below replaces the module: these two are pure key/scope logic with
-// no S3 or DB of their own, so the real implementation runs here rather than a copy of it.
+// Taken before the mock replaces the module, so the real key checks run here.
 const { assertPhotoKeyUnder, newPhotoKey } = await import("@/utils/s3");
 
 mock.module("@/utils/s3", () => ({
@@ -167,8 +147,6 @@ const { createOrderPickupEvent, createOrderPickupEventPresign } = await import(
 
 const ORDER_ID = 42;
 
-// A cashier passes assertCanProcessPickup (kept real; roles are pinned in
-// permissions.test.ts) without the can_process_pickup override flag.
 const CASHIER = {
   id: 8,
   role: "cashier",
@@ -203,8 +181,6 @@ const presign = () =>
 
 beforeEach(() => {
   state.order = makeOrder();
-  // Two objects on the shelf, one finished treatment each — the ordinary
-  // two-bag collection.
   state.items = [
     {
       id: 1,
@@ -229,8 +205,7 @@ beforeEach(() => {
 
 describe("createOrderPickupEventPresign", () => {
   it("refuses to open the camera while money is still owed", async () => {
-    // ADR-0009: a half-paid customer at the counter gets sent to the counter, not
-    // a photo slot — no upload URL may exist for garments that cannot leave.
+    // ADR-0009: no upload link for Items that cannot leave yet.
     state.order = makeOrder({ payment_status: "partial" });
     const error = await captureRejection(presign());
     expect(error).toBeInstanceOf(BadRequestException);
@@ -239,8 +214,8 @@ describe("createOrderPickupEventPresign", () => {
   });
 
   it("issues an upload slot inside this order's own pickup folder", async () => {
-    // The folder prefix is what the image-path gate later trusts, so a proof
-    // photo can never be filed under another customer's order.
+    // The photo check later trusts this folder, so a Pickup photo can never be
+    // filed under another Customer's Order.
     const result = await presign();
     expect(s3Calls.presigned).toHaveLength(1);
     expect(s3Calls.presigned[0].contentType).toBe("image/jpeg");
@@ -255,8 +230,7 @@ describe("createOrderPickupEventPresign", () => {
 
 describe("createOrderPickupEvent", () => {
   it("keeps garments behind the counter until the order is fully paid", async () => {
-    // ADR-0009: paid-before-pickup outranks everything else — even a wrong
-    // pickup code reports the money problem first, and nothing is written.
+    // ADR-0009: unpaid outranks even a wrong Pickup code.
     state.order = makeOrder({ payment_status: "partial" });
     const error = await captureRejection(pickup({ pickup_code: "483921" }));
     expect(error).toBeInstanceOf(BadRequestException);
@@ -267,8 +241,7 @@ describe("createOrderPickupEvent", () => {
   });
 
   it("rejects a pickup code that does not match this order's receipt", async () => {
-    // ADR-0005: the code proves the person at the counter placed this order.
-    // One digit off on a paid order still hands nothing over.
+    // ADR-0005: one digit off hands nothing over, even on a paid Order.
     const error = await captureRejection(pickup({ pickup_code: "483921" }));
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe("Invalid pickup code");
@@ -277,8 +250,6 @@ describe("createOrderPickupEvent", () => {
   });
 
   it("collapses a double-tapped tag so one object is only handed over once", async () => {
-    // The UI can send the same object twice on a double-tap; the desk must
-    // treat it as one everywhere — validation, the flip, and the receipt.
     const result = await pickup({ item_ids: [1, 1, 2] });
     expect(state.itemReads[0].where).toEqual({
       order_id: ORDER_ID,
@@ -299,8 +270,7 @@ describe("createOrderPickupEvent", () => {
   });
 
   it("rejects a proof photo filed under another order's folder", async () => {
-    // The photo is the evidence of what left for THIS order — pointing at
-    // order 99's folder would let one photo vouch for two handovers.
+    // Another Order's folder would let one photo vouch for two handovers.
     const error = await captureRejection(
       pickup({ image_path: `${STORAGE_ENV_PREFIX}orders/99/pickup/x.jpg` })
     );
@@ -311,10 +281,8 @@ describe("createOrderPickupEvent", () => {
   });
 
   it("rolls the pickup event back when another cashier beat this one to an item", async () => {
-    // Two counters serve the same order at once: the second flip comes up
-    // short. The event row already inserted in this transaction must vanish
-    // with the rollback, or the shop keeps a photo of a handover that never
-    // happened.
+    // Two cashiers hand over the same Order at once; the loser's event must
+    // roll back, or the shop keeps a photo of a handover that never happened.
     state.flippedIds = [5];
     const error = await captureRejection(pickup({ item_ids: [1, 2] }));
     expect(error).toBeInstanceOf(BadRequestException);
@@ -336,10 +304,8 @@ describe("createOrderPickupEvent", () => {
       image_path: `${STORAGE_ENV_PREFIX}orders/${ORDER_ID}/pickup/proof.webp`,
       picked_up_by: 8,
     });
-    // The flip ran on the same transaction as the event insert — the object
-    // resolution happened against TX, not the outer db handle.
+    // Items were read inside the transaction, not on the outer handle.
     expect(state.itemReads).toHaveLength(1);
-    // One status-log row per treatment that actually left the shop.
     expect(state.statusLogs.map((log) => log.order_service_id)).toEqual([5, 6]);
     expect(state.transactionOutcome).toBe("committed");
 

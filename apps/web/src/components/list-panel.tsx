@@ -6,10 +6,8 @@ interface ListPanelProps {
 	className?: string;
 }
 
-// No box around the list. On a tall desktop window the table fills the height
-// under the filters, its pager pinned at the foot however many rows a filter
-// returns; on a short one the page scrolls, so no row is out of reach. On a
-// phone the panel reaches the screen's foot, so the pager rests there too.
+// On a tall desktop window the table fills the height and its pager stays at the
+// foot; on a short one the page scrolls instead, so no row is out of reach.
 export const ListPanel = ({ children, className }: ListPanelProps) => (
 	<section
 		data-list-panel

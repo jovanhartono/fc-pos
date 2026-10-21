@@ -64,11 +64,9 @@ export type StoreScope =
   | SomeStoresScope
   | NoStoresScope;
 
-// Every list screen asks the same question: which branches may this person see?
-// Naming a branch is an access question — a cashier at Kemang either works there
-// or is refused. Naming none is a scoping question — staff see their own
-// branches, an admin sees the company, and a new hire with no branch yet has
-// nothing to show. Each screen decides what it does with the answer.
+// Naming a Store: a cashier at Kemang either works there or is refused. Naming
+// none: staff see their own Stores, an admin sees all, and a new hire with no
+// Store yet sees nothing.
 export async function resolveStoreScope(
   user: JWTPayload,
   storeId?: number
@@ -88,7 +86,7 @@ export async function resolveStoreScope(
 }
 
 // A scope no screen handled has to stop the request. Falling through would run
-// the query with no branch filter at all, which is every branch's takings — so
+// the query with no Store filter at all, which is every Store's takings — so
 // adding a fifth kind of scope must fail to compile, not quietly serve the lot.
 export function unhandledStoreScope(scope: never): never {
   throw new Error(`Unhandled store scope: ${JSON.stringify(scope)}`);

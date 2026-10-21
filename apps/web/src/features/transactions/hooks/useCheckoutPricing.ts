@@ -10,10 +10,8 @@ import { useCart } from "@/features/transactions/cart/useCart";
 import { filterEligibleCampaigns } from "@/features/transactions/lib/campaign-eligibility";
 import { parseMoney } from "@/shared/money";
 
-// Shared checkout derivation — campaign eligibility + final pricing. Lives in a
-// hook (not the component) because both the payment step's breakdown and the
-// pinned footer's grand total need it; the campaigns query is request-deduped
-// by TanStack Query, so calling this in two places costs only the cheap memos.
+// Used by both the payment step and the footer's total; the Campaign fetch is
+// shared, so two callers cost nothing extra.
 export function useCheckoutPricing() {
 	const { subtotal, serviceRows } = useCart();
 	const [
@@ -51,9 +49,8 @@ export function useCheckoutPricing() {
 		enabled: selectedStoreNumber !== undefined,
 	});
 
-	// Campaigns are judged against the cart total (ADR-0018): discounts only
-	// apply when the order is paid at drop-off, and at that moment every line
-	// price is final — the total IS the campaign base.
+	// Campaigns are judged against the Cart total (ADR-0018): a discount
+	// settles only once every line is priced, so the total is the base.
 	const availableCampaigns = useMemo(
 		() =>
 			filterEligibleCampaigns(campaignsQuery.data, {
@@ -70,9 +67,8 @@ export function useCheckoutPricing() {
 		);
 	}, [availableCampaigns, selectedCampaignIds]);
 
-	// Applied vouchers are code-mode campaigns resolved via /resolve-code; they
-	// never appear in the tile list (selectedCampaigns), so merge them here so
-	// the client discount preview reflects them alongside listed campaigns.
+	// Vouchers never appear in the Campaign tiles, so they join the price
+	// preview here.
 	const pricingCampaigns = useMemo(
 		() => [
 			...selectedCampaigns,
@@ -81,8 +77,7 @@ export function useCheckoutPricing() {
 		[selectedCampaigns, appliedVouchers],
 	);
 
-	// Catalog-priced lines only, mirroring the server: a no-list-price line
-	// (Repair) is not even selectable for a BOGO free slot (ADR-0018).
+	// As on the server, a Repair can never be the free one in a BOGO (ADR-0018).
 	const serviceLines = useMemo(
 		() =>
 			serviceRows.flatMap((row) =>

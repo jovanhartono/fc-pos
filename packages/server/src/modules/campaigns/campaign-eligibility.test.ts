@@ -91,9 +91,8 @@ describe("assertCampaignUsable", () => {
   });
 });
 
-// The usage-limit gate lives on campaignIneligibilityReason (assertCampaignUsable
-// wraps it). It caps LISTED campaigns; vouchers (code mode) enforce their cap
-// per-code, so the gate skips them.
+// The Usage limit caps listed Campaigns only; a Voucher is capped by its
+// single-use codes, so the check skips it.
 const eligibleBase = {
   code: "SAVE10",
   is_active: true,

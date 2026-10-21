@@ -54,10 +54,8 @@ export async function getItemOrThrow(orderId: number, itemId: number) {
   return item;
 }
 
-// Every line of the Order with its own number beside the catalog's — what the
-// settlement desk needs to tell a blank Repair apart from a line that is
-// genuinely free. Takes the executor so it reads inside the transaction that
-// will book the money.
+// Each line's price beside the catalog's tells a blank Repair from a free line.
+// Read inside the transaction that books the money.
 export function findSettlementLines(executor: DbExecutor, orderId: number) {
   return executor.query.ordersServicesTable.findMany({
     where: { order_id: orderId },
@@ -146,9 +144,8 @@ function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
 
   if (filters.overdue) {
     conditions.push({ status: "ready_for_pickup" });
-    // Aged from the shelf, not from intake. A null ready_at drops out of `lt`
-    // on its own, which is the wanted answer: an order nobody has finished has
-    // not kept the customer waiting for a collection it could not make.
+    // Aged from when it was ready, not from drop-off. A null ready_at is left
+    // out on purpose: an unfinished Order has not kept anyone waiting.
     conditions.push({
       ready_at: {
         lt: jakartaNow().subtract(PICKUP_OVERDUE_HOURS, "hour").toDate(),
@@ -373,8 +370,8 @@ export async function findOrders(
 
 type OrderStatus = (typeof orderStatusEnum.enumValues)[number];
 
-// The Orders page's status tabs, counted like countOrders below so each tab's
-// number matches the page it opens, in one round trip.
+// Counted like countOrders below, so each status tab's number matches the page
+// it opens.
 export async function countOrdersByStatus(
   filters: OrderListFilters,
   scopedStoreIds?: number[]
@@ -398,11 +395,9 @@ export async function countOrdersByStatus(
   ) as Record<OrderStatus, number>;
 }
 
-// Postgres does the counting and hands back one row. db.$count() cannot take the
-// relational builder's object `where`, and a second SQL-level where-builder is
-// how a pill's number stops matching the total of the page it opens — so the
-// count rides along on buildOrderWhere itself. The window runs before LIMIT, so
-// the single row carries the count of every match, not of the row returned.
+// Counts through buildOrderWhere itself, since db.$count() cannot take its
+// filters and a second copy would drift from the page. The window count runs
+// before LIMIT, so one row carries the total.
 export async function countOrders(
   filters: OrderListFilters,
   scopedStoreIds?: number[]
@@ -413,7 +408,6 @@ export async function countOrders(
     extras: { total: sql<number>`(count(*) over ())::int`.as("total") },
     limit: 1,
   });
-  // No row means nothing matched — the window had nothing to report it on.
   return row?.total ?? 0;
 }
 
@@ -454,13 +448,9 @@ export async function insertOrder(
   return created.id;
 }
 
-// Returns the new id beside the tag it was inserted with, so the caller can
-// pair each treatment with the object it was sold against by matching on
-// `item_code` — which carries a unique index — rather than trusting the order
-// RETURNING happens to hand rows back in. Attaching a treatment to the wrong
-// object would put the wrong tag on the wrong shoe, and no constraint can catch
-// it: any (order_id, item_id) pair inside one Order satisfies the composite FK
-// (ADR-0017).
+// Returns item_code with each id so the caller matches lines to Items by code,
+// not by row order. A mix-up would put a line on the wrong shoe, and no database
+// rule would catch it (ADR-0017).
 export async function insertItems(
   tx: OrderTx,
   values: InferInsertModel<typeof itemsTable>[]

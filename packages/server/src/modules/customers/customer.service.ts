@@ -34,9 +34,7 @@ export async function getCustomers(query?: GetCustomersQuery) {
   };
 }
 
-// Powers the customer detail page: the person's columns plus the money and
-// history an admin reads before deciding how to treat them. Admin-only —
-// ADR-0021.
+// Admin-only (ADR-0021).
 export async function getCustomerDetail(id: number) {
   const customer = await findCustomerById(id);
 
@@ -47,9 +45,8 @@ export async function getCustomerDetail(id: number) {
   return { ...customer, summary: await findCustomerSummary(id) };
 }
 
-// Exact-phone lookup for the POS name-prefill. Phone is identity (UNIQUE), so
-// this is 0-or-1 — never a list. UX-only; checkout still find-or-creates by
-// phone server-side. See ADR-0011.
+// Only prefills the name in the POS; checkout still finds or creates the
+// Customer by phone itself (ADR-0011).
 export async function getCustomerByPhone(phone_number: string) {
   return (await findCustomerByPhone(phone_number)) ?? null;
 }
@@ -89,10 +86,8 @@ export async function createCustomer({
   }
 }
 
-// Find-or-create a Customer by phone, runnable inside an Order transaction so
-// the Customer and Order commit (or roll back) together — never an orphan. A
-// phone hit reuses the existing record (phone is identity); only brand-new
-// Customers are inserted, Title Cased. See ADR-0011.
+// Runs inside the Order transaction so a failed checkout leaves no Customer
+// behind (ADR-0011).
 export async function resolveOrCreateCustomer({
   executor,
   actorId,
@@ -111,11 +106,9 @@ export async function resolveOrCreateCustomer({
     return existing.id;
   }
 
-  // No in-transaction retry on a unique-violation race: a 23505 poisons the
-  // whole Postgres transaction, so a retry read here would only throw 25P02.
-  // The race (two Orders for the same brand-new phone in the same instant) is
-  // operationally near-impossible; the UNIQUE constraint is the backstop —
-  // 23505 rolls back the Order, and the cashier's retry finds the row above.
+  // No retry here: a duplicate phone aborts the whole transaction (25P02). Two
+  // checkouts for one new phone at once roll back, and the cashier's retry
+  // finds the Customer above.
   const [customer] = await insertCustomer(
     {
       name: toTitleCase(name),

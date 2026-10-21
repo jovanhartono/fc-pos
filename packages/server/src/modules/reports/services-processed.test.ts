@@ -2,10 +2,8 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { drizzle } from "drizzle-orm/pg-proxy";
 import type { DateRange } from "@/modules/reports/report-range.util";
 
-// How much work the shop got through is a question about when each treatment
-// first passed inspection, not about how many log rows it left behind. A
-// pg-proxy driver stands in for the database: Drizzle builds the real
-// statement, we capture it and answer with rows we chose. Nothing connects.
+// How much work the shop got through is when each OrderService first reached
+// quality check, not how many log rows it left behind.
 
 const queries: { params: unknown[]; sql: string }[] = [];
 const rowQueue: unknown[][] = [];
@@ -53,9 +51,8 @@ describe("what makes a treatment count as processed", () => {
   });
 
   it("files a line under the stretch it first passed, not the stretch of its redo", async () => {
-    // A shoe checked in July, sent back and checked again in August leaves an
-    // August log row too. Testing the stretch against the first check is what
-    // keeps that line in July's count and out of August's.
+    // A shoe checked in July and again in August after a QC reject stays in
+    // July's count.
     await listServicesProcessed({ range: AUGUST });
 
     const having = only().sql.slice(only().sql.indexOf("having"));

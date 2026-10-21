@@ -13,10 +13,8 @@ const BINTARO = 2;
 
 const gateCalls: { storeId: number; userId: number }[] = [];
 
-// Stands in for the store gate having answered "no". The real one waves an
-// admin through, so a suite run as admin would never see a refusal — but the
-// question here is what the reports router does when the gate refuses, not who
-// the gate refuses. That decision is pinned in utils/authorization.test.ts.
+// Stands in for the store gate refusing, which the real one never does to an
+// admin. Who gets refused is pinned in utils/authorization.test.ts.
 mock.module("@/utils/authorization", () => ({
   assertStoreAccess: (user: JWTPayload, storeId: number) => {
     gateCalls.push({ storeId, userId: user.id });

@@ -186,9 +186,8 @@ export const KpiCard = ({
 					</p>
 					{spark && spark.length > 1 ? <SparkBars values={spark} /> : null}
 				</div>
-				{/* null is a comparison with nothing to compare yet (still loading,
-				    or a quiet last period): the line stays, blank, so the cards
-				    don't shrink and grow back. */}
+				{/* null means nothing to compare yet (loading, or a quiet last period);
+				    the line stays blank so the cards don't shrink and grow back. */}
 				{delta ? (
 					<DeltaLine
 						change={kpiDeltaChange(delta, deltaAs)}

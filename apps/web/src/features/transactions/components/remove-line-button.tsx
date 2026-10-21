@@ -7,10 +7,8 @@ interface RemoveLineButtonProps {
 	onClick: () => void;
 }
 
-// The one destructive icon button every cart surface uses to drop a single
-// Service or Product Line; a whole Item has its own "Remove item" text button.
-// The enlarged hit area (before:-inset-2) is what makes a
-// 28px control tappable on a phone.
+// Drops a single Line; a whole Item has its own "Remove item" text button.
+// The enlarged hit area is what makes a 28px button tappable on a phone.
 export const RemoveLineButton = ({ label, onClick }: RemoveLineButtonProps) => (
 	<Button
 		aria-label={label}

@@ -23,10 +23,8 @@ const ADD_TILE_CLASS =
 const TILE_BUTTON_CLASS =
 	"block overflow-hidden rounded-sm border border-border bg-muted transition-[border-color,box-shadow] hover:border-ring focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50";
 
-// A busy pair can carry twenty-odd shots. The strip stays one row so every
-// Item card is the same height and the treatments stay under the header;
-// the rest is one swipe away in the viewer. Four photos plus the overflow and
-// add tiles is what a 390px card fits without clipping.
+// A busy Item can carry twenty-odd photos; one row keeps every Item card the
+// same height. Four photos plus the overflow and add tiles fit a 390px card.
 const VISIBLE_TILES = { phone: 4, desktop: 5 };
 
 // One photo and the add tile, the strip most Items carry.
@@ -43,10 +41,8 @@ interface ItemPhotoStripProps {
 	isAdmin: boolean;
 }
 
-// The Item's before-service photos (ADR-0019), shown on the object itself so
-// the cashier sees which shoes still need a shot without opening each
-// treatment. The gate hint sits here for the same reason: it is the object
-// that is missing a photo, not any one line.
+// Item photos (ADR-0019) sit on the Item, not on each line, so the cashier
+// sees which shoes still need a photo without opening every OrderService.
 export const ItemPhotoStrip = ({
 	orderId,
 	item,

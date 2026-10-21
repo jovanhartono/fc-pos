@@ -53,14 +53,13 @@ export const ClockInControl = () => {
 		// onSettled, not onSuccess, so the global toast still shows "you forgot to
 		// clock out" when yesterday was cut to ten hours.
 		onSettled: () => onShiftClocked(queryClient),
-		// Opt out of the global error toast (main.tsx): a worker turned away for
-		// being too far needs the reason on screen while they walk to the store,
-		// not a toast that has gone by the time they look up.
+		// A worker turned away for being too far needs the reason to stay on screen
+		// while they walk to the Store, not a toast that is gone when they look up.
 		onError: () => undefined,
 	});
 
-	// Branches this person is actually assigned to. Preselecting one they are not
-	// only hands them a 403 with no clue which branch to pick instead.
+	// Only the Stores this person is assigned to. Preselecting another only hands
+	// them a 403 with no clue which Store to pick instead.
 	const allowedStoreIds = useMemo(
 		() =>
 			meQuery.data === undefined || meQuery.data.role === "admin"
@@ -69,9 +68,8 @@ export const ClockInControl = () => {
 		[meQuery.data],
 	);
 
-	// Closest branch first, measured with the server's own formula so the branch
-	// offered is the one the server measures against a moment later. A courier is
-	// never asked for a location, so their list stays unsorted.
+	// Closest Store first, by the server's own formula, so the Store offered is the
+	// one the server checks against. A courier is never located, so stays unsorted.
 	const ranked = useMemo((): { km?: number; store: Store }[] => {
 		const open = (storesQuery.data ?? []).filter(
 			(store) =>

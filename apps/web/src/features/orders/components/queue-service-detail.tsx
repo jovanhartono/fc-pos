@@ -236,9 +236,7 @@ export function QueueServiceDetail({
 		return <QueueServiceDetailSkeleton />;
 	}
 
-	// The route's loader already resolved this query before rendering, and its
-	// errorComponent handles a missing or failed lookup — this only satisfies
-	// the type checker for the case that never happens in practice.
+	// The route loader already resolved this; only here for the type checker.
 	if (!(detail && selectedService)) {
 		return null;
 	}
@@ -269,7 +267,7 @@ export function QueueServiceDetail({
 			? `${selectedService.handler?.name ?? "Another worker"} is handling this item — actions are locked for you.`
 			: (photoBlocker ?? null);
 	const isReady = selectedService.status === "ready_for_pickup";
-	// Turned down at the counter: the pair left the pickup shelf for its rework.
+	// Turned down at the counter: the Item left the pickup shelf for its Rework.
 	const runningRework = selectedService.complaints
 		.flatMap((complaint) => complaint.reworkLines)
 		.find(isInWorkshop);
@@ -277,10 +275,8 @@ export function QueueServiceDetail({
 	return (
 		<>
 			<div className="mb-5">
-				{/* Two headlines of equal weight: the job, and the object it is done
-				    to. A worker needs both to pick the right shoe off the rack, so
-				    neither is demoted to small print. The tag is the machine's
-				    handle and reads third, in mono. */}
+				{/* Service and Item at equal weight: a worker needs both to pick the
+				    right shoe off the rack. */}
 				{itemDescriptors.length > 0 ? (
 					// Separator bound to the descriptor before it, so a wrap on a
 					// 390px screen never starts a line with a stray "·".

@@ -44,8 +44,7 @@ export function campaignIneligibilityReason(
     return `Order total does not meet minimum for campaign ${campaign.code}`;
   }
 
-  // Listed-campaign usage-limit gate. Vouchers (code mode) enforce their cap
-  // via the per-code claim, not redeemed_count, so skip them here.
+  // A Voucher is capped by claiming its codes, not by redeemed_count.
   if (
     campaign.redemption_mode !== "code" &&
     campaign.usage_limit != null &&

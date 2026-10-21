@@ -59,8 +59,8 @@ export const POSTOrderPickupEventPresignSchema = z.object({
   content_type: photoContentTypeSchema,
 });
 
-// Which of the three places a photo is filed, and its row there: the viewer that opened the
-// photo already knows both, so the server never has to guess from a link.
+// The photo viewer already knows which kind of photo and which row, so the server
+// never has to guess from a link.
 export const POSTPhotoDownloadUrlSchema = z.object({
   kind: z.enum(["item", "dropoff", "pickup"]),
   id: z.number().int().positive(),
@@ -78,9 +78,8 @@ export const PUTOrderDropoffPhotoSchema = z.object({
 export const POSTOrderPickupEventSchema = z.object({
   image_path: z.string().trim().min(1).max(512),
   pickup_code: z.string().regex(/^\d{6}$/, "Pickup code must be 6 digits"),
-  // Objects, not treatments (ADR-0017). The counter hands back a shoe, never
-  // "the repaint on the shoe" — so the caller cannot express a half-collected
-  // object and the server has nothing to reject after the fact.
+  // Items, not lines (ADR-0017): the counter hands back a whole shoe, never half
+  // of one.
   item_ids: z.array(z.coerce.number().int().positive()).min(1),
 });
 
@@ -127,10 +126,8 @@ export const PATCHOrderServiceHandlerSchema = z.object({
   note: z.string().trim().optional(),
 });
 
-// ADR-0018: the desk still accepts promos with the tender, for the Order that
-// arrived unpriced and had nothing to settle at drop-off. An Order whose
-// discount already settled rejects them here — the cashier collects the total
-// printed on the customer's Receipt rather than claiming a second time.
+// ADR-0018: promos are still accepted at payment for an Order that had an
+// Unpriced line at drop-off. One already settled refuses a second claim.
 export const PATCHOrderPaymentSchema = z.object({
   payment_method_id: z.coerce.number().int().positive(),
   campaign_ids: campaignIdsSchema,
@@ -138,8 +135,8 @@ export const PATCHOrderPaymentSchema = z.object({
   discount: currencySchema("Discount").default(0),
 });
 
-// ADR-0018: the price for a no-list-price line, keyed once it is agreed with
-// the customer — or re-keyed to fix a typo while the Order is still unpaid.
+// ADR-0018: an Unpriced line's price once agreed with the Customer, or a typo
+// fixed while the Order is unpaid.
 export const PATCHOrderServicePriceSchema = z.object({
   price: currencySchema("Price"),
 });
@@ -154,9 +151,8 @@ export const POSTOrderCancelSchema = z.object({
       z
         .object({
           note: z.string().trim().max(1000).optional(),
-          // Plain z.number (not z.coerce): this is a JSON body, so ids arrive as
-          // real numbers. z.coerce would widen the RPC's inferred input type to
-          // `unknown` and silently drop the client's compile-time check.
+          // Plain z.number, not z.coerce: coerce would turn the web's typed input
+          // into `unknown` and silently drop its compile-time check.
           order_product_id: z.number().int().positive().nullish(),
           order_service_id: z.number().int().positive().nullish(),
           reason: z.enum(cancelReasonEnum.enumValues),
@@ -189,8 +185,8 @@ export const POSTOrderRefundSchema = z.object({
     .array(
       z
         .object({
-          // ADR-0013 (2026-10-06): a service line's Rework still in the
-          // workshop stops unless the admin keeps it running as a free re-clean.
+          // ADR-0013 (2026-10-06): a Rework still in the workshop stops unless
+          // the admin keeps it running as a free re-clean.
           keep_rework: z.boolean().optional(),
           note: z.string().trim().optional(),
           // Plain z.number for the same reason as the cancel schema above.

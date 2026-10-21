@@ -14,11 +14,8 @@ import {
 } from "@/modules/orders/order-settlement.service";
 import type { JWTPayload } from "@/types";
 
-// Setting a line's price is deliberately open to any staff (ADR-0018 /
-// ADR-0004): the number is agreed with the customer — usually over WhatsApp,
-// by whoever inspected the Item — and money still moves only through the POS.
-// The oversight is the price log this writes: who put which number on which
-// Item, from what.
+// Open to any staff on purpose (ADR-0018 / ADR-0004): whoever inspected the Item
+// agrees the price with the Customer, often over WhatsApp. The price log is the check.
 export async function setOrderServicePrice({
   orderId,
   serviceId,
@@ -32,10 +29,8 @@ export async function setOrderServicePrice({
 }) {
   return await db.transaction(async (tx) => {
     const order = await getOrderStateOrThrow(tx, orderId);
-    // Payment froze the numbers (ADR-0018): the customer paid against a printed
-    // receipt and the POS matches it. A wrong price after that is a refund.
-    // This read is only the friendly answer for the ordinary case — the guarded
-    // write below is what actually loses a race against the counter.
+    // Payment freezes prices (ADR-0018); a wrong price after that is a Refund.
+    // This is only the friendly error; the guarded write below wins any race.
     if (order.payment_status === "paid") {
       throw new BadRequestException(
         "Order has been paid — its prices are frozen"
@@ -50,14 +45,12 @@ export async function setOrderServicePrice({
       throw new BadRequestException("Order service not found for this order");
     }
 
-    // A pair turned down at the counter can carry its Rework on a still-unpaid
-    // Order; the re-clean stays free (ADR-0013), so its 0 is not a typo.
+    // A Rework is free (ADR-0013), so its 0 is not a typo, even on an unpaid Order.
     if (line.complaint_id !== null) {
       throw new BadRequestException("A rework is free — its price is fixed");
     }
 
-    // A cancelled line took the unpaid off-ramp (ADR-0008) — nobody owes its
-    // number anymore, so there is nothing left to price.
+    // Nobody owes a cancelled line anything (ADR-0008).
     if (line.status === "cancelled") {
       throw new BadRequestException("Cannot set a price on a cancelled line");
     }
@@ -66,13 +59,9 @@ export async function setOrderServicePrice({
 
     const nextPrice = body.price.toString();
 
-    // Re-checked inside the write, because the counter moves while the
-    // workshop still has the pricing screen open: the customer may have heard
-    // the number and declined (line cancelled — that price must not land on a
-    // line nobody owes), or another cashier may have collected payment (a
-    // correction landing after that would leave a PAID order whose line
-    // prices don't sum to what was charged — the state ADR-0018 exists to
-    // make impossible).
+    // Re-checked in the write: while the workshop prices, the Customer may decline
+    // (line cancelled) or a cashier may take payment, leaving a paid Order whose
+    // lines don't add up to what was charged (ADR-0018).
     const [updated] = await tx
       .update(ordersServicesTable)
       .set({ price: nextPrice })
@@ -94,8 +83,8 @@ export async function setOrderServicePrice({
       );
     }
 
-    // Every set-or-correct leaves a row; from_price NULL means the line was
-    // blank until now. This trail is what stands in for an approval gate.
+    // This trail stands in for an approval step; from_price NULL means the line
+    // was blank until now.
     await tx.insert(orderServicePriceLogsTable).values({
       order_service_id: serviceId,
       changed_by: user.id,
@@ -103,10 +92,8 @@ export async function setOrderServicePrice({
       to_price: nextPrice,
     });
 
-    // Refreshes the amount due, then re-checks any promo that already settled:
-    // correcting a price downward can drop the Order under the minimum it was
-    // granted against, which is otherwise a way to keep a 100k discount on a
-    // 160k Order.
+    // A lowered price can drop the Order under its promo's minimum, or a 100k
+    // discount would stay on a 160k Order.
     await revalidateSettledPromo(tx, orderId, user.id);
 
     return updated;

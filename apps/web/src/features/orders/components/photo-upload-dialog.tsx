@@ -9,9 +9,8 @@ interface PhotoUploadDialogProps {
 	badgeLabel?: string;
 	uploader?: PhotoUploader;
 	onUploaded?: () => Promise<void>;
-	// Skip the chooser and go straight to the viewfinder. For intake flows where a
-	// live photo is the expected answer and the gallery is the exception — the
-	// picker is still in the shutter row. See SinglePhotoCaptureDialog.
+	// For intake, where a live photo is expected; the gallery picker stays in
+	// the shutter row.
 	autoOpenCamera?: boolean;
 }
 
@@ -36,16 +35,9 @@ interface SinglePhotoCaptureDialogProps {
 	onCapture: (file: File) => void;
 }
 
-// Capture-only single-photo dialog. Reuses the full-screen camera/picker/preview
-// UI but, instead of uploading, hands the picked File back to the caller — for
-// flows where the target row does not exist yet (POS drop-off photo before
-// checkout) or where the upload is bundled with other data (pickup event).
-//
-// Opens on the viewfinder by default: drop-off is an intake action, so a live
-// photo of the items in front of the cashier is the expected answer. It is no
-// longer the only one — a store whose iPad camera is refused or broken can still
-// finish the drop-off from the gallery. Pass autoOpenCamera={false} for flows
-// that should land on the chooser instead (e.g. pickup).
+// Hands the File back instead of uploading: the POS Drop-off photo has no Order
+// to save against before checkout, and a pickup sends it with the handover.
+// A Store whose iPad camera is broken can still pick from the gallery.
 export const SinglePhotoCaptureDialog = ({
 	onCapture,
 	autoOpenCamera = true,

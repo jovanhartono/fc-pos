@@ -8,12 +8,7 @@ export interface Size {
 	width: number;
 }
 
-/**
- * Rendered as `transform: translate(offsetX px, offsetY px) scale(scale)` on a box whose
- * transform-origin is its own centre. In that order the offsets stay in unscaled screen
- * pixels measured from the stage centre, so dragging a finger 40px shifts the photo 40px
- * at 1x and at 5x alike.
- */
+/** Translate, then scale about the centre, so a 40px drag moves the photo 40px at 1x and 5x alike. */
 export interface ZoomTransform {
 	offsetX: number;
 	offsetY: number;
@@ -23,9 +18,8 @@ export interface ZoomTransform {
 export const MIN_SCALE = 1;
 
 /**
- * A 2560px capture on a counter phone already runs out of source pixels around 2.3x, so this
- * is deliberate headroom past native detail: it lets the operator put a single torn thread
- * under his finger while the customer watches, not resolve anything new.
+ * Past native detail (a 2560px photo runs out around 2.3x) on purpose: staff can put a
+ * torn thread under a finger while the Customer watches.
  */
 export const MAX_SCALE = 5;
 

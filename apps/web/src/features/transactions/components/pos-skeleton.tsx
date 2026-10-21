@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 const CHIP_WIDTHS = ["w-11", "w-22", "w-26", "w-20", "w-19", "w-28"];
 const TILE_COUNT = 12;
 
-// The POS as it opens: store and search rows, the category chips, then the
+// The POS as it opens: Store and search rows, the category chips, then the
 // catalog tiles, so the cashier sees the counter's layout while it loads.
 export const PosSkeleton = () => (
 	<div aria-hidden className="grid gap-5">

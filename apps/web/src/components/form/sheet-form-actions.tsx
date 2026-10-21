@@ -13,10 +13,8 @@ interface SheetFormActionsProps {
 	addLabel: string;
 }
 
-// Pinned to the bottom of the sheet, so Save is in reach at the top of an
-// eleven-field Campaign form without scrolling for it; the fields scroll under
-// the same frost as the Queue's sticky bar. Adding has no Cancel: the sheet's
-// ✕ is the way out.
+// Pinned to the sheet's foot, so an admin reaches Save on the eleven-field
+// Campaign form without scrolling. Adding has no Cancel: the sheet's ✕ is the way out.
 export const SheetFormActions = ({
 	isEditing,
 	isSubmitting,

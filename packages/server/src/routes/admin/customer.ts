@@ -44,9 +44,8 @@ const app = new Hono<AdminEnv>()
       existed ? StatusCodes.OK : StatusCodes.CREATED
     );
   })
-  // Exact-phone lookup for the POS name-prefill (ADR-0011). Registered before
-  // "/:id" so "lookup" is matched as a literal, not parsed as an id. Returns
-  // the matching Customer or null — phone is identity, so 0-or-1.
+  // POS name-prefill by exact phone (ADR-0011). Registered before "/:id" so
+  // "lookup" is not read as an id.
   .get(
     "/lookup",
     zodValidator("query", GETCustomerLookupQuerySchema),

@@ -3,17 +3,8 @@ import { BadRequestException, ForbiddenException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
 
-// updateOrderPayment is the pickup desk's cash moment: the customer collects
-// their items and the cashier taps "collect". Whatever lands in paid_amount
-// IS the recorded revenue for this order, and — since ADR-0018 moved the
-// discount desk here — this is also where promos and voucher slips are
-// settled and every line price freezes. These tests pin the net-due
-// arithmetic, the no-price-no-payment gate, and that the discount desk runs
-// exactly once, inside the payment transaction.
-//
-// "@/db", the discount desk, and the redemption claims are doubled; their own
-// contracts are pinned elsewhere. assertCanProcessPayment stays real — its
-// role matrix is pinned in permissions.test.ts.
+// The cashier collects payment at pickup: paid_amount is what the shop
+// collected, and an unpaid Order's discounts settle here (ADR-0018).
 
 type AnyObj = Record<string, unknown>;
 
@@ -43,13 +34,12 @@ const dbState = {
   findFirstCalls: [] as unknown[],
   setPayload: undefined as Record<string, unknown> | undefined,
   updateCalls: 0,
-  // Simulates losing the collect race: another cashier paid the order
-  // between the read and the write.
+  // false = another cashier paid the Order between the read and the write.
   casWins: true as boolean,
 };
 
-// Every read the desk makes now runs on the transaction handle, so a price
-// keyed between the read and the write cannot slip past the gates.
+// Every read runs in the transaction, so a price keyed mid-payment cannot
+// slip past the checks.
 const TX = {
   query: {
     ordersTable: {
@@ -86,9 +76,8 @@ const TX = {
   }),
 };
 
-// The order repository builds its prepared statements the moment it is
-// imported, so the fake db has to survive that even though nothing here reads
-// an Item.
+// The order repository prepares statements on import, so the fake needs this
+// even though nothing here reads an Item.
 mock.module("@/db", () => ({
   db: {
     query: {
@@ -199,11 +188,8 @@ beforeEach(() => {
 
 describe("updateOrderPayment", () => {
   it("settles the discount at the counter and collects the net", async () => {
-    // Rp100.000 of work; the cashier keys the Rp10.000 the supervisor
-    // approved. The customer hands over Rp90.000 and that exact figure
-    // becomes the order's recorded revenue, tagged with the cashier and
-    // payment method for the shift report — and the discount is persisted
-    // here, because the unpaid order carried none (ADR-0018).
+    // Rp100.000 of work, Rp10.000 off keyed at pickup: Rp90.000 is collected,
+    // and the discount is saved now since the unpaid Order had none (ADR-0018).
     discount.result = {
       campaignRows: [],
       discountAmount: 10_000,
@@ -236,10 +222,8 @@ describe("updateOrderPayment", () => {
   });
 
   it("claims the voucher only now, inside the payment transaction", async () => {
-    // A repair kept this order unpriced at drop-off, so the slip could not be
-    // keyed then (ADR-0018) — the customer held it until the workshop agreed a
-    // number. It is claimed in the same transaction that books the money, so a
-    // failed payment leaves the code spendable.
+    // An unpriced Repair held the Voucher code back at drop-off (ADR-0018); a
+    // failed payment must leave the code spendable.
     discount.result = {
       campaignRows: [
         { campaign_id: 5, kind: "voucher", voucherCode: "VIP12345" },
@@ -260,11 +244,8 @@ describe("updateOrderPayment", () => {
   });
 
   it("collects the printed total without claiming a promo twice", async () => {
-    // The driver dropped fully priced items off and the promo settled then: its
-    // code is already out of circulation and its amount is printed on the
-    // receipt the customer is holding. At pickup the desk only books the money.
-    // Re-running the discount desk here would spend the voucher a second time
-    // and could quietly hand back a different number than the printed one.
+    // The discount settled at drop-off and is printed on the Receipt; settling
+    // again would spend the Voucher code twice or change the printed total.
     dbState.order = makeOrder({
       discount: "30000",
       discount_source: "campaign",
@@ -282,10 +263,8 @@ describe("updateOrderPayment", () => {
   });
 
   it("refuses a second promo at the desk when one already printed", async () => {
-    // A cashier keying the campaign again at pickup — the customer produces the
-    // receipt, the cashier assumes nothing was applied. Stacking a second claim
-    // on top would double the discount and burn another code, so the desk says
-    // plainly that the number on the receipt is what to collect.
+    // A cashier re-applies the Campaign at pickup; stacking it would double the
+    // discount, so they are told to collect the printed total.
     dbState.order = makeOrder({
       discount: "30000",
       discount_source: "campaign",
@@ -302,10 +281,8 @@ describe("updateOrderPayment", () => {
   });
 
   it("runs the campaign base on the full total but keeps repair lines out of the BOGO slots", async () => {
-    // Deep clean 150k + repair agreed at 200k. The owner wants repair spend
-    // to count toward promotions (ADR-0018), so the base is the whole 350k —
-    // but the repair line must never be selectable as a buy-one-get-one free
-    // item, so only the catalog-priced line reaches the discount desk's list.
+    // Repair spend counts toward the minimum (ADR-0018), but a Repair is never
+    // the free Item in a buy-one-get-one.
     dbState.order = makeOrder({ total: "350000" });
     dbState.serviceLines = [
       {
@@ -336,9 +313,8 @@ describe("updateOrderPayment", () => {
   });
 
   it("refuses to collect while any live line is unpriced", async () => {
-    // Deep clean 150k plus a bag repair nobody has priced yet. Until the
-    // workshop opens the bag and a number is agreed, the shop takes no money
-    // — not even the 150k it already knows (ADR-0018, ADR-0001).
+    // Deep clean plus an unpriced Repair: no money until the price is agreed,
+    // not even the known 150k (ADR-0018, ADR-0001).
     dbState.serviceLines = [
       {
         complaint_id: null,
@@ -367,8 +343,6 @@ describe("updateOrderPayment", () => {
   });
 
   it("collects normally once the blank line has been priced", async () => {
-    // The workshop settled the repair at 250k over WhatsApp and keyed it in.
-    // A priced repair line is a final number like any other.
     dbState.serviceLines = [
       {
         complaint_id: null,
@@ -385,9 +359,8 @@ describe("updateOrderPayment", () => {
   });
 
   it("ignores a cancelled unpriced line when gating payment", async () => {
-    // The customer dropped the repair after hearing the number; the line was
-    // cancelled (unpaid off-ramp, ADR-0008). Its blank price is out of the
-    // money, so the deep clean that stayed must still be collectable.
+    // The Customer declined the Repair's quote and it was cancelled (ADR-0008);
+    // the deep clean must still be collectable.
     dbState.serviceLines = [
       {
         complaint_id: null,
@@ -411,9 +384,8 @@ describe("updateOrderPayment", () => {
   });
 
   it("deducts an earlier refund so the customer is not charged for a ruined item", async () => {
-    // A shirt was ruined and Rp25.000 already went back before pickup.
-    // Collecting the full Rp100.000 now would make the customer pay for the
-    // very line the shop refunded.
+    // Rp25.000 was refunded before pickup; charging the full Rp100.000 would
+    // bill the Customer for the refunded Line.
     dbState.order = makeOrder({ total: "100000", refunded_amount: "25000" });
 
     await collect();
@@ -422,9 +394,8 @@ describe("updateOrderPayment", () => {
   });
 
   it("clamps at zero when refunds already exceed what is left to pay", async () => {
-    // Rp50.000 order, a Rp10.000 promo settled now, Rp60.000 refunded after
-    // a whole bag went missing. Nothing is owed — a negative paid_amount
-    // would poison the revenue report with money the POS never recorded.
+    // Refunds already exceed what is left: a negative paid_amount would put
+    // money nobody took into the Revenue report.
     dbState.order = makeOrder({ total: "50000", refunded_amount: "60000" });
     discount.result = {
       campaignRows: [],
@@ -438,9 +409,7 @@ describe("updateOrderPayment", () => {
   });
 
   it("rejects a second collect so the same order is never charged twice", async () => {
-    // Cashier taps collect twice on a laggy screen. The second tap must
-    // bounce instead of overwriting paid_at/paid_by and double-counting
-    // revenue.
+    // A double tap on a laggy screen must not count the money twice.
     dbState.order = makeOrder({ payment_status: "paid" });
 
     const error = await captureRejection(collect());
@@ -451,9 +420,8 @@ describe("updateOrderPayment", () => {
   });
 
   it("loses the collect race cleanly when another POS paid first", async () => {
-    // Two cashiers collect the same order from two tills. The loser's write
-    // finds payment_status already flipped; the thrown error rolls its
-    // transaction back, voucher claims included.
+    // Two cashiers collect the same Order at once; the loser's transaction
+    // rolls back, Voucher claims included.
     dbState.casWins = false;
 
     const error = await captureRejection(collect());
@@ -463,8 +431,6 @@ describe("updateOrderPayment", () => {
   });
 
   it("rejects collecting on a cancelled order", async () => {
-    // The order was cancelled before pickup — taking money for it would book
-    // revenue against work the shop never did.
     dbState.order = makeOrder({ status: "cancelled" });
 
     const error = await captureRejection(collect());
@@ -477,8 +443,6 @@ describe("updateOrderPayment", () => {
   });
 
   it("returns null for an unknown order so the route can 404", async () => {
-    // Stale tab pointing at a deleted order: no throw, no write — the route
-    // turns null into a 404.
     dbState.order = undefined;
 
     const result = await collect();
@@ -488,8 +452,7 @@ describe("updateOrderPayment", () => {
   });
 
   it("books zero, not NaN, for a legacy row missing its total", async () => {
-    // Old rows imported before totals were mandatory carry total = null.
-    // paid_amount "NaN" would break every sum in the revenue report.
+    // Imported rows can have no total; "NaN" would break every report sum.
     dbState.order = makeOrder({ total: null });
 
     await collect();
@@ -498,8 +461,7 @@ describe("updateOrderPayment", () => {
   });
 
   it("blocks a courier before the order is even looked up", async () => {
-    // A courier only clocks in (ADR-0010); they never handle money. Their
-    // attempt dies at the permission gate — the database is never touched.
+    // A Courier only clocks in and never handles money (ADR-0010).
     const courier = { id: 7, role: "courier" } as unknown as JWTPayload;
 
     const error = await captureRejection(collect({}, courier));

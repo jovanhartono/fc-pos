@@ -59,7 +59,7 @@ function AttendancePage() {
 	const queryClient = useQueryClient();
 	const { data: currentShift, isPending: currentShiftPending } =
 		useCurrentShift();
-	// Clock in names the nearest branch, so it waits for the branch list too.
+	// Clock in names the nearest Store, so it waits for the Store list too.
 	const storesQuery = useQuery(storesQueries.list());
 	const [now, setNow] = useState(() => new Date());
 

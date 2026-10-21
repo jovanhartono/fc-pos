@@ -13,10 +13,8 @@ const findUserAuthStatePrepared = db.query.usersTable
   })
   .prepare("find_user_auth_state");
 
-// JWT proves identity only; role/can_process_pickup are re-read from the DB
-// on every request (and inactive users rejected) so deactivation and role
-// changes take effect on the next request instead of at token expiry — see
-// ADR-0006.
+// The JWT proves identity only. Role and pickup rights are re-read every request
+// so a deactivated or demoted User loses access at once, not at expiry (ADR-0006).
 const refreshAuthState = createMiddleware<AdminEnv>(async (c, next) => {
   const payload = c.get("jwtPayload");
 

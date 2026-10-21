@@ -5,19 +5,14 @@ import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
 
-// The service takes its DB handle as a parameter on every repository call, so a
-// set of in-memory doubles exercises the full orchestration (gates, rework-line
-// construction) without a database. Tests mutate `repo`/`rollup`/`authz` to
-// drive each branch and capture what the service wrote.
 type AnyObj = Record<string, unknown>;
 
 const repo = {
   subject: undefined as AnyObj | undefined,
   existingComplaint: undefined as AnyObj | undefined,
   complaintById: undefined as AnyObj | undefined,
-  // The pair's other lines: sibling treatments and earlier rework rounds.
+  // The Item's other Services and earlier Rework lines.
   otherItemLines: [] as AnyObj[],
-  // captured writes
   insertedComplaint: undefined as AnyObj | undefined,
   insertedRework: undefined as AnyObj | undefined,
   insertedStatusLogs: [] as Array<{ executor: unknown; values: AnyObj }>,
@@ -33,8 +28,6 @@ const authz = {
   storeIds: [] as number[],
 };
 
-// Sentinel transaction handle: db.transaction(cb) runs cb(TX); repository
-// doubles ignore the executor, so we only assert it is threaded through.
 const TX = { __tx: true };
 
 mock.module("@/db", () => ({
@@ -43,9 +36,8 @@ mock.module("@/db", () => ({
   },
 }));
 
-// Spread the real module so the only exports we change are the two writes.
-// transitionOrderService calls recompute via its in-module binding (not this
-// export object), so order-status-machine.test.ts is unaffected by the stub.
+// Spread the real module; transitionOrderService calls its own recompute, so
+// order-status-machine.test.ts never sees this stub.
 const actualStatusMachine = await import(
   "@/modules/orders/order-status-machine"
 );
@@ -112,8 +104,7 @@ const { addRework, openComplaint } = await import(
 
 const USER = { id: 42, role: "cashier" } as unknown as JWTPayload;
 
-// The complained line points at the physical object it treated — the pair of
-// Nikes on the shelf is Item 21; its tag and descriptors live there (ADR-0017).
+// The pair of Nikes on the shelf is Item 21; its tag lives there (ADR-0017).
 const makeSubject = (over: AnyObj = {}) => ({
   id: 10,
   status: "picked_up",
@@ -178,8 +169,7 @@ describe("openComplaint", () => {
   });
 
   it("opens a complaint at the counter while the customer inspects the ready pair", async () => {
-    // Cashier SOP: the customer checks the pair before taking it, and turns
-    // it down there and then — the line is still ready_for_pickup.
+    // The Customer checks the pair before taking it, so the line is still ready.
     repo.subject = makeSubject({ status: "ready_for_pickup" });
 
     const result = await open({ start_rework: true });
@@ -256,9 +246,8 @@ describe("openComplaint", () => {
     const result = await open({ start_rework: true });
 
     expect(result.rework).not.toBeNull();
-    // Rework is a free, priority, queued line carrying complaint_id, on the
-    // ORIGINAL order (ADR-0013), treating the ORIGINAL item — the same shoes
-    // are back on the shelf, not a new drop-off (ADR-0017).
+    // Same Order (ADR-0013) and same Item (ADR-0017): the same shoes are back
+    // on the shelf, not a new drop-off.
     expect(repo.insertedRework).toMatchObject({
       order_id: 7,
       item_id: 21,
@@ -307,9 +296,8 @@ describe("openComplaint", () => {
 
   it("reuses the complained item's tag instead of minting a rework code", async () => {
     await open({ start_rework: true });
-    // One physical object, one tag (ADR-0017): the returning shoes keep the
-    // code already stuck to them. The retired -RW### series would have put a
-    // second tag on the same object; descriptors stay on the shared Item too.
+    // One object, one tag (ADR-0017): the returning shoes keep the Item code
+    // already stuck to them.
     expect(repo.insertedRework).not.toContainAnyKeys([
       "item_code",
       "brand",
@@ -397,9 +385,8 @@ describe("addRework", () => {
 
     const line = await add();
 
-    // "Still bad after the first rework" stays inside the one complaint
-    // episode (ADR-0013): another free round on the very same object, which
-    // holds the item off the collectable list until this round is ready.
+    // "Still bad after the first rework" stays inside the one Complaint
+    // (ADR-0013): another free round on the same Item.
     expect(line.id).toBe(500);
     expect(repo.insertedRework).toMatchObject({
       complaint_id: 99,

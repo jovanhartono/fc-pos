@@ -12,8 +12,8 @@ import { PhotoCaptureControls } from "@/features/orders/components/photo-capture
 import { PhotoCaptureStage } from "@/features/orders/components/photo-capture-stage";
 import { ACCEPTED_IMAGE_TYPES } from "@/features/orders/utils/photo-upload";
 
-/* Top chrome: close · position · item badge, over the viewfinder. Actions live in the
-   bottom bar within thumb reach — nothing up here is a tap target but Close. */
+/* Nothing up here is a tap target but Close: actions sit in the bottom bar
+   within thumb reach. */
 const TopChrome = () => {
 	const { actions, meta, state } = usePhotoCapture();
 
@@ -70,9 +70,8 @@ const HiddenFileInput = () => {
 			className="sr-only"
 			onChange={(event) => {
 				const files = Array.from(event.target.files ?? []);
-				// A gallery pick used to land behind a still-running viewfinder, so the
-				// photo the cashier just chose was nowhere on screen. Cancelling the
-				// picker (no files) must leave the camera alone.
+				// Stop the viewfinder so the cashier's gallery pick shows on screen; a
+				// cancelled picker leaves the camera alone.
 				if (files.length > 0) {
 					actions.stopCamera();
 				}

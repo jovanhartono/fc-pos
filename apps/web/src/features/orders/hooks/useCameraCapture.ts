@@ -154,15 +154,9 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 			return null;
 		}
 
-		// Keep the whole sensor frame rather than the slice the viewfinder box happened to
-		// show. Cropping to the box was WYSIWYG, but a portrait viewfinder over a landscape
-		// track threw away a fifth of the width — exactly the pixels a whole-garment frame
-		// needs for a 5mm stain to read as a mark. The preview uses object-contain so this
-		// stays honest: the letterboxed feed is the frame that gets saved.
-		//
-		// A 4K phone hands back a frame well past what gets stored. Shrink it here so the shot is
-		// already in budget and gets encoded exactly once — passing it on full-size would cost an
-		// extra lossy pass over the faint mark a dispute is argued from.
+		// Keep the whole sensor frame: cropping to the viewfinder lost a fifth of the
+		// width, the pixels a 5mm stain needs. Shrinking here means one lossy encode,
+		// not two, over the faint mark a Complaint is argued from.
 		const outputScale = Math.min(
 			1,
 			MAX_UPLOAD_DIMENSION / Math.max(frameWidth, frameHeight),

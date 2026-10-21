@@ -51,8 +51,7 @@ const transactionDraftSchema = z
 			.min(1, "Phone number is required.")
 			.refine(isValidPhoneNumber, "Invalid phone number"),
 		selectedCampaignIds: z.array(z.string()),
-		// The campaign shape comes straight from the resolve-code response; it is
-		// carried for the pricing preview, not re-validated here.
+		// Carried from the Voucher code check for the price preview, not checked again.
 		appliedVouchers: z.array(
 			z.object({
 				code: z.string(),
@@ -75,9 +74,8 @@ const transactionDraftSchema = z
 				qty: z.number().int().positive(),
 			}),
 		),
-		// One entry per object on the counter, treatments nested (ADR-0017). The
-		// descriptors stay free-text and optional: they help match the thing at
-		// handoff, they do not identify it, so the POS never blocks on them.
+		// One entry per Item, Services nested (ADR-0017). Brand, size and the rest
+		// only help match the Item at pickup, so the POS never blocks on them.
 		itemCart: z.array(
 			z.object({
 				line_id: z.string(),
@@ -91,9 +89,8 @@ const transactionDraftSchema = z
 						line_id: z.string(),
 						id: z.number(),
 						notes: z.string(),
-						// Repair pricing (ADR-0018): blank means "price after
-						// inspection" — always valid here; only paying now requires
-						// every line priced, and the payment step enforces that.
+						// Blank is valid (ADR-0018): a Repair is priced after
+						// inspection; only paying now needs every line priced.
 						price: z.string(),
 					}),
 				),
@@ -150,7 +147,8 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 		enabled: !!currentUser,
 	});
 
-	// DB-fresh role — JWT claim goes stale on mid-session role changes.
+	// Role from the server, not the sign-in token, which goes stale when an
+	// admin changes it mid-session.
 	const isAdmin = meQuery.data?.role === "admin";
 
 	const visibleStores = useMemo(() => {
@@ -215,9 +213,8 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 	const createMutation = useMutation({
 		mutationKey: ["create-pos-order"],
 		mutationFn: createOrder,
-		// Opt out of the global error toast (main.tsx): a failed checkout is
-		// already reported inline by the sheet footer, and the global one would
-		// fire alongside it as a second, blunter copy.
+		// No global error toast: the sheet footer already reports a failed
+		// checkout.
 		onError: () => undefined,
 	});
 
@@ -227,8 +224,8 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 		resetTransactionDraft(form, { setSubmitError, setDropoffPhoto });
 	}, [form]);
 
-	// A rejected checkout lands in the footer error; post-commit hiccups (photo,
-	// receipt) keep their own toasts — they don't fail the Order.
+	// A rejected checkout lands in the footer error; a photo or Receipt failure
+	// after the Order is placed gets its own toast and never fails the Order.
 	const onValidSubmit = useCallback(
 		async (values: TransactionDraftValues) => {
 			useTransactionsPageStore.getState().setSubmitError("");
@@ -238,16 +235,13 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 					toOrderPayload(values),
 				);
 
-				// Order is committed; attach the drop-off photo now that we have an
-				// id. A failed attach must NOT fail the Order — surface it and let the
-				// cashier retry from the order detail card.
+				// A failed drop-off photo must not fail the Order; the cashier
+				// retries it from the Order page.
 				const orderId = getCreatedOrderId(created);
 
-				// Fire-and-forget auto-print: a receipt failure must never fail
-				// or delay the Order — surface it and let the cashier reprint
-				// from the order detail menu. Skip entirely where the browser
-				// can't print at all (no Web Bluetooth) so we don't red-toast
-				// every checkout on an unsupported browser.
+				// A Receipt failure never delays the Order; the cashier reprints
+				// from the Order page. Skipped without Web Bluetooth, or every
+				// checkout on that browser would show an error.
 				if (orderId && navigator.bluetooth) {
 					void printOrderReceipt(orderId, { allowPairing: false }).catch(
 						(error: unknown) => {
@@ -312,9 +306,8 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 		[createMutation, navigate, queryClient, resetCart],
 	);
 
-	// onInvalid names each blocked field in the footer error, in fix order: a
-	// failing field can sit on a step the cashier isn't looking at, so the footer
-	// line is what tells them a hidden step needs attention.
+	// A failing field can sit on a step the cashier isn't looking at, so the
+	// footer names each one, in the order to fix them.
 	const submit = useMemo(
 		() =>
 			form.handleSubmit(onValidSubmit, (errors) => {
@@ -343,8 +336,8 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 				shouldDirty: true,
 				shouldValidate: true,
 			});
-			// Vouchers were resolved against the previous store, so they must be
-			// re-entered.
+			// Voucher codes were checked against the previous Store, so they must
+			// be entered again.
 			form.setValue("appliedVouchers", [], {
 				shouldDirty: true,
 				shouldValidate: true,

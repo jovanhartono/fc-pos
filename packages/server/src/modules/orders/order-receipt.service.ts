@@ -1,8 +1,7 @@
 import { findOrderReceipt } from "@/modules/orders/order-read.repository";
 
-// The single admin surface allowed to return pickup_code (ADR-0016: the
-// printed receipt is the claim ticket). Keep this read separate from
-// getOrderDetailById, which deliberately strips the code (ADR-0005).
+// The only staff endpoint that returns pickup_code, since the printed Receipt is
+// the Customer's proof (ADR-0016). Keep it apart from getOrderDetailById (ADR-0005).
 export async function getOrderReceiptById(id: number) {
   const receipt = await findOrderReceipt(id);
 

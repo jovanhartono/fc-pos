@@ -23,10 +23,8 @@ interface SelectFieldProps {
 	"aria-label"?: string;
 }
 
-// Flat single-select over the Base UI Select primitives. `items` is the single
-// source for both the value→label map (so the trigger shows the label, not the
-// raw value, even before the popup opens) and the rendered options. For grouped
-// menus, separators, or custom item rows, drop down to the Select* primitives.
+// `items` feeds both the options and the closed control, so it shows the label,
+// not the raw value, before the popup has ever opened.
 export const SelectField = ({
 	items,
 	value,
@@ -45,11 +43,8 @@ export const SelectField = ({
 				label,
 			}));
 
-	// Touch targets: trigger size already grows the closed control, but popup
-	// rows stay at the dense ~32px/text-footnote default. On `lg` (touch/iPad pickers)
-	// bump each row to the 44px HIG minimum so options are tappable, not just
-	// the trigger. Scoped to this instance — the shared SelectItem stays dense
-	// for tables and filters.
+	// On the iPad pickers (`lg`) each option grows to 44px so a cashier can tap it;
+	// the shared SelectItem stays dense for tables and filters.
 	const itemClassName = size === "lg" ? "min-h-11 py-2.5 text-body" : undefined;
 
 	return (

@@ -14,14 +14,8 @@ import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
 import type { Store } from "@/types/entity";
 
-// createOrder is the counter checkout in a single transaction: the daily order
-// number, the customer record, price/COGS snapshots, retail stock, the discount
-// desk, voucher burns, and the final paid/unpaid money state commit — or roll
-// back — together. These tests pin that orchestration: which gates fire before
-// an order number is consumed, and what lands on the order row.
-// Every collaborator seam (repositories, customer resolution, discount desk,
-// redemption claims, courier check, authorization) is doubled — each has its
-// own contract pinned elsewhere. The checkout logic itself stays real.
+// Checkout at the POS commits the Order code, stock, discounts and Voucher
+// codes together or not at all; refusals must come before a code is used up.
 
 type AnyObj = Record<string, unknown>;
 
@@ -30,8 +24,7 @@ interface CatalogService {
   id: number;
   is_active: boolean;
   is_priority: boolean;
-  // null = no list price (Repair, ADR-0018) — priced per Item, at intake or
-  // after the workshop's inspection.
+  // null = no list price (Repair, ADR-0018): priced per Item after inspection.
   price: string | null;
 }
 
@@ -48,8 +41,6 @@ const catalog = {
   services: [] as CatalogService[],
 };
 
-// Item ids the doubled insert hands back, so an assertion can say "this
-// treatment was sold against the second object on the counter".
 const ITEM_ID_BASE = 900;
 
 const repo = {
@@ -95,8 +86,6 @@ const finalize = { writes: [] as { table: unknown; set: AnyObj }[] };
 
 const detail = { row: undefined as AnyObj | undefined };
 
-// The one direct tx use in createOrder is the finalizing money write on the
-// order row; everything else reaches the tx through doubled repositories.
 const TX = {
   update: (table: unknown) => ({
     set: (set: AnyObj) => {
@@ -106,9 +95,8 @@ const TX = {
   }),
 };
 
-// Real repositories create prepared statements at import time, so the fake db
-// must let any db.query.<table>.findFirst/findMany chain into .prepare() — and
-// still resolve when awaited (getOrderDetailById reads the order this way).
+// Repositories prepare statements on import, and getOrderDetailById awaits the
+// same chain, so both must work.
 const relationalQuery = (first: () => unknown) => ({
   findFirst: () =>
     Object.assign(Promise.resolve().then(first), {
@@ -137,8 +125,7 @@ mock.module("@/db", () => ({
 
 mock.module("@/utils/authorization", () => authorizationDouble(authz));
 
-// Capture the real modules before stubbing so afterAll can hand them back to
-// test files that exercise them for real (their own suites pin the internals).
+// Captured before stubbing so afterAll can restore them for other test files.
 const actualOrderRepository = {
   ...(await import("@/modules/orders/order.repository")),
 };
@@ -171,9 +158,8 @@ mock.module("@/modules/orders/order.repository", () => ({
     repo.insertedOrder = values;
     return Promise.resolve(repo.orderId);
   },
-  // Hands back each new id beside the tag it was inserted with, like the real
-  // insert — the caller pairs treatments to objects on that tag, so returning
-  // the rows shuffled would still have to produce the right pairing.
+  // Reversed on purpose: OrderServices must be matched to Items by Item code,
+  // not by row order.
   insertItems: (_tx: unknown, rows: AnyObj[]) => {
     repo.itemRows = rows;
     return Promise.resolve(
@@ -185,8 +171,6 @@ mock.module("@/modules/orders/order.repository", () => ({
         .reverse()
     );
   },
-  // Mirrors the DB's generated subtotal: price per garment, price × qty per
-  // retail line — so the gross total under test is what a live checkout sums.
   insertOrderServices: (_tx: unknown, rows: AnyObj[]) => {
     repo.serviceRows = rows;
     return Promise.resolve(
@@ -264,10 +248,8 @@ const { createOrder, getOrderDetailById, listOrders } = await import(
   "@/modules/orders/order.service"
 );
 
-// Freeze the POS clock at 00:30 in Jakarta on 2 Aug — still 17:30 on 1 Aug
-// in UTC. A shop open past midnight must stamp receipts with the new Jakarta
-// business date; a UTC-clocked server would keep yesterday's date and hand
-// out duplicate tag numbers against yesterday's counter sequence.
+// 00:30 on 2 Aug in Jakarta, still 1 Aug in UTC: a Store open past midnight
+// must use the Jakarta date, or Order codes repeat yesterday's numbers.
 const JAKARTA_DATE = "02082026";
 setSystemTime(new Date("2026-08-01T17:30:00Z"));
 
@@ -311,10 +293,8 @@ const checkout = ({ services, ...over }: AnyObj = {}) =>
     voucher_codes: [],
     discount: 0,
     payment_status: "unpaid",
-    // Most of what follows is about money, not grouping, so those tests still
-    // name treatments flatly and get one object each — a whole rack of separate
-    // shoes, which is what a service line meant before ADR-0017. The tests that
-    // do care about grouping hand over `items` themselves.
+    // `services` gives each OrderService its own Item; tests about grouping
+    // pass `items` themselves (ADR-0017).
     ...(services
       ? {
           items: (services as AnyObj[]).map((service) => ({
@@ -355,10 +335,8 @@ beforeEach(() => {
 
 describe("createOrder", () => {
   it("books a walk-in drop-off as an open, unpaid order under today's counter number", async () => {
-    // Wash Rp30.000 + iron Rp15.000, customer pays at pickup. The clock is
-    // frozen just past midnight Jakarta (still 1 Aug in UTC), so the receipt
-    // must literally read 02082026 — the Jakarta business date — and no
-    // rupiah may land in paid_amount before money actually changes hands.
+    // Two Services, paid at pickup: the Order code carries the Jakarta date,
+    // and nothing lands in paid_amount before money changes hands.
     catalog.services = [
       {
         id: 10,
@@ -409,9 +387,8 @@ describe("createOrder", () => {
   });
 
   it("births a retail-only sale as completed so detergent never sits in the wash queue", async () => {
-    // A customer buying a bottle of detergent walks out with it immediately —
-    // there is no garment for the workers to process, so an open order would
-    // clog the queue board forever.
+    // A Product-only sale leaves with the Customer; left open, it would sit
+    // in the Queue forever.
     catalog.products = [
       {
         id: 20,
@@ -429,9 +406,8 @@ describe("createOrder", () => {
   });
 
   it("routes the net amount into the paid fields when the customer pays at drop-off", async () => {
-    // Rp50.000 order with a Rp5.000 promo, settled at the counter. The POS
-    // holds Rp45.000 — booking the gross would overstate revenue by the
-    // discount, and the promo's redemption must be burned in the same breath.
+    // Paid at drop-off: record the 45.000 actually collected, not the gross,
+    // and claim the Campaign in the same transaction.
     catalog.services = [
       {
         id: 10,
@@ -457,7 +433,6 @@ describe("createOrder", () => {
     expect(result.total).toBe("50000");
     expect(result.total_after_discount).toBe("45000");
 
-    // The discount desk judges the GROSS order, not the running balance.
     expect(discount.calls[0]).toMatchObject({
       campaignIds: [3],
       voucherCodes: [],
@@ -481,10 +456,8 @@ describe("createOrder", () => {
   });
 
   it("honors a voucher worth exactly the basket as a free wash", async () => {
-    // A Rp50.000 comp voucher against a Rp50.000 wash settled at the counter
-    // is a legitimate 100% giveaway — the shop hands the wash out free all
-    // the time for complaints. The exact-match comp must go through, and the
-    // voucher still burns, or the customer washes free twice.
+    // A Voucher worth the whole Order is a real free clean; its code is still
+    // spent, or the Customer gets it free twice.
     catalog.services = [
       {
         id: 10,
@@ -520,9 +493,8 @@ describe("createOrder", () => {
   });
 
   it("turns away a discontinued product before consuming a daily order number", async () => {
-    // The counter sequence resets daily and numbers the physical laundry tags;
-    // burning one on a sale that can never complete leaves a hole in the day's
-    // paper trail.
+    // Order numbers restart daily and go on the tags; using one up on a sale
+    // that can't complete leaves a gap in the day's numbers.
     catalog.products = [
       {
         id: 20,
@@ -544,10 +516,8 @@ describe("createOrder", () => {
   });
 
   it("refuses a retired treatment a still-open POS keeps offering", async () => {
-    // The shop pulled suede restoration off the menu this morning, but the
-    // cashier's tablet has been open since before that and still lists it. The
-    // POS only hides retired treatments client-side, so nothing but this gate
-    // stops its price and COGS being snapshotted onto a live order.
+    // A Service turned off this morning still shows on a POS opened before
+    // then; only the server stops it reaching an Order.
     catalog.services = [
       {
         id: 12,
@@ -568,9 +538,8 @@ describe("createOrder", () => {
   });
 
   it("lets an out-of-stock failure escape the transaction so no half-created order survives", async () => {
-    // Two cashiers race for the last bottle. The loser's order row was already
-    // written inside the transaction — the thrown error is what rolls it back;
-    // swallowing it would leave a ghost order that was never sellable.
+    // Two cashiers race for the last unit; swallowing the error would leave
+    // the loser's half-written Order behind.
     catalog.products = [
       {
         id: 20,
@@ -590,22 +559,15 @@ describe("createOrder", () => {
     expect((error as Error).message).toBe(
       "Insufficient stock for product Detergent 1L"
     );
-    // The shelf was asked for all five bottles at once — an atomic take-5, not
-    // five take-1s a racing cashier could interleave with.
+    // One take of five, not five takes another cashier could slip between.
     expect(stock.calls).toEqual([{ productId: 20, qty: 5 }]);
-    // The order row went in before the stock check; the finalizing money write
-    // never ran — proof the rejection cut the checkout short mid-transaction.
     expect(repo.insertedOrder).toBeDefined();
     expect(finalize.writes).toHaveLength(0);
   });
 
   it("snapshots catalog prices and COGS onto the lines and tags each garment", async () => {
-    // Margins are reported from these snapshots months later, when catalog
-    // prices have moved on. 3 detergents at COGS 1250.50 must book 3752 — the
-    // books are kept in whole rupiah, so the half is settled here rather than
-    // left for the database to drop. Each garment gets a sequential tag off the
-    // receipt code; a line without an explicit priority takes the service's
-    // default, an explicit choice beats it.
+    // Margins are reported from these snapshots long after prices change. The
+    // books keep whole rupiah, so 3 × 1250.50 rounds to 3752 here.
     catalog.services = [
       {
         id: 10,
@@ -640,8 +602,6 @@ describe("createOrder", () => {
     const code = `#JKT/${JAKARTA_DATE}/1`;
     expect(result.total).toBe("120000");
 
-    // Three bottles sold must leave the shelf count as three — a decrement of
-    // one would let the system keep selling detergent that is no longer there.
     expect(stock.calls).toEqual([{ productId: 20, qty: 3 }]);
 
     expect(repo.productRows).toEqual([
@@ -654,8 +614,8 @@ describe("createOrder", () => {
       },
     ]);
 
-    // Two separate shoes, so two tags — the codes belong to the objects now,
-    // not to the treatments written against them (ADR-0017).
+    // Two Items, two Item codes; the code names the Item, not its Services
+    // (ADR-0017).
     expect(repo.itemRows).toHaveLength(2);
     expect(repo.itemRows[0]).toMatchObject({
       item_code: `${code}-I001`,
@@ -681,8 +641,8 @@ describe("createOrder", () => {
     });
   });
 
-  // The counter's everyday upsell, and the case the whole ADR exists for: one
-  // pair in for a deep clean leaves the POS with three treatments on it.
+  // The everyday upsell ADR-0017 exists for: one pair in for a deep clean
+  // leaves the POS with three Services on it.
   it("gives one pair sold three treatments a single tag", async () => {
     catalog.services = [10, 11, 12].map((id) => ({
       id,
@@ -713,8 +673,6 @@ describe("createOrder", () => {
       }),
     ]);
 
-    // Three jobs, one object: every line points at the same tag, and the
-    // descriptors are stored once rather than copied three times.
     expect(repo.serviceRows).toHaveLength(3);
     expect(repo.serviceRows.map((row) => row.item_id)).toEqual([
       ITEM_ID_BASE,
@@ -724,8 +682,6 @@ describe("createOrder", () => {
   });
 
   it("verifies the courier only when the bag arrived with one", async () => {
-    // Most orders are handed over the counter; only courier-collected bags
-    // must name an active courier, so the check must not fire for walk-ins.
     catalog.services = [
       {
         id: 10,
@@ -745,10 +701,8 @@ describe("createOrder", () => {
     expect(repo.insertedOrder?.collected_by).toBe(9);
   });
 
-  // Repair is the one Service with no list price (ADR-0018): its price is
-  // agreed per Item — at drop-off when the cashier already knows it, after
-  // the workshop's inspection otherwise. REPAIR/DEEP_CLEAN below are that
-  // pair on a live catalog.
+  // Repair has no list price (ADR-0018): agreed per Item at drop-off when
+  // known, otherwise after inspection.
   const REPAIR: CatalogService = {
     id: 30,
     price: null,
@@ -765,9 +719,8 @@ describe("createOrder", () => {
   };
 
   it("books a repair whose price was agreed at drop-off as an ordinary payable line", async () => {
-    // The toebox patch is a job the cashier has priced a hundred times: 300k,
-    // agreed on the spot, so the money can move at drop-off like any other
-    // Service (ADR-0018).
+    // A toebox patch the cashier prices on the spot can be paid at drop-off
+    // like any other Service (ADR-0018).
     catalog.services = [REPAIR];
 
     const result = await checkout({
@@ -785,9 +738,8 @@ describe("createOrder", () => {
   });
 
   it("books a repair with no agreed price yet as a blank line, not a zero", async () => {
-    // The bag has to be opened before anyone can name a number, but the Item
-    // still needs its tag, photo, and claim ticket today (ADR-0018). The line
-    // goes in blank — NULL, never 0, which would read as deliberately free.
+    // Not priced until inspection, but tagged today (ADR-0018): NULL, never 0,
+    // which would read as free on purpose.
     catalog.services = [REPAIR];
 
     await checkout({ services: [{ id: 30 }] });
@@ -800,9 +752,8 @@ describe("createOrder", () => {
   });
 
   it("refuses paid checkout while a line is unpriced, before any side effect", async () => {
-    // ADR-0018's gate at the earliest seam: no price, no payment — not even
-    // the 150k deep clean the counter already knows. Bounce before an order
-    // number is burned or a voucher claimed.
+    // ADR-0018: no price, no payment, refused before an Order number or a
+    // Voucher code is used up.
     catalog.services = [DEEP_CLEAN, REPAIR];
 
     const error = await captureRejection(
@@ -822,9 +773,8 @@ describe("createOrder", () => {
   });
 
   it("rejects a keyed zero on a repair line — free is a Rework, blank is NULL", async () => {
-    // A crafted payload types 0 for the repair. Zero already means
-    // deliberately free (ADR-0013), and "not priced yet" is a blank line, so
-    // a keyed zero can only be a mistake.
+    // 0 means free on purpose (ADR-0013) and "not priced yet" is blank, so a
+    // keyed 0 can only be a mistake.
     catalog.services = [REPAIR];
 
     const error = await captureRejection(
@@ -837,9 +787,7 @@ describe("createOrder", () => {
   });
 
   it("ignores a browser-sent price on a catalog-priced service", async () => {
-    // A tampered payload prices the 150k deep clean at 5k. The catalog
-    // snapshot wins — the browser can never set a normal Service's price
-    // (ADR-0018).
+    // The browser never sets a listed Service's price (ADR-0018).
     catalog.services = [DEEP_CLEAN];
 
     const result = await checkout({
@@ -851,12 +799,8 @@ describe("createOrder", () => {
   });
 
   it("settles a voucher on an unpaid drop-off once every line is priced", async () => {
-    // The customer sends a driver with the items and pays at pickup — the
-    // driver carries no money, but the voucher slip is in the bag. That
-    // drop-off receipt is the only proof the customer will hold, and a gross
-    // total under a promised discount is a verbal promise in print: they will
-    // not trust it. So the promo settles now and prints. Attaching claims, so
-    // the code leaves circulation here and cannot also be spent elsewhere.
+    // Paid at pickup, but the Receipt is the Customer's only proof of the
+    // discount, so it settles and prints now and the code is spent.
     catalog.services = [DEEP_CLEAN];
     discount.result = {
       campaignRows: [{ campaign_id: 5, code_id: 9 }],
@@ -875,7 +819,6 @@ describe("createOrder", () => {
     });
     expect(redemptions.calls[0].rows).toEqual([{ campaign_id: 5, code_id: 9 }]);
     expect(result.total_after_discount).toBe("120000");
-    // The discount is real and printed, but no money arrived with the driver.
     expect(finalize.writes[0].set).toMatchObject({
       discount: "30000",
       discount_source: "campaign",
@@ -885,9 +828,8 @@ describe("createOrder", () => {
   });
 
   it("settles a hand-keyed discount on an unpaid drop-off the same way", async () => {
-    // Same seam for the supervisor's manual number: it goes on the receipt the
-    // driver takes away, so it is stored at drop-off rather than re-keyed from
-    // memory by whoever happens to be at the counter come pickup.
+    // Stored at drop-off, not re-keyed from memory by whoever is at the
+    // counter at pickup.
     catalog.services = [DEEP_CLEAN];
     discount.result = {
       campaignRows: [],
@@ -906,11 +848,8 @@ describe("createOrder", () => {
   });
 
   it("bounces a voucher while any line is still unpriced", async () => {
-    // The failure ADR-0018 exists to make impossible: a repair guessed at 200k
-    // pushes the order over a 250k minimum, the bearer code is spent, then
-    // inspection puts the repair at 80k and the order never qualified. With a
-    // blank line the campaign base is not knowable, so the slip rides along to
-    // pickup and is keyed once the workshop has agreed a number.
+    // ADR-0018: a Repair guessed at 200k clears a 250k minimum, the code is
+    // spent, then inspection says 80k. The code waits for pickup instead.
     catalog.services = [DEEP_CLEAN, REPAIR];
 
     const error = await captureRejection(
@@ -930,8 +869,6 @@ describe("createOrder", () => {
   });
 
   it("stores no discount for a plain unpaid drop-off", async () => {
-    // No promo fields at all — the everyday drop-off. Nothing is applied and
-    // no redemption row exists for a later cancel to release.
     catalog.services = [DEEP_CLEAN];
 
     await checkout({ services: [{ id: 10 }] });
@@ -945,11 +882,8 @@ describe("createOrder", () => {
   });
 
   it("feeds the discount desk the full order total, repair spend included", async () => {
-    // Deep clean 150k + repair agreed at 200k, settled at the counter. The
-    // owner wants repair spend to count toward promotions (ADR-0018), so the
-    // campaign base is the whole 350k — every number is final at payment.
-    // Only the BOGO free-slot list still excludes the repair line: a
-    // misconfigured campaign must not hand out a repair as a free item.
+    // Repair spend counts toward the minimum (ADR-0018), but a Repair is never
+    // the free Item in a buy-one-get-one.
     catalog.services = [DEEP_CLEAN, REPAIR];
 
     const result = await checkout({
@@ -971,8 +905,7 @@ describe("listOrders", () => {
   const admin = { id: 1, role: "admin" } as unknown as JWTPayload;
 
   it("fences a cashier without a store filter into their own stores", async () => {
-    // A cashier browsing "all orders" must still only see the branches they
-    // work at — an open list would leak every store's revenue to any staff.
+    // A cashier sees only their own Stores, never every Store's Revenue.
     authz.storeIds = [1, 2];
 
     await listOrders(undefined, cashier);
@@ -983,9 +916,6 @@ describe("listOrders", () => {
   });
 
   it("checks access for an explicit store filter instead of scoping", async () => {
-    // Asking for store 3 by name is an access question, not a scoping one:
-    // either the cashier works there and sees exactly that store, or the
-    // request is refused outright.
     await listOrders(
       { store_id: 3, sort_by: "id" as const, sort_order: "desc" as const },
       cashier
@@ -1007,10 +937,8 @@ describe("listOrders", () => {
 
 describe("getOrderDetailById", () => {
   it("strips the pickup code from the detail response", async () => {
-    // The pickup code is the bearer secret that releases the laundry — it
-    // lives only on the printed receipt (ADR-0005/0016). Any API surface that
-    // echoes it would let staff or a shoulder-surfer release someone else's
-    // clothes.
+    // The Pickup code releases the Items and lives only on the Receipt
+    // (ADR-0005/0016); echoing it lets anyone collect someone else's.
     detail.row = {
       id: 9,
       pickup_code: "AB12",

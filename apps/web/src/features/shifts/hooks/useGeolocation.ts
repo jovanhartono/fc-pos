@@ -18,10 +18,8 @@ interface GeolocationState {
 	coordinates?: ClockInCoordinates;
 }
 
-// Splits "the worker said no" from "the phone could not tell us", because the
-// two need different wording on the clock-in screen: one is fixed in browser
-// settings, the other by trying again. Both stop the clock-in either way.
-// "skipped" is the courier, who is never asked at all.
+// "The worker said no" is fixed in browser settings, "the phone could not tell
+// us" by trying again, so the clock-in screen words them apart. "skipped" is the courier.
 export const useGeolocation = (enabled: boolean) => {
 	const [state, setState] = useState<GeolocationState>({
 		status: enabled ? "locating" : "skipped",

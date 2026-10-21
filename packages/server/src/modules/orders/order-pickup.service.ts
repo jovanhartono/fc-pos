@@ -17,17 +17,15 @@ import {
   optimizeUploadedImage,
 } from "@/utils/s3";
 
-// ADR-0005: the pickup code proves the customer in front of the cashier placed
-// this Order. It is a per-Order check, never a cross-Order lookup.
+// ADR-0005: the Pickup code proves the Customer at the counter placed this Order.
+// Checked per Order, never used to look one up.
 function assertPickupCodeMatches(order: { pickup_code: string }, code: string) {
   if (code !== order.pickup_code) {
     throw new BadRequestException("Invalid pickup code");
   }
 }
 
-// ADR-0009: payment precedes pickup. An Order must be fully paid before any
-// pickup event — partial or not. Enforced here so the rule holds regardless of
-// the caller.
+// ADR-0009: an Order is fully paid before any pickup, partial or not.
 function assertOrderPaidForPickup(order: { payment_status: string }) {
   if (order.payment_status !== "paid") {
     throw new BadRequestException("Order must be paid before pickup");
@@ -89,9 +87,8 @@ export async function createOrderPickupEvent({
 
   await optimizeUploadedImage(body.image_path);
 
-  // One transaction: insert the pickup event + flip the services together. A
-  // concurrent pickup of the same items leaves fewer rows ready, so completePickup
-  // returns a short flip — we throw and the transaction rolls the insert back.
+  // If another cashier hands back the same Items at the same moment, fewer lines
+  // flip and this pickup event is rolled back.
   const pickupEvent = await db.transaction(async (tx) => {
     const [event] = await tx
       .insert(orderPickupEventsTable)
@@ -105,9 +102,8 @@ export async function createOrderPickupEvent({
         picked_up_at: orderPickupEventsTable.picked_up_at,
       });
 
-    // Which treatment rows take part is the machine's call — it resolves the
-    // objects' live siblings in this same transaction and refuses a half-ready
-    // one (ADR-0017).
+    // completePickup decides which lines go and refuses a half-ready Item
+    // (ADR-0017).
     const { handedOverIds, requestedIds } = await completePickup(tx, {
       orderId,
       itemIds: uniqueItemIds,

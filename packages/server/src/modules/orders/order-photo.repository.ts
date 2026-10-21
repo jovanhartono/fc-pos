@@ -15,8 +15,7 @@ export function softDeleteItemImageById(id: number, userId: number) {
     .returning({ id: itemImagesTable.id });
 }
 
-// What a saved photo is named after, where its file is, and which Store it belongs to. An
-// Item shot is named by the tag on the object, the handover and pickup shots by the Order.
+// An Item photo is named by its Item code; drop-off and pickup photos by the Order code.
 export interface StoredPhoto {
   code: string;
   image_path: string;
@@ -84,12 +83,8 @@ export async function findPhotoById({
 }
 
 /**
- * Every photo an order still points at, across the three places one can be filed: against an
- * Item, as the drop-off shot, and as proof of pickup.
- *
- * Soft-deleted Item photos count as filed. The row is recoverable, so its photo has to be
- * there when someone recovers it — and until then it is still evidence a dispute can be argued
- * from. (Briefly reversed in #104, put back the same day: owner's call.)
+ * Deleted Item photos still count: the row can be restored, and the photo is still
+ * evidence in a dispute. (Briefly reversed in #104, put back the same day: owner's call.)
  */
 export async function listReferencedPhotoKeys(): Promise<Set<string>> {
   const [itemPhotos, dropoffPhotos, pickupPhotos] = await Promise.all([

@@ -24,20 +24,15 @@ describe("generateCrockfordCode", () => {
     for (let i = 0; i < 2000; i++) {
       codes.add(generateCrockfordCode());
     }
-    // 30^8 (~6.5e11) code space: 2000 draws colliding is astronomically
-    // unlikely. A constant/low-entropy generator would collapse this far below.
+    // 30^8 possible codes: repeats in 2000 draws mean a guessable generator.
     expect(codes.size).toBeGreaterThan(1990);
   });
 });
 
-// Per-attempt outcome for the fake insert: a number = how many of the requested
-// rows ON CONFLICT DO NOTHING actually inserted (a shortfall models code
-// collisions silently skipped), "boom" = a genuine non-conflict DB error.
+// Per attempt: a number is how many rows survived code collisions; "boom" is a
+// real database error.
 type InsertBehavior = number | "boom";
 
-// A fake OrderTx whose insert().values().onConflictDoNothing().returning()
-// resolves to the inserted id rows per scripted attempt, recording how many
-// rows each attempt requested.
 function makeTx(behaviors: InsertBehavior[]) {
   const requested: number[] = [];
   let call = 0;

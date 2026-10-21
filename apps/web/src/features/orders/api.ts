@@ -40,7 +40,7 @@ export type OrderLookup = InferResponseType<
 	typeof rpc.api.admin.orders.lookup.$get
 >["data"];
 
-// The queue pages by object, each carrying the treatments still live on it.
+// The Queue pages by Item, each carrying the OrderServices still open on it.
 export type QueueItem = InferResponseType<
 	typeof rpc.api.admin.orders.services.queue.$get
 >["data"][number];
@@ -121,10 +121,8 @@ export type UpdateOrderServiceStatusPayload = {
 		| "cancelled";
 };
 
-// ADR-0018: promos ride with the tender only for an Order that arrived
-// unpriced and had nothing to settle at drop-off — the campaigns the cashier
-// ticked, the voucher slips handed over, and the hand-keyed discount. An Order
-// whose discount already settled must send none of them.
+// ADR-0018: discounts go with the payment only for an Order that came in
+// unpriced; an Order whose discount settled at drop-off must send none.
 export type UpdateOrderPaymentPayload = {
 	payment_method_id: number;
 	campaign_ids: number[];
@@ -132,9 +130,8 @@ export type UpdateOrderPaymentPayload = {
 	discount: string;
 };
 
-// The price for a no-list-price line, keyed once it is agreed with the
-// customer — or re-keyed to fix a typo while the Order is unpaid (ADR-0018).
-// A digit string, like every money payload.
+// A Repair's price, keyed once agreed with the Customer or re-keyed to fix a
+// typo while the Order is unpaid (ADR-0018).
 export type SetOrderServicePricePayload = {
 	price: string;
 };

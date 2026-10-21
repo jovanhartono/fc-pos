@@ -1,10 +1,5 @@
-// Pins the pure date math every revenue report leans on: Jakarta day
-// attribution, the previous-period comparison window, granularity picking,
-// and gap-free bucket enumeration. A one-day drift moves money between
-// business days; an ISO-week mismatch with Postgres to_char('IYYY-IW') dumps
-// New Year revenue into a phantom week. Everything runs real — no mocks.
-// jakartaBucketExpr runs against a database in
-// report-day-buckets.integration.test.ts.
+// A one-day drift here moves money between days. jakartaBucketExpr is tested
+// against a database in report-day-buckets.integration.test.ts.
 import { describe, expect, it } from "bun:test";
 import {
   bucketFormat,
@@ -92,9 +87,8 @@ describe("dayToBucket", () => {
   });
 
   it("keeps Sunday Jan 4 2026 in week 1 with the rest of its week", () => {
-    // Sunday closes the ISO week. Treat it as the week's opener instead and
-    // every Sunday's takings slide into the next week's bar while Postgres
-    // keeps them here — the busiest laundry day vanishes from its own week.
+    // Sunday closes the ISO week; as an opener, every Sunday's takings would
+    // slide into the next week's bar while Postgres keeps them here.
     expect(dayToBucket("2026-01-04", "week")).toBe("2026-01");
   });
 });

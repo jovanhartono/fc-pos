@@ -24,15 +24,12 @@ interface CampaignTileGroupProps {
 }
 
 // Every state is one tile tall, so the form below doesn't jump when a
-// cashier opens Collect payment and the campaigns arrive.
+// cashier opens Collect payment and the Campaigns arrive.
 const EMPTY_CLASS =
 	"flex min-h-13 items-center text-muted-foreground text-body";
 
-// Shared campaign picker (ADR-0018: a discount settles once every line is
-// priced) — used by the POS checkout step and the order page's
-// collect-payment form.
-// Empty / no-store states via early returns; otherwise the eligible campaigns
-// as a multi-select tile grid.
+// Shared by POS checkout and the Order page's Collect payment (ADR-0018: a
+// discount settles once every line is priced).
 export const CampaignTileGroup = ({
 	eligibleCampaigns,
 	selectedIds,
@@ -81,9 +78,7 @@ interface CampaignTileProps {
 	onToggle: () => void;
 }
 
-// Multi-select tile (campaigns stack): a visually hidden checkbox wrapped by the
-// styled label — native checkbox semantics + keyboard, full tile as the touch
-// target. Selected = solid green; the check echoes the state.
+// Campaigns stack, so tiles are checkboxes; the whole tile is the tap target.
 const CampaignTile = ({
 	code,
 	discountLabel,

@@ -1,12 +1,7 @@
-// Pins the Jakarta business-day boundary behind order numbering (the DDMMYYYY
-// stamp on every receipt) and the created_at day filters on shifts and daily
-// reports. If this boundary drifts, a 23:30 drop-off lands in the wrong day's
-// revenue and tonight's order numbers restart a day early or late.
-// Everything runs real — no mocks; only jakartaNow's wall clock is faked via
-// setSystemTime, and it is reset in afterAll. The process TZ is pinned to UTC
-// for the whole file: on a machine that already lives in WIB (like the shop's
-// own laptop), dropping the timezone plugin changes nothing and every test
-// here would stay green while production servers drift a day.
+// If the Jakarta day boundary drifts, a 23:30 drop-off lands in the wrong day's
+// Revenue and Order numbers on the Receipt restart a day early or late.
+// TZ is pinned to UTC: on a laptop already in WIB these tests would stay green
+// while production drifts a day.
 import { afterAll, describe, expect, it, setSystemTime } from "bun:test";
 import dayjs from "dayjs";
 import {

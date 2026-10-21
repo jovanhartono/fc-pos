@@ -37,8 +37,7 @@ const serviceLine = (
 	...overrides,
 });
 
-// One object on the counter. Descriptors live here now, and the treatments
-// sold against it nest inside (ADR-0017).
+// One Item on the counter, its Services nested inside (ADR-0017).
 const itemLine = (
 	lineId: string,
 	services: ServiceCartLine[],
@@ -85,9 +84,8 @@ describe("enrichProductCart / enrichServiceCart", () => {
 });
 
 describe("enrichItemCart", () => {
-	// The cashier taps "+ New item" the moment the second shoe hits the counter,
-	// types its brand and size, and only then picks the treatment. A card that
-	// vanished until it had a treatment on it would swallow what he just typed.
+	// The cashier opens a card for the second shoe and types its brand before
+	// picking a Service; a card that vanished meanwhile would lose that typing.
 	test("keeps a card the cashier just opened, before any treatment", () => {
 		const services = new Map([[5, { id: 5, price: "50000" }]]);
 		const rows = enrichItemCart(
@@ -103,8 +101,8 @@ describe("enrichItemCart", () => {
 		expect(rows[1].services).toEqual([]);
 	});
 
-	// Pulling the last treatment off a card is a mid-correction, not a delete —
-	// the shoe is still on the counter. It is dropped on the way to the wire.
+	// Taking the last Service off a card is a correction, not a delete: the shoe
+	// is still on the counter.
 	test("keeps a card whose treatments were all retired from the catalog", () => {
 		const rows = enrichItemCart(
 			[itemLine("shoe-1", [serviceLine("a", 5)])],
@@ -144,9 +142,8 @@ describe("getCartSubtotal", () => {
 	});
 
 	test("a blank repair line adds nothing — its price is absent, not zero", () => {
-		// ADR-0018: NULL means "not yet determined". The drop-off receipt shows
-		// the gross of what IS priced; the blank line must not be read as a
-		// deliberately free Rework.
+		// ADR-0018: blank means not priced yet, not free; the drop-off Receipt
+		// shows only what is priced.
 		const subtotal = getCartSubtotal(
 			[],
 			[
@@ -170,8 +167,8 @@ describe("countUnpricedServiceLines", () => {
 	});
 
 	test("a fully keyed or catalog-priced cart has nothing blocking payment", () => {
-		// A blank line only blocks paying at drop-off (ADR-0018) — checkout
-		// itself always goes through, so zero here is what unlocks the tender.
+		// A blank line only blocks paying at drop-off (ADR-0018), so zero here is
+		// what lets the cashier take payment.
 		expect(
 			countUnpricedServiceLines([
 				{ price: "150000", service: { price: null } },
@@ -183,9 +180,8 @@ describe("countUnpricedServiceLines", () => {
 
 describe("getCartCount", () => {
 	test("counts product quantities and treatments, not objects", () => {
-		// Four bottles plus a pair sold two treatments and a bag sold one: the
-		// badge answers "how many things are on this bill", and an upsold pair is
-		// two of them even though the customer handed over one shoe (ADR-0017).
+		// Four bottles, a pair sold two Services and a bag sold one: the upsold
+		// pair counts twice though the Customer handed over one Item (ADR-0017).
 		expect(
 			getCartCount(
 				[productLine(1, 3), productLine(2, 1)],
@@ -247,9 +243,8 @@ describe("getCartPricing", () => {
 	});
 
 	test("campaigns run on the full order total — repair spend counts (ADR-0018)", () => {
-		// The owner's reversal of ADR-0019: deep clean 150k + repair 200k is a
-		// 350k order, and a 20% campaign discounts 20% of 350k, because at the
-		// moment money moves every number is final.
+		// Reverses ADR-0019: deep clean 150k + repair 200k is a 350k Order, and a
+		// 20% Campaign takes 20% of all of it, since every price is final by then.
 		const pricing = getCartPricing({
 			subtotal: 350_000,
 			campaigns: [percentCampaign("20")],
@@ -272,9 +267,8 @@ describe("getCartPricing", () => {
 	});
 
 	test("reports the manual discount that was actually applied, not the keyed one", () => {
-		// The summary line must show what came off, because the total beside it
-		// was worked out that way — a typed 50k next to a 20k cart would give
-		// the cashier a column that does not add up.
+		// A typed 50k off a 20k Cart must show 20k, or the cashier's summary
+		// column would not add up to the total beside it.
 		const pricing = getCartPricing({
 			subtotal: 20_000,
 			campaigns: [percentCampaign("50")],
@@ -337,8 +331,8 @@ describe("toOrderPayload", () => {
 	});
 
 	test("sends one pair sold three treatments as a single object", () => {
-		// ADR-0017's whole point: the descriptors are typed once and travel once,
-		// however many treatments the counter upsold onto the shoe.
+		// ADR-0017: the shoe is described once, however many Services the
+		// counter upsold onto it.
 		const payload = toOrderPayload({
 			...draft,
 			itemCart: [
@@ -355,8 +349,8 @@ describe("toOrderPayload", () => {
 	});
 
 	test("drops an object the cashier opened but never sold anything", () => {
-		// An empty card is a correction in progress, not an intake — it stays on
-		// screen but never reaches the wire.
+		// An empty card is a correction in progress, not a drop-off: it stays on
+		// screen but is never sent.
 		const payload = toOrderPayload({
 			...draft,
 			itemCart: [itemLine("i1", []), itemLine("i2", [serviceLine("a", 5)])],
@@ -366,8 +360,8 @@ describe("toOrderPayload", () => {
 	});
 
 	test("carries an agreed repair price onto the line, and omits a blank one", () => {
-		// ADR-0018: blank means "not yet determined" — the payload must leave
-		// the field out entirely, never send "" or 0.
+		// ADR-0018: blank means not priced yet, so the field is left out, never
+		// sent as "" or 0.
 		const payload = toOrderPayload({
 			...draft,
 			itemCart: [
@@ -382,8 +376,8 @@ describe("toOrderPayload", () => {
 	});
 
 	test("a selected payment method marks the order paid and carries discounts", () => {
-		// Paying at drop-off IS the payment moment (ADR-0018), so promos,
-		// voucher codes, and the manual discount ride the create payload.
+		// Paying at drop-off settles the Order (ADR-0018), so Campaigns, Voucher
+		// codes and the manual discount go with it.
 		const payload = toOrderPayload({
 			...draft,
 			selectedPaymentMethodId: "9",
@@ -401,8 +395,8 @@ describe("toOrderPayload", () => {
 	});
 
 	test("carries per-treatment notes, trimmed, and drops blank ones", () => {
-		// Notes stay on the treatment, not the object: "no bleach" is an
-		// instruction for one job, and the same shoe's repaint may want none.
+		// Notes stay on the Service, not the Item: "no bleach" is for the clean,
+		// and the same shoe's repaint may want none.
 		const payload = toOrderPayload({
 			...draft,
 			itemCart: [
@@ -443,7 +437,6 @@ describe("moveCartService", () => {
 		const moved = moveCartService(cart, "i1", "b", "i2");
 		expect(moved?.cart[0].services.map((s) => s.line_id)).toEqual(["a"]);
 		expect(moved?.cart[1].services).toEqual([line]);
-		// Landed on a card that already existed, so nothing new to point at.
 		expect(moved?.createdItemId).toBeNull();
 	});
 
@@ -453,16 +446,15 @@ describe("moveCartService", () => {
 		expect(moved?.cart).toHaveLength(2);
 		expect(moved?.cart[0].services.map((s) => s.line_id)).toEqual(["a"]);
 		expect(moved?.cart[1].services.map((s) => s.line_id)).toEqual(["b"]);
-		// A fresh card starts undescribed — the cashier has not typed anything
-		// about the second shoe yet — and is named so the next catalog tap can
-		// land on it, the way "+ Item" does.
+		// The new card starts blank and becomes the one the next catalog tap
+		// lands on, the way "+ Item" does.
 		expect(moved?.cart[1].brand).toBe("");
 		expect(moved?.createdItemId).toBe(moved?.cart[1].line_id);
 	});
 
 	test("refuses rather than drops the line when the target card is gone", () => {
 		// A stale menu can name a card another tap already removed; the line must
-		// stay where it is, never vanish off the bill.
+		// stay where it is, never vanish from the Cart.
 		const cart = [itemLine("i1", [serviceLine("a", 5)])];
 		expect(moveCartService(cart, "i1", "a", "gone")).toBeNull();
 		expect(moveCartService(cart, "i1", "missing-line", null)).toBeNull();

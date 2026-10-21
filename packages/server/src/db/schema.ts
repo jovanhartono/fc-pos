@@ -50,7 +50,6 @@ export const usersTable = pgTable(
   ]
 );
 
-// store
 export const storesTable = pgTable(
   "stores",
   {
@@ -67,11 +66,9 @@ export const storesTable = pgTable(
   (table) => [check("code_len_check", sql`LENGTH(TRIM(${table.code})) = 3`)]
 );
 
-// Bluetooth devices a cashier registered for a store from the POS. The POS
-// only prints to devices on this list, so a receipt cannot land on a stray
-// speaker or another store's printer. A browser's own device id cannot be
-// shared with other laptops or phones, so the Bluetooth name is what is
-// saved.
+// The POS prints only to devices a cashier registered here, so a Receipt never
+// lands on another Store's printer. Saved by Bluetooth name: a browser's device
+// id differs on every laptop and phone.
 export const storeDevicesTable = pgTable(
   "store_devices",
   {
@@ -89,7 +86,6 @@ export const storeDevicesTable = pgTable(
   ]
 );
 
-// customer
 export const customersTable = pgTable(
   "customers",
   {
@@ -186,7 +182,6 @@ export const servicesTable = pgTable(
   ]
 );
 
-// order
 export const paymentMethodsTable = pgTable("payment_methods", {
   code: varchar("code", { length: 6 }).notNull().unique(),
   created_at: timestamp("created_at").defaultNow().notNull(),
@@ -375,8 +370,8 @@ export const campaignEligibleServicesTable = pgTable(
   ]
 );
 
-// NOTE: campaign_codes.code is a Crockford-base32 bearer redemption string
-// (8 chars, random). Do NOT confuse with campaigns.code (admin label, e.g. "SUMMER24").
+// code here is a Voucher code, random and good for whoever holds it. Not
+// campaigns.code, which is the admin's label such as "SUMMER24".
 export const campaignCodesTable = pgTable(
   "campaign_codes",
   {
@@ -505,22 +500,17 @@ export const ordersTable = pgTable(
     // who marked this order paid; immutable, set once on the paid transition
     paid_by: integer("paid_by").references(() => usersTable.id),
 
-    // Written in Postgres' own normalised form, not the shorter equivalent.
-    // drizzle compares default expressions as raw text against what the server
-    // stored, so `lpad(floor(random() * 1000000)::text, 6, '0')` — same
-    // behaviour — makes every push plan report a change that is a no-op.
+    // Written in Postgres' own normalised form: drizzle compares defaults as raw
+    // text, so the shorter equivalent makes every push report a fake change.
     pickup_code: varchar("pickup_code", { length: 6 })
       .notNull()
       .default(
         sql`lpad((floor((random() * (1000000)::double precision)))::text, 6, '0'::text)`
       ),
 
-    // When the Item actually reached the shelf and the customer could first come
-    // for it. The overdue shelf is measured from here, never from created_at: a
-    // repair booked Monday and finished Thursday has been collectable for an
-    // hour, not for three days. Null unless the order is standing ready now —
-    // recomputeOrderRollup clears it when work reopens, so the clock restarts
-    // from the day the customer was next told to come.
+    // When the Customer could first collect, so the overdue shelf never counts
+    // from drop-off. Null unless the Order is ready now: reopened work clears it
+    // and the clock restarts when the Customer is next told to come.
     ready_at: timestamp("ready_at"),
 
     refunded_amount: decimal("refunded_amount", { precision: 12, scale: 0 })
@@ -626,19 +616,15 @@ export const orderCampaignsTable = pgTable(
   ]
 );
 
-// One physical object dropped off for service — a pair of shoes, a bag, a hat,
-// a suitcase. The thing the tag is stuck to and the thing the customer collects
-// back, which is why it owns `item_code` and the descriptors staff read off the
-// object at the counter. The treatments it receives are its OrderServices; its
-// status is derived from them and never stored here. See ADR-0017.
+// The tag and the brand/color/size staff read at the counter belong to the
+// Item. Its status comes from its OrderServices and is never stored (ADR-0017).
 export const itemsTable = pgTable(
   "items",
   {
     brand: varchar("brand", { length: 255 }),
     color: varchar("color", { length: 255 }),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
-    // The physical tag. One per object, so three treatments on one shoe share
-    // one code — the drift ADR-0017 removes.
+    // One tag per Item, so three Services on one shoe share one code (ADR-0017).
     item_code: varchar("item_code", { length: 64 }).notNull(),
     model: varchar("model", { length: 255 }),
     order_id: integer("order_id")
@@ -649,10 +635,8 @@ export const itemsTable = pgTable(
   (table) => [
     index("items_order_idx").on(table.order_id),
     uniqueIndex("items_item_code_uidx").on(table.item_code),
-    // Composite target for orders_services' (order_id, item_id) FK below. A
-    // treatment row carries its own order_id so the Order rollup keeps reading
-    // lines directly (ADR-0017); this index is what stops that copy from ever
-    // naming a different Order than the Item it hangs off.
+    // Target of orders_services' (order_id, item_id) key, which stops a line's
+    // own order_id naming a different Order than its Item (ADR-0017).
     uniqueIndex("items_order_id_id_uidx").on(table.order_id, table.id),
   ]
 );
@@ -666,9 +650,8 @@ export const ordersServicesTable = pgTable(
 
     cancel_reason: cancelReasonEnum("cancel_reason"),
     cancel_note: text("cancel_note"),
-    // Non-null marks this line as a REWORK: a free re-clean spawned by the
-    // complaint it points at (the original complained line carries no value
-    // here). See ADR-0013.
+    // Set only on a Rework line, pointing at the Complaint that spawned it; the
+    // complained line itself stays null (ADR-0013).
     complaint_id: integer("complaint_id").references(
       (): AnyPgColumn => complaintsTable.id,
       { onDelete: "set null" }
@@ -676,15 +659,12 @@ export const ordersServicesTable = pgTable(
     handler_id: integer("handler_id").references(() => usersTable.id),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     is_priority: boolean("is_priority").default(false).notNull(),
-    // The object this treatment is applied to. Its descriptors and tag live on
-    // the Item, not here — see ADR-0017.
+    // The tag and descriptors live on the Item, not here (ADR-0017).
     item_id: integer("item_id")
       .references(() => itemsTable.id, { onDelete: "cascade" })
       .notNull(),
     notes: text("notes"),
-    // Deliberately kept alongside item_id: deriveOrderStatus rolls up over an
-    // Order's treatment rows directly, so routing that through Items would buy
-    // nothing and rewrite the status machine (ADR-0017).
+    // Kept beside item_id so the Order status rollup reads lines directly (ADR-0017).
     order_id: integer("order_id")
       .references(() => ordersTable.id, { onDelete: "cascade" })
       .notNull(),
@@ -694,11 +674,9 @@ export const ordersServicesTable = pgTable(
       { onDelete: "set null" }
     ),
 
-    // Snapshot for a catalog-priced Service. For a no-list-price Service
-    // (Repair, ADR-0018) NULL means "not yet determined" — the workshop has
-    // not inspected the Item yet. Never 0: that already means deliberately
-    // free (a Rework line, ADR-0013). An Order with a NULL-priced live line
-    // refuses the move to paid; payment freezes prices.
+    // Copied from the catalog at drop-off. On a Repair, NULL means not inspected
+    // yet (ADR-0018), never 0, which is free on purpose (a Rework line, ADR-0013).
+    // An Order with a live NULL-priced line cannot be marked paid.
     price: decimal("price", { precision: 12, scale: 0 }),
     cogs_snapshot: decimal("cogs_snapshot", { precision: 12, scale: 0 })
       .default("0")
@@ -733,8 +711,7 @@ export const ordersServicesTable = pgTable(
     index("order_services_item_idx").on(table.item_id),
     index("order_services_pickup_event_idx").on(table.pickup_event_id),
     index("order_services_complaint_idx").on(table.complaint_id),
-    // A treatment and the object it treats must agree on which Order they
-    // belong to. Without this the denormalized order_id above could drift.
+    // Without this, a line's copied order_id could name a different Order than its Item.
     foreignKey({
       columns: [table.order_id, table.item_id],
       foreignColumns: [itemsTable.order_id, itemsTable.id],
@@ -758,10 +735,8 @@ export const ordersServicesTable = pgTable(
   ]
 );
 
-// A Customer's grievance about a finished OrderService, at the counter or after
-// pickup (ADR-0013). The original complained line is `order_service_id`; the
-// free re-clean lines it spawns point back via `orders_services.complaint_id`.
-// A complaint never mutates the original line.
+// ADR-0013: the complained line is order_service_id and is never changed; its
+// Rework lines point back here via orders_services.complaint_id.
 export const complaintsTable = pgTable(
   "complaints",
   {
@@ -821,10 +796,8 @@ export const orderPickupNoticesTable = pgTable(
   (table) => [index("order_pickup_notices_order_idx").on(table.order_id)]
 );
 
-// The before-service record of an object: taken at drop-off, shared by every
-// treatment on the Item, and what the queued → processing gate reads
-// (ADR-0012, ADR-0019). Hung off the Item rather than the treatment row
-// because one shoe sold three Services is still one shoe in one condition.
+// Item photos, which work cannot start without (ADR-0012, ADR-0019). On the Item,
+// not the line: one shoe sold three Services is still one shoe in one condition.
 export const itemImagesTable = pgTable(
   "item_images",
   {
@@ -897,10 +870,8 @@ export const orderServiceHandlerLogsTable = pgTable(
   ]
 );
 
-// ADR-0018: every set-or-correct of a line price leaves a row here — setting
-// a price is open to any staff, so the oversight is this trail (who put which
-// number on which Item, from what), not an approval gate. Appended beside the
-// status/handler logs.
+// ADR-0018: any staff may set a price, so the check on it is this trail of who
+// put which number on which Item, not an approval step.
 export const orderServicePriceLogsTable = pgTable(
   "order_service_price_logs",
   {
@@ -1045,12 +1016,10 @@ export const ordersProductsTable = pgTable(
       "order_products_cancel_refund_xor_check",
       sql`${table.cancelled_at} IS NULL OR ${table.refunded_at} IS NULL`
     ),
-    // a cancelled line must carry a reason
     check(
       "order_products_cancel_reason_required_check",
       sql`${table.cancelled_at} IS NULL OR ${table.cancel_reason} IS NOT NULL`
     ),
-    // reason 'other' requires a note (mirrors order_refund_items)
     check(
       "order_products_cancel_other_reason_requires_note_check",
       sql`${table.cancel_reason} != 'other' OR (${table.cancel_note} IS NOT NULL AND LENGTH(TRIM(${table.cancel_note})) > 0)`

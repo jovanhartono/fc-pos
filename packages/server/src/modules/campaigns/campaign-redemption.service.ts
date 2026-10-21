@@ -12,12 +12,8 @@ import {
 } from "@/modules/campaigns/campaign.repository";
 import type { OrderTx } from "@/modules/orders/order.repository";
 
-// The campaign-redemption seam (ADR-0015): redemptions are claimed atomically
-// inside the order transaction at checkout, and released only when a cancel
-// fully closes the Order — never on refund (money moved, the discount stays
-// spent) and never on a partial cancel (the Order survives, its discount stays
-// applied). The exactly-once release gate lives at the cancel call site; both
-// sides of the bookkeeping live here.
+// ADR-0015: a Campaign is claimed at checkout and given back only when a
+// Cancellation closes the whole Order, never on a Refund or a partial cancel.
 
 export interface CampaignRedemptionFields {
   applied_amount: string;
@@ -29,17 +25,11 @@ export interface CampaignRedemptionFields {
   max_discount: string | null;
 }
 
-// A union, not an optional voucherCode: a voucher row must carry its code, a
-// listed row has none. A missing code would send the row down the listed branch
-// below, so atomicClaimCampaignCode never runs — the order takes its discount
-// while the code keeps redeemed_at NULL and stays spendable again (ADR-0015).
+// A union so a Voucher row cannot lose its code: without it the Order would
+// take the discount while the Voucher code stayed spendable (ADR-0015).
 export type ResolvedCampaignRow = CampaignRedemptionFields &
   ({ kind: "listed" } | { kind: "voucher"; voucherCode: string });
 
-// Claim each resolved campaign inside the order transaction: a voucher row
-// atomically claims its single-use code; a listed row does a conditional
-// increment that also passes for uncapped campaigns. Then log the applied rows
-// on the order.
 export async function claimRedemptions(
   tx: OrderTx,
   campaignRows: ResolvedCampaignRow[],
@@ -53,7 +43,6 @@ export async function claimRedemptions(
 
   for (const row of campaignRows) {
     if (row.kind === "listed") {
-      // Listed: atomic conditional increment (uncapped campaigns pass too).
       const claimed = await atomicIncrementCampaignRedeemed(
         tx,
         row.campaign_id
@@ -64,7 +53,6 @@ export async function claimRedemptions(
         );
       }
     } else {
-      // Voucher: atomic single-use claim of the specific code.
       const claimed = await atomicClaimCampaignCode(
         tx,
         row.voucherCode,
@@ -94,9 +82,7 @@ export async function claimRedemptions(
   );
 }
 
-// Release each redemption logged on the order: a code redemption is unclaimed
-// (redeemed_at/redeemed_order_id nulled), a listed redemption decrements the
-// campaign's redeemed_count. Only called when a full cancel closes the order.
+// Only called when a Cancellation closes the whole Order.
 export async function releaseRedemptions(tx: OrderTx, orderId: number) {
   const orderCampaigns = await findOrderCampaignsByOrderId(tx, orderId);
   for (const oc of orderCampaigns) {
@@ -108,13 +94,8 @@ export async function releaseRedemptions(tx: OrderTx, orderId: number) {
   }
 }
 
-// A promo settles at drop-off once every line is priced (ADR-0018), but an
-// unpaid Order's billable total can still fall afterwards — a line is cancelled
-// (ADR-0008), or a price is corrected downward. If what is left no longer clears
-// the minimum the promo was granted against, the promo is void. Call this from
-// every path that lowers the total of an unpaid Order; a fixed-amount promo
-// ("100k off, min 250k") is otherwise free money once the Order shrinks under
-// the bar.
+// Call from every path that lowers an unpaid Order's total after Settling
+// (ADR-0018, ADR-0008): "100k off, min 250k" on a shrunken Order is free money.
 export async function voidCampaignsBelowMinimum(
   tx: OrderTx,
   orderId: number,
@@ -130,10 +111,8 @@ export async function voidCampaignsBelowMinimum(
     return;
   }
 
-  // Every promo goes, not only the one that broke. Re-applying is one tap at
-  // the counter and it re-checks every rule on the way back in, where
-  // recomputing a stacked discount around a hole is a money bug waiting to
-  // happen — and the cashier is reprinting the Receipt regardless.
+  // Every Campaign goes, not only the one that broke: the cashier re-applies in
+  // one tap with every rule re-checked, safer than recomputing a stacked discount.
   await releaseRedemptions(tx, orderId);
   await deleteOrderCampaignsByOrderId(tx, orderId);
   await tx

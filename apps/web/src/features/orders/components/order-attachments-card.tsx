@@ -25,8 +25,6 @@ type DropoffOrder = Pick<
 	"id" | "created_at" | "dropoff_photo_url" | "dropoff_photo_uploaded_at"
 >;
 
-// Square tiles of one size at every width: two to a row on a phone, more on
-// the full page.
 const TILE_GRID =
 	"grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-x-3 gap-y-4";
 
@@ -198,9 +196,8 @@ interface DropoffPhotoProps {
 	orderId: number;
 }
 
-// An order has exactly one drop-off photo, so it gets its own tile rather than
-// a seat in the pickup gallery — the counter staff open this to check what
-// came in before the complaint desk argues about it.
+// The one Drop-off photo gets its own tile: staff open it to check what came
+// in when a Customer complains.
 const DropoffPhoto = ({ capturedAt, imageUrl, orderId }: DropoffPhotoProps) => {
 	const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
@@ -242,9 +239,7 @@ const DropoffPhoto = ({ capturedAt, imageUrl, orderId }: DropoffPhotoProps) => {
 	);
 };
 
-// Pickup photos are required at capture, so every event carries an image; the
-// caption keeps the "when / by whom" audit trail this section is the only
-// home for.
+// The caption is the only place that shows when and by whom Items left.
 const toPickupItems = (pickupEvents: PickupEvent[]): OrderPhotoGalleryItem[] =>
 	pickupEvents
 		.filter((event) => Boolean(event.image_url))
@@ -266,8 +261,6 @@ interface PickupTilesProps {
 	items: OrderPhotoGalleryItem[];
 }
 
-// The tiles land on the caller's grid, beside the drop-off or on a row of
-// their own.
 const PickupTiles = ({ items }: PickupTilesProps) => (
 	<OrderPhotoGallery
 		emptyState={

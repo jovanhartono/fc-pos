@@ -2,15 +2,8 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { drizzle } from "drizzle-orm/pg-proxy";
 import type { DateRange } from "@/modules/reports/report-range.util";
 
-// The reports repository is about to be collapsed from 21 hand-written queries
-// into a few shared builders, and its contract is "ask Postgres the same
-// question, with less code to read". So these record the whole statement each
-// report sends today, byte for byte.
-//
-// Substring checks cannot hold that line: adding `or paid_at is null` beside an
-// intact window, or moving the window into a LEFT JOIN ... ON, leaves every
-// substring in place while quietly changing which orders count as takings. A
-// snapshot sees both.
+// Whole statements, byte for byte: an added `or paid_at is null` leaves every
+// substring in place while quietly changing which Orders count as takings.
 
 const queries: { params: unknown[]; sql: string }[] = [];
 
@@ -195,9 +188,8 @@ describe("what each money report asks Postgres for one store", () => {
 });
 
 describe("what each money report asks Postgres for the whole company", () => {
-  // Naming no store is the other half of the contract: a dedupe that leaves a
-  // store filter behind when nobody asked for one is as wrong as one that drops
-  // it, and only recording both shapes catches that.
+  // A Store filter left behind when nobody named a Store is as wrong as one
+  // dropped, so both shapes are recorded.
   for (const [name, run] of QUERIES) {
     it(`asks the same question for ${name}`, async () => {
       expect(await askedFor(() => run())).toMatchSnapshot();

@@ -12,9 +12,8 @@ if (!databaseUrl) {
 const pool = new Pool({ connectionString: databaseUrl });
 export const db = drizzle({ client: pool, relations });
 
-// Anything a query can run on: the pool, or an open transaction handed down so
-// a read sees the writes the same checkout has already made and does not take a
-// second connection out of the pool while the first one is still held.
+// The pool, or an open transaction, so a checkout's read sees its own writes
+// and does not hold a second connection.
 export type DbExecutor =
   | typeof db
   | Parameters<Parameters<typeof db.transaction>[0]>[0];

@@ -87,10 +87,8 @@ export function useCartOps(): CartOps {
 		[form],
 	);
 
-	// Which card a catalog tap lands on. Transient counter state, so it lives
-	// beside the drop-off photo rather than in the draft the server sees. Only
-	// the setter is subscribed to: reading the value here would re-render every
-	// consumer of this hook — including the whole catalog grid — on each tap.
+	// Only the setter is read here: reading the value would re-render the whole
+	// catalog grid on every tap.
 	const setActiveItemId = useTransactionsPageStore(
 		(state) => state.setActiveItemId,
 	);
@@ -109,8 +107,6 @@ export function useCartOps(): CartOps {
 		[form, setProductCart, setSubmitError],
 	);
 
-	// Every write goes through here, so the "one item is active" pointer is
-	// reconciled here too rather than re-remembered at each call site.
 	const patchItem = useCallback(
 		(itemId: string, patch: (item: ItemCartLine) => ItemCartLine) => {
 			setSubmitError("");
@@ -133,10 +129,8 @@ export function useCartOps(): CartOps {
 		[form, setItemCart, setSubmitError],
 	);
 
-	// Pulling the last treatment off an object leaves the card standing and
-	// empty on purpose: the cashier is mid-correction, and silently deleting the
-	// descriptors they just typed would be the wrong kind of tidy. It is dropped
-	// on the way to the wire instead.
+	// Taking the last Service off an Item leaves the card on purpose: the
+	// cashier is mid-correction and would lose the brand and size just typed.
 	const removeService = useCallback(
 		(itemId: string, lineId: string) => {
 			patchItem(itemId, (item) => ({
@@ -258,10 +252,8 @@ export function useCartOps(): CartOps {
 		setActiveItemId(item.line_id);
 	}, [form, setItemCart, setSubmitError, setActiveItemId]);
 
-	// A catalog tap lands on the object already on the counter — that is the
-	// upsell, and it is the common case. The first tap of an order has no card
-	// to land on, so it opens one: a single-object order costs the cashier
-	// exactly the taps it always did (ADR-0017).
+	// A catalog tap lands on the Item already on the counter, the usual upsell;
+	// the first tap opens a card, so a one-Item Order costs no extra taps (ADR-0017).
 	const addService = useCallback(
 		(service: Service) => {
 			setSubmitError("");
@@ -274,9 +266,8 @@ export function useCartOps(): CartOps {
 				price: "",
 			};
 
-			// Read the pointer, don't subscribe to it — and resolve it against the
-			// cart, so a pointer at a card the cashier just removed lands on one
-			// still on the counter instead of opening a stray third card.
+			// A tap after the cashier removed the active card lands on one still
+			// there instead of opening a stray new card.
 			const activeId = resolveActiveItemId(
 				cart,
 				useTransactionsPageStore.getState().activeItemId,
@@ -316,15 +307,13 @@ export function useCartOps(): CartOps {
 export interface Cart extends CartOps {
 	productRows: ProductCartDisplayLine[];
 	itemRows: ItemCartDisplayLine[];
-	// Every treatment across every object, for the money maths and the
-	// unpriced-line checks that are genuinely per-treatment.
+	// Every Service line across every Item, for the money maths and the
+	// Unpriced line checks.
 	serviceRows: ServiceCartDisplayLine[];
 	subtotal: number;
 	count: number;
 }
 
-// Ops + derived rows/totals — subscribes to cart form state and the
-// product/service catalogs.
 export function useCart(): Cart {
 	const ops = useCartOps();
 

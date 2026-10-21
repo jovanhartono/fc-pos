@@ -6,7 +6,7 @@ import { BadRequestException } from "@/http-exceptions";
 import { type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
-// Loaded after the swap above, never beside the imports (see order-list).
+// Imported after the swap above, never beside the imports (see order-list).
 const { createOrder } = await import("@/modules/orders/order.service");
 const { findOrders } = await import("@/modules/orders/order.repository");
 const { createOrderPickupNotice } = await import(

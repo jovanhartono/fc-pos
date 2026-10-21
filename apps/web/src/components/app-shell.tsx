@@ -152,11 +152,9 @@ const useParentPath = (): LinkProps["to"] | null => {
 	return `/${segments[0]}` as LinkProps["to"];
 };
 
-// Stepping back through history hands the cashier the list exactly as they left
-// it — store, status, page, scroll — because that browser entry still holds the
-// filtered URL. A link to the parent path would drop all of it. Arriving from a
-// tracking link or a fresh tab there is nothing to step back to, so those land
-// on the unfiltered list instead.
+// Going back hands the cashier the list as they left it (Store, status, page,
+// scroll); a link to the parent would drop all that. Opened from a tracking link
+// or a fresh tab there is no history, so they land on the unfiltered list.
 const HeaderBackButton = ({ to }: { to: LinkProps["to"] }) => {
 	const router = useRouter();
 	const canGoBack = useCanGoBack();
@@ -220,10 +218,8 @@ export function AppShell({ title, children }: AppShellProps) {
 	const navigate = useNavigate();
 	const clearToken = useAuthStore((state) => state.clearToken);
 	const user = getCurrentUser();
-	// Read once, deliberately not tracked: this only seeds the sidebar's
-	// defaultOpen, a state initializer nobody reads again. Following the
-	// breakpoint afterwards re-rendered the whole shell mid-drag to change
-	// nothing, and would fight a cashier who had collapsed the sidebar by hand.
+	// Read once on purpose: following the window width re-rendered the whole shell
+	// mid-resize and fought a cashier who had collapsed the sidebar by hand.
 	const [startsCollapsed] = useState(() => window.innerWidth < 1280);
 	// Nav visibility follows the DB-fresh role from /admin/users/me, not the
 	// stale JWT claim — role changes apply without re-login.

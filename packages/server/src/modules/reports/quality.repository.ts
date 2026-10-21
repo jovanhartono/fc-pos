@@ -109,8 +109,8 @@ export async function listQualityCohort({ range, storeId }: RangeArgs) {
     .where(isNull(ordersServicesTable.complaint_id));
 }
 
-// One check is an inspector passing or sending back a pair. Join the log
-// through to the Order.
+// One check is an inspector passing or sending back an Item. The caller joins
+// the log through to the Order, which carries the Store.
 export function qualityCheckInRange(
   log: StatusLog,
   { range, storeId }: RangeArgs
@@ -163,8 +163,8 @@ export async function listQualityChecksByChecker(args: RangeArgs) {
     .orderBy(desc(sql`COUNT(*)`), asc(checker.name));
 }
 
-// The inspector sending a pair back is the line arriving at qc_reject; there is
-// no direct quality_check → processing move. Join the log through to the Order.
+// A QC reject always passes through qc_reject, never straight back to
+// processing. The caller joins the log through to the Order.
 export function qcRejectInRange(log: StatusLog, { range, storeId }: RangeArgs) {
   return and(
     eq(log.to_status, "qc_reject"),

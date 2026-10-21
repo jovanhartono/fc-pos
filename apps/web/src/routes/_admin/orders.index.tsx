@@ -75,7 +75,7 @@ interface ItemsReadyProps {
 	total: number;
 }
 
-// How many of the Order's pairs are finished, so the counter sees "2/3"
+// How many of the Order's Items are finished, so the counter sees "2/3"
 // before the customer asks whether everything is done.
 const ItemsReady = ({ ready, total }: ItemsReadyProps) => {
 	if (total === 0) {
@@ -153,8 +153,7 @@ export const Route = createFileRoute("/_admin/orders/")({
 		]);
 	},
 	component: OrdersPage,
-	// Past a second, the page itself draws with skeleton rows instead of a
-	// generic placeholder that looks nothing like it.
+	// Past a second, the page itself draws with skeleton rows.
 	pendingComponent: OrdersPage,
 	// Bundled with the page it reuses; split apart, it points at nothing.
 	codeSplitGroupings: [["component", "pendingComponent"]],

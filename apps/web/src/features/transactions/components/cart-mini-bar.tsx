@@ -20,9 +20,8 @@ interface CartMiniBarProps {
 export const CartMiniBar = ({ onOpen }: CartMiniBarProps) => {
 	const { count, subtotal, itemRows } = useCart();
 	const [isPeeking, setIsPeeking] = useState(false);
-	// What is on the bill: treatments and products. The objects themselves are
-	// the tray directly above — one chip each — so counting them here again only
-	// made the label too long for a phone (ADR-0017).
+	// Services and Products only: the tray above already shows each Item, and
+	// counting them again made the label too long for a phone (ADR-0017).
 	const treatmentCount = countCartTreatments(itemRows);
 	const productCount = count - treatmentCount;
 	const summaryLabel = [
@@ -36,21 +35,14 @@ export const CartMiniBar = ({ onOpen }: CartMiniBarProps) => {
 		return null;
 	}
 
-	// The bar floats over the catalog rather than docking to a full-width panel,
-	// so every child carries its own frosted surface (backdrop blur + translucent
-	// background) — a bare transparent one lets service cards show through the
-	// text (the original B4 bug), while frost keeps the catalog as soft depth.
-	// The wrapper is pointer-transparent so gaps between children stay tappable.
+	// The bar floats over the catalog, so each child is frosted: a clear one let
+	// Service cards show through the text (bug B4). Gaps stay tappable.
 	return (
-		// min-w-0 here and on the button row: both sit in auto grid tracks, whose
-		// minimum is the content's minimum width unless told otherwise — so a long
-		// summary label widened the whole page grid past a phone's viewport
-		// instead of truncating.
+		// min-w-0 here and on the button row, or a long label widens the whole
+		// page past a phone's screen instead of truncating.
 		<div className="pointer-events-none sticky bottom-0 z-40 grid min-w-0 gap-1 px-1">
-			{/* Peek panel above the bar. Without it, dropping a mis-tapped line means
-			    keying a customer name and phone first, because the lines otherwise
-			    only exist on step two of the checkout. Capped height so an open cart
-			    cannot bury the catalog the cashier is still tapping. */}
+			{/* Without the peek, dropping a mis-tapped line means typing a Customer
+			    first; capped so an open Cart cannot bury the catalog. */}
 			{isPeeking ? (
 				<div className="pointer-events-auto max-h-[40dvh] overflow-y-auto overscroll-contain rounded-lg border border-border/70 bg-card/70 px-3 py-2 backdrop-blur-xl">
 					<CartLines />
@@ -59,15 +51,9 @@ export const CartMiniBar = ({ onOpen }: CartMiniBarProps) => {
 
 			<ItemTray itemRows={itemRows} />
 
-			{/* Frosted strip under the buttons: the catalog scrolling behind reads as
-			    blurred depth instead of card borders cutting into the bar's edges. */}
 			<div className="pointer-events-auto flex min-w-0 gap-1 rounded-lg border border-border/70 bg-glass p-1 shadow-sm backdrop-blur-xl backdrop-saturate-[1.8]">
-				{/* min-w-0 + shrink: a mixed cart's label ("2 items · 2 treatments ·
-				    1 product") is wider than a phone has room for beside Check out.
-				    Without it this row's minimum width is the sum of both buttons,
-				    and the page grid stretches past the viewport to fit it. A fixed
-				    share of the row, so "1 service" becoming "2 services" never
-				    slides Check out. */}
+				{/* A mixed Cart's label is wider than a phone allows beside Check out;
+				    a fixed share keeps "1 service" to "2 services" from sliding it. */}
 				<Button
 					aria-expanded={isPeeking}
 					className="h-14 min-w-0 shrink basis-2/5 justify-start gap-2 bg-transparent"

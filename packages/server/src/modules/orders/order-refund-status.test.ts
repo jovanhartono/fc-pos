@@ -1,11 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { deriveOrderRefundStatus } from "@/modules/orders/order-refund-status";
 
-// deriveOrderRefundStatus paints the refund badge staff see on the orders
-// dashboard: "none" means the money is untouched, "partial" means some went
-// back, "full" means the customer already has everything — attempting another
-// refund would hand out cash twice. Pure derivation over Postgres numeric
-// strings; nothing is mocked.
+// The Refund status badge: a wrong "full" or a missing one leads staff to
+// refund twice or chase money that never moved.
 
 describe("deriveOrderRefundStatus", () => {
   it("shows no badge on an order whose money is untouched", () => {
@@ -24,9 +21,8 @@ describe("deriveOrderRefundStatus", () => {
   });
 
   it("flags full at exact payback and beyond so staff never refund again", () => {
-    // Whether the payback matched the payment or overshot it (goodwill top-up,
-    // fat-fingered amount), the customer holds all their money — the badge must
-    // say full either way or someone at the desk will issue a second refund.
+    // An overshoot (a typo, a top-up) still means the Customer has it all back,
+    // or someone at the counter issues a second Refund.
     expect(
       deriveOrderRefundStatus({
         paid_amount: "150000",
@@ -42,8 +38,7 @@ describe("deriveOrderRefundStatus", () => {
   });
 
   it("treats decimal-formatted numerics as the same rupiah", () => {
-    // Postgres numeric columns can arrive as "90000.00" — same money, and the
-    // badge must not downgrade full to partial over formatting.
+    // Postgres numerics can arrive as "90000.00"; full must not drop to partial.
     expect(
       deriveOrderRefundStatus({
         paid_amount: "90000.00",
@@ -59,16 +54,15 @@ describe("deriveOrderRefundStatus", () => {
   });
 
   it("never claims full when nothing was actually paid", () => {
-    // Goodwill payout on an order the POS never collected: "full" would imply
-    // the payment cycle is closed, hiding that this order earned nothing.
+    // Money paid out on an Order that never collected any: "full" would hide
+    // that this Order earned nothing.
     expect(
       deriveOrderRefundStatus({ paid_amount: "0", refunded_amount: "10000" })
     ).toBe("partial");
   });
 
   it("ignores a corrupted negative refund instead of showing a phantom badge", () => {
-    // A bad import wrote refunded_amount "-5000". No money ever left the counter,
-    // so staff must not see a refund badge that sends them auditing nothing.
+    // A bad import wrote "-5000"; no money left the counter, so no badge.
     expect(
       deriveOrderRefundStatus({
         paid_amount: "100000",

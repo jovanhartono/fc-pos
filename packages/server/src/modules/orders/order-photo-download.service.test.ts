@@ -1,7 +1,5 @@
-// The save button hands a customer a copy of the evidence a dispute is argued from. What these
-// guard: the file is named after the pair or the order it shows, only staff at that branch get
-// one, and our credentials never sign a link for a photo that is not on file — or whose file
-// is no longer there.
+// A saved photo is evidence in a Complaint: only staff at that Store get one, and
+// no link is signed for a photo that is not on file or whose file is gone.
 
 import {
   afterEach,
@@ -20,7 +18,6 @@ import type { JWTPayload } from "@/types";
 let filed = new Map<string, StoredPhoto>();
 const assertCalls: { storeId: number; userId: number }[] = [];
 
-// Stand in for the database: which photos are on file, by where they are filed and their row.
 mock.module("@/modules/orders/order-photo.repository", () => ({
   findPhotoById: ({ kind, id }: { kind: string; id: number }) =>
     Promise.resolve(filed.get(`${kind}:${id}`) ?? null),
@@ -44,7 +41,6 @@ describe("createPhotoDownloadUrl", () => {
   let read: ReturnType<typeof spyOn<typeof s3, "file">>;
   let stored = true;
 
-  // Stand in for the bucket: whether the one-byte read the service makes finds the object.
   const stubObject = () =>
     ({
       slice: () => ({

@@ -17,8 +17,6 @@ export type Customer = InferResponseType<
 	typeof rpc.api.admin.customers.$get
 >["data"][number];
 
-// Leaner than Customer — the lookup omits the originStore relation (the POS
-// prefill reads only the name). 0-or-1, so the data is the row or null.
 type CustomerLookup = InferResponseType<
 	typeof rpc.api.admin.customers.lookup.$get
 >["data"];
@@ -67,9 +65,8 @@ async function fetchCustomersPage(
 	return toPaginated(response);
 }
 
-// Exact-phone lookup for the POS name-prefill. Returns the matching customer or
-// null — phone is identity, so 0-or-1. UX-only; checkout still find-or-creates
-// by phone server-side (ADR-0011).
+// The cashier types a phone at the POS and the name fills in. A convenience only:
+// checkout still finds or creates the Customer by phone (ADR-0011).
 function fetchCustomerByPhone(phone: string): Promise<CustomerLookup> {
 	return parseSuccessData<CustomerLookup>(
 		rpcWithAuth().api.admin.customers.lookup.$get({ query: { phone } }),
@@ -94,9 +91,8 @@ export const customersQueries = {
 		queryOptions({
 			queryKey: customersKeys.byPhone(phone),
 			queryFn: () => fetchCustomerByPhone(phone),
-			// A phone→customer mapping is stable; cache it so re-looking-up the same
-			// phone (e.g. after a cart↔payment tab toggle remounts the field) is
-			// instant instead of refetching and flashing the name/badge.
+			// A cashier flipping between cart and payment remounts the phone field;
+			// reusing the answer keeps the name from flashing.
 			staleTime: 5 * 60 * 1000,
 		}),
 	detail: (id: number) =>

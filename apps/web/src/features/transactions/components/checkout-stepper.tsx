@@ -13,10 +13,8 @@ interface CheckoutStepperProps {
 	lockHintId?: string;
 }
 
-// Labeled progress header. New cashiers follow Continue; the labels say what's
-// next. Tabs double as a jump control — gated by isStepEnabled so a cashier
-// can't skip past an incomplete step (the same gate the footer's Continue
-// enforces). Going back is always allowed; earlier steps have weaker gates.
+// Tabs double as a jump, with the same lock as Continue so a cashier can't skip
+// an unfinished step; going back is always allowed.
 export const CheckoutStepper = ({
 	current,
 	onSelect,
@@ -40,9 +38,8 @@ export const CheckoutStepper = ({
 				return (
 					<button
 						aria-current={isCurrent ? "step" : undefined}
-						// On the locked button itself, not on the <nav>: a description
-						// hung off a landmark is not read out when focus lands on a child,
-						// which would leave the lock unexplained again.
+						// On the button, not the <nav>: a screen reader doesn't read a
+						// landmark's description when focus lands on a child.
 						aria-describedby={isLocked ? lockHintId : undefined}
 						aria-disabled={isLocked || undefined}
 						className={cn(

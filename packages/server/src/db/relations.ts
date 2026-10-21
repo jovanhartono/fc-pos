@@ -215,9 +215,8 @@ export const relations = defineRelations(schema, (r) => ({
     refunds: r.many.orderRefundsTable(),
     products: r.many.ordersProductsTable(),
     items: r.many.itemsTable(),
-    // Kept alongside `items` even though every service hangs off one: the
-    // status rollup and the money queries read an Order's treatment rows
-    // directly rather than walking through its objects (ADR-0017).
+    // Kept beside `items`: the status rollup and the money queries read an
+    // Order's lines directly, not through its Items (ADR-0017).
     services: r.many.ordersServicesTable({
       from: r.ordersTable.id,
       to: r.ordersServicesTable.order_id,
@@ -240,26 +239,23 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.ordersTable.id,
       optional: false,
     }),
-    // Explicit from/to rather than a bare r.many: orders_services reaches items
-    // by two declared paths (item_id, and the composite (order_id, item_id)
-    // guard), so inference has nothing unambiguous to pick.
+    // Explicit from/to: orders_services reaches items by two keys (item_id and
+    // (order_id, item_id)), so drizzle cannot pick one itself.
     services: r.many.ordersServicesTable({
       from: r.itemsTable.id,
       to: r.ordersServicesTable.item_id,
     }),
-    // The object's before-service photos, shared by every treatment on it
-    // (ADR-0019).
+    // Item photos, shared by every line on the Item (ADR-0019).
     images: r.many.itemImagesTable(),
   },
 
   ordersServicesTable: {
-    // Complaints opened against this line (it is the complained line).
+    // Complaints about this line, as opposed to reworkOf below.
     complaints: r.many.complaintsTable({
       from: r.ordersServicesTable.id,
       to: r.complaintsTable.order_service_id,
       alias: "complaint_subject_service",
     }),
-    // When this line is a rework, the complaint that spawned it.
     reworkOf: r.one.complaintsTable({
       from: r.ordersServicesTable.complaint_id,
       to: r.complaintsTable.id,
@@ -270,8 +266,7 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.ordersServicesTable.handler_id,
       to: r.usersTable.id,
     }),
-    // The physical object this treatment is applied to — where the tag and the
-    // brand/color/model/size descriptors live (ADR-0017).
+    // The tag and brand/color/model/size live on the Item (ADR-0017).
     item: r.one.itemsTable({
       from: r.ordersServicesTable.item_id,
       to: r.itemsTable.id,
@@ -303,7 +298,6 @@ export const relations = defineRelations(schema, (r) => ({
       alias: "complaint_subject_service",
       optional: false,
     }),
-    // Free rework lines spawned by this complaint (via orders_services.complaint_id).
     reworkLines: r.many.ordersServicesTable({
       from: r.complaintsTable.id,
       to: r.ordersServicesTable.complaint_id,

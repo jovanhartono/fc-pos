@@ -35,13 +35,10 @@ import { assertStoreAccess } from "@/utils/authorization";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-// Admin-only today, and assertStoreAccess waves admins through, so this gate
-// refuses nobody yet. It also only covers requests that *name* a store — leaving
-// store_id off still answers for the whole company, so opening reports to shop
-// staff needs resolveStoreScope in the services too. One gate for the router,
-// because the way that leaks is a tenth report whose author forgot the check.
-// store_id comes off the raw querystring, since per-route validators run after
-// this, so it parses with the schema they use or the request is refused.
+// Refuses nobody yet: reports are admin-only and admins pass every Store. With
+// store_id left off it still answers for every Store, so opening reports to shop
+// staff needs resolveStoreScope in the services too. Reads the raw query, since
+// route validators run after this.
 const requireStoreAccess = createMiddleware<AdminEnv>(async (c, next) => {
   const raw = c.req.query("store_id");
 

@@ -94,7 +94,6 @@ const ALIGN_LEFT = "\x1ba\x00";
 
 const RASTER_HEADER = [0x1d, 0x76, 0x30, 0x00];
 
-// Index of the first byte after the header logo, or 0 when no logo is set.
 const afterHeaderLogo = (bytes: number[]): number => {
 	if (!RECEIPT_LOGO) {
 		return 0;
@@ -117,7 +116,7 @@ describe("buildReceiptEscPos", () => {
 		expect([bytes[0], bytes[1]]).toEqual([0x1b, 0x40]);
 		expect([...bytes.slice(-4)]).toEqual([0x1d, 0x56, 0x42, 0x00]);
 
-		// The wordmark carries the brand; the store name would collide with it.
+		// The wordmark carries the brand; the Store name would collide with it.
 		expect(text).not.toContain("Fresclean Kemang");
 		expect(text).toContain("Jl. Kemang Raya No. 12, Jakarta");
 		expect(text).toContain("No. Order : #JKT/06072026/12");
@@ -147,9 +146,8 @@ describe("buildReceiptEscPos", () => {
 		);
 		expect(hasQrPrint).toBe(true);
 
-		// Every printable byte is ASCII — no codepage surprises on the printer.
-		// The header logo is skipped: a 1-bit bitmap is arbitrary bytes, and the
-		// guarantee being made here is about the text the cashier reads.
+		// Every byte of text is ASCII, so the printer prints no garbage; the logo
+		// is skipped, since a bitmap is arbitrary bytes.
 		const nonAscii = asArray
 			.slice(afterHeaderLogo(asArray))
 			.filter((byte) => byte > 0x7e);
@@ -178,14 +176,13 @@ describe("buildReceiptEscPos", () => {
 		expect(RECEIPT_LOGO?.data.length).toBe(
 			(RECEIPT_LOGO?.widthBytes ?? 0) * (RECEIPT_LOGO?.height ?? 0),
 		);
-		// The mark must not push the store address off the top of the receipt.
+		// The mark must not push the Store's address off the top of the Receipt.
 		expect(decodeText(bytes)).toContain("Jl. Kemang Raya No. 12, Jakarta");
 	});
 
 	test("one Item with three treatments prints one tag and one descriptor row", () => {
-		// The counter's standard upsell (ADR-0017): a pair arrives for a deep
-		// clean and leaves the POS as deep clean + repaint + leather care.
-		// One physical object — the receipt must not read as three shoes.
+		// The counter's standard upsell (ADR-0017): a pair in for a deep clean
+		// leaves the POS with three Services, and must not read as three shoes.
 		const bytes = buildReceiptEscPos(
 			withItem({
 				services: [
@@ -212,15 +209,15 @@ describe("buildReceiptEscPos", () => {
 
 		expect(text.split("Nike - AF1 - Putih - 42").length - 1).toBe(1);
 		expect(text.split("#JKT/06072026/12-S001").length - 1).toBe(1);
-		// Each treatment still prices on its own line — the cashier sold three.
+		// Each Service still prices on its own line: the cashier sold three.
 		expect(text).toMatch(/ {2}Deep Clean +Rp75\.000/);
 		expect(text).toMatch(/ {2}Repaint +Rp150\.000/);
 		expect(text).toMatch(/ {2}Leather Care +Rp35\.000/);
 	});
 
 	test("a second Item is set off by a blank line, and each is named in bold", () => {
-		// Five pairs on one receipt is a normal family drop-off — without the
-		// gap the cashier cannot see which treatments belong to which pair.
+		// Five pairs on one Receipt is a normal family drop-off; without the gap
+		// the cashier cannot see which Services belong to which pair.
 		const bytes = buildReceiptEscPos(
 			{
 				...baseReceipt,
@@ -253,8 +250,7 @@ describe("buildReceiptEscPos", () => {
 		expect(lines[second - 1]).toBe("");
 		expect(text).toContain(`${EMPHASIS_ON}Nike - AF1 - Putih - 42`);
 		expect(text).toContain(`${EMPHASIS_ON}Adidas - Samba - Hitam - 41`);
-		// Emphasis is off by the time the tag prints — the name above it is the
-		// anchor, the tag stays plain.
+		// The tag prints plain; the bold name above it is what the eye finds.
 		expect(text).toContain(`${EMPHASIS_OFF}#JKT/06072026/12-S001`);
 	});
 
@@ -277,8 +273,8 @@ describe("buildReceiptEscPos", () => {
 		const bytes = buildReceiptEscPos(baseReceipt, "http://localhost/track");
 		const text = decodeText(bytes);
 
-		// The note is an instruction about the treatment, so it belongs with the
-		// order — not stranded under the QR where nobody reads it.
+		// The note is an instruction for the work, so it belongs with the Order,
+		// not stranded under the QR where nobody reads it.
 		expect(text.indexOf("KODE PENGAMBILAN")).toBeGreaterThan(
 			text.indexOf("Catatan: Jangan pakai pemutih"),
 		);
@@ -310,7 +306,7 @@ describe("buildReceiptEscPos", () => {
 		const start = lines.findIndex((line) => line.startsWith("    * jangan"));
 
 		expect(start).toBeGreaterThan(-1);
-		// Continuation stays indented under the treatment, not flush at column 0.
+		// Continuation stays indented under the Service, not flush at column 0.
 		expect(lines[start + 1]).toMatch(/^ {4}\S/);
 		for (const line of [lines[start], lines[start + 1]]) {
 			expect(line.length).toBeLessThanOrEqual(48);

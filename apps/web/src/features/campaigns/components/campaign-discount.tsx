@@ -34,7 +34,7 @@ const DiscountHeadline = ({
 	);
 };
 
-// Green while it takes money off at checkout; an expired or archived campaign
+// Green while it takes money off at checkout; an expired or archived Campaign
 // gives nothing, so its value goes grey.
 export const CampaignDiscount = ({
 	campaign,

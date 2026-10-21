@@ -12,16 +12,8 @@ import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
 
-// Clocking in is the shop's attendance record and the source of one source of
-// the days worked in the Workers report, which counts days, not hours, so an
-// auto-closed Shift no longer skews it. ADR-0020 turns a worker away only when the
-// phone is sure they are elsewhere, and these tests pin both edges of that:
-// a tight fix from home is refused, a fix too vague to judge is let through.
-// Plus a Forgotten clock-out: clocking in closes yesterday's row so nobody is
-// locked out, and tells the worker it happened.
-//
-// Both repositories and the store-access gate are doubled; their own contracts
-// are pinned elsewhere.
+// ADR-0020 turns a worker away only when the phone is sure they are elsewhere:
+// a sharp fix from home is refused, a fix too vague to judge is let through.
 
 const KEMANG = { latitude: "-6.26157800", longitude: "106.81273500" };
 const BINTARO = { latitude: "-6.30184500", longitude: "106.65241300" };
@@ -47,11 +39,8 @@ const shiftState = {
 
 const membership = { storeIds: [1, 2] };
 
-// store.repository prepares statements at import, so the stub has to answer any
-// table with a preparable query before the real module can be pulled in and
-// spread. mock.module is global for the whole run: a double that drops an
-// export stops an unrelated suite from linking at all, and the two repositories
-// go back afterwards.
+// store.repository prepares statements at import, so the stub must answer any
+// table first. mock.module is process-wide, so the repositories go back after.
 const preparedStub: Record<string, unknown> = {};
 preparedStub.prepare = () => preparedStub;
 preparedStub.execute = () => Promise.resolve(undefined);
@@ -110,9 +99,8 @@ afterAll(() => {
 const WORKER = { id: 7, role: "worker" } as unknown as JWTPayload;
 const COURIER = { id: 8, role: "courier" } as unknown as JWTPayload;
 
-// Phones due south of the Kemang counter. The accuracy is the radius the phone
-// puts on its own guess: tight outdoors, hundreds of metres indoors, kilometres
-// when the fix came from a cell tower or an IP address.
+// Phones due south of the Kemang counter. Accuracy is the phone's own error
+// radius: metres outdoors, kilometres from a cell tower.
 const AT_THE_COUNTER = {
   accuracy_m: 12,
   latitude: -6.261_848,

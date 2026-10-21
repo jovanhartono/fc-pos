@@ -5,12 +5,8 @@ import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
 
-// setOrderServicePrice is where a Repair line's number becomes real money:
-// the workshop opened the bag, agreed a price with the customer, and keys it
-// in — or re-keys it to fix a typo while the Order is still unpaid. These
-// tests pin what must land atomically — the line price, the who-set-what log
-// row, the refreshed order total — and every state that must refuse a write:
-// a paid order (prices are frozen), a cancelled line, a keyed zero.
+// Staff key a Repair's agreed price after inspection, or fix a typo while the
+// Order is unpaid; once paid, prices are frozen.
 
 type AnyObj = Record<string, unknown>;
 
@@ -24,21 +20,20 @@ interface FakeLine {
 const state = {
   orderPaymentStatus: "unpaid" as string | undefined,
   line: undefined as FakeLine | undefined,
-  // Simulates losing the race: the line was cancelled between read and write.
+  // false = the Line was cancelled between the read and the write.
   casWins: true as boolean,
   serviceWrites: [] as AnyObj[],
   serviceWriteGuard: "",
   logRows: [] as AnyObj[],
   rollupCalls: [] as { orderId: number; userId: number }[],
-  // orders.total as recomputeOrderRollup leaves it — what the promo minimum is
-  // re-checked against once the corrected price has landed.
+  // The Order total after the new price, which the Campaign minimum is
+  // re-checked against.
   postRollupTotal: "0",
   voidCalls: [] as { orderId: number; billableTotal: number }[],
 };
 
-// Both gate reads and the post-rollup re-read run on the transaction handle, so
-// a payment committing mid-pricing cannot slip between them. The order read
-// answers the paid gate first and the settled-promo re-check afterwards.
+// Every read runs in the transaction, so a payment landing mid-pricing cannot
+// slip between them.
 const TX = {
   query: {
     ordersTable: {
@@ -87,8 +82,6 @@ mock.module("@/db", () => ({
   },
 }));
 
-// recomputeOrderRollup runs its own queries against the tx; its arithmetic
-// (billable total, discount clamp) is pinned in order-status-machine.test.ts.
 const actualStatusMachine = {
   ...(await import("@/modules/orders/order-status-machine")),
 };
@@ -101,9 +94,6 @@ mock.module("@/modules/orders/order-status-machine", () => ({
   },
 }));
 
-// The void rule's own arithmetic (which minimums, releasing redemptions,
-// zeroing the discount) is pinned in campaign-redemption tests; here we only
-// pin that pricing hands it the freshly recomputed total.
 const actualRedemptionService = {
   ...(await import("@/modules/campaigns/campaign-redemption.service")),
 };
@@ -167,10 +157,8 @@ beforeEach(() => {
 
 describe("setOrderServicePrice", () => {
   it("prices a blank repair line and logs who put the first number on it", async () => {
-    // The bag came in unpriceable; teardown says a full re-panel — 250k,
-    // agreed over WhatsApp. Any staff may key it (ADR-0018: not behind the
-    // money gate); the from-NULL log row is the audit that it was a first
-    // pricing, not a correction.
+    // Inspection agrees 250k over WhatsApp; any staff may key it (ADR-0018),
+    // and the log shows it was a first price, not a correction.
     const result = await setPrice(250_000);
 
     expect(result.price).toBe("250000");
@@ -185,18 +173,14 @@ describe("setOrderServicePrice", () => {
   });
 
   it("refreshes the order total so the counter asks for the agreed number", async () => {
-    // The claim ticket printed at drop-off showed a total without the repair;
-    // once 250k is agreed the amount due must be recomputed from the lines,
-    // in the same transaction that priced one of them.
     await setPrice(250_000);
 
     expect(state.rollupCalls).toEqual([{ orderId: 10, userId: 7 }]);
   });
 
   it("corrects a priced line while unpaid, keeping the from→to trail", async () => {
-    // The cashier fat-fingered 20k for the 200k agreed with the customer.
-    // Until payment the number may be re-keyed — the log keeps both figures,
-    // so a pattern of quiet mark-downs by one user stays visible.
+    // A typo of 20k for 200k; the log keeps both, so quiet mark-downs by one
+    // User stay visible.
     state.line = makeLine({ price: "20000" });
 
     const result = await setPrice(200_000);
@@ -213,9 +197,7 @@ describe("setOrderServicePrice", () => {
   });
 
   it("refuses any price change once the order is paid — the numbers froze", async () => {
-    // The customer paid against a printed receipt and the POS matches it.
-    // Editing a line after that would desync money already taken; a genuinely
-    // wrong price is now a refund, not an edit (ADR-0018).
+    // After payment a wrong price is a Refund, not an edit (ADR-0018).
     state.orderPaymentStatus = "paid";
 
     const error = await captureRejection(setPrice(250_000));
@@ -229,9 +211,8 @@ describe("setOrderServicePrice", () => {
   });
 
   it("refuses to price a cancelled line — nobody owes its number", async () => {
-    // Customer heard the quote and walked; the line took the unpaid off-ramp
-    // (ADR-0008). Pricing it now would push the amount due back up for work
-    // the shop is not doing.
+    // The Customer declined the quote (ADR-0008); pricing it would charge for
+    // work the shop is not doing.
     state.line = makeLine({ status: "cancelled" });
 
     const error = await captureRejection(setPrice(250_000));
@@ -244,7 +225,7 @@ describe("setOrderServicePrice", () => {
   });
 
   it("refuses to price a rework on an Order still unpaid at the counter", async () => {
-    // The customer turned the pair down before paying; its re-clean is free.
+    // The Customer turned the Item down before paying; its Rework line is free.
     state.line = makeLine({ complaint_id: 5, price: "0", status: "queued" });
 
     const error = await captureRejection(setPrice(50_000));
@@ -266,29 +247,22 @@ describe("setOrderServicePrice", () => {
   });
 
   it("will not land a price on a line the counter cancelled mid-typing", async () => {
-    // The customer declines at the counter while the workshop still has the
-    // pricing screen open. Checking the status only on the way in would let
-    // the price land on a line nobody owes — the write itself must re-check.
+    // The Customer declines at the counter while the workshop is still typing,
+    // so the write itself must re-check the status.
     await setPrice(250_000);
 
     expect(state.serviceWriteGuard).toContain('"status" <>');
   });
 
   it("will not land a correction after another cashier collected payment", async () => {
-    // The workshop re-keys a typo while a cashier taps collect on another
-    // POS. If the correction landed after the paid CAS, the customer would
-    // hold a receipt whose lines no longer sum to what was charged — the
-    // exact state ADR-0018 forbids. The pre-check read cannot see a payment
-    // that commits after it, so the write itself must require the order to
-    // still be unpaid.
+    // A cashier collects while the workshop fixes a typo; landing after payment
+    // would leave a Receipt that no longer matches the charge (ADR-0018).
     await setPrice(250_000);
 
     expect(state.serviceWriteGuard).toContain("\"payment_status\" = 'unpaid'");
   });
 
   it("loses the race cleanly when the counter moved first", async () => {
-    // The cancel or the payment won: the guarded write matches nothing, and
-    // neither a log row nor a total refresh may survive the rollback.
     state.casWins = false;
 
     const error = await captureRejection(setPrice(250_000));
@@ -302,10 +276,8 @@ describe("setOrderServicePrice", () => {
   });
 
   it("re-checks the promo minimum against the corrected total", async () => {
-    // A promo settled at drop-off on a fully priced Order and printed on the
-    // Receipt. The workshop then corrects the repair down — 210k was a typo
-    // for 10k — leaving 160k. Without this re-check, "100k off, min 250k"
-    // rides a 160k Order and the customer pays 60k for 160k of work.
+    // A Repair typo of 210k is corrected to 10k, leaving 160k; "100k off, min
+    // 250k" must not stay on a 160k Order.
     state.line = makeLine({ price: "210000" });
     state.postRollupTotal = "160000";
 
@@ -315,8 +287,7 @@ describe("setOrderServicePrice", () => {
   });
 
   it("re-checks nothing until the price actually landed", async () => {
-    // The correction lost the race, so the total never moved — voiding a promo
-    // off the back of a rolled-back write would strip a discount for free.
+    // The correction lost the race; voiding now would strip a discount for nothing.
     state.casWins = false;
 
     await captureRejection(setPrice(10_000));

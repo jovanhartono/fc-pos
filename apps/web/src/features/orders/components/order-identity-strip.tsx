@@ -104,7 +104,7 @@ export const OrderIdentityStrip = ({
 	const printReceiptMutation = usePrintReceiptMutation(orderId);
 	const notifyCustomer = useNotifyCustomer(orderId);
 
-	// The cancel and refund pickers name the pair ("Nike · AF1 · White") and the
+	// The cancel and refund pickers name the Item ("Nike · AF1 · White") and the
 	// short tag, so the cashier needn't flip back to the order to match codes.
 	const orderPrefix = `${detail.code}-`;
 	const toReversalItem = (
@@ -120,10 +120,8 @@ export const OrderIdentityStrip = ({
 
 	const fulfillment = detail.fulfillment;
 	const totalCount = fulfillment.total_count;
-	// ADR-0017: what leaves the counter is an object, so the button counts
-	// collectable Items — not ready treatments. A shoe whose repaint is done but
-	// whose sole swap is still in QC contributes a ready treatment and no
-	// collectable object, and offering to hand back "1" of it is a lie.
+	// ADR-0017: count Collectable Items, not ready OrderServices. A shoe with its
+	// repaint done but its sole swap still in QC has nothing to hand back yet.
 	const collectableCount = gates.collectableItems.length;
 	const progressWidth =
 		totalCount === 0 ? 0 : (fulfillment.picked_up_count / totalCount) * 100;

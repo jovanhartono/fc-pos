@@ -31,14 +31,9 @@ import { distanceKm } from "@/utils/geo";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 import { isUniqueViolation } from "@/utils/pg-error";
 
-// Sharing a location is mandatory for everyone the rule covers: refusing is a
-// choice, and the gate would be opt-out by one tap on Deny.
-//
-// A phone reports a circle, not a point, and `accuracy_m` is that circle's
-// radius. A worker is only turned away when even the near edge of the circle is
-// outside the ring, so a bad indoor fix costs nobody their shift, while someone
-// at home with working GPS has no circle wide enough to reach the branch.
-// Nothing is kept afterwards: the Shift exists, so it passed. See ADR-0020.
+// Location is required, or one tap on Deny skips the check. A worker is turned
+// away only when even the near edge of the phone's error circle is outside the
+// radius, so a bad indoor fix costs nobody their Shift. Nothing is kept (ADR-0020).
 async function assertWithinClockInRadius(
   user: JWTPayload,
   storeId: number,
@@ -83,9 +78,8 @@ export async function clockIn({
 
   const latest = await findLatestShiftByUserId(user.id);
   const stillOpen = latest !== undefined && latest.clock_out_at === null;
-  // Yesterday's forgotten clock-out must not cost a worker their morning: the
-  // nightly sweep is best-effort and behind a shared secret, so waiting on it
-  // is what locks someone out at 07:00. A shift opened today still conflicts.
+  // The nightly close is best-effort, so yesterday's Forgotten clock-out closes
+  // here rather than lock a worker out at 07:00. One opened today still conflicts.
   const [closedNow] = stillOpen
     ? await closeOpenShiftsBefore(todayStart(), user.id)
     : [];

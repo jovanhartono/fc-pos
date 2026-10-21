@@ -2,21 +2,15 @@ import { useCart } from "@/features/transactions/cart/useCart";
 import { RemoveLineButton } from "@/features/transactions/components/remove-line-button";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 
-// Rendered in the floating bar's peek. Reads the cart itself rather than
-// taking rows as props — the same contract as the checkout's item rows, so no
-// surface can show different lines or remove them differently. Callers gate on
-// count and own the empty state — this renders nothing useful for an empty cart.
-//
-// Name only, no price: this list exists to verify and drop lines before
-// checkout; the money lives there.
+// The floating bar's peek: names only, no price, for checking and dropping lines
+// before checkout, where the money lives. Callers own the empty state.
 export const CartLines = () => {
 	const { productRows, itemRows, removeProduct, removeService } = useCart();
 
 	return (
 		<ul className="grid gap-3">
-			{/* One block per object, its treatments indented beneath, so the peek
-			    reads "one shoe, three treatments" rather than three things the
-			    customer only handed over once (ADR-0017). */}
+			{/* One block per Item, its Services beneath, so an upsold shoe reads as
+			    one shoe, not three (ADR-0017). */}
 			{itemRows.map((item, itemIndex) => (
 				<li className="grid gap-1" key={item.line_id}>
 					<p className="flex items-baseline gap-1.5 text-footnote">

@@ -4,9 +4,8 @@ import { db } from "@/db";
 import { productsTable } from "@/db/schema";
 import type { OrderTx } from "@/modules/orders/order.repository";
 
-// The whole basket in one statement. Each product keeps its own guard, so a
-// shelf that cannot cover one line leaves that row untouched and out of the
-// returned ids — which is how the caller knows what to hand back.
+// A Product short on stock is left untouched and missing from the returned
+// ids, which is how the caller knows which Line to refuse.
 export function decrementProductsStock(
   tx: OrderTx,
   entries: { productId: number; qty: number }[]
@@ -31,8 +30,8 @@ export function decrementProductsStock(
     .returning({ id: productsTable.id });
 }
 
-// Second stock writer (ADR-0008): cancelling an unpaid product line restores
-// stock — the goods never left the shop, unlike a refund.
+// A Cancellation puts stock back (ADR-0008): the goods never left the shop,
+// unlike after a Refund.
 export function incrementProductStock(
   tx: OrderTx,
   productId: number,

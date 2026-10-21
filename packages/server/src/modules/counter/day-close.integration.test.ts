@@ -362,7 +362,7 @@ describe("what was picked up", () => {
     const [first] = await pickup(`${DAY}T14:00`);
     const [second] = await pickup(`${DAY}T16:00`);
     const [yesterday] = await pickup("2026-09-29T16:00");
-    // A second treatment on the first Item must not count the Item twice.
+    // A second Service on the first Item must not count the Item twice.
     await testDb.insert(ordersServicesTable).values({
       item_id: order.itemIds[0],
       order_id: order.orderId,

@@ -19,9 +19,8 @@ export interface OrderAmountDisplay {
 	net: number | null;
 }
 
-// What one Order contributed to this customer's Lifetime spend, read off the
-// row: a paid Order shows what the shop kept, collected minus anything
-// refunded, on the same rule the header figure is summed from.
+// What one Order added to the Customer's Lifetime spend: collected minus
+// refunded, the same rule the header figure is summed from.
 export const describeOrderAmount = (
 	order: OrderAmountState,
 ): OrderAmountDisplay => {
@@ -29,8 +28,8 @@ export const describeOrderAmount = (
 		return { label: "—", net: null, refunded: null };
 	}
 	if (order.payment_status === "unpaid") {
-		// The Repair the workshop has not inspected yet: there is no agreed
-		// number to show, and "Rp 0" would read as free (ADR-0018).
+		// A Repair not inspected yet has no agreed price, and "Rp 0" would read
+		// as free (ADR-0018).
 		return {
 			label: order.has_unpriced_line ? "Pending price" : "Unpaid",
 			net: null,

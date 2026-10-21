@@ -53,8 +53,7 @@ export const CampaignPayloadSchema = z
   ])
   .superRefine((data, ctx) => {
     if (data.redemption_mode === "code") {
-      // A Voucher owns a batch of codes; the batch size is its cap, so a
-      // separate usage_limit is redundant and disallowed (mutual exclusivity).
+      // A Voucher's batch of codes is its cap, so a Usage limit is refused.
       if (data.code_count == null || data.code_count < 1) {
         ctx.addIssue({
           code: "custom",
@@ -72,7 +71,6 @@ export const CampaignPayloadSchema = z
       return;
     }
 
-    // Listed campaigns never mint codes.
     if (data.code_count != null) {
       ctx.addIssue({
         code: "custom",
@@ -101,8 +99,7 @@ export const CampaignUpdatePayloadSchema = z
       .optional(),
     buy_quantity: z.coerce.number().int().min(1).nullable().optional(),
     free_quantity: z.coerce.number().int().min(1).nullable().optional(),
-    // redemption_mode and code_count are immutable — a Voucher's mode and its
-    // minted batch are fixed at creation; only the cap may change on listed.
+    // No redemption_mode or code_count: a Voucher's codes are fixed at creation.
     usage_limit: z.coerce.number().int().positive().nullable().optional(),
   })
   .strict();
