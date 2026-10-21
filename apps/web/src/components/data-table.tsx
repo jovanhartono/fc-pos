@@ -37,6 +37,10 @@ interface DataTableProps<TData extends RowData> {
 	cardHiddenColumnIds?: string[];
 	// Opens the record from anywhere on its row or card.
 	getRowLink?: (row: TData) => LinkProps;
+	// Same, for a record that opens in a sheet and has no page of its own.
+	onRowOpen?: (row: TData) => void;
+	// Drawn inside a card that already has the border, like a Store's group.
+	isInsideCard?: boolean;
 	// Phone rows share one card; for lists of one-line records, not Orders.
 	isCardGrouped?: boolean;
 	// Phone rows the page draws itself, inside one grouped card.
@@ -98,6 +102,8 @@ export const DataTable = <TData extends RowData>({
 	cardPrimaryColumnId,
 	cardHiddenColumnIds,
 	getRowLink,
+	onRowOpen,
+	isInsideCard,
 	isCardGrouped,
 	renderCard,
 	isRowActive,
@@ -149,6 +155,8 @@ export const DataTable = <TData extends RowData>({
 						cardPrimaryColumnId={cardPrimaryColumnId}
 						cardHiddenColumnIds={cardHiddenColumnIds}
 						getCardLink={getRowLink}
+						onCardOpen={onRowOpen}
+						isInsideCard={isInsideCard}
 						isGrouped={isCardGrouped || renderCard !== undefined}
 						renderCard={renderCard}
 						isRowActive={isRowActive}
@@ -178,6 +186,8 @@ export const DataTable = <TData extends RowData>({
 			emptyMessage={emptyMessage}
 			sortable={sortable}
 			getRowLink={getRowLink}
+			onRowOpen={onRowOpen}
+			isInsideCard={isInsideCard}
 			isRowActive={isRowActive}
 			footer={footer}
 		/>

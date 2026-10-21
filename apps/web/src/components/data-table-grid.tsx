@@ -35,6 +35,8 @@ interface DataTableGridProps<TData extends RowData> {
 	emptyMessage: string;
 	sortable: boolean;
 	getRowLink?: (row: TData) => LinkProps;
+	onRowOpen?: (row: TData) => void;
+	isInsideCard?: boolean;
 	isRowActive?: (row: TData) => boolean;
 	footer?: ReactNode;
 }
@@ -42,7 +44,7 @@ interface DataTableGridProps<TData extends RowData> {
 // Links and buttons in a cell sit above the whole-row link, so the customer
 // name on an order row still opens the Customer.
 const RAISED_CONTROLS =
-	"[&_a:not([data-row-link])]:relative [&_button]:relative";
+	"[&_a:not([data-row-link])]:relative [&_button:not([data-row-link])]:relative";
 
 const SKELETON_ROW_COUNT = 10;
 
@@ -67,9 +69,12 @@ export const DataTableGrid = <TData extends RowData>({
 	emptyMessage,
 	sortable,
 	getRowLink,
+	onRowOpen,
+	isInsideCard,
 	isRowActive,
 	footer,
 }: DataTableGridProps<TData>) => {
+	const isRowOpenable = getRowLink !== undefined || onRowOpen !== undefined;
 	const frameRef = useRef<HTMLDivElement>(null);
 	const bodyRef = useRef<HTMLTableSectionElement>(null);
 	const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -159,7 +164,10 @@ export const DataTableGrid = <TData extends RowData>({
 		// and the pager stays at its foot, whatever number of rows a filter returns.
 		<div
 			ref={frameRef}
-			className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card"
+			className={cn(
+				"flex min-h-0 flex-1 flex-col overflow-hidden bg-card",
+				!isInsideCard && "rounded-lg border",
+			)}
 		>
 			{/* Fixed columns: each column's width is set once on the column, so a
 			    new page or filter never slides the columns sideways. */}
@@ -277,7 +285,7 @@ export const DataTableGrid = <TData extends RowData>({
 								data-state={index === activeIndex ? "selected" : undefined}
 								className={cn(
 									"scroll-mt-9 border-border/60 data-focused:bg-muted/60 data-focused:outline-2 data-focused:outline-primary data-focused:-outline-offset-2 data-[state=selected]:bg-primary/10",
-									getRowLink && "relative cursor-pointer",
+									isRowOpenable && "relative cursor-pointer",
 								)}
 							>
 								{row.getAllCells().map((cell, cellIndex) => (
@@ -287,7 +295,7 @@ export const DataTableGrid = <TData extends RowData>({
 											"wrap-break-word whitespace-normal py-3 first:pl-3 last:pr-3",
 											cell.column.columnDef.meta?.align === "right" &&
 												"text-right tabular-nums",
-											getRowLink && RAISED_CONTROLS,
+											isRowOpenable && RAISED_CONTROLS,
 											cell.column.columnDef.meta?.cellClassName,
 										)}
 									>
@@ -298,6 +306,16 @@ export const DataTableGrid = <TData extends RowData>({
 												tabIndex={-1}
 												preload={false}
 												data-row-link
+												className="absolute inset-0"
+											/>
+										) : null}
+										{onRowOpen && !getRowLink && cellIndex === 0 ? (
+											<button
+												type="button"
+												aria-hidden
+												tabIndex={-1}
+												data-row-link
+												onClick={() => onRowOpen(row.original)}
 												className="absolute inset-0"
 											/>
 										) : null}

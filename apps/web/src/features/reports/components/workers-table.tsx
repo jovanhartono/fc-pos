@@ -1,6 +1,8 @@
 import { CaretRightIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { type ReactNode, useState } from "react";
+import { useMemo, useState } from "react";
+import { DataTable } from "@/components/data-table";
+import type { DataTableColumnDef } from "@/components/data-table-features";
 import {
 	Tooltip,
 	TooltipContent,
@@ -22,7 +24,6 @@ import {
 import { storesQueries } from "@/features/stores/api";
 import { useMinuteClock } from "@/hooks/useMinuteClock";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
-import { cn } from "@/lib/utils";
 
 type Live = WorkerRow["live"];
 
@@ -108,72 +109,133 @@ const AvgBar = ({ value, max }: AvgBarProps) => (
 // The line between what is happening right now and the chosen date range.
 const RANGE_EDGE = "shadow-[inset_1px_0_0_var(--color-border)]";
 
-interface Column {
-	header: string;
-	help?: string;
-	className?: string;
-	cell: (row: WorkerRow) => ReactNode;
+interface HelpHeaderProps {
+	label: string;
+	help: string;
 }
 
-const columnsFor = (rows: WorkerRow[], now: number): Column[] => {
+const HelpHeader = ({ label, help }: HelpHeaderProps) => (
+	<Tooltip>
+		<TooltipTrigger className="cursor-help underline decoration-dotted underline-offset-4">
+			{label}
+		</TooltipTrigger>
+		<TooltipContent>{help}</TooltipContent>
+	</Tooltip>
+);
+
+const columnsFor = (
+	rows: WorkerRow[],
+	now: number,
+): DataTableColumnDef<WorkerRow>[] => {
 	const maxPerDay = Math.max(0, ...rows.map((row) => row.per_day_worked ?? 0));
 	return [
 		{
+			accessorKey: "user_name",
+			header: "Worker",
+			meta: { kind: "name", width: { percent: 21, minRem: 8 } },
+			cell: ({ row }) => (
+				<WorkerName name={row.original.user_name} role={row.original.role} />
+			),
+		},
+		{
+			id: "shift",
 			header: "Shift",
-			className: "text-left",
-			cell: (row) =>
-				hasShiftLabel(row.live) ? <ShiftLabel live={row.live} /> : <Dash />,
+			meta: { width: { percent: 9, minRem: 3.5 } },
+			cell: ({ row }) =>
+				hasShiftLabel(row.original.live) ? (
+					<ShiftLabel live={row.original.live} />
+				) : (
+					<Dash />
+				),
 		},
 		{
-			header: "In hand",
-			help: "Items this worker has started and not sent to QC yet — from any day, not only today.",
-			cell: (row) => n(row.live.in_hand),
+			id: "in_hand",
+			header: () => (
+				<HelpHeader
+					label="In hand"
+					help="Items this worker has started and not sent to QC yet — from any day, not only today."
+				/>
+			),
+			meta: { align: "right", width: { percent: 8, minRem: 3.5 } },
+			cell: ({ row }) => n(row.original.live.in_hand),
 		},
 		{
+			id: "last_move",
 			header: "Last move",
-			cell: (row) => sinceText(row.live.last_move_at, now),
+			meta: { align: "right", width: { percent: 10, minRem: 4 } },
+			cell: ({ row }) => sinceText(row.original.live.last_move_at, now),
 		},
 		{
+			id: "services",
 			header: "Services",
-			className: RANGE_EDGE,
-			cell: (row) => n(row.services_processed),
+			meta: {
+				align: "right",
+				width: { percent: 9, minRem: 3.75 },
+				// Keeps the header's own hairline underneath.
+				headerClassName:
+					"shadow-[inset_1px_0_0_var(--color-border),inset_0_-1px_0_var(--border)]",
+				cellClassName: RANGE_EDGE,
+			},
+			cell: ({ row }) => n(row.original.services_processed),
 		},
-		{ header: "Days", cell: (row) => n(row.days_worked) },
 		{
+			id: "days",
+			header: "Days",
+			meta: { align: "right", width: { percent: 6, minRem: 2.5 } },
+			cell: ({ row }) => n(row.original.days_worked),
+		},
+		{
+			id: "per_day",
 			header: "Avg/day",
-			cell: (row) => <AvgBar value={row.per_day_worked} max={maxPerDay} />,
+			meta: { align: "right", width: { percent: 13, minRem: 5.5 } },
+			cell: ({ row }) => (
+				<AvgBar value={row.original.per_day_worked} max={maxPerDay} />
+			),
 		},
 		{
-			header: "QC rejects",
-			help: "QC checks sent back, out of all QC checks on Items this worker cleaned. One Item can be checked more than once.",
-			cell: (row) => <BadCount bad={row.qc_rejects} total={row.qc_checks} />,
+			id: "qc_rejects",
+			header: () => (
+				<HelpHeader
+					label="QC rejects"
+					help="QC checks sent back, out of all QC checks on Items this worker cleaned. One Item can be checked more than once."
+				/>
+			),
+			meta: { align: "right", width: { percent: 10, minRem: 4.5 } },
+			cell: ({ row }) => (
+				<BadCount
+					bad={row.original.qc_rejects}
+					total={row.original.qc_checks}
+				/>
+			),
 		},
 		{
-			header: "Complaints",
-			help: "Complaints, out of Services this worker cleaned that passed QC.",
-			cell: (row) => (
-				<BadCount bad={row.complaints} total={row.complaint_cohort} />
+			id: "complaints",
+			header: () => (
+				<HelpHeader
+					label="Complaints"
+					help="Complaints, out of Services this worker cleaned that passed QC."
+				/>
+			),
+			meta: { align: "right", width: { percent: 10, minRem: 4.5 } },
+			cell: ({ row }) => (
+				<BadCount
+					bad={row.original.complaints}
+					total={row.original.complaint_cohort}
+				/>
+			),
+		},
+		{
+			id: "open",
+			header: () => <span className="sr-only">Open</span>,
+			meta: { width: { percent: 4, minRem: 1.75 } },
+			cell: () => (
+				<CaretRightIcon
+					aria-hidden="true"
+					className="size-3.5 text-muted-foreground"
+				/>
 			),
 		},
 	];
-};
-
-interface ColumnHeaderProps {
-	column: Column;
-}
-
-const ColumnHeader = ({ column }: ColumnHeaderProps) => {
-	if (!column.help) {
-		return column.header;
-	}
-	return (
-		<Tooltip>
-			<TooltipTrigger className="cursor-help underline decoration-dotted underline-offset-4">
-				{column.header}
-			</TooltipTrigger>
-			<TooltipContent>{column.help}</TooltipContent>
-		</Tooltip>
-	);
 };
 
 const phoneFacts = (row: WorkerRow, now: number) => {
@@ -187,124 +249,73 @@ const phoneFacts = (row: WorkerRow, now: number) => {
 	return [...perDay, `${n(row.live.in_hand)} in hand`, moved].join(" · ");
 };
 
-interface WorkerListProps {
-	rows: WorkerRow[];
+interface WorkerCardProps {
+	row: WorkerRow;
 	now: number;
 	onOpen: (row: WorkerRow) => void;
 }
 
-const WorkerList = ({ rows, now, onOpen }: WorkerListProps) => {
-	const columns = columnsFor(rows, now);
+const WorkerCard = ({ row, now, onOpen }: WorkerCardProps) => (
+	<button
+		type="button"
+		onClick={() => onOpen(row)}
+		className="grid w-full gap-1 px-4 py-3 text-left text-body tabular-nums active:bg-muted/40"
+	>
+		<span className="flex items-baseline gap-2">
+			<span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 font-medium">
+				<span>
+					<WorkerName name={row.user_name} role={row.role} />
+				</span>
+				{hasShiftLabel(row.live) && (
+					<span className="text-subhead">
+						<ShiftLabel live={row.live} />
+					</span>
+				)}
+			</span>
+			<span>
+				<span className="font-medium">{n(row.services_processed)}</span>
+				<span className="ml-1 text-muted-foreground">
+					{row.services_processed === 1 ? "Service" : "Services"}
+				</span>
+			</span>
+			<CaretRightIcon
+				aria-hidden="true"
+				className="size-3.5 self-center text-muted-foreground"
+			/>
+		</span>
+		<span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-subhead text-muted-foreground">
+			{phoneFacts(row, now)}
+			{row.qc_rejects > 0 && (
+				<BadCount bad={row.qc_rejects} total={row.qc_checks} prefix="QC " />
+			)}
+			{row.complaints > 0 && (
+				<BadCount
+					bad={row.complaints}
+					total={row.complaint_cohort}
+					prefix="Complaints "
+				/>
+			)}
+		</span>
+	</button>
+);
+
+interface WorkerListProps {
+	rows: WorkerRow[];
+	now: number;
+	onOpen: (row: WorkerRow) => void;
+	isInsideCard?: boolean;
+}
+
+const WorkerList = ({ rows, now, onOpen, isInsideCard }: WorkerListProps) => {
+	const columns = useMemo(() => columnsFor(rows, now), [rows, now]);
 	return (
-		<>
-			<table className="hidden w-full text-body tabular-nums lg:table">
-				<thead>
-					<tr className="bg-muted text-subhead text-muted-foreground">
-						<th scope="col" className="w-56 px-4 py-2 text-left font-medium">
-							Worker
-						</th>
-						{columns.map((column) => (
-							<th
-								key={column.header}
-								scope="col"
-								className={cn(
-									"px-3 py-2 text-right font-medium",
-									column.className,
-								)}
-							>
-								<ColumnHeader column={column} />
-							</th>
-						))}
-						<th scope="col" className="w-8">
-							<span className="sr-only">Open</span>
-						</th>
-					</tr>
-				</thead>
-				<tbody>
-					{rows.map((row) => (
-						<tr
-							key={row.user_id}
-							className="relative border-border border-t hover:bg-muted/40 has-focus-visible:bg-muted/40"
-						>
-							<td className="px-4 py-2.5">
-								{/* The button's own box covers the row, so the whole row opens. */}
-								<button
-									type="button"
-									onClick={() => onOpen(row)}
-									className="text-left font-medium after:absolute after:inset-0 focus-visible:outline-none"
-								>
-									<WorkerName name={row.user_name} role={row.role} />
-								</button>
-							</td>
-							{columns.map((column) => (
-								<td
-									key={column.header}
-									className={cn("px-3 py-2.5 text-right", column.className)}
-								>
-									{column.cell(row)}
-								</td>
-							))}
-							<td className="pr-3 text-muted-foreground">
-								<CaretRightIcon aria-hidden="true" className="size-3.5" />
-							</td>
-						</tr>
-					))}
-				</tbody>
-			</table>
-			<ul className="divide-y divide-border lg:hidden">
-				{rows.map((row) => (
-					<li key={row.user_id}>
-						<button
-							type="button"
-							onClick={() => onOpen(row)}
-							className="grid w-full gap-1 px-4 py-3 text-left text-body tabular-nums active:bg-muted/40"
-						>
-							<span className="flex items-baseline gap-2">
-								<span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 font-medium">
-									<span>
-										<WorkerName name={row.user_name} role={row.role} />
-									</span>
-									{hasShiftLabel(row.live) && (
-										<span className="text-subhead">
-											<ShiftLabel live={row.live} />
-										</span>
-									)}
-								</span>
-								<span>
-									<span className="font-medium">
-										{n(row.services_processed)}
-									</span>
-									<span className="ml-1 text-muted-foreground">
-										{row.services_processed === 1 ? "Service" : "Services"}
-									</span>
-								</span>
-								<CaretRightIcon
-									aria-hidden="true"
-									className="size-3.5 self-center text-muted-foreground"
-								/>
-							</span>
-							<span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-subhead text-muted-foreground">
-								{phoneFacts(row, now)}
-								{row.qc_rejects > 0 && (
-									<BadCount
-										bad={row.qc_rejects}
-										total={row.qc_checks}
-										prefix="QC "
-									/>
-								)}
-								{row.complaints > 0 && (
-									<BadCount
-										bad={row.complaints}
-										total={row.complaint_cohort}
-										prefix="Complaints "
-									/>
-								)}
-							</span>
-						</button>
-					</li>
-				))}
-			</ul>
-		</>
+		<DataTable
+			columns={columns}
+			data={rows}
+			onRowOpen={onOpen}
+			isInsideCard={isInsideCard}
+			renderCard={(row) => <WorkerCard now={now} onOpen={onOpen} row={row} />}
+		/>
 	);
 };
 
@@ -357,11 +368,7 @@ export const WorkersTable = ({
 	}
 
 	if (!isAllStores) {
-		return (
-			<div className="overflow-hidden rounded-lg border bg-card">
-				<WorkerList rows={workers} now={now} onOpen={onOpen} />
-			</div>
-		);
+		return <WorkerList rows={workers} now={now} onOpen={onOpen} />;
 	}
 
 	return (
@@ -373,7 +380,7 @@ export const WorkersTable = ({
 					totals={totals}
 					isOpenAtStart={store_id === firstStoreId}
 				>
-					<WorkerList rows={rows} now={now} onOpen={onOpen} />
+					<WorkerList rows={rows} now={now} onOpen={onOpen} isInsideCard />
 				</StoreGroup>
 			))}
 			<QuietStores workers={workers} isToday={isToday} />

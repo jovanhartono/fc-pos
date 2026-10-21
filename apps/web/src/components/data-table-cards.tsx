@@ -28,6 +28,8 @@ interface DataTableCardsProps<TData extends RowData> {
 	cardPrimaryColumnId?: string;
 	cardHiddenColumnIds?: string[];
 	getCardLink?: (row: TData) => LinkProps;
+	onCardOpen?: (row: TData) => void;
+	isInsideCard?: boolean;
 	isRowActive?: (row: TData) => boolean;
 	isGrouped?: boolean;
 	renderCard?: (row: TData) => ReactNode;
@@ -133,6 +135,8 @@ export const DataTableCards = <TData extends RowData>({
 	cardPrimaryColumnId,
 	cardHiddenColumnIds,
 	getCardLink,
+	onCardOpen,
+	isInsideCard,
 	isRowActive,
 	isGrouped,
 	renderCard,
@@ -198,7 +202,8 @@ export const DataTableCards = <TData extends RowData>({
 			<ul
 				key={resultSet}
 				className={cn(
-					"divide-y divide-border overflow-hidden rounded-lg border bg-card lg:hidden",
+					"divide-y divide-border overflow-hidden bg-card lg:hidden",
+					!isInsideCard && "rounded-lg border",
 					CONTENT_FADE,
 					staleFade(isStale),
 				)}
@@ -219,8 +224,10 @@ export const DataTableCards = <TData extends RowData>({
 	const hiddenIds = new Set(cardHiddenColumnIds ?? []);
 	// Links and buttons inside the card sit above the whole-card link, so the
 	// customer name on an order card still opens the Customer.
-	const raisedControls = getCardLink && "[&_a]:relative [&_button]:relative";
-	const hasCaret = isGrouped && getCardLink !== undefined;
+	const raisedControls =
+		(getCardLink || onCardOpen) && "[&_a]:relative [&_button]:relative";
+	const hasCaret =
+		isGrouped && (getCardLink !== undefined || onCardOpen !== undefined);
 	const rowPadding = isGrouped ? "px-4" : "px-3";
 
 	return (
@@ -282,6 +289,15 @@ export const DataTableCards = <TData extends RowData>({
 								aria-hidden
 								tabIndex={-1}
 								preload={false}
+								className="absolute inset-0"
+							/>
+						)}
+						{onCardOpen !== undefined && getCardLink === undefined && (
+							<button
+								type="button"
+								aria-hidden
+								tabIndex={-1}
+								onClick={() => onCardOpen(row.original)}
 								className="absolute inset-0"
 							/>
 						)}
