@@ -155,27 +155,22 @@ function ServicesPage() {
 					),
 			},
 			{
-				id: "priority",
-				header: "Queue",
-				meta: {
-					width: { percent: 9, minRem: 4.75 },
-					mobileCard: { slot: "status" },
-				},
-				cell: ({ row }) =>
-					row.original.is_priority ? (
-						<Badge variant="priority">Priority</Badge>
-					) : (
-						<Badge variant="outline">Standard</Badge>
-					),
-			},
-			{
 				id: "status",
 				header: "Status",
 				meta: {
-					width: { percent: 9, minRem: 5 },
+					width: { percent: 18, minRem: 9.5 },
 					mobileCard: { slot: "status" },
 				},
-				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
+				cell: ({ row }) => (
+					<span className="flex items-center gap-1.5">
+						{row.original.is_priority ? (
+							<Badge variant="priority">Priority</Badge>
+						) : (
+							<Badge variant="outline">Standard</Badge>
+						)}
+						<ActiveBadge isActive={row.original.is_active} />
+					</span>
+				),
 			},
 			{
 				id: "actions",
