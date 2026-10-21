@@ -82,7 +82,9 @@ export const TurnaroundSection = ({ report }: TurnaroundSectionProps) => {
 						{report.rows.map((r) => (
 							<tr
 								className={cn(
-									"relative border-t hover:bg-muted",
+									// iPhone Safari ignores `relative` on a row, so each row's tap
+									// area covered the whole screen and the page stopped scrolling.
+									"border-t [transform:translateZ(0)] hover:bg-muted",
 									r.name === row.name && "bg-info/10 hover:bg-info/10",
 								)}
 								key={r.name}
