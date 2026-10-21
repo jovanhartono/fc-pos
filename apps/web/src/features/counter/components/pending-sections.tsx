@@ -1,41 +1,13 @@
-import { CaretRightIcon } from "@phosphor-icons/react";
-import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Section } from "@/components/section";
 import type { CounterComplaint, CounterQcReject } from "@/features/counter/api";
 import { formatDays } from "@/features/counter/lib/format";
+import { OrderListRow } from "@/features/orders/components/order-list-row";
 import { pluralize } from "@/shared/utils";
 
-interface LookRowBodyProps {
-	code: string;
-	days: number;
-	why?: string;
-}
-
-const LookRowBody = ({ code, days, why }: LookRowBodyProps) => (
-	<>
-		<span className="grid min-w-0 gap-0.5">
-			<span className="flex items-baseline justify-between gap-3">
-				<span className="min-w-0 break-all font-medium text-body tabular-nums">
-					{code}
-				</span>
-				<span className="shrink-0 text-subhead tabular-nums">
-					{formatDays(days)}
-				</span>
-			</span>
-			{why ? (
-				<span className="text-muted-foreground text-subhead">{why}</span>
-			) : null}
-		</span>
-		<CaretRightIcon
-			aria-hidden="true"
-			className="size-3.5 shrink-0 text-muted-foreground/50"
-		/>
-	</>
-);
-
-const rowClass =
-	"grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/50 focus-visible:bg-muted focus-visible:outline-none";
+// The Pickup shelf's row: the Item code, the reason under it, and how long it
+// has waited on the right.
+const ROW_CLASS = "rounded-none px-3 tabular-nums";
 
 interface PendingSectionProps {
 	children: ReactNode;
@@ -75,19 +47,16 @@ export const PendingComplaintsSection = ({
 	>
 		{complaints.map((complaint) => (
 			<li key={complaint.complaint_id}>
-				<Link
-					className={rowClass}
+				<OrderListRow
+					className={ROW_CLASS}
+					details={[complaint.category, complaint.reason]}
+					end={
+						<span className="text-subhead">{formatDays(complaint.days)}</span>
+					}
 					params={{ complaintId: String(complaint.complaint_id) }}
+					title={complaint.item_code}
 					to="/complaints/$complaintId"
-				>
-					<LookRowBody
-						code={complaint.item_code}
-						days={complaint.days}
-						why={[complaint.category, complaint.reason]
-							.filter(Boolean)
-							.join(" · ")}
-					/>
-				</Link>
+				/>
 			</li>
 		))}
 	</PendingSection>
@@ -114,20 +83,17 @@ export const PendingQcRejectsSection = ({
 	>
 		{rejects.map((reject) => (
 			<li key={reject.order_service_id}>
-				<Link
-					className={rowClass}
+				<OrderListRow
+					className={ROW_CLASS}
+					details={[reject.category, reject.note]}
+					end={<span className="text-subhead">{formatDays(reject.days)}</span>}
 					params={{
 						orderId: reject.order_id,
 						serviceId: reject.order_service_id,
 					}}
+					title={reject.item_code}
 					to="/queue/$orderId/$serviceId"
-				>
-					<LookRowBody
-						code={reject.item_code}
-						days={reject.days}
-						why={[reject.category, reject.note].filter(Boolean).join(" · ")}
-					/>
-				</Link>
+				/>
 			</li>
 		))}
 	</PendingSection>
