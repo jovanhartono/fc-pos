@@ -551,8 +551,8 @@ function QueuePage() {
 										</Suspense>
 									</Field>
 									<Button
-										className="h-10 pointer-coarse:h-11"
 										onClick={() => setIsFilterOpen(false)}
+										size="lg"
 										type="button"
 									>
 										Done

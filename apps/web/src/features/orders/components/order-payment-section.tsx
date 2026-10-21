@@ -272,7 +272,7 @@ const SettledDiscountPaymentForm = ({
 				<ToCollectLine amount={toCollect} />
 				<PaymentMethodField />
 				<Button
-					className="h-10 pointer-coarse:h-11"
+					size="lg"
 					loading={paymentMutation.isPending}
 					type="submit"
 				>
@@ -477,7 +477,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 				<ToCollectLine amount={toCollect} />
 				<PaymentMethodField />
 				<Button
-					className="h-10 pointer-coarse:h-11"
+					size="lg"
 					loading={paymentMutation.isPending}
 					type="submit"
 				>

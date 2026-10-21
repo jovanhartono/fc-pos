@@ -93,7 +93,7 @@ export const VoucherCodeEntry = ({
 					value={code}
 				/>
 				<Button
-					className="h-10 pointer-coarse:h-11"
+					size="lg"
 					disabled={!canApply}
 					icon={<TicketIcon />}
 					loading={resolveMutation.isPending}

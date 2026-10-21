@@ -37,7 +37,7 @@ export const QueueCategoryFilter = ({
 			{MODE_ITEMS.map((item) => (
 				<Button
 					aria-pressed={mode === item.value}
-					className="h-10 pointer-coarse:h-11"
+					size="lg"
 					disabled={categoryId === undefined}
 					key={item.value}
 					onClick={() => onChange(categoryId, item.value)}

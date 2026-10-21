@@ -134,7 +134,7 @@ export const CustomerForm = ({
 
 				<div className="grid gap-2 md:col-span-2">
 					<Button
-						className="h-10 pointer-coarse:h-11"
+						size="lg"
 						type="submit"
 						loading={isSubmitting}
 						loadingText={
@@ -145,7 +145,7 @@ export const CustomerForm = ({
 					</Button>
 					{isEditing ? (
 						<Button
-							className="h-10 pointer-coarse:h-11"
+							size="lg"
 							type="button"
 							variant="outline"
 							onClick={onReset}
