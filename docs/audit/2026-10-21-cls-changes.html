@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layout Shift Changes</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional" rel="stylesheet">
+<style>
+  :root { --bg:#f5f5f7; --card:#fff; --fg:#1d1d1f; --muted:#6e6e73; --border:#e5e5ea; --primary:#0071e3; --soft:#f2f2f7; --frame:#e5e5ea;
+          --red:#d70015; --red-bg:#fdecea; --orange:#b25000; --orange-bg:#fff4e5; --green:#1a7f37; --green-bg:#e8f8ec; --shadow:0 1px 2px rgba(0,0,0,.04); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#000; --card:#1c1c1e; --fg:#f5f5f7; --muted:#98989d; --border:#38383a; --soft:#2c2c2e; --frame:#3a3a3c; --primary:#0a84ff;
+    --red:#ff6961; --red-bg:#3a1414; --orange:#ffb340; --orange-bg:#3a2a10; --green:#30d158; --green-bg:#0f2e18; --shadow:none; } }
+  :root[data-theme="dark"] { --bg:#000; --card:#1c1c1e; --fg:#f5f5f7; --muted:#98989d; --border:#38383a; --soft:#2c2c2e; --frame:#3a3a3c; --primary:#0a84ff;
+    --red:#ff6961; --red-bg:#3a1414; --orange:#ffb340; --orange-bg:#3a2a10; --green:#30d158; --green-bg:#0f2e18; --shadow:none; }
+  * { box-sizing:border-box; }
+  html { color-scheme:light dark; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/20px Inter, -apple-system, system-ui, sans-serif; letter-spacing:-0.006em; overflow-wrap:break-word; }
+  main { max-width:1040px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:34px; line-height:41px; font-weight:700; letter-spacing:-0.021em; margin:0 0 6px; }
+  h2 { font-size:20px; line-height:25px; font-weight:600; letter-spacing:-0.021em; margin:48px 0 4px; }
+  h3 { font-size:17px; line-height:22px; font-weight:600; letter-spacing:-0.01em; margin:0; }
+  p { margin:0; }
+  .lead { color:var(--muted); font-size:15px; line-height:22px; max-width:760px; }
+  .meta { color:var(--muted); font-size:12px; line-height:17px; margin-top:10px; max-width:760px; }
+  .sub { color:var(--muted); font-size:13px; line-height:18px; margin:0 0 12px; max-width:760px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card { border-color:transparent; } }
+  :root[data-theme="dark"] .card { border-color:transparent; }
+  .kpis { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; margin-top:24px; }
+  .kpi { padding:16px; }
+  .kpi .v { font-size:26px; line-height:32px; font-weight:700; letter-spacing:-0.021em; font-variant-numeric:tabular-nums; }
+  .kpi .l { color:var(--muted); font-size:13px; line-height:18px; }
+  .index { margin-top:16px; padding:8px 16px; }
+  .index ol { margin:0; padding:0; list-style:none; columns:2; column-gap:24px; }
+  .index li { display:grid; grid-template-columns:28px minmax(0,1fr); padding:6px 0; break-inside:avoid; font-size:13px; line-height:18px; }
+  .index a { color:var(--fg); text-decoration:none; }
+  .index a:hover { color:var(--primary); }
+  .index .n { color:var(--muted); font-variant-numeric:tabular-nums; }
+  .change { margin-top:12px; padding:16px; scroll-margin-top:16px; }
+  .head { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:12px; align-items:start; }
+  .num { display:grid; place-items:center; min-width:28px; height:28px; padding:0 7px; border-radius:999px; background:var(--soft); font-weight:600; font-size:13px; font-variant-numeric:tabular-nums; }
+  .score { font-variant-numeric:tabular-nums; font-weight:600; font-size:12px; line-height:16px; padding:4px 8px; border-radius:999px; white-space:nowrap; background:var(--green-bg); color:var(--green); }
+  .score.flash { background:var(--soft); color:var(--muted); }
+  .where { color:var(--muted); font-size:13px; line-height:18px; margin-top:2px; }
+  .bn { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; margin-top:12px; }
+  .bn div { background:var(--soft); border-radius:10px; padding:10px 12px; font-size:13px; line-height:19px; }
+  .bn b { display:block; font-weight:600; font-size:12px; line-height:16px; color:var(--muted); margin-bottom:2px; }
+  figure { margin:12px 0 0; }
+  .strip { display:grid; grid-template-columns:64px minmax(0,1fr); gap:8px; align-items:start; margin-top:8px; }
+  .strip > span { font-size:12px; line-height:16px; font-weight:600; color:var(--muted); padding-top:2px; }
+  .frames { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; }
+  .frames.phone { grid-template-columns:repeat(4, minmax(0,180px)); }
+  .frames.two { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .frames.two.phone { grid-template-columns:repeat(2, minmax(0,180px)); }
+  .frames.three.phone { grid-template-columns:repeat(3, minmax(0,180px)); }
+  .frames a { display:block; color:inherit; text-decoration:none; }
+  .frames img { display:block; width:100%; height:auto; border-radius:8px; border:1px solid var(--frame); background:var(--soft); }
+  .frames .t { display:block; font-size:11px; line-height:14px; color:var(--muted); margin-top:4px; font-variant-numeric:tabular-nums; }
+  figcaption { font-size:12px; line-height:17px; color:var(--muted); margin-top:8px; }
+  .files { font-size:12px; line-height:17px; color:var(--muted); margin-top:12px; }
+  .cost { margin-top:10px; background:var(--orange-bg); border-radius:10px; padding:10px 12px; font-size:13px; line-height:19px; }
+  .cost b { font-weight:600; }
+  .reply { margin-top:12px; font-size:13px; line-height:18px; color:var(--muted); }
+  .reply code { font:inherit; font-weight:600; color:var(--fg); background:var(--soft); padding:2px 8px; border-radius:999px; }
+  .group-why { color:var(--muted); font-size:13px; line-height:18px; margin:0; }
+  .opts { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; margin-top:12px; }
+  .opt { background:var(--soft); border-radius:10px; padding:10px 12px; font-size:13px; line-height:19px; }
+  .opt h4 { margin:0 0 4px; font-size:13px; line-height:18px; font-weight:600; }
+  .opt.pick { box-shadow:inset 0 0 0 2px var(--primary); }
+  .list { padding:4px 16px; }
+  .list .row { display:grid; grid-template-columns:40px minmax(0,1fr) auto; gap:12px; padding:10px 0; border-top:1px solid var(--border); font-size:13px; line-height:19px; }
+  .list .row:first-child { border-top:0; }
+  .list .id { color:var(--muted); font-weight:600; font-variant-numeric:tabular-nums; }
+  .list .v { font-variant-numeric:tabular-nums; color:var(--muted); white-space:nowrap; }
+  .note { margin-top:16px; background:var(--soft); border-radius:12px; padding:12px 14px; font-size:13px; line-height:19px; max-width:760px; }
+  @media (width < 760px) {
+    h1 { font-size:26px; line-height:32px; }
+    .kpis { grid-template-columns:repeat(2, minmax(0,1fr)); }
+    .index ol { columns:1; }
+    .bn, .opts { grid-template-columns:minmax(0,1fr); }
+    .strip { grid-template-columns:minmax(0,1fr); gap:4px; }
+    .frames, .frames.phone { grid-template-columns:repeat(2, minmax(0,1fr)); }
+    .frames.two.phone, .frames.three.phone { grid-template-columns:repeat(2, minmax(0,1fr)); }
+    .list .row { grid-template-columns:32px minmax(0,1fr); }
+    .list .v { grid-column:2; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Layout shift changes</h1>
+  <p class="lead">Every change made to stop things jumping on screen, one card each, so you can keep, change or revert it. Before is the Apple redesign without these changes (commit 86715d9); now is this branch (e8262dc).</p>
+  <p class="meta">Screens taken 2026-10-21 on the dev app at 1280×900 and 390×844, with every API reply held for 2s so the loading moment is visible. Times under each frame count from the tap. Tap a frame to open it full size. Scores are Chrome's layout-shift number from the 2026-10-20 audit and the re-measure after the fixes: 0 is perfect, 0.1 and up is poor.</p>
+
+  <div class="kpis">
+    <div class="card kpi"><div class="v">40</div><div class="l">findings in the audit</div></div>
+    <div class="card kpi"><div class="v">39</div><div class="l">fixed, in 17 changes below</div></div>
+    <div class="card kpi"><div class="v">1</div><div class="l">waiting on you (nested sheet header)</div></div>
+    <div class="card kpi"><div class="v">0.548 → 0.006</div><div class="l">worst score, before → now (now = the one waiting on you)</div></div>
+  </div>
+
+  <div class="card index">
+    <ol>
+      <li><span class="n">1</span><a href="#c1">Filters keep the old rows up, dimmed</a></li>
+      <li><span class="n">2</span><a href="#c2">Each page draws its own outline while it opens</a></li>
+      <li><span class="n">3</span><a href="#c3">Placeholders shaped like the content, then a fade</a></li>
+      <li><span class="n">4</span><a href="#c4">Reports tabs open in place</a></li>
+      <li><span class="n">5</span><a href="#c5">Counter Summary keeps still when changing the day</a></li>
+      <li><span class="n">6</span><a href="#c6">J/K in the Order sheet lands on a filled Order</a></li>
+      <li><span class="n">7</span><a href="#c7">Queue opens straight on your Store</a></li>
+      <li><span class="n">8</span><a href="#c8">Pager pinned to the bottom</a></li>
+      <li><span class="n">9</span><a href="#c9">Fixed table columns, names cut at two lines</a></li>
+      <li><span class="n">10</span><a href="#c10">Counts and badges keep their slot</a></li>
+      <li><span class="n">11</span><a href="#c11">Shorter Financial description on Reports</a></li>
+      <li><span class="n">12</span><a href="#c12">Attendance clock block holds its height</a></li>
+      <li><span class="n">13</span><a href="#c13">POS checkout hint lines always take their room</a></li>
+      <li><span class="n">14</span><a href="#c14">Inter loads early, stand-in font sized to match</a></li>
+      <li><span class="n">15</span><a href="#c15">Sheets keep their content while sliding out</a></li>
+      <li><span class="n">16</span><a href="#c16">Scrollbar space always kept</a></li>
+      <li><span class="n">17</span><a href="#c17">A new filter draws fresh rows</a></li>
+    </ol>
+  </div>
+
+  <!-- ============ GROUP 1 ============ -->
+  <h2>While something loads</h2>
+  <p class="group-why">The biggest visible change. Before, a slow reply blanked the page or swapped it for grey blocks; now the page stays and only the part that is waiting changes.</p>
+
+  <section class="card change" id="c1">
+    <div class="head"><span class="num">1</span><div><h3>Filters and pages keep the old rows up, dimmed</h3><p class="where">Orders, Customers, Complaints, Shifts, Users, Campaigns, Queue, a Customer's Orders, Reports panels and Aging Queue</p></div><span class="score flash">blink → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>Any chip, filter, search or page change waited a second, then swapped the whole page (title, filters, the search box you were typing in) for three grey blocks, then drew it again.</div>
+      <div><b>Now</b>The page never leaves. The old rows fade to 60% until the new ones arrive, then the new rows fade in over 0.2s. The status counts keep their old numbers meanwhile.</div>
+    </div>
+    <figure>
+      <div class="strip"><span>Before</span><div class="frames phone">
+        <a href="2026-10-21-cls-changes/ordersChip-390-b150.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersChip-390-b150.webp" width="520" height="1125" alt="Orders, just after tapping Created" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/ordersChip-390-b1300.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersChip-390-b1300.webp" width="520" height="1125" alt="Orders replaced by grey blocks" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/ordersChip-390-b2500.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersChip-390-b2500.webp" width="520" height="1125" alt="Still grey blocks" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/ordersChip-390-b8000.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersChip-390-b8000.webp" width="520" height="1125" alt="Created Orders loaded" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <div class="strip"><span>Now</span><div class="frames phone">
+        <a href="2026-10-21-cls-changes/ordersChip-390-a150.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersChip-390-a150.webp" width="520" height="1125" alt="Orders, old rows dimmed" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/ordersChip-390-a1300.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersChip-390-a1300.webp" width="520" height="1125" alt="Old rows still dimmed" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/ordersChip-390-a2500.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersChip-390-a2500.webp" width="520" height="1125" alt="Old rows still dimmed" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/ordersChip-390-a8000.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersChip-390-a8000.webp" width="520" height="1125" alt="Created Orders loaded" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <figcaption>Orders on a phone, tapping Created.</figcaption>
+    </figure>
+    <figure>
+      <div class="strip"><span>Before</span><div class="frames">
+        <a href="2026-10-21-cls-changes/ordersChip-1280-b150.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersChip-1280-b150.webp" width="800" height="500" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/ordersChip-1280-b1300.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersChip-1280-b1300.webp" width="800" height="500" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/ordersChip-1280-b2500.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersChip-1280-b2500.webp" width="800" height="500" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/ordersChip-1280-b8000.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersChip-1280-b8000.webp" width="800" height="500" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <div class="strip"><span>Now</span><div class="frames">
+        <a href="2026-10-21-cls-changes/ordersChip-1280-a150.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersChip-1280-a150.webp" width="800" height="500" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/ordersChip-1280-a1300.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersChip-1280-a1300.webp" width="800" height="500" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/ordersChip-1280-a2500.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersChip-1280-a2500.webp" width="800" height="500" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/ordersChip-1280-a8000.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersChip-1280-a8000.webp" width="800" height="500" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <figcaption>Same on a laptop. The blank-page flash scored 0, because Chrome only counts things that move; the parts that did move are scored on cards 9, 10 and 17.</figcaption>
+    </figure>
+    <p class="files">Files: lib/content-fade.ts, components/data-table.tsx, data-table-grid.tsx, data-table-cards.tsx; the loaders in routes/_admin/orders.index, customers.index, customers.$customerId, complaints.index, users, shifts and reports skip the wait on a filter change; queue.index keeps the old cards the same way. Audit ids O1, O2, O13, W5, W10, R8, V1, V2, V4.</p>
+    <p class="cost"><b>Trade-off:</b> while the old rows are dimmed they are the old answer and can still be tapped. If a reply never came the list would stay dimmed; that happened once in testing after a fast run of filter taps and could not be repeated.</p>
+    <p class="reply">Reply: <code>keep / change / revert 1</code></p>
+  </section>
+
+  <section class="card change" id="c2">
+    <div class="head"><span class="num">2</span><div><h3>Each page draws its own outline while it opens</h3><p class="where">All list pages, Order, Customer and Complaint pages, Queue, Counter, POS, Attendance, Reports</p></div><span class="score flash">blink → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>Opening a page on a slow line showed the same three grey blocks everywhere, with a title bar some pages don't have, then the real page.</div>
+      <div><b>Now</b>The page's own title, chips, search and filters appear at once, with grey rows where the data will go. Nothing above the rows changes when it loads.</div>
+    </div>
+    <figure>
+      <div class="strip"><span>Before</span><div class="frames">
+        <a href="2026-10-21-cls-changes/coldServices-1280-b150.webp" target="_blank"><img src="2026-10-21-cls-changes/coldServices-1280-b150.webp" width="800" height="500" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/coldServices-1280-b1300.webp" target="_blank"><img src="2026-10-21-cls-changes/coldServices-1280-b1300.webp" width="800" height="500" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/coldServices-1280-b2500.webp" target="_blank"><img src="2026-10-21-cls-changes/coldServices-1280-b2500.webp" width="800" height="500" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/coldServices-1280-b8000.webp" target="_blank"><img src="2026-10-21-cls-changes/coldServices-1280-b8000.webp" width="800" height="500" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <div class="strip"><span>Now</span><div class="frames">
+        <a href="2026-10-21-cls-changes/coldServices-1280-a150.webp" target="_blank"><img src="2026-10-21-cls-changes/coldServices-1280-a150.webp" width="800" height="500" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/coldServices-1280-a1300.webp" target="_blank"><img src="2026-10-21-cls-changes/coldServices-1280-a1300.webp" width="800" height="500" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/coldServices-1280-a2500.webp" target="_blank"><img src="2026-10-21-cls-changes/coldServices-1280-a2500.webp" width="800" height="500" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/coldServices-1280-a8000.webp" target="_blank"><img src="2026-10-21-cls-changes/coldServices-1280-a8000.webp" width="800" height="500" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <figcaption>Orders → Services from the sidebar on a laptop.</figcaption>
+    </figure>
+    <figure>
+      <div class="strip"><span>Before</span><div class="frames phone">
+        <a href="2026-10-21-cls-changes/pos-390-b150.webp" target="_blank"><img src="2026-10-21-cls-changes/pos-390-b150.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/pos-390-b1300.webp" target="_blank"><img src="2026-10-21-cls-changes/pos-390-b1300.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/pos-390-b2500.webp" target="_blank"><img src="2026-10-21-cls-changes/pos-390-b2500.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/pos-390-b8000.webp" target="_blank"><img src="2026-10-21-cls-changes/pos-390-b8000.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <div class="strip"><span>Now</span><div class="frames phone">
+        <a href="2026-10-21-cls-changes/pos-390-a150.webp" target="_blank"><img src="2026-10-21-cls-changes/pos-390-a150.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/pos-390-a1300.webp" target="_blank"><img src="2026-10-21-cls-changes/pos-390-a1300.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/pos-390-a2500.webp" target="_blank"><img src="2026-10-21-cls-changes/pos-390-a2500.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/pos-390-a8000.webp" target="_blank"><img src="2026-10-21-cls-changes/pos-390-a8000.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <figcaption>Orders → POS on a phone. The POS outline also replaces the old "Loading POS workspace…" card; Counter's replaces its "Loading…" line and the "No Store." flash.</figcaption>
+    </figure>
+    <p class="files">Files: 19 routes under routes/_admin get the page itself as their loading screen (pendingComponent with codeSplitGroupings); components/route-pending.tsx; features/transactions/components/pos-skeleton.tsx; features/counter/components/counter-page.tsx. Audit ids O1, O7, V3, W4, W8, R8, R9.</p>
+    <p class="cost"><b>Trade-off:</b> each page's outline lives in that page's code, so a layout change has to be made in the outline too. The Queue job page (Queue → a job) was left out and still shows the grey blocks on a slow open.</p>
+    <p class="reply">Reply: <code>keep / change / revert 2</code></p>
+  </section>
+
+  <section class="card change" id="c3">
+    <div class="head"><span class="num">3</span><div><h3>Placeholders shaped like the content, then a 0.2s fade</h3><p class="where">Tables and phone cards, Order, Customer and Complaint pages, Pickup radar, Reports cards and charts, the worker sheet</p></div><span class="score">0.120 → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>A "Loading…" line in the table, or generic blocks; content cut in and pushed what was below it.</div>
+      <div><b>Now</b>Grey rows and cards the size of a typical record: two-line table rows, the Order's own sections, Reports cards with the value line in place. Content fades in over 0.2s (no fade with Reduce motion on).</div>
+    </div>
+    <figure>
+      <div class="strip"><span>Before</span><div class="frames phone">
+        <a href="2026-10-21-cls-changes/orderPage-390-b150.webp" target="_blank"><img src="2026-10-21-cls-changes/orderPage-390-b150.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/orderPage-390-b1300.webp" target="_blank"><img src="2026-10-21-cls-changes/orderPage-390-b1300.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/orderPage-390-b2500.webp" target="_blank"><img src="2026-10-21-cls-changes/orderPage-390-b2500.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/orderPage-390-b8000.webp" target="_blank"><img src="2026-10-21-cls-changes/orderPage-390-b8000.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <div class="strip"><span>Now</span><div class="frames phone">
+        <a href="2026-10-21-cls-changes/orderPage-390-a150.webp" target="_blank"><img src="2026-10-21-cls-changes/orderPage-390-a150.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/orderPage-390-a1300.webp" target="_blank"><img src="2026-10-21-cls-changes/orderPage-390-a1300.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/orderPage-390-a2500.webp" target="_blank"><img src="2026-10-21-cls-changes/orderPage-390-a2500.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/orderPage-390-a8000.webp" target="_blank"><img src="2026-10-21-cls-changes/orderPage-390-a8000.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <figcaption>Opening Order #BGR/19102026/3 on a phone: the outline has the Order's header, Items and Payment in place.</figcaption>
+    </figure>
+    <figure>
+      <div class="strip"><span>Before</span><div class="frames">
+        <a href="2026-10-21-cls-changes/customerPage-1280-b150.webp" target="_blank"><img src="2026-10-21-cls-changes/customerPage-1280-b150.webp" width="800" height="500" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/customerPage-1280-b1300.webp" target="_blank"><img src="2026-10-21-cls-changes/customerPage-1280-b1300.webp" width="800" height="500" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/customerPage-1280-b2500.webp" target="_blank"><img src="2026-10-21-cls-changes/customerPage-1280-b2500.webp" width="800" height="500" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/customerPage-1280-b8000.webp" target="_blank"><img src="2026-10-21-cls-changes/customerPage-1280-b8000.webp" width="800" height="500" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <div class="strip"><span>Now</span><div class="frames">
+        <a href="2026-10-21-cls-changes/customerPage-1280-a150.webp" target="_blank"><img src="2026-10-21-cls-changes/customerPage-1280-a150.webp" width="800" height="500" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/customerPage-1280-a1300.webp" target="_blank"><img src="2026-10-21-cls-changes/customerPage-1280-a1300.webp" width="800" height="500" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/customerPage-1280-a2500.webp" target="_blank"><img src="2026-10-21-cls-changes/customerPage-1280-a2500.webp" width="800" height="500" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/customerPage-1280-a8000.webp" target="_blank"><img src="2026-10-21-cls-changes/customerPage-1280-a8000.webp" width="800" height="500" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <figcaption>A Customer's page on a laptop. 0.120 was Reports Quality "Show all" (R2): 50 grey rows now match 50 real rows exactly.</figcaption>
+    </figure>
+    <p class="files">Files: components/text-skeleton.tsx, data-table-grid.tsx and data-table-cards.tsx (grey rows and per-list phone card heights), features/orders/components/order-detail-view.tsx, pickup-radar.tsx, features/customers/components/customer-summary-strip.tsx, routes/_admin/complaints.$complaintId.tsx, features/reports/components/kpi-card.tsx, chart-card.tsx, turnaround-dot-chart.tsx, worker-sheet.tsx, panels/quality-panel.tsx, financial-panel.tsx. Audit ids O8, O9, O10, R2, R3, R7, R9, V3, V5.</p>
+    <p class="cost"><b>Trade-off:</b> sized to a typical record, so unusual ones still move what is below them when they land: an Order with many Items, Categories phone cards (outline 96px, 4 of 10 real cards are 76px), Quality QC rejects on a phone (128 vs 156px), the Complaint page (20px short). See "Still not zero".</p>
+    <p class="reply">Reply: <code>keep / change / revert 3</code></p>
+  </section>
+
+  <section class="card change" id="c4">
+    <div class="head"><span class="num">4</span><div><h3>Reports tabs open in place</h3><p class="where">Reports, every tab</p></div><span class="score flash">blink → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>Tapping a tab left the old tab on screen while it waited, then swapped the panel for grey blocks while the tab's code downloaded on its first open.</div>
+      <div><b>Now</b>The tab you tapped is selected at once and draws its own outline (the real table header and cards). Title, filter, Export and the tab strip never move.</div>
+    </div>
+    <figure>
+      <div class="strip"><span>Before</span><div class="frames">
+        <a href="2026-10-21-cls-changes/reportsTab-1280-b150.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsTab-1280-b150.webp" width="800" height="500" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/reportsTab-1280-b1300.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsTab-1280-b1300.webp" width="800" height="500" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/reportsTab-1280-b2500.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsTab-1280-b2500.webp" width="800" height="500" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/reportsTab-1280-b8000.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsTab-1280-b8000.webp" width="800" height="500" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <div class="strip"><span>Now</span><div class="frames">
+        <a href="2026-10-21-cls-changes/reportsTab-1280-a150.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsTab-1280-a150.webp" width="800" height="500" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/reportsTab-1280-a1300.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsTab-1280-a1300.webp" width="800" height="500" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/reportsTab-1280-a2500.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsTab-1280-a2500.webp" width="800" height="500" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/reportsTab-1280-a8000.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsTab-1280-a8000.webp" width="800" height="500" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <figcaption>Overview → Quality on a laptop.</figcaption>
+    </figure>
+    <figure>
+      <div class="strip"><span>Before</span><div class="frames phone">
+        <a href="2026-10-21-cls-changes/reportsTab-390-b150.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsTab-390-b150.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/reportsTab-390-b1300.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsTab-390-b1300.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/reportsTab-390-b2500.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsTab-390-b2500.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/reportsTab-390-b8000.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsTab-390-b8000.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <div class="strip"><span>Now</span><div class="frames phone">
+        <a href="2026-10-21-cls-changes/reportsTab-390-a150.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsTab-390-a150.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/reportsTab-390-a1300.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsTab-390-a1300.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/reportsTab-390-a2500.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsTab-390-a2500.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/reportsTab-390-a8000.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsTab-390-a8000.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <figcaption>Same on a phone.</figcaption>
+    </figure>
+    <p class="files">Files: routes/_admin/reports.tsx (the nine panels are now plain imports, and the page no longer waits for data on a tab change), all nine files in features/reports/panels/. Audit id V2.</p>
+    <p class="cost"><b>Trade-off:</b> the first visit to Reports downloads every tab's code at once: one 569 KB file, about 154 KB over the wire (production build), instead of a piece per tab. Later tabs then open with no download.</p>
+    <p class="reply">Reply: <code>keep / change / revert 4</code></p>
+  </section>
+
+  <section class="card change" id="c5">
+    <div class="head"><span class="num">5</span><div><h3>Counter Summary keeps still when changing the day</h3><p class="where">Counter → Summary, Previous day / Next day</p></div><span class="score">0.548 → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>The worst finding in the audit: when the new day's figures landed, every section below the totals jumped up or down by the difference in rows.</div>
+      <div><b>Now</b>The old day stays up, dimmed, then the new day is drawn fresh in one go and fades in. The heading and the day picker never move.</div>
+    </div>
+    <figure>
+      <div class="strip"><span>Before</span><div class="frames phone">
+        <a href="2026-10-21-cls-changes/counterDay-390-b150.webp" target="_blank"><img src="2026-10-21-cls-changes/counterDay-390-b150.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/counterDay-390-b1300.webp" target="_blank"><img src="2026-10-21-cls-changes/counterDay-390-b1300.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/counterDay-390-b2500.webp" target="_blank"><img src="2026-10-21-cls-changes/counterDay-390-b2500.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/counterDay-390-b8000.webp" target="_blank"><img src="2026-10-21-cls-changes/counterDay-390-b8000.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <div class="strip"><span>Now</span><div class="frames phone">
+        <a href="2026-10-21-cls-changes/counterDay-390-a150.webp" target="_blank"><img src="2026-10-21-cls-changes/counterDay-390-a150.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/counterDay-390-a1300.webp" target="_blank"><img src="2026-10-21-cls-changes/counterDay-390-a1300.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/counterDay-390-a2500.webp" target="_blank"><img src="2026-10-21-cls-changes/counterDay-390-a2500.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/counterDay-390-a8000.webp" target="_blank"><img src="2026-10-21-cls-changes/counterDay-390-a8000.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <figcaption>Kemang, 19 Oct → 18 Oct on a phone. Before, the old day also stayed up, but undimmed, and the sections then slid when the day arrived; a still frame can't show the slide.</figcaption>
+    </figure>
+    <p class="files">Files: features/counter/components/day-close/day-close-tab.tsx. Audit ids W1, W2.</p>
+    <p class="cost"><b>Trade-off:</b> the page is still as long as the day's data, so it grows or shrinks at the bottom; that happens below what you are reading and doesn't count as a jump.</p>
+    <p class="reply">Reply: <code>keep / change / revert 5</code></p>
+  </section>
+
+  <section class="card change" id="c6">
+    <div class="head"><span class="num">6</span><div><h3>J/K in the Order sheet lands on a filled Order</h3><p class="where">Orders on a laptop, walking the list with J/K or the arrows in the sheet</p></div><span class="score flash">blink → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>Each step showed the grey outline for as long as the request took, then the Order.</div>
+      <div><b>Now</b>The Orders either side of the open one are fetched ahead, so the next one appears straight away.</div>
+    </div>
+    <figure>
+      <div class="strip"><span>Before</span><div class="frames">
+        <a href="2026-10-21-cls-changes/orderWalk-1280-b150.webp" target="_blank"><img src="2026-10-21-cls-changes/orderWalk-1280-b150.webp" width="520" height="807" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/orderWalk-1280-b1300.webp" target="_blank"><img src="2026-10-21-cls-changes/orderWalk-1280-b1300.webp" width="520" height="807" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/orderWalk-1280-b2500.webp" target="_blank"><img src="2026-10-21-cls-changes/orderWalk-1280-b2500.webp" width="520" height="807" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/orderWalk-1280-b8000.webp" target="_blank"><img src="2026-10-21-cls-changes/orderWalk-1280-b8000.webp" width="520" height="807" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <div class="strip"><span>Now</span><div class="frames">
+        <a href="2026-10-21-cls-changes/orderWalk-1280-a150.webp" target="_blank"><img src="2026-10-21-cls-changes/orderWalk-1280-a150.webp" width="520" height="807" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/orderWalk-1280-a1300.webp" target="_blank"><img src="2026-10-21-cls-changes/orderWalk-1280-a1300.webp" width="520" height="807" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/orderWalk-1280-a2500.webp" target="_blank"><img src="2026-10-21-cls-changes/orderWalk-1280-a2500.webp" width="520" height="807" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/orderWalk-1280-a8000.webp" target="_blank"><img src="2026-10-21-cls-changes/orderWalk-1280-a8000.webp" width="520" height="807" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <div class="strip"><span>Now, close up</span><div class="frames three phone">
+        <a href="2026-10-21-cls-changes/walkFast-1280-a20.webp" target="_blank"><img src="2026-10-21-cls-changes/walkFast-1280-a20.webp" width="520" height="377" alt="Two Orders drawn over each other" loading="lazy"><span class="t">0.05s</span></a>
+        <a href="2026-10-21-cls-changes/walkFast-1280-a120.webp" target="_blank"><img src="2026-10-21-cls-changes/walkFast-1280-a120.webp" width="520" height="377" alt="" loading="lazy"><span class="t">0.2s</span></a>
+        <a href="2026-10-21-cls-changes/walkFast-1280-a400.webp" target="_blank"><img src="2026-10-21-cls-changes/walkFast-1280-a400.webp" width="520" height="377" alt="" loading="lazy"><span class="t">0.4s</span></a>
+      </div></div>
+      <figcaption>Order sheet, pressing J on the first Order. The close-up has no slow reply: in the first frame the two Orders show through each other.</figcaption>
+    </figure>
+    <p class="files">Files: features/orders/hooks/useOrderSheet.tsx. Audit id O8.</p>
+    <p class="cost"><b>Trade-off:</b> opening an Order in the sheet now asks for two more Orders (kept for 30s). For a frame or two the old and new Order overlap, as in the close-up. Sections still move when the two Orders have different numbers of Items (0.013, counted as your key press).</p>
+    <p class="reply">Reply: <code>keep / change / revert 6</code></p>
+  </section>
+
+  <section class="card change" id="c7">
+    <div class="head"><span class="num">7</span><div><h3>Queue opens straight on your Store</h3><p class="where">Queue</p></div><span class="score">0.003 → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>The page drew, then put your saved Store into the address and loaded again: two loading screens in a row, and the "0 items" badge changed width.</div>
+      <div><b>Now</b>The saved Store is picked before anything draws; the Queue's own outline shows, and the count badge keeps its width.</div>
+    </div>
+    <figure>
+      <div class="strip"><span>Before</span><div class="frames phone">
+        <a href="2026-10-21-cls-changes/queue-390-b150.webp" target="_blank"><img src="2026-10-21-cls-changes/queue-390-b150.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/queue-390-b1300.webp" target="_blank"><img src="2026-10-21-cls-changes/queue-390-b1300.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/queue-390-b2500.webp" target="_blank"><img src="2026-10-21-cls-changes/queue-390-b2500.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/queue-390-b8000.webp" target="_blank"><img src="2026-10-21-cls-changes/queue-390-b8000.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <div class="strip"><span>Now</span><div class="frames phone">
+        <a href="2026-10-21-cls-changes/queue-390-a150.webp" target="_blank"><img src="2026-10-21-cls-changes/queue-390-a150.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/queue-390-a1300.webp" target="_blank"><img src="2026-10-21-cls-changes/queue-390-a1300.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/queue-390-a2500.webp" target="_blank"><img src="2026-10-21-cls-changes/queue-390-a2500.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/queue-390-a8000.webp" target="_blank"><img src="2026-10-21-cls-changes/queue-390-a8000.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <figcaption>Orders → Queue as admin on a phone. The admin has no saved Store, so both end on "Select a store"; a worker with a Store gets the cards. Note the chips: one fewer fits (card 10), and with no Store the count badge stays a grey bar (F8).</figcaption>
+    </figure>
+    <p class="files">Files: routes/_admin/queue.index.tsx, features/orders/components/queue-category-filter.tsx. Audit ids W3, W4, W5.</p>
+    <p class="cost"><b>Trade-off:</b> none seen. A review bug was fixed on the way: an admin who cleared the Store kept seeing the last Store's cards dimmed under "Select a store".</p>
+    <p class="reply">Reply: <code>keep / change / revert 7</code></p>
+  </section>
+
+  <!-- ============ GROUP 2 ============ -->
+  <h2>Things that hold their place</h2>
+  <p class="group-why">Space reserved ahead of time, so nothing that is already on screen moves when data or text changes.</p>
+
+  <section class="card change" id="c8">
+    <div class="head"><span class="num">8</span><div><h3>Pager pinned to the bottom, lists fill the page</h3><p class="where">Every list page and a Customer's Orders, laptop and phone</p></div><span class="score">0.228 → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>A short or empty result (Cancelled 0) pulled the pager up under the last row and hid the column names; going back to All threw the pager 500px down.</div>
+      <div><b>Now</b>The list fills the page and the pager rests at its foot whatever the row count. Column names keep their row on an empty result. Before the first page arrives the pager shows "–", greyed out.</div>
+    </div>
+    <figure>
+      <div class="strip"><span>Before</span><div class="frames two phone">
+        <a href="2026-10-21-cls-changes/ordersEmpty-390-ball.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersEmpty-390-ball.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">All</span></a>
+        <a href="2026-10-21-cls-changes/ordersEmpty-390-bcancelled.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersEmpty-390-bcancelled.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">Cancelled (0)</span></a>
+      </div></div>
+      <div class="strip"><span>Now</span><div class="frames two phone">
+        <a href="2026-10-21-cls-changes/ordersEmpty-390-aall.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersEmpty-390-aall.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">All</span></a>
+        <a href="2026-10-21-cls-changes/ordersEmpty-390-acancelled.webp" target="_blank"><img src="2026-10-21-cls-changes/ordersEmpty-390-acancelled.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">Cancelled (0)</span></a>
+      </div></div>
+      <figcaption>Orders on a phone, All → Cancelled.</figcaption>
+    </figure>
+    <p class="files">Files: components/data-table.tsx, data-table-grid.tsx, data-table-cards.tsx, list-panel.tsx, table-pagination.tsx, app-shell.tsx, features/customers/components/customer-orders-card.tsx, routes/_admin/customers.$customerId.tsx. Audit ids O6, O7, V4.</p>
+    <p class="cost"><b>Trade-off:</b> a short list leaves white space between the last row and the pager. On a laptop window under 640px tall the page still scrolls as a whole.</p>
+    <p class="reply">Reply: <code>keep / change / revert 8</code></p>
+  </section>
+
+  <section class="card change" id="c9">
+    <div class="head"><span class="num">9</span><div><h3>Fixed table columns, names cut at two lines</h3><p class="where">Every table on a laptop: Orders, Complaints, Shifts, Customers, catalog pages, Reports tables</p></div><span class="score">0.014 → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>Columns sized themselves to each page's text, so Next or a filter slid them sideways.</div>
+      <div><b>Now</b>Each column has a set width and one column (Customer, Service, Name…) takes the rest. Long text wraps to two lines, then ends in "…".</div>
+    </div>
+    <figure>
+      <div class="strip"><span>Before</span><div class="frames two">
+        <a href="2026-10-21-cls-changes/table-b1280.webp" target="_blank"><img src="2026-10-21-cls-changes/table-b1280.webp" width="1000" height="879" alt="" loading="lazy"><span class="t">1280 wide</span></a>
+        <a href="2026-10-21-cls-changes/table-b1024.webp" target="_blank"><img src="2026-10-21-cls-changes/table-b1024.webp" width="768" height="800" alt="" loading="lazy"><span class="t">1024 wide, sidebar open</span></a>
+      </div></div>
+      <div class="strip"><span>Now</span><div class="frames two">
+        <a href="2026-10-21-cls-changes/table-a1280.webp" target="_blank"><img src="2026-10-21-cls-changes/table-a1280.webp" width="1000" height="879" alt="" loading="lazy"><span class="t">1280 wide</span></a>
+        <a href="2026-10-21-cls-changes/table-a1024.webp" target="_blank"><img src="2026-10-21-cls-changes/table-a1024.webp" width="768" height="800" alt="Customer column gone at 1024 with the sidebar open" loading="lazy"><span class="t">1024 wide, sidebar open</span></a>
+      </div></div>
+      <figcaption>Orders at rest. At 1024 the sidebar starts closed; these were taken after opening it.</figcaption>
+    </figure>
+    <p class="files">Files: components/data-table-grid.tsx, data-table.tsx, and the column widths in routes/_admin/orders.index, complaints.index, shifts, customers.index, services, products, categories, payment-methods, campaigns, users, stores, plus customer-orders-card.tsx, quality-panel.tsx and aging-queue-panel.tsx. Audit id O5.</p>
+    <p class="cost"><b>Trade-off:</b> long names are cut at two lines on a laptop. <b>Problem found:</b> when the content area is narrower than the table (1024 wide with the sidebar opened), the Customer column shrinks to nothing: names disappear, phone numbers spill under Items ready and Total is cut off. Before, every column stayed visible.</p>
+    <p class="reply">Reply: <code>keep / change / revert 9</code></p>
+  </section>
+
+  <section class="card change" id="c10">
+    <div class="head"><span class="num">10</span><div><h3>Counts and badges keep their slot</h3><p class="where">Orders and Queue status chips, Queue "N items" badge, the Filters button, Reports Export and filter, the POS cart bar</p></div><span class="score">0.020 → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>Chips grew when their counts landed and the next chip slid up to 90px. Picking a filter widened the Filters button ("⛛ 2") and squeezed the search box. Export appeared on some Reports tabs and pushed the filter left.</div>
+      <div><b>Now</b>Counts sit in a fixed slot and keep the old number until the new one lands. The Filters count is a small blue badge on the button's corner. Export's space is held on every tab. The Reports filter and the POS cart summary have fixed widths.</div>
+    </div>
+    <figure>
+      <div class="strip"><span>Before</span><div class="frames two phone">
+        <a href="2026-10-21-cls-changes/badge-b.webp" target="_blank"><img src="2026-10-21-cls-changes/badge-b.webp" width="520" height="400" alt="Filters button with the count inside" loading="lazy"><span class="t">Two filters set</span></a>
+        <a href="2026-10-21-cls-changes/reportsHeader-390-boverview.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsHeader-390-boverview.webp" width="520" height="587" alt="" loading="lazy"><span class="t">Reports filter</span></a>
+      </div></div>
+      <div class="strip"><span>Now</span><div class="frames two phone">
+        <a href="2026-10-21-cls-changes/badge-a.webp" target="_blank"><img src="2026-10-21-cls-changes/badge-a.webp" width="520" height="400" alt="Filters button with a corner badge" loading="lazy"><span class="t">Two filters set</span></a>
+        <a href="2026-10-21-cls-changes/reportsHeader-390-aoverview.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsHeader-390-aoverview.webp" width="520" height="587" alt="" loading="lazy"><span class="t">Reports filter</span></a>
+      </div></div>
+      <figcaption>Orders with a Store and Unpaid set; Reports on a phone.</figcaption>
+    </figure>
+    <p class="files">Files: components/chip-strip.tsx, filter-count-badge.tsx, features/orders/components/order-filters.tsx, routes/_admin/queue.index.tsx, reports.tsx, features/reports/components/report-filters.tsx, features/transactions/components/cart-mini-bar.tsx, item-tray.tsx. Audit ids O3, O13, R4, R5, W3, W5, W11.</p>
+    <p class="cost"><b>Trade-off:</b> chips are a little wider (room for four digits), so on a phone the Queue shows three chips before the fade instead of four. A 36px empty slot sits beside the filter on Reports tabs that have no Export. The Reports filter is fixed width, so on a phone a long label is cut: "Last 30 days · All st…" (see card 11), and "All stores" sits left in a wide button.</p>
+    <p class="reply">Reply: <code>keep / change / revert 10</code></p>
+  </section>
+
+  <section class="card change" id="c11">
+    <div class="head"><span class="num">11</span><div><h3>Shorter Financial description on Reports</h3><p class="where">Reports, Financial tab, phone</p></div><span class="score">0.127 → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>"Gross sales, revenue, COGS, margin, and store performance" wrapped to two lines on a phone, so switching to Financial dropped the tabs and everything below by 20px.</div>
+      <div><b>Now</b>"Sales, revenue, COGS, margin and stores" fits one line like every other tab.</div>
+    </div>
+    <figure>
+      <div class="strip"><span>Before</span><div class="frames two phone">
+        <a href="2026-10-21-cls-changes/reportsHeader-390-boverview.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsHeader-390-boverview.webp" width="520" height="587" alt="" loading="lazy"><span class="t">Overview</span></a>
+        <a href="2026-10-21-cls-changes/reportsHeader-390-bfinancial.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsHeader-390-bfinancial.webp" width="520" height="587" alt="" loading="lazy"><span class="t">Financial</span></a>
+      </div></div>
+      <div class="strip"><span>Now</span><div class="frames two phone">
+        <a href="2026-10-21-cls-changes/reportsHeader-390-aoverview.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsHeader-390-aoverview.webp" width="520" height="587" alt="" loading="lazy"><span class="t">Overview</span></a>
+        <a href="2026-10-21-cls-changes/reportsHeader-390-afinancial.webp" target="_blank"><img src="2026-10-21-cls-changes/reportsHeader-390-afinancial.webp" width="520" height="587" alt="" loading="lazy"><span class="t">Financial</span></a>
+      </div></div>
+    </figure>
+    <p class="files">Files: routes/_admin/reports.tsx. Audit id R1.</p>
+    <p class="cost"><b>Trade-off:</b> the wording lost "gross" and "performance". The filter label beside it is now cut (card 10).</p>
+    <p class="reply">Reply: <code>keep / change / revert 11</code></p>
+  </section>
+
+  <section class="card change" id="c12">
+    <div class="head"><span class="num">12</span><div><h3>Attendance clock block holds its height</h3><p class="where">Attendance</p></div><span class="score">0.027 → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>The outline was a grey box and "Loading…"; when the location line and Clock in arrived, the week heading dropped 22px.</div>
+      <div><b>Now</b>The line's space is always there and the outline has the same shape, so the week heading never moves.</div>
+    </div>
+    <figure>
+      <div class="strip"><span>Before</span><div class="frames phone">
+        <a href="2026-10-21-cls-changes/attendance-390-b150.webp" target="_blank"><img src="2026-10-21-cls-changes/attendance-390-b150.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/attendance-390-b1300.webp" target="_blank"><img src="2026-10-21-cls-changes/attendance-390-b1300.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/attendance-390-b2500.webp" target="_blank"><img src="2026-10-21-cls-changes/attendance-390-b2500.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/attendance-390-b8000.webp" target="_blank"><img src="2026-10-21-cls-changes/attendance-390-b8000.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <div class="strip"><span>Now</span><div class="frames phone">
+        <a href="2026-10-21-cls-changes/attendance-390-a150.webp" target="_blank"><img src="2026-10-21-cls-changes/attendance-390-a150.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">0.15s</span></a>
+        <a href="2026-10-21-cls-changes/attendance-390-a1300.webp" target="_blank"><img src="2026-10-21-cls-changes/attendance-390-a1300.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">1.3s</span></a>
+        <a href="2026-10-21-cls-changes/attendance-390-a2500.webp" target="_blank"><img src="2026-10-21-cls-changes/attendance-390-a2500.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">2.5s</span></a>
+        <a href="2026-10-21-cls-changes/attendance-390-a8000.webp" target="_blank"><img src="2026-10-21-cls-changes/attendance-390-a8000.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">loaded</span></a>
+      </div></div>
+      <figcaption>Orders → Attendance on a phone. The test browser has no location, hence "Location is off".</figcaption>
+    </figure>
+    <p class="files">Files: features/shifts/components/clock-in-control.tsx, routes/_admin/attendance.tsx. Audit id W8.</p>
+    <p class="cost"><b>Trade-off:</b> an empty line above Clock in when there is nothing to say. The outline's shift list is taller than a short real one (318 vs 214px on a phone); it's the last thing on the page, so nothing moves.</p>
+    <p class="reply">Reply: <code>keep / change / revert 12</code></p>
+  </section>
+
+  <section class="card change" id="c13">
+    <div class="head"><span class="num">13</span><div><h3>POS checkout hint lines always take their room</h3><p class="where">POS checkout: Customer and Items steps, header and footer</p></div><span class="score">0.0004 → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>A hint under the step bar (for example after a Customer lookup) or above the footer appeared and pushed the content.</div>
+      <div><b>Now</b>The hint lines are always there, invisible when empty: one line on a laptop, two on a phone. The Continue button stays put across steps.</div>
+    </div>
+    <p class="files">Files: features/transactions/components/checkout-footer.tsx, transactions-checkout.tsx. Audit ids W12, W13. The first fix pass made it worse on a phone (0.013) before the two-line room was added.</p>
+    <p class="cost"><b>Trade-off:</b> up to 32px of empty space under the step bar on a phone when there is no hint.</p>
+    <p class="reply">Reply: <code>keep / change / revert 13</code></p>
+  </section>
+
+  <!-- ============ GROUP 3 ============ -->
+  <h2>Under the hood</h2>
+  <p class="group-why">Changes you mostly won't see, but each has a cost worth knowing.</p>
+
+  <section class="card change" id="c14">
+    <div class="head"><span class="num">14</span><div><h3>Inter loads early, stand-in font sized to match</h3><p class="where">Every page, first open</p></div><span class="score">0.026 → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>Inter was asked for only after the first screen drew, so text reflowed when it landed (the Queue job page moved most).</div>
+      <div><b>Now</b>Inter starts downloading with the app. Until it arrives, Arial is stretched to Inter's size, so the swap changes the letter shapes but not the line lengths.</div>
+    </div>
+    <p class="files">Files: main.tsx, index.css. The hand-written Latin-only font face is kept. Audit ids O4, W6, W7, R6.</p>
+    <p class="cost"><b>Trade-off:</b> the 48 KB Inter file downloads on every cold open, the login page included. On a very slow line text shows in Arial for a moment.</p>
+    <p class="reply">Reply: <code>keep / change / revert 14</code></p>
+  </section>
+
+  <section class="card change" id="c15">
+    <div class="head"><span class="num">15</span><div><h3>Sheets keep their content while sliding out</h3><p class="where">Every sheet: the Order sheet, Counter pickup shelf</p></div><span class="score">0.020 → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>The sheet's content was cleared on a 0.2s timer, which could fire before the slide-out ended: the header vanished and the body jumped up mid-slide.</div>
+      <div><b>Now</b>The content is cleared once the slide-out has finished.</div>
+    </div>
+    <p class="files">Files: stores/sheet-store.ts, components/ui/global-sheet.tsx. Audit ids O11, W9.</p>
+    <p class="cost"><b>Trade-off:</b> none seen.</p>
+    <p class="reply">Reply: <code>keep / change / revert 15</code></p>
+  </section>
+
+  <section class="card change" id="c16">
+    <div class="head"><span class="num">16</span><div><h3>Scrollbar space always kept</h3><p class="where">The app's content area</p></div><span class="score">0.0004 → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>On a screen with always-visible scrollbars, a page that became long enough to scroll got a scrollbar and everything narrowed by its width.</div>
+      <div><b>Now</b>The scrollbar's space is reserved all the time.</div>
+    </div>
+    <p class="files">Files: components/app-shell.tsx. Audit id W13.</p>
+    <p class="cost"><b>Trade-off:</b> on Windows, or a Mac set to always show scroll bars, a strip about 15px wide sits empty on the right of every page, even one that doesn't scroll. Macs with default settings and phones show no difference.</p>
+    <p class="reply">Reply: <code>keep / change / revert 16</code></p>
+  </section>
+
+  <section class="card change" id="c17">
+    <div class="head"><span class="num">17</span><div><h3>A new filter draws fresh rows</h3><p class="where">Every list, laptop and phone</p></div><span class="score">0.645 → 0</span></div>
+    <div class="bn">
+      <div><b>Before</b>In the first fix pass, rows from the old list were reused for the new one and moved to their new places when it landed: up to 0.645 on Shifts on a phone, 0.399 on Orders.</div>
+      <div><b>Now</b>A new filter, search or page draws a new set of rows in one go. A background refresh of the same filter keeps the rows as they are.</div>
+    </div>
+    <p class="files">Files: components/data-table.tsx (each list says what its rows answer), data-table-grid.tsx, data-table-cards.tsx; that key is set in orders.index, shifts, campaigns, users, customers.index, complaints.index, customer-orders-card, aging-queue-panel and quality-panel. Audit ids O2, O5, O13, W10, R8.</p>
+    <p class="cost"><b>Trade-off:</b> none visible. It would rule out any future animation of rows sliding between filters.</p>
+    <p class="reply">Reply: <code>keep / change / revert 17</code></p>
+  </section>
+
+  <p class="note">Also in the same layer, not about layout shift: menu items and pill tabs got corners that follow their container (commit fa45992).</p>
+
+  <!-- ============ WAITING ============ -->
+  <h2>Waiting on you</h2>
+  <p class="sub">One finding was left alone because it needs a design call.</p>
+  <section class="card change" id="o12">
+    <div class="head"><span class="num">O12</span><div><h3>Nested sheet header grows a row</h3><p class="where">Order sheet on a laptop → Collect payment (any nested sheet)</p></div><span class="score" style="background:var(--orange-bg);color:var(--orange)">0.021</span></div>
+    <div class="bn">
+      <div><b>What you see</b>The Order sheet's header is one row (arrows, "Order 1 of 25", Open full page, close). The nested sheet's header adds a back-link row ("‹ #BGR/19102026/3") above its title, so the body starts 54px lower than the Order's did.</div>
+      <div><b>Also</b>In Collect payment, "No campaigns available" shows first, then the campaign tiles land and the box grows 94 → 126px, pushing the form down (0.003 on a laptop, 0.006 on a phone). That part is a small fix whichever option you pick.</div>
+    </div>
+    <figure>
+      <div class="strip"><span>Now</span><div class="frames three phone">
+        <a href="2026-10-21-cls-changes/o12-1280-order.webp" target="_blank"><img src="2026-10-21-cls-changes/o12-1280-order.webp" width="520" height="807" alt="Order sheet" loading="lazy"><span class="t">Order sheet</span></a>
+        <a href="2026-10-21-cls-changes/o12-1280-a80.webp" target="_blank"><img src="2026-10-21-cls-changes/o12-1280-a80.webp" width="520" height="807" alt="Collect payment, no campaigns yet" loading="lazy"><span class="t">Collect payment, 0.08s</span></a>
+        <a href="2026-10-21-cls-changes/o12-1280-a600.webp" target="_blank"><img src="2026-10-21-cls-changes/o12-1280-a600.webp" width="520" height="807" alt="Collect payment, campaigns landed" loading="lazy"><span class="t">0.6s</span></a>
+      </div></div>
+      <div class="strip"><span>Phone</span><div class="frames three phone">
+        <a href="2026-10-21-cls-changes/o12-390-order.webp" target="_blank"><img src="2026-10-21-cls-changes/o12-390-order.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">Order page</span></a>
+        <a href="2026-10-21-cls-changes/o12-390-a80.webp" target="_blank"><img src="2026-10-21-cls-changes/o12-390-a80.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">Collect payment, 0.08s</span></a>
+        <a href="2026-10-21-cls-changes/o12-390-a2500.webp" target="_blank"><img src="2026-10-21-cls-changes/o12-390-a2500.webp" width="520" height="1125" alt="" loading="lazy"><span class="t">2.5s</span></a>
+      </div></div>
+      <figcaption>On a phone Collect payment opens as a plain sheet over the Order page, so only the campaigns growth applies there.</figcaption>
+    </figure>
+    <div class="opts">
+      <div class="opt"><h4>A. Always keep the back-link row</h4>Every sheet reserves the row, empty when there is nothing to go back to. Simplest; costs 54px of blank space at the top of every plain sheet.</div>
+      <div class="opt pick"><h4>B. One row for back link and actions</h4>The back link takes the place of the arrows and "Order 1 of 25" on the same row, so both headers are the same height. No new space, no motion. The row gets tight on a narrow sheet. My pick, since new animation is on hold.</div>
+      <div class="opt"><h4>C. Slide the nested sheet in as a panel</h4>Collect payment slides in over the Order like an iPhone push, so the new header reads as a new screen, not a jump. Most work, and adds an animation.</div>
+    </div>
+    <p class="files">Files: components/ui/global-sheet.tsx (header), features/transactions/components/campaign-tile-group.tsx (campaigns). Score 0.0033 counted + 0.0176 counted as your click on a laptop.</p>
+    <p class="reply">Reply: <code>O12 A / B / C</code></p>
+  </section>
+
+  <!-- ============ STILL NOT ZERO ============ -->
+  <h2>Still not zero</h2>
+  <p class="sub">What the re-measure and the cleanup check still found. "Your tap" means Chrome files the movement under the tap that caused it and doesn't count it.</p>
+  <div class="card list">
+    <div class="row"><span class="id">S1</span><span>Collect payment: campaigns box grows 94 → 126px when the list lands (with O12 above).</span><span class="v">0.003 laptop · 0.006 phone</span></div>
+    <div class="row"><span class="id">S2</span><span>J/K between Orders with different numbers of Items: Products and Payment sections move (card 6).</span><span class="v">0.013, your key</span></div>
+    <div class="row"><span class="id">S3</span><span>POS on a phone, first Service added: the tapped catalog row grows 56 → 62.5px as the count circle makes the name wrap; the cart caret moves 10px from "1 service" to "2 services".</span><span class="v">0.005, your tap</span></div>
+    <div class="row"><span class="id">S4</span><span>Reports Quality "Show all": the table grows from 5 to 50 rows at the tap and pushes the cards below out of view. Real tap 0; only a scripted click counts it.</span><span class="v">0, scripted 0.029</span></div>
+    <div class="row"><span class="id">S5</span><span>Quality QC rejects on a phone: outline cards 128px against real 156px (1352 vs 1630px in all), below the fold.</span><span class="v">0, size gap</span></div>
+    <div class="row"><span class="id">S6</span><span>A Customer's Orders on a phone: outline 1225px against real 1515px in all.</span><span class="v">0, size gap</span></div>
+    <div class="row"><span class="id">S7</span><span>Complaint page outline is 20px short (details block 90 vs 110px on a laptop, 162 vs 182px on a phone), so the block below moves down 20px when it loads.</span><span class="v">0, size gap</span></div>
+    <div class="row"><span class="id">S8</span><span>Attendance outline taller than a short week (318 vs 214px on a phone); last block, nothing below it.</span><span class="v">0, size gap</span></div>
+    <div class="row"><span class="id">S9</span><span>Queue job page (Queue → a job) still shows the old grey blocks on a slow open (about 2.4s at a 1.2s delay).</span><span class="v">0, blink</span></div>
+    <div class="row"><span class="id">S10</span><span>Complaints list on a phone: outline cards 64px against real 62–63px.</span><span class="v">0, size gap</span></div>
+  </div>
+
+  <!-- ============ FOUND ============ -->
+  <h2>Found along the way</h2>
+  <p class="sub">Not layout shift, but seen while testing. None are fixed.</p>
+  <div class="card list">
+    <div class="row"><span class="id">F1</span><span><b>/track crashes on an all-digit phone in the address.</b> A link with phone=628121000107 is read as a number, fails the page's check and shows "Application error". A phone starting with 0 works.</span><span class="v">routes/track.tsx</span></div>
+    <div class="row"><span class="id">F2</span><span><b>Orders table loses the Customer column at 1024 wide with the sidebar open</b> (card 9). Caused by the fixed columns.</span><span class="v">data-table-grid.tsx</span></div>
+    <div class="row"><span class="id">F3</span><span><b>Chip rows start 4px left of the content</b> on Orders, Queue and the POS catalog, and their outline chips start 4px to the right of the real ones. The strip's own padding (and the room for its fade) is overridden.</span><span class="v">chip-strip.tsx</span></div>
+    <div class="row"><span class="id">F4</span><span><b>J/K shows two Orders over each other</b> for a frame or two (card 6 close-up).</span><span class="v">useOrderSheet.tsx</span></div>
+    <div class="row"><span class="id">F5</span><span><b>The open row in lists is now light blue</b> (Orders, Counter shelf). Changed in the cleanup pass, not in the redesign you approved.</span><span class="v">order-list-row.tsx</span></div>
+    <div class="row"><span class="id">F6</span><span><b>Orders list stayed dimmed for over a minute</b> once, after Cancelled was tapped right after a search clear, Next and Prev. Not repeated in two tries.</span><span class="v">not reproduced</span></div>
+    <div class="row"><span class="id">F7</span><span><b>Reports worker sheet</b> still has its own loading cards; switching to the shared row would show 2 columns instead of 4 between 640 and 1023px wide.</span><span class="v">worker-sheet.tsx</span></div>
+    <div class="row"><span class="id">F8</span><span><b>Queue with no Store picked</b> shows a grey loading bar where "N items" goes, and it never resolves (it used to say "0 items").</span><span class="v">queue.index.tsx</span></div>
+    <div class="row"><span class="id">F9</span><span><b>POS showed "No items." briefly</b> once in a production build on a phone; probably the offline cache, not confirmed.</span><span class="v">unconfirmed</span></div>
+  </div>
+</main>
+</body>
+</html>
