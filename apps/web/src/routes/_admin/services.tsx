@@ -195,6 +195,7 @@ function ServicesPage() {
 			<PageHeader
 				title="Services"
 				count={isPending ? undefined : services.length}
+				countNoun="service"
 				actions={
 					<Button
 						onClick={handleOpenCreateSheet}

@@ -410,6 +410,7 @@ function OrdersPage() {
 			<PageHeader
 				title="Orders"
 				count={matchingCount}
+				countNoun="order"
 				actions={
 					<Button
 						variant="outline"

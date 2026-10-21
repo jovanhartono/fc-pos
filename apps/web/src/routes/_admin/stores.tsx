@@ -152,6 +152,7 @@ function StoresPage() {
 			<PageHeader
 				title="Stores"
 				count={isPending ? undefined : stores.length}
+				countNoun="store"
 				actions={
 					<Button
 						onClick={handleOpenCreateSheet}

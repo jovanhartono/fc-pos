@@ -250,6 +250,8 @@ function ShiftsPage() {
 		<>
 			<PageHeader
 				title="Shifts"
+				count={shiftsQuery.data?.meta.total}
+				countNoun="shift"
 				actions={
 					<Button icon={<PlusIcon className="size-4" />} onClick={handleCreate}>
 						New shift

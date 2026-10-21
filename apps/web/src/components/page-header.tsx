@@ -1,10 +1,17 @@
 import type { ReactNode } from "react";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { pluralize } from "@/shared/utils";
 
 export interface PageHeaderProps {
 	title: string;
-	// How many records the list below holds, read after the title like "Inbox 41".
+	// How many records the list below holds, in a badge after the title: "4 stores".
 	count?: number;
+	// What the count is of, singular ("store"). A page that names it keeps the
+	// badge's place while the count loads.
+	countNoun?: string;
+	// Only for a noun that doesn't just take an "s": "categories".
+	countNounPlural?: string;
 	description?: string;
 	actions?: ReactNode;
 	className?: string;
@@ -13,6 +20,8 @@ export interface PageHeaderProps {
 export function PageHeader({
 	title,
 	count,
+	countNoun,
+	countNounPlural,
 	description,
 	actions,
 	className,
@@ -26,17 +35,22 @@ export function PageHeader({
 				className,
 			)}
 		>
-			<h1 className="col-start-1 row-start-1 text-title-1 font-bold tracking-tight">
+			{/* A phone too narrow for the title, badge and actions puts the badge
+			    under the title, lined up with it. */}
+			<h1 className="col-start-1 row-start-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-title-1 font-bold tracking-tight">
 				{title}
 				{/* Drawn hidden until the count loads, so the title line never changes when it lands. */}
-				<span
-					className={cn(
-						"ml-2.5 font-normal text-muted-foreground text-title-3 leading-none tabular-nums",
-						count === undefined && "invisible",
-					)}
-				>
-					{(count ?? 0).toLocaleString("en-ID")}
-				</span>
+				{countNoun ? (
+					<Badge
+						className={cn(
+							"tracking-normal tabular-nums",
+							count === undefined && "invisible",
+						)}
+						variant="outline"
+					>
+						{pluralize(count ?? 0, countNoun, countNounPlural)}
+					</Badge>
+				) : null}
 			</h1>
 			{description ? (
 				<p className="col-span-2 row-start-2 text-body text-muted-foreground sm:col-span-1">

@@ -455,7 +455,7 @@ function QueuePage() {
 	return (
 		<>
 			{/* An admin with no Store picked has no rack, so no count shows. */}
-			<PageHeader count={totalItems} title="Queue" />
+			<PageHeader count={totalItems} countNoun="item" title="Queue" />
 
 			<div className="grid gap-3">
 				<StickyControls className="grid gap-3">

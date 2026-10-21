@@ -157,6 +157,8 @@ function CategoriesPage() {
 			<PageHeader
 				title="Categories"
 				count={isPending ? undefined : data.length}
+				countNoun="category"
+				countNounPlural="categories"
 				actions={
 					<Button
 						onClick={handleOpenCreateSheet}

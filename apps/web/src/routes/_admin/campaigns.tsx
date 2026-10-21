@@ -424,6 +424,7 @@ function CampaignsPage() {
 			<PageHeader
 				title="Campaigns"
 				count={campaignsQuery.isPending ? undefined : campaigns.length}
+				countNoun="campaign"
 				actions={
 					<Button
 						onClick={handleOpenCreateSheet}

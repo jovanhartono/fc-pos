@@ -149,6 +149,7 @@ function PaymentMethodsPage() {
 			<PageHeader
 				title="Payment methods"
 				count={isPending ? undefined : paymentMethods.length}
+				countNoun="payment method"
 				actions={
 					<Button
 						onClick={handleOpenCreateSheet}

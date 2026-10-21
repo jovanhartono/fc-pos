@@ -156,6 +156,8 @@ function CustomersPage() {
 		<>
 			<PageHeader
 				title="Customers"
+				count={customersQuery.data?.meta.total}
+				countNoun="customer"
 				actions={
 					<Button
 						onClick={handleOpenCreateSheet}

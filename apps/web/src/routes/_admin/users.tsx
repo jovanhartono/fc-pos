@@ -375,6 +375,7 @@ function UsersPage() {
 			<PageHeader
 				title="Users"
 				count={usersQuery.data?.meta.total}
+				countNoun="user"
 				actions={
 					<Button icon={<PlusIcon className="size-4" />} onClick={handleCreate}>
 						Add user

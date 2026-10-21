@@ -135,7 +135,11 @@ const ComplaintsPage = () => {
 
 	return (
 		<>
-			<PageHeader title="Complaints" />
+			<PageHeader
+				count={complaintsQuery.data?.meta.total}
+				countNoun="complaint"
+				title="Complaints"
+			/>
 			<ListPanel>
 				<DebouncedSearchInput
 					id="complaints-search"
