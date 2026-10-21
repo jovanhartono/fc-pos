@@ -4,7 +4,6 @@ import {
 	DeliveryTruck01Icon,
 	MoreVerticalIcon,
 	PrinterIcon,
-	WhatsappIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "sonner";
@@ -19,6 +18,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WhatsappIcon } from "@/components/whatsapp-icon";
 import { OpenComplaintForm } from "@/features/complaints/components/open-complaint-form";
 import { useOpenComplaintMutation } from "@/features/complaints/hooks/useComplaintMutations";
 import { CustomerLink } from "@/features/customers/components/customer-link";

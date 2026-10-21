@@ -9,7 +9,6 @@ import {
 	CheckmarkCircle02Icon,
 	Image02Icon,
 	ReloadIcon,
-	WhatsappIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -24,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { WhatsappIcon } from "@/components/whatsapp-icon";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import {
 	type OrderServiceDetail,

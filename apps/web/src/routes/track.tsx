@@ -3,7 +3,6 @@ import {
 	isCollectableItemStatus,
 	normalizePhoneNumber,
 } from "@fresclean/api/schema";
-import { WhatsappIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -16,6 +15,7 @@ import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { WhatsappIcon } from "@/components/whatsapp-icon";
 import { trackKeys, trackQueries } from "@/features/track/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {

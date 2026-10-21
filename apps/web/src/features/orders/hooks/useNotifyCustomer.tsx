@@ -1,9 +1,9 @@
-import { WhatsappIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { WhatsappIcon } from "@/components/whatsapp-icon";
 import {
 	createOrderPickupNotice,
 	type OrderDetail,

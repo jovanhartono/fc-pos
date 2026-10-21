@@ -1,7 +1,7 @@
-import { WhatsappIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
 import { Section } from "@/components/section";
+import { WhatsappIcon } from "@/components/whatsapp-icon";
 import type { CounterPickupShelf } from "@/features/counter/api";
 import { formatDays } from "@/features/counter/lib/format";
 import { NotifiedLabel } from "@/features/orders/components/notified-label";
