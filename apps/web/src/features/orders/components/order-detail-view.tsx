@@ -66,18 +66,36 @@ export const OrderDetailMessage = ({
 );
 
 // An old or mistyped link to an Order that doesn't exist; Retry can't help,
-// so the way out is back to the list.
+// so the way out is back to the list. In the sheet that is closing it, so a
+// cashier on the Counter stays there and a filtered list keeps its filters.
 export const OrderNotFound = () => {
+	const isInSheet = useSheet((s) => s.sheetState.open);
+	const onClose = useSheet((s) => s.sheetState.onClose);
 	const closeSheet = useSheet((s) => s.closeSheet);
+	if (isInSheet) {
+		const handleClose = () => {
+			onClose?.();
+			closeSheet();
+		};
+		return (
+			<EmptyState
+				action={
+					<Button onClick={handleClose} variant="outline">
+						Close
+					</Button>
+				}
+			>
+				Order not found.
+			</EmptyState>
+		);
+	}
 	return (
 		<EmptyState
 			action={
 				<Button
 					icon={<ArrowLeftIcon className="size-4" />}
 					nativeButton={false}
-					render={
-						<Link onClick={closeSheet} search={{ page: 1 }} to="/orders" />
-					}
+					render={<Link search={{ page: 1 }} to="/orders" />}
 					variant="outline"
 				>
 					Back to Orders
