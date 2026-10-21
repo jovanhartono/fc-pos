@@ -7,6 +7,8 @@ Three roles with disjoint capabilities. Locked for v1; do not blur the lines.
 > **Amended 2026-09-05:** the POS is open to workers — Create Order and take payment at drop-off — see [Amendment](#amendment-2026-09-05--the-pos-is-open-to-workers). Pickup keeps its per-user flag; refund and admin operations are unchanged.
 >
 > **Amended 2026-10-05:** two standing rules moved here from the glossary, self-QC and device versus role. See [Amendment](#amendment-2026-10-05--self-qc-and-devices).
+>
+> **Amended 2026-10-21:** the Day close is open to workers. See [Amendment](#amendment-2026-10-21--the-day-close-is-open-to-workers).
 
 ## Capabilities
 
@@ -123,3 +125,11 @@ Both rules stood in the glossary's definitions until it was trimmed to definitio
 
 - **Self-QC is allowed (decided 2026-07-06).** In shop practice, someone other than the cleaner does quality check before an Item goes back to the counter. The system deliberately does not enforce it. Who checked can be rebuilt from `order_service_status_logs`. Do not add a "checker ≠ cleaner" guard.
 - **Role decides capability, never device.** Cashiers run the POS on store tablets, workers run the Queue on Android phones, admins use any browser; the device shapes layout and input only.
+
+## Amendment 2026-10-21 — the Day close is open to workers
+
+A worker sometimes covers the cashier, for example at the PIK pop-up booth, and then checks the day's money against the card terminals before going home. The Counter's Summary tab (the Day close) was admin and cashier only, so that worker could not.
+
+**New rule: everyone who sees the Counter sees its Day close.** That is every shop role, at their own Stores only. It covers every worker, not only those who stand in at the counter: a per-user flag or a pop-up-only rule was considered and declined as setup nobody needs yet.
+
+Unchanged: refunds and admin operations, pickup's `can_process_pickup`, and the courier, who is still refused, so the Counter's assert stays in `permissions.ts` under [ADR-0006](0006-permissions-module-shape.md)'s lockstep rule.

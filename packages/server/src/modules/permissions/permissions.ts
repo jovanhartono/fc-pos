@@ -47,13 +47,6 @@ export function assertCanViewCounter(user: JWTPayload) {
   }
 }
 
-// The day's money is the front desk's to check, not the workshop's.
-export function assertCanViewDayClose(user: JWTPayload) {
-  if (user.role !== "admin" && user.role !== "cashier") {
-    throw new ForbiddenException("Only admin and cashier can view day close");
-  }
-}
-
 export function assertCanSendPickupNotice(user: JWTPayload) {
   if (!POS_ROLES.has(user.role)) {
     throw new ForbiddenException("Only shop staff can send pickup notices");

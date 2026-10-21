@@ -104,23 +104,27 @@ describe("who may read the day close", () => {
   const path = (storeId: number) =>
     `/day-close?store_id=${storeId}&date=2026-09-30`;
 
-  it("answers admin and cashier for their own Store", async () => {
-    for (const role of ["admin", "cashier"] as const) {
+  it("answers admin, cashier and worker for their own Store", async () => {
+    for (const role of ["admin", "cashier", "worker"] as const) {
       who = as(role);
       expect((await call(path(KEMANG))).status).toBe(200);
     }
-    expect(asked).toEqual([KEMANG, KEMANG]);
+    expect(asked).toEqual([KEMANG, KEMANG, KEMANG]);
   });
 
-  it("refuses a worker and a courier", async () => {
-    for (const role of ["worker", "courier"] as const) {
-      who = as(role);
-      expect((await call(path(KEMANG))).status).toBe(403);
-    }
+  it("refuses a courier", async () => {
+    who = as("courier");
+    expect((await call(path(KEMANG))).status).toBe(403);
     expect(asked).toEqual([]);
   });
 
   it("refuses a cashier asking about another Store", async () => {
+    expect((await call(path(BINTARO))).status).toBe(403);
+    expect(asked).toEqual([]);
+  });
+
+  it("refuses a worker asking about another Store", async () => {
+    who = as("worker");
     expect((await call(path(BINTARO))).status).toBe(403);
     expect(asked).toEqual([]);
   });
