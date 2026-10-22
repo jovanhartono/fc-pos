@@ -96,7 +96,7 @@ const DayRow = ({ row, shifts }: DayRowProps) => {
 						!isIn && "opacity-60",
 					)}
 				/>
-				<span className="min-w-0">
+				<span className="min-w-0 text-balance">
 					<span
 						className={cn(
 							"font-medium text-body",

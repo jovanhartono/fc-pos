@@ -106,7 +106,7 @@ interface PersonNameProps {
 }
 
 const PersonName = ({ row }: PersonNameProps) => (
-	<span className="min-w-0">
+	<span className="block min-w-0 text-balance">
 		<span className="font-medium text-body">{row.person.name}</span>
 		<span className="ml-1.5 text-muted-foreground text-subhead">
 			{row.person.role}
