@@ -51,14 +51,7 @@ export const RefundsSection = ({ data }: RefundsSectionProps) => {
 								code={refund.order_code}
 								customerName={refund.customer_name}
 								details={[refund.reasons.map(formatRefundReason).join(", ")]}
-								end={
-									<span className="grid text-right">
-										<AmountCell amount={refund.amount} tone="refund" />
-										<span className="text-footnote text-muted-foreground">
-											{refund.payment_method_name}
-										</span>
-									</span>
-								}
+								end={<AmountCell amount={refund.amount} tone="refund" />}
 								key={`${refund.order_id}-${refund.refunded_at}`}
 								orderId={refund.order_id}
 							/>
