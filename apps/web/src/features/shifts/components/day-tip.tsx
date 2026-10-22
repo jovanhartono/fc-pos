@@ -1,5 +1,5 @@
-import { type ReactNode, useLayoutEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import type { ReactNode } from "react";
+import { Tooltip, TooltipContent } from "@/components/ui/tooltip";
 import { clockRange } from "@/features/shifts/lib/shift-times";
 import {
 	type DayMark,
@@ -7,26 +7,26 @@ import {
 } from "@/features/shifts/lib/shifts-overview";
 import { formatShiftLength } from "@/lib/dayjs";
 
-const GAP = 6;
-const EDGE = 8;
-
 export const dayLabel = (day: string) => rangeLabel({ from: day, to: day });
 
 interface DayDetailProps {
 	mark: DayMark | undefined;
-	isFuture: boolean;
+	day: string;
+	today: string;
 	elsewhere: string | undefined;
 }
 
 // An admin checking one person's day before payroll, without opening the sheet.
-export const DayDetail = ({ mark, isFuture, elsewhere }: DayDetailProps) => {
-	if (isFuture) {
+export const DayDetail = ({ mark, day, today, elsewhere }: DayDetailProps) => {
+	if (day > today) {
 		return null;
 	}
 	if (!mark) {
+		// At 09:30 someone due at 10:00 hasn't missed the day yet.
+		const absent = day === today ? "Not in yet" : "Day off";
 		return (
 			<span className="block font-normal text-muted-foreground">
-				{elsewhere ? `At ${elsewhere}` : "Day off"}
+				{elsewhere === undefined ? absent : `At ${elsewhere}`}
 			</span>
 		);
 	}
@@ -50,36 +50,22 @@ export const DayDetail = ({ mark, isFuture, elsewhere }: DayDetailProps) => {
 };
 
 interface DayTipProps {
-	anchor: DOMRect;
+	anchor: Element | undefined;
 	children: ReactNode;
 }
 
-// Fixed to the viewport so the card's rounded clip can't cut it, and kept on
-// screen over the first and last columns.
-export const DayTip = ({ anchor, children }: DayTipProps) => {
-	const ref = useRef<HTMLDivElement>(null);
-
-	useLayoutEffect(() => {
-		const tip = ref.current;
-		if (!tip) {
-			return;
-		}
-		const { width, height } = tip.getBoundingClientRect();
-		const maxLeft = document.documentElement.clientWidth - width - EDGE;
-		const centered = anchor.left + anchor.width / 2 - width / 2;
-		const above = anchor.top - GAP - height;
-		tip.style.left = `${Math.max(EDGE, Math.min(centered, maxLeft))}px`;
-		tip.style.top = `${above >= EDGE ? above : anchor.bottom + GAP}px`;
-	}, [anchor]);
-
-	return createPortal(
-		<div
-			ref={ref}
+// Stays open while the mouse crosses columns and only moves, with no fade, so
+// it doesn't blink on every day. The grid clears it on scroll, so no tracking.
+export const DayTip = ({ anchor, children }: DayTipProps) => (
+	<Tooltip open={anchor !== undefined}>
+		<TooltipContent
+			anchor={anchor}
+			disableAnchorTracking
+			sideOffset={6}
 			aria-hidden
-			className="pointer-events-none fixed top-0 left-0 z-50 w-max max-w-xs rounded-sm bg-popover px-2.5 py-1.5 font-medium text-footnote text-popover-foreground shadow-md ring-1 ring-black/10 dark:ring-white/10"
+			className="pointer-events-none block animate-none! font-medium"
 		>
 			{children}
-		</div>,
-		document.body,
-	);
-};
+		</TooltipContent>
+	</Tooltip>
+);

@@ -44,7 +44,7 @@ export const ShiftsDayView = ({
 					value={totals.people}
 					label={isToday ? "clocked in today" : "clocked in"}
 				/>
-				<SummaryValue value={notIn} label="off" />
+				<SummaryValue value={notIn} label={isToday ? "not in yet" : "off"} />
 				<ForgottenNote count={totals.forgotten} />
 			</SummaryLine>
 			<div className="grid items-start gap-5 lg:grid-cols-2 2xl:grid-cols-3">
