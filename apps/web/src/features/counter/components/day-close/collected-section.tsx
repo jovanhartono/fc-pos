@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import type { DayClose } from "@/features/counter/api";
 import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
 import { unpaidOrdersOf } from "@/features/counter/lib/day-close";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
 interface CollectedSectionProps {
@@ -12,9 +13,7 @@ interface CollectedSectionProps {
 }
 
 const LINE = "grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3";
-const SUB_LINE = `${LINE} pl-4 text-body`;
-const RECEIVED_BG = "bg-success";
-const UNPAID_BG = "bg-destructive/70";
+const EARLIER_BG = "bg-success/40";
 
 interface KeyDotProps {
 	className: string;
@@ -23,12 +22,15 @@ interface KeyDotProps {
 const KeyDot = ({ className }: KeyDotProps) => (
 	<span
 		aria-hidden="true"
-		className={`mr-2 inline-block size-2 rounded-full align-middle ${className}`}
+		className={cn(
+			"mr-2 inline-block size-2 rounded-full align-middle",
+			className,
+		)}
 	/>
 );
 
-// Unpaid sits with the money so the owner sees what the day will bring in once
-// every Order dropped off that day is paid.
+// Received leads because it is the money already in the drawer and the bank;
+// Unpaid sits under it so the owner sees what the day brings in once paid.
 export const CollectedSection = ({
 	data,
 	dayLabel,
@@ -41,79 +43,83 @@ export const CollectedSection = ({
 		(sum, order) => sum + order.amount,
 		0,
 	);
-	const hasUnpaid = unpaidOrders.length > 0;
-	const expected = collected.amount + unpaidAmount;
+	const hasEarlier = collected.earlier > 0;
+	const when = isToday ? "today" : dayLabel;
 
 	return (
-		<section className="grid gap-2.5 rounded-lg border bg-card p-3.5 tabular-nums">
-			<div className={LINE}>
-				<span>
-					{hasUnpaid
-						? `Expected for ${isToday ? "today" : dayLabel}`
-						: "Received"}
-				</span>
-				<span className="text-right font-medium text-title-1">
-					{formatMoney(expected)}
-				</span>
-			</div>
-			{hasUnpaid ? (
-				<div aria-hidden="true" className="flex h-1.5 gap-0.5">
-					<span
-						className={`rounded-full ${RECEIVED_BG}`}
-						style={{
-							width: `${expected > 0 ? (collected.amount / expected) * 100 : 0}%`,
-						}}
-					/>
-					<span className={`flex-1 rounded-full ${UNPAID_BG}`} />
+		<section className="overflow-hidden rounded-lg border bg-card tabular-nums">
+			<div className="grid gap-2.5 p-3.5">
+				<div className={LINE}>
+					<span>Received</span>
+					<span className="text-right font-medium text-title-1 text-tone-good-foreground">
+						{formatMoney(collected.amount)}
+					</span>
 				</div>
-			) : null}
-			<div className="grid gap-1.5">
-				{hasUnpaid ? (
-					<div className={LINE}>
-						<span>
-							<KeyDot className={RECEIVED_BG} />
-							Received
-						</span>
-						<span className="text-right font-medium text-tone-good-foreground">
-							{formatMoney(collected.amount)}
-							<OpenArrow className="invisible" />
-						</span>
+				{hasEarlier ? (
+					<div aria-hidden="true" className="flex h-1.5 gap-0.5">
+						<span
+							className="rounded-full bg-success"
+							style={{
+								width: `${(collected.this_day / collected.amount) * 100}%`,
+							}}
+						/>
+						<span className={cn("flex-1 rounded-full", EARLIER_BG)} />
 					</div>
 				) : null}
-				<div className={SUB_LINE}>
-					<span>{dayLabel} Orders</span>
-					<span className="text-right">
-						{formatMoney(collected.this_day)}
-						{hasUnpaid ? <OpenArrow className="invisible" /> : null}
-					</span>
-				</div>
-				<div className={SUB_LINE}>
-					<span>Earlier Orders</span>
-					<span className="text-right">
-						{formatMoney(collected.earlier)}
-						{hasUnpaid ? <OpenArrow className="invisible" /> : null}
-					</span>
-				</div>
-				{hasUnpaid ? (
-					<button
-						className={`${LINE} -mx-2.5 rounded-md px-2.5 py-1.5 text-left hover:bg-muted`}
-						onClick={() => onOpen("unpaid")}
-						type="button"
-					>
+				<div className="grid gap-1.5">
+					<div className={LINE}>
 						<span>
-							<KeyDot className={UNPAID_BG} />
-							Unpaid
-							<Badge className="ml-2 align-top tabular-nums" variant="outline">
-								{unpaidOrders.length}
-							</Badge>
+							{hasEarlier ? <KeyDot className="bg-success" /> : null}
+							From Orders dropped off {when}
 						</span>
-						<span className="text-right font-medium text-tone-bad-foreground">
-							{formatMoney(unpaidAmount)}
-							<OpenArrow />
+						<span className="text-right">
+							{formatMoney(collected.this_day)}
 						</span>
-					</button>
-				) : null}
+					</div>
+					<div className={LINE}>
+						<span>
+							{hasEarlier ? <KeyDot className={EARLIER_BG} /> : null}
+							From earlier Orders
+						</span>
+						<span
+							className={cn(
+								"text-right",
+								!hasEarlier && "text-muted-foreground",
+							)}
+						>
+							{hasEarlier ? formatMoney(collected.earlier) : "–"}
+						</span>
+					</div>
+				</div>
 			</div>
+			{unpaidOrders.length > 0 ? (
+				<button
+					className={cn(
+						LINE,
+						"w-full border-t px-3.5 py-2.5 text-left hover:bg-muted",
+					)}
+					onClick={() => onOpen("unpaid")}
+					type="button"
+				>
+					<span>
+						Unpaid
+						<Badge className="ml-2 align-top tabular-nums" variant="outline">
+							{unpaidOrders.length}
+						</Badge>
+						<span className="block text-footnote text-muted-foreground">
+							{formatMoney(collected.amount + unpaidAmount)} once paid
+						</span>
+					</span>
+					<span className="text-right font-medium text-tone-bad-foreground">
+						{formatMoney(unpaidAmount)}
+						<OpenArrow />
+					</span>
+				</button>
+			) : (
+				<p className="border-t px-3.5 py-2.5 text-muted-foreground">
+					Every Order dropped off {when} is paid.
+				</p>
+			)}
 		</section>
 	);
 };

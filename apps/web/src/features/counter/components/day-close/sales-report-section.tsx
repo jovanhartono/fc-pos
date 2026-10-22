@@ -36,7 +36,7 @@ export const SalesReportSection = ({
 	data,
 	onOpen,
 }: SalesReportSectionProps) => {
-	const { dropped_off: dropped, picked_up: picked } = data;
+	const { dropped_off: dropped } = data;
 
 	const summary = [
 		pluralize(dropped.orders, "Order"),
@@ -46,7 +46,6 @@ export const SalesReportSection = ({
 	]
 		.filter(Boolean)
 		.join(" · ");
-	const pickedUp = `${pluralize(picked.orders, "Order")} · ${pluralize(picked.items, "Item")}`;
 
 	return (
 		<Section title="Sales report">
@@ -86,18 +85,6 @@ export const SalesReportSection = ({
 					/>
 				) : null}
 			</div>
-			<button
-				className="flex w-full items-baseline justify-between gap-3 rounded-lg border bg-card px-3 py-2.5 text-left enabled:hover:bg-muted"
-				disabled={picked.orders === 0}
-				onClick={() => onOpen("picked-up")}
-				type="button"
-			>
-				<span>Picked up</span>
-				<span className="tabular-nums">
-					{pickedUp}
-					{picked.orders > 0 ? <OpenArrow /> : null}
-				</span>
-			</button>
 		</Section>
 	);
 };

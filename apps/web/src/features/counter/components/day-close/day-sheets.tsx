@@ -2,7 +2,6 @@ import type { DayClose } from "@/features/counter/api";
 import { OrdersSheetContent } from "@/features/counter/components/day-close/orders-sheet-content";
 import { PaymentsSheetContent } from "@/features/counter/components/day-close/payments-sheet-content";
 import { PickedUpSheetContent } from "@/features/counter/components/day-close/picked-up-sheet-content";
-import { RefundsSheetContent } from "@/features/counter/components/day-close/refunds-section";
 import {
 	formatDayLong,
 	groupBySlip,
@@ -45,7 +44,7 @@ const methodSheet = (data: DayClose, title: string) => {
 };
 
 // The Summary list open in the sheet is kept in the URL as ?list= ("unpaid",
-// "orders", "picked-up", "refunds", "method:<name>"), so a phone's back button
+// "orders", "picked-up", "method:<name>"), so a phone's back button
 // from an Order lands on the same list.
 export const daySheet = (
 	list: string,
@@ -89,14 +88,6 @@ export const daySheet = (
 				description: `${day} · ${pluralize(picked.orders, "Order")} · ${pluralize(picked.items, "Item")}`,
 				content: () => (
 					<PickedUpSheetContent date={data.date} orders={picked.order_list} />
-				),
-			};
-		case "refunds":
-			return {
-				title: "Refunds",
-				description: `${day} · ${pluralize(data.refunds.length, "refund")} · ${formatMoney(sum(data.refunds))}`,
-				content: () => (
-					<RefundsSheetContent date={data.date} refunds={data.refunds} />
 				),
 			};
 		default:

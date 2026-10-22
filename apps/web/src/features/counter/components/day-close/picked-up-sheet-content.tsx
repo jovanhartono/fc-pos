@@ -1,49 +1,20 @@
-import type { DayClosePickedUpOrder } from "@/features/counter/api";
-import { EarlierTag } from "@/features/counter/components/day-close/earlier-tag";
+import type { DayClose, DayClosePickedUpOrder } from "@/features/counter/api";
+import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
 import {
 	OrderList,
 	OrderRow,
 } from "@/features/counter/components/day-close/order-row";
+import { formatDayShort } from "@/features/counter/lib/day-close";
 import { formatClock } from "@/lib/dayjs";
-import { cn } from "@/lib/utils";
 import { pluralize } from "@/shared/utils";
-
-interface PickedProgressProps {
-	picked: number;
-	total: number;
-}
-
-// Drawn like the Orders list's "ready" bar, so a part pickup reads the same.
-const PickedProgress = ({ picked, total }: PickedProgressProps) => {
-	const isDone = picked === total;
-	return (
-		<span className="grid w-20 gap-1 justify-self-end">
-			<span
-				className={cn(
-					"text-footnote tabular-nums",
-					isDone && "text-tone-good-foreground",
-				)}
-			>
-				{picked}/{total}
-			</span>
-			<span className="h-1.5 overflow-hidden rounded-full bg-soft-bar-track">
-				<span
-					className={cn(
-						"block h-full rounded-full",
-						isDone ? "bg-success" : "bg-primary",
-					)}
-					style={{ width: `${(picked / total) * 100}%` }}
-				/>
-			</span>
-		</span>
-	);
-};
 
 interface PickedUpSheetContentProps {
 	date: string;
 	orders: DayClosePickedUpOrder[];
 }
 
+// Only a part pickup is coloured, so the cashier spots the Order whose other
+// Items are still on the shelf.
 export const PickedUpSheetContent = ({
 	date,
 	orders,
@@ -54,18 +25,24 @@ export const PickedUpSheetContent = ({
 	>
 		{orders.map((order) => (
 			<OrderRow
-				badges={<EarlierTag createdDay={order.created_day} date={date} />}
 				code={order.order_code}
 				customerName={order.customer_name}
 				details={[
 					formatClock(order.picked_up_at),
-					pluralize(order.items, "Item"),
+					order.created_day === date
+						? null
+						: `from ${formatDayShort(order.created_day)}`,
 				]}
 				end={
-					<PickedProgress
-						picked={order.items_picked_by_day}
-						total={order.items_total}
-					/>
+					order.items_picked_by_day < order.items_total ? (
+						<span className="whitespace-nowrap text-tone-warn-foreground tabular-nums">
+							{order.items_picked_by_day} of {order.items_total} Items
+						</span>
+					) : (
+						<span className="whitespace-nowrap tabular-nums">
+							{pluralize(order.items, "Item")}
+						</span>
+					)
 				}
 				key={order.order_id}
 				orderId={order.order_id}
@@ -73,3 +50,26 @@ export const PickedUpSheetContent = ({
 		))}
 	</OrderList>
 );
+
+interface PickedUpRowProps {
+	data: DayClose;
+	onOpen: (list: string) => void;
+}
+
+export const PickedUpRow = ({ data, onOpen }: PickedUpRowProps) => {
+	const { picked_up: picked } = data;
+	return (
+		<button
+			className="flex w-full items-baseline justify-between gap-3 rounded-lg border bg-card px-3 py-2.5 text-left enabled:hover:bg-muted"
+			disabled={picked.orders === 0}
+			onClick={() => onOpen("picked-up")}
+			type="button"
+		>
+			<span>Picked up</span>
+			<span className="tabular-nums">
+				{pluralize(picked.orders, "Order")} · {pluralize(picked.items, "Item")}
+				{picked.orders > 0 ? <OpenArrow /> : null}
+			</span>
+		</button>
+	);
+};
