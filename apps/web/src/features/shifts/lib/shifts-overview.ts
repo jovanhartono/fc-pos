@@ -124,7 +124,6 @@ export interface PersonRow {
 	person: ShiftPerson;
 	marks: Map<string, DayMark>;
 	days: number;
-	shifts: number;
 	minutes: number;
 	forgotten: number;
 	isOpen: boolean;
@@ -179,7 +178,6 @@ export const buildRow = (
 		person,
 		marks: new Map(here.map((day) => [day.day, toMark(day)])),
 		days: here.length,
-		shifts: here.reduce((sum, day) => sum + day.shifts, 0),
 		minutes: here.reduce((sum, day) => sum + day.minutes, 0),
 		forgotten: here.reduce((sum, day) => sum + day.forgotten, 0),
 		isOpen: here.some((day) => day.open),

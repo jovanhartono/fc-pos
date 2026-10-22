@@ -28,7 +28,7 @@ export const DayDetail = ({ mark, isFuture, elsewhere }: DayDetailProps) => {
 	if (!mark) {
 		return (
 			<span className="block font-normal text-muted-foreground">
-				{elsewhere ? `At ${elsewhere}` : "Not in"}
+				{elsewhere ? `At ${elsewhere}` : "Day off"}
 			</span>
 		);
 	}

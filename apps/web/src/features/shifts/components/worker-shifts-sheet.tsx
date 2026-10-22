@@ -139,16 +139,14 @@ const WorkerShiftsContent = ({ target }: WorkerShiftsContentProps) => {
 
 	return (
 		<div className="grid gap-4">
-			<div className="grid grid-cols-3 gap-2">
+			<div className="grid auto-cols-fr grid-flow-col gap-2">
 				<Stat
 					value={days}
 					label={`${days === 1 ? "day" : "days"} at ${target.storeName}`}
 				/>
 				{otherDays.length > 0 ? (
 					<Stat value={row?.daysAllStores ?? 0} label="days, all Stores" />
-				) : (
-					<Stat value={row?.shifts ?? 0} label="Shifts" />
-				)}
+				) : null}
 				<Stat value={formatHours(row?.minutes ?? 0)} label="worked" />
 			</div>
 			{otherDays.length > 0 ? (

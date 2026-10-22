@@ -111,7 +111,6 @@ describe("buildStoreGroups", () => {
 		]);
 		expect(bsd.rows.map((row) => row.person.name)).toEqual(["Rizky"]);
 		expect(rizky?.days).toBe(2);
-		expect(rizky?.shifts).toBe(3);
 		expect(rizky?.elsewhere).toEqual([
 			{ storeId: 2, storeName: "Fresclean BSD", days: 2 },
 		]);
