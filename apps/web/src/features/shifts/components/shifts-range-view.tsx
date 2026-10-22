@@ -138,43 +138,39 @@ interface HoverCell {
 	row: number | null;
 	tintLeft: number;
 	tintWidth: number;
-	anchor: DOMRect;
+	anchor: Element;
 }
 
 const HEADER_ROW = "header";
 
-// Which day column and row the mouse is over, read from the cells under it, so
-// one listener serves a table of 40 people by 90 days.
+const dayColumns = (dayCount: number) => `repeat(${dayCount}, minmax(0,1fr))`;
+
+// Days are equal width, so the column under the mouse comes from one measure
+// of the row's day strip, even on a table of 40 people by 90 days.
 const findHoverCell = (
 	event: PointerEvent<HTMLDivElement>,
+	dayCount: number,
 ): HoverCell | null => {
 	const line = (event.target as Element).closest<HTMLElement>("[data-row]");
-	if (!line) {
+	const strip = line?.querySelector<HTMLElement>("[data-strip]");
+	if (!(line && strip)) {
 		return null;
 	}
-	const cells = Array.from(line.querySelectorAll<HTMLElement>("[data-col]"));
+	const rect = strip.getBoundingClientRect();
 	const x = event.clientX;
-	// The 1px slack covers the gap between thin bars.
-	const col = cells.findIndex((cell) => {
-		const rect = cell.getBoundingClientRect();
-		return x >= rect.left - 1 && x < rect.right;
-	});
-	if (col === -1) {
+	if (x < rect.left || x >= rect.right) {
 		return null;
 	}
-	const cell = cells[col];
-	const cellRect = cell.getBoundingClientRect();
+	const colWidth = rect.width / dayCount;
+	const col = Math.min(Math.floor((x - rect.left) / colWidth), dayCount - 1);
 	const gridRect = event.currentTarget.getBoundingClientRect();
 	const isHeader = line.dataset.row === HEADER_ROW;
 	return {
 		col,
 		row: isHeader ? null : Number(line.dataset.row),
-		tintLeft: cellRect.left - gridRect.left,
-		tintWidth: cellRect.width,
-		anchor: (isHeader
-			? cell
-			: (cell.firstElementChild ?? cell)
-		).getBoundingClientRect(),
+		tintLeft: rect.left + col * colWidth - gridRect.left,
+		tintWidth: colWidth,
+		anchor: strip.children[col],
 	};
 };
 
@@ -184,12 +180,11 @@ const PersonGrid = ({ group, days, today, onOpen }: PersonGridProps) => {
 	const [hover, setHover] = useState<HoverCell | null>(null);
 	// Every column but the name is fixed, so the squares line up under their
 	// dates whatever the names say.
-	const columns = isBars
-		? `${nameWidth} minmax(0,1fr) 4.5rem 4.5rem`
-		: `${nameWidth} repeat(${days.length}, minmax(0,1fr)) 4.5rem 4.5rem`;
-
+	const columns = `${nameWidth} minmax(0,1fr) 4.5rem 4.5rem`;
 	const isHovering = hover !== null;
-	// The tip is pinned to the screen, so a scroll would leave it behind.
+
+	// A wheel scroll slides another person under the mouse without a pointer
+	// move, so the tip would go on showing the first person's day.
 	useEffect(() => {
 		if (!isHovering) {
 			return;
@@ -203,7 +198,7 @@ const PersonGrid = ({ group, days, today, onOpen }: PersonGridProps) => {
 		if (event.pointerType !== "mouse") {
 			return;
 		}
-		const next = findHoverCell(event);
+		const next = findHoverCell(event, days.length);
 		setHover((prev) =>
 			prev?.col === next?.col &&
 			prev?.row === next?.row &&
@@ -234,20 +229,25 @@ const PersonGrid = ({ group, days, today, onOpen }: PersonGridProps) => {
 						))}
 					</span>
 				) : (
-					days.map((day, index) => (
-						<span
-							key={day}
-							data-col={index}
-							className={cn(
-								"text-center whitespace-nowrap",
-								hover?.col === index && "text-primary",
-							)}
-						>
-							{size === "big"
-								? dayjs(day).format("ddd D")
-								: dayjs(day).format("D")}
-						</span>
-					))
+					<span
+						data-strip
+						className="grid"
+						style={{ gridTemplateColumns: dayColumns(days.length) }}
+					>
+						{days.map((day, index) => (
+							<span
+								key={day}
+								className={cn(
+									"text-center whitespace-nowrap",
+									hover?.col === index && "text-primary",
+								)}
+							>
+								{size === "big"
+									? dayjs(day).format("ddd D")
+									: dayjs(day).format("D")}
+							</span>
+						))}
+					</span>
 				)}
 				<span className="pr-3 text-right">Days</span>
 				<span className="pr-3 text-right">Hours</span>
@@ -265,25 +265,28 @@ const PersonGrid = ({ group, days, today, onOpen }: PersonGridProps) => {
 					onOpen={onOpen}
 				/>
 			))}
-			{hover && hoverDay !== undefined && (
-				<>
-					<span
-						aria-hidden
-						className="pointer-events-none absolute inset-y-0 bg-primary/8"
-						style={{ left: hover.tintLeft, width: hover.tintWidth }}
-					/>
-					<DayTip anchor={hover.anchor}>
+			{hover !== null && (
+				<span
+					aria-hidden
+					className="pointer-events-none absolute inset-y-0 bg-primary/8"
+					style={{ left: hover.tintLeft, width: hover.tintWidth }}
+				/>
+			)}
+			<DayTip anchor={hover?.anchor}>
+				{hover !== null && hoverDay !== undefined && (
+					<>
 						{dayLabel(hoverDay)}
 						{hover.row !== null && (
 							<DayDetail
 								mark={group.rows[hover.row]?.marks.get(hoverDay)}
-								isFuture={hoverDay > today}
+								day={hoverDay}
+								today={today}
 								elsewhere={group.rows[hover.row]?.elsewhereByDay.get(hoverDay)}
 							/>
 						)}
-					</DayTip>
-				</>
-			)}
+					</>
+				)}
+			</DayTip>
 		</div>
 	);
 };
@@ -312,11 +315,10 @@ const GridRow = memo(
 		>
 			<PersonName row={row} />
 			{size === "bar" ? (
-				<span className="mr-3 flex gap-px">
-					{days.map((day, col) => (
+				<span data-strip className="mr-3 flex gap-px">
+					{days.map((day) => (
 						<DayMarkCell
 							key={day}
-							col={col}
 							mark={row.marks.get(day)}
 							isFuture={day > today}
 							size="bar"
@@ -324,15 +326,20 @@ const GridRow = memo(
 					))}
 				</span>
 			) : (
-				days.map((day, col) => (
-					<span key={day} data-col={col} className="flex justify-center">
+				<span
+					data-strip
+					className="grid items-center justify-items-center"
+					style={{ gridTemplateColumns: dayColumns(days.length) }}
+				>
+					{days.map((day) => (
 						<DayMarkCell
+							key={day}
 							mark={row.marks.get(day)}
 							isFuture={day > today}
 							size={size}
 						/>
-					</span>
-				))
+					))}
+				</span>
 			)}
 			<span className="pr-3 text-right font-medium text-title-3 tabular-nums">
 				{row.days}

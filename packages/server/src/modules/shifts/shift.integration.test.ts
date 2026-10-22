@@ -554,6 +554,30 @@ describe("getShiftsOverview", () => {
     ]);
   });
 
+  it("reports the last finished clock-out while a second Shift is still open", async () => {
+    await worked(
+      shop.cashier.id,
+      shop.store.id,
+      "2026-10-13T08:00",
+      "2026-10-13T12:00"
+    );
+    await worked(shop.cashier.id, shop.store.id, "2026-10-13T13:00", null);
+    setSystemTime(jkt("2026-10-13T14:15"));
+
+    const { days } = await getShiftsOverview(asAdmin(), {
+      from: "2026-10-13",
+      to: "2026-10-13",
+    });
+
+    expect(days).toEqual([
+      expect.objectContaining({
+        last_out: jkt("2026-10-13T12:00"),
+        open: true,
+        shifts: 2,
+      }),
+    ]);
+  });
+
   it("keeps someone who has left for the days they worked, and no one else who left", async () => {
     const tono = await addWorker("Tono", [], false);
     await worked(

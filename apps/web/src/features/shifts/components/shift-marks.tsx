@@ -14,7 +14,6 @@ interface DayMarkCellProps {
 	mark: DayMark | undefined;
 	isFuture: boolean;
 	size: MarkSize;
-	col?: number;
 }
 
 const FUTURE_CLASS =
@@ -31,15 +30,9 @@ const fillClass = (mark: DayMark | undefined, isFuture: boolean) => {
 	return mark.forgotten > 0 ? "bg-destructive" : "bg-primary";
 };
 
-export const DayMarkCell = ({
-	mark,
-	isFuture,
-	size,
-	col,
-}: DayMarkCellProps) => (
+export const DayMarkCell = ({ mark, isFuture, size }: DayMarkCellProps) => (
 	<span
 		aria-hidden
-		data-col={col}
 		className={cn(
 			"inline-block shrink-0",
 			SIZE_CLASS[size],
