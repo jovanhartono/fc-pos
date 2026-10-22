@@ -20,7 +20,6 @@ interface ShiftsDayViewProps {
 	groups: StoreGroup[];
 	shifts: Shift[] | undefined;
 	isToday: boolean;
-	onOpen: (row: PersonRow, group: StoreGroup) => void;
 }
 
 // One day: who was in at each Store, and on today who is still on shift.
@@ -28,7 +27,6 @@ export const ShiftsDayView = ({
 	groups,
 	shifts,
 	isToday,
-	onOpen,
 }: ShiftsDayViewProps) => {
 	const totals = summarizeGroups(groups);
 	const listed = new Set(
@@ -69,7 +67,6 @@ export const ShiftsDayView = ({
 												shift.user_id === row.person.id &&
 												shift.store_id === group.store.id,
 										)}
-										onOpen={() => onOpen(row, group)}
 									/>
 								))
 							)}
@@ -84,19 +81,12 @@ export const ShiftsDayView = ({
 interface DayRowProps {
 	row: PersonRow;
 	shifts: Shift[] | undefined;
-	onOpen: () => void;
 }
 
-const DayRow = ({ row, shifts, onOpen }: DayRowProps) => {
+const DayRow = ({ row, shifts }: DayRowProps) => {
 	const isIn = row.days > 0;
 	return (
-		<div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 hover:bg-muted not-first:border-t">
-			<button
-				type="button"
-				aria-label={`${row.person.name}'s Shifts`}
-				onClick={onOpen}
-				className="absolute inset-0"
-			/>
+		<div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 not-first:border-t">
 			<span className="flex min-w-0 items-center gap-2.5">
 				<span
 					aria-hidden

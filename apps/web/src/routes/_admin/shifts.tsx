@@ -208,7 +208,6 @@ const ShiftsPage = () => {
 							groups={groups}
 							shifts={dayShifts.data?.items}
 							isToday={range.from === today}
-							onOpen={handleOpen}
 						/>
 					) : (
 						<ShiftsRangeView
