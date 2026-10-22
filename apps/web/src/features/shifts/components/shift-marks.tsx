@@ -54,7 +54,7 @@ export const ShiftsLegend = () => (
 	<ul className="flex flex-wrap gap-x-3.5 gap-y-1 text-footnote text-muted-foreground">
 		<li className="flex items-center gap-1">
 			<span aria-hidden className={cn(LEGEND_CELL, "bg-primary")} />
-			clocked in
+			Clocked in
 		</li>
 		<li className="flex items-center gap-1">
 			<span aria-hidden className={cn(LEGEND_CELL, "bg-destructive")} />
@@ -62,7 +62,7 @@ export const ShiftsLegend = () => (
 		</li>
 		<li className="flex items-center gap-1">
 			<span aria-hidden className={cn(LEGEND_CELL, FUTURE_CLASS)} />
-			upcoming
+			Upcoming
 		</li>
 	</ul>
 );
