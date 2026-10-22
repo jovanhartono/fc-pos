@@ -59,18 +59,6 @@ export const ShiftsLegend = () => (
 			clocked in
 		</li>
 		<li className="flex items-center gap-1">
-			<span
-				aria-hidden
-				className={cn(
-					LEGEND_CELL,
-					"bg-primary text-center font-semibold text-caption text-primary-foreground leading-3",
-				)}
-			>
-				2
-			</span>
-			two Shifts, counts as 1 day
-		</li>
-		<li className="flex items-center gap-1">
 			<span aria-hidden className={cn(LEGEND_CELL, "bg-destructive")} />
 			Forgotten clock-out
 		</li>
