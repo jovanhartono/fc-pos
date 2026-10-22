@@ -6,7 +6,6 @@ import { formatMoney } from "@/shared/money";
 
 interface OrderRowProps {
 	badges?: ReactNode;
-	className?: string;
 	code: string;
 	customerName: string;
 	details: (string | null | undefined)[];
@@ -16,7 +15,6 @@ interface OrderRowProps {
 
 export const OrderRow = ({
 	badges,
-	className,
 	code,
 	customerName,
 	details,
@@ -29,7 +27,7 @@ export const OrderRow = ({
 		<li>
 			<OrderListRow
 				badges={badges}
-				className={cn("-mx-2 px-2", className)}
+				className="-mx-2 px-2"
 				details={[code, ...details]}
 				end={end}
 				onClick={(event) => openOrder(event, orderId, code)}

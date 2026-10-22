@@ -117,7 +117,9 @@ export const CollectedSection = ({
 				</button>
 			) : (
 				<p className="border-t px-3.5 py-2.5 text-muted-foreground">
-					Every Order dropped off {when} is paid.
+					{data.dropped_off.orders === 0
+						? `No Orders dropped off ${when}.`
+						: `Every Order dropped off ${when} is paid.`}
 				</p>
 			)}
 		</section>

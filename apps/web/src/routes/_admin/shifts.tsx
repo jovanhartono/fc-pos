@@ -47,10 +47,10 @@ const shiftsSearchSchema = z.object({
 type ShiftsSearch = z.infer<typeof shiftsSearchSchema>;
 
 // The admin opens Shifts to see who is in today; totals are a preset away.
-const DEFAULT_PRESET: DatePreset = "today";
+const SHIFTS_PRESET: DatePreset = "today";
 
 const resolveSearch = (search: ShiftsSearch) => {
-	const { preset, from, to } = withPresetRange(search, DEFAULT_PRESET);
+	const { preset, from, to } = withPresetRange(search, SHIFTS_PRESET);
 	// A hand-edited link with its dates reversed shows the end day.
 	const range: ShiftsRange = { from: from > to ? to : from, to };
 	return { range, preset };
@@ -135,7 +135,7 @@ const ShiftsPage = () => {
 
 	const setRange = (next: ShiftsRange) => {
 		const isDefault =
-			matchPreset(getPresets(), next.from, next.to)?.id === DEFAULT_PRESET;
+			matchPreset(getPresets(), next.from, next.to)?.id === SHIFTS_PRESET;
 		void navigate({
 			search: (prev) => ({
 				...prev,
@@ -150,7 +150,7 @@ const ShiftsPage = () => {
 		void navigate({
 			search: (prev) => ({
 				...prev,
-				preset: preset === DEFAULT_PRESET ? undefined : preset,
+				preset: preset === SHIFTS_PRESET ? undefined : preset,
 				from: undefined,
 				to: undefined,
 			}),

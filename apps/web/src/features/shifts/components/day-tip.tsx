@@ -1,18 +1,16 @@
 import { type ReactNode, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import type { DayMark } from "@/features/shifts/lib/shifts-overview";
-import dayjs, { formatClock, formatShiftLength } from "@/lib/dayjs";
-import { jakartaToday } from "@/shared/date-presets";
+import { clockRange } from "@/features/shifts/lib/shift-times";
+import {
+	type DayMark,
+	rangeLabel,
+} from "@/features/shifts/lib/shifts-overview";
+import { formatShiftLength } from "@/lib/dayjs";
 
 const GAP = 6;
 const EDGE = 8;
 
-// "Tue 13 Oct", with the year only outside this one, as rangeLabel does.
-export const dayLabel = (day: string) => {
-	const date = dayjs(day);
-	const isThisYear = date.year() === Number(jakartaToday().slice(0, 4));
-	return date.format(isThisYear ? "ddd D MMM" : "ddd D MMM YYYY");
-};
+export const dayLabel = (day: string) => rangeLabel({ from: day, to: day });
 
 interface DayDetailProps {
 	mark: DayMark | undefined;
@@ -43,7 +41,7 @@ export const DayDetail = ({ mark, isFuture, elsewhere }: DayDetailProps) => {
 	const text =
 		mark.shifts > 1
 			? `${mark.shifts} Shifts · 1 day · ${length}`
-			: `${formatClock(mark.firstIn)} – ${mark.lastOut ? formatClock(mark.lastOut) : "now"} · ${length}`;
+			: `${clockRange({ clock_in_at: mark.firstIn, clock_out_at: mark.lastOut })} · ${length}`;
 	return (
 		<span className="block font-normal text-muted-foreground tabular-nums">
 			{text}

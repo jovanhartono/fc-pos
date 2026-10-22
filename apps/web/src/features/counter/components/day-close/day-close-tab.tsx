@@ -5,7 +5,7 @@ import { counterQueries } from "@/features/counter/api";
 import { CollectedSection } from "@/features/counter/components/day-close/collected-section";
 import { daySheet } from "@/features/counter/components/day-close/day-sheets";
 import { MethodsSection } from "@/features/counter/components/day-close/methods-section";
-import { PickedUpRow } from "@/features/counter/components/day-close/picked-up-sheet-content";
+import { PickedUpSection } from "@/features/counter/components/day-close/picked-up-section";
 import { RefundsSection } from "@/features/counter/components/day-close/refunds-section";
 import { SalesReportSection } from "@/features/counter/components/day-close/sales-report-section";
 import { formatDayLabel } from "@/features/counter/lib/day-close";
@@ -87,7 +87,7 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 				/>
 				<MethodsSection data={data} onOpen={setList} />
 				<RefundsSection data={data} />
-				<PickedUpRow data={data} onOpen={setList} />
+				<PickedUpSection data={data} onOpen={setList} />
 			</div>
 			<SalesReportSection data={data} onOpen={setList} />
 		</div>

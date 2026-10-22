@@ -47,7 +47,6 @@ export function listRefundsInDay(storeId: number, range: DateRange) {
     .select({
       amount: orderRefundsTable.total_amount,
       customer_name: customersTable.name,
-      method_name: paymentMethodsTable.name,
       order_code: ordersTable.code,
       order_id: ordersTable.id,
       paid_at: ordersTable.paid_at,
@@ -57,10 +56,6 @@ export function listRefundsInDay(storeId: number, range: DateRange) {
     .from(orderRefundsTable)
     .innerJoin(ordersTable, eq(orderRefundsTable.order_id, ordersTable.id))
     .innerJoin(customersTable, eq(ordersTable.customer_id, customersTable.id))
-    .leftJoin(
-      paymentMethodsTable,
-      eq(ordersTable.payment_method_id, paymentMethodsTable.id)
-    )
     .where(
       and(
         eq(ordersTable.store_id, storeId),

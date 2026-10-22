@@ -188,15 +188,16 @@ const PersonGrid = ({ group, days, today, onOpen }: PersonGridProps) => {
 		? `${nameWidth} minmax(0,1fr) 4.5rem 4.5rem`
 		: `${nameWidth} repeat(${days.length}, minmax(0,1fr)) 4.5rem 4.5rem`;
 
+	const isHovering = hover !== null;
 	// The tip is pinned to the screen, so a scroll would leave it behind.
 	useEffect(() => {
-		if (!hover) {
+		if (!isHovering) {
 			return;
 		}
 		const clear = () => setHover(null);
 		window.addEventListener("scroll", clear, { capture: true, passive: true });
 		return () => window.removeEventListener("scroll", clear, { capture: true });
-	}, [hover]);
+	}, [isHovering]);
 
 	const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
 		if (event.pointerType !== "mouse") {
