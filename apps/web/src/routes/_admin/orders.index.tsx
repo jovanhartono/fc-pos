@@ -42,6 +42,12 @@ import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatListDate } from "@/lib/dayjs";
+import {
+	DEFAULT_PAGE_SIZE,
+	type PageSize,
+	pageSizeChange,
+	pageSizeSearch,
+} from "@/lib/page-size";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
@@ -49,6 +55,7 @@ import { useSheet } from "@/stores/sheet-store";
 
 const ordersSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
+	limit: pageSizeSearch,
 	search: z.string().trim().min(1).max(100).optional().catch(undefined),
 	storeId: z.coerce.number().int().positive().optional().catch(undefined),
 	status: z.enum(ORDER_STATUS_VALUES).optional().catch(undefined),
@@ -67,8 +74,6 @@ const ordersSearchSchema = z.object({
 	// The Order open in the sheet over the list, on a tablet or desktop.
 	open: z.coerce.number().int().positive().optional().catch(undefined),
 });
-
-const PAGE_SIZE = 25;
 
 interface ItemsReadyProps {
 	ready: number;
@@ -99,12 +104,13 @@ const ItemsReady = ({ ready, total }: ItemsReadyProps) => {
 };
 
 function buildOrdersListParams(
-	filters: OrderFilterValues & { page: number },
+	filters: OrderFilterValues & { page: number; limit?: PageSize },
 	storeId?: number,
 ): FetchOrdersQuery {
+	const pageSize = filters.limit ?? DEFAULT_PAGE_SIZE;
 	return {
-		limit: PAGE_SIZE,
-		offset: (filters.page - 1) * PAGE_SIZE,
+		limit: pageSize,
+		offset: (filters.page - 1) * pageSize,
 		...(filters.search ? { search: filters.search } : {}),
 		...(storeId !== undefined ? { store_id: storeId } : {}),
 		...(filters.status ? { status: filters.status } : {}),
@@ -368,6 +374,12 @@ function OrdersPage() {
 						...prev,
 						page,
 					}),
+				});
+			}}
+			pageSize={search.limit ?? DEFAULT_PAGE_SIZE}
+			onPageSizeChange={(limit) => {
+				void navigate({
+					search: (prev) => ({ ...prev, ...pageSizeChange(limit) }),
 				});
 			}}
 		/>

@@ -150,7 +150,7 @@ function ServicesPage() {
 				meta: { align: "right", width: { percent: 11, minRem: 6.25 } },
 				cell: ({ row }) =>
 					row.original.price === null ? (
-						<span className="text-muted-foreground">No list price</span>
+						<span className="text-muted-foreground">Dynamic Price</span>
 					) : (
 						<MoneyValue value={row.original.price} />
 					),

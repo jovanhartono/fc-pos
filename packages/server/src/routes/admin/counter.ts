@@ -1,6 +1,9 @@
 import { Hono } from "hono";
-import { GETCounterQuerySchema } from "@/modules/counter/counter.schema";
-import { getCounter } from "@/modules/counter/counter.service";
+import {
+  GETCounterQuerySchema,
+  GETPickupShelfQuerySchema,
+} from "@/modules/counter/counter.schema";
+import { getCounter, getPickupShelf } from "@/modules/counter/counter.service";
 import { GETDayCloseQuerySchema } from "@/modules/counter/day-close.schema";
 import { getDayClose } from "@/modules/counter/day-close.service";
 import { assertCanViewCounter } from "@/modules/permissions/permissions";
@@ -18,6 +21,19 @@ const app = new Hono<AdminEnv>()
 
     return c.json(success(await getCounter(store_id)));
   })
+  .get(
+    "/pickup-shelf",
+    zodValidator("query", GETPickupShelfQuerySchema),
+    async (c) => {
+      const user = c.get("jwtPayload");
+      assertCanViewCounter(user);
+      const query = c.req.valid("query");
+      await assertStoreAccess(user, query.store_id);
+
+      const { items, meta } = await getPickupShelf(query);
+      return c.json(success(items, undefined, meta));
+    }
+  )
   .get(
     "/day-close",
     zodValidator("query", GETDayCloseQuerySchema),

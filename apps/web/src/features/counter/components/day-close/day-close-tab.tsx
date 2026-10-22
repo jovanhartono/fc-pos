@@ -66,23 +66,27 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 	return (
 		<div
 			className={cn(
-				"grid gap-5 text-body",
+				"grid items-start gap-5 text-body lg:grid-cols-2",
 				CONTENT_FADE,
 				staleFade(isPlaceholderData),
 			)}
 			key={data.date}
 		>
 			{isError ? (
-				<p className="text-destructive">Could not refresh the day close.</p>
+				<p className="text-destructive lg:col-span-2">
+					Could not refresh the day close.
+				</p>
 			) : null}
-			<CollectedSection
-				data={data}
-				dayLabel={dayLabel}
-				isToday={data.date === today}
-				onOpen={setList}
-			/>
-			<MethodsSection data={data} onOpen={setList} />
-			<RefundsSection data={data} onOpen={setList} />
+			<div className="grid min-w-0 gap-5">
+				<CollectedSection
+					data={data}
+					dayLabel={dayLabel}
+					isToday={data.date === today}
+					onOpen={setList}
+				/>
+				<MethodsSection data={data} onOpen={setList} />
+				<RefundsSection data={data} onOpen={setList} />
+			</div>
 			<SalesReportSection data={data} onOpen={setList} />
 		</div>
 	);

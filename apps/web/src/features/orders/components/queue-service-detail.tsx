@@ -7,11 +7,10 @@ import {
 	AlertCircleIcon,
 	ArrowRight01Icon,
 	CheckmarkCircle02Icon,
-	Image02Icon,
 	ReloadIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -31,21 +30,15 @@ import {
 	type UpdateOrderServiceStatusPayload,
 } from "@/features/orders/api";
 import { HoldToConfirmButton } from "@/features/orders/components/hold-to-confirm-button";
-import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
-import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
+import { ItemPhotoStrip } from "@/features/orders/components/item-photo-strip";
 import { ReworkOriginCallout } from "@/features/orders/components/rework-origin-callout";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { useNotifyCustomer } from "@/features/orders/hooks/useNotifyCustomer";
 import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { getFirstPickupAt } from "@/features/orders/lib/line-timeline";
-import {
-	orderLinePhotos,
-	startPhotoBlocker,
-} from "@/features/orders/lib/order-action-gates";
+import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import { formatNoticeTime } from "@/features/orders/lib/pickup-notice";
-import { itemPhotoUploader } from "@/features/orders/utils/photo-upload";
-import { onOrderMoved } from "@/lib/cache-events";
 import { getOrderServiceItemDescriptors } from "@/lib/order-service-item-details";
 import {
 	formatOrderServiceStatus,
@@ -220,11 +213,9 @@ export function QueueServiceDetail({
 	orderId,
 	serviceId,
 }: QueueServiceDetailProps) {
-	const queryClient = useQueryClient();
 	const currentUser = getCurrentUser();
 
 	const [statusNote, setStatusNote] = useState("");
-	const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
 
 	const detailQuery = useQuery(ordersQueries.orderService(orderId, serviceId));
 	const detail = detailQuery.data?.order;
@@ -422,61 +413,20 @@ export function QueueServiceDetail({
 				</dl>
 
 				<section className="overflow-hidden rounded-lg border bg-card">
-					<div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-						<div className="flex items-center gap-2">
-							<SectionTitle
-								count={selectedService.item.images.length || undefined}
-								title="Photos"
-							/>
-							{needsPhotoToStart && <Badge variant="warning">Required</Badge>}
-						</div>
-
-						<Button
-							type="button"
-							variant="outline"
-							icon={<HugeiconsIcon icon={Image02Icon} className="size-4" />}
-							onClick={() => setIsPhotoDialogOpen(true)}
-						>
-							Add photo
-						</Button>
-					</div>
-
-					<div className="grid gap-3 px-4 pb-4 pt-4">
-						<OrderPhotoGallery
-							items={orderLinePhotos(
-								selectedService,
-								selectedService.item.images,
-							).map((image) => ({
-								...image,
-								alt:
-									image.note ?? `Photo for ${selectedService.item.item_code}`,
-								caption: image.isBeforeRework ? (
-									<p className="text-muted-foreground text-footnote">
-										Before rework
-									</p>
-								) : undefined,
-								download: { kind: "item" as const, id: image.id },
-							}))}
-							gridClassName="flex snap-x gap-2 overflow-x-auto pb-1 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 xl:grid-cols-3"
-							itemClassName="w-24 shrink-0 snap-start md:w-auto"
-							thumbnailClassName="bg-card"
-							thumbnailImageClassName="aspect-square md:aspect-[5/4]"
-							title={`Photos for ${selectedService.item.item_code}`}
-							emptyState={<EmptyState>No photos.</EmptyState>}
+					<div className="flex items-center gap-2 px-4 py-3">
+						<SectionTitle
+							count={selectedService.item.images.length || undefined}
+							title="Photos"
 						/>
+						{needsPhotoToStart && <Badge variant="warning">Required</Badge>}
 					</div>
+					<ItemPhotoStrip
+						isAdmin={currentUser?.role === "admin"}
+						item={selectedService.item}
+						orderId={orderId}
+						photoBlocker={photoBlocker}
+					/>
 				</section>
-
-				<PhotoUploadDialog
-					open={isPhotoDialogOpen}
-					onOpenChange={setIsPhotoDialogOpen}
-					title="Add item photo"
-					badgeLabel={selectedService.item.item_code}
-					uploader={itemPhotoUploader(orderId, selectedService.item.id)}
-					onUploaded={async () => {
-						await onOrderMoved(queryClient);
-					}}
-				/>
 
 				<section className="grid gap-4 rounded-lg border bg-card p-4">
 					<StatusTimeline line={selectedService} />

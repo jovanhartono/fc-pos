@@ -8,7 +8,8 @@ import {
 	OrderList,
 	OrderRow,
 } from "@/features/counter/components/day-close/order-row";
-import { formatClock, formatDayShort } from "@/features/counter/lib/day-close";
+import { formatDayShort } from "@/features/counter/lib/day-close";
+import { formatClock } from "@/lib/dayjs";
 import { formatRefundReason } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
 

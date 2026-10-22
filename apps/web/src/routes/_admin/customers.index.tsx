@@ -14,13 +14,17 @@ import { TablePagination } from "@/components/table-pagination";
 import { Button } from "@/components/ui/button";
 import { type Customer, customersQueries } from "@/features/customers/api";
 import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
+import {
+	DEFAULT_PAGE_SIZE,
+	pageSizeChange,
+	pageSizeSearch,
+} from "@/lib/page-size";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useSheet } from "@/stores/sheet-store";
 
-const PAGE_SIZE = 25;
-
 const customersSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
+	limit: pageSizeSearch,
 	search: z.string().trim().min(1).max(100).optional(),
 });
 
@@ -35,8 +39,8 @@ export const Route = createFileRoute("/_admin/customers/")({
 		}
 		await context.queryClient.ensureQueryData(
 			customersQueries.list({
-				limit: PAGE_SIZE,
-				offset: (deps.page - 1) * PAGE_SIZE,
+				limit: deps.limit ?? DEFAULT_PAGE_SIZE,
+				offset: (deps.page - 1) * (deps.limit ?? DEFAULT_PAGE_SIZE),
 				...(deps.search ? { search: deps.search } : {}),
 			}),
 		);
@@ -50,6 +54,7 @@ export const Route = createFileRoute("/_admin/customers/")({
 function CustomersPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
+	const pageSize = search.limit ?? DEFAULT_PAGE_SIZE;
 	const { openSheet } = useSheet();
 	// Same rule as CustomerLink: the detail page is admin-only (ADR-0021).
 	const isAdmin = getCurrentUser()?.role === "admin";
@@ -69,8 +74,8 @@ function CustomersPage() {
 
 	const customersQuery = useQuery({
 		...customersQueries.list({
-			limit: PAGE_SIZE,
-			offset: (search.page - 1) * PAGE_SIZE,
+			limit: pageSize,
+			offset: (search.page - 1) * pageSize,
 			...(search.search ? { search: search.search } : {}),
 		}),
 		placeholderData: keepPreviousData,
@@ -204,6 +209,12 @@ function CustomersPage() {
 										...prev,
 										page,
 									}),
+								});
+							}}
+							pageSize={pageSize}
+							onPageSizeChange={(limit) => {
+								void navigate({
+									search: (prev) => ({ ...prev, ...pageSizeChange(limit) }),
 								});
 							}}
 						/>

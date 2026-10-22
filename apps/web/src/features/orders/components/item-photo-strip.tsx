@@ -8,7 +8,6 @@ import { deleteItemPhoto } from "@/features/orders/api";
 import { PhotoLightbox } from "@/features/orders/components/photo-lightbox";
 import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { useRefreshOrder } from "@/features/orders/hooks/useOrderMutations";
-import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import type { OrderItem } from "@/features/orders/lib/order-lines";
 import { itemPhotoUploader } from "@/features/orders/utils/photo-upload";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -37,8 +36,9 @@ export const ItemPhotoStripSkeleton = () => (
 
 interface ItemPhotoStripProps {
 	orderId: number;
-	item: OrderItem;
+	item: Pick<OrderItem, "id" | "item_code" | "images">;
 	isAdmin: boolean;
+	photoBlocker?: string;
 }
 
 // Item photos (ADR-0019) sit on the Item, not on each line, so the cashier
@@ -47,6 +47,7 @@ export const ItemPhotoStrip = ({
 	orderId,
 	item,
 	isAdmin,
+	photoBlocker,
 }: ItemPhotoStripProps) => {
 	const user = getCurrentUser();
 	const refreshOrder = useRefreshOrder();
@@ -66,10 +67,6 @@ export const ItemPhotoStrip = ({
 			toast.error(readServerErrorMessage(error, "Failed to delete photo"));
 		},
 	});
-
-	const photoBlocker = item.services
-		.map(startPhotoBlocker)
-		.find((blocker) => blocker !== undefined);
 
 	const images = item.images.map((image) => ({
 		...image,

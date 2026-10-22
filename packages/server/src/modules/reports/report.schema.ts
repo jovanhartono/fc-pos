@@ -34,9 +34,9 @@ const reportRangeFields = {
   store_id: storeIdQuerySchema.optional(),
 };
 
-const fromNotAfterTo = (value: { from: string; to: string }) =>
+export const fromNotAfterTo = (value: { from: string; to: string }) =>
   value.from <= value.to;
-const fromNotAfterToIssue = {
+export const fromNotAfterToIssue = {
   error: "from must be before or equal to to",
   path: ["from"],
 };

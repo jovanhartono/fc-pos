@@ -4,7 +4,7 @@ import {
 	OrderList,
 	OrderRow,
 } from "@/features/counter/components/day-close/order-row";
-import { formatClock } from "@/features/counter/lib/day-close";
+import { formatClock } from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
 import { pluralize } from "@/shared/utils";
 

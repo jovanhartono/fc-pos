@@ -5,11 +5,15 @@ import {
   listProcessedByCategory,
   listUndecidedComplaints,
   listWaitingLines,
+  sumPickupShelf,
 } from "@/modules/counter/counter.repository";
-import type {
-  Counter,
-  CounterCategory,
-  CounterWorkshop,
+import {
+  type Counter,
+  type CounterCategory,
+  type CounterShelfOrder,
+  type CounterWorkshop,
+  type GetPickupShelfQuery,
+  SHELF_PAGE_SIZE,
 } from "@/modules/counter/counter.schema";
 import {
   DAY_MS,
@@ -18,12 +22,16 @@ import {
   jakartaDayOf,
   shiftDate,
 } from "@/modules/reports/report-range.util";
+import {
+  buildPaginationMeta,
+  normalizePagination,
+  type PaginationMeta,
+} from "@/utils/pagination";
 
 const MIN_HISTORY_DAYS = 14;
 const PACE_WINDOW_DAYS = 28;
 const PACE_OPEN_DAYS = 7;
 const PACE_MIN_CHECKS = 7;
-const SHELF_LIMIT = 10;
 type WaitingLine = Awaited<ReturnType<typeof listWaitingLines>>[number];
 
 // Calendar days in Jakarta: ready at 20:00 last night is "1 day" at 09:00.
@@ -159,7 +167,7 @@ export async function getCounter(
     getCategoryPaces(storeId, now),
     listWaitingLines(storeId),
     listUndecidedComplaints(storeId),
-    listPickupShelf(storeId),
+    sumPickupShelf(storeId),
   ]);
 
   const qcRejects = await buildQcRejects(lines, now);
@@ -173,20 +181,36 @@ export async function getCounter(
       item_code: complaint.item_code,
       reason: complaint.reason,
     })),
-    pickup_shelf: {
-      items: shelf.reduce((total, order) => total + order.items, 0),
-      oldest: shelf.slice(0, SHELF_LIMIT).map((order) => ({
-        customer_name: order.customer_name,
-        customer_phone: order.customer_phone,
-        items: order.items,
-        notified: order.notified,
-        order_id: order.order_id,
-        ready_days: order.ready_at ? daysSince(order.ready_at, now) : 0,
-      })),
-      orders: shelf.length,
-    },
+    pickup_shelf: shelf,
     qc_rejects: qcRejects,
     // Whole Items, so a shoe with a clean and a Repaint counts once.
     workshop: countStages(lines),
+  };
+}
+
+// The shelf Orders waiting longest first, a page at a time.
+export async function getPickupShelf(
+  query: GetPickupShelfQuery,
+  now = new Date()
+): Promise<{ items: CounterShelfOrder[]; meta: PaginationMeta }> {
+  const pagination = normalizePagination({
+    limit: SHELF_PAGE_SIZE,
+    offset: query.offset,
+  });
+  const [rows, { orders: total }] = await Promise.all([
+    listPickupShelf(query.store_id, pagination),
+    sumPickupShelf(query.store_id),
+  ]);
+
+  return {
+    items: rows.map((order) => ({
+      customer_name: order.customer_name,
+      customer_phone: order.customer_phone,
+      items: order.items,
+      notified: order.notified,
+      order_id: order.order_id,
+      ready_days: order.ready_at ? daysSince(order.ready_at, now) : 0,
+    })),
+    meta: buildPaginationMeta(total, pagination),
   };
 }

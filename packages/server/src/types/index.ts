@@ -5,6 +5,7 @@ export type {
   CounterEstimate,
   CounterPickupShelf,
   CounterQcReject,
+  CounterShelfOrder,
   CounterWorkshop,
 } from "@/modules/counter/counter.schema";
 export type {

@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  fromNotAfterTo,
+  fromNotAfterToIssue,
+  storeIdQuerySchema,
+} from "@/modules/reports/report.schema";
 import { dateStringSchema } from "@/schema/common";
 import type { JWTPayload } from "@/types";
 
@@ -90,3 +95,15 @@ export const GETShiftsQuerySchema = z
   .optional();
 
 export type GetShiftsQuery = z.infer<typeof GETShiftsQuerySchema>;
+
+export const GETShiftsOverviewQuerySchema = z
+  .object({
+    from: dateStringSchema("from"),
+    store_id: storeIdQuerySchema.optional(),
+    to: dateStringSchema("to"),
+  })
+  .refine(fromNotAfterTo, fromNotAfterToIssue);
+
+export type GetShiftsOverviewQuery = z.infer<
+  typeof GETShiftsOverviewQuerySchema
+>;

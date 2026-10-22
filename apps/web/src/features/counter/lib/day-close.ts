@@ -1,5 +1,5 @@
 import type { DayClose, DayCloseMethod } from "@/features/counter/api";
-import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
+import dayjs from "@/lib/dayjs";
 
 const SLIP_SEPARATOR = " - ";
 
@@ -61,6 +61,3 @@ export const formatDayLabel = (day: string, today: string) =>
 	day === today ? "Today's" : formatDayShort(day);
 
 export const formatDayLong = (day: string) => dayjs(day).format(DAY_LONG);
-
-export const formatClock = (iso: string) =>
-	dayjs(iso).tz(JAKARTA_TZ).format("HH:mm");

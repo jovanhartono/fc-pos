@@ -23,6 +23,13 @@ mock.module("@/modules/counter/counter.service", () => ({
     asked.push(storeId);
     return Promise.resolve({ categories: [] });
   },
+  getPickupShelf: ({ store_id }: { store_id: number }) => {
+    asked.push(store_id);
+    return Promise.resolve({
+      items: [],
+      meta: { limit: 20, offset: 0, total: 0 },
+    });
+  },
 }));
 
 mock.module("@/modules/counter/day-close.service", () => ({
@@ -97,6 +104,34 @@ describe("who may read the Counter", () => {
     const res = await call("");
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe("who may read the pickup shelf", () => {
+  const path = (storeId: number) => `/pickup-shelf?store_id=${storeId}`;
+
+  it("answers shop staff for their own Store", async () => {
+    for (const role of ["admin", "cashier", "worker"] as const) {
+      who = as(role);
+      expect((await call(path(KEMANG))).status).toBe(200);
+    }
+    expect(asked).toEqual([KEMANG, KEMANG, KEMANG]);
+  });
+
+  it("refuses a courier", async () => {
+    who = as("courier");
+    expect((await call(path(KEMANG))).status).toBe(403);
+    expect(asked).toEqual([]);
+  });
+
+  it("refuses a cashier asking about another Store", async () => {
+    expect((await call(path(BINTARO))).status).toBe(403);
+    expect(asked).toEqual([]);
+  });
+
+  it("lets an admin read any Store", async () => {
+    who = as("admin");
+    expect((await call(path(BINTARO))).status).toBe(200);
   });
 });
 

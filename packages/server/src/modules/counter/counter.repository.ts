@@ -14,6 +14,7 @@ import {
 import { REWORKED_ROUND_STATUSES } from "@/modules/complaints/complaint.schema";
 import type { DateRange } from "@/modules/reports/report-range.util";
 import { listServicesProcessed } from "@/modules/reports/services-processed";
+import type { NormalizedPagination } from "@/utils/pagination";
 
 const WAITING_STATUSES = ["queued", "processing", "qc_reject"] as const;
 
@@ -140,7 +141,25 @@ const shelfLineOfOrder = and(
   eq(ordersServicesTable.status, "ready_for_pickup")
 );
 
-export function listPickupShelf(storeId: number) {
+const onShelfAt = (storeId: number) =>
+  and(
+    eq(ordersTable.store_id, storeId),
+    eq(ordersTable.status, "ready_for_pickup")
+  );
+
+export function sumPickupShelf(storeId: number) {
+  return db
+    .select({
+      items: sql<number>`COUNT(DISTINCT ${ordersServicesTable.item_id})::int`,
+      orders: sql<number>`COUNT(DISTINCT ${ordersTable.id})::int`,
+    })
+    .from(ordersTable)
+    .leftJoin(ordersServicesTable, shelfLineOfOrder)
+    .where(onShelfAt(storeId))
+    .then((rows) => rows[0] ?? { items: 0, orders: 0 });
+}
+
+export function listPickupShelf(storeId: number, page: NormalizedPagination) {
   return db
     .select({
       customer_name: customersTable.name,
@@ -153,12 +172,9 @@ export function listPickupShelf(storeId: number) {
     .from(ordersTable)
     .innerJoin(customersTable, eq(ordersTable.customer_id, customersTable.id))
     .leftJoin(ordersServicesTable, shelfLineOfOrder)
-    .where(
-      and(
-        eq(ordersTable.store_id, storeId),
-        eq(ordersTable.status, "ready_for_pickup")
-      )
-    )
+    .where(onShelfAt(storeId))
     .groupBy(ordersTable.id, customersTable.id)
-    .orderBy(asc(ordersTable.ready_at), asc(ordersTable.id));
+    .orderBy(asc(ordersTable.ready_at), asc(ordersTable.id))
+    .limit(page.limit)
+    .offset(page.offset);
 }

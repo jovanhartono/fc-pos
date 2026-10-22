@@ -22,20 +22,14 @@ export type OrderPhotoGalleryItem = {
 type OrderPhotoGalleryProps = {
 	emptyState?: React.ReactNode;
 	gridClassName?: string;
-	itemClassName?: string;
 	items: OrderPhotoGalleryItem[];
-	thumbnailClassName?: string;
-	thumbnailImageClassName?: string;
 	title?: string;
 };
 
 export function OrderPhotoGallery({
 	emptyState,
 	gridClassName,
-	itemClassName,
 	items,
-	thumbnailClassName,
-	thumbnailImageClassName,
 	title = "Attachment Viewer",
 }: OrderPhotoGalleryProps) {
 	const [activeIndex, setActiveIndex] = useState(0);
@@ -73,23 +67,17 @@ export function OrderPhotoGallery({
 				)}
 			>
 				{items.map((item, index) => (
-					<div className={itemClassName} key={item.id}>
+					<div key={item.id}>
 						{item.label ? <div className="mb-1.5">{item.label}</div> : null}
 						<button
 							aria-label={`Open ${getPhotoPrimaryLabel(item)} image ${index + 1} of ${imageCount}`}
-							className={cn(
-								"block w-full overflow-hidden rounded-md border border-border bg-muted transition-[border-color,box-shadow] hover:border-ring focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
-								thumbnailClassName,
-							)}
+							className="block w-full overflow-hidden rounded-md border border-border bg-muted transition-[border-color,box-shadow] hover:border-ring focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
 							onClick={() => openAtIndex(index)}
 							type="button"
 						>
 							<img
 								alt={item.alt}
-								className={cn(
-									"aspect-square w-full bg-muted object-cover",
-									thumbnailImageClassName,
-								)}
+								className="aspect-square w-full bg-muted object-cover"
 								decoding="async"
 								height={480}
 								loading="lazy"
