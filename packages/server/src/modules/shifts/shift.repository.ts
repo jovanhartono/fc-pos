@@ -252,6 +252,14 @@ export function listShiftDays({
       minutes: sql<number>`floor(sum(extract(epoch from ${end} - ${shiftsTable.clock_in_at})) / 60)::int`,
       forgotten: sql<number>`(count(*) filter (where ${shiftsTable.auto_closed}))::int`,
       open: sql<boolean>`bool_or(${shiftsTable.clock_out_at} is null)`,
+      first_in: sql<Date>`min(${shiftsTable.clock_in_at})`.mapWith(
+        shiftsTable.clock_in_at
+      ),
+      // Null while someone is still on shift, which the page shows as "now".
+      last_out:
+        sql<Date | null>`case when bool_or(${shiftsTable.clock_out_at} is null) then null else max(${shiftsTable.clock_out_at}) end`.mapWith(
+          shiftsTable.clock_out_at
+        ),
     })
     .from(shiftsTable)
     .where(

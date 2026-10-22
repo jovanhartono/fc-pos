@@ -110,6 +110,8 @@ export interface DayMark {
 	minutes: number;
 	forgotten: number;
 	isOpen: boolean;
+	firstIn: string;
+	lastOut: string | null;
 }
 
 export interface ElsewhereDays {
@@ -127,6 +129,7 @@ export interface PersonRow {
 	forgotten: number;
 	isOpen: boolean;
 	elsewhere: ElsewhereDays[];
+	elsewhereByDay: Map<string, string>;
 	// What the meal fee is paid on: one per day, whichever Store.
 	daysAllStores: number;
 }
@@ -142,6 +145,8 @@ const toMark = (day: ShiftDay): DayMark => ({
 	minutes: day.minutes,
 	forgotten: day.forgotten,
 	isOpen: day.open,
+	firstIn: day.first_in,
+	lastOut: day.last_out,
 });
 
 export const buildRow = (
@@ -163,6 +168,13 @@ export const buildRow = (
 			).size,
 		}))
 		.filter((other) => other.days > 0);
+	const elsewhereByDay = new Map<string, string>();
+	for (const day of personDays) {
+		const store = stores.find((other) => other.id === day.store_id);
+		if (day.store_id !== storeId && store && !elsewhereByDay.has(day.day)) {
+			elsewhereByDay.set(day.day, store.name);
+		}
+	}
 	return {
 		person,
 		marks: new Map(here.map((day) => [day.day, toMark(day)])),
@@ -172,6 +184,7 @@ export const buildRow = (
 		forgotten: here.reduce((sum, day) => sum + day.forgotten, 0),
 		isOpen: here.some((day) => day.open),
 		elsewhere,
+		elsewhereByDay,
 		daysAllStores: new Set(personDays.map((day) => day.day)).size,
 	};
 };

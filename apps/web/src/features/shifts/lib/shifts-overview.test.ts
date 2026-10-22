@@ -75,7 +75,9 @@ const BSD = { id: 2, name: "Fresclean BSD", is_active: true };
 
 const day = (user_id: number, store_id: number, date: string, shifts = 1) => ({
 	day: date,
+	first_in: `${date}T01:00:00.000Z`,
 	forgotten: 0,
+	last_out: `${date}T10:00:00.000Z`,
 	minutes: 540,
 	open: false,
 	shifts,
@@ -131,5 +133,14 @@ describe("buildStoreGroups", () => {
 		expect(groups.map((group) => group.store.id)).toEqual([1]);
 		expect(summarizeGroups(groups).days).toBe(3);
 		expect(groups[0].rows[1].elsewhere[0].days).toBe(2);
+	});
+
+	it("knows which other Store each day was at", () => {
+		const [kemang] = buildStoreGroups(overview, [KEMANG, BSD], 1);
+		const rizky = kemang.rows[1];
+
+		expect(rizky.elsewhereByDay.get("2026-10-14")).toBe("Fresclean BSD");
+		expect(rizky.elsewhereByDay.get("2026-10-13")).toBe("Fresclean BSD");
+		expect(rizky.elsewhereByDay.has("2026-10-12")).toBe(false);
 	});
 });

@@ -504,7 +504,9 @@ describe("getShiftsOverview", () => {
     expect(days).toEqual([
       {
         day: "2026-10-11",
+        first_in: jkt("2026-10-11T08:00"),
         forgotten: 0,
+        last_out: jkt("2026-10-11T17:30"),
         minutes: 510,
         open: false,
         shifts: 2,
@@ -513,7 +515,9 @@ describe("getShiftsOverview", () => {
       },
       {
         day: "2026-10-12",
+        first_in: jkt("2026-10-12T06:30"),
         forgotten: 1,
+        last_out: jkt("2026-10-12T16:30"),
         minutes: 600,
         open: false,
         shifts: 1,
@@ -540,7 +544,13 @@ describe("getShiftsOverview", () => {
     });
 
     expect(days).toEqual([
-      expect.objectContaining({ minutes: 375, open: true, shifts: 1 }),
+      expect.objectContaining({
+        first_in: jkt("2026-10-13T08:00"),
+        last_out: null,
+        minutes: 375,
+        open: true,
+        shifts: 1,
+      }),
     ]);
   });
 
