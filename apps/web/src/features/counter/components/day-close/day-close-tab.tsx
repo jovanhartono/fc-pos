@@ -85,8 +85,8 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 					isToday={data.date === today}
 					onOpen={setList}
 				/>
-				<RefundsSection data={data} />
 				<MethodsSection data={data} onOpen={setList} />
+				<RefundsSection data={data} />
 				<PickedUpRow data={data} onOpen={setList} />
 			</div>
 			<SalesReportSection data={data} onOpen={setList} />
