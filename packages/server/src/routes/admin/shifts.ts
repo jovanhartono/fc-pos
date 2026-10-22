@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import {
+  GETShiftsOverviewQuerySchema,
   GETShiftsQuerySchema,
   PATCHShiftSchema,
   POSTClockInSchema,
@@ -12,6 +13,7 @@ import {
   createShift,
   getCurrentShift,
   getShifts,
+  getShiftsOverview,
   updateShift,
 } from "@/modules/shifts/shift.service";
 import { idParamSchema } from "@/schema/param";
@@ -28,6 +30,17 @@ const app = new Hono<AdminEnv>()
 
     return c.json(success(items, undefined, meta));
   })
+  .get(
+    "/overview",
+    zodValidator("query", GETShiftsOverviewQuerySchema),
+    async (c) => {
+      const overview = await getShiftsOverview(
+        c.get("jwtPayload"),
+        c.req.valid("query")
+      );
+      return c.json(success(overview));
+    }
+  )
   .get("/current", async (c) => {
     const user = c.get("jwtPayload");
     const shift = await getCurrentShift(user);

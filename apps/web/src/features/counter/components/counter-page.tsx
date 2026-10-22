@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
@@ -119,13 +119,18 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 		});
 	}, [navigate]);
 
-	const oldest = data?.pickup_shelf.oldest;
+	const { data: shelf, isPending: isShelfPending } = useInfiniteQuery(
+		counterQueries.pickupShelf(storeId),
+	);
 	const sheetOrders = useMemo(
-		() => oldest?.map((order) => ({ id: order.order_id })) ?? [],
-		[oldest],
+		() =>
+			shelf?.pages.flatMap((page) =>
+				page.items.map((order) => ({ id: order.order_id })),
+			) ?? [],
+		[shelf],
 	);
 	useOrderSheet({
-		isReady: data !== undefined,
+		isReady: !isShelfPending,
 		onClose: handleCloseOrder,
 		onSelect: handleOpenOrder,
 		openId: isWide ? open : undefined,
@@ -142,7 +147,7 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 	}
 
 	return (
-		<div className="grid gap-6 text-body">
+		<div className="@container grid gap-6 text-body">
 			<WorkshopSection categories={data.categories} workshop={data.workshop} />
 			<PickupShelfSection
 				isWide={isWide}
@@ -150,8 +155,11 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 				shelf={data.pickup_shelf}
 				storeId={storeId}
 			/>
-			<PendingComplaintsSection complaints={data.complaints} />
-			<PendingQcRejectsSection rejects={data.qc_rejects} />
+			{/* Side by side only when a Complaint's reason fits uncut; a tablet with the sidebar open stays stacked. */}
+			<div className="grid items-start gap-6 @3xl:grid-cols-2">
+				<PendingComplaintsSection complaints={data.complaints} />
+				<PendingQcRejectsSection rejects={data.qc_rejects} />
+			</div>
 		</div>
 	);
 };

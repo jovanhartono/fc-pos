@@ -1,6 +1,15 @@
-import type { Counter, DayClose } from "@fresclean/api/types";
-import { keepPreviousData, queryOptions } from "@tanstack/react-query";
+import type {
+	Counter,
+	CounterShelfOrder,
+	DayClose,
+} from "@fresclean/api/types";
+import {
+	infiniteQueryOptions,
+	keepPreviousData,
+	queryOptions,
+} from "@tanstack/react-query";
 import { parseResponse } from "hono/client";
+import { type PaginatedData, toPaginated } from "@/lib/http";
 import { REPORT_STALE_TIME } from "@/lib/query-defaults";
 import { rpcWithAuth } from "@/lib/rpc";
 import { jakartaToday } from "@/shared/date-presets";
@@ -11,6 +20,7 @@ export type {
 	CounterComplaint,
 	CounterPickupShelf,
 	CounterQcReject,
+	CounterShelfOrder,
 	CounterWorkshop,
 	DayClose,
 	DayCloseCategory,
@@ -27,7 +37,21 @@ export const counterKeys = {
 	detail: (storeId: number) => [...counterKeys.all, storeId] as const,
 	dayClose: (storeId: number, date: string) =>
 		[...counterKeys.detail(storeId), "day-close", date] as const,
+	pickupShelf: (storeId: number) =>
+		[...counterKeys.detail(storeId), "pickup-shelf"] as const,
 };
+
+async function fetchPickupShelfPage(
+	storeId: number,
+	offset: number,
+): Promise<PaginatedData<CounterShelfOrder>> {
+	const response = await parseResponse(
+		rpcWithAuth().api.admin.counter["pickup-shelf"].$get({
+			query: { store_id: String(storeId), offset: String(offset) },
+		}),
+	);
+	return toPaginated(response);
+}
 
 async function fetchCounter(storeId: number): Promise<Counter> {
 	const response = await parseResponse(
@@ -54,6 +78,17 @@ export const counterQueries = {
 		queryOptions({
 			queryKey: counterKeys.detail(storeId),
 			queryFn: () => fetchCounter(storeId),
+			refetchInterval: 60_000,
+		}),
+	pickupShelf: (storeId: number) =>
+		infiniteQueryOptions({
+			queryKey: counterKeys.pickupShelf(storeId),
+			initialPageParam: 0,
+			queryFn: ({ pageParam }) => fetchPickupShelfPage(storeId, pageParam),
+			getNextPageParam: (lastPage) => {
+				const nextOffset = lastPage.meta.offset + lastPage.meta.limit;
+				return nextOffset < lastPage.meta.total ? nextOffset : undefined;
+			},
 			refetchInterval: 60_000,
 		}),
 	// Today's close grows with every payment; a past day never changes.

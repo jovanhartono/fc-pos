@@ -25,7 +25,6 @@ import {
 	useCallback,
 	useEffect,
 	useMemo,
-	useRef,
 	useState,
 } from "react";
 import { toast } from "sonner";
@@ -64,6 +63,7 @@ import { getQueueAgeTone } from "@/features/orders/lib/queue-age-tone";
 import { groupReworksUnderOriginals } from "@/features/orders/lib/rework-nesting";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
+import { useLoadMore } from "@/hooks/useLoadMore";
 import { useMinuteClock } from "@/hooks/useMinuteClock";
 import { CONTENT_FADE, staleFade } from "@/lib/content-fade";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
@@ -165,7 +165,6 @@ function QueuePage() {
 	const currentUser = getCurrentUser();
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
-	const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
 	const [itemCode, setItemCode] = useState("");
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -274,42 +273,14 @@ function QueuePage() {
 		setShownQueueKey(queueKey);
 	}
 
-	const queueQueryRef = useRef(queueQuery);
-	useEffect(() => {
-		queueQueryRef.current = queueQuery;
+	// The scroll lives in the shell's content pane, not the window.
+	const loadMoreRef = useLoadMore(queueQuery, {
+		getRoot: () =>
+			document.querySelector(
+				`[data-scroll-restoration-id="${APP_CONTENT_SCROLL_ID}"]`,
+			),
+		rootMargin: "240px 0px",
 	});
-
-	useEffect(() => {
-		const node = loadMoreRef.current;
-		if (!node) {
-			return;
-		}
-
-		const observer = new IntersectionObserver(
-			(entries) => {
-				const [entry] = entries;
-				if (!entry?.isIntersecting) {
-					return;
-				}
-				const current = queueQueryRef.current;
-				if (current.hasNextPage && !current.isFetchingNextPage) {
-					void current.fetchNextPage();
-				}
-			},
-			{
-				// Watched against the shell's scrolling pane, not the window, or the
-				// worker reaches the end of the queue before the next page loads.
-				root: document.querySelector(
-					`[data-scroll-restoration-id="${APP_CONTENT_SCROLL_ID}"]`,
-				),
-				rootMargin: "240px 0px",
-			},
-		);
-
-		observer.observe(node);
-
-		return () => observer.disconnect();
-	}, []);
 
 	const lookupMutation = useMutation({
 		mutationFn: async ({ value }: { mode: "manual" | "scan"; value: string }) =>

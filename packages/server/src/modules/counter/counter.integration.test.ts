@@ -19,7 +19,9 @@ import { resetDb, testDb } from "@/test-support/pglite";
 
 // Loaded after the swap above, never beside the imports (see the Workers suite).
 const { createOrder } = await import("@/modules/orders/order.service");
-const { getCounter } = await import("@/modules/counter/counter.service");
+const { getCounter, getPickupShelf } = await import(
+  "@/modules/counter/counter.service"
+);
 
 const jkt = (local: string) => new Date(`${local}:00+07:00`);
 
@@ -152,6 +154,9 @@ const waiting = async (count: number, serviceId = shop.serviceId) =>
   setStatus(await placeLines(shop.store, count, serviceId), "queued");
 
 const counterOf = async (storeId = shop.store.id) => getCounter(storeId, NOW);
+
+const shelfOf = async (page: { offset?: number } = {}) =>
+  getPickupShelf({ store_id: shop.store.id, ...page }, NOW);
 
 const categoryRow = async (name: string) =>
   (await counterOf()).categories.find((row) => row.name === name);
@@ -558,9 +563,9 @@ describe("days are Jakarta calendar days", () => {
 
     expect(counter.qc_rejects.map((item) => item.days)).toEqual([1]);
     expect(counter.complaints.map((item) => item.days)).toEqual([1]);
-    expect(
-      counter.pickup_shelf.oldest.map((order) => order.ready_days)
-    ).toEqual([1]);
+    expect((await shelfOf()).items.map((order) => order.ready_days)).toEqual([
+      1,
+    ]);
   });
 });
 
@@ -592,7 +597,7 @@ describe("the pickup shelf", () => {
     expect(pickup_shelf.items).toBe(3);
   });
 
-  it("shows the Orders waiting longest first, as whole days, at most 10", async () => {
+  const shelfOfTwelve = async () => {
     for (let day = 1; day <= 12; day++) {
       await putOnShelf(
         shop.store,
@@ -600,19 +605,34 @@ describe("the pickup shelf", () => {
         jkt(`2026-09-${String(day).padStart(2, "0")}T10:00`)
       );
     }
+  };
 
-    const { pickup_shelf } = await counterOf();
+  it("lists the Orders waiting longest first, as whole days", async () => {
+    await shelfOfTwelve();
+    await putOnShelf(bintaro, 1, jkt("2026-08-20T10:00"));
 
-    expect(pickup_shelf.orders).toBe(12);
-    expect(pickup_shelf.oldest).toHaveLength(10);
-    expect(pickup_shelf.oldest.map((order) => order.ready_days)).toEqual([
-      29, 28, 27, 26, 25, 24, 23, 22, 21, 20,
+    const shelf = await shelfOf();
+
+    expect((await counterOf()).pickup_shelf.orders).toBe(12);
+    expect(shelf.meta).toEqual({ limit: 20, offset: 0, total: 12 });
+    expect(shelf.items.map((order) => order.ready_days)).toEqual([
+      29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18,
     ]);
-    expect(pickup_shelf.oldest[0]).toMatchObject({
+    expect(shelf.items[0]).toMatchObject({
       customer_name: "Budi Santoso",
       customer_phone: "+628111222333",
       items: 1,
+      notified: false,
     });
+  });
+
+  it("hands out the shelf a page at a time", async () => {
+    await shelfOfTwelve();
+
+    const last = await shelfOf({ offset: 10 });
+
+    expect(last.items.map((order) => order.ready_days)).toEqual([19, 18]);
+    expect(last.meta).toEqual({ limit: 20, offset: 10, total: 12 });
   });
 
   it("counts only the Items still on the shelf, not one already picked up", async () => {
@@ -635,13 +655,13 @@ describe("the pickup shelf", () => {
 
     expect(pickup_shelf.orders).toBe(1);
     expect(pickup_shelf.items).toBe(2);
-    expect(pickup_shelf.oldest[0].items).toBe(2);
+    expect((await shelfOf()).items[0].items).toBe(2);
   });
 
   it("says 0 days for an Order that became ready today", async () => {
     await putOnShelf(shop.store, 2, jkt("2026-09-30T09:00"));
 
-    expect((await counterOf()).pickup_shelf.oldest[0]).toMatchObject({
+    expect((await shelfOf()).items[0]).toMatchObject({
       items: 2,
       ready_days: 0,
     });

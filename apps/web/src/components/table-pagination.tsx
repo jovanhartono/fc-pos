@@ -2,19 +2,31 @@ import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import type { PaginationMeta } from "@/lib/http";
 import { isListKeyBlocked } from "@/lib/list-keys";
+import { PAGE_SIZES, type PageSize } from "@/lib/page-size";
 
 type TablePaginationProps = {
 	meta?: PaginationMeta;
 	isLoading?: boolean;
 	onPageChange: (page: number) => void;
+	pageSize?: PageSize;
+	onPageSizeChange?: (pageSize: PageSize) => void;
 };
 
 export function TablePagination({
 	meta,
 	isLoading,
 	onPageChange,
+	pageSize,
+	onPageSizeChange,
 }: TablePaginationProps) {
 	const currentPage = meta ? Math.floor(meta.offset / meta.limit) + 1 : 1;
 	const totalPages = meta ? Math.max(1, Math.ceil(meta.total / meta.limit)) : 1;
@@ -46,10 +58,42 @@ export function TablePagination({
 
 	return (
 		<div className="flex items-center justify-between gap-3">
-			<p className="text-muted-foreground text-footnote tabular-nums">
-				<span className="max-sm:hidden">Showing </span>
-				{range}
-			</p>
+			<div className="flex items-center gap-3">
+				<p className="text-muted-foreground text-footnote tabular-nums">
+					<span className="max-sm:hidden">Showing </span>
+					{range}
+				</p>
+				{pageSize && onPageSizeChange ? (
+					<Select
+						value={String(pageSize)}
+						onValueChange={(value) =>
+							onPageSizeChange(Number(value) as PageSize)
+						}
+					>
+						<SelectTrigger
+							size="sm"
+							aria-label="Rows per page"
+							className="tabular-nums"
+						>
+							<SelectValue>
+								{(value: string) => (
+									<>
+										{value}
+										<span className="max-sm:hidden">per page</span>
+									</>
+								)}
+							</SelectValue>
+						</SelectTrigger>
+						<SelectContent>
+							{PAGE_SIZES.map((size) => (
+								<SelectItem key={size} value={String(size)}>
+									{size} per page
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				) : null}
+			</div>
 			<div className="flex items-center gap-2">
 				<Button
 					type="button"
@@ -61,9 +105,9 @@ export function TablePagination({
 				>
 					Prev
 				</Button>
-				{/* Left-aligned in a fixed box, so "–" becoming "Page 1 / 12" grows
-				    rightward and nothing beside it moves. */}
-				<span className="w-20 whitespace-nowrap text-left text-muted-foreground text-footnote tabular-nums">
+				{/* A fixed box, so "–" becoming "Page 1 / 12" never moves the
+				    buttons beside it. */}
+				<span className="w-20 whitespace-nowrap text-center text-muted-foreground text-footnote tabular-nums max-sm:w-14">
 					<span className="max-sm:hidden">Page </span>
 					{meta ? `${currentPage} / ${totalPages}` : "–"}
 				</span>

@@ -5,6 +5,7 @@ import { counterQueries } from "@/features/counter/api";
 import { CollectedSection } from "@/features/counter/components/day-close/collected-section";
 import { daySheet } from "@/features/counter/components/day-close/day-sheets";
 import { MethodsSection } from "@/features/counter/components/day-close/methods-section";
+import { PickedUpSection } from "@/features/counter/components/day-close/picked-up-section";
 import { RefundsSection } from "@/features/counter/components/day-close/refunds-section";
 import { SalesReportSection } from "@/features/counter/components/day-close/sales-report-section";
 import { formatDayLabel } from "@/features/counter/lib/day-close";
@@ -66,23 +67,28 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 	return (
 		<div
 			className={cn(
-				"grid gap-5 text-body",
+				"grid items-start gap-5 text-body lg:grid-cols-2",
 				CONTENT_FADE,
 				staleFade(isPlaceholderData),
 			)}
 			key={data.date}
 		>
 			{isError ? (
-				<p className="text-destructive">Could not refresh the day close.</p>
+				<p className="text-destructive lg:col-span-2">
+					Could not refresh the day close.
+				</p>
 			) : null}
-			<CollectedSection
-				data={data}
-				dayLabel={dayLabel}
-				isToday={data.date === today}
-				onOpen={setList}
-			/>
-			<MethodsSection data={data} onOpen={setList} />
-			<RefundsSection data={data} onOpen={setList} />
+			<div className="grid min-w-0 gap-5">
+				<CollectedSection
+					data={data}
+					dayLabel={dayLabel}
+					isToday={data.date === today}
+					onOpen={setList}
+				/>
+				<MethodsSection data={data} onOpen={setList} />
+				<RefundsSection data={data} />
+				<PickedUpSection data={data} onOpen={setList} />
+			</div>
 			<SalesReportSection data={data} onOpen={setList} />
 		</div>
 	);

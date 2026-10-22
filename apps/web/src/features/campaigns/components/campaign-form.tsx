@@ -280,7 +280,7 @@ const FixedDiscountFields = () => {
 						</FieldLabel>
 						<CurrencyInput
 							id="campaign-max-discount"
-							placeholder="optional"
+							placeholder="Optional"
 							value={field.value ?? ""}
 							onValueChange={(value) => field.onChange(value || null)}
 						/>
@@ -328,7 +328,7 @@ const PercentageDiscountFields = () => {
 						</FieldLabel>
 						<CurrencyInput
 							id="campaign-max-discount"
-							placeholder="optional"
+							placeholder="Optional"
 							value={field.value ?? ""}
 							onValueChange={(value) => field.onChange(value || null)}
 						/>

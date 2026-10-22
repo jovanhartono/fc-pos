@@ -28,7 +28,7 @@ const serviceFormResolverSchema = z
 		// The server parses money into a number for itself, but the API still takes
 		// the digit string the currency field types out — keep the form in that shape.
 		cogs: POSTServiceSchema.shape.cogs.transform(String),
-		// "No list price" (ADR-0018, e.g. Repair) lives on the form only; the API
+		// "Dynamic Price" (ADR-0018, e.g. Repair) lives on the form only; the API
 		// gets price: null.
 		no_list_price: z.boolean(),
 		price: z.string(),
@@ -227,7 +227,7 @@ export function ServiceForm({
 										form.setValue("price", "", { shouldValidate: true });
 									}
 								}}
-								title="No list price"
+								title="Dynamic Price"
 							/>
 						)}
 					/>

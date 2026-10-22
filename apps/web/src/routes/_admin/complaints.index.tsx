@@ -21,22 +21,27 @@ import {
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import { OrderListRow } from "@/features/orders/components/order-list-row";
 import { formatListDate } from "@/lib/dayjs";
+import {
+	DEFAULT_PAGE_SIZE,
+	pageSizeChange,
+	pageSizeSearch,
+} from "@/lib/page-size";
 
 const complaintsSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
+	limit: pageSizeSearch,
 	search: z.string().trim().min(1).max(100).optional().catch(undefined),
 });
 
 type ComplaintsSearch = z.infer<typeof complaintsSearchSchema>;
 
-const PAGE_SIZE = 25;
-
 function buildComplaintsListParams(
 	search: ComplaintsSearch,
 ): FetchComplaintsQuery {
+	const pageSize = search.limit ?? DEFAULT_PAGE_SIZE;
 	return {
-		limit: PAGE_SIZE,
-		offset: (search.page - 1) * PAGE_SIZE,
+		limit: pageSize,
+		offset: (search.page - 1) * pageSize,
 		...(search.search ? { search: search.search } : {}),
 	};
 }
@@ -183,6 +188,12 @@ const ComplaintsPage = () => {
 							onPageChange={(page) => {
 								void navigate({
 									search: (prev) => ({ ...prev, page }),
+								});
+							}}
+							pageSize={search.limit ?? DEFAULT_PAGE_SIZE}
+							onPageSizeChange={(limit) => {
+								void navigate({
+									search: (prev) => ({ ...prev, ...pageSizeChange(limit) }),
 								});
 							}}
 						/>

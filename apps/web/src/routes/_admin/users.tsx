@@ -35,13 +35,17 @@ import {
 	UserForm,
 	type UserFormState,
 } from "@/features/users/components/user-form";
+import {
+	DEFAULT_PAGE_SIZE,
+	pageSizeChange,
+	pageSizeSearch,
+} from "@/lib/page-size";
 import { useDialog } from "@/stores/dialog-store";
 import { useSheet } from "@/stores/sheet-store";
 
-const PAGE_SIZE = 25;
-
 const usersSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
+	limit: pageSizeSearch,
 	search: z.string().trim().min(1).max(100).optional(),
 });
 
@@ -57,8 +61,8 @@ export const Route = createFileRoute("/_admin/users")({
 		await Promise.all([
 			context.queryClient.ensureQueryData(
 				usersQueries.list({
-					limit: PAGE_SIZE,
-					offset: (deps.page - 1) * PAGE_SIZE,
+					limit: deps.limit ?? DEFAULT_PAGE_SIZE,
+					offset: (deps.page - 1) * (deps.limit ?? DEFAULT_PAGE_SIZE),
 					...(deps.search ? { search: deps.search } : {}),
 				}),
 			),
@@ -107,6 +111,7 @@ const defaultForm: UserFormState = {
 function UsersPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
+	const pageSize = search.limit ?? DEFAULT_PAGE_SIZE;
 	const queryClient = useQueryClient();
 	const { openSheet, closeSheet } = useSheet();
 	const openDialog = useDialog((s) => s.openDialog);
@@ -132,8 +137,8 @@ function UsersPage() {
 
 	const usersQuery = useQuery({
 		...usersQueries.list({
-			limit: PAGE_SIZE,
-			offset: (search.page - 1) * PAGE_SIZE,
+			limit: pageSize,
+			offset: (search.page - 1) * pageSize,
 			...(search.search ? { search: search.search } : {}),
 		}),
 		placeholderData: keepPreviousData,
@@ -419,6 +424,12 @@ function UsersPage() {
 										...prev,
 										page,
 									}),
+								});
+							}}
+							pageSize={pageSize}
+							onPageSizeChange={(limit) => {
+								void navigate({
+									search: (prev) => ({ ...prev, ...pageSizeChange(limit) }),
 								});
 							}}
 						/>

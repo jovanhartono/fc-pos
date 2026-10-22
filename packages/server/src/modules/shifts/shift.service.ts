@@ -10,7 +10,10 @@ import {
   findOverlappingShift,
   findShiftById,
   insertShift,
+  listShiftDays,
+  listShiftPeople,
   listShifts,
+  listShiftUserIds,
   updateOpenShiftClockOutByUserId,
   updateShiftTimesById,
 } from "@/modules/shifts/shift.repository";
@@ -18,6 +21,7 @@ import {
   CLOCK_IN_RADIUS_KM,
   type ClockInCoordinates,
   clockInRequiresLocation,
+  type GetShiftsOverviewQuery,
   type GetShiftsQuery,
   type PatchShiftBody,
   type PostShiftBody,
@@ -226,6 +230,31 @@ function forgottenClockOutNote(
 
 export function getCurrentShift(user: JWTPayload) {
   return findOpenShiftByUserId(user.id);
+}
+
+export async function getShiftsOverview(
+  user: JWTPayload,
+  query: GetShiftsOverviewQuery
+) {
+  assertIsAdmin(user);
+
+  const { from, to, store_id: storeId } = query;
+  const workedIds = await listShiftUserIds({ from, to, storeId });
+  const people = await listShiftPeople({ storeId, extraUserIds: workedIds });
+  // Days at every Store, not just the one picked: the meal fee goes by all of them.
+  const days = await listShiftDays({
+    from,
+    to,
+    userIds: people.map((person) => person.id),
+  });
+
+  return {
+    people: people.map(({ userStores, ...person }) => ({
+      ...person,
+      store_ids: userStores.map((link) => link.store_id),
+    })),
+    days,
+  };
 }
 
 export async function getShifts(user: JWTPayload, query?: GetShiftsQuery) {

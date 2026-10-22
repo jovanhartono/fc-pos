@@ -4,6 +4,15 @@ export const GETCounterQuerySchema = z.object({
   store_id: z.coerce.number().int().positive(),
 });
 
+export const SHELF_PAGE_SIZE = 20;
+
+export const GETPickupShelfQuerySchema = z.object({
+  offset: z.coerce.number().int().min(0).optional(),
+  store_id: z.coerce.number().int().positive(),
+});
+
+export type GetPickupShelfQuery = z.infer<typeof GETPickupShelfQuerySchema>;
+
 export interface CounterEstimate {
   days_high: number;
   days_low: number;
@@ -30,7 +39,6 @@ export interface CounterShelfOrder {
 
 export interface CounterPickupShelf {
   items: number;
-  oldest: CounterShelfOrder[];
   orders: number;
 }
 

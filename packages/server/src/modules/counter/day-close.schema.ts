@@ -47,7 +47,6 @@ export interface DayCloseRefund {
   order_code: string;
   order_id: number;
   paid_day: string | null;
-  payment_method_name: string;
   reasons: (typeof refundReasonEnum.enumValues)[number][];
   refunded_at: string;
 }

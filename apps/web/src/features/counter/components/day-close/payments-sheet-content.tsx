@@ -6,7 +6,7 @@ import {
 	OrderList,
 	OrderRow,
 } from "@/features/counter/components/day-close/order-row";
-import { formatClock } from "@/features/counter/lib/day-close";
+import { formatClock } from "@/lib/dayjs";
 
 interface PaymentsSheetContentProps {
 	date: string;

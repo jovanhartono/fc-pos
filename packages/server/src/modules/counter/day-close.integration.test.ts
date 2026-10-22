@@ -218,7 +218,6 @@ describe("the money collected", () => {
       amount: 100_000,
       order_id: paid.orderId,
       paid_day: "2026-09-29",
-      payment_method_name: "Cash",
       reasons: ["damaged"],
     });
   });

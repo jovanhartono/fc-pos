@@ -388,20 +388,6 @@ function CampaignsPage() {
 							disabled={!isAdmin}
 							onClick={() => handleOpenEditSheet(row.original)}
 						/>
-						{/* An empty slot on listed Campaigns keeps Archive in the same
-						spot on every row, so a quick click never archives by mistake. */}
-						{row.original.redemption_mode === "code" ? (
-							<Button
-								variant="outline"
-								size="icon-sm"
-								aria-label="Codes"
-								title="Codes"
-								onClick={() => handleOpenVoucherDetail(row.original)}
-								icon={<HugeiconsIcon icon={Coupon01Icon} className="size-4" />}
-							/>
-						) : (
-							<span aria-hidden className="size-7 shrink-0" />
-						)}
 						<ArchiveCampaignButton
 							campaign={row.original}
 							disabled={!isAdmin}
@@ -413,6 +399,18 @@ function CampaignsPage() {
 								});
 							}}
 						/>
+						{/* Codes comes last so Archive sits in the same spot on every
+						row, and a quick click never archives by mistake. */}
+						{row.original.redemption_mode === "code" && (
+							<Button
+								variant="outline"
+								size="icon-sm"
+								aria-label="Codes"
+								title="Codes"
+								onClick={() => handleOpenVoucherDetail(row.original)}
+								icon={<HugeiconsIcon icon={Coupon01Icon} className="size-4" />}
+							/>
+						)}
 					</div>
 				),
 			},

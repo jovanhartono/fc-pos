@@ -89,7 +89,6 @@ async function buildRefunds(storeId: number, range: DateRange) {
     order_code: refund.order_code,
     order_id: refund.order_id,
     paid_day: refund.paid_at ? jakartaDayOf(refund.paid_at) : null,
-    payment_method_name: refund.method_name ?? NO_METHOD,
     reasons: (reasonsByRefund.get(refund.refund_id) ?? []).map(
       (row) => row.reason
     ),

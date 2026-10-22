@@ -36,4 +36,7 @@ export const formatShiftLength = (minutes: number) => {
 	return `${Math.floor(total / 60)}h ${String(total % 60).padStart(2, "0")}m`;
 };
 
+export const formatClock = (value: Date | string) =>
+	dayjs(value).tz(JAKARTA_TZ).format("HH:mm");
+
 export default dayjs;

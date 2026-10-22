@@ -1,7 +1,10 @@
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { Section } from "@/components/section";
 import type { DayClose } from "@/features/counter/api";
+import {
+	GroupLabel,
+	LINE_ROW,
+	LineName,
+} from "@/features/counter/components/day-close/group-label";
 import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
 import { pluralize } from "@/shared/utils";
 
@@ -13,27 +16,15 @@ interface CountGroupProps {
 }
 
 const CountGroup = ({ count, lines, title }: CountGroupProps) => (
-	<details className="group border-border border-t" open>
-		<summary className="flex cursor-pointer list-none items-center justify-between gap-3 bg-muted/50 px-3 py-2 font-medium hover:bg-muted [&::-webkit-details-marker]:hidden">
-			<span className="flex items-center gap-1.5">
-				<HugeiconsIcon
-					icon={ArrowRight01Icon}
-					className="size-3 text-muted-foreground transition-transform group-open:rotate-90"
-				/>
-				{title}
-			</span>
-			<span className="tabular-nums">{count}</span>
-		</summary>
+	<div className="border-border border-t">
+		<GroupLabel end={count} title={title} />
 		{lines.map((line) => (
-			<div
-				className="flex justify-between gap-3 border-border border-t py-1.5 pr-3 pl-7 text-body"
-				key={line.id}
-			>
-				<span>{line.name}</span>
-				<span className="tabular-nums">{line.count}</span>
+			<div className={LINE_ROW} key={line.id}>
+				<LineName>{line.name}</LineName>
+				<span className="text-right">{line.count}</span>
 			</div>
 		))}
-	</details>
+	</div>
 );
 
 interface SalesReportSectionProps {
@@ -45,7 +36,7 @@ export const SalesReportSection = ({
 	data,
 	onOpen,
 }: SalesReportSectionProps) => {
-	const { dropped_off: dropped, picked_up: picked } = data;
+	const { dropped_off: dropped } = data;
 
 	const summary = [
 		pluralize(dropped.orders, "Order"),
@@ -55,9 +46,6 @@ export const SalesReportSection = ({
 	]
 		.filter(Boolean)
 		.join(" · ");
-	const hasLines =
-		dropped.categories.length > 0 || dropped.product_lines.length > 0;
-	const pickedUp = `${pluralize(picked.orders, "Order")} · ${pluralize(picked.items, "Item")}`;
 
 	return (
 		<Section title="Sales report">
@@ -73,12 +61,6 @@ export const SalesReportSection = ({
 						<OpenArrow />
 					</span>
 				</button>
-				{hasLines ? (
-					<div className="flex justify-between gap-3 border-border border-t bg-muted px-3 py-2 font-medium text-footnote">
-						<span>Sold</span>
-						<span>Qty</span>
-					</div>
-				) : null}
 				{dropped.categories.map((category) => (
 					<CountGroup
 						count={category.count}
@@ -103,18 +85,6 @@ export const SalesReportSection = ({
 					/>
 				) : null}
 			</div>
-			<button
-				className="flex w-full items-baseline justify-between gap-3 rounded-lg border bg-card px-3 py-2.5 text-left enabled:hover:bg-muted"
-				disabled={picked.orders === 0}
-				onClick={() => onOpen("picked-up")}
-				type="button"
-			>
-				<span>Picked up</span>
-				<span className="tabular-nums">
-					{pickedUp}
-					{picked.orders > 0 ? <OpenArrow /> : null}
-				</span>
-			</button>
 		</Section>
 	);
 };

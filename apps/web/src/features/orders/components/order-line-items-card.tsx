@@ -16,6 +16,7 @@ import {
 	OrderServiceRow,
 	OrderServiceRowSkeleton,
 } from "@/features/orders/components/order-service-row";
+import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import type { OrderItem } from "@/features/orders/lib/order-lines";
 import { getItemTotalRow } from "@/features/orders/lib/order-sheet";
 import { groupReworksUnderOriginals } from "@/features/orders/lib/rework-nesting";
@@ -138,7 +139,14 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 					</h3>
 				)}
 			</header>
-			<ItemPhotoStrip isAdmin={isAdmin} item={item} orderId={orderId} />
+			<ItemPhotoStrip
+				isAdmin={isAdmin}
+				item={item}
+				orderId={orderId}
+				photoBlocker={item.services
+					.map(startPhotoBlocker)
+					.find((blocker) => blocker !== undefined)}
+			/>
 			<ul className={SERVICE_LIST}>
 				{groupReworksUnderOriginals(
 					item.services,
