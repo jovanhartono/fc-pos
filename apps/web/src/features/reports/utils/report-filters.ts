@@ -29,14 +29,17 @@ export function toReportFilters({
 	return { ...range, store_id, granularity };
 }
 
-export function withPresetRange<T extends ReportFilterValues>(search: T) {
+export function withPresetRange<T extends ReportFilterValues>(
+	search: T,
+	fallback: DatePreset = DEFAULT_PRESET,
+) {
 	const { from, to } = search;
 	if (!search.preset && from && to) {
 		return { ...search, from, to };
 	}
 	// An admin who never picked a range reads Last 30 days, and still does
 	// tomorrow after changing only the Store.
-	const preset = getPreset(search.preset ?? DEFAULT_PRESET);
+	const preset = getPreset(search.preset ?? fallback);
 	return { ...search, preset: preset.id, from: preset.from, to: preset.to };
 }
 

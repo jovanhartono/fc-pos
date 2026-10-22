@@ -8,10 +8,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StoreSelect } from "@/features/orders/components/store-select";
-import {
-	DEFAULT_PRESET,
-	withPresetRange,
-} from "@/features/reports/utils/report-filters";
+import { withPresetRange } from "@/features/reports/utils/report-filters";
 import { shiftsQueries } from "@/features/shifts/api";
 import { NewShiftForm } from "@/features/shifts/components/new-shift-form";
 import { ShiftsDayView } from "@/features/shifts/components/shifts-day-view";
@@ -49,8 +46,11 @@ const shiftsSearchSchema = z.object({
 
 type ShiftsSearch = z.infer<typeof shiftsSearchSchema>;
 
+// The admin opens Shifts to see who is in today; totals are a preset away.
+const DEFAULT_PRESET: DatePreset = "today";
+
 const resolveSearch = (search: ShiftsSearch) => {
-	const { preset, from, to } = withPresetRange(search);
+	const { preset, from, to } = withPresetRange(search, DEFAULT_PRESET);
 	// A hand-edited link with its dates reversed shows the end day.
 	const range: ShiftsRange = { from: from > to ? to : from, to };
 	return { range, preset };
