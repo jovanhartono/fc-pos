@@ -69,7 +69,6 @@ const dayShiftsQuery = (range: ShiftsRange, storeId: number | undefined) => ({
 });
 
 interface ShownShifts {
-	range: ShiftsRange;
 	query: ReturnType<typeof overviewQuery>;
 	label: string;
 	groups: StoreGroup[];
@@ -113,21 +112,17 @@ const ShiftsPage = () => {
 		placeholderData: keepPreviousData,
 	});
 
-	const groups = useMemo(() => {
-		if (!overview.data) {
-			return [];
-		}
-		const all = buildStoreGroups(
-			overview.data,
-			storesQuery.data ?? [],
-			search.store_id,
-		);
-		// Stores where someone worked come first; the empty ones sink to the end.
-		return [
-			...all.filter((group) => group.rows.length > 0),
-			...all.filter((group) => group.rows.length === 0),
-		];
-	}, [overview.data, storesQuery.data, search.store_id]);
+	const groups = useMemo(
+		() =>
+			overview.data
+				? buildStoreGroups(
+						overview.data,
+						storesQuery.data ?? [],
+						search.store_id,
+					)
+				: [],
+		[overview.data, storesQuery.data, search.store_id],
+	);
 
 	// The last complete view stays up while the next day or range loads, so
 	// stepping through days swaps numbers instead of flashing placeholders.
@@ -148,11 +143,9 @@ const ShiftsPage = () => {
 		isReady &&
 		(shown?.groups !== groups ||
 			shown.shifts !== shifts ||
-			shown.label !== label ||
-			shown.range.from !== range.from ||
-			shown.range.to !== range.to)
+			shown.label !== label)
 	) {
-		setShown({ range, query, label, groups, shifts });
+		setShown({ query, label, groups, shifts });
 	}
 
 	// A row tapped while the next range loads opens the numbers it shows.
@@ -239,12 +232,12 @@ const ShiftsPage = () => {
 			</div>
 			{shown ? (
 				<div className={staleFade(isLoading)}>
-					{shown.range.from === shown.range.to ? (
+					{shown.query.from === shown.query.to ? (
 						<ShiftsDayView groups={shown.groups} shifts={shown.shifts ?? []} />
 					) : (
 						<ShiftsRangeView
 							groups={shown.groups}
-							days={listDays(shown.range)}
+							days={listDays(shown.query)}
 							today={today}
 							isPhone={isPhone}
 							onOpen={handleOpen}

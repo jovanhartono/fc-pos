@@ -101,6 +101,13 @@ const overview: ShiftsOverview = {
 };
 
 describe("buildStoreGroups", () => {
+	it("puts a Store nobody worked at after the ones with Shifts", () => {
+		const bogor = { id: 3, name: "Fresclean Bogor", is_active: true };
+		const groups = buildStoreGroups(overview, [bogor, KEMANG], undefined);
+
+		expect(groups.map((group) => group.store.id)).toEqual([1, 3]);
+	});
+
 	it("lists a two-Store person under each, with the other Store's days", () => {
 		const [kemang, bsd] = buildStoreGroups(overview, [KEMANG, BSD], undefined);
 		const rizky = kemang.rows.find((row) => row.person.id === 9);

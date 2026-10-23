@@ -41,8 +41,8 @@ type PickupDialogContextValue = {
 	// The cashier hands back whole Items, never one OrderService on one
 	// (ADR-0017); the server takes the same unit, so half a shoe can't leave.
 	collectableItems: OrderItem[];
-	selectedIds: string[];
-	setSelectedIds: (ids: string[]) => void;
+	selectedIds: number[];
+	setSelectedIds: (ids: number[]) => void;
 	selectAll: () => void;
 	clearSelection: () => void;
 	file: File | null;
@@ -93,13 +93,13 @@ export const OrderPickupEventDialog = ({
 	collectableItems,
 }: OrderPickupEventDialogProps) => {
 	const queryClient = useQueryClient();
-	const [selectedIds, setSelectedIds] = useState<string[]>(
+	const [selectedIds, setSelectedIds] = useState<number[]>(
 		// Only ready Items start ticked. A refunded Item is Collectable too, but
 		// ticking it by default let a Customer collecting one pair leave with two.
 		() =>
 			collectableItems
 				.filter((item) => item.status === "ready_for_pickup")
-				.map((item) => String(item.id)),
+				.map((item) => item.id),
 	);
 	const [file, setFileState] = useState<File | null>(null);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -124,7 +124,7 @@ export const OrderPickupEventDialog = ({
 	}, []);
 
 	const selectAll = useCallback(() => {
-		setSelectedIds(collectableItems.map((item) => String(item.id)));
+		setSelectedIds(collectableItems.map((item) => item.id));
 	}, [collectableItems]);
 
 	const clearSelection = useCallback(() => {
@@ -142,8 +142,7 @@ export const OrderPickupEventDialog = ({
 			if (!/^\d{6}$/.test(pickupCode)) {
 				throw new Error("Enter the 6-digit pickup code");
 			}
-			const itemIds = selectedIds.map(Number);
-			if (itemIds.length === 0) {
+			if (selectedIds.length === 0) {
 				throw new Error("Select at least one item to pick up");
 			}
 
@@ -154,7 +153,7 @@ export const OrderPickupEventDialog = ({
 			return createOrderPickupEvent(orderId, {
 				image_path: presigned.key,
 				pickup_code: pickupCode,
-				item_ids: itemIds,
+				item_ids: selectedIds,
 			});
 		},
 		onSuccess: async () => {
@@ -271,8 +270,8 @@ const PickupServiceList = memo(() => {
 	return (
 		<CheckboxGroup
 			className="space-y-2"
-			value={selectedIds}
-			onValueChange={setSelectedIds}
+			value={selectedIds.map(String)}
+			onValueChange={(next) => setSelectedIds(next.map(Number))}
 		>
 			<div className="flex items-center justify-between gap-2">
 				<p className="text-body font-medium">

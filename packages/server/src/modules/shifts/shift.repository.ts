@@ -10,7 +10,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { db } from "@/db";
-import { shiftsTable } from "@/db/schema";
+import { shiftsTable, usersTable } from "@/db/schema";
 import { jakartaBucketExpr } from "@/modules/reports/report-range.util";
 import {
   FORGOTTEN_SHIFT_HOURS,
@@ -195,7 +195,10 @@ export function countShifts(query?: GetShiftsQuery) {
   return db.$count(shiftsTable, buildCountWhere(query));
 }
 
-export function listShiftUserIds({
+// One row per worker, Store and Jakarta day: the weekly meal fee is paid per
+// day worked, so two Shifts on one day still count once. A picked Store keeps
+// everyone who worked there, with their days at every Store.
+export function listShiftDays({
   from,
   to,
   storeId,
@@ -204,45 +207,24 @@ export function listShiftUserIds({
   to: string;
   storeId?: number;
 }) {
-  return db
-    .selectDistinct({ user_id: shiftsTable.user_id })
-    .from(shiftsTable)
-    .where(buildCountWhere({ from, to, store_id: storeId }))
-    .then((rows) => rows.map((row) => row.user_id));
-}
-
-// Includes someone who worked in the range and has since left.
-export function listShiftPeople(userIds: number[]) {
-  if (userIds.length === 0) {
-    return Promise.resolve([]);
-  }
-  return db.query.usersTable.findMany({
-    where: { id: { in: userIds } },
-    columns: { id: true, name: true, role: true },
-    orderBy: { name: "asc" },
-  });
-}
-
-// One row per worker, Store and Jakarta day: the weekly meal fee is paid per
-// day worked, so two Shifts on one day still count once.
-export function listShiftDays({
-  from,
-  to,
-  userIds,
-}: {
-  from: string;
-  to: string;
-  userIds: number[];
-}) {
-  if (userIds.length === 0) {
-    return Promise.resolve([]);
-  }
+  const workedAtStore =
+    storeId === undefined
+      ? undefined
+      : inArray(
+          shiftsTable.user_id,
+          db
+            .selectDistinct({ user_id: shiftsTable.user_id })
+            .from(shiftsTable)
+            .where(buildCountWhere({ from, to, store_id: storeId }))
+        );
   const day = jakartaBucketExpr(shiftsTable.clock_in_at, "day");
   // An open Shift has run until now; both sides are UTC wall time.
   const end = sql`COALESCE(${shiftsTable.clock_out_at}, ${new Date().toISOString()}::timestamp)`;
   return db
     .select({
       user_id: shiftsTable.user_id,
+      name: usersTable.name,
+      role: usersTable.role,
       store_id: shiftsTable.store_id,
       day,
       shifts: sql<number>`count(*)::int`,
@@ -257,9 +239,14 @@ export function listShiftDays({
       ),
     })
     .from(shiftsTable)
-    .where(
-      and(buildCountWhere({ from, to }), inArray(shiftsTable.user_id, userIds))
+    .innerJoin(usersTable, eq(usersTable.id, shiftsTable.user_id))
+    .where(and(buildCountWhere({ from, to }), workedAtStore))
+    .groupBy(
+      shiftsTable.user_id,
+      usersTable.name,
+      usersTable.role,
+      shiftsTable.store_id,
+      day
     )
-    .groupBy(shiftsTable.user_id, shiftsTable.store_id, day)
     .orderBy(day);
 }

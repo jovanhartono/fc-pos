@@ -208,7 +208,7 @@ export const buildStoreGroups = (
 				overview.days.some((day) => day.store_id === store.id)
 			: store.id === storeId,
 	);
-	return shown.map((store) => {
+	const groups = shown.map((store) => {
 		const rows = overview.people
 			.filter((person) =>
 				daysByPerson.get(person.id)?.some((day) => day.store_id === store.id),
@@ -218,6 +218,10 @@ export const buildStoreGroups = (
 			);
 		return { store, rows };
 	});
+	// Stores where someone worked come first; the empty ones sink to the end.
+	return groups.sort(
+		(a, b) => Number(b.rows.length > 0) - Number(a.rows.length > 0),
+	);
 };
 
 // An admin opening today's Shifts looks for who is in, so those still on shift

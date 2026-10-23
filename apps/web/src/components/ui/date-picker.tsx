@@ -41,6 +41,17 @@ const WIRE_FORMAT = "YYYY-MM-DD";
 const FIELD_TRIGGER =
 	"h-9 pointer-coarse:h-11 justify-start border-input font-normal dark:border-input dark:bg-input/30 dark:hover:bg-input/50";
 
+interface PickerIconProps {
+	isLoading?: boolean;
+}
+
+const PickerIcon = ({ isLoading }: PickerIconProps) => (
+	<HugeiconsIcon
+		icon={isLoading ? Loading03Icon : Calendar03Icon}
+		className={cn("size-4", isLoading && "animate-spin")}
+	/>
+);
+
 interface DatePickerProps {
 	id?: string;
 	value?: string;
@@ -101,16 +112,7 @@ export const DatePicker = ({
 						)}
 						aria-busy={isLoading || undefined}
 						iconLocation={iconLocation}
-						icon={
-							isLoading ? (
-								<HugeiconsIcon
-									icon={Loading03Icon}
-									className="size-4 animate-spin"
-								/>
-							) : (
-								<HugeiconsIcon icon={Calendar03Icon} className="size-4" />
-							)
-						}
+						icon={<PickerIcon isLoading={isLoading} />}
 					/>
 				}
 			>
@@ -463,16 +465,7 @@ export const DateRangePicker = ({
 					className,
 				)}
 				aria-busy={isLoading || undefined}
-				icon={
-					isLoading ? (
-						<HugeiconsIcon
-							icon={Loading03Icon}
-							className="size-4 animate-spin"
-						/>
-					) : (
-						<HugeiconsIcon icon={Calendar03Icon} className="size-4" />
-					)
-				}
+				icon={<PickerIcon isLoading={isLoading} />}
 			/>
 		),
 		label,
