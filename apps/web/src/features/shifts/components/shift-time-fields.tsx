@@ -62,6 +62,9 @@ export const ShiftTimeFields = () => {
 						}}
 						id={`shift-${name}`}
 						type="datetime-local"
+						// Safari on iPhone sizes the native picker to its own text and runs it
+						// past the dialog's edge, so the admin can't reach Save.
+						className="appearance-none [&::-webkit-date-and-time-value]:text-left"
 						aria-invalid={fieldState.invalid}
 						disabled={formState.isSubmitting}
 					/>

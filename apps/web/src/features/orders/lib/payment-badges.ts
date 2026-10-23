@@ -25,23 +25,25 @@ export const getPaymentBadges = (order: PaymentBadgeOrder): PaymentBadge[] => {
 	if (isCancelledBeforePayment(order)) {
 		return [];
 	}
-	if (order.refund_status === "full") {
-		return [
-			{ label: "Refunded", variant: getRefundStatusBadgeVariant("full") },
-		];
+	const refund = getRefundBadge(order.refund_status);
+	if (refund && order.refund_status === "full") {
+		return [refund];
 	}
 	const payment: PaymentBadge = {
 		label: formatPaymentStatus(order.payment_status),
 		variant: getPaymentStatusBadgeVariant(order.payment_status),
 	};
-	if (order.refund_status === "partial") {
-		return [
-			payment,
-			{
-				label: "Partial refund",
-				variant: getRefundStatusBadgeVariant("partial"),
-			},
-		];
+	return refund ? [payment, refund] : [payment];
+};
+
+export const getRefundBadge = (
+	status: Order["refund_status"],
+): PaymentBadge | null => {
+	if (status === "none") {
+		return null;
 	}
-	return [payment];
+	return {
+		label: status === "full" ? "Refunded" : "Partial refund",
+		variant: getRefundStatusBadgeVariant(status),
+	};
 };

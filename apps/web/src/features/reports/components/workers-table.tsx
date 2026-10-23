@@ -12,6 +12,7 @@ import {
 import type { WorkerRow } from "@/features/reports/api";
 import { StoreGroup } from "@/features/reports/components/store-group";
 import { BadCount } from "@/features/reports/components/tone-chip";
+import { useStoreCodes } from "@/features/reports/hooks/useStoreCodes";
 import {
 	numberFormatter,
 	oneDecimalFormatter,
@@ -30,8 +31,8 @@ type Live = WorkerRow["live"];
 
 const n = (value: number) => numberFormatter.format(value);
 
-// A Shift left open from an earlier day shows its day, so a forgotten
-// clock-out doesn't read as someone who started this morning.
+// A Shift left open from an earlier day shows its day, so a worker who never
+// clocked out doesn't read as someone who started this morning.
 const formatClock = (value: string) => {
 	const at = dayjs(value).tz(JAKARTA_TZ);
 	return at.isSame(dayjs().tz(JAKARTA_TZ), "day")
@@ -340,7 +341,7 @@ const QuietStores = ({ workers, isToday }: QuietStoresProps) => {
 	}
 	return (
 		<p className="rounded-lg border bg-card px-4 py-3 text-muted-foreground text-body">
-			{`${isToday ? "No Services today" : "No Services in range"}: ${quiet.map((store) => store.name).join(", ")}`}
+			{`${isToday ? "No Services today" : "No Services in range"}: ${quiet.map((store) => store.code).join(", ")}`}
 		</p>
 	);
 };
@@ -361,6 +362,7 @@ export const WorkersTable = ({
 	onOpen,
 }: WorkersTableProps) => {
 	const now = useMinuteClock();
+	const storeCodes = useStoreCodes();
 	// Fixed at mount: the live view re-sorts every minute, and a Store the
 	// owner closed must not pop open because another overtook it.
 	const [firstStoreId] = useState(() => groupByStore(workers)[0]?.store_id);
@@ -379,7 +381,7 @@ export const WorkersTable = ({
 			{groupByStore(workers).map(({ store_id, store_name, rows, totals }) => (
 				<StoreGroup
 					key={store_id}
-					storeName={store_name}
+					storeCode={storeCodes.get(store_id) ?? store_name}
 					totals={totals}
 					isOpenAtStart={store_id === firstStoreId}
 				>

@@ -105,6 +105,18 @@ function CustomersPage() {
 				accessorKey: "name",
 				header: "Name",
 				meta: { kind: "name", width: { percent: 31, minRem: 9 } },
+				// On a phone, Edit sits right after the name; the table keeps its
+				// Actions column.
+				cell: ({ row }) => (
+					<>
+						{row.original.name}
+						<span className="ml-2 inline-flex align-middle lg:hidden">
+							<EditRowButton
+								onClick={() => handleOpenEditSheet(row.original)}
+							/>
+						</span>
+					</>
+				),
 			},
 			{
 				accessorKey: "phone_number",
@@ -148,7 +160,7 @@ function CustomersPage() {
 				header: "Actions",
 				meta: {
 					width: { percent: 8, minRem: 4.5 },
-					mobileCard: { slot: "title-end" },
+					mobileCard: { slot: "hidden" },
 				},
 				cell: ({ row }) => (
 					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />

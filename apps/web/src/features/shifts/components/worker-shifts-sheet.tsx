@@ -63,7 +63,7 @@ const ShiftLine = ({ shift }: ShiftLineProps) => {
 					{clockRange(shift)}
 					{shift.auto_closed ? (
 						<span className="text-footnote text-tone-bad-foreground">
-							Forgotten clock-out
+							Auto-closed
 						</span>
 					) : null}
 				</span>

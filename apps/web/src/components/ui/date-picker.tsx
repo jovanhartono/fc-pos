@@ -37,6 +37,9 @@ import {
 
 const DISPLAY_FORMAT = "MMM D, YYYY";
 const WIRE_FORMAT = "YYYY-MM-DD";
+// Sits in filter rows beside Selects, so it wears the Select's border and fill.
+const FIELD_TRIGGER =
+	"h-9 pointer-coarse:h-11 justify-start border-input font-normal dark:border-input dark:bg-input/30 dark:hover:bg-input/50";
 
 interface DatePickerProps {
 	id?: string;
@@ -92,7 +95,7 @@ export const DatePicker = ({
 						variant="outline"
 						disabled={disabled}
 						className={cn(
-							"h-9 pointer-coarse:h-11 justify-start font-normal",
+							FIELD_TRIGGER,
 							!value && "text-muted-foreground",
 							className,
 						)}
@@ -451,7 +454,7 @@ export const DateRangePicker = ({
 				variant="outline"
 				disabled={disabled}
 				className={cn(
-					"h-9 pointer-coarse:h-11 justify-start font-normal",
+					FIELD_TRIGGER,
 					fullWidth && "w-full",
 					!hasValue && "text-muted-foreground",
 					showClear && "pr-9",

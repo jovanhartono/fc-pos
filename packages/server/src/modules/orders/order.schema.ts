@@ -14,6 +14,7 @@ export const GETOrdersQuerySchema = z
     search: z.string().trim().min(1).max(100).optional(),
     status: z.enum(orderStatusEnum.enumValues).optional(),
     payment_status: z.enum(orderPaymentStatusEnum.enumValues).optional(),
+    refund_status: z.enum(["partial", "full"]).optional(),
 
     // Not a status of its own: ready_for_pickup aged past the shelf window.
     overdue: z.stringbool().optional(),
@@ -64,6 +65,7 @@ export interface NormalizedOrderListQuery {
   overdue?: boolean;
   payment_method_id?: number;
   payment_status?: ParsedOrdersQuery["payment_status"];
+  refund_status?: ParsedOrdersQuery["refund_status"];
   search?: string;
   sort_by: ParsedOrdersQuery["sort_by"];
   sort_order: ParsedOrdersQuery["sort_order"];
@@ -90,6 +92,7 @@ export function normalizeOrderListQuery(
     search: query?.search,
     status: query?.status,
     payment_status: query?.payment_status,
+    refund_status: query?.refund_status,
     overdue: query?.overdue,
     notified: query?.notified,
     customer_id: query?.customer_id,

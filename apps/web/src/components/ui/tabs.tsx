@@ -32,7 +32,8 @@ const tabsListVariants = cva(
 				default: "bg-secondary",
 				line: "gap-1 bg-transparent",
 				// More tabs than fit (Reports' nine): the chip strip's pills, scrolling.
-				pill: "gap-2 rounded-none bg-transparent p-0 group-data-horizontal/tabs:h-auto pointer-coarse:group-data-horizontal/tabs:h-auto",
+				// Room above and below so an iPhone can't slide the strip up and cut the pills' tops.
+				pill: "-my-1 gap-2 overflow-y-hidden rounded-none bg-transparent p-0 py-1 group-data-horizontal/tabs:h-auto pointer-coarse:group-data-horizontal/tabs:h-auto",
 			},
 		},
 		defaultVariants: {

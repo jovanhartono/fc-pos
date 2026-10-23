@@ -9,25 +9,35 @@ interface ComplaintItemFields {
 	item_color: string | null;
 }
 
-// One Order can carry Complaints on several Items, so the tag and descriptors
-// tell rows apart; the Order code is already on the line above, as on the Queue card.
-export const formatComplaintItem = ({
+export const getComplaintItemTag = ({
 	order_code,
 	item_code,
+}: Pick<ComplaintItemFields, "order_code" | "item_code">): string => {
+	const orderPrefix = `${order_code}-`;
+	return item_code.startsWith(orderPrefix)
+		? item_code.slice(orderPrefix.length)
+		: item_code;
+};
+
+export const getComplaintItemName = ({
 	item_brand,
 	item_model,
 	item_color,
-}: ComplaintItemFields): string => {
-	const orderPrefix = `${order_code}-`;
-	const tag = item_code.startsWith(orderPrefix)
-		? item_code.slice(orderPrefix.length)
-		: item_code;
-	const descriptors = getOrderServiceItemDescriptors({
+}: Pick<ComplaintItemFields, "item_brand" | "item_model" | "item_color">):
+	| string
+	| null =>
+	getOrderServiceItemDescriptors({
 		brand: item_brand,
 		model: item_model,
 		color: item_color,
-	}).join(" ");
-	return descriptors ? `${tag} · ${descriptors}` : tag;
+	}).join(" ") || null;
+
+// One Order can carry Complaints on several Items, so the tag and descriptors
+// tell rows apart; the Order code is already on the line above, as on the Queue card.
+export const formatComplaintItem = (fields: ComplaintItemFields): string => {
+	const tag = getComplaintItemTag(fields);
+	const name = getComplaintItemName(fields);
+	return name ? `${tag} · ${name}` : tag;
 };
 
 // The Complaint carries no stored status (ADR-0013 amendment) — its outcome is

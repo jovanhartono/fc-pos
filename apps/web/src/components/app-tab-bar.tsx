@@ -19,6 +19,7 @@ export const AppTabBar = ({ items }: AppTabBarProps) => {
 	return (
 		<nav
 			aria-label="Primary"
+			data-slot="tab-bar"
 			className="absolute inset-x-0 bottom-0 z-50 flex h-(--inset-bottom) bg-frost pb-[env(safe-area-inset-bottom)] shadow-[0_-0.5px_0_var(--border)] backdrop-blur-xl backdrop-saturate-150 md:hidden"
 		>
 			{items.map((item) => (

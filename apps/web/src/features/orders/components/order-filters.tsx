@@ -14,7 +14,7 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { StoreSelect } from "@/features/orders/components/store-select";
-import { formatPaymentStatus } from "@/lib/status";
+import { formatPaymentStatus, formatRefundStatus } from "@/lib/status";
 
 export const ORDER_STATUS_VALUES = [
 	"created",
@@ -26,10 +26,13 @@ export const ORDER_STATUS_VALUES = [
 
 export const PAYMENT_STATUS_VALUES = ["paid", "unpaid"] as const;
 
+export const REFUND_STATUS_VALUES = ["partial", "full"] as const;
+
 export const NOTIFIED_VALUES = ["yes", "no"] as const;
 
 type OrderStatusFilter = (typeof ORDER_STATUS_VALUES)[number];
 type PaymentStatusFilter = (typeof PAYMENT_STATUS_VALUES)[number];
+type RefundStatusFilter = (typeof REFUND_STATUS_VALUES)[number];
 type NotifiedFilter = (typeof NOTIFIED_VALUES)[number];
 
 export interface OrderFilterValues {
@@ -37,6 +40,7 @@ export interface OrderFilterValues {
 	storeId?: number;
 	status?: OrderStatusFilter;
 	paymentStatus?: PaymentStatusFilter;
+	refundStatus?: RefundStatusFilter;
 	notified?: NotifiedFilter;
 	dateFrom?: string;
 	dateTo?: string;
@@ -54,6 +58,12 @@ const PAYMENT_ITEMS: Record<string, string> = {
 	"": "All payments",
 	paid: formatPaymentStatus("paid"),
 	unpaid: formatPaymentStatus("unpaid"),
+};
+
+const REFUND_ITEMS: Record<string, string> = {
+	"": "All refunds",
+	partial: formatRefundStatus("partial"),
+	full: formatRefundStatus("full"),
 };
 
 const NOTIFIED_ITEMS: Record<string, string> = {
@@ -100,6 +110,17 @@ const FilterControls = ({
 			className="w-full data-placeholder:text-foreground lg:w-max lg:min-w-40"
 		/>
 		<SelectField
+			id={`${idPrefix}-refund`}
+			aria-label="Filter by refund"
+			items={REFUND_ITEMS}
+			value={values.refundStatus ?? ""}
+			onValueChange={(value) =>
+				onChange({ refundStatus: (value || undefined) as RefundStatusFilter })
+			}
+			placeholder="All refunds"
+			className="w-full data-placeholder:text-foreground lg:w-max lg:min-w-40"
+		/>
+		<SelectField
 			id={`${idPrefix}-notified`}
 			aria-label="Filter by pickup notice"
 			items={NOTIFIED_ITEMS}
@@ -119,6 +140,8 @@ const FilterControls = ({
 			onChange={({ from, to }) => onChange({ dateFrom: from, dateTo: to })}
 			onClear={() => onChange({ dateFrom: undefined, dateTo: undefined })}
 			fullWidth={isStacked}
+			placeholder="All dates"
+			className="text-foreground"
 		/>
 	</>
 );
@@ -137,6 +160,7 @@ export const OrderFilters = ({
 	// explaining it. Status is not here: its tabs are always on screen.
 	const activeCount =
 		(values.paymentStatus ? 1 : 0) +
+		(values.refundStatus ? 1 : 0) +
 		(values.notified ? 1 : 0) +
 		(values.dateFrom || values.dateTo ? 1 : 0) +
 		(isAdmin && values.storeId ? 1 : 0);
@@ -144,6 +168,7 @@ export const OrderFilters = ({
 	const handleClearAll = () => {
 		onChange({
 			paymentStatus: undefined,
+			refundStatus: undefined,
 			notified: undefined,
 			dateFrom: undefined,
 			dateTo: undefined,

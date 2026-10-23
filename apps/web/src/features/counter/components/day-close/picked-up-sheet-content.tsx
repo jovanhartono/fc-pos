@@ -4,16 +4,14 @@ import {
 	OrderRow,
 } from "@/features/counter/components/day-close/order-row";
 import { formatDayShort } from "@/features/counter/lib/day-close";
+import { ItemsProgress } from "@/features/orders/components/items-progress";
 import { formatClock } from "@/lib/dayjs";
-import { pluralize } from "@/shared/utils";
 
 interface PickedUpSheetContentProps {
 	date: string;
 	orders: DayClosePickedUpOrder[];
 }
 
-// Only a part pickup is coloured, so the cashier spots the Order whose other
-// Items are still on the shelf.
 export const PickedUpSheetContent = ({
 	date,
 	orders,
@@ -33,15 +31,10 @@ export const PickedUpSheetContent = ({
 						: `from ${formatDayShort(order.created_day)}`,
 				]}
 				end={
-					order.items_picked_by_day < order.items_total ? (
-						<span className="whitespace-nowrap text-tone-warn-foreground tabular-nums">
-							{order.items_picked_by_day} of {order.items_total} Items
-						</span>
-					) : (
-						<span className="whitespace-nowrap tabular-nums">
-							{pluralize(order.items, "Item")}
-						</span>
-					)
+					<ItemsProgress
+						done={order.items_picked_by_day}
+						total={order.items_total}
+					/>
 				}
 				key={order.order_id}
 				orderId={order.order_id}

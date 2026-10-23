@@ -1,6 +1,7 @@
 import { Section } from "@/components/section";
 import type { WorkerRow } from "@/features/reports/api";
 import { WorkerName } from "@/features/reports/components/workers-table";
+import { useStoreCodes } from "@/features/reports/hooks/useStoreCodes";
 import { needsALook } from "@/features/reports/utils/workers-report";
 import { useMinuteClock } from "@/hooks/useMinuteClock";
 
@@ -11,6 +12,7 @@ interface NeedsALookProps {
 // What the owner should ask about today, whatever range the rest shows.
 export const NeedsALook = ({ workers }: NeedsALookProps) => {
 	const now = useMinuteClock();
+	const storeCodes = useStoreCodes();
 	const flags = needsALook(workers, now);
 	if (flags.length === 0) {
 		return null;
@@ -35,7 +37,7 @@ export const NeedsALook = ({ workers }: NeedsALookProps) => {
 							</span>
 						</span>
 						<span className="hidden text-muted-foreground sm:inline">
-							{row.store_name}
+							{storeCodes.get(row.store_id) ?? row.store_name}
 						</span>
 					</li>
 				))}

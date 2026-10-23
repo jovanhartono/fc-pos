@@ -107,7 +107,7 @@ const columns: DataTableColumnDef<Category>[] = [
 		header: "Status",
 		meta: {
 			width: { percent: 12, minRem: 4.5 },
-			mobileCard: { slot: "status" },
+			mobileCard: { slot: "title-badge" },
 		},
 		cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
 	},

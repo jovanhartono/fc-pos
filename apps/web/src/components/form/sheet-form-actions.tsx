@@ -23,7 +23,7 @@ export const SheetFormActions = ({
 }: SheetFormActionsProps) => {
 	const submitLabel = isEditing ? "Save" : addLabel;
 	return (
-		<div className="sticky -bottom-4 z-10 col-span-full -mx-4 -mb-4 grid gap-2 bg-frost px-4 pt-3 pb-[calc(var(--inset-bottom)+0.75rem)] backdrop-blur-xl backdrop-saturate-150">
+		<div className="sticky -bottom-[calc(var(--inset-bottom)+1rem)] z-10 col-span-full -mx-4 -mb-[calc(var(--inset-bottom)+1rem)] grid gap-2 bg-frost px-4 pt-3 pb-[calc(var(--inset-bottom)+0.75rem)] backdrop-blur-xl backdrop-saturate-150">
 			<Button loading={isSubmitting} size="lg" type="submit">
 				{submitLabel}
 			</Button>

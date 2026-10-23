@@ -16,6 +16,8 @@ import {
 } from "@/features/complaints/api";
 import {
 	formatComplaintItem,
+	getComplaintItemName,
+	getComplaintItemTag,
 	getComplaintOutcome,
 } from "@/features/complaints/lib/format";
 import { CustomerLink } from "@/features/customers/components/customer-link";
@@ -165,9 +167,10 @@ const ComplaintsPage = () => {
 					filterKey={JSON.stringify(search)}
 					renderCard={(complaint) => (
 						<OrderListRow
-							className="rounded-none"
+							className="items-start rounded-none"
 							hasCaret={false}
-							details={[complaint.order_code, formatComplaintItem(complaint)]}
+							details={[complaint.order_code, getComplaintItemTag(complaint)]}
+							note={getComplaintItemName(complaint)}
 							end={
 								<div className="grid justify-items-end gap-1">
 									<span className="whitespace-nowrap text-subhead tabular-nums">

@@ -204,11 +204,7 @@ const ShiftsPage = () => {
 			{overview.data ? (
 				<div className={staleFade(overview.isPlaceholderData)}>
 					{isSingleDay ? (
-						<ShiftsDayView
-							groups={groups}
-							shifts={dayShifts.data?.items}
-							isToday={range.from === today}
-						/>
+						<ShiftsDayView groups={groups} shifts={dayShifts.data?.items} />
 					) : (
 						<ShiftsRangeView
 							groups={groups}

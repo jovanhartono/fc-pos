@@ -9,6 +9,7 @@ import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { describeOrderAmount } from "@/features/customers/lib/order-amount";
 import { type Order, ordersQueries } from "@/features/orders/api";
+import { getRefundBadge } from "@/features/orders/lib/payment-badges";
 import { formatListDate } from "@/lib/dayjs";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 
@@ -26,17 +27,12 @@ const OrderAmountCell = ({ order }: { order: Order }) => {
 	const amount = describeOrderAmount(order);
 
 	return (
-		<div className="grid gap-0.5 text-right">
+		<div className="text-right">
 			{amount.net === null ? (
 				<span className="text-muted-foreground text-body">{amount.label}</span>
 			) : (
 				<MoneyValue className="text-body" value={amount.net} />
 			)}
-			{amount.refunded ? (
-				<span className="text-caption text-destructive tabular-nums">
-					{`refunded ${amount.refunded}`}
-				</span>
-			) : null}
 		</div>
 	);
 };
@@ -112,11 +108,19 @@ export const CustomerOrdersCard = ({
 					width: { percent: 18, minRem: 8.25 },
 					mobileCard: { slot: "badges" },
 				},
-				cell: ({ row }) => (
-					<Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
-						{formatOrderStatus(row.original.status)}
-					</Badge>
-				),
+				cell: ({ row }) => {
+					// Only the refund, as on the Order page: the card stays compact and
+					// the detail is one tap away on the Order.
+					const refund = getRefundBadge(row.original.refund_status);
+					return (
+						<div className="flex flex-wrap gap-1">
+							<Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
+								{formatOrderStatus(row.original.status)}
+							</Badge>
+							{refund && <Badge variant={refund.variant}>{refund.label}</Badge>}
+						</div>
+					);
+				},
 			},
 			{
 				id: "paid",

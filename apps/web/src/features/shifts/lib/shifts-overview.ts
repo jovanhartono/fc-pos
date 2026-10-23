@@ -227,40 +227,22 @@ export const buildStoreGroups = (
 	});
 };
 
-export interface ShiftsTotals {
-	days: number;
-	people: number;
-	minutes: number;
-	forgotten: number;
-	onShiftNow: number;
-}
+export const countForgotten = (groups: StoreGroup[]) =>
+	groups
+		.flatMap((group) => group.rows)
+		.reduce((sum, row) => sum + row.forgotten, 0);
 
-// Counted over the Stores on screen, a day once per person whatever Store.
-export const summarizeGroups = (groups: StoreGroup[]): ShiftsTotals => {
-	const personDays = new Set<string>();
-	const people = new Set<number>();
-	const onShift = new Set<number>();
-	let minutes = 0;
-	let forgotten = 0;
-	for (const row of groups.flatMap((group) => group.rows)) {
-		for (const [day, mark] of row.marks) {
-			personDays.add(`${row.person.id}|${day}`);
-			people.add(row.person.id);
-			minutes += mark.minutes;
-			forgotten += mark.forgotten;
-			if (mark.isOpen) {
-				onShift.add(row.person.id);
-			}
-		}
+const statusRank = (row: PersonRow) => {
+	if (row.isOpen) {
+		return 0;
 	}
-	return {
-		days: personDays.size,
-		people: people.size,
-		minutes,
-		forgotten,
-		onShiftNow: onShift.size,
-	};
+	return row.days > 0 ? 1 : 2;
 };
+
+// An admin opening today's Shifts looks for who is in, so those on shift lead,
+// then who has left, then who hasn't come; names stay A–Z within each.
+export const sortByStatus = (rows: PersonRow[]) =>
+	[...rows].sort((a, b) => statusRank(a) - statusRank(b));
 
 // "Last 30 days · 23 Sep – 22 Oct", or just the dates for a picked range; the
 // year shows once the range reaches outside this one.

@@ -21,28 +21,26 @@ const KPI_LABELS = [
 // when the Customer lands.
 export const CustomerSummarySkeleton = () => (
 	<section aria-hidden className="grid gap-4">
-		<header className="flex flex-wrap items-start justify-between gap-3">
-			<div className="grid gap-1">
-				<h1 className="font-medium text-title-1 tracking-tight">
+		<header className="grid gap-1">
+			<div className="flex items-start justify-between gap-3">
+				<h1 className="pt-0.5 font-medium text-title-1 tracking-tight pointer-coarse:pt-1.5">
 					<TextSkeleton className="w-48" />
 				</h1>
-				{/* As tall as the phone number's copy button. */}
-				<p className="flex min-h-6 items-center text-body pointer-coarse:min-h-7">
-					<TextSkeleton className="w-32" />
-				</p>
-				{/* As wide as "Customer since … first seen at …", which on a phone
-				    pushes Edit onto its own line. */}
-				<p className="text-footnote">
-					<TextSkeleton className="w-80" />
-				</p>
+				<Button
+					disabled
+					icon={<HugeiconsIcon icon={PencilEdit02Icon} className="size-4" />}
+					variant="outline"
+				>
+					Edit
+				</Button>
 			</div>
-			<Button
-				disabled
-				icon={<HugeiconsIcon icon={PencilEdit02Icon} className="size-4" />}
-				variant="outline"
-			>
-				Edit
-			</Button>
+			{/* As tall as the phone number's copy button. */}
+			<p className="flex min-h-6 items-center text-body pointer-coarse:min-h-7">
+				<TextSkeleton className="w-32" />
+			</p>
+			<p className="text-footnote">
+				<TextSkeleton className="w-80 max-w-full" />
+			</p>
 		</header>
 		<KpiRow isPending>
 			{KPI_LABELS.map((label) => (
@@ -72,26 +70,27 @@ export const CustomerSummaryStrip = ({
 
 	return (
 		<section className="grid gap-4">
-			<header className="flex flex-wrap items-start justify-between gap-3">
-				<div className="grid gap-1">
-					<h1 className="font-medium text-title-1 tracking-tight">
+			<header className="grid gap-1">
+				<div className="flex items-start justify-between gap-3">
+					{/* Centres the name's first line on the Edit button beside it. */}
+					<h1 className="min-w-0 wrap-break-word pt-0.5 font-medium text-title-1 tracking-tight pointer-coarse:pt-1.5">
 						{customer.name}
 					</h1>
-					<p className="flex flex-wrap items-center gap-x-1 text-muted-foreground text-body tabular-nums">
-						<CopyValue label="phone number" value={customer.phone_number} />
-						{customer.email ? <span>{`· ${customer.email}`}</span> : null}
-					</p>
-					<p className="text-muted-foreground text-footnote">
-						{`Customer since ${dayjs(customer.created_at).format("DD MMM YYYY")} · first seen at ${customer.originStore?.name ?? "—"}`}
-					</p>
+					<Button
+						variant="outline"
+						onClick={handleEdit}
+						icon={<HugeiconsIcon icon={PencilEdit02Icon} className="size-4" />}
+					>
+						Edit
+					</Button>
 				</div>
-				<Button
-					variant="outline"
-					onClick={handleEdit}
-					icon={<HugeiconsIcon icon={PencilEdit02Icon} className="size-4" />}
-				>
-					Edit
-				</Button>
+				<p className="flex flex-wrap items-center gap-x-1 text-muted-foreground text-body tabular-nums">
+					<CopyValue label="phone number" value={customer.phone_number} />
+					{customer.email ? <span>{`· ${customer.email}`}</span> : null}
+				</p>
+				<p className="text-muted-foreground text-footnote">
+					{`Customer since ${dayjs(customer.created_at).format("DD MMM YYYY")} · first seen at ${customer.originStore?.name ?? "—"}`}
+				</p>
 			</header>
 
 			<KpiRow>

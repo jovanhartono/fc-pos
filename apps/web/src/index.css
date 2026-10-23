@@ -374,6 +374,19 @@
 	box-shadow: none;
 }
 
+/* The tab bar stays put and solid while pages switch, so pages don't show
+   through it; not while a sheet or dialog is open, or it covers the closing overlay. */
+body:not(:has([data-slot="sheet-content"], [data-slot="dialog-content"]))
+	[data-slot="tab-bar"] {
+	view-transition-name: tab-bar;
+}
+
+html:active-view-transition [data-slot="tab-bar"] {
+	background-color: var(--background);
+	background-image: linear-gradient(var(--frost), var(--frost));
+	backdrop-filter: none;
+}
+
 /* Opening a record slides it in from the right and backing out slides it away
    again, so a worker can tell whether they went deeper or came back. The
    direction is tagged per navigation in main.tsx. */

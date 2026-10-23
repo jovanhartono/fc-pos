@@ -231,7 +231,7 @@ const RejectCards = ({ target, rejects }: RejectCardsProps) => {
 										),
 									})
 								}
-								className="text-link tabular-nums"
+								className="justify-self-start text-left text-link tabular-nums"
 							>
 								{item.item_code}
 							</button>

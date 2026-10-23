@@ -2,16 +2,9 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ReportOverview, reportsQueries } from "@/features/reports/api";
-import { ChartCard } from "@/features/reports/components/chart-card";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
-import {
-	numberFormatter,
-	percentFormatter,
-} from "@/features/reports/utils/format";
-import {
-	ORDERS_IN_COLOR,
-	ORDERS_OUT_COLOR,
-} from "@/features/reports/utils/palette";
+import { StoreRevenueRows } from "@/features/reports/components/store-revenue-rows";
+import { numberFormatter } from "@/features/reports/utils/format";
 import { staleFade } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
@@ -97,66 +90,15 @@ const TopServicesList = ({
 	);
 };
 
-const StoreBreakdown = ({
-	perStore,
-}: {
-	perStore: ReportOverview["per_store"];
-}) => {
-	const total = perStore.reduce((s, r) => s + r.revenue, 0);
-	const max = perStore.reduce((m, r) => Math.max(m, r.revenue), 0);
-	if (perStore.length === 0) {
-		return (
-			<p className="text-body text-muted-foreground">No store activity today</p>
-		);
-	}
-	return (
-		<div className="grid grid-cols-1 gap-3">
-			{perStore.map((row) => {
-				const pct = max === 0 ? 0 : (row.revenue / max) * 100;
-				const share = total === 0 ? 0 : row.revenue / total;
-				return (
-					<div key={row.store_id} className="grid gap-1">
-						<div className="flex items-center justify-between gap-2">
-							<span className="flex items-center gap-2 truncate text-body font-medium">
-								<span className="font-normal text-subhead tabular-nums">
-									{row.store_code}
-								</span>
-								<span className="truncate">{row.store_name}</span>
-							</span>
-							<span className="text-body tabular-nums">
-								{formatMoney(String(row.revenue))}
-							</span>
-						</div>
-						<div className="h-1.5 w-full overflow-hidden rounded-full bg-soft-bar-track">
-							<div
-								className="h-full rounded-full bg-primary"
-								style={{ width: `${pct}%` }}
-							/>
-						</div>
-						<div className="flex flex-wrap items-center justify-between gap-x-3 text-subhead tabular-nums">
-							<span>
-								{`${row.orders_in} in `}
-								<span className="text-muted-foreground">·</span>
-								{` ${row.orders_out} out`}
-							</span>
-							<span>{percentFormatter.format(share)}</span>
-						</div>
-					</div>
-				);
-			})}
-		</div>
-	);
-};
-
 export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 	const overviewQuery = useQuery({
-		...reportsQueries.overview({ date, store_id: storeId, trend_days: 14 }),
+		...reportsQueries.overview({ date, store_id: storeId, trend_days: 7 }),
 		placeholderData: keepPreviousData,
 	});
 	const overview = overviewQuery.data;
 
 	// Each KPI reads its last day against the one before, and shows the past
-	// week as bars, all from the 14-day trend the chart below already draws.
+	// week as bars, all from one 7-day trend.
 	const trend = overview?.trend ?? [];
 	const daily = overview?.daily;
 	// A quiet yesterday has no percentage to compare against, and a refund-heavy
@@ -205,12 +147,6 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 		},
 	];
 
-	const trendData = trend.map((row) => ({
-		bucket: row.date,
-		orders_in: row.orders_in,
-		orders_out: row.orders_out,
-	}));
-
 	return (
 		<div
 			className={cn("grid gap-6", staleFade(overviewQuery.isPlaceholderData))}
@@ -235,19 +171,14 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 				))}
 			</KpiRow>
 
-			<ChartCard
-				variant="bar"
-				title={`Orders in vs out · last ${overview?.trend_days ?? 14} days`}
-				data={trendData}
-				granularity="day"
-				xTickInterval="equidistantPreserveStart"
-				highlightLatest
-				series={[
-					{ key: "orders_in", label: "Orders in", color: ORDERS_IN_COLOR },
-					{ key: "orders_out", label: "Orders out", color: ORDERS_OUT_COLOR },
-				]}
-				valueFormatter={(v) => numberFormatter.format(v)}
-			/>
+			<Card className="border-border/70">
+				<CardHeader>
+					<CardTitle>Revenue by store · today</CardTitle>
+				</CardHeader>
+				<CardContent className="p-4 pt-0">
+					<StoreRevenueRows rows={overview?.per_store ?? []} />
+				</CardContent>
+			</Card>
 
 			<div className="grid gap-3 xl:grid-cols-2">
 				<Card className="border-border/70">
@@ -267,15 +198,6 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 					</CardContent>
 				</Card>
 			</div>
-
-			<Card className="border-border/70">
-				<CardHeader>
-					<CardTitle>Revenue by store · today</CardTitle>
-				</CardHeader>
-				<CardContent className="p-4 pt-0">
-					<StoreBreakdown perStore={overview?.per_store ?? []} />
-				</CardContent>
-			</Card>
 		</div>
 	);
 };

@@ -100,7 +100,12 @@ const router = createRouter({
 		types: ({ fromLocation, toLocation, pathChanged }) => {
 			// Same screen, new search: J in the Order sheet must swap to the next
 			// Order outright, not fade the two through each other.
-			if (!pathChanged) {
+			// Leaving from the More sheet or the search palette: the closing panel
+			// is the transition, and a cross-fade on top froze it half-closed.
+			const isOverlayOpen = document.querySelector(
+				'[data-slot="sheet-content"], [data-slot="dialog-content"]',
+			);
+			if (!pathChanged || isOverlayOpen) {
 				return false;
 			}
 			if (!fromLocation) {

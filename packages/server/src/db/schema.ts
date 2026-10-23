@@ -419,7 +419,7 @@ export const userStoresTable = pgTable(
 export const shiftsTable = pgTable(
   "shifts",
   {
-    // A Forgotten clock-out, closed for the worker with a guessed ten hours.
+    // An Auto-closed Shift, closed for the worker with a guessed ten hours.
     auto_closed: boolean("auto_closed").default(false).notNull(),
     clock_in_at: timestamp("clock_in_at").defaultNow().notNull(),
     clock_out_at: timestamp("clock_out_at"),

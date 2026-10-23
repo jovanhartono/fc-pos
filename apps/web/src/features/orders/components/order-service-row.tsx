@@ -19,10 +19,12 @@ import { useSheet } from "@/stores/sheet-store";
 type OrderServiceRowService = OrderDetail["items"][number]["services"][number];
 
 const LINE_GRID =
-	"grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1";
-const LINE_NAME = "text-body leading-5 compact:text-subhead max-sm:col-span-2";
+	"grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 max-sm:items-start";
+const LINE_NAME = "text-body leading-5 compact:text-subhead";
 const LINE_BADGES =
-	"flex flex-wrap justify-end gap-1.5 max-sm:order-last max-sm:col-span-2 max-sm:justify-start";
+	"flex flex-wrap items-center justify-end gap-1.5 max-sm:order-last max-sm:col-span-2 max-sm:justify-start";
+const LINE_HANDLER =
+	"min-w-0 text-foreground text-subhead leading-snug max-sm:hidden";
 const LINE_PRICE =
 	"flex items-center gap-1 justify-self-end text-body tabular-nums compact:text-subhead";
 
@@ -36,7 +38,7 @@ export const OrderServiceRowSkeleton = () => (
 			<span className={LINE_BADGES}>
 				<Skeleton className="h-5 w-16 rounded-full" />
 			</span>
-			<span />
+			<span className={LINE_HANDLER} />
 			<span className={LINE_PRICE}>
 				<TextSkeleton />
 			</span>
@@ -88,8 +90,8 @@ export const OrderServiceRow = memo(
 						└
 					</span>
 				) : null}
-				{/* On a phone the badges drop to their own line, so a long
-				    Service name gets the full width instead of wrapping. */}
+				{/* On a phone the price sits beside the name and the badges drop
+				    to the last line, so no row is spent on the price or the worker. */}
 				<span className={LINE_GRID}>
 					<span className={LINE_NAME}>
 						{isNestedRework ? (
@@ -111,10 +113,12 @@ export const OrderServiceRow = memo(
 						{service.is_priority && !isRework ? (
 							<Badge variant="priority">Priority</Badge>
 						) : null}
+						{/* On a phone the worker rides the badges line instead of a row of its own. */}
+						<span className="text-subhead sm:hidden">
+							{service.handler?.name}
+						</span>
 					</span>
-					<span className="min-w-0 text-foreground text-subhead leading-snug">
-						{service.handler?.name}
-					</span>
+					<span className={LINE_HANDLER}>{service.handler?.name}</span>
 					<span className={LINE_PRICE}>
 						{/* A blank line has no subtotal yet — "Rp 0" would read as
 						    deliberately free (a Rework), which it is not. */}
@@ -126,7 +130,7 @@ export const OrderServiceRow = memo(
 						/>
 					</span>
 					{service.notes?.trim() ? (
-						<span className="col-span-2 text-pretty text-subhead leading-snug">
+						<span className="col-span-2 text-pretty text-subhead leading-snug max-sm:order-2">
 							<span className="text-muted-foreground">Note: </span>
 							{service.notes.trim()}
 						</span>

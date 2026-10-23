@@ -237,7 +237,7 @@ describe("clockIn location rule", () => {
   });
 });
 
-describe("clockIn closes a forgotten shift instead of locking the worker out", () => {
+describe("clockIn auto-closes yesterday's Shift instead of locking the worker out", () => {
   it("opens today's shift once yesterday's row is closed", async () => {
     setSystemTime(new Date("2026-09-09T01:00:00.000Z")); // 08:00 Jakarta
     shiftState.openShift = { id: 5, clock_out_at: null };
@@ -260,7 +260,7 @@ describe("clockIn closes a forgotten shift instead of locking the worker out", (
       "Clocked in. You forgot to clock out on 8 Sep. Shift closed at 18:30."
     );
     expect(shiftState.inserted).toMatchObject({ store_id: 1, user_id: 7 });
-    // Any row opened before this morning is a Forgotten clock-out.
+    // Any row opened before this morning is auto-closed.
     expect(shiftState.staleCutoff?.toISOString()).toBe(
       "2026-09-08T17:00:00.000Z"
     );

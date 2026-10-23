@@ -107,6 +107,13 @@ export const OperationsPanel = ({
 				/>
 			</KpiRow>
 
+			{turnaround !== undefined && <TurnaroundSection report={turnaround} />}
+			{turnaroundQuery.status === "error" && (
+				<p className="text-muted-foreground text-body">
+					Could not load Turnaround.
+				</p>
+			)}
+
 			<ChartCard
 				variant="bar"
 				hideLegend
@@ -119,13 +126,6 @@ export const OperationsPanel = ({
 				]}
 				valueFormatter={(v) => numberFormatter.format(v)}
 			/>
-
-			{turnaround !== undefined && <TurnaroundSection report={turnaround} />}
-			{turnaroundQuery.status === "error" && (
-				<p className="text-muted-foreground text-body">
-					Could not load Turnaround.
-				</p>
-			)}
 		</div>
 	);
 };

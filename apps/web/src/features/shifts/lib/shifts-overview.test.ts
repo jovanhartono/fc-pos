@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import type { ShiftsOverview } from "@/features/shifts/api";
 import {
 	buildStoreGroups,
+	sortByStatus,
 	stepRange,
-	summarizeGroups,
 } from "@/features/shifts/lib/shifts-overview";
 
 const TODAY = "2026-10-22";
@@ -117,20 +117,11 @@ describe("buildStoreGroups", () => {
 		expect(rizky?.daysAllStores).toBe(3);
 	});
 
-	it("counts a day at two Stores once in the totals", () => {
-		const totals = summarizeGroups(
-			buildStoreGroups(overview, [KEMANG, BSD], undefined),
-		);
-
-		expect(totals.days).toBe(4);
-		expect(totals.people).toBe(2);
-	});
-
 	it("shows only the picked Store but still knows the other's days", () => {
 		const groups = buildStoreGroups(overview, [KEMANG, BSD], 1);
 
 		expect(groups.map((group) => group.store.id)).toEqual([1]);
-		expect(summarizeGroups(groups).days).toBe(3);
+		expect(groups[0].days).toBe(3);
 		expect(groups[0].rows[1].elsewhere[0].days).toBe(2);
 	});
 
@@ -141,5 +132,31 @@ describe("buildStoreGroups", () => {
 		expect(rizky.elsewhereByDay.get("2026-10-14")).toBe("Fresclean BSD");
 		expect(rizky.elsewhereByDay.get("2026-10-13")).toBe("Fresclean BSD");
 		expect(rizky.elsewhereByDay.has("2026-10-12")).toBe(false);
+	});
+});
+
+describe("sortByStatus", () => {
+	it("puts who is on shift first, then who has left, then who isn't in", () => {
+		const today: ShiftsOverview = {
+			people: [
+				{ id: 1, name: "Asep", role: "worker", store_ids: [1] },
+				{ id: 2, name: "Budi", role: "worker", store_ids: [1] },
+				{ id: 3, name: "Citra", role: "worker", store_ids: [1] },
+				{ id: 4, name: "Dewi", role: "worker", store_ids: [1] },
+			],
+			days: [
+				day(2, 1, TODAY),
+				{ ...day(3, 1, TODAY), open: true },
+				day(4, 1, TODAY),
+			],
+		};
+		const [kemang] = buildStoreGroups(today, [KEMANG], 1);
+
+		expect(sortByStatus(kemang.rows).map((row) => row.person.name)).toEqual([
+			"Citra",
+			"Budi",
+			"Dewi",
+			"Asep",
+		]);
 	});
 });

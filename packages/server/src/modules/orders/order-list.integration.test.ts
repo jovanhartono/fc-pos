@@ -111,6 +111,42 @@ it("counts a pair as ready only when all its live treatments are", async () => {
   expect([row?.items_ready, row?.items_total]).toEqual([2, 2]);
 });
 
+// An owner looking back at refunds: a part refund and a whole one are
+// different conversations with the customer, so each filter finds only its own.
+it("finds Orders by how much of their money went back", async () => {
+  const [none, part, all] = await Promise.all([
+    dropOff("Budi"),
+    dropOff("Rina Wati"),
+    dropOff("Joko Susilo"),
+  ]);
+  const pay = (id: number, refunded: string) =>
+    testDb
+      .update(ordersTable)
+      .set({
+        paid_amount: "100000",
+        payment_status: "paid",
+        refunded_amount: refunded,
+      })
+      .where(eq(ordersTable.id, id));
+  await pay(none.id, "0");
+  await pay(part.id, "40000");
+  await pay(all.id, "100000");
+
+  const list = (refund_status: "partial" | "full") =>
+    findOrders({
+      limit: 10,
+      offset: 0,
+      refund_status,
+      sort_by: "created_at",
+      sort_order: "desc",
+    });
+
+  expect((await list("partial")).items.map((order) => order.id)).toEqual([
+    part.id,
+  ]);
+  expect((await list("full")).items.map((order) => order.id)).toEqual([all.id]);
+});
+
 it("counts every status under the other filters, ignoring the status one", async () => {
   await dropOff("Budi");
   const cancelled = await dropOff("Rina Wati");
