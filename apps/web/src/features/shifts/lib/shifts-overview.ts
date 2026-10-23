@@ -210,10 +210,8 @@ export const buildStoreGroups = (
 	);
 	return shown.map((store) => {
 		const rows = overview.people
-			.filter(
-				(person) =>
-					person.store_ids.includes(store.id) ||
-					daysByPerson.get(person.id)?.some((day) => day.store_id === store.id),
+			.filter((person) =>
+				daysByPerson.get(person.id)?.some((day) => day.store_id === store.id),
 			)
 			.map((person) =>
 				buildRow(person, store.id, daysByPerson.get(person.id) ?? [], stores),
@@ -222,17 +220,10 @@ export const buildStoreGroups = (
 	});
 };
 
-const statusRank = (row: PersonRow) => {
-	if (row.isOpen) {
-		return 0;
-	}
-	return row.days > 0 ? 1 : 2;
-};
-
-// An admin opening today's Shifts looks for who is in, so those on shift lead,
-// then who has left, then who hasn't come; names stay A–Z within each.
+// An admin opening today's Shifts looks for who is in, so those still on shift
+// lead, then who has left; names stay A–Z within each.
 export const sortByStatus = (rows: PersonRow[]) =>
-	[...rows].sort((a, b) => statusRank(a) - statusRank(b));
+	[...rows].sort((a, b) => Number(b.isOpen) - Number(a.isOpen));
 
 // "Last 30 days · 23 Sep – 22 Oct", or just the dates for a picked range; the
 // year shows once the range reaches outside this one.

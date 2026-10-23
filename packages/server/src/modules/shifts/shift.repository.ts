@@ -211,27 +211,14 @@ export function listShiftUserIds({
     .then((rows) => rows.map((row) => row.user_id));
 }
 
-// Everyone still on a Store's roster, plus anyone who worked there in the range
-// and has since left or moved.
-export function listShiftPeople({
-  storeId,
-  extraUserIds,
-}: {
-  storeId?: number;
-  extraUserIds: number[];
-}) {
-  const onRoster = {
-    is_active: true,
-    role: { ne: "admin" },
-    userStores: storeId === undefined ? EmptyFilter : { store_id: storeId },
-  } as const;
+// Includes someone who worked in the range and has since left.
+export function listShiftPeople(userIds: number[]) {
+  if (userIds.length === 0) {
+    return Promise.resolve([]);
+  }
   return db.query.usersTable.findMany({
-    where:
-      extraUserIds.length === 0
-        ? onRoster
-        : { OR: [onRoster, { id: { in: extraUserIds } }] },
+    where: { id: { in: userIds } },
     columns: { id: true, name: true, role: true },
-    with: { userStores: { columns: { store_id: true } } },
     orderBy: { name: "asc" },
   });
 }

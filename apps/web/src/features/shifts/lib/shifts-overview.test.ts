@@ -88,8 +88,8 @@ const day = (user_id: number, store_id: number, date: string, shifts = 1) => ({
 // Rizky works Kemang and BSD; on the 13th he did both, which is one meal fee.
 const overview: ShiftsOverview = {
 	people: [
-		{ id: 7, name: "Asep", role: "worker", store_ids: [1] },
-		{ id: 9, name: "Rizky", role: "worker", store_ids: [1, 2] },
+		{ id: 7, name: "Asep", role: "worker" },
+		{ id: 9, name: "Rizky", role: "worker" },
 	],
 	days: [
 		day(7, 1, "2026-10-12"),
@@ -135,13 +135,12 @@ describe("buildStoreGroups", () => {
 });
 
 describe("sortByStatus", () => {
-	it("puts who is on shift first, then who has left, then who isn't in", () => {
+	it("puts who is on shift first, then who has left", () => {
 		const today: ShiftsOverview = {
 			people: [
-				{ id: 1, name: "Asep", role: "worker", store_ids: [1] },
-				{ id: 2, name: "Budi", role: "worker", store_ids: [1] },
-				{ id: 3, name: "Citra", role: "worker", store_ids: [1] },
-				{ id: 4, name: "Dewi", role: "worker", store_ids: [1] },
+				{ id: 2, name: "Budi", role: "worker" },
+				{ id: 3, name: "Citra", role: "worker" },
+				{ id: 4, name: "Dewi", role: "worker" },
 			],
 			days: [
 				day(2, 1, TODAY),
@@ -155,7 +154,6 @@ describe("sortByStatus", () => {
 			"Citra",
 			"Budi",
 			"Dewi",
-			"Asep",
 		]);
 	});
 });

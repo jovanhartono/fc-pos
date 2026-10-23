@@ -240,21 +240,13 @@ export async function getShiftsOverview(
 
   const { from, to, store_id: storeId } = query;
   const workedIds = await listShiftUserIds({ from, to, storeId });
-  const people = await listShiftPeople({ storeId, extraUserIds: workedIds });
-  // Days at every Store, not just the one picked: the meal fee goes by all of them.
-  const days = await listShiftDays({
-    from,
-    to,
-    userIds: people.map((person) => person.id),
-  });
+  const [people, days] = await Promise.all([
+    listShiftPeople(workedIds),
+    // Days at every Store, not just the one picked: the meal fee goes by all of them.
+    listShiftDays({ from, to, userIds: workedIds }),
+  ]);
 
-  return {
-    people: people.map(({ userStores, ...person }) => ({
-      ...person,
-      store_ids: userStores.map((link) => link.store_id),
-    })),
-    days,
-  };
+  return { people, days };
 }
 
 export async function getShifts(user: JWTPayload, query?: GetShiftsQuery) {

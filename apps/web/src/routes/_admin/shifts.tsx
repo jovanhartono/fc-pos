@@ -115,19 +115,15 @@ const ShiftsPage = () => {
 		if (!overview.data) {
 			return [];
 		}
-		const withWorkers = buildStoreGroups(
+		const all = buildStoreGroups(
 			overview.data,
 			storesQuery.data ?? [],
 			search.store_id,
-		).map((group) => ({
-			...group,
-			// The admin checks who worked, not the whole roster of the Store.
-			rows: group.rows.filter((row) => row.days > 0),
-		}));
+		);
 		// Stores where someone worked come first; the empty ones sink to the end.
 		return [
-			...withWorkers.filter((group) => group.rows.length > 0),
-			...withWorkers.filter((group) => group.rows.length === 0),
+			...all.filter((group) => group.rows.length > 0),
+			...all.filter((group) => group.rows.length === 0),
 		];
 	}, [overview.data, storesQuery.data, search.store_id]);
 

@@ -526,13 +526,7 @@ describe("getShiftsOverview", () => {
         user_id: rizky.id,
       },
     ]);
-    expect(people.map((person) => person.name)).toEqual([
-      "Cahya Cashier",
-      "Rizky",
-    ]);
-    expect(
-      people.find((person) => person.id === rizky.id)?.store_ids.sort()
-    ).toEqual([shop.store.id, bintaro.id].sort());
+    expect(people.map((person) => person.name)).toEqual(["Rizky"]);
   });
 
   it("counts an open Shift's hours up to now", async () => {
@@ -579,7 +573,7 @@ describe("getShiftsOverview", () => {
     ]);
   });
 
-  it("keeps someone who has left for the days they worked, and no one else who left", async () => {
+  it("lists only who worked, including someone who has since left", async () => {
     const tono = await addWorker("Tono", [], false);
     await worked(
       tono.id,
@@ -596,10 +590,8 @@ describe("getShiftsOverview", () => {
       store_id: shop.store.id,
     });
 
-    expect(people.map((person) => person.name)).toEqual([
-      "Cahya Cashier",
-      "Tono",
-    ]);
+    // Cahya is on the roster but never clocked in, so the page has no row for her.
+    expect(people.map((person) => person.name)).toEqual(["Tono"]);
   });
 
   it("is for admins only", async () => {
