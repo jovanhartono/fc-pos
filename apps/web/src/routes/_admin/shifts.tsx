@@ -70,6 +70,8 @@ const dayShiftsQuery = (range: ShiftsRange, storeId: number | undefined) => ({
 
 interface ShownShifts {
 	range: ShiftsRange;
+	query: ReturnType<typeof overviewQuery>;
+	label: string;
 	groups: StoreGroup[];
 	shifts: Shift[] | undefined;
 }
@@ -134,33 +136,36 @@ const ShiftsPage = () => {
 		!overview.isPlaceholderData &&
 		(!isSingleDay ||
 			(dayShifts.data !== undefined && !dayShifts.isPlaceholderData));
+	// A failed load stops the spinner; the error toast says what went wrong.
+	const isLoading = !(isReady || overview.isError || dayShifts.isError);
+	const label = rangeLabel(
+		range,
+		matchPreset(getPresets(), range.from, range.to, preset)?.label,
+	);
 	const [shown, setShown] = useState<ShownShifts>();
 	const shifts = dayShifts.data?.items;
 	if (
 		isReady &&
 		(shown?.groups !== groups ||
 			shown.shifts !== shifts ||
+			shown.label !== label ||
 			shown.range.from !== range.from ||
 			shown.range.to !== range.to)
 	) {
-		setShown({ range, groups, shifts });
+		setShown({ range, query, label, groups, shifts });
 	}
-	const presetLabel = matchPreset(
-		getPresets(),
-		range.from,
-		range.to,
-		preset,
-	)?.label;
 
+	// A row tapped while the next range loads opens the numbers it shows.
 	const handleOpen = (row: PersonRow, group: StoreGroup) =>
+		shown &&
 		openWorkerShifts({
-			query,
+			query: shown.query,
 			userId: row.person.id,
 			storeId: group.store.id,
 			name: row.person.name,
 			role: row.person.role,
 			storeName: group.store.name,
-			rangeLabel: rangeLabel(range, presetLabel),
+			rangeLabel: shown.label,
 		});
 
 	const setRange = (next: ShiftsRange) => {
@@ -227,13 +232,13 @@ const ShiftsPage = () => {
 					range={range}
 					preset={preset}
 					today={today}
-					isLoading={shown !== undefined && !isReady}
+					isLoading={shown !== undefined && isLoading}
 					onRangeChange={setRange}
 					onPresetChange={setPreset}
 				/>
 			</div>
 			{shown ? (
-				<div className={staleFade(!isReady)}>
+				<div className={staleFade(isLoading)}>
 					{shown.range.from === shown.range.to ? (
 						<ShiftsDayView groups={shown.groups} shifts={shown.shifts ?? []} />
 					) : (

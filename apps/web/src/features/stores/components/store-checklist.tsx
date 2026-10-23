@@ -20,7 +20,7 @@ export const StoreChecklist = ({
 }: StoreChecklistProps) => (
 	<CheckboxGroup
 		disabled={disabled}
-		// Rendered as the fieldset itself so the legend names the group, not a second group nested inside.
+		// One fieldset, so a screen reader names the Store list by its legend.
 		render={<FieldSet className="col-span-full gap-0" />}
 		value={value.map(String)}
 		onValueChange={(next) => onChange(next.map(Number))}

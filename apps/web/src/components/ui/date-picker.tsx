@@ -200,12 +200,12 @@ const DateRangeSheet = ({
 					setIsPickingCustom(false);
 				}
 			}}
+			side="bottom"
 		>
 			<SheetTrigger render={trigger}>
 				<span className="truncate">{label}</span>
 			</SheetTrigger>
 			<SheetContent
-				side="bottom"
 				showCloseButton={!isPickingCustom}
 				className="max-h-[88svh] gap-0 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]"
 			>

@@ -71,7 +71,6 @@ export function GlobalSheet() {
 				}}
 			>
 				<SheetContent
-					side="right"
 					className={cn(
 						"w-full overflow-hidden",
 						size === "wide" &&
