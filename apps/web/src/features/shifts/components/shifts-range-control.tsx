@@ -15,6 +15,7 @@ interface ShiftsRangeControlProps {
 	range: ShiftsRange;
 	preset?: DatePreset;
 	today: string;
+	isLoading: boolean;
 	onRangeChange: (range: ShiftsRange) => void;
 	onPresetChange: (preset: DatePreset) => void;
 }
@@ -23,6 +24,7 @@ export const ShiftsRangeControl = ({
 	range,
 	preset,
 	today,
+	isLoading,
 	onRangeChange,
 	onPresetChange,
 }: ShiftsRangeControlProps) => (
@@ -40,6 +42,7 @@ export const ShiftsRangeControl = ({
 			id="shifts-range"
 			className="min-w-0 text-foreground max-sm:flex-1 sm:w-64"
 			commitOnComplete
+			isLoading={isLoading}
 			from={range.from}
 			to={range.to}
 			preset={preset}

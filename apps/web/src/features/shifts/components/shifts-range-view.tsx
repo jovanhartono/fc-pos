@@ -10,9 +10,7 @@ import {
 	type MarkSize,
 	ShiftsLegend,
 } from "@/features/shifts/components/shift-marks";
-import { ForgottenNote } from "@/features/shifts/components/shifts-summary";
 import {
-	countForgotten,
 	formatHours,
 	type PersonRow,
 	type StoreGroup,
@@ -50,7 +48,6 @@ export const ShiftsRangeView = ({
 }: ShiftsRangeViewProps) => {
 	return (
 		<div className="grid gap-4">
-			<ForgottenNote count={countForgotten(groups)} />
 			<ShiftsLegend />
 			<div className="grid gap-5">
 				{groups.map((group) => (
@@ -61,7 +58,7 @@ export const ShiftsRangeView = ({
 					>
 						<div className="overflow-hidden rounded-lg border bg-card">
 							{group.rows.length === 0 ? (
-								<p className="px-3 py-2.5 text-body">No one on this Store.</p>
+								<p className="px-3 py-2.5 text-body">No shifts.</p>
 							) : isPhone ? (
 								group.rows.map((row) => (
 									<PersonCard

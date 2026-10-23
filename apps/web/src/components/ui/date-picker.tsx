@@ -156,6 +156,7 @@ interface DateRangePickerProps {
 	resetOnSelect?: boolean;
 	commitOnComplete?: boolean;
 	fullWidth?: boolean;
+	isLoading?: boolean;
 }
 
 interface DateRangeViewProps {
@@ -376,6 +377,7 @@ export const DateRangePicker = ({
 	resetOnSelect = false,
 	commitOnComplete = false,
 	fullWidth = false,
+	isLoading,
 }: DateRangePickerProps) => {
 	const selectedFromProps = useMemo<DateRange | undefined>(() => {
 		if (!(from || to)) {
@@ -460,7 +462,17 @@ export const DateRangePicker = ({
 					showClear && "pr-9",
 					className,
 				)}
-				icon={<HugeiconsIcon icon={Calendar03Icon} className="size-4" />}
+				aria-busy={isLoading || undefined}
+				icon={
+					isLoading ? (
+						<HugeiconsIcon
+							icon={Loading03Icon}
+							className="size-4 animate-spin"
+						/>
+					) : (
+						<HugeiconsIcon icon={Calendar03Icon} className="size-4" />
+					)
+				}
 			/>
 		),
 		label,

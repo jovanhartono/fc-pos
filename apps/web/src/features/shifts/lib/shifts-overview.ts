@@ -227,11 +227,6 @@ export const buildStoreGroups = (
 	});
 };
 
-export const countForgotten = (groups: StoreGroup[]) =>
-	groups
-		.flatMap((group) => group.rows)
-		.reduce((sum, row) => sum + row.forgotten, 0);
-
 const statusRank = (row: PersonRow) => {
 	if (row.isOpen) {
 		return 0;

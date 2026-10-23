@@ -2,14 +2,14 @@ import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StoreSelect } from "@/features/orders/components/store-select";
 import { withPresetRange } from "@/features/reports/utils/report-filters";
-import { shiftsQueries } from "@/features/shifts/api";
+import { type Shift, shiftsQueries } from "@/features/shifts/api";
 import { NewShiftForm } from "@/features/shifts/components/new-shift-form";
 import { ShiftsDayView } from "@/features/shifts/components/shifts-day-view";
 import { ShiftsRangeControl } from "@/features/shifts/components/shifts-range-control";
@@ -68,6 +68,12 @@ const dayShiftsQuery = (range: ShiftsRange, storeId: number | undefined) => ({
 	limit: 100,
 });
 
+interface ShownShifts {
+	range: ShiftsRange;
+	groups: StoreGroup[];
+	shifts: Shift[] | undefined;
+}
+
 const ShiftsSkeleton = () => (
 	<div aria-hidden className="grid gap-4">
 		<Skeleton className="h-6 w-72" />
@@ -102,6 +108,7 @@ const ShiftsPage = () => {
 	const dayShifts = useQuery({
 		...shiftsQueries.list(dayShiftsQuery(range, search.store_id)),
 		enabled: isSingleDay,
+		placeholderData: keepPreviousData,
 	});
 
 	const groups = useMemo(
@@ -111,10 +118,33 @@ const ShiftsPage = () => {
 						overview.data,
 						storesQuery.data ?? [],
 						search.store_id,
-					)
+					).map((group) => ({
+						...group,
+						// The admin checks who worked, not the whole roster of the Store.
+						rows: group.rows.filter((row) => row.days > 0),
+					}))
 				: [],
 		[overview.data, storesQuery.data, search.store_id],
 	);
+
+	// The last complete view stays up while the next day or range loads, so
+	// stepping through days swaps numbers instead of flashing placeholders.
+	const isReady =
+		overview.data !== undefined &&
+		!overview.isPlaceholderData &&
+		(!isSingleDay ||
+			(dayShifts.data !== undefined && !dayShifts.isPlaceholderData));
+	const [shown, setShown] = useState<ShownShifts>();
+	const shifts = dayShifts.data?.items;
+	if (
+		isReady &&
+		(shown?.groups !== groups ||
+			shown.shifts !== shifts ||
+			shown.range.from !== range.from ||
+			shown.range.to !== range.to)
+	) {
+		setShown({ range, groups, shifts });
+	}
 	const presetLabel = matchPreset(
 		getPresets(),
 		range.from,
@@ -197,18 +227,19 @@ const ShiftsPage = () => {
 					range={range}
 					preset={preset}
 					today={today}
+					isLoading={shown !== undefined && !isReady}
 					onRangeChange={setRange}
 					onPresetChange={setPreset}
 				/>
 			</div>
-			{overview.data ? (
-				<div className={staleFade(overview.isPlaceholderData)}>
-					{isSingleDay ? (
-						<ShiftsDayView groups={groups} shifts={dayShifts.data?.items} />
+			{shown ? (
+				<div className={staleFade(!isReady)}>
+					{shown.range.from === shown.range.to ? (
+						<ShiftsDayView groups={shown.groups} shifts={shown.shifts ?? []} />
 					) : (
 						<ShiftsRangeView
-							groups={groups}
-							days={listDays(range)}
+							groups={shown.groups}
+							days={listDays(shown.range)}
 							today={today}
 							isPhone={isPhone}
 							onOpen={handleOpen}
