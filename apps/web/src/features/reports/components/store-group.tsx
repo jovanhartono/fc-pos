@@ -9,7 +9,7 @@ import {
 import type { WorkerTotals } from "@/features/reports/utils/workers-report";
 
 interface StoreGroupProps {
-	storeName: string;
+	storeCode: string;
 	totals: WorkerTotals;
 	// Initial state only; the owner's own open and close is never overridden.
 	isOpenAtStart?: boolean;
@@ -18,7 +18,7 @@ interface StoreGroupProps {
 
 // One closed row per Store, so the owner opens the Store they came for.
 export const StoreGroup = ({
-	storeName,
+	storeCode,
 	totals,
 	isOpenAtStart = false,
 	children,
@@ -33,7 +33,7 @@ export const StoreGroup = ({
 				aria-hidden="true"
 				className="size-3.5 text-muted-foreground transition-transform group-open:rotate-90"
 			/>
-			<span className="font-medium">{storeName}</span>
+			<span className="font-medium">{storeCode}</span>
 			<span className="mr-auto text-muted-foreground tabular-nums">
 				{`${numberFormatter.format(totals.people)} ${totals.people === 1 ? "person" : "people"} · `}
 				<span className="font-medium text-foreground">

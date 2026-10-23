@@ -57,10 +57,10 @@ const CounterTabs = ({ actions }: CounterTabsProps) => (
 	</div>
 );
 
-// A Store's Status as it usually opens: two workshop Categories, then the
-// top of the pickup shelf.
+// A Store's Status as it usually opens: two workshop Categories, nothing
+// pending, then the top of the pickup shelf.
 const CounterBodySkeleton = () => (
-	<div aria-hidden className="grid gap-6 text-body">
+	<div aria-hidden className="@container grid gap-6 text-body">
 		<Section title="Ready estimate">
 			<ul className="overflow-hidden rounded-lg border bg-card">
 				{Array.from({ length: 2 }, (_, index) => (
@@ -74,6 +74,13 @@ const CounterBodySkeleton = () => (
 				))}
 			</ul>
 		</Section>
+		<div className="grid items-start gap-6 @3xl:grid-cols-2">
+			{["Pending Complaints", "Pending QC Rejects"].map((title) => (
+				<Section key={title} title={title}>
+					<TextSkeleton className="w-44" />
+				</Section>
+			))}
+		</div>
 		<Section title="Pickup shelf">
 			<ul className="divide-y divide-border overflow-hidden rounded-lg border bg-card">
 				{Array.from({ length: 6 }, (_, index) => (
@@ -149,17 +156,17 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 	return (
 		<div className="@container grid gap-6 text-body">
 			<WorkshopSection categories={data.categories} workshop={data.workshop} />
+			{/* Side by side only when a Complaint's reason fits uncut; a tablet with the sidebar open stays stacked. */}
+			<div className="grid items-start gap-6 @3xl:grid-cols-2">
+				<PendingComplaintsSection complaints={data.complaints} />
+				<PendingQcRejectsSection rejects={data.qc_rejects} />
+			</div>
 			<PickupShelfSection
 				isWide={isWide}
 				openOrderId={isWide ? open : undefined}
 				shelf={data.pickup_shelf}
 				storeId={storeId}
 			/>
-			{/* Side by side only when a Complaint's reason fits uncut; a tablet with the sidebar open stays stacked. */}
-			<div className="grid items-start gap-6 @3xl:grid-cols-2">
-				<PendingComplaintsSection complaints={data.complaints} />
-				<PendingQcRejectsSection rejects={data.qc_rejects} />
-			</div>
 		</div>
 	);
 };

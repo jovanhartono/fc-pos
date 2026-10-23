@@ -19,7 +19,7 @@ interface DayMarkCellProps {
 const FUTURE_CLASS =
 	"outline-1 outline-border outline-dashed -outline-offset-1";
 
-// A Forgotten clock-out reads red so an admin checks its hours before payroll.
+// An Auto-closed Shift reads red so an admin checks its hours before payroll.
 const fillClass = (mark: DayMark | undefined, isFuture: boolean) => {
 	if (isFuture) {
 		return FUTURE_CLASS;
@@ -51,7 +51,7 @@ export const ShiftsLegend = () => (
 		</li>
 		<li className="flex items-center gap-1">
 			<span aria-hidden className={cn(LEGEND_CELL, "bg-destructive")} />
-			Forgotten clock-out
+			Auto-closed
 		</li>
 		<li className="flex items-center gap-1">
 			<span aria-hidden className={cn(LEGEND_CELL, FUTURE_CLASS)} />

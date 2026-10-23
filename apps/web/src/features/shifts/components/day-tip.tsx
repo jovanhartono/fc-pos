@@ -32,9 +32,7 @@ export const DayDetail = ({ mark, day, today, elsewhere }: DayDetailProps) => {
 	}
 	if (mark.forgotten > 0) {
 		return (
-			<span className="block font-normal text-destructive">
-				Forgotten clock-out
-			</span>
+			<span className="block font-normal text-destructive">Auto-closed</span>
 		);
 	}
 	const length = formatShiftLength(mark.minutes);

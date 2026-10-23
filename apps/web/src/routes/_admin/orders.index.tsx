@@ -25,6 +25,7 @@ import {
 	type Order,
 	ordersQueries,
 } from "@/features/orders/api";
+import { ItemsProgress } from "@/features/orders/components/items-progress";
 import { NotifiedLabel } from "@/features/orders/components/notified-label";
 import { PaymentBadges } from "@/features/orders/components/order-badges";
 import {
@@ -33,6 +34,7 @@ import {
 	OrderFilters,
 	type OrderFilterValues,
 	PAYMENT_STATUS_VALUES,
+	REFUND_STATUS_VALUES,
 } from "@/features/orders/components/order-filters";
 import { OrderPhoneRow } from "@/features/orders/components/order-phone-row";
 import { OrderStatusTabs } from "@/features/orders/components/order-status-tabs";
@@ -49,7 +51,6 @@ import {
 	pageSizeSearch,
 } from "@/lib/page-size";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
-import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -60,6 +61,7 @@ const ordersSearchSchema = z.object({
 	storeId: z.coerce.number().int().positive().optional().catch(undefined),
 	status: z.enum(ORDER_STATUS_VALUES).optional().catch(undefined),
 	paymentStatus: z.enum(PAYMENT_STATUS_VALUES).optional().catch(undefined),
+	refundStatus: z.enum(REFUND_STATUS_VALUES).optional().catch(undefined),
 	notified: z.enum(NOTIFIED_VALUES).optional().catch(undefined),
 	dateFrom: z
 		.string()
@@ -75,34 +77,6 @@ const ordersSearchSchema = z.object({
 	open: z.coerce.number().int().positive().optional().catch(undefined),
 });
 
-interface ItemsReadyProps {
-	ready: number;
-	total: number;
-}
-
-// How many of the Order's Items are finished, so the counter sees "2/3"
-// before the customer asks whether everything is done.
-const ItemsReady = ({ ready, total }: ItemsReadyProps) => {
-	if (total === 0) {
-		return <span className="text-muted-foreground">—</span>;
-	}
-	const isDone = ready === total;
-	return (
-		<div className="grid w-20 gap-1">
-			<span className="text-subhead tabular-nums">{`${ready}/${total}`}</span>
-			<span className="h-1.5 overflow-hidden rounded-full bg-soft-bar-track">
-				<span
-					className={cn(
-						"block h-full rounded-full",
-						isDone ? "bg-success" : "bg-primary",
-					)}
-					style={{ width: `${(ready / total) * 100}%` }}
-				/>
-			</span>
-		</div>
-	);
-};
-
 function buildOrdersListParams(
 	filters: OrderFilterValues & { page: number; limit?: PageSize },
 	storeId?: number,
@@ -115,6 +89,7 @@ function buildOrdersListParams(
 		...(storeId !== undefined ? { store_id: storeId } : {}),
 		...(filters.status ? { status: filters.status } : {}),
 		...(filters.paymentStatus ? { payment_status: filters.paymentStatus } : {}),
+		...(filters.refundStatus ? { refund_status: filters.refundStatus } : {}),
 		...(filters.notified ? { notified: filters.notified } : {}),
 		...(filters.dateFrom ? { date_from: filters.dateFrom } : {}),
 		...(filters.dateTo ? { date_to: filters.dateTo } : {}),
@@ -328,8 +303,8 @@ function OrdersPage() {
 				header: "Items ready",
 				meta: { width: { percent: 11, minRem: 6 } },
 				cell: ({ row }) => (
-					<ItemsReady
-						ready={row.original.items_ready}
+					<ItemsProgress
+						done={row.original.items_ready}
 						total={row.original.items_total}
 					/>
 				),

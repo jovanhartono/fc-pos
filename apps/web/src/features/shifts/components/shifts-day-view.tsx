@@ -2,16 +2,13 @@ import { Section } from "@/components/section";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Shift } from "@/features/shifts/api";
 import { EditShiftButton } from "@/features/shifts/components/edit-shift-button";
-import {
-	ForgottenNote,
-	SummaryLine,
-	SummaryValue,
-} from "@/features/shifts/components/shifts-summary";
+import { ForgottenNote } from "@/features/shifts/components/shifts-summary";
 import { clockRange, shiftMinutes } from "@/features/shifts/lib/shift-times";
 import {
+	countForgotten,
 	type PersonRow,
 	type StoreGroup,
-	summarizeGroups,
+	sortByStatus,
 } from "@/features/shifts/lib/shifts-overview";
 import { formatShiftLength } from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
@@ -19,34 +16,13 @@ import { cn } from "@/lib/utils";
 interface ShiftsDayViewProps {
 	groups: StoreGroup[];
 	shifts: Shift[] | undefined;
-	isToday: boolean;
 }
 
 // One day: who was in at each Store, and on today who is still on shift.
-export const ShiftsDayView = ({
-	groups,
-	shifts,
-	isToday,
-}: ShiftsDayViewProps) => {
-	const totals = summarizeGroups(groups);
-	const listed = new Set(
-		groups.flatMap((group) => group.rows.map((row) => row.person.id)),
-	);
-	const notIn = listed.size - totals.people;
-
+export const ShiftsDayView = ({ groups, shifts }: ShiftsDayViewProps) => {
 	return (
 		<div className="grid gap-4">
-			<SummaryLine>
-				{isToday ? (
-					<SummaryValue value={totals.onShiftNow} label="on shift now" />
-				) : null}
-				<SummaryValue
-					value={totals.people}
-					label={isToday ? "clocked in today" : "clocked in"}
-				/>
-				<SummaryValue value={notIn} label={isToday ? "not in yet" : "off"} />
-				<ForgottenNote count={totals.forgotten} />
-			</SummaryLine>
+			<ForgottenNote count={countForgotten(groups)} />
 			<div className="grid items-start gap-5 lg:grid-cols-2 2xl:grid-cols-3">
 				{groups.map((group) => (
 					<Section
@@ -58,7 +34,7 @@ export const ShiftsDayView = ({
 							{group.rows.length === 0 ? (
 								<p className="px-3 py-2.5 text-body">No one on this Store.</p>
 							) : (
-								group.rows.map((row) => (
+								sortByStatus(group.rows).map((row) => (
 									<DayRow
 										key={row.person.id}
 										row={row}
@@ -105,12 +81,9 @@ const DayRow = ({ row, shifts }: DayRowProps) => {
 					>
 						{row.person.name}
 					</span>
-					<span className="ml-1.5 text-muted-foreground text-subhead">
-						{row.person.role}
-					</span>
 					{row.forgotten > 0 ? (
 						<span className="ml-2 text-footnote text-tone-bad-foreground">
-							Forgotten clock-out
+							Auto-closed
 						</span>
 					) : null}
 				</span>

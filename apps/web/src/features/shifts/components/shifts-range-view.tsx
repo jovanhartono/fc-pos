@@ -10,16 +10,12 @@ import {
 	type MarkSize,
 	ShiftsLegend,
 } from "@/features/shifts/components/shift-marks";
+import { ForgottenNote } from "@/features/shifts/components/shifts-summary";
 import {
-	ForgottenNote,
-	SummaryLine,
-	SummaryValue,
-} from "@/features/shifts/components/shifts-summary";
-import {
+	countForgotten,
 	formatHours,
 	type PersonRow,
 	type StoreGroup,
-	summarizeGroups,
 } from "@/features/shifts/lib/shifts-overview";
 import dayjs from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
@@ -52,18 +48,9 @@ export const ShiftsRangeView = ({
 	isPhone,
 	onOpen,
 }: ShiftsRangeViewProps) => {
-	const totals = summarizeGroups(groups);
 	return (
 		<div className="grid gap-4">
-			<SummaryLine>
-				<SummaryValue
-					value={totals.days.toLocaleString("en-ID")}
-					label="days"
-				/>
-				<SummaryValue value={totals.people} label="people" />
-				<SummaryValue value={formatHours(totals.minutes)} label="worked" />
-				<ForgottenNote count={totals.forgotten} />
-			</SummaryLine>
+			<ForgottenNote count={countForgotten(groups)} />
 			<ShiftsLegend />
 			<div className="grid gap-5">
 				{groups.map((group) => (
@@ -108,9 +95,6 @@ interface PersonNameProps {
 const PersonName = ({ row }: PersonNameProps) => (
 	<span className="block min-w-0 text-balance">
 		<span className="font-medium text-body">{row.person.name}</span>
-		<span className="ml-1.5 text-muted-foreground text-subhead">
-			{row.person.role}
-		</span>
 		{row.elsewhere.map((other) => (
 			<span key={other.storeId} className="block text-footnote text-link">
 				+ {pluralize(other.days, "day")} at {other.storeName}

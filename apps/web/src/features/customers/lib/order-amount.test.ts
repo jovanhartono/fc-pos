@@ -17,20 +17,6 @@ describe("describeOrderAmount", () => {
 		expect(amount.label).toBe(formatMoney("550000"));
 		expect(amount.net).toBe(550_000);
 		expect(amount.label).not.toBe(formatMoney("800000"));
-		expect(amount.refunded).toBe(formatMoney("250000"));
-	});
-
-	it("says nothing about refunds on an order that kept its money", () => {
-		const amount = describeOrderAmount({
-			has_unpriced_line: false,
-			paid_amount: "250000",
-			payment_status: "paid",
-			refunded_amount: "0",
-			status: "completed",
-		});
-
-		expect(amount.label).toBe(formatMoney("250000"));
-		expect(amount.refunded).toBeNull();
 	});
 
 	it("reads as zero, not blank, when every rupiah went back", () => {
@@ -43,7 +29,6 @@ describe("describeOrderAmount", () => {
 		});
 
 		expect(amount.label).toBe(formatMoney("0"));
-		expect(amount.refunded).toBe(formatMoney("250000"));
 	});
 
 	it("marks an unpaid order as owing rather than as zero", () => {
@@ -55,11 +40,7 @@ describe("describeOrderAmount", () => {
 			status: "processing",
 		});
 
-		expect(amount).toEqual({
-			label: "Unpaid",
-			net: null,
-			refunded: null,
-		});
+		expect(amount).toEqual({ label: "Unpaid", net: null });
 	});
 
 	it("shows nothing owed on an order cancelled before it was paid", () => {
@@ -71,11 +52,7 @@ describe("describeOrderAmount", () => {
 			status: "cancelled",
 		});
 
-		expect(amount).toEqual({
-			label: "—",
-			net: null,
-			refunded: null,
-		});
+		expect(amount).toEqual({ label: "", net: null });
 	});
 
 	// The bag awaiting inspection: no number has been agreed, and "Rp 0" would

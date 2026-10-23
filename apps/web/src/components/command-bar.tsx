@@ -159,7 +159,8 @@ const CommandBarPanel = () => {
 				/>
 			</label>
 
-			<div className="max-h-[60vh] overflow-y-auto py-1 max-sm:max-h-none">
+			{/* On a phone the keyboard takes the bottom half, so the list stops above it. */}
+			<div className="max-h-[60vh] overflow-y-auto py-1 max-sm:max-h-[45dvh]">
 				{results.length === 0 ? (
 					<p className="px-4 py-6 text-center text-muted-foreground text-body">
 						{isSearching ? "Searching…" : "Nothing matches."}
@@ -262,7 +263,7 @@ export const useOpenCommandBar = () => {
 		openDialog({
 			content: () => <CommandBarPanel />,
 			contentClassName:
-				"top-[12vh] translate-y-0 gap-0 p-0 sm:max-w-xl [&>div]:py-0 max-sm:top-0 max-sm:h-dvh max-sm:max-h-none max-sm:max-w-none max-sm:content-start",
+				"top-[12vh] translate-y-0 gap-0 p-0 sm:max-w-xl [&>div]:py-0 max-sm:top-[calc(env(safe-area-inset-top)+0.75rem)]",
 		});
 	}, [openDialog]);
 };

@@ -33,7 +33,7 @@ export type ClockInCoordinates = NonNullable<
   z.infer<typeof POSTClockInSchema>["coordinates"]
 >;
 
-// The shop's normal day. A Forgotten clock-out is closed this long after
+// The shop's normal day. An Auto-closed Shift is closed this long after
 // clock-in, so it pays no overtime until an admin enters the real time.
 export const FORGOTTEN_SHIFT_HOURS = 10;
 

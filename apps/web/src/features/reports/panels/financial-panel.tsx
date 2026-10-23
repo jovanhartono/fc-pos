@@ -27,6 +27,7 @@ import {
 } from "@/features/reports/api";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { DeltaLine } from "@/features/reports/components/kpi-card";
+import { StoreRevenueRows } from "@/features/reports/components/store-revenue-rows";
 import {
 	csvFilename,
 	downloadCsv,
@@ -84,7 +85,6 @@ export const FinancialPanel = ({
 	});
 	const data = query.data;
 	const storeBreakdown = data?.store_breakdown ?? [];
-	const storeMax = storeBreakdown.reduce((m, r) => Math.max(m, r.revenue), 0);
 
 	const handleExport = () => {
 		if (!data) {
@@ -153,7 +153,7 @@ export const FinancialPanel = ({
 			<ExportButton disabled={!data} onClick={handleExport} />
 			<RevenueBreakdownCard data={data} />
 			<StoreCategoryMatrixCard data={data} />
-			<StoreLeaderboard rows={storeBreakdown} max={storeMax} />
+			<StoreLeaderboard rows={storeBreakdown} />
 		</div>
 	);
 };
@@ -1067,10 +1067,9 @@ type StoreBreakdownRow = FinancialReport["store_breakdown"][number];
 
 interface StoreLeaderboardProps {
 	rows: StoreBreakdownRow[];
-	max: number;
 }
 
-const StoreLeaderboard = ({ rows, max }: StoreLeaderboardProps) => {
+const StoreLeaderboard = ({ rows }: StoreLeaderboardProps) => {
 	if (rows.length === 0) {
 		return null;
 	}
@@ -1078,44 +1077,7 @@ const StoreLeaderboard = ({ rows, max }: StoreLeaderboardProps) => {
 		<Card className="border-border/70 py-0">
 			<CardContent className="grid gap-4 p-4">
 				<SectionTitle title="Store leaderboard" />
-				<div className="grid grid-cols-1 gap-3">
-					{rows.map((row) => {
-						const widthPct = max === 0 ? 0 : (row.revenue / max) * 100;
-						const aov = safeRatio(row.revenue, row.orders);
-						return (
-							<div className="grid gap-1" key={row.store_id}>
-								<div className="flex items-center justify-between gap-2">
-									<span className="flex min-w-0 items-center gap-2 truncate text-body font-medium">
-										<span className="font-normal text-subhead tabular-nums">
-											{row.store_code}
-										</span>
-										<span className="truncate">{row.store_name}</span>
-									</span>
-									<span className="text-body tabular-nums">
-										{compactMoney(row.revenue)}
-									</span>
-								</div>
-								<div className="h-1.5 w-full overflow-hidden rounded-full bg-soft-bar-track">
-									<div
-										className="h-full rounded-full bg-primary"
-										style={{ width: `${widthPct}%` }}
-									/>
-								</div>
-								<div className="flex flex-wrap items-center gap-x-3 text-subhead tabular-nums">
-									<span>{`${row.orders.toLocaleString("id-ID")} orders`}</span>
-									<span aria-hidden className="text-muted-foreground">
-										·
-									</span>
-									<span>{`AOV ${compactMoney(aov)}`}</span>
-									<span aria-hidden className="text-muted-foreground">
-										·
-									</span>
-									<span>{`${percentFormatter.format(row.share)} share`}</span>
-								</div>
-							</div>
-						);
-					})}
-				</div>
+				<StoreRevenueRows rows={rows} />
 			</CardContent>
 		</Card>
 	);

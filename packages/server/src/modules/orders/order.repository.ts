@@ -117,6 +117,22 @@ const NOTIFIED_FILTER = {
   no: { NOT: { pickupNotices: true } },
 } as const;
 
+// The same split as deriveOrderRefundStatus, so the list never disagrees
+// with the badge on the Order it opens. A refund never exceeds what was paid.
+function refundConditions(status: OrderListFilters["refund_status"]) {
+  if (!status) {
+    return [];
+  }
+  const compare = status === "full" ? sql`=` : sql`<`;
+  return [
+    { refunded_amount: { gt: "0" } },
+    {
+      RAW: (t: typeof ordersTable) =>
+        sql`${t.refunded_amount} ${compare} ${t.paid_amount}`,
+    },
+  ];
+}
+
 function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
   const conditions: Record<string, unknown>[] = [];
 
@@ -141,6 +157,8 @@ function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
   if (filters.payment_status === "unpaid") {
     conditions.push({ status: { ne: "cancelled" } });
   }
+
+  conditions.push(...refundConditions(filters.refund_status));
 
   if (filters.overdue) {
     conditions.push({ status: "ready_for_pickup" });

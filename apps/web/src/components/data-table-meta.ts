@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 type MobileCardSlot =
 	| "title"
 	| "title-end"
+	// Follows the title text, e.g. a Category's Active badge right after its name.
+	| "title-badge"
 	| "subtitle"
 	| "eyebrow"
 	| "badges"

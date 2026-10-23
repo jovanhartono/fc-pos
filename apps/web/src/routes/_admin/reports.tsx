@@ -103,7 +103,7 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 				reportsQueries.overview({
 					date: jakartaToday(),
 					store_id: search.store_id,
-					trend_days: 14,
+					trend_days: 7,
 				}),
 			);
 		case "financial":

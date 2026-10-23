@@ -42,6 +42,7 @@ const GROUPED_ROW_CLASS =
 interface CardCells<TData extends RowData> {
 	primaryCell?: Cell<DataTableFeatures, TData>;
 	titleEndCells: Cell<DataTableFeatures, TData>[];
+	titleBadgeCells: Cell<DataTableFeatures, TData>[];
 	subtitleCells: Cell<DataTableFeatures, TData>[];
 	eyebrowCells: Cell<DataTableFeatures, TData>[];
 	badgeCells: Cell<DataTableFeatures, TData>[];
@@ -68,6 +69,7 @@ const bucketCardCells = <TData extends RowData>(
 ): CardCells<TData> => {
 	const buckets: CardCells<TData> = {
 		titleEndCells: [],
+		titleBadgeCells: [],
 		subtitleCells: [],
 		eyebrowCells: [],
 		badgeCells: [],
@@ -94,6 +96,10 @@ const bucketCardCells = <TData extends RowData>(
 		const slot = mobileCard?.slot;
 		if (slot === "title-end") {
 			buckets.titleEndCells.push(cell);
+			continue;
+		}
+		if (slot === "title-badge") {
+			buckets.titleBadgeCells.push(cell);
 			continue;
 		}
 		if (slot === "subtitle") {
@@ -247,6 +253,7 @@ export const DataTableCards = <TData extends RowData>({
 				const {
 					primaryCell,
 					titleEndCells,
+					titleBadgeCells,
 					subtitleCells,
 					eyebrowCells,
 					badgeCells,
@@ -272,6 +279,14 @@ export const DataTableCards = <TData extends RowData>({
 				// badge ends that second line instead of adding a third.
 				const isStatusOnSubtitle =
 					!hasBadgeRow && detailCells.length === 0 && subtitleCells.length > 0;
+				// A Category with no description is just its name, so its Active
+				// badge sits beside Edit rather than taking a line of its own.
+				const isStatusOnTitle =
+					statusCells.length > 0 &&
+					!hasBadgeRow &&
+					detailCells.length === 0 &&
+					subtitleCells.length === 0;
+				const hasTitleEnd = titleEndCells.length > 0 || isStatusOnTitle;
 
 				return (
 					<article
@@ -370,7 +385,7 @@ export const DataTableCards = <TData extends RowData>({
 								raisedControls,
 							)}
 						>
-							{primaryCell || titleEndCells.length > 0 ? (
+							{primaryCell || hasTitleEnd ? (
 								// No wrap: a long Service name wraps beside Edit instead of
 								// pushing Edit down onto a second line of its own.
 								<div className="flex items-start justify-between gap-3">
@@ -387,10 +402,22 @@ export const DataTableCards = <TData extends RowData>({
 												primaryCell.column.columnDef.cell,
 												primaryCell.getContext(),
 											)}
+											{titleBadgeCells.map((cell) => (
+												<span
+													key={cell.id}
+													className="ml-2 inline-flex align-text-bottom font-normal"
+												>
+													{flexRender(
+														cell.column.columnDef.cell,
+														cell.getContext(),
+													)}
+												</span>
+											))}
 										</div>
 									) : null}
-									{titleEndCells.length > 0 ? (
+									{hasTitleEnd ? (
 										<div className="ml-auto flex shrink-0 items-center gap-2">
+											{isStatusOnTitle ? status : null}
 											{titleEndCells.map((cell) => (
 												<div
 													key={cell.id}
@@ -503,9 +530,6 @@ export const DataTableCards = <TData extends RowData>({
 									{status}
 								</div>
 							) : null}
-							{!(hasBadgeRow || isStatusOnSubtitle) &&
-								detailCells.length === 0 &&
-								status}
 						</div>
 						{hasCaret ? (
 							<HugeiconsIcon

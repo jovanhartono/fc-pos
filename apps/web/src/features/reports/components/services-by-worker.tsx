@@ -1,15 +1,14 @@
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import type { WorkerProductivityReport } from "@/features/reports/api";
+import { useStoreCodes } from "@/features/reports/hooks/useStoreCodes";
 import { numberFormatter } from "@/features/reports/utils/format";
 import {
 	buildCountIndex,
 	groupByStore,
 	workerKey,
 } from "@/features/reports/utils/workers-report";
-import { storesQueries } from "@/features/stores/api";
 import { cn } from "@/lib/utils";
 
 // Long Service names get the pinned first column, capped and wrapping on a
@@ -67,11 +66,6 @@ interface ServicesByWorkerProps {
 	isAllStores: boolean;
 	onStoreChange: (storeId: number) => void;
 }
-
-const useStoreCodes = () => {
-	const { data: stores = [] } = useQuery(storesQueries.list());
-	return new Map(stores.map((store) => [store.id, store.code]));
-};
 
 export const ServicesByWorker = ({
 	data,

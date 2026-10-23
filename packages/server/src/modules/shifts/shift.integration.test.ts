@@ -22,8 +22,8 @@ import { type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 import type { AuthUser } from "@/types";
 
-// A Forgotten clock-out at Kemang. Overtime is paid from Shift hours, so a
-// forgotten one gets a normal ten-hour day, capped at midnight, until an admin
+// An Auto-closed Shift at Kemang. Overtime is paid from Shift hours, so an
+// auto-closed one gets a normal ten-hour day, capped at midnight, until an admin
 // enters the real time (ADR-0025).
 
 const {
@@ -83,7 +83,7 @@ beforeEach(async () => {
 
 afterAll(() => setSystemTime());
 
-describe("a Forgotten clock-out", () => {
+describe("an Auto-closed Shift", () => {
   it("gets ten hours when tapped out the next day, not 31", async () => {
     // Row 52 in prod: in at 08:29, tapped Clock out at 15:30 the next day.
     const shift = await openShift(shop.cashier.id, jkt("2026-10-11T08:29"));

@@ -82,7 +82,7 @@ export async function clockIn({
 
   const latest = await findLatestShiftByUserId(user.id);
   const stillOpen = latest !== undefined && latest.clock_out_at === null;
-  // The nightly close is best-effort, so yesterday's Forgotten clock-out closes
+  // The nightly close is best-effort, so yesterday's open Shift auto-closes
   // here rather than lock a worker out at 07:00. One opened today still conflicts.
   const [closedNow] = stillOpen
     ? await closeOpenShiftsBefore(todayStart(), user.id)
@@ -127,8 +127,8 @@ export async function clockOut(user: JWTPayload) {
   return { shift, message: "Clocked out" };
 }
 
-// Nobody works past midnight, so every Shift still open now is a Forgotten
-// clock-out (ADR-0025).
+// Nobody works past midnight, so every Shift still open now is auto-closed
+// (ADR-0025).
 export async function closeForgottenShifts() {
   const cutoff = todayStart();
   const closed = (await closeOpenShiftsBefore(cutoff)).length;
@@ -159,7 +159,7 @@ export async function updateShift({
   return updateShiftTimesById(shiftId, { ...body, edited_by: user.id });
 }
 
-// Today's work when yesterday's forgotten Shift was the one tapped out, so the
+// Today's work when yesterday's Auto-closed Shift was the one tapped out, so the
 // worker never clocked in today (ADR-0025).
 export async function createShift({
   user,

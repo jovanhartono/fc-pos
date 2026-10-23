@@ -27,7 +27,7 @@ const app = new Hono()
 
     return c.json(success(result));
   })
-  // Closes yesterday's forgotten clock-outs so nobody arrives to find they
+  // Auto-closes yesterday's open Shifts so nobody arrives to find they
   // cannot start. Safe to repeat: a second run finds every row already closed.
   .get("/close-open-shifts", async (c) => {
     assertCronCaller(c.req.header("authorization"));

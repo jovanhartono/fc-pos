@@ -127,7 +127,7 @@ export function GlobalSheet() {
 							</SheetDescription>
 						</SheetHeader>
 					) : null}
-					<div className="min-h-0 flex-1 overflow-y-auto p-4">
+					<div className="min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(var(--inset-bottom)+1rem)]">
 						{content ? content() : null}
 					</div>
 				</SheetContent>

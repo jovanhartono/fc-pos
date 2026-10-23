@@ -16,6 +16,8 @@ interface OrderListRowAnchorProps
 	// The phone Orders list needs the caret's width for the code and badges.
 	hasCaret?: boolean;
 	isActive?: boolean;
+	// Shown in full under the code line: workers find a Complaint by the Item's name.
+	note?: string | null;
 	title: string;
 }
 
@@ -27,6 +29,7 @@ const OrderListRowAnchor = ({
 	end,
 	hasCaret = true,
 	isActive,
+	note,
 	title,
 	...anchorProps
 }: OrderListRowAnchorProps) => {
@@ -41,6 +44,9 @@ const OrderListRowAnchor = ({
 			<p className="truncate text-foreground text-subhead tabular-nums">
 				{details.filter(Boolean).join(" · ")}
 			</p>
+			{Boolean(note) && (
+				<p className="break-words text-foreground text-subhead">{note}</p>
+			)}
 		</div>
 	);
 	const caret = hasCaret ? (

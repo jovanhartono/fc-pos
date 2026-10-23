@@ -34,7 +34,7 @@ export function insertShift(values: InsertShiftValues) {
     .then((rows) => rows[0]);
 }
 
-// A Forgotten clock-out gets a normal day, capped at midnight, so payroll pays
+// An Auto-closed Shift gets a normal day, capped at midnight, so payroll pays
 // no overtime nobody worked (ADR-0025). Cron, clock-in and clock-out share it.
 export function closeOpenShiftsBefore(cutoff: Date, userId?: number) {
   // The SQL twin of jakartaDayStart(clock-in) + 1 day; timestamps are UTC wall clock.

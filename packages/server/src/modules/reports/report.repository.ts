@@ -326,6 +326,7 @@ export async function perStoreForRange({ range }: { range: DateRange }) {
     .select({
       store_id: ordersTable.store_id,
       paid: collected(),
+      orders: sql<number>`COUNT(*)::int`,
     })
     .from(ordersTable)
     .where(and(...timeWindow(ordersTable.paid_at, range)))
@@ -341,35 +342,6 @@ export async function perStoreForRange({ range }: { range: DateRange }) {
     .where(and(...timeWindow(orderRefundsTable.created_at, range)))
     .groupBy(ordersTable.store_id);
 
-  const ordersInRows = await db
-    .select({
-      store_id: ordersTable.store_id,
-      count: sql<number>`COUNT(*)::int`,
-    })
-    .from(ordersTable)
-    .where(
-      and(
-        gte(ordersTable.created_at, range.start),
-        lt(ordersTable.created_at, range.end)
-      )
-    )
-    .groupBy(ordersTable.store_id);
-
-  const ordersOutRows = await db
-    .select({
-      store_id: ordersTable.store_id,
-      count: sql<number>`COUNT(DISTINCT ${orderPickupEventsTable.order_id})::int`,
-    })
-    .from(orderPickupEventsTable)
-    .innerJoin(ordersTable, eq(orderPickupEventsTable.order_id, ordersTable.id))
-    .where(
-      and(
-        gte(orderPickupEventsTable.picked_up_at, range.start),
-        lt(orderPickupEventsTable.picked_up_at, range.end)
-      )
-    )
-    .groupBy(ordersTable.store_id);
-
   const stores = await db
     .select({
       id: storesTable.id,
@@ -379,30 +351,29 @@ export async function perStoreForRange({ range }: { range: DateRange }) {
     .from(storesTable)
     .orderBy(asc(storesTable.code));
 
-  const paidByStore = new Map<number, number>(
-    paidRows.map((row) => [row.store_id, Number(row.paid)])
-  );
+  const paidByStore = new Map(paidRows.map((row) => [row.store_id, row]));
   const refundedByStore = new Map<number, number>(
     refundRows.map((row) => [row.store_id, Number(row.refunded)])
   );
-  const ordersInByStore = new Map<number, number>(
-    ordersInRows.map((row) => [row.store_id, Number(row.count)])
-  );
-  const ordersOutByStore = new Map<number, number>(
-    ordersOutRows.map((row) => [row.store_id, Number(row.count)])
-  );
 
-  return stores.map((store) => ({
-    store_id: store.id,
-    store_code: store.code,
-    store_name: store.name,
-    revenue: revenue(
-      paidByStore.get(store.id) ?? 0,
-      refundedByStore.get(store.id) ?? 0
-    ),
-    orders_in: ordersInByStore.get(store.id) ?? 0,
-    orders_out: ordersOutByStore.get(store.id) ?? 0,
-  }));
+  const rows = stores.map((store) => {
+    const paid = paidByStore.get(store.id);
+    return {
+      store_id: store.id,
+      store_code: store.code,
+      store_name: store.name,
+      revenue: revenue(
+        Number(paid?.paid ?? 0),
+        refundedByStore.get(store.id) ?? 0
+      ),
+      orders: Number(paid?.orders ?? 0),
+    };
+  });
+  const total = rows.reduce((sum, row) => sum + row.revenue, 0);
+  // Ranked like Financial's Store leaderboard.
+  return rows
+    .map((row) => ({ ...row, share: total > 0 ? row.revenue / total : 0 }))
+    .sort((a, b) => b.revenue - a.revenue);
 }
 
 interface AgingQueueFilters {

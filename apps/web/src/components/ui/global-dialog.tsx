@@ -45,7 +45,7 @@ export function GlobalDialog() {
 						</DialogDescription>
 					</DialogHeader>
 				) : null}
-				{content ? <div className="py-4">{content()}</div> : null}
+				{content ? <div className="min-w-0 py-4">{content()}</div> : null}
 				{footer ? (
 					<DialogFooter
 						className={cn(
