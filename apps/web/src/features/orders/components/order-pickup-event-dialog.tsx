@@ -1,3 +1,4 @@
+import { CheckboxGroup } from "@base-ui/react/checkbox-group";
 import { isHandedOverByPickup } from "@fresclean/api/schema";
 import { Camera01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -40,8 +41,8 @@ type PickupDialogContextValue = {
 	// The cashier hands back whole Items, never one OrderService on one
 	// (ADR-0017); the server takes the same unit, so half a shoe can't leave.
 	collectableItems: OrderItem[];
-	selectedIds: Set<number>;
-	toggleItem: (itemId: number) => void;
+	selectedIds: string[];
+	setSelectedIds: (ids: string[]) => void;
 	selectAll: () => void;
 	clearSelection: () => void;
 	file: File | null;
@@ -92,15 +93,13 @@ export const OrderPickupEventDialog = ({
 	collectableItems,
 }: OrderPickupEventDialogProps) => {
 	const queryClient = useQueryClient();
-	const [selectedIds, setSelectedIds] = useState<Set<number>>(
+	const [selectedIds, setSelectedIds] = useState<string[]>(
 		// Only ready Items start ticked. A refunded Item is Collectable too, but
 		// ticking it by default let a Customer collecting one pair leave with two.
 		() =>
-			new Set(
-				collectableItems
-					.filter((item) => item.status === "ready_for_pickup")
-					.map((item) => item.id),
-			),
+			collectableItems
+				.filter((item) => item.status === "ready_for_pickup")
+				.map((item) => String(item.id)),
 	);
 	const [file, setFileState] = useState<File | null>(null);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -124,24 +123,12 @@ export const OrderPickupEventDialog = ({
 		});
 	}, []);
 
-	const toggleItem = useCallback((itemId: number) => {
-		setSelectedIds((previous) => {
-			const next = new Set(previous);
-			if (next.has(itemId)) {
-				next.delete(itemId);
-			} else {
-				next.add(itemId);
-			}
-			return next;
-		});
-	}, []);
-
 	const selectAll = useCallback(() => {
-		setSelectedIds(new Set(collectableItems.map((item) => item.id)));
+		setSelectedIds(collectableItems.map((item) => String(item.id)));
 	}, [collectableItems]);
 
 	const clearSelection = useCallback(() => {
-		setSelectedIds(new Set());
+		setSelectedIds([]);
 	}, []);
 
 	const pickupMutation = useMutation({
@@ -155,7 +142,7 @@ export const OrderPickupEventDialog = ({
 			if (!/^\d{6}$/.test(pickupCode)) {
 				throw new Error("Enter the 6-digit pickup code");
 			}
-			const itemIds = Array.from(selectedIds);
+			const itemIds = selectedIds.map(Number);
 			if (itemIds.length === 0) {
 				throw new Error("Select at least one item to pick up");
 			}
@@ -197,8 +184,8 @@ export const OrderPickupEventDialog = ({
 			selectAll,
 			selectedIds,
 			setFile,
+			setSelectedIds,
 			submit,
-			toggleItem,
 		}),
 		[
 			clearSelection,
@@ -211,7 +198,6 @@ export const OrderPickupEventDialog = ({
 			selectedIds,
 			setFile,
 			submit,
-			toggleItem,
 		],
 	);
 
@@ -269,7 +255,7 @@ const PickupServiceList = memo(() => {
 	const {
 		collectableItems,
 		selectedIds,
-		toggleItem,
+		setSelectedIds,
 		selectAll,
 		clearSelection,
 	} = usePickupDialog();
@@ -283,12 +269,16 @@ const PickupServiceList = memo(() => {
 	}
 
 	return (
-		<div className="space-y-2">
+		<CheckboxGroup
+			className="space-y-2"
+			value={selectedIds}
+			onValueChange={setSelectedIds}
+		>
 			<div className="flex items-center justify-between gap-2">
 				<p className="text-body font-medium">
 					Collecting{" "}
 					<span className="tabular-nums">
-						{selectedIds.size}/{collectableItems.length}
+						{selectedIds.length}/{collectableItems.length}
 					</span>
 				</p>
 				<div className="flex gap-1.5">
@@ -307,73 +297,60 @@ const PickupServiceList = memo(() => {
 			</div>
 			<ul className="grid max-h-64 gap-2 overflow-y-auto">
 				{collectableItems.map((item) => (
-					<PickupItemRow
-						key={item.id}
-						item={item}
-						isSelected={selectedIds.has(item.id)}
-						onToggle={toggleItem}
-					/>
+					<PickupItemRow key={item.id} item={item} />
 				))}
 			</ul>
-		</div>
+		</CheckboxGroup>
 	);
 });
 PickupServiceList.displayName = "PickupServiceList";
 
 type PickupItemRowProps = {
-	isSelected: boolean;
-	onToggle: (itemId: number) => void;
 	item: OrderItem;
 };
 
-const PickupItemRow = memo(
-	({ isSelected, onToggle, item }: PickupItemRowProps) => {
-		const id = `pickup-item-${item.id}`;
-		const details = getOrderServiceItemDetails(item);
-		return (
-			<li>
-				<label
-					htmlFor={id}
-					className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border bg-card px-3 py-2.5 text-body"
-				>
-					<Checkbox
-						id={id}
-						checked={isSelected}
-						onCheckedChange={() => onToggle(item.id)}
-					/>
-					<div className="min-w-0 flex-1">
-						{/* What the cashier says out loud leads; the Item code reads second. */}
-						<span className="block font-medium leading-snug">
-							{details ?? item.item_code}
-						</span>
-						{details ? (
-							<p className="text-caption text-muted-foreground tabular-nums">
-								{item.item_code}
-							</p>
-						) : null}
-						{/* Same rule the server uses for what a pickup covers. A refunded
-						    line keeps its red badge: it changes what the cashier hands over. */}
-						<p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-muted-foreground text-footnote">
-							{item.services.filter(isHandedOverByPickup).map((treatment) => (
-								<span
-									className="inline-flex items-center gap-1"
-									key={treatment.id}
-								>
-									{treatment.service?.name ?? "Service"}
-									{treatment.status === "refunded" ? (
-										<Badge variant="danger">
-											{formatOrderServiceStatus(treatment.status)}
-										</Badge>
-									) : null}
-								</span>
-							))}
+const PickupItemRow = memo(({ item }: PickupItemRowProps) => {
+	const id = `pickup-item-${item.id}`;
+	const details = getOrderServiceItemDetails(item);
+	return (
+		<li>
+			<label
+				htmlFor={id}
+				className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border bg-card px-3 py-2.5 text-body"
+			>
+				<Checkbox id={id} value={String(item.id)} />
+				<div className="min-w-0 flex-1">
+					{/* What the cashier says out loud leads; the Item code reads second. */}
+					<span className="block font-medium leading-snug">
+						{details ?? item.item_code}
+					</span>
+					{details ? (
+						<p className="text-caption text-muted-foreground tabular-nums">
+							{item.item_code}
 						</p>
-					</div>
-				</label>
-			</li>
-		);
-	},
-);
+					) : null}
+					{/* Same rule the server uses for what a pickup covers. A refunded
+					    line keeps its red badge: it changes what the cashier hands over. */}
+					<p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-muted-foreground text-footnote">
+						{item.services.filter(isHandedOverByPickup).map((treatment) => (
+							<span
+								className="inline-flex items-center gap-1"
+								key={treatment.id}
+							>
+								{treatment.service?.name ?? "Service"}
+								{treatment.status === "refunded" ? (
+									<Badge variant="danger">
+										{formatOrderServiceStatus(treatment.status)}
+									</Badge>
+								) : null}
+							</span>
+						))}
+					</p>
+				</div>
+			</label>
+		</li>
+	);
+});
 PickupItemRow.displayName = "PickupItemRow";
 
 const PickupPhotoField = memo(() => {
@@ -434,7 +411,7 @@ const PickupActions = memo(({ onCancel }: { onCancel: () => void }) => {
 	const { file, isPending, selectedIds, submit } = usePickupDialog();
 	const { pickupCode } = usePickupCode();
 	const isSubmitDisabled =
-		!file || selectedIds.size === 0 || pickupCode.length !== 6 || isPending;
+		!file || selectedIds.length === 0 || pickupCode.length !== 6 || isPending;
 
 	return (
 		<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

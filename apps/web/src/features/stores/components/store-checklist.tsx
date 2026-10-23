@@ -1,3 +1,4 @@
+import { CheckboxGroup } from "@base-ui/react/checkbox-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FieldLegend, FieldSet } from "@/components/ui/field";
 
@@ -17,7 +18,13 @@ export const StoreChecklist = ({
 	onChange,
 	disabled,
 }: StoreChecklistProps) => (
-	<FieldSet className="col-span-full gap-0">
+	<CheckboxGroup
+		disabled={disabled}
+		// Rendered as the fieldset itself so the legend names the group, not a second group nested inside.
+		render={<FieldSet className="col-span-full gap-0" />}
+		value={value.map(String)}
+		onValueChange={(next) => onChange(next.map(Number))}
+	>
 		<FieldLegend variant="label" className="mb-2 font-normal">
 			Stores
 		</FieldLegend>
@@ -31,21 +38,10 @@ export const StoreChecklist = ({
 						key={store.id}
 					>
 						{store.name}
-						<Checkbox
-							checked={value.includes(store.id)}
-							disabled={disabled}
-							id={id}
-							onCheckedChange={(checked) =>
-								onChange(
-									checked
-										? [...value, store.id]
-										: value.filter((storeId) => storeId !== store.id),
-								)
-							}
-						/>
+						<Checkbox id={id} value={String(store.id)} />
 					</label>
 				);
 			})}
 		</div>
-	</FieldSet>
+	</CheckboxGroup>
 );
