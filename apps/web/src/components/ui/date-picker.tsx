@@ -41,6 +41,17 @@ const WIRE_FORMAT = "YYYY-MM-DD";
 const FIELD_TRIGGER =
 	"h-9 pointer-coarse:h-11 justify-start border-input font-normal dark:border-input dark:bg-input/30 dark:hover:bg-input/50";
 
+interface PickerIconProps {
+	isLoading?: boolean;
+}
+
+const PickerIcon = ({ isLoading }: PickerIconProps) => (
+	<HugeiconsIcon
+		icon={isLoading ? Loading03Icon : Calendar03Icon}
+		className={cn("size-4", isLoading && "animate-spin")}
+	/>
+);
+
 interface DatePickerProps {
 	id?: string;
 	value?: string;
@@ -101,16 +112,7 @@ export const DatePicker = ({
 						)}
 						aria-busy={isLoading || undefined}
 						iconLocation={iconLocation}
-						icon={
-							isLoading ? (
-								<HugeiconsIcon
-									icon={Loading03Icon}
-									className="size-4 animate-spin"
-								/>
-							) : (
-								<HugeiconsIcon icon={Calendar03Icon} className="size-4" />
-							)
-						}
+						icon={<PickerIcon isLoading={isLoading} />}
 					/>
 				}
 			>
@@ -156,6 +158,7 @@ interface DateRangePickerProps {
 	resetOnSelect?: boolean;
 	commitOnComplete?: boolean;
 	fullWidth?: boolean;
+	isLoading?: boolean;
 }
 
 interface DateRangeViewProps {
@@ -199,12 +202,12 @@ const DateRangeSheet = ({
 					setIsPickingCustom(false);
 				}
 			}}
+			side="bottom"
 		>
 			<SheetTrigger render={trigger}>
 				<span className="truncate">{label}</span>
 			</SheetTrigger>
 			<SheetContent
-				side="bottom"
 				showCloseButton={!isPickingCustom}
 				className="max-h-[88svh] gap-0 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]"
 			>
@@ -376,6 +379,7 @@ export const DateRangePicker = ({
 	resetOnSelect = false,
 	commitOnComplete = false,
 	fullWidth = false,
+	isLoading,
 }: DateRangePickerProps) => {
 	const selectedFromProps = useMemo<DateRange | undefined>(() => {
 		if (!(from || to)) {
@@ -460,7 +464,8 @@ export const DateRangePicker = ({
 					showClear && "pr-9",
 					className,
 				)}
-				icon={<HugeiconsIcon icon={Calendar03Icon} className="size-4" />}
+				aria-busy={isLoading || undefined}
+				icon={<PickerIcon isLoading={isLoading} />}
 			/>
 		),
 		label,

@@ -31,13 +31,12 @@ export function TransactionsWorkspace() {
 				<TransactionsCatalog />
 				<CartMiniBar onOpen={handleOpenCart} />
 			</div>
-			<Sheet onOpenChange={setCartSheetOpen} open={cartSheetOpen}>
-				{/* Bottom at every width: the Item fields' two columns and the stepper
-				    don't fit a right sheet, which caps at max-w-sm. */}
+			{/* Bottom at every width: the Item fields' two columns and the stepper
+			    don't fit a right sheet, which caps at max-w-sm. */}
+			<Sheet onOpenChange={setCartSheetOpen} open={cartSheetOpen} side="bottom">
 				<SheetContent
 					className="data-[side=bottom]:h-[92dvh]"
 					showCloseButton={false}
-					side="bottom"
 				>
 					<TransactionsCheckout />
 				</SheetContent>

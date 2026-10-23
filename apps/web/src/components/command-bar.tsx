@@ -1,3 +1,4 @@
+import { Autocomplete } from "@base-ui/react/autocomplete";
 import {
 	Invoice01Icon,
 	Search01Icon,
@@ -6,7 +7,7 @@ import {
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { type NavigateOptions, useNavigate } from "@tanstack/react-router";
-import { type KeyboardEvent, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { HOME_NAV_ITEM, navGroupsForRole } from "@/components/app-navigation";
 import { Badge } from "@/components/ui/badge";
 import { customersQueries } from "@/features/customers/api";
@@ -40,7 +41,6 @@ const CommandBarPanel = () => {
 	const isWide = !useIsMobile(1024);
 	const [query, setQuery] = useState("");
 	const [term, setTerm] = useState("");
-	const [activeIndex, setActiveIndex] = useState(0);
 
 	useEffect(() => {
 		const timer = setTimeout(() => setTerm(query.trim()), 200);
@@ -110,49 +110,46 @@ const CommandBarPanel = () => {
 			}))
 		: [];
 
-	const results = [...customers, ...orders, ...pages];
-	const safeIndex = Math.min(activeIndex, Math.max(results.length - 1, 0));
+	const groups = [
+		{ value: "Customers", items: customers },
+		{ value: "Orders", items: orders },
+		{ value: "Pages", items: pages },
+	].filter((group) => group.items.length > 0);
 
 	const handleSelect = (result: CommandResult) => {
 		closeDialog();
 		void navigate(result.target);
 	};
 
-	const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-		if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-			event.preventDefault();
-			const step = event.key === "ArrowDown" ? 1 : -1;
-			setActiveIndex(
-				(safeIndex + step + results.length) % Math.max(results.length, 1),
-			);
-			return;
-		}
-		const active = results[safeIndex];
-		if (event.key === "Enter" && active) {
-			event.preventDefault();
-			handleSelect(active);
-		}
-	};
-
 	const isSearching =
 		canSearch && (ordersQuery.isFetching || customersQuery.isFetching);
 
 	return (
-		<>
+		<Autocomplete.Root
+			open
+			inline
+			items={groups}
+			filter={null}
+			autoHighlight="always"
+			keepHighlight
+			itemToStringValue={(result: CommandResult) => result.label}
+			value={query}
+			onValueChange={(value, details) => {
+				// Picking a row would copy its label into the box and reshuffle the
+				// list while the dialog fades out.
+				if (details.reason !== "item-press") {
+					setQuery(value);
+				}
+			}}
+		>
+			{/* biome-ignore lint/a11y/noLabelWithoutControl: Autocomplete.Input renders the input inside it */}
 			<label className="flex h-13 items-center gap-3 border-b pr-12 pl-4">
 				<HugeiconsIcon
 					icon={Search01Icon}
 					className="size-4.5 shrink-0 text-muted-foreground"
 				/>
-				<input
-					// biome-ignore lint/a11y/noAutofocus: the bar opens to be typed into
+				<Autocomplete.Input
 					autoFocus
-					value={query}
-					onChange={(event) => {
-						setQuery(event.target.value);
-						setActiveIndex(0);
-					}}
-					onKeyDown={handleKeyDown}
 					placeholder="Phone, name, Order code or page"
 					aria-label="Search or jump to"
 					className="h-full min-w-0 flex-1 bg-transparent text-field outline-none placeholder:text-muted-foreground"
@@ -161,94 +158,78 @@ const CommandBarPanel = () => {
 
 			{/* On a phone the keyboard takes the bottom half, so the list stops above it. */}
 			<div className="max-h-[60vh] overflow-y-auto py-1 max-sm:max-h-[45dvh]">
-				{results.length === 0 ? (
+				<Autocomplete.Empty>
 					<p className="px-4 py-6 text-center text-muted-foreground text-body">
 						{isSearching ? "Searching…" : "Nothing matches."}
 					</p>
-				) : (
-					(["Customers", "Orders", "Pages"] as const).map((group) => {
-						const groupResults = results.filter(
-							(result) => result.group === group,
-						);
-						if (groupResults.length === 0) {
-							return null;
-						}
-						return (
-							<section key={group} className="py-1">
-								<h3 className="px-4 pt-1.5 pb-1 text-muted-foreground text-footnote">
-									{group}
-								</h3>
-								<ul>
-									{groupResults.map((result) => {
-										const isActive = results[safeIndex] === result;
-										const isOrder = result.group === "Orders";
-										return (
-											<li key={result.key}>
-												<button
-													type="button"
-													onClick={() => handleSelect(result)}
-													onMouseMove={() =>
-														setActiveIndex(results.indexOf(result))
-													}
-													className={cn(
-														"flex h-10 w-full items-center gap-3 px-4 text-left text-body max-sm:h-12",
-														isOrder && "h-14 max-sm:h-14",
-														isActive && "bg-primary/10",
-													)}
-												>
-													<HugeiconsIcon
-														icon={result.icon}
-														className={cn(
-															"size-4 shrink-0",
-															isActive
-																? "text-primary"
-																: "text-muted-foreground",
-														)}
-													/>
-													{/* A cashier hunting an Order by phone scans for the
-													    customer's name, so it leads and the code sits under it. */}
+				</Autocomplete.Empty>
+				<Autocomplete.List>
+					{(group: (typeof groups)[number]) => (
+						<Autocomplete.Group
+							key={group.value}
+							items={group.items}
+							className="py-1"
+						>
+							<Autocomplete.GroupLabel className="px-4 pt-1.5 pb-1 text-muted-foreground text-footnote">
+								{group.value}
+							</Autocomplete.GroupLabel>
+							<Autocomplete.Collection>
+								{(result: CommandResult) => {
+									const isOrder = result.group === "Orders";
+									return (
+										<Autocomplete.Item
+											key={result.key}
+											value={result}
+											onClick={() => handleSelect(result)}
+											className={cn(
+												"group flex h-10 w-full items-center gap-3 px-4 text-left text-body data-highlighted:bg-primary/10 max-sm:h-12",
+												isOrder && "h-14 max-sm:h-14",
+											)}
+										>
+											<HugeiconsIcon
+												icon={result.icon}
+												className="size-4 shrink-0 text-muted-foreground group-data-highlighted:text-primary"
+											/>
+											{/* A cashier hunting an Order by phone scans for the
+											    customer's name, so it leads and the code sits under it. */}
+											<span
+												className={cn(
+													"flex min-w-0 gap-x-3",
+													isOrder ? "flex-col" : "items-baseline",
+												)}
+											>
+												<span className="shrink-0 truncate font-medium">
+													{result.label}
+												</span>
+												{result.meta ? (
 													<span
 														className={cn(
-															"flex min-w-0 gap-x-3",
-															isOrder ? "flex-col" : "items-baseline",
+															"min-w-0 truncate text-subhead tabular-nums",
+															result.group === "Pages" &&
+																"text-muted-foreground",
 														)}
 													>
-														<span className="shrink-0 truncate font-medium">
-															{result.label}
-														</span>
-														{result.meta ? (
-															<span
-																className={cn(
-																	"min-w-0 truncate text-subhead tabular-nums",
-																	result.group === "Pages" &&
-																		"text-muted-foreground",
-																)}
-															>
-																{result.meta}
-															</span>
-														) : null}
+														{result.meta}
 													</span>
-													{result.status ? (
-														<Badge
-															className="ml-auto"
-															variant={getOrderStatusBadgeVariant(
-																result.status,
-															)}
-														>
-															{formatOrderStatus(result.status)}
-														</Badge>
-													) : null}
-												</button>
-											</li>
-										);
-									})}
-								</ul>
-							</section>
-						);
-					})
-				)}
+												) : null}
+											</span>
+											{result.status ? (
+												<Badge
+													className="ml-auto"
+													variant={getOrderStatusBadgeVariant(result.status)}
+												>
+													{formatOrderStatus(result.status)}
+												</Badge>
+											) : null}
+										</Autocomplete.Item>
+									);
+								}}
+							</Autocomplete.Collection>
+						</Autocomplete.Group>
+					)}
+				</Autocomplete.List>
 			</div>
-		</>
+		</Autocomplete.Root>
 	);
 };
 

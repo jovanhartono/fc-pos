@@ -136,7 +136,6 @@ export interface PersonRow {
 export interface StoreGroup {
 	store: ShiftStore;
 	rows: PersonRow[];
-	days: number;
 }
 
 const toMark = (day: ShiftDay): DayMark => ({
@@ -209,40 +208,26 @@ export const buildStoreGroups = (
 				overview.days.some((day) => day.store_id === store.id)
 			: store.id === storeId,
 	);
-	return shown.map((store) => {
+	const groups = shown.map((store) => {
 		const rows = overview.people
-			.filter(
-				(person) =>
-					person.store_ids.includes(store.id) ||
-					daysByPerson.get(person.id)?.some((day) => day.store_id === store.id),
+			.filter((person) =>
+				daysByPerson.get(person.id)?.some((day) => day.store_id === store.id),
 			)
 			.map((person) =>
 				buildRow(person, store.id, daysByPerson.get(person.id) ?? [], stores),
 			);
-		return {
-			store,
-			rows,
-			days: rows.reduce((sum, row) => sum + row.days, 0),
-		};
+		return { store, rows };
 	});
+	// Stores where someone worked come first; the empty ones sink to the end.
+	return groups.sort(
+		(a, b) => Number(b.rows.length > 0) - Number(a.rows.length > 0),
+	);
 };
 
-export const countForgotten = (groups: StoreGroup[]) =>
-	groups
-		.flatMap((group) => group.rows)
-		.reduce((sum, row) => sum + row.forgotten, 0);
-
-const statusRank = (row: PersonRow) => {
-	if (row.isOpen) {
-		return 0;
-	}
-	return row.days > 0 ? 1 : 2;
-};
-
-// An admin opening today's Shifts looks for who is in, so those on shift lead,
-// then who has left, then who hasn't come; names stay A–Z within each.
+// An admin opening today's Shifts looks for who is in, so those still on shift
+// lead, then who has left; names stay A–Z within each.
 export const sortByStatus = (rows: PersonRow[]) =>
-	[...rows].sort((a, b) => statusRank(a) - statusRank(b));
+	[...rows].sort((a, b) => Number(b.isOpen) - Number(a.isOpen));
 
 // "Last 30 days · 23 Sep – 22 Oct", or just the dates for a picked range; the
 // year shows once the range reaches outside this one.

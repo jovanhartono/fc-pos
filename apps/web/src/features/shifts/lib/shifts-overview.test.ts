@@ -88,8 +88,8 @@ const day = (user_id: number, store_id: number, date: string, shifts = 1) => ({
 // Rizky works Kemang and BSD; on the 13th he did both, which is one meal fee.
 const overview: ShiftsOverview = {
 	people: [
-		{ id: 7, name: "Asep", role: "worker", store_ids: [1] },
-		{ id: 9, name: "Rizky", role: "worker", store_ids: [1, 2] },
+		{ id: 7, name: "Asep", role: "worker" },
+		{ id: 9, name: "Rizky", role: "worker" },
 	],
 	days: [
 		day(7, 1, "2026-10-12"),
@@ -101,6 +101,13 @@ const overview: ShiftsOverview = {
 };
 
 describe("buildStoreGroups", () => {
+	it("puts a Store nobody worked at after the ones with Shifts", () => {
+		const bogor = { id: 3, name: "Fresclean Bogor", is_active: true };
+		const groups = buildStoreGroups(overview, [bogor, KEMANG], undefined);
+
+		expect(groups.map((group) => group.store.id)).toEqual([1, 3]);
+	});
+
 	it("lists a two-Store person under each, with the other Store's days", () => {
 		const [kemang, bsd] = buildStoreGroups(overview, [KEMANG, BSD], undefined);
 		const rizky = kemang.rows.find((row) => row.person.id === 9);
@@ -121,7 +128,6 @@ describe("buildStoreGroups", () => {
 		const groups = buildStoreGroups(overview, [KEMANG, BSD], 1);
 
 		expect(groups.map((group) => group.store.id)).toEqual([1]);
-		expect(groups[0].days).toBe(3);
 		expect(groups[0].rows[1].elsewhere[0].days).toBe(2);
 	});
 
@@ -136,13 +142,12 @@ describe("buildStoreGroups", () => {
 });
 
 describe("sortByStatus", () => {
-	it("puts who is on shift first, then who has left, then who isn't in", () => {
+	it("puts who is on shift first, then who has left", () => {
 		const today: ShiftsOverview = {
 			people: [
-				{ id: 1, name: "Asep", role: "worker", store_ids: [1] },
-				{ id: 2, name: "Budi", role: "worker", store_ids: [1] },
-				{ id: 3, name: "Citra", role: "worker", store_ids: [1] },
-				{ id: 4, name: "Dewi", role: "worker", store_ids: [1] },
+				{ id: 2, name: "Budi", role: "worker" },
+				{ id: 3, name: "Citra", role: "worker" },
+				{ id: 4, name: "Dewi", role: "worker" },
 			],
 			days: [
 				day(2, 1, TODAY),
@@ -156,7 +161,6 @@ describe("sortByStatus", () => {
 			"Citra",
 			"Budi",
 			"Dewi",
-			"Asep",
 		]);
 	});
 });

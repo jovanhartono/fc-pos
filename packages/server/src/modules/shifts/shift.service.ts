@@ -11,9 +11,7 @@ import {
   findShiftById,
   insertShift,
   listShiftDays,
-  listShiftPeople,
   listShifts,
-  listShiftUserIds,
   updateOpenShiftClockOutByUserId,
   updateShiftTimesById,
 } from "@/modules/shifts/shift.repository";
@@ -239,21 +237,18 @@ export async function getShiftsOverview(
   assertIsAdmin(user);
 
   const { from, to, store_id: storeId } = query;
-  const workedIds = await listShiftUserIds({ from, to, storeId });
-  const people = await listShiftPeople({ storeId, extraUserIds: workedIds });
   // Days at every Store, not just the one picked: the meal fee goes by all of them.
-  const days = await listShiftDays({
-    from,
-    to,
-    userIds: people.map((person) => person.id),
-  });
+  const rows = await listShiftDays({ from, to, storeId });
+  const people = new Map(
+    rows.map(({ user_id, name, role }) => [
+      user_id,
+      { id: user_id, name, role },
+    ])
+  );
 
   return {
-    people: people.map(({ userStores, ...person }) => ({
-      ...person,
-      store_ids: userStores.map((link) => link.store_id),
-    })),
-    days,
+    people: [...people.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    days: rows.map(({ name: _name, role: _role, ...day }) => day),
   };
 }
 

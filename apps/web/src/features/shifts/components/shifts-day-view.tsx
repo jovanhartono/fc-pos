@@ -1,11 +1,9 @@
 import { Section } from "@/components/section";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { Shift } from "@/features/shifts/api";
 import { EditShiftButton } from "@/features/shifts/components/edit-shift-button";
-import { ForgottenNote } from "@/features/shifts/components/shifts-summary";
+import { NoShifts } from "@/features/shifts/components/no-shifts";
 import { clockRange, shiftMinutes } from "@/features/shifts/lib/shift-times";
 import {
-	countForgotten,
 	type PersonRow,
 	type StoreGroup,
 	sortByStatus,
@@ -15,98 +13,71 @@ import { cn } from "@/lib/utils";
 
 interface ShiftsDayViewProps {
 	groups: StoreGroup[];
-	shifts: Shift[] | undefined;
+	shifts: Shift[];
 }
 
 // One day: who was in at each Store, and on today who is still on shift.
 export const ShiftsDayView = ({ groups, shifts }: ShiftsDayViewProps) => {
 	return (
-		<div className="grid gap-4">
-			<ForgottenNote count={countForgotten(groups)} />
-			<div className="grid items-start gap-5 lg:grid-cols-2 2xl:grid-cols-3">
-				{groups.map((group) => (
-					<Section
-						key={group.store.id}
-						title={group.store.name}
-						count={`${group.rows.filter((row) => row.days > 0).length} in`}
-					>
-						<div className="overflow-hidden rounded-lg border bg-card">
-							{group.rows.length === 0 ? (
-								<p className="px-3 py-2.5 text-body">No one on this Store.</p>
-							) : (
-								sortByStatus(group.rows).map((row) => (
-									<DayRow
-										key={row.person.id}
-										row={row}
-										shifts={shifts?.filter(
-											(shift) =>
-												shift.user_id === row.person.id &&
-												shift.store_id === group.store.id,
-										)}
-									/>
-								))
-							)}
-						</div>
-					</Section>
-				))}
-			</div>
+		<div className="grid items-start gap-5 lg:grid-cols-2 2xl:grid-cols-3">
+			{groups.map((group) => (
+				<Section key={group.store.id} title={group.store.name}>
+					<div className="overflow-hidden rounded-lg border bg-card">
+						{group.rows.length === 0 ? (
+							<NoShifts />
+						) : (
+							sortByStatus(group.rows).map((row) => (
+								<DayRow
+									key={row.person.id}
+									row={row}
+									shifts={shifts.filter(
+										(shift) =>
+											shift.user_id === row.person.id &&
+											shift.store_id === group.store.id,
+									)}
+								/>
+							))
+						)}
+					</div>
+				</Section>
+			))}
 		</div>
 	);
 };
 
 interface DayRowProps {
 	row: PersonRow;
-	shifts: Shift[] | undefined;
+	shifts: Shift[];
 }
 
-const DayRow = ({ row, shifts }: DayRowProps) => {
-	const isIn = row.days > 0;
-	return (
-		<div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 not-first:border-t">
-			<span className="flex min-w-0 items-center gap-2.5">
-				<span
-					aria-hidden
-					className={cn(
-						"size-1.5 shrink-0 rounded-full",
-						row.isOpen ? "bg-success" : "bg-muted-foreground/50",
-						!isIn && "opacity-60",
-					)}
-				/>
-				<span className="min-w-0 text-balance">
-					<span
-						className={cn(
-							"font-medium text-body",
-							!isIn && "font-normal text-muted-foreground",
-						)}
-					>
-						{row.person.name}
+const DayRow = ({ row, shifts }: DayRowProps) => (
+	<div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 not-first:border-t">
+		<span className="flex min-w-0 items-center gap-2.5">
+			<span
+				aria-hidden
+				className={cn(
+					"size-1.5 shrink-0 rounded-full",
+					row.isOpen ? "bg-success" : "bg-muted-foreground/50",
+				)}
+			/>
+			<span className="min-w-0 text-balance">
+				<span className="font-medium text-body">{row.person.name}</span>
+				{row.forgotten > 0 ? (
+					<span className="ml-2 text-footnote text-tone-bad-foreground">
+						Auto-closed
 					</span>
-					{row.forgotten > 0 ? (
-						<span className="ml-2 text-footnote text-tone-bad-foreground">
-							Auto-closed
-						</span>
-					) : null}
-				</span>
+				) : null}
 			</span>
-			<DayRowTimes isIn={isIn} shifts={shifts} />
-		</div>
-	);
-};
+		</span>
+		<DayRowTimes shifts={shifts} />
+	</div>
+);
 
 interface DayRowTimesProps {
-	isIn: boolean;
-	shifts: Shift[] | undefined;
+	shifts: Shift[];
 }
 
-const DayRowTimes = ({ isIn, shifts }: DayRowTimesProps) => {
-	if (!isIn) {
-		return (
-			<span className="text-muted-foreground text-subhead">No clock-in</span>
-		);
-	}
-	if (!shifts) {
-		return <Skeleton className="h-7 w-40" />;
-	}
+const DayRowTimes = ({ shifts }: DayRowTimesProps) => {
 	return (
 		<div className="grid gap-2">
 			{shifts.map((shift) => (

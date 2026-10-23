@@ -1,3 +1,4 @@
+import type { DrawerRootChangeEventDetails } from "@base-ui/react/drawer";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
@@ -37,11 +38,16 @@ export function GlobalSheet() {
 		closeSheet();
 	};
 
-	const handleOpenChange = (nextOpen: boolean) => {
+	const handleOpenChange = (
+		nextOpen: boolean,
+		eventDetails: DrawerRootChangeEventDetails,
+	) => {
 		if (nextOpen) {
 			return;
 		}
 		if (isDirty) {
+			// A half-filled form swiped away springs back under the confirm.
+			eventDetails.cancel();
 			setConfirmOpen(true);
 			return;
 		}
@@ -65,7 +71,6 @@ export function GlobalSheet() {
 				}}
 			>
 				<SheetContent
-					side="right"
 					className={cn(
 						"w-full overflow-hidden",
 						size === "wide" &&
