@@ -84,6 +84,13 @@ useAuthStore.subscribe((state, previous) => {
 	}
 });
 
+// An iPhone edge swipe back has already slid the page in; our slide on top
+// replayed the Order leaving and read as a reload.
+let isSwipeBack = false;
+window.addEventListener("popstate", (event) => {
+	isSwipeBack = event.hasUAVisualTransition;
+});
+
 const router = createRouter({
 	routeTree,
 	context: {
@@ -98,6 +105,10 @@ const router = createRouter({
 	// navigation carries its direction; the slide itself is in index.css.
 	defaultViewTransition: {
 		types: ({ fromLocation, toLocation, pathChanged }) => {
+			if (isSwipeBack) {
+				isSwipeBack = false;
+				return false;
+			}
 			// Same screen, new search: J in the Order sheet must swap to the next
 			// Order outright, not fade the two through each other.
 			// Leaving from the More sheet or the search palette: the closing panel
