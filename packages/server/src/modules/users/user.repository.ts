@@ -1,5 +1,5 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { and, eq, like, or, type SQL, sql } from "drizzle-orm";
+import { and, EmptyFilter, eq, like, or, type SQL, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { userStoresTable, usersTable } from "@/db/schema";
 
@@ -41,7 +41,7 @@ function buildRelationalWhere(filters: UserFilters) {
   }
 
   if (conditions.length === 0) {
-    return;
+    return EmptyFilter;
   }
   if (conditions.length === 1) {
     return conditions[0];

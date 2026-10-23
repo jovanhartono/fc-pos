@@ -2290,10 +2290,11 @@ function requireId(ids: Map<string, number>, key: string): number {
 }
 
 async function ordersHaveIntakeChannel(): Promise<boolean> {
-  const result = await db.execute(
-    sql`select 1 from information_schema.columns where table_name = 'orders' and column_name = 'intake_channel'`
+  const rows = await db.execute(
+    sql`select 1 from information_schema.columns where table_name = 'orders' and column_name = 'intake_channel'`,
+    "objects"
   );
-  return result.rows.length > 0;
+  return rows.length > 0;
 }
 
 const COMPLAINT_REASONS = [

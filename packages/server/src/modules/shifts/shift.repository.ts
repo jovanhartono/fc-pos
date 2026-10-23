@@ -1,4 +1,14 @@
-import { and, eq, gte, inArray, isNull, lt, lte, sql } from "drizzle-orm";
+import {
+  and,
+  EmptyFilter,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lt,
+  lte,
+  sql,
+} from "drizzle-orm";
 import { db } from "@/db";
 import { shiftsTable } from "@/db/schema";
 import { jakartaBucketExpr } from "@/modules/reports/report-range.util";
@@ -96,7 +106,7 @@ export function findOverlappingShift({
 }) {
   return db.query.shiftsTable.findFirst({
     where: {
-      id: shiftId === undefined ? undefined : { ne: shiftId },
+      id: { ne: shiftId ?? EmptyFilter },
       user_id: userId,
       clock_in_at: { lt: clockOut },
       OR: [
@@ -149,11 +159,11 @@ export function listShifts({
 }) {
   return db.query.shiftsTable.findMany({
     where: {
-      user_id: query?.user_id,
-      store_id: query?.store_id,
+      user_id: query?.user_id ?? EmptyFilter,
+      store_id: query?.store_id ?? EmptyFilter,
       clock_in_at: {
-        gte: query?.from ? jakartaDayStart(query.from) : undefined,
-        lte: query?.to ? jakartaDayEnd(query.to) : undefined,
+        gte: query?.from ? jakartaDayStart(query.from) : EmptyFilter,
+        lte: query?.to ? jakartaDayEnd(query.to) : EmptyFilter,
       },
     },
     columns: {
@@ -212,9 +222,9 @@ export function listShiftPeople({
 }) {
   const onRoster = {
     is_active: true,
-    role: { ne: "admin" as const },
-    userStores: storeId === undefined ? undefined : { store_id: storeId },
-  };
+    role: { ne: "admin" },
+    userStores: storeId === undefined ? EmptyFilter : { store_id: storeId },
+  } as const;
   return db.query.usersTable.findMany({
     where:
       extraUserIds.length === 0
