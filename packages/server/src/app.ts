@@ -4,9 +4,9 @@ import { cors } from "hono/cors";
 import type { JwtVariables } from "hono/jwt";
 import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
-import type { JWTPayload } from "@/types/jwt";
+import type { AuthUser } from "@/types/jwt";
 
-const app = new Hono<{ Variables: JwtVariables<JWTPayload> }>()
+const app = new Hono<{ Variables: JwtVariables<AuthUser> }>()
   .basePath("/api")
   .use(logger())
   .use(secureHeaders())

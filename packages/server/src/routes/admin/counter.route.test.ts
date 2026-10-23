@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
 import { ForbiddenException } from "@/http-exceptions";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 import { errorHandler } from "@/utils/error-handler";
 
 const KEMANG = 1;
 const BINTARO = 2;
 
 mock.module("@/utils/authorization", () => ({
-  assertStoreAccess: (user: JWTPayload, storeId: number) => {
+  assertStoreAccess: (user: AuthUser, storeId: number) => {
     if (user.role !== "admin" && storeId !== KEMANG) {
       throw new ForbiddenException("You do not have access to this store");
     }
@@ -41,17 +41,18 @@ mock.module("@/modules/counter/day-close.service", () => ({
 
 const counterRoutes = (await import("@/routes/admin/counter")).default;
 
-let who: JWTPayload;
+let who: AuthUser;
 
-const as = (role: JWTPayload["role"]): JWTPayload => ({
+const as = (role: AuthUser["role"]): AuthUser => ({
   can_process_pickup: false,
   id: 7,
   name: "Asep",
   role,
+  store_ids: [KEMANG],
   username: "asep",
 });
 
-const app = new Hono<{ Variables: { jwtPayload: JWTPayload } }>()
+const app = new Hono<{ Variables: { jwtPayload: AuthUser } }>()
   .use("*", async (c, next) => {
     c.set("jwtPayload", who);
     await next();

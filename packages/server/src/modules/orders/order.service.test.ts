@@ -11,7 +11,7 @@ import { ordersTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 import type { Store } from "@/types/entity";
 
 // Checkout at the POS commits the Order code, stock, discounts and Voucher
@@ -78,7 +78,6 @@ const courier = { calls: [] as number[] };
 
 const authz = {
   assertCalls: [] as { userId: number; storeId: number }[],
-  listCalls: [] as number[],
   storeIds: [] as number[],
 };
 
@@ -327,7 +326,6 @@ beforeEach(() => {
   redemptions.calls = [];
   courier.calls = [];
   authz.assertCalls = [];
-  authz.listCalls = [];
   authz.storeIds = [];
   finalize.writes = [];
   detail.row = undefined;
@@ -901,8 +899,8 @@ describe("createOrder", () => {
 });
 
 describe("listOrders", () => {
-  const cashier = { id: CASHIER_ID, role: "cashier" } as unknown as JWTPayload;
-  const admin = { id: 1, role: "admin" } as unknown as JWTPayload;
+  const cashier = { id: CASHIER_ID, role: "cashier" } as unknown as AuthUser;
+  const admin = { id: 1, role: "admin" } as unknown as AuthUser;
 
   it("fences a cashier without a store filter into their own stores", async () => {
     // A cashier sees only their own Stores, never every Store's Revenue.
@@ -910,7 +908,6 @@ describe("listOrders", () => {
 
     await listOrders(undefined, cashier);
 
-    expect(authz.listCalls).toEqual([CASHIER_ID]);
     expect(repo.findOrdersCalls[0].scopedStoreIds).toEqual([1, 2]);
     expect(authz.assertCalls).toHaveLength(0);
   });
@@ -922,14 +919,12 @@ describe("listOrders", () => {
     );
 
     expect(authz.assertCalls).toEqual([{ userId: CASHIER_ID, storeId: 3 }]);
-    expect(authz.listCalls).toHaveLength(0);
     expect(repo.findOrdersCalls[0].scopedStoreIds).toBeUndefined();
   });
 
   it("lets an admin see everything without any store gate", async () => {
     await listOrders(undefined, admin);
 
-    expect(authz.listCalls).toHaveLength(0);
     expect(authz.assertCalls).toHaveLength(0);
     expect(repo.findOrdersCalls[0].scopedStoreIds).toBeUndefined();
   });

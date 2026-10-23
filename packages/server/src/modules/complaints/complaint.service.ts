@@ -24,7 +24,7 @@ import {
   logReworkQueued,
   recomputeOrderRollup,
 } from "@/modules/orders/order-status-machine";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 import {
   assertStoreAccess,
   resolveStoreScope,
@@ -86,7 +86,7 @@ async function lockSubjectLine(tx: DbExecutor, subject: SubjectService) {
   return { itemLines, line };
 }
 
-async function loadComplaintSubject(user: JWTPayload, complaintId: number) {
+async function loadComplaintSubject(user: AuthUser, complaintId: number) {
   const complaint = await findComplaintById(complaintId);
   if (!complaint) {
     throw new NotFoundException("Complaint not found");
@@ -106,7 +106,7 @@ export async function openComplaint({
   user,
   body,
 }: {
-  user: JWTPayload;
+  user: AuthUser;
   body: PostComplaintInput;
 }) {
   const subject = await findComplaintSubjectService(body.order_service_id);
@@ -157,7 +157,7 @@ export async function addRework({
   user,
   complaintId,
 }: {
-  user: JWTPayload;
+  user: AuthUser;
   complaintId: number;
 }) {
   const { complaint, subject } = await loadComplaintSubject(user, complaintId);
@@ -191,7 +191,7 @@ export async function addRework({
   });
 }
 
-export async function getComplaintDetail(user: JWTPayload, id: number) {
+export async function getComplaintDetail(user: AuthUser, id: number) {
   const detail = await findComplaintDetailById(id);
   if (!detail?.orderService?.order) {
     return null;
@@ -203,7 +203,7 @@ export async function getComplaintDetail(user: JWTPayload, id: number) {
 }
 
 export async function listComplaints(
-  user: JWTPayload,
+  user: AuthUser,
   query?: GetComplaintsQuery
 ) {
   const normalized = normalizeComplaintListQuery(query);

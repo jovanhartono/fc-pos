@@ -2,7 +2,7 @@ import type { ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { JwtVariables } from "hono/jwt";
 import { StatusCodes } from "http-status-codes";
-import type { JWTPayload } from "@/types/jwt";
+import type { AuthUser } from "@/types/jwt";
 import { failure } from "@/utils/http";
 import {
   asPostgresError,
@@ -12,7 +12,7 @@ import {
 import { reportError } from "@/utils/report-error";
 
 export const errorHandler: ErrorHandler<{
-  Variables: JwtVariables<JWTPayload>;
+  Variables: JwtVariables<AuthUser>;
 }> = async (err, c) => {
   // Awaited because a Vercel function pauses once the response is sent: a
   // report left running would be lost on exactly the failures we need to see.

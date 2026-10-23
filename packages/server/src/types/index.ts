@@ -28,4 +28,4 @@ export type {
   KpiDelta,
   ReportGranularity,
 } from "@/modules/reports/report.schema";
-export type { JWTPayload } from "./jwt";
+export type { AuthUser, JWTPayload } from "./jwt";

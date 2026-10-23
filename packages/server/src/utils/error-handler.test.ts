@@ -3,13 +3,13 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { JwtVariables } from "hono/jwt";
 import { StatusCodes } from "http-status-codes";
-import type { JWTPayload } from "@/types/jwt";
+import type { AuthUser } from "@/types/jwt";
 import { errorHandler } from "@/utils/error-handler";
 
 const PHONE = "+628123456789";
 
 const respondTo = async (thrown: unknown) => {
-  const app = new Hono<{ Variables: JwtVariables<JWTPayload> }>().get(
+  const app = new Hono<{ Variables: JwtVariables<AuthUser> }>().get(
     "/boom",
     () => {
       throw thrown;

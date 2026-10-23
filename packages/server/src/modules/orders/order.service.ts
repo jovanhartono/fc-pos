@@ -44,7 +44,7 @@ import {
 } from "@/modules/products/product.repository";
 import { findServices } from "@/modules/services/service.repository";
 import type { POSTOrderSchema } from "@/schema";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 import type { Store } from "@/types/entity";
 import { resolveStoreScope, unhandledStoreScope } from "@/utils/authorization";
 import { jakartaNow } from "@/utils/date";
@@ -201,7 +201,7 @@ function buildOrderServiceRows({
 
 // undefined means "do not narrow further", [] means nothing at all. Mixing them
 // up shows one account every Store's Orders.
-async function resolveOrderScopedStoreIds(user: JWTPayload, storeId?: number) {
+async function resolveOrderScopedStoreIds(user: AuthUser, storeId?: number) {
   const scope = await resolveStoreScope(user, storeId);
 
   switch (scope.kind) {
@@ -219,7 +219,7 @@ async function resolveOrderScopedStoreIds(user: JWTPayload, storeId?: number) {
 
 export async function getOrderStatusCounts(
   query: GetOrdersQuery,
-  user: JWTPayload
+  user: AuthUser
 ) {
   const normalized = normalizeOrderListQuery(query);
   const scopedStoreIds = await resolveOrderScopedStoreIds(
@@ -229,7 +229,7 @@ export async function getOrderStatusCounts(
   return countOrdersByStatus(normalized, scopedStoreIds);
 }
 
-export async function listOrders(query?: GetOrdersQuery, user?: JWTPayload) {
+export async function listOrders(query?: GetOrdersQuery, user?: AuthUser) {
   const normalized = normalizeOrderListQuery(query);
   const scopedStoreIds = user
     ? await resolveOrderScopedStoreIds(user, normalized.store_id)

@@ -10,7 +10,7 @@ import {
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 
 // ADR-0020 turns a worker away only when the phone is sure they are elsewhere:
 // a sharp fix from home is refused, a fix too vague to judge is let through.
@@ -96,8 +96,8 @@ afterAll(() => {
   mock.module("@/modules/shifts/shift.repository", () => actualShiftRepo);
 });
 
-const WORKER = { id: 7, role: "worker" } as unknown as JWTPayload;
-const COURIER = { id: 8, role: "courier" } as unknown as JWTPayload;
+const WORKER = { id: 7, role: "worker" } as unknown as AuthUser;
+const COURIER = { id: 8, role: "courier" } as unknown as AuthUser;
 
 // Phones due south of the Kemang counter. Accuracy is the phone's own error
 // radius: metres outdoors, kilometres from a cell tower.

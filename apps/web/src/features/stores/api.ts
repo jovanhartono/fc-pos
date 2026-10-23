@@ -6,7 +6,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { type InferResponseType, parseResponse } from "hono/client";
 import type { z } from "zod";
 import { parseSuccessData } from "@/lib/http";
-import { REFERENCE_DATA_STALE_TIME } from "@/lib/query-defaults";
+import { SESSION_DATA_STALE_TIME } from "@/lib/query-defaults";
 import { type rpc, rpcWithAuth } from "@/lib/rpc";
 
 export type Store = InferResponseType<
@@ -46,7 +46,8 @@ export const storesQueries = {
 		queryOptions({
 			queryKey: storesKeys.list(),
 			queryFn: fetchStores,
-			staleTime: REFERENCE_DATA_STALE_TIME,
+			staleTime: SESSION_DATA_STALE_TIME,
+			gcTime: SESSION_DATA_STALE_TIME,
 		}),
 	devices: (storeId: number) =>
 		queryOptions({

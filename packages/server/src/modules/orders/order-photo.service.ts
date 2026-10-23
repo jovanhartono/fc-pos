@@ -18,7 +18,7 @@ import {
   findPhotoById,
   softDeleteItemImageById,
 } from "@/modules/orders/order-photo.repository";
-import type { JWTPayload } from "@/types";
+import type { AuthUser, JWTPayload } from "@/types";
 import { assertStoreAccess } from "@/utils/authorization";
 import {
   assertPhotoKeyUnder,
@@ -207,7 +207,7 @@ export async function createPhotoDownloadUrl({
   user,
 }: {
   body: PostPhotoDownloadUrlInput;
-  user: JWTPayload;
+  user: AuthUser;
 }) {
   const photo = await findPhotoById(body);
   if (!photo) {

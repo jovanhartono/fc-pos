@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
 import { sign } from "hono/jwt";
-import type { JWTPayload } from "@/types";
+import type { AuthUser, JWTPayload } from "@/types";
 
 type AuthStateRow = Pick<JWTPayload, "role" | "can_process_pickup"> & {
   is_active: boolean;
+  userStores: { store_id: number }[];
 };
 
 const executeMock = mock(
@@ -29,7 +30,7 @@ const secret = process.env.JWT_SECRET;
 
 const { adminMiddleware } = await import("@/middlewares/admin");
 
-const app = new Hono<{ Variables: { jwtPayload: JWTPayload } }>();
+const app = new Hono<{ Variables: { jwtPayload: AuthUser } }>();
 app.use("/admin/*", adminMiddleware);
 app.get("/admin/me", (c) => c.json(c.get("jwtPayload")));
 
@@ -93,6 +94,7 @@ describe("adminMiddleware — DB auth-state refresh", () => {
       role: "cashier",
       is_active: false,
       can_process_pickup: false,
+      userStores: [],
     });
     const res = await getMe(await signToken());
     expect(res.status).toBe(401);
@@ -103,6 +105,7 @@ describe("adminMiddleware — DB auth-state refresh", () => {
       role: "cashier",
       is_active: true,
       can_process_pickup: false,
+      userStores: [],
     });
     const res = await getMe(await signToken({ id: 42 }));
     expect(res.status).toBe(200);
@@ -114,6 +117,7 @@ describe("adminMiddleware — DB auth-state refresh", () => {
       role: "worker",
       is_active: true,
       can_process_pickup: true,
+      userStores: [],
     });
     const res = await getMe(
       await signToken({ role: "admin", can_process_pickup: false })
@@ -124,11 +128,24 @@ describe("adminMiddleware — DB auth-state refresh", () => {
     expect(payload.can_process_pickup).toBe(true);
   });
 
+  it("carries the Stores read in the same lookup", async () => {
+    executeMock.mockResolvedValue({
+      role: "cashier",
+      is_active: true,
+      can_process_pickup: false,
+      userStores: [{ store_id: 1 }, { store_id: 2 }],
+    });
+    const res = await getMe(await signToken());
+    const payload = (await res.json()) as AuthUser;
+    expect(payload.store_ids).toEqual([1, 2]);
+  });
+
   it("preserves identity fields from the token", async () => {
     executeMock.mockResolvedValue({
       role: "cashier",
       is_active: true,
       can_process_pickup: false,
+      userStores: [],
     });
     const res = await getMe(
       await signToken({ id: 7, name: "Asep", username: "asep" })
