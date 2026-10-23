@@ -8,6 +8,7 @@ import {
 	use,
 	useCallback,
 	useEffect,
+	useId,
 	useMemo,
 	useState,
 } from "react";
@@ -235,29 +236,28 @@ export const OrderPickupEventDialog = ({
 
 const PickupCodeField = memo(() => {
 	const { pickupCode, setPickupCode } = usePickupCode();
+	const codeId = useId();
 
 	return (
 		<div className="space-y-2">
-			<p className="text-body font-medium">
+			<label htmlFor={codeId} className="block text-body font-medium">
 				Pickup code{" "}
 				<span className="text-muted-foreground">(6 digits, from customer)</span>
-			</p>
+			</label>
 			<InputOTP
-				maxLength={6}
+				id={codeId}
+				length={6}
 				value={pickupCode}
-				onChange={setPickupCode}
-				autoComplete="one-time-code"
-				inputMode="numeric"
-				pattern="[0-9]*"
-				containerClassName="justify-start"
+				onValueChange={setPickupCode}
 			>
 				<InputOTPGroup>
-					<InputOTPSlot index={0} className="size-11 text-headline" />
-					<InputOTPSlot index={1} className="size-11 text-headline" />
-					<InputOTPSlot index={2} className="size-11 text-headline" />
-					<InputOTPSlot index={3} className="size-11 text-headline" />
-					<InputOTPSlot index={4} className="size-11 text-headline" />
-					<InputOTPSlot index={5} className="size-11 text-headline" />
+					{Array.from({ length: 6 }, (_, index) => (
+						<InputOTPSlot
+							key={index}
+							aria-label={index === 0 ? undefined : `Digit ${index + 1} of 6`}
+							className="size-11 text-headline"
+						/>
+					))}
 				</InputOTPGroup>
 			</InputOTP>
 		</div>
