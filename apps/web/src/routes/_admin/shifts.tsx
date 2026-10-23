@@ -111,21 +111,25 @@ const ShiftsPage = () => {
 		placeholderData: keepPreviousData,
 	});
 
-	const groups = useMemo(
-		() =>
-			overview.data
-				? buildStoreGroups(
-						overview.data,
-						storesQuery.data ?? [],
-						search.store_id,
-					).map((group) => ({
-						...group,
-						// The admin checks who worked, not the whole roster of the Store.
-						rows: group.rows.filter((row) => row.days > 0),
-					}))
-				: [],
-		[overview.data, storesQuery.data, search.store_id],
-	);
+	const groups = useMemo(() => {
+		if (!overview.data) {
+			return [];
+		}
+		const withWorkers = buildStoreGroups(
+			overview.data,
+			storesQuery.data ?? [],
+			search.store_id,
+		).map((group) => ({
+			...group,
+			// The admin checks who worked, not the whole roster of the Store.
+			rows: group.rows.filter((row) => row.days > 0),
+		}));
+		// Stores where someone worked come first; the empty ones sink to the end.
+		return [
+			...withWorkers.filter((group) => group.rows.length > 0),
+			...withWorkers.filter((group) => group.rows.length === 0),
+		];
+	}, [overview.data, storesQuery.data, search.store_id]);
 
 	// The last complete view stays up while the next day or range loads, so
 	// stepping through days swaps numbers instead of flashing placeholders.

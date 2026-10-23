@@ -5,6 +5,7 @@ import {
 	DayTip,
 	dayLabel,
 } from "@/features/shifts/components/day-tip";
+import { NoShifts } from "@/features/shifts/components/no-shifts";
 import {
 	DayMarkCell,
 	type MarkSize,
@@ -51,14 +52,10 @@ export const ShiftsRangeView = ({
 			<ShiftsLegend />
 			<div className="grid gap-5">
 				{groups.map((group) => (
-					<Section
-						key={group.store.id}
-						title={group.store.name}
-						count={pluralize(group.days, "day")}
-					>
+					<Section key={group.store.id} title={group.store.name}>
 						<div className="overflow-hidden rounded-lg border bg-card">
 							{group.rows.length === 0 ? (
-								<p className="px-3 py-2.5 text-body">No shifts.</p>
+								<NoShifts />
 							) : isPhone ? (
 								group.rows.map((row) => (
 									<PersonCard

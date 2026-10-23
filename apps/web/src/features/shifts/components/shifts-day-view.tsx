@@ -1,6 +1,7 @@
 import { Section } from "@/components/section";
 import type { Shift } from "@/features/shifts/api";
 import { EditShiftButton } from "@/features/shifts/components/edit-shift-button";
+import { NoShifts } from "@/features/shifts/components/no-shifts";
 import { clockRange, shiftMinutes } from "@/features/shifts/lib/shift-times";
 import {
 	type PersonRow,
@@ -23,7 +24,7 @@ export const ShiftsDayView = ({ groups, shifts }: ShiftsDayViewProps) => {
 				<Section key={group.store.id} title={group.store.name}>
 					<div className="overflow-hidden rounded-lg border bg-card">
 						{group.rows.length === 0 ? (
-							<p className="px-3 py-2.5 text-body">No shifts.</p>
+							<NoShifts />
 						) : (
 							sortByStatus(group.rows).map((row) => (
 								<DayRow

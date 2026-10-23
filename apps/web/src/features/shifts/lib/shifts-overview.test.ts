@@ -121,7 +121,6 @@ describe("buildStoreGroups", () => {
 		const groups = buildStoreGroups(overview, [KEMANG, BSD], 1);
 
 		expect(groups.map((group) => group.store.id)).toEqual([1]);
-		expect(groups[0].days).toBe(3);
 		expect(groups[0].rows[1].elsewhere[0].days).toBe(2);
 	});
 

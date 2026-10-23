@@ -136,7 +136,6 @@ export interface PersonRow {
 export interface StoreGroup {
 	store: ShiftStore;
 	rows: PersonRow[];
-	days: number;
 }
 
 const toMark = (day: ShiftDay): DayMark => ({
@@ -219,11 +218,7 @@ export const buildStoreGroups = (
 			.map((person) =>
 				buildRow(person, store.id, daysByPerson.get(person.id) ?? [], stores),
 			);
-		return {
-			store,
-			rows,
-			days: rows.reduce((sum, row) => sum + row.days, 0),
-		};
+		return { store, rows };
 	});
 };
 
