@@ -4,7 +4,7 @@ import { BadRequestException, ForbiddenException } from "@/http-exceptions";
 import type { PatchOrderServiceStatusInput } from "@/modules/orders/order-admin.schema";
 import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 
 // A worker scans an Item's tag to claim it. An Item a colleague is handling
 // can't be grabbed (two Handlers is how Items get lost), and picked up,
@@ -114,8 +114,8 @@ const {
 } = await import("@/modules/orders/order-queue.service");
 
 // Sari, the cleaner holding the scanner.
-const WORKER = { id: 9, role: "worker" } as unknown as JWTPayload;
-const ADMIN = { id: 1, role: "admin" } as unknown as JWTPayload;
+const WORKER = { id: 9, role: "worker" } as unknown as AuthUser;
+const ADMIN = { id: 1, role: "admin" } as unknown as AuthUser;
 
 const makeLockedRow = (over: AnyObj = {}) => ({
   id: 501,

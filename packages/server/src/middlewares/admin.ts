@@ -10,11 +10,13 @@ const findUserAuthStatePrepared = db.query.usersTable
   .findFirst({
     where: { id: { eq: sql.placeholder("id") } },
     columns: { role: true, is_active: true, can_process_pickup: true },
+    with: { userStores: { columns: { store_id: true } } },
   })
   .prepare("find_user_auth_state");
 
-// The JWT proves identity only. Role and pickup rights are re-read every request
-// so a deactivated or demoted User loses access at once, not at expiry (ADR-0006).
+// The JWT proves identity only. Role, pickup rights and Stores are re-read every
+// request so a deactivated or demoted User loses access at once, not at expiry
+// (ADR-0006).
 const refreshAuthState = createMiddleware<AdminEnv>(async (c, next) => {
   const payload = c.get("jwtPayload");
 
@@ -30,6 +32,7 @@ const refreshAuthState = createMiddleware<AdminEnv>(async (c, next) => {
     ...payload,
     role: user.role,
     can_process_pickup: user.can_process_pickup,
+    store_ids: user.userStores.map((row) => row.store_id),
   });
 
   await next();

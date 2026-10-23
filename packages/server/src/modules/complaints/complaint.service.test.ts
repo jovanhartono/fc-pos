@@ -3,7 +3,7 @@ import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { normalizeComplaintListQuery } from "@/modules/complaints/complaint.schema";
 import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 
 type AnyObj = Record<string, unknown>;
 
@@ -102,7 +102,7 @@ const { addRework, openComplaint } = await import(
   "@/modules/complaints/complaint.service"
 );
 
-const USER = { id: 42, role: "cashier" } as unknown as JWTPayload;
+const USER = { id: 42, role: "cashier" } as unknown as AuthUser;
 
 // The pair of Nikes on the shelf is Item 21; its tag lives there (ADR-0017).
 const makeSubject = (over: AnyObj = {}) => ({

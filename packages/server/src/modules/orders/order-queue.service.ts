@@ -41,7 +41,7 @@ import {
 } from "@/modules/orders/order-status-machine";
 import { assertCanReassignHandler } from "@/modules/permissions/permissions";
 import { toStoredPhonePrefix } from "@/schema/phone";
-import type { JWTPayload } from "@/types";
+import type { AuthUser, JWTPayload } from "@/types";
 import type { OrderService } from "@/types/entity";
 import { resolveStoreScope, unhandledStoreScope } from "@/utils/authorization";
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
@@ -113,7 +113,7 @@ export function getOrderServiceById(serviceId: number) {
 }
 
 export async function getMyOrderServices(
-  user: JWTPayload,
+  user: AuthUser,
   query: GetMyOrderServicesQuery
 ) {
   const conditions = [eq(ordersServicesTable.handler_id, user.id)];
@@ -199,7 +199,7 @@ function queueCategoryCondition(
 }
 
 // Null means "no Store assigned": an empty Queue, not every Store's.
-async function resolveQueueStoreCondition(user: JWTPayload, storeId?: number) {
+async function resolveQueueStoreCondition(user: AuthUser, storeId?: number) {
   const scope = await resolveStoreScope(user, storeId);
 
   switch (scope.kind) {
@@ -217,7 +217,7 @@ async function resolveQueueStoreCondition(user: JWTPayload, storeId?: number) {
 }
 
 export async function getOrderServiceQueue(
-  user: JWTPayload,
+  user: AuthUser,
   query?: GetOrderServiceQueueQuery
 ) {
   const normalized = normalizeOrderServiceQueueQuery(query);
@@ -426,7 +426,7 @@ export async function getOrderServiceQueue(
 // Store and Category only: the date range would just count what is already on
 // screen, while the Category is the Queue the worker is standing at.
 export async function getOrderServiceQueueCounts(
-  user: JWTPayload,
+  user: AuthUser,
   query?: GetOrderServiceQueueCountsQuery
 ) {
   const storeCondition = await resolveQueueStoreCondition(

@@ -1,43 +1,19 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { ForbiddenException, NotFoundException } from "@/http-exceptions";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 
-const getUserStoreIdsPrepared = db.query.userStoresTable
-  .findMany({
-    where: { user_id: { eq: sql.placeholder("user_id") } },
-    columns: { store_id: true },
-  })
-  .prepare("get_user_store_ids");
-
-export async function getUserStoreIds(userId: number): Promise<number[]> {
-  const rows = await getUserStoreIdsPrepared.execute({ user_id: userId });
-  return rows.map((row) => row.store_id);
-}
-
-const findUserStoreAccessPrepared = db.query.userStoresTable
-  .findFirst({
-    where: {
-      user_id: { eq: sql.placeholder("user_id") },
-      store_id: { eq: sql.placeholder("store_id") },
-    },
-    columns: { id: true },
-  })
-  .prepare("find_user_store_access");
-
-export async function assertStoreAccess(user: JWTPayload, storeId: number) {
-  if (user.role === "admin") {
-    return;
+export function assertStoreAccess(
+  user: AuthUser,
+  storeId: number
+): Promise<void> {
+  if (user.role !== "admin" && !user.store_ids.includes(storeId)) {
+    return Promise.reject(
+      new ForbiddenException("You do not have access to this store")
+    );
   }
 
-  const access = await findUserStoreAccessPrepared.execute({
-    user_id: user.id,
-    store_id: storeId,
-  });
-
-  if (!access) {
-    throw new ForbiddenException("You do not have access to this store");
-  }
+  return Promise.resolve();
 }
 
 interface AllStoresScope {
@@ -68,7 +44,7 @@ export type StoreScope =
 // none: staff see their own Stores, an admin sees all, and a new hire with no
 // Store yet sees nothing.
 export async function resolveStoreScope(
-  user: JWTPayload,
+  user: AuthUser,
   storeId?: number
 ): Promise<StoreScope> {
   if (storeId !== undefined) {
@@ -80,9 +56,9 @@ export async function resolveStoreScope(
     return { kind: "all" };
   }
 
-  const storeIds = await getUserStoreIds(user.id);
-
-  return storeIds.length === 0 ? { kind: "none" } : { kind: "some", storeIds };
+  return user.store_ids.length === 0
+    ? { kind: "none" }
+    : { kind: "some", storeIds: user.store_ids };
 }
 
 // A scope no screen handled has to stop the request. Falling through would run
@@ -99,7 +75,7 @@ const findOrderForAccessPrepared = db.query.ordersTable
   })
   .prepare("find_order_for_access");
 
-export async function assertOrderAccess(user: JWTPayload, orderId: number) {
+export async function assertOrderAccess(user: AuthUser, orderId: number) {
   const order = await findOrderForAccessPrepared.execute({ id: orderId });
 
   if (!order) {

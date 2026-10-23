@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
 import { ForbiddenException } from "@/http-exceptions";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 import { errorHandler } from "@/utils/error-handler";
 
 // Every report service and the store gate are both replaced below, so nothing
@@ -16,7 +16,7 @@ const gateCalls: { storeId: number; userId: number }[] = [];
 // Stands in for the store gate refusing, which the real one never does to an
 // admin. Who gets refused is pinned in utils/authorization.test.ts.
 mock.module("@/utils/authorization", () => ({
-  assertStoreAccess: (user: JWTPayload, storeId: number) => {
+  assertStoreAccess: (user: AuthUser, storeId: number) => {
     gateCalls.push({ storeId, userId: user.id });
 
     if (storeId !== KEMANG) {
@@ -72,15 +72,16 @@ mock.module("@/modules/reports/quality.service", () => ({
 
 const reportsRoutes = (await import("@/routes/admin/reports")).default;
 
-const owner: JWTPayload = {
+const owner: AuthUser = {
   id: 11,
   name: "Bu Sri",
   username: "sri",
   role: "admin",
   can_process_pickup: false,
+  store_ids: [],
 };
 
-const app = new Hono<{ Variables: { jwtPayload: JWTPayload } }>()
+const app = new Hono<{ Variables: { jwtPayload: AuthUser } }>()
   .use("*", async (c, next) => {
     c.set("jwtPayload", owner);
     await next();

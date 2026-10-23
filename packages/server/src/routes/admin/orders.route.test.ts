@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
 import { ForbiddenException, NotFoundException } from "@/http-exceptions";
 import { authorizationDouble } from "@/test-support/authorization-double";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 import { errorHandler } from "@/utils/error-handler";
 
 // Every module the orders routes reach on import prepares a statement against
@@ -42,7 +42,7 @@ mock.module("@/utils/authorization", () => ({
   ...authorizationDouble({ storeIds: [KEMANG] }),
   // The real thing answers "missing" before "not yours", and the routes depend on
   // that order — so the double has to keep it.
-  assertOrderAccess: (user: JWTPayload, orderId: number) => {
+  assertOrderAccess: (user: AuthUser, orderId: number) => {
     orderAccessCalls.push({ userId: user.id, orderId });
 
     const storeId = ORDER_STORE[orderId];
@@ -122,15 +122,16 @@ const ordersRoutes = (await import("@/routes/admin/orders")).default;
 
 // Asep works the Kemang counter. In production adminMiddleware puts him on the
 // context; here that one step stands in for the whole JWT layer.
-const asep: JWTPayload = {
+const asep: AuthUser = {
   id: 7,
   name: "Asep",
   username: "asep",
   role: "cashier",
   can_process_pickup: false,
+  store_ids: [KEMANG],
 };
 
-const app = new Hono<{ Variables: { jwtPayload: JWTPayload } }>()
+const app = new Hono<{ Variables: { jwtPayload: AuthUser } }>()
   .use("*", async (c, next) => {
     c.set("jwtPayload", asep);
     await next();

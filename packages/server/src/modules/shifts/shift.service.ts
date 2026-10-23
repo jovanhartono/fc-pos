@@ -28,7 +28,7 @@ import {
 } from "@/modules/shifts/shift.schema";
 import { findStoreById } from "@/modules/stores/store.repository";
 import { findUserDetailById } from "@/modules/users/user.repository";
-import type { JWTPayload } from "@/types";
+import type { AuthUser, JWTPayload } from "@/types";
 import { assertStoreAccess } from "@/utils/authorization";
 import { JAKARTA_TZ, jakartaDayStart, jakartaNow } from "@/utils/date";
 import { distanceKm } from "@/utils/geo";
@@ -74,7 +74,7 @@ export async function clockIn({
   storeId,
   coordinates,
 }: {
-  user: JWTPayload;
+  user: AuthUser;
   storeId: number;
   coordinates?: ClockInCoordinates;
 }) {

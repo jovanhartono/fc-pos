@@ -9,19 +9,23 @@ import {
   usersTable,
 } from "@/db/schema";
 import { testDb } from "@/test-support/pglite";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 
-const toPayload = (user: {
-  can_process_pickup: boolean;
-  id: number;
-  name: string;
-  role: "admin" | "cashier" | "worker" | "courier";
-  username: string;
-}): JWTPayload => ({
+const toPayload = (
+  user: {
+    can_process_pickup: boolean;
+    id: number;
+    name: string;
+    role: "admin" | "cashier" | "worker" | "courier";
+    username: string;
+  },
+  storeIds: number[]
+): AuthUser => ({
   can_process_pickup: user.can_process_pickup,
   id: user.id,
   name: user.name,
   role: user.role,
+  store_ids: storeIds,
   username: user.username,
 });
 
@@ -111,8 +115,8 @@ export async function seedShop() {
     .returning();
 
   return {
-    admin: toPayload(admin),
-    cashier: toPayload(cashier),
+    admin: toPayload(admin, [store.id]),
+    cashier: toPayload(cashier, [store.id]),
     paymentMethodId: paymentMethod.id,
     productId: product.id,
     repairServiceId: repair.id,

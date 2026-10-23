@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 import { errorHandler } from "@/utils/error-handler";
 
 // Budi is the worker who forgot his password and walked over to the office.
@@ -26,24 +26,26 @@ mock.module("@/modules/users/user.service", () => ({
 
 const userRoutes = (await import("@/routes/admin/users")).default;
 
-const buAdmin: JWTPayload = {
+const buAdmin: AuthUser = {
   id: 8,
   name: "Bu Admin",
   username: "admin",
   role: "admin",
   can_process_pickup: false,
+  store_ids: [],
 };
 
-const asep: JWTPayload = {
+const asep: AuthUser = {
   id: 7,
   name: "Asep",
   username: "asep",
   role: "cashier",
   can_process_pickup: false,
+  store_ids: [1],
 };
 
-const appFor = (user: JWTPayload) => {
-  const app = new Hono<{ Variables: { jwtPayload: JWTPayload } }>()
+const appFor = (user: AuthUser) => {
+  const app = new Hono<{ Variables: { jwtPayload: AuthUser } }>()
     .use("*", async (c, next) => {
       c.set("jwtPayload", user);
       await next();
@@ -54,7 +56,7 @@ const appFor = (user: JWTPayload) => {
   return app;
 };
 
-const resetPassword = (user: JWTPayload, id: number, body: unknown) =>
+const resetPassword = (user: AuthUser, id: number, body: unknown) =>
   appFor(user).request(`/users/${id}/password`, {
     method: "PUT",
     headers: { "content-type": "application/json" },

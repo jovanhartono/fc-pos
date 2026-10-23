@@ -13,7 +13,7 @@ import {
 import { s3 } from "bun";
 import type { StoredPhoto } from "@/modules/orders/order-photo.repository";
 import { authorizationDouble } from "@/test-support/authorization-double";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 
 let filed = new Map<string, StoredPhoto>();
 const assertCalls: { storeId: number; userId: number }[] = [];
@@ -31,7 +31,7 @@ const { createPhotoDownloadUrl } = await import(
   "@/modules/orders/order-photo.service"
 );
 
-const cashier = { id: 7, role: "cashier" } as JWTPayload;
+const cashier = { id: 7, role: "cashier" } as AuthUser;
 const ORDER_CODE = "#JKT/20260907/12";
 const KEY = "prod/orders/1042/items/88/3f9a";
 const SEED_KEY = "seed/orders/jkt_20260907_12/dropoff/handover.jpg";

@@ -20,7 +20,7 @@ import { PATCHShiftSchema } from "@/modules/shifts/shift.schema";
 import { captureRejection } from "@/test-support/capture-rejection";
 import { type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 
 // A Forgotten clock-out at Kemang. Overtime is paid from Shift hours, so a
 // forgotten one gets a normal ten-hour day, capped at midnight, until an admin
@@ -64,8 +64,9 @@ const reload = async (id: number) => {
   return shift;
 };
 
-const asUser = (id: number, role: JWTPayload["role"] = "cashier") =>
-  ({ id, role }) as JWTPayload;
+// seedShop rosters both the cashier and the admin at Kemang.
+const asUser = (id: number, role: AuthUser["role"] = "cashier") =>
+  ({ id, role, store_ids: [shop.store.id] }) as AuthUser;
 
 const AT_KEMANG = { accuracy_m: 10, latitude: -6.26, longitude: 106.81 };
 

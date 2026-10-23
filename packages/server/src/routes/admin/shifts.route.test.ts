@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 import { errorHandler } from "@/utils/error-handler";
 
 mock.module("@/db", () => ({ db: {} }));
@@ -13,7 +13,7 @@ mock.module("@/modules/shifts/shift.service", () => ({
   createShift: () => Promise.resolve(null),
   getCurrentShift: () => Promise.resolve(null),
   getShifts: () => Promise.resolve({ items: [], meta: {} }),
-  getShiftsOverview: (_user: JWTPayload, query: unknown) => {
+  getShiftsOverview: (_user: AuthUser, query: unknown) => {
     asked.push(query);
     return Promise.resolve({ days: [], people: [] });
   },
@@ -22,16 +22,17 @@ mock.module("@/modules/shifts/shift.service", () => ({
 
 const shiftRoutes = (await import("@/routes/admin/shifts")).default;
 
-const buAdmin: JWTPayload = {
+const buAdmin: AuthUser = {
   can_process_pickup: false,
   id: 8,
   name: "Bu Admin",
   role: "admin",
+  store_ids: [],
   username: "admin",
 };
 
 const overview = (query: string) => {
-  const app = new Hono<{ Variables: { jwtPayload: JWTPayload } }>()
+  const app = new Hono<{ Variables: { jwtPayload: AuthUser } }>()
     .use("*", async (c, next) => {
       c.set("jwtPayload", buAdmin);
       await next();

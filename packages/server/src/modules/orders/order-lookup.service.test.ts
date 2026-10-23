@@ -1,13 +1,13 @@
 import { describe, expect, it, mock } from "bun:test";
 import { ForbiddenException, NotFoundException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 
 const KEMANG = 1;
 const BINTARO = 2;
 
 mock.module("@/utils/authorization", () => ({
-  assertStoreAccess: (user: JWTPayload, storeId: number) => {
+  assertStoreAccess: (user: AuthUser, storeId: number) => {
     if (user.role !== "admin" && storeId !== KEMANG) {
       throw new ForbiddenException("You do not have access to this store");
     }
@@ -62,12 +62,13 @@ const { resolveOrderLookup } = await import(
   "@/modules/orders/order-lookup.service"
 );
 
-const asep: JWTPayload = {
+const asep: AuthUser = {
   id: 7,
   name: "Asep",
   username: "asep",
   role: "cashier",
   can_process_pickup: false,
+  store_ids: [KEMANG],
 };
 
 describe("resolveOrderLookup", () => {

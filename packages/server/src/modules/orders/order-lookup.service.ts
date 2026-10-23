@@ -5,7 +5,7 @@ import {
 } from "@/modules/orders/order-queue.service";
 import { findOrderForLookup } from "@/modules/orders/order-read.repository";
 import { isNumericSearch } from "@/modules/orders/order-search";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 import { assertStoreAccess } from "@/utils/authorization";
 
 interface OrderLookupResult {
@@ -16,7 +16,7 @@ interface OrderLookupResult {
 }
 
 export async function resolveOrderLookup(
-  user: JWTPayload,
+  user: AuthUser,
   q: string
 ): Promise<OrderLookupResult> {
   const query = q.trim();

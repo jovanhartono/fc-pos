@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 import type { AdminEnv } from "@/types/hono";
 import { errorHandler } from "@/utils/error-handler";
 
@@ -38,20 +38,22 @@ const categoriesRoutes = (await import("@/routes/admin/categories")).default;
 const paymentMethodsRoutes = (await import("@/routes/admin/payment-methods"))
   .default;
 
-const cashier: JWTPayload = {
+const cashier: AuthUser = {
   id: 1,
   name: "Asep",
   username: "asep",
   role: "cashier",
   can_process_pickup: false,
+  store_ids: [1],
 };
 
-const admin: JWTPayload = {
+const admin: AuthUser = {
   id: 2,
   name: "Bu Admin",
   username: "admin",
   role: "admin",
   can_process_pickup: false,
+  store_ids: [],
 };
 
 // Every catalog table (Service, Product, Category, Payment method) is edited
@@ -96,8 +98,8 @@ const CATALOG_ROUTERS = [
   },
 ];
 
-const appFor = (routes: Hono<AdminEnv>, user: JWTPayload) => {
-  const app = new Hono<{ Variables: { jwtPayload: JWTPayload } }>()
+const appFor = (routes: Hono<AdminEnv>, user: AuthUser) => {
+  const app = new Hono<{ Variables: { jwtPayload: AuthUser } }>()
     .use("*", async (c, next) => {
       c.set("jwtPayload", user);
       await next();
@@ -108,21 +110,21 @@ const appFor = (routes: Hono<AdminEnv>, user: JWTPayload) => {
   return app;
 };
 
-const postJson = (routes: Hono<AdminEnv>, user: JWTPayload, body: unknown) =>
+const postJson = (routes: Hono<AdminEnv>, user: AuthUser, body: unknown) =>
   appFor(routes, user).request("/catalog", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
 
-const putJson = (routes: Hono<AdminEnv>, user: JWTPayload, body: unknown) =>
+const putJson = (routes: Hono<AdminEnv>, user: AuthUser, body: unknown) =>
   appFor(routes, user).request("/catalog/1", {
     method: "PUT",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
 
-const getList = (routes: Hono<AdminEnv>, user: JWTPayload) =>
+const getList = (routes: Hono<AdminEnv>, user: AuthUser) =>
   appFor(routes, user).request("/catalog");
 
 describe.each(CATALOG_ROUTERS)(

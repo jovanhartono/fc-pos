@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
 import { ForbiddenException } from "@/http-exceptions";
-import type { JWTPayload } from "@/types";
+import type { AuthUser } from "@/types";
 import { errorHandler } from "@/utils/error-handler";
 
 // Asep works at the Kemang store. Bintaro is the store across town whose
@@ -10,7 +10,7 @@ const KEMANG = 1;
 const BINTARO = 2;
 
 mock.module("@/utils/authorization", () => ({
-  assertStoreAccess: (user: JWTPayload, storeId: number) => {
+  assertStoreAccess: (user: AuthUser, storeId: number) => {
     if (user.role !== "admin" && storeId !== KEMANG) {
       throw new ForbiddenException("You do not have access to this store");
     }
@@ -40,24 +40,26 @@ mock.module("@/modules/stores/store.service", () => ({
 
 const storeRoutes = (await import("@/routes/admin/stores")).default;
 
-const asep: JWTPayload = {
+const asep: AuthUser = {
   id: 7,
   name: "Asep",
   username: "asep",
   role: "cashier",
   can_process_pickup: false,
+  store_ids: [KEMANG],
 };
 
-const buAdmin: JWTPayload = {
+const buAdmin: AuthUser = {
   id: 8,
   name: "Bu Admin",
   username: "admin",
   role: "admin",
   can_process_pickup: false,
+  store_ids: [],
 };
 
-const appFor = (user: JWTPayload) => {
-  const app = new Hono<{ Variables: { jwtPayload: JWTPayload } }>()
+const appFor = (user: AuthUser) => {
+  const app = new Hono<{ Variables: { jwtPayload: AuthUser } }>()
     .use("*", async (c, next) => {
       c.set("jwtPayload", user);
       await next();
@@ -146,21 +148,21 @@ const storeBody = {
   is_active: true,
 };
 
-const createStoreAs = (user: JWTPayload) =>
+const createStoreAs = (user: AuthUser) =>
   appFor(user).request("/stores", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(storeBody),
   });
 
-const editStoreAs = (user: JWTPayload) =>
+const editStoreAs = (user: AuthUser) =>
   appFor(user).request("/stores/10", {
     method: "PUT",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({}),
   });
 
-const setStoreStatusAs = (user: JWTPayload) =>
+const setStoreStatusAs = (user: AuthUser) =>
   appFor(user).request("/stores/10", {
     method: "PATCH",
     headers: { "content-type": "application/json" },
