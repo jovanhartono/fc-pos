@@ -1,15 +1,12 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { eq, sql } from "drizzle-orm";
+import { EmptyFilter, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { paymentMethodsTable } from "@/db/schema";
 
 export function listPaymentMethods(where?: { is_active?: boolean }) {
   return db.query.paymentMethodsTable.findMany({
     orderBy: { id: "asc" },
-    where:
-      where?.is_active === undefined
-        ? undefined
-        : { is_active: where.is_active },
+    where: { is_active: where?.is_active ?? EmptyFilter },
   });
 }
 

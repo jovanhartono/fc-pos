@@ -1,4 +1,4 @@
-import { and, eq, isNull, or, sql } from "drizzle-orm";
+import { and, EmptyFilter, eq, isNull, or, sql } from "drizzle-orm";
 import { type DbExecutor, db } from "@/db";
 import {
   campaignCodesTable,
@@ -87,16 +87,15 @@ export async function mintCampaignCodes(
 export function listCampaigns(filters: CampaignFilters) {
   return db.query.campaignsTable.findMany({
     where: {
-      is_active: filters.is_active,
-      redemption_mode: filters.redemption_mode,
-      ...(filters.store_id === undefined
-        ? {}
-        : {
-            OR: [
+      is_active: filters.is_active ?? EmptyFilter,
+      redemption_mode: filters.redemption_mode ?? EmptyFilter,
+      OR:
+        filters.store_id === undefined
+          ? EmptyFilter
+          : [
               { stores: { store_id: filters.store_id } },
               { NOT: { stores: true } },
             ],
-          }),
     },
     orderBy: { id: "asc" },
     with: {

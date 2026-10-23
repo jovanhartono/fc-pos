@@ -1,5 +1,5 @@
 import type { InferInsertModel, SQL } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import { EmptyFilter, sql } from "drizzle-orm";
 import { type DbExecutor, db } from "@/db";
 import {
   itemsTable,
@@ -214,7 +214,7 @@ function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
   }
 
   if (conditions.length === 0) {
-    return;
+    return EmptyFilter;
   }
   if (conditions.length === 1) {
     return conditions[0];
