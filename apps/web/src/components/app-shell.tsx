@@ -185,7 +185,8 @@ const HeaderBackButton = ({ to }: { to: LinkProps["to"] }) => {
 };
 
 function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
-	const { setOpenMobile } = useSidebar();
+	const { openMobile, closeMobileThen } = useSidebar();
+	const navigate = useNavigate();
 
 	return (
 		<SidebarMenu>
@@ -196,7 +197,15 @@ function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
 							<Link
 								to={item.to}
 								className="text-foreground"
-								onClick={() => setOpenMobile(false)}
+								onClick={(event) => {
+									if (!openMobile) {
+										return;
+									}
+									// Safari keeps a picture of each page for swipe back; leaving
+									// while More was still closing kept the sheet in that picture.
+									event.preventDefault();
+									closeMobileThen(() => navigate({ to: item.to }));
+								}}
 								activeProps={{
 									"data-active": "true",
 									className: "text-foreground",
