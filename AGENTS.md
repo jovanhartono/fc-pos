@@ -14,7 +14,12 @@ See `GLOSSARY.md` for the domain vocabulary — **Item**, **Order**, **OrderServ
 bun run dev          # turbo dev — server (hot reload + tsdown --watch) and web (vite)
 bun run test         # turbo test — bun test in each package
 bun run type-check   # turbo type-check — web runs generate-routes first
+bun x ultracite check
 ```
+
+A change is done when the last three pass from the repo root. The pre-commit hook only runs `ultracite fix` on staged files.
+
+**Dependency pins:** `bun update --latest` downgrades packages on an `rc` dist-tag. drizzle-orm/drizzle-kit stay pinned at `1.0.0-rc.5` and Biome at `2.5.15` (root `catalog`); bump them by hand, on purpose.
 
 ## Environment Variables
 
@@ -23,8 +28,8 @@ The server reads from `process.env`:
 - `STORAGE_PREFIX` - `dev/` or `prod/`, set per Vercel environment alongside `DATABASE_URL`
 - `JWT_SECRET` - Secret key for JWT authentication
 - `CDN_BASE_URL` - Public base for stored photo keys
-- `CRON_SECRET` - Shared secret for `/api/internal/*`. Vercel sends it as `Authorization: Bearer …` on cron invocations. Unset means those endpoints answer 401 to everyone.
-- `SENTRY_DSN` - Optional. Unset means `reportError` is a no-op; set it to send 5xx errors to Sentry's envelope endpoint.
+- `CRON_SECRET` - Bearer secret Vercel cron sends to `/api/internal/*`; unset answers 401 to everyone
+- `SENTRY_DSN` - Optional; unset turns error reporting off
 
 Laptop-only, for the drizzle CLI: `DATABASE_URL_DEV` / `DATABASE_URL_PROD`.
 
@@ -34,7 +39,7 @@ Both services run in Singapore — `ap-southeast-1`, Vercel region `sin1` — as
 
 Dev and production share that bucket, so every key is namespaced by the environment that wrote it: `dev/orders/…` or `prod/orders/…`, from `STORAGE_ENV_PREFIX` in `src/utils/s3.ts`. It reads `STORAGE_PREFIX`, set per Vercel environment alongside `DATABASE_URL` — the two must agree, or the photo sweep judges one environment's bucket against the other's database. Seed data has its own `seed/` prefix and is outside both.
 
-The API's region is pinned by the top-level `"regions": ["sin1"]` in `vercel.json`, matching the project setting; `services.*` takes no `regions` key of its own. A project without it falls back to `iad1`. Keeping it beside Neon is what makes an order commit a same-region round trip rather than a cross-region one.
+The API's region is pinned by the top-level `"regions": ["sin1"]` in `vercel.json` (`services.*` takes no `regions` key; without it Vercel falls back to `iad1`, a cross-region hop to Neon on every order).
 
 The API is a plain Bun function, not a Docker container: a container bills its memory until 5 quiet minutes pass, which at the counter's pace meant every open hour.
 
@@ -51,41 +56,26 @@ in-process limiter would reset with it — no in-process limiter is by design:
 
 `vercel.json` `crons` → HTTP GET to the production URL, routed through the `/api/(.*)` rewrite to the API. **Schedules are UTC only**, so a Jakarta time is written 7 hours earlier: `0 20 * * *` is 03:00 Jakarta.
 
-- `/api/internal/photo-sweep` — deletes order photos no order points at. The counter uploads a photo before the batch is confirmed, so an abandoned batch leaves the file behind with nothing filed against it. Compares its own environment's prefix to the database each run and ignores anything under 24h old. No per-run cap — a backlog clears in one pass. Delivery is best-effort: Vercel may skip or repeat a run, which is safe here. Needs `s3:ListBucket` on the bucket; the object-level rights the presign flow uses are not enough, and without it every run fails with AccessDenied.
-- `/api/internal/close-open-shifts` — closes yesterday's Auto-closed Shifts at 00:00 Jakarta (ADR-0025). Best-effort like the sweep: the next Clock in or Clock out closes one the same way, so a skipped run locks nobody out.
+Vercel may skip or repeat a run; both jobs are safe either way.
+
+- `/api/internal/photo-sweep` — deletes photos no order points at, left behind when the counter uploads and then abandons a batch. Checks only its own environment's prefix and skips files under 24h old. Needs `s3:ListBucket` on the bucket (the presign rights aren't enough), or every run fails with AccessDenied.
+- `/api/internal/close-open-shifts` — closes yesterday's Auto-closed Shifts at 00:00 Jakarta (ADR-0025). A skipped run locks nobody out: the next Clock in or Clock out closes it the same way.
 
 ## RPC / Type Sharing
 
 The server exports `AppType` from `src/index.ts`. The web app uses Hono's `hc<AppType>()` client for fully typed API calls.
 
-## Code Quality
+## Linting & Formatting
 
-### Linting & Formatting
+**Ultracite** (Biome preset): `bun x ultracite fix` / `check`. Always from the repo root — running from `apps/web` or `packages/server` mangles paths. Rules switched off in `biome.jsonc` carry their reason there; read it before turning one back on.
 
-Uses **Ultracite** (Biome preset):
+## Domain, Decisions, Scope (read first)
 
-```bash
-bun x ultracite fix      # Auto-fix formatting and lint issues
-bun x ultracite check    # Check without fixing
-```
-
-Always run from the repo root — running from `apps/web` or `packages/server` mangles paths.
-
-## Domain & Decisions (read first)
-
-- `GLOSSARY.md` — domain glossary: what each term means, and the words to avoid. Use these terms exactly.
-- `docs/adr/` — Architecture Decision Records. Hard-to-reverse choices with rationale, and the business rules behind the glossary's terms.
-
-## Scope Source of Truth
-
+- `GLOSSARY.md` — what each term means and the words to avoid. Use these terms exactly in code, copy, comments and PRs; don't coin synonyms.
+- `docs/adr/` — hard-to-reverse choices and the business rules behind the glossary's terms. Check for an ADR before changing a rule it covers.
 - `TODO.md` — the task list, plus the v1 deferred rows and what each one waits for.
 
-## Detailed Standards
-
-Loaded automatically when working under their own directory, not before:
-
-- `packages/server/AGENTS.md` — server/API standards
-- `apps/web/AGENTS.md` — web standards
+Package standards load when working under their directory: `packages/server/AGENTS.md`, `apps/web/AGENTS.md`.
 
 ## Agent skills
 

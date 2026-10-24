@@ -8,14 +8,14 @@
 - Domain logic in **modules** (`src/modules/<domain>/`): `*.schema.ts` → `*.repository.ts` → `*.service.ts`. Routes call services directly — no controller layer.
 - **Naming**: Repository functions use DB verbs (`insertX`, `findX`, `updateXById`, `listX`, `deleteXById`). Service functions use domain verbs (`createX`, `getX`, `updateX`, `deleteX`).
 - **Prepared statements**: Use Drizzle's `.prepare()` for hot-path queries (findById, auth lookups). See existing patterns in repositories and `utils/authorization.ts`.
-- **Relational query `where`**: For `db.query.*.findMany()` / `findFirst()`, use Drizzle v2 object-based `where` syntax inline — `{ is_active: true }`, `{ stores: { store_id: 1 } }`, `OR`/`AND`/`NOT` keys, `EmptyFilter` (from `drizzle-orm`) to omit optional filters. Since rc.5 an `undefined` anywhere in a relational `where` throws at runtime, and the types do not catch it. Do **not** build a separate function that returns raw SQL via `{ RAW: () => ... }` — it produces "invalid reference to FROM-clause entry" errors because raw SQL references the original table, not the alias Drizzle uses internally. Reserve raw `eq`/`and`/`sql` for `db.select()`, `db.$count()`, `db.update()`, `db.delete()` which don't alias.
+- **Relational query `where`**: For `db.query.*.findMany()` / `findFirst()`, use Drizzle v2 object-based `where` syntax inline — `{ is_active: true }`, `{ stores: { store_id: 1 } }`, `OR`/`AND`/`NOT` keys, `EmptyFilter` (from `drizzle-orm`) to omit optional filters — an `undefined` anywhere in a relational `where` throws at runtime and the types don't catch it. No `{ RAW: () => ... }` helpers: raw SQL names the base table, not Drizzle's alias, and fails with "invalid reference to FROM-clause entry". Raw `eq`/`and`/`sql` belong to `db.select()`, `db.$count()`, `db.update()`, `db.delete()`, which don't alias.
 - **Only the Order Status Machine writes status** (`modules/orders/order-status-machine.ts`): `orders.status` and `orders_services.status`, with the status-log row and the Order rollup. `picked_up` and `refunded` come only from `completePickup` and `applyRefundTransition`. A handler writing a status column itself skips the photo gate and the audit log.
 - **Refuse inactive rows on the server**, not only by hiding them in the POS.
 - Use `src/utils/http.ts` helpers (`success()`, `failure()`) for responses.
 - **Tests**: run them through `bun run test`, which passes `--isolate`. `*.integration.test.ts` files swap `@/db` (and sometimes `@/utils/s3`) for the whole module registry, so a bare `bun test <file>` drops the isolation and lets those mocks leak into every other file in the run.
 - Export types/schemas for web via package exports (`schema`, `rpc`, `types`) — no deep internal imports from `@fresclean/web`.
 - **Date query params**: `dateStringSchema()` requires `YYYY-MM-DD` — never send `.toISOString()`.
-- **Timezone**: all `dayjs()` calls that compute day/week/month boundaries or format date strings must use `.tz("Asia/Jakarta")`. Bootstrap `utc` + `timezone` plugins at server entry. Use `src/utils/date.ts` helpers (`jakartaNow`, `jakartaDayStart`, `jakartaDayEnd`) — do NOT inline `dayjs().startOf("day")`. Reports bucket days in SQL through `jakartaBucketExpr`; never write a bare `AT TIME ZONE 'Asia/Jakarta'` (columns hold UTC wall time); orders/repositories must match via dayjs TZ. Exempt: `modules/reports/report-range.util.ts` deliberately skips the dayjs helpers and computes bucket boundaries with fixed-offset arithmetic (WIB is UTC+7, no DST), so its JS bucket labels match Postgres' own `to_char(… AT TIME ZONE …)` bucketing exactly.
+- **Timezone** (ADR-0002): day/week/month boundaries and date strings use the `src/utils/date.ts` helpers (`jakartaNow`, `jakartaDayStart`, `jakartaDayEnd`), never a bare `dayjs().startOf("day")`. SQL buckets days through `jakartaBucketExpr`: columns hold UTC wall time, so a single `AT TIME ZONE 'Asia/Jakarta'` lands 14h off. `modules/reports/report-range.util.ts` uses fixed UTC+7 arithmetic on purpose so its labels match Postgres' buckets exactly.
 
 ## Database
 
@@ -93,11 +93,15 @@ filter expands to `SELECT <table>.*` off the schema file, so one unapplied
 column 500s the whole detail endpoint. Shipping code and applying migrations are
 one deploy, not two.
 
+`migrate:prod` writes to production: an agent asks Jovan before running it, or hands it over as a `! bun run migrate:prod` line.
+
 1. `bun run drift:prod` — read-only. Prints how prod differs from `schema.ts`.
    Expect exactly the change your pending migrations describe; anything else is
    drift to deal with as its own change.
-2. `bun run migrate:prod`. Applies every pending migration in order, in one
-   transaction.
+2. `bun run migrate:prod`, before the PR merges. Applies every pending
+   migration in order, in one transaction. Safe because prod still runs the
+   old code, so only additive changes go out this way: a rename or drop breaks
+   it until the merge deploys. Split those: add + backfill, ship, drop later.
 3. `bun run drift:prod` again — "No changes detected" is the confirmation.
 4. `drift` does not diff CHECK constraints or partial indexes. Verify those
    directly via `pg_constraint` / `pg_indexes` — an empty plan is not proof they
@@ -105,8 +109,6 @@ one deploy, not two.
 
 ### Baselining a New Environment
 
-`bun run baseline:<env>` records the first migration as applied without running
-it, for a database that already has the schema. It refuses once that
-environment's ledger holds any named migration, so it cannot be used to skip a
-real change. A genuinely empty database needs `migrate:<env>` instead — which
-will run the baseline snapshot as the real thing.
+`bun run baseline:<env>` marks the baseline applied on a database that already
+has the schema; it refuses once any named migration is recorded. An empty
+database takes `migrate:<env>`, which runs the baseline for real.

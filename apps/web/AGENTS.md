@@ -16,24 +16,23 @@
 - A list row that opens a record opens from anywhere on it: pass `getRowLink` to `DataTable`, and its title stays black. A link to somewhere else — the customer on an order, a code in a sheet — is blue with `text-link`.
 - A list of Orders that isn't a table uses `OrderListRow`: customer name on line 1 (customers remember their name, not their code), the code leading line 2. Codes are Inter with `tabular-nums`, never mono.
 - Hugeicons, free Stroke Rounded set: `<HugeiconsIcon icon={Search01Icon} />`, icons from `@hugeicons/core-free-icons`. Add a `size-*` class only where no parent sizes the svg; Button, Badge, menus and Select already do. Pick the icon that fits the place, not the nearest name match. There is no filled style, so the active tab is shown by its blue colour alone.
+- Row actions are icon-only buttons side by side, no `⋯` menu; a card's status badge sits at the row's end; a card title never truncates.
 - Dense filters → dialogs/sheets on small screens; tabs for high-frequency filters.
-- Match existing visual language; no decorative styling changes.
+- Fonts are hand-written latin-only `@font-face` in `src/index.css` on purpose; don't swap back to a Fontsource import or add latin-ext.
+- Check a UI change in the browser at 1280px and 390px before calling it done.
 
 ## UI Gotchas
 
 - Base UI `PopoverTrigger render={<div/>}` requires `nativeButton={false}` or it warns at runtime.
 - Biome a11y: `role="button"` on span/div is disallowed (use a real `<button>`); `role="combobox"` requires `aria-expanded`.
 - Base UI `Select` inside a `Popover`: items register on first Select open, so `SelectValue` shows the raw `value` string until then. Use function-child mapper `<SelectValue>{(v) => label(v)}</SelectValue>` or swap to `Combobox` (which keeps label via `items` prop).
+- iPhone Safari ignores `position: relative` on `<tr>`: a row-wide tap overlay escapes the row and freezes scroll. Anchor it with a transform on the row instead.
+- A height-capped inner list hands scroll to the page at its ends — no `overscroll-contain` on it.
 
 ## Structure
 
-- `components/ui/` — shadcn only, add via `bunx shadcn@latest add <component>`
-- `components/form/` — shared form fields
-- `features/<domain>/api.ts`, `features/<domain>/components/`, `features/<domain>/hooks/` — feature modules
-- `hooks/` — shared hooks
-- `lib/` — RPC clients, HTTP helpers, cache events, status maps, shared helpers
-- `routes/` — TanStack Router file-based; thin orchestrators only
-- `shared/` — cross-cutting utils (money, utils)
+- `components/ui/` — shadcn (Base UI style) only, add via `bunx shadcn@latest add <component>`
+- `features/<domain>/` — `api.ts`, `components/`, `hooks/`; `routes/` stay thin orchestrators
 - `stores/` — Zustand stores, one `<name>-store.ts` each
 - "Transactions" (`features/transactions/`, `/transactions`, `transactions-store.ts`) is the POS's legacy name: say Order or POS in new code, and rename when work touches these files.
 
@@ -42,8 +41,8 @@
 react-hook-form + zodResolver + useMutation for every form.
 
 - Wrap with `FormProvider`; children use `useFormContext()`. Never prop-drill `control`/`errors`/`isSubmitting`.
-- Pair every form with `useMutation`. Global `QueryClient` handles success/error toasts — only add `onSuccess`/`onError` for invalidation, close sheet, navigate, or to opt out of the global toast when the component already reports the same failure/success with more context (e.g. `onError: () => undefined` when a form surfaces its own error with a fix-it action). `onSuccess`/`onError` set on a mutation fully replace the global default's version of that callback rather than composing with it — that's the mechanism this opt-out relies on.
-- Use `Field`, `FieldLabel`, `FieldError` from `@/components/ui/field`. `Controller` for non-native inputs. `useFieldArray` for lists. `useWatch` for derived values.
+- The global `QueryClient` shows success/error toasts. Add `onSuccess`/`onError` only to invalidate, close a sheet, navigate, or silence the toast where the form already reports it (`onError: () => undefined`) — a mutation's own callback replaces the global one, it doesn't add to it.
+- Fields use `Field`, `FieldLabel`, `FieldError` from `@/components/ui/field`.
 - Schemas from `@fresclean/api/schema` or local to the feature. Do not re-implement the server's field builders.
 - `StoreSelect` (`features/orders/components/`) reused across features. For filter UIs pass `allOptionLabel="All stores"` — prepends `{ value: "", label }` sentinel so `""` = unscoped.
 
@@ -52,13 +51,6 @@ react-hook-form + zodResolver + useMutation for every form.
 Every photo upload flow — drop-off, Item photos, pickup, future entry points — must reuse `PhotoUploadDialog` (`features/orders/components/photo-upload-dialog.tsx`). Pass an `uploadPhoto({ file, contentType, note })` callback wiring presign → upload → save. The dialog owns camera capture, file picker, and in-dialog preview. Cards/sections own only the trigger button and the saved-photo preview. **Do not** inline `<input type="file">` or build a one-off upload dialog.
 
 Every saved/uploaded image rendered anywhere must be clickable and open in `PhotoLightbox` (`features/orders/components/photo-lightbox.tsx`). Single images use a 1-item array; collections pass the full list + `initialIndex` for swipe/keyboard navigation. Do not build a one-off image preview dialog.
-
-## No Props Drilling
-
-- `useFormContext()` for form state
-- Zustand selectors (never destructure whole store): `useDialog(s => s.closeDialog)`
-- React context for scoped subtree state
-- Extract context/store if >5-6 props
 
 ## Data Fetching
 
@@ -71,9 +63,9 @@ Every saved/uploaded image rendered anywhere must be clickable and open in `Phot
 
 ## State
 
-- Zustand for global UI (`useDialog`, `useSheet`, `useAuthStore`); `persist` for reload-surviving data
-- React context for theme, sidebar, scoped state
-- `GlobalDialog`/`GlobalSheet` via Zustand for CRUD modals
+- Zustand for global UI (`useDialog`, `useSheet`, `useAuthStore`), read through selectors, never a destructured whole store: `useDialog(s => s.closeDialog)`. `persist` for reload-surviving data.
+- React context for theme, sidebar and scoped subtree state. Past 5–6 drilled props, reach for context or a store.
+- The service worker stays (push is planned) in `registerType: "prompt"` mode with an "Update ready" toast; don't switch to auto-update or force a reload.
 
 ## Dialogs
 
@@ -85,12 +77,12 @@ Every saved/uploaded image rendered anywhere must be clickable and open in `Phot
 
 - File-based under `src/routes/`; `_admin` layout with `beforeLoad: requireAuth`
 - Search params validated with Zod via `validateSearch`
-- `Route.useSearch()` / `Route.useParams()` in components
 - `bun run type-check` regenerates the route tree before `tsc -b`, so a new or renamed route file needs no separate step.
 - A tab, filter, search or page change navigates with `replace: true`, so an iPhone swipe back leaves the page instead of stepping through filters. The Track page lookup is the exception.
 - A link inside a sheet that leaves the page takes `onClick={useLeaveSheetLink()}`: Safari's swipe-back picture otherwise keeps the sheet open in it.
+- Preload is `intent` by default; `preload="viewport"` only on the home launcher, tab bar and sidebar.
 
 ## Dates
 
-- Server date params (`from`, `to`, `date`) require `YYYY-MM-DD`. Use `dayjs(x).format("YYYY-MM-DD")` or the built-in `DatePicker`/`DateRangePicker` (already emit correct format).
-- dayjs runs vanilla — no `isoWeek` plugin. For Mon-start weeks: `const daysFromMonday = (dayjs().day() + 6) % 7`.
+- Server date params (`from`, `to`, `date`) are `YYYY-MM-DD`: `dayjs(x).format("YYYY-MM-DD")` or `DatePicker`/`DateRangePicker`, never `.toISOString()`.
+- dayjs runs without the `isoWeek` plugin. Monday-start weeks step back by hand: `(dayjs().day() + 6) % 7` (see `src/shared/date-presets.ts`).
