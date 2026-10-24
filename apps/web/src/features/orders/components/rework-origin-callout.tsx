@@ -1,8 +1,8 @@
 import { ArrowRight01Icon, ReloadIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
+import type { MouseEvent } from "react";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
-import { isPlainLeftClick } from "@/lib/list-keys";
 
 interface ReworkOriginCalloutProps {
 	reworkOf: {
@@ -15,7 +15,7 @@ interface ReworkOriginCalloutProps {
 	};
 	firstPickupAt: string | null;
 	// The order sheet closes itself so the Complaint page is not hidden under it.
-	onNavigate?: () => void;
+	onNavigate?: (event: MouseEvent<HTMLAnchorElement>) => void;
 }
 
 // The worker needs which OrderService the Customer turned down, and why,
@@ -38,12 +38,7 @@ export const ReworkOriginCallout = ({
 		<Link
 			aria-label={`See complaint: rework of ${serviceName}`}
 			className="group grid gap-1.5 rounded-md border border-info/40 bg-info/5 p-3 text-body outline-none transition-colors hover:bg-info/10 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
-			onClick={(event) => {
-				// A new-tab click leaves the Order open here.
-				if (isPlainLeftClick(event)) {
-					onNavigate?.();
-				}
-			}}
+			onClick={onNavigate}
 			params={{ complaintId: String(reworkOf.id) }}
 			// A worker scrolling past the box has not asked for the Complaint.
 			preload={false}

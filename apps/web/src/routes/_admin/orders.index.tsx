@@ -192,6 +192,7 @@ function OrdersPage() {
 	const handleFilterChange = useCallback(
 		(patch: Partial<OrderFilterValues>) => {
 			void navigate({
+				replace: true,
 				search: (prev) => ({ ...prev, page: 1, ...patch }),
 			});
 		},
@@ -345,6 +346,7 @@ function OrdersPage() {
 			isLoading={ordersQuery.isPending}
 			onPageChange={(page) => {
 				void navigate({
+					replace: true,
 					search: (prev) => ({
 						...prev,
 						page,
@@ -354,6 +356,7 @@ function OrdersPage() {
 			pageSize={search.limit ?? DEFAULT_PAGE_SIZE}
 			onPageSizeChange={(limit) => {
 				void navigate({
+					replace: true,
 					search: (prev) => ({ ...prev, ...pageSizeChange(limit) }),
 				});
 			}}

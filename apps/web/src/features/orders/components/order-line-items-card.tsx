@@ -20,6 +20,7 @@ import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import type { OrderItem } from "@/features/orders/lib/order-lines";
 import { getItemTotalRow } from "@/features/orders/lib/order-sheet";
 import { groupReworksUnderOriginals } from "@/features/orders/lib/rework-nesting";
+import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { formatCancelReason, formatRefundReason } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
@@ -93,23 +94,27 @@ interface ComplaintLinkRowProps {
 
 // The cashier's way from the order to its Complaint, whether or not a Rework
 // has started.
-const ComplaintLinkRow = ({ complaint }: ComplaintLinkRowProps) => (
-	<Link
-		className="group -mx-2 flex items-center gap-1.5 rounded-md px-2 py-2 text-subhead hover:bg-muted/40"
-		params={{ complaintId: String(complaint.id) }}
-		to="/complaints/$complaintId"
-	>
-		<span className="min-w-0 flex-1 truncate">
-			<span className="text-destructive">COMPLAINT #{complaint.id}</span>
-			<span className="text-muted-foreground"> · {complaint.reason}</span>
-		</span>
-		<HugeiconsIcon
-			icon={ArrowRight01Icon}
-			aria-hidden="true"
-			className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-		/>
-	</Link>
-);
+const ComplaintLinkRow = ({ complaint }: ComplaintLinkRowProps) => {
+	const leaveSheet = useLeaveSheetLink();
+	return (
+		<Link
+			className="group -mx-2 flex items-center gap-1.5 rounded-md px-2 py-2 text-subhead hover:bg-muted/40"
+			onClick={leaveSheet}
+			params={{ complaintId: String(complaint.id) }}
+			to="/complaints/$complaintId"
+		>
+			<span className="min-w-0 flex-1 truncate">
+				<span className="text-destructive">COMPLAINT #{complaint.id}</span>
+				<span className="text-muted-foreground"> · {complaint.reason}</span>
+			</span>
+			<HugeiconsIcon
+				icon={ArrowRight01Icon}
+				aria-hidden="true"
+				className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+			/>
+		</Link>
+	);
+};
 
 interface ItemBlockProps {
 	orderId: number;

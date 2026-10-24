@@ -31,6 +31,7 @@ function HomePage() {
 									<Card className="h-full py-0 transition-colors hover:bg-primary/[0.04]">
 										<Link
 											to={item.to}
+											preload="viewport"
 											className="flex h-full flex-col gap-2 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 										>
 											<span className="flex items-center gap-2 font-medium text-body">

@@ -1,6 +1,7 @@
 import type { MouseEvent } from "react";
 import { orderSheetPayload } from "@/features/orders/hooks/useOrderSheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
 import { isPlainLeftClick } from "@/lib/list-keys";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -10,7 +11,7 @@ import { useSheet } from "@/stores/sheet-store";
 export const useOpenNestedOrder = () => {
 	const isMobile = useIsMobile();
 	const openNestedSheet = useSheet((s) => s.openNestedSheet);
-	const closeSheet = useSheet((s) => s.closeSheet);
+	const leaveSheet = useLeaveSheetLink();
 
 	return (
 		event: MouseEvent<HTMLAnchorElement>,
@@ -18,7 +19,7 @@ export const useOpenNestedOrder = () => {
 		code: string,
 	) => {
 		if (isMobile) {
-			closeSheet();
+			leaveSheet(event);
 			return;
 		}
 		if (!isPlainLeftClick(event)) {

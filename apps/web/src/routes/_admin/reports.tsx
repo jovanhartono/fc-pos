@@ -186,6 +186,7 @@ function ReportsPage() {
 	// or reloading never overwrites what they chose.
 	const handleFiltersChange = (change: ReportFilterValues) => {
 		void navigate({
+			replace: true,
 			// A Store picked from a table header far down the page keeps the
 			// owner where they were reading.
 			resetScroll: false,
@@ -248,6 +249,7 @@ function ReportsPage() {
 				activeTab={currentTab}
 				onTabChange={(tab) => {
 					void navigate({
+						replace: true,
 						search: (prev) => ({ ...prev, tab: tab as Tab }),
 					});
 				}}

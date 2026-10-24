@@ -302,6 +302,7 @@ function QueuePage() {
 			const itemCode = result.item_code;
 			if (itemCode !== null) {
 				void navigate({
+					replace: true,
 					search: (prev) => ({
 						...prev,
 						storeId: result.store_id,
@@ -324,6 +325,7 @@ function QueuePage() {
 			// gets the rack narrowed to that customer's Items.
 			if (mode === "manual" && isNotFoundError(error)) {
 				void navigate({
+					replace: true,
 					search: (prev) => ({ ...prev, search: value, status: undefined }),
 				});
 				return;
@@ -370,6 +372,7 @@ function QueuePage() {
 
 	const updateStoreFilter = (value: string) => {
 		void navigate({
+			replace: true,
 			search: (prev) => ({
 				...prev,
 				storeId: value ? Number(value) : undefined,
@@ -379,6 +382,7 @@ function QueuePage() {
 
 	const updateStatusFilter = (value: string) => {
 		void navigate({
+			replace: true,
 			search: (prev) => ({
 				...prev,
 				status:
@@ -391,6 +395,7 @@ function QueuePage() {
 
 	const updateDateRangeFilter = (next: { from?: string; to?: string } = {}) => {
 		void navigate({
+			replace: true,
 			search: (prev) => ({
 				...prev,
 				dateFrom: next.from,
@@ -408,6 +413,7 @@ function QueuePage() {
 			categoryId === undefined ? undefined : { categoryId, mode },
 		);
 		void navigate({
+			replace: true,
 			search: (prev) => ({
 				...prev,
 				categoryId,
@@ -421,6 +427,7 @@ function QueuePage() {
 	const clearSearchFilter = () => {
 		setItemCode("");
 		void navigate({
+			replace: true,
 			search: (prev) => ({ ...prev, search: undefined }),
 		});
 	};

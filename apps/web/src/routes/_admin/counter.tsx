@@ -40,7 +40,7 @@ const CounterRoute = () => {
 				})
 			}
 			onTabChange={(next) =>
-				navigate({ search: (prev) => ({ ...prev, tab: next }) })
+				navigate({ replace: true, search: (prev) => ({ ...prev, tab: next }) })
 			}
 			storeId={storeId}
 			tab={tab}

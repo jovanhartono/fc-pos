@@ -49,7 +49,10 @@ const CustomerDetailPage = () => {
 				customerId={id}
 				page={page}
 				onPageChange={(next) =>
-					navigate({ search: (prev) => ({ ...prev, page: next }) })
+					navigate({
+						replace: true,
+						search: (prev) => ({ ...prev, page: next }),
+					})
 				}
 			/>
 		</ListPanel>
