@@ -27,6 +27,7 @@ export const AppTabBar = ({ items }: AppTabBarProps) => {
 					activeProps={{ "data-active": "true" }}
 					className={tabClassName}
 					key={item.to}
+					preload="viewport"
 					to={item.to}
 				>
 					<HugeiconsIcon className="size-5" icon={item.icon} />

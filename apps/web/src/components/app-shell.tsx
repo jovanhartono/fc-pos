@@ -196,6 +196,7 @@ function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
 						render={
 							<Link
 								to={item.to}
+								preload="viewport"
 								className="text-foreground"
 								onClick={(event) => {
 									if (!openMobile) {
