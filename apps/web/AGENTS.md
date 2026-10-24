@@ -87,6 +87,8 @@ Every saved/uploaded image rendered anywhere must be clickable and open in `Phot
 - Search params validated with Zod via `validateSearch`
 - `Route.useSearch()` / `Route.useParams()` in components
 - `bun run type-check` regenerates the route tree before `tsc -b`, so a new or renamed route file needs no separate step.
+- A tab, filter, search or page change navigates with `replace: true`, so an iPhone swipe back leaves the page instead of stepping through filters. The Track page lookup is the exception.
+- A link inside a sheet that leaves the page takes `onClick={useLeaveSheetLink()}`: Safari's swipe-back picture otherwise keeps the sheet open in it.
 
 ## Dates
 
