@@ -438,7 +438,7 @@ function CampaignsPage() {
 				<Tabs
 					value={search.status}
 					onValueChange={(status: CampaignStatus) => {
-						void navigate({ search: () => ({ status }) });
+						void navigate({ replace: true, search: () => ({ status }) });
 					}}
 				>
 					<TabsList aria-label="Filter by status">

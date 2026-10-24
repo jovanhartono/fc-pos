@@ -72,6 +72,7 @@ const ComplaintsPage = () => {
 
 	const handleSearchChange = (next: string) => {
 		void navigate({
+			replace: true,
 			search: (prev) => ({
 				...prev,
 				page: 1,
@@ -190,12 +191,14 @@ const ComplaintsPage = () => {
 							isLoading={complaintsQuery.isPending}
 							onPageChange={(page) => {
 								void navigate({
+									replace: true,
 									search: (prev) => ({ ...prev, page }),
 								});
 							}}
 							pageSize={search.limit ?? DEFAULT_PAGE_SIZE}
 							onPageSizeChange={(limit) => {
 								void navigate({
+									replace: true,
 									search: (prev) => ({ ...prev, ...pageSizeChange(limit) }),
 								});
 							}}

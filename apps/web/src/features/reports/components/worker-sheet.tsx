@@ -31,6 +31,7 @@ import {
 	outOf,
 	splitTopServices,
 } from "@/features/reports/utils/workers-report";
+import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
 import { CONTENT_FADE } from "@/lib/content-fade";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
@@ -76,7 +77,7 @@ interface LineSheetContentProps {
 }
 
 const LineSheetContent = ({ orderId, serviceId }: LineSheetContentProps) => {
-	const closeSheet = useSheet((s) => s.closeSheet);
+	const leaveSheet = useLeaveSheetLink();
 	return (
 		<div className="grid gap-4">
 			<Button
@@ -88,7 +89,7 @@ const LineSheetContent = ({ orderId, serviceId }: LineSheetContentProps) => {
 					<Link
 						to="/orders/$orderId"
 						params={{ orderId: String(orderId) }}
-						onClick={closeSheet}
+						onClick={leaveSheet}
 					/>
 				}
 				nativeButton={false}
@@ -249,7 +250,7 @@ interface ComplaintCardsProps {
 }
 
 const ComplaintCards = ({ complaints }: ComplaintCardsProps) => {
-	const closeSheet = useSheet((s) => s.closeSheet);
+	const leaveSheet = useLeaveSheetLink();
 	if (complaints.length === 0) {
 		return (
 			<p className="text-muted-foreground text-body">No Complaints in range.</p>
@@ -276,7 +277,7 @@ const ComplaintCards = ({ complaints }: ComplaintCardsProps) => {
 							<Link
 								to="/complaints/$complaintId"
 								params={{ complaintId: String(item.complaint_id) }}
-								onClick={closeSheet}
+								onClick={leaveSheet}
 								className="text-link tabular-nums"
 							>
 								{item.item_code}

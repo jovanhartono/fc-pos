@@ -120,6 +120,7 @@ function UsersPage() {
 	const handleSearchChange = useCallback(
 		(next: string) => {
 			void navigate({
+				replace: true,
 				search: (prev) => ({
 					...prev,
 					page: 1,
@@ -420,6 +421,7 @@ function UsersPage() {
 							isLoading={usersQuery.isPending}
 							onPageChange={(page) => {
 								void navigate({
+									replace: true,
 									search: (prev) => ({
 										...prev,
 										page,
@@ -429,6 +431,7 @@ function UsersPage() {
 							pageSize={pageSize}
 							onPageSizeChange={(limit) => {
 								void navigate({
+									replace: true,
 									search: (prev) => ({ ...prev, ...pageSizeChange(limit) }),
 								});
 							}}

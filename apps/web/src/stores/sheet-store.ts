@@ -40,6 +40,7 @@ export type OpenSheetPayload = {
 type SheetStore = {
 	sheetState: SheetState;
 	isDirty: boolean;
+	afterClose: (() => void) | null;
 	setOpen: (open: boolean) => void;
 	openSheet: (payload: OpenSheetPayload) => void;
 	// Opens over the sheet already showing, with a back link to it; with none
@@ -48,6 +49,8 @@ type SheetStore = {
 	// After a save: back to the sheet underneath, or close when there is none.
 	goBack: () => void;
 	closeSheet: () => void;
+	// Runs `then` once the slide-out has finished; see useLeaveSheetLink.
+	closeSheetThen: (then: () => void) => void;
 	clearClosedSheet: () => void;
 	setDirty: (dirty: boolean) => void;
 };
@@ -67,12 +70,14 @@ const defaultState: SheetState = {
 export const useSheet = create<SheetStore>((set, get) => ({
 	sheetState: defaultState,
 	isDirty: false,
+	afterClose: null,
 	setOpen: (open) =>
 		set((state) => ({
 			sheetState: {
 				...state.sheetState,
 				open,
 			},
+			afterClose: open ? null : state.afterClose,
 		})),
 	openSheet: ({
 		title = null,
@@ -97,6 +102,7 @@ export const useSheet = create<SheetStore>((set, get) => ({
 				open: true,
 			},
 			isDirty: false,
+			afterClose: null,
 		}),
 	openNestedSheet: (payload) => {
 		const below = get().sheetState;
@@ -135,8 +141,14 @@ export const useSheet = create<SheetStore>((set, get) => ({
 	// all the way out; leaves alone a sheet opened in the meantime.
 	clearClosedSheet: () => {
 		if (!get().sheetState.open) {
-			set({ sheetState: defaultState });
+			const { afterClose } = get();
+			set({ sheetState: defaultState, afterClose: null });
+			afterClose?.();
 		}
+	},
+	closeSheetThen: (then) => {
+		set({ afterClose: then });
+		get().closeSheet();
 	},
 	setDirty: (dirty) => set({ isDirty: dirty }),
 }));

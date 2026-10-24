@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
 
@@ -15,6 +16,7 @@ export const CustomerLink = ({
 	customerId,
 	name,
 }: CustomerLinkProps) => {
+	const leaveSheet = useLeaveSheetLink();
 	if (getCurrentUser()?.role !== "admin") {
 		return <span className={cn("font-medium", className)}>{name}</span>;
 	}
@@ -22,6 +24,7 @@ export const CustomerLink = ({
 	return (
 		<Link
 			className={cn("text-link", className)}
+			onClick={leaveSheet}
 			params={{ customerId: String(customerId) }}
 			// The name sits in every order row, so a cursor sweeping the column
 			// would otherwise preload a detail page and its orders per row.

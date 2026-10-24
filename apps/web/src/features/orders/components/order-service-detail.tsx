@@ -18,6 +18,7 @@ import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrder
 import { getFirstPickupAt } from "@/features/orders/lib/line-timeline";
 import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import { findOrderLine } from "@/features/orders/lib/order-lines";
+import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	formatCancelReason,
@@ -26,7 +27,6 @@ import {
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
-import { useSheet } from "@/stores/sheet-store";
 
 const TERMINAL_SERVICE_STATUSES = new Set<string>(
 	ORDER_TERMINAL_SERVICE_STATUSES,
@@ -42,7 +42,7 @@ export const OrderServiceDetail = ({
 	serviceId,
 }: OrderServiceDetailProps) => {
 	const updateStatusMutation = useUpdateServiceStatusMutation(orderId);
-	const closeSheet = useSheet((s) => s.closeSheet);
+	const leaveSheet = useLeaveSheetLink();
 
 	// Read the service live from the cached order so status changes made in this
 	// sheet reflect immediately instead of pinning a frozen prop from open time.
@@ -92,7 +92,7 @@ export const OrderServiceDetail = ({
 						service.reworkOf,
 						service.rework_opened_at,
 					)}
-					onNavigate={closeSheet}
+					onNavigate={leaveSheet}
 					reworkOf={service.reworkOf}
 				/>
 			)}

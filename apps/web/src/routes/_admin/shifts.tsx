@@ -165,6 +165,7 @@ const ShiftsPage = () => {
 		const isDefault =
 			matchPreset(getPresets(), next.from, next.to)?.id === SHIFTS_PRESET;
 		void navigate({
+			replace: true,
 			search: (prev) => ({
 				...prev,
 				preset: undefined,
@@ -176,6 +177,7 @@ const ShiftsPage = () => {
 
 	const setPreset = (preset: DatePreset) =>
 		void navigate({
+			replace: true,
 			search: (prev) => ({
 				...prev,
 				preset: preset === SHIFTS_PRESET ? undefined : preset,
@@ -210,6 +212,7 @@ const ShiftsPage = () => {
 					value={search.store_id?.toString() ?? ""}
 					onValueChange={(value) => {
 						void navigate({
+							replace: true,
 							search: (prev) => ({
 								...prev,
 								store_id: value ? Number(value) : undefined,
