@@ -31,6 +31,7 @@ const {
   clockOut,
   closeForgottenShifts,
   createShift,
+  deleteShift,
   getShiftsOverview,
   updateShift,
 } = await import("@/modules/shifts/shift.service");
@@ -203,6 +204,7 @@ describe("updateShift", () => {
       user: admin(),
       shiftId: shift.id,
       body: {
+        store_id: shop.store.id,
         clock_in_at: jkt("2026-10-11T08:29"),
         clock_out_at: jkt("2026-10-11T21:00"),
       },
@@ -222,6 +224,7 @@ describe("updateShift", () => {
       user: admin(),
       shiftId: shift.id,
       body: {
+        store_id: shop.store.id,
         clock_in_at: jkt("2026-10-12T08:00"),
         clock_out_at: jkt("2026-10-12T18:00"),
       },
@@ -245,6 +248,7 @@ describe("updateShift", () => {
         user: admin(),
         shiftId: monday.id,
         body: {
+          store_id: shop.store.id,
           clock_in_at: jkt("2026-10-11T08:00"),
           clock_out_at: jkt("2026-10-12T09:00"),
         },
@@ -266,6 +270,7 @@ describe("updateShift", () => {
         user: admin(),
         shiftId: shift.id,
         body: {
+          store_id: shop.store.id,
           clock_in_at: jkt("2026-10-12T08:00"),
           clock_out_at: jkt("2026-10-12T18:00"),
         },
@@ -287,6 +292,7 @@ describe("updateShift", () => {
         user: asUser(shop.cashier.id),
         shiftId: shift.id,
         body: {
+          store_id: shop.store.id,
           clock_in_at: jkt("2026-10-11T08:00"),
           clock_out_at: jkt("2026-10-11T23:00"),
         },
@@ -295,6 +301,174 @@ describe("updateShift", () => {
 
     expect(error).toBeInstanceOf(ForbiddenException);
     expect((await reload(shift.id)).edited_by).toBeNull();
+  });
+
+  it("fixes the start of a worker still on shift and leaves them on it", async () => {
+    // Tapped Clock in on the bus at 07:40; the admin enters the 08:15 arrival.
+    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T07:40"));
+    setSystemTime(jkt("2026-10-12T11:00"));
+
+    await updateShift({
+      user: admin(),
+      shiftId: shift.id,
+      body: { store_id: shop.store.id, clock_in_at: jkt("2026-10-12T08:15") },
+    });
+
+    const edited = await reload(shift.id);
+    expect(edited.clock_in_at).toEqual(jkt("2026-10-12T08:15"));
+    expect(edited.clock_out_at).toBeNull();
+    expect(edited.edited_by).toBe(shop.admin.id);
+
+    await clockOut(asUser(shop.cashier.id));
+    expect((await reload(shift.id)).edited_by).toBe(shop.admin.id);
+  });
+
+  it("keeps the Store when an older page sends only the times", async () => {
+    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T08:00"));
+    setSystemTime(jkt("2026-10-12T11:00"));
+
+    await updateShift({
+      user: admin(),
+      shiftId: shift.id,
+      body: { clock_in_at: jkt("2026-10-12T08:30") },
+    });
+
+    expect((await reload(shift.id)).store_id).toBe(shop.store.id);
+  });
+
+  it("does not reopen a Shift the worker clocked out of mid-edit", async () => {
+    const { updateShiftById } = await import(
+      "@/modules/shifts/shift.repository"
+    );
+    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T08:00"), {
+      auto_closed: false,
+      clock_out_at: jkt("2026-10-12T14:00"),
+    });
+
+    const updated = await updateShiftById(shift.id, {
+      clock_in_at: jkt("2026-10-12T08:00"),
+      clock_out_at: null,
+      edited_by: shop.admin.id,
+      store_id: shop.store.id,
+    });
+
+    expect(updated).toBeNull();
+    expect((await reload(shift.id)).clock_out_at).toEqual(
+      jkt("2026-10-12T14:00")
+    );
+  });
+
+  it("will not reopen a finished Shift", async () => {
+    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T08:00"), {
+      auto_closed: false,
+      clock_out_at: jkt("2026-10-12T14:00"),
+    });
+    setSystemTime(jkt("2026-10-12T15:00"));
+
+    const error = await captureRejection(
+      updateShift({
+        user: admin(),
+        shiftId: shift.id,
+        body: { store_id: shop.store.id, clock_in_at: jkt("2026-10-12T08:00") },
+      })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((await reload(shift.id)).clock_out_at).toEqual(
+      jkt("2026-10-12T14:00")
+    );
+  });
+
+  it("refuses a running Shift moved back to yesterday", async () => {
+    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T08:00"));
+    setSystemTime(jkt("2026-10-12T11:00"));
+
+    const error = await captureRejection(
+      updateShift({
+        user: admin(),
+        shiftId: shift.id,
+        body: { store_id: shop.store.id, clock_in_at: jkt("2026-10-11T20:00") },
+      })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+  });
+
+  it("refuses a running Shift that would start over the last one", async () => {
+    await openShift(shop.cashier.id, jkt("2026-10-12T08:00"), {
+      auto_closed: false,
+      clock_out_at: jkt("2026-10-12T12:00"),
+    });
+    const afternoon = await openShift(shop.cashier.id, jkt("2026-10-12T13:00"));
+    setSystemTime(jkt("2026-10-12T15:00"));
+
+    const error = await captureRejection(
+      updateShift({
+        user: admin(),
+        shiftId: afternoon.id,
+        body: { store_id: shop.store.id, clock_in_at: jkt("2026-10-12T11:00") },
+      })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+  });
+
+  it("moves a Shift clocked in at the wrong Store", async () => {
+    const [bintaro] = await testDb
+      .insert(storesTable)
+      .values({
+        address: "Jl. Bintaro 1",
+        code: "BTR",
+        is_active: true,
+        latitude: "-6.30",
+        longitude: "106.65",
+        name: "Fresclean Bintaro",
+        phone_number: "+622100000000",
+      })
+      .returning();
+    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T08:00"));
+    setSystemTime(jkt("2026-10-12T11:00"));
+    const moveToBintaro = () =>
+      updateShift({
+        user: admin(),
+        shiftId: shift.id,
+        body: { store_id: bintaro.id, clock_in_at: jkt("2026-10-12T08:00") },
+      });
+
+    expect(await captureRejection(moveToBintaro())).toBeInstanceOf(
+      BadRequestException
+    );
+
+    await testDb
+      .insert(userStoresTable)
+      .values({ store_id: bintaro.id, user_id: shop.cashier.id });
+    await moveToBintaro();
+
+    expect((await reload(shift.id)).store_id).toBe(bintaro.id);
+  });
+});
+
+describe("deleteShift", () => {
+  it("removes a mistaken clock-in, so the worker can clock in again", async () => {
+    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T08:00"));
+
+    await deleteShift({
+      user: asUser(shop.admin.id, "admin"),
+      shiftId: shift.id,
+    });
+
+    expect(await reload(shift.id)).toBeUndefined();
+  });
+
+  it("is for admins only", async () => {
+    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T08:00"));
+
+    const error = await captureRejection(
+      deleteShift({ user: asUser(shop.cashier.id), shiftId: shift.id })
+    );
+
+    expect(error).toBeInstanceOf(ForbiddenException);
+    expect(await reload(shift.id)).toBeDefined();
   });
 });
 
@@ -396,8 +570,11 @@ describe("createShift", () => {
 
 describe("PATCHShiftSchema", () => {
   const parse = (inAt: unknown, outAt: unknown) =>
-    PATCHShiftSchema.safeParse({ clock_in_at: inAt, clock_out_at: outAt })
-      .success;
+    PATCHShiftSchema.safeParse({
+      clock_in_at: inAt,
+      clock_out_at: outAt,
+      store_id: 1,
+    }).success;
 
   it("refuses a clock-out before the clock-in", () => {
     expect(parse("2026-10-11T11:00:00Z", "2026-10-11T01:00:00Z")).toBe(false);
@@ -409,6 +586,11 @@ describe("PATCHShiftSchema", () => {
 
   it("refuses a missing time instead of reading it as 1970", () => {
     expect(parse(null, "2026-10-11T11:00:00Z")).toBe(false);
+    expect(parse("2026-10-11T01:00:00Z", null)).toBe(false);
+  });
+
+  it("takes no clock-out, for a worker still on shift", () => {
+    expect(parse("2026-10-11T01:00:00Z", undefined)).toBe(true);
   });
 });
 

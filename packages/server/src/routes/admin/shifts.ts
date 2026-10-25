@@ -11,6 +11,7 @@ import {
   clockIn,
   clockOut,
   createShift,
+  deleteShift,
   getCurrentShift,
   getShifts,
   getShiftsOverview,
@@ -81,6 +82,13 @@ const app = new Hono<AdminEnv>()
       });
       return c.json(success(shift, "Shift updated"));
     }
-  );
+  )
+  .delete("/:id", idParamSchema, async (c) => {
+    const shift = await deleteShift({
+      user: c.get("jwtPayload"),
+      shiftId: c.req.valid("param").id,
+    });
+    return c.json(success(shift, "Shift deleted"));
+  });
 
 export default app;

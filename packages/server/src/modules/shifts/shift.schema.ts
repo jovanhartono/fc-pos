@@ -46,9 +46,12 @@ const shiftTime = z.iso.datetime().transform((value) => new Date(value));
 const shiftTimes = { clock_in_at: shiftTime, clock_out_at: shiftTime };
 
 function checkShiftTimes(
-  body: { clock_in_at: Date; clock_out_at: Date },
+  body: { clock_in_at: Date; clock_out_at?: Date },
   ctx: z.RefinementCtx
 ) {
+  if (!body.clock_out_at) {
+    return;
+  }
   const hours =
     (body.clock_out_at.getTime() - body.clock_in_at.getTime()) / 3_600_000;
   if (hours <= 0) {
@@ -67,7 +70,12 @@ function checkShiftTimes(
 }
 
 export const PATCHShiftSchema = z
-  .object(shiftTimes)
+  .object({
+    clock_in_at: shiftTime,
+    clock_out_at: shiftTime.optional(),
+    // Optional: a page still on the old build sends only the times.
+    store_id: z.number().int().positive().optional(),
+  })
   .superRefine(checkShiftTimes);
 
 export type PatchShiftBody = z.infer<typeof PATCHShiftSchema>;

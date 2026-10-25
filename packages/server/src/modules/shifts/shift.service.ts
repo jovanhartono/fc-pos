@@ -5,6 +5,7 @@ import { assertIsAdmin } from "@/modules/permissions/permissions";
 import {
   closeOpenShiftsBefore,
   countShifts,
+  deleteShiftById,
   findLatestShiftByUserId,
   findOpenShiftByUserId,
   findOverlappingShift,
@@ -13,7 +14,7 @@ import {
   listShiftDays,
   listShifts,
   updateOpenShiftClockOutByUserId,
-  updateShiftTimesById,
+  updateShiftById,
 } from "@/modules/shifts/shift.repository";
 import {
   CLOCK_IN_RADIUS_KM,
@@ -152,9 +153,52 @@ export async function updateShift({
     throw new NotFoundException("Shift does not exist");
   }
 
+  // An earlier start would leave a running Shift for the midnight close to cut.
+  if (!body.clock_out_at && body.clock_in_at < todayStart()) {
+    throw new BadRequestException(
+      "A shift still running must have started today"
+    );
+  }
+
+  const storeId = body.store_id ?? shift.store_id;
+  if (storeId !== shift.store_id) {
+    const [worker, store] = await Promise.all([
+      findUserDetailById(shift.user_id),
+      findStoreById(storeId),
+    ]);
+    assertStoreForWorker(worker, store);
+  }
+
   await assertShiftTimesFree({ ...body, userId: shift.user_id, shiftId });
 
-  return updateShiftTimesById(shiftId, { ...body, edited_by: user.id });
+  const updated = await updateShiftById(shiftId, {
+    ...body,
+    clock_out_at: body.clock_out_at ?? null,
+    edited_by: user.id,
+    store_id: storeId,
+  });
+  // Reopening a finished Shift was ruled out: delete it and clock in again.
+  if (!updated) {
+    throw new BadRequestException("This shift has ended. Enter the clock out.");
+  }
+  return updated;
+}
+
+// A mistaken clock-in or a duplicate, kept out of payroll.
+export async function deleteShift({
+  user,
+  shiftId,
+}: {
+  user: JWTPayload;
+  shiftId: number;
+}) {
+  assertIsAdmin(user);
+
+  const deleted = await deleteShiftById(shiftId);
+  if (!deleted) {
+    throw new NotFoundException("Shift does not exist");
+  }
+  return deleted;
 }
 
 // Today's work when yesterday's Auto-closed Shift was the one tapped out, so the
@@ -175,6 +219,20 @@ export async function createShift({
   if (!(worker?.is_active && worker.role !== "admin")) {
     throw new BadRequestException("Pick an active cashier, worker or courier");
   }
+  assertStoreForWorker(worker, store);
+
+  await assertShiftTimesFree({ ...body, userId: worker.id });
+
+  return insertShift({ ...body, edited_by: user.id });
+}
+
+function assertStoreForWorker(
+  worker: Awaited<ReturnType<typeof findUserDetailById>>,
+  store: Awaited<ReturnType<typeof findStoreById>>
+) {
+  if (!worker) {
+    throw new NotFoundException("User does not exist");
+  }
   if (!store?.is_active) {
     throw new BadRequestException("Pick an active store");
   }
@@ -183,10 +241,6 @@ export async function createShift({
       `${worker.name} is not assigned to that store`
     );
   }
-
-  await assertShiftTimesFree({ ...body, userId: worker.id });
-
-  return insertShift({ ...body, edited_by: user.id });
 }
 
 async function assertShiftTimesFree({
@@ -198,10 +252,13 @@ async function assertShiftTimesFree({
   userId: number;
   shiftId?: number;
   clock_in_at: Date;
-  clock_out_at: Date;
+  clock_out_at?: Date;
 }) {
-  if (clock_out_at > new Date()) {
+  if (clock_out_at && clock_out_at > new Date()) {
     throw new BadRequestException("Clock out cannot be in the future");
+  }
+  if (clock_in_at > new Date()) {
+    throw new BadRequestException("Clock in cannot be in the future");
   }
 
   const overlap = await findOverlappingShift({

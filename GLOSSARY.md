@@ -73,6 +73,10 @@ _Avoid_: Delivery guy, driver, rider
 **Shift**:
 A User's attendance at a Store, from clock-in to clock-out. It permits nothing and blocks nothing.
 
+**On shift**:
+A User who has clocked in and not yet clocked out, on the same day.
+_Avoid_: Open shift, running shift, active shift
+
 **Auto-closed Shift**:
 A Shift still open after midnight, which nobody works to; it is closed for the User ten hours after clock-in, or at that midnight if sooner, until an admin enters the real time.
 _Avoid_: Forgotten clock-out, stale shift, open shift
