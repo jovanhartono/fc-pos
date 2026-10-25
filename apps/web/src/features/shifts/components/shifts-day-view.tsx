@@ -1,5 +1,6 @@
 import { Section } from "@/components/section";
 import type { Shift } from "@/features/shifts/api";
+import { DeleteShiftButton } from "@/features/shifts/components/delete-shift-button";
 import { EditShiftButton } from "@/features/shifts/components/edit-shift-button";
 import { NoShifts } from "@/features/shifts/components/no-shifts";
 import { clockRange, shiftMinutes } from "@/features/shifts/lib/shift-times";
@@ -89,6 +90,7 @@ const DayRowTimes = ({ shifts }: DayRowTimesProps) => {
 						{clockRange(shift)}
 					</span>
 					<EditShiftButton shift={shift} />
+					<DeleteShiftButton shift={shift} />
 				</div>
 			))}
 		</div>

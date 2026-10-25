@@ -11,6 +11,7 @@ mock.module("@/modules/shifts/shift.service", () => ({
   clockIn: () => Promise.resolve({ message: "", shift: null }),
   clockOut: () => Promise.resolve({ message: "", shift: null }),
   createShift: () => Promise.resolve(null),
+  deleteShift: () => Promise.resolve(null),
   getCurrentShift: () => Promise.resolve(null),
   getShifts: () => Promise.resolve({ items: [], meta: {} }),
   getShiftsOverview: (_user: AuthUser, query: unknown) => {

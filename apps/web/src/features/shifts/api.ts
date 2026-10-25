@@ -147,11 +147,11 @@ export function clockOutShift() {
 
 export interface UpdateShiftPayload {
 	clock_in_at: string;
-	clock_out_at: string;
+	clock_out_at?: string;
+	store_id: number;
 }
 
-export interface CreateShiftPayload extends UpdateShiftPayload {
-	store_id: number;
+export interface CreateShiftPayload extends Required<UpdateShiftPayload> {
 	user_id: number;
 }
 
@@ -164,6 +164,14 @@ export function updateShift(id: number, payload: UpdateShiftPayload) {
 		rpcWithAuth().api.admin.shifts[":id"].$patch({
 			param: { id: String(id) },
 			json: payload,
+		}),
+	);
+}
+
+export function deleteShift(id: number) {
+	return parseResponse(
+		rpcWithAuth().api.admin.shifts[":id"].$delete({
+			param: { id: String(id) },
 		}),
 	);
 }

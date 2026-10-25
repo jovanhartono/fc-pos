@@ -102,13 +102,13 @@ export function findOverlappingShift({
   shiftId?: number;
   userId: number;
   clockIn: Date;
-  clockOut: Date;
+  clockOut?: Date;
 }) {
   return db.query.shiftsTable.findFirst({
     where: {
       id: { ne: shiftId ?? EmptyFilter },
       user_id: userId,
-      clock_in_at: { lt: clockOut },
+      clock_in_at: { lt: clockOut ?? EmptyFilter },
       OR: [
         { clock_out_at: { isNull: true } },
         { clock_out_at: { gt: clockIn } },
@@ -117,13 +117,34 @@ export function findOverlappingShift({
   });
 }
 
-export function updateShiftTimesById(
+export function updateShiftById(
   shiftId: number,
-  values: { clock_in_at: Date; clock_out_at: Date; edited_by: number }
+  values: {
+    clock_in_at: Date;
+    clock_out_at: Date | null;
+    edited_by: number;
+    store_id: number;
+  }
 ) {
   return db
     .update(shiftsTable)
     .set({ ...values, auto_closed: false })
+    .where(
+      and(
+        eq(shiftsTable.id, shiftId),
+        // No clock-out never reopens a Shift the worker closed mid-edit.
+        values.clock_out_at === null
+          ? isNull(shiftsTable.clock_out_at)
+          : undefined
+      )
+    )
+    .returning()
+    .then((rows) => rows[0] ?? null);
+}
+
+export function deleteShiftById(shiftId: number) {
+  return db
+    .delete(shiftsTable)
     .where(eq(shiftsTable.id, shiftId))
     .returning()
     .then((rows) => rows[0] ?? null);

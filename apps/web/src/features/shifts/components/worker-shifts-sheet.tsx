@@ -6,6 +6,7 @@ import {
 	type Shift,
 	shiftsQueries,
 } from "@/features/shifts/api";
+import { DeleteShiftButton } from "@/features/shifts/components/delete-shift-button";
 import { EditShiftButton } from "@/features/shifts/components/edit-shift-button";
 import { clockRange, shiftMinutes } from "@/features/shifts/lib/shift-times";
 import { buildRow, formatHours } from "@/features/shifts/lib/shifts-overview";
@@ -77,6 +78,7 @@ const ShiftLine = ({ shift }: ShiftLineProps) => {
 				{formatShiftLength(shiftMinutes(shift))}
 			</span>
 			<EditShiftButton shift={shift} />
+			<DeleteShiftButton shift={shift} />
 		</div>
 	);
 };
