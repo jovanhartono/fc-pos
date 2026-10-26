@@ -46,6 +46,14 @@ export function isInWorkshop(line: { status: string }): boolean {
   return (WORKSHOP_SERVICE_STATUSES as readonly string[]).includes(line.status);
 }
 
+// A cleaned shoe whose Repaint hasn't started is still being worked on: the
+// Counter and the Customer's Track page call it Waiting QC only when nothing
+// but the check is left.
+export function isWaitingQcOnly(lines: { status: string }[]): boolean {
+  const left = lines.filter(isInWorkshop);
+  return left.length > 0 && left.every((line) => line.status === "waiting_qc");
+}
+
 const ORDER_TERMINAL_SERVICE_STATUS_SET = new Set<OrderServiceStatus>(
   ORDER_TERMINAL_SERVICE_STATUSES
 );

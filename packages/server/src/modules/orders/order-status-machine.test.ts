@@ -12,6 +12,7 @@ import {
   isHandedOverByPickup,
   isItemCollectable,
   isTerminalOrderServiceStatus,
+  isWaitingQcOnly,
   nextReadyAt,
   ORDER_SERVICE_TRANSITIONS,
   ORDER_TERMINAL_SERVICE_STATUSES,
@@ -184,6 +185,23 @@ describe("deriveItemStatus", () => {
     expect(deriveItemStatus([t("cancelled"), t("cancelled")])).toBe(
       "cancelled"
     );
+  });
+});
+
+describe("isWaitingQcOnly", () => {
+  it("is true once every line still in the workshop waits for the check", () => {
+    expect(isWaitingQcOnly([s("waiting_qc"), s("ready_for_pickup")])).toBe(
+      true
+    );
+  });
+
+  it("is false while another line still waits for work", () => {
+    expect(isWaitingQcOnly([s("waiting_qc"), s("queued")])).toBe(false);
+    expect(isWaitingQcOnly([s("waiting_qc"), s("qc_reject")])).toBe(false);
+  });
+
+  it("is false with nothing left in the workshop", () => {
+    expect(isWaitingQcOnly([s("ready_for_pickup")])).toBe(false);
   });
 });
 

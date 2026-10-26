@@ -15,7 +15,6 @@ export type GetPickupShelfQuery = z.infer<typeof GETPickupShelfQuerySchema>;
 
 export interface CounterEstimate {
   days: number;
-  ready_on: string;
 }
 
 export interface CounterCategory {

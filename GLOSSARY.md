@@ -242,7 +242,7 @@ The number of OrderServices that reached Waiting QC for the first time.
 _Avoid_: Items processed, items completed
 
 **Ready estimate**:
-How long a new Item in one Category will take to be ready, shown on the Counter as "N days · Thu 29 Oct": the p90 Turnaround, in days rounded up, of the Store's Items in that Category that became ready in the last 14 days, or the last 28 when 14 days have fewer than 10. With still fewer there is no quote. An Order with Services in several Categories gets one date per Category.
+How long a new Item in one Category will take to be ready, shown on the Counter as "est. N days": the p90 Turnaround, in days rounded up, of the Store's Items in that Category that became ready in the last 14 days, or the last 28 when 14 days have fewer than 10. With still fewer there is no quote. An Order with Services in several Categories gets one estimate per Category.
 _Avoid_: ETA, queue estimate, turnaround (that is one Item's time, measured afterwards)
 
 **Turnaround**:

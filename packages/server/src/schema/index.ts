@@ -25,6 +25,7 @@ import {
   isCollectableItemStatus as _isCollectableItemStatus,
   isHandedOverByPickup as _isHandedOverByPickup,
   isInWorkshop as _isInWorkshop,
+  isWaitingQcOnly as _isWaitingQcOnly,
   ORDER_SERVICE_TRANSITIONS as _ORDER_SERVICE_TRANSITIONS,
   ORDER_TERMINAL_SERVICE_STATUSES as _ORDER_TERMINAL_SERVICE_STATUSES,
   WORKSHOP_SERVICE_STATUSES as _WORKSHOP_SERVICE_STATUSES,
@@ -53,6 +54,7 @@ export type ItemStatusLine = _ItemStatusLine;
 export const isCollectableItemStatus = _isCollectableItemStatus;
 export const isHandedOverByPickup = _isHandedOverByPickup;
 export const isInWorkshop = _isInWorkshop;
+export const isWaitingQcOnly = _isWaitingQcOnly;
 export const isComplainableLine = _isComplainableLine;
 export const isReworkedRound = _isReworkedRound;
 export const POSTOrderPickupEventPresignSchema =

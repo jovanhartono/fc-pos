@@ -314,10 +314,7 @@ describe("the Ready estimate", () => {
       droppedOff: jkt("2026-09-18T10:00"),
     });
 
-    expect((await categoryRow("Footwear"))?.estimate).toEqual({
-      days: 9,
-      ready_on: "2026-10-09",
-    });
+    expect((await categoryRow("Footwear"))?.estimate).toEqual({ days: 9 });
   });
 
   it("never quotes less than 1 day", async () => {
@@ -387,19 +384,6 @@ describe("the Ready estimate", () => {
     await readyLog({ ...first, lineId: rework.id }, jkt("2026-09-29T10:00"));
 
     expect((await categoryRow("Footwear"))?.estimate?.days).toBe(2);
-  });
-
-  it("dates the quote from today in Jakarta, not in UTC", async () => {
-    await waiting(1);
-    await readyAfter(tenTimes(2));
-
-    // 06:00 on 1 October in Jakarta is still 30 September in UTC.
-    const early = await counterOf(shop.store.id, jkt("2026-10-01T06:00"));
-
-    expect(early.categories[0].estimate).toEqual({
-      days: 2,
-      ready_on: "2026-10-03",
-    });
   });
 });
 

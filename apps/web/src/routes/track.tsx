@@ -1,7 +1,7 @@
 import {
 	type DerivedItemStatus,
 	isCollectableItemStatus,
-	isInWorkshop,
+	isWaitingQcOnly,
 	normalizePhoneNumber,
 } from "@fresclean/api/schema";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -49,13 +49,8 @@ function getItemStageIndex(item: TrackItem): number {
 	if (isCollectableItemStatus(item.status)) {
 		return 3;
 	}
-	// A cleaned shoe whose Repaint hasn't started is still being worked on.
 	if (item.status === "processing") {
-		return item.services.some(
-			(service) => isInWorkshop(service) && service.status !== "waiting_qc",
-		)
-			? 1
-			: 2;
+		return isWaitingQcOnly(item.services) ? 2 : 1;
 	}
 	return 0;
 }

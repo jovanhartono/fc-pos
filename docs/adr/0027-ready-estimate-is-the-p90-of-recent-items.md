@@ -2,7 +2,7 @@
 
 Supersedes [ADR-0024](0024-ready-estimate-per-category-from-recent-pace.md).
 
-The Counter quotes each Category, per Store, as the p90 of drop-off to ready, in days rounded up, over that Category's Items that became ready in the last 14 days. With fewer than 10 such Items it looks back 28 days; with still fewer it shows "Not enough data yet". The quote reads "N days · Thu 29 Oct", the days and the date. An Order with Services in several Categories gets one date per Category, read off each Counter line. An Item's time already includes its clean, so After-clean Categories no longer add days on top. The p90, nearest-rank and 10-Item rules are the Turnaround report's; the windows are the estimate's own.
+The Counter quotes each Category, per Store, as the p90 of drop-off to ready, in days rounded up, over that Category's Items that became ready in the last 14 days. With fewer than 10 such Items it looks back 28 days; with still fewer it shows "Not enough data yet". The quote reads "est. N days", a single number rather than a range or a date. An Order with Services in several Categories gets one estimate per Category, read off each Counter line. An Item's time already includes its clean, so After-clean Categories no longer add days on top. The p90, nearest-rank and 10-Item rules are the Turnaround report's; the windows are the estimate's own.
 
 **Why not pile ÷ pace (ADR-0024):** prod backtests rejected it. CR6 does not take shoes in order, so the pile says little about one shoe: it quoted 2–3 days while shoes took 7.
 

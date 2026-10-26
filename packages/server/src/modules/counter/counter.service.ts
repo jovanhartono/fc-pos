@@ -14,11 +14,11 @@ import {
   type GetPickupShelfQuery,
   SHELF_PAGE_SIZE,
 } from "@/modules/counter/counter.schema";
+import { isWaitingQcOnly } from "@/modules/orders/order-status-machine";
 import {
   DAY_MS,
   daysBetween,
   jakartaDayOf,
-  shiftDate,
 } from "@/modules/reports/report-range.util";
 import { listTurnaroundLines } from "@/modules/reports/turnaround.repository";
 import { groupItems, percentiles } from "@/modules/reports/turnaround.service";
@@ -57,7 +57,6 @@ async function getReadyEstimates(storeId: number, now: Date) {
     (entry) => entry.categoryId
   );
 
-  const today = jakartaDayOf(now);
   const estimates = new Map<number, CounterEstimate>();
   for (const [categoryId, entries] of itemsByCategory) {
     const recent = entries.filter(
@@ -69,8 +68,7 @@ async function getReadyEstimates(storeId: number, now: Date) {
     if (p90 === null) {
       continue;
     }
-    const days = Math.max(1, Math.ceil(p90 / 24));
-    estimates.set(categoryId, { days, ready_on: shiftDate(today, days) });
+    estimates.set(categoryId, { days: Math.max(1, Math.ceil(p90 / 24)) });
   }
   return estimates;
 }
@@ -80,7 +78,7 @@ async function getReadyEstimates(storeId: number, now: Date) {
 const countStages = (lines: WaitingLine[]): CounterWorkshop => {
   const stages = { in_progress: 0, queued: 0, waiting_qc: 0 };
   for (const itemLines of Map.groupBy(lines, (line) => line.item_id).values()) {
-    if (itemLines.every((line) => line.status === "waiting_qc")) {
+    if (isWaitingQcOnly(itemLines)) {
       stages.waiting_qc++;
     } else if (itemLines.some((line) => line.status !== "queued")) {
       stages.in_progress++;

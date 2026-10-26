@@ -10,7 +10,6 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover";
 import type { CounterCategory, CounterWorkshop } from "@/features/counter/api";
-import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 import { pluralize } from "@/shared/utils";
 
 const MAX_QUOTED_ROWS = 6;
@@ -19,16 +18,17 @@ interface CategoryRowProps {
 	category: CounterCategory;
 }
 
-// The date is what the cashier says out loud: "8 days · Thu 29 Oct".
 const QuoteText = ({ category }: CategoryRowProps) => {
 	if (!category.estimate) {
 		return null;
 	}
 	return (
-		<strong className="font-medium">
-			{pluralize(category.estimate.days, "day")} ·{" "}
-			{dayjs.tz(category.estimate.ready_on, JAKARTA_TZ).format("ddd D MMM")}
-		</strong>
+		<>
+			est.{" "}
+			<strong className="font-medium">
+				{pluralize(category.estimate.days, "day")}
+			</strong>
+		</>
 	);
 };
 
