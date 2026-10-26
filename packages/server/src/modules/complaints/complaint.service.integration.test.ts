@@ -105,11 +105,7 @@ const pairOnTheShelf = async (paymentStatus: "paid" | "unpaid") => {
 };
 
 const walkToShelf = async (orderId: number, serviceId: number) => {
-  for (const to of [
-    "processing",
-    "quality_check",
-    "ready_for_pickup",
-  ] as const) {
+  for (const to of ["processing", "waiting_qc", "ready_for_pickup"] as const) {
     await transitionOrderService(db, {
       by: shop.cashier.id,
       orderId,
@@ -591,7 +587,7 @@ describe("the original line cancelled or refunded while its rework is on the rac
     const [, reworkLine] = await readLines(pair.orderId);
     expect(reworkLine.status).toBe("processing");
 
-    for (const to of ["quality_check", "ready_for_pickup"] as const) {
+    for (const to of ["waiting_qc", "ready_for_pickup"] as const) {
       await transitionOrderService(db, {
         by: shop.cashier.id,
         orderId: pair.orderId,

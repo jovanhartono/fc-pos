@@ -69,11 +69,7 @@ const readyForPickup = async (orderId: number) => {
     throw new Error("Order has no service line");
   }
 
-  for (const to of [
-    "processing",
-    "quality_check",
-    "ready_for_pickup",
-  ] as const) {
+  for (const to of ["processing", "waiting_qc", "ready_for_pickup"] as const) {
     await transitionOrderService(db, {
       by: shop.cashier.id,
       orderId,

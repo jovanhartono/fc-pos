@@ -75,10 +75,10 @@ const orderServiceStatusLabels = {
 	picked_up: "Picked up",
 	processing: "In progress",
 	qc_reject: "QC rejected",
-	quality_check: "Quality check",
 	queued: "Queued",
 	ready_for_pickup: "Ready for pickup",
 	refunded: "Refunded",
+	waiting_qc: "Waiting QC",
 } as const;
 
 export function getPaymentStatusBadgeVariant(
@@ -136,7 +136,7 @@ export function getOrderServiceStatusBadgeVariant(
 			return "warning";
 		case "processing":
 			return "info";
-		case "quality_check":
+		case "waiting_qc":
 			return "warning";
 		case "qc_reject":
 			return "danger";

@@ -29,6 +29,7 @@ import {
   storeScope,
   timeWindow,
 } from "@/modules/reports/money-basis";
+import { jakartaBucketExpr } from "@/modules/reports/report-range.util";
 import { listServicesProcessed } from "@/modules/reports/services-processed";
 
 const qcLog = alias(orderServiceStatusLogsTable, "qc_log");
@@ -116,7 +117,7 @@ export function qualityCheckInRange(
   { range, storeId }: RangeArgs
 ) {
   return and(
-    eq(log.from_status, "quality_check"),
+    eq(log.from_status, "waiting_qc"),
     inArray(log.to_status, ["ready_for_pickup", "qc_reject"]),
     ...timeWindow(log.created_at, range),
     storeScope(ordersTable.store_id, storeId)
@@ -128,6 +129,7 @@ export async function listQualityChecksByChecker(args: RangeArgs) {
   const checks = db
     .select({
       checker_id: qcLog.changed_by,
+      day: jakartaBucketExpr(qcLog.created_at, "day").as("day"),
       passed: sql<boolean>`${passed}`.as("passed"),
       cleaner_id: sql<
         number | null
@@ -153,6 +155,7 @@ export async function listQualityChecksByChecker(args: RangeArgs) {
       user_id: checks.checker_id,
       user_name: checker.name,
       checks: sql<number>`COUNT(*)::int`,
+      days_checked: sql<number>`COUNT(DISTINCT ${checks.day})::int`,
       passes: sql<number>`(COUNT(*) FILTER (WHERE ${checks.passed}))::int`,
       self_checks: sql<number>`(COUNT(*) FILTER (WHERE ${checks.passed} AND ${checks.cleaner_id} = ${checks.checker_id}))::int`,
       complaints_after: sql<number>`(COUNT(*) FILTER (WHERE ${checks.passed} AND ${checks.has_complaint}))::int`,

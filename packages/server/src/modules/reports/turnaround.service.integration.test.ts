@@ -93,7 +93,7 @@ const readyAt = (lineId: number, at: Date) =>
     {
       changed_by: shop.admin.id,
       created_at: at,
-      from_status: "quality_check",
+      from_status: "waiting_qc",
       order_service_id: lineId,
       to_status: "ready_for_pickup",
     },

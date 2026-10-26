@@ -38,7 +38,7 @@ export const ORDER_TERMINAL_SERVICE_STATUSES = [
 export const WORKSHOP_SERVICE_STATUSES = [
   "queued",
   "processing",
-  "quality_check",
+  "waiting_qc",
   "qc_reject",
 ] as const;
 
@@ -59,8 +59,8 @@ export const ORDER_SERVICE_TRANSITIONS: Record<
   OrderServiceStatus[]
 > = {
   queued: ["processing", "cancelled", "refunded"],
-  processing: ["quality_check", "cancelled", "refunded"],
-  quality_check: ["qc_reject", "ready_for_pickup", "cancelled", "refunded"],
+  processing: ["waiting_qc", "cancelled", "refunded"],
+  waiting_qc: ["qc_reject", "ready_for_pickup", "cancelled", "refunded"],
   qc_reject: ["processing", "cancelled", "refunded"],
   ready_for_pickup: ["picked_up", "refunded", "cancelled"],
   picked_up: ["refunded"],

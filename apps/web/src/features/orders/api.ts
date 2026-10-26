@@ -75,7 +75,7 @@ export type FetchOrderServiceQueueQuery = {
 	status?:
 		| "queued"
 		| "processing"
-		| "quality_check"
+		| "waiting_qc"
 		| "qc_reject"
 		| "ready_for_pickup"
 		| "picked_up"
@@ -114,7 +114,7 @@ export type UpdateOrderServiceStatusPayload = {
 	status:
 		| "queued"
 		| "processing"
-		| "quality_check"
+		| "waiting_qc"
 		| "qc_reject"
 		| "ready_for_pickup"
 		| "picked_up"

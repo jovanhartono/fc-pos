@@ -591,7 +591,7 @@ function complaintFlags() {
         .where(
           and(
             eq(passLog.order_service_id, ordersServicesTable.id),
-            eq(passLog.from_status, "quality_check"),
+            eq(passLog.from_status, "waiting_qc"),
             eq(passLog.to_status, "ready_for_pickup")
           )
         )
@@ -615,7 +615,7 @@ function lineDetail() {
     .where(
       and(
         eq(passLog.order_service_id, ordersServicesTable.id),
-        eq(passLog.from_status, "quality_check"),
+        eq(passLog.from_status, "waiting_qc"),
         eq(passLog.to_status, "ready_for_pickup")
       )
     )
@@ -649,7 +649,7 @@ function listShiftsInRange({ range, storeId }: RangeArgs) {
 
 const BENCH_STATUSES = [
   "processing",
-  "quality_check",
+  "waiting_qc",
   "qc_reject",
   "ready_for_pickup",
 ] as const;

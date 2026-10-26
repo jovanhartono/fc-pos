@@ -214,7 +214,7 @@ export const campaignDiscountTypeEnum = pgEnum("campaign_discount_type_enum", [
 export const orderServiceStatusEnum = pgEnum("order_service_status_enum", [
   "queued",
   "processing",
-  "quality_check",
+  "waiting_qc",
   "qc_reject",
   "ready_for_pickup",
   "picked_up",
@@ -845,7 +845,7 @@ export const orderServiceStatusLogsTable = pgTable(
       .where(sql`${table.to_status} = 'processing'`),
     index("order_service_status_logs_qc_idx")
       .on(table.to_status, table.created_at)
-      .where(sql`${table.to_status} IN ('quality_check', 'qc_reject')`),
+      .where(sql`${table.to_status} IN ('waiting_qc', 'qc_reject')`),
   ]
 );
 

@@ -11,11 +11,12 @@ import {
   servicesTable,
   storesTable,
 } from "@/db/schema";
+import { DAY_MS } from "@/modules/reports/report-range.util";
 import { type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
-// What the Counter shows at Kemang: the waiting work against the recent pace,
-// the pickup shelf, and what needs a look.
+// What the Counter shows at Kemang: the waiting work against how long recent
+// Items took, the pickup shelf, and what needs a look.
 
 // Loaded after the swap above, never beside the imports (see the Workers suite).
 const { createOrder } = await import("@/modules/orders/order.service");
@@ -124,36 +125,42 @@ const logChange = (
     to_status: change.to,
   });
 
-const reachQc = (line: Line, at: Date) =>
-  logChange(line, { at, from: "processing", to: "quality_check" });
+const readyLog = (line: Line, at: Date) =>
+  logChange(line, { at, from: "waiting_qc", to: "ready_for_pickup" });
 
-// `count` lines cleared at Kemang, each first checked at the given shop time.
-const clearedAt = async (
-  at: string,
-  count: number,
-  serviceId = shop.serviceId
+// One Item per entry, each ready that many days after its drop-off.
+const readyAfter = async (
+  days: number[],
+  {
+    droppedOff = jkt("2026-09-20T10:00"),
+    serviceIds = [shop.serviceId],
+    store = shop.store,
+  } = {}
 ) => {
-  const lines = await placeLines(shop.store, count, serviceId);
-  await setStatus(lines, "ready_for_pickup");
-  for (const line of lines) {
-    await reachQc(line, jkt(at));
+  const items = await placeOrder(
+    store,
+    days.map(() => ({ serviceIds })),
+    droppedOff
+  );
+  for (const [index, lines] of items.entries()) {
+    await setStatus(lines, "ready_for_pickup");
+    for (const line of lines) {
+      await readyLog(
+        line,
+        new Date(droppedOff.getTime() + days[index] * DAY_MS)
+      );
+    }
   }
+  return items;
 };
 
-const clearedOn = (day: string, count: number, serviceId = shop.serviceId) =>
-  clearedAt(`${day}T10:00`, count, serviceId);
-
-// Open every day from 23 to 29 September, clearing `perDay` a day.
-const steadyWeek = async (perDay: number, serviceId = shop.serviceId) => {
-  for (const day of [23, 24, 25, 26, 27, 28, 29]) {
-    await clearedOn(`2026-09-${day}`, perDay, serviceId);
-  }
-};
+const tenTimes = (days: number) => Array.from({ length: 10 }, () => days);
 
 const waiting = async (count: number, serviceId = shop.serviceId) =>
   setStatus(await placeLines(shop.store, count, serviceId), "queued");
 
-const counterOf = async (storeId = shop.store.id) => getCounter(storeId, NOW);
+const counterOf = async (storeId = shop.store.id, now = NOW) =>
+  getCounter(storeId, now);
 
 const shelfOf = async (page: { offset?: number } = {}) =>
   getPickupShelf({ store_id: shop.store.id, ...page }, NOW);
@@ -200,39 +207,27 @@ describe("when there is nothing honest to quote", () => {
     expect((await counterOf()).categories).toEqual([]);
   });
 
-  it("quotes from exactly 14 days after the first Order, not a minute sooner", async () => {
-    await steadyWeek(3);
-    await waiting(3);
-    const firstOrderAt = (at: string) =>
-      testDb
-        .update(ordersTable)
-        .set({ created_at: jkt(at) })
-        .where(eq(ordersTable.store_id, shop.store.id));
-
-    await firstOrderAt("2026-09-16T12:01");
+  it("needs 10 Items ready in the last 4 weeks", async () => {
+    await waiting(1);
+    await readyAfter([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    // Ready on 1 September, 29 days back: too old to count.
+    await readyAfter([3], { droppedOff: jkt("2026-08-29T10:00") });
     expect((await categoryRow("Footwear"))?.estimate).toBeNull();
 
-    await firstOrderAt("2026-09-16T12:00");
+    await readyAfter([3]);
     expect((await categoryRow("Footwear"))?.estimate).not.toBeNull();
   });
 
-  it("needs 7 open days within the last 28", async () => {
-    // 1 September is 29 days before the 30th, so it does not count.
-    await clearedOn("2026-09-01", 3);
-    for (const day of [24, 25, 26, 27, 28, 29]) {
-      await clearedOn(`2026-09-${day}`, 3);
-    }
-    await waiting(3);
-    expect((await categoryRow("Footwear"))?.estimate).toBeNull();
+  it("ignores another Store's Items", async () => {
+    await waiting(1);
+    await readyAfter(tenTimes(2), { store: bintaro });
 
-    await clearedOn("2026-09-02", 3);
-    expect((await categoryRow("Footwear"))?.estimate).not.toBeNull();
+    expect((await categoryRow("Footwear"))?.estimate).toBeNull();
   });
 });
 
 describe("the workshop rows", () => {
-  it("counts Items once, and not at quality check", async () => {
-    await steadyWeek(1);
+  it("counts Items once, with Waiting QC as its own stage", async () => {
     // One Item with two Services is two lines but one Item.
     const [[cleanLine, repairLine], [processing], [rejected], [atQc], [done]] =
       await placeOrder(shop.store, [
@@ -245,32 +240,46 @@ describe("the workshop rows", () => {
     await setStatus([cleanLine, repairLine], "queued");
     await setStatus([processing], "processing");
     await setStatus([rejected], "qc_reject");
-    await setStatus([atQc], "quality_check");
+    await setStatus([atQc], "waiting_qc");
     await setStatus([done], "ready_for_pickup");
 
     expect(await categoryRow("Footwear")).toMatchObject({
-      after_clean: false,
-      estimate: { days_high: 5, days_low: 4 },
+      estimate: null,
       in_progress: 2,
-      items_waiting: 3,
+      items_waiting: 4,
       queued: 1,
+      waiting_qc: 1,
     });
   });
 
-  it("totals each Item once across Categories, in progress before queued", async () => {
-    const [[bothQueued, repaintQueued], [cleaning, repaintWaiting]] =
-      await placeOrder(shop.store, [
-        { serviceIds: [shop.serviceId, repaintServiceId] },
-        { serviceIds: [shop.serviceId, repaintServiceId] },
-      ]);
-    await setStatus([bothQueued, repaintQueued, repaintWaiting], "queued");
+  it("totals each Item once across Categories: in progress, then Waiting QC, then queued", async () => {
+    const [
+      [bothQueued, repaintQueued],
+      [cleaning, repaintWaiting],
+      [cleaned, repaintNext],
+      [cleanChecked, repaintChecked],
+    ] = await placeOrder(shop.store, [
+      { serviceIds: [shop.serviceId, repaintServiceId] },
+      { serviceIds: [shop.serviceId, repaintServiceId] },
+      { serviceIds: [shop.serviceId, repaintServiceId] },
+      { serviceIds: [shop.serviceId, repaintServiceId] },
+    ]);
+    await setStatus(
+      [bothQueued, repaintQueued, repaintWaiting, repaintNext],
+      "queued"
+    );
     await setStatus([cleaning], "processing");
+    // Cleaned and on the shelf, but its Repaint is still to do.
+    await setStatus([cleaned, cleanChecked, repaintChecked], "waiting_qc");
 
-    expect((await counterOf()).workshop).toEqual({ in_progress: 1, queued: 1 });
+    expect((await counterOf()).workshop).toEqual({
+      in_progress: 2,
+      queued: 1,
+      waiting_qc: 1,
+    });
   });
 
   it("lists only Categories with something waiting, flagged when they start after cleaning", async () => {
-    await steadyWeek(1);
     await waiting(1, repaintServiceId);
 
     const { categories } = await counterOf();
@@ -280,7 +289,6 @@ describe("the workshop rows", () => {
   });
 
   it("ignores another Store's lines", async () => {
-    await steadyWeek(1);
     await waiting(2);
     await setStatus(await placeLines(bintaro, 10), "queued");
 
@@ -288,7 +296,6 @@ describe("the workshop rows", () => {
   });
 
   it("puts the Category with the most Items waiting first", async () => {
-    await steadyWeek(1);
     await waiting(1);
     await waiting(3, repaintServiceId);
 
@@ -299,111 +306,99 @@ describe("the workshop rows", () => {
   });
 });
 
-describe("the pace", () => {
-  it("skips a closed day instead of counting it as zero", async () => {
-    // 28 September: shut, nothing checked.
-    for (const day of [22, 23, 24, 25, 26, 27, 29]) {
-      await clearedOn(`2026-09-${day}`, 4);
-    }
-    await waiting(24);
-
-    // 4 a day over the open days is 6 days; counting the shut day says 7.
-    expect((await categoryRow("Footwear"))?.estimate?.days_low).toBe(6);
-  });
-
-  it("counts yesterday and leaves today's part-day out", async () => {
-    await steadyWeek(4);
-    await clearedOn("2026-09-30", 40);
-    await waiting(8);
-
-    expect((await categoryRow("Footwear"))?.estimate?.days_low).toBe(2);
-  });
-
-  it("uses only the 7 most recent open days", async () => {
-    await steadyWeek(2);
-    // An older, busier day must not lift the pace.
-    await clearedOn("2026-09-20", 30);
-    await waiting(10);
-
-    expect((await categoryRow("Footwear"))?.estimate?.days_low).toBe(5);
-  });
-
-  it("files an early-morning check under its Jakarta day", async () => {
-    // 06:00 on the 29th in Jakarta is still the 28th in UTC.
-    for (const day of [23, 24, 25, 26, 27, 28]) {
-      await clearedOn(`2026-09-${day}`, 3);
-    }
-    await clearedAt("2026-09-29T06:00", 3);
-    await waiting(9);
-
-    expect((await categoryRow("Footwear"))?.estimate?.days_low).toBe(3);
-  });
-
-  it("looks further back for a slow Category until it has 7 checks", async () => {
-    // Footwear keeps the Store open on every day from the 17th.
-    for (const day of [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]) {
-      await clearedOn(`2026-09-${day}`, 1);
-    }
-    // Repaint is checked every other day: 7 checks take 13 open days.
-    for (const day of [29, 27, 25, 23, 21, 19, 17]) {
-      await clearedOn(`2026-09-${day}`, 1, repaintServiceId);
-    }
-    await waiting(7, repaintServiceId);
-
-    // 7 checks over 13 open days is 7/13 a day: 7 waiting is 13 days.
-    expect((await categoryRow("Repaint"))?.estimate).toEqual({
-      days_high: 14,
-      days_low: 13,
+describe("the Ready estimate", () => {
+  it("quotes the p90 by nearest rank, rounded up to whole days", async () => {
+    await waiting(1);
+    // The 9th of 10 is 8.5 days: the cashier says 9.
+    await readyAfter([1, 2, 3, 4, 5, 6, 7, 8, 8.5, 10], {
+      droppedOff: jkt("2026-09-18T10:00"),
     });
-  });
-
-  it("gives a Category no quote when 4 weeks hold fewer than 7 checks", async () => {
-    await steadyWeek(2);
-    for (const day of [29, 25, 21, 17, 13, 10]) {
-      await clearedOn(`2026-09-${day}`, 1, repaintServiceId);
-    }
-    await waiting(3);
-    await waiting(3, repaintServiceId);
-
-    expect((await categoryRow("Repaint"))?.estimate).toBeNull();
-    expect((await categoryRow("Footwear"))?.estimate).not.toBeNull();
-  });
-
-  it("counts a line sent back and checked again once", async () => {
-    for (const day of [23, 24, 25, 26, 27, 28]) {
-      await clearedOn(`2026-09-${day}`, 1);
-    }
-    const [line] = await placeLines(shop.store, 1);
-    await setStatus([line], "ready_for_pickup");
-    await reachQc(line, jkt("2026-09-29T10:00"));
-    await logChange(line, {
-      at: jkt("2026-09-29T11:00"),
-      from: "quality_check",
-      to: "qc_reject",
-    });
-    await reachQc(line, jkt("2026-09-29T14:00"));
-    await waiting(5);
-
-    expect((await categoryRow("Footwear"))?.estimate?.days_low).toBe(5);
-  });
-
-  it("quotes 6.2 days as 6 to 7", async () => {
-    await steadyWeek(5);
-    await waiting(31);
 
     expect((await categoryRow("Footwear"))?.estimate).toEqual({
-      days_high: 7,
-      days_low: 6,
+      days: 9,
+      ready_on: "2026-10-09",
     });
   });
 
-  it("quotes 0.4 days as 1 to 2", async () => {
-    await steadyWeek(5);
-    await waiting(2);
+  it("never quotes less than 1 day", async () => {
+    await waiting(1);
+    await readyAfter(tenTimes(0.1));
 
-    expect((await categoryRow("Footwear"))?.estimate).toEqual({
-      days_high: 2,
-      days_low: 1,
+    expect((await categoryRow("Footwear"))?.estimate?.days).toBe(1);
+  });
+
+  it("uses the last 14 days once they hold 10 Items", async () => {
+    await waiting(1);
+    await readyAfter(tenTimes(2));
+    // Slow ones from three weeks back no longer count.
+    await readyAfter([15, 15, 15, 15, 15], {
+      droppedOff: jkt("2026-08-25T10:00"),
+    });
+
+    expect((await categoryRow("Footwear"))?.estimate?.days).toBe(2);
+  });
+
+  it("looks back 28 days when 14 hold fewer than 10", async () => {
+    await waiting(1);
+    await readyAfter([2, 2, 2, 2, 2]);
+    // Ready on 4 September: inside 28 days, outside 14.
+    await readyAfter([15, 15, 15, 15, 15], {
+      droppedOff: jkt("2026-08-20T10:00"),
+    });
+
+    expect((await categoryRow("Footwear"))?.estimate?.days).toBe(15);
+  });
+
+  it("counts an Item with a clean and a Repaint under both, with nothing added after the clean", async () => {
+    await waiting(1);
+    await waiting(1, repaintServiceId);
+    await readyAfter(tenTimes(3), {
+      serviceIds: [shop.serviceId, repaintServiceId],
+    });
+
+    expect((await categoryRow("Footwear"))?.estimate?.days).toBe(3);
+    expect((await categoryRow("Repaint"))?.estimate?.days).toBe(3);
+  });
+
+  it("leaves Rework lines out of an Item's time", async () => {
+    await waiting(1);
+    const items = await readyAfter(tenTimes(2));
+    const [first] = items[0];
+    const [complaint] = await testDb
+      .insert(complaintsTable)
+      .values({
+        opened_by: shop.admin.id,
+        order_service_id: first.lineId,
+        reason: "Stain",
+      })
+      .returning();
+    const [rework] = await testDb
+      .insert(ordersServicesTable)
+      .values({
+        complaint_id: complaint.id,
+        item_id: first.itemId,
+        order_id: first.orderId,
+        price: "0",
+        service_id: shop.serviceId,
+        status: "ready_for_pickup",
+      })
+      .returning();
+    // Counted, the Rework would make this Item 9 days and the p90 9.
+    await readyLog({ ...first, lineId: rework.id }, jkt("2026-09-29T10:00"));
+
+    expect((await categoryRow("Footwear"))?.estimate?.days).toBe(2);
+  });
+
+  it("dates the quote from today in Jakarta, not in UTC", async () => {
+    await waiting(1);
+    await readyAfter(tenTimes(2));
+
+    // 06:00 on 1 October in Jakarta is still 30 September in UTC.
+    const early = await counterOf(shop.store.id, jkt("2026-10-01T06:00"));
+
+    expect(early.categories[0].estimate).toEqual({
+      days: 2,
+      ready_on: "2026-10-03",
     });
   });
 });
@@ -414,13 +409,13 @@ describe("QC rejects waiting", () => {
     await setStatus([line], "qc_reject");
     await logChange(line, {
       at: jkt("2026-09-25T10:00"),
-      from: "quality_check",
+      from: "waiting_qc",
       note: "Sole still yellow",
       to: "qc_reject",
     });
     await logChange(line, {
       at: jkt("2026-09-27T10:00"),
-      from: "quality_check",
+      from: "waiting_qc",
       note: "Lace stain remains",
       to: "qc_reject",
     });
@@ -428,7 +423,7 @@ describe("QC rejects waiting", () => {
     await setStatus([noNote], "qc_reject");
     await logChange(noNote, {
       at: jkt("2026-09-29T10:00"),
-      from: "quality_check",
+      from: "waiting_qc",
       to: "qc_reject",
     });
 
@@ -545,7 +540,7 @@ describe("days are Jakarta calendar days", () => {
     await setStatus([complained, onShelf], "ready_for_pickup");
     await logChange(reject, {
       at: lastNight,
-      from: "quality_check",
+      from: "waiting_qc",
       to: "qc_reject",
     });
     await testDb.insert(complaintsTable).values({

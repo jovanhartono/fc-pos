@@ -153,7 +153,7 @@ describe("openComplaint", () => {
     for (const status of [
       "queued",
       "processing",
-      "quality_check",
+      "waiting_qc",
       "qc_reject",
       "refunded",
       "cancelled",

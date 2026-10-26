@@ -8,7 +8,7 @@ import {
 import { type RangeArgs, storeScope } from "@/modules/reports/money-basis";
 import { jakartaBucketExpr } from "@/modules/reports/report-range.util";
 
-// Counted once, at its first quality check: a line checked in July and sent
+// Counted once, when it first reached Waiting QC: a line done in July and sent
 // back in August is July's work.
 export function listServicesProcessed({ range, storeId }: RangeArgs) {
   const firstReachedQc =
@@ -33,7 +33,7 @@ export function listServicesProcessed({ range, storeId }: RangeArgs) {
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
     .where(
       and(
-        eq(orderServiceStatusLogsTable.to_status, "quality_check"),
+        eq(orderServiceStatusLogsTable.to_status, "waiting_qc"),
         // Nothing logged after the stretch can be a line's first check, so one
         // month's answer need not read back through the shop's whole history.
         lt(orderServiceStatusLogsTable.created_at, range.end),

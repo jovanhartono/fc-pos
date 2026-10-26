@@ -217,32 +217,26 @@ beforeEach(async () => {
   // Adi cleans, Bayu passes it. First try.
   await log(line("first-pass"), [
     ["queued", "processing", adi, "2026-08-02T10:00"],
-    ["processing", "quality_check", adi, "2026-08-02T12:00"],
-    ["quality_check", "ready_for_pickup", bayu, "2026-08-02T13:00"],
+    ["processing", "waiting_qc", adi, "2026-08-02T12:00"],
+    ["waiting_qc", "ready_for_pickup", bayu, "2026-08-02T13:00"],
   ]);
 
   // Bayu sends Adi's work back; Citra redoes it and passes her own redo.
   await log(line("redone"), [
     ["queued", "processing", adi, "2026-08-03T09:00"],
-    ["processing", "quality_check", adi, "2026-08-03T10:00"],
-    [
-      "quality_check",
-      "qc_reject",
-      bayu,
-      "2026-08-03T11:00",
-      "stain on toe box",
-    ],
+    ["processing", "waiting_qc", adi, "2026-08-03T10:00"],
+    ["waiting_qc", "qc_reject", bayu, "2026-08-03T11:00", "stain on toe box"],
     ["qc_reject", "processing", citra, "2026-08-03T12:00"],
-    ["processing", "quality_check", citra, "2026-08-03T13:00"],
-    ["quality_check", "ready_for_pickup", citra, "2026-08-03T14:00"],
+    ["processing", "waiting_qc", citra, "2026-08-03T13:00"],
+    ["waiting_qc", "ready_for_pickup", citra, "2026-08-03T14:00"],
   ]);
 
   // Adi repairs and passes his own work; the Customer complains, and the
   // Rework line Bayu does is sent back by Citra.
   await log(line("self-checked"), [
     ["queued", "processing", adi, "2026-08-04T09:00"],
-    ["processing", "quality_check", adi, "2026-08-04T10:00"],
-    ["quality_check", "ready_for_pickup", adi, "2026-08-04T11:00"],
+    ["processing", "waiting_qc", adi, "2026-08-04T10:00"],
+    ["waiting_qc", "ready_for_pickup", adi, "2026-08-04T11:00"],
   ]);
   const reworkedComplaint = await complain(lines["self-checked"]);
   reworkLineId = await addReworkLine(
@@ -253,19 +247,19 @@ beforeEach(async () => {
   );
   await log(reworkLineId, [
     ["queued", "processing", bayu, "2026-08-11T09:00"],
-    ["processing", "quality_check", bayu, "2026-08-11T10:00"],
-    ["quality_check", "qc_reject", citra, "2026-08-11T11:00", "glue marks"],
+    ["processing", "waiting_qc", bayu, "2026-08-11T10:00"],
+    ["waiting_qc", "qc_reject", citra, "2026-08-11T11:00", "glue marks"],
   ]);
 
   // Sent back before reasons were asked for, then passed by Adi, then
   // refunded as damaged after the Customer complained.
   await log(line("refunded"), [
     ["queued", "processing", bayu, "2026-08-05T09:00"],
-    ["processing", "quality_check", bayu, "2026-08-05T10:00"],
-    ["quality_check", "qc_reject", citra, "2026-08-05T11:00"],
+    ["processing", "waiting_qc", bayu, "2026-08-05T10:00"],
+    ["waiting_qc", "qc_reject", citra, "2026-08-05T11:00"],
     ["qc_reject", "processing", bayu, "2026-08-05T12:00"],
-    ["processing", "quality_check", bayu, "2026-08-05T13:00"],
-    ["quality_check", "ready_for_pickup", adi, "2026-08-05T14:00"],
+    ["processing", "waiting_qc", bayu, "2026-08-05T13:00"],
+    ["waiting_qc", "ready_for_pickup", adi, "2026-08-05T14:00"],
   ]);
   await complain(lines.refunded);
   await setStatus(line("refunded"), "refunded");
@@ -273,47 +267,47 @@ beforeEach(async () => {
   // July's work: the stretch before.
   await log(line("july"), [
     ["queued", "processing", adi, "2026-07-20T09:00"],
-    ["processing", "quality_check", adi, "2026-07-20T10:00"],
-    ["quality_check", "qc_reject", bayu, "2026-07-20T11:00", "scuffs"],
+    ["processing", "waiting_qc", adi, "2026-07-20T10:00"],
+    ["waiting_qc", "qc_reject", bayu, "2026-07-20T11:00", "scuffs"],
     ["qc_reject", "processing", adi, "2026-07-20T12:00"],
-    ["processing", "quality_check", adi, "2026-07-20T13:00"],
-    ["quality_check", "ready_for_pickup", bayu, "2026-07-20T14:00"],
+    ["processing", "waiting_qc", adi, "2026-07-20T13:00"],
+    ["waiting_qc", "ready_for_pickup", bayu, "2026-07-20T14:00"],
   ]);
 
   // Checked in August, sent back the instant September opens.
   await log(line("rejected-after-range"), [
     ["queued", "processing", citra, "2026-08-30T09:00"],
-    ["processing", "quality_check", citra, "2026-08-30T10:00"],
-    ["quality_check", "qc_reject", bayu, "2026-09-01T00:00", "still wet"],
+    ["processing", "waiting_qc", citra, "2026-08-30T10:00"],
+    ["waiting_qc", "qc_reject", bayu, "2026-09-01T00:00", "still wet"],
   ]);
 
   // Complained about; the Rework line was cancelled, so nothing was redone.
   await log(line("pending"), [
     ["queued", "processing", citra, "2026-08-06T09:00"],
-    ["processing", "quality_check", citra, "2026-08-06T10:00"],
-    ["quality_check", "ready_for_pickup", bayu, "2026-08-06T11:00"],
+    ["processing", "waiting_qc", citra, "2026-08-06T10:00"],
+    ["waiting_qc", "ready_for_pickup", bayu, "2026-08-06T11:00"],
   ]);
   const pendingComplaint = await complain(lines.pending);
   await addReworkLine(lines.pending, pendingComplaint, clean, "cancelled");
 
   await log(line("cancelled"), [
     ["queued", "processing", citra, "2026-08-07T09:00"],
-    ["processing", "quality_check", citra, "2026-08-07T10:00"],
-    ["quality_check", "ready_for_pickup", bayu, "2026-08-07T11:00"],
+    ["processing", "waiting_qc", citra, "2026-08-07T10:00"],
+    ["waiting_qc", "ready_for_pickup", bayu, "2026-08-07T11:00"],
   ]);
   await complain(lines.cancelled);
   await setStatus(line("cancelled"), "cancelled");
 
   await log(line("repaired"), [
     ["queued", "processing", bayu, "2026-08-09T09:00"],
-    ["processing", "quality_check", bayu, "2026-08-09T10:00"],
-    ["quality_check", "ready_for_pickup", citra, "2026-08-09T11:00"],
+    ["processing", "waiting_qc", bayu, "2026-08-09T10:00"],
+    ["waiting_qc", "ready_for_pickup", citra, "2026-08-09T11:00"],
   ]);
 
   await log(line("bintaro"), [
     ["queued", "processing", adi, "2026-08-08T09:00"],
-    ["processing", "quality_check", adi, "2026-08-08T10:00"],
-    ["quality_check", "qc_reject", bayu, "2026-08-08T11:00", "other store"],
+    ["processing", "waiting_qc", adi, "2026-08-08T10:00"],
+    ["waiting_qc", "qc_reject", bayu, "2026-08-08T11:00", "other store"],
   ]);
 
   refundIds = {
@@ -448,6 +442,8 @@ describe("the Quality report", () => {
         user_id: bayu,
         user_name: "Bayu",
         checks: 4,
+        days_checked: 4,
+        per_day: 1,
         passes: 3,
         rejects: 1,
         reject_rate: 0.25,
@@ -460,6 +456,8 @@ describe("the Quality report", () => {
         user_id: citra,
         user_name: "Citra",
         checks: 4,
+        days_checked: 4,
+        per_day: 1,
         passes: 2,
         rejects: 2,
         reject_rate: 0.5,
@@ -471,6 +469,8 @@ describe("the Quality report", () => {
         user_id: adi,
         user_name: "Adi",
         checks: 2,
+        days_checked: 2,
+        per_day: 1,
         passes: 2,
         rejects: 0,
         reject_rate: 0,
@@ -479,6 +479,31 @@ describe("the Quality report", () => {
         complaints_after: 2,
       },
     ]);
+  });
+
+  it("averages checks over the Jakarta days the checker worked", async () => {
+    // Bayu's late shift runs past midnight: two Jakarta days, though in UTC
+    // all three checks land on 14 August.
+    const late = await placeOrder(shop.store, [
+      { brand: "evening", serviceId: shop.serviceId },
+      { brand: "before-midnight", serviceId: shop.serviceId },
+      { brand: "after-midnight", serviceId: shop.serviceId },
+    ]);
+    await log(late.evening.lineId, [
+      ["waiting_qc", "ready_for_pickup", bayu, "2026-08-14T20:00"],
+    ]);
+    await log(late["before-midnight"].lineId, [
+      ["waiting_qc", "ready_for_pickup", bayu, "2026-08-14T23:30"],
+    ]);
+    await log(late["after-midnight"].lineId, [
+      ["waiting_qc", "ready_for_pickup", bayu, "2026-08-15T00:30"],
+    ]);
+
+    const report = await kemangAugust();
+    const bayuRow = report.by_checker.find((row) => row.user_id === bayu);
+
+    // 7 checks over 2, 3, 6, 7, 14 and 15 August.
+    expect(bayuRow).toMatchObject({ checks: 7, days_checked: 6, per_day: 1.2 });
   });
 
   it("lists Items refunded as damaged or lost, newest first", async () => {

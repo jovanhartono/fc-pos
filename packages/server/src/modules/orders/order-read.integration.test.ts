@@ -67,11 +67,7 @@ const putOnTheShelf = async (orderId: number) => {
   }
   await addItemPhoto(item.id, shop.cashier.id);
 
-  for (const to of [
-    "processing",
-    "quality_check",
-    "ready_for_pickup",
-  ] as const) {
+  for (const to of ["processing", "waiting_qc", "ready_for_pickup"] as const) {
     await transitionOrderService(db, {
       by: shop.cashier.id,
       orderId,

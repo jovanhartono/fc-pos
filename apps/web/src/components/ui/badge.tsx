@@ -16,7 +16,7 @@ const badgeVariants = cva(
 				danger: "bg-tone-bad text-tone-bad-foreground",
 				warning: "bg-tone-warn text-tone-warn-foreground",
 				info: "bg-tone-info text-tone-info-foreground",
-				// Its own hue: amber already means Queued and Quality check.
+				// Its own hue: amber already means Queued and Waiting QC.
 				priority: "bg-tone-priority text-tone-priority-foreground",
 				destructive:
 					"bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",

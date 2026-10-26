@@ -10,6 +10,7 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover";
 import type { CounterCategory, CounterWorkshop } from "@/features/counter/api";
+import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 import { pluralize } from "@/shared/utils";
 
 const MAX_QUOTED_ROWS = 6;
@@ -18,25 +19,16 @@ interface CategoryRowProps {
 	category: CounterCategory;
 }
 
+// The date is what the cashier says out loud: "8 days · Thu 29 Oct".
 const QuoteText = ({ category }: CategoryRowProps) => {
 	if (!category.estimate) {
 		return null;
 	}
-	const range = `${category.estimate.days_low}–${category.estimate.days_high} days`;
-	if (category.after_clean) {
-		return (
-			<>
-				<strong className="font-medium">+{range}</strong>
-				<span className="block text-muted-foreground text-footnote">
-					after the clean
-				</span>
-			</>
-		);
-	}
 	return (
-		<>
-			est. <strong className="font-medium">{range}</strong>
-		</>
+		<strong className="font-medium">
+			{pluralize(category.estimate.days, "day")} ·{" "}
+			{dayjs.tz(category.estimate.ready_on, JAKARTA_TZ).format("ddd D MMM")}
+		</strong>
 	);
 };
 
@@ -47,7 +39,8 @@ const CategoryRow = ({ category }: CategoryRowProps) => (
 			<QuoteText category={category} />
 		</span>
 		<span className="text-muted-foreground text-footnote tabular-nums">
-			{category.queued} queued · {category.in_progress} in progress
+			{category.queued} queued · {category.in_progress} in progress ·{" "}
+			{category.waiting_qc} waiting QC
 		</span>
 	</li>
 );
@@ -73,8 +66,8 @@ const NotEnoughData = ({ categories }: NotEnoughDataProps) => (
 				/>
 			</PopoverTrigger>
 			<PopoverContent align="start" className="w-64">
-				A quote needs at least 7 finished in the last 4 weeks the Store was
-				open. These Categories have fewer, so any number would be a guess.
+				A quote needs at least 10 Items ready in the last 4 weeks. These
+				Categories have fewer, so any number would be a guess.
 			</PopoverContent>
 		</Popover>
 		{categories.map((category) => (
@@ -154,7 +147,7 @@ export const WorkshopSection = ({
 		<Section
 			count={
 				categories.length > 0
-					? `${pluralize(workshop.queued, "Item")} queued · ${workshop.in_progress} in progress`
+					? `${pluralize(workshop.queued, "Item")} queued · ${workshop.in_progress} in progress · ${workshop.waiting_qc} waiting QC`
 					: null
 			}
 			empty="Nothing waiting."

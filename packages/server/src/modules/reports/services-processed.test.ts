@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/pg-proxy";
 import type { DateRange } from "@/modules/reports/report-range.util";
 
 // How much work the shop got through is when each OrderService first reached
-// quality check, not how many log rows it left behind.
+// Waiting QC, not how many log rows it left behind.
 
 const queries: { params: unknown[]; sql: string }[] = [];
 const rowQueue: unknown[][] = [];
@@ -46,7 +46,7 @@ describe("what makes a treatment count as processed", () => {
   it("counts reaching inspection, and counts each line once", async () => {
     await listServicesProcessed({ range: AUGUST });
 
-    expect(only().params[0]).toBe("quality_check");
+    expect(only().params[0]).toBe("waiting_qc");
     expect(only().sql).toContain(PER_LINE);
   });
 

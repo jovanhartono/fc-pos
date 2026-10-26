@@ -305,7 +305,7 @@ describe("complaintable lines (ADR-0013)", () => {
 					service({ id: 2, status: "picked_up", complaints: [{ id: 7 }] }),
 					service({ id: 3, status: "picked_up", reworkOf: { id: 1 } }),
 					service({ id: 4, status: "ready_for_pickup" }),
-					service({ id: 5, status: "quality_check" }),
+					service({ id: 5, status: "waiting_qc" }),
 					service({ id: 6, status: "refunded" }),
 					service({ id: 7, status: "cancelled" }),
 					service({ id: 8, status: "ready_for_pickup", reworkOf: { id: 1 } }),

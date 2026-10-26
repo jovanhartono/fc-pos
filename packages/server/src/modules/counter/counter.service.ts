@@ -1,8 +1,6 @@
 import {
-  findFirstOrderCreatedAt,
   listLatestQcRejects,
   listPickupShelf,
-  listProcessedByCategory,
   listUndecidedComplaints,
   listWaitingLines,
   sumPickupShelf,
@@ -10,6 +8,7 @@ import {
 import {
   type Counter,
   type CounterCategory,
+  type CounterEstimate,
   type CounterShelfOrder,
   type CounterWorkshop,
   type GetPickupShelfQuery,
@@ -18,113 +17,95 @@ import {
 import {
   DAY_MS,
   daysBetween,
-  getJakartaRange,
   jakartaDayOf,
   shiftDate,
 } from "@/modules/reports/report-range.util";
+import { listTurnaroundLines } from "@/modules/reports/turnaround.repository";
+import { groupItems, percentiles } from "@/modules/reports/turnaround.service";
 import {
   buildPaginationMeta,
   normalizePagination,
   type PaginationMeta,
 } from "@/utils/pagination";
 
-const MIN_HISTORY_DAYS = 14;
-const PACE_WINDOW_DAYS = 28;
-const PACE_OPEN_DAYS = 7;
-const PACE_MIN_CHECKS = 7;
+const RECENT_DAYS = 14;
+const WIDER_DAYS = 28;
 type WaitingLine = Awaited<ReturnType<typeof listWaitingLines>>[number];
 
 // Calendar days in Jakarta: ready at 20:00 last night is "1 day" at 09:00.
 const daysSince = (at: Date, now: Date) =>
   Math.max(0, daysBetween(jakartaDayOf(at), jakartaDayOf(now)) - 1);
 
-// A Category with no pace gets no quote: "ready in 42 days" off two checks is a
-// guess, and the cashier promises it to the Customer standing there.
-async function getCategoryPaces(storeId: number, now: Date) {
-  const paces = new Map<number, number>();
+// ADR-0027: the cashier promises a date 9 in 10 recent shoes made.
+async function getReadyEstimates(storeId: number, now: Date) {
+  const wider = {
+    end: now,
+    start: new Date(now.getTime() - WIDER_DAYS * DAY_MS),
+  };
+  const recentStart = new Date(now.getTime() - RECENT_DAYS * DAY_MS);
+  const items = groupItems(
+    await listTurnaroundLines({ range: wider, storeId }),
+    wider
+  );
 
-  // Today is left out: at 10am the workshop has had a few hours, and counting
-  // that part-day would quote a queue far slower than it really is.
-  const today = jakartaDayOf(now);
-  const [firstOrderAt, processed] = await Promise.all([
-    findFirstOrderCreatedAt(storeId),
-    listProcessedByCategory(
-      storeId,
-      getJakartaRange(shiftDate(today, -PACE_WINDOW_DAYS), shiftDate(today, -1))
+  const itemsByCategory = Map.groupBy(
+    items.flatMap((item) =>
+      [...new Set(item.lines.map((line) => line.category_id))]
+        .filter((categoryId) => categoryId !== null)
+        .map((categoryId) => ({ categoryId, item }))
     ),
-  ]);
-  if (
-    !firstOrderAt ||
-    now.getTime() - firstOrderAt.getTime() < MIN_HISTORY_DAYS * DAY_MS
-  ) {
-    return paces;
-  }
+    (entry) => entry.categoryId
+  );
 
-  // A check at 06:00 belongs to that Jakarta morning, not the previous UTC day.
-  const perCategoryPerDay = new Map<number, Map<string, number>>();
-  const openDays = new Set<string>();
-  for (const { category_id, processed_at } of processed) {
-    const day = jakartaDayOf(processed_at);
-    openDays.add(day);
-    const days = perCategoryPerDay.get(category_id) ?? new Map();
-    days.set(day, (days.get(day) ?? 0) + 1);
-    perCategoryPerDay.set(category_id, days);
-  }
-
-  // A day with no check at the Store at all is a closed day (a public
-  // holiday), not a slow one, so it drops out instead of dragging the pace down.
-  const newestFirst = [...openDays].sort((a, b) => b.localeCompare(a));
-  if (newestFirst.length < PACE_OPEN_DAYS) {
-    return paces;
-  }
-
-  for (const [categoryId, days] of perCategoryPerDay) {
-    let checks = 0;
-    for (const [index, day] of newestFirst.entries()) {
-      checks += days.get(day) ?? 0;
-      const used = index + 1;
-      if (used >= PACE_OPEN_DAYS && checks >= PACE_MIN_CHECKS) {
-        paces.set(categoryId, checks / used);
-        break;
-      }
+  const today = jakartaDayOf(now);
+  const estimates = new Map<number, CounterEstimate>();
+  for (const [categoryId, entries] of itemsByCategory) {
+    const recent = entries.filter(
+      (entry) => entry.item.ready_at >= recentStart
+    );
+    const p90 =
+      percentiles(recent.map((entry) => entry.item.hours)).p90 ??
+      percentiles(entries.map((entry) => entry.item.hours)).p90;
+    if (p90 === null) {
+      continue;
     }
+    const days = Math.max(1, Math.ceil(p90 / 24));
+    estimates.set(categoryId, { days, ready_on: shiftDate(today, days) });
   }
-
-  return paces;
+  return estimates;
 }
 
-// Each Item once: a shoe being cleaned while its Repaint waits is in progress,
-// so queued + in progress is the number of shoes in the workshop.
+// Each Item once: a cleaned shoe whose Repaint still waits is in progress; it
+// is Waiting QC only when nothing is left but the check.
 const countStages = (lines: WaitingLine[]): CounterWorkshop => {
-  const inProgress = new Set(
-    lines.filter((line) => line.status !== "queued").map((line) => line.item_id)
-  );
-  const queued = new Set(
-    lines
-      .filter((line) => !inProgress.has(line.item_id))
-      .map((line) => line.item_id)
-  );
-  return { in_progress: inProgress.size, queued: queued.size };
+  const stages = { in_progress: 0, queued: 0, waiting_qc: 0 };
+  for (const itemLines of Map.groupBy(lines, (line) => line.item_id).values()) {
+    if (itemLines.every((line) => line.status === "waiting_qc")) {
+      stages.waiting_qc++;
+    } else if (itemLines.some((line) => line.status !== "queued")) {
+      stages.in_progress++;
+    } else {
+      stages.queued++;
+    }
+  }
+  return stages;
 };
 
-function buildCategories(lines: WaitingLine[], paces: Map<number, number>) {
+function buildCategories(
+  lines: WaitingLine[],
+  estimates: Map<number, CounterEstimate>
+) {
   return [...Map.groupBy(lines, (line) => line.category_id).entries()]
-    .map(([categoryId, categoryLines]): CounterCategory => {
-      const pace = paces.get(categoryId);
-      const low =
-        pace === undefined
-          ? null
-          : Math.max(1, Math.floor(categoryLines.length / pace));
-
-      return {
+    .map(
+      ([categoryId, categoryLines]): CounterCategory => ({
         after_clean: categoryLines[0].starts_after_cleaning,
         category_id: categoryId,
-        estimate: low === null ? null : { days_high: low + 1, days_low: low },
+        estimate: estimates.get(categoryId) ?? null,
         ...countStages(categoryLines),
         items_waiting: new Set(categoryLines.map((line) => line.item_id)).size,
         name: categoryLines[0].category_name,
-      };
-    })
+      })
+    )
     .sort(
       (a, b) =>
         b.items_waiting - a.items_waiting || a.name.localeCompare(b.name)
@@ -163,8 +144,8 @@ export async function getCounter(
   storeId: number,
   now = new Date()
 ): Promise<Counter> {
-  const [paces, lines, complaints, shelf] = await Promise.all([
-    getCategoryPaces(storeId, now),
+  const [estimates, lines, complaints, shelf] = await Promise.all([
+    getReadyEstimates(storeId, now),
     listWaitingLines(storeId),
     listUndecidedComplaints(storeId),
     sumPickupShelf(storeId),
@@ -173,7 +154,7 @@ export async function getCounter(
   const qcRejects = await buildQcRejects(lines, now);
 
   return {
-    categories: buildCategories(lines, paces),
+    categories: buildCategories(lines, estimates),
     complaints: complaints.map((complaint) => ({
       category: complaint.category_name,
       complaint_id: complaint.complaint_id,
