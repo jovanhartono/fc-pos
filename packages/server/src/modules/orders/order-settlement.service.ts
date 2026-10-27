@@ -72,7 +72,7 @@ export function assertDiscountRequestAllowed({
   }
   if (hasBlankLine) {
     throw new BadRequestException(
-      "Order has an unpriced line — promotions wait until every item is priced"
+      "Order has an unpriced line. Add Campaigns once every line is priced"
     );
   }
   if (isSettled) {

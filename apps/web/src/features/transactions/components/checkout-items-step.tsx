@@ -302,8 +302,8 @@ const CheckoutTreatmentRow = ({
 					/>
 					<FieldDescription>
 						{line.price.trim() === ""
-							? "No price yet — payment waits until this line is priced after inspection."
-							: "Agreed price. Can be corrected until the order is paid."}
+							? "No price yet. Price it after inspection, then collect payment."
+							: "Agreed price. Edit it until the Order is paid."}
 					</FieldDescription>
 				</Field>
 			) : null}
@@ -373,7 +373,7 @@ const CheckoutItemCard = ({
 				))}
 			</div>
 
-			<section aria-label={`Treatments on item ${itemNumber}`}>
+			<section aria-label={`Services on Item ${itemNumber}`}>
 				{item.services.length === 0 ? (
 					<p className="border-border/70 border-t px-3 py-2.5 text-muted-foreground text-footnote">
 						Tap a service to add it here

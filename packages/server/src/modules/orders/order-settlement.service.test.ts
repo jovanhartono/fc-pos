@@ -81,7 +81,7 @@ describe("assertDiscountRequestAllowed", () => {
           isSettled: false,
           request: { ...NO_PROMO, voucher_codes: ["VIP12345"] },
         }),
-      "Order has an unpriced line — promotions wait until every item is priced"
+      "Order has an unpriced line. Add Campaigns once every line is priced"
     );
   });
 
@@ -93,7 +93,7 @@ describe("assertDiscountRequestAllowed", () => {
           isSettled: false,
           request: { ...NO_PROMO, discount: 25_000 },
         }),
-      "Order has an unpriced line — promotions wait until every item is priced"
+      "Order has an unpriced line. Add Campaigns once every line is priced"
     );
   });
 

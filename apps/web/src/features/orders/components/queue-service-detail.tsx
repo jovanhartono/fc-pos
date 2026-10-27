@@ -450,7 +450,7 @@ export function QueueServiceDetail({
 								id="queue-status-note"
 								placeholder={
 									actionStatuses.includes("qc_reject")
-										? "Needed to reject, e.g. stain on toe box"
+										? "Reject reason, e.g. stain on toe box"
 										: "Optional status note"
 								}
 								ref={statusNoteRef}

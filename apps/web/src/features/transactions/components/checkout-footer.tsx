@@ -60,7 +60,7 @@ export const CheckoutFooter = ({
 			? [
 					dropoffPhoto ? null : "Add a drop-off photo to continue.",
 					unpricedCount > 0
-						? "A line has no price yet — the order goes out unpaid until it is priced."
+						? "A line has no price yet. The Order stays unpaid until it is priced."
 						: null,
 				]
 					.filter(Boolean)

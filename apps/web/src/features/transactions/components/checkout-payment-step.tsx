@@ -179,8 +179,8 @@ export const CheckoutPaymentStep = () => {
 						</div>
 						{paymentBlocked ? (
 							<p className="text-muted-foreground text-footnote">
-								A line has no price yet — the order goes out unpaid and is
-								collected once every line is priced.
+								A line has no price yet. The Order saves unpaid; collect payment
+								once every line is priced.
 							</p>
 						) : null}
 						<FieldError errors={[fieldState.error]} />
@@ -245,8 +245,8 @@ export const CheckoutPaymentStep = () => {
 				</>
 			) : (
 				<p className="text-muted-foreground text-body">
-					A line has no price yet — campaigns, voucher codes and manual discount
-					are entered once every item is priced.
+					A line has no price yet. Add Campaigns, Voucher codes and manual
+					discount once every line is priced.
 				</p>
 			)}
 

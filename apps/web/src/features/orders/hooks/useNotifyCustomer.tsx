@@ -93,7 +93,7 @@ export const useNotifyCustomer = (orderId: number) => {
 		// WhatsApp already opened, so retrying only saves the record; tapping
 		// Notify again would send the Customer a second message.
 		onError: (_error, customerName) => {
-			toast.error("Sent, but not saved.", {
+			toast.error("Sent on WhatsApp, but couldn't mark it notified.", {
 				action: {
 					label: "Save again",
 					onClick: () => mutation.mutate(customerName),

@@ -57,7 +57,7 @@ export const useBarcodeScanner = (
 		setError(null);
 
 		if (!getBarcodeDetector()) {
-			setError("Barcode scanner is not supported on this browser.");
+			setError("This browser can't scan. Type the code.");
 			return;
 		}
 
@@ -79,7 +79,7 @@ export const useBarcodeScanner = (
 			streamRef.current = nextStream;
 			setStream(nextStream);
 		} catch {
-			setError("Unable to access camera.");
+			setError("Allow camera access in Settings, or type the code.");
 			stop();
 		} finally {
 			openingRef.current = false;
@@ -96,7 +96,7 @@ export const useBarcodeScanner = (
 
 		video.srcObject = stream;
 		void video.play().catch(() => {
-			setError("Unable to access camera.");
+			setError("Allow camera access in Settings, or type the code.");
 		});
 
 		const detector = new detectorConstructor();

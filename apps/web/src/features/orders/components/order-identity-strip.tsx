@@ -441,7 +441,8 @@ export const OrderIdentityStrip = ({
 								className="text-muted-foreground text-footnote leading-relaxed"
 								id="pickup-disabled-reason"
 							>
-								{gates.pickupDisabledReason ?? "Pickup unavailable."}
+								{gates.pickupDisabledReason ??
+									"You can't record pickups. Ask a cashier."}
 							</p>
 						) : null}
 					</div>

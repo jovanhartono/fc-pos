@@ -59,9 +59,7 @@ const app = new Hono<AdminEnv>()
         throw new NotFoundException("Category not found");
       }
 
-      return c.json(
-        success(category, `Update Category ${category.name} success`)
-      );
+      return c.json(success(category, `${category.name} updated`));
     }
   );
 

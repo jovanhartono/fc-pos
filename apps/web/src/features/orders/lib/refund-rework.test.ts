@@ -40,7 +40,7 @@ describe("findWorkshopRework", () => {
 describe("reworkChoiceCaption", () => {
 	it("says what each choice does to the round", () => {
 		expect(reworkChoiceCaption({ round: 2, wentHome: true }, false)).toBe(
-			"Rework 2 stops; the pair goes back as is.",
+			"Rework 2 stops; the Item goes back as is.",
 		);
 		expect(reworkChoiceCaption({ round: 1, wentHome: false }, false)).toBe(
 			"Rework 1 is cancelled.",

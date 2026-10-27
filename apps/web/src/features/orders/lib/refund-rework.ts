@@ -28,6 +28,6 @@ export const reworkChoiceCaption = (
 		return `Rework ${round} keeps going, free.`;
 	}
 	return wentHome
-		? `Rework ${round} stops; the pair goes back as is.`
+		? `Rework ${round} stops; the Item goes back as is.`
 		: `Rework ${round} is cancelled.`;
 };

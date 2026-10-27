@@ -66,8 +66,8 @@ const NotEnoughData = ({ categories }: NotEnoughDataProps) => (
 				/>
 			</PopoverTrigger>
 			<PopoverContent align="start" className="w-64">
-				A quote needs at least 10 Items ready in the last 4 weeks. These
-				Categories have fewer, so any number would be a guess.
+				No Ready estimate: fewer than 10 Items in these Categories became ready
+				in the last 4 weeks.
 			</PopoverContent>
 		</Popover>
 		{categories.map((category) => (

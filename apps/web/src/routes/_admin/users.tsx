@@ -176,6 +176,8 @@ function UsersPage() {
 		mutationKey: ["update-user-stores"],
 		mutationFn: ({ id, store_ids }: { id: number; store_ids: number[] }) =>
 			updateUserStores(id, { store_ids }),
+		// Saving a User already toasts once; its Stores ride along silently.
+		onSuccess: () => undefined,
 	});
 
 	// The sheet keeps the handler it opened with, so the edited User travels with

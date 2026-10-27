@@ -114,7 +114,7 @@ export async function createOrderPickupEvent({
 
     if (handedOverIds.length !== requestedIds.length) {
       throw new BadRequestException(
-        "Another cashier already processed one of the selected items. Refresh and try again."
+        "Someone already picked up one of these Items. Refresh and try again."
       );
     }
 

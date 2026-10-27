@@ -554,9 +554,7 @@ describe("createOrder", () => {
     );
 
     expect(error).toBeInstanceOf(BadRequestException);
-    expect((error as Error).message).toBe(
-      "Insufficient stock for product Detergent 1L"
-    );
+    expect((error as Error).message).toBe("Not enough stock for Detergent 1L");
     // One take of five, not five takes another cashier could slip between.
     expect(stock.calls).toEqual([{ productId: 20, qty: 5 }]);
     expect(repo.insertedOrder).toBeDefined();
@@ -859,7 +857,7 @@ describe("createOrder", () => {
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Order has an unpriced line — promotions wait until every item is priced"
+      "Order has an unpriced line. Add Campaigns once every line is priced"
     );
     expect(repo.reserveCalls).toHaveLength(0);
     expect(discount.calls).toHaveLength(0);

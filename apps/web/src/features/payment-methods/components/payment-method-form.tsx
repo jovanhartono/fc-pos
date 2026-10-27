@@ -94,7 +94,7 @@ export function PaymentMethodForm({
 						render={({ field }) => (
 							<SwitchRow
 								checked={field.value}
-								description="Active payment methods can be used at checkout."
+								description="Only Active payment methods show in the POS."
 								disabled={isSubmitting}
 								id="payment-method-active"
 								onCheckedChange={field.onChange}

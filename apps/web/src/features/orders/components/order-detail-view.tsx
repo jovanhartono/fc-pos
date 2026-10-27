@@ -141,7 +141,7 @@ export const OrderDetailView = ({ orderId }: OrderDetailViewProps) => {
 				description={
 					detailQuery.error instanceof Error
 						? detailQuery.error.message
-						: "Please try again in a moment."
+						: "Try again."
 				}
 			/>
 		);
@@ -152,7 +152,7 @@ export const OrderDetailView = ({ orderId }: OrderDetailViewProps) => {
 			<OrderDetailMessage
 				tone="muted"
 				title="Order not found"
-				description="It may have been deleted or you may not have access."
+				description="This Order doesn't exist, or it's at a Store you can't open."
 			/>
 		);
 	}

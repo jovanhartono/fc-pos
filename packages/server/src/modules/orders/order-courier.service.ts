@@ -9,9 +9,7 @@ import type { JWTPayload } from "@/types";
 export async function assertActiveCourier(courierId: number) {
   const courier = await findUserById(courierId);
   if (courier?.role !== "courier" || !courier.is_active) {
-    throw new BadRequestException(
-      "collected_by must reference an active courier"
-    );
+    throw new BadRequestException("This courier isn't Active");
   }
 }
 

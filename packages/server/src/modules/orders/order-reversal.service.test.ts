@@ -454,7 +454,7 @@ describe("createOrderRefund", () => {
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Service changed state before transition could apply. Refresh and try again."
+      "Someone just changed this line. Refresh and try again."
     );
   });
 

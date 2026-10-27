@@ -229,7 +229,7 @@ describe("normalizeImageFile", () => {
 				normalizeImageFile(picked("tear.jpg", "image/jpeg", 4_000_000)),
 			);
 
-			expect(failure?.message).toBe("Unable to process this image");
+			expect(failure?.message).toBe("Couldn't read this image. Take it again.");
 		});
 	});
 });

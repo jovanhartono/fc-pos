@@ -75,7 +75,7 @@ export const OpenComplaintForm = ({
 					name="order_service_id"
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<p className="text-body font-medium">Which service?</p>
+							<p className="text-body font-medium">Service</p>
 							<div
 								aria-label="Item with complaint"
 								className="grid gap-2"
@@ -107,7 +107,7 @@ export const OpenComplaintForm = ({
 								disabled={isPending}
 								id="complaint-reason"
 								onChange={field.onChange}
-								placeholder="What is the customer unhappy about?"
+								placeholder="e.g. stain still on toe box"
 								rows={4}
 								value={field.value}
 							/>

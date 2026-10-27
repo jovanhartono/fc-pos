@@ -23,13 +23,13 @@ describe("readServerErrorMessage", () => {
 			detail: {
 				data: {
 					success: false,
-					message: "Insufficient stock for product Nike Cleaner",
+					message: "Not enough stock for Nike Cleaner",
 				},
 			},
 		});
 
 		expect(readServerErrorMessage(error)).toBe(
-			"Insufficient stock for product Nike Cleaner",
+			"Not enough stock for Nike Cleaner",
 		);
 	});
 

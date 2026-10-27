@@ -87,7 +87,7 @@ export async function clockIn({
     ? await closeOpenShiftsBefore(todayStart(), user.id)
     : [];
   if (stillOpen && !closedNow) {
-    throw new BadRequestException("You already have an open shift");
+    throw new BadRequestException("You're already On shift");
   }
   const previous = closedNow ?? latest;
 
@@ -103,7 +103,7 @@ export async function clockIn({
     return { shift, message };
   } catch (error) {
     if (isUniqueViolation(error)) {
-      throw new BadRequestException("You already have an open shift", {
+      throw new BadRequestException("You're already On shift", {
         cause: error,
       });
     }
@@ -121,7 +121,7 @@ export async function clockOut(user: JWTPayload) {
 
   const shift = await updateOpenShiftClockOutByUserId(user.id);
   if (!shift) {
-    throw new NotFoundException("No open shift to close");
+    throw new NotFoundException("You're not On shift");
   }
   return { shift, message: "Clocked out" };
 }
@@ -156,7 +156,7 @@ export async function updateShift({
   // An earlier start would leave a running Shift for the midnight close to cut.
   if (!body.clock_out_at && body.clock_in_at < todayStart()) {
     throw new BadRequestException(
-      "A shift still running must have started today"
+      "This Shift started before today. Enter the clock-out time."
     );
   }
 

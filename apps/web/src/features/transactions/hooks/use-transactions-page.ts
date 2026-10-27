@@ -246,19 +246,19 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 					void printOrderReceipt(orderId, { allowPairing: false }).catch(
 						(error: unknown) => {
 							if (error instanceof NoRegisteredDeviceError) {
-								toast.info("Order created. No Bluetooth device registered", {
-									description: "Use Devices next to the store name to add one.",
+								toast.info("No printer registered", {
+									description: "Add one from Devices next to the Store name.",
 								});
 								return;
 							}
 							if (error instanceof PrinterNotPairedError) {
-								toast.info("Order created. Pair a printer to auto-print", {
-									description: "Open the order and use Print receipt.",
+								toast.info("Pair a printer to auto-print", {
+									description: "Open the Order and tap Print receipt.",
 								});
 								return;
 							}
-							toast.error("Order created, but the receipt failed to print", {
-								description: "Reprint from the order detail page.",
+							toast.error("Couldn't print receipt", {
+								description: "Reprint it from the Order page.",
 							});
 						},
 					);
@@ -272,12 +272,9 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 							contentType: dropoffPhoto.type,
 						});
 					} catch {
-						toast.error(
-							"Order created, but the drop-off photo failed to upload",
-							{
-								description: "Open the order to add it.",
-							},
-						);
+						toast.error("Couldn't upload drop-off photo", {
+							description: "Add it from the Order page.",
+						});
 					}
 				}
 
@@ -298,7 +295,7 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 				});
 			} catch (error) {
 				const issue = describeServerFailure(
-					readServerErrorMessage(error, "Failed to create transaction"),
+					readServerErrorMessage(error, "Couldn't create Order"),
 				);
 				useTransactionsPageStore.getState().setSubmitError(issue.message);
 			}

@@ -23,9 +23,7 @@ const refreshAuthState = createMiddleware<AdminEnv>(async (c, next) => {
   const user = await findUserAuthStatePrepared.execute({ id: payload.id });
 
   if (!user?.is_active) {
-    throw new UnauthorizedException(
-      "User is not active. Please contact admin."
-    );
+    throw new UnauthorizedException("Your account isn't Active. Ask an admin.");
   }
 
   c.set("jwtPayload", {
