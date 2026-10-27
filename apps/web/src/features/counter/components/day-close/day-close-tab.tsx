@@ -9,6 +9,7 @@ import { PickedUpSection } from "@/features/counter/components/day-close/picked-
 import { RefundsSection } from "@/features/counter/components/day-close/refunds-section";
 import { SalesReportSection } from "@/features/counter/components/day-close/sales-report-section";
 import { formatDayLabel } from "@/features/counter/lib/day-close";
+import { isBackNavigation } from "@/lib/back-navigation";
 import { CONTENT_FADE, staleFade } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
 import { useSheet } from "@/stores/sheet-store";
@@ -49,9 +50,11 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 		}
 		useSheet.getState().openSheet({
 			...sheet,
+			isInstant: isBackNavigation(),
+			isRestoredOnBack: true,
 			onClose: () => void setList(undefined),
 		});
-		return () => useSheet.getState().closeSheet();
+		return () => useSheet.getState().closeSheetInstantly();
 	}, [list, data?.date]);
 
 	if (!data) {

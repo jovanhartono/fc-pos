@@ -293,7 +293,9 @@ export const DataTableGrid = <TData extends RowData>({
 								data-state={index === activeIndex ? "selected" : undefined}
 								className={cn(
 									"scroll-mt-9 border-border/60 data-focused:bg-muted/60 data-focused:outline-2 data-focused:outline-primary data-focused:-outline-offset-2 data-[state=selected]:bg-primary/10",
-									isRowOpenable && "relative cursor-pointer",
+									// iPhone Safari ignores `relative` on a row: every row's tap area
+									// covered the whole table and each tap opened the last Order.
+									isRowOpenable && "cursor-pointer [transform:translate(0)]",
 								)}
 							>
 								{row.getAllCells().map((cell, cellIndex) => (

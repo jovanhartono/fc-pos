@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
 import { RoutePending } from "@/components/route-pending";
 import { ThemeProvider } from "@/components/theme-provider";
+import { trackBackNavigation } from "@/lib/back-navigation";
 import { routeTree } from "@/routeTree.gen";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -149,6 +150,7 @@ const router = createRouter({
 		`[data-scroll-restoration-id="${APP_CONTENT_SCROLL_ID}"]`,
 	],
 });
+trackBackNavigation(router.history);
 
 declare module "@tanstack/react-router" {
 	interface Register {

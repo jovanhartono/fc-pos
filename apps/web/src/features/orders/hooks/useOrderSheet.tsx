@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { ordersQueries } from "@/features/orders/api";
 import { OrderDetailView } from "@/features/orders/components/order-detail-view";
 import { OrderWalk } from "@/features/orders/components/order-walk";
+import { isBackNavigation } from "@/lib/back-navigation";
 import { useOrderWalkStore } from "@/stores/order-walk-store";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -52,6 +53,8 @@ export const useOrderSheet = ({
 		useSheet.getState().openSheet({
 			...orderSheetPayload(openId, code),
 			actions: <OrderWalk onSelect={onSelect} openId={openId} />,
+			isInstant: isBackNavigation(),
+			isRestoredOnBack: true,
 			onClose,
 		});
 	}, [openId, isReady]);
@@ -79,6 +82,6 @@ export const useOrderSheet = ({
 		if (!isOpen) {
 			return;
 		}
-		return () => useSheet.getState().closeSheet();
+		return () => useSheet.getState().closeSheetInstantly();
 	}, [isOpen]);
 };
