@@ -16,8 +16,10 @@ import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { WaitingLabel } from "@/components/waiting-label";
 import { WhatsappIcon } from "@/components/whatsapp-icon";
 import { payTrackedOrder, trackKeys, trackQueries } from "@/features/track/api";
+import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	formatOrderServiceStatus,
@@ -165,20 +167,33 @@ const StatusCard = ({
 	);
 };
 
+// The server's reason, like nothing left to pay, beats a retry that can't help.
+const payErrorText = (error: Error) => {
+	const detail =
+		error instanceof DetailedError
+			? (error.detail as { data?: { message?: string } } | undefined)
+			: undefined;
+	return detail?.data?.message ?? "Couldn't open the payment page. Try again.";
+};
+
 interface PaymentCardProps {
 	code: string;
 	phone: string;
 	netDue: number;
+	// The gateway page the Customer left unpaid, still open until then.
+	openUntil: string | null;
 }
 
 // The gateway sends the Customer back here when done, and the page reads the
 // Order fresh, so a paid Order simply loses this card.
-const PaymentCard = ({ code, phone, netDue }: PaymentCardProps) => {
+const PaymentCard = ({ code, phone, netDue, openUntil }: PaymentCardProps) => {
 	const payMutation = useMutation({
 		mutationFn: () => payTrackedOrder({ code, phone_number: phone }),
 		onSuccess: ({ redirect_url }) => {
 			window.location.href = redirect_url;
 		},
+		// Said under the button instead.
+		onError: () => undefined,
 	});
 	const queryClient = useQueryClient();
 	const resetPay = payMutation.reset;
@@ -205,14 +220,31 @@ const PaymentCard = ({ code, phone, netDue }: PaymentCardProps) => {
 					{formatMoney(netDue)}
 				</p>
 			</div>
+			{openUntil ? (
+				<div className="grid gap-0.5 rounded-lg bg-muted px-3.5 py-3 text-body">
+					<WaitingLabel>Payment not finished</WaitingLabel>
+					<span className="pl-4 text-muted-foreground text-subhead tabular-nums">
+						Open until {dayjs(openUntil).tz(JAKARTA_TZ).format("D MMM, HH:mm")}
+					</span>
+				</div>
+			) : null}
 			<Button
 				className="h-12 pointer-coarse:h-12 w-full rounded-full bg-primary font-semibold text-headline text-primary-foreground"
 				loading={payMutation.isPending || payMutation.isSuccess}
+				loadingText="Opening…"
 				onClick={() => payMutation.mutate()}
 				type="button"
 			>
-				Pay
+				{openUntil ? "Continue Payment" : "Pay"}
 			</Button>
+			{payMutation.isError ? (
+				<p
+					className="text-balance text-center text-destructive text-subhead"
+					role="alert"
+				>
+					{payErrorText(payMutation.error)}
+				</p>
+			) : null}
 		</section>
 	);
 };
@@ -367,6 +399,7 @@ const TrackOrderPage = () => {
 							<PaymentCard
 								code={submitted.code}
 								netDue={trackData.net_due}
+								openUntil={trackData.open_until}
 								phone={submitted.phone}
 							/>
 						) : null}

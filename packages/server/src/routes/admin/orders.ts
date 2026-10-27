@@ -70,6 +70,7 @@ import {
   cancelOrderPendingCharges,
   cancelPaymentCharge,
   createPaymentCharge,
+  getOpenQrisCharge,
   getPaymentCharge,
 } from "@/modules/payments/payment-charge.service";
 import {
@@ -260,6 +261,13 @@ const app = new Hono<OrderAccessEnv>()
       return c.json(success(charge), StatusCodes.CREATED);
     }
   )
+  // Before /:chargeId, which would read "open" as an id.
+  .get("/:id/payment-charges/open", idParamSchema, async (c) => {
+    assertCanProcessPayment(c.get("jwtPayload"));
+    const { id } = c.req.valid("param");
+
+    return c.json(success(await getOpenQrisCharge(id)));
+  })
   .get(
     "/:id/payment-charges/:chargeId",
     paymentChargeParamSchema,
@@ -424,6 +432,7 @@ const app = new Hono<OrderAccessEnv>()
         body,
         user,
       });
+      await cancelOrderPendingCharges(id);
 
       return c.json(success(result, "Price updated"));
     }
@@ -566,6 +575,7 @@ const app = new Hono<OrderAccessEnv>()
         body,
         user,
       });
+      await cancelOrderPendingCharges(id);
 
       return c.json(success(result, "Order cancelled"));
     }

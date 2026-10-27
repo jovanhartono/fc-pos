@@ -21,7 +21,7 @@ mock.module("@/modules/orders/order-read.repository", () => ({
 mock.module("@/modules/payments/payment-charge.service", () => ({
   createPaymentCharge: () => Promise.resolve({ redirect_url: null }),
   getTrackPaymentState: () =>
-    Promise.resolve({ can_pay_online: false, net_due: 0 }),
+    Promise.resolve({ can_pay_online: false, net_due: 0, open_until: null }),
 }));
 
 const { getTrackedOrder, payTrackedOrder } = await import(

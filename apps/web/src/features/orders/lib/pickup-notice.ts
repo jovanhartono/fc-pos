@@ -55,21 +55,6 @@ export const buildPickupNoticeMessage = ({
 	].join("\n");
 };
 
-interface PaymentLinkMessageInput {
-	customerName: string;
-	orderCode: string;
-	amount: number;
-	trackingUrl: string;
-}
-
-export const buildPaymentLinkMessage = ({
-	customerName,
-	orderCode,
-	amount,
-	trackingUrl,
-}: PaymentLinkMessageInput): string =>
-	`Halo ${customerName}, tagihan order ${orderCode} sebesar Rp ${formatMoneyParts(amount).amount}. Bayar online: ${trackingUrl}`;
-
 // Customers' numbers are stored as +62812…; wa.me wants the digits only.
 export const whatsappUrl = (phone: string, text: string): string =>
 	`https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;

@@ -219,6 +219,8 @@ export const ordersKeys = {
 		[...ordersKeys.all, "service", orderId, serviceId] as const,
 	paymentCharge: (orderId: number, chargeId: number) =>
 		[...ordersKeys.detail(orderId), "payment-charge", chargeId] as const,
+	openPaymentCharge: (orderId: number) =>
+		[...ordersKeys.detail(orderId), "payment-charge", "open"] as const,
 	queues: () => [...ordersKeys.all, "queue"] as const,
 	queue: (query?: FetchOrderServiceQueueQuery) =>
 		[...ordersKeys.queues(), query ?? {}] as const,
@@ -305,6 +307,14 @@ export const ordersQueries = {
 			queryFn: () => fetchPaymentCharge(orderId, chargeId),
 			refetchInterval: (query) =>
 				query.state.data?.status === "pending" ? 3000 : false,
+			// An ended charge never changes again; focus need not ask why it closed.
+			staleTime: (query) =>
+				query.state.data?.status === "pending" ? 0 : Number.POSITIVE_INFINITY,
+		}),
+	openPaymentCharge: (orderId: number) =>
+		queryOptions({
+			queryKey: ordersKeys.openPaymentCharge(orderId),
+			queryFn: () => fetchOpenPaymentCharge(orderId),
 		}),
 	queue: (query?: FetchOrderServiceQueueQuery) =>
 		infiniteQueryOptions({
@@ -370,6 +380,14 @@ export function fetchPaymentCharge(orderId: number, chargeId: number) {
 	return parseSuccessData<PaymentCharge>(
 		rpcWithAuth().api.admin.orders[":id"]["payment-charges"][":chargeId"].$get({
 			param: { id: String(orderId), chargeId: String(chargeId) },
+		}),
+	);
+}
+
+export function fetchOpenPaymentCharge(orderId: number) {
+	return parseSuccessData<PaymentCharge | null>(
+		rpcWithAuth().api.admin.orders[":id"]["payment-charges"].open.$get({
+			param: { id: String(orderId) },
 		}),
 	);
 }

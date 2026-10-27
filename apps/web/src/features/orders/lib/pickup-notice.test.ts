@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-	buildPaymentLinkMessage,
-	buildPickupNoticeMessage,
-	whatsappUrl,
-} from "./pickup-notice";
+import { buildPickupNoticeMessage, whatsappUrl } from "./pickup-notice";
 
 const base = {
 	customerName: "Rina Kartika",
@@ -50,21 +46,6 @@ describe("buildPickupNoticeMessage", () => {
 			"Status Pembayaran: *BELUM LUNAS*\n\nBayar online: https://pos.fresclean.id/track?code=x&phone=y\n\n*PENTING*",
 		);
 		expect(message).not.toContain("BCA");
-	});
-});
-
-describe("buildPaymentLinkMessage", () => {
-	test("names the Customer, the Order, the amount and the Track page", () => {
-		expect(
-			buildPaymentLinkMessage({
-				customerName: "Rina Kartika",
-				orderCode: "#BSD/14102026/7",
-				amount: 385_000,
-				trackingUrl: "https://pos.fresclean.id/track?code=x&phone=y",
-			}),
-		).toBe(
-			"Halo Rina Kartika, tagihan order #BSD/14102026/7 sebesar Rp 385.000. Bayar online: https://pos.fresclean.id/track?code=x&phone=y",
-		);
 	});
 });
 

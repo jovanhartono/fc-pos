@@ -6,8 +6,8 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef } from "react";
 import {
 	Controller,
 	FormProvider,
@@ -29,31 +29,26 @@ import {
 	FieldSet,
 } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
-import { WhatsappIcon } from "@/components/whatsapp-icon";
+import { WaitingLabel } from "@/components/waiting-label";
 import { campaignsQueries } from "@/features/campaigns/api";
-import type {
-	OrderDetail,
-	UpdateOrderPaymentPayload,
+import {
+	fetchPaymentCharge,
+	type OrderDetail,
+	ordersQueries,
+	type UpdateOrderPaymentPayload,
 } from "@/features/orders/api";
 import {
 	OrderMoneySummary,
 	OrderMoneySummarySkeleton,
 } from "@/features/orders/components/order-money-summary";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
-import { QrisChargeSheet } from "@/features/orders/components/qris-charge-sheet";
-import {
-	useCreatePaymentChargeMutation,
-	useOrderPaymentMutation,
-} from "@/features/orders/hooks/useOrderMutations";
+import { useOpenQrisDialog } from "@/features/orders/components/qris-charge-dialog";
+import { useOrderPaymentMutation } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
 import { flattenOrderLines } from "@/features/orders/lib/order-lines";
 import {
-	buildPaymentLinkMessage,
-	whatsappUrl,
-} from "@/features/orders/lib/pickup-notice";
-import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
-import {
+	GATEWAY_LABELS,
 	isOnlinePaymentReady,
 	paymentMethodsQueries,
 } from "@/features/payment-methods/api";
@@ -64,6 +59,8 @@ import {
 import { CampaignTileGroup } from "@/features/transactions/components/campaign-tile-group";
 import { VoucherCodeEntry } from "@/features/transactions/components/voucher-code-entry";
 import { filterEligibleCampaigns } from "@/features/transactions/lib/campaign-eligibility";
+import { onQrisPaid } from "@/lib/cache-events";
+import { formatClock } from "@/lib/dayjs";
 import { formatMoney, parseMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -82,7 +79,7 @@ export const OrderPaymentSection = ({
 		<OrderSectionHeader
 			action={
 				gates.canCollectPayment ? (
-					<PaymentActions detail={detail} orderId={orderId} />
+					<CollectPaymentAction detail={detail} orderId={orderId} />
 				) : null
 			}
 		>
@@ -91,6 +88,7 @@ export const OrderPaymentSection = ({
 		<Card className="gap-0 overflow-hidden py-0">
 			<OrderMoneySummary detail={detail} />
 			<PaymentDetails detail={detail} gates={gates} />
+			{gates.canCollectPayment ? <OpenQrisRow orderId={orderId} /> : null}
 		</Card>
 	</section>
 );
@@ -149,42 +147,84 @@ const PaymentDetails = ({
 	return null;
 };
 
-// "collect" books a PaymentMethod the cashier picks; "qris" charges through the
-// gateway, whose own PaymentMethod lands on the Order once the money arrives.
-type PaymentMode = "collect" | "qris";
-
-interface PaymentActionsProps {
+interface OpenQrisRowProps {
 	orderId: number;
-	detail: OrderDetail;
 }
 
-const PaymentActions = ({ orderId, detail }: PaymentActionsProps) => {
+// A QRIS the cashier closed the dialog on, so it can be shown again.
+const OpenQrisRow = ({ orderId }: OpenQrisRowProps) => {
+	const queryClient = useQueryClient();
 	const gatewayQuery = useQuery(paymentMethodsQueries.gateway());
-	const canPayOnline = isOnlinePaymentReady(gatewayQuery.data);
+	const openQuery = useQuery({
+		...ordersQueries.openPaymentCharge(orderId),
+		enabled: isOnlinePaymentReady(gatewayQuery.data),
+		// The Customer can still pay after the cashier closed the QRIS.
+		refetchInterval: (query) => (query.state.data ? 5000 : false),
+	});
+	const { reopen } = useOpenQrisDialog(orderId);
+	const charge = openQuery.data;
+	const lastChargeIdRef = useRef<number | null>(null);
+
+	// The row went away: only a paid QRIS moves the Order, not one that
+	// expired or closed because the Order changed.
+	useEffect(() => {
+		if (charge) {
+			lastChargeIdRef.current = charge.id;
+			return;
+		}
+		const lastChargeId = lastChargeIdRef.current;
+		if (lastChargeId === null) {
+			return;
+		}
+		lastChargeIdRef.current = null;
+		fetchPaymentCharge(orderId, lastChargeId)
+			.then((ended) => {
+				if (ended.status === "paid") {
+					void onQrisPaid(queryClient);
+				}
+			})
+			.catch(() => undefined);
+	}, [charge, orderId, queryClient]);
+
+	if (!charge) {
+		return null;
+	}
 
 	return (
-		<div className="flex items-center gap-2">
-			<CollectPaymentAction detail={detail} mode="collect" orderId={orderId} />
-			{canPayOnline ? (
-				<>
-					<CollectPaymentAction detail={detail} mode="qris" orderId={orderId} />
-					<SendPaymentLinkButton detail={detail} />
-				</>
-			) : null}
-		</div>
+		<>
+			<Separator />
+			<div className="flex items-center justify-between gap-3 px-4 py-3 text-body compact:text-subhead">
+				<div className="grid gap-0.5">
+					<WaitingLabel>Waiting for QRIS payment</WaitingLabel>
+					<span className="pl-4 text-muted-foreground text-subhead tabular-nums">
+						Expires {formatClock(charge.expires_at)}
+					</span>
+				</div>
+				<Button
+					onClick={() => reopen(charge)}
+					size="sm"
+					type="button"
+					variant="outline"
+				>
+					Show QR
+				</Button>
+			</div>
+		</>
 	);
 };
+
+// The QRIS choice in the PaymentMethod list: it charges through the gateway,
+// whose own PaymentMethod lands on the Order once the money arrives.
+const QRIS_METHOD = "qris";
 
 interface CollectPaymentActionProps {
 	orderId: number;
 	detail: OrderDetail;
-	mode: PaymentMode;
 }
 
 const CollectPaymentAction = ({
 	orderId,
 	detail,
-	mode,
 }: CollectPaymentActionProps) => {
 	const openNestedSheet = useSheet((s) => s.openNestedSheet);
 	// ADR-0018: a discount settled at drop-off is already on the Customer's
@@ -198,61 +238,16 @@ const CollectPaymentAction = ({
 					title: "Collect Payment",
 					content: () =>
 						isSettled ? (
-							<SettledDiscountPaymentForm
-								detail={detail}
-								mode={mode}
-								orderId={orderId}
-							/>
+							<SettledDiscountPaymentForm detail={detail} orderId={orderId} />
 						) : (
-							<CollectPaymentForm
-								detail={detail}
-								mode={mode}
-								orderId={orderId}
-							/>
+							<CollectPaymentForm detail={detail} orderId={orderId} />
 						),
 				})
 			}
 			size="sm"
 			type="button"
-			variant={mode === "qris" ? "outline" : "default"}
 		>
-			{mode === "qris" ? "QRIS" : "Collect Payment"}
-		</Button>
-	);
-};
-
-interface SendPaymentLinkButtonProps {
-	detail: OrderDetail;
-}
-
-// No server record: the link is our Track page, which makes a fresh checkout
-// each time the Customer taps Pay.
-const SendPaymentLinkButton = ({ detail }: SendPaymentLinkButtonProps) => {
-	const handleSend = () => {
-		const { customer } = detail;
-		const message = buildPaymentLinkMessage({
-			customerName: customer.name,
-			orderCode: detail.code,
-			amount: orderNetDue({
-				grossTotal: parseMoney(detail.total),
-				discount: parseMoney(detail.discount),
-				refunded: parseMoney(detail.refunded_amount),
-			}),
-			trackingUrl: buildTrackingUrl(detail.code, customer.phone_number),
-		});
-		// iOS only lets a tap open a new tab before anything is awaited.
-		window.open(whatsappUrl(customer.phone_number, message), "_blank");
-	};
-
-	return (
-		<Button
-			aria-label="Send Payment Link"
-			onClick={handleSend}
-			size="icon-sm"
-			type="button"
-			variant="outline"
-		>
-			<HugeiconsIcon icon={WhatsappIcon} />
+			Collect Payment
 		</Button>
 	);
 };
@@ -299,58 +294,72 @@ const PaidByValue = ({ value }: PaidByValueProps) => (
 	</div>
 );
 
-// Mark as paid books the payment now; QRIS opens the QR and waits for the
-// gateway to say the money arrived.
-const usePaymentSubmit = (orderId: number, mode: PaymentMode) => {
+// Mark as paid books the payment now; QRIS closes this sheet and waits in a
+// dialog for the gateway to say the money arrived.
+const usePaymentSubmit = (orderId: number) => {
 	const goBack = useSheet((s) => s.goBack);
-	const openNestedSheet = useSheet((s) => s.openNestedSheet);
 	const paymentMutation = useOrderPaymentMutation(orderId);
-	const chargeMutation = useCreatePaymentChargeMutation(orderId);
+	const gatewayQuery = useQuery(paymentMethodsQueries.gateway());
+	const { showNew } = useOpenQrisDialog(orderId);
 
 	const submit = (
 		paymentMethodId: string,
 		promo: Omit<UpdateOrderPaymentPayload, "payment_method_id">,
 	) => {
-		if (mode === "collect") {
-			paymentMutation.mutate(
-				{ payment_method_id: Number(paymentMethodId), ...promo },
-				{ onSuccess: () => goBack() },
-			);
+		const gateway = gatewayQuery.data?.gateway;
+		if (paymentMethodId === QRIS_METHOD && gateway) {
+			goBack();
+			showNew(gateway, { kind: "qris", ...promo });
 			return;
 		}
-		const request = { kind: "qris" as const, ...promo };
-		chargeMutation.mutate(request, {
-			onSuccess: (charge) =>
-				openNestedSheet({
-					title: "QRIS",
-					content: () => (
-						<QrisChargeSheet
-							initialCharge={charge}
-							orderId={orderId}
-							request={request}
-						/>
-					),
-				}),
-		});
+		paymentMutation.mutate(
+			{ payment_method_id: Number(paymentMethodId), ...promo },
+			{ onSuccess: () => goBack() },
+		);
 	};
 
-	return {
-		submit,
-		isPending: paymentMutation.isPending || chargeMutation.isPending,
-		submitLabel: mode === "qris" ? "Show QRIS" : "Mark as Paid",
-	};
+	return { submit, isPending: paymentMutation.isPending };
 };
 
 const paymentMethodSchema = z.object({
 	paymentMethodId: z.string().min(1, "Payment method is required"),
 });
 
+interface SubmitPaymentButtonProps {
+	isPending: boolean;
+}
+
+const SubmitPaymentButton = ({ isPending }: SubmitPaymentButtonProps) => {
+	const paymentMethodId = useWatch<
+		z.infer<typeof paymentMethodSchema>,
+		"paymentMethodId"
+	>({ name: "paymentMethodId" });
+
+	return (
+		<Button size="lg" loading={isPending} type="submit">
+			{paymentMethodId === QRIS_METHOD ? "Show QRIS" : "Mark as Paid"}
+		</Button>
+	);
+};
+
 const PaymentMethodField = () => {
 	const { control } = useFormContext<z.infer<typeof paymentMethodSchema>>();
 	const paymentMethodsQuery = useQuery(paymentMethodsQueries.list());
+	const gatewayQuery = useQuery(paymentMethodsQueries.gateway());
+	const gateway = gatewayQuery.data?.gateway;
 	const paymentMethods = Array.isArray(paymentMethodsQuery.data)
 		? paymentMethodsQuery.data
 		: [];
+	const items = paymentMethods.map((method) => ({
+		value: String(method.id),
+		label: method.name,
+	}));
+	if (gateway && isOnlinePaymentReady(gatewayQuery.data)) {
+		items.push({
+			value: QRIS_METHOD,
+			label: `QRIS · ${GATEWAY_LABELS[gateway]}`,
+		});
+	}
 
 	return (
 		<Controller
@@ -364,10 +373,7 @@ const PaymentMethodField = () => {
 					<SelectField
 						className="w-full"
 						id="collect-payment-method"
-						items={paymentMethods.map((method) => ({
-							value: String(method.id),
-							label: method.name,
-						}))}
+						items={items}
 						onValueChange={field.onChange}
 						placeholder="Select payment method"
 						value={field.value}
@@ -393,24 +399,17 @@ const ToCollectLine = ({ amount }: ToCollectLineProps) => (
 interface SettledDiscountPaymentFormProps {
 	orderId: number;
 	detail: OrderDetail;
-	mode: PaymentMode;
 }
-
-// QRIS needs no PaymentMethod from the cashier: the gateway's linked one is used.
-const qrisMethodSchema = z.object({ paymentMethodId: z.string() });
 
 // ADR-0018: the discount is already on the Receipt, so this form only books
 // the PaymentMethod.
 const SettledDiscountPaymentForm = ({
 	orderId,
 	detail,
-	mode,
 }: SettledDiscountPaymentFormProps) => {
-	const payment = usePaymentSubmit(orderId, mode);
+	const payment = usePaymentSubmit(orderId);
 	const form = useForm<z.infer<typeof paymentMethodSchema>>({
-		resolver: zodResolver(
-			mode === "qris" ? qrisMethodSchema : paymentMethodSchema,
-		),
+		resolver: zodResolver(paymentMethodSchema),
 		defaultValues: { paymentMethodId: "" },
 	});
 
@@ -446,10 +445,8 @@ const SettledDiscountPaymentForm = ({
 					</span>
 				</p>
 				<ToCollectLine amount={toCollect} />
-				{mode === "collect" ? <PaymentMethodField /> : null}
-				<Button size="lg" loading={payment.isPending} type="submit">
-					{payment.submitLabel}
-				</Button>
+				<PaymentMethodField />
+				<SubmitPaymentButton isPending={payment.isPending} />
 			</form>
 		</FormProvider>
 	);
@@ -463,35 +460,26 @@ const collectPaymentSchema = paymentMethodSchema.extend({
 	discount: z.string(),
 });
 
-const qrisPaymentSchema = collectPaymentSchema.extend(qrisMethodSchema.shape);
-
 type CollectPaymentValues = z.infer<typeof collectPaymentSchema>;
 
 interface CollectPaymentFormProps {
 	orderId: number;
 	detail: OrderDetail;
-	mode: PaymentMode;
 }
 
 // ADR-0018: an Order that came in unpriced, like a Repair priced after
 // inspection, settles its discounts here with the payment.
-const CollectPaymentForm = ({
-	orderId,
-	detail,
-	mode,
-}: CollectPaymentFormProps) => {
+const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 	const campaignsQuery = useQuery(
 		campaignsQueries.list({
 			store_id: detail.store_id ?? undefined,
 			is_active: true,
 		}),
 	);
-	const payment = usePaymentSubmit(orderId, mode);
+	const payment = usePaymentSubmit(orderId);
 
 	const form = useForm<CollectPaymentValues>({
-		resolver: zodResolver(
-			mode === "qris" ? qrisPaymentSchema : collectPaymentSchema,
-		),
+		resolver: zodResolver(collectPaymentSchema),
 		defaultValues: {
 			paymentMethodId: "",
 			campaignIds: [],
@@ -644,10 +632,8 @@ const CollectPaymentForm = ({
 					</dl>
 				) : null}
 				<ToCollectLine amount={toCollect} />
-				{mode === "collect" ? <PaymentMethodField /> : null}
-				<Button size="lg" loading={payment.isPending} type="submit">
-					{payment.submitLabel}
-				</Button>
+				<PaymentMethodField />
+				<SubmitPaymentButton isPending={payment.isPending} />
 			</form>
 		</FormProvider>
 	);

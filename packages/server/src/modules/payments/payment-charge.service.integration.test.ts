@@ -29,6 +29,8 @@ const gateway = {
   created: [] as GatewayChargeInput[],
   failCreate: false as boolean,
   notification: null as GatewayNotification | null,
+  // What a status check hears when the webhook never came.
+  paidAmount: null as number | null,
 };
 
 const fakeGateway: PaymentGateway = {
@@ -46,7 +48,11 @@ const fakeGateway: PaymentGateway = {
     });
   },
   getStatus: () =>
-    Promise.resolve({ amount: null, raw: {}, status: "pending" }),
+    Promise.resolve(
+      gateway.paidAmount === null
+        ? { amount: null, raw: {}, status: "pending" }
+        : { amount: gateway.paidAmount, raw: {}, status: "paid" }
+    ),
   cancelCharge: (ref) => {
     gateway.cancelled.push(ref);
     return Promise.resolve();
@@ -63,12 +69,17 @@ const { createOrder } = await import("@/modules/orders/order.service");
 const { updateOrderPayment } = await import(
   "@/modules/orders/order-payment.service"
 );
+const { cancelOrder } = await import("@/modules/orders/order-reversal.service");
 const { payTrackedOrder } = await import(
   "@/modules/orders/order-track.service"
 );
 const {
   cancelOrderPendingCharges,
+  cancelPaymentCharge,
   createPaymentCharge,
+  getOpenQrisCharge,
+  getPaymentCharge,
+  getTrackPaymentState,
   handlePaymentNotification,
 } = await import("@/modules/payments/payment-charge.service");
 
@@ -170,7 +181,15 @@ beforeEach(async () => {
   gateway.created = [];
   gateway.failCreate = false;
   gateway.notification = null;
+  gateway.paidAmount = null;
 });
+
+// Past the wait before the POS poll may ask the gateway itself.
+const ageCharges = () =>
+  testDb.update(paymentChargesTable).set({
+    created_at: new Date(Date.now() - 60_000),
+    updated_at: new Date(Date.now() - 60_000),
+  });
 
 describe("showing a QRIS at the counter", () => {
   it("asks the gateway for the Order's net due, valid 15 minutes", async () => {
@@ -261,7 +280,7 @@ describe("showing a QRIS at the counter", () => {
     const error = await captureRejection(showQris(order.id));
 
     expect((error as Error).message).toBe(
-      "Midtrans did not respond, try again"
+      "Midtrans isn't responding. Try again in a moment."
     );
     const [charge] = await testDb.select().from(paymentChargesTable);
     expect(charge.status).toBe("failed");
@@ -425,6 +444,29 @@ describe("Pay on the Track page", () => {
     });
   });
 
+  it("offers Continue Payment until the page they opened runs short", async () => {
+    const order = await dropOff();
+    const readState = async () => {
+      const row = await readOrder(order.id);
+      if (!row) {
+        throw new Error("Order missing");
+      }
+      return getTrackPaymentState(row);
+    };
+
+    expect((await readState()).open_until).toBeNull();
+
+    await payTrackedOrder({ code: order.code, phone_number: PHONE });
+    const [charge] = await testDb.select().from(paymentChargesTable);
+    expect((await readState()).open_until).toEqual(charge.expires_at);
+
+    await testDb
+      .update(paymentChargesTable)
+      .set({ expires_at: new Date(Date.now() + 10 * 60_000) })
+      .where(eq(paymentChargesTable.id, charge.id));
+    expect((await readState()).open_until).toBeNull();
+  });
+
   it("leaves paid_by empty and the last staff edit in place once paid", async () => {
     const order = await dropOff();
     await payTrackedOrder({ code: order.code, phone_number: PHONE });
@@ -449,5 +491,192 @@ describe("Mark as paid at the counter", () => {
 
     expect((await readCharge(charge.id))?.status).toBe("cancelled");
     expect(gateway.cancelled).toHaveLength(1);
+  });
+});
+
+describe("a line cancelled while a QRIS is on screen", () => {
+  it("closes the QRIS, and holds a payment that lands anyway for review", async () => {
+    const order = await dropOff(2);
+    const charge = await showQris(order.id);
+    const [line] = await testDb.query.ordersServicesTable.findMany({
+      where: { order_id: order.id },
+    });
+
+    // What the cancel route does: the line goes, then the old-amount QR.
+    await cancelOrder({
+      body: {
+        items: [{ order_service_id: line.id, reason: "customer_request" }],
+      },
+      orderId: order.id,
+      user: shop.cashier,
+    });
+    await cancelOrderPendingCharges(order.id);
+
+    expect((await readCharge(charge.id))?.status).toBe("cancelled");
+    expect(gateway.cancelled).toEqual([
+      expect.objectContaining({ reference: charge.reference }),
+    ]);
+
+    // The Customer confirmed in the same second the QR closed.
+    await gatewaySays(charge.reference, 200_000);
+
+    expect((await readCharge(charge.id))?.status).toBe("needs_review");
+    expect((await readOrder(order.id))?.payment_status).toBe("unpaid");
+  });
+});
+
+describe("the QRIS dialog reopened from the Order", () => {
+  it("finds the QRIS still waiting, and nothing once it is closed", async () => {
+    const order = await dropOff();
+    const charge = await showQris(order.id);
+
+    expect((await getOpenQrisCharge(order.id))?.id).toBe(charge.id);
+
+    await cancelPaymentCharge(order.id, charge.id);
+
+    expect(await getOpenQrisCharge(order.id)).toBeNull();
+  });
+
+  it("skips a QRIS past its expiry the gateway never reported", async () => {
+    const order = await dropOff();
+    const charge = await showQris(order.id);
+    await testDb
+      .update(paymentChargesTable)
+      .set({ expires_at: new Date(Date.now() - 1000) })
+      .where(eq(paymentChargesTable.id, charge.id));
+
+    expect(await getOpenQrisCharge(order.id)).toBeNull();
+  });
+
+  it("asks the gateway when the webhook was lost, and the Order turns paid", async () => {
+    const order = await dropOff();
+    await showQris(order.id);
+    await ageCharges();
+    gateway.paidAmount = 100_000;
+
+    expect(await getOpenQrisCharge(order.id)).toBeNull();
+    expect((await readOrder(order.id))?.payment_status).toBe("paid");
+  });
+});
+
+describe("the Track page after the gateway sends the Customer back", () => {
+  it("drops Pay once the gateway says paid, before its webhook lands", async () => {
+    const order = await dropOff();
+    await payTrackedOrder({ code: order.code, phone_number: PHONE });
+    await ageCharges();
+    gateway.paidAmount = 100_000;
+    const row = await readOrder(order.id);
+    if (!row) {
+      throw new Error("Order missing");
+    }
+
+    expect(await getTrackPaymentState(row)).toEqual({
+      can_pay_online: false,
+      net_due: 0,
+      open_until: null,
+    });
+    expect((await readOrder(order.id))?.payment_status).toBe("paid");
+  });
+});
+
+describe("why a QRIS on screen closed", () => {
+  it("says the Customer is paying on the Track page", async () => {
+    const order = await dropOff();
+    const charge = await showQris(order.id);
+
+    await payTrackedOrder({ code: order.code, phone_number: PHONE });
+
+    expect(await getPaymentCharge(order.id, charge.id)).toMatchObject({
+      closed_reason: "customer_paying",
+      status: "cancelled",
+    });
+  });
+
+  it("gives the new total after a line is cancelled", async () => {
+    const order = await dropOff(2);
+    const charge = await showQris(order.id);
+    const [line] = await testDb.query.ordersServicesTable.findMany({
+      where: { order_id: order.id },
+    });
+
+    await cancelOrder({
+      body: {
+        items: [{ order_service_id: line.id, reason: "customer_request" }],
+      },
+      orderId: order.id,
+      user: shop.cashier,
+    });
+    await cancelOrderPendingCharges(order.id);
+
+    expect(await getPaymentCharge(order.id, charge.id)).toMatchObject({
+      closed_reason: "order_changed",
+      next_amount: 100_000,
+    });
+  });
+
+  it("says nothing is left to pay once every line is cancelled", async () => {
+    const order = await dropOff();
+    const charge = await showQris(order.id);
+    const lines = await testDb.query.ordersServicesTable.findMany({
+      where: { order_id: order.id },
+    });
+
+    await cancelOrder({
+      body: {
+        items: lines.map((line) => ({
+          order_service_id: line.id,
+          reason: "customer_request" as const,
+        })),
+      },
+      orderId: order.id,
+      user: shop.cashier,
+    });
+    await cancelOrderPendingCharges(order.id);
+
+    expect(await getPaymentCharge(order.id, charge.id)).toMatchObject({
+      closed_reason: "order_changed",
+      next_amount: 0,
+    });
+  });
+
+  it("does not blame the Customer when their Track page never opened", async () => {
+    const order = await dropOff();
+    const charge = await showQris(order.id);
+    gateway.failCreate = true;
+
+    await captureRejection(
+      payTrackedOrder({ code: order.code, phone_number: PHONE })
+    );
+
+    expect(await getPaymentCharge(order.id, charge.id)).toMatchObject({
+      closed_reason: "order_changed",
+      next_amount: 100_000,
+    });
+  });
+
+  it("says the Order was paid another way", async () => {
+    const order = await dropOff();
+    const charge = await showQris(order.id);
+
+    await updateOrderPayment({
+      body: { ...NO_DISCOUNT, payment_method_id: shop.paymentMethodId },
+      orderId: order.id,
+      user: shop.cashier,
+    });
+    await cancelOrderPendingCharges(order.id);
+
+    expect(await getPaymentCharge(order.id, charge.id)).toMatchObject({
+      closed_reason: "order_paid",
+    });
+  });
+
+  it("leaves a waiting QRIS without a reason", async () => {
+    const order = await dropOff();
+    const charge = await showQris(order.id);
+
+    expect(await getPaymentCharge(order.id, charge.id)).toMatchObject({
+      closed_reason: null,
+      status: "pending",
+    });
   });
 });

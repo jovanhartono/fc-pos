@@ -15,6 +15,7 @@ import {
 	FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { GATEWAY_LABELS } from "@/features/payment-methods/api";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
 export type PaymentMethodFormState = z.infer<typeof POSTPaymentMethodSchema>;
@@ -30,8 +31,10 @@ const NO_GATEWAY = "none";
 
 const GATEWAY_ITEMS = [
 	{ value: NO_GATEWAY, label: "None" },
-	{ value: "midtrans", label: "Midtrans" },
-	{ value: "doku", label: "DOKU" },
+	...Object.entries(GATEWAY_LABELS).map(([value, label]) => ({
+		value,
+		label,
+	})),
 ];
 
 type PaymentMethodFormProps = {

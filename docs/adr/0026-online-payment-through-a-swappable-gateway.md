@@ -1,12 +1,12 @@
 # Online payment goes through one gateway seam, Midtrans or DOKU, chosen by env
 
-Customers can now pay an Order three ways without a cashier ticking "Mark as paid": a QRIS the cashier shows at the counter, a WhatsApp message carrying the Track page, and a Pay button on the Track page. Each try is a Gateway charge. The Order becomes paid only when the gateway's webhook (or a status check) confirms the money, through the same guarded update the cashier's button uses, so a duplicate notice cannot book the money twice.
+Customers can now pay an Order three ways without a cashier ticking "Mark as paid": a QRIS the cashier shows at the counter, the WhatsApp ready notice carrying the Track page, and a Pay button on the Track page. There is no separate "send payment link" message: an Order not yet ready is paid at the counter or from a Track link the Customer already has. Each try is a Gateway charge. The Order becomes paid only when the gateway's webhook (or a status check) confirms the money, through the same guarded update the cashier's button uses, so a duplicate notice cannot book the money twice.
 
 The shop runs on an individual (perorangan) merchant account, so the gateway has to be swappable: Midtrans and DOKU sit behind one interface (`modules/payments/gateways/types.ts`) and `PAYMENT_GATEWAY` picks the one new charges use. Both webhook routes stay open after a switch, so a late notice from the old gateway still lands.
 
 **Why WhatsApp carries the Track page, not a gateway link:** a gateway link expires (Snap after 24 hours) and the Customer may open the message days later. The Track page makes a fresh checkout on each Pay, so the link never dies, and the WhatsApp text is the same whichever gateway is live.
 
-**Why DOKU's counter QRIS is DOKU's own page:** DOKU's direct QRIS API needs an RSA key pair plus a merchant and terminal ID from a separate QRIS registration, and several details are not confirmed in its docs. DOKU Checkout limited to QRIS needs only the Client ID and secret and can be tested in sandbox today. Midtrans returns a QR image we show in the sheet.
+**Why DOKU's counter QRIS is DOKU's own page:** DOKU's direct QRIS API needs an RSA key pair plus a merchant and terminal ID from a separate QRIS registration, and several details are not confirmed in its docs. DOKU Checkout limited to QRIS needs only the Client ID and secret and can be tested in sandbox today. Midtrans returns a QR image we show in the dialog.
 
 **Why one PaymentMethod per gateway:** the Day close checks money against settlement slips. Gateway money settles through the gateway's own report, not a card terminal, so it gets its own line. An admin links one PaymentMethod to each gateway; charging is refused until that link exists and is active.
 

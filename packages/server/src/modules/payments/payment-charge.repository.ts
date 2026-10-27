@@ -4,6 +4,7 @@ import {
   type InferInsertModel,
   type InferSelectModel,
   lt,
+  ne,
   notInArray,
   sql,
 } from "drizzle-orm";
@@ -47,6 +48,27 @@ export function findNewestPendingCheckoutCharge(
   });
 }
 
+export function findOpenQrisCharge(orderId: number) {
+  return db.query.paymentChargesTable.findFirst({
+    where: {
+      order_id: orderId,
+      kind: "qris",
+      status: "pending",
+      expires_at: { gt: new Date() },
+    },
+    orderBy: { id: "desc" },
+  });
+}
+
+// A newer charge the gateway never accepted replaced nothing.
+export function findNewerPaymentCharge(orderId: number, id: number) {
+  return db.query.paymentChargesTable.findFirst({
+    where: { order_id: orderId, id: { gt: id }, status: { ne: "failed" } },
+    columns: { kind: true },
+    orderBy: { id: "desc" },
+  });
+}
+
 export function findOrderForCharge(orderId: number) {
   return db.query.ordersTable.findFirst({
     where: { id: orderId },
@@ -58,7 +80,7 @@ export function findOrderForCharge(orderId: number) {
 export function findOrderPaymentState(orderId: number) {
   return db.query.ordersTable.findFirst({
     where: { id: orderId },
-    columns: { code: true, payment_status: true },
+    columns: { code: true, payment_status: true, status: true },
     with: { customer: { columns: { name: true } } },
   });
 }
@@ -80,10 +102,10 @@ export function updatePaymentChargeById(
     .returning();
 }
 
-// Pass chargeId to cancel one; leave it out for every pending charge on the Order.
+// Every pending charge on the Order, or `only` that one, or all `except` it.
 export function updatePendingChargesCancelled(
   orderId: number,
-  chargeId?: number
+  { only, except }: { only?: number; except?: number } = {}
 ) {
   return db
     .update(paymentChargesTable)
@@ -92,9 +114,8 @@ export function updatePendingChargesCancelled(
       and(
         eq(paymentChargesTable.order_id, orderId),
         eq(paymentChargesTable.status, "pending"),
-        chargeId === undefined
-          ? undefined
-          : eq(paymentChargesTable.id, chargeId)
+        only === undefined ? undefined : eq(paymentChargesTable.id, only),
+        except === undefined ? undefined : ne(paymentChargesTable.id, except)
       )
     )
     .returning();

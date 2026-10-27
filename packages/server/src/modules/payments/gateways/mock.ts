@@ -38,7 +38,8 @@ const MILLIS_REGEX = /\.\d{3}Z$/;
 // The last base64 character before any padding.
 const LAST_SIGNATURE_CHAR_REGEX = /.(?==*$)/;
 
-export type MockOutcome = "paid" | "wrong_amount" | "expired" | "failed";
+// No "paid a different amount": QRIS and checkout lock the amount we send.
+export type MockOutcome = "paid" | "expired" | "failed";
 
 export interface MockNotification {
   body: string;
@@ -50,14 +51,12 @@ const MIDTRANS_STATUS: Record<MockOutcome, [string, string]> = {
   expired: ["expire", "202"],
   failed: ["deny", "202"],
   paid: ["settlement", "200"],
-  wrong_amount: ["settlement", "200"],
 };
 
 const DOKU_STATUS: Record<MockOutcome, string> = {
   expired: "EXPIRED",
   failed: "FAILED",
   paid: "SUCCESS",
-  wrong_amount: "SUCCESS",
 };
 
 // Builds the notification the real gateway would send, signed with this
@@ -75,12 +74,11 @@ export const buildMockNotification = ({
   outcome: MockOutcome;
   tamper: boolean;
 }): MockNotification => {
-  const paidAmount = outcome === "wrong_amount" ? amount + 1000 : amount;
   const path = `/api/webhooks/payments/${gateway}`;
 
   if (gateway === "midtrans") {
     const [transactionStatus, statusCode] = MIDTRANS_STATUS[outcome];
-    const grossAmount = `${paidAmount}.00`;
+    const grossAmount = `${amount}.00`;
     const signature = midtransSignature(
       reference,
       statusCode,
@@ -115,7 +113,7 @@ export const buildMockNotification = ({
   const timestamp = new Date().toISOString().replace(MILLIS_REGEX, "Z");
   const body = JSON.stringify({
     channel: { id: "QRIS_DOKU" },
-    order: { amount: paidAmount, invoice_number: reference },
+    order: { amount, invoice_number: reference },
     service: { id: "QRIS" },
     transaction: {
       date: timestamp,

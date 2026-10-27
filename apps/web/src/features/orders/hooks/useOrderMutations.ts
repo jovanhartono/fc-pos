@@ -88,7 +88,11 @@ export const useCreatePaymentChargeMutation = (orderId: number) => {
 				ordersKeys.paymentCharge(orderId, charge.id),
 				charge,
 			);
+			// Showing it closed every other pending charge on the Order.
+			queryClient.setQueryData(ordersKeys.openPaymentCharge(orderId), charge);
 		},
+		// The QRIS dialog says why, with Try Again.
+		onError: () => undefined,
 	});
 };
 
@@ -102,6 +106,7 @@ export const useCancelPaymentChargeMutation = (orderId: number) => {
 				ordersKeys.paymentCharge(orderId, charge.id),
 				charge,
 			);
+			queryClient.setQueryData(ordersKeys.openPaymentCharge(orderId), null);
 		},
 	});
 };

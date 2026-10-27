@@ -19,7 +19,6 @@ import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const OUTCOMES = {
   paid: "Pay",
-  wrong_amount: "Pay Rp 1.000 more",
   expired: "Let it expire",
   failed: "Decline",
 } as const;

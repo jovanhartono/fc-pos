@@ -57,6 +57,14 @@ export const paymentMethodsQueries = {
 		}),
 };
 
+export const GATEWAY_LABELS: Record<
+	NonNullable<PaymentGatewayInfo["gateway"]>,
+	string
+> = {
+	midtrans: "Midtrans",
+	doku: "DOKU",
+};
+
 // Online payment is on only when the server names a gateway and its linked
 // PaymentMethod is active.
 export const isOnlinePaymentReady = (info: PaymentGatewayInfo | undefined) =>
