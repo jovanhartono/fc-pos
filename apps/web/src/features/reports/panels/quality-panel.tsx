@@ -408,7 +408,7 @@ const QcRejectsSection = ({ range }: QcRejectsSectionProps) => {
 						size="sm"
 						onClick={() => setIsShowingAll(true)}
 					>
-						{`Show all ${numberFormatter.format(total)}`}
+						{`Show All ${numberFormatter.format(total)}`}
 					</Button>
 				)
 			}

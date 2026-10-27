@@ -64,7 +64,7 @@ export const ItemPhotoStrip = ({
 			toast.success("Photo deleted");
 		},
 		onError: (error) => {
-			toast.error(readServerErrorMessage(error, "Failed to delete photo"));
+			toast.error(readServerErrorMessage(error, "Couldn't delete photo"));
 		},
 	});
 

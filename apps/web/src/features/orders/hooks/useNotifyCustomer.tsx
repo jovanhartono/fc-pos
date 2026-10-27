@@ -95,7 +95,7 @@ export const useNotifyCustomer = (orderId: number) => {
 		onError: (_error, customerName) => {
 			toast.error("Sent on WhatsApp, but couldn't mark it notified.", {
 				action: {
-					label: "Save again",
+					label: "Save Again",
 					onClick: () => mutation.mutate(customerName),
 				},
 				duration: Number.POSITIVE_INFINITY,
@@ -126,7 +126,7 @@ export const useNotifyCustomer = (orderId: number) => {
 		const label = lastNotice ? "Notify Again" : "Notify";
 		openDialog({
 			title: lastNotice
-				? `Notify ${customerName} Again?`
+				? `Notify ${customerName} again?`
 				: `Notify ${customerName}?`,
 			description: lastNotice
 				? `Notified ${formatNoticeTime(lastNotice.sent_at)} by ${lastNotice.sent_by_name}. Opens WhatsApp with the same message again.`

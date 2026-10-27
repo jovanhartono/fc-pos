@@ -762,7 +762,7 @@ describe("createOrder", () => {
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Order has an unpriced line — set its price before collecting payment"
+      "Order has an unpriced line. Price it before collecting payment."
     );
     expect(repo.reserveCalls).toHaveLength(0);
     expect(redemptions.calls).toHaveLength(0);
@@ -857,7 +857,7 @@ describe("createOrder", () => {
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Order has an unpriced line. Add Campaigns once every line is priced"
+      "Order has an unpriced line. Add discounts once every line is priced."
     );
     expect(repo.reserveCalls).toHaveLength(0);
     expect(discount.calls).toHaveLength(0);

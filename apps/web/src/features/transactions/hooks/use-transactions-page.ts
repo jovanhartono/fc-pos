@@ -253,7 +253,7 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 							}
 							if (error instanceof PrinterNotPairedError) {
 								toast.info("Pair a printer to auto-print", {
-									description: "Open the Order and tap Print receipt.",
+									description: "Open the Order and tap Print.",
 								});
 								return;
 							}

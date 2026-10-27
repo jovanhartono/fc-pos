@@ -101,5 +101,5 @@ const OrderListRowAnchor = ({
 	);
 };
 
-// The Ready for pickup row, shared by every list of Orders that is not a table.
+// The Ready for Pickup row, shared by every list of Orders that is not a table.
 export const OrderListRow = createLink(OrderListRowAnchor);

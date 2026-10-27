@@ -79,7 +79,7 @@ export const useBarcodeScanner = (
 			streamRef.current = nextStream;
 			setStream(nextStream);
 		} catch {
-			setError("Allow camera access in Settings, or type the code.");
+			setError("Couldn't open the camera. Type the code.");
 			stop();
 		} finally {
 			openingRef.current = false;
@@ -96,7 +96,7 @@ export const useBarcodeScanner = (
 
 		video.srcObject = stream;
 		void video.play().catch(() => {
-			setError("Allow camera access in Settings, or type the code.");
+			setError("Couldn't open the camera. Type the code.");
 		});
 
 		const detector = new detectorConstructor();

@@ -144,7 +144,7 @@ export const OrderIdentityStrip = ({
 				description: "Paste into WhatsApp to share with the customer.",
 			});
 		} catch {
-			toast.error("Failed to copy tracking link");
+			toast.error("Couldn't copy tracking link");
 		}
 	};
 

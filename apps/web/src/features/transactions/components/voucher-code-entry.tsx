@@ -107,7 +107,7 @@ export const VoucherCodeEntry = ({
 				<FieldError>
 					{readServerErrorMessage(
 						resolveMutation.error,
-						"Failed to apply voucher code",
+						"Couldn't apply Voucher code",
 					)}
 				</FieldError>
 			) : null}

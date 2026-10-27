@@ -137,7 +137,7 @@ export const OrderDetailView = ({ orderId }: OrderDetailViewProps) => {
 		return (
 			<OrderDetailMessage
 				tone="error"
-				title="Failed to load order"
+				title="Couldn't load Order"
 				description={
 					detailQuery.error instanceof Error
 						? detailQuery.error.message

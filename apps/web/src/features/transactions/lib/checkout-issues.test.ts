@@ -134,12 +134,12 @@ describe("describeServerFailure", () => {
 		// wording — ADR-0018's blank-price gate has to keep landing on payment.
 		expect(
 			describeServerFailure(
-				"Order has an unpriced line — set its price before collecting payment",
+				"Order has an unpriced line. Price it before collecting payment.",
 			).target,
 		).toBe("payment");
 		expect(
 			describeServerFailure(
-				"Order has an unpriced line. Add Campaigns once every line is priced",
+				"Order has an unpriced line. Add discounts once every line is priced.",
 			).target,
 		).toBe("payment");
 	});

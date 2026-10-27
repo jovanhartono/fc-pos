@@ -22,7 +22,7 @@ const handleCopyCode = async (code: string) => {
 		await navigator.clipboard.writeText(code);
 		toast.success("Code copied", { description: code });
 	} catch {
-		toast.error("Failed to copy code");
+		toast.error("Couldn't copy code");
 	}
 };
 
@@ -66,7 +66,7 @@ export const VoucherCodesSheet = ({ campaignId }: VoucherCodesSheetProps) => {
 
 	if (isError || !data) {
 		return (
-			<p className="text-muted-foreground text-body">Failed to load codes.</p>
+			<p className="text-muted-foreground text-body">Couldn't load codes.</p>
 		);
 	}
 

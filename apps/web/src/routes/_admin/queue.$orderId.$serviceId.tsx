@@ -43,7 +43,7 @@ const QueueServiceRouteError = ({ error, reset }: ErrorComponentProps) => {
 	return (
 		<QueueServiceDetailMessage
 			tone="error"
-			title="Failed to load queue item"
+			title="Couldn't load this line"
 			description={error instanceof Error ? error.message : "Tap Retry."}
 			onRetry={reset}
 		/>

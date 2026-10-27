@@ -163,7 +163,7 @@ export const OrderPickupEventDialog = ({
 			closeDialog();
 		},
 		onError: (error: Error) => {
-			toast.error(readServerErrorMessage(error, "Failed to record pickup"));
+			toast.error(readServerErrorMessage(error, "Couldn't record pickup"));
 		},
 	});
 
