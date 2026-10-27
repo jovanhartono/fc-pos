@@ -12,14 +12,14 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { CopyValue } from "@/components/copy-value";
 import { EmptyState } from "@/components/empty-state";
 import { SectionTitle } from "@/components/section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { WhatsappIcon } from "@/components/whatsapp-icon";
@@ -226,6 +226,8 @@ export function QueueServiceDetail({
 	const currentUser = getCurrentUser();
 
 	const [statusNote, setStatusNote] = useState("");
+	const [isNoteMissing, setIsNoteMissing] = useState(false);
+	const statusNoteRef = useRef<HTMLTextAreaElement>(null);
 
 	const detailQuery = useQuery(ordersQueries.orderService(orderId, serviceId));
 	const detail = detailQuery.data?.order;
@@ -441,18 +443,26 @@ export function QueueServiceDetail({
 				<section className="grid gap-4 rounded-lg border bg-card p-4">
 					<StatusTimeline line={selectedService} />
 					{actionStatuses.length > 0 && (
-						<Field>
+						<Field data-invalid={isNoteMissing}>
 							<FieldLabel htmlFor="queue-status-note">Status note</FieldLabel>
 							<Textarea
+								aria-invalid={isNoteMissing}
 								id="queue-status-note"
 								placeholder={
 									actionStatuses.includes("qc_reject")
 										? "Needed to reject, e.g. stain on toe box"
 										: "Optional status note"
 								}
+								ref={statusNoteRef}
 								value={statusNote}
-								onChange={(event) => setStatusNote(event.target.value)}
+								onChange={(event) => {
+									setStatusNote(event.target.value);
+									setIsNoteMissing(false);
+								}}
 							/>
+							{isNoteMissing ? (
+								<FieldError>Write reject reason</FieldError>
+							) : null}
 						</Field>
 					)}
 				</section>
@@ -497,11 +507,17 @@ export function QueueServiceDetail({
 								variant={nextStatus === "qc_reject" ? "secondary" : "default"}
 								size="lg"
 								className={cn("h-12 sm:flex-1", canStartWork && "sm:flex-none")}
-								disabled={
-									updateStatusMutation.isPending ||
-									(nextStatus === "qc_reject" && !statusNote.trim())
-								}
+								disabled={updateStatusMutation.isPending}
 								onClick={() => {
+									// The checker on a phone can't see the note box behind this bar,
+									// so a blank Reject takes them to it.
+									if (nextStatus === "qc_reject" && !statusNote.trim()) {
+										setIsNoteMissing(true);
+										statusNoteRef.current?.scrollIntoView({ block: "center" });
+										statusNoteRef.current?.focus();
+										return;
+									}
+									setIsNoteMissing(false);
 									updateStatusMutation.mutate(
 										{
 											serviceId,
