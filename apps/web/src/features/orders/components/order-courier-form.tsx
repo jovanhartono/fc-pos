@@ -61,14 +61,14 @@ export const OrderCourierForm = ({
 					type="button"
 					variant="outline"
 				>
-					Go back
+					Go Back
 				</Button>
 				<Button
 					disabled={courierMutation.isPending || !isDirty}
 					onClick={handleSave}
 					type="button"
 				>
-					{courierMutation.isPending ? "Saving…" : "Save courier"}
+					{courierMutation.isPending ? "Saving…" : "Save Courier"}
 				</Button>
 			</div>
 		</div>

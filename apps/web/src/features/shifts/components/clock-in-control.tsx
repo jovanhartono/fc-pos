@@ -103,7 +103,7 @@ export const ClockInControl = () => {
 					</p>
 				</div>
 				<Button className={PRIMARY_BUTTON} disabled loading size="lg">
-					Clock in
+					Clock In
 				</Button>
 			</div>
 		);
@@ -137,7 +137,7 @@ export const ClockInControl = () => {
 					</div>
 				</div>
 				<Button className={PRIMARY_BUTTON} disabled size="lg">
-					Clock in
+					Clock In
 				</Button>
 			</div>
 		);
@@ -216,7 +216,7 @@ export const ClockInControl = () => {
 				}
 				size="lg"
 			>
-				Clock in
+				Clock In
 			</Button>
 		</div>
 	);

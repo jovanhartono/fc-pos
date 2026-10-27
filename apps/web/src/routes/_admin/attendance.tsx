@@ -116,7 +116,7 @@ function AttendancePage() {
 								size="lg"
 								variant="destructive"
 							>
-								Clock out
+								Clock Out
 							</Button>
 						</>
 					) : (

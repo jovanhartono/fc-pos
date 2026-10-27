@@ -55,7 +55,7 @@ const NotifyCustomerFooter = ({
 					type="button"
 					variant="success"
 				>
-					Try again
+					Try Again
 				</Button>
 			) : (
 				<Button
@@ -123,10 +123,10 @@ export const useNotifyCustomer = (orderId: number) => {
 	};
 
 	return ({ customerName, phone, lastNotice }: NotifyCustomerTarget) => {
-		const label = lastNotice ? "Notify again" : "Notify";
+		const label = lastNotice ? "Notify Again" : "Notify";
 		openDialog({
 			title: lastNotice
-				? `Notify ${customerName} again?`
+				? `Notify ${customerName} Again?`
 				: `Notify ${customerName}?`,
 			description: lastNotice
 				? `Notified ${formatNoticeTime(lastNotice.sent_at)} by ${lastNotice.sent_by_name}. Opens WhatsApp with the same message again.`

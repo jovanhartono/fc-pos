@@ -117,7 +117,7 @@ export function HoldToConfirmButton({
 			/>
 			<span className="relative z-10">
 				{/* biome-ignore lint/suspicious/noLeakedRender: children is the button label, a ReactNode the caller already renders */}
-				{isHolding ? "Keep holding..." : children}
+				{isHolding ? "Keep Holding..." : children}
 			</span>
 		</Button>
 	);

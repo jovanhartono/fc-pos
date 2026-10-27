@@ -141,10 +141,10 @@ export const OpenComplaintForm = ({
 						type="button"
 						variant="outline"
 					>
-						Go back
+						Go Back
 					</Button>
 					<Button disabled={isPending} type="submit">
-						{isPending ? "Opening…" : "Open complaint"}
+						{isPending ? "Opening…" : "Open Complaint"}
 					</Button>
 				</div>
 			</form>

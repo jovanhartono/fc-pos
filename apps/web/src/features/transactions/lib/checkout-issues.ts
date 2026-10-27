@@ -137,7 +137,7 @@ const SERVER_FAILURE_RULES: {
 	{
 		pattern: /unpriced line/i,
 		target: "payment",
-		action: "Choose Pay later.",
+		action: "Choose Pay Later.",
 	},
 ];
 

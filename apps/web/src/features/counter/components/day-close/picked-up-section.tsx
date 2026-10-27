@@ -11,7 +11,7 @@ interface PickedUpSectionProps {
 export const PickedUpSection = ({ data, onOpen }: PickedUpSectionProps) => {
 	const { picked_up: picked } = data;
 	return (
-		<Section title="Picked up">
+		<Section title="Picked Up">
 			<div className="overflow-hidden rounded-lg border bg-card">
 				{picked.orders === 0 ? (
 					<p className="px-3 py-2.5">Nothing picked up this day.</p>

@@ -224,7 +224,7 @@ const DateRangeSheet = ({
 									<HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
 								}
 							/>
-							<SheetTitle>Custom range</SheetTitle>
+							<SheetTitle>Custom Range</SheetTitle>
 						</SheetHeader>
 						<div className="shrink-0 border-b px-4 py-3 text-body">
 							{draftRange?.from
@@ -262,7 +262,7 @@ const DateRangeSheet = ({
 				) : (
 					<>
 						<SheetHeader className="shrink-0 border-b px-4 py-3">
-							<SheetTitle>Date range</SheetTitle>
+							<SheetTitle>Date Range</SheetTitle>
 						</SheetHeader>
 						<div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
 							{presets.map((preset) => (
@@ -290,7 +290,7 @@ const DateRangeSheet = ({
 							onClick={() => setIsPickingCustom(true)}
 							className={cn(SHEET_ROW, "shrink-0 border-t border-border/70")}
 						>
-							Custom range
+							Custom Range
 							<HugeiconsIcon
 								icon={ArrowRight01Icon}
 								className="size-4 text-muted-foreground"

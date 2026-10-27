@@ -119,7 +119,7 @@ export function CategoryForm({
 				</SwitchList>
 
 				<SheetFormActions
-					addLabel="Add category"
+					addLabel="Add Category"
 					isEditing={isEditing}
 					isSubmitting={isSubmitting}
 					onCancel={onReset}

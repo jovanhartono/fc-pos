@@ -187,7 +187,7 @@ const CheckoutStepActions = ({
 				disabled={!(customerReady && itemsReady)}
 				icon={<HugeiconsIcon icon={CreditCardIcon} className="size-4" />}
 				loading={isSubmitting}
-				loadingText="Creating order..."
+				loadingText="Creating Order..."
 				onClick={onSubmit}
 				size="lg"
 				type="button"

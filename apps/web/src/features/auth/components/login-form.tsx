@@ -39,7 +39,7 @@ export function LoginForm({
 				onSubmit={handleSubmit(onSubmit)}
 			>
 				<BrandLogo className="h-10 justify-self-center" />
-				<h1 className="text-center font-bold text-title-2">Sign in</h1>
+				<h1 className="text-center font-bold text-title-2">Sign In</h1>
 				<div className="overflow-hidden rounded-lg border bg-card">
 					<Field data-invalid={!!errors.username}>
 						<FieldLabel htmlFor="username" className="sr-only">
@@ -74,9 +74,9 @@ export function LoginForm({
 					type="submit"
 					className="h-11 pointer-coarse:h-11 w-full"
 					loading={isSubmitting}
-					loadingText="Signing in..."
+					loadingText="Signing In..."
 				>
-					Sign in
+					Sign In
 				</Button>
 			</form>
 		</div>

@@ -297,7 +297,7 @@ const OrderLineReversalForm = <R extends string>({
 							onClick={handleSelectAll}
 							disabled={pending || fields.length === 0}
 						>
-							Select all
+							Select All
 						</Button>
 						<Button
 							type="button"
@@ -366,7 +366,7 @@ const OrderLineReversalForm = <R extends string>({
 						onClick={closeDialog}
 						disabled={pending}
 					>
-						Go back
+						Go Back
 					</Button>
 					<Button type="submit" variant="destructive" disabled={pending}>
 						{submitLabel()}
@@ -556,7 +556,7 @@ export const CancelOrderForm = ({
 }: CancelOrderFormProps) => (
 	<OrderLineReversalForm
 		closeDialog={closeDialog}
-		copy={{ verb: "cancel", confirm: "Confirm cancel", pending: "Cancelling…" }}
+		copy={{ verb: "cancel", confirm: "Confirm Cancel", pending: "Cancelling…" }}
 		defaultReason="customer_request"
 		formatReason={formatCancelReason}
 		isPending={cancelOrderMutation.isPending}
@@ -594,7 +594,7 @@ export const RefundOrderForm = ({
 	<OrderLineReversalForm
 		capsByLineKey={capsByLineKey}
 		closeDialog={closeDialog}
-		copy={{ verb: "refund", confirm: "Confirm refund", pending: "Refunding…" }}
+		copy={{ verb: "refund", confirm: "Confirm Refund", pending: "Refunding…" }}
 		defaultReason="damaged"
 		formatReason={formatRefundReason}
 		isPending={refundMutation.isPending}

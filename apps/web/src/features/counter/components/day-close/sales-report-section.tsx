@@ -48,7 +48,7 @@ export const SalesReportSection = ({
 		.join(" · ");
 
 	return (
-		<Section title="Sales report">
+		<Section title="Sales Report">
 			<div className="overflow-hidden rounded-lg border bg-card">
 				<button
 					className="flex w-full items-baseline justify-between gap-3 px-3 py-2.5 text-left hover:bg-muted"

@@ -151,12 +151,12 @@ export const WorkshopSection = ({
 					: null
 			}
 			empty="Nothing waiting."
-			title="Ready estimate"
+			title="Ready Estimate"
 		>
 			{categories.length > 0 ? (
 				<>
 					<CategoryBox categories={cleaning} />
-					<CategoryBox categories={afterClean} heading="After the clean" />
+					<CategoryBox categories={afterClean} heading="After the Clean" />
 				</>
 			) : null}
 		</Section>

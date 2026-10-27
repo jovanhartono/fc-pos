@@ -105,7 +105,7 @@ export function PaymentMethodForm({
 				</SwitchList>
 
 				<SheetFormActions
-					addLabel="Add payment method"
+					addLabel="Add Payment Method"
 					isEditing={isEditing}
 					isSubmitting={isSubmitting}
 					onCancel={onReset}

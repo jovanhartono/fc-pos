@@ -242,7 +242,7 @@ function OrdersPage() {
 
 	const handleOpenPickupRadar = useCallback(() => {
 		openSheet({
-			title: "Ready for pickup",
+			title: "Ready for Pickup",
 			description: "Orders that can leave the store now.",
 			content: () => (
 				<PickupRadar enabled={canListOrders} storeId={parsedStoreId} />
@@ -385,7 +385,7 @@ function OrdersPage() {
 							<HugeiconsIcon icon={PackageDeliveredIcon} className="size-4" />
 						}
 					>
-						Ready for pickup
+						Ready for Pickup
 					</Button>
 				}
 			/>

@@ -282,7 +282,7 @@ const PickupServiceList = memo(() => {
 				</p>
 				<div className="flex gap-1.5">
 					<Button type="button" size="sm" variant="outline" onClick={selectAll}>
-						Select all
+						Select All
 					</Button>
 					<Button
 						type="button"
@@ -389,7 +389,7 @@ const PickupPhotoField = memo(() => {
 				) : (
 					<div className="flex flex-col items-center justify-center gap-2 text-primary">
 						<HugeiconsIcon icon={Camera01Icon} className="size-8" />
-						<span className="font-medium text-body">Add pickup photo</span>
+						<span className="font-medium text-body">Add Pickup Photo</span>
 					</div>
 				)}
 			</button>
@@ -399,7 +399,7 @@ const PickupPhotoField = memo(() => {
 				onCapture={setFile}
 				onOpenChange={setIsCameraOpen}
 				open={isCameraOpen}
-				title="Pickup photo"
+				title="Pickup Photo"
 			/>
 		</div>
 	);
@@ -423,7 +423,7 @@ const PickupActions = memo(({ onCancel }: { onCancel: () => void }) => {
 				loadingText="Saving…"
 				onClick={submit}
 			>
-				Record pickup
+				Record Pickup
 			</Button>
 		</div>
 	);

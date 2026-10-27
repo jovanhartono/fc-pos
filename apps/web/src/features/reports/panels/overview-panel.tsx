@@ -173,7 +173,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle>Revenue by store · today</CardTitle>
+					<CardTitle>Revenue by Store · Today</CardTitle>
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					<StoreRevenueRows rows={overview?.per_store ?? []} />
@@ -183,7 +183,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 			<div className="grid gap-3 xl:grid-cols-2">
 				<Card className="border-border/70">
 					<CardHeader>
-						<CardTitle>Gross sales by category · today</CardTitle>
+						<CardTitle>Gross Sales by Category · Today</CardTitle>
 					</CardHeader>
 					<CardContent className="p-4 pt-0">
 						<CategoryBars categories={overview?.categories ?? []} />
@@ -191,7 +191,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 				</Card>
 				<Card className="border-border/70">
 					<CardHeader>
-						<CardTitle>Top services by gross sales · today</CardTitle>
+						<CardTitle>Top Services by Gross Sales · Today</CardTitle>
 					</CardHeader>
 					<CardContent className="p-4 pt-0">
 						<TopServicesList services={overview?.top_services ?? []} />

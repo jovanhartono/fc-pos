@@ -188,7 +188,7 @@ const ShiftsPage = () => {
 
 	const handleCreate = () =>
 		openDialog({
-			title: "New shift",
+			title: "New Shift",
 			content: () => <NewShiftForm onDone={closeDialog} />,
 		});
 
@@ -201,7 +201,7 @@ const ShiftsPage = () => {
 						icon={<HugeiconsIcon className="size-4" icon={Add01Icon} />}
 						onClick={handleCreate}
 					>
-						New shift
+						New Shift
 					</Button>
 				}
 			/>

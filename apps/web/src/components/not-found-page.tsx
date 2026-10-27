@@ -41,7 +41,7 @@ const NotFoundPage = () => {
 						onClick={handleBack}
 						icon={<HugeiconsIcon icon={ArrowTurnBackwardIcon} />}
 					>
-						Go back
+						Go Back
 					</Button>
 					<Button
 						nativeButton={false}

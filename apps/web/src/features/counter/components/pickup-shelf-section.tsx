@@ -170,7 +170,7 @@ export const PickupShelfSection = ({
 	<Section
 		count={`${pluralize(shelf.orders, "Order")} · ${pluralize(shelf.items, "Item")}`}
 		empty="Nothing on the shelf."
-		title="Pickup shelf"
+		title="Pickup Shelf"
 	>
 		{shelf.orders === 0 ? null : (
 			<div className="overflow-hidden rounded-lg border bg-card">
@@ -185,7 +185,7 @@ export const PickupShelfSection = ({
 					search={{ page: 1, status: "ready_for_pickup", storeId }}
 					to="/orders"
 				>
-					All {shelf.orders} ready {shelf.orders === 1 ? "Order" : "Orders"} →
+					All {shelf.orders} Ready {shelf.orders === 1 ? "Order" : "Orders"} →
 				</Link>
 			</div>
 		)}

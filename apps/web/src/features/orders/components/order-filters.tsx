@@ -263,7 +263,7 @@ export const OrderFilters = ({
 									disabled={activeCount === 0}
 									onClick={handleClearAll}
 								>
-									Clear all
+									Clear All
 								</Button>
 								<Button
 									type="button"

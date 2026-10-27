@@ -171,7 +171,7 @@ export const WorkersPanel = ({
 
 					<Section
 						id="workers-services"
-						title="Services by worker"
+						title="Services by Worker"
 						aside={allStoresLink}
 					>
 						<ServicesByWorker

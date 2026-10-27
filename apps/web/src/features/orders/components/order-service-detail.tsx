@@ -213,7 +213,7 @@ const ServicePriceSection = ({
 						type="button"
 						variant="outline"
 					>
-						Correct price
+						Correct Price
 					</Button>
 				)}
 			</div>

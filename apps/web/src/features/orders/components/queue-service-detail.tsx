@@ -89,7 +89,7 @@ const BackForReworkNote = ({
 			params={{ orderId, serviceId: reworkLineId }}
 			to="/queue/$orderId/$serviceId"
 		>
-			Open rework
+			Open Rework
 			<HugeiconsIcon
 				icon={ArrowRight01Icon}
 				aria-hidden="true"

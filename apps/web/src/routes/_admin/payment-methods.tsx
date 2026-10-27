@@ -71,7 +71,7 @@ function PaymentMethodsPage() {
 	const handleOpenEditSheet = useCallback(
 		(paymentMethod: PaymentMethod) => {
 			openSheet({
-				title: "Edit payment method",
+				title: "Edit Payment Method",
 				content: () => (
 					<PaymentMethodForm
 						defaultValues={{
@@ -96,7 +96,7 @@ function PaymentMethodsPage() {
 
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
-			title: "Add payment method",
+			title: "Add Payment Method",
 			content: () => (
 				<PaymentMethodForm
 					handleOnSubmit={async (values: PaymentMethodFormState) => {
@@ -148,7 +148,7 @@ function PaymentMethodsPage() {
 	return (
 		<>
 			<PageHeader
-				title="Payment methods"
+				title="Payment Methods"
 				count={isPending ? undefined : paymentMethods.length}
 				countNoun="payment method"
 				actions={
@@ -156,7 +156,7 @@ function PaymentMethodsPage() {
 						onClick={handleOpenCreateSheet}
 						icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
 					>
-						Add method
+						Add Method
 					</Button>
 				}
 			/>

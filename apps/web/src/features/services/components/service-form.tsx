@@ -262,7 +262,7 @@ export function ServiceForm({
 				</SwitchList>
 
 				<SheetFormActions
-					addLabel="Add service"
+					addLabel="Add Service"
 					isEditing={isEditing}
 					isSubmitting={isSubmitting}
 					onCancel={onReset}

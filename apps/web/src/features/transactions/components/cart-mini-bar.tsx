@@ -80,7 +80,7 @@ export const CartMiniBar = ({ onOpen }: CartMiniBarProps) => {
 					type="button"
 				>
 					<span className="font-semibold">{formatMoney(subtotal)}</span>
-					<span className="font-medium">Check out</span>
+					<span className="font-medium">Check Out</span>
 				</Button>
 			</div>
 		</div>

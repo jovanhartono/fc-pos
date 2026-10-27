@@ -144,7 +144,7 @@ export const ItemPhotoStrip = ({
 				onOpenChange={setIsUploadOpen}
 				onUploaded={refreshOrder}
 				open={isUploadOpen}
-				title="Add item photo"
+				title="Add Item Photo"
 				uploader={itemPhotoUploader(orderId, item.id)}
 			/>
 		</div>

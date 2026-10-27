@@ -71,7 +71,7 @@ export const CheckoutPaymentStep = () => {
 	});
 
 	// ADR-0018: no price, no payment. A blank Repair locks every method except
-	// "Pay later", and moves discounts to the Order page.
+	// "Pay Later", and moves discounts to the Order page.
 	const unpricedCount = countUnpricedServiceLines(serviceRows);
 	const isFullyPriced = unpricedCount === 0;
 	const paymentBlocked = !isFullyPriced;
@@ -132,7 +132,7 @@ export const CheckoutPaymentStep = () => {
 	}, [paymentBlocked, form]);
 
 	// ADR-0018 amended: adding a blank Repair clears discounts on screen at
-	// once, never silently at checkout. "Pay later" alone clears nothing.
+	// once, never silently at checkout. "Pay Later" alone clears nothing.
 	useEffect(() => {
 		if (isFullyPriced) {
 			return;
@@ -157,12 +157,12 @@ export const CheckoutPaymentStep = () => {
 					<FieldSet className="gap-2" data-invalid={fieldState.invalid}>
 						<FieldLegend variant="label">Payment</FieldLegend>
 						{/* No paid/unpaid toggle: picking a method marks the Order paid,
-						    "Pay later" leaves it unpaid. */}
+						    "Pay Later" leaves it unpaid. */}
 						<div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
 							<PaymentMethodTile
 								hint="Unpaid"
 								isSelected={field.value === ""}
-								label="Pay later"
+								label="Pay Later"
 								onSelect={() => field.onChange("")}
 								value=""
 							/>

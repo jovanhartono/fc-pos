@@ -636,7 +636,7 @@ export const CampaignForm = ({
 					</SwitchList>
 
 					<SheetFormActions
-						addLabel="Add campaign"
+						addLabel="Add Campaign"
 						isEditing={isEditing}
 						isSubmitting={isSubmitting}
 						onCancel={onReset}

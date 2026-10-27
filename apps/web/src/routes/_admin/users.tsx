@@ -255,7 +255,7 @@ function UsersPage() {
 				store_ids: user.userStores.map((item) => item.store_id),
 			});
 			openSheet({
-				title: "Edit user",
+				title: "Edit User",
 				content: () => (
 					<FormProvider {...form}>
 						<UserForm
@@ -274,7 +274,7 @@ function UsersPage() {
 	const handleCreate = useCallback(() => {
 		form.reset(defaultForm);
 		openSheet({
-			title: "Add user",
+			title: "Add User",
 			content: () => (
 				<FormProvider {...form}>
 					<UserForm
@@ -291,7 +291,7 @@ function UsersPage() {
 	const handleResetPassword = useCallback(
 		(user: User) => {
 			openDialog({
-				title: "Reset password",
+				title: "Reset Password",
 				description: `${user.name} · ${user.username}`,
 				content: () => (
 					<ResetPasswordForm userId={user.id} onDone={closeDialog} />
@@ -392,7 +392,7 @@ function UsersPage() {
 						icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
 						onClick={handleCreate}
 					>
-						Add user
+						Add User
 					</Button>
 				}
 			/>

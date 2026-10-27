@@ -58,7 +58,7 @@ export const ServiceStatusConfirmForm = ({
 			)}
 			<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
 				<Button variant="outline" onClick={closeDialog}>
-					Go back
+					Go Back
 				</Button>
 				<Button
 					disabled={isPending || (isReject && !trimmed)}

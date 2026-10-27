@@ -65,7 +65,7 @@ function StoresPage() {
 	const handleOpenEditSheet = useCallback(
 		(store: Store) => {
 			openSheet({
-				title: "Edit store",
+				title: "Edit Store",
 				content: () => (
 					<StoreForm
 						defaultValues={{
@@ -94,7 +94,7 @@ function StoresPage() {
 
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
-			title: "Add store",
+			title: "Add Store",
 			content: () => (
 				<StoreForm
 					handleOnSubmit={async (values: StoreFormState) => {
@@ -159,7 +159,7 @@ function StoresPage() {
 						onClick={handleOpenCreateSheet}
 						icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
 					>
-						Add store
+						Add Store
 					</Button>
 				}
 			/>

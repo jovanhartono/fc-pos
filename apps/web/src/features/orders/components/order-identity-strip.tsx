@@ -150,7 +150,7 @@ export const OrderIdentityStrip = ({
 
 	const openPickupDialog = () => {
 		openDialog({
-			title: "Record pickup",
+			title: "Record Pickup",
 			description: "Select the items being collected and attach a photo.",
 			contentClassName: "sm:max-w-xl",
 			content: () => (
@@ -165,7 +165,7 @@ export const OrderIdentityStrip = ({
 
 	const openCourierDialog = () => {
 		openDialog({
-			title: "Set courier",
+			title: "Set Courier",
 			description:
 				"Assign a courier to collect this order, or leave as walk-in.",
 			contentClassName: "sm:max-w-md",
@@ -183,7 +183,7 @@ export const OrderIdentityStrip = ({
 
 	const openCancelOrderDialog = () => {
 		openDialog({
-			title: "Cancel order",
+			title: "Cancel Order",
 			description: "Select lines to cancel and provide reasons.",
 			contentClassName: "sm:max-w-xl",
 			content: () => (
@@ -208,7 +208,7 @@ export const OrderIdentityStrip = ({
 
 	const openRefundOrderDialog = () => {
 		openDialog({
-			title: "Refund order",
+			title: "Refund Order",
 			description: "Select lines to refund and provide reasons.",
 			contentClassName: "sm:max-w-xl",
 			content: () => (
@@ -235,7 +235,7 @@ export const OrderIdentityStrip = ({
 
 	const openComplaintDialog = () => {
 		openDialog({
-			title: "Open complaint",
+			title: "Open Complaint",
 			description: "Log a customer complaint and optionally start a rework.",
 			contentClassName: "sm:max-w-2xl",
 			content: () => (
@@ -285,7 +285,7 @@ export const OrderIdentityStrip = ({
 				type="button"
 				variant={lastNotice ? "outline-success" : "success"}
 			>
-				{lastNotice ? "Notify again" : "Notify"}
+				{lastNotice ? "Notify Again" : "Notify"}
 			</Button>
 		) : null;
 
@@ -349,7 +349,7 @@ export const OrderIdentityStrip = ({
 										{trackingUrl ? (
 											<DropdownMenuItem onClick={handleCopyTrackingLink}>
 												<HugeiconsIcon icon={CopyLinkIcon} className="size-4" />
-												Copy tracking link
+												Copy Tracking Link
 											</DropdownMenuItem>
 										) : null}
 										{gates.canManageCourier ? (
@@ -358,7 +358,7 @@ export const OrderIdentityStrip = ({
 													icon={DeliveryTruck01Icon}
 													className="size-4"
 												/>
-												Set courier
+												Set Courier
 											</DropdownMenuItem>
 										) : null}
 										{gates.canOpenComplaint ? (
@@ -367,7 +367,7 @@ export const OrderIdentityStrip = ({
 													icon={AlertCircleIcon}
 													className="size-4"
 												/>
-												Open complaint
+												Open Complaint
 											</DropdownMenuItem>
 										) : null}
 										{gates.canRefundWholeOrder ? (
@@ -383,7 +383,7 @@ export const OrderIdentityStrip = ({
 												onClick={openCancelOrderDialog}
 												variant="destructive"
 											>
-												Cancel order
+												Cancel Order
 											</DropdownMenuItem>
 										) : null}
 									</DropdownMenuContent>

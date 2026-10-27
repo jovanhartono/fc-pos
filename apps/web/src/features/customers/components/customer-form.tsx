@@ -133,7 +133,7 @@ export const CustomerForm = ({
 				/>
 
 				<SheetFormActions
-					addLabel="Add customer"
+					addLabel="Add Customer"
 					isEditing={isEditing}
 					isSubmitting={isSubmitting}
 					onCancel={onReset}
