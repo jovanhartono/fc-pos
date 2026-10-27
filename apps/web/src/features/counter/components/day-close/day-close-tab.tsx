@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { counterQueries } from "@/features/counter/api";
 import { CollectedSection } from "@/features/counter/components/day-close/collected-section";
 import { daySheet } from "@/features/counter/components/day-close/day-sheets";
@@ -9,6 +9,7 @@ import { PickedUpSection } from "@/features/counter/components/day-close/picked-
 import { RefundsSection } from "@/features/counter/components/day-close/refunds-section";
 import { SalesReportSection } from "@/features/counter/components/day-close/sales-report-section";
 import { formatDayLabel } from "@/features/counter/lib/day-close";
+import { isBackNavigation } from "@/lib/back-navigation";
 import { CONTENT_FADE, staleFade } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
 import { useSheet } from "@/stores/sheet-store";
@@ -35,17 +36,10 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 			resetScroll: false,
 		});
 
-	// The list already in the URL when the tab mounts is one a phone came Back
-	// to from an Order: it is there at once, as in Safari's swipe-back picture.
-	const backToList = useRef(list);
-
 	// A phone that went into an Order from a list comes back to the same list;
 	// Back off the list itself closes it rather than leaving it over another tab.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: only a new list or day reopens the sheet
 	useEffect(() => {
-		if (list !== backToList.current) {
-			backToList.current = undefined;
-		}
 		if (!(list && data) || useSheet.getState().sheetState.open) {
 			return;
 		}
@@ -56,7 +50,7 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 		}
 		useSheet.getState().openSheet({
 			...sheet,
-			isInstant: list === backToList.current,
+			isInstant: isBackNavigation(),
 			isRestoredOnBack: true,
 			onClose: () => void setList(undefined),
 		});

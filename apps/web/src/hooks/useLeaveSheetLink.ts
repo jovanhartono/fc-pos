@@ -7,7 +7,7 @@ import { useSheet } from "@/stores/sheet-store";
  * A link in the global sheet that leaves the page. Safari keeps a picture of each page for
  * swipe back; leaving while the sheet was still sliding out kept it in that picture, so
  * swiping back showed the sheet open, then it vanished. A new-tab click leaves the sheet open.
- * A sheet its page reopens after Back (a Day close list) leaves at once, so the picture keeps it.
+ * A sheet its page reopens after Back leaves at once, so the picture keeps it.
  */
 export const useLeaveSheetLink = () => {
 	const navigate = useNavigate();

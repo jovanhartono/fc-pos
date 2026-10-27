@@ -37,7 +37,7 @@ export type OpenSheetPayload = {
 	// When the person closes the sheet, not when code closes it to leave the
 	// page; a sheet opened over this one inherits it.
 	onClose?: () => void;
-	// Shows without sliding in: the Day close list a phone came Back to.
+	// Shows without sliding in: a sheet its page reopens after Back.
 	isInstant?: boolean;
 	// The page reopens this sheet after Back; see useLeaveSheetLink.
 	isRestoredOnBack?: boolean;
