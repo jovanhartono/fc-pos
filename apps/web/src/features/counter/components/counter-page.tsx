@@ -26,7 +26,7 @@ export type CounterTab = "status" | "summary";
 
 const TABS: { id: CounterTab; label: string }[] = [
 	{ id: "status", label: "Status" },
-	{ id: "summary", label: "Payments & Sales" },
+	{ id: "summary", label: "Summary" },
 ];
 
 interface CounterPageProps {
@@ -42,9 +42,10 @@ interface CounterTabsProps {
 	actions?: ReactNode;
 }
 
-// Wraps on a 390px iPhone, where the day doesn't fit beside the tabs.
+// Two tabs never overflow, so the row has room for the Summary's day on the
+// right without scrolling.
 const CounterTabs = ({ actions }: CounterTabsProps) => (
-	<div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-3">
+	<div className="flex items-center justify-between gap-2">
 		<TabsList aria-label="Counter">
 			{TABS.map((tab) => (
 				<TabsTrigger key={tab.id} value={tab.id}>
