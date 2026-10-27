@@ -1,5 +1,6 @@
 import { FilterIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
 import { FilterCountBadge } from "@/components/filter-count-badge";
@@ -13,20 +14,17 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+	type ORDER_STATUS_VALUES,
+	OrderStatusTabs,
+} from "@/features/orders/components/order-status-tabs";
 import { StoreSelect } from "@/features/orders/components/store-select";
+import { paymentMethodsQueries } from "@/features/payment-methods/api";
 import { formatPaymentStatus, formatRefundStatus } from "@/lib/status";
-
-export const ORDER_STATUS_VALUES = [
-	"created",
-	"processing",
-	"ready_for_pickup",
-	"completed",
-	"cancelled",
-] as const;
 
 export const PAYMENT_STATUS_VALUES = ["paid", "unpaid"] as const;
 
-export const REFUND_STATUS_VALUES = ["partial", "full"] as const;
+export const REFUND_STATUS_VALUES = ["any", "partial", "full"] as const;
 
 export const NOTIFIED_VALUES = ["yes", "no"] as const;
 
@@ -40,6 +38,7 @@ export interface OrderFilterValues {
 	storeId?: number;
 	status?: OrderStatusFilter;
 	paymentStatus?: PaymentStatusFilter;
+	paymentMethodId?: number;
 	refundStatus?: RefundStatusFilter;
 	notified?: NotifiedFilter;
 	dateFrom?: string;
@@ -53,24 +52,28 @@ interface OrderFiltersProps {
 	onChange: (patch: Partial<OrderFilterValues>) => void;
 }
 
-// "" means all payments and maps back to undefined.
+// "" clears the filter and shows the filter's name: "All refunds" read as
+// "only refunded Orders".
 const PAYMENT_ITEMS: Record<string, string> = {
-	"": "All payments",
+	"": "Payment status",
 	paid: formatPaymentStatus("paid"),
 	unpaid: formatPaymentStatus("unpaid"),
 };
 
 const REFUND_ITEMS: Record<string, string> = {
-	"": "All refunds",
+	"": "Refund status",
+	any: "Any refund",
 	partial: formatRefundStatus("partial"),
 	full: formatRefundStatus("full"),
 };
 
 const NOTIFIED_ITEMS: Record<string, string> = {
-	"": "All notices",
+	"": "Pickup notice",
 	yes: "Notified",
 	no: "Not notified",
 };
+
+const METHOD_PLACEHOLDER = "Payment method";
 
 interface FilterControlsProps extends OrderFiltersProps {
 	idPrefix: string;
@@ -84,67 +87,92 @@ const FilterControls = ({
 	onChange,
 	idPrefix,
 	isStacked,
-}: FilterControlsProps) => (
-	<>
-		<StoreSelect
-			id={`${idPrefix}-store`}
-			hideLabel
-			value={values.storeId?.toString() ?? ""}
-			onValueChange={(value) =>
-				onChange({ storeId: value ? Number(value) : undefined })
-			}
-			allowedStoreIds={role === "admin" ? undefined : userStoreIds}
-			allOptionLabel={role === "admin" ? "All stores" : undefined}
-			placeholder="Filter by store"
-			triggerClassName={isStacked ? undefined : "w-60"}
-		/>
-		<SelectField
-			id={`${idPrefix}-payment`}
-			aria-label="Filter by payment status"
-			items={PAYMENT_ITEMS}
-			value={values.paymentStatus ?? ""}
-			onValueChange={(value) =>
-				onChange({ paymentStatus: (value || undefined) as PaymentStatusFilter })
-			}
-			placeholder="All payments"
-			className="w-full data-placeholder:text-foreground lg:w-max lg:min-w-40"
-		/>
-		<SelectField
-			id={`${idPrefix}-refund`}
-			aria-label="Filter by refund"
-			items={REFUND_ITEMS}
-			value={values.refundStatus ?? ""}
-			onValueChange={(value) =>
-				onChange({ refundStatus: (value || undefined) as RefundStatusFilter })
-			}
-			placeholder="All refunds"
-			className="w-full data-placeholder:text-foreground lg:w-max lg:min-w-40"
-		/>
-		<SelectField
-			id={`${idPrefix}-notified`}
-			aria-label="Filter by pickup notice"
-			items={NOTIFIED_ITEMS}
-			value={values.notified ?? ""}
-			onValueChange={(value) =>
-				onChange({ notified: (value || undefined) as NotifiedFilter })
-			}
-			placeholder="All notices"
-			className="w-full data-placeholder:text-foreground lg:w-max lg:min-w-40"
-		/>
-		<DateRangePicker
-			id={`${idPrefix}-date`}
-			resetOnSelect
-			commitOnComplete
-			from={values.dateFrom}
-			to={values.dateTo}
-			onChange={({ from, to }) => onChange({ dateFrom: from, dateTo: to })}
-			onClear={() => onChange({ dateFrom: undefined, dateTo: undefined })}
-			fullWidth={isStacked}
-			placeholder="All dates"
-			className="text-foreground"
-		/>
-	</>
-);
+}: FilterControlsProps) => {
+	const paymentMethodsQuery = useQuery(paymentMethodsQueries.list());
+	// Inactive methods stay listed: old Orders were still paid with them.
+	const methodItems = [
+		{ value: "", label: METHOD_PLACEHOLDER },
+		...(paymentMethodsQuery.data ?? []).map((method) => ({
+			value: String(method.id),
+			label: method.name,
+		})),
+	];
+
+	return (
+		<>
+			<StoreSelect
+				id={`${idPrefix}-store`}
+				hideLabel
+				value={values.storeId?.toString() ?? ""}
+				onValueChange={(value) =>
+					onChange({ storeId: value ? Number(value) : undefined })
+				}
+				allowedStoreIds={role === "admin" ? undefined : userStoreIds}
+				allOptionLabel={role === "admin" ? "All stores" : undefined}
+				placeholder="Filter by store"
+				triggerClassName={isStacked ? undefined : "w-60"}
+			/>
+			<SelectField
+				id={`${idPrefix}-payment`}
+				aria-label="Filter by payment status"
+				items={PAYMENT_ITEMS}
+				value={values.paymentStatus ?? ""}
+				onValueChange={(value) =>
+					onChange({
+						paymentStatus: (value || undefined) as PaymentStatusFilter,
+					})
+				}
+				placeholder={PAYMENT_ITEMS[""]}
+				className="w-full data-placeholder:text-foreground lg:w-max lg:min-w-40"
+			/>
+			<SelectField
+				id={`${idPrefix}-payment-method`}
+				aria-label="Filter by payment method"
+				items={methodItems}
+				value={values.paymentMethodId?.toString() ?? ""}
+				onValueChange={(value) =>
+					onChange({ paymentMethodId: value ? Number(value) : undefined })
+				}
+				placeholder={METHOD_PLACEHOLDER}
+				className="w-full data-placeholder:text-foreground lg:w-max lg:min-w-40"
+			/>
+			<SelectField
+				id={`${idPrefix}-refund`}
+				aria-label="Filter by refund"
+				items={REFUND_ITEMS}
+				value={values.refundStatus ?? ""}
+				onValueChange={(value) =>
+					onChange({ refundStatus: (value || undefined) as RefundStatusFilter })
+				}
+				placeholder={REFUND_ITEMS[""]}
+				className="w-full data-placeholder:text-foreground lg:w-max lg:min-w-40"
+			/>
+			<SelectField
+				id={`${idPrefix}-notified`}
+				aria-label="Filter by pickup notice"
+				items={NOTIFIED_ITEMS}
+				value={values.notified ?? ""}
+				onValueChange={(value) =>
+					onChange({ notified: (value || undefined) as NotifiedFilter })
+				}
+				placeholder={NOTIFIED_ITEMS[""]}
+				className="w-full data-placeholder:text-foreground lg:w-max lg:min-w-40"
+			/>
+			<DateRangePicker
+				id={`${idPrefix}-date`}
+				resetOnSelect
+				commitOnComplete
+				from={values.dateFrom}
+				to={values.dateTo}
+				onChange={({ from, to }) => onChange({ dateFrom: from, dateTo: to })}
+				onClear={() => onChange({ dateFrom: undefined, dateTo: undefined })}
+				fullWidth={isStacked}
+				placeholder="Created date"
+				className="text-foreground"
+			/>
+		</>
+	);
+};
 
 export const OrderFilters = ({
 	values,
@@ -160,6 +188,7 @@ export const OrderFilters = ({
 	// explaining it. Status is not here: its tabs are always on screen.
 	const activeCount =
 		(values.paymentStatus ? 1 : 0) +
+		(values.paymentMethodId ? 1 : 0) +
 		(values.refundStatus ? 1 : 0) +
 		(values.notified ? 1 : 0) +
 		(values.dateFrom || values.dateTo ? 1 : 0) +
@@ -168,6 +197,7 @@ export const OrderFilters = ({
 	const handleClearAll = () => {
 		onChange({
 			paymentStatus: undefined,
+			paymentMethodId: undefined,
 			refundStatus: undefined,
 			notified: undefined,
 			dateFrom: undefined,
@@ -176,28 +206,27 @@ export const OrderFilters = ({
 		});
 	};
 
+	// One search box moved by the grid, not a second copy beside the tabs: "/"
+	// focuses the first one in the list, which would be the hidden one.
 	return (
-		<div className="flex items-center gap-2 lg:flex-wrap">
+		<div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-3 lg:grid-cols-[minmax(0,1fr)_18rem]">
+			<div className="col-span-2 min-w-0 lg:col-span-1">
+				<OrderStatusTabs
+					value={values.status}
+					onValueChange={(status) => onChange({ status })}
+				/>
+			</div>
+
 			<DebouncedSearchInput
 				id="orders-search"
 				value={values.search ?? ""}
 				onDebouncedChange={(next) => onChange({ search: next || undefined })}
 				placeholder="Order ID, customer, phone"
 				ariaLabel="Search orders"
-				className="min-w-0 flex-1 lg:w-72 lg:flex-none"
+				className="min-w-0"
 			/>
 
-			<div className="hidden lg:flex lg:flex-wrap lg:items-center lg:gap-2">
-				<FilterControls
-					idPrefix="orders-desktop"
-					values={values}
-					role={role}
-					userStoreIds={userStoreIds}
-					onChange={onChange}
-				/>
-			</div>
-
-			<div className="shrink-0 lg:hidden">
+			<div className="lg:hidden">
 				<Dialog open={isMobileFilterOpen} onOpenChange={setIsMobileFilterOpen}>
 					<DialogTrigger
 						render={
@@ -247,6 +276,16 @@ export const OrderFilters = ({
 						</div>
 					</DialogContent>
 				</Dialog>
+			</div>
+
+			<div className="col-span-2 hidden lg:flex lg:flex-wrap lg:items-center lg:gap-2">
+				<FilterControls
+					idPrefix="orders-desktop"
+					values={values}
+					role={role}
+					userStoreIds={userStoreIds}
+					onChange={onChange}
+				/>
 			</div>
 		</div>
 	);

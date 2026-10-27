@@ -1,6 +1,13 @@
 import { StatusChipStrip } from "@/components/chip-strip";
-import { ORDER_STATUS_VALUES } from "@/features/orders/components/order-filters";
 import { formatOrderStatus } from "@/lib/status";
+
+export const ORDER_STATUS_VALUES = [
+	"created",
+	"processing",
+	"ready_for_pickup",
+	"completed",
+	"cancelled",
+] as const;
 
 type OrderStatus = (typeof ORDER_STATUS_VALUES)[number];
 
