@@ -73,7 +73,7 @@ describe("rangeLabel", () => {
 	it("names This month on the 30th, not Last 30 days", () => {
 		onDay("2026-09-30");
 		expect(rangeLabel(withPresetRange({ preset: "thisMonth" }))).toBe(
-			"This month",
+			"This Month",
 		);
 	});
 

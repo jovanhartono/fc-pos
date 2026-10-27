@@ -56,7 +56,7 @@ const CategoriesActions = ({ row }: { row: DataTableRow<Category> }) => {
 
 	const handleOpenEditSheet = (category: Category) => {
 		openSheet({
-			title: "Edit category",
+			title: "Edit Category",
 			description: `Editing ID ${category.id}`,
 			content: () => (
 				<CategoryForm
@@ -139,7 +139,7 @@ function CategoriesPage() {
 
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
-			title: "Add category",
+			title: "Add Category",
 			description: "Create a new category",
 			content: () => (
 				<CategoryForm
@@ -165,7 +165,7 @@ function CategoriesPage() {
 						onClick={handleOpenCreateSheet}
 						icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
 					>
-						Add category
+						Add Category
 					</Button>
 				}
 			/>

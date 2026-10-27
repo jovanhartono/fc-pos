@@ -218,7 +218,7 @@ export function ServiceForm({
 						render={({ field }) => (
 							<SwitchRow
 								checked={field.value}
-								description="Priced per item (e.g. Repair) — keyed at drop-off if agreed, or left blank until inspection."
+								description="Priced per Item (e.g. Repair). Enter the agreed price at drop-off, or leave it blank until inspection."
 								disabled={isSubmitting}
 								id="service-no-list-price"
 								onCheckedChange={(checked) => {
@@ -237,7 +237,7 @@ export function ServiceForm({
 						render={({ field }) => (
 							<SwitchRow
 								checked={!!field.value}
-								description="New shoe-service items created from this service will enter the Queue as priority by default."
+								description="New lines of this Service start as Priority."
 								disabled={isSubmitting}
 								id="service-priority"
 								onCheckedChange={field.onChange}
@@ -251,7 +251,7 @@ export function ServiceForm({
 						render={({ field }) => (
 							<SwitchRow
 								checked={field.value}
-								description="Active services can be selected when creating orders."
+								description="Only Active Services show in the POS."
 								disabled={isSubmitting}
 								id="service-active"
 								onCheckedChange={field.onChange}
@@ -262,7 +262,7 @@ export function ServiceForm({
 				</SwitchList>
 
 				<SheetFormActions
-					addLabel="Add service"
+					addLabel="Add Service"
 					isEditing={isEditing}
 					isSubmitting={isSubmitting}
 					onCancel={onReset}

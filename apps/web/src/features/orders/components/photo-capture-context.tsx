@@ -419,7 +419,7 @@ export const PhotoCaptureProvider = ({
 			await onUploaded?.();
 		},
 		onError: (error: Error) => {
-			toast.error(readServerErrorMessage(error, "Failed to upload photos"));
+			toast.error(readServerErrorMessage(error, "Couldn't upload photos"));
 			// Photos already in the database have to leave the strip, or tapping Upload again
 			// saves a second copy of every one that had landed before the failure.
 			for (const photoId of committedRef.current) {

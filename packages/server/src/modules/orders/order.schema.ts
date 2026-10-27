@@ -14,7 +14,7 @@ export const GETOrdersQuerySchema = z
     search: z.string().trim().min(1).max(100).optional(),
     status: z.enum(orderStatusEnum.enumValues).optional(),
     payment_status: z.enum(orderPaymentStatusEnum.enumValues).optional(),
-    refund_status: z.enum(["partial", "full"]).optional(),
+    refund_status: z.enum(["any", "partial", "full"]).optional(),
 
     // Not a status of its own: ready_for_pickup aged past the shelf window.
     overdue: z.stringbool().optional(),

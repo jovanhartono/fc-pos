@@ -433,7 +433,7 @@ const TrackOrderPage = () => {
 							onClick={handleReset}
 							className="justify-self-center p-2 text-headline text-link"
 						>
-							Track another order
+							Track Another Order
 						</button>
 					</div>
 				) : (
@@ -445,7 +445,7 @@ const TrackOrderPage = () => {
 						}}
 					>
 						<h1 className="mx-1 mt-1 font-bold text-title-1 leading-tight">
-							Track order
+							Track Order
 						</h1>
 						<div className={cn(CARD_CLASS, "overflow-hidden")}>
 							<Field

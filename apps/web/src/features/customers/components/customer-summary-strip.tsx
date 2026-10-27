@@ -63,7 +63,7 @@ export const CustomerSummaryStrip = ({
 
 	const handleEdit = () => {
 		openSheet({
-			title: "Edit customer",
+			title: "Edit Customer",
 			content: () => <CustomerSheetContent editingCustomer={customer} />,
 		});
 	};

@@ -148,7 +148,7 @@ describe("a Repair that still needs inspecting", () => {
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Order has an unpriced line — set its price before collecting payment"
+      "Order has an unpriced line. Price it before collecting payment."
     );
     expect((await readOrder(order.id))?.payment_status).toBe("unpaid");
   });
@@ -168,7 +168,7 @@ describe("a Repair that still needs inspecting", () => {
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Order has an unpriced line — promotions wait until every item is priced"
+      "Order has an unpriced line. Add discounts once every line is priced."
     );
     expect((await readVoucherCode())?.redeemed_at).toBeNull();
   });
@@ -304,9 +304,7 @@ describe("a retail-only sale", () => {
     );
 
     expect(error).toBeInstanceOf(BadRequestException);
-    expect((error as Error).message).toBe(
-      "Insufficient stock for product Shoe Tree"
-    );
+    expect((error as Error).message).toBe("Not enough stock for Shoe Tree");
     expect(
       (
         await testDb.query.productsTable.findFirst({

@@ -64,6 +64,8 @@ in-process limiter would reset with it — no in-process limiter is by design:
 
 Vercel may skip or repeat a run; both jobs are safe either way.
 
+Cron log lines carry `region=iad1`: that is where Vercel's scheduler enters, not where the job runs. The `(sin1)` at the end of each job's own line is `VERCEL_REGION` from inside the function (checked on prod 2026-10-26).
+
 - `/api/internal/photo-sweep` — deletes photos no order points at, left behind when the counter uploads and then abandons a batch. Checks only its own environment's prefix and skips files under 24h old. Needs `s3:ListBucket` on the bucket (the presign rights aren't enough), or every run fails with AccessDenied.
 - `/api/internal/close-open-shifts` — closes yesterday's Auto-closed Shifts at 00:00 Jakarta (ADR-0025). A skipped run locks nobody out: the next Clock in or Clock out closes it the same way.
 

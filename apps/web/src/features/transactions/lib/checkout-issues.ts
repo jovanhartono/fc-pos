@@ -96,7 +96,7 @@ const SERVER_FAILURE_RULES: {
 	action: string;
 }[] = [
 	{
-		pattern: /insufficient stock/i,
+		pattern: /not enough stock/i,
 		target: "items",
 		action: "Lower the quantity or remove the line.",
 	},
@@ -107,7 +107,7 @@ const SERVER_FAILURE_RULES: {
 	},
 	{
 		pattern:
-			/campaign (not found|.* (is not active|has not started yet|has ended|is not available for store|has reached its usage limit))|order total does not meet minimum/i,
+			/campaign (not found|.* (is not active|has not started yet|has ended|doesn't run at|has reached its usage limit))|order total does not meet minimum/i,
 		target: "payment",
 		action: "Remove the campaign or code, or pick another.",
 	},
@@ -122,7 +122,7 @@ const SERVER_FAILURE_RULES: {
 		action: "Remove the line and re-add it.",
 	},
 	{
-		pattern: /active courier/i,
+		pattern: /courier isn't active/i,
 		target: "customer",
 		action: "Pick another courier, or Walk-in.",
 	},
@@ -132,12 +132,12 @@ const SERVER_FAILURE_RULES: {
 		pattern: /price must be greater than zero/i,
 		target: "items",
 		action:
-			"Key the agreed price on the repair line, or leave it blank to price after inspection.",
+			"Enter the agreed price on the Repair line, or leave it blank until inspection.",
 	},
 	{
 		pattern: /unpriced line/i,
 		target: "payment",
-		action: "Choose Pay later.",
+		action: "Choose Pay Later.",
 	},
 ];
 

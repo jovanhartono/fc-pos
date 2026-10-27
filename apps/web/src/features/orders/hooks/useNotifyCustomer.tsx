@@ -62,7 +62,7 @@ const NotifyCustomerFooter = ({
 					type="button"
 					variant="success"
 				>
-					Try again
+					Try Again
 				</Button>
 			) : (
 				<Button
@@ -103,9 +103,9 @@ export const useNotifyCustomer = (orderId: number) => {
 		// WhatsApp already opened, so retrying only saves the record; tapping
 		// Notify again would send the Customer a second message.
 		onError: (_error, customerName) => {
-			toast.error("Sent, but not saved.", {
+			toast.error("Sent on WhatsApp, but couldn't mark it notified.", {
 				action: {
-					label: "Save again",
+					label: "Save Again",
 					onClick: () => mutation.mutate(customerName),
 				},
 				duration: Number.POSITIVE_INFINITY,
@@ -134,7 +134,7 @@ export const useNotifyCustomer = (orderId: number) => {
 	};
 
 	return ({ customerName, phone, lastNotice }: NotifyCustomerTarget) => {
-		const label = lastNotice ? "Notify again" : "Notify";
+		const label = lastNotice ? "Notify Again" : "Notify";
 		openDialog({
 			title: lastNotice
 				? `Notify ${customerName} again?`

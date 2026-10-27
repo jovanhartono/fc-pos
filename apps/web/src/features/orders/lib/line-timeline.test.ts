@@ -43,8 +43,8 @@ describe("a rework line's timeline", () => {
 		});
 
 		expect(entries.map((entry) => [entry.label, entry.at, entry.by])).toEqual([
-			["Rework opened", "2026-09-22T02:00:00.000Z", "Cahya"],
-			["In progress", "2026-09-22T05:00:00.000Z", "Sari"],
+			["Rework Opened", "2026-09-22T02:00:00.000Z", "Cahya"],
+			["In Progress", "2026-09-22T05:00:00.000Z", "Sari"],
 		]);
 		expect(entries[0].note).toBe("Sole still stained");
 	});
@@ -58,7 +58,7 @@ describe("a rework line's timeline", () => {
 				complaints: [],
 				reworkOf: complaint,
 			}),
-		).toEqual([["Rework opened", null, null]]);
+		).toEqual([["Rework Opened", null, null]]);
 	});
 });
 
@@ -123,11 +123,11 @@ describe("the complained line's timeline", () => {
 				reworkOf: null,
 			}),
 		).toEqual([
-			["Ready for pickup", "2026-09-19T08:00:00.000Z", "Sari"],
-			["Complaint opened", complaint.created_at, "Cahya"],
-			["Rework started", complaint.created_at, "Cahya"],
-			["Rework started", null, null],
-			["Picked up", "2026-09-24T09:00:00.000Z", "Sari"],
+			["Ready for Pickup", "2026-09-19T08:00:00.000Z", "Sari"],
+			["Complaint Opened", complaint.created_at, "Cahya"],
+			["Rework Started", complaint.created_at, "Cahya"],
+			["Rework Started", null, null],
+			["Picked Up", "2026-09-24T09:00:00.000Z", "Sari"],
 		]);
 	});
 });

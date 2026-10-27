@@ -60,7 +60,8 @@ export type FetchOrdersQuery = {
 		| "completed"
 		| "cancelled";
 	payment_status?: "paid" | "unpaid";
-	refund_status?: "partial" | "full";
+	payment_method_id?: number;
+	refund_status?: "any" | "partial" | "full";
 	notified?: "yes" | "no";
 	overdue?: boolean;
 	date_from?: string;

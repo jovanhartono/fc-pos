@@ -164,7 +164,7 @@ const ArchiveCampaignButton = ({
 			disabled={disabled || isPending}
 			onClick={() => {
 				openDialog({
-					title: `${label} campaign?`,
+					title: `${label} Campaign?`,
 					description: isArchived
 						? `Make ${campaign.code} (${campaign.name}) active again?`
 						: `Archive ${campaign.code} (${campaign.name})? It will stop appearing in the active list but history stays.`,
@@ -252,7 +252,7 @@ function CampaignsPage() {
 
 	const handleOpenCreateSheet = () => {
 		openSheet({
-			title: "Add campaign",
+			title: "Add Campaign",
 			content: () => (
 				<CampaignForm
 					defaultValues={defaultCampaignForm}
@@ -270,7 +270,7 @@ function CampaignsPage() {
 	const handleOpenEditSheet = useCallback(
 		(campaign: Campaign) => {
 			openSheet({
-				title: "Edit campaign",
+				title: "Edit Campaign",
 				content: () => (
 					<CampaignForm
 						defaultValues={toCampaignFormInput(campaign)}
@@ -293,7 +293,7 @@ function CampaignsPage() {
 	const handleOpenVoucherDetail = useCallback(
 		(campaign: Campaign) => {
 			openSheet({
-				title: `Voucher codes · ${campaign.code}`,
+				title: `Voucher Codes · ${campaign.code}`,
 				content: () => <VoucherCodesSheet campaignId={campaign.id} />,
 			});
 		},
@@ -430,7 +430,7 @@ function CampaignsPage() {
 						disabled={!isAdmin}
 						icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
 					>
-						Add campaign
+						Add Campaign
 					</Button>
 				}
 			/>

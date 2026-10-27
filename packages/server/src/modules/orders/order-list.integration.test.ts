@@ -132,7 +132,7 @@ it("finds Orders by how much of their money went back", async () => {
   await pay(part.id, "40000");
   await pay(all.id, "100000");
 
-  const list = (refund_status: "partial" | "full") =>
+  const list = (refund_status: "any" | "partial" | "full") =>
     findOrders({
       limit: 10,
       offset: 0,
@@ -145,6 +145,9 @@ it("finds Orders by how much of their money went back", async () => {
     part.id,
   ]);
   expect((await list("full")).items.map((order) => order.id)).toEqual([all.id]);
+  expect(
+    (await list("any")).items.map((order) => order.id).sort((a, b) => a - b)
+  ).toEqual([part.id, all.id].sort((a, b) => a - b));
 });
 
 it("counts every status under the other filters, ignoring the status one", async () => {

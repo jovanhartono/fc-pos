@@ -59,7 +59,7 @@ export const MethodsSection = ({ data, onOpen }: MethodsSectionProps) => {
 	const groups = groupBySlip(data.methods);
 
 	return (
-		<Section title="By payment method">
+		<Section title="By Payment Method">
 			<div className="overflow-hidden rounded-lg border bg-card">
 				{groups.length === 0 ? (
 					<p className="px-3 py-2.5">No payments this day.</p>

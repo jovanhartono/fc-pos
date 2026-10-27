@@ -287,7 +287,7 @@ describe("createOrderPickupEvent", () => {
     const error = await captureRejection(pickup({ item_ids: [1, 2] }));
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Another cashier already processed one of the selected items. Refresh and try again."
+      "Someone already picked up one of these Items. Refresh and try again."
     );
     expect(state.insertedEvent).toBeDefined();
     expect(state.transactionOutcome).toBe("rolled_back");

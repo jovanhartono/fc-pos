@@ -16,13 +16,13 @@ describe("PATCHOrderServiceStatusSchema", () => {
 
   it("refuses a QC reject with no note", () => {
     expect(refusal({ status: "qc_reject" })).toEqual([
-      [["note"], "Say what's wrong"],
+      [["note"], "Write reject reason"],
     ]);
   });
 
   it("refuses a QC reject whose note is only spaces", () => {
     expect(refusal({ status: "qc_reject", note: "   " })).toEqual([
-      [["note"], "Say what's wrong"],
+      [["note"], "Write reject reason"],
     ]);
   });
 

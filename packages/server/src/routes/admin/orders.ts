@@ -238,7 +238,7 @@ const app = new Hono<OrderAccessEnv>()
 
       await cancelOrderPendingCharges(id);
 
-      return c.json(success(payment, "Payment updated"));
+      return c.json(success(payment, "Marked as paid"));
     }
   )
   .post(
@@ -385,7 +385,7 @@ const app = new Hono<OrderAccessEnv>()
         user,
       });
 
-      return c.json(success(result, "Order service started"));
+      return c.json(success(result, "Work started"));
     }
   )
   .patch(
@@ -404,7 +404,7 @@ const app = new Hono<OrderAccessEnv>()
         user,
       });
 
-      return c.json(success(result, "Order service handler updated"));
+      return c.json(success(result, "Handler updated"));
     }
   )
   // Open to any staff — deliberately NOT behind the admin money gate
@@ -444,7 +444,7 @@ const app = new Hono<OrderAccessEnv>()
         user,
       });
 
-      return c.json(success(result, "Order service status updated"));
+      return c.json(success(result, "Status updated"));
     }
   )
   .post(
@@ -549,10 +549,7 @@ const app = new Hono<OrderAccessEnv>()
         user,
       });
 
-      return c.json(
-        success(result, "Order refund processed"),
-        StatusCodes.CREATED
-      );
+      return c.json(success(result, "Refund recorded"), StatusCodes.CREATED);
     }
   )
   .post(

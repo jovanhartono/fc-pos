@@ -68,7 +68,7 @@ function ProductsPage() {
 	const handleOpenEditSheet = useCallback(
 		(product: Product) => {
 			openSheet({
-				title: "Edit product",
+				title: "Edit Product",
 				content: () => (
 					<ProductForm
 						defaultValues={{
@@ -99,7 +99,7 @@ function ProductsPage() {
 
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
-			title: "Add product",
+			title: "Add Product",
 			content: () => (
 				<ProductForm
 					handleOnSubmit={async (values: ProductFormState) => {
@@ -194,7 +194,7 @@ function ProductsPage() {
 						onClick={handleOpenCreateSheet}
 						icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
 					>
-						Add product
+						Add Product
 					</Button>
 				}
 			/>

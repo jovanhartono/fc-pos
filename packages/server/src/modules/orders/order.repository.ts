@@ -123,6 +123,9 @@ function refundConditions(status: OrderListFilters["refund_status"]) {
   if (!status) {
     return [];
   }
+  if (status === "any") {
+    return [{ refunded_amount: { gt: "0" } }];
+  }
   const compare = status === "full" ? sql`=` : sql`<`;
   return [
     { refunded_amount: { gt: "0" } },

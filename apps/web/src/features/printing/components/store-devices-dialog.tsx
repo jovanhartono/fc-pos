@@ -106,7 +106,7 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 					icon={<HugeiconsIcon icon={BluetoothIcon} className="size-4" />}
 					onClick={() => pairMutation.mutate()}
 				>
-					Register device
+					Register Device
 				</Button>
 			) : (
 				<form

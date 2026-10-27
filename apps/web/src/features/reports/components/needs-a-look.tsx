@@ -18,7 +18,7 @@ export const NeedsALook = ({ workers }: NeedsALookProps) => {
 		return null;
 	}
 	return (
-		<Section id="workers-needs-a-look" title="Needs a look">
+		<Section id="workers-needs-a-look" title="Needs a Look">
 			<ul className="divide-y divide-border rounded-lg border bg-card text-body">
 				{flags.map(({ key, row, before, problem, after }) => (
 					<li key={key} className="flex items-baseline gap-3 px-4 py-3">

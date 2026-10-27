@@ -223,7 +223,7 @@ describe("showing a QRIS at the counter", () => {
     const error = await captureRejection(showQris(order.id));
 
     expect((error as Error).message).toBe(
-      "Order has an unpriced line — set its price before collecting payment"
+      "Order has an unpriced line. Price it before collecting payment."
     );
     expect(gateway.created).toHaveLength(0);
   });

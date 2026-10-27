@@ -269,9 +269,7 @@ async function reserveBasketStock(
 
   const short = productLines.find(({ row }) => !takenIds.has(row.id));
   if (short) {
-    throw new BadRequestException(
-      `Insufficient stock for product ${short.row.name}`
-    );
+    throw new BadRequestException(`Not enough stock for ${short.row.name}`);
   }
 }
 

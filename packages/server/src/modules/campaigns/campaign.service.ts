@@ -28,7 +28,7 @@ async function ensureStoresExist(storeIds: number[]) {
   const stores = await findStoresByIds(storeIds);
 
   if (stores.length !== storeIds.length) {
-    throw new BadRequestException("One or more store_ids are invalid");
+    throw new BadRequestException("One of these Stores doesn't exist");
   }
 }
 
@@ -40,9 +40,7 @@ async function ensureServicesExist(serviceIds: number[]) {
   const services = await findServicesByIds(serviceIds);
 
   if (services.length !== serviceIds.length) {
-    throw new BadRequestException(
-      "One or more eligible_service_ids are invalid"
-    );
+    throw new BadRequestException("One of these Services doesn't exist");
   }
 }
 

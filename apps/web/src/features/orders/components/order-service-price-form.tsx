@@ -80,7 +80,7 @@ export const OrderServicePriceForm = ({
 				loading={priceMutation.isPending}
 				type="submit"
 			>
-				{currentPrice === null ? "Set price" : "Update price"}
+				{currentPrice === null ? "Set Price" : "Update Price"}
 			</Button>
 		</form>
 	);

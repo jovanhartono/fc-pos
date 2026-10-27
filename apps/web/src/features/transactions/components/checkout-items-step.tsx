@@ -255,7 +255,7 @@ const CheckoutTreatmentRow = ({
 									onClick={() => moveService(itemId, line.line_id, null)}
 								>
 									<HugeiconsIcon icon={Add01Icon} className="size-4" />
-									Split to a new item
+									Split to a New Item
 								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
@@ -302,8 +302,8 @@ const CheckoutTreatmentRow = ({
 					/>
 					<FieldDescription>
 						{line.price.trim() === ""
-							? "No price yet — payment waits until this line is priced after inspection."
-							: "Agreed price. Can be corrected until the order is paid."}
+							? "No price yet. Price it after inspection, then collect payment."
+							: "Agreed price. Edit it until the Order is paid."}
 					</FieldDescription>
 				</Field>
 			) : null}
@@ -351,7 +351,7 @@ const CheckoutItemCard = ({
 					type="button"
 					variant="ghost"
 				>
-					Remove item
+					Remove Item
 				</Button>
 			</header>
 
@@ -373,7 +373,7 @@ const CheckoutItemCard = ({
 				))}
 			</div>
 
-			<section aria-label={`Treatments on item ${itemNumber}`}>
+			<section aria-label={`Services on Item ${itemNumber}`}>
 				{item.services.length === 0 ? (
 					<p className="border-border/70 border-t px-3 py-2.5 text-muted-foreground text-footnote">
 						Tap a service to add it here
@@ -459,7 +459,7 @@ const CheckoutDropoffPhotoField = () => {
 							type="button"
 							variant="outline"
 						>
-							Preview photo
+							Preview Photo
 						</Button>
 						<Button
 							className="shrink-0"
@@ -479,7 +479,7 @@ const CheckoutDropoffPhotoField = () => {
 						type="button"
 						variant="outline"
 					>
-						Take photo
+						Take Photo
 					</Button>
 				)}
 			</div>
@@ -489,7 +489,7 @@ const CheckoutDropoffPhotoField = () => {
 				onCapture={setDropoffPhoto}
 				onOpenChange={setIsDialogOpen}
 				open={isDialogOpen}
-				title="Drop-off photo"
+				title="Drop-Off Photo"
 			/>
 
 			{previewUrl ? (
@@ -505,7 +505,7 @@ const CheckoutDropoffPhotoField = () => {
 					]}
 					onOpenChange={setIsLightboxOpen}
 					open={isLightboxOpen}
-					title="Drop-off photo"
+					title="Drop-Off Photo"
 				/>
 			) : null}
 		</>

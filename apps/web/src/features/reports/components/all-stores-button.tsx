@@ -16,6 +16,6 @@ export const AllStoresButton = ({ onClick }: AllStoresButtonProps) => (
 			aria-hidden="true"
 			className="size-3.5"
 		/>
-		All stores
+		All Stores
 	</button>
 );

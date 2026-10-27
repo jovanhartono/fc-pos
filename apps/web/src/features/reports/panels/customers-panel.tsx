@@ -119,7 +119,7 @@ export const CustomersPanel = ({
 
 			<ChartCard
 				variant="area"
-				title="New customers over time"
+				title="New Customers Over Time"
 				data={data?.series ?? []}
 				granularity={data?.granularity ?? "day"}
 				series={[
@@ -134,7 +134,7 @@ export const CustomersPanel = ({
 
 			<ChartCard
 				variant="stacked-bar"
-				title="Orders · new vs returning customers"
+				title="Orders · New vs Returning Customers"
 				data={data?.mix_series ?? []}
 				granularity={data?.granularity ?? "day"}
 				series={[
@@ -154,7 +154,7 @@ export const CustomersPanel = ({
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle>Top spenders</CardTitle>
+					<CardTitle>Top Spenders</CardTitle>
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					{topCustomers.length === 0 ? (

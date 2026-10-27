@@ -35,9 +35,7 @@ export function campaignIneligibilityReason(
 
   const storeScopes = campaign.stores.map((item) => item.store_id);
   if (storeScopes.length > 0 && !storeScopes.includes(storeId)) {
-    return `Campaign ${campaign.code} is not available for store ${
-      storeCode ?? storeId
-    }`;
+    return `Campaign ${campaign.code} doesn't run at ${storeCode ?? storeId}`;
   }
 
   if (grossTotal < Number(campaign.min_order_total)) {

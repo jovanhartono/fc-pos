@@ -625,7 +625,7 @@ export const CampaignForm = ({
 							render={({ field }) => (
 								<SwitchRow
 									checked={field.value}
-									description="Active campaigns can be applied during checkout."
+									description="Only Active Campaigns show in the POS."
 									disabled={isSubmitting}
 									id="campaign-active"
 									onCheckedChange={field.onChange}
@@ -636,7 +636,7 @@ export const CampaignForm = ({
 					</SwitchList>
 
 					<SheetFormActions
-						addLabel="Add campaign"
+						addLabel="Add Campaign"
 						isEditing={isEditing}
 						isSubmitting={isSubmitting}
 						onCancel={onReset}

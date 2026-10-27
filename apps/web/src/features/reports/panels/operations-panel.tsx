@@ -117,7 +117,7 @@ export const OperationsPanel = ({
 			<ChartCard
 				variant="bar"
 				hideLegend
-				title="Order dropoff vs pickup"
+				title="Order Dropoff vs Pickup"
 				data={data?.series ?? []}
 				granularity={data?.granularity ?? "day"}
 				series={[

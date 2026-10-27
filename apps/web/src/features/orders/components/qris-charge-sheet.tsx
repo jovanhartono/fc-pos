@@ -151,7 +151,7 @@ const PendingCharge = ({ charge }: ChargeBodyProps) => {
 							rel="noopener"
 							target="_blank"
 						>
-							Open mock payment page
+							Open Mock Payment Page
 						</a>
 					) : null}
 				</>
@@ -167,7 +167,7 @@ const PendingCharge = ({ charge }: ChargeBodyProps) => {
 					size="lg"
 					type="button"
 				>
-					Open QRIS page
+					Open QRIS Page
 				</Button>
 			)}
 			<div className="flex items-center justify-between gap-4 text-body">

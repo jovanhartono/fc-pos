@@ -143,7 +143,7 @@ export function GlobalSheet() {
 					className="max-w-[320px] gap-4 rounded-2xl px-4.5 pt-5 pb-4 text-center sm:max-w-[320px]"
 				>
 					<DialogHeader className="text-balance text-center">
-						<DialogTitle>Discard unsaved changes?</DialogTitle>
+						<DialogTitle>Discard Unsaved Changes?</DialogTitle>
 						<DialogDescription className="text-subhead">
 							You have unsaved edits. Closing will lose them.
 						</DialogDescription>
@@ -154,7 +154,7 @@ export function GlobalSheet() {
 							variant="outline"
 							onClick={() => setConfirmOpen(false)}
 						>
-							Keep editing
+							Keep Editing
 						</Button>
 						<Button type="button" variant="destructive" onClick={handleDiscard}>
 							Discard

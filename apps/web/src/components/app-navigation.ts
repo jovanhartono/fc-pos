@@ -145,7 +145,7 @@ const catalogNavigation: NavItem[] = [
 	},
 	{
 		to: "/payment-methods",
-		label: "Payment methods",
+		label: "Payment Methods",
 		description: "How customers can pay",
 		icon: Wallet01Icon,
 		roles: ["admin"],

@@ -244,7 +244,7 @@ export function ProductForm({
 				</SwitchList>
 
 				<SheetFormActions
-					addLabel="Add product"
+					addLabel="Add Product"
 					isEditing={isEditing}
 					isSubmitting={isSubmitting}
 					onCancel={onReset}

@@ -78,13 +78,11 @@ describe("collectCheckoutIssues", () => {
 
 describe("describeServerFailure", () => {
 	test("a shoe the shop just sold out of names the product and the fix", () => {
-		const issue = describeServerFailure(
-			"Insufficient stock for product Nike Cleaner",
-		);
+		const issue = describeServerFailure("Not enough stock for Nike Cleaner");
 
 		expect(issue.target).toBe("items");
 		expect(issue.message).toBe(
-			"Insufficient stock for product Nike Cleaner. Lower the quantity or remove the line.",
+			"Not enough stock for Nike Cleaner. Lower the quantity or remove the line.",
 		);
 	});
 
@@ -96,10 +94,9 @@ describe("describeServerFailure", () => {
 	});
 
 	test("a courier who left the shop sends the cashier to the customer step", () => {
-		expect(
-			describeServerFailure("collected_by must reference an active courier")
-				.target,
-		).toBe("customer");
+		expect(describeServerFailure("This courier isn't Active").target).toBe(
+			"customer",
+		);
 	});
 
 	test("an unknown rejection is passed through as the server worded it", () => {
@@ -111,6 +108,12 @@ describe("describeServerFailure", () => {
 	test("a campaign that hit its cap sends the cashier to payment", () => {
 		expect(
 			describeServerFailure("Campaign X has reached its usage limit").target,
+		).toBe("payment");
+	});
+
+	test("a campaign that doesn't run at this Store sends the cashier to payment", () => {
+		expect(
+			describeServerFailure("Campaign HEMAT10 doesn't run at KMG").target,
 		).toBe("payment");
 	});
 
@@ -131,7 +134,12 @@ describe("describeServerFailure", () => {
 		// wording — ADR-0018's blank-price gate has to keep landing on payment.
 		expect(
 			describeServerFailure(
-				"Order has an unpriced line — set its price before collecting payment",
+				"Order has an unpriced line. Price it before collecting payment.",
+			).target,
+		).toBe("payment");
+		expect(
+			describeServerFailure(
+				"Order has an unpriced line. Add discounts once every line is priced.",
 			).target,
 		).toBe("payment");
 	});

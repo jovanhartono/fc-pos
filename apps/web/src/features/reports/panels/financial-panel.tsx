@@ -169,7 +169,7 @@ const RevenueBreakdownCard = ({ data }: RevenueBreakdownCardProps) => {
 	return (
 		<Card className="border-border/70 py-0">
 			<CardContent className="grid gap-5 p-4">
-				<SectionTitle title="Gross sales → Gross profit" />
+				<SectionTitle title="Gross Sales → Gross Profit" />
 
 				<RevenueLineChart
 					series={data?.series ?? []}
@@ -177,7 +177,7 @@ const RevenueBreakdownCard = ({ data }: RevenueBreakdownCardProps) => {
 				/>
 
 				<StatStrip
-					title="Gross sales → Collected → Revenue"
+					title="Gross Sales → Collected → Revenue"
 					cells={[
 						{
 							label: "Gross sales",
@@ -200,7 +200,7 @@ const RevenueBreakdownCard = ({ data }: RevenueBreakdownCardProps) => {
 				<SankeyFlow summary={summary} />
 
 				<StatStrip
-					title="Deductions & margin"
+					title="Deductions & Margin"
 					cells={[
 						{
 							label: "Discount",
@@ -1076,7 +1076,7 @@ const StoreLeaderboard = ({ rows }: StoreLeaderboardProps) => {
 	return (
 		<Card className="border-border/70 py-0">
 			<CardContent className="grid gap-4 p-4">
-				<SectionTitle title="Store leaderboard" />
+				<SectionTitle title="Store Leaderboard" />
 				<StoreRevenueRows rows={rows} />
 			</CardContent>
 		</Card>

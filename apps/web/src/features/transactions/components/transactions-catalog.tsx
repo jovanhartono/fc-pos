@@ -190,7 +190,7 @@ export function TransactionsCatalog() {
 							icon={<HugeiconsIcon icon={BluetoothIcon} className="size-4" />}
 							onClick={() =>
 								openDialog({
-									title: "Bluetooth devices",
+									title: "Bluetooth Devices",
 									description:
 										"The POS only prints to devices registered here.",
 									contentClassName: "sm:max-w-md",

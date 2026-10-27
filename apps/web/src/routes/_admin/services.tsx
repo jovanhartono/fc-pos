@@ -68,7 +68,7 @@ function ServicesPage() {
 	const handleOpenEditSheet = useCallback(
 		(service: Service) => {
 			openSheet({
-				title: "Edit service",
+				title: "Edit Service",
 				content: () => (
 					<ServiceForm
 						defaultValues={{
@@ -100,7 +100,7 @@ function ServicesPage() {
 
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
-			title: "Add service",
+			title: "Add Service",
 			content: () => (
 				<ServiceForm
 					handleOnSubmit={async (values: ServiceFormSubmitValues) => {
@@ -199,7 +199,7 @@ function ServicesPage() {
 						onClick={handleOpenCreateSheet}
 						icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
 					>
-						Add service
+						Add Service
 					</Button>
 				}
 			/>

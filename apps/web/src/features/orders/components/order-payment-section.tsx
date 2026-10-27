@@ -195,7 +195,7 @@ const CollectPaymentAction = ({
 		<Button
 			onClick={() =>
 				openNestedSheet({
-					title: "Collect payment",
+					title: "Collect Payment",
 					content: () =>
 						isSettled ? (
 							<SettledDiscountPaymentForm
@@ -216,7 +216,7 @@ const CollectPaymentAction = ({
 			type="button"
 			variant={mode === "qris" ? "outline" : "default"}
 		>
-			{mode === "qris" ? "QRIS" : "Collect payment"}
+			{mode === "qris" ? "QRIS" : "Collect Payment"}
 		</Button>
 	);
 };
@@ -246,7 +246,7 @@ const SendPaymentLinkButton = ({ detail }: SendPaymentLinkButtonProps) => {
 
 	return (
 		<Button
-			aria-label="Send payment link"
+			aria-label="Send Payment Link"
 			onClick={handleSend}
 			size="icon-sm"
 			type="button"
@@ -337,7 +337,7 @@ const usePaymentSubmit = (orderId: number, mode: PaymentMode) => {
 	return {
 		submit,
 		isPending: paymentMutation.isPending || chargeMutation.isPending,
-		submitLabel: mode === "qris" ? "Show QRIS" : "Mark as paid",
+		submitLabel: mode === "qris" ? "Show QRIS" : "Mark as Paid",
 	};
 };
 

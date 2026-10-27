@@ -86,7 +86,7 @@ function CustomersPage() {
 	const handleOpenEditSheet = useCallback(
 		(customer: Customer) => {
 			openSheet({
-				title: "Edit customer",
+				title: "Edit Customer",
 				content: () => <CustomerSheetContent editingCustomer={customer} />,
 			});
 		},
@@ -95,7 +95,7 @@ function CustomersPage() {
 
 	const handleOpenCreateSheet = useCallback(() => {
 		openSheet({
-			title: "Add customer",
+			title: "Add Customer",
 			content: () => <CustomerSheetContent />,
 		});
 	}, [openSheet]);
@@ -182,7 +182,7 @@ function CustomersPage() {
 						onClick={handleOpenCreateSheet}
 						icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
 					>
-						Add customer
+						Add Customer
 					</Button>
 				}
 			/>

@@ -60,7 +60,7 @@ export const encodeForUpload = async (
 
 	const blob = await toBlob(canvas, "image/jpeg", JPEG_QUALITY);
 	if (!blob) {
-		throw new Error("Unable to process this image");
+		throw new Error("Couldn't read this image");
 	}
 
 	return { blob, extension: "jpg", type: "image/jpeg" };
@@ -99,7 +99,7 @@ export const normalizeImageFile = async (file: File): Promise<File> => {
 
 		const context = canvas.getContext("2d");
 		if (!context) {
-			throw new Error("Unable to process this image");
+			throw new Error("Couldn't read this image");
 		}
 
 		context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);

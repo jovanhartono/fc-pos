@@ -94,7 +94,7 @@ const ComplaintDetailPage = () => {
 							icon={<HugeiconsIcon icon={ReloadIcon} className="size-4" />}
 							onClick={() =>
 								openDialog({
-									title: "Start a rework?",
+									title: "Start a Rework?",
 									description: `${serviceName} on ${subject.item.item_code} goes back on the rack at no charge.`,
 									footer: () => (
 										<>
@@ -107,14 +107,14 @@ const ComplaintDetailPage = () => {
 													reworkMutation.mutate();
 												}}
 											>
-												Start rework
+												Start Rework
 											</Button>
 										</>
 									),
 								})
 							}
 						>
-							Start rework
+							Start Rework
 						</Button>
 					) : null
 				}
@@ -177,7 +177,7 @@ const ComplaintDetailPage = () => {
 
 				<section className="grid gap-2">
 					<h2 className="font-medium text-body">
-						Rework rounds · {detail.reworkLines.length}
+						Rework Rounds · {detail.reworkLines.length}
 					</h2>
 					{detail.reworkLines.length === 0 ? (
 						<p className="text-muted-foreground text-body">
@@ -263,7 +263,7 @@ const ComplaintDetailSkeleton = () => (
 					</Fact>
 				))}
 			</dl>
-			<h2 className="font-medium text-body">Rework rounds</h2>
+			<h2 className="font-medium text-body">Rework Rounds</h2>
 		</div>
 	</div>
 );

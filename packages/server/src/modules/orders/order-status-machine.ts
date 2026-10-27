@@ -416,7 +416,7 @@ async function applyServiceTransition(
 
   if (updated.length === 0) {
     throw new BadRequestException(
-      "Service changed state before transition could apply. Refresh and try again."
+      "Someone just changed this line. Refresh and try again."
     );
   }
 
@@ -748,7 +748,7 @@ export async function applyRefundTransition(
 
     if (!won) {
       throw new BadRequestException(
-        "Service changed state before transition could apply. Refresh and try again."
+        "Someone just changed this line. Refresh and try again."
       );
     }
   }

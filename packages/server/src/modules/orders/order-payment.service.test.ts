@@ -274,7 +274,7 @@ describe("updateOrderPayment", () => {
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "This order's discount was settled at drop-off — collect the printed total"
+      "This Order's discount was settled at drop-off. Collect the printed total."
     );
     expect(discount.calls).toHaveLength(0);
     expect(redemptions.calls).toHaveLength(0);
@@ -336,7 +336,7 @@ describe("updateOrderPayment", () => {
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Order has an unpriced line — set its price before collecting payment"
+      "Order has an unpriced line. Price it before collecting payment."
     );
     expect(dbState.updateCalls).toBe(0);
     expect(discount.calls).toHaveLength(0);
