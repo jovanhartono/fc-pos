@@ -7,6 +7,7 @@ import { useSheet } from "@/stores/sheet-store";
  * A link in the global sheet that leaves the page. Safari keeps a picture of each page for
  * swipe back; leaving while the sheet was still sliding out kept it in that picture, so
  * swiping back showed the sheet open, then it vanished. A new-tab click leaves the sheet open.
+ * A sheet its page reopens after Back (a Day close list) leaves at once, so the picture keeps it.
  */
 export const useLeaveSheetLink = () => {
 	const navigate = useNavigate();
@@ -14,7 +15,10 @@ export const useLeaveSheetLink = () => {
 	return (event: MouseEvent<HTMLAnchorElement>) => {
 		const { sheetState, closeSheetThen } = useSheet.getState();
 		// The same link on a full page has no sheet to wait for.
-		if (!(isPlainLeftClick(event) && sheetState.open)) {
+		if (
+			!(isPlainLeftClick(event) && sheetState.open) ||
+			sheetState.isRestoredOnBack
+		) {
 			return;
 		}
 		event.preventDefault();

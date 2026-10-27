@@ -9,7 +9,7 @@ import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
 import { pluralize } from "@/shared/utils";
 
 interface CountGroupProps {
-	count: number;
+	count?: number;
 	// Two Services or Products can share a name, so rows go by their id.
 	lines: { count: number; id: number; name: string }[];
 	title: string;
@@ -63,7 +63,6 @@ export const SalesReportSection = ({
 				</button>
 				{dropped.categories.map((category) => (
 					<CountGroup
-						count={category.count}
 						key={category.name}
 						lines={category.services.map((line) => ({
 							count: line.count,

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { counterQueries } from "@/features/counter/api";
 import { CollectedSection } from "@/features/counter/components/day-close/collected-section";
 import { daySheet } from "@/features/counter/components/day-close/day-sheets";
@@ -35,10 +35,17 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 			resetScroll: false,
 		});
 
+	// The list already in the URL when the tab mounts is one a phone came Back
+	// to from an Order: it is there at once, as in Safari's swipe-back picture.
+	const backToList = useRef(list);
+
 	// A phone that went into an Order from a list comes back to the same list;
 	// Back off the list itself closes it rather than leaving it over another tab.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: only a new list or day reopens the sheet
 	useEffect(() => {
+		if (list !== backToList.current) {
+			backToList.current = undefined;
+		}
 		if (!(list && data) || useSheet.getState().sheetState.open) {
 			return;
 		}
@@ -49,9 +56,11 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 		}
 		useSheet.getState().openSheet({
 			...sheet,
+			isInstant: list === backToList.current,
+			isRestoredOnBack: true,
 			onClose: () => void setList(undefined),
 		});
-		return () => useSheet.getState().closeSheet();
+		return () => useSheet.getState().closeSheetInstantly();
 	}, [list, data?.date]);
 
 	if (!data) {
