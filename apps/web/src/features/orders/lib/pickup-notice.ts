@@ -11,6 +11,9 @@ interface PickupNoticeMessageInput {
 	total: number;
 	isPaid: boolean;
 	trackingUrl: string;
+	// With a gateway set up, the Customer pays on the Track page instead of
+	// transferring to the shop's account.
+	canPayOnline: boolean;
 }
 
 export const buildPickupNoticeMessage = ({
@@ -20,13 +23,16 @@ export const buildPickupNoticeMessage = ({
 	total,
 	isPaid,
 	trackingUrl,
+	canPayOnline,
 }: PickupNoticeMessageInput): string => {
 	const paymentLines = isPaid
 		? ["Status Pembayaran: *LUNAS*"]
 		: [
 				"Status Pembayaran: *BELUM LUNAS*",
 				"",
-				`Untuk pelunasan pembayaran bisa dilakukan dengan transfer ke rekening *${BANK_ACCOUNT}*`,
+				canPayOnline
+					? `Bayar online: ${trackingUrl}`
+					: `Untuk pelunasan pembayaran bisa dilakukan dengan transfer ke rekening *${BANK_ACCOUNT}*`,
 			];
 
 	return [
@@ -48,6 +54,21 @@ export const buildPickupNoticeMessage = ({
 		"Best Regards, Fresclean Indonesia.",
 	].join("\n");
 };
+
+interface PaymentLinkMessageInput {
+	customerName: string;
+	orderCode: string;
+	amount: number;
+	trackingUrl: string;
+}
+
+export const buildPaymentLinkMessage = ({
+	customerName,
+	orderCode,
+	amount,
+	trackingUrl,
+}: PaymentLinkMessageInput): string =>
+	`Halo ${customerName}, tagihan order ${orderCode} sebesar Rp ${formatMoneyParts(amount).amount}. Bayar online: ${trackingUrl}`;
 
 // Customers' numbers are stored as +62812…; wa.me wants the digits only.
 export const whatsappUrl = (phone: string, text: string): string =>

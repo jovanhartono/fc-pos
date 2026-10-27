@@ -131,6 +131,15 @@ export type UpdateOrderPaymentPayload = {
 	discount: string;
 };
 
+export type PaymentCharge = InferResponseType<
+	(typeof rpc.api.admin.orders)[":id"]["payment-charges"][":chargeId"]["$get"]
+>["data"];
+
+export type CreatePaymentChargePayload = Omit<
+	UpdateOrderPaymentPayload,
+	"payment_method_id"
+> & { kind: "qris" };
+
 // A Repair's price, keyed once agreed with the Customer or re-keyed to fix a
 // typo while the Order is unpaid (ADR-0018).
 export type SetOrderServicePricePayload = {
@@ -207,6 +216,8 @@ export const ordersKeys = {
 	receipt: (id: number) => [...ordersKeys.detail(id), "receipt"] as const,
 	orderService: (orderId: number, serviceId: number) =>
 		[...ordersKeys.all, "service", orderId, serviceId] as const,
+	paymentCharge: (orderId: number, chargeId: number) =>
+		[...ordersKeys.detail(orderId), "payment-charge", chargeId] as const,
 	queues: () => [...ordersKeys.all, "queue"] as const,
 	queue: (query?: FetchOrderServiceQueueQuery) =>
 		[...ordersKeys.queues(), query ?? {}] as const,
@@ -285,6 +296,15 @@ export const ordersQueries = {
 			queryKey: ordersKeys.orderService(orderId, serviceId),
 			queryFn: () => fetchOrderService(orderId, serviceId),
 		}),
+	// The cashier holds the QR up to the Customer; the gateway's notice or the
+	// server's own check flips it, so this asks every 3 s until it settles.
+	paymentCharge: (orderId: number, chargeId: number) =>
+		queryOptions({
+			queryKey: ordersKeys.paymentCharge(orderId, chargeId),
+			queryFn: () => fetchPaymentCharge(orderId, chargeId),
+			refetchInterval: (query) =>
+				query.state.data?.status === "pending" ? 3000 : false,
+		}),
 	queue: (query?: FetchOrderServiceQueueQuery) =>
 		infiniteQueryOptions({
 			queryKey: ordersKeys.queue(query),
@@ -329,6 +349,36 @@ export function updateOrderPayment(
 		rpcWithAuth().api.admin.orders[":id"].payment.$patch({
 			param: { id: String(orderId) },
 			json: payload,
+		}),
+	);
+}
+
+export function createPaymentCharge(
+	orderId: number,
+	payload: CreatePaymentChargePayload,
+) {
+	return parseSuccessData<PaymentCharge>(
+		rpcWithAuth().api.admin.orders[":id"]["payment-charges"].$post({
+			param: { id: String(orderId) },
+			json: payload,
+		}),
+	);
+}
+
+export function fetchPaymentCharge(orderId: number, chargeId: number) {
+	return parseSuccessData<PaymentCharge>(
+		rpcWithAuth().api.admin.orders[":id"]["payment-charges"][":chargeId"].$get({
+			param: { id: String(orderId), chargeId: String(chargeId) },
+		}),
+	);
+}
+
+export function cancelPaymentCharge(orderId: number, chargeId: number) {
+	return parseSuccessData<PaymentCharge>(
+		rpcWithAuth().api.admin.orders[":id"]["payment-charges"][
+			":chargeId"
+		].cancel.$post({
+			param: { id: String(orderId), chargeId: String(chargeId) },
 		}),
 	);
 }

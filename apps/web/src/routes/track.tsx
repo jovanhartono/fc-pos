@@ -5,7 +5,7 @@ import {
 	normalizePhoneNumber,
 } from "@fresclean/api/schema";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { DetailedError } from "hono/client";
 import { useEffect, useState } from "react";
@@ -17,13 +17,14 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { WhatsappIcon } from "@/components/whatsapp-icon";
-import { trackKeys, trackQueries } from "@/features/track/api";
+import { payTrackedOrder, trackKeys, trackQueries } from "@/features/track/api";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { formatMoney } from "@/shared/money";
 import { pluralize } from "@/shared/utils";
 
 const trackSearchSchema = z.object({
@@ -160,6 +161,58 @@ const StatusCard = ({
 					);
 				})}
 			</ol>
+		</section>
+	);
+};
+
+interface PaymentCardProps {
+	code: string;
+	phone: string;
+	netDue: number;
+}
+
+// The gateway sends the Customer back here when done, and the page reads the
+// Order fresh, so a paid Order simply loses this card.
+const PaymentCard = ({ code, phone, netDue }: PaymentCardProps) => {
+	const payMutation = useMutation({
+		mutationFn: () => payTrackedOrder({ code, phone_number: phone }),
+		onSuccess: ({ redirect_url }) => {
+			window.location.href = redirect_url;
+		},
+	});
+	const queryClient = useQueryClient();
+	const resetPay = payMutation.reset;
+
+	// A Customer who backs out of the gateway's page lands on this page as Safari
+	// left it, Pay still spinning, so free the button and read the Order again.
+	useEffect(() => {
+		const handlePageShow = (event: PageTransitionEvent) => {
+			if (!event.persisted) {
+				return;
+			}
+			resetPay();
+			void queryClient.invalidateQueries({ queryKey: trackKeys.all });
+		};
+		window.addEventListener("pageshow", handlePageShow);
+		return () => window.removeEventListener("pageshow", handlePageShow);
+	}, [queryClient, resetPay]);
+
+	return (
+		<section className={cn(CARD_CLASS, "grid gap-3.5 p-4")}>
+			<div className="flex items-baseline justify-between gap-3">
+				<p className="text-headline">Amount due</p>
+				<p className="font-medium text-title-3 tabular-nums">
+					{formatMoney(netDue)}
+				</p>
+			</div>
+			<Button
+				className="h-12 pointer-coarse:h-12 w-full rounded-full bg-primary font-semibold text-headline text-primary-foreground"
+				loading={payMutation.isPending || payMutation.isSuccess}
+				onClick={() => payMutation.mutate()}
+				type="button"
+			>
+				Pay
+			</Button>
 		</section>
 	);
 };
@@ -309,6 +362,14 @@ const TrackOrderPage = () => {
 							pendingCount={pendingItems.length}
 							pickupCode={trackData.pickup_code}
 						/>
+
+						{trackData.can_pay_online && submitted ? (
+							<PaymentCard
+								code={submitted.code}
+								netDue={trackData.net_due}
+								phone={submitted.phone}
+							/>
+						) : null}
 
 						<h2 className={SECTION_LABEL_CLASS}>Items · {items.length}</h2>
 						{/* One block per Item handed over, its Services beneath

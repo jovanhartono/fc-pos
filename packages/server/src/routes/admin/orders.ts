@@ -62,7 +62,20 @@ import {
   createOrderRefund,
 } from "@/modules/orders/order-reversal.service";
 import { getOrderServiceDetail } from "@/modules/orders/order-service-detail.service";
-import { assertCanCreateOrder } from "@/modules/permissions/permissions";
+import {
+  POSTPaymentChargeSchema,
+  paymentChargeParamSchema,
+} from "@/modules/payments/payment-charge.schema";
+import {
+  cancelOrderPendingCharges,
+  cancelPaymentCharge,
+  createPaymentCharge,
+  getPaymentCharge,
+} from "@/modules/payments/payment-charge.service";
+import {
+  assertCanCreateOrder,
+  assertCanProcessPayment,
+} from "@/modules/permissions/permissions";
 import { getStoreById } from "@/modules/stores/store.service";
 import { POSTOrderSchema } from "@/schema";
 import { idParamSchema } from "@/schema/param";
@@ -223,7 +236,60 @@ const app = new Hono<OrderAccessEnv>()
         throw new NotFoundException("Order not found");
       }
 
+      await cancelOrderPendingCharges(id);
+
       return c.json(success(payment, "Payment updated"));
+    }
+  )
+  .post(
+    "/:id/payment-charges",
+    idParamSchema,
+    zodValidator("json", POSTPaymentChargeSchema),
+    async (c) => {
+      assertCanProcessPayment(c.get("jwtPayload"));
+      const { id } = c.req.valid("param");
+      const { kind, ...request } = c.req.valid("json");
+
+      const charge = await createPaymentCharge({
+        createdBy: c.get("jwtPayload").id,
+        kind,
+        orderId: id,
+        request,
+      });
+
+      return c.json(success(charge), StatusCodes.CREATED);
+    }
+  )
+  .get(
+    "/:id/payment-charges/:chargeId",
+    paymentChargeParamSchema,
+    async (c) => {
+      assertCanProcessPayment(c.get("jwtPayload"));
+      const { id, chargeId } = c.req.valid("param");
+
+      const charge = await getPaymentCharge(id, chargeId);
+
+      if (!charge) {
+        throw new NotFoundException("Payment charge not found");
+      }
+
+      return c.json(success(charge));
+    }
+  )
+  .post(
+    "/:id/payment-charges/:chargeId/cancel",
+    paymentChargeParamSchema,
+    async (c) => {
+      assertCanProcessPayment(c.get("jwtPayload"));
+      const { id, chargeId } = c.req.valid("param");
+
+      const charge = await cancelPaymentCharge(id, chargeId);
+
+      if (!charge) {
+        throw new NotFoundException("Payment charge not found");
+      }
+
+      return c.json(success(charge));
     }
   )
   .patch(
