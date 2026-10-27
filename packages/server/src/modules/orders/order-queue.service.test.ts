@@ -283,13 +283,13 @@ describe("updateOrderServiceStatus", () => {
   });
 
   it("leaves the handler untouched on a non-claim transition", async () => {
-    // Sari sends Budi's finished Item to quality check; the work stays Budi's.
+    // Sari sends Budi's finished Item to Waiting QC; the work stays Budi's.
     dbState.lockedRows = [
       makeLockedRow({ status: "processing", handler_id: 7 }),
     ];
     machine.from = "processing";
 
-    await patchStatus({ status: "quality_check" });
+    await patchStatus({ status: "waiting_qc" });
 
     expect(dbState.updates).toEqual([]);
     expect(dbState.inserts).toEqual([]);

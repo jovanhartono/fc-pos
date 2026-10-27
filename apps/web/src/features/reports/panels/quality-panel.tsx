@@ -31,6 +31,7 @@ import {
 } from "@/features/reports/utils/csv";
 import {
 	numberFormatter,
+	oneDecimalFormatter,
 	percentFormatter,
 	pluralCount,
 } from "@/features/reports/utils/format";
@@ -239,7 +240,7 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 	{
 		accessorKey: "user_name",
 		header: "Checked by",
-		meta: { width: { percent: 30, minRem: 9 }, mobileCard: { slot: "title" } },
+		meta: { width: { percent: 22, minRem: 9 }, mobileCard: { slot: "title" } },
 	},
 	{
 		id: "card_checks",
@@ -255,17 +256,27 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 		header: "Checks",
 		meta: {
 			align: "right",
-			width: { percent: 13, minRem: 4.5 },
+			width: { percent: 11, minRem: 4.5 },
 			mobileCard: { slot: "hidden" },
 		},
 		cell: ({ row }) => numberFormatter.format(row.original.checks),
+	},
+	{
+		id: "per_day",
+		header: "Per day",
+		meta: {
+			align: "right",
+			width: { percent: 11, minRem: 4.5 },
+			mobileCard: { slot: "hidden" },
+		},
+		cell: ({ row }) => oneDecimalFormatter.format(row.original.per_day),
 	},
 	{
 		id: "rejects",
 		header: "Rejected",
 		meta: {
 			align: "right",
-			width: { percent: 13, minRem: 5 },
+			width: { percent: 11, minRem: 5 },
 			mobileCard: { slot: "hidden" },
 		},
 		cell: ({ row }) => numberFormatter.format(row.original.rejects),
@@ -275,7 +286,7 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 		header: "Reject rate",
 		meta: {
 			align: "right",
-			width: { percent: 13, minRem: 5.5 },
+			width: { percent: 12, minRem: 5.5 },
 			mobileCard: { slot: "hidden" },
 		},
 		cell: ({ row }) => percentFormatter.format(row.original.reject_rate),
@@ -295,7 +306,7 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 		header: "Complaints after",
 		meta: {
 			align: "right",
-			width: { percent: 17, minRem: 7.75 },
+			width: { percent: 19, minRem: 7.75 },
 			mobileCard: { slot: "hidden" },
 		},
 		cell: ({ row }) => numberFormatter.format(row.original.complaints_after),
@@ -308,7 +319,7 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 			mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
 		},
 		cell: ({ row }) =>
-			`${numberFormatter.format(row.original.rejects)} rejected · ${percentFormatter.format(row.original.self_check_rate)} self-checked · ${numberFormatter.format(row.original.complaints_after)} complaints after`,
+			`${oneDecimalFormatter.format(row.original.per_day)} per day · ${numberFormatter.format(row.original.rejects)} rejected · ${percentFormatter.format(row.original.self_check_rate)} self-checked · ${numberFormatter.format(row.original.complaints_after)} complaints after`,
 	},
 ];
 
@@ -555,11 +566,11 @@ const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
 	}
 	lines.push(
 		"",
-		"Quality checks,Checked by,Checks,Rejected,Reject rate,Self-checks,Self-check rate,Complaints after",
+		"Quality checks,Checked by,Checks,Days checked,Per day,Rejected,Reject rate,Self-checks,Self-check rate,Complaints after",
 	);
 	for (const c of data.by_checker) {
 		lines.push(
-			`Quality checks,${escapeCsv(c.user_name)},${c.checks},${c.rejects},${c.reject_rate},${c.self_checks},${c.self_check_rate},${c.complaints_after}`,
+			`Quality checks,${escapeCsv(c.user_name)},${c.checks},${c.days_checked},${c.per_day},${c.rejects},${c.reject_rate},${c.self_checks},${c.self_check_rate},${c.complaints_after}`,
 		);
 	}
 	lines.push(

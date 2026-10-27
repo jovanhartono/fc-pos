@@ -158,6 +158,8 @@ export async function getQualityReport(query: GetReportRangeQuery) {
       user_id: row.user_id,
       user_name: row.user_name,
       checks: row.checks,
+      days_checked: row.days_checked,
+      per_day: Number((row.checks / row.days_checked).toFixed(1)),
       passes: row.passes,
       rejects: row.checks - row.passes,
       reject_rate: rate(row.checks - row.passes, row.checks),

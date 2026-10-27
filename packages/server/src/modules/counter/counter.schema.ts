@@ -14,8 +14,7 @@ export const GETPickupShelfQuerySchema = z.object({
 export type GetPickupShelfQuery = z.infer<typeof GETPickupShelfQuerySchema>;
 
 export interface CounterEstimate {
-  days_high: number;
-  days_low: number;
+  days: number;
 }
 
 export interface CounterCategory {
@@ -26,6 +25,7 @@ export interface CounterCategory {
   items_waiting: number;
   name: string;
   queued: number;
+  waiting_qc: number;
 }
 
 export interface CounterShelfOrder {
@@ -59,7 +59,10 @@ export interface CounterComplaint {
   reason: string | null;
 }
 
-export type CounterWorkshop = Pick<CounterCategory, "in_progress" | "queued">;
+export type CounterWorkshop = Pick<
+  CounterCategory,
+  "in_progress" | "queued" | "waiting_qc"
+>;
 
 export interface Counter {
   categories: CounterCategory[];

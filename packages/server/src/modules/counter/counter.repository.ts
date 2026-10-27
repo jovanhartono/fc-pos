@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, min, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   categoriesTable,
@@ -12,39 +12,8 @@ import {
   servicesTable,
 } from "@/db/schema";
 import { REWORKED_ROUND_STATUSES } from "@/modules/complaints/complaint.schema";
-import type { DateRange } from "@/modules/reports/report-range.util";
-import { listServicesProcessed } from "@/modules/reports/services-processed";
+import { WORKSHOP_SERVICE_STATUSES } from "@/modules/orders/order-status-machine";
 import type { NormalizedPagination } from "@/utils/pagination";
-
-const WAITING_STATUSES = ["queued", "processing", "qc_reject"] as const;
-
-export async function findFirstOrderCreatedAt(storeId: number) {
-  const [row] = await db
-    .select({ first: min(ordersTable.created_at) })
-    .from(ordersTable)
-    .where(eq(ordersTable.store_id, storeId));
-
-  return row?.first ?? null;
-}
-
-export function listProcessedByCategory(storeId: number, range: DateRange) {
-  const processed = listServicesProcessed({ range, storeId }).as("processed");
-
-  return db
-    .select({
-      category_id: servicesTable.category_id,
-      processed_at: processed.processed_at,
-    })
-    .from(processed)
-    .innerJoin(
-      ordersServicesTable,
-      eq(processed.order_service_id, ordersServicesTable.id)
-    )
-    .innerJoin(
-      servicesTable,
-      eq(ordersServicesTable.service_id, servicesTable.id)
-    );
-}
 
 export function listWaitingLines(storeId: number) {
   return db
@@ -72,7 +41,7 @@ export function listWaitingLines(storeId: number) {
     .where(
       and(
         eq(ordersTable.store_id, storeId),
-        inArray(ordersServicesTable.status, [...WAITING_STATUSES])
+        inArray(ordersServicesTable.status, [...WORKSHOP_SERVICE_STATUSES])
       )
     );
 }

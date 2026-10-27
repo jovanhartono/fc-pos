@@ -1,5 +1,7 @@
 # Complaints and the rework line
 
+> **Amended 2026-10-26:** `quality_check` is renamed `waiting_qc` ([ADR-0026](0026-waiting-qc-is-the-shelf-before-the-check.md)). Where this ADR lists the statuses still in the workshop, read `waiting_qc` for `quality_check`.
+
 A Customer returns after collection — the pair was cleaned poorly, they are dissatisfied. The owning `OrderService` is already `picked_up`, a **terminal** status whose only legal exit is `refunded`. The shop's real handling is an **escalation ladder**, not a single outcome: re-clean the pair first (a *rework*); if the result still fails, refund the original line and hand the Customer a goodwill voucher for a future Order. Complaints run ~1–2% of all OrderService lines, and **complaint rate is a metric the business wants to track** (per store, service, worker).
 
 We model a **Complaint** as a first-class, append-only record linked to the original `OrderService`, and a **rework** as a new free `OrderService` line on the **same** Order. `picked_up` stays terminal; the original line is never mutated.

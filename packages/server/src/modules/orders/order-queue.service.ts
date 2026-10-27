@@ -439,7 +439,7 @@ export async function getOrderServiceQueueCounts(
       all: 0,
       queued: 0,
       processing: 0,
-      quality_check: 0,
+      waiting_qc: 0,
       qc_reject: 0,
     };
   }
@@ -455,7 +455,7 @@ export async function getOrderServiceQueueCounts(
       all: sql<number>`count(DISTINCT ${ordersServicesTable.item_id})`,
       queued: chip("queued"),
       processing: chip("processing"),
-      quality_check: chip("quality_check"),
+      waiting_qc: chip("waiting_qc"),
       qc_reject: chip("qc_reject"),
     })
     .from(ordersServicesTable)
@@ -472,7 +472,7 @@ export async function getOrderServiceQueueCounts(
     all: Number(row?.all ?? 0),
     queued: Number(row?.queued ?? 0),
     processing: Number(row?.processing ?? 0),
-    quality_check: Number(row?.quality_check ?? 0),
+    waiting_qc: Number(row?.waiting_qc ?? 0),
     qc_reject: Number(row?.qc_reject ?? 0),
   };
 }

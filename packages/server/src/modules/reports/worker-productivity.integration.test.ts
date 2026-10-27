@@ -184,18 +184,18 @@ describe("the Workers report over August", () => {
     // Adi cleans, Citra passes it.
     await log(kemang["adi-clean"].lineId, [
       ["queued", "processing", adi, jkt("2026-08-03T09:00")],
-      ["processing", "quality_check", adi, jkt("2026-08-03T10:00")],
-      ["quality_check", "ready_for_pickup", citra, jkt("2026-08-03T11:00")],
+      ["processing", "waiting_qc", adi, jkt("2026-08-03T10:00")],
+      ["waiting_qc", "ready_for_pickup", citra, jkt("2026-08-03T11:00")],
     ]);
     // Adi starts the repair, Citra sends it back, Bayu redoes it and his
     // round passes. The Customer then complains: that is Bayu's round.
     await log(kemang["adi-repair"].lineId, [
       ["queued", "processing", adi, jkt("2026-08-03T12:00")],
-      ["processing", "quality_check", adi, jkt("2026-08-03T13:00")],
-      ["quality_check", "qc_reject", citra, jkt("2026-08-03T14:00")],
+      ["processing", "waiting_qc", adi, jkt("2026-08-03T13:00")],
+      ["waiting_qc", "qc_reject", citra, jkt("2026-08-03T14:00")],
       ["qc_reject", "processing", bayu, jkt("2026-08-03T15:00")],
-      ["processing", "quality_check", bayu, jkt("2026-08-03T16:00")],
-      ["quality_check", "ready_for_pickup", citra, jkt("2026-08-03T17:00")],
+      ["processing", "waiting_qc", bayu, jkt("2026-08-03T16:00")],
+      ["waiting_qc", "ready_for_pickup", citra, jkt("2026-08-03T17:00")],
     ]);
     const complaintId = await complain(kemang["adi-repair"]);
     // Bayu does the free redo; it passes and is never anyone's Complaint.
@@ -212,24 +212,24 @@ describe("the Workers report over August", () => {
       .returning();
     await log(rework.id, [
       ["queued", "processing", bayu, jkt("2026-08-20T09:00")],
-      ["processing", "quality_check", bayu, jkt("2026-08-20T10:00")],
-      ["quality_check", "ready_for_pickup", citra, jkt("2026-08-20T11:00")],
+      ["processing", "waiting_qc", bayu, jkt("2026-08-20T10:00")],
+      ["waiting_qc", "ready_for_pickup", citra, jkt("2026-08-20T11:00")],
     ]);
     // The admin starts a pair herself on a busy morning; nobody has checked
     // it yet.
     await log(kemang["by-admin"].lineId, [
       ["queued", "processing", admin, jkt("2026-08-04T09:00")],
-      ["processing", "quality_check", admin, jkt("2026-08-04T10:00")],
+      ["processing", "waiting_qc", admin, jkt("2026-08-04T10:00")],
     ]);
     // Reached QC with no start on record: the shop's work, nobody's credit.
     await log(kemang["never-started"].lineId, [
-      ["processing", "quality_check", adi, jkt("2026-08-05T10:00")],
+      ["processing", "waiting_qc", adi, jkt("2026-08-05T10:00")],
     ]);
     // Bayu covering Bintaro; Adi passes his work there.
     await log(atBintaro.bintaro.lineId, [
       ["queued", "processing", bayu, jkt("2026-08-06T09:00")],
-      ["processing", "quality_check", bayu, jkt("2026-08-06T10:00")],
-      ["quality_check", "ready_for_pickup", adi, jkt("2026-08-06T11:00")],
+      ["processing", "waiting_qc", bayu, jkt("2026-08-06T10:00")],
+      ["waiting_qc", "ready_for_pickup", adi, jkt("2026-08-06T11:00")],
     ]);
 
     // Adi clocks in twice on 3 August, the first time before 07:00 Jakarta
@@ -577,12 +577,12 @@ describe("the Workers report over August", () => {
       ]);
       await log(redo.lineId, [
         ["queued", "processing", bayu, jkt("2026-08-21T09:00")],
-        ["processing", "quality_check", bayu, jkt("2026-08-21T10:00")],
+        ["processing", "waiting_qc", bayu, jkt("2026-08-21T10:00")],
       ]);
       await testDb.insert(orderServiceStatusLogsTable).values({
         changed_by: citra,
         created_at: jkt("2026-08-21T11:00"),
-        from_status: "quality_check",
+        from_status: "waiting_qc",
         note: "Sole still stained",
         order_service_id: redo.lineId,
         to_status: "qc_reject",
@@ -717,11 +717,11 @@ describe("a round that passes after the stretch", () => {
     // Adi starts it on 31 August; Bayu's redo passes on 1 September.
     await log(repair.lineId, [
       ["queued", "processing", adi, jkt("2026-08-31T09:00")],
-      ["processing", "quality_check", adi, jkt("2026-08-31T10:00")],
-      ["quality_check", "qc_reject", citra, jkt("2026-08-31T11:00")],
+      ["processing", "waiting_qc", adi, jkt("2026-08-31T10:00")],
+      ["waiting_qc", "qc_reject", citra, jkt("2026-08-31T11:00")],
       ["qc_reject", "processing", bayu, jkt("2026-09-01T09:00")],
-      ["processing", "quality_check", bayu, jkt("2026-09-01T10:00")],
-      ["quality_check", "ready_for_pickup", citra, jkt("2026-09-01T11:00")],
+      ["processing", "waiting_qc", bayu, jkt("2026-09-01T10:00")],
+      ["waiting_qc", "ready_for_pickup", citra, jkt("2026-09-01T11:00")],
     ]);
 
     const report = await getWorkerProductivityReport({
@@ -785,7 +785,7 @@ describe("a worker's usual day", () => {
         ["queued", "processing", citra, start],
         [
           "processing",
-          "quality_check",
+          "waiting_qc",
           citra,
           new Date(start.getTime() + hours * 3_600_000),
         ],
@@ -864,7 +864,7 @@ describe("days worked by people who rarely clock in", () => {
   const startAndSend = (line: Line, by: number, day: string) =>
     log(line.lineId, [
       ["queued", "processing", by, jkt(`${day}T09:00`)],
-      ["processing", "quality_check", by, jkt(`${day}T10:00`)],
+      ["processing", "waiting_qc", by, jkt(`${day}T10:00`)],
     ]);
 
   it("counts the days a worker with no Shift started Items, and divides by them", async () => {
@@ -975,7 +975,7 @@ describe("days worked by people who rarely clock in", () => {
     for (const [line, started, sent] of plan) {
       await log(line.lineId, [
         ["queued", "processing", bayu, jkt(`${started}T09:00`)],
-        ["processing", "quality_check", shop.admin.id, jkt(`${sent}T10:00`)],
+        ["processing", "waiting_qc", shop.admin.id, jkt(`${sent}T10:00`)],
       ]);
     }
 
@@ -1016,7 +1016,7 @@ describe("the Workers report for today", () => {
 
     await log(lines.done.lineId, [
       ["queued", "processing", adi, at(1.5)],
-      ["processing", "quality_check", adi, at(5)],
+      ["processing", "waiting_qc", adi, at(5)],
     ]);
     await log(lines["on-bench"].lineId, [["queued", "processing", adi, at(4)]]);
     await testDb
@@ -1167,7 +1167,7 @@ describe("the Workers report for today", () => {
     ]);
     await log(yesterday.lineId, [
       ["queued", "processing", adi, at(-6)],
-      ["processing", "quality_check", adi, at(-5)],
+      ["processing", "waiting_qc", adi, at(-5)],
     ]);
 
     const report = await getWorkerProductivityReport({
@@ -1191,7 +1191,7 @@ describe("the Workers report for today", () => {
     ]);
     await log(earlier.lineId, [
       ["queued", "processing", shop.cashier.id, at(-40)],
-      ["processing", "quality_check", shop.cashier.id, at(-39)],
+      ["processing", "waiting_qc", shop.cashier.id, at(-39)],
     ]);
     await clockIn(shop.cashier.id, shop.store.id, at(3), null);
 
@@ -1204,8 +1204,8 @@ describe("the Workers report for today", () => {
     ]);
     await log(checked.lineId, [
       ["queued", "processing", adi, at(-40)],
-      ["processing", "quality_check", adi, at(-39)],
-      ["quality_check", "ready_for_pickup", shop.cashier.id, at(4)],
+      ["processing", "waiting_qc", adi, at(-39)],
+      ["waiting_qc", "ready_for_pickup", shop.cashier.id, at(4)],
     ]);
     await clockIn(shop.cashier.id, shop.store.id, at(3), null);
 
@@ -1219,7 +1219,7 @@ describe("the Workers report for today", () => {
       { brand: "checked", serviceId: shop.serviceId },
     ]);
     await log(checked.lineId, [
-      ["quality_check", "ready_for_pickup", citra, at(-5)],
+      ["waiting_qc", "ready_for_pickup", citra, at(-5)],
     ]);
 
     const report = await getWorkerProductivityReport({

@@ -452,7 +452,7 @@ const SERVICE_NOTE_POOL = [
 type OrderServiceStatus =
   | "queued"
   | "processing"
-  | "quality_check"
+  | "waiting_qc"
   | "qc_reject"
   | "ready_for_pickup"
   | "picked_up"
@@ -589,7 +589,7 @@ function createStatusNote(nextStatus: OrderServiceStatus): string {
     ]);
   }
 
-  if (nextStatus === "quality_check") {
+  if (nextStatus === "waiting_qc") {
     return faker.helpers.arrayElement([
       "Finishing complete and moved to quality control",
       "Quality team is checking the cleaning result",
@@ -1410,7 +1410,7 @@ function pickOnShift(
   return spans.at(-1)?.lo ?? null;
 }
 
-// How long a Service sits between starting and first reaching quality check.
+// How long a Service sits between starting and first reaching Waiting QC.
 // Express is the same-day lane; Repair and Repaint take days.
 type ServiceKind = "express" | "long" | "standard";
 
@@ -1426,7 +1426,7 @@ const KIND_MIX: Array<{ item: ServiceKind; weight: number }> = [
   { item: "express", weight: 12 },
 ];
 
-// How far back a Service still in hand (not yet at quality check) can have started.
+// How far back a Service still in hand (not yet at Waiting QC) can have started.
 const IN_HAND_WINDOW_HOURS: Record<ServiceKind, number> = {
   express: 8,
   long: 100,
@@ -1591,7 +1591,7 @@ function planRedo(
     if (redoFinish === null) {
       return;
     }
-    work.events.push({ at: redoFinish, by: redoer, to: "quality_check" });
+    work.events.push({ at: redoFinish, by: redoer, to: "waiting_qc" });
     const check = pickChecker(crew, ctx, redoer, redoFinish);
     work.events.push({ at: check.at, by: check.by, to: "ready_for_pickup" });
     return;
@@ -1606,7 +1606,7 @@ function planRedo(
   }
 }
 
-// One Service's moves: started on a Shift, handed to quality check (`finishAt`,
+// One Service's moves: started on a Shift, handed to Waiting QC (`finishAt`,
 // null while still in hand), checked, and in a few cases sent back and redone.
 function planWork(
   crew: Crew,
@@ -1637,7 +1637,7 @@ function planWork(
     other !== undefined && chance(0.15) && isOnShift(ctx.book, other, finishAt)
       ? other
       : starterId;
-  work.events.push({ at: finishAt, by: mover, to: "quality_check" });
+  work.events.push({ at: finishAt, by: mover, to: "waiting_qc" });
 
   const check = pickChecker(crew, ctx, starterId, finishAt);
   if (chance(QC_REJECT_RATE)) {
@@ -1698,7 +1698,7 @@ interface AnchoredLine {
   line: DraftServiceLine;
 }
 
-// Each worker's Services: on every day worked, as many reaching quality check as
+// Each worker's Services: on every day worked, as many reaching Waiting QC as
 // their profile says. Each is placed backwards from that moment, so it was
 // started on one of their own Shifts a Service-type-appropriate time earlier.
 function planWorkedLines(crew: Crew, ctx: PlanContext): AnchoredLine[] {

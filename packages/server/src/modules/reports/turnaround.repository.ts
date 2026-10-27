@@ -51,6 +51,7 @@ export async function listTurnaroundLines({ range, storeId }: RangeArgs) {
     .select({
       item_id: ordersServicesTable.item_id,
       is_priority: ordersServicesTable.is_priority,
+      category_id: categoriesTable.id,
       category_name: categoriesTable.name,
       service_name: servicesTable.name,
       store_code: storesTable.code,

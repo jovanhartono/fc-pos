@@ -104,12 +104,7 @@ describe("the complained line's timeline", () => {
 				id: 10,
 				...notOpened,
 				statusLogs: [
-					log(
-						1,
-						"quality_check",
-						"ready_for_pickup",
-						"2026-09-19T08:00:00.000Z",
-					),
+					log(1, "waiting_qc", "ready_for_pickup", "2026-09-19T08:00:00.000Z"),
 					log(2, "ready_for_pickup", "picked_up", "2026-09-24T09:00:00.000Z"),
 				],
 				complaints: [

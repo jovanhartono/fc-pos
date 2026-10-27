@@ -82,7 +82,7 @@ A Shift still open after midnight, which nobody works to; it is closed for the U
 _Avoid_: Forgotten clock-out, stale shift, open shift
 
 **Day worked**:
-One person doing bench work at one Store on one day: they clocked in there, or started, sent to QC or checked an Item there. Two Shifts, or a Shift and a move, on the same day at the same Store are one Day worked.
+One person doing bench work at one Store on one day: they clocked in there, or started, finished or checked an Item there. Two Shifts, or a Shift and a move, on the same day at the same Store are one Day worked.
 _Avoid_: Shift-day, man-day, workday, attendance day
 
 **Password reset**:
@@ -144,10 +144,14 @@ How much of a paid Order's money has gone back: none, part or all.
 The stage an Order is at: created, processing, ready for pickup, completed or cancelled. Worked out from its lines, never set by hand.
 
 **OrderService status**:
-The stage an OrderService is at: queued, processing, quality check, QC reject, ready for pickup or picked up. Or how it ended without being done: cancelled before payment, refunded after.
+The stage an OrderService is at: queued, processing, Waiting QC, QC reject, ready for pickup or picked up. Or how it ended without being done: cancelled before payment, refunded after.
+
+**Waiting QC**:
+The status of an OrderService whose work is done and whose Item is on the shelf waiting for its quality check. The worker sets it by tapping Done when the Item goes on the shelf.
+_Avoid_: Quality check (the check itself), in QC, being inspected
 
 **Quality check**:
-An inspection of an Item before it goes back to the counter, done in shop practice by someone other than the person who cleaned it.
+Passing or rejecting an Item that is Waiting QC: it goes to ready for pickup or to QC reject. Done in shop practice by someone other than the person who cleaned it.
 
 **QC reject**:
 Sending an Item back from quality check because the work is not good enough, with a note saying what is wrong. Every one counts, even when the Item passes on the next try.
@@ -234,12 +238,12 @@ A quality check passed by the same person who did the work on that Item, against
 _Avoid_: Own QC, self-QC
 
 **Services processed**:
-The number of OrderServices that reached quality check for the first time.
+The number of OrderServices that reached Waiting QC for the first time.
 _Avoid_: Items processed, items completed
 
 **Ready estimate**:
-How long a new Item will wait in one Category, shown on the Counter as "est. X–Y days": the Category's waiting OrderServices divided by its Services processed per day over the Store's last 7 open days. A slow Category such as Repair looks further back, open day by open day, until it has 7 checks, up to 4 weeks; with fewer it gets no quote. A day with no quality check at the Store at all (a public holiday) is not an open day; a quiet day for one Category still counts. After-clean Categories add their days on top of the clean.
-_Avoid_: ETA, queue estimate, turnaround (turnaround is measured afterwards, from drop-off to ready)
+How long a new Item in one Category will take to be ready, shown on the Counter as "est. N days": the p90 Turnaround, in days rounded up, of the Store's Items in that Category that became ready in the last 14 days, or the last 28 when 14 days have fewer than 10. With still fewer there is no quote. An Order with Services in several Categories gets one estimate per Category.
+_Avoid_: ETA, queue estimate, turnaround (that is one Item's time, measured afterwards)
 
 **Turnaround**:
 The time from an Item's drop-off until it is ready for pickup, measured afterwards. An Item counts once it is ready, on the day its last OrderService became ready; Reworks, cancelled and refunded lines are left out. Shown as p75, p90 and p99 per Category, with the wait before work starts (Queued) split from the work itself (In progress); that split uses only the lines of the Items counted, so an Item with a line still in the workshop feeds neither.

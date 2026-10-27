@@ -38,12 +38,20 @@ export const ORDER_TERMINAL_SERVICE_STATUSES = [
 export const WORKSHOP_SERVICE_STATUSES = [
   "queued",
   "processing",
-  "quality_check",
+  "waiting_qc",
   "qc_reject",
 ] as const;
 
 export function isInWorkshop(line: { status: string }): boolean {
   return (WORKSHOP_SERVICE_STATUSES as readonly string[]).includes(line.status);
+}
+
+// A cleaned shoe whose Repaint hasn't started is still being worked on: the
+// Counter and the Customer's Track page call it Waiting QC only when nothing
+// but the check is left.
+export function isWaitingQcOnly(lines: { status: string }[]): boolean {
+  const left = lines.filter(isInWorkshop);
+  return left.length > 0 && left.every((line) => line.status === "waiting_qc");
 }
 
 const ORDER_TERMINAL_SERVICE_STATUS_SET = new Set<OrderServiceStatus>(
@@ -59,8 +67,8 @@ export const ORDER_SERVICE_TRANSITIONS: Record<
   OrderServiceStatus[]
 > = {
   queued: ["processing", "cancelled", "refunded"],
-  processing: ["quality_check", "cancelled", "refunded"],
-  quality_check: ["qc_reject", "ready_for_pickup", "cancelled", "refunded"],
+  processing: ["waiting_qc", "cancelled", "refunded"],
+  waiting_qc: ["qc_reject", "ready_for_pickup", "cancelled", "refunded"],
   qc_reject: ["processing", "cancelled", "refunded"],
   ready_for_pickup: ["picked_up", "refunded", "cancelled"],
   picked_up: ["refunded"],

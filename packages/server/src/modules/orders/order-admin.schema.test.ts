@@ -36,7 +36,7 @@ describe("PATCHOrderServiceStatusSchema", () => {
   });
 
   it("still lets every other move go without a note", () => {
-    for (const status of ["processing", "quality_check", "ready_for_pickup"]) {
+    for (const status of ["processing", "waiting_qc", "ready_for_pickup"]) {
       expect(refusal({ status })).toBeNull();
     }
   });

@@ -12,6 +12,7 @@ import {
   isHandedOverByPickup,
   isItemCollectable,
   isTerminalOrderServiceStatus,
+  isWaitingQcOnly,
   nextReadyAt,
   ORDER_SERVICE_TRANSITIONS,
   ORDER_TERMINAL_SERVICE_STATUSES,
@@ -118,7 +119,7 @@ describe("deriveOrderStatus", () => {
     expect(deriveOrderStatus([s("queued"), s("processing")], [p(true)])).toBe(
       "processing"
     );
-    expect(deriveOrderStatus([s("quality_check")], [])).toBe("processing");
+    expect(deriveOrderStatus([s("waiting_qc")], [])).toBe("processing");
     expect(deriveOrderStatus([s("qc_reject")], [])).toBe("processing");
   });
 
@@ -138,9 +139,7 @@ describe("deriveItemStatus", () => {
     expect(deriveItemStatus([t("queued"), t("processing"), t("queued")])).toBe(
       "processing"
     );
-    expect(deriveItemStatus([t("queued"), t("quality_check")])).toBe(
-      "processing"
-    );
+    expect(deriveItemStatus([t("queued"), t("waiting_qc")])).toBe("processing");
   });
 
   it("reaches the shelf only when every live treatment is finished", () => {
@@ -189,6 +188,23 @@ describe("deriveItemStatus", () => {
   });
 });
 
+describe("isWaitingQcOnly", () => {
+  it("is true once every line still in the workshop waits for the check", () => {
+    expect(isWaitingQcOnly([s("waiting_qc"), s("ready_for_pickup")])).toBe(
+      true
+    );
+  });
+
+  it("is false while another line still waits for work", () => {
+    expect(isWaitingQcOnly([s("waiting_qc"), s("queued")])).toBe(false);
+    expect(isWaitingQcOnly([s("waiting_qc"), s("qc_reject")])).toBe(false);
+  });
+
+  it("is false with nothing left in the workshop", () => {
+    expect(isWaitingQcOnly([s("ready_for_pickup")])).toBe(false);
+  });
+});
+
 describe("isItemCollectable", () => {
   it("lets an object go when every live treatment on it is ready", () => {
     expect(
@@ -232,7 +248,7 @@ describe("ORDER_SERVICE_TRANSITIONS", () => {
     const nonTerminals: OrderServiceStatus[] = [
       "queued",
       "processing",
-      "quality_check",
+      "waiting_qc",
       "qc_reject",
       "ready_for_pickup",
     ];
@@ -245,9 +261,9 @@ describe("ORDER_SERVICE_TRANSITIONS", () => {
     expect(ORDER_SERVICE_TRANSITIONS.picked_up).toContain("refunded");
   });
 
-  it("forces QC redo through qc_reject (no direct quality_check -> processing)", () => {
-    expect(ORDER_SERVICE_TRANSITIONS.quality_check).not.toContain("processing");
-    expect(ORDER_SERVICE_TRANSITIONS.quality_check).toContain("qc_reject");
+  it("forces QC redo through qc_reject (no direct waiting_qc -> processing)", () => {
+    expect(ORDER_SERVICE_TRANSITIONS.waiting_qc).not.toContain("processing");
+    expect(ORDER_SERVICE_TRANSITIONS.waiting_qc).toContain("qc_reject");
     expect(ORDER_SERVICE_TRANSITIONS.qc_reject).toContain("processing");
   });
 
@@ -261,7 +277,7 @@ describe("ORDER_SERVICE_TRANSITIONS", () => {
     const others: OrderServiceStatus[] = [
       "queued",
       "processing",
-      "quality_check",
+      "waiting_qc",
       "qc_reject",
     ];
     for (const status of others) {
@@ -281,7 +297,7 @@ describe("isTerminalOrderServiceStatus", () => {
     const active: OrderServiceStatus[] = [
       "queued",
       "processing",
-      "quality_check",
+      "waiting_qc",
       "qc_reject",
       "ready_for_pickup",
     ];

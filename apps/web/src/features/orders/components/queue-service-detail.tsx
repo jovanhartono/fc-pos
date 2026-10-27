@@ -53,6 +53,16 @@ const WORKER_BLOCKED_QUEUE_STATUSES = new Set<
 	UpdateOrderServiceStatusPayload["status"]
 >(ORDER_TERMINAL_SERVICE_STATUSES);
 
+// The worker taps Done as the shoe goes on the QC shelf; whoever checks it
+// taps Pass or Reject.
+const QC_ACTION_LABELS: Partial<
+	Record<UpdateOrderServiceStatusPayload["status"], string>
+> = {
+	waiting_qc: "Done",
+	ready_for_pickup: "Pass",
+	qc_reject: "Reject",
+};
+
 const LABEL_CLASS = "text-footnote font-medium text-muted-foreground";
 
 interface BackForReworkNoteProps {
@@ -509,7 +519,8 @@ export function QueueServiceDetail({
 									);
 								}}
 							>
-								{`Set ${formatOrderServiceStatus(nextStatus)}`}
+								{QC_ACTION_LABELS[nextStatus] ??
+									`Set ${formatOrderServiceStatus(nextStatus)}`}
 							</Button>
 						))}
 					</div>

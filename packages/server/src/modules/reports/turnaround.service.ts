@@ -59,7 +59,7 @@ function nearestRank(sorted: number[], p: number) {
   return sorted[Math.ceil((p / 100) * sorted.length) - 1];
 }
 
-function percentiles(hours: number[]) {
+export function percentiles(hours: number[]) {
   if (hours.length < TURNAROUND_MIN_ITEMS) {
     return { p75: null, p90: null, p99: null };
   }
@@ -73,7 +73,7 @@ function percentiles(hours: number[]) {
 
 // An Item still has a line in the workshop until every first-round line has
 // been ready once; such an Item is left out rather than counted as slow.
-function groupItems(lines: Line[], range: { start: Date; end: Date }) {
+export function groupItems(lines: Line[], range: { start: Date; end: Date }) {
   const byItem = new Map<number, Line[]>();
   for (const line of lines) {
     const itemLines = byItem.get(line.item_id);

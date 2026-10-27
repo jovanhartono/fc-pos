@@ -1,6 +1,7 @@
 import {
 	type DerivedItemStatus,
 	isCollectableItemStatus,
+	isWaitingQcOnly,
 	normalizePhoneNumber,
 } from "@fresclean/api/schema";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -49,9 +50,7 @@ function getItemStageIndex(item: TrackItem): number {
 		return 3;
 	}
 	if (item.status === "processing") {
-		return item.services.some((service) => service.status === "quality_check")
-			? 2
-			: 1;
+		return isWaitingQcOnly(item.services) ? 2 : 1;
 	}
 	return 0;
 }

@@ -19,7 +19,7 @@ export type NonTerminalServiceStatus = Exclude<
 export const STATUS_ACTION_LABELS: Record<NonTerminalServiceStatus, string> = {
 	queued: "Queue",
 	processing: "Process",
-	quality_check: "Quality check",
+	waiting_qc: "Waiting QC",
 	qc_reject: "Reject at QC",
 	ready_for_pickup: "Ready for pickup",
 };
