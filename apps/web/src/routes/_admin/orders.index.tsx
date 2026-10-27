@@ -30,16 +30,16 @@ import { NotifiedLabel } from "@/features/orders/components/notified-label";
 import { PaymentBadges } from "@/features/orders/components/order-badges";
 import {
 	NOTIFIED_VALUES,
-	ORDER_STATUS_VALUES,
 	OrderFilters,
 	type OrderFilterValues,
 	PAYMENT_STATUS_VALUES,
 	REFUND_STATUS_VALUES,
 } from "@/features/orders/components/order-filters";
 import { OrderPhoneRow } from "@/features/orders/components/order-phone-row";
-import { OrderStatusTabs } from "@/features/orders/components/order-status-tabs";
+import { ORDER_STATUS_VALUES } from "@/features/orders/components/order-status-tabs";
 import { PickupRadar } from "@/features/orders/components/pickup-radar";
 import { useOrderSheet } from "@/features/orders/hooks/useOrderSheet";
+import { paymentMethodsQueries } from "@/features/payment-methods/api";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -61,6 +61,12 @@ const ordersSearchSchema = z.object({
 	storeId: z.coerce.number().int().positive().optional().catch(undefined),
 	status: z.enum(ORDER_STATUS_VALUES).optional().catch(undefined),
 	paymentStatus: z.enum(PAYMENT_STATUS_VALUES).optional().catch(undefined),
+	paymentMethodId: z.coerce
+		.number()
+		.int()
+		.positive()
+		.optional()
+		.catch(undefined),
 	refundStatus: z.enum(REFUND_STATUS_VALUES).optional().catch(undefined),
 	notified: z.enum(NOTIFIED_VALUES).optional().catch(undefined),
 	dateFrom: z
@@ -89,6 +95,9 @@ function buildOrdersListParams(
 		...(storeId !== undefined ? { store_id: storeId } : {}),
 		...(filters.status ? { status: filters.status } : {}),
 		...(filters.paymentStatus ? { payment_status: filters.paymentStatus } : {}),
+		...(filters.paymentMethodId
+			? { payment_method_id: filters.paymentMethodId }
+			: {}),
 		...(filters.refundStatus ? { refund_status: filters.refundStatus } : {}),
 		...(filters.notified ? { notified: filters.notified } : {}),
 		...(filters.dateFrom ? { date_from: filters.dateFrom } : {}),
@@ -128,6 +137,7 @@ export const Route = createFileRoute("/_admin/orders/")({
 
 		await Promise.all([
 			context.queryClient.ensureQueryData(storesQueries.list()),
+			context.queryClient.ensureQueryData(paymentMethodsQueries.list()),
 			canListOrders
 				? context.queryClient.ensureQueryData(ordersQueries.list(listParams))
 				: undefined,
@@ -380,10 +390,6 @@ function OrdersPage() {
 				}
 			/>
 			<ListPanel>
-				<OrderStatusTabs
-					value={search.status}
-					onValueChange={(status) => handleFilterChange({ status })}
-				/>
 				<OrderFilters
 					values={search}
 					role={role}
