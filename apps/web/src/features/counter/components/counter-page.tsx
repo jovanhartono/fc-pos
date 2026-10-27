@@ -61,7 +61,7 @@ const CounterTabs = ({ actions }: CounterTabsProps) => (
 // pending, then the top of the pickup shelf.
 const CounterBodySkeleton = () => (
 	<div aria-hidden className="@container grid gap-6 text-body">
-		<Section title="Ready estimate">
+		<Section title="Ready Estimate">
 			<ul className="overflow-hidden rounded-lg border bg-card">
 				{Array.from({ length: 2 }, (_, index) => (
 					<li
@@ -81,7 +81,7 @@ const CounterBodySkeleton = () => (
 				</Section>
 			))}
 		</div>
-		<Section title="Pickup shelf">
+		<Section title="Pickup Shelf">
 			<ul className="divide-y divide-border overflow-hidden rounded-lg border bg-card">
 				{Array.from({ length: 6 }, (_, index) => (
 					<li className="grid gap-0.5 px-3 py-3" key={index}>

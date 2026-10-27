@@ -24,7 +24,7 @@ export const CartLines = () => {
 					<ul className="grid gap-1.5 border-border/70 border-l-2 pl-3">
 						{item.services.length === 0 ? (
 							<li className="text-muted-foreground text-footnote">
-								No treatments yet
+								No Services yet
 							</li>
 						) : null}
 						{item.services.map((line) => (

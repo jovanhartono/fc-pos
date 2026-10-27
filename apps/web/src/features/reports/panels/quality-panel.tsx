@@ -386,7 +386,7 @@ const QcRejectsSection = ({ range }: QcRejectsSectionProps) => {
 		placeholderData: keepPreviousData,
 	});
 	const total = query.data?.meta.total ?? 0;
-	// "Show all" grows the list from 10 to 50 at the tap, drawn as placeholder
+	// "Show All" grows the list from 10 to 50 at the tap, drawn as placeholder
 	// rows, so the pager isn't shoved off screen seconds later.
 	const expectedRows = isShowingAll
 		? Math.min(Math.max(total - offset, 0), PAGE_SIZE)
@@ -397,7 +397,7 @@ const QcRejectsSection = ({ range }: QcRejectsSectionProps) => {
 	return (
 		<Section
 			id="quality-qc-rejects"
-			title="QC rejects"
+			title="QC Rejects"
 			count={query.data ? numberFormatter.format(total) : null}
 			aside={
 				!isShowingAll &&
@@ -408,7 +408,7 @@ const QcRejectsSection = ({ range }: QcRejectsSectionProps) => {
 						size="sm"
 						onClick={() => setIsShowingAll(true)}
 					>
-						{`Show all ${numberFormatter.format(total)}`}
+						{`Show All ${numberFormatter.format(total)}`}
 					</Button>
 				)
 			}
@@ -480,7 +480,7 @@ const CaughtSection = ({ summary, outcomes }: CaughtSectionProps) => {
 		.join(" · ");
 
 	return (
-		<Section id="quality-caught" title="Where mistakes were caught">
+		<Section id="quality-caught" title="Where Mistakes Were Caught">
 			<ul className="grid gap-3 rounded-lg border bg-card p-4">
 				<CaughtBar
 					label="Services processed"
@@ -674,7 +674,7 @@ const QualitySections = ({ range }: QualitySectionsProps) => {
 						</div>
 					</Section>
 
-					<Section id="quality-by-checker" title="Quality checks by person">
+					<Section id="quality-by-checker" title="Quality Checks by Person">
 						<div className="lg:overflow-hidden lg:rounded-lg lg:bg-card">
 							<DataTable
 								columns={checkerColumns}
@@ -684,7 +684,7 @@ const QualitySections = ({ range }: QualitySectionsProps) => {
 						</div>
 					</Section>
 
-					<Section id="quality-damaged-lost" title="Damaged & lost">
+					<Section id="quality-damaged-lost" title="Damaged & Lost">
 						<div className="lg:overflow-hidden lg:rounded-lg lg:bg-card">
 							<DataTable
 								columns={damagedLostColumns}

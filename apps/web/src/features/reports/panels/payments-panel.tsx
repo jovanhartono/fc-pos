@@ -89,7 +89,7 @@ export const PaymentsPanel = ({
 
 			<ChartCard
 				variant="stacked-bar"
-				title="Collected by payment method"
+				title="Collected by Payment Method"
 				data={data?.series ?? []}
 				granularity={data?.granularity ?? "day"}
 				series={series}
@@ -100,7 +100,7 @@ export const PaymentsPanel = ({
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle>Mix share</CardTitle>
+					<CardTitle>Mix Share</CardTitle>
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					{(data?.summary.methods ?? []).length === 0 ? (

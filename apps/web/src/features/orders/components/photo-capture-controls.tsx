@@ -133,7 +133,7 @@ const EmptyControls = () => {
 					className="size-5"
 					aria-hidden="true"
 				/>
-				Open camera
+				Open Camera
 			</button>
 
 			<button

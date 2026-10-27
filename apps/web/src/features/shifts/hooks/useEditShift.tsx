@@ -9,7 +9,7 @@ export const useEditShift = () => {
 	return useCallback(
 		(shift: Shift) =>
 			openDialog({
-				title: "Edit shift",
+				title: "Edit Shift",
 				description: `${shift.user?.name ?? `User #${shift.user_id}`} · ${shift.store?.code ?? ""}`,
 				content: () => <EditShiftForm shift={shift} onDone={closeDialog} />,
 			}),

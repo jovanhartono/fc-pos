@@ -98,7 +98,7 @@ export const OrderWalk = ({ openId, onSelect }: OrderWalkProps) => {
 				}
 				nativeButton={false}
 			>
-				Open full page
+				Open Full Page
 			</Button>
 		</div>
 	);

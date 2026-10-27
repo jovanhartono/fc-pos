@@ -46,7 +46,7 @@ export function assertLinePrice(price: number): void {
 export function assertPayable(lines: SettlementLine[]): void {
   if (hasUnpricedLine(lines)) {
     throw new BadRequestException(
-      "Order has an unpriced line — set its price before collecting payment"
+      "Order has an unpriced line. Price it before collecting payment."
     );
   }
 }
@@ -72,12 +72,12 @@ export function assertDiscountRequestAllowed({
   }
   if (hasBlankLine) {
     throw new BadRequestException(
-      "Order has an unpriced line — promotions wait until every item is priced"
+      "Order has an unpriced line. Add discounts once every line is priced."
     );
   }
   if (isSettled) {
     throw new BadRequestException(
-      "This order's discount was settled at drop-off — collect the printed total"
+      "This Order's discount was settled at drop-off. Collect the printed total."
     );
   }
 }

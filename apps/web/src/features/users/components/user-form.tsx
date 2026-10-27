@@ -207,7 +207,7 @@ export function UserForm({
 				</SwitchList>
 
 				<SheetFormActions
-					addLabel="Add user"
+					addLabel="Add User"
 					isEditing={isEditing}
 					isSubmitting={isSubmitting}
 					onCancel={onReset}

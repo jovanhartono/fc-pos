@@ -41,7 +41,7 @@ export const resolvePhotoCaptureLabels = ({
 }: PhotoCaptureLabelsInput): PhotoCaptureLabels => {
 	const isMultiple = variant === "batch-upload";
 	const suffix = badgeLabel ? ` for ${badgeLabel}` : "";
-	const confirmBase = variant === "single-capture" ? "Use photo" : "Upload";
+	const confirmBase = variant === "single-capture" ? "Use Photo" : "Upload";
 
 	return {
 		busy: normalizing

@@ -120,7 +120,7 @@ export const PhotoLightbox = ({
 		try {
 			await savePhoto(activeItem.download, activeItem.image_url);
 		} catch (error) {
-			toast.error(readServerErrorMessage(error, "Failed to save photo"));
+			toast.error(readServerErrorMessage(error, "Couldn't save photo"));
 		} finally {
 			setIsSaving(false);
 		}

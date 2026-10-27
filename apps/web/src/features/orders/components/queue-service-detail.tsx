@@ -89,7 +89,7 @@ const BackForReworkNote = ({
 			params={{ orderId, serviceId: reworkLineId }}
 			to="/queue/$orderId/$serviceId"
 		>
-			Open rework
+			Open Rework
 			<HugeiconsIcon
 				icon={ArrowRight01Icon}
 				aria-hidden="true"
@@ -450,7 +450,7 @@ export function QueueServiceDetail({
 								id="queue-status-note"
 								placeholder={
 									actionStatuses.includes("qc_reject")
-										? "Needed to reject, e.g. stain on toe box"
+										? "Reject reason, e.g. stain on toe box"
 										: "Optional status note"
 								}
 								ref={statusNoteRef}

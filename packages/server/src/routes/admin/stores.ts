@@ -72,7 +72,7 @@ const app = new Hono<AdminEnv>()
         throw new NotFoundException("Store not found");
       }
 
-      return c.json(success(store, `Successfully updated ${store.name}`));
+      return c.json(success(store, `${store.name} updated`));
     }
   )
   .patch(

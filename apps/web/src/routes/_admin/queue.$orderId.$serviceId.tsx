@@ -35,7 +35,7 @@ const QueueServiceRouteError = ({ error, reset }: ErrorComponentProps) => {
 			<QueueServiceDetailMessage
 				tone="muted"
 				title="Queue item not found"
-				description="It may have been removed or reassigned."
+				description="This line was removed or is at another Store."
 			/>
 		);
 	}
@@ -43,10 +43,8 @@ const QueueServiceRouteError = ({ error, reset }: ErrorComponentProps) => {
 	return (
 		<QueueServiceDetailMessage
 			tone="error"
-			title="Failed to load queue item"
-			description={
-				error instanceof Error ? error.message : "Please try again in a moment."
-			}
+			title="Couldn't load this line"
+			description={error instanceof Error ? error.message : "Tap Retry."}
 			onRetry={reset}
 		/>
 	);

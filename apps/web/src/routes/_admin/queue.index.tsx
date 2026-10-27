@@ -342,7 +342,7 @@ function QueuePage() {
 					? "No item, order, or line matched"
 					: readServerErrorMessage(
 							error,
-							"Failed to find item, order, or line",
+							"Couldn't find that Item, Order or line",
 						),
 			);
 		},
@@ -627,7 +627,7 @@ function QueuePage() {
 						<div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-destructive text-body">
 							{queueQuery.error instanceof Error
 								? queueQuery.error.message
-								: "Failed to load the queue."}
+								: "Couldn't load the Queue."}
 						</div>
 					) : null}
 

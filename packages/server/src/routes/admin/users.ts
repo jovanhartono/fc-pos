@@ -79,7 +79,7 @@ const app = new Hono<AdminEnv>()
         throw new NotFoundException("User not found");
       }
 
-      return c.json(success(user, `Update user ${user.name} success`));
+      return c.json(success(user, `${user.name} updated`));
     }
   )
   .put(

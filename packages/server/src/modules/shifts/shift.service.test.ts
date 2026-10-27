@@ -231,7 +231,7 @@ describe("clockIn location rule", () => {
     );
 
     expect(error).toBeInstanceOf(BadRequestException);
-    expect((error as Error).message).toBe("You already have an open shift");
+    expect((error as Error).message).toBe("You're already On shift");
     expect(storeState.lookups).toEqual([]);
     expect(shiftState.inserted).toBeUndefined();
   });

@@ -21,5 +21,5 @@ export const STATUS_ACTION_LABELS: Record<NonTerminalServiceStatus, string> = {
 	processing: "Process",
 	waiting_qc: "Waiting QC",
 	qc_reject: "Reject at QC",
-	ready_for_pickup: "Ready for pickup",
+	ready_for_pickup: "Ready for Pickup",
 };

@@ -174,7 +174,7 @@ const DropoffAttachment = ({
 							aria-hidden="true"
 							className="size-4"
 						/>
-						{photoUrl ? "Replace photo" : "Upload photo"}
+						{photoUrl ? "Replace Photo" : "Upload Photo"}
 					</button>
 				}
 			/>
@@ -183,7 +183,7 @@ const DropoffAttachment = ({
 				onOpenChange={setIsDialogOpen}
 				onUploaded={onUploaded}
 				open={isDialogOpen}
-				title="Upload drop-off photo"
+				title="Upload Drop-Off Photo"
 				uploader={orderDropoffPhotoUploader(order.id)}
 			/>
 		</section>
@@ -233,7 +233,7 @@ const DropoffPhoto = ({ capturedAt, imageUrl, orderId }: DropoffPhotoProps) => {
 				items={[item]}
 				onOpenChange={setIsLightboxOpen}
 				open={isLightboxOpen}
-				title="Drop-off photo"
+				title="Drop-Off Photo"
 			/>
 		</div>
 	);
@@ -282,6 +282,6 @@ const PickupTiles = ({ items }: PickupTilesProps) => (
 				? [{ ...items[0], label: <AttachmentLabel>Pickup</AttachmentLabel> }]
 				: items
 		}
-		title="Pickup photo"
+		title="Pickup Photo"
 	/>
 );

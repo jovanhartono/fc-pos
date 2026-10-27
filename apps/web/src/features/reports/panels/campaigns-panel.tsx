@@ -90,7 +90,7 @@ export const CampaignsPanel = ({
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle>Campaign leaderboard</CardTitle>
+					<CardTitle>Campaign Leaderboard</CardTitle>
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					{campaigns.length === 0 ? (

@@ -41,7 +41,7 @@ export const ServiceStatusConfirmForm = ({
 		<div className="flex flex-col gap-4">
 			{isReject ? (
 				<Field>
-					<FieldLabel htmlFor={noteId}>What's wrong?</FieldLabel>
+					<FieldLabel htmlFor={noteId}>Reject reason</FieldLabel>
 					<Textarea
 						id={noteId}
 						placeholder="e.g. stain on toe box"
@@ -58,7 +58,7 @@ export const ServiceStatusConfirmForm = ({
 			)}
 			<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
 				<Button variant="outline" onClick={closeDialog}>
-					Go back
+					Go Back
 				</Button>
 				<Button
 					disabled={isPending || (isReject && !trimmed)}

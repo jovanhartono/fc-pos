@@ -84,7 +84,7 @@ export const daySheet = (
 			};
 		case "picked-up":
 			return {
-				title: "Picked up",
+				title: "Picked Up",
 				description: `${day} · ${pluralize(picked.orders, "Order")} · ${pluralize(picked.items, "Item")}`,
 				content: () => (
 					<PickedUpSheetContent date={data.date} orders={picked.order_list} />

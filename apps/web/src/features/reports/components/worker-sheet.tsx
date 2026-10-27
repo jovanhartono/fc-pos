@@ -318,11 +318,11 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
 						<KpiCard key={label} label={label} value={null} />
 					))}
 				</KpiRow>
-				<Section title="Services each day">
+				<Section title="Services Each Day">
 					<Skeleton className="h-64 w-full" />
 				</Section>
 				<Section
-					title="Services worked"
+					title="Services Worked"
 					count={<TextSkeleton className="w-28" />}
 				>
 					<Skeleton className="h-40 w-full rounded-lg" />
@@ -370,19 +370,19 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
 				/>
 			</KpiRow>
 
-			<Section title="Services each day">
+			<Section title="Services Each Day">
 				<WorkerServicesChart data={data} topIds={topIds} />
 			</Section>
 
 			<Section
-				title="Services worked"
+				title="Services Worked"
 				count={`${numberFormatter.format(facts.services_processed)} in ${pluralize(data.services.length, "Service")}`}
 			>
 				<ServicesTable services={data.services} topIds={topIds} />
 			</Section>
 
 			<Section
-				title="QC rejects by Service"
+				title="QC Rejects by Service"
 				count={`${outOf(facts.qc_rejects, facts.qc_checks)} checks`}
 			>
 				<RejectCards target={target} rejects={data.qc_rejects} />

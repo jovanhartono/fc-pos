@@ -192,7 +192,7 @@ export function StoreForm({
 					/>
 				</SwitchList>
 				<SheetFormActions
-					addLabel="Add store"
+					addLabel="Add Store"
 					isEditing={isEditing}
 					isSubmitting={isSubmitting}
 					onCancel={onReset}

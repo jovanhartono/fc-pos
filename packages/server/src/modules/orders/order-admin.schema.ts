@@ -96,7 +96,7 @@ export const PATCHOrderServiceStatusSchema = z
     if (value.status === "qc_reject" && !value.note) {
       ctx.addIssue({
         code: "custom",
-        message: "Say what's wrong",
+        message: "Write reject reason",
         path: ["note"],
       });
       return;

@@ -92,9 +92,7 @@ const app = new Hono<AdminEnv>()
         throw new NotFoundException("Customer not found");
       }
 
-      return c.json(
-        success(customer, `Update customer ${customer.name} success`)
-      );
+      return c.json(success(customer, `${customer.name} updated`));
     }
   );
 

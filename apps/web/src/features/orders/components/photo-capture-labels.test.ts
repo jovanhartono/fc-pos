@@ -30,7 +30,7 @@ describe("resolvePhotoCaptureLabels", () => {
 			"Upload",
 		);
 		expect(labelsFor("single-capture", { photoCount: 1 }).confirm).toBe(
-			"Use photo",
+			"Use Photo",
 		);
 	});
 

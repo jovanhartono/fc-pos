@@ -56,7 +56,7 @@ const app = new Hono<AdminEnv>()
         throw new NotFoundException("Product not found");
       }
 
-      return c.json(success(product, `Update product ${product.sku} success`));
+      return c.json(success(product, `${product.name} updated`));
     }
   );
 

@@ -64,6 +64,6 @@ export async function uploadFileToPresignedUrl(
 	});
 
 	if (!response.ok) {
-		throw new Error("Failed to upload file");
+		throw new Error("Couldn't upload file");
 	}
 }

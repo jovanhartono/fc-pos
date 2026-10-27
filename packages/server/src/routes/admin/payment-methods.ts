@@ -62,12 +62,7 @@ const app = new Hono<AdminEnv>()
         throw new NotFoundException("Payment method not found");
       }
 
-      return c.json(
-        success(
-          paymentMethod,
-          `Update payment method ${paymentMethod.name} success`
-        )
-      );
+      return c.json(success(paymentMethod, `${paymentMethod.name} updated`));
     }
   );
 

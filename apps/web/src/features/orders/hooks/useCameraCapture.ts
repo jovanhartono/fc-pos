@@ -167,7 +167,7 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 
 		const context = canvas.getContext("2d");
 		if (!context) {
-			setError("Unable to capture a photo right now.");
+			setError("Couldn't take photo. Try again.");
 			return null;
 		}
 
@@ -176,7 +176,7 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 		try {
 			return await encodeForUpload(canvas);
 		} catch {
-			setError("Unable to capture a photo right now.");
+			setError("Couldn't take photo. Try again.");
 			return null;
 		}
 	}, []);

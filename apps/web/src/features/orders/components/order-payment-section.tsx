@@ -151,7 +151,7 @@ const CollectPaymentAction = ({
 		<Button
 			onClick={() =>
 				openNestedSheet({
-					title: "Collect payment",
+					title: "Collect Payment",
 					content: () =>
 						isSettled ? (
 							<SettledDiscountPaymentForm detail={detail} orderId={orderId} />
@@ -163,7 +163,7 @@ const CollectPaymentAction = ({
 			size="sm"
 			type="button"
 		>
-			Collect payment
+			Collect Payment
 		</Button>
 	);
 };
@@ -294,7 +294,7 @@ const SettledDiscountPaymentForm = ({
 				<ToCollectLine amount={toCollect} />
 				<PaymentMethodField />
 				<Button size="lg" loading={paymentMutation.isPending} type="submit">
-					Mark as paid
+					Mark as Paid
 				</Button>
 			</form>
 		</FormProvider>
@@ -488,7 +488,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 				<ToCollectLine amount={toCollect} />
 				<PaymentMethodField />
 				<Button size="lg" loading={paymentMutation.isPending} type="submit">
-					Mark as paid
+					Mark as Paid
 				</Button>
 			</form>
 		</FormProvider>

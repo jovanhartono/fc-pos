@@ -51,7 +51,7 @@ describe("assertPayable", () => {
     // agreed, since there is no part payment (ADR-0001).
     expectRefusal(
       () => assertPayable([line(), BLANK_REPAIR]),
-      "Order has an unpriced line — set its price before collecting payment"
+      "Order has an unpriced line. Price it before collecting payment."
     );
   });
 
@@ -81,7 +81,7 @@ describe("assertDiscountRequestAllowed", () => {
           isSettled: false,
           request: { ...NO_PROMO, voucher_codes: ["VIP12345"] },
         }),
-      "Order has an unpriced line — promotions wait until every item is priced"
+      "Order has an unpriced line. Add discounts once every line is priced."
     );
   });
 
@@ -93,7 +93,7 @@ describe("assertDiscountRequestAllowed", () => {
           isSettled: false,
           request: { ...NO_PROMO, discount: 25_000 },
         }),
-      "Order has an unpriced line — promotions wait until every item is priced"
+      "Order has an unpriced line. Add discounts once every line is priced."
     );
   });
 
@@ -107,7 +107,7 @@ describe("assertDiscountRequestAllowed", () => {
           isSettled: true,
           request: { ...NO_PROMO, campaign_ids: [5] },
         }),
-      "This order's discount was settled at drop-off — collect the printed total"
+      "This Order's discount was settled at drop-off. Collect the printed total."
     );
   });
 

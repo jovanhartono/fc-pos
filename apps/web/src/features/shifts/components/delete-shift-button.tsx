@@ -16,7 +16,7 @@ export const DeleteShiftButton = ({ shift }: DeleteShiftButtonProps) => {
 
 	const handleClick = () =>
 		openDialog({
-			title: "Delete shift?",
+			title: "Delete Shift?",
 			description: `${shift.user?.name ?? `User #${shift.user_id}`} · ${dayjs(shift.clock_in_at).tz(JAKARTA_TZ).format("D MMM")} · ${clockRange(shift)}. Its hours leave payroll for good.`,
 			footer: () => <DeleteShiftActions shiftId={shift.id} />,
 		});

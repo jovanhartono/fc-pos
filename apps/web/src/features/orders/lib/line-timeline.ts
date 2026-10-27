@@ -68,7 +68,7 @@ export const buildLineTimeline = (line: TimelineLine): TimelineEntry[] => {
 	if (reworkOf) {
 		entries.push({
 			key: "rework-opened",
-			label: "Rework opened",
+			label: "Rework Opened",
 			at: line.rework_opened_at,
 			by: line.rework_opened_by?.name ?? null,
 			note: reworkOf.reason,
@@ -93,7 +93,7 @@ export const buildLineTimeline = (line: TimelineLine): TimelineEntry[] => {
 	for (const complaint of line.complaints) {
 		entries.push({
 			key: `complaint-${complaint.id}`,
-			label: "Complaint opened",
+			label: "Complaint Opened",
 			at: complaint.created_at,
 			by: complaint.openedBy?.name ?? null,
 			note: complaint.reason,
@@ -102,7 +102,7 @@ export const buildLineTimeline = (line: TimelineLine): TimelineEntry[] => {
 		for (const rework of complaint.reworkLines) {
 			entries.push({
 				key: `rework-${rework.id}`,
-				label: "Rework started",
+				label: "Rework Started",
 				at: rework.rework_opened_at,
 				by: rework.rework_opened_by?.name ?? null,
 				note: null,

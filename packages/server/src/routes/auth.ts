@@ -45,7 +45,7 @@ const app = new Hono().post(
     }
 
     if (!user.is_active) {
-      throw new ForbiddenException("User is not active. Please contact admin.");
+      throw new ForbiddenException("Your account isn't Active. Ask an admin.");
     }
 
     const jwtPayload: JWTPayload & { exp: number } = {

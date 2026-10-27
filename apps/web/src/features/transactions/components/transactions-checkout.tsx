@@ -117,7 +117,7 @@ export const TransactionsCheckout = () => {
 						icon={<HugeiconsIcon icon={Delete02Icon} className="size-4" />}
 						onClick={() =>
 							openDialog({
-								title: "Clear the cart?",
+								title: "Clear the Cart?",
 								description:
 									"Every Item, the Customer, Campaigns and the drop-off photo are removed.",
 								footer: () => (

@@ -29,7 +29,7 @@ export const ServiceStatusUpdateButton = ({
 		}
 		openDialog({
 			title: `Update Status to ${STATUS_ACTION_LABELS[nextStatus]}`,
-			description: `Are you sure you want to change the status to ${STATUS_ACTION_LABELS[nextStatus]}?`,
+			description: `Set status to ${STATUS_ACTION_LABELS[nextStatus]}?`,
 			content: () => (
 				<ServiceStatusConfirmForm
 					serviceId={serviceId}
