@@ -1,6 +1,10 @@
 import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
-import { campaignCodesTable, campaignsTable } from "@/db/schema";
+import {
+  campaignCodesTable,
+  campaignEligibleServicesTable,
+  campaignsTable,
+} from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 import { type Shop, seedShop } from "@/test-support/fixtures";
@@ -130,9 +134,73 @@ const addVoucher = async () => {
   return campaign;
 };
 
+// Repair is listed too, so only the slot rule can keep it from counting.
+const addBuy4Get1 = async () => {
+  const [campaign] = await testDb
+    .insert(campaignsTable)
+    .values({
+      buy_quantity: 4,
+      code: "B4G1",
+      created_by: shop.admin.id,
+      discount_type: "buy_n_get_m_free",
+      free_quantity: 1,
+      name: "Buy 4 Get 1",
+      updated_by: shop.admin.id,
+    })
+    .returning();
+
+  await testDb.insert(campaignEligibleServicesTable).values([
+    { campaign_id: campaign.id, service_id: shop.serviceId },
+    { campaign_id: campaign.id, service_id: shop.repairServiceId },
+  ]);
+
+  return campaign;
+};
+
 beforeEach(async () => {
   await resetDb();
   shop = await seedShop();
+});
+
+describe("a buy 4 get 1 Campaign", () => {
+  it("is refused at drop-off when a Repair makes up the fifth Item", async () => {
+    // The Repair has no list price, so it can never be the free one
+    // (ADR-0018); four Deep cleans alone don't earn the free Item.
+    const campaign = await addBuy4Get1();
+
+    const error = await captureRejection(
+      checkout({
+        campaignIds: [campaign.id],
+        repairPrice: 200_000,
+        services: [
+          shop.serviceId,
+          shop.serviceId,
+          shop.serviceId,
+          shop.serviceId,
+        ],
+        withRepair: true,
+      })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "Campaign B4G1 needs 5 eligible Services"
+    );
+    expect((await readCampaign(campaign.id))?.redeemed_count).toBe(0);
+  });
+
+  it("settles once five eligible Services are on the Order", async () => {
+    const campaign = await addBuy4Get1();
+
+    const order = await checkout({
+      campaignIds: [campaign.id],
+      services: Array.from({ length: 5 }, () => shop.serviceId),
+    });
+
+    const settled = await readOrder(order.id);
+    expect(settled?.discount).toBe("100000");
+    expect(settled?.discount_source).toBe("campaign");
+  });
 });
 
 describe("a Repair that still needs inspecting", () => {

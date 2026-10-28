@@ -1,6 +1,12 @@
+import { bogoFreeCount, type CampaignDiscountInput } from "@/schema/discount";
+
 export interface CampaignEligibilityInput {
+  buy_quantity?: number | null;
   code: string;
+  discount_type: CampaignDiscountInput["discount_type"];
+  eligibleServices: { service_id: number }[];
   ends_at?: Date | string | null;
+  free_quantity?: number | null;
   is_active: boolean;
   min_order_total: string;
   redeemed_count?: number;
@@ -12,16 +18,41 @@ export interface CampaignEligibilityInput {
 
 export interface CampaignEligibilityContext {
   grossTotal: number;
+  // The Order's BOGO slot lines (isBogoSlot), the same list the discount is
+  // computed from.
+  lines: { service_id: number }[];
   now: Date;
   storeCode?: string;
   storeId: number;
+}
+
+// A buy 4 get 1 shown with three Services would promise a free Item the
+// Order can't earn.
+function bogoIneligibilityReason(
+  campaign: CampaignEligibilityInput,
+  lines: { service_id: number }[]
+): string | null {
+  if (campaign.discount_type !== "buy_n_get_m_free") {
+    return null;
+  }
+  const eligibleIds = new Set(
+    campaign.eligibleServices.map((entry) => entry.service_id)
+  );
+  const eligibleCount = lines.filter((line) =>
+    eligibleIds.has(line.service_id)
+  ).length;
+  if (bogoFreeCount(campaign, eligibleCount) > 0) {
+    return null;
+  }
+  const needed = (campaign.buy_quantity ?? 0) + (campaign.free_quantity ?? 0);
+  return `Campaign ${campaign.code} needs ${needed} eligible Services`;
 }
 
 // Single source of the Campaign "Usable" rules (see ADR-0015). The server
 // wraps this in assertCampaignUsable (throws); the POS filters on null.
 export function campaignIneligibilityReason(
   campaign: CampaignEligibilityInput,
-  { now, grossTotal, storeId, storeCode }: CampaignEligibilityContext
+  { now, grossTotal, lines, storeId, storeCode }: CampaignEligibilityContext
 ): string | null {
   if (!campaign.is_active) {
     return `Campaign ${campaign.code} is not active`;
@@ -51,5 +82,5 @@ export function campaignIneligibilityReason(
     return `Campaign ${campaign.code} has reached its usage limit`;
   }
 
-  return null;
+  return bogoIneligibilityReason(campaign, lines);
 }

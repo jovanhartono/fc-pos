@@ -45,7 +45,7 @@ const makeVoucherCampaign = (over: AnyObj = {}) => ({
   ...over,
 });
 
-const ctx = { storeId: 1, storeCode: "JKT", grossTotal: 100_000 };
+const ctx = { storeId: 1, storeCode: "JKT", grossTotal: 100_000, lines: [] };
 
 beforeEach(() => {
   repo.byCode = undefined;
@@ -113,6 +113,29 @@ describe("resolveVoucherCode", () => {
     expect(campaign.id).toBe(7);
     expect(campaign.is_expired).toBe(false);
   });
+
+  it("rejects a buy 4 get 1 code typed with only three eligible Services", async () => {
+    // Accepted here, it showed as applied at Rp 0 and payment refused it later.
+    repo.byCode = {
+      redeemed_at: null,
+      campaign: makeVoucherCampaign({
+        discount_type: "buy_n_get_m_free",
+        buy_quantity: 4,
+        free_quantity: 1,
+        eligibleServices: [{ service_id: 5 }],
+      }),
+    };
+    const error = await captureRejection(
+      resolveVoucherCode(EXECUTOR, "VIP12345", {
+        ...ctx,
+        lines: [{ service_id: 5 }, { service_id: 5 }, { service_id: 5 }],
+      })
+    );
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "Campaign VIP needs 5 eligible Services"
+    );
+  });
 });
 
 const makeListedRow = (over: AnyObj = {}) => ({
@@ -133,6 +156,7 @@ describe("getUsableCampaigns", () => {
     getUsableCampaigns(EXECUTOR, {
       campaignIds,
       grossTotal: 100_000,
+      lines: [],
       storeId: 1,
       storeCode: "JKT",
     });
@@ -171,5 +195,33 @@ describe("getUsableCampaigns", () => {
     expect(result[0].eligible_service_ids).toEqual([5, 6]);
     expect(result[0]).not.toHaveProperty("stores");
     expect(result[0]).not.toHaveProperty("eligibleServices");
+  });
+
+  it("refuses a buy 4 get 1 ticked on an Order with only three eligible Services", async () => {
+    // The POS tile was ticked at five Items and two were removed before
+    // checkout; the stale tick must not reach the Receipt.
+    repo.byIds = [
+      makeListedRow({
+        id: 3,
+        code: "B4G1",
+        discount_type: "buy_n_get_m_free",
+        buy_quantity: 4,
+        free_quantity: 1,
+        eligibleServices: [{ service_id: 5 }],
+      }),
+    ];
+    const error = await captureRejection(
+      getUsableCampaigns(EXECUTOR, {
+        campaignIds: [3],
+        grossTotal: 100_000,
+        lines: [{ service_id: 5 }, { service_id: 5 }, { service_id: 5 }],
+        storeId: 1,
+        storeCode: "JKT",
+      })
+    );
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "Campaign B4G1 needs 5 eligible Services"
+    );
   });
 });

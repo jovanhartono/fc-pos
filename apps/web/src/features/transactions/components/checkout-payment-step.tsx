@@ -17,7 +17,6 @@ import {
 	FieldLegend,
 	FieldSet,
 } from "@/components/ui/field";
-import { campaignsQueries } from "@/features/campaigns/api";
 import { paymentMethodsQueries } from "@/features/payment-methods/api";
 import {
 	countUnpricedServiceLines,
@@ -27,7 +26,6 @@ import { useCart } from "@/features/transactions/cart/useCart";
 import { CampaignTileGroup } from "@/features/transactions/components/campaign-tile-group";
 import { VoucherCodeEntry } from "@/features/transactions/components/voucher-code-entry";
 import { useCheckoutPricing } from "@/features/transactions/hooks/useCheckoutPricing";
-import { filterEligibleCampaigns } from "@/features/transactions/lib/campaign-eligibility";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
@@ -36,7 +34,13 @@ import { formatMoney } from "@/shared/money";
 // (ADR-0018), so a Customer paying at pickup still gets it on the Receipt.
 export const CheckoutPaymentStep = () => {
 	const { visibleStores } = useTransactionsPageContext();
-	const { subtotal, pricing } = useCheckoutPricing();
+	const {
+		subtotal,
+		availableCampaigns: eligibleCampaigns,
+		campaignsQuery,
+		serviceLines,
+		pricing,
+	} = useCheckoutPricing();
 	const { serviceRows } = useCart();
 	const form = useFormContext<TransactionDraftValues>();
 	const appliedVouchers =
@@ -62,31 +66,15 @@ export const CheckoutPaymentStep = () => {
 		? visibleStores.find((store) => store.id === selectedStoreNumber)
 		: undefined;
 
-	const campaignsQuery = useQuery({
-		...campaignsQueries.list({
-			store_id: selectedStoreNumber,
-			is_active: true,
-		}),
-		enabled: selectedStoreNumber !== undefined,
-	});
-
 	// ADR-0018: no price, no payment. A blank Repair locks every method except
 	// "Pay Later", and moves discounts to the Order page.
 	const unpricedCount = countUnpricedServiceLines(serviceRows);
 	const isFullyPriced = unpricedCount === 0;
 	const paymentBlocked = !isFullyPriced;
 
-	const eligibleCampaigns = useMemo(
-		() =>
-			filterEligibleCampaigns(campaignsQuery.data, {
-				grossTotal: subtotal,
-				storeId: selectedStoreNumber,
-			}),
-		[campaignsQuery.data, selectedStoreNumber, subtotal],
-	);
-
 	// A cashier who removes a line can drop the total below a picked Campaign's
-	// minimum; it is unpicked rather than sent.
+	// minimum, or a buy 4 get 1 below five Services; it is unpicked rather than
+	// sent.
 	useEffect(() => {
 		if (selectedStoreNumber === undefined || campaignsQuery.isPending) {
 			return;
@@ -112,13 +100,14 @@ export const CheckoutPaymentStep = () => {
 				campaignIneligibilityReason(entry.campaign, {
 					now,
 					grossTotal: subtotal,
+					lines: serviceLines,
 					storeId: selectedStoreNumber,
 				}) === null,
 		);
 		if (eligible.length !== appliedVouchers.length) {
 			form.setValue("appliedVouchers", eligible, { shouldValidate: true });
 		}
-	}, [appliedVouchers, subtotal, selectedStoreNumber, form]);
+	}, [appliedVouchers, subtotal, serviceLines, selectedStoreNumber, form]);
 
 	// A blank line added after a method was picked clears it, or the Order
 	// would go in as paid and fail at the server.
@@ -217,6 +206,7 @@ export const CheckoutPaymentStep = () => {
 											shouldValidate: true,
 										})
 									}
+									lines={serviceLines}
 									storeId={selectedStoreNumber}
 									subtotal={subtotal}
 								/>

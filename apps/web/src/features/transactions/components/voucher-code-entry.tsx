@@ -12,6 +12,7 @@ import { readServerErrorMessage } from "@/lib/server-error";
 interface VoucherCodeEntryProps {
 	storeId: number | undefined;
 	subtotal: number;
+	lines: { service_id: number }[];
 	// Controlled: POS checkout keeps Voucher codes in its draft, the Order page's
 	// Collect payment in its own form (ADR-0018).
 	appliedVouchers: AppliedVoucher[];
@@ -21,6 +22,7 @@ interface VoucherCodeEntryProps {
 export const VoucherCodeEntry = ({
 	storeId,
 	subtotal,
+	lines,
 	appliedVouchers,
 	onChange,
 }: VoucherCodeEntryProps) => {
@@ -32,6 +34,7 @@ export const VoucherCodeEntry = ({
 				code: voucherCode,
 				store_id: storeId as number,
 				gross_total: subtotal,
+				service_ids: lines.map((line) => line.service_id),
 			}),
 		onSuccess: (campaign, voucherCode) => {
 			// One Voucher code per Campaign per Order, as the server enforces, so a

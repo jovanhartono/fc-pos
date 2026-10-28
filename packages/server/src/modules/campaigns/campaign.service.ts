@@ -17,7 +17,10 @@ import type {
   GetCampaignsQuery,
 } from "@/modules/campaigns/campaign.schema";
 import { assertCanManageCampaigns } from "@/modules/permissions/permissions";
-import { campaignIneligibilityReason } from "@/schema/campaign-eligibility";
+import {
+  type CampaignEligibilityContext,
+  campaignIneligibilityReason,
+} from "@/schema/campaign-eligibility";
 import type { JWTPayload } from "@/types";
 
 async function ensureStoresExist(storeIds: number[]) {
@@ -80,7 +83,12 @@ export async function getCampaignById(id: number) {
 export async function resolveVoucherCode(
   executor: DbExecutor,
   code: string,
-  ctx: { storeId: number; storeCode: string; grossTotal: number }
+  ctx: {
+    storeId: number;
+    storeCode: string;
+    grossTotal: number;
+    lines: { service_id: number }[];
+  }
 ) {
   const row = await findCampaignByCode(executor, code);
 
@@ -103,8 +111,12 @@ export async function resolveVoucherCode(
   const now = new Date();
   const reason = campaignIneligibilityReason(
     {
+      buy_quantity: campaign.buy_quantity,
       code: campaign.code,
+      discount_type: campaign.discount_type,
+      eligibleServices: campaign.eligibleServices,
       ends_at: campaign.ends_at,
+      free_quantity: campaign.free_quantity,
       is_active: campaign.is_active,
       min_order_total: campaign.min_order_total,
       starts_at: campaign.starts_at,
@@ -113,6 +125,7 @@ export async function resolveVoucherCode(
     {
       now,
       grossTotal: ctx.grossTotal,
+      lines: ctx.lines,
       storeId: ctx.storeId,
       storeCode: ctx.storeCode,
     }
@@ -292,12 +305,21 @@ export function deleteCampaign({ user, id }: { user: JWTPayload; id: number }) {
 
 type CampaignEligibility = Pick<
   Awaited<ReturnType<typeof findCampaignsByIdsWithEligibility>>[number],
-  "code" | "ends_at" | "is_active" | "min_order_total" | "starts_at" | "stores"
+  | "buy_quantity"
+  | "code"
+  | "discount_type"
+  | "eligibleServices"
+  | "ends_at"
+  | "free_quantity"
+  | "is_active"
+  | "min_order_total"
+  | "starts_at"
+  | "stores"
 >;
 
 export function assertCampaignUsable(
   campaign: CampaignEligibility,
-  ctx: { now: Date; grossTotal: number; storeId: number; storeCode: string }
+  ctx: CampaignEligibilityContext & { storeCode: string }
 ) {
   const reason = campaignIneligibilityReason(campaign, ctx);
   if (reason) {
@@ -310,11 +332,13 @@ export async function getUsableCampaigns(
   {
     campaignIds,
     grossTotal,
+    lines,
     storeId,
     storeCode,
   }: {
     campaignIds: number[];
     grossTotal: number;
+    lines: { service_id: number }[];
     storeId: number;
     storeCode: string;
   }
@@ -344,7 +368,13 @@ export async function getUsableCampaigns(
 
   const now = new Date();
   for (const campaign of campaigns) {
-    assertCampaignUsable(campaign, { now, grossTotal, storeId, storeCode });
+    assertCampaignUsable(campaign, {
+      now,
+      grossTotal,
+      lines,
+      storeId,
+      storeCode,
+    });
   }
 
   return campaigns.map(
