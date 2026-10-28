@@ -1,3 +1,5 @@
+import { Invoice01Icon } from "@hugeicons/core-free-icons";
+import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
 import type { DayClose } from "@/features/counter/api";
 import {
@@ -29,14 +31,26 @@ const CountGroup = ({ count, lines, title }: CountGroupProps) => (
 
 interface SalesReportSectionProps {
 	data: DayClose;
+	dayWord: string;
 	onOpen: (list: string) => void;
 }
 
 export const SalesReportSection = ({
 	data,
+	dayWord,
 	onOpen,
 }: SalesReportSectionProps) => {
 	const { dropped_off: dropped } = data;
+
+	if (dropped.orders === 0) {
+		return (
+			<Section title="Sales Report">
+				<EmptyState icon={Invoice01Icon}>
+					No Orders dropped off {dayWord}.
+				</EmptyState>
+			</Section>
+		);
+	}
 
 	const summary = [
 		pluralize(dropped.orders, "Order"),

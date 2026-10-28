@@ -1,5 +1,7 @@
+import { GridViewIcon, ToolsIcon } from "@hugeicons/core-free-icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
+import { EmptyState } from "@/components/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ReportOverview, reportsQueries } from "@/features/reports/api";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
@@ -26,7 +28,7 @@ const CategoryBars = ({
 }) => {
 	const max = categories.reduce((m, row) => Math.max(m, row.gross_sales), 0);
 	if (categories.length === 0) {
-		return <p className="text-body text-muted-foreground">No sales today</p>;
+		return <EmptyState icon={GridViewIcon}>No sales today</EmptyState>;
 	}
 	return (
 		<div className="grid grid-cols-1 gap-2">
@@ -64,9 +66,7 @@ const TopServicesList = ({
 	services: ReportOverview["top_services"];
 }) => {
 	if (services.length === 0) {
-		return (
-			<p className="text-body text-muted-foreground">No services sold today</p>
-		);
+		return <EmptyState icon={ToolsIcon}>No services sold today</EmptyState>;
 	}
 	return (
 		<div className="grid grid-cols-1 gap-2">

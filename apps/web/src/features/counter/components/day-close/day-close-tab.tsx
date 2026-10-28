@@ -9,7 +9,6 @@ import { PickedUpSection } from "@/features/counter/components/day-close/picked-
 import { RefundsSection } from "@/features/counter/components/day-close/refunds-section";
 import { SalesReportSection } from "@/features/counter/components/day-close/sales-report-section";
 import { formatDayLabel } from "@/features/counter/lib/day-close";
-import { isBackNavigation } from "@/lib/back-navigation";
 import { CONTENT_FADE, staleFade } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
 import { useSheet } from "@/stores/sheet-store";
@@ -50,7 +49,6 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 		}
 		useSheet.getState().openSheet({
 			...sheet,
-			isInstant: isBackNavigation(),
 			isRestoredOnBack: true,
 			onClose: () => void setList(undefined),
 		});
@@ -64,6 +62,8 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 	}
 
 	const dayLabel = formatDayLabel(data.date, today);
+	const isToday = data.date === today;
+	const dayWord = isToday ? "today" : "this day";
 
 	// Each day is drawn fresh and fades in over the last one, faded while it
 	// loads, instead of the last day's sections stretching into the new day's.
@@ -85,14 +85,19 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 				<CollectedSection
 					data={data}
 					dayLabel={dayLabel}
-					isToday={data.date === today}
+					isToday={isToday}
 					onOpen={setList}
 				/>
-				<MethodsSection data={data} onOpen={setList} />
-				<RefundsSection data={data} />
-				<PickedUpSection data={data} onOpen={setList} />
+				<MethodsSection data={data} dayWord={dayWord} onOpen={setList} />
+				<RefundsSection data={data} dayWord={dayWord} />
+				<PickedUpSection
+					data={data}
+					dayWord={dayWord}
+					isToday={isToday}
+					onOpen={setList}
+				/>
 			</div>
-			<SalesReportSection data={data} onOpen={setList} />
+			<SalesReportSection data={data} dayWord={dayWord} onOpen={setList} />
 		</div>
 	);
 };

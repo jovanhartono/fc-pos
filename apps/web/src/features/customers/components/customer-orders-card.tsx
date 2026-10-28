@@ -1,3 +1,4 @@
+import { Invoice01Icon } from "@hugeicons/core-free-icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
@@ -139,6 +140,7 @@ export const CustomerOrdersCard = ({
 		<section className="flex min-h-0 flex-1 flex-col gap-3">
 			<SectionTitle title="Orders" />
 			<DataTable
+				emptyIcon={Invoice01Icon}
 				columns={columns}
 				data={orders}
 				isLoading={ordersQuery.isPending}

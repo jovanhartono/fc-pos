@@ -1,4 +1,10 @@
 import {
+	CancelCircleIcon,
+	CheckmarkCircle02Icon,
+	TaskDone01Icon,
+	ToolsIcon,
+} from "@hugeicons/core-free-icons";
+import {
 	keepPreviousData,
 	type QueryClient,
 	useMutation,
@@ -415,6 +421,7 @@ const QcRejectsSection = ({ range }: QcRejectsSectionProps) => {
 		>
 			<div className="lg:overflow-hidden lg:rounded-lg lg:bg-card">
 				<DataTable
+					emptyIcon={CancelCircleIcon}
 					columns={qcRejectColumns}
 					data={query.data?.items ?? []}
 					isLoading={query.isPending || isGrowing}
@@ -667,6 +674,7 @@ const QualitySections = ({ range }: QualitySectionsProps) => {
 					<Section id="quality-by-service" title="By Service">
 						<div className="lg:overflow-hidden lg:rounded-lg lg:bg-card">
 							<DataTable
+								emptyIcon={ToolsIcon}
 								columns={serviceColumns}
 								data={data.by_service}
 								emptyMessage="No Services processed in range."
@@ -677,6 +685,7 @@ const QualitySections = ({ range }: QualitySectionsProps) => {
 					<Section id="quality-by-checker" title="Quality Checks by Person">
 						<div className="lg:overflow-hidden lg:rounded-lg lg:bg-card">
 							<DataTable
+								emptyIcon={TaskDone01Icon}
 								columns={checkerColumns}
 								data={data.by_checker}
 								emptyMessage="No quality checks in range."
@@ -687,6 +696,7 @@ const QualitySections = ({ range }: QualitySectionsProps) => {
 					<Section id="quality-damaged-lost" title="Damaged & Lost">
 						<div className="lg:overflow-hidden lg:rounded-lg lg:bg-card">
 							<DataTable
+								emptyIcon={CheckmarkCircle02Icon}
 								columns={damagedLostColumns}
 								data={data.damaged_lost}
 								emptyMessage="None in range."

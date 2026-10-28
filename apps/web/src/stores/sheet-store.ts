@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { create } from "zustand";
+import { isBackNavigation } from "@/lib/back-navigation";
 
 type RenderNode = () => ReactNode;
 
@@ -37,9 +38,8 @@ export type OpenSheetPayload = {
 	// When the person closes the sheet, not when code closes it to leave the
 	// page; a sheet opened over this one inherits it.
 	onClose?: () => void;
-	// Shows without sliding in: a sheet its page reopens after Back.
-	isInstant?: boolean;
-	// The page reopens this sheet after Back; see useLeaveSheetLink.
+	// The page reopens this sheet after Back, already open as Safari's
+	// swipe-back picture showed it; see useLeaveSheetLink.
 	isRestoredOnBack?: boolean;
 };
 
@@ -102,7 +102,6 @@ export const useSheet = create<SheetStore>((set, get) => ({
 		backLabel,
 		actions = null,
 		onClose,
-		isInstant = false,
 		isRestoredOnBack = false,
 	}) =>
 		set({
@@ -115,7 +114,7 @@ export const useSheet = create<SheetStore>((set, get) => ({
 				backLabel: backLabel ?? null,
 				actions,
 				onClose: onClose ?? null,
-				isInstant,
+				isInstant: isRestoredOnBack && isBackNavigation(),
 				isRestoredOnBack,
 				open: true,
 			},

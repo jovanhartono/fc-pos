@@ -4,14 +4,15 @@ import {
 	LinkSquare02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { type MouseEvent, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { isListKeyBlocked } from "@/lib/list-keys";
+import { isListKeyBlocked, isPlainLeftClick } from "@/lib/list-keys";
 import { useOrderWalkStore } from "@/stores/order-walk-store";
 
 interface OrderWalkProps {
 	openId: number;
+	onClose: () => Promise<void>;
 	onSelect: (orderId: number) => void;
 }
 
@@ -31,7 +32,8 @@ const OTHER_DIALOGS = '[role="dialog"]:not([data-slot="sheet-content"])';
 
 // A cashier going down the list steps from one Order to the next inside the
 // sheet, without closing it and finding the next row.
-export const OrderWalk = ({ openId, onSelect }: OrderWalkProps) => {
+export const OrderWalk = ({ openId, onClose, onSelect }: OrderWalkProps) => {
+	const navigate = useNavigate();
 	const orders = useOrderWalkStore((s) => s.orders);
 	const openIndex = orders.findIndex((order) => order.id === openId);
 	const previous = orders[openIndex - 1];
@@ -65,6 +67,21 @@ export const OrderWalk = ({ openId, onSelect }: OrderWalkProps) => {
 		return () => window.removeEventListener("keydown", handleWalk, true);
 	}, [orders, openIndex, onSelect]);
 
+	// The full page takes the sheet's place: Back returns to the list, not to a
+	// sheet the cashier is done with.
+	const handleOpenFullPage = async (event: MouseEvent) => {
+		if (!isPlainLeftClick(event)) {
+			return;
+		}
+		event.preventDefault();
+		// Once the list has settled without the sheet, so Back keeps its scroll.
+		await onClose();
+		await navigate({
+			to: "/orders/$orderId",
+			params: { orderId: String(openId) },
+		});
+	};
+
 	return (
 		<div className="-my-1.5 -ml-2 flex items-center gap-1 text-muted-foreground text-footnote">
 			<Button
@@ -94,7 +111,11 @@ export const OrderWalk = ({ openId, onSelect }: OrderWalkProps) => {
 				className="ml-auto"
 				icon={<HugeiconsIcon icon={LinkSquare02Icon} />}
 				render={
-					<Link to="/orders/$orderId" params={{ orderId: String(openId) }} />
+					<Link
+						to="/orders/$orderId"
+						params={{ orderId: String(openId) }}
+						onClick={handleOpenFullPage}
+					/>
 				}
 				nativeButton={false}
 			>

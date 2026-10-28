@@ -1,3 +1,4 @@
+import { Analytics01Icon } from "@hugeicons/core-free-icons";
 import type { ReactNode } from "react";
 import {
 	Area,
@@ -18,6 +19,7 @@ import {
 	YAxis,
 	ZAxis,
 } from "recharts";
+import { EmptyState } from "@/components/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	type ChartConfig,
@@ -148,11 +150,10 @@ interface EmptyProps {
 // As tall as the chart it stands in for, so the cards below stay put while a
 // report loads (no rows yet) and when a range turns out empty.
 const Empty = ({ children, height }: EmptyProps) => (
-	<div
-		className="flex items-center justify-center text-body text-muted-foreground"
-		style={{ height }}
-	>
-		{children ?? "No data in range."}
+	<div className="grid" style={{ height }}>
+		<EmptyState icon={Analytics01Icon}>
+			{children ?? "No data in range."}
+		</EmptyState>
 	</div>
 );
 

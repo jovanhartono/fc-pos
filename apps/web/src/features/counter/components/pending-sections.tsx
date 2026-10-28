@@ -1,4 +1,10 @@
+import {
+	CancelCircleIcon,
+	MessageCircleWarningIcon,
+} from "@hugeicons/core-free-icons";
+import type { IconSvgElement } from "@hugeicons/react";
 import type { ReactNode } from "react";
+import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
 import type { CounterComplaint, CounterQcReject } from "@/features/counter/api";
 import { formatDays } from "@/features/counter/lib/format";
@@ -11,6 +17,7 @@ interface PendingSectionProps {
 	children: ReactNode;
 	count: string | null;
 	empty: string;
+	emptyIcon: IconSvgElement;
 	title: string;
 }
 
@@ -18,14 +25,17 @@ const PendingSection = ({
 	children,
 	count,
 	empty,
+	emptyIcon,
 	title,
 }: PendingSectionProps) => (
-	<Section count={count} empty={empty} title={title}>
+	<Section count={count} title={title}>
 		{count ? (
 			<ul className="divide-y divide-border overflow-hidden rounded-lg border bg-card">
 				{children}
 			</ul>
-		) : null}
+		) : (
+			<EmptyState icon={emptyIcon}>{empty}</EmptyState>
+		)}
 	</Section>
 );
 
@@ -41,6 +51,7 @@ export const PendingComplaintsSection = ({
 			complaints.length > 0 ? pluralize(complaints.length, "Complaint") : null
 		}
 		empty="No pending Complaints."
+		emptyIcon={MessageCircleWarningIcon}
 		title="Pending Complaints"
 	>
 		{complaints.map((complaint) => (
@@ -77,6 +88,7 @@ export const PendingQcRejectsSection = ({
 				: null
 		}
 		empty="No pending QC Rejects."
+		emptyIcon={CancelCircleIcon}
 		title="Pending QC Rejects"
 	>
 		{rejects.map((reject) => (

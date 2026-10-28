@@ -3,6 +3,7 @@ import {
 	Archive02Icon,
 	ArchiveRestoreIcon,
 	Coupon01Icon,
+	DiscountTag01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -450,6 +451,7 @@ function CampaignsPage() {
 					</TabsList>
 				</Tabs>
 				<DataTable
+					emptyIcon={DiscountTag01Icon}
 					columns={columns}
 					data={campaigns}
 					filterKey={search.status}

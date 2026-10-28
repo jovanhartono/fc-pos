@@ -1,7 +1,8 @@
-import { Copy01Icon } from "@hugeicons/core-free-icons";
+import { Copy01Icon, Ticket01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -71,7 +72,7 @@ export const VoucherCodesSheet = ({ campaignId }: VoucherCodesSheetProps) => {
 	}
 
 	if (data.codes.length === 0) {
-		return <p className="text-muted-foreground text-body">No codes yet</p>;
+		return <EmptyState icon={Ticket01Icon}>No codes yet</EmptyState>;
 	}
 
 	const isAllRedeemed = data.redeemed === data.total;

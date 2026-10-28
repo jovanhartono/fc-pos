@@ -1,3 +1,5 @@
+import { Wallet01Icon } from "@hugeicons/core-free-icons";
+import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
 import { Badge } from "@/components/ui/badge";
 import type { DayClose } from "@/features/counter/api";
@@ -52,18 +54,28 @@ const MethodRow = ({
 
 interface MethodsSectionProps {
 	data: DayClose;
+	dayWord: string;
 	onOpen: (list: string) => void;
 }
 
-export const MethodsSection = ({ data, onOpen }: MethodsSectionProps) => {
+export const MethodsSection = ({
+	data,
+	dayWord,
+	onOpen,
+}: MethodsSectionProps) => {
 	const groups = groupBySlip(data.methods);
 
+	if (groups.length === 0) {
+		return (
+			<Section title="Payment Method">
+				<EmptyState icon={Wallet01Icon}>No payments {dayWord}.</EmptyState>
+			</Section>
+		);
+	}
+
 	return (
-		<Section title="By Payment Method">
+		<Section title="Payment Method">
 			<div className="overflow-hidden rounded-lg border bg-card">
-				{groups.length === 0 ? (
-					<p className="px-3 py-2.5">No payments this day.</p>
-				) : null}
 				{groups.map((group) => (
 					<div
 						className="border-border border-t first:border-t-0"
@@ -75,6 +87,15 @@ export const MethodsSection = ({ data, onOpen }: MethodsSectionProps) => {
 								isLine={false}
 								label={group.slip}
 								onClick={() => onOpen(`method:${group.slip}`)}
+								payments={group.payments}
+							/>
+						) : group.lines.length === 1 ? (
+							// The slip's total would only repeat its one line's.
+							<MethodRow
+								amount={group.amount}
+								isLine={false}
+								label={`${group.slip} · ${group.lines[0].line}`}
+								onClick={() => onOpen(`method:${group.lines[0].name}`)}
 								payments={group.payments}
 							/>
 						) : (

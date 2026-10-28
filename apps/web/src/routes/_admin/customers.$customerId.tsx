@@ -1,3 +1,4 @@
+import { Search01Icon } from "@hugeicons/core-free-icons";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
@@ -29,7 +30,7 @@ const CustomerDetailPage = () => {
 	const customerQuery = useQuery(customersQueries.detail(id));
 
 	if (!(customerQuery.isPending || customerQuery.data)) {
-		return <EmptyState>Customer not found</EmptyState>;
+		return <EmptyState icon={Search01Icon}>Customer not found</EmptyState>;
 	}
 
 	// A list page like /orders, so the Orders pager stays at the page foot

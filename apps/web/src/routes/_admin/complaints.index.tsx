@@ -1,3 +1,4 @@
+import { MessageCircleWarningIcon } from "@hugeicons/core-free-icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
@@ -157,6 +158,7 @@ const ComplaintsPage = () => {
 					ariaLabel="Search complaints"
 				/>
 				<DataTable
+					emptyIcon={MessageCircleWarningIcon}
 					columns={columns}
 					data={complaints}
 					getRowLink={(complaint) => ({

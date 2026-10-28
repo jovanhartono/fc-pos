@@ -1,4 +1,6 @@
+import { Clock01Icon } from "@hugeicons/core-free-icons";
 import { useMemo, useState } from "react";
+import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
 import type { TurnaroundReport } from "@/features/reports/api";
 import { TurnaroundBreakdown } from "@/features/reports/components/turnaround-breakdown";
@@ -28,7 +30,13 @@ export const TurnaroundSection = ({ report }: TurnaroundSectionProps) => {
 			: indexed.filter(({ item }) => item.categories.includes(rowName));
 	}, [report.items, report.rows, rowName]);
 	if (!all || all.items === 0) {
-		return <Section empty="No Items ready in this range." title="Turnaround" />;
+		return (
+			<Section title="Turnaround">
+				<EmptyState icon={Clock01Icon}>
+					No Items ready in this range.
+				</EmptyState>
+			</Section>
+		);
 	}
 
 	return (

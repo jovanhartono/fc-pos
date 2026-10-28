@@ -1,4 +1,4 @@
-import { Add01Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, GridViewIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -171,6 +171,7 @@ function CategoriesPage() {
 			/>
 			<ListPanel>
 				<DataTable
+					emptyIcon={GridViewIcon}
 					columns={columns}
 					data={data}
 					isCardGrouped

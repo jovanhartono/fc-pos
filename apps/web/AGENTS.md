@@ -17,6 +17,7 @@
 - A list of Orders that isn't a table uses `OrderListRow`: customer name on line 1 (customers remember their name, not their code), the code leading line 2. Codes are Inter with `tabular-nums`, never mono.
 - Hugeicons, free Stroke Rounded set: `<HugeiconsIcon icon={Search01Icon} />`, icons from `@hugeicons/core-free-icons`. Add a `size-*` class only where no parent sizes the svg; Button, Badge, menus and Select already do. Pick the icon that fits the place, not the nearest name match. There is no filled style, so the active tab is shown by its blue colour alone.
 - Row actions are icon-only buttons side by side, no `⋯` menu; a card's status badge sits at the row's end; a card title never truncates.
+- Every empty list or section is `EmptyState` (`components/empty-state.tsx`): an icon naming what's missing (the page's sidebar icon where it has one), a short line, an optional action. It draws its own card, and drops it by itself inside a sheet or a `Card`; pass `isInset` only inside another bordered box (a table, a hand-built card). `DataTable` takes `emptyIcon`. Lines in popups and one-tile-tall form slots stay plain text.
 - Dense filters → dialogs/sheets on small screens; tabs for high-frequency filters.
 - Fonts are hand-written latin-only `@font-face` in `src/index.css` on purpose; don't swap back to a Fontsource import or add latin-ext.
 - Check a UI change in the browser at 1280px and 390px before calling it done.

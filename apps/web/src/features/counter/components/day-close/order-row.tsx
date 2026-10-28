@@ -1,4 +1,6 @@
+import { Invoice01Icon } from "@hugeicons/core-free-icons";
 import type { ReactNode } from "react";
+import { EmptyState } from "@/components/empty-state";
 import { OrderListRow } from "@/features/orders/components/order-list-row";
 import { useOpenNestedOrder } from "@/features/orders/hooks/useOpenNestedOrder";
 import { cn } from "@/lib/utils";
@@ -47,7 +49,7 @@ interface OrderListProps {
 
 export const OrderList = ({ children, emptyText, isEmpty }: OrderListProps) => {
 	if (isEmpty) {
-		return <p className="py-3 text-foreground text-body">{emptyText}</p>;
+		return <EmptyState icon={Invoice01Icon}>{emptyText}</EmptyState>;
 	}
 
 	return <ul className="divide-y divide-border text-body">{children}</ul>;

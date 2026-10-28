@@ -1,4 +1,4 @@
-import { Add01Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, PackageIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -200,6 +200,7 @@ function ProductsPage() {
 			/>
 			<ListPanel>
 				<DataTable
+					emptyIcon={PackageIcon}
 					columns={columns}
 					data={products}
 					isCardGrouped
