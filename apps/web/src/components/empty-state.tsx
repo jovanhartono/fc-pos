@@ -23,7 +23,7 @@ export const EmptyState = ({
 		className={cn(
 			"flex min-h-32 flex-col items-center justify-center gap-2.5 px-3 py-5 text-center text-body text-muted-foreground",
 			!isInset &&
-				"rounded-lg border bg-card in-data-[slot=card-content]:border-0 in-data-[slot=sheet-content]:border-0 in-data-[slot=card-content]:bg-transparent in-data-[slot=sheet-content]:bg-transparent",
+				"rounded-lg border bg-card in-data-[slot=card-content]:border-0 in-data-[slot=sheet-content]:border-0 in-data-[slot=card-content]:bg-transparent in-data-[slot=sheet-content]:bg-transparent in-data-[slot=card-content]:shadow-none in-data-[slot=sheet-content]:shadow-none",
 			className,
 		)}
 	>
