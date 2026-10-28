@@ -349,12 +349,6 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 	const refunded = parseMoney(detail.refunded_amount);
 	const storeId = detail.store_id ?? undefined;
 
-	// Same eligibility filter the POS checkout uses, against the order total.
-	const eligibleCampaigns = useMemo(
-		() => filterEligibleCampaigns(campaignsQuery.data, { grossTotal, storeId }),
-		[campaignsQuery.data, storeId, grossTotal],
-	);
-
 	// The server's own BOGO slot rule, so the preview matches what payment settles.
 	const serviceLines = useMemo(() => {
 		return flattenOrderLines(detail).flatMap((line) =>
@@ -363,6 +357,17 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 				: [],
 		);
 	}, [detail]);
+
+	// Same eligibility filter the POS checkout uses, against the order total.
+	const eligibleCampaigns = useMemo(
+		() =>
+			filterEligibleCampaigns(campaignsQuery.data, {
+				grossTotal,
+				lines: serviceLines,
+				storeId,
+			}),
+		[campaignsQuery.data, storeId, grossTotal, serviceLines],
+	);
 
 	const pricing = useMemo(
 		() =>
@@ -438,6 +443,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 										shouldValidate: true,
 									})
 								}
+								lines={serviceLines}
 								storeId={storeId}
 								subtotal={grossTotal}
 							/>

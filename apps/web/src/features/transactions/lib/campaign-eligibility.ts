@@ -8,7 +8,15 @@ import {
 // listed, and no Store yet means no Campaigns.
 export const filterEligibleCampaigns = <C extends CampaignEligibilityInput>(
 	campaigns: C[] | undefined,
-	{ grossTotal, storeId }: { grossTotal: number; storeId: number | undefined },
+	{
+		grossTotal,
+		lines,
+		storeId,
+	}: {
+		grossTotal: number;
+		lines: { service_id: number }[];
+		storeId: number | undefined;
+	},
 ): C[] => {
 	if (storeId === undefined) {
 		return [];
@@ -17,7 +25,11 @@ export const filterEligibleCampaigns = <C extends CampaignEligibilityInput>(
 	return (campaigns ?? []).filter(
 		(campaign) =>
 			campaign.redemption_mode !== "code" &&
-			campaignIneligibilityReason(campaign, { now, grossTotal, storeId }) ===
-				null,
+			campaignIneligibilityReason(campaign, {
+				now,
+				grossTotal,
+				lines,
+				storeId,
+			}) === null,
 	);
 };

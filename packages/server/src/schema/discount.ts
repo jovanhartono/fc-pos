@@ -63,28 +63,34 @@ export interface StackedDiscount<T extends CampaignDiscountInput> {
   total: number;
 }
 
+// The eligibility check and the discount share this, so a Campaign never
+// shows as Usable while it would settle at Rp 0.
+export function bogoFreeCount(
+  {
+    buy_quantity,
+    free_quantity,
+  }: Pick<CampaignDiscountInput, "buy_quantity" | "free_quantity">,
+  eligibleCount: number
+): number {
+  const buy = buy_quantity ?? 0;
+  const free = free_quantity ?? 0;
+  if (buy < 1 || free < 1) {
+    return 0;
+  }
+  return Math.floor(eligibleCount / (buy + free)) * free;
+}
+
 function computeBogoContribution(
   campaign: CampaignDiscountInput,
   lines: DiscountLine[]
 ): number {
-  const buy = campaign.buy_quantity ?? 0;
-  const free = campaign.free_quantity ?? 0;
-  if (buy < 1 || free < 1) {
-    return 0;
-  }
-
   const eligibleIds = new Set(campaign.eligible_service_ids ?? []);
-  if (eligibleIds.size === 0) {
-    return 0;
-  }
-
   const eligiblePrices = lines
     .filter((line) => eligibleIds.has(line.service_id))
     .map((line) => line.price)
     .sort((a, b) => a - b);
 
-  const groupSize = buy + free;
-  const freeCount = Math.floor(eligiblePrices.length / groupSize) * free;
+  const freeCount = bogoFreeCount(campaign, eligiblePrices.length);
   if (freeCount === 0) {
     return 0;
   }

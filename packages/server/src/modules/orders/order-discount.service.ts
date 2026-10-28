@@ -55,6 +55,7 @@ export async function resolveDiscount(
       ? await getUsableCampaigns(executor, {
           campaignIds,
           grossTotal,
+          lines,
           storeId,
           storeCode,
         })
@@ -62,7 +63,12 @@ export async function resolveDiscount(
 
   const resolvedVouchers = await Promise.all(
     voucherCodes.map((code) =>
-      resolveVoucherCode(executor, code, { storeId, storeCode, grossTotal })
+      resolveVoucherCode(executor, code, {
+        storeId,
+        storeCode,
+        grossTotal,
+        lines,
+      })
     )
   );
 
