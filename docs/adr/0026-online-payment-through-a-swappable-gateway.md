@@ -8,9 +8,9 @@ The shop runs on an individual (perorangan) merchant account, so the gateway has
 
 **Why DOKU's counter QRIS is DOKU's own page:** DOKU's direct QRIS API needs an RSA key pair plus a merchant and terminal ID from a separate QRIS registration, and several details are not confirmed in its docs. DOKU Checkout limited to QRIS needs only the Client ID and secret and can be tested in sandbox today. Midtrans returns a QR image we show in the dialog.
 
-**Why one PaymentMethod per gateway:** the Day close checks money against settlement slips. Gateway money settles through the gateway's own report, not a card terminal, so it gets its own line. An admin links one PaymentMethod to each gateway; charging is refused until that link exists and is active.
+**Why one PaymentMethod per gateway:** the Day close checks money against settlement slips. Gateway money settles through the gateway's own report, not a card terminal, so it gets its own line. An admin links one PaymentMethod to each gateway; charging is refused until that link exists and is active. Mark as paid and POS checkout never offer that PaymentMethod, so it only ever carries money the gateway confirmed.
 
-**Why a charge can end in "needs review":** the money is already taken when a notice arrives. If the Order was meanwhile paid in cash, cancelled, or its total changed, or a Voucher in the charge was spent elsewhere, the Order is left alone and the charge is flagged for an admin to refund or settle by hand. Voucher claims happen only when the money arrives, never when the QR is shown.
+**Why a charge can end in "needs review":** the money is already taken when a notice arrives. If the Order was meanwhile paid in cash, cancelled, or its total changed, or a Voucher in the charge was spent elsewhere, the Order is left alone and the charge is flagged for an admin to refund by hand from the gateway's dashboard. Voucher claims happen only when the money arrives, never when the QR is shown.
 
 ## Considered options
 

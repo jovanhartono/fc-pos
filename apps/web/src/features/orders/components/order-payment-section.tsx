@@ -350,10 +350,14 @@ const PaymentMethodField = () => {
 	const paymentMethods = Array.isArray(paymentMethodsQuery.data)
 		? paymentMethodsQuery.data
 		: [];
-	const items = paymentMethods.map((method) => ({
-		value: String(method.id),
-		label: method.name,
-	}));
+	// The gateway's PaymentMethod is booked only when its money arrives, so a
+	// cashier can't tick it for a QRIS the Customer never paid.
+	const items = paymentMethods
+		.filter((method) => !method.gateway)
+		.map((method) => ({
+			value: String(method.id),
+			label: method.name,
+		}));
 	if (gateway && isOnlinePaymentReady(gatewayQuery.data)) {
 		items.push({
 			value: QRIS_METHOD,

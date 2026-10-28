@@ -47,10 +47,13 @@ export const CheckoutPaymentStep = () => {
 
 	const paymentMethodOptions = useMemo<ComboboxOption[]>(
 		() =>
-			(paymentMethodsQuery.data ?? []).map((paymentMethod) => ({
-				value: String(paymentMethod.id),
-				label: paymentMethod.name,
-			})),
+			// Gateway money arrives through a QRIS on the Order, never a tap here.
+			(paymentMethodsQuery.data ?? [])
+				.filter((paymentMethod) => !paymentMethod.gateway)
+				.map((paymentMethod) => ({
+					value: String(paymentMethod.id),
+					label: paymentMethod.name,
+				})),
 		[paymentMethodsQuery.data],
 	);
 
