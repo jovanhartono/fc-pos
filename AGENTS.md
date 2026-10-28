@@ -27,7 +27,8 @@ The server reads from `process.env`:
 - `DATABASE_URL` - Neon PostgreSQL connection string, set per Vercel environment (Production/Preview/Development)
 - `STORAGE_PREFIX` - `dev/` or `prod/`, set per Vercel environment alongside `DATABASE_URL`
 - `JWT_SECRET` - Secret key for JWT authentication
-- `CDN_BASE_URL` - Public base for stored photo keys
+- `CDN_BASE_URL` - Public base for stored photo keys: `https://cdn.fresclean.id` in Production, `https://cdn-dev.fresclean.id` in Preview
+- `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_BUCKET` / `S3_REGION` (`auto`) / `S3_ENDPOINT` - the R2 bucket for photos, set per Vercel environment. Without `S3_ENDPOINT`, Bun's client talks to AWS and every upload fails
 - `CRON_SECRET` - Bearer secret Vercel cron sends to `/api/internal/*`; unset answers 401 to everyone
 - `SENTRY_DSN` - Optional; unset turns error reporting off
 
@@ -35,9 +36,11 @@ Laptop-only, for the drizzle CLI: `DATABASE_URL_DEV` / `DATABASE_URL_PROD`.
 
 ## Deployment Regions
 
-Both services run in Singapore — `ap-southeast-1`, Vercel region `sin1` — as does Neon. Photos live in S3 `ap-southeast-3` (Jakarta), served via `https://cdn.fresclean.id`.
+Both services run in Singapore — `ap-southeast-1`, Vercel region `sin1` — as does Neon. Photos live in Cloudflare R2 (APAC), served via `https://cdn.fresclean.id` (moved off S3 and CloudFront on 2026-10-28).
 
-Dev and production share that bucket, so every key is namespaced by the environment that wrote it: `dev/orders/…` or `prod/orders/…`, from `STORAGE_ENV_PREFIX` in `src/utils/s3.ts`. It reads `STORAGE_PREFIX`, set per Vercel environment alongside `DATABASE_URL` — the two must agree, or the photo sweep judges one environment's bucket against the other's database. Seed data has its own `seed/` prefix and is outside both.
+Each environment has its own bucket, `fresclean-prod` and `fresclean-dev`, and an R2 token that reaches only that bucket, so a laptop can't touch a Complaint's evidence. Keys still carry the environment that wrote them: `dev/orders/…` or `prod/orders/…`, from `STORAGE_ENV_PREFIX` in `src/utils/s3.ts`. It reads `STORAGE_PREFIX`, set per Vercel environment alongside `DATABASE_URL` — the two must agree, or the photo sweep judges one environment's bucket against the other's database. Seed rows point at `seed/` keys that were never uploaded, so seeded photos show broken.
+
+Indonesian ISPs block `*.r2.dev`, so the bucket's r2.dev URL stays off; photos go through the custom domains and uploads through `<account>.r2.cloudflarestorage.com`. Cloudflare keeps a photo for a year at the edge and in the browser (`immutable`), since a key's photo never changes; errors aren't cached.
 
 The API's region is pinned by the top-level `"regions": ["sin1"]` in `vercel.json` (`services.*` takes no `regions` key; without it Vercel falls back to `iad1`, a cross-region hop to Neon on every order).
 
@@ -60,7 +63,7 @@ Vercel may skip or repeat a run; both jobs are safe either way.
 
 Cron log lines carry `region=iad1`: that is where Vercel's scheduler enters, not where the job runs. The `(sin1)` at the end of each job's own line is `VERCEL_REGION` from inside the function (checked on prod 2026-10-26).
 
-- `/api/internal/photo-sweep` — deletes photos no order points at, left behind when the counter uploads and then abandons a batch. Checks only its own environment's prefix and skips files under 24h old. Needs `s3:ListBucket` on the bucket (the presign rights aren't enough), or every run fails with AccessDenied.
+- `/api/internal/photo-sweep` — deletes photos no order points at, left behind when the counter uploads and then abandons a batch. Checks only its own environment's prefix and skips files under 24h old. Its R2 token needs Object Read & Write, which includes listing, or every run fails with AccessDenied.
 - `/api/internal/close-open-shifts` — closes yesterday's Auto-closed Shifts at 00:00 Jakarta (ADR-0025). A skipped run locks nobody out: the next Clock in or Clock out closes it the same way.
 
 ## RPC / Type Sharing
