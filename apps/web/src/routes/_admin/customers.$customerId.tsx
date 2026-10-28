@@ -1,9 +1,16 @@
-import { Search01Icon } from "@hugeicons/core-free-icons";
+import { ArrowLeft02Icon, Search01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	Link,
+	redirect,
+	useNavigate,
+} from "@tanstack/react-router";
 import { z } from "zod";
 import { EmptyState } from "@/components/empty-state";
 import { ListPanel } from "@/components/list-panel";
+import { Button } from "@/components/ui/button";
 import { customersQueries } from "@/features/customers/api";
 import {
 	CUSTOMER_ORDERS_PAGE_SIZE,
@@ -15,11 +22,32 @@ import {
 } from "@/features/customers/components/customer-summary-strip";
 import { ordersQueries } from "@/features/orders/api";
 import { CONTENT_FADE } from "@/lib/content-fade";
+import { ensureOrNotFound } from "@/lib/server-error";
 import { getCurrentUser } from "@/stores/auth-store";
 
 const customerDetailSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
 });
+
+// An old or mistyped link; Retry can't bring the Customer back, so the way
+// out is the list.
+const CustomerNotFound = () => (
+	<EmptyState
+		action={
+			<Button
+				icon={<HugeiconsIcon className="size-4" icon={ArrowLeft02Icon} />}
+				nativeButton={false}
+				render={<Link search={{ page: 1 }} to="/customers" />}
+				variant="outline"
+			>
+				Back to Customers
+			</Button>
+		}
+		icon={Search01Icon}
+	>
+		Customer not found.
+	</EmptyState>
+);
 
 const CustomerDetailPage = () => {
 	const { customerId } = Route.useParams();
@@ -30,7 +58,7 @@ const CustomerDetailPage = () => {
 	const customerQuery = useQuery(customersQueries.detail(id));
 
 	if (!(customerQuery.isPending || customerQuery.data)) {
-		return <EmptyState icon={Search01Icon}>Customer not found</EmptyState>;
+		return <CustomerNotFound />;
 	}
 
 	// A list page like /orders, so the Orders pager stays at the page foot
@@ -79,18 +107,21 @@ export const Route = createFileRoute("/_admin/customers/$customerId")({
 			return;
 		}
 
-		await Promise.all([
-			context.queryClient.ensureQueryData(customersQueries.detail(id)),
-			context.queryClient.ensureQueryData(
-				ordersQueries.list({
-					customer_id: id,
-					limit: CUSTOMER_ORDERS_PAGE_SIZE,
-					offset: (deps.page - 1) * CUSTOMER_ORDERS_PAGE_SIZE,
-				}),
-			),
-		]);
+		await ensureOrNotFound(
+			Promise.all([
+				context.queryClient.ensureQueryData(customersQueries.detail(id)),
+				context.queryClient.ensureQueryData(
+					ordersQueries.list({
+						customer_id: id,
+						limit: CUSTOMER_ORDERS_PAGE_SIZE,
+						offset: (deps.page - 1) * CUSTOMER_ORDERS_PAGE_SIZE,
+					}),
+				),
+			]),
+		);
 	},
 	component: CustomerDetailPage,
+	notFoundComponent: CustomerNotFound,
 	// Past a second, the page draws its own skeleton, not the generic placeholder.
 	pendingComponent: CustomerDetailPage,
 	codeSplitGroupings: [["component", "pendingComponent"]],

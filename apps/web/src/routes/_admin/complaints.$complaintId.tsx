@@ -1,5 +1,6 @@
 import { isInWorkshop, isReworkedRound } from "@fresclean/api/schema";
 import {
+	ArrowLeft02Icon,
 	ArrowRight01Icon,
 	ReloadIcon,
 	Search01Icon,
@@ -20,6 +21,7 @@ import { getComplaintOutcome } from "@/features/complaints/lib/format";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import { CONTENT_FADE } from "@/lib/content-fade";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
+import { ensureOrNotFound } from "@/lib/server-error";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
@@ -36,6 +38,29 @@ const Fact = ({ label, children }: FactProps) => (
 		<dt className="text-muted-foreground text-footnote">{label}</dt>
 		<dd className="grid min-w-0 gap-0.5 text-body">{children}</dd>
 	</div>
+);
+
+// An old or mistyped link; Retry can't bring the Complaint back, so the way
+// out is the list.
+const ComplaintNotFound = () => (
+	<>
+		<PageHeader title="Complaint" />
+		<EmptyState
+			action={
+				<Button
+					icon={<HugeiconsIcon className="size-4" icon={ArrowLeft02Icon} />}
+					nativeButton={false}
+					render={<Link search={{ page: 1 }} to="/complaints" />}
+					variant="outline"
+				>
+					Back to Complaints
+				</Button>
+			}
+			icon={Search01Icon}
+		>
+			Complaint not found.
+		</EmptyState>
+	</>
 );
 
 const ComplaintDetailPage = () => {
@@ -56,12 +81,7 @@ const ComplaintDetailPage = () => {
 	}
 
 	if (!detail?.orderService?.order) {
-		return (
-			<>
-				<PageHeader title="Complaint" />
-				<EmptyState icon={Search01Icon}>Complaint not found</EmptyState>
-			</>
-		);
+		return <ComplaintNotFound />;
 	}
 
 	const subject = detail.orderService;
@@ -280,9 +300,12 @@ export const Route = createFileRoute("/_admin/complaints/$complaintId")({
 			return;
 		}
 
-		await context.queryClient.ensureQueryData(complaintsQueries.detail(id));
+		await ensureOrNotFound(
+			context.queryClient.ensureQueryData(complaintsQueries.detail(id)),
+		);
 	},
 	component: ComplaintDetailPage,
+	notFoundComponent: ComplaintNotFound,
 	// Past a second, the page draws its own skeleton, not the generic placeholder.
 	pendingComponent: ComplaintDetailPage,
 	codeSplitGroupings: [["component", "pendingComponent"]],
