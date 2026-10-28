@@ -1,9 +1,10 @@
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { ArrowRight01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { EmptyState } from "@/components/empty-state";
 import {
 	Tooltip,
 	TooltipContent,
@@ -314,6 +315,7 @@ const WorkerList = ({ rows, now, onOpen, isInsideCard }: WorkerListProps) => {
 	const columns = useMemo(() => columnsFor(rows, now), [rows, now]);
 	return (
 		<DataTable
+			emptyIcon={UserGroupIcon}
 			columns={columns}
 			data={rows}
 			onRowOpen={onOpen}
@@ -367,9 +369,7 @@ export const WorkersTable = ({
 	// owner closed must not pop open because another overtook it.
 	const [firstStoreId] = useState(() => groupByStore(workers)[0]?.store_id);
 	if (workers.length === 0) {
-		return (
-			<p className="text-muted-foreground text-body">No worker activity</p>
-		);
+		return <EmptyState icon={UserGroupIcon}>No worker activity</EmptyState>;
 	}
 
 	if (!isAllStores) {

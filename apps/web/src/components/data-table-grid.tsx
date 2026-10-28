@@ -3,7 +3,7 @@ import {
 	ArrowUp01Icon,
 	UnfoldMoreIcon,
 } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { Link, type LinkProps } from "@tanstack/react-router";
 import {
 	flexRender,
@@ -13,6 +13,7 @@ import {
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { DataTableFeatures } from "@/components/data-table-features";
 import type { ColumnWidth } from "@/components/data-table-meta";
+import { EmptyState } from "@/components/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
@@ -33,6 +34,7 @@ interface DataTableGridProps<TData extends RowData> {
 	resultSet?: string;
 	skeletonRowCount?: number;
 	skeletonLines?: 1 | 2 | "wrapped";
+	emptyIcon: IconSvgElement;
 	emptyMessage: string;
 	sortable: boolean;
 	getRowLink?: (row: TData) => LinkProps;
@@ -66,6 +68,7 @@ export const DataTableGrid = <TData extends RowData>({
 	resultSet,
 	skeletonRowCount = SKELETON_ROW_COUNT,
 	skeletonLines = 2,
+	emptyIcon,
 	emptyMessage,
 	sortable,
 	getRowLink,
@@ -335,12 +338,14 @@ export const DataTableGrid = <TData extends RowData>({
 							</TableRow>
 						))
 					) : (
-						<TableRow>
+						<TableRow className="hover:bg-transparent">
 							<TableCell
 								colSpan={columnCount}
-								className="h-20 text-center text-body md:h-24"
+								className="whitespace-normal p-0"
 							>
-								{emptyMessage}
+								<EmptyState icon={emptyIcon} isInset>
+									{emptyMessage}
+								</EmptyState>
 							</TableCell>
 						</TableRow>
 					)}

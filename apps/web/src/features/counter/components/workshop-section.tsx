@@ -1,8 +1,10 @@
 import {
 	ArrowRight01Icon,
 	InformationCircleIcon,
+	TaskDone01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
 import {
 	Popover,
@@ -150,7 +152,6 @@ export const WorkshopSection = ({
 					? `${pluralize(workshop.queued, "Item")} queued · ${workshop.in_progress} in progress · ${workshop.waiting_qc} waiting QC`
 					: null
 			}
-			empty="Nothing waiting."
 			title="Ready Estimate"
 		>
 			{categories.length > 0 ? (
@@ -158,7 +159,9 @@ export const WorkshopSection = ({
 					<CategoryBox categories={cleaning} />
 					<CategoryBox categories={afterClean} heading="After the Clean" />
 				</>
-			) : null}
+			) : (
+				<EmptyState icon={TaskDone01Icon}>Nothing waiting.</EmptyState>
+			)}
 		</Section>
 	);
 };

@@ -1,4 +1,4 @@
-import { Add01Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Wallet01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -162,6 +162,7 @@ function PaymentMethodsPage() {
 			/>
 			<ListPanel>
 				<DataTable
+					emptyIcon={Wallet01Icon}
 					columns={columns}
 					data={paymentMethods}
 					isCardGrouped

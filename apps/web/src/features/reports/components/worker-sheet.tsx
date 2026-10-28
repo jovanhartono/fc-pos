@@ -1,8 +1,13 @@
-import { LinkSquare02Icon } from "@hugeicons/core-free-icons";
+import {
+	CancelCircleIcon,
+	LinkSquare02Icon,
+	MessageCircleWarningIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useCallback } from "react";
+import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
@@ -195,7 +200,7 @@ const RejectCards = ({ target, rejects }: RejectCardsProps) => {
 	const openWorkerSheet = useOpenWorkerSheet();
 	if (rejects.length === 0) {
 		return (
-			<p className="text-muted-foreground text-body">No QC rejects in range.</p>
+			<EmptyState icon={CancelCircleIcon}>No QC rejects in range.</EmptyState>
 		);
 	}
 	return (
@@ -253,7 +258,9 @@ const ComplaintCards = ({ complaints }: ComplaintCardsProps) => {
 	const leaveSheet = useLeaveSheetLink();
 	if (complaints.length === 0) {
 		return (
-			<p className="text-muted-foreground text-body">No Complaints in range.</p>
+			<EmptyState icon={MessageCircleWarningIcon}>
+				No Complaints in range.
+			</EmptyState>
 		);
 	}
 	return (

@@ -1,3 +1,4 @@
+import { Task01Icon } from "@hugeicons/core-free-icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { DataTable } from "@/components/data-table";
@@ -145,6 +146,7 @@ export const AgingQueuePanel = ({ storeId }: AgingQueuePanelProps) => {
 			</div>
 			<div className="lg:overflow-hidden lg:rounded-lg lg:bg-card">
 				<DataTable
+					emptyIcon={Task01Icon}
 					columns={columns}
 					data={items}
 					isLoading={query.isPending}

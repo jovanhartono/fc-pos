@@ -1,4 +1,6 @@
+import { Wallet01Icon } from "@hugeicons/core-free-icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { EmptyState } from "@/components/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
@@ -104,7 +106,7 @@ export const PaymentsPanel = ({
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					{(data?.summary.methods ?? []).length === 0 ? (
-						<p className="text-body text-muted-foreground">No paid orders</p>
+						<EmptyState icon={Wallet01Icon}>No paid orders</EmptyState>
 					) : (
 						<div className="grid grid-cols-1 gap-3">
 							{data?.summary.methods.map((m, idx) => (

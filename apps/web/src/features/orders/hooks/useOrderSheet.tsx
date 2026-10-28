@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { ordersQueries } from "@/features/orders/api";
 import { OrderDetailView } from "@/features/orders/components/order-detail-view";
 import { OrderWalk } from "@/features/orders/components/order-walk";
-import { isBackNavigation } from "@/lib/back-navigation";
 import { useOrderWalkStore } from "@/stores/order-walk-store";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -13,7 +12,7 @@ const NEIGHBOUR_STALE_TIME = 30_000;
 interface UseOrderSheetOptions {
 	// The list has loaded, so the sheet can count the Order's place in it.
 	isReady: boolean;
-	onClose: () => void;
+	onClose: () => Promise<void>;
 	onSelect: (orderId: number) => void;
 	// The Order in the URL; undefined keeps the sheet shut.
 	openId?: number;
@@ -52,8 +51,9 @@ export const useOrderSheet = ({
 		const code = orders.find((order) => order.id === openId)?.code ?? "Order";
 		useSheet.getState().openSheet({
 			...orderSheetPayload(openId, code),
-			actions: <OrderWalk onSelect={onSelect} openId={openId} />,
-			isInstant: isBackNavigation(),
+			actions: (
+				<OrderWalk onClose={onClose} onSelect={onSelect} openId={openId} />
+			),
 			isRestoredOnBack: true,
 			onClose,
 		});

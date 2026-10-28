@@ -4,6 +4,7 @@ import {
 	ArrowLeftRightIcon,
 	Camera01Icon,
 	CheckmarkCircle02Icon,
+	ShoppingCart01Icon,
 	ViewIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -80,7 +81,7 @@ export const CheckoutItemsStep = () => {
 
 			<div className="grid gap-3">
 				{productRows.length === 0 && itemRows.length === 0 ? (
-					<EmptyState>Cart is empty.</EmptyState>
+					<EmptyState icon={ShoppingCart01Icon}>Cart is empty.</EmptyState>
 				) : null}
 
 				{productRows.map((line) => (

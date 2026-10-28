@@ -1,5 +1,9 @@
 import { isInWorkshop, isReworkedRound } from "@fresclean/api/schema";
-import { ArrowRight01Icon, ReloadIcon } from "@hugeicons/core-free-icons";
+import {
+	ArrowRight01Icon,
+	ReloadIcon,
+	Search01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -55,7 +59,7 @@ const ComplaintDetailPage = () => {
 		return (
 			<>
 				<PageHeader title="Complaint" />
-				<EmptyState>Complaint not found</EmptyState>
+				<EmptyState icon={Search01Icon}>Complaint not found</EmptyState>
 			</>
 		);
 	}

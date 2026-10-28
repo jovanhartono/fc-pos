@@ -1,5 +1,7 @@
+import { Clock01Icon } from "@hugeicons/core-free-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { EmptyState } from "@/components/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	type FetchShiftsOverviewQuery,
@@ -184,7 +186,7 @@ interface ShiftDaysProps {
 
 const ShiftDays = ({ byDay }: ShiftDaysProps) => {
 	if (byDay.size === 0) {
-		return <p className="px-3 py-2.5 text-body">No Shifts in this range.</p>;
+		return <EmptyState icon={Clock01Icon}>No Shifts in this range.</EmptyState>;
 	}
 	return (
 		<ul className={CONTENT_FADE}>
