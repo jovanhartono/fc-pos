@@ -16,6 +16,7 @@ import {
 } from "@/features/orders/components/photo-lightbox";
 import { SinglePhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
+import { photoTileUrl } from "@/features/orders/utils/photo-tile";
 import { orderDropoffPhotoUploader } from "@/features/orders/utils/photo-upload";
 
 type PickupEvent = OrderDetail["pickup_events"][number];
@@ -224,7 +225,7 @@ const DropoffPhoto = ({ capturedAt, imageUrl, orderId }: DropoffPhotoProps) => {
 					decoding="async"
 					height={480}
 					loading="lazy"
-					src={imageUrl}
+					src={photoTileUrl(imageUrl)}
 					width={480}
 				/>
 			</button>

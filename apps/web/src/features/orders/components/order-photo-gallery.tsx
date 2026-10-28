@@ -6,6 +6,7 @@ import {
 	PhotoLightbox,
 	type PhotoLightboxItem,
 } from "@/features/orders/components/photo-lightbox";
+import { photoTileUrl } from "@/features/orders/utils/photo-tile";
 import { cn } from "@/lib/utils";
 
 export type OrderPhotoGalleryItem = {
@@ -81,7 +82,7 @@ export function OrderPhotoGallery({
 								decoding="async"
 								height={480}
 								loading="lazy"
-								src={item.image_url}
+								src={photoTileUrl(item.image_url)}
 								width={480}
 							/>
 						</button>
