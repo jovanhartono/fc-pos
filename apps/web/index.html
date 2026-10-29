@@ -3,6 +3,30 @@
 
 <head>
   <meta charset="UTF-8" />
+  <!-- A screen holding an index.html from before a deploy asks for an app file
+       that's gone and stays white. Reload once by itself; if that doesn't fix
+       it, give staff a Reload button instead of a blank screen. -->
+  <script>
+    addEventListener("error", (event) => {
+      const script = event.target;
+      if (!(script instanceof HTMLScriptElement) || script.type !== "module") {
+        return;
+      }
+      const key = `reloaded-for:${script.src}`;
+      try {
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, "1");
+          location.reload();
+          return;
+        }
+      } catch {}
+      document.body.style.margin = "0";
+      document.body.innerHTML = `<main style="display:grid;place-content:center;justify-items:center;gap:12px;min-height:100dvh;font:15px system-ui,sans-serif">
+        <p style="margin:0">Couldn't load the app.</p>
+        <button onclick="location.reload()" style="height:44px;padding:0 20px;border:0;border-radius:10px;background:#007aff;color:#fff;font:inherit;font-weight:600">Reload</button>
+      </main>`;
+    }, true);
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Fresclean POS</title>
