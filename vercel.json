@@ -8,7 +8,9 @@
       "framework": "vite",
       "buildCommand": "cd ../.. && bun run type-check && bun run build",
       "outputDirectory": "dist",
-      "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+      "rewrites": [
+        { "source": "/((?!assets/).*)", "destination": "/index.html" }
+      ]
     },
     "api": {
       "root": "packages/server",
