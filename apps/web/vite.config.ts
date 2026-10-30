@@ -64,6 +64,9 @@ export default defineConfig({
 				],
 			},
 			workbox: {
+				// Deploys before #206 left some devices with index.html saved as an app
+				// file, breaking that page. A new name makes every device fetch fresh.
+				cacheId: "fc-pos-2026-10-30",
 				globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2}"],
 				// iOS reads the launch screens from the head links as the app opens,
 				// never through the worker. Precaching them would add 400KB to what
