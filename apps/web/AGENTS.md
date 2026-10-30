@@ -66,7 +66,7 @@ Every saved/uploaded image rendered anywhere must be clickable and open in `Phot
 
 - Zustand for global UI (`useDialog`, `useSheet`, `useAuthStore`), read through selectors, never a destructured whole store: `useDialog(s => s.closeDialog)`. `persist` for reload-surviving data.
 - React context for theme, sidebar and scoped subtree state. Past 5–6 drilled props, reach for context or a store.
-- The service worker stays (push is planned) in `registerType: "prompt"` mode with an "Update ready" toast; don't switch to auto-update or force a reload.
+- The service worker stays (push is planned) in `registerType: "autoUpdate"` mode: a new build takes over as soon as it's downloaded, with no toast. Never import `virtual:pwa-register`, which reloads the page on takeover and wipes a cashier mid-order.
 
 ## Dialogs
 
