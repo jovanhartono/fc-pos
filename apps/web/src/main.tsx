@@ -39,6 +39,11 @@ const ReactQueryDevtools = import.meta.env.DEV
 
 const queryClient = new QueryClient({
 	defaultOptions: {
+		queries: {
+			// The sidebar preloads every page once, when the app opens; at the 5-minute
+			// default opening Shifts later got the skeleton anyway.
+			gcTime: 60 * 60 * 1000,
+		},
 		mutations: {
 			// A payment tapped while offline must fail now, not fire minutes later
 			// when the connection returns and the counter has moved on.
