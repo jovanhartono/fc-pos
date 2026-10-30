@@ -289,6 +289,9 @@ export const ordersQueries = {
 	queue: (query?: FetchOrderServiceQueueQuery) =>
 		infiniteQueryOptions({
 			queryKey: ordersKeys.queue(query),
+			// A worker who scrolled deep and came back later would refetch every
+			// page in turn; dropping it sooner reloads just the first.
+			gcTime: 5 * 60 * 1000,
 			initialPageParam: 0,
 			queryFn: ({ pageParam }) =>
 				fetchOrderServiceQueuePage({ ...query, offset: pageParam }),

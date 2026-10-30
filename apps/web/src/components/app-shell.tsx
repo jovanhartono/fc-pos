@@ -187,6 +187,7 @@ const HeaderBackButton = ({ to }: { to: LinkProps["to"] }) => {
 function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
 	const { openMobile, closeMobileThen } = useSidebar();
 	const navigate = useNavigate();
+	const router = useRouter();
 
 	return (
 		<SidebarMenu>
@@ -197,6 +198,11 @@ function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
 							<Link
 								to={item.to}
 								preload="viewport"
+								// An admin back at the desk after an hour away still gets the page
+								// instantly; viewport preload ran once, when the app opened.
+								onMouseEnter={() => {
+									router.preloadRoute({ to: item.to }).catch(() => undefined);
+								}}
 								className="text-foreground"
 								onClick={(event) => {
 									if (!openMobile) {
