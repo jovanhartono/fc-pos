@@ -22,6 +22,22 @@ const getErrorMessage = (error: unknown): string => {
 	}
 };
 
+// A plain reload keeps the old service worker, so a page broken by its saved
+// files stays broken; let a waiting update take over first, as "Update ready" does.
+const handleRetry = async () => {
+	const registration = await navigator.serviceWorker?.getRegistration();
+	if (!registration?.waiting) {
+		window.location.reload();
+		return;
+	}
+	navigator.serviceWorker.addEventListener(
+		"controllerchange",
+		() => window.location.reload(),
+		{ once: true },
+	);
+	registration.waiting.postMessage({ type: "SKIP_WAITING" });
+};
+
 const ErrorCard = ({ error }: ErrorComponentProps) => {
 	const message = getErrorMessage(error);
 	return (
@@ -41,7 +57,7 @@ const ErrorCard = ({ error }: ErrorComponentProps) => {
 			) : null}
 			<div className="mt-1 flex flex-wrap justify-center gap-2">
 				<Button
-					onClick={() => window.location.reload()}
+					onClick={() => void handleRetry()}
 					icon={<HugeiconsIcon icon={ReloadIcon} />}
 				>
 					Retry
