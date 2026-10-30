@@ -11,9 +11,9 @@ export default defineConfig({
 		react(),
 		tailwindcss(),
 		VitePWA({
-			// A screen open during a deploy keeps its build until someone taps
-			// Reload. Swapping builds at once deleted files that screen still needed.
-			registerType: "prompt",
+			// A new build takes over without a reload, so a cashier's cart survives. A
+			// screen left open since a deploy shows the error page's Retry on its next new screen.
+			registerType: "autoUpdate",
 			// Launch screens are generated at build time from pwa-assets.config.ts,
 			// so none of them are committed. The theme-color metas are already
 			// hand-written in index.html per colour scheme; let those stand.
