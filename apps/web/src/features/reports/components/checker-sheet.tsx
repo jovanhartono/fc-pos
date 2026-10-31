@@ -15,12 +15,12 @@ import { QcPerDayChart } from "@/features/reports/components/qc-per-day-chart";
 import {
 	DETAIL_CLASS,
 	ROW_CLASS,
-	sheetRangeLabel,
 	shortDay,
 } from "@/features/reports/components/worker-sheet";
 import {
 	numberFormatter,
 	oneDecimalFormatter,
+	rangeLabel,
 } from "@/features/reports/utils/format";
 import { outOf } from "@/features/reports/utils/workers-report";
 import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
@@ -42,7 +42,7 @@ export const useOpenCheckerSheet = () => {
 		(target: CheckerSheetTarget) =>
 			openSheet({
 				title: target.row.user_name,
-				description: `Checker · ${sheetRangeLabel(target.from, target.to)}`,
+				description: `Checker · ${rangeLabel(target.from, target.to)}`,
 				size: "wide",
 				content: () => <CheckerSheetContent target={target} />,
 			}),
@@ -127,7 +127,11 @@ const CheckerSheetContent = ({ target }: CheckerSheetContentProps) => {
 			</KpiRow>
 
 			<Section title="Checks Each Day">
-				<QcPerDayChart rows={row.days} bucket={target.bucket} />
+				<QcPerDayChart
+					rows={row.days}
+					bucket={target.bucket}
+					caption={rangeLabel(target.from, target.to)}
+				/>
 			</Section>
 
 			<Section title="QC Rejects" count={numberFormatter.format(row.rejects)}>

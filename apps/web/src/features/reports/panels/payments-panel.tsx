@@ -6,6 +6,7 @@ import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
+import { rangeAxis, sumHead } from "@/features/reports/components/report-chart";
 import {
 	csvFilename,
 	downloadCsv,
@@ -13,10 +14,15 @@ import {
 } from "@/features/reports/utils/csv";
 import {
 	compactMoney,
+	compactNumber,
 	numberFormatter,
 	percentFormatter,
+	rangeLabel,
 } from "@/features/reports/utils/format";
-import { topFourColor } from "@/features/reports/utils/palette";
+import {
+	CHART_OTHER_COLOR,
+	topFourColor,
+} from "@/features/reports/utils/palette";
 import { staleFade } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
@@ -40,13 +46,30 @@ export const PaymentsPanel = ({
 	});
 	const data = query.data;
 
-	// Methods arrive biggest first, in the same order as the Mix share list, so
-	// the list doubles as the chart's key.
-	const series = (data?.method_keys ?? []).map((m, idx) => ({
+	// Methods arrive biggest first, so the top four get colours and the rest
+	// share one grey Other.
+	const rows = data?.series ?? [];
+	const methods = data?.method_keys ?? [];
+	const amount = (row: (typeof rows)[number], key: string) =>
+		Number(row[key] ?? 0);
+	const series = methods.slice(0, 4).map((m, idx) => ({
 		key: m.key,
-		label: m.label,
+		name: m.label,
 		color: topFourColor(idx),
+		values: rows.map((row) => amount(row, m.key)),
 	}));
+	if (methods.length > 4) {
+		series.push({
+			key: "other",
+			name: "Other",
+			color: CHART_OTHER_COLOR,
+			values: rows.map((row) =>
+				methods.slice(4).reduce((sum, m) => sum + amount(row, m.key), 0),
+			),
+		});
+	}
+	const labels = rows.map((row) => String(row.bucket));
+	const axis = rangeAxis(data?.granularity ?? "day");
 
 	const handleExport = () => {
 		if (!data) {
@@ -90,14 +113,19 @@ export const PaymentsPanel = ({
 			</KpiRow>
 
 			<ChartCard
-				variant="stacked-bar"
 				title="Collected by Payment Method"
-				data={data?.series ?? []}
-				granularity={data?.granularity ?? "day"}
-				series={series}
-				valueFormatter={(v) => formatMoney(String(v))}
-				axisFormatter={compactMoney}
-				hideLegend
+				labels={labels}
+				axis={axis}
+				groups={[series]}
+				formatAxis={compactNumber}
+				head={sumHead({
+					name: "Collected",
+					caption: rangeLabel(from, to),
+					labels,
+					axis,
+					series,
+					format: compactMoney,
+				})}
 			/>
 
 			<Card className="border-border/70">

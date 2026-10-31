@@ -31,6 +31,7 @@ import {
 	fixedPercentFormatter,
 	numberFormatter,
 	oneDecimalFormatter,
+	rangeLabel,
 } from "@/features/reports/utils/format";
 import {
 	outOf,
@@ -53,11 +54,6 @@ interface WorkerSheetTarget {
 	role: string;
 }
 
-export const sheetRangeLabel = (from: string, to: string) =>
-	from === to
-		? dayjs(to).format("D MMM YYYY")
-		: `${dayjs(from).format("D MMM")} – ${dayjs(to).format("D MMM YYYY")}`;
-
 export const shortDay = (value: string) =>
 	dayjs(value).tz(JAKARTA_TZ).format("D MMM");
 
@@ -69,7 +65,7 @@ export const useOpenWorkerSheet = () => {
 		(target: WorkerSheetTarget) =>
 			openSheet({
 				title: <WorkerName name={target.userName} role={target.role} />,
-				description: `${target.storeName} · ${sheetRangeLabel(target.from, target.to)}`,
+				description: `${target.storeName} · ${rangeLabel(target.from, target.to)}`,
 				size: "wide",
 				content: () => <WorkerSheetContent target={target} />,
 			}),
@@ -327,7 +323,7 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
 					))}
 				</KpiRow>
 				<Section title="Services Each Day">
-					<Skeleton className="h-64 w-full" />
+					<Skeleton className="h-69 w-full" />
 				</Section>
 				<Section
 					title="Services Worked"
@@ -379,7 +375,12 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
 			</KpiRow>
 
 			<Section title="Services Each Day">
-				<WorkerServicesChart data={data} topIds={topIds} />
+				<WorkerServicesChart
+					data={data}
+					topIds={topIds}
+					from={target.from}
+					to={target.to}
+				/>
 			</Section>
 
 			<Section

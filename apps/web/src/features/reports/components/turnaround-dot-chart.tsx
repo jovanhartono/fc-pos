@@ -1,9 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { TurnaroundReport } from "@/features/reports/api";
-import {
-	PERCENTILE_KEYS,
-	TURNAROUND_COLORS,
-} from "@/features/reports/utils/palette";
+import { TURNAROUND_COLORS } from "@/features/reports/utils/palette";
 import {
 	axisMaxHours,
 	dayTickHours,
@@ -12,6 +9,7 @@ import {
 	shortDay,
 	shortDuration,
 } from "@/features/reports/utils/turnaround";
+import { useElementWidth } from "@/hooks/useElementWidth";
 
 type TurnaroundItem = TurnaroundReport["items"][number];
 
@@ -32,23 +30,6 @@ const LABEL_BAND = 36;
 const DOT_PAD = 4;
 const HIT_RADIUS = 12;
 const TOOLTIP_WIDTH = 256;
-
-const useElementWidth = () => {
-	const ref = useRef<HTMLDivElement>(null);
-	const [width, setWidth] = useState(0);
-	useEffect(() => {
-		const node = ref.current;
-		if (!node) {
-			return;
-		}
-		const observer = new ResizeObserver(([entry]) =>
-			setWidth(Math.floor(entry.contentRect.width)),
-		);
-		observer.observe(node);
-		return () => observer.disconnect();
-	}, []);
-	return { ref, width };
-};
 
 export const TurnaroundDotChart = ({ dots, row }: TurnaroundDotChartProps) => {
 	const { ref, width } = useElementWidth();
@@ -159,24 +140,31 @@ export const TurnaroundDotChart = ({ dots, row }: TurnaroundDotChartProps) => {
 							<line
 								key={t}
 								stroke="var(--border)"
+								strokeDasharray="2 3"
 								x1={xOf(t)}
 								x2={xOf(t)}
 								y1={0}
 								y2={height}
 							/>
 						))}
-						{points.map((p, i) => (
-							<circle
-								cx={p.x}
-								cy={p.y}
-								fill={p.over ? "none" : TURNAROUND_COLORS.dot}
-								fillOpacity={i === hover?.dot ? 1 : 0.45}
-								key={`${p.item.ready_day}-${i}`}
-								r={p.over ? 3.2 : 3}
-								stroke={p.over ? TURNAROUND_COLORS.dot : "none"}
-							/>
-						))}
-						{PERCENTILE_KEYS.map(([key, color], n) => {
+						{points.map((p, i) => {
+							const color =
+								row.p90 !== null && p.item.hours > row.p90
+									? TURNAROUND_COLORS.late
+									: TURNAROUND_COLORS.dot;
+							return (
+								<circle
+									cx={p.x}
+									cy={p.y}
+									fill={p.over ? "none" : color}
+									fillOpacity={i === hover?.dot ? 1 : 0.55}
+									key={`${p.item.ready_day}-${i}`}
+									r={p.over ? 3.2 : 3}
+									stroke={p.over ? color : "none"}
+								/>
+							);
+						})}
+						{(["p75", "p90"] as const).map((key, n) => {
 							const value = row[key];
 							if (value === null || value > max) {
 								return null;
@@ -185,17 +173,17 @@ export const TurnaroundDotChart = ({ dots, row }: TurnaroundDotChartProps) => {
 							return (
 								<g key={key}>
 									<line
-										stroke={color}
-										strokeWidth={2}
+										stroke={TURNAROUND_COLORS.percentile}
+										strokeWidth={1.5}
 										x1={x}
 										x2={x}
 										y1={LABEL_BAND - 2}
 										y2={height}
 									/>
 									<text
-										fill={color}
+										fill={TURNAROUND_COLORS.percentile}
 										fontSize={11}
-										fontWeight={600}
+										fontWeight={500}
 										textAnchor={x > width - 60 ? "end" : "middle"}
 										x={x}
 										y={10 + n * 11}
