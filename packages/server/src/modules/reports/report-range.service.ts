@@ -997,7 +997,7 @@ function dailySpread(counts: number[]) {
   };
 }
 
-function dailyBuckets(from: string, to: string) {
+export function dailyBuckets(from: string, to: string) {
   const bucket: "day" | "week" =
     daysBetween(from, to) <= MAX_DAILY_BAR_DAYS ? "day" : "week";
   const bucketOf = (day: string) => (bucket === "day" ? day : weekStartOf(day));

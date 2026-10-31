@@ -8,7 +8,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import {
-	QC_REJECTS_PREVIEW_SIZE,
+	QC_REJECTS_PAGE_SIZE,
 	type ReportGranularity,
 	reportsQueries,
 } from "@/features/reports/api";
@@ -130,7 +130,7 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 				queryClient.ensureQueryData(
 					reportsQueries.qcRejects({
 						...qualityRange,
-						limit: QC_REJECTS_PREVIEW_SIZE,
+						limit: QC_REJECTS_PAGE_SIZE,
 						offset: 0,
 					}),
 				),

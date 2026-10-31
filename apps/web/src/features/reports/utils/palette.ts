@@ -10,6 +10,7 @@ export const TURNAROUND_COLORS = {
 	p99: "var(--tone-bad-foreground)",
 	queued: "var(--warning)",
 	inProgress: "var(--chart-1)",
+	waitingQc: "var(--chart-4)",
 } as const;
 
 export const PERCENTILE_KEYS = [
@@ -32,6 +33,14 @@ export const CHART_PALETTE = [
 ] as const;
 
 export const CHART_OTHER_COLOR = "var(--chart-other)";
+
+// A QC reject is caught in the shop (amber); a Complaint reached the Customer (red).
+export const QC_COLORS = {
+	arrived: CHART_OTHER_COLOR,
+	passes: "var(--primary)",
+	qcRejects: "var(--warning)",
+	complaints: "var(--destructive)",
+} as const;
 
 // A stacked chart colours its four biggest series and greys the rest, so the
 // owner reads four stripes a day instead of a rainbow.

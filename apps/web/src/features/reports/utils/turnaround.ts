@@ -48,11 +48,6 @@ export const dayTickHours = (maxHours: number) => {
 	return ticks;
 };
 
-export const queuedShare = (queued: number, inProgress: number) => {
-	const total = queued + inProgress;
-	return total === 0 ? 50 : (queued / total) * 100;
-};
-
 export const rowOrAll = <T extends { name: string }>(
 	rows: T[],
 	name: string | null,

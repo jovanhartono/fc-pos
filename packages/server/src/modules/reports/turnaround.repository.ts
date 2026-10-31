@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
-import type { PgColumn } from "drizzle-orm/pg-core";
+import { alias, type PgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import {
   categoriesTable,
@@ -29,6 +29,16 @@ const firstReachedAt = (
   );
 
 const readyAt = firstReachedAt(ordersServicesTable.id, "ready_for_pickup");
+
+const shelfLog = alias(orderServiceStatusLogsTable, "shelf_log");
+const nextLog = alias(orderServiceStatusLogsTable, "next_log");
+
+// Every stretch on the QC shelf before the line was first ready, a wait after
+// a QC reject included; each ends at the line's next status change.
+const waitingQcHours =
+  sql<number>`(SELECT COALESCE(SUM(EXTRACT(EPOCH FROM ((SELECT MIN(${nextLog.created_at}) FROM ${logs} AS ${sql.identifier("next_log")} WHERE ${nextLog.order_service_id} = ${shelfLog.order_service_id} AND ${nextLog.created_at} > ${shelfLog.created_at}) - ${shelfLog.created_at}))), 0) / 3600 FROM ${logs} AS ${sql.identifier("shelf_log")} WHERE ${shelfLog.order_service_id} = ${ordersServicesTable.id} AND ${shelfLog.to_status} = 'waiting_qc' AND ${shelfLog.created_at} < ${readyAt})`.mapWith(
+    Number
+  );
 
 // Every first-round line of every Item that had a line become ready in the
 // stretch. An Item's ready day is its last line's, so any Item that lands in
@@ -60,6 +70,7 @@ export async function listTurnaroundLines({ range, storeId }: RangeArgs) {
         "processing_at"
       ),
       ready_at: readyAt.as("ready_at"),
+      waiting_qc_hours: waitingQcHours.as("waiting_qc_hours"),
     })
     .from(ordersServicesTable)
     .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))

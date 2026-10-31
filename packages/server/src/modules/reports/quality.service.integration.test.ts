@@ -450,6 +450,7 @@ describe("the Quality report", () => {
         self_checks: 0,
         self_check_rate: 0,
         complaints_after: 2,
+        days: expect.any(Array),
       },
       {
         // Citra passed her own redo of Adi's pair: a Self-check.
@@ -464,6 +465,7 @@ describe("the Quality report", () => {
         self_checks: 1,
         self_check_rate: 0.5,
         complaints_after: 0,
+        days: expect.any(Array),
       },
       {
         user_id: adi,
@@ -477,6 +479,7 @@ describe("the Quality report", () => {
         self_checks: 1,
         self_check_rate: 0.5,
         complaints_after: 2,
+        days: expect.any(Array),
       },
     ]);
   });
@@ -535,6 +538,71 @@ describe("the Quality report", () => {
         note: "Sole split",
       },
     ]);
+  });
+
+  it("sets each day's arrivals on the QC shelf beside the checks made", async () => {
+    const report = await kemangAugust();
+    const day = (label: string) =>
+      report.daily.rows.find((row) => row.label === label);
+    const total = (key: "arrived" | "passes" | "qc_rejects") =>
+      report.daily.rows.reduce((sum, row) => sum + row[key], 0);
+
+    expect(report.daily.bucket).toBe("day");
+    expect(report.daily.rows).toHaveLength(31);
+    // The redone pair landed on the shelf twice on 3 August.
+    expect(day("2026-08-03")).toEqual({
+      label: "2026-08-03",
+      arrived: 2,
+      passes: 1,
+      qc_rejects: 1,
+    });
+    // Waiting since 30 August; its check falls in September.
+    expect(day("2026-08-30")).toEqual({
+      label: "2026-08-30",
+      arrived: 1,
+      passes: 0,
+      qc_rejects: 0,
+    });
+    expect([total("arrived"), total("passes"), total("qc_rejects")]).toEqual([
+      11, 7, 3,
+    ]);
+  });
+
+  it("gives each checker their own days", async () => {
+    const report = await kemangAugust();
+    const citraDays = report.by_checker
+      .find((row) => row.user_id === citra)
+      ?.days.filter((row) => row.passes + row.qc_rejects > 0);
+
+    expect(citraDays).toEqual([
+      { label: "2026-08-03", passes: 1, qc_rejects: 0 },
+      { label: "2026-08-05", passes: 0, qc_rejects: 1 },
+      { label: "2026-08-09", passes: 1, qc_rejects: 0 },
+      { label: "2026-08-11", passes: 0, qc_rejects: 1 },
+    ]);
+  });
+
+  it("counts an Item sent back and then complained about once, as a Complaint", async () => {
+    const report = await kemangAugust();
+
+    // Of August's three QC rejects, the refunded pair later drew a Complaint.
+    expect(report.mistakes).toEqual({
+      total: 6,
+      qc_rejects: 2,
+      complaints: 4,
+    });
+  });
+
+  it("counts what waits on the QC shelf now, from its latest landing there", async () => {
+    await setStatus(lines["rejected-after-range"].lineId, "waiting_qc");
+    await setStatus(lines.redone.lineId, "waiting_qc");
+
+    const report = await kemangAugust();
+
+    expect(report.waiting_qc_now).toEqual({
+      count: 2,
+      oldest_at: jkt("2026-08-03T13:00"),
+    });
   });
 
   it("takes in every Store when none is named", async () => {
@@ -628,6 +696,20 @@ describe("the QC rejects list", () => {
 
       expect(page.meta.total).toBe(report.summary.current.qc_rejects);
     }
+  });
+
+  it("narrows to one checker's QC rejects", async () => {
+    const page = await getQcRejectsReport({
+      ...AUGUST,
+      store_id: shop.store.id,
+      checker_id: citra,
+    });
+
+    expect(page.meta.total).toBe(2);
+    expect(page.items.map((row) => row.rejected_by_name)).toEqual([
+      "Citra",
+      "Citra",
+    ]);
   });
 
   it("keeps another Store's QC rejects out", async () => {
