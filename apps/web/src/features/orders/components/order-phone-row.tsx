@@ -4,6 +4,7 @@ import type { Order } from "@/features/orders/api";
 import { NotifiedLabel } from "@/features/orders/components/notified-label";
 import { OrderBadges } from "@/features/orders/components/order-badges";
 import { OrderListRow } from "@/features/orders/components/order-list-row";
+import { parseMoney } from "@/shared/money";
 
 interface OrderPhoneRowProps {
 	isActive: boolean;
@@ -40,7 +41,10 @@ export const OrderPhoneRow = ({
 		]}
 		end={
 			<div className="grid justify-items-end gap-1">
-				<MoneyValue className="text-body" value={order.total} />
+				<MoneyValue
+					className="text-body"
+					value={parseMoney(order.total) - parseMoney(order.discount)}
+				/>
 				<div className="flex gap-1">
 					<OrderBadges order={order} />
 				</div>
