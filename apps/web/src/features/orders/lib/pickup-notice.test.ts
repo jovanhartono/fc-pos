@@ -7,6 +7,7 @@ const base = {
 	pickupCode: "482913",
 	total: 385_000,
 	trackingUrl: "https://pos.fresclean.id/track?code=x&phone=y",
+	canPayOnline: false,
 };
 
 describe("buildPickupNoticeMessage", () => {
@@ -32,6 +33,19 @@ describe("buildPickupNoticeMessage", () => {
 		expect(message).toContain(
 			"Status Pembayaran: *BELUM LUNAS*\n\nUntuk pelunasan pembayaran bisa dilakukan dengan transfer ke rekening *BCA 7570751471 (Jovanus)*\n\n*PENTING*",
 		);
+	});
+
+	test("an unpaid Order with a gateway set up links the Track page instead", () => {
+		const message = buildPickupNoticeMessage({
+			...base,
+			isPaid: false,
+			canPayOnline: true,
+		});
+
+		expect(message).toContain(
+			"Status Pembayaran: *BELUM LUNAS*\n\nBayar online: https://pos.fresclean.id/track?code=x&phone=y\n\n*PENTING*",
+		);
+		expect(message).not.toContain("BCA");
 	});
 });
 

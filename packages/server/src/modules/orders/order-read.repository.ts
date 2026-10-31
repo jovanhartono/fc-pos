@@ -518,3 +518,10 @@ export function findTrackedOrder(code: string, customerId: number) {
     },
   });
 }
+
+export function findTrackedOrderRef(code: string, customerId: number) {
+  return db.query.ordersTable.findFirst({
+    where: { code, customer_id: customerId },
+    columns: { id: true },
+  });
+}

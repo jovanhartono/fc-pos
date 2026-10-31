@@ -1,7 +1,8 @@
 import type { InferInsertModel } from "drizzle-orm";
 import { EmptyFilter, eq, sql } from "drizzle-orm";
-import { db } from "@/db";
+import { type DbExecutor, db } from "@/db";
 import { paymentMethodsTable } from "@/db/schema";
+import type { PaymentGatewayName } from "@/modules/payments/gateways/types";
 
 export function listPaymentMethods(where?: { is_active?: boolean }) {
   return db.query.paymentMethodsTable.findMany({
@@ -18,6 +19,14 @@ const findPaymentMethodByIdPrepared = db.query.paymentMethodsTable
 
 export function findPaymentMethodById(id: number) {
   return findPaymentMethodByIdPrepared.execute({ id });
+}
+
+// Active or not: money a gateway already took still books to its PaymentMethod.
+export function findPaymentMethodByGateway(
+  gateway: PaymentGatewayName,
+  executor: DbExecutor = db
+) {
+  return executor.query.paymentMethodsTable.findFirst({ where: { gateway } });
 }
 
 export function insertPaymentMethod(

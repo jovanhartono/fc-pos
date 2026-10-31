@@ -31,6 +31,12 @@ The server reads from `process.env`:
 - `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_BUCKET` / `S3_REGION` (`auto`) / `S3_ENDPOINT` - the R2 bucket for photos, set per Vercel environment. Without `S3_ENDPOINT`, Bun's client talks to AWS and every upload fails
 - `CRON_SECRET` - Bearer secret Vercel cron sends to `/api/internal/*`; unset answers 401 to everyone
 - `SENTRY_DSN` - Optional; unset turns error reporting off
+- `PAYMENT_GATEWAY` - `midtrans` or `doku`, the gateway new Gateway charges use; unset turns online payment off (ADR-0026)
+- `MIDTRANS_SERVER_KEY`, `MIDTRANS_IS_PRODUCTION` / `DOKU_CLIENT_ID`, `DOKU_SECRET_KEY`, `DOKU_IS_PRODUCTION` - gateway credentials, sandbox unless `*_IS_PRODUCTION=true`
+- `PUBLIC_WEB_URL` - Optional, defaults to `https://pos.fresclean.id`; the Track page and webhook URLs sent to the gateway
+- `PAYMENT_GATEWAY_MOCK` - `true` swaps the gateway's outbound calls for a mock page at `/api/mock-gateway/<reference>` whose buttons send signed notifications to the real webhook. Ignored on Production. Set `PUBLIC_WEB_URL` to the local origin (e.g. `http://localhost:5173`) and any non-empty keys for the gateway in use
+
+Each gateway dashboard's notification URL is `https://pos.fresclean.id/api/webhooks/payments/midtrans` or `…/doku`.
 
 Laptop-only, for the drizzle CLI: `DATABASE_URL_DEV` / `DATABASE_URL_PROD`.
 

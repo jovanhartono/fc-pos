@@ -24,6 +24,13 @@ export async function trackPublicOrder(payload: TrackPublicOrderPayload) {
 	);
 }
 
+// Same proof as tracking; answers with the gateway's checkout page to go to.
+export function payTrackedOrder(payload: TrackPublicOrderPayload) {
+	return parseSuccessData<{ redirect_url: string }>(
+		rpcPublic.api.public.orders.pay.$post({ json: payload }),
+	);
+}
+
 export const trackQueries = {
 	order: (code?: string, phoneNumber?: string) =>
 		queryOptions({

@@ -1,3 +1,4 @@
+import type { DbExecutor } from "@/db";
 import { BadRequestException } from "@/http-exceptions";
 import {
   claimRedemptions,
@@ -5,7 +6,10 @@ import {
   voidCampaignsBelowMinimum,
 } from "@/modules/campaigns/campaign-redemption.service";
 import type { OrderTx } from "@/modules/orders/order.repository";
-import { resolveDiscount } from "@/modules/orders/order-discount.service";
+import {
+  type ResolvedDiscount,
+  resolveDiscount,
+} from "@/modules/orders/order-discount.service";
 import { findOrderState } from "@/modules/orders/order-read.repository";
 import { recomputeOrderRollup } from "@/modules/orders/order-status-machine";
 import { type DiscountSource, isBogoSlot } from "@/schema/discount";
@@ -90,42 +94,55 @@ function bogoSlots(lines: SettlementLine[]) {
   );
 }
 
-// The Voucher code and Usage limit slot are claimed as soon as the discount is on
-// the Receipt, since the Customer holds the shop to it. Already settled → skip.
-export async function settleDiscount(
-  tx: OrderTx,
+export interface SettleDiscountInput {
+  grossTotal: number;
+  lines: SettlementLine[];
+  request: DiscountRequest;
+  settled?: SettledDiscount;
+  storeCode: string;
+  storeId: number;
+}
+
+// What the discount would be, claiming nothing: a counter QRIS shows this
+// amount and the Voucher code is spent only when the money arrives.
+export function previewDiscount(
+  executor: DbExecutor,
   {
     grossTotal,
     lines,
-    orderId,
     request,
     settled,
     storeCode,
     storeId,
-  }: {
-    grossTotal: number;
-    lines: SettlementLine[];
-    orderId: number;
-    request: DiscountRequest;
-    settled?: SettledDiscount;
-    storeCode: string;
-    storeId: number;
-  }
-): Promise<SettledDiscount> {
+  }: SettleDiscountInput
+): Promise<SettledDiscount & Pick<ResolvedDiscount, "campaignRows">> {
   if (settled) {
-    return settled;
+    return Promise.resolve({ ...settled, campaignRows: [] });
+  }
+
+  return resolveDiscount(executor, {
+    campaignIds: request.campaign_ids,
+    voucherCodes: request.voucher_codes,
+    grossTotal,
+    manualDiscount: request.discount,
+    storeId,
+    storeCode,
+    lines: bogoSlots(lines),
+  });
+}
+
+// The Voucher code and Usage limit slot are claimed as soon as the discount is on
+// the Receipt, since the Customer holds the shop to it. Already settled → skip.
+export async function settleDiscount(
+  tx: OrderTx,
+  { orderId, ...input }: SettleDiscountInput & { orderId: number }
+): Promise<SettledDiscount> {
+  if (input.settled) {
+    return input.settled;
   }
 
   const { campaignRows, discountAmount, discountSource } =
-    await resolveDiscount(tx, {
-      campaignIds: request.campaign_ids,
-      voucherCodes: request.voucher_codes,
-      grossTotal,
-      manualDiscount: request.discount,
-      storeId,
-      storeCode,
-      lines: bogoSlots(lines),
-    });
+    await previewDiscount(tx, input);
 
   await claimRedemptions(tx, campaignRows, orderId);
 

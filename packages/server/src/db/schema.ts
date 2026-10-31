@@ -7,6 +7,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   smallint,
@@ -182,13 +183,29 @@ export const servicesTable = pgTable(
   ]
 );
 
-export const paymentMethodsTable = pgTable("payment_methods", {
-  code: varchar("code", { length: 6 }).notNull().unique(),
-  created_at: timestamp("created_at").defaultNow().notNull(),
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  is_active: boolean("is_active").default(false).notNull(),
-  name: varchar("name", { length: 255 }).notNull(),
-});
+export const paymentGatewayEnum = pgEnum("payment_gateway", [
+  "midtrans",
+  "doku",
+]);
+
+export const paymentMethodsTable = pgTable(
+  "payment_methods",
+  {
+    code: varchar("code", { length: 6 }).notNull().unique(),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    // The PaymentMethod a gateway-paid Order gets, so Day close shows that
+    // money on its own line.
+    gateway: paymentGatewayEnum("gateway"),
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    is_active: boolean("is_active").default(false).notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("payment_methods_gateway_uidx")
+      .on(table.gateway)
+      .where(sql`${table.gateway} IS NOT NULL`),
+  ]
+);
 
 export const orderPaymentStatusEnum = pgEnum("order_payment_status", [
   "paid",
@@ -557,6 +574,60 @@ export const ordersTable = pgTable(
       "refunded_amount_valid_check",
       sql`${table.refunded_amount} <= ${table.paid_amount}`
     ),
+  ]
+);
+
+export const paymentChargeKindEnum = pgEnum("payment_charge_kind", [
+  "qris",
+  "checkout",
+]);
+// needs_review: the gateway took the money but the Order could not be marked
+// paid with it (already paid in cash, amount changed), so a person sorts it out.
+export const paymentChargeStatusEnum = pgEnum("payment_charge_status", [
+  "pending",
+  "paid",
+  "expired",
+  "cancelled",
+  "failed",
+  "needs_review",
+]);
+
+// One Gateway charge per try; a new QRIS or checkout page is a new row.
+export const paymentChargesTable = pgTable(
+  "payment_charges",
+  {
+    amount: decimal("amount", { precision: 12, scale: 0 }).notNull(),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    // null = the Customer started it from the Track page.
+    created_by: integer("created_by").references(() => usersTable.id),
+    // The promo a cashier keyed for a counter QRIS; claimed only once paid.
+    discount_request: jsonb("discount_request").$type<{
+      campaign_ids: number[];
+      discount: number;
+      voucher_codes: string[];
+    }>(),
+    expires_at: timestamp("expires_at").notNull(),
+    gateway: paymentGatewayEnum("gateway").notNull(),
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    kind: paymentChargeKindEnum("kind").notNull(),
+    last_payload: jsonb("last_payload"),
+    order_id: integer("order_id")
+      .references(() => ordersTable.id)
+      .notNull(),
+    paid_at: timestamp("paid_at"),
+    provider_ref: varchar("provider_ref", { length: 255 }),
+    qr_image_url: text("qr_image_url"),
+    redirect_url: text("redirect_url"),
+    reference: varchar("reference", { length: 50 }).notNull().unique(),
+    review_reason: text("review_reason"),
+    status: paymentChargeStatusEnum("status").default("pending").notNull(),
+    updated_at: timestamp("updated_at")
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index("payment_charges_order_status_idx").on(table.order_id, table.status),
   ]
 );
 
