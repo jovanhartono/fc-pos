@@ -1,4 +1,12 @@
+import dayjs from "@/lib/dayjs";
+
 export const numberFormatter = new Intl.NumberFormat("en-ID");
+
+// "2 Oct – 31 Oct 2026", or one day on its own.
+export const rangeLabel = (from: string, to: string) =>
+	from === to
+		? dayjs(to).format("D MMM YYYY")
+		: `${dayjs(from).format("D MMM")} – ${dayjs(to).format("D MMM YYYY")}`;
 
 // "1,204 checks", "1 check".
 export const pluralCount = (count: number, word: string) =>

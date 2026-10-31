@@ -47,6 +47,7 @@ import {
 	oneDecimalFormatter,
 	percentFormatter,
 	pluralCount,
+	rangeLabel,
 } from "@/features/reports/utils/format";
 import { QC_COLORS } from "@/features/reports/utils/palette";
 import { longDuration } from "@/features/reports/utils/turnaround";
@@ -465,43 +466,20 @@ const QcRejectsSection = ({ range }: QcRejectsSectionProps) => {
 };
 
 interface QcPerDaySectionProps {
-	daily: QualityReport["daily"];
+	data: QualityReport;
 }
 
-const QcPerDaySection = ({ daily }: QcPerDaySectionProps) => {
-	const sum = (key: "arrived" | "passes" | "qc_rejects") =>
-		daily.rows.reduce((total, row) => total + row[key], 0);
-	const arrived = sum("arrived");
-	const passes = sum("passes");
-	const qcRejects = sum("qc_rejects");
-	const pile = arrived - passes - qcRejects;
-	// Read like a Workers Store header: plain words, the figures in medium.
-	return (
-		<Section id="quality-per-day" title="QC per Day">
-			<div className="grid gap-3 rounded-lg border bg-card p-4">
-				<p className="text-body tabular-nums">
-					<span className="font-medium">{numberFormatter.format(arrived)}</span>
-					{" arrived · "}
-					<span className="font-medium">
-						{numberFormatter.format(passes + qcRejects)}
-					</span>
-					{" checked · pile "}
-					<span
-						className={cn(
-							"font-medium",
-							pile > 0 && "text-tone-warn-foreground",
-						)}
-					>
-						{pile > 0
-							? `+${numberFormatter.format(pile)}`
-							: numberFormatter.format(pile)}
-					</span>
-				</p>
-				<QcPerDayChart rows={daily.rows} bucket={daily.bucket} />
-			</div>
-		</Section>
-	);
-};
+const QcPerDaySection = ({ data }: QcPerDaySectionProps) => (
+	<Section id="quality-per-day" title="QC per Day">
+		<div className="rounded-lg border bg-card p-4">
+			<QcPerDayChart
+				rows={data.daily.rows}
+				bucket={data.daily.bucket}
+				caption={rangeLabel(data.from, data.to)}
+			/>
+		</div>
+	</Section>
+);
 
 const hoursSince = (at: string, now: number) =>
 	(now - new Date(at).getTime()) / HOUR_MS;
@@ -849,7 +827,7 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 
 			{data ? (
 				<>
-					<QcPerDaySection daily={data.daily} />
+					<QcPerDaySection data={data} />
 
 					<QualityNeedsALook data={data} />
 

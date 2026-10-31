@@ -3,8 +3,10 @@ import { useMemo, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
 import type { TurnaroundReport } from "@/features/reports/api";
+import { ChartHeader } from "@/features/reports/components/report-chart";
 import { TurnaroundBreakdown } from "@/features/reports/components/turnaround-breakdown";
 import { TurnaroundDotChart } from "@/features/reports/components/turnaround-dot-chart";
+import { pluralCount } from "@/features/reports/utils/format";
 import { PERCENTILE_KEYS } from "@/features/reports/utils/palette";
 import {
 	longDuration,
@@ -41,15 +43,31 @@ export const TurnaroundSection = ({ report }: TurnaroundSectionProps) => {
 
 	return (
 		<Section count={`${all.items} Items ready`} title="Turnaround">
-			<p className="-mt-1 text-subhead text-muted-foreground">
-				Drop-off to ready for pickup.
-				{all.p90 === null
-					? ""
-					: ` p90 ${longDuration(all.p90)} means 9 in 10 Items were ready within ${longDuration(all.p90)}.`}
-			</p>
 			<div className="min-w-0 overflow-hidden rounded-lg border bg-card">
-				<div className="min-w-0 px-3 pt-3 pb-1">
-					<p className="mb-1 font-medium">{row.name}</p>
+				<div className="grid min-w-0 gap-3 px-4 pt-4 pb-1">
+					<ChartHeader
+						head={
+							row.p75 === null
+								? {
+										label: `${row.name} · drop-off to ready`,
+										value: "—",
+										caption: `Needs ${report.min_items} Items to show how fast`,
+									}
+								: {
+										label: `${row.name} · drop-off to ready`,
+										value: longDuration(row.p75),
+										unit: "for 3 in 4 Items",
+										caption: [
+											row.p90 === null
+												? null
+												: `9 in 10 within ${longDuration(row.p90)}`,
+											pluralCount(row.items, "Item"),
+										]
+											.filter(Boolean)
+											.join(" · "),
+									}
+						}
+					/>
 					<TurnaroundDotChart dots={dots} row={row} />
 				</div>
 				<TurnaroundBreakdown
@@ -71,16 +89,12 @@ export const TurnaroundSection = ({ report }: TurnaroundSectionProps) => {
 							>
 								Items
 							</th>
-							{PERCENTILE_KEYS.map(([key, color]) => (
+							{PERCENTILE_KEYS.map((key) => (
 								<th
 									className="px-2 py-2 text-right font-medium sm:px-3"
 									key={key}
 									scope="col"
 								>
-									<span
-										className="mr-1 inline-block h-0.5 w-2.5 align-middle"
-										style={{ backgroundColor: color }}
-									/>
 									{key}
 								</th>
 							))}
@@ -124,7 +138,7 @@ export const TurnaroundSection = ({ report }: TurnaroundSectionProps) => {
 										</span>
 									</td>
 								) : (
-									PERCENTILE_KEYS.map(([key]) => (
+									PERCENTILE_KEYS.map((key) => (
 										<td
 											className="px-2 py-2 text-right whitespace-nowrap sm:px-3"
 											key={key}

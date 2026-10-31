@@ -302,14 +302,13 @@ export const splitTopServices = (
 	return { top: sorted.slice(0, limit), rest: sorted.slice(limit) };
 };
 
-export interface ChartRow {
+interface ChartRow {
 	label: string;
 	total: number | null;
 	storeAverage: number | null;
 	// Count per top Service by position, then the grey rest.
-	slices: (number | undefined)[];
-	other: number | undefined;
-	services: DetailBucket["services"];
+	slices: number[];
+	other: number;
 }
 
 export const buildChartRows = (
@@ -318,42 +317,15 @@ export const buildChartRows = (
 ): ChartRow[] =>
 	buckets.map((bucket) => {
 		const counts = new Map(bucket.services.map((s) => [s.service_id, s.count]));
-		const topSum = topIds.reduce((sum, id) => sum + (counts.get(id) ?? 0), 0);
-		const hasBar = bucket.total !== null && bucket.total > 0;
+		const slices = topIds.map((id) => counts.get(id) ?? 0);
 		return {
 			label: bucket.label,
 			total: bucket.total,
 			storeAverage: bucket.store_average,
-			slices: topIds.map((id) => (hasBar ? (counts.get(id) ?? 0) : undefined)),
-			other: hasBar ? (bucket.total ?? 0) - topSum : undefined,
-			services: [...bucket.services].sort((a, b) => b.count - a.count),
+			slices,
+			other: (bucket.total ?? 0) - slices.reduce((sum, n) => sum + n, 0),
 		};
 	});
-
-// Daily labels would collide, so they show on Mondays plus the ends of the
-// range; a week's label always shows.
-export const axisTickLabels = (
-	labels: string[],
-	bucket: WorkerDetailReport["bucket"],
-) => {
-	if (bucket === "week") {
-		return labels;
-	}
-	const shown = new Set<number>();
-	for (const [index, label] of labels.entries()) {
-		if (dayjs(label).day() === 1) {
-			shown.add(index);
-		}
-	}
-	const isClear = (index: number) =>
-		[...shown].every((other) => Math.abs(other - index) >= 3);
-	for (const end of [0, labels.length - 1]) {
-		if (end >= 0 && isClear(end)) {
-			shown.add(end);
-		}
-	}
-	return labels.filter((_, index) => shown.has(index));
-};
 
 export const buildWorkersCsv = (data: WorkerProductivityReport) => {
 	const lines = [
