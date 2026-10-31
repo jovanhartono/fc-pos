@@ -92,7 +92,7 @@ interface AvgBarProps {
 }
 
 // Scaled to the busiest Avg/day in the same table, so rows compare by eye.
-const AvgBar = ({ value, max }: AvgBarProps) => (
+export const AvgBar = ({ value, max }: AvgBarProps) => (
 	<span className="inline-flex items-center justify-end gap-2">
 		<span
 			aria-hidden="true"
@@ -231,16 +231,18 @@ const columnsFor = (
 			id: "open",
 			header: () => <span className="sr-only">Open</span>,
 			meta: { width: { percent: 4, minRem: 1.75 } },
-			cell: () => (
-				<HugeiconsIcon
-					icon={ArrowRight01Icon}
-					aria-hidden="true"
-					className="size-3.5 text-muted-foreground"
-				/>
-			),
+			cell: () => <OpenArrow />,
 		},
 	];
 };
+
+export const OpenArrow = () => (
+	<HugeiconsIcon
+		icon={ArrowRight01Icon}
+		aria-hidden="true"
+		className="size-3.5 text-muted-foreground"
+	/>
+);
 
 const phoneFacts = (row: WorkerRow, now: number) => {
 	const moved = row.live.last_move_at

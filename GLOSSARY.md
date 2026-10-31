@@ -246,7 +246,7 @@ How long a new Item in one Category will take to be ready, shown on the Counter 
 _Avoid_: ETA, queue estimate, turnaround (that is one Item's time, measured afterwards)
 
 **Turnaround**:
-The time from an Item's drop-off until it is ready for pickup, measured afterwards. An Item counts once it is ready, on the day its last OrderService became ready; Reworks, cancelled and refunded lines are left out. Shown as p75, p90 and p99 per Category, with the wait before work starts (Queued) split from the work itself (In progress); that split uses only the lines of the Items counted, so an Item with a line still in the workshop feeds neither.
+The time from an Item's drop-off until it is ready for pickup, measured afterwards. An Item counts once it is ready, on the day its last OrderService became ready; Reworks, cancelled and refunded lines are left out. Shown as p75, p90 and p99 per Category, split into the wait before work starts (Queued), the work itself (In progress), and every stretch on the shelf waiting for a quality check (Waiting QC); that split uses only the lines of the Items counted, so an Item with a line still in the workshop feeds neither.
 _Avoid_: Lead time, cycle time, ETA (the Ready estimate is quoted beforehand)
 
 ### Screens
