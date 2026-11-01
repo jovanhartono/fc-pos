@@ -8,6 +8,7 @@ import {
 	ArrowRight01Icon,
 	CheckmarkCircle02Icon,
 	ReloadIcon,
+	Search01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -200,6 +201,7 @@ export function QueueServiceDetailMessage({
 					</Button>
 				) : undefined
 			}
+			icon={tone === "error" ? AlertCircleIcon : Search01Icon}
 		>
 			<p
 				className={cn(

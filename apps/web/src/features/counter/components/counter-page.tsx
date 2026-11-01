@@ -1,6 +1,8 @@
+import { Store01Icon } from "@hugeicons/core-free-icons";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useMemo } from "react";
+import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { Section } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
@@ -118,13 +120,15 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 		},
 		[navigate],
 	);
-	const handleCloseOrder = useCallback(() => {
-		void navigate({
-			search: (prev) => ({ ...prev, open: undefined }),
-			replace: true,
-			resetScroll: false,
-		});
-	}, [navigate]);
+	const handleCloseOrder = useCallback(
+		() =>
+			navigate({
+				search: (prev) => ({ ...prev, open: undefined }),
+				replace: true,
+				resetScroll: false,
+			}),
+		[navigate],
+	);
 
 	const { data: shelf, isPending: isShelfPending } = useInfiniteQuery(
 		counterQueries.pickupShelf(storeId),
@@ -200,7 +204,7 @@ export const CounterPage = ({
 	let panel = storesQuery.isPending ? (
 		<CounterBodySkeleton />
 	) : (
-		<p className="text-muted-foreground">No Store.</p>
+		<EmptyState icon={Store01Icon}>No Store.</EmptyState>
 	);
 	if (selectedStoreId) {
 		panel = isSummary ? (

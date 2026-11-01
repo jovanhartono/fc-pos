@@ -29,7 +29,6 @@ interface SectionProps {
 	title: ReactNode;
 	count?: ReactNode;
 	aside?: ReactNode;
-	empty?: string;
 	children?: ReactNode;
 }
 
@@ -38,7 +37,6 @@ export const Section = ({
 	title,
 	count,
 	aside,
-	empty,
 	children,
 }: SectionProps) => (
 	<section aria-labelledby={id} className="grid min-w-0 gap-2.5">
@@ -47,7 +45,6 @@ export const Section = ({
 			<SectionTitle count={count} id={id} title={title} />
 			{aside}
 		</div>
-		{children ||
-			(empty ? <p className="text-muted-foreground">{empty}</p> : null)}
+		{children}
 	</section>
 );

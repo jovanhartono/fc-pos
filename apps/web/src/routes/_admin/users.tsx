@@ -1,6 +1,10 @@
 import { PUTUserSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Add01Icon, ResetPasswordIcon } from "@hugeicons/core-free-icons";
+import {
+	Add01Icon,
+	ResetPasswordIcon,
+	UserSettings01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
 	keepPreviousData,
@@ -406,6 +410,7 @@ function UsersPage() {
 					className="w-full sm:w-72"
 				/>
 				<DataTable
+					emptyIcon={UserSettings01Icon}
 					columns={columns}
 					data={users}
 					isCardGrouped

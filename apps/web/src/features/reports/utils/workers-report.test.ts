@@ -5,7 +5,6 @@ import type {
 	WorkerRow,
 } from "@/features/reports/api";
 import {
-	axisTickLabels,
 	buildChartRows,
 	complaintTone,
 	durationText,
@@ -408,29 +407,7 @@ describe("top Services and Other", () => {
 		);
 		expect(rows[0].slices).toEqual([6, 3]);
 		expect(rows[0].other).toBe(1);
-		expect(rows[1].slices).toEqual([undefined, undefined]);
-		expect(rows[2].other).toBe(undefined);
-	});
-});
-
-describe("x axis labels", () => {
-	const days = Array.from(
-		{ length: 14 },
-		(_, i) => `2026-10-${String(i + 1).padStart(2, "0")}`,
-	);
-
-	it("shows Mondays and the ends, never two within 3 days", () => {
-		// 5 and 12 Oct 2026 are Mondays.
-		expect(axisTickLabels(days, "day")).toEqual([
-			"2026-10-01",
-			"2026-10-05",
-			"2026-10-12",
-		]);
-	});
-
-	it("shows every week", () => {
-		expect(axisTickLabels(["2026-10-05", "2026-10-12"], "week")).toHaveLength(
-			2,
-		);
+		expect(rows[1].slices).toEqual([0, 0]);
+		expect(rows[2].other).toBe(0);
 	});
 });

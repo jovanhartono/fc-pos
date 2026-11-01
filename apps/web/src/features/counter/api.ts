@@ -83,6 +83,8 @@ export const counterQueries = {
 	pickupShelf: (storeId: number) =>
 		infiniteQueryOptions({
 			queryKey: counterKeys.pickupShelf(storeId),
+			// Same as the Queue: a deep scroll comes back as one page, not all of them.
+			gcTime: 5 * 60 * 1000,
 			initialPageParam: 0,
 			queryFn: ({ pageParam }) => fetchPickupShelfPage(storeId, pageParam),
 			getNextPageParam: (lastPage) => {

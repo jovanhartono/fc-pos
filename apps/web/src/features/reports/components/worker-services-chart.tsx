@@ -1,28 +1,21 @@
-import { useCallback, useState } from "react";
-import {
-	Bar,
-	CartesianGrid,
-	ComposedChart,
-	Line,
-	XAxis,
-	YAxis,
-} from "recharts";
-import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import type { WorkerDetailReport } from "@/features/reports/api";
-import { oneDecimalFormatter } from "@/features/reports/utils/format";
+import {
+	type ChartSeries,
+	dateAxis,
+	headParts,
+	ReportChart,
+	valueAt,
+} from "@/features/reports/components/report-chart";
+import {
+	numberFormatter,
+	oneDecimalFormatter,
+	rangeLabel,
+} from "@/features/reports/utils/format";
 import {
 	CHART_OTHER_COLOR,
 	topFourColor,
 } from "@/features/reports/utils/palette";
-import {
-	axisTickLabels,
-	buildChartRows,
-	type ChartRow,
-} from "@/features/reports/utils/workers-report";
-import dayjs from "@/lib/dayjs";
-import { pluralize } from "@/shared/utils";
-
-const AVERAGE_COLOR = "var(--chart-average)";
+import { buildChartRows } from "@/features/reports/utils/workers-report";
 
 // The worker's biggest Services in colour; everything else is grey.
 export const serviceColor = (topIds: number[], serviceId: number) => {
@@ -30,179 +23,78 @@ export const serviceColor = (topIds: number[], serviceId: number) => {
 	return index === -1 ? CHART_OTHER_COLOR : topFourColor(index);
 };
 
-const bucketTitle = (label: string, bucket: WorkerDetailReport["bucket"]) =>
-	bucket === "day"
-		? dayjs(label).format("ddd D MMM")
-		: `Week of ${dayjs(label).format("D MMM")}`;
-
-interface BucketTipProps {
-	row: ChartRow | undefined;
-	topIds: number[];
-	bucket: WorkerDetailReport["bucket"];
-	maxWidth: number;
-}
-
-const BucketTip = ({ row, topIds, bucket, maxWidth }: BucketTipProps) => {
-	if (!row) {
-		return null;
-	}
-	const average = row.storeAverage !== null && (
-		<p className="mt-1.5 border-border border-t pt-1.5 text-muted-foreground">
-			{`Store average ${oneDecimalFormatter.format(row.storeAverage)}`}
-		</p>
-	);
-	return (
-		<div
-			className="border border-border bg-background px-2.5 py-2 text-footnote shadow-lg"
-			style={{ maxWidth }}
-		>
-			<p className="font-medium">{bucketTitle(row.label, bucket)}</p>
-			{row.total === null ? (
-				<p className="text-muted-foreground">not worked</p>
-			) : (
-				<p className="tabular-nums">
-					{row.total === 0
-						? "worked, nothing reached QC"
-						: pluralize(row.total, "Service")}
-				</p>
-			)}
-			<ul className="mt-1 grid gap-0.5 tabular-nums">
-				{row.services.map((service) => (
-					<li key={service.service_id} className="flex items-center gap-2">
-						<span
-							aria-hidden="true"
-							className="size-2 shrink-0 rounded-full"
-							style={{
-								backgroundColor: serviceColor(topIds, service.service_id),
-							}}
-						/>
-						<span className="min-w-0 flex-1">{service.service_name}</span>
-						<span>{service.count}</span>
-					</li>
-				))}
-			</ul>
-			{average}
-		</div>
-	);
-};
-
 interface WorkerServicesChartProps {
 	data: WorkerDetailReport;
 	topIds: number[];
+	from: string;
+	to: string;
 }
+
+const count = (value: number) => numberFormatter.format(value);
 
 export const WorkerServicesChart = ({
 	data,
 	topIds,
+	from,
+	to,
 }: WorkerServicesChartProps) => {
-	// The tooltip steps one bar-width plus a gap away from the pointer, so it
-	// never covers the bar being read.
-	const [width, setWidth] = useState(0);
-	const measure = useCallback((element: HTMLDivElement | null) => {
-		if (!element) {
-			return;
-		}
-		const observer = new ResizeObserver(([entry]) =>
-			setWidth(entry.contentRect.width),
-		);
-		observer.observe(element);
-		return () => observer.disconnect();
-	}, []);
-
+	const axis = dateAxis(data.bucket);
 	const rows = buildChartRows(data.buckets, topIds);
-	const rowByLabel = new Map(rows.map((row) => [row.label, row]));
-	const ticks = axisTickLabels(
-		rows.map((row) => row.label),
-		data.bucket,
+	const labels = rows.map((row) => row.label);
+	const names = new Map(
+		data.services.map((s) => [s.service_id, s.service_name]),
 	);
-	const lastAverage = rows.reduce(
-		(last, row, index) => (row.storeAverage === null ? last : index),
-		-1,
-	);
-	const slot = rows.length > 0 ? Math.max(width - 40, 0) / rows.length : 0;
+	const series: ChartSeries[] = [
+		...topIds.map((id, index) => ({
+			key: String(id),
+			name: names.get(id) ?? "Service",
+			color: topFourColor(index),
+			values: rows.map((row) => row.slices[index]),
+		})),
+		{
+			key: "other",
+			name: "Other",
+			color: CHART_OTHER_COLOR,
+			values: rows.map((row) => row.other),
+		},
+	];
 
 	return (
-		<div ref={measure}>
-			<ChartContainer config={{}} className="aspect-auto h-64 w-full">
-				<ComposedChart
-					data={rows}
-					margin={{ top: 16, right: 8, left: 0, bottom: 0 }}
-				>
-					<CartesianGrid vertical={false} />
-					<XAxis
-						dataKey="label"
-						ticks={ticks}
-						interval={0}
-						tickLine={false}
-						tickMargin={6}
-						tickFormatter={(label: string) => dayjs(label).format("D MMM")}
-					/>
-					<YAxis
-						allowDecimals={false}
-						tickLine={false}
-						axisLine={false}
-						width={28}
-					/>
-					<ChartTooltip
-						cursor={{ fill: "var(--muted)" }}
-						offset={slot + 12}
-						content={({ label }) => (
-							<BucketTip
-								row={rowByLabel.get(String(label))}
-								topIds={topIds}
-								bucket={data.bucket}
-								// On a phone the chart is narrower than the tooltip; it may
-								// cover the bar there, but never runs off the screen.
-								maxWidth={Math.min(280, Math.max(width - 36, 160))}
-							/>
-						)}
-					/>
-					{topIds.map((id, index) => (
-						<Bar
-							key={id}
-							dataKey={(row: ChartRow) => row.slices[index]}
-							stackId="services"
-							fill={topFourColor(index)}
-							isAnimationActive={false}
-						/>
-					))}
-					<Bar
-						dataKey="other"
-						stackId="services"
-						fill={CHART_OTHER_COLOR}
-						isAnimationActive={false}
-					/>
-					<Line
-						dataKey="storeAverage"
-						stroke={AVERAGE_COLOR}
-						strokeWidth={2}
-						dot={false}
-						activeDot={false}
-						connectNulls={false}
-						isAnimationActive={false}
-						label={({ x, y, index }) =>
-							index === lastAverage ? (
-								<text
-									key="average-label"
-									x={Number(x)}
-									y={Number(y) - 6}
-									textAnchor="end"
-									fontSize={11}
-									fontWeight={500}
-									fill={AVERAGE_COLOR}
-									stroke="var(--background)"
-									strokeWidth={4}
-									paintOrder="stroke"
-								>
-									Store average
-								</text>
-							) : (
-								<g key={`skip-${index}`} />
-							)
-						}
-					/>
-				</ComposedChart>
-			</ChartContainer>
-		</div>
+		<ReportChart
+			labels={labels}
+			axis={axis}
+			groups={[series]}
+			average={{
+				name: "Store average",
+				values: rows.map((row) => row.storeAverage),
+			}}
+			formatAxis={count}
+			head={(index) => {
+				const parts = headParts(series, index, count);
+				if (index === null) {
+					const total = series.reduce((sum, s) => sum + valueAt(s, null), 0);
+					return {
+						label: "Services",
+						value: count(total),
+						caption: rangeLabel(from, to),
+						parts,
+					};
+				}
+				const row = rows[index];
+				const average =
+					row.storeAverage === null
+						? ""
+						: ` · Store average ${oneDecimalFormatter.format(row.storeAverage)}`;
+				return {
+					label: axis.title(row.label),
+					value: row.total === null ? "—" : count(row.total),
+					caption:
+						row.total === null
+							? "Not worked"
+							: `${row.total === 0 ? "Worked, nothing reached QC" : "Services"}${average}`,
+					parts,
+				};
+			}}
+		/>
 	);
 };

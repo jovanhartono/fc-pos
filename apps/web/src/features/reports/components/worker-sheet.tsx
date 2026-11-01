@@ -1,8 +1,13 @@
-import { LinkSquare02Icon } from "@hugeicons/core-free-icons";
+import {
+	CancelCircleIcon,
+	LinkSquare02Icon,
+	MessageCircleWarningIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useCallback } from "react";
+import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
@@ -26,6 +31,7 @@ import {
 	fixedPercentFormatter,
 	numberFormatter,
 	oneDecimalFormatter,
+	rangeLabel,
 } from "@/features/reports/utils/format";
 import {
 	outOf,
@@ -48,12 +54,8 @@ interface WorkerSheetTarget {
 	role: string;
 }
 
-const sheetRangeLabel = (from: string, to: string) =>
-	from === to
-		? dayjs(to).format("D MMM YYYY")
-		: `${dayjs(from).format("D MMM")} – ${dayjs(to).format("D MMM YYYY")}`;
-
-const shortDay = (value: string) => dayjs(value).tz(JAKARTA_TZ).format("D MMM");
+export const shortDay = (value: string) =>
+	dayjs(value).tz(JAKARTA_TZ).format("D MMM");
 
 // Both the worker sheet and the line sheet opened from it use this, so the
 // line sheet's back button can bring the worker sheet up again.
@@ -63,7 +65,7 @@ export const useOpenWorkerSheet = () => {
 		(target: WorkerSheetTarget) =>
 			openSheet({
 				title: <WorkerName name={target.userName} role={target.role} />,
-				description: `${target.storeName} · ${sheetRangeLabel(target.from, target.to)}`,
+				description: `${target.storeName} · ${rangeLabel(target.from, target.to)}`,
 				size: "wide",
 				content: () => <WorkerSheetContent target={target} />,
 			}),
@@ -181,9 +183,9 @@ const ServiceCard = ({ name, chip, children }: ServiceCardProps) => (
 	</div>
 );
 
-const ROW_CLASS =
+export const ROW_CLASS =
 	"grid grid-cols-[3.5rem_auto_1fr] items-baseline gap-x-3 border-border py-2 text-body not-first:border-t max-sm:grid-cols-[3.5rem_1fr]";
-const DETAIL_CLASS = "text-muted-foreground max-sm:col-start-2";
+export const DETAIL_CLASS = "text-muted-foreground max-sm:col-start-2";
 
 interface RejectCardsProps {
 	target: WorkerSheetTarget;
@@ -195,7 +197,7 @@ const RejectCards = ({ target, rejects }: RejectCardsProps) => {
 	const openWorkerSheet = useOpenWorkerSheet();
 	if (rejects.length === 0) {
 		return (
-			<p className="text-muted-foreground text-body">No QC rejects in range.</p>
+			<EmptyState icon={CancelCircleIcon}>No QC rejects in range.</EmptyState>
 		);
 	}
 	return (
@@ -253,7 +255,9 @@ const ComplaintCards = ({ complaints }: ComplaintCardsProps) => {
 	const leaveSheet = useLeaveSheetLink();
 	if (complaints.length === 0) {
 		return (
-			<p className="text-muted-foreground text-body">No Complaints in range.</p>
+			<EmptyState icon={MessageCircleWarningIcon}>
+				No Complaints in range.
+			</EmptyState>
 		);
 	}
 	return (
@@ -319,7 +323,7 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
 					))}
 				</KpiRow>
 				<Section title="Services Each Day">
-					<Skeleton className="h-64 w-full" />
+					<Skeleton className="h-69 w-full" />
 				</Section>
 				<Section
 					title="Services Worked"
@@ -371,7 +375,12 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
 			</KpiRow>
 
 			<Section title="Services Each Day">
-				<WorkerServicesChart data={data} topIds={topIds} />
+				<WorkerServicesChart
+					data={data}
+					topIds={topIds}
+					from={target.from}
+					to={target.to}
+				/>
 			</Section>
 
 			<Section

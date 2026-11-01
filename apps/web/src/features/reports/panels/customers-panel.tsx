@@ -5,6 +5,7 @@ import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
+import { rangeAxis, sumHead } from "@/features/reports/components/report-chart";
 import {
 	csvFilename,
 	downloadCsv,
@@ -13,6 +14,7 @@ import {
 import {
 	numberFormatter,
 	percentFormatter,
+	rangeLabel,
 } from "@/features/reports/utils/format";
 import { CHART_PALETTE } from "@/features/reports/utils/palette";
 import { staleFade } from "@/lib/content-fade";
@@ -44,6 +46,35 @@ export const CustomersPanel = ({
 	const data = query.data;
 	const summary = data?.summary.current;
 	const deltas = data?.summary.deltas;
+	const axis = rangeAxis(data?.granularity ?? "day");
+	const caption = rangeLabel(from, to);
+	const newLabels = (data?.series ?? []).map((row) => row.bucket);
+	const newCustomers = [
+		{
+			key: "new",
+			name: "New customers",
+			color: CHART_PALETTE[0],
+			values: (data?.series ?? []).map((row) => row.new_customers),
+		},
+	];
+	const mixLabels = (data?.mix_series ?? []).map((row) => row.bucket);
+	const mix = [
+		{
+			key: "new",
+			name: "New",
+			color: CHART_PALETTE[1],
+			values: (data?.mix_series ?? []).map((row) => row.new_customer_orders),
+		},
+		{
+			key: "returning",
+			name: "Returning",
+			color: CHART_PALETTE[0],
+			values: (data?.mix_series ?? []).map(
+				(row) => row.returning_customer_orders,
+			),
+		},
+	];
+	const count = (v: number) => numberFormatter.format(v);
 
 	const topCustomers = data?.top_customers ?? [];
 	const maxTopCollected = topCustomers.reduce(
@@ -118,38 +149,35 @@ export const CustomersPanel = ({
 			</KpiRow>
 
 			<ChartCard
-				variant="area"
 				title="New Customers Over Time"
-				data={data?.series ?? []}
-				granularity={data?.granularity ?? "day"}
-				series={[
-					{
-						key: "new_customers",
-						label: "New customers",
-						color: CHART_PALETTE[0],
-					},
-				]}
-				valueFormatter={(v) => numberFormatter.format(v)}
+				labels={newLabels}
+				axis={axis}
+				groups={[newCustomers]}
+				formatAxis={count}
+				head={sumHead({
+					name: "New customers",
+					caption,
+					labels: newLabels,
+					axis,
+					series: newCustomers,
+					format: count,
+				})}
 			/>
 
 			<ChartCard
-				variant="stacked-bar"
 				title="Orders · New vs Returning Customers"
-				data={data?.mix_series ?? []}
-				granularity={data?.granularity ?? "day"}
-				series={[
-					{
-						key: "new_customer_orders",
-						label: "New",
-						color: CHART_PALETTE[1],
-					},
-					{
-						key: "returning_customer_orders",
-						label: "Returning",
-						color: CHART_PALETTE[0],
-					},
-				]}
-				valueFormatter={(v) => numberFormatter.format(v)}
+				labels={mixLabels}
+				axis={axis}
+				groups={[mix]}
+				formatAxis={count}
+				head={sumHead({
+					name: "Orders",
+					caption,
+					labels: mixLabels,
+					axis,
+					series: mix,
+					format: count,
+				})}
 			/>
 
 			<Card className="border-border/70">

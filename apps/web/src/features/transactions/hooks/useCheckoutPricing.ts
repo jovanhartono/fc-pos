@@ -49,15 +49,32 @@ export function useCheckoutPricing() {
 		enabled: selectedStoreNumber !== undefined,
 	});
 
+	// As on the server, a Repair can never be the free one in a BOGO (ADR-0018).
+	const serviceLines = useMemo(
+		() =>
+			serviceRows.flatMap((row) =>
+				row.service.price === null
+					? []
+					: [
+							{
+								price: parseMoney(row.service.price),
+								service_id: row.service.id,
+							},
+						],
+			),
+		[serviceRows],
+	);
+
 	// Campaigns are judged against the Cart total (ADR-0018): a discount
 	// settles only once every line is priced, so the total is the base.
 	const availableCampaigns = useMemo(
 		() =>
 			filterEligibleCampaigns(campaignsQuery.data, {
 				grossTotal: subtotal,
+				lines: serviceLines,
 				storeId: selectedStoreNumber,
 			}),
-		[campaignsQuery.data, selectedStoreNumber, subtotal],
+		[campaignsQuery.data, selectedStoreNumber, subtotal, serviceLines],
 	);
 
 	const selectedCampaigns = useMemo(() => {
@@ -77,22 +94,6 @@ export function useCheckoutPricing() {
 		[selectedCampaigns, appliedVouchers],
 	);
 
-	// As on the server, a Repair can never be the free one in a BOGO (ADR-0018).
-	const serviceLines = useMemo(
-		() =>
-			serviceRows.flatMap((row) =>
-				row.service.price === null
-					? []
-					: [
-							{
-								price: parseMoney(row.service.price),
-								service_id: row.service.id,
-							},
-						],
-			),
-		[serviceRows],
-	);
-
 	const pricing = useMemo(
 		() =>
 			getCartPricing({
@@ -104,5 +105,12 @@ export function useCheckoutPricing() {
 		[subtotal, pricingCampaigns, serviceLines, manualDiscount],
 	);
 
-	return { subtotal, selectedCampaigns, pricing };
+	return {
+		subtotal,
+		availableCampaigns,
+		campaignsQuery,
+		selectedCampaigns,
+		serviceLines,
+		pricing,
+	};
 }

@@ -36,6 +36,7 @@ export type ResolveVoucherCodePayload = {
 	code: string;
 	store_id: number;
 	gross_total: number;
+	service_ids: number[];
 };
 
 export const campaignsKeys = {

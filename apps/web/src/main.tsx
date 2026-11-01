@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
 import { RoutePending } from "@/components/route-pending";
 import { ThemeProvider } from "@/components/theme-provider";
+import { trackBackNavigation } from "@/lib/back-navigation";
 import { routeTree } from "@/routeTree.gen";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -38,6 +39,11 @@ const ReactQueryDevtools = import.meta.env.DEV
 
 const queryClient = new QueryClient({
 	defaultOptions: {
+		queries: {
+			// The sidebar preloads every page once, when the app opens; at the 5-minute
+			// default opening Shifts later got the skeleton anyway.
+			gcTime: 60 * 60 * 1000,
+		},
 		mutations: {
 			// A payment tapped while offline must fail now, not fire minutes later
 			// when the connection returns and the counter has moved on.
@@ -149,6 +155,7 @@ const router = createRouter({
 		`[data-scroll-restoration-id="${APP_CONTENT_SCROLL_ID}"]`,
 	],
 });
+trackBackNavigation(router.history);
 
 declare module "@tanstack/react-router" {
 	interface Register {

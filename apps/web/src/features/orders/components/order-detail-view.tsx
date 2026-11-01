@@ -1,4 +1,8 @@
-import { ArrowLeft02Icon } from "@hugeicons/core-free-icons";
+import {
+	AlertCircleIcon,
+	ArrowLeft02Icon,
+	Search01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -53,7 +57,7 @@ export const OrderDetailMessage = ({
 	title,
 	tone,
 }: OrderDetailMessageProps) => (
-	<EmptyState>
+	<EmptyState icon={tone === "error" ? AlertCircleIcon : Search01Icon}>
 		<p
 			className={cn(
 				"font-medium text-foreground",
@@ -85,6 +89,7 @@ export const OrderNotFound = () => {
 						Close
 					</Button>
 				}
+				icon={Search01Icon}
 			>
 				Order not found.
 			</EmptyState>
@@ -102,6 +107,7 @@ export const OrderNotFound = () => {
 					Back to Orders
 				</Button>
 			}
+			icon={Search01Icon}
 		>
 			Order not found.
 		</EmptyState>

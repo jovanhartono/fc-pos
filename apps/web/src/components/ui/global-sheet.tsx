@@ -22,8 +22,17 @@ import { cn } from "@/lib/utils";
 import { useSheet } from "@/stores/sheet-store";
 
 export function GlobalSheet() {
-	const { open, title, description, content, size, back, actions, onClose } =
-		useSheet((state) => state.sheetState);
+	const {
+		open,
+		title,
+		description,
+		content,
+		size,
+		back,
+		actions,
+		onClose,
+		isInstant,
+	} = useSheet((state) => state.sheetState);
 	const closeSheet = useSheet((state) => state.closeSheet);
 	const clearClosedSheet = useSheet((state) => state.clearClosedSheet);
 	const isDirty = useSheet((state) => state.isDirty);
@@ -76,6 +85,7 @@ export function GlobalSheet() {
 						size === "wide" &&
 							"data-[side=right]:w-full data-[side=right]:sm:max-w-[820px]",
 					)}
+					isInstant={isInstant}
 				>
 					{title || description ? (
 						<SheetHeader className="shrink-0 border-b">

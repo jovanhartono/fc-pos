@@ -1,3 +1,4 @@
+import type { IconSvgElement } from "@hugeicons/react";
 import type { LinkProps } from "@tanstack/react-router";
 import {
 	type CellContext,
@@ -31,6 +32,7 @@ interface DataTableProps<TData extends RowData> {
 	// Desktop placeholder rows are a name over a smaller line, unless every row
 	// is one line, or two wrapped lines of the table's own text.
 	skeletonLines?: 1 | 2 | "wrapped";
+	emptyIcon: IconSvgElement;
 	emptyMessage?: string;
 	sortable?: boolean;
 	cardPrimaryColumnId?: string;
@@ -95,6 +97,7 @@ export const DataTable = <TData extends RowData>({
 	skeletonRowCount,
 	skeletonCardClassName,
 	skeletonLines,
+	emptyIcon,
 	emptyMessage = "Nothing here.",
 	sortable = false,
 	cardPrimaryColumnId,
@@ -148,6 +151,7 @@ export const DataTable = <TData extends RowData>({
 						resultSet={resultSet}
 						skeletonRowCount={skeletonRowCount}
 						skeletonCardClassName={skeletonCardClassName}
+						emptyIcon={emptyIcon}
 						emptyMessage={emptyMessage}
 						cardPrimaryColumnId={cardPrimaryColumnId}
 						cardHiddenColumnIds={cardHiddenColumnIds}
@@ -180,6 +184,7 @@ export const DataTable = <TData extends RowData>({
 			resultSet={resultSet}
 			skeletonRowCount={skeletonRowCount}
 			skeletonLines={skeletonLines}
+			emptyIcon={emptyIcon}
 			emptyMessage={emptyMessage}
 			sortable={sortable}
 			getRowLink={getRowLink}

@@ -1,3 +1,5 @@
+import { Invoice01Icon } from "@hugeicons/core-free-icons";
+import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
 import type { DayClose } from "@/features/counter/api";
 import {
@@ -9,7 +11,7 @@ import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
 import { pluralize } from "@/shared/utils";
 
 interface CountGroupProps {
-	count: number;
+	count?: number;
 	// Two Services or Products can share a name, so rows go by their id.
 	lines: { count: number; id: number; name: string }[];
 	title: string;
@@ -29,14 +31,26 @@ const CountGroup = ({ count, lines, title }: CountGroupProps) => (
 
 interface SalesReportSectionProps {
 	data: DayClose;
+	dayWord: string;
 	onOpen: (list: string) => void;
 }
 
 export const SalesReportSection = ({
 	data,
+	dayWord,
 	onOpen,
 }: SalesReportSectionProps) => {
 	const { dropped_off: dropped } = data;
+
+	if (dropped.orders === 0) {
+		return (
+			<Section title="Sales Report">
+				<EmptyState icon={Invoice01Icon}>
+					No Orders dropped off {dayWord}.
+				</EmptyState>
+			</Section>
+		);
+	}
 
 	const summary = [
 		pluralize(dropped.orders, "Order"),
@@ -63,7 +77,6 @@ export const SalesReportSection = ({
 				</button>
 				{dropped.categories.map((category) => (
 					<CountGroup
-						count={category.count}
 						key={category.name}
 						lines={category.services.map((line) => ({
 							count: line.count,

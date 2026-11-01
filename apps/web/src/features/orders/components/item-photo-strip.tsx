@@ -9,6 +9,10 @@ import { PhotoLightbox } from "@/features/orders/components/photo-lightbox";
 import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { useRefreshOrder } from "@/features/orders/hooks/useOrderMutations";
 import type { OrderItem } from "@/features/orders/lib/order-lines";
+import {
+	ITEM_PHOTO_TILE_SIZE,
+	photoTileUrl,
+} from "@/features/orders/utils/photo-tile";
 import { itemPhotoUploader } from "@/features/orders/utils/photo-upload";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { readServerErrorMessage } from "@/lib/server-error";
@@ -91,10 +95,10 @@ export const ItemPhotoStrip = ({
 						alt={image.alt}
 						className="aspect-square size-full object-cover"
 						decoding="async"
-						height={160}
+						height={ITEM_PHOTO_TILE_SIZE}
 						loading="lazy"
-						src={image.image_url}
-						width={160}
+						src={photoTileUrl(image.image_url, ITEM_PHOTO_TILE_SIZE)}
+						width={ITEM_PHOTO_TILE_SIZE}
 					/>
 				</button>
 			))}

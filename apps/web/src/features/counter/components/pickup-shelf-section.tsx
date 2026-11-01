@@ -1,7 +1,9 @@
+import { PackageDeliveredIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useRef } from "react";
+import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { WhatsappIcon } from "@/components/whatsapp-icon";
@@ -169,10 +171,11 @@ export const PickupShelfSection = ({
 }: PickupShelfSectionProps) => (
 	<Section
 		count={`${pluralize(shelf.orders, "Order")} · ${pluralize(shelf.items, "Item")}`}
-		empty="Nothing on the shelf."
 		title="Pickup Shelf"
 	>
-		{shelf.orders === 0 ? null : (
+		{shelf.orders === 0 ? (
+			<EmptyState icon={PackageDeliveredIcon}>Nothing on the shelf.</EmptyState>
+		) : (
 			<div className="overflow-hidden rounded-lg border bg-card">
 				<ShelfList
 					isWide={isWide}

@@ -1,9 +1,10 @@
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { ArrowRight01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { EmptyState } from "@/components/empty-state";
 import {
 	Tooltip,
 	TooltipContent,
@@ -91,7 +92,7 @@ interface AvgBarProps {
 }
 
 // Scaled to the busiest Avg/day in the same table, so rows compare by eye.
-const AvgBar = ({ value, max }: AvgBarProps) => (
+export const AvgBar = ({ value, max }: AvgBarProps) => (
 	<span className="inline-flex items-center justify-end gap-2">
 		<span
 			aria-hidden="true"
@@ -230,16 +231,18 @@ const columnsFor = (
 			id: "open",
 			header: () => <span className="sr-only">Open</span>,
 			meta: { width: { percent: 4, minRem: 1.75 } },
-			cell: () => (
-				<HugeiconsIcon
-					icon={ArrowRight01Icon}
-					aria-hidden="true"
-					className="size-3.5 text-muted-foreground"
-				/>
-			),
+			cell: () => <OpenArrow />,
 		},
 	];
 };
+
+export const OpenArrow = () => (
+	<HugeiconsIcon
+		icon={ArrowRight01Icon}
+		aria-hidden="true"
+		className="size-3.5 text-muted-foreground"
+	/>
+);
 
 const phoneFacts = (row: WorkerRow, now: number) => {
 	const moved = row.live.last_move_at
@@ -314,6 +317,7 @@ const WorkerList = ({ rows, now, onOpen, isInsideCard }: WorkerListProps) => {
 	const columns = useMemo(() => columnsFor(rows, now), [rows, now]);
 	return (
 		<DataTable
+			emptyIcon={UserGroupIcon}
 			columns={columns}
 			data={rows}
 			onRowOpen={onOpen}
@@ -367,9 +371,7 @@ export const WorkersTable = ({
 	// owner closed must not pop open because another overtook it.
 	const [firstStoreId] = useState(() => groupByStore(workers)[0]?.store_id);
 	if (workers.length === 0) {
-		return (
-			<p className="text-muted-foreground text-body">No worker activity</p>
-		);
+		return <EmptyState icon={UserGroupIcon}>No worker activity</EmptyState>;
 	}
 
 	if (!isAllStores) {

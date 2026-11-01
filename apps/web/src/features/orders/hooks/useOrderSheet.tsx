@@ -12,7 +12,7 @@ const NEIGHBOUR_STALE_TIME = 30_000;
 interface UseOrderSheetOptions {
 	// The list has loaded, so the sheet can count the Order's place in it.
 	isReady: boolean;
-	onClose: () => void;
+	onClose: () => Promise<void>;
 	onSelect: (orderId: number) => void;
 	// The Order in the URL; undefined keeps the sheet shut.
 	openId?: number;
@@ -51,7 +51,10 @@ export const useOrderSheet = ({
 		const code = orders.find((order) => order.id === openId)?.code ?? "Order";
 		useSheet.getState().openSheet({
 			...orderSheetPayload(openId, code),
-			actions: <OrderWalk onSelect={onSelect} openId={openId} />,
+			actions: (
+				<OrderWalk onClose={onClose} onSelect={onSelect} openId={openId} />
+			),
+			isRestoredOnBack: true,
 			onClose,
 		});
 	}, [openId, isReady]);
@@ -79,6 +82,6 @@ export const useOrderSheet = ({
 		if (!isOpen) {
 			return;
 		}
-		return () => useSheet.getState().closeSheet();
+		return () => useSheet.getState().closeSheetInstantly();
 	}, [isOpen]);
 };

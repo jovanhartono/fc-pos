@@ -1,5 +1,4 @@
-import { PackageDeliveredIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { Invoice01Icon, Store01Icon } from "@hugeicons/core-free-icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
@@ -18,7 +17,6 @@ import { MoneyValue } from "@/components/money-value";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import {
 	type FetchOrdersQuery,
@@ -37,7 +35,6 @@ import {
 } from "@/features/orders/components/order-filters";
 import { OrderPhoneRow } from "@/features/orders/components/order-phone-row";
 import { ORDER_STATUS_VALUES } from "@/features/orders/components/order-status-tabs";
-import { PickupRadar } from "@/features/orders/components/pickup-radar";
 import { useOrderSheet } from "@/features/orders/hooks/useOrderSheet";
 import { paymentMethodsQueries } from "@/features/payment-methods/api";
 import { storesQueries } from "@/features/stores/api";
@@ -51,8 +48,8 @@ import {
 	pageSizeSearch,
 } from "@/lib/page-size";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
+import { parseMoney } from "@/shared/money";
 import { getCurrentUser } from "@/stores/auth-store";
-import { useSheet } from "@/stores/sheet-store";
 
 const ordersSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
@@ -192,12 +189,15 @@ function OrdersPage() {
 				: { to: "/orders/$orderId", params: { orderId: String(orderId) } },
 		[isWide],
 	);
-	const handleCloseOrder = useCallback(() => {
-		void navigate({
-			search: (prev) => ({ ...prev, open: undefined }),
-			replace: true,
-		});
-	}, [navigate]);
+	const handleCloseOrder = useCallback(
+		() =>
+			navigate({
+				search: (prev) => ({ ...prev, open: undefined }),
+				replace: true,
+				resetScroll: false,
+			}),
+		[navigate],
+	);
 
 	const handleFilterChange = useCallback(
 		(patch: Partial<OrderFilterValues>) => {
@@ -228,8 +228,6 @@ function OrdersPage() {
 	const hasNoStoreAssignment =
 		role !== "admin" && meQuery.isSuccess && userStoreIds.length === 0;
 
-	const openSheet = useSheet((state) => state.openSheet);
-
 	const orders = ordersQuery.data?.items ?? [];
 
 	useOrderSheet({
@@ -239,16 +237,6 @@ function OrdersPage() {
 		openId: sheetOrderId,
 		orders,
 	});
-
-	const handleOpenPickupRadar = useCallback(() => {
-		openSheet({
-			title: "Ready for Pickup",
-			description: "Orders that can leave the store now.",
-			content: () => (
-				<PickupRadar enabled={canListOrders} storeId={parsedStoreId} />
-			),
-		});
-	}, [canListOrders, openSheet, parsedStoreId]);
 
 	const columns = useMemo<DataTableColumnDef<Order>[]>(
 		() => [
@@ -344,7 +332,13 @@ function OrdersPage() {
 				id: "total",
 				header: "Total",
 				meta: { align: "right", width: { percent: 12, minRem: 6.5 } },
-				cell: ({ row }) => <MoneyValue value={row.original.total} />,
+				cell: ({ row }) => (
+					<MoneyValue
+						value={
+							parseMoney(row.original.total) - parseMoney(row.original.discount)
+						}
+					/>
+				),
 			},
 		],
 		[orderLink],
@@ -375,20 +369,7 @@ function OrdersPage() {
 
 	return (
 		<>
-			<PageHeader
-				title="Orders"
-				actions={
-					<Button
-						variant="outline"
-						onClick={handleOpenPickupRadar}
-						icon={
-							<HugeiconsIcon icon={PackageDeliveredIcon} className="size-4" />
-						}
-					>
-						Ready for Pickup
-					</Button>
-				}
-			/>
+			<PageHeader title="Orders" />
 			<ListPanel>
 				<OrderFilters
 					values={search}
@@ -397,9 +378,10 @@ function OrdersPage() {
 					onChange={handleFilterChange}
 				/>
 				{hasNoStoreAssignment ? (
-					<EmptyState>No store assigned</EmptyState>
+					<EmptyState icon={Store01Icon}>No store assigned</EmptyState>
 				) : (
 					<DataTable
+						emptyIcon={Invoice01Icon}
 						columns={columns}
 						data={orders}
 						isLoading={ordersQuery.isPending || storesQuery.isPending}

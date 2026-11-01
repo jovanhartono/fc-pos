@@ -166,17 +166,88 @@ export async function listQualityChecksByChecker(args: RangeArgs) {
     .orderBy(desc(sql`COUNT(*)`), asc(checker.name));
 }
 
+// Every landing on the QC shelf, a redo after a QC reject included: each one
+// needs a check.
+export function listQcArrivalsByDay({ range, storeId }: RangeArgs) {
+  const day = jakartaBucketExpr(qcLog.created_at, "day");
+  return db
+    .select({ day, arrived: sql<number>`COUNT(*)::int` })
+    .from(qcLog)
+    .innerJoin(
+      ordersServicesTable,
+      eq(qcLog.order_service_id, ordersServicesTable.id)
+    )
+    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .where(
+      and(
+        eq(qcLog.to_status, "waiting_qc"),
+        ...timeWindow(qcLog.created_at, range),
+        storeScope(ordersTable.store_id, storeId)
+      )
+    )
+    .groupBy(day);
+}
+
+export function listQualityChecksByCheckerDay(args: RangeArgs) {
+  const day = jakartaBucketExpr(qcLog.created_at, "day");
+  return db
+    .select({
+      user_id: qcLog.changed_by,
+      day,
+      passes: sql<number>`(COUNT(*) FILTER (WHERE ${qcLog.to_status} = 'ready_for_pickup'))::int`,
+      rejects: sql<number>`(COUNT(*) FILTER (WHERE ${qcLog.to_status} = 'qc_reject'))::int`,
+    })
+    .from(qcLog)
+    .innerJoin(
+      ordersServicesTable,
+      eq(qcLog.order_service_id, ordersServicesTable.id)
+    )
+    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .where(qualityCheckInRange(qcLog, args))
+    .groupBy(qcLog.changed_by, day);
+}
+
+// What sits on the QC shelf right now, whatever range the report shows. An
+// Item's wait starts at its latest landing there.
+export async function findWaitingQcNow(storeId: number | undefined) {
+  const [row] = await db
+    .select({
+      count: sql<number>`COUNT(*)::int`,
+      oldest_at:
+        sql<Date | null>`MIN((SELECT MAX(${qcLog.created_at}) FROM ${orderServiceStatusLogsTable} AS ${sql.identifier("qc_log")} WHERE ${qcLog.order_service_id} = ${ordersServicesTable.id} AND ${qcLog.to_status} = 'waiting_qc'))`.mapWith(
+          qcLog.created_at
+        ),
+    })
+    .from(ordersServicesTable)
+    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .where(
+      and(
+        eq(ordersServicesTable.status, "waiting_qc"),
+        storeScope(ordersTable.store_id, storeId)
+      )
+    );
+  return { count: row?.count ?? 0, oldest_at: row?.oldest_at ?? null };
+}
+
 // A QC reject always passes through qc_reject, never straight back to
 // processing. The caller joins the log through to the Order.
-export function qcRejectInRange(log: StatusLog, { range, storeId }: RangeArgs) {
+interface QcRejectArgs extends RangeArgs {
+  checkerId?: number;
+}
+
+export function qcRejectInRange(
+  log: StatusLog,
+  { range, storeId, checkerId }: QcRejectArgs
+) {
   return and(
     eq(log.to_status, "qc_reject"),
     ...timeWindow(log.created_at, range),
-    storeScope(ordersTable.store_id, storeId)
+    storeScope(ordersTable.store_id, storeId),
+    checkerId === undefined ? undefined : eq(log.changed_by, checkerId)
   );
 }
 
-export async function countQcRejects(args: RangeArgs) {
+export async function countQcRejects(args: QcRejectArgs) {
   const [row] = await db
     .select({ total: sql<number>`COUNT(*)::int` })
     .from(qcLog)
@@ -194,7 +265,7 @@ export function listQcRejects({
   limit,
   offset,
   ...args
-}: RangeArgs & { limit: number; offset: number }) {
+}: QcRejectArgs & { limit: number; offset: number }) {
   return db
     .select({
       id: qcLog.id,

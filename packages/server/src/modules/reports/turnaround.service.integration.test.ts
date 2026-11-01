@@ -108,6 +108,8 @@ const setStatus = (
     .set({ status })
     .where(eq(ordersServicesTable.id, lineId));
 
+type Status = (typeof orderServiceStatusLogsTable.$inferInsert)["to_status"];
+
 const lineOf = (placed: Placed, serviceId: number) =>
   placed.lines.get(serviceId) as number;
 
@@ -330,6 +332,46 @@ describe("the breakdown", () => {
     // split; Rework and cancelled lines do not count either.
     expect(all.queued_p75).toBe(2);
     expect(all.in_progress_p75).toBe(46);
+    expect(all.waiting_qc_p75).toBe(0);
+  });
+
+  it("takes every stretch on the QC shelf out of In progress", async () => {
+    const placed = await placeOrder(
+      shop.store,
+      Array.from({ length: 10 }, (_, i) => ({
+        brand: `shelf-${i}`,
+        serviceIds: [cleanId],
+      }))
+    );
+    // Picked up at +2h, on the shelf 4h, sent back, redone, on the shelf 6h
+    // more, ready at +26h: 10h waiting QC, 14h of bench work.
+    const steps: [number, Status, Status][] = [
+      [2, "queued", "processing"],
+      [10, "processing", "waiting_qc"],
+      [14, "waiting_qc", "qc_reject"],
+      [15, "qc_reject", "processing"],
+      [20, "processing", "waiting_qc"],
+      [26, "waiting_qc", "ready_for_pickup"],
+    ];
+    for (const item of Object.values(placed)) {
+      await testDb.insert(orderServiceStatusLogsTable).values(
+        steps.map(([hours, from, to]) => ({
+          changed_by: shop.admin.id,
+          created_at: afterDropOff(hours),
+          from_status: from,
+          order_service_id: lineOf(item, cleanId),
+          to_status: to,
+        }))
+      );
+    }
+
+    const { rows } = await getTurnaroundReport({ ...AUGUST });
+
+    expect(rows[0].breakdown).toEqual({
+      queued_p75: 2,
+      in_progress_p75: 14,
+      waiting_qc_p75: 10,
+    });
   });
 
   it("is null for a Category with fewer than 10 lines", async () => {
@@ -340,6 +382,7 @@ describe("the breakdown", () => {
     expect(bags?.breakdown).toEqual({
       in_progress_p75: null,
       queued_p75: null,
+      waiting_qc_p75: null,
     });
   });
 

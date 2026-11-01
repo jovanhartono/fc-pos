@@ -1,5 +1,5 @@
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { Link, type LinkProps } from "@tanstack/react-router";
 import {
 	type Cell,
@@ -25,6 +25,7 @@ interface DataTableCardsProps<TData extends RowData> {
 	resultSet?: string;
 	skeletonRowCount?: number;
 	skeletonCardClassName?: string;
+	emptyIcon: IconSvgElement;
 	emptyMessage: string;
 	cardPrimaryColumnId?: string;
 	cardHiddenColumnIds?: string[];
@@ -138,6 +139,7 @@ export const DataTableCards = <TData extends RowData>({
 	resultSet,
 	skeletonRowCount = SKELETON_CARD_COUNT,
 	skeletonCardClassName,
+	emptyIcon,
 	emptyMessage,
 	cardPrimaryColumnId,
 	cardHiddenColumnIds,
@@ -194,10 +196,9 @@ export const DataTableCards = <TData extends RowData>({
 	if (rows.length === 0) {
 		return (
 			<EmptyState
-				className={cn(
-					"rounded-lg border bg-card text-body text-foreground lg:hidden",
-					CONTENT_FADE,
-				)}
+				className={cn("lg:hidden", CONTENT_FADE)}
+				icon={emptyIcon}
+				isInset={isInsideCard}
 			>
 				{emptyMessage}
 			</EmptyState>

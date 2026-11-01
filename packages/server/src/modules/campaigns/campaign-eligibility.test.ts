@@ -4,10 +4,14 @@ import { assertCampaignUsable } from "@/modules/campaigns/campaign.service";
 import { campaignIneligibilityReason } from "@/schema/campaign-eligibility";
 
 const baseCampaign = {
+  buy_quantity: null as number | null,
   code: "SAVE10",
+  discount_type: "fixed" as const,
+  eligibleServices: [] as { service_id: number }[],
   is_active: true,
   starts_at: null as Date | null,
   ends_at: null as Date | null,
+  free_quantity: null as number | null,
   min_order_total: "0",
   stores: [] as { store_id: number }[],
 };
@@ -15,6 +19,7 @@ const baseCampaign = {
 const ctx = {
   now: new Date("2026-06-09T00:00:00Z"),
   grossTotal: 100_000,
+  lines: [] as { service_id: number }[],
   storeId: 1,
   storeCode: "JKT",
 };
@@ -95,6 +100,8 @@ describe("assertCampaignUsable", () => {
 // single-use codes, so the check skips it.
 const eligibleBase = {
   code: "SAVE10",
+  discount_type: "fixed" as const,
+  eligibleServices: [] as { service_id: number }[],
   is_active: true,
   starts_at: null as Date | null,
   ends_at: null as Date | null,
@@ -179,6 +186,79 @@ describe("campaignIneligibilityReason — usage limit", () => {
         { ...eligibleBase, redemption_mode: "listed", usage_limit: 5 },
         ctx
       )
+    ).toBeNull();
+  });
+});
+
+const DEEP_CLEAN = 21;
+const UNYELLOWING = 22;
+
+const slots = (...serviceIds: number[]) =>
+  serviceIds.map((service_id) => ({ service_id }));
+
+// The cashier only sees "Buy 4 Get 1" once five eligible Services are in the
+// Cart; at three, the tile would promise a free Item the Order can't earn.
+describe("campaignIneligibilityReason — eligible Services", () => {
+  const buy4get1 = {
+    ...eligibleBase,
+    code: "B4G1",
+    discount_type: "buy_n_get_m_free" as const,
+    buy_quantity: 4,
+    free_quantity: 1,
+    eligibleServices: [{ service_id: DEEP_CLEAN }],
+  };
+  const fixedOnDeepClean = {
+    ...eligibleBase,
+    eligibleServices: [{ service_id: DEEP_CLEAN }],
+  };
+
+  it("refuses buy 4 get 1 with three eligible Services", () => {
+    expect(
+      campaignIneligibilityReason(buy4get1, {
+        ...ctx,
+        lines: slots(DEEP_CLEAN, DEEP_CLEAN, DEEP_CLEAN),
+      })
+    ).toBe("Campaign B4G1 needs 5 eligible Services");
+  });
+
+  it("allows buy 4 get 1 with five eligible Services", () => {
+    expect(
+      campaignIneligibilityReason(buy4get1, {
+        ...ctx,
+        lines: slots(
+          DEEP_CLEAN,
+          DEEP_CLEAN,
+          DEEP_CLEAN,
+          DEEP_CLEAN,
+          DEEP_CLEAN
+        ),
+      })
+    ).toBeNull();
+  });
+
+  it("doesn't count Services outside the Campaign toward buy 4 get 1", () => {
+    expect(
+      campaignIneligibilityReason(buy4get1, {
+        ...ctx,
+        lines: slots(
+          DEEP_CLEAN,
+          DEEP_CLEAN,
+          DEEP_CLEAN,
+          UNYELLOWING,
+          UNYELLOWING
+        ),
+      })
+    ).toBe("Campaign B4G1 needs 5 eligible Services");
+  });
+
+  // The Campaign form hides Eligible services for fixed and percentage, so a
+  // list left over from a type change must not hide the Campaign.
+  it("ignores Services for a fixed Campaign", () => {
+    expect(
+      campaignIneligibilityReason(fixedOnDeepClean, {
+        ...ctx,
+        lines: slots(UNYELLOWING),
+      })
     ).toBeNull();
   });
 });

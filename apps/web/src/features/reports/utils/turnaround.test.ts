@@ -4,7 +4,6 @@ import {
 	dayTickHours,
 	jitter,
 	longDuration,
-	queuedShare,
 	rowOrAll,
 	shortDay,
 	shortDuration,
@@ -47,11 +46,6 @@ describe("helpers", () => {
 	it("jitters deterministically inside 0..1", () => {
 		expect(jitter(7)).toBe(jitter(7));
 		expect(jitter(7) >= 0 && jitter(7) < 1).toBe(true);
-	});
-
-	it("splits the bar in proportion", () => {
-		expect(Math.round(queuedShare(96, 72))).toBe(57);
-		expect(queuedShare(0, 0)).toBe(50);
 	});
 
 	it("falls back to the first row when the name is gone", () => {

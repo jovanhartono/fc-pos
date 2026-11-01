@@ -3,13 +3,18 @@ import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
+import {
+	headParts,
+	rangeAxis,
+	valueAt,
+} from "@/features/reports/components/report-chart";
 import { TurnaroundSection } from "@/features/reports/components/turnaround-section";
 import {
 	csvFilename,
 	downloadCsv,
 	escapeCsv,
 } from "@/features/reports/utils/csv";
-import { numberFormatter } from "@/features/reports/utils/format";
+import { numberFormatter, rangeLabel } from "@/features/reports/utils/format";
 import {
 	ORDERS_IN_COLOR,
 	ORDERS_OUT_COLOR,
@@ -44,6 +49,21 @@ export const OperationsPanel = ({
 	const summary = data?.summary.current;
 	const deltas = data?.summary.deltas;
 	const readyWithin = turnaround?.rows[0]?.p75 ?? null;
+	const series = data?.series ?? [];
+	const labels = series.map((row) => row.bucket);
+	const axis = rangeAxis(data?.granularity ?? "day");
+	const ordersIn = {
+		key: "in",
+		name: "Orders in",
+		color: ORDERS_IN_COLOR,
+		values: series.map((row) => row.orders_in),
+	};
+	const ordersOut = {
+		key: "out",
+		name: "Orders out",
+		color: ORDERS_OUT_COLOR,
+		values: series.map((row) => row.orders_out),
+	};
 
 	const handleExport = () => {
 		if (!data) {
@@ -115,16 +135,25 @@ export const OperationsPanel = ({
 			)}
 
 			<ChartCard
-				variant="bar"
-				hideLegend
 				title="Order Dropoff vs Pickup"
-				data={data?.series ?? []}
-				granularity={data?.granularity ?? "day"}
-				series={[
-					{ key: "orders_in", label: "Orders in", color: ORDERS_IN_COLOR },
-					{ key: "orders_out", label: "Orders out", color: ORDERS_OUT_COLOR },
-				]}
-				valueFormatter={(v) => numberFormatter.format(v)}
+				labels={labels}
+				axis={axis}
+				groups={[[ordersIn], [ordersOut]]}
+				formatAxis={(v) => numberFormatter.format(v)}
+				head={(index) => {
+					const net = valueAt(ordersIn, index) - valueAt(ordersOut, index);
+					return {
+						label: index === null ? "Net flow" : axis.title(labels[index]),
+						value: `${net > 0 ? "+" : ""}${numberFormatter.format(net)}`,
+						unit: "Orders",
+						caption: index === null ? rangeLabel(from, to) : "Net flow",
+						parts: headParts(
+							[ordersIn, ordersOut],
+							index,
+							numberFormatter.format,
+						),
+					};
+				}}
 			/>
 		</div>
 	);

@@ -1,9 +1,10 @@
-import { Logout03Icon } from "@hugeicons/core-free-icons";
+import { Clock01Icon, Logout03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
+import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -138,7 +139,7 @@ function AttendancePage() {
 							))}
 						</ul>
 					) : weekShifts.length === 0 ? (
-						<p className="text-muted-foreground text-body">No shifts yet.</p>
+						<EmptyState icon={Clock01Icon}>No shifts yet.</EmptyState>
 					) : (
 						<ul className="divide-y border-y">
 							{weekShifts.map((shift) => (

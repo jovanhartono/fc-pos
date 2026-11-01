@@ -1,4 +1,4 @@
-import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { ordersQueries } from "@/features/orders/api";
 import {
 	OrderDetailMessage,
@@ -6,7 +6,7 @@ import {
 	OrderNotFound,
 } from "@/features/orders/components/order-detail-view";
 import { paymentMethodsQueries } from "@/features/payment-methods/api";
-import { isNotFoundError } from "@/lib/server-error";
+import { ensureOrNotFound } from "@/lib/server-error";
 
 export const Route = createFileRoute("/_admin/orders/$orderId")({
 	loader: async ({ context, params }) => {
@@ -16,17 +16,12 @@ export const Route = createFileRoute("/_admin/orders/$orderId")({
 			return;
 		}
 
-		try {
-			await Promise.all([
+		await ensureOrNotFound(
+			Promise.all([
 				context.queryClient.ensureQueryData(ordersQueries.detail(id)),
 				context.queryClient.ensureQueryData(paymentMethodsQueries.list()),
-			]);
-		} catch (error) {
-			if (isNotFoundError(error)) {
-				throw notFound();
-			}
-			throw error;
-		}
+			]),
+		);
 	},
 	component: OrderDetailPage,
 	// Past a second, the page draws its own Order-shaped skeleton, not the

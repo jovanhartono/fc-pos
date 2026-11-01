@@ -61,6 +61,7 @@ export type GetWorkerDetailQuery = z.infer<typeof GETWorkerDetailQuerySchema>;
 export const GETQcRejectsQuerySchema = z
   .object({
     ...reportRangeFields,
+    checker_id: z.coerce.number().int().positive().optional(),
     limit: z.coerce.number().int().min(1).max(200).optional(),
     offset: z.coerce.number().int().min(0).optional(),
   })

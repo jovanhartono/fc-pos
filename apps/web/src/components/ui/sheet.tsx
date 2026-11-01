@@ -61,13 +61,18 @@ const SheetOverlay = ({
 	/>
 );
 
+const INSTANT_POPUP =
+	"data-ending-style:duration-0 data-starting-style:opacity-100 data-[side=bottom]:data-starting-style:translate-y-0 data-[side=left]:data-starting-style:translate-x-0 data-[side=right]:data-starting-style:translate-x-0 data-[side=top]:data-starting-style:translate-y-0";
+
 interface SheetContentProps extends SheetPrimitive.Popup.Props {
+	isInstant?: boolean;
 	showCloseButton?: boolean;
 }
 
 const SheetContent = ({
 	className,
 	children,
+	isInstant,
 	showCloseButton = true,
 	...props
 }: SheetContentProps) => {
@@ -77,13 +82,22 @@ const SheetContent = ({
 
 	const portal = (
 		<SheetPrimitive.Portal data-slot="sheet-portal">
-			<SheetOverlay />
+			<SheetOverlay
+				className={cn(
+					isInstant &&
+						"data-ending-style:duration-0 data-starting-style:opacity-100",
+				)}
+			/>
 			<SheetPrimitive.Viewport data-slot="sheet-viewport">
+				{/* A swiped-away sheet keeps going off the edge at the finger's speed,
+				    as on iOS, instead of stopping to fade out. */}
 				<SheetPrimitive.Popup
 					data-slot="sheet-content"
 					data-side={side}
 					className={cn(
+						"data-swipe-dismiss:data-ending-style:opacity-100 data-swipe-dismiss:data-ending-style:duration-[calc(var(--drawer-swipe-strength)*400ms)] data-swipe-dismiss:data-ending-style:ease-out data-[side=bottom]:data-swipe-dismiss:data-ending-style:translate-y-full data-[side=left]:data-swipe-dismiss:data-ending-style:-translate-x-full data-[side=right]:data-swipe-dismiss:data-ending-style:translate-x-full data-[side=top]:data-swipe-dismiss:data-ending-style:-translate-y-full",
 						"fixed z-50 flex flex-col bg-popover bg-clip-padding dark:bg-background text-footnote/relaxed text-popover-foreground shadow-lg transition duration-200 ease-in-out data-swiping:duration-0 [transform:translate(var(--drawer-swipe-movement-x),var(--drawer-swipe-movement-y))] data-ending-style:opacity-0 data-starting-style:opacity-0 data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:border-t data-[side=bottom]:data-ending-style:translate-y-[2.5rem] data-[side=bottom]:data-starting-style:translate-y-[2.5rem] data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:border-r data-[side=left]:data-ending-style:translate-x-[-2.5rem] data-[side=left]:data-starting-style:translate-x-[-2.5rem] data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-full data-[side=right]:sm:w-3/4 data-[side=right]:border-l data-[side=right]:data-ending-style:translate-x-[2.5rem] data-[side=right]:data-starting-style:translate-x-[2.5rem] data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:border-b data-[side=top]:data-ending-style:translate-y-[-2.5rem] data-[side=top]:data-starting-style:translate-y-[-2.5rem] data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-xl data-[side=bottom]:rounded-t-xl data-[side=top]:rounded-b-xl data-[side=left]:rounded-r-xl data-[side=right]:sm:rounded-l-xl",
+						isInstant && INSTANT_POPUP,
 						className,
 					)}
 					ref={setPopupNode}

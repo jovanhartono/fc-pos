@@ -8,6 +8,8 @@ import {
 	ArrowRight01Icon,
 	FilterIcon,
 	QrCodeScanIcon,
+	Store01Icon,
+	Task01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -595,7 +597,7 @@ function QueuePage() {
 
 				<section className="grid min-w-0 gap-2">
 					{role === "admin" && parsedStoreId === undefined ? (
-						<EmptyState>Select a store</EmptyState>
+						<EmptyState icon={Store01Icon}>Select a store</EmptyState>
 					) : null}
 
 					{queueItems.length > 0 ? (
@@ -635,7 +637,7 @@ function QueuePage() {
 					!queueQuery.isError &&
 					queueItems.length === 0 &&
 					parsedStoreId !== undefined ? (
-						<EmptyState>No items.</EmptyState>
+						<EmptyState icon={Task01Icon}>No items.</EmptyState>
 					) : null}
 
 					<div className="h-6" ref={loadMoreRef} />

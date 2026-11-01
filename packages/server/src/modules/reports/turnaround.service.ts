@@ -17,6 +17,7 @@ type Line = Awaited<ReturnType<typeof listTurnaroundLines>>[number];
 interface Breakdown {
   in_progress_p75: number | null;
   queued_p75: number | null;
+  waiting_qc_p75: number | null;
 }
 
 interface TurnaroundItem {
@@ -117,17 +118,27 @@ export function groupItems(lines: Line[], range: { start: Date; end: Date }) {
 function summariseBreakdown(lines: Line[]): Breakdown {
   const queued: number[] = [];
   const inProgress: number[] = [];
+  const waitingQc: number[] = [];
   for (const line of lines) {
     const { processing_at: processingAt, ready_at: readyAt } = line;
     if (processingAt === null || readyAt === null) {
       continue;
     }
+    const shelf = Math.round(line.waiting_qc_hours * 10) / 10;
     queued.push(hoursBetween(line.order_created_at, processingAt));
-    inProgress.push(hoursBetween(processingAt, readyAt));
+    // The bench work and any redo after a QC reject; the shelf time is its own part.
+    inProgress.push(
+      Math.max(
+        Math.round((hoursBetween(processingAt, readyAt) - shelf) * 10) / 10,
+        0
+      )
+    );
+    waitingQc.push(shelf);
   }
   return {
     queued_p75: percentiles(queued).p75,
     in_progress_p75: percentiles(inProgress).p75,
+    waiting_qc_p75: percentiles(waitingQc).p75,
   };
 }
 

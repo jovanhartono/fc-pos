@@ -46,7 +46,7 @@ export type QcRejectItem = InferResponseType<
 
 // The Quality tab's first page and the loader's prefetch must ask for the same
 // page, or every visit refetches.
-export const QC_REJECTS_PREVIEW_SIZE = 10;
+export const QC_REJECTS_PAGE_SIZE = 200;
 
 export type WorkerProductivityReport = InferResponseType<
 	(typeof rpc.api.admin.reports)["worker-productivity"]["$get"]
@@ -103,6 +103,7 @@ export interface FetchQcRejectsQuery {
 	from: string;
 	to: string;
 	store_id?: number;
+	checker_id?: number;
 	limit?: number;
 	offset?: number;
 }
@@ -196,7 +197,11 @@ async function fetchQcRejectsReport(
 		rpcWithAuth().api.admin.reports["qc-rejects"].$get({
 			query: {
 				...toRangeQuery(query),
-				...toSearchParams({ limit: query.limit, offset: query.offset }),
+				...toSearchParams({
+					checker_id: query.checker_id,
+					limit: query.limit,
+					offset: query.offset,
+				}),
 			},
 		}),
 	);

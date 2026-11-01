@@ -49,9 +49,10 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 		}
 		useSheet.getState().openSheet({
 			...sheet,
+			isRestoredOnBack: true,
 			onClose: () => void setList(undefined),
 		});
-		return () => useSheet.getState().closeSheet();
+		return () => useSheet.getState().closeSheetInstantly();
 	}, [list, data?.date]);
 
 	if (!data) {
@@ -61,6 +62,8 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 	}
 
 	const dayLabel = formatDayLabel(data.date, today);
+	const isToday = data.date === today;
+	const dayWord = isToday ? "today" : "this day";
 
 	// Each day is drawn fresh and fades in over the last one, faded while it
 	// loads, instead of the last day's sections stretching into the new day's.
@@ -82,14 +85,19 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 				<CollectedSection
 					data={data}
 					dayLabel={dayLabel}
-					isToday={data.date === today}
+					isToday={isToday}
 					onOpen={setList}
 				/>
-				<MethodsSection data={data} onOpen={setList} />
-				<RefundsSection data={data} />
-				<PickedUpSection data={data} onOpen={setList} />
+				<MethodsSection data={data} dayWord={dayWord} onOpen={setList} />
+				<RefundsSection data={data} dayWord={dayWord} />
+				<PickedUpSection
+					data={data}
+					dayWord={dayWord}
+					isToday={isToday}
+					onOpen={setList}
+				/>
 			</div>
-			<SalesReportSection data={data} onOpen={setList} />
+			<SalesReportSection data={data} dayWord={dayWord} onOpen={setList} />
 		</div>
 	);
 };

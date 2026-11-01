@@ -1,4 +1,4 @@
-import { Add01Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, UserMultipleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -196,6 +196,7 @@ function CustomersPage() {
 					className="w-full sm:w-72"
 				/>
 				<DataTable
+					emptyIcon={UserMultipleIcon}
 					columns={columns}
 					data={customers}
 					getRowLink={

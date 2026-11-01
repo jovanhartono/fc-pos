@@ -1,24 +1,10 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useMemo, useState } from "react";
-import {
-	CartesianGrid,
-	Line,
-	LineChart,
-	ResponsiveContainer,
-	Sankey,
-	XAxis,
-	YAxis,
-} from "recharts";
+import { ResponsiveContainer, Sankey } from "recharts";
 import { SectionTitle } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-	type ChartConfig,
-	ChartContainer,
-	ChartTooltip,
-	ChartTooltipContent,
-} from "@/components/ui/chart";
 import {
 	type FinancialReport,
 	type KpiDelta,
@@ -27,6 +13,12 @@ import {
 } from "@/features/reports/api";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { DeltaLine } from "@/features/reports/components/kpi-card";
+import {
+	headParts,
+	ReportChart,
+	rangeAxis,
+	valueAt,
+} from "@/features/reports/components/report-chart";
 import { StoreRevenueRows } from "@/features/reports/components/store-revenue-rows";
 import {
 	csvFilename,
@@ -38,12 +30,10 @@ import {
 	compactNumber,
 	fixedPercentFormatter,
 	percentFormatter,
+	rangeLabel,
 } from "@/features/reports/utils/format";
-import {
-	bucketToLabel,
-	bucketToTooltipLabel,
-} from "@/features/reports/utils/granularity";
 import type { DeltaAs } from "@/features/reports/utils/kpi-delta";
+import { CHART_OTHER_COLOR } from "@/features/reports/utils/palette";
 import { staleFade } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
@@ -171,10 +161,7 @@ const RevenueBreakdownCard = ({ data }: RevenueBreakdownCardProps) => {
 			<CardContent className="grid gap-5 p-4">
 				<SectionTitle title="Gross Sales → Gross Profit" />
 
-				<RevenueLineChart
-					series={data?.series ?? []}
-					granularity={data?.granularity ?? "day"}
-				/>
+				<RevenueLineChart data={data} />
 
 				<StatStrip
 					title="Gross Sales → Collected → Revenue"
@@ -233,135 +220,46 @@ const RevenueBreakdownCard = ({ data }: RevenueBreakdownCardProps) => {
 	);
 };
 
-const GROSS_COLOR = "var(--muted-foreground)";
-const COLLECTED_COLOR = "var(--chart-1)";
-const REVENUE_COLOR = "var(--chart-2)";
-
-const LINE_CHART_CONFIG: ChartConfig = {
-	gross_sales: { label: "Gross sales", color: GROSS_COLOR },
-	collected: { label: "Collected", color: COLLECTED_COLOR },
-	revenue: { label: "Revenue", color: REVENUE_COLOR },
-};
-
 interface RevenueLineChartProps {
-	series: FinancialBucket[];
-	granularity: ReportGranularity;
+	data: FinancialReport | undefined;
 }
 
-const RevenueLineChart = ({ series, granularity }: RevenueLineChartProps) => {
-	const isEmpty =
-		series.length === 0 ||
-		series.every(
-			(row) =>
-				row.gross_sales === 0 && row.collected === 0 && row.revenue === 0,
-		);
-	// The key stays up while the range loads, so the chart doesn't push the
-	// figures under it down when the sales arrive.
-	const legend = (
-		<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-subhead font-medium text-muted-foreground">
-			<span className="flex items-center gap-1.5">
-				<span
-					className="h-0.5 w-3"
-					style={{ backgroundColor: GROSS_COLOR, opacity: 0.6 }}
-				/>
-				Gross
-			</span>
-			<span className="flex items-center gap-1.5">
-				<span
-					className="h-0.5 w-3"
-					style={{ backgroundColor: COLLECTED_COLOR }}
-				/>
-				Collected
-			</span>
-			<span className="flex items-center gap-1.5">
-				<span
-					className="h-0.5 w-3"
-					style={{ backgroundColor: REVENUE_COLOR }}
-				/>
-				Revenue
-			</span>
-		</div>
-	);
-	if (isEmpty) {
-		return (
-			<div className="grid gap-2">
-				{legend}
-				<div className="flex h-60 items-center justify-center rounded-md border border-border/40 text-body text-muted-foreground">
-					No sales in range.
-				</div>
-			</div>
-		);
-	}
+// One Revenue line; Gross sales and Collected run so close to it that they
+// read better as numbers in the header.
+const RevenueLineChart = ({ data }: RevenueLineChartProps) => {
+	const series = data?.series ?? [];
+	const labels = series.map((row) => row.bucket);
+	const axis = rangeAxis(data?.granularity ?? "day");
+	const line = (key: keyof FinancialBucket, name: string, color: string) => ({
+		key,
+		name,
+		color,
+		values: series.map((row) => Number(row[key])),
+	});
+	const revenue = line("revenue", "Revenue", "var(--chart-1)");
+	const others = [
+		line("gross_sales", "Gross sales", CHART_OTHER_COLOR),
+		line("collected", "Collected", CHART_OTHER_COLOR),
+	];
 	return (
-		<div className="grid gap-2">
-			{legend}
-			<ChartContainer
-				className="h-60 min-h-60 min-w-0 w-full aspect-auto"
-				config={LINE_CHART_CONFIG}
-				style={{ height: 240, minHeight: 240, minWidth: 0 }}
-			>
-				<LineChart data={series} margin={{ left: 4, right: 8, top: 8 }}>
-					<CartesianGrid vertical={false} strokeDasharray="3 3" />
-					<XAxis
-						axisLine={false}
-						dataKey="bucket"
-						minTickGap={24}
-						tickFormatter={(value: string) => bucketToLabel(value, granularity)}
-						tickLine={false}
-						tickMargin={8}
-					/>
-					<YAxis
-						axisLine={false}
-						tickFormatter={(v: number) => compactNumber(v)}
-						tickLine={false}
-						tickMargin={8}
-						width={56}
-					/>
-					<ChartTooltip
-						content={
-							<ChartTooltipContent
-								formatter={(value, name) => (
-									<div className="flex flex-1 items-center justify-between gap-3">
-										<span className="text-muted-foreground">
-											{LINE_CHART_CONFIG[name as string]?.label ?? name}
-										</span>
-										<span className="font-medium text-foreground tabular-nums">
-											{formatMoney(Number(value))}
-										</span>
-									</div>
-								)}
-								labelFormatter={(value) =>
-									bucketToTooltipLabel(value as string, granularity)
-								}
-							/>
-						}
-						cursor={false}
-					/>
-					<Line
-						dataKey="gross_sales"
-						dot={false}
-						stroke={GROSS_COLOR}
-						strokeOpacity={0.6}
-						strokeWidth={1.5}
-						type="monotone"
-					/>
-					<Line
-						dataKey="collected"
-						dot={false}
-						stroke={COLLECTED_COLOR}
-						strokeWidth={1.75}
-						type="monotone"
-					/>
-					<Line
-						dataKey="revenue"
-						dot={false}
-						stroke={REVENUE_COLOR}
-						strokeWidth={2}
-						type="monotone"
-					/>
-				</LineChart>
-			</ChartContainer>
-		</div>
+		<ReportChart
+			kind="line"
+			labels={labels}
+			axis={axis}
+			groups={[[revenue]]}
+			formatAxis={compactNumber}
+			head={(index) => ({
+				label: index === null ? "Revenue" : axis.title(labels[index]),
+				value: compactMoney(valueAt(revenue, index)),
+				caption:
+					index === null && data ? rangeLabel(data.from, data.to) : "Revenue",
+				// Not drawn, so no colour dot that would promise a line.
+				parts: headParts(others, index, compactMoney).map((part) => ({
+					...part,
+					color: undefined,
+				})),
+			})}
+		/>
 	);
 };
 
