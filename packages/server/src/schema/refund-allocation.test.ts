@@ -68,12 +68,16 @@ describe("lineDiscountShares", () => {
     ...[1, 2, 3, 4, 5].map((id) => line(id, DCS, 60_000)),
     ...[6, 7, 8, 9, 10, 11].map((id) => line(id, HARD_STAIN, 40_000)),
   ];
-  const pay4Get1 = { amount: 60_000, eligibleServiceIds: [DCS] };
+  const pay4Get1 = {
+    amount: 60_000,
+    buy_quantity: 4,
+    eligibleServiceIds: [DCS],
+    free_quantity: 1,
+  };
 
   it("keeps a Buy N Get M discount on the lines that earned it", () => {
     const shares = lineDiscountShares({
       bogoDiscounts: [pay4Get1],
-      grossTotal: 540_000,
       lines: order1482,
       orderDiscount: 60_000,
     });
@@ -85,7 +89,6 @@ describe("lineDiscountShares", () => {
   it("spreads a discount with no Buy N Get M over every line by price", () => {
     const shares = lineDiscountShares({
       bogoDiscounts: [],
-      grossTotal: 540_000,
       lines: order1482,
       orderDiscount: 60_000,
     });
@@ -107,8 +110,10 @@ describe("lineDiscountShares", () => {
       campaigns: [
         {
           applied_amount: "60000",
+          buy_quantity: 1,
           campaign: { eligibleServices: [{ service_id: DCS }] },
           discount_type: "buy_n_get_m_free",
+          free_quantity: 1,
         },
       ],
       discount: "60000",
@@ -120,7 +125,6 @@ describe("lineDiscountShares", () => {
         dcs(3, { status: "cancelled" }),
         dcs(4, { complaint_id: 7 }),
       ],
-      total: "240000",
     });
 
     expect(refundCaps.get(lineKey("service", 1))).toBe(30_000);
@@ -130,7 +134,6 @@ describe("lineDiscountShares", () => {
   it("spreads over the whole Order when no eligible line is left", () => {
     const shares = lineDiscountShares({
       bogoDiscounts: [pay4Get1],
-      grossTotal: 80_000,
       lines: [line(1, HARD_STAIN, 40_000), line(2, HARD_STAIN, 40_000)],
       orderDiscount: 60_000,
     });
@@ -139,22 +142,79 @@ describe("lineDiscountShares", () => {
   });
 
   it("hands what the eligible lines can't hold to the rest of the Order", () => {
-    // Buy 1 Get 1 booked 100.000 for 2 free DCS, then 3 of 4 were cancelled.
+    // Buy 1 Get 1 booked 150.000, then cancellations left one group of 2 DCS.
+    // Paid 100.000, so the caps must add up to 100.000, not more.
     const shares = lineDiscountShares({
-      bogoDiscounts: [{ amount: 100_000, eligibleServiceIds: [DCS] }],
-      grossTotal: 250_000,
-      lines: [line(1, DCS, 50_000), line(2, HARD_STAIN, 200_000)],
-      orderDiscount: 100_000,
+      bogoDiscounts: [
+        {
+          amount: 150_000,
+          buy_quantity: 1,
+          eligibleServiceIds: [DCS],
+          free_quantity: 1,
+        },
+      ],
+      lines: [
+        line(1, DCS, 50_000),
+        line(2, DCS, 50_000),
+        line(3, HARD_STAIN, 150_000),
+      ],
+      orderDiscount: 150_000,
     });
 
-    expect(shares.get(lineKey("service", 1))).toBe(50_000 + 10_000);
-    expect(shares.get(lineKey("service", 2))).toBe(40_000);
+    expect(shares.get(lineKey("service", 1))).toBe(50_000);
+    expect(shares.get(lineKey("service", 3))).toBe(50_000);
+  });
+
+  it("keeps the free amount on the eligible lines when less than a group is left", () => {
+    // Pay 4 Get 1 settled on 5 DCS, then one DCS was cancelled before payment.
+    const shares = lineDiscountShares({
+      bogoDiscounts: [pay4Get1],
+      lines: [
+        ...[1, 2, 3, 4].map((id) => line(id, DCS, 60_000)),
+        line(5, HARD_STAIN, 40_000),
+      ],
+      orderDiscount: 60_000,
+    });
+
+    expect(shares.get(lineKey("service", 1))).toBe(15_000);
+    expect(shares.get(lineKey("service", 5))).toBe(0);
+  });
+
+  it("leaves an eligible line that fills no group out of the free share", () => {
+    // Prod Order 390: 10 DCS make the two Pay 4 Get 1 groups; the DCSS is
+    // the 11th line and earned nothing.
+    const DCSS = 2;
+    const shares = lineDiscountShares({
+      bogoDiscounts: [
+        { ...pay4Get1, amount: 120_000, eligibleServiceIds: [DCS, DCSS] },
+      ],
+      lines: [
+        ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((id) => line(id, DCS, 60_000)),
+        line(11, DCSS, 150_000),
+      ],
+      orderDiscount: 120_000,
+    });
+
+    expect(shares.get(lineKey("service", 1))).toBe(12_000);
+    expect(shares.get(lineKey("service", 11))).toBe(0);
+  });
+
+  it("shares the free amount evenly when same-priced lines spill past a group", () => {
+    // 6 DCS, one group of 5: no single DCS is the leftover, so all 6 carry it.
+    const shares = lineDiscountShares({
+      bogoDiscounts: [pay4Get1],
+      lines: [1, 2, 3, 4, 5, 6].map((id) => line(id, DCS, 60_000)),
+      orderDiscount: 60_000,
+    });
+
+    for (const id of [1, 2, 3, 4, 5, 6]) {
+      expect(shares.get(lineKey("service", id))).toBe(10_000);
+    }
   });
 
   it("never shares out more than the Order discount", () => {
     const shares = lineDiscountShares({
       bogoDiscounts: [pay4Get1],
-      grossTotal: 540_000,
       lines: order1482,
       orderDiscount: 30_000,
     });

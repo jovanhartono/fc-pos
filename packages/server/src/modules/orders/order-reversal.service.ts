@@ -67,7 +67,7 @@ function toRefundLine(item: RefundLineInput): RefundLine {
 
 async function getOrderLineRefundCaps(
   executor: DbExecutor,
-  order: Pick<typeof ordersTable.$inferSelect, "discount" | "id" | "total">
+  order: Pick<typeof ordersTable.$inferSelect, "discount" | "id">
 ) {
   const orderId = order.id;
   const [serviceRows, productRows, campaignRows, refundedRows] =
@@ -94,7 +94,12 @@ async function getOrderLineRefundCaps(
       }),
       executor.query.orderCampaignsTable.findMany({
         where: { order_id: orderId, discount_type: "buy_n_get_m_free" },
-        columns: { applied_amount: true, discount_type: true },
+        columns: {
+          applied_amount: true,
+          buy_quantity: true,
+          discount_type: true,
+          free_quantity: true,
+        },
         orderBy: { id: "asc" },
         with: {
           campaign: {
@@ -136,7 +141,6 @@ async function getOrderLineRefundCaps(
     products: productRows,
     refundedByLineKey,
     services: serviceRows,
-    total: order.total,
   });
 }
 
@@ -169,7 +173,6 @@ export async function createOrderRefund({
         payment_status: ordersTable.payment_status,
         paid_amount: ordersTable.paid_amount,
         refunded_amount: ordersTable.refunded_amount,
-        total: ordersTable.total,
         discount: ordersTable.discount,
       })
       .from(ordersTable)
