@@ -1,5 +1,4 @@
 import { NotFoundException } from "@/http-exceptions";
-import { findCustomerIdByPhone } from "@/modules/customers/customer.repository";
 import { findTrackedOrder } from "@/modules/orders/order-read.repository";
 import {
   deriveItemStatus,
@@ -20,14 +19,9 @@ export async function getTrackedOrder({
   code: string;
   phone_number: string;
 }) {
-  // One message for both failures, so guessing one tells nothing about the other.
-  const customer = await findCustomerIdByPhone(phone_number);
-
-  if (!customer) {
-    throw new NotFoundException("Order code or phone number is invalid");
-  }
-
-  const order = await findTrackedOrder(code, customer.id);
+  // Code and phone are matched together, so a guesser never learns which half
+  // was right.
+  const order = await findTrackedOrder(code, phone_number);
 
   if (!order) {
     throw new NotFoundException("Order code or phone number is invalid");

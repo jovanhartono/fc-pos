@@ -36,13 +36,16 @@ export async function getCustomers(query?: GetCustomersQuery) {
 
 // Admin-only (ADR-0021).
 export async function getCustomerDetail(id: number) {
-  const customer = await findCustomerById(id);
+  const [customer, summary] = await Promise.all([
+    findCustomerById(id),
+    findCustomerSummary(id),
+  ]);
 
   if (!customer) {
     return null;
   }
 
-  return { ...customer, summary: await findCustomerSummary(id) };
+  return { ...customer, summary };
 }
 
 // Only prefills the name in the POS; checkout still finds or creates the

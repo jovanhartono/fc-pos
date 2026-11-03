@@ -1,5 +1,6 @@
 import "@/test-support/pglite";
 import { beforeEach, expect, it, mock } from "bun:test";
+import { captureRejection } from "@/test-support/capture-rejection";
 import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
@@ -38,6 +39,7 @@ const { transitionOrderService } = await import(
 );
 
 const CUSTOMER_PHONE = "+628111222333";
+const OTHER_PHONE = "+628999888777";
 
 let shop: Shop;
 
@@ -204,4 +206,33 @@ it("masks the phone number the tracker echoes back", async () => {
 
   expect(tracked.customer.phone_number_masked).toBe("******2333");
   expect(tracked.customer).not.toHaveProperty("phone_number");
+});
+
+// A guesser holding a real Order code learns nothing from a wrong phone, even
+// the phone of another real Customer.
+it("answers the same for a wrong phone and another Customer's phone", async () => {
+  const order = await placeOrder();
+  await createOrder(shop.admin.id, shop.store, {
+    campaign_ids: [],
+    customer: { name: "Siti Aminah", phone_number: OTHER_PHONE },
+    discount: 0,
+    items: [{ services: [{ id: shop.serviceId }] }],
+    payment_method_id: shop.paymentMethodId,
+    payment_status: "paid",
+    store_id: shop.store.id,
+    voucher_codes: [],
+  });
+
+  const otherCustomer = await captureRejection(
+    getTrackedOrder({ code: order.code, phone_number: OTHER_PHONE })
+  );
+  const unknownPhone = await captureRejection(
+    getTrackedOrder({ code: order.code, phone_number: "+628000000000" })
+  );
+
+  for (const refused of [otherCustomer, unknownPhone]) {
+    expect((refused as Error).message).toBe(
+      "Order code or phone number is invalid"
+    );
+  }
 });
