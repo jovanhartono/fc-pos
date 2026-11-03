@@ -12,3 +12,14 @@
 
 - Per-qty refunds stay reachable later: add a `qty` column to `order_refund_items` and swap `refunded_at` for a refunded-qty counter. Existing whole-line rows remain interpretable.
 - Products-only **unpaid** Orders still cannot be cancelled (`cancelOrder` requires at least one cancellable OrderService) — known adjacent gap, deliberately out of scope here. **Resolved by [ADR-0008](0008-cancel-is-unpaid-per-line-refund-twin.md):** cancel became per-line over services + products, and the "no stock mutation" stance (point 3 above) is now scoped to refund only — cancel restores stock.
+
+## Amendment 2026-11-03 — a Buy N Get M discount stays on the Services that earned it
+
+A line's share of the Order discount used to be its share of the gross, whatever earned the discount. On prod Order 1482 (5 DCS, 6 Hard Stain, Pay 4 Get 1 on DCS), refunding a Hard Stain returned 35.556 instead of 40.000: it took back part of a free DCS the Hard Stain never earned.
+
+Now each Buy N Get M Campaign's `applied_amount` is shared, by price, only over the lines that count for it: an eligible Service, not cancelled, priced, not a Rework (the `isBogoSlot` rule). What is left of the Order discount (manual, fixed, %) still spreads over every line by price. `orderLineRefundCaps` in `schema/refund-allocation.ts` works this out for the server and the Refund dialog alike.
+
+- Refunding an eligible line returns its price minus its share of the free Service. The Campaign isn't taken back, even when the Order no longer earns it.
+- A refunded line keeps its share, so one refund doesn't move another line's cap.
+- The free amount never goes past what the eligible lines are worth; anything over (left after later cancellations) spreads over the whole Order.
+- Eligible Services and list prices are read as they stand at refund time, not as they were at settlement. An admin who edits a Campaign's eligible Services between two refunds on one Order moves the second refund's cap. Storing the eligible Services on `order_campaigns` would pin it; not done, since Campaigns rarely change mid-Order.
