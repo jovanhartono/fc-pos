@@ -1,5 +1,10 @@
 import { BadRequestException } from "@/http-exceptions";
-import { type BogoSlotLine, isBogoSlot } from "@/schema/discount";
+import {
+  type BogoSlotLine,
+  bogoFreeCount,
+  type CampaignDiscountInput,
+  isBogoSlot,
+} from "@/schema/discount";
 
 export type RefundLineKind = "service" | "product";
 
@@ -19,41 +24,81 @@ function roundCurrencyUnit(value: number) {
 export interface DiscountShareLine {
   // Null unless a Buy N Get M can count this line.
   bogoServiceId: number | null;
+  // What the Customer is billed for the line: 0 once cancelled.
   gross: number;
   key: string;
 }
 
-export interface BogoDiscount {
+export interface BogoDiscount
+  extends Pick<CampaignDiscountInput, "buy_quantity" | "free_quantity"> {
   amount: number;
   eligibleServiceIds: number[];
 }
 
+interface PoolLine {
+  // Below 1 when same-priced lines spill past the last group and share it.
+  fraction: number;
+  line: DiscountShareLine;
+}
+
+// Only lines that fill a whole group earned the free ones, cheapest first as
+// at checkout (ADR-0007).
+function groupedLines(
+  pool: DiscountShareLine[],
+  bogo: BogoDiscount
+): PoolLine[] {
+  const freeCount = bogoFreeCount(bogo, pool.length);
+  // Less than a group left after a cancellation: the free amount stays here.
+  if (freeCount === 0) {
+    return pool.map((line) => ({ fraction: 1, line }));
+  }
+  const filled =
+    (freeCount / (bogo.free_quantity ?? 1)) *
+    ((bogo.buy_quantity ?? 0) + (bogo.free_quantity ?? 0));
+  const sorted = [...pool].sort((a, b) => a.gross - b.gross);
+  const cut = sorted[filled - 1].gross;
+  const below = sorted.filter((line) => line.gross < cut);
+  const atCut = sorted.filter((line) => line.gross === cut);
+  const share = (filled - below.length) / atCut.length;
+
+  return [
+    ...below.map((line) => ({ fraction: 1, line })),
+    ...atCut.map((line) => ({ fraction: share, line })),
+  ];
+}
+
 // A free DCS from "Pay 4 Get 1" was earned by the DCS lines alone, so
 // refunding a Hard Stain on the same Order returns its full price. Whatever
-// discount is left (manual, fixed, %) spreads over the whole Order by price.
+// discount is left (manual, fixed, %) spreads over the whole Order.
 export function lineDiscountShares({
   bogoDiscounts,
-  grossTotal,
   lines,
   orderDiscount,
 }: {
   bogoDiscounts: BogoDiscount[];
-  grossTotal: number;
   lines: DiscountShareLine[];
   orderDiscount: number;
 }): Map<string, number> {
   const shares = new Map(lines.map((line) => [line.key, 0]));
-  const spread = (
-    amount: number,
-    pool: DiscountShareLine[],
-    poolGross: number
-  ) => {
-    for (const line of pool) {
+  // Weighed by what each line has left, so no line carries more than its
+  // price, and a % taken after a free Service lands where checkout took it.
+  const spread = (budget: number, pool: PoolLine[]) => {
+    const room = pool.map(
+      ({ fraction, line }) =>
+        fraction * (line.gross - (shares.get(line.key) ?? 0))
+    );
+    const poolRoom = room.reduce((sum, value) => sum + value, 0);
+    const amount = Math.min(budget, poolRoom);
+    if (amount <= 0) {
+      return 0;
+    }
+    pool.forEach(({ line }, index) => {
       shares.set(
         line.key,
-        (shares.get(line.key) ?? 0) + (line.gross / poolGross) * amount
+        (shares.get(line.key) ?? 0) + (room[index] / poolRoom) * amount
       );
-    }
+    });
+    return amount;
   };
 
   let left = orderDiscount;
@@ -62,17 +107,12 @@ export function lineDiscountShares({
     const pool = lines.filter(
       (line) => line.bogoServiceId !== null && eligible.has(line.bogoServiceId)
     );
-    const poolGross = pool.reduce((sum, line) => sum + line.gross, 0);
-    // After later cancellations the free amount can outgrow the lines left.
-    const amount = Math.min(bogo.amount, left, poolGross);
-    if (amount > 0) {
-      spread(amount, pool, poolGross);
-      left -= amount;
-    }
+    left -= spread(Math.min(bogo.amount, left), groupedLines(pool, bogo));
   }
-  if (grossTotal > 0 && left > 0) {
-    spread(left, lines, grossTotal);
-  }
+  spread(
+    left,
+    lines.map((line) => ({ fraction: 1, line }))
+  );
   return shares;
 }
 
@@ -107,8 +147,10 @@ interface RefundCapProductRow {
 
 interface RefundCapCampaignRow {
   applied_amount: Money;
+  buy_quantity: number | null;
   campaign: { eligibleServices: { service_id: number }[] };
   discount_type: string;
+  free_quantity: number | null;
 }
 
 // The server books refunds and the Refund dialog previews them from this one
@@ -119,25 +161,23 @@ export function orderLineRefundCaps({
   products,
   refundedByLineKey,
   services,
-  total,
 }: {
   campaigns: RefundCapCampaignRow[];
   discount: Money;
   products: RefundCapProductRow[];
   refundedByLineKey: Map<string, number>;
   services: RefundCapServiceRow[];
-  total: Money;
 }): Map<string, number> {
   const lines = [
     ...services.map((row) => ({
       bogoServiceId: isBogoSlot(row) ? (row.service_id ?? null) : null,
-      gross: Number(row.subtotal ?? 0),
+      gross: row.status === "cancelled" ? 0 : Number(row.subtotal ?? 0),
       key: lineKey("service", row.id),
       isClosed: false,
     })),
     ...products.map((row) => ({
       bogoServiceId: null,
-      gross: Number(row.subtotal ?? 0),
+      gross: row.cancelled_at ? 0 : Number(row.subtotal ?? 0),
       key: lineKey("product", row.id),
       // Rounding can leave a few rupiah after a whole-line refund; a product
       // refunded or cancelled (ADR-0008) is never refundable again.
@@ -153,8 +193,9 @@ export function orderLineRefundCaps({
         eligibleServiceIds: row.campaign.eligibleServices.map(
           (eligible) => eligible.service_id
         ),
+        buy_quantity: row.buy_quantity,
+        free_quantity: row.free_quantity,
       })),
-    grossTotal: Number(total ?? 0),
     lines,
     orderDiscount: Number(discount ?? 0),
   });

@@ -24,6 +24,5 @@ export const buildRefundCaps = (detail: OrderDetail): Map<string, number> => {
 		products: detail.products ?? [],
 		refundedByLineKey,
 		services: flattenOrderLines(detail),
-		total: detail.total,
 	});
 };
