@@ -1,9 +1,7 @@
-import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
-import { alias, type PgColumn } from "drizzle-orm/pg-core";
+import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   categoriesTable,
-  itemsTable,
   orderServiceStatusLogsTable,
   ordersServicesTable,
   ordersTable,
@@ -18,34 +16,50 @@ import {
 
 const logs = orderServiceStatusLogsTable;
 
-// The first time a line reached a status; a line sent back and redone keeps
-// the moment it was first ready, which is when the Customer could have collected.
-const firstReachedAt = (
-  lineId: PgColumn,
-  status: "processing" | "ready_for_pickup"
-) =>
-  sql<Date | null>`(SELECT MIN(${logs.created_at}) FROM ${logs} WHERE ${logs.order_service_id} = ${lineId} AND ${logs.to_status} = ${status})`.mapWith(
-    logs.created_at
-  );
+// Two changes logged in the same instant don't end each other's stretch.
+const history = db
+  .select({
+    created_at: logs.created_at,
+    first_ready_at:
+      sql`MIN(${logs.created_at}) FILTER (WHERE ${logs.to_status} = 'ready_for_pickup') OVER ()`.as(
+        "first_ready_at"
+      ),
+    next_at:
+      sql`MIN(${logs.created_at}) OVER (ORDER BY ${logs.created_at} RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING EXCLUDE GROUP)`.as(
+        "next_at"
+      ),
+    to_status: logs.to_status,
+  })
+  .from(logs)
+  .where(eq(logs.order_service_id, ordersServicesTable.id))
+  .as("history");
 
-const readyAt = firstReachedAt(ordersServicesTable.id, "ready_for_pickup");
-
-const shelfLog = alias(orderServiceStatusLogsTable, "shelf_log");
-const nextLog = alias(orderServiceStatusLogsTable, "next_log");
-
-// Every stretch on the QC shelf before the line was first ready, a wait after
-// a QC reject included; each ends at the line's next status change.
-const waitingQcHours =
-  sql<number>`(SELECT COALESCE(SUM(EXTRACT(EPOCH FROM ((SELECT MIN(${nextLog.created_at}) FROM ${logs} AS ${sql.identifier("next_log")} WHERE ${nextLog.order_service_id} = ${shelfLog.order_service_id} AND ${nextLog.created_at} > ${shelfLog.created_at}) - ${shelfLog.created_at}))), 0) / 3600 FROM ${logs} AS ${sql.identifier("shelf_log")} WHERE ${shelfLog.order_service_id} = ${ordersServicesTable.id} AND ${shelfLog.to_status} = 'waiting_qc' AND ${shelfLog.created_at} < ${readyAt})`.mapWith(
-    Number
-  );
+// A redone line keeps its first ready time, when the Customer could have
+// collected; only QC shelf waits before it count, post-reject ones included.
+const timeline = db
+  .select({
+    processing_at:
+      sql<Date | null>`MIN(${history.created_at}) FILTER (WHERE ${history.to_status} = 'processing')`
+        .mapWith(logs.created_at)
+        .as("processing_at"),
+    ready_at:
+      sql<Date | null>`MIN(${history.created_at}) FILTER (WHERE ${history.to_status} = 'ready_for_pickup')`
+        .mapWith(logs.created_at)
+        .as("ready_at"),
+    waiting_qc_hours:
+      sql<number>`COALESCE(SUM(EXTRACT(EPOCH FROM (${history.next_at} - ${history.created_at}))) FILTER (WHERE ${history.to_status} = 'waiting_qc' AND ${history.created_at} < ${history.first_ready_at}), 0) / 3600`
+        .mapWith(Number)
+        .as("waiting_qc_hours"),
+  })
+  .from(history)
+  .as("timeline");
 
 // Every first-round line of every Item that had a line become ready in the
 // stretch. An Item's ready day is its last line's, so any Item that lands in
 // the stretch has at least one line in it.
 export async function listTurnaroundLines({ range, storeId }: RangeArgs) {
   const readyInRange = db
-    .select({ item_id: ordersServicesTable.item_id })
+    .selectDistinct({ item_id: ordersServicesTable.item_id })
     .from(ordersServicesTable)
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
     .innerJoin(logs, eq(logs.order_service_id, ordersServicesTable.id))
@@ -55,7 +69,8 @@ export async function listTurnaroundLines({ range, storeId }: RangeArgs) {
         ...timeWindow(logs.created_at, range),
         storeScope(ordersTable.store_id, storeId)
       )
-    );
+    )
+    .as("ready_in_range");
 
   return await db
     .select({
@@ -66,14 +81,17 @@ export async function listTurnaroundLines({ range, storeId }: RangeArgs) {
       service_name: servicesTable.name,
       store_code: storesTable.code,
       order_created_at: ordersTable.created_at,
-      processing_at: firstReachedAt(ordersServicesTable.id, "processing").as(
-        "processing_at"
-      ),
-      ready_at: readyAt.as("ready_at"),
-      waiting_qc_hours: waitingQcHours.as("waiting_qc_hours"),
+      processing_at: timeline.processing_at,
+      ready_at: timeline.ready_at,
+      waiting_qc_hours: timeline.waiting_qc_hours,
     })
     .from(ordersServicesTable)
-    .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
+    // A join, not IN: with IN, Postgres read every line's history before
+    // dropping the Items outside the stretch, twice as slow on dev.
+    .innerJoin(
+      readyInRange,
+      eq(ordersServicesTable.item_id, readyInRange.item_id)
+    )
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
     .innerJoin(storesTable, eq(ordersTable.store_id, storesTable.id))
     .leftJoin(
@@ -84,11 +102,11 @@ export async function listTurnaroundLines({ range, storeId }: RangeArgs) {
       categoriesTable,
       eq(servicesTable.category_id, categoriesTable.id)
     )
+    .crossJoinLateral(timeline)
     .where(
       and(
         isNull(ordersServicesTable.complaint_id),
-        notInArray(ordersServicesTable.status, ["refunded", "cancelled"]),
-        inArray(ordersServicesTable.item_id, readyInRange)
+        notInArray(ordersServicesTable.status, ["refunded", "cancelled"])
       )
     );
 }
