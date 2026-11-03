@@ -99,9 +99,10 @@ async function buildRefunds(storeId: number, range: DateRange) {
 // "2 of 3 picked up" as it stood when the day closed, so a past day reads the
 // same after the Customer collects the rest.
 async function buildPickedUpList(
-  rows: Awaited<ReturnType<typeof listPickedUpOrders>>,
-  dayEnd: Date
+  storeId: number,
+  range: DateRange
 ): Promise<DayClosePickedUpOrder[]> {
+  const rows = await listPickedUpOrders(storeId, range);
   const lines =
     rows.length > 0
       ? await listOrderLinesWithPickup(rows.map((row) => row.order_id))
@@ -121,7 +122,7 @@ async function buildPickedUpList(
       items: order.items,
       items_picked_by_day: items.filter((itemLines) =>
         itemLines.some(
-          (line) => line.picked_up_at !== null && line.picked_up_at < dayEnd
+          (line) => line.picked_up_at !== null && line.picked_up_at < range.end
         )
       ).length,
       items_total: countItemsReady(items).items_total,
@@ -139,14 +140,14 @@ export async function getDayClose(
   date: string
 ): Promise<DayClose> {
   const range = getJakartaDayRange(date);
-  const [paidOrders, refunds, droppedOff, services, products, pickedUp] =
+  const [paidOrders, refunds, droppedOff, services, products, pickedUpList] =
     await Promise.all([
       listPaidOrders(storeId, range),
       buildRefunds(storeId, range),
       listDroppedOffOrders(storeId, range),
       listDroppedOffServices(storeId, range),
       listDroppedOffProducts(storeId, range),
-      listPickedUpOrders(storeId, range),
+      buildPickedUpList(storeId, range),
     ]);
 
   const payments = paidOrders.map((order) => ({
@@ -172,7 +173,6 @@ export async function getDayClose(
     .sort(byMethodId);
 
   const orderList = buildOrderList(droppedOff, range.end);
-  const pickedUpList = await buildPickedUpList(pickedUp, range.end);
 
   return {
     collected: {
