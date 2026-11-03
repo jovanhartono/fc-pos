@@ -27,7 +27,7 @@ import { incrementProductStock } from "@/modules/products/product.repository";
 import {
   allocateRefund,
   lineKey,
-  lineRefundCap,
+  orderLineRefundCaps,
   type RefundLineKind,
 } from "@/schema/refund-allocation";
 import type { JWTPayload } from "@/types";
@@ -70,43 +70,56 @@ async function getOrderLineRefundCaps(
   order: Pick<typeof ordersTable.$inferSelect, "discount" | "id" | "total">
 ) {
   const orderId = order.id;
-  const [serviceRows, productRows, refundedRows] = await Promise.all([
-    executor.query.ordersServicesTable.findMany({
-      where: { order_id: orderId },
-      columns: {
-        id: true,
-        subtotal: true,
-      },
-    }),
-    executor.query.ordersProductsTable.findMany({
-      where: { order_id: orderId },
-      columns: {
-        id: true,
-        refunded_at: true,
-        cancelled_at: true,
-        subtotal: true,
-      },
-    }),
-    executor
-      .select({
-        order_product_id: orderRefundItemsTable.order_product_id,
-        order_service_id: orderRefundItemsTable.order_service_id,
-        refunded_total: sql<string>`COALESCE(SUM(${orderRefundItemsTable.amount}), 0)`,
-      })
-      .from(orderRefundItemsTable)
-      .innerJoin(
-        orderRefundsTable,
-        eq(orderRefundItemsTable.order_refund_id, orderRefundsTable.id)
-      )
-      .where(eq(orderRefundsTable.order_id, orderId))
-      .groupBy(
-        orderRefundItemsTable.order_service_id,
-        orderRefundItemsTable.order_product_id
-      ),
-  ]);
-
-  const grossTotal = Number(order.total ?? 0);
-  const orderDiscount = Number(order.discount);
+  const [serviceRows, productRows, campaignRows, refundedRows] =
+    await Promise.all([
+      executor.query.ordersServicesTable.findMany({
+        where: { order_id: orderId },
+        columns: {
+          complaint_id: true,
+          id: true,
+          service_id: true,
+          status: true,
+          subtotal: true,
+        },
+        with: { service: { columns: { price: true } } },
+      }),
+      executor.query.ordersProductsTable.findMany({
+        where: { order_id: orderId },
+        columns: {
+          id: true,
+          refunded_at: true,
+          cancelled_at: true,
+          subtotal: true,
+        },
+      }),
+      executor.query.orderCampaignsTable.findMany({
+        where: { order_id: orderId, discount_type: "buy_n_get_m_free" },
+        columns: { applied_amount: true, discount_type: true },
+        orderBy: { id: "asc" },
+        with: {
+          campaign: {
+            columns: { id: true },
+            with: { eligibleServices: { columns: { service_id: true } } },
+          },
+        },
+      }),
+      executor
+        .select({
+          order_product_id: orderRefundItemsTable.order_product_id,
+          order_service_id: orderRefundItemsTable.order_service_id,
+          refunded_total: sql<string>`COALESCE(SUM(${orderRefundItemsTable.amount}), 0)`,
+        })
+        .from(orderRefundItemsTable)
+        .innerJoin(
+          orderRefundsTable,
+          eq(orderRefundItemsTable.order_refund_id, orderRefundsTable.id)
+        )
+        .where(eq(orderRefundsTable.order_id, orderId))
+        .groupBy(
+          orderRefundItemsTable.order_service_id,
+          orderRefundItemsTable.order_product_id
+        ),
+    ]);
 
   const refundedByLineKey = new Map(
     refundedRows.map((row) => [
@@ -117,29 +130,14 @@ async function getOrderLineRefundCaps(
     ])
   );
 
-  const lineCap = (key: string, subtotal: string | null) =>
-    lineRefundCap({
-      alreadyRefunded: refundedByLineKey.get(key) ?? 0,
-      grossLine: Number(subtotal ?? 0),
-      grossTotal,
-      orderDiscount,
-    });
-
-  return new Map<string, number>([
-    ...serviceRows.map((row): [string, number] => {
-      const key = lineKey("service", row.id);
-      return [key, lineCap(key, row.subtotal)];
-    }),
-    ...productRows.map((row): [string, number] => {
-      const key = lineKey("product", row.id);
-      // Rounding can leave a few rupiah after a whole-line refund; a line already
-      // refunded or cancelled (ADR-0008) is never refundable again.
-      return [
-        key,
-        row.refunded_at || row.cancelled_at ? 0 : lineCap(key, row.subtotal),
-      ];
-    }),
-  ]);
+  return orderLineRefundCaps({
+    campaigns: campaignRows,
+    discount: order.discount,
+    products: productRows,
+    refundedByLineKey,
+    services: serviceRows,
+    total: order.total,
+  });
 }
 
 export async function createOrderRefund({

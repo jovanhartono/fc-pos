@@ -1,8 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import {
   allocateRefund,
+  lineDiscountShares,
   lineKey,
   lineRefundCap,
+  orderLineRefundCaps,
   type RefundLineRef,
 } from "@/schema/refund-allocation";
 
@@ -12,13 +14,12 @@ const service = (id: number): RefundLineRef => ({ kind: "service", id });
 const product = (id: number): RefundLineRef => ({ kind: "product", id });
 
 describe("lineRefundCap", () => {
-  it("prorates the order discount by the line's share of gross total", () => {
+  it("takes the line's discount share off its gross", () => {
     expect(
       lineRefundCap({
         alreadyRefunded: 0,
+        discountShare: 5000,
         grossLine: 50_000,
-        grossTotal: 100_000,
-        orderDiscount: 10_000,
       })
     ).toBe(45_000);
   });
@@ -27,9 +28,8 @@ describe("lineRefundCap", () => {
     expect(
       lineRefundCap({
         alreadyRefunded: 40_000,
+        discountShare: 5000,
         grossLine: 50_000,
-        grossTotal: 100_000,
-        orderDiscount: 10_000,
       })
     ).toBe(5000);
   });
@@ -38,9 +38,8 @@ describe("lineRefundCap", () => {
     expect(
       lineRefundCap({
         alreadyRefunded: 60_000,
+        discountShare: 5000,
         grossLine: 50_000,
-        grossTotal: 100_000,
-        orderDiscount: 10_000,
       })
     ).toBe(0);
   });
@@ -49,22 +48,120 @@ describe("lineRefundCap", () => {
     expect(
       lineRefundCap({
         alreadyRefunded: 0,
+        discountShare: 5000,
         grossLine: 1000,
-        grossTotal: 1000,
-        orderDiscount: 5000,
       })
     ).toBe(0);
   });
+});
 
-  it("skips discount proration when gross total is zero", () => {
-    expect(
-      lineRefundCap({
-        alreadyRefunded: 0,
-        grossLine: 0,
-        grossTotal: 0,
-        orderDiscount: 5000,
-      })
-    ).toBe(0);
+describe("lineDiscountShares", () => {
+  const DCS = 1;
+  const HARD_STAIN = 34;
+  const line = (id: number, serviceId: number, gross: number) => ({
+    bogoServiceId: serviceId,
+    gross,
+    key: lineKey("service", id),
+  });
+  // Prod Order 1482: 5 DCS + 6 Hard Stain, Pay 4 Get 1 on DCS only.
+  const order1482 = [
+    ...[1, 2, 3, 4, 5].map((id) => line(id, DCS, 60_000)),
+    ...[6, 7, 8, 9, 10, 11].map((id) => line(id, HARD_STAIN, 40_000)),
+  ];
+  const pay4Get1 = { amount: 60_000, eligibleServiceIds: [DCS] };
+
+  it("keeps a Buy N Get M discount on the lines that earned it", () => {
+    const shares = lineDiscountShares({
+      bogoDiscounts: [pay4Get1],
+      grossTotal: 540_000,
+      lines: order1482,
+      orderDiscount: 60_000,
+    });
+
+    expect(shares.get(lineKey("service", 11))).toBe(0);
+    expect(shares.get(lineKey("service", 1))).toBe(12_000);
+  });
+
+  it("spreads a discount with no Buy N Get M over every line by price", () => {
+    const shares = lineDiscountShares({
+      bogoDiscounts: [],
+      grossTotal: 540_000,
+      lines: order1482,
+      orderDiscount: 60_000,
+    });
+
+    expect(shares.get(lineKey("service", 11))).toBeCloseTo(4444.44, 1);
+  });
+
+  it("leaves cancelled and Rework lines out of the Buy N Get M share", () => {
+    const dcs = (id: number, over: object = {}) => ({
+      complaint_id: null,
+      id,
+      service: { price: "60000" },
+      service_id: DCS,
+      status: "queued",
+      subtotal: "60000",
+      ...over,
+    });
+    const refundCaps = orderLineRefundCaps({
+      campaigns: [
+        {
+          applied_amount: "60000",
+          campaign: { eligibleServices: [{ service_id: DCS }] },
+          discount_type: "buy_n_get_m_free",
+        },
+      ],
+      discount: "60000",
+      products: [],
+      refundedByLineKey: new Map(),
+      services: [
+        dcs(1),
+        dcs(2),
+        dcs(3, { status: "cancelled" }),
+        dcs(4, { complaint_id: 7 }),
+      ],
+      total: "240000",
+    });
+
+    expect(refundCaps.get(lineKey("service", 1))).toBe(30_000);
+    expect(refundCaps.get(lineKey("service", 4))).toBe(60_000);
+  });
+
+  it("spreads over the whole Order when no eligible line is left", () => {
+    const shares = lineDiscountShares({
+      bogoDiscounts: [pay4Get1],
+      grossTotal: 80_000,
+      lines: [line(1, HARD_STAIN, 40_000), line(2, HARD_STAIN, 40_000)],
+      orderDiscount: 60_000,
+    });
+
+    expect(shares.get(lineKey("service", 1))).toBe(30_000);
+  });
+
+  it("hands what the eligible lines can't hold to the rest of the Order", () => {
+    // Buy 1 Get 1 booked 100.000 for 2 free DCS, then 3 of 4 were cancelled.
+    const shares = lineDiscountShares({
+      bogoDiscounts: [{ amount: 100_000, eligibleServiceIds: [DCS] }],
+      grossTotal: 250_000,
+      lines: [line(1, DCS, 50_000), line(2, HARD_STAIN, 200_000)],
+      orderDiscount: 100_000,
+    });
+
+    expect(shares.get(lineKey("service", 1))).toBe(50_000 + 10_000);
+    expect(shares.get(lineKey("service", 2))).toBe(40_000);
+  });
+
+  it("never shares out more than the Order discount", () => {
+    const shares = lineDiscountShares({
+      bogoDiscounts: [pay4Get1],
+      grossTotal: 540_000,
+      lines: order1482,
+      orderDiscount: 30_000,
+    });
+    const total = [...shares.values()].reduce((sum, share) => sum + share, 0);
+
+    expect(total).toBe(30_000);
+    expect(shares.get(lineKey("service", 11))).toBe(0);
   });
 });
 

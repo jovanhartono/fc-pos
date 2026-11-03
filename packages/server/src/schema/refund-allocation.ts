@@ -1,4 +1,5 @@
 import { BadRequestException } from "@/http-exceptions";
+import { type BogoSlotLine, isBogoSlot } from "@/schema/discount";
 
 export type RefundLineKind = "service" | "product";
 
@@ -15,24 +16,161 @@ function roundCurrencyUnit(value: number) {
   return Math.round(value);
 }
 
-// How much of a line is still refundable: the line's gross minus its
-// prorated share of the order discount, minus what was already refunded.
-export function lineRefundCap({
-  alreadyRefunded,
-  grossLine,
+export interface DiscountShareLine {
+  // Null unless a Buy N Get M can count this line.
+  bogoServiceId: number | null;
+  gross: number;
+  key: string;
+}
+
+export interface BogoDiscount {
+  amount: number;
+  eligibleServiceIds: number[];
+}
+
+// A free DCS from "Pay 4 Get 1" was earned by the DCS lines alone, so
+// refunding a Hard Stain on the same Order returns its full price. Whatever
+// discount is left (manual, fixed, %) spreads over the whole Order by price.
+export function lineDiscountShares({
+  bogoDiscounts,
   grossTotal,
+  lines,
   orderDiscount,
 }: {
-  alreadyRefunded: number;
-  grossLine: number;
+  bogoDiscounts: BogoDiscount[];
   grossTotal: number;
+  lines: DiscountShareLine[];
   orderDiscount: number;
-}) {
-  const allocatedDiscount =
-    grossTotal > 0 ? (grossLine / grossTotal) * orderDiscount : 0;
-  const refundableGross = Math.max(0, grossLine - allocatedDiscount);
+}): Map<string, number> {
+  const shares = new Map(lines.map((line) => [line.key, 0]));
+  const spread = (
+    amount: number,
+    pool: DiscountShareLine[],
+    poolGross: number
+  ) => {
+    for (const line of pool) {
+      shares.set(
+        line.key,
+        (shares.get(line.key) ?? 0) + (line.gross / poolGross) * amount
+      );
+    }
+  };
 
-  return Math.max(0, refundableGross - alreadyRefunded);
+  let left = orderDiscount;
+  for (const bogo of bogoDiscounts) {
+    const eligible = new Set(bogo.eligibleServiceIds);
+    const pool = lines.filter(
+      (line) => line.bogoServiceId !== null && eligible.has(line.bogoServiceId)
+    );
+    const poolGross = pool.reduce((sum, line) => sum + line.gross, 0);
+    // After later cancellations the free amount can outgrow the lines left.
+    const amount = Math.min(bogo.amount, left, poolGross);
+    if (amount > 0) {
+      spread(amount, pool, poolGross);
+      left -= amount;
+    }
+  }
+  if (grossTotal > 0 && left > 0) {
+    spread(left, lines, grossTotal);
+  }
+  return shares;
+}
+
+// How much of a line is still refundable: the line's gross minus its share
+// of the order discount, minus what was already refunded.
+export function lineRefundCap({
+  alreadyRefunded,
+  discountShare,
+  grossLine,
+}: {
+  alreadyRefunded: number;
+  discountShare: number;
+  grossLine: number;
+}) {
+  return Math.max(0, grossLine - discountShare - alreadyRefunded);
+}
+
+type Money = string | null;
+
+interface RefundCapServiceRow extends BogoSlotLine {
+  id: number;
+  service_id: number | null;
+  subtotal: Money;
+}
+
+interface RefundCapProductRow {
+  cancelled_at: unknown;
+  id: number;
+  refunded_at: unknown;
+  subtotal: Money;
+}
+
+interface RefundCapCampaignRow {
+  applied_amount: Money;
+  campaign: { eligibleServices: { service_id: number }[] };
+  discount_type: string;
+}
+
+// The server books refunds and the Refund dialog previews them from this one
+// function, so the cashier never sees an amount the server won't pay out.
+export function orderLineRefundCaps({
+  campaigns,
+  discount,
+  products,
+  refundedByLineKey,
+  services,
+  total,
+}: {
+  campaigns: RefundCapCampaignRow[];
+  discount: Money;
+  products: RefundCapProductRow[];
+  refundedByLineKey: Map<string, number>;
+  services: RefundCapServiceRow[];
+  total: Money;
+}): Map<string, number> {
+  const lines = [
+    ...services.map((row) => ({
+      bogoServiceId: isBogoSlot(row) ? (row.service_id ?? null) : null,
+      gross: Number(row.subtotal ?? 0),
+      key: lineKey("service", row.id),
+      isClosed: false,
+    })),
+    ...products.map((row) => ({
+      bogoServiceId: null,
+      gross: Number(row.subtotal ?? 0),
+      key: lineKey("product", row.id),
+      // Rounding can leave a few rupiah after a whole-line refund; a product
+      // refunded or cancelled (ADR-0008) is never refundable again.
+      isClosed: Boolean(row.refunded_at || row.cancelled_at),
+    })),
+  ];
+
+  const shares = lineDiscountShares({
+    bogoDiscounts: campaigns
+      .filter((row) => row.discount_type === "buy_n_get_m_free")
+      .map((row) => ({
+        amount: Number(row.applied_amount ?? 0),
+        eligibleServiceIds: row.campaign.eligibleServices.map(
+          (eligible) => eligible.service_id
+        ),
+      })),
+    grossTotal: Number(total ?? 0),
+    lines,
+    orderDiscount: Number(discount ?? 0),
+  });
+
+  return new Map(
+    lines.map((line) => [
+      line.key,
+      line.isClosed
+        ? 0
+        : lineRefundCap({
+            alreadyRefunded: refundedByLineKey.get(line.key) ?? 0,
+            discountShare: shares.get(line.key) ?? 0,
+            grossLine: line.gross,
+          }),
+    ])
+  );
 }
 
 // Whole rupiah per line: floor each cap, then hand the leftover to the largest

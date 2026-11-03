@@ -106,6 +106,9 @@ const fakeTx = {
     ordersProductsTable: {
       findMany: () => Promise.resolve(state.productRows),
     },
+    orderCampaignsTable: {
+      findMany: () => Promise.resolve([]),
+    },
   },
 };
 

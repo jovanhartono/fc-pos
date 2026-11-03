@@ -206,7 +206,9 @@ export function findOrderDetail(id: number) {
     with: {
       campaigns: {
         with: {
-          campaign: true,
+          campaign: {
+            with: { eligibleServices: { columns: { service_id: true } } },
+          },
         },
         orderBy: { id: "asc" },
       },
