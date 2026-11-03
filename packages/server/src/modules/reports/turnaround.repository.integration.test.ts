@@ -215,6 +215,12 @@ describe("listTurnaroundLines", () => {
       order_created_at: DROP_OFF,
       store_code: shop.store.code,
     });
+    expect(
+      await listTurnaroundLines({ range: AUGUST, storeId: shop.store.id })
+    ).toHaveLength(rows.length);
+    expect(
+      await listTurnaroundLines({ range: AUGUST, storeId: shop.store.id + 1 })
+    ).toEqual([]);
   });
 
   it("keeps a still-on-the-shelf wait out of the hours", async () => {

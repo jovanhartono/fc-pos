@@ -17,9 +17,7 @@ import {
 
 const logs = orderServiceStatusLogsTable;
 
-// Each status change of one line, read once: when the next later change came
-// (two changes in the same instant don't end each other), and when the line
-// was first ready.
+// Two changes logged in the same instant don't end each other's stretch.
 const history = db
   .select({
     created_at: logs.created_at,
@@ -37,18 +35,18 @@ const history = db
   .where(eq(logs.order_service_id, ordersServicesTable.id))
   .as("history");
 
-// A line sent back and redone keeps the moment it was first ready, which is
-// when the Customer could have collected. Shelf time counts every stretch on
-// the QC shelf before that, a wait after a QC reject included.
+// A redone line keeps its first ready time, when the Customer could have
+// collected; only QC shelf waits before it count, post-reject ones included.
 const timeline = db
   .select({
     processing_at:
       sql<Date | null>`MIN(${history.created_at}) FILTER (WHERE ${history.to_status} = 'processing')`
         .mapWith(logs.created_at)
         .as("processing_at"),
-    ready_at: sql<Date | null>`MIN(${history.first_ready_at})`
-      .mapWith(logs.created_at)
-      .as("ready_at"),
+    ready_at:
+      sql<Date | null>`MIN(${history.created_at}) FILTER (WHERE ${history.to_status} = 'ready_for_pickup')`
+        .mapWith(logs.created_at)
+        .as("ready_at"),
     waiting_qc_hours:
       sql<number>`COALESCE(SUM(EXTRACT(EPOCH FROM (${history.next_at} - ${history.created_at}))) FILTER (WHERE ${history.to_status} = 'waiting_qc' AND ${history.created_at} < ${history.first_ready_at}), 0) / 3600`
         .mapWith(Number)
@@ -89,6 +87,8 @@ export async function listTurnaroundLines({ range, storeId }: RangeArgs) {
       waiting_qc_hours: timeline.waiting_qc_hours,
     })
     .from(ordersServicesTable)
+    // A join, not IN: with IN, Postgres read every line's history before
+    // dropping the Items outside the stretch, twice as slow on dev.
     .innerJoin(
       readyInRange,
       eq(ordersServicesTable.item_id, readyInRange.item_id)
