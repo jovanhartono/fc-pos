@@ -9,7 +9,6 @@ import { Link } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
-import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrderServiceDetail } from "@/features/orders/components/order-service-detail";
@@ -18,6 +17,7 @@ import {
 	type WorkerDetailReport,
 } from "@/features/reports/api";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
+import { HEAD_CLASS } from "@/features/reports/components/services-by-worker";
 import {
 	ComplaintsChip,
 	QcChip,
@@ -41,7 +41,6 @@ import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
 import { CONTENT_FADE } from "@/lib/content-fade";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
-import { pluralize } from "@/shared/utils";
 import { useSheet } from "@/stores/sheet-store";
 
 interface WorkerSheetTarget {
@@ -66,7 +65,6 @@ export const useOpenWorkerSheet = () => {
 			openSheet({
 				title: <WorkerName name={target.userName} role={target.role} />,
 				description: `${target.storeName} · ${rangeLabel(target.from, target.to)}`,
-				size: "wide",
 				content: () => <WorkerSheetContent target={target} />,
 			}),
 		[openSheet],
@@ -118,17 +116,17 @@ const ServicesTable = ({ services, topIds }: ServicesTableProps) => {
 	}
 	const total = services.reduce((sum, s) => sum + s.count, 0);
 	return (
-		<div className="overflow-hidden rounded-lg border bg-card">
+		<div className="overflow-auto rounded-lg border bg-card max-h-[26rem]">
 			<table className="w-full text-subhead tabular-nums">
-				<thead className="text-muted-foreground">
+				<thead>
 					<tr>
-						<th scope="col" className="px-3 py-2 text-left font-medium">
+						<th scope="col" className={cn(HEAD_CLASS, "text-left")}>
 							Service
 						</th>
-						<th scope="col" className="px-3 py-2 text-right font-medium">
+						<th scope="col" className={cn(HEAD_CLASS, "text-right")}>
 							Services
 						</th>
-						<th scope="col" className="w-18 px-3 py-2 text-right font-medium">
+						<th scope="col" className={cn(HEAD_CLASS, "w-18 text-right")}>
 							Share
 						</th>
 					</tr>
@@ -137,7 +135,7 @@ const ServicesTable = ({ services, topIds }: ServicesTableProps) => {
 					{services.map((service) => (
 						<tr
 							key={service.service_id}
-							className="border-border border-t align-top"
+							className="border-border border-t align-top first:border-t-0"
 						>
 							<td className="px-3 py-1.5">
 								<span className="flex items-start gap-2">
@@ -325,10 +323,7 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
 				<Section title="Services Each Day">
 					<Skeleton className="h-69 w-full" />
 				</Section>
-				<Section
-					title="Services Worked"
-					count={<TextSkeleton className="w-28" />}
-				>
+				<Section title="Services Worked">
 					<Skeleton className="h-40 w-full rounded-lg" />
 				</Section>
 			</div>
@@ -375,18 +370,10 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
 			</KpiRow>
 
 			<Section title="Services Each Day">
-				<WorkerServicesChart
-					data={data}
-					topIds={topIds}
-					from={target.from}
-					to={target.to}
-				/>
+				<WorkerServicesChart data={data} topIds={topIds} />
 			</Section>
 
-			<Section
-				title="Services Worked"
-				count={`${numberFormatter.format(facts.services_processed)} in ${pluralize(data.services.length, "Service")}`}
-			>
+			<Section title="Services Worked">
 				<ServicesTable services={data.services} topIds={topIds} />
 			</Section>
 

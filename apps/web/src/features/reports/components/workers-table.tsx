@@ -117,7 +117,7 @@ interface HelpHeaderProps {
 	help: string;
 }
 
-const HelpHeader = ({ label, help }: HelpHeaderProps) => (
+export const HelpHeader = ({ label, help }: HelpHeaderProps) => (
 	<Tooltip>
 		<TooltipTrigger className="cursor-help underline decoration-dotted underline-offset-4">
 			{label}

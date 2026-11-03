@@ -47,7 +47,6 @@ import {
 	oneDecimalFormatter,
 	percentFormatter,
 	pluralCount,
-	rangeLabel,
 } from "@/features/reports/utils/format";
 import { QC_COLORS } from "@/features/reports/utils/palette";
 import { longDuration } from "@/features/reports/utils/turnaround";
@@ -472,11 +471,7 @@ interface QcPerDaySectionProps {
 const QcPerDaySection = ({ data }: QcPerDaySectionProps) => (
 	<Section id="quality-per-day" title="QC per Day">
 		<div className="rounded-lg border bg-card p-4">
-			<QcPerDayChart
-				rows={data.daily.rows}
-				bucket={data.daily.bucket}
-				caption={rangeLabel(data.from, data.to)}
-			/>
+			<QcPerDayChart rows={data.daily.rows} bucket={data.daily.bucket} />
 		</div>
 	</Section>
 );

@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { customersQueries } from "@/features/customers/api";
 import { ordersQueries } from "@/features/orders/api";
 import { usersQueries } from "@/features/users/api";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { useDialog } from "@/stores/dialog-store";
@@ -38,7 +37,6 @@ const CommandBarPanel = () => {
 	const navigate = useNavigate();
 	const closeDialog = useDialog((state) => state.closeDialog);
 	const role = useQuery(usersQueries.me()).data?.role;
-	const isWide = !useIsMobile(1024);
 	const [query, setQuery] = useState("");
 	const [term, setTerm] = useState("");
 
@@ -102,11 +100,10 @@ const CommandBarPanel = () => {
 				label: order.customer_name,
 				meta: order.code,
 				status: order.status,
-				// On a desktop the Order opens in the sheet over the list; on a phone, as its
-				// own page.
-				target: isWide
-					? { to: "/orders", search: { page: 1, open: order.id } }
-					: { to: "/orders/$orderId", params: { orderId: String(order.id) } },
+				target: {
+					to: "/orders/$orderId",
+					params: { orderId: String(order.id) },
+				},
 			}))
 		: [];
 

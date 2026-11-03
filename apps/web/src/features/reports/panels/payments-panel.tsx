@@ -6,7 +6,11 @@ import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
-import { rangeAxis, sumHead } from "@/features/reports/components/report-chart";
+import {
+	type ChartSeries,
+	rangeAxis,
+	sumHead,
+} from "@/features/reports/components/report-chart";
 import {
 	csvFilename,
 	downloadCsv,
@@ -17,7 +21,6 @@ import {
 	compactNumber,
 	numberFormatter,
 	percentFormatter,
-	rangeLabel,
 } from "@/features/reports/utils/format";
 import {
 	CHART_OTHER_COLOR,
@@ -52,9 +55,9 @@ export const PaymentsPanel = ({
 	const methods = data?.method_keys ?? [];
 	const amount = (row: (typeof rows)[number], key: string) =>
 		Number(row[key] ?? 0);
-	const series = methods.slice(0, 4).map((m, idx) => ({
+	const series: ChartSeries[] = methods.slice(0, 4).map((m, idx) => ({
 		key: m.key,
-		name: m.label,
+		name: m.code,
 		color: topFourColor(idx),
 		values: rows.map((row) => amount(row, m.key)),
 	}));
@@ -120,7 +123,6 @@ export const PaymentsPanel = ({
 				formatAxis={compactNumber}
 				head={sumHead({
 					name: "Collected",
-					caption: rangeLabel(from, to),
 					labels,
 					axis,
 					series,

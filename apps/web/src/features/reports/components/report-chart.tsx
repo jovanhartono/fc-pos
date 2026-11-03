@@ -2,6 +2,7 @@ import { Analytics01Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useId, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
 import type { ReportGranularity } from "@/features/reports/api";
+import { HelpHeader } from "@/features/reports/components/workers-table";
 import {
 	bucketToLabel,
 	bucketToTooltipLabel,
@@ -12,27 +13,39 @@ import dayjs from "@/lib/dayjs";
 export interface ChartSeries {
 	key: string;
 	name: string;
+	// Shown on hover when the key uses a short name, like a Service code.
+	fullName?: string;
 	color: string;
 	values: number[];
+	// What a picked bucket's slice is made of, like the Services in Other.
+	breakdown?: (index: number) => ChartHeadPart[];
+}
+
+interface ChartHeadPart {
+	key: string;
+	name: string;
+	fullName?: string;
+	value: string;
 }
 
 export interface ChartHead {
 	label: string;
 	value: string;
 	unit?: string;
-	caption: string;
-	parts?: { key: string; name: string; color?: string; value: string }[];
+	// Only a picked bucket has one; the range view leaves it out.
+	caption?: string;
+	parts?: (ChartHeadPart & {
+		color?: string;
+		breakdown?: ChartHeadPart[];
+	})[];
 }
 
 export interface ChartAxis {
-	// Daily labels are dates; only Mondays get a label.
-	isDaily: boolean;
 	tick: (label: string) => string;
 	title: (label: string) => string;
 }
 
 const DAY_AXIS: ChartAxis = {
-	isDaily: true,
 	tick: (label) => dayjs(label).format("D MMM"),
 	title: (label) => dayjs(label).format("ddd D MMM"),
 };
@@ -42,7 +55,6 @@ export const dateAxis = (bucket: "day" | "week"): ChartAxis =>
 	bucket === "day"
 		? DAY_AXIS
 		: {
-				isDaily: false,
 				tick: (label) => dayjs(label).format("D MMM"),
 				title: (label) => `Week of ${dayjs(label).format("D MMM")}`,
 			};
@@ -51,7 +63,6 @@ export const rangeAxis = (granularity: ReportGranularity): ChartAxis =>
 	granularity === "day"
 		? DAY_AXIS
 		: {
-				isDaily: false,
 				tick: (label) => bucketToLabel(label, granularity),
 				title: (label) => bucketToTooltipLabel(label, granularity),
 			};
@@ -79,16 +90,19 @@ export const headParts = (
 	index: number | null,
 	format: (value: number) => string,
 ) =>
-	series.map((s) => ({
-		key: s.key,
-		name: s.name,
-		color: s.color,
-		value: format(valueAt(s, index)),
-	}));
+	series
+		.filter((s) => valueAt(s, index) !== 0)
+		.map((s) => ({
+			key: s.key,
+			name: s.name,
+			fullName: s.fullName,
+			color: s.color,
+			value: format(valueAt(s, index)),
+			breakdown: index === null ? undefined : s.breakdown?.(index),
+		}));
 
 interface SumHeadArgs {
 	name: string;
-	caption: string;
 	labels: string[];
 	axis: ChartAxis;
 	series: ChartSeries[];
@@ -97,11 +111,11 @@ interface SumHeadArgs {
 
 // The usual header: every series added up, each one listed when there's more.
 export const sumHead =
-	({ name, caption, labels, axis, series, format }: SumHeadArgs) =>
+	({ name, labels, axis, series, format }: SumHeadArgs) =>
 	(index: number | null): ChartHead => ({
 		label: index === null ? name : axis.title(labels[index]),
 		value: format(series.reduce((sum, s) => sum + valueAt(s, index), 0)),
-		caption: index === null ? caption : name,
+		caption: index === null ? undefined : name,
 		parts: series.length > 1 ? headParts(series, index, format) : undefined,
 	});
 
@@ -164,17 +178,9 @@ const monotonePath = (points: [number, number][]) => {
 	return d;
 };
 
-// Mondays on a daily chart, every bucket otherwise; every other one dropped
-// until no two labels touch on a phone.
-export const axisTicks = (
-	labels: string[],
-	isDaily: boolean,
-	slotWidth: number,
-) => {
-	const all = labels.map((label, i) => ({ label, i }));
-	const mondays = all.filter(({ label }) => dayjs(label).day() === 1);
-	// A few days with no Monday in them still get their first day named.
-	let ticks = isDaily ? (mondays.length > 0 ? mondays : all.slice(0, 1)) : all;
+// Every bucket gets a label; every other one dropped until no two touch.
+export const axisTicks = (labels: string[], slotWidth: number) => {
+	let ticks = labels.map((label, i) => ({ label, i }));
 	while (
 		ticks.length > 1 &&
 		(ticks[1].i - ticks[0].i) * slotWidth < MIN_TICK_GAP
@@ -203,12 +209,13 @@ export const ChartHeader = ({ head }: ChartHeaderProps) => (
 					</span>
 				)}
 			</span>
+			{/* An empty caption keeps its line, so tapping a day doesn't push the chart down. */}
 			<span className="text-footnote text-muted-foreground">
-				{head.caption}
+				{head.caption ?? " "}
 			</span>
 		</div>
 		{head.parts === undefined ? null : (
-			<ul className="flex basis-full flex-wrap gap-x-3.5 gap-y-0.5 text-subhead tabular-nums @xl:mt-0.5 @xl:flex-1 @xl:basis-0 @xl:justify-end">
+			<ul className="flex basis-full flex-wrap gap-x-3.5 gap-y-0.5 text-subhead tabular-nums @3xl:mt-0.5 @3xl:flex-1 @3xl:basis-0 @3xl:justify-end">
 				{head.parts.map((part) => (
 					<li key={part.key} className="flex items-center gap-1.5">
 						{part.color === undefined ? null : (
@@ -218,7 +225,11 @@ export const ChartHeader = ({ head }: ChartHeaderProps) => (
 								style={{ backgroundColor: part.color }}
 							/>
 						)}
-						{part.name}
+						{part.fullName === undefined ? (
+							part.name
+						) : (
+							<HelpHeader label={part.name} help={part.fullName} />
+						)}
 						<span className="font-medium">{part.value}</span>
 					</li>
 				))}
@@ -227,7 +238,87 @@ export const ChartHeader = ({ head }: ChartHeaderProps) => (
 	</div>
 );
 
-// Every report chart: the total up top that follows a finger or pointer,
+interface ChartCalloutProps {
+	head: ChartHead;
+	x: number;
+	isLeft: boolean;
+	width: number;
+}
+
+const CALLOUT_GAP = 12;
+// Timings follow shadcn charts (Recharts defaults): 400ms for bars and the
+// callout, 1.5s for a line drawing in.
+const BAR_MOTION =
+	"transition-[opacity,scale] duration-400 ease-[ease] starting:scale-y-0 motion-reduce:transition-none";
+const MARKER_SLIDE =
+	"transition-transform duration-400 ease-[ease] motion-reduce:transition-none";
+const LINE_DRAW =
+	"[stroke-dasharray:1] transition-[stroke-dashoffset] duration-1500 ease-[ease] starting:[stroke-dashoffset:1] motion-reduce:transition-none";
+const AREA_FADE =
+	"transition-opacity duration-1500 ease-[ease] starting:opacity-0 motion-reduce:transition-none";
+const BREAKDOWN_LIMIT = 5;
+
+// With a mouse the day reads beside the bar, not up in the header.
+const ChartCallout = ({ head, x, isLeft, width }: ChartCalloutProps) => (
+	<div
+		className="pointer-events-none absolute top-0 left-0 z-10 grid w-max max-w-72 grid-cols-[minmax(0,1fr)] gap-1 rounded-md border bg-popover px-3 py-2 text-footnote tabular-nums shadow-md transition-[transform,opacity] duration-400 ease-[ease] starting:opacity-0 motion-reduce:transition-none"
+		style={{
+			// Held inside the chart, so a narrow window doesn't cut it off.
+			transform: isLeft
+				? `translateX(max(0px, calc(${x - CALLOUT_GAP}px - 100%)))`
+				: `translateX(min(${x + CALLOUT_GAP}px, calc(${width}px - 100%)))`,
+		}}
+	>
+		<span className="text-muted-foreground">{head.label}</span>
+		<span className="font-semibold text-headline">
+			{head.value}
+			{head.unit === undefined ? null : (
+				<span className="ml-1 font-normal text-muted-foreground">
+					{head.unit}
+				</span>
+			)}
+		</span>
+		<ul className="grid grid-cols-[minmax(0,1fr)] gap-0.5">
+			{head.parts?.map((part) => (
+				<li key={part.key} className="grid grid-cols-[minmax(0,1fr)] gap-0.5">
+					<span className="flex items-center gap-1.5">
+						{part.color === undefined ? null : (
+							<span
+								aria-hidden="true"
+								className="size-2 shrink-0 rounded-full"
+								style={{ backgroundColor: part.color }}
+							/>
+						)}
+						<span className="min-w-0 truncate font-medium">
+							{part.fullName ?? part.name}
+						</span>
+						<span className="ml-auto pl-3 font-medium">{part.value}</span>
+					</span>
+					{part.breakdown?.slice(0, BREAKDOWN_LIMIT).map((line) => (
+						<span key={line.key} className="flex items-center gap-1.5 pl-3.5">
+							<span className="min-w-0 truncate">
+								{line.fullName ?? line.name}
+							</span>
+							<span className="ml-auto pl-3">{line.value}</span>
+						</span>
+					))}
+					{part.breakdown !== undefined &&
+					part.breakdown.length > BREAKDOWN_LIMIT ? (
+						<span className="pl-3.5 text-muted-foreground">
+							{part.breakdown.length - BREAKDOWN_LIMIT} more
+						</span>
+					) : null}
+				</li>
+			))}
+		</ul>
+		{head.caption === undefined ? null : (
+			<span className="text-muted-foreground">{head.caption}</span>
+		)}
+	</div>
+);
+
+// Every report chart: the total up top that follows a finger (a mouse gets
+// the callout),
 // a dotted grid with the scale on the right, and rounded bar tops.
 export const ReportChart = ({
 	labels,
@@ -240,6 +331,7 @@ export const ReportChart = ({
 }: ReportChartProps) => {
 	const { ref, width } = useElementWidth();
 	const [picked, setPicked] = useState<number | null>(null);
+	const [isMouse, setIsMouse] = useState(false);
 	// A tapped day stays in the header after the finger lifts, so a manager
 	// can read it; tapping anywhere else brings the range total back.
 	useEffect(() => {
@@ -281,19 +373,17 @@ export const ReportChart = ({
 		(_, k) => yMin + k * step,
 	);
 
-	const ticks = axisTicks(labels, axis.isDaily, band);
+	const ticks = axisTicks(labels, band);
 
-	const barWidth = Math.max(
-		2,
-		Math.min(width < 480 ? 7 : 14, (band * 0.66) / groups.length),
-	);
+	const barWidth = Math.max(2, Math.min(40, (band * 0.6) / groups.length));
 	const barGap = groups.length > 1 ? Math.max(1, barWidth * 0.18) : 0;
-	const radius = barWidth > 6 ? 3 : 1.5;
+	const radius = barWidth > 6 ? Math.min(6, barWidth / 4) : 1.5;
 	const groupWidth = groups.length * barWidth + (groups.length - 1) * barGap;
 
 	const pick = (event: React.PointerEvent<SVGRectElement>) => {
 		const box = event.currentTarget.getBoundingClientRect();
 		const index = Math.floor(((event.clientX - box.left) / box.width) * n);
+		setIsMouse(event.pointerType === "mouse");
 		setPicked(Math.min(Math.max(index, 0), n - 1));
 	};
 
@@ -324,7 +414,8 @@ export const ReportChart = ({
 							key={key}
 							d={roundedTop(x, y1, barWidth, h, radius)}
 							fill={series.color}
-							opacity={opacity}
+							className={BAR_MOTION}
+							style={{ opacity, transformOrigin: `0 ${y(0)}px` }}
 						/>
 					) : (
 						<rect
@@ -334,7 +425,8 @@ export const ReportChart = ({
 							width={barWidth}
 							height={Math.max(h - 1, 0.5)}
 							fill={series.color}
-							opacity={opacity}
+							className={BAR_MOTION}
+							style={{ opacity, transformOrigin: `0 ${y(0)}px` }}
 						/>
 					);
 				});
@@ -366,6 +458,7 @@ export const ReportChart = ({
 				<path
 					d={`${path}L${xMid(n - 1)},${TOP + plotHeight}L${xMid(0)},${TOP + plotHeight}Z`}
 					fill={`url(#${gradientId})`}
+					className={AREA_FADE}
 				/>
 				<path
 					d={path}
@@ -374,23 +467,29 @@ export const ReportChart = ({
 					strokeWidth={2}
 					strokeLinejoin="round"
 					strokeLinecap="round"
+					pathLength={1}
+					className={LINE_DRAW}
 				/>
 				{shown !== null && (
 					<>
 						<line
-							x1={xMid(shown)}
-							x2={xMid(shown)}
+							x1={0}
+							x2={0}
 							y1={TOP}
 							y2={TOP + plotHeight}
 							stroke={LABEL}
+							className={MARKER_SLIDE}
+							style={{ transform: `translateX(${xMid(shown)}px)` }}
 						/>
 						<circle
-							cx={xMid(shown)}
-							cy={y(series.values[shown])}
 							r={4}
 							fill={series.color}
 							stroke="var(--card)"
 							strokeWidth={2}
+							className={MARKER_SLIDE}
+							style={{
+								transform: `translate(${xMid(shown)}px, ${y(series.values[shown])}px)`,
+							}}
 						/>
 					</>
 				)}
@@ -430,6 +529,8 @@ export const ReportChart = ({
 							fill="none"
 							stroke={AVERAGE}
 							strokeWidth={1.5}
+							pathLength={1}
+							className={LINE_DRAW}
 						/>
 					))}
 				{last !== -1 && (
@@ -462,8 +563,16 @@ export const ReportChart = ({
 
 	return (
 		<div ref={ref} className="@container grid gap-3">
-			<ChartHeader head={head(shown)} />
-			<div className="min-w-0" style={{ height }}>
+			<ChartHeader head={head(isMouse ? null : shown)} />
+			<div className="relative min-w-0" style={{ height }}>
+				{isMouse && shown !== null && (
+					<ChartCallout
+						head={head(shown)}
+						x={xMid(shown)}
+						isLeft={xMid(shown) > plotWidth / 2}
+						width={width}
+					/>
+				)}
 				{width > 0 && (
 					<svg
 						aria-hidden="true"

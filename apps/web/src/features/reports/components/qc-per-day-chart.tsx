@@ -19,18 +19,13 @@ interface QcDayRow {
 interface QcPerDayChartProps {
 	rows: QcDayRow[];
 	bucket: "day" | "week";
-	caption: string;
 }
 
 const count = (value: number) => numberFormatter.format(value);
 
 // Arrivals on the QC shelf beside the checks made: a grey bar taller than its
 // neighbour is a day the pile grew.
-export const QcPerDayChart = ({
-	rows,
-	bucket,
-	caption,
-}: QcPerDayChartProps) => {
+export const QcPerDayChart = ({ rows, bucket }: QcPerDayChartProps) => {
 	const axis = dateAxis(bucket);
 	const labels = rows.map((row) => row.label);
 	const hasArrivals = rows.some((row) => row.arrived !== undefined);
@@ -72,16 +67,13 @@ export const QcPerDayChart = ({
 							label: day ?? "Pile",
 							value: `${pile > 0 ? "+" : ""}${count(pile)}`,
 							unit: "Items",
-							caption:
-								day === null
-									? `Arrived minus checked · ${caption}`
-									: "Arrived minus checked",
+							caption: "Arrived minus checked",
 							parts,
 						}
 					: {
 							label: day ?? "Checks",
 							value: count(checks),
-							caption: day === null ? caption : "Checks",
+							caption: day === null ? undefined : "Checks",
 							parts,
 						};
 			}}

@@ -304,18 +304,23 @@ export const splitTopServices = (
 
 interface ChartRow {
 	label: string;
-	total: number | null;
+	total: number;
 	storeAverage: number | null;
 	// Count per top Service by position, then the grey rest.
 	slices: number[];
 	other: number;
+	rest: DetailBucket["services"];
 }
 
+// Days the worker was off leave the chart.
 export const buildChartRows = (
 	buckets: DetailBucket[],
 	topIds: number[],
 ): ChartRow[] =>
-	buckets.map((bucket) => {
+	buckets.flatMap((bucket) => {
+		if (bucket.total === null) {
+			return [];
+		}
 		const counts = new Map(bucket.services.map((s) => [s.service_id, s.count]));
 		const slices = topIds.map((id) => counts.get(id) ?? 0);
 		return {
@@ -323,7 +328,8 @@ export const buildChartRows = (
 			total: bucket.total,
 			storeAverage: bucket.store_average,
 			slices,
-			other: (bucket.total ?? 0) - slices.reduce((sum, n) => sum + n, 0),
+			other: bucket.total - slices.reduce((sum, n) => sum + n, 0),
+			rest: bucket.services.filter((s) => !topIds.includes(s.service_id)),
 		};
 	});
 
