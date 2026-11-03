@@ -2,7 +2,6 @@ import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   categoriesTable,
-  itemsTable,
   orderServiceStatusLogsTable,
   ordersServicesTable,
   ordersTable,
@@ -93,7 +92,6 @@ export async function listTurnaroundLines({ range, storeId }: RangeArgs) {
       readyInRange,
       eq(ordersServicesTable.item_id, readyInRange.item_id)
     )
-    .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
     .innerJoin(storesTable, eq(ordersTable.store_id, storesTable.id))
     .leftJoin(
