@@ -8,7 +8,6 @@ import {
 } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/react";
 import { DetailedError } from "hono/client";
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
@@ -183,7 +182,6 @@ createRoot(rootElement).render(
 					</Suspense>
 				) : null}
 				<Analytics />
-				<SpeedInsights />
 			</QueryClientProvider>
 		</ThemeProvider>
 	</StrictMode>,

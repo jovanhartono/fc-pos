@@ -1,5 +1,10 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
+import {
+	createRootRouteWithContext,
+	Outlet,
+	useMatches,
+} from "@tanstack/react-router";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { GlobalErrorPage } from "@/components/global-error-page";
 import { NotFoundPage } from "@/components/not-found-page";
 import { OfflineBanner } from "@/components/offline-banner";
@@ -28,6 +33,11 @@ const TOUCH_TOAST_OFFSET = {
 function RootComponent() {
 	// Top-right lands on top of the mobile header, and far from the thumb.
 	const isCoarsePointer = useIsCoarsePointer();
+	// Every Order opened counts toward one /orders/$orderId score, not a row
+	// of its own with a sample or two.
+	const route = useMatches({
+		select: (matches) => matches.at(-1)?.fullPath,
+	});
 
 	return (
 		<TooltipProvider>
@@ -48,6 +58,7 @@ function RootComponent() {
 			</div>
 			<GlobalSheet />
 			<GlobalDialog />
+			<SpeedInsights route={route} />
 		</TooltipProvider>
 	);
 }
