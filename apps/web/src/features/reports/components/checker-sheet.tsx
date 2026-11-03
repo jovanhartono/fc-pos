@@ -43,7 +43,6 @@ export const useOpenCheckerSheet = () => {
 			openSheet({
 				title: target.row.user_name,
 				description: `Checker · ${rangeLabel(target.from, target.to)}`,
-				size: "wide",
 				content: () => <CheckerSheetContent target={target} />,
 			}),
 		[openSheet],
@@ -127,11 +126,7 @@ const CheckerSheetContent = ({ target }: CheckerSheetContentProps) => {
 			</KpiRow>
 
 			<Section title="Checks Each Day">
-				<QcPerDayChart
-					rows={row.days}
-					bucket={target.bucket}
-					caption={rangeLabel(target.from, target.to)}
-				/>
+				<QcPerDayChart rows={row.days} bucket={target.bucket} />
 			</Section>
 
 			<Section title="QC Rejects" count={numberFormatter.format(row.rejects)}>

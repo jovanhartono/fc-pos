@@ -421,9 +421,9 @@ describe("which services earn the money", () => {
 describe("how the shop was paid", () => {
   it("splits the takings by tender and shares them out", async () => {
     answers.paymentMix.now = [
-      ["2026-08-01", 1, "Cash", "400000", 5],
-      ["2026-08-03", 1, "Cash", "200000", 3],
-      ["2026-08-01", 2, "QRIS", "300000", 2],
+      ["2026-08-01", 1, "Cash", "CASH", "400000", 5],
+      ["2026-08-03", 1, "Cash", "CASH", "200000", 3],
+      ["2026-08-01", 2, "QRIS", "QRIS", "300000", 2],
     ];
 
     const report = await getPaymentMixReport({ from: FROM, to: TO });

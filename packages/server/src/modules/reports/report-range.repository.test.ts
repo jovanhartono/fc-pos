@@ -136,7 +136,7 @@ describe("reading rupiah back out of Postgres", () => {
   it("files takings with no recorded payment method under Unknown", async () => {
     // Legacy orders paid before the method was mandatory still carry money the
     // mix chart has to place somewhere.
-    rowQueue.push([["2026-08-01", null, null, "250000", 4]]);
+    rowQueue.push([["2026-08-01", null, null, null, "250000", 4]]);
 
     const rows = await listPaymentMixSeries({
       range: AUGUST,
@@ -148,6 +148,7 @@ describe("reading rupiah back out of Postgres", () => {
         bucket: "2026-08-01",
         payment_method_id: 0,
         payment_method_name: "Unknown",
+        payment_method_code: "Unknown",
         collected: 250_000,
         orders: 4,
       },

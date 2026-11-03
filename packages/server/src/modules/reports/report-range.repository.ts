@@ -339,6 +339,7 @@ export async function listPaymentMixSeries({
       bucket,
       payment_method_id: ordersTable.payment_method_id,
       payment_method_name: paymentMethodsTable.name,
+      payment_method_code: paymentMethodsTable.code,
       collected: collected(),
       orders: sql<number>`COUNT(*)::int`,
     })
@@ -348,12 +349,18 @@ export async function listPaymentMixSeries({
       eq(ordersTable.payment_method_id, paymentMethodsTable.id)
     )
     .where(and(...paidOrderWindow({ range, storeId })))
-    .groupBy(bucket, ordersTable.payment_method_id, paymentMethodsTable.name);
+    .groupBy(
+      bucket,
+      ordersTable.payment_method_id,
+      paymentMethodsTable.name,
+      paymentMethodsTable.code
+    );
 
   return rows.map((row) => ({
     bucket: row.bucket,
     payment_method_id: row.payment_method_id ?? 0,
     payment_method_name: row.payment_method_name ?? "Unknown",
+    payment_method_code: row.payment_method_code ?? "Unknown",
     collected: Number(row.collected),
     orders: Number(row.orders),
   }));
@@ -625,6 +632,7 @@ function lineDetail() {
   return {
     service_id: ordersServicesTable.service_id,
     service_name: servicesTable.name,
+    service_code: servicesTable.code,
     passed_cleaner_id: sql<number | null>`${firstPass}`,
     ...complaintFlags(),
   };

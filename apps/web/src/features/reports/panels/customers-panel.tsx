@@ -14,7 +14,6 @@ import {
 import {
 	numberFormatter,
 	percentFormatter,
-	rangeLabel,
 } from "@/features/reports/utils/format";
 import { CHART_PALETTE } from "@/features/reports/utils/palette";
 import { staleFade } from "@/lib/content-fade";
@@ -47,7 +46,6 @@ export const CustomersPanel = ({
 	const summary = data?.summary.current;
 	const deltas = data?.summary.deltas;
 	const axis = rangeAxis(data?.granularity ?? "day");
-	const caption = rangeLabel(from, to);
 	const newLabels = (data?.series ?? []).map((row) => row.bucket);
 	const newCustomers = [
 		{
@@ -156,7 +154,6 @@ export const CustomersPanel = ({
 				formatAxis={count}
 				head={sumHead({
 					name: "New customers",
-					caption,
 					labels: newLabels,
 					axis,
 					series: newCustomers,
@@ -172,7 +169,6 @@ export const CustomersPanel = ({
 				formatAxis={count}
 				head={sumHead({
 					name: "Orders",
-					caption,
 					labels: mixLabels,
 					axis,
 					series: mix,

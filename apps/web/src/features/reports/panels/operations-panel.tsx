@@ -14,7 +14,7 @@ import {
 	downloadCsv,
 	escapeCsv,
 } from "@/features/reports/utils/csv";
-import { numberFormatter, rangeLabel } from "@/features/reports/utils/format";
+import { numberFormatter } from "@/features/reports/utils/format";
 import {
 	ORDERS_IN_COLOR,
 	ORDERS_OUT_COLOR,
@@ -146,7 +146,7 @@ export const OperationsPanel = ({
 						label: index === null ? "Net flow" : axis.title(labels[index]),
 						value: `${net > 0 ? "+" : ""}${numberFormatter.format(net)}`,
 						unit: "Orders",
-						caption: index === null ? rangeLabel(from, to) : "Net flow",
+						caption: index === null ? undefined : "Net flow",
 						parts: headParts(
 							[ordersIn, ordersOut],
 							index,

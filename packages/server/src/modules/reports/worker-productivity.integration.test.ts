@@ -535,11 +535,13 @@ describe("the Workers report over August", () => {
             {
               service_id: shop.serviceId,
               service_name: "Deep Clean",
+              service_code: "DCLN",
               count: 1,
             },
             {
               service_id: shop.repairServiceId,
               service_name: "Repair",
+              service_code: "RPR",
               count: 1,
             },
           ],
@@ -551,8 +553,18 @@ describe("the Workers report over August", () => {
       // Bintaro's day is not Kemang's.
       expect(day("2026-08-06")?.total).toBeNull();
       expect(detail.services).toEqual([
-        { service_id: shop.serviceId, service_name: "Deep Clean", count: 1 },
-        { service_id: shop.repairServiceId, service_name: "Repair", count: 1 },
+        {
+          service_id: shop.serviceId,
+          service_name: "Deep Clean",
+          service_code: "DCLN",
+          count: 1,
+        },
+        {
+          service_id: shop.repairServiceId,
+          service_name: "Repair",
+          service_code: "RPR",
+          count: 1,
+        },
       ]);
     });
 
