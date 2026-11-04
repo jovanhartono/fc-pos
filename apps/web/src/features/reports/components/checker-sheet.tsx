@@ -50,7 +50,7 @@ const CheckerSheetContent = ({ target }: CheckerSheetContentProps) => {
 				/>
 				<KpiCard label="Rejects" value={numberFormatter.format(row.rejects)} />
 				<KpiCard
-					label="Self-checks"
+					label="Self-passed"
 					value={numberFormatter.format(row.self_checks)}
 				/>
 			</KpiRow>

@@ -233,9 +233,9 @@ _Avoid_: Closing shift (a Shift is one User's attendance), end of day, cash-up
 **First-pass rate**:
 The share of OrderServices that passed quality check on the first try, with no QC reject. Rework lines left out.
 
-**Self-check**:
-A quality check passed by the same person who did the work on that Item, against shop practice.
-_Avoid_: Own QC, self-QC
+**Self-pass**:
+A quality check passed by the same person who did the work on that Item, against shop practice. Reports label the count "Self-passed".
+_Avoid_: Self-check, own work, own QC, self-QC
 
 **Services processed**:
 The number of OrderServices that reached Waiting QC for the first time.

@@ -1,4 +1,9 @@
-import { TaskDone01Icon, ToolsIcon } from "@hugeicons/core-free-icons";
+import {
+	Alert02Icon,
+	TaskDone01Icon,
+	ToolsIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
 	keepPreviousData,
 	type QueryClient,
@@ -186,8 +191,9 @@ const teamOf = (rows: readonly CheckerRow[]): CheckerCounts =>
 const teamPace = (team: CheckerCounts) =>
 	team.days_checked === 0 ? null : team.checks / team.days_checked;
 
-// Self-checks and Complaints are out of passes: only a pass can be your own
-// work or come back from a customer.
+// Self-passed and Complaints are out of passes: only a pass can be your own
+// work or come back from a customer. `flag` names an outlier, from `minCount`
+// up so one slip on a quiet week doesn't read as a habit.
 const QUALITY_RATES = [
 	{
 		id: "pass_rate",
@@ -199,17 +205,21 @@ const QUALITY_RATES = [
 			`${numberFormatter.format(c.rejects)} rejected`,
 		hasZeroDetail: (c: CheckerCounts) => c.rejects === 0,
 		isBad: false,
+		// A checker who rejects a lot may just be strict.
+		flag: null,
+		minCount: 0,
 	},
 	{
 		id: "self_checks",
-		label: "Self-checks",
+		label: "Self-passed",
 		help: "Passes on Services the checker cleaned themselves.",
 		part: (c: CheckerCounts) => c.self_checks,
 		whole: (c: CheckerCounts) => c.passes,
-		detail: (c: CheckerCounts) =>
-			`${numberFormatter.format(c.self_checks)} own work`,
+		detail: (c: CheckerCounts) => pluralCount(c.self_checks, "own Service"),
 		hasZeroDetail: (c: CheckerCounts) => c.self_checks === 0,
 		isBad: true,
+		flag: "self-passes a lot",
+		minCount: 3,
 	},
 	{
 		id: "complaints_after",
@@ -220,6 +230,8 @@ const QUALITY_RATES = [
 		detail: (c: CheckerCounts) => pluralCount(c.complaints_after, "Complaint"),
 		hasZeroDetail: (c: CheckerCounts) => c.complaints_after === 0,
 		isBad: true,
+		flag: "many Complaints",
+		minCount: 2,
 	},
 ] as const;
 
@@ -229,6 +241,66 @@ const rateOf = (rate: QualityRate, counts: CheckerCounts) => {
 	const whole = rate.whole(counts);
 	return whole === 0 ? null : rate.part(counts) / whole;
 };
+
+// Twice the team's rate, or under half its pace, is worth the owner's look.
+const OUTLIER_FACTOR = 2;
+const MIN_PACE_DAYS = 3;
+
+const outlierFlags = (row: CheckerRow, team: CheckerCounts) => {
+	const flags: string[] = [];
+	const pace = teamPace(team);
+	if (
+		pace !== null &&
+		row.days_checked >= MIN_PACE_DAYS &&
+		row.per_day < pace / OUTLIER_FACTOR
+	) {
+		flags.push(`slow · team ${paceText(pace)}`);
+	}
+	for (const rate of QUALITY_RATES) {
+		const value = rateOf(rate, row);
+		const teamValue = rateOf(rate, team);
+		if (
+			rate.flag &&
+			value !== null &&
+			teamValue !== null &&
+			rate.part(row) >= rate.minCount &&
+			value >= teamValue * OUTLIER_FACTOR
+		) {
+			flags.push(rate.flag);
+		}
+	}
+	return flags;
+};
+
+interface OutlierLineProps {
+	flags: string[];
+}
+
+const OutlierLine = ({ flags }: OutlierLineProps) =>
+	flags.length === 0 ? null : (
+		<span className="inline-flex items-center gap-1 text-subhead text-tone-warn-foreground">
+			<HugeiconsIcon
+				icon={Alert02Icon}
+				aria-hidden="true"
+				className="size-3.5 shrink-0"
+			/>
+			{flags.join(" · ")}
+		</span>
+	);
+
+interface CheckerNameProps {
+	row: CheckerRow;
+	rows: readonly CheckerRow[];
+}
+
+const CheckerName = ({ row, rows }: CheckerNameProps) => (
+	<PersonName
+		name={row.user_name}
+		detail={<OutlierLine flags={outlierFlags(row, teamOf(rows))} />}
+	>
+		{row.user_name}
+	</PersonName>
+);
 
 interface RateProps {
 	rate: QualityRate;
@@ -269,10 +341,8 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 		accessorKey: "user_name",
 		header: "Checked by",
 		meta: { width: { percent: 28, minRem: 11 } },
-		cell: ({ row }) => (
-			<PersonName name={row.original.user_name}>
-				{row.original.user_name}
-			</PersonName>
+		cell: ({ row, table }) => (
+			<CheckerName row={row.original} rows={table.options.data} />
 		),
 		footer: "Team",
 	},
@@ -325,11 +395,12 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 
 interface CheckerCardProps {
 	row: CheckerRow;
+	rows: readonly CheckerRow[];
 	onOpen: (row: CheckerRow) => void;
 }
 
 // Same shape as a Workers phone card: the count up top, the rates in tiles.
-const CheckerCard = ({ row, onOpen }: CheckerCardProps) => (
+const CheckerCard = ({ row, rows, onOpen }: CheckerCardProps) => (
 	<button
 		type="button"
 		onClick={() => onOpen(row)}
@@ -337,7 +408,7 @@ const CheckerCard = ({ row, onOpen }: CheckerCardProps) => (
 	>
 		<span className="flex items-center gap-2">
 			<span className="min-w-0 flex-1">
-				<PersonName name={row.user_name}>{row.user_name}</PersonName>
+				<CheckerName row={row} rows={rows} />
 			</span>
 			<span>
 				<span className="font-medium">
@@ -426,19 +497,19 @@ const qualityFlags = (data: QualityReport, now: number): NeedsALookItem[] => {
 			after: ` · checks fell behind on ${behind}/${pluralCount(data.daily.rows.length, unit)}`,
 		});
 	}
-	// One line for everyone, so a Store full of self-checks doesn't bury the
+	// One line for everyone, so a Store full of self-passes doesn't bury the
 	// pile; the Checkers table says who.
 	const selfCheckers = data.by_checker.filter((row) => row.self_checks > 0);
 	if (selfCheckers.length > 0) {
 		flags.push({
 			key: "self-check",
-			name: "Self-checks",
+			name: "Self-passed",
 			before: `${pluralCount(selfCheckers.length, "checker")} `,
 			problem: `passed ${pluralCount(
 				selfCheckers.reduce((sum, row) => sum + row.self_checks, 0),
 				"Item",
 			)} they cleaned`,
-			after: " · see Self-checks below",
+			after: " · see Checkers below",
 		});
 	}
 	return flags;
@@ -616,8 +687,8 @@ const SUMMARY_ROWS: [keyof QualitySummary, string][] = [
 	["complaint_rate", "Complaint rate"],
 	["qc_rejects", "QC rejects"],
 	["passes", "QC passes"],
-	["self_checks", "Self-checks"],
-	["self_check_rate", "Self-check rate"],
+	["self_checks", "Self-passed"],
+	["self_check_rate", "Self-pass rate"],
 ];
 
 const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
@@ -652,7 +723,7 @@ const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
 	}
 	lines.push(
 		"",
-		"Checkers,Checked by,Checks,Days checked,Per day,Pass rate,Rejects,Self-check rate,Self-checks,Complaint rate,Complaints",
+		"Checkers,Checked by,Checks,Days checked,Per day,Pass rate,Rejects,Self-pass rate,Self-passed,Complaint rate,Complaints",
 	);
 	const [passRate, selfCheckRate, complaintRate] = QUALITY_RATES.map(
 		(rate) => (c: CheckerCounts) => (rateOf(rate, c) ?? 0).toFixed(4),
@@ -780,7 +851,11 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 							emptyMessage="No quality checks in range."
 							onRowOpen={handleOpenChecker}
 							renderCard={(row) => (
-								<CheckerCard row={row} onOpen={handleOpenChecker} />
+								<CheckerCard
+									row={row}
+									rows={data.by_checker}
+									onOpen={handleOpenChecker}
+								/>
 							)}
 						/>
 						<CheckerTeamLine rows={data.by_checker} />
