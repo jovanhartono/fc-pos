@@ -9,7 +9,6 @@ type SheetState = {
 	title: ReactNode;
 	description: string | null;
 	content: RenderNode | null;
-	size: SheetSize;
 	back: SheetBack | null;
 	backLabel: string | null;
 	actions: ReactNode;
@@ -17,8 +16,6 @@ type SheetState = {
 	isInstant: boolean;
 	isRestoredOnBack: boolean;
 };
-
-type SheetSize = "wide" | undefined;
 
 // A sheet opened from another sheet, like an Item's from a worker's, offers
 // the way back above its title.
@@ -28,7 +25,6 @@ export type OpenSheetPayload = {
 	title?: ReactNode;
 	description?: string | null;
 	content: RenderNode;
-	size?: SheetSize;
 	back?: SheetBack;
 	// What a sheet opened over this one calls it in its back link, when the
 	// title is not plain text (an Order's title is hidden behind its own header).
@@ -67,7 +63,6 @@ const defaultState: SheetState = {
 	title: null,
 	description: null,
 	content: null,
-	size: undefined,
 	back: null,
 	backLabel: null,
 	actions: null,
@@ -97,7 +92,6 @@ export const useSheet = create<SheetStore>((set, get) => ({
 		title = null,
 		description = null,
 		content,
-		size,
 		back,
 		backLabel,
 		actions = null,
@@ -109,7 +103,6 @@ export const useSheet = create<SheetStore>((set, get) => ({
 				title,
 				description,
 				content,
-				size,
 				back: back ?? null,
 				backLabel: backLabel ?? null,
 				actions,

@@ -76,6 +76,16 @@ const ordersSearchSchema = z.object({
 		.regex(/^\d{4}-\d{2}-\d{2}$/)
 		.optional()
 		.catch(undefined),
+	paidFrom: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/)
+		.optional()
+		.catch(undefined),
+	paidTo: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/)
+		.optional()
+		.catch(undefined),
 	// The Order open in the sheet over the list, on a tablet or desktop.
 	open: z.coerce.number().int().positive().optional().catch(undefined),
 });
@@ -99,6 +109,8 @@ function buildOrdersListParams(
 		...(filters.notified ? { notified: filters.notified } : {}),
 		...(filters.dateFrom ? { date_from: filters.dateFrom } : {}),
 		...(filters.dateTo ? { date_to: filters.dateTo } : {}),
+		...(filters.paidFrom ? { paid_from: filters.paidFrom } : {}),
+		...(filters.paidTo ? { paid_to: filters.paidTo } : {}),
 	};
 }
 

@@ -27,7 +27,6 @@ export function GlobalSheet() {
 		title,
 		description,
 		content,
-		size,
 		back,
 		actions,
 		onClose,
@@ -79,14 +78,7 @@ export function GlobalSheet() {
 					}
 				}}
 			>
-				<SheetContent
-					className={cn(
-						"w-full overflow-hidden",
-						size === "wide" &&
-							"data-[side=right]:w-full data-[side=right]:sm:max-w-[820px]",
-					)}
-					isInstant={isInstant}
-				>
+				<SheetContent className="w-full overflow-hidden" isInstant={isInstant}>
 					{title || description ? (
 						<SheetHeader className="shrink-0 border-b">
 							{/* O12: one row for both, so a sheet opened over another (an Order,

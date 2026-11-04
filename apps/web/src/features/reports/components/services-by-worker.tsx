@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 const SERVICE_CLASS =
 	"sticky left-0 z-10 min-w-34 max-w-34 bg-card px-3 py-2 text-left font-medium shadow-[inset_-1px_0_0_var(--color-border)] sm:max-w-none sm:min-w-44";
 const CELL_CLASS = "min-w-18 whitespace-nowrap px-3 py-2 text-right align-top";
-const HEAD_CLASS =
+export const HEAD_CLASS =
 	"sticky top-0 z-10 bg-card px-3 py-2 font-medium text-muted-foreground shadow-[inset_0_-1px_0_var(--color-border)]";
 // The Total row stays in view while a long list of Services scrolls on desktop.
 const TOTAL_CLASS =

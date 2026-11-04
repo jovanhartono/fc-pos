@@ -150,6 +150,42 @@ it("finds Orders by how much of their money went back", async () => {
   ).toEqual([part.id, all.id].sort((a, b) => a - b));
 });
 
+// Paid at 23:30 on Oct 31 in Jakarta, which is already Oct 31 16:30 UTC: it
+// belongs to that day's money, not Nov 1's.
+it("finds Orders by the Jakarta day they were paid", async () => {
+  const [lateNight, nextDay] = await Promise.all([
+    dropOff("Budi"),
+    dropOff("Rina Wati"),
+    dropOff("Joko Susilo"),
+  ]);
+  const paidAt = (id: number, at: string) =>
+    testDb
+      .update(ordersTable)
+      .set({ paid_at: new Date(at), payment_status: "paid" })
+      .where(eq(ordersTable.id, id));
+  await paidAt(lateNight.id, "2026-10-31T16:30:00Z");
+  await paidAt(nextDay.id, "2026-10-31T17:30:00Z");
+
+  const list = async (paid_from?: string, paid_to?: string) =>
+    (
+      await findOrders({
+        limit: 10,
+        offset: 0,
+        paid_from,
+        paid_to,
+        sort_by: "id",
+        sort_order: "asc",
+      })
+    ).items.map((order) => order.id);
+
+  expect(await list("2026-10-31", "2026-10-31")).toEqual([lateNight.id]);
+  expect(await list("2026-11-01")).toEqual([nextDay.id]);
+  expect(await list(undefined, "2026-11-01")).toEqual([
+    lateNight.id,
+    nextDay.id,
+  ]);
+});
+
 it("counts every status under the other filters, ignoring the status one", async () => {
   await dropOff("Budi");
   const cancelled = await dropOff("Rina Wati");

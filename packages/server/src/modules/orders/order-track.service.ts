@@ -1,5 +1,4 @@
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
-import { findCustomerIdByPhone } from "@/modules/customers/customer.repository";
 import {
   findTrackedOrder,
   findTrackedOrderRef,
@@ -25,17 +24,12 @@ interface TrackProof {
   phone_number: string;
 }
 
-// One message for both failures, so guessing one tells nothing about the other.
+// Code and phone are matched together, so a guesser never learns which half
+// was right.
 const INVALID_PROOF = "Order code or phone number is invalid";
 
 export async function getTrackedOrder({ code, phone_number }: TrackProof) {
-  const customer = await findCustomerIdByPhone(phone_number);
-
-  if (!customer) {
-    throw new NotFoundException(INVALID_PROOF);
-  }
-
-  const order = await findTrackedOrder(code, customer.id);
+  const order = await findTrackedOrder(code, phone_number);
 
   if (!order) {
     throw new NotFoundException(INVALID_PROOF);
@@ -79,10 +73,7 @@ export async function getTrackedOrder({ code, phone_number }: TrackProof) {
 // The Customer's Pay button: the same proof as reading the page, and the
 // gateway's page comes back for the browser to open.
 export async function payTrackedOrder({ code, phone_number }: TrackProof) {
-  const customer = await findCustomerIdByPhone(phone_number);
-  const order = customer
-    ? await findTrackedOrderRef(code, customer.id)
-    : undefined;
+  const order = await findTrackedOrderRef(code, phone_number);
 
   if (!order) {
     throw new NotFoundException(INVALID_PROOF);

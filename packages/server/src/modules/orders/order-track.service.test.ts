@@ -4,18 +4,11 @@ import { captureRejection } from "@/test-support/capture-rejection";
 
 mock.module("@/db", () => ({ db: {} }));
 
-const state = {
-  customer: undefined as { id: number } | undefined,
-  order: undefined as Record<string, unknown> | undefined,
-};
-
-mock.module("@/modules/customers/customer.repository", () => ({
-  findCustomerIdByPhone: () => Promise.resolve(state.customer),
-}));
+let order: Record<string, unknown> | undefined;
 
 mock.module("@/modules/orders/order-read.repository", () => ({
-  findTrackedOrder: () => Promise.resolve(state.order),
-  findTrackedOrderRef: () => Promise.resolve(state.order),
+  findTrackedOrder: () => Promise.resolve(order),
+  findTrackedOrderRef: () => Promise.resolve(order),
 }));
 
 mock.module("@/modules/payments/payment-charge.service", () => ({
@@ -63,8 +56,7 @@ const track = () =>
   });
 
 beforeEach(() => {
-  state.customer = { id: CUSTOMER.id };
-  state.order = trackedOrder("queued");
+  order = trackedOrder("queued");
 });
 
 describe("pickup code", () => {
@@ -75,7 +67,7 @@ describe("pickup code", () => {
   });
 
   it("is shown once an object is ready to collect", async () => {
-    state.order = trackedOrder("ready_for_pickup");
+    order = trackedOrder("ready_for_pickup");
 
     const result = await track();
 
@@ -96,28 +88,18 @@ describe("phone number", () => {
 });
 
 describe("lookup", () => {
-  // A wrong phone and someone else's Order code answer alike, or the tracking
-  // page tells a guesser which half they got right.
-  it("answers the same way for an unknown phone number and a foreign code", async () => {
-    state.customer = undefined;
-    const unknownPhone = await captureRejection(track());
+  it("answers not found when no Order matches the code and phone", async () => {
+    order = undefined;
+    const missing = await captureRejection(track());
 
-    state.customer = { id: CUSTOMER.id };
-    state.order = undefined;
-    const foreignCode = await captureRejection(track());
-
-    expect(unknownPhone).toBeInstanceOf(NotFoundException);
-    expect(foreignCode).toBeInstanceOf(NotFoundException);
-    expect((unknownPhone as Error).message).toBe(
+    expect(missing).toBeInstanceOf(NotFoundException);
+    expect((missing as Error).message).toBe(
       "Order code or phone number is invalid"
-    );
-    expect((foreignCode as Error).message).toBe(
-      (unknownPhone as Error).message
     );
   });
 
   it("asks the same proof before opening a payment page", async () => {
-    state.customer = undefined;
+    order = undefined;
 
     const error = await captureRejection(
       payTrackedOrder({

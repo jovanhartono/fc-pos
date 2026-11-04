@@ -27,6 +27,8 @@ export const GETOrdersQuerySchema = z
 
     date_from: dateStringSchema("date_from").optional(),
     date_to: dateStringSchema("date_to").optional(),
+    paid_from: dateStringSchema("paid_from").optional(),
+    paid_to: dateStringSchema("paid_to").optional(),
 
     sort_by: z.enum(["created_at", "code", "id", "total"]).default("id"),
     sort_order: z.enum(["asc", "desc"]).default("desc"),
@@ -37,6 +39,14 @@ export const GETOrdersQuerySchema = z
     {
       error: "date_from must be less than or equal to date_to",
       path: ["date_from"],
+    }
+  )
+  .refine(
+    (query) =>
+      !(query.paid_from && query.paid_to) || query.paid_from <= query.paid_to,
+    {
+      error: "paid_from must be less than or equal to paid_to",
+      path: ["paid_from"],
     }
   )
   // overdue with any other status would return an empty list, which would read
@@ -63,6 +73,8 @@ export interface NormalizedOrderListQuery {
   notified?: ParsedOrdersQuery["notified"];
   offset: number;
   overdue?: boolean;
+  paid_from?: string;
+  paid_to?: string;
   payment_method_id?: number;
   payment_status?: ParsedOrdersQuery["payment_status"];
   refund_status?: ParsedOrdersQuery["refund_status"];
@@ -101,6 +113,8 @@ export function normalizeOrderListQuery(
     payment_method_id: query?.payment_method_id,
     date_from: query?.date_from,
     date_to: query?.date_to,
+    paid_from: query?.paid_from,
+    paid_to: query?.paid_to,
     sort_by: query?.sort_by ?? "id",
     sort_order: query?.sort_order ?? "desc",
   };

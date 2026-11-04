@@ -9,7 +9,6 @@ import {
 import {
 	numberFormatter,
 	oneDecimalFormatter,
-	rangeLabel,
 } from "@/features/reports/utils/format";
 import {
 	CHART_OTHER_COLOR,
@@ -26,8 +25,6 @@ export const serviceColor = (topIds: number[], serviceId: number) => {
 interface WorkerServicesChartProps {
 	data: WorkerDetailReport;
 	topIds: number[];
-	from: string;
-	to: string;
 }
 
 const count = (value: number) => numberFormatter.format(value);
@@ -35,19 +32,16 @@ const count = (value: number) => numberFormatter.format(value);
 export const WorkerServicesChart = ({
 	data,
 	topIds,
-	from,
-	to,
 }: WorkerServicesChartProps) => {
 	const axis = dateAxis(data.bucket);
 	const rows = buildChartRows(data.buckets, topIds);
 	const labels = rows.map((row) => row.label);
-	const names = new Map(
-		data.services.map((s) => [s.service_id, s.service_name]),
-	);
+	const services = new Map(data.services.map((s) => [s.service_id, s]));
 	const series: ChartSeries[] = [
 		...topIds.map((id, index) => ({
 			key: String(id),
-			name: names.get(id) ?? "Service",
+			name: services.get(id)?.service_code ?? "Service",
+			fullName: services.get(id)?.service_name,
 			color: topFourColor(index),
 			values: rows.map((row) => row.slices[index]),
 		})),
@@ -56,6 +50,13 @@ export const WorkerServicesChart = ({
 			name: "Other",
 			color: CHART_OTHER_COLOR,
 			values: rows.map((row) => row.other),
+			breakdown: (index) =>
+				rows[index].rest.map((s) => ({
+					key: String(s.service_id),
+					name: s.service_code,
+					fullName: s.service_name,
+					value: count(s.count),
+				})),
 		},
 	];
 
@@ -76,7 +77,6 @@ export const WorkerServicesChart = ({
 					return {
 						label: "Services",
 						value: count(total),
-						caption: rangeLabel(from, to),
 						parts,
 					};
 				}
@@ -87,11 +87,8 @@ export const WorkerServicesChart = ({
 						: ` · Store average ${oneDecimalFormatter.format(row.storeAverage)}`;
 				return {
 					label: axis.title(row.label),
-					value: row.total === null ? "—" : count(row.total),
-					caption:
-						row.total === null
-							? "Not worked"
-							: `${row.total === 0 ? "Worked, nothing reached QC" : "Services"}${average}`,
+					value: count(row.total),
+					caption: `${row.total === 0 ? "Worked, nothing reached QC" : "Services"}${average}`,
 					parts,
 				};
 			}}

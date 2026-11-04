@@ -206,7 +206,9 @@ export function findOrderDetail(id: number) {
     with: {
       campaigns: {
         with: {
-          campaign: true,
+          campaign: {
+            with: { eligibleServices: { columns: { service_id: true } } },
+          },
         },
         orderBy: { id: "asc" },
       },
@@ -444,11 +446,11 @@ export function findOrderForLookup(id: number) {
 
 // The Customer's tracking page. The tracking service decides when to show
 // pickup_code. No staff notes: anyone with the code and phone number can read this.
-export function findTrackedOrder(code: string, customerId: number) {
+export function findTrackedOrder(code: string, phoneNumber: string) {
   return db.query.ordersTable.findFirst({
     where: {
       code,
-      customer_id: customerId,
+      customer: { phone_number: phoneNumber },
     },
     columns: {
       id: true,
@@ -519,9 +521,9 @@ export function findTrackedOrder(code: string, customerId: number) {
   });
 }
 
-export function findTrackedOrderRef(code: string, customerId: number) {
+export function findTrackedOrderRef(code: string, phoneNumber: string) {
   return db.query.ordersTable.findFirst({
-    where: { code, customer_id: customerId },
+    where: { code, customer: { phone_number: phoneNumber } },
     columns: { id: true },
   });
 }

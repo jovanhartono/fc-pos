@@ -568,6 +568,7 @@ export async function getPaymentMixReport(query: GetReportRangeQuery) {
     {
       payment_method_id: number;
       payment_method_name: string;
+      payment_method_code: string;
       collected: number;
       orders: number;
     }
@@ -581,6 +582,7 @@ export async function getPaymentMixReport(query: GetReportRangeQuery) {
       methodTotals.set(row.payment_method_id, {
         payment_method_id: row.payment_method_id,
         payment_method_name: row.payment_method_name,
+        payment_method_code: row.payment_method_code,
         collected: row.collected,
         orders: row.orders,
       });
@@ -593,6 +595,7 @@ export async function getPaymentMixReport(query: GetReportRangeQuery) {
   const methodKeys = methods.map((m) => ({
     key: `pm_${m.payment_method_id}`,
     label: m.payment_method_name,
+    code: m.payment_method_code,
   }));
 
   const bucketMap = new Map<string, Record<string, number>>();
@@ -1046,13 +1049,19 @@ function summariseWorkers(
 function groupByService(lines: ActivityLine[]) {
   const byService = new Map<
     number,
-    { service_id: number; service_name: string; lines: ActivityLine[] }
+    {
+      service_id: number;
+      service_name: string;
+      service_code: string;
+      lines: ActivityLine[];
+    }
   >();
   for (const line of lines) {
     const serviceId = line.service_id ?? 0;
     const group = byService.get(serviceId) ?? {
       service_id: serviceId,
       service_name: line.service_name ?? "Unknown",
+      service_code: line.service_code ?? "Unknown",
       lines: [],
     };
     group.lines.push(line);
@@ -1212,6 +1221,7 @@ export async function getWorkerLiveReport({ store_id }: GetWorkerLiveQuery) {
 
 interface ServiceCount {
   count: number;
+  service_code: string;
   service_id: number;
   service_name: string;
 }
@@ -1221,9 +1231,10 @@ const byCountThenName = (a: ServiceCount, b: ServiceCount) =>
 
 function countByService(lines: ActivityLine[]): ServiceCount[] {
   return groupByService(lines)
-    .map(({ service_id, service_name, lines: group }) => ({
+    .map(({ service_id, service_name, service_code, lines: group }) => ({
       service_id,
       service_name,
+      service_code,
       count: group.length,
     }))
     .sort(byCountThenName);

@@ -1,14 +1,9 @@
-import { lineKey, lineRefundCap } from "@fresclean/api/schema";
+import { lineKey, orderLineRefundCaps } from "@fresclean/api/schema";
 import type { OrderDetail } from "@/features/orders/api";
 import { flattenOrderLines } from "@/features/orders/lib/order-lines";
 import { parseMoney } from "@/shared/money";
 
-// Same refund-cap math and inputs as the server, so the Refund dialog's
-// preview always matches what the server books.
 export const buildRefundCaps = (detail: OrderDetail): Map<string, number> => {
-	const grossTotal = parseMoney(detail.total);
-	const orderDiscount = parseMoney(detail.discount);
-
 	const refundedByLineKey = new Map<string, number>();
 	for (const refund of detail.refunds ?? []) {
 		for (const item of refund.items ?? []) {
@@ -23,27 +18,11 @@ export const buildRefundCaps = (detail: OrderDetail): Map<string, number> => {
 		}
 	}
 
-	const capFor = (key: string, subtotal: string | null) =>
-		lineRefundCap({
-			alreadyRefunded: refundedByLineKey.get(key) ?? 0,
-			grossLine: parseMoney(subtotal),
-			grossTotal,
-			orderDiscount,
-		});
-
-	const caps = new Map<string, number>();
-	for (const service of flattenOrderLines(detail)) {
-		const key = lineKey("service", service.id);
-		caps.set(key, capFor(key, service.subtotal));
-	}
-	for (const product of detail.products ?? []) {
-		const key = lineKey("product", product.id);
-		caps.set(
-			key,
-			product.refunded_at || product.cancelled_at
-				? 0
-				: capFor(key, product.subtotal),
-		);
-	}
-	return caps;
+	return orderLineRefundCaps({
+		campaigns: detail.campaigns ?? [],
+		discount: detail.discount,
+		products: detail.products ?? [],
+		refundedByLineKey,
+		services: flattenOrderLines(detail),
+	});
 };

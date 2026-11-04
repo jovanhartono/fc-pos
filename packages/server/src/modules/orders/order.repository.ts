@@ -21,12 +21,11 @@ import {
 import { isNumericSearch } from "@/modules/orders/order-search";
 import {
   countItemsReady,
-  type ItemStatusLine,
   summarizeOrderFulfillment,
 } from "@/modules/orders/order-status-machine";
 import { toStoredPhonePrefix } from "@/schema/phone";
 import { PICKUP_OVERDUE_HOURS } from "@/schema/turnaround";
-import { isUnpricedLine } from "@/schema/unpriced-line";
+import { hasUnpricedLine } from "@/schema/unpriced-line";
 import { jakartaDayEnd, jakartaDayStart, jakartaNow } from "@/utils/date";
 
 export type OrderTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -136,6 +135,17 @@ function refundConditions(status: OrderListFilters["refund_status"]) {
   ];
 }
 
+function dayRangeConditions(
+  column: "created_at" | "paid_at",
+  from?: string,
+  to?: string
+): Record<string, unknown>[] {
+  return [
+    ...(from ? [{ [column]: { gte: jakartaDayStart(from) } }] : []),
+    ...(to ? [{ [column]: { lte: jakartaDayEnd(to) } }] : []),
+  ];
+}
+
 function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
   const conditions: Record<string, unknown>[] = [];
 
@@ -194,17 +204,10 @@ function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
     conditions.push({ payment_method_id: filters.payment_method_id });
   }
 
-  if (filters.date_from) {
-    conditions.push({
-      created_at: { gte: jakartaDayStart(filters.date_from) },
-    });
-  }
-
-  if (filters.date_to) {
-    conditions.push({
-      created_at: { lte: jakartaDayEnd(filters.date_to) },
-    });
-  }
+  conditions.push(
+    ...dayRangeConditions("created_at", filters.date_from, filters.date_to),
+    ...dayRangeConditions("paid_at", filters.paid_from, filters.paid_to)
+  );
 
   if (filters.search) {
     const search = filters.search.trim();
@@ -286,6 +289,15 @@ export async function findOrders(
           },
         },
         pickupNotices: { columns: { id: true }, limit: 1 },
+        services: {
+          columns: {
+            item_id: true,
+            pickup_event_id: true,
+            price: true,
+            status: true,
+          },
+          with: { complaints: { columns: { id: true } } },
+        },
       },
       where: buildOrderWhere(filters, scopedStoreIds),
       orderBy:
@@ -301,55 +313,6 @@ export async function findOrders(
     countOrders(filters, scopedStoreIds),
   ]);
 
-  const orderIds = rows.map((row) => row.id);
-  const serviceRows =
-    orderIds.length === 0
-      ? []
-      : await db.query.ordersServicesTable.findMany({
-          where: { order_id: { in: orderIds } },
-          columns: {
-            order_id: true,
-            item_id: true,
-            pickup_event_id: true,
-            price: true,
-            status: true,
-          },
-          with: { complaints: { columns: { id: true } } },
-        });
-
-  const groupedStatuses = new Map<
-    number,
-    (typeof serviceRows)[number]["status"][]
-  >();
-  const awaitingPrice = new Set<number>();
-  const complained = new Set<number>();
-  // Per Order, each Item's lines, for the list's "2 of 3 ready".
-  const linesByItem = new Map<number, Map<number, ItemStatusLine[]>>();
-
-  for (const row of serviceRows) {
-    if (row.order_id === null) {
-      continue;
-    }
-
-    const current = groupedStatuses.get(row.order_id) ?? [];
-    current.push(row.status);
-    groupedStatuses.set(row.order_id, current);
-
-    const items = linesByItem.get(row.order_id) ?? new Map();
-    items.set(row.item_id, [...(items.get(row.item_id) ?? []), row]);
-    linesByItem.set(row.order_id, items);
-
-    if (isUnpricedLine(row)) {
-      awaitingPrice.add(row.order_id);
-    }
-    if (row.complaints.length > 0) {
-      complained.add(row.order_id);
-    }
-  }
-
-  const countItems = (orderId: number) =>
-    countItemsReady([...(linesByItem.get(orderId)?.values() ?? [])]);
-
   const items: OrderListItem[] = rows.map((row) => ({
     id: row.id,
     code: row.code,
@@ -363,10 +326,12 @@ export async function findOrders(
     total: row.total,
     paid_amount: row.paid_amount,
     refunded_amount: row.refunded_amount,
-    has_unpriced_line: awaitingPrice.has(row.id),
-    has_complaint: complained.has(row.id),
+    has_unpriced_line: hasUnpricedLine(row.services),
+    has_complaint: row.services.some((line) => line.complaints.length > 0),
     notified: row.pickupNotices.length > 0,
-    ...countItems(row.id),
+    ...countItemsReady([
+      ...Map.groupBy(row.services, (line) => line.item_id).values(),
+    ]),
     notes: row.notes,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -380,7 +345,9 @@ export async function findOrders(
     payment_method_name: row.paymentMethod?.name ?? null,
     created_by: row.created_by,
     updated_by: row.updated_by,
-    fulfillment: summarizeOrderFulfillment(groupedStatuses.get(row.id) ?? []),
+    fulfillment: summarizeOrderFulfillment(
+      row.services.map((line) => line.status)
+    ),
   }));
 
   return {

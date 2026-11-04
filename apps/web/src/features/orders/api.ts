@@ -66,6 +66,8 @@ export type FetchOrdersQuery = {
 	overdue?: boolean;
 	date_from?: string;
 	date_to?: string;
+	paid_from?: string;
+	paid_to?: string;
 };
 
 export type FetchOrderServiceQueueQuery = {

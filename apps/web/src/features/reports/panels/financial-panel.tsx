@@ -30,7 +30,6 @@ import {
 	compactNumber,
 	fixedPercentFormatter,
 	percentFormatter,
-	rangeLabel,
 } from "@/features/reports/utils/format";
 import type { DeltaAs } from "@/features/reports/utils/kpi-delta";
 import { CHART_OTHER_COLOR } from "@/features/reports/utils/palette";
@@ -251,8 +250,7 @@ const RevenueLineChart = ({ data }: RevenueLineChartProps) => {
 			head={(index) => ({
 				label: index === null ? "Revenue" : axis.title(labels[index]),
 				value: compactMoney(valueAt(revenue, index)),
-				caption:
-					index === null && data ? rangeLabel(data.from, data.to) : "Revenue",
+				caption: index === null ? undefined : "Revenue",
 				// Not drawn, so no colour dot that would promise a line.
 				parts: headParts(others, index, compactMoney).map((part) => ({
 					...part,

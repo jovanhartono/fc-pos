@@ -361,6 +361,7 @@ describe("Needs a look", () => {
 const svc = (service_id: number, count: number) => ({
 	service_id,
 	service_name: `S${service_id}`,
+	service_code: `S${service_id}`,
 	count,
 });
 
@@ -405,9 +406,10 @@ describe("top Services and Other", () => {
 			],
 			[1, 2],
 		);
+		expect(rows.map((row) => row.label)).toEqual(["2026-10-09", "2026-10-11"]);
 		expect(rows[0].slices).toEqual([6, 3]);
 		expect(rows[0].other).toBe(1);
-		expect(rows[1].slices).toEqual([0, 0]);
-		expect(rows[2].other).toBe(0);
+		expect(rows[0].rest.map((s) => s.service_id)).toEqual([3]);
+		expect(rows[1].other).toBe(0);
 	});
 });

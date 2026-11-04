@@ -6,7 +6,6 @@ import {
 import {
 	AlertCircleIcon,
 	ArrowRight01Icon,
-	FilterIcon,
 	QrCodeScanIcon,
 	Store01Icon,
 	Task01Icon,
@@ -33,21 +32,20 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
-import { FilterCountBadge } from "@/components/filter-count-badge";
+import {
+	dateRangeLabel,
+	type FilterChip,
+	FilterChips,
+} from "@/components/filter-chips";
+import { FilterPanel } from "@/components/filter-panel";
 import { PageHeader } from "@/components/page-header";
 import { StickyControls } from "@/components/sticky-controls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { categoriesQueries } from "@/features/categories/api";
 import {
 	type FetchOrderServiceQueueQuery,
 	lookupQueueTarget,
@@ -163,13 +161,20 @@ export const Route = createFileRoute("/_admin/queue/")({
 	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
+interface QueueFilterValues {
+	storeId?: number;
+	categoryId?: number;
+	categoryMode: QueueCategoryMode;
+	dateFrom?: string;
+	dateTo?: string;
+}
+
 function QueuePage() {
 	const currentUser = getCurrentUser();
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 
 	const [itemCode, setItemCode] = useState("");
-	const [isFilterOpen, setIsFilterOpen] = useState(false);
 	const now = useMinuteClock();
 
 	const meQuery = useQuery({
@@ -235,6 +240,11 @@ function QueuePage() {
 		return userStoreIds[0];
 	}, [role, search.storeId, userStoreIds]);
 	const selectedStatus = search.status;
+	const storesQuery = useQuery(storesQueries.list());
+	const categoriesQuery = useQuery({
+		...categoriesQueries.list(),
+		enabled: selectedCategoryId !== undefined,
+	});
 	const selectedDateFrom = search.dateFrom;
 	const selectedDateTo = search.dateTo;
 	const selectedSearch = search.search;
@@ -372,16 +382,6 @@ function QueuePage() {
 		[navigate],
 	);
 
-	const updateStoreFilter = (value: string) => {
-		void navigate({
-			replace: true,
-			search: (prev) => ({
-				...prev,
-				storeId: value ? Number(value) : undefined,
-			}),
-		});
-	};
-
 	const updateStatusFilter = (value: string) => {
 		void navigate({
 			replace: true,
@@ -391,35 +391,6 @@ function QueuePage() {
 					value && value !== "all"
 						? (value as (typeof WORKSHOP_SERVICE_STATUSES)[number])
 						: undefined,
-			}),
-		});
-	};
-
-	const updateDateRangeFilter = (next: { from?: string; to?: string } = {}) => {
-		void navigate({
-			replace: true,
-			search: (prev) => ({
-				...prev,
-				dateFrom: next.from,
-				dateTo: next.to,
-			}),
-		});
-	};
-
-	const updateCategoryFilter = (
-		categoryId: number | undefined,
-		mode: QueueCategoryMode,
-	) => {
-		setPersistedCategory(
-			currentUserKey,
-			categoryId === undefined ? undefined : { categoryId, mode },
-		);
-		void navigate({
-			replace: true,
-			search: (prev) => ({
-				...prev,
-				categoryId,
-				categoryMode: categoryId === undefined ? undefined : mode,
 			}),
 		});
 	};
@@ -434,10 +405,75 @@ function QueuePage() {
 		});
 	};
 
-	const activeFilterCount =
-		(selectedDateFrom || selectedDateTo ? 1 : 0) +
-		(selectedCategoryId !== undefined ? 1 : 0) +
-		(role === "admin" && parsedStoreId !== undefined ? 1 : 0);
+	const appliedFilters: QueueFilterValues = {
+		storeId: parsedStoreId,
+		categoryId: selectedCategoryId,
+		categoryMode: selectedCategoryMode,
+		dateFrom: selectedDateFrom,
+		dateTo: selectedDateTo,
+	};
+
+	// A worker's own Store gets no chip and stays on Clear All: their rack
+	// needs one.
+	const filterChipsFor = (f: QueueFilterValues): FilterChip[] => {
+		const chips: FilterChip[] = [];
+		if (role === "admin" && f.storeId !== undefined) {
+			const store = storesQuery.data?.find((s) => s.id === f.storeId);
+			chips.push({
+				id: "store",
+				label: `Store: ${store?.code ?? f.storeId}`,
+				onRemove: () => applyFilters({ ...f, storeId: undefined }),
+			});
+		}
+		if (f.categoryId !== undefined) {
+			const category = categoriesQuery.data?.find((c) => c.id === f.categoryId);
+			const name = category?.name ?? String(f.categoryId);
+			chips.push({
+				id: "category",
+				label: `Category: ${f.categoryMode === "except" ? `Except ${name}` : name}`,
+				onRemove: () => applyFilters({ ...f, categoryId: undefined }),
+			});
+		}
+		if (f.dateFrom || f.dateTo) {
+			chips.push({
+				id: "date",
+				label: `Date: ${dateRangeLabel(f.dateFrom, f.dateTo)}`,
+				onRemove: () =>
+					applyFilters({ ...f, dateFrom: undefined, dateTo: undefined }),
+			});
+		}
+		return chips;
+	};
+	const filterChips = filterChipsFor(appliedFilters);
+
+	const applyFilters = (f: QueueFilterValues) => {
+		// Only a category the worker picked becomes their rack, not one that
+		// came in on a shared link while they changed the date.
+		if (
+			f.categoryId !== selectedCategoryId ||
+			f.categoryMode !== selectedCategoryMode
+		) {
+			setPersistedCategory(
+				currentUserKey,
+				f.categoryId === undefined
+					? undefined
+					: { categoryId: f.categoryId, mode: f.categoryMode },
+			);
+		}
+		void navigate({
+			replace: true,
+			search: (prev) => ({
+				...prev,
+				// Unchanged, a worker's fallback Store stays out of the URL, so it
+				// isn't saved as a Store they chose.
+				storeId: f.storeId === parsedStoreId ? prev.storeId : f.storeId,
+				categoryId: f.categoryId,
+				categoryMode: f.categoryId === undefined ? undefined : f.categoryMode,
+				dateFrom: f.dateFrom,
+				dateTo: f.dateTo,
+			}),
+		});
+	};
 
 	return (
 		<>
@@ -487,68 +523,60 @@ function QueuePage() {
 							type="button"
 							variant={scanner.isScanning ? "default" : "outline"}
 						/>
-						<Dialog onOpenChange={setIsFilterOpen} open={isFilterOpen}>
-							<DialogTrigger
-								render={
-									<Button
-										aria-label="Filters"
-										className="relative"
-										icon={
-											<HugeiconsIcon icon={FilterIcon} className="size-4" />
-										}
-										size="icon"
-										type="button"
-										variant="outline"
-									/>
-								}
-							>
-								{activeFilterCount > 0 ? (
-									<FilterCountBadge count={activeFilterCount} />
-								) : null}
-							</DialogTrigger>
-							<DialogContent className="max-w-[calc(100%-1.5rem)] gap-5 p-4 sm:max-w-md">
-								<DialogHeader>
-									<DialogTitle>Filters</DialogTitle>
-								</DialogHeader>
+						<FilterPanel
+							clear={(f) => ({
+								...f,
+								categoryId: undefined,
+								dateFrom: undefined,
+								dateTo: undefined,
+								storeId: role === "admin" ? undefined : f.storeId,
+							})}
+							countOf={(f) => filterChipsFor(f).length}
+							onApply={applyFilters}
+							value={appliedFilters}
+						>
+							{(draft, setDraft) => (
 								<div className="grid gap-4">
 									<StoreSelect
 										allowedStoreIds={
 											role === "admin" ? undefined : userStoreIds
 										}
 										id="queue-store"
-										onValueChange={updateStoreFilter}
+										onValueChange={(value) =>
+											setDraft({ storeId: value ? Number(value) : undefined })
+										}
 										placeholder="Select store"
-										value={parsedStoreId?.toString() ?? ""}
+										value={draft.storeId?.toString() ?? ""}
 									/>
 									<QueueCategoryFilter
-										categoryId={selectedCategoryId}
-										mode={selectedCategoryMode}
-										onChange={updateCategoryFilter}
+										categoryId={draft.categoryId}
+										mode={draft.categoryMode}
+										onChange={(categoryId, categoryMode) =>
+											setDraft({ categoryId, categoryMode })
+										}
 									/>
 									<Field>
 										<FieldLabel htmlFor="queue-date">Date</FieldLabel>
 										<Suspense fallback={<Skeleton className="h-9 w-full" />}>
 											<DateRangePicker
 												commitOnComplete
-												from={selectedDateFrom}
+												from={draft.dateFrom}
 												fullWidth
 												id="queue-date"
-												onChange={updateDateRangeFilter}
-												onClear={() => updateDateRangeFilter()}
-												to={selectedDateTo}
+												onChange={({ from, to }) =>
+													setDraft({ dateFrom: from, dateTo: to })
+												}
+												onClear={() =>
+													setDraft({ dateFrom: undefined, dateTo: undefined })
+												}
+												placeholder="Any time"
+												to={draft.dateTo}
 											/>
 										</Suspense>
 									</Field>
-									<Button
-										onClick={() => setIsFilterOpen(false)}
-										size="lg"
-										type="button"
-									>
-										Done
-									</Button>
 								</div>
-							</DialogContent>
-						</Dialog>
+							)}
+						</FilterPanel>
 					</div>
 
 					{scanner.error ? (
@@ -593,6 +621,8 @@ function QueuePage() {
 							value={selectedStatus ?? "all"}
 						/>
 					)}
+
+					{filterChips.length > 0 && <FilterChips chips={filterChips} />}
 				</StickyControls>
 
 				<section className="grid min-w-0 gap-2">
