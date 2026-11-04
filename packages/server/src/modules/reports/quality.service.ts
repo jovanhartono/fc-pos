@@ -3,7 +3,6 @@ import {
   countQcRejects,
   countQcRejectsByService,
   findWaitingQcNow,
-  listDamagedLostRefunds,
   listQcArrivalsByDay,
   listQcRejects,
   listQualityChecksByChecker,
@@ -215,7 +214,6 @@ export async function getQualityReport(query: GetReportRangeQuery) {
   const [
     current,
     previous,
-    damagedLost,
     arrivals,
     checkerDays,
     waitingQc,
@@ -223,7 +221,6 @@ export async function getQualityReport(query: GetReportRangeQuery) {
   ] = await Promise.all([
     qualityFor({ range, storeId }),
     qualityFor({ range: ctx.previous.range, storeId }),
-    listDamagedLostRefunds({ range, storeId }),
     listQcArrivalsByDay({ range, storeId }),
     listQualityChecksByCheckerDay({ range, storeId }),
     findWaitingQcNow(storeId),
@@ -269,7 +266,6 @@ export async function getQualityReport(query: GetReportRangeQuery) {
       complaints_after: row.complaints_after,
       days: daily.checkerDays(row.user_id),
     })),
-    damaged_lost: damagedLost,
   };
 }
 

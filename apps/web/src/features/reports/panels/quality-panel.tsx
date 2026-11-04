@@ -1,8 +1,4 @@
-import {
-	CheckmarkCircle02Icon,
-	TaskDone01Icon,
-	ToolsIcon,
-} from "@hugeicons/core-free-icons";
+import { TaskDone01Icon, ToolsIcon } from "@hugeicons/core-free-icons";
 import {
 	keepPreviousData,
 	type QueryClient,
@@ -10,7 +6,6 @@ import {
 	useQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
-import type { LinkProps } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
@@ -27,7 +22,6 @@ import {
 import { useOpenCheckerSheet } from "@/features/reports/components/checker-sheet";
 import { useOpenComplaintsSheet } from "@/features/reports/components/complaints-sheet";
 import { ExportButton } from "@/features/reports/components/export-button";
-import { ItemCodeLink } from "@/features/reports/components/item-code-link";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import {
 	type NeedsALookItem,
@@ -55,7 +49,6 @@ import { useMinuteClock } from "@/hooks/useMinuteClock";
 import { staleFade } from "@/lib/content-fade";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
-import { formatMoney } from "@/shared/money";
 
 interface QualityPanelProps {
 	from: string;
@@ -65,7 +58,6 @@ interface QualityPanelProps {
 
 type ServiceRow = QualityReport["by_service"][number];
 type CheckerRow = QualityReport["by_checker"][number];
-type DamagedLostRow = QualityReport["damaged_lost"][number];
 type RangeQuery = Pick<FetchQcRejectsQuery, "from" | "to" | "store_id">;
 
 // An Item on the QC shelf longer than a working day is worth asking about.
@@ -81,61 +73,8 @@ const SCROLL_BOX = "flex flex-col lg:max-h-[26rem]";
 
 const OUTCOMES = ["reworked", "refunded", "cancelled", "pending"] as const;
 
-const DAMAGED_LOST_LABELS: Record<DamagedLostRow["reason"], string> = {
-	damaged: "Damaged",
-	lost: "Lost",
-};
-
 const formatWhen = (value: string) =>
 	dayjs(value).tz(JAKARTA_TZ).format("D MMM HH:mm");
-const formatDay = (value: string) =>
-	dayjs(value).tz(JAKARTA_TZ).format("D MMM YYYY");
-
-interface LongTextProps {
-	text: string | null;
-}
-
-// Long notes wrap on a phone card but stay one line in the desktop table.
-const LongText = ({ text }: LongTextProps) => {
-	if (!text) {
-		return "—";
-	}
-	return (
-		<span title={text} className="block lg:max-w-64 lg:truncate">
-			{text}
-		</span>
-	);
-};
-
-const orderCardLink = (row: { order_id: number }): LinkProps => ({
-	to: "/orders/$orderId",
-	params: { orderId: String(row.order_id) },
-});
-
-const itemLineColumns: DataTableColumnDef<DamagedLostRow>[] = [
-	{
-		id: "item_code",
-		header: "Item code",
-		meta: {
-			width: { percent: 17, minRem: 8 },
-			mobileCard: { slot: "title" },
-		},
-		cell: ({ row }) => (
-			<ItemCodeLink orderId={row.original.order_id} className="text-link">
-				{row.original.item_code}
-			</ItemCodeLink>
-		),
-	},
-	{
-		id: "service_name",
-		header: "Service",
-		meta: {
-			width: { percent: 20, minRem: 8 },
-			mobileCard: { slot: "subtitle" },
-		},
-		cell: ({ row }) => row.original.service_name ?? "—",
-	},
-];
 
 const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 	{
@@ -317,53 +256,6 @@ const CheckerCard = ({ row, onOpen }: CheckerCardProps) => (
 		</span>
 	</button>
 );
-
-const damagedLostColumns: DataTableColumnDef<DamagedLostRow>[] = [
-	{
-		id: "card_eyebrow",
-		header: "Date",
-		meta: { ...CARD_ONLY, mobileCard: { slot: "eyebrow" } },
-		cell: ({ row }) =>
-			`${formatDay(row.original.refunded_at)} · ${row.original.store_code}`,
-	},
-	{
-		id: "refunded_at",
-		header: "Date",
-		meta: {
-			width: { percent: 11, minRem: 6.25 },
-			cellClassName: "whitespace-nowrap tabular-nums",
-			mobileCard: { slot: "hidden" },
-		},
-		cell: ({ row }) => formatDay(row.original.refunded_at),
-	},
-	...itemLineColumns,
-	{
-		id: "reason",
-		header: "Reason",
-		meta: { width: { percent: 11, minRem: 6 }, mobileCard: { slot: "badges" } },
-		cell: ({ row }) => (
-			<Badge variant={row.original.reason === "lost" ? "danger" : "warning"}>
-				{DAMAGED_LOST_LABELS[row.original.reason]}
-			</Badge>
-		),
-	},
-	{
-		id: "amount",
-		header: "Amount",
-		meta: {
-			align: "right",
-			width: { percent: 11, minRem: 6 },
-			mobileCard: { slot: "footer" },
-		},
-		cell: ({ row }) => formatMoney(row.original.amount),
-	},
-	{
-		id: "note",
-		header: "Note",
-		meta: { width: { percent: 30, minRem: 8 } },
-		cell: ({ row }) => <LongText text={row.original.note} />,
-	},
-];
 
 interface QcPerDaySectionProps {
 	data: QualityReport;
@@ -632,15 +524,6 @@ const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
 	}
 	lines.push(
 		"",
-		"Damaged & lost,Date,Order,Item code,Service,Store,Reason,Amount,Note",
-	);
-	for (const d of data.damaged_lost) {
-		lines.push(
-			`Damaged & lost,${escapeCsv(formatDay(d.refunded_at))},${escapeCsv(d.order_code)},${escapeCsv(d.item_code)},${escapeCsv(d.service_name)},${escapeCsv(d.store_code)},${d.reason},${d.amount},${escapeCsv(d.note)}`,
-		);
-	}
-	lines.push(
-		"",
 		"QC rejects,When,Order,Item code,Service,Store,Cleaned by,Rejected by,Reason",
 	);
 	for (const r of rejects) {
@@ -780,18 +663,6 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 			) : (
 				<Skeleton className="h-80 rounded-lg" />
 			)}
-
-			{data ? (
-				<Section id="quality-damaged-lost" title="Damaged & Lost">
-					<DataTable
-						emptyIcon={CheckmarkCircle02Icon}
-						columns={damagedLostColumns}
-						data={data.damaged_lost}
-						emptyMessage="None in range."
-						getRowLink={orderCardLink}
-					/>
-				</Section>
-			) : null}
 		</div>
 	);
 };

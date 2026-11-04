@@ -14,8 +14,6 @@ import { db } from "@/db";
 import {
   complaintsTable,
   itemsTable,
-  orderRefundItemsTable,
-  orderRefundsTable,
   orderServiceStatusLogsTable,
   ordersServicesTable,
   ordersTable,
@@ -341,55 +339,4 @@ export function listQcRejects({
     .orderBy(desc(qcLog.created_at), desc(qcLog.id))
     .limit(limit)
     .offset(offset);
-}
-
-const DAMAGED_OR_LOST = ["damaged", "lost"] as const;
-
-export async function listDamagedLostRefunds({ range, storeId }: RangeArgs) {
-  const rows = await db
-    .select({
-      refund_item_id: orderRefundItemsTable.id,
-      refunded_at: orderRefundsTable.created_at,
-      order_id: ordersTable.id,
-      order_code: ordersTable.code,
-      item_code: itemsTable.item_code,
-      service_name: servicesTable.name,
-      store_code: storesTable.code,
-      reason: orderRefundItemsTable.reason,
-      amount: orderRefundItemsTable.amount,
-      note: orderRefundItemsTable.note,
-    })
-    .from(orderRefundItemsTable)
-    .innerJoin(
-      orderRefundsTable,
-      eq(orderRefundItemsTable.order_refund_id, orderRefundsTable.id)
-    )
-    .innerJoin(ordersTable, eq(orderRefundsTable.order_id, ordersTable.id))
-    .innerJoin(storesTable, eq(ordersTable.store_id, storesTable.id))
-    .innerJoin(
-      ordersServicesTable,
-      eq(orderRefundItemsTable.order_service_id, ordersServicesTable.id)
-    )
-    .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
-    .leftJoin(
-      servicesTable,
-      eq(ordersServicesTable.service_id, servicesTable.id)
-    )
-    .where(
-      and(
-        inArray(orderRefundItemsTable.reason, [...DAMAGED_OR_LOST]),
-        ...timeWindow(orderRefundsTable.created_at, range),
-        storeScope(ordersTable.store_id, storeId)
-      )
-    )
-    .orderBy(
-      desc(orderRefundsTable.created_at),
-      desc(orderRefundItemsTable.id)
-    );
-
-  return rows.map((row) => ({
-    ...row,
-    reason: row.reason as (typeof DAMAGED_OR_LOST)[number],
-    amount: Number(row.amount),
-  }));
 }

@@ -3,8 +3,6 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { eq } from "drizzle-orm";
 import {
   complaintsTable,
-  orderRefundItemsTable,
-  orderRefundsTable,
   orderServiceStatusLogsTable,
   ordersServicesTable,
   storesTable,
@@ -134,37 +132,7 @@ const addLine = async (
   return rework.id;
 };
 
-const refund = async (
-  line: Line,
-  at: string,
-  reason: "damaged" | "lost" | "cannot_process",
-  amount: number,
-  note: string | null
-) => {
-  const [handedBack] = await testDb
-    .insert(orderRefundsTable)
-    .values({
-      created_at: jkt(at),
-      order_id: line.orderId,
-      refunded_by: shop.admin.id,
-      total_amount: String(amount),
-    })
-    .returning();
-  const [item] = await testDb
-    .insert(orderRefundItemsTable)
-    .values({
-      amount: String(amount),
-      note,
-      order_refund_id: handedBack.id,
-      order_service_id: line.lineId,
-      reason,
-    })
-    .returning();
-  return item.id;
-};
-
 let reworkLineId: number;
-let refundIds: { damaged: number; lost: number };
 
 beforeEach(async () => {
   await resetDb();
@@ -309,32 +277,6 @@ beforeEach(async () => {
     ["processing", "waiting_qc", adi, "2026-08-08T10:00"],
     ["waiting_qc", "qc_reject", bayu, "2026-08-08T11:00", "other store"],
   ]);
-
-  refundIds = {
-    damaged: await refund(
-      lines.refunded,
-      "2026-08-20T10:00",
-      "damaged",
-      100_000,
-      "Sole split"
-    ),
-    lost: await refund(
-      lines["first-pass"],
-      "2026-08-21T10:00",
-      "lost",
-      80_000,
-      null
-    ),
-  };
-  await refund(
-    lines.redone,
-    "2026-08-22T10:00",
-    "cannot_process",
-    50_000,
-    null
-  );
-  await refund(lines.bintaro, "2026-08-22T10:00", "damaged", 70_000, "torn");
-  await refund(lines.july, "2026-07-25T10:00", "damaged", 60_000, "faded");
 });
 
 const kemangAugust = () =>
@@ -523,37 +465,6 @@ describe("the Quality report", () => {
     expect(bayuRow).toMatchObject({ checks: 7, days_checked: 6, per_day: 1.2 });
   });
 
-  it("lists Items refunded as damaged or lost, newest first", async () => {
-    const report = await kemangAugust();
-
-    expect(report.damaged_lost).toEqual([
-      {
-        refund_item_id: refundIds.lost,
-        refunded_at: jkt("2026-08-21T10:00"),
-        order_id: lines["first-pass"].orderId,
-        order_code: lines["first-pass"].orderCode,
-        item_code: lines["first-pass"].itemCode,
-        service_name: "Deep Clean",
-        store_code: "KMG",
-        reason: "lost",
-        amount: 80_000,
-        note: null,
-      },
-      {
-        refund_item_id: refundIds.damaged,
-        refunded_at: jkt("2026-08-20T10:00"),
-        order_id: lines.refunded.orderId,
-        order_code: lines.refunded.orderCode,
-        item_code: lines.refunded.itemCode,
-        service_name: "Deep Clean",
-        store_code: "KMG",
-        reason: "damaged",
-        amount: 100_000,
-        note: "Sole split",
-      },
-    ]);
-  });
-
   it("sets each day's arrivals on the QC shelf beside the checks made", async () => {
     const report = await kemangAugust();
     const day = (label: string) =>
@@ -644,11 +555,6 @@ describe("the Quality report", () => {
 
     expect(report.summary.current.services_processed).toBe(9);
     expect(report.summary.current.qc_rejects).toBe(4);
-    expect(report.damaged_lost.map((row) => row.store_code)).toEqual([
-      "BTR",
-      "KMG",
-      "KMG",
-    ]);
   });
 });
 
