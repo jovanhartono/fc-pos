@@ -42,14 +42,16 @@ export const FilterChips = ({ chips, className }: FilterChipsProps) => (
 	</ul>
 );
 
-// Same words as the date button: the preset's name, else the dates.
+const formatDay = (day: string) => dayjs(day).format("MMM D, YYYY");
+
+// Same words as the date button: the preset's name, else the dates. A link
+// with only one end filters from or until that day, not on it.
 export const dateRangeLabel = (from?: string, to?: string) => {
-	const preset = from && to ? matchPreset(getPresets(), from, to) : undefined;
-	if (preset) {
-		return preset.label;
+	if (from && to) {
+		return (
+			matchPreset(getPresets(), from, to)?.label ??
+			`${formatDay(from)} - ${formatDay(to)}`
+		);
 	}
-	return [from, to]
-		.filter(Boolean)
-		.map((day) => dayjs(day).format("MMM D, YYYY"))
-		.join(" - ");
+	return from ? `From ${formatDay(from)}` : `Until ${formatDay(to ?? "")}`;
 };
