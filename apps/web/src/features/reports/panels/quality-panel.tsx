@@ -154,20 +154,37 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 
 type CheckerCounts = Pick<
 	CheckerRow,
-	"checks" | "passes" | "rejects" | "self_checks" | "complaints_after"
+	| "checks"
+	| "days_checked"
+	| "passes"
+	| "rejects"
+	| "self_checks"
+	| "complaints_after"
 >;
 
 const teamOf = (rows: readonly CheckerRow[]): CheckerCounts =>
 	rows.reduce(
 		(team, row) => ({
 			checks: team.checks + row.checks,
+			days_checked: team.days_checked + row.days_checked,
 			passes: team.passes + row.passes,
 			rejects: team.rejects + row.rejects,
 			self_checks: team.self_checks + row.self_checks,
 			complaints_after: team.complaints_after + row.complaints_after,
 		}),
-		{ checks: 0, passes: 0, rejects: 0, self_checks: 0, complaints_after: 0 },
+		{
+			checks: 0,
+			days_checked: 0,
+			passes: 0,
+			rejects: 0,
+			self_checks: 0,
+			complaints_after: 0,
+		},
 	);
+
+// One checker's average day, so a slow checker reads against it.
+const teamPace = (team: CheckerCounts) =>
+	team.days_checked === 0 ? null : team.checks / team.days_checked;
 
 // Self-checks and Complaints are out of passes: only a pass can be your own
 // work or come back from a customer.
@@ -208,28 +225,35 @@ const QUALITY_RATES = [
 
 type QualityRate = (typeof QUALITY_RATES)[number];
 
+const rateOf = (rate: QualityRate, counts: CheckerCounts) => {
+	const whole = rate.whole(counts);
+	return whole === 0 ? null : rate.part(counts) / whole;
+};
+
 interface RateProps {
 	rate: QualityRate;
 	counts: CheckerCounts;
+	// The Team row is the yardstick, not a person to flag.
+	isTeam?: boolean;
 }
 
 // The rate on top and its count under it, like Pace; a zero needs no line.
-const Rate = ({ rate, counts }: RateProps) => {
-	const whole = rate.whole(counts);
-	if (whole === 0) {
+const Rate = ({ rate, counts, isTeam = false }: RateProps) => {
+	const value = rateOf(rate, counts);
+	if (value === null) {
 		return <span className="text-muted-foreground">—</span>;
 	}
-	const part = rate.part(counts);
 	const isZero = rate.hasZeroDetail(counts);
 	return (
 		<span className="grid gap-0.5 tabular-nums">
 			<span
 				className={cn(
 					rate.isBad &&
+						!isTeam &&
 						(isZero ? "text-muted-foreground" : "text-tone-bad-foreground"),
 				)}
 			>
-				{percentFormatter.format(part / whole)}
+				{percentFormatter.format(value)}
 			</span>
 			{!isZero && (
 				<span className="font-normal text-muted-foreground text-subhead">
@@ -271,6 +295,14 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 		cell: ({ row }) => (
 			<Pace perDay={row.original.per_day} days={row.original.days_checked} />
 		),
+		footer: ({ table }) => (
+			<span className="grid gap-0.5">
+				<span>{paceText(teamPace(teamOf(table.options.data)))}</span>
+				<span className="font-normal text-muted-foreground text-subhead">
+					per checker
+				</span>
+			</span>
+		),
 	},
 	...QUALITY_RATES.map(
 		(rate): DataTableColumnDef<CheckerRow> => ({
@@ -279,7 +311,7 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 			meta: { align: "right", width: { percent: 15, minRem: 6 } },
 			cell: ({ row }) => <Rate rate={rate} counts={row.original} />,
 			footer: ({ table }) => (
-				<Rate rate={rate} counts={teamOf(table.options.data)} />
+				<Rate rate={rate} counts={teamOf(table.options.data)} isTeam />
 			),
 		}),
 	),
@@ -348,9 +380,10 @@ const CheckerTeamLine = ({ rows }: CheckerTeamLineProps) => {
 	}
 	const facts = [
 		`${numberFormatter.format(team.checks)} checks`,
+		paceText(teamPace(team)),
 		...QUALITY_RATES.map(
 			(rate) =>
-				`${percentFormatter.format(rate.whole(team) === 0 ? 0 : rate.part(team) / rate.whole(team))} ${rate.label === "Pass rate" ? "passed" : rate.label}`,
+				`${percentFormatter.format(rateOf(rate, team) ?? 0)} ${rate.label === "Pass rate" ? "passed" : rate.label}`,
 		),
 	];
 	return (
@@ -619,13 +652,18 @@ const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
 	}
 	lines.push(
 		"",
-		"Checkers,Checked by,Checks,Days checked,Per day,Rejects,Reject rate,Self-checks,Self-check rate,Complaints after",
+		"Checkers,Checked by,Checks,Days checked,Per day,Pass rate,Rejects,Self-check rate,Self-checks,Complaint rate,Complaints",
 	);
+	const [passRate, selfCheckRate, complaintRate] = QUALITY_RATES.map(
+		(rate) => (c: CheckerCounts) => (rateOf(rate, c) ?? 0).toFixed(4),
+	);
+	const checkerLine = (name: string, c: CheckerCounts, perDay: number | null) =>
+		`Checkers,${escapeCsv(name)},${c.checks},${c.days_checked},${perDay === null ? "" : perDay.toFixed(1)},${passRate(c)},${c.rejects},${selfCheckRate(c)},${c.self_checks},${complaintRate(c)},${c.complaints_after}`;
 	for (const c of data.by_checker) {
-		lines.push(
-			`Checkers,${escapeCsv(c.user_name)},${c.checks},${c.days_checked},${c.per_day},${c.rejects},${c.reject_rate},${c.self_checks},${c.self_check_rate},${c.complaints_after}`,
-		);
+		lines.push(checkerLine(c.user_name, c, c.per_day));
 	}
+	const team = teamOf(data.by_checker);
+	lines.push(checkerLine("Team", team, teamPace(team)));
 	lines.push(
 		"",
 		"QC rejects,When,Order,Item code,Service,Store,Cleaned by,Rejected by,Reason",
