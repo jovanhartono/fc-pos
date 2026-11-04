@@ -12,11 +12,9 @@ import {
 } from "@/components/ui/tooltip";
 import type { WorkerRow } from "@/features/reports/api";
 import {
-	CountBar,
 	Pace,
 	PersonName,
 	paceText,
-	ShareBar,
 } from "@/features/reports/components/person-cells";
 import { StoreGroup } from "@/features/reports/components/store-group";
 import { BadCount } from "@/features/reports/components/tone-chip";
@@ -128,10 +126,7 @@ export const HelpHeader = ({ label, help }: HelpHeaderProps) => (
 	</Tooltip>
 );
 
-const columnsFor = (
-	maxServices: number,
-	now: number,
-): DataTableColumnDef<WorkerRow>[] => [
+const columnsFor = (now: number): DataTableColumnDef<WorkerRow>[] => [
 	{
 		accessorKey: "user_name",
 		header: "Worker",
@@ -150,7 +145,7 @@ const columnsFor = (
 		header: "Services",
 		meta: { align: "right", width: { percent: 18, minRem: 6 } },
 		cell: ({ row }) => (
-			<CountBar value={row.original.services_processed} max={maxServices} />
+			<span className="font-medium">{n(row.original.services_processed)}</span>
 		),
 	},
 	{
@@ -212,11 +207,10 @@ export const OpenArrow = () => (
 interface WorkerCardProps {
 	row: WorkerRow;
 	now: number;
-	maxServices: number;
 	onOpen: (row: WorkerRow) => void;
 }
 
-const WorkerCard = ({ row, now, maxServices, onOpen }: WorkerCardProps) => (
+const WorkerCard = ({ row, now, onOpen }: WorkerCardProps) => (
 	<button
 		type="button"
 		onClick={() => onOpen(row)}
@@ -239,7 +233,6 @@ const WorkerCard = ({ row, now, maxServices, onOpen }: WorkerCardProps) => (
 			</span>
 			<OpenArrow />
 		</span>
-		<ShareBar value={row.services_processed} max={maxServices} />
 		<span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-subhead text-muted-foreground">
 			{`${paceText(row.per_day_worked)} · ${pluralCount(row.days_worked, "day")}`}
 			{row.qc_rejects > 0 && (
@@ -259,22 +252,12 @@ const WorkerCard = ({ row, now, maxServices, onOpen }: WorkerCardProps) => (
 interface WorkerListProps {
 	rows: WorkerRow[];
 	now: number;
-	maxServices: number;
 	onOpen: (row: WorkerRow) => void;
 	isInsideCard?: boolean;
 }
 
-const WorkerList = ({
-	rows,
-	now,
-	maxServices,
-	onOpen,
-	isInsideCard,
-}: WorkerListProps) => {
-	const columns = useMemo(
-		() => columnsFor(maxServices, now),
-		[maxServices, now],
-	);
+const WorkerList = ({ rows, now, onOpen, isInsideCard }: WorkerListProps) => {
+	const columns = useMemo(() => columnsFor(now), [now]);
 	return (
 		<DataTable
 			emptyIcon={UserGroupIcon}
@@ -282,14 +265,7 @@ const WorkerList = ({
 			data={rows}
 			onRowOpen={onOpen}
 			isInsideCard={isInsideCard}
-			renderCard={(row) => (
-				<WorkerCard
-					now={now}
-					maxServices={maxServices}
-					onOpen={onOpen}
-					row={row}
-				/>
-			)}
+			renderCard={(row) => <WorkerCard now={now} onOpen={onOpen} row={row} />}
 		/>
 	);
 };
@@ -340,21 +316,9 @@ export const WorkersTable = ({
 	if (workers.length === 0) {
 		return <EmptyState icon={UserGroupIcon}>No worker activity</EmptyState>;
 	}
-	// One scale across every Store, so bars compare between groups too.
-	const maxServices = Math.max(
-		0,
-		...workers.map((row) => row.services_processed),
-	);
 
 	if (!isAllStores) {
-		return (
-			<WorkerList
-				rows={workers}
-				now={now}
-				maxServices={maxServices}
-				onOpen={onOpen}
-			/>
-		);
+		return <WorkerList rows={workers} now={now} onOpen={onOpen} />;
 	}
 
 	return (
@@ -366,13 +330,7 @@ export const WorkersTable = ({
 					totals={totals}
 					isOpenAtStart={store_id === firstStoreId}
 				>
-					<WorkerList
-						rows={rows}
-						now={now}
-						maxServices={maxServices}
-						onOpen={onOpen}
-						isInsideCard
-					/>
+					<WorkerList rows={rows} now={now} onOpen={onOpen} isInsideCard />
 				</StoreGroup>
 			))}
 			<QuietStores workers={workers} isToday={isToday} />

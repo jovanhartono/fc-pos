@@ -6,7 +6,6 @@ import {
 	useQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
-import { useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { Section } from "@/components/section";
@@ -28,11 +27,9 @@ import {
 	NeedsALookList,
 } from "@/features/reports/components/needs-a-look";
 import {
-	CountBar,
 	Pace,
 	PersonName,
 	paceText,
-	ShareBar,
 } from "@/features/reports/components/person-cells";
 import { QcPerDayChart } from "@/features/reports/components/qc-per-day-chart";
 import { useOpenQcRejectsSheet } from "@/features/reports/components/qc-rejects-sheet";
@@ -152,9 +149,7 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 	},
 ];
 
-const checkerColumnsFor = (
-	maxChecks: number,
-): DataTableColumnDef<CheckerRow>[] => [
+const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 	{
 		accessorKey: "user_name",
 		header: "Checked by",
@@ -168,8 +163,12 @@ const checkerColumnsFor = (
 	{
 		id: "checks",
 		header: "Checks",
-		meta: { align: "right", width: { percent: 18, minRem: 6 } },
-		cell: ({ row }) => <CountBar value={row.original.checks} max={maxChecks} />,
+		meta: { align: "right", width: { percent: 14, minRem: 5 } },
+		cell: ({ row }) => (
+			<span className="font-medium">
+				{numberFormatter.format(row.original.checks)}
+			</span>
+		),
 	},
 	{
 		id: "pace",
@@ -180,23 +179,23 @@ const checkerColumnsFor = (
 		),
 	},
 	{
-		id: "qc_rejects",
-		header: "Rejects",
-		meta: { align: "right", width: { percent: 10, minRem: 4.5 } },
-		cell: ({ row }) => numberFormatter.format(row.original.rejects),
-	},
-	{
 		id: "self_checks",
 		header: "Self-checks",
-		meta: { align: "right", width: { percent: 11, minRem: 5.5 } },
+		meta: { align: "right", width: { percent: 13, minRem: 5.5 } },
 		cell: ({ row }) => (
 			<BadCount bad={row.original.self_checks} total={row.original.passes} />
 		),
 	},
 	{
+		id: "qc_rejects",
+		header: "Rejects",
+		meta: { align: "right", width: { percent: 11, minRem: 4.5 } },
+		cell: ({ row }) => numberFormatter.format(row.original.rejects),
+	},
+	{
 		id: "complaints_after",
 		header: "Complaints",
-		meta: { align: "right", width: { percent: 10, minRem: 5.5 } },
+		meta: { align: "right", width: { percent: 11, minRem: 5.5 } },
 		cell: ({ row }) => (
 			<BadCount
 				bad={row.original.complaints_after}
@@ -214,12 +213,11 @@ const checkerColumnsFor = (
 
 interface CheckerCardProps {
 	row: CheckerRow;
-	maxChecks: number;
 	onOpen: (row: CheckerRow) => void;
 }
 
 // Same shape as a Workers phone card: the count up top, only bad numbers in red.
-const CheckerCard = ({ row, maxChecks, onOpen }: CheckerCardProps) => (
+const CheckerCard = ({ row, onOpen }: CheckerCardProps) => (
 	<button
 		type="button"
 		onClick={() => onOpen(row)}
@@ -239,11 +237,15 @@ const CheckerCard = ({ row, maxChecks, onOpen }: CheckerCardProps) => (
 			</span>
 			<OpenArrow />
 		</span>
-		<ShareBar value={row.checks} max={maxChecks} />
 		<span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-subhead text-muted-foreground">
-			{`${paceText(row.per_day)} · ${pluralCount(row.days_checked, "day")} · ${pluralCount(row.rejects, "reject")}`}
-			{row.self_checks > 0 && (
-				<BadCount bad={row.self_checks} total={row.passes} prefix="Self " />
+			{row.self_checks > 0 ? (
+				<>
+					<span>{`${paceText(row.per_day)} · ${pluralCount(row.days_checked, "day")}`}</span>
+					<BadCount bad={row.self_checks} total={row.passes} prefix="Self " />
+					<span>{pluralCount(row.rejects, "reject")}</span>
+				</>
+			) : (
+				<span>{`${paceText(row.per_day)} · ${pluralCount(row.days_checked, "day")} · ${pluralCount(row.rejects, "reject")}`}</span>
 			)}
 			{row.complaints_after > 0 && (
 				<BadCount
@@ -557,14 +559,6 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 	const current = data?.summary.current;
 	const deltas = data?.summary.deltas;
 	const checks = current ? current.passes + current.qc_rejects : 0;
-	const maxChecks = Math.max(
-		0,
-		...(data?.by_checker ?? []).map((row) => row.checks),
-	);
-	const checkerColumns = useMemo(
-		() => checkerColumnsFor(maxChecks),
-		[maxChecks],
-	);
 	const handleOpenChecker = (row: CheckerRow) =>
 		data &&
 		openCheckerSheet({
@@ -645,11 +639,7 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 							emptyMessage="No quality checks in range."
 							onRowOpen={handleOpenChecker}
 							renderCard={(row) => (
-								<CheckerCard
-									row={row}
-									maxChecks={maxChecks}
-									onOpen={handleOpenChecker}
-								/>
+								<CheckerCard row={row} onOpen={handleOpenChecker} />
 							)}
 						/>
 					</Section>
