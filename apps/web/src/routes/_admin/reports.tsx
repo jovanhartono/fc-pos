@@ -7,11 +7,7 @@ import {
 import { useState } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
-import {
-	QC_REJECTS_PAGE_SIZE,
-	type ReportGranularity,
-	reportsQueries,
-} from "@/features/reports/api";
+import { QC_REJECTS_PAGE_SIZE, reportsQueries } from "@/features/reports/api";
 import { ExportSlotContext } from "@/features/reports/components/export-button";
 import { ReportFilters } from "@/features/reports/components/report-filters";
 import {
@@ -31,7 +27,6 @@ import { QualityPanel } from "@/features/reports/panels/quality-panel";
 import { WorkersPanel } from "@/features/reports/panels/workers-panel";
 import {
 	type ReportFilterValues,
-	resetReportFilters,
 	toReportFilters,
 	withPresetRange,
 	withSavedReportFilters,
@@ -217,21 +212,8 @@ function ReportsPage() {
 				actions={
 					<>
 						<ReportFilters
-							from={search.from}
-							to={search.to}
-							preset={search.preset}
-							onRangeChange={handleFiltersChange}
-							storeId={search.store_id}
-							onStoreChange={(storeId) =>
-								handleFiltersChange({ store_id: storeId })
-							}
-							granularity={search.granularity}
-							onGranularityChange={(
-								granularity: ReportGranularity | undefined,
-							) => handleFiltersChange({ granularity })}
-							onReset={() =>
-								handleFiltersChange(resetReportFilters(showRangeFilters))
-							}
+							values={search}
+							onApply={handleFiltersChange}
 							showRangeFilters={showRangeFilters}
 							showGranularity={showGranularity}
 						/>
