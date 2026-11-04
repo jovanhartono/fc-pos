@@ -43,6 +43,8 @@ export interface OrderFilterValues {
 	notified?: NotifiedFilter;
 	dateFrom?: string;
 	dateTo?: string;
+	paidFrom?: string;
+	paidTo?: string;
 }
 
 interface OrderFiltersProps {
@@ -168,6 +170,20 @@ const FilterControls = ({
 				onClear={() => onChange({ dateFrom: undefined, dateTo: undefined })}
 				fullWidth={isStacked}
 				placeholder="Created date"
+				labelPrefix="Created"
+				className="text-foreground"
+			/>
+			<DateRangePicker
+				id={`${idPrefix}-paid-date`}
+				resetOnSelect
+				commitOnComplete
+				from={values.paidFrom}
+				to={values.paidTo}
+				onChange={({ from, to }) => onChange({ paidFrom: from, paidTo: to })}
+				onClear={() => onChange({ paidFrom: undefined, paidTo: undefined })}
+				fullWidth={isStacked}
+				placeholder="Paid date"
+				labelPrefix="Paid"
 				className="text-foreground"
 			/>
 		</>
@@ -192,6 +208,7 @@ export const OrderFilters = ({
 		(values.refundStatus ? 1 : 0) +
 		(values.notified ? 1 : 0) +
 		(values.dateFrom || values.dateTo ? 1 : 0) +
+		(values.paidFrom || values.paidTo ? 1 : 0) +
 		(isAdmin && values.storeId ? 1 : 0);
 
 	const handleClearAll = () => {
@@ -202,6 +219,8 @@ export const OrderFilters = ({
 			notified: undefined,
 			dateFrom: undefined,
 			dateTo: undefined,
+			paidFrom: undefined,
+			paidTo: undefined,
 			...(isAdmin ? { storeId: undefined } : {}),
 		});
 	};
