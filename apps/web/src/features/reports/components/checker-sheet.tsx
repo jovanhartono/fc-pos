@@ -61,6 +61,7 @@ const CheckerSheetContent = ({ target }: CheckerSheetContentProps) => {
 
 			<Section title="QC Rejects" count={numberFormatter.format(row.rejects)}>
 				<QcRejectsList
+					key={row.user_id}
 					target={{
 						from: target.from,
 						to: target.to,

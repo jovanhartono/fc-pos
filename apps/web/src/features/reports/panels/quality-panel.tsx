@@ -198,6 +198,7 @@ const QUALITY_RATES = [
 	{
 		id: "pass_rate",
 		label: "Pass rate",
+		teamWord: "passed",
 		help: "Checks passed. The line under it counts the rest, sent back to the worker.",
 		part: (c: CheckerCounts) => c.passes,
 		whole: (c: CheckerCounts) => c.checks,
@@ -210,8 +211,9 @@ const QUALITY_RATES = [
 		minCount: 0,
 	},
 	{
-		id: "self_checks",
+		id: "self_passed",
 		label: "Self-passed",
+		teamWord: "Self-passed",
 		help: "Passes on Services the checker cleaned themselves.",
 		part: (c: CheckerCounts) => c.self_checks,
 		whole: (c: CheckerCounts) => c.passes,
@@ -224,6 +226,7 @@ const QUALITY_RATES = [
 	{
 		id: "complaints_after",
 		label: "Complaints",
+		teamWord: "Complaints",
 		help: "Passes that came back as a Complaint.",
 		part: (c: CheckerCounts) => c.complaints_after,
 		whole: (c: CheckerCounts) => c.passes,
@@ -246,7 +249,8 @@ const rateOf = (rate: QualityRate, counts: CheckerCounts) => {
 const OUTLIER_FACTOR = 2;
 const MIN_PACE_DAYS = 3;
 
-const outlierFlags = (row: CheckerRow, team: CheckerCounts) => {
+const outlierFlags = (row: CheckerRow, rows: readonly CheckerRow[]) => {
+	const team = teamOf(rows);
 	const flags: string[] = [];
 	const pace = teamPace(team);
 	if (
@@ -296,7 +300,7 @@ interface CheckerNameProps {
 const CheckerName = ({ row, rows }: CheckerNameProps) => (
 	<PersonName
 		name={row.user_name}
-		detail={<OutlierLine flags={outlierFlags(row, teamOf(rows))} />}
+		detail={<OutlierLine flags={outlierFlags(row, rows)} />}
 	>
 		{row.user_name}
 	</PersonName>
@@ -452,10 +456,12 @@ const CheckerTeamLine = ({ rows }: CheckerTeamLineProps) => {
 	const facts = [
 		`${numberFormatter.format(team.checks)} checks`,
 		paceText(teamPace(team)),
-		...QUALITY_RATES.map(
-			(rate) =>
-				`${percentFormatter.format(rateOf(rate, team) ?? 0)} ${rate.label === "Pass rate" ? "passed" : rate.label}`,
-		),
+		...QUALITY_RATES.flatMap((rate) => {
+			const value = rateOf(rate, team);
+			return value === null
+				? []
+				: [`${percentFormatter.format(value)} ${rate.teamWord}`];
+		}),
 	];
 	return (
 		<p className="px-1 pt-2 text-muted-foreground text-subhead tabular-nums lg:hidden">
@@ -502,7 +508,7 @@ const qualityFlags = (data: QualityReport, now: number): NeedsALookItem[] => {
 	const selfCheckers = data.by_checker.filter((row) => row.self_checks > 0);
 	if (selfCheckers.length > 0) {
 		flags.push({
-			key: "self-check",
+			key: "self-pass",
 			name: "Self-passed",
 			before: `${pluralCount(selfCheckers.length, "checker")} `,
 			problem: `passed ${pluralCount(
@@ -726,11 +732,11 @@ const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
 		"",
 		"Checkers,Checked by,Checks,Days checked,Per day,Pass rate,Rejects,Self-pass rate,Self-passed,Complaint rate,Complaints",
 	);
-	const [passRate, selfCheckRate, complaintRate] = QUALITY_RATES.map(
+	const [passRate, selfPassRate, complaintRate] = QUALITY_RATES.map(
 		(rate) => (c: CheckerCounts) => (rateOf(rate, c) ?? 0).toFixed(4),
 	);
 	const checkerLine = (name: string, c: CheckerCounts, perDay: number | null) =>
-		`Checkers,${escapeCsv(name)},${c.checks},${c.days_checked},${perDay === null ? "" : perDay.toFixed(1)},${passRate(c)},${c.rejects},${selfCheckRate(c)},${c.self_checks},${complaintRate(c)},${c.complaints_after}`;
+		`Checkers,${escapeCsv(name)},${c.checks},${c.days_checked},${perDay === null ? "" : perDay.toFixed(1)},${passRate(c)},${c.rejects},${selfPassRate(c)},${c.self_checks},${complaintRate(c)},${c.complaints_after}`;
 	for (const c of data.by_checker) {
 		lines.push(checkerLine(c.user_name, c, c.per_day));
 	}
