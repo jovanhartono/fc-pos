@@ -135,6 +135,17 @@ function refundConditions(status: OrderListFilters["refund_status"]) {
   ];
 }
 
+function dayRangeConditions(
+  column: "created_at" | "paid_at",
+  from?: string,
+  to?: string
+): Record<string, unknown>[] {
+  return [
+    ...(from ? [{ [column]: { gte: jakartaDayStart(from) } }] : []),
+    ...(to ? [{ [column]: { lte: jakartaDayEnd(to) } }] : []),
+  ];
+}
+
 function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
   const conditions: Record<string, unknown>[] = [];
 
@@ -193,17 +204,10 @@ function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
     conditions.push({ payment_method_id: filters.payment_method_id });
   }
 
-  if (filters.date_from) {
-    conditions.push({
-      created_at: { gte: jakartaDayStart(filters.date_from) },
-    });
-  }
-
-  if (filters.date_to) {
-    conditions.push({
-      created_at: { lte: jakartaDayEnd(filters.date_to) },
-    });
-  }
+  conditions.push(
+    ...dayRangeConditions("created_at", filters.date_from, filters.date_to),
+    ...dayRangeConditions("paid_at", filters.paid_from, filters.paid_to)
+  );
 
   if (filters.search) {
     const search = filters.search.trim();
