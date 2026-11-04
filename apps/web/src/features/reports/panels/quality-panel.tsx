@@ -230,7 +230,7 @@ const CheckerCard = ({ row, maxChecks, onOpen }: CheckerCardProps) => (
 				<PersonName name={row.user_name}>{row.user_name}</PersonName>
 			</span>
 			<span>
-				<span className="font-medium text-headline">
+				<span className="font-medium">
 					{numberFormatter.format(row.checks)}
 				</span>
 				<span className="ml-1 text-muted-foreground">

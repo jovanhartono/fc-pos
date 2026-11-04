@@ -232,9 +232,7 @@ const WorkerCard = ({ row, now, maxServices, onOpen }: WorkerCardProps) => (
 				</PersonName>
 			</span>
 			<span>
-				<span className="font-medium text-headline">
-					{n(row.services_processed)}
-				</span>
+				<span className="font-medium">{n(row.services_processed)}</span>
 				<span className="ml-1 text-muted-foreground">
 					{row.services_processed === 1 ? "Service" : "Services"}
 				</span>

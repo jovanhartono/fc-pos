@@ -75,7 +75,7 @@ interface CountBarProps {
 
 export const CountBar = ({ value, max }: CountBarProps) => (
 	<span className="ml-auto grid w-full max-w-30 justify-items-end gap-1.5">
-		<span className="font-medium text-headline tabular-nums">
+		<span className="font-medium tabular-nums">
 			{numberFormatter.format(value)}
 		</span>
 		<ShareBar value={value} max={max} className="w-full" />
