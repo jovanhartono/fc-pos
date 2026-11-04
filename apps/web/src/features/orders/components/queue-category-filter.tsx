@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { QueueCategoryMode } from "@/features/orders/api";
 import { CategoryAutocomplete } from "@/features/orders/components/category-autocomplete";
 
@@ -29,24 +29,23 @@ export const QueueCategoryFilter = ({
 		/>
 		{/* Always drawn, disabled until a category is picked, so picking one
 		    doesn't push the Date field down under the worker's finger. */}
-		<fieldset
-			className="grid grid-cols-2 gap-2 border-0 p-0"
-			disabled={categoryId === undefined}
+		<Tabs
+			onValueChange={(value) =>
+				onChange(categoryId, value as QueueCategoryMode)
+			}
+			value={mode}
 		>
-			<legend className="sr-only">Show or hide this category</legend>
-			{MODE_ITEMS.map((item) => (
-				<Button
-					aria-pressed={mode === item.value}
-					size="lg"
-					disabled={categoryId === undefined}
-					key={item.value}
-					onClick={() => onChange(categoryId, item.value)}
-					type="button"
-					variant={mode === item.value ? "default" : "outline"}
-				>
-					{item.label}
-				</Button>
-			))}
-		</fieldset>
+			<TabsList aria-label="Show or hide this category" className="w-full">
+				{MODE_ITEMS.map((item) => (
+					<TabsTrigger
+						disabled={categoryId === undefined}
+						key={item.value}
+						value={item.value}
+					>
+						{item.label}
+					</TabsTrigger>
+				))}
+			</TabsList>
+		</Tabs>
 	</div>
 );

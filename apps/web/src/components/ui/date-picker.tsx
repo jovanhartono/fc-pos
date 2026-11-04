@@ -159,8 +159,6 @@ interface DateRangePickerProps {
 	commitOnComplete?: boolean;
 	fullWidth?: boolean;
 	isLoading?: boolean;
-	// Names a picked range ("Paid: Last Month") where two pickers sit side by side.
-	labelPrefix?: string;
 }
 
 interface DateRangeViewProps {
@@ -382,7 +380,6 @@ export const DateRangePicker = ({
 	commitOnComplete = false,
 	fullWidth = false,
 	isLoading,
-	labelPrefix,
 }: DateRangePickerProps) => {
 	const selectedFromProps = useMemo<DateRange | undefined>(() => {
 		if (!(from || to)) {
@@ -437,7 +434,7 @@ export const DateRangePicker = ({
 		setIsOpen(false);
 	};
 
-	const rangeLabel = (() => {
+	const label = (() => {
 		if (activePreset) {
 			return activePreset.label;
 		}
@@ -450,12 +447,8 @@ export const DateRangePicker = ({
 		if (displayRange?.to) {
 			return dayjs(displayRange.to).format(DISPLAY_FORMAT);
 		}
-		return undefined;
+		return placeholder;
 	})();
-	let label = rangeLabel ?? placeholder;
-	if (rangeLabel && labelPrefix) {
-		label = `${labelPrefix}: ${rangeLabel}`;
-	}
 
 	const shared: DateRangeViewProps = {
 		trigger: (
