@@ -457,7 +457,7 @@ const MistakeRow = ({
 		<button
 			type="button"
 			onClick={onOpen}
-			className="flex w-full cursor-pointer items-start justify-between gap-3 text-left"
+			className="-m-2 flex w-[calc(100%+1rem)] cursor-pointer items-start justify-between gap-3 rounded-md p-2 text-left transition-colors hover:bg-muted active:bg-muted"
 		>
 			<span className="grid gap-0.5">
 				<span className="flex items-center gap-2 text-body">
@@ -472,7 +472,7 @@ const MistakeRow = ({
 					{detail}
 				</span>
 			</span>
-			<span className="flex items-center gap-1 font-medium text-body tabular-nums">
+			<span className="flex items-center gap-1 font-medium text-body text-link tabular-nums [&_svg]:text-link">
 				{numberFormatter.format(count)}
 				<OpenArrow />
 			</span>
