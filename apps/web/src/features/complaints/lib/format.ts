@@ -53,19 +53,26 @@ interface ComplaintOutcome {
 	variant: BadgeVariant;
 }
 
+export const COMPLAINT_OUTCOMES = {
+	refunded: { label: "Refunded", variant: "danger" },
+	cancelled: { label: "Cancelled", variant: "danger" },
+	reworked: { label: "Reworked", variant: "success" },
+	pending: { label: "Pending", variant: "warning" },
+} satisfies Record<string, ComplaintOutcome>;
+
 export const getComplaintOutcome = ({
 	subjectStatus,
 	reworkCount,
 }: ComplaintOutcomeInput): ComplaintOutcome => {
 	if (subjectStatus === "refunded") {
-		return { label: "Refunded", variant: "danger" };
+		return COMPLAINT_OUTCOMES.refunded;
 	}
 	// Turned down at the counter on an unpaid Order and cancelled, not reworked.
 	if (subjectStatus === "cancelled") {
-		return { label: "Cancelled", variant: "danger" };
+		return COMPLAINT_OUTCOMES.cancelled;
 	}
 	if (reworkCount > 0) {
-		return { label: "Reworked", variant: "success" };
+		return COMPLAINT_OUTCOMES.reworked;
 	}
-	return { label: "Pending", variant: "warning" };
+	return COMPLAINT_OUTCOMES.pending;
 };

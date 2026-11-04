@@ -71,7 +71,10 @@ export async function listQualityCohort({ range, storeId }: RangeArgs) {
       service_id: ordersServicesTable.service_id,
       service_name: servicesTable.name,
       status: ordersServicesTable.status,
+      item_code: itemsTable.item_code,
       complaint_id: complaintsTable.id,
+      complaint_reason: complaintsTable.reason,
+      complained_at: complaintsTable.created_at,
       sent_back: sql<boolean>`${exists(
         db
           .select({ id: sentBackLog.id })
@@ -100,6 +103,7 @@ export async function listQualityCohort({ range, storeId }: RangeArgs) {
       ordersServicesTable,
       eq(processed.order_service_id, ordersServicesTable.id)
     )
+    .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
     .leftJoin(
       servicesTable,
       eq(ordersServicesTable.service_id, servicesTable.id)
@@ -261,6 +265,27 @@ export function qcRejectInRange(
     storeScope(ordersTable.store_id, storeId),
     checkerId === undefined ? undefined : eq(log.changed_by, checkerId)
   );
+}
+
+export function countQcRejectsByService(args: RangeArgs) {
+  return db
+    .select({
+      service_id: ordersServicesTable.service_id,
+      service_name: servicesTable.name,
+      rejects: sql<number>`COUNT(*)::int`,
+    })
+    .from(qcLog)
+    .innerJoin(
+      ordersServicesTable,
+      eq(qcLog.order_service_id, ordersServicesTable.id)
+    )
+    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .leftJoin(
+      servicesTable,
+      eq(ordersServicesTable.service_id, servicesTable.id)
+    )
+    .where(qcRejectInRange(qcLog, args))
+    .groupBy(ordersServicesTable.service_id, servicesTable.name);
 }
 
 export async function countQcRejects(args: QcRejectArgs) {

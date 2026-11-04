@@ -1,6 +1,7 @@
 import type { RangeArgs } from "@/modules/reports/money-basis";
 import {
   countQcRejects,
+  countQcRejectsByService,
   findWaitingQcNow,
   listDamagedLostRefunds,
   listQcArrivalsByDay,
@@ -31,7 +32,6 @@ interface QualitySummary {
   qc_rejects: number;
   self_check_rate: number;
   self_checks: number;
-  sent_back: number;
   services_processed: number;
 }
 
@@ -61,7 +61,6 @@ function summariseQuality({
   return {
     services_processed: processed,
     first_pass: processed - sentBack,
-    sent_back: sentBack,
     first_pass_rate: rate(processed - sentBack, processed),
     complaints,
     complaint_rate: rate(complaints, processed),
@@ -72,60 +71,82 @@ function summariseQuality({
   };
 }
 
-function countComplaintOutcomes(cohort: CohortLine[]) {
+// Same reading as the Complaints page badge, so the two never disagree.
+const complaintOutcome = (line: CohortLine): ComplaintOutcome => {
+  if (line.status === "refunded" || line.status === "cancelled") {
+    return line.status;
+  }
+  return line.has_live_rework ? "reworked" : "pending";
+};
+
+// The Complaints the Mistakes count is made of, newest first.
+const listComplaints = (cohort: CohortLine[]) =>
+  cohort
+    .flatMap((line) =>
+      line.complaint_id === null || line.complained_at === null
+        ? []
+        : [
+            {
+              complaint_id: line.complaint_id,
+              complained_at: line.complained_at,
+              item_code: line.item_code,
+              service_name: line.service_name,
+              reason: line.complaint_reason,
+              outcome: complaintOutcome(line),
+            },
+          ]
+    )
+    .sort((a, b) => b.complained_at.getTime() - a.complained_at.getTime());
+
+function countComplaintOutcomes(complaints: ReturnType<typeof listComplaints>) {
   const outcomes: Record<ComplaintOutcome, number> = {
     reworked: 0,
     refunded: 0,
     cancelled: 0,
     pending: 0,
   };
-  // Same reading as the Complaints page badge, so the two never disagree.
-  for (const line of cohort) {
-    if (line.complaint_id === null) {
-      continue;
-    }
-    if (line.status === "refunded" || line.status === "cancelled") {
-      outcomes[line.status] += 1;
-    } else {
-      outcomes[line.has_live_rework ? "reworked" : "pending"] += 1;
-    }
+  for (const complaint of complaints) {
+    outcomes[complaint.outcome] += 1;
   }
   return outcomes;
 }
 
-function groupByService(cohort: CohortLine[]) {
-  const byService = new Map<
-    number,
-    {
-      service_id: number;
-      service_name: string;
-      processed: number;
-      first_pass: number;
-      first_pass_rate: number;
-      sent_back: number;
-      complaints: number;
-    }
-  >();
+const blankService = (serviceId: number, serviceName: string | null) => ({
+  service_id: serviceId,
+  service_name: serviceName ?? "Unknown",
+  processed: 0,
+  first_pass: 0,
+  first_pass_rate: 0,
+  qc_rejects: 0,
+  complaints: 0,
+});
+
+// QC rejects are every reject made in the range, like everywhere else on the
+// report, so a Service only rejected this week still gets a row.
+function groupByService(
+  cohort: CohortLine[],
+  rejects: Awaited<ReturnType<typeof countQcRejectsByService>>
+) {
+  const byService = new Map<number, ReturnType<typeof blankService>>();
+  for (const row of rejects) {
+    const serviceId = row.service_id ?? 0;
+    const entry = blankService(serviceId, row.service_name);
+    entry.qc_rejects = row.rejects;
+    byService.set(serviceId, entry);
+  }
   for (const line of cohort) {
     const serviceId = line.service_id ?? 0;
-    const entry = byService.get(serviceId) ?? {
-      service_id: serviceId,
-      service_name: line.service_name ?? "Unknown",
-      processed: 0,
-      first_pass: 0,
-      first_pass_rate: 0,
-      sent_back: 0,
-      complaints: 0,
-    };
+    const entry =
+      byService.get(serviceId) ?? blankService(serviceId, line.service_name);
     entry.processed += 1;
-    entry.sent_back += line.sent_back ? 1 : 0;
+    entry.first_pass += line.sent_back ? 0 : 1;
     entry.complaints += line.complaint_id === null ? 0 : 1;
-    entry.first_pass = entry.processed - entry.sent_back;
     entry.first_pass_rate = rate(entry.first_pass, entry.processed);
     byService.set(serviceId, entry);
   }
   return Array.from(byService.values()).sort(
     (a, b) =>
+      Number(a.processed === 0) - Number(b.processed === 0) ||
       a.first_pass_rate - b.first_pass_rate ||
       b.processed - a.processed ||
       a.service_name.localeCompare(b.service_name)
@@ -191,23 +212,28 @@ export async function getQualityReport(query: GetReportRangeQuery) {
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
 
-  const [current, previous, damagedLost, arrivals, checkerDays, waitingQc] =
-    await Promise.all([
-      qualityFor({ range, storeId }),
-      qualityFor({ range: ctx.previous.range, storeId }),
-      listDamagedLostRefunds({ range, storeId }),
-      listQcArrivalsByDay({ range, storeId }),
-      listQualityChecksByCheckerDay({ range, storeId }),
-      findWaitingQcNow(storeId),
-    ]);
+  const [
+    current,
+    previous,
+    damagedLost,
+    arrivals,
+    checkerDays,
+    waitingQc,
+    rejectsByService,
+  ] = await Promise.all([
+    qualityFor({ range, storeId }),
+    qualityFor({ range: ctx.previous.range, storeId }),
+    listDamagedLostRefunds({ range, storeId }),
+    listQcArrivalsByDay({ range, storeId }),
+    listQualityChecksByCheckerDay({ range, storeId }),
+    findWaitingQcNow(storeId),
+    countQcRejectsByService({ range, storeId }),
+  ]);
 
   const summary = summariseQuality(current);
   const prevSummary = summariseQuality(previous);
   const daily = buildDaily(ctx.from, ctx.to, arrivals, checkerDays);
-  // Services, like the "out of" figure: one sent back twice is one mistake.
-  const mistakeRejects = current.cohort.filter(
-    (line) => line.sent_back && line.complaint_id === null
-  ).length;
+  const complaints = listComplaints(current.cohort);
 
   return {
     from: ctx.from,
@@ -219,15 +245,16 @@ export async function getQualityReport(query: GetReportRangeQuery) {
       previous: prevSummary,
       deltas: buildDeltas(summary, prevSummary),
     } satisfies ComparableSummary<QualitySummary>,
-    complaint_outcomes: countComplaintOutcomes(current.cohort),
+    complaint_outcomes: countComplaintOutcomes(complaints),
+    complaints,
     mistakes: {
-      total: mistakeRejects + summary.complaints,
-      qc_rejects: mistakeRejects,
+      total: summary.qc_rejects + summary.complaints,
+      qc_rejects: summary.qc_rejects,
       complaints: summary.complaints,
     },
     waiting_qc_now: waitingQc,
     daily: { bucket: daily.bucket, rows: daily.rows },
-    by_service: groupByService(current.cohort),
+    by_service: groupByService(current.cohort, rejectsByService),
     by_checker: current.checkers.map((row) => ({
       user_id: row.user_id,
       user_name: row.user_name,

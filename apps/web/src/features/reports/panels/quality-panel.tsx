@@ -1,5 +1,4 @@
 import {
-	CancelCircleIcon,
 	CheckmarkCircle02Icon,
 	TaskDone01Icon,
 	ToolsIcon,
@@ -12,11 +11,10 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import type { LinkProps } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { Section } from "@/components/section";
-import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -27,6 +25,7 @@ import {
 	reportsQueries,
 } from "@/features/reports/api";
 import { useOpenCheckerSheet } from "@/features/reports/components/checker-sheet";
+import { useOpenComplaintsSheet } from "@/features/reports/components/complaints-sheet";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { ItemCodeLink } from "@/features/reports/components/item-code-link";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
@@ -35,6 +34,7 @@ import {
 	NeedsALookList,
 } from "@/features/reports/components/needs-a-look";
 import { QcPerDayChart } from "@/features/reports/components/qc-per-day-chart";
+import { useOpenQcRejectsSheet } from "@/features/reports/components/qc-rejects-sheet";
 import { BadCount } from "@/features/reports/components/tone-chip";
 import { AvgBar, OpenArrow } from "@/features/reports/components/workers-table";
 import {
@@ -107,20 +107,12 @@ const LongText = ({ text }: LongTextProps) => {
 	);
 };
 
-interface ItemLineRow {
-	order_id: number;
-	item_code: string;
-	service_name: string | null;
-}
-
 const orderCardLink = (row: { order_id: number }): LinkProps => ({
 	to: "/orders/$orderId",
 	params: { orderId: String(row.order_id) },
 });
 
-const itemLineColumns = <
-	TRow extends ItemLineRow,
->(): DataTableColumnDef<TRow>[] => [
+const itemLineColumns: DataTableColumnDef<DamagedLostRow>[] = [
 	{
 		id: "item_code",
 		header: "Item code",
@@ -142,58 +134,6 @@ const itemLineColumns = <
 			mobileCard: { slot: "subtitle" },
 		},
 		cell: ({ row }) => row.original.service_name ?? "—",
-	},
-];
-
-const qcRejectColumns: DataTableColumnDef<QcRejectItem>[] = [
-	{
-		id: "card_eyebrow",
-		header: "When",
-		meta: { ...CARD_ONLY, mobileCard: { slot: "eyebrow" } },
-		cell: ({ row }) =>
-			`${formatWhen(row.original.rejected_at)} · ${row.original.store_code}`,
-	},
-	{
-		id: "rejected_at",
-		header: "When",
-		meta: {
-			width: { percent: 11, minRem: 6.25 },
-			cellClassName: "whitespace-nowrap tabular-nums",
-			mobileCard: { slot: "hidden" },
-		},
-		cell: ({ row }) => formatWhen(row.original.rejected_at),
-	},
-	...itemLineColumns<QcRejectItem>(),
-	{
-		id: "cleaned_by",
-		header: "Cleaned by",
-		meta: { width: { percent: 14, minRem: 7 }, mobileCard: { slot: "hidden" } },
-		cell: ({ row }) => row.original.cleaned_by_name ?? "—",
-	},
-	{
-		id: "rejected_by",
-		header: "Rejected by",
-		meta: { width: { percent: 14, minRem: 7 }, mobileCard: { slot: "hidden" } },
-		cell: ({ row }) => row.original.rejected_by_name,
-	},
-	{
-		id: "reason",
-		header: "Reason",
-		meta: {
-			width: { percent: 24, minRem: 8 },
-			mobileCard: { slot: "subtitle" },
-		},
-		cell: ({ row }) => row.original.reason || "—",
-	},
-	{
-		id: "card_people",
-		header: "People",
-		meta: {
-			...CARD_ONLY,
-			mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
-		},
-		cell: ({ row }) =>
-			`Cleaned ${row.original.cleaned_by_name ?? "—"} · Rejected ${row.original.rejected_by_name}`,
 	},
 ];
 
@@ -221,7 +161,10 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 			width: { percent: 15, minRem: 5.5 },
 			mobileCard: { slot: "title-end", className: "tabular-nums" },
 		},
-		cell: ({ row }) => percentFormatter.format(row.original.first_pass_rate),
+		cell: ({ row }) =>
+			row.original.processed === 0
+				? "—"
+				: percentFormatter.format(row.original.first_pass_rate),
 	},
 	{
 		id: "qc_rejects",
@@ -231,9 +174,14 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 			width: { percent: 15, minRem: 5.5 },
 			mobileCard: { slot: "hidden" },
 		},
-		cell: ({ row }) => (
-			<BadCount bad={row.original.sent_back} total={row.original.processed} />
-		),
+		cell: ({ row }) =>
+			row.original.qc_rejects === 0 ? (
+				<span className="text-muted-foreground">0</span>
+			) : (
+				<Badge className="tabular-nums" variant="danger">
+					{numberFormatter.format(row.original.qc_rejects)}
+				</Badge>
+			),
 	},
 	{
 		id: "complaints",
@@ -255,7 +203,7 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 			mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
 		},
 		cell: ({ row }) =>
-			`${numberFormatter.format(row.original.processed)} done · ${pluralCount(row.original.sent_back, "QC reject")} · ${pluralCount(row.original.complaints, "complaint")}`,
+			`${numberFormatter.format(row.original.processed)} done · ${pluralCount(row.original.qc_rejects, "QC reject")} · ${pluralCount(row.original.complaints, "complaint")}`,
 	},
 ];
 
@@ -388,7 +336,7 @@ const damagedLostColumns: DataTableColumnDef<DamagedLostRow>[] = [
 		},
 		cell: ({ row }) => formatDay(row.original.refunded_at),
 	},
-	...itemLineColumns<DamagedLostRow>(),
+	...itemLineColumns,
 	{
 		id: "reason",
 		header: "Reason",
@@ -416,53 +364,6 @@ const damagedLostColumns: DataTableColumnDef<DamagedLostRow>[] = [
 		cell: ({ row }) => <LongText text={row.original.note} />,
 	},
 ];
-
-interface QcRejectsSectionProps {
-	range: RangeQuery;
-}
-
-const QcRejectsSection = ({ range }: QcRejectsSectionProps) => {
-	const [offset, setOffset] = useState(0);
-	const query = useQuery({
-		...reportsQueries.qcRejects({
-			...range,
-			limit: QC_REJECTS_PAGE_SIZE,
-			offset,
-		}),
-		placeholderData: keepPreviousData,
-	});
-	const total = query.data?.meta.total ?? 0;
-
-	return (
-		<Section
-			id="quality-qc-rejects"
-			title="QC Rejects"
-			count={query.data ? numberFormatter.format(total) : null}
-		>
-			<div className={SCROLL_BOX}>
-				<DataTable
-					emptyIcon={CancelCircleIcon}
-					columns={qcRejectColumns}
-					data={query.data?.items ?? []}
-					isLoading={query.isPending}
-					isStale={query.isPlaceholderData}
-					filterKey={JSON.stringify({ range, offset })}
-					skeletonLines="wrapped"
-					emptyMessage="No QC rejects in range."
-					getRowLink={orderCardLink}
-				/>
-			</div>
-			{/* A year of rejects outgrows one load; a fortnight never does. */}
-			{total > QC_REJECTS_PAGE_SIZE && (
-				<TablePagination
-					meta={query.data?.meta}
-					isLoading={query.isFetching}
-					onPageChange={(page) => setOffset((page - 1) * QC_REJECTS_PAGE_SIZE)}
-				/>
-			)}
-		</Section>
-	);
-};
 
 interface QcPerDaySectionProps {
 	data: QualityReport;
@@ -542,24 +443,40 @@ interface MistakeRowProps {
 	count: number;
 	color: string;
 	detail: string;
+	onOpen: () => void;
 }
 
-const MistakeRow = ({ label, count, color, detail }: MistakeRowProps) => (
-	<li className="flex items-start justify-between gap-3">
-		<span className="grid gap-0.5">
-			<span className="flex items-center gap-2 text-body">
-				<span
-					aria-hidden="true"
-					className="size-2 rounded-full"
-					style={{ backgroundColor: color }}
-				/>
-				{label}
+const MistakeRow = ({
+	label,
+	count,
+	color,
+	detail,
+	onOpen,
+}: MistakeRowProps) => (
+	<li>
+		<button
+			type="button"
+			onClick={onOpen}
+			className="flex w-full cursor-pointer items-start justify-between gap-3 text-left"
+		>
+			<span className="grid gap-0.5">
+				<span className="flex items-center gap-2 text-body">
+					<span
+						aria-hidden="true"
+						className="size-2 rounded-full"
+						style={{ backgroundColor: color }}
+					/>
+					{label}
+				</span>
+				<span className="pl-4 text-muted-foreground text-subhead">
+					{detail}
+				</span>
 			</span>
-			<span className="pl-4 text-muted-foreground text-subhead">{detail}</span>
-		</span>
-		<span className="font-medium text-body tabular-nums">
-			{numberFormatter.format(count)}
-		</span>
+			<span className="flex items-center gap-1 font-medium text-body tabular-nums">
+				{numberFormatter.format(count)}
+				<OpenArrow />
+			</span>
+		</button>
 	</li>
 );
 
@@ -567,9 +484,11 @@ interface MistakesSectionProps {
 	data: QualityReport;
 }
 
-// Every mistake was either sent back at QC or found by the Customer; an Item
-// with both counts once, as a Complaint.
+// Every QC reject made in the range, whenever the work was done, beside the
+// Complaints on this range's work.
 const MistakesSection = ({ data }: MistakesSectionProps) => {
+	const openQcRejectsSheet = useOpenQcRejectsSheet();
+	const openComplaintsSheet = useOpenComplaintsSheet();
 	const { mistakes, complaint_outcomes: outcomes } = data;
 	const outcomeLine = OUTCOMES.filter((key) => outcomes[key] > 0)
 		.map((key) => `${key} ${numberFormatter.format(outcomes[key])}`)
@@ -577,14 +496,9 @@ const MistakesSection = ({ data }: MistakesSectionProps) => {
 	return (
 		<Section id="quality-mistakes" title="Mistakes">
 			<div className="grid gap-3.5 rounded-lg border bg-card p-4">
-				<div>
-					<p className="font-medium text-title-1 tabular-nums">
-						{pluralCount(mistakes.total, "mistake")}
-					</p>
-					<p className="text-subhead tabular-nums">
-						{`out of ${pluralCount(data.summary.current.services_processed, "Service")}`}
-					</p>
-				</div>
+				<p className="font-medium text-title-1 tabular-nums">
+					{pluralCount(mistakes.total, "mistake")}
+				</p>
 				<div className="flex h-1.5 gap-0.5">
 					{mistakes.total === 0 ? (
 						<span className="flex-1 rounded-full bg-soft-bar-track" />
@@ -613,6 +527,13 @@ const MistakesSection = ({ data }: MistakesSectionProps) => {
 						count={mistakes.qc_rejects}
 						color={QC_COLORS.qcRejects}
 						detail="Fixed before the Customer saw it"
+						onOpen={() =>
+							openQcRejectsSheet({
+								from: data.from,
+								to: data.to,
+								storeId: data.store_id ?? undefined,
+							})
+						}
 					/>
 					<MistakeRow
 						label="Complaints"
@@ -623,6 +544,7 @@ const MistakesSection = ({ data }: MistakesSectionProps) => {
 								? outcomeLine.charAt(0).toUpperCase() + outcomeLine.slice(1)
 								: "None"
 						}
+						onOpen={() => openComplaintsSheet(data)}
 					/>
 				</ul>
 			</div>
@@ -660,7 +582,6 @@ type QualitySummary = QualityReport["summary"]["current"];
 const SUMMARY_ROWS: [keyof QualitySummary, string][] = [
 	["services_processed", "Services processed"],
 	["first_pass", "First-pass"],
-	["sent_back", "QC rejected"],
 	["first_pass_rate", "First-pass rate"],
 	["complaints", "Complaints"],
 	["complaint_rate", "Complaint rate"],
@@ -697,7 +618,7 @@ const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
 	);
 	for (const s of data.by_service) {
 		lines.push(
-			`By Service,${escapeCsv(s.service_name)},${s.processed},${s.first_pass},${s.first_pass_rate},${s.sent_back},${s.complaints}`,
+			`By Service,${escapeCsv(s.service_name)},${s.processed},${s.first_pass},${s.first_pass_rate},${s.qc_rejects},${s.complaints}`,
 		);
 	}
 	lines.push(
@@ -859,9 +780,6 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 			) : (
 				<Skeleton className="h-80 rounded-lg" />
 			)}
-
-			{/* A new range or Store starts the list again at its first page. */}
-			<QcRejectsSection key={`${from}|${to}|${storeId}`} range={range} />
 
 			{data ? (
 				<Section id="quality-damaged-lost" title="Damaged & Lost">

@@ -349,7 +349,6 @@ describe("the Quality report", () => {
     expect(report.summary.current).toEqual({
       services_processed: 8,
       first_pass: 5,
-      sent_back: 3,
       first_pass_rate: 0.625,
       complaints: 4,
       complaint_rate: 0.5,
@@ -367,7 +366,6 @@ describe("the Quality report", () => {
     expect(report.summary.previous).toEqual({
       services_processed: 1,
       first_pass: 0,
-      sent_back: 1,
       first_pass_rate: 0,
       complaints: 0,
       complaint_rate: 0,
@@ -393,7 +391,7 @@ describe("the Quality report", () => {
       store_id: shop.store.id,
     });
 
-    expect(report.summary.current.sent_back).toBe(3);
+    expect(report.summary.current.first_pass).toBe(5);
     expect(report.summary.current.qc_rejects).toBe(3);
     expect(rejects.items.map((row) => row.reason)).not.toContain("still wet");
   });
@@ -409,6 +407,21 @@ describe("the Quality report", () => {
     });
   });
 
+  it("lists each Complaint behind the Mistakes count, with its outcome", async () => {
+    const report = await kemangAugust();
+    const byItem = Object.fromEntries(
+      report.complaints.map((row) => [row.item_code, row.outcome])
+    );
+
+    expect(report.complaints).toHaveLength(report.mistakes.complaints);
+    expect(byItem).toEqual({
+      [lines["self-checked"].itemCode]: "reworked",
+      [lines.refunded.itemCode]: "refunded",
+      [lines.pending.itemCode]: "pending",
+      [lines.cancelled.itemCode]: "cancelled",
+    });
+  });
+
   it("ranks Services with the worst first-pass rate first", async () => {
     const report = await kemangAugust();
 
@@ -419,7 +432,7 @@ describe("the Quality report", () => {
         processed: 6,
         first_pass: 3,
         first_pass_rate: 0.5,
-        sent_back: 3,
+        qc_rejects: 2,
         complaints: 3,
       },
       {
@@ -428,7 +441,8 @@ describe("the Quality report", () => {
         processed: 2,
         first_pass: 2,
         first_pass_rate: 1,
-        sent_back: 0,
+        // The Rework line's reject in August, though the Repair was done first time.
+        qc_rejects: 1,
         complaints: 1,
       },
     ]);
@@ -582,15 +596,15 @@ describe("the Quality report", () => {
     ]);
   });
 
-  it("counts an Item sent back and then complained about once, as a Complaint", async () => {
+  it("counts every QC reject made in the range, whenever the work was done", async () => {
     const report = await kemangAugust();
 
-    // Of August's three QC rejects, the refunded pair later drew a Complaint.
     expect(report.mistakes).toEqual({
-      total: 6,
-      qc_rejects: 2,
+      total: 7,
+      qc_rejects: report.summary.current.qc_rejects,
       complaints: 4,
     });
+    expect(report.mistakes.qc_rejects).toBe(3);
   });
 
   it("counts what waits on the QC shelf now, from its latest landing there", async () => {

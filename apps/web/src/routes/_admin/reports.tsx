@@ -7,11 +7,7 @@ import {
 import { useState } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
-import {
-	QC_REJECTS_PAGE_SIZE,
-	type ReportGranularity,
-	reportsQueries,
-} from "@/features/reports/api";
+import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ExportSlotContext } from "@/features/reports/components/export-button";
 import { ReportFilters } from "@/features/reports/components/report-filters";
 import {
@@ -119,23 +115,14 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 			return queryClient.ensureQueryData(
 				reportsQueries.customerAcquisition(range),
 			);
-		case "quality": {
-			const qualityRange = {
-				from: search.from,
-				to: search.to,
-				store_id: search.store_id,
-			};
-			return Promise.all([
-				queryClient.ensureQueryData(reportsQueries.quality(qualityRange)),
-				queryClient.ensureQueryData(
-					reportsQueries.qcRejects({
-						...qualityRange,
-						limit: QC_REJECTS_PAGE_SIZE,
-						offset: 0,
-					}),
-				),
-			]);
-		}
+		case "quality":
+			return queryClient.ensureQueryData(
+				reportsQueries.quality({
+					from: search.from,
+					to: search.to,
+					store_id: search.store_id,
+				}),
+			);
 		case "workers":
 			return queryClient.ensureQueryData(
 				reportsQueries.workerProductivity({
