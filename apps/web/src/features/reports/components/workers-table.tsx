@@ -155,7 +155,7 @@ const columnsFor = (now: number): DataTableColumnDef<WorkerRow>[] => [
 		cell: ({ row }) => (
 			<Pace
 				perDay={row.original.per_day_worked}
-				days={row.original.days_worked}
+				detail={pluralCount(row.original.days_worked, "day")}
 			/>
 		),
 	},

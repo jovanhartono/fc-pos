@@ -1,8 +1,5 @@
 import type { ReactNode } from "react";
-import {
-	oneDecimalFormatter,
-	pluralCount,
-} from "@/features/reports/utils/format";
+import { oneDecimalFormatter } from "@/features/reports/utils/format";
 
 // "Mr. Jermain Hamill Jr." → "JH": titles and suffixes would make every
 // circle read "MJ" or "DF".
@@ -18,7 +15,7 @@ interface InitialsProps {
 	name: string;
 }
 
-export const Initials = ({ name }: InitialsProps) => (
+const Initials = ({ name }: InitialsProps) => (
 	<span
 		aria-hidden="true"
 		className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary font-medium text-caption"
@@ -49,14 +46,15 @@ export const paceText = (perDay: number | null) =>
 
 interface PaceProps {
 	perDay: number | null;
-	days: number;
+	// What the pace is over: "15 days" on a person, "per checker" on Team.
+	detail: string;
 }
 
-export const Pace = ({ perDay, days }: PaceProps) => (
+export const Pace = ({ perDay, detail }: PaceProps) => (
 	<span className="grid justify-items-end gap-0.5 tabular-nums">
 		<span>{paceText(perDay)}</span>
-		<span className="text-muted-foreground text-subhead">
-			{pluralCount(days, "day")}
+		<span className="font-normal text-muted-foreground text-subhead">
+			{detail}
 		</span>
 	</span>
 );

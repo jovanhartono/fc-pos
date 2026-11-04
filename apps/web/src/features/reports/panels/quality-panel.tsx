@@ -11,10 +11,10 @@ import {
 	useQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { Section } from "@/components/section";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	type FetchQcRejectsQuery,
@@ -55,7 +55,8 @@ import {
 } from "@/features/reports/utils/format";
 import { QC_COLORS } from "@/features/reports/utils/palette";
 import { longDuration } from "@/features/reports/utils/turnaround";
-import { outOf } from "@/features/reports/utils/workers-report";
+import { avgPerDay, outOf } from "@/features/reports/utils/workers-report";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useMinuteClock } from "@/hooks/useMinuteClock";
 import { staleFade } from "@/lib/content-fade";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
@@ -124,14 +125,7 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 			width: { percent: 15, minRem: 5.5 },
 			mobileCard: { slot: "hidden" },
 		},
-		cell: ({ row }) =>
-			row.original.qc_rejects === 0 ? (
-				<span className="text-muted-foreground">0</span>
-			) : (
-				<Badge className="tabular-nums" variant="danger">
-					{numberFormatter.format(row.original.qc_rejects)}
-				</Badge>
-			),
+		cell: ({ row }) => <BadCount bad={row.original.qc_rejects} />,
 	},
 	{
 		id: "complaints",
@@ -189,7 +183,7 @@ const teamOf = (rows: readonly CheckerRow[]): CheckerCounts =>
 
 // One checker's average day, so a slow checker reads against it.
 const teamPace = (team: CheckerCounts) =>
-	team.days_checked === 0 ? null : team.checks / team.days_checked;
+	avgPerDay(team.checks, team.days_checked);
 
 // Self-passed and Complaints are out of passes: only a pass can be your own
 // work or come back from a customer. `flag` names an outlier, from `minCount`
@@ -205,7 +199,6 @@ const QUALITY_RATES = [
 		detail: (c: CheckerCounts) =>
 			`${numberFormatter.format(c.rejects)} rejected`,
 		hasZeroDetail: (c: CheckerCounts) => c.rejects === 0,
-		isBad: false,
 		// A checker who rejects a lot may just be strict.
 		flag: null,
 		minCount: 0,
@@ -219,7 +212,6 @@ const QUALITY_RATES = [
 		whole: (c: CheckerCounts) => c.passes,
 		detail: (c: CheckerCounts) => pluralCount(c.self_checks, "own Service"),
 		hasZeroDetail: (c: CheckerCounts) => c.self_checks === 0,
-		isBad: true,
 		flag: "self-passes a lot",
 		minCount: 3,
 	},
@@ -232,7 +224,6 @@ const QUALITY_RATES = [
 		whole: (c: CheckerCounts) => c.passes,
 		detail: (c: CheckerCounts) => pluralCount(c.complaints_after, "Complaint"),
 		hasZeroDetail: (c: CheckerCounts) => c.complaints_after === 0,
-		isBad: true,
 		flag: "many Complaints",
 		minCount: 2,
 	},
@@ -249,8 +240,7 @@ const rateOf = (rate: QualityRate, counts: CheckerCounts) => {
 const OUTLIER_FACTOR = 2;
 const MIN_PACE_DAYS = 3;
 
-const outlierFlags = (row: CheckerRow, rows: readonly CheckerRow[]) => {
-	const team = teamOf(rows);
+const outlierFlags = (row: CheckerRow, team: CheckerCounts) => {
 	const flags: string[] = [];
 	const pace = teamPace(team);
 	if (
@@ -294,13 +284,13 @@ const OutlierLine = ({ flags }: OutlierLineProps) =>
 
 interface CheckerNameProps {
 	row: CheckerRow;
-	rows: readonly CheckerRow[];
+	team: CheckerCounts;
 }
 
-const CheckerName = ({ row, rows }: CheckerNameProps) => (
+const CheckerName = ({ row, team }: CheckerNameProps) => (
 	<PersonName
 		name={row.user_name}
-		detail={<OutlierLine flags={outlierFlags(row, rows)} />}
+		detail={<OutlierLine flags={outlierFlags(row, team)} />}
 	>
 		{row.user_name}
 	</PersonName>
@@ -324,7 +314,7 @@ const Rate = ({ rate, counts, isTeam = false }: RateProps) => {
 		<span className="grid gap-0.5 tabular-nums">
 			<span
 				className={cn(
-					rate.isBad &&
+					rate.flag !== null &&
 						!isTeam &&
 						(isZero ? "text-muted-foreground" : "text-tone-bad-foreground"),
 				)}
@@ -340,14 +330,14 @@ const Rate = ({ rate, counts, isTeam = false }: RateProps) => {
 	);
 };
 
-const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
+const checkerColumnsFor = (
+	team: CheckerCounts,
+): DataTableColumnDef<CheckerRow>[] => [
 	{
 		accessorKey: "user_name",
 		header: "Checked by",
 		meta: { width: { percent: 28, minRem: 11 } },
-		cell: ({ row, table }) => (
-			<CheckerName row={row.original} rows={table.options.data} />
-		),
+		cell: ({ row }) => <CheckerName row={row.original} team={team} />,
 		footer: "Team",
 	},
 	{
@@ -359,24 +349,19 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 				{numberFormatter.format(row.original.checks)}
 			</span>
 		),
-		footer: ({ table }) =>
-			numberFormatter.format(teamOf(table.options.data).checks),
+		footer: () => numberFormatter.format(team.checks),
 	},
 	{
 		id: "pace",
 		header: "Pace",
 		meta: { align: "right", width: { percent: 12, minRem: 5.5 } },
 		cell: ({ row }) => (
-			<Pace perDay={row.original.per_day} days={row.original.days_checked} />
+			<Pace
+				perDay={row.original.per_day}
+				detail={pluralCount(row.original.days_checked, "day")}
+			/>
 		),
-		footer: ({ table }) => (
-			<span className="grid gap-0.5">
-				<span>{paceText(teamPace(teamOf(table.options.data)))}</span>
-				<span className="font-normal text-muted-foreground text-subhead">
-					per checker
-				</span>
-			</span>
-		),
+		footer: () => <Pace perDay={teamPace(team)} detail="per checker" />,
 	},
 	...QUALITY_RATES.map(
 		(rate): DataTableColumnDef<CheckerRow> => ({
@@ -384,9 +369,7 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 			header: () => <HelpHeader label={rate.label} help={rate.help} />,
 			meta: { align: "right", width: { percent: 15, minRem: 6 } },
 			cell: ({ row }) => <Rate rate={rate} counts={row.original} />,
-			footer: ({ table }) => (
-				<Rate rate={rate} counts={teamOf(table.options.data)} isTeam />
-			),
+			footer: () => <Rate rate={rate} counts={team} isTeam />,
 		}),
 	),
 	{
@@ -399,12 +382,12 @@ const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 
 interface CheckerCardProps {
 	row: CheckerRow;
-	rows: readonly CheckerRow[];
+	team: CheckerCounts;
 	onOpen: (row: CheckerRow) => void;
 }
 
 // Same shape as a Workers phone card: the count up top, the rates in tiles.
-const CheckerCard = ({ row, rows, onOpen }: CheckerCardProps) => (
+const CheckerCard = ({ row, team, onOpen }: CheckerCardProps) => (
 	<button
 		type="button"
 		onClick={() => onOpen(row)}
@@ -412,7 +395,7 @@ const CheckerCard = ({ row, rows, onOpen }: CheckerCardProps) => (
 	>
 		<span className="flex items-center gap-2">
 			<span className="min-w-0 flex-1">
-				<CheckerName row={row} rows={rows} />
+				<CheckerName row={row} team={team} />
 			</span>
 			<span>
 				<span className="font-medium">
@@ -444,13 +427,14 @@ const CheckerCard = ({ row, rows, onOpen }: CheckerCardProps) => (
 );
 
 interface CheckerTeamLineProps {
-	rows: CheckerRow[];
+	team: CheckerCounts;
 }
 
 // The desktop table closes with a Team row; a phone gets the same as one line.
-const CheckerTeamLine = ({ rows }: CheckerTeamLineProps) => {
-	const team = teamOf(rows);
-	if (team.checks === 0) {
+// Same switch as DataTable's card view, so the two never both show or both hide.
+const CheckerTeamLine = ({ team }: CheckerTeamLineProps) => {
+	const isCardView = useIsMobile(1024);
+	if (!isCardView || team.checks === 0) {
 		return null;
 	}
 	const facts = [
@@ -732,11 +716,10 @@ const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
 		"",
 		"Checkers,Checked by,Checks,Days checked,Per day,Pass rate,Rejects,Self-pass rate,Self-passed,Complaint rate,Complaints",
 	);
-	const [passRate, selfPassRate, complaintRate] = QUALITY_RATES.map(
-		(rate) => (c: CheckerCounts) => (rateOf(rate, c) ?? 0).toFixed(4),
-	);
+	const ratio = (part: number, whole: number) =>
+		(whole === 0 ? 0 : part / whole).toFixed(4);
 	const checkerLine = (name: string, c: CheckerCounts, perDay: number | null) =>
-		`Checkers,${escapeCsv(name)},${c.checks},${c.days_checked},${perDay === null ? "" : perDay.toFixed(1)},${passRate(c)},${c.rejects},${selfPassRate(c)},${c.self_checks},${complaintRate(c)},${c.complaints_after}`;
+		`Checkers,${escapeCsv(name)},${c.checks},${c.days_checked},${perDay ?? ""},${ratio(c.passes, c.checks)},${c.rejects},${ratio(c.self_checks, c.passes)},${c.self_checks},${ratio(c.complaints_after, c.passes)},${c.complaints_after}`;
 	for (const c of data.by_checker) {
 		lines.push(checkerLine(c.user_name, c, c.per_day));
 	}
@@ -777,6 +760,9 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 
 	const current = data?.summary.current;
 	const deltas = data?.summary.deltas;
+	const checkers = data?.by_checker;
+	const team = useMemo(() => teamOf(checkers ?? []), [checkers]);
+	const checkerColumns = useMemo(() => checkerColumnsFor(team), [team]);
 	const handleOpenChecker = (row: CheckerRow) =>
 		data &&
 		openCheckerSheet({
@@ -856,14 +842,10 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 							emptyMessage="No quality checks in range."
 							onRowOpen={handleOpenChecker}
 							renderCard={(row) => (
-								<CheckerCard
-									row={row}
-									rows={data.by_checker}
-									onOpen={handleOpenChecker}
-								/>
+								<CheckerCard row={row} team={team} onOpen={handleOpenChecker} />
 							)}
 						/>
-						<CheckerTeamLine rows={data.by_checker} />
+						<CheckerTeamLine team={team} />
 					</Section>
 
 					<MistakesSection data={data} />

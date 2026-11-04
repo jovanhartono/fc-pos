@@ -33,7 +33,8 @@ export const QcChip = ({ rejects, checks, prefix = "" }: QcChipProps) => (
 
 interface BadCountProps {
 	bad: number;
-	total: number;
+	// Left out where a count stands on its own, like rejects made in range.
+	total?: number;
 	// Words before the figure where no column header names it, as on a phone card.
 	prefix?: string;
 	zeroClassName?: string;
@@ -48,7 +49,7 @@ export const BadCount = ({
 	prefix = "",
 	zeroClassName = "text-muted-foreground",
 }: BadCountProps) => {
-	if (total === 0) {
+	if (total !== undefined && total === 0) {
 		return <span className="text-muted-foreground">—</span>;
 	}
 	if (bad === 0) {
