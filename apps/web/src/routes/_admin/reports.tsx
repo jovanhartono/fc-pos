@@ -155,7 +155,7 @@ const descriptions: Record<Tab, string> = {
 	operations: "Dropoff and pickup volume over time",
 	payments: "Collected share per payment method",
 	customers: "Acquisition and retention trends",
-	quality: "QC rejects, first-pass rate and Complaints",
+	quality: "Checkers, first-pass rate and Complaints",
 	workers: "Services processed per worker and day worked",
 	campaigns: "Orders, collected, and discount cost per campaign",
 	"aging-queue": "Items still in queue, oldest first",

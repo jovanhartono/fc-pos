@@ -23,6 +23,7 @@ import { getJakartaRange, rate } from "@/modules/reports/report-range.util";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 
 interface QualitySummary {
+  checks: number;
   complaint_rate: number;
   complaints: number;
   first_pass: number;
@@ -63,6 +64,7 @@ function summariseQuality({
     first_pass_rate: rate(processed - sentBack, processed),
     complaints,
     complaint_rate: rate(complaints, processed),
+    checks,
     qc_rejects: qcRejects,
     passes,
     self_checks: selfChecks,

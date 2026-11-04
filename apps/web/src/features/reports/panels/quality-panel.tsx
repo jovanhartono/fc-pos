@@ -685,6 +685,7 @@ const SUMMARY_ROWS: [keyof QualitySummary, string][] = [
 	["first_pass_rate", "First-pass rate"],
 	["complaints", "Complaints"],
 	["complaint_rate", "Complaint rate"],
+	["checks", "QC checks"],
 	["qc_rejects", "QC rejects"],
 	["passes", "QC passes"],
 	["self_checks", "Self-passed"],
@@ -770,7 +771,6 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 
 	const current = data?.summary.current;
 	const deltas = data?.summary.deltas;
-	const checks = current ? current.passes + current.qc_rejects : 0;
 	const handleOpenChecker = (row: CheckerRow) =>
 		data &&
 		openCheckerSheet({
@@ -800,13 +800,12 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 					}
 				/>
 				<KpiCard
-					label="QC rejects"
-					value={numberFormatter.format(current?.qc_rejects ?? 0)}
-					delta={deltas?.qc_rejects ?? null}
-					isLowerBetter
+					label="Checks"
+					value={numberFormatter.format(current?.checks ?? 0)}
+					delta={deltas?.checks ?? null}
 					helper={
-						current
-							? `${outOf(current.qc_rejects, checks)} ${checks === 1 ? "check" : "checks"}`
+						current && current.checks > 0
+							? `${percentFormatter.format(current.passes / current.checks)} passed`
 							: null
 					}
 				/>
