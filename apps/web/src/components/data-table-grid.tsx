@@ -19,6 +19,7 @@ import {
 	Table,
 	TableBody,
 	TableCell,
+	TableFooter,
 	TableHead,
 	TableHeader,
 	TableRow,
@@ -350,6 +351,36 @@ export const DataTableGrid = <TData extends RowData>({
 						</TableRow>
 					)}
 				</TableBody>
+				{!isLoading &&
+				rows.length > 0 &&
+				table
+					.getAllLeafColumns()
+					.some((column) => column.columnDef.footer !== undefined) ? (
+					<TableFooter className="bg-muted/40">
+						{table.getFooterGroups().map((footerGroup) => (
+							<TableRow key={footerGroup.id} className="hover:bg-transparent">
+								{footerGroup.headers.map((header) => (
+									<TableCell
+										key={header.id}
+										className={cn(
+											"whitespace-normal py-3 first:pl-3 last:pr-3",
+											header.column.columnDef.meta?.align === "right" &&
+												"text-right tabular-nums",
+											header.column.columnDef.meta?.cellClassName,
+										)}
+									>
+										{header.isPlaceholder
+											? null
+											: flexRender(
+													header.column.columnDef.footer,
+													header.getContext(),
+												)}
+									</TableCell>
+								))}
+							</TableRow>
+						))}
+					</TableFooter>
+				) : null}
 			</Table>
 			{footer ? (
 				<div className="shrink-0 border-t px-3 py-2">{footer}</div>

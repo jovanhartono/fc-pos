@@ -1,9 +1,9 @@
 import {
-	CancelCircleIcon,
-	CheckmarkCircle02Icon,
+	Alert02Icon,
 	TaskDone01Icon,
 	ToolsIcon,
 } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
 	keepPreviousData,
 	type QueryClient,
@@ -11,13 +11,10 @@ import {
 	useQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
-import type { LinkProps } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { Section } from "@/components/section";
-import { TablePagination } from "@/components/table-pagination";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	type FetchQcRejectsQuery,
@@ -27,16 +24,25 @@ import {
 	reportsQueries,
 } from "@/features/reports/api";
 import { useOpenCheckerSheet } from "@/features/reports/components/checker-sheet";
+import { useOpenComplaintsSheet } from "@/features/reports/components/complaints-sheet";
 import { ExportButton } from "@/features/reports/components/export-button";
-import { ItemCodeLink } from "@/features/reports/components/item-code-link";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import {
 	type NeedsALookItem,
 	NeedsALookList,
 } from "@/features/reports/components/needs-a-look";
+import {
+	Pace,
+	PersonName,
+	paceText,
+} from "@/features/reports/components/person-cells";
 import { QcPerDayChart } from "@/features/reports/components/qc-per-day-chart";
+import { useOpenQcRejectsSheet } from "@/features/reports/components/qc-rejects-sheet";
 import { BadCount } from "@/features/reports/components/tone-chip";
-import { AvgBar, OpenArrow } from "@/features/reports/components/workers-table";
+import {
+	HelpHeader,
+	OpenArrow,
+} from "@/features/reports/components/workers-table";
 import {
 	csvFilename,
 	downloadCsv,
@@ -44,18 +50,17 @@ import {
 } from "@/features/reports/utils/csv";
 import {
 	numberFormatter,
-	oneDecimalFormatter,
 	percentFormatter,
 	pluralCount,
 } from "@/features/reports/utils/format";
 import { QC_COLORS } from "@/features/reports/utils/palette";
 import { longDuration } from "@/features/reports/utils/turnaround";
-import { outOf } from "@/features/reports/utils/workers-report";
+import { avgPerDay, outOf } from "@/features/reports/utils/workers-report";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useMinuteClock } from "@/hooks/useMinuteClock";
 import { staleFade } from "@/lib/content-fade";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
-import { formatMoney } from "@/shared/money";
 
 interface QualityPanelProps {
 	from: string;
@@ -65,7 +70,6 @@ interface QualityPanelProps {
 
 type ServiceRow = QualityReport["by_service"][number];
 type CheckerRow = QualityReport["by_checker"][number];
-type DamagedLostRow = QualityReport["damaged_lost"][number];
 type RangeQuery = Pick<FetchQcRejectsQuery, "from" | "to" | "store_id">;
 
 // An Item on the QC shelf longer than a working day is worth asking about.
@@ -81,121 +85,8 @@ const SCROLL_BOX = "flex flex-col lg:max-h-[26rem]";
 
 const OUTCOMES = ["reworked", "refunded", "cancelled", "pending"] as const;
 
-const DAMAGED_LOST_LABELS: Record<DamagedLostRow["reason"], string> = {
-	damaged: "Damaged",
-	lost: "Lost",
-};
-
 const formatWhen = (value: string) =>
 	dayjs(value).tz(JAKARTA_TZ).format("D MMM HH:mm");
-const formatDay = (value: string) =>
-	dayjs(value).tz(JAKARTA_TZ).format("D MMM YYYY");
-
-interface LongTextProps {
-	text: string | null;
-}
-
-// Long notes wrap on a phone card but stay one line in the desktop table.
-const LongText = ({ text }: LongTextProps) => {
-	if (!text) {
-		return "—";
-	}
-	return (
-		<span title={text} className="block lg:max-w-64 lg:truncate">
-			{text}
-		</span>
-	);
-};
-
-interface ItemLineRow {
-	order_id: number;
-	item_code: string;
-	service_name: string | null;
-}
-
-const orderCardLink = (row: { order_id: number }): LinkProps => ({
-	to: "/orders/$orderId",
-	params: { orderId: String(row.order_id) },
-});
-
-const itemLineColumns = <
-	TRow extends ItemLineRow,
->(): DataTableColumnDef<TRow>[] => [
-	{
-		id: "item_code",
-		header: "Item code",
-		meta: {
-			width: { percent: 17, minRem: 8 },
-			mobileCard: { slot: "title" },
-		},
-		cell: ({ row }) => (
-			<ItemCodeLink orderId={row.original.order_id} className="text-link">
-				{row.original.item_code}
-			</ItemCodeLink>
-		),
-	},
-	{
-		id: "service_name",
-		header: "Service",
-		meta: {
-			width: { percent: 20, minRem: 8 },
-			mobileCard: { slot: "subtitle" },
-		},
-		cell: ({ row }) => row.original.service_name ?? "—",
-	},
-];
-
-const qcRejectColumns: DataTableColumnDef<QcRejectItem>[] = [
-	{
-		id: "card_eyebrow",
-		header: "When",
-		meta: { ...CARD_ONLY, mobileCard: { slot: "eyebrow" } },
-		cell: ({ row }) =>
-			`${formatWhen(row.original.rejected_at)} · ${row.original.store_code}`,
-	},
-	{
-		id: "rejected_at",
-		header: "When",
-		meta: {
-			width: { percent: 11, minRem: 6.25 },
-			cellClassName: "whitespace-nowrap tabular-nums",
-			mobileCard: { slot: "hidden" },
-		},
-		cell: ({ row }) => formatWhen(row.original.rejected_at),
-	},
-	...itemLineColumns<QcRejectItem>(),
-	{
-		id: "cleaned_by",
-		header: "Cleaned by",
-		meta: { width: { percent: 14, minRem: 7 }, mobileCard: { slot: "hidden" } },
-		cell: ({ row }) => row.original.cleaned_by_name ?? "—",
-	},
-	{
-		id: "rejected_by",
-		header: "Rejected by",
-		meta: { width: { percent: 14, minRem: 7 }, mobileCard: { slot: "hidden" } },
-		cell: ({ row }) => row.original.rejected_by_name,
-	},
-	{
-		id: "reason",
-		header: "Reason",
-		meta: {
-			width: { percent: 24, minRem: 8 },
-			mobileCard: { slot: "subtitle" },
-		},
-		cell: ({ row }) => row.original.reason || "—",
-	},
-	{
-		id: "card_people",
-		header: "People",
-		meta: {
-			...CARD_ONLY,
-			mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
-		},
-		cell: ({ row }) =>
-			`Cleaned ${row.original.cleaned_by_name ?? "—"} · Rejected ${row.original.rejected_by_name}`,
-	},
-];
 
 const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 	{
@@ -221,7 +112,10 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 			width: { percent: 15, minRem: 5.5 },
 			mobileCard: { slot: "title-end", className: "tabular-nums" },
 		},
-		cell: ({ row }) => percentFormatter.format(row.original.first_pass_rate),
+		cell: ({ row }) =>
+			row.original.processed === 0
+				? "—"
+				: percentFormatter.format(row.original.first_pass_rate),
 	},
 	{
 		id: "qc_rejects",
@@ -231,9 +125,7 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 			width: { percent: 15, minRem: 5.5 },
 			mobileCard: { slot: "hidden" },
 		},
-		cell: ({ row }) => (
-			<BadCount bad={row.original.sent_back} total={row.original.processed} />
-		),
+		cell: ({ row }) => <BadCount bad={row.original.qc_rejects} />,
 	},
 	{
 		id: "complaints",
@@ -255,90 +147,256 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 			mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
 		},
 		cell: ({ row }) =>
-			`${numberFormatter.format(row.original.processed)} done · ${pluralCount(row.original.sent_back, "QC reject")} · ${pluralCount(row.original.complaints, "complaint")}`,
+			`${numberFormatter.format(row.original.processed)} done · ${pluralCount(row.original.qc_rejects, "QC reject")} · ${pluralCount(row.original.complaints, "complaint")}`,
 	},
 ];
 
-const checkerColumnsFor = (
-	rows: CheckerRow[],
-): DataTableColumnDef<CheckerRow>[] => {
-	const maxPerDay = Math.max(0, ...rows.map((row) => row.per_day));
-	return [
+type CheckerCounts = Pick<
+	CheckerRow,
+	| "checks"
+	| "days_checked"
+	| "passes"
+	| "rejects"
+	| "self_checks"
+	| "complaints_after"
+>;
+
+const teamOf = (rows: readonly CheckerRow[]): CheckerCounts =>
+	rows.reduce(
+		(team, row) => ({
+			checks: team.checks + row.checks,
+			days_checked: team.days_checked + row.days_checked,
+			passes: team.passes + row.passes,
+			rejects: team.rejects + row.rejects,
+			self_checks: team.self_checks + row.self_checks,
+			complaints_after: team.complaints_after + row.complaints_after,
+		}),
 		{
-			accessorKey: "user_name",
-			header: "Checked by",
-			meta: { kind: "name", width: { percent: 24, minRem: 8 } },
+			checks: 0,
+			days_checked: 0,
+			passes: 0,
+			rejects: 0,
+			self_checks: 0,
+			complaints_after: 0,
 		},
-		{
-			id: "checks",
-			header: "Checks",
-			meta: { align: "right", width: { percent: 10, minRem: 4 } },
-			cell: ({ row }) => numberFormatter.format(row.original.checks),
-		},
-		{
-			id: "days",
-			header: "Days",
-			meta: { align: "right", width: { percent: 8, minRem: 3 } },
-			cell: ({ row }) => numberFormatter.format(row.original.days_checked),
-		},
-		{
-			id: "per_day",
-			header: "Avg/day",
-			meta: { align: "right", width: { percent: 14, minRem: 5.5 } },
-			cell: ({ row }) => (
-				<AvgBar value={row.original.per_day} max={maxPerDay} />
-			),
-		},
-		{
-			id: "qc_rejects",
-			header: "QC rejects",
-			meta: { align: "right", width: { percent: 13, minRem: 4.5 } },
-			cell: ({ row }) => (
-				<BadCount bad={row.original.rejects} total={row.original.checks} />
-			),
-		},
-		{
-			id: "self_checks",
-			header: "Self-checks",
-			meta: { align: "right", width: { percent: 13, minRem: 5 } },
-			cell: ({ row }) => (
-				<BadCount bad={row.original.self_checks} total={row.original.passes} />
-			),
-		},
-		{
-			id: "complaints_after",
-			header: "Complaints",
-			meta: { align: "right", width: { percent: 13, minRem: 4.5 } },
-			cell: ({ row }) => (
-				<BadCount
-					bad={row.original.complaints_after}
-					total={row.original.passes}
-				/>
-			),
-		},
-		{
-			id: "open",
-			header: () => <span className="sr-only">Open</span>,
-			meta: { width: { percent: 5, minRem: 1.75 } },
-			cell: () => <OpenArrow />,
-		},
-	];
+	);
+
+// One checker's average day, so a slow checker reads against it.
+const teamPace = (team: CheckerCounts) =>
+	avgPerDay(team.checks, team.days_checked);
+
+// Self-passed and Complaints are out of passes: only a pass can be your own
+// work or come back from a customer. `flag` names an outlier, from `minCount`
+// up so one slip on a quiet week doesn't read as a habit.
+const QUALITY_RATES = [
+	{
+		id: "pass_rate",
+		label: "Pass rate",
+		teamWord: "passed",
+		help: "Checks passed. The line under it counts the rest, sent back to the worker.",
+		part: (c: CheckerCounts) => c.passes,
+		whole: (c: CheckerCounts) => c.checks,
+		detail: (c: CheckerCounts) =>
+			`${numberFormatter.format(c.rejects)} rejected`,
+		hasZeroDetail: (c: CheckerCounts) => c.rejects === 0,
+		// A checker who rejects a lot may just be strict.
+		flag: null,
+		minCount: 0,
+	},
+	{
+		id: "self_passed",
+		label: "Self-passed",
+		teamWord: "Self-passed",
+		help: "Passes on Services the checker cleaned themselves.",
+		part: (c: CheckerCounts) => c.self_checks,
+		whole: (c: CheckerCounts) => c.passes,
+		detail: (c: CheckerCounts) => pluralCount(c.self_checks, "own Service"),
+		hasZeroDetail: (c: CheckerCounts) => c.self_checks === 0,
+		flag: "self-passes a lot",
+		minCount: 3,
+	},
+	{
+		id: "complaints_after",
+		label: "Complaints",
+		teamWord: "Complaints",
+		help: "Passes that came back as a Complaint.",
+		part: (c: CheckerCounts) => c.complaints_after,
+		whole: (c: CheckerCounts) => c.passes,
+		detail: (c: CheckerCounts) => pluralCount(c.complaints_after, "Complaint"),
+		hasZeroDetail: (c: CheckerCounts) => c.complaints_after === 0,
+		flag: "many Complaints",
+		minCount: 2,
+	},
+] as const;
+
+type QualityRate = (typeof QUALITY_RATES)[number];
+
+const rateOf = (rate: QualityRate, counts: CheckerCounts) => {
+	const whole = rate.whole(counts);
+	return whole === 0 ? null : rate.part(counts) / whole;
 };
+
+// Twice the team's rate, or under half its pace, is worth the owner's look.
+const OUTLIER_FACTOR = 2;
+const MIN_PACE_DAYS = 3;
+
+const outlierFlags = (row: CheckerRow, team: CheckerCounts) => {
+	const flags: string[] = [];
+	const pace = teamPace(team);
+	if (
+		pace !== null &&
+		row.days_checked >= MIN_PACE_DAYS &&
+		row.per_day < pace / OUTLIER_FACTOR
+	) {
+		flags.push(`slow · team ${paceText(pace)}`);
+	}
+	for (const rate of QUALITY_RATES) {
+		const value = rateOf(rate, row);
+		const teamValue = rateOf(rate, team);
+		if (
+			rate.flag &&
+			value !== null &&
+			teamValue !== null &&
+			rate.part(row) >= rate.minCount &&
+			value >= teamValue * OUTLIER_FACTOR
+		) {
+			flags.push(rate.flag);
+		}
+	}
+	return flags;
+};
+
+interface OutlierLineProps {
+	flags: string[];
+}
+
+const OutlierLine = ({ flags }: OutlierLineProps) =>
+	flags.length === 0 ? null : (
+		<span className="inline-flex items-center gap-1 text-subhead text-tone-warn-foreground">
+			<HugeiconsIcon
+				icon={Alert02Icon}
+				aria-hidden="true"
+				className="size-3.5 shrink-0"
+			/>
+			{flags.join(" · ")}
+		</span>
+	);
+
+interface CheckerNameProps {
+	row: CheckerRow;
+	team: CheckerCounts;
+}
+
+const CheckerName = ({ row, team }: CheckerNameProps) => (
+	<PersonName
+		name={row.user_name}
+		detail={<OutlierLine flags={outlierFlags(row, team)} />}
+	>
+		{row.user_name}
+	</PersonName>
+);
+
+interface RateProps {
+	rate: QualityRate;
+	counts: CheckerCounts;
+	// The Team row is the yardstick, not a person to flag.
+	isTeam?: boolean;
+}
+
+// The rate on top and its count under it, like Pace; a zero needs no line.
+const Rate = ({ rate, counts, isTeam = false }: RateProps) => {
+	const value = rateOf(rate, counts);
+	if (value === null) {
+		return <span className="text-muted-foreground">—</span>;
+	}
+	const isZero = rate.hasZeroDetail(counts);
+	return (
+		<span className="grid gap-0.5 tabular-nums">
+			<span
+				className={cn(
+					rate.flag !== null &&
+						!isTeam &&
+						(isZero ? "text-muted-foreground" : "text-tone-bad-foreground"),
+				)}
+			>
+				{percentFormatter.format(value)}
+			</span>
+			{!isZero && (
+				<span className="font-normal text-muted-foreground text-subhead">
+					{rate.detail(counts)}
+				</span>
+			)}
+		</span>
+	);
+};
+
+const checkerColumnsFor = (
+	team: CheckerCounts,
+): DataTableColumnDef<CheckerRow>[] => [
+	{
+		accessorKey: "user_name",
+		header: "Checked by",
+		meta: { width: { percent: 28, minRem: 11 } },
+		cell: ({ row }) => <CheckerName row={row.original} team={team} />,
+		footer: "Team",
+	},
+	{
+		id: "checks",
+		header: "Checks",
+		meta: { align: "right", width: { percent: 10, minRem: 4.5 } },
+		cell: ({ row }) => (
+			<span className="font-medium">
+				{numberFormatter.format(row.original.checks)}
+			</span>
+		),
+		footer: () => numberFormatter.format(team.checks),
+	},
+	{
+		id: "pace",
+		header: "Pace",
+		meta: { align: "right", width: { percent: 12, minRem: 5.5 } },
+		cell: ({ row }) => (
+			<Pace
+				perDay={row.original.per_day}
+				detail={pluralCount(row.original.days_checked, "day")}
+			/>
+		),
+		footer: () => <Pace perDay={teamPace(team)} detail="per checker" />,
+	},
+	...QUALITY_RATES.map(
+		(rate): DataTableColumnDef<CheckerRow> => ({
+			id: rate.id,
+			header: () => <HelpHeader label={rate.label} help={rate.help} />,
+			meta: { align: "right", width: { percent: 15, minRem: 6 } },
+			cell: ({ row }) => <Rate rate={rate} counts={row.original} />,
+			footer: () => <Rate rate={rate} counts={team} isTeam />,
+		}),
+	),
+	{
+		id: "open",
+		header: () => <span className="sr-only">Open</span>,
+		meta: { width: { percent: 5, minRem: 1.75 } },
+		cell: () => <OpenArrow />,
+	},
+];
 
 interface CheckerCardProps {
 	row: CheckerRow;
+	team: CheckerCounts;
 	onOpen: (row: CheckerRow) => void;
 }
 
-// Same shape as a Workers phone card: the count up top, only bad numbers in red.
-const CheckerCard = ({ row, onOpen }: CheckerCardProps) => (
+// Same shape as a Workers phone card: the count up top, the rates in tiles.
+const CheckerCard = ({ row, team, onOpen }: CheckerCardProps) => (
 	<button
 		type="button"
 		onClick={() => onOpen(row)}
-		className="grid w-full gap-1 px-4 py-3 text-left text-body tabular-nums active:bg-muted/40"
+		className="grid w-full gap-2 px-4 py-3 text-left text-body tabular-nums active:bg-muted/40"
 	>
-		<span className="flex items-baseline gap-2">
-			<span className="min-w-0 flex-1 font-medium">{row.user_name}</span>
+		<span className="flex items-center gap-2">
+			<span className="min-w-0 flex-1">
+				<CheckerName row={row} team={team} />
+			</span>
 			<span>
 				<span className="font-medium">
 					{numberFormatter.format(row.checks)}
@@ -347,120 +405,53 @@ const CheckerCard = ({ row, onOpen }: CheckerCardProps) => (
 					{row.checks === 1 ? "check" : "checks"}
 				</span>
 			</span>
-			<span className="self-center">
-				<OpenArrow />
-			</span>
+			<OpenArrow />
 		</span>
-		<span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-subhead text-muted-foreground">
-			{`${oneDecimalFormatter.format(row.per_day)}/day · ${pluralCount(row.days_checked, "day")}`}
-			{row.rejects > 0 && (
-				<BadCount bad={row.rejects} total={row.checks} prefix="QC " />
-			)}
-			{row.self_checks > 0 && (
-				<BadCount bad={row.self_checks} total={row.passes} prefix="Self " />
-			)}
-			{row.complaints_after > 0 && (
-				<BadCount
-					bad={row.complaints_after}
-					total={row.passes}
-					prefix="Complaints "
-				/>
-			)}
+		<span className="text-muted-foreground text-subhead">
+			{`${paceText(row.per_day)} · ${pluralCount(row.days_checked, "day")}`}
+		</span>
+		<span className="grid grid-cols-3 gap-2">
+			{QUALITY_RATES.map((rate) => (
+				<span
+					key={rate.id}
+					className="grid content-start gap-0.5 rounded-md bg-muted/50 px-2.5 py-2"
+				>
+					<span className="text-muted-foreground text-subhead">
+						{rate.label}
+					</span>
+					<Rate rate={rate} counts={row} />
+				</span>
+			))}
 		</span>
 	</button>
 );
 
-const damagedLostColumns: DataTableColumnDef<DamagedLostRow>[] = [
-	{
-		id: "card_eyebrow",
-		header: "Date",
-		meta: { ...CARD_ONLY, mobileCard: { slot: "eyebrow" } },
-		cell: ({ row }) =>
-			`${formatDay(row.original.refunded_at)} · ${row.original.store_code}`,
-	},
-	{
-		id: "refunded_at",
-		header: "Date",
-		meta: {
-			width: { percent: 11, minRem: 6.25 },
-			cellClassName: "whitespace-nowrap tabular-nums",
-			mobileCard: { slot: "hidden" },
-		},
-		cell: ({ row }) => formatDay(row.original.refunded_at),
-	},
-	...itemLineColumns<DamagedLostRow>(),
-	{
-		id: "reason",
-		header: "Reason",
-		meta: { width: { percent: 11, minRem: 6 }, mobileCard: { slot: "badges" } },
-		cell: ({ row }) => (
-			<Badge variant={row.original.reason === "lost" ? "danger" : "warning"}>
-				{DAMAGED_LOST_LABELS[row.original.reason]}
-			</Badge>
-		),
-	},
-	{
-		id: "amount",
-		header: "Amount",
-		meta: {
-			align: "right",
-			width: { percent: 11, minRem: 6 },
-			mobileCard: { slot: "footer" },
-		},
-		cell: ({ row }) => formatMoney(row.original.amount),
-	},
-	{
-		id: "note",
-		header: "Note",
-		meta: { width: { percent: 30, minRem: 8 } },
-		cell: ({ row }) => <LongText text={row.original.note} />,
-	},
-];
-
-interface QcRejectsSectionProps {
-	range: RangeQuery;
+interface CheckerTeamLineProps {
+	team: CheckerCounts;
 }
 
-const QcRejectsSection = ({ range }: QcRejectsSectionProps) => {
-	const [offset, setOffset] = useState(0);
-	const query = useQuery({
-		...reportsQueries.qcRejects({
-			...range,
-			limit: QC_REJECTS_PAGE_SIZE,
-			offset,
+// The desktop table closes with a Team row; a phone gets the same as one line.
+// Same switch as DataTable's card view, so the two never both show or both hide.
+const CheckerTeamLine = ({ team }: CheckerTeamLineProps) => {
+	const isCardView = useIsMobile(1024);
+	if (!isCardView || team.checks === 0) {
+		return null;
+	}
+	const facts = [
+		`${numberFormatter.format(team.checks)} checks`,
+		paceText(teamPace(team)),
+		...QUALITY_RATES.flatMap((rate) => {
+			const value = rateOf(rate, team);
+			return value === null
+				? []
+				: [`${percentFormatter.format(value)} ${rate.teamWord}`];
 		}),
-		placeholderData: keepPreviousData,
-	});
-	const total = query.data?.meta.total ?? 0;
-
+	];
 	return (
-		<Section
-			id="quality-qc-rejects"
-			title="QC Rejects"
-			count={query.data ? numberFormatter.format(total) : null}
-		>
-			<div className={SCROLL_BOX}>
-				<DataTable
-					emptyIcon={CancelCircleIcon}
-					columns={qcRejectColumns}
-					data={query.data?.items ?? []}
-					isLoading={query.isPending}
-					isStale={query.isPlaceholderData}
-					filterKey={JSON.stringify({ range, offset })}
-					skeletonLines="wrapped"
-					emptyMessage="No QC rejects in range."
-					getRowLink={orderCardLink}
-				/>
-			</div>
-			{/* A year of rejects outgrows one load; a fortnight never does. */}
-			{total > QC_REJECTS_PAGE_SIZE && (
-				<TablePagination
-					meta={query.data?.meta}
-					isLoading={query.isFetching}
-					onPageChange={(page) => setOffset((page - 1) * QC_REJECTS_PAGE_SIZE)}
-				/>
-			)}
-		</Section>
+		<p className="px-1 pt-2 text-muted-foreground text-subhead tabular-nums lg:hidden">
+			<span className="font-medium text-foreground">Team</span>
+			{facts.map((fact) => ` · ${fact}`).join("")}
+		</p>
 	);
 };
 
@@ -496,19 +487,19 @@ const qualityFlags = (data: QualityReport, now: number): NeedsALookItem[] => {
 			after: ` · checks fell behind on ${behind}/${pluralCount(data.daily.rows.length, unit)}`,
 		});
 	}
-	// One line for everyone, so a Store full of self-checks doesn't bury the
+	// One line for everyone, so a Store full of self-passes doesn't bury the
 	// pile; the Checkers table says who.
 	const selfCheckers = data.by_checker.filter((row) => row.self_checks > 0);
 	if (selfCheckers.length > 0) {
 		flags.push({
-			key: "self-check",
-			name: "Self-checks",
+			key: "self-pass",
+			name: "Self-passed",
 			before: `${pluralCount(selfCheckers.length, "checker")} `,
 			problem: `passed ${pluralCount(
 				selfCheckers.reduce((sum, row) => sum + row.self_checks, 0),
 				"Item",
 			)} they cleaned`,
-			after: " · see Self-checks below",
+			after: " · see Checkers below",
 		});
 	}
 	return flags;
@@ -542,24 +533,40 @@ interface MistakeRowProps {
 	count: number;
 	color: string;
 	detail: string;
+	onOpen: () => void;
 }
 
-const MistakeRow = ({ label, count, color, detail }: MistakeRowProps) => (
-	<li className="flex items-start justify-between gap-3">
-		<span className="grid gap-0.5">
-			<span className="flex items-center gap-2 text-body">
-				<span
-					aria-hidden="true"
-					className="size-2 rounded-full"
-					style={{ backgroundColor: color }}
-				/>
-				{label}
+const MistakeRow = ({
+	label,
+	count,
+	color,
+	detail,
+	onOpen,
+}: MistakeRowProps) => (
+	<li>
+		<button
+			type="button"
+			onClick={onOpen}
+			className="-m-2 flex w-[calc(100%+1rem)] cursor-pointer items-start justify-between gap-3 rounded-md p-2 text-left transition-colors hover:bg-muted active:bg-muted"
+		>
+			<span className="grid gap-0.5">
+				<span className="flex items-center gap-2 text-body">
+					<span
+						aria-hidden="true"
+						className="size-2 rounded-full"
+						style={{ backgroundColor: color }}
+					/>
+					{label}
+				</span>
+				<span className="pl-4 text-muted-foreground text-subhead">
+					{detail}
+				</span>
 			</span>
-			<span className="pl-4 text-muted-foreground text-subhead">{detail}</span>
-		</span>
-		<span className="font-medium text-body tabular-nums">
-			{numberFormatter.format(count)}
-		</span>
+			<span className="flex items-center gap-1 font-medium text-body text-link tabular-nums [&_svg]:text-link">
+				{numberFormatter.format(count)}
+				<OpenArrow />
+			</span>
+		</button>
 	</li>
 );
 
@@ -567,9 +574,11 @@ interface MistakesSectionProps {
 	data: QualityReport;
 }
 
-// Every mistake was either sent back at QC or found by the Customer; an Item
-// with both counts once, as a Complaint.
+// Every QC reject made in the range, whenever the work was done, beside the
+// Complaints on this range's work.
 const MistakesSection = ({ data }: MistakesSectionProps) => {
+	const openQcRejectsSheet = useOpenQcRejectsSheet();
+	const openComplaintsSheet = useOpenComplaintsSheet();
 	const { mistakes, complaint_outcomes: outcomes } = data;
 	const outcomeLine = OUTCOMES.filter((key) => outcomes[key] > 0)
 		.map((key) => `${key} ${numberFormatter.format(outcomes[key])}`)
@@ -577,14 +586,9 @@ const MistakesSection = ({ data }: MistakesSectionProps) => {
 	return (
 		<Section id="quality-mistakes" title="Mistakes">
 			<div className="grid gap-3.5 rounded-lg border bg-card p-4">
-				<div>
-					<p className="font-medium text-title-1 tabular-nums">
-						{pluralCount(mistakes.total, "mistake")}
-					</p>
-					<p className="text-subhead tabular-nums">
-						{`out of ${pluralCount(data.summary.current.services_processed, "Service")}`}
-					</p>
-				</div>
+				<p className="font-medium text-title-1 tabular-nums">
+					{pluralCount(mistakes.total, "mistake")}
+				</p>
 				<div className="flex h-1.5 gap-0.5">
 					{mistakes.total === 0 ? (
 						<span className="flex-1 rounded-full bg-soft-bar-track" />
@@ -613,6 +617,13 @@ const MistakesSection = ({ data }: MistakesSectionProps) => {
 						count={mistakes.qc_rejects}
 						color={QC_COLORS.qcRejects}
 						detail="Fixed before the Customer saw it"
+						onOpen={() =>
+							openQcRejectsSheet({
+								from: data.from,
+								to: data.to,
+								storeId: data.store_id ?? undefined,
+							})
+						}
 					/>
 					<MistakeRow
 						label="Complaints"
@@ -623,6 +634,7 @@ const MistakesSection = ({ data }: MistakesSectionProps) => {
 								? outcomeLine.charAt(0).toUpperCase() + outcomeLine.slice(1)
 								: "None"
 						}
+						onOpen={() => openComplaintsSheet(data)}
 					/>
 				</ul>
 			</div>
@@ -660,14 +672,14 @@ type QualitySummary = QualityReport["summary"]["current"];
 const SUMMARY_ROWS: [keyof QualitySummary, string][] = [
 	["services_processed", "Services processed"],
 	["first_pass", "First-pass"],
-	["sent_back", "QC rejected"],
 	["first_pass_rate", "First-pass rate"],
 	["complaints", "Complaints"],
 	["complaint_rate", "Complaint rate"],
+	["checks", "QC checks"],
 	["qc_rejects", "QC rejects"],
 	["passes", "QC passes"],
-	["self_checks", "Self-checks"],
-	["self_check_rate", "Self-check rate"],
+	["self_checks", "Self-passed"],
+	["self_check_rate", "Self-pass rate"],
 ];
 
 const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
@@ -697,27 +709,22 @@ const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
 	);
 	for (const s of data.by_service) {
 		lines.push(
-			`By Service,${escapeCsv(s.service_name)},${s.processed},${s.first_pass},${s.first_pass_rate},${s.sent_back},${s.complaints}`,
+			`By Service,${escapeCsv(s.service_name)},${s.processed},${s.first_pass},${s.first_pass_rate},${s.qc_rejects},${s.complaints}`,
 		);
 	}
 	lines.push(
 		"",
-		"Checkers,Checked by,Checks,Days checked,Per day,QC rejects,Reject rate,Self-checks,Self-check rate,Complaints after",
+		"Checkers,Checked by,Checks,Days checked,Per day,Pass rate,Rejects,Self-pass rate,Self-passed,Complaint rate,Complaints",
 	);
+	const ratio = (part: number, whole: number) =>
+		(whole === 0 ? 0 : part / whole).toFixed(4);
+	const checkerLine = (name: string, c: CheckerCounts, perDay: number | null) =>
+		`Checkers,${escapeCsv(name)},${c.checks},${c.days_checked},${perDay ?? ""},${ratio(c.passes, c.checks)},${c.rejects},${ratio(c.self_checks, c.passes)},${c.self_checks},${ratio(c.complaints_after, c.passes)},${c.complaints_after}`;
 	for (const c of data.by_checker) {
-		lines.push(
-			`Checkers,${escapeCsv(c.user_name)},${c.checks},${c.days_checked},${c.per_day},${c.rejects},${c.reject_rate},${c.self_checks},${c.self_check_rate},${c.complaints_after}`,
-		);
+		lines.push(checkerLine(c.user_name, c, c.per_day));
 	}
-	lines.push(
-		"",
-		"Damaged & lost,Date,Order,Item code,Service,Store,Reason,Amount,Note",
-	);
-	for (const d of data.damaged_lost) {
-		lines.push(
-			`Damaged & lost,${escapeCsv(formatDay(d.refunded_at))},${escapeCsv(d.order_code)},${escapeCsv(d.item_code)},${escapeCsv(d.service_name)},${escapeCsv(d.store_code)},${d.reason},${d.amount},${escapeCsv(d.note)}`,
-		);
-	}
+	const team = teamOf(data.by_checker);
+	lines.push(checkerLine("Team", team, teamPace(team)));
 	lines.push(
 		"",
 		"QC rejects,When,Order,Item code,Service,Store,Cleaned by,Rejected by,Reason",
@@ -753,11 +760,9 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 
 	const current = data?.summary.current;
 	const deltas = data?.summary.deltas;
-	const checks = current ? current.passes + current.qc_rejects : 0;
-	const checkerColumns = useMemo(
-		() => checkerColumnsFor(data?.by_checker ?? []),
-		[data?.by_checker],
-	);
+	const checkers = data?.by_checker;
+	const team = useMemo(() => teamOf(checkers ?? []), [checkers]);
+	const checkerColumns = useMemo(() => checkerColumnsFor(team), [team]);
 	const handleOpenChecker = (row: CheckerRow) =>
 		data &&
 		openCheckerSheet({
@@ -787,13 +792,12 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 					}
 				/>
 				<KpiCard
-					label="QC rejects"
-					value={numberFormatter.format(current?.qc_rejects ?? 0)}
-					delta={deltas?.qc_rejects ?? null}
-					isLowerBetter
+					label="Checks"
+					value={numberFormatter.format(current?.checks ?? 0)}
+					delta={deltas?.checks ?? null}
 					helper={
-						current
-							? `${outOf(current.qc_rejects, checks)} ${checks === 1 ? "check" : "checks"}`
+						current && current.checks > 0
+							? `${percentFormatter.format(current.passes / current.checks)} passed`
 							: null
 					}
 				/>
@@ -838,9 +842,10 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 							emptyMessage="No quality checks in range."
 							onRowOpen={handleOpenChecker}
 							renderCard={(row) => (
-								<CheckerCard row={row} onOpen={handleOpenChecker} />
+								<CheckerCard row={row} team={team} onOpen={handleOpenChecker} />
 							)}
 						/>
+						<CheckerTeamLine team={team} />
 					</Section>
 
 					<MistakesSection data={data} />
@@ -859,21 +864,6 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 			) : (
 				<Skeleton className="h-80 rounded-lg" />
 			)}
-
-			{/* A new range or Store starts the list again at its first page. */}
-			<QcRejectsSection key={`${from}|${to}|${storeId}`} range={range} />
-
-			{data ? (
-				<Section id="quality-damaged-lost" title="Damaged & Lost">
-					<DataTable
-						emptyIcon={CheckmarkCircle02Icon}
-						columns={damagedLostColumns}
-						data={data.damaged_lost}
-						emptyMessage="None in range."
-						getRowLink={orderCardLink}
-					/>
-				</Section>
-			) : null}
 		</div>
 	);
 };

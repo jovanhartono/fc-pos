@@ -11,13 +11,15 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { WorkerRow } from "@/features/reports/api";
+import {
+	Pace,
+	PersonName,
+	paceText,
+} from "@/features/reports/components/person-cells";
 import { StoreGroup } from "@/features/reports/components/store-group";
 import { BadCount } from "@/features/reports/components/tone-chip";
 import { useStoreCodes } from "@/features/reports/hooks/useStoreCodes";
-import {
-	numberFormatter,
-	oneDecimalFormatter,
-} from "@/features/reports/utils/format";
+import { numberFormatter, pluralCount } from "@/features/reports/utils/format";
 import {
 	groupByStore,
 	isMissingClockIn,
@@ -57,60 +59,58 @@ export const WorkerName = ({ name, role }: WorkerNameProps) => (
 	</>
 );
 
-interface ShiftLabelProps {
+interface ShiftStatusProps {
 	live: Live;
 }
 
-// Only On and No clock-in say anything; an empty Shift cell is a dash.
-const hasShiftLabel = (live: Live) =>
-	openShiftSince(live) !== null || isMissingClockIn(live);
-
-// `relative` lifts the label above the row's click area so its title shows.
-const ShiftLabel = ({ live }: ShiftLabelProps) => {
+const ShiftStatus = ({ live }: ShiftStatusProps) => {
 	const since = openShiftSince(live);
 	if (since) {
+		// `relative` lifts the label above the row's click area so its title shows.
 		return (
 			<span
 				title={`Clocked in ${formatClock(since)}`}
-				className="relative inline-flex items-center gap-1.5 font-normal text-tone-good-foreground"
+				className="relative inline-flex items-center gap-1.5 text-tone-good-foreground"
 			>
 				<span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
-				On
+				On shift
 			</span>
 		);
 	}
+	// Moving Items today with no Shift means they forgot to clock in.
+	if (isMissingClockIn(live)) {
+		return <span className="text-tone-bad-foreground">No clock-in</span>;
+	}
 	return (
-		<span className="font-normal text-tone-bad-foreground">No clock-in</span>
+		<span className="inline-flex items-center gap-1.5">
+			<span
+				aria-hidden="true"
+				className="size-1.5 rounded-full bg-muted-foreground/40"
+			/>
+			Off
+		</span>
 	);
 };
 
-const Dash = () => <span className="text-muted-foreground">—</span>;
-
-interface AvgBarProps {
-	value: number | null;
-	max: number;
+interface LiveLineProps {
+	live: Live;
+	now: number;
 }
 
-// Scaled to the busiest Avg/day in the same table, so rows compare by eye.
-export const AvgBar = ({ value, max }: AvgBarProps) => (
-	<span className="inline-flex items-center justify-end gap-2">
-		<span
-			aria-hidden="true"
-			className="h-1.5 w-11 overflow-hidden rounded-full bg-soft-bar-track"
-		>
-			<span
-				className="block h-full rounded-full bg-soft-bar"
-				style={{ width: `${max > 0 && value ? (value / max) * 100 : 0}%` }}
-			/>
+// What the person is doing today, under their name whatever range is chosen.
+const LiveLine = ({ live, now }: LiveLineProps) => {
+	const isAtWork = openShiftSince(live) !== null || isMissingClockIn(live);
+	const facts = [
+		isAtWork || live.in_hand > 0 ? `${n(live.in_hand)} in hand` : null,
+		live.last_move_at ? `moved ${sinceText(live.last_move_at, now)} ago` : null,
+	].filter(Boolean);
+	return (
+		<span className="text-muted-foreground text-subhead tabular-nums">
+			<ShiftStatus live={live} />
+			{facts.map((fact) => ` · ${fact}`).join("")}
 		</span>
-		<span className="w-8 text-right">
-			{value === null ? "—" : oneDecimalFormatter.format(value)}
-		</span>
-	</span>
-);
-
-// The line between what is happening right now and the chosen date range.
-const RANGE_EDGE = "shadow-[inset_1px_0_0_var(--color-border)]";
+	);
+};
 
 interface HelpHeaderProps {
 	label: string;
@@ -126,115 +126,75 @@ export const HelpHeader = ({ label, help }: HelpHeaderProps) => (
 	</Tooltip>
 );
 
-const columnsFor = (
-	rows: WorkerRow[],
-	now: number,
-): DataTableColumnDef<WorkerRow>[] => {
-	const maxPerDay = Math.max(0, ...rows.map((row) => row.per_day_worked ?? 0));
-	return [
-		{
-			accessorKey: "user_name",
-			header: "Worker",
-			meta: { kind: "name", width: { percent: 21, minRem: 8 } },
-			cell: ({ row }) => (
+const columnsFor = (now: number): DataTableColumnDef<WorkerRow>[] => [
+	{
+		accessorKey: "user_name",
+		header: "Worker",
+		meta: { width: { percent: 40, minRem: 14 } },
+		cell: ({ row }) => (
+			<PersonName
+				name={row.original.user_name}
+				detail={<LiveLine live={row.original.live} now={now} />}
+			>
 				<WorkerName name={row.original.user_name} role={row.original.role} />
-			),
-		},
-		{
-			id: "shift",
-			header: "Shift",
-			meta: { width: { percent: 9, minRem: 3.5 } },
-			cell: ({ row }) =>
-				hasShiftLabel(row.original.live) ? (
-					<ShiftLabel live={row.original.live} />
-				) : (
-					<Dash />
-				),
-		},
-		{
-			id: "in_hand",
-			header: () => (
-				<HelpHeader
-					label="In hand"
-					help="Items this worker has started and not sent to QC yet — from any day, not only today."
-				/>
-			),
-			meta: { align: "right", width: { percent: 8, minRem: 3.5 } },
-			cell: ({ row }) => n(row.original.live.in_hand),
-		},
-		{
-			id: "last_move",
-			header: "Last move",
-			meta: { align: "right", width: { percent: 10, minRem: 4 } },
-			cell: ({ row }) => sinceText(row.original.live.last_move_at, now),
-		},
-		{
-			id: "services",
-			header: "Services",
-			meta: {
-				align: "right",
-				width: { percent: 9, minRem: 3.75 },
-				// Keeps the header's own hairline underneath.
-				headerClassName:
-					"shadow-[inset_1px_0_0_var(--color-border),inset_0_-1px_0_var(--border)]",
-				cellClassName: RANGE_EDGE,
-			},
-			cell: ({ row }) => n(row.original.services_processed),
-		},
-		{
-			id: "days",
-			header: "Days",
-			meta: { align: "right", width: { percent: 6, minRem: 2.5 } },
-			cell: ({ row }) => n(row.original.days_worked),
-		},
-		{
-			id: "per_day",
-			header: "Avg/day",
-			meta: { align: "right", width: { percent: 13, minRem: 5.5 } },
-			cell: ({ row }) => (
-				<AvgBar value={row.original.per_day_worked} max={maxPerDay} />
-			),
-		},
-		{
-			id: "qc_rejects",
-			header: () => (
-				<HelpHeader
-					label="QC rejects"
-					help="QC checks sent back, out of all QC checks on Items this worker cleaned. One Item can be checked more than once."
-				/>
-			),
-			meta: { align: "right", width: { percent: 10, minRem: 4.5 } },
-			cell: ({ row }) => (
-				<BadCount
-					bad={row.original.qc_rejects}
-					total={row.original.qc_checks}
-				/>
-			),
-		},
-		{
-			id: "complaints",
-			header: () => (
-				<HelpHeader
-					label="Complaints"
-					help="Complaints, out of Services this worker cleaned that passed QC."
-				/>
-			),
-			meta: { align: "right", width: { percent: 10, minRem: 4.5 } },
-			cell: ({ row }) => (
-				<BadCount
-					bad={row.original.complaints}
-					total={row.original.complaint_cohort}
-				/>
-			),
-		},
-		{
-			id: "open",
-			header: () => <span className="sr-only">Open</span>,
-			meta: { width: { percent: 4, minRem: 1.75 } },
-			cell: () => <OpenArrow />,
-		},
-	];
-};
+			</PersonName>
+		),
+	},
+	{
+		id: "services",
+		header: "Services",
+		meta: { align: "right", width: { percent: 18, minRem: 6 } },
+		cell: ({ row }) => (
+			<span className="font-medium">{n(row.original.services_processed)}</span>
+		),
+	},
+	{
+		id: "pace",
+		header: "Pace",
+		meta: { align: "right", width: { percent: 14, minRem: 5.5 } },
+		cell: ({ row }) => (
+			<Pace
+				perDay={row.original.per_day_worked}
+				detail={pluralCount(row.original.days_worked, "day")}
+			/>
+		),
+	},
+	{
+		id: "qc_rejects",
+		header: () => (
+			<HelpHeader
+				label="QC rejects"
+				help="QC checks sent back on Items this worker cleaned. One Item can be sent back more than once."
+			/>
+		),
+		meta: { align: "right", width: { percent: 12, minRem: 5 } },
+		cell: ({ row }) => (
+			<BadCount bad={row.original.qc_rejects} total={row.original.qc_checks} />
+		),
+	},
+	{
+		id: "complaints",
+		header: () => (
+			<HelpHeader
+				label="Complaints"
+				help="Complaints on Services this worker cleaned that passed QC."
+			/>
+		),
+		meta: { align: "right", width: { percent: 12, minRem: 5.5 } },
+		cell: ({ row }) => (
+			<BadCount
+				bad={row.original.complaints}
+				total={row.original.complaint_cohort}
+			/>
+		),
+	},
+	{
+		id: "open",
+		header: () => <span className="sr-only">Open</span>,
+		meta: { width: { percent: 4, minRem: 1.75 } },
+		cell: () => <OpenArrow />,
+	},
+];
 
 export const OpenArrow = () => (
 	<HugeiconsIcon
@@ -243,17 +203,6 @@ export const OpenArrow = () => (
 		className="size-3.5 text-muted-foreground"
 	/>
 );
-
-const phoneFacts = (row: WorkerRow, now: number) => {
-	const moved = row.live.last_move_at
-		? `moved ${sinceText(row.live.last_move_at, now)} ago`
-		: "no move today";
-	const perDay =
-		row.per_day_worked === null
-			? []
-			: [`${oneDecimalFormatter.format(row.per_day_worked)}/day`];
-	return [...perDay, `${n(row.live.in_hand)} in hand`, moved].join(" · ");
-};
 
 interface WorkerCardProps {
 	row: WorkerRow;
@@ -265,18 +214,16 @@ const WorkerCard = ({ row, now, onOpen }: WorkerCardProps) => (
 	<button
 		type="button"
 		onClick={() => onOpen(row)}
-		className="grid w-full gap-1 px-4 py-3 text-left text-body tabular-nums active:bg-muted/40"
+		className="grid w-full gap-2 px-4 py-3 text-left text-body tabular-nums active:bg-muted/40"
 	>
-		<span className="flex items-baseline gap-2">
-			<span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 font-medium">
-				<span>
+		<span className="flex items-center gap-2">
+			<span className="min-w-0 flex-1">
+				<PersonName
+					name={row.user_name}
+					detail={<LiveLine live={row.live} now={now} />}
+				>
 					<WorkerName name={row.user_name} role={row.role} />
-				</span>
-				{hasShiftLabel(row.live) && (
-					<span className="text-subhead">
-						<ShiftLabel live={row.live} />
-					</span>
-				)}
+				</PersonName>
 			</span>
 			<span>
 				<span className="font-medium">{n(row.services_processed)}</span>
@@ -284,14 +231,10 @@ const WorkerCard = ({ row, now, onOpen }: WorkerCardProps) => (
 					{row.services_processed === 1 ? "Service" : "Services"}
 				</span>
 			</span>
-			<HugeiconsIcon
-				icon={ArrowRight01Icon}
-				aria-hidden="true"
-				className="size-3.5 self-center text-muted-foreground"
-			/>
+			<OpenArrow />
 		</span>
 		<span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-subhead text-muted-foreground">
-			{phoneFacts(row, now)}
+			{`${paceText(row.per_day_worked)} · ${pluralCount(row.days_worked, "day")}`}
 			{row.qc_rejects > 0 && (
 				<BadCount bad={row.qc_rejects} total={row.qc_checks} prefix="QC " />
 			)}
@@ -314,7 +257,7 @@ interface WorkerListProps {
 }
 
 const WorkerList = ({ rows, now, onOpen, isInsideCard }: WorkerListProps) => {
-	const columns = useMemo(() => columnsFor(rows, now), [rows, now]);
+	const columns = useMemo(() => columnsFor(now), [now]);
 	return (
 		<DataTable
 			emptyIcon={UserGroupIcon}

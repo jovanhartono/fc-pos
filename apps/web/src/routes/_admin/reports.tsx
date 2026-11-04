@@ -7,7 +7,7 @@ import {
 import { useState } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
-import { QC_REJECTS_PAGE_SIZE, reportsQueries } from "@/features/reports/api";
+import { reportsQueries } from "@/features/reports/api";
 import { ExportSlotContext } from "@/features/reports/components/export-button";
 import { ReportFilters } from "@/features/reports/components/report-filters";
 import {
@@ -114,23 +114,14 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
 			return queryClient.ensureQueryData(
 				reportsQueries.customerAcquisition(range),
 			);
-		case "quality": {
-			const qualityRange = {
-				from: search.from,
-				to: search.to,
-				store_id: search.store_id,
-			};
-			return Promise.all([
-				queryClient.ensureQueryData(reportsQueries.quality(qualityRange)),
-				queryClient.ensureQueryData(
-					reportsQueries.qcRejects({
-						...qualityRange,
-						limit: QC_REJECTS_PAGE_SIZE,
-						offset: 0,
-					}),
-				),
-			]);
-		}
+		case "quality":
+			return queryClient.ensureQueryData(
+				reportsQueries.quality({
+					from: search.from,
+					to: search.to,
+					store_id: search.store_id,
+				}),
+			);
 		case "workers":
 			return queryClient.ensureQueryData(
 				reportsQueries.workerProductivity({
@@ -163,7 +154,7 @@ const descriptions: Record<Tab, string> = {
 	operations: "Dropoff and pickup volume over time",
 	payments: "Collected share per payment method",
 	customers: "Acquisition and retention trends",
-	quality: "QC rejects, first-pass rate and Complaints",
+	quality: "Checkers, first-pass rate and Complaints",
 	workers: "Services processed per worker and day worked",
 	campaigns: "Orders, collected, and discount cost per campaign",
 	"aging-queue": "Items still in queue, oldest first",

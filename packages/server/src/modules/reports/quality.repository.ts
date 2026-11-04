@@ -14,8 +14,6 @@ import { db } from "@/db";
 import {
   complaintsTable,
   itemsTable,
-  orderRefundItemsTable,
-  orderRefundsTable,
   orderServiceStatusLogsTable,
   ordersServicesTable,
   ordersTable,
@@ -24,6 +22,7 @@ import {
   usersTable,
 } from "@/db/schema";
 import { REWORKED_ROUND_STATUSES } from "@/modules/complaints/complaint.schema";
+import { WORKSHOP_SERVICE_STATUSES } from "@/modules/orders/order-status-machine";
 import {
   type RangeArgs,
   storeScope,
@@ -70,7 +69,10 @@ export async function listQualityCohort({ range, storeId }: RangeArgs) {
       service_id: ordersServicesTable.service_id,
       service_name: servicesTable.name,
       status: ordersServicesTable.status,
+      item_code: itemsTable.item_code,
       complaint_id: complaintsTable.id,
+      complaint_reason: complaintsTable.reason,
+      complained_at: complaintsTable.created_at,
       sent_back: sql<boolean>`${exists(
         db
           .select({ id: sentBackLog.id })
@@ -99,6 +101,7 @@ export async function listQualityCohort({ range, storeId }: RangeArgs) {
       ordersServicesTable,
       eq(processed.order_service_id, ordersServicesTable.id)
     )
+    .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
     .leftJoin(
       servicesTable,
       eq(ordersServicesTable.service_id, servicesTable.id)
@@ -207,25 +210,40 @@ export function listQualityChecksByCheckerDay(args: RangeArgs) {
     .groupBy(qcLog.changed_by, day);
 }
 
-// What sits on the QC shelf right now, whatever range the report shows. An
-// Item's wait starts at its latest landing there.
+// Items on the QC shelf now, by the Counter's isWaitingQcOnly: Stores check an
+// Item once, after its last Service, so a cleaned Item due a Whitening isn't there.
 export async function findWaitingQcNow(storeId: number | undefined) {
-  const [row] = await db
+  const shelf = db
     .select({
-      count: sql<number>`COUNT(*)::int`,
-      oldest_at:
-        sql<Date | null>`MIN((SELECT MAX(${qcLog.created_at}) FROM ${orderServiceStatusLogsTable} AS ${sql.identifier("qc_log")} WHERE ${qcLog.order_service_id} = ${ordersServicesTable.id} AND ${qcLog.to_status} = 'waiting_qc'))`.mapWith(
-          qcLog.created_at
-        ),
+      landed_at: sql<Date | null>`MAX(${qcLog.created_at})`.as("landed_at"),
     })
     .from(ordersServicesTable)
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .leftJoin(
+      qcLog,
+      and(
+        eq(qcLog.order_service_id, ordersServicesTable.id),
+        eq(qcLog.to_status, "waiting_qc")
+      )
+    )
     .where(
       and(
-        eq(ordersServicesTable.status, "waiting_qc"),
+        inArray(ordersServicesTable.status, [...WORKSHOP_SERVICE_STATUSES]),
         storeScope(ordersTable.store_id, storeId)
       )
-    );
+    )
+    .groupBy(ordersServicesTable.item_id)
+    .having(sql`bool_and(${ordersServicesTable.status} = 'waiting_qc')`)
+    .as("shelf");
+
+  const [row] = await db
+    .select({
+      count: sql<number>`COUNT(*)::int`,
+      oldest_at: sql<Date | null>`MIN(${shelf.landed_at})`.mapWith(
+        qcLog.created_at
+      ),
+    })
+    .from(shelf);
   return { count: row?.count ?? 0, oldest_at: row?.oldest_at ?? null };
 }
 
@@ -245,6 +263,27 @@ export function qcRejectInRange(
     storeScope(ordersTable.store_id, storeId),
     checkerId === undefined ? undefined : eq(log.changed_by, checkerId)
   );
+}
+
+export function countQcRejectsByService(args: RangeArgs) {
+  return db
+    .select({
+      service_id: ordersServicesTable.service_id,
+      service_name: servicesTable.name,
+      rejects: sql<number>`COUNT(*)::int`,
+    })
+    .from(qcLog)
+    .innerJoin(
+      ordersServicesTable,
+      eq(qcLog.order_service_id, ordersServicesTable.id)
+    )
+    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .leftJoin(
+      servicesTable,
+      eq(ordersServicesTable.service_id, servicesTable.id)
+    )
+    .where(qcRejectInRange(qcLog, args))
+    .groupBy(ordersServicesTable.service_id, servicesTable.name);
 }
 
 export async function countQcRejects(args: QcRejectArgs) {
@@ -300,55 +339,4 @@ export function listQcRejects({
     .orderBy(desc(qcLog.created_at), desc(qcLog.id))
     .limit(limit)
     .offset(offset);
-}
-
-const DAMAGED_OR_LOST = ["damaged", "lost"] as const;
-
-export async function listDamagedLostRefunds({ range, storeId }: RangeArgs) {
-  const rows = await db
-    .select({
-      refund_item_id: orderRefundItemsTable.id,
-      refunded_at: orderRefundsTable.created_at,
-      order_id: ordersTable.id,
-      order_code: ordersTable.code,
-      item_code: itemsTable.item_code,
-      service_name: servicesTable.name,
-      store_code: storesTable.code,
-      reason: orderRefundItemsTable.reason,
-      amount: orderRefundItemsTable.amount,
-      note: orderRefundItemsTable.note,
-    })
-    .from(orderRefundItemsTable)
-    .innerJoin(
-      orderRefundsTable,
-      eq(orderRefundItemsTable.order_refund_id, orderRefundsTable.id)
-    )
-    .innerJoin(ordersTable, eq(orderRefundsTable.order_id, ordersTable.id))
-    .innerJoin(storesTable, eq(ordersTable.store_id, storesTable.id))
-    .innerJoin(
-      ordersServicesTable,
-      eq(orderRefundItemsTable.order_service_id, ordersServicesTable.id)
-    )
-    .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
-    .leftJoin(
-      servicesTable,
-      eq(ordersServicesTable.service_id, servicesTable.id)
-    )
-    .where(
-      and(
-        inArray(orderRefundItemsTable.reason, [...DAMAGED_OR_LOST]),
-        ...timeWindow(orderRefundsTable.created_at, range),
-        storeScope(ordersTable.store_id, storeId)
-      )
-    )
-    .orderBy(
-      desc(orderRefundsTable.created_at),
-      desc(orderRefundItemsTable.id)
-    );
-
-  return rows.map((row) => ({
-    ...row,
-    reason: row.reason as (typeof DAMAGED_OR_LOST)[number],
-    amount: Number(row.amount),
-  }));
 }

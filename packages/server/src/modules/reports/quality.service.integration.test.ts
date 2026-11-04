@@ -3,8 +3,6 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { eq } from "drizzle-orm";
 import {
   complaintsTable,
-  orderRefundItemsTable,
-  orderRefundsTable,
   orderServiceStatusLogsTable,
   ordersServicesTable,
   storesTable,
@@ -114,11 +112,11 @@ const complain = async (line: Line) => {
   return complaint.id;
 };
 
-const addReworkLine = async (
+const addLine = async (
   line: Line,
-  complaintId: number,
   serviceId: number,
-  status: Status
+  status: Status,
+  complaintId: number | null = null
 ) => {
   const [rework] = await testDb
     .insert(ordersServicesTable)
@@ -134,37 +132,7 @@ const addReworkLine = async (
   return rework.id;
 };
 
-const refund = async (
-  line: Line,
-  at: string,
-  reason: "damaged" | "lost" | "cannot_process",
-  amount: number,
-  note: string | null
-) => {
-  const [handedBack] = await testDb
-    .insert(orderRefundsTable)
-    .values({
-      created_at: jkt(at),
-      order_id: line.orderId,
-      refunded_by: shop.admin.id,
-      total_amount: String(amount),
-    })
-    .returning();
-  const [item] = await testDb
-    .insert(orderRefundItemsTable)
-    .values({
-      amount: String(amount),
-      note,
-      order_refund_id: handedBack.id,
-      order_service_id: line.lineId,
-      reason,
-    })
-    .returning();
-  return item.id;
-};
-
 let reworkLineId: number;
-let refundIds: { damaged: number; lost: number };
 
 beforeEach(async () => {
   await resetDb();
@@ -239,11 +207,11 @@ beforeEach(async () => {
     ["waiting_qc", "ready_for_pickup", adi, "2026-08-04T11:00"],
   ]);
   const reworkedComplaint = await complain(lines["self-checked"]);
-  reworkLineId = await addReworkLine(
+  reworkLineId = await addLine(
     lines["self-checked"],
-    reworkedComplaint,
     repair,
-    "qc_reject"
+    "qc_reject",
+    reworkedComplaint
   );
   await log(reworkLineId, [
     ["queued", "processing", bayu, "2026-08-11T09:00"],
@@ -288,7 +256,7 @@ beforeEach(async () => {
     ["waiting_qc", "ready_for_pickup", bayu, "2026-08-06T11:00"],
   ]);
   const pendingComplaint = await complain(lines.pending);
-  await addReworkLine(lines.pending, pendingComplaint, clean, "cancelled");
+  await addLine(lines.pending, clean, "cancelled", pendingComplaint);
 
   await log(line("cancelled"), [
     ["queued", "processing", citra, "2026-08-07T09:00"],
@@ -309,32 +277,6 @@ beforeEach(async () => {
     ["processing", "waiting_qc", adi, "2026-08-08T10:00"],
     ["waiting_qc", "qc_reject", bayu, "2026-08-08T11:00", "other store"],
   ]);
-
-  refundIds = {
-    damaged: await refund(
-      lines.refunded,
-      "2026-08-20T10:00",
-      "damaged",
-      100_000,
-      "Sole split"
-    ),
-    lost: await refund(
-      lines["first-pass"],
-      "2026-08-21T10:00",
-      "lost",
-      80_000,
-      null
-    ),
-  };
-  await refund(
-    lines.redone,
-    "2026-08-22T10:00",
-    "cannot_process",
-    50_000,
-    null
-  );
-  await refund(lines.bintaro, "2026-08-22T10:00", "damaged", 70_000, "torn");
-  await refund(lines.july, "2026-07-25T10:00", "damaged", 60_000, "faded");
 });
 
 const kemangAugust = () =>
@@ -349,10 +291,10 @@ describe("the Quality report", () => {
     expect(report.summary.current).toEqual({
       services_processed: 8,
       first_pass: 5,
-      sent_back: 3,
       first_pass_rate: 0.625,
       complaints: 4,
       complaint_rate: 0.5,
+      checks: 10,
       qc_rejects: 3,
       passes: 7,
       self_checks: 2,
@@ -367,10 +309,10 @@ describe("the Quality report", () => {
     expect(report.summary.previous).toEqual({
       services_processed: 1,
       first_pass: 0,
-      sent_back: 1,
       first_pass_rate: 0,
       complaints: 0,
       complaint_rate: 0,
+      checks: 2,
       qc_rejects: 1,
       passes: 1,
       self_checks: 0,
@@ -393,7 +335,7 @@ describe("the Quality report", () => {
       store_id: shop.store.id,
     });
 
-    expect(report.summary.current.sent_back).toBe(3);
+    expect(report.summary.current.first_pass).toBe(5);
     expect(report.summary.current.qc_rejects).toBe(3);
     expect(rejects.items.map((row) => row.reason)).not.toContain("still wet");
   });
@@ -409,6 +351,21 @@ describe("the Quality report", () => {
     });
   });
 
+  it("lists each Complaint behind the Mistakes count, with its outcome", async () => {
+    const report = await kemangAugust();
+    const byItem = Object.fromEntries(
+      report.complaints.map((row) => [row.item_code, row.outcome])
+    );
+
+    expect(report.complaints).toHaveLength(report.mistakes.complaints);
+    expect(byItem).toEqual({
+      [lines["self-checked"].itemCode]: "reworked",
+      [lines.refunded.itemCode]: "refunded",
+      [lines.pending.itemCode]: "pending",
+      [lines.cancelled.itemCode]: "cancelled",
+    });
+  });
+
   it("ranks Services with the worst first-pass rate first", async () => {
     const report = await kemangAugust();
 
@@ -419,7 +376,7 @@ describe("the Quality report", () => {
         processed: 6,
         first_pass: 3,
         first_pass_rate: 0.5,
-        sent_back: 3,
+        qc_rejects: 2,
         complaints: 3,
       },
       {
@@ -428,7 +385,8 @@ describe("the Quality report", () => {
         processed: 2,
         first_pass: 2,
         first_pass_rate: 1,
-        sent_back: 0,
+        // The Rework line's reject in August, though the Repair was done first time.
+        qc_rejects: 1,
         complaints: 1,
       },
     ]);
@@ -446,9 +404,7 @@ describe("the Quality report", () => {
         per_day: 1,
         passes: 3,
         rejects: 1,
-        reject_rate: 0.25,
         self_checks: 0,
-        self_check_rate: 0,
         complaints_after: 2,
         days: expect.any(Array),
       },
@@ -461,9 +417,7 @@ describe("the Quality report", () => {
         per_day: 1,
         passes: 2,
         rejects: 2,
-        reject_rate: 0.5,
         self_checks: 1,
-        self_check_rate: 0.5,
         complaints_after: 0,
         days: expect.any(Array),
       },
@@ -475,9 +429,7 @@ describe("the Quality report", () => {
         per_day: 1,
         passes: 2,
         rejects: 0,
-        reject_rate: 0,
         self_checks: 1,
-        self_check_rate: 0.5,
         complaints_after: 2,
         days: expect.any(Array),
       },
@@ -507,37 +459,6 @@ describe("the Quality report", () => {
 
     // 7 checks over 2, 3, 6, 7, 14 and 15 August.
     expect(bayuRow).toMatchObject({ checks: 7, days_checked: 6, per_day: 1.2 });
-  });
-
-  it("lists Items refunded as damaged or lost, newest first", async () => {
-    const report = await kemangAugust();
-
-    expect(report.damaged_lost).toEqual([
-      {
-        refund_item_id: refundIds.lost,
-        refunded_at: jkt("2026-08-21T10:00"),
-        order_id: lines["first-pass"].orderId,
-        order_code: lines["first-pass"].orderCode,
-        item_code: lines["first-pass"].itemCode,
-        service_name: "Deep Clean",
-        store_code: "KMG",
-        reason: "lost",
-        amount: 80_000,
-        note: null,
-      },
-      {
-        refund_item_id: refundIds.damaged,
-        refunded_at: jkt("2026-08-20T10:00"),
-        order_id: lines.refunded.orderId,
-        order_code: lines.refunded.orderCode,
-        item_code: lines.refunded.itemCode,
-        service_name: "Deep Clean",
-        store_code: "KMG",
-        reason: "damaged",
-        amount: 100_000,
-        note: "Sole split",
-      },
-    ]);
   });
 
   it("sets each day's arrivals on the QC shelf beside the checks made", async () => {
@@ -582,15 +503,15 @@ describe("the Quality report", () => {
     ]);
   });
 
-  it("counts an Item sent back and then complained about once, as a Complaint", async () => {
+  it("counts every QC reject made in the range, whenever the work was done", async () => {
     const report = await kemangAugust();
 
-    // Of August's three QC rejects, the refunded pair later drew a Complaint.
     expect(report.mistakes).toEqual({
-      total: 6,
-      qc_rejects: 2,
+      total: 7,
+      qc_rejects: report.summary.current.qc_rejects,
       complaints: 4,
     });
+    expect(report.mistakes.qc_rejects).toBe(3);
   });
 
   it("counts what waits on the QC shelf now, from its latest landing there", async () => {
@@ -605,16 +526,31 @@ describe("the Quality report", () => {
     });
   });
 
+  it("counts an Item on the shelf once, and only when nothing but its check is left", async () => {
+    const repair = shop.repairServiceId;
+    await setStatus(lines.redone.lineId, "waiting_qc");
+    const repaired = await addLine(lines.redone, repair, "waiting_qc");
+    await addLine(lines.redone, repair, "refunded");
+    await log(repaired, [
+      ["processing", "waiting_qc", adi, "2026-08-04T15:00"],
+    ]);
+    // Cleaned, but its Repair is still in someone's hands.
+    await setStatus(lines["rejected-after-range"].lineId, "waiting_qc");
+    await addLine(lines["rejected-after-range"], repair, "processing");
+
+    const report = await kemangAugust();
+
+    expect(report.waiting_qc_now).toEqual({
+      count: 1,
+      oldest_at: jkt("2026-08-04T15:00"),
+    });
+  });
+
   it("takes in every Store when none is named", async () => {
     const report = await getQualityReport(AUGUST);
 
     expect(report.summary.current.services_processed).toBe(9);
     expect(report.summary.current.qc_rejects).toBe(4);
-    expect(report.damaged_lost.map((row) => row.store_code)).toEqual([
-      "BTR",
-      "KMG",
-      "KMG",
-    ]);
   });
 });
 

@@ -1,29 +1,14 @@
-import { CancelCircleIcon } from "@hugeicons/core-free-icons";
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { useCallback } from "react";
-import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-	QC_REJECTS_PAGE_SIZE,
-	type QualityReport,
-	reportsQueries,
-} from "@/features/reports/api";
+import type { QualityReport } from "@/features/reports/api";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import { QcPerDayChart } from "@/features/reports/components/qc-per-day-chart";
-import {
-	DETAIL_CLASS,
-	ROW_CLASS,
-	shortDay,
-} from "@/features/reports/components/worker-sheet";
+import { QcRejectsList } from "@/features/reports/components/qc-rejects-sheet";
 import {
 	numberFormatter,
 	oneDecimalFormatter,
 	rangeLabel,
 } from "@/features/reports/utils/format";
-import { outOf } from "@/features/reports/utils/workers-report";
-import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
 import { useSheet } from "@/stores/sheet-store";
 
 type CheckerRow = QualityReport["by_checker"][number];
@@ -49,61 +34,6 @@ export const useOpenCheckerSheet = () => {
 	);
 };
 
-interface CheckerRejectsProps {
-	target: CheckerSheetTarget;
-}
-
-const CheckerRejects = ({ target }: CheckerRejectsProps) => {
-	const leaveSheet = useLeaveSheetLink();
-	const query = useQuery(
-		reportsQueries.qcRejects({
-			from: target.from,
-			to: target.to,
-			store_id: target.storeId,
-			checker_id: target.row.user_id,
-			limit: QC_REJECTS_PAGE_SIZE,
-			offset: 0,
-		}),
-	);
-	if (query.isPending) {
-		return <Skeleton className="h-24 w-full rounded-lg" />;
-	}
-	const items = query.data?.items ?? [];
-	if (items.length === 0) {
-		return (
-			<EmptyState icon={CancelCircleIcon}>No QC rejects in range.</EmptyState>
-		);
-	}
-	return (
-		<ul className="rounded-lg border bg-card px-3">
-			{items.map((item) => (
-				<li key={item.id} className={ROW_CLASS}>
-					<span className="text-muted-foreground tabular-nums">
-						{shortDay(item.rejected_at)}
-					</span>
-					<Link
-						to="/orders/$orderId"
-						params={{ orderId: String(item.order_id) }}
-						onClick={leaveSheet}
-						className="text-link tabular-nums"
-					>
-						{item.item_code}
-					</Link>
-					<span className={DETAIL_CLASS}>
-						{[
-							item.service_name,
-							item.reason,
-							`cleaned by ${item.cleaned_by_name ?? "—"}`,
-						]
-							.filter(Boolean)
-							.join(" · ")}
-					</span>
-				</li>
-			))}
-		</ul>
-	);
-};
-
 interface CheckerSheetContentProps {
 	target: CheckerSheetTarget;
 }
@@ -118,9 +48,9 @@ const CheckerSheetContent = ({ target }: CheckerSheetContentProps) => {
 					label="Per day"
 					value={oneDecimalFormatter.format(row.per_day)}
 				/>
-				<KpiCard label="QC rejects" value={outOf(row.rejects, row.checks)} />
+				<KpiCard label="Rejects" value={numberFormatter.format(row.rejects)} />
 				<KpiCard
-					label="Self-checks"
+					label="Self-passed"
 					value={numberFormatter.format(row.self_checks)}
 				/>
 			</KpiRow>
@@ -130,7 +60,15 @@ const CheckerSheetContent = ({ target }: CheckerSheetContentProps) => {
 			</Section>
 
 			<Section title="QC Rejects" count={numberFormatter.format(row.rejects)}>
-				<CheckerRejects target={target} />
+				<QcRejectsList
+					key={row.user_id}
+					target={{
+						from: target.from,
+						to: target.to,
+						storeId: target.storeId,
+						checkerId: row.user_id,
+					}}
+				/>
 			</Section>
 		</div>
 	);
