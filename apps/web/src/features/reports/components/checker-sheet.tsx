@@ -9,7 +9,6 @@ import {
 	oneDecimalFormatter,
 	rangeLabel,
 } from "@/features/reports/utils/format";
-import { outOf } from "@/features/reports/utils/workers-report";
 import { useSheet } from "@/stores/sheet-store";
 
 type CheckerRow = QualityReport["by_checker"][number];
@@ -49,7 +48,7 @@ const CheckerSheetContent = ({ target }: CheckerSheetContentProps) => {
 					label="Per day"
 					value={oneDecimalFormatter.format(row.per_day)}
 				/>
-				<KpiCard label="QC rejects" value={outOf(row.rejects, row.checks)} />
+				<KpiCard label="Rejects" value={numberFormatter.format(row.rejects)} />
 				<KpiCard
 					label="Self-checks"
 					value={numberFormatter.format(row.self_checks)}

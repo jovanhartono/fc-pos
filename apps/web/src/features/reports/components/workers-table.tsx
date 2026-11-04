@@ -200,7 +200,7 @@ const columnsFor = (
 			header: () => (
 				<HelpHeader
 					label="QC rejects"
-					help="QC checks sent back, out of all QC checks on Items this worker cleaned. One Item can be checked more than once."
+					help="QC checks sent back on Items this worker cleaned. One Item can be sent back more than once."
 				/>
 			),
 			meta: { align: "right", width: { percent: 10, minRem: 4.5 } },
@@ -216,7 +216,7 @@ const columnsFor = (
 			header: () => (
 				<HelpHeader
 					label="Complaints"
-					help="Complaints, out of Services this worker cleaned that passed QC."
+					help="Complaints on Services this worker cleaned that passed QC."
 				/>
 			),
 			meta: { align: "right", width: { percent: 10, minRem: 4.5 } },

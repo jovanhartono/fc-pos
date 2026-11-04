@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { numberFormatter } from "@/features/reports/utils/format";
 import {
 	complaintTone,
 	outOf,
@@ -39,7 +40,8 @@ interface BadCountProps {
 }
 
 // A QC reject or a Complaint is the only thing that turns red; nothing checked
-// or finished is "—", none sent back is a plain 0.
+// or finished is "—", none sent back is a plain 0. The count stands alone: its
+// row already shows the work it came from, and a second number there confused.
 export const BadCount = ({
 	bad,
 	total,
@@ -54,7 +56,7 @@ export const BadCount = ({
 	}
 	return (
 		<Badge className="tabular-nums" variant="danger">
-			{`${prefix}${outOf(bad, total)}`}
+			{`${prefix}${numberFormatter.format(bad)}`}
 		</Badge>
 	);
 };

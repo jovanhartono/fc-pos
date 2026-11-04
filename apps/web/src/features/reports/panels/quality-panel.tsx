@@ -178,11 +178,9 @@ const checkerColumnsFor = (
 		},
 		{
 			id: "qc_rejects",
-			header: "QC rejects",
+			header: "Rejects",
 			meta: { align: "right", width: { percent: 13, minRem: 4.5 } },
-			cell: ({ row }) => (
-				<BadCount bad={row.original.rejects} total={row.original.checks} />
-			),
+			cell: ({ row }) => numberFormatter.format(row.original.rejects),
 		},
 		{
 			id: "self_checks",
@@ -239,10 +237,7 @@ const CheckerCard = ({ row, onOpen }: CheckerCardProps) => (
 			</span>
 		</span>
 		<span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-subhead text-muted-foreground">
-			{`${oneDecimalFormatter.format(row.per_day)}/day · ${pluralCount(row.days_checked, "day")}`}
-			{row.rejects > 0 && (
-				<BadCount bad={row.rejects} total={row.checks} prefix="QC " />
-			)}
+			{`${oneDecimalFormatter.format(row.per_day)}/day · ${pluralCount(row.days_checked, "day")} · ${pluralCount(row.rejects, "reject")}`}
 			{row.self_checks > 0 && (
 				<BadCount bad={row.self_checks} total={row.passes} prefix="Self " />
 			)}
@@ -515,7 +510,7 @@ const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
 	}
 	lines.push(
 		"",
-		"Checkers,Checked by,Checks,Days checked,Per day,QC rejects,Reject rate,Self-checks,Self-check rate,Complaints after",
+		"Checkers,Checked by,Checks,Days checked,Per day,Rejects,Reject rate,Self-checks,Self-check rate,Complaints after",
 	);
 	for (const c of data.by_checker) {
 		lines.push(
