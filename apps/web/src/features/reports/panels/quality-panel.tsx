@@ -34,7 +34,10 @@ import {
 import { QcPerDayChart } from "@/features/reports/components/qc-per-day-chart";
 import { useOpenQcRejectsSheet } from "@/features/reports/components/qc-rejects-sheet";
 import { BadCount } from "@/features/reports/components/tone-chip";
-import { OpenArrow } from "@/features/reports/components/workers-table";
+import {
+	HelpHeader,
+	OpenArrow,
+} from "@/features/reports/components/workers-table";
 import {
 	csvFilename,
 	downloadCsv,
@@ -149,64 +152,141 @@ const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
 	},
 ];
 
+type CheckerCounts = Pick<
+	CheckerRow,
+	"checks" | "passes" | "rejects" | "self_checks" | "complaints_after"
+>;
+
+const teamOf = (rows: readonly CheckerRow[]): CheckerCounts =>
+	rows.reduce(
+		(team, row) => ({
+			checks: team.checks + row.checks,
+			passes: team.passes + row.passes,
+			rejects: team.rejects + row.rejects,
+			self_checks: team.self_checks + row.self_checks,
+			complaints_after: team.complaints_after + row.complaints_after,
+		}),
+		{ checks: 0, passes: 0, rejects: 0, self_checks: 0, complaints_after: 0 },
+	);
+
+// Self-checks and Complaints are out of passes: only a pass can be your own
+// work or come back from a customer.
+const QUALITY_RATES = [
+	{
+		id: "pass_rate",
+		label: "Pass rate",
+		help: "Checks passed. The line under it counts the rest, sent back to the worker.",
+		part: (c: CheckerCounts) => c.passes,
+		whole: (c: CheckerCounts) => c.checks,
+		detail: (c: CheckerCounts) =>
+			`${numberFormatter.format(c.rejects)} rejected`,
+		hasZeroDetail: (c: CheckerCounts) => c.rejects === 0,
+		isBad: false,
+	},
+	{
+		id: "self_checks",
+		label: "Self-checks",
+		help: "Passes on Services the checker cleaned themselves.",
+		part: (c: CheckerCounts) => c.self_checks,
+		whole: (c: CheckerCounts) => c.passes,
+		detail: (c: CheckerCounts) =>
+			`${numberFormatter.format(c.self_checks)} own work`,
+		hasZeroDetail: (c: CheckerCounts) => c.self_checks === 0,
+		isBad: true,
+	},
+	{
+		id: "complaints_after",
+		label: "Complaints",
+		help: "Passes that came back as a Complaint.",
+		part: (c: CheckerCounts) => c.complaints_after,
+		whole: (c: CheckerCounts) => c.passes,
+		detail: (c: CheckerCounts) => pluralCount(c.complaints_after, "Complaint"),
+		hasZeroDetail: (c: CheckerCounts) => c.complaints_after === 0,
+		isBad: true,
+	},
+] as const;
+
+type QualityRate = (typeof QUALITY_RATES)[number];
+
+interface RateProps {
+	rate: QualityRate;
+	counts: CheckerCounts;
+}
+
+// The rate on top and its count under it, like Pace; a zero needs no line.
+const Rate = ({ rate, counts }: RateProps) => {
+	const whole = rate.whole(counts);
+	if (whole === 0) {
+		return <span className="text-muted-foreground">—</span>;
+	}
+	const part = rate.part(counts);
+	const isZero = rate.hasZeroDetail(counts);
+	return (
+		<span className="grid gap-0.5 tabular-nums">
+			<span
+				className={cn(
+					rate.isBad &&
+						(isZero ? "text-muted-foreground" : "text-tone-bad-foreground"),
+				)}
+			>
+				{percentFormatter.format(part / whole)}
+			</span>
+			{!isZero && (
+				<span className="font-normal text-muted-foreground text-subhead">
+					{rate.detail(counts)}
+				</span>
+			)}
+		</span>
+	);
+};
+
 const checkerColumns: DataTableColumnDef<CheckerRow>[] = [
 	{
 		accessorKey: "user_name",
 		header: "Checked by",
-		meta: { width: { percent: 34, minRem: 11 } },
+		meta: { width: { percent: 28, minRem: 11 } },
 		cell: ({ row }) => (
 			<PersonName name={row.original.user_name}>
 				{row.original.user_name}
 			</PersonName>
 		),
+		footer: "Team",
 	},
 	{
 		id: "checks",
 		header: "Checks",
-		meta: { align: "right", width: { percent: 14, minRem: 5 } },
+		meta: { align: "right", width: { percent: 10, minRem: 4.5 } },
 		cell: ({ row }) => (
 			<span className="font-medium">
 				{numberFormatter.format(row.original.checks)}
 			</span>
 		),
+		footer: ({ table }) =>
+			numberFormatter.format(teamOf(table.options.data).checks),
 	},
 	{
 		id: "pace",
 		header: "Pace",
-		meta: { align: "right", width: { percent: 13, minRem: 5.5 } },
+		meta: { align: "right", width: { percent: 12, minRem: 5.5 } },
 		cell: ({ row }) => (
 			<Pace perDay={row.original.per_day} days={row.original.days_checked} />
 		),
 	},
-	{
-		id: "self_checks",
-		header: "Self-checks",
-		meta: { align: "right", width: { percent: 13, minRem: 5.5 } },
-		cell: ({ row }) => (
-			<BadCount bad={row.original.self_checks} total={row.original.passes} />
-		),
-	},
-	{
-		id: "qc_rejects",
-		header: "Rejects",
-		meta: { align: "right", width: { percent: 11, minRem: 4.5 } },
-		cell: ({ row }) => numberFormatter.format(row.original.rejects),
-	},
-	{
-		id: "complaints_after",
-		header: "Complaints",
-		meta: { align: "right", width: { percent: 11, minRem: 5.5 } },
-		cell: ({ row }) => (
-			<BadCount
-				bad={row.original.complaints_after}
-				total={row.original.passes}
-			/>
-		),
-	},
+	...QUALITY_RATES.map(
+		(rate): DataTableColumnDef<CheckerRow> => ({
+			id: rate.id,
+			header: () => <HelpHeader label={rate.label} help={rate.help} />,
+			meta: { align: "right", width: { percent: 15, minRem: 6 } },
+			cell: ({ row }) => <Rate rate={rate} counts={row.original} />,
+			footer: ({ table }) => (
+				<Rate rate={rate} counts={teamOf(table.options.data)} />
+			),
+		}),
+	),
 	{
 		id: "open",
 		header: () => <span className="sr-only">Open</span>,
-		meta: { width: { percent: 4, minRem: 1.75 } },
+		meta: { width: { percent: 5, minRem: 1.75 } },
 		cell: () => <OpenArrow />,
 	},
 ];
@@ -216,7 +296,7 @@ interface CheckerCardProps {
 	onOpen: (row: CheckerRow) => void;
 }
 
-// Same shape as a Workers phone card: the count up top, only bad numbers in red.
+// Same shape as a Workers phone card: the count up top, the rates in tiles.
 const CheckerCard = ({ row, onOpen }: CheckerCardProps) => (
 	<button
 		type="button"
@@ -237,26 +317,49 @@ const CheckerCard = ({ row, onOpen }: CheckerCardProps) => (
 			</span>
 			<OpenArrow />
 		</span>
-		<span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-subhead text-muted-foreground">
-			{row.self_checks > 0 ? (
-				<>
-					<span>{`${paceText(row.per_day)} · ${pluralCount(row.days_checked, "day")}`}</span>
-					<BadCount bad={row.self_checks} total={row.passes} prefix="Self " />
-					<span>{pluralCount(row.rejects, "reject")}</span>
-				</>
-			) : (
-				<span>{`${paceText(row.per_day)} · ${pluralCount(row.days_checked, "day")} · ${pluralCount(row.rejects, "reject")}`}</span>
-			)}
-			{row.complaints_after > 0 && (
-				<BadCount
-					bad={row.complaints_after}
-					total={row.passes}
-					prefix="Complaints "
-				/>
-			)}
+		<span className="text-muted-foreground text-subhead">
+			{`${paceText(row.per_day)} · ${pluralCount(row.days_checked, "day")}`}
+		</span>
+		<span className="grid grid-cols-3 gap-2">
+			{QUALITY_RATES.map((rate) => (
+				<span
+					key={rate.id}
+					className="grid content-start gap-0.5 rounded-md bg-muted/50 px-2.5 py-2"
+				>
+					<span className="text-muted-foreground text-subhead">
+						{rate.label}
+					</span>
+					<Rate rate={rate} counts={row} />
+				</span>
+			))}
 		</span>
 	</button>
 );
+
+interface CheckerTeamLineProps {
+	rows: CheckerRow[];
+}
+
+// The desktop table closes with a Team row; a phone gets the same as one line.
+const CheckerTeamLine = ({ rows }: CheckerTeamLineProps) => {
+	const team = teamOf(rows);
+	if (team.checks === 0) {
+		return null;
+	}
+	const facts = [
+		`${numberFormatter.format(team.checks)} checks`,
+		...QUALITY_RATES.map(
+			(rate) =>
+				`${percentFormatter.format(rate.whole(team) === 0 ? 0 : rate.part(team) / rate.whole(team))} ${rate.label === "Pass rate" ? "passed" : rate.label}`,
+		),
+	];
+	return (
+		<p className="px-1 pt-2 text-muted-foreground text-subhead tabular-nums lg:hidden">
+			<span className="font-medium text-foreground">Team</span>
+			{facts.map((fact) => ` · ${fact}`).join("")}
+		</p>
+	);
+};
 
 interface QcPerDaySectionProps {
 	data: QualityReport;
@@ -642,6 +745,7 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 								<CheckerCard row={row} onOpen={handleOpenChecker} />
 							)}
 						/>
+						<CheckerTeamLine rows={data.by_checker} />
 					</Section>
 
 					<MistakesSection data={data} />
