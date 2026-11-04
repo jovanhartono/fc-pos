@@ -114,11 +114,11 @@ const complain = async (line: Line) => {
   return complaint.id;
 };
 
-const addReworkLine = async (
+const addLine = async (
   line: Line,
-  complaintId: number,
   serviceId: number,
-  status: Status
+  status: Status,
+  complaintId: number | null = null
 ) => {
   const [rework] = await testDb
     .insert(ordersServicesTable)
@@ -239,11 +239,11 @@ beforeEach(async () => {
     ["waiting_qc", "ready_for_pickup", adi, "2026-08-04T11:00"],
   ]);
   const reworkedComplaint = await complain(lines["self-checked"]);
-  reworkLineId = await addReworkLine(
+  reworkLineId = await addLine(
     lines["self-checked"],
-    reworkedComplaint,
     repair,
-    "qc_reject"
+    "qc_reject",
+    reworkedComplaint
   );
   await log(reworkLineId, [
     ["queued", "processing", bayu, "2026-08-11T09:00"],
@@ -288,7 +288,7 @@ beforeEach(async () => {
     ["waiting_qc", "ready_for_pickup", bayu, "2026-08-06T11:00"],
   ]);
   const pendingComplaint = await complain(lines.pending);
-  await addReworkLine(lines.pending, pendingComplaint, clean, "cancelled");
+  await addLine(lines.pending, clean, "cancelled", pendingComplaint);
 
   await log(line("cancelled"), [
     ["queued", "processing", citra, "2026-08-07T09:00"],
@@ -602,6 +602,26 @@ describe("the Quality report", () => {
     expect(report.waiting_qc_now).toEqual({
       count: 2,
       oldest_at: jkt("2026-08-03T13:00"),
+    });
+  });
+
+  it("counts an Item on the shelf once, and only when nothing but its check is left", async () => {
+    const repair = shop.repairServiceId;
+    await setStatus(lines.redone.lineId, "waiting_qc");
+    const repaired = await addLine(lines.redone, repair, "waiting_qc");
+    await addLine(lines.redone, repair, "refunded");
+    await log(repaired, [
+      ["processing", "waiting_qc", adi, "2026-08-04T15:00"],
+    ]);
+    // Cleaned, but its Repair is still in someone's hands.
+    await setStatus(lines["rejected-after-range"].lineId, "waiting_qc");
+    await addLine(lines["rejected-after-range"], repair, "processing");
+
+    const report = await kemangAugust();
+
+    expect(report.waiting_qc_now).toEqual({
+      count: 1,
+      oldest_at: jkt("2026-08-04T15:00"),
     });
   });
 

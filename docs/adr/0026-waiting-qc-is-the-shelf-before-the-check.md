@@ -15,3 +15,4 @@ The OrderService status `quality_check` is renamed `waiting_qc`, shown as "Waiti
 
 - The reports' "processed" moment (Services processed, Day worked) is the worker's Done, not the check.
 - Rows from before the rename keep shelf time inside processing, so a worker's held work and time in progress read higher before 2026-10-26 than after.
+- 2026-11-04: Stores check an Item once, after its last Service (prod: 59 of 64 multi-Service Items checked within 15 minutes). So an Item is on the shelf only when every open Service is Waiting QC; the Counter and the Quality report's "Waiting QC now" count it that way. The Queue's Waiting QC chip filters by Service status and still counts an Item whose Clean waits while its Whitening is in progress.

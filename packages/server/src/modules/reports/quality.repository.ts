@@ -24,6 +24,7 @@ import {
   usersTable,
 } from "@/db/schema";
 import { REWORKED_ROUND_STATUSES } from "@/modules/complaints/complaint.schema";
+import { WORKSHOP_SERVICE_STATUSES } from "@/modules/orders/order-status-machine";
 import {
   type RangeArgs,
   storeScope,
@@ -207,25 +208,40 @@ export function listQualityChecksByCheckerDay(args: RangeArgs) {
     .groupBy(qcLog.changed_by, day);
 }
 
-// What sits on the QC shelf right now, whatever range the report shows. An
-// Item's wait starts at its latest landing there.
+// Items on the QC shelf now, by the Counter's isWaitingQcOnly: Stores check an
+// Item once, after its last Service, so a cleaned Item due a Whitening isn't there.
 export async function findWaitingQcNow(storeId: number | undefined) {
-  const [row] = await db
+  const shelf = db
     .select({
-      count: sql<number>`COUNT(*)::int`,
-      oldest_at:
-        sql<Date | null>`MIN((SELECT MAX(${qcLog.created_at}) FROM ${orderServiceStatusLogsTable} AS ${sql.identifier("qc_log")} WHERE ${qcLog.order_service_id} = ${ordersServicesTable.id} AND ${qcLog.to_status} = 'waiting_qc'))`.mapWith(
-          qcLog.created_at
-        ),
+      landed_at: sql<Date | null>`MAX(${qcLog.created_at})`.as("landed_at"),
     })
     .from(ordersServicesTable)
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .leftJoin(
+      qcLog,
+      and(
+        eq(qcLog.order_service_id, ordersServicesTable.id),
+        eq(qcLog.to_status, "waiting_qc")
+      )
+    )
     .where(
       and(
-        eq(ordersServicesTable.status, "waiting_qc"),
+        inArray(ordersServicesTable.status, [...WORKSHOP_SERVICE_STATUSES]),
         storeScope(ordersTable.store_id, storeId)
       )
-    );
+    )
+    .groupBy(ordersServicesTable.item_id)
+    .having(sql`bool_and(${ordersServicesTable.status} = 'waiting_qc')`)
+    .as("shelf");
+
+  const [row] = await db
+    .select({
+      count: sql<number>`COUNT(*)::int`,
+      oldest_at: sql<Date | null>`MIN(${shelf.landed_at})`.mapWith(
+        qcLog.created_at
+      ),
+    })
+    .from(shelf);
   return { count: row?.count ?? 0, oldest_at: row?.oldest_at ?? null };
 }
 
