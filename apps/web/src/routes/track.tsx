@@ -4,7 +4,8 @@ import {
 	isWaitingQcOnly,
 	normalizePhoneNumber,
 } from "@fresclean/api/schema";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { Clock01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { DetailedError } from "hono/client";
@@ -18,8 +19,15 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { WaitingLabel } from "@/components/waiting-label";
 import { WhatsappIcon } from "@/components/whatsapp-icon";
-import { payTrackedOrder, trackKeys, trackQueries } from "@/features/track/api";
-import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
+import {
+	type PublicTrackedOrder,
+	payTrackedOrder,
+	type TrackCharge,
+	trackKeys,
+	trackQueries,
+} from "@/features/track/api";
+import { useQrisPng } from "@/features/track/hooks/useQrisPng";
+import { formatClock } from "@/lib/dayjs";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
 	formatOrderServiceStatus,
@@ -173,33 +181,154 @@ const payErrorText = (error: Error) => {
 		error instanceof DetailedError
 			? (error.detail as { data?: { message?: string } } | undefined)
 			: undefined;
-	return detail?.data?.message ?? "Couldn't open the payment page. Try again.";
+	return detail?.data?.message ?? "Couldn't create the QRIS. Try again.";
+};
+
+const PRIMARY_BUTTON_CLASS =
+	"h-12 pointer-coarse:h-12 w-full rounded-full bg-primary font-semibold text-headline text-primary-foreground";
+
+const OUTCOME_TONES = {
+	good: "bg-tone-good text-tone-good-foreground",
+	neutral: "bg-secondary text-muted-foreground",
+};
+
+interface PaymentOutcomeProps {
+	icon: IconSvgElement;
+	tone: keyof typeof OUTCOME_TONES;
+	title: string;
+	text: string;
+}
+
+const PaymentOutcome = ({ icon, tone, title, text }: PaymentOutcomeProps) => (
+	<div className="grid justify-items-center gap-1.5 pt-1 text-center">
+		<span
+			className={cn(
+				"mb-1 grid size-12 place-items-center rounded-full",
+				OUTCOME_TONES[tone],
+			)}
+		>
+			<HugeiconsIcon aria-hidden="true" className="size-6" icon={icon} />
+		</span>
+		<p className="font-semibold text-title-3">{title}</p>
+		<p className="text-balance text-muted-foreground text-subhead">{text}</p>
+	</div>
+);
+
+interface PaidCardProps {
+	amount: number;
+}
+
+// Only on the phone that showed the QR: a paid Order opened later just drops
+// the card, as before.
+const PaidCard = ({ amount }: PaidCardProps) => (
+	<section className={cn(CARD_CLASS, "p-4")}>
+		<PaymentOutcome
+			icon={Tick02Icon}
+			text={`${formatMoney(amount)} · Thank you`}
+			title="Payment Received"
+			tone="good"
+		/>
+	</section>
+);
+
+interface QrisPanelProps {
+	charge: TrackCharge & { qr_image_url: string };
+	code: string;
+}
+
+const QrisPanel = ({ charge, code }: QrisPanelProps) => {
+	const fileName = `QRIS ${code.replace(/[^A-Za-z0-9-]+/g, "-")}.png`;
+	const png = useQrisPng(charge.qr_image_url, fileName);
+
+	const handleSave = async () => {
+		if (png && navigator.canShare?.({ files: [png.file] })) {
+			// Cancelling the share sheet is fine; the QR is still on screen.
+			await navigator.share({ files: [png.file] }).catch(() => undefined);
+			return;
+		}
+		const link = document.createElement("a");
+		link.href = png?.url ?? charge.qr_image_url;
+		link.download = fileName;
+		link.click();
+	};
+
+	return (
+		<>
+			<img
+				alt="QRIS"
+				className="aspect-square w-full max-w-58 justify-self-center rounded-md border bg-white p-3"
+				src={png?.url ?? charge.qr_image_url}
+			/>
+			<Button
+				className={PRIMARY_BUTTON_CLASS}
+				onClick={handleSave}
+				type="button"
+			>
+				Save QRIS
+			</Button>
+			<p className="text-balance text-center text-muted-foreground text-subhead">
+				Open your bank or e-wallet app, tap Scan, and choose this QRIS from your
+				photos.
+			</p>
+			{/* Only the mock gateway sends both: its page stands in for the bank app. */}
+			{charge.redirect_url ? (
+				<a
+					className="justify-self-center text-body text-link"
+					href={charge.redirect_url}
+					rel="noopener"
+					target="_blank"
+				>
+					Open Mock Payment Page
+				</a>
+			) : null}
+			<div className="flex items-center justify-between gap-4 rounded-lg bg-muted px-4 py-3 text-body">
+				<WaitingLabel>Waiting for payment</WaitingLabel>
+				<span className="text-muted-foreground tabular-nums">
+					Expires {formatClock(charge.expires_at)}
+				</span>
+			</div>
+		</>
+	);
 };
 
 interface PaymentCardProps {
 	code: string;
 	phone: string;
 	netDue: number;
-	// The gateway page the Customer left unpaid, still open until then.
-	openUntil: string | null;
+	openCharge: TrackCharge | null;
+	// The QR this phone showed ran out unpaid.
+	hasExpired: boolean;
 }
 
-// The gateway sends the Customer back here when done, and the page reads the
-// Order fresh, so a paid Order simply loses this card.
-const PaymentCard = ({ code, phone, netDue, openUntil }: PaymentCardProps) => {
+const PaymentCard = ({
+	code,
+	phone,
+	netDue,
+	openCharge,
+	hasExpired,
+}: PaymentCardProps) => {
+	const queryClient = useQueryClient();
 	const payMutation = useMutation({
 		mutationFn: () => payTrackedOrder({ code, phone_number: phone }),
-		onSuccess: ({ redirect_url }) => {
-			window.location.href = redirect_url;
+		onSuccess: (charge) => {
+			if (!charge.qr_image_url && charge.redirect_url) {
+				window.location.href = charge.redirect_url;
+				return;
+			}
+			queryClient.setQueryData(
+				trackKeys.order(code, phone),
+				(order: PublicTrackedOrder | undefined) =>
+					order && { ...order, open_charge: charge },
+			);
+			payMutation.reset();
 		},
 		// Said under the button instead.
 		onError: () => undefined,
 	});
-	const queryClient = useQueryClient();
 	const resetPay = payMutation.reset;
 
-	// A Customer who backs out of the gateway's page lands on this page as Safari
-	// left it, Pay still spinning, so free the button and read the Order again.
+	// A Customer who backs out of DOKU's QRIS page lands on this page as Safari
+	// left it, the button still spinning, so free it and read the Order again.
 	useEffect(() => {
 		const handlePageShow = (event: PageTransitionEvent) => {
 			if (!event.persisted) {
@@ -212,6 +341,40 @@ const PaymentCard = ({ code, phone, netDue, openUntil }: PaymentCardProps) => {
 		return () => window.removeEventListener("pageshow", handlePageShow);
 	}, [queryClient, resetPay]);
 
+	const qrImageUrl = openCharge?.qr_image_url;
+	const isPaying = payMutation.isPending || payMutation.isSuccess;
+	const payError = payMutation.isError ? (
+		<p
+			className="text-balance text-center text-destructive text-subhead"
+			role="alert"
+		>
+			{payErrorText(payMutation.error)}
+		</p>
+	) : null;
+
+	if (hasExpired && !openCharge) {
+		return (
+			<section className={cn(CARD_CLASS, "grid gap-3.5 p-4")}>
+				<PaymentOutcome
+					icon={Clock01Icon}
+					text="Nothing was charged."
+					title="QRIS Expired"
+					tone="neutral"
+				/>
+				<Button
+					className={PRIMARY_BUTTON_CLASS}
+					loading={isPaying}
+					loadingText="Creating QRIS…"
+					onClick={() => payMutation.mutate()}
+					type="button"
+				>
+					New QRIS
+				</Button>
+				{payError}
+			</section>
+		);
+	}
+
 	return (
 		<section className={cn(CARD_CLASS, "grid gap-3.5 p-4")}>
 			<div className="flex items-baseline justify-between gap-3">
@@ -220,31 +383,34 @@ const PaymentCard = ({ code, phone, netDue, openUntil }: PaymentCardProps) => {
 					{formatMoney(netDue)}
 				</p>
 			</div>
-			{openUntil ? (
-				<div className="grid gap-0.5 rounded-lg bg-muted px-3.5 py-3 text-body">
-					<WaitingLabel>Payment not finished</WaitingLabel>
-					<span className="pl-4 text-muted-foreground text-subhead tabular-nums">
-						Open until {dayjs(openUntil).tz(JAKARTA_TZ).format("D MMM, HH:mm")}
-					</span>
-				</div>
-			) : null}
-			<Button
-				className="h-12 pointer-coarse:h-12 w-full rounded-full bg-primary font-semibold text-headline text-primary-foreground"
-				loading={payMutation.isPending || payMutation.isSuccess}
-				loadingText="Opening…"
-				onClick={() => payMutation.mutate()}
-				type="button"
-			>
-				{openUntil ? "Continue Payment" : "Pay"}
-			</Button>
-			{payMutation.isError ? (
-				<p
-					className="text-balance text-center text-destructive text-subhead"
-					role="alert"
-				>
-					{payErrorText(payMutation.error)}
-				</p>
-			) : null}
+			{openCharge && qrImageUrl ? (
+				<QrisPanel
+					charge={{ ...openCharge, qr_image_url: qrImageUrl }}
+					code={code}
+				/>
+			) : (
+				<>
+					{/* DOKU's QRIS page the Customer left unpaid, while its SNAP keys are missing. */}
+					{openCharge ? (
+						<div className="grid gap-0.5 rounded-lg bg-muted px-3.5 py-3 text-body">
+							<WaitingLabel>Payment not finished</WaitingLabel>
+							<span className="pl-4 text-muted-foreground text-subhead tabular-nums">
+								Open until {formatClock(openCharge.expires_at)}
+							</span>
+						</div>
+					) : null}
+					<Button
+						className={PRIMARY_BUTTON_CLASS}
+						loading={isPaying}
+						loadingText="Creating QRIS…"
+						onClick={() => payMutation.mutate()}
+						type="button"
+					>
+						{openCharge ? "Continue Payment" : "Pay with QRIS"}
+					</Button>
+					{payError}
+				</>
+			)}
 		</section>
 	);
 };
@@ -337,11 +503,13 @@ const TrackOrderPage = () => {
 			void trackQuery.refetch();
 			return;
 		}
+		setShownCharge(null);
 		void navigate({ search: { code: trimmedCode, phone: trimmedPhone } });
 	};
 
 	const handleReset = () => {
 		queryClient.removeQueries({ queryKey: trackKeys.all });
+		setShownCharge(null);
 		setCode("");
 		setPhone("");
 		void navigate({ search: {} });
@@ -349,6 +517,25 @@ const TrackOrderPage = () => {
 
 	const trackData = trackQuery.data;
 	const isLoading = trackQuery.isFetching;
+
+	// The last QR this phone showed, so the card can still say Paid or Expired
+	// once the server stops sending it.
+	const [shownCharge, setShownCharge] = useState<TrackCharge | null>(null);
+	const openCharge = trackData?.open_charge ?? null;
+	if (
+		openCharge?.qr_image_url &&
+		openCharge.qr_image_url !== shownCharge?.qr_image_url
+	) {
+		setShownCharge(openCharge);
+	}
+	const isPaidHere =
+		trackData?.payment_status === "paid" && shownCharge !== null;
+	// The gateway's clock, not the phone's, says when a QR ends: gone while the
+	// amount stayed the same means it ran out.
+	const hasExpired =
+		shownCharge !== null &&
+		!openCharge?.qr_image_url &&
+		shownCharge.amount === trackData?.net_due;
 
 	useEffect(() => {
 		document.title = trackData
@@ -395,11 +582,13 @@ const TrackOrderPage = () => {
 							pickupCode={trackData.pickup_code}
 						/>
 
+						{isPaidHere ? <PaidCard amount={shownCharge.amount} /> : null}
 						{trackData.can_pay_online && submitted ? (
 							<PaymentCard
 								code={submitted.code}
+								hasExpired={hasExpired}
 								netDue={trackData.net_due}
-								openUntil={trackData.open_until}
+								openCharge={openCharge}
 								phone={submitted.phone}
 							/>
 						) : null}

@@ -13,7 +13,18 @@ interface Captured {
   url: string;
 }
 
-const ENV_KEYS = ["DOKU_CLIENT_ID", "DOKU_SECRET_KEY", "DOKU_IS_PRODUCTION"];
+const QRIS_KEYS = [
+  "DOKU_PRIVATE_KEY",
+  "DOKU_QRIS_MERCHANT_ID",
+  "DOKU_QRIS_TERMINAL_ID",
+  "DOKU_QRIS_POSTAL_CODE",
+];
+const ENV_KEYS = [
+  "DOKU_CLIENT_ID",
+  "DOKU_SECRET_KEY",
+  "DOKU_IS_PRODUCTION",
+  ...QRIS_KEYS,
+];
 const originalEnv = Object.fromEntries(
   ENV_KEYS.map((key) => [key, process.env[key]])
 );
@@ -64,6 +75,9 @@ beforeEach(() => {
   process.env.DOKU_CLIENT_ID = CLIENT_ID;
   process.env.DOKU_SECRET_KEY = SECRET;
   unsetEnv("DOKU_IS_PRODUCTION");
+  for (const key of QRIS_KEYS) {
+    unsetEnv(key);
+  }
 });
 
 afterEach(() => {
@@ -116,16 +130,7 @@ describe("dokuGateway.createCharge", () => {
       },
       payment: {
         payment_due_date: 1440,
-        payment_method_types: [
-          "QRIS",
-          "VIRTUAL_ACCOUNT_BRI",
-          "VIRTUAL_ACCOUNT_BANK_MANDIRI",
-          "VIRTUAL_ACCOUNT_BNI",
-          "VIRTUAL_ACCOUNT_BANK_PERMATA",
-          "EMONEY_SHOPEE_PAY",
-          "EMONEY_OVO",
-          "EMONEY_DANA",
-        ],
+        payment_method_types: ["QRIS"],
       },
       customer: { name: "Budi", phone: "6281234567890" },
       additional_info: {

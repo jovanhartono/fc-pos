@@ -23,7 +23,7 @@ import type {
 } from "@/modules/payments/gateways/types";
 import {
   findNewerPaymentCharge,
-  findNewestPendingCheckoutCharge,
+  findNewestPendingTrackCharge,
   findOpenQrisCharge,
   findOrderForCharge,
   findOrderPaymentState,
@@ -47,13 +47,13 @@ const GATEWAY_LABELS: Record<PaymentGatewayName, string> = {
 
 const EXPIRY_MINUTES: Record<GatewayChargeKind, number> = {
   checkout: 1440,
-  qris: 15,
+  qris: 60,
 };
 
 const MINUTE_MS = 60_000;
-// A checkout page with less left than this is replaced, so the Customer is not
-// sent to a page that closes while they pick a bank.
-const REUSE_MIN_LEFT_MS = 30 * MINUTE_MS;
+// A Track page QRIS with less left than this is replaced, so the Customer is
+// not handed a QR that closes while they open their bank app.
+const REUSE_MIN_LEFT_MS = 5 * MINUTE_MS;
 // The webhook usually lands first; asking sooner only costs gateway calls.
 const STATUS_CHECK_AFTER_MS = 20_000;
 const STATUS_CHECK_EVERY_MS = 10_000;
@@ -65,13 +65,21 @@ const NO_DISCOUNT: DiscountRequest = {
 };
 
 const REFERENCE_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
+const CODE_SEPARATOR_REGEX = /\//g;
+const NOT_REFERENCE_SAFE_REGEX = /[^A-Za-z0-9-]/g;
 
-function newReference(orderId: number) {
-  const random = Array.from(
-    crypto.getRandomValues(new Uint8Array(8)),
+// "#KMG/04112026/2" → "KMG-04112026-2-x7k2", so an admin finds the Order in the
+// gateway's dashboard by its code. The tag keeps each try unique: a gateway
+// refuses a reference it has seen before.
+function newReference(orderCode: string) {
+  const tag = Array.from(
+    crypto.getRandomValues(new Uint8Array(4)),
     (byte) => REFERENCE_ALPHABET[byte % REFERENCE_ALPHABET.length]
   ).join("");
-  return `FC-${orderId}-${random}`;
+  const code = orderCode
+    .replace(CODE_SEPARATOR_REGEX, "-")
+    .replace(NOT_REFERENCE_SAFE_REGEX, "");
+  return `${code}-${tag}`;
 }
 
 function publicWebUrl() {
@@ -131,7 +139,7 @@ async function closedReason(charge: PaymentCharge): Promise<ChargeClosed> {
   }
   if (newer) {
     return {
-      closed_reason: newer.kind === "checkout" ? "customer_paying" : "replaced",
+      closed_reason: newer.created_by === null ? "customer_paying" : "replaced",
       next_amount: null,
     };
   }
@@ -150,18 +158,19 @@ async function toPolledView(charge: PaymentCharge) {
   );
 }
 
-// A Customer tapping Pay again gets the page they already opened, unless the
-// amount moved or it closes before they could finish.
-function isReusableCheckout(
+// The Customer's QRIS stays on the Track page, even after a reload, until it
+// expires or the amount moves.
+function isShowableTrackCharge(
   charge: PaymentCharge | undefined,
-  amount: number
+  amount: number,
+  minLeftMs = 0
 ): charge is PaymentCharge {
-  if (!charge?.redirect_url) {
+  if (!(charge?.qr_image_url || charge?.redirect_url)) {
     return false;
   }
   return (
     Number(charge.amount) === amount &&
-    charge.expires_at.getTime() - Date.now() > REUSE_MIN_LEFT_MS
+    charge.expires_at.getTime() - Date.now() > minLeftMs
   );
 }
 
@@ -247,9 +256,10 @@ export async function createPaymentCharge({
     throw new BadRequestException("Nothing left to pay on this order");
   }
 
-  if (kind === "checkout") {
-    const open = await findNewestPendingCheckoutCharge(orderId, gatewayName);
-    if (isReusableCheckout(open, amount)) {
+  // A Customer tapping Pay again gets the QR they already have.
+  if (createdBy === null) {
+    const open = await findNewestPendingTrackCharge(orderId, gatewayName);
+    if (isShowableTrackCharge(open, amount, REUSE_MIN_LEFT_MS)) {
       return toPaymentChargeView(open);
     }
   }
@@ -260,7 +270,7 @@ export async function createPaymentCharge({
     throw new NotFoundException("Order not found");
   }
 
-  const reference = newReference(orderId);
+  const reference = newReference(order.code);
   const expiresInMinutes = EXPIRY_MINUTES[kind];
   const [charge] = await insertPaymentCharge({
     amount: amount.toString(),
@@ -511,7 +521,7 @@ export async function getTrackPaymentState(order: {
   total: string;
 }) {
   if (order.payment_status === "paid" || order.status === "cancelled") {
-    return { can_pay_online: false, net_due: 0, open_until: null };
+    return { can_pay_online: false, net_due: 0, open_charge: null };
   }
 
   // Nothing is refunded before an Order is paid.
@@ -522,26 +532,44 @@ export async function getTrackPaymentState(order: {
   });
 
   if (netDue <= 0) {
-    return { can_pay_online: false, net_due: netDue, open_until: null };
+    return { can_pay_online: false, net_due: netDue, open_charge: null };
   }
 
   const gateway = activePaymentGatewayName();
   const [{ payment_method }, lines, open] = await Promise.all([
     getPaymentGatewayInfo(),
     findSettlementLines(db, order.id),
-    gateway ? findNewestPendingCheckoutCharge(order.id, gateway) : undefined,
+    gateway ? findNewestPendingTrackCharge(order.id, gateway) : undefined,
   ]);
 
-  // The gateway sends a Customer who just paid straight back here, often
-  // before its webhook lands: ask, rather than tell them it isn't finished.
+  // The page asks every few seconds while the QR is up, and SNAP QRIS sends no
+  // webhook, so this check is what turns the Order paid.
   if (open && (await refreshCharge(open, 0)).status === "paid") {
-    return { can_pay_online: false, net_due: 0, open_until: null };
+    return { can_pay_online: false, net_due: 0, open_charge: null };
   }
 
   return {
     can_pay_online: payment_method !== null && !hasUnpricedLine(lines),
     net_due: netDue,
-    // A Customer back from the gateway unpaid sees Continue Payment.
-    open_until: isReusableCheckout(open, netDue) ? open.expires_at : null,
+    open_charge: isShowableTrackCharge(open, netDue)
+      ? toTrackChargeView(open)
+      : null,
+  };
+}
+
+// What the Customer's phone needs to show their QRIS, and nothing else.
+export function toTrackChargeView(
+  charge: Pick<
+    PaymentCharge,
+    "expires_at" | "qr_image_url" | "redirect_url"
+  > & {
+    amount: number | string;
+  }
+) {
+  return {
+    amount: Number(charge.amount),
+    expires_at: charge.expires_at,
+    qr_image_url: charge.qr_image_url,
+    redirect_url: charge.redirect_url,
   };
 }

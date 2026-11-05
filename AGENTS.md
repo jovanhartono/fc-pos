@@ -33,6 +33,7 @@ The server reads from `process.env`:
 - `SENTRY_DSN` - Optional; unset turns error reporting off
 - `PAYMENT_GATEWAY` - `midtrans` or `doku`, the gateway new Gateway charges use; unset turns online payment off (ADR-0026)
 - `MIDTRANS_SERVER_KEY`, `MIDTRANS_IS_PRODUCTION` / `DOKU_CLIENT_ID`, `DOKU_SECRET_KEY`, `DOKU_IS_PRODUCTION` - gateway credentials, sandbox unless `*_IS_PRODUCTION=true`
+- `DOKU_PRIVATE_KEY`, `DOKU_QRIS_MERCHANT_ID`, `DOKU_QRIS_TERMINAL_ID`, `DOKU_QRIS_POSTAL_CODE` - Optional; all four set shows DOKU's counter QRIS in the dialog (SNAP), otherwise it opens DOKU's page. The key is the PEM whose public half is uploaded to DOKU, line breaks written as `\n`
 - `PUBLIC_WEB_URL` - Optional, defaults to `https://pos.fresclean.id`; the Track page and webhook URLs sent to the gateway
 - `PAYMENT_GATEWAY_MOCK` - `true` swaps the gateway's outbound calls for a mock page at `/api/mock-gateway/<reference>` whose buttons send signed notifications to the real webhook. Ignored on Production. Set `PUBLIC_WEB_URL` to the local origin (e.g. `http://localhost:5173`) and any non-empty keys for the gateway in use
 

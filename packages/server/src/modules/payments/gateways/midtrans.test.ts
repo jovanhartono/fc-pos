@@ -154,15 +154,7 @@ describe("midtransGateway.createCharge", () => {
       "https://pos.fresclean.id/api/webhooks/payments/midtrans"
     );
     const body = bodyOf(call as Call);
-    expect(body.enabled_payments).toEqual([
-      "other_qris",
-      "gopay",
-      "shopeepay",
-      "bni_va",
-      "bri_va",
-      "permata_va",
-      "echannel",
-    ]);
+    expect(body.enabled_payments).toEqual(["other_qris"]);
     expect(body.expiry).toMatchObject({ unit: "minute", duration: 1440 });
     expect(body.expiry.start_time).toMatch(JAKARTA_TIMESTAMP);
     expect(body.callbacks).toEqual({

@@ -38,21 +38,29 @@ export function findPaymentChargeByReference(reference: string) {
   return findPaymentChargeByReferencePrepared.execute({ reference });
 }
 
-export function findNewestPendingCheckoutCharge(
+// The Customer's own charge from the Track page: nobody on staff created it.
+export function findNewestPendingTrackCharge(
   orderId: number,
   gateway: PaymentGatewayName
 ) {
   return db.query.paymentChargesTable.findFirst({
-    where: { order_id: orderId, gateway, kind: "checkout", status: "pending" },
+    where: {
+      order_id: orderId,
+      gateway,
+      created_by: { isNull: true },
+      status: "pending",
+    },
     orderBy: { id: "desc" },
   });
 }
 
+// A cashier's QRIS only: the Customer's own QR is theirs to cancel.
 export function findOpenQrisCharge(orderId: number) {
   return db.query.paymentChargesTable.findFirst({
     where: {
       order_id: orderId,
       kind: "qris",
+      created_by: { isNotNull: true },
       status: "pending",
       expires_at: { gt: new Date() },
     },
@@ -64,7 +72,7 @@ export function findOpenQrisCharge(orderId: number) {
 export function findNewerPaymentCharge(orderId: number, id: number) {
   return db.query.paymentChargesTable.findFirst({
     where: { order_id: orderId, id: { gt: id }, status: { ne: "failed" } },
-    columns: { kind: true },
+    columns: { created_by: true },
     orderBy: { id: "desc" },
   });
 }

@@ -24,9 +24,12 @@ export async function trackPublicOrder(payload: TrackPublicOrderPayload) {
 	);
 }
 
-// Same proof as tracking; answers with the gateway's checkout page to go to.
+export type TrackCharge = NonNullable<PublicTrackedOrder["open_charge"]>;
+
+// Same proof as tracking; answers with the QRIS to show, or DOKU's QRIS page
+// to go to while its SNAP keys are missing.
 export function payTrackedOrder(payload: TrackPublicOrderPayload) {
-	return parseSuccessData<{ redirect_url: string }>(
+	return parseSuccessData<TrackCharge>(
 		rpcPublic.api.public.orders.pay.$post({ json: payload }),
 	);
 }
@@ -43,5 +46,9 @@ export const trackQueries = {
 			retry: false,
 			refetchOnWindowFocus: false,
 			staleTime: 0,
+			// While a QR is up, so Paid shows within seconds: SNAP QRIS sends no
+			// webhook, and this read is what asks DOKU.
+			refetchInterval: (query) =>
+				query.state.data?.open_charge?.qr_image_url ? 5000 : false,
 		}),
 };

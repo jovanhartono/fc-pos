@@ -206,7 +206,7 @@ const PendingCharge = ({ charge }: PendingChargeProps) => (
 		<p className="text-center font-semibold text-title-1 tabular-nums">
 			{formatMoney(charge.amount)}
 		</p>
-		{/* Midtrans hands back a QR image; DOKU only a hosted QRIS page. */}
+		{/* DOKU without its QRIS keys sends only a hosted QRIS page. */}
 		{charge.qr_image_url ? (
 			<>
 				<img

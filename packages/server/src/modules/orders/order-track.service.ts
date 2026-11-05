@@ -10,6 +10,7 @@ import {
 import {
   createPaymentCharge,
   getTrackPaymentState,
+  toTrackChargeView,
 } from "@/modules/payments/payment-charge.service";
 
 // Anyone with the Order code and a phone number can open the page, so the
@@ -70,8 +71,9 @@ export async function getTrackedOrder({ code, phone_number }: TrackProof) {
   };
 }
 
-// The Customer's Pay button: the same proof as reading the page, and the
-// gateway's page comes back for the browser to open.
+// The Customer's Pay with QRIS button: the same proof as reading the page. The
+// QR comes back to show on the page, or DOKU's QRIS page while its SNAP keys
+// are missing.
 export async function payTrackedOrder({ code, phone_number }: TrackProof) {
   const order = await findTrackedOrderRef(code, phone_number);
 
@@ -81,14 +83,14 @@ export async function payTrackedOrder({ code, phone_number }: TrackProof) {
 
   const charge = await createPaymentCharge({
     createdBy: null,
-    kind: "checkout",
+    kind: "qris",
     orderId: order.id,
     request: null,
   });
 
-  if (!charge.redirect_url) {
-    throw new BadRequestException("Payment page is not available, try again");
+  if (!(charge.qr_image_url || charge.redirect_url)) {
+    throw new BadRequestException("Couldn't create the QRIS. Try again.");
   }
 
-  return { redirect_url: charge.redirect_url };
+  return toTrackChargeView(charge);
 }

@@ -18,12 +18,9 @@ export const withMockGateway = (real: PaymentGateway): PaymentGateway => ({
     const page = `${origin}/api/mock-gateway/${input.reference}`;
     return Promise.resolve({
       providerRef: `mock-${randomUUID()}`,
-      // Like Midtrans: a QR in the sheet for counter QRIS. The page link rides
-      // along so a laptop can stand in for the Customer's phone.
-      qrImageUrl:
-        real.name === "midtrans" && input.kind === "qris"
-          ? `${page}/qr.svg`
-          : null,
+      // A QR in the dialog for counter QRIS. The page link rides along so a
+      // laptop can stand in for the Customer's phone.
+      qrImageUrl: input.kind === "qris" ? `${page}/qr.svg` : null,
       redirectUrl: `${page}?finish=${encodeURIComponent(input.finishUrl)}`,
       expiresAt: new Date(Date.now() + input.expiresInMinutes * 60_000),
     });

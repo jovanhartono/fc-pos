@@ -4,8 +4,14 @@ import {
   randomUUID,
   timingSafeEqual,
 } from "node:crypto";
+import {
+  cancelDokuQris,
+  createDokuQris,
+  type DokuApi,
+  dokuQrisConfig,
+  getDokuQrisStatus,
+} from "./doku-qris";
 import type {
-  GatewayChargeKind,
   GatewayChargeStatus,
   GatewayNotification,
   GatewayNotificationInput,
@@ -17,21 +23,9 @@ const CHECKOUT_PATH = "/checkout/v1/payment";
 const CANCEL_PATH = "/checkout/v3/cancellations";
 const STATUS_PATH = "/orders/v1/status/";
 
-// Methods a Personal (no legal entity) DOKU merchant may offer. BCA VA is
-// refused for Personal merchants, so it is never listed.
-const PAYMENT_METHODS: Record<GatewayChargeKind, string[]> = {
-  qris: ["QRIS"],
-  checkout: [
-    "QRIS",
-    "VIRTUAL_ACCOUNT_BRI",
-    "VIRTUAL_ACCOUNT_BANK_MANDIRI",
-    "VIRTUAL_ACCOUNT_BNI",
-    "VIRTUAL_ACCOUNT_BANK_PERMATA",
-    "EMONEY_SHOPEE_PAY",
-    "EMONEY_OVO",
-    "EMONEY_DANA",
-  ],
-};
+// Every gateway payment is QRIS until the PaymentMethod names its channel
+// (ADR-0026), so a VA paid here would land on the Day close's QRIS line.
+const PAYMENT_METHODS = ["QRIS"];
 
 const EXPIRED_DATE_REGEX = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/;
 const MILLIS_REGEX = /\.\d{3}Z$/;
@@ -44,7 +38,7 @@ const requireEnv = (name: string) => {
   return value;
 };
 
-const config = () => ({
+const config = (): DokuApi => ({
   clientId: requireEnv("DOKU_CLIENT_ID"),
   secretKey: requireEnv("DOKU_SECRET_KEY"),
   baseUrl:
@@ -209,6 +203,10 @@ export const dokuGateway: PaymentGateway = {
   name: "doku",
 
   async createCharge(input) {
+    const qris = input.kind === "qris" ? dokuQrisConfig(config()) : null;
+    if (qris) {
+      return await createDokuQris(qris, input);
+    }
     const { requestId, response } = dokuFetch("POST", CHECKOUT_PATH, {
       order: {
         invoice_number: input.reference,
@@ -217,7 +215,7 @@ export const dokuGateway: PaymentGateway = {
       },
       payment: {
         payment_due_date: input.expiresInMinutes,
-        payment_method_types: PAYMENT_METHODS[input.kind],
+        payment_method_types: PAYMENT_METHODS,
       },
       customer: {
         name: input.customer.name,
@@ -249,6 +247,10 @@ export const dokuGateway: PaymentGateway = {
   },
 
   async getStatus(ref) {
+    const qris = ref.kind === "qris" ? dokuQrisConfig(config()) : null;
+    if (qris) {
+      return await getDokuQrisStatus(qris, ref);
+    }
     const res = await dokuFetch(
       "GET",
       `${STATUS_PATH}${encodeURIComponent(ref.reference)}`
@@ -262,6 +264,10 @@ export const dokuGateway: PaymentGateway = {
   },
 
   async cancelCharge(ref) {
+    const qris = ref.kind === "qris" ? dokuQrisConfig(config()) : null;
+    if (qris) {
+      return await cancelDokuQris(qris, ref);
+    }
     if (!ref.providerRef) {
       return;
     }

@@ -10,15 +10,9 @@ import type {
   PaymentGateway,
 } from "./types";
 
-const SNAP_ENABLED_PAYMENTS = [
-  "other_qris",
-  "gopay",
-  "shopeepay",
-  "bni_va",
-  "bri_va",
-  "permata_va",
-  "echannel",
-];
+// Every gateway payment is QRIS until the PaymentMethod names its channel
+// (ADR-0026).
+const SNAP_ENABLED_PAYMENTS = ["other_qris"];
 
 const TIMEOUT_MS = 10_000;
 const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;

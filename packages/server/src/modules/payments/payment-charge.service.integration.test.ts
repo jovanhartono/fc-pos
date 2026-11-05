@@ -88,7 +88,7 @@ let gatewayMethodId: number;
 
 const PHONE = "+628111222333";
 const VOUCHER_CODE = "VIP12345";
-const REFERENCE_FORMAT = /^FC-\d+-[a-z0-9]{8}$/;
+const REFERENCE_FORMAT = /^[A-Za-z0-9-]+-[a-z0-9]{4}$/;
 const NO_DISCOUNT: DiscountRequest = {
   campaign_ids: [],
   discount: 0,
@@ -192,7 +192,7 @@ const ageCharges = () =>
   });
 
 describe("showing a QRIS at the counter", () => {
-  it("asks the gateway for the Order's net due, valid 15 minutes", async () => {
+  it("asks the gateway for the Order's net due, valid an hour", async () => {
     const order = await dropOff();
 
     const charge = await showQris(order.id);
@@ -204,9 +204,12 @@ describe("showing a QRIS at the counter", () => {
       status: "pending",
     });
     expect(charge.reference).toMatch(REFERENCE_FORMAT);
+    expect(charge.reference.slice(0, -5)).toBe(
+      order.code.replace("#", "").replaceAll("/", "-")
+    );
     expect(gateway.created[0]).toMatchObject({
       amount: 100_000,
-      expiresInMinutes: 15,
+      expiresInMinutes: 60,
       notificationUrl:
         "https://pos.fresclean.id/api/webhooks/payments/midtrans",
     });
@@ -429,7 +432,7 @@ describe("a Campaign on a counter QRIS", () => {
 });
 
 describe("Pay on the Track page", () => {
-  it("sends the Customer back to the page they already opened", async () => {
+  it("gives the Customer back the QRIS they already have", async () => {
     const order = await dropOff();
     const proof = { code: order.code, phone_number: PHONE };
 
@@ -437,15 +440,20 @@ describe("Pay on the Track page", () => {
     const second = await payTrackedOrder(proof);
 
     expect(second).toEqual(first);
+    expect(first).toMatchObject({
+      amount: 100_000,
+      qr_image_url: "https://qr.test/code.png",
+    });
     expect(gateway.created).toHaveLength(1);
     expect(gateway.created[0]).toMatchObject({
-      expiresInMinutes: 1440,
-      kind: "checkout",
+      expiresInMinutes: 60,
+      kind: "qris",
     });
   });
 
-  it("offers Continue Payment until the page they opened runs short", async () => {
+  it("keeps the QRIS on the page until it expires, and replaces one about to", async () => {
     const order = await dropOff();
+    const proof = { code: order.code, phone_number: PHONE };
     const readState = async () => {
       const row = await readOrder(order.id);
       if (!row) {
@@ -453,18 +461,36 @@ describe("Pay on the Track page", () => {
       }
       return getTrackPaymentState(row);
     };
+    const setExpiry = (ms: number) =>
+      testDb
+        .update(paymentChargesTable)
+        .set({ expires_at: new Date(Date.now() + ms) });
 
-    expect((await readState()).open_until).toBeNull();
+    expect((await readState()).open_charge).toBeNull();
 
-    await payTrackedOrder({ code: order.code, phone_number: PHONE });
+    await payTrackedOrder(proof);
     const [charge] = await testDb.select().from(paymentChargesTable);
-    expect((await readState()).open_until).toEqual(charge.expires_at);
+    expect((await readState()).open_charge).toEqual({
+      amount: 100_000,
+      expires_at: charge.expires_at,
+      qr_image_url: "https://qr.test/code.png",
+      redirect_url: null,
+    });
 
-    await testDb
-      .update(paymentChargesTable)
-      .set({ expires_at: new Date(Date.now() + 10 * 60_000) })
-      .where(eq(paymentChargesTable.id, charge.id));
-    expect((await readState()).open_until).toBeNull();
+    await setExpiry(3 * 60_000);
+    expect((await readState()).open_charge).not.toBeNull();
+    await payTrackedOrder(proof);
+    expect(gateway.created).toHaveLength(2);
+
+    await setExpiry(-1000);
+    expect((await readState()).open_charge).toBeNull();
+  });
+
+  it("stays off the cashier's reopen list", async () => {
+    const order = await dropOff();
+    await payTrackedOrder({ code: order.code, phone_number: PHONE });
+
+    expect(await getOpenQrisCharge(order.id)).toBeNull();
   });
 
   it("leaves paid_by empty and the last staff edit in place once paid", async () => {
@@ -559,8 +585,8 @@ describe("the QRIS dialog reopened from the Order", () => {
   });
 });
 
-describe("the Track page after the gateway sends the Customer back", () => {
-  it("drops Pay once the gateway says paid, before its webhook lands", async () => {
+describe("the Track page asking while the QRIS is up", () => {
+  it("drops Pay once the gateway says paid, with no webhook", async () => {
     const order = await dropOff();
     await payTrackedOrder({ code: order.code, phone_number: PHONE });
     await ageCharges();
@@ -573,7 +599,7 @@ describe("the Track page after the gateway sends the Customer back", () => {
     expect(await getTrackPaymentState(row)).toEqual({
       can_pay_online: false,
       net_due: 0,
-      open_until: null,
+      open_charge: null,
     });
     expect((await readOrder(order.id))?.payment_status).toBe("paid");
   });

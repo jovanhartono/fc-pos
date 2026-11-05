@@ -12,9 +12,11 @@ mock.module("@/modules/orders/order-read.repository", () => ({
 }));
 
 mock.module("@/modules/payments/payment-charge.service", () => ({
-  createPaymentCharge: () => Promise.resolve({ redirect_url: null }),
+  createPaymentCharge: () =>
+    Promise.resolve({ qr_image_url: null, redirect_url: null }),
   getTrackPaymentState: () =>
-    Promise.resolve({ can_pay_online: false, net_due: 0, open_until: null }),
+    Promise.resolve({ can_pay_online: false, net_due: 0, open_charge: null }),
+  toTrackChargeView: (charge: unknown) => charge,
 }));
 
 const { getTrackedOrder, payTrackedOrder } = await import(
