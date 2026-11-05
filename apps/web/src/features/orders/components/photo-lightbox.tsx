@@ -7,7 +7,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import dayjs from "dayjs";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
 	Dialog,
@@ -65,6 +65,10 @@ export function formatPhotoTimestamp(createdAt: string) {
 const ACTION_CLASS =
 	"grid size-9 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20";
 
+// Everything but the photo fades as it's pulled down, so the Order shows through.
+const DISMISS_FADE_CLASS =
+	"opacity-[calc(1-var(--dismiss,0))] transition-[opacity,background-color] duration-200 group-data-dragging/lightbox:transition-none";
+
 export const PhotoLightbox = ({
 	open,
 	onOpenChange,
@@ -77,6 +81,7 @@ export const PhotoLightbox = ({
 	const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
+	const popupRef = useRef<HTMLDivElement>(null);
 
 	const imageCount = items.length;
 	const canNavigate = imageCount > 1;
@@ -126,6 +131,13 @@ export const PhotoLightbox = ({
 		}
 	};
 
+	// Written straight to the node: a React render per frame of the pull drops frames.
+	const handleDismissProgress = (progress: number) => {
+		const popup = popupRef.current;
+		popup?.style.setProperty("--dismiss", String(progress));
+		popup?.toggleAttribute("data-dragging", progress > 0);
+	};
+
 	const activeCaption = useMemo(() => {
 		if (!activeItem) {
 			return null;
@@ -141,30 +153,40 @@ export const PhotoLightbox = ({
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent
-				className="inset-0 z-[60] flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 bg-black p-0 text-white ring-0 sm:max-w-none"
-				overlayClassName="z-[60] bg-black"
+				className="group/lightbox inset-0 z-[60] flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 bg-transparent p-0 text-white ring-0 sm:max-w-none"
+				overlayClassName="z-[60] bg-transparent"
 				overlayForceRender
+				ref={popupRef}
 				showCloseButton={false}
 			>
 				<DialogTitle className="sr-only">{title}</DialogTitle>
 				<DialogDescription className="sr-only">
 					{canNavigate
-						? "Pinch or double-tap to zoom. Swipe or use the arrow keys to move between attachments."
-						: "Pinch or double-tap to zoom."}
+						? "Pinch or double-tap to zoom. Swipe or use the arrow keys to move between attachments. Pull down to close."
+						: "Pinch or double-tap to zoom. Pull down to close."}
 				</DialogDescription>
 
-				<div className="flex min-h-0 flex-1 flex-col bg-black">
+				<div
+					aria-hidden="true"
+					className={cn(
+						DISMISS_FADE_CLASS,
+						"absolute inset-0 bg-black bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_52%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.18))]",
+					)}
+				/>
+				<div className="relative flex min-h-0 flex-1 flex-col">
 					{activeItem ? (
 						<PhotoStage
 							activeIndex={activeIndex}
-							className="bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_52%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.18))]"
 							items={items}
+							onDismiss={() => onOpenChange(false)}
+							onDismissProgress={handleDismissProgress}
 							onIndexChange={setActiveIndex}
 						>
 							<button
 								aria-label="Close"
 								className={cn(
 									ACTION_CLASS,
+									DISMISS_FADE_CLASS,
 									"absolute top-[calc(env(safe-area-inset-top)_+_1rem)] right-4 z-10",
 								)}
 								onClick={() => onOpenChange(false)}
@@ -190,7 +212,12 @@ export const PhotoLightbox = ({
 						</div>
 					)}
 
-					<div className="flex items-center justify-between gap-3 border-t border-white/10 bg-zinc-950 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)_+_0.75rem)] text-white">
+					<div
+						className={cn(
+							DISMISS_FADE_CLASS,
+							"flex items-center justify-between gap-3 border-t border-white/10 bg-zinc-950 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)_+_0.75rem)] text-white",
+						)}
+					>
 						<div className="grid gap-1">
 							<p className="text-body font-medium">
 								{activeCaption?.primary ?? "Attachment"}
