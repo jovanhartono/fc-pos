@@ -22,7 +22,6 @@ import {
   usersTable,
 } from "@/db/schema";
 import { REWORKED_ROUND_STATUSES } from "@/modules/complaints/complaint.schema";
-import { WORKSHOP_SERVICE_STATUSES } from "@/modules/orders/order-status-machine";
 import {
   type RangeArgs,
   storeScope,
@@ -30,6 +29,7 @@ import {
 } from "@/modules/reports/money-basis";
 import { jakartaBucketExpr } from "@/modules/reports/report-range.util";
 import { listServicesProcessed } from "@/modules/reports/services-processed";
+import { WORKSHOP_SERVICE_STATUSES } from "@/schema/order-status";
 
 const qcLog = alias(orderServiceStatusLogsTable, "qc_log");
 const cleanLog = alias(orderServiceStatusLogsTable, "clean_log");

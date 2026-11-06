@@ -11,11 +11,11 @@ import { z } from "zod";
 import { EmptyState } from "@/components/empty-state";
 import { ListPanel } from "@/components/list-panel";
 import { Button } from "@/components/ui/button";
-import { customersQueries } from "@/features/customers/api";
 import {
 	CUSTOMER_ORDERS_PAGE_SIZE,
-	CustomerOrdersCard,
-} from "@/features/customers/components/customer-orders-card";
+	customersQueries,
+} from "@/features/customers/api";
+import { CustomerOrdersCard } from "@/features/customers/components/customer-orders-card";
 import {
 	CustomerSummarySkeleton,
 	CustomerSummaryStrip,
@@ -124,5 +124,4 @@ export const Route = createFileRoute("/_admin/customers/$customerId")({
 	notFoundComponent: CustomerNotFound,
 	// Past a second, the page draws its own skeleton, not the generic placeholder.
 	pendingComponent: CustomerDetailPage,
-	codeSplitGroupings: [["component", "pendingComponent"]],
 });

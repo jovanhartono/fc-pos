@@ -1,4 +1,4 @@
-import { allocateRefund, lineKey } from "@fresclean/api/schema";
+import { allocateRefund, lineKey } from "@fresclean/api/rules";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { UseMutationResult } from "@tanstack/react-query";
 import { Fragment, useMemo } from "react";

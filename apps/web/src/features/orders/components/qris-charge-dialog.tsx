@@ -1,4 +1,4 @@
-import { GATEWAY_LABELS } from "@fresclean/api/schema";
+import { GATEWAY_LABELS } from "@fresclean/api/rules";
 import {
 	Alert02Icon,
 	Clock01Icon,

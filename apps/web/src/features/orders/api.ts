@@ -1,8 +1,8 @@
+import type { QUEUE_CATEGORY_MODES } from "@fresclean/api/rules";
 import type {
 	POSTOrderPickupEventPresignSchema,
 	POSTOrderPickupEventSchema,
 	POSTOrderSchema,
-	QUEUE_CATEGORY_MODES,
 } from "@fresclean/api/schema";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { type InferResponseType, parseResponse } from "hono/client";

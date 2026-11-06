@@ -326,5 +326,4 @@ export const Route = createFileRoute("/_admin/reports")({
 	},
 	component: ReportsPage,
 	pendingComponent: ReportsPage,
-	codeSplitGroupings: [["component", "pendingComponent"]],
 });

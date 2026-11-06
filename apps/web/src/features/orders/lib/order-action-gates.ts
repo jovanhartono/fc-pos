@@ -1,4 +1,4 @@
-import { hasUnpricedLine, isComplainableLine } from "@fresclean/api/schema";
+import { hasUnpricedLine, isComplainableLine } from "@fresclean/api/rules";
 import type { Order, OrderDetail } from "@/features/orders/api";
 import {
 	flattenOrderLines,

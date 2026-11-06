@@ -1,4 +1,4 @@
-import type { ClockInCoordinates } from "@fresclean/api/schema";
+import type { ClockInCoordinates } from "@fresclean/api/rules";
 import { useCallback, useEffect, useState } from "react";
 
 const FIX_TIMEOUT_MS = 10_000;

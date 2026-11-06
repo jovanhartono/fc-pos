@@ -1,4 +1,4 @@
-import { isInWorkshop } from "@fresclean/api/schema";
+import { isInWorkshop } from "@fresclean/api/rules";
 import type { OrderLine } from "@/features/orders/lib/order-lines";
 
 export interface WorkshopRework {

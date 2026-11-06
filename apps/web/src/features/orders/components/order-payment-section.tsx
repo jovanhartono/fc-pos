@@ -3,7 +3,7 @@ import {
 	isBogoSlot,
 	isDiscountSettled,
 	orderNetDue,
-} from "@fresclean/api/schema";
+} from "@fresclean/api/rules";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -19,7 +19,6 @@ import {
 import { z } from "zod";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { SelectField } from "@/components/form/select-field";
-import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -39,9 +38,10 @@ import {
 	type UpdateOrderPaymentPayload,
 } from "@/features/orders/api";
 import {
-	OrderMoneySummary,
-	OrderMoneySummarySkeleton,
-} from "@/features/orders/components/order-money-summary";
+	PAID_LIST,
+	PAID_ROW,
+} from "@/features/orders/components/order-detail-parts";
+import { OrderMoneySummary } from "@/features/orders/components/order-money-summary";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { useOpenQrisDialog } from "@/features/orders/components/qris-charge-dialog";
 import { useOrderPaymentMutation } from "@/features/orders/hooks/useOrderMutations";
@@ -90,30 +90,6 @@ export const OrderPaymentSection = ({
 			<OrderMoneySummary detail={detail} />
 			<PaymentDetails detail={detail} gates={gates} />
 			{gates.canCollectPayment ? <OpenQrisRow orderId={orderId} /> : null}
-		</Card>
-	</section>
-);
-
-const PAID_LIST = "grid gap-2 px-4 py-4 text-body compact:text-subhead";
-const PAID_ROW = "flex items-center justify-between gap-4";
-
-// A paid Order's bill and how it was paid, the shape most open Orders show.
-export const OrderPaymentSkeleton = () => (
-	<section className="grid gap-3">
-		<OrderSectionHeader>Payment</OrderSectionHeader>
-		<Card className="gap-0 overflow-hidden py-0">
-			<OrderMoneySummarySkeleton />
-			<Separator />
-			<dl className={PAID_LIST}>
-				{["Method", "Paid at", "Marked by"].map((label) => (
-					<div className={PAID_ROW} key={label}>
-						<dt className="text-muted-foreground">{label}</dt>
-						<dd>
-							<TextSkeleton className="w-24" />
-						</dd>
-					</div>
-				))}
-			</dl>
 		</Card>
 	</section>
 );

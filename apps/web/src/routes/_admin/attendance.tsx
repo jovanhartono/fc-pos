@@ -42,7 +42,6 @@ export const Route = createFileRoute("/_admin/attendance")({
 	component: AttendancePage,
 	// Past a second, the page itself draws with its clock skeleton.
 	pendingComponent: AttendancePage,
-	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 const formatElapsed = (start: Date, now: Date) => {

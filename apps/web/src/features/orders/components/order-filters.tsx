@@ -11,20 +11,17 @@ import { SelectField } from "@/components/form/select-field";
 import { SegmentedFilter } from "@/components/segmented-filter";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { Field, FieldLabel } from "@/components/ui/field";
-import {
-	type ORDER_STATUS_VALUES,
-	OrderStatusTabs,
-} from "@/features/orders/components/order-status-tabs";
+import { OrderStatusTabs } from "@/features/orders/components/order-status-tabs";
 import { StoreSelect } from "@/features/orders/components/store-select";
+import type {
+	NOTIFIED_VALUES,
+	ORDER_STATUS_VALUES,
+	PAYMENT_STATUS_VALUES,
+	REFUND_STATUS_VALUES,
+} from "@/features/orders/lib/order-filter-values";
 import { paymentMethodsQueries } from "@/features/payment-methods/api";
 import { storesQueries } from "@/features/stores/api";
 import { formatPaymentStatus } from "@/lib/status";
-
-export const PAYMENT_STATUS_VALUES = ["paid", "unpaid"] as const;
-
-export const REFUND_STATUS_VALUES = ["any", "partial", "full"] as const;
-
-export const NOTIFIED_VALUES = ["yes", "no"] as const;
 
 type OrderStatusFilter = (typeof ORDER_STATUS_VALUES)[number];
 type PaymentStatusFilter = (typeof PAYMENT_STATUS_VALUES)[number];

@@ -28,7 +28,6 @@ export const Route = createFileRoute("/_admin/orders/$orderId")({
 	// generic placeholder.
 	pendingComponent: OrderDetailPage,
 	notFoundComponent: OrderNotFound,
-	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function OrderDetailPage() {

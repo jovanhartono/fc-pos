@@ -1,5 +1,5 @@
 import { CheckboxGroup } from "@base-ui/react/checkbox-group";
-import { isHandedOverByPickup } from "@fresclean/api/schema";
+import { isHandedOverByPickup } from "@fresclean/api/rules";
 import { Camera01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";

@@ -11,6 +11,7 @@ import {
   dateStringSchema,
   voucherCodesSchema,
 } from "@/schema/common";
+import { QUEUE_CATEGORY_MODES } from "@/schema/queue";
 import { normalizePagination } from "@/utils/pagination";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
@@ -225,8 +226,6 @@ export const GETMyOrderServicesQuerySchema = z.object({
   store_id: z.coerce.number().int().positive().optional(),
   include_terminal: z.stringbool().optional().default(false),
 });
-
-export const QUEUE_CATEGORY_MODES = ["only", "except"] as const;
 
 // Without a mode the picked Category means "only", so a bare category_id
 // never silently reads as its opposite.

@@ -32,7 +32,6 @@ export const Route = createFileRoute("/_admin/services")({
 	component: ServicesPage,
 	// Past a second, the page itself draws with skeleton rows.
 	pendingComponent: ServicesPage,
-	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function ServicesPage() {

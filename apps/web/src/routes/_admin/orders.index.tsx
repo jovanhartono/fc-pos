@@ -27,15 +27,17 @@ import { ItemsProgress } from "@/features/orders/components/items-progress";
 import { NotifiedLabel } from "@/features/orders/components/notified-label";
 import { PaymentBadges } from "@/features/orders/components/order-badges";
 import {
-	NOTIFIED_VALUES,
 	OrderFilters,
 	type OrderFilterValues,
-	PAYMENT_STATUS_VALUES,
-	REFUND_STATUS_VALUES,
 } from "@/features/orders/components/order-filters";
 import { OrderPhoneRow } from "@/features/orders/components/order-phone-row";
-import { ORDER_STATUS_VALUES } from "@/features/orders/components/order-status-tabs";
 import { useOrderSheet } from "@/features/orders/hooks/useOrderSheet";
+import {
+	NOTIFIED_VALUES,
+	ORDER_STATUS_VALUES,
+	PAYMENT_STATUS_VALUES,
+	REFUND_STATUS_VALUES,
+} from "@/features/orders/lib/order-filter-values";
 import { paymentMethodsQueries } from "@/features/payment-methods/api";
 import { storesQueries } from "@/features/stores/api";
 import { usersQueries } from "@/features/users/api";
@@ -155,8 +157,6 @@ export const Route = createFileRoute("/_admin/orders/")({
 	component: OrdersPage,
 	// Past a second, the page itself draws with skeleton rows.
 	pendingComponent: OrdersPage,
-	// Bundled with the page it reuses; split apart, it points at nothing.
-	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function OrdersPage() {

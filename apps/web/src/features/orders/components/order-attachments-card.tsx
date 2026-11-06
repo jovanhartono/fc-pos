@@ -1,10 +1,13 @@
 import { Camera01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { type ReactNode, useState } from "react";
-import { TextSkeleton } from "@/components/text-skeleton";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { OrderDetail } from "@/features/orders/api";
+import {
+	AttachmentLabel,
+	TILE_GRID,
+	TileCaption,
+} from "@/features/orders/components/order-detail-parts";
 import {
 	OrderPhotoGallery,
 	type OrderPhotoGalleryItem,
@@ -29,40 +32,8 @@ type DropoffOrder = Pick<
 	"id" | "created_at" | "dropoff_photo_url" | "dropoff_photo_uploaded_at"
 >;
 
-const TILE_GRID =
-	"grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-x-3 gap-y-4";
-
 const EMPTY_TILE =
 	"flex aspect-square w-full items-center justify-center rounded-md border bg-muted text-muted-foreground";
-
-// A drop-off photo with its time and Replace button, beside the pickup tile.
-export const OrderAttachmentsSkeleton = () => (
-	<section className="grid gap-3">
-		<OrderSectionHeader>Attachments</OrderSectionHeader>
-		<Card className="gap-4 p-4 text-body">
-			<div className={TILE_GRID}>
-				{["Drop-off", "Pickup"].map((label) => (
-					<div className="grid content-start gap-1.5" key={label}>
-						<AttachmentLabel>{label}</AttachmentLabel>
-						<Skeleton className="aspect-square w-full rounded-md" />
-						<TileCaption
-							line1={
-								label === "Drop-off" ? (
-									<TextSkeleton className="w-32" />
-								) : undefined
-							}
-							line2={
-								<span className="inline-flex h-9 items-center pointer-coarse:h-11">
-									<TextSkeleton className="w-28" />
-								</span>
-							}
-						/>
-					</div>
-				))}
-			</div>
-		</Card>
-	</section>
-);
 
 interface OrderAttachmentsCardProps {
 	order: DropoffOrder;
@@ -106,26 +77,6 @@ export const OrderAttachmentsCard = ({
 		</section>
 	);
 };
-
-interface AttachmentLabelProps {
-	children: string;
-}
-
-const AttachmentLabel = ({ children }: AttachmentLabelProps) => (
-	<p className="font-medium text-muted-foreground text-subhead">{children}</p>
-);
-
-interface TileCaptionProps {
-	line1?: ReactNode;
-	line2: ReactNode;
-}
-
-const TileCaption = ({ line1, line2 }: TileCaptionProps) => (
-	<div className="grid gap-0.5 text-subhead">
-		{line1 ? <p className="font-medium tabular-nums">{line1}</p> : null}
-		<div>{line2}</div>
-	</div>
-);
 
 interface DropoffAttachmentProps {
 	order: DropoffOrder;

@@ -13,17 +13,16 @@ import {
 } from "@/modules/complaints/complaint.repository";
 import {
   type GetComplaintsQuery,
-  isComplainableLine,
-  isComplainableStatus,
   normalizeComplaintListQuery,
   type PostComplaintInput,
 } from "@/modules/complaints/complaint.schema";
 import {
   type DbExecutor,
-  isInWorkshop,
   logReworkQueued,
   recomputeOrderRollup,
 } from "@/modules/orders/order-status-machine";
+import { isComplainableLine, isComplainableStatus } from "@/schema/complaint";
+import { isInWorkshop } from "@/schema/order-status";
 import type { AuthUser } from "@/types";
 import {
   assertStoreAccess,
