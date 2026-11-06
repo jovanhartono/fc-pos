@@ -19,6 +19,7 @@ import {
   normalizeOrderListQuery,
 } from "@/modules/orders/order.schema";
 import { assertActiveCourier } from "@/modules/orders/order-courier.service";
+import { assertCashierPaymentMethod } from "@/modules/orders/order-payment.service";
 import { hasStartPhoto } from "@/modules/orders/order-photo-gate.repository";
 import {
   findOrderDetail,
@@ -334,6 +335,9 @@ export async function createOrder(
 
   if (isPaidAtDropoff) {
     assertPayable(settlementLines);
+  }
+  if (orderPayload.payment_method_id !== undefined) {
+    await assertCashierPaymentMethod(orderPayload.payment_method_id);
   }
   assertDiscountRequestAllowed({
     hasBlankLine: settlementLines.some((line) => line.price === null),

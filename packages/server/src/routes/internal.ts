@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { UnauthorizedException } from "@/http-exceptions";
 import { sweepOrphanedOrderPhotos } from "@/modules/orders/order-photo-sweep.service";
+import { settleEndedCharges } from "@/modules/payments/payment-charge.service";
 import { closeForgottenShifts } from "@/modules/shifts/shift.service";
 import { success } from "@/utils/http";
 
@@ -35,6 +36,18 @@ const app = new Hono()
     const result = await closeForgottenShifts();
     console.info(
       `close-open-shifts: closed ${result.closed} at ${result.cutoff.toISOString()} (${process.env.VERCEL_REGION})`
+    );
+
+    return c.json(success(result));
+  })
+  // Asks the gateway once about every QRIS that ended unpaid on our side, so a
+  // payment no screen saw still books or lands in Needs Review.
+  .get("/settle-payment-charges", async (c) => {
+    assertCronCaller(c.req.header("authorization"));
+
+    const result = await settleEndedCharges();
+    console.info(
+      `settle-payment-charges: checked ${result.checked}, ${result.failed} failed (${process.env.VERCEL_REGION})`
     );
 
     return c.json(success(result));

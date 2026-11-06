@@ -1,7 +1,8 @@
-import { POSTPaymentMethodSchema } from "@fresclean/api/schema";
+import { GATEWAY_LABELS, POSTPaymentMethodSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
+import { SelectField } from "@/components/form/select-field";
 import {
 	SHEET_FORM_GRID,
 	SheetFormActions,
@@ -22,7 +23,18 @@ const defaultForm: PaymentMethodFormState = {
 	name: "",
 	code: "",
 	is_active: true,
+	gateway: null,
 };
+
+const NO_GATEWAY = "none";
+
+const GATEWAY_ITEMS = [
+	{ value: NO_GATEWAY, label: "None" },
+	...Object.entries(GATEWAY_LABELS).map(([value, label]) => ({
+		value,
+		label,
+	})),
+];
 
 type PaymentMethodFormProps = {
 	defaultValues?: PaymentMethodFormState;
@@ -81,6 +93,27 @@ export function PaymentMethodForm({
 								placeholder="e.g. CASH"
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting}
+							/>
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
+				/>
+
+				<Controller
+					name="gateway"
+					control={form.control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor="payment-method-gateway">Gateway</FieldLabel>
+							<SelectField
+								className="w-full"
+								disabled={isSubmitting}
+								id="payment-method-gateway"
+								items={GATEWAY_ITEMS}
+								onValueChange={(value) =>
+									field.onChange(value === NO_GATEWAY ? null : value)
+								}
+								value={field.value ?? NO_GATEWAY}
 							/>
 							<FieldError errors={[fieldState.error]} />
 						</Field>

@@ -130,6 +130,10 @@ Whether an Order is paid in full or unpaid. There is no part payment.
 **PaymentMethod**:
 How the money for a paid Order arrived, such as cash, transfer or QRIS. An unpaid Order has none.
 
+**Gateway charge**:
+One try at collecting an Order's money through the payment gateway (Midtrans or DOKU): a QRIS the cashier shows at the counter, or the checkout page a Customer opens from the Track page. The Order becomes paid when the gateway confirms the money arrived, not when the charge is made.
+_Avoid_: Invoice, payment link (the WhatsApp message carries the Track page, not a gateway URL)
+
 **Cancellation**:
 Taking Lines off an Order before it is paid, chosen Line by Line. No money moves.
 _Avoid_: Void (a Line), cancelling the whole Order

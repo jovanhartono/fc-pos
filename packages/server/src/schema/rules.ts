@@ -1,5 +1,7 @@
 // The shop's rules the web runs too. Orders, Queue and Reports load this, so it
 // must not import zod, a table or the phone parser, or they download the forms too.
+
+import { GATEWAY_LABELS as _GATEWAY_LABELS } from "@/modules/payments/gateways/types";
 import type { ClockInCoordinates as _ClockInCoordinates } from "@/modules/shifts/shift.schema";
 import {
   type CampaignEligibilityInput as _CampaignEligibilityInput,
@@ -70,6 +72,7 @@ export const stackCampaignDiscounts = _stackCampaignDiscounts;
 export const applyManualDiscount = _applyManualDiscount;
 export const orderNetDue = _orderNetDue;
 export const isBogoSlot = _isBogoSlot;
+export const GATEWAY_LABELS = _GATEWAY_LABELS;
 
 export type CampaignEligibilityInput = _CampaignEligibilityInput;
 export const campaignIneligibilityReason = _campaignIneligibilityReason;

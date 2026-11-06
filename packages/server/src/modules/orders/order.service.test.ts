@@ -147,6 +147,18 @@ const actualServiceRepository = {
   ...(await import("@/modules/services/service.repository")),
 };
 
+// The cash drawer: active, and not a gateway's. Stubbed whole, since the real
+// module prepares a query against the stubbed db as it loads.
+const unused = () => Promise.reject(new Error("not used by createOrder"));
+mock.module("@/modules/payment-methods/payment-method.repository", () => ({
+  findPaymentMethodByGateway: unused,
+  findPaymentMethodById: (id: number) =>
+    Promise.resolve({ gateway: null, id, is_active: true, name: "Cash" }),
+  insertPaymentMethod: unused,
+  listPaymentMethods: unused,
+  updatePaymentMethodById: unused,
+}));
+
 mock.module("@/modules/orders/order.repository", () => ({
   ...actualOrderRepository,
   reserveNextOrderNumber: (tx: unknown, storeCode: string, dateStr: string) => {

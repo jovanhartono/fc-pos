@@ -18,6 +18,10 @@ export const onOrderMoved = (queryClient: QueryClient) =>
 export const onRedemptionSpent = (queryClient: QueryClient) =>
 	queryClient.invalidateQueries({ queryKey: campaignsKeys.all });
 
+// A QRIS paid at the counter books the Order and spends its Vouchers at once.
+export const onQrisPaid = (queryClient: QueryClient) =>
+	Promise.all([onOrderMoved(queryClient), onRedemptionSpent(queryClient)]);
+
 // Clocking in or out changes the badge on the worker's attendance screen, the
 // week's list under it, and the manager's Shifts table.
 export const onShiftClocked = (queryClient: QueryClient) =>

@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { InferResponseType } from "hono/client";
 import { parseSuccessData } from "@/lib/http";
+import { hasQris } from "@/lib/qris";
 import { rpcPublic } from "@/lib/rpc-public";
 
 export type PublicTrackedOrder = InferResponseType<
@@ -24,6 +25,16 @@ export async function trackPublicOrder(payload: TrackPublicOrderPayload) {
 	);
 }
 
+export type TrackCharge = NonNullable<PublicTrackedOrder["open_charge"]>;
+
+// Same proof as tracking; answers with the QRIS to show, or DOKU's QRIS page
+// to go to while its SNAP keys are missing.
+export function payTrackedOrder(payload: TrackPublicOrderPayload) {
+	return parseSuccessData<TrackCharge>(
+		rpcPublic.api.public.orders.pay.$post({ json: payload }),
+	);
+}
+
 export const trackQueries = {
 	order: (code?: string, phoneNumber?: string) =>
 		queryOptions({
@@ -36,5 +47,9 @@ export const trackQueries = {
 			retry: false,
 			refetchOnWindowFocus: false,
 			staleTime: 0,
+			// While a QR is up, so Paid shows within seconds: SNAP QRIS sends no
+			// webhook, and this read is what asks DOKU.
+			refetchInterval: (query) =>
+				hasQris(query.state.data?.open_charge) ? 5000 : false,
 		}),
 };

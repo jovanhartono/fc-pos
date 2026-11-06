@@ -11,6 +11,9 @@ interface PickupNoticeMessageInput {
 	total: number;
 	isPaid: boolean;
 	trackingUrl: string;
+	// With a gateway set up, the Customer pays on the Track page instead of
+	// transferring to the shop's account.
+	canPayOnline: boolean;
 }
 
 export const buildPickupNoticeMessage = ({
@@ -20,14 +23,20 @@ export const buildPickupNoticeMessage = ({
 	total,
 	isPaid,
 	trackingUrl,
+	canPayOnline,
 }: PickupNoticeMessageInput): string => {
-	const paymentLines = isPaid
-		? ["Status Pembayaran: *LUNAS*"]
+	// The Track page is also where they pay, so one link does both jobs.
+	const isPayOnTrack = !isPaid && canPayOnline;
+	const trackLabel = isPayOnTrack ? "Lacak & bayar pesanan" : "Lacak pesanan";
+	const bankLines = canPayOnline
+		? []
 		: [
-				"Status Pembayaran: *BELUM LUNAS*",
 				"",
 				`Untuk pelunasan pembayaran bisa dilakukan dengan transfer ke rekening *${BANK_ACCOUNT}*`,
 			];
+	const paymentLines = isPaid
+		? ["Status Pembayaran: *LUNAS*"]
+		: ["Status Pembayaran: *BELUM LUNAS*", ...bankLines];
 
 	return [
 		`Halo, ${customerName}!`,
@@ -35,7 +44,7 @@ export const buildPickupNoticeMessage = ({
 		"",
 		`Nomor Invoice: ${orderCode}`,
 		`Kode Pengambilan: *${pickupCode}*`,
-		`Lacak pesanan: ${trackingUrl}`,
+		`${trackLabel}: ${trackingUrl}`,
 		"",
 		`Total Transaksi: Rp ${formatMoneyParts(total).amount},00`,
 		...paymentLines,
