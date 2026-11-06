@@ -37,7 +37,7 @@ The server reads from `process.env`:
 - `PUBLIC_WEB_URL` - Optional, defaults to `https://pos.fresclean.id`; the Track page and webhook URLs sent to the gateway
 - `PAYMENT_GATEWAY_MOCK` - `true` swaps the gateway's outbound calls for a mock page at `/api/mock-gateway/<reference>` whose buttons send signed notifications to the real webhook. Ignored on Production. Set `PUBLIC_WEB_URL` to the local origin (e.g. `http://localhost:5173`) and any non-empty keys for the gateway in use
 
-Each gateway dashboard's notification URL is `https://pos.fresclean.id/api/webhooks/payments/midtrans` or `…/doku`.
+Each gateway dashboard's notification URL is `https://pos.fresclean.id/api/webhooks/payments/midtrans` or `…/doku`. DOKU takes the same URL twice: Settings → HTTP Notification (Checkout) and the QRIS Notify URL (SNAP QRIS).
 
 Laptop-only, for the drizzle CLI: `DATABASE_URL_DEV` / `DATABASE_URL_PROD`.
 
@@ -72,7 +72,7 @@ Cron log lines carry `region=iad1`: that is where Vercel's scheduler enters, not
 
 - `/api/internal/photo-sweep` — deletes photos no order points at, left behind when the counter uploads and then abandons a batch. Checks only its own environment's prefix and skips files under 24h old. Its R2 token needs Object Read & Write, which includes listing, or every run fails with AccessDenied.
 - `/api/internal/close-open-shifts` — closes yesterday's Auto-closed Shifts at 00:00 Jakarta (ADR-0025). A skipped run locks nobody out: the next Clock in or Clock out closes it the same way.
-- `/api/internal/settle-payment-charges` — hourly. Asks the gateway once about each QRIS that ended more than 10 minutes ago while pending or cancelled on our side, since DOKU's QR sends no notice (ADR-0026). Money found books the Order or lands in Needs Review. A charge the gateway fails to answer on is asked again next run.
+- `/api/internal/settle-payment-charges` — daily at 02:00 Jakarta. Asks the gateway once about each QRIS that ended more than 10 minutes ago while pending or cancelled on our side, in case its notice never arrived (ADR-0026). Money found books the Order or lands in Needs Review. A charge the gateway fails to answer on is asked again next run.
 
 ## RPC / Type Sharing
 

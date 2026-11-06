@@ -602,7 +602,7 @@ export const paymentChargesTable = pgTable(
       discount: number;
       voucher_codes: string[];
     }>(),
-    // When the hourly job asked the gateway about this QR after it ended.
+    // When the daily job asked the gateway about this QR after it ended.
     end_checked_at: timestamp("end_checked_at"),
     expires_at: timestamp("expires_at").notNull(),
     gateway: paymentGatewayEnum("gateway").notNull(),

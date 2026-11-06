@@ -161,7 +161,7 @@ export function updateUnsettledChargeById(
 }
 
 // Pending or cancelled charges that ended more than `graceMs` ago and the
-// hourly job has not asked about yet. Newest first, so one the gateway keeps
+// daily job has not asked about yet. Newest first, so one the gateway keeps
 // failing on cannot hold back the rest.
 export function findEndedUncheckedCharges(graceMs: number) {
   return db

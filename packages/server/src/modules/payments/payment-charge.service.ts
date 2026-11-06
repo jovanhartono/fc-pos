@@ -474,11 +474,10 @@ async function checkWithGateway(
   }
 }
 
-// The safety net for money no screen is waiting on: a QR the cashier closed, or
-// one cancelled while the Customer was already paying it. DOKU's QR sends no
-// notice, so each charge is asked once after it ends; money on an Order that
-// moved on lands in Needs Review rather than nowhere. A gateway that fails to
-// answer is asked again next run.
+// The daily safety net for a notice that never reached us (the gateway gives up
+// after a few tries, say during a deploy): each QR that ended unpaid on our side
+// is asked about once, and money on an Order that moved on lands in Needs Review
+// rather than nowhere. A gateway that fails to answer is asked again next run.
 export async function settleEndedCharges() {
   const ended = await findEndedUncheckedCharges(ENDED_GRACE_MS);
   let failed = 0;
@@ -577,8 +576,8 @@ export async function getTrackPaymentState(order: {
     gateway ? findNewestPendingTrackCharge(order.id, gateway) : undefined,
   ]);
 
-  // The page asks every few seconds while the QR is up, and SNAP QRIS sends no
-  // webhook, so this check is what turns the Order paid.
+  // The page asks every few seconds while the QR is up, so a slow or lost
+  // notice still turns the Order paid while the Customer watches.
   if (open && (await refreshCharge(open, 0)).status === "paid") {
     return { ...closed, payment_status: "paid" as const };
   }
