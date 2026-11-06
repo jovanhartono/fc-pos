@@ -68,6 +68,7 @@ export type TransactionDraftValues = {
 	selectedPaymentMethodId: string;
 	selectedCourierId: string;
 	manualDiscount: string;
+	deliveryFee: string;
 	notes: string;
 	productCart: ProductCartLine[];
 	itemCart: ItemCartLine[];
@@ -82,6 +83,7 @@ export const defaultDraftValues: TransactionDraftValues = {
 	selectedPaymentMethodId: "",
 	selectedCourierId: "",
 	manualDiscount: "",
+	deliveryFee: "",
 	notes: "",
 	productCart: [],
 	itemCart: [],
@@ -315,6 +317,7 @@ export const toOrderPayload = ({
 	selectedPaymentMethodId,
 	selectedCourierId,
 	manualDiscount,
+	deliveryFee,
 	notes,
 	productCart,
 	itemCart,
@@ -332,6 +335,7 @@ export const toOrderPayload = ({
 		campaign_ids: selectedCampaignIds.map((id) => Number(id)),
 		voucher_codes: appliedVouchers.map((entry) => entry.code.trim()),
 		discount: manualDiscount || "0",
+		delivery_fee: deliveryFee || "0",
 		payment_method_id: isPaidAtDropoff
 			? Number(selectedPaymentMethodId)
 			: undefined,

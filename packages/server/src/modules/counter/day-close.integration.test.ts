@@ -59,6 +59,7 @@ const place = async ({
     campaign_ids: [],
     customer: { name: "Budi Santoso", phone_number: "+628111222333" },
     discount: 0,
+    delivery_fee: 0,
     items: Array.from({ length: items }, (_, index) => ({
       brand: `item-${index}`,
       services: [{ id: shop.serviceId }],

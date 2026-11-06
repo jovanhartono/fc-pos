@@ -146,6 +146,10 @@ export const PATCHOrderCourierSchema = z.object({
   collected_by: z.coerce.number().int().positive().nullable(),
 });
 
+export const PATCHOrderDeliveryFeeSchema = z.object({
+  delivery_fee: currencySchema("Delivery fee"),
+});
+
 export const POSTOrderCancelSchema = z.object({
   items: z
     .array(

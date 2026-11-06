@@ -40,6 +40,8 @@ export const CheckoutPaymentStep = () => {
 		campaignsQuery,
 		serviceLines,
 		pricing,
+		deliveryFee,
+		amountDue,
 	} = useCheckoutPricing();
 	const { serviceRows } = useCart();
 	const form = useFormContext<TransactionDraftValues>();
@@ -180,6 +182,24 @@ export const CheckoutPaymentStep = () => {
 				)}
 			/>
 
+			<Controller
+				control={form.control}
+				name="deliveryFee"
+				render={({ field, fieldState }) => (
+					<Field data-invalid={fieldState.invalid}>
+						<FieldLabel htmlFor="transaction-delivery-fee">
+							Delivery fee
+						</FieldLabel>
+						<CurrencyInput
+							id="transaction-delivery-fee"
+							onValueChange={field.onChange}
+							value={field.value ?? ""}
+						/>
+						<FieldError errors={[fieldState.error]} />
+					</Field>
+				)}
+			/>
+
 			{isFullyPriced ? (
 				<>
 					<Controller
@@ -288,9 +308,15 @@ export const CheckoutPaymentStep = () => {
 						-{formatMoney(String(pricing.manualDiscount))}
 					</span>
 				</div>
+				<div className="flex items-center justify-between gap-3 text-body">
+					<span className="text-muted-foreground">Delivery fee</span>
+					<span className="font-medium">
+						{formatMoney(String(deliveryFee))}
+					</span>
+				</div>
 				<div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-headline font-semibold">
 					<span>Total Payment</span>
-					<span>{formatMoney(String(Math.round(pricing.total)))}</span>
+					<span>{formatMoney(String(amountDue))}</span>
 				</div>
 			</div>
 		</div>

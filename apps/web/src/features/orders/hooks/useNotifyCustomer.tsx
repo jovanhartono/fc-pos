@@ -1,3 +1,4 @@
+import { orderNetTotal } from "@fresclean/api/rules";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
@@ -21,7 +22,6 @@ import {
 	paymentMethodsQueries,
 } from "@/features/payment-methods/api";
 import { onOrderMoved } from "@/lib/cache-events";
-import { parseMoney } from "@/shared/money";
 import { useDialog } from "@/stores/dialog-store";
 
 interface NotifyCustomerTarget {
@@ -119,7 +119,7 @@ export const useNotifyCustomer = (orderId: number) => {
 			orderCode: receipt.code,
 			pickupCode: receipt.pickup_code,
 			// What the Customer owes, matching the Total on their printed Receipt.
-			total: parseMoney(receipt.total) - parseMoney(receipt.discount),
+			total: orderNetTotal(receipt),
 			isPaid: receipt.payment_status === "paid",
 			trackingUrl: buildTrackingUrl(
 				receipt.code,

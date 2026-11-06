@@ -20,6 +20,7 @@ const dropOff = (name: string) =>
     campaign_ids: [],
     customer: { name, phone_number: `+62811${name.length}000111` },
     discount: 0,
+    delivery_fee: 0,
     items: [{ brand: name, services: [{ id: shop.serviceId }] }],
     payment_method_id: shop.paymentMethodId,
     payment_status: "unpaid",

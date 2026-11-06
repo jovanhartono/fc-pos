@@ -8,4 +8,6 @@ export default defineConfig({
   dialect: "postgresql",
   out: "./drizzle",
   schema: "./src/db/schema.ts",
+  // The query-stats views turned on by hand for #181; not ours to drop.
+  tablesFilter: ["!pg_stat_statements*"],
 });

@@ -118,6 +118,7 @@ export function buildDeltas<T extends object>(
 interface FinancialSummary {
   cogs: number;
   collected: number;
+  delivery_fees: number;
   discount: number;
   gross_profit: number;
   gross_sales: number;
@@ -454,7 +455,7 @@ function summariseFinancial(raw: {
   servicesCogs: { cogs: number }[];
   productsCogs: { cogs: number }[];
   discount: { discount: number }[];
-  collected: { collected: number }[];
+  collected: { collected: number; delivery_fees: number }[];
   refunds: { amount: number }[];
 }): FinancialSummary {
   const servicesGrossSales = raw.services.reduce(
@@ -470,6 +471,7 @@ function summariseFinancial(raw: {
     raw.productsCogs.reduce((s, r) => s + r.cogs, 0);
   const discount = raw.discount.reduce((s, r) => s + r.discount, 0);
   const collected = raw.collected.reduce((s, r) => s + r.collected, 0);
+  const deliveryFees = raw.collected.reduce((s, r) => s + r.delivery_fees, 0);
   const refunds = raw.refunds.reduce((s, r) => s + r.amount, 0);
   const kept = revenue(collected, refunds);
   const grossProfit = kept - cogs;
@@ -479,6 +481,7 @@ function summariseFinancial(raw: {
     products_gross_sales: productsGrossSales,
     discount,
     collected,
+    delivery_fees: deliveryFees,
     refunds,
     revenue: kept,
     cogs,

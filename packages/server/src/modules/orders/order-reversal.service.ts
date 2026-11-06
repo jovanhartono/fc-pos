@@ -13,6 +13,7 @@ import type {
   PostOrderRefundInput,
 } from "@/modules/orders/order-admin.schema";
 import { getOrderStateOrThrow } from "@/modules/orders/order-read.repository";
+import { refundableAmount } from "@/modules/orders/order-refund-status";
 import { revalidateSettledPromo } from "@/modules/orders/order-settlement.service";
 import {
   applyRefundTransition,
@@ -174,6 +175,7 @@ export async function createOrderRefund({
         paid_amount: ordersTable.paid_amount,
         refunded_amount: ordersTable.refunded_amount,
         discount: ordersTable.discount,
+        delivery_fee: ordersTable.delivery_fee,
       })
       .from(ordersTable)
       .where(eq(ordersTable.id, orderId))
@@ -195,7 +197,7 @@ export async function createOrderRefund({
     const totalAmount = refundItems.reduce((sum, item) => sum + item.amount, 0);
 
     const refundablePaidAmount =
-      Number(order.paid_amount) - Number(order.refunded_amount);
+      refundableAmount(order) - Number(order.refunded_amount);
     if (totalAmount > refundablePaidAmount) {
       throw new BadRequestException(
         "Refund exceeds remaining paid amount for this order"

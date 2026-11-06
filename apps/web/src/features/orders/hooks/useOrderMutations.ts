@@ -12,6 +12,7 @@ import {
 	type UpdateOrderPaymentPayload,
 	type UpdateOrderServiceStatusPayload,
 	updateOrderCourier,
+	updateOrderDeliveryFee,
 	updateOrderPayment,
 	updateOrderServiceStatus,
 } from "@/features/orders/api";
@@ -117,6 +118,18 @@ export const useUpdateOrderCourierMutation = (orderId: number) => {
 	return useMutation({
 		mutationFn: (collectedBy: number | null) =>
 			updateOrderCourier(orderId, { collected_by: collectedBy }),
+		onSuccess: async () => {
+			await refreshOrder();
+		},
+	});
+};
+
+export const useUpdateOrderDeliveryFeeMutation = (orderId: number) => {
+	const refreshOrder = useRefreshOrder();
+
+	return useMutation({
+		mutationFn: (deliveryFee: string) =>
+			updateOrderDeliveryFee(orderId, { delivery_fee: deliveryFee || "0" }),
 		onSuccess: async () => {
 			await refreshOrder();
 		},

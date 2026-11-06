@@ -153,6 +153,10 @@ export type UpdateOrderCourierPayload = {
 	collected_by: number | null;
 };
 
+export interface UpdateOrderDeliveryFeePayload {
+	delivery_fee: string;
+}
+
 export type CreateOrderRefundPayload = {
 	note?: string;
 	items: Array<
@@ -426,6 +430,18 @@ export function updateOrderCourier(
 ) {
 	return parseResponse(
 		rpcWithAuth().api.admin.orders[":id"].courier.$patch({
+			param: { id: String(orderId) },
+			json: payload,
+		}),
+	);
+}
+
+export function updateOrderDeliveryFee(
+	orderId: number,
+	payload: UpdateOrderDeliveryFeePayload,
+) {
+	return parseResponse(
+		rpcWithAuth().api.admin.orders[":id"]["delivery-fee"].$patch({
 			param: { id: String(orderId) },
 			json: payload,
 		}),

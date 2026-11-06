@@ -19,6 +19,7 @@ import {
   orderItemPhotoParamSchema,
   orderServiceParamSchema,
   PATCHOrderCourierSchema,
+  PATCHOrderDeliveryFeeSchema,
   PATCHOrderPaymentSchema,
   PATCHOrderServiceHandlerSchema,
   PATCHOrderServicePriceSchema,
@@ -33,6 +34,7 @@ import {
   PUTOrderDropoffPhotoSchema,
 } from "@/modules/orders/order-admin.schema";
 import { updateOrderCollectedBy } from "@/modules/orders/order-courier.service";
+import { updateOrderDeliveryFee } from "@/modules/orders/order-delivery-fee.service";
 import { resolveOrderLookup } from "@/modules/orders/order-lookup.service";
 import { updateOrderPayment } from "@/modules/orders/order-payment.service";
 import {
@@ -317,6 +319,29 @@ const app = new Hono<OrderAccessEnv>()
       }
 
       return c.json(success(updated, "Courier updated"));
+    }
+  )
+  .patch(
+    "/:id/delivery-fee",
+    idParamSchema,
+    zodValidator("json", PATCHOrderDeliveryFeeSchema),
+    async (c) => {
+      const user = c.get("jwtPayload");
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
+
+      const updated = await updateOrderDeliveryFee({
+        orderId: id,
+        deliveryFee: body.delivery_fee,
+        user,
+      });
+
+      if (!updated) {
+        throw new NotFoundException("Order not found");
+      }
+      await cancelOrderPendingCharges(id);
+
+      return c.json(success(updated, "Delivery fee updated"));
     }
   )
   .post(

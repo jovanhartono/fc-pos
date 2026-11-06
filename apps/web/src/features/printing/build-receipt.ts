@@ -1,3 +1,4 @@
+import { orderNetTotal } from "@fresclean/api/rules";
 import dayjs from "dayjs";
 import type { OrderReceipt } from "@/features/orders/api";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
@@ -74,7 +75,8 @@ export const buildReceiptEscPos = (
 		0,
 	);
 	const manualDiscount = Math.max(discount - campaignDiscount, 0);
-	const net = parseMoney(receipt.total) - discount;
+	const deliveryFee = parseMoney(receipt.delivery_fee);
+	const net = orderNetTotal(receipt);
 	const isPaid = receipt.payment_status === "paid";
 	const isCancelled = receipt.status === "cancelled";
 
@@ -169,6 +171,9 @@ export const buildReceiptEscPos = (
 	}
 	if (manualDiscount > 0) {
 		b.line(row("Diskon manual", `-${money(manualDiscount)}`));
+	}
+	if (deliveryFee > 0) {
+		b.line(row("Delivery Fee", money(deliveryFee)));
 	}
 	b.bold(true)
 		.line(row("TOTAL", money(net)))

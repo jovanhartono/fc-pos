@@ -13,17 +13,29 @@ export const applyManualDiscount = (
   manual: number
 ): number => Math.min(manual, Math.max(0, grossTotal - campaignDiscount));
 
+// What the Customer owes on an Order before any Refund, as the Orders list,
+// Receipt, WhatsApp notice and Day close all show it.
+export const orderNetTotal = (order: {
+  delivery_fee: string;
+  discount: string;
+  total: string;
+}): number =>
+  Number(order.total) - Number(order.discount) + Number(order.delivery_fee);
+
 // Clamped to zero: an Order refunded past what it collected must still show
-// nothing left to collect, not a negative amount.
+// nothing left to collect, not a negative amount. The Delivery fee sits outside
+// the clamp because a Refund never returns it (ADR-0029).
 export const orderNetDue = ({
   grossTotal,
   discount,
   refunded,
+  deliveryFee,
 }: {
   grossTotal: number;
   discount: number;
   refunded: number;
-}): number => Math.max(0, grossTotal - discount - refunded);
+  deliveryFee: number;
+}): number => Math.max(0, grossTotal - discount - refunded) + deliveryFee;
 
 export interface CampaignDiscountInput {
   buy_quantity?: number | null;

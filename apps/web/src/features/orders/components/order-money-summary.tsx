@@ -1,3 +1,4 @@
+import { orderNetTotal } from "@fresclean/api/rules";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Separator } from "@/components/ui/separator";
 import type { OrderDetail } from "@/features/orders/api";
@@ -35,7 +36,8 @@ interface OrderMoneySummaryProps {
 
 export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 	const discount = parseMoney(detail.discount);
-	const net = parseMoney(detail.total) - discount;
+	const deliveryFee = parseMoney(detail.delivery_fee);
+	const net = orderNetTotal(detail);
 	const refunded = parseMoney(detail.refunded_amount);
 
 	// Money is charged per OrderService, not per Item (ADR-0017).
@@ -100,6 +102,12 @@ export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
 						<dd className="text-destructive tabular-nums">
 							-{formatMoney(discount)}
 						</dd>
+					</div>
+				) : null}
+				{deliveryFee > 0 ? (
+					<div className="flex justify-between gap-4">
+						<dt className="text-muted-foreground">Delivery fee</dt>
+						<dd className="tabular-nums">{formatMoney(deliveryFee)}</dd>
 					</div>
 				) : null}
 			</dl>

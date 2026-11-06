@@ -2,6 +2,7 @@ import {
 	AlertCircleIcon,
 	CopyLinkIcon,
 	DeliveryTruck01Icon,
+	Money03Icon,
 	MoreVerticalIcon,
 	PrinterIcon,
 } from "@hugeicons/core-free-icons";
@@ -24,6 +25,7 @@ import type { OrderDetail } from "@/features/orders/api";
 import { NotifiedLabel } from "@/features/orders/components/notified-label";
 import { OrderBadges } from "@/features/orders/components/order-badges";
 import { OrderCourierForm } from "@/features/orders/components/order-courier-form";
+import { OrderDeliveryFeeForm } from "@/features/orders/components/order-delivery-fee-form";
 import {
 	CODE_HEADING,
 	META_LINE,
@@ -149,6 +151,24 @@ export const OrderIdentityStrip = ({
 		});
 	};
 
+	const openDeliveryFeeDialog = () => {
+		openDialog({
+			title: "Set Delivery Fee",
+			description:
+				"For fetching and returning the Items. Leave blank for none.",
+			contentClassName: "sm:max-w-md",
+			content: () => (
+				<OrderDeliveryFeeForm
+					closeDialog={closeDialog}
+					currentDeliveryFee={
+						detail.delivery_fee === "0" ? "" : detail.delivery_fee
+					}
+					orderId={orderId}
+				/>
+			),
+		});
+	};
+
 	const openCancelOrderDialog = () => {
 		openDialog({
 			title: "Cancel Order",
@@ -224,6 +244,7 @@ export const OrderIdentityStrip = ({
 	const hasMenu =
 		Boolean(trackingUrl) ||
 		gates.canManageCourier ||
+		gates.canEditDeliveryFee ||
 		gates.canCancelOrder ||
 		gates.canRefundWholeOrder ||
 		gates.canOpenComplaint;
@@ -327,6 +348,12 @@ export const OrderIdentityStrip = ({
 													className="size-4"
 												/>
 												Set Courier
+											</DropdownMenuItem>
+										) : null}
+										{gates.canEditDeliveryFee ? (
+											<DropdownMenuItem onClick={openDeliveryFeeDialog}>
+												<HugeiconsIcon icon={Money03Icon} className="size-4" />
+												Set Delivery Fee
 											</DropdownMenuItem>
 										) : null}
 										{gates.canOpenComplaint ? (

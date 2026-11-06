@@ -365,6 +365,7 @@ export async function createOrder(
       payment_status: orderPayload.payment_status,
       discount: "0",
       discount_source: "none",
+      delivery_fee: orderPayload.delivery_fee.toString(),
       paid_amount: "0",
       notes: orderPayload.notes,
       status: serviceLines.length > 0 ? "created" : "completed",
@@ -435,7 +436,9 @@ export async function createOrder(
         total: grossTotal.toString(),
         discount: discountAmount.toString(),
         discount_source: discountSource,
-        paid_amount: isPaidAtDropoff ? netTotal.toString() : "0",
+        paid_amount: isPaidAtDropoff
+          ? (netTotal + orderPayload.delivery_fee).toString()
+          : "0",
         paid_at: isPaidAtDropoff ? new Date() : null,
         paid_by: isPaidAtDropoff ? userId : null,
       })
@@ -499,6 +502,7 @@ export async function getOrderDetailById(id: number) {
     ...detailWithoutInternals,
     dropoff_photo_url: buildMediaUrl(dropoffPhotoPath),
     refund_status: deriveOrderRefundStatus({
+      delivery_fee: detail.delivery_fee,
       paid_amount: detail.paid_amount,
       refunded_amount: detail.refunded_amount,
     }),

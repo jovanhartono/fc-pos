@@ -75,6 +75,7 @@ const pairOnTheShelf = async (paymentStatus: "paid" | "unpaid") => {
     campaign_ids: [],
     customer: { name: "Budi Santoso", phone_number: "+628111222333" },
     discount: 0,
+    delivery_fee: 0,
     items: [{ services: [{ id: shop.serviceId }] }],
     payment_method_id: shop.paymentMethodId,
     payment_status: paymentStatus,
@@ -309,6 +310,7 @@ describe("a pair turned down at the counter", () => {
       campaign_ids: [],
       customer: { name: "Budi Santoso", phone_number: "+628111222333" },
       discount: 0,
+      delivery_fee: 0,
       items: [
         { services: [{ id: shop.serviceId }] },
         { services: [{ id: shop.serviceId }] },
@@ -676,6 +678,7 @@ describe("a pair with another treatment still in the workshop", () => {
       campaign_ids: [],
       customer: { name: "Budi Santoso", phone_number: "+628111222333" },
       discount: 0,
+      delivery_fee: 0,
       items: [
         {
           services: [
@@ -851,6 +854,7 @@ describe("the Complaints list", () => {
       campaign_ids: [],
       customer: { name: "Budi Santoso", phone_number: "+628111222333" },
       discount: 0,
+      delivery_fee: 0,
       items: [
         {
           brand: "Nike",

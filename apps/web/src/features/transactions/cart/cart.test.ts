@@ -292,6 +292,7 @@ describe("toOrderPayload", () => {
 		selectedPaymentMethodId: "",
 		selectedCourierId: "",
 		manualDiscount: "",
+		deliveryFee: "",
 		notes: "  ",
 		productCart: [productLine(1, 2)],
 		itemCart: [
@@ -313,6 +314,7 @@ describe("toOrderPayload", () => {
 			campaign_ids: [],
 			voucher_codes: [],
 			discount: "0",
+			delivery_fee: "0",
 			payment_method_id: undefined,
 			collected_by: undefined,
 			payment_status: "unpaid",
@@ -328,6 +330,13 @@ describe("toOrderPayload", () => {
 				},
 			],
 		});
+	});
+
+	test("sends the typed Delivery fee, with or without a Courier", () => {
+		// A GoSend trip has no Courier to pick (ADR-0029).
+		const payload = toOrderPayload({ ...draft, deliveryFee: "25000" });
+		expect(payload.delivery_fee).toBe("25000");
+		expect(payload.collected_by).toBe(undefined);
 	});
 
 	test("sends one pair sold three treatments as a single object", () => {

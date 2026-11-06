@@ -2138,7 +2138,11 @@ function buildDraftOrder(
   if (settled.pickedUp.length > 0 || settled.refunded.length > 0) {
     paid = true;
   }
-  const paidAmount = paid ? netTotal : 0;
+  // A far-away Customer, fetched by a Courier or GoSend (ADR-0029).
+  const deliveryFee = chance(0.15)
+    ? faker.helpers.arrayElement([15_000, 20_000, 25_000, 35_000, 50_000])
+    : 0;
+  const paidAmount = paid ? netTotal + deliveryFee : 0;
   const paidAt = paid
     ? Math.min(
         planned.createdAt + randInt(5, 220) * MINUTE_MS,
@@ -2170,7 +2174,7 @@ function buildDraftOrder(
       .filter((item) => item.amount > 0);
     const total = Math.min(
       refundItems.reduce((sum, item) => sum + item.amount, 0),
-      paidAmount
+      paidAmount - deliveryFee
     );
     if (refundItems.length > 0 && total > 0) {
       const refundedAt = latestMoment(
@@ -2253,6 +2257,7 @@ function buildDraftOrder(
       created_at: createdAt,
       created_by: cashierId,
       customer_id: faker.helpers.arrayElement(customerPool),
+      delivery_fee: asMoney(deliveryFee),
       discount: asMoney(discount),
       discount_source: discountRes.discount_source,
       dropoff_photo_path: hasDropoffPhoto

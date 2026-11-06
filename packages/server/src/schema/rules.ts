@@ -20,6 +20,7 @@ import {
   isBogoSlot as _isBogoSlot,
   isDiscountSettled as _isDiscountSettled,
   orderNetDue as _orderNetDue,
+  orderNetTotal as _orderNetTotal,
   stackCampaignDiscounts as _stackCampaignDiscounts,
 } from "@/schema/discount";
 import {
@@ -71,6 +72,7 @@ export type DiscountLine = _DiscountLine;
 export const stackCampaignDiscounts = _stackCampaignDiscounts;
 export const applyManualDiscount = _applyManualDiscount;
 export const orderNetDue = _orderNetDue;
+export const orderNetTotal = _orderNetTotal;
 export const isBogoSlot = _isBogoSlot;
 export const GATEWAY_LABELS = _GATEWAY_LABELS;
 

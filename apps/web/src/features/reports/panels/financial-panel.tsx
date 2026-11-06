@@ -329,7 +329,7 @@ const SankeyFlow = ({ summary }: SankeyFlowProps) => {
 		},
 	];
 	// Refunds at or above what was collected leave nothing to walk down further.
-	const nodes: SankeyNodeDatum[] = hasRevenue
+	const revenueNodes: SankeyNodeDatum[] = hasRevenue
 		? [
 				...baseNodes,
 				{
@@ -352,6 +352,19 @@ const SankeyFlow = ({ summary }: SankeyFlowProps) => {
 				},
 			]
 		: baseNodes;
+	// Delivery fees reach Collected without passing through Gross sales (ADR-0029).
+	const nodes: SankeyNodeDatum[] =
+		summary.delivery_fees > 0
+			? [
+					...revenueNodes,
+					{
+						name: "Delivery fees",
+						displayValue: summary.delivery_fees,
+						color: "var(--muted-foreground)",
+						labelTone: "var(--muted-foreground)",
+					},
+				]
+			: revenueNodes;
 
 	const baseLinks: SankeyLinkDatum[] = [
 		{
@@ -364,7 +377,14 @@ const SankeyFlow = ({ summary }: SankeyFlowProps) => {
 		{
 			source: 0,
 			target: 2,
-			value: summary.collected,
+			value: Math.max(summary.collected - summary.delivery_fees, 0),
+			color: "var(--success)",
+			opacity: 0.24,
+		},
+		{
+			source: revenueNodes.length,
+			target: 2,
+			value: summary.delivery_fees,
 			color: "var(--success)",
 			opacity: 0.24,
 		},

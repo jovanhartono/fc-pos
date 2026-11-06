@@ -98,6 +98,7 @@ export async function quoteOrderNetDue(
     grossTotal: payable.discountInput.grossTotal,
     discount: discountAmount,
     refunded: Number(payable.order.refunded_amount),
+    deliveryFee: Number(payable.order.delivery_fee),
   });
 }
 
@@ -145,6 +146,7 @@ async function markOrderPaidIn(
     grossTotal: payable.discountInput.grossTotal,
     discount: discountAmount,
     refunded: Number(payable.order.refunded_amount),
+    deliveryFee: Number(payable.order.delivery_fee),
   });
 
   if (expectedNetDue !== undefined && netDue !== expectedNetDue) {

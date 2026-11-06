@@ -123,6 +123,15 @@ mock.module("@/modules/orders/order-reversal.service", () => ({
   createOrderRefund: marker("createOrderRefund"),
 }));
 
+const feeWrites: unknown[] = [];
+
+mock.module("@/modules/orders/order-delivery-fee.service", () => ({
+  updateOrderDeliveryFee: (input: { deliveryFee: number }) => {
+    feeWrites.push(input.deliveryFee);
+    return Promise.resolve({ ok: "updateOrderDeliveryFee" });
+  },
+}));
+
 const closedChargesOf: number[] = [];
 
 mock.module("@/modules/payments/payment-charge.service", () => ({
@@ -165,6 +174,43 @@ beforeEach(() => {
   orderAccessCalls.length = 0;
   reached.length = 0;
   closedChargesOf.length = 0;
+  feeWrites.length = 0;
+});
+
+describe("setting a Delivery fee", () => {
+  const patchFee = (orderId: number, deliveryFee: string) =>
+    app.request(`/orders/${orderId}/delivery-fee`, {
+      body: JSON.stringify({ delivery_fee: deliveryFee }),
+      headers: { "Content-Type": "application/json" },
+      method: "PATCH",
+    });
+
+  // A GoSend quote lands after drop-off: the Customer's open QR still asks for
+  // the old amount, so it has to go.
+  it("saves the fee and closes the open QRIS, since the amount due moved", async () => {
+    const res = await patchFee(123, "25.000");
+
+    expect(res.status).toBe(200);
+    expect(feeWrites).toEqual([25_000]);
+    expect(closedChargesOf).toEqual([123]);
+    expect(orderAccessCalls).toEqual([{ userId: 7, orderId: 123 }]);
+  });
+
+  it("refuses another Store's Order before touching the fee or its QRIS", async () => {
+    const res = await patchFee(777, "25000");
+
+    expect(res.status).toBe(403);
+    expect(feeWrites).toEqual([]);
+    expect(closedChargesOf).toEqual([]);
+  });
+
+  it("refuses a negative fee", async () => {
+    const res = await patchFee(123, "-5000");
+
+    expect(res.status).toBe(400);
+    expect(feeWrites).toEqual([]);
+    expect(closedChargesOf).toEqual([]);
+  });
 });
 
 describe("cancelling lines while a QRIS is open", () => {

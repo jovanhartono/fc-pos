@@ -84,6 +84,7 @@ export function listDroppedOffOrders(storeId: number, range: DateRange) {
       code: ordersTable.code,
       created_at: ordersTable.created_at,
       customer_name: customersTable.name,
+      delivery_fee: ordersTable.delivery_fee,
       discount: ordersTable.discount,
       items: sql<number>`COUNT(${itemsTable.id})::int`,
       method_name: paymentMethodsTable.name,

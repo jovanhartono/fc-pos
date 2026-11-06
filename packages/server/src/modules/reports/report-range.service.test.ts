@@ -120,9 +120,10 @@ beforeEach(() => {
   ];
   answers.productsCogs.now = [takings("2026-08-01", 60_000)];
   answers.discount.now = [takings("2026-08-01", 20_000)];
+  // Saturday's takings include a Rp25.000 Delivery fee.
   answers.collected.now = [
-    takings("2026-08-01", 600_000),
-    takings("2026-08-03", 300_000),
+    [...takings("2026-08-01", 600_000), "25000"],
+    [...takings("2026-08-03", 300_000), "0"],
   ];
   answers.refunds.now = [["2026-08-03", "75000", 1]];
 
@@ -130,7 +131,7 @@ beforeEach(() => {
   answers.products.before = [takings("2026-07-29", 100_000)];
   answers.servicesCogs.before = [takings("2026-07-29", 200_000)];
   answers.productsCogs.before = [takings("2026-07-29", 50_000)];
-  answers.collected.before = [takings("2026-07-29", 800_000)];
+  answers.collected.before = [[...takings("2026-07-29", 800_000), "0"]];
 });
 
 describe("the day-by-day money chart", () => {
@@ -222,6 +223,7 @@ describe("the headline figures for the whole stretch", () => {
       gross_sales: 920_000,
       discount: 20_000,
       collected: 900_000,
+      delivery_fees: 25_000,
       refunds: 75_000,
       revenue: 825_000,
       cogs: 300_000,

@@ -124,6 +124,10 @@ An OrderService whose price is not known yet, usually a Repair waiting for inspe
 **Order total**:
 The amount due on one Order.
 
+**Delivery fee**:
+An optional charge on an Order for fetching a far-away Customer's Items and bringing them back, whether a Courier or a third-party service such as GoSend, GrabExpress or Lalamove makes the trips. Campaigns never discount it, it never counts toward a minimum order total, and a Refund never returns it.
+_Avoid_: Delivery cost, pickup fee, ongkir, shipping, surcharge
+
 **Payment status**:
 Whether an Order is paid in full or unpaid. There is no part payment.
 

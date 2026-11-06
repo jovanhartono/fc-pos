@@ -1,3 +1,4 @@
+import { orderNetTotal } from "@fresclean/api/rules";
 import { Invoice01Icon, Store01Icon } from "@hugeicons/core-free-icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
@@ -50,7 +51,6 @@ import {
 	pageSizeSearch,
 } from "@/lib/page-size";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
-import { parseMoney } from "@/shared/money";
 import { getCurrentUser } from "@/stores/auth-store";
 
 const ordersSearchSchema = z.object({
@@ -344,13 +344,7 @@ function OrdersPage() {
 				id: "total",
 				header: "Total",
 				meta: { align: "right", width: { percent: 12, minRem: 6.5 } },
-				cell: ({ row }) => (
-					<MoneyValue
-						value={
-							parseMoney(row.original.total) - parseMoney(row.original.discount)
-						}
-					/>
-				),
+				cell: ({ row }) => <MoneyValue value={orderNetTotal(row.original)} />,
 			},
 		],
 		[orderLink],
