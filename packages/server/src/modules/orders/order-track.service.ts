@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from "@/http-exceptions";
+import { NotFoundException } from "@/http-exceptions";
 import {
   findTrackedOrder,
   findTrackedOrderRef,
@@ -30,10 +30,17 @@ interface TrackProof {
 const INVALID_PROOF = "Order code or phone number is invalid";
 
 export async function getTrackedOrder({ code, phone_number }: TrackProof) {
-  const order = await findTrackedOrder(code, phone_number);
+  let order = await findTrackedOrder(code, phone_number);
 
   if (!order) {
     throw new NotFoundException(INVALID_PROOF);
+  }
+
+  const payment = await getTrackPaymentState(order);
+  // The check above may have just booked the Customer's QRIS; read the Order
+  // again so this same poll shows it paid.
+  if (payment.payment_status !== order.payment_status) {
+    order = (await findTrackedOrder(code, phone_number)) ?? order;
   }
 
   const orderCustomer = order.customer;
@@ -55,7 +62,7 @@ export async function getTrackedOrder({ code, phone_number }: TrackProof) {
 
   return {
     ...orderWithoutPickupCode,
-    ...(await getTrackPaymentState(order)),
+    ...payment,
     items,
     // Shown while anything is left to collect, including a refunded pair the
     // Customer never came back for. The Order reads "completed" then (ADR-0008),
@@ -83,14 +90,9 @@ export async function payTrackedOrder({ code, phone_number }: TrackProof) {
 
   const charge = await createPaymentCharge({
     createdBy: null,
-    kind: "qris",
     orderId: order.id,
     request: null,
   });
-
-  if (!(charge.qr_image_url || charge.redirect_url)) {
-    throw new BadRequestException("Couldn't create the QRIS. Try again.");
-  }
 
   return toTrackChargeView(charge);
 }

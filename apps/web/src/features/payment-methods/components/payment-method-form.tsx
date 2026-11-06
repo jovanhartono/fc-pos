@@ -1,4 +1,4 @@
-import { POSTPaymentMethodSchema } from "@fresclean/api/schema";
+import { GATEWAY_LABELS, POSTPaymentMethodSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
@@ -15,7 +15,6 @@ import {
 	FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { GATEWAY_LABELS } from "@/features/payment-methods/api";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
 export type PaymentMethodFormState = z.infer<typeof POSTPaymentMethodSchema>;

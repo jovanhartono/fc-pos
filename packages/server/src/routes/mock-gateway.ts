@@ -1,14 +1,15 @@
 import { Hono } from "hono";
 import { html, raw } from "hono/html";
+import { renderSVG } from "uqr";
 import { z } from "zod";
 import { NotFoundException } from "@/http-exceptions";
 import {
   buildMockNotification,
   type MockNotification,
-  mockQrSvg,
 } from "@/modules/payments/gateways/mock";
+import { GATEWAY_LABELS } from "@/modules/payments/gateways/types";
 import {
-  findOrderPaymentState,
+  findOrderForCharge,
   findPaymentChargeByReference,
 } from "@/modules/payments/payment-charge.repository";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
@@ -22,8 +23,6 @@ const OUTCOMES = {
   expired: "Let it expire",
   failed: "Decline",
 } as const;
-
-const GATEWAY_LABELS = { doku: "DOKU", midtrans: "Midtrans" } as const;
 
 const referenceParam = z.object({ reference: z.string().max(50) });
 const notifyForm = z.object({
@@ -48,7 +47,7 @@ const loadCharge = async (reference: string) => {
   if (!charge) {
     throw new NotFoundException("No charge with this reference");
   }
-  const order = await findOrderPaymentState(charge.order_id);
+  const order = await findOrderForCharge(charge.order_id);
   return { charge, order };
 };
 
@@ -89,14 +88,14 @@ const page = ({
 <body>
 <main>
   <header>
-    <h1>${GATEWAY_LABELS[charge.gateway]} ${charge.kind === "qris" ? "QRIS" : "Checkout"}</h1>
+    <h1>${GATEWAY_LABELS[charge.gateway]} QRIS</h1>
     <span class="badge">MOCK</span>
   </header>
   <section aria-label="Charge">
     <span class="muted">${order?.code} · ${order?.customer?.name ?? ""}</span>
     <span class="amount">Rp ${Number(charge.amount).toLocaleString("id-ID")}</span>
     <span class="muted">Reference ${charge.reference}</span>
-    ${charge.kind === "qris" ? html`<span class="qr">${raw(mockQrSvg(charge.reference))}</span>` : ""}
+    ${charge.qr_content ? html`<span class="qr">${raw(renderSVG(charge.qr_content))}</span>` : ""}
   </section>
   <section aria-label="Simulate">
     <form method="post" action="/api/mock-gateway/${charge.reference}/notify">
@@ -137,10 +136,6 @@ const app = new Hono()
     return c.html(
       page({ ...state, finish: safeFinish(c.req.query("finish")) })
     );
-  })
-  .get("/:reference/qr.svg", zodValidator("param", referenceParam), (c) => {
-    c.header("Content-Type", "image/svg+xml");
-    return c.body(mockQrSvg(c.req.valid("param").reference));
   })
   .post(
     "/:reference/notify",

@@ -61,10 +61,9 @@ const componentFor = (
 const chargeInput = (
   overrides: Partial<GatewayChargeInput> = {}
 ): GatewayChargeInput => ({
-  kind: "checkout",
   reference: "FC-42-abcd1234",
   amount: 275_000,
-  expiresInMinutes: 1440,
+  expiresInMinutes: 60,
   customer: { name: "Budi", phone: "6281234567890" },
   finishUrl: "https://pos.fresclean.id/track?code=A1&phone=6281234567890",
   notificationUrl: "https://pos.fresclean.id/api/webhooks/payments/doku",
@@ -129,7 +128,7 @@ describe("dokuGateway.createCharge", () => {
           "https://pos.fresclean.id/track?code=A1&phone=6281234567890",
       },
       payment: {
-        payment_due_date: 1440,
+        payment_due_date: 60,
         payment_method_types: ["QRIS"],
       },
       customer: { name: "Budi", phone: "6281234567890" },
@@ -141,6 +140,7 @@ describe("dokuGateway.createCharge", () => {
 
     expect(charge).toEqual({
       providerRef: headers["Request-Id"] as string,
+      qrContent: null,
       qrImageUrl: null,
       redirectUrl: "https://sandbox.doku.com/checkout-link-v2/abc",
       // 14:05 WIB is 07:05 UTC.
@@ -148,7 +148,7 @@ describe("dokuGateway.createCharge", () => {
     });
   });
 
-  it("sends only QRIS for a counter charge, on the production host", async () => {
+  it("offers only QRIS on DOKU's page, on the production host", async () => {
     process.env.DOKU_IS_PRODUCTION = "true";
     stubFetch(
       Response.json({ response: { payment: { url: "https://doku/qr" } } })
@@ -156,7 +156,7 @@ describe("dokuGateway.createCharge", () => {
 
     const before = Date.now();
     const charge = await dokuGateway.createCharge(
-      chargeInput({ kind: "qris", expiresInMinutes: 15 })
+      chargeInput({ expiresInMinutes: 15 })
     );
 
     const { url, init } = calls[0] as Captured;
@@ -196,10 +196,33 @@ describe("dokuGateway.createCharge", () => {
 
 describe("dokuGateway.getStatus", () => {
   const ref = {
-    kind: "checkout" as const,
+    hasQr: false,
     reference: "FC-42-abcd1234",
     providerRef: "req-1",
   };
+
+  it("checks a page made before the SNAP keys were set through the page API", async () => {
+    process.env.DOKU_PRIVATE_KEY = "unused";
+    process.env.DOKU_QRIS_MERCHANT_ID = "116071";
+    process.env.DOKU_QRIS_TERMINAL_ID = "A01";
+    process.env.DOKU_QRIS_POSTAL_CODE = "12345";
+    stubFetch(new Response("not found", { status: 404 }));
+
+    await dokuGateway.getStatus(ref);
+
+    expect((calls[0] as Captured).url).toBe(
+      "https://api-sandbox.doku.com/orders/v1/status/FC-42-abcd1234"
+    );
+  });
+
+  it("refuses to check a SNAP QR once its keys are gone", async () => {
+    stubFetch(Response.json({}));
+
+    await expect(
+      dokuGateway.getStatus({ ...ref, hasQr: true })
+    ).rejects.toThrow("DOKU SNAP keys are missing");
+    expect(calls).toHaveLength(0);
+  });
 
   it("signs a GET without a Digest line", async () => {
     stubFetch(
@@ -253,7 +276,7 @@ describe("dokuGateway.cancelCharge", () => {
     stubFetch(Response.json({}));
 
     await dokuGateway.cancelCharge({
-      kind: "qris",
+      hasQr: false,
       reference: "FC-42-abcd1234",
       providerRef: "req-1",
     });
@@ -274,7 +297,7 @@ describe("dokuGateway.cancelCharge", () => {
     try {
       await expect(
         dokuGateway.cancelCharge({
-          kind: "qris",
+          hasQr: false,
           reference: "FC-42-abcd1234",
           providerRef: "req-1",
         })

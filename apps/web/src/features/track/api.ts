@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { InferResponseType } from "hono/client";
 import { parseSuccessData } from "@/lib/http";
+import { hasQris } from "@/lib/qris";
 import { rpcPublic } from "@/lib/rpc-public";
 
 export type PublicTrackedOrder = InferResponseType<
@@ -49,6 +50,6 @@ export const trackQueries = {
 			// While a QR is up, so Paid shows within seconds: SNAP QRIS sends no
 			// webhook, and this read is what asks DOKU.
 			refetchInterval: (query) =>
-				query.state.data?.open_charge?.qr_image_url ? 5000 : false,
+				hasQris(query.state.data?.open_charge) ? 5000 : false,
 		}),
 };

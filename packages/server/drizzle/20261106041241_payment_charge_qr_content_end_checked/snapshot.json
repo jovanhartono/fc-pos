@@ -1,0 +1,81 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "a392588a-d197-4420-bb07-e0ea89e5504c",
+  "prevIds": [
+    "dcd20d7d-3e6c-42f5-a23c-55c651163aa9"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "payment_charges",
+        "end_checked_at"
+      ],
+      "writes": [
+        "s|col|public.payment_charges.end_checked_at",
+        "n|col|public.payment_charges.end_checked_at",
+        "e|col|public.payment_charges.end_checked_at"
+      ],
+      "reads": [
+        "n|tbl|public.payment_charges",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "payment_charges",
+        "qr_content"
+      ],
+      "writes": [
+        "s|col|public.payment_charges.qr_content",
+        "n|col|public.payment_charges.qr_content",
+        "e|col|public.payment_charges.qr_content"
+      ],
+      "reads": [
+        "n|tbl|public.payment_charges",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "payment_charges",
+        "name": "end_checked_at",
+        "type": "timestamp",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "payment_charges",
+        "name": "qr_content",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

@@ -68,7 +68,6 @@ const tokenResponse = () =>
   json({ responseCode: "2007300", accessToken: TOKEN, expiresIn: 900 });
 
 const qrisInput = (): GatewayChargeInput => ({
-  kind: "qris",
   reference: "FC-42-abcd1234",
   amount: 275_000,
   expiresInMinutes: 15,
@@ -78,7 +77,7 @@ const qrisInput = (): GatewayChargeInput => ({
 });
 
 const ref: GatewayChargeRef = {
-  kind: "qris",
+  hasQr: true,
   providerRef: "DOKU-REF-9",
   reference: "FC-42-abcd1234",
 };
@@ -150,13 +149,12 @@ describe("DOKU QRIS create", () => {
       additionalInfo: { postalCode: "14240", feeType: "1" },
     });
 
-    expect(charge.providerRef).toBe("DOKU-REF-9");
-    expect(charge.redirectUrl).toBeNull();
-    const svg = Buffer.from(
-      String(charge.qrImageUrl).replace("data:image/svg+xml;base64,", ""),
-      "base64"
-    ).toString();
-    expect(svg).toStartWith("<svg");
+    expect(charge).toMatchObject({
+      providerRef: "DOKU-REF-9",
+      qrContent: "00020101021226670016COM.NOBUBANK.WWW",
+      qrImageUrl: null,
+      redirectUrl: null,
+    });
   });
 
   it("reuses the token for the next request", async () => {

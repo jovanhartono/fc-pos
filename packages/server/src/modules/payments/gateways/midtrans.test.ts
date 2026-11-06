@@ -32,11 +32,10 @@ const headerOf = (call: Call, name: string) =>
 
 const bodyOf = (call: Call) => JSON.parse(call.init.body as string);
 
-const input = (kind: GatewayChargeInput["kind"]): GatewayChargeInput => ({
-  kind,
+const input = (): GatewayChargeInput => ({
   reference: "FC-12-abcd1234",
   amount: 275_000,
-  expiresInMinutes: kind === "qris" ? 15 : 1440,
+  expiresInMinutes: 15,
   customer: { name: "Budi", phone: "08123456789" },
   finishUrl: "https://pos.fresclean.id/track?code=BSD-1&phone=08123456789",
   notificationUrl: "https://pos.fresclean.id/api/webhooks/payments/midtrans",
@@ -106,7 +105,7 @@ describe("midtransGateway.createCharge", () => {
     });
     const before = Date.now();
 
-    const charge = await midtransGateway.createCharge(input("qris"));
+    const charge = await midtransGateway.createCharge(input());
 
     const [call] = calls;
     expect(call?.url).toBe("https://api.sandbox.midtrans.com/v2/charge");
@@ -135,48 +134,16 @@ describe("midtransGateway.createCharge", () => {
     );
   });
 
-  it("opens a Snap checkout with the agreed methods and finish URL", async () => {
-    process.env.MIDTRANS_IS_PRODUCTION = "true";
-    stubFetch(
-      {
-        token: "snap-tok",
-        redirect_url: "https://app.midtrans.com/r/snap-tok",
-      },
-      201
-    );
-
-    const charge = await midtransGateway.createCharge(input("checkout"));
-
-    const [call] = calls;
-    expect(call?.url).toBe("https://app.midtrans.com/snap/v1/transactions");
-    expect(headerOf(call as Call, "Authorization")).toBe(AUTH);
-    expect(headerOf(call as Call, "X-Override-Notification")).toBe(
-      "https://pos.fresclean.id/api/webhooks/payments/midtrans"
-    );
-    const body = bodyOf(call as Call);
-    expect(body.enabled_payments).toEqual(["other_qris"]);
-    expect(body.expiry).toMatchObject({ unit: "minute", duration: 1440 });
-    expect(body.expiry.start_time).toMatch(JAKARTA_TIMESTAMP);
-    expect(body.callbacks).toEqual({
-      finish: "https://pos.fresclean.id/track?code=BSD-1&phone=08123456789",
-    });
-    expect(charge).toMatchObject({
-      providerRef: "snap-tok",
-      qrImageUrl: null,
-      redirectUrl: "https://app.midtrans.com/r/snap-tok",
-    });
-  });
-
   it("throws when Core API refuses inside an HTTP 200", async () => {
     stubFetch({ status_code: "406", status_message: "duplicate order_id" });
-    await expect(midtransGateway.createCharge(input("qris"))).rejects.toThrow(
+    await expect(midtransGateway.createCharge(input())).rejects.toThrow(
       "Midtrans QRIS charge failed"
     );
   });
 
   it("names the missing env var only when used", async () => {
     delete process.env.MIDTRANS_SERVER_KEY;
-    await expect(midtransGateway.createCharge(input("qris"))).rejects.toThrow(
+    await expect(midtransGateway.createCharge(input())).rejects.toThrow(
       "MIDTRANS_SERVER_KEY is not set"
     );
   });
@@ -184,7 +151,7 @@ describe("midtransGateway.createCharge", () => {
 
 describe("midtransGateway.getStatus", () => {
   const ref = {
-    kind: "qris" as const,
+    hasQr: true,
     reference: "FC-12-abcd1234",
     providerRef: "trx-1",
   };
@@ -229,7 +196,7 @@ describe("midtransGateway.cancelCharge", () => {
   it("posts cancel and does not throw when refused", async () => {
     stubFetch({ status_code: "412" });
     await midtransGateway.cancelCharge({
-      kind: "qris",
+      hasQr: true,
       reference: "FC-12-abcd1234",
       providerRef: "trx-1",
     });

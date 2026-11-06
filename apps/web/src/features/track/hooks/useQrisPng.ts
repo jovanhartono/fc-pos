@@ -31,13 +31,10 @@ const toPngFile = async (src: string, fileName: string) => {
 // picks it in their bank app, which reads a PNG but not the SVG DOKU's QR
 // arrives as. Made ahead of the tap: iPhone refuses a share sheet opened after
 // a wait.
-export const useQrisPng = (src: string | null, fileName: string) => {
+export const useQrisPng = (src: string, fileName: string) => {
 	const [png, setPng] = useState<{ file: File; url: string } | null>(null);
 
 	useEffect(() => {
-		if (!src) {
-			return;
-		}
 		let url: string | null = null;
 		let isCurrent = true;
 		toPngFile(src, fileName)

@@ -118,6 +118,24 @@ mock.module("@/modules/orders/order-queue.service", () => ({
   updateOrderServiceStatus: marker("updateOrderServiceStatus"),
 }));
 
+mock.module("@/modules/orders/order-reversal.service", () => ({
+  cancelOrder: marker("cancelOrder"),
+  createOrderRefund: marker("createOrderRefund"),
+}));
+
+const closedChargesOf: number[] = [];
+
+mock.module("@/modules/payments/payment-charge.service", () => ({
+  cancelOrderPendingCharges: (orderId: number) => {
+    closedChargesOf.push(orderId);
+    return Promise.resolve();
+  },
+  cancelPaymentCharge: marker("cancelPaymentCharge"),
+  createPaymentCharge: marker("createPaymentCharge"),
+  getOpenQrisCharge: marker("getOpenQrisCharge"),
+  getPaymentCharge: marker("getPaymentCharge"),
+}));
+
 const ordersRoutes = (await import("@/routes/admin/orders")).default;
 
 // Asep works the Kemang counter. In production adminMiddleware puts him on the
@@ -146,6 +164,22 @@ const call = (path: string, method = "GET") =>
 beforeEach(() => {
   orderAccessCalls.length = 0;
   reached.length = 0;
+  closedChargesOf.length = 0;
+});
+
+describe("cancelling lines while a QRIS is open", () => {
+  it("closes the QRIS, since the total dropped", async () => {
+    const res = await app.request("/orders/123/cancel", {
+      body: JSON.stringify({
+        items: [{ order_service_id: 45, reason: "customer_request" }],
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+
+    expect(res.status).toBe(200);
+    expect(closedChargesOf).toEqual([123]);
+  });
 });
 
 describe("the workshop queue is not an order", () => {

@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { type DbExecutor, db } from "@/db";
 import { ordersTable } from "@/db/schema";
-import { BadRequestException } from "@/http-exceptions";
+import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import {
   findSettlementLines,
   type OrderTx,
@@ -16,6 +16,7 @@ import {
   type SettleDiscountInput,
   settleDiscount,
 } from "@/modules/orders/order-settlement.service";
+import { findPaymentMethodById } from "@/modules/payment-methods/payment-method.repository";
 import { assertCanProcessPayment } from "@/modules/permissions/permissions";
 import { isDiscountSettled, orderNetDue } from "@/schema/discount";
 import type { JWTPayload } from "@/types";
@@ -180,6 +181,21 @@ async function markOrderPaidIn(
   return rows[0];
 }
 
+// A cashier keys money they took themselves. The gateway's PaymentMethod would
+// put cash on the gateway's Day close line with nothing behind it.
+export async function assertCashierPaymentMethod(id: number) {
+  const method = await findPaymentMethodById(id);
+  if (!method) {
+    throw new NotFoundException("Payment method not found");
+  }
+  if (!method.is_active) {
+    throw new BadRequestException(`${method.name} is inactive`);
+  }
+  if (method.gateway !== null) {
+    throw new BadRequestException(`${method.name} takes online payments only`);
+  }
+}
+
 export async function updateOrderPayment({
   orderId,
   body,
@@ -190,6 +206,7 @@ export async function updateOrderPayment({
   user: JWTPayload;
 }) {
   assertCanProcessPayment(user);
+  await assertCashierPaymentMethod(body.payment_method_id);
 
   return await markOrderPaid({
     actorId: user.id,

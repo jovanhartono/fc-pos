@@ -14,23 +14,25 @@ import {
   activePaymentGatewayName,
   getPaymentGateway,
 } from "@/modules/payments/gateways";
-import type {
-  GatewayCharge,
-  GatewayChargeKind,
-  GatewayNotificationInput,
-  GatewayStatusResult,
-  PaymentGatewayName,
+import {
+  GATEWAY_LABELS,
+  type GatewayCharge,
+  type GatewayChargeRef,
+  type GatewayNotificationInput,
+  type GatewayStatusResult,
+  type PaymentGatewayName,
 } from "@/modules/payments/gateways/types";
 import {
+  findEndedUncheckedCharges,
   findNewerPaymentCharge,
   findNewestPendingTrackCharge,
   findOpenQrisCharge,
   findOrderForCharge,
-  findOrderPaymentState,
   findPaymentChargeById,
   findPaymentChargeByReference,
   insertPaymentCharge,
   type PaymentCharge,
+  updateChargeEndChecked,
   updateChargeStatusCheckedAt,
   updatePaymentChargeById,
   updatePendingChargeStatus,
@@ -40,17 +42,12 @@ import {
 import { orderNetDue } from "@/schema/discount";
 import { hasUnpricedLine } from "@/schema/unpriced-line";
 
-const GATEWAY_LABELS: Record<PaymentGatewayName, string> = {
-  doku: "DOKU",
-  midtrans: "Midtrans",
-};
-
-const EXPIRY_MINUTES: Record<GatewayChargeKind, number> = {
-  checkout: 1440,
-  qris: 60,
-};
+const EXPIRY_MINUTES = 60;
 
 const MINUTE_MS = 60_000;
+// A gateway that still says "pending" this long after the QR's end never took
+// the money: its own clock may run a little behind ours.
+const ENDED_GRACE_MS = 10 * MINUTE_MS;
 // A Track page QRIS with less left than this is replaced, so the Customer is
 // not handed a QR that closes while they open their bank app.
 const REUSE_MIN_LEFT_MS = 5 * MINUTE_MS;
@@ -108,11 +105,11 @@ export function toPaymentChargeView(
     id: charge.id,
     order_id: charge.order_id,
     gateway: charge.gateway,
-    kind: charge.kind,
     reference: charge.reference,
     amount: Number(charge.amount),
     status: charge.status,
     review_reason: charge.review_reason,
+    qr_content: charge.qr_content,
     qr_image_url: charge.qr_image_url,
     redirect_url: charge.redirect_url,
     expires_at: charge.expires_at,
@@ -127,7 +124,7 @@ export function toPaymentChargeView(
 // to the Track page must not be talked over by a new QR.
 async function closedReason(charge: PaymentCharge): Promise<ChargeClosed> {
   const [order, newer] = await Promise.all([
-    findOrderPaymentState(charge.order_id),
+    findOrderForCharge(charge.order_id),
     findNewerPaymentCharge(charge.order_id, charge.id),
   ]);
 
@@ -165,7 +162,7 @@ function isShowableTrackCharge(
   amount: number,
   minLeftMs = 0
 ): charge is PaymentCharge {
-  if (!(charge?.qr_image_url || charge?.redirect_url)) {
+  if (!(charge?.qr_content || charge?.qr_image_url || charge?.redirect_url)) {
     return false;
   }
   return (
@@ -206,15 +203,19 @@ async function requireActiveGateway() {
   return gateway;
 }
 
+function chargeRef(charge: PaymentCharge): GatewayChargeRef {
+  return {
+    hasQr: charge.qr_content !== null,
+    providerRef: charge.provider_ref,
+    reference: charge.reference,
+  };
+}
+
 async function cancelAtGateway(charges: PaymentCharge[]) {
   await Promise.allSettled(
     charges.map((charge) =>
       getPaymentGateway(charge.gateway)
-        .cancelCharge({
-          kind: charge.kind,
-          providerRef: charge.provider_ref,
-          reference: charge.reference,
-        })
+        .cancelCharge(chargeRef(charge))
         .catch((error) => {
           console.warn("gateway cancel failed", charge.reference, error);
         })
@@ -222,11 +223,16 @@ async function cancelAtGateway(charges: PaymentCharge[]) {
   );
 }
 
-// After a cash payment, a line cancel or a Repair price: a QR still on screen
-// would take the old amount. Never fails the change that already went through.
-export async function cancelOrderPendingCharges(orderId: number) {
+// After a payment, a line cancel or a Repair price: a QR still on screen would
+// take the old amount. Never fails the change that already went through.
+export async function cancelOrderPendingCharges(
+  orderId: number,
+  { except }: { except?: number } = {}
+) {
   try {
-    await cancelAtGateway(await updatePendingChargesCancelled(orderId));
+    await cancelAtGateway(
+      await updatePendingChargesCancelled(orderId, { except })
+    );
   } catch (error) {
     console.error("cancelling pending charges failed", orderId, error);
   }
@@ -234,22 +240,26 @@ export async function cancelOrderPendingCharges(orderId: number) {
 
 export async function createPaymentCharge({
   createdBy,
-  kind,
   orderId,
   request,
 }: {
   // null = the Customer on the Track page.
   createdBy: number | null;
-  kind: GatewayChargeKind;
   orderId: number;
   request: DiscountRequest | null;
 }) {
   const gatewayName = await requireActiveGateway();
   const label = GATEWAY_LABELS[gatewayName];
 
-  const amount = await quoteOrderNetDue(orderId, request ?? NO_DISCOUNT);
+  const [amount, order, open] = await Promise.all([
+    quoteOrderNetDue(orderId, request ?? NO_DISCOUNT),
+    findOrderForCharge(orderId),
+    createdBy === null
+      ? findNewestPendingTrackCharge(orderId, gatewayName)
+      : undefined,
+  ]);
 
-  if (amount === null) {
+  if (amount === null || !order) {
     throw new NotFoundException("Order not found");
   }
   if (amount <= 0) {
@@ -257,76 +267,59 @@ export async function createPaymentCharge({
   }
 
   // A Customer tapping Pay again gets the QR they already have.
-  if (createdBy === null) {
-    const open = await findNewestPendingTrackCharge(orderId, gatewayName);
-    if (isShowableTrackCharge(open, amount, REUSE_MIN_LEFT_MS)) {
-      return toPaymentChargeView(open);
-    }
-  }
-
-  const order = await findOrderForCharge(orderId);
-
-  if (!order) {
-    throw new NotFoundException("Order not found");
+  if (isShowableTrackCharge(open, amount, REUSE_MIN_LEFT_MS)) {
+    return toPaymentChargeView(open);
   }
 
   const reference = newReference(order.code);
-  const expiresInMinutes = EXPIRY_MINUTES[kind];
   const [charge] = await insertPaymentCharge({
     amount: amount.toString(),
     created_by: createdBy,
     discount_request: request,
-    expires_at: new Date(Date.now() + expiresInMinutes * MINUTE_MS),
+    expires_at: new Date(Date.now() + EXPIRY_MINUTES * MINUTE_MS),
     gateway: gatewayName,
-    kind,
     order_id: orderId,
     reference,
   });
 
-  // After the insert, so a cashier's QRIS closing here already has the
-  // Customer's checkout to point at.
-  const cancelling = cancelAtGateway(
-    await updatePendingChargesCancelled(orderId, { except: charge.id })
-  );
+  const phone = order.customer.phone_number;
+  const trackParams = new URLSearchParams({
+    code: order.code,
+    phone: phone.replace(/\D/g, ""),
+  });
 
+  let created: GatewayCharge;
   try {
-    const phone = order.customer.phone_number;
-    const trackParams = new URLSearchParams({
-      code: order.code,
-      phone: phone.replace(/\D/g, ""),
+    created = await getPaymentGateway(gatewayName).createCharge({
+      amount,
+      customer: { name: order.customer.name, phone },
+      expiresInMinutes: EXPIRY_MINUTES,
+      finishUrl: `${publicWebUrl()}/track?${trackParams}`,
+      notificationUrl: `${publicWebUrl()}/api/webhooks/payments/${gatewayName}`,
+      reference,
     });
-
-    let created: GatewayCharge;
-    try {
-      created = await getPaymentGateway(gatewayName).createCharge({
-        amount,
-        customer: { name: order.customer.name, phone },
-        expiresInMinutes,
-        finishUrl: `${publicWebUrl()}/track?${trackParams}`,
-        kind,
-        notificationUrl: `${publicWebUrl()}/api/webhooks/payments/${gatewayName}`,
-        reference,
-      });
-    } catch (error) {
-      console.error("gateway charge failed", { gatewayName, reference, error });
-      await updatePaymentChargeById(charge.id, { status: "failed" });
-      throw new BadRequestException(
-        `${label} isn't responding. Try again in a moment.`,
-        { cause: error }
-      );
-    }
-
-    const [saved] = await updatePaymentChargeById(charge.id, {
-      expires_at: created.expiresAt,
-      provider_ref: created.providerRef,
-      qr_image_url: created.qrImageUrl,
-      redirect_url: created.redirectUrl,
-    });
-
-    return toPaymentChargeView(saved);
-  } finally {
-    await cancelling;
+  } catch (error) {
+    console.error("gateway charge failed", { gatewayName, reference, error });
+    await updatePaymentChargeById(charge.id, { status: "failed" });
+    throw new BadRequestException(
+      `${label} isn't responding. Try again in a moment.`,
+      { cause: error }
+    );
   }
+
+  const [saved] = await updatePaymentChargeById(charge.id, {
+    expires_at: created.expiresAt,
+    provider_ref: created.providerRef,
+    qr_content: created.qrContent,
+    qr_image_url: created.qrImageUrl,
+    redirect_url: created.redirectUrl,
+  });
+
+  // Only once the new QR exists: while the gateway is down, the QR already on
+  // the counter or the Customer's phone keeps working.
+  await cancelOrderPendingCharges(orderId, { except: charge.id });
+
+  return toPaymentChargeView(saved);
 }
 
 // Money was taken but the Order could not take it as-is, so the charge waits
@@ -401,6 +394,8 @@ export async function applyGatewayStatus(
         status: "paid",
       });
     });
+    // A QR the Customer saved to Photos must not take the money a second time.
+    await cancelOrderPendingCharges(charge.order_id);
   } catch (error) {
     const reason = reviewReason(error);
     if (reason === null) {
@@ -446,21 +441,55 @@ async function refreshCharge(charge: PaymentCharge, minAgeMs: number) {
     return charge;
   }
 
-  try {
-    const result = await getPaymentGateway(charge.gateway).getStatus({
-      kind: charge.kind,
-      providerRef: charge.provider_ref,
-      reference: charge.reference,
-    });
-    if (result.status === "pending") {
-      return charge;
-    }
-    await applyGatewayStatus(charge, result);
-  } catch (error) {
-    console.error("gateway status check failed", charge.reference, error);
+  if ((await checkWithGateway(charge)) !== "moved") {
     return charge;
   }
   return (await findPaymentChargeById(charge.order_id, charge.id)) ?? charge;
+}
+
+// DOKU's QR never reports its own end, so one still "pending" well past its
+// end is closed here as expired.
+async function checkWithGateway(
+  charge: PaymentCharge
+): Promise<"moved" | "unchanged" | "failed"> {
+  try {
+    const result = await getPaymentGateway(charge.gateway).getStatus(
+      chargeRef(charge)
+    );
+    if (result.status !== "pending") {
+      await applyGatewayStatus(charge, result);
+      return "moved";
+    }
+    if (Date.now() - charge.expires_at.getTime() > ENDED_GRACE_MS) {
+      await updatePendingChargeStatus(charge.id, {
+        last_payload: result.raw,
+        status: "expired",
+      });
+      return "moved";
+    }
+    return "unchanged";
+  } catch (error) {
+    console.error("gateway status check failed", charge.reference, error);
+    return "failed";
+  }
+}
+
+// The safety net for money no screen is waiting on: a QR the cashier closed, or
+// one cancelled while the Customer was already paying it. DOKU's QR sends no
+// notice, so each charge is asked once after it ends; money on an Order that
+// moved on lands in Needs Review rather than nowhere. A gateway that fails to
+// answer is asked again next run.
+export async function settleEndedCharges() {
+  const ended = await findEndedUncheckedCharges(ENDED_GRACE_MS);
+  let failed = 0;
+  for (const charge of ended) {
+    if ((await checkWithGateway(charge)) === "failed") {
+      failed++;
+    } else {
+      await updateChargeEndChecked(charge.id);
+    }
+  }
+  return { checked: ended.length, failed };
 }
 
 // A QRIS the cashier closed the dialog on, still waiting to be paid. Checked
@@ -520,8 +549,14 @@ export async function getTrackPaymentState(order: {
   status: string;
   total: string;
 }) {
+  const closed = {
+    can_pay_online: false,
+    net_due: 0,
+    open_charge: null,
+    payment_status: order.payment_status,
+  };
   if (order.payment_status === "paid" || order.status === "cancelled") {
-    return { can_pay_online: false, net_due: 0, open_charge: null };
+    return closed;
   }
 
   // Nothing is refunded before an Order is paid.
@@ -532,7 +567,7 @@ export async function getTrackPaymentState(order: {
   });
 
   if (netDue <= 0) {
-    return { can_pay_online: false, net_due: netDue, open_charge: null };
+    return { ...closed, net_due: netDue };
   }
 
   const gateway = activePaymentGatewayName();
@@ -545,7 +580,7 @@ export async function getTrackPaymentState(order: {
   // The page asks every few seconds while the QR is up, and SNAP QRIS sends no
   // webhook, so this check is what turns the Order paid.
   if (open && (await refreshCharge(open, 0)).status === "paid") {
-    return { can_pay_online: false, net_due: 0, open_charge: null };
+    return { ...closed, payment_status: "paid" as const };
   }
 
   return {
@@ -554,6 +589,7 @@ export async function getTrackPaymentState(order: {
     open_charge: isShowableTrackCharge(open, netDue)
       ? toTrackChargeView(open)
       : null,
+    payment_status: order.payment_status,
   };
 }
 
@@ -561,7 +597,7 @@ export async function getTrackPaymentState(order: {
 export function toTrackChargeView(
   charge: Pick<
     PaymentCharge,
-    "expires_at" | "qr_image_url" | "redirect_url"
+    "expires_at" | "qr_content" | "qr_image_url" | "redirect_url"
   > & {
     amount: number | string;
   }
@@ -569,6 +605,7 @@ export function toTrackChargeView(
   return {
     amount: Number(charge.amount),
     expires_at: charge.expires_at,
+    qr_content: charge.qr_content,
     qr_image_url: charge.qr_image_url,
     redirect_url: charge.redirect_url,
   };

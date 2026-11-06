@@ -1,5 +1,5 @@
-import { createHash, randomUUID } from "node:crypto";
-import { signatureOf as dokuSignature } from "./doku";
+import { randomUUID } from "node:crypto";
+import { signatureOf as dokuSignature, dokuTimestamp } from "./doku";
 import { signatureOf as midtransSignature } from "./midtrans";
 import type { PaymentGateway, PaymentGatewayName } from "./types";
 
@@ -15,13 +15,14 @@ export const withMockGateway = (real: PaymentGateway): PaymentGateway => ({
   ...real,
   createCharge(input) {
     const { origin } = new URL(input.notificationUrl);
-    const page = `${origin}/api/mock-gateway/${input.reference}`;
+    const page = `${origin}/api/mock-gateway/${input.reference}?finish=${encodeURIComponent(input.finishUrl)}`;
     return Promise.resolve({
       providerRef: `mock-${randomUUID()}`,
-      // A QR in the dialog for counter QRIS. The page link rides along so a
-      // laptop can stand in for the Customer's phone.
-      qrImageUrl: input.kind === "qris" ? `${page}/qr.svg` : null,
-      redirectUrl: `${page}?finish=${encodeURIComponent(input.finishUrl)}`,
+      // The QR opens the mock page on a real phone; the link under it lets a
+      // laptop stand in for one.
+      qrContent: page,
+      qrImageUrl: null,
+      redirectUrl: page,
       expiresAt: new Date(Date.now() + input.expiresInMinutes * 60_000),
     });
   },
@@ -31,7 +32,6 @@ export const withMockGateway = (real: PaymentGateway): PaymentGateway => ({
   cancelCharge: () => Promise.resolve(),
 });
 
-const MILLIS_REGEX = /\.\d{3}Z$/;
 // The last base64 character before any padding.
 const LAST_SIGNATURE_CHAR_REGEX = /.(?==*$)/;
 
@@ -107,7 +107,7 @@ export const buildMockNotification = ({
 
   const clientId = process.env.DOKU_CLIENT_ID ?? "";
   const requestId = randomUUID();
-  const timestamp = new Date().toISOString().replace(MILLIS_REGEX, "Z");
+  const timestamp = dokuTimestamp();
   const body = JSON.stringify({
     channel: { id: "QRIS_DOKU" },
     order: { amount, invoice_number: reference },
@@ -139,39 +139,4 @@ export const buildMockNotification = ({
     },
     path,
   };
-};
-
-// A QR-looking pattern seeded by the reference. It encodes nothing; the mock
-// page is opened from the link under it.
-export const mockQrSvg = (reference: string) => {
-  const size = 25;
-  const bits = createHash("sha512").update(reference).digest();
-  const isFinder = (x: number, y: number) =>
-    [
-      [0, 0],
-      [size - 7, 0],
-      [0, size - 7],
-    ].some(([fx, fy]) => x >= fx && x < fx + 7 && y >= fy && y < fy + 7);
-  const finderDark = (x: number, y: number) => {
-    const fx = x < 7 ? 0 : size - 7;
-    const fy = y < 7 ? 0 : size - 7;
-    const dx = x - fx;
-    const dy = y - fy;
-    const ring = Math.min(dx, dy, 6 - dx, 6 - dy);
-    return ring !== 1;
-  };
-
-  const cells: string[] = [];
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const index = y * size + x;
-      const dark = isFinder(x, y)
-        ? finderDark(x, y)
-        : (bits[index % bits.length] + index) % 2 === 1;
-      if (dark) {
-        cells.push(`<rect x="${x + 2}" y="${y + 2}" width="1" height="1"/>`);
-      }
-    }
-  }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size + 4} ${size + 4}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><g fill="#000">${cells.join("")}</g></svg>`;
 };

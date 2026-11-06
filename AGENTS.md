@@ -72,6 +72,7 @@ Cron log lines carry `region=iad1`: that is where Vercel's scheduler enters, not
 
 - `/api/internal/photo-sweep` — deletes photos no order points at, left behind when the counter uploads and then abandons a batch. Checks only its own environment's prefix and skips files under 24h old. Its R2 token needs Object Read & Write, which includes listing, or every run fails with AccessDenied.
 - `/api/internal/close-open-shifts` — closes yesterday's Auto-closed Shifts at 00:00 Jakarta (ADR-0025). A skipped run locks nobody out: the next Clock in or Clock out closes it the same way.
+- `/api/internal/settle-payment-charges` — hourly. Asks the gateway once about each QRIS that ended more than 10 minutes ago while pending or cancelled on our side, since DOKU's QR sends no notice (ADR-0026). Money found books the Order or lands in Needs Review. A charge the gateway fails to answer on is asked again next run.
 
 ## RPC / Type Sharing
 

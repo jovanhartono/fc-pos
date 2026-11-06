@@ -1,9 +1,10 @@
 export const PAYMENT_GATEWAYS = ["midtrans", "doku"] as const;
 export type PaymentGatewayName = (typeof PAYMENT_GATEWAYS)[number];
 
-// qris: the cashier shows a QR at the counter. checkout: the customer opens the
-// gateway's hosted page from the Track page or a WhatsApp link.
-export type GatewayChargeKind = "qris" | "checkout";
+export const GATEWAY_LABELS: Record<PaymentGatewayName, string> = {
+  doku: "DOKU",
+  midtrans: "Midtrans",
+};
 
 export type GatewayChargeStatus =
   | "pending"
@@ -18,7 +19,6 @@ export interface GatewayChargeInput {
   expiresInMinutes: number;
   // Where the hosted page sends the customer when done (the Track page).
   finishUrl: string;
-  kind: GatewayChargeKind;
   // Our webhook URL for this gateway, so each environment hears its own charges.
   notificationUrl: string;
   // Our id for this attempt, sent as Midtrans order_id / DOKU invoice_number.
@@ -27,16 +27,20 @@ export interface GatewayChargeInput {
 
 export interface GatewayCharge {
   expiresAt: Date;
-  // The gateway's own id for the attempt (Midtrans transaction_id or Snap token,
-  // DOKU Request-Id), kept for cancel and support lookups.
+  // The gateway's own id for the attempt (Midtrans transaction_id, DOKU
+  // referenceNo or Request-Id), kept for cancel and support lookups.
   providerRef: string | null;
-  // Exactly one of these is set: an image of the QR, or a page to open.
+  // How the Customer pays: the QRIS text to draw (DOKU SNAP), an image of the
+  // QR (Midtrans), or a page to open (DOKU without SNAP keys).
+  qrContent: string | null;
   qrImageUrl: string | null;
   redirectUrl: string | null;
 }
 
 export interface GatewayChargeRef {
-  kind: GatewayChargeKind;
+  // DOKU's own QR (SNAP) rather than its page: each is checked and cancelled
+  // through its own API, whatever keys are set today.
+  hasQr: boolean;
   providerRef: string | null;
   reference: string;
 }

@@ -5,14 +5,16 @@ import {
 	normalizePhoneNumber,
 } from "@fresclean/api/schema";
 import { Clock01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { DetailedError } from "hono/client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { BrandLogo } from "@/components/brand-logo";
+import { PaymentOutcome } from "@/components/payment-outcome";
+import { QrisWaiting } from "@/components/qris-waiting";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -28,7 +30,9 @@ import {
 } from "@/features/track/api";
 import { useQrisPng } from "@/features/track/hooks/useQrisPng";
 import { formatClock } from "@/lib/dayjs";
+import { triggerDownload } from "@/lib/download";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
+import { hasQris, qrisImageSrc } from "@/lib/qris";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
@@ -187,33 +191,6 @@ const payErrorText = (error: Error) => {
 const PRIMARY_BUTTON_CLASS =
 	"h-12 pointer-coarse:h-12 w-full rounded-full bg-primary font-semibold text-headline text-primary-foreground";
 
-const OUTCOME_TONES = {
-	good: "bg-tone-good text-tone-good-foreground",
-	neutral: "bg-secondary text-muted-foreground",
-};
-
-interface PaymentOutcomeProps {
-	icon: IconSvgElement;
-	tone: keyof typeof OUTCOME_TONES;
-	title: string;
-	text: string;
-}
-
-const PaymentOutcome = ({ icon, tone, title, text }: PaymentOutcomeProps) => (
-	<div className="grid justify-items-center gap-1.5 pt-1 text-center">
-		<span
-			className={cn(
-				"mb-1 grid size-12 place-items-center rounded-full",
-				OUTCOME_TONES[tone],
-			)}
-		>
-			<HugeiconsIcon aria-hidden="true" className="size-6" icon={icon} />
-		</span>
-		<p className="font-semibold text-title-3">{title}</p>
-		<p className="text-balance text-muted-foreground text-subhead">{text}</p>
-	</div>
-);
-
 interface PaidCardProps {
 	amount: number;
 }
@@ -224,6 +201,7 @@ const PaidCard = ({ amount }: PaidCardProps) => (
 	<section className={cn(CARD_CLASS, "p-4")}>
 		<PaymentOutcome
 			icon={Tick02Icon}
+			isCompact
 			text={`${formatMoney(amount)} · Thank you`}
 			title="Payment Received"
 			tone="good"
@@ -232,13 +210,14 @@ const PaidCard = ({ amount }: PaidCardProps) => (
 );
 
 interface QrisPanelProps {
-	charge: TrackCharge & { qr_image_url: string };
+	charge: TrackCharge;
 	code: string;
+	src: string;
 }
 
-const QrisPanel = ({ charge, code }: QrisPanelProps) => {
+const QrisPanel = ({ charge, code, src }: QrisPanelProps) => {
 	const fileName = `QRIS ${code.replace(/[^A-Za-z0-9-]+/g, "-")}.png`;
-	const png = useQrisPng(charge.qr_image_url, fileName);
+	const png = useQrisPng(src, fileName);
 
 	const handleSave = async () => {
 		if (png && navigator.canShare?.({ files: [png.file] })) {
@@ -246,10 +225,7 @@ const QrisPanel = ({ charge, code }: QrisPanelProps) => {
 			await navigator.share({ files: [png.file] }).catch(() => undefined);
 			return;
 		}
-		const link = document.createElement("a");
-		link.href = png?.url ?? charge.qr_image_url;
-		link.download = fileName;
-		link.click();
+		triggerDownload(png?.url ?? src, fileName);
 	};
 
 	return (
@@ -257,7 +233,7 @@ const QrisPanel = ({ charge, code }: QrisPanelProps) => {
 			<img
 				alt="QRIS"
 				className="aspect-square w-full max-w-58 justify-self-center rounded-md border bg-white p-3"
-				src={png?.url ?? charge.qr_image_url}
+				src={png?.url ?? src}
 			/>
 			<Button
 				className={PRIMARY_BUTTON_CLASS}
@@ -270,23 +246,10 @@ const QrisPanel = ({ charge, code }: QrisPanelProps) => {
 				Open your bank or e-wallet app, tap Scan, and choose this QRIS from your
 				photos.
 			</p>
-			{/* Only the mock gateway sends both: its page stands in for the bank app. */}
-			{charge.redirect_url ? (
-				<a
-					className="justify-self-center text-body text-link"
-					href={charge.redirect_url}
-					rel="noopener"
-					target="_blank"
-				>
-					Open Mock Payment Page
-				</a>
-			) : null}
-			<div className="flex items-center justify-between gap-4 rounded-lg bg-muted px-4 py-3 text-body">
-				<WaitingLabel>Waiting for payment</WaitingLabel>
-				<span className="text-muted-foreground tabular-nums">
-					Expires {formatClock(charge.expires_at)}
-				</span>
-			</div>
+			<QrisWaiting
+				expiresAt={charge.expires_at}
+				mockPageUrl={charge.redirect_url}
+			/>
 		</>
 	);
 };
@@ -311,7 +274,7 @@ const PaymentCard = ({
 	const payMutation = useMutation({
 		mutationFn: () => payTrackedOrder({ code, phone_number: phone }),
 		onSuccess: (charge) => {
-			if (!charge.qr_image_url && charge.redirect_url) {
+			if (!hasQris(charge) && charge.redirect_url) {
 				window.location.href = charge.redirect_url;
 				return;
 			}
@@ -341,7 +304,10 @@ const PaymentCard = ({
 		return () => window.removeEventListener("pageshow", handlePageShow);
 	}, [queryClient, resetPay]);
 
-	const qrImageUrl = openCharge?.qr_image_url;
+	const qrSrc = useMemo(
+		() => (openCharge ? qrisImageSrc(openCharge) : null),
+		[openCharge],
+	);
 	const isPaying = payMutation.isPending || payMutation.isSuccess;
 	const payError = payMutation.isError ? (
 		<p
@@ -357,6 +323,7 @@ const PaymentCard = ({
 			<section className={cn(CARD_CLASS, "grid gap-3.5 p-4")}>
 				<PaymentOutcome
 					icon={Clock01Icon}
+					isCompact
 					text="Nothing was charged."
 					title="QRIS Expired"
 					tone="neutral"
@@ -383,11 +350,8 @@ const PaymentCard = ({
 					{formatMoney(netDue)}
 				</p>
 			</div>
-			{openCharge && qrImageUrl ? (
-				<QrisPanel
-					charge={{ ...openCharge, qr_image_url: qrImageUrl }}
-					code={code}
-				/>
+			{openCharge && qrSrc ? (
+				<QrisPanel charge={openCharge} code={code} src={qrSrc} />
 			) : (
 				<>
 					{/* DOKU's QRIS page the Customer left unpaid, while its SNAP keys are missing. */}
@@ -523,8 +487,8 @@ const TrackOrderPage = () => {
 	const [shownCharge, setShownCharge] = useState<TrackCharge | null>(null);
 	const openCharge = trackData?.open_charge ?? null;
 	if (
-		openCharge?.qr_image_url &&
-		openCharge.qr_image_url !== shownCharge?.qr_image_url
+		hasQris(openCharge) &&
+		openCharge?.expires_at !== shownCharge?.expires_at
 	) {
 		setShownCharge(openCharge);
 	}
@@ -534,7 +498,7 @@ const TrackOrderPage = () => {
 	// amount stayed the same means it ran out.
 	const hasExpired =
 		shownCharge !== null &&
-		!openCharge?.qr_image_url &&
+		!hasQris(openCharge) &&
 		shownCharge.amount === trackData?.net_due;
 
 	useEffect(() => {
@@ -715,7 +679,7 @@ const TrackOrderPage = () => {
 						<Button
 							type="submit"
 							disabled={isLoading}
-							className="h-12 pointer-coarse:h-12 w-full rounded-full bg-primary font-semibold text-headline text-primary-foreground"
+							className={PRIMARY_BUTTON_CLASS}
 						>
 							{isLoading ? "Searching…" : "Track"}
 						</Button>

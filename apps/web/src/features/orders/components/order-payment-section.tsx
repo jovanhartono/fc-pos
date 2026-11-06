@@ -1,4 +1,5 @@
 import {
+	GATEWAY_LABELS,
 	isBogoSlot,
 	isDiscountSettled,
 	orderNetDue,
@@ -48,7 +49,6 @@ import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
 import { flattenOrderLines } from "@/features/orders/lib/order-lines";
 import {
-	GATEWAY_LABELS,
 	isOnlinePaymentReady,
 	paymentMethodsQueries,
 } from "@/features/payment-methods/api";
@@ -62,6 +62,7 @@ import { filterEligibleCampaigns } from "@/features/transactions/lib/campaign-el
 import { onQrisPaid } from "@/lib/cache-events";
 import { formatClock } from "@/lib/dayjs";
 import { formatMoney, parseMoney } from "@/shared/money";
+import { useDialog } from "@/stores/dialog-store";
 import { useSheet } from "@/stores/sheet-store";
 
 interface OrderPaymentSectionProps {
@@ -155,11 +156,14 @@ interface OpenQrisRowProps {
 const OpenQrisRow = ({ orderId }: OpenQrisRowProps) => {
 	const queryClient = useQueryClient();
 	const gatewayQuery = useQuery(paymentMethodsQueries.gateway());
+	// The reopened QRIS dialog asks the gateway itself.
+	const isDialogOpen = useDialog((s) => s.dialogState.open);
 	const openQuery = useQuery({
 		...ordersQueries.openPaymentCharge(orderId),
 		enabled: isOnlinePaymentReady(gatewayQuery.data),
 		// The Customer can still pay after the cashier closed the QRIS.
-		refetchInterval: (query) => (query.state.data ? 5000 : false),
+		refetchInterval: (query) =>
+			query.state.data && !isDialogOpen ? 5000 : false,
 	});
 	const { reopen } = useOpenQrisDialog(orderId);
 	const charge = openQuery.data;
@@ -309,7 +313,7 @@ const usePaymentSubmit = (orderId: number) => {
 		const gateway = gatewayQuery.data?.gateway;
 		if (paymentMethodId === QRIS_METHOD && gateway) {
 			goBack();
-			showNew(gateway, { kind: "qris", ...promo });
+			showNew(gateway, promo);
 			return;
 		}
 		paymentMutation.mutate(

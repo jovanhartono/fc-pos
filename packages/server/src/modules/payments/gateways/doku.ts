@@ -30,6 +30,10 @@ const PAYMENT_METHODS = ["QRIS"];
 const EXPIRED_DATE_REGEX = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/;
 const MILLIS_REGEX = /\.\d{3}Z$/;
 
+// UTC to the second, as DOKU signs it.
+export const dokuTimestamp = () =>
+  new Date().toISOString().replace(MILLIS_REGEX, "Z");
+
 const requireEnv = (name: string) => {
   const value = process.env[name];
   if (!value) {
@@ -74,7 +78,7 @@ const dokuFetch = (
 ) => {
   const { clientId, secretKey, baseUrl } = config();
   const requestId = randomUUID();
-  const timestamp = new Date().toISOString().replace(MILLIS_REGEX, "Z");
+  const timestamp = dokuTimestamp();
   const body = payload === undefined ? undefined : JSON.stringify(payload);
 
   const response = fetch(`${baseUrl}${target}`, {
@@ -199,11 +203,21 @@ const readNotification = (
   }
 };
 
+// A QR made while the SNAP keys were set can only be checked with them; asking
+// DOKU's page API instead would report it unpaid forever.
+const requireQrisConfig = () => {
+  const qris = dokuQrisConfig(config());
+  if (!qris) {
+    throw new Error("DOKU SNAP keys are missing for a QRIS made with them");
+  }
+  return qris;
+};
+
 export const dokuGateway: PaymentGateway = {
   name: "doku",
 
   async createCharge(input) {
-    const qris = input.kind === "qris" ? dokuQrisConfig(config()) : null;
+    const qris = dokuQrisConfig(config());
     if (qris) {
       return await createDokuQris(qris, input);
     }
@@ -238,6 +252,7 @@ export const dokuGateway: PaymentGateway = {
 
     return {
       providerRef: requestId,
+      qrContent: null,
       qrImageUrl: null,
       redirectUrl: url,
       expiresAt:
@@ -247,9 +262,8 @@ export const dokuGateway: PaymentGateway = {
   },
 
   async getStatus(ref) {
-    const qris = ref.kind === "qris" ? dokuQrisConfig(config()) : null;
-    if (qris) {
-      return await getDokuQrisStatus(qris, ref);
+    if (ref.hasQr) {
+      return await getDokuQrisStatus(requireQrisConfig(), ref);
     }
     const res = await dokuFetch(
       "GET",
@@ -264,9 +278,8 @@ export const dokuGateway: PaymentGateway = {
   },
 
   async cancelCharge(ref) {
-    const qris = ref.kind === "qris" ? dokuQrisConfig(config()) : null;
-    if (qris) {
-      return await cancelDokuQris(qris, ref);
+    if (ref.hasQr) {
+      return await cancelDokuQris(requireQrisConfig(), ref);
     }
     if (!ref.providerRef) {
       return;

@@ -4,7 +4,8 @@ import {
   randomInt,
   sign as rsaSign,
 } from "node:crypto";
-import { renderSVG } from "uqr";
+import dayjs from "dayjs";
+import { JAKARTA_TZ } from "@/utils/date";
 import type {
   GatewayCharge,
   GatewayChargeInput,
@@ -22,7 +23,6 @@ const EXPIRE_PATH = "/snap-adapter/b2b/v1.0/qr/qr-expire";
 
 const TIMEOUT_MS = 10_000;
 const MINUTE_MS = 60_000;
-const JAKARTA_OFFSET_MS = 7 * 60 * MINUTE_MS;
 const ESCAPED_NEWLINE_REGEX = /\\n/g;
 
 // Refunded and not-found change nothing here: a refund only follows a paid
@@ -85,7 +85,7 @@ export const dokuQrisConfig = (api: DokuApi): QrisConfig | null => {
 
 // "2026-11-04T15:30:00+07:00"
 const jakartaTimestamp = (date: Date) =>
-  `${new Date(date.getTime() + JAKARTA_OFFSET_MS).toISOString().slice(0, 19)}+07:00`;
+  dayjs(date).tz(JAKARTA_TZ).format("YYYY-MM-DDTHH:mm:ssZ");
 
 // Digits only and unique within the day, as DOKU asks.
 const externalId = () => `${Date.now()}${randomInt(100_000, 1_000_000)}`;
@@ -194,9 +194,6 @@ const failure = (
     `DOKU QRIS ${action} failed (HTTP ${status}): ${JSON.stringify(body)}`
   );
 
-const toDataUrl = (qrContent: string) =>
-  `data:image/svg+xml;base64,${Buffer.from(renderSVG(qrContent)).toString("base64")}`;
-
 export const createDokuQris = async (
   config: QrisConfig,
   input: GatewayChargeInput
@@ -221,7 +218,8 @@ export const createDokuQris = async (
   }
   return {
     providerRef: referenceNo,
-    qrImageUrl: toDataUrl(qrContent),
+    qrContent,
+    qrImageUrl: null,
     redirectUrl: null,
     expiresAt,
   };

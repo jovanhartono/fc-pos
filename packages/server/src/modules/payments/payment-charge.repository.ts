@@ -1,8 +1,11 @@
 import {
   and,
+  desc,
   eq,
   type InferInsertModel,
   type InferSelectModel,
+  inArray,
+  isNull,
   lt,
   ne,
   notInArray,
@@ -59,7 +62,6 @@ export function findOpenQrisCharge(orderId: number) {
   return db.query.paymentChargesTable.findFirst({
     where: {
       order_id: orderId,
-      kind: "qris",
       created_by: { isNotNull: true },
       status: "pending",
       expires_at: { gt: new Date() },
@@ -80,16 +82,8 @@ export function findNewerPaymentCharge(orderId: number, id: number) {
 export function findOrderForCharge(orderId: number) {
   return db.query.ordersTable.findFirst({
     where: { id: orderId },
-    columns: { code: true },
-    with: { customer: { columns: { name: true, phone_number: true } } },
-  });
-}
-
-export function findOrderPaymentState(orderId: number) {
-  return db.query.ordersTable.findFirst({
-    where: { id: orderId },
     columns: { code: true, payment_status: true, status: true },
-    with: { customer: { columns: { name: true } } },
+    with: { customer: { columns: { name: true, phone_number: true } } },
   });
 }
 
@@ -164,6 +158,31 @@ export function updateUnsettledChargeById(
       )
     )
     .returning({ id: paymentChargesTable.id });
+}
+
+// Pending or cancelled charges that ended more than `graceMs` ago and the
+// hourly job has not asked about yet. Newest first, so one the gateway keeps
+// failing on cannot hold back the rest.
+export function findEndedUncheckedCharges(graceMs: number) {
+  return db
+    .select()
+    .from(paymentChargesTable)
+    .where(
+      and(
+        inArray(paymentChargesTable.status, ["pending", "cancelled"]),
+        lt(paymentChargesTable.expires_at, new Date(Date.now() - graceMs)),
+        isNull(paymentChargesTable.end_checked_at)
+      )
+    )
+    .orderBy(desc(paymentChargesTable.expires_at))
+    .limit(100);
+}
+
+export function updateChargeEndChecked(id: number) {
+  return db
+    .update(paymentChargesTable)
+    .set({ end_checked_at: new Date() })
+    .where(eq(paymentChargesTable.id, id));
 }
 
 // Wins the right to ask the gateway, at most once per interval per charge.

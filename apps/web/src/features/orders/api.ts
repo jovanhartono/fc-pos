@@ -141,7 +141,7 @@ export type PaymentCharge = InferResponseType<
 export type CreatePaymentChargePayload = Omit<
 	UpdateOrderPaymentPayload,
 	"payment_method_id"
-> & { kind: "qris" };
+>;
 
 // A Repair's price, keyed once agreed with the Customer or re-keyed to fix a
 // typo while the Order is unpaid (ADR-0018).

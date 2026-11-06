@@ -1,4 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
+import dayjs from "dayjs";
+import { JAKARTA_TZ } from "@/utils/date";
 import type {
   GatewayCharge,
   GatewayChargeInput,
@@ -10,17 +12,11 @@ import type {
   PaymentGateway,
 } from "./types";
 
-// Every gateway payment is QRIS until the PaymentMethod names its channel
-// (ADR-0026).
-const SNAP_ENABLED_PAYMENTS = ["other_qris"];
-
 const TIMEOUT_MS = 10_000;
-const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
 
 interface MidtransConfig {
   coreBase: string;
   serverKey: string;
-  snapBase: string;
 }
 
 interface MidtransStatusBody {
@@ -41,9 +37,6 @@ const readConfig = (): MidtransConfig => {
     coreBase: isProduction
       ? "https://api.midtrans.com"
       : "https://api.sandbox.midtrans.com",
-    snapBase: isProduction
-      ? "https://app.midtrans.com"
-      : "https://app.sandbox.midtrans.com",
   };
 };
 
@@ -71,10 +64,7 @@ const headersFor = (serverKey: string, notificationUrl?: string) => {
 
 // "2026-10-27 14:05:00 +0700", the only time format Midtrans accepts.
 const jakartaTimestamp = (date: Date) =>
-  `${new Date(date.getTime() + JAKARTA_OFFSET_MS)
-    .toISOString()
-    .slice(0, 19)
-    .replace("T", " ")} +0700`;
+  dayjs(date).tz(JAKARTA_TZ).format("YYYY-MM-DD HH:mm:ss ZZ");
 
 // Always an object, so an HTML error page still reaches the thrown message.
 const readJson = async (
@@ -165,49 +155,9 @@ const createQris = async (
   }
   return {
     providerRef: body.transaction_id ?? null,
+    qrContent: null,
     qrImageUrl,
     redirectUrl: null,
-    expiresAt: new Date(now.getTime() + input.expiresInMinutes * 60_000),
-  };
-};
-
-const createCheckout = async (
-  config: MidtransConfig,
-  input: GatewayChargeInput,
-  now: Date
-): Promise<GatewayCharge> => {
-  const response = await fetch(`${config.snapBase}/snap/v1/transactions`, {
-    method: "POST",
-    headers: headersFor(config.serverKey, input.notificationUrl),
-    body: JSON.stringify({
-      transaction_details: {
-        order_id: input.reference,
-        gross_amount: input.amount,
-      },
-      enabled_payments: SNAP_ENABLED_PAYMENTS,
-      customer_details: customerDetails(input.customer),
-      expiry: {
-        start_time: jakartaTimestamp(now),
-        unit: "minute",
-        duration: input.expiresInMinutes,
-      },
-      callbacks: { finish: input.finishUrl },
-    }),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
-  const body = (await readJson(response)) as {
-    token?: string;
-    redirect_url?: string;
-  };
-  if (!(response.ok && body.token && body.redirect_url)) {
-    throw new Error(
-      `Midtrans Snap checkout failed (HTTP ${response.status}): ${JSON.stringify(body)}`
-    );
-  }
-  return {
-    providerRef: body.token,
-    qrImageUrl: null,
-    redirectUrl: body.redirect_url,
     expiresAt: new Date(now.getTime() + input.expiresInMinutes * 60_000),
   };
 };
@@ -216,11 +166,7 @@ export const midtransGateway: PaymentGateway = {
   name: "midtrans",
 
   async createCharge(input) {
-    const config = readConfig();
-    const now = new Date();
-    return await (input.kind === "qris"
-      ? createQris(config, input, now)
-      : createCheckout(config, input, now));
+    return await createQris(readConfig(), input, new Date());
   },
 
   async getStatus(ref: GatewayChargeRef): Promise<GatewayStatusResult> {
@@ -237,10 +183,6 @@ export const midtransGateway: PaymentGateway = {
       throw new Error(
         `Midtrans status check failed (HTTP ${response.status}): ${JSON.stringify(body)}`
       );
-    }
-    // A Snap checkout has no transaction until the customer picks a method.
-    if (body.status_code === "404") {
-      return { status: "pending", amount: null, raw: body };
     }
     return {
       status: mapStatus(body),

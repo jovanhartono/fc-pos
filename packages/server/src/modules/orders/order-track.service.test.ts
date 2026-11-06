@@ -14,8 +14,13 @@ mock.module("@/modules/orders/order-read.repository", () => ({
 mock.module("@/modules/payments/payment-charge.service", () => ({
   createPaymentCharge: () =>
     Promise.resolve({ qr_image_url: null, redirect_url: null }),
-  getTrackPaymentState: () =>
-    Promise.resolve({ can_pay_online: false, net_due: 0, open_charge: null }),
+  getTrackPaymentState: ({ payment_status }: { payment_status: string }) =>
+    Promise.resolve({
+      can_pay_online: false,
+      net_due: 0,
+      open_charge: null,
+      payment_status,
+    }),
   toTrackChargeView: (charge: unknown) => charge,
 }));
 

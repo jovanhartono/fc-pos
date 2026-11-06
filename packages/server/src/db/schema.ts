@@ -577,10 +577,6 @@ export const ordersTable = pgTable(
   ]
 );
 
-export const paymentChargeKindEnum = pgEnum("payment_charge_kind", [
-  "qris",
-  "checkout",
-]);
 // needs_review: the gateway took the money but the Order could not be marked
 // paid with it (already paid in cash, amount changed), so a person sorts it out.
 export const paymentChargeStatusEnum = pgEnum("payment_charge_status", [
@@ -592,7 +588,7 @@ export const paymentChargeStatusEnum = pgEnum("payment_charge_status", [
   "needs_review",
 ]);
 
-// One Gateway charge per try; a new QRIS or checkout page is a new row.
+// One Gateway charge per try; each new QRIS is a new row.
 export const paymentChargesTable = pgTable(
   "payment_charges",
   {
@@ -606,16 +602,20 @@ export const paymentChargesTable = pgTable(
       discount: number;
       voucher_codes: string[];
     }>(),
+    // When the hourly job asked the gateway about this QR after it ended.
+    end_checked_at: timestamp("end_checked_at"),
     expires_at: timestamp("expires_at").notNull(),
     gateway: paymentGatewayEnum("gateway").notNull(),
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-    kind: paymentChargeKindEnum("kind").notNull(),
     last_payload: jsonb("last_payload"),
     order_id: integer("order_id")
       .references(() => ordersTable.id)
       .notNull(),
     paid_at: timestamp("paid_at"),
     provider_ref: varchar("provider_ref", { length: 255 }),
+    // DOKU's QRIS text, drawn by the phone: an image would be resent on every
+    // poll of the Track page.
+    qr_content: text("qr_content"),
     qr_image_url: text("qr_image_url"),
     redirect_url: text("redirect_url"),
     reference: varchar("reference", { length: 50 }).notNull().unique(),

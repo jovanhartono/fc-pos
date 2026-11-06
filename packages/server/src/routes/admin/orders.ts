@@ -249,13 +249,10 @@ const app = new Hono<OrderAccessEnv>()
     async (c) => {
       assertCanProcessPayment(c.get("jwtPayload"));
       const { id } = c.req.valid("param");
-      const { kind, ...request } = c.req.valid("json");
-
       const charge = await createPaymentCharge({
         createdBy: c.get("jwtPayload").id,
-        kind,
         orderId: id,
-        request,
+        request: c.req.valid("json"),
       });
 
       return c.json(success(charge), StatusCodes.CREATED);
