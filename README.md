@@ -12,130 +12,201 @@
 
 The production system for **Fresclean**, a multi-store shop in Indonesia that cleans, restores and repairs footwear, bags, hats and luggage. Staff run the counter, the workshop and the books on it every day; Customers track their shoes on it without logging in.
 
-## What it does
+The unit of work is a single **Item** (one pair of shoes), not a load of laundry. [`GLOSSARY.md`](GLOSSARY.md) fixes the meaning of every term below, and [`docs/adr/`](docs/adr) records the business rules behind them.
 
-- **POS**: Orders, Campaigns and Vouchers, payment by cash, transfer or QRIS, receipts printed over Bluetooth
-- **Workshop**: a per-Store Queue, each Item's Services moving `queued → processing → waiting_qc → ready_for_pickup`, photos, quality checks, Complaints and Rework
-- **Pickup**: a WhatsApp notice, a six-digit Pickup code, a photo at handover
-- **Running the shop**: a live Counter, a Day close, nine report panels, geofenced attendance
-- **Track page**: Customers see each Item's progress and pay by QRIS
+## 1. System context
 
-The unit of work is a single **Item** (one pair of shoes), not a load of laundry. [`GLOSSARY.md`](GLOSSARY.md) fixes the meaning of every term the code and UI use.
+Who uses the system, and what it talks to.
 
-## Architecture
+```mermaid
+flowchart TB
+    Cashier["Cashier<br/>POS, payment, pickup"]
+    Worker["Worker<br/>Queue, photos, quality check"]
+    Admin["Admin<br/>Reports, catalog, Users"]
+    Customer["Customer<br/>Track page, no login"]
+
+    System(["Fresclean<br/>web app + API"])
+
+    Cashier & Worker & Admin --> System
+    Customer --> System
+
+    System <--> Gateway["Midtrans / DOKU<br/>QRIS payments"]
+    System --> R2["Cloudflare R2<br/>Item photos"]
+    System -. "wa.me link,<br/>sent from staff phone" .-> WhatsApp["WhatsApp<br/>ready notice"]
+    System -. "Web Bluetooth" .-> Printer["Thermal printer<br/>Receipt"]
+```
+
+| Actor | Does |
+| --- | --- |
+| Cashier | Builds Orders in the POS, takes payment by cash, transfer or QRIS, prints the Receipt, hands Items over against the Pickup code |
+| Worker | Works the Queue, photographs Items, moves each Service through its statuses, checks other workers' Items |
+| Admin | Reports, the catalog (Stores, Services, Products, Campaigns), Users and their roles, Shift edits |
+| Customer | Opens the Track page with a phone number and Pickup code, sees each Item's progress, pays by QRIS |
+
+## 2. Deployment
+
+Everything runs in Singapore, close to the shop.
 
 ```mermaid
 flowchart LR
-    subgraph web["apps/web · React 19 PWA"]
-        UI["TanStack Router / Query<br/>Base UI + Tailwind 4"]
-        RPC["hc&lt;AppType&gt;()"]
-        UI --> RPC
+    subgraph vercel["Vercel · sin1"]
+        Web["web<br/>static PWA (Vite)"]
+        API["api<br/>Bun function (Hono)"]
+        Cron["Cron<br/>3 nightly jobs"]
     end
 
-    subgraph server["packages/server · Hono on Bun"]
-        Routes["Routes<br/>JWT + role checks"]
-        Services["Services<br/>business rules"]
-        Repos["Repositories<br/>Drizzle"]
-        Routes --> Services --> Repos
-    end
-
-    RPC -- "/api" --> Routes
-    Repos --> DB[("Neon Postgres")]
-    Services --> R2["Cloudflare R2<br/>photos"]
-    Services <--> PG["Midtrans / DOKU<br/>QRIS + webhooks"]
-    Cron["Vercel Cron"] --> Routes
-    server -. "tsdown: AppType, schemas, rules" .-> web
+    Browser["Tablet / phone"] --> Web
+    Browser -- "/api/*" --> API
+    Cron -- "/api/internal/*" --> API
+    API --> Neon[("Neon Postgres<br/>ap-southeast-1")]
+    API -- "presign" --> R2["R2 bucket<br/>fresclean-prod"]
+    Browser -- "upload" --> R2
+    R2 --> CDN["cdn.fresclean.id<br/>immutable, 1 year"]
+    Gateway["Midtrans / DOKU"] -- "webhook" --> API
 ```
 
-A Turborepo monorepo with two packages: [`packages/server`](packages/server) (`@fresclean/api`) and [`apps/web`](apps/web) (`@fresclean/web`). Both deploy to Vercel in Singapore (`sin1`), next to the Neon database.
+- **One Vercel project, two services**: the web app is static files; the API is a plain Bun function that scales to zero. A container was dropped because it billed until five quiet minutes passed, which at the counter's pace meant every open hour.
+- **Region pinned** in [`vercel.json`](vercel.json): without `"regions": ["sin1"]` Vercel runs the function in the US and every query crosses the Pacific to Neon.
+- **Rate limits live in the Vercel firewall**, not in memory, since a function that scales to zero would reset its counters.
+- **Cron jobs** (schedules in UTC): a sweep of abandoned photos, closing Shifts nobody clocked out of, and settling QRIS payments whose notice never arrived. Each is safe to skip or run twice.
+- **One environment per database**: dev and prod each have their own Neon database, R2 bucket and bucket token; photo keys carry a `dev/` or `prod/` prefix too.
 
-## Engineering decisions
+## 3. Inside the server
 
-Each one names the problem, the choice, and where it lives. The business rules behind them are recorded as ADRs in [`docs/adr/`](docs/adr) (28 so far).
+```mermaid
+flowchart LR
+    subgraph routes["routes/"]
+        Public["public/<br/>Track page"]
+        AdminR["admin/<br/>JWT + role checks"]
+        Hooks["webhooks<br/>signature-checked"]
+        Internal["internal<br/>CRON_SECRET"]
+    end
 
-### 1. End-to-end types without codegen
+    subgraph modules["modules/&lt;domain&gt;/"]
+        Svc["*.service.ts<br/>business rules"]
+        Repo["*.repository.ts<br/>Drizzle queries"]
+        SM["Order Status Machine<br/>only writer of statuses"]
+        Perm["permissions<br/>what each role may do"]
+    end
 
-**Problem:** the web app and API drift apart when request and response shapes are written twice.
-**Choice:** the server exports its Hono router type; `tsdown` bundles it with the Zod schemas into the workspace package, and the web app calls the API through a typed `hc<AppType>()` client. Logic both sides must agree on (which statuses are still in the workshop, which Items can be collected) ships as a separate zod-free `rules` export.
+    Public & AdminR & Hooks & Internal --> Svc
+    AdminR --> Perm
+    Svc --> SM --> Repo
+    Svc --> Repo
+    Repo --> DB[("Postgres")]
+```
 
-- [`packages/server/src/index.ts:35`](packages/server/src/index.ts#L35): `AppType`
-- [`packages/server/src/rpc.ts`](packages/server/src/rpc.ts): the client the web app imports
-- [`packages/server/src/schema/rules.ts`](packages/server/src/schema/rules.ts): rules shared with the browser
+- **Three layers per domain** in [`packages/server/src/modules/`](packages/server/src/modules): routes stay thin, services hold the rules (`createOrder`), repositories hold the SQL (`insertOrder`).
+- **One writer for statuses**: [`order-status-machine.ts`](packages/server/src/modules/orders/order-status-machine.ts) is the only code that changes an Item's or Order's status. It refuses invalid transitions, refuses to start work without a "before" photo, writes the status log, and rolls Item statuses up into the Order's.
+- **Permissions** in [`permissions.ts`](packages/server/src/modules/permissions/permissions.ts): one `assertCan…` per action across four roles (admin, cashier, worker, courier).
+- **Payment gateways** sit behind one interface in [`modules/payments/gateways/`](packages/server/src/modules/payments/gateways), chosen by `PAYMENT_GATEWAY`. A mock gateway stands in for local development.
+- **Jakarta time**: columns hold UTC; every report day is bucketed in Asia/Jakarta through [`jakartaBucketExpr`](packages/server/src/modules/reports/report-range.util.ts).
 
-### 2. One writer for every status change
+### Shared with the web app
 
-**Problem:** an Item's status drives the Queue, the Counter, the Track page and the reports. A handler that writes a status column directly skips the checks and leaves no history.
-**Choice:** only the Order Status Machine writes statuses. It validates the transition, refuses to start work without a "before" photo (ADR-0012), writes the status log, and rolls the Item statuses up into the Order's. Pickups and refunds have their own entry points in the same module.
+The server package builds three exports with `tsdown`, so the web app gets typed API calls with no code generation:
 
-- [`packages/server/src/modules/orders/order-status-machine.ts:365`](packages/server/src/modules/orders/order-status-machine.ts#L365): `transitionOrderService`
-- [`order-status-machine.ts:306`](packages/server/src/modules/orders/order-status-machine.ts#L306): the photo gate
+```
+packages/server ──tsdown──► @fresclean/api/rpc     hc<AppType>() typed client
+                            @fresclean/api/schema  Zod schemas for forms
+                            @fresclean/api/rules   logic both sides run (no Zod, no DB)
+                                   │
+                                   ▼
+                            apps/web
+```
 
-### 3. Jakarta days on UTC columns
+## 4. Data model
 
-**Problem:** the shop lives in Asia/Jakarta (UTC+7); the columns hold UTC wall time in a plain `timestamp`. A single `AT TIME ZONE 'Asia/Jakarta'` reads that as local time and lands 14 hours off, moving afternoon Orders onto the wrong day.
-**Choice:** every report bucket goes through one SQL helper that names UTC first, with a JavaScript twin so chart labels match Postgres' buckets exactly (ADR-0002).
+The core of the schema in [`packages/server/src/db/schema.ts`](packages/server/src/db/schema.ts); catalog, Campaign and log tables left out.
 
-- [`packages/server/src/modules/reports/report-range.util.ts:82`](packages/server/src/modules/reports/report-range.util.ts#L82): `jakartaBucketExpr`
-- [`packages/server/src/utils/date.ts`](packages/server/src/utils/date.ts): day boundaries in application code
+```mermaid
+erDiagram
+    STORE ||--o{ ORDER : takes
+    CUSTOMER ||--o{ ORDER : places
+    ORDER ||--o{ ITEM : contains
+    ITEM ||--o{ ORDER_SERVICE : "gets treated by"
+    ORDER ||--o{ ORDER_PRODUCT : "also sells"
+    ITEM ||--o{ ITEM_IMAGE : "photographed in"
+    ORDER_SERVICE ||--o{ STATUS_LOG : "moves through"
+    ORDER_SERVICE ||--o| COMPLAINT : "may draw"
+    ORDER ||--o{ PAYMENT_CHARGE : "paid by QRIS via"
+    ORDER ||--o{ REFUND : "may have"
+    ORDER ||--o{ PICKUP_EVENT : "collected in"
+    USER ||--o{ SHIFT : works
+    STORE ||--o{ SHIFT : at
+```
 
-### 4. A swappable payment gateway
+- An **Order** holds **Items**; each Item gets one or more **OrderServices** (clean, repaint, repair), and each OrderService has its own status.
+- A **Complaint** hangs off the OrderService it is about. Putting it right adds a free **Rework line**: another OrderService on the same Order.
+- Every status change is a row in `order_service_status_logs`, which is what the Turnaround and Quality reports are built from.
 
-**Problem:** Indonesian gateways differ in API, signature scheme and reliability, and the shop wanted to be able to switch.
-**Choice:** Midtrans and DOKU sit behind one `PaymentGateway` interface, picked by an environment variable. Webhooks verify signatures over the raw request bytes. Notices do go missing, so a nightly job asks the gateway once about every QRIS that ended unsettled. For local work a mock gateway serves a fake payment page whose buttons send real signed notices (ADR-0028).
+## 5. Key flows
 
-- [`packages/server/src/modules/payments/gateways/types.ts`](packages/server/src/modules/payments/gateways/types.ts): the interface
-- [`packages/server/src/modules/payments/gateways/index.ts`](packages/server/src/modules/payments/gateways/index.ts): selection, and the mock wrapper
-- [`packages/server/src/modules/payments/payment-charge.service.ts:481`](packages/server/src/modules/payments/payment-charge.service.ts#L481): `settleEndedCharges`
-- [`packages/server/src/routes/webhooks.ts`](packages/server/src/routes/webhooks.ts): signature check on raw bytes
+### Item lifecycle
 
-### 5. Hosting shaped by the bill
+```mermaid
+stateDiagram-v2
+    [*] --> queued: Order created
+    queued --> processing: worker starts (photo required)
+    processing --> waiting_qc: worker puts it on the shelf
+    waiting_qc --> ready_for_pickup: quality check passes
+    waiting_qc --> qc_reject: quality check fails
+    qc_reject --> processing: redo
+    ready_for_pickup --> picked_up: Pickup code given
+    picked_up --> [*]
+```
 
-**Problem:** a counter app is busy for a few seconds at a time, spread across the whole day.
-**Choice:** the API is a plain Bun function, not a container: a container bills its memory until five quiet minutes pass, which at the counter's pace meant every open hour. Because the function scales to zero, rate limiting lives in the Vercel firewall, not in memory where it would reset. The region is pinned to `sin1`; without it Vercel defaults to the US and every query crosses the Pacific.
+Not drawn: any open status can also go to `cancelled` or `refunded`, and a picked-up Item can still be refunded. The Order's own status is rolled up from its Items, so the Counter and the Track page read one value.
 
-- [`vercel.json`](vercel.json): region, services, cron schedules
+### QRIS payment
 
-### 6. Photos on R2, swept nightly
+```mermaid
+sequenceDiagram
+    participant C as Cashier / Customer
+    participant API
+    participant G as Midtrans / DOKU
+    participant Cron
 
-**Problem:** every Item is photographed at drop-off, before work and at pickup. Staff sometimes upload a batch and then abandon the Order, leaving files nothing points at.
-**Choice:** the browser uploads straight to Cloudflare R2 with a presigned URL; photos are served from a custom domain and cached for a year as `immutable`, since a key's photo never changes. Keys carry their environment (`dev/` or `prod/`), and a nightly sweep deletes files no Order points at, skipping anything under 24 hours old.
+    C->>API: pay Order by QRIS
+    API->>G: create charge
+    G-->>API: QRIS
+    API-->>C: show QRIS
+    C->>G: scan and pay
+    G->>API: webhook (signed)
+    API->>API: verify signature, mark Order paid
+    Note over Cron,API: nightly, for charges whose notice never came
+    Cron->>API: settle-payment-charges
+    API->>G: ask status once
+    G-->>API: paid / not paid
+```
 
-- [`packages/server/src/utils/s3.ts`](packages/server/src/utils/s3.ts): presigning and the environment prefix
-- [`packages/server/src/modules/orders/order-photo-sweep.service.ts`](packages/server/src/modules/orders/order-photo-sweep.service.ts): the sweep
+A duplicate notice can't book the money twice: the webhook, the nightly check and the cashier's "Mark as paid" all go through the same guarded update.
 
-### 7. Migrations as an append-only ledger
+### Photo upload
 
-**Problem:** `drizzle-kit push` changes a database without leaving a record, so dev, prod and the schema file drift apart.
-**Choice:** every change is a generated, committed migration, applied in order to every environment and never edited after it runs. A read-only drift check runs before and after each prod migration, and migrations go to prod before the code that needs them merges.
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant API
+    participant R2
+    participant Cron
 
-- [`packages/server/drizzle/`](packages/server/drizzle): the ledger
-- [`packages/server/AGENTS.md`](packages/server/AGENTS.md): the workflow and the prod checklist
+    B->>API: ask for an upload URL
+    API-->>B: presigned URL (5 min)
+    B->>R2: PUT photo
+    B->>API: save the key on the Item
+    Note over Cron,R2: nightly
+    Cron->>API: photo-sweep
+    API->>R2: delete files no Item points at, older than 24h
+```
 
-### 8. Integration tests against real Postgres in memory
-
-**Problem:** mocked repositories can't catch a wrong SQL rollup or a bad join.
-**Choice:** integration suites spin up PGlite (Postgres compiled to WASM), apply the real migration ledger, and swap it in for the database module. Tests run with `--isolate` so each file's module mocks stay in that file.
-
-- [`packages/server/src/test-support/pglite.ts`](packages/server/src/test-support/pglite.ts): the test database
-- [`packages/server/src/modules/payments/payment-charge.service.integration.test.ts`](packages/server/src/modules/payments/payment-charge.service.integration.test.ts): an example suite
-
-### 9. Built for a phone on a shop floor
-
-**Problem:** staff work on tablets and phones, often mid-conversation with a Customer, and a page reload or a print dialog costs them the moment.
-**Choice:**
-- An installable PWA whose new builds take over without reloading the page, so a deploy never wipes a cashier's half-built Order.
-- Receipts print over Web Bluetooth as raw ESC/POS to a thermal printer, with no print dialog and no driver.
-- Clock-in is refused beyond 3 km of the Store, giving the phone's own accuracy the benefit of the doubt, and no location is stored (ADR-0020).
-
-- [`apps/web/vite.config.ts`](apps/web/vite.config.ts): service worker in `autoUpdate` mode
-- [`apps/web/src/features/printing/web-bluetooth-transport.ts`](apps/web/src/features/printing/web-bluetooth-transport.ts) and [`escpos.ts`](apps/web/src/features/printing/escpos.ts): receipt printing
-- [`packages/server/src/modules/shifts/shift.service.ts:39`](packages/server/src/modules/shifts/shift.service.ts#L39): the clock-in radius check
+Photos go straight from the phone to R2, so the API never carries the file.
 
 ## Quality gates
 
 | Check | Command |
 | --- | --- |
-| Tests (115 files, 19 against PGlite) | `bun run test` |
+| Tests (115 files, 19 against an in-memory Postgres via PGlite) | `bun run test` |
 | Types | `bun run type-check` |
 | Lint and format (Ultracite / Biome) | `bun x ultracite check` |
 
