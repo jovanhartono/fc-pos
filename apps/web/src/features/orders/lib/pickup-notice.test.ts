@@ -35,7 +35,7 @@ describe("buildPickupNoticeMessage", () => {
 		);
 	});
 
-	test("an unpaid Order with a gateway set up links the Track page instead", () => {
+	test("an unpaid Order with a gateway set up pays through the one Track link", () => {
 		const message = buildPickupNoticeMessage({
 			...base,
 			isPaid: false,
@@ -43,9 +43,22 @@ describe("buildPickupNoticeMessage", () => {
 		});
 
 		expect(message).toContain(
-			"Status Pembayaran: *BELUM LUNAS*\n\nBayar online: https://pos.fresclean.id/track?code=x&phone=y\n\n*PENTING*",
+			"Lacak & bayar pesanan: https://pos.fresclean.id/track?code=x&phone=y",
 		);
+		expect(message).toContain("Status Pembayaran: *BELUM LUNAS*\n\n*PENTING*");
+		expect(message.split("https://").length - 1).toBe(1);
 		expect(message).not.toContain("BCA");
+	});
+
+	test("a paid Order keeps the plain Track label even with a gateway set up", () => {
+		const message = buildPickupNoticeMessage({
+			...base,
+			isPaid: true,
+			canPayOnline: true,
+		});
+
+		expect(message).toContain("Lacak pesanan: https://");
+		expect(message).not.toContain("Lacak & bayar");
 	});
 });
 

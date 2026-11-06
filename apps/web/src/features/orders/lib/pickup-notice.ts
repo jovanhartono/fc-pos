@@ -25,15 +25,18 @@ export const buildPickupNoticeMessage = ({
 	trackingUrl,
 	canPayOnline,
 }: PickupNoticeMessageInput): string => {
+	// The Track page is also where they pay, so one link does both jobs.
+	const isPayOnTrack = !isPaid && canPayOnline;
+	const trackLabel = isPayOnTrack ? "Lacak & bayar pesanan" : "Lacak pesanan";
+	const bankLines = canPayOnline
+		? []
+		: [
+				"",
+				`Untuk pelunasan pembayaran bisa dilakukan dengan transfer ke rekening *${BANK_ACCOUNT}*`,
+			];
 	const paymentLines = isPaid
 		? ["Status Pembayaran: *LUNAS*"]
-		: [
-				"Status Pembayaran: *BELUM LUNAS*",
-				"",
-				canPayOnline
-					? `Bayar online: ${trackingUrl}`
-					: `Untuk pelunasan pembayaran bisa dilakukan dengan transfer ke rekening *${BANK_ACCOUNT}*`,
-			];
+		: ["Status Pembayaran: *BELUM LUNAS*", ...bankLines];
 
 	return [
 		`Halo, ${customerName}!`,
@@ -41,7 +44,7 @@ export const buildPickupNoticeMessage = ({
 		"",
 		`Nomor Invoice: ${orderCode}`,
 		`Kode Pengambilan: *${pickupCode}*`,
-		`Lacak pesanan: ${trackingUrl}`,
+		`${trackLabel}: ${trackingUrl}`,
 		"",
 		`Total Transaksi: Rp ${formatMoneyParts(total).amount},00`,
 		...paymentLines,
