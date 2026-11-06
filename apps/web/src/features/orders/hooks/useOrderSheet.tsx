@@ -1,21 +1,18 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { ordersQueries } from "@/features/orders/api";
 import { OrderDetailSkeleton } from "@/features/orders/components/order-detail-skeleton";
 import { OrderWalk } from "@/features/orders/components/order-walk";
-import { lazyWithPreload } from "@/lib/lazy-with-preload";
 import { useOrderWalkStore } from "@/stores/order-walk-store";
 import { useSheet } from "@/stores/sheet-store";
 
 // The Order and its forms are most of the Orders and Counter pages' code, so
-// it loads as the pointer reaches a row; until then the sheet shows a skeleton.
-const OrderDetailView = lazyWithPreload(() =>
-	import("@/features/orders/components/order-detail-view").then(
-		(module) => module.OrderDetailView,
-	),
+// it loads when the sheet first opens; until then the sheet shows a skeleton.
+const OrderDetailView = lazy(() =>
+	import("@/features/orders/components/order-detail-view").then((module) => ({
+		default: module.OrderDetailView,
+	})),
 );
-
-export const preloadOrderDetail = OrderDetailView.preload;
 
 // A neighbour fetched this recently isn't fetched again on every list refresh.
 const NEIGHBOUR_STALE_TIME = 30_000;

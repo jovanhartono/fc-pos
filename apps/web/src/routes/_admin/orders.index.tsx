@@ -31,10 +31,7 @@ import {
 	type OrderFilterValues,
 } from "@/features/orders/components/order-filters";
 import { OrderPhoneRow } from "@/features/orders/components/order-phone-row";
-import {
-	preloadOrderDetail,
-	useOrderSheet,
-} from "@/features/orders/hooks/useOrderSheet";
+import { useOrderSheet } from "@/features/orders/hooks/useOrderSheet";
 import {
 	NOTIFIED_VALUES,
 	ORDER_STATUS_VALUES,
@@ -385,7 +382,7 @@ function OrdersPage() {
 	return (
 		<>
 			<PageHeader title="Orders" />
-			<ListPanel onPointerEnter={isWide ? preloadOrderDetail : undefined}>
+			<ListPanel>
 				<OrderFilters
 					values={search}
 					role={role}

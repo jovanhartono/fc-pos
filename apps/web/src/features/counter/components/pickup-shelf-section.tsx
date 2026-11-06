@@ -16,7 +16,6 @@ import { formatDays } from "@/features/counter/lib/format";
 import { NotifiedLabel } from "@/features/orders/components/notified-label";
 import { OrderListRow } from "@/features/orders/components/order-list-row";
 import { useNotifyCustomer } from "@/features/orders/hooks/useNotifyCustomer";
-import { preloadOrderDetail } from "@/features/orders/hooks/useOrderSheet";
 import { useLoadMore } from "@/hooks/useLoadMore";
 import { pluralize } from "@/shared/utils";
 
@@ -177,10 +176,7 @@ export const PickupShelfSection = ({
 		{shelf.orders === 0 ? (
 			<EmptyState icon={PackageDeliveredIcon}>Nothing on the shelf.</EmptyState>
 		) : (
-			<div
-				className="overflow-hidden rounded-lg border bg-card"
-				onPointerEnter={isWide ? preloadOrderDetail : undefined}
-			>
+			<div className="overflow-hidden rounded-lg border bg-card">
 				<ShelfList
 					isWide={isWide}
 					openOrderId={openOrderId}

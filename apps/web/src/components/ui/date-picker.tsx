@@ -8,6 +8,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
+	lazy,
 	type ReactElement,
 	type ReactNode,
 	Suspense,
@@ -32,7 +33,6 @@ import {
 } from "@/components/ui/sheet";
 import { useIsCoarsePointer, useIsMobile } from "@/hooks/use-mobile";
 import dayjs from "@/lib/dayjs";
-import { lazyWithPreload } from "@/lib/lazy-with-preload";
 import { cn } from "@/lib/utils";
 import {
 	type DatePreset,
@@ -53,15 +53,12 @@ interface PickerIconProps {
 }
 
 // Every list page with a date filter would otherwise load the calendar with
-// the page; it starts loading as the pointer reaches the trigger instead.
-const Calendar = lazyWithPreload(() =>
-	import("@/components/ui/calendar").then((module) => module.Calendar),
+// the page; it loads the first time a picker opens instead.
+const Calendar = lazy(() =>
+	import("@/components/ui/calendar").then((module) => ({
+		default: module.Calendar,
+	})),
 );
-
-const PRELOAD_CALENDAR = {
-	onFocus: Calendar.preload,
-	onPointerEnter: Calendar.preload,
-};
 
 // The calendar's footprint, so a popover opened before the code arrives doesn't
 // grow under the pointer. One month at 36px cells is w-67.
@@ -144,7 +141,6 @@ export const DatePicker = ({
 						aria-busy={isLoading || undefined}
 						iconLocation={iconLocation}
 						icon={<PickerIcon isLoading={isLoading} />}
-						{...PRELOAD_CALENDAR}
 					/>
 				}
 			>
@@ -510,7 +506,6 @@ export const DateRangePicker = ({
 				)}
 				aria-busy={isLoading || undefined}
 				icon={<PickerIcon isLoading={isLoading} />}
-				{...PRELOAD_CALENDAR}
 			/>
 		),
 		label,

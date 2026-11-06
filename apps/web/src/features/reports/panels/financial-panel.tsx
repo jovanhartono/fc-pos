@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { SectionTitle } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,16 +37,15 @@ import {
 import type { DeltaAs } from "@/features/reports/utils/kpi-delta";
 import { CHART_OTHER_COLOR } from "@/features/reports/utils/palette";
 import { staleFade } from "@/lib/content-fade";
-import { lazyWithPreload } from "@/lib/lazy-with-preload";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
-// Recharts draws only this Flow chart, so it loads when this tab opens,
-// alongside the totals rather than after them.
-const SankeyChart = lazyWithPreload(() =>
-	import("@/features/reports/components/sankey-chart").then(
-		(module) => module.SankeyChart,
-	),
+// Recharts draws only this Flow chart, so it loads with the chart instead
+// of with every Reports tab.
+const SankeyChart = lazy(() =>
+	import("@/features/reports/components/sankey-chart").then((module) => ({
+		default: module.SankeyChart,
+	})),
 );
 
 interface FinancialPanelProps {
@@ -80,7 +79,6 @@ export const FinancialPanel = ({
 	storeId,
 	granularity,
 }: FinancialPanelProps) => {
-	useEffect(SankeyChart.preload, []);
 	const query = useQuery({
 		...reportsQueries.financial({ from, to, store_id: storeId, granularity }),
 		placeholderData: keepPreviousData,
