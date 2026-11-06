@@ -244,6 +244,7 @@ export const OrderIdentityStrip = ({
 	const hasMenu =
 		Boolean(trackingUrl) ||
 		gates.canManageCourier ||
+		gates.canEditDeliveryFee ||
 		gates.canCancelOrder ||
 		gates.canRefundWholeOrder ||
 		gates.canOpenComplaint;
@@ -349,11 +350,8 @@ export const OrderIdentityStrip = ({
 												Set Courier
 											</DropdownMenuItem>
 										) : null}
-										{gates.isPaymentAllowed ? (
-											<DropdownMenuItem
-												disabled={!gates.canEditDeliveryFee}
-												onClick={openDeliveryFeeDialog}
-											>
+										{gates.canEditDeliveryFee ? (
+											<DropdownMenuItem onClick={openDeliveryFeeDialog}>
 												<HugeiconsIcon icon={Money03Icon} className="size-4" />
 												Set Delivery Fee
 											</DropdownMenuItem>

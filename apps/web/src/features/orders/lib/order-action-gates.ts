@@ -24,7 +24,7 @@ export interface OrderActionGates {
 	isPickupAllowed: boolean;
 	canManageDropoffPhoto: boolean;
 	canManageCourier: boolean;
-	// ADR-0029: shown to the same roles as the Courier, frozen once paid.
+	// ADR-0029: shown to the same roles as the Courier, hidden once paid.
 	canEditDeliveryFee: boolean;
 	canOpenPickup: boolean;
 	pickupDisabledReason?: string;
