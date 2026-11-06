@@ -31,7 +31,7 @@ The server reads from `process.env`:
 - `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_BUCKET` / `S3_REGION` (`auto`) / `S3_ENDPOINT` - the R2 bucket for photos, set per Vercel environment. Without `S3_ENDPOINT`, Bun's client talks to AWS and every upload fails
 - `CRON_SECRET` - Bearer secret Vercel cron sends to `/api/internal/*`; unset answers 401 to everyone
 - `SENTRY_DSN` - Optional; unset turns error reporting off
-- `PAYMENT_GATEWAY` - `midtrans` or `doku`, the gateway new Gateway charges use; unset turns online payment off (ADR-0026)
+- `PAYMENT_GATEWAY` - `midtrans` or `doku`, the gateway new Gateway charges use; unset turns online payment off (ADR-0028)
 - `MIDTRANS_SERVER_KEY`, `MIDTRANS_IS_PRODUCTION` / `DOKU_CLIENT_ID`, `DOKU_SECRET_KEY`, `DOKU_IS_PRODUCTION` - gateway credentials, sandbox unless `*_IS_PRODUCTION=true`
 - `DOKU_PRIVATE_KEY`, `DOKU_QRIS_MERCHANT_ID`, `DOKU_QRIS_TERMINAL_ID`, `DOKU_QRIS_POSTAL_CODE` - Optional; all four set shows DOKU's counter QRIS in the dialog (SNAP), otherwise it opens DOKU's page. The key is the PEM whose public half is uploaded to DOKU, line breaks written as `\n`
 - `PUBLIC_WEB_URL` - Optional, defaults to `https://pos.fresclean.id`; the Track page and webhook URLs sent to the gateway
@@ -72,7 +72,7 @@ Cron log lines carry `region=iad1`: that is where Vercel's scheduler enters, not
 
 - `/api/internal/photo-sweep` — deletes photos no order points at, left behind when the counter uploads and then abandons a batch. Checks only its own environment's prefix and skips files under 24h old. Its R2 token needs Object Read & Write, which includes listing, or every run fails with AccessDenied.
 - `/api/internal/close-open-shifts` — closes yesterday's Auto-closed Shifts at 00:00 Jakarta (ADR-0025). A skipped run locks nobody out: the next Clock in or Clock out closes it the same way.
-- `/api/internal/settle-payment-charges` — daily at 02:00 Jakarta. Asks the gateway once about each QRIS that ended more than 10 minutes ago while pending or cancelled on our side, in case its notice never arrived (ADR-0026). Money found books the Order or lands in Needs Review. A charge the gateway fails to answer on is asked again next run.
+- `/api/internal/settle-payment-charges` — daily at 02:00 Jakarta. Asks the gateway once about each QRIS that ended more than 10 minutes ago while pending or cancelled on our side, in case its notice never arrived (ADR-0028). Money found books the Order or lands in Needs Review. A charge the gateway fails to answer on is asked again next run.
 
 ## RPC / Type Sharing
 
