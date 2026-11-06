@@ -127,6 +127,18 @@ mock.module("@/modules/campaigns/campaign-redemption.service", () => ({
   },
 }));
 
+// The cash drawer: active, and not a gateway's. Stubbed whole, since the real
+// module prepares a query against the fake db as it loads.
+const unused = () => Promise.reject(new Error("not used by Mark as paid"));
+mock.module("@/modules/payment-methods/payment-method.repository", () => ({
+  findPaymentMethodByGateway: unused,
+  findPaymentMethodById: (id: number) =>
+    Promise.resolve({ gateway: null, id, is_active: true, name: "Cash" }),
+  insertPaymentMethod: unused,
+  listPaymentMethods: unused,
+  updatePaymentMethodById: unused,
+}));
+
 const { updateOrderPayment } = await import(
   "@/modules/orders/order-payment.service"
 );

@@ -16,6 +16,10 @@ import {
 	whatsappUrl,
 } from "@/features/orders/lib/pickup-notice";
 import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
+import {
+	isOnlinePaymentReady,
+	paymentMethodsQueries,
+} from "@/features/payment-methods/api";
 import { onOrderMoved } from "@/lib/cache-events";
 import { parseMoney } from "@/shared/money";
 import { useDialog } from "@/stores/dialog-store";
@@ -28,7 +32,7 @@ interface NotifyCustomerTarget {
 
 interface NotifyCustomerFooterProps {
 	label: string;
-	onConfirm: (receipt: OrderReceipt) => void;
+	onConfirm: (receipt: OrderReceipt, canPayOnline: boolean) => void;
 	orderId: number;
 }
 
@@ -41,6 +45,9 @@ const NotifyCustomerFooter = ({
 	// The Pickup code only comes with the receipt read (ADR-0016), and WhatsApp
 	// has to open inside the tap, so the code is fetched while the dialog is up.
 	const receiptQuery = useQuery(ordersQueries.receipt(orderId));
+	// A failed read falls back to the bank-transfer text rather than blocking.
+	const gatewayQuery = useQuery(paymentMethodsQueries.gateway());
+	const isGatewayLoading = gatewayQuery.isPending;
 	const confirmedRef = useRef(false);
 
 	return (
@@ -59,15 +66,18 @@ const NotifyCustomerFooter = ({
 				</Button>
 			) : (
 				<Button
-					disabled={!receiptQuery.data}
+					disabled={!receiptQuery.data || isGatewayLoading}
 					icon={<HugeiconsIcon icon={WhatsappIcon} className="size-4" />}
-					loading={receiptQuery.isPending}
+					loading={receiptQuery.isPending || isGatewayLoading}
 					onClick={() => {
 						if (confirmedRef.current || !receiptQuery.data) {
 							return;
 						}
 						confirmedRef.current = true;
-						onConfirm(receiptQuery.data);
+						onConfirm(
+							receiptQuery.data,
+							isOnlinePaymentReady(gatewayQuery.data),
+						);
 					}}
 					type="button"
 					variant="success"
@@ -103,7 +113,7 @@ export const useNotifyCustomer = (orderId: number) => {
 		},
 	});
 
-	const handleConfirm = (receipt: OrderReceipt) => {
+	const handleConfirm = (receipt: OrderReceipt, canPayOnline: boolean) => {
 		const message = buildPickupNoticeMessage({
 			customerName: receipt.customer.name,
 			orderCode: receipt.code,
@@ -115,6 +125,7 @@ export const useNotifyCustomer = (orderId: number) => {
 				receipt.code,
 				receipt.customer.phone_number,
 			),
+			canPayOnline,
 		});
 		// iOS only lets a tap open a new tab before anything is awaited.
 		window.open(whatsappUrl(receipt.customer.phone_number, message), "_blank");

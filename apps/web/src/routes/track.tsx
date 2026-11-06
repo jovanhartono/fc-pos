@@ -4,26 +4,41 @@ import {
 	isWaitingQcOnly,
 	normalizePhoneNumber,
 } from "@fresclean/api/schema";
+import { Clock01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { DetailedError } from "hono/client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { BrandLogo } from "@/components/brand-logo";
+import { PaymentOutcome } from "@/components/payment-outcome";
+import { QrisWaiting } from "@/components/qris-waiting";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { WaitingLabel } from "@/components/waiting-label";
 import { WhatsappIcon } from "@/components/whatsapp-icon";
-import { trackKeys, trackQueries } from "@/features/track/api";
+import {
+	type PublicTrackedOrder,
+	payTrackedOrder,
+	type TrackCharge,
+	trackKeys,
+	trackQueries,
+} from "@/features/track/api";
+import { useQrisPng } from "@/features/track/hooks/useQrisPng";
+import { formatClock } from "@/lib/dayjs";
+import { triggerDownload } from "@/lib/download";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
+import { hasQris, qrisImageSrc } from "@/lib/qris";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { formatMoney } from "@/shared/money";
 import { pluralize } from "@/shared/utils";
 
 const trackSearchSchema = z.object({
@@ -164,6 +179,206 @@ const StatusCard = ({
 	);
 };
 
+// The server's reason, like nothing left to pay, beats a retry that can't help.
+const payErrorText = (error: Error) => {
+	const detail =
+		error instanceof DetailedError
+			? (error.detail as { data?: { message?: string } } | undefined)
+			: undefined;
+	return detail?.data?.message ?? "Couldn't create the QRIS. Try again.";
+};
+
+const PRIMARY_BUTTON_CLASS =
+	"h-12 pointer-coarse:h-12 w-full rounded-full bg-primary font-semibold text-headline text-primary-foreground";
+
+interface PaidCardProps {
+	amount: number;
+}
+
+// Only on the phone that showed the QR: a paid Order opened later just drops
+// the card, as before.
+const PaidCard = ({ amount }: PaidCardProps) => (
+	<section className={cn(CARD_CLASS, "p-4")}>
+		<PaymentOutcome
+			icon={Tick02Icon}
+			isCompact
+			text={`${formatMoney(amount)} · Thank you`}
+			title="Payment Received"
+			tone="good"
+		/>
+	</section>
+);
+
+interface QrisPanelProps {
+	charge: TrackCharge;
+	code: string;
+	src: string;
+}
+
+const QrisPanel = ({ charge, code, src }: QrisPanelProps) => {
+	const fileName = `QRIS ${code.replace(/[^A-Za-z0-9-]+/g, "-")}.png`;
+	const png = useQrisPng(src, fileName);
+
+	const handleSave = async () => {
+		if (png && navigator.canShare?.({ files: [png.file] })) {
+			// Cancelling the share sheet is fine; the QR is still on screen.
+			await navigator.share({ files: [png.file] }).catch(() => undefined);
+			return;
+		}
+		triggerDownload(png?.url ?? src, fileName);
+	};
+
+	return (
+		<>
+			<img
+				alt="QRIS"
+				className="aspect-square w-full max-w-58 justify-self-center rounded-md border bg-white p-3"
+				src={png?.url ?? src}
+			/>
+			<Button
+				className={PRIMARY_BUTTON_CLASS}
+				onClick={handleSave}
+				type="button"
+			>
+				Save QRIS
+			</Button>
+			<p className="text-balance text-center text-muted-foreground text-subhead">
+				Open your bank or e-wallet app, tap Scan, and choose this QRIS from your
+				photos.
+			</p>
+			<QrisWaiting
+				expiresAt={charge.expires_at}
+				mockPageUrl={charge.redirect_url}
+			/>
+		</>
+	);
+};
+
+interface PaymentCardProps {
+	code: string;
+	phone: string;
+	netDue: number;
+	openCharge: TrackCharge | null;
+	// The QR this phone showed ran out unpaid.
+	hasExpired: boolean;
+}
+
+const PaymentCard = ({
+	code,
+	phone,
+	netDue,
+	openCharge,
+	hasExpired,
+}: PaymentCardProps) => {
+	const queryClient = useQueryClient();
+	const payMutation = useMutation({
+		mutationFn: () => payTrackedOrder({ code, phone_number: phone }),
+		onSuccess: (charge) => {
+			if (!hasQris(charge) && charge.redirect_url) {
+				window.location.href = charge.redirect_url;
+				return;
+			}
+			queryClient.setQueryData(
+				trackKeys.order(code, phone),
+				(order: PublicTrackedOrder | undefined) =>
+					order && { ...order, open_charge: charge },
+			);
+			payMutation.reset();
+		},
+		// Said under the button instead.
+		onError: () => undefined,
+	});
+	const resetPay = payMutation.reset;
+
+	// A Customer who backs out of DOKU's QRIS page lands on this page as Safari
+	// left it, the button still spinning, so free it and read the Order again.
+	useEffect(() => {
+		const handlePageShow = (event: PageTransitionEvent) => {
+			if (!event.persisted) {
+				return;
+			}
+			resetPay();
+			void queryClient.invalidateQueries({ queryKey: trackKeys.all });
+		};
+		window.addEventListener("pageshow", handlePageShow);
+		return () => window.removeEventListener("pageshow", handlePageShow);
+	}, [queryClient, resetPay]);
+
+	const qrSrc = useMemo(
+		() => (openCharge ? qrisImageSrc(openCharge) : null),
+		[openCharge],
+	);
+	const isPaying = payMutation.isPending || payMutation.isSuccess;
+	const payError = payMutation.isError ? (
+		<p
+			className="text-balance text-center text-destructive text-subhead"
+			role="alert"
+		>
+			{payErrorText(payMutation.error)}
+		</p>
+	) : null;
+
+	if (hasExpired && !openCharge) {
+		return (
+			<section className={cn(CARD_CLASS, "grid gap-3.5 p-4")}>
+				<PaymentOutcome
+					icon={Clock01Icon}
+					isCompact
+					text="Nothing was charged."
+					title="QRIS Expired"
+					tone="neutral"
+				/>
+				<Button
+					className={PRIMARY_BUTTON_CLASS}
+					loading={isPaying}
+					loadingText="Creating QRIS…"
+					onClick={() => payMutation.mutate()}
+					type="button"
+				>
+					New QRIS
+				</Button>
+				{payError}
+			</section>
+		);
+	}
+
+	return (
+		<section className={cn(CARD_CLASS, "grid gap-3.5 p-4")}>
+			<div className="flex items-baseline justify-between gap-3">
+				<p className="text-headline">Amount due</p>
+				<p className="font-medium text-title-3 tabular-nums">
+					{formatMoney(netDue)}
+				</p>
+			</div>
+			{openCharge && qrSrc ? (
+				<QrisPanel charge={openCharge} code={code} src={qrSrc} />
+			) : (
+				<>
+					{/* DOKU's QRIS page the Customer left unpaid, while its SNAP keys are missing. */}
+					{openCharge ? (
+						<div className="grid gap-0.5 rounded-lg bg-muted px-3.5 py-3 text-body">
+							<WaitingLabel>Payment not finished</WaitingLabel>
+							<span className="pl-4 text-muted-foreground text-subhead tabular-nums">
+								Open until {formatClock(openCharge.expires_at)}
+							</span>
+						</div>
+					) : null}
+					<Button
+						className={PRIMARY_BUTTON_CLASS}
+						loading={isPaying}
+						loadingText="Creating QRIS…"
+						onClick={() => payMutation.mutate()}
+						type="button"
+					>
+						{openCharge ? "Continue Payment" : "Pay with QRIS"}
+					</Button>
+					{payError}
+				</>
+			)}
+		</section>
+	);
+};
+
 // Same structure as the loaded page so a link opened straight from WhatsApp
 // does not flash the search form or jump when the Order appears.
 const StatusPlaceholder = () => (
@@ -252,11 +467,13 @@ const TrackOrderPage = () => {
 			void trackQuery.refetch();
 			return;
 		}
+		setShownCharge(null);
 		void navigate({ search: { code: trimmedCode, phone: trimmedPhone } });
 	};
 
 	const handleReset = () => {
 		queryClient.removeQueries({ queryKey: trackKeys.all });
+		setShownCharge(null);
 		setCode("");
 		setPhone("");
 		void navigate({ search: {} });
@@ -264,6 +481,25 @@ const TrackOrderPage = () => {
 
 	const trackData = trackQuery.data;
 	const isLoading = trackQuery.isFetching;
+
+	// The last QR this phone showed, so the card can still say Paid or Expired
+	// once the server stops sending it.
+	const [shownCharge, setShownCharge] = useState<TrackCharge | null>(null);
+	const openCharge = trackData?.open_charge ?? null;
+	if (
+		hasQris(openCharge) &&
+		openCharge?.expires_at !== shownCharge?.expires_at
+	) {
+		setShownCharge(openCharge);
+	}
+	const isPaidHere =
+		trackData?.payment_status === "paid" && shownCharge !== null;
+	// The gateway's clock, not the phone's, says when a QR ends: gone while the
+	// amount stayed the same means it ran out.
+	const hasExpired =
+		shownCharge !== null &&
+		!hasQris(openCharge) &&
+		shownCharge.amount === trackData?.net_due;
 
 	useEffect(() => {
 		document.title = trackData
@@ -309,6 +545,17 @@ const TrackOrderPage = () => {
 							pendingCount={pendingItems.length}
 							pickupCode={trackData.pickup_code}
 						/>
+
+						{isPaidHere ? <PaidCard amount={shownCharge.amount} /> : null}
+						{trackData.can_pay_online && submitted ? (
+							<PaymentCard
+								code={submitted.code}
+								hasExpired={hasExpired}
+								netDue={trackData.net_due}
+								openCharge={openCharge}
+								phone={submitted.phone}
+							/>
+						) : null}
 
 						<h2 className={SECTION_LABEL_CLASS}>Items · {items.length}</h2>
 						{/* One block per Item handed over, its Services beneath
@@ -432,7 +679,7 @@ const TrackOrderPage = () => {
 						<Button
 							type="submit"
 							disabled={isLoading}
-							className="h-12 pointer-coarse:h-12 w-full rounded-full bg-primary font-semibold text-headline text-primary-foreground"
+							className={PRIMARY_BUTTON_CLASS}
 						>
 							{isLoading ? "Searching…" : "Track"}
 						</Button>

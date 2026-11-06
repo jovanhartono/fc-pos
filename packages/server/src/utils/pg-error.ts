@@ -48,6 +48,8 @@ const CONSTRAINT_MESSAGES: Partial<Record<string, string>> = {
   customers_email: "A customer with that email already exists",
   customers_phone_number: "A customer with that phone number already exists",
   paid_amount_valid_check: "Payment cannot be more than the order total",
+  payment_methods_gateway_uidx:
+    "Another payment method is already linked to that gateway",
   products_sku: "That SKU is already in use",
   refunded_amount_valid_check: "Refund cannot be more than the amount paid",
   services_code: "That service code is already in use",

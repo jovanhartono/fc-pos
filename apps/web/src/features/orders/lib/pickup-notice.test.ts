@@ -7,6 +7,7 @@ const base = {
 	pickupCode: "482913",
 	total: 385_000,
 	trackingUrl: "https://pos.fresclean.id/track?code=x&phone=y",
+	canPayOnline: false,
 };
 
 describe("buildPickupNoticeMessage", () => {
@@ -32,6 +33,32 @@ describe("buildPickupNoticeMessage", () => {
 		expect(message).toContain(
 			"Status Pembayaran: *BELUM LUNAS*\n\nUntuk pelunasan pembayaran bisa dilakukan dengan transfer ke rekening *BCA 7570751471 (Jovanus)*\n\n*PENTING*",
 		);
+	});
+
+	test("an unpaid Order with a gateway set up pays through the one Track link", () => {
+		const message = buildPickupNoticeMessage({
+			...base,
+			isPaid: false,
+			canPayOnline: true,
+		});
+
+		expect(message).toContain(
+			"Lacak & bayar pesanan: https://pos.fresclean.id/track?code=x&phone=y",
+		);
+		expect(message).toContain("Status Pembayaran: *BELUM LUNAS*\n\n*PENTING*");
+		expect(message.split("https://").length - 1).toBe(1);
+		expect(message).not.toContain("BCA");
+	});
+
+	test("a paid Order keeps the plain Track label even with a gateway set up", () => {
+		const message = buildPickupNoticeMessage({
+			...base,
+			isPaid: true,
+			canPayOnline: true,
+		});
+
+		expect(message).toContain("Lacak pesanan: https://");
+		expect(message).not.toContain("Lacak & bayar");
 	});
 });
 

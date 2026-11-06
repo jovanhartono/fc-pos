@@ -8,9 +8,23 @@ let order: Record<string, unknown> | undefined;
 
 mock.module("@/modules/orders/order-read.repository", () => ({
   findTrackedOrder: () => Promise.resolve(order),
+  findTrackedOrderRef: () => Promise.resolve(order),
 }));
 
-const { getTrackedOrder } = await import(
+mock.module("@/modules/payments/payment-charge.service", () => ({
+  createPaymentCharge: () =>
+    Promise.resolve({ qr_image_url: null, redirect_url: null }),
+  getTrackPaymentState: ({ payment_status }: { payment_status: string }) =>
+    Promise.resolve({
+      can_pay_online: false,
+      net_due: 0,
+      open_charge: null,
+      payment_status,
+    }),
+  toTrackChargeView: (charge: unknown) => charge,
+}));
+
+const { getTrackedOrder, payTrackedOrder } = await import(
   "@/modules/orders/order-track.service"
 );
 
@@ -87,6 +101,22 @@ describe("lookup", () => {
 
     expect(missing).toBeInstanceOf(NotFoundException);
     expect((missing as Error).message).toBe(
+      "Order code or phone number is invalid"
+    );
+  });
+
+  it("asks the same proof before opening a payment page", async () => {
+    order = undefined;
+
+    const error = await captureRejection(
+      payTrackedOrder({
+        code: "#KMG/260912/1",
+        phone_number: CUSTOMER.phone_number,
+      })
+    );
+
+    expect(error).toBeInstanceOf(NotFoundException);
+    expect((error as Error).message).toBe(
       "Order code or phone number is invalid"
     );
   });

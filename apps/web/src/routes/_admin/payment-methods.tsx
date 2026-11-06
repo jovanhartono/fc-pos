@@ -78,6 +78,7 @@ function PaymentMethodsPage() {
 							name: paymentMethod.name,
 							code: paymentMethod.code,
 							is_active: paymentMethod.is_active,
+							gateway: paymentMethod.gateway,
 						}}
 						handleOnSubmit={async (values) => {
 							await updateMutation.mutateAsync({

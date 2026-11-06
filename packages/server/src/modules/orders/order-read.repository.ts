@@ -520,3 +520,10 @@ export function findTrackedOrder(code: string, phoneNumber: string) {
     },
   });
 }
+
+export function findTrackedOrderRef(code: string, phoneNumber: string) {
+  return db.query.ordersTable.findFirst({
+    where: { code, customer: { phone_number: phoneNumber } },
+    columns: { id: true },
+  });
+}

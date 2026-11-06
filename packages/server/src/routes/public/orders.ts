@@ -1,6 +1,9 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { getTrackedOrder } from "@/modules/orders/order-track.service";
+import {
+  getTrackedOrder,
+  payTrackedOrder,
+} from "@/modules/orders/order-track.service";
 import { phoneSchema } from "@/schema/common";
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
@@ -10,10 +13,12 @@ const POSTPublicTrackOrderSchema = z.object({
   phone_number: phoneSchema,
 });
 
-const app = new Hono().post(
-  "/track",
-  zodValidator("json", POSTPublicTrackOrderSchema),
-  async (c) => c.json(success(await getTrackedOrder(c.req.valid("json"))))
-);
+const app = new Hono()
+  .post("/track", zodValidator("json", POSTPublicTrackOrderSchema), async (c) =>
+    c.json(success(await getTrackedOrder(c.req.valid("json"))))
+  )
+  .post("/pay", zodValidator("json", POSTPublicTrackOrderSchema), async (c) =>
+    c.json(success(await payTrackedOrder(c.req.valid("json"))))
+  );
 
 export default app;

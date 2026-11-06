@@ -31,6 +31,7 @@ import {
   WORKSHOP_SERVICE_STATUSES as _WORKSHOP_SERVICE_STATUSES,
 } from "@/modules/orders/order-status-machine";
 import { POSTPaymentMethodSchema as _POSTPaymentMethodSchema } from "@/modules/payment-methods/payment-method.schema";
+import { GATEWAY_LABELS as _GATEWAY_LABELS } from "@/modules/payments/gateways/types";
 import { POSTProductSchema as _POSTProductSchema } from "@/modules/products/product.schema";
 import { POSTServiceSchema as _POSTServiceSchema } from "@/modules/services/service.schema";
 import {
@@ -67,6 +68,7 @@ export const POSTCustomerSchema = _POSTCustomerSchema;
 export const PUTCustomerSchema = _PUTCustomerSchema;
 export const POSTCategorySchema = _POSTCategorySchema;
 export const POSTPaymentMethodSchema = _POSTPaymentMethodSchema;
+export const GATEWAY_LABELS = _GATEWAY_LABELS;
 export const POSTProductSchema = _POSTProductSchema;
 export const POSTServiceSchema = _POSTServiceSchema;
 export const POSTStoreSchema = _POSTStoreSchema;
