@@ -14,7 +14,6 @@ import {
   type GetPickupShelfQuery,
   SHELF_PAGE_SIZE,
 } from "@/modules/counter/counter.schema";
-import { isWaitingQcOnly } from "@/modules/orders/order-status-machine";
 import {
   DAY_MS,
   daysBetween,
@@ -22,6 +21,7 @@ import {
 } from "@/modules/reports/report-range.util";
 import { listTurnaroundLines } from "@/modules/reports/turnaround.repository";
 import { groupItems, percentiles } from "@/modules/reports/turnaround.service";
+import { isWaitingQcOnly } from "@/schema/order-status";
 import {
   buildPaginationMeta,
   normalizePagination,

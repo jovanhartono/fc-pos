@@ -8,18 +8,20 @@ import {
   type DbExecutor,
   deriveItemStatus,
   deriveOrderStatus,
-  type ItemStatusLine,
-  isHandedOverByPickup,
   isItemCollectable,
   isTerminalOrderServiceStatus,
-  isWaitingQcOnly,
   nextReadyAt,
-  ORDER_SERVICE_TRANSITIONS,
-  ORDER_TERMINAL_SERVICE_STATUSES,
-  type OrderServiceStatus,
   summarizeOrderFulfillment,
   transitionOrderService,
 } from "@/modules/orders/order-status-machine";
+import {
+  type ItemStatusLine,
+  isHandedOverByPickup,
+  isWaitingQcOnly,
+  ORDER_SERVICE_TRANSITIONS,
+  ORDER_TERMINAL_SERVICE_STATUSES,
+  type OrderServiceStatus,
+} from "@/schema/order-status";
 
 interface AnyLine extends ItemStatusLine {
   id: number;

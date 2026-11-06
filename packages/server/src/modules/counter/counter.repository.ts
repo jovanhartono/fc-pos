@@ -12,7 +12,7 @@ import {
   servicesTable,
 } from "@/db/schema";
 import { REWORKED_ROUND_STATUSES } from "@/modules/complaints/complaint.schema";
-import { WORKSHOP_SERVICE_STATUSES } from "@/modules/orders/order-status-machine";
+import { WORKSHOP_SERVICE_STATUSES } from "@/schema/order-status";
 import type { NormalizedPagination } from "@/utils/pagination";
 
 export function listWaitingLines(storeId: number) {

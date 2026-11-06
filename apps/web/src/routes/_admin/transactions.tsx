@@ -39,7 +39,6 @@ export const Route = createFileRoute("/_admin/transactions")({
 	component: TransactionsPage,
 	// Past a second, the POS's outline instead of the generic placeholder.
 	pendingComponent: PosSkeleton,
-	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function TransactionsPage() {

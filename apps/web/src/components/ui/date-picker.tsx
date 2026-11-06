@@ -7,10 +7,16 @@ import {
 	Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { type ReactElement, useEffect, useMemo, useState } from "react";
+import {
+	type ReactElement,
+	type ReactNode,
+	Suspense,
+	useEffect,
+	useMemo,
+	useState,
+} from "react";
 import type { DateRange, Matcher } from "react-day-picker";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import {
 	Popover,
 	PopoverContent,
@@ -26,6 +32,7 @@ import {
 } from "@/components/ui/sheet";
 import { useIsCoarsePointer, useIsMobile } from "@/hooks/use-mobile";
 import dayjs from "@/lib/dayjs";
+import { lazyWithPreload } from "@/lib/lazy-with-preload";
 import { cn } from "@/lib/utils";
 import {
 	type DatePreset,
@@ -44,6 +51,30 @@ const FIELD_TRIGGER =
 interface PickerIconProps {
 	isLoading?: boolean;
 }
+
+// Every list page with a date filter would otherwise load the calendar with
+// the page; it starts loading as the pointer reaches the trigger instead.
+const Calendar = lazyWithPreload(() =>
+	import("@/components/ui/calendar").then((module) => module.Calendar),
+);
+
+const PRELOAD_CALENDAR = {
+	onFocus: Calendar.preload,
+	onPointerEnter: Calendar.preload,
+};
+
+// The calendar's footprint, so a popover opened before the code arrives doesn't
+// grow under the pointer. One month at 36px cells is w-67.
+interface CalendarSlotProps {
+	children: ReactNode;
+	className: string;
+}
+
+const CalendarSlot = ({ children, className }: CalendarSlotProps) => (
+	<Suspense fallback={<div aria-busy className={className} />}>
+		{children}
+	</Suspense>
+);
 
 const PickerIcon = ({ isLoading }: PickerIconProps) => (
 	<HugeiconsIcon
@@ -113,6 +144,7 @@ export const DatePicker = ({
 						aria-busy={isLoading || undefined}
 						iconLocation={iconLocation}
 						icon={<PickerIcon isLoading={isLoading} />}
+						{...PRELOAD_CALENDAR}
 					/>
 				}
 			>
@@ -122,16 +154,18 @@ export const DatePicker = ({
 				</span>
 			</PopoverTrigger>
 			<PopoverContent align="start" className="w-auto p-0">
-				<Calendar
-					mode="single"
-					selected={selected}
-					defaultMonth={selected}
-					disabled={disabledMatchers}
-					onSelect={(date) => {
-						onChange(date ? dayjs(date).format(WIRE_FORMAT) : undefined);
-						setIsOpen(false);
-					}}
-				/>
+				<CalendarSlot className="h-72 w-67">
+					<Calendar
+						mode="single"
+						selected={selected}
+						defaultMonth={selected}
+						disabled={disabledMatchers}
+						onSelect={(date) => {
+							onChange(date ? dayjs(date).format(WIRE_FORMAT) : undefined);
+							setIsOpen(false);
+						}}
+					/>
+				</CalendarSlot>
 			</PopoverContent>
 		</Popover>
 	);
@@ -236,17 +270,19 @@ const DateRangeSheet = ({
 								: "End"}
 						</div>
 						<div className="min-h-0 flex-1 overflow-y-auto">
-							<Calendar
-								mode="range"
-								resetOnSelect={resetOnSelect}
-								className="w-full [--cell-size:--spacing(11)] p-3"
-								classNames={{ root: "w-full", week: "mt-1 flex w-full" }}
-								defaultMonth={draftRange?.from}
-								selected={draftRange}
-								numberOfMonths={1}
-								disabled={notFuture}
-								onSelect={onDraftChange}
-							/>
+							<CalendarSlot className="h-79 w-full">
+								<Calendar
+									mode="range"
+									resetOnSelect={resetOnSelect}
+									className="w-full [--cell-size:--spacing(11)] p-3"
+									classNames={{ root: "w-full", week: "mt-1 flex w-full" }}
+									defaultMonth={draftRange?.from}
+									selected={draftRange}
+									numberOfMonths={1}
+									disabled={notFuture}
+									onSelect={onDraftChange}
+								/>
+							</CalendarSlot>
 						</div>
 						<SheetFooter className="shrink-0 border-t border-border/70 p-3">
 							<Button
@@ -320,6 +356,7 @@ const DateRangePopover = ({
 	// A second month plus the preset rail overflows a narrow desktop window; touch
 	// devices never reach here, they get the sheet.
 	const isMobile = useIsMobile(640);
+	const months = isMobile ? 1 : numberOfMonths;
 
 	return (
 		<Popover open={isOpen} onOpenChange={onOpenChange}>
@@ -348,16 +385,23 @@ const DateRangePopover = ({
 							</button>
 						))}
 					</div>
-					<Calendar
-						className="mx-auto sm:mx-0"
-						mode="range"
-						resetOnSelect={resetOnSelect}
-						defaultMonth={draftRange?.from}
-						selected={draftRange}
-						numberOfMonths={isMobile ? 1 : numberOfMonths}
-						disabled={notFuture}
-						onSelect={onDraftChange}
-					/>
+					<CalendarSlot
+						className={cn(
+							"mx-auto h-72 sm:mx-0",
+							months > 1 ? "w-134" : "w-67",
+						)}
+					>
+						<Calendar
+							className="mx-auto sm:mx-0"
+							mode="range"
+							resetOnSelect={resetOnSelect}
+							defaultMonth={draftRange?.from}
+							selected={draftRange}
+							numberOfMonths={months}
+							disabled={notFuture}
+							onSelect={onDraftChange}
+						/>
+					</CalendarSlot>
 				</div>
 			</PopoverContent>
 		</Popover>
@@ -466,6 +510,7 @@ export const DateRangePicker = ({
 				)}
 				aria-busy={isLoading || undefined}
 				icon={<PickerIcon isLoading={isLoading} />}
+				{...PRELOAD_CALENDAR}
 			/>
 		),
 		label,

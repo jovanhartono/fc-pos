@@ -278,5 +278,4 @@ export const Route = createFileRoute("/_admin/shifts")({
 	component: ShiftsPage,
 	// Past a second, the page itself draws with placeholders.
 	pendingComponent: ShiftsPage,
-	codeSplitGroupings: [["component", "pendingComponent"]],
 });

@@ -3,9 +3,9 @@ import {
 	type CampaignContribution,
 	type CampaignDiscountInput,
 	type DiscountLine,
-	normalizePhoneNumber,
 	stackCampaignDiscounts,
-} from "@fresclean/api/schema";
+} from "@fresclean/api/rules";
+import { normalizePhoneNumber } from "@fresclean/api/schema";
 import type { UseFormReturn } from "react-hook-form";
 import type { ResolvedVoucher } from "@/features/campaigns/api";
 import type { CreateOrderPayload } from "@/features/orders/api";

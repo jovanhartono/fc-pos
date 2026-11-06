@@ -1,4 +1,4 @@
-import { hasUnpricedLine } from "@fresclean/api/schema";
+import { hasUnpricedLine } from "@fresclean/api/rules";
 import { parseMoney } from "@/shared/money";
 
 interface PickupProgressItem {

@@ -32,7 +32,6 @@ export const Route = createFileRoute("/_admin/categories")({
 	component: CategoriesPage,
 	// Past a second, the page itself draws with skeleton rows.
 	pendingComponent: CategoriesPage,
-	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 const CategoriesActions = ({ row }: { row: DataTableRow<Category> }) => {

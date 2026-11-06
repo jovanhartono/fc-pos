@@ -2,8 +2,8 @@ import {
 	type DerivedItemStatus,
 	isCollectableItemStatus,
 	isWaitingQcOnly,
-	normalizePhoneNumber,
-} from "@fresclean/api/schema";
+} from "@fresclean/api/rules";
+import { normalizePhoneNumber } from "@fresclean/api/schema";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";

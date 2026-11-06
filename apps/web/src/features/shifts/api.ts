@@ -1,4 +1,4 @@
-import type { ClockInCoordinates } from "@fresclean/api/schema";
+import type { ClockInCoordinates } from "@fresclean/api/rules";
 import { queryOptions } from "@tanstack/react-query";
 import { type InferResponseType, parseResponse } from "hono/client";
 import {

@@ -1,4 +1,4 @@
-import { campaignIneligibilityReason } from "@fresclean/api/schema";
+import { campaignIneligibilityReason } from "@fresclean/api/rules";
 import {
 	Invoice01Icon,
 	Store01Icon,

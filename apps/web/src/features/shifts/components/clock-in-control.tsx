@@ -1,4 +1,4 @@
-import { clockInRequiresLocation, distanceKm } from "@fresclean/api/schema";
+import { clockInRequiresLocation, distanceKm } from "@fresclean/api/rules";
 import { Alert02Icon, Login03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

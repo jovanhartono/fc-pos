@@ -1,11 +1,16 @@
-import { isUnpricedLine } from "@fresclean/api/schema";
+import { isUnpricedLine } from "@fresclean/api/rules";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { memo } from "react";
-import { TextSkeleton } from "@/components/text-skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { OrderDetail } from "@/features/orders/api";
+import {
+	LINE_BADGES,
+	LINE_GRID,
+	LINE_HANDLER,
+	LINE_NAME,
+	LINE_PRICE,
+} from "@/features/orders/components/order-detail-parts";
 import { OrderServiceDetail } from "@/features/orders/components/order-service-detail";
 import { ReworkRoundLabel } from "@/features/orders/components/rework-round-label";
 import {
@@ -17,34 +22,6 @@ import { formatMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
 type OrderServiceRowService = OrderDetail["items"][number]["services"][number];
-
-const LINE_GRID =
-	"grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 max-sm:items-start";
-const LINE_NAME = "text-body leading-5 compact:text-subhead";
-const LINE_BADGES =
-	"flex flex-wrap items-center justify-end gap-1.5 max-sm:order-last max-sm:col-span-2 max-sm:justify-start";
-const LINE_HANDLER =
-	"min-w-0 text-foreground text-subhead leading-snug max-sm:hidden";
-const LINE_PRICE =
-	"flex items-center gap-1 justify-self-end text-body tabular-nums compact:text-subhead";
-
-// One OrderService while the Order loads: name, status pill and price.
-export const OrderServiceRowSkeleton = () => (
-	<div className="flex py-2.5">
-		<span className={LINE_GRID}>
-			<span className={LINE_NAME}>
-				<TextSkeleton className="w-56 max-w-full" />
-			</span>
-			<span className={LINE_BADGES}>
-				<Skeleton className="h-5 w-16 rounded-full" />
-			</span>
-			<span className={LINE_HANDLER} />
-			<span className={LINE_PRICE}>
-				<TextSkeleton />
-			</span>
-		</span>
-	</div>
-);
 
 interface OrderServiceRowProps {
 	orderId: number;

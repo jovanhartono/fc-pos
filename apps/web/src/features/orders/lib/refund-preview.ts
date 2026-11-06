@@ -1,4 +1,4 @@
-import { lineKey, orderLineRefundCaps } from "@fresclean/api/schema";
+import { lineKey, orderLineRefundCaps } from "@fresclean/api/rules";
 import type { OrderDetail } from "@/features/orders/api";
 import { flattenOrderLines } from "@/features/orders/lib/order-lines";
 import { parseMoney } from "@/shared/money";

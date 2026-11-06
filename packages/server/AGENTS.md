@@ -13,7 +13,7 @@
 - **Refuse inactive rows on the server**, not only by hiding them in the POS.
 - Use `src/utils/http.ts` helpers (`success()`, `failure()`) for responses.
 - **Tests**: run them through `bun run test`, which passes `--isolate`. `*.integration.test.ts` files swap `@/db` (and sometimes `@/utils/s3`) for the whole module registry, so a bare `bun test <file>` drops the isolation and lets those mocks leak into every other file in the run.
-- Export types/schemas for web via package exports (`schema`, `rpc`, `types`) — no deep internal imports from `@fresclean/web`.
+- Export types/schemas for web via package exports (`schema`, `rules`, `rpc`, `types`) — no deep internal imports from `@fresclean/web`. `rules` (`src/schema/rules.ts`) is for logic both sides run and must not import zod, a table or `libphonenumber-js` (`import type` is fine); a pure helper living in a `*.schema.ts` moves to `src/schema/` first.
 - **Date query params**: `dateStringSchema()` requires `YYYY-MM-DD` — never send `.toISOString()`.
 - **Timezone** (ADR-0002): day/week/month boundaries and date strings use the `src/utils/date.ts` helpers (`jakartaNow`, `jakartaDayStart`, `jakartaDayEnd`), never a bare `dayjs().startOf("day")`. SQL buckets days through `jakartaBucketExpr`: columns hold UTC wall time, so a single `AT TIME ZONE 'Asia/Jakarta'` lands 14h off. `modules/reports/report-range.util.ts` uses fixed UTC+7 arithmetic on purpose so its labels match Postgres' buckets exactly.
 
