@@ -40,6 +40,10 @@ export type CreateCustomerPayload = Omit<
 };
 export type UpdateCustomerPayload = z.infer<typeof PUTCustomerSchema>;
 
+// The route loader prefetches with this same size — two copies that drift
+// would leave the page fetching twice and flashing a skeleton it already had.
+export const CUSTOMER_ORDERS_PAGE_SIZE = 10;
+
 export const customersKeys = {
 	all: ["customers"] as const,
 	lists: () => [...customersKeys.all, "list"] as const,

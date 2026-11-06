@@ -1,4 +1,4 @@
-import { orderNetTotal } from "@fresclean/api/schema";
+import { orderNetTotal } from "@fresclean/api/rules";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";

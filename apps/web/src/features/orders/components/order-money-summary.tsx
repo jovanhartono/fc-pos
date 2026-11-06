@@ -1,4 +1,4 @@
-import { orderNetTotal } from "@fresclean/api/schema";
+import { orderNetTotal } from "@fresclean/api/rules";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Separator } from "@/components/ui/separator";
 import type { OrderDetail } from "@/features/orders/api";

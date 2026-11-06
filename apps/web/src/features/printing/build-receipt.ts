@@ -1,4 +1,4 @@
-import { orderNetTotal } from "@fresclean/api/schema";
+import { orderNetTotal } from "@fresclean/api/rules";
 import dayjs from "dayjs";
 import type { OrderReceipt } from "@/features/orders/api";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";

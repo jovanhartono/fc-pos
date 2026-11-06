@@ -1,4 +1,4 @@
-import { isInWorkshop, isReworkedRound } from "@fresclean/api/schema";
+import { isInWorkshop, isReworkedRound } from "@fresclean/api/rules";
 import {
 	ArrowLeft02Icon,
 	ArrowRight01Icon,
@@ -308,5 +308,4 @@ export const Route = createFileRoute("/_admin/complaints/$complaintId")({
 	notFoundComponent: ComplaintNotFound,
 	// Past a second, the page draws its own skeleton, not the generic placeholder.
 	pendingComponent: ComplaintDetailPage,
-	codeSplitGroupings: [["component", "pendingComponent"]],
 });

@@ -1,6 +1,6 @@
 import { type DbExecutor, db } from "@/db";
 import { BadRequestException } from "@/http-exceptions";
-import type { OrderServiceStatus } from "@/modules/orders/order-status-machine";
+import type { OrderServiceStatus } from "@/schema/order-status";
 
 // The Item code and descriptors, the same fields wherever an Item is named
 // (ADR-0017).

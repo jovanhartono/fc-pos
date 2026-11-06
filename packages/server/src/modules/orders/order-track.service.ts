@@ -3,15 +3,13 @@ import {
   findTrackedOrder,
   findTrackedOrderRef,
 } from "@/modules/orders/order-read.repository";
-import {
-  deriveItemStatus,
-  isCollectableItemStatus,
-} from "@/modules/orders/order-status-machine";
+import { deriveItemStatus } from "@/modules/orders/order-status-machine";
 import {
   createPaymentCharge,
   getTrackPaymentState,
   toTrackChargeView,
 } from "@/modules/payments/payment-charge.service";
+import { isCollectableItemStatus } from "@/schema/order-status";
 
 // Anyone with the Order code and a phone number can open the page, so the
 // number shown back must not work as a login on the next try.

@@ -16,17 +16,16 @@ import {
   updateOpenShiftClockOutByUserId,
   updateShiftById,
 } from "@/modules/shifts/shift.repository";
-import {
-  CLOCK_IN_RADIUS_KM,
-  type ClockInCoordinates,
-  clockInRequiresLocation,
-  type GetShiftsOverviewQuery,
-  type GetShiftsQuery,
-  type PatchShiftBody,
-  type PostShiftBody,
+import type {
+  ClockInCoordinates,
+  GetShiftsOverviewQuery,
+  GetShiftsQuery,
+  PatchShiftBody,
+  PostShiftBody,
 } from "@/modules/shifts/shift.schema";
 import { findStoreById } from "@/modules/stores/store.repository";
 import { findUserDetailById } from "@/modules/users/user.repository";
+import { CLOCK_IN_RADIUS_KM, clockInRequiresLocation } from "@/schema/clock-in";
 import type { AuthUser, JWTPayload } from "@/types";
 import { assertStoreAccess } from "@/utils/authorization";
 import { JAKARTA_TZ, jakartaDayStart, jakartaNow } from "@/utils/date";

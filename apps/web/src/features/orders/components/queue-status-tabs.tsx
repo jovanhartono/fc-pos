@@ -1,4 +1,4 @@
-import { WORKSHOP_SERVICE_STATUSES } from "@fresclean/api/schema";
+import { WORKSHOP_SERVICE_STATUSES } from "@fresclean/api/rules";
 import { StatusChipStrip } from "@/components/chip-strip";
 import { formatOrderServiceStatus } from "@/lib/status";
 

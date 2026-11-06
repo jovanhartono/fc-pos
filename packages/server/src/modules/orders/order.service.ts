@@ -36,7 +36,6 @@ import {
 } from "@/modules/orders/order-settlement.service";
 import {
   deriveItemStatus,
-  isCollectableItemStatus,
   summarizeOrderFulfillment,
 } from "@/modules/orders/order-status-machine";
 import {
@@ -45,6 +44,7 @@ import {
 } from "@/modules/products/product.repository";
 import { findServices } from "@/modules/services/service.repository";
 import type { POSTOrderSchema } from "@/schema";
+import { isCollectableItemStatus } from "@/schema/order-status";
 import type { AuthUser } from "@/types";
 import type { Store } from "@/types/entity";
 import { resolveStoreScope, unhandledStoreScope } from "@/utils/authorization";

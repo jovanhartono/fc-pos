@@ -29,7 +29,6 @@ export const Route = createFileRoute("/_admin/payment-methods")({
 	component: PaymentMethodsPage,
 	// Past a second, the page itself draws with skeleton rows.
 	pendingComponent: PaymentMethodsPage,
-	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 function PaymentMethodsPage() {

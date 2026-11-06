@@ -24,7 +24,7 @@ const CANCEL_PATH = "/checkout/v3/cancellations";
 const STATUS_PATH = "/orders/v1/status/";
 
 // Every gateway payment is QRIS until the PaymentMethod names its channel
-// (ADR-0026), so a VA paid here would land on the Day close's QRIS line.
+// (ADR-0028), so a VA paid here would land on the Day close's QRIS line.
 const PAYMENT_METHODS = ["QRIS"];
 
 const EXPIRED_DATE_REGEX = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/;

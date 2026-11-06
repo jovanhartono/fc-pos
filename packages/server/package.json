@@ -21,6 +21,12 @@
         "types": "./dist/schema/index.d.ts",
         "default": "./dist/schema/index.js"
       }
+    },
+    "./rules": {
+      "import": {
+        "types": "./dist/schema/rules.d.ts",
+        "default": "./dist/schema/rules.js"
+      }
     }
   },
   "scripts": {

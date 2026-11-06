@@ -8,15 +8,12 @@ import { MoneyValue } from "@/components/money-value";
 import { SectionTitle } from "@/components/section";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
+import { CUSTOMER_ORDERS_PAGE_SIZE } from "@/features/customers/api";
 import { describeOrderAmount } from "@/features/customers/lib/order-amount";
 import { type Order, ordersQueries } from "@/features/orders/api";
 import { getRefundBadge } from "@/features/orders/lib/payment-badges";
 import { formatListDate } from "@/lib/dayjs";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
-
-// The route loader prefetches with this same size — two copies that drift
-// would leave the page fetching twice and flashing a skeleton it already had.
-export const CUSTOMER_ORDERS_PAGE_SIZE = 10;
 
 interface CustomerOrdersCardProps {
 	customerId: number;

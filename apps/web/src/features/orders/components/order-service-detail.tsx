@@ -2,7 +2,7 @@ import {
 	isUnpricedLine,
 	ORDER_SERVICE_TRANSITIONS,
 	ORDER_TERMINAL_SERVICE_STATUSES,
-} from "@fresclean/api/schema";
+} from "@fresclean/api/rules";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";

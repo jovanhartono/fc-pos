@@ -80,7 +80,6 @@ export const Route = createFileRoute("/_admin/campaigns")({
 	component: CampaignsPage,
 	// Past a second, the page itself draws with skeleton rows.
 	pendingComponent: CampaignsPage,
-	codeSplitGroupings: [["component", "pendingComponent"]],
 });
 
 const defaultCampaignForm: CampaignFormInput = {

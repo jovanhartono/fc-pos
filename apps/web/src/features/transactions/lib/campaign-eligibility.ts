@@ -1,7 +1,7 @@
 import {
 	type CampaignEligibilityInput,
 	campaignIneligibilityReason,
-} from "@fresclean/api/schema";
+} from "@fresclean/api/rules";
 
 // Behind every Campaign picker, POS checkout and the Order page's Collect
 // payment alike, so both offer the same tiles (ADR-0018). Vouchers are never

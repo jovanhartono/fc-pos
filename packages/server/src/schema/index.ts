@@ -7,57 +7,22 @@ import {
 } from "@/modules/campaigns/campaign.schema";
 import { POSTCategorySchema as _POSTCategorySchema } from "@/modules/categories/category.schema";
 import {
-  isComplainableLine as _isComplainableLine,
-  isReworkedRound as _isReworkedRound,
-} from "@/modules/complaints/complaint.schema";
-import {
   POSTCustomerSchema as _POSTCustomerSchema,
   PUTCustomerSchema as _PUTCustomerSchema,
 } from "@/modules/customers/customer.schema";
 import {
   POSTOrderPickupEventPresignSchema as _POSTOrderPickupEventPresignSchema,
   POSTOrderPickupEventSchema as _POSTOrderPickupEventSchema,
-  QUEUE_CATEGORY_MODES as _QUEUE_CATEGORY_MODES,
 } from "@/modules/orders/order-admin.schema";
-import {
-  type DerivedItemStatus as _DerivedItemStatus,
-  type ItemStatusLine as _ItemStatusLine,
-  isCollectableItemStatus as _isCollectableItemStatus,
-  isHandedOverByPickup as _isHandedOverByPickup,
-  isInWorkshop as _isInWorkshop,
-  isWaitingQcOnly as _isWaitingQcOnly,
-  ORDER_SERVICE_TRANSITIONS as _ORDER_SERVICE_TRANSITIONS,
-  ORDER_TERMINAL_SERVICE_STATUSES as _ORDER_TERMINAL_SERVICE_STATUSES,
-  WORKSHOP_SERVICE_STATUSES as _WORKSHOP_SERVICE_STATUSES,
-} from "@/modules/orders/order-status-machine";
 import { POSTPaymentMethodSchema as _POSTPaymentMethodSchema } from "@/modules/payment-methods/payment-method.schema";
 import { GATEWAY_LABELS as _GATEWAY_LABELS } from "@/modules/payments/gateways/types";
 import { POSTProductSchema as _POSTProductSchema } from "@/modules/products/product.schema";
 import { POSTServiceSchema as _POSTServiceSchema } from "@/modules/services/service.schema";
-import {
-  CLOCK_IN_RADIUS_KM as _CLOCK_IN_RADIUS_KM,
-  type ClockInCoordinates as _ClockInCoordinates,
-  clockInRequiresLocation as _clockInRequiresLocation,
-} from "@/modules/shifts/shift.schema";
 import { POSTStoreSchema as _POSTStoreSchema } from "@/modules/stores/store.schema";
 import { POSTStoreDeviceSchema as _POSTStoreDeviceSchema } from "@/modules/stores/store-device.schema";
-import {
-  type Coordinates as _Coordinates,
-  distanceKm as _distanceKm,
-} from "@/utils/geo";
 
-export const ORDER_SERVICE_TRANSITIONS = _ORDER_SERVICE_TRANSITIONS;
-export const ORDER_TERMINAL_SERVICE_STATUSES = _ORDER_TERMINAL_SERVICE_STATUSES;
-export const WORKSHOP_SERVICE_STATUSES = _WORKSHOP_SERVICE_STATUSES;
-export const QUEUE_CATEGORY_MODES = _QUEUE_CATEGORY_MODES;
-export type DerivedItemStatus = _DerivedItemStatus;
-export type ItemStatusLine = _ItemStatusLine;
-export const isCollectableItemStatus = _isCollectableItemStatus;
-export const isHandedOverByPickup = _isHandedOverByPickup;
-export const isInWorkshop = _isInWorkshop;
-export const isWaitingQcOnly = _isWaitingQcOnly;
-export const isComplainableLine = _isComplainableLine;
-export const isReworkedRound = _isReworkedRound;
+// The web's form schemas. The rules both sides run live in ./rules, which
+// stays free of zod and the tables.
 export const POSTOrderPickupEventPresignSchema =
   _POSTOrderPickupEventPresignSchema;
 export const POSTOrderPickupEventSchema = _POSTOrderPickupEventSchema;
@@ -73,88 +38,6 @@ export const POSTProductSchema = _POSTProductSchema;
 export const POSTServiceSchema = _POSTServiceSchema;
 export const POSTStoreSchema = _POSTStoreSchema;
 export const POSTStoreDeviceSchema = _POSTStoreDeviceSchema;
-export const CLOCK_IN_RADIUS_KM = _CLOCK_IN_RADIUS_KM;
-export const clockInRequiresLocation = _clockInRequiresLocation;
-export type ClockInCoordinates = _ClockInCoordinates;
-// The clock-in screen ranks Stores by distance to preselect the nearest one.
-// It borrows the server's formula so the Store it offers is the one the server
-// will measure against a moment later.
-export const distanceKm = _distanceKm;
-export type Coordinates = _Coordinates;
-
-import {
-  applyManualDiscount as _applyManualDiscount,
-  type BogoSlotLine as _BogoSlotLine,
-  type CampaignContribution as _CampaignContribution,
-  type CampaignDiscountInput as _CampaignDiscountInput,
-  computeCampaignContribution as _computeCampaignContribution,
-  type DiscountLine as _DiscountLine,
-  type DiscountSource as _DiscountSource,
-  isBogoSlot as _isBogoSlot,
-  isDiscountSettled as _isDiscountSettled,
-  orderNetDue as _orderNetDue,
-  orderNetTotal as _orderNetTotal,
-  type StackedDiscount as _StackedDiscount,
-  stackCampaignDiscounts as _stackCampaignDiscounts,
-} from "@/schema/discount";
-
-export type DiscountSource = _DiscountSource;
-export const isDiscountSettled = _isDiscountSettled;
-export type CampaignContribution<T extends _CampaignDiscountInput> =
-  _CampaignContribution<T>;
-export type CampaignDiscountInput = _CampaignDiscountInput;
-export type DiscountLine = _DiscountLine;
-export type StackedDiscount<T extends _CampaignDiscountInput> =
-  _StackedDiscount<T>;
-export const computeCampaignContribution = _computeCampaignContribution;
-export const stackCampaignDiscounts = _stackCampaignDiscounts;
-export const applyManualDiscount = _applyManualDiscount;
-export const orderNetDue = _orderNetDue;
-export const orderNetTotal = _orderNetTotal;
-export type BogoSlotLine = _BogoSlotLine;
-export const isBogoSlot = _isBogoSlot;
-
-import {
-  type CampaignEligibilityContext as _CampaignEligibilityContext,
-  type CampaignEligibilityInput as _CampaignEligibilityInput,
-  campaignIneligibilityReason as _campaignIneligibilityReason,
-} from "@/schema/campaign-eligibility";
-
-export type CampaignEligibilityContext = _CampaignEligibilityContext;
-export type CampaignEligibilityInput = _CampaignEligibilityInput;
-export const campaignIneligibilityReason = _campaignIneligibilityReason;
-
-import {
-  PICKUP_OVERDUE_HOURS as _PICKUP_OVERDUE_HOURS,
-  TURNAROUND_PROMISE_HOURS as _TURNAROUND_PROMISE_HOURS,
-} from "@/schema/turnaround";
-
-export const PICKUP_OVERDUE_HOURS = _PICKUP_OVERDUE_HOURS;
-export const TURNAROUND_PROMISE_HOURS = _TURNAROUND_PROMISE_HOURS;
-
-import {
-  hasUnpricedLine as _hasUnpricedLine,
-  isUnpricedLine as _isUnpricedLine,
-  type UnpricedLineState as _UnpricedLineState,
-} from "@/schema/unpriced-line";
-
-export type UnpricedLineState = _UnpricedLineState;
-export const hasUnpricedLine = _hasUnpricedLine;
-export const isUnpricedLine = _isUnpricedLine;
-
-import {
-  allocateRefund as _allocateRefund,
-  lineKey as _lineKey,
-  orderLineRefundCaps as _orderLineRefundCaps,
-  type RefundLineKind as _RefundLineKind,
-  type RefundLineRef as _RefundLineRef,
-} from "@/schema/refund-allocation";
-
-export type RefundLineKind = _RefundLineKind;
-export type RefundLineRef = _RefundLineRef;
-export const allocateRefund = _allocateRefund;
-export const lineKey = _lineKey;
-export const orderLineRefundCaps = _orderLineRefundCaps;
 
 import {
   campaignIdsSchema,
@@ -171,6 +54,8 @@ import {
   normalizePhoneNumber as _normalizePhoneNumber,
 } from "@/schema/phone";
 
+// The phone parser stays here with the forms rather than in ./rules. Given its
+// own entry, it split the app's first download into dozens of small files.
 export const isValidPhoneNumber = _isValidPhoneNumber;
 export const normalizePhoneNumber = _normalizePhoneNumber;
 

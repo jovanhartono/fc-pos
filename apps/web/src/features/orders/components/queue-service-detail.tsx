@@ -2,7 +2,7 @@ import {
 	isInWorkshop,
 	ORDER_SERVICE_TRANSITIONS,
 	ORDER_TERMINAL_SERVICE_STATUSES,
-} from "@fresclean/api/schema";
+} from "@fresclean/api/rules";
 import {
 	AlertCircleIcon,
 	ArrowRight01Icon,

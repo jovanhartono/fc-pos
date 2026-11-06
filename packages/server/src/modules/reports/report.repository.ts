@@ -11,7 +11,6 @@ import {
   storesTable,
   usersTable,
 } from "@/db/schema";
-import { ORDER_TERMINAL_SERVICE_STATUSES } from "@/modules/orders/order-status-machine";
 import {
   collected,
   grossSales,
@@ -25,6 +24,7 @@ import {
   type DateRange,
   jakartaBucketExpr,
 } from "@/modules/reports/report-range.util";
+import { ORDER_TERMINAL_SERVICE_STATUSES } from "@/schema/order-status";
 
 export async function sumDailyPaid({
   range,

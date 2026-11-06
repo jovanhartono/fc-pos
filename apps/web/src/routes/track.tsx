@@ -2,8 +2,8 @@ import {
 	type DerivedItemStatus,
 	isCollectableItemStatus,
 	isWaitingQcOnly,
-	normalizePhoneNumber,
-} from "@fresclean/api/schema";
+} from "@fresclean/api/rules";
+import { normalizePhoneNumber } from "@fresclean/api/schema";
 import { Clock01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

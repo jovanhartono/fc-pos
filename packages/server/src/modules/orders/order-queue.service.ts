@@ -35,11 +35,13 @@ import { normalizeOrderServiceQueueQuery } from "@/modules/orders/order-admin.sc
 import { isNumericSearch } from "@/modules/orders/order-search";
 import {
   isTerminalOrderServiceStatus,
-  ORDER_TERMINAL_SERVICE_STATUSES,
   transitionOrderService,
-  WORKSHOP_SERVICE_STATUSES,
 } from "@/modules/orders/order-status-machine";
 import { assertCanReassignHandler } from "@/modules/permissions/permissions";
+import {
+  ORDER_TERMINAL_SERVICE_STATUSES,
+  WORKSHOP_SERVICE_STATUSES,
+} from "@/schema/order-status";
 import { toStoredPhonePrefix } from "@/schema/phone";
 import type { AuthUser, JWTPayload } from "@/types";
 import type { OrderService } from "@/types/entity";

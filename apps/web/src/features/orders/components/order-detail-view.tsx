@@ -9,22 +9,11 @@ import { Link } from "@tanstack/react-router";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { ordersQueries } from "@/features/orders/api";
-import {
-	OrderAttachmentsCard,
-	OrderAttachmentsSkeleton,
-} from "@/features/orders/components/order-attachments-card";
-import {
-	OrderIdentityStrip,
-	OrderIdentityStripSkeleton,
-} from "@/features/orders/components/order-identity-strip";
-import {
-	OrderItemsSkeleton,
-	OrderLineItemsCard,
-} from "@/features/orders/components/order-line-items-card";
-import {
-	OrderPaymentSection,
-	OrderPaymentSkeleton,
-} from "@/features/orders/components/order-payment-section";
+import { OrderAttachmentsCard } from "@/features/orders/components/order-attachments-card";
+import { OrderDetailSkeleton } from "@/features/orders/components/order-detail-skeleton";
+import { OrderIdentityStrip } from "@/features/orders/components/order-identity-strip";
+import { OrderLineItemsCard } from "@/features/orders/components/order-line-items-card";
+import { OrderPaymentSection } from "@/features/orders/components/order-payment-section";
 import { useRefreshOrder } from "@/features/orders/hooks/useOrderMutations";
 import { getOrderActionGates } from "@/features/orders/lib/order-action-gates";
 import { usersQueries } from "@/features/users/api";
@@ -32,19 +21,6 @@ import { CONTENT_FADE } from "@/lib/content-fade";
 import { isNotFoundError } from "@/lib/server-error";
 import { cn } from "@/lib/utils";
 import { useSheet } from "@/stores/sheet-store";
-
-// A paid one-Item Order drawn from the real section shells, so each card is
-// already its loaded height at every width and nothing moves when it lands.
-const OrderDetailSkeleton = () => (
-	<div aria-hidden className="@container/order">
-		<OrderIdentityStripSkeleton />
-		<div className="grid gap-3 sm:gap-4">
-			<OrderItemsSkeleton />
-			<OrderPaymentSkeleton />
-			<OrderAttachmentsSkeleton />
-		</div>
-	</div>
-);
 
 interface OrderDetailMessageProps {
 	description: string;

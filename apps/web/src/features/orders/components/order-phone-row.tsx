@@ -1,4 +1,4 @@
-import { orderNetTotal } from "@fresclean/api/schema";
+import { orderNetTotal } from "@fresclean/api/rules";
 import type { LinkProps } from "@tanstack/react-router";
 import { MoneyValue } from "@/components/money-value";
 import type { Order } from "@/features/orders/api";

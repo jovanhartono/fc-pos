@@ -227,5 +227,4 @@ export const Route = createFileRoute("/_admin/complaints/")({
 	component: ComplaintsPage,
 	// Past a second, the page itself draws with skeleton rows.
 	pendingComponent: ComplaintsPage,
-	codeSplitGroupings: [["component", "pendingComponent"]],
 });

@@ -7,7 +7,19 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
 	plugins: [
-		tanstackRouter({ target: "react", autoCodeSplitting: true }),
+		tanstackRouter({
+			target: "react",
+			autoCodeSplitting: true,
+			codeSplittingOptions: {
+				// A page's skeleton ships with the page. No route sets its own groupings:
+				// one that did would put its not-found page in every first load.
+				defaultBehavior: [
+					["component", "pendingComponent"],
+					["errorComponent"],
+					["notFoundComponent"],
+				],
+			},
+		}),
 		react(),
 		tailwindcss(),
 		VitePWA({

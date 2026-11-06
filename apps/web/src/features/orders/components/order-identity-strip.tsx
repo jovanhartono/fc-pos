@@ -9,7 +9,6 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "sonner";
 import { CopyValue } from "@/components/copy-value";
-import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -18,7 +17,6 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Skeleton } from "@/components/ui/skeleton";
 import { WhatsappIcon } from "@/components/whatsapp-icon";
 import { OpenComplaintForm } from "@/features/complaints/components/open-complaint-form";
 import { useOpenComplaintMutation } from "@/features/complaints/hooks/useComplaintMutations";
@@ -28,6 +26,10 @@ import { NotifiedLabel } from "@/features/orders/components/notified-label";
 import { OrderBadges } from "@/features/orders/components/order-badges";
 import { OrderCourierForm } from "@/features/orders/components/order-courier-form";
 import { OrderDeliveryFeeForm } from "@/features/orders/components/order-delivery-fee-form";
+import {
+	CODE_HEADING,
+	META_LINE,
+} from "@/features/orders/components/order-detail-parts";
 import {
 	CancelOrderForm,
 	RefundOrderForm,
@@ -52,40 +54,6 @@ import {
 } from "@/lib/order-service-item-details";
 import { cn } from "@/lib/utils";
 import { useDialog } from "@/stores/dialog-store";
-
-const CODE_HEADING =
-	"break-all font-medium text-title-3 tracking-tight tabular-nums sm:text-title-2 compact:text-title-3";
-const META_LINE = "text-muted-foreground text-body compact:text-subhead";
-
-// The header while the Order loads: the code, two status pills, Print and the
-// menu in grey, so the sections under it start where they will stay.
-export const OrderIdentityStripSkeleton = () => (
-	<Card className="mb-4 sm:mb-6">
-		<CardContent className="grid gap-4">
-			<div className="grid gap-2">
-				<div className="flex items-start justify-between gap-3">
-					<div className="flex min-w-0 flex-wrap items-center gap-2">
-						<h1 className={cn(CODE_HEADING, "inline-flex items-center gap-1")}>
-							<TextSkeleton className="w-36" />
-							<span className="size-6 pointer-coarse:size-7" />
-						</h1>
-						<Skeleton className="h-5 w-16 rounded-full" />
-						<Skeleton className="h-5 w-12 rounded-full" />
-					</div>
-					<div className="flex shrink-0 items-center gap-2">
-						<Skeleton className="h-9 w-20 pointer-coarse:h-11" />
-						<Skeleton className="size-9 rounded-full pointer-coarse:size-11" />
-					</div>
-				</div>
-				{/* A phone wraps the customer, phone, Store and date onto two lines. */}
-				<p className={META_LINE}>
-					<TextSkeleton className="w-full sm:w-96" />
-					<TextSkeleton className="w-24 sm:hidden" />
-				</p>
-			</div>
-		</CardContent>
-	</Card>
-);
 
 interface OrderIdentityStripProps {
 	orderId: number;

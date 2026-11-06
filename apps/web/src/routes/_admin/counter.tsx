@@ -55,5 +55,4 @@ export const Route = createFileRoute("/_admin/counter")({
 	component: CounterRoute,
 	// Past a second, the page itself draws with skeleton sections.
 	pendingComponent: CounterRoute,
-	codeSplitGroupings: [["component", "pendingComponent"]],
 });

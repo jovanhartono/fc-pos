@@ -1,7 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { useMemo, useState } from "react";
-import { ResponsiveContainer, Sankey } from "recharts";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { SectionTitle } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +18,10 @@ import {
 	rangeAxis,
 	valueAt,
 } from "@/features/reports/components/report-chart";
+import type {
+	SankeyLinkDatum,
+	SankeyNodeDatum,
+} from "@/features/reports/components/sankey-chart";
 import { StoreRevenueRows } from "@/features/reports/components/store-revenue-rows";
 import {
 	csvFilename,
@@ -36,6 +39,14 @@ import { CHART_OTHER_COLOR } from "@/features/reports/utils/palette";
 import { staleFade } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
+
+// Recharts draws only this Flow chart, so it loads with the chart instead
+// of with every Reports tab.
+const SankeyChart = lazy(() =>
+	import("@/features/reports/components/sankey-chart").then((module) => ({
+		default: module.SankeyChart,
+	})),
+);
 
 interface FinancialPanelProps {
 	from: string;
@@ -261,34 +272,8 @@ const RevenueLineChart = ({ data }: RevenueLineChartProps) => {
 	);
 };
 
-interface SankeyNodeDatum {
-	name: string;
-	displayValue: number;
-	color: string;
-	labelTone: string;
-}
-
 interface SankeyFlowProps {
 	summary: SummaryCurrent | undefined;
-}
-
-interface SankeyLinkDatum {
-	source: number;
-	target: number;
-	value: number;
-	color: string;
-	opacity: number;
-}
-
-interface SankeyLinkRenderProps {
-	sourceX: number;
-	targetX: number;
-	sourceY: number;
-	targetY: number;
-	sourceControlX: number;
-	targetControlX: number;
-	linkWidth: number;
-	payload: unknown;
 }
 
 const SankeyFlow = ({ summary }: SankeyFlowProps) => {
@@ -454,88 +439,11 @@ const SankeyFlow = ({ summary }: SankeyFlowProps) => {
 		<div className="grid gap-2">
 			{sectionLabel}
 			<div className="h-80 min-h-80 min-w-0 w-full overflow-visible">
-				<ResponsiveContainer
-					height={320}
-					initialDimension={{ height: 320, width: 720 }}
-					minWidth={0}
-					width="100%"
-				>
-					<Sankey
-						data={{ nodes, links }}
-						link={(props) => <SankeyLink {...props} />}
-						margin={{ bottom: 32, left: 8, right: 156, top: 12 }}
-						node={(props) => <SankeyNode {...props} />}
-						nodePadding={24}
-						nodeWidth={6}
-					/>
-				</ResponsiveContainer>
+				<Suspense fallback={null}>
+					<SankeyChart links={links} nodes={nodes} />
+				</Suspense>
 			</div>
 		</div>
-	);
-};
-
-const SankeyLink = ({
-	sourceX,
-	targetX,
-	sourceY,
-	targetY,
-	sourceControlX,
-	targetControlX,
-	linkWidth,
-	payload,
-}: SankeyLinkRenderProps) => {
-	const datum = payload as SankeyLinkDatum;
-	const path = `M${sourceX},${sourceY}C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`;
-
-	return (
-		<path
-			d={path}
-			fill="none"
-			stroke={datum.color}
-			strokeLinecap="butt"
-			strokeOpacity={datum.opacity}
-			strokeWidth={Math.max(linkWidth, 1)}
-		/>
-	);
-};
-
-interface SankeyNodeRenderProps {
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-	payload: unknown;
-}
-
-const SankeyNode = ({
-	x,
-	y,
-	width,
-	height,
-	payload,
-}: SankeyNodeRenderProps) => {
-	const datum = payload as SankeyNodeDatum;
-	const labelX = x + width + 6;
-	const labelY = y + height / 2;
-	return (
-		<g>
-			<rect
-				fill={datum.color}
-				height={height}
-				opacity={0.95}
-				width={width}
-				x={x}
-				y={y}
-			/>
-			<text fontSize={11} x={labelX} y={labelY - 1}>
-				<tspan fill={datum.labelTone}>{datum.name}</tspan>
-			</text>
-			<text fontSize={11} fontWeight={600} x={labelX} y={labelY + 12}>
-				<tspan className="tabular-nums" fill="var(--foreground)">
-					{compactMoney(datum.displayValue)}
-				</tspan>
-			</text>
-		</g>
 	);
 };
 
