@@ -26,6 +26,7 @@ const FIELD_TARGETS: Record<keyof TransactionDraftValues, CheckoutIssueTarget> =
 		appliedVouchers: "payment",
 		selectedPaymentMethodId: "payment",
 		manualDiscount: "payment",
+		deliveryFee: "payment",
 	};
 
 // Fix order: a missing Store leaves the payment step with no Campaigns and no

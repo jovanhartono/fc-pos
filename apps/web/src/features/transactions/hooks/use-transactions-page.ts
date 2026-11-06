@@ -66,6 +66,7 @@ const transactionDraftSchema = z
 				(value) => value.trim() === "" || Number(value) >= 0,
 				"Discount cannot be negative",
 			),
+		deliveryFee: z.string(),
 		notes: z.string(),
 		productCart: z.array(
 			z.object({

@@ -1,0 +1,104 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "51975232-0585-45c8-90aa-dfef5e6607a1",
+  "prevIds": [
+    "a392588a-d197-4420-bb07-e0ea89e5504c"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "orders",
+        "delivery_fee"
+      ],
+      "writes": [
+        "s|col|public.orders.delivery_fee",
+        "n|col|public.orders.delivery_fee",
+        "e|col|public.orders.delivery_fee"
+      ],
+      "reads": [
+        "n|tbl|public.orders",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "orders"
+      ],
+      "writes": [
+        "s|ck|public.orders.delivery_fee_non_negative_check",
+        "n|ck|public.orders.delivery_fee_non_negative_check",
+        "e|ck|public.orders.delivery_fee_non_negative_check",
+        "n|con|public.orders.delivery_fee_non_negative_check"
+      ],
+      "reads": [
+        "n|tbl|public.orders",
+        "n|sch|public",
+        "n|col|public.orders.delivery_fee"
+      ]
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "orders"
+      ],
+      "writes": [
+        "s|ck|public.orders.paid_amount_valid_check"
+      ],
+      "reads": [
+        "n|tbl|public.orders",
+        "n|sch|public",
+        "n|col|public.orders.paid_amount",
+        "n|col|public.orders.total",
+        "n|col|public.orders.delivery_fee",
+        "e|col|public.orders.paid_amount",
+        "e|col|public.orders.total"
+      ],
+      "sqlHash": "cc8600ba0b5f7e5f"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "orders",
+        "name": "delivery_fee",
+        "type": "numeric(12,0)",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'0'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "orders",
+        "name": "delivery_fee_non_negative_check",
+        "value": "\"delivery_fee\" >= 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"public\",\"orders\",\"paid_amount_valid_check\"]",
+      "set": {
+        "value": "\"paid_amount\" <= \"total\" + \"delivery_fee\""
+      }
+    }
+  ]
+}

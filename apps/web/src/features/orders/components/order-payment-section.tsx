@@ -426,6 +426,7 @@ const SettledDiscountPaymentForm = ({
 		grossTotal: parseMoney(detail.total),
 		discount,
 		refunded: parseMoney(detail.refunded_amount),
+		deliveryFee: parseMoney(detail.delivery_fee),
 	});
 	return (
 		<FormProvider {...form}>
@@ -549,10 +550,12 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 			discount,
 		],
 	);
+	const deliveryFee = parseMoney(detail.delivery_fee);
 	const toCollect = orderNetDue({
 		grossTotal,
 		discount: pricing.totalDiscount,
 		refunded,
+		deliveryFee,
 	});
 
 	return (
@@ -623,7 +626,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 					)}
 				/>
 
-				{pricing.totalDiscount > 0 ? (
+				{pricing.totalDiscount > 0 || deliveryFee > 0 ? (
 					<dl className="grid gap-1.5 text-body tabular-nums">
 						{pricing.campaignBreakdown.map(({ campaign, amount }) => (
 							<div className="flex justify-between gap-4" key={campaign.id}>
@@ -641,6 +644,12 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 								<dd className="text-destructive tabular-nums">
 									-{formatMoney(pricing.manualDiscount)}
 								</dd>
+							</div>
+						) : null}
+						{deliveryFee > 0 ? (
+							<div className="flex justify-between gap-4">
+								<dt className="text-muted-foreground">Delivery fee</dt>
+								<dd className="tabular-nums">{formatMoney(deliveryFee)}</dd>
 							</div>
 						) : null}
 					</dl>

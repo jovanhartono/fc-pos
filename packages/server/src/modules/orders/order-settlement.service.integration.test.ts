@@ -49,6 +49,7 @@ const checkout = ({
     campaign_ids: campaignIds,
     customer: { name: "Budi Santoso", phone_number: "+628111222333" },
     discount: 0,
+    delivery_fee: 0,
     items: [
       ...services.map((id) => ({ services: [{ id }] })),
       ...(withRepair

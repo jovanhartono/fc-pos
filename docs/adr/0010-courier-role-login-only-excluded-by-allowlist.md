@@ -1,5 +1,7 @@
 # Courier role: login-only, excluded by allowlist, no per-order delivery state
 
+> Amended by [ADR-0029](0029-delivery-fee-is-order-money-not-a-sale.md): a Delivery fee can mark a delivery with no Courier set.
+
 Couriers collect dropped-off items from the customer at intake and deliver finished items back after pickup. They log in **only** to open a Shift (attendance) — they do not run the POS, the queue, or money. The operator asked for two things: (1) couriers must not pollute the **worker-productivity report**, and (2) each Order should record **which courier collected it** for accountability (lost-shoe disputes) and delivery-volume reporting. We decided to model couriers as a new **`courier`** `User` role and to add a single nullable **`orders.collected_by`** FK — and deliberately **not** to build a delivery lifecycle, a courier entity, or processing-axis gates.
 
 ## Considered options

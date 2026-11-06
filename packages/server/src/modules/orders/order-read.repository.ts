@@ -31,6 +31,7 @@ const orderStateColumns = {
   total: true,
   discount: true,
   discount_source: true,
+  delivery_fee: true,
   paid_amount: true,
   refunded_amount: true,
 } as const;
@@ -296,6 +297,7 @@ export function findOrderReceipt(id: number) {
       total: true,
       discount: true,
       discount_source: true,
+      delivery_fee: true,
       pickup_code: true,
     },
     with: {
@@ -458,6 +460,7 @@ export function findTrackedOrder(code: string, phoneNumber: string) {
       status: true,
       payment_status: true,
       discount: true,
+      delivery_fee: true,
       total: true,
       pickup_code: true,
       created_at: true,

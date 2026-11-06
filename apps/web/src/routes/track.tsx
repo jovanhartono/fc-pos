@@ -38,7 +38,7 @@ import {
 	getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
 import { cn } from "@/lib/utils";
-import { formatMoney } from "@/shared/money";
+import { formatMoney, parseMoney } from "@/shared/money";
 import { pluralize } from "@/shared/utils";
 
 const trackSearchSchema = z.object({
@@ -258,6 +258,7 @@ interface PaymentCardProps {
 	code: string;
 	phone: string;
 	netDue: number;
+	deliveryFee: number;
 	openCharge: TrackCharge | null;
 	// The QR this phone showed ran out unpaid.
 	hasExpired: boolean;
@@ -267,6 +268,7 @@ const PaymentCard = ({
 	code,
 	phone,
 	netDue,
+	deliveryFee,
 	openCharge,
 	hasExpired,
 }: PaymentCardProps) => {
@@ -344,11 +346,18 @@ const PaymentCard = ({
 
 	return (
 		<section className={cn(CARD_CLASS, "grid gap-3.5 p-4")}>
-			<div className="flex items-baseline justify-between gap-3">
-				<p className="text-headline">Amount due</p>
-				<p className="font-medium text-title-3 tabular-nums">
-					{formatMoney(netDue)}
-				</p>
+			<div className="grid gap-0.5">
+				<div className="flex items-baseline justify-between gap-3">
+					<p className="text-headline">Amount due</p>
+					<p className="font-medium text-title-3 tabular-nums">
+						{formatMoney(netDue)}
+					</p>
+				</div>
+				{deliveryFee > 0 ? (
+					<p className="text-muted-foreground text-subhead tabular-nums">
+						Includes {formatMoney(deliveryFee)} Delivery fee
+					</p>
+				) : null}
 			</div>
 			{openCharge && qrSrc ? (
 				<QrisPanel charge={openCharge} code={code} src={qrSrc} />
@@ -552,6 +561,7 @@ const TrackOrderPage = () => {
 								code={submitted.code}
 								hasExpired={hasExpired}
 								netDue={trackData.net_due}
+								deliveryFee={parseMoney(trackData.delivery_fee)}
 								openCharge={openCharge}
 								phone={submitted.phone}
 							/>

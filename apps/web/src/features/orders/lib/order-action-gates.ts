@@ -24,6 +24,8 @@ export interface OrderActionGates {
 	isPickupAllowed: boolean;
 	canManageDropoffPhoto: boolean;
 	canManageCourier: boolean;
+	// ADR-0029: shown to the same roles as the Courier, frozen once paid.
+	canEditDeliveryFee: boolean;
 	canOpenPickup: boolean;
 	pickupDisabledReason?: string;
 	canCancelOrder: boolean;
@@ -124,6 +126,8 @@ export const getOrderActionGates = (
 		isPickupAllowed,
 		canManageDropoffPhoto,
 		canManageCourier,
+		canEditDeliveryFee:
+			isPaymentAllowed && !isPaid && detail.status !== "cancelled",
 		// ADR-0009: payment precedes pickup — no collection on an unpaid Order.
 		canOpenPickup: isPickupAllowed && collectableItems.length > 0 && isPaid,
 		pickupDisabledReason,

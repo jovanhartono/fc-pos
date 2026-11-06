@@ -19,6 +19,7 @@ export function useCheckoutPricing() {
 		selectedCampaignIds = [],
 		manualDiscount = "",
 		appliedVouchers = [],
+		deliveryFeeInput = "",
 	] = useWatch<
 		TransactionDraftValues,
 		[
@@ -26,6 +27,7 @@ export function useCheckoutPricing() {
 			"selectedCampaignIds",
 			"manualDiscount",
 			"appliedVouchers",
+			"deliveryFee",
 		]
 	>({
 		name: [
@@ -33,6 +35,7 @@ export function useCheckoutPricing() {
 			"selectedCampaignIds",
 			"manualDiscount",
 			"appliedVouchers",
+			"deliveryFee",
 		],
 	});
 
@@ -105,6 +108,9 @@ export function useCheckoutPricing() {
 		[subtotal, pricingCampaigns, serviceLines, manualDiscount],
 	);
 
+	// Added after the discounts, which never reach it (ADR-0029).
+	const deliveryFee = Number(deliveryFeeInput || 0);
+
 	return {
 		subtotal,
 		availableCampaigns,
@@ -112,5 +118,7 @@ export function useCheckoutPricing() {
 		selectedCampaigns,
 		serviceLines,
 		pricing,
+		deliveryFee,
+		amountDue: Math.round(pricing.total) + deliveryFee,
 	};
 }

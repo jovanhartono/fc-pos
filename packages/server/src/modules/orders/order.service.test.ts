@@ -303,6 +303,7 @@ const checkout = ({ services, ...over }: AnyObj = {}) =>
     campaign_ids: [],
     voucher_codes: [],
     discount: 0,
+    delivery_fee: 0,
     payment_status: "unpaid",
     // `services` gives each OrderService its own Item; tests about grouping
     // pass `items` themselves (ADR-0017).

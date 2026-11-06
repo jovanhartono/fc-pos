@@ -500,6 +500,11 @@ export const ordersTable = pgTable(
     discount: decimal("discount", { precision: 12, scale: 0 })
       .default("0")
       .notNull(),
+    // Kept out of `total` so Gross sales, Campaigns and Refunds never see it
+    // (ADR-0029).
+    delivery_fee: decimal("delivery_fee", { precision: 12, scale: 0 })
+      .default("0")
+      .notNull(),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
 
     notes: text("notes"),
@@ -566,9 +571,10 @@ export const ordersTable = pgTable(
     ),
     check("discount_non_negative_check", sql`${table.discount} >= 0`),
     check("discount_valid_check", sql`(${table.total}) >= ${table.discount}`),
+    check("delivery_fee_non_negative_check", sql`${table.delivery_fee} >= 0`),
     check(
       "paid_amount_valid_check",
-      sql`${table.paid_amount} <= ${table.total}`
+      sql`${table.paid_amount} <= ${table.total} + ${table.delivery_fee}`
     ),
     check(
       "refunded_amount_valid_check",

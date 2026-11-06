@@ -109,6 +109,7 @@ const dropOff = (deepCleans = 1, withRepair = false) =>
     campaign_ids: [],
     customer: { name: "Budi Santoso", phone_number: PHONE },
     discount: 0,
+    delivery_fee: 0,
     items: [
       ...Array.from({ length: deepCleans }, () => ({
         services: [{ id: shop.serviceId }],
@@ -783,6 +784,7 @@ describe("the gateway's PaymentMethod at the counter", () => {
         campaign_ids: [],
         customer: { name: "Budi Santoso", phone_number: PHONE },
         discount: 0,
+        delivery_fee: 0,
         items: [{ services: [{ id: shop.serviceId }] }],
         payment_method_id: gatewayMethodId,
         payment_status: "paid" as const,

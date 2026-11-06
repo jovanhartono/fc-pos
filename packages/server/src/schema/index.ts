@@ -93,6 +93,7 @@ import {
   isBogoSlot as _isBogoSlot,
   isDiscountSettled as _isDiscountSettled,
   orderNetDue as _orderNetDue,
+  orderNetTotal as _orderNetTotal,
   type StackedDiscount as _StackedDiscount,
   stackCampaignDiscounts as _stackCampaignDiscounts,
 } from "@/schema/discount";
@@ -109,6 +110,7 @@ export const computeCampaignContribution = _computeCampaignContribution;
 export const stackCampaignDiscounts = _stackCampaignDiscounts;
 export const applyManualDiscount = _applyManualDiscount;
 export const orderNetDue = _orderNetDue;
+export const orderNetTotal = _orderNetTotal;
 export type BogoSlotLine = _BogoSlotLine;
 export const isBogoSlot = _isBogoSlot;
 
@@ -280,6 +282,7 @@ export const POSTOrderSchema = z
       )
       .optional(),
     discount: currencySchema("Discount").default(0),
+    delivery_fee: currencySchema("Delivery fee").default(0),
     payment_method_id: z.number().optional(),
     payment_status: z.enum(
       orderPaymentStatusEnum.enumValues,

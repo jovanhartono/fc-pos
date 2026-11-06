@@ -323,6 +323,10 @@ export async function recomputeOrderRollup(
       // An earned promo stays (ADR-0015) but never exceeds what is left to
       // pay, so on a mostly cancelled Order it shrinks to fit.
       discount: sql`least(${ordersTable.discount}, ${nextTotal})`,
+      // A cancelled unpaid Order owes nothing, trips included (ADR-0029).
+      ...(nextStatus === "cancelled" && {
+        delivery_fee: sql`case when ${ordersTable.payment_status} = 'unpaid' then 0 else ${ordersTable.delivery_fee} end`,
+      }),
       updated_by: updatedBy,
     })
     .where(eq(ordersTable.id, orderId));

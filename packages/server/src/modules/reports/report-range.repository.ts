@@ -133,6 +133,7 @@ export async function listCollectedSeries({
     .select({
       bucket,
       collected: collected(),
+      delivery_fees: sumMoney(ordersTable.delivery_fee),
     })
     .from(ordersTable)
     .where(and(...paidOrderWindow({ range, storeId })))
@@ -141,6 +142,7 @@ export async function listCollectedSeries({
   return rows.map((row) => ({
     bucket: row.bucket,
     collected: Number(row.collected),
+    delivery_fees: Number(row.delivery_fees),
   }));
 }
 

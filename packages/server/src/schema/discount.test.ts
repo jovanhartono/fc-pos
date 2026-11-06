@@ -204,14 +204,46 @@ describe("applyManualDiscount", () => {
 describe("orderNetDue", () => {
   it("subtracts the discount and anything already refunded", () => {
     expect(
-      orderNetDue({ grossTotal: 100_000, discount: 20_000, refunded: 10_000 })
+      orderNetDue({
+        grossTotal: 100_000,
+        discount: 20_000,
+        refunded: 10_000,
+        deliveryFee: 0,
+      })
     ).toBe(70_000);
   });
 
   it("never goes below zero", () => {
     expect(
-      orderNetDue({ grossTotal: 100_000, discount: 20_000, refunded: 90_000 })
+      orderNetDue({
+        grossTotal: 100_000,
+        discount: 20_000,
+        refunded: 90_000,
+        deliveryFee: 0,
+      })
     ).toBe(0);
+  });
+
+  it("adds the Delivery fee after the discount, which never shrinks it", () => {
+    expect(
+      orderNetDue({
+        grossTotal: 100_000,
+        discount: 100_000,
+        refunded: 0,
+        deliveryFee: 25_000,
+      })
+    ).toBe(25_000);
+  });
+
+  it("keeps the Delivery fee due even when every Line was refunded", () => {
+    expect(
+      orderNetDue({
+        grossTotal: 100_000,
+        discount: 0,
+        refunded: 100_000,
+        deliveryFee: 25_000,
+      })
+    ).toBe(25_000);
   });
 });
 

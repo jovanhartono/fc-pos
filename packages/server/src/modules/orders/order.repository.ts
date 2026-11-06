@@ -77,6 +77,7 @@ export interface OrderListItem {
   customer_id: number;
   customer_name: string;
   customer_phone: string;
+  delivery_fee: string;
   discount: string;
   fulfillment: ReturnType<typeof summarizeOrderFulfillment>;
   has_complaint: boolean;
@@ -130,7 +131,7 @@ function refundConditions(status: OrderListFilters["refund_status"]) {
     { refunded_amount: { gt: "0" } },
     {
       RAW: (t: typeof ordersTable) =>
-        sql`${t.refunded_amount} ${compare} ${t.paid_amount}`,
+        sql`${t.refunded_amount} ${compare} ${t.paid_amount} - ${t.delivery_fee}`,
     },
   ];
 }
@@ -260,6 +261,7 @@ export async function findOrders(
         paid_amount: true,
         refunded_amount: true,
         discount: true,
+        delivery_fee: true,
         total: true,
         notes: true,
         created_at: true,
@@ -319,10 +321,12 @@ export async function findOrders(
     status: row.status,
     payment_status: row.payment_status,
     refund_status: deriveOrderRefundStatus({
+      delivery_fee: row.delivery_fee,
       paid_amount: row.paid_amount,
       refunded_amount: row.refunded_amount,
     }),
     discount: row.discount,
+    delivery_fee: row.delivery_fee,
     total: row.total,
     paid_amount: row.paid_amount,
     refunded_amount: row.refunded_amount,

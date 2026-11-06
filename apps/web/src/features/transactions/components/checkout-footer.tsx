@@ -36,7 +36,7 @@ export const CheckoutFooter = ({
 }: CheckoutFooterProps) => {
 	const { submit } = useTransactionsPageContext();
 	const { count, serviceRows } = useCart();
-	const { pricing } = useCheckoutPricing();
+	const { amountDue } = useCheckoutPricing();
 	const form = useFormContext<TransactionDraftValues>();
 	const isSubmitting = form.formState.isSubmitting;
 	const [customerName = "", customerPhone = ""] = useWatch<
@@ -76,7 +76,7 @@ export const CheckoutFooter = ({
 						Total
 					</span>
 					<span className="text-headline font-semibold">
-						{formatMoney(String(Math.round(pricing.total)))}
+						{formatMoney(String(amountDue))}
 					</span>
 				</div>
 				<CheckoutStepActions

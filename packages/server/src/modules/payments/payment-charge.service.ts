@@ -542,6 +542,7 @@ export async function handlePaymentNotification(
 // What the Track page offers: net_due is what the Customer still owes, and Pay
 // shows only when the gateway can take exactly that.
 export async function getTrackPaymentState(order: {
+  delivery_fee: string;
   discount: string;
   id: number;
   payment_status: "paid" | "unpaid";
@@ -560,6 +561,7 @@ export async function getTrackPaymentState(order: {
 
   // Nothing is refunded before an Order is paid.
   const netDue = orderNetDue({
+    deliveryFee: Number(order.delivery_fee),
     discount: Number(order.discount),
     grossTotal: Number(order.total),
     refunded: 0,

@@ -1,10 +1,10 @@
+import { orderNetTotal } from "@fresclean/api/schema";
 import type { LinkProps } from "@tanstack/react-router";
 import { MoneyValue } from "@/components/money-value";
 import type { Order } from "@/features/orders/api";
 import { NotifiedLabel } from "@/features/orders/components/notified-label";
 import { OrderBadges } from "@/features/orders/components/order-badges";
 import { OrderListRow } from "@/features/orders/components/order-list-row";
-import { parseMoney } from "@/shared/money";
 
 interface OrderPhoneRowProps {
 	isActive: boolean;
@@ -41,10 +41,7 @@ export const OrderPhoneRow = ({
 		]}
 		end={
 			<div className="grid justify-items-end gap-1">
-				<MoneyValue
-					className="text-body"
-					value={parseMoney(order.total) - parseMoney(order.discount)}
-				/>
+				<MoneyValue className="text-body" value={orderNetTotal(order)} />
 				<div className="flex gap-1">
 					<OrderBadges order={order} />
 				</div>

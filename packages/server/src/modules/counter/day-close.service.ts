@@ -22,6 +22,7 @@ import {
   getJakartaDayRange,
   jakartaDayOf,
 } from "@/modules/reports/report-range.util";
+import { orderNetTotal } from "@/schema/discount";
 
 const NO_METHOD = "No PaymentMethod";
 
@@ -61,7 +62,7 @@ function buildOrderList(
   return rows.map((row) => {
     const isPaid = row.paid_at !== null && row.paid_at < dayEnd;
     return {
-      amount: Number(row.total) - Number(row.discount),
+      amount: orderNetTotal(row),
       created_at: row.created_at.toISOString(),
       customer_name: row.customer_name,
       is_cancelled: row.cancelled_at !== null && row.cancelled_at < dayEnd,

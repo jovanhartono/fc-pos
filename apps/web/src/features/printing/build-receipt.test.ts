@@ -13,6 +13,7 @@ const baseReceipt: OrderReceipt = {
 	total: "315000.00",
 	discount: "41500.00",
 	discount_source: "campaign",
+	delivery_fee: "0.00",
 	pickup_code: "482917",
 	store: {
 		name: "Fresclean Kemang",
@@ -152,6 +153,27 @@ describe("buildReceiptEscPos", () => {
 			.slice(afterHeaderLogo(asArray))
 			.filter((byte) => byte > 0x7e);
 		expect(nonAscii).toEqual([]);
+	});
+
+	test("prints the Delivery Fee above a TOTAL that includes it", () => {
+		const text = decodeText(
+			buildReceiptEscPos(
+				{ ...baseReceipt, delivery_fee: "25000.00" },
+				"http://localhost/track?code=x&phone=y",
+			),
+		);
+		expect(text).toContain("Delivery Fee");
+		expect(text).toContain("Rp25.000");
+		// TOTAL = 315.000 - 41.500 + 25.000
+		expect(text).toContain("Rp298.500");
+		expect(text.indexOf("Delivery Fee") < text.indexOf("TOTAL")).toBe(true);
+	});
+
+	test("prints no Delivery Fee row on a walk-in Order", () => {
+		const text = decodeText(
+			buildReceiptEscPos(baseReceipt, "http://localhost/track?code=x&phone=y"),
+		);
+		expect(text).not.toContain("Delivery Fee");
 	});
 
 	test("header carries the centred brand mark", () => {

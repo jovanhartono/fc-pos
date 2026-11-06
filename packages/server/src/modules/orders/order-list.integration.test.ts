@@ -19,6 +19,7 @@ const dropOff = (name: string) =>
     campaign_ids: [],
     customer: { name, phone_number: `+62811${name.length}000111` },
     discount: 0,
+    delivery_fee: 0,
     items: [{ brand: name, services: [{ id: shop.serviceId }] }],
     payment_method_id: shop.paymentMethodId,
     payment_status: "unpaid",
@@ -68,6 +69,7 @@ it("counts a pair as ready only when all its live treatments are", async () => {
     campaign_ids: [],
     customer: { name: "Sari", phone_number: "+6281100022233" },
     discount: 0,
+    delivery_fee: 0,
     items: [
       { brand: "Nike", services: [{ id: shop.serviceId }] },
       {

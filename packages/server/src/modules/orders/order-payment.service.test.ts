@@ -9,6 +9,7 @@ import type { JWTPayload } from "@/types";
 type AnyObj = Record<string, unknown>;
 
 interface FakeOrderRow {
+  delivery_fee: string;
   discount: string | null;
   discount_source: string;
   id: number;
@@ -157,6 +158,7 @@ afterAll(() => {
 const CASHIER = { id: 42, role: "cashier" } as unknown as JWTPayload;
 
 const makeOrder = (over: Partial<FakeOrderRow> = {}): FakeOrderRow => ({
+  delivery_fee: "0",
   discount: "0",
   discount_source: "none",
   id: 10,

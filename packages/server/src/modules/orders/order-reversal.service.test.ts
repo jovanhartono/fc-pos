@@ -264,6 +264,7 @@ const makePaidOrder = (over: AnyObj = {}) => ({
   refunded_amount: "0",
   total: "100000",
   discount: "10000",
+  delivery_fee: "0",
   ...over,
 });
 
