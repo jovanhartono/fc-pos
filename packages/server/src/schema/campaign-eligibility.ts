@@ -48,11 +48,15 @@ function bogoIneligibilityReason(
   return `Campaign ${campaign.code} needs ${needed} eligible Services`;
 }
 
-// Single source of the Campaign "Usable" rules (see ADR-0015). The server
-// wraps this in assertCampaignUsable (throws); the POS filters on null.
-export function campaignIneligibilityReason(
+// Whether the Campaign runs at this Store right now, before the Cart is
+// looked at. The POS uses it alone to decide whether to offer a code field.
+export function campaignRunReason(
   campaign: CampaignEligibilityInput,
-  { now, grossTotal, lines, storeId, storeCode }: CampaignEligibilityContext
+  {
+    now,
+    storeId,
+    storeCode,
+  }: Pick<CampaignEligibilityContext, "now" | "storeId" | "storeCode">
 ): string | null {
   if (!campaign.is_active) {
     return `Campaign ${campaign.code} is not active`;
@@ -67,6 +71,19 @@ export function campaignIneligibilityReason(
   const storeScopes = campaign.stores.map((item) => item.store_id);
   if (storeScopes.length > 0 && !storeScopes.includes(storeId)) {
     return `Campaign ${campaign.code} doesn't run at ${storeCode ?? storeId}`;
+  }
+  return null;
+}
+
+// Single source of the Campaign "Usable" rules (see ADR-0015). The server
+// wraps this in assertCampaignUsable (throws); the POS filters on null.
+export function campaignIneligibilityReason(
+  campaign: CampaignEligibilityInput,
+  { now, grossTotal, lines, storeId, storeCode }: CampaignEligibilityContext
+): string | null {
+  const runReason = campaignRunReason(campaign, { now, storeId, storeCode });
+  if (runReason) {
+    return runReason;
   }
 
   if (grossTotal < Number(campaign.min_order_total)) {

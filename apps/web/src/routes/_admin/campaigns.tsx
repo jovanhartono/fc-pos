@@ -315,6 +315,14 @@ function CampaignsPage() {
 				accessorKey: "name",
 				header: "Name",
 				meta: { kind: "name", width: { percent: 24, minRem: 9 } },
+				cell: ({ row }) => (
+					<span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+						{row.original.name}
+						{row.original.redemption_mode === "code" && (
+							<Badge variant="info">Voucher</Badge>
+						)}
+					</span>
+				),
 			},
 			{
 				id: "discount",

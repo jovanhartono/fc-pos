@@ -20,6 +20,7 @@ import { assertCanManageCampaigns } from "@/modules/permissions/permissions";
 import {
   type CampaignEligibilityContext,
   campaignIneligibilityReason,
+  campaignRunReason,
 } from "@/schema/campaign-eligibility";
 import type { JWTPayload } from "@/types";
 
@@ -68,6 +69,19 @@ export async function getCampaigns(query?: GetCampaignsQuery) {
   });
 
   return campaigns.map((campaign) => markExpired(campaign, now));
+}
+
+// Most days no Voucher runs, and the POS hides its code field then.
+export async function hasLiveVoucher(storeId: number) {
+  const now = new Date();
+  const vouchers = await listCampaigns({
+    is_active: true,
+    store_id: storeId,
+    redemption_mode: "code",
+  });
+  return vouchers.some(
+    (campaign) => campaignRunReason(campaign, { now, storeId }) === null
+  );
 }
 
 export async function getCampaignById(id: number) {

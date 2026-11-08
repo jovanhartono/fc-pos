@@ -14,6 +14,7 @@ import {
   deleteCampaign,
   getCampaignById,
   getCampaigns,
+  hasLiveVoucher,
   resolveVoucherCode,
   updateCampaign,
 } from "@/modules/campaigns/campaign.service";
@@ -31,6 +32,19 @@ const app = new Hono<AdminEnv>()
 
     return c.json(success(items));
   })
+  .get(
+    "/live-voucher",
+    zodValidator(
+      "query",
+      z.object({ store_id: z.coerce.number().int().positive() })
+    ),
+    async (c) => {
+      const { store_id } = c.req.valid("query");
+      return c.json(
+        success({ has_live_voucher: await hasLiveVoucher(store_id) })
+      );
+    }
+  )
   .post(
     "/resolve-code",
     zodValidator(
