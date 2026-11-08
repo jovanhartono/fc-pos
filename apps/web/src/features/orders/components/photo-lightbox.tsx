@@ -3,11 +3,10 @@ import {
 	Delete02Icon,
 	Download04Icon,
 	Image02Icon,
-	Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import dayjs from "dayjs";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
 	Dialog,
@@ -18,6 +17,11 @@ import {
 import type { PhotoDownloadRef } from "@/features/orders/api";
 import { PhotoStage } from "@/features/orders/components/photo-stage";
 import { savePhoto } from "@/features/orders/utils/photo-download";
+import {
+	ITEM_PHOTO_TILE_SIZE,
+	photoTileUrl,
+	type TileSize,
+} from "@/features/orders/utils/photo-tile";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +34,6 @@ export interface PhotoLightboxItem {
 	id: number | string;
 	image_url: string;
 	note?: string | null;
-	primaryLabel?: string;
 }
 
 interface PhotoLightboxProps {
@@ -39,31 +42,154 @@ interface PhotoLightboxProps {
 	items: PhotoLightboxItem[];
 	initialIndex?: number;
 	title?: string;
+	// The size the opening screen already tiles these photos at, so the filmstrip reuses it.
+	tileSize?: TileSize;
 	// Resolves once the photo is gone from `items`, rejects if it is not.
 	onDelete?: (id: number | string) => Promise<void>;
 }
 
-export function getPhotoPrimaryLabel(item: {
-	id: number | string;
-	note?: string | null;
-	primaryLabel?: string;
-}) {
-	if (item.primaryLabel?.trim()) {
-		return item.primaryLabel;
-	}
-	return item.note?.trim() ? item.note : `Photo #${item.id}`;
+// Grey glass, so the controls still read over a white sneaker on a white counter.
+const FROSTED = "bg-zinc-800/60 backdrop-blur-xl backdrop-saturate-150";
+
+const ROUND_BUTTON = cn(
+	FROSTED,
+	"pointer-events-auto grid size-11 place-items-center rounded-full text-white transition hover:bg-zinc-700/70 active:scale-95 disabled:opacity-50",
+);
+
+interface DeleteConfirmProps {
+	isDeleting: boolean;
+	onCancel: () => void;
+	onConfirm: () => void;
 }
 
-export function formatPhotoTimestamp(createdAt: string) {
-	const parsed = dayjs(createdAt);
-	if (!parsed.isValid()) {
-		return createdAt;
-	}
-	return parsed.format("DD MMM YYYY, HH:mm");
+// Phone: the iOS action sheet, within thumb reach at the bottom.
+const DeleteActionSheet = ({
+	isDeleting,
+	onCancel,
+	onConfirm,
+}: DeleteConfirmProps) => (
+	<div className="pointer-events-auto flex w-full max-w-[22rem] flex-col gap-2 md:hidden">
+		<div className={cn(FROSTED, "overflow-hidden rounded-xl")}>
+			<p className="border-white/15 border-b px-4 pt-3.5 pb-3 text-center text-subhead text-white/65">
+				This photo will be deleted.
+			</p>
+			<button
+				className="h-14 w-full text-destructive text-title-3 disabled:opacity-50"
+				disabled={isDeleting}
+				onClick={onConfirm}
+				type="button"
+			>
+				Delete Photo
+			</button>
+		</div>
+		<button
+			className={cn(
+				FROSTED,
+				"h-14 w-full rounded-xl font-medium text-primary text-title-3 disabled:opacity-50",
+			)}
+			disabled={isDeleting}
+			onClick={onCancel}
+			type="button"
+		>
+			Cancel
+		</button>
+	</div>
+);
+
+// Desktop: a centred alert, as Mac Photos asks.
+const DeleteAlert = ({
+	isDeleting,
+	onCancel,
+	onConfirm,
+}: DeleteConfirmProps) => (
+	<div className="pointer-events-none absolute inset-0 hidden place-items-center px-4 md:grid">
+		<div
+			className={cn(
+				FROSTED,
+				"pointer-events-auto grid w-[17rem] gap-1 rounded-2xl p-4 text-center",
+			)}
+		>
+			<p className="font-medium text-headline">Delete Photo?</p>
+			<p className="text-subhead text-white/65">This photo will be deleted.</p>
+			<div className="mt-3 grid grid-cols-2 gap-2">
+				<button
+					className="h-9 rounded-lg bg-white/15 font-medium text-subhead transition hover:bg-white/25 disabled:opacity-50"
+					disabled={isDeleting}
+					onClick={onCancel}
+					type="button"
+				>
+					Cancel
+				</button>
+				<button
+					className="h-9 rounded-lg bg-destructive font-medium text-subhead text-white transition hover:bg-destructive/85 disabled:opacity-50"
+					disabled={isDeleting}
+					onClick={onConfirm}
+					type="button"
+				>
+					Delete
+				</button>
+			</div>
+		</div>
+	</div>
+);
+
+interface FilmstripProps {
+	activeIndex: number;
+	items: PhotoLightboxItem[];
+	onSelect: (index: number) => void;
+	tileSize: TileSize;
 }
 
-const ACTION_CLASS =
-	"grid size-9 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20";
+const Filmstrip = ({
+	activeIndex,
+	items,
+	onSelect,
+	tileSize,
+}: FilmstripProps) => {
+	const stripRef = useRef<HTMLDivElement>(null);
+	const hasScrolledRef = useRef(false);
+
+	useEffect(() => {
+		stripRef.current?.children[activeIndex]?.scrollIntoView({
+			behavior: hasScrolledRef.current ? "smooth" : "instant",
+			block: "nearest",
+			inline: "center",
+		});
+		hasScrolledRef.current = true;
+	}, [activeIndex]);
+
+	return (
+		<div
+			className="pointer-events-auto flex h-11 max-w-full items-center gap-0.5 overflow-x-auto [scrollbar-width:none]"
+			ref={stripRef}
+		>
+			{items.map((item, index) => (
+				<button
+					aria-current={index === activeIndex}
+					aria-label={`Photo ${index + 1}`}
+					className={cn(
+						"shrink-0 overflow-hidden rounded-xs",
+						index === activeIndex
+							? "size-11 outline-2 -outline-offset-2 outline-white"
+							: "h-10 w-7 opacity-85",
+					)}
+					key={item.id}
+					onClick={() => onSelect(index)}
+					type="button"
+				>
+					<img
+						alt=""
+						className="size-full object-cover"
+						decoding="async"
+						draggable={false}
+						loading="lazy"
+						src={photoTileUrl(item.image_url, tileSize)}
+					/>
+				</button>
+			))}
+		</div>
+	);
+};
 
 export const PhotoLightbox = ({
 	open,
@@ -71,34 +197,46 @@ export const PhotoLightbox = ({
 	items,
 	initialIndex = 0,
 	title = "Attachment Viewer",
+	tileSize = ITEM_PHOTO_TILE_SIZE,
 	onDelete,
 }: PhotoLightboxProps) => {
 	const [activeIndex, setActiveIndex] = useState(initialIndex);
-	const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+	// The photo the confirm was opened for, so a swipe or a refetch never
+	// deletes a different one.
+	const [confirmingDeleteId, setConfirmingDeleteId] = useState<
+		number | string | null
+	>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
+	const [wasOpen, setWasOpen] = useState(open);
+
+	// Reset during render, so the first frame already shows the tapped photo.
+	if (open !== wasOpen) {
+		setWasOpen(open);
+		if (open) {
+			setActiveIndex(initialIndex);
+			setConfirmingDeleteId(null);
+		}
+	}
 
 	const imageCount = items.length;
 	const canNavigate = imageCount > 1;
 	const activeItem = items[activeIndex];
-
-	useEffect(() => {
-		if (open) {
-			setActiveIndex(initialIndex);
-			setIsConfirmingDelete(false);
-		}
-	}, [open, initialIndex]);
+	const takenAt = activeItem ? dayjs(activeItem.created_at) : null;
+	const note = activeItem?.note?.trim();
+	const isConfirmingDelete =
+		activeItem !== undefined && confirmingDeleteId === activeItem.id;
 
 	// Exactly one photo leaves per delete: step to the neighbour, or close on
 	// the last one. Decided here rather than watched from `items`, because the
 	// gallery unmounts an empty viewer before any effect could see zero.
 	const handleDelete = async () => {
-		if (!(activeItem && onDelete)) {
+		if (!(isConfirmingDelete && onDelete)) {
 			return;
 		}
 		setIsDeleting(true);
 		try {
-			await onDelete(activeItem.id);
+			await onDelete(confirmingDeleteId);
 			if (imageCount === 1) {
 				onOpenChange(false);
 			} else {
@@ -108,7 +246,7 @@ export const PhotoLightbox = ({
 			// The caller has already reported the failure; the photo stays.
 		} finally {
 			setIsDeleting(false);
-			setIsConfirmingDelete(false);
+			setConfirmingDeleteId(null);
 		}
 	};
 
@@ -126,18 +264,6 @@ export const PhotoLightbox = ({
 		}
 	};
 
-	const activeCaption = useMemo(() => {
-		if (!activeItem) {
-			return null;
-		}
-
-		return {
-			indexLabel: `${activeIndex + 1} / ${imageCount}`,
-			primary: getPhotoPrimaryLabel(activeItem),
-			secondary: formatPhotoTimestamp(activeItem.created_at),
-		};
-	}, [activeIndex, activeItem, imageCount]);
-
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent
@@ -153,32 +279,17 @@ export const PhotoLightbox = ({
 						: "Pinch or double-tap to zoom."}
 				</DialogDescription>
 
-				<div className="flex min-h-0 flex-1 flex-col bg-black">
+				{/* The controls sit beside the stage, not inside it: the stage blocks the
+				    browser's own panning, which would freeze a long filmstrip on iPad. */}
+				<div className="relative flex min-h-0 flex-1 flex-col bg-black">
 					{activeItem ? (
 						<PhotoStage
 							activeIndex={activeIndex}
-							className="bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_52%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.18))]"
 							items={items}
 							onIndexChange={setActiveIndex}
-						>
-							<button
-								aria-label="Close"
-								className={cn(
-									ACTION_CLASS,
-									"absolute top-[calc(env(safe-area-inset-top)_+_1rem)] right-4 z-10",
-								)}
-								onClick={() => onOpenChange(false)}
-								type="button"
-							>
-								<HugeiconsIcon
-									icon={Cancel01Icon}
-									className="size-5"
-									aria-hidden="true"
-								/>
-							</button>
-						</PhotoStage>
+						/>
 					) : (
-						<div className="relative flex min-h-0 flex-1 items-center justify-center">
+						<div className="flex min-h-0 flex-1 items-center justify-center">
 							<div className="grid place-items-center gap-2 px-6 py-12 text-center text-body text-white/72">
 								<HugeiconsIcon
 									icon={Image02Icon}
@@ -190,93 +301,110 @@ export const PhotoLightbox = ({
 						</div>
 					)}
 
-					<div className="flex items-center justify-between gap-3 border-t border-white/10 bg-zinc-950 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)_+_0.75rem)] text-white">
-						<div className="grid gap-1">
-							<p className="text-body font-medium">
-								{activeCaption?.primary ?? "Attachment"}
-							</p>
-							<p className="text-footnote text-white/70">
-								{activeCaption?.secondary ?? "No metadata"}
-							</p>
-						</div>
-						<div className="flex shrink-0 items-center gap-3 text-footnote text-white/70">
-							<p className="tabular-nums">
-								{activeCaption?.indexLabel ?? "0 / 0"}
-							</p>
-							{activeItem ? (
-								<div className="flex items-center gap-1.5">
-									{/* Real buttons, not a hover reveal: the shop runs on iPads,
-										    where nothing hovers. */}
-									{isConfirmingDelete ? (
-										<>
-											<p className="text-white">Delete photo?</p>
-											<button
-												aria-label="Confirm delete"
-												className={cn(
-													ACTION_CLASS,
-													"bg-destructive hover:bg-destructive/80 disabled:opacity-50",
-												)}
-												disabled={isDeleting}
-												onClick={handleDelete}
-												type="button"
-											>
-												<HugeiconsIcon
-													icon={Tick02Icon}
-													aria-hidden="true"
-													className="size-4"
-												/>
-											</button>
-											<button
-												aria-label="Cancel delete"
-												className={ACTION_CLASS}
-												disabled={isDeleting}
-												onClick={() => setIsConfirmingDelete(false)}
-												type="button"
-											>
-												<HugeiconsIcon
-													icon={Cancel01Icon}
-													aria-hidden="true"
-													className="size-4"
-												/>
-											</button>
-										</>
-									) : (
-										<>
-											<button
-												aria-label="Save image"
-												className={cn(ACTION_CLASS, "disabled:opacity-50")}
-												disabled={isSaving}
-												onClick={handleSave}
-												title="Save image"
-												type="button"
-											>
-												<HugeiconsIcon
-													icon={Download04Icon}
-													aria-hidden="true"
-													className="size-4"
-												/>
-											</button>
-											{onDelete && activeItem.canDelete ? (
-												<button
-													aria-label="Delete photo"
-													className={ACTION_CLASS}
-													onClick={() => setIsConfirmingDelete(true)}
-													title="Delete photo"
-													type="button"
-												>
-													<HugeiconsIcon
-														icon={Delete02Icon}
-														aria-hidden="true"
-														className="size-4"
-													/>
-												</button>
-											) : null}
-										</>
-									)}
-								</div>
-							) : null}
-						</div>
+					<div className="pointer-events-none absolute inset-x-0 top-0 grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 pt-[calc(env(safe-area-inset-top)_+_1rem)]">
+						<button
+							aria-label="Close"
+							className={ROUND_BUTTON}
+							onClick={() => onOpenChange(false)}
+							type="button"
+						>
+							<HugeiconsIcon
+								icon={Cancel01Icon}
+								className="size-5"
+								aria-hidden="true"
+							/>
+						</button>
+						{takenAt?.isValid() ? (
+							<time
+								className="grid text-center [text-shadow:0_1px_3px_rgb(0_0_0/0.6)]"
+								dateTime={activeItem?.created_at}
+							>
+								<span className="font-medium text-headline">
+									{takenAt.format("D MMM YYYY")}
+								</span>
+								<span className="text-footnote text-white/75 tabular-nums">
+									{takenAt.format("HH:mm")}
+								</span>
+							</time>
+						) : null}
+						<span aria-hidden="true" className="size-11" />
 					</div>
+
+					{activeItem ? (
+						<div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-3 px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)]">
+							{isConfirmingDelete ? (
+								<DeleteActionSheet
+									isDeleting={isDeleting}
+									onCancel={() => setConfirmingDeleteId(null)}
+									onConfirm={handleDelete}
+								/>
+							) : null}
+							<div
+								className={cn(
+									"contents",
+									isConfirmingDelete && "max-md:hidden",
+								)}
+							>
+								{note ? (
+									<p
+										className={cn(
+											FROSTED,
+											"line-clamp-3 max-w-[92%] rounded-xl px-3.5 py-2 text-center text-subhead",
+										)}
+									>
+										{note}
+									</p>
+								) : null}
+								{canNavigate ? (
+									<Filmstrip
+										activeIndex={activeIndex}
+										items={items}
+										onSelect={setActiveIndex}
+										tileSize={tileSize}
+									/>
+								) : null}
+								<div className="flex w-full items-center justify-between">
+									<button
+										aria-label="Save image"
+										className={ROUND_BUTTON}
+										disabled={isSaving}
+										onClick={handleSave}
+										title="Save image"
+										type="button"
+									>
+										<HugeiconsIcon
+											icon={Download04Icon}
+											aria-hidden="true"
+											className="size-5"
+										/>
+									</button>
+									{onDelete && activeItem.canDelete ? (
+										<button
+											aria-label="Delete photo"
+											className={ROUND_BUTTON}
+											onClick={() => setConfirmingDeleteId(activeItem.id)}
+											title="Delete photo"
+											type="button"
+										>
+											<HugeiconsIcon
+												icon={Delete02Icon}
+												aria-hidden="true"
+												className="size-5"
+											/>
+										</button>
+									) : null}
+								</div>
+							</div>
+						</div>
+					) : null}
+
+					{isConfirmingDelete ? (
+						<DeleteAlert
+							isDeleting={isDeleting}
+							onCancel={() => setConfirmingDeleteId(null)}
+							onConfirm={handleDelete}
+						/>
+					) : null}
 				</div>
 			</DialogContent>
 		</Dialog>

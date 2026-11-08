@@ -2,7 +2,9 @@
 export const ITEM_PHOTO_TILE_SIZE = 160;
 export const ATTACHMENT_TILE_SIZE = 240;
 
-type TileSize = typeof ITEM_PHOTO_TILE_SIZE | typeof ATTACHMENT_TILE_SIZE;
+export type TileSize =
+	| typeof ITEM_PHOTO_TILE_SIZE
+	| typeof ATTACHMENT_TILE_SIZE;
 
 // Past the month's free quota, onerror=redirect shows the original instead of a broken tile.
 export const photoTileUrl = (url: string, size: TileSize) => {

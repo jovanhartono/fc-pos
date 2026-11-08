@@ -2,7 +2,6 @@ import type * as React from "react";
 import { useCallback, useState } from "react";
 import type { PhotoDownloadRef } from "@/features/orders/api";
 import {
-	getPhotoPrimaryLabel,
 	PhotoLightbox,
 	type PhotoLightboxItem,
 } from "@/features/orders/components/photo-lightbox";
@@ -74,7 +73,7 @@ export function OrderPhotoGallery({
 					<div key={item.id}>
 						{item.label ? <div className="mb-1.5">{item.label}</div> : null}
 						<button
-							aria-label={`Open ${getPhotoPrimaryLabel(item)} image ${index + 1} of ${imageCount}`}
+							aria-label={`Open ${item.note?.trim() || `Photo #${item.id}`} image ${index + 1} of ${imageCount}`}
 							className="block w-full overflow-hidden rounded-md border border-border bg-muted transition-[border-color,box-shadow] hover:border-ring focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
 							onClick={() => openAtIndex(index)}
 							type="button"
@@ -100,6 +99,7 @@ export function OrderPhotoGallery({
 				items={lightboxItems}
 				onOpenChange={setIsOpen}
 				open={isOpen}
+				tileSize={ATTACHMENT_TILE_SIZE}
 				title={title}
 			/>
 		</>
