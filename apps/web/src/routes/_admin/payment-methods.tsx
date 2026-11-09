@@ -2,7 +2,6 @@ import { Add01Icon, Wallet01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useMemo } from "react";
 import { ActiveBadge } from "@/components/active-badge";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
@@ -67,34 +66,31 @@ function PaymentMethodsPage() {
 		},
 	});
 
-	const handleOpenEditSheet = useCallback(
-		(paymentMethod: PaymentMethod) => {
-			openSheet({
-				title: "Edit Payment Method",
-				content: () => (
-					<PaymentMethodForm
-						defaultValues={{
-							name: paymentMethod.name,
-							code: paymentMethod.code,
-							is_active: paymentMethod.is_active,
-							gateway: paymentMethod.gateway,
-						}}
-						handleOnSubmit={async (values) => {
-							await updateMutation.mutateAsync({
-								id: paymentMethod.id,
-								payload: values,
-							});
-						}}
-						isEditing
-						onReset={closeSheet}
-					/>
-				),
-			});
-		},
-		[closeSheet, openSheet, updateMutation],
-	);
+	const handleOpenEditSheet = (paymentMethod: PaymentMethod) => {
+		openSheet({
+			title: "Edit Payment Method",
+			content: () => (
+				<PaymentMethodForm
+					defaultValues={{
+						name: paymentMethod.name,
+						code: paymentMethod.code,
+						is_active: paymentMethod.is_active,
+						gateway: paymentMethod.gateway,
+					}}
+					handleOnSubmit={async (values) => {
+						await updateMutation.mutateAsync({
+							id: paymentMethod.id,
+							payload: values,
+						});
+					}}
+					isEditing
+					onReset={closeSheet}
+				/>
+			),
+		});
+	};
 
-	const handleOpenCreateSheet = useCallback(() => {
+	const handleOpenCreateSheet = () => {
 		openSheet({
 			title: "Add Payment Method",
 			content: () => (
@@ -107,43 +103,40 @@ function PaymentMethodsPage() {
 				/>
 			),
 		});
-	}, [closeSheet, createMutation, openSheet]);
+	};
 
-	const columns = useMemo<DataTableColumnDef<PaymentMethod>[]>(
-		() => [
-			{
-				accessorKey: "name",
-				header: "Payment method",
-				meta: { kind: "name", width: { percent: 50, minRem: 9 } },
+	const columns: DataTableColumnDef<PaymentMethod>[] = [
+		{
+			accessorKey: "name",
+			header: "Payment method",
+			meta: { kind: "name", width: { percent: 50, minRem: 9 } },
+		},
+		{
+			accessorKey: "code",
+			header: "Code",
+			meta: { kind: "code", width: { percent: 26, minRem: 4.5 } },
+		},
+		{
+			id: "status",
+			header: "Status",
+			meta: {
+				width: { percent: 12, minRem: 4.5 },
+				mobileCard: { slot: "status" },
 			},
-			{
-				accessorKey: "code",
-				header: "Code",
-				meta: { kind: "code", width: { percent: 26, minRem: 4.5 } },
+			cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
+		},
+		{
+			id: "actions",
+			header: "Actions",
+			meta: {
+				width: { percent: 12, minRem: 4.5 },
+				mobileCard: { slot: "title-end" },
 			},
-			{
-				id: "status",
-				header: "Status",
-				meta: {
-					width: { percent: 12, minRem: 4.5 },
-					mobileCard: { slot: "status" },
-				},
-				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
-			},
-			{
-				id: "actions",
-				header: "Actions",
-				meta: {
-					width: { percent: 12, minRem: 4.5 },
-					mobileCard: { slot: "title-end" },
-				},
-				cell: ({ row }) => (
-					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
-				),
-			},
-		],
-		[handleOpenEditSheet],
-	);
+			cell: ({ row }) => (
+				<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
+			),
+		},
+	];
 
 	return (
 		<>

@@ -113,16 +113,14 @@ export const DatePicker = ({
 	const [isOpen, setIsOpen] = useState(false);
 	const selected = value ? dayjs(value).toDate() : undefined;
 
-	const disabledMatchers = useMemo<Matcher[] | undefined>(() => {
-		const matchers: Matcher[] = [];
-		if (max) {
-			matchers.push({ after: dayjs(max).toDate() });
-		}
-		if (min) {
-			matchers.push({ before: dayjs(min).toDate() });
-		}
-		return matchers.length > 0 ? matchers : undefined;
-	}, [min, max]);
+	const matchers: Matcher[] = [];
+	if (max) {
+		matchers.push({ after: dayjs(max).toDate() });
+	}
+	if (min) {
+		matchers.push({ before: dayjs(min).toDate() });
+	}
+	const disabledMatchers = matchers.length > 0 ? matchers : undefined;
 
 	return (
 		<Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -421,15 +419,13 @@ export const DateRangePicker = ({
 	fullWidth = false,
 	isLoading,
 }: DateRangePickerProps) => {
-	const selectedFromProps = useMemo<DateRange | undefined>(() => {
-		if (!(from || to)) {
-			return undefined;
-		}
-		return {
-			from: from ? dayjs(from).toDate() : undefined,
-			to: to ? dayjs(to).toDate() : undefined,
-		};
-	}, [from, to]);
+	const selectedFromProps: DateRange | undefined =
+		from || to
+			? {
+					from: from ? dayjs(from).toDate() : undefined,
+					to: to ? dayjs(to).toDate() : undefined,
+				}
+			: undefined;
 
 	const [draftRange, setDraftRange] = useState<DateRange | undefined>(
 		selectedFromProps,

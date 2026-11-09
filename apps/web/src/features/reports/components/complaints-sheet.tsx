@@ -1,6 +1,5 @@
 import { MessageCircleWarningIcon } from "@hugeicons/core-free-icons";
 import { Link } from "@tanstack/react-router";
-import { useCallback } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { COMPLAINT_OUTCOMES } from "@/features/complaints/lib/format";
 import type { QualityReport } from "@/features/reports/api";
@@ -60,13 +59,10 @@ const ComplaintsList = ({ complaints }: ComplaintsListProps) => {
 
 export const useOpenComplaintsSheet = () => {
 	const openSheet = useSheet((s) => s.openSheet);
-	return useCallback(
-		(report: QualityReport) =>
-			openSheet({
-				title: "Complaints",
-				description: rangeLabel(report.from, report.to),
-				content: () => <ComplaintsList complaints={report.complaints} />,
-			}),
-		[openSheet],
-	);
+	return (report: QualityReport) =>
+		openSheet({
+			title: "Complaints",
+			description: rangeLabel(report.from, report.to),
+			content: () => <ComplaintsList complaints={report.complaints} />,
+		});
 };

@@ -1,7 +1,7 @@
 import { CancelCircleIcon } from "@hugeicons/core-free-icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { TablePagination } from "@/components/table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -93,13 +93,10 @@ export const QcRejectsList = ({ target }: QcRejectsListProps) => {
 
 export const useOpenQcRejectsSheet = () => {
 	const openSheet = useSheet((s) => s.openSheet);
-	return useCallback(
-		(target: QcRejectsTarget) =>
-			openSheet({
-				title: "QC Rejects",
-				description: rangeLabel(target.from, target.to),
-				content: () => <QcRejectsList target={target} />,
-			}),
-		[openSheet],
-	);
+	return (target: QcRejectsTarget) =>
+		openSheet({
+			title: "QC Rejects",
+			description: rangeLabel(target.from, target.to),
+			content: () => <QcRejectsList target={target} />,
+		});
 };

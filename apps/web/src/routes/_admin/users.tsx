@@ -13,7 +13,6 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useMemo } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
 import { ActiveBadge } from "@/components/active-badge";
@@ -120,19 +119,16 @@ function UsersPage() {
 	const openDialog = useDialog((s) => s.openDialog);
 	const closeDialog = useDialog((s) => s.closeDialog);
 
-	const handleSearchChange = useCallback(
-		(next: string) => {
-			void navigate({
-				replace: true,
-				search: (prev) => ({
-					...prev,
-					page: 1,
-					search: next || undefined,
-				}),
-			});
-		},
-		[navigate],
-	);
+	const handleSearchChange = (next: string) => {
+		void navigate({
+			replace: true,
+			search: (prev) => ({
+				...prev,
+				page: 1,
+				search: next || undefined,
+			}),
+		});
+	};
 
 	const form = useForm<UserFormState>({
 		resolver: zodResolver(userFormSchema),
@@ -149,15 +145,14 @@ function UsersPage() {
 	});
 	const users = usersQuery.data?.items ?? [];
 	const storesQuery = useQuery(storesQueries.list());
-	const storeMap = useMemo(
-		() => new Map((storesQuery.data ?? []).map((store) => [store.id, store])),
-		[storesQuery.data],
+	const storeMap = new Map(
+		(storesQuery.data ?? []).map((store) => [store.id, store]),
 	);
 
-	const resetForm = useCallback(() => {
+	const resetForm = () => {
 		form.reset(defaultForm);
 		closeSheet();
-	}, [form, closeSheet]);
+	};
 
 	const createMutation = useMutation({
 		mutationKey: ["create-user"],
@@ -185,96 +180,82 @@ function UsersPage() {
 
 	// The sheet keeps the handler it opened with, so the edited User travels with
 	// it; read from state, it named the previous User and saved onto the wrong row.
-	const saveUser = useCallback(
-		async (values: UserFormState, editingUser: User | null) => {
-			if (editingUser) {
-				const payload: Parameters<typeof updateUser>[1] = {
-					username: values.username,
-					name: values.name,
-					role: values.role,
-					is_active: values.is_active,
-					can_process_pickup: values.can_process_pickup,
-				};
-				await updateMutation.mutateAsync({
-					id: editingUser.id,
-					payload,
-				});
-				await updateStoresMutation.mutateAsync({
-					id: editingUser.id,
-					store_ids: values.store_ids,
-				});
-				await queryClient.invalidateQueries({ queryKey: usersKeys.all });
-				resetForm();
-				return;
-			}
-
-			if (values.password.length < 8) {
-				form.setError("password", { message: "Minimum 8 characters" });
-				return;
-			}
-
-			const payload: Parameters<typeof createUser>[0] = {
+	const saveUser = async (values: UserFormState, editingUser: User | null) => {
+		if (editingUser) {
+			const payload: Parameters<typeof updateUser>[1] = {
 				username: values.username,
 				name: values.name,
-				password: values.password,
-				confirm_password: values.confirm_password,
 				role: values.role,
 				is_active: values.is_active,
 				can_process_pickup: values.can_process_pickup,
 			};
-
-			const createdUser = await createMutation.mutateAsync(payload);
-			const createdUserId = (createdUser as { data?: { id?: number } }).data
-				?.id;
-			if (createdUserId && values.store_ids.length > 0) {
-				await updateStoresMutation.mutateAsync({
-					id: createdUserId,
-					store_ids: values.store_ids,
-				});
-			}
+			await updateMutation.mutateAsync({
+				id: editingUser.id,
+				payload,
+			});
+			await updateStoresMutation.mutateAsync({
+				id: editingUser.id,
+				store_ids: values.store_ids,
+			});
 			await queryClient.invalidateQueries({ queryKey: usersKeys.all });
 			resetForm();
-		},
-		[
-			createMutation,
-			form,
-			queryClient,
-			resetForm,
-			updateMutation,
-			updateStoresMutation,
-		],
-	);
+			return;
+		}
 
-	const handleEdit = useCallback(
-		(user: User) => {
-			form.reset({
-				username: user.username,
-				name: user.name,
-				password: "",
-				confirm_password: "",
-				role: user.role,
-				is_active: user.is_active,
-				can_process_pickup: user.can_process_pickup ?? false,
-				store_ids: user.userStores.map((item) => item.store_id),
-			});
-			openSheet({
-				title: "Edit User",
-				content: () => (
-					<FormProvider {...form}>
-						<UserForm
-							onSubmit={(values) => saveUser(values, user)}
-							isEditing={true}
-							stores={storesQuery.data ?? []}
-							onReset={resetForm}
-						/>
-					</FormProvider>
-				),
-			});
-		},
-		[form, openSheet, storesQuery.data, resetForm, saveUser],
-	);
+		if (values.password.length < 8) {
+			form.setError("password", { message: "Minimum 8 characters" });
+			return;
+		}
 
-	const handleCreate = useCallback(() => {
+		const payload: Parameters<typeof createUser>[0] = {
+			username: values.username,
+			name: values.name,
+			password: values.password,
+			confirm_password: values.confirm_password,
+			role: values.role,
+			is_active: values.is_active,
+			can_process_pickup: values.can_process_pickup,
+		};
+
+		const createdUser = await createMutation.mutateAsync(payload);
+		const createdUserId = (createdUser as { data?: { id?: number } }).data?.id;
+		if (createdUserId && values.store_ids.length > 0) {
+			await updateStoresMutation.mutateAsync({
+				id: createdUserId,
+				store_ids: values.store_ids,
+			});
+		}
+		await queryClient.invalidateQueries({ queryKey: usersKeys.all });
+		resetForm();
+	};
+
+	const handleEdit = (user: User) => {
+		form.reset({
+			username: user.username,
+			name: user.name,
+			password: "",
+			confirm_password: "",
+			role: user.role,
+			is_active: user.is_active,
+			can_process_pickup: user.can_process_pickup ?? false,
+			store_ids: user.userStores.map((item) => item.store_id),
+		});
+		openSheet({
+			title: "Edit User",
+			content: () => (
+				<FormProvider {...form}>
+					<UserForm
+						onSubmit={(values) => saveUser(values, user)}
+						isEditing={true}
+						stores={storesQuery.data ?? []}
+						onReset={resetForm}
+					/>
+				</FormProvider>
+			),
+		});
+	};
+
+	const handleCreate = () => {
 		form.reset(defaultForm);
 		openSheet({
 			title: "Add User",
@@ -289,100 +270,92 @@ function UsersPage() {
 				</FormProvider>
 			),
 		});
-	}, [form, openSheet, storesQuery.data, resetForm, saveUser]);
+	};
 
-	const handleResetPassword = useCallback(
-		(user: User) => {
-			openDialog({
-				title: "Reset Password",
-				description: `${user.name} · ${user.username}`,
-				content: () => (
-					<ResetPasswordForm userId={user.id} onDone={closeDialog} />
-				),
-			});
+	const handleResetPassword = (user: User) => {
+		openDialog({
+			title: "Reset Password",
+			description: `${user.name} · ${user.username}`,
+			content: () => (
+				<ResetPasswordForm userId={user.id} onDone={closeDialog} />
+			),
+		});
+	};
+
+	const columns: DataTableColumnDef<User>[] = [
+		{
+			accessorKey: "username",
+			header: "Username",
+			meta: {
+				kind: "code",
+				width: { percent: 16, minRem: 7 },
+				mobileCard: { slot: "subtitle" },
+			},
 		},
-		[openDialog, closeDialog],
-	);
-
-	const columns = useMemo<DataTableColumnDef<User>[]>(
-		() => [
-			{
-				accessorKey: "username",
-				header: "Username",
-				meta: {
-					kind: "code",
-					width: { percent: 16, minRem: 7 },
-					mobileCard: { slot: "subtitle" },
-				},
+		{
+			accessorKey: "name",
+			header: "Name",
+			meta: { kind: "name", width: { percent: 30, minRem: 9 } },
+		},
+		{
+			accessorKey: "role",
+			header: "Role",
+			meta: {
+				width: { percent: 11, minRem: 4.5 },
+				mobileCard: { slot: "subtitle" },
 			},
-			{
-				accessorKey: "name",
-				header: "Name",
-				meta: { kind: "name", width: { percent: 30, minRem: 9 } },
+			cell: ({ row }) => (
+				<span className="capitalize">{row.original.role}</span>
+			),
+		},
+		{
+			id: "stores",
+			header: "Stores",
+			meta: {
+				width: { percent: 21, minRem: 9.5 },
+				mobileCard: { slot: "subtitle" },
 			},
-			{
-				accessorKey: "role",
-				header: "Role",
-				meta: {
-					width: { percent: 11, minRem: 4.5 },
-					mobileCard: { slot: "subtitle" },
-				},
-				cell: ({ row }) => (
-					<span className="capitalize">{row.original.role}</span>
-				),
+			cell: ({ row }) =>
+				row.original.userStores.length > 0
+					? row.original.userStores
+							.map(
+								(item) =>
+									storeMap.get(item.store_id)?.code ?? String(item.store_id),
+							)
+							.join(", ")
+					: "—",
+		},
+		{
+			id: "status",
+			header: "Status",
+			meta: {
+				width: { percent: 11, minRem: 4.5 },
+				mobileCard: { slot: "status" },
 			},
-			{
-				id: "stores",
-				header: "Stores",
-				meta: {
-					width: { percent: 21, minRem: 9.5 },
-					mobileCard: { slot: "subtitle" },
-				},
-				cell: ({ row }) =>
-					row.original.userStores.length > 0
-						? row.original.userStores
-								.map(
-									(item) =>
-										storeMap.get(item.store_id)?.code ?? String(item.store_id),
-								)
-								.join(", ")
-						: "—",
+			cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
+		},
+		{
+			id: "actions",
+			header: "Actions",
+			meta: {
+				width: { percent: 11, minRem: 5.5 },
+				mobileCard: { slot: "title-end" },
 			},
-			{
-				id: "status",
-				header: "Status",
-				meta: {
-					width: { percent: 11, minRem: 4.5 },
-					mobileCard: { slot: "status" },
-				},
-				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
-			},
-			{
-				id: "actions",
-				header: "Actions",
-				meta: {
-					width: { percent: 11, minRem: 5.5 },
-					mobileCard: { slot: "title-end" },
-				},
-				cell: ({ row }) => (
-					<div className="flex gap-2">
-						<EditRowButton onClick={() => handleEdit(row.original)} />
-						<Button
-							variant="outline"
-							size="icon-sm"
-							aria-label="Reset password"
-							title="Reset password"
-							onClick={() => handleResetPassword(row.original)}
-							icon={
-								<HugeiconsIcon icon={ResetPasswordIcon} className="size-4" />
-							}
-						/>
-					</div>
-				),
-			},
-		],
-		[handleEdit, handleResetPassword, storeMap],
-	);
+			cell: ({ row }) => (
+				<div className="flex gap-2">
+					<EditRowButton onClick={() => handleEdit(row.original)} />
+					<Button
+						variant="outline"
+						size="icon-sm"
+						aria-label="Reset password"
+						title="Reset password"
+						onClick={() => handleResetPassword(row.original)}
+						icon={<HugeiconsIcon icon={ResetPasswordIcon} className="size-4" />}
+					/>
+				</div>
+			),
+		},
+	];
 
 	return (
 		<>

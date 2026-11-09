@@ -69,17 +69,17 @@ function SidebarProvider({
 	const isMobile = useIsMobile();
 	const [openMobile, setOpenMobile] = React.useState(false);
 	const afterMobileClose = React.useRef<(() => void) | null>(null);
-	const closeMobileThen = React.useCallback((then: () => void) => {
+	const closeMobileThen = (then: () => void) => {
 		afterMobileClose.current = then;
 		setOpenMobile(false);
-	}, []);
-	const onMobileOpenChangeComplete = React.useCallback((isOpen: boolean) => {
+	};
+	const onMobileOpenChangeComplete = (isOpen: boolean) => {
 		const then = afterMobileClose.current;
 		afterMobileClose.current = null;
 		if (!isOpen) {
 			then?.();
 		}
-	}, []);
+	};
 
 	// This is the internal state of the sidebar.
 	// We use openProp and setOpenProp for control from outside the component.
@@ -125,29 +125,17 @@ function SidebarProvider({
 	// This makes it easier to style the sidebar with Tailwind classes.
 	const state = open ? "expanded" : "collapsed";
 
-	const contextValue = React.useMemo<SidebarContextProps>(
-		() => ({
-			state,
-			open,
-			setOpen,
-			isMobile,
-			openMobile,
-			setOpenMobile,
-			closeMobileThen,
-			onMobileOpenChangeComplete,
-			toggleSidebar,
-		}),
-		[
-			state,
-			open,
-			setOpen,
-			isMobile,
-			openMobile,
-			closeMobileThen,
-			onMobileOpenChangeComplete,
-			toggleSidebar,
-		],
-	);
+	const contextValue: SidebarContextProps = {
+		state,
+		open,
+		setOpen,
+		isMobile,
+		openMobile,
+		setOpenMobile,
+		closeMobileThen,
+		onMobileOpenChangeComplete,
+		toggleSidebar,
+	};
 
 	return (
 		<SidebarContext.Provider value={contextValue}>

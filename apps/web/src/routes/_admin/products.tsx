@@ -2,7 +2,6 @@ import { Add01Icon, PackageIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useMemo } from "react";
 import { ActiveBadge } from "@/components/active-badge";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
@@ -64,39 +63,36 @@ function ProductsPage() {
 		},
 	});
 
-	const handleOpenEditSheet = useCallback(
-		(product: Product) => {
-			openSheet({
-				title: "Edit Product",
-				content: () => (
-					<ProductForm
-						defaultValues={{
-							name: product.name,
-							description: product.description ?? "",
-							is_active: product.is_active,
-							sku: product.sku,
-							uom: product.uom,
-							stock: product.stock,
-							category_id: product.category_id,
-							cogs: String(product.cogs),
-							price: String(product.price),
-						}}
-						handleOnSubmit={async (values) => {
-							await updateMutation.mutateAsync({
-								id: product.id,
-								payload: values,
-							});
-						}}
-						isEditing
-						onReset={closeSheet}
-					/>
-				),
-			});
-		},
-		[closeSheet, openSheet, updateMutation],
-	);
+	const handleOpenEditSheet = (product: Product) => {
+		openSheet({
+			title: "Edit Product",
+			content: () => (
+				<ProductForm
+					defaultValues={{
+						name: product.name,
+						description: product.description ?? "",
+						is_active: product.is_active,
+						sku: product.sku,
+						uom: product.uom,
+						stock: product.stock,
+						category_id: product.category_id,
+						cogs: String(product.cogs),
+						price: String(product.price),
+					}}
+					handleOnSubmit={async (values) => {
+						await updateMutation.mutateAsync({
+							id: product.id,
+							payload: values,
+						});
+					}}
+					isEditing
+					onReset={closeSheet}
+				/>
+			),
+		});
+	};
 
-	const handleOpenCreateSheet = useCallback(() => {
+	const handleOpenCreateSheet = () => {
 		openSheet({
 			title: "Add Product",
 			content: () => (
@@ -109,78 +105,75 @@ function ProductsPage() {
 				/>
 			),
 		});
-	}, [closeSheet, createMutation, openSheet]);
+	};
 
-	const columns = useMemo<DataTableColumnDef<Product>[]>(
-		() => [
-			{
-				accessorKey: "sku",
-				header: "SKU",
-				meta: {
-					kind: "code",
-					width: { percent: 16, minRem: 9 },
-					mobileCard: { slot: "subtitle" },
-				},
+	const columns: DataTableColumnDef<Product>[] = [
+		{
+			accessorKey: "sku",
+			header: "SKU",
+			meta: {
+				kind: "code",
+				width: { percent: 16, minRem: 9 },
+				mobileCard: { slot: "subtitle" },
 			},
-			{
-				accessorKey: "name",
-				header: "Product",
-				meta: { kind: "name", width: { percent: 24, minRem: 9 } },
+		},
+		{
+			accessorKey: "name",
+			header: "Product",
+			meta: { kind: "name", width: { percent: 24, minRem: 9 } },
+		},
+		{
+			id: "category",
+			header: "Category",
+			meta: {
+				width: { percent: 13, minRem: 6.5 },
+				mobileCard: { slot: "subtitle" },
 			},
-			{
-				id: "category",
-				header: "Category",
-				meta: {
-					width: { percent: 13, minRem: 6.5 },
-					mobileCard: { slot: "subtitle" },
-				},
-				cell: ({ row }) => row.original.category?.name ?? "-",
+			cell: ({ row }) => row.original.category?.name ?? "-",
+		},
+		{
+			accessorKey: "cogs",
+			header: "COGS",
+			meta: { align: "right", width: { percent: 10, minRem: 5.5 } },
+			cell: ({ row }) => formatMoney(String(row.original.cogs)),
+		},
+		{
+			accessorKey: "price",
+			header: "Price",
+			meta: { align: "right", width: { percent: 10, minRem: 5.5 } },
+			cell: ({ row }) => <MoneyValue value={row.original.price} />,
+		},
+		{
+			accessorKey: "stock",
+			header: "Stock",
+			meta: {
+				align: "right",
+				width: { percent: 9, minRem: 4.5 },
+				mobileCard: { slot: "badges" },
 			},
-			{
-				accessorKey: "cogs",
-				header: "COGS",
-				meta: { align: "right", width: { percent: 10, minRem: 5.5 } },
-				cell: ({ row }) => formatMoney(String(row.original.cogs)),
+			cell: ({ row }) => <ProductStock stock={row.original.stock} />,
+		},
+		{
+			id: "status",
+			header: "Status",
+			meta: {
+				width: { percent: 9, minRem: 4.5 },
+				mobileCard: { slot: "status" },
 			},
-			{
-				accessorKey: "price",
-				header: "Price",
-				meta: { align: "right", width: { percent: 10, minRem: 5.5 } },
-				cell: ({ row }) => <MoneyValue value={row.original.price} />,
+			cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
+		},
+		{
+			id: "actions",
+			header: "Actions",
+			meta: {
+				width: { percent: 9, minRem: 4.5 },
+				mobileCard: { slot: "title-end" },
 			},
-			{
-				accessorKey: "stock",
-				header: "Stock",
-				meta: {
-					align: "right",
-					width: { percent: 9, minRem: 4.5 },
-					mobileCard: { slot: "badges" },
-				},
-				cell: ({ row }) => <ProductStock stock={row.original.stock} />,
-			},
-			{
-				id: "status",
-				header: "Status",
-				meta: {
-					width: { percent: 9, minRem: 4.5 },
-					mobileCard: { slot: "status" },
-				},
-				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
-			},
-			{
-				id: "actions",
-				header: "Actions",
-				meta: {
-					width: { percent: 9, minRem: 4.5 },
-					mobileCard: { slot: "title-end" },
-				},
-				cell: ({ row }) => (
-					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
-				),
-			},
-		],
-		[handleOpenEditSheet],
-	);
+			cell: ({ row }) => (
+				<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
+			),
+		},
+	];
 
 	return (
 		<>

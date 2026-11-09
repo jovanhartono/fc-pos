@@ -1,7 +1,6 @@
 import { Invoice01Icon } from "@hugeicons/core-free-icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { MoneyValue } from "@/components/money-value";
@@ -51,87 +50,84 @@ export const CustomerOrdersCard = ({
 	});
 	const orders = ordersQuery.data?.items ?? [];
 
-	const columns = useMemo<DataTableColumnDef<Order>[]>(
-		() => [
-			{
-				accessorKey: "code",
-				header: "Code",
-				meta: {
-					width: { percent: 17, minRem: 9.25 },
-					mobileCard: { slot: "title" },
-				},
-				cell: ({ row }) => (
-					<Link
-						to="/orders/$orderId"
-						params={{ orderId: String(row.original.id) }}
-						className="font-medium tabular-nums"
-					>
-						{row.original.code}
-					</Link>
-				),
+	const columns: DataTableColumnDef<Order>[] = [
+		{
+			accessorKey: "code",
+			header: "Code",
+			meta: {
+				width: { percent: 17, minRem: 9.25 },
+				mobileCard: { slot: "title" },
 			},
-			{
-				id: "date",
-				header: "Date",
-				meta: {
-					width: { percent: 13, minRem: 6.5 },
-					mobileCard: { slot: "eyebrow" },
-				},
-				cell: ({ row }) => (
-					<span className="whitespace-nowrap tabular-nums">
-						{formatListDate(row.original.created_at)}
-					</span>
-				),
+			cell: ({ row }) => (
+				<Link
+					to="/orders/$orderId"
+					params={{ orderId: String(row.original.id) }}
+					className="font-medium tabular-nums"
+				>
+					{row.original.code}
+				</Link>
+			),
+		},
+		{
+			id: "date",
+			header: "Date",
+			meta: {
+				width: { percent: 13, minRem: 6.5 },
+				mobileCard: { slot: "eyebrow" },
 			},
-			{
-				id: "store",
-				header: "Store",
-				meta: { width: { percent: 26, minRem: 6.5 } },
-				cell: ({ row }) => row.original.store_name,
+			cell: ({ row }) => (
+				<span className="whitespace-nowrap tabular-nums">
+					{formatListDate(row.original.created_at)}
+				</span>
+			),
+		},
+		{
+			id: "store",
+			header: "Store",
+			meta: { width: { percent: 26, minRem: 6.5 } },
+			cell: ({ row }) => row.original.store_name,
+		},
+		{
+			id: "items",
+			header: "Items",
+			meta: { width: { percent: 9, minRem: 3.5 } },
+			cell: ({ row }) => (
+				<span className="tabular-nums">
+					{row.original.fulfillment.total_count}
+				</span>
+			),
+		},
+		{
+			id: "status",
+			header: "Status",
+			meta: {
+				width: { percent: 18, minRem: 8.25 },
+				mobileCard: { slot: "badges" },
 			},
-			{
-				id: "items",
-				header: "Items",
-				meta: { width: { percent: 9, minRem: 3.5 } },
-				cell: ({ row }) => (
-					<span className="tabular-nums">
-						{row.original.fulfillment.total_count}
-					</span>
-				),
+			cell: ({ row }) => {
+				// Only the refund, as on the Order page: the card stays compact and
+				// the detail is one tap away on the Order.
+				const refund = getRefundBadge(row.original.refund_status);
+				return (
+					<div className="flex flex-wrap gap-1">
+						<Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
+							{formatOrderStatus(row.original.status)}
+						</Badge>
+						{refund && <Badge variant={refund.variant}>{refund.label}</Badge>}
+					</div>
+				);
 			},
-			{
-				id: "status",
-				header: "Status",
-				meta: {
-					width: { percent: 18, minRem: 8.25 },
-					mobileCard: { slot: "badges" },
-				},
-				cell: ({ row }) => {
-					// Only the refund, as on the Order page: the card stays compact and
-					// the detail is one tap away on the Order.
-					const refund = getRefundBadge(row.original.refund_status);
-					return (
-						<div className="flex flex-wrap gap-1">
-							<Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
-								{formatOrderStatus(row.original.status)}
-							</Badge>
-							{refund && <Badge variant={refund.variant}>{refund.label}</Badge>}
-						</div>
-					);
-				},
+		},
+		{
+			id: "paid",
+			header: () => <span className="block text-right">Paid</span>,
+			meta: {
+				width: { percent: 17, minRem: 6.5 },
+				mobileCard: { slot: "footer" },
 			},
-			{
-				id: "paid",
-				header: () => <span className="block text-right">Paid</span>,
-				meta: {
-					width: { percent: 17, minRem: 6.5 },
-					mobileCard: { slot: "footer" },
-				},
-				cell: ({ row }) => <OrderAmountCell order={row.original} />,
-			},
-		],
-		[],
-	);
+			cell: ({ row }) => <OrderAmountCell order={row.original} />,
+		},
+	];
 
 	return (
 		<section className="flex min-h-0 flex-1 flex-col gap-3">

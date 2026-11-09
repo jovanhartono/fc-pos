@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import { Section } from "@/components/section";
 import type { QualityReport } from "@/features/reports/api";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
@@ -23,15 +22,12 @@ interface CheckerSheetTarget {
 
 export const useOpenCheckerSheet = () => {
 	const openSheet = useSheet((s) => s.openSheet);
-	return useCallback(
-		(target: CheckerSheetTarget) =>
-			openSheet({
-				title: target.row.user_name,
-				description: `Checker · ${rangeLabel(target.from, target.to)}`,
-				content: () => <CheckerSheetContent target={target} />,
-			}),
-		[openSheet],
-	);
+	return (target: CheckerSheetTarget) =>
+		openSheet({
+			title: target.row.user_name,
+			description: `Checker · ${rangeLabel(target.from, target.to)}`,
+			content: () => <CheckerSheetContent target={target} />,
+		});
 };
 
 interface CheckerSheetContentProps {

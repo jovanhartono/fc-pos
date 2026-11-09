@@ -3,16 +3,7 @@ import { isHandedOverByPickup } from "@fresclean/api/rules";
 import { Camera01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-	createContext,
-	memo,
-	use,
-	useCallback,
-	useEffect,
-	useId,
-	useMemo,
-	useState,
-} from "react";
+import { createContext, use, useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -113,7 +104,7 @@ export const OrderPickupEventDialog = ({
 		};
 	}, [previewUrl]);
 
-	const setFile = useCallback((nextFile: File | null) => {
+	const setFile = (nextFile: File | null) => {
 		setFileState(nextFile);
 		setPreviewUrl((previous) => {
 			if (previous) {
@@ -121,15 +112,15 @@ export const OrderPickupEventDialog = ({
 			}
 			return nextFile ? URL.createObjectURL(nextFile) : null;
 		});
-	}, []);
+	};
 
-	const selectAll = useCallback(() => {
+	const selectAll = () => {
 		setSelectedIds(collectableItems.map((item) => item.id));
-	}, [collectableItems]);
+	};
 
-	const clearSelection = useCallback(() => {
+	const clearSelection = () => {
 		setSelectedIds([]);
-	}, []);
+	};
 
 	const pickupMutation = useMutation({
 		mutationFn: async () => {
@@ -168,42 +159,25 @@ export const OrderPickupEventDialog = ({
 	});
 
 	const { mutateAsync: mutatePickup, isPending } = pickupMutation;
-	const submit = useCallback(async () => {
+	const submit = async () => {
 		await mutatePickup();
-	}, [mutatePickup]);
+	};
 
-	const dialogValue = useMemo<PickupDialogContextValue>(
-		() => ({
-			clearSelection,
-			file,
-			isPending,
-			orderId,
-			previewUrl,
-			collectableItems,
-			selectAll,
-			selectedIds,
-			setFile,
-			setSelectedIds,
-			submit,
-		}),
-		[
-			clearSelection,
-			file,
-			isPending,
-			orderId,
-			previewUrl,
-			collectableItems,
-			selectAll,
-			selectedIds,
-			setFile,
-			submit,
-		],
-	);
+	const dialogValue: PickupDialogContextValue = {
+		clearSelection,
+		file,
+		isPending,
+		orderId,
+		previewUrl,
+		collectableItems,
+		selectAll,
+		selectedIds,
+		setFile,
+		setSelectedIds,
+		submit,
+	};
 
-	const codeValue = useMemo<PickupCodeContextValue>(
-		() => ({ pickupCode, setPickupCode }),
-		[pickupCode],
-	);
+	const codeValue: PickupCodeContextValue = { pickupCode, setPickupCode };
 
 	return (
 		<PickupDialogContext.Provider value={dialogValue}>
@@ -219,7 +193,7 @@ export const OrderPickupEventDialog = ({
 	);
 };
 
-const PickupCodeField = memo(() => {
+const PickupCodeField = () => {
 	const { pickupCode, setPickupCode } = usePickupCode();
 	const codeId = useId();
 
@@ -247,10 +221,9 @@ const PickupCodeField = memo(() => {
 			</InputOTP>
 		</div>
 	);
-});
-PickupCodeField.displayName = "PickupCodeField";
+};
 
-const PickupServiceList = memo(() => {
+const PickupServiceList = () => {
 	const {
 		collectableItems,
 		selectedIds,
@@ -301,14 +274,13 @@ const PickupServiceList = memo(() => {
 			</ul>
 		</CheckboxGroup>
 	);
-});
-PickupServiceList.displayName = "PickupServiceList";
+};
 
 type PickupItemRowProps = {
 	item: OrderItem;
 };
 
-const PickupItemRow = memo(({ item }: PickupItemRowProps) => {
+const PickupItemRow = ({ item }: PickupItemRowProps) => {
 	const id = `pickup-item-${item.id}`;
 	const details = getOrderServiceItemDetails(item);
 	return (
@@ -349,10 +321,9 @@ const PickupItemRow = memo(({ item }: PickupItemRowProps) => {
 			</label>
 		</li>
 	);
-});
-PickupItemRow.displayName = "PickupItemRow";
+};
 
-const PickupPhotoField = memo(() => {
+const PickupPhotoField = () => {
 	const { previewUrl, setFile } = usePickupDialog();
 	const [isCameraOpen, setIsCameraOpen] = useState(false);
 
@@ -403,10 +374,9 @@ const PickupPhotoField = memo(() => {
 			/>
 		</div>
 	);
-});
-PickupPhotoField.displayName = "PickupPhotoField";
+};
 
-const PickupActions = memo(({ onCancel }: { onCancel: () => void }) => {
+const PickupActions = ({ onCancel }: { onCancel: () => void }) => {
 	const { file, isPending, selectedIds, submit } = usePickupDialog();
 	const { pickupCode } = usePickupCode();
 	const isSubmitDisabled =
@@ -427,5 +397,4 @@ const PickupActions = memo(({ onCancel }: { onCancel: () => void }) => {
 			</Button>
 		</div>
 	);
-});
-PickupActions.displayName = "PickupActions";
+};

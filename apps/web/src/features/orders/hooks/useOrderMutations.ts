@@ -1,5 +1,4 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
 import {
 	type CreatePaymentChargePayload,
 	cancelOrder,
@@ -21,9 +20,9 @@ import { onOrderMoved, onRedemptionSpent } from "@/lib/cache-events";
 export const useRefreshOrder = () => {
 	const queryClient = useQueryClient();
 
-	return useCallback(async () => {
+	return async () => {
 		await onOrderMoved(queryClient);
-	}, [queryClient]);
+	};
 };
 
 export const useUpdateServiceStatusMutation = (orderId: number) => {

@@ -762,7 +762,7 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 	const deltas = data?.summary.deltas;
 	const checkers = data?.by_checker;
 	const team = useMemo(() => teamOf(checkers ?? []), [checkers]);
-	const checkerColumns = useMemo(() => checkerColumnsFor(team), [team]);
+	const checkerColumns = checkerColumnsFor(team);
 	const handleOpenChecker = (row: CheckerRow) =>
 		data &&
 		openCheckerSheet({

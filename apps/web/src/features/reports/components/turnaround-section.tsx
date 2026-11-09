@@ -1,5 +1,5 @@
 import { Clock01Icon } from "@hugeicons/core-free-icons";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
 import type { TurnaroundReport } from "@/features/reports/api";
@@ -25,12 +25,11 @@ export const TurnaroundSection = ({ report }: TurnaroundSectionProps) => {
 	// A filter change can drop the picked Category; All Items takes over.
 	const row = rowOrAll(report.rows, picked);
 	const rowName = row?.name;
-	const dots = useMemo(() => {
-		const indexed = report.items.map((item, index) => ({ item, index }));
-		return rowName === report.rows[0]?.name
+	const indexed = report.items.map((item, index) => ({ item, index }));
+	const dots =
+		rowName === report.rows[0]?.name
 			? indexed
 			: indexed.filter(({ item }) => item.categories.includes(rowName));
-	}, [report.items, report.rows, rowName]);
 	if (!all || all.items === 0) {
 		return (
 			<Section title="Turnaround">

@@ -1,7 +1,7 @@
 import { ArrowDown01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,7 +39,7 @@ export const ServicesMultiAutocomplete = ({
 
 	const services = servicesQuery.data ?? [];
 
-	const valueSet = useMemo(() => new Set(values), [values]);
+	const valueSet = new Set(values);
 
 	const selectableServices = useMemo(
 		() => services.filter((service) => service.is_active),
@@ -51,23 +51,17 @@ export const ServicesMultiAutocomplete = ({
 		[selectableServices, valueSet],
 	);
 
-	const handleToggle = useCallback(
-		(serviceId: number) => {
-			if (valueSet.has(serviceId)) {
-				onValuesChange(values.filter((id) => id !== serviceId));
-				return;
-			}
-			onValuesChange([...values, serviceId]);
-		},
-		[values, valueSet, onValuesChange],
-	);
-
-	const handleRemove = useCallback(
-		(serviceId: number) => {
+	const handleToggle = (serviceId: number) => {
+		if (valueSet.has(serviceId)) {
 			onValuesChange(values.filter((id) => id !== serviceId));
-		},
-		[values, onValuesChange],
-	);
+			return;
+		}
+		onValuesChange([...values, serviceId]);
+	};
+
+	const handleRemove = (serviceId: number) => {
+		onValuesChange(values.filter((id) => id !== serviceId));
+	};
 
 	const hasSelection = selectedServices.length > 0;
 

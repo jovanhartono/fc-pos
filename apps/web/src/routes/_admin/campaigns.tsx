@@ -8,7 +8,6 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
@@ -208,14 +207,12 @@ function CampaignsPage() {
 
 	const stores = storesQuery.data ?? [];
 	const allCampaigns = campaignsQuery.data ?? [];
-	const campaigns = useMemo(() => {
-		if (search.status === "all") {
-			return allCampaigns;
-		}
-		return allCampaigns.filter(
-			(campaign) => deriveCampaignState(campaign) === search.status,
-		);
-	}, [allCampaigns, search.status]);
+	const campaigns =
+		search.status === "all"
+			? allCampaigns
+			: allCampaigns.filter(
+					(campaign) => deriveCampaignState(campaign) === search.status,
+				);
 
 	const createMutation = useMutation({
 		mutationKey: ["create-campaign"],
@@ -267,164 +264,155 @@ function CampaignsPage() {
 		});
 	};
 
-	const handleOpenEditSheet = useCallback(
-		(campaign: Campaign) => {
-			openSheet({
-				title: "Edit Campaign",
-				content: () => (
-					<CampaignForm
-						defaultValues={toCampaignFormInput(campaign)}
-						isEditing
-						onReset={closeSheet}
-						stores={stores}
-						handleOnSubmit={async (payload) => {
-							await updateMutation.mutateAsync({
-								id: campaign.id,
-								payload,
+	const handleOpenEditSheet = (campaign: Campaign) => {
+		openSheet({
+			title: "Edit Campaign",
+			content: () => (
+				<CampaignForm
+					defaultValues={toCampaignFormInput(campaign)}
+					isEditing
+					onReset={closeSheet}
+					stores={stores}
+					handleOnSubmit={async (payload) => {
+						await updateMutation.mutateAsync({
+							id: campaign.id,
+							payload,
+						});
+					}}
+				/>
+			),
+		});
+	};
+
+	const handleOpenVoucherDetail = (campaign: Campaign) => {
+		openSheet({
+			title: `Voucher Codes · ${campaign.code}`,
+			content: () => <VoucherCodesSheet campaignId={campaign.id} />,
+		});
+	};
+
+	const columns: DataTableColumnDef<Campaign>[] = [
+		{
+			accessorKey: "code",
+			header: "Code",
+			meta: {
+				kind: "code",
+				width: { percent: 14, minRem: 8.25 },
+				mobileCard: { slot: "subtitle" },
+			},
+		},
+		{
+			accessorKey: "name",
+			header: "Name",
+			meta: { kind: "name", width: { percent: 24, minRem: 9 } },
+			cell: ({ row }) => (
+				<span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+					{row.original.name}
+					{row.original.redemption_mode === "code" && (
+						<Badge variant="info">Voucher</Badge>
+					)}
+				</span>
+			),
+		},
+		{
+			id: "discount",
+			header: "Discount",
+			meta: {
+				align: "right",
+				width: { percent: 18, minRem: 6 },
+				mobileCard: { slot: "badges" },
+			},
+			cell: ({ row }) => (
+				<CampaignDiscount
+					campaign={row.original}
+					isActive={deriveCampaignState(row.original) === "active"}
+				/>
+			),
+		},
+		{
+			id: "stores",
+			header: "Stores",
+			meta: {
+				width: { percent: 12, minRem: 7 },
+				mobileCard: { slot: "subtitle" },
+			},
+			cell: ({ row }) => {
+				if (row.original.stores.length === 0) {
+					return "All stores";
+				}
+
+				return row.original.stores
+					.map((item) => item.store?.code ?? String(item.store_id))
+					.join(", ");
+			},
+		},
+		{
+			id: "redemption",
+			header: "Redemption",
+			meta: {
+				width: { percent: 10, minRem: 5.75 },
+				mobileCard: { slot: "subtitle" },
+			},
+			cell: ({ row }) => formatCampaignRedemption(row.original),
+		},
+		{
+			id: "status",
+			header: "Status",
+			meta: {
+				width: { percent: 9, minRem: 5.25 },
+				mobileCard: { slot: "status" },
+			},
+			cell: ({ row }) => {
+				const state = deriveCampaignState(row.original);
+				if (state === "expired") {
+					return <Badge variant="warning">Expired</Badge>;
+				}
+				if (state === "archived") {
+					return <Badge variant="secondary">Archived</Badge>;
+				}
+				return <Badge variant="success">Active</Badge>;
+			},
+		},
+		{
+			id: "actions",
+			header: "Actions",
+			meta: {
+				width: { percent: 13, minRem: 7.5 },
+				mobileCard: { slot: "title-end" },
+			},
+			cell: ({ row }) => (
+				<div className="flex gap-2">
+					<EditRowButton
+						disabled={!isAdmin}
+						onClick={() => handleOpenEditSheet(row.original)}
+					/>
+					<ArchiveCampaignButton
+						campaign={row.original}
+						disabled={!isAdmin}
+						isPending={archiveMutation.isPending}
+						onConfirm={async ({ campaignId, nextIsActive }) => {
+							await archiveMutation.mutateAsync({
+								id: campaignId,
+								is_active: nextIsActive,
 							});
 						}}
 					/>
-				),
-			});
-		},
-		[closeSheet, openSheet, stores, updateMutation],
-	);
-
-	const handleOpenVoucherDetail = useCallback(
-		(campaign: Campaign) => {
-			openSheet({
-				title: `Voucher Codes · ${campaign.code}`,
-				content: () => <VoucherCodesSheet campaignId={campaign.id} />,
-			});
-		},
-		[openSheet],
-	);
-
-	const columns = useMemo<DataTableColumnDef<Campaign>[]>(
-		() => [
-			{
-				accessorKey: "code",
-				header: "Code",
-				meta: {
-					kind: "code",
-					width: { percent: 14, minRem: 8.25 },
-					mobileCard: { slot: "subtitle" },
-				},
-			},
-			{
-				accessorKey: "name",
-				header: "Name",
-				meta: { kind: "name", width: { percent: 24, minRem: 9 } },
-				cell: ({ row }) => (
-					<span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-						{row.original.name}
-						{row.original.redemption_mode === "code" && (
-							<Badge variant="info">Voucher</Badge>
-						)}
-					</span>
-				),
-			},
-			{
-				id: "discount",
-				header: "Discount",
-				meta: {
-					align: "right",
-					width: { percent: 18, minRem: 6 },
-					mobileCard: { slot: "badges" },
-				},
-				cell: ({ row }) => (
-					<CampaignDiscount
-						campaign={row.original}
-						isActive={deriveCampaignState(row.original) === "active"}
-					/>
-				),
-			},
-			{
-				id: "stores",
-				header: "Stores",
-				meta: {
-					width: { percent: 12, minRem: 7 },
-					mobileCard: { slot: "subtitle" },
-				},
-				cell: ({ row }) => {
-					if (row.original.stores.length === 0) {
-						return "All stores";
-					}
-
-					return row.original.stores
-						.map((item) => item.store?.code ?? String(item.store_id))
-						.join(", ");
-				},
-			},
-			{
-				id: "redemption",
-				header: "Redemption",
-				meta: {
-					width: { percent: 10, minRem: 5.75 },
-					mobileCard: { slot: "subtitle" },
-				},
-				cell: ({ row }) => formatCampaignRedemption(row.original),
-			},
-			{
-				id: "status",
-				header: "Status",
-				meta: {
-					width: { percent: 9, minRem: 5.25 },
-					mobileCard: { slot: "status" },
-				},
-				cell: ({ row }) => {
-					const state = deriveCampaignState(row.original);
-					if (state === "expired") {
-						return <Badge variant="warning">Expired</Badge>;
-					}
-					if (state === "archived") {
-						return <Badge variant="secondary">Archived</Badge>;
-					}
-					return <Badge variant="success">Active</Badge>;
-				},
-			},
-			{
-				id: "actions",
-				header: "Actions",
-				meta: {
-					width: { percent: 13, minRem: 7.5 },
-					mobileCard: { slot: "title-end" },
-				},
-				cell: ({ row }) => (
-					<div className="flex gap-2">
-						<EditRowButton
-							disabled={!isAdmin}
-							onClick={() => handleOpenEditSheet(row.original)}
+					{/* Codes comes last so Archive sits in the same spot on every
+					row, and a quick click never archives by mistake. */}
+					{row.original.redemption_mode === "code" && (
+						<Button
+							variant="outline"
+							size="icon-sm"
+							aria-label="Codes"
+							title="Codes"
+							onClick={() => handleOpenVoucherDetail(row.original)}
+							icon={<HugeiconsIcon icon={Coupon01Icon} className="size-4" />}
 						/>
-						<ArchiveCampaignButton
-							campaign={row.original}
-							disabled={!isAdmin}
-							isPending={archiveMutation.isPending}
-							onConfirm={async ({ campaignId, nextIsActive }) => {
-								await archiveMutation.mutateAsync({
-									id: campaignId,
-									is_active: nextIsActive,
-								});
-							}}
-						/>
-						{/* Codes comes last so Archive sits in the same spot on every
-						row, and a quick click never archives by mistake. */}
-						{row.original.redemption_mode === "code" && (
-							<Button
-								variant="outline"
-								size="icon-sm"
-								aria-label="Codes"
-								title="Codes"
-								onClick={() => handleOpenVoucherDetail(row.original)}
-								icon={<HugeiconsIcon icon={Coupon01Icon} className="size-4" />}
-							/>
-						)}
-					</div>
-				),
-			},
-		],
-		[archiveMutation, handleOpenEditSheet, handleOpenVoucherDetail, isAdmin],
-	);
+					)}
+				</div>
+			),
+		},
+	];
 
 	return (
 		<>
