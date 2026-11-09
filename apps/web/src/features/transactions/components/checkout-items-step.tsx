@@ -501,7 +501,6 @@ const CheckoutDropoffPhotoField = () => {
 							image_url: previewUrl,
 							alt: "Drop-off photo",
 							created_at: "",
-							primaryLabel: "Drop-off photo",
 						},
 					]}
 					onOpenChange={setIsLightboxOpen}

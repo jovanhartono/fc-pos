@@ -45,9 +45,6 @@ export interface PhotoStageItem {
 
 interface PhotoStageProps {
 	activeIndex: number;
-	/** Anything interactive here must be a real `<button>`: the surface checks for one before claiming a touch. */
-	children?: React.ReactNode;
-	className?: string;
 	items: PhotoStageItem[];
 	onIndexChange: (index: number) => void;
 }
@@ -58,8 +55,6 @@ interface PhotoStageProps {
  */
 export const PhotoStage = ({
 	activeIndex,
-	children,
-	className,
 	items,
 	onIndexChange,
 }: PhotoStageProps) => {
@@ -589,7 +584,6 @@ export const PhotoStage = ({
 				// Only from the breakpoint the arrows appear at — a phone gives the whole
 				// width to the photo and turns pages with a swipe.
 				canNavigate && "md:px-14",
-				className,
 			)}
 			ref={setSurfaceNode}
 		>
@@ -646,8 +640,6 @@ export const PhotoStage = ({
 					/>
 				</>
 			) : null}
-
-			{children}
 		</div>
 	);
 };

@@ -162,7 +162,6 @@ const DropoffPhoto = ({ capturedAt, imageUrl, orderId }: DropoffPhotoProps) => {
 		download: { kind: "dropoff", id: orderId },
 		id: orderId,
 		image_url: imageUrl,
-		primaryLabel: "Drop-off photo",
 	};
 
 	return (
@@ -188,6 +187,7 @@ const DropoffPhoto = ({ capturedAt, imageUrl, orderId }: DropoffPhotoProps) => {
 				items={[item]}
 				onOpenChange={setIsLightboxOpen}
 				open={isLightboxOpen}
+				tileSize={ATTACHMENT_TILE_SIZE}
 				title="Drop-Off Photo"
 			/>
 		</div>
