@@ -46,6 +46,8 @@ export const campaignsKeys = {
 		[...campaignsKeys.lists(), query ?? {}] as const,
 	detail: (id: number) => [...campaignsKeys.all, "detail", id] as const,
 	voucherCodes: (id: number) => [...campaignsKeys.detail(id), "codes"] as const,
+	liveVoucher: (storeId: number) =>
+		[...campaignsKeys.all, "live-voucher", storeId] as const,
 };
 
 async function fetchCampaigns(query?: FetchCampaignsQuery) {
@@ -78,6 +80,16 @@ export const campaignsQueries = {
 		queryOptions({
 			queryKey: campaignsKeys.voucherCodes(campaignId),
 			queryFn: () => fetchCampaignVoucherCodes(campaignId),
+		}),
+	liveVoucher: (storeId: number) =>
+		queryOptions({
+			queryKey: campaignsKeys.liveVoucher(storeId),
+			queryFn: () =>
+				parseSuccessData<{ has_live_voucher: boolean }>(
+					rpcWithAuth().api.admin.campaigns["live-voucher"].$get({
+						query: { store_id: String(storeId) },
+					}),
+				),
 		}),
 };
 

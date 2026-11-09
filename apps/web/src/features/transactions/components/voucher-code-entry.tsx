@@ -1,11 +1,11 @@
 import { Cancel01Icon, Coupon01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { resolveVoucherCode } from "@/features/campaigns/api";
+import { campaignsQueries, resolveVoucherCode } from "@/features/campaigns/api";
 import type { AppliedVoucher } from "@/features/transactions/cart/cart";
 import { readServerErrorMessage } from "@/lib/server-error";
 
@@ -52,6 +52,18 @@ export const VoucherCodeEntry = ({
 		// reported inline under the input, and the toast would repeat it verbatim.
 		onError: () => undefined,
 	});
+
+	const liveVoucherQuery = useQuery({
+		...campaignsQueries.liveVoucher(storeId ?? 0),
+		enabled: storeId !== undefined,
+	});
+
+	// An applied code keeps the field, so the cashier can still remove it.
+	if (
+		!(liveVoucherQuery.data?.has_live_voucher || appliedVouchers.length > 0)
+	) {
+		return null;
+	}
 
 	const trimmedCode = code.trim();
 	const canApply =

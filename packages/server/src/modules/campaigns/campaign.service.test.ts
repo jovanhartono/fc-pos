@@ -10,6 +10,7 @@ const EXECUTOR = {} as DbExecutor;
 const repo = {
   byCode: undefined as AnyObj | undefined,
   byIds: [] as AnyObj[],
+  listed: [] as AnyObj[],
 };
 
 // mock.module is process-wide: spread the real repository, or every other test
@@ -20,9 +21,10 @@ mock.module("@/modules/campaigns/campaign.repository", () => ({
   ...actualRepo,
   findCampaignByCode: () => Promise.resolve(repo.byCode),
   findCampaignsByIdsWithEligibility: () => Promise.resolve(repo.byIds),
+  listCampaigns: () => Promise.resolve(repo.listed),
 }));
 
-const { resolveVoucherCode, getUsableCampaigns } = await import(
+const { resolveVoucherCode, getUsableCampaigns, hasLiveVoucher } = await import(
   "@/modules/campaigns/campaign.service"
 );
 
@@ -50,6 +52,7 @@ const ctx = { storeId: 1, storeCode: "JKT", grossTotal: 100_000, lines: [] };
 beforeEach(() => {
   repo.byCode = undefined;
   repo.byIds = [];
+  repo.listed = [];
 });
 
 describe("resolveVoucherCode", () => {
@@ -223,5 +226,24 @@ describe("getUsableCampaigns", () => {
     expect((error as Error).message).toBe(
       "Campaign B4G1 needs 5 eligible Services"
     );
+  });
+});
+
+describe("hasLiveVoucher", () => {
+  it("is true while a Voucher runs at the Store", async () => {
+    repo.listed = [makeVoucherCampaign({ stores: [{ store_id: 1 }] })];
+    expect(await hasLiveVoucher(1)).toBe(true);
+  });
+
+  it("is false when the only Vouchers have ended or not started", async () => {
+    repo.listed = [
+      makeVoucherCampaign({ ends_at: new Date("2020-01-01T00:00:00Z") }),
+      makeVoucherCampaign({ starts_at: new Date("2999-01-01T00:00:00Z") }),
+    ];
+    expect(await hasLiveVoucher(1)).toBe(false);
+  });
+
+  it("is false with no Voucher at all", async () => {
+    expect(await hasLiveVoucher(1)).toBe(false);
   });
 });
