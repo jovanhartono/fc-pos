@@ -2,7 +2,6 @@ import { Add01Icon, GridViewIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback } from "react";
 import { ActiveBadge } from "@/components/active-badge";
 import { DataTable } from "@/components/data-table";
 import type {
@@ -136,7 +135,7 @@ function CategoriesPage() {
 		},
 	});
 
-	const handleOpenCreateSheet = useCallback(() => {
+	const handleOpenCreateSheet = () => {
 		openSheet({
 			title: "Add Category",
 			description: "Create a new category",
@@ -150,7 +149,7 @@ function CategoriesPage() {
 				/>
 			),
 		});
-	}, [closeSheet, createMutation, openSheet]);
+	};
 
 	return (
 		<>

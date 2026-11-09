@@ -1,4 +1,4 @@
-import { memo, type PointerEvent, useEffect, useState } from "react";
+import { type PointerEvent, useEffect, useState } from "react";
 import { Section } from "@/components/section";
 import {
 	DayDetail,
@@ -280,53 +280,58 @@ interface GridRowProps {
 	onOpen: (row: PersonRow, group: StoreGroup) => void;
 }
 
-// Memoized so moving the mouse across columns redraws the header and the tint,
-// not every square on the page.
-const GridRow = memo(
-	({ index, row, group, days, today, size, columns, onOpen }: GridRowProps) => (
-		<button
-			type="button"
-			data-row={index}
-			onClick={() => onOpen(row, group)}
-			className="grid w-full items-center py-2.5 pl-3 text-left hover:bg-muted not-first:border-t"
-			style={{ gridTemplateColumns: columns }}
-		>
-			<PersonName row={row} />
-			{size === "bar" ? (
-				<span data-strip className="mr-3 flex gap-px">
-					{days.map((day) => (
-						<DayMarkCell
-							key={day}
-							mark={row.marks.get(day)}
-							isFuture={day > today}
-							size="bar"
-						/>
-					))}
-				</span>
-			) : (
-				<span
-					data-strip
-					className="grid items-center justify-items-center"
-					style={{ gridTemplateColumns: dayColumns(days.length) }}
-				>
-					{days.map((day) => (
-						<DayMarkCell
-							key={day}
-							mark={row.marks.get(day)}
-							isFuture={day > today}
-							size={size}
-						/>
-					))}
-				</span>
-			)}
-			<span className="pr-3 text-right font-medium text-title-3 tabular-nums">
-				{row.days}
+const GridRow = ({
+	index,
+	row,
+	group,
+	days,
+	today,
+	size,
+	columns,
+	onOpen,
+}: GridRowProps) => (
+	<button
+		type="button"
+		data-row={index}
+		onClick={() => onOpen(row, group)}
+		className="grid w-full items-center py-2.5 pl-3 text-left hover:bg-muted not-first:border-t"
+		style={{ gridTemplateColumns: columns }}
+	>
+		<PersonName row={row} />
+		{size === "bar" ? (
+			<span data-strip className="mr-3 flex gap-px">
+				{days.map((day) => (
+					<DayMarkCell
+						key={day}
+						mark={row.marks.get(day)}
+						isFuture={day > today}
+						size="bar"
+					/>
+				))}
 			</span>
-			<span className="pr-3 text-right text-body tabular-nums">
-				{formatHours(row.minutes)}
+		) : (
+			<span
+				data-strip
+				className="grid items-center justify-items-center"
+				style={{ gridTemplateColumns: dayColumns(days.length) }}
+			>
+				{days.map((day) => (
+					<DayMarkCell
+						key={day}
+						mark={row.marks.get(day)}
+						isFuture={day > today}
+						size={size}
+					/>
+				))}
 			</span>
-		</button>
-	),
+		)}
+		<span className="pr-3 text-right font-medium text-title-3 tabular-nums">
+			{row.days}
+		</span>
+		<span className="pr-3 text-right text-body tabular-nums">
+			{formatHours(row.minutes)}
+		</span>
+	</button>
 );
 
 interface PersonCardProps {

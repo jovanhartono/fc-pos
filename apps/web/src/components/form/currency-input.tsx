@@ -1,6 +1,5 @@
 import { Money03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatMoney, formatMoneyInput } from "@/shared/money";
@@ -25,7 +24,7 @@ export function CurrencyInput({
 	required,
 	className,
 }: CurrencyInputProps) {
-	const displayValue = useMemo(() => formatMoneyInput(value), [value]);
+	const displayValue = formatMoneyInput(value);
 
 	return (
 		<div className={cn("relative", className)}>

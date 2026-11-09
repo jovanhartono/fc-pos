@@ -1,11 +1,4 @@
-import {
-	createContext,
-	type ReactNode,
-	use,
-	useEffect,
-	useMemo,
-	useState,
-} from "react";
+import { createContext, type ReactNode, use, useEffect, useState } from "react";
 
 type Theme = "dark" | "light" | "system";
 
@@ -69,16 +62,13 @@ export function ThemeProvider({
 		root.classList.add(theme);
 	}, [theme]);
 
-	const value = useMemo(
-		() => ({
-			theme,
-			setTheme: (nextTheme: Theme) => {
-				writeStoredTheme(storageKey, nextTheme);
-				setTheme(nextTheme);
-			},
-		}),
-		[theme, storageKey],
-	);
+	const value = {
+		theme,
+		setTheme: (nextTheme: Theme) => {
+			writeStoredTheme(storageKey, nextTheme);
+			setTheme(nextTheme);
+		},
+	};
 
 	return (
 		<ThemeProviderContext {...props} value={value}>

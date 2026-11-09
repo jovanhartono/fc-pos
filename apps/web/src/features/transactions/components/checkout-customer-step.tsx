@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { SelectField } from "@/components/form/select-field";
 import type { ComboboxOption } from "@/components/ui/combobox";
@@ -16,16 +15,13 @@ export const CheckoutCustomerStep = () => {
 		// The Couriers rarely change, and this step mounts on every checkout open.
 		staleTime: 5 * 60 * 1000,
 	});
-	const courierOptions = useMemo<ComboboxOption[]>(
-		() => [
-			{ value: "none", label: "Walk-in (no courier)" },
-			...(couriersQuery.data?.items ?? []).map((courier) => ({
-				value: String(courier.id),
-				label: courier.name,
-			})),
-		],
-		[couriersQuery.data],
-	);
+	const courierOptions: ComboboxOption[] = [
+		{ value: "none", label: "Walk-in (no courier)" },
+		...(couriersQuery.data?.items ?? []).map((courier) => ({
+			value: String(courier.id),
+			label: courier.name,
+		})),
+	];
 
 	return (
 		<div className="grid gap-5">

@@ -7,7 +7,7 @@ import {
 	type SortingState,
 	useTable,
 } from "@tanstack/react-table";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { DataTableCards } from "@/components/data-table-cards";
 import {
 	type DataTableColumnDef,
@@ -123,7 +123,7 @@ export const DataTable = <TData extends RowData>({
 
 	// One instance for both layouts, so a sort picked on the desktop table
 	// survives a tablet rotation into the card list.
-	const styledColumns = useMemo(() => withKindStyles(columns), [columns]);
+	const styledColumns = withKindStyles(columns);
 	const table = useTable({
 		features: dataTableFeatures,
 		data,

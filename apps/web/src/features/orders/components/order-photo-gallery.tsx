@@ -1,5 +1,5 @@
 import type * as React from "react";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import type { PhotoDownloadRef } from "@/features/orders/api";
 import {
 	PhotoLightbox,
@@ -40,10 +40,10 @@ export function OrderPhotoGallery({
 
 	const imageCount = items.length;
 
-	const openAtIndex = useCallback((index: number) => {
+	const openAtIndex = (index: number) => {
 		setActiveIndex(index);
 		setIsOpen(true);
-	}, []);
+	};
 
 	if (items.length === 0) {
 		return emptyState ?? null;

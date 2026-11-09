@@ -2,7 +2,6 @@ import { Add01Icon, UserMultipleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
@@ -58,19 +57,16 @@ function CustomersPage() {
 	// Same rule as CustomerLink: the detail page is admin-only (ADR-0021).
 	const isAdmin = getCurrentUser()?.role === "admin";
 
-	const handleSearchChange = useCallback(
-		(next: string) => {
-			void navigate({
-				replace: true,
-				search: (prev) => ({
-					...prev,
-					page: 1,
-					search: next || undefined,
-				}),
-			});
-		},
-		[navigate],
-	);
+	const handleSearchChange = (next: string) => {
+		void navigate({
+			replace: true,
+			search: (prev) => ({
+				...prev,
+				page: 1,
+				search: next || undefined,
+			}),
+		});
+	};
 
 	const customersQuery = useQuery({
 		...customersQueries.list({
@@ -82,93 +78,85 @@ function CustomersPage() {
 	});
 	const customers = customersQuery.data?.items ?? [];
 
-	const handleOpenEditSheet = useCallback(
-		(customer: Customer) => {
-			openSheet({
-				title: "Edit Customer",
-				content: () => <CustomerSheetContent editingCustomer={customer} />,
-			});
-		},
-		[openSheet],
-	);
+	const handleOpenEditSheet = (customer: Customer) => {
+		openSheet({
+			title: "Edit Customer",
+			content: () => <CustomerSheetContent editingCustomer={customer} />,
+		});
+	};
 
-	const handleOpenCreateSheet = useCallback(() => {
+	const handleOpenCreateSheet = () => {
 		openSheet({
 			title: "Add Customer",
 			content: () => <CustomerSheetContent />,
 		});
-	}, [openSheet]);
+	};
 
-	const columns = useMemo<DataTableColumnDef<Customer>[]>(
-		() => [
-			{
-				accessorKey: "name",
-				header: "Name",
-				meta: { kind: "name", width: { percent: 31, minRem: 9 } },
-				// On a phone, Edit sits right after the name; the table keeps its
-				// Actions column.
-				cell: ({ row }) => (
-					<>
-						{row.original.name}
-						<span className="ml-2 inline-flex align-middle lg:hidden">
-							<EditRowButton
-								onClick={() => handleOpenEditSheet(row.original)}
-							/>
-						</span>
-					</>
-				),
-			},
-			{
-				accessorKey: "phone_number",
-				header: "Phone",
-				meta: {
-					width: { percent: 15, minRem: 7.5 },
-					mobileCard: {
-						slot: "subtitle",
-						className: "text-foreground text-subhead tabular-nums",
-					},
-				},
-			},
-			{
-				accessorKey: "email",
-				header: "Email",
-				meta: {
-					kind: "text",
-					width: { percent: 28, minRem: 10 },
-					mobileCard: { slot: "hidden" },
-				},
-				cell: ({ row }) => (
-					<span className="text-muted-foreground">
-						{row.original.email ?? "—"}
+	const columns: DataTableColumnDef<Customer>[] = [
+		{
+			accessorKey: "name",
+			header: "Name",
+			meta: { kind: "name", width: { percent: 31, minRem: 9 } },
+			// On a phone, Edit sits right after the name; the table keeps its
+			// Actions column.
+			cell: ({ row }) => (
+				<>
+					{row.original.name}
+					<span className="ml-2 inline-flex align-middle lg:hidden">
+						<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
 					</span>
-				),
-			},
-			{
-				id: "origin_store",
-				header: "Origin store",
-				meta: {
-					width: { percent: 18, minRem: 8.5 },
-					mobileCard: {
-						slot: "subtitle",
-						className: "text-foreground text-subhead",
-					},
+				</>
+			),
+		},
+		{
+			accessorKey: "phone_number",
+			header: "Phone",
+			meta: {
+				width: { percent: 15, minRem: 7.5 },
+				mobileCard: {
+					slot: "subtitle",
+					className: "text-foreground text-subhead tabular-nums",
 				},
-				cell: ({ row }) => row.original.originStore?.name ?? "—",
 			},
-			{
-				id: "actions",
-				header: "Actions",
-				meta: {
-					width: { percent: 8, minRem: 4.5 },
-					mobileCard: { slot: "hidden" },
+		},
+		{
+			accessorKey: "email",
+			header: "Email",
+			meta: {
+				kind: "text",
+				width: { percent: 28, minRem: 10 },
+				mobileCard: { slot: "hidden" },
+			},
+			cell: ({ row }) => (
+				<span className="text-muted-foreground">
+					{row.original.email ?? "—"}
+				</span>
+			),
+		},
+		{
+			id: "origin_store",
+			header: "Origin store",
+			meta: {
+				width: { percent: 18, minRem: 8.5 },
+				mobileCard: {
+					slot: "subtitle",
+					className: "text-foreground text-subhead",
 				},
-				cell: ({ row }) => (
-					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
-				),
 			},
-		],
-		[handleOpenEditSheet],
-	);
+			cell: ({ row }) => row.original.originStore?.name ?? "—",
+		},
+		{
+			id: "actions",
+			header: "Actions",
+			meta: {
+				width: { percent: 8, minRem: 4.5 },
+				mobileCard: { slot: "hidden" },
+			},
+			cell: ({ row }) => (
+				<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
+			),
+		},
+	];
 
 	return (
 		<>

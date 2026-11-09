@@ -2,7 +2,6 @@ import { Add01Icon, Store01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useMemo } from "react";
 import { ActiveBadge } from "@/components/active-badge";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
@@ -61,37 +60,34 @@ function StoresPage() {
 		},
 	});
 
-	const handleOpenEditSheet = useCallback(
-		(store: Store) => {
-			openSheet({
-				title: "Edit Store",
-				content: () => (
-					<StoreForm
-						defaultValues={{
-							code: store.code,
-							name: store.name,
-							phone_number: store.phone_number,
-							address: store.address,
-							latitude: String(store.latitude),
-							longitude: String(store.longitude),
-							is_active: store.is_active,
-						}}
-						handleOnSubmit={async (values) => {
-							await updateMutation.mutateAsync({
-								id: store.id,
-								payload: values,
-							});
-						}}
-						isEditing
-						onReset={closeSheet}
-					/>
-				),
-			});
-		},
-		[closeSheet, openSheet, updateMutation],
-	);
+	const handleOpenEditSheet = (store: Store) => {
+		openSheet({
+			title: "Edit Store",
+			content: () => (
+				<StoreForm
+					defaultValues={{
+						code: store.code,
+						name: store.name,
+						phone_number: store.phone_number,
+						address: store.address,
+						latitude: String(store.latitude),
+						longitude: String(store.longitude),
+						is_active: store.is_active,
+					}}
+					handleOnSubmit={async (values) => {
+						await updateMutation.mutateAsync({
+							id: store.id,
+							payload: values,
+						});
+					}}
+					isEditing
+					onReset={closeSheet}
+				/>
+			),
+		});
+	};
 
-	const handleOpenCreateSheet = useCallback(() => {
+	const handleOpenCreateSheet = () => {
 		openSheet({
 			title: "Add Store",
 			content: () => (
@@ -104,48 +100,45 @@ function StoresPage() {
 				/>
 			),
 		});
-	}, [closeSheet, createMutation, openSheet]);
+	};
 
-	const columns = useMemo<DataTableColumnDef<Store>[]>(
-		() => [
-			{
-				accessorKey: "code",
-				header: "Code",
-				meta: { kind: "code", width: { percent: 14, minRem: 4.5 } },
+	const columns: DataTableColumnDef<Store>[] = [
+		{
+			accessorKey: "code",
+			header: "Code",
+			meta: { kind: "code", width: { percent: 14, minRem: 4.5 } },
+		},
+		{
+			accessorKey: "name",
+			header: "Store",
+			meta: { kind: "name", width: { percent: 40, minRem: 8.5 } },
+		},
+		{
+			accessorKey: "phone_number",
+			header: "Phone",
+			meta: { width: { percent: 22, minRem: 7 } },
+		},
+		{
+			id: "status",
+			header: "Status",
+			meta: {
+				width: { percent: 12, minRem: 4.5 },
+				mobileCard: { slot: "status" },
 			},
-			{
-				accessorKey: "name",
-				header: "Store",
-				meta: { kind: "name", width: { percent: 40, minRem: 8.5 } },
+			cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
+		},
+		{
+			id: "actions",
+			header: "Actions",
+			meta: {
+				width: { percent: 12, minRem: 4.5 },
+				mobileCard: { slot: "title-end" },
 			},
-			{
-				accessorKey: "phone_number",
-				header: "Phone",
-				meta: { width: { percent: 22, minRem: 7 } },
-			},
-			{
-				id: "status",
-				header: "Status",
-				meta: {
-					width: { percent: 12, minRem: 4.5 },
-					mobileCard: { slot: "status" },
-				},
-				cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
-			},
-			{
-				id: "actions",
-				header: "Actions",
-				meta: {
-					width: { percent: 12, minRem: 4.5 },
-					mobileCard: { slot: "title-end" },
-				},
-				cell: ({ row }) => (
-					<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
-				),
-			},
-		],
-		[handleOpenEditSheet],
-	);
+			cell: ({ row }) => (
+				<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
+			),
+		},
+	];
 
 	return (
 		<>

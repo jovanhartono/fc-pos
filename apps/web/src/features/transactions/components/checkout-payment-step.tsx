@@ -6,7 +6,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { CurrencyInput } from "@/components/form/currency-input";
 import type { ComboboxOption } from "@/components/ui/combobox";
@@ -51,17 +51,15 @@ export const CheckoutPaymentStep = () => {
 		useWatch({ control: form.control, name: "selectedStoreId" }) ?? "";
 	const paymentMethodsQuery = useQuery(paymentMethodsQueries.list());
 
-	const paymentMethodOptions = useMemo<ComboboxOption[]>(
-		() =>
-			// Gateway money arrives through a QRIS on the Order, never a tap here.
-			(paymentMethodsQuery.data ?? [])
-				.filter((paymentMethod) => !paymentMethod.gateway)
-				.map((paymentMethod) => ({
-					value: String(paymentMethod.id),
-					label: paymentMethod.name,
-				})),
-		[paymentMethodsQuery.data],
-	);
+	// Gateway money arrives through a QRIS on the Order, never a tap here.
+	const paymentMethodOptions: ComboboxOption[] = (
+		paymentMethodsQuery.data ?? []
+	)
+		.filter((paymentMethod) => !paymentMethod.gateway)
+		.map((paymentMethod) => ({
+			value: String(paymentMethod.id),
+			label: paymentMethod.name,
+		}));
 
 	const selectedStoreNumber =
 		selectedStoreId && Number.isFinite(Number(selectedStoreId))

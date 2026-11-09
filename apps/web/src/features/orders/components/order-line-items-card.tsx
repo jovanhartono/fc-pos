@@ -1,7 +1,6 @@
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
-import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import type { OrderDetail, OrderRefundReason } from "@/features/orders/api";
@@ -197,20 +196,17 @@ export const OrderLineItemsCard = ({
 }: OrderLineItemsCardProps) => {
 	const { items, products } = detail;
 
-	const refundByProductId = useMemo(() => {
-		const map = new Map<number, RefundInfo>();
-		for (const refund of detail.refunds ?? []) {
-			for (const item of refund.items) {
-				if (item.order_product_id != null) {
-					map.set(item.order_product_id, {
-						reason: item.reason,
-						note: item.note ?? undefined,
-					});
-				}
+	const refundByProductId = new Map<number, RefundInfo>();
+	for (const refund of detail.refunds ?? []) {
+		for (const item of refund.items) {
+			if (item.order_product_id != null) {
+				refundByProductId.set(item.order_product_id, {
+					reason: item.reason,
+					note: item.note ?? undefined,
+				});
 			}
 		}
-		return map;
-	}, [detail.refunds]);
+	}
 
 	return (
 		<div className="grid gap-3 sm:gap-4">

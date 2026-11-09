@@ -8,7 +8,6 @@ import {
 	redirect,
 	useNavigate,
 } from "@tanstack/react-router";
-import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
@@ -181,45 +180,33 @@ function OrdersPage() {
 	const sheetOrderId = isWide ? search.open : undefined;
 	// Replace, not push: walking twenty Orders with J must not leave twenty
 	// steps for Back to undo before it leaves the page.
-	const handleOpenOrder = useCallback(
-		(orderId: number) => {
-			void navigate({
-				search: (prev) => ({ ...prev, open: orderId }),
-				replace: true,
-			});
-		},
-		[navigate],
-	);
-	const orderLink = useCallback(
-		(orderId: number): LinkProps =>
-			isWide
-				? {
-						from: Route.fullPath,
-						search: (prev) => ({ ...prev, open: orderId }),
-						replace: true,
-					}
-				: { to: "/orders/$orderId", params: { orderId: String(orderId) } },
-		[isWide],
-	);
-	const handleCloseOrder = useCallback(
-		() =>
-			navigate({
-				search: (prev) => ({ ...prev, open: undefined }),
-				replace: true,
-				resetScroll: false,
-			}),
-		[navigate],
-	);
+	const handleOpenOrder = (orderId: number) => {
+		void navigate({
+			search: (prev) => ({ ...prev, open: orderId }),
+			replace: true,
+		});
+	};
+	const orderLink = (orderId: number): LinkProps =>
+		isWide
+			? {
+					from: Route.fullPath,
+					search: (prev) => ({ ...prev, open: orderId }),
+					replace: true,
+				}
+			: { to: "/orders/$orderId", params: { orderId: String(orderId) } };
+	const handleCloseOrder = () =>
+		navigate({
+			search: (prev) => ({ ...prev, open: undefined }),
+			replace: true,
+			resetScroll: false,
+		});
 
-	const handleFilterChange = useCallback(
-		(patch: Partial<OrderFilterValues>) => {
-			void navigate({
-				replace: true,
-				search: (prev) => ({ ...prev, page: 1, ...patch }),
-			});
-		},
-		[navigate],
-	);
+	const handleFilterChange = (patch: Partial<OrderFilterValues>) => {
+		void navigate({
+			replace: true,
+			search: (prev) => ({ ...prev, page: 1, ...patch }),
+		});
+	};
 
 	const parsedStoreId = search.storeId;
 	// Admin and non-admin build the same params once a store is chosen; the only
@@ -250,105 +237,100 @@ function OrdersPage() {
 		orders,
 	});
 
-	const columns = useMemo<DataTableColumnDef<Order>[]>(
-		() => [
-			{
-				accessorKey: "code",
-				header: "Order code",
-				meta: { width: { percent: 16, minRem: 9 } },
-				cell: ({ row }) => (
-					<div className="flex flex-col gap-0.5">
-						<div className="flex gap-x-1">
-							{row.original.has_complaint ? (
-								<span className="text-destructive text-footnote">
-									COMPLAINT
-								</span>
-							) : null}
-							<Link
-								{...orderLink(row.original.id)}
-								className="font-medium tabular-nums"
-							>
-								{row.original.code}
-							</Link>
-						</div>
-						<span className="font-normal text-caption text-muted-foreground">
-							{row.original.store_name}
-						</span>
+	const columns: DataTableColumnDef<Order>[] = [
+		{
+			accessorKey: "code",
+			header: "Order code",
+			meta: { width: { percent: 16, minRem: 9 } },
+			cell: ({ row }) => (
+				<div className="flex flex-col gap-0.5">
+					<div className="flex gap-x-1">
+						{row.original.has_complaint ? (
+							<span className="text-destructive text-footnote">COMPLAINT</span>
+						) : null}
+						<Link
+							{...orderLink(row.original.id)}
+							className="font-medium tabular-nums"
+						>
+							{row.original.code}
+						</Link>
 					</div>
-				),
-			},
-			{
-				id: "created_at",
-				header: "Created at",
-				meta: { width: { percent: 11, minRem: 6.25 } },
-				cell: ({ row }) => (
-					<span className="whitespace-nowrap tabular-nums">
-						{formatListDate(row.original.created_at)}
+					<span className="font-normal text-caption text-muted-foreground">
+						{row.original.store_name}
 					</span>
-				),
-			},
-			{
-				accessorKey: "customer_name",
-				header: "Customer",
-				meta: { width: { percent: 25, minRem: 9 } },
-				cell: ({ row }) => (
-					<div>
-						<span className="flex items-baseline gap-x-1.5">
-							<CustomerLink
-								className="line-clamp-2 min-w-0"
-								customerId={row.original.customer_id}
-								name={row.original.customer_name}
-							/>
-							{row.original.notified ? (
-								<NotifiedLabel className="shrink-0" />
-							) : null}
-						</span>
-						<span className="block whitespace-nowrap text-muted-foreground text-footnote tabular-nums">
-							{row.original.customer_phone}
-						</span>
-					</div>
-				),
-			},
-			{
-				id: "items_ready",
-				header: "Items ready",
-				meta: { width: { percent: 11, minRem: 6 } },
-				cell: ({ row }) => (
-					<ItemsProgress
-						done={row.original.items_ready}
-						total={row.original.items_total}
-					/>
-				),
-			},
-			{
-				accessorKey: "status",
-				header: "Fulfillment",
-				meta: { width: { percent: 14, minRem: 8 } },
-				cell: ({ row }) => (
-					<Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
-						{formatOrderStatus(row.original.status)}
-					</Badge>
-				),
-			},
-			{
-				accessorKey: "payment_status",
-				header: "Payment",
-				meta: { width: { percent: 11, minRem: 6.25 } },
-				cell: ({ row }) => (
-					<div className="flex flex-wrap gap-1">
-						<PaymentBadges order={row.original} />
-					</div>
-				),
-			},
-			{
-				id: "total",
-				header: "Total",
-				meta: { align: "right", width: { percent: 12, minRem: 6.5 } },
-				cell: ({ row }) => <MoneyValue value={orderNetTotal(row.original)} />,
-			},
-		],
-		[orderLink],
-	);
+				</div>
+			),
+		},
+		{
+			id: "created_at",
+			header: "Created at",
+			meta: { width: { percent: 11, minRem: 6.25 } },
+			cell: ({ row }) => (
+				<span className="whitespace-nowrap tabular-nums">
+					{formatListDate(row.original.created_at)}
+				</span>
+			),
+		},
+		{
+			accessorKey: "customer_name",
+			header: "Customer",
+			meta: { width: { percent: 25, minRem: 9 } },
+			cell: ({ row }) => (
+				<div>
+					<span className="flex items-baseline gap-x-1.5">
+						<CustomerLink
+							className="line-clamp-2 min-w-0"
+							customerId={row.original.customer_id}
+							name={row.original.customer_name}
+						/>
+						{row.original.notified ? (
+							<NotifiedLabel className="shrink-0" />
+						) : null}
+					</span>
+					<span className="block whitespace-nowrap text-muted-foreground text-footnote tabular-nums">
+						{row.original.customer_phone}
+					</span>
+				</div>
+			),
+		},
+		{
+			id: "items_ready",
+			header: "Items ready",
+			meta: { width: { percent: 11, minRem: 6 } },
+			cell: ({ row }) => (
+				<ItemsProgress
+					done={row.original.items_ready}
+					total={row.original.items_total}
+				/>
+			),
+		},
+		{
+			accessorKey: "status",
+			header: "Fulfillment",
+			meta: { width: { percent: 14, minRem: 8 } },
+			cell: ({ row }) => (
+				<Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
+					{formatOrderStatus(row.original.status)}
+				</Badge>
+			),
+		},
+		{
+			accessorKey: "payment_status",
+			header: "Payment",
+			meta: { width: { percent: 11, minRem: 6.25 } },
+			cell: ({ row }) => (
+				<div className="flex flex-wrap gap-1">
+					<PaymentBadges order={row.original} />
+				</div>
+			),
+		},
+		{
+			id: "total",
+			header: "Total",
+			meta: { align: "right", width: { percent: 12, minRem: 6.5 } },
+			cell: ({ row }) => <MoneyValue value={orderNetTotal(row.original)} />,
+		},
+	];
 
 	const pager = (
 		<TablePagination

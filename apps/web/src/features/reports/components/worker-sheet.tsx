@@ -6,7 +6,6 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useCallback } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
 import { Button } from "@/components/ui/button";
@@ -60,15 +59,12 @@ export const shortDay = (value: string) =>
 // line sheet's back button can bring the worker sheet up again.
 export const useOpenWorkerSheet = () => {
 	const openSheet = useSheet((s) => s.openSheet);
-	return useCallback(
-		(target: WorkerSheetTarget) =>
-			openSheet({
-				title: <WorkerName name={target.userName} role={target.role} />,
-				description: `${target.storeName} · ${rangeLabel(target.from, target.to)}`,
-				content: () => <WorkerSheetContent target={target} />,
-			}),
-		[openSheet],
-	);
+	return (target: WorkerSheetTarget) =>
+		openSheet({
+			title: <WorkerName name={target.userName} role={target.role} />,
+			description: `${target.storeName} · ${rangeLabel(target.from, target.to)}`,
+			content: () => <WorkerSheetContent target={target} />,
+		});
 };
 
 interface LineSheetContentProps {

@@ -1,7 +1,7 @@
 import { Store01Icon } from "@hugeicons/core-free-icons";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { type ReactNode, useCallback, useMemo } from "react";
+import type { ReactNode } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { Section } from "@/components/section";
@@ -110,36 +110,27 @@ const CounterBody = ({ storeId }: CounterBodyProps) => {
 
 	// The Counter scrolls as a whole page, so opening or closing the sheet
 	// must not jump the cashier back to the top of it.
-	const handleOpenOrder = useCallback(
-		(orderId: number) => {
-			void navigate({
-				search: (prev) => ({ ...prev, open: orderId }),
-				replace: true,
-				resetScroll: false,
-			});
-		},
-		[navigate],
-	);
-	const handleCloseOrder = useCallback(
-		() =>
-			navigate({
-				search: (prev) => ({ ...prev, open: undefined }),
-				replace: true,
-				resetScroll: false,
-			}),
-		[navigate],
-	);
+	const handleOpenOrder = (orderId: number) => {
+		void navigate({
+			search: (prev) => ({ ...prev, open: orderId }),
+			replace: true,
+			resetScroll: false,
+		});
+	};
+	const handleCloseOrder = () =>
+		navigate({
+			search: (prev) => ({ ...prev, open: undefined }),
+			replace: true,
+			resetScroll: false,
+		});
 
 	const { data: shelf, isPending: isShelfPending } = useInfiniteQuery(
 		counterQueries.pickupShelf(storeId),
 	);
-	const sheetOrders = useMemo(
-		() =>
-			shelf?.pages.flatMap((page) =>
-				page.items.map((order) => ({ id: order.order_id })),
-			) ?? [],
-		[shelf],
-	);
+	const sheetOrders =
+		shelf?.pages.flatMap((page) =>
+			page.items.map((order) => ({ id: order.order_id })),
+		) ?? [];
 	useOrderSheet({
 		isReady: !isShelfPending,
 		onClose: handleCloseOrder,
