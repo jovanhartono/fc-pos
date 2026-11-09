@@ -20,7 +20,7 @@ export default defineConfig({
 				],
 			},
 		}),
-		react(),
+		react({ compiler: { reportDiagnostics: true } }),
 		tailwindcss(),
 		VitePWA({
 			// A new build takes over without a reload, so a cashier's cart survives. A

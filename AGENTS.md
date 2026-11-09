@@ -19,7 +19,7 @@ bun x ultracite check
 
 A change is done when the last three pass from the repo root. The pre-commit hook only runs `ultracite fix` on staged files.
 
-**Dependency pins:** `bun update --latest` downgrades packages on an `rc` dist-tag. drizzle-orm/drizzle-kit stay pinned at `1.0.0-rc.5` and Biome at `2.5.15` (root `catalog`); bump them by hand, on purpose.
+**Dependency pins:** `bun update --latest` downgrades packages on an `rc` dist-tag. drizzle-orm/drizzle-kit stay pinned at `1.0.0-rc.5` and Biome at `2.5.15` (root `catalog`); bump them by hand, on purpose. `oxc-transform-react` (the React Compiler, `apps/web`) must stay in `@vitejs/plugin-react`'s peer range; bump the two together.
 
 ## Environment Variables
 
