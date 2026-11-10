@@ -1,5 +1,4 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
 import { Section } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
@@ -50,10 +49,7 @@ export const WorkersPanel = ({
 	});
 	const openWorkerSheet = useOpenWorkerSheet();
 	const data = query.data;
-	const workers = useMemo(
-		() => (data ? withLive(data.workers, liveQuery.data) : []),
-		[data, liveQuery.data],
-	);
+	const workers = data ? withLive(data.workers, liveQuery.data) : [];
 	// A failed live view still shows the range, just with nobody on the floor.
 	const isReady = data && !liveQuery.isPending;
 

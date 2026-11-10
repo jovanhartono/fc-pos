@@ -5,7 +5,6 @@ import {
 	Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useMemo } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -45,22 +44,14 @@ export function Combobox({
 	triggerClassName,
 	onInputChange,
 }: ComboboxProps) {
-	const selectedOption = useMemo(
-		() => options.find((option) => option.value === value) ?? null,
-		[options, value],
-	);
+	const selectedOption =
+		options.find((option) => option.value === value) ?? null;
 
-	const items = useMemo(() => {
-		if (!selectedOption) {
-			return options;
-		}
-
-		const hasSelectedInOptions = options.some(
-			(option) => option.value === selectedOption.value,
-		);
-
-		return hasSelectedInOptions ? options : [selectedOption, ...options];
-	}, [options, selectedOption]);
+	const items =
+		!selectedOption ||
+		options.some((option) => option.value === selectedOption.value)
+			? options
+			: [selectedOption, ...options];
 
 	return (
 		<ComboboxPrimitive.Root

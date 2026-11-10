@@ -7,7 +7,7 @@ import {
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { type NavigateOptions, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { HOME_NAV_ITEM, navGroupsForRole } from "@/components/app-navigation";
 import { Badge } from "@/components/ui/badge";
 import { customersQueries } from "@/features/customers/api";
@@ -234,7 +234,7 @@ const CommandBarPanel = () => {
 // Cmd+K never throws away a half-filled confirm.
 export const useOpenCommandBar = () => {
 	const openDialog = useDialog((state) => state.openDialog);
-	return useCallback(() => {
+	return () => {
 		if (useDialog.getState().dialogState.open) {
 			return;
 		}
@@ -243,5 +243,5 @@ export const useOpenCommandBar = () => {
 			contentClassName:
 				"top-[12vh] translate-y-0 gap-0 p-0 sm:max-w-xl [&>div]:py-0 max-sm:top-[calc(env(safe-area-inset-top)+0.75rem)]",
 		});
-	}, [openDialog]);
+	};
 };

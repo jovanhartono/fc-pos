@@ -1,6 +1,5 @@
 import { Clock01Icon } from "@hugeicons/core-free-icons";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -32,15 +31,12 @@ export interface WorkerShiftsTarget {
 
 export const useOpenWorkerShifts = () => {
 	const openSheet = useSheet((s) => s.openSheet);
-	return useCallback(
-		(target: WorkerShiftsTarget) =>
-			openSheet({
-				title: target.name,
-				description: `${target.role} · ${target.storeName} · ${target.rangeLabel}`,
-				content: () => <WorkerShiftsContent target={target} />,
-			}),
-		[openSheet],
-	);
+	return (target: WorkerShiftsTarget) =>
+		openSheet({
+			title: target.name,
+			description: `${target.role} · ${target.storeName} · ${target.rangeLabel}`,
+			content: () => <WorkerShiftsContent target={target} />,
+		});
 };
 
 const jakartaDay = (value: Date | string) =>

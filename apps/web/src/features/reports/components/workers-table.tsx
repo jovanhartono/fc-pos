@@ -1,7 +1,7 @@
 import { ArrowRight01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { EmptyState } from "@/components/empty-state";
@@ -257,7 +257,7 @@ interface WorkerListProps {
 }
 
 const WorkerList = ({ rows, now, onOpen, isInsideCard }: WorkerListProps) => {
-	const columns = useMemo(() => columnsFor(now), [now]);
+	const columns = columnsFor(now);
 	return (
 		<DataTable
 			emptyIcon={UserGroupIcon}

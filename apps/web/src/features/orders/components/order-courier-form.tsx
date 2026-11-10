@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
 import { useUpdateOrderCourierMutation } from "@/features/orders/hooks/useOrderMutations";
@@ -22,16 +22,13 @@ export const OrderCourierForm = ({
 	const couriersQuery = useQuery(
 		usersQueries.list({ role: "courier", is_active: true }),
 	);
-	const courierOptions = useMemo(
-		() => [
-			{ value: "none", label: "Walk-in (no courier)" },
-			...(couriersQuery.data?.items ?? []).map((courier) => ({
-				value: String(courier.id),
-				label: courier.name,
-			})),
-		],
-		[couriersQuery.data],
-	);
+	const courierOptions = [
+		{ value: "none", label: "Walk-in (no courier)" },
+		...(couriersQuery.data?.items ?? []).map((courier) => ({
+			value: String(courier.id),
+			label: courier.name,
+		})),
+	];
 
 	const isDirty = selectedCourierId !== currentCourierId;
 

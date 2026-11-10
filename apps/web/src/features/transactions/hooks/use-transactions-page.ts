@@ -2,7 +2,7 @@ import { isValidPhoneNumber } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -152,15 +152,13 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 	// admin changes it mid-session.
 	const isAdmin = meQuery.data?.role === "admin";
 
-	const visibleStores = useMemo(() => {
-		const stores = storesQuery.data ?? [];
-		if (isAdmin) {
-			return stores;
-		}
+	const stores = storesQuery.data ?? [];
+	let visibleStores = stores;
+	if (!isAdmin) {
 		const userStoreIds =
 			meQuery.data?.userStores?.map((item) => item.store_id) ?? [];
-		return stores.filter((store) => userStoreIds.includes(store.id));
-	}, [isAdmin, storesQuery.data, meQuery.data]);
+		visibleStores = stores.filter((store) => userStoreIds.includes(store.id));
+	}
 
 	useEffect(() => {
 		const canResolveStoreSelection =
@@ -219,130 +217,116 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 		onError: () => undefined,
 	});
 
-	const resetCart = useCallback(() => {
+	const resetCart = () => {
 		const { setSubmitError, setDropoffPhoto } =
 			useTransactionsPageStore.getState();
 		resetTransactionDraft(form, { setSubmitError, setDropoffPhoto });
-	}, [form]);
+	};
 
 	// A rejected checkout lands in the footer error; a photo or Receipt failure
 	// after the Order is placed gets its own toast and never fails the Order.
-	const onValidSubmit = useCallback(
-		async (values: TransactionDraftValues) => {
-			useTransactionsPageStore.getState().setSubmitError("");
+	const onValidSubmit = async (values: TransactionDraftValues) => {
+		useTransactionsPageStore.getState().setSubmitError("");
 
-			try {
-				const created = await createMutation.mutateAsync(
-					toOrderPayload(values),
-				);
+		try {
+			const created = await createMutation.mutateAsync(toOrderPayload(values));
 
-				// A failed drop-off photo must not fail the Order; the cashier
-				// retries it from the Order page.
-				const orderId = getCreatedOrderId(created);
+			// A failed drop-off photo must not fail the Order; the cashier
+			// retries it from the Order page.
+			const orderId = getCreatedOrderId(created);
 
-				// A Receipt failure never delays the Order; the cashier reprints
-				// from the Order page. Skipped without Web Bluetooth, or every
-				// checkout on that browser would show an error.
-				if (orderId && navigator.bluetooth) {
-					void printOrderReceipt(orderId, { allowPairing: false }).catch(
-						(error: unknown) => {
-							if (error instanceof NoRegisteredDeviceError) {
-								toast.info("No printer registered", {
-									description: "Add one from Devices next to the Store name.",
-								});
-								return;
-							}
-							if (error instanceof PrinterNotPairedError) {
-								toast.info("Pair a printer to auto-print", {
-									description: "Open the Order and tap Print.",
-								});
-								return;
-							}
-							toast.error("Couldn't print receipt", {
-								description: "Reprint it from the Order page.",
+			// A Receipt failure never delays the Order; the cashier reprints
+			// from the Order page. Skipped without Web Bluetooth, or every
+			// checkout on that browser would show an error.
+			if (orderId && navigator.bluetooth) {
+				void printOrderReceipt(orderId, { allowPairing: false }).catch(
+					(error: unknown) => {
+						if (error instanceof NoRegisteredDeviceError) {
+							toast.info("No printer registered", {
+								description: "Add one from Devices next to the Store name.",
 							});
-						},
-					);
-				}
-
-				const { dropoffPhoto } = useTransactionsPageStore.getState();
-				if (orderId && dropoffPhoto && isAcceptedImage(dropoffPhoto.type)) {
-					try {
-						await uploadOrderDropoffPhoto(orderId, {
-							file: dropoffPhoto,
-							contentType: dropoffPhoto.type,
-						});
-					} catch {
-						toast.error("Couldn't upload drop-off photo", {
-							description: "Add it from the Order page.",
-						});
-					}
-				}
-
-				await handleCreatedOrderSuccess({
-					created,
-					queryClient,
-					onFallbackNavigate: () => {
-						resetCart();
-						void navigate({ to: "/orders", search: { page: 1 } });
-					},
-					onOrderDetailNavigate: (orderId) => {
-						resetCart();
-						void navigate({
-							to: "/orders/$orderId",
-							params: { orderId: String(orderId) },
+							return;
+						}
+						if (error instanceof PrinterNotPairedError) {
+							toast.info("Pair a printer to auto-print", {
+								description: "Open the Order and tap Print.",
+							});
+							return;
+						}
+						toast.error("Couldn't print receipt", {
+							description: "Reprint it from the Order page.",
 						});
 					},
-				});
-			} catch (error) {
-				const issue = describeServerFailure(
-					readServerErrorMessage(error, "Couldn't create Order"),
 				);
-				useTransactionsPageStore.getState().setSubmitError(issue.message);
 			}
-		},
-		[createMutation, navigate, queryClient, resetCart],
-	);
+
+			const { dropoffPhoto } = useTransactionsPageStore.getState();
+			if (orderId && dropoffPhoto && isAcceptedImage(dropoffPhoto.type)) {
+				try {
+					await uploadOrderDropoffPhoto(orderId, {
+						file: dropoffPhoto,
+						contentType: dropoffPhoto.type,
+					});
+				} catch {
+					toast.error("Couldn't upload drop-off photo", {
+						description: "Add it from the Order page.",
+					});
+				}
+			}
+
+			await handleCreatedOrderSuccess({
+				created,
+				queryClient,
+				onFallbackNavigate: () => {
+					resetCart();
+					void navigate({ to: "/orders", search: { page: 1 } });
+				},
+				onOrderDetailNavigate: (orderId) => {
+					resetCart();
+					void navigate({
+						to: "/orders/$orderId",
+						params: { orderId: String(orderId) },
+					});
+				},
+			});
+		} catch (error) {
+			const issue = describeServerFailure(
+				readServerErrorMessage(error, "Couldn't create Order"),
+			);
+			useTransactionsPageStore.getState().setSubmitError(issue.message);
+		}
+	};
 
 	// A failing field can sit on a step the cashier isn't looking at, so the
 	// footer names each one, in the order to fix them.
-	const submit = useMemo(
-		() =>
-			form.handleSubmit(onValidSubmit, (errors) => {
-				useTransactionsPageStore
-					.getState()
-					.setSubmitError(
-						summarizeCheckoutIssues(collectCheckoutIssues(errors)),
-					);
-			}),
-		[form, onValidSubmit],
-	);
+	const submit = form.handleSubmit(onValidSubmit, (errors) => {
+		useTransactionsPageStore
+			.getState()
+			.setSubmitError(summarizeCheckoutIssues(collectCheckoutIssues(errors)));
+	});
 
-	const handleStoreChange = useCallback(
-		(value: string) => {
-			useTransactionsPageStore.getState().setSubmitError("");
-			form.setValue("selectedStoreId", value, {
-				shouldDirty: true,
-				shouldValidate: true,
-			});
-			if (currentUserKey) {
-				useTransactionPreferencesStore
-					.getState()
-					.setSelectedStoreId(currentUserKey, value);
-			}
-			form.setValue("selectedCampaignIds", [], {
-				shouldDirty: true,
-				shouldValidate: true,
-			});
-			// Voucher codes were checked against the previous Store, so they must
-			// be entered again.
-			form.setValue("appliedVouchers", [], {
-				shouldDirty: true,
-				shouldValidate: true,
-			});
-		},
-		[currentUserKey, form],
-	);
+	const handleStoreChange = (value: string) => {
+		useTransactionsPageStore.getState().setSubmitError("");
+		form.setValue("selectedStoreId", value, {
+			shouldDirty: true,
+			shouldValidate: true,
+		});
+		if (currentUserKey) {
+			useTransactionPreferencesStore
+				.getState()
+				.setSelectedStoreId(currentUserKey, value);
+		}
+		form.setValue("selectedCampaignIds", [], {
+			shouldDirty: true,
+			shouldValidate: true,
+		});
+		// Voucher codes were checked against the previous Store, so they must
+		// be entered again.
+		form.setValue("appliedVouchers", [], {
+			shouldDirty: true,
+			shouldValidate: true,
+		});
+	};
 
 	useEffect(
 		() => () => {
@@ -351,15 +335,12 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 		[],
 	);
 
-	const pageContext = useMemo<TransactionsPageContextValue>(
-		() => ({
-			isAdmin,
-			visibleStores,
-			submit,
-			handleStoreChange,
-		}),
-		[handleStoreChange, isAdmin, submit, visibleStores],
-	);
+	const pageContext: TransactionsPageContextValue = {
+		isAdmin,
+		visibleStores,
+		submit,
+		handleStoreChange,
+	};
 
 	return { form, isBootstrapping, pageContext };
 }

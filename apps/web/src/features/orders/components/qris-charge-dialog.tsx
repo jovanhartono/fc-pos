@@ -9,7 +9,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	PaymentOutcome,
 	type PaymentOutcomeProps,
@@ -206,7 +206,7 @@ interface PendingChargeProps {
 }
 
 const PendingCharge = ({ charge }: PendingChargeProps) => {
-	const qrSrc = useMemo(() => qrisImageSrc(charge), [charge]);
+	const qrSrc = qrisImageSrc(charge);
 
 	// DOKU without its QRIS keys sends only a hosted QRIS page.
 	if (qrSrc) {
