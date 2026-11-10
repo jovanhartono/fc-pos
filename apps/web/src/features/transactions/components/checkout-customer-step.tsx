@@ -10,14 +10,10 @@ import { usersQueries } from "@/features/users/api";
 export const CheckoutCustomerStep = () => {
 	const form = useFormContext<TransactionDraftValues>();
 
-	const couriersQuery = useQuery({
-		...usersQueries.list({ role: "courier", is_active: true }),
-		// The Couriers rarely change, and this step mounts on every checkout open.
-		staleTime: 5 * 60 * 1000,
-	});
+	const couriersQuery = useQuery(usersQueries.couriers());
 	const courierOptions: ComboboxOption[] = [
 		{ value: "none", label: "Walk-in (no courier)" },
-		...(couriersQuery.data?.items ?? []).map((courier) => ({
+		...(couriersQuery.data ?? []).map((courier) => ({
 			value: String(courier.id),
 			label: courier.name,
 		})),
