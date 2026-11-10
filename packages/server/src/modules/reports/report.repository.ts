@@ -286,41 +286,6 @@ export async function categoryGrossSalesForRange({
   }));
 }
 
-export async function topServicesForRange({
-  range,
-  storeId,
-  limit = 5,
-}: {
-  range: DateRange;
-  storeId?: number;
-  limit?: number;
-}) {
-  const rows = await db
-    .select({
-      service_id: ordersServicesTable.service_id,
-      service_name: servicesTable.name,
-      count: sql<number>`COUNT(*)::int`,
-      gross_sales: grossSales(ordersServicesTable),
-    })
-    .from(ordersServicesTable)
-    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
-    .innerJoin(
-      servicesTable,
-      eq(ordersServicesTable.service_id, servicesTable.id)
-    )
-    .where(and(...paidOrderWindow({ range, storeId })))
-    .groupBy(ordersServicesTable.service_id, servicesTable.name)
-    .orderBy(desc(sql`COUNT(*)`))
-    .limit(limit);
-
-  return rows.map((row) => ({
-    service_id: row.service_id ?? 0,
-    service_name: row.service_name ?? "Unknown",
-    count: Number(row.count),
-    gross_sales: Number(row.gross_sales),
-  }));
-}
-
 export async function perStoreForRange({ range }: { range: DateRange }) {
   const paidRows = await db
     .select({

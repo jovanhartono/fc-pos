@@ -45,32 +45,14 @@ type Query = (storeId?: number) => Promise<unknown>;
 
 const QUERIES: [string, Query][] = [
   [
-    "services gross sales",
+    "services gross sales and COGS",
     (storeId) =>
-      repo.listServicesGrossSalesSeries({
-        granularity: DAY,
-        range: AUGUST,
-        storeId,
-      }),
+      repo.listServicesSeries({ granularity: DAY, range: AUGUST, storeId }),
   ],
   [
-    "products gross sales",
+    "products gross sales and COGS",
     (storeId) =>
-      repo.listProductsGrossSalesSeries({
-        granularity: DAY,
-        range: AUGUST,
-        storeId,
-      }),
-  ],
-  [
-    "services COGS",
-    (storeId) =>
-      repo.listServicesCogsSeries({ granularity: DAY, range: AUGUST, storeId }),
-  ],
-  [
-    "products COGS",
-    (storeId) =>
-      repo.listProductsCogsSeries({ granularity: DAY, range: AUGUST, storeId }),
+      repo.listProductsSeries({ granularity: DAY, range: AUGUST, storeId }),
   ],
   [
     "order discount",

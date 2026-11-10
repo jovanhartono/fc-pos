@@ -35,10 +35,8 @@ const answers = {
   discount: noRows(),
   paymentMix: noRows(),
   products: noRows(),
-  productsCogs: noRows(),
   refunds: noRows(),
   services: noRows(),
-  servicesCogs: noRows(),
 };
 
 // The summed column is what tells two otherwise identical queries apart, which
@@ -55,12 +53,6 @@ const figureOf = (sql: string): keyof typeof answers => {
   }
   if (sql.includes('SUM("orders_products"."subtotal")')) {
     return "products";
-  }
-  if (sql.includes('SUM("orders_products"."cogs_snapshot")')) {
-    return "productsCogs";
-  }
-  if (sql.includes('SUM("orders_services"."cogs_snapshot")')) {
-    return "servicesCogs";
   }
   if (sql.includes('SUM("order_refunds"."total_amount")')) {
     // The daily refund bars and the per-store refund rows hand back the same money
@@ -113,6 +105,13 @@ const financial = () => getFinancialReport({ from: FROM, to: TO });
 
 const takings = (bucket: string, amount: number) => [bucket, String(amount)];
 
+// A line-table row: what was charged, then what the work cost the shop.
+const sales = (bucket: string, grossSales: number, cogs: number) => [
+  bucket,
+  String(grossSales),
+  String(cogs),
+];
+
 beforeEach(() => {
   sent.length = 0;
   for (const key of Object.keys(answers) as (keyof typeof answers)[]) {
@@ -124,15 +123,10 @@ beforeEach(() => {
   // Sunday: shut — Postgres returns no row for it at all.
   // Monday: services only, and Rp75.000 handed back for Saturday's ruined shirt.
   answers.services.now = [
-    takings("2026-08-01", 500_000),
-    takings("2026-08-03", 300_000),
+    sales("2026-08-01", 500_000, 150_000),
+    sales("2026-08-03", 300_000, 90_000),
   ];
-  answers.products.now = [takings("2026-08-01", 120_000)];
-  answers.servicesCogs.now = [
-    takings("2026-08-01", 150_000),
-    takings("2026-08-03", 90_000),
-  ];
-  answers.productsCogs.now = [takings("2026-08-01", 60_000)];
+  answers.products.now = [sales("2026-08-01", 120_000, 60_000)];
   answers.discount.now = [takings("2026-08-01", 20_000)];
   // Saturday's takings include a Rp25.000 Delivery fee.
   answers.collected.now = [
@@ -141,10 +135,8 @@ beforeEach(() => {
   ];
   answers.refunds.now = [["2026-08-03", "75000", 1]];
 
-  answers.services.before = [takings("2026-07-29", 700_000)];
-  answers.products.before = [takings("2026-07-29", 100_000)];
-  answers.servicesCogs.before = [takings("2026-07-29", 200_000)];
-  answers.productsCogs.before = [takings("2026-07-29", 50_000)];
+  answers.services.before = [sales("2026-07-29", 700_000, 200_000)];
+  answers.products.before = [sales("2026-07-29", 100_000, 50_000)];
   answers.collected.before = [[...takings("2026-07-29", 800_000), "0"]];
 });
 
@@ -215,7 +207,7 @@ describe("the day-by-day money chart", () => {
     // New Year is how this happens for real.
     answers.services.now = [
       ...answers.services.now,
-      takings("2026-08-04", 999_000),
+      sales("2026-08-04", 999_000, 0),
     ];
 
     const report = await financial();
@@ -251,10 +243,8 @@ describe("the headline figures for the whole stretch", () => {
   it("reports no margin on a giveaway stretch instead of dividing by nothing", async () => {
     // Grand-opening weekend: everything charged was discounted away, so the
     // counter took nothing. A margin of 0 beats NaN on the card.
-    answers.services.now = [takings("2026-08-01", 100_000)];
+    answers.services.now = [sales("2026-08-01", 100_000, 0)];
     answers.products.now = [];
-    answers.servicesCogs.now = [];
-    answers.productsCogs.now = [];
     answers.discount.now = [takings("2026-08-01", 100_000)];
     answers.collected.now = [];
     answers.refunds.now = [];

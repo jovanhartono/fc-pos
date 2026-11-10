@@ -65,46 +65,32 @@ interface SeriesRangeArgs extends RangeArgs {
 
 async function sumByBucket(
   lineTable: typeof ordersServicesTable | typeof ordersProductsTable,
-  amount: "subtotal" | "cogs_snapshot",
   { range, storeId, granularity }: SeriesRangeArgs
 ) {
   const bucket = jakartaBucketExpr(ordersTable.paid_at, granularity);
-  return await db
+  const rows = await db
     .select({
       bucket,
-      total: sumMoney(lineTable[amount]),
+      gross_sales: grossSales(lineTable),
+      cogs: sumMoney(lineTable.cogs_snapshot),
     })
     .from(lineTable)
     .innerJoin(ordersTable, eq(lineTable.order_id, ordersTable.id))
     .where(and(...paidOrderWindow({ range, storeId })))
     .groupBy(bucket);
-}
 
-export async function listServicesGrossSalesSeries(args: SeriesRangeArgs) {
-  const rows = await sumByBucket(ordersServicesTable, "subtotal", args);
   return rows.map((row) => ({
     bucket: row.bucket,
-    gross_sales: Number(row.total),
+    gross_sales: Number(row.gross_sales),
+    cogs: Number(row.cogs),
   }));
 }
 
-export async function listProductsGrossSalesSeries(args: SeriesRangeArgs) {
-  const rows = await sumByBucket(ordersProductsTable, "subtotal", args);
-  return rows.map((row) => ({
-    bucket: row.bucket,
-    gross_sales: Number(row.total),
-  }));
-}
+export const listServicesSeries = (args: SeriesRangeArgs) =>
+  sumByBucket(ordersServicesTable, args);
 
-export async function listServicesCogsSeries(args: SeriesRangeArgs) {
-  const rows = await sumByBucket(ordersServicesTable, "cogs_snapshot", args);
-  return rows.map((row) => ({ bucket: row.bucket, cogs: Number(row.total) }));
-}
-
-export async function listProductsCogsSeries(args: SeriesRangeArgs) {
-  const rows = await sumByBucket(ordersProductsTable, "cogs_snapshot", args);
-  return rows.map((row) => ({ bucket: row.bucket, cogs: Number(row.total) }));
-}
+export const listProductsSeries = (args: SeriesRangeArgs) =>
+  sumByBucket(ordersProductsTable, args);
 
 export async function listOrderDiscountSeries({
   range,

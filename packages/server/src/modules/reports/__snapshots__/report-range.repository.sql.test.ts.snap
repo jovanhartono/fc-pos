@@ -1,6 +1,6 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
-exports[`what each money report asks Postgres for one store asks the same question for services gross sales 1`] = `
+exports[`what each money report asks Postgres for one store asks the same question for services gross sales and COGS 1`] = `
 [
   {
     "params": [
@@ -8,12 +8,12 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."subtotal"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."subtotal"), 0), COALESCE(SUM("orders_services"."cogs_snapshot"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
 
-exports[`what each money report asks Postgres for one store asks the same question for products gross sales 1`] = `
+exports[`what each money report asks Postgres for one store asks the same question for products gross sales and COGS 1`] = `
 [
   {
     "params": [
@@ -21,33 +21,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."subtotal"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
-  },
-]
-`;
-
-exports[`what each money report asks Postgres for one store asks the same question for services COGS 1`] = `
-[
-  {
-    "params": [
-      "2026-07-31T17:00:00.000Z",
-      "2026-08-31T17:00:00.000Z",
-      3,
-    ],
-    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."cogs_snapshot"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
-  },
-]
-`;
-
-exports[`what each money report asks Postgres for one store asks the same question for products COGS 1`] = `
-[
-  {
-    "params": [
-      "2026-07-31T17:00:00.000Z",
-      "2026-08-31T17:00:00.000Z",
-      3,
-    ],
-    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."cogs_snapshot"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."subtotal"), 0), COALESCE(SUM("orders_products"."cogs_snapshot"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
@@ -490,50 +464,26 @@ exports[`what each money report asks Postgres for one store asks the same questi
 ]
 `;
 
-exports[`what each money report asks Postgres for the whole company asks the same question for services gross sales 1`] = `
+exports[`what each money report asks Postgres for the whole company asks the same question for services gross sales and COGS 1`] = `
 [
   {
     "params": [
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."subtotal"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."subtotal"), 0), COALESCE(SUM("orders_services"."cogs_snapshot"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;
 
-exports[`what each money report asks Postgres for the whole company asks the same question for products gross sales 1`] = `
+exports[`what each money report asks Postgres for the whole company asks the same question for products gross sales and COGS 1`] = `
 [
   {
     "params": [
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."subtotal"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
-  },
-]
-`;
-
-exports[`what each money report asks Postgres for the whole company asks the same question for services COGS 1`] = `
-[
-  {
-    "params": [
-      "2026-07-31T17:00:00.000Z",
-      "2026-08-31T17:00:00.000Z",
-    ],
-    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_services"."cogs_snapshot"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
-  },
-]
-`;
-
-exports[`what each money report asks Postgres for the whole company asks the same question for products COGS 1`] = `
-[
-  {
-    "params": [
-      "2026-07-31T17:00:00.000Z",
-      "2026-08-31T17:00:00.000Z",
-    ],
-    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."cogs_snapshot"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
+    "sql": "select to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD'), COALESCE(SUM("orders_products"."subtotal"), 0), COALESCE(SUM("orders_products"."cogs_snapshot"), 0) from "orders_products" inner join "orders" on "orders_products"."order_id" = "orders"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')",
   },
 ]
 `;

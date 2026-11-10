@@ -12,13 +12,13 @@ import {
   refundsTrendSeries,
   sumDailyPaid,
   sumDailyRefunds,
-  topServicesForRange,
 } from "@/modules/reports/report.repository";
 import type {
   GetAgingQueueQuery,
   GetDailyReportQuery,
   GetReportOverviewQuery,
 } from "@/modules/reports/report.schema";
+import { listTopServiceRows } from "@/modules/reports/report-range.repository";
 import {
   getJakartaDayRange,
   shiftDate,
@@ -81,7 +81,7 @@ export async function getReportOverview(query: GetReportOverviewQuery) {
     refundsTrendSeries({ range: trendRange, storeId }),
     servicesProcessedTrendSeries({ range: trendRange, storeId }),
     categoryGrossSalesForRange({ range: dayRange, storeId }),
-    topServicesForRange({ range: dayRange, storeId }),
+    listTopServiceRows({ range: dayRange, storeId }),
     perStoreForRange({ range: dayRange }),
   ]);
 
@@ -113,7 +113,12 @@ export async function getReportOverview(query: GetReportOverviewQuery) {
     daily,
     trend,
     categories,
-    top_services: topServices,
+    top_services: topServices.map((row) => ({
+      service_id: row.service_id,
+      service_name: row.name,
+      count: row.items,
+      gross_sales: row.gross_sales,
+    })),
     per_store: perStore,
   };
 }

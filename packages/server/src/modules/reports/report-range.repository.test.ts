@@ -19,7 +19,8 @@ const {
   listCampaignEffectivenessRows,
   listPaymentMixSeries,
   listRefundAmountSeries,
-  listServicesGrossSalesSeries,
+  listServicesSeries,
+  listTopServiceRows,
   listWorkerActivity,
 } = await import("@/modules/reports/report-range.repository");
 
@@ -48,7 +49,7 @@ describe("which orders count as takings", () => {
   it("counts a stretch from the moment the counter took the money", async () => {
     // >= on the closing instant would bill the 1st of September twice, once to
     // each month.
-    await listServicesGrossSalesSeries({ range: AUGUST, granularity: "day" });
+    await listServicesSeries({ range: AUGUST, granularity: "day" });
 
     expect(only().sql).toContain('"orders"."paid_at" >= $1');
     expect(only().sql).toContain('"orders"."paid_at" < $2');
@@ -57,7 +58,7 @@ describe("which orders count as takings", () => {
   });
 
   it("keeps one store's takings to that store alone", async () => {
-    await listServicesGrossSalesSeries({
+    await listServicesSeries({
       granularity: "day",
       range: AUGUST,
       storeId: KEMANG,
@@ -65,6 +66,15 @@ describe("which orders count as takings", () => {
 
     expect(only().sql).toContain('"orders"."store_id" = $');
     expect(only().params).toContain(KEMANG);
+  });
+
+  // Work dropped off on Saturday and paid for on Monday is Monday's money, on
+  // Overview's Top Services card as on Financial's.
+  it("counts the top Services on the day the counter took the money", async () => {
+    await listTopServiceRows({ range: AUGUST });
+
+    expect(only().sql).toContain('"orders"."paid_at" >= $1');
+    expect(only().sql).not.toContain('"orders"."created_at"');
   });
 
   it("keeps a worker's days worked to the Store they clocked in at", async () => {
@@ -91,7 +101,7 @@ describe("grouping takings into chart bars", () => {
 
   for (const { fmt, granularity } of formats) {
     it(`cuts ${granularity} bars at Jakarta midnight`, async () => {
-      await listServicesGrossSalesSeries({ range: AUGUST, granularity });
+      await listServicesSeries({ range: AUGUST, granularity });
 
       const expr = `to_char(("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta', '${fmt}')`;
       expect(only().sql).toContain(`select ${expr},`);
@@ -105,18 +115,18 @@ describe("reading rupiah back out of Postgres", () => {
   // into string joins and a day's takings render as "500000120000".
   it("turns a day's service takings into a number the report can add", async () => {
     rowQueue.push([
-      ["2026-08-01", "500000"],
-      ["2026-08-02", "0"],
+      ["2026-08-01", "500000", "150000"],
+      ["2026-08-02", "0", "0"],
     ]);
 
-    const rows = await listServicesGrossSalesSeries({
+    const rows = await listServicesSeries({
       range: AUGUST,
       granularity: "day",
     });
 
     expect(rows).toEqual([
-      { bucket: "2026-08-01", gross_sales: 500_000 },
-      { bucket: "2026-08-02", gross_sales: 0 },
+      { bucket: "2026-08-01", gross_sales: 500_000, cogs: 150_000 },
+      { bucket: "2026-08-02", gross_sales: 0, cogs: 0 },
     ]);
   });
 

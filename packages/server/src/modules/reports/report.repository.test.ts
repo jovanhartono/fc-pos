@@ -15,12 +15,8 @@ mock.module("@/db", () => ({
   }),
 }));
 
-const {
-  categoryGrossSalesForRange,
-  perStoreForRange,
-  sumDailyPaid,
-  topServicesForRange,
-} = await import("@/modules/reports/report.repository");
+const { categoryGrossSalesForRange, perStoreForRange, sumDailyPaid } =
+  await import("@/modules/reports/report.repository");
 
 // Saturday 1 August 2026 as Jakarta sees it.
 const SATURDAY: DateRange = {
@@ -45,13 +41,6 @@ describe("which orders the overview panels count", () => {
 
     expect(only().sql).toContain('"orders"."paid_at" >= $1');
     expect(only().sql).toContain('"orders"."paid_at" < $2');
-    expect(only().sql).not.toContain('"orders"."created_at"');
-  });
-
-  it("counts the day's busiest services the same way", async () => {
-    await topServicesForRange({ range: SATURDAY });
-
-    expect(only().sql).toContain('"orders"."paid_at" >= $1');
     expect(only().sql).not.toContain('"orders"."created_at"');
   });
 });

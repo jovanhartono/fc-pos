@@ -314,10 +314,11 @@ const KpiGrid = ({ data }: MaybeDataProps) => {
 				label="Orders"
 				value={numberFormatter.format(orders)}
 			/>
+			{/* Revenue per Order, as on each Store's row below. */}
 			<KpiCard
 				delta={null}
 				label="AOV"
-				value={compactMoney(ratio(now?.collected ?? 0, orders))}
+				value={compactMoney(ratio(now?.revenue ?? 0, orders))}
 			/>
 			{/* The previous period is the same length, so Revenue's change is the
 			    per-day change too. */}
