@@ -33,6 +33,8 @@ import {
   storesTable,
   usersTable,
 } from "@/db/schema";
+import { hasLiveRework } from "@/modules/complaints/complaint.repository";
+import { itemNameColumns } from "@/modules/orders/order-read.repository";
 import {
   collected,
   discount,
@@ -46,7 +48,6 @@ import {
 } from "@/modules/reports/money-basis";
 import {
   cleanerOfRound,
-  hasLiveRework,
   qualityCheckInRange,
 } from "@/modules/reports/quality.repository";
 import {
@@ -764,11 +765,7 @@ export async function listQcChecksOfCleaner({
       note: qcCheckLog.note,
       order_id: ordersTable.id,
       order_service_id: ordersServicesTable.id,
-      item_code: itemsTable.item_code,
-      item_brand: itemsTable.brand,
-      item_model: itemsTable.model,
-      item_color: itemsTable.color,
-      item_size: itemsTable.size,
+      ...itemNameColumns,
       service_id: ordersServicesTable.service_id,
       service_name: servicesTable.name,
       checker_id: qcCheckLog.changed_by,
@@ -801,11 +798,7 @@ export function listComplaintItems(orderServiceIds: number[]) {
       reason: complaintsTable.reason,
       order_id: ordersServicesTable.order_id,
       order_service_id: ordersServicesTable.id,
-      item_code: itemsTable.item_code,
-      item_brand: itemsTable.brand,
-      item_model: itemsTable.model,
-      item_color: itemsTable.color,
-      item_size: itemsTable.size,
+      ...itemNameColumns,
       status: ordersServicesTable.status,
       has_live_rework: hasLiveRework,
     })

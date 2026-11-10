@@ -1,3 +1,4 @@
+import type { ComplaintOutcome } from "@fresclean/api/rules";
 import {
 	Alert02Icon,
 	TaskDone01Icon,
@@ -82,7 +83,12 @@ const CARD_ONLY = { headerClassName: "hidden", cellClassName: "hidden" };
 // shows them all.
 const SCROLL_BOX = "flex flex-col lg:max-h-[26rem]";
 
-const OUTCOMES = ["reworked", "refunded", "cancelled", "pending"] as const;
+const OUTCOMES = [
+	"reworked",
+	"refunded",
+	"cancelled",
+	"pending",
+] as const satisfies readonly ComplaintOutcome[];
 
 const formatWhen = (value: string) =>
 	dayjs(value).tz(JAKARTA_TZ).format("D MMM HH:mm");

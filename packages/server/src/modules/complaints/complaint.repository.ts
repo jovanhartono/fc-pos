@@ -1,4 +1,5 @@
-import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, exists, ilike, inArray, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import {
   complaintsTable,
@@ -14,11 +15,30 @@ import {
   type NormalizedComplaintListQuery,
   REWORKED_ROUND_STATUSES,
 } from "@/modules/complaints/complaint.schema";
-import { orderRefColumns } from "@/modules/orders/order-read.repository";
+import {
+  itemNameColumns,
+  orderRefColumns,
+} from "@/modules/orders/order-read.repository";
 import type { DbExecutor } from "@/modules/orders/order-status-machine";
 
 type ComplaintInsert = typeof complaintsTable.$inferInsert;
 type ReworkLineInsert = typeof ordersServicesTable.$inferInsert;
+
+const reworkLine = alias(ordersServicesTable, "rework_line");
+
+// The Complaints page, the Counter and the reports all call a Complaint
+// reworked by this one test, so they never disagree about the same Item.
+export const hasLiveRework = sql<boolean>`${exists(
+  db
+    .select({ id: reworkLine.id })
+    .from(reworkLine)
+    .where(
+      and(
+        eq(reworkLine.complaint_id, complaintsTable.id),
+        inArray(reworkLine.status, REWORKED_ROUND_STATUSES)
+      )
+    )
+)}`;
 
 export async function insertComplaint(
   executor: DbExecutor,
@@ -183,7 +203,7 @@ export async function findComplaints(
         // Outcome is derived from the lines (ADR-0013 amendment): the subject
         // line's status plus its reworks.
         subject_status: ordersServicesTable.status,
-        rework_count: sql<number>`(SELECT count(*)::int FROM orders_services rw WHERE rw.complaint_id = ${complaintsTable.id} AND rw.status IN ${REWORKED_ROUND_STATUSES})`,
+        has_live_rework: hasLiveRework,
         order_id: ordersTable.id,
         order_code: ordersTable.code,
         store_id: ordersTable.store_id,
@@ -191,10 +211,7 @@ export async function findComplaints(
         customer_id: ordersTable.customer_id,
         customer_name: customersTable.name,
         service_name: servicesTable.name,
-        item_code: itemsTable.item_code,
-        item_brand: itemsTable.brand,
-        item_model: itemsTable.model,
-        item_color: itemsTable.color,
+        ...itemNameColumns,
         opened_by_name: usersTable.name,
       })
       .from(complaintsTable)

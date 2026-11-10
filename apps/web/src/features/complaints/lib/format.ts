@@ -1,12 +1,13 @@
-import { getOrderServiceItemDescriptors } from "@/lib/order-service-item-details";
+import {
+	type ComplaintOutcome as ComplaintOutcomeKey,
+	complaintOutcome,
+} from "@fresclean/api/rules";
+import type { ItemNameFields } from "@fresclean/api/types";
+import { getRowItemDetails } from "@/lib/order-service-item-details";
 import type { BadgeVariant } from "@/lib/status";
 
-interface ComplaintItemFields {
+interface ComplaintItemFields extends ItemNameFields {
 	order_code: string;
-	item_code: string;
-	item_brand: string | null;
-	item_model: string | null;
-	item_color: string | null;
 }
 
 export const getComplaintItemTag = ({
@@ -19,34 +20,13 @@ export const getComplaintItemTag = ({
 		: item_code;
 };
 
-export const getComplaintItemName = ({
-	item_brand,
-	item_model,
-	item_color,
-}: Pick<ComplaintItemFields, "item_brand" | "item_model" | "item_color">):
-	| string
-	| null =>
-	getOrderServiceItemDescriptors({
-		brand: item_brand,
-		model: item_model,
-		color: item_color,
-	}).join(" ") || null;
-
 // One Order can carry Complaints on several Items, so the tag and descriptors
 // tell rows apart; the Order code is already on the line above, as on the Queue card.
 export const formatComplaintItem = (fields: ComplaintItemFields): string => {
 	const tag = getComplaintItemTag(fields);
-	const name = getComplaintItemName(fields);
+	const name = getRowItemDetails(fields);
 	return name ? `${tag} · ${name}` : tag;
 };
-
-// The Complaint carries no stored status (ADR-0013 amendment) — its outcome is
-// derived from the lines: refunded or cancelled if the original line was,
-// reworked if a rework that was not cancelled points back, else pending.
-interface ComplaintOutcomeInput {
-	subjectStatus: string;
-	reworkCount: number;
-}
 
 interface ComplaintOutcome {
 	label: string;
@@ -58,21 +38,8 @@ export const COMPLAINT_OUTCOMES = {
 	cancelled: { label: "Cancelled", variant: "danger" },
 	reworked: { label: "Reworked", variant: "success" },
 	pending: { label: "Pending", variant: "warning" },
-} satisfies Record<string, ComplaintOutcome>;
+} satisfies Record<ComplaintOutcomeKey, ComplaintOutcome>;
 
-export const getComplaintOutcome = ({
-	subjectStatus,
-	reworkCount,
-}: ComplaintOutcomeInput): ComplaintOutcome => {
-	if (subjectStatus === "refunded") {
-		return COMPLAINT_OUTCOMES.refunded;
-	}
-	// Turned down at the counter on an unpaid Order and cancelled, not reworked.
-	if (subjectStatus === "cancelled") {
-		return COMPLAINT_OUTCOMES.cancelled;
-	}
-	if (reworkCount > 0) {
-		return COMPLAINT_OUTCOMES.reworked;
-	}
-	return COMPLAINT_OUTCOMES.pending;
-};
+export const getComplaintOutcome = (
+	lines: Parameters<typeof complaintOutcome>[0],
+): ComplaintOutcome => COMPLAINT_OUTCOMES[complaintOutcome(lines)];

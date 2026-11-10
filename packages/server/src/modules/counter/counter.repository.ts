@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, not, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   categoriesTable,
@@ -11,7 +11,8 @@ import {
   ordersTable,
   servicesTable,
 } from "@/db/schema";
-import { REWORKED_ROUND_STATUSES } from "@/modules/complaints/complaint.schema";
+import { hasLiveRework } from "@/modules/complaints/complaint.repository";
+import { itemNameColumns } from "@/modules/orders/order-read.repository";
 import { WORKSHOP_SERVICE_STATUSES } from "@/schema/order-status";
 import type { NormalizedPagination } from "@/utils/pagination";
 
@@ -20,12 +21,8 @@ export function listWaitingLines(storeId: number) {
     .select({
       category_id: categoriesTable.id,
       category_name: categoriesTable.name,
-      item_brand: itemsTable.brand,
-      item_code: itemsTable.item_code,
-      item_color: itemsTable.color,
+      ...itemNameColumns,
       item_id: ordersServicesTable.item_id,
-      item_model: itemsTable.model,
-      item_size: itemsTable.size,
       line_id: ordersServicesTable.id,
       order_id: ordersTable.id,
       starts_after_cleaning: categoriesTable.starts_after_cleaning,
@@ -79,11 +76,7 @@ export function listUndecidedComplaints(storeId: number) {
       category_name: categoriesTable.name,
       complaint_id: complaintsTable.id,
       created_at: complaintsTable.created_at,
-      item_brand: itemsTable.brand,
-      item_code: itemsTable.item_code,
-      item_color: itemsTable.color,
-      item_model: itemsTable.model,
-      item_size: itemsTable.size,
+      ...itemNameColumns,
       reason: complaintsTable.reason,
     })
     .from(complaintsTable)
@@ -105,7 +98,7 @@ export function listUndecidedComplaints(storeId: number) {
       and(
         eq(ordersTable.store_id, storeId),
         sql`${ordersServicesTable.status} NOT IN ('refunded', 'cancelled')`,
-        sql`NOT EXISTS (SELECT 1 FROM orders_services rw WHERE rw.complaint_id = ${complaintsTable.id} AND rw.status IN ${REWORKED_ROUND_STATUSES})`
+        not(hasLiveRework)
       )
     )
     .orderBy(asc(complaintsTable.created_at));

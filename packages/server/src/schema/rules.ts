@@ -9,6 +9,8 @@ import {
 } from "@/schema/campaign-eligibility";
 import { clockInRequiresLocation as _clockInRequiresLocation } from "@/schema/clock-in";
 import {
+  type ComplaintOutcome as _ComplaintOutcome,
+  complaintOutcome as _complaintOutcome,
   isComplainableLine as _isComplainableLine,
   isReworkedRound as _isReworkedRound,
 } from "@/schema/complaint";
@@ -61,6 +63,8 @@ export const isInWorkshop = _isInWorkshop;
 export const isWaitingQcOnly = _isWaitingQcOnly;
 export const isComplainableLine = _isComplainableLine;
 export const isReworkedRound = _isReworkedRound;
+export const complaintOutcome = _complaintOutcome;
+export type ComplaintOutcome = _ComplaintOutcome;
 export const clockInRequiresLocation = _clockInRequiresLocation;
 export type ClockInCoordinates = _ClockInCoordinates;
 // The clock-in screen ranks Stores by distance to preselect the nearest one.
