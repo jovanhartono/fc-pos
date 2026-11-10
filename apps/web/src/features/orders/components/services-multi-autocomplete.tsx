@@ -1,7 +1,7 @@
 import { ArrowDown01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,7 +11,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import { servicesQueries } from "@/features/services/api";
+import { type Service, servicesQueries } from "@/features/services/api";
 import { cn } from "@/lib/utils";
 
 interface ServicesMultiAutocompleteProps {
@@ -23,6 +23,55 @@ interface ServicesMultiAutocompleteProps {
 	disabled?: boolean;
 	error?: { message?: string };
 }
+
+interface SelectedServiceBadgesProps {
+	services: Service[];
+	valueSet: Set<number>;
+	placeholder: string;
+	disabled?: boolean;
+	onRemove: (serviceId: number) => void;
+}
+
+const SelectedServiceBadges = ({
+	services,
+	valueSet,
+	placeholder,
+	disabled,
+	onRemove,
+}: SelectedServiceBadgesProps) => {
+	const selectedServices = services.filter((service) =>
+		valueSet.has(service.id),
+	);
+
+	const hasSelection = selectedServices.length > 0;
+
+	return (
+		<div className="flex flex-1 flex-wrap items-center gap-1.5">
+			{hasSelection ? (
+				selectedServices.map((service) => (
+					<Badge key={service.id} variant="secondary" className="gap-1 pr-1">
+						{service.code}
+						{!disabled ? (
+							<button
+								type="button"
+								onClick={(event) => {
+									event.stopPropagation();
+									onRemove(service.id);
+								}}
+								className="hover:text-destructive"
+								aria-label={`Remove ${service.code}`}
+							>
+								<HugeiconsIcon icon={Cancel01Icon} className="size-3" />
+							</button>
+						) : null}
+					</Badge>
+				))
+			) : (
+				<span className="text-muted-foreground">{placeholder}</span>
+			)}
+		</div>
+	);
+};
 
 export const ServicesMultiAutocomplete = ({
 	id = "services-multi",
@@ -36,20 +85,11 @@ export const ServicesMultiAutocomplete = ({
 	const [isOpen, setIsOpen] = useState(false);
 
 	const servicesQuery = useQuery(servicesQueries.list());
-
-	const services = servicesQuery.data ?? [];
+	const selectableServices = (servicesQuery.data ?? []).filter(
+		(service) => service.is_active,
+	);
 
 	const valueSet = new Set(values);
-
-	const selectableServices = useMemo(
-		() => services.filter((service) => service.is_active),
-		[services],
-	);
-
-	const selectedServices = useMemo(
-		() => selectableServices.filter((service) => valueSet.has(service.id)),
-		[selectableServices, valueSet],
-	);
 
 	const handleToggle = (serviceId: number) => {
 		if (valueSet.has(serviceId)) {
@@ -62,8 +102,6 @@ export const ServicesMultiAutocomplete = ({
 	const handleRemove = (serviceId: number) => {
 		onValuesChange(values.filter((id) => id !== serviceId));
 	};
-
-	const hasSelection = selectedServices.length > 0;
 
 	return (
 		<Field data-invalid={!!error}>
@@ -86,34 +124,13 @@ export const ServicesMultiAutocomplete = ({
 						/>
 					}
 				>
-					<div className="flex flex-1 flex-wrap items-center gap-1.5">
-						{hasSelection ? (
-							selectedServices.map((service) => (
-								<Badge
-									key={service.id}
-									variant="secondary"
-									className="gap-1 pr-1"
-								>
-									{service.code}
-									{!disabled ? (
-										<button
-											type="button"
-											onClick={(event) => {
-												event.stopPropagation();
-												handleRemove(service.id);
-											}}
-											className="hover:text-destructive"
-											aria-label={`Remove ${service.code}`}
-										>
-											<HugeiconsIcon icon={Cancel01Icon} className="size-3" />
-										</button>
-									) : null}
-								</Badge>
-							))
-						) : (
-							<span className="text-muted-foreground">{placeholder}</span>
-						)}
-					</div>
+					<SelectedServiceBadges
+						services={selectableServices}
+						valueSet={valueSet}
+						placeholder={placeholder}
+						disabled={disabled}
+						onRemove={handleRemove}
+					/>
 					<HugeiconsIcon
 						icon={ArrowDown01Icon}
 						className="size-4 shrink-0 opacity-50"

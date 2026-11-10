@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { SectionTitle } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Card, CardContent } from "@/components/ui/card";
@@ -519,10 +519,8 @@ interface KpiCellModel {
 }
 
 const KpiStrip = ({ data, storeId }: KpiStripProps) => {
-	const cells = useMemo<KpiCellModel[]>(() => {
-		if (!data) {
-			return [];
-		}
+	let cells: KpiCellModel[] = [];
+	if (data) {
 		const summary = data.summary.current;
 		const prev = data.summary.previous;
 		const deltas = data.summary.deltas;
@@ -532,7 +530,7 @@ const KpiStrip = ({ data, storeId }: KpiStripProps) => {
 		const aov = safeRatio(summary.collected, totalOrders);
 		const refundRate = safeRatio(summary.refunds, summary.collected);
 		const prevRefundRate = safeRatio(prev.refunds, prev.collected);
-		return [
+		cells = [
 			{
 				value: compactMoney(summary.collected),
 				change: pctChange(deltas.collected?.delta_pct),
@@ -566,7 +564,7 @@ const KpiStrip = ({ data, storeId }: KpiStripProps) => {
 				isLowerBetter: true,
 			},
 		];
-	}, [data, storeId]);
+	}
 
 	const previousLabel = data
 		? formatPreviousRangeLabel(data.previous.from, data.previous.to)

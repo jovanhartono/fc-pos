@@ -11,7 +11,6 @@ import {
 	useQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
-import { useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { Section } from "@/components/section";
@@ -761,7 +760,7 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 	const current = data?.summary.current;
 	const deltas = data?.summary.deltas;
 	const checkers = data?.by_checker;
-	const team = useMemo(() => teamOf(checkers ?? []), [checkers]);
+	const team = teamOf(checkers ?? []);
 	const checkerColumns = checkerColumnsFor(team);
 	const handleOpenChecker = (row: CheckerRow) =>
 		data &&

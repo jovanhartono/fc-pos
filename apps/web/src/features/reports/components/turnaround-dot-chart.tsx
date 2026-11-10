@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { TurnaroundReport } from "@/features/reports/api";
 import { TURNAROUND_COLORS } from "@/features/reports/utils/palette";
 import {
@@ -31,8 +31,32 @@ const DOT_PAD = 4;
 const HIT_RADIUS = 12;
 const TOOLTIP_WIDTH = 256;
 
-export const TurnaroundDotChart = ({ dots, row }: TurnaroundDotChartProps) => {
+const useDotLayout = (
+	dots: TurnaroundDotChartProps["dots"],
+	p99: number | null,
+) => {
+	const max = axisMaxHours(
+		p99,
+		dots.map((d) => d.item.hours),
+	);
+	const ticks = dayTickHours(max);
 	const { ref, width } = useElementWidth();
+	const height = width < 480 ? 170 : 210;
+	const plotHeight = height - LABEL_BAND;
+	const points = dots.map(({ index, item }) => ({
+		item,
+		x: (Math.min(item.hours, max) / max) * width,
+		y: LABEL_BAND + DOT_PAD + jitter(index) * (plotHeight - DOT_PAD * 2),
+		over: item.hours > max,
+	}));
+	return { height, max, points, ref, ticks, width };
+};
+
+export const TurnaroundDotChart = ({ dots, row }: TurnaroundDotChartProps) => {
+	const { height, max, points, ref, ticks, width } = useDotLayout(
+		dots,
+		row.p99,
+	);
 	const [hover, setHover] = useState<HoverState | null>(null);
 	// Switching Category keeps the chart mounted, so the page doesn't jump; an
 	// open tooltip would point at another Item, so it closes.
@@ -55,26 +79,7 @@ export const TurnaroundDotChart = ({ dots, row }: TurnaroundDotChartProps) => {
 			window.removeEventListener("pointerdown", hideOutside);
 		};
 	}, [ref]);
-	const max = useMemo(
-		() =>
-			axisMaxHours(
-				row.p99,
-				dots.map((d) => d.item.hours),
-			),
-		[dots, row.p99],
-	);
-	const height = width < 480 ? 170 : 210;
 	const xOf = (hours: number) => (Math.min(hours, max) / max) * width;
-	const points = useMemo(() => {
-		const plotHeight = height - LABEL_BAND;
-		return dots.map(({ index, item }) => ({
-			item,
-			x: (Math.min(item.hours, max) / max) * width,
-			y: LABEL_BAND + DOT_PAD + jitter(index) * (plotHeight - DOT_PAD * 2),
-			over: item.hours > max,
-		}));
-	}, [dots, height, max, width]);
-	const ticks = useMemo(() => dayTickHours(max), [max]);
 
 	// One handler on the plot, so a phone tap finds the nearest dot instead of
 	// needing a 6px target.

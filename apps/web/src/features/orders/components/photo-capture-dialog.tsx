@@ -59,10 +59,11 @@ const TopChrome = () => {
 // input, and moving it inside one arm turns that button dead mid-batch.
 const HiddenFileInput = () => {
 	const { actions, meta, state } = usePhotoCapture();
+	const { fileInputRef } = state;
 
 	return (
 		<input
-			ref={state.fileInputRef}
+			ref={fileInputRef}
 			type="file"
 			aria-label={meta.labels.fileInput}
 			accept={ACCEPTED_IMAGE_TYPES.join(",")}

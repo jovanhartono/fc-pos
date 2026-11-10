@@ -13,14 +13,7 @@ import {
 } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { DetailedError } from "hono/client";
-import {
-	lazy,
-	Suspense,
-	useCallback,
-	useEffect,
-	useMemo,
-	useState,
-} from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
@@ -164,12 +157,9 @@ function QueuePage() {
 		(state) => state.setStoreId,
 	);
 
-	const userStoreIds = useMemo(
-		() => meQuery.data?.userStores.map((item) => item.store_id) ?? [],
-		[meQuery.data],
-	);
+	const me = meQuery.data;
 	// DB-fresh role — JWT claim goes stale on mid-session role changes.
-	const role = meQuery.data?.role;
+	const role = me?.role;
 
 	// With a Store in the URL, remember it — however it got there: the filter
 	// dialog, a scan, or a line's back link. beforeLoad restores it.
@@ -203,17 +193,9 @@ function QueuePage() {
 			? search.categoryMode
 			: persistedCategory?.mode) ?? "only";
 
-	const parsedStoreId = useMemo(() => {
-		if (search.storeId !== undefined) {
-			return search.storeId;
-		}
-
-		if (role === "admin") {
-			return undefined;
-		}
-
-		return userStoreIds[0];
-	}, [role, search.storeId, userStoreIds]);
+	const parsedStoreId =
+		search.storeId ??
+		(role === "admin" ? undefined : me?.userStores[0]?.store_id);
 	const selectedStatus = search.status;
 	const storesQuery = useQuery(storesQueries.list());
 	const categoriesQuery = useQuery({
@@ -335,27 +317,46 @@ function QueuePage() {
 		},
 	});
 
-	const scanner = useBarcodeScanner((rawValue) => {
+	const {
+		error: scanError,
+		isScanning,
+		start: startScan,
+		stop: stopScan,
+		videoRef,
+	} = useBarcodeScanner((rawValue) => {
 		setItemCode(rawValue);
 		lookupMutation.mutate({ mode: "scan", value: rawValue });
 	});
 
-	const queueItems =
-		queueQuery.data?.pages.flatMap((page) => page.items) ?? ([] as QueueItem[]);
-	const totalItems = queueQuery.data?.pages[0]?.meta.total;
+	const allowedStoreIds =
+		role === "admin"
+			? undefined
+			: (me?.userStores.map((item) => item.store_id) ?? []);
+	const queuePages = queueQuery.data?.pages;
+	const hasQueueItems = queuePages?.some((page) => page.items.length > 0);
+	const totalItems = queuePages?.[0]?.meta.total;
 
-	const navigateToQueueDetail = useCallback(
-		(item: QueueItem, serviceId: number) => {
-			void navigate({
-				to: "/queue/$orderId/$serviceId",
-				params: {
-					orderId: item.order_id,
-					serviceId,
-				},
-			});
-		},
-		[navigate],
-	);
+	const navigateToQueueDetail = (item: QueueItem, serviceId: number) => {
+		void navigate({
+			to: "/queue/$orderId/$serviceId",
+			params: {
+				orderId: item.order_id,
+				serviceId,
+			},
+		});
+	};
+
+	const queueRows = queuePages
+		?.flatMap((page) => page.items)
+		.map((item) => (
+			<QueueRow
+				currentUserId={currentUser?.id}
+				item={item}
+				key={item.id}
+				now={now}
+				onOpen={navigateToQueueDetail}
+			/>
+		));
 
 	const updateStatusFilter = (value: string) => {
 		void navigate({
@@ -484,19 +485,19 @@ function QueuePage() {
 							value={itemCode}
 						/>
 						<Button
-							aria-label={scanner.isScanning ? "Stop scan" : "Scan tag"}
+							aria-label={isScanning ? "Stop scan" : "Scan tag"}
 							icon={<HugeiconsIcon icon={QrCodeScanIcon} className="size-4" />}
 							onClick={() => {
-								if (scanner.isScanning) {
-									scanner.stop();
+								if (isScanning) {
+									stopScan();
 									return;
 								}
 
-								void scanner.start();
+								void startScan();
 							}}
 							size="icon"
 							type="button"
-							variant={scanner.isScanning ? "default" : "outline"}
+							variant={isScanning ? "default" : "outline"}
 						/>
 						<FilterPanel
 							clear={(f) => ({
@@ -513,9 +514,7 @@ function QueuePage() {
 							{(draft, setDraft) => (
 								<div className="grid gap-4">
 									<StoreSelect
-										allowedStoreIds={
-											role === "admin" ? undefined : userStoreIds
-										}
+										allowedStoreIds={allowedStoreIds}
 										id="queue-store"
 										onValueChange={(value) =>
 											setDraft({ storeId: value ? Number(value) : undefined })
@@ -554,20 +553,20 @@ function QueuePage() {
 						</FilterPanel>
 					</div>
 
-					{scanner.error ? (
+					{scanError ? (
 						<div className="flex items-center gap-2 text-destructive text-body">
 							<HugeiconsIcon icon={AlertCircleIcon} className="size-4" />
-							<span>{scanner.error}</span>
+							<span>{scanError}</span>
 						</div>
 					) : null}
 
-					{scanner.isScanning ? (
+					{isScanning ? (
 						<video
 							autoPlay
 							className="aspect-video w-full rounded-lg object-cover"
 							muted
 							playsInline
-							ref={scanner.videoRef}
+							ref={videoRef}
 						/>
 					) : null}
 
@@ -605,7 +604,7 @@ function QueuePage() {
 						<EmptyState icon={Store01Icon}>Select a store</EmptyState>
 					) : null}
 
-					{queueItems.length > 0 ? (
+					{hasQueueItems ? (
 						<div
 							className={cn(
 								"grid min-w-0 gap-2",
@@ -614,15 +613,7 @@ function QueuePage() {
 							)}
 							key={shownQueueKey}
 						>
-							{queueItems.map((item) => (
-								<QueueRow
-									currentUserId={currentUser?.id}
-									item={item}
-									key={item.id}
-									now={now}
-									onOpen={navigateToQueueDetail}
-								/>
-							))}
+							{queueRows}
 						</div>
 					) : null}
 
@@ -640,7 +631,7 @@ function QueuePage() {
 
 					{!queueQuery.isLoading &&
 					!queueQuery.isError &&
-					queueItems.length === 0 &&
+					!hasQueueItems &&
 					parsedStoreId !== undefined ? (
 						<EmptyState icon={Task01Icon}>No items.</EmptyState>
 					) : null}

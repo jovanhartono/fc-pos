@@ -4,9 +4,8 @@ import {
 	type ReactNode,
 	type RefObject,
 	use,
-	useCallback,
 	useEffect,
-	useMemo,
+	useEffectEvent,
 	useRef,
 	useState,
 } from "react";
@@ -189,7 +188,7 @@ export const PhotoCaptureProvider = ({
 
 	const stopCamera = camera.stop;
 	const openCamera = camera.open;
-	const resetDialogState = useCallback(() => {
+	const resetDialogState = () => {
 		stopCamera();
 		setPendingPhotos((previous) => {
 			discardPhotos(previous);
@@ -198,7 +197,9 @@ export const PhotoCaptureProvider = ({
 		setSelectedPhotoId(null);
 		setNote("");
 		setIsNoteOpen(false);
-	}, [stopCamera]);
+	};
+	const openCameraFromEffect = useEffectEvent(openCamera);
+	const stopCameraFromEffect = useEffectEvent(stopCamera);
 
 	useEffect(() => {
 		// A scale-down finishing after staff gave up on the dialog must not land its
@@ -211,9 +212,9 @@ export const PhotoCaptureProvider = ({
 		}
 		// Intake flows: skip the chooser, go straight to the live camera.
 		if (autoOpenCamera) {
-			void openCamera();
+			void openCameraFromEffect();
 		}
-	}, [open, autoOpenCamera, openCamera]);
+	}, [open, autoOpenCamera]);
 
 	// The reset waits for the close animation (no layout shift), which an unmount
 	// never reaches; without this, staged photos leak in a POS tab open all day.
@@ -223,10 +224,10 @@ export const PhotoCaptureProvider = ({
 	});
 	useEffect(
 		() => () => {
-			stopCamera();
+			stopCameraFromEffect();
 			discardPhotos(pendingRef.current);
 		},
-		[stopCamera],
+		[],
 	);
 
 	// Uploads go one at a time: one already fills the shop's uplink, and five at
@@ -235,92 +236,78 @@ export const PhotoCaptureProvider = ({
 
 	// Upload starts at staging, not confirm, so it runs while staff shoot the next
 	// photo or type a note. An abandoned batch's files go in the nightly photo sweep.
-	const beginPush = useCallback(
-		(file: File): PendingUpload | undefined => {
-			const contentType = file.type;
-			if (!uploader || isCaptureMode || !isAcceptedImage(contentType)) {
-				return undefined;
-			}
+	const beginPush = (file: File): PendingUpload | undefined => {
+		const contentType = file.type;
+		if (!uploader || isCaptureMode || !isAcceptedImage(contentType)) {
+			return undefined;
+		}
 
-			const controller = new AbortController();
-			const promise = pushQueueRef.current.then(() =>
-				uploader.pushBytes({
-					contentType,
-					file,
-					signal: controller.signal,
-				}),
-			);
-			// Catch now: an upload dropped on 4G before confirm would be an unhandled
-			// rejection. Confirm still retries it, and the next upload isn't stranded.
-			pushQueueRef.current = promise.catch(() => undefined);
-			return { abort: () => controller.abort(), promise };
-		},
-		[isCaptureMode, uploader],
-	);
+		const controller = new AbortController();
+		const promise = pushQueueRef.current.then(() =>
+			uploader.pushBytes({
+				contentType,
+				file,
+				signal: controller.signal,
+			}),
+		);
+		// Catch now: an upload dropped on 4G before confirm would be an unhandled
+		// rejection. Confirm still retries it, and the next upload isn't stranded.
+		pushQueueRef.current = promise.catch(() => undefined);
+		return { abort: () => controller.abort(), promise };
+	};
 
 	// Photos from this dialog's camera are already scaled and encoded, so they hit
 	// the strip in the same frame as the shutter press.
-	const stagePhotos = useCallback(
-		(files: File[]) => {
-			const created = files.map((file) =>
-				createPendingPhoto(file, beginPush(file)),
-			);
-			// Discard outside the updater: React may replay it, which would cancel the
-			// upload of a photo still on the strip.
-			if (!isMultiple) {
-				discardPhotos(pendingRef.current);
-			}
-			setPendingPhotos((previous) =>
-				isMultiple ? [...previous, ...created] : created,
-			);
-			const newest = created.at(-1);
-			if (newest) {
-				setSelectedPhotoId(newest.id);
-			}
-		},
-		[beginPush, isMultiple],
-	);
+	const stagePhotos = (files: File[]) => {
+		const created = files.map((file) =>
+			createPendingPhoto(file, beginPush(file)),
+		);
+		// Discard outside the updater: React may replay it, which would cancel the
+		// upload of a photo still on the strip.
+		if (!isMultiple) {
+			discardPhotos(pendingRef.current);
+		}
+		setPendingPhotos((previous) =>
+			isMultiple ? [...previous, ...created] : created,
+		);
+		const newest = created.at(-1);
+		if (newest) {
+			setSelectedPhotoId(newest.id);
+		}
+	};
 
 	// Gallery photos: a 12MP photo is scaled down before it reaches 4G, and an
 	// iPhone HEIC becomes a JPEG or is refused here, never stored unviewable.
-	const addFiles = useCallback(
-		async (files: File[]) => {
-			if (files.length === 0) {
-				return;
-			}
+	const addFiles = async (files: File[]) => {
+		if (files.length === 0) {
+			return;
+		}
 
-			const accepted = isMultiple ? files : files.slice(0, 1);
-			const session = sessionRef.current;
+		const accepted = isMultiple ? files : files.slice(0, 1);
+		const session = sessionRef.current;
 
-			const normalized: File[] = [];
+		const normalized: File[] = [];
+		for (const [index, file] of accepted.entries()) {
+			setNormalizing({ done: index, total: accepted.length });
 			try {
-				for (const [index, file] of accepted.entries()) {
-					setNormalizing({ done: index, total: accepted.length });
-					try {
-						normalized.push(await normalizeImageFile(file));
-					} catch (error) {
-						toast.error(
-							`${readServerErrorMessage(error, "Unsupported image type")}: ${file.name}`,
-						);
-					}
-					if (sessionRef.current !== session) {
-						return;
-					}
-				}
-			} finally {
-				if (sessionRef.current === session) {
-					setNormalizing(null);
-				}
+				normalized.push(await normalizeImageFile(file));
+			} catch (error) {
+				toast.error(
+					`${readServerErrorMessage(error, "Unsupported image type")}: ${file.name}`,
+				);
 			}
-
-			if (normalized.length === 0) {
+			if (sessionRef.current !== session) {
 				return;
 			}
+		}
+		setNormalizing(null);
 
-			stagePhotos(normalized);
-		},
-		[isMultiple, stagePhotos],
-	);
+		if (normalized.length === 0) {
+			return;
+		}
+
+		stagePhotos(normalized);
+	};
 
 	const openFileInput = () => {
 		const input = fileInputRef.current;
@@ -466,15 +453,11 @@ export const PhotoCaptureProvider = ({
 	);
 	// A removed selection falls through to the newest shot rather than emptying the stage.
 	const activeIndex = selectedIndex === -1 ? photoCount - 1 : selectedIndex;
-	const stageItems = useMemo(
-		() =>
-			pendingPhotos.map((photo) => ({
-				alt: `Preview ${photo.file.name}`,
-				id: photo.id,
-				image_url: photo.previewUrl,
-			})),
-		[pendingPhotos],
-	);
+	const stageItems = pendingPhotos.map((photo) => ({
+		alt: `Preview ${photo.file.name}`,
+		id: photo.id,
+		image_url: photo.previewUrl,
+	}));
 	const selectPhotoAt = (index: number) => {
 		const photo = pendingPhotos[index];
 		if (photo) {

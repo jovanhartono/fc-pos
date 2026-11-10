@@ -1,7 +1,7 @@
 import { Add01Icon, BluetoothIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useDeferredValue, useEffect, useMemo, useRef } from "react";
+import { useDeferredValue, useEffect, useRef } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import {
 	CHIP_CLASS,
@@ -13,7 +13,8 @@ import { StickyControls } from "@/components/sticky-controls";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { categoriesQueries } from "@/features/categories/api";
+import type { Category } from "@/features/categories/api";
+import { useCategoryMap } from "@/features/categories/hooks/useCategoryMap";
 import { StoreSelect } from "@/features/orders/components/store-select";
 import { StoreDevicesDialog } from "@/features/printing/components/store-devices-dialog";
 import { productsQueries } from "@/features/products/api";
@@ -30,10 +31,48 @@ import { formatMoney } from "@/shared/money";
 import { useDialog } from "@/stores/dialog-store";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
+const useCatalog = () => {
+	const categoryMap = useCategoryMap();
+	const productsQuery = useQuery(productsQueries.list());
+	const servicesQuery = useQuery(servicesQueries.list());
+
+	const products = (productsQuery.data ?? []).filter(
+		(product) => product.is_active,
+	);
+	const services = (servicesQuery.data ?? []).filter(
+		(service) => service.is_active,
+	);
+
+	// Services and Products share one grid: the old Services / Add-ons toggle
+	// made search silently skip whichever half was hidden.
+	const catalogEntries = [
+		...services.map((item) => ({ kind: "service" as const, item })),
+		...products.map((item) => ({ kind: "product" as const, item })),
+	];
+
+	// Taken off the whole catalog, never the search-narrowed list: a pill set
+	// that shrinks as you type can drop the pill you are filtering by.
+	const byId = new Map<number, { id: number; name: string }>();
+	for (const { item } of catalogEntries) {
+		if (!byId.has(item.category_id)) {
+			byId.set(item.category_id, {
+				id: item.category_id,
+				name: getEntityCategoryName(item, categoryMap),
+			});
+		}
+	}
+	const categoryOptions = [...byId.values()].sort((a, b) =>
+		a.name.localeCompare(b.name),
+	);
+
+	return { catalogEntries, categoryMap, categoryOptions };
+};
+
+type CatalogEntry = ReturnType<typeof useCatalog>["catalogEntries"][number];
+
 export function TransactionsCatalog() {
 	const { isAdmin, visibleStores, handleStoreChange } =
 		useTransactionsPageContext();
-	const { addProduct, addService } = useCartOps();
 	const openDialog = useDialog((s) => s.openDialog);
 	const searchTerm = useTransactionsPageStore((state) => state.searchTerm);
 	const setSearchTerm = useTransactionsPageStore(
@@ -46,29 +85,11 @@ export function TransactionsCatalog() {
 		(state) => state.setActiveCategory,
 	);
 
-	const categoriesQuery = useQuery(categoriesQueries.list());
-	const productsQuery = useQuery(productsQueries.list());
-	const servicesQuery = useQuery(servicesQueries.list());
-
-	const categories = categoriesQuery.data ?? [];
-	const products = useMemo(
-		() => (productsQuery.data ?? []).filter((product) => product.is_active),
-		[productsQuery.data],
-	);
-	const services = useMemo(
-		() => (servicesQuery.data ?? []).filter((service) => service.is_active),
-		[servicesQuery.data],
-	);
+	const { catalogEntries, categoryMap, categoryOptions } = useCatalog();
 
 	const { control, formState } = useFormContext<TransactionDraftValues>();
 	const selectedStoreId = useWatch({ control, name: "selectedStoreId" }) ?? "";
 	const storeError = formState.errors.selectedStoreId;
-	const productCart = useWatch({ control, name: "productCart" }) ?? [];
-
-	const categoryMap = useMemo(
-		() => new Map(categories.map((category) => [category.id, category])),
-		[categories],
-	);
 
 	const deferredSearchTerm = useDeferredValue(searchTerm);
 	const searchValue = deferredSearchTerm.trim().toLowerCase();
@@ -95,72 +116,6 @@ export function TransactionsCatalog() {
 		window.addEventListener("keydown", handleKeydown);
 		return () => window.removeEventListener("keydown", handleKeydown);
 	}, []);
-
-	// Services and Products share one grid: the old Services / Add-ons toggle
-	// made search silently skip whichever half was hidden.
-	const catalogEntries = useMemo(
-		() => [
-			...services.map((item) => ({ kind: "service" as const, item })),
-			...products.map((item) => ({ kind: "product" as const, item })),
-		],
-		[products, services],
-	);
-
-	const filteredEntries = useMemo(
-		() =>
-			catalogEntries.filter(({ item }) => {
-				if (activeCategory !== "all" && item.category_id !== activeCategory) {
-					return false;
-				}
-				if (searchValue.length === 0) {
-					return true;
-				}
-				return (
-					item.name.toLowerCase().includes(searchValue) ||
-					(item.description ?? "").toLowerCase().includes(searchValue) ||
-					getEntityCategoryName(item, categoryMap)
-						.toLowerCase()
-						.includes(searchValue)
-				);
-			}),
-		[activeCategory, catalogEntries, categoryMap, searchValue],
-	);
-
-	// Taken off the whole catalog, never the search-narrowed list: a pill set
-	// that shrinks as you type can drop the pill you are filtering by.
-	const categoryOptions = useMemo(() => {
-		const byId = new Map<number, { id: number; name: string }>();
-		for (const { item } of catalogEntries) {
-			if (!byId.has(item.category_id)) {
-				byId.set(item.category_id, {
-					id: item.category_id,
-					name: getEntityCategoryName(item, categoryMap),
-				});
-			}
-		}
-		return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
-	}, [categoryMap, catalogEntries]);
-
-	const productCartQtyById = useMemo(
-		() => new Map(productCart.map((line) => [line.id, line.qty])),
-		[productCart],
-	);
-
-	// How many times each Service is already on the Item a tap would land on,
-	// so the cashier sees a Deep Clean is in without opening the cart.
-	const itemCart = useWatch({ control, name: "itemCart" }) ?? [];
-	const activeItemPointer = useTransactionsPageStore(
-		(state) => state.activeItemId,
-	);
-	const activeItemServiceCount = useMemo(() => {
-		const activeId = resolveActiveItemId(itemCart, activeItemPointer);
-		const counts = new Map<number, number>();
-		for (const line of itemCart.find((item) => item.line_id === activeId)
-			?.services ?? []) {
-			counts.set(line.id, (counts.get(line.id) ?? 0) + 1);
-		}
-		return counts;
-	}, [itemCart, activeItemPointer]);
 
 	return (
 		<div className="grid gap-5">
@@ -259,6 +214,83 @@ export function TransactionsCatalog() {
 				) : null}
 			</StickyControls>
 
+			<CatalogGrid
+				catalogEntries={catalogEntries}
+				categoryMap={categoryMap}
+				searchValue={searchValue}
+			/>
+		</div>
+	);
+}
+
+interface CatalogGridProps {
+	catalogEntries: CatalogEntry[];
+	categoryMap: Map<number, Category>;
+	searchValue: string;
+}
+
+const useFilteredEntries = (
+	catalogEntries: CatalogEntry[],
+	categoryMap: Map<number, Category>,
+	searchValue: string,
+) => {
+	const activeCategory = useTransactionsPageStore(
+		(state) => state.activeCategory,
+	);
+	return catalogEntries.filter(({ item }) => {
+		if (activeCategory !== "all" && item.category_id !== activeCategory) {
+			return false;
+		}
+		if (searchValue.length === 0) {
+			return true;
+		}
+		return (
+			item.name.toLowerCase().includes(searchValue) ||
+			(item.description ?? "").toLowerCase().includes(searchValue) ||
+			getEntityCategoryName(item, categoryMap)
+				.toLowerCase()
+				.includes(searchValue)
+		);
+	});
+};
+
+const CatalogGrid = ({
+	catalogEntries,
+	categoryMap,
+	searchValue,
+}: CatalogGridProps) => {
+	const { addProduct, addService } = useCartOps();
+	const activeItemPointer = useTransactionsPageStore(
+		(state) => state.activeItemId,
+	);
+	const { control } = useFormContext<TransactionDraftValues>();
+	const watchedProductCart = useWatch({ control, name: "productCart" });
+	const itemCart = useWatch({ control, name: "itemCart" });
+
+	const filteredEntries = useFilteredEntries(
+		catalogEntries,
+		categoryMap,
+		searchValue,
+	);
+
+	const productCartQtyById = new Map(
+		watchedProductCart.map((line) => [line.id, line.qty]),
+	);
+
+	// How many times each Service is already on the Item a tap would land on,
+	// so the cashier sees a Deep Clean is in without opening the cart.
+	const activeId = resolveActiveItemId(itemCart, activeItemPointer);
+	const activeItemServiceCount = new Map<number, number>();
+	for (const line of itemCart.find((item) => item.line_id === activeId)
+		?.services ?? []) {
+		activeItemServiceCount.set(
+			line.id,
+			(activeItemServiceCount.get(line.id) ?? 0) + 1,
+		);
+	}
+
+	return (
+		<>
 			{/* A phone gets one grouped list, as in iOS Settings: ~50 separate
 			    boxes made the counter scroll twice as far. */}
 			<div className="grid overflow-hidden rounded-lg border bg-card empty:hidden sm:grid-cols-2 sm:gap-3 sm:overflow-visible sm:rounded-none sm:border-0 sm:bg-transparent md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
@@ -361,6 +393,6 @@ export function TransactionsCatalog() {
 					</CardContent>
 				</Card>
 			) : null}
-		</div>
+		</>
 	);
-}
+};

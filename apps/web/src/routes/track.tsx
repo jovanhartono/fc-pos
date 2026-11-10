@@ -9,7 +9,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { DetailedError } from "hono/client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { BrandLogo } from "@/components/brand-logo";
@@ -277,7 +277,7 @@ const PaymentCard = ({
 		mutationFn: () => payTrackedOrder({ code, phone_number: phone }),
 		onSuccess: (charge) => {
 			if (!hasQris(charge) && charge.redirect_url) {
-				window.location.href = charge.redirect_url;
+				window.location.assign(charge.redirect_url);
 				return;
 			}
 			queryClient.setQueryData(
@@ -306,10 +306,7 @@ const PaymentCard = ({
 		return () => window.removeEventListener("pageshow", handlePageShow);
 	}, [queryClient, resetPay]);
 
-	const qrSrc = useMemo(
-		() => (openCharge ? qrisImageSrc(openCharge) : null),
-		[openCharge],
-	);
+	const qrSrc = openCharge ? qrisImageSrc(openCharge) : null;
 	const isPaying = payMutation.isPending || payMutation.isSuccess;
 	const payError = payMutation.isError ? (
 		<p

@@ -9,7 +9,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
 	PaymentOutcome,
 	type PaymentOutcomeProps,
@@ -92,18 +92,17 @@ const QrisChargeDialog = ({
 	const { mutate: create } = createMutation;
 	const startedRef = useRef(false);
 
-	const handleCreate = useCallback(
-		() => create(request, { onSuccess: (next) => setChargeId(next.id) }),
-		[create, request],
-	);
+	const handleCreate = () =>
+		create(request, { onSuccess: (next) => setChargeId(next.id) });
+	const createOnOpen = useEffectEvent(handleCreate);
 
 	useEffect(() => {
 		if (initialCharge || startedRef.current) {
 			return;
 		}
 		startedRef.current = true;
-		handleCreate();
-	}, [handleCreate, initialCharge]);
+		createOnOpen();
+	}, [initialCharge]);
 
 	// The Order page under the dialog turns paid while the dialog says so.
 	useEffect(() => {
