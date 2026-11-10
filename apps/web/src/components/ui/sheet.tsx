@@ -62,7 +62,7 @@ const SheetOverlay = ({
 );
 
 const INSTANT_POPUP =
-	"data-ending-style:duration-0 data-starting-style:opacity-100 data-[side=bottom]:data-starting-style:translate-y-0 data-[side=left]:data-starting-style:translate-x-0 data-[side=right]:data-starting-style:translate-x-0 data-[side=top]:data-starting-style:translate-y-0";
+	"data-ending-style:duration-0 data-starting-style:opacity-100 data-[side=bottom]:data-starting-style:[transform:none] data-[side=left]:data-starting-style:[transform:none] data-[side=right]:data-starting-style:[transform:none] data-[side=top]:data-starting-style:[transform:none]";
 
 interface SheetContentProps extends SheetPrimitive.Popup.Props {
 	isInstant?: boolean;
@@ -95,8 +95,8 @@ const SheetContent = ({
 					data-slot="sheet-content"
 					data-side={side}
 					className={cn(
-						"data-swipe-dismiss:data-ending-style:opacity-100 data-swipe-dismiss:data-ending-style:duration-[calc(var(--drawer-swipe-strength)*400ms)] data-swipe-dismiss:data-ending-style:ease-out data-[side=bottom]:data-swipe-dismiss:data-ending-style:translate-y-full data-[side=left]:data-swipe-dismiss:data-ending-style:-translate-x-full data-[side=right]:data-swipe-dismiss:data-ending-style:translate-x-full data-[side=top]:data-swipe-dismiss:data-ending-style:-translate-y-full",
-						"fixed z-50 flex flex-col bg-popover bg-clip-padding dark:bg-background text-footnote/relaxed text-popover-foreground shadow-lg transition duration-200 ease-in-out data-swiping:duration-0 [transform:translate(var(--drawer-swipe-movement-x),var(--drawer-swipe-movement-y))] data-ending-style:opacity-0 data-starting-style:opacity-0 data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:border-t data-[side=bottom]:data-ending-style:translate-y-[2.5rem] data-[side=bottom]:data-starting-style:translate-y-[2.5rem] data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:border-r data-[side=left]:data-ending-style:translate-x-[-2.5rem] data-[side=left]:data-starting-style:translate-x-[-2.5rem] data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-full data-[side=right]:sm:w-3/4 data-[side=right]:border-l data-[side=right]:data-ending-style:translate-x-[2.5rem] data-[side=right]:data-starting-style:translate-x-[2.5rem] data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:border-b data-[side=top]:data-ending-style:translate-y-[-2.5rem] data-[side=top]:data-starting-style:translate-y-[-2.5rem] data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-2xl data-[side=bottom]:rounded-t-xl data-[side=top]:rounded-b-xl data-[side=left]:rounded-r-xl data-[side=right]:sm:rounded-l-xl",
+						"data-swipe-dismiss:data-ending-style:opacity-100 data-swipe-dismiss:data-ending-style:duration-[calc(var(--drawer-swipe-strength)*400ms)] data-swipe-dismiss:data-ending-style:ease-out data-[side=bottom]:data-swipe-dismiss:data-ending-style:[transform:translateY(100%)] data-[side=left]:data-swipe-dismiss:data-ending-style:[transform:translateX(-100%)] data-[side=right]:data-swipe-dismiss:data-ending-style:[transform:translateX(100%)] data-[side=top]:data-swipe-dismiss:data-ending-style:[transform:translateY(-100%)]",
+						"fixed z-50 flex flex-col bg-popover bg-clip-padding dark:bg-background text-footnote/relaxed text-popover-foreground shadow-lg transition duration-200 ease-in-out data-swiping:duration-0 [transform:translate(var(--drawer-swipe-movement-x),var(--drawer-swipe-movement-y))] data-ending-style:opacity-0 data-starting-style:opacity-0 data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:border-t data-[side=bottom]:data-ending-style:[transform:translateY(2.5rem)] data-[side=bottom]:data-starting-style:[transform:translateY(2.5rem)] data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:border-r data-[side=left]:data-ending-style:[transform:translateX(-2.5rem)] data-[side=left]:data-starting-style:[transform:translateX(-2.5rem)] data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-full data-[side=right]:sm:w-3/4 data-[side=right]:border-l data-[side=right]:data-ending-style:[transform:translateX(2.5rem)] data-[side=right]:data-starting-style:[transform:translateX(2.5rem)] data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:border-b data-[side=top]:data-ending-style:[transform:translateY(-2.5rem)] data-[side=top]:data-starting-style:[transform:translateY(-2.5rem)] data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-2xl data-[side=bottom]:rounded-t-xl data-[side=top]:rounded-b-xl data-[side=left]:rounded-r-xl data-[side=right]:sm:rounded-l-xl",
 						isInstant && INSTANT_POPUP,
 						className,
 					)}
@@ -106,6 +106,12 @@ const SheetContent = ({
 					{/* A mouse drag selects text (an Order code, a phone number) instead
 					    of dragging the sheet; only touch swipes it away. */}
 					<SheetPrimitive.Content className="contents">
+						{side === "bottom" ? (
+							<div
+								aria-hidden="true"
+								className="mx-auto mt-2.5 mb-0.5 hidden h-1.25 w-9 shrink-0 rounded-full bg-muted-foreground/30 pointer-coarse:block"
+							/>
+						) : null}
 						{children}
 					</SheetPrimitive.Content>
 					{showCloseButton ? (
@@ -114,7 +120,10 @@ const SheetContent = ({
 							render={
 								<Button
 									variant="ghost"
-									className="absolute top-3 right-3"
+									className={cn(
+										"absolute top-3 right-3",
+										side === "bottom" && "pointer-coarse:top-7.25",
+									)}
 									size="icon-sm"
 								/>
 							}

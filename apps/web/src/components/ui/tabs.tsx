@@ -25,7 +25,7 @@ function Tabs({
 }
 
 const tabsListVariants = cva(
-	"group/tabs-list relative inline-flex w-fit max-w-full items-center gap-0.5 overflow-x-auto rounded-sm p-0.5 text-muted-foreground [scrollbar-width:none] group-data-horizontal/tabs:h-9 pointer-coarse:group-data-horizontal/tabs:h-10 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none",
+	"group/tabs-list relative inline-flex w-fit max-w-full items-center gap-0.5 overflow-x-auto rounded-sm group-data-horizontal/tabs:overflow-y-hidden p-0.5 text-muted-foreground [scrollbar-width:none] group-data-horizontal/tabs:h-9 pointer-coarse:group-data-horizontal/tabs:h-10 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none",
 	{
 		variants: {
 			variant: {
@@ -33,7 +33,7 @@ const tabsListVariants = cva(
 				line: "gap-1 bg-transparent",
 				// More tabs than fit (Reports' nine): the chip strip's pills, scrolling.
 				// Room above and below so an iPhone can't slide the strip up and cut the pills' tops.
-				pill: "-my-1 gap-2 overflow-y-hidden rounded-none bg-transparent p-0 py-1 group-data-horizontal/tabs:h-auto pointer-coarse:group-data-horizontal/tabs:h-auto",
+				pill: "-my-1 gap-2 rounded-none bg-transparent p-0 py-1 group-data-horizontal/tabs:h-auto pointer-coarse:group-data-horizontal/tabs:h-auto",
 			},
 		},
 		defaultVariants: {
