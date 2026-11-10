@@ -17,11 +17,7 @@ import {
 import type { PhotoDownloadRef } from "@/features/orders/api";
 import { PhotoStage } from "@/features/orders/components/photo-stage";
 import { savePhoto } from "@/features/orders/utils/photo-download";
-import {
-	ITEM_PHOTO_TILE_SIZE,
-	photoTileUrl,
-	type TileSize,
-} from "@/features/orders/utils/photo-tile";
+import { photoTileUrl } from "@/features/orders/utils/photo-tile";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { cn } from "@/lib/utils";
 
@@ -42,8 +38,6 @@ interface PhotoLightboxProps {
 	items: PhotoLightboxItem[];
 	initialIndex?: number;
 	title?: string;
-	// The size the opening screen already tiles these photos at, so the filmstrip reuses it.
-	tileSize?: TileSize;
 	// Resolves once the photo is gone from `items`, rejects if it is not.
 	onDelete?: (id: number | string) => Promise<void>;
 }
@@ -137,15 +131,9 @@ interface FilmstripProps {
 	activeIndex: number;
 	items: PhotoLightboxItem[];
 	onSelect: (index: number) => void;
-	tileSize: TileSize;
 }
 
-const Filmstrip = ({
-	activeIndex,
-	items,
-	onSelect,
-	tileSize,
-}: FilmstripProps) => {
+const Filmstrip = ({ activeIndex, items, onSelect }: FilmstripProps) => {
 	const stripRef = useRef<HTMLDivElement>(null);
 	const hasScrolledRef = useRef(false);
 
@@ -183,7 +171,7 @@ const Filmstrip = ({
 						decoding="async"
 						draggable={false}
 						loading="lazy"
-						src={photoTileUrl(item.image_url, tileSize)}
+						src={photoTileUrl(item.image_url)}
 					/>
 				</button>
 			))}
@@ -197,7 +185,6 @@ export const PhotoLightbox = ({
 	items,
 	initialIndex = 0,
 	title = "Attachment Viewer",
-	tileSize = ITEM_PHOTO_TILE_SIZE,
 	onDelete,
 }: PhotoLightboxProps) => {
 	const [activeIndex, setActiveIndex] = useState(initialIndex);
@@ -358,7 +345,6 @@ export const PhotoLightbox = ({
 										activeIndex={activeIndex}
 										items={items}
 										onSelect={setActiveIndex}
-										tileSize={tileSize}
 									/>
 								) : null}
 								<div className="flex w-full items-center justify-between">

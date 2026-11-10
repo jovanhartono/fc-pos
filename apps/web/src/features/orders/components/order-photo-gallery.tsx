@@ -6,7 +6,7 @@ import {
 	type PhotoLightboxItem,
 } from "@/features/orders/components/photo-lightbox";
 import {
-	ATTACHMENT_TILE_SIZE,
+	PHOTO_TILE_SIZE,
 	photoTileUrl,
 } from "@/features/orders/utils/photo-tile";
 import { cn } from "@/lib/utils";
@@ -82,10 +82,10 @@ export function OrderPhotoGallery({
 								alt={item.alt}
 								className="aspect-square w-full bg-muted object-cover"
 								decoding="async"
-								height={ATTACHMENT_TILE_SIZE}
+								height={PHOTO_TILE_SIZE}
 								loading="lazy"
-								src={photoTileUrl(item.image_url, ATTACHMENT_TILE_SIZE)}
-								width={ATTACHMENT_TILE_SIZE}
+								src={photoTileUrl(item.image_url)}
+								width={PHOTO_TILE_SIZE}
 							/>
 						</button>
 
@@ -99,7 +99,6 @@ export function OrderPhotoGallery({
 				items={lightboxItems}
 				onOpenChange={setIsOpen}
 				open={isOpen}
-				tileSize={ATTACHMENT_TILE_SIZE}
 				title={title}
 			/>
 		</>
