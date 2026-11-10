@@ -76,16 +76,19 @@ export function bucketFormat(granularity: Granularity): string {
   return "YYYY";
 }
 
-// jakartaDayOf is the JS twin of the day bucket; change the two together.
 // Columns hold UTC wall time in a plain `timestamp`, so naming UTC first is what
 // keeps a 13:16 Jakarta order off the previous day.
+export function jakartaWallTime(column: SQLWrapper) {
+  return sql`(${column} AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta'`;
+}
+
+// jakartaDayOf is the JS twin of the day bucket; change the two together.
 export function jakartaBucketExpr(
   column: SQLWrapper,
   granularity: Granularity
 ) {
   const fmt = sql.raw(`'${bucketFormat(granularity)}'`);
-  const wallTime = sql`(${column} AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta'`;
-  return sql<string>`to_char(${wallTime}, ${fmt})`;
+  return sql<string>`to_char(${jakartaWallTime(column)}, ${fmt})`;
 }
 
 export function enumerateBuckets(

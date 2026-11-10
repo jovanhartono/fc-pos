@@ -12,6 +12,7 @@ import type {
 import {
   findCumulativeCustomersBefore,
   findRepeatCustomerStats,
+  listBusyHourRows,
   listCampaignEffectivenessRows,
   listCategoryGrossSalesSeries,
   listCollectedSeries,
@@ -35,10 +36,13 @@ import {
   listStoreNames,
   listStoreRefundRows,
   listTopCustomers,
+  listTopServiceRows,
+  listUnpaidOrderAgeRows,
   listUserNames,
   listWorkerActivity,
   listWorkerLiveActivity,
   listWorkerSummaryActivity,
+  UNPAID_AGE_KEYS,
 } from "@/modules/reports/report-range.repository";
 import {
   daysBetween,
@@ -123,10 +127,12 @@ interface FinancialSummary {
   collected: number;
   delivery_fees: number;
   discount: number;
+  discount_rate: number;
   gross_profit: number;
   gross_sales: number;
   margin: number;
   products_gross_sales: number;
+  refund_rate: number;
   refunds: number;
   revenue: number;
   services_gross_sales: number;
@@ -204,6 +210,9 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     storeCollected,
     storeRefunds,
     storeCategoryRows,
+    busyHours,
+    topServices,
+    unpaidRows,
   ] = await Promise.all([
     financialSummaryFor({ range, storeId, granularity: ctx.granularity }),
     financialSummaryFor({
@@ -219,7 +228,19 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     listStoreCollectedRows({ range, storeId }),
     listStoreRefundRows({ range, storeId }),
     listStoreCategoryGrossSalesRows({ range, storeId }),
+    listBusyHourRows({ range, storeId }),
+    listTopServiceRows({ range, storeId }),
+    listUnpaidOrderAgeRows({ storeId }),
   ]);
+
+  const unpaidOrders = UNPAID_AGE_KEYS.map(
+    (key) =>
+      unpaidRows.find((row) => row.key === key) ?? {
+        key,
+        orders: 0,
+        amount: 0,
+      }
+  );
 
   const servicesMap = indexBy(current.services);
   const productsMap = indexBy(current.products);
@@ -444,6 +465,9 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
       rows: storeCategoryRowsOut,
       omitted_stores: omittedStoreCount,
     },
+    busy_hours: busyHours,
+    top_services: topServices,
+    unpaid_orders: unpaidOrders,
     summary: {
       current: summary,
       previous: prevSummary,
@@ -478,14 +502,17 @@ function summariseFinancial(raw: {
   const refunds = raw.refunds.reduce((s, r) => s + r.amount, 0);
   const kept = revenue(collected, refunds);
   const grossProfit = kept - cogs;
+  const grossSalesTotal = servicesGrossSales + productsGrossSales;
   return {
-    gross_sales: servicesGrossSales + productsGrossSales,
+    gross_sales: grossSalesTotal,
     services_gross_sales: servicesGrossSales,
     products_gross_sales: productsGrossSales,
     discount,
+    discount_rate: grossSalesTotal > 0 ? discount / grossSalesTotal : 0,
     collected,
     delivery_fees: deliveryFees,
     refunds,
+    refund_rate: collected > 0 ? refunds / collected : 0,
     revenue: kept,
     cogs,
     gross_profit: grossProfit,

@@ -95,6 +95,18 @@ const QUERIES: [string, Query][] = [
     (storeId) => repo.listStoreRefundRows({ range: AUGUST, storeId }),
   ],
   [
+    "busy hours",
+    (storeId) => repo.listBusyHourRows({ range: AUGUST, storeId }),
+  ],
+  [
+    "top services",
+    (storeId) => repo.listTopServiceRows({ range: AUGUST, storeId }),
+  ],
+  [
+    "unpaid orders by age",
+    (storeId) => repo.listUnpaidOrderAgeRows({ storeId }),
+  ],
+  [
     "category gross sales",
     (storeId) =>
       repo.listCategoryGrossSalesSeries({

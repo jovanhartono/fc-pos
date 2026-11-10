@@ -9,6 +9,7 @@ import {
   isNotNull,
   isNull,
   lt,
+  ne,
   or,
   sql,
 } from "drizzle-orm";
@@ -54,6 +55,7 @@ import {
   type DateRange,
   type Granularity,
   jakartaBucketExpr,
+  jakartaWallTime,
 } from "@/modules/reports/report-range.util";
 import { listServicesProcessed } from "@/modules/reports/services-processed";
 
@@ -196,6 +198,93 @@ export async function listStoreRefundRows({ range, storeId }: RangeArgs) {
     store_name: row.store_name,
     store_code: row.store_code,
     refunds: Number(row.refunds),
+  }));
+}
+
+export async function listBusyHourRows({ range, storeId }: RangeArgs) {
+  const wallTime = jakartaWallTime(ordersTable.paid_at);
+  const weekday = sql<number>`(EXTRACT(ISODOW FROM ${wallTime}) - 1)::int`;
+  const hour = sql<number>`EXTRACT(HOUR FROM ${wallTime})::int`;
+  const rows = await db
+    .select({ weekday, hour, collected: collected() })
+    .from(ordersTable)
+    .where(and(...paidOrderWindow({ range, storeId })))
+    .groupBy(weekday, hour);
+
+  return rows.map((row) => ({
+    weekday: Number(row.weekday),
+    hour: Number(row.hour),
+    collected: Number(row.collected),
+  }));
+}
+
+export async function listTopServiceRows({ range, storeId }: RangeArgs) {
+  const rows = await db
+    .select({
+      service_id: servicesTable.id,
+      code: servicesTable.code,
+      name: servicesTable.name,
+      gross_sales: grossSales(ordersServicesTable),
+      // A Rework is the same sale done again for a Complaint, not a new sale.
+      items: sql<number>`(COUNT(*) FILTER (WHERE ${ordersServicesTable.complaint_id} IS NULL))::int`,
+      cogs: sumMoney(ordersServicesTable.cogs_snapshot),
+    })
+    .from(ordersServicesTable)
+    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .innerJoin(
+      servicesTable,
+      eq(ordersServicesTable.service_id, servicesTable.id)
+    )
+    .where(and(...paidOrderWindow({ range, storeId })))
+    .groupBy(servicesTable.id, servicesTable.code, servicesTable.name)
+    .orderBy(
+      desc(sql`SUM(${ordersServicesTable.subtotal})`),
+      asc(servicesTable.id)
+    )
+    .limit(5);
+
+  return rows.map((row) => ({
+    service_id: row.service_id,
+    code: row.code,
+    name: row.name,
+    gross_sales: Number(row.gross_sales),
+    items: Number(row.items),
+    cogs: Number(row.cogs),
+  }));
+}
+
+export const UNPAID_AGE_KEYS = ["week", "month", "older"] as const;
+
+// Who still owes the counter today, whatever stretch the report covers. A
+// cancelled Order owes nothing, as on the Orders list's Unpaid filter. The
+// amount is orderNetTotal (schema/discount.ts) in SQL: change the two together.
+export async function listUnpaidOrderAgeRows({
+  storeId,
+}: Pick<RangeArgs, "storeId">) {
+  const ageDays = sql`(now() AT TIME ZONE 'Asia/Jakarta')::date - (${jakartaWallTime(ordersTable.created_at)})::date`;
+  const key = sql<
+    (typeof UNPAID_AGE_KEYS)[number]
+  >`CASE WHEN ${ageDays} <= 7 THEN 'week' WHEN ${ageDays} <= 30 THEN 'month' ELSE 'older' END`;
+  const rows = await db
+    .select({
+      key,
+      orders: sql<number>`COUNT(*)::int`,
+      amount: sql<string>`COALESCE(SUM(${ordersTable.total} - ${ordersTable.discount} + ${ordersTable.delivery_fee}), 0)`,
+    })
+    .from(ordersTable)
+    .where(
+      and(
+        eq(ordersTable.payment_status, "unpaid"),
+        ne(ordersTable.status, "cancelled"),
+        storeScope(ordersTable.store_id, storeId)
+      )
+    )
+    .groupBy(key);
+
+  return rows.map((row) => ({
+    key: row.key,
+    orders: Number(row.orders),
+    amount: Number(row.amount),
   }));
 }
 

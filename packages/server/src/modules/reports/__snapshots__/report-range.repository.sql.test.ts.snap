@@ -104,6 +104,46 @@ exports[`what each money report asks Postgres for one store asks the same questi
 ]
 `;
 
+exports[`what each money report asks Postgres for one store asks the same question for busy hours 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+    ],
+    "sql": "select (EXTRACT(ISODOW FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta') - 1)::int, EXTRACT(HOUR FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::int, COALESCE(SUM("paid_amount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by (EXTRACT(ISODOW FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta') - 1)::int, EXTRACT(HOUR FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::int",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for top services 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      3,
+      5,
+    ],
+    "sql": "select "services"."id", "services"."code", "services"."name", COALESCE(SUM("orders_services"."subtotal"), 0), (COUNT(*) FILTER (WHERE "orders_services"."complaint_id" IS NULL))::int, COALESCE(SUM("orders_services"."cogs_snapshot"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" inner join "services" on "orders_services"."service_id" = "services"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by "services"."id", "services"."code", "services"."name" order by SUM("orders_services"."subtotal") desc, "services"."id" asc limit $4",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for one store asks the same question for unpaid orders by age 1`] = `
+[
+  {
+    "params": [
+      "unpaid",
+      "cancelled",
+      3,
+    ],
+    "sql": "select CASE WHEN (now() AT TIME ZONE 'Asia/Jakarta')::date - (("orders"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::date <= 7 THEN 'week' WHEN (now() AT TIME ZONE 'Asia/Jakarta')::date - (("orders"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::date <= 30 THEN 'month' ELSE 'older' END, COUNT(*)::int, COALESCE(SUM("total" - "discount" + "delivery_fee"), 0) from "orders" where (("orders"."payment_status" = $1) and ("orders"."status" <> $2) and ("orders"."store_id" = $3)) group by CASE WHEN (now() AT TIME ZONE 'Asia/Jakarta')::date - (("orders"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::date <= 7 THEN 'week' WHEN (now() AT TIME ZONE 'Asia/Jakarta')::date - (("orders"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::date <= 30 THEN 'month' ELSE 'older' END",
+  },
+]
+`;
+
 exports[`what each money report asks Postgres for one store asks the same question for category gross sales 1`] = `
 [
   {
@@ -542,6 +582,43 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-08-31T17:00:00.000Z",
     ],
     "sql": "select "orders"."store_id", "stores"."name", "stores"."code", COALESCE(SUM("order_refunds"."total_amount"), 0) from "order_refunds" inner join "orders" on "order_refunds"."order_id" = "orders"."id" inner join "stores" on "orders"."store_id" = "stores"."id" where (("order_refunds"."created_at" >= $1) and ("order_refunds"."created_at" < $2)) group by "orders"."store_id", "stores"."name", "stores"."code"",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for busy hours 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+    ],
+    "sql": "select (EXTRACT(ISODOW FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta') - 1)::int, EXTRACT(HOUR FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::int, COALESCE(SUM("paid_amount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by (EXTRACT(ISODOW FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta') - 1)::int, EXTRACT(HOUR FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::int",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for top services 1`] = `
+[
+  {
+    "params": [
+      "2026-07-31T17:00:00.000Z",
+      "2026-08-31T17:00:00.000Z",
+      5,
+    ],
+    "sql": "select "services"."id", "services"."code", "services"."name", COALESCE(SUM("orders_services"."subtotal"), 0), (COUNT(*) FILTER (WHERE "orders_services"."complaint_id" IS NULL))::int, COALESCE(SUM("orders_services"."cogs_snapshot"), 0) from "orders_services" inner join "orders" on "orders_services"."order_id" = "orders"."id" inner join "services" on "orders_services"."service_id" = "services"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by "services"."id", "services"."code", "services"."name" order by SUM("orders_services"."subtotal") desc, "services"."id" asc limit $3",
+  },
+]
+`;
+
+exports[`what each money report asks Postgres for the whole company asks the same question for unpaid orders by age 1`] = `
+[
+  {
+    "params": [
+      "unpaid",
+      "cancelled",
+    ],
+    "sql": "select CASE WHEN (now() AT TIME ZONE 'Asia/Jakarta')::date - (("orders"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::date <= 7 THEN 'week' WHEN (now() AT TIME ZONE 'Asia/Jakarta')::date - (("orders"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::date <= 30 THEN 'month' ELSE 'older' END, COUNT(*)::int, COALESCE(SUM("total" - "discount" + "delivery_fee"), 0) from "orders" where (("orders"."payment_status" = $1) and ("orders"."status" <> $2)) group by CASE WHEN (now() AT TIME ZONE 'Asia/Jakarta')::date - (("orders"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::date <= 7 THEN 'week' WHEN (now() AT TIME ZONE 'Asia/Jakarta')::date - (("orders"."created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::date <= 30 THEN 'month' ELSE 'older' END",
   },
 ]
 `;
