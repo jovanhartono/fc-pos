@@ -1,6 +1,6 @@
 import { POSTServiceSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { CurrencyInput } from "@/components/form/currency-input";
 import {
@@ -83,7 +83,10 @@ export function ServiceForm({
 	});
 	const isSubmitting = form.formState.isSubmitting;
 	useSheetDirtyGuard(form.formState.isDirty);
-	const noListPrice = form.watch("no_list_price");
+	const noListPrice = useWatch({
+		control: form.control,
+		name: "no_list_price",
+	});
 
 	return (
 		<form

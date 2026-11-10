@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 interface BarcodeDetectorLike {
 	detect: (input: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
@@ -31,12 +31,9 @@ export const useBarcodeScanner = (
 	const [stream, setStream] = useState<MediaStream | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
-	const onDetectRef = useRef(onDetect);
-	useEffect(() => {
-		onDetectRef.current = onDetect;
-	});
+	const onDetectFromEffect = useEffectEvent(onDetect);
 
-	const stop = useCallback(() => {
+	const stop = () => {
 		cancelRef.current = true;
 
 		if (streamRef.current) {
@@ -47,9 +44,11 @@ export const useBarcodeScanner = (
 		}
 
 		setStream(null);
-	}, []);
+	};
 
-	const start = useCallback(async () => {
+	const stopFromEffect = useEffectEvent(stop);
+
+	const start = async () => {
 		if (openingRef.current || streamRef.current) {
 			return;
 		}
@@ -68,6 +67,7 @@ export const useBarcodeScanner = (
 			const nextStream = await navigator.mediaDevices.getUserMedia({
 				video: { facingMode: { ideal: "environment" } },
 			});
+			openingRef.current = false;
 
 			if (cancelRef.current) {
 				for (const track of nextStream.getTracks()) {
@@ -79,12 +79,11 @@ export const useBarcodeScanner = (
 			streamRef.current = nextStream;
 			setStream(nextStream);
 		} catch {
+			openingRef.current = false;
 			setError("Couldn't open the camera. Type the code.");
 			stop();
-		} finally {
-			openingRef.current = false;
 		}
-	}, [stop]);
+	};
 
 	useEffect(() => {
 		const video = videoRef.current;
@@ -121,8 +120,8 @@ export const useBarcodeScanner = (
 						return;
 					}
 
-					stop();
-					onDetectRef.current(rawValue);
+					stopFromEffect();
+					onDetectFromEffect(rawValue);
 					return;
 				}
 			} catch {
@@ -151,10 +150,10 @@ export const useBarcodeScanner = (
 				video.srcObject = null;
 			}
 		};
-	}, [stream, stop]);
+	}, [stream]);
 
 	// The Find button and every queue row navigate away without stopping the scanner.
-	useEffect(() => stop, [stop]);
+	useEffect(() => () => stopFromEffect(), []);
 
 	return {
 		videoRef,

@@ -9,11 +9,12 @@ import { PhotoStage } from "@/features/orders/components/photo-stage";
 
 const StageSurface = () => {
 	const { actions, state } = usePhotoCapture();
+	const { previewRef } = state.camera;
 
 	if (state.isShooting) {
 		return (
 			<video
-				ref={state.camera.previewRef}
+				ref={previewRef}
 				autoPlay
 				muted
 				playsInline

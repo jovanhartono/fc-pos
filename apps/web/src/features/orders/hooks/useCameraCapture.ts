@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
 	type EncodedUpload,
 	encodeForUpload,
@@ -53,7 +53,7 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 	const [stream, setStream] = useState<MediaStream | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
-	const stop = useCallback(() => {
+	const stop = () => {
 		cancelRef.current = true;
 		setStream((previous) => {
 			if (previous) {
@@ -70,9 +70,9 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 
 		setIsReady(false);
 		setIsOpen(false);
-	}, []);
+	};
 
-	const open = useCallback(async () => {
+	const open = async () => {
 		setError(null);
 		setIsReady(false);
 		setIsOpen(true);
@@ -109,7 +109,7 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 			setError("Unable to open the camera on this device.");
 			setIsOpen(false);
 		}
-	}, []);
+	};
 
 	useEffect(() => {
 		const preview = previewRef.current;
@@ -133,7 +133,7 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 		};
 	}, [stream]);
 
-	const capture = useCallback(async (): Promise<EncodedUpload | null> => {
+	const capture = async (): Promise<EncodedUpload | null> => {
 		const video = previewRef.current;
 		if (!video) {
 			setError("Camera preview is not ready yet.");
@@ -179,11 +179,11 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 			setError("Couldn't take photo. Try again.");
 			return null;
 		}
-	}, []);
+	};
 
-	const markReady = useCallback(() => {
+	const markReady = () => {
 		setIsReady(true);
-	}, []);
+	};
 
 	return {
 		previewRef,

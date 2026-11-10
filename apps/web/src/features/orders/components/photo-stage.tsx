@@ -1,7 +1,13 @@
 import { ArrowLeft02Icon, ArrowRight02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type * as React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	useEffect,
+	useEffectEvent,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
 import { Button } from "@/components/ui/button";
 import {
 	clampOffset,
@@ -96,7 +102,7 @@ export const PhotoStage = ({
 	const activeItem = items[activeIndex];
 	const activeId = activeItem?.id;
 
-	const commitTransform = useCallback((next: ZoomTransform) => {
+	const commitTransform = useEffectEvent((next: ZoomTransform) => {
 		transformRef.current = next;
 		if (frameRef.current !== 0) {
 			cancelAnimationFrame(frameRef.current);
@@ -108,34 +114,24 @@ export const PhotoStage = ({
 			contentRef.current.style.transform = toCssTransform(next);
 		}
 		setTransform(next);
-	}, []);
-
-	// Coalesced into one write per frame: a React render per pointermove drops frames on
-	// the mid-range phones the counter uses.
-	const applyTransform = useCallback((next: ZoomTransform) => {
-		transformRef.current = next;
-		if (frameRef.current !== 0) {
-			return;
-		}
-		frameRef.current = requestAnimationFrame(() => {
-			frameRef.current = 0;
-			if (contentRef.current) {
-				contentRef.current.style.transform = toCssTransform(
-					transformRef.current,
-				);
-			}
-		});
-	}, []);
+	});
 
 	// Every way to another photo drops the previous zoom, or the next opens inside
 	// it. Done during render so the fitted photo is what first paints.
-	const [zoomedIndex, setZoomedIndex] = useState(activeIndex);
-	if (zoomedIndex !== activeIndex) {
-		setZoomedIndex(activeIndex);
-		transformRef.current = resetTransform();
-		setTransform(transformRef.current);
-		lastTapRef.current = null;
+	const [openedIndex, setOpenedIndex] = useState(activeIndex);
+	if (openedIndex !== activeIndex) {
+		setOpenedIndex(activeIndex);
+		setTransform(resetTransform());
 	}
+	const resetIndexRef = useRef(openedIndex);
+	useLayoutEffect(() => {
+		if (resetIndexRef.current === openedIndex) {
+			return;
+		}
+		resetIndexRef.current = openedIndex;
+		transformRef.current = resetTransform();
+		lastTapRef.current = null;
+	}, [openedIndex]);
 
 	const showPrevious = () => {
 		if (!canNavigate) {
@@ -157,16 +153,6 @@ export const PhotoStage = ({
 	useEffect(() => {
 		latestRef.current = { activeId, canNavigate, showNext, showPrevious };
 	});
-
-	const resetPointerState = useCallback(() => {
-		pointerStateRef.current = {
-			deltaX: 0,
-			deltaY: 0,
-			id: null,
-			startX: 0,
-			startY: 0,
-		};
-	}, []);
 
 	const handleImageLoad: React.ReactEventHandler<HTMLImageElement> = (
 		event,
@@ -194,6 +180,33 @@ export const PhotoStage = ({
 		pointers.clear();
 		gesture.stage = null;
 		gesture.pinched = false;
+
+		// Coalesced into one write per frame: a React render per pointermove drops frames on
+		// the mid-range phones the counter uses.
+		const applyTransform = (next: ZoomTransform) => {
+			transformRef.current = next;
+			if (frameRef.current !== 0) {
+				return;
+			}
+			frameRef.current = requestAnimationFrame(() => {
+				frameRef.current = 0;
+				if (contentRef.current) {
+					contentRef.current.style.transform = toCssTransform(
+						transformRef.current,
+					);
+				}
+			});
+		};
+
+		const resetPointerState = () => {
+			pointerStateRef.current = {
+				deltaX: 0,
+				deltaY: 0,
+				id: null,
+				startX: 0,
+				startY: 0,
+			};
+		};
 
 		const measureStage = (): Stage | null => {
 			const rect = stageRef.current?.getBoundingClientRect();
@@ -494,7 +507,7 @@ export const PhotoStage = ({
 			// wrote to the node — otherwise state and the photo disagree from here on.
 			commitTransform(transformRef.current);
 		};
-	}, [applyTransform, commitTransform, resetPointerState, surfaceNode]);
+	}, [surfaceNode]);
 
 	// A mouse can't swipe, so on a counter PC the arrow keys are the way through a
 	// batch. On the document since the surface can't take focus; text fields are
@@ -575,7 +588,7 @@ export const PhotoStage = ({
 		});
 		observer.observe(surfaceNode);
 		return () => observer.disconnect();
-	}, [commitTransform, surfaceNode]);
+	}, [surfaceNode]);
 
 	return (
 		<div

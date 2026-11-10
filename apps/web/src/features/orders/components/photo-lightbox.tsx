@@ -244,10 +244,9 @@ export const PhotoLightbox = ({
 			}
 		} catch {
 			// The caller has already reported the failure; the photo stays.
-		} finally {
-			setIsDeleting(false);
-			setConfirmingDeleteId(null);
 		}
+		setIsDeleting(false);
+		setConfirmingDeleteId(null);
 	};
 
 	const handleSave = async () => {
@@ -259,9 +258,8 @@ export const PhotoLightbox = ({
 			await savePhoto(activeItem.download, activeItem.image_url);
 		} catch (error) {
 			toast.error(readServerErrorMessage(error, "Couldn't save photo"));
-		} finally {
-			setIsSaving(false);
 		}
+		setIsSaving(false);
 	};
 
 	return (
