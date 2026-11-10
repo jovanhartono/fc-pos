@@ -33,6 +33,10 @@ import {
   ORDER_TERMINAL_SERVICE_STATUSES as _ORDER_TERMINAL_SERVICE_STATUSES,
   WORKSHOP_SERVICE_STATUSES as _WORKSHOP_SERVICE_STATUSES,
 } from "@/schema/order-status";
+import {
+  PHOTO_THUMBNAIL_SUFFIX as _PHOTO_THUMBNAIL_SUFFIX,
+  PHOTO_TILE_SIZE as _PHOTO_TILE_SIZE,
+} from "@/schema/photo-thumbnail";
 import { QUEUE_CATEGORY_MODES as _QUEUE_CATEGORY_MODES } from "@/schema/queue";
 import {
   allocateRefund as _allocateRefund,
@@ -87,3 +91,6 @@ export const isUnpricedLine = _isUnpricedLine;
 export const allocateRefund = _allocateRefund;
 export const lineKey = _lineKey;
 export const orderLineRefundCaps = _orderLineRefundCaps;
+
+export const PHOTO_THUMBNAIL_SUFFIX = _PHOTO_THUMBNAIL_SUFFIX;
+export const PHOTO_TILE_SIZE = _PHOTO_TILE_SIZE;

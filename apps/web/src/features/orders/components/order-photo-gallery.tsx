@@ -6,6 +6,7 @@ import {
 	type PhotoLightboxItem,
 } from "@/features/orders/components/photo-lightbox";
 import {
+	handleTileError,
 	PHOTO_TILE_SIZE,
 	photoTileUrl,
 } from "@/features/orders/utils/photo-tile";
@@ -84,6 +85,7 @@ export function OrderPhotoGallery({
 								decoding="async"
 								height={PHOTO_TILE_SIZE}
 								loading="lazy"
+								onError={handleTileError}
 								src={photoTileUrl(item.image_url)}
 								width={PHOTO_TILE_SIZE}
 							/>

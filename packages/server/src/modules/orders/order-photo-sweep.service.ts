@@ -2,11 +2,10 @@ import { listReferencedPhotoKeys } from "@/modules/orders/order-photo.repository
 import {
   deleteStoredObject,
   listStoredObjects,
-  STORAGE_ENV_PREFIX,
+  ORDER_PHOTO_PREFIX,
+  photoKeyOf,
 } from "@/utils/s3";
 
-// Dev and prod share the bucket; this prefix keeps a dev sweep off prod's photos.
-const PHOTO_KEY_PREFIX = `${STORAGE_ENV_PREFIX}orders/`;
 // A cashier can leave a batch unconfirmed while serving the Customer. A batch left
 // longer than this, like a POS open over a weekend, loses its photos.
 const SETTLE_HOURS = 24;
@@ -27,7 +26,8 @@ export interface PhotoSweepResult {
  * Safe to run twice or miss a run: it compares bucket and database every time.
  */
 export async function sweepOrphanedOrderPhotos(): Promise<PhotoSweepResult> {
-  const stored = await listStoredObjects(PHOTO_KEY_PREFIX);
+  // Only this environment's prefix, so a dev sweep never reaches prod's photos.
+  const stored = await listStoredObjects(ORDER_PHOTO_PREFIX);
   // Bucket first, database second, so a photo filed mid-run is never taken for
   // an abandoned one.
   const referenced = await listReferencedPhotoKeys();
@@ -36,7 +36,8 @@ export async function sweepOrphanedOrderPhotos(): Promise<PhotoSweepResult> {
   const orphaned = stored
     .filter(
       (photo) =>
-        !referenced.has(photo.key) &&
+        // A thumbnail goes when its photo goes, never before.
+        !referenced.has(photoKeyOf(photo.key)) &&
         // No upload time, so no way to tell it is abandoned. Leave it.
         photo.lastModified !== undefined &&
         Date.parse(photo.lastModified) < settledBefore
