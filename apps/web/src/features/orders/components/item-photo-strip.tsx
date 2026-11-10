@@ -14,7 +14,7 @@ import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dia
 import { useRefreshOrder } from "@/features/orders/hooks/useOrderMutations";
 import type { OrderItem } from "@/features/orders/lib/order-lines";
 import {
-	ITEM_PHOTO_TILE_SIZE,
+	PHOTO_TILE_SIZE,
 	photoTileUrl,
 } from "@/features/orders/utils/photo-tile";
 import { itemPhotoUploader } from "@/features/orders/utils/photo-upload";
@@ -87,10 +87,10 @@ export const ItemPhotoStrip = ({
 						alt={image.alt}
 						className="aspect-square size-full object-cover"
 						decoding="async"
-						height={ITEM_PHOTO_TILE_SIZE}
+						height={PHOTO_TILE_SIZE}
 						loading="lazy"
-						src={photoTileUrl(image.image_url, ITEM_PHOTO_TILE_SIZE)}
-						width={ITEM_PHOTO_TILE_SIZE}
+						src={photoTileUrl(image.image_url)}
+						width={PHOTO_TILE_SIZE}
 					/>
 				</button>
 			))}
