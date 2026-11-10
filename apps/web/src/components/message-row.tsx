@@ -1,6 +1,7 @@
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Fragment, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 // A row that opens something. The hover fill reaches past the text, so the
 // text still lines up with the heading above the list.
@@ -23,10 +24,10 @@ interface RowLabelProps {
 	children: ReactNode;
 }
 
-// "rejected by Sari": the role is a label, the name is content.
+// "rejected by Sari" wraps as one piece, never between the role and the name.
 export const RowLabel = ({ label, children }: RowLabelProps) => (
 	<span className="whitespace-nowrap">
-		<span className="text-muted-foreground">{label}</span> {children}
+		{label} {children}
 	</span>
 );
 
@@ -63,8 +64,12 @@ export const MessageRowContent = ({
 			))}
 		</>
 	);
+	// Apple's tiers: the shoe leads, the words are the content, and the date and
+	// who-did-what sit back in grey.
 	const dateCell = (
-		<span className="justify-self-end text-subhead tabular-nums">{date}</span>
+		<span className="justify-self-end text-muted-foreground text-subhead tabular-nums">
+			{date}
+		</span>
 	);
 
 	return (
@@ -72,13 +77,13 @@ export const MessageRowContent = ({
 			<span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1">
 				{item ? (
 					<>
-						<span className={ROW_TITLE}>{item}</span>
+						<span className={cn(ROW_TITLE, "font-medium")}>{item}</span>
 						{badge ? (
 							<span className="justify-self-end">{badge}</span>
 						) : (
 							dateCell
 						)}
-						<span className="text-subhead">{what}</span>
+						<span className="text-muted-foreground text-subhead">{what}</span>
 						{badge ? dateCell : null}
 					</>
 				) : (
