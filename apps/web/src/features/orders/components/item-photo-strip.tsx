@@ -14,6 +14,7 @@ import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dia
 import { useRefreshOrder } from "@/features/orders/hooks/useOrderMutations";
 import type { OrderItem } from "@/features/orders/lib/order-lines";
 import {
+	handleTileError,
 	PHOTO_TILE_SIZE,
 	photoTileUrl,
 } from "@/features/orders/utils/photo-tile";
@@ -89,6 +90,7 @@ export const ItemPhotoStrip = ({
 						decoding="async"
 						height={PHOTO_TILE_SIZE}
 						loading="lazy"
+						onError={handleTileError}
 						src={photoTileUrl(image.image_url)}
 						width={PHOTO_TILE_SIZE}
 					/>

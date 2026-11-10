@@ -5,6 +5,7 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import { s3 } from "bun";
 import { BadRequestException } from "@/http-exceptions";
+import { PHOTO_TILE_SIZE } from "@/schema/photo-thumbnail";
 import {
   assertPhotoKeyUnder,
   buildMediaUrl,
@@ -48,6 +49,12 @@ describe("assertPhotoKeyUnder", () => {
   it("refuses extra nesting under the scope's folder", () => {
     const nestedKey = `${STORAGE_ENV_PREFIX}orders/1042/items/88/sub/3f9a`;
     expect(() => assertPhotoKeyUnder(nestedKey, itemScope)).toThrow(
+      "Invalid image path"
+    );
+  });
+
+  it("refuses a thumbnail's path, which the photo sweep would delete as a leftover thumbnail", () => {
+    expect(() => assertPhotoKeyUnder(`${validKey}.thumb`, itemScope)).toThrow(
       "Invalid image path"
     );
   });
@@ -99,11 +106,17 @@ describe("buildMediaUrl", () => {
   });
 });
 
-interface StubbedUpload {
+interface ImagePass {
   resize: unknown[];
+  webp: unknown[];
+}
+
+interface StubbedUpload {
+  /** Each decode-and-encode of the PUT object read from the bucket, in order. */
+  passes: ImagePass[];
   /** Byte range the header probe asked for, so the full download it replaces stays visible. */
   sliced: unknown[] | null;
-  webp: unknown[];
+  thumbnails: { bytes: Uint8Array; key: string; options: unknown }[];
   written: { bytes: Uint8Array; options: unknown }[];
 }
 
@@ -118,41 +131,52 @@ interface StubOptions {
 /** Stands in for the object the counter phone just PUT to its presigned URL. */
 const stubUpload = ({ decode, header, size = 400_000 }: StubOptions) => {
   const calls: StubbedUpload = {
-    resize: [],
+    passes: [],
     sliced: null,
-    webp: [],
+    thumbnails: [],
     written: [],
   };
-  const transcode = () => ({
-    resize: (...resizeArgs: unknown[]) => {
-      calls.resize = resizeArgs;
-      return {
-        webp: (...webpArgs: unknown[]) => {
-          calls.webp = webpArgs;
-          return { bytes: async () => decode() };
+  const transcode = () => {
+    const pass: ImagePass = { resize: [], webp: [] };
+    calls.passes.push(pass);
+    return {
+      resize: (...resizeArgs: unknown[]) => {
+        pass.resize = resizeArgs;
+        return {
+          webp: (...webpArgs: unknown[]) => {
+            pass.webp = webpArgs;
+            return { bytes: async () => decode() };
+          },
+        };
+      },
+    };
+  };
+  const spy = spyOn(s3, "file").mockImplementation(
+    (key: string) =>
+      ({
+        image: transcode,
+        slice: (...sliceArgs: unknown[]) => {
+          calls.sliced = sliceArgs;
+          return {
+            image: () => ({
+              metadata: () =>
+                header
+                  ? Promise.resolve(header())
+                  : Promise.reject(imageFailure("ERR_IMAGE_UNKNOWN_FORMAT")),
+            }),
+          };
         },
-      };
-    },
-  });
-  const spy = spyOn(s3, "file").mockReturnValue({
-    image: transcode,
-    slice: (...sliceArgs: unknown[]) => {
-      calls.sliced = sliceArgs;
-      return {
-        image: () => ({
-          metadata: () =>
-            header
-              ? Promise.resolve(header())
-              : Promise.reject(imageFailure("ERR_IMAGE_UNKNOWN_FORMAT")),
-        }),
-      };
-    },
-    stat: () => Promise.resolve({ size }),
-    write: (bytes: Uint8Array, options: unknown) => {
-      calls.written.push({ bytes, options });
-      return Promise.resolve(bytes.byteLength);
-    },
-  } as never);
+        stat: () => Promise.resolve({ size }),
+        write: (bytes: Uint8Array, options: unknown) => {
+          if (key.endsWith(".thumb")) {
+            calls.thumbnails.push({ bytes, key, options });
+          } else {
+            calls.written.push({ bytes, options });
+          }
+          return Promise.resolve(bytes.byteLength);
+        },
+      }) as never
+  );
 
   return { calls, restore: () => spy.mockRestore() };
 };
@@ -163,6 +187,23 @@ function imageFailure(code: string) {
 
 const jpegHeader = () => ({ format: "jpeg", height: 1920, width: 2560 });
 const webpHeader = () => ({ format: "webp", height: 1920, width: 2560 });
+
+const THUMBNAIL_PASS: ImagePass = {
+  resize: [
+    PHOTO_TILE_SIZE,
+    PHOTO_TILE_SIZE,
+    { fit: "inside", withoutEnlargement: true },
+  ],
+  webp: [{ quality: 75 }],
+};
+
+// A real 4:3 WebP, so the thumbnail made from a converted photo in memory runs Bun's own encoder.
+const ONE_PIXEL_PNG =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
+const landscapeWebp = await new Bun.Image(Buffer.from(ONE_PIXEL_PNG, "base64"))
+  .resize(400, 300)
+  .webp()
+  .bytes();
 
 describe("optimizeUploadedImage", () => {
   let restore = () => {
@@ -181,12 +222,13 @@ describe("optimizeUploadedImage", () => {
 
     await optimizeUploadedImage("orders/812/dropoff.jpg");
 
-    expect(calls.resize).toEqual([
-      2560,
-      2560,
-      { fit: "inside", withoutEnlargement: true },
+    // One read of the upload; the thumbnail comes from the converted photo in memory.
+    expect(calls.passes).toEqual([
+      {
+        resize: [2560, 2560, { fit: "inside", withoutEnlargement: true }],
+        webp: [{ quality: 85 }],
+      },
     ]);
-    expect(calls.webp).toEqual([{ quality: 85 }]);
     expect(calls.written).toEqual([
       { bytes: optimized, options: { type: "image/webp" } },
     ]);
@@ -208,7 +250,8 @@ describe("optimizeUploadedImage", () => {
     // A header-sized range, not the whole object — the saving this branch exists for.
     expect(calls.sliced).toEqual([0, 65_536]);
     expect(calls.written).toHaveLength(0);
-    expect(calls.resize).toEqual([]);
+    // Read once more only to make the thumbnail.
+    expect(calls.passes).toEqual([THUMBNAIL_PASS]);
   });
 
   it("still re-encodes a WebP inside the pixel budget but far too heavy to put on the CDN", async () => {
@@ -301,5 +344,74 @@ describe("optimizeUploadedImage", () => {
     await expect(optimizeUploadedImage("orders/812/dropoff.jpg")).rejects.toBe(
       outage
     );
+  });
+
+  it("files a small WebP beside a kept photo, so the Order screen tiles it without Cloudflare's quota", async () => {
+    const small = new Uint8Array([9, 9]);
+    const { calls, restore: undo } = stubUpload({
+      decode: () => small,
+      header: webpHeader,
+    });
+    restore = undo;
+
+    await optimizeUploadedImage("orders/812/services/9/tear");
+
+    expect(calls.passes).toEqual([THUMBNAIL_PASS]);
+    expect(calls.thumbnails).toEqual([
+      {
+        bytes: small,
+        key: "orders/812/services/9/tear.thumb",
+        options: { type: "image/webp" },
+      },
+    ]);
+  });
+
+  it("makes an iPad photo's thumbnail from the converted WebP, at most 240 on its long side", async () => {
+    const { calls, restore: undo } = stubUpload({
+      decode: () => landscapeWebp,
+      header: jpegHeader,
+    });
+    restore = undo;
+
+    await optimizeUploadedImage("orders/812/dropoff");
+
+    expect(calls.thumbnails).toHaveLength(1);
+    const [thumbnail] = calls.thumbnails;
+    expect(thumbnail?.key).toBe("orders/812/dropoff.thumb");
+    expect(
+      await new Bun.Image(thumbnail?.bytes ?? new Uint8Array()).metadata()
+    ).toEqual({ format: "webp", height: 180, width: 240 });
+  });
+
+  it("still files an iPad's JPEG once a thumbnail fails, since the tile can fall back to the original", async () => {
+    // Not a real image, so the thumbnail's encode fails while the stored photo is written.
+    const optimized = new Uint8Array([1, 2, 3]);
+    const { calls, restore: undo } = stubUpload({
+      decode: () => optimized,
+      header: jpegHeader,
+    });
+    restore = undo;
+
+    await optimizeUploadedImage("orders/812/dropoff");
+
+    expect(calls.written).toEqual([
+      { bytes: optimized, options: { type: "image/webp" } },
+    ]);
+    expect(calls.thumbnails).toHaveLength(0);
+  });
+
+  it("files no thumbnail for a photo it refused", async () => {
+    const { calls, restore: undo } = stubUpload({
+      decode: () => {
+        throw imageFailure("ERR_IMAGE_FORMAT_UNSUPPORTED");
+      },
+      header: null,
+    });
+    restore = undo;
+
+    await expect(
+      optimizeUploadedImage("orders/812/dropoff.heic")
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(calls.thumbnails).toHaveLength(0);
   });
 });

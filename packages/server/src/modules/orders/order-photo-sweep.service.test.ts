@@ -128,6 +128,35 @@ describe("sweepOrphanedOrderPhotos", () => {
     expect(calls.deleted).toEqual([]);
   });
 
+  it("keeps a photo's thumbnail for as long as an order points at the photo", async () => {
+    referenced = new Set([own("812/dropoff/filed")]);
+    const { calls, restore: undo } = stubBucket([
+      { key: own("812/dropoff/filed"), lastModified: hoursAgo(72) },
+      { key: own("812/dropoff/filed.thumb"), lastModified: hoursAgo(72) },
+    ]);
+    restore = undo;
+
+    expect(await sweepOrphanedOrderPhotos()).toMatchObject({ deleted: 0 });
+    expect(calls.deleted).toEqual([]);
+  });
+
+  it("takes an abandoned photo's thumbnail along with it", async () => {
+    const { calls, restore: undo } = stubBucket([
+      { key: own("812/services/9/abandoned"), lastModified: hoursAgo(72) },
+      {
+        key: own("812/services/9/abandoned.thumb"),
+        lastModified: hoursAgo(72),
+      },
+    ]);
+    restore = undo;
+
+    expect(await sweepOrphanedOrderPhotos()).toMatchObject({ deleted: 2 });
+    expect(calls.deleted).toEqual([
+      own("812/services/9/abandoned"),
+      own("812/services/9/abandoned.thumb"),
+    ]);
+  });
+
   it("leaves a shot taken an hour ago alone, so a batch still being reviewed is not swept out from under the operator", async () => {
     const { calls, restore: undo } = stubBucket([
       { key: own("812/services/9/still-staged"), lastModified: hoursAgo(1) },

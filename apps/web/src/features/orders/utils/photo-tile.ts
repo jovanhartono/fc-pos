@@ -1,13 +1,27 @@
-// One size for every tile: Cloudflare counts each photo-and-size pair against the monthly free quota.
-export const PHOTO_TILE_SIZE = 240;
+import { PHOTO_THUMBNAIL_SUFFIX, PHOTO_TILE_SIZE } from "@fresclean/api/rules";
+import type { SyntheticEvent } from "react";
 
-// Past the month's free quota, onerror=redirect shows the original instead of a broken tile.
+export { PHOTO_TILE_SIZE };
+
+// The small copy the server files beside each photo when it's saved.
 export const photoTileUrl = (url: string) => {
 	// A photo still on the counter's screen is a local preview, not on the CDN yet.
 	if (!url.startsWith("https://")) {
 		return url;
 	}
 
-	const { origin, pathname } = new URL(url);
-	return `${origin}/cdn-cgi/image/width=${PHOTO_TILE_SIZE},height=${PHOTO_TILE_SIZE},fit=cover,format=auto,onerror=redirect${pathname}`;
+	return `${url}${PHOTO_THUMBNAIL_SUFFIX}`;
+};
+
+// A photo whose thumbnail failed on save tiles from the original: heavier, never broken.
+export const originalPhotoUrl = (tileUrl: string) =>
+	tileUrl.endsWith(PHOTO_THUMBNAIL_SUFFIX)
+		? tileUrl.slice(0, -PHOTO_THUMBNAIL_SUFFIX.length)
+		: null;
+
+export const handleTileError = (event: SyntheticEvent<HTMLImageElement>) => {
+	const original = originalPhotoUrl(event.currentTarget.src);
+	if (original) {
+		event.currentTarget.src = original;
+	}
 };

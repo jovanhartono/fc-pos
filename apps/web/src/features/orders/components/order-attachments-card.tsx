@@ -20,6 +20,7 @@ import {
 import { SinglePhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import {
+	handleTileError,
 	PHOTO_TILE_SIZE,
 	photoTileUrl,
 } from "@/features/orders/utils/photo-tile";
@@ -178,6 +179,7 @@ const DropoffPhoto = ({ capturedAt, imageUrl, orderId }: DropoffPhotoProps) => {
 					decoding="async"
 					height={PHOTO_TILE_SIZE}
 					loading="lazy"
+					onError={handleTileError}
 					src={photoTileUrl(imageUrl)}
 					width={PHOTO_TILE_SIZE}
 				/>

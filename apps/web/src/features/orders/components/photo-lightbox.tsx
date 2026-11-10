@@ -17,7 +17,10 @@ import {
 import type { PhotoDownloadRef } from "@/features/orders/api";
 import { PhotoStage } from "@/features/orders/components/photo-stage";
 import { savePhoto } from "@/features/orders/utils/photo-download";
-import { photoTileUrl } from "@/features/orders/utils/photo-tile";
+import {
+	handleTileError,
+	photoTileUrl,
+} from "@/features/orders/utils/photo-tile";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { cn } from "@/lib/utils";
 
@@ -171,6 +174,7 @@ const Filmstrip = ({ activeIndex, items, onSelect }: FilmstripProps) => {
 						decoding="async"
 						draggable={false}
 						loading="lazy"
+						onError={handleTileError}
 						src={photoTileUrl(item.image_url)}
 					/>
 				</button>
