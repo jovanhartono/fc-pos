@@ -11,6 +11,7 @@ const reset: { id: number; password: string }[] = [];
 
 mock.module("@/modules/users/user.service", () => ({
   createUser: () => Promise.resolve({ id: 1 }),
+  getCouriers: () => Promise.resolve([{ id: 31, name: "Dedi" }]),
   getUserById: () => Promise.resolve(null),
   getUsers: () => Promise.resolve({ items: [], meta: {} }),
   resetUserPassword: ({ id, password }: { id: number; password: string }) => {
@@ -40,6 +41,24 @@ const asep: AuthUser = {
   name: "Asep",
   username: "asep",
   role: "cashier",
+  can_process_pickup: false,
+  store_ids: [1],
+};
+
+const wawan: AuthUser = {
+  id: 12,
+  name: "Wawan",
+  username: "wawan",
+  role: "worker",
+  can_process_pickup: false,
+  store_ids: [1],
+};
+
+const dedi: AuthUser = {
+  id: 31,
+  name: "Dedi",
+  username: "dedi",
+  role: "courier",
   can_process_pickup: false,
   store_ids: [1],
 };
@@ -117,5 +136,26 @@ describe("an admin resetting a password for someone who forgot theirs", () => {
     });
 
     expect(res.status).toBe(404);
+  });
+});
+
+// Whoever rings up a drop-off at the counter picks the Courier who brought it in.
+describe("listing Couriers for the counter", () => {
+  it.each([
+    ["an admin", buAdmin],
+    ["a cashier", asep],
+    ["a worker", wawan],
+  ])("gives %s the Couriers to pick from", async (_, user) => {
+    const res = await appFor(user).request("/users/couriers");
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: unknown };
+    expect(body.data).toEqual([{ id: 31, name: "Dedi" }]);
+  });
+
+  it("refuses a Courier, who only clocks in", async () => {
+    const res = await appFor(dedi).request("/users/couriers");
+
+    expect(res.status).toBe(403);
   });
 });

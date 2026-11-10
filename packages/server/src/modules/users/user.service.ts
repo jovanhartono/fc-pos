@@ -5,6 +5,7 @@ import {
   countUsers,
   findUserDetailById,
   insertUser,
+  listActiveCouriers,
   listUsers,
   replaceUserStores,
   updateUserById,
@@ -45,6 +46,10 @@ export async function getUsers(query?: GetUsersQuery) {
     items: users,
     meta: buildPaginationMeta(totalRows, pagination),
   };
+}
+
+export function getCouriers() {
+  return listActiveCouriers();
 }
 
 export async function getUserById(id: number) {

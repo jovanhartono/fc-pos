@@ -96,6 +96,14 @@ export function listUsers({
   });
 }
 
+export function listActiveCouriers() {
+  return db.query.usersTable.findMany({
+    columns: { id: true, name: true },
+    where: { role: "courier", is_active: true },
+    orderBy: { name: "asc" },
+  });
+}
+
 export function countUsers(filters: UserFilters) {
   return db.$count(usersTable, buildCountWhere(filters));
 }

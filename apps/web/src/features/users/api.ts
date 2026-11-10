@@ -12,11 +12,18 @@ import {
 	toPaginated,
 	toSearchParams,
 } from "@/lib/http";
-import { SESSION_DATA_STALE_TIME } from "@/lib/query-defaults";
+import {
+	REFERENCE_DATA_STALE_TIME,
+	SESSION_DATA_STALE_TIME,
+} from "@/lib/query-defaults";
 import { type rpc, rpcWithAuth } from "@/lib/rpc";
 
 export type User = InferResponseType<
 	typeof rpc.api.admin.users.$get
+>["data"][number];
+
+export type Courier = InferResponseType<
+	typeof rpc.api.admin.users.couriers.$get
 >["data"][number];
 
 export type Me = InferResponseType<typeof rpc.api.admin.users.me.$get>["data"];
@@ -26,7 +33,6 @@ export type FetchUsersQuery = {
 	offset?: number;
 	search?: string;
 	is_active?: boolean;
-	role?: "admin" | "cashier" | "worker" | "courier";
 };
 
 export type CreateUserPayload = z.infer<typeof POSTUserSchema>;
@@ -42,6 +48,7 @@ export const usersKeys = {
 	list: (query?: FetchUsersQuery) =>
 		[...usersKeys.lists(), query ?? {}] as const,
 	me: () => [...usersKeys.all, "me"] as const,
+	couriers: () => [...usersKeys.all, "couriers"] as const,
 };
 
 async function fetchUsersPage(
@@ -74,6 +81,15 @@ export const usersQueries = {
 			queryKey: usersKeys.me(),
 			queryFn: fetchMe,
 			staleTime: SESSION_DATA_STALE_TIME,
+		}),
+	couriers: () =>
+		queryOptions({
+			queryKey: usersKeys.couriers(),
+			queryFn: () =>
+				parseSuccessData<Courier[]>(
+					rpcWithAuth().api.admin.users.couriers.$get(),
+				),
+			staleTime: REFERENCE_DATA_STALE_TIME,
 		}),
 };
 

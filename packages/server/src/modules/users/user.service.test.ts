@@ -6,6 +6,7 @@ mock.module("@/modules/users/user.repository", () => ({
   countUsers: () => Promise.resolve(0),
   findUserDetailById: () => Promise.resolve(null),
   insertUser: () => Promise.resolve([]),
+  listActiveCouriers: () => Promise.resolve([]),
   listUsers: () => Promise.resolve([]),
   replaceUserStores: () => Promise.resolve([]),
   updateUserById: () => Promise.resolve([]),

@@ -19,12 +19,10 @@ export const OrderCourierForm = ({
 	const [selectedCourierId, setSelectedCourierId] = useState(currentCourierId);
 	const courierMutation = useUpdateOrderCourierMutation(orderId);
 
-	const couriersQuery = useQuery(
-		usersQueries.list({ role: "courier", is_active: true }),
-	);
+	const couriersQuery = useQuery(usersQueries.couriers());
 	const courierOptions = [
 		{ value: "none", label: "Walk-in (no courier)" },
-		...(couriersQuery.data?.items ?? []).map((courier) => ({
+		...(couriersQuery.data ?? []).map((courier) => ({
 			value: String(courier.id),
 			label: courier.name,
 		})),

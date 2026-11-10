@@ -1,13 +1,17 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import { NotFoundException } from "@/http-exceptions";
-import { assertCanManageUsers } from "@/modules/permissions/permissions";
+import {
+  assertCanCreateOrder,
+  assertCanManageUsers,
+} from "@/modules/permissions/permissions";
 import {
   GETUsersQuerySchema,
   PUTUserStoresSchema,
 } from "@/modules/users/user.schema";
 import {
   createUser,
+  getCouriers,
   getUserById,
   getUsers,
   resetUserPassword,
@@ -38,6 +42,11 @@ const app = new Hono<AdminEnv>()
     const { items, meta } = await getUsers(query);
 
     return c.json(success(items, undefined, meta));
+  })
+  .get("/couriers", async (c) => {
+    assertCanCreateOrder(c.get("jwtPayload"));
+
+    return c.json(success(await getCouriers()));
   })
   .get("/me", async (c) => {
     const actor = c.get("jwtPayload");
