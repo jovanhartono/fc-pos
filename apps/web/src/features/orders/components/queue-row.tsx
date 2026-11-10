@@ -1,6 +1,5 @@
 import { TURNAROUND_PROMISE_HOURS } from "@fresclean/api/rules";
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { RowChevron } from "@/components/message-row";
 import { Badge } from "@/components/ui/badge";
 import type { QueueItem, QueueItemService } from "@/features/orders/api";
 import { ReworkRoundLabel } from "@/features/orders/components/rework-round-label";
@@ -46,8 +45,9 @@ const QueueJobButton = ({
 	return (
 		<button
 			className={cn(
-				"group grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 px-3 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none",
-				reworkRound !== null && "pt-1 pl-5",
+				"grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 px-3 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none",
+				// Steps in under the line it redoes, as on the Order sheet.
+				reworkRound !== null && "pt-1 pl-8",
 			)}
 			onClick={onOpen}
 			type="button"
@@ -56,29 +56,16 @@ const QueueJobButton = ({
 				{reworkRound === null ? (
 					service.service_name
 				) : (
-					<>
-						<span aria-hidden="true" className="text-muted-foreground">
-							└{" "}
-						</span>
-						<ReworkRoundLabel
-							round={reworkRound}
-							serviceName={service.service_name}
-						/>
-					</>
+					<ReworkRoundLabel
+						round={reworkRound}
+						serviceName={service.service_name}
+					/>
 				)}
 			</span>
-			<HugeiconsIcon
-				icon={ArrowRight01Icon}
-				aria-hidden="true"
-				className="row-span-2 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-				strokeWidth={2}
-			/>
-			<span
-				className={cn(
-					"flex min-w-0 flex-wrap items-center gap-1.5 text-subhead",
-					reworkRound !== null && "pl-4",
-				)}
-			>
+			<span className="row-span-2">
+				<RowChevron />
+			</span>
+			<span className="flex min-w-0 flex-wrap items-center gap-1.5 text-subhead">
 				<Badge variant={getOrderServiceStatusBadgeVariant(service.status)}>
 					{formatOrderServiceStatus(service.status)}
 				</Badge>

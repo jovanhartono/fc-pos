@@ -7,9 +7,12 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { EmptyState } from "@/components/empty-state";
+import { MessageRowContent, ROW_TAP, RowLabel } from "@/components/message-row";
 import { Section } from "@/components/section";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { COMPLAINT_OUTCOMES } from "@/features/complaints/lib/format";
 import { OrderServiceDetail } from "@/features/orders/components/order-service-detail";
 import {
 	reportsQueries,
@@ -38,7 +41,8 @@ import {
 } from "@/features/reports/utils/workers-report";
 import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
 import { CONTENT_FADE } from "@/lib/content-fade";
-import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
+import { formatDay } from "@/lib/dayjs";
+import { getItemName } from "@/lib/order-service-item-details";
 import { cn } from "@/lib/utils";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -51,9 +55,6 @@ interface WorkerSheetTarget {
 	userName: string;
 	role: string;
 }
-
-export const shortDay = (value: string) =>
-	dayjs(value).tz(JAKARTA_TZ).format("D MMM");
 
 // Both the worker sheet and the line sheet opened from it use this, so the
 // line sheet's back button can bring the worker sheet up again.
@@ -95,6 +96,30 @@ const LineSheetContent = ({ orderId, serviceId }: LineSheetContentProps) => {
 			<OrderServiceDetail orderId={orderId} serviceId={serviceId} />
 		</div>
 	);
+};
+
+interface LineSheetItem {
+	item_code: string;
+	service_name: string | null;
+	order_id: number;
+	order_service_id: number;
+}
+
+// A QC reject opens its line in place, with a way back to the list it came from.
+export const useOpenLineSheet = () => {
+	const openSheet = useSheet((s) => s.openSheet);
+	return (item: LineSheetItem, back: { label: string; onClick: () => void }) =>
+		openSheet({
+			title: item.item_code,
+			description: item.service_name ?? undefined,
+			back,
+			content: () => (
+				<LineSheetContent
+					orderId={item.order_id}
+					serviceId={item.order_service_id}
+				/>
+			),
+		});
 };
 
 interface ServicesTableProps {
@@ -167,19 +192,16 @@ interface ServiceCardProps {
 	children: React.ReactNode;
 }
 
+// The Service heads its own card, as the Item heads the Order's Item card.
 const ServiceCard = ({ name, chip, children }: ServiceCardProps) => (
-	<div>
-		<div className="flex items-center justify-between gap-3 border-border border-b py-2">
+	<div className="rounded-lg border bg-card px-3">
+		<div className="flex items-center justify-between gap-3 border-b py-2">
 			<p className="font-medium text-body">{name}</p>
 			{chip}
 		</div>
-		<ul>{children}</ul>
+		<ul className="divide-y">{children}</ul>
 	</div>
 );
-
-export const ROW_CLASS =
-	"grid grid-cols-[3.5rem_auto_1fr] items-baseline gap-x-3 border-border py-2 text-body not-first:border-t max-sm:grid-cols-[3.5rem_1fr]";
-export const DETAIL_CLASS = "text-muted-foreground max-sm:col-start-2";
 
 interface RejectCardsProps {
 	target: WorkerSheetTarget;
@@ -187,7 +209,7 @@ interface RejectCardsProps {
 }
 
 const RejectCards = ({ target, rejects }: RejectCardsProps) => {
-	const openSheet = useSheet((s) => s.openSheet);
+	const openLineSheet = useOpenLineSheet();
 	const openWorkerSheet = useOpenWorkerSheet();
 	if (rejects.length === 0) {
 		return (
@@ -203,36 +225,31 @@ const RejectCards = ({ target, rejects }: RejectCardsProps) => {
 					chip={<QcChip rejects={service.rejects} checks={service.checks} />}
 				>
 					{service.items.map((item) => (
-						<li
-							key={`${item.order_service_id}-${item.rejected_at}`}
-							className={ROW_CLASS}
-						>
-							<span className="text-muted-foreground tabular-nums">
-								{shortDay(item.rejected_at)}
-							</span>
+						<li key={`${item.order_service_id}-${item.rejected_at}`}>
 							<button
 								type="button"
 								onClick={() =>
-									openSheet({
-										title: item.item_code,
-										description: service.service_name,
-										back: {
+									openLineSheet(
+										{ ...item, service_name: service.service_name },
+										{
 											label: target.userName,
 											onClick: () => openWorkerSheet(target),
 										},
-										content: () => (
-											<LineSheetContent
-												orderId={item.order_id}
-												serviceId={item.order_service_id}
-											/>
-										),
-									})
+									)
 								}
-								className="justify-self-start text-left text-link tabular-nums"
+								className={ROW_TAP}
 							>
-								{item.item_code}
+								<MessageRowContent
+									item={getItemName(item)}
+									date={formatDay(item.rejected_at)}
+									details={[
+										<RowLabel key="rejected" label="Rejected by">
+											{item.rejected_by_name}
+										</RowLabel>,
+									]}
+									text={item.note}
+								/>
 							</button>
-							<span className={DETAIL_CLASS}>{item.note || "–"}</span>
 						</li>
 					))}
 				</ServiceCard>
@@ -267,22 +284,29 @@ const ComplaintCards = ({ complaints }: ComplaintCardsProps) => {
 						/>
 					}
 				>
-					{service.items.map((item) => (
-						<li key={item.complaint_id} className={ROW_CLASS}>
-							<span className="text-muted-foreground tabular-nums">
-								{shortDay(item.opened_at)}
-							</span>
-							<Link
-								to="/complaints/$complaintId"
-								params={{ complaintId: String(item.complaint_id) }}
-								onClick={leaveSheet}
-								className="text-link tabular-nums"
-							>
-								{item.item_code}
-							</Link>
-							<span className={DETAIL_CLASS}>{item.reason}</span>
-						</li>
-					))}
+					{service.items.map((item) => {
+						const outcome = COMPLAINT_OUTCOMES[item.outcome];
+						return (
+							<li key={item.complaint_id}>
+								<Link
+									to="/complaints/$complaintId"
+									params={{ complaintId: String(item.complaint_id) }}
+									onClick={leaveSheet}
+									className={ROW_TAP}
+								>
+									<MessageRowContent
+										item={getItemName(item)}
+										date={formatDay(item.opened_at)}
+										lead={`Complaint #${item.complaint_id}`}
+										badge={
+											<Badge variant={outcome.variant}>{outcome.label}</Badge>
+										}
+										text={item.reason}
+									/>
+								</Link>
+							</li>
+						);
+					})}
 				</ServiceCard>
 			))}
 		</div>

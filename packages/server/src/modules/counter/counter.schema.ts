@@ -45,7 +45,11 @@ export interface CounterPickupShelf {
 export interface CounterQcReject {
   category: string;
   days: number;
+  item_brand: string | null;
   item_code: string;
+  item_color: string | null;
+  item_model: string | null;
+  item_size: string | null;
   note: string | null;
   order_id: number;
   order_service_id: number;
@@ -55,7 +59,11 @@ export interface CounterComplaint {
   category: string;
   complaint_id: number;
   days: number;
+  item_brand: string | null;
   item_code: string;
+  item_color: string | null;
+  item_model: string | null;
+  item_size: string | null;
   reason: string | null;
 }
 

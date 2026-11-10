@@ -38,6 +38,35 @@ const reworkLine = alias(ordersServicesTable, "rework_line");
 const cleaner = alias(usersTable, "cleaner");
 const checker = alias(usersTable, "checker");
 
+export type ComplaintOutcome =
+  | "reworked"
+  | "refunded"
+  | "cancelled"
+  | "pending";
+
+export const hasLiveRework = sql<boolean>`${exists(
+  db
+    .select({ id: reworkLine.id })
+    .from(reworkLine)
+    .where(
+      and(
+        eq(reworkLine.complaint_id, complaintsTable.id),
+        inArray(reworkLine.status, REWORKED_ROUND_STATUSES)
+      )
+    )
+)}`;
+
+// Same reading as the Complaints page badge, so the two never disagree.
+export const complaintOutcome = (line: {
+  has_live_rework: boolean;
+  status: (typeof ordersServicesTable.$inferSelect)["status"];
+}): ComplaintOutcome => {
+  if (line.status === "refunded" || line.status === "cancelled") {
+    return line.status;
+  }
+  return line.has_live_rework ? "reworked" : "pending";
+};
+
 type StatusLog = ReturnType<
   typeof alias<typeof orderServiceStatusLogsTable, string>
 >;
@@ -70,6 +99,10 @@ export async function listQualityCohort({ range, storeId }: RangeArgs) {
       service_name: servicesTable.name,
       status: ordersServicesTable.status,
       item_code: itemsTable.item_code,
+      item_brand: itemsTable.brand,
+      item_model: itemsTable.model,
+      item_color: itemsTable.color,
+      item_size: itemsTable.size,
       complaint_id: complaintsTable.id,
       complaint_reason: complaintsTable.reason,
       complained_at: complaintsTable.created_at,
@@ -84,17 +117,7 @@ export async function listQualityCohort({ range, storeId }: RangeArgs) {
             )
           )
       )}`,
-      has_live_rework: sql<boolean>`${exists(
-        db
-          .select({ id: reworkLine.id })
-          .from(reworkLine)
-          .where(
-            and(
-              eq(reworkLine.complaint_id, complaintsTable.id),
-              inArray(reworkLine.status, REWORKED_ROUND_STATUSES)
-            )
-          )
-      )}`,
+      has_live_rework: hasLiveRework,
     })
     .from(processed)
     .innerJoin(
@@ -311,7 +334,12 @@ export function listQcRejects({
       rejected_at: qcLog.created_at,
       order_id: ordersTable.id,
       order_code: ordersTable.code,
+      order_service_id: ordersServicesTable.id,
       item_code: itemsTable.item_code,
+      item_brand: itemsTable.brand,
+      item_model: itemsTable.model,
+      item_color: itemsTable.color,
+      item_size: itemsTable.size,
       service_name: servicesTable.name,
       store_code: storesTable.code,
       store_name: storesTable.name,

@@ -373,7 +373,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       1,
       7,
     ],
-    "sql": "select "qc_check_log"."created_at", "qc_check_log"."to_status" = $1, "qc_check_log"."note", "orders"."id", "orders_services"."id", "items"."item_code", "orders_services"."service_id", "services"."name" from "order_service_status_logs" "qc_check_log" inner join "orders_services" on "qc_check_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" inner join "items" on "orders_services"."item_id" = "items"."id" left join "services" on "orders_services"."service_id" = "services"."id" where (((("qc_check_log"."from_status" = $2) and ("qc_check_log"."to_status" in ($3, $4)) and ("qc_check_log"."created_at" >= $5) and ("qc_check_log"."created_at" < $6) and ("orders"."store_id" = $7))) and (((select "changed_by" from "order_service_status_logs" "clean_log" where (("clean_log"."order_service_id" = "qc_check_log"."order_service_id") and ("clean_log"."to_status" = $8) and ("clean_log"."created_at" <= "qc_check_log"."created_at")) order by "clean_log"."created_at" desc, "clean_log"."id" desc limit $9)) = $10)) order by "qc_check_log"."created_at" desc, "qc_check_log"."id" desc",
+    "sql": "select "qc_check_log"."created_at", "qc_check_log"."to_status" = $1, "qc_check_log"."note", "orders"."id", "orders_services"."id", "items"."item_code", "items"."brand", "items"."model", "items"."color", "items"."size", "orders_services"."service_id", "services"."name", "qc_check_log"."changed_by" from "order_service_status_logs" "qc_check_log" inner join "orders_services" on "qc_check_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" inner join "items" on "orders_services"."item_id" = "items"."id" left join "services" on "orders_services"."service_id" = "services"."id" where (((("qc_check_log"."from_status" = $2) and ("qc_check_log"."to_status" in ($3, $4)) and ("qc_check_log"."created_at" >= $5) and ("qc_check_log"."created_at" < $6) and ("orders"."store_id" = $7))) and (((select "changed_by" from "order_service_status_logs" "clean_log" where (("clean_log"."order_service_id" = "qc_check_log"."order_service_id") and ("clean_log"."to_status" = $8) and ("clean_log"."created_at" <= "qc_check_log"."created_at")) order by "clean_log"."created_at" desc, "clean_log"."id" desc limit $9)) = $10)) order by "qc_check_log"."created_at" desc, "qc_check_log"."id" desc",
   },
 ]
 `;
@@ -382,10 +382,17 @@ exports[`what each money report asks Postgres for one store asks the same questi
 [
   {
     "params": [
+      "queued",
+      "processing",
+      "waiting_qc",
+      "qc_reject",
+      "ready_for_pickup",
+      "picked_up",
+      "refunded",
       11,
       12,
     ],
-    "sql": "select "complaints"."id", "complaints"."created_at", "complaints"."reason", "orders_services"."order_id", "orders_services"."id", "items"."item_code" from "complaints" inner join "orders_services" on "complaints"."order_service_id" = "orders_services"."id" inner join "items" on "orders_services"."item_id" = "items"."id" where "complaints"."order_service_id" in ($1, $2)",
+    "sql": "select "complaints"."id", "complaints"."created_at", "complaints"."reason", "orders_services"."order_id", "orders_services"."id", "items"."item_code", "items"."brand", "items"."model", "items"."color", "items"."size", "orders_services"."status", exists (select "id" from "orders_services" "rework_line" where (("rework_line"."complaint_id" = "complaints"."id") and ("rework_line"."status" in ($1, $2, $3, $4, $5, $6, $7)))) from "complaints" inner join "orders_services" on "complaints"."order_service_id" = "orders_services"."id" inner join "items" on "orders_services"."item_id" = "items"."id" where "complaints"."order_service_id" in ($8, $9)",
   },
 ]
 `;
@@ -788,7 +795,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       1,
       7,
     ],
-    "sql": "select "qc_check_log"."created_at", "qc_check_log"."to_status" = $1, "qc_check_log"."note", "orders"."id", "orders_services"."id", "items"."item_code", "orders_services"."service_id", "services"."name" from "order_service_status_logs" "qc_check_log" inner join "orders_services" on "qc_check_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" inner join "items" on "orders_services"."item_id" = "items"."id" left join "services" on "orders_services"."service_id" = "services"."id" where (((("qc_check_log"."from_status" = $2) and ("qc_check_log"."to_status" in ($3, $4)) and ("qc_check_log"."created_at" >= $5) and ("qc_check_log"."created_at" < $6))) and (((select "changed_by" from "order_service_status_logs" "clean_log" where (("clean_log"."order_service_id" = "qc_check_log"."order_service_id") and ("clean_log"."to_status" = $7) and ("clean_log"."created_at" <= "qc_check_log"."created_at")) order by "clean_log"."created_at" desc, "clean_log"."id" desc limit $8)) = $9)) order by "qc_check_log"."created_at" desc, "qc_check_log"."id" desc",
+    "sql": "select "qc_check_log"."created_at", "qc_check_log"."to_status" = $1, "qc_check_log"."note", "orders"."id", "orders_services"."id", "items"."item_code", "items"."brand", "items"."model", "items"."color", "items"."size", "orders_services"."service_id", "services"."name", "qc_check_log"."changed_by" from "order_service_status_logs" "qc_check_log" inner join "orders_services" on "qc_check_log"."order_service_id" = "orders_services"."id" inner join "orders" on "orders_services"."order_id" = "orders"."id" inner join "items" on "orders_services"."item_id" = "items"."id" left join "services" on "orders_services"."service_id" = "services"."id" where (((("qc_check_log"."from_status" = $2) and ("qc_check_log"."to_status" in ($3, $4)) and ("qc_check_log"."created_at" >= $5) and ("qc_check_log"."created_at" < $6))) and (((select "changed_by" from "order_service_status_logs" "clean_log" where (("clean_log"."order_service_id" = "qc_check_log"."order_service_id") and ("clean_log"."to_status" = $7) and ("clean_log"."created_at" <= "qc_check_log"."created_at")) order by "clean_log"."created_at" desc, "clean_log"."id" desc limit $8)) = $9)) order by "qc_check_log"."created_at" desc, "qc_check_log"."id" desc",
   },
 ]
 `;
@@ -797,10 +804,17 @@ exports[`what each money report asks Postgres for the whole company asks the sam
 [
   {
     "params": [
+      "queued",
+      "processing",
+      "waiting_qc",
+      "qc_reject",
+      "ready_for_pickup",
+      "picked_up",
+      "refunded",
       11,
       12,
     ],
-    "sql": "select "complaints"."id", "complaints"."created_at", "complaints"."reason", "orders_services"."order_id", "orders_services"."id", "items"."item_code" from "complaints" inner join "orders_services" on "complaints"."order_service_id" = "orders_services"."id" inner join "items" on "orders_services"."item_id" = "items"."id" where "complaints"."order_service_id" in ($1, $2)",
+    "sql": "select "complaints"."id", "complaints"."created_at", "complaints"."reason", "orders_services"."order_id", "orders_services"."id", "items"."item_code", "items"."brand", "items"."model", "items"."color", "items"."size", "orders_services"."status", exists (select "id" from "orders_services" "rework_line" where (("rework_line"."complaint_id" = "complaints"."id") and ("rework_line"."status" in ($1, $2, $3, $4, $5, $6, $7)))) from "complaints" inner join "orders_services" on "complaints"."order_service_id" = "orders_services"."id" inner join "items" on "orders_services"."item_id" = "items"."id" where "complaints"."order_service_id" in ($8, $9)",
   },
 ]
 `;

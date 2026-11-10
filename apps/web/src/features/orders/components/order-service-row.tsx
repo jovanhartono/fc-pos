@@ -1,6 +1,5 @@
 import { isUnpricedLine } from "@fresclean/api/rules";
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ROW_TAP, ROW_TAP_NESTED, RowChevron } from "@/components/message-row";
 import { Badge } from "@/components/ui/badge";
 import type { OrderDetail } from "@/features/orders/api";
 import {
@@ -54,21 +53,10 @@ export const OrderServiceRow = ({
 
 	return (
 		<button
-			className={cn(
-				"-mx-2 flex w-[calc(100%+1rem)] items-start gap-2 rounded-md px-2 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none",
-				isNestedRework && "pt-1",
-			)}
+			className={cn(ROW_TAP, isNestedRework && ROW_TAP_NESTED)}
 			onClick={handleClick}
 			type="button"
 		>
-			{isNestedRework ? (
-				<span
-					aria-hidden="true"
-					className="text-muted-foreground text-body leading-5 compact:text-subhead"
-				>
-					└
-				</span>
-			) : null}
 			{/* On a phone the price sits beside the name and the badges drop
 			    to the last line, so no row is spent on the price or the worker. */}
 			<span className={LINE_GRID}>
@@ -102,11 +90,6 @@ export const OrderServiceRow = ({
 					{/* A blank line has no subtotal yet — "Rp 0" would read as
 					    deliberately free (a Rework), which it is not. */}
 					{isUnpriced ? "—" : formatMoney(service.subtotal)}
-					<HugeiconsIcon
-						icon={ArrowRight01Icon}
-						aria-hidden="true"
-						className="size-3.5 text-muted-foreground/50 sm:hidden"
-					/>
 				</span>
 				{service.notes?.trim() ? (
 					<span className="col-span-2 text-pretty text-subhead leading-snug max-sm:order-2">
@@ -115,6 +98,7 @@ export const OrderServiceRow = ({
 					</span>
 				) : null}
 			</span>
+			<RowChevron />
 		</button>
 	);
 };

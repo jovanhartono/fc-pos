@@ -25,7 +25,7 @@ export const OrderPhoneRow = ({
 			<>
 				{order.has_complaint ? (
 					<span className="shrink-0 text-destructive text-footnote">
-						COMPLAINT
+						Complaint
 					</span>
 				) : null}
 				{order.notified ? <NotifiedLabel className="shrink-0" /> : null}

@@ -46,6 +46,7 @@ import {
 } from "@/modules/reports/money-basis";
 import {
   cleanerOfRound,
+  hasLiveRework,
   qualityCheckInRange,
 } from "@/modules/reports/quality.repository";
 import {
@@ -764,8 +765,13 @@ export async function listQcChecksOfCleaner({
       order_id: ordersTable.id,
       order_service_id: ordersServicesTable.id,
       item_code: itemsTable.item_code,
+      item_brand: itemsTable.brand,
+      item_model: itemsTable.model,
+      item_color: itemsTable.color,
+      item_size: itemsTable.size,
       service_id: ordersServicesTable.service_id,
       service_name: servicesTable.name,
+      checker_id: qcCheckLog.changed_by,
     })
     .from(qcCheckLog)
     .innerJoin(
@@ -796,6 +802,12 @@ export function listComplaintItems(orderServiceIds: number[]) {
       order_id: ordersServicesTable.order_id,
       order_service_id: ordersServicesTable.id,
       item_code: itemsTable.item_code,
+      item_brand: itemsTable.brand,
+      item_model: itemsTable.model,
+      item_color: itemsTable.color,
+      item_size: itemsTable.size,
+      status: ordersServicesTable.status,
+      has_live_rework: hasLiveRework,
     })
     .from(complaintsTable)
     .innerJoin(

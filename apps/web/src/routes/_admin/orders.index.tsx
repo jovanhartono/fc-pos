@@ -246,7 +246,7 @@ function OrdersPage() {
 				<div className="flex flex-col gap-0.5">
 					<div className="flex gap-x-1">
 						{row.original.has_complaint ? (
-							<span className="text-destructive text-footnote">COMPLAINT</span>
+							<span className="text-destructive text-footnote">Complaint</span>
 						) : null}
 						<Link
 							{...orderLink(row.original.id)}

@@ -1,5 +1,6 @@
 import { NotFoundException } from "@/http-exceptions";
 import { revenue } from "@/modules/reports/money-basis";
+import { complaintOutcome } from "@/modules/reports/quality.repository";
 import type {
   ComparableSummary,
   GetReportRangeQuery,
@@ -1244,7 +1245,8 @@ function countByService(lines: ActivityLine[]): ServiceCount[] {
 }
 
 function groupChecksByService(
-  checks: Awaited<ReturnType<typeof listQcChecksOfCleaner>>
+  checks: Awaited<ReturnType<typeof listQcChecksOfCleaner>>,
+  nameOf: (userId: number) => string
 ) {
   const byService = new Map<
     number,
@@ -1257,7 +1259,12 @@ function groupChecksByService(
         order_id: number;
         order_service_id: number;
         item_code: string;
+        item_brand: string | null;
+        item_model: string | null;
+        item_color: string | null;
+        item_size: string | null;
         rejected_at: string;
+        rejected_by_name: string;
         note: string | null;
       }[];
     }
@@ -1279,7 +1286,12 @@ function groupChecksByService(
         order_id: check.order_id,
         order_service_id: check.order_service_id,
         item_code: check.item_code,
+        item_brand: check.item_brand,
+        item_model: check.item_model,
+        item_color: check.item_color,
+        item_size: check.item_size,
         rejected_at: check.checked_at.toISOString(),
+        rejected_by_name: nameOf(check.checker_id),
         note: check.note,
       });
     }
@@ -1318,8 +1330,13 @@ function groupComplaintsByService(
           order_id: item.order_id,
           order_service_id: item.order_service_id,
           item_code: item.item_code,
+          item_brand: item.item_brand,
+          item_model: item.item_model,
+          item_color: item.item_color,
+          item_size: item.item_size,
           opened_at: item.created_at.toISOString(),
           reason: item.reason,
+          outcome: complaintOutcome(item),
         })),
     }))
     .filter((group) => group.complaints > 0)
@@ -1404,7 +1421,10 @@ export async function getWorkerDetailReport(query: GetWorkerDetailQuery) {
     };
   });
 
-  const qcRejects = groupChecksByService(checks);
+  const qcRejects = groupChecksByService(
+    checks,
+    (id) => userById.get(id)?.name ?? "—"
+  );
 
   // Same cohort and same guard as tallyComplaints: no row, no Complaints.
   const cohort = tally

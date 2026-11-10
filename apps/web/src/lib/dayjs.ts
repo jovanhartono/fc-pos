@@ -39,4 +39,7 @@ export const formatShiftLength = (minutes: number) => {
 export const formatClock = (value: Date | string) =>
 	dayjs(value).tz(JAKARTA_TZ).format("HH:mm");
 
+export const formatDay = (value: Date | string) =>
+	dayjs(value).tz(JAKARTA_TZ).format("D MMM");
+
 export default dayjs;

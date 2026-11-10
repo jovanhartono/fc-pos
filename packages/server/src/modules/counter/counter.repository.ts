@@ -20,8 +20,12 @@ export function listWaitingLines(storeId: number) {
     .select({
       category_id: categoriesTable.id,
       category_name: categoriesTable.name,
+      item_brand: itemsTable.brand,
       item_code: itemsTable.item_code,
+      item_color: itemsTable.color,
       item_id: ordersServicesTable.item_id,
+      item_model: itemsTable.model,
+      item_size: itemsTable.size,
       line_id: ordersServicesTable.id,
       order_id: ordersTable.id,
       starts_after_cleaning: categoriesTable.starts_after_cleaning,
@@ -75,7 +79,11 @@ export function listUndecidedComplaints(storeId: number) {
       category_name: categoriesTable.name,
       complaint_id: complaintsTable.id,
       created_at: complaintsTable.created_at,
+      item_brand: itemsTable.brand,
       item_code: itemsTable.item_code,
+      item_color: itemsTable.color,
+      item_model: itemsTable.model,
+      item_size: itemsTable.size,
       reason: complaintsTable.reason,
     })
     .from(complaintsTable)
