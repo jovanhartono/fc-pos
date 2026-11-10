@@ -56,8 +56,8 @@ export const outOf = (part: number, whole: number) =>
 // The rate shows only once there are enough checks for it to mean something.
 export const qcText = (rejects: number, checks: number) =>
 	checks >= WORKER_TONES.minChecksForQcRate
-		? `${outOf(rejects, checks)} · ${fixedPercentFormatter.format(rejects / checks)}`
-		: outOf(rejects, checks);
+		? `${numberFormatter.format(rejects)} · ${fixedPercentFormatter.format(rejects / checks)}`
+		: numberFormatter.format(rejects);
 
 export interface WorkerTotals {
 	people: number;

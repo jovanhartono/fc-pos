@@ -399,14 +399,14 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
 
 			<Section
 				title="QC Rejects by Service"
-				count={`${outOf(facts.qc_rejects, facts.qc_checks)} checks`}
+				count={numberFormatter.format(facts.qc_rejects)}
 			>
 				<RejectCards target={target} rejects={data.qc_rejects} />
 			</Section>
 
 			<Section
 				title="Complaints by Service"
-				count={`${outOf(facts.complaints, facts.complaint_cohort)} finished`}
+				count={numberFormatter.format(facts.complaints)}
 			>
 				<ComplaintCards complaints={data.complaints} />
 			</Section>

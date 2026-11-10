@@ -71,10 +71,10 @@ describe("Complaint tone", () => {
 	});
 });
 
-describe("x/y text", () => {
+describe("count text", () => {
 	it("shows the rate only from 20 checks", () => {
-		expect(qcText(9, 168)).toBe("9/168 · 5,4%");
-		expect(qcText(1, 19)).toBe("1/19");
+		expect(qcText(9, 168)).toBe("9 · 5,4%");
+		expect(qcText(1, 19)).toBe("1");
 		expect(outOf(0, 159)).toBe("0/159");
 	});
 });
