@@ -1,7 +1,6 @@
+import { pickItemName } from "@/modules/orders/order-read.repository";
 import type { RangeArgs } from "@/modules/reports/money-basis";
 import {
-  type ComplaintOutcome,
-  complaintOutcome,
   countQcRejects,
   countQcRejectsByService,
   findWaitingQcNow,
@@ -22,6 +21,7 @@ import {
   dailyBuckets,
 } from "@/modules/reports/report-range.service";
 import { getJakartaRange, rate } from "@/modules/reports/report-range.util";
+import { type ComplaintOutcome, complaintOutcome } from "@/schema/complaint";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 
 interface QualitySummary {
@@ -83,11 +83,7 @@ const listComplaints = (cohort: CohortLine[]) =>
             {
               complaint_id: line.complaint_id,
               complained_at: line.complained_at,
-              item_code: line.item_code,
-              item_brand: line.item_brand,
-              item_model: line.item_model,
-              item_color: line.item_color,
-              item_size: line.item_size,
+              ...pickItemName(line),
               service_name: line.service_name,
               reason: line.complaint_reason,
               outcome: complaintOutcome(line),

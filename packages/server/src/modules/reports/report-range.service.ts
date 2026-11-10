@@ -1,6 +1,7 @@
 import { NotFoundException } from "@/http-exceptions";
+import type { ItemNameFields } from "@/modules/orders/order.schema";
+import { pickItemName } from "@/modules/orders/order-read.repository";
 import { revenue } from "@/modules/reports/money-basis";
-import { complaintOutcome } from "@/modules/reports/quality.repository";
 import type {
   ComparableSummary,
   GetReportRangeQuery,
@@ -54,6 +55,7 @@ import {
   rate,
   weekStartOf,
 } from "@/modules/reports/report-range.util";
+import { complaintOutcome } from "@/schema/complaint";
 import { jakartaNow } from "@/utils/date";
 
 interface PeriodWindow {
@@ -1255,18 +1257,13 @@ function groupChecksByService(
       service_name: string;
       rejects: number;
       checks: number;
-      items: {
+      items: (ItemNameFields & {
         order_id: number;
         order_service_id: number;
-        item_code: string;
-        item_brand: string | null;
-        item_model: string | null;
-        item_color: string | null;
-        item_size: string | null;
         rejected_at: string;
         rejected_by_name: string;
         note: string | null;
-      }[];
+      })[];
     }
   >();
   // Newest first, so each Service's items come out newest first too.
@@ -1285,11 +1282,7 @@ function groupChecksByService(
       group.items.push({
         order_id: check.order_id,
         order_service_id: check.order_service_id,
-        item_code: check.item_code,
-        item_brand: check.item_brand,
-        item_model: check.item_model,
-        item_color: check.item_color,
-        item_size: check.item_size,
+        ...pickItemName(check),
         rejected_at: check.checked_at.toISOString(),
         rejected_by_name: nameOf(check.checker_id),
         note: check.note,
@@ -1329,11 +1322,7 @@ function groupComplaintsByService(
           complaint_id: item.complaint_id,
           order_id: item.order_id,
           order_service_id: item.order_service_id,
-          item_code: item.item_code,
-          item_brand: item.item_brand,
-          item_model: item.item_model,
-          item_color: item.item_color,
-          item_size: item.item_size,
+          ...pickItemName(item),
           opened_at: item.created_at.toISOString(),
           reason: item.reason,
           outcome: complaintOutcome(item),

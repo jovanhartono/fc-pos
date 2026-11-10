@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ItemNameFields } from "@/modules/orders/order.schema";
 
 export const GETCounterQuerySchema = z.object({
   store_id: z.coerce.number().int().positive(),
@@ -42,28 +43,18 @@ export interface CounterPickupShelf {
   orders: number;
 }
 
-export interface CounterQcReject {
+export interface CounterQcReject extends ItemNameFields {
   category: string;
   days: number;
-  item_brand: string | null;
-  item_code: string;
-  item_color: string | null;
-  item_model: string | null;
-  item_size: string | null;
   note: string | null;
   order_id: number;
   order_service_id: number;
 }
 
-export interface CounterComplaint {
+export interface CounterComplaint extends ItemNameFields {
   category: string;
   complaint_id: number;
   days: number;
-  item_brand: string | null;
-  item_code: string;
-  item_color: string | null;
-  item_model: string | null;
-  item_size: string | null;
   reason: string | null;
 }
 

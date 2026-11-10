@@ -915,8 +915,8 @@ describe("the complaint's outcome", () => {
     });
 
     const { items } = await listComplaints(shop.admin);
-    expect(items.map((row) => [row.subject_status, row.rework_count])).toEqual([
-      ["ready_for_pickup", 0],
-    ]);
+    expect(
+      items.map((row) => [row.subject_status, row.has_live_rework])
+    ).toEqual([["ready_for_pickup", false]]);
   });
 });

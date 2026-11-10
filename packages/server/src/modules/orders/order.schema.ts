@@ -3,6 +3,14 @@ import { orderPaymentStatusEnum, orderStatusEnum } from "@/db/schema";
 import { dateStringSchema } from "@/schema/common";
 import { normalizePagination } from "@/utils/pagination";
 
+export interface ItemNameFields {
+  item_brand: string | null;
+  item_code: string;
+  item_color: string | null;
+  item_model: string | null;
+  item_size: string | null;
+}
+
 export const DEFAULT_PAGE_SIZE = 25;
 export const MAX_PAGE_SIZE = 100;
 

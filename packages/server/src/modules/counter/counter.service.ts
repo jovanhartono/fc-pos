@@ -14,6 +14,7 @@ import {
   type GetPickupShelfQuery,
   SHELF_PAGE_SIZE,
 } from "@/modules/counter/counter.schema";
+import { pickItemName } from "@/modules/orders/order-read.repository";
 import {
   DAY_MS,
   daysBetween,
@@ -128,11 +129,7 @@ async function buildQcRejects(lines: WaitingLine[], now: Date) {
       return {
         category: line.category_name,
         days: reject ? daysSince(reject.created_at, now) : 0,
-        item_brand: line.item_brand,
-        item_code: line.item_code,
-        item_color: line.item_color,
-        item_model: line.item_model,
-        item_size: line.item_size,
+        ...pickItemName(line),
         note: reject?.note ?? null,
         order_id: line.order_id,
         order_service_id: line.line_id,
@@ -161,11 +158,7 @@ export async function getCounter(
       category: complaint.category_name,
       complaint_id: complaint.complaint_id,
       days: daysSince(complaint.created_at, now),
-      item_brand: complaint.item_brand,
-      item_code: complaint.item_code,
-      item_color: complaint.item_color,
-      item_model: complaint.item_model,
-      item_size: complaint.item_size,
+      ...pickItemName(complaint),
       reason: complaint.reason,
     })),
     pickup_shelf: shelf,

@@ -98,11 +98,11 @@ const ComplaintDetailPage = () => {
 	const canRework = isFinished && roundInWorkshop === undefined;
 	const reworkWaitReason =
 		isFinished && roundInWorkshop
-			? `Round ${roundIndex + 1} is still in the workshop, so the next one waits.`
+			? `Rework ${roundIndex + 1} is still in the workshop, so the next one waits.`
 			: undefined;
 	const outcome = getComplaintOutcome({
-		subjectStatus: subject.status,
-		reworkCount: detail.reworkLines.filter(isReworkedRound).length,
+		status: subject.status,
+		has_live_rework: detail.reworkLines.some(isReworkedRound),
 	});
 	const descriptors = getOrderServiceItemDetails(subject.item);
 	const serviceName = subject.service?.name ?? "Service";

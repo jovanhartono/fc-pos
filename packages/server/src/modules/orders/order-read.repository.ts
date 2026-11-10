@@ -1,5 +1,8 @@
+import type { AnyColumn } from "drizzle-orm";
 import { type DbExecutor, db } from "@/db";
+import { itemsTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
+import type { ItemNameFields } from "@/modules/orders/order.schema";
 import type { OrderServiceStatus } from "@/schema/order-status";
 
 // The Item code and descriptors, the same fields wherever an Item is named
@@ -12,6 +15,24 @@ export const itemCardColumns = {
   model: true,
   size: true,
 } as const;
+
+// The same Item name for a flat list row. `satisfies` keeps these and
+// ItemNameFields key for key.
+export const itemNameColumns = {
+  item_code: itemsTable.item_code,
+  item_brand: itemsTable.brand,
+  item_model: itemsTable.model,
+  item_color: itemsTable.color,
+  item_size: itemsTable.size,
+} satisfies Record<keyof ItemNameFields, AnyColumn>;
+
+export const pickItemName = (row: ItemNameFields): ItemNameFields => ({
+  item_code: row.item_code,
+  item_brand: row.item_brand,
+  item_model: row.item_model,
+  item_color: row.item_color,
+  item_size: row.item_size,
+});
 
 // The name printed beside an event, never the login.
 export const userRefColumns = { id: true, name: true } as const;

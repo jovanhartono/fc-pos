@@ -32,8 +32,8 @@ export const RowLabel = ({ label, children }: RowLabelProps) => (
 );
 
 interface MessageRowContentProps {
-	// The shoe as cashiers remember it. Left out inside the Item card, which
-	// already names it.
+	// The Item as cashiers remember it (brand · model · colour · size). Left
+	// out inside the Item card, which already names it.
 	item?: string;
 	date: string;
 	// "Complaint #7", in red.
@@ -64,7 +64,7 @@ export const MessageRowContent = ({
 			))}
 		</>
 	);
-	// Apple's tiers: the shoe leads, the words are the content, and the date and
+	// Apple's tiers: the Item leads, the words are the content, and the date and
 	// who-did-what sit back in grey.
 	const dateCell = (
 		<span className="justify-self-end text-muted-foreground text-subhead tabular-nums">

@@ -16,13 +16,13 @@ import {
 } from "@/features/complaints/api";
 import {
 	formatComplaintItem,
-	getComplaintItemName,
 	getComplaintItemTag,
 	getComplaintOutcome,
 } from "@/features/complaints/lib/format";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import { OrderListRow } from "@/features/orders/components/order-list-row";
 import { formatListDate } from "@/lib/dayjs";
+import { getRowItemDetails } from "@/lib/order-service-item-details";
 import {
 	DEFAULT_PAGE_SIZE,
 	pageSizeChange,
@@ -54,8 +54,8 @@ interface ComplaintOutcomeBadgeProps {
 
 const ComplaintOutcomeBadge = ({ complaint }: ComplaintOutcomeBadgeProps) => {
 	const outcome = getComplaintOutcome({
-		subjectStatus: complaint.subject_status,
-		reworkCount: complaint.rework_count,
+		status: complaint.subject_status,
+		has_live_rework: complaint.has_live_rework,
 	});
 	return <Badge variant={outcome.variant}>{outcome.label}</Badge>;
 };
@@ -169,7 +169,7 @@ const ComplaintsPage = () => {
 							className="items-start rounded-none"
 							hasCaret={false}
 							details={[complaint.order_code, getComplaintItemTag(complaint)]}
-							note={getComplaintItemName(complaint)}
+							note={getRowItemDetails(complaint)}
 							end={
 								<div className="grid justify-items-end gap-1">
 									<span className="whitespace-nowrap text-subhead tabular-nums">
