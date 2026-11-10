@@ -13,7 +13,6 @@ import {
 	type ReactNode,
 	Suspense,
 	useEffect,
-	useMemo,
 	useState,
 } from "react";
 import type { DateRange, Matcher } from "react-day-picker";
@@ -441,7 +440,7 @@ export const DateRangePicker = ({
 	const hasValue = Boolean(from || to);
 	const showClear = Boolean(onClear) && hasValue;
 
-	const presets = useMemo(() => getPresets(), []);
+	const [presets] = useState(getPresets);
 	const matchedPreset =
 		displayRange?.from && displayRange?.to
 			? matchPreset(

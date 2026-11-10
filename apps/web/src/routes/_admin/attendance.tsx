@@ -3,7 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import dayjs from "dayjs";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -63,7 +63,7 @@ function AttendancePage() {
 	const storesQuery = useQuery(storesQueries.list());
 	const [now, setNow] = useState(() => new Date());
 
-	const weekRange = useMemo(() => currentWeekRange(), []);
+	const [weekRange] = useState(currentWeekRange);
 	const shiftsQuery = useQuery(
 		shiftsQueries.list({
 			from: weekRange.from,

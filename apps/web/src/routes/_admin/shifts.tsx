@@ -2,14 +2,18 @@ import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StoreSelect } from "@/features/orders/components/store-select";
 import { withPresetRange } from "@/features/reports/utils/report-filters";
-import { type Shift, shiftsQueries } from "@/features/shifts/api";
+import {
+	type Shift,
+	type ShiftsOverview,
+	shiftsQueries,
+} from "@/features/shifts/api";
 import { NewShiftForm } from "@/features/shifts/components/new-shift-form";
 import { ShiftsDayView } from "@/features/shifts/components/shifts-day-view";
 import { ShiftsRangeControl } from "@/features/shifts/components/shifts-range-control";
@@ -75,6 +79,14 @@ interface ShownShifts {
 	shifts: Shift[] | undefined;
 }
 
+const useStoreGroups = (
+	overview: ShiftsOverview | undefined,
+	storeId: number | undefined,
+) => {
+	const { data: stores } = useQuery(storesQueries.list());
+	return overview ? buildStoreGroups(overview, stores ?? [], storeId) : [];
+};
+
 const ShiftsSkeleton = () => (
 	<div aria-hidden className="grid gap-4">
 		<Skeleton className="h-6 w-72" />
@@ -105,24 +117,12 @@ const ShiftsPage = () => {
 		...shiftsQueries.overview(query),
 		placeholderData: keepPreviousData,
 	});
-	const storesQuery = useQuery(storesQueries.list());
 	const dayShifts = useQuery({
 		...shiftsQueries.list(dayShiftsQuery(range, search.store_id)),
 		enabled: isSingleDay,
 		placeholderData: keepPreviousData,
 	});
-
-	const groups = useMemo(
-		() =>
-			overview.data
-				? buildStoreGroups(
-						overview.data,
-						storesQuery.data ?? [],
-						search.store_id,
-					)
-				: [],
-		[overview.data, storesQuery.data, search.store_id],
-	);
+	const groups = useStoreGroups(overview.data, search.store_id);
 
 	// The last complete view stays up while the next day or range loads, so
 	// stepping through days swaps numbers instead of flashing placeholders.

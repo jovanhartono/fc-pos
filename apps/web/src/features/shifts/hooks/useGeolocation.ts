@@ -1,5 +1,5 @@
 import type { ClockInCoordinates } from "@fresclean/api/rules";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 
 const FIX_TIMEOUT_MS = 10_000;
 // A fix from moments ago is fine for a 3 km judgement, and refusing one made
@@ -25,7 +25,7 @@ export const useGeolocation = (enabled: boolean) => {
 		status: enabled ? "locating" : "skipped",
 	});
 
-	const locate = useCallback(() => {
+	const locate = () => {
 		if (!navigator.geolocation) {
 			setState({ status: "unavailable" });
 			return;
@@ -56,13 +56,14 @@ export const useGeolocation = (enabled: boolean) => {
 				timeout: FIX_TIMEOUT_MS,
 			},
 		);
-	}, []);
+	};
+	const onEnabled = useEffectEvent(locate);
 
 	useEffect(() => {
 		if (enabled) {
-			locate();
+			onEnabled();
 		}
-	}, [enabled, locate]);
+	}, [enabled]);
 
 	return { ...state, retry: locate };
 };

@@ -149,9 +149,9 @@ const ItemBlock = ({ orderId, item, isAdmin }: ItemBlockProps) => {
 					(service) => service.reworkOf?.orderService.id ?? null,
 				).map(({ original, originalId, reworks }) => (
 					<li key={originalId}>
-						{original ? (
+						{original !== undefined && (
 							<OrderServiceRow orderId={orderId} service={original} />
-						) : null}
+						)}
 						{original?.complaints.map((complaint) => (
 							<ComplaintLinkRow complaint={complaint} key={complaint.id} />
 						))}
