@@ -22,19 +22,26 @@ interface CheckerSheetTarget {
 
 export const useOpenCheckerSheet = () => {
 	const openSheet = useSheet((s) => s.openSheet);
-	return (target: CheckerSheetTarget) =>
+	return (target: CheckerSheetTarget, qcOffset = 0) =>
 		openSheet({
 			title: target.row.user_name,
 			description: `Checker · ${rangeLabel(target.from, target.to)}`,
-			content: () => <CheckerSheetContent target={target} />,
+			content: () => (
+				<CheckerSheetContent target={target} qcOffset={qcOffset} />
+			),
 		});
 };
 
 interface CheckerSheetContentProps {
 	target: CheckerSheetTarget;
+	qcOffset: number;
 }
 
-const CheckerSheetContent = ({ target }: CheckerSheetContentProps) => {
+const CheckerSheetContent = ({
+	target,
+	qcOffset,
+}: CheckerSheetContentProps) => {
+	const openCheckerSheet = useOpenCheckerSheet();
 	const { row } = target;
 	return (
 		<div className="grid gap-5">
@@ -58,6 +65,11 @@ const CheckerSheetContent = ({ target }: CheckerSheetContentProps) => {
 			<Section title="QC Rejects" count={numberFormatter.format(row.rejects)}>
 				<QcRejectsList
 					key={row.user_id}
+					initialOffset={qcOffset}
+					back={{
+						label: row.user_name,
+						onClick: (offset) => openCheckerSheet(target, offset),
+					}}
 					target={{
 						from: target.from,
 						to: target.to,

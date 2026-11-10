@@ -2,7 +2,6 @@ import { Badge } from "@/components/ui/badge";
 import { numberFormatter } from "@/features/reports/utils/format";
 import {
 	complaintTone,
-	outOf,
 	qcText,
 	qcTone,
 	type Tone,
@@ -77,6 +76,6 @@ export const ComplaintsChip = ({
 		className="tabular-nums"
 		variant={TONE_VARIANT[complaintTone(complaints, finished)]}
 	>
-		{`${prefix}${outOf(complaints, finished)}`}
+		{`${prefix}${numberFormatter.format(complaints)}`}
 	</Badge>
 );

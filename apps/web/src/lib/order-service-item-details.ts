@@ -26,6 +26,24 @@ export function getOrderServiceItemDetails(
 	return getOrderServiceItemDescriptors(details).join(" · ") || null;
 }
 
+interface ItemNameRow {
+	item_code: string;
+	item_brand: string | null;
+	item_model: string | null;
+	item_color: string | null;
+	item_size: string | null;
+}
+
+// Report and Counter rows name the shoe, not its tag; a shoe taken in with no
+// details has only the tag to go by.
+export const getItemName = (row: ItemNameRow) =>
+	getOrderServiceItemDetails({
+		brand: row.item_brand,
+		model: row.item_model,
+		color: row.item_color,
+		size: row.item_size,
+	}) ?? row.item_code;
+
 export function formatOrderServiceItemDetails(details: ServiceItemDetails) {
 	return getOrderServiceItemDetails(details) ?? "No item details";
 }

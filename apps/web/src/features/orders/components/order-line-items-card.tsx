@@ -1,6 +1,9 @@
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
+import {
+	MessageRowContent,
+	ROW_TAP,
+	ROW_TAP_NESTED,
+} from "@/components/message-row";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import type { OrderDetail, OrderRefundReason } from "@/features/orders/api";
@@ -18,8 +21,10 @@ import type { OrderItem } from "@/features/orders/lib/order-lines";
 import { getItemTotalRow } from "@/features/orders/lib/order-sheet";
 import { groupReworksUnderOriginals } from "@/features/orders/lib/rework-nesting";
 import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
+import { formatDay } from "@/lib/dayjs";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { formatCancelReason, formatRefundReason } from "@/lib/status";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
 type OrderDetailProduct = OrderDetail["products"][number];
@@ -80,28 +85,24 @@ const ProductLine = ({
 );
 
 interface ComplaintLinkRowProps {
-	complaint: { id: number; reason: string };
+	complaint: { id: number; reason: string; created_at: string };
 }
 
 // The cashier's way from the order to its Complaint, whether or not a Rework
-// has started.
+// has started. No outcome badge: the Reworks under it show their own status.
 const ComplaintLinkRow = ({ complaint }: ComplaintLinkRowProps) => {
 	const leaveSheet = useLeaveSheetLink();
 	return (
 		<Link
-			className="group -mx-2 flex items-center gap-1.5 rounded-md px-2 py-2 text-subhead hover:bg-muted/40"
+			className={cn(ROW_TAP, ROW_TAP_NESTED)}
 			onClick={leaveSheet}
 			params={{ complaintId: String(complaint.id) }}
 			to="/complaints/$complaintId"
 		>
-			<span className="min-w-0 flex-1 truncate">
-				<span className="text-destructive">COMPLAINT #{complaint.id}</span>
-				<span className="text-muted-foreground"> · {complaint.reason}</span>
-			</span>
-			<HugeiconsIcon
-				icon={ArrowRight01Icon}
-				aria-hidden="true"
-				className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+			<MessageRowContent
+				date={formatDay(complaint.created_at)}
+				lead={`Complaint #${complaint.id}`}
+				text={complaint.reason}
 			/>
 		</Link>
 	);

@@ -1,5 +1,7 @@
 import type { RangeArgs } from "@/modules/reports/money-basis";
 import {
+  type ComplaintOutcome,
+  complaintOutcome,
   countQcRejects,
   countQcRejectsByService,
   findWaitingQcNow,
@@ -36,7 +38,6 @@ interface QualitySummary {
 }
 
 type CohortLine = Awaited<ReturnType<typeof listQualityCohort>>[number];
-type ComplaintOutcome = "reworked" | "refunded" | "cancelled" | "pending";
 
 async function qualityFor(args: RangeArgs) {
   const [cohort, checkers] = await Promise.all([
@@ -72,14 +73,6 @@ function summariseQuality({
   };
 }
 
-// Same reading as the Complaints page badge, so the two never disagree.
-const complaintOutcome = (line: CohortLine): ComplaintOutcome => {
-  if (line.status === "refunded" || line.status === "cancelled") {
-    return line.status;
-  }
-  return line.has_live_rework ? "reworked" : "pending";
-};
-
 // The Complaints the Mistakes count is made of, newest first.
 const listComplaints = (cohort: CohortLine[]) =>
   cohort
@@ -91,6 +84,10 @@ const listComplaints = (cohort: CohortLine[]) =>
               complaint_id: line.complaint_id,
               complained_at: line.complained_at,
               item_code: line.item_code,
+              item_brand: line.item_brand,
+              item_model: line.item_model,
+              item_color: line.item_color,
+              item_size: line.item_size,
               service_name: line.service_name,
               reason: line.complaint_reason,
               outcome: complaintOutcome(line),

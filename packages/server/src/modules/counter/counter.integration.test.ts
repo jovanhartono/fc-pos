@@ -4,6 +4,7 @@ import { eq, inArray } from "drizzle-orm";
 import {
   categoriesTable,
   complaintsTable,
+  itemsTable,
   orderPickupEventsTable,
   orderServiceStatusLogsTable,
   ordersServicesTable,
@@ -107,6 +108,12 @@ const setStatus = (lines: Line[], status: Status) =>
         lines.map((line) => line.lineId)
       )
     );
+
+const describeShoe = (line: Line) =>
+  testDb
+    .update(itemsTable)
+    .set({ brand: "Nike", color: "White", model: "Air Force 1", size: "42" })
+    .where(eq(itemsTable.id, line.itemId));
 
 const logChange = (
   line: Line,
@@ -392,6 +399,7 @@ describe("QC rejects waiting", () => {
   it("carries the latest reject note and how long ago it was", async () => {
     const [line] = await placeLines(shop.store, 1);
     await setStatus([line], "qc_reject");
+    await describeShoe(line);
     await logChange(line, {
       at: jkt("2026-09-25T10:00"),
       from: "waiting_qc",
@@ -416,7 +424,11 @@ describe("QC rejects waiting", () => {
       {
         category: "Footwear",
         days: 3,
+        item_brand: "Nike",
         item_code: expect.any(String),
+        item_color: "White",
+        item_model: "Air Force 1",
+        item_size: "42",
         note: "Lace stain remains",
         order_id: line.orderId,
         order_service_id: line.lineId,
@@ -424,7 +436,11 @@ describe("QC rejects waiting", () => {
       {
         category: "Footwear",
         days: 1,
+        item_brand: expect.any(String),
         item_code: expect.any(String),
+        item_color: null,
+        item_model: null,
+        item_size: null,
         note: null,
         order_id: noNote.orderId,
         order_service_id: noNote.lineId,
@@ -464,6 +480,7 @@ describe("Complaints not decided", () => {
     );
     await setStatus([undecided, reworked, cancelledRework], "ready_for_pickup");
     await setStatus([refunded], "refunded");
+    await describeShoe(undecided);
     const open = await complain(
       undecided,
       "Still dirty",
@@ -488,14 +505,22 @@ describe("Complaints not decided", () => {
         category: "Footwear",
         complaint_id: open.id,
         days: 3,
+        item_brand: "Nike",
         item_code: expect.any(String),
+        item_color: "White",
+        item_model: "Air Force 1",
+        item_size: "42",
         reason: "Still dirty",
       },
       {
         category: "Footwear",
         complaint_id: withCancelled.id,
         days: 2,
+        item_brand: expect.any(String),
         item_code: expect.any(String),
+        item_color: null,
+        item_model: null,
+        item_size: null,
         reason: "Smell",
       },
     ]);

@@ -3,15 +3,15 @@ import {
 	MessageCircleWarningIcon,
 } from "@hugeicons/core-free-icons";
 import type { IconSvgElement } from "@hugeicons/react";
+import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { EmptyState } from "@/components/empty-state";
+import { MessageRowContent, ROW_TAP } from "@/components/message-row";
 import { Section } from "@/components/section";
 import type { CounterComplaint, CounterQcReject } from "@/features/counter/api";
 import { formatDays } from "@/features/counter/lib/format";
-import { OrderListRow } from "@/features/orders/components/order-list-row";
+import { getItemName } from "@/lib/order-service-item-details";
 import { pluralize } from "@/shared/utils";
-
-const ROW_CLASS = "rounded-none px-3 tabular-nums";
 
 interface PendingSectionProps {
 	children: ReactNode;
@@ -30,9 +30,7 @@ const PendingSection = ({
 }: PendingSectionProps) => (
 	<Section count={count} title={title}>
 		{count ? (
-			<ul className="divide-y divide-border overflow-hidden rounded-lg border bg-card">
-				{children}
-			</ul>
+			<ul className="divide-y rounded-lg border bg-card px-3">{children}</ul>
 		) : (
 			<EmptyState icon={emptyIcon}>{empty}</EmptyState>
 		)}
@@ -56,16 +54,19 @@ export const PendingComplaintsSection = ({
 	>
 		{complaints.map((complaint) => (
 			<li key={complaint.complaint_id}>
-				<OrderListRow
-					className={ROW_CLASS}
-					details={[complaint.category, complaint.reason]}
-					end={
-						<span className="text-subhead">{formatDays(complaint.days)}</span>
-					}
+				<Link
+					className={ROW_TAP}
 					params={{ complaintId: String(complaint.complaint_id) }}
-					title={complaint.item_code}
 					to="/complaints/$complaintId"
-				/>
+				>
+					<MessageRowContent
+						date={formatDays(complaint.days)}
+						details={[complaint.category]}
+						item={getItemName(complaint)}
+						lead={`Complaint #${complaint.complaint_id}`}
+						text={complaint.reason}
+					/>
+				</Link>
 			</li>
 		))}
 	</PendingSection>
@@ -93,17 +94,21 @@ export const PendingQcRejectsSection = ({
 	>
 		{rejects.map((reject) => (
 			<li key={reject.order_service_id}>
-				<OrderListRow
-					className={ROW_CLASS}
-					details={[reject.category, reject.note]}
-					end={<span className="text-subhead">{formatDays(reject.days)}</span>}
+				<Link
+					className={ROW_TAP}
 					params={{
 						orderId: reject.order_id,
 						serviceId: reject.order_service_id,
 					}}
-					title={reject.item_code}
 					to="/queue/$orderId/$serviceId"
-				/>
+				>
+					<MessageRowContent
+						date={formatDays(reject.days)}
+						details={[reject.category]}
+						item={getItemName(reject)}
+						text={reject.note}
+					/>
+				</Link>
 			</li>
 		))}
 	</PendingSection>
