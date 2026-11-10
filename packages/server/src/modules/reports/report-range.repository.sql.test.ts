@@ -45,32 +45,14 @@ type Query = (storeId?: number) => Promise<unknown>;
 
 const QUERIES: [string, Query][] = [
   [
-    "services gross sales",
+    "services gross sales and COGS",
     (storeId) =>
-      repo.listServicesGrossSalesSeries({
-        granularity: DAY,
-        range: AUGUST,
-        storeId,
-      }),
+      repo.listServicesSeries({ granularity: DAY, range: AUGUST, storeId }),
   ],
   [
-    "products gross sales",
+    "products gross sales and COGS",
     (storeId) =>
-      repo.listProductsGrossSalesSeries({
-        granularity: DAY,
-        range: AUGUST,
-        storeId,
-      }),
-  ],
-  [
-    "services COGS",
-    (storeId) =>
-      repo.listServicesCogsSeries({ granularity: DAY, range: AUGUST, storeId }),
-  ],
-  [
-    "products COGS",
-    (storeId) =>
-      repo.listProductsCogsSeries({ granularity: DAY, range: AUGUST, storeId }),
+      repo.listProductsSeries({ granularity: DAY, range: AUGUST, storeId }),
   ],
   [
     "order discount",
@@ -93,6 +75,18 @@ const QUERIES: [string, Query][] = [
   [
     "store refunds",
     (storeId) => repo.listStoreRefundRows({ range: AUGUST, storeId }),
+  ],
+  [
+    "busy hours",
+    (storeId) => repo.listBusyHourRows({ range: AUGUST, storeId }),
+  ],
+  [
+    "top services",
+    (storeId) => repo.listTopServiceRows({ range: AUGUST, storeId }),
+  ],
+  [
+    "unpaid orders by age",
+    (storeId) => repo.listUnpaidOrderAgeRows({ storeId }),
   ],
   [
     "category gross sales",

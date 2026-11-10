@@ -24,6 +24,8 @@ export const CHIP_CLASS =
 interface StatusChip<TValue extends string> {
 	label: string;
 	value: TValue;
+	// A dot in a chart's colour, where the chip is that chart's key.
+	color?: string;
 }
 
 interface StatusChipStripProps<TValue extends string> {
@@ -56,6 +58,13 @@ export const StatusChipStrip = <TValue extends string>({
 						type="button"
 						variant={isActive ? "default" : "secondary"}
 					>
+						{chip.color !== undefined && (
+							<span
+								aria-hidden
+								className="size-2 rounded-full"
+								style={{ backgroundColor: chip.color }}
+							/>
+						)}
 						{chip.label}
 					</Button>
 				);

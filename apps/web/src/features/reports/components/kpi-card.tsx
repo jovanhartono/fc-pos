@@ -95,7 +95,7 @@ interface DeltaLineProps {
 	comparisonLabel?: string;
 }
 
-export const DeltaLine = ({
+const DeltaLine = ({
 	change,
 	deltaAs = "percent",
 	isLowerBetter = false,
@@ -214,12 +214,22 @@ interface KpiRowProps {
 	// The report is still loading: each card keeps its label and draws a bar
 	// where its number will be.
 	isPending?: boolean;
+	className?: string;
 }
 
-export const KpiRow = ({ children, isPending = false }: KpiRowProps) => (
+export const KpiRow = ({
+	children,
+	isPending = false,
+	className,
+}: KpiRowProps) => (
 	<KpiPendingContext.Provider value={isPending}>
-		{/* Two across on a phone, so all four of today's numbers fit above the chart. */}
-		<div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+		{/* Two across on a phone, so the numbers fit above the chart. */}
+		<div
+			className={cn(
+				"grid min-w-0 flex-1 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4",
+				className,
+			)}
+		>
 			{children}
 		</div>
 	</KpiPendingContext.Provider>

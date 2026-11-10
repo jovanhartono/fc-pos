@@ -1,28 +1,39 @@
+import { Analytics01Icon } from "@hugeicons/core-free-icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
+import { EmptyState } from "@/components/empty-state";
 import { SectionTitle } from "@/components/section";
-import { TextSkeleton } from "@/components/text-skeleton";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
 	type FinancialReport,
-	type KpiDelta,
 	type ReportGranularity,
 	reportsQueries,
 } from "@/features/reports/api";
-import { ExportButton } from "@/features/reports/components/export-button";
-import { DeltaLine } from "@/features/reports/components/kpi-card";
 import {
-	headParts,
+	BusyHoursCard,
+	mondayFirst,
+	WEEKDAYS,
+	weekdayCounts,
+} from "@/features/reports/components/busy-hours";
+import { ExportButton } from "@/features/reports/components/export-button";
+import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
+import { MoneyWalkFlowCard } from "@/features/reports/components/money-walk-flow";
+import {
+	type RankRow,
+	RankRows,
+	shareNote,
+} from "@/features/reports/components/rank-rows";
+import {
+	type ChartAxis,
+	type ChartSeries,
 	ReportChart,
 	rangeAxis,
 	valueAt,
 } from "@/features/reports/components/report-chart";
-import type {
-	SankeyLinkDatum,
-	SankeyNodeDatum,
-} from "@/features/reports/components/sankey-chart";
-import { StoreRevenueRows } from "@/features/reports/components/store-revenue-rows";
+import { StoreCategoryMixCard } from "@/features/reports/components/store-category-mix";
+import { storeRankRows } from "@/features/reports/components/store-revenue-rows";
 import {
 	csvFilename,
 	downloadCsv,
@@ -31,22 +42,18 @@ import {
 import {
 	compactMoney,
 	compactNumber,
-	fixedPercentFormatter,
+	numberFormatter,
 	percentFormatter,
+	pluralCount,
+	rangeLabel,
 } from "@/features/reports/utils/format";
-import type { DeltaAs } from "@/features/reports/utils/kpi-delta";
-import { CHART_OTHER_COLOR } from "@/features/reports/utils/palette";
-import { staleFade } from "@/lib/content-fade";
+import {
+	formatKpiDeltaChange,
+	kpiDeltaChange,
+} from "@/features/reports/utils/kpi-delta";
+import { CONTENT_FADE, staleFade } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
-import { formatMoney } from "@/shared/money";
-
-// Recharts draws only this Flow chart, so it loads with the chart instead
-// of with every Reports tab.
-const SankeyChart = lazy(() =>
-	import("@/features/reports/components/sankey-chart").then((module) => ({
-		default: module.SankeyChart,
-	})),
-);
+import { getPreset } from "@/shared/date-presets";
 
 interface FinancialPanelProps {
 	from: string;
@@ -55,22 +62,89 @@ interface FinancialPanelProps {
 	granularity?: ReportGranularity;
 }
 
-type SummaryCurrent = FinancialReport["summary"]["current"];
-type FinancialBucket = FinancialReport["series"][number];
+interface DataProps {
+	data: FinancialReport;
+}
 
-const pctChange = (pct: number | null | undefined): number | null =>
-	pct === null || pct === undefined ? null : pct * 100;
+const ratio = (num: number, denom: number) => (denom > 0 ? num / denom : 0);
 
-const safeRatio = (num: number, denom: number): number =>
-	denom > 0 ? num / denom : 0;
-
-const formatPreviousRangeLabel = (from: string, to: string): string => {
-	const f = dayjs(from);
-	const t = dayjs(to);
-	if (f.month() === t.month() && f.year() === t.year()) {
-		return `${f.format("MMM D")}-${t.format("D")}`;
+const exportCsv = (data: FinancialReport) => {
+	const summary = data.summary.current;
+	const prev = data.summary.previous;
+	const lines: string[] = [];
+	lines.push("Financial totals,Metric,Current,Previous");
+	lines.push(`Totals,Gross sales,${summary.gross_sales},${prev.gross_sales}`);
+	lines.push(
+		`Totals,Services,${summary.services_gross_sales},${prev.services_gross_sales}`,
+	);
+	lines.push(
+		`Totals,Products,${summary.products_gross_sales},${prev.products_gross_sales}`,
+	);
+	lines.push(`Totals,Discount,${summary.discount},${prev.discount}`);
+	lines.push(`Totals,Collected,${summary.collected},${prev.collected}`);
+	lines.push(`Totals,Refunds,${summary.refunds},${prev.refunds}`);
+	lines.push(`Totals,Revenue,${summary.revenue},${prev.revenue}`);
+	lines.push(`Totals,COGS,${summary.cogs},${prev.cogs}`);
+	lines.push(
+		`Totals,Gross profit,${summary.gross_profit},${prev.gross_profit}`,
+	);
+	lines.push(`Totals,Margin,${summary.margin},${prev.margin}`);
+	lines.push(
+		`Totals,Discount rate,${summary.discount_rate},${prev.discount_rate}`,
+	);
+	lines.push(`Totals,Refund rate,${summary.refund_rate},${prev.refund_rate}`);
+	lines.push("");
+	lines.push(
+		"Financial series,Period,Services,Products,Gross sales,Discount,Collected,Refunds,Revenue,COGS,Gross profit",
+	);
+	for (const row of data.series) {
+		lines.push(
+			`Series,${escapeCsv(row.bucket)},${row.services},${row.products},${row.gross_sales},${row.discount},${row.collected},${row.refunds},${row.revenue},${row.cogs},${row.gross_profit}`,
+		);
 	}
-	return `${f.format("MMM D")}-${t.format("MMM D")}`;
+	lines.push("");
+	const matrix = data.store_category_matrix;
+	lines.push(
+		"Store × Category,Store code,Store name,Category,Gross sales,Share within store,Store total",
+	);
+	for (const row of matrix.rows) {
+		for (const cell of row.cells) {
+			const col = matrix.columns.find(
+				(c) => c.category_id === cell.category_id,
+			);
+			lines.push(
+				`Store×Category,${escapeCsv(row.store_code)},${escapeCsv(row.store_name)},${escapeCsv(col?.label ?? "")},${cell.gross_sales},${cell.share},${row.total}`,
+			);
+		}
+	}
+	lines.push("");
+	lines.push("Store revenue,Store code,Store name,Revenue,Orders,Share");
+	for (const row of data.store_breakdown) {
+		lines.push(
+			`Store,${escapeCsv(row.store_code)},${escapeCsv(row.store_name)},${row.revenue},${row.orders},${row.share}`,
+		);
+	}
+	lines.push("");
+	lines.push("Top Services,Code,Name,Gross sales,Sold,COGS");
+	for (const row of data.top_services) {
+		lines.push(
+			`Service,${escapeCsv(row.code)},${escapeCsv(row.name)},${row.gross_sales},${row.items},${row.cogs}`,
+		);
+	}
+	lines.push("");
+	lines.push("Busy Hours,Weekday,Hour,Collected in range");
+	for (const row of data.busy_hours) {
+		lines.push(`Hour,${WEEKDAYS[row.weekday]},${row.hour},${row.collected}`);
+	}
+	lines.push("");
+	lines.push("Unpaid Orders,Days since drop-off,Orders,Amount");
+	for (const row of data.unpaid_orders) {
+		lines.push(`Unpaid,${UNPAID_LABELS[row.key]},${row.orders},${row.amount}`);
+	}
+	downloadCsv(
+		csvFilename("financial", data.from, data.to, data.store_id),
+		lines.join("\n"),
+	);
 };
 
 export const FinancialPanel = ({
@@ -84,822 +158,369 @@ export const FinancialPanel = ({
 		placeholderData: keepPreviousData,
 	});
 	const data = query.data;
-	const storeBreakdown = data?.store_breakdown ?? [];
-
-	const handleExport = () => {
-		if (!data) {
-			return;
-		}
-		const summary = data.summary.current;
-		const prev = data.summary.previous;
-		const lines: string[] = [];
-		lines.push("Financial totals,Metric,Current,Previous");
-		lines.push(`Totals,Gross sales,${summary.gross_sales},${prev.gross_sales}`);
-		lines.push(
-			`Totals,Services,${summary.services_gross_sales},${prev.services_gross_sales}`,
-		);
-		lines.push(
-			`Totals,Products,${summary.products_gross_sales},${prev.products_gross_sales}`,
-		);
-		lines.push(`Totals,Discount,${summary.discount},${prev.discount}`);
-		lines.push(`Totals,Collected,${summary.collected},${prev.collected}`);
-		lines.push(`Totals,Refunds,${summary.refunds},${prev.refunds}`);
-		lines.push(`Totals,Revenue,${summary.revenue},${prev.revenue}`);
-		lines.push(`Totals,COGS,${summary.cogs},${prev.cogs}`);
-		lines.push(
-			`Totals,Gross profit,${summary.gross_profit},${prev.gross_profit}`,
-		);
-		lines.push(`Totals,Margin,${summary.margin},${prev.margin}`);
-		lines.push("");
-		lines.push(
-			"Financial series,Period,Services,Products,Gross sales,Discount,Collected,Refunds,Revenue,COGS,Gross profit",
-		);
-		for (const row of data.series) {
-			lines.push(
-				`Series,${escapeCsv(row.bucket)},${row.services},${row.products},${row.gross_sales},${row.discount},${row.collected},${row.refunds},${row.revenue},${row.cogs},${row.gross_profit}`,
-			);
-		}
-		lines.push("");
-		const matrix = data.store_category_matrix;
-		lines.push(
-			"Store × Category,Store code,Store name,Category,Gross sales,Share within store,Store total",
-		);
-		for (const row of matrix.rows) {
-			for (const cell of row.cells) {
-				const col = matrix.columns.find(
-					(c) => c.category_id === cell.category_id,
-				);
-				lines.push(
-					`Store×Category,${escapeCsv(row.store_code)},${escapeCsv(row.store_name)},${escapeCsv(col?.label ?? "")},${cell.gross_sales},${cell.share},${row.total}`,
-				);
-			}
-		}
-		lines.push("");
-		lines.push("Store revenue,Store code,Store name,Revenue,Orders,Share");
-		for (const row of storeBreakdown) {
-			lines.push(
-				`Store,${escapeCsv(row.store_code)},${escapeCsv(row.store_name)},${row.revenue},${row.orders},${row.share}`,
-			);
-		}
-		downloadCsv(
-			csvFilename("financial", data.from, data.to, data.store_id),
-			lines.join("\n"),
-		);
-	};
+	const categoryTotal =
+		data?.category_treemap.reduce((sum, row) => sum + row.gross_sales, 0) ?? 0;
 
 	return (
 		<div className={cn("grid gap-6", staleFade(query.isPlaceholderData))}>
-			<KpiStrip data={data} storeId={storeId} />
-			<ExportButton disabled={!data} onClick={handleExport} />
-			<RevenueBreakdownCard data={data} />
-			<StoreCategoryMatrixCard data={data} />
-			<StoreLeaderboard rows={storeBreakdown} />
-		</div>
-	);
-};
-
-interface RevenueBreakdownCardProps {
-	data: FinancialReport | undefined;
-}
-
-const RevenueBreakdownCard = ({ data }: RevenueBreakdownCardProps) => {
-	const summary = data?.summary.current;
-	const deltas = data?.summary.deltas;
-
-	return (
-		<Card className="border-border/70 py-0">
-			<CardContent className="grid gap-5 p-4">
-				<SectionTitle title="Gross Sales → Gross Profit" />
-
-				<RevenueLineChart data={data} />
-
-				<StatStrip
-					title="Gross Sales → Collected → Revenue"
-					cells={[
-						{
-							label: "Gross sales",
-							value: summary?.gross_sales ?? 0,
-							delta: deltas?.gross_sales,
-						},
-						{
-							label: "Collected",
-							value: summary?.collected ?? 0,
-							delta: deltas?.collected,
-						},
-						{
-							label: "Revenue",
-							value: summary?.revenue ?? 0,
-							delta: deltas?.revenue,
-						},
-					]}
-				/>
-
-				<SankeyFlow summary={summary} />
-
-				<StatStrip
-					title="Deductions & Margin"
-					cells={[
-						{
-							label: "Discount",
-							value: summary?.discount ?? 0,
-							delta: deltas?.discount,
-							invertDelta: true,
-						},
-						{
-							label: "COGS",
-							value: summary?.cogs ?? 0,
-							delta: deltas?.cogs,
-							invertDelta: true,
-						},
-						{
-							label: "Refunds",
-							value: summary?.refunds ?? 0,
-							delta: deltas?.refunds,
-							invertDelta: true,
-						},
-						{
-							label: "Margin",
-							value: summary?.margin ?? 0,
-							delta: deltas?.margin,
-							isPercent: true,
-						},
-					]}
-				/>
-			</CardContent>
-		</Card>
-	);
-};
-
-interface RevenueLineChartProps {
-	data: FinancialReport | undefined;
-}
-
-// One Revenue line; Gross sales and Collected run so close to it that they
-// read better as numbers in the header.
-const RevenueLineChart = ({ data }: RevenueLineChartProps) => {
-	const series = data?.series ?? [];
-	const labels = series.map((row) => row.bucket);
-	const axis = rangeAxis(data?.granularity ?? "day");
-	const line = (key: keyof FinancialBucket, name: string, color: string) => ({
-		key,
-		name,
-		color,
-		values: series.map((row) => Number(row[key])),
-	});
-	const revenue = line("revenue", "Revenue", "var(--chart-1)");
-	const others = [
-		line("gross_sales", "Gross sales", CHART_OTHER_COLOR),
-		line("collected", "Collected", CHART_OTHER_COLOR),
-	];
-	return (
-		<ReportChart
-			kind="line"
-			labels={labels}
-			axis={axis}
-			groups={[[revenue]]}
-			formatAxis={compactNumber}
-			head={(index) => ({
-				label: index === null ? "Revenue" : axis.title(labels[index]),
-				value: compactMoney(valueAt(revenue, index)),
-				caption: index === null ? undefined : "Revenue",
-				// Not drawn, so no colour dot that would promise a line.
-				parts: headParts(others, index, compactMoney).map((part) => ({
-					...part,
-					color: undefined,
-				})),
-			})}
-		/>
-	);
-};
-
-interface SankeyFlowProps {
-	summary: SummaryCurrent | undefined;
-}
-
-const SankeyFlow = ({ summary }: SankeyFlowProps) => {
-	const sectionLabel = (
-		<SectionTitle
-			as="h3"
-			count="green retained · red deductions"
-			title="Flow"
-		/>
-	);
-
-	if (!summary || summary.gross_sales <= 0) {
-		return (
-			<div className="grid gap-2">
-				{sectionLabel}
-				<div className="flex h-60 items-center justify-center rounded-md border border-border/40 text-body text-muted-foreground">
-					No sales to flow.
-				</div>
-			</div>
-		);
-	}
-
-	const hasRevenue = summary.revenue > 0;
-	const revenuePositive = Math.max(summary.revenue, 0);
-	const grossProfitPositive = hasRevenue
-		? Math.max(summary.gross_profit, 0)
-		: 0;
-
-	const baseNodes: SankeyNodeDatum[] = [
-		{
-			name: "Gross sales",
-			displayValue: summary.gross_sales,
-			color: "var(--muted-foreground)",
-			labelTone: "var(--muted-foreground)",
-		},
-		{
-			name: "Discount",
-			displayValue: summary.discount,
-			color: "var(--destructive)",
-			labelTone: "var(--destructive)",
-		},
-		{
-			name: "Collected",
-			displayValue: summary.collected,
-			color: "var(--success)",
-			labelTone: "var(--success)",
-		},
-		{
-			name: "Refunds",
-			displayValue: summary.refunds,
-			color: "var(--destructive)",
-			labelTone: "var(--destructive)",
-		},
-	];
-	// Refunds at or above what was collected leave nothing to walk down further.
-	const revenueNodes: SankeyNodeDatum[] = hasRevenue
-		? [
-				...baseNodes,
-				{
-					name: "Revenue",
-					displayValue: revenuePositive,
-					color: "var(--success)",
-					labelTone: "var(--success)",
-				},
-				{
-					name: "COGS",
-					displayValue: summary.cogs,
-					color: "var(--destructive)",
-					labelTone: "var(--destructive)",
-				},
-				{
-					name: "Gross profit",
-					displayValue: grossProfitPositive,
-					color: "var(--success)",
-					labelTone: "var(--success)",
-				},
-			]
-		: baseNodes;
-	// Delivery fees reach Collected without passing through Gross sales (ADR-0029).
-	const nodes: SankeyNodeDatum[] =
-		summary.delivery_fees > 0
-			? [
-					...revenueNodes,
-					{
-						name: "Delivery fees",
-						displayValue: summary.delivery_fees,
-						color: "var(--muted-foreground)",
-						labelTone: "var(--muted-foreground)",
-					},
-				]
-			: revenueNodes;
-
-	const baseLinks: SankeyLinkDatum[] = [
-		{
-			source: 0,
-			target: 1,
-			value: summary.discount,
-			color: "var(--destructive)",
-			opacity: 0.28,
-		},
-		{
-			source: 0,
-			target: 2,
-			value: Math.max(summary.collected - summary.delivery_fees, 0),
-			color: "var(--success)",
-			opacity: 0.24,
-		},
-		{
-			source: revenueNodes.length,
-			target: 2,
-			value: summary.delivery_fees,
-			color: "var(--success)",
-			opacity: 0.24,
-		},
-		{
-			source: 2,
-			target: 3,
-			value: summary.refunds,
-			color: "var(--destructive)",
-			opacity: 0.28,
-		},
-	];
-	const linkCandidates: SankeyLinkDatum[] = hasRevenue
-		? [
-				...baseLinks,
-				{
-					source: 2,
-					target: 4,
-					value: revenuePositive,
-					color: "var(--success)",
-					opacity: 0.34,
-				},
-				{
-					source: 4,
-					target: 5,
-					value: summary.cogs,
-					color: "var(--destructive)",
-					opacity: 0.28,
-				},
-				{
-					source: 4,
-					target: 6,
-					value: grossProfitPositive,
-					color: "var(--success)",
-					opacity: 0.34,
-				},
-			]
-		: baseLinks;
-	const links = linkCandidates.filter((l) => l.value > 0);
-
-	if (links.length === 0) {
-		return (
-			<div className="grid gap-2">
-				{sectionLabel}
-				<div className="flex h-60 items-center justify-center rounded-md border border-border/40 text-body text-muted-foreground">
-					No sales to flow.
-				</div>
-			</div>
-		);
-	}
-
-	return (
-		<div className="grid gap-2">
-			{sectionLabel}
-			<div className="h-80 min-h-80 min-w-0 w-full overflow-visible">
-				<Suspense fallback={null}>
-					<SankeyChart links={links} nodes={nodes} />
-				</Suspense>
-			</div>
-		</div>
-	);
-};
-
-interface StatCell {
-	label: string;
-	value: number;
-	delta?: Pick<KpiDelta, "delta_pct"> | null;
-	invertDelta?: boolean;
-	isPercent?: boolean;
-}
-
-interface StatStripProps {
-	title: string;
-	cells: StatCell[];
-}
-
-const StatStrip = ({ title, cells }: StatStripProps) => (
-	<div className="grid gap-3">
-		<SectionTitle as="h3" title={title} />
-		<div
-			className={cn(
-				"grid grid-cols-2",
-				cells.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4",
-			)}
-		>
-			{cells.map((cell, idx) => (
-				<div
-					className={cn(
-						"grid gap-1 px-3 py-2 sm:px-4",
-						idx > 0 && "lg:border-l lg:border-border/40",
-					)}
-					key={cell.label}
-				>
-					<p className="text-subhead font-medium text-muted-foreground">
-						{cell.label}
-					</p>
-					<p className="break-all text-headline font-semibold tabular-nums">
-						{cell.isPercent
-							? percentFormatter.format(cell.value)
-							: compactMoney(cell.value)}
-					</p>
-					<DeltaLine
-						change={pctChange(cell.delta?.delta_pct)}
-						isLowerBetter={cell.invertDelta}
-					/>
-				</div>
-			))}
-		</div>
-	</div>
-);
-
-interface KpiStripProps {
-	data: FinancialReport | undefined;
-	storeId?: number;
-}
-
-// In the order the cells below are built.
-const TOTAL_LABELS = [
-	"Collected",
-	"Revenue",
-	"Margin",
-	"Orders",
-	"AOV",
-	"COGS",
-	"Refund rate",
-];
-
-interface KpiCellModel {
-	value: string;
-	change: number | null;
-	deltaAs?: DeltaAs;
-	isLowerBetter?: boolean;
-}
-
-const KpiStrip = ({ data, storeId }: KpiStripProps) => {
-	let cells: KpiCellModel[] = [];
-	if (data) {
-		const summary = data.summary.current;
-		const prev = data.summary.previous;
-		const deltas = data.summary.deltas;
-		const totalOrders = storeId
-			? (data.store_breakdown.find((r) => r.store_id === storeId)?.orders ?? 0)
-			: data.store_breakdown.reduce((s, r) => s + r.orders, 0);
-		const aov = safeRatio(summary.collected, totalOrders);
-		const refundRate = safeRatio(summary.refunds, summary.collected);
-		const prevRefundRate = safeRatio(prev.refunds, prev.collected);
-		cells = [
-			{
-				value: compactMoney(summary.collected),
-				change: pctChange(deltas.collected?.delta_pct),
-			},
-			{
-				value: compactMoney(summary.revenue),
-				change: pctChange(deltas.revenue?.delta_pct),
-			},
-			{
-				value: percentFormatter.format(summary.margin),
-				change: (summary.margin - prev.margin) * 100,
-				deltaAs: "points",
-			},
-			{
-				value: totalOrders.toLocaleString("id-ID"),
-				change: null,
-			},
-			{
-				value: compactMoney(aov),
-				change: null,
-			},
-			{
-				value: compactMoney(summary.cogs),
-				change: pctChange(deltas.cogs?.delta_pct),
-				isLowerBetter: true,
-			},
-			{
-				value: percentFormatter.format(refundRate),
-				change: (refundRate - prevRefundRate) * 100,
-				deltaAs: "points",
-				isLowerBetter: true,
-			},
-		];
-	}
-
-	const previousLabel = data
-		? formatPreviousRangeLabel(data.previous.from, data.previous.to)
-		: "";
-
-	// While the totals load, the same seven cells carry their labels and a bar
-	// for each number, so the charts below never move when the numbers land.
-
-	return (
-		<Card className="border-border/70 py-0">
-			<CardContent className="grid gap-0 p-0">
-				<div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
-					<SectionTitle
-						count={
-							data ? `vs ${previousLabel}` : <TextSkeleton className="w-32" />
-						}
-						title="Totals"
-					/>
-				</div>
-				<div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7">
-					{TOTAL_LABELS.map((label, idx) => {
-						const cell = cells[idx];
-						return (
-							<div
-								className={cn(
-									"grid gap-1 px-4 py-4",
-									idx > 0 && "xl:border-l xl:border-border/40",
-								)}
-								key={label}
-							>
-								<p className="text-subhead font-medium text-muted-foreground">
-									{label}
-								</p>
-								<p className="break-all text-headline font-semibold tabular-nums">
-									{cell ? cell.value : <TextSkeleton />}
-								</p>
-								{cell ? (
-									<DeltaLine
-										change={cell.change}
-										deltaAs={cell.deltaAs}
-										isLowerBetter={cell.isLowerBetter}
-									/>
-								) : (
-									<p className="text-subhead">
-										<TextSkeleton className="w-16" />
-									</p>
-								)}
-							</div>
-						);
-					})}
-				</div>
-			</CardContent>
-		</Card>
-	);
-};
-
-type StoreCategoryMatrix = FinancialReport["store_category_matrix"];
-type MatrixColumn = StoreCategoryMatrix["columns"][number];
-type MatrixRow = StoreCategoryMatrix["rows"][number];
-
-interface StoreCategoryMatrixCardProps {
-	data: FinancialReport | undefined;
-}
-
-type MatrixDisplayMode = "share" | "amount";
-
-const StoreCategoryMatrixCard = ({ data }: StoreCategoryMatrixCardProps) => {
-	const [mode, setMode] = useState<MatrixDisplayMode>("share");
-	const matrix = data?.store_category_matrix;
-	const columns = matrix?.columns ?? [];
-	const rows = matrix?.rows ?? [];
-	const omittedStores = matrix?.omitted_stores ?? 0;
-
-	const grandTotal = rows.reduce((s, r) => s + r.total, 0);
-	const columnTotals = columns.map((col) =>
-		rows.reduce((s, r) => {
-			const cell = r.cells.find((c) => c.category_id === col.category_id);
-			return s + (cell?.gross_sales ?? 0);
-		}, 0),
-	);
-
-	const isEmpty = rows.length === 0 || grandTotal === 0;
-
-	return (
-		<Card className="border-border/70 py-0">
-			<CardContent className="grid gap-3 p-4">
-				<div className="flex items-start justify-between gap-3">
-					<SectionTitle
-						count={`${mode === "share" ? "share within store" : "gross sales (Rp)"} · top ${columns.length} categor${columns.length === 1 ? "y" : "ies"}`}
-						title="Store × Category"
-					/>
-					<MatrixModeToggle mode={mode} onChange={setMode} />
-				</div>
-
-				{isEmpty ? (
-					<p className="text-body text-muted-foreground">
-						{"// no category gross sales in range"}
-					</p>
-				) : (
-					<div className="overflow-x-auto">
-						<table className="w-full border-separate border-spacing-0 text-subhead tabular-nums">
-							<thead>
-								<tr>
-									<th
-										className="sticky left-0 z-10 bg-card px-2 py-1.5 text-left text-subhead font-medium text-muted-foreground"
-										scope="col"
-									>
-										Store
-									</th>
-									{columns.map((col) => (
-										<MatrixHeaderCell column={col} key={col.category_id} />
-									))}
-									<th
-										className="border-l border-border/40 px-2 py-1.5 text-right text-subhead font-medium text-muted-foreground"
-										scope="col"
-									>
-										Total
-									</th>
-								</tr>
-							</thead>
-							<tbody>
-								{rows.map((row) => (
-									<MatrixStoreRow
-										columns={columns}
-										grandTotal={grandTotal}
-										key={row.store_id}
-										mode={mode}
-										row={row}
-									/>
-								))}
-							</tbody>
-							<tfoot>
-								<tr>
-									<th
-										className="sticky left-0 z-10 border-t border-border/40 bg-card px-2 py-2 text-left text-subhead font-medium text-muted-foreground"
-										scope="row"
-									>
-										Total
-									</th>
-									{columns.map((col, idx) => (
-										<td
-											className="border-t border-border/40 px-2 py-2 text-center font-semibold"
-											key={col.category_id}
-										>
-											{compactMoney(columnTotals[idx] ?? 0)}
-										</td>
-									))}
-									<td className="border-l border-t border-border/40 px-2 py-2 text-right font-semibold">
-										{compactMoney(grandTotal)}
-									</td>
-								</tr>
-							</tfoot>
-						</table>
+			<ExportButton disabled={!data} onClick={() => data && exportCsv(data)} />
+			<HeroCard data={data} />
+			<KpiGrid data={data} />
+			{data ? (
+				<div className={cn("grid gap-6", CONTENT_FADE)}>
+					<Highlights data={data} />
+					<MoneyWalkFlowCard summary={data.summary.current} />
+					<div className="grid gap-6 lg:grid-cols-2">
+						<WeekdayCard data={data} />
+						<BusyHoursCard
+							from={data.from}
+							rows={data.busy_hours}
+							to={data.to}
+						/>
 					</div>
-				)}
-
-				{omittedStores > 0 ? (
-					<p className="text-subhead font-medium text-muted-foreground">
-						{`(+${omittedStores} store${omittedStores === 1 ? "" : "s"} not shown)`}
-					</p>
-				) : null}
-			</CardContent>
-		</Card>
+					<div className="grid gap-6 lg:grid-cols-2">
+						<RankCard
+							rows={data.category_treemap.slice(0, 6).map((row) => ({
+								key: row.category_id,
+								name: row.category_name,
+								value: row.gross_sales,
+								notes: [shareNote(row.gross_sales, categoryTotal)],
+							}))}
+							title="Categories"
+						/>
+						<RankCard
+							rows={storeRankRows(data.store_breakdown)}
+							title="Stores"
+						/>
+					</div>
+					<StoreCategoryMixCard matrix={data.store_category_matrix} />
+					<div className="grid gap-6 lg:grid-cols-2">
+						<RankCard
+							rows={data.top_services.map((row) => ({
+								key: row.service_id,
+								code: row.code,
+								name: row.name,
+								value: row.gross_sales,
+								notes: [
+									shareNote(
+										row.gross_sales,
+										data.summary.current.services_gross_sales,
+									),
+									`${numberFormatter.format(row.items)} sold`,
+								],
+							}))}
+							title="Top Services"
+						/>
+						<UnpaidOrdersCard rows={data.unpaid_orders} />
+					</div>
+				</div>
+			) : null}
+		</div>
 	);
 };
 
-interface MatrixModeToggleProps {
-	mode: MatrixDisplayMode;
-	onChange: (mode: MatrixDisplayMode) => void;
+interface MaybeDataProps {
+	data: FinancialReport | undefined;
 }
 
-const MatrixModeToggle = ({ mode, onChange }: MatrixModeToggleProps) => (
-	<div className="inline-flex shrink-0 rounded-sm bg-secondary p-0.5 text-subhead">
-		<button
-			aria-pressed={mode === "share"}
-			className={cn(
-				"rounded-[calc(var(--radius-sm)-2px)] px-2.5 py-1",
-				mode === "share"
-					? "bg-primary text-primary-foreground"
-					: "text-muted-foreground hover:text-foreground",
-			)}
-			onClick={() => onChange("share")}
-			type="button"
-		>
-			%
-		</button>
-		<button
-			aria-pressed={mode === "amount"}
-			className={cn(
-				"rounded-[calc(var(--radius-sm)-2px)] px-2.5 py-1",
-				mode === "amount"
-					? "bg-primary text-primary-foreground"
-					: "text-muted-foreground hover:text-foreground",
-			)}
-			onClick={() => onChange("amount")}
-			type="button"
-		>
-			Rp
-		</button>
-	</div>
-);
+type HeroMetric = "revenue" | "collected" | "gross_sales" | "gross_profit";
 
-interface MatrixHeaderCellProps {
-	column: MatrixColumn;
-}
-
-const MatrixHeaderCell = ({ column }: MatrixHeaderCellProps) => (
-	<th
-		className="min-w-28 px-3 py-2 text-center align-bottom text-subhead font-medium text-muted-foreground"
-		scope="col"
-		title={column.label}
-	>
-		<span className="block max-w-36 whitespace-normal break-words leading-tight">
-			{column.label}
-		</span>
-	</th>
-);
-
-interface MatrixStoreRowProps {
-	row: MatrixRow;
-	columns: MatrixColumn[];
-	grandTotal: number;
-	mode: MatrixDisplayMode;
-}
-
-const MatrixStoreRow = ({
-	row,
-	columns,
-	grandTotal,
-	mode,
-}: MatrixStoreRowProps) => (
-	<tr className="group">
-		<th
-			className="sticky left-0 z-10 border-t border-border/40 bg-card px-2 py-2 text-left align-top group-hover:bg-muted/40"
-			scope="row"
-		>
-			<span className="block tabular-nums">{row.store_code}</span>
-			<span className="block max-w-35 truncate text-foreground">
-				{row.store_name}
-			</span>
-		</th>
-		{columns.map((col) => {
-			const cell = row.cells.find((c) => c.category_id === col.category_id);
-			return (
-				<MatrixCell
-					storeTotal={row.total}
-					cellGrossSales={cell?.gross_sales ?? 0}
-					cellShare={cell?.share ?? 0}
-					columnLabel={col.label}
-					grandTotal={grandTotal}
-					key={col.category_id}
-					mode={mode}
-					storeCode={row.store_code}
-					storeName={row.store_name}
-				/>
-			);
-		})}
-		<td className="border-l border-t border-border/40 px-2 py-2 text-right font-semibold group-hover:bg-muted/40">
-			{compactMoney(row.total)}
-		</td>
-	</tr>
-);
-
-interface MatrixCellProps {
-	cellShare: number;
-	cellGrossSales: number;
-	storeTotal: number;
-	grandTotal: number;
-	columnLabel: string;
-	storeCode: string;
-	storeName: string;
-	mode: MatrixDisplayMode;
-}
-
-const MatrixCell = ({
-	cellShare,
-	cellGrossSales,
-	storeTotal,
-	grandTotal,
-	columnLabel,
-	storeCode,
-	storeName,
-	mode,
-}: MatrixCellProps) => {
-	const opacity = cellGrossSales === 0 ? 0 : Math.max(0.05, cellShare ** 0.7);
-	const isInverted = opacity > 0.35;
-	const storeShare = storeTotal > 0 ? cellShare : 0;
-	const grandShare = grandTotal > 0 ? cellGrossSales / grandTotal : 0;
-	const tooltip = `${storeCode} ${storeName} · ${columnLabel}\n${formatMoney(cellGrossSales)} ·${fixedPercentFormatter.format(storeShare)} of store ·${fixedPercentFormatter.format(grandShare)} of total`;
-
-	const display =
-		cellGrossSales === 0
-			? "·"
-			: mode === "share"
-				? `${Math.round(cellShare * 100)}%`
-				: compactMoney(cellGrossSales);
-
-	return (
-		<td
-			className="relative border-t border-border/40 px-2 py-2 text-center align-middle"
-			title={tooltip}
-		>
-			<div
-				aria-hidden
-				className="absolute inset-0"
-				style={{ backgroundColor: "var(--primary)", opacity }}
-			/>
-			<span
-				className={cn(
-					"relative",
-					isInverted ? "text-primary-foreground" : "text-foreground",
-					cellGrossSales === 0 && "text-muted-foreground",
-				)}
-			>
-				{display}
-			</span>
-		</td>
-	);
+const HERO_NAMES: Record<HeroMetric, string> = {
+	revenue: "Revenue",
+	collected: "Collected",
+	gross_sales: "Gross sales",
+	gross_profit: "Gross profit",
 };
 
-type StoreBreakdownRow = FinancialReport["store_breakdown"][number];
+const previousCaption = (data: FinancialReport, metric: HeroMetric) => {
+	const before = `${compactMoney(data.summary.previous[metric])} in ${rangeLabel(data.previous.from, data.previous.to)}`;
+	const delta = data.summary.deltas[metric];
+	const change = delta ? kpiDeltaChange(delta, "percent") : null;
+	return change === null
+		? before
+		: `${before} · ${formatKpiDeltaChange(change, "percent")}`;
+};
 
-interface StoreLeaderboardProps {
-	rows: StoreBreakdownRow[];
-}
-
-const StoreLeaderboard = ({ rows }: StoreLeaderboardProps) => {
-	if (rows.length === 0) {
-		return null;
-	}
+// One chart, four measures: the owner flips the measure instead of reading
+// the same totals again in strips under the chart.
+const HeroCard = ({ data }: MaybeDataProps) => {
+	const [metric, setMetric] = useState<HeroMetric>("revenue");
+	const rows = data?.series ?? [];
+	const labels = rows.map((row) => row.bucket);
+	const axis = rangeAxis(data?.granularity ?? "day");
+	const series: ChartSeries = {
+		key: metric,
+		name: HERO_NAMES[metric],
+		color: "var(--chart-1)",
+		values: rows.map((row) => row[metric]),
+	};
 	return (
 		<Card className="border-border/70 py-0">
 			<CardContent className="grid gap-4 p-4">
-				<SectionTitle title="Store Leaderboard" />
-				<StoreRevenueRows rows={rows} />
+				<Tabs
+					onValueChange={(value) => setMetric(value as HeroMetric)}
+					value={metric}
+				>
+					<TabsList aria-label="Measure" className="w-full sm:w-fit">
+						<TabsTrigger value="revenue">Revenue</TabsTrigger>
+						<TabsTrigger value="collected">Collected</TabsTrigger>
+						<TabsTrigger value="gross_sales">Gross Sales</TabsTrigger>
+						<TabsTrigger value="gross_profit">Profit</TabsTrigger>
+					</TabsList>
+				</Tabs>
+				<ReportChart
+					axis={axis}
+					formatAxis={compactNumber}
+					groups={[[series]]}
+					head={(index) => ({
+						label:
+							index === null ? HERO_NAMES[metric] : axis.title(labels[index]),
+						value: compactMoney(valueAt(series, index)),
+						caption:
+							index === null && data
+								? previousCaption(data, metric)
+								: undefined,
+					})}
+					kind="line"
+					labels={labels}
+				/>
+			</CardContent>
+		</Card>
+	);
+};
+
+const KpiGrid = ({ data }: MaybeDataProps) => {
+	const now = data?.summary.current;
+	const deltas = data?.summary.deltas;
+	const orders =
+		data?.store_breakdown.reduce((sum, row) => sum + row.orders, 0) ?? 0;
+	const days = data
+		? Math.max(dayjs(data.to).diff(dayjs(data.from), "day") + 1, 1)
+		: 1;
+	return (
+		<KpiRow
+			className="sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6"
+			isPending={!data}
+		>
+			<KpiCard
+				comparisonLabel=""
+				delta={deltas?.margin ?? null}
+				deltaAs="points"
+				label="Margin"
+				value={percentFormatter.format(now?.margin ?? 0)}
+			/>
+			<KpiCard
+				delta={null}
+				label="Orders"
+				value={numberFormatter.format(orders)}
+			/>
+			{/* Revenue per Order, as on each Store's row below. */}
+			<KpiCard
+				delta={null}
+				label="AOV"
+				value={compactMoney(ratio(now?.revenue ?? 0, orders))}
+			/>
+			{/* The previous period is the same length, so Revenue's change is the
+			    per-day change too. */}
+			<KpiCard
+				comparisonLabel=""
+				delta={deltas?.revenue ?? null}
+				label="Per day"
+				value={compactMoney((now?.revenue ?? 0) / days)}
+			/>
+			<KpiCard
+				comparisonLabel=""
+				delta={deltas?.discount_rate ?? null}
+				deltaAs="points"
+				isLowerBetter
+				label="Discount rate"
+				value={percentFormatter.format(now?.discount_rate ?? 0)}
+			/>
+			<KpiCard
+				comparisonLabel=""
+				delta={deltas?.refund_rate ?? null}
+				deltaAs="points"
+				isLowerBetter
+				label="Refund rate"
+				value={percentFormatter.format(now?.refund_rate ?? 0)}
+			/>
+		</KpiRow>
+	);
+};
+
+// The lines an owner would otherwise work out from the chart: the best and
+// slowest stretch, how many brought in nothing, and where the month is heading.
+const Highlights = ({ data }: DataProps) => {
+	const earning = data.series.filter((row) => row.revenue !== 0);
+	if (earning.length < 2) {
+		return null;
+	}
+	const axis = rangeAxis(data.granularity);
+	const best = earning.reduce((a, b) => (b.revenue > a.revenue ? b : a));
+	const slowest = earning.reduce((a, b) => (b.revenue < a.revenue ? b : a));
+	const to = dayjs(data.to);
+	// Only while the month is still running: a past 1–15 Oct has a real total.
+	const thisMonth = getPreset("thisMonth");
+	const isMonthToDate =
+		data.from === thisMonth.from &&
+		data.to === thisMonth.to &&
+		to.date() < to.daysInMonth();
+	const lines = [
+		{
+			label: "Best",
+			value: `${axis.title(best.bucket)} · ${compactMoney(best.revenue)}`,
+		},
+		{
+			label: "Slowest",
+			value: `${axis.title(slowest.bucket)} · ${compactMoney(slowest.revenue)}`,
+		},
+		{
+			label: `Quiet ${data.granularity}s`,
+			value: `${data.series.length - earning.length}/${data.series.length}`,
+		},
+		...(isMonthToDate
+			? [
+					{
+						label: `On pace for ${to.format("MMMM")}`,
+						value: compactMoney(
+							(data.summary.current.revenue / to.date()) * to.daysInMonth(),
+						),
+					},
+				]
+			: []),
+	];
+	return (
+		<section className="grid gap-2.5">
+			<SectionTitle title="Highlights" />
+			<dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-border/70 border-y py-3 lg:flex">
+				{lines.map((line) => (
+					<div className="grid gap-0.5 lg:flex-1" key={line.label}>
+						<dt className="text-subhead text-muted-foreground">{line.label}</dt>
+						<dd className="text-body font-medium tabular-nums">{line.value}</dd>
+					</div>
+				))}
+			</dl>
+		</section>
+	);
+};
+
+const WEEKDAY_AXIS: ChartAxis = {
+	tick: (label) => label,
+	title: (label) => `${label} average`,
+};
+
+// Which weekdays carry the week: a staffing question the daily line hides.
+const WeekdayCard = ({ data }: DataProps) => {
+	const counts = weekdayCounts(data.from, data.to);
+	const totals = WEEKDAYS.map(() => 0);
+	for (const row of data.series) {
+		totals[mondayFirst(row.bucket)] += row.revenue;
+	}
+	const values = totals.map((total, index) => ratio(total, counts[index]));
+	const series: ChartSeries = {
+		key: "weekday",
+		name: "Revenue",
+		color: "var(--chart-1)",
+		values,
+	};
+	const average = ratio(data.summary.current.revenue, data.series.length);
+	return (
+		<Card className="border-border/70 py-0">
+			<CardContent className="grid content-start gap-4 p-4">
+				<SectionTitle title="By Weekday" />
+				{data.granularity === "day" ? (
+					<ReportChart
+						axis={WEEKDAY_AXIS}
+						formatAxis={compactNumber}
+						groups={[[series]]}
+						head={(index) => ({
+							label:
+								index === null
+									? "Average day"
+									: WEEKDAY_AXIS.title(WEEKDAYS[index]),
+							value: compactMoney(index === null ? average : values[index]),
+							caption: index === null ? undefined : "Revenue",
+						})}
+						labels={WEEKDAYS}
+					/>
+				) : (
+					<EmptyState icon={Analytics01Icon}>
+						Shown for daily ranges.
+					</EmptyState>
+				)}
+			</CardContent>
+		</Card>
+	);
+};
+
+interface RankCardProps {
+	title: string;
+	rows: RankRow[];
+}
+
+const RankCard = ({ title, rows }: RankCardProps) => (
+	<Card className="border-border/70 py-0">
+		<CardContent className="grid content-start gap-4 p-4">
+			<SectionTitle title={title} />
+			{rows.length === 0 ? (
+				<EmptyState icon={Analytics01Icon}>No data in range.</EmptyState>
+			) : (
+				<RankRows rows={rows} />
+			)}
+		</CardContent>
+	</Card>
+);
+
+const UNPAID_LABELS: Record<
+	FinancialReport["unpaid_orders"][number]["key"],
+	string
+> = {
+	week: "0–7 days",
+	month: "8–30 days",
+	older: "Over 30 days",
+};
+
+interface UnpaidOrdersCardProps {
+	rows: FinancialReport["unpaid_orders"];
+}
+
+// Work the shop has taken in but not been paid for, as of now. The oldest
+// group is red: past about 30 days the money is rarely collected.
+const UnpaidOrdersCard = ({ rows }: UnpaidOrdersCardProps) => {
+	const total = rows.reduce((sum, row) => sum + row.amount, 0);
+	const orders = rows.reduce((sum, row) => sum + row.orders, 0);
+	return (
+		<Card className="border-border/70 py-0">
+			<CardContent className="grid content-start gap-4 p-4">
+				<SectionTitle count="now" title="Unpaid Orders" />
+				<div className="grid gap-0.5">
+					<p className="text-title-1 tabular-nums">{compactMoney(total)}</p>
+					<p className="text-subhead text-muted-foreground tabular-nums">
+						{pluralCount(orders, "Order")}, by days since drop-off
+					</p>
+				</div>
+				<ul className="grid gap-3">
+					{rows.map((row) => (
+						<li className="grid gap-1" key={row.key}>
+							<div className="flex items-center justify-between gap-2 text-body tabular-nums">
+								<span className="font-medium">{UNPAID_LABELS[row.key]}</span>
+								<span>{compactMoney(row.amount)}</span>
+							</div>
+							<div className="h-1.5 overflow-hidden rounded-full bg-soft-bar-track">
+								<div
+									className={cn(
+										"h-full rounded-full",
+										row.key === "older" ? "bg-destructive" : "bg-primary",
+									)}
+									style={{ width: `${ratio(row.amount, total) * 100}%` }}
+								/>
+							</div>
+							<p className="text-subhead tabular-nums">
+								{pluralCount(row.orders, "Order")}
+							</p>
+						</li>
+					))}
+				</ul>
 			</CardContent>
 		</Card>
 	);

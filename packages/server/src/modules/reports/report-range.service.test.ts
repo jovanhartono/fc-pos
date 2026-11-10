@@ -24,6 +24,9 @@ type Period = "before" | "now";
 const noRows = (): Record<Period, Rows> => ({ now: [], before: [] });
 
 const answers = {
+  busyHours: noRows(),
+  topServices: noRows(),
+  unpaid: noRows(),
   storeCategory: noRows(),
   storeCollected: noRows(),
   storeRefunds: noRows(),
@@ -32,23 +35,24 @@ const answers = {
   discount: noRows(),
   paymentMix: noRows(),
   products: noRows(),
-  productsCogs: noRows(),
   refunds: noRows(),
   services: noRows(),
-  servicesCogs: noRows(),
 };
 
 // The summed column is what tells two otherwise identical queries apart, which
 // is exactly the distinction a repository dedupe could lose.
 const figureOf = (sql: string): keyof typeof answers => {
+  if (sql.includes("ISODOW")) {
+    return "busyHours";
+  }
+  if (sql.includes('"services"."code"')) {
+    return "topServices";
+  }
+  if (sql.includes('"orders"."payment_status"')) {
+    return "unpaid";
+  }
   if (sql.includes('SUM("orders_products"."subtotal")')) {
     return "products";
-  }
-  if (sql.includes('SUM("orders_products"."cogs_snapshot")')) {
-    return "productsCogs";
-  }
-  if (sql.includes('SUM("orders_services"."cogs_snapshot")')) {
-    return "servicesCogs";
   }
   if (sql.includes('SUM("order_refunds"."total_amount")')) {
     // The daily refund bars and the per-store refund rows hand back the same money
@@ -86,7 +90,9 @@ mock.module("@/db", () => ({
     const figure = sql.includes('"payment_methods"')
       ? "paymentMix"
       : figureOf(sql);
-    const period: Period = params[0] === NOW_START ? "now" : "before";
+    // The unpaid snapshot has no stretch, so it is always "now".
+    const period: Period =
+      figure === "unpaid" || params[0] === NOW_START ? "now" : "before";
     return Promise.resolve({ rows: answers[figure][period] });
   }),
 }));
@@ -99,6 +105,13 @@ const financial = () => getFinancialReport({ from: FROM, to: TO });
 
 const takings = (bucket: string, amount: number) => [bucket, String(amount)];
 
+// A line-table row: what was charged, then what the work cost the shop.
+const sales = (bucket: string, grossSales: number, cogs: number) => [
+  bucket,
+  String(grossSales),
+  String(cogs),
+];
+
 beforeEach(() => {
   sent.length = 0;
   for (const key of Object.keys(answers) as (keyof typeof answers)[]) {
@@ -110,15 +123,10 @@ beforeEach(() => {
   // Sunday: shut — Postgres returns no row for it at all.
   // Monday: services only, and Rp75.000 handed back for Saturday's ruined shirt.
   answers.services.now = [
-    takings("2026-08-01", 500_000),
-    takings("2026-08-03", 300_000),
+    sales("2026-08-01", 500_000, 150_000),
+    sales("2026-08-03", 300_000, 90_000),
   ];
-  answers.products.now = [takings("2026-08-01", 120_000)];
-  answers.servicesCogs.now = [
-    takings("2026-08-01", 150_000),
-    takings("2026-08-03", 90_000),
-  ];
-  answers.productsCogs.now = [takings("2026-08-01", 60_000)];
+  answers.products.now = [sales("2026-08-01", 120_000, 60_000)];
   answers.discount.now = [takings("2026-08-01", 20_000)];
   // Saturday's takings include a Rp25.000 Delivery fee.
   answers.collected.now = [
@@ -127,10 +135,8 @@ beforeEach(() => {
   ];
   answers.refunds.now = [["2026-08-03", "75000", 1]];
 
-  answers.services.before = [takings("2026-07-29", 700_000)];
-  answers.products.before = [takings("2026-07-29", 100_000)];
-  answers.servicesCogs.before = [takings("2026-07-29", 200_000)];
-  answers.productsCogs.before = [takings("2026-07-29", 50_000)];
+  answers.services.before = [sales("2026-07-29", 700_000, 200_000)];
+  answers.products.before = [sales("2026-07-29", 100_000, 50_000)];
   answers.collected.before = [[...takings("2026-07-29", 800_000), "0"]];
 });
 
@@ -201,7 +207,7 @@ describe("the day-by-day money chart", () => {
     // New Year is how this happens for real.
     answers.services.now = [
       ...answers.services.now,
-      takings("2026-08-04", 999_000),
+      sales("2026-08-04", 999_000, 0),
     ];
 
     const report = await financial();
@@ -222,9 +228,11 @@ describe("the headline figures for the whole stretch", () => {
       products_gross_sales: 120_000,
       gross_sales: 920_000,
       discount: 20_000,
+      discount_rate: 20_000 / 920_000,
       collected: 900_000,
       delivery_fees: 25_000,
       refunds: 75_000,
+      refund_rate: 75_000 / 900_000,
       revenue: 825_000,
       cogs: 300_000,
       gross_profit: 525_000,
@@ -235,10 +243,8 @@ describe("the headline figures for the whole stretch", () => {
   it("reports no margin on a giveaway stretch instead of dividing by nothing", async () => {
     // Grand-opening weekend: everything charged was discounted away, so the
     // counter took nothing. A margin of 0 beats NaN on the card.
-    answers.services.now = [takings("2026-08-01", 100_000)];
+    answers.services.now = [sales("2026-08-01", 100_000, 0)];
     answers.products.now = [];
-    answers.servicesCogs.now = [];
-    answers.productsCogs.now = [];
     answers.discount.now = [takings("2026-08-01", 100_000)];
     answers.collected.now = [];
     answers.refunds.now = [];
@@ -417,6 +423,43 @@ describe("which services earn the money", () => {
       category_name: "Cuci Setrika",
       gross_sales: 400_000,
     });
+  });
+});
+
+describe("when the money came in and who still owes it", () => {
+  it("hands back each busy hour and the top Services as numbers", async () => {
+    answers.busyHours.now = [[5, 10, "450000"]];
+    answers.topServices.now = [[4, "DCL", "Deep Clean", "300000", 6, "90000"]];
+
+    const report = await financial();
+
+    expect(report.busy_hours).toEqual([
+      { weekday: 5, hour: 10, collected: 450_000 },
+    ]);
+    expect(report.top_services).toEqual([
+      {
+        service_id: 4,
+        code: "DCL",
+        name: "Deep Clean",
+        gross_sales: 300_000,
+        items: 6,
+        cogs: 90_000,
+      },
+    ]);
+  });
+
+  it("always shows all three unpaid ages, youngest first", async () => {
+    // Only a two-month-old Order is still owed; the empty ages still need a
+    // Rp0 row so the panel keeps its shape.
+    answers.unpaid.now = [["older", 1, "185000"]];
+
+    const report = await financial();
+
+    expect(report.unpaid_orders).toEqual([
+      { key: "week", orders: 0, amount: 0 },
+      { key: "month", orders: 0, amount: 0 },
+      { key: "older", orders: 1, amount: 185_000 },
+    ]);
   });
 });
 

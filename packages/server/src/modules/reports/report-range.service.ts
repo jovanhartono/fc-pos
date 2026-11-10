@@ -12,6 +12,7 @@ import type {
 import {
   findCumulativeCustomersBefore,
   findRepeatCustomerStats,
+  listBusyHourRows,
   listCampaignEffectivenessRows,
   listCategoryGrossSalesSeries,
   listCollectedSeries,
@@ -23,22 +24,23 @@ import {
   listOrdersOutSeries,
   listPaymentMixSeries,
   listProcessedLineStarts,
-  listProductsCogsSeries,
-  listProductsGrossSalesSeries,
+  listProductsSeries,
   listQcChecksOfCleaner,
   listRefundAmountSeries,
   listReturningCustomerOrdersSeries,
-  listServicesCogsSeries,
-  listServicesGrossSalesSeries,
+  listServicesSeries,
   listStoreCategoryGrossSalesRows,
   listStoreCollectedRows,
   listStoreNames,
   listStoreRefundRows,
   listTopCustomers,
+  listTopServiceRows,
+  listUnpaidOrderAgeRows,
   listUserNames,
   listWorkerActivity,
   listWorkerLiveActivity,
   listWorkerSummaryActivity,
+  UNPAID_AGE_KEYS,
 } from "@/modules/reports/report-range.repository";
 import {
   daysBetween,
@@ -123,10 +125,12 @@ interface FinancialSummary {
   collected: number;
   delivery_fees: number;
   discount: number;
+  discount_rate: number;
   gross_profit: number;
   gross_sales: number;
   margin: number;
   products_gross_sales: number;
+  refund_rate: number;
   refunds: number;
   revenue: number;
   services_gross_sales: number;
@@ -141,32 +145,14 @@ async function financialSummaryFor({
   storeId?: number;
   granularity: Granularity;
 }) {
-  const [
-    services,
-    products,
-    servicesCogs,
-    productsCogs,
-    discount,
-    collected,
-    refunds,
-  ] = await Promise.all([
-    listServicesGrossSalesSeries({ range, storeId, granularity }),
-    listProductsGrossSalesSeries({ range, storeId, granularity }),
-    listServicesCogsSeries({ range, storeId, granularity }),
-    listProductsCogsSeries({ range, storeId, granularity }),
+  const [services, products, discount, collected, refunds] = await Promise.all([
+    listServicesSeries({ range, storeId, granularity }),
+    listProductsSeries({ range, storeId, granularity }),
     listOrderDiscountSeries({ range, storeId, granularity }),
     listCollectedSeries({ range, storeId, granularity }),
     listRefundAmountSeries({ range, storeId, granularity }),
   ]);
-  return {
-    services,
-    products,
-    servicesCogs,
-    productsCogs,
-    discount,
-    collected,
-    refunds,
-  };
+  return { services, products, discount, collected, refunds };
 }
 
 // A store that took nothing this stretch but handed money back still needs a
@@ -204,6 +190,9 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     storeCollected,
     storeRefunds,
     storeCategoryRows,
+    busyHours,
+    topServices,
+    unpaidRows,
   ] = await Promise.all([
     financialSummaryFor({ range, storeId, granularity: ctx.granularity }),
     financialSummaryFor({
@@ -219,12 +208,22 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     listStoreCollectedRows({ range, storeId }),
     listStoreRefundRows({ range, storeId }),
     listStoreCategoryGrossSalesRows({ range, storeId }),
+    listBusyHourRows({ range, storeId }),
+    listTopServiceRows({ range, storeId }),
+    listUnpaidOrderAgeRows({ storeId }),
   ]);
+
+  const unpaidOrders = UNPAID_AGE_KEYS.map(
+    (key) =>
+      unpaidRows.find((row) => row.key === key) ?? {
+        key,
+        orders: 0,
+        amount: 0,
+      }
+  );
 
   const servicesMap = indexBy(current.services);
   const productsMap = indexBy(current.products);
-  const servicesCogsMap = indexBy(current.servicesCogs);
-  const productsCogsMap = indexBy(current.productsCogs);
   const discountMap = indexBy(current.discount);
   const collectedMap = indexBy(current.collected);
   const refundsMap = indexBy(current.refunds);
@@ -232,8 +231,8 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
   const series = ctx.buckets.map((bucket) => {
     const s = servicesMap.get(bucket)?.gross_sales ?? 0;
     const p = productsMap.get(bucket)?.gross_sales ?? 0;
-    const sc = servicesCogsMap.get(bucket)?.cogs ?? 0;
-    const pc = productsCogsMap.get(bucket)?.cogs ?? 0;
+    const sc = servicesMap.get(bucket)?.cogs ?? 0;
+    const pc = productsMap.get(bucket)?.cogs ?? 0;
     const d = discountMap.get(bucket)?.discount ?? 0;
     const c = collectedMap.get(bucket)?.collected ?? 0;
     const r = refundsMap.get(bucket)?.amount ?? 0;
@@ -444,6 +443,9 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
       rows: storeCategoryRowsOut,
       omitted_stores: omittedStoreCount,
     },
+    busy_hours: busyHours,
+    top_services: topServices,
+    unpaid_orders: unpaidOrders,
     summary: {
       current: summary,
       previous: prevSummary,
@@ -453,10 +455,8 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
 }
 
 function summariseFinancial(raw: {
-  services: { gross_sales: number }[];
-  products: { gross_sales: number }[];
-  servicesCogs: { cogs: number }[];
-  productsCogs: { cogs: number }[];
+  services: { gross_sales: number; cogs: number }[];
+  products: { gross_sales: number; cogs: number }[];
   discount: { discount: number }[];
   collected: { collected: number; delivery_fees: number }[];
   refunds: { amount: number }[];
@@ -470,22 +470,25 @@ function summariseFinancial(raw: {
     0
   );
   const cogs =
-    raw.servicesCogs.reduce((s, r) => s + r.cogs, 0) +
-    raw.productsCogs.reduce((s, r) => s + r.cogs, 0);
+    raw.services.reduce((s, r) => s + r.cogs, 0) +
+    raw.products.reduce((s, r) => s + r.cogs, 0);
   const discount = raw.discount.reduce((s, r) => s + r.discount, 0);
   const collected = raw.collected.reduce((s, r) => s + r.collected, 0);
   const deliveryFees = raw.collected.reduce((s, r) => s + r.delivery_fees, 0);
   const refunds = raw.refunds.reduce((s, r) => s + r.amount, 0);
   const kept = revenue(collected, refunds);
   const grossProfit = kept - cogs;
+  const grossSalesTotal = servicesGrossSales + productsGrossSales;
   return {
-    gross_sales: servicesGrossSales + productsGrossSales,
+    gross_sales: grossSalesTotal,
     services_gross_sales: servicesGrossSales,
     products_gross_sales: productsGrossSales,
     discount,
+    discount_rate: grossSalesTotal > 0 ? discount / grossSalesTotal : 0,
     collected,
     delivery_fees: deliveryFees,
     refunds,
+    refund_rate: collected > 0 ? refunds / collected : 0,
     revenue: kept,
     cogs,
     gross_profit: grossProfit,
